@@ -6,7 +6,7 @@ An autonomous, multi-phase AI-driven engineering pipeline powered by Google Clou
 
 ## 1. Architecture Overview
 
-The pipeline decomposes rebase automation into five sequential, object-oriented self-healing phases built upon an extensible `BaseResolver` architecture and a decoupled Client–Server design:
+The pipeline decomposes rebase automation into five self-healing phases built upon an extensible `BaseResolver` architecture:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -18,41 +18,25 @@ The pipeline decomposes rebase automation into five sequential, object-oriented 
 │   - Multi-turn tool inspection (Read, Find, Grep, Git Show)                 │
 │                                      │                                      │
 │                                      v                                      │
-│ Phase 2: Toolchain & Dependency Sync (gclient_sync.py -> GClientSyncResolver)│
+│ Phase 2: Toolchain/Dependency Sync (gclient_sync.py -> GClientSyncResolver) │
 │   - Synchronizes Clang, Rust, NDK, node_modules, and CIPD packages          │
 │   - Auto-recovers with --force --reset and heals DEPS syntax errors         │
 │                                      │                                      │
 │                                      v                                      │
 │ Phase 3: GN Generation & Header Verification (gn_gen.py -> GNGenResolver)   │
 │   - Executes `cobalt/build/gn.py -p <platform> -C <build_type> --check`     │
-│   - Deep 32KB trace parsing, target bridge resolution, import repair        │
 │   - Callback hook: Auto-reruns Phase 2 sync if DEPS is modified             │
 │                                      │                                      │
 │                                      v                                      │
 │ Phase 4: Compiler Self-Healing Loop (autoninja.py -> AutoninjaResolver)     │
 │   - Invokes `autoninja -k 1 -C out/<dir> <target>`                          │
-│   - Third-party source protection guardrail (routes fixes to BUILD.gn)      │
 │   - Generates surgical SEARCH/REPLACE code patches via Vertex AI            │
-│   - Escalates to Pro model (gemini-2.5-pro) on repeat diagnostics           │
+│   - Escalates expert role on repeat diagnostics                             │
 │   - Callback hooks: Auto-reruns Phase 2 on DEPS and Phase 3 on build files  │
 │                                      │                                      │
 │                                      v                                      │
-│ Phase 5: Comprehensive Report Generation (M140_rebase_summary.md)           │
+│ Phase 5: Comprehensive Report Generation (e.g. M140_rebase_summary.md)      │
 │   - Generates final execution metrics and verification summary              │
-└──────────────────────────────────────┬──────────────────────────────────────┘
-                                       │
-                ReasoningEngineClient (engine_client.py)
-                - Automatic Connection Retries
-                - Exponential Backoff for 429/503/Transient Errors
-                                       │
-                                       ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ HOSTED VERTEX AI REASONING ENGINE (reasoning_engine/engine.py in GCP)       │
-│                                                                             │
-│ - CobaltReasoningEngine service running in Vertex AI Container              │
-│ - Server-Side GCS Knowledge Memory Bank (gs://.../knowledge_bank.json)      │
-│ - Declarative Domain Skills (skills/*.md)                                   │
-│ - Gemini 2.5 Flash / Pro LLM Execution via google.genai SDK                 │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -63,7 +47,11 @@ The pipeline decomposes rebase automation into five sequential, object-oriented 
 ```
 .github/rebase/
 │
-├── base_resolver.py       # [CORE] Abstract base class (loop, tools, guards, patch engine)
+├── base_resolver.py       # [CORE] BaseResolver: shared self-healing loop & change records
+├── diagnostics.py         # [CORE] Diagnostic dataclasses parsed from failed commands
+├── tools.py               # [CORE] TOOL_* investigation directives (read, grep, git, gh)
+├── repo_guards.py         # [CORE] Repo path confinement & patch-target validation
+├── patching.py            # [CORE] SEARCH/REPLACE, DELETE & unified-diff patch engine
 ├── engine_client.py       # [CLIENT] ReasoningEngineClient proxy with retries & backoff
 ├── conflicts.py           # [PHASE 1] ConflictResolver library (DEPS & source conflicts)
 ├── gclient_sync.py        # [PHASE 2] GClientSyncResolver library (toolchain sync)
@@ -71,17 +59,22 @@ The pipeline decomposes rebase automation into five sequential, object-oriented 
 ├── autoninja.py           # [PHASE 4] AutoninjaResolver library (compiler feedback loop)
 ├── run_rebase_pipeline.py # [ORCHESTRATOR] Clean orchestrator managing Phase 1-5 execution
 ├── token_usage.py         # Token tracking and cost metrics
-├── test_rebase_suite.py   # Comprehensive unit test suite (26 unit tests)
+├── test_rebase_suite.py   # Unit test suite (python3 -m unittest)
+├── requirements.in        # Top-level Python dependencies
+├── requirements.txt       # Hash-pinned lock file (pip --require-hashes)
 │
 └── reasoning_engine/      # [DEPLOYED TO VERTEX AI]
-    ├── engine.py          # CobaltReasoningEngine service & native GCS memory bank
+    ├── engine.py          # CobaltReasoningEngine service (prompts & model calls)
     ├── deploy.py          # Vertex AI deployment & lifecycle CLI
     ├── chat.py            # Interactive terminal debugger
+    ├── requirements.txt   # Packages installed into the hosted engine
     └── skills/            # Declarative domain instructions (Markdown)
-        ├── cobalt_rebase.md       # Master guidelines & behavior preservation
-        ├── compiler_healing.md    # Compiler & linker break repair heuristics
-        ├── gn_healing.md          # GN build rules & visibility repair
-        └── conflict_resolution.md # DEPS AST & merge conflict rules
+        ├── cobalt_rebase.md           # Master guidelines & behavior preservation
+        ├── cobalt_rebase_patterns.md  # Recurring Cobalt-specific rebase patterns
+        ├── compiler_healing.md        # Compiler & linker break repair heuristics
+        ├── gn_healing.md              # GN build rules & visibility repair
+        ├── conflict_resolution.md     # DEPS AST & merge conflict rules
+        └── roll_history.md            # Using past roll PRs as ground truth
 ```
 
 ---
@@ -97,6 +90,10 @@ The pipeline decomposes rebase automation into five sequential, object-oriented 
    ```
 2. **Environment**:
    Ensure `depot_tools` is in your `PATH`.
+3. **Python dependencies**:
+   ```bash
+   python3 -m pip install --require-hashes -r .github/rebase/requirements.txt
+   ```
 
 ---
 
@@ -146,6 +143,41 @@ You can skip or run specific phases using orchestrator flags:
   python3 .github/rebase/run_rebase_pipeline.py --skip-build ...
   ```
 
+Or pick a preset with `--mode`:
+
+| `--mode` | Phases |
+|---|---|
+| `resolve-conflicts` | Phase 1 only |
+| `gn-gen` | Phases 1-3 |
+| `build-only` | Phase 4 only |
+| `full-pipeline` | Phases 1-4 |
+
+---
+
+### Models and Local (In-Process) Runs
+
+* `--model` (workhorse) and `--expert-model` (escalations on repeated
+  diagnostics) are both required; the pipeline has no built-in model
+  defaults. In CI they come from the `ai_rebase_resolver.yaml` inputs.
+* `--local` (or `REBASE_LOCAL=1`) runs `CobaltReasoningEngine` in-process
+  instead of calling the hosted Reasoning Engine, so no
+  `--reasoning-engine-id` is needed:
+  ```bash
+  python3 .github/rebase/run_rebase_pipeline.py --local \
+    --platform android-arm --build-type devel --target cobalt_apk
+  ```
+
+---
+
+### Running in CI (GitHub Actions)
+
+`.github/workflows/ai_rebase_resolver.yaml` (manual `workflow_dispatch`) runs
+the pipeline from the in-tree copy of this directory, i.e.
+`src/.github/rebase` of the PR / commit being resolved; no separate agent
+checkout is needed. Inputs: `pr_number` and/or `commit_sha`, `mode`, `model`,
+`expert_model`, `ai_branch_prefix` and `dry_run` (default `true`, skips
+pushing the AI branch and opening a PR).
+
 ---
 
 ## 4. Object-Oriented Resolver Design (`BaseResolver`)
@@ -159,14 +191,11 @@ classDiagram
         +str repo_path
         +ReasoningEngineClient reasoning_engine
         +int max_iterations
-        +execute_local_tool(tool_cmd) str
-        +apply_patch_or_replacement(patch) List[str]
-        +is_unmodified_third_party(file) bool
-        +get_clean_build_env() Dict
+        +List~AgentChangeRecord~ session_changes
         +run_resolution_loop() bool
         #run_command(iteration)* Tuple
         #extract_diagnostics(output, siso_output)* List
-        #resolve_diagnostic(diag, history, use_pro)* Tuple
+        #resolve_diagnostic(diag, history, use_expert)* Tuple
         +on_patch_applied(modified_files) void
     }
 
@@ -209,6 +238,17 @@ Resolvers communicate dynamically without hardcoded coupling via callbacks confi
 - **Phase 3/4 $\to$ Phase 2**: When a patch modifies `DEPS`, `sync_resolver` is automatically triggered.
 - **Phase 4 $\to$ Phase 3**: When a compiler patch modifies `.gn`, `.gni`, or `.star` files, `gn_resolver` is automatically triggered to refresh the build graph.
 
+### Safety Guardrails
+`repo_guards.py` enforces these before any AI tool call or patch runs:
+- **Repository confinement**: `resolve_repo_file_path` returns `""` for any
+  path that resolves outside the repo (absolute paths, `../` traversal), so
+  `TOOL_READ_FILE`, `TOOL_LIST_DIR` and SEARCH/REPLACE / DELETE / diff targets
+  cannot touch files elsewhere on the host.
+- **Patch target validation** (`validate_patch_target`): rejects build
+  outputs and binaries, generated files under `out/` / `gen/`, global build
+  configs (`cobalt/build/configs/`, `args.gn`), and unmodified third-party
+  sources (fixes are routed to the referencing `BUILD.gn` instead).
+
 ---
 
 ## 5. Domain Skills (`reasoning_engine/skills/`)
@@ -219,39 +259,27 @@ Rebase heuristics and error patterns are maintained in declarative Markdown file
 * **`reasoning_engine/skills/compiler_healing.md`**: C++/Java header splits (e.g. `base/notimplemented.h`, `base/timer/elapsed_timer.h`), method signature updates, and Mojo union patterns (`blink::mojom::MatchResponse`).
 * **`reasoning_engine/skills/gn_healing.md`**: GN visibility rules, target bridge synthesis (`group("freetype")`), and duplicate argument import rules.
 * **`reasoning_engine/skills/conflict_resolution.md`**: Upstream roll priority, DEPS syntax rules, and multi-turn tool commands.
+* **`reasoning_engine/skills/cobalt_rebase_patterns.md`**: Recurring Cobalt-specific patterns (e.g. Privacy Sandbox pruning) to preserve across rolls.
+* **`reasoning_engine/skills/roll_history.md`**: How to use merged roll PRs (bot baseline commits vs. human fix commits) as ground truth.
+
+Skills are loaded once when the engine starts, so edits take effect on the
+next run (or after redeploying the hosted engine with `reasoning_engine/deploy.py`).
 
 ---
 
-## 6. Long-Term Knowledge Bank & Server-Side GCS Memory
+## 6. Change History (`AgentChangeRecord`)
 
-The Reasoning Engine natively manages the knowledge memory bank on Google Cloud Storage (`gs://<bucket>/rebase_memory/knowledge_bank.json`).
-* **Zero Client Setup**: Rebase workers and Cloudtop instances do not need to pull or manage memory files locally.
-* **Auto-Retrieval**: When diagnosing errors, the Reasoning Engine automatically queries its cloud memory bank and injects relevant past lessons into prompts.
-* **Real-time Synchronization**: When an AI fix is verified and passes compilation, `CobaltReasoningEngine` records the resolution directly into GCS in real-time.
+Every patch the agent applies, fails to apply or reverts during a run is kept
+as an `AgentChangeRecord` (phase, iteration, target file, file changes,
+resulting error and command output). The records are shared by all phases and
+are visible to the model through `TOOL_GET_HISTORY`. Nothing is carried over
+between runs; domain knowledge lives in the skills (section 5).
 
-Configure your GCS bucket URI (defaults to `gs://cobalt-actions-prod-agent/rebase_memory/knowledge_bank.json`):
-```bash
-export GCS_MEMORY_URI="gs://your-bucket-name/rebase_memory/knowledge_bank.json"
-```
-
-### Read-Only Mode (External / Local Runs)
-
-Runs that should benefit from past fixes without writing new ones back (e.g.
-external partners running the pipeline locally) should enable read-only mode:
-```bash
-python3 .github/rebase/run_rebase_pipeline.py --local --memory-read-only ...
-# or
-export REBASE_MEMORY_READ_ONLY=1
-```
-* Past experience is still retrieved and injected into prompts.
-* `record_successful_fix` is skipped in both the client and the in-process
-  engine, so nothing is uploaded to GCS. The client-side guard also applies
-  when talking to the hosted Reasoning Engine.
-* To disable the knowledge bank entirely (no reads either), pass
-  `--gcs-memory-uri none`.
-
-> Read-only mode is a client-side convenience. Enforce it with IAM by granting
-> external users only `roles/storage.objectViewer` on the bucket.
+At the end of every run, successful or not, the pipeline writes the records to
+`out/rebase_results/change_history.json`. In CI, `ai_rebase_resolver.yaml`
+uploads that file to
+`gs://cobalt-actions-prod-agent/rebase_changes/<run_id>-<run_attempt>/change_history.json`
+(`CHANGE_HISTORY_GCS_DIR` in the job `env`).
 
 ---
 
@@ -262,7 +290,7 @@ export REBASE_MEMORY_READ_ONLY=1
   python3 -m unittest discover -s .github/rebase -p "test_*.py"
   ```
 
-* **Run Code Quality Check**:
+* **Run Code Quality Check** (same hooks as CI: yapf, pylint, ...):
   ```bash
-  ~/depot_tools/pylint-3.2 .github/rebase/*.py .github/rebase/reasoning_engine/*.py
+  pre-commit run --files .github/rebase/*.py .github/rebase/reasoning_engine/*.py
   ```
