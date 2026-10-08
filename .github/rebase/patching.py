@@ -10,7 +10,7 @@ import os
 import re
 from typing import Dict, List, Optional, Tuple
 
-from repo_guards import resolve_repo_file_path, validate_patch_target
+from repo_guards import patch_target_rejection, resolve_repo_file_path
 
 log = logging.getLogger(__name__)
 
@@ -101,24 +101,24 @@ def apply_search_replace(file_path: str, search_block: str,
   return True
 
 
-def apply_unified_diff(diff_text: str, repo_path: str) -> List[str]:
-  """Applies a unified diff patch to source files, returning modified paths."""
+def _unified_diff_target(diff_text: str) -> str:
+  """Repo-relative file named by the first ---/+++ header ("" if none)."""
   file_match = re.search(
       r"^(?:---|\+\+\+)\s+[ab]?/?([a-zA-Z0-9_/\.\-\+]+)",
       diff_text,
       re.MULTILINE,
   )
-  if not file_match:
-    return []
+  return file_match.group(1).strip() if file_match else ""
 
-  rel_file = file_match.group(1).strip()
+
+def _apply_unified_diff(diff_text: str, repo_path: str) -> List[str]:
+  """Applies a unified diff patch to source files, returning modified paths."""
+  rel_file = _unified_diff_target(diff_text)
+  if not rel_file:
+    return []
   file_path = resolve_repo_file_path(rel_file, repo_path)
 
   if not os.path.isfile(file_path):
-    return []
-
-  if not validate_patch_target(
-      file_path, rel_file, repo_path, operation_name="unified diff"):
     return []
 
   with open(file_path, "r", encoding="utf-8") as f:
@@ -211,9 +211,17 @@ class PatchBlock:
 
 @dataclasses.dataclass(frozen=True)
 class ParsedPatch:
-  """A model patch response, parsed once and shared by apply and record."""
-  text: str  # Response with the outer markdown fence removed.
-  blocks: List[PatchBlock]  # Empty when the response is a unified diff.
+  """A model patch response, parsed once and shared by apply and record.
+
+  Attributes:
+    text: The model response with a surrounding ```lang ... ``` code fence
+      removed. Applied as a unified diff when there are no blocks, and
+      stored in the change record.
+    blocks: DELETE or SEARCH/REPLACE blocks found in the response; empty
+      when the response is a unified diff.
+  """
+  text: str
+  blocks: List[PatchBlock]
 
 
 def parse_patch(patch_text: str,
@@ -250,25 +258,32 @@ def parse_patch(patch_text: str,
   return ParsedPatch(text, blocks)
 
 
-def _check_patch_block(b: PatchBlock, repo_path: str) -> bool:
-  """Guards run on every block before any file is written."""
+def _block_rejection(b: PatchBlock, repo_path: str) -> str:
+  """Why this block must not be applied ("" if it may be)."""
   if b.kind == "SEARCH":
     if not b.replace.strip() and len(b.search.splitlines()) > 80:
-      log.warning(
-          "  [GUARD] Rejecting bulk empty REPLACE block (%s lines) in "
-          "%s. Use <<<<<<< DELETE ... >>>>>>> DELETE for intentional "
-          "bulk removals.", len(b.search.splitlines()), b.rel_file)
-      return False
+      return (f"bulk empty REPLACE block ({len(b.search.splitlines())} "
+              f"lines) in {b.rel_file}; use <<<<<<< DELETE ... >>>>>>> "
+              "DELETE for intentional bulk removals")
     if re.search(r"^(?:FILE|Target File):", b.replace, re.MULTILINE):
-      log.warning(
-          "  [GUARD] Rejecting malformed REPLACE block in %s containing "
-          "nested FILE directives.", b.rel_file)
-      return False
-  return validate_patch_target(
-      b.target_file,
-      b.rel_file,
-      repo_path,
-      operation_name="DELETE" if b.kind == "DELETE" else "patch")
+      return f"REPLACE block in {b.rel_file} contains a nested FILE directive"
+  return patch_target_rejection(b.target_file, b.rel_file, repo_path)
+
+
+def patch_rejections(parsed: ParsedPatch, repo_path: str) -> List[str]:
+  """Distinct guard rejection reasons for a parsed patch (empty if allowed).
+
+  Covers both formats: each block, or the target file of a unified diff.
+  """
+  if not parsed.blocks:
+    rel_file = _unified_diff_target(parsed.text)
+    if not rel_file:
+      return []
+    reason = patch_target_rejection(
+        resolve_repo_file_path(rel_file, repo_path), rel_file, repo_path)
+    return [reason] if reason else []
+  reasons = (_block_rejection(b, repo_path) for b in parsed.blocks)
+  return list(dict.fromkeys(r for r in reasons if r))
 
 
 def _apply_blocks_atomically(blocks: List[PatchBlock]) -> List[str]:
@@ -301,10 +316,10 @@ def apply_parsed_patch(parsed: ParsedPatch, repo_path: str) -> List[str]:
   DELETE and SEARCH/REPLACE blocks are applied atomically: every block is
   validated first and either all of them apply or no file is changed.
   """
-  if not parsed.blocks:
-    return apply_unified_diff(parsed.text, repo_path)
-  if not all(_check_patch_block(b, repo_path) for b in parsed.blocks):
+  if patch_rejections(parsed, repo_path):
     return []
+  if not parsed.blocks:
+    return _apply_unified_diff(parsed.text, repo_path)
   return _apply_blocks_atomically(parsed.blocks)
 
 
@@ -334,13 +349,3 @@ def patch_file_changes(parsed: ParsedPatch,
         resolve_repo_file_path(target_rel, repo_path),
         target_rel)] = parsed.text
   return file_changes
-
-
-def apply_patch_or_replacement(
-    patch_text: str,
-    repo_path: str,
-    default_file: Optional[str] = None,
-) -> List[str]:
-  """Parses and applies an AI patch response (SEARCH/REPLACE, DELETE, diff)."""
-  return apply_parsed_patch(
-      parse_patch(patch_text, repo_path, default_file), repo_path)

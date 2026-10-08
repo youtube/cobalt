@@ -244,10 +244,11 @@ Resolvers communicate dynamically without hardcoded coupling via callbacks confi
   path that resolves outside the repo (absolute paths, `../` traversal), so
   `TOOL_READ_FILE`, `TOOL_LIST_DIR` and SEARCH/REPLACE / DELETE / diff targets
   cannot touch files elsewhere on the host.
-- **Patch target validation** (`validate_patch_target`): rejects build
+- **Patch target validation** (`patch_target_rejection`): rejects build
   outputs and binaries, generated files under `out/` / `gen/`, global build
   configs (`cobalt/build/configs/`, `args.gn`), and unmodified third-party
-  sources (fixes are routed to the referencing `BUILD.gn` instead).
+  sources. The rejection reason is stored in the change record, so the
+  model sees why its patch was not applied on the next attempt.
 
 ---
 

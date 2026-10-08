@@ -17,7 +17,8 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 import warnings
 
 from diagnostics import Diagnostic
-from patching import apply_parsed_patch, parse_patch, patch_file_changes
+from patching import (apply_parsed_patch, parse_patch, patch_file_changes,
+                      patch_rejections)
 from tools import execute_local_tool, extract_tool_commands
 
 # Suppress google.auth UserWarning about ADC quota project on Cloudtop
@@ -120,8 +121,7 @@ def format_change_history(records: List[AgentChangeRecord],
   for rec in records[-window:]:
     if not rec.applied_cleanly:
       lines.append(f"- Iteration {rec.iteration}: patch for {rec.target_file} "
-                   "did not apply (SEARCH must match the file lines exactly "
-                   "and REPLACE must not contain conflict markers)")
+                   f"was not applied: {rec.error}")
     elif rec.error is None:
       lines.append(
           f"- Iteration {rec.iteration}: changed {rec.target_file} -> passed")
@@ -138,6 +138,8 @@ class _LoopState:
   iteration: int = 0
   last_error: str = ""  # Error summary of the most recent failure.
   stuck_count: int = 0  # Consecutive iterations with the same error.
+  # The last patch was rejected by a guard or did not match the file.
+  last_patch_not_applied: bool = False
   # Record of the last applied patch; gets the next command's outcome.
   pending_record: Optional[AgentChangeRecord] = None
 
@@ -361,10 +363,15 @@ class BaseResolver(abc.ABC):
 
       if diag.file_path:
         self.file_error_counts[diag.file_path] += 1
-      # Only consecutive identical errors count as being stuck.
-      state.stuck_count = (
-          state.stuck_count + 1 if error_summary == state.last_error else 0)
+      # Consecutive identical errors count as being stuck, except after an
+      # attempt that was rejected or did not match: it changed nothing and
+      # its reason is already in the change history.
+      if error_summary != state.last_error:
+        state.stuck_count = 0
+      elif not state.last_patch_not_applied:
+        state.stuck_count += 1
       state.last_error = error_summary
+      state.last_patch_not_applied = False
 
       # Escalation while the same error repeats (stuck_count N means N
       # failed fixes in a row): from 2 use the expert model; at 3 revert the
@@ -625,22 +632,32 @@ class BaseResolver(abc.ABC):
     log.info("[%s] Applying AI patch using %s to %s...", self.name, model_used,
              rel_target)
     parsed = parse_patch(patch, self.repo_path, default_file=rel_target)
-    modified_files = apply_parsed_patch(parsed, self.repo_path)
+    rejections = patch_rejections(parsed, self.repo_path)
+    modified_files = ([] if rejections else apply_parsed_patch(
+        parsed, self.repo_path))
     if not modified_files:
+      if rejections:
+        error = "rejected: " + "; ".join(rejections)
+      elif not parsed.blocks:
+        error = "response had no SEARCH/REPLACE block or applicable diff"
+      else:
+        error = ("SEARCH text not found in the current file; re-read the "
+                 "file and copy the lines exactly")
       log.warning(
-          "[%s] [FAIL] Could not apply patch to %s.\n  [AI Patch "
-          "Preview]:\n  %s", self.name, rel_target, patch[:300].strip())
+          "[%s] [FAIL] Could not apply patch to %s: %s\n  [AI Patch "
+          "Preview]:\n  %s", self.name, rel_target, error, patch[:300].strip())
       self.session_changes.append(
           AgentChangeRecord(
               phase=self.name,
               iteration=iteration,
               target_file=rel_target,
               file_changes={rel_target: patch},
-              error=f"Patch failed to apply to {rel_target}",
+              error=error,
               command_output=None,
               applied_cleanly=False,
           ))
       state.pending_record = None
+      state.last_patch_not_applied = True
       return
 
     mod_summary = ", ".join(

@@ -25,7 +25,6 @@ from base_resolver import (
 from diagnostics import Diagnostic
 from patching import (
     apply_parsed_patch,
-    apply_patch_or_replacement,
     apply_search_replace,
     parse_patch,
     patch_file_changes,
@@ -36,8 +35,8 @@ from repo_guards import (
     has_cobalt_git_history,
     is_unmodified_third_party,
     is_within_repo,
+    patch_target_rejection,
     resolve_repo_file_path,
-    validate_patch_target,
 )
 from run_rebase_pipeline import get_chromium_milestone
 from tools import (
@@ -58,6 +57,13 @@ from token_usage import TokenUsage
 
 # ReasoningEngineClient has no default models; tests pass placeholders.
 _TEST_MODELS = {"flash_model": "flash-test", "expert_model": "expert-test"}
+
+
+def _apply(patch_text, repo_path, default_file=None):
+  """Parses and applies a model patch, as the resolver does."""
+  return apply_parsed_patch(
+      parse_patch(patch_text, repo_path, default_file), repo_path)
+
 
 SAMPLE_DEPS_CONFLICT = """git_dependencies = "SYNC"
 
@@ -263,7 +269,7 @@ deps = [
 ]
 >>>>>>> REPLACE
 """
-      modified = apply_patch_or_replacement(ai_patch, repo_path=parent)
+      modified = _apply(ai_patch, repo_path=parent)
       self.assertTrue(modified)
       with open(tmp_path, "r", encoding="utf-8") as f:
         content = f.read()
@@ -291,7 +297,7 @@ enable_rust_png = false
 # enable_rust_png = false
 >>>>>>> REPLACE
 """
-      modified = apply_patch_or_replacement(ai_patch, repo_path=parent)
+      modified = _apply(ai_patch, repo_path=parent)
       self.assertTrue(modified)
       with open(tmp_path, "r", encoding="utf-8") as f:
         content = f.read()
@@ -331,7 +337,7 @@ enable_rust_png = false
                   "  return 0;\n"
                   "}\n"
                   ">>>>>>> REPLACE\n")
-      modified = apply_patch_or_replacement(ai_patch, repo_path=parent)
+      modified = _apply(ai_patch, repo_path=parent)
       self.assertTrue(modified)
       with open(tmp_path, "r", encoding="utf-8") as f:
         content = f.read()
@@ -362,7 +368,7 @@ void ObsoleteFunc() {{
 }}
 >>>>>>> DELETE
 """
-      modified = apply_patch_or_replacement(del_patch, repo_path=parent)
+      modified = _apply(del_patch, repo_path=parent)
       self.assertTrue(modified)
       with open(tmp_path, "r", encoding="utf-8") as f:
         content = f.read()
@@ -388,7 +394,7 @@ void Foo() {{}}
 =======
 >>>>>>> REPLACE
 """
-      modified = apply_patch_or_replacement(glitch_patch, repo_path=parent)
+      modified = _apply(glitch_patch, repo_path=parent)
       self.assertEqual(modified, [])
       with open(tmp_path, "r", encoding="utf-8") as f:
         content = f.read()
@@ -516,7 +522,7 @@ void Foo() {{}}
           diag, [], use_pro=False)
       self.assertEqual(model_used, "auto-stray-marker-cleaner")
       self.assertEqual(rel_target, rel)
-      modified = apply_patch_or_replacement(patch, repo_path=repo_dir)
+      modified = _apply(patch, repo_path=repo_dir)
       self.assertTrue(modified)
       with open(tmp_path, "r", encoding="utf-8") as f:
         content = f.read()
@@ -550,7 +556,7 @@ void Foo() {{}}
           diag, [], use_pro=False)
       self.assertEqual(model_used, "auto-stray-marker-cleaner")
       self.assertEqual(rel_target, rel)
-      modified = apply_patch_or_replacement(patch, repo_path=repo_dir)
+      modified = _apply(patch, repo_path=repo_dir)
       self.assertTrue(modified)
       with open(tmp_path, "r", encoding="utf-8") as f:
         content = f.read()
@@ -979,8 +985,7 @@ void Foo() {{}}
                "=======\n"
                "#    define _LIBCPP_HAS_CATOPEN 0\n"
                ">>>>>>> REPLACE\n")
-      modified = apply_patch_or_replacement(
-          patch, tmp_dir, default_file="build/BUILD.gn")
+      modified = _apply(patch, tmp_dir, default_file="build/BUILD.gn")
       self.assertEqual(modified, [msg_path])
 
       # Strip Siso UUIDs in extract_meaningful_error_summary
@@ -1066,7 +1071,7 @@ FILE: //other/BUILD.gn
 target("foo") {{}}
 >>>>>>> REPLACE
 """
-      modified = apply_patch_or_replacement(bad_patch, repo_path=parent)
+      modified = _apply(bad_patch, repo_path=parent)
       self.assertEqual(modified, [])
       with open(tmp_path, "r", encoding="utf-8") as f:
         content = f.read()
@@ -1690,7 +1695,7 @@ target("foo") {{}}
           diag.error_message)
       self.assertIn("v8_xr_gpu_sub_image.o", diag.raw_snippet)
 
-  def test_apply_patch_or_replacement_code_fence_and_bold_file(self):
+  def test_apply_code_fence_and_bold_file(self):
     """Verifies parser handles code fences between FILE and SEARCH."""
     with tempfile.TemporaryDirectory() as tmpdir:
       test_file = os.path.join(tmpdir, "cobalt", "config.gni")
@@ -1708,14 +1713,14 @@ target("foo") {{}}
                     ">>>>>>> REPLACE\n"
                     "```\n")
 
-      modified = apply_patch_or_replacement(patch_text, tmpdir)
+      modified = _apply(patch_text, tmpdir)
       self.assertEqual(len(modified), 1)
       with open(test_file, "r", encoding="utf-8") as f:
         content = f.read()
       self.assertIn("foo_flag = true", content)
 
-  def test_apply_patch_or_replacement_with_default_file(self):
-    """Verifies apply_patch_or_replacement falls back to default_file."""
+  def test_apply_with_default_file(self):
+    """Verifies patch application falls back to default_file."""
     with tempfile.TemporaryDirectory() as tmpdir:
       test_file = os.path.join(tmpdir, "cobalt", "settings.cc")
       os.makedirs(os.path.dirname(test_file), exist_ok=True)
@@ -1729,8 +1734,7 @@ target("foo") {{}}
                     "  int val = 2;\n"
                     ">>>>>>> REPLACE\n")
 
-      modified = apply_patch_or_replacement(
-          patch_text, tmpdir, default_file="cobalt/settings.cc")
+      modified = _apply(patch_text, tmpdir, default_file="cobalt/settings.cc")
       self.assertEqual(len(modified), 1)
       with open(test_file, "r", encoding="utf-8") as f:
         content = f.read()
@@ -2279,13 +2283,19 @@ class FormatChangeHistoryTest(unittest.TestCase):
 
   def test_outcomes(self):
     records = [
-        AgentChangeRecord("p", 1, "a.cc", applied_cleanly=False),
+        AgentChangeRecord(
+            "p",
+            1,
+            "a.cc",
+            error="rejected: x.h is upstream",
+            applied_cleanly=False),
         AgentChangeRecord("p", 2, "a.cc", error="no member named X"),
         AgentChangeRecord("p", 3, "b.cc", error=None),
     ]
     lines = format_change_history(records).splitlines()
-    self.assertTrue(lines[0].startswith("- Iteration 1: patch for a.cc did "
-                                        "not apply"))
+    self.assertEqual(
+        lines[0], "- Iteration 1: patch for a.cc was not applied: "
+        "rejected: x.h is upstream")
     self.assertEqual(lines[1],
                      "- Iteration 2: changed a.cc -> no member named X")
     self.assertEqual(lines[2], "- Iteration 3: changed b.cc -> passed")
@@ -2328,6 +2338,78 @@ class FormatChangeHistoryTest(unittest.TestCase):
     resolver = _Resolver(tempfile.gettempdir(), session_changes=shared)
     self.assertEqual(resolver.change_history_prompt(),
                      "- Iteration 1: changed BUILD.gn -> unknown target")
+
+
+class RejectedPatchLoopTest(unittest.TestCase):
+  """A guard-rejected patch is recorded with its reason and is not 'stuck'."""
+
+  def _run(self, patches, iterations):
+    """Runs a loop whose build always fails with the same error."""
+
+    class _Resolver(BaseResolver):
+      """Resolver returning the given patches in order."""
+
+      @property
+      def name(self):
+        return "compile"
+
+      def run_command(self, iteration):
+        del iteration
+        return False, "", ""
+
+      def extract_diagnostics(self, build_output, siso_output):
+        del build_output, siso_output
+        return [Diagnostic(file_path=src, error_message="same error")]
+
+      def resolve_diagnostic(self, diagnostic, **kwargs):
+        del diagnostic, kwargs
+        return patches.pop(0), "flash", "cobalt/a.cc"
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+      src = os.path.join(tmpdir, "cobalt", "a.cc")
+      os.makedirs(os.path.dirname(src))
+      with open(src, "w", encoding="utf-8") as f:
+        f.write("int a = 1;\n")
+      resolver = _Resolver(tmpdir, max_iterations=iterations)
+      with mock.patch.object(resolver, "_revert_to_baseline") as revert:
+        self.assertFalse(resolver.run_resolution_loop())
+    return resolver.session_changes, revert
+
+  def test_rejection_reason_is_recorded_and_not_counted_as_stuck(self):
+    rejected = ("FILE: out/gen/x.h\n<<<<<<< SEARCH\nint a = 1;\n=======\n"
+                "int a = 2;\n>>>>>>> REPLACE")
+    records, revert = self._run([rejected] * 5, iterations=5)
+    self.assertEqual(len(records), 5)
+    for rec in records:
+      self.assertFalse(rec.applied_cleanly)
+      self.assertTrue(
+          rec.error.startswith("rejected: out/gen/x.h is a "
+                               "generated build artifact"))
+    revert.assert_not_called()
+
+  def test_applied_patches_with_same_error_trigger_revert(self):
+    applied = [
+        f"<<<<<<< SEARCH\nint a = {i};\n=======\nint a = {i + 1};\n"
+        ">>>>>>> REPLACE" for i in range(1, 5)
+    ]
+    records, revert = self._run(applied, iterations=4)
+    self.assertTrue(all(r.applied_cleanly for r in records))
+    revert.assert_called_once()
+
+  def test_rejected_unified_diff_reason_is_recorded(self):
+    diff = ("--- a/out/gen/x.h\n+++ b/out/gen/x.h\n@@ -1,1 +1,1 @@\n"
+            "-int a = 1;\n+int a = 2;\n")
+    records, _ = self._run([diff], iterations=1)
+    self.assertTrue(records[0].error.startswith(
+        "rejected: out/gen/x.h is a generated build artifact"))
+
+  def test_unmatched_search_is_reported(self):
+    unmatched = ("<<<<<<< SEARCH\nint b = 0;\n=======\nint b = 1;\n"
+                 ">>>>>>> REPLACE")
+    records, _ = self._run([unmatched], iterations=1)
+    self.assertEqual(
+        records[0].error, "SEARCH text not found in the current file; "
+        "re-read the file and copy the lines exactly")
 
 
 class PipelineFlagsTest(unittest.TestCase):
@@ -2393,7 +2475,8 @@ class RepoPathSafetyTest(unittest.TestCase):
     self.assertIn("[ERROR]", out or "")
 
   def test_patch_target_outside_repo_rejected(self):
-    self.assertFalse(validate_patch_target("", self.outside, self.repo))
+    self.assertIn("outside the repository",
+                  patch_target_rejection("", self.outside, self.repo))
 
 
 class AutoninjaHelpersSafetyTest(unittest.TestCase):
@@ -2443,7 +2526,7 @@ class AtomicPatchTest(unittest.TestCase):
     patch = (
         self._block("a.cc", "int a = 1;", "int a = 10;") +
         self._block("b.cc", "int does_not_exist;", "int x;"))
-    self.assertEqual(apply_patch_or_replacement(patch, self.repo), [])
+    self.assertEqual(_apply(patch, self.repo), [])
     with open(self.a, "rb") as f:
       self.assertEqual(f.read(), before)
 
@@ -2451,7 +2534,7 @@ class AtomicPatchTest(unittest.TestCase):
     patch = (
         self._block("a.cc", "int a = 1;", "int a = 10;") +
         self._block("a.cc", "int a2 = 2;", "int a2 = 20;"))
-    self.assertEqual(apply_patch_or_replacement(patch, self.repo), [self.a])
+    self.assertEqual(_apply(patch, self.repo), [self.a])
     with open(self.a, encoding="utf-8") as f:
       content = f.read()
     self.assertIn("int a = 10;", content)

@@ -5,13 +5,10 @@ paths to source files, and decides which files the agent must never patch
 (generated build output and unmodified third-party sources).
 """
 
-import logging
 import os
 import re
 import subprocess
 from typing import Dict, List, Optional, Tuple
-
-log = logging.getLogger(__name__)
 
 
 def get_clean_build_env(
@@ -304,44 +301,25 @@ def is_generated_build_artifact(file_path: str, repo_path: str) -> bool:
           rel.startswith("obj/") or "/gen/" in rel)
 
 
-def validate_patch_target(target_file: str,
-                          rel_file: str,
-                          repo_path: str,
-                          operation_name: str = "patch") -> bool:
-  """Validates if target_file is safe for AI patch modifications.
-
-  Returns False (and logs guard warnings) if target_file is
-  a generated build artifact or an unmodified third-party source file.
-  """
+def patch_target_rejection(target_file: str, rel_file: str,
+                           repo_path: str) -> str:
+  """Returns reasons that target_file cannot be patched"""
   if not target_file:
-    log.warning("  [GUARD] Rejecting %s on path outside the repository: %s.",
-                operation_name, rel_file)
-    return False
+    return f"{rel_file} is outside the repository"
   if (rel_file.endswith((".apk", ".ninja", ".so", ".a", ".o")) or
       rel_file in ("cobalt_apk", "all")):
-    log.warning(
-        "  [GUARD] Rejecting %s on build target / binary: %s. Locate "
-        "and patch the referencing source (.cc/.h) or BUILD.gn "
-        "file.", operation_name, rel_file)
-    return False
+    return (f"{rel_file} is a build target or binary; patch the source "
+            "(.cc/.h) or BUILD.gn that produces it")
   if is_generated_build_artifact(target_file, repo_path):
-    log.warning(
-        "  [GUARD] Rejecting %s on generated build artifact: %s. "
-        "Trace #include stack to patch referencing source.", operation_name,
-        rel_file)
-    return False
+    return (f"{rel_file} is a generated build artifact; patch the source "
+            "or generator that produces it")
   if rel_file.startswith("cobalt/build/configs/") or rel_file.endswith(
       "args.gn"):
-    log.warning(
-        "  [GUARD] Rejecting %s on global build config file: %s. "
-        "Modify component BUILD.gn or source code instead.", operation_name,
-        rel_file)
-    return False
+    return (f"{rel_file} is a global build config file; change the "
+            "component BUILD.gn or source code instead")
   if (not target_file.endswith((".gn", ".gni", ".star")) and
       is_unmodified_third_party(target_file, repo_path)):
-    log.warning(
-        "  [GUARD] Rejecting %s on unmodified third-party source "
-        "file: %s. Patch the referencing BUILD.gn instead.", operation_name,
-        rel_file)
-    return False
-  return True
+    return (f"{rel_file} is an upstream third-party file that Cobalt does "
+            "not modify; do not edit it, adapt the Cobalt code or BUILD.gn "
+            "that uses it instead")
+  return ""

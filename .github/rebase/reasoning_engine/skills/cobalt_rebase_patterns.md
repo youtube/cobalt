@@ -205,7 +205,7 @@ Cobalt optimizes and strips runtime data bundles (such as `third_party/icu/cobal
 2. **Crucial Rule: Never Patch Upstream Host Generators**:
    - When a host build tool crashes during code generation (e.g. `Check failed: U_SUCCESS(error)` or missing resource error), do NOT patch the upstream C++ source file.
    - Modifying upstream tools creates unnecessary divergence and will be blocked by the third-party safety guard:
-     `[GUARD] Rejecting patch on unmodified third-party source file: ... Patch the referencing BUILD.gn instead.`
+     `rejected: ... is an upstream third-party file that Cobalt does not modify; do not edit it, adapt the Cobalt code or BUILD.gn that uses it instead`
    - The root cause is almost always that a Cobalt-specific GN build argument or override is inadvertently applying target settings or stripped datasets to the host toolchain.
 
 3. **Resolution Strategy: Scope Cobalt Overrides to Target Toolchains in `BUILD.gn`**:
