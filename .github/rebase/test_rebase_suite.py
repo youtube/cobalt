@@ -16,7 +16,6 @@ from autoninja import (
     find_referencing_build_file,
     parse_compiler_errors,
 )
-import base_resolver
 from base_resolver import (
     AgentChangeRecord,
     BaseResolver,
@@ -55,7 +54,6 @@ from engine_client import ReasoningEngineClient
 from gclient_sync import GClientSyncDiagnostic
 from gn_gen import GNDiagnostic, GNGenResolver, extract_gn_target_files
 from reasoning_engine import CobaltReasoningEngine
-from reasoning_engine import deploy
 from token_usage import TokenUsage
 
 # ReasoningEngineClient has no default models; tests pass placeholders.
@@ -825,25 +823,6 @@ void Foo() {{}}
       self.assertIs(type(diags[0]), Diagnostic)
       self.assertIn("Java compilation failed", diags[0].error_message)
 
-  def test_record_and_load_memory(self):
-    """Tests recording and loading knowledge memory bank entries on engine."""
-    engine = CobaltReasoningEngine(**_TEST_MODELS)
-    engine.record_successful_fix(
-        issue_description="no member named 'InitStarboardMediaPipeline'",
-        solution_diff="InitStarboardMediaPipelineV2();",
-        target_file="cobalt/media.cc",
-    )
-    # Re-recording identical fix should be a no-op / update
-    engine.record_successful_fix(
-        issue_description="no member named 'InitStarboardMediaPipeline'",
-        solution_diff="InitStarboardMediaPipelineV2();",
-        target_file="cobalt/media.cc",
-    )
-    exp = engine.get_past_experience(
-        query="no member named 'InitStarboardMediaPipeline'", max_items=5)
-    self.assertIn("Target File: cobalt/media.cc", exp)
-    self.assertIn("InitStarboardMediaPipelineV2();", exp)
-
   def test_token_usage_multi_model_tracking(self):
     """Tests that TokenUsage tracks Flash and Pro models separately."""
     tracker = TokenUsage()
@@ -1166,7 +1145,6 @@ target("foo") {{}}
         target="cobalt",
         diagnostics="error: foo",
         source_contexts="",
-        past_experience="",
         investigation_history="",
         expert_guidance="",
         use_expert=False,
@@ -1200,7 +1178,6 @@ target("foo") {{}}
         target="cobalt",
         diagnostics="error: local_foo",
         source_contexts="",
-        past_experience="",
         investigation_history="",
         expert_guidance="",
         use_expert=False,
@@ -1353,35 +1330,6 @@ target("foo") {{}}
             system_instruction="Sys",
         )
         self.assertEqual(res2, "GLM Reasoning Content")
-
-  def test_gcs_memory_and_staging_bucket_isolation(self):
-    """Guards GCS bucket names are decoupled and independent of project_id."""
-    # pylint: disable=protected-access
-
-    # Verify engine memory bank default is independent of project_id
-    engine_custom_proj = CobaltReasoningEngine(
-        project_id="arbitrary-gcp-project-12345", **_TEST_MODELS)
-    self.assertEqual(
-        engine_custom_proj.gcs_memory_uri,
-        "gs://cobalt-actions-prod-agent/rebase_memory/knowledge_bank.json",
-    )
-
-    # The staging bucket has no default (neither gs://{project_id} nor a
-    # personal test bucket); it must be passed in or set via the env var.
-    with mock.patch.dict(os.environ):
-      os.environ.pop("GCS_STAGING_BUCKET", None)
-      with self.assertRaises(ValueError):
-        deploy._get_effective_staging_bucket(
-            staging_bucket=None,
-            project_id="arbitrary-gcp-project-12345",
-        )
-
-    # Verify explicit override works cleanly
-    staging_custom = deploy._get_effective_staging_bucket(
-        staging_bucket="gs://my-custom-bucket",
-        project_id="arbitrary-gcp-project-12345",
-    )
-    self.assertEqual(staging_custom, "gs://my-custom-bucket")
 
   def test_has_cobalt_git_history(self):
     """Verifies that has_cobalt_git_history accurately identifies Cobalt PRs."""
@@ -1632,69 +1580,6 @@ target("foo") {{}}
         self.assertNotIn("checkout", args)
       # use_expert escalates once file_error_counts reaches 3 (iterations 3..5).
       self.assertEqual(expert_flags, [False, False, True, True, True])
-
-  def test_base_resolver_delayed_fix_recording(self):
-    """Verifies fix is only recorded in engine when verified cleared."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-      test_file = os.path.join(tmpdir, "cobalt", "test.cc")
-      os.makedirs(os.path.dirname(test_file), exist_ok=True)
-      with open(test_file, "w", encoding="utf-8") as f:
-        f.write("original code\n")
-
-      clean_patch = ("FILE: cobalt/test.cc\n"
-                     "<<<<<<< SEARCH\n"
-                     "original code\n"
-                     "=======\n"
-                     "fixed code\n"
-                     ">>>>>>> REPLACE\n")
-
-      call_step = 0
-      recorded_fixes = []
-
-      class MockEngine:
-
-        def record_successful_fix(self, **kwargs):
-          recorded_fixes.append(kwargs)
-
-      class DummyVerifyResolver(BaseResolver):
-        """Mock resolver for verifying delayed fix recording."""
-
-        @property
-        def name(self) -> str:
-          return "DummyVerifyResolver"
-
-        def run_command(self, iteration: int):
-          del iteration  # Unused.
-          nonlocal call_step
-          call_step += 1
-          if call_step == 1:
-            return False, "cobalt/test.cc:1: error: original error", ""
-          # Iteration 2: build succeeds
-          return True, "", ""
-
-        def extract_diagnostics(self, output: str, siso_out: str):
-          del siso_out  # Unused.
-          return [output]
-
-        def resolve_diagnostic(
-            self,
-            diagnostic,
-            history_records,
-            use_expert=False,
-            expert_guidance="",
-        ):
-          del diagnostic, history_records  # Unused.
-          del use_expert, expert_guidance  # Unused.
-          return clean_patch, "flash", "cobalt/test.cc"
-
-      resolver = DummyVerifyResolver(repo_path=tmpdir, max_iterations=5)
-      resolver.reasoning_engine = MockEngine()
-      success = resolver.run_resolution_loop()
-      self.assertTrue(success)
-      # Fix should be recorded upon verified success on iteration 2
-      self.assertEqual(len(recorded_fixes), 1)
-      self.assertEqual(recorded_fixes[0]["target_file"], "cobalt/test.cc")
-      self.assertIn("original error", recorded_fixes[0]["issue_description"])
 
   def test_parse_compiler_errors_full_include_stack(self):
     """Verifies parse_compiler_errors captures up to 30 lines of stack."""
@@ -2437,126 +2322,13 @@ class FormatHistoryRecordsTest(unittest.TestCase):
     self.assertEqual(format_history_records([]), ("", ""))
 
 
-class MemoryReadOnlyTest(unittest.TestCase):
-  """Guards that read-only mode never writes to the GCS knowledge bank."""
+class PipelineFlagsTest(unittest.TestCase):
+  """Command-line flags of run_rebase_pipeline."""
 
-  def setUp(self):
-    super().setUp()
-    patcher = mock.patch.dict(os.environ, {}, clear=False)
-    patcher.start()
-    self.addCleanup(patcher.stop)
-    os.environ.pop("REBASE_MEMORY_READ_ONLY", None)
-
-  def _engine_with_mock_storage(self, **kwargs):
-    engine = CobaltReasoningEngine(
-        project_id="test-proj",
-        gcs_memory_uri="gs://test-bucket/rebase_memory/knowledge_bank.json",
-        **_TEST_MODELS,
-        **kwargs)
-    blob = mock.MagicMock()
-    blob.exists.return_value = True
-    blob.download_as_text.return_value = json.dumps([{
-        "target_file": "media/foo.cc",
-        "issue_description": "undeclared identifier kFoo",
-        "solution_diff": "old fix",
-    }])
-    client = mock.MagicMock()
-    client.bucket.return_value.blob.return_value = blob
-    engine.storage_client = client
-    return engine, blob
-
-  def test_engine_read_only_skips_upload_but_still_reads(self):
-    engine, blob = self._engine_with_mock_storage(memory_read_only=True)
-    self.assertFalse(
-        engine.record_successful_fix(
-            issue_description="new error",
-            solution_diff="new fix",
-            target_file="media/bar.cc",
-        ))
-    blob.upload_from_string.assert_not_called()
-    self.assertIn("old fix", engine.get_past_experience("kFoo media/foo.cc"))
-
-  def test_engine_read_write_uploads(self):
-    engine, blob = self._engine_with_mock_storage(memory_read_only=False)
-    self.assertTrue(
-        engine.record_successful_fix(
-            issue_description="new error",
-            solution_diff="new fix",
-            target_file="media/bar.cc",
-        ))
-    blob.upload_from_string.assert_called_once()
-
-  def test_engine_read_only_from_env(self):
-    os.environ["REBASE_MEMORY_READ_ONLY"] = "1"
-    engine, blob = self._engine_with_mock_storage()
-    self.assertTrue(engine.memory_read_only)
-    engine.record_successful_fix(
-        issue_description="e", solution_diff="d", target_file="f")
-    blob.upload_from_string.assert_not_called()
-
-  def test_engine_without_attribute_defaults_to_read_write(self):
-    """Older pickled engine instances lack memory_read_only entirely."""
-    engine, blob = self._engine_with_mock_storage()
-    del engine.memory_read_only
-    engine.record_successful_fix(
-        issue_description="e", solution_diff="d", target_file="f")
-    blob.upload_from_string.assert_called_once()
-
-  def test_client_read_only_blocks_write_actions_without_engine_call(self):
-    client = ReasoningEngineClient(
-        **_TEST_MODELS,
-        resource_id="123",
-        project_id="test-proj",
-        memory_read_only=True)
-    with mock.patch.object(client, "_get_engine") as get_engine:
-      self.assertFalse(
-          client.record_successful_fix(
-              issue_description="e", solution_diff="d", target_file="f"))
-      res = client.query(action="record_fix", target_file="f")
-      self.assertEqual(res, {"success": False, "read_only": True})
-      get_engine.assert_not_called()
-
-  def test_client_read_only_still_allows_reads(self):
-    client = ReasoningEngineClient(
-        **_TEST_MODELS,
-        project_id="test-proj",
-        local=True,
-        memory_read_only=True)
-    fake_engine = mock.MagicMock()
-    fake_engine.query.return_value = {"experience": "Example #1"}
-    with mock.patch.object(client, "_get_engine", return_value=fake_engine):
-      self.assertEqual(client.get_past_experience("kFoo"), "Example #1")
-    fake_engine.query.assert_called_once_with(
-        action="get_past_experience", query="kFoo", max_items=3)
-
-  def test_client_read_only_from_env(self):
-    os.environ["REBASE_MEMORY_READ_ONLY"] = "true"
-    client = ReasoningEngineClient(
-        project_id="test-proj", local=True, **_TEST_MODELS)
-    self.assertTrue(client.memory_read_only)
-
-  def test_client_passes_read_only_to_local_engine(self):
-    client = ReasoningEngineClient(
-        **_TEST_MODELS,
-        project_id="test-proj",
-        local=True,
-        memory_read_only=True)
-    engine = client._get_engine()  # pylint: disable=protected-access
-    self.assertTrue(engine.memory_read_only)
-
-  def test_pipeline_flag_parsing(self):
+  def test_both_models_required(self):
     import run_rebase_pipeline  # pylint: disable=import-outside-toplevel
     parser = run_rebase_pipeline.build_arg_parser()
-    models = ["--model", "m", "--expert-model", "e"]
-    self.assertFalse(parser.parse_args(models).memory_read_only)
-    self.assertTrue(
-        parser.parse_args(models + ["--memory-read-only"]).memory_read_only)
-    self.assertEqual(
-        parser.parse_args(models).gcs_memory_uri,
-        os.environ.get(
-            "GCS_MEMORY_URI",
-            "gs://cobalt-actions-prod-agent/rebase_memory/knowledge_bank.json"))
-    # Both models are required on the command line.
+    parser.parse_args(["--model", "m", "--expert-model", "e"])
     with mock.patch("sys.stderr"), self.assertRaises(SystemExit):
       parser.parse_args(["--model", "m"])
 
@@ -2737,40 +2509,6 @@ class DiagnosticTest(unittest.TestCase):
     self.assertEqual(len(seen), 1)
     self.assertIsInstance(seen[0], Diagnostic)
     self.assertEqual(seen[0].error_message, "raw failure")
-
-  def test_pending_fix_credited_only_when_error_changes(self):
-    engine = mock.Mock()
-    resolver = self._resolver([], [])
-    resolver.reasoning_engine = engine
-    state = base_resolver._LoopState()  # pylint: disable=protected-access
-    fix = {"error": "E1", "error_file": "a.cc", "patch": "P", "file": "a.cc"}
-
-    state.pending_fix = dict(fix)
-    resolver._record_build_outcome(state, "E1", "a.cc", "out")  # pylint: disable=protected-access
-    engine.record_successful_fix.assert_not_called()
-    self.assertIsNone(state.pending_fix)
-
-    state.pending_fix = dict(fix)
-    resolver._record_build_outcome(state, "E2", "a.cc", "out")  # pylint: disable=protected-access
-    engine.record_successful_fix.assert_called_once_with(
-        issue_description="E1", solution_diff="P", target_file="a.cc")
-
-  def test_pending_fix_not_credited_when_patch_edits_another_file(self):
-    # The fix for an error reported in a.cc edited a.h; the same error in
-    # a.cc afterwards means the fix did not work.
-    engine = mock.Mock()
-    resolver = self._resolver([], [])
-    resolver.reasoning_engine = engine
-    state = base_resolver._LoopState()  # pylint: disable=protected-access
-    state.pending_fix = {
-        "error": "E1",
-        "error_file": "a.cc",
-        "patch": "P",
-        "file": "a.h"
-    }
-    resolver._record_build_outcome(state, "E1", "a.cc", "out")  # pylint: disable=protected-access
-    engine.record_successful_fix.assert_not_called()
-    self.assertIsNone(state.pending_fix)
 
 
 class SearchReplaceMatchLevelsTest(unittest.TestCase):

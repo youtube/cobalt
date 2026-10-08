@@ -159,10 +159,7 @@ class _LoopState:
   iteration: int = 0
   history: List[Dict[str, Any]] = dataclasses.field(default_factory=list)
   last_error: str = ""  # Error summary of the most recent failure.
-  last_error_file: str = ""  # File that failure was reported in.
   stuck_count: int = 0  # Consecutive iterations with the same error.
-  # Last applied fix; stored in engine memory once its error goes away.
-  pending_fix: Optional[Dict[str, Any]] = None
   # Record of the last applied patch; gets the next command's outcome.
   pending_record: Optional[AgentChangeRecord] = None
 
@@ -373,14 +370,13 @@ class BaseResolver(abc.ABC):
                  self.name, iteration, self.max_iterations)
         if state.pending_record is not None:
           state.pending_record.error = None
-        self._credit_pending_fix(state)
         return True
 
       diagnostics = self._collect_diagnostics(output, siso_out)
       diag = diagnostics[0]
       rel_file = self._rel_path(diag.file_path)
       error_summary = extract_meaningful_error_summary(diag.error_message)
-      self._record_build_outcome(state, error_summary, rel_file,
+      self._record_build_outcome(state, error_summary,
                                  output + "\n" + (siso_out or ""))
       self._print_failure(diagnostics, error_summary, rel_file)
 
@@ -390,7 +386,6 @@ class BaseResolver(abc.ABC):
       state.stuck_count = (
           state.stuck_count + 1 if error_summary == state.last_error else 0)
       state.last_error = error_summary
-      state.last_error_file = rel_file
 
       # Escalation while the same error repeats (stuck_count N means N
       # failed fixes in a row): from 2 use the expert model; at 3 revert the
@@ -460,29 +455,12 @@ class BaseResolver(abc.ABC):
       diagnostics = [Diagnostic(error_message=output)]
     return diagnostics
 
-  def _credit_pending_fix(self, state: _LoopState) -> None:
-    """Stores the last applied fix in the engine's memory, then forgets it."""
-    if state.pending_fix and self.reasoning_engine is not None:
-      self.reasoning_engine.record_successful_fix(
-          issue_description=state.pending_fix["error"],
-          solution_diff=state.pending_fix["patch"],
-          target_file=state.pending_fix["file"],
-      )
-    state.pending_fix = None
-
   def _record_build_outcome(self, state: _LoopState, error_summary: str,
-                            rel_file: str, command_output: str) -> None:
+                            command_output: str) -> None:
     """Attaches this failure to the previous patch attempt."""
     if state.pending_record is not None:
       state.pending_record.error = error_summary
       state.pending_record.command_output = command_output[-4000:]
-    # The previous fix counts as successful if its error went away. Compare
-    # against where that error was reported, not the file the patch edited.
-    if state.pending_fix and (state.pending_fix["error"],
-                              state.pending_fix["error_file"]) == (
-                                  error_summary, rel_file):
-      state.pending_fix = None
-    self._credit_pending_fix(state)
 
   def _print_failure(self, diagnostics: List[Diagnostic], error_summary: str,
                      rel_file: str) -> None:
@@ -707,13 +685,6 @@ class BaseResolver(abc.ABC):
         os.path.relpath(f, self.repo_path) for f in modified_files)
     log.info("[%s] [OK] Patch applied cleanly to: %s", self.name, mod_summary)
     self.on_patch_applied(modified_files)
-    if self.reasoning_engine is not None:
-      state.pending_fix = {
-          "error": state.last_error,
-          "error_file": state.last_error_file,
-          "patch": patch,
-          "file": rel_target,
-      }
     state.pending_record = AgentChangeRecord(
         phase=self.name,
         iteration=iteration,

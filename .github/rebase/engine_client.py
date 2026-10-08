@@ -25,10 +25,6 @@ from vertexai.preview import reasoning_engines
 
 log = logging.getLogger(__name__)
 
-# Engine actions that write to the GCS knowledge bank. Blocked when the client
-# is in memory read-only mode.
-_MEMORY_WRITE_ACTIONS = frozenset({"record_successful_fix", "record_fix"})
-
 
 @dataclasses.dataclass
 class ModelResponseWrapper:
@@ -52,8 +48,6 @@ class ReasoningEngineClient:
       expert_provider: Optional[str] = None,
       expert_location: Optional[str] = None,
       skills_dir: Optional[str] = None,
-      gcs_memory_uri: Optional[str] = None,
-      memory_read_only: bool = False,
       local: bool = False,
       max_connect_retries: int = 3,
       max_query_retries: int = 5,
@@ -76,13 +70,6 @@ class ReasoningEngineClient:
          ("glm" if "glm" in self.expert_model.lower() else "gemini")))
     self.expert_location = expert_location or os.environ.get("EXPERT_LOCATION")
     self.skills_dir = skills_dir
-    self.gcs_memory_uri = gcs_memory_uri
-    # Enforced client-side so it also applies to the hosted engine, whose
-    # writes would otherwise use the engine's own service account.
-    self.memory_read_only = (
-        memory_read_only or
-        os.environ.get("REBASE_MEMORY_READ_ONLY",
-                       "").strip().lower() in ("1", "true", "yes"))
     self.local = (
         local or os.environ.get("REBASE_LOCAL", "").lower() in ("1", "true") or
         not self.resource_id)
@@ -120,8 +107,6 @@ class ReasoningEngineClient:
           expert_provider=self.expert_provider,
           expert_location=self.expert_location,
           skills_dir=self.skills_dir,
-          gcs_memory_uri=self.gcs_memory_uri,
-          memory_read_only=self.memory_read_only,
       )
       return self._local_engine
 
@@ -168,12 +153,6 @@ class ReasoningEngineClient:
 
   def query(self, action: str, **kwargs) -> Any:
     """Dispatches query to hosted or in-process Reasoning Engine."""
-    if self.memory_read_only and action in _MEMORY_WRITE_ACTIONS:
-      label = kwargs.get("target_file") or "<unknown>"
-      log.info(
-          "  [REASONING_ENGINE_CLIENT] Knowledge bank is read-only; "
-          "skipping \"%s\" for: %s", action, label)
-      return {"success": False, "read_only": True}
     engine = self._get_engine()
     if self.local:
       return engine.query(action=action, **kwargs)
@@ -290,7 +269,6 @@ class ReasoningEngineClient:
       context_before: str = "",
       context_after: str = "",
       git_context: str = "",
-      past_experience: str = "",
       investigation_history: str = "",
       instruction: str = "",
       expert_guidance: str = "",
@@ -306,7 +284,6 @@ class ReasoningEngineClient:
         context_before=context_before,
         context_after=context_after,
         git_context=git_context,
-        past_experience=past_experience,
         investigation_history=investigation_history,
         instruction=instruction,
         expert_guidance=expert_guidance,
@@ -320,7 +297,6 @@ class ReasoningEngineClient:
       file_context: str = "",
       *,
       attempt_history: str = "",
-      past_experience: str = "",
       investigation_history: str = "",
       expert_guidance: str = "",
       use_expert: bool = False,
@@ -332,7 +308,6 @@ class ReasoningEngineClient:
         error_trace=error_trace,
         file_context=file_context,
         attempt_history=attempt_history,
-        past_experience=past_experience,
         investigation_history=investigation_history,
         expert_guidance=expert_guidance,
         use_expert=use_expert,
@@ -349,7 +324,6 @@ class ReasoningEngineClient:
       file_context: str = "",
       target_file: str = "",
       history: str = "",
-      past_experience: str = "",
       investigation_history: str = "",
       expert_guidance: str = "",
       use_expert: bool = False,
@@ -366,43 +340,10 @@ class ReasoningEngineClient:
         target=eff_target,
         diagnostics=eff_diag,
         source_contexts=eff_ctx,
-        past_experience=past_experience,
         investigation_history=eff_inv,
         expert_guidance=expert_guidance,
         use_expert=use_expert,
     )
-
-  def record_successful_fix(
-      self,
-      issue_description: str,
-      solution_diff: str,
-      target_file: str = "",
-  ) -> bool:
-    """Records verified fix to GCS memory via hosted Reasoning Engine."""
-    res = self.query(
-        action="record_successful_fix",
-        issue_description=issue_description,
-        solution_diff=solution_diff,
-        target_file=target_file,
-    )
-    if isinstance(res, dict):
-      return bool(res.get("success", True))
-    return bool(res)
-
-  def get_past_experience(
-      self,
-      query: str,
-      max_items: int = 3,
-  ) -> str:
-    """Retrieves relevant past experiences from hosted Reasoning Engine."""
-    res = self.query(
-        action="get_past_experience",
-        query=query,
-        max_items=max_items,
-    )
-    if isinstance(res, dict):
-      return str(res.get("experience", ""))
-    return str(res)
 
   # pylint: disable=too-many-arguments,unused-argument
   def generate_comparative_review(

@@ -228,23 +228,6 @@ def build_arg_parser() -> argparse.ArgumentParser:
       default=os.environ.get("REBASE_LOCAL", "").lower() in ("1", "true"),
       help="Run Reasoning Engine in-process locally without hosted deployment.",
   )
-  parser.add_argument(
-      "--gcs-memory-uri",
-      default=os.environ.get(
-          "GCS_MEMORY_URI",
-          "gs://cobalt-actions-prod-agent/rebase_memory/knowledge_bank.json"),
-      help=(
-          "Optional GCS bucket URI (gs://bucket/path) to sync knowledge bank. "
-          "Pass a non-gs:// value (e.g. 'none') to disable it entirely."),
-  )
-  parser.add_argument(
-      "--memory-read-only",
-      action="store_true",
-      default=os.environ.get("REBASE_MEMORY_READ_ONLY", "").strip().lower()
-      in ("1", "true", "yes"),
-      help=("Read past fixes from the knowledge bank but never write new ones "
-            "back to GCS (env: REBASE_MEMORY_READ_ONLY=1)."),
-  )
   return parser
 
 
@@ -279,9 +262,6 @@ def run_pipeline(args: argparse.Namespace) -> int:
   log.info("  - Config:     %s", args.build_type)
   log.info("  - Out Dir:    out/%s", out_dir)
   log.info("  - Target:     %s", effective_target)
-  if args.gcs_memory_uri:
-    mem_mode = "read-only" if args.memory_read_only else "read-write"
-    log.info("  - GCS Memory: %s (%s)", args.gcs_memory_uri, mem_mode)
   log.info("=" * 80)
 
   # -------------------------------------------------------------------------
@@ -294,8 +274,6 @@ def run_pipeline(args: argparse.Namespace) -> int:
       flash_model=args.model,
       expert_model=args.expert_model,
       skills_dir=args.skills_dir,
-      gcs_memory_uri=args.gcs_memory_uri,
-      memory_read_only=args.memory_read_only,
       local=args.local,
   )
 

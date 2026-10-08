@@ -102,7 +102,6 @@ def deploy_reasoning_engine(
       requirements=[
           "google-genai",
           "google-cloud-aiplatform[reasoningengine,langchain]",
-          "google-cloud-storage",
           "anthropic[vertex]",
       ],
       display_name=display_name,
@@ -159,7 +158,6 @@ def update_reasoning_engine(
       requirements=[
           "google-genai",
           "google-cloud-aiplatform[reasoningengine,langchain]",
-          "google-cloud-storage",
           "anthropic[vertex]",
       ],
       display_name=display_name,

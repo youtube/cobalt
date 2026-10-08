@@ -15,7 +15,7 @@
 """Vertex AI Reasoning Engine Service for Cobalt Chromium Rebase.
 
 This module is packaged and deployed to Google Cloud Vertex AI to execute
-remote reasoning, prompt construction, memory retrieval, and LLM calls.
+remote reasoning, prompt construction, and LLM calls.
 Local resolvers communicate with this hosted service via ReasoningEngineClient.
 """
 
@@ -32,7 +32,6 @@ import warnings
 import google.auth
 import google.auth.transport.requests
 from google import genai
-from google.cloud import storage
 from google.genai import types
 
 # Suppress google.genai informational warnings about AFC on direct model calls
@@ -48,20 +47,6 @@ SKILLS_DIR = os.path.join(
     "skills",
 )
 _SKILL_CACHE: Dict[str, str] = {}
-
-# Production knowledge bank used when no explicit URI is configured.
-DEFAULT_GCS_MEMORY_URI = (
-    "gs://cobalt-actions-prod-agent/rebase_memory/knowledge_bank.json")
-
-# Environment variable that disables knowledge bank writes when truthy.
-MEMORY_READ_ONLY_ENV = "REBASE_MEMORY_READ_ONLY"
-
-
-def is_memory_read_only_env() -> bool:
-  """Returns True if REBASE_MEMORY_READ_ONLY is set to a truthy value."""
-  return os.environ.get(MEMORY_READ_ONLY_ENV,
-                        "").strip().lower() in ("1", "true", "yes")
-
 
 # Shared investigation-tool protocol injected into agent prompts.
 #
@@ -155,8 +140,6 @@ class CobaltReasoningEngine:
       expert_location: Optional[str] = None,
       pro_model: Optional[str] = None,
       skills_dir: Optional[str] = None,
-      gcs_memory_uri: Optional[str] = None,
-      memory_read_only: Optional[bool] = None,
       **kwargs,
   ):
     self.project_id = (
@@ -180,17 +163,6 @@ class CobaltReasoningEngine:
         os.environ.get("GLM_BASE_URL") or os.environ.get("OPENAI_BASE_URL") or
         "https://open.bigmodel.cn/api/paas/v4")
     self.skills_dir = skills_dir or SKILLS_DIR
-    self.gcs_memory_uri = (
-        gcs_memory_uri or os.environ.get("GCS_MEMORY_URI") or
-        DEFAULT_GCS_MEMORY_URI)
-    # When enabled, the knowledge bank is still read for past experience but
-    # record_successful_fix never writes back to GCS (e.g. external partners
-    # running the pipeline locally).
-    self.memory_read_only = (
-        memory_read_only
-        if memory_read_only is not None else is_memory_read_only_env())
-    self.memory_cache: Optional[List[Dict[str, Any]]] = None
-    self.storage_client: Any = None
     self.anthropic_client: Any = None
     self.skill_cache: Dict[str, str] = {
         "cobalt_rebase":
@@ -217,134 +189,6 @@ class CobaltReasoningEngine:
         project=self.project_id,
         location=loc,
     )
-
-  def _get_storage_client(self) -> Any:
-    """Lazy loads Google Cloud Storage client in cloud or local environment."""
-    if self.storage_client is None:
-      try:
-        self.storage_client = storage.Client(project=self.project_id)
-      except Exception:  # pylint: disable=broad-exception-caught
-        self.storage_client = None
-    return self.storage_client
-
-  def _load_memory(self) -> List[Dict[str, Any]]:
-    """Loads knowledge memory from GCS or returns cached memory."""
-    if self.memory_cache is not None:
-      return self.memory_cache
-    self.memory_cache = []
-    if not self.gcs_memory_uri or not self.gcs_memory_uri.startswith("gs://"):
-      return self.memory_cache
-
-    client = self._get_storage_client()
-    if client is None:
-      return self.memory_cache
-
-    try:
-      path_part = self.gcs_memory_uri[5:]
-      if "/" not in path_part:
-        return self.memory_cache
-      bucket_name, blob_name = path_part.split("/", 1)
-      bucket = client.bucket(bucket_name)
-      blob = bucket.blob(blob_name)
-      if blob.exists():
-        data = blob.download_as_text(encoding="utf-8")
-        loaded = json.loads(data)
-        if isinstance(loaded, list):
-          self.memory_cache = loaded
-    except Exception as e:  # pylint: disable=broad-exception-caught
-      print(
-          f"  [REASONING_ENGINE] Notice: Could not read memory from GCS: {e}",
-          file=sys.stderr,
-      )
-    return self.memory_cache
-
-  def get_past_experience(
-      self,
-      query: str,
-      max_items: int = 3,
-      **kwargs,
-  ) -> str:
-    """Retrieves relevant past fixes from knowledge bank."""
-    memory = self._load_memory()
-    if not memory:
-      return ""
-
-    q_lower = query.lower()
-    q_words = set(re.findall(r"\w+", q_lower))
-    scored = []
-    for item in memory:
-      desc = item.get("issue_description", "").lower()
-      target = item.get("target_file", "").lower()
-      combined = f"{desc} {target}"
-      score = sum(1 for w in q_words if w in combined)
-      if score > 0:
-        scored.append((score, item))
-
-    scored.sort(key=lambda x: x[0], reverse=True)
-    top_items = [item for _, item in scored[:max_items]]
-    if not top_items:
-      return ""
-
-    blocks = []
-    for idx, item in enumerate(top_items, 1):
-      desc = item.get("issue_description", "")
-      sol = item.get("solution_diff", "")
-      tf = item.get("target_file", "")
-      target_line = f"Target File: {tf}\n" if tf else ""
-      blocks.append(f"Example #{idx}:\n{target_line}Issue: {desc}\nFix:\n{sol}")
-    return "\n\n".join(blocks)
-
-  def record_successful_fix(
-      self,
-      issue_description: str,
-      solution_diff: str,
-      target_file: str = "",
-      **kwargs,
-  ) -> bool:
-    """Records a verified fix into GCS knowledge memory bank."""
-    if getattr(self, "memory_read_only", False):
-      label = target_file or "<unknown>"
-      print(
-          "  [REASONING_ENGINE] Knowledge bank is read-only; skipping record "
-          f"for: {label}",
-          file=sys.stderr,
-      )
-      return False
-    memory = self._load_memory()
-    for item in memory:
-      if item.get("solution_diff") == solution_diff:
-        return True
-
-    record = {
-        "timestamp": time.time(),
-        "target_file": target_file,
-        "issue_description": issue_description,
-        "solution_diff": solution_diff,
-    }
-    memory.append(record)
-    self.memory_cache = memory
-
-    if self.gcs_memory_uri and self.gcs_memory_uri.startswith("gs://"):
-      client = self._get_storage_client()
-      if client:
-        try:
-          path_part = self.gcs_memory_uri[5:]
-          if "/" in path_part:
-            bucket_name, blob_name = path_part.split("/", 1)
-            bucket = client.bucket(bucket_name)
-            blob = bucket.blob(blob_name)
-            blob.upload_from_string(
-                json.dumps(memory, indent=2),
-                content_type="application/json",
-            )
-            return True
-        except Exception as e:  # pylint: disable=broad-exception-caught
-          print(
-              "  [REASONING_ENGINE] Warning: Could not write memory to GCS: "
-              f"{e}",
-              file=sys.stderr,
-          )
-    return True
 
   def _get_client(self) -> genai.Client:
     """Returns active client instance, initializing if needed."""
@@ -682,10 +526,6 @@ class CobaltReasoningEngine:
     if action in ("heal_compiler", "heal_compiler_break",
                   "heal_compiler_error"):
       return self.heal_compiler_error(**kwargs)
-    if action in ("record_successful_fix", "record_fix"):
-      return {"success": self.record_successful_fix(**kwargs)}
-    if action in ("get_past_experience", "load_past_experience"):
-      return {"experience": self.get_past_experience(**kwargs)}
     if action == "chat":
       return self.chat(**kwargs)
     raise ValueError(f"Unknown Reasoning Engine action: {action}")
@@ -842,7 +682,6 @@ class CobaltReasoningEngine:
       context_before: str = "",
       context_after: str = "",
       git_context: str = "",
-      past_experience: str = "",
       investigation_history: str = "",
       instruction: str = "",
       expert_guidance: str = "",
@@ -856,12 +695,6 @@ class CobaltReasoningEngine:
     rebase_skill = self._get_skill("cobalt_rebase")
     conflict_skill = self._get_skill("conflict_resolution")
 
-    effective_past = (
-        past_experience or
-        self.get_past_experience(f"{file_path} {raw_conflict}"))
-    past_lessons_section = (
-        f"--- Past Successful Lessons ---\n{effective_past}\n\n"
-        if effective_past else "")
     investigation_section = (
         f"--- Investigation Tool Results ---\n{investigation_history}\n\n"
         if investigation_history else "")
@@ -886,7 +719,6 @@ class CobaltReasoningEngine:
     prompt = (f"Target File: {file_path} ({language})\n"
               f"{expert_section}"
               f"{git_context}\n\n"
-              f"{past_lessons_section}"
               f"Context before conflict:\n{context_before}\n\n"
               f"Conflicted Block to Resolve:\n{raw_conflict}\n\n"
               f"Context after conflict:\n{context_after}\n\n"
@@ -918,7 +750,6 @@ class CobaltReasoningEngine:
       file_context: str = "",
       *,
       attempt_history: str = "",
-      past_experience: str = "",
       investigation_history: str = "",
       expert_guidance: str = "",
       use_expert: bool = False,
@@ -931,10 +762,6 @@ class CobaltReasoningEngine:
     rebase_skill = self._get_skill("cobalt_rebase")
     gn_skill = self._get_skill("gn_healing")
 
-    effective_past = (
-        past_experience or self.get_past_experience(f"gn {error_trace}"))
-    past_lessons_section = (f"Past Successful Lessons:\n{effective_past}\n\n"
-                            if effective_past else "")
     investigation_section = (
         f"--- Investigation Tool Results ---\n{investigation_history}\n\n"
         if investigation_history else "")
@@ -952,7 +779,6 @@ class CobaltReasoningEngine:
         "--------------------\n\n"
         f"{expert_section}"
         f"{investigation_section}"
-        f"{past_lessons_section}"
         f"Prior Attempt History:\n{attempt_history}\n\n"
         f"Relevant File Definitions:\n{file_context}\n\n"
         "Instructions:\n"
@@ -1005,7 +831,6 @@ class CobaltReasoningEngine:
       file_context: str = "",
       target_file: str = "",
       history: str = "",
-      past_experience: str = "",
       investigation_history: str = "",
       expert_guidance: str = "",
       use_expert: bool = False,
@@ -1024,11 +849,6 @@ class CobaltReasoningEngine:
     compiler_skill = self._get_skill("compiler_healing")
     patterns_skill = self._get_skill("cobalt_rebase_patterns")
 
-    effective_past = (
-        past_experience or self.get_past_experience(f"{eff_target} {eff_diag}"))
-    past_lessons_section = (
-        f"Past Successful Rebase Lessons:\n{effective_past}\n\n"
-        if effective_past else "")
     investigation_section = (
         f"--- Investigation Tool Results ---\n{eff_inv}\n\n" if eff_inv else "")
     expert_section = (
@@ -1058,7 +878,6 @@ class CobaltReasoningEngine:
         f"Compiler Diagnostics:\n--------------------\n{eff_diag}\n"
         "--------------------\n\n"
         f"{investigation_section}"
-        f"{past_lessons_section}"
         f"Offending Source Code Excerpts:\n{eff_ctx}\n\n"
         "Instructions:\n"
         "- When encountering undeclared identifiers, unknown types, or "
