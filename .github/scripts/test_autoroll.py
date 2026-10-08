@@ -79,6 +79,23 @@ class TestAutorollLib(unittest.TestCase):
     # Uncached PR number should return empty set
     self.assertEqual(lib.get_pr_labels(999), set())
 
+  @patch('autoroll_lib.run')
+  @patch('builtins.open')
+  def test_apply_and_commit_without_autoroll_metadata(self, mock_open,
+                                                      mock_run):
+    metadata = ('date', 'author', 'msg')
+    status, unmerged = lib.apply_and_commit(
+        'cherry-pick',
+        'sha1',
+        metadata,
+        first_commit=True,
+        autoroll_metadata=None)
+    self.assertEqual(status, lib.CommitStatus.SUCCESS)
+    self.assertIsNone(unmerged)
+    # Autoroll file should not be opened or written
+    mock_open.assert_not_called()
+    mock_run.assert_called()
+
 
 class TestAutorollMain(unittest.TestCase):
   """Tests for autoroll main logic."""
@@ -246,7 +263,7 @@ class TestAutorollMain(unittest.TestCase):
       mock_get_commits, mock_start_sha, mock_cherry_pick):
     mock_start_sha.side_effect = ['sha0', 'sha1']
     # sha1 is already in HEAD (cherry-picked previously)
-    mock_rolled_items.return_value = ({'sha1'}, {101})
+    mock_rolled_items.side_effect = [({'sha1'}, {101}), (set(), set())]
     mock_get_commits.return_value = [
         ('sha1', 'Title 1', '101'),  # already rolled
         ('sha2', 'Title 2', '102'),  # no cp-27.lts
@@ -303,8 +320,11 @@ class TestAutorollMain(unittest.TestCase):
       self, mock_metadata, mock_get_pr_labels, mock_rolled_items,
       mock_get_commits, mock_start_sha, mock_cherry_pick):
     mock_start_sha.side_effect = ['sha0', 'sha0']
-    # PR 101 was already rolled, but under a different SHA in target
-    mock_rolled_items.return_value = ({'different_sha'}, {101})
+    # PR 101 was already rolled in HEAD, but under a different SHA
+    mock_rolled_items.side_effect = [
+        ({'different_sha'}, {101}),
+        (set(), set()),
+    ]
     mock_get_commits.return_value = [
         ('new_sha_for_101', 'Title 1', '101'),  # PR 101 already rolled
         ('sha2', 'Title 2', '102'),  # new PR
@@ -390,6 +410,110 @@ class TestAutorollMain(unittest.TestCase):
     self.assertEqual(mock_cherry_pick.call_count, 2)
     output = captured_out.getvalue().strip()
     self.assertEqual(output, '- #101\n- #102')
+
+  @patch('autoroll.cherry_pick')
+  @patch('autoroll_lib.get_start_sha')
+  @patch('autoroll_lib.get_commits')
+  @patch('autoroll_lib.get_rolled_source_items')
+  @patch('autoroll_lib.get_pr_labels')
+  @patch('autoroll_lib.get_cherry_pick_metadata')
+  def test_skips_prs_already_merged_in_target_branch(
+      self, mock_metadata, mock_get_pr_labels, mock_rolled_items,
+      mock_get_commits, mock_start_sha, mock_cherry_pick):
+    mock_start_sha.side_effect = ['sha0', 'sha0']
+    # PR 101 was already merged in target_branch history, not in open PR
+    mock_rolled_items.side_effect = [
+        (set(), set()),  # target_branch..HEAD (empty)
+        ({'target_sha_101'}, {101}),  # target_branch history
+    ]
+    mock_get_commits.return_value = [
+        ('sha1', 'Title 1', '101'),  # already in target_branch
+        ('sha2', 'Title 2', '102'),  # new PR
+    ]
+    mock_get_pr_labels.return_value = {'cp-27.lts'}
+    mock_metadata.return_value = ('date2', 'author2', 'msg2')
+    mock_cherry_pick.return_value = (lib.CommitStatus.SUCCESS, None)
+
+    test_args = [
+        'autoroll.py',
+        '--source-branch',
+        'main',
+        '--target-branch',
+        '27.lts',
+        '--autoroll-file',
+        '.github/AUTOROLL',
+        '--max-commits',
+        '10',
+        '--existing-pr-sha',
+        '',
+        '--mode',
+        'label',
+        '--prs-json',
+        '/dummy/path.json',
+    ]
+
+    with patch('autoroll_lib.load_pr_labels_from_file'):
+      captured_out = io.StringIO()
+      with patch('sys.argv', test_args), patch('sys.stdout', captured_out):
+        autoroll.main()
+
+    # Only sha2 should be cherry-picked; sha1 should not be picked or listed
+    self.assertEqual(mock_cherry_pick.call_count, 1)
+    self.assertEqual(mock_cherry_pick.call_args[0][0], 'sha2')
+    output = captured_out.getvalue().strip()
+    self.assertEqual(output, '- #102')
+
+  @patch('autoroll.cherry_pick')
+  @patch('autoroll_lib.get_start_sha')
+  @patch('autoroll_lib.get_commits')
+  @patch('autoroll_lib.get_rolled_source_items')
+  @patch('autoroll_lib.get_pr_labels')
+  @patch('autoroll_lib.get_cherry_pick_metadata')
+  def test_label_mode_does_not_update_autoroll_metadata(
+      self, mock_metadata, mock_get_pr_labels, mock_rolled_items,
+      mock_get_commits, mock_start_sha, mock_cherry_pick):
+    mock_start_sha.side_effect = ['target_sha', 'target_sha']
+    mock_rolled_items.side_effect = [
+        (set(), set()),
+        (set(), set()),
+    ]
+    mock_get_commits.return_value = [
+        ('sha1', 'Title 1', '101'),
+    ]
+    mock_get_pr_labels.return_value = {'cp-27.lts'}
+    mock_metadata.return_value = ('date', 'author', 'msg')
+    mock_cherry_pick.return_value = (lib.CommitStatus.SUCCESS, None)
+
+    test_args = [
+        'autoroll.py',
+        '--source-branch',
+        'main',
+        '--target-branch',
+        '27.lts',
+        '--autoroll-file',
+        '.github/AUTOROLL',
+        '--max-commits',
+        '10',
+        '--existing-pr-sha',
+        '',
+        '--mode',
+        'label',
+        '--prs-json',
+        '/dummy/path.json',
+    ]
+
+    with patch('autoroll_lib.load_pr_labels_from_file'):
+      captured_out = io.StringIO()
+      with patch('sys.argv', test_args), patch('sys.stdout', captured_out):
+        autoroll.main()
+
+    self.assertEqual(mock_cherry_pick.call_count, 1)
+    self.assertEqual(mock_cherry_pick.call_args[0][0], 'sha1')
+    # In label mode, autoroll_metadata must be None
+    autoroll_metadata = mock_cherry_pick.call_args[0][3]
+    self.assertIsNone(autoroll_metadata)
+    output = captured_out.getvalue().strip()
+    self.assertEqual(output, '- #101')
 
 
 if __name__ == '__main__':
