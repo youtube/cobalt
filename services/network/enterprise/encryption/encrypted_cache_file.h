@@ -68,7 +68,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) EncryptedCacheFile
   bool EnsurePreviousChunkNotLast(int64_t new_logical_length);
 
   std::unique_ptr<disk_cache::CacheFile> file_;
-  raw_ref<const crypto::ProcessBoundString> key_;
+  const crypto::ProcessBoundString key_;
   std::unique_ptr<ChunkedEncryptor> encryptor_;
   bool initialized_ = false;
 };

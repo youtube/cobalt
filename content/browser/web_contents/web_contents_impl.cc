@@ -74,7 +74,6 @@
 #include "content/browser/browser_plugin/browser_plugin_embedder.h"
 #include "content/browser/browser_plugin/browser_plugin_guest.h"
 #include "content/browser/btm/btm_bounce_detector.h"
-#include "content/browser/btm/btm_navigation_flow_detector.h"
 #include "content/browser/child_process_security_policy_impl.h"
 #include "content/browser/closewatcher/close_listener_manager.h"
 #include "content/browser/compositor/surface_utils.h"
@@ -4229,7 +4228,6 @@ void WebContentsImpl::Init(const WebContents::CreateParams& params,
 
   RedirectChainDetector::CreateForWebContents(this);
   BtmWebContentsObserver::MaybeCreateForWebContents(this);
-  BtmNavigationFlowDetector::CreateForWebContents(this);
   RedirectHeuristicTabHelper::CreateForWebContents(this);
   OpenerHeuristicTabHelper::CreateForWebContents(this);
 

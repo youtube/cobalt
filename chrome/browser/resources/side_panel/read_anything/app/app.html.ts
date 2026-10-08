@@ -10,10 +10,10 @@ export function getHtml(this: AppElement) {
   const immersiveClass = this.isImmersiveEnabled_ ? 'immersive' : '';
   // clang-format off
   return html`<!--_html_template_start_-->
-<immersive-mode-header id="immersiveHeader"
-    ?hidden="${!this.isImmersiveMode()}">
-</immersive-mode-header>
 <div id="appFlexParent" class="${immersiveClass}">
+<!-- Overlay to prevent cursor from interacting with background elements when
+ the settings menu is open. -->
+<div id="settingsOverlay" class="settings-overlay"></div>
   <div id="toolbar-container">
     <read-anything-toolbar
         .presentationState="${this.presentationState_}"
@@ -27,6 +27,7 @@ export function getHtml(this: AppElement) {
         .previewVoicePlaying="${this.previewVoicePlaying_}"
         .localeToDisplayName="${this.localeToDisplayName_}"
         .pageLanguage="${this.pageLanguage_}"
+        .isImmersiveMode="${this.isImmersiveMode()}"
         @select-voice="${this.onSelectVoice_}"
         @voice-language-toggle="${this.onVoiceLanguageToggle_}"
         @preview-voice="${this.onPreviewVoice_}"
@@ -51,6 +52,8 @@ export function getHtml(this: AppElement) {
         @line-focus-style-change="${this.onLineFocusStyleChange_}"
         @line-focus-movement-change="${this.onLineFocusMovementChange_}"
         @close-all-menus="${this.onAllMenusClose_}"
+        @settings-opened="${this.onSettingsOpened_}"
+        @settings-closed="${this.onSettingsClosed_}"
         id="toolbar">
     </read-anything-toolbar>
   </div>

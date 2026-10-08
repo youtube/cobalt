@@ -63,6 +63,7 @@ void CopyFromConfigToEvent(const InternalAPMConfig& config,
       config.pre_amplifier_fixed_gain_factor);
 
   pb_cfg->set_experiments_description(config.experiments_description);
+  pb_cfg->set_api_config_string(config.api_config_string);
 }
 
 }  // namespace

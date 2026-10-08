@@ -61,9 +61,10 @@ std::unique_ptr<IvfFileWriter> IvfFileWriter::Wrap(FileWrapper file,
 }
 
 std::unique_ptr<IvfFileWriter> IvfFileWriter::Wrap(absl::string_view filename,
-                                                   size_t byte_limit) {
-  return std::unique_ptr<IvfFileWriter>(
-      new IvfFileWriter(FileWrapper::OpenWriteOnly(filename), byte_limit));
+                                                   size_t byte_limit,
+                                                   int* error /*=nullptr*/) {
+  return std::unique_ptr<IvfFileWriter>(new IvfFileWriter(
+      FileWrapper::OpenWriteOnly(filename, error), byte_limit));
 }
 
 bool IvfFileWriter::WriteHeader() {

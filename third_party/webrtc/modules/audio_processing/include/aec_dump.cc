@@ -33,6 +33,7 @@ bool InternalAPMConfig::operator==(const InternalAPMConfig& other) const {
          pre_amplifier_enabled == other.pre_amplifier_enabled &&
          pre_amplifier_fixed_gain_factor ==
              other.pre_amplifier_fixed_gain_factor &&
-         experiments_description == other.experiments_description;
+         experiments_description == other.experiments_description &&
+         api_config_string == other.api_config_string;
 }
 }  // namespace webrtc

@@ -97,6 +97,12 @@ ABSL_FLAG(bool,
     fprintf(settings_file, "  " #field_name ": %f\n", msg.field_name()); \
   }
 
+#define PRINT_CONFIG_STRING(field_name)               \
+  if (msg.has_##field_name()) {                       \
+    fprintf(settings_file, "  " #field_name ": %s\n", \
+            msg.field_name().c_str());                \
+  }
+
 namespace webrtc {
 
 using audioproc::Event;
@@ -517,11 +523,9 @@ int do_main(int argc, char* argv[]) {
       PRINT_CONFIG(transient_suppression_enabled);
       PRINT_CONFIG(pre_amplifier_enabled);
       PRINT_CONFIG_FLOAT(pre_amplifier_fixed_gain_factor);
+      PRINT_CONFIG_STRING(experiments_description);
+      PRINT_CONFIG_STRING(api_config_string);
 
-      if (msg.has_experiments_description()) {
-        fprintf(settings_file, "  experiments_description: %s\n",
-                msg.experiments_description().c_str());
-      }
     } else if (event_msg.type() == Event::INIT) {
       if (!event_msg.has_init()) {
         printf("Corrupt input file: Init missing.\n");

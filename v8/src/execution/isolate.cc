@@ -1356,7 +1356,8 @@ void CaptureAsyncStackTrace(Isolate* isolate, CallSiteBuilder* builder) {
 
 template <typename Visitor>
 void VisitStack(Isolate* isolate, Visitor* visitor,
-                StackTrace::StackTraceOptions options = StackTrace::kDetailed) {
+                StackTrace::StackTraceOptions options = StackTrace::kDetailed,
+                bool never_allocate = false) {
   DisallowJavascriptExecution no_js(isolate);
   // Keep track if we visited a stack frame, but did not visit any summarized
   // frames. Either because the stack frame didn't create any summarized frames
@@ -1386,7 +1387,8 @@ void VisitStack(Isolate* isolate, Visitor* visitor,
       {
         // A standard frame may include many summarized frames (due to
         // inlining).
-        FrameSummaries summaries = CommonFrame::cast(frame)->Summarize();
+        FrameSummaries summaries =
+            CommonFrame::cast(frame)->Summarize(never_allocate);
         if (summaries.top_frame_is_construct_call && !skipped_last_frame) {
           visitor->SetPrevFrameAsConstructCall();
         }
@@ -1715,6 +1717,62 @@ class CurrentScriptIdStackVisitor {
   int script_id_ = v8::Message::kNoScriptIdInfo;
 };
 
+class CurrentScriptIdsAndContextsStackVisitor {
+ public:
+  CurrentScriptIdsAndContextsStackVisitor(
+      Isolate* isolate,
+      v8::MemorySpan<StackTrace::ScriptIdAndContext> frame_data)
+      : isolate_(isolate), frame_data_(frame_data) {
+    DCHECK_LT(0, frame_data.size());
+  }
+
+  void SetPrevFrameAsConstructCall() {
+    // Nothing to do.
+  }
+
+  bool Visit(FrameSummary& summary) {
+    if (!summary.is_subject_to_debugging()) return true;
+
+    // Frames that are subject to debugging always have a valid script object. A
+    // valid script object should have a valid id.
+    auto script_handle = Cast<Script>(summary.script());
+    int script_id = script_handle->id();
+    if (script_handle->has_eval_from_shared()) {
+      script_id = GetRootScriptId(*script_handle);
+    }
+
+    Handle<NativeContext> context =
+        handle(summary.native_context()->native_context(), isolate_);
+    if (context.is_null() || script_id <= 0) return true;
+
+    frame_data_[cur_frame_].context = Utils::ToLocal(context).As<v8::Context>();
+    frame_data_[cur_frame_].id = script_id;
+
+    cur_frame_ += 1;
+
+    return cur_frame_ < frame_data_.size();
+  }
+
+  size_t FrameCount() const { return cur_frame_; }
+
+ private:
+  int GetRootScriptId(Tagged<Script> script) {
+    Tagged<Script> cur = script;
+    while (cur->has_eval_from_shared()) {
+      Tagged<Object> maybe_sfi = cur->eval_from_shared();
+      if (!IsSharedFunctionInfo(maybe_sfi)) break;
+      Tagged<Object> maybe_script =
+          Cast<SharedFunctionInfo>(maybe_sfi)->script();
+      if (!IsScript(maybe_script)) break;
+      cur = Cast<Script>(maybe_script);
+    }
+    return cur->id();
+  }
+  Isolate* const isolate_;
+  v8::MemorySpan<StackTrace::ScriptIdAndContext> frame_data_;
+  size_t cur_frame_ = 0;
+};
+
 class CurrentScriptStackVisitor {
  public:
   void SetPrevFrameAsConstructCall() {
@@ -1751,6 +1809,17 @@ int Isolate::CurrentScriptId() {
   CurrentScriptIdStackVisitor visitor;
   VisitStack(this, &visitor);
   return visitor.CurrentScriptId();
+}
+
+size_t Isolate::CurrentScriptIdsAndContexts(
+    v8::MemorySpan<StackTrace::ScriptIdAndContext> frame_data) {
+  if (frame_data.size() == 0) {
+    return 0;
+  }
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"), __func__);
+  CurrentScriptIdsAndContextsStackVisitor visitor(this, frame_data);
+  VisitStack(this, &visitor);
+  return visitor.FrameCount();
 }
 
 MaybeDirectHandle<Script> Isolate::CurrentReferrerScript() {
@@ -1950,7 +2019,7 @@ std::string Isolate::BuildMinimalStack(size_t max_length) {
           v8::StackTrace::kExposeFramesAcrossSecurityOrigins);
 
   MinimalStackPrinter printer(max_length);
-  VisitStack(this, &printer, stackTraceOptions);
+  VisitStack(this, &printer, stackTraceOptions, true);
   return printer.Build();
 }
 
@@ -4360,13 +4429,17 @@ Isolate::Isolate(IsolateGroup* isolate_group)
 void Isolate::CheckIsolateLayout() {
 #ifdef V8_ENABLE_SANDBOX
   static_assert(static_cast<int>(OFFSET_OF(ExternalPointerTable, base_)) ==
-                Internals::kExternalPointerTableBasePointerOffset);
+                Internals::kExternalEntityTableBasePointerOffset);
   static_assert(static_cast<int>(OFFSET_OF(TrustedPointerTable, base_)) ==
-                Internals::kTrustedPointerTableBasePointerOffset);
+                Internals::kExternalEntityTableBasePointerOffset);
+  static_assert(static_cast<int>(OFFSET_OF(JSDispatchTable, base_)) ==
+                Internals::kExternalEntityTableBasePointerOffset);
   static_assert(static_cast<int>(sizeof(ExternalPointerTable)) ==
-                Internals::kExternalPointerTableSize);
+                Internals::kExternalEntityTableSize);
   static_assert(static_cast<int>(sizeof(TrustedPointerTable)) ==
-                Internals::kTrustedPointerTableSize);
+                Internals::kExternalEntityTableSize);
+  static_assert(static_cast<int>(sizeof(JSDispatchTable)) ==
+                Internals::kExternalEntityTableSize);
 #endif
 
   static_assert(OFFSET_OF(Isolate, isolate_data_) == 0);
@@ -6057,6 +6130,9 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
           WasmNull::kPayloadSize)) {
     V8::FatalProcessOutOfMemory(this, "decommitting WasmNull payload");
   }
+#endif  // V8_STATIC_ROOTS_BOOL
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   if (v8_flags.unmap_holes) {
 // Protect the payload of each hole.
 #define UNMAP_HOLE(CamelName, snake_name, _)                                  \
@@ -6069,8 +6145,6 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     HOLE_LIST(UNMAP_HOLE)
 #undef UNMAP_HOLE
   }
-#endif  // V8_STATIC_ROOTS_BOOL
-#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Isolate initialization allocates long living objects that should be
   // pretenured to old space.

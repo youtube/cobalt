@@ -52,6 +52,8 @@ class GrpcSignalingClientInterface {
   virtual ~GrpcSignalingClientInterface() = default;
 
   // Connect the client to the gRPC server.
+  virtual bool Connect() = 0;
+  // Starts the reading thread. Must be connected.
   virtual bool Start() = 0;
   virtual SignalingInterface* signaling_client() = 0;
 

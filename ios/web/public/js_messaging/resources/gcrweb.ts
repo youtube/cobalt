@@ -19,10 +19,10 @@ class CrWeb {
   private frameId: string = generateRandomId();
 
   constructor() {
-    const crweb = new CrWebApi();
+    const crweb = new CrWebApi('crweb');
     crweb.addFunction('getFrameId', this.getFrameId.bind(this));
     crweb.addFunction('registerFrame', this.registerFrame.bind(this));
-    this.registerApi('crweb', crweb);
+    this.registerApi(crweb);
   }
 
   hasRegisteredApi(apiIdentifier: string): boolean {
@@ -33,11 +33,11 @@ class CrWeb {
    * Register a Javascript API into the CrWeb object. In case
    * of any collision, do not override a pre-registered API.
    */
-  registerApi(apiIdentifier: string, api: CrWebApi): void {
-    if (this.hasRegisteredApi(apiIdentifier)) {
-      throw new CrWebError(`API ${apiIdentifier} already registered.`);
+  registerApi(api: CrWebApi): void {
+    if (this.hasRegisteredApi(api.getApiName())) {
+      throw new CrWebError(`API ${api.getApiName()} already registered.`);
     }
-    this.registeredApis[apiIdentifier] = api;
+    this.registeredApis[api.getApiName()] = api;
   }
 
   getRegisteredApi(apiIdentifier: string): CrWebApi {
@@ -131,9 +131,16 @@ export class CrWebApi {
   private readonly functions: {[id: string]: Function} = {};
   private readonly properties: {[id: string]: unknown} = {};
 
+  constructor(private readonly apiName: string) {}
+
+  getApiName(): string {
+    return this.apiName;
+  }
+
   addFunction(funcName: string, func: Function): void {
+    const apiName = this.getApiName() + '.' + funcName;
     this.functions[funcName] = function(...args: unknown[]) {
-      return catchAndReportErrors.apply(null, [funcName, func, args]);
+      return catchAndReportErrors.apply(null, [apiName, func, args]);
     };
   }
 

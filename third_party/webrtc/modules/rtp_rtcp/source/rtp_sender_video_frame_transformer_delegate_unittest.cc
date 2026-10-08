@@ -87,8 +87,8 @@ class RtpSenderVideoFrameTransformerDelegateTest : public ::testing::Test {
       bool key_frame = false) {
     EncodedImage encoded_image;
     encoded_image.SetEncodedData(EncodedImageBuffer::Create(1));
-    encoded_image._frameType = key_frame ? VideoFrameType::kVideoFrameKey
-                                         : VideoFrameType::kVideoFrameDelta;
+    encoded_image.set_frame_type(key_frame ? VideoFrameType::kVideoFrameKey
+                                           : VideoFrameType::kVideoFrameDelta);
     std::unique_ptr<TransformableFrameInterface> frame = nullptr;
     EXPECT_CALL(*frame_transformer_, Transform)
         .WillOnce([&](std::unique_ptr<TransformableFrameInterface>

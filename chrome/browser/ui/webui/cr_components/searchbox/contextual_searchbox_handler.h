@@ -31,9 +31,9 @@
 #include "components/omnibox/composebox/composebox_query.mojom.h"
 #include "content/public/browser/web_contents.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
-#include "third_party/omnibox_proto/aim_models.pb.h"
-#include "third_party/omnibox_proto/aim_tools.pb.h"
 #include "third_party/omnibox_proto/chrome_aim_entry_point.pb.h"
+#include "third_party/omnibox_proto/model_mode.pb.h"
+#include "third_party/omnibox_proto/tool_mode.pb.h"
 #include "ui/webui/resources/cr_components/composebox/composebox.mojom.h"
 
 class Profile;
@@ -156,12 +156,22 @@ class ContextualSearchboxHandler
     return context_input_data_;
   }
 
+  // SearchboxHandler:
+  omnibox::InputState GetInputState() const override;
+
   std::vector<base::UnguessableToken> GetUploadedContextTokens();
+
+  contextual_search::InputStateModel* input_state_model() {
+    return input_state_model_.get();
+  }
 
   // Resets `input_state_model_`.
   void ResetInputStateModel();
   void SetActiveToolMode(omnibox::ToolMode tool) override;
   void SetActiveModelMode(omnibox::ModelMode model) override;
+  // NOTE: This method is only intended for debugging purposes
+  // (chrome://omnibox/aim-eligibility).
+  void InitializeInputStateModelForDebugging();
 
  protected:
   void ComputeAndOpenQueryUrl(
@@ -250,6 +260,8 @@ class ContextualSearchboxHandler
   std::optional<lens::ContextualInputData> context_input_data_;
   // Callback for `InputStateModel` changes.
   void OnInputStateChanged(const contextual_search::InputState& state);
+
+  void InitializeInputStateModel();
 
   std::unique_ptr<contextual_search::InputState> input_state_;
 

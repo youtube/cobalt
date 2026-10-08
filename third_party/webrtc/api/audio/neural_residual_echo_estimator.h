@@ -56,6 +56,9 @@ class NeuralResidualEchoEstimator {
 
   // Returns a recommended AEC3 configuration for this estimator.
   virtual EchoCanceller3Config GetConfiguration(bool multi_channel) const = 0;
+
+  // Resets the internal state of the estimator.
+  virtual void Reset() = 0;
 };
 }  // namespace webrtc
 

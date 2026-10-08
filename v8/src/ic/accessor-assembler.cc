@@ -948,6 +948,8 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
   BIND(&interceptor);
   {
     Comment("load_interceptor");
+    Label if_not_intercepted(this);
+
     TNode<InterceptorInfo> interceptor_info =
         CAST(LoadHandlerDataField(CAST(handler), 2));
 
@@ -969,9 +971,35 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
         },
         [&] { return holder; });
 
-    exit_point->ReturnCallRuntime(
-        Runtime::kLoadPropertyWithInterceptor, p->context(), p->name(),
-        p->receiver(), the_holder, interceptor_info, p->slot(), p->vector());
+    TNode<Object> result =
+        CallBuiltin(Builtin::kCallNamedInterceptorGetter, p->context(),
+                    p->name(), interceptor_info, the_holder);
+
+    GotoIf(TaggedIsNotInterceptedSentinel(result), &if_not_intercepted);
+
+    exit_point->Return(result);
+
+    BIND(&if_not_intercepted);
+    {
+      Label if_masking(this), if_non_masking(this);
+      TNode<BoolT> non_masking =
+          IsSetWord32<LoadHandler::NonMaskingInterceptorBits>(handler_word);
+      Branch(non_masking, &if_non_masking, &if_masking);
+
+      BIND(&if_non_masking);
+      {
+        // The lookup is over, property was not found.
+        exit_point->Return(UndefinedConstant());
+      }
+      BIND(&if_masking);
+      {
+        // Proceed lookup past interceptor.
+        exit_point->ReturnCallRuntime(Runtime::kLoadPropertyPastInterceptor,
+                                      p->context(), p->name(), p->receiver(),
+                                      the_holder, interceptor_info, p->slot(),
+                                      p->vector());
+      }
+    }
   }
   BIND(&slow);
   {
@@ -2075,6 +2103,8 @@ void AccessorAssembler::HandleStoreICProtoHandler(
     BIND(&if_interceptor);
     {
       Comment("store_interceptor");
+      Label if_not_intercepted(this);
+
       TNode<JSObject> receiver = CAST(p->receiver());
       if (ic_mode == ICMode::kGlobalIC) {
         CSA_DCHECK(this, IsJSGlobalProxy(receiver));
@@ -2086,8 +2116,21 @@ void AccessorAssembler::HandleStoreICProtoHandler(
       TNode<InterceptorInfo> interceptor_info =
           CAST(LoadHandlerDataField(handler, 2));
 
-      TailCallRuntime(Runtime::kStorePropertyWithInterceptor, p->context(),
-                      p->value(), receiver, p->name(), interceptor_info);
+      TNode<Object> result = CallBuiltin(
+          Builtin::kCallNamedInterceptorSetter, p->context(), p->name(),
+          interceptor_info, receiver,
+          SmiConstant(Smi::FromInt(Internals::kInferShouldThrowMode)),
+          p->value());
+
+      GotoIf(TaggedIsNotInterceptedSentinel(result), &if_not_intercepted);
+
+      Return(result);
+
+      BIND(&if_not_intercepted);
+      {
+        TailCallRuntime(Runtime::kStorePropertyPastInterceptor, p->context(),
+                        p->value(), receiver, p->name(), interceptor_info);
+      }
     }
 
     BIND(&if_add_normal);
@@ -4760,6 +4803,47 @@ void AccessorAssembler::GenerateLoadICConstantFromPrototypeBaseline() {
       direct_exit.Return(result);
     }
   }
+
+  BIND(&miss);
+  direct_exit.ReturnCallRuntime(Runtime::kLoadIC_Miss_FromBaseline, context,
+                                receiver, name, slot, vector);
+}
+
+void AccessorAssembler::GenerateLoadICStringLengthBaseline() {
+  using Descriptor = LoadBaselineDescriptor;
+
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
+  auto name = Parameter<Object>(Descriptor::kName);
+  auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
+  TNode<FeedbackVector> vector = LoadFeedbackVectorFromBaseline();
+  TNode<Context> context = LoadContextFromBaseline();
+
+  ExitPoint direct_exit(this);
+  TVARIABLE(MaybeObject, var_handler);
+  Label update_feedback(this, Label::kDeferred), miss(this, Label::kDeferred);
+
+  GotoIf(TaggedIsSmi(receiver), &miss);
+  GotoIfNot(IsString(UncheckedCast<HeapObject>(receiver)), &miss);
+  TNode<Smi> result = LoadStringLengthAsSmi(UncheckedCast<String>(receiver));
+
+  // Check if feedback slot is uninitialized.
+  // TODO(chromium:429351411): Consider removing this check when we have a
+  // bytecode hint.
+  int32_t header_size =
+      FeedbackVector::kRawFeedbackSlotsOffset - kHeapObjectTag;
+  // Adding |header_size| with a separate IntPtrAdd rather than passing it
+  // into ElementOffsetFromIndex() allows it to be folded into a single
+  // [base, index, offset] indirect memory access on x64.
+  TNode<IntPtrT> offset = ElementOffsetFromIndex(slot, HOLEY_ELEMENTS);
+  TNode<HeapObjectReference> feedback = CAST(Load<MaybeObject>(
+      vector, IntPtrAdd(offset, IntPtrConstant(header_size))));
+  GotoIf(TaggedEqual(feedback, UninitializedSymbolConstant()),
+         &update_feedback);
+  direct_exit.Return(result);
+
+  BIND(&update_feedback);
+  TailCallRuntime(Runtime::kGetStringLengthAndUpdateFeedback, context, receiver,
+                  slot, vector);
 
   BIND(&miss);
   direct_exit.ReturnCallRuntime(Runtime::kLoadIC_Miss_FromBaseline, context,

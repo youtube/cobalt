@@ -232,6 +232,12 @@ luci.cq_tryjob_verifier(
     ],
 )
 
+def compile_only(properties):
+    compile_properties = dict(properties)
+    compile_properties["run_unit_tests"] = False
+    compile_properties["run_ssl_tests"] = False
+    return compile_properties
+
 def both_builders(
         name,
         host,
@@ -280,17 +286,13 @@ def both_builders(
         properties = properties,
     )
     if cq_compile_only:
-        compile_properties = dict(properties)
-        compile_properties["run_unit_tests"] = False
-        compile_properties["run_ssl_tests"] = False
         cq_builder(
             name + "_compile",
             cq_compile_only,
             recipe = recipe,
             cq_enabled = cq_enabled,
             execution_timeout = execution_timeout,
-            properties = compile_properties,
-        )
+            properties = compile_only(properties))
 
 LINUX_HOST = {
     "dimensions": {
@@ -452,6 +454,24 @@ both_builders(
 )
 
 both_builders(
+    "android_aarch64_prefixed_compile",
+    LINUX_HOST,
+    category = "android|aarch64",
+    short_name = "pfx",
+    # Redundant with android_arm_prefixed_compile + mac_arm64_prefixed_compile.
+    # Thus, don't unnecessarily draw resources for it.
+    cq_enabled = False,
+    properties = compile_only({
+        "android": True,
+        "cmake_args": {
+            "ANDROID_ABI": "arm64-v8a",
+            "ANDROID_PLATFORM": "android-24",
+        },
+        "prefixed_symbols": True,
+    }),
+)
+
+both_builders(
     "android_arm",
     WALLEYE_HOST,
     category = "android|thumb",
@@ -507,6 +527,21 @@ both_builders(
     },
 )
 both_builders(
+    "android_arm_prefixed_compile",
+    LINUX_HOST,
+    category = "android|thumb",
+    short_name = "pfx",
+    properties = compile_only({
+        "android": True,
+        "cmake_args": {
+            "ANDROID_ABI": "armeabi-v7a",
+            "ANDROID_PLATFORM": "android-24",
+        },
+        "prefixed_symbols": True,
+    }),
+)
+
+both_builders(
     "android_arm_armmode_rel",
     WALLEYE_HOST,
     category = "android|arm",
@@ -523,20 +558,48 @@ both_builders(
     },
 )
 both_builders(
+    "android_arm_armmode_prefixed_compile",
+    LINUX_HOST,
+    category = "android|arm",
+    short_name = "pfx",
+    properties = compile_only({
+        "android": True,
+        "cmake_args": {
+            "ANDROID_ABI": "armeabi-v7a",
+            "ANDROID_ARM_MODE": "arm",
+            "ANDROID_PLATFORM": "android-24",
+        },
+        "prefixed_symbols": True,
+    }),
+)
+both_builders(
     "android_riscv64_compile_only",
     LINUX_HOST,
     category = "android|riscv64",
     short_name = "rel",
-    properties = {
+    properties = compile_only({
         "android": True,
         "cmake_args": {
             "ANDROID_ABI": "riscv64",
             "ANDROID_PLATFORM": "android-35",
             "CMAKE_BUILD_TYPE": "Release",
         },
-        "run_unit_tests": False,
-        "run_ssl_tests": False,
-    },
+    }),
+)
+both_builders(
+    "android_riscv64_prefixed_compile",
+    LINUX_HOST,
+    category = "android|riscv64",
+    short_name = "pfx",
+    properties = compile_only({
+        "android": True,
+        "cmake_args": {
+            "ANDROID_ABI": "riscv64",
+            "ANDROID_ARM_MODE": "arm",
+            "ANDROID_PLATFORM": "android-24",
+        },
+        "prefixed_symbols": True,
+    }),
 )
 
 both_builders("docs", LINUX_HOST, recipe = "boringssl_docs", short_name = "doc")
@@ -549,15 +612,30 @@ both_builders(
     MAC_X86_64_HOST,
     category = "ios",
     short_name = "64",
-    properties = {
+    properties = compile_only({
         "cmake_args": {
             "CMAKE_OSX_ARCHITECTURES": "arm64",
             "CMAKE_OSX_SYSROOT": "iphoneos",
         },
-        "run_unit_tests": False,
-        "run_ssl_tests": False,
-    },
+    }),
 )
+both_builders(
+    "ios64_prefixed_compile",
+    MAC_X86_64_HOST,
+    category = "ios",
+    short_name = "64pfx",
+    # Redundant with mac_arm64_prefixed_compile.
+    # Thus, don't unnecessarily draw resources for it.
+    cq_enabled = False,
+    properties = compile_only({
+        "cmake_args": {
+            "CMAKE_OSX_ARCHITECTURES": "arm64",
+            "CMAKE_OSX_SYSROOT": "iphoneos",
+        },
+        "prefixed_symbols": True,
+    }),
+)
+
 both_builders(
     "linux",
     LINUX_HOST,
@@ -585,6 +663,21 @@ both_builders(
             "CMAKE_BUILD_TYPE": "Release",
         },
     },
+)
+both_builders(
+    "linux_prefixed_compile",
+    LINUX_HOST,
+    category = "linux",
+    short_name = "pfx",
+    properties = compile_only({
+        "check_stack": True,
+        "cmake_args": {
+            "RUST_BINDINGS": "x86_64-unknown-linux-gnu",
+        },
+        "prefixed_symbols": True,
+        # Also build and test the Rust code.
+        "rust": True,
+    }),
 )
 both_builders(
     "linux32",
@@ -658,6 +751,24 @@ both_builders(
             "CMAKE_CXX_FLAGS": "-m32 -msse2",
         },
     },
+)
+both_builders(
+    "linux32_prefixed_compile",
+    LINUX_HOST,
+    category = "linux|32",
+    short_name = "pfx",
+    properties = compile_only({
+        "check_stack": True,
+        "cmake_args": {
+            # 32-bit x86 is cross-compiled on the 64-bit bots.
+            "CMAKE_SYSTEM_NAME": "Linux",
+            "CMAKE_SYSTEM_PROCESSOR": "x86",
+            "CMAKE_ASM_FLAGS": "-m32 -msse2",
+            "CMAKE_CXX_FLAGS": "-m32 -msse2",
+            "CMAKE_C_FLAGS": "-m32 -msse2",
+        },
+        "prefixed_symbols": True,
+    }),
 )
 both_builders(
     "linux_clang_cfi",
@@ -829,6 +940,19 @@ both_builders(
         },
     },
 )
+both_builders(
+    "linux_clang_prefixed_compile",
+    LINUX_HOST,
+    category = "linux|clang",
+    short_name = "pfx",
+    # Redundant with linux_prefixed_compile + win64_clang_prefixed_compile.
+    # Thus, don't unnecessarily draw resources for it.
+    cq_enabled = False,
+    properties = compile_only({
+        "clang": True,
+        "prefixed_symbols": True,
+    }),
+)
 
 both_builders(
     "linux_nothreads",
@@ -896,6 +1020,19 @@ both_builders(
     },
 )
 both_builders(
+    "linux_nosse2_noasm_prefixed_compile",
+    LINUX_HOST,
+    category = "linux|clang",
+    short_name = "nosse2pfx",
+    properties = compile_only({
+        "cmake_args": {
+            "OPENSSL_NO_ASM": "1",
+            "OPENSSL_NO_SSE2_FOR_TESTING": "1",
+        },
+        "prefixed_symbols": True,
+    }),
+)
+both_builders(
     "linux_bazel",
     LINUX_HOST,
     category = "linux",
@@ -939,6 +1076,18 @@ both_builders(
     },
 )
 both_builders(
+    "mac_prefixed_compile",
+    MAC_X86_64_HOST,
+    category = "mac",
+    short_name = "pfx",
+    # Redundant with linux_prefixed_compile + mac_arm64_prefixed_compile.
+    # Thus, don't unnecessarily draw resources for it.
+    cq_enabled = False,
+    properties = compile_only({
+        "prefixed_symbols": True,
+    }),
+)
+both_builders(
     "mac_arm64",
     MAC_ARM64_HOST,
     category = "mac",
@@ -950,6 +1099,15 @@ both_builders(
         # Also build and test the Rust code.
         "rust": True,
     },
+)
+both_builders(
+    "mac_arm64_prefixed_compile",
+    MAC_ARM64_HOST,
+    category = "mac",
+    short_name = "arm64pfx",
+    properties = compile_only({
+        "prefixed_symbols": True,
+    }),
 )
 both_builders(
     "mac_arm64_bazel",
@@ -997,6 +1155,47 @@ both_builders(
     },
 )
 both_builders(
+    "win32_prefixed_compile",
+    WIN_HOST,
+    category = "win|x86",
+    short_name = "pfx",
+    properties = compile_only({
+        "msvc_target": "x86",
+        "prefixed_symbols": True,
+    }),
+)
+cq_builder(
+    "win32_shared_compile",
+    WIN_HOST,
+    # TODO(crbug.com/42220000): Enable as both_builders once it's working.
+    # category = "win|x86",
+    # short_name = "sh",
+    # cq_compile_only = WIN_HOST,  # Reduce CQ cycle times.
+    cq_enabled = False,
+    properties = compile_only({
+        "msvc_target": "x86",
+        "cmake_args": {
+            "BUILD_SHARED_LIBS": "1",
+        },
+    }),
+)
+cq_builder(
+    "win32_shared_prefixed_compile",
+    WIN_HOST,
+    # TODO(crbug.com/42220000): Enable as both_builders once it's working.
+    # category = "win|x86",
+    # short_name = "shpfx",
+    # cq_compile_only = WIN_HOST,  # Reduce CQ cycle times.
+    cq_enabled = False,
+    properties = compile_only({
+        "msvc_target": "x86",
+        "cmake_args": {
+            "BUILD_SHARED_LIBS": "1",
+        },
+        "prefixed_symbols": True,
+    }),
+)
+both_builders(
     "win32_small",
     WIN_HOST,
     category = "win|x86",
@@ -1033,6 +1232,26 @@ both_builders(
             "CMAKE_CXX_FLAGS": "-m32 -msse2",
         },
     },
+)
+both_builders(
+    "win32_clang_prefixed_compile",
+    WIN_HOST,
+    category = "win|x86",
+    short_name = "clangpfx",
+    properties = compile_only({
+        "clang": True,
+        "msvc_target": "x86",
+        "cmake_args": {
+            # Clang doesn't pick up 32-bit x86 from msvc_target. Specify it as a
+            # cross-compile.
+            "CMAKE_SYSTEM_NAME": "Windows",
+            "CMAKE_SYSTEM_PROCESSOR": "x86",
+            "CMAKE_ASM_FLAGS": "-m32 -msse2",
+            "CMAKE_C_FLAGS": "-m32 -msse2",
+            "CMAKE_CXX_FLAGS": "-m32 -msse2",
+        },
+        "prefixed_symbols": True,
+    }),
 )
 
 both_builders(
@@ -1078,6 +1297,47 @@ both_builders(
     },
 )
 both_builders(
+    "win64_prefixed_compile",
+    WIN_HOST,
+    category = "win|x64",
+    short_name = "pfx",
+    properties = compile_only({
+        "msvc_target": "x64",
+        "prefixed_symbols": True,
+    }),
+)
+cq_builder(
+    "win64_shared_compile",
+    WIN_HOST,
+    # TODO(crbug.com/42220000): Enable as both_builders once it's working.
+    # category = "win|x64",
+    # short_name = "sh",
+    # cq_compile_only = WIN_HOST,  # Reduce CQ cycle times.
+    cq_enabled = False,
+    properties = compile_only({
+        "msvc_target": "x64",
+        "cmake_args": {
+            "BUILD_SHARED_LIBS": "1",
+        },
+    }),
+)
+cq_builder(
+    "win64_shared_prefixed_compile",
+    WIN_HOST,
+    # TODO(crbug.com/42220000): Enable as both_builders once it's working.
+    # category = "win|x64",
+    # short_name = "shpfx",
+    # cq_compile_only = WIN_HOST,  # Reduce CQ cycle times.
+    cq_enabled = False,
+    properties = compile_only({
+        "msvc_target": "x64",
+        "cmake_args": {
+            "BUILD_SHARED_LIBS": "1",
+        },
+        "prefixed_symbols": True,
+    }),
+)
+both_builders(
     "win64_small",
     WIN_HOST,
     category = "win|x64",
@@ -1106,13 +1366,24 @@ both_builders(
         "msvc_target": "x64",
     },
 )
+both_builders(
+    "win64_clang_prefixed_compile",
+    WIN_HOST,
+    category = "win|x64",
+    short_name = "clangpfx",
+    properties = compile_only({
+        "clang": True,
+        "msvc_target": "x64",
+        "prefixed_symbols": True,
+    }),
+)
 
 both_builders(
     "win_arm64_compile",
     WIN_HOST,
     category = "win|arm64",
     short_name = "clang",
-    properties = {
+    properties = compile_only({
         "clang": True,
         "cmake_args": {
             # Clang doesn't pick up arm64 from msvc_target. Specify it as a
@@ -1127,9 +1398,30 @@ both_builders(
             "checkout_nasm": False,
         },
         "msvc_target": "arm64",
-        "run_unit_tests": False,
-        "run_ssl_tests": False,
-    },
+    }),
+)
+both_builders(
+    "win_arm64_prefixed_compile",
+    WIN_HOST,
+    category = "win|arm64",
+    short_name = "clangpfx",
+    properties = compile_only({
+        "clang": True,
+        "cmake_args": {
+            # Clang doesn't pick up arm64 from msvc_target. Specify it as a
+            # cross-compile.
+            "CMAKE_SYSTEM_NAME": "Windows",
+            "CMAKE_SYSTEM_PROCESSOR": "arm64",
+            "CMAKE_ASM_FLAGS": "--target=arm64-windows",
+            "CMAKE_C_FLAGS": "--target=arm64-windows",
+            "CMAKE_CXX_FLAGS": "--target=arm64-windows",
+        },
+        "gclient_vars": {
+            "checkout_nasm": False,
+        },
+        "msvc_target": "arm64",
+        "prefixed_symbols": True,
+    }),
 )
 
 both_builders(
@@ -1137,7 +1429,7 @@ both_builders(
     WIN_HOST,
     category = "win|arm64",
     short_name = "msvc",
-    properties = {
+    properties = compile_only({
         "cmake_args": {
             # This is a cross-compile, so CMake needs to be told the processor.
             # MSVC will pick up the architecture from msvc_target.
@@ -1150,7 +1442,26 @@ both_builders(
             "checkout_nasm": False,
         },
         "msvc_target": "arm64",
-        "run_unit_tests": False,
-        "run_ssl_tests": False,
-    },
+    }),
+)
+both_builders(
+    "win_arm64_msvc_prefixed_compile",
+    WIN_HOST,
+    category = "win|arm64",
+    short_name = "msvcpfx",
+    properties = compile_only({
+        "cmake_args": {
+            # This is a cross-compile, so CMake needs to be told the processor.
+            # MSVC will pick up the architecture from msvc_target.
+            "CMAKE_SYSTEM_NAME": "Windows",
+            "CMAKE_SYSTEM_PROCESSOR": "arm64",
+            # We do not currently support Windows arm64 assembly with MSVC.
+            "OPENSSL_NO_ASM": "1",
+        },
+        "gclient_vars": {
+            "checkout_nasm": False,
+        },
+        "msvc_target": "arm64",
+        "prefixed_symbols": True,
+    }),
 )

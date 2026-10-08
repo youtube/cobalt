@@ -177,6 +177,9 @@ class CORE_EXPORT HTMLVideoElement final
     return visibility_tracker_.Get();
   }
 
+  // HTMLMediaElement overrides.
+  void OnEncryptedMediaInitData() final;
+
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   void SetMaxVideoCapabilities(const String& max_video_capabilities, ExceptionState& exception_state);
   void SetMaxVideoResolution(const String& max_video_resolution, ExceptionState& exception_state);
@@ -252,6 +255,8 @@ class CORE_EXPORT HTMLVideoElement final
   void CreateVisibilityTrackerIfNeeded();
 
   void ReportVisibility(bool meets_visibility_threshold);
+
+  void OnVisibilityRatioReport(double ratio);
 
   void ResetCache(TimerBase*);
 

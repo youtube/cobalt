@@ -26,6 +26,7 @@
 #include "../bytestring/internal.h"
 #include "../fipsmodule/ecdsa/internal.h"
 #include "../internal.h"
+#include "../mem_internal.h"
 
 
 using namespace bssl;
@@ -154,8 +155,7 @@ size_t ECDSA_size(const EC_KEY *key) {
 }
 
 ECDSA_SIG *ECDSA_SIG_new() {
-  ECDSA_SIG *sig =
-      reinterpret_cast<ECDSA_SIG *>(OPENSSL_malloc(sizeof(ECDSA_SIG)));
+  ECDSA_SIG *sig = New<ECDSA_SIG>();
   if (sig == nullptr) {
     return nullptr;
   }
@@ -175,7 +175,7 @@ void ECDSA_SIG_free(ECDSA_SIG *sig) {
 
   BN_free(sig->r);
   BN_free(sig->s);
-  OPENSSL_free(sig);
+  Delete(sig);
 }
 
 const BIGNUM *ECDSA_SIG_get0_r(const ECDSA_SIG *sig) { return sig->r; }

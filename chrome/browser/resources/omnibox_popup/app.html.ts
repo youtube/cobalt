@@ -27,13 +27,16 @@ ${this.showContextEntrypoint_ ? html`
   <contextual-entrypoint-and-carousel id="context"
       part="contextual-entrypoint-and-carousel"
       exportparts="composebox-entrypoint, context-menu-entrypoint-icon"
+      .showMenuOnClick="${false}"
       entrypoint-name="Omnibox"
       searchbox-layout-mode="${this.searchboxLayoutMode_}"
       .tabSuggestions="${this.tabSuggestions_}"
       ?hide-entrypoint-button="${this.shouldHideEntrypointButton_}"
       ?show-dropdown="${this.hasVisibleMatches_}"
-      ?show-lens-search-chip="${this.isLensSearchEligible_}"
-      ?show-recent-tab-chip="${this.computeShowRecentTabChip_()}"
+      ?show-lens-search-chip="${
+        this.isContentSharingEnabled_ && this.isLensSearchEligible_}"
+      ?show-recent-tab-chip="${
+        this.isContentSharingEnabled_ && this.computeShowRecentTabChip_()}"
       @add-tab-context="${this.addTabContext_}"
       @context-menu-entrypoint-click="${this.onContextualEntryPointClicked_}"
       @lens-search-click="${this.onLensSearchChipClicked_}">

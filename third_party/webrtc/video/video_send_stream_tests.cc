@@ -2961,7 +2961,7 @@ TEST_F(VideoSendStreamTest, ReportsSentResolution) {
       encoded.capture_time_ms_ = input_image.render_time_ms();
 
       for (size_t i = 0; i < kNumStreams; ++i) {
-        encoded._frameType = (*frame_types)[i];
+        encoded.set_frame_type((*frame_types)[i]);
         encoded._encodedWidth = kEncodedResolution[i].width;
         encoded._encodedHeight = kEncodedResolution[i].height;
         encoded.SetSimulcastIndex(i);

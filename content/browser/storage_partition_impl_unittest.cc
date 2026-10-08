@@ -2554,7 +2554,8 @@ TEST_F(StoragePartitionImplLocalNetworkAccessTest,
 
   mojo::Remote<network::mojom::URLLoaderNetworkServiceObserver> observer(
       partition->CreateURLLoaderNetworkObserverForFrame(
-          process()->GetDeprecatedID(), main_rfh()->GetRoutingID()));
+          content::GlobalRenderFrameHostId(process()->GetID(),
+                                           main_rfh()->GetRoutingID())));
 
   base::test::TestFuture<network::mojom::LocalNetworkAccessResult> lna_result;
   observer->OnLocalNetworkAccessPermissionRequired(
@@ -2613,7 +2614,8 @@ TEST_F(StoragePartitionImplLocalNetworkAccessTest,
 
   mojo::Remote<network::mojom::URLLoaderNetworkServiceObserver> observer(
       partition->CreateURLLoaderNetworkObserverForServiceOrSharedWorker(
-          network::mojom::kBrowserProcessId, worker_origin));
+          network::OriginatingProcess::renderer(network::RendererProcess(1)),
+          worker_origin));
 
   base::test::TestFuture<network::mojom::LocalNetworkAccessResult> lna_result;
   observer->OnLocalNetworkAccessPermissionRequired(

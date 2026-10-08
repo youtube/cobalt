@@ -10,9 +10,12 @@ import 'chrome://resources/cr_elements/cr_textarea/cr_textarea.js';
 import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 
 import type {Skill} from './skill.mojom-webui.js';
+import {SkillSource} from './skill.mojom-webui.js';
 import {getCss} from './skills_dialog.css.js';
 import {getHtml} from './skills_dialog_app.html.js';
-import {SkillsDialogBrowserProxyImpl} from './skills_dialog_browser_proxy.js';
+import {SkillsDialogBrowserProxy} from './skills_dialog_browser_proxy.js';
+
+const DEFAULT_EMOJI: string = '⚡';
 
 export class SkillsDialogAppElement extends CrLitElement {
   static get is() {
@@ -37,12 +40,66 @@ export class SkillsDialogAppElement extends CrLitElement {
   protected accessor skill_: Skill = {
     id: '',
     name: '',
-    icon: '',
+    icon: DEFAULT_EMOJI,
     prompt: '',
+    // Default to user created since these are added by the user via the UI.
+    source: SkillSource.kUserCreated,
+    creationTime: {internalValue: 0n},
+    lastUpdateTime: {internalValue: 0n},
   };
 
   protected get isSaveButtonDisabled() {
     return this.skill_.name.length === 0 || this.skill_.prompt.length === 0;
+  }
+
+  /** Initializes dialog. */
+  override async connectedCallback() {
+    super.connectedCallback();
+
+    const initialSkill =
+        (await SkillsDialogBrowserProxy.getInstance().handler.getInitialSkill())
+            .skill;
+    if (initialSkill) {
+      this.skill_ = initialSkill;
+      this.skill_.icon = initialSkill.icon || DEFAULT_EMOJI;
+    }
+  }
+
+  protected onEmojiBtnClick_(e: Event) {
+    const input = e.target as HTMLInputElement;
+
+    input.focus();
+    input.select();
+
+    SkillsDialogBrowserProxy.getInstance().handler.showEmojiPicker();
+  }
+
+  protected onEmojiKeyDown_(e: KeyboardEvent) {
+    // Block everything else (a-z, 1-9, symbols).
+    // This stops the user from manually typing, making it feel "read-only".
+    // NOTE: The OS Emoji Picker bypasses this check, so emojis still get
+    // through.
+    e.preventDefault();
+  }
+
+  protected onEmojiChanged_(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const rawValue = input.value;
+
+    if (!rawValue) {
+      this.skill_ = {...this.skill_, icon: DEFAULT_EMOJI};
+      input.value = DEFAULT_EMOJI;
+      return;
+    }
+
+    // Sanitize input: Take ONLY the last grapheme cluster
+    const segmenter = new Intl.Segmenter('en', {granularity: 'grapheme'});
+    const segments = [...segmenter.segment(rawValue)];
+    const lastEmoji = segments[segments.length - 1]?.segment || DEFAULT_EMOJI;
+
+    this.skill_ = {...this.skill_, icon: lastEmoji};
+    input.value = lastEmoji;
+    input.blur();
   }
 
   protected onNameChanged_(e: CustomEvent<{value: string}>) {
@@ -54,15 +111,32 @@ export class SkillsDialogAppElement extends CrLitElement {
   }
 
   /** Submits skill and closes the dialog. */
-  protected async submitSkill_(): Promise<void> {
-    await SkillsDialogBrowserProxyImpl.getInstance().handler.submitSkill(
-        this.skill_);
+  protected submitSkill_(): void {
+    SkillsDialogBrowserProxy.getInstance().handler.submitSkill(this.skill_);
   }
 
   /** Click listener for the cancel button. */
   protected cancel_(e: Event) {
     e.preventDefault();
-    SkillsDialogBrowserProxyImpl.getInstance().handler.closeDialog();
+    SkillsDialogBrowserProxy.getInstance().handler.closeDialog();
+  }
+
+  protected refineSkill_(): Promise<void> {
+    return SkillsDialogBrowserProxy.getInstance()
+        .handler.refineSkill(this.skill_)
+        .then(({refinedSkill}) => {
+          // If the server returned null, do not overwrite the current state.
+          if (refinedSkill) {
+            // Only update if we have a valid result.
+            this.skill_ = {
+              ...this.skill_,
+              // If the refined prompt is missing or empty, keep the original
+              // prompt
+              prompt: refinedSkill.prompt || this.skill_.prompt,
+              name: refinedSkill.name || this.skill_.name,
+            };
+          }
+        });
   }
 }
 

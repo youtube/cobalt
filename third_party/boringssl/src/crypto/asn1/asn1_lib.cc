@@ -22,6 +22,7 @@
 #include <openssl/mem.h>
 
 #include "../internal.h"
+#include "../mem_internal.h"
 #include "internal.h"
 
 
@@ -287,9 +288,7 @@ ASN1_STRING *ASN1_STRING_new() {
 }
 
 ASN1_STRING *ASN1_STRING_type_new(int type) {
-  ASN1_STRING *ret;
-
-  ret = (ASN1_STRING *)OPENSSL_malloc(sizeof(ASN1_STRING));
+  ASN1_STRING *ret = New<ASN1_STRING>();
   if (ret == nullptr) {
     return nullptr;
   }
@@ -315,7 +314,7 @@ void ASN1_STRING_free(ASN1_STRING *str) {
     return;
   }
   asn1_string_cleanup(str);
-  OPENSSL_free(str);
+  Delete(str);
 }
 
 int ASN1_STRING_cmp(const ASN1_STRING *a, const ASN1_STRING *b) {

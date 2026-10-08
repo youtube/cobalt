@@ -142,6 +142,7 @@
 #include "content/public/browser/storage_notification_service.h"
 #include "content/public/browser/storage_partition_config.h"
 #include "content/public/browser/storage_usage_info.h"
+#include "content/public/common/child_process_id_util.h"
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_constants.h"
 #include "content/public/common/content_features.h"
@@ -473,7 +474,7 @@ class LoginHandlerDelegate {
       const net::AuthChallengeInfo& auth_info,
       bool is_request_for_primary_main_frame_navigation,
       bool is_request_for_navigation,
-      base::StrictNumeric<int32_t> process_id,
+      const network::OriginatingProcess& process_id,
       base::StrictNumeric<int32_t> request_id,
       const GURL& url,
       scoped_refptr<net::HttpResponseHeaders> response_headers,
@@ -2231,7 +2232,8 @@ void StoragePartitionImpl::OnAuthRequired(
   if (!is_navigation_request.has_value()) {
     is_navigation_request = context.IsNavigationRequestContext();
   }
-  int process_id = network::mojom::kBrowserProcessId;
+  network::OriginatingProcess process_id =
+      network::OriginatingProcess::browser();
   if (original_context.type() == ContextType::kSharedOrServiceWorkerContext) {
     // If the request was initiated by a service worker, use the service
     // worker's process ID. This ensures the `GlobalRequestID` used to look up
@@ -2245,7 +2247,7 @@ void StoragePartitionImpl::OnAuthRequired(
     // `render_frame_host` is not null. If `render_frame_host` is null,
     // later logic will call OnAuthCredentials() with a nullopt that triggers
     // CancelAuth().
-    process_id = network::mojom::kInvalidProcessId;
+    process_id = network::OriginatingProcess();
 
     // `navigation_or_document_` can be null when `context` is created with
     // an invalid RenderFrameHost after a page is destroyed.
@@ -2260,8 +2262,8 @@ void StoragePartitionImpl::OnAuthRequired(
     if (context.navigation_or_document()) {
       auto* render_frame_host = context.navigation_or_document()->GetDocument();
       if (render_frame_host) {
-        // TODO(crbug.com/379869738) Remove GetUnsafeValue.
-        process_id = render_frame_host->GetGlobalId().child_id.GetUnsafeValue();
+        process_id =
+            ToOriginatingProcess(render_frame_host->GetGlobalId().child_id);
       }
     }
   }
@@ -2516,10 +2518,12 @@ void StoragePartitionImpl::OnLocalNetworkAccessPermissionRequired(
 
     PermissionController& permission_controller =
         CHECK_DEREF(browser_context_->GetPermissionController());
+    CHECK(!context.process_id().is_browser());
     auto status = permission_controller.GetPermissionStatusForWorker(
         content::PermissionDescriptorUtil::
             CreatePermissionDescriptorForPermissionType(permission_type),
-        content::RenderProcessHost::FromID(context.process_id()),
+        content::RenderProcessHost::FromID(
+            ToChildProcessId(context.process_id().renderer_process())),
         context.worker_origin().value());
 
     // If the request was loaded from cache, prefer retrying over the network
@@ -2612,7 +2616,9 @@ void StoragePartitionImpl::OnCertificateRequested(
   base::WeakPtr<WebContents> web_contents_weak;
   int process_id = network::mojom::kInvalidProcessId;
   if (context.type() == ContextType::kSharedOrServiceWorkerContext) {
-    process_id = context.process_id();
+    // TODO(crbug.com/379869738) Remove GetUnsafeValue.
+    // TODO(crbug.com/479742988) This can be the browser process and shouldn't.
+    process_id = context.process_id().GetUnsafeValue();
   } else {
     WebContents* web_contents = context.GetWebContents();
     // The WebContents is already invalid. Bail.
@@ -2811,13 +2817,12 @@ void StoragePartitionImpl::OnUrlLoaderConnectedToPrivateNetwork(
 }
 
 mojo::PendingRemote<network::mojom::URLLoaderNetworkServiceObserver>
-StoragePartitionImpl::CreateURLLoaderNetworkObserverForFrame(int process_id,
-                                                             int routing_id) {
+StoragePartitionImpl::CreateURLLoaderNetworkObserverForFrame(
+    const content::GlobalRenderFrameHostId& frame_id) {
   mojo::PendingRemote<network::mojom::URLLoaderNetworkServiceObserver> remote;
   url_loader_network_observers_.Add(
       this, remote.InitWithNewPipeAndPassReceiver(),
-      URLLoaderNetworkContext::CreateForRenderFrameHost(
-          GlobalRenderFrameHostId(process_id, routing_id)));
+      URLLoaderNetworkContext::CreateForRenderFrameHost(frame_id));
   return remote;
 }
 
@@ -2833,7 +2838,7 @@ StoragePartitionImpl::CreateURLLoaderNetworkObserverForNavigationRequest(
 
 mojo::PendingRemote<network::mojom::URLLoaderNetworkServiceObserver>
 StoragePartitionImpl::CreateURLLoaderNetworkObserverForServiceOrSharedWorker(
-    int process_id,
+    const network::OriginatingProcess& process_id,
     const url::Origin& worker_origin) {
   mojo::PendingRemote<network::mojom::URLLoaderNetworkServiceObserver> remote;
   url_loader_network_observers_.Add(
@@ -3980,10 +3985,9 @@ StoragePartitionImpl::CreateURLLoaderFactoryParams() {
   params->is_trusted = true;
   // For browser-process initiated requests there is no corresponding service
   // worker origin, so just pass an opaque origin.
-  // TODO(crbug.com/379869738) Remove GetUnsafeValue.
   params->url_loader_network_observer =
-      CreateURLLoaderNetworkObserverForServiceOrSharedWorker(
-          params->process_id.GetUnsafeValue(), url::Origin());
+      CreateURLLoaderNetworkObserverForServiceOrSharedWorker(params->process_id,
+                                                             url::Origin());
   params->disable_web_security =
       base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kDisableWebSecurity);
@@ -4193,7 +4197,7 @@ StoragePartitionImpl::URLLoaderNetworkContext::URLLoaderNetworkContext(
 }
 
 StoragePartitionImpl::URLLoaderNetworkContext::URLLoaderNetworkContext(
-    int process_id,
+    const network::OriginatingProcess& process_id,
     const url::Origin& worker_origin)
     : type_(Type::kSharedOrServiceWorkerContext),
       process_id_(process_id),

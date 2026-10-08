@@ -34,6 +34,8 @@
 #include "third_party/libsrtp/crypto/include/crypto_types.h"
 #include "third_party/libsrtp/include/srtp.h"
 
+namespace webrtc {
+
 #define EXTERNAL_HMAC_SHA1 SRTP_HMAC_SHA1 + 1
 #define HMAC_KEY_LENGTH 20
 
@@ -68,5 +70,6 @@ srtp_err_status_t external_hmac_compute(void* state,
                                         uint8_t* result);
 
 srtp_err_status_t external_crypto_init();
+}  // namespace webrtc
 
 #endif  // PC_EXTERNAL_HMAC_H_

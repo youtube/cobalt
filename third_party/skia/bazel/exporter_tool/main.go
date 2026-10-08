@@ -60,6 +60,11 @@ var gniExportDescs = []exporter.GNIExportDesc{
 				"//src/codec:common_libpng_srcs",
 			},
 		},
+		{Var: "skia_codec_libpng_public",
+			Rules: []string{
+				"//include/codec:libpng_public_hdrs",
+			},
+		},
 		{Var: "skia_codec_rust_png_public",
 			Rules: []string{
 				"//include/codec:rust_png_public_hdrs",
@@ -619,8 +624,7 @@ var gniExportDescs = []exporter.GNIExportDesc{
 				"//src/utils:multi_picture_document",
 				"//src/utils:clip_stack_utils",
 				"//src/utils:float_to_decimal",
-				"//src/utils:utils_skslc_hdrs",
-				"//src/utils:utils_skslc_srcs",
+				"//src/utils:shader_utils",
 			}},
 		{Var: "skia_clipstack_utils_sources",
 			Rules: []string{

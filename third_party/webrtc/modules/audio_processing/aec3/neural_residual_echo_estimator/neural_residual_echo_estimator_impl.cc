@@ -300,6 +300,16 @@ class TfLiteModelRunner : public NeuralResidualEchoEstimatorImpl::ModelRunner {
 
   ~TfLiteModelRunner() override {}
 
+  void Reset() override {
+    std::fill(model_state_.begin(), model_state_.end(), 0.0f);
+    for (const auto input_enum :
+         {ModelInputEnum::kMic, ModelInputEnum::kLinearAecOutput,
+          ModelInputEnum::kAecRef}) {
+      ArrayView<float> input_tensor = GetInput(input_enum);
+      std::fill(input_tensor.begin(), input_tensor.end(), 0.0f);
+    }
+  }
+
   int StepSize() const override { return step_size_; }
 
   ArrayView<float> GetInput(
@@ -461,6 +471,15 @@ NeuralResidualEchoEstimatorImpl::NeuralResidualEchoEstimatorImpl(
     feature_extractor_ = std::make_unique<FrequencyDomainFeatureExtractor>(
         /*step_size=*/model_runner_->StepSize());
   }
+}
+
+void NeuralResidualEchoEstimatorImpl::Reset() {
+  model_runner_->Reset();
+  if (feature_extractor_) {
+    feature_extractor_->Reset();
+  }
+  output_mask_.fill(0.0f);
+  output_mask_unbounded_.fill(0.0f);
 }
 
 void NeuralResidualEchoEstimatorImpl::Estimate(

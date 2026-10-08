@@ -7,6 +7,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//examples:AppRTCMobile_test_apk",
         "name": "AppRTCMobile_test_apk",
         "resultdb": {
           "enable": true,
@@ -27,6 +28,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//sdk/android:android_instrumentation_test_apk",
         "name": "android_instrumentation_test_apk",
         "resultdb": {
           "enable": true,
@@ -47,6 +49,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//modules/audio_coding:audio_decoder_unittests",
         "name": "audio_decoder_unittests",
         "resultdb": {
           "enable": true,
@@ -67,6 +70,28 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//:audio_engine_tests",
+        "name": "audio_engine_tests",
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "dimensions": {
+            "android_devices": "1",
+            "device_type": "walleye",
+            "os": "Android"
+          },
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+        },
+        "test": "audio_engine_tests",
+        "test_id_prefix": "ninja://:audio_engine_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_gtest_merge.py"
+        },
+        "module_name": "//common_audio:common_audio_unittests",
         "name": "common_audio_unittests",
         "resultdb": {
           "enable": true,
@@ -87,6 +112,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//common_video:common_video_unittests",
         "name": "common_video_unittests",
         "resultdb": {
           "enable": true,
@@ -107,6 +133,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//net/dcsctp:dcsctp_unittests",
         "name": "dcsctp_unittests",
         "resultdb": {
           "enable": true,
@@ -127,6 +154,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//modules:modules_tests",
         "name": "modules_tests",
         "resultdb": {
           "enable": true,
@@ -148,6 +176,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//modules:modules_unittests",
         "name": "modules_unittests",
         "resultdb": {
           "enable": true,
@@ -169,6 +198,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//pc:peerconnection_unittests",
         "name": "peerconnection_unittests",
         "resultdb": {
           "enable": true,
@@ -190,6 +220,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//media:rtc_media_unittests",
         "name": "rtc_media_unittests",
         "resultdb": {
           "enable": true,
@@ -210,6 +241,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//:rtc_p2p_unittests",
         "name": "rtc_p2p_unittests",
         "resultdb": {
           "enable": true,
@@ -230,6 +262,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//pc:rtc_pc_unittests",
         "name": "rtc_pc_unittests",
         "resultdb": {
           "enable": true,
@@ -250,6 +283,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//stats:rtc_stats_unittests",
         "name": "rtc_stats_unittests",
         "resultdb": {
           "enable": true,
@@ -270,6 +304,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//:rtc_unittests",
         "name": "rtc_unittests",
         "resultdb": {
           "enable": true,
@@ -291,6 +326,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//pc:slow_peer_connection_unittests",
         "name": "slow_peer_connection_unittests",
         "resultdb": {
           "enable": true,
@@ -311,6 +347,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//pc:svc_tests",
         "name": "svc_tests",
         "resultdb": {
           "enable": true,
@@ -332,6 +369,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//system_wrappers:system_wrappers_unittests",
         "name": "system_wrappers_unittests",
         "resultdb": {
           "enable": true,
@@ -352,6 +390,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//test:test_support_unittests",
         "name": "test_support_unittests",
         "resultdb": {
           "enable": true,
@@ -372,6 +411,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//rtc_tools:tools_unittests",
         "name": "tools_unittests",
         "resultdb": {
           "enable": true,
@@ -392,6 +432,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//:video_engine_tests",
         "name": "video_engine_tests",
         "resultdb": {
           "enable": true,
@@ -413,6 +454,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//video/timing:video_timing_tests",
         "name": "video_timing_tests",
         "resultdb": {
           "enable": true,
@@ -433,6 +475,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//:voip_unittests",
         "name": "voip_unittests",
         "resultdb": {
           "enable": true,
@@ -453,6 +496,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//:webrtc_nonparallel_tests",
         "name": "webrtc_nonparallel_tests",
         "resultdb": {
           "enable": true,
@@ -478,6 +522,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//examples:android_examples_junit_tests",
         "name": "android_examples_junit_tests",
         "resultdb": {
           "enable": true,
@@ -498,6 +543,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//sdk/android:android_sdk_junit_tests",
         "name": "android_sdk_junit_tests",
         "resultdb": {
           "enable": true,
@@ -522,6 +568,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//examples:AppRTCMobile_test_apk",
         "name": "AppRTCMobile_test_apk",
         "resultdb": {
           "enable": true,
@@ -542,6 +589,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//sdk/android:android_instrumentation_test_apk",
         "name": "android_instrumentation_test_apk",
         "resultdb": {
           "enable": true,
@@ -562,6 +610,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//modules/audio_coding:audio_decoder_unittests",
         "name": "audio_decoder_unittests",
         "resultdb": {
           "enable": true,
@@ -582,6 +631,28 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//:audio_engine_tests",
+        "name": "audio_engine_tests",
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "dimensions": {
+            "android_devices": "1",
+            "device_type": "walleye",
+            "os": "Android"
+          },
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+        },
+        "test": "audio_engine_tests",
+        "test_id_prefix": "ninja://:audio_engine_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_gtest_merge.py"
+        },
+        "module_name": "//common_audio:common_audio_unittests",
         "name": "common_audio_unittests",
         "resultdb": {
           "enable": true,
@@ -602,6 +673,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//common_video:common_video_unittests",
         "name": "common_video_unittests",
         "resultdb": {
           "enable": true,
@@ -622,6 +694,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//net/dcsctp:dcsctp_unittests",
         "name": "dcsctp_unittests",
         "resultdb": {
           "enable": true,
@@ -642,6 +715,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//modules:modules_tests",
         "name": "modules_tests",
         "resultdb": {
           "enable": true,
@@ -663,6 +737,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//modules:modules_unittests",
         "name": "modules_unittests",
         "resultdb": {
           "enable": true,
@@ -684,6 +759,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//pc:peerconnection_unittests",
         "name": "peerconnection_unittests",
         "resultdb": {
           "enable": true,
@@ -705,6 +781,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//media:rtc_media_unittests",
         "name": "rtc_media_unittests",
         "resultdb": {
           "enable": true,
@@ -725,6 +802,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//:rtc_p2p_unittests",
         "name": "rtc_p2p_unittests",
         "resultdb": {
           "enable": true,
@@ -745,6 +823,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//pc:rtc_pc_unittests",
         "name": "rtc_pc_unittests",
         "resultdb": {
           "enable": true,
@@ -765,6 +844,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//stats:rtc_stats_unittests",
         "name": "rtc_stats_unittests",
         "resultdb": {
           "enable": true,
@@ -785,6 +865,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//:rtc_unittests",
         "name": "rtc_unittests",
         "resultdb": {
           "enable": true,
@@ -806,6 +887,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//pc:slow_peer_connection_unittests",
         "name": "slow_peer_connection_unittests",
         "resultdb": {
           "enable": true,
@@ -826,6 +908,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//pc:svc_tests",
         "name": "svc_tests",
         "resultdb": {
           "enable": true,
@@ -847,6 +930,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//system_wrappers:system_wrappers_unittests",
         "name": "system_wrappers_unittests",
         "resultdb": {
           "enable": true,
@@ -867,6 +951,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//test:test_support_unittests",
         "name": "test_support_unittests",
         "resultdb": {
           "enable": true,
@@ -887,6 +972,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//rtc_tools:tools_unittests",
         "name": "tools_unittests",
         "resultdb": {
           "enable": true,
@@ -907,6 +993,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//:video_engine_tests",
         "name": "video_engine_tests",
         "resultdb": {
           "enable": true,
@@ -928,6 +1015,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//video/timing:video_timing_tests",
         "name": "video_timing_tests",
         "resultdb": {
           "enable": true,
@@ -948,6 +1036,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//:voip_unittests",
         "name": "voip_unittests",
         "resultdb": {
           "enable": true,
@@ -968,6 +1057,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//:webrtc_nonparallel_tests",
         "name": "webrtc_nonparallel_tests",
         "resultdb": {
           "enable": true,
@@ -993,6 +1083,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//examples:android_examples_junit_tests",
         "name": "android_examples_junit_tests",
         "resultdb": {
           "enable": true,
@@ -1013,6 +1104,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//sdk/android:android_sdk_junit_tests",
         "name": "android_sdk_junit_tests",
         "resultdb": {
           "enable": true,
@@ -1037,6 +1129,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//pc:peerconnection_unittests",
         "name": "peerconnection_unittests",
         "resultdb": {
           "enable": true,
@@ -1065,6 +1158,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//examples:AppRTCMobile_test_apk",
         "name": "AppRTCMobile_test_apk",
         "resultdb": {
           "enable": true,
@@ -1085,6 +1179,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//sdk/android:android_instrumentation_test_apk",
         "name": "android_instrumentation_test_apk",
         "resultdb": {
           "enable": true,
@@ -1105,6 +1200,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//modules/audio_coding:audio_decoder_unittests",
         "name": "audio_decoder_unittests",
         "resultdb": {
           "enable": true,
@@ -1125,6 +1221,28 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//:audio_engine_tests",
+        "name": "audio_engine_tests",
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "dimensions": {
+            "android_devices": "1",
+            "device_type": "walleye",
+            "os": "Android"
+          },
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+        },
+        "test": "audio_engine_tests",
+        "test_id_prefix": "ninja://:audio_engine_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_gtest_merge.py"
+        },
+        "module_name": "//common_audio:common_audio_unittests",
         "name": "common_audio_unittests",
         "resultdb": {
           "enable": true,
@@ -1145,6 +1263,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//common_video:common_video_unittests",
         "name": "common_video_unittests",
         "resultdb": {
           "enable": true,
@@ -1165,6 +1284,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//net/dcsctp:dcsctp_unittests",
         "name": "dcsctp_unittests",
         "resultdb": {
           "enable": true,
@@ -1185,6 +1305,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//modules:modules_tests",
         "name": "modules_tests",
         "resultdb": {
           "enable": true,
@@ -1206,6 +1327,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//modules:modules_unittests",
         "name": "modules_unittests",
         "resultdb": {
           "enable": true,
@@ -1227,6 +1349,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//pc:peerconnection_unittests",
         "name": "peerconnection_unittests",
         "resultdb": {
           "enable": true,
@@ -1248,6 +1371,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//media:rtc_media_unittests",
         "name": "rtc_media_unittests",
         "resultdb": {
           "enable": true,
@@ -1268,6 +1392,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//:rtc_p2p_unittests",
         "name": "rtc_p2p_unittests",
         "resultdb": {
           "enable": true,
@@ -1288,6 +1413,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//pc:rtc_pc_unittests",
         "name": "rtc_pc_unittests",
         "resultdb": {
           "enable": true,
@@ -1308,6 +1434,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//stats:rtc_stats_unittests",
         "name": "rtc_stats_unittests",
         "resultdb": {
           "enable": true,
@@ -1328,6 +1455,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//:rtc_unittests",
         "name": "rtc_unittests",
         "resultdb": {
           "enable": true,
@@ -1349,6 +1477,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//pc:slow_peer_connection_unittests",
         "name": "slow_peer_connection_unittests",
         "resultdb": {
           "enable": true,
@@ -1369,6 +1498,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//pc:svc_tests",
         "name": "svc_tests",
         "resultdb": {
           "enable": true,
@@ -1390,6 +1520,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//system_wrappers:system_wrappers_unittests",
         "name": "system_wrappers_unittests",
         "resultdb": {
           "enable": true,
@@ -1410,6 +1541,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//test:test_support_unittests",
         "name": "test_support_unittests",
         "resultdb": {
           "enable": true,
@@ -1430,6 +1562,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//rtc_tools:tools_unittests",
         "name": "tools_unittests",
         "resultdb": {
           "enable": true,
@@ -1450,6 +1583,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//:video_engine_tests",
         "name": "video_engine_tests",
         "resultdb": {
           "enable": true,
@@ -1471,6 +1605,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//video/timing:video_timing_tests",
         "name": "video_timing_tests",
         "resultdb": {
           "enable": true,
@@ -1491,6 +1626,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//:voip_unittests",
         "name": "voip_unittests",
         "resultdb": {
           "enable": true,
@@ -1511,6 +1647,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//:webrtc_nonparallel_tests",
         "name": "webrtc_nonparallel_tests",
         "resultdb": {
           "enable": true,
@@ -1536,6 +1673,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//examples:android_examples_junit_tests",
         "name": "android_examples_junit_tests",
         "resultdb": {
           "enable": true,
@@ -1556,6 +1694,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//sdk/android:android_sdk_junit_tests",
         "name": "android_sdk_junit_tests",
         "resultdb": {
           "enable": true,
@@ -1580,6 +1719,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//examples:AppRTCMobile_test_apk",
         "name": "AppRTCMobile_test_apk",
         "resultdb": {
           "enable": true,
@@ -1600,6 +1740,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//sdk/android:android_instrumentation_test_apk",
         "name": "android_instrumentation_test_apk",
         "resultdb": {
           "enable": true,
@@ -1620,6 +1761,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//modules/audio_coding:audio_decoder_unittests",
         "name": "audio_decoder_unittests",
         "resultdb": {
           "enable": true,
@@ -1640,6 +1782,28 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//:audio_engine_tests",
+        "name": "audio_engine_tests",
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "dimensions": {
+            "android_devices": "1",
+            "device_type": "walleye",
+            "os": "Android"
+          },
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+        },
+        "test": "audio_engine_tests",
+        "test_id_prefix": "ninja://:audio_engine_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_gtest_merge.py"
+        },
+        "module_name": "//common_audio:common_audio_unittests",
         "name": "common_audio_unittests",
         "resultdb": {
           "enable": true,
@@ -1660,6 +1824,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//common_video:common_video_unittests",
         "name": "common_video_unittests",
         "resultdb": {
           "enable": true,
@@ -1680,6 +1845,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//net/dcsctp:dcsctp_unittests",
         "name": "dcsctp_unittests",
         "resultdb": {
           "enable": true,
@@ -1700,6 +1866,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//modules:modules_tests",
         "name": "modules_tests",
         "resultdb": {
           "enable": true,
@@ -1721,6 +1888,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//modules:modules_unittests",
         "name": "modules_unittests",
         "resultdb": {
           "enable": true,
@@ -1742,6 +1910,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//pc:peerconnection_unittests",
         "name": "peerconnection_unittests",
         "resultdb": {
           "enable": true,
@@ -1763,6 +1932,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//media:rtc_media_unittests",
         "name": "rtc_media_unittests",
         "resultdb": {
           "enable": true,
@@ -1783,6 +1953,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//:rtc_p2p_unittests",
         "name": "rtc_p2p_unittests",
         "resultdb": {
           "enable": true,
@@ -1803,6 +1974,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//pc:rtc_pc_unittests",
         "name": "rtc_pc_unittests",
         "resultdb": {
           "enable": true,
@@ -1823,6 +1995,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//stats:rtc_stats_unittests",
         "name": "rtc_stats_unittests",
         "resultdb": {
           "enable": true,
@@ -1843,6 +2016,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//:rtc_unittests",
         "name": "rtc_unittests",
         "resultdb": {
           "enable": true,
@@ -1864,6 +2038,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//pc:slow_peer_connection_unittests",
         "name": "slow_peer_connection_unittests",
         "resultdb": {
           "enable": true,
@@ -1884,6 +2059,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//pc:svc_tests",
         "name": "svc_tests",
         "resultdb": {
           "enable": true,
@@ -1905,6 +2081,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//system_wrappers:system_wrappers_unittests",
         "name": "system_wrappers_unittests",
         "resultdb": {
           "enable": true,
@@ -1925,6 +2102,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//test:test_support_unittests",
         "name": "test_support_unittests",
         "resultdb": {
           "enable": true,
@@ -1945,6 +2123,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//rtc_tools:tools_unittests",
         "name": "tools_unittests",
         "resultdb": {
           "enable": true,
@@ -1965,6 +2144,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//:video_engine_tests",
         "name": "video_engine_tests",
         "resultdb": {
           "enable": true,
@@ -1986,6 +2166,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//video/timing:video_timing_tests",
         "name": "video_timing_tests",
         "resultdb": {
           "enable": true,
@@ -2006,6 +2187,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//:voip_unittests",
         "name": "voip_unittests",
         "resultdb": {
           "enable": true,
@@ -2026,6 +2208,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//:webrtc_nonparallel_tests",
         "name": "webrtc_nonparallel_tests",
         "resultdb": {
           "enable": true,
@@ -2051,6 +2234,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//examples:android_examples_junit_tests",
         "name": "android_examples_junit_tests",
         "resultdb": {
           "enable": true,
@@ -2071,6 +2255,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//sdk/android:android_sdk_junit_tests",
         "name": "android_sdk_junit_tests",
         "resultdb": {
           "enable": true,
@@ -2104,6 +2289,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules/audio_coding:audio_decoder_unittests",
         "name": "audio_decoder_unittests",
         "resultdb": {
           "result_file": "${ISOLATED_OUTDIR}/gtest_output.json",
@@ -2128,6 +2314,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//common_audio:common_audio_unittests",
         "name": "common_audio_unittests",
         "resultdb": {
           "result_file": "${ISOLATED_OUTDIR}/gtest_output.json",
@@ -2152,6 +2339,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//common_video:common_video_unittests",
         "name": "common_video_unittests",
         "resultdb": {
           "result_file": "${ISOLATED_OUTDIR}/gtest_output.json",
@@ -2176,6 +2364,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//net/dcsctp:dcsctp_unittests",
         "name": "dcsctp_unittests",
         "resultdb": {
           "result_file": "${ISOLATED_OUTDIR}/gtest_output.json",
@@ -2200,6 +2389,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//media:rtc_media_unittests",
         "name": "rtc_media_unittests",
         "resultdb": {
           "result_file": "${ISOLATED_OUTDIR}/gtest_output.json",
@@ -2224,6 +2414,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:rtc_p2p_unittests",
         "name": "rtc_p2p_unittests",
         "resultdb": {
           "result_file": "${ISOLATED_OUTDIR}/gtest_output.json",
@@ -2248,6 +2439,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:rtc_pc_unittests",
         "name": "rtc_pc_unittests",
         "resultdb": {
           "result_file": "${ISOLATED_OUTDIR}/gtest_output.json",
@@ -2272,6 +2464,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:svc_tests",
         "name": "svc_tests",
         "resultdb": {
           "result_file": "${ISOLATED_OUTDIR}/gtest_output.json",
@@ -2297,6 +2490,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//system_wrappers:system_wrappers_unittests",
         "name": "system_wrappers_unittests",
         "resultdb": {
           "result_file": "${ISOLATED_OUTDIR}/gtest_output.json",
@@ -2321,6 +2515,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:video_engine_tests",
         "name": "video_engine_tests",
         "resultdb": {
           "result_file": "${ISOLATED_OUTDIR}/gtest_output.json",
@@ -2346,6 +2541,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:voip_unittests",
         "name": "voip_unittests",
         "resultdb": {
           "result_file": "${ISOLATED_OUTDIR}/gtest_output.json",
@@ -2370,6 +2566,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:webrtc_nonparallel_tests",
         "name": "webrtc_nonparallel_tests",
         "resultdb": {
           "result_file": "${ISOLATED_OUTDIR}/gtest_output.json",
@@ -2392,6 +2589,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:peerconnection_unittests",
         "name": "peerconnection_unittests",
         "resultdb": {
           "result_format": "json"
@@ -2414,6 +2612,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules/audio_coding:audio_decoder_unittests",
         "name": "audio_decoder_unittests",
         "resultdb": {
           "result_format": "json"
@@ -2431,6 +2630,25 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:audio_engine_tests",
+        "name": "audio_engine_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "audio_engine_tests",
+        "test_id_prefix": "ninja://:audio_engine_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//common_audio:common_audio_unittests",
         "name": "common_audio_unittests",
         "resultdb": {
           "result_format": "json"
@@ -2448,6 +2666,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//common_video:common_video_unittests",
         "name": "common_video_unittests",
         "resultdb": {
           "result_format": "json"
@@ -2465,6 +2684,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//net/dcsctp:dcsctp_unittests",
         "name": "dcsctp_unittests",
         "resultdb": {
           "result_format": "json"
@@ -2482,6 +2702,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules:modules_tests",
         "name": "modules_tests",
         "resultdb": {
           "result_format": "json"
@@ -2500,6 +2721,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules:modules_unittests",
         "name": "modules_unittests",
         "resultdb": {
           "result_format": "json"
@@ -2518,6 +2740,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:peerconnection_unittests",
         "name": "peerconnection_unittests",
         "resultdb": {
           "result_format": "json"
@@ -2536,6 +2759,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//media:rtc_media_unittests",
         "name": "rtc_media_unittests",
         "resultdb": {
           "result_format": "json"
@@ -2553,6 +2777,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:rtc_p2p_unittests",
         "name": "rtc_p2p_unittests",
         "resultdb": {
           "result_format": "json"
@@ -2570,6 +2795,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:rtc_pc_unittests",
         "name": "rtc_pc_unittests",
         "resultdb": {
           "result_format": "json"
@@ -2587,6 +2813,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//stats:rtc_stats_unittests",
         "name": "rtc_stats_unittests",
         "resultdb": {
           "result_format": "json"
@@ -2604,6 +2831,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:rtc_unittests",
         "name": "rtc_unittests",
         "resultdb": {
           "result_format": "json"
@@ -2622,6 +2850,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules/desktop_capture:shared_screencast_stream_test",
         "name": "shared_screencast_stream_test",
         "resultdb": {
           "result_format": "json"
@@ -2639,6 +2868,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:slow_peer_connection_unittests",
         "name": "slow_peer_connection_unittests",
         "resultdb": {
           "result_format": "json"
@@ -2656,6 +2886,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:svc_tests",
         "name": "svc_tests",
         "resultdb": {
           "result_format": "json"
@@ -2674,6 +2905,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//system_wrappers:system_wrappers_unittests",
         "name": "system_wrappers_unittests",
         "resultdb": {
           "result_format": "json"
@@ -2691,6 +2923,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//test:test_support_unittests",
         "name": "test_support_unittests",
         "resultdb": {
           "result_format": "json"
@@ -2709,6 +2942,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//rtc_tools:tools_unittests",
         "name": "tools_unittests",
         "resultdb": {
           "result_format": "json"
@@ -2726,6 +2960,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:video_engine_tests",
         "name": "video_engine_tests",
         "resultdb": {
           "result_format": "json"
@@ -2744,6 +2979,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//video/timing:video_timing_tests",
         "name": "video_timing_tests",
         "resultdb": {
           "result_format": "json"
@@ -2761,6 +2997,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:voip_unittests",
         "name": "voip_unittests",
         "resultdb": {
           "result_format": "json"
@@ -2778,6 +3015,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:webrtc_nonparallel_tests",
         "name": "webrtc_nonparallel_tests",
         "resultdb": {
           "result_format": "json"
@@ -2799,6 +3037,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules/audio_coding:audio_decoder_unittests",
         "name": "audio_decoder_unittests",
         "resultdb": {
           "result_format": "json"
@@ -2816,6 +3055,25 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:audio_engine_tests",
+        "name": "audio_engine_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "audio_engine_tests",
+        "test_id_prefix": "ninja://:audio_engine_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//common_audio:common_audio_unittests",
         "name": "common_audio_unittests",
         "resultdb": {
           "result_format": "json"
@@ -2833,6 +3091,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//common_video:common_video_unittests",
         "name": "common_video_unittests",
         "resultdb": {
           "result_format": "json"
@@ -2850,6 +3109,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//net/dcsctp:dcsctp_unittests",
         "name": "dcsctp_unittests",
         "resultdb": {
           "result_format": "json"
@@ -2867,6 +3127,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules:modules_tests",
         "name": "modules_tests",
         "resultdb": {
           "result_format": "json"
@@ -2885,6 +3146,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules:modules_unittests",
         "name": "modules_unittests",
         "resultdb": {
           "result_format": "json"
@@ -2903,6 +3165,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:peerconnection_unittests",
         "name": "peerconnection_unittests",
         "resultdb": {
           "result_format": "json"
@@ -2921,6 +3184,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//media:rtc_media_unittests",
         "name": "rtc_media_unittests",
         "resultdb": {
           "result_format": "json"
@@ -2938,6 +3202,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:rtc_p2p_unittests",
         "name": "rtc_p2p_unittests",
         "resultdb": {
           "result_format": "json"
@@ -2955,6 +3220,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:rtc_pc_unittests",
         "name": "rtc_pc_unittests",
         "resultdb": {
           "result_format": "json"
@@ -2972,6 +3238,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//stats:rtc_stats_unittests",
         "name": "rtc_stats_unittests",
         "resultdb": {
           "result_format": "json"
@@ -2989,6 +3256,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:rtc_unittests",
         "name": "rtc_unittests",
         "resultdb": {
           "result_format": "json"
@@ -3007,6 +3275,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules/desktop_capture:shared_screencast_stream_test",
         "name": "shared_screencast_stream_test",
         "resultdb": {
           "result_format": "json"
@@ -3024,6 +3293,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:slow_peer_connection_unittests",
         "name": "slow_peer_connection_unittests",
         "resultdb": {
           "result_format": "json"
@@ -3041,6 +3311,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:svc_tests",
         "name": "svc_tests",
         "resultdb": {
           "result_format": "json"
@@ -3059,6 +3330,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//system_wrappers:system_wrappers_unittests",
         "name": "system_wrappers_unittests",
         "resultdb": {
           "result_format": "json"
@@ -3076,6 +3348,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//test:test_support_unittests",
         "name": "test_support_unittests",
         "resultdb": {
           "result_format": "json"
@@ -3094,6 +3367,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//rtc_tools:tools_unittests",
         "name": "tools_unittests",
         "resultdb": {
           "result_format": "json"
@@ -3111,6 +3385,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:video_engine_tests",
         "name": "video_engine_tests",
         "resultdb": {
           "result_format": "json"
@@ -3129,6 +3404,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//video/timing:video_timing_tests",
         "name": "video_timing_tests",
         "resultdb": {
           "result_format": "json"
@@ -3146,6 +3422,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:voip_unittests",
         "name": "voip_unittests",
         "resultdb": {
           "result_format": "json"
@@ -3163,6 +3440,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:webrtc_nonparallel_tests",
         "name": "webrtc_nonparallel_tests",
         "resultdb": {
           "result_format": "json"
@@ -3184,6 +3462,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules/audio_coding:audio_decoder_unittests",
         "name": "audio_decoder_unittests",
         "resultdb": {
           "result_format": "json"
@@ -3201,6 +3480,25 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:audio_engine_tests",
+        "name": "audio_engine_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "audio_engine_tests",
+        "test_id_prefix": "ninja://:audio_engine_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//common_audio:common_audio_unittests",
         "name": "common_audio_unittests",
         "resultdb": {
           "result_format": "json"
@@ -3218,6 +3516,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//common_video:common_video_unittests",
         "name": "common_video_unittests",
         "resultdb": {
           "result_format": "json"
@@ -3235,6 +3534,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//net/dcsctp:dcsctp_unittests",
         "name": "dcsctp_unittests",
         "resultdb": {
           "result_format": "json"
@@ -3252,6 +3552,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules:modules_tests",
         "name": "modules_tests",
         "resultdb": {
           "result_format": "json"
@@ -3270,6 +3571,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules:modules_unittests",
         "name": "modules_unittests",
         "resultdb": {
           "result_format": "json"
@@ -3288,6 +3590,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:peerconnection_unittests",
         "name": "peerconnection_unittests",
         "resultdb": {
           "result_format": "json"
@@ -3306,6 +3609,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//media:rtc_media_unittests",
         "name": "rtc_media_unittests",
         "resultdb": {
           "result_format": "json"
@@ -3323,6 +3627,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:rtc_p2p_unittests",
         "name": "rtc_p2p_unittests",
         "resultdb": {
           "result_format": "json"
@@ -3340,6 +3645,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:rtc_pc_unittests",
         "name": "rtc_pc_unittests",
         "resultdb": {
           "result_format": "json"
@@ -3357,6 +3663,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//stats:rtc_stats_unittests",
         "name": "rtc_stats_unittests",
         "resultdb": {
           "result_format": "json"
@@ -3374,6 +3681,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:rtc_unittests",
         "name": "rtc_unittests",
         "resultdb": {
           "result_format": "json"
@@ -3392,6 +3700,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules/desktop_capture:shared_screencast_stream_test",
         "name": "shared_screencast_stream_test",
         "resultdb": {
           "result_format": "json"
@@ -3409,6 +3718,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:slow_peer_connection_unittests",
         "name": "slow_peer_connection_unittests",
         "resultdb": {
           "result_format": "json"
@@ -3426,6 +3736,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:svc_tests",
         "name": "svc_tests",
         "resultdb": {
           "result_format": "json"
@@ -3444,6 +3755,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//system_wrappers:system_wrappers_unittests",
         "name": "system_wrappers_unittests",
         "resultdb": {
           "result_format": "json"
@@ -3461,6 +3773,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//test:test_support_unittests",
         "name": "test_support_unittests",
         "resultdb": {
           "result_format": "json"
@@ -3479,6 +3792,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//rtc_tools:tools_unittests",
         "name": "tools_unittests",
         "resultdb": {
           "result_format": "json"
@@ -3496,6 +3810,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:video_engine_tests",
         "name": "video_engine_tests",
         "resultdb": {
           "result_format": "json"
@@ -3514,6 +3829,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//video/timing:video_timing_tests",
         "name": "video_timing_tests",
         "resultdb": {
           "result_format": "json"
@@ -3531,6 +3847,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:voip_unittests",
         "name": "voip_unittests",
         "resultdb": {
           "result_format": "json"
@@ -3548,6 +3865,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:webrtc_nonparallel_tests",
         "name": "webrtc_nonparallel_tests",
         "resultdb": {
           "result_format": "json"
@@ -3569,6 +3887,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules/audio_coding:audio_decoder_unittests",
         "name": "audio_decoder_unittests",
         "resultdb": {
           "result_format": "json"
@@ -3586,6 +3905,25 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:audio_engine_tests",
+        "name": "audio_engine_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "audio_engine_tests",
+        "test_id_prefix": "ninja://:audio_engine_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//common_audio:common_audio_unittests",
         "name": "common_audio_unittests",
         "resultdb": {
           "result_format": "json"
@@ -3603,6 +3941,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//common_video:common_video_unittests",
         "name": "common_video_unittests",
         "resultdb": {
           "result_format": "json"
@@ -3620,6 +3959,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//net/dcsctp:dcsctp_unittests",
         "name": "dcsctp_unittests",
         "resultdb": {
           "result_format": "json"
@@ -3637,6 +3977,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules:modules_tests",
         "name": "modules_tests",
         "resultdb": {
           "result_format": "json"
@@ -3655,6 +3996,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules:modules_unittests",
         "name": "modules_unittests",
         "resultdb": {
           "result_format": "json"
@@ -3673,6 +4015,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:peerconnection_unittests",
         "name": "peerconnection_unittests",
         "resultdb": {
           "result_format": "json"
@@ -3691,6 +4034,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//media:rtc_media_unittests",
         "name": "rtc_media_unittests",
         "resultdb": {
           "result_format": "json"
@@ -3708,6 +4052,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:rtc_p2p_unittests",
         "name": "rtc_p2p_unittests",
         "resultdb": {
           "result_format": "json"
@@ -3725,6 +4070,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:rtc_pc_unittests",
         "name": "rtc_pc_unittests",
         "resultdb": {
           "result_format": "json"
@@ -3742,6 +4088,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//stats:rtc_stats_unittests",
         "name": "rtc_stats_unittests",
         "resultdb": {
           "result_format": "json"
@@ -3759,6 +4106,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:rtc_unittests",
         "name": "rtc_unittests",
         "resultdb": {
           "result_format": "json"
@@ -3777,6 +4125,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules/desktop_capture:shared_screencast_stream_test",
         "name": "shared_screencast_stream_test",
         "resultdb": {
           "result_format": "json"
@@ -3794,6 +4143,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:slow_peer_connection_unittests",
         "name": "slow_peer_connection_unittests",
         "resultdb": {
           "result_format": "json"
@@ -3811,6 +4161,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:svc_tests",
         "name": "svc_tests",
         "resultdb": {
           "result_format": "json"
@@ -3829,6 +4180,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//system_wrappers:system_wrappers_unittests",
         "name": "system_wrappers_unittests",
         "resultdb": {
           "result_format": "json"
@@ -3846,6 +4198,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//test:test_support_unittests",
         "name": "test_support_unittests",
         "resultdb": {
           "result_format": "json"
@@ -3864,6 +4217,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//rtc_tools:tools_unittests",
         "name": "tools_unittests",
         "resultdb": {
           "result_format": "json"
@@ -3881,6 +4235,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:video_engine_tests",
         "name": "video_engine_tests",
         "resultdb": {
           "result_format": "json"
@@ -3899,6 +4254,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//video/timing:video_timing_tests",
         "name": "video_timing_tests",
         "resultdb": {
           "result_format": "json"
@@ -3916,6 +4272,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:voip_unittests",
         "name": "voip_unittests",
         "resultdb": {
           "result_format": "json"
@@ -3933,6 +4290,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:webrtc_nonparallel_tests",
         "name": "webrtc_nonparallel_tests",
         "resultdb": {
           "result_format": "json"
@@ -3954,6 +4312,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules/audio_coding:audio_decoder_unittests",
         "name": "audio_decoder_unittests",
         "resultdb": {
           "result_format": "json"
@@ -3971,6 +4330,25 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:audio_engine_tests",
+        "name": "audio_engine_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "audio_engine_tests",
+        "test_id_prefix": "ninja://:audio_engine_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//common_audio:common_audio_unittests",
         "name": "common_audio_unittests",
         "resultdb": {
           "result_format": "json"
@@ -3988,6 +4366,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//common_video:common_video_unittests",
         "name": "common_video_unittests",
         "resultdb": {
           "result_format": "json"
@@ -4005,6 +4384,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//net/dcsctp:dcsctp_unittests",
         "name": "dcsctp_unittests",
         "resultdb": {
           "result_format": "json"
@@ -4022,6 +4402,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules:modules_tests",
         "name": "modules_tests",
         "resultdb": {
           "result_format": "json"
@@ -4040,6 +4421,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules:modules_unittests",
         "name": "modules_unittests",
         "resultdb": {
           "result_format": "json"
@@ -4058,6 +4440,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:peerconnection_unittests",
         "name": "peerconnection_unittests",
         "resultdb": {
           "result_format": "json"
@@ -4076,6 +4459,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//media:rtc_media_unittests",
         "name": "rtc_media_unittests",
         "resultdb": {
           "result_format": "json"
@@ -4093,6 +4477,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:rtc_p2p_unittests",
         "name": "rtc_p2p_unittests",
         "resultdb": {
           "result_format": "json"
@@ -4110,6 +4495,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:rtc_pc_unittests",
         "name": "rtc_pc_unittests",
         "resultdb": {
           "result_format": "json"
@@ -4127,6 +4513,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//stats:rtc_stats_unittests",
         "name": "rtc_stats_unittests",
         "resultdb": {
           "result_format": "json"
@@ -4144,6 +4531,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:rtc_unittests",
         "name": "rtc_unittests",
         "resultdb": {
           "result_format": "json"
@@ -4162,6 +4550,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules/desktop_capture:shared_screencast_stream_test",
         "name": "shared_screencast_stream_test",
         "resultdb": {
           "result_format": "json"
@@ -4179,6 +4568,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:slow_peer_connection_unittests",
         "name": "slow_peer_connection_unittests",
         "resultdb": {
           "result_format": "json"
@@ -4196,6 +4586,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:svc_tests",
         "name": "svc_tests",
         "resultdb": {
           "result_format": "json"
@@ -4214,6 +4605,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//system_wrappers:system_wrappers_unittests",
         "name": "system_wrappers_unittests",
         "resultdb": {
           "result_format": "json"
@@ -4231,6 +4623,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//test:test_support_unittests",
         "name": "test_support_unittests",
         "resultdb": {
           "result_format": "json"
@@ -4249,6 +4642,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//rtc_tools:tools_unittests",
         "name": "tools_unittests",
         "resultdb": {
           "result_format": "json"
@@ -4266,6 +4660,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:video_engine_tests",
         "name": "video_engine_tests",
         "resultdb": {
           "result_format": "json"
@@ -4284,6 +4679,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//video/timing:video_timing_tests",
         "name": "video_timing_tests",
         "resultdb": {
           "result_format": "json"
@@ -4301,6 +4697,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:voip_unittests",
         "name": "voip_unittests",
         "resultdb": {
           "result_format": "json"
@@ -4318,6 +4715,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:webrtc_nonparallel_tests",
         "name": "webrtc_nonparallel_tests",
         "resultdb": {
           "result_format": "json"
@@ -4339,6 +4737,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules/audio_coding:audio_decoder_unittests",
         "name": "audio_decoder_unittests",
         "resultdb": {
           "result_format": "json"
@@ -4356,6 +4755,25 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:audio_engine_tests",
+        "name": "audio_engine_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "audio_engine_tests",
+        "test_id_prefix": "ninja://:audio_engine_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//common_audio:common_audio_unittests",
         "name": "common_audio_unittests",
         "resultdb": {
           "result_format": "json"
@@ -4373,6 +4791,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//common_video:common_video_unittests",
         "name": "common_video_unittests",
         "resultdb": {
           "result_format": "json"
@@ -4390,6 +4809,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//net/dcsctp:dcsctp_unittests",
         "name": "dcsctp_unittests",
         "resultdb": {
           "result_format": "json"
@@ -4407,6 +4827,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules:modules_tests",
         "name": "modules_tests",
         "resultdb": {
           "result_format": "json"
@@ -4425,6 +4846,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules:modules_unittests",
         "name": "modules_unittests",
         "resultdb": {
           "result_format": "json"
@@ -4443,6 +4865,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:peerconnection_unittests",
         "name": "peerconnection_unittests",
         "resultdb": {
           "result_format": "json"
@@ -4461,6 +4884,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//media:rtc_media_unittests",
         "name": "rtc_media_unittests",
         "resultdb": {
           "result_format": "json"
@@ -4478,6 +4902,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:rtc_p2p_unittests",
         "name": "rtc_p2p_unittests",
         "resultdb": {
           "result_format": "json"
@@ -4495,6 +4920,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:rtc_pc_unittests",
         "name": "rtc_pc_unittests",
         "resultdb": {
           "result_format": "json"
@@ -4512,6 +4938,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//stats:rtc_stats_unittests",
         "name": "rtc_stats_unittests",
         "resultdb": {
           "result_format": "json"
@@ -4529,6 +4956,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:rtc_unittests",
         "name": "rtc_unittests",
         "resultdb": {
           "result_format": "json"
@@ -4547,6 +4975,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:slow_peer_connection_unittests",
         "name": "slow_peer_connection_unittests",
         "resultdb": {
           "result_format": "json"
@@ -4564,6 +4993,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:svc_tests",
         "name": "svc_tests",
         "resultdb": {
           "result_format": "json"
@@ -4582,6 +5012,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//system_wrappers:system_wrappers_unittests",
         "name": "system_wrappers_unittests",
         "resultdb": {
           "result_format": "json"
@@ -4599,6 +5030,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//test:test_support_unittests",
         "name": "test_support_unittests",
         "resultdb": {
           "result_format": "json"
@@ -4617,6 +5049,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//rtc_tools:tools_unittests",
         "name": "tools_unittests",
         "resultdb": {
           "result_format": "json"
@@ -4634,6 +5067,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:video_engine_tests",
         "name": "video_engine_tests",
         "resultdb": {
           "result_format": "json"
@@ -4652,6 +5086,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//video/timing:video_timing_tests",
         "name": "video_timing_tests",
         "resultdb": {
           "result_format": "json"
@@ -4669,6 +5104,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:voip_unittests",
         "name": "voip_unittests",
         "resultdb": {
           "result_format": "json"
@@ -4686,6 +5122,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:webrtc_nonparallel_tests",
         "name": "webrtc_nonparallel_tests",
         "resultdb": {
           "result_format": "json"
@@ -4708,6 +5145,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules/audio_coding:audio_decoder_unittests",
         "name": "audio_decoder_unittests",
         "resultdb": {
           "result_format": "json"
@@ -4725,6 +5163,25 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:audio_engine_tests",
+        "name": "audio_engine_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "audio_engine_tests",
+        "test_id_prefix": "ninja://:audio_engine_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//common_audio:common_audio_unittests",
         "name": "common_audio_unittests",
         "resultdb": {
           "result_format": "json"
@@ -4742,6 +5199,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//common_video:common_video_unittests",
         "name": "common_video_unittests",
         "resultdb": {
           "result_format": "json"
@@ -4759,6 +5217,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//net/dcsctp:dcsctp_unittests",
         "name": "dcsctp_unittests",
         "resultdb": {
           "result_format": "json"
@@ -4776,6 +5235,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules:modules_tests",
         "name": "modules_tests",
         "resultdb": {
           "result_format": "json"
@@ -4794,6 +5254,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules:modules_unittests",
         "name": "modules_unittests",
         "resultdb": {
           "result_format": "json"
@@ -4812,6 +5273,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:peerconnection_unittests",
         "name": "peerconnection_unittests",
         "resultdb": {
           "result_format": "json"
@@ -4830,6 +5292,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//media:rtc_media_unittests",
         "name": "rtc_media_unittests",
         "resultdb": {
           "result_format": "json"
@@ -4847,6 +5310,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:rtc_p2p_unittests",
         "name": "rtc_p2p_unittests",
         "resultdb": {
           "result_format": "json"
@@ -4864,6 +5328,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:rtc_pc_unittests",
         "name": "rtc_pc_unittests",
         "resultdb": {
           "result_format": "json"
@@ -4881,6 +5346,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//stats:rtc_stats_unittests",
         "name": "rtc_stats_unittests",
         "resultdb": {
           "result_format": "json"
@@ -4898,6 +5364,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:rtc_unittests",
         "name": "rtc_unittests",
         "resultdb": {
           "result_format": "json"
@@ -4916,6 +5383,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:slow_peer_connection_unittests",
         "name": "slow_peer_connection_unittests",
         "resultdb": {
           "result_format": "json"
@@ -4933,6 +5401,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:svc_tests",
         "name": "svc_tests",
         "resultdb": {
           "result_format": "json"
@@ -4951,6 +5420,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//system_wrappers:system_wrappers_unittests",
         "name": "system_wrappers_unittests",
         "resultdb": {
           "result_format": "json"
@@ -4968,6 +5438,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//test:test_support_unittests",
         "name": "test_support_unittests",
         "resultdb": {
           "result_format": "json"
@@ -4986,6 +5457,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//rtc_tools:tools_unittests",
         "name": "tools_unittests",
         "resultdb": {
           "result_format": "json"
@@ -5003,6 +5475,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:video_engine_tests",
         "name": "video_engine_tests",
         "resultdb": {
           "result_format": "json"
@@ -5021,6 +5494,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//video/timing:video_timing_tests",
         "name": "video_timing_tests",
         "resultdb": {
           "result_format": "json"
@@ -5038,6 +5512,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:voip_unittests",
         "name": "voip_unittests",
         "resultdb": {
           "result_format": "json"
@@ -5055,6 +5530,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:webrtc_nonparallel_tests",
         "name": "webrtc_nonparallel_tests",
         "resultdb": {
           "result_format": "json"
@@ -5078,6 +5554,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules/audio_coding:audio_decoder_unittests",
         "name": "audio_decoder_unittests",
         "resultdb": {
           "result_format": "json"
@@ -5095,6 +5572,25 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:audio_engine_tests",
+        "name": "audio_engine_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "audio_engine_tests",
+        "test_id_prefix": "ninja://:audio_engine_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//common_audio:common_audio_unittests",
         "name": "common_audio_unittests",
         "resultdb": {
           "result_format": "json"
@@ -5112,6 +5608,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//common_video:common_video_unittests",
         "name": "common_video_unittests",
         "resultdb": {
           "result_format": "json"
@@ -5129,6 +5626,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//net/dcsctp:dcsctp_unittests",
         "name": "dcsctp_unittests",
         "resultdb": {
           "result_format": "json"
@@ -5146,6 +5644,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules:modules_tests",
         "name": "modules_tests",
         "resultdb": {
           "result_format": "json"
@@ -5164,6 +5663,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules:modules_unittests",
         "name": "modules_unittests",
         "resultdb": {
           "result_format": "json"
@@ -5182,6 +5682,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:peerconnection_unittests",
         "name": "peerconnection_unittests",
         "resultdb": {
           "result_format": "json"
@@ -5200,6 +5701,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//media:rtc_media_unittests",
         "name": "rtc_media_unittests",
         "resultdb": {
           "result_format": "json"
@@ -5217,6 +5719,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:rtc_p2p_unittests",
         "name": "rtc_p2p_unittests",
         "resultdb": {
           "result_format": "json"
@@ -5234,6 +5737,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:rtc_pc_unittests",
         "name": "rtc_pc_unittests",
         "resultdb": {
           "result_format": "json"
@@ -5251,6 +5755,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//stats:rtc_stats_unittests",
         "name": "rtc_stats_unittests",
         "resultdb": {
           "result_format": "json"
@@ -5268,6 +5773,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:rtc_unittests",
         "name": "rtc_unittests",
         "resultdb": {
           "result_format": "json"
@@ -5286,6 +5792,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules/desktop_capture:shared_screencast_stream_test",
         "name": "shared_screencast_stream_test",
         "resultdb": {
           "result_format": "json"
@@ -5303,6 +5810,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:slow_peer_connection_unittests",
         "name": "slow_peer_connection_unittests",
         "resultdb": {
           "result_format": "json"
@@ -5320,6 +5828,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:svc_tests",
         "name": "svc_tests",
         "resultdb": {
           "result_format": "json"
@@ -5338,6 +5847,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//system_wrappers:system_wrappers_unittests",
         "name": "system_wrappers_unittests",
         "resultdb": {
           "result_format": "json"
@@ -5355,6 +5865,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//test:test_support_unittests",
         "name": "test_support_unittests",
         "resultdb": {
           "result_format": "json"
@@ -5373,6 +5884,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//rtc_tools:tools_unittests",
         "name": "tools_unittests",
         "resultdb": {
           "result_format": "json"
@@ -5390,6 +5902,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:video_engine_tests",
         "name": "video_engine_tests",
         "resultdb": {
           "result_format": "json"
@@ -5408,6 +5921,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//video/timing:video_timing_tests",
         "name": "video_timing_tests",
         "resultdb": {
           "result_format": "json"
@@ -5425,6 +5939,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:voip_unittests",
         "name": "voip_unittests",
         "resultdb": {
           "result_format": "json"
@@ -5442,6 +5957,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:webrtc_nonparallel_tests",
         "name": "webrtc_nonparallel_tests",
         "resultdb": {
           "result_format": "json"
@@ -5464,6 +5980,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules/audio_coding:audio_decoder_unittests",
         "name": "audio_decoder_unittests",
         "resultdb": {
           "result_format": "json"
@@ -5481,6 +5998,25 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:audio_engine_tests",
+        "name": "audio_engine_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "audio_engine_tests",
+        "test_id_prefix": "ninja://:audio_engine_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//common_audio:common_audio_unittests",
         "name": "common_audio_unittests",
         "resultdb": {
           "result_format": "json"
@@ -5498,6 +6034,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//common_video:common_video_unittests",
         "name": "common_video_unittests",
         "resultdb": {
           "result_format": "json"
@@ -5515,6 +6052,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//net/dcsctp:dcsctp_unittests",
         "name": "dcsctp_unittests",
         "resultdb": {
           "result_format": "json"
@@ -5532,6 +6070,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules:modules_tests",
         "name": "modules_tests",
         "resultdb": {
           "result_format": "json"
@@ -5550,6 +6089,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules:modules_unittests",
         "name": "modules_unittests",
         "resultdb": {
           "result_format": "json"
@@ -5568,6 +6108,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:peerconnection_unittests",
         "name": "peerconnection_unittests",
         "resultdb": {
           "result_format": "json"
@@ -5586,6 +6127,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//media:rtc_media_unittests",
         "name": "rtc_media_unittests",
         "resultdb": {
           "result_format": "json"
@@ -5603,6 +6145,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:rtc_p2p_unittests",
         "name": "rtc_p2p_unittests",
         "resultdb": {
           "result_format": "json"
@@ -5620,6 +6163,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:rtc_pc_unittests",
         "name": "rtc_pc_unittests",
         "resultdb": {
           "result_format": "json"
@@ -5637,6 +6181,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//stats:rtc_stats_unittests",
         "name": "rtc_stats_unittests",
         "resultdb": {
           "result_format": "json"
@@ -5654,6 +6199,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:rtc_unittests",
         "name": "rtc_unittests",
         "resultdb": {
           "result_format": "json"
@@ -5672,6 +6218,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules/desktop_capture:shared_screencast_stream_test",
         "name": "shared_screencast_stream_test",
         "resultdb": {
           "result_format": "json"
@@ -5689,6 +6236,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:slow_peer_connection_unittests",
         "name": "slow_peer_connection_unittests",
         "resultdb": {
           "result_format": "json"
@@ -5706,6 +6254,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:svc_tests",
         "name": "svc_tests",
         "resultdb": {
           "result_format": "json"
@@ -5724,6 +6273,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//system_wrappers:system_wrappers_unittests",
         "name": "system_wrappers_unittests",
         "resultdb": {
           "result_format": "json"
@@ -5741,6 +6291,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//test:test_support_unittests",
         "name": "test_support_unittests",
         "resultdb": {
           "result_format": "json"
@@ -5759,6 +6310,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//rtc_tools:tools_unittests",
         "name": "tools_unittests",
         "resultdb": {
           "result_format": "json"
@@ -5776,6 +6328,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:video_engine_tests",
         "name": "video_engine_tests",
         "resultdb": {
           "result_format": "json"
@@ -5794,6 +6347,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//video/timing:video_timing_tests",
         "name": "video_timing_tests",
         "resultdb": {
           "result_format": "json"
@@ -5811,6 +6365,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:voip_unittests",
         "name": "voip_unittests",
         "resultdb": {
           "result_format": "json"
@@ -5828,6 +6383,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:webrtc_nonparallel_tests",
         "name": "webrtc_nonparallel_tests",
         "resultdb": {
           "result_format": "json"
@@ -5851,6 +6407,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules/audio_coding:audio_decoder_unittests",
         "name": "audio_decoder_unittests",
         "resultdb": {
           "result_format": "json"
@@ -5869,6 +6426,26 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:audio_engine_tests",
+        "name": "audio_engine_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cores": "12",
+            "cpu": "x86-64",
+            "os": "Mac-15"
+          }
+        },
+        "test": "audio_engine_tests",
+        "test_id_prefix": "ninja://:audio_engine_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//common_audio:common_audio_unittests",
         "name": "common_audio_unittests",
         "resultdb": {
           "result_format": "json"
@@ -5887,6 +6464,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//common_video:common_video_unittests",
         "name": "common_video_unittests",
         "resultdb": {
           "result_format": "json"
@@ -5905,6 +6483,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//net/dcsctp:dcsctp_unittests",
         "name": "dcsctp_unittests",
         "resultdb": {
           "result_format": "json"
@@ -5923,6 +6502,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules:modules_tests",
         "name": "modules_tests",
         "resultdb": {
           "result_format": "json"
@@ -5942,6 +6522,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules:modules_unittests",
         "name": "modules_unittests",
         "resultdb": {
           "result_format": "json"
@@ -5961,6 +6542,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:peerconnection_unittests",
         "name": "peerconnection_unittests",
         "resultdb": {
           "result_format": "json"
@@ -5980,6 +6562,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//media:rtc_media_unittests",
         "name": "rtc_media_unittests",
         "resultdb": {
           "result_format": "json"
@@ -5998,6 +6581,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:rtc_p2p_unittests",
         "name": "rtc_p2p_unittests",
         "resultdb": {
           "result_format": "json"
@@ -6016,6 +6600,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:rtc_pc_unittests",
         "name": "rtc_pc_unittests",
         "resultdb": {
           "result_format": "json"
@@ -6034,6 +6619,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//stats:rtc_stats_unittests",
         "name": "rtc_stats_unittests",
         "resultdb": {
           "result_format": "json"
@@ -6052,6 +6638,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:rtc_unittests",
         "name": "rtc_unittests",
         "resultdb": {
           "result_format": "json"
@@ -6071,6 +6658,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:slow_peer_connection_unittests",
         "name": "slow_peer_connection_unittests",
         "resultdb": {
           "result_format": "json"
@@ -6089,6 +6677,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:svc_tests",
         "name": "svc_tests",
         "resultdb": {
           "result_format": "json"
@@ -6108,6 +6697,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//system_wrappers:system_wrappers_unittests",
         "name": "system_wrappers_unittests",
         "resultdb": {
           "result_format": "json"
@@ -6126,6 +6716,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//test:test_support_unittests",
         "name": "test_support_unittests",
         "resultdb": {
           "result_format": "json"
@@ -6145,6 +6736,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//rtc_tools:tools_unittests",
         "name": "tools_unittests",
         "resultdb": {
           "result_format": "json"
@@ -6163,6 +6755,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:video_engine_tests",
         "name": "video_engine_tests",
         "resultdb": {
           "result_format": "json"
@@ -6182,6 +6775,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//video/timing:video_timing_tests",
         "name": "video_timing_tests",
         "resultdb": {
           "result_format": "json"
@@ -6200,6 +6794,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:voip_unittests",
         "name": "voip_unittests",
         "resultdb": {
           "result_format": "json"
@@ -6218,6 +6813,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:webrtc_nonparallel_tests",
         "name": "webrtc_nonparallel_tests",
         "resultdb": {
           "result_format": "json"
@@ -6241,6 +6837,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules/audio_coding:audio_decoder_unittests",
         "name": "audio_decoder_unittests",
         "resultdb": {
           "result_format": "json"
@@ -6259,6 +6856,26 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:audio_engine_tests",
+        "name": "audio_engine_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cores": "12",
+            "cpu": "x86-64",
+            "os": "Mac-15"
+          }
+        },
+        "test": "audio_engine_tests",
+        "test_id_prefix": "ninja://:audio_engine_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//common_audio:common_audio_unittests",
         "name": "common_audio_unittests",
         "resultdb": {
           "result_format": "json"
@@ -6277,6 +6894,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//common_video:common_video_unittests",
         "name": "common_video_unittests",
         "resultdb": {
           "result_format": "json"
@@ -6295,6 +6913,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//net/dcsctp:dcsctp_unittests",
         "name": "dcsctp_unittests",
         "resultdb": {
           "result_format": "json"
@@ -6313,6 +6932,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules:modules_tests",
         "name": "modules_tests",
         "resultdb": {
           "result_format": "json"
@@ -6332,6 +6952,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules:modules_unittests",
         "name": "modules_unittests",
         "resultdb": {
           "result_format": "json"
@@ -6351,6 +6972,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:peerconnection_unittests",
         "name": "peerconnection_unittests",
         "resultdb": {
           "result_format": "json"
@@ -6370,6 +6992,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//media:rtc_media_unittests",
         "name": "rtc_media_unittests",
         "resultdb": {
           "result_format": "json"
@@ -6388,6 +7011,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:rtc_p2p_unittests",
         "name": "rtc_p2p_unittests",
         "resultdb": {
           "result_format": "json"
@@ -6406,6 +7030,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:rtc_pc_unittests",
         "name": "rtc_pc_unittests",
         "resultdb": {
           "result_format": "json"
@@ -6424,6 +7049,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//stats:rtc_stats_unittests",
         "name": "rtc_stats_unittests",
         "resultdb": {
           "result_format": "json"
@@ -6442,6 +7068,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:rtc_unittests",
         "name": "rtc_unittests",
         "resultdb": {
           "result_format": "json"
@@ -6461,6 +7088,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:slow_peer_connection_unittests",
         "name": "slow_peer_connection_unittests",
         "resultdb": {
           "result_format": "json"
@@ -6479,6 +7107,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:svc_tests",
         "name": "svc_tests",
         "resultdb": {
           "result_format": "json"
@@ -6498,6 +7127,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//system_wrappers:system_wrappers_unittests",
         "name": "system_wrappers_unittests",
         "resultdb": {
           "result_format": "json"
@@ -6516,6 +7146,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//test:test_support_unittests",
         "name": "test_support_unittests",
         "resultdb": {
           "result_format": "json"
@@ -6535,6 +7166,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//rtc_tools:tools_unittests",
         "name": "tools_unittests",
         "resultdb": {
           "result_format": "json"
@@ -6553,6 +7185,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:video_engine_tests",
         "name": "video_engine_tests",
         "resultdb": {
           "result_format": "json"
@@ -6572,6 +7205,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//video/timing:video_timing_tests",
         "name": "video_timing_tests",
         "resultdb": {
           "result_format": "json"
@@ -6590,6 +7224,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:voip_unittests",
         "name": "voip_unittests",
         "resultdb": {
           "result_format": "json"
@@ -6608,6 +7243,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:webrtc_nonparallel_tests",
         "name": "webrtc_nonparallel_tests",
         "resultdb": {
           "result_format": "json"
@@ -6630,6 +7266,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules/audio_coding:audio_decoder_unittests",
         "name": "audio_decoder_unittests",
         "resultdb": {
           "result_format": "json"
@@ -6647,6 +7284,25 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:audio_engine_tests",
+        "name": "audio_engine_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Mac-15"
+          }
+        },
+        "test": "audio_engine_tests",
+        "test_id_prefix": "ninja://:audio_engine_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//common_audio:common_audio_unittests",
         "name": "common_audio_unittests",
         "resultdb": {
           "result_format": "json"
@@ -6664,6 +7320,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//common_video:common_video_unittests",
         "name": "common_video_unittests",
         "resultdb": {
           "result_format": "json"
@@ -6681,6 +7338,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//net/dcsctp:dcsctp_unittests",
         "name": "dcsctp_unittests",
         "resultdb": {
           "result_format": "json"
@@ -6698,6 +7356,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules:modules_tests",
         "name": "modules_tests",
         "resultdb": {
           "result_format": "json"
@@ -6716,6 +7375,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules:modules_unittests",
         "name": "modules_unittests",
         "resultdb": {
           "result_format": "json"
@@ -6734,6 +7394,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:peerconnection_unittests",
         "name": "peerconnection_unittests",
         "resultdb": {
           "result_format": "json"
@@ -6752,6 +7413,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//media:rtc_media_unittests",
         "name": "rtc_media_unittests",
         "resultdb": {
           "result_format": "json"
@@ -6769,6 +7431,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:rtc_p2p_unittests",
         "name": "rtc_p2p_unittests",
         "resultdb": {
           "result_format": "json"
@@ -6786,6 +7449,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:rtc_pc_unittests",
         "name": "rtc_pc_unittests",
         "resultdb": {
           "result_format": "json"
@@ -6803,6 +7467,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//stats:rtc_stats_unittests",
         "name": "rtc_stats_unittests",
         "resultdb": {
           "result_format": "json"
@@ -6820,6 +7485,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:rtc_unittests",
         "name": "rtc_unittests",
         "resultdb": {
           "result_format": "json"
@@ -6838,6 +7504,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:slow_peer_connection_unittests",
         "name": "slow_peer_connection_unittests",
         "resultdb": {
           "result_format": "json"
@@ -6855,6 +7522,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:svc_tests",
         "name": "svc_tests",
         "resultdb": {
           "result_format": "json"
@@ -6873,6 +7541,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//system_wrappers:system_wrappers_unittests",
         "name": "system_wrappers_unittests",
         "resultdb": {
           "result_format": "json"
@@ -6890,6 +7559,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//test:test_support_unittests",
         "name": "test_support_unittests",
         "resultdb": {
           "result_format": "json"
@@ -6908,6 +7578,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//rtc_tools:tools_unittests",
         "name": "tools_unittests",
         "resultdb": {
           "result_format": "json"
@@ -6925,6 +7596,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:video_engine_tests",
         "name": "video_engine_tests",
         "resultdb": {
           "result_format": "json"
@@ -6943,6 +7615,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//video/timing:video_timing_tests",
         "name": "video_timing_tests",
         "resultdb": {
           "result_format": "json"
@@ -6960,6 +7633,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:voip_unittests",
         "name": "voip_unittests",
         "resultdb": {
           "result_format": "json"
@@ -6977,6 +7651,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:webrtc_nonparallel_tests",
         "name": "webrtc_nonparallel_tests",
         "resultdb": {
           "result_format": "json"
@@ -6998,6 +7673,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules/audio_coding:audio_decoder_unittests",
         "name": "audio_decoder_unittests",
         "resultdb": {
           "result_format": "json"
@@ -7015,6 +7691,25 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:audio_engine_tests",
+        "name": "audio_engine_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "arm64-64-Apple_M1",
+            "os": "Mac-15"
+          }
+        },
+        "test": "audio_engine_tests",
+        "test_id_prefix": "ninja://:audio_engine_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//common_audio:common_audio_unittests",
         "name": "common_audio_unittests",
         "resultdb": {
           "result_format": "json"
@@ -7032,6 +7727,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//common_video:common_video_unittests",
         "name": "common_video_unittests",
         "resultdb": {
           "result_format": "json"
@@ -7049,6 +7745,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//net/dcsctp:dcsctp_unittests",
         "name": "dcsctp_unittests",
         "resultdb": {
           "result_format": "json"
@@ -7066,6 +7763,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules:modules_tests",
         "name": "modules_tests",
         "resultdb": {
           "result_format": "json"
@@ -7084,6 +7782,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules:modules_unittests",
         "name": "modules_unittests",
         "resultdb": {
           "result_format": "json"
@@ -7102,6 +7801,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:peerconnection_unittests",
         "name": "peerconnection_unittests",
         "resultdb": {
           "result_format": "json"
@@ -7120,6 +7820,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//media:rtc_media_unittests",
         "name": "rtc_media_unittests",
         "resultdb": {
           "result_format": "json"
@@ -7137,6 +7838,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:rtc_p2p_unittests",
         "name": "rtc_p2p_unittests",
         "resultdb": {
           "result_format": "json"
@@ -7154,6 +7856,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:rtc_pc_unittests",
         "name": "rtc_pc_unittests",
         "resultdb": {
           "result_format": "json"
@@ -7171,6 +7874,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//stats:rtc_stats_unittests",
         "name": "rtc_stats_unittests",
         "resultdb": {
           "result_format": "json"
@@ -7188,6 +7892,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:rtc_unittests",
         "name": "rtc_unittests",
         "resultdb": {
           "result_format": "json"
@@ -7206,6 +7911,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:slow_peer_connection_unittests",
         "name": "slow_peer_connection_unittests",
         "resultdb": {
           "result_format": "json"
@@ -7223,6 +7929,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:svc_tests",
         "name": "svc_tests",
         "resultdb": {
           "result_format": "json"
@@ -7241,6 +7948,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//system_wrappers:system_wrappers_unittests",
         "name": "system_wrappers_unittests",
         "resultdb": {
           "result_format": "json"
@@ -7258,6 +7966,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//test:test_support_unittests",
         "name": "test_support_unittests",
         "resultdb": {
           "result_format": "json"
@@ -7276,6 +7985,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//rtc_tools:tools_unittests",
         "name": "tools_unittests",
         "resultdb": {
           "result_format": "json"
@@ -7293,6 +8003,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:video_engine_tests",
         "name": "video_engine_tests",
         "resultdb": {
           "result_format": "json"
@@ -7311,6 +8022,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//video/timing:video_timing_tests",
         "name": "video_timing_tests",
         "resultdb": {
           "result_format": "json"
@@ -7328,6 +8040,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:voip_unittests",
         "name": "voip_unittests",
         "resultdb": {
           "result_format": "json"
@@ -7345,6 +8058,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:webrtc_nonparallel_tests",
         "name": "webrtc_nonparallel_tests",
         "resultdb": {
           "result_format": "json"
@@ -7367,6 +8081,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:peerconnection_unittests",
         "name": "peerconnection_unittests",
         "resultdb": {
           "result_format": "json"
@@ -7391,6 +8106,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules/audio_coding:audio_decoder_unittests",
         "name": "audio_decoder_unittests",
         "resultdb": {
           "result_format": "json"
@@ -7408,6 +8124,25 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:audio_engine_tests",
+        "name": "audio_engine_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Windows-10-19045"
+          }
+        },
+        "test": "audio_engine_tests",
+        "test_id_prefix": "ninja://:audio_engine_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//common_audio:common_audio_unittests",
         "name": "common_audio_unittests",
         "resultdb": {
           "result_format": "json"
@@ -7425,6 +8160,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//common_video:common_video_unittests",
         "name": "common_video_unittests",
         "resultdb": {
           "result_format": "json"
@@ -7442,6 +8178,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//net/dcsctp:dcsctp_unittests",
         "name": "dcsctp_unittests",
         "resultdb": {
           "result_format": "json"
@@ -7459,6 +8196,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules:modules_tests",
         "name": "modules_tests",
         "resultdb": {
           "result_format": "json"
@@ -7477,6 +8215,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules:modules_unittests",
         "name": "modules_unittests",
         "resultdb": {
           "result_format": "json"
@@ -7495,6 +8234,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:peerconnection_unittests",
         "name": "peerconnection_unittests",
         "resultdb": {
           "result_format": "json"
@@ -7513,6 +8253,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//media:rtc_media_unittests",
         "name": "rtc_media_unittests",
         "resultdb": {
           "result_format": "json"
@@ -7530,6 +8271,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:rtc_p2p_unittests",
         "name": "rtc_p2p_unittests",
         "resultdb": {
           "result_format": "json"
@@ -7547,6 +8289,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:rtc_pc_unittests",
         "name": "rtc_pc_unittests",
         "resultdb": {
           "result_format": "json"
@@ -7564,6 +8307,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//stats:rtc_stats_unittests",
         "name": "rtc_stats_unittests",
         "resultdb": {
           "result_format": "json"
@@ -7581,6 +8325,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:rtc_unittests",
         "name": "rtc_unittests",
         "resultdb": {
           "result_format": "json"
@@ -7599,6 +8344,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:slow_peer_connection_unittests",
         "name": "slow_peer_connection_unittests",
         "resultdb": {
           "result_format": "json"
@@ -7616,6 +8362,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:svc_tests",
         "name": "svc_tests",
         "resultdb": {
           "result_format": "json"
@@ -7634,6 +8381,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//system_wrappers:system_wrappers_unittests",
         "name": "system_wrappers_unittests",
         "resultdb": {
           "result_format": "json"
@@ -7651,6 +8399,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//test:test_support_unittests",
         "name": "test_support_unittests",
         "resultdb": {
           "result_format": "json"
@@ -7669,6 +8418,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//rtc_tools:tools_unittests",
         "name": "tools_unittests",
         "resultdb": {
           "result_format": "json"
@@ -7686,6 +8436,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:video_engine_tests",
         "name": "video_engine_tests",
         "resultdb": {
           "result_format": "json"
@@ -7704,6 +8455,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//video/timing:video_timing_tests",
         "name": "video_timing_tests",
         "resultdb": {
           "result_format": "json"
@@ -7721,6 +8473,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:voip_unittests",
         "name": "voip_unittests",
         "resultdb": {
           "result_format": "json"
@@ -7738,6 +8491,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:webrtc_nonparallel_tests",
         "name": "webrtc_nonparallel_tests",
         "resultdb": {
           "result_format": "json"
@@ -7759,6 +8513,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules/audio_coding:audio_decoder_unittests",
         "name": "audio_decoder_unittests",
         "resultdb": {
           "result_format": "json"
@@ -7776,6 +8531,25 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:audio_engine_tests",
+        "name": "audio_engine_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Windows-10-19045"
+          }
+        },
+        "test": "audio_engine_tests",
+        "test_id_prefix": "ninja://:audio_engine_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//common_audio:common_audio_unittests",
         "name": "common_audio_unittests",
         "resultdb": {
           "result_format": "json"
@@ -7793,6 +8567,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//common_video:common_video_unittests",
         "name": "common_video_unittests",
         "resultdb": {
           "result_format": "json"
@@ -7810,6 +8585,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//net/dcsctp:dcsctp_unittests",
         "name": "dcsctp_unittests",
         "resultdb": {
           "result_format": "json"
@@ -7827,6 +8603,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules:modules_tests",
         "name": "modules_tests",
         "resultdb": {
           "result_format": "json"
@@ -7845,6 +8622,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules:modules_unittests",
         "name": "modules_unittests",
         "resultdb": {
           "result_format": "json"
@@ -7863,6 +8641,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:peerconnection_unittests",
         "name": "peerconnection_unittests",
         "resultdb": {
           "result_format": "json"
@@ -7881,6 +8660,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//media:rtc_media_unittests",
         "name": "rtc_media_unittests",
         "resultdb": {
           "result_format": "json"
@@ -7898,6 +8678,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:rtc_p2p_unittests",
         "name": "rtc_p2p_unittests",
         "resultdb": {
           "result_format": "json"
@@ -7915,6 +8696,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:rtc_pc_unittests",
         "name": "rtc_pc_unittests",
         "resultdb": {
           "result_format": "json"
@@ -7932,6 +8714,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//stats:rtc_stats_unittests",
         "name": "rtc_stats_unittests",
         "resultdb": {
           "result_format": "json"
@@ -7949,6 +8732,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:rtc_unittests",
         "name": "rtc_unittests",
         "resultdb": {
           "result_format": "json"
@@ -7967,6 +8751,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:slow_peer_connection_unittests",
         "name": "slow_peer_connection_unittests",
         "resultdb": {
           "result_format": "json"
@@ -7984,6 +8769,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:svc_tests",
         "name": "svc_tests",
         "resultdb": {
           "result_format": "json"
@@ -8002,6 +8788,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//system_wrappers:system_wrappers_unittests",
         "name": "system_wrappers_unittests",
         "resultdb": {
           "result_format": "json"
@@ -8019,6 +8806,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//test:test_support_unittests",
         "name": "test_support_unittests",
         "resultdb": {
           "result_format": "json"
@@ -8037,6 +8825,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//rtc_tools:tools_unittests",
         "name": "tools_unittests",
         "resultdb": {
           "result_format": "json"
@@ -8054,6 +8843,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:video_engine_tests",
         "name": "video_engine_tests",
         "resultdb": {
           "result_format": "json"
@@ -8072,6 +8862,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//video/timing:video_timing_tests",
         "name": "video_timing_tests",
         "resultdb": {
           "result_format": "json"
@@ -8089,6 +8880,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:voip_unittests",
         "name": "voip_unittests",
         "resultdb": {
           "result_format": "json"
@@ -8106,6 +8898,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:webrtc_nonparallel_tests",
         "name": "webrtc_nonparallel_tests",
         "resultdb": {
           "result_format": "json"
@@ -8127,6 +8920,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules/audio_coding:audio_decoder_unittests",
         "name": "audio_decoder_unittests",
         "resultdb": {
           "result_format": "json"
@@ -8144,6 +8938,25 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:audio_engine_tests",
+        "name": "audio_engine_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Windows-10-19045"
+          }
+        },
+        "test": "audio_engine_tests",
+        "test_id_prefix": "ninja://:audio_engine_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//common_audio:common_audio_unittests",
         "name": "common_audio_unittests",
         "resultdb": {
           "result_format": "json"
@@ -8161,6 +8974,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//common_video:common_video_unittests",
         "name": "common_video_unittests",
         "resultdb": {
           "result_format": "json"
@@ -8178,6 +8992,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//net/dcsctp:dcsctp_unittests",
         "name": "dcsctp_unittests",
         "resultdb": {
           "result_format": "json"
@@ -8195,6 +9010,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules:modules_tests",
         "name": "modules_tests",
         "resultdb": {
           "result_format": "json"
@@ -8213,6 +9029,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules:modules_unittests",
         "name": "modules_unittests",
         "resultdb": {
           "result_format": "json"
@@ -8231,6 +9048,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:peerconnection_unittests",
         "name": "peerconnection_unittests",
         "resultdb": {
           "result_format": "json"
@@ -8249,6 +9067,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//media:rtc_media_unittests",
         "name": "rtc_media_unittests",
         "resultdb": {
           "result_format": "json"
@@ -8266,6 +9085,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:rtc_p2p_unittests",
         "name": "rtc_p2p_unittests",
         "resultdb": {
           "result_format": "json"
@@ -8283,6 +9103,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:rtc_pc_unittests",
         "name": "rtc_pc_unittests",
         "resultdb": {
           "result_format": "json"
@@ -8300,6 +9121,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//stats:rtc_stats_unittests",
         "name": "rtc_stats_unittests",
         "resultdb": {
           "result_format": "json"
@@ -8317,6 +9139,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:rtc_unittests",
         "name": "rtc_unittests",
         "resultdb": {
           "result_format": "json"
@@ -8335,6 +9158,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:slow_peer_connection_unittests",
         "name": "slow_peer_connection_unittests",
         "resultdb": {
           "result_format": "json"
@@ -8352,6 +9176,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:svc_tests",
         "name": "svc_tests",
         "resultdb": {
           "result_format": "json"
@@ -8370,6 +9195,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//system_wrappers:system_wrappers_unittests",
         "name": "system_wrappers_unittests",
         "resultdb": {
           "result_format": "json"
@@ -8387,6 +9213,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//test:test_support_unittests",
         "name": "test_support_unittests",
         "resultdb": {
           "result_format": "json"
@@ -8405,6 +9232,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//rtc_tools:tools_unittests",
         "name": "tools_unittests",
         "resultdb": {
           "result_format": "json"
@@ -8422,6 +9250,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:video_engine_tests",
         "name": "video_engine_tests",
         "resultdb": {
           "result_format": "json"
@@ -8440,6 +9269,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//video/timing:video_timing_tests",
         "name": "video_timing_tests",
         "resultdb": {
           "result_format": "json"
@@ -8457,6 +9287,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:voip_unittests",
         "name": "voip_unittests",
         "resultdb": {
           "result_format": "json"
@@ -8474,6 +9305,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:webrtc_nonparallel_tests",
         "name": "webrtc_nonparallel_tests",
         "resultdb": {
           "result_format": "json"
@@ -8495,6 +9327,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules/audio_coding:audio_decoder_unittests",
         "name": "audio_decoder_unittests",
         "resultdb": {
           "result_format": "json"
@@ -8512,6 +9345,25 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:audio_engine_tests",
+        "name": "audio_engine_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Windows-10-19045"
+          }
+        },
+        "test": "audio_engine_tests",
+        "test_id_prefix": "ninja://:audio_engine_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//common_audio:common_audio_unittests",
         "name": "common_audio_unittests",
         "resultdb": {
           "result_format": "json"
@@ -8529,6 +9381,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//common_video:common_video_unittests",
         "name": "common_video_unittests",
         "resultdb": {
           "result_format": "json"
@@ -8546,6 +9399,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//net/dcsctp:dcsctp_unittests",
         "name": "dcsctp_unittests",
         "resultdb": {
           "result_format": "json"
@@ -8563,6 +9417,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules:modules_tests",
         "name": "modules_tests",
         "resultdb": {
           "result_format": "json"
@@ -8581,6 +9436,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules:modules_unittests",
         "name": "modules_unittests",
         "resultdb": {
           "result_format": "json"
@@ -8599,6 +9455,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:peerconnection_unittests",
         "name": "peerconnection_unittests",
         "resultdb": {
           "result_format": "json"
@@ -8617,6 +9474,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//media:rtc_media_unittests",
         "name": "rtc_media_unittests",
         "resultdb": {
           "result_format": "json"
@@ -8634,6 +9492,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:rtc_p2p_unittests",
         "name": "rtc_p2p_unittests",
         "resultdb": {
           "result_format": "json"
@@ -8651,6 +9510,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:rtc_pc_unittests",
         "name": "rtc_pc_unittests",
         "resultdb": {
           "result_format": "json"
@@ -8668,6 +9528,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//stats:rtc_stats_unittests",
         "name": "rtc_stats_unittests",
         "resultdb": {
           "result_format": "json"
@@ -8685,6 +9546,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:rtc_unittests",
         "name": "rtc_unittests",
         "resultdb": {
           "result_format": "json"
@@ -8703,6 +9565,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:slow_peer_connection_unittests",
         "name": "slow_peer_connection_unittests",
         "resultdb": {
           "result_format": "json"
@@ -8720,6 +9583,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:svc_tests",
         "name": "svc_tests",
         "resultdb": {
           "result_format": "json"
@@ -8738,6 +9602,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//system_wrappers:system_wrappers_unittests",
         "name": "system_wrappers_unittests",
         "resultdb": {
           "result_format": "json"
@@ -8755,6 +9620,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//test:test_support_unittests",
         "name": "test_support_unittests",
         "resultdb": {
           "result_format": "json"
@@ -8773,6 +9639,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//rtc_tools:tools_unittests",
         "name": "tools_unittests",
         "resultdb": {
           "result_format": "json"
@@ -8790,6 +9657,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:video_engine_tests",
         "name": "video_engine_tests",
         "resultdb": {
           "result_format": "json"
@@ -8808,6 +9676,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//video/timing:video_timing_tests",
         "name": "video_timing_tests",
         "resultdb": {
           "result_format": "json"
@@ -8825,6 +9694,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:voip_unittests",
         "name": "voip_unittests",
         "resultdb": {
           "result_format": "json"
@@ -8842,6 +9712,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:webrtc_nonparallel_tests",
         "name": "webrtc_nonparallel_tests",
         "resultdb": {
           "result_format": "json"
@@ -8875,6 +9746,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//examples:apprtcmobile_tests",
         "name": "apprtcmobile_tests iPhone 14 17.5",
         "resultdb": {
           "enable": true,
@@ -8924,6 +9796,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//examples:apprtcmobile_tests",
         "name": "apprtcmobile_tests iPhone 15 18.2",
         "resultdb": {
           "enable": true,
@@ -8972,6 +9845,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules/audio_coding:audio_decoder_unittests",
         "name": "audio_decoder_unittests iPhone 14 17.5",
         "resultdb": {
           "enable": true,
@@ -9020,6 +9894,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules/audio_coding:audio_decoder_unittests",
         "name": "audio_decoder_unittests iPhone 15 18.2",
         "resultdb": {
           "enable": true,
@@ -9068,6 +9943,105 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:audio_engine_tests",
+        "name": "audio_engine_tests iPhone 14 17.5",
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "cipd_packages": [
+            {
+              "cipd_package": "infra/tools/mac_toolchain/${platform}",
+              "location": ".",
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
+            }
+          ],
+          "dimensions": {
+            "cpu": "arm64",
+            "os": "Mac-15"
+          },
+          "named_caches": [
+            {
+              "name": "runtime_ios_17_5",
+              "path": "Runtime-ios-17.5"
+            },
+            {
+              "name": "xcode_ios_17a400",
+              "path": "Xcode.app"
+            }
+          ],
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+        },
+        "test": "audio_engine_tests",
+        "test_id_prefix": "ninja://:audio_engine_tests/",
+        "variant_id": "iPhone 14 17.5"
+      },
+      {
+        "args": [
+          "--platform",
+          "iPhone 15",
+          "--version",
+          "18.2",
+          "--xcode-build-version",
+          "17a400",
+          "--out-dir",
+          "${ISOLATED_OUTDIR}",
+          "--xctest"
+        ],
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//:audio_engine_tests",
+        "name": "audio_engine_tests iPhone 15 18.2",
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "cipd_packages": [
+            {
+              "cipd_package": "infra/tools/mac_toolchain/${platform}",
+              "location": ".",
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
+            }
+          ],
+          "dimensions": {
+            "cpu": "arm64",
+            "os": "Mac-15"
+          },
+          "named_caches": [
+            {
+              "name": "runtime_ios_18_2",
+              "path": "Runtime-ios-18.2"
+            },
+            {
+              "name": "xcode_ios_17a400",
+              "path": "Xcode.app"
+            }
+          ],
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+        },
+        "test": "audio_engine_tests",
+        "test_id_prefix": "ninja://:audio_engine_tests/",
+        "variant_id": "iPhone 15 18.2"
+      },
+      {
+        "args": [
+          "--platform",
+          "iPhone 14",
+          "--version",
+          "17.5",
+          "--xcode-build-version",
+          "17a400",
+          "--out-dir",
+          "${ISOLATED_OUTDIR}",
+          "--xctest"
+        ],
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//common_audio:common_audio_unittests",
         "name": "common_audio_unittests iPhone 14 17.5",
         "resultdb": {
           "enable": true,
@@ -9116,6 +10090,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//common_audio:common_audio_unittests",
         "name": "common_audio_unittests iPhone 15 18.2",
         "resultdb": {
           "enable": true,
@@ -9164,6 +10139,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//common_video:common_video_unittests",
         "name": "common_video_unittests iPhone 14 17.5",
         "resultdb": {
           "enable": true,
@@ -9212,6 +10188,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//common_video:common_video_unittests",
         "name": "common_video_unittests iPhone 15 18.2",
         "resultdb": {
           "enable": true,
@@ -9260,6 +10237,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//net/dcsctp:dcsctp_unittests",
         "name": "dcsctp_unittests iPhone 14 17.5",
         "resultdb": {
           "enable": true,
@@ -9308,6 +10286,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//net/dcsctp:dcsctp_unittests",
         "name": "dcsctp_unittests iPhone 15 18.2",
         "resultdb": {
           "enable": true,
@@ -9356,6 +10335,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules:modules_tests",
         "name": "modules_tests iPhone 14 17.5",
         "resultdb": {
           "enable": true,
@@ -9405,6 +10385,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules:modules_tests",
         "name": "modules_tests iPhone 15 18.2",
         "resultdb": {
           "enable": true,
@@ -9454,6 +10435,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules:modules_unittests",
         "name": "modules_unittests iPhone 14 17.5",
         "resultdb": {
           "enable": true,
@@ -9504,6 +10486,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules:modules_unittests",
         "name": "modules_unittests iPhone 15 18.2",
         "resultdb": {
           "enable": true,
@@ -9554,6 +10537,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//media:rtc_media_unittests",
         "name": "rtc_media_unittests iPhone 14 17.5",
         "resultdb": {
           "enable": true,
@@ -9602,6 +10586,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//media:rtc_media_unittests",
         "name": "rtc_media_unittests iPhone 15 18.2",
         "resultdb": {
           "enable": true,
@@ -9650,6 +10635,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:rtc_p2p_unittests",
         "name": "rtc_p2p_unittests iPhone 14 17.5",
         "resultdb": {
           "enable": true,
@@ -9698,6 +10684,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:rtc_p2p_unittests",
         "name": "rtc_p2p_unittests iPhone 15 18.2",
         "resultdb": {
           "enable": true,
@@ -9746,6 +10733,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:rtc_pc_unittests",
         "name": "rtc_pc_unittests iPhone 14 17.5",
         "resultdb": {
           "enable": true,
@@ -9794,6 +10782,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:rtc_pc_unittests",
         "name": "rtc_pc_unittests iPhone 15 18.2",
         "resultdb": {
           "enable": true,
@@ -9842,6 +10831,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//stats:rtc_stats_unittests",
         "name": "rtc_stats_unittests iPhone 14 17.5",
         "resultdb": {
           "enable": true,
@@ -9890,6 +10880,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//stats:rtc_stats_unittests",
         "name": "rtc_stats_unittests iPhone 15 18.2",
         "resultdb": {
           "enable": true,
@@ -9939,6 +10930,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//sdk:sdk_framework_unittests",
         "name": "sdk_framework_unittests iPhone 14 17.5",
         "resultdb": {
           "enable": true,
@@ -9988,6 +10980,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//sdk:sdk_framework_unittests",
         "name": "sdk_framework_unittests iPhone 15 18.2",
         "resultdb": {
           "enable": true,
@@ -10037,6 +11030,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//sdk:sdk_unittests",
         "name": "sdk_unittests iPhone 14 17.5",
         "resultdb": {
           "enable": true,
@@ -10086,6 +11080,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//sdk:sdk_unittests",
         "name": "sdk_unittests iPhone 15 18.2",
         "resultdb": {
           "enable": true,
@@ -10134,6 +11129,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:svc_tests",
         "name": "svc_tests iPhone 14 17.5",
         "resultdb": {
           "enable": true,
@@ -10184,6 +11180,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:svc_tests",
         "name": "svc_tests iPhone 15 18.2",
         "resultdb": {
           "enable": true,
@@ -10234,6 +11231,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//system_wrappers:system_wrappers_unittests",
         "name": "system_wrappers_unittests iPhone 14 17.5",
         "resultdb": {
           "enable": true,
@@ -10282,6 +11280,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//system_wrappers:system_wrappers_unittests",
         "name": "system_wrappers_unittests iPhone 15 18.2",
         "resultdb": {
           "enable": true,
@@ -10330,6 +11329,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//test:test_support_unittests",
         "name": "test_support_unittests iPhone 14 17.5",
         "resultdb": {
           "enable": true,
@@ -10378,6 +11378,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//test:test_support_unittests",
         "name": "test_support_unittests iPhone 15 18.2",
         "resultdb": {
           "enable": true,
@@ -10426,6 +11427,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//rtc_tools:tools_unittests",
         "name": "tools_unittests iPhone 14 17.5",
         "resultdb": {
           "enable": true,
@@ -10474,6 +11476,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//rtc_tools:tools_unittests",
         "name": "tools_unittests iPhone 15 18.2",
         "resultdb": {
           "enable": true,
@@ -10522,6 +11525,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:video_engine_tests",
         "name": "video_engine_tests iPhone 14 17.5",
         "resultdb": {
           "enable": true,
@@ -10571,6 +11575,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:video_engine_tests",
         "name": "video_engine_tests iPhone 15 18.2",
         "resultdb": {
           "enable": true,
@@ -10620,6 +11625,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//video/timing:video_timing_tests",
         "name": "video_timing_tests iPhone 14 17.5",
         "resultdb": {
           "enable": true,
@@ -10668,6 +11674,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//video/timing:video_timing_tests",
         "name": "video_timing_tests iPhone 15 18.2",
         "resultdb": {
           "enable": true,
@@ -10716,6 +11723,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:voip_unittests",
         "name": "voip_unittests iPhone 14 17.5",
         "resultdb": {
           "enable": true,
@@ -10764,6 +11772,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:voip_unittests",
         "name": "voip_unittests iPhone 15 18.2",
         "resultdb": {
           "enable": true,
@@ -10812,6 +11821,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:webrtc_nonparallel_tests",
         "name": "webrtc_nonparallel_tests iPhone 14 17.5",
         "resultdb": {
           "enable": true,
@@ -10860,6 +11870,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:webrtc_nonparallel_tests",
         "name": "webrtc_nonparallel_tests iPhone 15 18.2",
         "resultdb": {
           "enable": true,

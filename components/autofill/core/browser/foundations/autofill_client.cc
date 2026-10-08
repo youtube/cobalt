@@ -246,7 +246,8 @@ base::span<const Suggestion> AutofillClient::GetAutofillSuggestions() const {
 void AutofillClient::UpdateAutofillSuggestions(
     const std::vector<Suggestion>& suggestions,
     FillingProduct main_filling_product,
-    AutofillSuggestionTriggerSource trigger_source) {
+    AutofillSuggestionTriggerSource trigger_source,
+    AutofillSuggestionsIgnoreFocusLoss ignore_focus_loss) {
   NOTIMPLEMENTED();
 }
 
@@ -296,9 +297,14 @@ AutofillClient::GetMqlsUploadService() {
 void AutofillClient::ShowEntityImportBubble(
     EntityInstance new_entity,
     std::optional<EntityInstance> old_entity,
+    bool save_is_synchronous,
     EntityImportPromptResultCallback prompt_closed_callback) {}
 
 void AutofillClient::CloseEntityImportBubble() {
+  NOTIMPLEMENTED();
+}
+
+void AutofillClient::ShowAutofillAiLocalSaveNotification() {
   NOTIMPLEMENTED();
 }
 

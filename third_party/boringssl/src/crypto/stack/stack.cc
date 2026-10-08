@@ -21,6 +21,7 @@
 #include <openssl/mem.h>
 
 #include "../internal.h"
+#include "../mem_internal.h"
 
 
 using namespace bssl;
@@ -44,8 +45,7 @@ struct stack_st {
 static const size_t kMinSize = 4;
 
 OPENSSL_STACK *OPENSSL_sk_new(OPENSSL_sk_cmp_func comp) {
-  OPENSSL_STACK *ret =
-      reinterpret_cast<OPENSSL_STACK *>(OPENSSL_zalloc(sizeof(OPENSSL_STACK)));
+  OPENSSL_STACK *ret = NewZeroed<OPENSSL_STACK>();
   if (ret == nullptr) {
     return nullptr;
   }
@@ -62,7 +62,7 @@ OPENSSL_STACK *OPENSSL_sk_new(OPENSSL_sk_cmp_func comp) {
   return ret;
 
 err:
-  OPENSSL_free(ret);
+  Delete(ret);
   return nullptr;
 }
 
@@ -103,7 +103,7 @@ void OPENSSL_sk_free(OPENSSL_STACK *sk) {
     return;
   }
   OPENSSL_free(sk->data);
-  OPENSSL_free(sk);
+  Delete(sk);
 }
 
 void OPENSSL_sk_pop_free_ex(OPENSSL_STACK *sk,
@@ -329,8 +329,7 @@ OPENSSL_STACK *OPENSSL_sk_dup(const OPENSSL_STACK *sk) {
     return nullptr;
   }
 
-  OPENSSL_STACK *ret =
-      reinterpret_cast<OPENSSL_STACK *>(OPENSSL_zalloc(sizeof(OPENSSL_STACK)));
+  OPENSSL_STACK *ret = NewZeroed<OPENSSL_STACK>();
   if (ret == nullptr) {
     return nullptr;
   }

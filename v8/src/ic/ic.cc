@@ -1008,7 +1008,8 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
       TRACE_HANDLER_STATS(isolate(), LoadIC_LoadInterceptorFromPrototypeDH);
       DirectHandle<JSObject> holder_for_api(lookup->GetHolderForApi(),
                                             isolate());
-      Tagged<Smi> smi_handler = LoadHandler::LoadInterceptor();
+      Tagged<Smi> smi_handler =
+          LoadHandler::LoadInterceptor(interceptor_info->non_masking());
       Handle<LoadHandler> handler = LoadHandler::LoadFromPrototype(
           isolate(), map, holder_for_api, smi_handler,
           {},  // no data1 (make it use holder instead).
@@ -3029,6 +3030,27 @@ RUNTIME_FUNCTION(Runtime_PatchLoadICUninitializedBaseline) {
 #endif  // V8_ENABLE_SPARKPLUG_PLUS
 }
 
+RUNTIME_FUNCTION(Runtime_GetStringLengthAndUpdateFeedback) {
+#ifdef V8_ENABLE_SPARKPLUG_PLUS
+  Handle<String> receiver = args.at<String>(0);
+  int slot = args.tagged_index_value_at(1);
+  Handle<FeedbackVector> vector = args.at<FeedbackVector>(2);
+  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot);
+  FeedbackNexus nexus(isolate, vector, vector_slot);
+
+  MaybeObjectHandle handler =
+      MaybeObjectHandle(BUILTIN_CODE(isolate, LoadIC_StringLength));
+  DirectHandle<Map> receiver_map(receiver->map(), isolate);
+  // Update feedback.
+  nexus.ConfigureMonomorphic(Handle<Name>::null(), receiver_map, handler);
+  IC::OnFeedbackChanged(isolate, *vector, vector_slot, "Monomorphic");
+
+  return Smi::FromInt(receiver->length());
+#else
+  UNREACHABLE();
+#endif  // V8_ENABLE_SPARKPLUG_PLUS
+}
+
 RUNTIME_FUNCTION(Runtime_LoadNoFeedbackIC_Miss) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
@@ -4199,7 +4221,7 @@ RUNTIME_FUNCTION(Runtime_ObjectAssignTryFastcase) {
  * Loads a property with an interceptor performing post interceptor
  * lookup if interceptor failed.
  */
-RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
+RUNTIME_FUNCTION(Runtime_LoadPropertyPastInterceptor) {
   HandleScope scope(isolate);
   DCHECK_EQ(6, args.length());
   DirectHandle<Name> name = args.at<Name>(0);
@@ -4215,21 +4237,6 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
   }
 #endif
 
-  {
-    PropertyCallbackArguments arguments(isolate, *holder);
-
-    DirectHandle<Object> result =
-        arguments.CallNamedGetter(isolate, interceptor, name);
-    // An exception was thrown in the interceptor. Propagate.
-    RETURN_FAILURE_IF_EXCEPTION_DETECTOR(isolate, arguments);
-
-    if (!result.is_null()) {
-      arguments.AcceptSideEffects();
-      return *result;
-    }
-    // If the interceptor didn't handle the request, then there must be no
-    // side effects.
-  }
   // If the interceptor hasn't handled the store request then
   //  - for non-masking interceptor the lookup is over,
   //  - for masking interceptor the store lookup needs to be proceed past the
@@ -4267,7 +4274,7 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
       isolate, NewReferenceError(MessageTemplate::kNotDefined, name));
 }
 
-RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
+RUNTIME_FUNCTION(Runtime_StorePropertyPastInterceptor) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
   // Runtime functions don't follow the IC's calling convention.
@@ -4285,32 +4292,6 @@ RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
     DCHECK_EQ(holder->GetNamedInterceptor(), *interceptor);
   }
 #endif
-
-  {
-    PropertyCallbackArguments arguments(isolate, *holder,
-                                        Nothing<ShouldThrow>());
-
-    v8::Intercepted intercepted =
-        arguments.CallNamedSetter(isolate, interceptor, name, value);
-    // Stores initiated by StoreICs don't care about the exact result of
-    // the store operation returned by the callback as long as it doesn't
-    // throw an exception.
-    constexpr bool ignore_return_value = true;
-    InterceptorResult result;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, result,
-        arguments.GetBooleanReturnValue(isolate, intercepted, "Setter",
-                                        ignore_return_value));
-
-    switch (result) {
-      case InterceptorResult::kFalse:
-      case InterceptorResult::kTrue:
-        return *value;
-
-      case InterceptorResult::kNotIntercepted:
-        break;
-    }
-  }
 
   bool non_masking = interceptor->non_masking();
   // If the interceptor hasn't handled the store request then

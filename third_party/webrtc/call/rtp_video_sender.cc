@@ -347,7 +347,7 @@ bool TransportSeqNumExtensionConfigured(const RtpConfig& config) {
 bool IsFirstFrameOfACodedVideoSequence(
     const EncodedImage& encoded_image,
     const CodecSpecificInfo* codec_specific_info) {
-  if (encoded_image._frameType != VideoFrameType::kVideoFrameKey) {
+  if (!encoded_image.IsKey()) {
     return false;
   }
 
@@ -551,7 +551,7 @@ EncodedImageCallback::Result RtpVideoSender::OnEncodedImage(
     const EncodedImage& encoded_image,
     const CodecSpecificInfo* codec_specific_info) {
   fec_controller_->UpdateWithEncodedData(encoded_image.size(),
-                                         encoded_image._frameType);
+                                         encoded_image.frame_type());
   MutexLock lock(&mutex_);
   RTC_DCHECK(!rtp_streams_.empty());
   if (!active_)
@@ -572,7 +572,7 @@ EncodedImageCallback::Result RtpVideoSender::OnEncodedImage(
   if (!rtp_streams_[simulcast_index].rtp_rtcp->OnSendingRtpFrame(
           encoded_image.RtpTimestamp(), encoded_image.capture_time_ms_,
           rtp_config_.GetStreamConfig(simulcast_index).payload_type,
-          encoded_image._frameType == VideoFrameType::kVideoFrameKey)) {
+          encoded_image.IsKey())) {
     // The payload router could be active but this module isn't sending.
     return Result(Result::ERROR_SEND_FAILED);
   }
@@ -620,12 +620,12 @@ EncodedImageCallback::Result RtpVideoSender::OnEncodedImage(
           expected_retransmission_time, csrcs_);
   if (frame_count_observer_) {
     FrameCounts& counts = frame_counts_[simulcast_index];
-    if (encoded_image._frameType == VideoFrameType::kVideoFrameKey) {
+    if (encoded_image.IsKey()) {
       ++counts.key_frames;
-    } else if (encoded_image._frameType == VideoFrameType::kVideoFrameDelta) {
+    } else if (encoded_image.IsDelta()) {
       ++counts.delta_frames;
     } else {
-      RTC_DCHECK(encoded_image._frameType == VideoFrameType::kEmptyFrame);
+      RTC_DCHECK(encoded_image.frame_type() == VideoFrameType::kEmptyFrame);
     }
     frame_count_observer_->FrameCountUpdated(
         counts, rtp_config_.ssrcs[simulcast_index]);

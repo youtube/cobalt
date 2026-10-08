@@ -29,7 +29,7 @@ class UnboundEncryptedBackendFileOperations final
 
  private:
   std::unique_ptr<disk_cache::UnboundBackendFileOperations> decorated_ops_;
-  const base::raw_ref<const crypto::ProcessBoundString> primary_key_;
+  const crypto::ProcessBoundString primary_key_;
 };
 
 // Decorator to add encryption layer to file operations.
@@ -64,7 +64,7 @@ class EncryptedBackendFileOperations final
 
  private:
   std::unique_ptr<disk_cache::BackendFileOperations> decorated_backend_;
-  const base::raw_ref<const crypto::ProcessBoundString> primary_key_;
+  const crypto::ProcessBoundString primary_key_;
 };
 
 }  // namespace network::enterprise_encryption

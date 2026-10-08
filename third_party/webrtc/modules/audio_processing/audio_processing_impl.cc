@@ -2114,6 +2114,8 @@ void AudioProcessingImpl::WriteAecDumpConfigMessage(bool forced) {
   apm_config.pre_amplifier_fixed_gain_factor =
       config_.pre_amplifier.fixed_gain_factor;
 
+  apm_config.api_config_string = config_.ToString();
+
   if (!forced && apm_config == apm_config_for_aec_dump_) {
     return;
   }

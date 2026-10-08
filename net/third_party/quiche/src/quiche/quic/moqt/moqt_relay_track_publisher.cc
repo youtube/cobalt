@@ -13,7 +13,10 @@
 #include "absl/base/attributes.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/moqt/moqt_error.h"
+#include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
@@ -42,14 +45,13 @@ void MoqtRelayTrackPublisher::OnReply(
     return;
   }
   SubscribeOkData ok_data = std::get<SubscribeOkData>(response);
-  if (ok_data.expires.IsInfinite()) {
-    expiration_ = quic::QuicTime::Infinite();
-  } else {
-    expiration_ = clock_->Now() + ok_data.expires;
-  }
-  delivery_order_ = ok_data.delivery_order;
-  next_location_ = ok_data.largest_location.has_value()
-                       ? ok_data.largest_location->Next()
+  quic::QuicTimeDelta expires =
+      ok_data.parameters.expires.value_or(kDefaultExpires);
+  expiration_ = expires.IsInfinite() ? quic::QuicTime::Infinite()
+                                     : clock_->Now() + expires;
+  extensions_ = ok_data.extensions;
+  next_location_ = ok_data.parameters.largest_object.has_value()
+                       ? ok_data.parameters.largest_object->Next()
                        : Location(0, 0);
   got_response_ = true;
   // TODO(martinduke): Handle parameters.
@@ -308,9 +310,14 @@ void MoqtRelayTrackPublisher::AddObjectListener(MoqtObjectListener* listener) {
       DeleteTrack();
       return;
     }
-    session->SubscribeCurrentObject(track_, this, VersionSpecificParameters());
+    MessageParameters parameters;
+    // Use default params, not what the subscriber used.
+    // TODO(b/478300706): Always forward NEW_GROUP_REQUEST in this case.
+    session->Subscribe(track_, this, parameters);
   }
   listeners_.insert(listener);
+  // TODO(b/478300706): If there is a NEW_GROUP_REQUEST and we don't have one
+  // pending, send it.
   if (got_response_) {
     listener->OnSubscribeAccepted();
   }
@@ -348,11 +355,8 @@ std::optional<Location> MoqtRelayTrackPublisher::largest_location() const {
 }
 
 std::optional<quic::QuicTimeDelta> MoqtRelayTrackPublisher::expiration() const {
-  if (!expiration_.has_value()) {
+  if (!expiration_.has_value() || *expiration_ == quic::QuicTime::Infinite()) {
     return std::nullopt;
-  }
-  if (expiration_ == quic::QuicTime::Infinite()) {
-    return quic::QuicTimeDelta::Infinite();
   }
   quic::QuicTime now = clock_->Now();
   if (expiration_ < now) {

@@ -22,6 +22,7 @@
 #include <openssl/mem.h>
 #include <openssl/sha2.h>
 
+#include "../mem_internal.h"
 #include "internal.h"
 
 
@@ -119,18 +120,17 @@ const TRUST_TOKEN_METHOD *TRUST_TOKEN_pst_v1_pmb() {
 
 
 void bssl::TRUST_TOKEN_PRETOKEN_free(TRUST_TOKEN_PRETOKEN *pretoken) {
-  OPENSSL_free(pretoken);
+  Delete(pretoken);
 }
 
 TRUST_TOKEN *TRUST_TOKEN_new(const uint8_t *data, size_t len) {
-  TRUST_TOKEN *ret =
-      reinterpret_cast<TRUST_TOKEN *>(OPENSSL_zalloc(sizeof(TRUST_TOKEN)));
+  TRUST_TOKEN *ret = NewZeroed<TRUST_TOKEN>();
   if (ret == nullptr) {
     return nullptr;
   }
   ret->data = reinterpret_cast<uint8_t *>(OPENSSL_memdup(data, len));
   if (len != 0 && ret->data == nullptr) {
-    OPENSSL_free(ret);
+    Delete(ret);
     return nullptr;
   }
   ret->len = len;
@@ -142,7 +142,7 @@ void TRUST_TOKEN_free(TRUST_TOKEN *token) {
     return;
   }
   OPENSSL_free(token->data);
-  OPENSSL_free(token);
+  Delete(token);
 }
 
 int TRUST_TOKEN_generate_key(const TRUST_TOKEN_METHOD *method,
@@ -210,8 +210,7 @@ TRUST_TOKEN_CLIENT *TRUST_TOKEN_CLIENT_new(const TRUST_TOKEN_METHOD *method,
     return nullptr;
   }
 
-  TRUST_TOKEN_CLIENT *ret = reinterpret_cast<TRUST_TOKEN_CLIENT *>(
-      OPENSSL_zalloc(sizeof(TRUST_TOKEN_CLIENT)));
+  TRUST_TOKEN_CLIENT *ret = NewZeroed<TRUST_TOKEN_CLIENT>();
   if (ret == nullptr) {
     return nullptr;
   }
@@ -226,7 +225,7 @@ void TRUST_TOKEN_CLIENT_free(TRUST_TOKEN_CLIENT *ctx) {
   }
   EVP_PKEY_free(ctx->srr_key);
   sk_TRUST_TOKEN_PRETOKEN_pop_free(ctx->pretokens, TRUST_TOKEN_PRETOKEN_free);
-  OPENSSL_free(ctx);
+  Delete(ctx);
 }
 
 static TRUST_TOKEN_PRETOKEN *dup_pretoken(const TRUST_TOKEN_PRETOKEN *in) {
@@ -475,8 +474,7 @@ TRUST_TOKEN_ISSUER *TRUST_TOKEN_ISSUER_new(const TRUST_TOKEN_METHOD *method,
     return nullptr;
   }
 
-  TRUST_TOKEN_ISSUER *ret = reinterpret_cast<TRUST_TOKEN_ISSUER *>(
-      OPENSSL_zalloc(sizeof(TRUST_TOKEN_ISSUER)));
+  TRUST_TOKEN_ISSUER *ret = NewZeroed<TRUST_TOKEN_ISSUER>();
   if (ret == nullptr) {
     return nullptr;
   }
@@ -491,7 +489,7 @@ void TRUST_TOKEN_ISSUER_free(TRUST_TOKEN_ISSUER *ctx) {
   }
   EVP_PKEY_free(ctx->srr_key);
   OPENSSL_free(ctx->metadata_key);
-  OPENSSL_free(ctx);
+  Delete(ctx);
 }
 
 int TRUST_TOKEN_ISSUER_add_key(TRUST_TOKEN_ISSUER *ctx, const uint8_t *key,

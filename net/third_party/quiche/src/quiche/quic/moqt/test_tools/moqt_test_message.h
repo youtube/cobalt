@@ -38,9 +38,11 @@ inline std::vector<MoqtDatagramType> AllMoqtDatagramTypes() {
   for (bool payload : {false, true}) {
     for (bool extension : {false, true}) {
       for (bool end_of_group : {false, true}) {
-        for (bool zero_object_id : {false, true}) {
-          types.push_back(MoqtDatagramType(payload, extension, end_of_group,
-                                           zero_object_id));
+        for (bool default_priority : {false, true}) {
+          for (bool zero_object_id : {false, true}) {
+            types.push_back(MoqtDatagramType(payload, extension, end_of_group,
+                                             default_priority, zero_object_id));
+          }
         }
       }
     }
@@ -54,13 +56,28 @@ inline std::vector<MoqtDataStreamType> AllMoqtDataStreamTypes() {
   uint64_t first_object_id = 1;
   for (uint64_t subgroup_id : {0, 1, 2}) {
     for (bool no_extension_headers : {true, false}) {
-      for (bool end_of_group : {false, true}) {
-        types.push_back(MoqtDataStreamType::Subgroup(
-            subgroup_id, first_object_id, no_extension_headers, end_of_group));
+      for (bool default_priority : {true, false}) {
+        for (bool end_of_group : {false, true}) {
+          types.push_back(MoqtDataStreamType::Subgroup(
+              subgroup_id, first_object_id, no_extension_headers,
+              default_priority, end_of_group));
+        }
       }
     }
   }
   return types;
+}
+
+inline MessageParameters SubscribeForTest() {
+  MessageParameters parameters;
+  parameters.delivery_timeout = quic::QuicTimeDelta::FromMilliseconds(10000);
+  parameters.authorization_tokens.emplace_back(AuthTokenType::kOutOfBand,
+                                               "bar");
+  parameters.set_forward(true);
+  parameters.subscriber_priority = 0x20;
+  parameters.subscription_filter.emplace(Location(4, 1));
+  parameters.group_order = MoqtDeliveryOrder::kDescending;
+  return parameters;
 }
 
 constexpr absl::string_view kTestImplementationString =
@@ -274,7 +291,9 @@ class QUICHE_NO_EXPORT ObjectDatagramMessage : public ObjectMessage {
     if (datagram_type.has_object_id()) {
       EXPECT_TRUE(writer.WriteStringPiece(kRawObject));
     }
-    EXPECT_TRUE(writer.WriteStringPiece(kRawPriority));
+    if (!datagram_type.has_default_priority()) {
+      EXPECT_TRUE(writer.WriteStringPiece(kRawPriority));
+    }
     if (datagram_type.has_extension()) {
       EXPECT_TRUE(writer.WriteStringPiece(kRawExtensions));
     }
@@ -293,7 +312,9 @@ class QUICHE_NO_EXPORT ObjectDatagramMessage : public ObjectMessage {
     if (datagram_type_.has_object_id()) {
       varints += "v";
     }
-    varints += "-";  // priority
+    if (!datagram_type_.has_default_priority()) {
+      varints += "-";  // priority
+    }
     if (datagram_type_.has_extension()) {
       varints += "v-------";
     }
@@ -302,6 +323,8 @@ class QUICHE_NO_EXPORT ObjectDatagramMessage : public ObjectMessage {
     }
     ExpandVarintsImpl(varints, false);
   }
+
+  MoqtPriority publisher_priority() const { return object_.publisher_priority; }
 
  private:
   uint8_t raw_packet_[17];
@@ -335,9 +358,14 @@ class QUICHE_NO_EXPORT StreamHeaderSubgroupMessage : public ObjectMessage {
         writer.WriteVarInt62(type.value()) &&
         writer.WriteBytes(kRawBeginning.data(), kRawBeginning.length()));
     if (type.IsSubgroupPresent()) {
-      EXPECT_TRUE(writer.WriteUInt8(object_.subgroup_id));
+      EXPECT_TRUE(
+          writer.WriteBytes(kRawSubgroupId.data(), kRawSubgroupId.length()));
     }
-    EXPECT_TRUE(writer.WriteBytes(kRawMiddle.data(), kRawMiddle.length()));
+    if (!type.HasDefaultPriority()) {
+      EXPECT_TRUE(writer.WriteBytes(kRawPublisherPriority.data(),
+                                    kRawPublisherPriority.length()));
+    }
+    EXPECT_TRUE(writer.WriteBytes(kRawObjectId.data(), kRawObjectId.length()));
     if (type.AreExtensionHeadersPresent()) {
       EXPECT_TRUE(
           writer.WriteBytes(kRawExtensions.data(), kRawExtensions.length()));
@@ -349,19 +377,19 @@ class QUICHE_NO_EXPORT StreamHeaderSubgroupMessage : public ObjectMessage {
   }
 
   void ExpandVarints() override {
-    if (!type_.IsSubgroupPresent()) {
-      if (!type_.AreExtensionHeadersPresent()) {
-        ExpandVarintsImpl("vvv-vv---", false);
-      } else {
-        ExpandVarintsImpl("vvv-vv-------v---", false);
-      }
-    } else {
-      if (!type_.AreExtensionHeadersPresent()) {
-        ExpandVarintsImpl("vvvv-vv---", false);
-      } else {
-        ExpandVarintsImpl("vvvv-vv-------v---", false);
-      }
+    std::string varints = "vvv";
+    if (type_.IsSubgroupPresent()) {
+      varints += "v";
     }
+    if (!type_.HasDefaultPriority()) {
+      varints += "-";  // priority
+    }
+    varints += "v";  // object ID
+    if (type_.AreExtensionHeadersPresent()) {
+      varints += "v-------";
+    }
+    varints += "v---";  // payload with length
+    ExpandVarintsImpl(varints, false);
   }
 
   bool SetPayloadLength(uint8_t payload_length) {
@@ -387,8 +415,9 @@ class QUICHE_NO_EXPORT StreamHeaderSubgroupMessage : public ObjectMessage {
   MoqtDataStreamType type_;
   static constexpr absl::string_view kRawBeginning = "\x04\x05";
   // track alias, group ID
-  static constexpr absl::string_view kRawMiddle = "\x07\x06";
-  // publisher priority, object ID
+  static constexpr absl::string_view kRawSubgroupId = "\x08";
+  static constexpr absl::string_view kRawPublisherPriority = "\x07";
+  static constexpr absl::string_view kRawObjectId = "\x06";
   static constexpr absl::string_view kRawExtensions{
       "\x07\x00\x0c\x01\x03\x66\x6f\x6f", 8};  // see kDefaultExtensionBlob
   static constexpr absl::string_view kRawPayload = "\x03\x66\x6f\x6f";
@@ -607,39 +636,14 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
       QUIC_LOG(INFO) << "SUBSCRIBE track name mismatch";
       return false;
     }
-    if (cast.subscriber_priority != subscribe_.subscriber_priority) {
-      QUIC_LOG(INFO) << "SUBSCRIBE subscriber priority mismatch";
-      return false;
-    }
-    if (cast.group_order != subscribe_.group_order) {
-      QUIC_LOG(INFO) << "SUBSCRIBE group order mismatch";
-      return false;
-    }
-    if (cast.forward != subscribe_.forward) {
-      QUIC_LOG(INFO) << "SUBSCRIBE forward mismatch";
-      return false;
-    }
-    if (cast.filter_type != subscribe_.filter_type) {
-      QUIC_LOG(INFO) << "SUBSCRIBE filter type mismatch";
-      return false;
-    }
-    if (cast.start != subscribe_.start) {
-      QUIC_LOG(INFO) << "SUBSCRIBE start mismatch";
-      return false;
-    }
-    if (cast.end_group != subscribe_.end_group) {
-      QUIC_LOG(INFO) << "SUBSCRIBE end group mismatch";
-      return false;
-    }
     if (cast.parameters != subscribe_.parameters) {
-      QUIC_LOG(INFO) << "SUBSCRIBE parameter mismatch";
       return false;
     }
     return true;
   }
 
   void ExpandVarints() override {
-    ExpandVarintsImpl("vvv---v-------vvvvv--vv-----");
+    ExpandVarintsImpl("vvv---v----vv--vv-----vvvvvv---vv");
   }
 
   MessageStructuredData structured_data() const override {
@@ -650,50 +654,21 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
   MoqtSubscribe subscribe_ = {
       /*request_id=*/1,
       FullTrackName("foo", "abcd"),
-      /*subscriber_priority=*/0x20,
-      /*group_order=*/MoqtDeliveryOrder::kDescending,
-      /*forward=*/true,
-      /*filter_type=*/MoqtFilterType::kAbsoluteStart,
-      /*start=*/Location(4, 1),
-      /*end_group=*/std::nullopt,
-      VersionSpecificParameters(quic::QuicTimeDelta::FromMilliseconds(10000),
-                                AuthTokenType::kOutOfBand, "bar"),
+      SubscribeForTest(),
   };
 
  private:
-  uint8_t raw_packet_[31] = {
-      0x03,
-      0x00,
-      0x1c,
-      0x01,  // request_id = 1
-      0x01,
-      0x03,
-      0x66,
-      0x6f,
-      0x6f,  // track_namespace = "foo"
-      0x04,
-      0x61,
-      0x62,
-      0x63,
-      0x64,  // track_name = "abcd"
-      0x20,  // subscriber priority = 0x20
-      0x02,  // group order = descending
-      0x01,  // forward = true
-      0x03,  // Filter type: Absolute Start
-      0x04,  // start_group = 4
-      0x01,  // start_object = 1
-      // No EndGroup or EndObject
-      0x02,  // 2 parameters
-      0x02,
-      0x67,
-      0x10,  // delivery_timeout = 10000 ms
-      0x01,
-      0x05,
-      0x03,
-      0x00,
-      0x62,
-      0x61,
-      0x72,  // authorization_tag = "bar"
+  uint8_t raw_packet_[36] = {
+      0x03, 0x00, 0x21, 0x01,                    // request_id = 1
+      0x01, 0x03, 0x66, 0x6f, 0x6f,              // track_namespace = "foo"
+      0x04, 0x61, 0x62, 0x63, 0x64,              // track_name = "abcd"
+      0x06,                                      // 6 parameters
+      0x02, 0x67, 0x10,                          // delivery_timeout = 10000 ms
+      0x01, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_tag = "bar"
+      0x0d, 0x01,                                // forward = true
+      0x10, 0x20,                                // subscriber_priority = 0x20
+      0x01, 0x03, 0x03, 0x04, 0x01,  // filter_type = kAbsoluteStart (4, 1)
+      0x01, 0x02,                    // group_order = kDescending
   };
 };
 
@@ -701,6 +676,8 @@ class QUICHE_NO_EXPORT SubscribeOkMessage : public TestMessageBase {
  public:
   SubscribeOkMessage() : TestMessageBase() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
+    subscribe_ok_.parameters.expires = quic::QuicTimeDelta::FromMilliseconds(3);
+    subscribe_ok_.parameters.largest_object = Location(12, 20);
   }
 
   bool EqualFieldValues(MessageStructuredData& values) const override {
@@ -713,38 +690,25 @@ class QUICHE_NO_EXPORT SubscribeOkMessage : public TestMessageBase {
       QUIC_LOG(INFO) << "SUBSCRIBE OK track alias mismatch";
       return false;
     }
-    if (cast.expires != subscribe_ok_.expires) {
-      QUIC_LOG(INFO) << "SUBSCRIBE OK expiration mismatch";
-      return false;
-    }
-    if (cast.group_order != subscribe_ok_.group_order) {
-      QUIC_LOG(INFO) << "SUBSCRIBE OK group order mismatch";
-      return false;
-    }
-    if (cast.largest_location != subscribe_ok_.largest_location) {
-      QUIC_LOG(INFO) << "SUBSCRIBE OK largest ID mismatch";
-      return false;
-    }
     if (cast.parameters != subscribe_ok_.parameters) {
       QUIC_LOG(INFO) << "SUBSCRIBE OK parameter mismatch";
+      return false;
+    }
+    if (cast.extensions != subscribe_ok_.extensions) {
+      QUIC_LOG(INFO) << "SUBSCRIBE OK extensions mismatch";
       return false;
     }
     return true;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vvv--vvvv--v--"); }
+  void ExpandVarints() override { ExpandVarintsImpl("vvvvvvv--v--v--vv"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(subscribe_ok_);
   }
 
-  void SetInvalidContentExists() {
-    raw_packet_[7] = 0x02;
-    SetWireImage(raw_packet_, sizeof(raw_packet_));
-  }
-
   void SetInvalidDeliveryOrder() {
-    raw_packet_[6] = 0x10;
+    raw_packet_[19] = 0x10;
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
@@ -753,21 +717,25 @@ class QUICHE_NO_EXPORT SubscribeOkMessage : public TestMessageBase {
   MoqtSubscribeOk subscribe_ok_ = {
       /*request_id=*/1,
       /*track_alias=*/2,
-      /*expires=*/quic::QuicTimeDelta::FromMilliseconds(3),
-      /*group_order=*/MoqtDeliveryOrder::kDescending,
-      /*largest_location=*/Location(12, 20),
-      VersionSpecificParameters(quic::QuicTimeDelta::FromMilliseconds(10000),
-                                quic::QuicTimeDelta::FromMilliseconds(10000)),
+      MessageParameters(),  // Set in the constructor.
+      TrackExtensions(
+          /*delivery_timeout=*/quic::QuicTimeDelta::FromMilliseconds(10000),
+          /*max_cache_duration=*/quic::QuicTimeDelta::FromMilliseconds(10000),
+          /*publisher_priority=*/std::nullopt,
+          /*group_order=*/MoqtDeliveryOrder::kDescending,
+          /*dynamic_groups=*/std::nullopt,
+          /*immutable_extensions=*/std::nullopt),
   };
 
  private:
-  uint8_t raw_packet_[17] = {
-      0x04, 0x00, 0x0e, 0x01, 0x02, 0x03,  // request_id, alias, expires
-      0x02, 0x01,                          // group_order = 2, content exists
-      0x0c, 0x14,                          // largest_location = (12, 20)
-      0x02,                                // 2 parameters
-      0x02, 0x67, 0x10,                    // delivery_timeout = 10000
-      0x02, 0x67, 0x10,                    // max_cache_duration = 10000
+  uint8_t raw_packet_[20] = {
+      0x04, 0x00, 0x11, 0x01, 0x02, 0x02,  // request_id, alias, 2 params
+      0x08, 0x03,                          // expires = 3
+      0x01, 0x02, 0x0c, 0x14,              // largest_location = (12, 20)
+      // Extensions
+      0x02, 0x67, 0x10,  // delivery_timeout = 10000
+      0x02, 0x67, 0x10,  // max_cache_duration = 10000
+      0x1e, 0x02         // default_publisher_group_order = 2
   };
 };
 

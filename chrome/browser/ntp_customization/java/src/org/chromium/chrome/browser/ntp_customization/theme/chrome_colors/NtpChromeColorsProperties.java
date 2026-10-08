@@ -20,8 +20,6 @@ import org.chromium.ui.modelutil.PropertyModel.WritableObjectPropertyKey;
 public class NtpChromeColorsProperties {
     public static final WritableObjectPropertyKey<View.OnClickListener> BACK_BUTTON_CLICK_LISTENER =
             new WritableObjectPropertyKey<>();
-    public static final WritableObjectPropertyKey<View.OnClickListener>
-            LEARN_MORE_BUTTON_CLICK_LISTENER = new WritableObjectPropertyKey<>();
     public static final WritableObjectPropertyKey<View.OnClickListener> SAVE_BUTTON_CLICK_LISTENER =
             new WritableObjectPropertyKey<>();
     public static final WritableObjectPropertyKey<TextWatcher> BACKGROUND_COLOR_INPUT_TEXT_WATCHER =
@@ -41,7 +39,7 @@ public class NtpChromeColorsProperties {
     public static final WritableIntPropertyKey RECYCLER_VIEW_ITEM_WIDTH =
             new WritableIntPropertyKey();
     public static final WritableIntPropertyKey RECYCLER_VIEW_SPACING = new WritableIntPropertyKey();
-    public static final WritableIntPropertyKey RECYCLER_VIEW_MAX_WIDTH_PX =
+    public static final WritableIntPropertyKey RECYCLER_VIEW_MAX_ITEM_COUNT =
             new WritableIntPropertyKey();
     public static final WritableObjectPropertyKey<OnCheckedChangeListener>
             DAILY_REFRESH_SWITCH_ON_CHECKED_CHANGE_LISTENER = new WritableObjectPropertyKey<>();
@@ -60,7 +58,6 @@ public class NtpChromeColorsProperties {
     public static final PropertyKey[] ALL_KEYS =
             new PropertyKey[] {
                 BACK_BUTTON_CLICK_LISTENER,
-                LEARN_MORE_BUTTON_CLICK_LISTENER,
                 SAVE_BUTTON_CLICK_LISTENER,
                 BACKGROUND_COLOR_INPUT_TEXT_WATCHER,
                 PRIMARY_COLOR_INPUT_TEXT_WATCHER,
@@ -71,7 +68,7 @@ public class NtpChromeColorsProperties {
                 RECYCLER_VIEW_ADAPTER,
                 RECYCLER_VIEW_ITEM_WIDTH,
                 RECYCLER_VIEW_SPACING,
-                RECYCLER_VIEW_MAX_WIDTH_PX,
+                RECYCLER_VIEW_MAX_ITEM_COUNT,
                 DAILY_REFRESH_SWITCH_ON_CHECKED_CHANGE_LISTENER,
                 IS_DAILY_REFRESH_SWITCH_CHECKED,
                 HIGHLIGHTED_ITEM_INDEX

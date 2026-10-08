@@ -12,6 +12,8 @@
 #import "ios/chrome/browser/context_menu/ui_bundled/context_menu_configuration_provider.h"
 #import "ios/chrome/browser/dialogs/ui_bundled/nsurl_protection_space_util.h"
 #import "ios/chrome/browser/enterprise/data_controls/model/data_controls_tab_helper.h"
+#import "ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h"
+#import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/overlays/model/public/overlay_callback_manager.h"
 #import "ios/chrome/browser/overlays/model/public/overlay_modality.h"
 #import "ios/chrome/browser/overlays/model/public/overlay_request.h"
@@ -21,6 +23,8 @@
 #import "ios/chrome/browser/overlays/model/public/web_content_area/insecure_form_overlay.h"
 #import "ios/chrome/browser/permissions/model/permissions_tab_helper.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
+#import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
+#import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/snapshots/model/snapshot_tab_helper.h"
 #import "ios/chrome/browser/supervised_user/model/supervised_user_capabilities.h"
 #import "ios/chrome/browser/tab_insertion/model/tab_insertion_browser_agent.h"
@@ -104,7 +108,7 @@ WebStateDelegateBrowserAgent::WebStateDelegateBrowserAgent(Browser* browser)
       << "WebStateDelegateBrowserAgent created for a Browser with a non-empty "
          "WebStateList.";
 
-  StartObserving(browser, Policy::kOnlyRealized);
+  StartObserving(browser);
 }
 
 WebStateDelegateBrowserAgent::~WebStateDelegateBrowserAgent() {
@@ -321,6 +325,14 @@ void WebStateDelegateBrowserAgent::ContextMenuConfiguration(
     web::WebState* source,
     const web::ContextMenuParams& params,
     void (^completion_handler)(UIContextMenuConfiguration*)) {
+  if (IsGeminiCopresenceEnabled()) {
+    id<BWGCommands> geminiHandler =
+        HandlerForProtocol(browser_->GetCommandDispatcher(), BWGCommands);
+    [geminiHandler
+        hideFloatyIfInvokedAnimated:YES
+                         fromSource:gemini::FloatyUpdateSource::WebContextMenu];
+  }
+
   UIContextMenuConfiguration* configuration =
       [context_menu_provider_ contextMenuConfigurationForWebState:source
                                                            params:params];

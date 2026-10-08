@@ -292,6 +292,8 @@ class CONTENT_EXPORT DedicatedWorkerHost final
 
   void ScriptLoadStartFailed(const network::URLLoaderCompletionStatus& status);
 
+  StoragePartitionImpl* GetStoragePartitionImpl();
+
   // Sets up the observer of network service crash.
   void ObserveNetworkServiceCrash(StoragePartitionImpl* storage_partition_impl);
 

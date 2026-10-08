@@ -695,8 +695,8 @@ PeerConnection::~PeerConnection() {
   sdp_handler_->GetMediaChannelTeardownTasks(network_tasks, worker_tasks);
 
   legacy_stats_.reset(nullptr);
-  network_tasks.push_back(
-      stats_collector_.CancelPendingRequestAndGetShutdownTask());
+  stats_collector_.CancelPendingRequestAndGetShutdownTasks(network_tasks,
+                                                           worker_tasks);
 
   CloseOnNetworkThread(network_tasks);
 
@@ -1925,9 +1925,6 @@ void PeerConnection::Close() {
         transceiver->StopInternal();
     }
   }
-  // Ensure that all asynchronous stats requests are completed before destroying
-  // the transport controller below.
-  stats_collector_.WaitForPendingRequest();
 
   // Don't destroy BaseChannels until after stats has been cleaned up so that
   // the last stats request can still read from the channels.

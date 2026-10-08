@@ -25,6 +25,7 @@
 #include <openssl/mem.h>
 
 #include "../../internal.h"
+#include "../../mem_internal.h"
 #include "../bcm_interface.h"
 #include "../delocate.h"
 #include "../ecdsa/internal.h"
@@ -37,8 +38,7 @@ using namespace bssl;
 DEFINE_STATIC_EX_DATA_CLASS(g_ec_ex_data_class)
 
 static bssl::EC_WRAPPED_SCALAR *ec_wrapped_scalar_new(const EC_GROUP *group) {
-  EC_WRAPPED_SCALAR *wrapped = reinterpret_cast<EC_WRAPPED_SCALAR *>(
-      OPENSSL_zalloc(sizeof(EC_WRAPPED_SCALAR)));
+  EC_WRAPPED_SCALAR *wrapped = NewZeroed<EC_WRAPPED_SCALAR>();
   if (wrapped == nullptr) {
     return nullptr;
   }
@@ -51,13 +51,13 @@ static bssl::EC_WRAPPED_SCALAR *ec_wrapped_scalar_new(const EC_GROUP *group) {
 }
 
 static void ec_wrapped_scalar_free(EC_WRAPPED_SCALAR *scalar) {
-  OPENSSL_free(scalar);
+  Delete(scalar);
 }
 
 EC_KEY *EC_KEY_new() { return EC_KEY_new_method(nullptr); }
 
 EC_KEY *EC_KEY_new_method(const ENGINE *engine) {
-  EC_KEY *ret = reinterpret_cast<EC_KEY *>(OPENSSL_zalloc(sizeof(EC_KEY)));
+  EC_KEY *ret = NewZeroed<EC_KEY>();
   if (ret == nullptr) {
     return nullptr;
   }
@@ -79,7 +79,7 @@ EC_KEY *EC_KEY_new_method(const ENGINE *engine) {
     if (ret->ecdsa_meth) {
       METHOD_unref(ret->ecdsa_meth);
     }
-    OPENSSL_free(ret);
+    Delete(ret);
     return nullptr;
   }
 
@@ -121,7 +121,7 @@ void EC_KEY_free(EC_KEY *r) {
   EC_POINT_free(r->pub_key);
   ec_wrapped_scalar_free(r->priv_key);
 
-  OPENSSL_free(r);
+  Delete(r);
 }
 
 EC_KEY *EC_KEY_dup(const EC_KEY *src) {

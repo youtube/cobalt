@@ -157,9 +157,9 @@ void PPCDebugger::RedoBreakpoint() {
 }
 
 void PPCDebugger::Debug() {
-  if (v8_flags.correctness_fuzzer_suppressions) {
-    PrintF("Debugger disabled for differential fuzzing.\n");
-    return;
+  if (!v8_flags.simulator_debugger) {
+    // Debugger not enabled; crash instead.
+    UNREACHABLE();
   }
   intptr_t last_pc = -1;
   bool done = false;
@@ -996,8 +996,14 @@ using SimulatorRuntimeFPTaggedCall = double (*)(int32_t arg0, int32_t arg1,
 // (refer to InvocationCallback in v8.h).
 using SimulatorRuntimeDirectApiCall = void (*)(intptr_t arg0);
 
-// This signature supports direct call to accessor getter callback.
-using SimulatorRuntimeDirectGetterCall = void (*)(intptr_t arg0, intptr_t arg1);
+// This signature supports direct call to accessor/interceptor getter callback.
+using SimulatorRuntimeDirectGetterCall = intptr_t (*)(intptr_t arg0,
+                                                      intptr_t arg1);
+
+// This signature supports direct call to accessor/interceptor setter callback.
+using SimulatorRuntimeDirectSetterCall = intptr_t (*)(intptr_t arg0,
+                                                      intptr_t arg1,
+                                                      intptr_t arg2);
 
 // Software interrupt instructions are used by the simulator to call into the
 // C-based V8 runtime.
@@ -1184,7 +1190,8 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
       } else if (redirection->type() == ExternalReference::DIRECT_GETTER_CALL) {
         // See callers of MacroAssembler::CallApiFunctionAndReturn for
         // explanation of register usage.
-        // void f(v8::Local<String> property, v8::PropertyCallbackInfo& info)
+        // void f(v8::Local<v8::Name>, v8::PropertyCallbackInfo&)
+        // v8::Intercepted f(v8::Local<v8::Name>, v8::PropertyCallbackInfo&)
         if (InstructionTracingEnabled() || !stack_aligned) {
           PrintF("Call to host function at %p args %08" V8PRIxPTR
                  " %08" V8PRIxPTR,
@@ -1201,7 +1208,37 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         if (!ABI_PASSES_HANDLES_IN_REGS) {
           arg[0] = base::bit_cast<intptr_t>(arg[0]);
         }
-        target(arg[0], arg[1]);
+        intptr_t iresult = target(arg[0], arg[1]);
+        if (InstructionTracingEnabled()) {
+          PrintF("Returned %08" V8PRIxPTR "\n", iresult);
+        }
+        set_register(r3, iresult);
+      } else if (redirection->type() == ExternalReference::DIRECT_SETTER_CALL) {
+        // void f(v8::Local<Name>, v8::Local<v8::Value>,
+        //        v8::PropertyCallbackInfo&)
+        // v8::Intercepted f(v8::Local<Name>, v8::Local<v8::Value>,
+        //                   v8::PropertyCallbackInfo&)
+        if (InstructionTracingEnabled() || !stack_aligned) {
+          PrintF("Call to host function at %p args %08" V8PRIxPTR
+                 " %08" V8PRIxPTR " %08" V8PRIxPTR,
+                 reinterpret_cast<void*>(external), arg[0], arg[1], arg[2]);
+          if (!stack_aligned) {
+            PrintF(" with unaligned stack %08" V8PRIxPTR "\n",
+                   get_register(sp));
+          }
+          PrintF("\n");
+        }
+        CHECK(stack_aligned);
+        SimulatorRuntimeDirectSetterCall target =
+            reinterpret_cast<SimulatorRuntimeDirectSetterCall>(external);
+        intptr_t iresult = target(arg[0], arg[1], arg[2]);
+#ifdef DEBUG
+        TrashCallerSaveRegisters();
+#endif
+        if (InstructionTracingEnabled()) {
+          PrintF("Returned %08" V8PRIxPTR "\n", iresult);
+        }
+        set_register(r3, iresult);
       } else {
         // builtin call.
         if (InstructionTracingEnabled() || !stack_aligned) {

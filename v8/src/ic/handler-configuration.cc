@@ -233,7 +233,7 @@ Handle<Object> LoadHandler::LoadNonExistent(
 Handle<LoadHandler> LoadHandler::LoadInterceptorHolderIsLookupStartupObject(
     Isolate* isolate, DirectHandle<Map> lookup_start_object_map,
     DirectHandle<InterceptorInfo> interceptor_info) {
-  Tagged<Smi> smi_handler = LoadInterceptor();
+  Tagged<Smi> smi_handler = LoadInterceptor(interceptor_info->non_masking());
 
   bool access_check_needed = lookup_start_object_map->is_access_check_needed();
 
@@ -447,7 +447,7 @@ Handle<Object> StoreHandler::StoreThroughPrototype(
 Handle<StoreHandler> StoreHandler::StoreInterceptorHolderIsReceiver(
     Isolate* isolate, DirectHandle<Map> lookup_start_object_map,
     DirectHandle<InterceptorInfo> interceptor_info) {
-  Tagged<Smi> smi_handler = StoreInterceptor();
+  Tagged<Smi> smi_handler = StoreInterceptor(interceptor_info->non_masking());
 
   bool access_check_needed = lookup_start_object_map->is_access_check_needed();
 

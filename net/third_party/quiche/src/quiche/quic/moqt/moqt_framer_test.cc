@@ -13,7 +13,9 @@
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/test_tools/moqt_test_message.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
@@ -247,7 +249,7 @@ class MoqtFramerSimpleTest : public quic::test::QuicTest {
 };
 
 TEST_F(MoqtFramerSimpleTest, GroupMiddler) {
-  MoqtDataStreamType type = MoqtDataStreamType::Subgroup(1, 1, true);
+  MoqtDataStreamType type = MoqtDataStreamType::Subgroup(1, 1, true, false);
   auto header = std::make_unique<StreamHeaderSubgroupMessage>(type);
   auto buffer1 = SerializeObject(
       framer_, std::get<MoqtObject>(header->structured_data()), "foo", type, 0);
@@ -294,9 +296,10 @@ TEST_F(MoqtFramerSimpleTest, BadObjectInput) {
 
   // Non-normal status must have no payload.
   object.object_status = MoqtObjectStatus::kObjectDoesNotExist;
-  EXPECT_QUIC_BUG(buffer = framer_.SerializeObjectHeader(
-                      object, MoqtDataStreamType::Subgroup(8, 0, false), false),
-                  "Object metadata is invalid");
+  EXPECT_QUIC_BUG(
+      buffer = framer_.SerializeObjectHeader(
+          object, MoqtDataStreamType::Subgroup(8, 0, false, false), false),
+      "Object metadata is invalid");
   EXPECT_TRUE(buffer.empty());
   // object.object_status = MoqtObjectStatus::kNormal;
 }
@@ -316,18 +319,21 @@ TEST_F(MoqtFramerSimpleTest, BadDatagramInput) {
   quiche::QuicheBuffer buffer;
 
   object.object_status = MoqtObjectStatus::kObjectDoesNotExist;
-  EXPECT_QUIC_BUG(buffer = framer_.SerializeObjectDatagram(object, "foo"),
+  EXPECT_QUIC_BUG(buffer = framer_.SerializeObjectDatagram(
+                      object, "foo", kDefaultPublisherPriority),
                   "Object metadata is invalid");
   EXPECT_TRUE(buffer.empty());
   object.object_status = MoqtObjectStatus::kNormal;
 
   object.subgroup_id = 8;
-  EXPECT_QUIC_BUG(buffer = framer_.SerializeObjectDatagram(object, "foo"),
+  EXPECT_QUIC_BUG(buffer = framer_.SerializeObjectDatagram(
+                      object, "foo", kDefaultPublisherPriority),
                   "Object metadata is invalid");
   EXPECT_TRUE(buffer.empty());
   object.subgroup_id = 6;
 
-  EXPECT_QUIC_BUG(buffer = framer_.SerializeObjectDatagram(object, "foobar"),
+  EXPECT_QUIC_BUG(buffer = framer_.SerializeObjectDatagram(
+                      object, "foobar", kDefaultPublisherPriority),
                   "Payload length does not match payload");
   EXPECT_TRUE(buffer.empty());
 }
@@ -336,8 +342,10 @@ TEST_F(MoqtFramerSimpleTest, AllDatagramTypes) {
   for (MoqtDatagramType type : AllMoqtDatagramTypes()) {
     ObjectDatagramMessage message(type);
     MoqtObject object = std::get<MoqtObject>(message.structured_data());
-    quiche::QuicheBuffer buffer =
-        framer_.SerializeObjectDatagram(object, type.has_status() ? "" : "foo");
+    quiche::QuicheBuffer buffer = framer_.SerializeObjectDatagram(
+        object, type.has_status() ? "" : "foo",
+        type.has_default_priority() ? object.publisher_priority
+                                    : (object.publisher_priority + 1));
     EXPECT_EQ(buffer.size(), message.total_message_size());
     EXPECT_EQ(buffer.AsStringView(), message.PacketSample());
   }
@@ -345,77 +353,26 @@ TEST_F(MoqtFramerSimpleTest, AllDatagramTypes) {
 
 TEST_F(MoqtFramerSimpleTest, AllSubscribeInputs) {
   for (auto filter :
-       {MoqtFilterType::kNextGroupStart, MoqtFilterType::kLatestObject,
+       {MoqtFilterType::kNextGroupStart, MoqtFilterType::kLargestObject,
         MoqtFilterType::kAbsoluteStart, MoqtFilterType::kAbsoluteRange}) {
-    MoqtSubscribe subscribe = {
-        /*subscribe_id=*/3,
-        /*full_track_name=*/FullTrackName({"foo", "abcd"}),
-        /*subscriber_priority=*/0x20,
-        /*group_order=*/std::nullopt,
-        /*forward=*/true,
-        /*filter_type=*/filter,
-        /*start=*/std::make_optional<Location>(4, 1),
-        /*end_group=*/std::make_optional<uint64_t>(6ULL),
-        VersionSpecificParameters(AuthTokenType::kOutOfBand, "bar"),
-    };
+    MessageParameters parameters = SubscribeForTest();
+    switch (filter) {
+      case MoqtFilterType::kAbsoluteRange:
+        parameters.subscription_filter.emplace(Location(4, 3));
+        break;
+      case MoqtFilterType::kAbsoluteStart:
+        parameters.subscription_filter.emplace(Location(4, 3), 5);
+        break;
+      default:
+        parameters.subscription_filter.emplace(filter);
+        break;
+    }
+    MoqtSubscribe subscribe = {/*request_id=*/3, FullTrackName({"foo", "abcd"}),
+                               parameters};
     quiche::QuicheBuffer buffer;
     buffer = framer_.SerializeSubscribe(subscribe);
     EXPECT_GT(buffer.size(), 0);
   }
-}
-
-TEST_F(MoqtFramerSimpleTest, SubscribeEndBeforeStart) {
-  MoqtSubscribe subscribe = {
-      /*subscribe_id=*/3,
-      /*full_track_name=*/FullTrackName({"foo", "abcd"}),
-      /*subscriber_priority=*/0x20,
-      /*group_order=*/std::nullopt,
-      /*forward=*/true,
-      /*filter_type=*/MoqtFilterType::kAbsoluteRange,
-      /*start=*/std::make_optional<Location>(4, 3),
-      /*end_group=*/std::make_optional<uint64_t>(3ULL),
-      VersionSpecificParameters(AuthTokenType::kOutOfBand, "bar"),
-  };
-  quiche::QuicheBuffer buffer;
-  EXPECT_QUICHE_BUG(buffer = framer_.SerializeSubscribe(subscribe),
-                    "Invalid object range");
-  EXPECT_EQ(buffer.size(), 0);
-}
-
-TEST_F(MoqtFramerSimpleTest, AbsoluteRangeStartMissing) {
-  MoqtSubscribe subscribe = {
-      /*subscribe_id=*/3,
-      /*full_track_name=*/FullTrackName({"foo", "abcd"}),
-      /*subscriber_priority=*/0x20,
-      /*group_order=*/std::nullopt,
-      /*forward=*/true,
-      /*filter_type=*/MoqtFilterType::kAbsoluteRange,
-      /*start=*/std::nullopt,
-      /*end_group=*/std::make_optional<uint64_t>(3ULL),
-      VersionSpecificParameters(AuthTokenType::kOutOfBand, "bar"),
-  };
-  quiche::QuicheBuffer buffer;
-  EXPECT_QUICHE_BUG(buffer = framer_.SerializeSubscribe(subscribe),
-                    "Invalid object range");
-  EXPECT_EQ(buffer.size(), 0);
-}
-
-TEST_F(MoqtFramerSimpleTest, AbsoluteRangeEndMissing) {
-  MoqtSubscribe subscribe = {
-      /*subscribe_id=*/3,
-      /*full_track_name=*/FullTrackName({"foo", "abcd"}),
-      /*subscriber_priority=*/0x20,
-      /*group_order=*/std::nullopt,
-      /*forward=*/true,
-      /*filter_type=*/MoqtFilterType::kAbsoluteRange,
-      /*start=*/std::make_optional<Location>(4, 3),
-      /*end_group=*/std::nullopt,
-      VersionSpecificParameters(AuthTokenType::kOutOfBand, "bar"),
-  };
-  quiche::QuicheBuffer buffer;
-  EXPECT_QUICHE_BUG(buffer = framer_.SerializeSubscribe(subscribe),
-                    "Invalid object range");
-  EXPECT_EQ(buffer.size(), 0);
 }
 
 TEST_F(MoqtFramerSimpleTest, PublishOkEndBeforeStart) {

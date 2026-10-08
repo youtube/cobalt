@@ -35,7 +35,6 @@
 #include "api/video/video_codec_constants.h"
 #include "api/video/video_codec_type.h"
 #include "api/video/video_content_type.h"
-#include "api/video/video_frame_type.h"
 #include "api/video/video_timing.h"
 #include "api/video_codecs/video_codec.h"
 #include "call/rtp_config.h"
@@ -1030,8 +1029,7 @@ void SendStatisticsProxy::OnSendEncodedImage(
     track.resolution_update = now;
   }
 
-  uma_container_->key_frame_counter_.Add(encoded_image._frameType ==
-                                         VideoFrameType::kVideoFrameKey);
+  uma_container_->key_frame_counter_.Add(encoded_image.IsKey());
 
   if (encoded_image.qp_ != -1) {
     if (!stats->qp_sum)

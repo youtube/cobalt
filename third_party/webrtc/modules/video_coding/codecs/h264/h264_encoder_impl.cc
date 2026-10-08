@@ -563,7 +563,7 @@ int32_t H264EncoderImpl::Encode(
     encoded_images_[i]._encodedHeight = configurations_[i].height;
     encoded_images_[i].SetRtpTimestamp(input_frame.rtp_timestamp());
     encoded_images_[i].SetColorSpace(input_frame.color_space());
-    encoded_images_[i]._frameType = ConvertToVideoFrameType(info.eFrameType);
+    encoded_images_[i].set_frame_type(ConvertToVideoFrameType(info.eFrameType));
     encoded_images_[i].SetSimulcastIndex(configurations_[i].simulcast_idx);
 
     // Split encoded image up into fragments. This also updates
@@ -604,7 +604,7 @@ int32_t H264EncoderImpl::Encode(
         codec_specific.codecSpecific.H264.base_layer_sync =
             tid > 0 && tid < tl0sync_limit_[i];
         if (svc_controllers_[i]) {
-          if (encoded_images_[i]._frameType == VideoFrameType::kVideoFrameKey) {
+          if (encoded_images_[i].IsKey()) {
             // Reset the ScalableVideoController on key frame
             // to reset the expected dependency structure.
             layer_frames =
@@ -632,7 +632,7 @@ int32_t H264EncoderImpl::Encode(
       if (svc_controllers_[i]) {
         codec_specific.generic_frame_info =
             svc_controllers_[i]->OnEncodeDone(layer_frames[0]);
-        if (encoded_images_[i]._frameType == VideoFrameType::kVideoFrameKey &&
+        if (encoded_images_[i].IsKey() &&
             codec_specific.generic_frame_info.has_value()) {
           codec_specific.template_structure =
               svc_controllers_[i]->DependencyStructure();

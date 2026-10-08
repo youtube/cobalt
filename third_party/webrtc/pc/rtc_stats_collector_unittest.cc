@@ -79,6 +79,7 @@
 #include "pc/test/rtc_stats_obtainer.h"
 #include "pc/transport_stats.h"
 #include "rtc_base/checks.h"
+#include "rtc_base/event.h"
 #include "rtc_base/fake_clock.h"
 #include "rtc_base/fake_ssl_identity.h"
 #include "rtc_base/network_constants.h"
@@ -3941,6 +3942,8 @@ class FakeRTCStatsCollector final : public RTCStatsCollector {
  protected:
   void ProducePartialResultsOnSignalingThreadImpl(
       Timestamp timestamp,
+      const std::vector<RtpTransceiverStatsInfo>& transceiver_stats_infos,
+      const std::optional<AudioDeviceModule::Stats>& audio_device_stats,
       RTCStatsReport* partial_report) override {
     EXPECT_TRUE(signaling_thread_->IsCurrent());
     {
@@ -4008,23 +4011,51 @@ TEST(RTCStatsCollectorSafetyTest, WaitPendingRequestGetsCallback) {
 // * Task posted from signaling to network thread.
 // * Task posted from network thread back to signaling
 // * The task for the signaling thread will be dropped, no callback.
-TEST(RTCStatsCollectorSafetyTest, CancelPendingRequestPreventsCallback) {
+TEST(RTCStatsCollectorSafetyTest, CancelPendingRequestReturnsImmediately) {
   RunLoop loop;
-  auto pc = make_ref_counted<FakePeerConnectionForStats>();
+  std::unique_ptr<Thread> worker_and_network = Thread::Create();
+  worker_and_network->Start();
+
+  auto pc = make_ref_counted<FakePeerConnectionForStats>(
+      worker_and_network.get(), worker_and_network.get());
   RTCStatsCollectorWrapper wrapper(pc, CreateEnvironment());
   auto callback = make_ref_counted<MockStatsCollectorCallback>();
+
+  // The callback that should not be called.
   EXPECT_CALL(*callback, OnStatsDelivered(_)).Times(0);
-  // At this point, cancellation has not been made, this posts a task to the
-  // network thread.
+
+  // Let's pause the network/worker threads.
+  Event blocker;
+  worker_and_network->PostTask([&]() { blocker.Wait(Event::kForever); });
+
+  // Issue the GetStats call. At this point, cancellation has not been made,
+  // this posts a task to the worker/network threads which will be blocked by
+  // the above task.
   wrapper.stats_collector().GetStatsReport(callback);
-  // Now cancel any ongoing stats gathering operations. This should have the
-  // effect that the gathering that is ongoing on the network thread, will queue
-  // up a task for the signaling thread, but that task will be dropped.
-  auto network_task =
-      wrapper.stats_collector().CancelPendingRequestAndGetShutdownTask();
-  loop.Flush();
-  // Run the network cleanup task for posterity.
-  std::move(network_task)();
+  std::vector<absl::AnyInvocable<void() &&>> network_tasks;
+  std::vector<absl::AnyInvocable<void() &&>> worker_tasks;
+
+  // Now cancel any ongoing stats gathering operations.
+  // This should cancel the outstanding operations and invoke pending callbacks
+  // immediately.
+  wrapper.stats_collector().CancelPendingRequestAndGetShutdownTasks(
+      network_tasks, worker_tasks);
+
+  // We should have one callback per conceptual thread.
+  EXPECT_EQ(network_tasks.size(), 1u);
+  EXPECT_EQ(worker_tasks.size(), 1u);
+
+  // Resume the network and worker threads.
+  blocker.Set();
+
+  // Run the cleanup tasks.
+  auto quit = loop.QuitClosure();
+  worker_and_network->PostTask([&]() {
+    std::move(network_tasks[0])();
+    std::move(worker_tasks[0])();
+    loop.task_queue()->PostTask([&]() { quit(); });
+  });
+  loop.Run();
 }
 
 // This covers the following steps:
@@ -4040,11 +4071,16 @@ TEST(RTCStatsCollectorSafetyTest, NetworkThreadSafetyPreventsCallback) {
   EXPECT_CALL(*callback, OnStatsDelivered(_)).Times(0);
   // Start by canceling any ongoing tasks. There aren't actually any ongoing
   // tasks, but this gives us the network cleanup task.
-  auto network_task =
-      wrapper.stats_collector().CancelPendingRequestAndGetShutdownTask();
+  std::vector<absl::AnyInvocable<void() &&>> network_tasks;
+  std::vector<absl::AnyInvocable<void() &&>> worker_tasks;
+  wrapper.stats_collector().CancelPendingRequestAndGetShutdownTasks(
+      network_tasks, worker_tasks);
   // Clean up the state on the network thread. This will have the effect of
   // dropping any tasks targeting the network thread.
-  std::move(network_task)();
+  ASSERT_EQ(network_tasks.size(), 1u);
+  ASSERT_EQ(worker_tasks.size(), 1u);
+  std::move(network_tasks[0])();
+  std::move(worker_tasks[0])();
   // Now, attempt to get a stats report. This will try to post a task to the
   // network thread, which will be dropped.
   wrapper.stats_collector().GetStatsReport(callback);

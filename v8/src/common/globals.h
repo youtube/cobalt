@@ -926,6 +926,14 @@ constexpr int kUninitializedEmbeddedFeedback = 0;
 // The bytecode operand index for embedded feedback.
 constexpr int kEmbeddedFeedbackOperandIndex = 1;
 
+// These constants are internal duplicates for v8::Intercepted enum values.
+constexpr uint8_t kInterceptedNo = 1;
+constexpr uint8_t kInterceptedYes = 0;
+constexpr size_t kInterceptedSize = 4;
+// Invalid pointer value used for passing the "not intercepted" result from
+// CallNamedInterceptorXXXX/CallIndexedInterceptorXXX builtins to caller.
+constexpr uint32_t kNotInterceptedSentinel = kHeapObjectTag;
+
 // This constant is used as an undefined value when passing source positions.
 constexpr int kNoSourcePosition = -1;
 
@@ -2477,19 +2485,17 @@ class CompareOperationFeedback {
 };
 
 class TypeOfFeedback {
-  enum {
-    kNumberFlag = 1,
-    kFunctionFlag = 1 << 1,
-    kStringFlag = 1 << 2,
-  };
 
  public:
   enum Result {
     kNone = 0,
-    kNumber = kNumberFlag,
-    kFunction = kFunctionFlag,
-    kString = kStringFlag,
-    kAny = kNumberFlag | kFunctionFlag | kStringFlag,
+    kSmi = 1,
+    kHeapNumber = 1 << 1,
+    kFunction = 1 << 2,
+    kString = 1 << 3,
+
+    kNumber = kHeapNumber | kSmi,
+    kAny = kSmi | kHeapNumber | kFunction | kString,
   };
 };
 

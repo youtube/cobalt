@@ -12,13 +12,14 @@
 #include <cstdint>
 #include <optional>
 #include <string>
-#include <vector>
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_data_reader.h"
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_names.h"
+#include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_stream.h"
@@ -86,6 +87,20 @@ class MoqtDataParserVisitor {
   virtual void OnParsingError(MoqtError code, absl::string_view reason) = 0;
 };
 
+class QUICHE_EXPORT MoqtMessageTypeParser {
+ public:
+  MoqtMessageTypeParser(quiche::ReadStream* stream) : stream_(*stream) {}
+  ~MoqtMessageTypeParser() = default;
+
+  // Returns false if there was a FIN.
+  bool ReadUntilMessageTypeKnown();
+  std::optional<uint64_t> message_type() const { return message_type_; }
+
+ private:
+  quiche::ReadStream& stream_;
+  std::optional<uint64_t> message_type_;
+};
+
 class QUICHE_EXPORT MoqtControlParser {
  public:
   MoqtControlParser(bool uses_web_transport, quiche::ReadStream* stream,
@@ -95,6 +110,7 @@ class QUICHE_EXPORT MoqtControlParser {
         uses_web_transport_(uses_web_transport) {}
   ~MoqtControlParser() = default;
 
+  void set_message_type(uint64_t message_type) { message_type_ = message_type; }
   void ReadAndDispatchMessages();
 
  private:
@@ -152,6 +168,11 @@ class QUICHE_EXPORT MoqtControlParser {
   bool FillAndValidateSetupParameters(const KeyValuePairList& in,
                                       SetupParameters& out,
                                       MoqtMessageType message_type);
+  // |reader| points to the beginning of a KeyValuePairList. Returns false if
+  // there is any sort of error. (The function calls ParseError(), so the
+  // caller has no need to do so.)
+  bool FillAndValidateMessageParameters(quic::QuicDataReader& reader,
+                                        MessageParameters& out);
   bool FillAndValidateVersionSpecificParameters(const KeyValuePairList& in,
                                                 VersionSpecificParameters& out,
                                                 MoqtMessageType message_type);
@@ -174,8 +195,11 @@ class QUICHE_EXPORT MoqtControlParser {
 // Parses an MoQT datagram. Returns the payload bytes, or std::nullopt on error.
 // The caller provides the whole datagram in `data`.  The function puts the
 // object metadata in `object_metadata`.
+// If |use_default_priority| returns true, there was no reported
+// publisher_priority and the caller should use the default for the SUBSCRIBE.
 std::optional<absl::string_view> ParseDatagram(absl::string_view data,
-                                               MoqtObject& object_metadata);
+                                               MoqtObject& object_metadata,
+                                               bool& use_default_priority);
 
 // Parser for MoQT unidirectional data stream.
 class QUICHE_EXPORT MoqtDataParser {
@@ -202,6 +226,10 @@ class QUICHE_EXPORT MoqtDataParser {
     return (next_input_ == kStreamType || next_input_ == kTrackAlias)
                ? std::optional<uint64_t>()
                : metadata_.track_alias;
+  }
+
+  void set_default_publisher_priority(MoqtPriority priority) {
+    default_publisher_priority_ = priority;
   }
 
  private:
@@ -262,6 +290,7 @@ class QUICHE_EXPORT MoqtDataParser {
   bool parsing_error_ = false;
   bool contains_end_of_group_ = false;  // True if the stream contains an
                                         // implied END_OF_GROUP object.
+  MoqtPriority default_publisher_priority_;
 
   std::string buffered_message_;
 

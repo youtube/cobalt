@@ -2045,4 +2045,9 @@ bool ContentBrowserClient::ShouldAllowPrefetchRedirection(
   return true;
 }
 
+bool ContentBrowserClient::OriginSupportsConcreteCrossOriginIsolation(
+    const url::Origin& origin) {
+  return true;
+}
+
 }  // namespace content

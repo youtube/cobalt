@@ -938,7 +938,7 @@ void RtpVideoStreamReceiver2::OnAssembledFrame(
   // If frames arrive before a key frame, they would not be decodable.
   // In that case, request a key frame ASAP.
   if (!has_received_frame_) {
-    if (frame->FrameType() != VideoFrameType::kVideoFrameKey) {
+    if (!frame->IsKey()) {
       // `loss_notification_controller_`, if present, would have already
       // requested a key frame when the first packet for the non-key frame
       // had arrived, so no need to replicate the request.

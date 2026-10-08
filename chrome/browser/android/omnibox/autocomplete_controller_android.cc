@@ -191,7 +191,9 @@ void AutocompleteControllerAndroid::Start(
     if (AreLensSuggestInputsReady(*inputs)) {
       input_.set_lens_overlay_suggest_inputs(std::move(inputs));
     }
-    input_.set_aim_tool_mode(tool_mode);
+    omnibox::InputState input_state;
+    input_state.active_tool = tool_mode;
+    input_.set_input_state(input_state);
   }
   autocomplete_controller_->Start(input_);
 }
@@ -310,7 +312,9 @@ void AutocompleteControllerAndroid::OnOmniboxFocused(
         tool_mode != omnibox::TOOL_MODE_IMAGE_GEN_UPLOAD) {
       input_.set_lens_overlay_suggest_inputs(std::move(inputs));
     }
-    input_.set_aim_tool_mode(tool_mode);
+    omnibox::InputState input_state;
+    input_state.active_tool = tool_mode;
+    input_.set_input_state(input_state);
   }
 
   autocomplete_controller_->Start(input_);
@@ -560,10 +564,6 @@ void AutocompleteControllerAndroid::CreateNavigationObserver(
     JNIEnv* env,
     uintptr_t navigation_handle_ptr,
     uintptr_t match_ptr) {
-  if (!base::FeatureList::IsEnabled(omnibox::kOmniboxShortcutsAndroid)) {
-    return;
-  }
-
   auto* navigation_handle =
       reinterpret_cast<content::NavigationHandle*>(navigation_handle_ptr);
   const auto& match = *reinterpret_cast<AutocompleteMatch*>(match_ptr);

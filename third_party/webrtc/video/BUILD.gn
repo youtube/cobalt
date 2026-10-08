@@ -175,7 +175,6 @@ rtc_library("video") {
     "../rtc_base/experiments:min_video_bitrate_experiment",
     "../rtc_base/experiments:rate_control_settings",
     "../rtc_base/synchronization:mutex",
-    "../rtc_base/system:file_wrapper",
     "../rtc_base/system:no_unique_address",
     "../rtc_base/task_utils:repeating_task",
     "../system_wrappers",
@@ -206,7 +205,7 @@ rtc_library("frame_dumping_decoder") {
     "../api/video:video_frame",
     "../api/video_codecs:video_codecs_api",
     "../modules/video_coding:video_coding_utility",
-    "../rtc_base/system:file_wrapper",
+    "//third_party/abseil-cpp/absl/strings:string_view",
   ]
 }
 
@@ -230,7 +229,6 @@ rtc_library("frame_dumping_encoder") {
     "../rtc_base:macromagic",
     "../rtc_base:stringutils",
     "../rtc_base/synchronization:mutex",
-    "../rtc_base/system:file_wrapper",
     "//third_party/abseil-cpp/absl/algorithm:container",
   ]
 }
@@ -592,7 +590,6 @@ if (rtc_include_tests) {
         "../rtc_base:task_queue_for_test",
         "../rtc_base:timeutils",
         "../rtc_base/synchronization:mutex",
-        "../rtc_base/system:file_wrapper",
         "../rtc_base/task_utils:repeating_task",
         "../system_wrappers",
         "../test:create_test_field_trials",

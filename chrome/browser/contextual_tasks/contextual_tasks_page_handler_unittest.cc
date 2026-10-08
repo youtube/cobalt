@@ -25,6 +25,7 @@
 #include "content/public/test/test_web_ui.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/lens_server_proto/aim_communication.pb.h"
 
 namespace contextual_tasks {
 
@@ -66,9 +67,7 @@ class MockPage : public mojom::Page {
               (override));
   MOCK_METHOD(void,
               OnContextUpdated,
-              (std::vector<mojom::TabPtr> context_tabs,
-               std::vector<mojom::UploadedFilePtr> context_files,
-               std::vector<mojom::ImagePtr> context_images),
+              (std::vector<mojom::ContextInfoPtr> context),
               (override));
   MOCK_METHOD(void, HideInput, (), (override));
   MOCK_METHOD(void, RestoreInput, (), (override));
@@ -77,6 +76,7 @@ class MockPage : public mojom::Page {
   MOCK_METHOD(void, OnLensOverlayStateChanged, (bool is_showing), (override));
   MOCK_METHOD(void, ShowErrorPage, (), (override));
   MOCK_METHOD(void, HideErrorPage, (), (override));
+  MOCK_METHOD(void, ShowOauthErrorDialog, (), (override));
 
   mojo::Receiver<mojom::Page> receiver_{this};
 };
@@ -87,6 +87,14 @@ class MockUiService : public ContextualTasksUiService {
       : ContextualTasksUiService(profile, service, nullptr, nullptr) {}
 
   MOCK_METHOD(GURL, GetDefaultAiPageUrl, (), (override));
+  MOCK_METHOD(GURL,
+              GetDefaultAiPageUrlForTask,
+              (const base::Uuid& task_id),
+              (override));
+  MOCK_METHOD(void,
+              SetInitialEntryPointForTask,
+              (const base::Uuid&, omnibox::ChromeAimEntryPoint),
+              (override));
   MOCK_METHOD(std::optional<GURL>,
               GetInitialUrlForTask,
               (const base::Uuid&),
@@ -156,7 +164,7 @@ class ContextualTasksPageHandlerTest : public BrowserWithTestWindowTest {
         std::make_unique<NiceMock<TestContextualTasksUI>>(&web_ui_);
 
     // Bind the mock page to the controller.
-    contextual_tasks_ui_->page().Bind(page_.BindAndGetRemote());
+    contextual_tasks_ui_->GetPageRemote().Bind(page_.BindAndGetRemote());
 
     mock_contextual_tasks_service_ = static_cast<MockContextualTasksService*>(
         ContextualTasksServiceFactory::GetForProfile(profile()));
@@ -390,6 +398,42 @@ TEST_F(ContextualTasksPageHandlerTest, OnWebviewMessage_RestoreInput) {
   page_handler_->OnWebviewMessage(serialized);
 }
 
+TEST_F(ContextualTasksPageHandlerTest,
+       OnWebviewMessage_NotifyZeroStateRendered) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(kEnableNotifyZeroStateRenderedCapability);
+
+  lens::AimToClientMessage message;
+  message.mutable_notify_zero_state_rendered()->set_is_zero_state_rendered(
+      true);
+
+  size_t size = message.ByteSizeLong();
+  std::vector<uint8_t> serialized(size);
+  message.SerializeToArray(serialized.data(), size);
+
+  EXPECT_CALL(page_, OnZeroStateChange(true)).Times(1);
+
+  page_handler_->OnWebviewMessage(serialized);
+}
+
+TEST_F(ContextualTasksPageHandlerTest,
+       OnWebviewMessage_NotifyZeroStateRendered_False) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(kEnableNotifyZeroStateRenderedCapability);
+
+  lens::AimToClientMessage message;
+  message.mutable_notify_zero_state_rendered()->set_is_zero_state_rendered(
+      false);
+
+  size_t size = message.ByteSizeLong();
+  std::vector<uint8_t> serialized(size);
+  message.SerializeToArray(serialized.data(), size);
+
+  EXPECT_CALL(page_, OnZeroStateChange(false)).Times(1);
+
+  page_handler_->OnWebviewMessage(serialized);
+}
+
 TEST_F(ContextualTasksPageHandlerTest, OpenMyActivityUi) {
   // Smoke test to ensure it doesn't crash.
   page_handler_->OpenMyActivityUi();
@@ -559,22 +603,21 @@ TEST_F(ContextualTasksPageHandlerTest, OnContextUpdated_TabsImagesAndFiles) {
           });
 
   base::RunLoop run_loop;
-  EXPECT_CALL(page_, OnContextUpdated(_, _, _))
-      .WillOnce([&](std::vector<mojom::TabPtr> context_tabs,
-                    std::vector<mojom::UploadedFilePtr> context_files,
-                    std::vector<mojom::ImagePtr> context_images) {
-        EXPECT_EQ(context_tabs.size(), 1u);
-        EXPECT_EQ(context_tabs[0]->title, "Example Tab");
-        EXPECT_EQ(context_tabs[0]->url, GURL(kQueryUrl));
-        EXPECT_EQ(context_tabs[0]->tab_id, tab_resource.tab_id->id());
+  EXPECT_CALL(page_, OnContextUpdated(_))
+      .WillOnce([&](std::vector<mojom::ContextInfoPtr> context) {
+        EXPECT_EQ(context.size(), 3u);
+        EXPECT_TRUE(context[0]->is_tab());
+        EXPECT_EQ(context[0]->get_tab()->title, tab_resource.title);
+        EXPECT_EQ(context[0]->get_tab()->url, GURL(kQueryUrl));
+        EXPECT_EQ(context[0]->get_tab()->tab_id, tab_resource.tab_id->id());
 
-        EXPECT_EQ(context_images.size(), 1u);
-        EXPECT_EQ(context_images[0]->title, "Example Image");
-        EXPECT_EQ(context_images[0]->url, GURL(kExampleUrl));
+        EXPECT_TRUE(context[1]->is_image());
+        EXPECT_EQ(context[1]->get_image()->title, image_resource.title);
+        EXPECT_EQ(context[1]->get_image()->url, GURL(kExampleUrl));
 
-        EXPECT_EQ(context_files.size(), 1u);
-        EXPECT_EQ(context_files[0]->name, "Example PDF");
-        EXPECT_EQ(context_files[0]->url, GURL(kExamplePdfUrl));
+        EXPECT_TRUE(context[2]->is_file());
+        EXPECT_EQ(context[2]->get_file()->title, pdf_resource.title);
+        EXPECT_EQ(context[2]->get_file()->url, GURL(kExamplePdfUrl));
 
         run_loop.Quit();
       });

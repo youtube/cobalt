@@ -86,7 +86,8 @@ class FakeObserver : public TabListInterfaceObserver {
     events_.emplace_back(Event::Type::ACTIVE_TAB_CHANGED, tab);
   }
 
-  void OnTabRemoved(tabs::TabInterface* tab) override {
+  void OnTabRemoved(tabs::TabInterface* tab,
+                    TabRemovedReason removed_reason) override {
     Event event(Event::Type::TAB_REMOVED, tab);
 
     // The tab may be destroyed after removal, so we avoid accessing it later.
@@ -599,12 +600,11 @@ IN_PROC_BROWSER_TEST_F(TabListBridgeBrowserTest, HighlightTabs) {
 
   EXPECT_EQ(1, tab_strip_model->active_index());
 
-  // Verify that the tab with `url4` is still selected since it was the previous
-  // active tab (which is selected), but the tab with `url3` is not selected.
+  // Verify that only tab indices 0 and 1 are selected.
   EXPECT_TRUE(tab_strip_model->IsTabSelected(0));
   EXPECT_TRUE(tab_strip_model->IsTabSelected(1));
   EXPECT_FALSE(tab_strip_model->IsTabSelected(2));
-  EXPECT_TRUE(tab_strip_model->IsTabSelected(3));
+  EXPECT_FALSE(tab_strip_model->IsTabSelected(3));
 }
 
 IN_PROC_BROWSER_TEST_F(TabListBridgeBrowserTest,

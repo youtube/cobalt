@@ -220,10 +220,7 @@ public abstract class ChromeFeatureList {
     public static final String ANDROID_TWA_ORIGIN_DISPLAY = "AndroidTWAOriginDisplay";
     public static final String ANDROID_USE_ADMINS_FOR_ENTERPRISE_INFO =
             "AndroidUseAdminsForEnterpriseInfo";
-    public static final String ANDROID_WEB_APP_HEADER_FOR_STANDALONE_MODE =
-            "AndroidWebAppHeaderForStandaloneMode";
     public static final String ANDROID_WEB_APP_LAUNCH_HANDLER = "AndroidWebAppLaunchHandler";
-    public static final String ANDROID_WEB_APP_MENU_BUTTON = "AndroidWebAppMenuButton";
     public static final String ANDROID_WINDOW_CONTROLS_OVERLAY = "AndroidWindowControlsOverlay";
     public static final String ANDROID_WINDOW_MANAGEMENT_WEB_API = "AndroidWindowManagementWebApi";
     public static final String ANDROID_WINDOW_POPUP_CUSTOM_TAB_UI = "AndroidWindowPopupCustomTabUi";
@@ -349,6 +346,7 @@ public abstract class ChromeFeatureList {
     public static final String CCT_REPORT_PARALLEL_REQUEST_STATUS =
             "CCTReportParallelRequestStatus";
     public static final String CCT_REPORT_PRERENDER_EVENTS = "CCTReportPrerenderEvents";
+    public static final String CCT_RESET_TIMEOUT_ALLOWED = "CCTResetTimeoutAllowed";
     public static final String CCT_RESET_TIMEOUT_ENABLED = "CCTResetTimeoutEnabled";
     public static final String CCT_RESIZABLE_FOR_THIRD_PARTIES = "CCTResizableForThirdParties";
     public static final String CCT_SHOW_TAB_FIX = "CCTShowTabFix";
@@ -521,6 +519,7 @@ public abstract class ChromeFeatureList {
     public static final String PERMISSION_SITE_SETTING_RADIO_BUTTON =
             "PermissionSiteSettingsRadioButton";
     public static final String PERSIST_ACROSS_REBOOTS = "PersistAcrossReboots";
+    public static final String PERSIST_ACROSS_REBOOTS_DEBUG_LOGS = "PersistAcrossRebootsDebugLogs";
     public static final String PLUS_ADDRESSES_ENABLED = "PlusAddressesEnabled";
     public static final String PLUS_ADDRESS_ANDROID_OPEN_GMS_CORE_MANAGEMENT_PAGE =
             "PlusAddressAndroidOpenGmsCoreManagementPage";
@@ -649,7 +648,6 @@ public abstract class ChromeFeatureList {
     public static final String TAB_STRIP_DENSITY_CHANGE_ANDROID = "TabStripDensityChangeAndroid";
     public static final String TAB_STRIP_EMPTY_SPACE_CONTEXT_MENU_ANDROID =
             "TabStripEmptySpaceContextMenuAndroid";
-    public static final String TAB_STRIP_INCOGNITO_MIGRATION = "TabStripIncognitoMigration";
     public static final String TAB_SWITCHER_DRAG_DROP_ANDROID = "TabSwitcherDragDropAndroid";
     public static final String TAB_SWITCHER_GROUP_SUGGESTIONS_ANDROID =
             "TabSwitcherGroupSuggestionsAndroid";
@@ -762,12 +760,8 @@ public abstract class ChromeFeatureList {
             newCachedFlag(ANDROID_TWA_ORIGIN_DISPLAY, false);
     public static final CachedFlag sAndroidUseAdminsForEnterpriseInfo =
             newCachedFlag(ANDROID_USE_ADMINS_FOR_ENTERPRISE_INFO, true);
-    public static final CachedFlag sAndroidWebAppHeaderForStandaloneMode =
-            newCachedFlag(ANDROID_WEB_APP_HEADER_FOR_STANDALONE_MODE, false);
     public static final CachedFlag sAndroidWebAppLaunchHandler =
             newCachedFlag(ANDROID_WEB_APP_LAUNCH_HANDLER, false, true);
-    public static final CachedFlag sAndroidWebAppMenuButton =
-            newCachedFlag(ANDROID_WEB_APP_MENU_BUTTON, true);
     public static final CachedFlag sAndroidWindowControlsOverlay =
             newCachedFlag(ANDROID_WINDOW_CONTROLS_OVERLAY, true);
     public static final CachedFlag sAndroidWindowManagementWebApi =
@@ -847,6 +841,8 @@ public abstract class ChromeFeatureList {
             newCachedFlag(CCT_OPEN_IN_BROWSER_BUTTON_IF_ENABLED_BY_EMBEDDER, true);
     public static final CachedFlag sCctRealtimeEngagementEventsInBackground =
             newCachedFlag(CCT_REALTIME_ENGAGEMENT_EVENTS_IN_BACKGROUND, true);
+    public static final CachedFlag sCctResetTimeoutAllowed =
+            newCachedFlag(CCT_RESET_TIMEOUT_ALLOWED, true);
     public static final CachedFlag sCctResetTimeoutEnabled =
             newCachedFlag(CCT_RESET_TIMEOUT_ENABLED, false);
     public static final CachedFlag sCctResizableForThirdParties =
@@ -994,6 +990,8 @@ public abstract class ChromeFeatureList {
     public static final CachedFlag sPaintPreviewDemo = newCachedFlag(PAINT_PREVIEW_DEMO, false);
     public static final CachedFlag sPersistAcrossReboots =
             newCachedFlag(PERSIST_ACROSS_REBOOTS, false);
+    public static final CachedFlag sPersistAcrossRebootsDebugLogs =
+            newCachedFlag(PERSIST_ACROSS_REBOOTS_DEBUG_LOGS, false);
     public static final CachedFlag sPostGetMyMemoryStateToBackground =
             newCachedFlag(POST_GET_MEMORY_PRESSURE_TO_BACKGROUND, true);
     public static final CachedFlag sPowerSavingModeBroadcastReceiverInBackground =
@@ -1048,8 +1046,6 @@ public abstract class ChromeFeatureList {
                     /* defaultValueInTests= */ true);
     public static final CachedFlag sTabStripDensityChangeAndroid =
             newCachedFlag(TAB_STRIP_DENSITY_CHANGE_ANDROID, true);
-    public static final CachedFlag sTabStripIncognitoMigration =
-            newCachedFlag(TAB_STRIP_INCOGNITO_MIGRATION, BuildConfig.IS_DESKTOP_ANDROID, true);
     public static final CachedFlag sTabWindowManagerReportIndicesMismatch =
             newCachedFlag(TAB_WINDOW_MANAGER_REPORT_INDICES_MISMATCH, true);
     public static final CachedFlag sTestDefaultDisabled =
@@ -1131,9 +1127,7 @@ public abstract class ChromeFeatureList {
                     sAndroidThemeResourceProvider,
                     sAndroidTwaOriginDisplay,
                     sAndroidUseAdminsForEnterpriseInfo,
-                    sAndroidWebAppHeaderForStandaloneMode,
                     sAndroidWebAppLaunchHandler,
-                    sAndroidWebAppMenuButton,
                     sAndroidWindowControlsOverlay,
                     sAndroidWindowManagementWebApi,
                     sAndroidWindowPopupCustomTabUi,
@@ -1167,6 +1161,7 @@ public abstract class ChromeFeatureList {
                     sCctOpenInBrowserButtonIfAllowedByEmbedder,
                     sCctOpenInBrowserButtonIfEnabledByEmbedder,
                     sCctRealtimeEngagementEventsInBackground,
+                    sCctResetTimeoutAllowed,
                     sCctResetTimeoutEnabled,
                     sCctResizableForThirdParties,
                     sCctTabModalDialog,
@@ -1224,6 +1219,7 @@ public abstract class ChromeFeatureList {
                     sPCctMinimumHeight,
                     sPaintPreviewDemo,
                     sPersistAcrossReboots,
+                    sPersistAcrossRebootsDebugLogs,
                     sPostGetMyMemoryStateToBackground,
                     sPowerSavingModeBroadcastReceiverInBackground,
                     sPriceChangeModule,
@@ -1244,7 +1240,6 @@ public abstract class ChromeFeatureList {
                     sTabModelInitFixes,
                     sTabStorageSqlitePrototype,
                     sTabStripDensityChangeAndroid,
-                    sTabStripIncognitoMigration,
                     sTabWindowManagerReportIndicesMismatch,
                     sToolbarPhoneAnimationRefactor,
                     sToolbarSnapshotRefactor,
@@ -1511,7 +1506,11 @@ public abstract class ChromeFeatureList {
                             false);
 
     public static final IntCachedFeatureParam sCctResetMinimumTimeoutMinutes =
-            newIntCachedFeatureParam(CCT_RESET_TIMEOUT_ENABLED, "minimum_reset_timeout_mins", 1);
+            newIntCachedFeatureParam(CCT_RESET_TIMEOUT_ENABLED, "minimum_reset_timeout_mins", 30);
+
+    public static final IntCachedFeatureParam sCctResetMinimumTimeoutMinutesAllowed =
+            newIntCachedFeatureParam(
+                    CCT_RESET_TIMEOUT_ALLOWED, "minimum_reset_timeout_mins_allowed", 30);
 
     public static final StringCachedFeatureParam sCctResizableForThirdPartiesAllowlistEntries =
             newStringCachedFeatureParam(CCT_RESIZABLE_FOR_THIRD_PARTIES, "allowlist_entries", "");
@@ -1753,6 +1752,7 @@ public abstract class ChromeFeatureList {
                     sCctGoogleBottomBarVariantLayoutsVariantLayout,
                     sCctMinimizedEnabledByDefaultManufacturerExcludeList,
                     sCctResetMinimumTimeoutMinutes,
+                    sCctResetMinimumTimeoutMinutesAllowed,
                     sCctResizableForThirdPartiesAllowlistEntries,
                     sCctResizableForThirdPartiesDefaultPolicy,
                     sCctResizableForThirdPartiesDenylistEntries,

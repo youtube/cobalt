@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "base/barrier_closure.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/run_loop.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -26,7 +27,11 @@
 #include "chromeos/ash/components/dbus/debug_daemon/debug_daemon_client.h"
 #include "chromeos/ash/components/dbus/seneschal/fake_seneschal_client.h"
 #include "chromeos/ash/components/dbus/seneschal/seneschal_client.h"
+#include "components/component_updater/mock_component_updater_service.h"
 #include "content/public/test/browser_task_environment.h"
+#include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
+#include "services/network/test/test_url_loader_factory.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace guest_os {
@@ -40,6 +45,14 @@ class GuestOsStabilityMonitorTest : public testing::Test {
     ash::DebugDaemonClient::InitializeFake();
     ash::SeneschalClient::InitializeFake();
 
+    TestingBrowserProcess::GetGlobal()->SetComponentUpdater(
+        std::make_unique<testing::NiceMock<
+            component_updater::MockComponentUpdateService>>());
+    TestingBrowserProcess::GetGlobal()->SetSharedURLLoaderFactory(
+        test_url_loader_factory_.GetSafeWeakWrapper());
+    TestingBrowserProcess::GetGlobal()
+        ->platform_part()
+        ->InitializeComponentManager();
     TestingBrowserProcess::GetGlobal()
         ->platform_part()
         ->InitializeSchedulerConfigurationManager();
@@ -47,6 +60,11 @@ class GuestOsStabilityMonitorTest : public testing::Test {
     // CrostiniManager will create a GuestOsStabilityMonitor for us.
     profile_ = std::make_unique<TestingProfile>();
     crostini_manager_ = std::make_unique<crostini::CrostiniManager>(
+        TestingBrowserProcess::GetGlobal()->component_updater(),
+        TestingBrowserProcess::GetGlobal()->shared_url_loader_factory(),
+        TestingBrowserProcess::GetGlobal()
+            ->platform_part()
+            ->component_manager_ash(),
         TestingBrowserProcess::GetGlobal()
             ->platform_part()
             ->scheduler_configuration_manager(),
@@ -71,6 +89,11 @@ class GuestOsStabilityMonitorTest : public testing::Test {
     TestingBrowserProcess::GetGlobal()
         ->platform_part()
         ->ShutdownSchedulerConfigurationManager();
+    TestingBrowserProcess::GetGlobal()
+        ->platform_part()
+        ->ShutdownComponentManager();
+    TestingBrowserProcess::GetGlobal()->SetSharedURLLoaderFactory(nullptr);
+    TestingBrowserProcess::GetGlobal()->SetComponentUpdater(nullptr);
 
     ash::SeneschalClient::Shutdown();
     ash::DebugDaemonClient::Shutdown();
@@ -102,6 +125,7 @@ class GuestOsStabilityMonitorTest : public testing::Test {
  protected:
   // CrostiniManager requires a full browser task environment to run.
   content::BrowserTaskEnvironment task_env_;
+  network::TestURLLoaderFactory test_url_loader_factory_;
   std::unique_ptr<TestingProfile> profile_;
   std::unique_ptr<crostini::CrostiniManager> crostini_manager_;
   base::HistogramTester histogram_tester_;

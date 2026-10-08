@@ -65,7 +65,7 @@ ScopedJavaLocalRef<jobject> NativeToJavaEncodedImage(
   ScopedJavaLocalRef<jobject> buffer = NewDirectByteBuffer(
       jni, const_cast<uint8_t*>(image.data()), image.size());
   ScopedJavaLocalRef<jobject> frame_type =
-      NativeToJavaFrameType(jni, image._frameType);
+      NativeToJavaFrameType(jni, image.frame_type());
   ScopedJavaLocalRef<jobject> qp;
   if (image.qp_ != -1)
     qp = NativeToJavaInteger(jni, image.qp_);
@@ -110,8 +110,8 @@ EncodedImage JavaToNativeEncodedImage(JNIEnv* env,
                   env, Java_EncodedImage_getQp(env, j_encoded_image))
                   .value_or(-1);
 
-  frame._frameType =
-      (VideoFrameType)Java_EncodedImage_getFrameType(env, j_encoded_image);
+  frame.set_frame_type(
+      (VideoFrameType)Java_EncodedImage_getFrameType(env, j_encoded_image));
   return frame;
 }
 

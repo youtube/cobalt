@@ -51,6 +51,7 @@ struct InternalAPMConfig {
   bool pre_amplifier_enabled = false;
   float pre_amplifier_fixed_gain_factor = 1.f;
   std::string experiments_description = "";
+  std::string api_config_string = "";
 };
 
 // An interface for recording configuration and input/output streams

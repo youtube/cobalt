@@ -47,6 +47,7 @@ if (!build_with_chromium) {
     }
     if (rtc_include_tests) {
       deps += [
+        ":audio_engine_tests",
         ":rtc_p2p_unittests",
         ":rtc_unittests",
         ":video_engine_tests",
@@ -712,12 +713,20 @@ if (rtc_include_tests && !build_with_chromium) {
     }
   }
 
+  rtc_test("audio_engine_tests") {
+    testonly = true
+    deps = [ "audio:audio_tests" ]
+
+    if (is_android) {
+      use_default_launcher = false
+      deps += [ "//build/android/gtest_apk:native_test_instrumentation_test_runner_java" ]
+    }
+  }
+
   # TODO(pbos): Rename test suite, this is no longer "just" for video targets.
   rtc_test("video_engine_tests") {
     testonly = true
     deps = [
-      "audio:audio_tests",
-
       # TODO(eladalon): call_tests aren't actually video-specific, so we
       # should move them to a more appropriate test suite.
       "call:call_tests",

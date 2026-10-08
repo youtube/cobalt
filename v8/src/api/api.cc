@@ -194,6 +194,10 @@
 
 namespace v8 {
 
+static_assert(static_cast<uint32_t>(Intercepted::kNo) == i::kInterceptedNo);
+static_assert(static_cast<uint32_t>(Intercepted::kYes) == i::kInterceptedYes);
+static_assert(sizeof(Intercepted) == i::kInterceptedSize);
+
 i::ExternalPointerTag ToExternalPointerTag(v8::EmbedderDataTypeTag api_tag) {
   uint16_t tag_value = static_cast<uint16_t>(i::kFirstEmbedderDataTag) +
                        static_cast<uint16_t>(api_tag);
@@ -3258,6 +3262,17 @@ int StackTrace::CurrentScriptId(Isolate* v8_isolate) {
   return i_isolate->CurrentScriptId();
 }
 
+v8::MemorySpan<v8::StackTrace::ScriptIdAndContext>
+StackTrace::CurrentScriptIdsAndContexts(
+    Isolate* v8_isolate,
+    v8::MemorySpan<StackTrace::ScriptIdAndContext> frame_data) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
+
+  size_t written = i_isolate->CurrentScriptIdsAndContexts(frame_data);
+  return {frame_data.data(), written};
+}
+
 // --- S t a c k F r a m e ---
 
 Location StackFrame::GetLocation() const {
@@ -3363,7 +3378,7 @@ MaybeLocal<Value> JSON::Parse(Local<Context> context, Local<String> json_string,
         script_origin.ColumnOffset(), script_origin.SourceMapUrl(),
         script_origin.GetHostDefinedOptions(), script_origin.Options()));
   }
-  auto maybe_result = source->IsOneByteRepresentation()
+  auto maybe_result = i::String::IsOneByteRepresentationUnderneath(*source)
                           ? i::JsonParser<uint8_t>::Parse(
                                 i_isolate, source, undefined, script_details)
                           : i::JsonParser<uint16_t>::Parse(
@@ -12209,6 +12224,60 @@ void InvokeAccessorGetterCallback(
   ExternalCallbackScope call_scope(i_isolate, FUNCTION_ADDR(getter),
                                    v8::ExceptionContext::kAttributeGet, &info);
   getter(property, info);
+}
+
+v8::Intercepted InvokeNamedInterceptorGetterCallback(
+    v8::Local<v8::Name> property,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  // Leaving JavaScript.
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  RCS_SCOPE(i_isolate, RuntimeCallCounterId::kNamedGetterCallback);
+
+  v8::NamedPropertyGetterCallback getter;
+  {
+    DirectHandle<InterceptorInfo> interceptor_info =
+        PropertyCallbackArguments::GetInterceptorInfo(info);
+    getter = reinterpret_cast<v8::NamedPropertyGetterCallback>(
+        interceptor_info->named_getter(i_isolate));
+
+    if (i_isolate->should_check_side_effects() &&
+        !i_isolate->debug()->PerformSideEffectCheckForInterceptor(
+            interceptor_info)) {
+      return {};
+    }
+  }
+  ExternalCallbackScope call_scope(i_isolate, FUNCTION_ADDR(getter),
+                                   v8::ExceptionContext::kNamedGetter, &info);
+  v8::Intercepted intercepted = getter(property, info);
+  return intercepted;
+}
+
+// TODO(https://crbug.com/348660658): migrate setter callbacks to a new
+// signature with const v8::PropertyCallbackInfo<v8::Boolean>& info.
+v8::Intercepted InvokeNamedInterceptorSetterCallback(
+    v8::Local<v8::Name> property, v8::Local<v8::Value> value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  // Leaving JavaScript.
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  RCS_SCOPE(i_isolate, RuntimeCallCounterId::kNamedSetterCallback);
+
+  v8::NamedPropertySetterCallback setter;
+  {
+    DirectHandle<InterceptorInfo> interceptor_info =
+        PropertyCallbackArguments::GetInterceptorInfo(info);
+    setter = reinterpret_cast<v8::NamedPropertySetterCallback>(
+        interceptor_info->named_setter(i_isolate));
+
+    if (i_isolate->should_check_side_effects() &&
+        !i_isolate->debug()->PerformSideEffectCheckForInterceptor(
+            interceptor_info)) {
+      return {};
+    }
+  }
+  ExternalCallbackScope call_scope(i_isolate, FUNCTION_ADDR(setter),
+                                   v8::ExceptionContext::kNamedSetter, &info);
+  v8::Intercepted intercepted = setter(property, value, info);
+  return intercepted;
 }
 
 namespace {

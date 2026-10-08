@@ -59,6 +59,7 @@
     "quiche/common/quiche_socket_address.h",
     "quiche/common/quiche_status_utils.h",
     "quiche/common/quiche_stream.h",
+    "quiche/common/quiche_string_tuple.h",
     "quiche/common/quiche_text_utils.h",
     "quiche/common/quiche_weak_ptr.h",
     "quiche/common/simple_buffer_allocator.h",
@@ -188,7 +189,6 @@
     "quiche/quic/core/crypto/chacha20_poly1305_tls_encrypter.h",
     "quiche/quic/core/crypto/chacha_base_decrypter.h",
     "quiche/quic/core/crypto/chacha_base_encrypter.h",
-    "quiche/quic/core/crypto/channel_id.h",
     "quiche/quic/core/crypto/client_proof_source.h",
     "quiche/quic/core/crypto/crypto_framer.h",
     "quiche/quic/core/crypto/crypto_handshake.h",
@@ -549,7 +549,6 @@
     "quiche/quic/core/crypto/chacha20_poly1305_tls_encrypter.cc",
     "quiche/quic/core/crypto/chacha_base_decrypter.cc",
     "quiche/quic/core/crypto/chacha_base_encrypter.cc",
-    "quiche/quic/core/crypto/channel_id.cc",
     "quiche/quic/core/crypto/client_proof_source.cc",
     "quiche/quic/core/crypto/crypto_framer.cc",
     "quiche/quic/core/crypto/crypto_handshake.cc",
@@ -1018,6 +1017,12 @@
     "quiche/balsa/simple_buffer.cc",
     "quiche/balsa/standard_header_map.cc"
   ],
+  "masque_private_tokens_hdrs": [
+    "quiche/quic/masque/private_tokens.h"
+  ],
+  "masque_private_tokens_srcs": [
+    "quiche/quic/masque/private_tokens.cc"
+  ],
   "masque_support_hdrs": [
     "quiche/quic/masque/masque_client.h",
     "quiche/quic/masque/masque_client_session.h",
@@ -1110,7 +1115,6 @@
 
   ],
   "quiche_tests_srcs": [
-    "quiche/balsa/balsa_frame_fuzz_test.cc",
     "quiche/balsa/balsa_frame_test.cc",
     "quiche/balsa/balsa_headers_sequence_test.cc",
     "quiche/balsa/balsa_headers_test.cc",
@@ -1151,6 +1155,7 @@
     "quiche/common/quiche_simple_arena_test.cc",
     "quiche/common/quiche_socket_address_test.cc",
     "quiche/common/quiche_status_utils_test.cc",
+    "quiche/common/quiche_string_tuple_test.cc",
     "quiche/common/quiche_text_utils_test.cc",
     "quiche/common/quiche_weak_ptr_test.cc",
     "quiche/common/simple_buffer_allocator_test.cc",
@@ -1227,12 +1232,13 @@
     "quiche/http2/test_tools/http2_frame_builder_test.cc",
     "quiche/http2/test_tools/http2_random_test.cc",
     "quiche/http2/test_tools/random_decoder_test_base_test.cc",
-    "quiche/oblivious_http/buffers/oblivious_http_integration_test.cc",
+    "quiche/oblivious_http/buffers/oblivious_http_buffers_integration_test.cc",
     "quiche/oblivious_http/buffers/oblivious_http_request_test.cc",
     "quiche/oblivious_http/buffers/oblivious_http_response_test.cc",
     "quiche/oblivious_http/common/oblivious_http_header_key_config_test.cc",
     "quiche/oblivious_http/oblivious_http_client_test.cc",
     "quiche/oblivious_http/oblivious_http_gateway_test.cc",
+    "quiche/oblivious_http/oblivious_http_integration_test.cc",
     "quiche/quic/core/congestion_control/bandwidth_sampler_test.cc",
     "quiche/quic/core/congestion_control/bbr2_simulator_test.cc",
     "quiche/quic/core/congestion_control/bbr_sender_test.cc",
@@ -1260,7 +1266,6 @@
     "quiche/quic/core/crypto/chacha20_poly1305_encrypter_test.cc",
     "quiche/quic/core/crypto/chacha20_poly1305_tls_decrypter_test.cc",
     "quiche/quic/core/crypto/chacha20_poly1305_tls_encrypter_test.cc",
-    "quiche/quic/core/crypto/channel_id_test.cc",
     "quiche/quic/core/crypto/client_proof_source_test.cc",
     "quiche/quic/core/crypto/crypto_framer_test.cc",
     "quiche/quic/core/crypto/crypto_handshake_message_test.cc",
@@ -1449,6 +1454,7 @@
     "quiche/quic/masque/masque_server_bin.cc",
     "quiche/quic/masque/masque_tcp_client_bin.cc",
     "quiche/quic/masque/masque_tcp_server_bin.cc",
+    "quiche/quic/masque/private_tokens_bin.cc",
     "quiche/quic/moqt/tools/chat_client_bin.cc",
     "quiche/quic/moqt/tools/moqt_ingestion_server_bin.cc",
     "quiche/quic/moqt/tools/moqt_relay_bin.cc",
@@ -1574,6 +1580,7 @@
     "quiche/quic/load_balancer/load_balancer_server_id_test.cc"
   ],
   "moqt_hdrs": [
+    "quiche/quic/moqt/moqt_bidi_stream.h",
     "quiche/quic/moqt/moqt_bitrate_adjuster.h",
     "quiche/quic/moqt/moqt_error.h",
     "quiche/quic/moqt/moqt_fetch_task.h",
@@ -1637,9 +1644,11 @@
 
   ],
   "moqt_test_srcs": [
+    "quiche/quic/moqt/moqt_bidi_stream_test.cc",
     "quiche/quic/moqt/moqt_bitrate_adjuster_test.cc",
     "quiche/quic/moqt/moqt_framer_test.cc",
     "quiche/quic/moqt/moqt_integration_test.cc",
+    "quiche/quic/moqt/moqt_key_value_pair_test.cc",
     "quiche/quic/moqt/moqt_messages_test.cc",
     "quiche/quic/moqt/moqt_names_test.cc",
     "quiche/quic/moqt/moqt_outgoing_queue_test.cc",

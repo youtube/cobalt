@@ -50,7 +50,7 @@ h2.first {
   background-color: var(--cros-sys-scrollbar_hover);
 }
 
-@media (min-width:600px) {
+@media (min-width: 600px) {
   :host {
     --container-padding: 24px;
     --content-container-width: 552px;
@@ -67,7 +67,7 @@ h2.first {
   }
 }
 
-@media (min-width:769px) {
+@media (min-width: 769px) {
   :host {
     --chart-width-nav: 420px;
   }
@@ -115,7 +115,7 @@ h2.first {
   }
 }
 
-@media (min-width:768px) {
+@media (min-width: 768px) {
   :host {
     --container-padding: 64px;
     --content-container-width: 640px;
@@ -124,7 +124,7 @@ h2.first {
   }
 }
 
-@media (min-width:960px) {
+@media (min-width: 960px) {
   :host {
     --container-padding: 160px;
     --content-container-width: 640px;
@@ -134,7 +134,7 @@ h2.first {
   }
 }
 
-@media (min-width:1280px) {
+@media (min-width: 1280px) {
   :host {
     --container-padding: 160px;
     --content-container-width: 680px;
@@ -145,7 +145,7 @@ h2.first {
   }
 }
 
-@media (min-width:1440px) {
+@media (min-width: 1440px) {
   :host {
     --container-padding: 360px;
     --content-container-width: 720px;
@@ -167,9 +167,9 @@ div[slot='body'] {
 .title {
   margin-top: 16px;
   margin-bottom: 16px;
+  font: var(--cros-display-5-font);
   font-family: var(--cros-display-5-font-family);
   font-size: var(--cros-display-5-font-size);
-  font: var(--cros-display-5-font);
   font-weight: var(--cros-display-5-font-weight);
   line-height: var(--cros-display-5-line-height);
   color: var(--cros-sys-on_surface);
@@ -177,9 +177,9 @@ div[slot='body'] {
 
 .sanitize-description {
   margin-bottom: 24px;
+  font: var(--cros-body-2-font);
   font-family: var(--cros-body-2-font-family);
   font-size: var(--cros-body-2-font-size);
-  font: var(--cros-body-2-font);
   font-weight: var(--cros-body-2-font-weight);
   line-height: var(--cros-body-2-line-height);
   color: var(--cros-sys-on_surface_variant);

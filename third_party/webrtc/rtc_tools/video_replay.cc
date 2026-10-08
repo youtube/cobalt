@@ -56,7 +56,6 @@
 #include "rtc_base/event.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/strings/json.h"
-#include "rtc_base/system/file_wrapper.h"
 #include "rtc_base/thread.h"
 #include "system_wrappers/include/clock.h"
 #include "test/call_config_utils.h"
@@ -278,8 +277,7 @@ class DecoderBitstreamFileWriter : public test::FakeDecoder {
 class DecoderIvfFileWriter : public test::FakeDecoder {
  public:
   explicit DecoderIvfFileWriter(const char* filename, const std::string& codec)
-      : file_writer_(
-            IvfFileWriter::Wrap(FileWrapper::OpenWriteOnly(filename), 0)) {
+      : file_writer_(IvfFileWriter::Wrap(filename, /*byte_limit=*/0)) {
     RTC_DCHECK(file_writer_.get());
     if (codec == "VP8") {
       video_codec_type_ = VideoCodecType::kVideoCodecVP8;

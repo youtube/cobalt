@@ -128,12 +128,11 @@ MaybeDirectHandle<Object> IterableForEach(Isolate* isolate,
                                           DoubleVisitor double_visitor,
                                           GenericVisitor generic_visitor,
                                           std::optional<uint64_t> max_count) {
-  ReadOnlyRoots roots(isolate);
-  auto dispatch = [&](Tagged<Object> obj) -> bool {
-    if (IsSmi(obj)) {
-      return smi_visitor(Smi::ToInt(obj));
-    } else if (IsHeapNumber(obj)) {
-      return double_visitor(Object::NumberValue(Cast<HeapNumber>(obj)));
+  auto dispatch = [&](DirectHandle<Object> obj) -> bool {
+    if (IsSmi(*obj)) {
+      return smi_visitor(Smi::ToInt(*obj));
+    } else if (IsHeapNumber(*obj)) {
+      return double_visitor(Object::NumberValue(Cast<HeapNumber>(*obj)));
     } else {
       return generic_visitor(obj);
     }
@@ -147,11 +146,14 @@ MaybeDirectHandle<Object> IterableForEach(Isolate* isolate,
       Protectors::IsArrayIteratorLookupChainIntact(isolate)) {
     DirectHandle<JSArray> array = Cast<JSArray>(items);
     ElementsKind kind = array->GetElementsKind();
+    // TODO(olivf): Move this as a helper into ElementsAccessor.
     if (IsFastElementsKind(kind)) {
-      DirectHandle<FixedArrayBase> elements =
-          handle(array->elements(), isolate);
+      DirectHandle<FixedArrayBase> elements(array->elements(), isolate);
       uint32_t len;
       if (Object::ToUint32(array->length(), &len)) {
+        if (len == 0) {
+          return isolate->root_handle(RootIndex::kUndefinedValue);
+        }
         const MaybeDirectHandle<Object> abort;
         if (kind == PACKED_SMI_ELEMENTS) {
           DirectHandle<FixedArray> smi_elements = Cast<FixedArray>(elements);
@@ -164,7 +166,10 @@ MaybeDirectHandle<Object> IterableForEach(Isolate* isolate,
           for (uint32_t i = 0; i < len; ++i) {
             Tagged<Object> obj = smi_elements->get(i);
             if (IsTheHole(obj, isolate)) {
-              if (!generic_visitor(roots.undefined_value())) return abort;
+              if (!generic_visitor(
+                      isolate->root_handle(RootIndex::kUndefinedValue))) {
+                return abort;
+              }
             } else {
               if (!smi_visitor(Smi::ToInt(obj))) return abort;
             }
@@ -180,19 +185,27 @@ MaybeDirectHandle<Object> IterableForEach(Isolate* isolate,
               Cast<FixedDoubleArray>(elements);
           for (uint32_t i = 0; i < len; ++i) {
             if (double_elements->is_the_hole(i)) {
-              if (!generic_visitor(roots.undefined_value())) return abort;
+              if (!generic_visitor(
+                      isolate->root_handle(RootIndex::kUndefinedValue))) {
+                return abort;
+              }
             } else {
               if (!double_visitor(double_elements->get_scalar(i))) return abort;
             }
           }
         } else {
           DirectHandle<FixedArray> fast_elements = Cast<FixedArray>(elements);
+          DirectHandle<Object> obj_handle(Smi::zero(), isolate);
           for (uint32_t i = 0; i < len; ++i) {
             Tagged<Object> obj = fast_elements->get(i);
             if (IsTheHole(obj, isolate)) {
-              if (!generic_visitor(roots.undefined_value())) return abort;
+              if (!generic_visitor(
+                      isolate->root_handle(RootIndex::kUndefinedValue))) {
+                return abort;
+              }
             } else {
-              if (!dispatch(obj)) return abort;
+              obj_handle.SetValue(obj);
+              if (!dispatch(obj_handle)) return abort;
             }
           }
         }
@@ -247,6 +260,10 @@ MaybeDirectHandle<Object> IterableForEach(Isolate* isolate,
           uint32_t current_index;
           if (Object::ToUint32(array->length(), &len) &&
               Object::ToUint32(array_iterator->next_index(), &current_index)) {
+            if (len == 0) {
+              return isolate->root_handle(RootIndex::kUndefinedValue);
+            }
+            DirectHandle<Object> obj_handle(Smi::zero(), isolate);
             for (; current_index < len; ++current_index) {
               if (kind == PACKED_SMI_ELEMENTS) {
                 DirectHandle<FixedArray> smi_elements =
@@ -258,7 +275,10 @@ MaybeDirectHandle<Object> IterableForEach(Isolate* isolate,
                     Cast<FixedArray>(elements);
                 Tagged<Object> obj = smi_elements->get(current_index);
                 if (IsTheHole(obj, isolate)) {
-                  if (!generic_visitor(roots.undefined_value())) break;
+                  if (!generic_visitor(
+                          isolate->root_handle(RootIndex::kUndefinedValue))) {
+                    break;
+                  }
                 } else {
                   if (!smi_visitor(Smi::ToInt(obj))) break;
                 }
@@ -273,7 +293,10 @@ MaybeDirectHandle<Object> IterableForEach(Isolate* isolate,
                 DirectHandle<FixedDoubleArray> double_elements =
                     Cast<FixedDoubleArray>(elements);
                 if (double_elements->is_the_hole(current_index)) {
-                  if (!generic_visitor(roots.undefined_value())) break;
+                  if (!generic_visitor(
+                          isolate->root_handle(RootIndex::kUndefinedValue))) {
+                    break;
+                  }
                 } else {
                   if (!double_visitor(
                           double_elements->get_scalar(current_index))) {
@@ -285,13 +308,17 @@ MaybeDirectHandle<Object> IterableForEach(Isolate* isolate,
                     Cast<FixedArray>(elements);
                 Tagged<Object> obj = fast_elements->get(current_index);
                 if (IsTheHole(obj, isolate)) {
-                  if (!generic_visitor(roots.undefined_value())) break;
+                  if (!generic_visitor(
+                          isolate->root_handle(RootIndex::kUndefinedValue))) {
+                    break;
+                  }
                 } else {
-                  if (!dispatch(obj)) break;
+                  obj_handle.SetValue(obj);
+                  if (!dispatch(obj_handle)) break;
                 }
               }
             }
-            if (current_index != len) {
+            if (current_index < len) {
               auto num =
                   isolate->factory()->NewNumberFromUint(current_index + 1);
               array_iterator->set_next_index(*num);
@@ -316,14 +343,16 @@ MaybeDirectHandle<Object> IterableForEach(Isolate* isolate,
       DirectHandle<OrderedHashSet> table = Cast<OrderedHashSet>(table_obj);
       int capacity = table->UsedCapacity();
       int current_index = Smi::ToInt(set_iterator->index());
+      DirectHandle<Object> key_handle(Smi::zero(), isolate);
       for (; current_index < capacity; ++current_index) {
         InternalIndex entry(current_index);
         Tagged<Object> key = table->KeyAt(entry);
         if (!IsTheHole(key, isolate)) {
-          if (!dispatch(key)) break;
+          key_handle.SetValue(key);
+          if (!dispatch(key_handle)) break;
         }
       }
-      if (current_index != capacity) {
+      if (current_index < capacity) {
         auto num = isolate->factory()->NewNumberFromUint(current_index + 1);
         set_iterator->set_index(*num);
         IteratorClose(isolate, iterator);
@@ -347,7 +376,7 @@ MaybeDirectHandle<Object> IterableForEach(Isolate* isolate,
       isolate->native_context()->iterator_result_map(), isolate);
 
   // Create a new handle so we can reuse it.
-  DirectHandle<Object> next_value_handle(roots.undefined_value(), isolate);
+  DirectHandle<Object> next_value_handle(Smi::zero(), isolate);
 
   while (true) {
     HandleScope loop_scope(isolate);
@@ -382,7 +411,7 @@ MaybeDirectHandle<Object> IterableForEach(Isolate* isolate,
       }
     }
 
-    if (!dispatch(*next_value_handle)) {
+    if (!dispatch(next_value_handle)) {
       // 7.4.13 IfAbruptCloseIterator (value, iteratorRecord)
       // The dispatch failed (visitor threw). We must close the iterator.
       IteratorClose(isolate, iterator);

@@ -271,15 +271,15 @@ class VideoChannelForTesting : public VideoChannel {
 class FakePeerConnectionForStats : public FakePeerConnectionBase,
                                    public JsepTransportController::Observer {
  public:
-  // TODO(steveanton): Add support for specifying separate threads to test
-  // multi-threading correctness.
-  FakePeerConnectionForStats()
-      : network_thread_(Thread::Current()),
-        worker_thread_(Thread::Current()),
+  FakePeerConnectionForStats(Thread* worker_thread = Thread::Current(),
+                             Thread* network_thread = Thread::Current())
+      : network_thread_(network_thread),
+        worker_thread_(worker_thread),
         signaling_thread_(Thread::Current()),
         // TODO(hta): remove separate thread variables and use context.
         env_(CreateEnvironment()),
-        dependencies_(MakeDependencies()),
+        dependencies_(
+            MakeDependencies(signaling_thread_, worker_thread, network_thread)),
         context_(ConnectionContext::Create(env_, &dependencies_)),
         local_streams_(StreamCollection::Create()),
         remote_streams_(StreamCollection::Create()),
@@ -303,13 +303,17 @@ class FakePeerConnectionForStats : public FakePeerConnectionBase,
     for (auto transceiver : transceivers_) {
       transceiver->internal()->ClearChannel();
     }
+    network_thread_->BlockingCall([&]() { transport_controller_.reset(); });
   }
 
-  static PeerConnectionFactoryDependencies MakeDependencies() {
+  static PeerConnectionFactoryDependencies MakeDependencies(
+      Thread* signaling_thread,
+      Thread* worker_thread,
+      Thread* network_thread) {
     PeerConnectionFactoryDependencies dependencies;
-    dependencies.network_thread = Thread::Current();
-    dependencies.worker_thread = Thread::Current();
-    dependencies.signaling_thread = Thread::Current();
+    dependencies.network_thread = network_thread;
+    dependencies.worker_thread = worker_thread;
+    dependencies.signaling_thread = signaling_thread;
     EnableFakeMedia(dependencies);
     return dependencies;
   }

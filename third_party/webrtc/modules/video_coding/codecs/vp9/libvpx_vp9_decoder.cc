@@ -25,7 +25,6 @@
 #include "api/video/render_resolution.h"
 #include "api/video/video_frame.h"
 #include "api/video/video_frame_buffer.h"
-#include "api/video/video_frame_type.h"
 #include "api/video_codecs/video_decoder.h"
 #include "common_video/include/video_frame_buffer.h"
 #include "modules/video_coding/codecs/vp9/vp9_frame_buffer_pool.h"
@@ -207,7 +206,7 @@ int LibvpxVp9Decoder::Decode(const EncodedImage& input_image,
     return WEBRTC_VIDEO_CODEC_UNINITIALIZED;
   }
 
-  if (input_image._frameType == VideoFrameType::kVideoFrameKey) {
+  if (input_image.IsKey()) {
     std::optional<Vp9UncompressedHeader> frame_info =
         ParseUncompressedVp9Header(
             MakeArrayView(input_image.data(), input_image.size()));
@@ -231,8 +230,9 @@ int LibvpxVp9Decoder::Decode(const EncodedImage& input_image,
 
   // Always start with a complete key frame.
   if (key_frame_required_) {
-    if (input_image._frameType != VideoFrameType::kVideoFrameKey)
+    if (!input_image.IsKey()) {
       return WEBRTC_VIDEO_CODEC_ERROR;
+    }
     key_frame_required_ = false;
   }
   vpx_codec_iter_t iter = nullptr;

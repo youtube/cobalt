@@ -24,7 +24,6 @@
 #include "api/video/render_resolution.h"
 #include "api/video/video_codec_constants.h"
 #include "api/video/video_codec_type.h"
-#include "api/video/video_frame_type.h"
 #include "api/video/video_timing.h"
 #include "call/rtp_config.h"
 #include "common_video/generic_frame_descriptor/generic_frame_info.h"
@@ -221,7 +220,7 @@ RTPVideoHeader RtpPayloadParams::GetRtpVideoHeader(
                                   &rtp_video_header);
   }
   rtp_video_header.simulcastIdx = image.SimulcastIndex().value_or(0);
-  rtp_video_header.frame_type = image._frameType;
+  rtp_video_header.frame_type = image.frame_type();
   rtp_video_header.rotation = image.rotation_;
   rtp_video_header.content_type = image.content_type_;
   rtp_video_header.playout_delay = image.PlayoutDelay();
@@ -233,7 +232,7 @@ RTPVideoHeader RtpPayloadParams::GetRtpVideoHeader(
   rtp_video_header.video_frame_tracking_id = image.VideoFrameTrackingId();
   SetVideoTiming(image, &rtp_video_header.video_timing);
 
-  const bool is_keyframe = image._frameType == VideoFrameType::kVideoFrameKey;
+  const bool is_keyframe = image.IsKey();
   const bool first_frame_in_picture =
       (codec_specific_info && codec_specific_info->codecType == kVideoCodecVP9)
           ? codec_specific_info->codecSpecific.VP9.first_frame_in_picture

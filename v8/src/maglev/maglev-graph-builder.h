@@ -28,6 +28,7 @@
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter-intrinsics.h"
 #include "src/maglev/maglev-basic-block.h"
+#include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-compilation-unit.h"
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph-printer.h"
@@ -60,9 +61,11 @@ struct MaglevCallerDetails {
   ZoneUnorderedMap<KnownNodeAspects::LoadedContextSlotsKey, Node*>
       unobserved_context_slot_stores;
   CatchBlockDetails catch_block;
-  bool is_inside_loop;
+  int loop_depth;
+  int peeled_iteration_count;
   bool is_eager_inline;
   float call_frequency;
+  InliningTreeDebugInfo* parent_inlining_tree_debug_info;
 };
 
 struct MaglevCallSiteInfo {
@@ -184,14 +187,6 @@ class MaglevGraphBuilder {
   bool is_inline() const { return caller_details_ != nullptr; }
   int inlining_depth() const { return compilation_unit_->inlining_depth(); }
 
-  bool is_eager_inline() const {
-    DCHECK(is_inline());
-    DCHECK_IMPLIES(!caller_details_->is_eager_inline,
-                   v8_flags.maglev_non_eager_inlining ||
-                       v8_flags.turbolev_non_eager_inlining);
-    return caller_details_->is_eager_inline;
-  }
-
   DeoptFrame* GetLatestCheckpointedFrame();
   DeoptFrame* GetDeoptFrameForEagerDeopt() {
     return GetLatestCheckpointedFrame();
@@ -215,106 +210,7 @@ class MaglevGraphBuilder {
 
   bool is_turbolev() const { return is_turbolev_; }
 
-  // If the feedback suggests that the result of an addition will be a safe
-  // integer (where Float64 can represent integers exactly), then we can
-  // speculate its range. During the truncation pass:
-  //
-  // 1. If Float64SpeculateSafeAdd CANNOT be truncated to Int32 (i.e., its
-  //    result is used as a Float64 or Tagged value), it's lowered to a
-  //    standard Float64Add.
-  // 2. If it CAN be truncated to Int32, we check if we should speculate:
-  //    - If the result is already known to be a safe integer (via range
-  //      analysis), we lower it to Int32Add (non-speculative).
-  //    - If we decide to speculate (e.g., at least one input is already a safe
-  //      integer or a Phi), we insert speculative truncations for the inputs
-  //      (which may eager deopt if an input isn't a safe integer) and
-  //      lower to Int32Add.
-  //    - Otherwise, we fall back to Float64Add.
-  bool can_speculative_additive_safe_int() const {
-    return is_turbolev() && Is64() &&
-           v8_flags.turbolev_additive_safe_int_feedback &&
-           v8_flags.turbolev_non_eager_inlining;
-  }
-
   bool should_abort_compilation() const { return should_abort_compilation_; }
-
-  bool is_non_eager_inlining_enabled() const {
-    if (is_turbolev()) {
-      return v8_flags.turbolev_non_eager_inlining;
-    }
-    return v8_flags.maglev_non_eager_inlining;
-  }
-
-  // Inlining configuration. For Maglev, we use the Maglev flags, and for
-  // Turbolev, we use the Turbofan flags.
-  int max_inlined_bytecode_size() {
-    if (is_turbolev()) {
-      return v8_flags.max_inlined_bytecode_size;
-    } else {
-      return v8_flags.max_maglev_inlined_bytecode_size;
-    }
-  }
-  int max_inlined_bytecode_size_small() {
-    if (is_turbolev()) {
-      return v8_flags.max_inlined_bytecode_size_small;
-    } else {
-      return v8_flags.max_maglev_inlined_bytecode_size_small;
-    }
-  }
-  int max_inlined_bytecode_size_small_with_heapnum_in_out() {
-    if (is_turbolev()) {
-      return v8_flags.max_inlined_bytecode_size_small_with_heapnum_in_out;
-    } else {
-      return v8_flags
-          .max_maglev_inlined_bytecode_size_small_with_heapnum_in_out;
-    }
-  }
-  float min_inlining_frequency() {
-    if (is_turbolev()) {
-      return v8_flags.min_inlining_frequency;
-    } else {
-      return v8_flags.min_maglev_inlining_frequency;
-    }
-  }
-  int max_inlined_bytecode_size_cumulative() {
-    if (is_turbolev()) {
-      return v8_flags.max_inlined_bytecode_size_cumulative;
-    } else {
-      return v8_flags.max_maglev_inlined_bytecode_size_cumulative;
-    }
-  }
-  int max_inlined_bytecode_size_small_total() {
-    if (is_turbolev()) {
-      return v8_flags.max_inlined_bytecode_size_small_total;
-    } else {
-      return v8_flags.max_maglev_inlined_bytecode_size_small_total;
-    }
-  }
-  int max_inline_depth() {
-    if (is_turbolev()) {
-      // This is just to avoid some corner cases, especially since we allow
-      // recursive inlining.
-      constexpr int kMaxDepthForInlining = 50;
-      return kMaxDepthForInlining;
-    } else {
-      return v8_flags.max_maglev_inline_depth;
-    }
-  }
-  // We allow small functions to be inlined deeper than regular functions.
-  int max_inline_depth_small() {
-    if (is_turbolev()) {
-      // For Turbolev, small and normal functions can all be inlined at the same
-      // depth.
-      return max_inline_depth();
-    } else {
-      return v8_flags.max_maglev_hard_inline_depth;
-    }
-  }
-
-  bool is_inline_api_calls_enabled() const {
-    // TODO(victorgomes): Inline API calls are still not supported by Turbolev.
-    return !is_turbolev() && v8_flags.maglev_inline_api_calls;
-  }
 
   bool is_tracing_enabled() const {
     return compilation_unit_->info()->is_tracing_enabled();
@@ -1941,7 +1837,9 @@ class MaglevGraphBuilder {
   }
   int argument_count_without_receiver() const { return argument_count() - 1; }
 
+  bool IsInsideLoopInTheCurrentFunction() const;
   bool IsInsideLoop() const;
+  int GetLoopDepth() const;
 
   // The fake offset used as a target for all exits of an inlined function.
   int inline_exit_offset() const {
@@ -1954,9 +1852,13 @@ class MaglevGraphBuilder {
   LocalIsolate* const local_isolate_;
   MaglevCompilationUnit* const compilation_unit_;
   MaglevCallerDetails* caller_details_;
+  InliningTreeDebugInfo* current_inlining_tree_debug_info_ = nullptr;
 
   // Cache the heap broker since we access it a bunch.
   compiler::JSHeapBroker* broker_ = compilation_unit_->broker();
+
+  // Cache flags.
+  const CompilationFlags flags_;
 
   Graph* const graph_;
   compiler::BytecodeAnalysis bytecode_analysis_;

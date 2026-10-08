@@ -6,7 +6,6 @@ package org.chromium.chrome.browser.ntp_customization.theme.chrome_colors;
 
 import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator.BottomSheetType.CHROME_COLORS;
 import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator.BottomSheetType.THEME;
-import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.launchUriActivity;
 
 import android.app.Activity;
 import android.content.Context;
@@ -39,9 +38,6 @@ import java.util.List;
 /** Coordinator for the NTP appearance chrome colors bottom sheet in the NTP customization. */
 @NullMarked
 public class NtpChromeColorsCoordinator {
-    // TODO(crbug.com/423579377): Update the url for learn more button.
-    private static final String LEARN_MORE_CLICK_URL =
-            "https://support.google.com/chrome/?p=new_tab";
     private static final String TAG = "NtpChromeColor";
     private static final int MAX_NUMBER_OF_COLORS_PER_ROW = 7;
 
@@ -97,9 +93,6 @@ public class NtpChromeColorsCoordinator {
                 NtpChromeColorsProperties.BACK_BUTTON_CLICK_LISTENER,
                 v -> delegate.showBottomSheet(THEME));
         mPropertyModel.set(
-                NtpChromeColorsProperties.LEARN_MORE_BUTTON_CLICK_LISTENER,
-                this::handleLearnMoreClick);
-        mPropertyModel.set(
                 NtpChromeColorsProperties.DAILY_REFRESH_SWITCH_ON_CHECKED_CHANGE_LISTENER,
                 this::onDailyRefreshSwitchToggled);
 
@@ -110,20 +103,23 @@ public class NtpChromeColorsCoordinator {
         mItemWidth =
                 context.getResources()
                         .getDimensionPixelSize(
-                                R.dimen.ntp_customization_back_button_clickable_size);
+                                R.dimen.ntp_customization_chrome_colors_selector_size);
         mSpacing =
                 context.getResources()
-                        .getDimensionPixelSize(
-                                R.dimen.ntp_customization_chrome_colors_grid_spacing);
+                                .getDimensionPixelSize(
+                                        R.dimen.ntp_customization_chrome_colors_grid_lateral_margin)
+                        * 2;
 
         mPropertyModel.set(
                 NtpChromeColorsProperties.RECYCLER_VIEW_LAYOUT_MANAGER,
                 new GridLayoutManager(mContext, 1));
         mPropertyModel.set(NtpChromeColorsProperties.RECYCLER_VIEW_ITEM_WIDTH, mItemWidth);
         mPropertyModel.set(NtpChromeColorsProperties.RECYCLER_VIEW_SPACING, mSpacing);
+        mPropertyModel.set(
+                NtpChromeColorsProperties.RECYCLER_VIEW_MAX_ITEM_COUNT,
+                MAX_NUMBER_OF_COLORS_PER_ROW);
 
         mPrimaryColorInfo = NtpCustomizationConfigManager.getInstance().getNtpThemeColorInfo();
-        setRecyclerViewMaxWidth();
     }
 
     /**
@@ -173,11 +169,6 @@ public class NtpChromeColorsCoordinator {
         }
     }
 
-    private void setRecyclerViewMaxWidth() {
-        int maxWidthPx = MAX_NUMBER_OF_COLORS_PER_ROW * (mItemWidth + mSpacing);
-        mPropertyModel.set(NtpChromeColorsProperties.RECYCLER_VIEW_MAX_WIDTH_PX, maxWidthPx);
-    }
-
     /**
      * Called when the item view is clicked.
      *
@@ -220,7 +211,6 @@ public class NtpChromeColorsCoordinator {
         }
 
         mPropertyModel.set(NtpChromeColorsProperties.BACK_BUTTON_CLICK_LISTENER, null);
-        mPropertyModel.set(NtpChromeColorsProperties.LEARN_MORE_BUTTON_CLICK_LISTENER, null);
         mPropertyModel.set(NtpChromeColorsProperties.BACKGROUND_COLOR_INPUT_TEXT_WATCHER, null);
         mPropertyModel.set(NtpChromeColorsProperties.PRIMARY_COLOR_INPUT_TEXT_WATCHER, null);
         mPropertyModel.set(NtpChromeColorsProperties.SAVE_BUTTON_CLICK_LISTENER, null);
@@ -228,16 +218,6 @@ public class NtpChromeColorsCoordinator {
                 NtpChromeColorsProperties.DAILY_REFRESH_SWITCH_ON_CHECKED_CHANGE_LISTENER, null);
 
         mChromeColorsList.clear();
-    }
-
-    /**
-     * Handles the click event for the "Learn More" button in the Chrome Colors bottom sheet.
-     *
-     * @param view The view that was clicked.
-     */
-    @VisibleForTesting
-    void handleLearnMoreClick(View view) {
-        launchUriActivity(view.getContext(), LEARN_MORE_CLICK_URL);
     }
 
     /** Sets up the color picker view. */

@@ -635,6 +635,9 @@ DEFINE_BOOL_READONLY(
     "make OptimizeFunctionOnNextCall optimize to maglev instead of turbofan")
 #endif  //  V8_ENABLE_MAGLEV
 
+DEFINE_INT(maglev_max_small_graph_size, 10,
+           "max inlined maglev graph size that counts as a small function")
+
 DEFINE_BOOL(maglev_as_top_tier, false,
             "disable Turbofan/Turbolev, make Maglev optimize more aggressively")
 DEFINE_IMPLICATION(maglev_as_top_tier, maglev)
@@ -690,7 +693,6 @@ DEFINE_BOOL(trace_maglev_range_analysis, false,
 DEFINE_WEAK_IMPLICATION(turbolev_future, maglev_range_analysis)
 DEFINE_BOOL(maglev_range_verification, false,
             "Run integer range verifiction pass in Turbolev frontend pipeline")
-DEFINE_WEAK_IMPLICATION(maglev_range_verification, maglev_range_analysis)
 DEFINE_WEAK_IMPLICATION(maglev_assert, maglev_range_verification)
 
 DEFINE_UINT(
@@ -720,6 +722,12 @@ DEFINE_INT(max_maglev_inlined_bytecode_size_small_with_heapnum_in_out, 75,
 DEFINE_FLOAT(min_maglev_inlining_frequency, 0.95,
              "minimum frequency for inlining")
 
+// This is just to avoid some corner cases, especially since we allow
+// recursive inlining.
+DEFINE_INT(
+    max_turbolev_inline_depth, 50,
+    "max depth of functions that Maglev will inline excl. small functions")
+
 DEFINE_WEAK_VALUE_IMPLICATION(maglev_as_top_tier,
                               max_maglev_inlined_bytecode_size, 460)
 DEFINE_WEAK_VALUE_IMPLICATION(maglev_as_top_tier, min_maglev_inlining_frequency,
@@ -740,12 +748,10 @@ DEFINE_EXPERIMENTAL_FEATURE(
     "still cause deopt loops)")
 DEFINE_BOOL(maglev_cse, true, "common subexpression elimination")
 
-DEFINE_EXPERIMENTAL_FEATURE(maglev_non_eager_inlining,
-                            "enable Maglev non-eager inlining")
-
-DEFINE_EXPERIMENTAL_FEATURE(turbolev_non_eager_inlining,
-                            "enable Turbolev non-eager inlining")
-DEFINE_WEAK_IMPLICATION(turbolev_future, turbolev_non_eager_inlining)
+DEFINE_BOOL(maglev_non_eager_inlining, false,
+            "enable Maglev non-eager inlining")
+DEFINE_BOOL(turbolev_non_eager_inlining, true,
+            "enable Turbolev non-eager inlining")
 
 DEFINE_STRING(maglev_filter, "*", "optimization filter for the maglev compiler")
 DEFINE_STRING(maglev_print_filter, "*",
@@ -1009,11 +1015,7 @@ DEFINE_BOOL(trace_compilation_dependencies, false, "trace code dependencies")
 // Depend on --trace-deopt-verbose for reporting dependency invalidations.
 DEFINE_IMPLICATION(trace_compilation_dependencies, trace_deopt_verbose)
 
-#if V8_STATIC_ROOTS_BOOL
 DEFINE_BOOL(unmap_holes, true, "unmap the page containing the holes.")
-#else
-DEFINE_BOOL_READONLY(unmap_holes, false, "unmap the page containing the holes.")
-#endif
 
 #ifdef V8_ALLOCATION_SITE_TRACKING
 #define V8_ALLOCATION_SITE_TRACKING_BOOL true
@@ -1106,6 +1108,7 @@ DEFINE_FLOAT(
     "Scale interrupt budget reduction for OSR from Maglev vs. OSR to Maglev")
 DEFINE_BOOL(always_osr_from_maglev, false,
             "whether we try to OSR to Turbofan from any Maglev")
+DEFINE_WEAK_IMPLICATION(turbolev, always_osr_from_maglev)
 DEFINE_WEAK_IMPLICATION(always_osr_from_maglev, osr_from_maglev)
 
 // Tiering: Turbofan.
@@ -1721,8 +1724,9 @@ DEFINE_EXPERIMENTAL_FEATURE(turboshaft_typed_optimizations,
                             "enable an additional Turboshaft phase that "
                             "performs optimizations based on type information")
 #if V8_TARGET_ARCH_ARM64
+DEFINE_BOOL(wasm_simd_opt, false, "enable optimizations for Webassembly SIMD")
 DEFINE_EXPERIMENTAL_FEATURE(experimental_wasm_simd_opt,
-                            "enable optimizations for Webassembly SIMD")
+                            "enable extra optimizations for Webassembly SIMD")
 #endif  // V8_TARGET_ARCH_ARM64
 
 DEFINE_BOOL(turbolev, false,
@@ -1731,6 +1735,9 @@ DEFINE_BOOL(turbolev, false,
 
 DEFINE_BOOL(print_turbolev_frontend, false,
             "print Turbolev frontend (Maglev graphs)")
+
+DEFINE_BOOL(print_turbolev_inline_functions, false,
+            "print Turbolev inline functions")
 
 DEFINE_EXPERIMENTAL_FEATURE(
     turbolev_future,
@@ -3002,6 +3009,13 @@ DEFINE_INT(cpu_profiler_sampling_interval, 1000,
            "CPU profiler sampling interval in microseconds")
 
 // debugger
+DEFINE_BOOL(simulator_debugger, false,
+            "Start a debugger when a simulator hits a breakpoint")
+DEFINE_NEG_IMPLICATION(fuzzing, simulator_debugger)
+DEFINE_NEG_IMPLICATION(jit_fuzzing, simulator_debugger)
+DEFINE_NEG_IMPLICATION(hole_fuzzing, simulator_debugger)
+DEFINE_NEG_IMPLICATION(sandbox_fuzzing, simulator_debugger)
+
 DEFINE_BOOL(
     trace_side_effect_free_debug_evaluate, false,
     "print debug messages for side-effect-free debug-evaluate for testing")
@@ -3118,7 +3132,7 @@ DEFINE_IMPLICATION(sparkplug_plus, short_builtin_calls)
 
 DEFINE_BOOL(super_ic, true, "use an IC for super property loads")
 
-DEFINE_BOOL(mega_dom_ic, false, "use MegaDOM IC state for API objects")
+DEFINE_EXPERIMENTAL_FEATURE(mega_dom_ic, "use MegaDOM IC state for API objects")
 
 // objects.cc
 DEFINE_BOOL(trace_prototype_users, false,
@@ -3368,6 +3382,11 @@ DEFINE_BOOL_READONLY(
     "enable SIMD for regexp jit code (not supported for this architecture)")
 #endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_RISCV32
         // || V8_TARGET_ARCH_RISCV64
+
+DEFINE_BOOL(regexp_bytecode_analysis, false, "analyze regexp bytecode")
+DEFINE_BOOL(trace_regexp_bytecode_analysis, false,
+            "trace regexp bytecode analysis")
+DEFINE_IMPLICATION(trace_regexp_bytecode_analysis, regexp_bytecode_analysis)
 
 DEFINE_BOOL(trace_read_only_promotion, false,
             "trace the read-only promotion pass")

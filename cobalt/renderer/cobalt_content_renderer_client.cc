@@ -398,7 +398,8 @@ void CobaltContentRendererClient::RunScriptsAtDocumentStart(
   CHECK(content::RenderThread::IsMainThread());
   js_injection::JsCommunication* communication =
       js_injection::JsCommunication::Get(render_frame);
-  communication->RunScriptsAtDocumentStart();
+  communication->RunScripts(
+      js_injection::mojom::DocumentInjectionTime::kDocumentStart);
 }
 
 void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(

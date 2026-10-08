@@ -27,12 +27,6 @@ using ::testing::AtLeast;
 
 namespace media {
 
-// Note that we are continuing to skip some tests when MappableSI is enabled
-// until we port over facilities that the tests were using to force failure
-// of GMB creation.
-// TODO(crbug.com/366375486): Convert the currently skipped tests.
-const bool SkipTestWithMappableSI = true;
-
 class MappableSharedImageVideoFramePoolTest : public ::testing::Test {
  public:
   MappableSharedImageVideoFramePoolTest() = default;
@@ -868,16 +862,14 @@ TEST_F(MappableSharedImageVideoFramePoolTest, PreservesMetadata) {
   EXPECT_EQ(kTestReferenceTime, *frame->metadata().reference_time);
 }
 
-// CreateGpuMemoryBuffer can return null (e.g: when the GPU process is down).
+// Creation of a mappable SharedImage can return null (e.g: when the GPU process
+// is down).
 // This test checks that in that case we don't crash and don't create the
 // textures.
-TEST_F(MappableSharedImageVideoFramePoolTest, CreateGpuMemoryBufferFail) {
-  if (SkipTestWithMappableSI) {
-    return;
-  }
+TEST_F(MappableSharedImageVideoFramePoolTest, CreateMappableSharedImageFail) {
   scoped_refptr<VideoFrame> software_frame = CreateTestYUVVideoFrame(10);
   scoped_refptr<VideoFrame> frame;
-  mock_gpu_factories_->SetFailToAllocateGpuMemoryBufferForTesting(true);
+  sii_->SetFailSharedImageCreationWithBufferUsage(true);
   mappable_shared_image_pool_->MaybeCreateHardwareFrame(
       software_frame, base::BindOnce(MaybeCreateHardwareFrameCallback, &frame));
 
@@ -889,13 +881,10 @@ TEST_F(MappableSharedImageVideoFramePoolTest, CreateGpuMemoryBufferFail) {
 }
 
 TEST_F(MappableSharedImageVideoFramePoolTest,
-       CreateGpuMemoryBufferFailAfterShutdown) {
-  if (SkipTestWithMappableSI) {
-    return;
-  }
+       CreateMappableSharedImageFailAfterShutdown) {
   scoped_refptr<VideoFrame> software_frame = CreateTestYUVVideoFrame(10);
   scoped_refptr<VideoFrame> frame;
-  mock_gpu_factories_->SetFailToMapGpuMemoryBufferForTesting(true);
+  sii_->SetFailSharedImageCreationWithBufferUsage(true);
   mappable_shared_image_pool_->MaybeCreateHardwareFrame(
       software_frame, base::BindOnce(MaybeCreateHardwareFrameCallback, &frame));
   mappable_shared_image_pool_.reset();

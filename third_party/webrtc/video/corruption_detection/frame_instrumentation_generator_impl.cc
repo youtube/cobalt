@@ -27,7 +27,6 @@
 #include "api/video/encoded_image.h"
 #include "api/video/video_codec_type.h"
 #include "api/video/video_frame.h"
-#include "api/video/video_frame_type.h"
 #include "api/video_codecs/scalability_mode.h"
 #include "api/video_codecs/video_codec.h"
 #include "modules/include/module_common_types_public.h"
@@ -146,8 +145,7 @@ FrameInstrumentationGeneratorImpl::OnEncodedImage(
 
     layer_id = GetSpatialLayerId(encoded_image);
 
-    bool is_key_frame =
-        encoded_image.FrameType() == VideoFrameType::kVideoFrameKey;
+    bool is_key_frame = encoded_image.IsKey();
     if (!is_key_frame) {
       for (const auto& [unused, context] : contexts_) {
         if (context.rtp_timestamp_of_last_key_frame ==

@@ -36,6 +36,7 @@
 #include "modules/include/module_fec_types.h"
 #include "modules/rtp_rtcp/include/flexfec_sender.h"
 #include "modules/rtp_rtcp/include/receive_statistics.h"
+#include "modules/rtp_rtcp/include/remote_ntp_time_estimator.h"
 #include "modules/rtp_rtcp/include/report_block_data.h"
 #include "modules/rtp_rtcp/include/rtcp_statistics.h"
 #include "modules/rtp_rtcp/include/rtp_header_extension_map.h"
@@ -370,7 +371,8 @@ class RtpRtcpImpl2Test : public ::testing::Test {
                                      .flags = false};
 
     const uint8_t payload[100] = {0};
-    bool success = module->impl_->OnSendingRtpFrame(0, 0, kPayloadType, true);
+    bool success = module->impl_->OnSendingRtpFrame(
+        rtp_timestamp, capture_time_ms, kPayloadType, true);
 
     success &= sender->SendVideo(
         kPayloadType, VideoCodecType::kVideoCodecVP8, rtp_timestamp,
@@ -1210,7 +1212,62 @@ TEST_F(RtpRtcpImpl2Test, SendPacketSendsPacketOnTransport) {
   packet->set_packet_type(RtpPacketMediaType::kAudio);
 
   sender_.impl_->SendPacket(std::move(packet), PacedPacketInfo());
+
   EXPECT_EQ(sender_.RtpSent(), 1);
+}
+
+TEST_F(RtpRtcpImpl2Test, NtpOffsetValidAfterRrtrDlrrExchanges) {
+  // Use a fixed one-way delay.
+  sender_.transport_.SimulateNetworkDelay(kOneWayNetworkDelay);
+  receiver_.transport_.SimulateNetworkDelay(kOneWayNetworkDelay);
+  sender_.transport_.SetRtpRtcpModule(receiver_.impl_.get());
+  receiver_.transport_.SetRtpRtcpModule(sender_.impl_.get());
+
+  sender_.impl_->RegisterSendPayloadFrequency(kPayloadType, 90000);
+  RemoteNtpTimeEstimator ntp_estimator(time_controller_.GetClock());
+
+  // We need 3 exchanges for the estimator to become valid.
+  for (int i = 0; i < 3; ++i) {
+    // 1. Receiver sends RRTR.
+    AdvanceTime(TimeDelta::Millis(10));
+    EXPECT_EQ(0, receiver_.impl_->SendRTCP(kRtcpReport));
+    AdvanceTime(kOneWayNetworkDelay);
+
+    // 2. Sender receives RRTR, sends a frame, and then sends SR+DLRR.
+    AdvanceTime(TimeDelta::Millis(10));
+    EXPECT_TRUE(SendFrame(&sender_, sender_video_.get(), kBaseLayerTid));
+    AdvanceTime(TimeDelta::Zero());
+    EXPECT_EQ(0, sender_.impl_->SendRTCP(kRtcpReport));
+    AdvanceTime(kOneWayNetworkDelay);
+
+    // 3. Receiver receives SR+DLRR and updates the estimator.
+    // This happens on PeriodicUpdate(), which is driven from AdvanceTime.
+
+    std::optional<RtpRtcpInterface::NonSenderRttStats> non_sender_rtt_stats =
+        receiver_.impl_->GetNonSenderRttStats();
+    if (non_sender_rtt_stats && non_sender_rtt_stats->round_trip_time) {
+      TimeDelta rtt = *non_sender_rtt_stats->round_trip_time;
+      std::optional<RtpRtcpInterface::SenderReportStats> sr_stats =
+          receiver_.impl_->GetSenderReportStats();
+      if (sr_stats) {
+        ntp_estimator.UpdateRtcpTimestamp(rtt,
+                                          sr_stats->last_remote_ntp_timestamp,
+                                          sr_stats->last_remote_rtp_timestamp);
+      }
+    }
+    // Advance time to next iteration.
+    AdvanceTime(kDefaultReportInterval);
+  }
+
+  std::optional<int64_t> estimated_offset =
+      ntp_estimator.EstimateRemoteToLocalClockOffset();
+  ASSERT_TRUE(estimated_offset.has_value());
+  // Unit of offset is in NTP time resolution, 1/2^32 seconds,
+  // approximately 0.2 nanoseconds.
+  // Offset should be close to 0, but some variation is allowed.
+  // 40000 ticks =~0.08 milliseconds.
+  constexpr int64_t kNtpTimeTicksOffsetEpsilon = 40'000;
+  EXPECT_NEAR(*estimated_offset, 0, kNtpTimeTicksOffsetEpsilon);
 }
 
 }  // namespace webrtc

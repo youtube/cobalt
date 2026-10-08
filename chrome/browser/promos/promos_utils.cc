@@ -61,6 +61,8 @@ std::string IOSDesktopPromoHistogramType(PromoType promo_type) {
       return "EnhancedBrowsingPromo";
     case PromoType::kLens:
       return "LensPromo";
+    case PromoType::kTabGroups:
+      return "TabGroupsPromo";
   }
 }
 
@@ -92,7 +94,9 @@ bool VerifyIOSDesktopPromoTotalImpressions(Profile* profile,
       profile->GetPrefs()->GetInteger(
           promos_prefs::kDesktopToiOSEnhancedBrowsingPromoImpressionsCounter) +
       profile->GetPrefs()->GetInteger(
-          promos_prefs::kDesktopToiOSLensPromoImpressionsCounter);
+          promos_prefs::kDesktopToiOSLensPromoImpressionsCounter) +
+      profile->GetPrefs()->GetInteger(
+          promos_prefs::kDesktopToiOSTabGroupsPromoImpressionsCounter);
 
   if (!skip_ntp_promo) {
     // The Desktop NTP promo shows 10 times in quick succession, but that only
@@ -119,7 +123,9 @@ bool VerifyIOSDesktopPromoTotalOptOuts(Profile* profile) {
       profile->GetPrefs()->GetBoolean(
           promos_prefs::kDesktopToiOSEnhancedBrowsingPromoOptOut),
       profile->GetPrefs()->GetBoolean(
-          promos_prefs::kDesktopToiOSLensPromoOptOut)};
+          promos_prefs::kDesktopToiOSLensPromoOptOut),
+      profile->GetPrefs()->GetBoolean(
+          promos_prefs::kDesktopToiOSTabGroupsPromoOptOut)};
 
   int total_desktop_promo_opt_outs_counter =
       std::count(promo_opt_outs.begin(), promo_opt_outs.end(), true);
@@ -146,6 +152,8 @@ bool VerifyMostRecentPromoTimestamp(Profile* profile,
               kDesktopToiOSEnhancedBrowsingPromoLastImpressionTimestamp),
       profile->GetPrefs()->GetTime(
           promos_prefs::kDesktopToiOSLensPromoLastImpressionTimestamp),
+      profile->GetPrefs()->GetTime(
+          promos_prefs::kDesktopToiOSTabGroupsPromoLastImpressionTimestamp),
   };
 
   if (!skip_ntp_promo) {
@@ -179,6 +187,7 @@ bool VerifySyncingDatatypes(const syncer::SyncService& sync_service,
           syncer::AUTOFILL_WALLET_DATA);
     case PromoType::kEnhancedBrowsing:
     case PromoType::kLens:
+    case PromoType::kTabGroups:
       // TODO(crbug.com/438769954): Verify relevant data types.
       return true;
   }
@@ -282,6 +291,16 @@ IOSPromoPrefsConfig::IOSPromoPrefsConfig(PromoType promo_type) {
       promo_last_impression_timestamp_pref_name =
           promos_prefs::kDesktopToiOSLensPromoLastImpressionTimestamp;
       break;
+    case PromoType::kTabGroups:
+#if !BUILDFLAG(IS_ANDROID)
+      promo_feature = &feature_engagement::kIPHiOSTabGroupsDesktopFeature;
+#endif  // !BUILDFLAG(IS_ANDROID)
+      promo_impressions_counter_pref_name =
+          promos_prefs::kDesktopToiOSTabGroupsPromoImpressionsCounter;
+      promo_opt_out_pref_name = promos_prefs::kDesktopToiOSTabGroupsPromoOptOut;
+      promo_last_impression_timestamp_pref_name =
+          promos_prefs::kDesktopToiOSTabGroupsPromoLastImpressionTimestamp;
+      break;
   }
 }
 
@@ -335,6 +354,16 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
       user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
   registry->RegisterBooleanPref(
       promos_prefs::kDesktopToiOSLensPromoOptOut, false,
+      user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
+
+  registry->RegisterTimePref(
+      promos_prefs::kDesktopToiOSTabGroupsPromoLastImpressionTimestamp,
+      base::Time(), user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
+  registry->RegisterIntegerPref(
+      promos_prefs::kDesktopToiOSTabGroupsPromoImpressionsCounter, 0,
+      user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
+  registry->RegisterBooleanPref(
+      promos_prefs::kDesktopToiOSTabGroupsPromoOptOut, false,
       user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
 
   registry->RegisterListPref(

@@ -441,7 +441,8 @@ DirectHandle<Object> WasmTableObject::Get(Isolate* isolate,
     DCHECK(table->has_trusted_data());
     const WasmModule* module = table->trusted_data(isolate)->module();
     wasm::ModuleTypeIndex element_type = table->type(module).ref_index();
-    if (module->has_array(element_type) || module->has_struct(element_type)) {
+    if (module->has_array(element_type) || module->has_struct(element_type) ||
+        module->has_cont_type(element_type)) {
       return entry;
     }
     DCHECK(module->has_signature(element_type));
@@ -1075,22 +1076,30 @@ void WasmMemoryObject::FixUpResizableArrayBuffer(
 // static
 DirectHandle<JSArrayBuffer> WasmMemoryObject::RefreshBuffer(
     Isolate* isolate, DirectHandle<WasmMemoryObject> memory_object,
-    std::shared_ptr<BackingStore> backing_store) {
+    std::shared_ptr<BackingStore> backing_store,
+    std::optional<ResizableFlag> override_resizable) {
   DCHECK_EQ(backing_store, memory_object->backing_store());
 
-  DirectHandle<JSArrayBuffer> new_buffer =
-      backing_store->is_shared()
-          ? isolate->factory()->NewJSSharedArrayBuffer(backing_store)
-          : isolate->factory()->NewJSArrayBuffer(backing_store);
-  DCHECK_EQ(backing_store->is_resizable_by_js(),
-            new_buffer->is_resizable_by_js());
+  DirectHandle<JSArrayBuffer> new_buffer;
+  const bool bs_shared = backing_store->is_shared();
+  DCHECK_IMPLIES(override_resizable.has_value(), bs_shared);
+  if (bs_shared) {
+    new_buffer =
+        isolate->factory()->NewJSSharedArrayBuffer(std::move(backing_store));
+    if (override_resizable.has_value()) {
+      new_buffer->set_is_resizable_by_js(*override_resizable ==
+                                         ResizableFlag::kResizable);
+    }
+  } else {
+    new_buffer = isolate->factory()->NewJSArrayBuffer(std::move(backing_store));
+  }
   memory_object->SetNewBuffer(isolate, *new_buffer);
   // Memorize a link from the JSArrayBuffer to its owning WasmMemoryObject
   // instance.
   DirectHandle<Symbol> symbol =
       isolate->factory()->array_buffer_wasm_memory_symbol();
   Object::SetProperty(isolate, new_buffer, symbol, memory_object).Check();
-  if (backing_store->is_shared()) {
+  if (bs_shared) {
     // Finally, per spec, freeze the buffer. This cannot fail.
     JSReceiver::SetIntegrityLevel(isolate, new_buffer, FROZEN, kDontThrow)
         .Check();
@@ -1235,48 +1244,42 @@ DirectHandle<JSArrayBuffer> WasmMemoryObject::GetArrayBuffer(
           : handle(Cast<JSArrayBuffer>(memory_object->array_buffer()), isolate);
 
   DCHECK_EQ(memory_object->backing_store(), buffer->GetBackingStore());
-  DCHECK_EQ(memory_object->backing_store()->is_resizable_by_js(),
-            buffer->is_resizable_by_js());
   DCHECK_EQ(memory_object->backing_store()->is_shared(), buffer->is_shared());
+  DCHECK_EQ(memory_object->backing_store()->is_resizable_by_js(),
+            !buffer->is_shared() && buffer->is_resizable_by_js());
   return buffer;
 }
 
 // static
-DirectHandle<JSArrayBuffer> WasmMemoryObject::ToFixedLengthBuffer(
-    Isolate* isolate, DirectHandle<WasmMemoryObject> memory_object) {
+DirectHandle<JSArrayBuffer> WasmMemoryObject::ChangeArrayBufferResizability(
+    Isolate* isolate, DirectHandle<WasmMemoryObject> memory_object,
+    ResizableFlag new_resizability) {
+  const bool resizable = new_resizability == ResizableFlag::kResizable;
+  i::DirectHandle<i::JSArrayBuffer> buffer;
+  if (TryCast(direct_handle(memory_object->array_buffer(), isolate), &buffer) &&
+      buffer->is_resizable_by_js() == resizable) {
+    // The existing AB meets the requirement.
+    return buffer;
+  }
+
   std::shared_ptr<BackingStore> backing_store = memory_object->backing_store();
-  if (!backing_store->is_resizable_by_js()) {
-    return GetArrayBuffer(isolate, memory_object);
+  // For shared memory the flag on the backing store is not authoritative.
+  // Since the AB is never detached, we just update the AB and use that as the
+  // authoritative source of resizability.
+  DCHECK_IMPLIES(backing_store->is_shared(),
+                 !backing_store->is_resizable_by_js());
+  if (backing_store->is_shared()) {
+    return RefreshBuffer(isolate, memory_object, std::move(backing_store),
+                         new_resizability);
+  }
+  // Potentially update the bit on the backing store and detach the old buffer.
+  if (backing_store->is_resizable_by_js() != resizable) {
+    backing_store->MakeWasmMemoryResizableByJS(resizable);
+    if (!buffer.is_null()) JSArrayBuffer::Detach(buffer, true).Check();
   }
 
-  if (i::DirectHandle<i::JSArrayBuffer> buffer;
-      !backing_store->is_shared() &&
-      TryCast(direct_handle(memory_object->array_buffer(), isolate), &buffer)) {
-    JSArrayBuffer::Detach(buffer, true).Check();
-  }
-
-  backing_store->MakeWasmMemoryResizableByJS(false);
-  return RefreshBuffer(isolate, memory_object, std::move(backing_store));
-}
-
-// static
-DirectHandle<JSArrayBuffer> WasmMemoryObject::ToResizableBuffer(
-    Isolate* isolate, DirectHandle<WasmMemoryObject> memory_object) {
-  // Resizable ArrayBuffers require a maximum size during creation. Mirror the
-  // requirement when reflecting Wasm memory as a resizable buffer.
-  DCHECK(memory_object->has_maximum_pages());
-  std::shared_ptr<BackingStore> backing_store = memory_object->backing_store();
-  if (backing_store->is_resizable_by_js()) {
-    return GetArrayBuffer(isolate, memory_object);
-  }
-
-  if (i::DirectHandle<i::JSArrayBuffer> buffer;
-      !backing_store->is_shared() &&
-      TryCast(direct_handle(memory_object->array_buffer(), isolate), &buffer)) {
-    JSArrayBuffer::Detach(buffer, true).Check();
-  }
-
-  backing_store->MakeWasmMemoryResizableByJS(true);
+  // Finally make a new buffer which uses the potentially updated bit on the
+  // backing store.
   return RefreshBuffer(isolate, memory_object, std::move(backing_store));
 }
 
@@ -1911,12 +1914,6 @@ std::optional<MessageTemplate> WasmTrustedInstanceData::InitTableEntries(
     DirectHandle<WasmTrustedInstanceData> shared_trusted_instance_data,
     uint32_t table_index, uint32_t segment_index, uint32_t dst, uint32_t src,
     uint32_t count) {
-  AccountingAllocator allocator;
-  // This {Zone} will be used only by the temporary WasmFullDecoder allocated
-  // down the line from this call. Therefore it is safe to stack-allocate it
-  // here.
-  Zone zone(&allocator, "LoadElemSegment");
-
   const WasmModule* module = trusted_instance_data->module();
 
   bool table_is_shared = module->tables[table_index].shared;
@@ -1931,7 +1928,7 @@ std::optional<MessageTemplate> WasmTrustedInstanceData::InitTableEntries(
 
   // If needed, try to lazily initialize the element segment.
   std::optional<MessageTemplate> opt_error = wasm::InitializeElementSegment(
-      &zone, isolate, trusted_instance_data, shared_trusted_instance_data,
+      isolate, trusted_instance_data, shared_trusted_instance_data,
       segment_index);
   if (opt_error.has_value()) return opt_error;
 

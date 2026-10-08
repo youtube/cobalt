@@ -20,6 +20,7 @@
 #include <openssl/x509.h>
 
 #include "../internal.h"
+#include "../mem_internal.h"
 #include "internal.h"
 
 
@@ -76,8 +77,7 @@ static int int_x509_param_set_hosts(X509_VERIFY_PARAM *param, int mode,
 }
 
 X509_VERIFY_PARAM *X509_VERIFY_PARAM_new() {
-  X509_VERIFY_PARAM *param = reinterpret_cast<X509_VERIFY_PARAM *>(
-      OPENSSL_zalloc(sizeof(X509_VERIFY_PARAM)));
+  X509_VERIFY_PARAM *param = NewZeroed<X509_VERIFY_PARAM>();
   if (!param) {
     return nullptr;
   }
@@ -93,7 +93,7 @@ void X509_VERIFY_PARAM_free(X509_VERIFY_PARAM *param) {
   sk_OPENSSL_STRING_pop_free(param->hosts, str_free);
   OPENSSL_free(param->email);
   OPENSSL_free(param->ip);
-  OPENSSL_free(param);
+  Delete(param);
 }
 
 static int should_copy(int dest_is_set, int src_is_set, int prefer_src) {

@@ -299,7 +299,9 @@ void WebNNContextProviderImpl::CreateWebNNContext(
 
 #if BUILDFLAG(IS_APPLE)
   if (__builtin_available(macOS 14.4, *)) {
-    if (base::FeatureList::IsEnabled(mojom::features::kWebNNCoreML)
+    bool is_incognito = provider_receivers_.current_context();
+    if (base::FeatureList::IsEnabled(mojom::features::kWebNNCoreML) &&
+        !is_incognito
 #if BUILDFLAG(IS_MAC)
         && base::mac::GetCPUType() == base::mac::CPUType::kArm
 #endif  // BUILDFLAG(IS_MAC)
@@ -507,7 +509,7 @@ void WebNNContextProviderImpl::DidEnsureWebNNExecutionProvidersReady(
           std::move(scoped_trace), std::move(options),
           std::move(write_tensor_producer), std::move(write_tensor_consumer),
           std::move(read_tensor_producer), std::move(read_tensor_consumer),
-          command_buffer_id, std::move(gpu_sequence), std::move(task_runner),
+          command_buffer_id, std::move(gpu_sequence), task_runner,
           std::move(receiver), std::move(remote), std::move(callback)));
 }
 #endif  // BUILDFLAG(IS_WIN)

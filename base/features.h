@@ -15,8 +15,6 @@ namespace base::features {
 // alongside the definition of their values in the .cc file.
 
 // Alphabetical:
-BASE_EXPORT BASE_DECLARE_FEATURE(kBoostCompositorThreadsPriorityWhenIdle);
-
 #if BUILDFLAG(IS_COBALT)
 // When enabled, Cobalt will handle TRIM_MEMORY_RUNNING_LOW and
 // TRIM_MEMORY_RUNNING_MODERATE signals as moderate memory pressure on Android.

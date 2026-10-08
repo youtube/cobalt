@@ -67,6 +67,7 @@ source_set("internal") {
       "//chrome/browser/prefs",
       "//chrome/browser/skills:ui",
       "//chrome/browser/tab_group_sync:factories",
+      "//chrome/browser/ui:tab_search_feature",
       "//chrome/browser/ui:ui_features",
       "//chrome/browser/ui/bookmarks",
       "//chrome/browser/ui/commerce",
@@ -82,7 +83,7 @@ source_set("internal") {
       "//chrome/browser/ui/tabs:glic",
       "//chrome/browser/ui/tabs:tab_list_bridge",
       "//chrome/browser/ui/tabs/organization",
-      "//chrome/browser/ui/tabs/projects",
+      "//chrome/browser/ui/tabs/projects:impl",
       "//chrome/browser/ui/tabs/saved_tab_groups",
       "//chrome/browser/ui/tabs/tab_strip_api",
       "//chrome/browser/ui/tabs/tab_strip_api:impl_header",
@@ -197,6 +198,7 @@ if (is_android) {
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/GlobalBrowserCollectionPlatformDelegate.java",
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/IdSequencer.java",
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/PendingActionManager.java",
+      "android/java/src/org/chromium/chrome/browser/ui/browser_window/WindowStateManager.java",
     ]
     deps = [
       "//base:base_java",

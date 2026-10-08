@@ -26,6 +26,7 @@
 #include <openssl/nid.h>
 
 #include "../../internal.h"
+#include "../../mem_internal.h"
 #include "../bn/internal.h"
 #include "../delocate.h"
 #include "internal.h"
@@ -201,8 +202,7 @@ EC_GROUP *EC_GROUP_new_curve_GFp(const BIGNUM *p, const BIGNUM *a,
     return nullptr;
   }
 
-  UniquePtr<EC_GROUP> ret(
-      reinterpret_cast<EC_GROUP *>(OPENSSL_zalloc(sizeof(EC_GROUP))));
+  UniquePtr<EC_GROUP> ret(NewZeroed<EC_GROUP>());
   if (ret == nullptr) {
     return nullptr;
   }
@@ -295,7 +295,7 @@ void EC_GROUP_free(EC_GROUP *group) {
 
   bn_mont_ctx_cleanup(&group->order);
   bn_mont_ctx_cleanup(&group->field);
-  OPENSSL_free(group);
+  Delete(group);
 }
 
 EC_GROUP *EC_GROUP_dup(const EC_GROUP *a) {
@@ -411,7 +411,7 @@ EC_POINT *EC_POINT_new(const EC_GROUP *group) {
     return nullptr;
   }
 
-  EC_POINT *ret = reinterpret_cast<EC_POINT *>(OPENSSL_malloc(sizeof *ret));
+  EC_POINT *ret = New<EC_POINT>();
   if (ret == nullptr) {
     return nullptr;
   }
@@ -428,7 +428,7 @@ static void ec_point_free(EC_POINT *point, int free_group) {
   if (free_group) {
     EC_GROUP_free(point->group);
   }
-  OPENSSL_free(point);
+  Delete(point);
 }
 
 void EC_POINT_free(EC_POINT *point) {

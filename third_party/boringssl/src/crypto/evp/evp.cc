@@ -22,6 +22,7 @@
 #include <openssl/nid.h>
 
 #include "../internal.h"
+#include "../mem_internal.h"
 #include "internal.h"
 
 
@@ -37,8 +38,7 @@ OPENSSL_DECLARE_ERROR_REASON(EVP, NOT_XOF_OR_INVALID_LENGTH)
 OPENSSL_DECLARE_ERROR_REASON(EVP, EMPTY_PSK)
 
 EVP_PKEY *EVP_PKEY_new() {
-  EVP_PKEY *ret =
-      reinterpret_cast<EVP_PKEY *>(OPENSSL_zalloc(sizeof(EVP_PKEY)));
+  EVP_PKEY *ret = NewZeroed<EVP_PKEY>();
   if (ret == nullptr) {
     return nullptr;
   }
@@ -57,7 +57,7 @@ void EVP_PKEY_free(EVP_PKEY *pkey) {
   }
 
   evp_pkey_set0(pkey, nullptr, nullptr);
-  OPENSSL_free(pkey);
+  Delete(pkey);
 }
 
 int EVP_PKEY_up_ref(EVP_PKEY *pkey) {
@@ -369,4 +369,20 @@ int EVP_PKEY_base_id(const EVP_PKEY *pkey) {
   // the same algorithm: NID_rsa vs NID_rsaEncryption and five distinct spelling
   // of DSA. We do not support these, so the base ID is simply the ID.
   return EVP_PKEY_id(pkey);
+}
+
+int EVP_PKEY_has_public(const EVP_PKEY *pkey) {
+  if (pkey == nullptr || pkey->ameth == nullptr ||
+      pkey->ameth->pub_present == nullptr) {
+    return 0;
+  }
+  return pkey->ameth->pub_present(pkey);
+}
+
+int EVP_PKEY_has_private(const EVP_PKEY *pkey) {
+  if (pkey == nullptr || pkey->ameth == nullptr ||
+      pkey->ameth->priv_present == nullptr) {
+    return 0;
+  }
+  return pkey->ameth->priv_present(pkey);
 }

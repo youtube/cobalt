@@ -3056,6 +3056,7 @@ void MarkCompactCollector::ClearNonLiveReferences() {
 
   auto parallel_clearing_job = std::make_unique<ParallelClearingJob>(this);
   Isolate* const isolate = heap_->isolate();
+  std::atomic<int> string_table_removed_count{0};
 
   if (isolate->OwnsStringTables()) {
     TRACE_GC(heap_->tracer(),
@@ -3087,27 +3088,49 @@ void MarkCompactCollector::ClearNonLiveReferences() {
   }
 
   if (isolate->OwnsStringTables()) {
-    auto item =
-        MakeParallelItem("ClearStringTable", [this, isolate](
-                                                 ParallelItem* item,
-                                                 JobDelegate* delegate) {
-          DCHECK(isolate->OwnsStringTables());
+    StringTable* string_table = isolate->string_table();
+    string_table->DropOldData();
+    // Splitting the string table into chunks for parallel processing. Never
+    // choose more than kMaxStringTableChunks and each chunk should have at
+    // least kMinStringTableChunkSize entries.
+    constexpr int kMaxStringTableChunks = 8;
+    constexpr int kMinStringTableChunkSize = 1024;
+    const int capacity = string_table->Capacity();
+    const int target_chunk_count =
+        (capacity + kMinStringTableChunkSize - 1) / kMinStringTableChunkSize;
+    const int chunk_count =
+        std::max(1, std::min(kMaxStringTableChunks, target_chunk_count));
+    const int chunk_size = (capacity + chunk_count - 1) / chunk_count;
+    for (int chunk = 0; chunk < chunk_count; ++chunk) {
+      const int start = chunk * chunk_size;
+      const int end = std::min(capacity, start + chunk_size);
+      DCHECK_LT(start, end);
+      auto item =
+          MakeParallelItem("ClearStringTable", [this, isolate, start, end,
+                                                &string_table_removed_count](
+                                                   ParallelItem* item,
+                                                   JobDelegate* delegate) {
+            DCHECK(isolate->OwnsStringTables());
 
-          TRACE_GC1_WITH_FLOW(heap()->tracer(),
-                              GCTracer::Scope::MC_CLEAR_STRING_TABLE, delegate,
-                              item->trace_id(), TRACE_EVENT_FLAG_FLOW_IN);
-          // Prune the string table removing all strings only pointed to by
-          // the string table.  Cannot use string_table() here because the
-          // string table is marked.
-          StringTable* string_table = isolate->string_table();
-          InternalizedStringTableCleaner internalized_visitor(heap());
-          string_table->DropOldData();
-          string_table->IterateElements(&internalized_visitor);
-          string_table->NotifyElementsRemoved(
-              internalized_visitor.PointersRemoved());
-        }).Enqueue(parallel_clearing_job);
-    TRACE_GC_NOTE_WITH_FLOW("ClearStringTableJob started", item->trace_id(),
-                            TRACE_EVENT_FLAG_FLOW_OUT);
+            TRACE_GC1_WITH_FLOW(
+                heap()->tracer(), GCTracer::Scope::MC_CLEAR_STRING_TABLE,
+                delegate, item->trace_id(), TRACE_EVENT_FLAG_FLOW_IN);
+            // Prune the string table removing all strings only pointed to
+            // by the string table.  Cannot use string_table() here because
+            // the string table is marked.
+            StringTable* string_table = isolate->string_table();
+            InternalizedStringTableCleaner internalized_visitor(heap());
+            string_table->IterateElementsRange(&internalized_visitor, start,
+                                               end);
+            const int removed = internalized_visitor.PointersRemoved();
+            if (removed > 0) {
+              string_table_removed_count.fetch_add(removed,
+                                                   std::memory_order_relaxed);
+            }
+          }).Enqueue(parallel_clearing_job);
+      TRACE_GC_NOTE_WITH_FLOW("ClearStringTableJob started", item->trace_id(),
+                              TRACE_EVENT_FLAG_FLOW_OUT);
+    }
   }
 
   if (isolate->is_shared_space_isolate() &&
@@ -3193,8 +3216,8 @@ void MarkCompactCollector::ClearNonLiveReferences() {
   MakeParallelItem(
       "SweepJSDispatchTable",
       [this, isolate](ParallelItem*, JobDelegate* delegate) {
-        TRACE_GC1(heap_->tracer(), GCTracer::Scope::MC_SWEEP_JS_DISPATCH_TABLE,
-                  delegate);
+        TRACE_GC1(heap_->tracer(),
+                  GCTracer::Scope::MC_CLEAR_SWEEP_JS_DISPATCH_TABLE, delegate);
         JSDispatchTable& jdt = isolate->js_dispatch_table();
         Tagged<Code> compile_lazy =
             heap_->isolate()->builtins()->code(Builtin::kCompileLazy);
@@ -3274,7 +3297,6 @@ void MarkCompactCollector::ClearNonLiveReferences() {
                           GCTracer::Scope::MC_CLEAR_WEAK_REFERENCES_TRIVIAL,
                           delegate, item->trace_id(), TRACE_EVENT_FLAG_FLOW_IN);
                       ClearTrivialWeakReferences();
-                      ClearTrustedWeakReferences();
                     })
                     // Do not run before these items finished, these may change
                     // the value of weak references.
@@ -3283,6 +3305,26 @@ void MarkCompactCollector::ClearNonLiveReferences() {
                     .DependsOn(clear_maps_items)
                     .Enqueue(parallel_clearing_job);
     TRACE_GC_NOTE_WITH_FLOW("ClearTrivialWeakRefJob started", item->trace_id(),
+                            TRACE_EVENT_FLAG_FLOW_OUT);
+  }
+
+  {
+    auto item = MakeParallelItem(
+                    "ClearTrustedWeakRefs",
+                    [this](ParallelItem* item, JobDelegate* delegate) {
+                      TRACE_GC1_WITH_FLOW(
+                          heap()->tracer(),
+                          GCTracer::Scope::MC_CLEAR_WEAK_REFERENCES_TRUSTED,
+                          delegate, item->trace_id(), TRACE_EVENT_FLAG_FLOW_IN);
+                      ClearTrustedWeakReferences();
+                    })
+                    // Do not run before these items finished, these may change
+                    // the value of weak references.
+                    .DependsOn(process_old_code_candidates_item)
+                    .DependsOn(process_all_weak_references)
+                    .DependsOn(clear_maps_items)
+                    .Enqueue(parallel_clearing_job);
+    TRACE_GC_NOTE_WITH_FLOW("ClearTrustedWeakRefJob started", item->trace_id(),
                             TRACE_EVENT_FLAG_FLOW_OUT);
   }
 
@@ -3311,7 +3353,8 @@ void MarkCompactCollector::ClearNonLiveReferences() {
       "SweepExternalPointerTable",
       [this](ParallelItem*, JobDelegate* delegate) {
         TRACE_GC1(heap_->tracer(),
-                  GCTracer::Scope::MC_SWEEP_EXTERNAL_POINTER_TABLE, delegate);
+                  GCTracer::Scope::MC_CLEAR_SWEEP_EXTERNAL_POINTER_TABLE,
+                  delegate);
         Isolate* isolate = heap_->isolate();
         // External pointer table sweeping needs to happen before evacuating
         // live objects as it may perform table compaction, which requires
@@ -3349,7 +3392,8 @@ void MarkCompactCollector::ClearNonLiveReferences() {
       "SweepTrustedPointerTable",
       [this](ParallelItem*, JobDelegate* delegate) {
         TRACE_GC1(heap_->tracer(),
-                  GCTracer::Scope::MC_SWEEP_TRUSTED_POINTER_TABLE, delegate);
+                  GCTracer::Scope::MC_CLEAR_SWEEP_TRUSTED_POINTER_TABLE,
+                  delegate);
         Isolate* isolate = heap_->isolate();
         isolate->trusted_pointer_table().Sweep(heap_->trusted_pointer_space(),
                                                isolate->counters());
@@ -3365,8 +3409,8 @@ void MarkCompactCollector::ClearNonLiveReferences() {
   MakeParallelItem(
       "SweepCodePointerTable",
       [this](ParallelItem*, JobDelegate* delegate) {
-        TRACE_GC1(heap_->tracer(), GCTracer::Scope::MC_SWEEP_CODE_POINTER_TABLE,
-                  delegate);
+        TRACE_GC1(heap_->tracer(),
+                  GCTracer::Scope::MC_CLEAR_SWEEP_CODE_POINTER_TABLE, delegate);
         IsolateGroup::current()->code_pointer_table()->Sweep(
             heap_->code_pointer_space(), heap_->isolate()->counters());
       })
@@ -3379,7 +3423,8 @@ void MarkCompactCollector::ClearNonLiveReferences() {
   MakeParallelItem("SweepWasmCodePointerTable", [this](ParallelItem*,
                                                        JobDelegate* delegate) {
     TRACE_GC1(heap_->tracer(),
-              GCTracer::Scope::MC_SWEEP_WASM_CODE_POINTER_TABLE, delegate);
+              GCTracer::Scope::MC_CLEAR_SWEEP_WASM_CODE_POINTER_TABLE,
+              delegate);
     wasm::GetProcessWideWasmCodePointerTable()->SweepSegments();
   }).Enqueue(parallel_clearing_job);
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -3413,6 +3458,15 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     auto job = V8::GetCurrentPlatform()->CreateJob(
         TaskPriority::kUserBlocking, std::move(parallel_clearing_job));
     job->Join();
+  }
+
+  // Finish clearing the string table after all parallel jobs have completed.
+  if (isolate->OwnsStringTables()) {
+    const int removed =
+        string_table_removed_count.load(std::memory_order_relaxed);
+    if (removed > 0) {
+      isolate->string_table()->NotifyElementsRemoved(removed);
+    }
   }
 
   PROFILE(heap_->isolate(), WeakCodeClearEvent());

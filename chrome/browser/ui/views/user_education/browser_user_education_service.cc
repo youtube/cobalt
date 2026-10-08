@@ -15,7 +15,7 @@
 #include "build/build_config.h"
 #include "chrome/browser/devtools/features.h"
 #include "chrome/browser/feature_engagement/tracker_factory.h"
-#include "chrome/browser/glic/widget/local_hotkey_manager.h"
+#include "chrome/browser/glic/common/local_hotkey_manager.h"
 #include "chrome/browser/performance_manager/public/user_tuning/user_performance_tuning_manager.h"
 #include "chrome/browser/privacy_sandbox/privacy_sandbox_queue_manager.h"
 #include "chrome/browser/privacy_sandbox/privacy_sandbox_service.h"
@@ -1041,6 +1041,20 @@ void MaybeRegisterChromeFeaturePromos(
           .SetMetadata(115, "jocelyntran@chromium.org",
                        "Triggered to encourage users to try out the reading "
                        "mode feature.")));
+
+  // kIPHResumptionRailFeature:
+  registry.RegisterFeature(std::move(
+      FeaturePromoSpecification::CreateForToastPromo(
+          feature_engagement::kIPHResumptionRailFeature,
+          kVerticalTabStripProjectsButtonElementId,
+          IDS_RESUMPTION_RAIL_IPH_BODY, IDS_RESUMPTION_RAIL_IPH_TITLE,
+          FeaturePromoSpecification::AcceleratorInfo(0))
+          .SetBubbleTitleText(IDS_RESUMPTION_RAIL_IPH_TITLE)
+          .SetBubbleArrow(HelpBubbleArrow::kLeftCenter)
+          .SetBubbleIcon(&vector_icons::kLightbulbOutlineIcon)
+          .SetMetadata(146, "gqueen@chromium.org",
+                       "Triggered to educate users about the Resumption Rail "
+                       "feature entrypoint.")));
 
   // kIPHSideBySidePinnableFeature:
   registry.RegisterFeature(std::move(

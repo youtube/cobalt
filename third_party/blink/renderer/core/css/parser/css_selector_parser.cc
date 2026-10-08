@@ -976,14 +976,28 @@ PseudoId CSSSelectorParser::ParsePseudoElement(const String& selector_string,
         return kPseudoIdInvalid;
       }
 
+      // Lowercase for case-insensitive matching. CSS pseudo-elements are
+      // case-insensitive, and escape sequences like `:bef\oRE` may produce
+      // mixed-case names after tokenization.
+      AtomicString selector_name = AtomicString::LowerASCII(
+          selector_name_token.Value().ToAtomicString());
       CSSSelector::PseudoType pseudo_type = ParsePseudoType(
-          selector_name_token.Value().ToAtomicString(),
+          selector_name,
           /*has_arguments=*/false, parent ? &parent->GetDocument() : nullptr);
 
       PseudoId pseudo_id = CSSSelector::GetPseudoId(pseudo_type);
       if (pseudo_id == kPseudoIdBefore || pseudo_id == kPseudoIdAfter ||
           pseudo_id == kPseudoIdFirstLetter ||
           pseudo_id == kPseudoIdFirstLine) {
+        // Count usage of legacy pseudo-element syntax without colons (e.g.,
+        // getComputedStyle(el, "before") instead of getComputedStyle(el,
+        // ":before")). This is used to assess compat risk before potentially
+        // changing behavior per CSSOM spec.
+        if (num_colons == 0 && parent) {
+          UseCounter::Count(
+              parent->GetDocument(),
+              WebFeature::kGetComputedStylePseudoElementWithoutColon);
+        }
         return pseudo_id;
       }
 

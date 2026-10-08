@@ -27,7 +27,6 @@
 #include "api/units/timestamp.h"
 #include "api/video/encoded_image.h"
 #include "api/video/video_frame_metadata.h"
-#include "api/video/video_frame_type.h"
 #include "api/video/video_timing.h"
 #include "api/video_codecs/video_codec.h"
 #include "modules/rtp_rtcp/source/frame_object.h"
@@ -71,9 +70,7 @@ class TransformableVideoReceiverFrame
     frame_->SetRtpTimestamp(timestamp);
   }
 
-  bool IsKeyFrame() const override {
-    return frame_->FrameType() == VideoFrameType::kVideoFrameKey;
-  }
+  bool IsKeyFrame() const override { return frame_->IsKey(); }
 
   VideoFrameMetadata Metadata() const override { return metadata_; }
 

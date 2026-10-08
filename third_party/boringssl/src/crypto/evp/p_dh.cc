@@ -15,6 +15,8 @@
 #include <openssl/evp.h>
 
 #include <assert.h>
+#include <stddef.h>
+#include <stdint.h>
 
 #include <openssl/bn.h>
 #include <openssl/dh.h>
@@ -22,6 +24,7 @@
 #include <openssl/mem.h>
 
 #include "../internal.h"
+#include "../mem_internal.h"
 #include "internal.h"
 
 
@@ -91,6 +94,16 @@ static bool dh_pub_equal(const EVP_PKEY *a, const EVP_PKEY *b) {
   return BN_cmp(DH_get0_pub_key(a_dh), DH_get0_pub_key(b_dh)) == 0;
 }
 
+static bool dh_has_pub(const EVP_PKEY *pk) {
+  const DH *pk_dh = reinterpret_cast<const DH *>(pk->pkey);
+  return DH_get0_pub_key(pk_dh) != nullptr;
+}
+
+static bool dh_has_priv(const EVP_PKEY *pk) {
+  const DH *pk_dh = reinterpret_cast<const DH *>(pk->pkey);
+  return DH_get0_priv_key(pk_dh) != nullptr;
+}
+
 static const EVP_PKEY_ASN1_METHOD dh_asn1_meth = {
     /*pkey_id=*/EVP_PKEY_DH,
     /*oid=*/{0},
@@ -99,8 +112,10 @@ static const EVP_PKEY_ASN1_METHOD dh_asn1_meth = {
     /*pub_decode=*/nullptr,
     /*pub_encode=*/nullptr,
     /*pub_equal=*/dh_pub_equal,
+    /*pub_present=*/dh_has_pub,
     /*priv_decode=*/nullptr,
     /*priv_encode=*/nullptr,
+    /*priv_present=*/dh_has_priv,
     /*set_priv_raw=*/nullptr,
     /*set_priv_seed=*/nullptr,
     /*set_pub_raw=*/nullptr,
@@ -156,9 +171,8 @@ typedef struct dh_pkey_ctx_st {
 } DH_PKEY_CTX;
 }  // namespace
 
-static int pkey_dh_init(EVP_PKEY_CTX *ctx) {
-  DH_PKEY_CTX *dctx =
-      reinterpret_cast<DH_PKEY_CTX *>(OPENSSL_zalloc(sizeof(DH_PKEY_CTX)));
+static int pkey_dh_init(EvpPkeyCtx *ctx) {
+  DH_PKEY_CTX *dctx = NewZeroed<DH_PKEY_CTX>();
   if (dctx == nullptr) {
     return 0;
   }
@@ -167,7 +181,7 @@ static int pkey_dh_init(EVP_PKEY_CTX *ctx) {
   return 1;
 }
 
-static int pkey_dh_copy(EVP_PKEY_CTX *dst, EVP_PKEY_CTX *src) {
+static int pkey_dh_copy(EvpPkeyCtx *dst, EvpPkeyCtx *src) {
   if (!pkey_dh_init(dst)) {
     return 0;
   }
@@ -178,12 +192,13 @@ static int pkey_dh_copy(EVP_PKEY_CTX *dst, EVP_PKEY_CTX *src) {
   return 1;
 }
 
-static void pkey_dh_cleanup(EVP_PKEY_CTX *ctx) {
-  OPENSSL_free(ctx->data);
+static void pkey_dh_cleanup(EvpPkeyCtx *ctx) {
+  DH_PKEY_CTX *dctx = reinterpret_cast<DH_PKEY_CTX *>(ctx->data);
+  Delete(dctx);
   ctx->data = nullptr;
 }
 
-static int pkey_dh_keygen(EVP_PKEY_CTX *ctx, EVP_PKEY *pkey) {
+static int pkey_dh_keygen(EvpPkeyCtx *ctx, EVP_PKEY *pkey) {
   DH *dh = DH_new();
   if (dh == nullptr || !EVP_PKEY_assign_DH(pkey, dh)) {
     DH_free(dh);
@@ -198,7 +213,7 @@ static int pkey_dh_keygen(EVP_PKEY_CTX *ctx, EVP_PKEY *pkey) {
   return DH_generate_key(dh);
 }
 
-static int pkey_dh_derive(EVP_PKEY_CTX *ctx, uint8_t *out, size_t *out_len) {
+static int pkey_dh_derive(EvpPkeyCtx *ctx, uint8_t *out, size_t *out_len) {
   DH_PKEY_CTX *dctx = reinterpret_cast<DH_PKEY_CTX *>(ctx->data);
   if (ctx->pkey == nullptr || ctx->peerkey == nullptr) {
     OPENSSL_PUT_ERROR(EVP, EVP_R_KEYS_NOT_SET);
@@ -239,7 +254,7 @@ static int pkey_dh_derive(EVP_PKEY_CTX *ctx, uint8_t *out, size_t *out_len) {
   return 1;
 }
 
-static int pkey_dh_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2) {
+static int pkey_dh_ctrl(EvpPkeyCtx *ctx, int type, int p1, void *p2) {
   DH_PKEY_CTX *dctx = reinterpret_cast<DH_PKEY_CTX *>(ctx->data);
   switch (type) {
     case EVP_PKEY_CTRL_PEER_KEY:

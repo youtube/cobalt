@@ -22,6 +22,7 @@
       'AppRTCMobile_test_apk': {},
       'android_instrumentation_test_apk': {},
       'audio_decoder_unittests': {},
+      'audio_engine_tests': {},
       'common_audio_unittests': {},
       'common_video_unittests': {},
       'dcsctp_unittests': {},
@@ -66,6 +67,7 @@
     },
     'desktop_tests': {
       'audio_decoder_unittests': {},
+      'audio_engine_tests': {},
       'common_audio_unittests': {},
       'common_video_unittests': {},
       'dcsctp_unittests': {},
@@ -175,6 +177,7 @@
         'mixins': ['xcodebuild_sim_runner']
       },
       'audio_decoder_unittests': {},
+      'audio_engine_tests': {},
       'common_audio_unittests': {},
       'common_video_unittests': {},
       'dcsctp_unittests': {},

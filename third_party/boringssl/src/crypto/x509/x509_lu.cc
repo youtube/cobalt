@@ -21,6 +21,7 @@
 #include <openssl/x509.h>
 
 #include "../internal.h"
+#include "../mem_internal.h"
 #include "internal.h"
 
 
@@ -42,8 +43,7 @@ static int X509_LOOKUP_by_subject(X509_LOOKUP *ctx, int type,
 
 static X509_LOOKUP *X509_LOOKUP_new(const X509_LOOKUP_METHOD *method,
                                     X509_STORE *store) {
-  X509_LOOKUP *ret =
-      reinterpret_cast<X509_LOOKUP *>(OPENSSL_zalloc(sizeof(X509_LOOKUP)));
+  X509_LOOKUP *ret = NewZeroed<X509_LOOKUP>();
   if (ret == nullptr) {
     return nullptr;
   }
@@ -51,7 +51,7 @@ static X509_LOOKUP *X509_LOOKUP_new(const X509_LOOKUP_METHOD *method,
   ret->method = method;
   ret->store_ctx = store;
   if (method->new_item != nullptr && !method->new_item(ret)) {
-    OPENSSL_free(ret);
+    Delete(ret);
     return nullptr;
   }
   return ret;
@@ -64,7 +64,7 @@ void X509_LOOKUP_free(X509_LOOKUP *ctx) {
   if (ctx->method != nullptr && ctx->method->free != nullptr) {
     (*ctx->method->free)(ctx);
   }
-  OPENSSL_free(ctx);
+  Delete(ctx);
 }
 
 int X509_LOOKUP_ctrl(X509_LOOKUP *ctx, int cmd, const char *argc, long argl,
@@ -129,8 +129,7 @@ static int x509_object_cmp_sk(const X509_OBJECT *const *a,
 }
 
 X509_STORE *X509_STORE_new() {
-  X509_STORE *ret =
-      reinterpret_cast<X509_STORE *>(OPENSSL_zalloc(sizeof(X509_STORE)));
+  X509_STORE *ret = NewZeroed<X509_STORE>();
   if (ret == nullptr) {
     return nullptr;
   }
@@ -163,7 +162,7 @@ void X509_STORE_free(X509_STORE *vfy) {
   sk_X509_LOOKUP_pop_free(vfy->get_cert_methods, X509_LOOKUP_free);
   sk_X509_OBJECT_pop_free(vfy->objs, X509_OBJECT_free);
   X509_VERIFY_PARAM_free(vfy->param);
-  OPENSSL_free(vfy);
+  Delete(vfy);
 }
 
 X509_LOOKUP *X509_STORE_add_lookup(X509_STORE *v, const X509_LOOKUP_METHOD *m) {
@@ -258,16 +257,14 @@ int X509_STORE_add_crl(X509_STORE *ctx, X509_CRL *x) {
   return x509_store_add(ctx, x, /*is_crl=*/1);
 }
 
-X509_OBJECT *X509_OBJECT_new() {
-  return reinterpret_cast<X509_OBJECT *>(OPENSSL_zalloc(sizeof(X509_OBJECT)));
-}
+X509_OBJECT *X509_OBJECT_new() { return NewZeroed<X509_OBJECT>(); }
 
 void X509_OBJECT_free(X509_OBJECT *obj) {
   if (obj == nullptr) {
     return;
   }
   X509_OBJECT_free_contents(obj);
-  OPENSSL_free(obj);
+  Delete(obj);
 }
 
 static int X509_OBJECT_up_ref_count(X509_OBJECT *a) {

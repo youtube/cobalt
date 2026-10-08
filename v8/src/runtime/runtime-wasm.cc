@@ -191,7 +191,8 @@ RUNTIME_FUNCTION(Runtime_WasmMemoryGrow) {
   int ret = WasmMemoryObject::Grow(isolate, memory_object, delta_pages);
   // The WasmMemoryGrow builtin which calls this runtime function expects us to
   // always return a Smi.
-  DCHECK(!isolate->has_exception());
+  DCHECK(!isolate->has_exception() ||
+         IsTerminationException(isolate->exception()));
   return Smi::FromInt(ret);
 }
 
@@ -1268,14 +1269,12 @@ RUNTIME_FUNCTION(Runtime_WasmArrayInitSegment) {
 
     // If the element segment has not been initialized yet, lazily initialize it
     // now.
-    AccountingAllocator allocator;
-    Zone zone(&allocator, ZONE_NAME);
     DirectHandle<WasmTrustedInstanceData> shared_instance =
         trusted_instance_data->has_shared_part()
             ? handle(trusted_instance_data->shared_part(), isolate)
             : trusted_instance_data;
     std::optional<MessageTemplate> opt_error = wasm::InitializeElementSegment(
-        &zone, isolate, trusted_instance_data, shared_instance, segment_index);
+        isolate, trusted_instance_data, shared_instance, segment_index);
     if (opt_error.has_value()) {
       return ThrowWasmError(isolate, opt_error.value());
     }
@@ -2002,13 +2001,11 @@ MaybeDirectHandle<FixedArray> GetElementSegment(
     return {Cast<FixedArray>(segment_raw), isolate};
   }
 
-  AccountingAllocator allocator;
-  Zone zone(&allocator, ZONE_NAME);
   DirectHandle<WasmTrustedInstanceData> shared_instance =
       instance->has_shared_part() ? handle(instance->shared_part(), isolate)
                                   : instance;
   std::optional<MessageTemplate> opt_error =
-      wasm::InitializeElementSegment(&zone, isolate, instance, shared_instance,
+      wasm::InitializeElementSegment(isolate, instance, shared_instance,
                                      segment_index, wasm::kPrecreateExternal);
   if (opt_error.has_value()) {
     ThrowWasmError(isolate, opt_error.value());
@@ -2773,17 +2770,23 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateContinuation) {
       handle(Cast<WasmFuncRef>(args[1]), isolate);
   std::unique_ptr<wasm::StackMemory> stack =
       isolate->stack_pool().GetOrAllocate();
+  const wasm::CanonicalSig* sig = func_ref->internal(isolate)->sig();
+  auto [arg_buffer_size, alignment] =
+      GetBufferSizeAndAlignmentFor(sig->parameters());
+#if V8_TARGET_ARCH_ARM64
+  // For stack alignment.
+  alignment = RoundUp(alignment, 2 * kSystemPointerSize);
+#endif
   stack->jmpbuf()->fp = kNullAddress;
-  stack->jmpbuf()->sp = stack->base();
+  stack->jmpbuf()->sp = RoundDown(stack->base() - arg_buffer_size, alignment);
+  Address arg_buffer = stack->jmpbuf()->sp;
+  stack->set_arg_buffer(arg_buffer);
   stack->jmpbuf()->state = wasm::JumpBuffer::Suspended;
   stack->jmpbuf()->stack_limit = stack->jslimit();
   stack->jmpbuf()->is_on_central_stack = false;
   stack->jmpbuf()->parent = nullptr;
   stack->set_index(isolate->wasm_stacks().size());
   // TODO(thibaudm): Store the WasmCodePointer instead.
-  IsolateForSandbox isolate_for_sandbox(isolate);
-  const wasm::CanonicalSig* sig =
-      func_ref->internal(isolate_for_sandbox)->sig();
   wasm::StackEntryWrapperCacheKey key{sig};
   std::shared_ptr<wasm::WasmWrapperHandle> wrapper =
       wasm::GetWasmStackEntryWrapperCache()->GetCompiled(isolate, key);
@@ -2791,6 +2794,7 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateContinuation) {
   trusted_instance_data->native_module()->RegisterStackEntryWrapper(
       std::move(wrapper));
   stack->set_func_ref(*func_ref);
+  stack->set_param_types(func_ref->internal(isolate)->sig()->parameters());
   wasm::StackMemory* stack_ptr = stack.get();
   isolate->wasm_stacks().emplace_back(std::move(stack));
   DirectHandle<WasmContinuationObject> cont =
@@ -2806,6 +2810,22 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateEmptyContinuation) {
   HandleScope scope(isolate);
   DirectHandle<WasmContinuationObject> cont =
       isolate->factory()->NewWasmContinuationObject(nullptr);
+  return *cont;
+}
+
+// For cont.bind: invalidate the given continuation and create a new one for the
+// same stack.
+RUNTIME_FUNCTION(Runtime_WasmAllocateBoundContinuation) {
+  DCHECK_EQ(2, args.length());
+  HandleScope scope(isolate);
+  DirectHandle<WasmContinuationObject> old_cont =
+      handle(Cast<WasmContinuationObject>(args[0]), isolate);
+  int num_bound_args = args.smi_value_at(1);
+  wasm::StackMemory* stack = old_cont->stack();
+  DirectHandle<WasmContinuationObject> cont =
+      isolate->factory()->NewWasmContinuationObject(stack);
+  stack->set_current_continuation(*cont);
+  stack->bind_arguments(num_bound_args);
   return *cont;
 }
 

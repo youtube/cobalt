@@ -86,6 +86,9 @@ if(BORINGSSL_PREFIX)
   # CMake automatically connects include_directories to the NASM command-line,
   # but not add_definitions.
   set(CMAKE_ASM_NASM_FLAGS "${CMAKE_ASM_NASM_FLAGS} -DBORINGSSL_PREFIX=${BORINGSSL_PREFIX}")
+
+  # Also add the generated files to NASM's includes. With a final slash for NASM 2.
+  set(CMAKE_ASM_NASM_FLAGS "${CMAKE_ASM_NASM_FLAGS} -I${CMAKE_CURRENT_SOURCE_DIR}/gen/")
 endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -829,6 +832,20 @@ if(BUILD_TESTING)
           COMMAND ${CMAKE_COMMAND} -E false)
     endif()
   endif()
+endif()
+
+if(BORINGSSL_PREFIX)
+  require_go()
+  add_custom_target(
+    verify_boringssl_prefix ALL
+    COMMENT "Verifying symbol prefixing"
+    COMMAND ${GO_EXECUTABLE}
+            run ${CMAKE_CURRENT_SOURCE_DIR}/util/audit_symbols.go
+            -ignore-symbols-with ${BORINGSSL_PREFIX}
+            $<TARGET_FILE:crypto>
+    DEPENDS crypto
+    USES_TERMINAL
+  )
 endif()
 
 if(INSTALL_ENABLED)

@@ -4,10 +4,10 @@
 import 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js';
 
 import type {AppElement, LanguageToastElement, SpEmptyStateElement} from 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js';
-import {BrowserProxy, ContentController, ContentType, LineFocusController, LineFocusMovement, LineFocusStyle, NodeStore, ReadAloudNode, setInstance, SpeechBrowserProxyImpl, SpeechController, ToolbarEvent, VoiceClientSideStatusCode, VoiceLanguageController, VoiceNotificationManager} from 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js';
+import {AppStyleUpdater, BrowserProxy, ContentController, ContentType, LineFocusController, LineFocusMovement, LineFocusStyle, NodeStore, ReadAloudNode, setInstance, SpeechBrowserProxyImpl, SpeechController, ToolbarEvent, VoiceClientSideStatusCode, VoiceLanguageController, VoiceNotificationManager} from 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js';
 import {assertEquals, assertFalse, assertNotEquals, assertStringContains, assertTrue} from 'chrome-untrusted://webui-test/chai_assert.js';
 import {keyDownOn} from 'chrome-untrusted://webui-test/keyboard_mock_interactions.js';
-import {microtasksFinished} from 'chrome-untrusted://webui-test/test_util.js';
+import {microtasksFinished, whenCheck} from 'chrome-untrusted://webui-test/test_util.js';
 
 import {createApp, emitEvent, setContent, setupBasicSpeech} from './common.js';
 import {FakeReadingMode} from './fake_reading_mode.js';
@@ -78,6 +78,7 @@ suite('AppContent', () => {
         emitEvent(
             app, ToolbarEvent.LINE_FOCUS_STYLE,
             {detail: {data: LineFocusStyle.UNDERLINE}});
+        await microtasksFinished();
         const newPos = 202;
         app.connectedCallback();
         await microtasksFinished();
@@ -86,7 +87,8 @@ suite('AppContent', () => {
         app.$.toolbar.dispatchEvent(
             new MouseEvent('mousemove', {clientY: newPos}));
         await microtasksFinished();
-        assertEquals('', app.style.getPropertyValue('--line-focus-y'));
+        const lineFocusY = app.style.getPropertyValue('--line-focus-y');
+        assertTrue(lineFocusY === '' || lineFocusY === '0px');
 
         // After the menus close, then the line focus position should update.
         emitEvent(app, ToolbarEvent.CLOSE_ALL_MENUS);
@@ -121,10 +123,12 @@ suite('AppContent', () => {
     emitEvent(
         app, ToolbarEvent.LINE_FOCUS_STYLE,
         {detail: {data: LineFocusStyle.UNDERLINE}});
+    await microtasksFinished();
     assertEquals('', app.style.getPropertyValue('--line-focus-padding'));
 
     app.updateContent();
-    await microtasksFinished();
+    await whenCheck(
+        app, () => app.style.getPropertyValue('--line-focus-padding') !== '');
 
     assertNotEquals('', app.style.getPropertyValue('--line-focus-padding'));
   });
@@ -139,6 +143,7 @@ suite('AppContent', () => {
         emitEvent(
             app, ToolbarEvent.LINE_FOCUS_STYLE,
             {detail: {data: LineFocusStyle.UNDERLINE}});
+        await microtasksFinished();
         assertEquals('', app.style.getPropertyValue('--line-focus-padding'));
 
         app.updateContent();
@@ -157,6 +162,7 @@ suite('AppContent', () => {
         emitEvent(
             app, ToolbarEvent.LINE_FOCUS_STYLE,
             {detail: {data: LineFocusStyle.OFF}});
+        await microtasksFinished();
         assertEquals('', app.style.getPropertyValue('--line-focus-padding'));
 
         app.updateContent();
@@ -191,7 +197,8 @@ suite('AppContent', () => {
   test(
       'read aloud state resets on new content (Readability enabled)',
       async () => {
-        chrome.readingMode.isReadabilityEnabled = true;
+        chrome.readingMode.activeDistillationMethod =
+            chrome.readingMode.distillationTypeReadability;
         chrome.readingMode.isTsTextSegmentationEnabled = true;
 
         let resetCallCount = 0;
@@ -325,6 +332,48 @@ suite('AppContent', () => {
 
       assertEquals(0, sentWordCount);
     });
+
+    test(
+        'calls updateContentForScreen2x if readability enabled and has failed',
+        async () => {
+          chrome.readingMode.activeDistillationMethod =
+              chrome.readingMode.distillationTypeScreen2x;
+
+          let callCount = 0;
+          contentController.updateContentForScreen2x =
+              (_shadowRoot?: ShadowRoot) => {
+                callCount++;
+                return null;
+              };
+
+          app.updateContent();
+          await microtasksFinished();
+
+          assertEquals(
+              1, callCount,
+              'updateContentForScreen2x() should have been called');
+        });
+
+    test(
+        'calls updateContentForReadability if readability enabled and success',
+        async () => {
+          chrome.readingMode.activeDistillationMethod =
+              chrome.readingMode.distillationTypeReadability;
+
+          let callCount = 0;
+          contentController.updateContentForReadability =
+              (_shadowRoot?: ShadowRoot) => {
+                callCount++;
+                return null;
+              };
+
+          app.updateContent();
+          await microtasksFinished();
+
+          assertEquals(
+              1, callCount,
+              'updateContentForReadability() should have been called');
+        });
   });
 
   suite('on links toggle', () => {
@@ -605,7 +654,8 @@ suite('AppContent', () => {
   suite('on image toggle with readability', () => {
     setup(() => {
       contentController.configureTrustedTypes();
-      chrome.readingMode.isReadabilityEnabled = true;
+      chrome.readingMode.activeDistillationMethod =
+          chrome.readingMode.distillationTypeReadability;
     });
 
     test('shows and hides images when toggled', async () => {
@@ -743,7 +793,8 @@ suite('AppContent', () => {
     test('toggles links with Readability', async () => {
       const url = 'https://www.google.com/';
       const text = 'the best link ever';
-      chrome.readingMode.isReadabilityEnabled = true;
+      chrome.readingMode.activeDistillationMethod =
+          chrome.readingMode.distillationTypeReadability;
       contentController.configureTrustedTypes();
       readingMode.htmlContent = `<a href="${url}">${text}</a>`;
       app.updateContent();
@@ -911,5 +962,45 @@ suite('AppContent', () => {
     app.onNeedScrollForLineFocus(scrollDiff);
 
     assertEquals(startingScrollTop + scrollDiff, scrollTo);
+  });
+
+  suite('Immersive Mode app content styling', () => {
+    let appStyleUpdater: AppStyleUpdater;
+
+    setup(async () => {
+      app.remove();
+      chrome.readingMode.isImmersiveEnabled = true;
+      app = await createApp();
+      appStyleUpdater = new AppStyleUpdater(app);
+    });
+
+    test(
+        'onContainerScroll adds fade class to scroller when IM is enabled',
+        async () => {
+          const fontSize = 16;
+          const text = 'This is a sample text.\n'.repeat(10000);
+
+          app.$.container.style.fontSize = `${fontSize}px`;
+          appStyleUpdater.setFontSize();
+          readingMode.getTextContent = () => text;
+          app.updateContent();
+          await microtasksFinished();
+
+          assertFalse(app.$.containerScroller.classList.contains('fade'));
+
+          app.$.containerScroller.scrollTop = fontSize + 1;
+          app.$.containerScroller.dispatchEvent(new Event('scroll'));
+          await whenCheck(
+              app.$.containerScroller,
+              () => app.$.containerScroller.classList.contains('fade'));
+          assertTrue(app.$.containerScroller.classList.contains('fade'));
+
+          app.$.containerScroller.scrollTop = fontSize - 1;
+          app.$.containerScroller.dispatchEvent(new Event('scroll'));
+          await whenCheck(
+              app.$.containerScroller,
+              () => !app.$.containerScroller.classList.contains('fade'));
+          assertFalse(app.$.containerScroller.classList.contains('fade'));
+        });
   });
 });

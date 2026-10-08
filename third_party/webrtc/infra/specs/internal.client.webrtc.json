@@ -14,6 +14,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//common_audio:common_audio_unittests",
         "name": "common_audio_unittests",
         "resultdb": {
           "enable": true,
@@ -53,6 +54,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//common_video:common_video_unittests",
         "name": "common_video_unittests",
         "resultdb": {
           "enable": true,
@@ -93,6 +95,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules:modules_tests",
         "name": "modules_tests",
         "resultdb": {
           "enable": true,
@@ -135,6 +138,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules:modules_unittests",
         "name": "modules_unittests",
         "resultdb": {
           "enable": true,
@@ -175,6 +179,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:rtc_p2p_unittests",
         "name": "rtc_p2p_unittests",
         "resultdb": {
           "enable": true,
@@ -214,6 +219,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:rtc_pc_unittests",
         "name": "rtc_pc_unittests",
         "resultdb": {
           "enable": true,
@@ -253,6 +259,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//stats:rtc_stats_unittests",
         "name": "rtc_stats_unittests",
         "resultdb": {
           "enable": true,
@@ -292,6 +299,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//system_wrappers:system_wrappers_unittests",
         "name": "system_wrappers_unittests",
         "resultdb": {
           "enable": true,
@@ -331,6 +339,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//test:test_support_unittests",
         "name": "test_support_unittests",
         "resultdb": {
           "enable": true,
@@ -370,6 +379,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//rtc_tools:tools_unittests",
         "name": "tools_unittests",
         "resultdb": {
           "enable": true,
@@ -409,6 +419,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:video_engine_tests",
         "name": "video_engine_tests",
         "resultdb": {
           "enable": true,
@@ -459,6 +470,7 @@
           ],
           "script": "//tools_webrtc/perf/process_perf_results.py"
         },
+        "module_name": "//:webrtc_perf_tests",
         "name": "webrtc_perf_tests",
         "resultdb": {
           "enable": true,
@@ -506,6 +518,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//common_audio:common_audio_unittests",
         "name": "common_audio_unittests",
         "resultdb": {
           "enable": true,
@@ -545,6 +558,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//common_video:common_video_unittests",
         "name": "common_video_unittests",
         "resultdb": {
           "enable": true,
@@ -585,6 +599,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules:modules_tests",
         "name": "modules_tests",
         "resultdb": {
           "enable": true,
@@ -627,6 +642,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//modules:modules_unittests",
         "name": "modules_unittests",
         "resultdb": {
           "enable": true,
@@ -667,6 +683,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:rtc_p2p_unittests",
         "name": "rtc_p2p_unittests",
         "resultdb": {
           "enable": true,
@@ -706,6 +723,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//pc:rtc_pc_unittests",
         "name": "rtc_pc_unittests",
         "resultdb": {
           "enable": true,
@@ -745,6 +763,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//stats:rtc_stats_unittests",
         "name": "rtc_stats_unittests",
         "resultdb": {
           "enable": true,
@@ -784,6 +803,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//system_wrappers:system_wrappers_unittests",
         "name": "system_wrappers_unittests",
         "resultdb": {
           "enable": true,
@@ -823,6 +843,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//test:test_support_unittests",
         "name": "test_support_unittests",
         "resultdb": {
           "enable": true,
@@ -862,6 +883,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//rtc_tools:tools_unittests",
         "name": "tools_unittests",
         "resultdb": {
           "enable": true,
@@ -901,6 +923,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//:video_engine_tests",
         "name": "video_engine_tests",
         "resultdb": {
           "enable": true,

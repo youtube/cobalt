@@ -580,6 +580,7 @@
 <translation id="3143515551205905069">सिंक रद्द करा</translation>
 <translation id="3144126448740580210">पूर्ण झाले</translation>
 <translation id="3148052723910099040">नियमित टॅब ग्रिड</translation>
+<translation id="3148237711805373460">मला तिथे न्या</translation>
 <translation id="3157387275655328056">वाचन सूचीमध्ये जोडा</translation>
 <translation id="315778507796115851">इतिहास</translation>
 <translation id="31652791196570636">डिसमिस करा</translation>
@@ -1524,6 +1525,7 @@
 <translation id="6556866813142980365">पुन्हा करा</translation>
 <translation id="6559301491397835130">{count,plural, =1{बुकमार्क "{title}" मध्ये सेव्ह केला आहे. तो फक्त या डिव्हाइसवर सेव्ह केला आहे.}other{बुकमार्क "{title}" मध्ये सेव्ह केले आहेत. ते फक्त या डिव्हाइसवर सेव्ह केले आहेत.}}</translation>
 <translation id="656065428026159829">आणखी पहा</translation>
+<translation id="6565899972286925956">काहीही तयार करा</translation>
 <translation id="6571070086367343653">क्रेडिट कार्ड संपादित करा</translation>
 <translation id="6574092468346088891">सुरक्षितता तपासणी साठी नोटिफिकेशन सुरू करा</translation>
 <translation id="6579867704846662339">तुम्ही गुप्त मोड मध्ये इतर ॲप्सवरून येणाऱ्या URLs उघडण्याचा पर्याय निवडू शकता.</translation>
@@ -1634,6 +1636,7 @@
 <translation id="6930799952781667037">ही भाषा बदलण्यासाठी टॅप करा.</translation>
 <translation id="693761253105515415">पासकोड सेट करा</translation>
 <translation id="6945221475159498467">निवडा</translation>
+<translation id="6946722113367118030">विचार करणे</translation>
 <translation id="6950522403736391608">लपवलेली</translation>
 <translation id="6962809930976936328">Gemini वापरून इनसाइट मिळवा</translation>
 <translation id="6964300328304469089">सध्या <ph name="NAME" />, <ph name="EMAIL" /> ला निवडले आहे. खाते निवडा.</translation>
@@ -1976,6 +1979,7 @@
 <translation id="8205564605687841303">रद्द करा</translation>
 <translation id="8206354486702514201">या सेटिंगची अंमलबजावणी तुमच्या ॲडमिनिस्ट्रेटरकडून होते.</translation>
 <translation id="8209050860603202033">इमेज उघडा</translation>
+<translation id="8209237163365258530">Gemini <ph name="VERSION_NUMBER" /> मॉडेल</translation>
 <translation id="8211030355252954494">तुम्हाला <ph name="WEBSITE" /> साठी पासवर्ड मिळाले आहेत</translation>
 <translation id="8211406090763984747">कनेक्शन सुरक्षित आहे</translation>
 <translation id="8214293972734702249">पिन केलेला, <ph name="TAB_TITLE" /></translation>

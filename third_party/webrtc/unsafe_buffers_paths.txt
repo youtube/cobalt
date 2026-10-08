@@ -377,6 +377,7 @@
 -modules/audio_processing/vad/voice_activity_detector.cc
 -modules/audio_processing/ns/noise_suppressor.cc
 -modules/audio_processing/ns/noise_suppressor_unittest.cc
+-modules/audio_processing/logging/apm_data_dumper.h
 -modules/congestion_controller/goog_cc/send_side_bandwidth_estimation.cc
 -modules/congestion_controller/rtp/transport_feedback_adapter_unittest.cc
 -modules/desktop_capture/desktop_and_cursor_composer.cc
@@ -407,7 +408,6 @@
 -modules/remote_bitrate_estimator/overuse_detector_unittest.cc
 -modules/remote_bitrate_estimator/packet_arrival_map.cc
 -modules/remote_bitrate_estimator/tools/rtp_to_text.cc
--modules/rtp_rtcp/include/rtp_header_extension_map.h
 -modules/rtp_rtcp/source/byte_io.h
 -modules/rtp_rtcp/source/byte_io_unittest.cc
 -modules/rtp_rtcp/source/corruption_detection_extension.cc
@@ -466,7 +466,6 @@
 -modules/rtp_rtcp/source/rtp_format_vp9.cc
 -modules/rtp_rtcp/source/rtp_format_vp9_unittest.cc
 -modules/rtp_rtcp/source/rtp_generic_frame_descriptor.cc
--modules/rtp_rtcp/source/rtp_header_extension_map.cc
 -modules/rtp_rtcp/source/rtp_header_extensions.cc
 -modules/rtp_rtcp/source/rtp_packet.cc
 -modules/rtp_rtcp/source/rtp_packet_unittest.cc
@@ -589,7 +588,6 @@
 -p2p/test/turn_server.cc
 -pc/channel_unittest.cc
 -pc/dtls_srtp_transport_unittest.cc
--pc/external_hmac.cc
 -pc/ice_server_parsing.cc
 -pc/jsep_transport_unittest.cc
 -pc/media_session_unittest.cc

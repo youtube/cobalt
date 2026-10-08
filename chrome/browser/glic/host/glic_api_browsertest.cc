@@ -75,8 +75,8 @@
 #include "chrome/browser/signin/chrome_signin_client_factory.h"
 #include "chrome/browser/signin/chrome_signin_client_test_util.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
-#include "chrome/browser/skills/skills_service_factory.h"
 #include "chrome/browser/signin/identity_test_environment_profile_adaptor.h"
+#include "chrome/browser/skills/skills_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/chrome_pages.h"
@@ -1686,8 +1686,9 @@ IN_PROC_BROWSER_TEST_P(GlicApiTest, testIsBrowserOpen) {
 
   // Open a new incognito tab so that Chrome doesn't exit, and close the first
   // browser.
-  CreateIncognitoBrowser();
-  CloseBrowserAsynchronously(browser());
+  // Open a new incognito tab so that Chrome doesn't exit, and close the first
+  // browser.
+  CloseMainBrowserWithIncognitoKeepAlive();
 
   ContinueJsTest();
 }
@@ -2026,13 +2027,12 @@ IN_PROC_BROWSER_TEST_P(GlicApiTest, testGetFocusedTabStateV2BrowserClosed) {
   browser_activator().SetMode(BrowserActivator::Mode::kFirst);
   // Note: ideally this test would only open Glic after the main browser is
   // closed. This however crashes in `DeprecatedOpenGlicWindow()`.
-  TrackFloatingGlicInstance();
+  TrackOnlyGlicInstance();
   RunTestSequence(OpenGlicFloatingWindow(GlicInstrumentMode::kHostAndContents));
 
   // Open a new incognito window first so that Chrome doesn't exit, then close
   // the first browser window.
-  CreateIncognitoBrowser();
-  CloseBrowserAsynchronously(browser());
+  CloseMainBrowserWithIncognitoKeepAlive();
 
   ExecuteJsTest({.wait_for_guest = false});
 }
@@ -3298,8 +3298,7 @@ IN_PROC_BROWSER_TEST_P(GlicApiTest, testCaptureRegionNoFocus) {
   // The JS test has now detached the Glic window if in multi-instance mode and
   // is waiting. Now we can close the browser to create a "no tab" state.
   // Open a new incognito window so that Chrome doesn't exit.
-  CreateIncognitoBrowser();
-  CloseBrowserAsynchronously(browser());
+  CloseMainBrowserWithIncognitoKeepAlive();
 
   ContinueJsTest();
 }
@@ -3455,7 +3454,12 @@ IN_PROC_BROWSER_TEST_P(GlicApiTest, testPanelWillOpenBeforeClientReady) {
 
 class GlicGetHostCapabilityApiTest : public GlicApiTestWithOneTab {
  public:
-  GlicGetHostCapabilityApiTest() {
+  GlicGetHostCapabilityApiTest()
+      : GlicApiTestWithOneTab(
+            {.fre_status = (GetParam().trust_first_onboarding_arm1 ||
+                            GetParam().trust_first_onboarding_arm2)
+                               ? prefs::FreStatus::kNotStarted
+                               : prefs::FreStatus::kCompleted}) {
     std::vector<base::test::FeatureRefAndParams> enabled_features;
     std::vector<base::test::FeatureRef> disabled_features;
 
@@ -3810,6 +3814,44 @@ IN_PROC_BROWSER_TEST_P(GlicApiTestWithSkills, testGetSkillPreviewsSuccess) {
   SkillsService()->AddSkill(/*name=*/"test_skill_2", /*icon=*/"test_icon_2",
                             /*prompt=*/"test_prompt_2");
   ExecuteJsTest();
+}
+
+IN_PROC_BROWSER_TEST_P(GlicApiTestWithSkills, testShowManageSkillsUi) {
+  ExecuteJsTest();
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    tabs::TabInterface* tab =
+        InProcessBrowserTest::browser()->tab_strip_model()->GetActiveTab();
+    return tab &&
+           base::StartsWith(tab->GetContents()->GetLastCommittedURL().spec(),
+                            chrome::kChromeUISkillsURL);
+  }));
+}
+
+IN_PROC_BROWSER_TEST_P(GlicApiTestWithSkills,
+                       testSendingContextualSkillsToGlic) {
+  SkillsService()->AddSkill(/*name=*/"user_skill_1", /*icon=*/"user_icon_1",
+                            /*prompt=*/"test_prompt_1");
+  SkillsService()->AddSkill(/*name=*/"user_skill_2", /*icon=*/"user_icon_2",
+                            /*prompt=*/"user_prompt_2");
+
+  ExecuteJsTest();
+
+  std::vector<mojom::SkillPreviewPtr> skills_batch_1;
+  skills_batch_1.push_back(mojom::SkillPreview::New(
+      "contextual_skill_id_1", "contextual_skill_1", "contextual_skill_icon_1",
+      mojom::SkillSource::kFirstParty));
+  skills_batch_1.push_back(mojom::SkillPreview::New(
+      "contextual_skill_id_2", "contextual_skill_2", "contextual_skill_icon_2",
+      mojom::SkillSource::kFirstParty));
+  GetHost()->NotifyContextualSkillsChanged(std::move(skills_batch_1));
+  ContinueJsTest();
+
+  std::vector<mojom::SkillPreviewPtr> skills_batch_2;
+  skills_batch_2.push_back(mojom::SkillPreview::New(
+      "contextual_skill_id_3", "contextual_skill_3", "contextual_skill_icon_3",
+      mojom::SkillSource::kFirstParty));
+  GetHost()->NotifyContextualSkillsChanged(std::move(skills_batch_2));
+  ContinueJsTest();
 }
 
 INSTANTIATE_TEST_SUITE_P(

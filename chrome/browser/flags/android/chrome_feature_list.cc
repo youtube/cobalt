@@ -289,6 +289,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kCCTRealtimeEngagementEventsInBackground,
     &kCCTReportParallelRequestStatus,
     &kCCTReportPrerenderEvents,
+    &kCCTResetTimeoutAllowed,
     &kCCTResetTimeoutEnabled,
     &kCCTResizableForThirdParties,
     &kCCTShowTabFix,
@@ -375,6 +376,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kPageContentProvider,
     &kPartnerCustomizationsUma,
     &kPersistAcrossReboots,
+    &kPersistAcrossRebootsDebugLogs,
     &kPowerSavingModeBroadcastReceiverInBackground,
     &kPreconnectOnTabCreation,
     &kPriceChangeModule,
@@ -426,7 +428,6 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kTabStripCloseRefactorAndroid,
     &kTabStripDensityChangeAndroid,
     &kTabStripEmptySpaceContextMenuAndroid,
-    &kTabStripIncognitoMigration,
     &kTabSwitcherDragDropAndroid,
     &kTabSwitcherGroupSuggestionsAndroid,
     &kTabSwitcherGroupSuggestionsTestModeAndroid,
@@ -508,8 +509,6 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &visited_url_ranking::features::kVisitedURLRankingService,
     &webapps::features::kAndroidAutoMintedTWA,
     &webapps::features::kAndroidTWAOriginDisplay,
-    &webapps::features::kAndroidWebAppHeaderForStandaloneMode,
-    &webapps::features::kAndroidWebAppMenuButton,
     &webapps::features::kWebApkInstallFailureNotification,
 // go/keep-sorted end
 // FEATURE_EXPORT_LIST_END
@@ -618,6 +617,7 @@ BASE_FEATURE(kCCTOpenInBrowserButtonIfEnabledByEmbedder, base::FEATURE_ENABLED_B
 BASE_FEATURE(kCCTRealtimeEngagementEventsInBackground, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kCCTReportParallelRequestStatus, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kCCTReportPrerenderEvents, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kCCTResetTimeoutAllowed, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kCCTResetTimeoutEnabled, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kCCTResizableForThirdParties, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kCCTShowTabFix, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -712,6 +712,7 @@ BASE_FEATURE(kPageAnnotationsService, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kPageContentProvider, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kPartnerCustomizationsUma, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kPersistAcrossReboots, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kPersistAcrossRebootsDebugLogs, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kPowerSavingModeBroadcastReceiverInBackground, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kPreconnectOnTabCreation, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kPriceChangeModule, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -767,7 +768,6 @@ BASE_FEATURE(kTabStripAutoSelectOnCloseChange, base::FEATURE_ENABLED_BY_DEFAULT)
 BASE_FEATURE(kTabStripCloseRefactorAndroid, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kTabStripDensityChangeAndroid, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kTabStripEmptySpaceContextMenuAndroid, base::FEATURE_DISABLED_BY_DEFAULT);
-BASE_FEATURE(kTabStripIncognitoMigration, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kTabSwitcherDragDropAndroid, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kTabSwitcherGroupSuggestionsAndroid, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kTabSwitcherGroupSuggestionsTestModeAndroid, base::FEATURE_DISABLED_BY_DEFAULT);

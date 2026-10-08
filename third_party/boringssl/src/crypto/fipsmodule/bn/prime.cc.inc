@@ -20,6 +20,7 @@
 #include <openssl/mem.h>
 
 #include "../../internal.h"
+#include "../../mem_internal.h"
 #include "internal.h"
 
 
@@ -269,11 +270,9 @@ static int probable_prime_dh(BIGNUM *rnd, int bits, const BIGNUM *add,
 static int probable_prime_dh_safe(BIGNUM *rnd, int bits, const BIGNUM *add,
                                   const BIGNUM *rem, BN_CTX *ctx);
 
-BN_GENCB *BN_GENCB_new() {
-  return reinterpret_cast<BN_GENCB *>(OPENSSL_zalloc(sizeof(BN_GENCB)));
-}
+BN_GENCB *BN_GENCB_new() { return NewZeroed<BN_GENCB>(); }
 
-void BN_GENCB_free(BN_GENCB *callback) { OPENSSL_free(callback); }
+void BN_GENCB_free(BN_GENCB *callback) { Delete(callback); }
 
 void BN_GENCB_set(BN_GENCB *callback,
                   int (*f)(int event, int n, struct bn_gencb_st *), void *arg) {

@@ -28,7 +28,6 @@
 #include "api/video/encoded_image.h"
 #include "api/video/video_content_type.h"
 #include "api/video/video_frame.h"
-#include "api/video/video_frame_type.h"
 #include "api/video/video_timing.h"
 #include "api/video_codecs/video_decoder.h"
 #include "common_video/include/corruption_score_calculator.h"
@@ -348,13 +347,13 @@ int32_t VCMGenericDecoder::Decode(
   // Set correctly only for key frames. Thus, use latest key frame
   // content type. If the corresponding key frame was lost, decode will fail
   // and content type will be ignored.
-  if (frame.FrameType() == VideoFrameType::kVideoFrameKey) {
+  if (frame.IsKey()) {
     frame_info.content_type = frame.contentType();
     last_keyframe_content_type_ = frame.contentType();
   } else {
     frame_info.content_type = last_keyframe_content_type_;
   }
-  frame_info.frame_type = frame.FrameType();
+  frame_info.frame_type = frame.frame_type();
   callback_->Map(std::move(frame_info));
 
   int32_t ret = decoder_->Decode(frame, render_time_ms);

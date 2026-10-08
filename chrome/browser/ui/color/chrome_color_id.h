@@ -164,6 +164,7 @@
   /* Find bar colors. */ \
   E_CPONLY(kColorFindBarBackground) \
   E_CPONLY(kColorFindBarButtonIcon) \
+  E_CPONLY(kColorFindBarButtonIconHovered) \
   E_CPONLY(kColorFindBarButtonIconDisabled) \
   E_CPONLY(kColorFindBarForeground) \
   E_CPONLY(kColorFindBarMatchCount) \
@@ -1004,8 +1005,6 @@
   E_CPONLY(kColorToolbarTextDisabledDefault) \
   E_CPONLY(kColorToolbarTopSeparatorFrameActive) \
   E_CPONLY(kColorToolbarTopSeparatorFrameInactive) \
-  /* Vertical Tabs colors. */ \
-  E_CPONLY(kColorVerticalTabStripBottomButtonBackground) \
   /* WebAuthn colors. */ \
   E_CPONLY(kColorWebAuthnHoverButtonForeground) \
   E_CPONLY(kColorWebAuthnHoverButtonForegroundDisabled) \

@@ -669,6 +669,13 @@ Tribool ValueNode::IsTheHole() const {
   if (const RootConstant* cst = TryCast<RootConstant>()) {
     return ToTribool(cst->index() == RootIndex::kTheHoleValue);
   }
+  if (const LoadTaggedField* load = TryCast<LoadTaggedField>()) {
+    // Modules variables can be the hole.
+    if (load->offset() == Cell::kValueOffset) {
+      return Tribool::kMaybe;
+    }
+    return Tribool::kFalse;
+  }
   if (const LoadFixedArrayElement* load = TryCast<LoadFixedArrayElement>()) {
     if (load->load_type() != LoadType::kUnknown) {
       return Tribool::kFalse;
@@ -733,7 +740,7 @@ ValueRepresentation ToValueRepresentation(MachineType type) {
 }
 
 void NodeBase::CheckInputIs(int i, ValueRepresentation expected) const {
-  const ValueNode* inp = input(i).node();
+  const ValueNode* inp = input(i).node()->UnwrapIdentities();
   DCHECK(!inp->Is<Identity>());
   ValueRepresentation got = inp->properties().value_representation();
   bool valid = ValueRepresentationIs(got, expected);
@@ -6682,8 +6689,7 @@ void CallKnownApiFunction::GenerateCallApiCallbackOptimizedInline(
 
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ EmitEnterExitFrame(FC::getExtraSlotsCountFrom<ExitFrameConstants>(),
-                        StackFrame::API_CALLBACK_EXIT, api_function_address,
-                        scratch);
+                        StackFrame::API_CALLBACK_EXIT, scratch);
 
   Register fp = __ GetFramePointer();
 #ifdef V8_TARGET_ARCH_ARM64
@@ -6734,9 +6740,11 @@ void CallKnownApiFunction::GenerateCallApiCallbackOptimizedInline(
   ExternalReference no_thunk_ref;
   Register no_thunk_arg = no_reg;
 
+  const bool handle_interceptor_result = false;
   CallApiFunctionAndReturn(masm, with_profiling, api_function_address,
                            no_thunk_ref, no_thunk_arg, kSlotsToDropOnReturn,
-                           nullptr, return_value_operand);
+                           nullptr, return_value_operand,
+                           handle_interceptor_result);
   __ RecordComment("end of inlined CallApiCallbackOptimized builtin");
 
   __ bind(&done);

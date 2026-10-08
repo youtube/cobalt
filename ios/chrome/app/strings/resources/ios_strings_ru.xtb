@@ -370,6 +370,7 @@
 <translation id="2306265833370324042">Показать сведения: <ph name="SEARCH_ENGINE_NAME" /></translation>
 <translation id="2309265394777270359">Закрыть вкладку</translation>
 <translation id="2311077293164383652">Закрыть закрепленную вкладку</translation>
+<translation id="2313392466694008052">Изменить изображение с помощью Gemini</translation>
 <translation id="2316129865977710310">Нет, спасибо</translation>
 <translation id="2320166752086256636">Скрыть клавиатуру</translation>
 <translation id="2321086116217818302">Подготовка паролей…</translation>
@@ -521,6 +522,7 @@
 <translation id="288655811176831528">Закрыть вкладку</translation>
 <translation id="2888631381369839306">Уведомления об изменении цен включены.</translation>
 <translation id="2893168226686371498">Браузер по умолчанию</translation>
+<translation id="2893791155497534382">Пароли и информацию о действиях можно удалить в их настройках</translation>
 <translation id="2894757982205307093">Добавить вкладку в группу</translation>
 <translation id="2902312830803030883">Другие действия</translation>
 <translation id="2904788871580817212">На одной из открытых вкладок появилась скидка. Цена снизилась с <ph name="PREVIOUS_PRICE" /> до <ph name="PRICE" />. Товар: "<ph name="PRODUCT_NAME" />". Домен: <ph name="DOMAIN" />.</translation>
@@ -580,6 +582,7 @@
 <translation id="3143515551205905069">Отмена</translation>
 <translation id="3144126448740580210">ГОТОВО</translation>
 <translation id="3148052723910099040">Страница обычных вкладок</translation>
+<translation id="3148237711805373460">Открыть</translation>
 <translation id="3157387275655328056">Добавить в список для чтения</translation>
 <translation id="315778507796115851">История</translation>
 <translation id="31652791196570636">Закрыть</translation>
@@ -750,7 +753,7 @@
 <translation id="3857113360369572832">Откройте <ph name="BEGIN_BOLD" />Настройки Safari<ph name="END_BOLD" />.</translation>
 <translation id="3858860766373142691">Название</translation>
 <translation id="3868495844258915202">Показать URL полностью</translation>
-<translation id="3875783148670536197">Показать</translation>
+<translation id="3875783148670536197">Подробнее</translation>
 <translation id="3878657761594430423">Маркер нижнего экрана</translation>
 <translation id="3885587018298784481">Вступите в семейную группу</translation>
 <translation id="3888230626190453136">Как перейти в режим инкогнито</translation>
@@ -1246,7 +1249,7 @@
 <translation id="562753339521713441">Выполните проверку безопасности</translation>
 <translation id="5628388627414062173">{count,plural, =1{{count} страница в списке для чтения}one{{count} страница в списке для чтения}few{{count} страницы в списке для чтения}many{{count} страниц в списке для чтения}other{{count} страницы в списке для чтения}}</translation>
 <translation id="5632194969640946913">Теперь вы можете искать информацию обо всем, что есть на странице, – о товарах, местах и содержимом текстов.</translation>
-<translation id="5632485077360054581">Показать</translation>
+<translation id="5632485077360054581">Подробнее</translation>
 <translation id="5633237939819267663">{count,plural, =1{Закладка сохранена в папке "{title}".}one{{count} закладка сохранена в папке "{title}".}few{{count} закладки сохранено в папке "{title}".}many{{count} закладок сохранено в папке "{title}".}other{{count} закладки сохранено в папке "{title}".}}</translation>
 <translation id="564170563478022912">Выйти? Несохраненные данные аккаунта будут удалены</translation>
 <translation id="5642707040609478753">Отметить как непрочитанное</translation>
@@ -1297,6 +1300,7 @@
 <translation id="5768870767339201169">Продолжите с того, на чем остановились</translation>
 <translation id="5779117921996157216">{count,plural, =1{Раскрыт {count} пароль. Безопасность данных под угрозой. Устраните проблему, чтобы защитить себя.}one{Раскрыт {count} пароль. Безопасность данных под угрозой. Устраните проблему, чтобы защитить себя.}few{Раскрыто {count} пароля. Безопасность данных под угрозой. Устраните проблему, чтобы защитить себя.}many{Раскрыто {count} паролей. Безопасность данных под угрозой. Устраните проблему, чтобы защитить себя.}other{Раскрыто {count} пароля. Безопасность данных под угрозой. Устраните проблему, чтобы защитить себя.}}</translation>
 <translation id="5791632441210678828">Кнопка "Сортировать" для ленты новостей.</translation>
+<translation id="5799263916847593256">Посмотреть историю изменения цен</translation>
 <translation id="5803566855766646066">Удалить новую карту?</translation>
 <translation id="5804241973901381774">Разрешения</translation>
 <translation id="58081802114142635">Ваши действия улучшают ИИ от Google</translation>
@@ -1509,7 +1513,7 @@
 <translation id="6507973708545996744">Войдите в аккаунт, чтобы синхронизировать список для чтения на всех своих устройствах.</translation>
 <translation id="6518133107902771759">Подтвердить</translation>
 <translation id="6518861084553706202">Вкладки будут закрыты, а пароли, история браузера, файлы cookie и другие данные удалены.</translation>
-<translation id="6523575793810663688">Показать</translation>
+<translation id="6523575793810663688">Подробнее</translation>
 <translation id="6524082013156754186">Сохранить в аккаунте</translation>
 <translation id="6524918542306337007">Режим инкогнито недоступен</translation>
 <translation id="6527208859483186860">фон номер {position} из общего числа {total}</translation>
@@ -1523,6 +1527,7 @@
 <translation id="6556866813142980365">Повторить</translation>
 <translation id="6559301491397835130">{count,plural, =1{Закладка сохранена в "{title}" (только на этом устройстве).}one{Закладки сохранены в "{title}" (только на этом устройстве).}few{Закладки сохранены в "{title}" (только на этом устройстве).}many{Закладки сохранены в "{title}" (только на этом устройстве).}other{Закладки сохранены в "{title}" (только на этом устройстве).}}</translation>
 <translation id="656065428026159829">Ещё</translation>
+<translation id="6565899972286925956">Создавайте что угодно</translation>
 <translation id="6571070086367343653">Изменить данные карты</translation>
 <translation id="6574092468346088891">Включить уведомления проверки безопасности</translation>
 <translation id="6579867704846662339">Открывайте в режиме инкогнито входящие URL, размещенные в других приложениях.</translation>
@@ -1633,11 +1638,13 @@
 <translation id="6930799952781667037">Нажмите, чтобы выбрать этот язык.</translation>
 <translation id="693761253105515415">Настройка кода доступа</translation>
 <translation id="6945221475159498467">Выбрать</translation>
+<translation id="6946722113367118030">Раздумья</translation>
 <translation id="6950522403736391608">Скрытые</translation>
 <translation id="6962809930976936328">Полезная информация от Gemini</translation>
 <translation id="6964300328304469089">Выбор аккаунта. Сейчас выбран <ph name="EMAIL" /> (<ph name="NAME" />).</translation>
 <translation id="6964760285928603117">Удалить из группы</translation>
 <translation id="6965382102122355670">ОК</translation>
+<translation id="6967355534157677591">Создать изображение (Pro)</translation>
 <translation id="6973630695168034713">Папки</translation>
 <translation id="6979158407327259162">Google Диск</translation>
 <translation id="6979737339423435258">Все время</translation>
@@ -1975,6 +1982,7 @@
 <translation id="8205564605687841303">Отмена</translation>
 <translation id="8206354486702514201">Этот параметр включен администратором.</translation>
 <translation id="8209050860603202033">Открыть изображение</translation>
+<translation id="8209237163365258530">Модели Gemini <ph name="VERSION_NUMBER" /></translation>
 <translation id="8211030355252954494">Вы получили пароли для сайта <ph name="WEBSITE" />.</translation>
 <translation id="8211406090763984747">Подключение защищено</translation>
 <translation id="8214293972734702249">Закрепленная вкладка "<ph name="TAB_TITLE" />"</translation>
@@ -2277,7 +2285,7 @@
 <translation id="954667170699278022">Список для чтения</translation>
 <translation id="956066588046842680">Импорт этих данных запрещен правилами вашей организации.</translation>
 <translation id="956218893102219091">Используйте точное местоположение вместо приблизительного на основе IP-адреса, чтобы получать более подходящие результаты от Gemini. <ph name="BEGIN_LINK" />Подробнее…<ph name="END_LINK" /></translation>
-<translation id="961856697154696964">Удалить данные браузера</translation>
+<translation id="961856697154696964">Данные  о работе в браузере</translation>
 <translation id="963102227019621224">История приложений и веб-поиска</translation>
 <translation id="965259330007686240">Создайте изображение с помощью Gemini</translation>
 <translation id="965879457362663186">Прикрепить</translation>

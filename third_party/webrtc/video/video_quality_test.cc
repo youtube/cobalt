@@ -74,7 +74,6 @@
 #include "rtc_base/logging.h"
 #include "rtc_base/numerics/safe_conversions.h"
 #include "rtc_base/strings/string_builder.h"
-#include "rtc_base/system/file_wrapper.h"
 #include "rtc_base/task_queue_for_test.h"
 #include "test/call_test.h"
 #include "test/create_test_field_trials.h"
@@ -171,14 +170,14 @@ class QualityTestVideoEncoder : public VideoEncoder,
  public:
   QualityTestVideoEncoder(std::unique_ptr<VideoEncoder> encoder,
                           VideoAnalyzer* analyzer,
-                          std::vector<FileWrapper> files,
+                          std::vector<std::string> file_names,
                           double overshoot_factor)
       : encoder_(std::move(encoder)),
         overshoot_factor_(overshoot_factor),
         analyzer_(analyzer) {
-    for (FileWrapper& file : files) {
+    for (const std::string& file_name : file_names) {
       writers_.push_back(
-          IvfFileWriter::Wrap(std::move(file), /* byte_limit= */ 100000000));
+          IvfFileWriter::Wrap(file_name, /* byte_limit= */ 100000000));
     }
   }
 
@@ -347,8 +346,7 @@ std::unique_ptr<VideoDecoder> VideoQualityTest::CreateVideoDecoder(
     str << receive_logs_++;
     std::string path =
         params_.logging.encoded_frame_base_path + "." + str.str() + ".recv.ivf";
-    decoder = CreateFrameDumpingDecoderWrapper(
-        std::move(decoder), FileWrapper::OpenWriteOnly(path));
+    decoder = CreateFrameDumpingDecoderWrapper(std::move(decoder), path);
   }
   return decoder;
 }
@@ -365,19 +363,16 @@ std::unique_ptr<VideoEncoder> VideoQualityTest::CreateVideoEncoder(
         env, encoder_factory_.get(), nullptr, format);
   }
 
-  std::vector<FileWrapper> encoded_frame_dump_files;
+  std::vector<std::string> encoded_frame_dump_files;
   if (!params_.logging.encoded_frame_base_path.empty()) {
     char ss_buf[100];
     SimpleStringBuilder sb(ss_buf);
     sb << send_logs_++;
     std::string prefix =
         params_.logging.encoded_frame_base_path + "." + sb.str() + ".send.";
-    encoded_frame_dump_files.push_back(
-        FileWrapper::OpenWriteOnly(prefix + "1.ivf"));
-    encoded_frame_dump_files.push_back(
-        FileWrapper::OpenWriteOnly(prefix + "2.ivf"));
-    encoded_frame_dump_files.push_back(
-        FileWrapper::OpenWriteOnly(prefix + "3.ivf"));
+    encoded_frame_dump_files.push_back(prefix + "1.ivf");
+    encoded_frame_dump_files.push_back(prefix + "2.ivf");
+    encoded_frame_dump_files.push_back(prefix + "3.ivf");
   }
 
   double overshoot_factor = 1.0;

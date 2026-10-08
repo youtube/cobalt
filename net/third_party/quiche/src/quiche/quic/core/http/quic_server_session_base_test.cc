@@ -804,7 +804,8 @@ class StreamMemberLifetimeTest : public QuicServerSessionBaseTest {
   }
 
   FakeProofSource* GetFakeProofSource() const {
-    return static_cast<FakeProofSource*>(crypto_config_peer_.GetProofSource());
+    return static_cast<FakeProofSource*>(
+        crypto_config_peer_.GetProofSource());
   }
 
  private:

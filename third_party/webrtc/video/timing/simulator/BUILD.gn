@@ -7,6 +7,7 @@
 # be found in the AUTHORS file in the root of the source tree.
 
 import("../../../webrtc.gni")
+import("test/test_resources.gni")
 
 if (rtc_enable_protobuf) {
   rtc_library("simulator") {
@@ -18,6 +19,8 @@ if (rtc_enable_protobuf) {
       "decodability_tracker.cc",
       "decodability_tracker.h",
       "frame_base.h",
+      "log_classifiers.cc",
+      "log_classifiers.h",
       "receiver.cc",
       "receiver.h",
       "rendering_simulator.cc",
@@ -81,22 +84,6 @@ if (rtc_enable_protobuf) {
   }
 
   if (rtc_include_tests) {
-    test_resources = [
-      "../../../resources/video/timing/simulator/video_recv_av1_pt45.rtceventlog",
-      "../../../resources/video/timing/simulator/video_recv_sequential_join_vp8_vp9_av1.rtceventlog",
-      "../../../resources/video/timing/simulator/video_recv_vp8_pt96.rtceventlog",
-      "../../../resources/video/timing/simulator/video_recv_vp8_pt96_lossy.rtceventlog",
-      "../../../resources/video/timing/simulator/video_recv_vp9_pt98.rtceventlog",
-    ]
-
-    if (is_ios) {
-      bundle_data("simulator_tests_bundle_data") {
-        testonly = true
-        sources = test_resources
-        outputs = [ "{{bundle_resources_dir}}/{{source_file_part}}" ]
-      }
-    }
-
     rtc_library("simulator_tests") {
       testonly = true
       sources = [
@@ -104,6 +91,7 @@ if (rtc_enable_protobuf) {
         "decodability_simulator_unittest.cc",
         "decodability_tracker_unittest.cc",
         "frame_base_unittest.cc",
+        "log_classifiers_unittest.cc",
         "receiver_unittest.cc",
         "rendering_simulator_unittest.cc",
         "rendering_tracker_unittest.cc",
@@ -137,9 +125,9 @@ if (rtc_enable_protobuf) {
         "//third_party/abseil-cpp/absl/functional:any_invocable",
         "//third_party/abseil-cpp/absl/strings:string_view",
       ]
-      data = test_resources
+      data = VIDEO_TIMING_SIMULATOR_TEST_RESOURCES
       if (is_ios) {
-        deps += [ ":simulator_tests_bundle_data" ]
+        deps += [ "test:video_timing_simulator_test_resources_bundle_data" ]
       }
     }
   }

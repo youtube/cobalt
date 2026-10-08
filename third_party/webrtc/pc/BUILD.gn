@@ -177,6 +177,7 @@ rtc_library("external_hmac") {
     "external_hmac.h",
   ]
   deps = [
+    "../api:array_view",
     "../rtc_base:logging",
     "../rtc_base:zero_memory",
   ]

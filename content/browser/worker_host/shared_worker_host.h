@@ -75,6 +75,7 @@ class ServiceWorkerMainResourceHandle;
 class SharedWorkerContentSettingsProxyImpl;
 class SharedWorkerServiceImpl;
 class SiteInstanceImpl;
+class StoragePartitionImpl;
 struct WorkerScriptFetcherResult;
 
 // SharedWorkerHost is the browser-side host of a single shared worker running
@@ -172,6 +173,11 @@ class CONTENT_EXPORT SharedWorkerHost : public blink::mojom::SharedWorkerHost,
   // Evicts other BFCached clients and returns true if `render_frame_host` is
   // the last active client.
   bool EvictBFCachedClientsIfLastActive(RenderFrameHostImpl* render_frame_host);
+
+  // Updates the worker's freeze state based on client status. This is called
+  // when a client transitions to/from the BackForwardCache, or when a client is
+  // added or removed.
+  void OnClientStateChanged();
 
   // Returns the frame ids of this worker's clients.
   std::vector<GlobalRenderFrameHostId> GetRenderFrameIDsForWorker();
@@ -280,6 +286,8 @@ class CONTENT_EXPORT SharedWorkerHost : public blink::mojom::SharedWorkerHost,
       network::CrossOriginEmbedderPolicy creator_cross_origin_embedder_policy,
       network::CrossOriginEmbedderPolicy worker_cross_origin_embedder_policy);
 
+  bool HasActiveClients() const;
+
   // blink::mojom::SharedWorkerHost methods:
   void OnConnected(int connection_request_id) override;
   void OnContextClosed() override;
@@ -303,10 +311,14 @@ class CONTENT_EXPORT SharedWorkerHost : public blink::mojom::SharedWorkerHost,
       mojo::PendingReceiver<blink::mojom::CacheStorage> receiver,
       const storage::BucketLocator& bucket_locator);
 
+  void FreezeIfNoActiveClient();
+
   // Creates a network factory for subresource requests from this worker. The
   // network factory is meant to be passed to the renderer.
   mojo::PendingRemote<network::mojom::URLLoaderFactory>
   CreateNetworkFactoryForSubresources(bool* bypass_redirect_checks);
+
+  StoragePartitionImpl* GetStoragePartitionImpl();
 
   mojo::Receiver<blink::mojom::SharedWorkerHost> receiver_{this};
 
@@ -366,6 +378,9 @@ class CONTENT_EXPORT SharedWorkerHost : public blink::mojom::SharedWorkerHost,
 
   // Indicates if Start() was invoked on this instance.
   bool started_ = false;
+
+  // Indicates if the worker is frozen.
+  bool is_frozen_ = false;
 
   GURL final_response_url_;
 

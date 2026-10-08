@@ -167,7 +167,7 @@ class ExecutionEngineBrowserTest : public InProcessBrowserTest {
     }
     ASSERT_TRUE(embedded_https_test_server().Start());
 
-    StartNewTask();
+    task_id_ = actor_keyed_service()->CreateTask();
 
     // Optimization guide uses this histogram to signal initialization in tests.
     optimization_guide::RetryForHistogramUntilCountReached(
@@ -188,19 +188,6 @@ class ExecutionEngineBrowserTest : public InProcessBrowserTest {
   virtual bool UseCertTestNames() const { return false; }
 
  protected:
-  void StartNewTask() {
-    auto execution_engine =
-        std::make_unique<ExecutionEngine>(browser()->profile());
-    ExecutionEngine* raw_execution_engine = execution_engine.get();
-    auto event_dispatcher = ui::NewUiEventDispatcher(
-        actor_keyed_service()->GetActorUiStateManager());
-    auto task = std::make_unique<ActorTask>(
-        GetProfile(), std::move(execution_engine), std::move(event_dispatcher),
-        /*options=*/nullptr);
-    raw_execution_engine->SetOwner(task.get());
-    task_id_ = actor_keyed_service()->AddActiveTask(std::move(task));
-  }
-
   tabs::TabInterface* active_tab() {
     return browser()->tab_strip_model()->GetActiveTab();
   }

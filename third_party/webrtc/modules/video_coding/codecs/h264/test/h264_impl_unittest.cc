@@ -60,7 +60,7 @@ TEST_F(TestH264Impl, MAYBE_EncodeDecode) {
   CodecSpecificInfo codec_specific_info;
   ASSERT_TRUE(WaitForEncodedFrame(&encoded_frame, &codec_specific_info));
   // First frame should be a key frame.
-  encoded_frame._frameType = VideoFrameType::kVideoFrameKey;
+  encoded_frame.set_frame_type(VideoFrameType::kVideoFrameKey);
   EXPECT_EQ(WEBRTC_VIDEO_CODEC_OK, decoder_->Decode(encoded_frame, 0));
   std::unique_ptr<VideoFrame> decoded_frame;
   std::optional<uint8_t> decoded_qp;
@@ -85,7 +85,7 @@ TEST_F(TestH264Impl, MAYBE_DecodedQpEqualsEncodedQp) {
   CodecSpecificInfo codec_specific_info;
   ASSERT_TRUE(WaitForEncodedFrame(&encoded_frame, &codec_specific_info));
   // First frame should be a key frame.
-  encoded_frame._frameType = VideoFrameType::kVideoFrameKey;
+  encoded_frame.set_frame_type(VideoFrameType::kVideoFrameKey);
   EXPECT_EQ(WEBRTC_VIDEO_CODEC_OK, decoder_->Decode(encoded_frame, 0));
   std::unique_ptr<VideoFrame> decoded_frame;
   std::optional<uint8_t> decoded_qp;

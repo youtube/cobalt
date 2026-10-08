@@ -17,6 +17,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/observer_list.h"
+#include "base/state_transitions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/bind_post_task.h"
@@ -211,7 +212,9 @@ void AppBannerManager::RequestAppBanner() {
     return;
   }
 
-  UpdateState(State::ACTIVE);
+  for (Observer& observer : observer_list_) {
+    observer.WillFetchManifest();
+  }
 
   status_reporter_ = std::make_unique<TrackingStatusReporter>();
 
@@ -229,6 +232,10 @@ void AppBannerManager::OnInstall(blink::mojom::DisplayMode display,
       installation_service.BindNewPipeAndPassReceiver());
   DCHECK(installation_service);
   installation_service->OnInstall();
+
+  for (Observer& observer : observer_list_) {
+    observer.OnInstall();
+  }
 
   // App has been installed (possibly by the user), page may no longer request
   // install prompt.
@@ -265,7 +272,11 @@ base::WeakPtr<AppBannerManager> AppBannerManager::GetWeakPtr() {
 }
 
 bool AppBannerManager::TriggeringDisabledForTesting() const {
-  return test::g_disable_banner_triggering_for_testing;
+  return triggering_disabled_for_testing_;
+}
+
+void AppBannerManager::SetTriggeringDisabledForTesting(bool disable) {
+  triggering_disabled_for_testing_ = disable;
 }
 
 bool AppBannerManager::IsPromptAvailableForTesting() const {
@@ -275,7 +286,9 @@ bool AppBannerManager::IsPromptAvailableForTesting() const {
 AppBannerManager::AppBannerManager(content::WebContents* web_contents)
     : content::WebContentsObserver(web_contents),
       manager_(InstallableManager::FromWebContents(web_contents)),
-      status_reporter_(std::make_unique<NullStatusReporter>()) {
+      status_reporter_(std::make_unique<NullStatusReporter>()),
+      triggering_disabled_for_testing_(
+          test::g_disable_banner_triggering_for_testing) {
   DCHECK(manager_);
 }
 
@@ -288,6 +301,10 @@ AppBannerManager::UrlType AppBannerManager::GetUrlType(
   // loading. |render_frame_host| can be null during retry attempts.
   if (render_frame_host && !render_frame_host->IsInPrimaryMainFrame())
     return UrlType::kNotPrimaryFrame;
+
+  if (url.IsAboutBlank()) {
+    return UrlType::kInvalidPrimaryFrameUrl;
+  }
 
   // There is never a need to trigger a banner for a WebUI page, except
   // for PasswordManager WebUI.
@@ -347,7 +364,6 @@ void AppBannerManager::OnDidGetManifest(const InstallableData& data) {
   if (state() != State::FETCHING_MANIFEST) {
     return;
   }
-  UpdateState(State::ACTIVE);
 
   // An empty manifest indicates some kind of unrecoverable error occurred.
   if (blink::IsEmptyManifest(*data.manifest)) {
@@ -367,6 +383,7 @@ void AppBannerManager::OnDidGetManifest(const InstallableData& data) {
 
 void AppBannerManager::PerformInstallableChecks() {
   CHECK(web_app_data_);
+  CHECK_EQ(state_, State::FETCHING_MANIFEST);
   if (ShouldDoNativeAppCheck(web_app_data_->manifest())) {
     UpdateState(State::FETCHING_NATIVE_DATA);
     mode_ = AppBannerMode::kNativeApp;
@@ -399,7 +416,7 @@ void AppBannerManager::OnNativeAppInstallableCheckComplete(
 
 void AppBannerManager::PerformInstallableWebAppCheck() {
   CHECK(mode_ == AppBannerMode::kWebApp);
-  CHECK(state_ == State::ACTIVE);
+  CHECK_EQ(state_, State::FETCHING_MANIFEST);
   CHECK(web_app_data_);
 
   base::expected<void, InstallableStatusCode>
@@ -430,7 +447,6 @@ void AppBannerManager::OnDidPerformInstallableWebAppCheck(
     return;
   }
 
-  UpdateState(State::ACTIVE);
   if (data.installable_check_passed) {
     TrackDisplayEvent(DISPLAY_EVENT_WEB_APP_BANNER_REQUESTED);
   }
@@ -443,6 +459,8 @@ void AppBannerManager::OnDidPerformInstallableWebAppCheck(
     return;
   }
   OnWebAppInstallableCheckedNoErrors(data.manifest->id);
+
+  UpdateState(State::PENDING_CONFLICTING_INSTALLATION_CHECK);
 
   // This must be true because `is_installable` is true (no errors).
   DCHECK(data.installable_check_passed);
@@ -466,7 +484,8 @@ void AppBannerManager::OnDidPerformInstallableWebAppCheck(
 
 void AppBannerManager::PostInstallableWebAppCheckValidation(
     const bool does_conflict) {
-  if (state_ != State::ACTIVE || !web_app_data_) {
+  if (state_ != State::PENDING_CONFLICTING_INSTALLATION_CHECK ||
+      !web_app_data_) {
     return;
   }
 
@@ -542,7 +561,7 @@ InstallableStatusCode AppBannerManager::TerminationCodeFromState() const {
       return InstallableStatusCode::WAITING_FOR_NATIVE_DATA;
     case State::PENDING_INSTALLABLE_CHECK:
       return InstallableStatusCode::WAITING_FOR_INSTALLABLE_CHECK;
-    case State::ACTIVE:
+    case State::PENDING_CONFLICTING_INSTALLATION_CHECK:
     case State::SENDING_EVENT:
     case State::SENDING_EVENT_GOT_EARLY_PROMPT:
     case State::INACTIVE:
@@ -611,6 +630,9 @@ void AppBannerManager::Stop(InstallableStatusCode code) {
   }
   ResetBindings();
   UpdateState(State::COMPLETE);
+  for (Observer& observer : observer_list_) {
+    observer.OnComplete();
+  }
   status_reporter_ = std::make_unique<NullStatusReporter>();
 }
 
@@ -645,6 +667,32 @@ void AppBannerManager::SendBannerPromptRequest() {
 }
 
 void AppBannerManager::UpdateState(State state) {
+  static const base::NoDestructor<base::StateTransitions<State>>
+      allowed_transitions(base::StateTransitions<State>({
+          {State::INACTIVE, {State::INACTIVE, State::FETCHING_MANIFEST}},
+          {State::FETCHING_MANIFEST,
+           {State::FETCHING_NATIVE_DATA, State::PENDING_INSTALLABLE_CHECK,
+            State::COMPLETE}},
+          {State::FETCHING_NATIVE_DATA,
+           {State::SENDING_EVENT, State::COMPLETE}},
+          {State::PENDING_INSTALLABLE_CHECK,
+           {State::PENDING_CONFLICTING_INSTALLATION_CHECK, State::COMPLETE}},
+          {State::PENDING_CONFLICTING_INSTALLATION_CHECK,
+           {State::SENDING_EVENT, State::COMPLETE}},
+          {State::SENDING_EVENT,
+           {State::SENDING_EVENT_GOT_EARLY_PROMPT,
+            State::PENDING_PROMPT_CANCELED, State::PENDING_PROMPT_NOT_CANCELED,
+            State::COMPLETE}},
+          {State::SENDING_EVENT_GOT_EARLY_PROMPT,
+           {State::SENDING_EVENT, State::COMPLETE}},
+          {State::PENDING_PROMPT_NOT_CANCELED,
+           {State::SENDING_EVENT, State::COMPLETE}},
+          {State::PENDING_PROMPT_CANCELED,
+           {State::SENDING_EVENT, State::COMPLETE}},
+          {State::COMPLETE,
+           {State::INACTIVE, State::SENDING_EVENT, State::COMPLETE}},
+      }));
+  CHECK_STATE_TRANSITION(allowed_transitions, state_, state);
   state_ = state;
 }
 
@@ -739,7 +787,9 @@ void AppBannerManager::MediaStoppedPlaying(
 }
 
 void AppBannerManager::WebContentsDestroyed() {
-  Terminate(TerminationCodeFromState());
+  if (state_ != State::INACTIVE) {
+    Terminate(TerminationCodeFromState());
+  }
   manager_ = nullptr;
 }
 
@@ -751,7 +801,7 @@ bool AppBannerManager::IsRunning() const {
     case State::PENDING_PROMPT_NOT_CANCELED:
     case State::COMPLETE:
       return false;
-    case State::ACTIVE:
+    case State::PENDING_CONFLICTING_INSTALLATION_CHECK:
     case State::FETCHING_MANIFEST:
     case State::FETCHING_NATIVE_DATA:
     case State::PENDING_INSTALLABLE_CHECK:
@@ -885,6 +935,10 @@ void AppBannerManager::OnBannerPromptReply(
         "banner.");
   }
 
+  for (Observer& observer : observer_list_) {
+    observer.OnBannerPromptReply();
+  }
+
   if (state_ == State::SENDING_EVENT) {
     if (!event_canceled) {
       MaybeShowAmbientBadge(install_config);
@@ -902,7 +956,9 @@ void AppBannerManager::OnBannerPromptReply(
 
 void AppBannerManager::ShowBannerForCurrentPageState() {
   // The banner is only shown if the site explicitly requests it to be shown.
-  DCHECK_NE(State::SENDING_EVENT, state_);
+  DCHECK(state_ == State::SENDING_EVENT_GOT_EARLY_PROMPT ||
+         state_ == State::PENDING_PROMPT_CANCELED ||
+         state_ == State::PENDING_PROMPT_NOT_CANCELED);
 
   content::WebContents* contents = web_contents();
   WebappInstallSource install_source;
@@ -932,6 +988,10 @@ void AppBannerManager::ShowBannerForCurrentPageState() {
   ShowBannerUi(install_source, config.value());
   ReportStatus(InstallableStatusCode::SHOWING_APP_INSTALLATION_DIALOG);
   UpdateState(State::COMPLETE);
+
+  for (Observer& observer : observer_list_) {
+    observer.OnComplete();
+  }
 }
 
 void AppBannerManager::DisplayAppBanner() {

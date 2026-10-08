@@ -715,11 +715,13 @@ class ApiAccessorExitFrameConstants : public ExitFrameConstants {
   // layout. This is guaraneed by static_asserts elsewhere.
   static constexpr int kPropertyCallbackInfoReturnValueIndex = 1;
   static constexpr int kPropertyCallbackInfoHolderIndex = 3;
+  static constexpr int kPropertyCallbackInfoValueIndex = 5;
 
   // The number of Api arguments pushed on top of PC for getter/setter
   // callbacks.
   static constexpr int kPropertyCallbackInfoGetterApiArgsLength = 4;
   static constexpr int kPropertyCallbackInfoSetterApiArgsLength = 6;
+
   // FP-relative.
 
   // Offset of v8::PropertyCallbackInfo<T>::kPropertyKeyIndex slot.
@@ -741,6 +743,8 @@ class ApiAccessorExitFrameConstants : public ExitFrameConstants {
       kPropertyCallbackInfoReturnValueIndex * kSystemPointerSize;
   static constexpr int kHolderOffset =
       kArgsArrayOffset + kPropertyCallbackInfoHolderIndex * kSystemPointerSize;
+  static constexpr int kValueOffset =
+      kArgsArrayOffset + kPropertyCallbackInfoValueIndex * kSystemPointerSize;
 };
 
 // Unoptimized frames are used for interpreted and baseline-compiled JavaScript

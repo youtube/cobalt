@@ -14,24 +14,28 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "api/array_view.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/zero_memory.h"
 #include "third_party/libsrtp/crypto/include/auth.h"
 #include "third_party/libsrtp/include/srtp.h"
 
+namespace webrtc {
+namespace {
+
 // Begin test case 0 */
-static const uint8_t kExternalHmacTestCase0Key[20] = {
+constexpr uint8_t kExternalHmacTestCase0Key[20] = {
     0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
     0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b};
 
-static const uint8_t kExternalHmacTestCase0Data[8] = {
+constexpr uint8_t kExternalHmacTestCase0Data[8] = {
     0x48, 0x69, 0x20, 0x54, 0x68, 0x65, 0x72, 0x65  // "Hi There"
 };
 
-static const uint8_t kExternalHmacFakeTag[10] = {0xba, 0xdd, 0xba, 0xdd, 0xba,
-                                                 0xdd, 0xba, 0xdd, 0xba, 0xdd};
+constexpr uint8_t kExternalHmacFakeTag[10] = {0xba, 0xdd, 0xba, 0xdd, 0xba,
+                                              0xdd, 0xba, 0xdd, 0xba, 0xdd};
 
-static const srtp_auth_test_case_t kExternalHmacTestCase0 = {
+constexpr srtp_auth_test_case_t kExternalHmacTestCase0 = {
     .key_length_octets = 20,                                   // Octets in key
     .key = const_cast<uint8_t*>(kExternalHmacTestCase0Key),    // Key
     .data_length_octets = 8,                                   // Octets in data
@@ -42,12 +46,12 @@ static const srtp_auth_test_case_t kExternalHmacTestCase0 = {
                                // testcase
 };
 
-static const char kExternalHmacDescription[] =
+constexpr char kExternalHmacDescription[] =
     "external hmac sha-1 authentication";
 
 // srtp_auth_type_t external_hmac is the hmac metaobject
 
-static const srtp_auth_type_t external_hmac = {
+constexpr srtp_auth_type_t external_hmac = {
     .alloc = external_hmac_alloc,
     .dealloc = external_hmac_dealloc,
     .init = external_hmac_init,
@@ -58,11 +62,11 @@ static const srtp_auth_type_t external_hmac = {
     .test_data = const_cast<srtp_auth_test_case_t*>(&kExternalHmacTestCase0),
     .id = EXTERNAL_HMAC_SHA1};
 
+}  // namespace
+
 srtp_err_status_t external_hmac_alloc(srtp_auth_t** a,
                                       int key_len,
                                       int out_len) {
-  uint8_t* pointer;
-
   // Check key length - note that we don't support keys larger
   // than 20 bytes yet
   if (key_len > 20)
@@ -73,17 +77,19 @@ srtp_err_status_t external_hmac_alloc(srtp_auth_t** a,
     return srtp_err_status_bad_param;
 
   // Allocate memory for auth and hmac_ctx_t structures.
-  pointer = new uint8_t[(sizeof(ExternalHmacContext) + sizeof(srtp_auth_t))];
-  if (pointer == nullptr)
+  size_t needed_size = sizeof(ExternalHmacContext) + sizeof(srtp_auth_t);
+  uint8_t* raw_pointer = new uint8_t[needed_size];
+  if (raw_pointer == nullptr)
     return srtp_err_status_alloc_fail;
+  ArrayView<uint8_t> pointer(raw_pointer, needed_size);
 
   // Set pointers
-  *a = reinterpret_cast<srtp_auth_t*>(pointer);
+  *a = reinterpret_cast<srtp_auth_t*>(pointer.data());
   // `external_hmac` is const and libsrtp expects `type` to be non-const.
   // const conversion is required. `external_hmac` is constant because we don't
   // want to increase global count in Chrome.
   (*a)->type = const_cast<srtp_auth_type_t*>(&external_hmac);
-  (*a)->state = pointer + sizeof(srtp_auth_t);
+  (*a)->state = &pointer[sizeof(srtp_auth_t)];
   (*a)->out_len = out_len;
   (*a)->key_len = key_len;
   (*a)->prefix_len = 0;
@@ -92,11 +98,10 @@ srtp_err_status_t external_hmac_alloc(srtp_auth_t** a,
 }
 
 srtp_err_status_t external_hmac_dealloc(srtp_auth_t* a) {
-  webrtc::ExplicitZeroMemory(a,
-                             sizeof(ExternalHmacContext) + sizeof(srtp_auth_t));
+  ExplicitZeroMemory(a, sizeof(ExternalHmacContext) + sizeof(srtp_auth_t));
 
   // Free memory
-  delete[] a;
+  delete[] reinterpret_cast<uint8_t*>(a);
 
   return srtp_err_status_ok;
 }
@@ -144,3 +149,5 @@ srtp_err_status_t external_crypto_init() {
   }
   return srtp_err_status_ok;
 }
+
+}  // namespace webrtc

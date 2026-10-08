@@ -9,6 +9,7 @@
 #include <memory>
 #include <utility>
 
+#include "base/command_line.h"
 #include "base/memory/raw_ptr.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/scoped_feature_list.h"
@@ -22,6 +23,7 @@
 #include "chrome/browser/ui/views/tabs/alert_indicator_button.h"
 #include "chrome/browser/ui/views/tabs/fake_base_tab_strip_controller.h"
 #include "chrome/browser/ui/views/tabs/fake_tab_slot_controller.h"
+#include "chrome/browser/ui/views/tabs/tab_accessibility.h"
 #include "chrome/browser/ui/views/tabs/tab_close_button.h"
 #include "chrome/browser/ui/views/tabs/tab_icon.h"
 #include "chrome/browser/ui/views/tabs/tab_slot_controller.h"
@@ -39,6 +41,8 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/base/models/list_selection_model.h"
+#include "ui/base/pointer/touch_ui_controller.h"
+#include "ui/base/ui_base_switches.h"
 #include "ui/base/unowned_user_data/unowned_user_data_host.h"
 #include "ui/gfx/color_palette.h"
 #include "ui/gfx/color_utils.h"
@@ -932,15 +936,12 @@ TEST_F(TabContentsTest, AccessibleNameChanged) {
 
   TabRendererData old_data = tab_strip_->tab_at(0)->data();
   TabRendererData new_data = tab_strip_->tab_at(0)->data();
-  EXPECT_FALSE(
-      tab_strip_->tab_at(0)->ShouldUpdateAccessibleName(old_data, new_data));
+  EXPECT_FALSE(tabs::ShouldUpdateAccessibleName(old_data, new_data));
 
-  EXPECT_FALSE(
-      tab_strip_->tab_at(0)->ShouldUpdateAccessibleName(old_data, new_data));
+  EXPECT_FALSE(tabs::ShouldUpdateAccessibleName(old_data, new_data));
 
   new_data.title = u"new_title";
-  EXPECT_TRUE(
-      tab_strip_->tab_at(0)->ShouldUpdateAccessibleName(old_data, new_data));
+  EXPECT_TRUE(tabs::ShouldUpdateAccessibleName(old_data, new_data));
 }
 
 TEST_F(TabContentsTest, AccessibleNameChangesWithCollaborationMessages) {
@@ -948,8 +949,7 @@ TEST_F(TabContentsTest, AccessibleNameChangesWithCollaborationMessages) {
 
   TabRendererData old_data = tab_strip_->tab_at(0)->data();
   TabRendererData new_data = tab_strip_->tab_at(0)->data();
-  EXPECT_FALSE(
-      tab_strip_->tab_at(0)->ShouldUpdateAccessibleName(old_data, new_data));
+  EXPECT_FALSE(tabs::ShouldUpdateAccessibleName(old_data, new_data));
 
   // Create message for new_data.
   ui::UnownedUserDataHost unowned_user_data_1;
@@ -960,8 +960,7 @@ TEST_F(TabContentsTest, AccessibleNameChangesWithCollaborationMessages) {
       CreateMessage("Name1", CollaborationEvent::TAB_ADDED));
   new_data.collaboration_messaging = collaboration_messaging1->GetWeakPtr();
 
-  EXPECT_TRUE(
-      tab_strip_->tab_at(0)->ShouldUpdateAccessibleName(old_data, new_data));
+  EXPECT_TRUE(tabs::ShouldUpdateAccessibleName(old_data, new_data));
 
   // Create message with a different name for old_data.
   ui::UnownedUserDataHost unowned_user_data_2;
@@ -972,8 +971,7 @@ TEST_F(TabContentsTest, AccessibleNameChangesWithCollaborationMessages) {
       CreateMessage("Name2", CollaborationEvent::TAB_ADDED));
   old_data.collaboration_messaging = collaboration_messaging2->GetWeakPtr();
 
-  EXPECT_TRUE(
-      tab_strip_->tab_at(0)->ShouldUpdateAccessibleName(old_data, new_data));
+  EXPECT_TRUE(tabs::ShouldUpdateAccessibleName(old_data, new_data));
 
   // Create message with a different event for old_data.
   ui::UnownedUserDataHost unowned_user_data_3;
@@ -984,8 +982,7 @@ TEST_F(TabContentsTest, AccessibleNameChangesWithCollaborationMessages) {
       CreateMessage("Name1", CollaborationEvent::TAB_UPDATED));
   old_data.collaboration_messaging = collaboration_messaging3->GetWeakPtr();
 
-  EXPECT_TRUE(
-      tab_strip_->tab_at(0)->ShouldUpdateAccessibleName(old_data, new_data));
+  EXPECT_TRUE(tabs::ShouldUpdateAccessibleName(old_data, new_data));
 
   // Create a duplicate message for old_data.
   ui::UnownedUserDataHost unowned_user_data_4;
@@ -996,8 +993,7 @@ TEST_F(TabContentsTest, AccessibleNameChangesWithCollaborationMessages) {
       CreateMessage("Name1", CollaborationEvent::TAB_ADDED));
   old_data.collaboration_messaging = collaboration_messaging4->GetWeakPtr();
 
-  EXPECT_FALSE(
-      tab_strip_->tab_at(0)->ShouldUpdateAccessibleName(old_data, new_data));
+  EXPECT_FALSE(tabs::ShouldUpdateAccessibleName(old_data, new_data));
 }
 
 TEST_F(TabTest, HideContentsWhenVeryNarrow) {
@@ -1024,4 +1020,19 @@ TEST_F(TabTest, HideContentsWhenVeryNarrow) {
   EXPECT_FALSE(tab->showing_icon());
   EXPECT_FALSE(tab->showing_alert_indicator());
   EXPECT_FALSE(tab->showing_close_button());
+}
+
+TEST_F(TabTest, TabCloseButtonSizeInTouchMode) {
+  ui::TouchUiController::TouchUiScoperForTesting scoper(true);
+
+  auto controller = std::make_unique<FakeTabSlotController>();
+  std::unique_ptr<views::Widget> widget =
+      CreateTestWidget(views::Widget::InitParams::CLIENT_OWNS_WIDGET);
+  Tab* tab = widget->SetContentsView(
+      std::make_unique<Tab>(tabs::TabHandle(1), controller.get()));
+  tab->SizeToPreferredSize();
+
+  TabCloseButton* button = GetCloseButton(tab);
+  EXPECT_EQ(24, GetLayoutConstant(LayoutConstant::kTabCloseButtonSize));
+  EXPECT_EQ(gfx::Size(36, 36), button->GetPreferredSize());
 }

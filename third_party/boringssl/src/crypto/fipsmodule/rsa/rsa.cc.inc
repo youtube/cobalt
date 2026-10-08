@@ -30,6 +30,7 @@
 #include <openssl/nid.h>
 
 #include "../../internal.h"
+#include "../../mem_internal.h"
 #include "../bcm_interface.h"
 #include "../bn/internal.h"
 #include "../delocate.h"
@@ -167,7 +168,7 @@ RSA *RSA_new_private_key_large_e(const BIGNUM *n, const BIGNUM *e,
 RSA *RSA_new() { return RSA_new_method(nullptr); }
 
 RSA *RSA_new_method(const ENGINE *engine) {
-  RSA *rsa = reinterpret_cast<RSA *>(OPENSSL_zalloc(sizeof(RSA)));
+  RSA *rsa = NewZeroed<RSA>();
   if (rsa == nullptr) {
     return nullptr;
   }
@@ -231,7 +232,7 @@ void RSA_free(RSA *rsa) {
   BN_free(rsa->iqmp);
   rsa_invalidate_key(rsa);
   CRYPTO_MUTEX_cleanup(&rsa->lock);
-  OPENSSL_free(rsa);
+  Delete(rsa);
 }
 
 int RSA_up_ref(RSA *rsa) {

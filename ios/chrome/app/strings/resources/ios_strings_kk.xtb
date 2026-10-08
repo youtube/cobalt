@@ -370,6 +370,7 @@
 <translation id="2306265833370324042"><ph name="SEARCH_ENGINE_NAME" /> мәліметтерін көрсету</translation>
 <translation id="2309265394777270359">Қойындыны жабу</translation>
 <translation id="2311077293164383652">Бекітілген қойындыны жабу</translation>
+<translation id="2313392466694008052">Суретті Gemini көмегімен өзгерту</translation>
 <translation id="2316129865977710310">Жоқ, рақмет</translation>
 <translation id="2320166752086256636">Пернетақтаны жасыру</translation>
 <translation id="2321086116217818302">Құпия сөздер дайындалуда…</translation>
@@ -521,6 +522,7 @@
 <translation id="288655811176831528">Қойындыны жабу</translation>
 <translation id="2888631381369839306">Баға бақылау туралы хабарландырулар қосылды</translation>
 <translation id="2893168226686371498">Әдепкі браузер</translation>
+<translation id="2893791155497534382">Құпия сөздер мен басқа әрекеттер тарихын олардың басқару параметрлерінен жоюға болады.</translation>
 <translation id="2894757982205307093">Топқа жаңа қойынды енгізу</translation>
 <translation id="2902312830803030883">Қосымша әрекеттер</translation>
 <translation id="2904788871580817212">Ашық қойындыда баға төмендеді: <ph name="PREVIOUS_PRICE" /> &gt; <ph name="PRICE" /> (<ph name="PRODUCT_NAME" />, <ph name="DOMAIN" />)</translation>
@@ -580,6 +582,7 @@
 <translation id="3143515551205905069">Синхрондаудан бас тарту</translation>
 <translation id="3144126448740580210">ДАЙЫН</translation>
 <translation id="3148052723910099040">Кәдімгі қойынды торы</translation>
+<translation id="3148237711805373460">Бетке өту</translation>
 <translation id="3157387275655328056">Оқу тізіміне қосу</translation>
 <translation id="315778507796115851">Тарих</translation>
 <translation id="31652791196570636">Жабу</translation>
@@ -1297,6 +1300,7 @@ Handoff функциясы параметрлердің жалпы бөлімі�
 <translation id="5768870767339201169">Тоқтаған жеріңізден жалғастырыңыз</translation>
 <translation id="5779117921996157216">{count,plural, =1{{count} құпия сөзіңіз ұрланған болуы ықтимал. Бұл жағдай қауіп төндіруі мүмкін. Қауіпсіздікті сақтау үшін мұны қазір түзетіңіз.}other{{count} құпия сөзіңіз ұрланған болуы ықтимал. Бұл жағдай қауіп төндіруі мүмкін. Қауіпсіздікті сақтау үшін мұны қазір түзетіңіз.}}</translation>
 <translation id="5791632441210678828">Жазылған фидке арналған сұрыптау түймесі.</translation>
+<translation id="5799263916847593256">Баға тарихын көру үшін ашыңыз</translation>
 <translation id="5803566855766646066">Осы жаңа картаны шынымен де жабу керек пе?</translation>
 <translation id="5804241973901381774">Рұқсаттар</translation>
 <translation id="58081802114142635">Әрекеттеріңіз Google AI-ды жақсартады</translation>
@@ -1523,6 +1527,7 @@ Handoff функциясы параметрлердің жалпы бөлімі�
 <translation id="6556866813142980365">Қайта орындау</translation>
 <translation id="6559301491397835130">{count,plural, =1{Бетбелгі "{title}" ішіне, тек осы құрылғыға сақталды.}other{Белбелгілер "{title}" ішіне, тек осы құрылғыға сақталды.}}</translation>
 <translation id="656065428026159829">Басқаларын көру</translation>
+<translation id="6565899972286925956">Қалағаныңызды жасаңыз.</translation>
 <translation id="6571070086367343653">Несие картасын өзгерту</translation>
 <translation id="6574092468346088891">Қауіпсіздік тексерісінің хабарландыруларын қосыңыз.</translation>
 <translation id="6579867704846662339">Басқа қолданбалардың кіріс URL мекенжайларын инкогнито режимінде ашуды таңдауға болады.</translation>
@@ -1633,11 +1638,13 @@ Handoff функциясы параметрлердің жалпы бөлімі�
 <translation id="6930799952781667037">Осы тілге өзгерту үшін түртіңіз.</translation>
 <translation id="693761253105515415">Рұқсат кодын орнату</translation>
 <translation id="6945221475159498467">Таңдау</translation>
+<translation id="6946722113367118030">Ойлану</translation>
 <translation id="6950522403736391608">Жасырын</translation>
 <translation id="6962809930976936328">Gemini-мен статистика алыңыз</translation>
 <translation id="6964300328304469089"><ph name="NAME" />, <ph name="EMAIL" /> таңдалды. Аккаунт таңдаңыз.</translation>
 <translation id="6964760285928603117">Топтан өшіру</translation>
 <translation id="6965382102122355670">Жарайды</translation>
+<translation id="6967355534157677591">Сурет жасау (Pro)</translation>
 <translation id="6973630695168034713">Қалталар</translation>
 <translation id="6979158407327259162">Google Drive</translation>
 <translation id="6979737339423435258">Барлық уақыт</translation>
@@ -1975,6 +1982,7 @@ Handoff функциясы параметрлердің жалпы бөлімі�
 <translation id="8205564605687841303">Бас тарту</translation>
 <translation id="8206354486702514201">Бұл параметрді әкімші күштеп орнатқан.</translation>
 <translation id="8209050860603202033">Кескінді ашу</translation>
+<translation id="8209237163365258530">Gemini <ph name="VERSION_NUMBER" /> модельдері</translation>
 <translation id="8211030355252954494">Сізге <ph name="WEBSITE" /> веб-сайтына арналған құпия сөздер келді.</translation>
 <translation id="8211406090763984747">Қауіпсіз байланыс</translation>
 <translation id="8214293972734702249">Бекітілген, <ph name="TAB_TITLE" /></translation>

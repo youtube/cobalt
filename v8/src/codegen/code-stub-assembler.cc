@@ -1386,6 +1386,14 @@ TNode<BoolT> CodeStubAssembler::TaggedIsPositiveSmi(TNode<Object> a) {
 #endif
 }
 
+TNode<BoolT> CodeStubAssembler::TaggedIsNotInterceptedSentinel(
+    TNode<Object> a) {
+  static_assert(kNotInterceptedSentinel == kHeapObjectTag);
+  return Word32Equal(
+      TruncateIntPtrToInt32(BitcastTaggedToWordForTagAndSmiBits(a)),
+      Int32Constant(kNotInterceptedSentinel));
+}
+
 #if defined(V8_EXTERNAL_CODE_SPACE) || defined(V8_ENABLE_SANDBOX)
 void CodeStubAssembler::CheckObjectComparisonAllowed(TNode<AnyTaggedT> a,
                                                      TNode<AnyTaggedT> b,
@@ -1882,7 +1890,7 @@ TNode<RawPtrT> CodeStubAssembler::LoadExternalPointerFromObject(
       ExternalPointerTableAddress(tag_range);
   TNode<RawPtrT> table = UncheckedCast<RawPtrT>(
       Load(MachineType::Pointer(), external_pointer_table_address,
-           UintPtrConstant(Internals::kExternalPointerTableBasePointerOffset)));
+           UintPtrConstant(Internals::kExternalEntityTableBasePointerOffset)));
 
   TNode<ExternalPointerHandleT> handle =
       LoadObjectField<ExternalPointerHandleT>(object, offset);
@@ -1933,7 +1941,7 @@ void CodeStubAssembler::StoreExternalPointerToObject(TNode<HeapObject> object,
       ExternalPointerTableAddress(tag);
   TNode<RawPtrT> table = UncheckedCast<RawPtrT>(
       Load(MachineType::Pointer(), external_pointer_table_address,
-           UintPtrConstant(Internals::kExternalPointerTableBasePointerOffset)));
+           UintPtrConstant(Internals::kExternalEntityTableBasePointerOffset)));
   TNode<ExternalPointerHandleT> handle =
       LoadObjectField<ExternalPointerHandleT>(object, offset);
 
@@ -16951,12 +16959,12 @@ TNode<String> CodeStubAssembler::Typeof(
     std::optional<TNode<HeapObject>> maybe_feedback_vector) {
   TVARIABLE(String, result_var);
 
-  Label return_number(this, Label::kDeferred), if_oddball(this),
-      return_function(this), return_undefined(this), return_object(this),
-      return_string(this), return_bigint(this), return_symbol(this),
-      return_result(this);
+  Label return_smi(this), return_number(this, Label::kDeferred),
+      if_oddball(this), return_function(this), return_undefined(this),
+      return_object(this), return_string(this), return_bigint(this),
+      return_symbol(this), return_result(this);
 
-  GotoIf(TaggedIsSmi(value), &return_number);
+  GotoIf(TaggedIsSmi(value), &return_smi);
 
   TNode<HeapObject> value_heap_object = CAST(value);
   TNode<Map> map = LoadMap(value_heap_object);
@@ -16995,6 +17003,14 @@ TNode<String> CodeStubAssembler::Typeof(
                           *slot_id);
     }
   };
+
+  BIND(&return_smi);
+  {
+    result_var = HeapConstantNoHole(isolate()->factory()->number_string());
+    UpdateFeedback(TypeOfFeedback::kSmi);
+    Goto(&return_result);
+  }
+
   BIND(&return_number);
   {
     result_var = HeapConstantNoHole(isolate()->factory()->number_string());

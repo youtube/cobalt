@@ -21,6 +21,7 @@
 #include <openssl/err.h>
 #include <openssl/mem.h>
 
+#include "../../mem_internal.h"
 #include "../delocate.h"
 #include "internal.h"
 
@@ -33,7 +34,7 @@ using namespace bssl;
 #define BN_MAX_WORDS (INT_MAX / (4 * BN_BITS2))
 
 BIGNUM *BN_new() {
-  BIGNUM *bn = reinterpret_cast<BIGNUM *>(OPENSSL_malloc(sizeof(BIGNUM)));
+  BIGNUM *bn = New<BIGNUM>();
 
   if (bn == nullptr) {
     return nullptr;
@@ -59,7 +60,7 @@ void BN_free(BIGNUM *bn) {
   }
 
   if (bn->flags & BN_FLG_MALLOCED) {
-    OPENSSL_free(bn);
+    Delete(bn);
   } else {
     bn->d = nullptr;
   }

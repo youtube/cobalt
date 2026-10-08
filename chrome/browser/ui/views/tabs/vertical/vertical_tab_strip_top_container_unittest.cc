@@ -12,6 +12,7 @@
 #include "chrome/browser/ui/browser_window/test/mock_browser_window_interface.h"
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
+#include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_flat_edge_button.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/test/views/chrome_views_test_base.h"
@@ -60,7 +61,8 @@ class VerticalTabStripTopContainerTest : public ChromeViewsTestBase {
     widget_ = CreateTestWidget(views::Widget::InitParams::CLIENT_OWNS_WIDGET);
     top_container_ =
         widget_->SetContentsView(std::make_unique<VerticalTabStripTopContainer>(
-            controller_.get(), action_item_.get()));
+            controller_.get(), action_item_.get(),
+            &mock_browser_window_interface_));
     widget_->Show();
   }
 
@@ -74,7 +76,7 @@ class VerticalTabStripTopContainerTest : public ChromeViewsTestBase {
  protected:
   VerticalTabStripTopContainer* top_container() { return top_container_; }
 
-  views::LabelButton* tab_search_button() {
+  VerticalTabStripFlatEdgeButton* tab_search_button() {
     return top_container_->GetTabSearchButton();
   }
 
@@ -101,7 +103,7 @@ class VerticalTabStripTopContainerTest : public ChromeViewsTestBase {
 };
 
 TEST_F(VerticalTabStripTopContainerTest, LayoutWithoutExclusionZone) {
-  top_container()->SetExclusionWidthForLayout(1);
+  top_container()->SetCaptionButtonWidthForLayout(1);
   top_container()->SetToolbarHeightForLayout(1);
   LayoutView();
 
@@ -122,13 +124,13 @@ TEST_F(VerticalTabStripTopContainerTest, LayoutWithoutExclusionZone) {
 }
 
 TEST_F(VerticalTabStripTopContainerTest, LayoutWithFullWidthExclusionZone) {
-  top_container()->SetExclusionWidthForLayout(1);
+  top_container()->SetCaptionButtonWidthForLayout(1);
   top_container()->SetToolbarHeightForLayout(1);
   LayoutView();
 
   const gfx::Rect initial_search_bounds = tab_search_button()->bounds();
 
-  top_container()->SetExclusionWidthForLayout(kTopContainerWidth);
+  top_container()->SetCaptionButtonWidthForLayout(kTopContainerWidth);
   constexpr int kExclusionHeight = 50;
   top_container()->SetToolbarHeightForLayout(kExclusionHeight);
   LayoutView();
@@ -139,20 +141,20 @@ TEST_F(VerticalTabStripTopContainerTest, LayoutWithFullWidthExclusionZone) {
   // Both buttons are shifted down to match the height of the bookmarks bar.
   const int expected_y_center =
       kExclusionHeight +
-      GetLayoutConstant(LayoutConstant::kBookmarkBarHeight) / 2;
+      (GetLayoutConstant(LayoutConstant::kBookmarkBarHeight) -
+       GetLayoutConstant(LayoutConstant::kBookmarkBarButtonImageLabelPadding)) /
+          2;
 
   EXPECT_EQ(search_bounds.top_right().x(),
             initial_search_bounds.top_right().x());
   EXPECT_EQ(search_bounds.right_center().y(), expected_y_center);
 
-  EXPECT_EQ(
-      collapse_bounds.x(),
-      GetLayoutConstant(LayoutConstant::kVerticalTabStripTopButtonPadding));
+  EXPECT_EQ(collapse_bounds.x(), 0);
   EXPECT_EQ(collapse_bounds.right_center().y(), expected_y_center);
 }
 
 TEST_F(VerticalTabStripTopContainerTest, LayoutWithPartialWidthExclusionZone) {
-  top_container()->SetExclusionWidthForLayout(50);
+  top_container()->SetCaptionButtonWidthForLayout(50);
   top_container()->SetToolbarHeightForLayout(50);
   LayoutView();
 

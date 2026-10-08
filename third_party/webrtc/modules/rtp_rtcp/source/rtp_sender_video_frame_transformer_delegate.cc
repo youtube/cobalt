@@ -61,7 +61,7 @@ class TransformableVideoSenderFrame : public TransformableVideoFrameInterface {
         encoded_data_(encoded_image.GetEncodedData()),
         pre_transform_payload_size_(encoded_image.size()),
         header_(video_header),
-        frame_type_(encoded_image._frameType),
+        frame_type_(encoded_image.frame_type()),
         payload_type_(payload_type),
         codec_type_(codec_type),
         timestamp_(rtp_timestamp),
@@ -290,9 +290,9 @@ std::unique_ptr<TransformableVideoFrameInterface> CloneSenderVideoFrame(
       original->GetData().data(), original->GetData().size());
   EncodedImage encoded_image;
   encoded_image.SetEncodedData(encoded_image_buffer);
-  encoded_image._frameType = original->IsKeyFrame()
-                                 ? VideoFrameType::kVideoFrameKey
-                                 : VideoFrameType::kVideoFrameDelta;
+  encoded_image.set_frame_type(original->IsKeyFrame()
+                                   ? VideoFrameType::kVideoFrameKey
+                                   : VideoFrameType::kVideoFrameDelta);
   // TODO(bugs.webrtc.org/14708): Fill in other EncodedImage parameters
   // TODO(bugs.webrtc.org/14708): Use an actual RTT estimate for the
   // retransmission time instead of a const default, in the same way as a

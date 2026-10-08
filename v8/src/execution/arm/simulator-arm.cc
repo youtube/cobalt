@@ -187,9 +187,9 @@ void ArmDebugger::RedoBreakpoint() {
 }
 
 void ArmDebugger::Debug() {
-  if (v8_flags.correctness_fuzzer_suppressions) {
-    PrintF("Debugger disabled for differential fuzzing.\n");
-    return;
+  if (!v8_flags.simulator_debugger) {
+    // Debugger not enabled; crash instead.
+    UNREACHABLE();
   }
   intptr_t last_pc = -1;
   bool done = false;
@@ -1660,8 +1660,13 @@ using SimulatorRuntimeFPTaggedCall = double (*)(int32_t arg0, int32_t arg1,
 // (refer to InvocationCallback in v8.h).
 using SimulatorRuntimeDirectApiCall = void (*)(int32_t arg0);
 
-// This signature supports direct call to accessor getter callback.
-using SimulatorRuntimeDirectGetterCall = void (*)(int32_t arg0, int32_t arg1);
+// This signature supports direct call to accessor/interceptor getter callback.
+using SimulatorRuntimeDirectGetterCall = int32_t (*)(int32_t arg0,
+                                                     int32_t arg1);
+
+// This signature supports direct call to accessor/interceptor setter callback.
+using SimulatorRuntimeDirectSetterCall = int32_t (*)(int32_t arg0, int32_t arg1,
+                                                     int32_t arg2);
 
 // Separate for fine-grained UBSan blocklisting. Casting any given C++
 // function to {SimulatorRuntimeCall} is undefined behavior; but since
@@ -1875,7 +1880,8 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         TrashCallerSaveRegisters();
 #endif
       } else if (redirection->type() == ExternalReference::DIRECT_GETTER_CALL) {
-        // void f(v8::Local<String> property, v8::PropertyCallbackInfo& info)
+        // void f(v8::Local<v8::Name>, v8::PropertyCallbackInfo&)
+        // v8::Intercepted f(v8::Local<v8::Name>, v8::PropertyCallbackInfo&)
         if (InstructionTracingEnabled() || !stack_aligned) {
           PrintF("Call to host function at %p args %08x %08x",
                  reinterpret_cast<void*>(external), arg0, arg1);
@@ -1887,10 +1893,38 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         CHECK(stack_aligned);
         SimulatorRuntimeDirectGetterCall target =
             reinterpret_cast<SimulatorRuntimeDirectGetterCall>(external);
-        target(arg0, arg1);
+        int32_t iresult = target(arg0, arg1);
 #ifdef DEBUG
         TrashCallerSaveRegisters();
 #endif
+        if (InstructionTracingEnabled()) {
+          PrintF("Returned %08x\n", iresult);
+        }
+        set_register(r0, iresult);
+      } else if (redirection->type() == ExternalReference::DIRECT_SETTER_CALL) {
+        // void f(v8::Local<Name>, v8::Local<v8::Value>,
+        //        v8::PropertyCallbackInfo&)
+        // v8::Intercepted f(v8::Local<Name>, v8::Local<v8::Value>,
+        //                   v8::PropertyCallbackInfo&)
+        if (InstructionTracingEnabled() || !stack_aligned) {
+          PrintF("Call to host function at %p args %08x %08x %08x",
+                 reinterpret_cast<void*>(external), arg0, arg1, arg2);
+          if (!stack_aligned) {
+            PrintF(" with unaligned stack %08x\n", get_register(sp));
+          }
+          PrintF("\n");
+        }
+        CHECK(stack_aligned);
+        SimulatorRuntimeDirectSetterCall target =
+            reinterpret_cast<SimulatorRuntimeDirectSetterCall>(external);
+        int32_t iresult = target(arg0, arg1, arg2);
+#ifdef DEBUG
+        TrashCallerSaveRegisters();
+#endif
+        if (InstructionTracingEnabled()) {
+          PrintF("Returned %08x\n", iresult);
+        }
+        set_register(r0, iresult);
       } else {
         // builtin call.
         // FAST_C_CALL is temporarily handled here as well, because we lack

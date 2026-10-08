@@ -3596,19 +3596,24 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   Register tag = WasmFXSuspendDescriptor::GetRegisterParameter(0);
   Register cont = WasmFXSuspendDescriptor::GetRegisterParameter(1);
   Register arg_buffer = WasmFXSuspendDescriptor::GetRegisterParameter(2);
+  MemOperand sig(fp, 2 * kSystemPointerSize);
   Label resume;
   __ Push(arg_buffer);
   __ Push(cont, kContextRegister);
   {
     FrameScope scope(masm, StackFrame::MANUAL);
-    __ PrepareCallCFunction(6, r0);
+    DCHECK(!AreAliased(kCArgRegs[4], cont, arg_buffer));
+    DCHECK(!AreAliased(kCArgRegs[5], arg_buffer));
+    __ PrepareCallCFunction(8, r0);
     __ Move(kCArgRegs[4], tag);
     __ Move(kCArgRegs[5], cont);
+    __ Move(kCArgRegs[6], arg_buffer);
+    __ LoadU64(kCArgRegs[7], sig, r0);
     __ Move(kCArgRegs[0], ExternalReference::isolate_address());
     __ Move(kCArgRegs[1], sp);
     __ Move(kCArgRegs[2], fp);
     __ GetLabelAddress(kCArgRegs[3], &resume);
-    __ CallCFunction(ExternalReference::wasm_suspend_wasmfx_stack(), 6);
+    __ CallCFunction(ExternalReference::wasm_suspend_wasmfx_stack(), 8);
   }
   Register target_stack = r4;
   __ Move(target_stack, kReturnRegister0);
@@ -3630,6 +3635,7 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   __ bind(&resume);
   __ Move(kReturnRegister0, WasmFXResumeDescriptor::GetRegisterParameter(1));
   __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
+  __ Drop(WasmFXSuspendDescriptor::GetStackParameterCount());
   __ Ret();
 }
 
@@ -4571,27 +4577,67 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   Register no_thunk_arg = no_reg;
 
   MemOperand return_value_operand = MemOperand(fp, FC::kReturnValueOffset);
-  static constexpr int kSlotsToDropOnReturn =
+  constexpr int kSlotsToDropOnReturn =
       FC::kFunctionCallbackInfoApiArgsLength + kJSArgcReceiverSlots;
 
   const bool with_profiling =
       mode != CallApiCallbackMode::kOptimizedNoProfiling;
+  const bool handle_interceptor_result = false;
   CallApiFunctionAndReturn(masm, with_profiling, api_function_address,
                            thunk_ref, no_thunk_arg, kSlotsToDropOnReturn,
-                           &argc_operand, return_value_operand);
+                           &argc_operand, return_value_operand,
+                           handle_interceptor_result);
 }
 
-void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
+void Builtins::Generate_CallApiAccessorImpl(MacroAssembler* masm,
+                                            bool for_interceptor,
+                                            bool for_setter) {
   // ----------- S t a t e -------------
   //  -- cp                  : context
   //  -- r3                  : name
-  //  -- r6                  : accessor info
+  //  -- r6                  : accessor info / interceptor info
+  //  -- sp[2]               : value (only for setter case)
+  //  -- sp[1]               : should_throw_on_error (only for setter case)
   //  -- sp[0]               : holder
   // -----------------------------------
+
+  Register name_arg = no_reg;
+  Register value_arg = no_reg;
+  Register property_callback_info_arg = no_reg;
+
+  Register callback = CallApiGetterDescriptor::CallbackRegister();
+  Register scratch = r8;
+  Register scratch2 = r9;
+
+  // All variants pass callback in the same register.
+  CHECK_EQ(callback, CallApiGetterDescriptor::CallbackRegister());
+  CHECK_EQ(callback, CallApiSetterDescriptor::CallbackRegister());
+
+  if (for_setter) {
+    // Setter(Local<Name>, Local<Value>, const PropertyCallbackInfo<void>&);
+    name_arg = kCArgRegs[0];
+    value_arg = kCArgRegs[1];  // Will be initialized right before the call.
+    property_callback_info_arg = kCArgRegs[2];
+  } else {
+    // Getter(Local<Name>, const PropertyCallbackInfo<void>&);
+    name_arg = kCArgRegs[0];
+    property_callback_info_arg = kCArgRegs[1];
+  }
+
+  // |name| is already in the required register.
+  CHECK_EQ(name_arg, CallApiGetterDescriptor::NameRegister());
+  CHECK_EQ(name_arg, CallApiSetterDescriptor::NameRegister());
+
+  DCHECK(!AreAliased(name_arg, value_arg, property_callback_info_arg,  // C args
+                     callback, scratch, scratch2, cp));
 
   using PCA = PropertyCallbackArguments;
   using ER = ExternalReference;
   using FC = ApiAccessorExitFrameConstants;
+
+  static_assert(PCA::kSetterApiArgsLength == 6);
+  static_assert(PCA::ApiArgIndex(PCA::kValueIndex) == 5);
+  static_assert(PCA::ApiArgIndex(PCA::kShouldThrowOnErrorIndex) == 4);
 
   static_assert(PCA::kGetterApiArgsLength == 4);
   static_assert(PCA::ApiArgIndex(PCA::kHolderIndex) == 3);
@@ -4604,35 +4650,22 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   //  Current state            |  Target state
   // --------------------------+--------------------------------------------
   //                           |  ...
-  //                           |  sp[3]: holder          <- kHolderIndex
-  //                           |  sp[2]: callback info   <- kCallbackInfoIndex
-  //  ...                      |  sp[1]: undefined       <- kReturnValueIndex
+  //                           |  sp[5]: value (setter)  <- kValueIndex
+  //                           |  sp[4]: throw? (setter) <- kShouldThrow..Index
+  //  ...                      |  sp[3]: holder          <- kHolderIndex
+  //  sp[2]: value (setter)    |  sp[2]: callback info   <- kCallbackInfoIndex
+  //  sp[1]: throw? (setter)   |  sp[1]: undefined       <- kReturnValueIndex
   //  sp[0]: holder            |  sp[0]: isolate         <- kIsolateIndex
   //
 
-  Register name_arg = kCArgRegs[0];
-  Register property_callback_info_arg = kCArgRegs[1];
-  // |name| is already in the required register.
-  DCHECK_EQ(name_arg, CallApiGetterDescriptor::NameRegister());
-
-  Register api_function_address = r5;
-  Register callback = CallApiGetterDescriptor::CallbackRegister();
-  Register undef = r7;
-  Register scratch = r8;
-
-  DCHECK(!AreAliased(name_arg, property_callback_info_arg, callback, scratch,
-                     undef));
-
-  __ LoadRoot(undef, RootIndex::kUndefinedValue);
+  RootIndex default_value =
+      for_setter ? RootIndex::kTrueValue : RootIndex::kUndefinedValue;
+  __ LoadRoot(scratch2, default_value);
   __ Move(scratch, ER::isolate_address());
 
   __ Push(callback,  // kCallbackInfoIndex
-          undef,     // kReturnValueIndex
+          scratch2,  // kReturnValueIndex
           scratch);  // kIsolateIndex
-
-  __ RecordComment("Load api_function_address");
-  __ LoadU64(api_function_address,
-             FieldMemOperand(callback, AccessorInfo::kGetterOffset), r0);
 
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ EnterExitFrame(scratch, FC::getExtraSlotsCountFrom<ExitFrameConstants>(),
@@ -4648,30 +4681,64 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
               Operand(FC::kPropertyCallbackInfoOffset));
   }
 
-  DCHECK(!AreAliased(api_function_address, property_callback_info_arg, name_arg,
-                     callback, scratch));
-
 #ifdef V8_ENABLE_DIRECT_HANDLE
   // name_arg = Local<Name>(name), name value was pushed to GC-ed stack space.
   // |name_arg| is already initialized above.
+
+  if (for_setter) {
+    // value_arg = Local<Value>(value), the value was passed to the builtin
+    // on GC-ed stack, load it from there.
+    __ LoadU64(value_arg, MemOperand(fp, FC::kValueOffset), r0);
+  }
 #else
   // name_arg = Local<Name>(&name), which is &args_array[kPropertyKeyIndex].
   static_assert(PCA::kPropertyKeyIndex == 0);
   __ mr(name_arg, property_callback_info_arg);
+
+  if (for_setter) {
+    // value_arg = Local<Value>(&value), which is &args_[kValueIndex].
+    static_assert(PCA::kValueIndex != 0);
+    __ AddS64(value_arg, property_callback_info_arg,
+              Operand(PCA::kValueIndex * kSystemPointerSize));
+  }
 #endif
 
-  ExternalReference thunk_ref = ER::invoke_accessor_getter_callback();
+  __ RecordComment("Load api_function_address");
+  Register api_function_address = callback;
+
+  ExternalReference thunk_ref;
   Register no_thunk_arg = no_reg;
 
+  if (for_interceptor) {
+    if (for_setter) {
+      thunk_ref = ER::invoke_named_interceptor_setter_callback();
+      __ LoadU64(api_function_address,
+                 FieldMemOperand(callback, InterceptorInfo::kSetterOffset), r0);
+    } else {
+      thunk_ref = ER::invoke_named_interceptor_getter_callback();
+      __ LoadU64(api_function_address,
+                 FieldMemOperand(callback, InterceptorInfo::kGetterOffset), r0);
+    }
+  } else {
+    DCHECK(!for_setter);
+    thunk_ref = ER::invoke_accessor_getter_callback();
+    __ LoadU64(api_function_address,
+               FieldMemOperand(callback, AccessorInfo::kGetterOffset), r0);
+  }
+  callback = no_reg;
+
   MemOperand return_value_operand = MemOperand(fp, FC::kReturnValueOffset);
-  static constexpr int kSlotsToDropOnReturn =
-      FC::kPropertyCallbackInfoGetterApiArgsLength;
+  const int kSlotsToDropOnReturn =
+      for_setter ? FC::kPropertyCallbackInfoSetterApiArgsLength
+                 : FC::kPropertyCallbackInfoGetterApiArgsLength;
   MemOperand* const kUseStackSpaceConstant = nullptr;
 
   const bool with_profiling = true;
+  const bool handle_interceptor_result = for_interceptor;
   CallApiFunctionAndReturn(masm, with_profiling, api_function_address,
                            thunk_ref, no_thunk_arg, kSlotsToDropOnReturn,
-                           kUseStackSpaceConstant, return_value_operand);
+                           kUseStackSpaceConstant, return_value_operand,
+                           handle_interceptor_result);
 }
 
 void Builtins::Generate_DirectCEntry(MacroAssembler* masm) {

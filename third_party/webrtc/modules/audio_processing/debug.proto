@@ -1,12 +1,14 @@
 syntax = "proto2";
-option optimize_for = LITE_RUNTIME;
+
 package webrtc.audioproc;
+
+option optimize_for = LITE_RUNTIME;
 
 // Contains the format of input/output/reverse audio. An Init message is added
 // when any of the fields are changed.
 message Init {
   optional int32 sample_rate = 1;
-  optional int32 device_sample_rate = 2 [deprecated=true];
+  optional int32 device_sample_rate = 2 [deprecated = true];
   optional int32 num_input_channels = 3;
   optional int32 num_output_channels = 4;
   optional int32 num_reverse_channels = 5;
@@ -74,6 +76,11 @@ message Config {
   // Pre amplifier.
   optional bool pre_amplifier_enabled = 19;
   optional float pre_amplifier_fixed_gain_factor = 20;
+
+  // General string version of webrtc::AudioProcessing::Config. Partially
+  // overlaps with other fields in this Config message, but is more likely to be
+  // up-to-date.
+  optional string api_config_string = 21;
 
   // Next field number 21.
 }

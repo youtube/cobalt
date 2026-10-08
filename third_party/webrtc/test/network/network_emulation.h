@@ -427,9 +427,10 @@ class FakePacketRoute : public EmulatedNetworkReceiverInterface {
   }
 
   void OnPacketReceived(EmulatedIpPacket packet) override {
-    int packet_id = reinterpret_cast<const int*>(packet.data.data())[0];
-    action_(std::move(sent_[packet_id]), packet.arrival_time);
-    sent_.erase(packet_id);
+    int packet_id = *reinterpret_cast<const int*>(packet.data.data());
+    auto node_handle = sent_.extract(packet_id);
+    RTC_CHECK(!node_handle.empty());
+    action_(std::move(node_handle.mapped()), packet.arrival_time);
   }
 
  private:

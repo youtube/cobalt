@@ -20,6 +20,7 @@
 #include <openssl/mem.h>
 
 #include "../internal.h"
+#include "../mem_internal.h"
 #include "internal.h"
 
 
@@ -36,7 +37,8 @@ struct X25519_KEY {
 extern const EVP_PKEY_ASN1_METHOD x25519_asn1_meth;
 
 static void x25519_free(EVP_PKEY *pkey) {
-  OPENSSL_free(pkey->pkey);
+  X25519_KEY *key = reinterpret_cast<X25519_KEY *>(pkey->pkey);
+  OPENSSL_free(key);
   pkey->pkey = nullptr;
 }
 
@@ -46,8 +48,7 @@ static int x25519_set_priv_raw(EVP_PKEY *pkey, const uint8_t *in, size_t len) {
     return 0;
   }
 
-  X25519_KEY *key =
-      reinterpret_cast<X25519_KEY *>(OPENSSL_malloc(sizeof(X25519_KEY)));
+  X25519_KEY *key = New<X25519_KEY>();
   if (key == nullptr) {
     return 0;
   }
@@ -66,8 +67,7 @@ static int x25519_set_pub_raw(EVP_PKEY *pkey, const uint8_t *in, size_t len) {
     return 0;
   }
 
-  X25519_KEY *key =
-      reinterpret_cast<X25519_KEY *>(OPENSSL_malloc(sizeof(X25519_KEY)));
+  X25519_KEY *key = New<X25519_KEY>();
   if (key == nullptr) {
     return 0;
   }
@@ -225,6 +225,13 @@ static int x25519_priv_encode(CBB *out, const EVP_PKEY *pkey) {
   return 1;
 }
 
+static bool x25519_pub_present(const EVP_PKEY *) { return true; }
+
+static bool x25519_priv_present(const EVP_PKEY *pk) {
+  const X25519_KEY *key = reinterpret_cast<const X25519_KEY *>(pk->pkey);
+  return key->has_private;
+}
+
 static int x25519_size(const EVP_PKEY *pkey) { return 32; }
 
 static int x25519_bits(const EVP_PKEY *pkey) { return 253; }
@@ -237,8 +244,10 @@ const EVP_PKEY_ASN1_METHOD x25519_asn1_meth = {
     x25519_pub_decode,
     x25519_pub_encode,
     x25519_pub_equal,
+    x25519_pub_present,
     x25519_priv_decode,
     x25519_priv_encode,
+    x25519_priv_present,
     x25519_set_priv_raw,
     /*set_priv_seed=*/nullptr,
     x25519_set_pub_raw,
@@ -264,11 +273,10 @@ const EVP_PKEY_ALG *EVP_pkey_x25519() {
 }
 
 // X25519 has no parameters to copy.
-static int pkey_x25519_copy(EVP_PKEY_CTX *dst, EVP_PKEY_CTX *src) { return 1; }
+static int pkey_x25519_copy(EvpPkeyCtx *dst, EvpPkeyCtx *src) { return 1; }
 
-static int pkey_x25519_keygen(EVP_PKEY_CTX *ctx, EVP_PKEY *pkey) {
-  X25519_KEY *key =
-      reinterpret_cast<X25519_KEY *>(OPENSSL_malloc(sizeof(X25519_KEY)));
+static int pkey_x25519_keygen(EvpPkeyCtx *ctx, EVP_PKEY *pkey) {
+  X25519_KEY *key = New<X25519_KEY>();
   if (key == nullptr) {
     return 0;
   }
@@ -279,8 +287,7 @@ static int pkey_x25519_keygen(EVP_PKEY_CTX *ctx, EVP_PKEY *pkey) {
   return 1;
 }
 
-static int pkey_x25519_derive(EVP_PKEY_CTX *ctx, uint8_t *out,
-                              size_t *out_len) {
+static int pkey_x25519_derive(EvpPkeyCtx *ctx, uint8_t *out, size_t *out_len) {
   if (ctx->pkey == nullptr || ctx->peerkey == nullptr) {
     OPENSSL_PUT_ERROR(EVP, EVP_R_KEYS_NOT_SET);
     return 0;
@@ -315,7 +322,7 @@ static int pkey_x25519_derive(EVP_PKEY_CTX *ctx, uint8_t *out,
   return 1;
 }
 
-static int pkey_x25519_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2) {
+static int pkey_x25519_ctrl(EvpPkeyCtx *ctx, int type, int p1, void *p2) {
   switch (type) {
     case EVP_PKEY_CTRL_PEER_KEY:
       // |EVP_PKEY_derive_set_peer| requires the key implement this command,

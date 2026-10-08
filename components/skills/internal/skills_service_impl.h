@@ -12,9 +12,11 @@
 #include "base/observer_list.h"
 #include "base/uuid.h"
 #include "base/version_info/channel.h"
+#include "components/skills/internal/skills_downloader.h"
 #include "components/skills/public/skill.h"
 #include "components/skills/public/skills_service.h"
 #include "components/sync/model/data_type_store.h"
+#include "services/network/public/cpp/shared_url_loader_factory.h"
 
 namespace syncer {
 class DataTypeControllerDelegate;
@@ -36,8 +38,12 @@ class SkillsServiceImpl : public SkillsService {
   SkillsServiceImpl(
       optimization_guide::OptimizationGuideDecider* optimization_guide,
       version_info::Channel channel,
-      syncer::OnceDataTypeStoreFactory create_store_callback);
+      syncer::OnceDataTypeStoreFactory create_store_callback,
+      scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory);
   ~SkillsServiceImpl() override;
+
+  // KeyedService implementation.
+  void Shutdown() override;
 
   // SkillsService implementation.
   bool IsInitialized() const override;
@@ -49,22 +55,25 @@ class SkillsServiceImpl : public SkillsService {
                         const std::string& icon,
                         const std::string& prompt) override;
 
-  const Skill* AddSkillFromSync(std::string_view skill_id,
-                                std::string_view name,
-                                std::string_view icon,
-                                std::string_view prompt) override;
+  const Skill* AddOrUpdateSkillFromSync(std::string_view skill_id,
+                                        std::string_view name,
+                                        std::string_view icon,
+                                        std::string_view prompt,
+                                        base::Time creation_time,
+                                        base::Time last_update_time) override;
 
   // TODO(crbug.com/475863107) Add strong typing to help caller avoid swapping
   // order of arguments.
   const Skill* UpdateSkill(std::string_view skill_id,
                            std::string_view name,
                            std::string_view icon,
-                           std::string_view prompt,
-                           UpdateSource update_source) override;
+                           std::string_view prompt) override;
 
   void DeleteSkill(std::string_view skill_id,
                    UpdateSource update_source) override;
   const Skill* GetSkillById(std::string_view skill_id) const override;
+  void FetchDiscoverySkills() override;
+  void Handle1pSkillsMap(std::unique_ptr<SkillsMap> skills_map) override;
   const std::vector<std::unique_ptr<Skill>>& GetSkills() const override;
   void AddObserver(Observer* observer) override;
   void RemoveObserver(Observer* observer) override;
@@ -82,6 +91,15 @@ class SkillsServiceImpl : public SkillsService {
   // Returns a mutable skill with the given ID or nullptr if not found.
   Skill* GetMutableSkillById(std::string_view skill_id);
 
+  // Updates an existing `skill` with the given data. `update_time` is used only
+  // if the skill is actually updated with new data or if updated from sync.
+  void UpdateSkillImpl(Skill* skill,
+                       std::string_view name,
+                       std::string_view icon,
+                       std::string_view prompt,
+                       base::Time update_time,
+                       UpdateSource update_source);
+
   // Whether the service is initialized.
   bool is_initialized_ = false;
 
@@ -97,6 +115,9 @@ class SkillsServiceImpl : public SkillsService {
 
   // Sync bridge for skills.
   std::unique_ptr<SkillsSyncBridge> sync_bridge_;
+
+  // Downloader for 1P skills.
+  std::unique_ptr<SkillsDownloader> skills_downloader_;
 
   // Weak pointer factory for posting tasks.
   base::WeakPtrFactory<SkillsServiceImpl> weak_ptr_factory_{this};

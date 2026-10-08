@@ -18,7 +18,6 @@
 
 #include "api/video/encoded_frame.h"
 #include "api/video/video_codec_constants.h"
-#include "api/video/video_frame_type.h"
 #include "modules/rtp_rtcp/source/frame_object.h"
 #include "modules/video_coding/codecs/interface/common_constants.h"
 #include "modules/video_coding/codecs/vp9/include/vp9_globals.h"
@@ -141,14 +140,14 @@ RtpVp9RefFinder::FrameDecision RtpVp9RefFinder::ManageFrameGof(
 
     info = &gof_info_it->second;
 
-    if (frame->frame_type() == VideoFrameType::kVideoFrameKey) {
+    if (frame->IsKey()) {
       frame->num_references = 0;
       FrameReceivedVp9(frame->Id(), info);
       FlattenFrameIdAndRefs(frame, codec_header.inter_layer_predicted);
       return kHandOff;
     }
   } else {
-    if (frame->frame_type() == VideoFrameType::kVideoFrameKey) {
+    if (frame->IsKey()) {
       RTC_LOG(LS_WARNING) << "Received keyframe without scalability structure";
       return kDrop;
     }

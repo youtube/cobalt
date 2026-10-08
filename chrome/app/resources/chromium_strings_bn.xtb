@@ -278,7 +278,6 @@
 <translation id="4023601594785368013">মূল ভাষা: <ph name="LANGUAGE" /></translation>
 <translation id="4023845192681161785">যেকোনও অ্যাপ থেকে Chromium-এ লিঙ্ক খুলুন। এর সাথে, সহজ অ্যাক্সেসের জন্য এটি আপনার টাস্কবারে পিন করা থাকে।</translation>
 <translation id="4036079820698952681"><ph name="BEGIN_LINK" />বর্তমান সেটিংস<ph name="END_LINK" />-এর রিপোর্ট করে Chromium-কে আরও ভালো করে তুলতে সাহায্য করুন</translation>
-<translation id="4039097928859803404">সবসময় AI মোড শর্টকাট দেখুন</translation>
 <translation id="4050175100176540509">গুরুত্বপূর্ণ নিরাপত্তা উন্নতি এবং নতুন বৈশিষ্ট্যগুলি সর্বশেষ ভার্সনে উপলভ্য।</translation>
 <translation id="4055805654398742145">Password Manager</translation>
 <translation id="4061696872429826774">আপনার কম্পিউটারের অন্য একটি প্রোগ্রাম এক্সটেনশন যোগ করেছে, ফলে Chromium-এর কাজ করার ধরন পাল্টে যেতে পারে।
@@ -373,6 +372,7 @@
 <translation id="5289287148052354622">Chromium অ্যাপ ডাউনলোড করুন</translation>
 <translation id="5294316920224716406">ছদ্মবেশী মোডে ব্রাউজ করার সময়, Chromium অসুরক্ষিত কানেকশন ব্যবহার করে কোনও সাইট লোড করার আগে আপনাকে সতর্ক করবে</translation>
 <translation id="5313228254328109263">Chromium আপডেটার ইন্টার্নাল পরিষেবা</translation>
+<translation id="5346059693449184483">আপনি কী করতে চাইছেন?</translation>
 <translation id="5346389065299425353">একাধিক ট্যাব, ফাইল ও টুল যোগ করে আরও গভীরে গিয়ে সার্চ করুন</translation>
 <translation id="5352264705793813212">আপনার পর্যালোচনার জন্য Chromium কিছু সুরক্ষা সম্পর্কিত সাজেশন খুঁজে পেয়েছে</translation>
 <translation id="5352361688875342522">Chromium-এর অন্যান্য প্রোফাইল</translation>
@@ -482,6 +482,7 @@
 <translation id="6450948450282634257">আপনার ফোনে Chromium ডাউনলোড করুন যাতে দাম ট্র্যাক করতে পারেন এবং কোনও সাইটে দাম কমে গেলে সেই সম্পর্কিত সতর্কতা পান</translation>
 <translation id="645458117210240797">বন্ধ রয়েছে • Chromium এই এক্সটেনশনের সোর্স যাচাই করতে পারে না</translation>
 <translation id="6455857529632101747">Chromium প্রোফাইল-এ স্বাগতম</translation>
+<translation id="6460614424172581323">পরেরবার আপনার <ph name="DEVICE_TYPE" />-এ Chromium খোলার সময়, আপনি ট্যাব গ্রুপ ব্যবহার করার প্রম্পট দেখতে পাবেন।</translation>
 <translation id="6466344609055215035">Chromium থেকে অ্যাকাউন্ট সরান</translation>
 <translation id="6475912303565314141">আপনি Chromium শুরু করলে কোন পৃষ্ঠাটি দেখানো হবে তাও এটি নিয়ন্ত্রণ করে।</translation>
 <translation id="648319183876919572">উন্নত Safe Browsing আপনাকে বিপজ্জনক ওয়েবসাইট, ডাউনলোড থেকে আরও সুরক্ষা দেয়</translation>
@@ -609,7 +610,6 @@ Chromium আপনার সেটিংস পুনরুদ্ধার ক�
 <translation id="7872446069773932638">ডাউনলোড হচ্ছে... <ph name="SECONDS" /> সেকেন্ড বাকি আছে</translation>
 <translation id="7873537467422636035">আপনি নিজের পাসফ্রেজ ভুলে গেলে অথবা এই সেটিং পরিবর্তন করতে চাইলে, <ph name="BEGIN_LINK" />আপনার অ্যাকাউন্টে থাকা Chromium ডেটা মুছে দিন<ph name="END_LINK" /></translation>
 <translation id="7877212753140190672">এই ছবির ব্যাপারে জিজ্ঞাসা করুন</translation>
-<translation id="7887929410013642057">সবসময় AI মোড শর্টকাট দেখুন</translation>
 <translation id="7888981273428720788">Chromium-কে ডিফল্ট ব্রাউজার হিসেবে সেট করুন</translation>
 <translation id="7934340546140346950">যখনই সম্ভব Chromium, HTTPS-এ অসুরক্ষিত কানেকশন অটোমেটিক আপগ্রেড করে</translation>
 <translation id="7937630085815544518">আপনি <ph name="USER_EMAIL_ADDRESS" /> হিসাবে Chromium-এ প্রবেশ করেছেন৷ আবার সাইন-ইন করতে একই অ্যাকাউন্ট ব্যবহার করুন৷</translation>
@@ -626,6 +626,7 @@ Chromium আপনার সেটিংস পুনরুদ্ধার ক�
 <translation id="8086881907087796310">ইনস্টলেশন করা যায়নি কারণ আপনার কম্পিউটার হার্ডওয়্যারের নূন্যতম প্রয়োজনীয় শর্ত পূরণ করে না।</translation>
 <translation id="8096472344908884505"><ph name="PAGE_TITLE" /> - Google Chrome for Testing</translation>
 <translation id="8105840573057009683">এই সাইটের জন্য Chromium-এর লোকেশন অ্যাক্সেসের অনুমতি প্রয়োজন</translation>
+<translation id="8107060931443639922">পরেরবার আপনার <ph name="DEVICE_TYPE" />-এ যখন Chromium খুলবেন, প্রাইস ট্র্যাকিং অ্যালার্ট চালু করার জন্য আপনি প্রম্পট দেখতে পাবেন।</translation>
 <translation id="8118331347066725040">Lens ব্যবহার করে সার্চ করা সংক্রান্ত মতামত পাঠান</translation>
 <translation id="8133124826068723441">আপনার ডোমেনে সিঙ্ক করার সুবিধা উপলভ্য না থাকার জন্য ChromiumOS আপনার ডেটা সিঙ্ক পারেনি।</translation>
 <translation id="813913629614996137">আরম্ভ হচ্ছে…</translation>
@@ -634,6 +635,7 @@ Chromium আপনার সেটিংস পুনরুদ্ধার ক�
 <translation id="8177472873527554730">পৃষ্ঠায় কন্টেন্ট খুঁজে পাওয়া যাচ্ছে না</translation>
 <translation id="8200109504272824693">আপনার অ্যাকাউন্ট, <ph name="USER_EMAIL" />-এ Chromium ডেটা ব্যবহার এবং সেভ করার জন্য পাসফ্রেজ লিখুন</translation>
 <translation id="8221491193165283816">আপনি সাধারণত বিজ্ঞপ্তি ব্লক করেন। এই সাইট থেকে বিজ্ঞপ্তি পেতে, এখানে ক্লিক করুন।</translation>
+<translation id="8223142476690844338">হ্যালো <ph name="USER_NAME" />, আপনি কী করতে চাইছেন?</translation>
 <translation id="8223363452568144035">আপনার ক্যামেরা ব্যবহার করতে, Chromium-কে <ph name="BEGIN_LINK" />সিস্টেম সেটিংস<ph name="END_LINK" /> অ্যাক্সেস করতে দিন</translation>
 <translation id="8232193495299001329">এই এক্সটেনশন কোথা থেকে এসেছে তা Chromium যাচাই করতে পারে না এবং এটি নিরাপদ নাও হতে পারে। Chromium থেকে এটি সরান যাতে ব্যক্তিগত তথ্য সহ আপনার ভিজিট করা সাইটের ডেটা এটি আর দেখতে না পায় এবং তা পরিবর্তন করতে না পারে।</translation>
 <translation id="8248265253516264921">কোনও ছবিতে যদি প্রয়োজনীয় বিবরণ দেওয়া না থাকে, তাহলে Chromium আপনাকে একটি বিবরণ দেওয়ার চেষ্টা করবে। বিবরণ তৈরির জন্য, Google-এ ছবি পাঠানো হয়। সেটিংসে গিয়ে আপনি যেকোনও সময়ে এটি বন্ধ করতে পারেন।</translation>
@@ -702,6 +704,7 @@ Chromium আপনার সেটিংস পুনরুদ্ধার ক�
 <translation id="897581876605952338">Chromium Enterprise লোগো</translation>
 <translation id="8981150672034878610">Chromium চালু করা যাচ্ছে না কারণ আপনার প্রোফাইল খোলার সময় কোনও সমস্যা হয়েছে। Chromium রিস্টার্ট করার চেষ্টা করুন।</translation>
 <translation id="8988036198400390003">Chromium প্রোফাইল ম্যানেজ করুন</translation>
+<translation id="9003988359820989654">আমার কম্পিউটার চালু হলে Chromium খুলুন</translation>
 <translation id="9019929317751753759">Chromium-কে আরও নিরাপদ করতে, আমরা নিচের এক্সটেনশনটি বন্ধ করেছি যা <ph name="IDS_EXTENSION_WEB_STORE_TITLE" />-এ তালিকাবদ্ধ করা হয়নি এবং হয়ত আপনাকে না জানিয়ে যোগ করা হয়েছিল৷</translation>
 <translation id="904366664621834601">Chromium এটি ডাউনলোড করা বন্ধ করে দিয়েছে কারণ আর্কাইভ করা ফাইলে অন্যান্য এমন ফাইল রয়েছে যেটি ম্যালওয়্যার গোপন করতে পারে</translation>
 <translation id="9062666675513499497">অন্যান্য Google পরিষেবায় সাইন-ইন করার সময় Chromium-এ সাইন-ইন করুন</translation>

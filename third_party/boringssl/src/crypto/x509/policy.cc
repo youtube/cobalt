@@ -21,6 +21,7 @@
 #include <openssl/stack.h>
 
 #include "../internal.h"
+#include "../mem_internal.h"
 #include "internal.h"
 
 
@@ -99,14 +100,13 @@ static void x509_policy_node_free(X509_POLICY_NODE *node) {
   if (node != nullptr) {
     ASN1_OBJECT_free(node->policy);
     sk_ASN1_OBJECT_pop_free(node->parent_policies, ASN1_OBJECT_free);
-    OPENSSL_free(node);
+    Delete(node);
   }
 }
 
 static X509_POLICY_NODE *x509_policy_node_new(const ASN1_OBJECT *policy) {
   assert(!is_any_policy(policy));
-  X509_POLICY_NODE *node = reinterpret_cast<X509_POLICY_NODE *>(
-      OPENSSL_zalloc(sizeof(X509_POLICY_NODE)));
+  X509_POLICY_NODE *node = NewZeroed<X509_POLICY_NODE>();
   if (node == nullptr) {
     return nullptr;
   }
@@ -127,13 +127,12 @@ static int x509_policy_node_cmp(const X509_POLICY_NODE *const *a,
 static void x509_policy_level_free(X509_POLICY_LEVEL *level) {
   if (level != nullptr) {
     sk_X509_POLICY_NODE_pop_free(level->nodes, x509_policy_node_free);
-    OPENSSL_free(level);
+    Delete(level);
   }
 }
 
 static X509_POLICY_LEVEL *x509_policy_level_new() {
-  X509_POLICY_LEVEL *level = reinterpret_cast<X509_POLICY_LEVEL *>(
-      OPENSSL_zalloc(sizeof(X509_POLICY_LEVEL)));
+  X509_POLICY_LEVEL *level = NewZeroed<X509_POLICY_LEVEL>();
   if (level == nullptr) {
     return nullptr;
   }
@@ -697,7 +696,7 @@ int bssl::X509_policy_check(const STACK_OF(X509) *certs,
     if (!x509v3_cache_extensions(cert)) {
       goto err;
     }
-    const int is_self_issued = (cert->ex_flags & EXFLAG_SI) != 0;
+    const int is_self_issued = (FromOpaque(cert)->ex_flags & EXFLAG_SI) != 0;
 
     if (level == nullptr) {
       assert(i == num_certs - 2);

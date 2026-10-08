@@ -752,7 +752,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Navigation.AndroidSpareRendererNavigationThrottle.DeferTime"
-    units="microseconds" expires_after="2026-03-31">
+    units="microseconds" expires_after="2026-08-02">
   <owner>gjc@google.com</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -767,7 +767,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Navigation.AndroidSpareRendererNavigationThrottle.ProcessAliveWhenResume"
-    enum="Boolean" expires_after="2026-03-31">
+    enum="Boolean" expires_after="2026-08-02">
   <owner>gjc@google.com</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -781,7 +781,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Navigation.AndroidSpareRendererNavigationThrottle.WillDefer"
-    enum="Boolean" expires_after="2026-03-31">
+    enum="Boolean" expires_after="2026-08-02">
   <owner>gjc@google.com</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -877,6 +877,31 @@ chromium-metrics-reviews@google.com.
     TabCloseObserver::WebContentsDestroyed, which is triggered by
     BackToOpenerController::GoBackToOpener). The value is measured from when
     ClosePage() is called until the WebContents is actually destroyed.
+  </summary>
+</histogram>
+
+<histogram
+    name="Navigation.BrowserInitiated.DuplicateNavigationInputStartPresence"
+    enum="InputStartPresence" expires_after="2026-12-01">
+  <owner>annasato@google.com</owner>
+  <owner>chrome-navigation@google.com</owner>
+  <summary>
+    When a new navigation is a duplicate of a currently ongoing navigation,
+    where the destination and params are the same, records whether the
+    input_start timestamp was available on the new navigation, the old (ongoing)
+    navigation, both, or neither.
+  </summary>
+</histogram>
+
+<histogram name="Navigation.BrowserInitiated.DuplicateNavInputTimeDiff"
+    units="ms" expires_after="2026-12-01">
+  <owner>annasato@google.com</owner>
+  <owner>chrome-navigation@google.com</owner>
+  <summary>
+    When a new navigation is a duplicate of a currently ongoing navigation,
+    where the destination and params are the same, records the difference
+    between the new navigation's input start time and the ongoing (old)
+    navigation's input start time.
   </summary>
 </histogram>
 
@@ -2332,6 +2357,35 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram
+    name="Navigation.RendererInitiated.DuplicateNavigationInputStartPresence2"
+    enum="InputStartPresence" expires_after="2026-12-01">
+  <owner>annasato@google.com</owner>
+  <owner>chrome-navigation@google.com</owner>
+  <summary>
+    When a new navigation is a duplicate of a currently ongoing navigation,
+    where the destination and params are the same, records whether the
+    input_start timestamp was available on the new navigation, the old (ongoing)
+    navigation, both, or neither. Updated to version 2 because this recording
+    was moved from the browser process to the renderer process to prevent the
+    input_start timestamp from being lost.
+  </summary>
+</histogram>
+
+<histogram name="Navigation.RendererInitiated.DuplicateNavInputTimeDiff2"
+    units="ms" expires_after="2026-12-01">
+  <owner>annasato@google.com</owner>
+  <owner>chrome-navigation@google.com</owner>
+  <summary>
+    When a new navigation is a duplicate of a currently ongoing navigation,
+    where the destination and params are the same, records the difference
+    between the new navigation's input start time and the ongoing (old)
+    navigation's input start time. Updated to version 2 because this recording
+    was moved from the browser process to the renderer process to prevent the
+    input_start timestamp from being lost.
+  </summary>
+</histogram>
+
+<histogram
     name="Navigation.RendererRunLoopStartToFirstCommitNavigation2.{FrameType}"
     units="ms" expires_after="2026-06-28">
   <owner>chikamune@chromium.org</owner>
@@ -2346,7 +2400,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Navigation.RenderFrameDelete" units="ms"
-    expires_after="2026-05-31">
+    expires_after="2026-08-02">
   <owner>rakina@chromium.org</owner>
   <owner>chrome-security-architecture@google.com</owner>
   <summary>
@@ -2356,7 +2410,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Navigation.RenderFrameHostConstructor" units="ms"
-    expires_after="2026-05-31">
+    expires_after="2026-08-02">
   <owner>rakina@chromium.org</owner>
   <owner>chrome-security-architecture@google.com</owner>
   <summary>
@@ -2366,7 +2420,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Navigation.RenderFrameHostDestructor" units="ms"
-    expires_after="2026-05-31">
+    expires_after="2026-08-02">
   <owner>rakina@chromium.org</owner>
   <owner>chrome-security-architecture@google.com</owner>
   <summary>
@@ -3212,7 +3266,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Navigation.UserAgentStringType" enum="UserAgentStringType"
-    expires_after="2026-06-01">
+    expires_after="2026-08-02">
   <owner>miketaylr@chromium.org</owner>
   <owner>katabolism-finch@google.com</owner>
   <summary>
@@ -3354,7 +3408,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Navigation.{Stage}ToCompositorCreation" units="ms"
-    expires_after="2026-05-31">
+    expires_after="2026-08-02">
   <owner>rakina@chromium.org</owner>
   <owner>bfcache-dev@chromium.org</owner>
   <summary>
@@ -3517,32 +3571,6 @@ chromium-metrics-reviews@google.com.
     engaged sites data. Recorded whenever a navigation is deferred waiting for
     engaged sites.
   </summary>
-</histogram>
-
-<histogram name="Navigation{Initiator}.DuplicateNavigationInputStartPresence"
-    enum="InputStartPresence" expires_after="2026-12-01">
-  <owner>annasato@google.com</owner>
-  <owner>chrome-navigation@google.com</owner>
-  <summary>
-    When a new navigation is a duplicate of a currently ongoing navigation,
-    where the destination and params are the same, records whether the
-    input_start timestamp was available on the new navigation, the old (ongoing)
-    navigation, both, or neither.
-  </summary>
-  <token key="Initiator" variants="Initiator"/>
-</histogram>
-
-<histogram name="Navigation{Initiator}.DuplicateNavInputTimeDiff" units="ms"
-    expires_after="2026-12-01">
-  <owner>annasato@google.com</owner>
-  <owner>chrome-navigation@google.com</owner>
-  <summary>
-    When a new navigation is a duplicate of a currently ongoing navigation,
-    where the destination and params are the same, records the difference
-    between the new navigation's input start time and the ongoing (old)
-    navigation's input start time.
-  </summary>
-  <token key="Initiator" variants="Initiator"/>
 </histogram>
 
 <histogram name="Navigation{Initiator}.DuplicateNavIsUnderThreshold2"

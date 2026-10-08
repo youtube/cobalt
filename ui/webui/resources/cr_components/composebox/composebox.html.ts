@@ -67,8 +67,7 @@ export function getHtml(this: ComposeboxElement) {
             .value="${this.input_}"
             @input="${this.handleInput_}"
             @scroll="${this.handleScroll_}"
-            @focusin="${this.handleInputFocusIn_}"
-            @focusout="${this.handleInputFocusOut_}"></textarea>
+            @focusin="${this.handleInputFocusIn_}"></textarea>
           ${this.shouldShowSmartComposeInlineHint_() ? html`
             <div id="smartCompose" part="smart-compose">
               <!-- Comments in between spans to eliminate spacing between
@@ -100,6 +99,7 @@ export function getHtml(this: ComposeboxElement) {
               carousel-divider, carousel-container, thumbnail"
           in-composebox
           .tabSuggestions="${this.tabSuggestions}"
+          .showMenuOnClick="${this.showMenuOnClick}"
           .entrypointName="${this.entrypointName ? this.entrypointName : 'Composebox'}"
           @add-tab-context="${this.addTabContext_}"
           @open-voice-search="${this.openAimVoiceSearch_}"
@@ -119,9 +119,8 @@ export function getHtml(this: ComposeboxElement) {
           searchbox-layout-mode="${this.searchboxLayoutMode}"
           ?carousel-on-top_="${this.carouselOnTop_}"
           ?show-voice-search="${this.shouldShowVoiceSearch_()}"
-          ?show-canvas="${this.showCanvas}"
           ?show-model-picker="${this.showModelPicker_}"
-          .submitButtonShown="${this.searchboxNextEnabled && this.submitEnabled_ && this.showSubmit_}">
+          .submitButtonShown="${this.searchboxNextEnabled && this.submitEnabled_}">
         <cr-composebox-dropdown
             id="matches"
             part="dropdown"

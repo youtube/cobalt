@@ -176,9 +176,9 @@ TEST_P(LibaomAv1EncoderTest,
   std::vector<EncodedVideoFrameProducer::EncodedFrame> encoded_frames =
       EncodedVideoFrameProducer(*encoder).SetNumInputFrames(1).Encode();
   ASSERT_THAT(encoded_frames, SizeIs(2));
-  EXPECT_THAT(encoded_frames[0].encoded_image._frameType,
+  EXPECT_THAT(encoded_frames[0].encoded_image.frame_type(),
               Eq(VideoFrameType::kVideoFrameKey));
-  EXPECT_THAT(encoded_frames[1].encoded_image._frameType,
+  EXPECT_THAT(encoded_frames[1].encoded_image.frame_type(),
               Eq(VideoFrameType::kVideoFrameDelta));
 }
 
@@ -199,9 +199,9 @@ TEST_P(LibaomAv1EncoderTest, NoBitrateOnTopSpatialLayerProduceDeltaFrames) {
   std::vector<EncodedVideoFrameProducer::EncodedFrame> encoded_frames =
       EncodedVideoFrameProducer(*encoder).SetNumInputFrames(2).Encode();
   ASSERT_THAT(encoded_frames, SizeIs(2));
-  EXPECT_THAT(encoded_frames[0].encoded_image._frameType,
+  EXPECT_THAT(encoded_frames[0].encoded_image.frame_type(),
               Eq(VideoFrameType::kVideoFrameKey));
-  EXPECT_THAT(encoded_frames[1].encoded_image._frameType,
+  EXPECT_THAT(encoded_frames[1].encoded_image.frame_type(),
               Eq(VideoFrameType::kVideoFrameDelta));
 }
 
@@ -436,9 +436,9 @@ TEST_P(LibaomAv1EncoderTest, RtpTimestampWrap) {
           .SetRtpTimestamp(std::numeric_limits<uint32_t>::max())
           .Encode();
   ASSERT_THAT(encoded_frames, SizeIs(2));
-  EXPECT_THAT(encoded_frames[0].encoded_image._frameType,
+  EXPECT_THAT(encoded_frames[0].encoded_image.frame_type(),
               Eq(VideoFrameType::kVideoFrameKey));
-  EXPECT_THAT(encoded_frames[1].encoded_image._frameType,
+  EXPECT_THAT(encoded_frames[1].encoded_image.frame_type(),
               Eq(VideoFrameType::kVideoFrameDelta));
 }
 

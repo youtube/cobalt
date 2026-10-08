@@ -67,7 +67,7 @@ if (enable_extensions) {
     "app_view_guest_internal.json",
     "app_window.idl",
     "audio.webidl",
-    "automation_internal.idl",
+    "automation_internal.webidl",
     "automation.idl",
     "bluetooth_low_energy.webidl",
     "bluetooth_private.idl",
@@ -75,13 +75,13 @@ if (enable_extensions) {
     "bluetooth.webidl",
     "cec_private.webidl",
     "clipboard.webidl",
-    "feedback_private.idl",
+    "feedback_private.webidl",
     "file_system.idl",
     "hid.idl",
     "mime_handler_private.idl",
     "mime_handler_view_guest_internal.json",
-    "mojo_private.idl",
-    "networking_private.idl",
+    "mojo_private.webidl",
+    "networking_private.webidl",
     "printer_provider_internal.idl",
     "printer_provider.idl",
     "scripts_internal.idl",
@@ -100,7 +100,7 @@ if (enable_extensions) {
   if (is_chromeos) {
     extensions_api_schema_files_ += [
       "diagnostics.webidl",
-      "media_perception_private.idl",
+      "media_perception_private.webidl",
       "webcam_private.webidl",
     ]
   }
