@@ -841,7 +841,6 @@ class CobaltReasoningEngine:
     eff_target = target or target_file or "cobalt"
     eff_diag = diagnostics or error_trace
     eff_ctx = source_contexts or file_context
-    eff_inv = investigation_history or history
 
     chosen_model = (expert_model or
                     self.expert_model) if use_expert else self.flash_model
@@ -849,8 +848,11 @@ class CobaltReasoningEngine:
     compiler_skill = self._get_skill("compiler_healing")
     patterns_skill = self._get_skill("cobalt_rebase_patterns")
 
+    history_section = (f"Prior Attempt History:\n{history}\n\n"
+                       if history else "")
     investigation_section = (
-        f"--- Investigation Tool Results ---\n{eff_inv}\n\n" if eff_inv else "")
+        f"--- Investigation Tool Results ---\n{investigation_history}\n\n"
+        if investigation_history else "")
     expert_section = (
         f"=== TIER-2 ARCHITECT GUIDANCE ({chosen_model.upper()}) ===\n"
         f"{expert_guidance}\n"
@@ -877,6 +879,7 @@ class CobaltReasoningEngine:
         f"{expert_section}"
         f"Compiler Diagnostics:\n--------------------\n{eff_diag}\n"
         "--------------------\n\n"
+        f"{history_section}"
         f"{investigation_section}"
         f"Offending Source Code Excerpts:\n{eff_ctx}\n\n"
         "Instructions:\n"

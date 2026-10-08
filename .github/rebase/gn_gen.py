@@ -18,7 +18,6 @@ import warnings
 from base_resolver import (
     AgentChangeRecord,
     BaseResolver,
-    format_history_records,
 )
 from diagnostics import Diagnostic, GNDiagnostic
 from repo_guards import get_clean_build_env
@@ -239,9 +238,9 @@ class GNGenResolver(BaseResolver):
   def resolve_diagnostic(
       self,
       diagnostic: Diagnostic,
-      history_records: List[Dict[str, Any]],
       use_expert: bool = False,
       expert_guidance: str = "",
+      investigation_log: str = "",
       **kwargs,
   ) -> Tuple[str, str, str]:
     if not isinstance(diagnostic, GNDiagnostic):
@@ -280,8 +279,6 @@ class GNGenResolver(BaseResolver):
       except OSError:
         pass
 
-    history_str, investigation_str = format_history_records(history_records)
-
     anti_oscillation_note = ""
     if "Source file not found" in diagnostic.raw_output:
       anti_oscillation_note = (
@@ -295,8 +292,8 @@ class GNGenResolver(BaseResolver):
     res = self.reasoning_engine.heal_gn_error(
         error_trace=f"{diagnostic.raw_output[:32768]}{anti_oscillation_note}",
         file_context="\n\n".join(file_contexts),
-        attempt_history=history_str,
-        investigation_history=investigation_str,
+        attempt_history=self.change_history_prompt(),
+        investigation_history=investigation_log,
         expert_guidance=expert_guidance,
         use_expert=use_expert,
     )

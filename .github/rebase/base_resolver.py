@@ -113,43 +113,22 @@ def extract_meaningful_error_summary(raw_msg: str) -> str:
   return raw_msg.strip().splitlines()[0]
 
 
-def format_history_records(
-    history_records: List[Dict[str, Any]],
-    window: int = 6,
-) -> Tuple[str, str]:
-  """Splits resolver history into (patch history, investigation log).
-
-  Records whose iteration is tagged 'Tool-' are read-only investigations
-  rather than patch attempts, and the two belong in different sections
-  of the model prompt: history says what was already tried, while the
-  investigation log says what was already learned.
-
-  This was previously duplicated verbatim in gn_gen, autoninja and
-  gclient_sync. Three copies of a prompt-shaping rule is how the two
-  diff-scoring implementations drifted apart, so it lives here now.
-
-  Args:
-    history_records: Resolver iteration records, oldest first.
-    window: How many trailing records to include.
-
-  Returns:
-    A (history_str, investigation_str) pair, either of which may be "".
-  """
-  history_items = []
-  investigation_items = []
-  for record in history_records:
-    iteration = str(record.get("iteration", ""))
-    rec_file = record.get("file", "")
-    rec_error = record.get("error", "")
-    if iteration.startswith("Tool-"):
-      investigation_items.append(
-          f"Tool Call: `{rec_file}`\nResult:\n```\n{rec_error}\n```")
+def format_change_history(records: List[AgentChangeRecord],
+                          window: int = 6) -> str:
+  """Formats the last `window` change records, one line each, oldest first."""
+  lines = []
+  for rec in records[-window:]:
+    if not rec.applied_cleanly:
+      lines.append(f"- Iteration {rec.iteration}: patch for {rec.target_file} "
+                   "did not apply (SEARCH must match the file lines exactly "
+                   "and REPLACE must not contain conflict markers)")
+    elif rec.error is None:
+      lines.append(
+          f"- Iteration {rec.iteration}: changed {rec.target_file} -> passed")
     else:
-      history_items.append(
-          f"- Iteration {iteration}: Modified {rec_file} to fix "
-          f"\"{rec_error}\"")
-  return ("\n".join(history_items[-window:]),
-          "\n\n".join(investigation_items[-window:]))
+      lines.append(f"- Iteration {rec.iteration}: changed {rec.target_file} "
+                   f"-> {rec.error}")
+  return "\n".join(lines)
 
 
 @dataclasses.dataclass
@@ -157,7 +136,6 @@ class _LoopState:
   """Mutable state carried across iterations of run_resolution_loop."""
 
   iteration: int = 0
-  history: List[Dict[str, Any]] = dataclasses.field(default_factory=list)
   last_error: str = ""  # Error summary of the most recent failure.
   stuck_count: int = 0  # Consecutive iterations with the same error.
   # Record of the last applied patch; gets the next command's outcome.
@@ -210,12 +188,21 @@ class BaseResolver(abc.ABC):
   def resolve_diagnostic(
       self,
       diagnostic: Diagnostic,
-      history_records: List[Dict[str, Any]],
       use_expert: bool = False,
       expert_guidance: str = "",
+      investigation_log: str = "",
       **kwargs,
   ) -> Tuple[str, str, str]:
-    """Generates a patch. Returns (patch, model_used, target_file)."""
+    """Generates a patch. Returns (patch, model_used, target_file).
+
+    Prior attempts come from change_history_prompt(); investigation_log holds
+    the tool results gathered for this diagnostic.
+    """
+
+  def change_history_prompt(self) -> str:
+    """This phase's recent change records, formatted for the model."""
+    return format_change_history(
+        [r for r in self.session_changes if r.phase == self.name])
 
   def on_patch_applied(self, modified_files: List[str]) -> None:
     """Hook called immediately after a patch is applied."""
@@ -273,13 +260,13 @@ class BaseResolver(abc.ABC):
       diagnostic: Diagnostic,
       *,
       max_rounds: int = 12,
-      base_history_records: Optional[List[Dict[str, Any]]] = None,
       expert_guidance: str = "",
   ) -> Tuple[str, str]:
     """Runs multi-turn tool loop supporting batch tool requests from LLM."""
     current_patch = initial_patch
     model_used = self.model
-    history_records: List[Dict[str, Any]] = list(base_history_records or [])
+    # Results of each round; the model sees the most recent six.
+    investigation: List[str] = []
     seen_cmds: Dict[str, int] = collections.defaultdict(int)
 
     for round_idx in range(1, max_rounds + 1):
@@ -315,11 +302,9 @@ class BaseResolver(abc.ABC):
             "(or use TOOL_UPSTREAM_DIFF / TOOL_GREP for new information). ===")
 
       combined_output = "\n".join(batch_outputs)
-      history_records.append({
-          "iteration": f"Tool-{round_idx}",
-          "file": " | ".join(tool_cmds),
-          "error": combined_output,
-      })
+      cmds_str = " | ".join(tool_cmds)
+      investigation.append(f"Tool Call: `{cmds_str}`\n"
+                           f"Result:\n```\n{combined_output}\n```")
 
       if any(seen_cmds[cmd] >= 3 for cmd in tool_cmds):
         log.info(
@@ -329,30 +314,24 @@ class BaseResolver(abc.ABC):
 
       patch_res, m_used, _ = self.resolve_diagnostic(
           diagnostic=diagnostic,
-          history_records=history_records,
           use_expert=True,
           expert_guidance=expert_guidance,
+          investigation_log="\n\n".join(investigation[-6:]),
       )
       current_patch = patch_res
       model_used = m_used
 
     if extract_tool_commands(current_patch):
-      history_records.append({
-          "iteration":
-              "Tool-Final",
-          "file":
-              "SYSTEM_DIRECTIVE",
-          "error":
-              ("=== TOOL BUDGET EXHAUSTED: Do NOT output any TOOL_* commands. "
-               "Synthesize the findings above and output ONLY the final FILE: "
-               "and <<<<<<< SEARCH / ======= / >>>>>>> REPLACE patch block(s) "
-               "now. ==="),
-      })
+      investigation.append(
+          "=== TOOL BUDGET EXHAUSTED: Do NOT output any TOOL_* commands. "
+          "Synthesize the findings above and output ONLY the final FILE: "
+          "and <<<<<<< SEARCH / ======= / >>>>>>> REPLACE patch block(s) "
+          "now. ===")
       current_patch, model_used, _ = self.resolve_diagnostic(
           diagnostic=diagnostic,
-          history_records=history_records,
           use_expert=True,
           expert_guidance=expert_guidance,
+          investigation_log="\n\n".join(investigation[-6:]),
       )
 
     return current_patch, model_used
@@ -412,7 +391,6 @@ class BaseResolver(abc.ABC):
 
       patch, model_used, rel_target = self.resolve_diagnostic(
           diagnostic=diag,
-          history_records=state.history,
           use_expert=use_expert,
           expert_guidance=expert_guidance,
       )
@@ -420,7 +398,6 @@ class BaseResolver(abc.ABC):
         patch, model_used = self.execute_investigation_tools(
             initial_patch=patch,
             diagnostic=diag,
-            base_history_records=state.history,
             expert_guidance=expert_guidance,
         )
       if not patch:
@@ -507,14 +484,6 @@ class BaseResolver(abc.ABC):
       log.info("  [%s] Notice: Revert failed for %s: %s", self.name, rel_file,
                rev_err)
       return
-    state.history.append({
-        "iteration": iteration,
-        "file": rel_file,
-        "error": (f"Reverted {rel_file} to clean baseline due to repeated "
-                  f"failed fix attempts ({error_summary}). Please "
-                  "re-investigate with an alternative approach."),
-        "status": "REVERTED_TO_BASELINE",
-    })
     self.session_changes.append(
         AgentChangeRecord(
             phase=self.name,
@@ -523,7 +492,9 @@ class BaseResolver(abc.ABC):
             file_changes={
                 rel_file: f"# Reverted {rel_file} to clean baseline HEAD"
             },
-            error=f"Repeated failure ({error_summary}); reverted to baseline",
+            error=(
+                f"reverted to HEAD after repeated failure ({error_summary}); "
+                "try a different approach"),
             applied_cleanly=True,
         ))
 
@@ -670,15 +641,6 @@ class BaseResolver(abc.ABC):
               applied_cleanly=False,
           ))
       state.pending_record = None
-      state.history.append({
-          "iteration": iteration,
-          "file": rel_target,
-          "error":
-              (f"Patch failed to apply to {rel_target}. Ensure <<<<<<< SEARCH "
-               "matches exact file lines and >>>>>>> REPLACE contains clean "
-               "code without stray conflict markers."),
-          "status": "FAILED_TO_APPLY",
-      })
       return
 
     mod_summary = ", ".join(
@@ -696,9 +658,3 @@ class BaseResolver(abc.ABC):
         applied_cleanly=True,
     )
     self.session_changes.append(state.pending_record)
-    state.history.append({
-        "iteration": iteration,
-        "file": rel_target,
-        "error": state.last_error,
-        "status": "APPLIED",
-    })

@@ -333,14 +333,14 @@ class ReasoningEngineClient:
     eff_target = target or target_file or "cobalt"
     eff_diag = diagnostics or error_trace
     eff_ctx = source_contexts or file_context
-    eff_inv = investigation_history or history
 
     return self.query(
         action="heal_compiler_error",
         target=eff_target,
         diagnostics=eff_diag,
         source_contexts=eff_ctx,
-        investigation_history=eff_inv,
+        history=history,
+        investigation_history=investigation_history,
         expert_guidance=expert_guidance,
         use_expert=use_expert,
     )

@@ -12,13 +12,12 @@ import logging
 import os
 import re
 import subprocess
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, List, Optional, Tuple
 import warnings
 
 from base_resolver import (
     AgentChangeRecord,
     BaseResolver,
-    format_history_records,
 )
 from diagnostics import Diagnostic, CompilerDiagnostic
 from repo_guards import (
@@ -522,22 +521,14 @@ class AutoninjaResolver(BaseResolver):
   def resolve_diagnostic(
       self,
       diagnostic: Diagnostic,
-      history_records: List[Dict[str, Any]],
       use_expert: bool = False,
       expert_guidance: str = "",
+      investigation_log: str = "",
       **kwargs,
   ) -> Tuple[str, str, str]:
     if not isinstance(diagnostic, CompilerDiagnostic):
       # Unstructured build output: let the model work from the raw text.
       error_trace = diagnostic.error_message[:32768]
-      history_items = []
-      for h in history_records[-5:]:
-        it = h.get("iteration", "")
-        hf = h.get("file", "")
-        he = h.get("error", "")
-        history_items.append(f"- Iteration {it}: Modified {hf} to fix \"{he}\"")
-      history_str = "\n".join(history_items)
-
       # Attempt to deduce a candidate build file from action references
       target_cand = ""
       m_act = re.search(r"ACTION\s+//([a-zA-Z0-9_/\.\-\+]+):([a-zA-Z0-9_]+)",
@@ -551,7 +542,8 @@ class AutoninjaResolver(BaseResolver):
           error_trace=error_trace,
           file_context="",
           target_file=target_cand,
-          history=history_str,
+          history=self.change_history_prompt(),
+          investigation_history=investigation_log,
           expert_guidance=expert_guidance,
           use_expert=use_expert,
       )
@@ -622,14 +614,12 @@ class AutoninjaResolver(BaseResolver):
                    f"{notes_str}"
                    f"{guard_msg}")
 
-    history_str, investigation_str = format_history_records(history_records)
-
     res = self.reasoning_engine.heal_compiler_error(
         error_trace=error_trace,
         file_context=file_context,
         target_file=diagnostic.file_path,
-        history=history_str,
-        investigation_history=investigation_str,
+        history=self.change_history_prompt(),
+        investigation_history=investigation_log,
         expert_guidance=expert_guidance,
         use_expert=use_expert,
     )

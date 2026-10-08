@@ -20,7 +20,7 @@ from base_resolver import (
     AgentChangeRecord,
     BaseResolver,
     extract_meaningful_error_summary,
-    format_history_records,
+    format_change_history,
 )
 from diagnostics import Diagnostic
 from patching import (
@@ -1014,17 +1014,17 @@ void Foo() {{}}
         def resolve_diagnostic(
             self,
             diagnostic,
-            history_records,
             use_expert=False,
             expert_guidance="",
+            investigation_log="",
             **_kwargs,
         ):
           del diagnostic, use_expert
           calls.append({
-              "history": list(history_records),
+              "investigation": investigation_log,
               "guidance": expert_guidance,
           })
-          if any(r.get("iteration") == "Tool-Final" for r in history_records):
+          if "TOOL BUDGET EXHAUSTED" in investigation_log:
             return (
                 "FILE: h_5_vcc.h\n<<<<<<< SEARCH\nold\n=======\nnew\n"
                 ">>>>>>> REPLACE\n",
@@ -1035,11 +1035,9 @@ void Foo() {{}}
                   "h_5_vcc.h")
 
       resolver = _ToolLoopResolver(tmp_dir)
-      base_hist = [{"iteration": 1, "file": "h_5_vcc.h", "error": "missing"}]
       patch, _ = resolver.execute_investigation_tools(
           initial_patch="TOOL_FIND_FILE: *supplementable*",
           diagnostic="diag",
-          base_history_records=base_hist,
           expert_guidance="Migrate Supplement<LocalDOMWindow>",
       )
       self.assertIn(">>>>>>> REPLACE", patch)
@@ -1047,9 +1045,9 @@ void Foo() {{}}
       self.assertTrue(
           all(c["guidance"] == "Migrate Supplement<LocalDOMWindow>"
               for c in calls))
-      hist_str, inv_str = format_history_records(calls[-1]["history"], window=2)
-      self.assertIn("Iteration 1: Modified h_5_vcc.h", hist_str)
-      self.assertIn("TOOL BUDGET EXHAUSTED", inv_str)
+      self.assertIn("Tool Call: `TOOL_FIND_FILE: *supplementable*`",
+                    calls[-1]["investigation"])
+      self.assertIn("TOOL BUDGET EXHAUSTED", calls[-1]["investigation"])
 
   def test_reject_nested_file_in_search_replace(self):
     """Tests that SEARCH/REPLACE blocks with nested FILE: are rejected."""
@@ -1145,6 +1143,7 @@ target("foo") {{}}
         target="cobalt",
         diagnostics="error: foo",
         source_contexts="",
+        history="",
         investigation_history="",
         expert_guidance="",
         use_expert=False,
@@ -1178,6 +1177,7 @@ target("foo") {{}}
         target="cobalt",
         diagnostics="error: local_foo",
         source_contexts="",
+        history="",
         investigation_history="",
         expert_guidance="",
         use_expert=False,
@@ -1510,11 +1510,10 @@ target("foo") {{}}
         def resolve_diagnostic(
             self,
             diagnostic,
-            history_records,
             use_expert=False,
             expert_guidance="",
         ):
-          del diagnostic, history_records  # Unused.
+          del diagnostic  # Unused.
           del use_expert, expert_guidance  # Unused.
           return "", "flash", "persistent_syntax_error.cc"
 
@@ -1562,11 +1561,10 @@ target("foo") {{}}
         def resolve_diagnostic(
             self,
             diagnostic,
-            history_records,
             use_expert=False,
             expert_guidance="",
         ):
-          del diagnostic, history_records, expert_guidance
+          del diagnostic, expert_guidance
           expert_flags.append(use_expert)
           return "", "flash", build_gn
 
@@ -1947,8 +1945,8 @@ target("foo") {{}}
           del build_output, siso_output
           return ["sample.cc:1: error: mismatch"]
 
-        def resolve_diagnostic(self, diagnostic, history_records, **kwargs):
-          del diagnostic, history_records, kwargs
+        def resolve_diagnostic(self, diagnostic, **kwargs):
+          del diagnostic, kwargs
           patch = ("### **FILE**: `cobalt/sample.cc`\n"
                    "<<<<<<< SEARCH\n"
                    "int value = 1;\n"
@@ -2051,8 +2049,8 @@ target("foo") {{}}
         del build_output, siso_output
         return ["test.cc:1: error: test"]
 
-      def resolve_diagnostic(self, diagnostic, history_records, **kwargs):
-        del diagnostic, history_records, kwargs
+      def resolve_diagnostic(self, diagnostic, **kwargs):
+        del diagnostic, kwargs
         return "patch", "flash", "test.cc"
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -2276,50 +2274,60 @@ class ToolDirectiveExtractionTest(unittest.TestCase):
     self.assertEqual(len(extract_line_anchored_tool_commands(text)), 3)
 
 
-class FormatHistoryRecordsTest(unittest.TestCase):
-  """Pins the formatter deduplicated out of three resolvers.
+class FormatChangeHistoryTest(unittest.TestCase):
+  """Prior-attempt lines built from AgentChangeRecords."""
 
-  gn_gen, autoninja and gclient_sync each held a byte-identical copy of
-  this block. One definition now, with the window and the 'Tool-'
-  convention pinned here.
-  """
-
-  def test_splits_patches_from_investigations(self):
+  def test_outcomes(self):
     records = [
-        {
-            "iteration": 1,
-            "file": "a.cc",
-            "error": "boom"
-        },
-        {
-            "iteration": "Tool-1",
-            "file": "TOOL_GREP: x",
-            "error": "hit"
-        },
+        AgentChangeRecord("p", 1, "a.cc", applied_cleanly=False),
+        AgentChangeRecord("p", 2, "a.cc", error="no member named X"),
+        AgentChangeRecord("p", 3, "b.cc", error=None),
     ]
-    history, investigation = format_history_records(records)
-    self.assertEqual(history, '- Iteration 1: Modified a.cc to fix "boom"')
-    self.assertEqual(investigation,
-                     "Tool Call: `TOOL_GREP: x`\nResult:\n```\nhit\n```")
+    lines = format_change_history(records).splitlines()
+    self.assertTrue(lines[0].startswith("- Iteration 1: patch for a.cc did "
+                                        "not apply"))
+    self.assertEqual(lines[1],
+                     "- Iteration 2: changed a.cc -> no member named X")
+    self.assertEqual(lines[2], "- Iteration 3: changed b.cc -> passed")
 
   def test_window_keeps_only_trailing_records(self):
-    records = [{
-        "iteration": i,
-        "file": f"f{i}.cc",
-        "error": "e"
-    } for i in range(12)]
-    history, _ = format_history_records(records)
+    records = [AgentChangeRecord("p", i, f"f{i}.cc") for i in range(12)]
+    history = format_change_history(records)
     self.assertEqual(len(history.splitlines()), 6)
     self.assertIn("f11.cc", history)
     self.assertNotIn("f5.cc", history)
 
-  def test_missing_keys_do_not_raise(self):
-    history, investigation = format_history_records([{}, {"iteration": 3}])
-    self.assertEqual(investigation, "")
-    self.assertEqual(len(history.splitlines()), 2)
+  def test_empty_input_yields_empty_string(self):
+    self.assertEqual(format_change_history([]), "")
 
-  def test_empty_input_yields_empty_strings(self):
-    self.assertEqual(format_history_records([]), ("", ""))
+  def test_resolver_only_sees_its_own_phase(self):
+
+    class _Resolver(BaseResolver):
+      """Minimal resolver named "gn"."""
+
+      @property
+      def name(self):
+        return "gn"
+
+      def run_command(self, iteration):
+        del iteration
+        return True, "", ""
+
+      def extract_diagnostics(self, build_output, siso_output):
+        del build_output, siso_output
+        return []
+
+      def resolve_diagnostic(self, diagnostic, **kwargs):
+        del diagnostic, kwargs
+        return "", "", ""
+
+    shared = [
+        AgentChangeRecord("conflicts", 1, "DEPS"),
+        AgentChangeRecord("gn", 1, "BUILD.gn", error="unknown target"),
+    ]
+    resolver = _Resolver(tempfile.gettempdir(), session_changes=shared)
+    self.assertEqual(resolver.change_history_prompt(),
+                     "- Iteration 1: changed BUILD.gn -> unknown target")
 
 
 class PipelineFlagsTest(unittest.TestCase):
@@ -2496,8 +2504,8 @@ class DiagnosticTest(unittest.TestCase):
         del siso_output
         return [build_output]  # Bare string, as older subclasses return.
 
-      def resolve_diagnostic(self, diagnostic, history_records, **kwargs):
-        del history_records, kwargs
+      def resolve_diagnostic(self, diagnostic, **kwargs):
+        del kwargs
         seen.append(diagnostic)
         return "", "flash", ""
 

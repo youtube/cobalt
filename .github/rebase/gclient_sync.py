@@ -18,7 +18,6 @@ import warnings
 from base_resolver import (
     AgentChangeRecord,
     BaseResolver,
-    format_history_records,
 )
 from diagnostics import Diagnostic, GClientSyncDiagnostic
 from repo_guards import get_clean_build_env, resolve_repo_file_path
@@ -194,9 +193,9 @@ class GClientSyncResolver(BaseResolver):
   def resolve_diagnostic(
       self,
       diagnostic: Diagnostic,
-      history_records: List[Dict[str, Any]],
       use_expert: bool = False,
       expert_guidance: str = "",
+      investigation_log: str = "",
       **kwargs,
   ) -> Tuple[str, str, str]:
     if not isinstance(diagnostic, GClientSyncDiagnostic):
@@ -257,8 +256,6 @@ class GClientSyncResolver(BaseResolver):
       context_snippet = current_deps if len(lines) <= 250 else "".join(
           lines[:250])
 
-    history_str, investigation_str = format_history_records(history_records)
-
     deps_context = (
         f"### Excerpt from {rel_deps} (around line {target_line or 1}):\n"
         f"```python\n{context_snippet}\n```")
@@ -268,8 +265,8 @@ class GClientSyncResolver(BaseResolver):
         target_file=deps_path,
         error_trace=diagnostic.diagnostic_trace,
         source_contexts=deps_context,
-        history=history_str,
-        investigation_history=investigation_str,
+        history=self.change_history_prompt(),
+        investigation_history=investigation_log,
         expert_guidance=expert_guidance,
         use_expert=use_expert,
     )

@@ -651,12 +651,12 @@ class ConflictResolver(BaseResolver):
   def resolve_diagnostic(
       self,
       diagnostic: Diagnostic,
-      history_records: List[Dict[str, Any]],
       use_expert: bool = False,
       expert_guidance: str = "",
+      investigation_log: str = "",
       **kwargs,
   ) -> Tuple[str, str, str]:
-    del history_records, use_expert, expert_guidance
+    del use_expert, expert_guidance, investigation_log
     tf = diagnostic.file_path
     rel = os.path.relpath(tf, self.repo_path)
     ok = resolve_file_conflicts(
