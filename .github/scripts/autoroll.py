@@ -47,7 +47,8 @@ def main():
   # Commits in source but not in target
   commits_to_target = lib.get_commits(args.source_branch, target_start)
   already_rolled_shas, already_rolled_prs = lib.get_rolled_source_items(
-      args.target_branch)
+      f'{args.target_branch}..HEAD')
+  target_shas, target_prs = lib.get_rolled_source_items(args.target_branch)
 
   if args.mode == 'label':
     if not args.prs_json:
@@ -61,8 +62,12 @@ def main():
   for sha, title, pr_num in commits_to_target:
     identifier = f'- #{pr_num}' if pr_num else f'- {sha}'
 
-    # Skip if already in autoroll (matched by SHA or original PR number)
+    # Skip if already merged in target branch
     pr_num_int = int(pr_num) if pr_num else None
+    if sha in target_shas or (pr_num_int and pr_num_int in target_prs):
+      continue
+
+    # Skip if already in autoroll (matched by SHA or original PR number)
     if sha in already_rolled_shas or (pr_num_int and
                                       pr_num_int in already_rolled_prs):
       commits_added.append(identifier)
@@ -83,7 +88,8 @@ def main():
     # Commit PR
     metadata = lib.get_cherry_pick_metadata(sha, title, pr_num)
     first_commit = not commits_added
-    autoroll_metadata = (args.autoroll_file, sha)
+    autoroll_metadata = ((args.autoroll_file,
+                          sha) if args.mode == 'full' else None)
 
     result, unmerged_files = cherry_pick(sha, metadata, first_commit,
                                          autoroll_metadata)
