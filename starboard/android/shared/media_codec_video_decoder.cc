@@ -515,9 +515,10 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
     }
   }
 
-  if (pending_codec_transition_check_) {
-    if (input_buffer_written_ > 0 &&
-        NeedsCodecTransition(input_buffers.front())) {
+  // A flushed codec keeps its configuration across a seek, so check the first
+  // input after the flush in case the codec needs to be rebuilt.
+  if (is_flushed_) {
+    if (NeedsCodecTransition(input_buffers.front())) {
       SB_LOG(INFO) << "Codec configuration changed at "
                    << input_buffers.front()->timestamp()
                    << " after a reset; rebuilding the codec.";
@@ -528,7 +529,7 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
       input_buffer_written_ = 0;
       video_fps_ = 0;
     }
-    pending_codec_transition_check_ = false;
+    is_flushed_ = false;
   }
 
   if (input_buffer_written_ == 0) {
@@ -1231,6 +1232,9 @@ void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
     // initial pre-roll phase after a Flush().
     input_buffer_written_ = 0;
     video_fps_ = 0;
+    is_flushed_ = false;
+  } else {
+    is_flushed_ = true;
   }
   CancelPendingJobs();
 
@@ -1245,7 +1249,6 @@ void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
   tunnel_mode_prerolled_frames_.store(0);
   end_of_stream_written_ = false;
   pending_input_buffers_.clear();
-  pending_codec_transition_check_ = true;
 
   // TODO: We rely on VideoRenderAlgorithmTunneled::Seek() to be called inside
   //       VideoRenderer::Seek() after calling MediaCodecVideoDecoder::Reset()
@@ -1258,13 +1261,29 @@ void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
 // TODO (b/564788162): Support cross-codec transitions.
 bool MediaCodecVideoDecoder::NeedsCodecTransition(
     const scoped_refptr<InputBuffer>& input_buffer) const {
+  SB_DCHECK_EQ(input_buffer->video_stream_info().codec, video_codec_);
   if (!media_decoder_) {
     return false;
   }
-  const bool stream_is_hdr =
-      !IsIdentity(input_buffer->video_stream_info().color_metadata);
+  const SbMediaColorMetadata& stream_color =
+      input_buffer->video_stream_info().color_metadata;
+  const bool stream_is_hdr = !IsIdentity(stream_color);
   const bool codec_is_hdr = color_metadata_.has_value();
-  return stream_is_hdr != codec_is_hdr;
+  if (stream_is_hdr != codec_is_hdr) {
+    return true;
+  }
+  // Only compare the fields that reach MediaCodec: CreateVideoMediaCodec()
+  // passes these to the Java ColorInfo, which sets the MediaFormat's color
+  // standard/transfer/range and HDR static info. Others (e.g. matrix) are
+  // unused by the codec.
+  return stream_is_hdr &&
+         (stream_color.primaries != color_metadata_->primaries ||
+          stream_color.transfer != color_metadata_->transfer ||
+          stream_color.range != color_metadata_->range ||
+          stream_color.max_cll != color_metadata_->max_cll ||
+          stream_color.max_fall != color_metadata_->max_fall ||
+          !Equal(stream_color.mastering_metadata,
+                 color_metadata_->mastering_metadata));
 }
 
 }  // namespace starboard

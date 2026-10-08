@@ -259,7 +259,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   std::atomic<int32_t> number_of_frames_being_decoded_{0};
   scoped_refptr<Sink> sink_;
 
-  bool pending_codec_transition_check_ = false;
+  bool is_flushed_ = false;
 
   int input_buffer_written_ = 0;
   bool first_texture_received_ = false;
