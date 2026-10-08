@@ -33,11 +33,16 @@ inputs:
   download_chromedriver:
     description: "Download official Chromedriver instead of using the built binary."
     required: false
-    default: "true"
+    default: "false"
 
 runs:
   using: "composite"
   steps:
+    - name: Set Up Depot Tools
+      uses: ./.github/actions/depot_tools
+      with:
+        run_sync: 'false'
+
     - name: Download Cobalt QA Release Package from GCS
       uses: ./.github/actions/download_test_artifacts
       with:

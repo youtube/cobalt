@@ -97,7 +97,7 @@ if [[ "${DOWNLOAD_CHROMEDRIVER}" -eq 1 ]]; then
   echo "Detected version: ${VERSION}"
 
   mkdir -p "${DOWNLOAD_DIR}"
-  python3 "${SKILL_DIR}/download_chromedriver.py" "${VERSION}" --dest "${DOWNLOAD_DIR}"
+  vpython3 "${SKILL_DIR}/download_chromedriver.py" "${VERSION}" --dest "${DOWNLOAD_DIR}"
 
   CHROMEDRIVER_BIN=$(find "${DOWNLOAD_DIR}" -name "chromedriver" -type f | head -n 1)
   if [[ -z "${CHROMEDRIVER_BIN}" ]]; then
@@ -126,7 +126,7 @@ export LD_LIBRARY_PATH="${OUT_DIR}/starboard:${OUT_DIR}:${LD_LIBRARY_PATH:-}"
 # Run the test
 echo "Running smoke test..."
 exit_code=0
-DISPLAY="${XVFB_DISPLAY}" python3 "${TEST_SCRIPT}" \
+DISPLAY="${XVFB_DISPLAY}" vpython3 "${TEST_SCRIPT}" \
   --binary "${COBALT_BIN}" \
   --driver "${CHROMEDRIVER_BIN}" \
   --output-dir "${OUTPUT_DIR}" \

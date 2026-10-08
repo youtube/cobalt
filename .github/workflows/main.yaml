@@ -1054,6 +1054,7 @@ jobs:
     container:
       image: ${{ needs.docker-unittest-image.outputs.docker_tag }}
     env:
+      TMPDIR: /__w/_temp
       TEST_ARTIFACTS_KEY: ${{ github.workflow }}/${{ github.run_number }}/linux-x64x11
       CHROMEDRIVER_ARTIFACTS_KEY: ${{ github.workflow }}/${{ github.run_number }}/linux-x64x11-no-starboard
     steps:
@@ -1070,7 +1071,6 @@ jobs:
           config: qa
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
           chromedriver_artifacts_key: ${{ env.CHROMEDRIVER_ARTIFACTS_KEY }}
-          download_chromedriver: 'true'
 
   test-results:
     needs: [initialize, build, on-device-test, on-host-test]
