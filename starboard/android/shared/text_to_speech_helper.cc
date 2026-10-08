@@ -46,8 +46,8 @@ bool TextToSpeechHelper::IsTextToSpeechEnabled(JNIEnv* env) const {
 }
 
 void TextToSpeechHelper::SendTextToSpeechChangeEvent(bool enabled) const {
-  // TODO(b/492704919): Android TV calls into Cobalt directly, which is a
-  // layering violation. AOSP sends a Starboard event instead.
+  // TODO(b/492704919): Android TV shouldn't call into Cobalt here. Remove this.
+  // AOSP sends a Starboard event instead.
 #if !BUILDFLAG(IS_STARBOARD)
   cobalt::browser::H5vccAccessibilityManager::GetInstance()
       ->OnTextToSpeechStateChanged(enabled);
