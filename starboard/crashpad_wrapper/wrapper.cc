@@ -17,12 +17,6 @@
 #include <string.h>
 #include <sys/stat.h>
 
-#if defined(OS_ANDROID)
-#include <dirent.h>
-#include <fcntl.h>
-#include <unistd.h>
-#endif  // defined(OS_ANDROID)
-
 #include <map>
 #include <memory>
 #include <optional>
@@ -123,91 +117,6 @@ base::FilePath GetDatabasePath() {
 
   return base::FilePath(crashpad_directory_path.c_str());
 }
-
-#if defined(OS_ANDROID)
-bool CopyFile(const std::string& src_path, const std::string& dst_path) {
-  // Don't use the 2-arg open() since _FORTIFY_SOURCE rewrites it to __open_2,
-  // which bypasses -Wl,--wrap=open.
-  const int src = open(src_path.c_str(), O_RDONLY, 0);
-  if (src < 0) {
-    PLOG(ERROR) << "Couldn't open " << src_path;
-    return false;
-  }
-  const int dst =
-      open(dst_path.c_str(), O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR);
-  if (dst < 0) {
-    PLOG(ERROR) << "Couldn't create " << dst_path;
-    close(src);
-    return false;
-  }
-  bool ok = true;
-  char buffer[4096];
-  while (true) {
-    const ssize_t bytes_read = read(src, buffer, sizeof(buffer));
-    if (bytes_read == 0) {
-      break;
-    }
-    if (bytes_read < 0 || write(dst, buffer, bytes_read) != bytes_read) {
-      ok = false;
-      break;
-    }
-  }
-  close(src);
-  return close(dst) == 0 && ok;
-}
-
-// Copies the files in |src_dir_path| into |dst_dir_path|.
-bool CopyDirContents(const std::string& src_dir_path,
-                     const std::string& dst_dir_path) {
-  DIR* src_dir = opendir(src_dir_path.c_str());
-  if (!src_dir) {
-    PLOG(ERROR) << "Couldn't open " << src_dir_path;
-    return false;
-  }
-  bool ok = true;
-  while (struct dirent* entry = readdir(src_dir)) {
-    const std::string name(entry->d_name);
-    if (name == "." || name == "..") {
-      continue;
-    }
-    if (!CopyFile(src_dir_path + kSbFileSepChar + name,
-                  dst_dir_path + kSbFileSepChar + name)) {
-      ok = false;
-      break;
-    }
-  }
-  closedir(src_dir);
-  return ok;
-}
-
-// Copies the CA certificates out of the APK into the cache directory. Returns
-// the path of the copy, or an empty path on failure. This process reads APK
-// assets through Starboard's file emulation, but the handler is a separate
-// process and can't.
-base::FilePath CopyCACertificatesToCache(
-    const std::string& ca_certificates_path) {
-  std::vector<char> cache_directory_path(kSbFileMaxPath);
-  if (ca_certificates_path.empty() ||
-      !SbSystemGetPath(kSbSystemPathCacheDirectory, cache_directory_path.data(),
-                       kSbFileMaxPath)) {
-    return base::FilePath();
-  }
-
-  std::string copy_path(cache_directory_path.data());
-  copy_path.push_back(kSbFileSepChar);
-  copy_path.append("certs");
-  struct stat info;
-  if (mkdir(copy_path.c_str(), 0700) != 0 &&
-      !(stat(copy_path.c_str(), &info) == 0 && S_ISDIR(info.st_mode))) {
-    return base::FilePath();
-  }
-
-  if (!CopyDirContents(ca_certificates_path, copy_path)) {
-    return base::FilePath();
-  }
-  return base::FilePath(copy_path);
-}
-#endif  // defined(OS_ANDROID)
 
 bool InitializeCrashpadDatabase(const base::FilePath database_directory_path) {
   std::unique_ptr<::crashpad::CrashReportDatabase> database =
@@ -374,7 +283,15 @@ std::optional<SbNativeStabilityReport> ParseReportFromMinidump(
 
 }  // namespace
 
+// Android has its own InstallCrashpadHandler(), in wrapper_android.cc, which
+// copies the CA certificates before calling InstallCrashpadHandlerImpl().
+#if !defined(OS_ANDROID)
 void InstallCrashpadHandler(const std::string& ca_certificates_path) {
+  InstallCrashpadHandlerImpl(ca_certificates_path);
+}
+#endif  // !defined(OS_ANDROID)
+
+void InstallCrashpadHandlerImpl(const std::string& ca_certificates_path) {
   ::crashpad::CrashpadClient* client = GetCrashpadClient();
 
   const base::FilePath handler_path = GetPathToCrashpadHandlerBinary();
@@ -424,21 +341,9 @@ void InstallCrashpadHandler(const std::string& ca_certificates_path) {
 
   client->SetUnhandledSignals({});
 
-#if defined(OS_ANDROID)
-  const base::FilePath handler_ca_certificates_path =
-      CopyCACertificatesToCache(ca_certificates_path);
-  if (handler_ca_certificates_path.empty()) {
-    LOG(ERROR) << "Failed to copy the CA certificates, not installing the "
-                  "Crashpad handler";
-    return;
-  }
-#else   // defined(OS_ANDROID)
-  const base::FilePath handler_ca_certificates_path(ca_certificates_path);
-#endif  // defined(OS_ANDROID)
-
   if (!client->StartHandlerAtCrash(handler_path, database_directory_path,
                                    default_metrics_dir, kUploadUrl,
-                                   handler_ca_certificates_path,
+                                   base::FilePath(ca_certificates_path.c_str()),
                                    default_annotations, default_arguments)) {
     LOG(ERROR) << "Failed to install the signal handler";
     RecordStatus(

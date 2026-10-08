@@ -40,6 +40,13 @@ config("platform_configuration") {
       "-Wl,--wrap=sysconf",
     ]
   }
+
+  if (current_toolchain == native_toolchain) {
+    # Executables built for the device, like the Crashpad handler, are exec'd
+    # directly, so the dynamic linker doesn't find the libc++_shared.so
+    # packaged in the APK. Link libc++ into them statically.
+    ldflags = [ "-static-libstdc++" ]
+  }
 }
 
 config("no_pedantic_warnings") {

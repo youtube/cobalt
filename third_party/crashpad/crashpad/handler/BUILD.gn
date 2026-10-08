@@ -14,10 +14,6 @@
 
 import("../build/crashpad_buildconfig.gni")
 
-if (is_cobalt) {
-  import("//starboard/build/config/toolchain_variables.gni")
-}
-
 static_library("handler") {
   sources = [
     "handler_main.cc",
@@ -197,11 +193,6 @@ if (!crashpad_is_ios) {
 
     if (crashpad_is_linux) {
       deps += [ "../client:pthread_create" ]
-    }
-
-    if (is_cobalt && is_android && is_partner_toolchain) {
-      # Statically link libc++ to make it a self-contained executable.
-      ldflags = [ "-static-libstdc++" ]
     }
   }
 }
