@@ -27,6 +27,7 @@ from conflicts import ConflictResolver
 from gclient_sync import GClientSyncResolver
 from gn_gen import GNGenResolver
 from engine_client import ReasoningEngineClient
+from token_usage import TokenUsage
 
 log = logging.getLogger(__name__)
 
@@ -62,6 +63,7 @@ def write_rebase_report(
     elapsed_seconds: float,
     repo_path: Optional[str] = None,
     session_changes: Optional[List[AgentChangeRecord]] = None,
+    token_usage: Optional[TokenUsage] = None,
 ) -> str:
   """Generates the final comprehensive rebase summary report."""
   milestone = get_chromium_milestone(repo_path)
@@ -75,16 +77,23 @@ def write_rebase_report(
   changes_section = ""
   if session_changes:
     phase_counts = collections.Counter(c.phase for c in session_changes)
-    clean_counts = sum(1 for c in session_changes if c.applied_cleanly)
-    error_counts = sum(1 for c in session_changes if c.error is not None)
+    applied = [c for c in session_changes if c.applied_cleanly]
+    not_applied = len(session_changes) - len(applied)
+    applied_then_failed = sum(1 for c in applied if c.error is not None)
     phase_breakdown = ", ".join(f"`{k}`: {v}" for k, v in phase_counts.items())
     changes_section = f"""
 ## 3. Autonomous Change Trajectory Summary
 - **Total Changes Recorded**: `{len(session_changes)}`
-- **Clean Patches Applied**: `{clean_counts}`
-- **Subsequent Errors/Breaks**: `{error_counts}`
+- **Patches Applied**: `{len(applied)}`
+- **Applied Patches Still Followed by an Error**: `{applied_then_failed}`
+- **Patches Not Applied** (rejected or not matching): `{not_applied}`
 - **Changes by Phase**: {phase_breakdown}
 """
+
+  usage_section = ""
+  if token_usage is not None:
+    usage_section = ("\n## 4. Token Usage\n" +
+                     token_usage.format_summary_table() + "\n")
 
   content = f"""# Cobalt {milestone} Rebase Resolution & Verification Report
 
@@ -105,7 +114,7 @@ def write_rebase_report(
 | **Phase 2** | Toolchain Sync | `gclient sync -D` toolchain & CIPD sync | [OK] Completed |
 | **Phase 3** | GN Config Check | `cobalt/build/gn.py --check` validation | [OK] Completed |
 | **Phase 4** | autoninja Loop | autoninja compiler healing | {comp_status} |
-{changes_section}"""
+{changes_section}{usage_section}"""
   try:
     with open(report_path, "w", encoding="utf-8") as f:
       f.write(content)
@@ -365,6 +374,7 @@ def run_pipeline(args: argparse.Namespace) -> int:
         status=status_str,
         elapsed_seconds=time.time() - start_time,
         repo_path=args.repo_path,
+        token_usage=reasoning_engine.token_usage,
     )
 
   # -------------------------------------------------------------------------

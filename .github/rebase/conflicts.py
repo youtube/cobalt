@@ -23,7 +23,6 @@ from tools import (
     extract_line_anchored_tool_commands,
     extract_tool_commands,
 )
-from token_usage import TokenUsage
 
 log = logging.getLogger(__name__)
 
@@ -340,7 +339,6 @@ def resolve_file_conflicts(
     git_context: str,
     *,
     engine: Optional[Any] = None,
-    token_tracker: Optional[TokenUsage] = None,
     escalations: Optional[List[EscalationItem]] = None,
     session_changes: Optional[List[AgentChangeRecord]] = None,
     max_tool_rounds: int = 5,
@@ -441,8 +439,6 @@ def resolve_file_conflicts(
       for _ in range(max_tool_rounds):
         if mock_mode:
           resolved_code = block.theirs_content
-          if token_tracker:
-            token_tracker.add(50, 20, 70, "mock")
           break
 
         if engine is None:
@@ -468,9 +464,6 @@ def resolve_file_conflicts(
         raw_replacement = ""
         if isinstance(res, dict):
           raw_replacement = res.get("replacement", "")
-          model_used = res.get("model_used", "flash")
-          if token_tracker:
-            token_tracker.add(100, 30, 130, model_used)
         elif isinstance(res, str):
           raw_replacement = res
 
@@ -583,7 +576,6 @@ class ConflictResolver(BaseResolver):
     self.explicit_files = files
     self.skip_sync = skip_sync
     self.git_context, self.git_meta = extract_git_context(self.repo_path)
-    self.token_tracker = TokenUsage()
     self.escalations: List[EscalationItem] = []
     self.resolved_list: List[str] = []
 
@@ -663,7 +655,6 @@ class ConflictResolver(BaseResolver):
         file_path=tf,
         repo_path=self.repo_path,
         git_context=self.git_context,
-        token_tracker=self.token_tracker,
         escalations=self.escalations,
         engine=self.reasoning_engine,
         session_changes=self.session_changes,
@@ -707,7 +698,6 @@ class ConflictResolver(BaseResolver):
           file_path=tf,
           repo_path=self.repo_path,
           git_context=self.git_context,
-          token_tracker=self.token_tracker,
           escalations=self.escalations,
           engine=self.reasoning_engine,
           session_changes=self.session_changes,
@@ -729,9 +719,6 @@ class ConflictResolver(BaseResolver):
       log.warning(
           "  - [WARNING] Escalations Flagged: %s block(s) require "
           "human review", len(self.escalations))
-    log.info("  - Total Tokens:   %s",
-             format(self.token_tracker.total_tokens, ","))
-    log.info("  - Total AI Calls: %s", self.token_tracker.calls)
     log.info("=" * 70)
 
     return len(self.resolved_list) == len(target_files)

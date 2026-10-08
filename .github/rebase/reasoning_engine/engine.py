@@ -19,6 +19,7 @@ remote reasoning, prompt construction, and LLM calls.
 Local resolvers communicate with this hosted service via ReasoningEngineClient.
 """
 
+import contextvars
 import json
 import os
 import re
@@ -47,6 +48,29 @@ SKILLS_DIR = os.path.join(
     "skills",
 )
 _SKILL_CACHE: Dict[str, str] = {}
+
+# Token usage of the model calls made while serving the current query(). A
+# ContextVar keeps concurrent queries on the hosted engine apart and, unlike
+# an instance attribute, is not pickled when the engine is deployed.
+_QUERY_USAGE: contextvars.ContextVar[Optional[List[Dict[str, Any]]]] = (
+    contextvars.ContextVar("query_usage", default=None))
+
+
+def _record_usage(model: str, prompt: Optional[int],
+                  completion: Optional[int]) -> None:
+  """Adds one model call's token counts to the current query's usage."""
+  usage = _QUERY_USAGE.get()
+  if usage is None:
+    return
+  prompt = prompt or 0
+  completion = completion or 0
+  usage.append({
+      "model": model,
+      "prompt_tokens": prompt,
+      "completion_tokens": completion,
+      "total_tokens": prompt + completion,
+  })
+
 
 # Shared investigation-tool protocol injected into agent prompts.
 #
@@ -304,6 +328,9 @@ class CobaltReasoningEngine:
       )
       with urllib.request.urlopen(req, timeout=120) as resp:
         res_data = json.loads(resp.read().decode("utf-8"))
+        usage = res_data.get("usage") or {}
+        _record_usage(eff_model, usage.get("prompt_tokens"),
+                      usage.get("completion_tokens"))
         if "choices" in res_data and res_data["choices"]:
           msg = res_data["choices"][0].get("message", {})
           text = msg.get("content") or msg.get("reasoning_content") or ""
@@ -356,6 +383,9 @@ class CobaltReasoningEngine:
                     "content": prompt_text
                 }],
             )
+            if resp.usage is not None:
+              _record_usage(normalized_model, resp.usage.input_tokens,
+                            resp.usage.output_tokens)
             text_parts = []
             for block in resp.content:
               if hasattr(block, "text") and block.text:
@@ -443,11 +473,17 @@ class CobaltReasoningEngine:
       )
     for attempt in range(1, max_retries + 1):
       try:
-        return client.models.generate_content(
+        resp = client.models.generate_content(
             model=model,
             contents=contents,
             config=config,
         )
+        meta = resp.usage_metadata
+        if meta is not None:
+          _record_usage(model, meta.prompt_token_count,
+                        (meta.candidates_token_count or 0) +
+                        (meta.thoughts_token_count or 0))
+        return resp
       except Exception as e:  # pylint: disable=broad-exception-caught
         error_msg = str(e)
         if any(
@@ -514,7 +550,20 @@ class CobaltReasoningEngine:
     )
 
   def query(self, action: str = "resolve_conflict", **kwargs) -> Dict[str, Any]:
-    """Primary query dispatcher for Vertex AI Reasoning Engine."""
+    """Primary query dispatcher for Vertex AI Reasoning Engine.
+
+    The result carries "usage": one entry per model call made for it.
+    """
+    usage: List[Dict[str, Any]] = []
+    token = _QUERY_USAGE.set(usage)
+    try:
+      result = self._dispatch(action, **kwargs)
+    finally:
+      _QUERY_USAGE.reset(token)
+    result["usage"] = usage
+    return result
+
+  def _dispatch(self, action: str, **kwargs) -> Dict[str, Any]:
     if action in ("generate_expert_guidance", "expert_guidance"):
       return self.generate_expert_guidance(**kwargs)
     if action in ("generate_comparative_review", "comparative_review"):

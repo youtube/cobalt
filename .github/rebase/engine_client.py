@@ -23,6 +23,8 @@ from typing import Any, Dict, List, Optional
 import vertexai
 from vertexai.preview import reasoning_engines
 
+from token_usage import TokenUsage
+
 log = logging.getLogger(__name__)
 
 
@@ -70,6 +72,8 @@ class ReasoningEngineClient:
          ("glm" if "glm" in self.expert_model.lower() else "gemini")))
     self.expert_location = expert_location or os.environ.get("EXPERT_LOCATION")
     self.skills_dir = skills_dir
+    # Token counts of every model call made through this client.
+    self.token_usage = TokenUsage()
     self.local = (
         local or os.environ.get("REBASE_LOCAL", "").lower() in ("1", "true") or
         not self.resource_id)
@@ -152,7 +156,19 @@ class ReasoningEngineClient:
     raise RuntimeError(f"Could not connect to Reasoning Engine: {res_name}")
 
   def query(self, action: str, **kwargs) -> Any:
-    """Dispatches query to hosted or in-process Reasoning Engine."""
+    """Dispatches query to hosted or in-process Reasoning Engine.
+
+    Token usage reported by the engine is added to self.token_usage and
+    removed from the returned result.
+    """
+    res = self._query(action, **kwargs)
+    if isinstance(res, dict):
+      for call in res.pop("usage", None) or []:
+        self.token_usage.add(call["prompt_tokens"], call["completion_tokens"],
+                             call["total_tokens"], call["model"])
+    return res
+
+  def _query(self, action: str, **kwargs) -> Any:
     engine = self._get_engine()
     if self.local:
       return engine.query(action=action, **kwargs)

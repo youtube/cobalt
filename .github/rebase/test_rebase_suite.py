@@ -148,14 +148,12 @@ class TestRebaseAutomationSuite(unittest.TestCase):
       tmp_path = tmp.name
 
     try:
-      tracker = TokenUsage()
       escalations = []
       ok = resolve_file_conflicts(
           file_path=tmp_path,
           repo_path=os.path.dirname(tmp_path),
           git_context="",
           mock_mode=True,
-          token_tracker=tracker,
           escalations=escalations,
       )
       self.assertTrue(ok)
@@ -171,7 +169,6 @@ class TestRebaseAutomationSuite(unittest.TestCase):
       # Validate AST syntax
       tree = ast.parse(resolved)
       self.assertIsNotNone(tree)
-      self.assertEqual(tracker.calls, 1)
     finally:
       if os.path.exists(tmp_path):
         os.remove(tmp_path)
@@ -183,14 +180,12 @@ class TestRebaseAutomationSuite(unittest.TestCase):
       tmp_path = tmp.name
 
     try:
-      tracker = TokenUsage()
       escalations = []
       ok = resolve_file_conflicts(
           file_path=tmp_path,
           repo_path=os.path.dirname(tmp_path),
           git_context="",
           mock_mode=True,
-          token_tracker=tracker,
           escalations=escalations,
       )
       self.assertTrue(ok)
@@ -221,18 +216,16 @@ class TestRebaseAutomationSuite(unittest.TestCase):
                 "Revert Cobalt.)\n"
                 "}\n")
 
-      tracker = TokenUsage()
       escalations = []
       ok = resolve_file_conflicts(
           file_path=tp_file,
           repo_path=tmp_dir,
           git_context="",
           mock_mode=False,  # Should not invoke API at all
-          token_tracker=tracker,
           escalations=escalations,
       )
+      # With no engine, any model call would fail the resolution.
       self.assertTrue(ok)
-      self.assertEqual(tracker.calls, 0)
       with open(tp_file, "r", encoding="utf-8") as f:
         resolved = f.read()
       self.assertNotIn("<<<<<<<", resolved)
@@ -1187,6 +1180,30 @@ target("foo") {{}}
         expert_guidance="",
         use_expert=False,
     )
+
+  def test_token_usage_flows_from_engine_to_client(self):
+    """Real model token counts reach client.token_usage, per model."""
+    engine = CobaltReasoningEngine(project_id="test-proj", **_TEST_MODELS)
+    fake_resp = mock.MagicMock(text="<<<<<<< SEARCH\na\n=======\nb\n"
+                               ">>>>>>> REPLACE")
+    fake_resp.usage_metadata = mock.MagicMock(
+        prompt_token_count=1000,
+        candidates_token_count=200,
+        thoughts_token_count=50)
+    genai_client = mock.MagicMock()
+    genai_client.models.generate_content.return_value = fake_resp
+    client = ReasoningEngineClient(**_TEST_MODELS, project_id="p", local=True)
+    client._local_engine = engine  # pylint: disable=protected-access
+    with mock.patch.object(engine, "_get_client", return_value=genai_client):
+      res = client.heal_compiler_error(target="cobalt", diagnostics="error")
+      client.heal_compiler_error(target="cobalt", diagnostics="error")
+
+    self.assertNotIn("usage", res)
+    model = _TEST_MODELS["flash_model"]
+    self.assertEqual(client.token_usage.calls, 2)
+    self.assertEqual(client.token_usage.by_model[model].prompt_tokens, 2000)
+    self.assertEqual(client.token_usage.by_model[model].completion_tokens, 500)
+    self.assertEqual(client.token_usage.total_tokens, 2500)
 
   def test_engine_kwargs_safety_and_tolerance(self):
     """Guards kwargs safety when client sends unexpected arguments."""

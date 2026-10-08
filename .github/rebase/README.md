@@ -58,7 +58,7 @@ The pipeline decomposes rebase automation into five self-healing phases built up
 ├── gn_gen.py              # [PHASE 3] GNGenResolver library (GN build verification)
 ├── autoninja.py           # [PHASE 4] AutoninjaResolver library (compiler feedback loop)
 ├── run_rebase_pipeline.py # [ORCHESTRATOR] Clean orchestrator managing Phase 1-5 execution
-├── token_usage.py         # Token tracking and cost metrics
+├── token_usage.py         # Per-model token totals (from engine-reported usage)
 ├── test_rebase_suite.py   # Unit test suite (python3 -m unittest)
 ├── requirements.in        # Top-level Python dependencies
 ├── requirements.txt       # Hash-pinned lock file (pip --require-hashes)
