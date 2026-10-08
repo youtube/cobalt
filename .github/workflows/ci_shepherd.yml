@@ -136,10 +136,12 @@ jobs:
       - name: Run Gemini PR Shepherd Analysis
         id: trigger_gemini_analysis
         uses: google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489 # v0.1.22
+        timeout-minutes: 10
         with:
           gemini_api_key: ${{ secrets.GEMINI_ACTIONS_API_KEY }}
           github_pr_number: ${{ needs.init-comment.outputs.pr_number }}
           gemini_model: 'gemini-3.8-flash'
+          gemini_debug: true
           upload_artifacts: true
           prompt: |
             Analyze the CI test failures for PR #${{ needs.init-comment.outputs.pr_number }} using the downloaded failure logs and test results in `artifacts/` (and the `gh` tool if needed).
