@@ -17,10 +17,63 @@
 import argparse
 import json
 import os
+import shutil
+import socket
 import sys
 import urllib.error
 import urllib.request
 import zipfile
+
+_HTTP_TIMEOUT_SECONDS = 30
+_orig_getaddrinfo = socket.getaddrinfo
+
+
+def _ipv4_first_getaddrinfo(*args, **kwargs):
+  res = _orig_getaddrinfo(*args, **kwargs)
+  ipv4 = [r for r in res if r[0] == socket.AF_INET]
+  return ipv4 if ipv4 else res
+
+
+socket.getaddrinfo = _ipv4_first_getaddrinfo
+
+
+def _download_file(url, dest_path):
+  with urllib.request.urlopen(url, timeout=_HTTP_TIMEOUT_SECONDS) as resp:
+    with open(dest_path, 'wb') as out_file:
+      shutil.copyfileobj(resp, out_file)
+
+
+def _resolve_closest_chromedriver_url(parts, major):
+  prefixes = []
+  if len(parts) >= 3:
+    prefixes.append(f'{parts[0]}.{parts[1]}.{parts[2]}')
+  prefixes.append(str(major))
+
+  for prefix in prefixes:
+    latest_url = ('https://googlechromelabs.github.io/chrome-for-testing/'
+                  f'LATEST_RELEASE_{prefix}')
+    try:
+      with urllib.request.urlopen(
+          latest_url, timeout=_HTTP_TIMEOUT_SECONDS) as req:
+        resolved_version = req.read().decode('utf-8').strip()
+      if resolved_version:
+        return ('https://storage.googleapis.com/chrome-for-testing-public/'
+                f'{resolved_version}/linux64/chromedriver-linux64.zip')
+    except urllib.error.URLError as e:
+      print(f'Failed to resolve {latest_url}: {e}', flush=True)
+
+  api_url = ('https://googlechromelabs.github.io/chrome-for-testing/'
+             'known-good-versions-with-downloads.json')
+  with urllib.request.urlopen(api_url, timeout=_HTTP_TIMEOUT_SECONDS) as req:
+    data = json.loads(req.read().decode('utf-8'))
+  resolved_url = None
+  for v in data['versions']:
+    if v['version'].startswith(f'{major}.'):
+      if 'chromedriver' in v['downloads']:
+        for d in v['downloads']['chromedriver']:
+          if d['platform'] == 'linux64':
+            resolved_url = d['url']
+  return resolved_url
 
 
 def download_chromedriver(version, dest_dir):
@@ -28,7 +81,7 @@ def download_chromedriver(version, dest_dir):
     parts = version.split('.')
     major = int(parts[0])
   except ValueError:
-    print(f'Error parsing version: {version}')
+    print(f'Error parsing version: {version}', flush=True)
     sys.exit(1)
 
   if major < 115:
@@ -39,25 +92,19 @@ def download_chromedriver(version, dest_dir):
            f'{version}/linux64/chromedriver-linux64.zip')
 
   zip_path = os.path.join(dest_dir, 'chromedriver.zip')
-  print(f'Downloading from {url}...')
+  print(f'Downloading from {url}...', flush=True)
   try:
-    urllib.request.urlretrieve(url, zip_path)
+    _download_file(url, zip_path)
   except urllib.error.URLError as e:
-    print(f'Failed to download: {e}')
+    print(f'Failed to download: {e}', flush=True)
     if major >= 115:
-      print('Falling back to resolving latest patch version...')
-      api_url = ('https://googlechromelabs.github.io/chrome-for-testing/'
-                 'known-good-versions-with-downloads.json')
-      with urllib.request.urlopen(api_url) as req:
-        data = json.loads(req.read().decode('utf-8'))
-      for v in data['versions']:
-        if v['version'].startswith(f'{major}.'):
-          if 'chromedriver' in v['downloads']:
-            for d in v['downloads']['chromedriver']:
-              if d['platform'] == 'linux64':
-                url = d['url']
-      print(f'Resolved to {url}')
-      urllib.request.urlretrieve(url, zip_path)
+      print('Falling back to resolving latest patch version...', flush=True)
+      url = _resolve_closest_chromedriver_url(parts, major)
+      if not url:
+        raise RuntimeError(
+            f'Could not resolve Chromedriver download URL for {version}') from e
+      print(f'Resolved to {url}', flush=True)
+      _download_file(url, zip_path)
     else:
       raise
 
@@ -70,7 +117,7 @@ def download_chromedriver(version, dest_dir):
     if 'chromedriver' in files:
       bin_path = os.path.join(root, 'chromedriver')
       os.chmod(bin_path, 0o755)
-      print(f'Chromedriver downloaded and extracted to: {bin_path}')
+      print(f'Chromedriver downloaded and extracted to: {bin_path}', flush=True)
       return bin_path
   return None
 
