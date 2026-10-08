@@ -1636,14 +1636,13 @@
     "messages": [10120],
   },
 
-<<<<<<< HEAD
-  "<(SHARED_INTERMEDIATE_DIR)/THIS_IS_A_PLACEHOLDER.grd": {
+"<(SHARED_INTERMEDIATE_DIR)/THIS_IS_A_PLACEHOLDER.grd": {
     "META": {"sizes": {"includes": [800]}},
     "includes": [12000],
-=======
+  },
+
   "cobalt/shell/shell_resources.grd": {
     "includes": [31500]
->>>>>>> parent of 5f5c628d052 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   },
 
   # END "everything else" section.

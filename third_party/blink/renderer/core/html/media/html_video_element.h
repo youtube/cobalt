@@ -177,10 +177,9 @@ class CORE_EXPORT HTMLVideoElement final
     return visibility_tracker_.Get();
   }
 
-<<<<<<< HEAD
-  // HTMLMediaElement overrides.
+// HTMLMediaElement overrides.
   void OnEncryptedMediaInitData() final;
-=======
+
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   void SetMaxVideoCapabilities(const String& max_video_capabilities, ExceptionState& exception_state);
   void SetMaxVideoResolution(const String& max_video_resolution, ExceptionState& exception_state);
@@ -193,7 +192,6 @@ class CORE_EXPORT HTMLVideoElement final
 
   bool HasMaxVideoCapabilities() const { return !max_video_capabilities_.empty(); }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of 5f5c628d052 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
  protected:
   // EventTarget overrides.
