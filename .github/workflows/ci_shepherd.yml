@@ -143,6 +143,7 @@ jobs:
           gemini_model: 'gemini-3.8-flash'
           gemini_debug: true
           upload_artifacts: true
+          settings: '{"tools":{"core":["read_file","list_directory"]}}'
           prompt: |
             Analyze the CI test failures for PR #${{ needs.init-comment.outputs.pr_number }}.
             All test failure artifacts, reports, and check statuses have already been fetched and preloaded into the `artifacts/` directory.
