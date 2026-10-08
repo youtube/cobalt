@@ -223,5 +223,12 @@
     "target": "cobalt/testing/browser_tests:cobalt_browsertests",
     "runs_on": "host",
     "test_type": "browsertest"
+  },
+  {
+    "target": "cobalt:linux_e2e_tests",
+    "executable": "cobalt/tools/linux_e2e_tests.py",
+    "runs_on": "host",
+    "test_type": "gtest",
+    "build": false
   }
 ]
