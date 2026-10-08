@@ -58,6 +58,7 @@ def main():
 
   target_label = f'cp-{args.target_branch}'
   commits_added = []
+  commits_applied = []
 
   for sha, title, pr_num in commits_to_target:
     identifier = f'- #{pr_num}' if pr_num else f'- {sha}'
@@ -87,7 +88,7 @@ def main():
 
     # Commit PR
     metadata = lib.get_cherry_pick_metadata(sha, title, pr_num)
-    first_commit = not commits_added
+    first_commit = not commits_applied
     autoroll_sha = sha if args.mode == 'full' else target_start
     autoroll_metadata = (args.autoroll_file, autoroll_sha, args.mode == 'full')
 
@@ -99,6 +100,7 @@ def main():
       break
 
     commits_added.append(identifier)
+    commits_applied.append(identifier)
 
     if result == lib.CommitStatus.CONFLICTED:
       commits_added.append('')
