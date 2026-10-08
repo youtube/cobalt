@@ -336,9 +336,9 @@ class CobaltReasoningEngine:
           text = msg.get("content") or msg.get("reasoning_content") or ""
           if text:
             cleaned = re.sub(
-                r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
+                r"<think>.*?</think>", "", text, flags=re.DOTALL).strip("\n")
             if not cleaned and ("<think>" in text or "</think>" in text):
-              cleaned = re.sub(r"</?think>", "", text).strip()
+              cleaned = re.sub(r"</?think>", "", text).strip("\n")
             return cleaned or text
     except Exception as e:  # pylint: disable=broad-exception-caught
       print(
@@ -392,7 +392,7 @@ class CobaltReasoningEngine:
                 text_parts.append(block.text)
               elif getattr(block, "type", "") == "text":
                 text_parts.append(getattr(block, "text", ""))
-            full_text = "\n".join(text_parts).strip()
+            full_text = "\n".join(text_parts).strip("\n")
             if full_text:
               return full_text
           except Exception as e:  # pylint: disable=broad-exception-caught
@@ -439,7 +439,7 @@ class CobaltReasoningEngine:
         config=cfg,
         tier_label="",
     )
-    return resp.text.strip() if resp and resp.text else ""
+    return resp.text.strip("\n") if resp and resp.text else ""
 
   def _get_skill(self, name: str) -> str:
     """Retrieves skill instructions from cache or disk."""
@@ -778,7 +778,7 @@ class CobaltReasoningEngine:
       replacement_text = self._generate_expert_content(prompt, sys_inst)
       return {
           "status": "SUCCESS" if replacement_text else "ERROR",
-          "replacement": (replacement_text or "").strip(),
+          "replacement": (replacement_text or "").strip("\n"),
           "model_used": chosen_model,
       }
 
@@ -789,7 +789,7 @@ class CobaltReasoningEngine:
     )
     return {
         "status": "SUCCESS" if resp and resp.text else "ERROR",
-        "replacement": resp.text.strip() if resp and resp.text else "",
+        "replacement": resp.text.strip("\n") if resp and resp.text else "",
         "model_used": chosen_model,
     }
 

@@ -1297,6 +1297,21 @@ target("foo") {{}}
     self.assertIn("## Concrete Refactoring Directive", extracted_text)
     self.assertIn("Replace AddSample with WriteSample.", extracted_text)
 
+  def test_resolve_conflict_keeps_first_line_indentation(self):
+    """Only surrounding newlines are stripped from a conflict resolution."""
+    # pylint: disable=protected-access
+    engine = CobaltReasoningEngine(project_id="test-proj", **_TEST_MODELS)
+    engine._generate_content_with_retry = mock.MagicMock(
+        return_value=mock.MagicMock(text="\n  if (is_android) {\n  }\n"))
+    for use_expert in (False, True):
+      res = engine.query(
+          action="resolve_conflict",
+          file_path="media/base/BUILD.gn",
+          language="GN",
+          raw_conflict="conflict",
+          use_expert=use_expert)
+      self.assertEqual(res["replacement"], "  if (is_android) {\n  }")
+
   def test_glm_maas_content_and_reasoning_extraction(self):
     """Guards OpenAI/GLM parsing when response has content or reasoning."""
     # pylint: disable=protected-access
