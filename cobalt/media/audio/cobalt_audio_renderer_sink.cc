@@ -35,33 +35,34 @@ int AlignUp(int value, int alignment) {
   return decremented_value + alignment - (decremented_value % alignment);
 }
 
-// Records the latency of an SbAudioSinkCreate() call. Every call is recorded
-// under "Cobalt.Media.SbAudioSink.Create.LatencyTiming"; the first call in the
-// process (i.e. during startup) is additionally recorded under the ".First"
-// variant so startup latency can be isolated.
+// Records the latency of an SbAudioSinkCreate() call. The first call in the
+// process is recorded under "Cobalt.Media.LatencyTiming.SbAudioSinkCreate";
+// calls after the first one (e.g. re-creations on Flush()) are recorded under
+// the ".Subsequent" variant so they can be separated from the startup call.
 void RecordSbAudioSinkCreateLatency(base::TimeDelta elapsed) {
-  static std::atomic<bool> first_call_recorded{false};
+  static std::atomic<bool> is_first_call{true};
 
   constexpr base::TimeDelta kMin = base::Microseconds(100);
   constexpr base::TimeDelta kMax = base::Seconds(1);
   constexpr int kBuckets = 50;
 
-  base::UmaHistogramCustomMicrosecondsTimes(
-      "Cobalt.Media.SbAudioSink.Create.LatencyTiming", elapsed, kMin, kMax,
-      kBuckets);
-  const bool is_first_call = !first_call_recorded.exchange(true);
-  if (is_first_call) {
+  if (is_first_call.exchange(false)) {
     base::UmaHistogramCustomMicrosecondsTimes(
-        "Cobalt.Media.SbAudioSink.Create.LatencyTiming.First", elapsed, kMin,
-        kMax, kBuckets);
+        "Cobalt.Media.LatencyTiming.SbAudioSinkCreate", elapsed, kMin, kMax,
+        kBuckets);
+    LOG(INFO) << "First SbAudioSinkCreate() took " << elapsed.InMicroseconds()
+              << "us";
+    return;
   }
-  VLOG(1) << "SbAudioSinkCreate() took " << elapsed.InMicroseconds() << "us"
-          << (is_first_call ? " (first call in process)" : "");
+  base::UmaHistogramCustomMicrosecondsTimes(
+      "Cobalt.Media.LatencyTiming.SbAudioSinkCreate.Subsequent", elapsed, kMin,
+      kMax, kBuckets);
+  LOG(INFO) << "Subsequent SbAudioSinkCreate() took "
+            << elapsed.InMicroseconds() << "us";
 }
 
-// Wraps SbAudioSinkCreate() and records its latency to UMA, mirroring the
-// "*.LatencyTiming" telemetry used for other Starboard media APIs.
-SbAudioSink CreateSbAudioSinkWithHistogram(
+// Wraps SbAudioSinkCreate() and records its latency to UMA.
+SbAudioSink CreateSbAudioSinkWithUMAMetrics(
     int channels,
     int sampling_frequency_hz,
     SbMediaAudioSampleType audio_sample_type,
@@ -132,7 +133,7 @@ void CobaltAudioRendererSink::Start() {
   }
 
   output_frame_buffers_[0] = output_frame_buffer_.get();
-  audio_sink_ = AudioSinkUniquePtr(CreateSbAudioSinkWithHistogram(
+  audio_sink_ = AudioSinkUniquePtr(CreateSbAudioSinkWithUMAMetrics(
       params_.channels(), nearest_supported_sample_rate_, output_sample_type_,
       kSbMediaAudioFrameStorageTypeInterleaved, &output_frame_buffers_[0],
       frames_per_channel_, &CobaltAudioRendererSink::UpdateSourceStatusFunc,
@@ -163,7 +164,7 @@ void CobaltAudioRendererSink::Flush() {
   audio_sink_.reset();
   frames_rendered_ = 0;
   frames_consumed_ = 0;
-  audio_sink_ = AudioSinkUniquePtr(CreateSbAudioSinkWithHistogram(
+  audio_sink_ = AudioSinkUniquePtr(CreateSbAudioSinkWithUMAMetrics(
       params_.channels(),
       SbAudioSinkGetNearestSupportedSampleFrequency(params_.sample_rate()),
       output_sample_type_, kSbMediaAudioFrameStorageTypeInterleaved,
