@@ -30,6 +30,8 @@ namespace cobalt {
 class MockCobaltLifecycleObserver : public CobaltLifecycleManagerObserver {
  public:
   MOCK_METHOD(void, OnAllFramesVisible, (content::WebContents*), (override));
+  MOCK_METHOD(void, OnAllFramesFrozen, (content::WebContents*), (override));
+  MOCK_METHOD(void, OnAllFramesResumed, (content::WebContents*), (override));
   MOCK_METHOD(void,
               OnStartWaitingForReveal,
               (content::WebContents*),
@@ -348,6 +350,67 @@ TEST_F(CobaltLifecycleManagerTest,
   // child_remote.
   EXPECT_CALL(observer, OnAllFramesVisible(contents.get())).Times(1);
   main_remote->OnPageVisibilityChanged(true);
+  base::RunLoop().RunUntilIdle();
+
+  manager_->RemoveObserver(&observer);
+}
+
+// Verifies that StartWaitingForAck(PendingAck::kFreeze) waits for OnPageFrozen
+// from the primary main frame before notifying OnAllFramesFrozen, and
+// StartWaitingForAck(PendingAck::kUnfreeze) waits for OnPageResumed before
+// notifying OnAllFramesResumed.
+TEST_F(CobaltLifecycleManagerTest, FreezeAndUnfreezeAck) {
+  std::unique_ptr<content::WebContents> contents =
+      CreateScopedTestWebContents();
+  content::RenderFrameHost* main_rfh = contents->GetPrimaryMainFrame();
+  content::RenderFrameHostTester::For(main_rfh)
+      ->InitializeRenderFrameIfNeeded();
+
+  mojo::Remote<cobalt::mojom::CobaltLifecycleObserver> main_remote;
+  manager_->BindReceiver(main_rfh, main_remote.BindNewPipeAndPassReceiver());
+  main_remote->OnFrameReady();
+  main_remote->OnPageResumed();
+  base::RunLoop().RunUntilIdle();
+
+  MockCobaltLifecycleObserver observer;
+  manager_->AddObserver(&observer);
+
+  manager_->StartWaitingForAck(contents.get(), PendingAck::kFreeze);
+  EXPECT_CALL(observer, OnAllFramesFrozen(contents.get())).Times(0);
+  base::RunLoop().RunUntilIdle();
+  testing::Mock::VerifyAndClearExpectations(&observer);
+
+  EXPECT_CALL(observer, OnAllFramesFrozen(contents.get())).Times(1);
+  main_remote->OnPageFrozen();
+  base::RunLoop().RunUntilIdle();
+  testing::Mock::VerifyAndClearExpectations(&observer);
+
+  manager_->StartWaitingForAck(contents.get(), PendingAck::kUnfreeze);
+  EXPECT_CALL(observer, OnAllFramesResumed(contents.get())).Times(0);
+  base::RunLoop().RunUntilIdle();
+  testing::Mock::VerifyAndClearExpectations(&observer);
+
+  EXPECT_CALL(observer, OnAllFramesResumed(contents.get())).Times(1);
+  main_remote->OnPageResumed();
+  base::RunLoop().RunUntilIdle();
+
+  manager_->RemoveObserver(&observer);
+  main_remote.reset();
+  base::RunLoop().RunUntilIdle();
+}
+
+// Verifies that if a WebContents has no active connected frames when a freeze
+// transition is requested, the manager completes the freeze ACK immediately.
+TEST_F(CobaltLifecycleManagerTest, ImmediateCompletionOnFreeze) {
+  std::unique_ptr<content::WebContents> contents =
+      CreateScopedTestWebContents();
+
+  MockCobaltLifecycleObserver observer;
+  manager_->AddObserver(&observer);
+
+  EXPECT_CALL(observer, OnAllFramesFrozen(contents.get())).Times(1);
+
+  manager_->StartWaitingForAck(contents.get(), PendingAck::kFreeze);
   base::RunLoop().RunUntilIdle();
 
   manager_->RemoveObserver(&observer);
