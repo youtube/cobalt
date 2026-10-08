@@ -1,0 +1,280 @@
+#!/usr/bin/env python3
+"""AI-driven gclient sync and toolchain self-healing resolver library.
+
+Provides GClientSyncResolver, which executes `gclient sync -D`, automatically
+recovers with `--force --reset` on dirty submodule state, extracts diagnostic
+traces, prompts Gemini via Vertex AI Reasoning Engine to heal DEPS syntax
+and revision errors, and validates Python AST before resuming sync.
+"""
+
+import logging
+import os
+import re
+import subprocess
+import sys
+from typing import Any, Callable, Dict, List, Optional, Tuple
+import warnings
+
+from base_resolver import (
+    AgentChangeRecord,
+    BaseResolver,
+)
+from diagnostics import Diagnostic, GClientSyncDiagnostic
+from repo_guards import get_clean_build_env, resolve_repo_file_path
+
+log = logging.getLogger(__name__)
+# Suppress google.auth UserWarning about ADC quota project on Cloudtop
+warnings.filterwarnings("ignore", category=UserWarning, module="google.auth")
+
+# Keywords that mark the beginning of an error or traceback in gclient sync
+# output. Covers standard Python exception names (since gclient and DEPS are
+# evaluated in Python) as well as tool-level error phrases.
+SYNC_ERROR_KEYWORDS = (
+    "error:",
+    "traceback",
+    "failed to",
+    "syntaxerror",
+    "syntax error",
+    "keyerror",
+    "key error",
+    "attributeerror",
+    "attribute error",
+    "exception",
+    "cannot find",
+    "conflict",
+    "fatal:",
+)
+
+# Default robust flags for CI and local automated sync
+DEFAULT_SYNC_FLAGS = [
+    "-D",
+    "--no-history",
+    "--shallow",
+    "--delete_unversioned_trees",
+]
+
+
+def extract_sync_diagnostic_trace(output: str) -> str:
+  """Extracts relevant error and traceback lines from gclient sync output."""
+  lines = output.splitlines()
+  error_lines = []
+  capture = False
+  for line in lines:
+    if any(kw in line.lower() for kw in SYNC_ERROR_KEYWORDS):
+      capture = True
+    if capture:
+      error_lines.append(line)
+  if error_lines:
+    if len(error_lines) > 40:
+      return "\n".join(error_lines[:15] +
+                       ["... [truncated intermediate stack frames] ..."] +
+                       error_lines[-25:])
+    return "\n".join(error_lines)
+  return "\n".join(lines[-25:] if len(lines) > 25 else lines)
+
+
+class GClientSyncResolver(BaseResolver):
+  """Self-healing resolver for gclient sync and DEPS dependency failures."""
+
+  def __init__(
+      self,
+      repo_path: str,
+      *,
+      engine: Optional[Any] = None,
+      flags: Optional[List[str]] = None,
+      max_iterations: int = 10,
+      session_changes: Optional[List[AgentChangeRecord]] = None,
+      on_patch_applied_fn: Optional[Callable[[List[str]], None]] = None,
+  ):
+    super().__init__(
+        repo_path=repo_path,
+        engine=engine,
+        max_iterations=max_iterations,
+        session_changes=session_changes,
+        on_patch_applied_fn=on_patch_applied_fn,
+    )
+    self.flags = flags if flags is not None else list(DEFAULT_SYNC_FLAGS)
+
+  @property
+  def name(self) -> str:
+    return "Phase 2 (Toolchain & Dependency Sync)"
+
+  def _ensure_siso_configured(self, env: Dict[str, str]) -> None:
+    """Ensures build/config/siso/.sisoenv exists and is configured for Siso."""
+    sisoenv_path = os.path.join(self.repo_path, "build", "config", "siso",
+                                ".sisoenv")
+    if os.path.exists(sisoenv_path):
+      return
+    rbe_inst = os.environ.get(
+        "RBE_instance",
+        "projects/cobalt-actions-prod/instances/default_instance")
+    cfg_script = os.path.join(self.repo_path, "build", "config", "siso",
+                              "configure_siso.py")
+    if os.path.exists(cfg_script):
+      log.info("[%s] Configuring Siso environment via configure_siso.py...",
+               self.name)
+      subprocess.run(
+          [
+              sys.executable,
+              cfg_script,
+              f"--rbe_instance={rbe_inst}",
+              "--reapi_backend_config_path=cobalt.star",
+          ],
+          cwd=self.repo_path,
+          env=env,
+          capture_output=True,
+          check=False,
+      )
+
+  def run_command(self, iteration: int) -> Tuple[bool, str, str]:
+    del iteration  # Unused in standard sync command execution
+    clean_env = get_clean_build_env()
+    cmd = ["gclient", "sync"] + self.flags
+    cmd_str = " ".join(cmd)
+    log.info("\n[gclient_sync] Executing: %s in %s", cmd_str, self.repo_path)
+    try:
+      proc = subprocess.run(
+          cmd,
+          cwd=self.repo_path,
+          capture_output=True,
+          text=True,
+          env=clean_env,
+          check=False,
+      )
+      combined_output = f"{proc.stdout}\n{proc.stderr}"
+      if proc.returncode == 0:
+        self._ensure_siso_configured(clean_env)
+        return True, combined_output, ""
+
+      # Auto-recover with --force --reset
+      log.warning(
+          "[WARNING] gclient sync returned %s. Retrying with --force "
+          "--reset...", proc.returncode)
+      retry_cmd = ["gclient", "sync"] + self.flags + ["--force", "--reset"]
+      proc_retry = subprocess.run(
+          retry_cmd,
+          cwd=self.repo_path,
+          capture_output=True,
+          text=True,
+          env=clean_env,
+          check=False,
+      )
+      retry_output = f"{proc_retry.stdout}\n{proc_retry.stderr}"
+      if proc_retry.returncode != 0:
+        log.warning("[ERROR] gclient sync failed with exit code %s:\n%s",
+                    proc_retry.returncode, retry_output.strip())
+      else:
+        self._ensure_siso_configured(clean_env)
+      return proc_retry.returncode == 0, retry_output, ""
+    except Exception as e:  # pylint: disable=broad-exception-caught
+      return False, f"Subprocess execution failed: {e}", ""
+
+  def extract_diagnostics(self, build_output: str,
+                          siso_output: str) -> List[Diagnostic]:
+    del siso_output  # Unused in gclient sync
+    diag_trace = extract_sync_diagnostic_trace(build_output)
+    non_empty = [l.strip() for l in diag_trace.splitlines() if l.strip()]
+    if non_empty:
+      if "traceback" in non_empty[0].lower() and len(non_empty) > 1:
+        first_line = non_empty[-1]
+      else:
+        first_line = non_empty[0]
+    else:
+      first_line = "Sync Error"
+    return [
+        GClientSyncDiagnostic(
+            error_message=first_line,
+            raw_output=build_output,
+            diagnostic_trace=diag_trace,
+        )
+    ]
+
+  # pylint: disable=unused-argument
+  def resolve_diagnostic(
+      self,
+      diagnostic: Diagnostic,
+      use_expert: bool = False,
+      expert_guidance: str = "",
+      investigation_log: str = "",
+      **kwargs,
+  ) -> Tuple[str, str, str]:
+    if not isinstance(diagnostic, GClientSyncDiagnostic):
+      return "", self.model, "DEPS"
+
+    # Dynamically extract target file path (DEPS or repo script)
+    deps_path = os.path.join(self.repo_path, "DEPS")
+    rel_deps = "DEPS"
+    file_matches = re.findall(
+        r"(?:File\s+['\"]|file\s+['\"]?|in\s+['\"]?)"
+        r"([^'\"\n\r]+(?:DEPS|\.py|\.gni|\.gn|\.star)[^'\"\n\r]*)",
+        diagnostic.diagnostic_trace,
+        re.IGNORECASE,
+    )
+    repo_abs = os.path.abspath(self.repo_path)
+    for cand_raw in reversed(file_matches):
+      cand_clean = cand_raw.strip().rstrip(":,")
+      cand_abs = os.path.abspath(
+          resolve_repo_file_path(cand_clean, self.repo_path))
+      if (os.path.isfile(cand_abs) and
+          os.path.commonpath([repo_abs, cand_abs]) == repo_abs):
+        deps_path = cand_abs
+        rel_deps = os.path.relpath(cand_abs, repo_abs)
+        break
+
+    if not os.path.isfile(deps_path):
+      return "", self.model, rel_deps
+
+    try:
+      with open(deps_path, "r", encoding="utf-8", errors="replace") as f:
+        lines = f.readlines()
+        current_deps = "".join(lines)
+    except OSError:
+      return "", self.model, rel_deps
+
+    target_line = None
+    # 1. Search for specific git_revision or hash tokens mentioned in diagnostic
+    hash_match = re.search(r"git_revision:([a-f0-9]{7,40})",
+                           diagnostic.diagnostic_trace)
+    if hash_match:
+      bad_hash = hash_match.group(1)
+      for idx, l in enumerate(lines):
+        if bad_hash in l:
+          target_line = idx + 1
+          break
+
+    # 2. Search for explicit DEPS line numbers if not found via token
+    if target_line is None:
+      line_match = re.search(r"(?:line\s+|:)(\d+)", diagnostic.diagnostic_trace)
+      if line_match:
+        target_line = int(line_match.group(1))
+
+    if target_line and len(lines) > 250:
+      s_line = max(1, target_line - 50)
+      e_line = min(len(lines), target_line + 50)
+      context_snippet = "".join(lines[s_line - 1:e_line])
+    else:
+      context_snippet = current_deps if len(lines) <= 250 else "".join(
+          lines[:250])
+
+    deps_context = (
+        f"### Excerpt from {rel_deps} (around line {target_line or 1}):\n"
+        f"```python\n{context_snippet}\n```")
+
+    res = self.reasoning_engine.heal_compiler_error(
+        target=rel_deps,
+        target_file=deps_path,
+        error_trace=diagnostic.diagnostic_trace,
+        source_contexts=deps_context,
+        history=self.change_history_prompt(),
+        investigation_history=investigation_log,
+        expert_guidance=expert_guidance,
+        use_expert=use_expert,
+    )
+    if isinstance(res, dict):
+      raw_patch = res.get("patch", "") or res.get("replacement", "")
+      model_used = res.get("model_used", self.model)
+    else:
+      raw_patch = str(res)
+      model_used = self.model
+
+    return raw_patch, model_used, rel_deps
