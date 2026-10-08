@@ -552,7 +552,6 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
     javascriptInjector.setAllowInspection(true);
     for (CobaltJavaScriptAndroidObject javascriptAndroidObject : mJavaScriptAndroidObjectList) {
-<<<<<<< HEAD
       OriginMatcher matcher = new OriginMatcher();
       try {
         matcher.setRuleList(new ArrayList<String>());
@@ -569,20 +568,6 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
       } finally {
         matcher.destroy();
       }
-=======
-      Log.d(
-          TAG,
-          "Add JavaScriptAndroidObject:" + javascriptAndroidObject.getJavaScriptInterfaceName());
-      javascriptInjector.addPossiblyUnsafeInterface(
-          javascriptAndroidObject,
-          javascriptAndroidObject.getJavaScriptInterfaceName(),
-          CobaltJavaScriptInterface.class,
-          // An empty allowlist matches no origin at all, which silently disables every
-          // injected Java object. "*" restores the pre-M138 behaviour of allowing all
-          // origins.
-          // TODO(b/543808733): consider a stricter allowlist than "*".
-          /* originAllowlist= */ List.of("*"));
->>>>>>> e7a456aa467 (android: Allow all origins for injected Java bridge objects (#11781))
     }
   }
 
