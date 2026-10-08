@@ -55,6 +55,7 @@
 #include "content/browser/service_worker/service_worker_usb_delegate_observer.h"
 #endif
 #include "content/common/content_navigation_policy.h"
+#include "content/common/features.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/browser/page_navigator.h"
