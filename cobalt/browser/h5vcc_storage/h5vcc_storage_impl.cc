@@ -15,6 +15,7 @@
 #include "cobalt/browser/h5vcc_storage/h5vcc_storage_impl.h"
 
 #include <algorithm>
+#include <array>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -205,16 +206,15 @@ void H5vccStorageImpl::WriteTest(uint32_t test_size,
   uint32_t total_bytes_written = 0;
 
   do {
-    auto current_bytes_written = test_file.WriteAtCurrentPosNoBestEffort(
-        write_buffer.data() + total_bytes_written,
-        std::min(kBufferSizeBytes, test_size - total_bytes_written));
-    if (current_bytes_written <= 0) {
+    const auto current_bytes_written = test_file.WriteAtCurrentPosNoBestEffort(
+        base::as_byte_span(write_buffer));
+    if (!current_bytes_written.has_value() || current_bytes_written <= 0) {
       base::DeleteFile(test_file_path);
       error = "SbWrite -1 return value error";
       std::move(callback).Run(bytes_written, error);
       return;
     }
-    total_bytes_written += current_bytes_written;
+    total_bytes_written += *current_bytes_written;
   } while (total_bytes_written < test_size);
 
   test_file.Flush();
@@ -259,12 +259,11 @@ void H5vccStorageImpl::VerifyTest(uint32_t test_size,
   // `kBufferSize` per write.
   uint32_t total_bytes_read = 0;
 
-  auto read_buffer = std::make_unique<char[]>(kBufferSizeBytes);
+  std::array<unsigned char, kBufferSizeBytes> read_buffer;
   do {
-    auto current_bytes_read = test_file.ReadAtCurrentPosNoBestEffort(
-        read_buffer.get(),
-        std::min(kBufferSizeBytes, test_size - total_bytes_read));
-    if (current_bytes_read <= 0) {
+    const auto current_bytes_read =
+        test_file.ReadAtCurrentPosNoBestEffort(read_buffer);
+    if (!current_bytes_read.has_value() || current_bytes_read <= 0) {
       base::DeleteFile(test_file_path);
       error = "SbRead -1 return value error";
       std::move(callback).Run(bytes_read, error, verified);
@@ -272,8 +271,8 @@ void H5vccStorageImpl::VerifyTest(uint32_t test_size,
     }
 
     // Verify `read_buffer` equivalent to a repeated `test_string`.
-    for (auto i = 0; i < current_bytes_read; ++i) {
-      if (read_buffer.get()[i] !=
+    for (size_t i = 0; i < *current_bytes_read; ++i) {
+      if (read_buffer[i] !=
           test_string[(total_bytes_read + i) % test_string.size()]) {
         base::DeleteFile(test_file_path);
         error = "File test data does not match with test data string";
@@ -282,7 +281,7 @@ void H5vccStorageImpl::VerifyTest(uint32_t test_size,
       }
     }
 
-    total_bytes_read += current_bytes_read;
+    total_bytes_read += *current_bytes_read;
   } while (total_bytes_read < test_size);
 
   if (total_bytes_read != test_size) {
