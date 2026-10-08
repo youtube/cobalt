@@ -24,22 +24,13 @@
 
 #include "starboard/shared/posix/handle_eintr.h"
 
-namespace {
-
-// The kernel's limit on thread names, terminator included.
-constexpr size_t kMaxThreadNameLen = 16;
-
-// Where the kernel exposes another thread's name. A tid has at most 10
-// digits, 8 more than the "%d" placeholder.
-constexpr char kThreadNamePath[] = "/proc/self/task/%d/comm";
-constexpr size_t kThreadNamePathLen = sizeof(kThreadNamePath) + 8;
-
-}  // namespace
-
 extern "C" {
 
 #if __ANDROID_API__ < 26
 int pthread_getname_np(pthread_t thread, char* name, size_t len) {
+  // The kernel's limit on thread names, terminator included.
+  constexpr size_t kMaxThreadNameLen = 16;
+
   if (len < kMaxThreadNameLen) {
     return ERANGE;
   }
@@ -47,6 +38,11 @@ int pthread_getname_np(pthread_t thread, char* name, size_t len) {
   if (pthread_equal(thread, pthread_self())) {
     return prctl(PR_GET_NAME, name, 0L, 0L, 0L) == -1 ? errno : 0;
   }
+
+  // Where the kernel exposes another thread's name. A tid has at most 10
+  // digits, 8 more than the "%d" placeholder.
+  constexpr char kThreadNamePath[] = "/proc/self/task/%d/comm";
+  constexpr size_t kThreadNamePathLen = sizeof(kThreadNamePath) + 8;
 
   char path[kThreadNamePathLen];
   snprintf(path, sizeof(path), kThreadNamePath, pthread_gettid_np(thread));
