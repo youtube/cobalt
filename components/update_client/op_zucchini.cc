@@ -54,7 +54,7 @@ void PatchDone(
 #if BUILDFLAG(IS_STARBOARD)
     base::OnceCallback<void(base::expected<OperationResult, CategorizedError>)>
         callback,
-    base::RepeatingCallback<void(base::Value::Dict)> event_adder,
+    base::RepeatingCallback<void(base::DictValue)> event_adder,
     base::expected<OperationResult, CategorizedError> result) {
 #else
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>

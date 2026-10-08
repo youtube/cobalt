@@ -54,13 +54,6 @@ std::atomic_bool g_is_reduce_ppms_enabled{false};
 
 // Alphabetical:
 
-<<<<<<< HEAD
-=======
-// When enabled, the compositor threads (including GPU) will be boosted to
-// kInteractive when not in input or loading scenarios.
-BASE_FEATURE(kBoostCompositorThreadsPriorityWhenIdle,
-             FEATURE_DISABLED_BY_DEFAULT);
-
 #if BUILDFLAG(IS_COBALT)
 BASE_FEATURE(kCobaltEnableModerateMemoryPressure,
              "CobaltEnableModerateMemoryPressure",
@@ -206,7 +199,6 @@ BASE_FEATURE_PARAM(int,
                    0);
 #endif  // BUILDFLAG(IS_COBALT)
 
->>>>>>> parent of 85a454c890c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 // Controls caching within BASE_FEATURE_PARAM(). This is feature-controlled
 // so that ScopedFeatureList can disable it to turn off caching.
 BASE_FEATURE(kFeatureParamWithCache, FEATURE_ENABLED_BY_DEFAULT);

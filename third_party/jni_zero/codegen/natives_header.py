@@ -183,18 +183,18 @@ def entry_point_method(sb,
             sb(f'return {func_name}')
           sb(f'(std::forward<decltype(args)>(args)...)')
 
-      sb('if constexpr (requires { func_wrapper')
-      sb.param_list(['env'] + param_rvalues)
-      sb('; })')
+      sb('if constexpr (jni_zero::internal::IsInvocable')
+      sb.param_list(['func_wrapper', 'env'] + param_rvalues)
+      sb(')')
       with sb.block(no_trailing_newline=True):
         with sb.statement():
           sb('return func_wrapper')
           with sb.param_list() as plist:
             plist.append('env')
             plist.extend(param_rvalues)
-      sb(' else if constexpr (requires { func_wrapper')
-      sb.param_list(param_rvalues)
-      sb('; })')
+      sb(' else if constexpr (jni_zero::internal::IsInvocable')
+      sb.param_list(['func_wrapper'] + param_rvalues)
+      sb(')')
       with sb.block(no_trailing_newline=True):
         with sb.statement():
           sb('return func_wrapper')

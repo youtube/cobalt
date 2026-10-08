@@ -172,6 +172,7 @@ DECLARE_PRIMITIVE_ARRAY_CONVERSIONS(double)
 
 #undef DECLARE_PRIMITIVE_ARRAY_CONVERSIONS
 
+#if defined(__cpp_concepts) && __cpp_concepts >= 201907L
 // Enable vectors of enum types.
 template <internal::IsEnumVector ContainerType>
 inline ContainerType FromJniArray(JNIEnv* env,
@@ -197,6 +198,7 @@ inline ScopedJavaLocalRef<jarray> ToJniArray(JNIEnv* env,
   }
   return ToJniArray(env, int_vec);
 }
+#endif
 
 // Specialization for ByteArrayView.
 template <>

@@ -6,13 +6,10 @@
 
 #include <sys/prctl.h>
 
-<<<<<<< HEAD
 #include <cassert>
 #include <type_traits>
 
-=======
 #include "build/build_config.h"
->>>>>>> parent of 85a454c890c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "third_party/jni_zero/generate_jni/JniInit_jni.h"
 #include "third_party/jni_zero/jni_methods.h"
 #include "third_party/jni_zero/jni_zero_internal.h"
