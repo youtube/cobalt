@@ -1,0 +1,21 @@
+diff --git a/source/configure b/source/configure
+index 0e14a1f5..dcf194fd 100755
+--- a/source/configure
++++ b/source/configure
+@@ -9317,16 +9317,6 @@ else
+       echo "Not rebuilding data/rules.mk, assuming prebuilt data in data/in"
+       touch data/rules.mk
+     fi
+-    echo "Spawning Python to generate test/testdata/rules.mk..."
+-    PYTHONPATH="$srcdir/python" \
+-        $PYTHON -m icutools.databuilder \
+-        --mode gnumake \
+-        --seqmode parallel \
+-        --src_dir "$srcdir/test/testdata" \
+-        > test/testdata/rules.mk
+-    if test "$?" != "0"; then
+-        as_fn_error $? "Python failed to run; see above error." "$LINENO" 5
+-    fi
+ fi
+ 
+ echo
