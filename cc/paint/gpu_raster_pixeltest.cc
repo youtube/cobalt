@@ -159,18 +159,12 @@ class GpuRasterPixelTest : public testing::Test,
   void StoreShader(const std::string& key, const std::string& shader) override {
   }
 
-<<<<<<< HEAD
-  void InitializeContext() {
+void InitializeContext() {
     if (image_cache_) {
-      image_cache_.reset();
-=======
-  void InitializeOOPContext() {
-    if (oop_image_cache_) {
 #if BUILDFLAG(IS_COBALT)
       FlushInProcessImageTransfers();
 #endif
-      oop_image_cache_.reset();
->>>>>>> parent of 67f2d478fd8 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+      image_cache_.reset();
     }
 
     raster_context_provider_ =

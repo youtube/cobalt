@@ -433,16 +433,10 @@ URLLoader::URLLoader(
       resource_scheduler_client_(context.GetResourceSchedulerClient()),
       keepalive_statistics_recorder_(std::move(keepalive_statistics_recorder)),
       fetch_window_id_(request.fetch_window_id),
-<<<<<<< HEAD
-      local_network_access_interceptor_(request,
+local_network_access_interceptor_(request,
                                         GetClientSecurityState(),
                                         options_),
-=======
-      private_network_access_interceptor_(request,
-                                          GetClientSecurityState(),
-                                          options_),
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
->>>>>>> parent of 67f2d478fd8 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
       trust_token_interceptor_(TrustTokenUrlLoaderInterceptor::MaybeCreate(
           std::move(trust_token_helper_factory))),
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
@@ -1278,14 +1272,50 @@ void URLLoader::ContinueOnResponseStarted() {
   }
 
   if (!(options_ & mojom::kURLLoadOptionReadAndDiscardBody)) {
-<<<<<<< HEAD
-    if (!response_body_stream_.is_valid()) {
+if (!response_body_stream_.is_valid()) {
       MojoCreateDataPipeOptions options;
       options.struct_size = sizeof(MojoCreateDataPipeOptions);
       options.flags = MOJO_CREATE_DATA_PIPE_FLAG_NONE;
       options.element_num_bytes = 1;
       options.capacity_num_bytes = GetDataPipeDefaultAllocationSize(
           DataPipeAllocationSize::kLargerSizeIfPossible);
+#if BUILDFLAG(IS_COBALT)
+      if (base::FeatureList::IsEnabled(features::kCobaltDynamicMojoPipeSizing)) {
+        // Dynamic allocation for Cobalt to save memory on low-end TVs.
+        // Video/audio streams get the large buffer; images and APIs get 128 KB.
+        bool is_media_stream = (request_destination_ == mojom::RequestDestination::kVideo ||
+                                request_destination_ == mojom::RequestDestination::kAudio);
+        // YouTube TV specific: check for /videoplayback URL path
+        if (!is_media_stream) {
+          is_media_stream = (url_request_->url().path() == "/videoplayback");
+        }
+        // General MSE: check for standard video/audio mime-types or YouTube's custom UMP format
+        if (!is_media_stream && response_ && !response_->mime_type.empty()) {
+          const std::string& mime = response_->mime_type;
+          is_media_stream = (base::StartsWith(mime, "video/", base::CompareCase::SENSITIVE) ||
+                             base::StartsWith(mime, "audio/", base::CompareCase::SENSITIVE) ||
+                             mime == "application/vnd.yt-ump");
+        }
+        int configured_size = is_media_stream
+                                  ? features::kCobaltDynamicMojoPipeSizingMediaSize.Get()
+                                  : features::kCobaltDynamicMojoPipeSizingSubresourceSize.Get();
+        if (configured_size > 0) {
+          options.capacity_num_bytes = static_cast<uint32_t>(configured_size);
+        }
+      }
+
+      // Shrink the pipe to the response body whenever its length is known and
+      // smaller than the capacity chosen above. This applies to every resource
+      // type: media segments are typically larger than the default capacity, so
+      // they keep it, while small subresources stop pinning shared memory they
+      // cannot use.
+      if (base::FeatureList::IsEnabled(
+              features::kCobaltContentLengthAwareMojoPipeSizing)) {
+        options.capacity_num_bytes = GetCobaltContentLengthAwarePipeCapacity(
+            response_ ? response_->content_length : -1,
+            options.capacity_num_bytes);
+      }
+#endif  // BUILDFLAG(IS_COBALT)
       MojoResult result = mojo::CreateDataPipe(&options, response_body_stream_,
                                                consumer_handle_);
       if (result != MOJO_RESULT_OK) {
@@ -1293,56 +1323,6 @@ void URLLoader::ContinueOnResponseStarted() {
         return;
       }
       CHECK(consumer_handle_.is_valid());
-=======
-    MojoCreateDataPipeOptions options;
-    options.struct_size = sizeof(MojoCreateDataPipeOptions);
-    options.flags = MOJO_CREATE_DATA_PIPE_FLAG_NONE;
-    options.element_num_bytes = 1;
-    options.capacity_num_bytes = GetDataPipeDefaultAllocationSize(
-        DataPipeAllocationSize::kLargerSizeIfPossible);
-#if BUILDFLAG(IS_COBALT)
-    if (base::FeatureList::IsEnabled(features::kCobaltDynamicMojoPipeSizing)) {
-      // Dynamic allocation for Cobalt to save memory on low-end TVs.
-      // Video/audio streams get the large buffer; images and APIs get 128 KB.
-      bool is_media_stream = (request_destination_ == mojom::RequestDestination::kVideo ||
-                              request_destination_ == mojom::RequestDestination::kAudio);
-      // YouTube TV specific: check for /videoplayback URL path
-      if (!is_media_stream) {
-        is_media_stream = (url_request_->url().path() == "/videoplayback");
-      }
-      // General MSE: check for standard video/audio mime-types or YouTube's custom UMP format
-      if (!is_media_stream && response_ && !response_->mime_type.empty()) {
-        const std::string& mime = response_->mime_type;
-        is_media_stream = (base::StartsWith(mime, "video/", base::CompareCase::SENSITIVE) ||
-                           base::StartsWith(mime, "audio/", base::CompareCase::SENSITIVE) ||
-                           mime == "application/vnd.yt-ump");
-      }
-      int configured_size = is_media_stream
-                                ? features::kCobaltDynamicMojoPipeSizingMediaSize.Get()
-                                : features::kCobaltDynamicMojoPipeSizingSubresourceSize.Get();
-      if (configured_size > 0) {
-        options.capacity_num_bytes = static_cast<uint32_t>(configured_size);
-      }
-    }
-
-    // Shrink the pipe to the response body whenever its length is known and
-    // smaller than the capacity chosen above. This applies to every resource
-    // type: media segments are typically larger than the default capacity, so
-    // they keep it, while small subresources stop pinning shared memory they
-    // cannot use.
-    if (base::FeatureList::IsEnabled(
-            features::kCobaltContentLengthAwareMojoPipeSizing)) {
-      options.capacity_num_bytes = GetCobaltContentLengthAwarePipeCapacity(
-          response_ ? response_->content_length : -1,
-          options.capacity_num_bytes);
-    }
-#endif  // BUILDFLAG(IS_COBALT)
-    MojoResult result =
-        mojo::CreateDataPipe(&options, response_body_stream_, consumer_handle_);
-    if (result != MOJO_RESULT_OK) {
-      NotifyCompleted(net::ERR_INSUFFICIENT_RESOURCES);
-      return;
->>>>>>> parent of 67f2d478fd8 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     }
     CHECK(response_body_stream_.is_valid());
     peer_closed_handle_watcher_.Watch(
