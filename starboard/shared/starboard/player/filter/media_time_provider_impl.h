@@ -15,6 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_MEDIA_TIME_PROVIDER_IMPL_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_MEDIA_TIME_PROVIDER_IMPL_H_
 
+#include <limits>
 #include <memory>
 #include <mutex>
 
@@ -48,7 +49,11 @@ class MediaTimeProviderImpl : public MediaTimeProvider,
                               bool* is_eos_played,
                               bool* is_underflow,
                               double* playback_rate) override;
-  int64_t GetAudioWriteHead() override { return 0; }
+  // There is no audio to time-stretch, so timestamps are never adjusted, and
+  // video inputs never need to wait for audio writes.
+  int64_t GetAudioWriteHead() override {
+    return std::numeric_limits<int64_t>::max();
+  }
   int64_t AdjustTimestampToAudioClock(int64_t timestamp) override {
     return timestamp;
   }

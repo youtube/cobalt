@@ -60,8 +60,6 @@ std::unique_ptr<AudioTrackBridge> AudioTrackBridge::Create(
   } else {
     SB_DCHECK(coding_type == kSbMediaAudioCodingTypeAc3 ||
               coding_type == kSbMediaAudioCodingTypeDolbyDigitalPlus);
-    // TODO: Support passthrough under tunnel mode.
-    SB_DCHECK(!tunnel_mode_audio_session_id);
     // TODO: |sample_type| is not used in passthrough mode, we should make this
     // explicit.
   }
