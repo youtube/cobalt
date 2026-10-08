@@ -135,7 +135,7 @@ graph TD
   Manager ==>|"Mojo: <br/> CobaltLifecycleController::SetObserver(Observer)"| Controller
 
   %% Mojo Observation Flow (Renderer -> Browser Manager)
-  Controller ==>|"Mojo <br/> (Sync ACK): <br/> OnPageVisibilityChanged <br/> OnPageResumed <br/> OnPageBlurred"| Manager
+  Controller ==>|"Mojo <br/> (Sync ACK): <br/> OnPageVisibilityChanged <br/> OnPageFrozen <br/> OnPageResumed <br/> OnPageBlurred"| Manager
   Controller ==>|"Mojo <br/> (Async - Passive): <br/> OnPageFocused"| Manager
 
   %% Return to main loop after aggregation (Only for Sync Blocking transitions)
@@ -188,7 +188,7 @@ sequenceDiagram
 ```
 
 ### B. Freeze Transition
-This sequence diagram illustrates how the same unified runner blocks the UI thread synchronously while waiting for a local Cookies and LocalStorage flush:
+This sequence diagram illustrates how the unified runner blocks the UI thread synchronously while waiting first for Mojo frame freeze ACKs (`OnPageFrozen`) after the Renderer dispatches the JavaScript `freeze` event, and then for a local Cookies and LocalStorage flush:
 
 ```mermaid
 sequenceDiagram
@@ -197,13 +197,26 @@ sequenceDiagram
   participant Delegate as AppEventDelegate <br/> (Sequencer)
   participant Runner as AppEventRunnerImpl <br/> (Orchestrator)
   participant Shell as content::Shell <br/> (Chromium Shell)
+  participant Manager as CobaltLifecycleManager <br/> (Observer)
+  participant Blink as Blink Core <br/> (Renderer)
+  participant Controller as CobaltLifecycle <br/> Controller
   participant Content as ContentBrowserClient <br/> (Storage)
 
   OS->>Delegate: SbEvent (Freeze)
   Note over Delegate: Resolve intermediate step:<br/>kConcealed ➔ kFrozen
   Delegate->>Runner: DoFreeze(callback)
   Runner->>Shell: content::Shell::OnFreeze()
-  Note over Shell: Triggers process-level freeze<br/>& stops background tasks
+  Shell->>Blink: C++ WebContents::SetPageFrozen(true)
+  Note over Runner: Initialize freeze wait state:<br/>pending_ack_ = kFreeze
+  Note over Runner: WaitForAck(kFreeze)<br/>(Blocks UI thread via nested RunLoop)
+
+  Note over Blink: 1. Dispatches JS event: 'freeze'<br/>2. Freezes frame task queues & sets kFrozen
+  Blink-->>Controller: C++ ContextLifecycleStateChanged(kFrozen)
+  Controller->>Manager: Mojo: OnPageFrozen()
+  Note over Manager: All active frames frozen!
+  Manager->>Runner: OnAllFramesFrozen(web_contents)
+  Note over Runner: Quit nested RunLoop!<br/>run_loop.Quit()
+
   Note over Runner: Initialize storage wait state:<br/>pending_ack_ = kCookieFlush
   Runner->>Content: FlushCookiesAndLocalStorage(OnCookieFlushComplete)
   Note over Runner: UI Thread blocks synchronously!<br/>run_loop.Run()
@@ -489,7 +502,7 @@ sequenceDiagram
   %% Step 3
   Note over Delegate: Step 3: kConcealed ➔ kFrozen (Freeze)
   Delegate->>Runner: OnFreeze() -> DoFreeze()
-  Note over Runner: Synchronous Wait:<br/>Blocks UI thread inside nested RunLoop<br/>waiting for Cookies and LocalStorage flush complete ACK
+  Note over Runner: Synchronous Wait:<br/>Blocks UI thread inside nested RunLoop<br/>waiting for Mojo OnPageFrozen ACK<br/>and Cookies/LocalStorage flush complete ACK
   Runner-->>Delegate: DoFreeze complete
   Note over Delegate: SetApplicationState(kFrozen)
 
@@ -582,12 +595,12 @@ sequenceDiagram
 1.  **OS Event Dispatch**: The Starboard OS event loop dispatches a system event (e.g., `Freeze`) to `AppEventDelegate`.
 2.  **Transition Sequencing**: `AppEventDelegate` locks the state machine and resolves the immediate next intermediate step (e.g., `kConcealed -> kFrozen`) via `GetNextState()`.
 3.  **Synchronous Trigger**: The delegate calls `AppEventRunnerImpl`'s corresponding transition wrapper synchronously (e.g., `DoFreeze(callback)`).
-4.  **Wait-State Injection**: The runner caches any test mock callback, sets the active wait type (`pending_ack_ = kCookieFlush`), and calls its unified blocking helper `WaitForAck()`.
-5.  **UI Main Thread Sleep**: Inside `WaitForAck()`, the runner authorizes synchronous waits, triggers the transition work (either registering Mojo layout ACKs in `CobaltLifecycleManager` OR launching local Cookies and LocalStorage flushes in `ContentBrowserClient`), and **synchronously sleeps the UI thread inside a nested `base::RunLoop`**.
+4.  **Wait-State Injection**: The runner caches any test mock callback, sets the active wait type (e.g., `pending_ack_ = kFreeze` followed by `pending_ack_ = kCookieFlush`), and calls its unified blocking helper `WaitForAck()`.
+5.  **UI Main Thread Sleep**: Inside `WaitForAck()`, the runner authorizes synchronous waits, triggers the transition work (either registering Mojo layout/lifecycle ACKs in `CobaltLifecycleManager` OR launching local Cookies and LocalStorage flushes in `ContentBrowserClient`), and **synchronously sleeps the UI thread inside a nested `base::RunLoop`**.
 6.  **Mojo/Hardware/Storage Completion**:
-    *   *Mojo Viewports & Conceal Hardware Barrier*: As the Blink frame processes visibility or focus changes, it sends ACKs over Mojo (`CobaltLifecycleObserver`). `CobaltLifecycleManager` aggregates these frame signals. On conceal, once all active frames report concealed (`OnAllFramesConcealed`), `ShellPlatformDelegate` executes the 3-step hardware teardown barrier: (a) `media::StarboardRenderer::FlushAndSuspendActiveRenderers` flushes and destroys any active `SbPlayer` instances (`SbPlayerDestroy`) on the media thread, (b) `ConcealShell` unmaps the platform window (`SbWindowDestroy`), and (c) `content::CleanupGpuProcessOnUI` tears down GPU resources (`eglTerminate`) and invokes `CobaltLifecycleManager::OnConcealCompleted`.
+    *   *Mojo Viewports & Conceal Hardware Barrier*: As the Blink frame processes visibility, focus, or freeze/resume changes, it sends ACKs over Mojo (`CobaltLifecycleObserver`). `CobaltLifecycleManager` aggregates these frame signals. On conceal, once all active frames report concealed (`OnAllFramesConcealed`), `ShellPlatformDelegate` executes the 3-step hardware teardown barrier: (a) `media::StarboardRenderer::FlushAndSuspendActiveRenderers` flushes and destroys any active `SbPlayer` instances (`SbPlayerDestroy`) on the media thread, (b) `ConcealShell` unmaps the platform window (`SbWindowDestroy`), and (c) `content::CleanupGpuProcessOnUI` tears down GPU resources (`eglTerminate`) and invokes `CobaltLifecycleManager::OnConcealCompleted`.
     *   *Disk Storage*: Once the Cookies and LocalStorage storage thread finishes writing files to disk, the storage client executes the runner's local callback `OnCookieFlushComplete()`.
-7.  **Nested Loop Quit (or Timeout Warning)**: The runner's callback handler receives the completion signal (`OnConcealCompleted`, `OnAllFramesVisible`, `OnAllFramesBlurred`, or `OnCookieFlushComplete`) and calls `std::move(quit_closure_).Run()`, waking up the sleeping UI thread. If the transition exceeds `kTransitionTimeout` (5 seconds) and is unblocked by the delayed timeout task instead, `quit_closure_` remains non-null; `WaitForAck()` logs a `LOG(WARNING)` and resets `quit_closure_`.
+7.  **Nested Loop Quit (or Timeout Warning)**: The runner's callback handler receives the completion signal (`OnConcealCompleted`, `OnAllFramesVisible`, `OnAllFramesBlurred`, `OnAllFramesFrozen`, `OnAllFramesResumed`, or `OnCookieFlushComplete`) and calls `std::move(quit_closure_).Run()`, waking up the sleeping UI thread. If the transition exceeds `kTransitionTimeout` (5 seconds) and is unblocked by the delayed timeout task instead, `quit_closure_` remains non-null; `WaitForAck()` logs a `LOG(WARNING)` and resets `quit_closure_`.
 8.  **State Finalization**: The nested loop exits, `WaitForAck()` returns, the runner transition wrapper returns synchronously to `AppEventDelegate`, and the delegate immediately updates its canonical state (`SetApplicationState(...)`), safely triggering the next sequential step.
 
 ---
