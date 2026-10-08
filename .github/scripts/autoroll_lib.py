@@ -61,10 +61,9 @@ def get_commits(branch, start):
   return commits
 
 
-def get_rolled_source_items(target_branch):
-  """Returns (rolled_shas, rolled_pr_nums) cherry-picked into HEAD."""
-  # Inspect full commit messages from target_branch to HEAD.
-  output = get_out(['git', 'log', f'{target_branch}..HEAD', '--format=%B'])
+def get_rolled_source_items(rev_range):
+  """Returns (rolled_shas, rolled_pr_nums) cherry-picked in rev_range."""
+  output = get_out(['git', 'log', rev_range, '--format=%B'])
   shas = set(
       re.findall(r'\(cherry picked from commit ([0-9a-fA-F]+)\)', output))
   prs = set()
@@ -216,7 +215,11 @@ def resolve_conflicts(unmerged_files):
   return True
 
 
-def apply_and_commit(action, sha, metadata, first_commit, autoroll_metadata):
+def apply_and_commit(action,
+                     sha,
+                     metadata,
+                     first_commit,
+                     autoroll_metadata=None):
   """Attempts to apply a single commit.
 
   Returns:
@@ -249,13 +252,14 @@ def apply_and_commit(action, sha, metadata, first_commit, autoroll_metadata):
       result = CommitStatus.CONFLICTED
 
   # Update autoroll file
-  autoroll_file, autoroll_sha = autoroll_metadata
-  with open(autoroll_file, 'w', encoding='utf-8') as f:
-    if result == CommitStatus.CONFLICTED:
-      f.write(f'CONFLICTED:{autoroll_sha}\n')
-    else:
-      f.write(f'{autoroll_sha}\n')
-  run(['git', 'add', '--', autoroll_file])
+  if autoroll_metadata:
+    autoroll_file, autoroll_sha = autoroll_metadata
+    with open(autoroll_file, 'w', encoding='utf-8') as f:
+      if result == CommitStatus.CONFLICTED:
+        f.write(f'CONFLICTED:{autoroll_sha}\n')
+      else:
+        f.write(f'{autoroll_sha}\n')
+    run(['git', 'add', '--', autoroll_file])
 
   # Commit
   run([
