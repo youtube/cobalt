@@ -268,7 +268,11 @@ run_package_release_pipeline () {
 
 publish_golden_workspace_snapshot () {
   local gclient_root="${KOKORO_ARTIFACTS_DIR}/git"
-  local platform="${PLATFORM:-linux}"
+  local platform="${TARGET_PLATFORM:-${PLATFORM}}"
+  if [[ -z "${platform}" ]]; then
+    echo "==> Error: Neither TARGET_PLATFORM nor PLATFORM is set. Cannot determine snapshot platform." >&2
+    return 1
+  fi
   local bucket="${GOLDEN_WORKSPACE_BUCKET:-cobalt-internal-build-artifacts/golden-workspace}"
   local staging_dir="${WORKSPACE_COBALT}/out/golden_workspace_staging_$$"
 
@@ -290,9 +294,18 @@ publish_golden_workspace_snapshot () {
       "${extra_tar_args[@]}"
 
   local archive_sha
-  archive_sha=$(sha256sum "${archive}" | awk '{print $1}')
+  if command -v sha256sum >/dev/null 2>&1; then
+    archive_sha=$(sha256sum "${archive}" | awk '{print $1}')
+  else
+    archive_sha=$(shasum -a 256 "${archive}" | awk '{print $1}')
+  fi
+
   local archive_size
-  archive_size=$(stat -c%s "${archive}")
+  if stat -c%s "${archive}" >/dev/null 2>&1; then
+    archive_size=$(stat -c%s "${archive}")
+  else
+    archive_size=$(stat -f%z "${archive}")
+  fi
   local src_commit
   src_commit=$(git -C "${WORKSPACE_COBALT}" rev-parse HEAD)
 
