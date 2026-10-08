@@ -36,6 +36,8 @@ std::ostream& operator<<(std::ostream& os, PendingAck ack) {
       return os << "kConceal";
     case PendingAck::kBlur:
       return os << "kBlur";
+    case PendingAck::kFreeze:
+      return os << "kFreeze";
     case PendingAck::kUnfreeze:
       return os << "kUnfreeze";
     case PendingAck::kCookieFlush:
@@ -209,8 +211,13 @@ void CobaltLifecycleManager::WebContentsTracker::DidFinishNavigation(
 }
 
 void CobaltLifecycleManager::WebContentsTracker::SetResumed(
-    content::RenderFrameHost* frame) {
-  resumed_frames_.insert(frame);
+    content::RenderFrameHost* frame,
+    bool resumed) {
+  if (resumed) {
+    resumed_frames_.insert(frame);
+  } else {
+    resumed_frames_.erase(frame);
+  }
 }
 
 void CobaltLifecycleManager::WebContentsTracker::SetVisible(
@@ -242,6 +249,13 @@ bool CobaltLifecycleManager::WebContentsTracker::IsComplete(
   const auto& all_frames = it->second;
 
   switch (ack_type) {
+    case PendingAck::kFreeze:
+      for (auto* frame : all_frames) {
+        if (resumed_frames_.find(frame) != resumed_frames_.end()) {
+          return false;
+        }
+      }
+      return true;
     case PendingAck::kUnfreeze:
       for (auto* frame : all_frames) {
         if (resumed_frames_.find(frame) == resumed_frames_.end()) {
@@ -277,6 +291,10 @@ bool CobaltLifecycleManager::WebContentsTracker::IsComplete(
 
 bool CobaltLifecycleManager::WebContentsTracker::IsConnected(
     content::RenderFrameHost* frame) const {
+  auto main_it = manager_->main_frames_.find(web_contents());
+  if (main_it != manager_->main_frames_.end() && main_it->second == frame) {
+    return true;
+  }
   auto it = controllers_.find(frame);
   if (it == controllers_.end()) {
     return false;
@@ -307,6 +325,13 @@ void CobaltLifecycleManager::WebContentsTracker::Rebind(
 void CobaltLifecycleManager::WebContentsTracker::OnControllerDisconnect(
     content::RenderFrameHost* frame) {
   LOG(WARNING) << __func__ << " for frame=" << frame;
+  auto main_it = manager_->main_frames_.find(web_contents());
+  if (main_it != manager_->main_frames_.end() && main_it->second == frame) {
+    // An active CobaltLifecycleObserver pipe has already registered this frame
+    // and remains connected; OnMojoDisconnect will handle unregistration if it
+    // disconnects.
+    return;
+  }
   resumed_frames_.erase(frame);
   visible_frames_.erase(frame);
   focused_frames_.erase(frame);
@@ -423,13 +448,28 @@ void CobaltLifecycleManager::OnPageFocused() {
   }
 }
 
+void CobaltLifecycleManager::OnPageFrozen() {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  auto [frame, web_contents] = GetCurrentContext();
+
+  if (web_contents && frame) {
+    auto* tracker = GetOrCreateTracker(web_contents);
+    tracker->SetResumed(frame, false);
+
+    if (pending_acks_[web_contents] == PendingAck::kFreeze) {
+      pending_ack_frames_[web_contents].erase(frame);
+      CheckCompletion(web_contents);
+    }
+  }
+}
+
 void CobaltLifecycleManager::OnPageResumed() {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   auto [frame, web_contents] = GetCurrentContext();
 
   if (web_contents && frame) {
     auto* tracker = GetOrCreateTracker(web_contents);
-    tracker->SetResumed(frame);
+    tracker->SetResumed(frame, true);
 
     if (pending_acks_[web_contents] == PendingAck::kUnfreeze) {
       pending_ack_frames_[web_contents].erase(frame);
@@ -559,6 +599,11 @@ void CobaltLifecycleManager::CompleteAckImmediately(
   pending_ack_frames_.erase(web_contents);
 
   switch (ack_type) {
+    case PendingAck::kFreeze:
+      for (auto& observer : observers_) {
+        observer.OnAllFramesFrozen(web_contents);
+      }
+      break;
     case PendingAck::kUnfreeze:
       for (auto& observer : observers_) {
         observer.OnAllFramesResumed(web_contents);
