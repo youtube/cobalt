@@ -83,17 +83,17 @@ runs:
       env:
         CONFIG: ${{ inputs.config }}
         DOWNLOAD_CHROMEDRIVER: ${{ inputs.download_chromedriver }}
-        ACTION_PATH: ${{ github.action_path }}
       run: |
         set -ex
-        chmod +x "${ACTION_PATH}/run_smoke_test.sh"
+        smoke_test_script="${GITHUB_WORKSPACE}/cobalt/devinfra/github/chromedriver_integration/run_smoke_test.sh"
+        chmod +x "${smoke_test_script}"
         extra_args=()
         if [[ "${DOWNLOAD_CHROMEDRIVER}" == "true" ]]; then
           extra_args+=(--download-chromedriver)
         else
           extra_args+=(--no-download-chromedriver)
         fi
-        "${ACTION_PATH}/run_smoke_test.sh" \
+        "${smoke_test_script}" \
           --cobalt-path "${GITHUB_WORKSPACE}/cobalt/src" \
           --config "${CONFIG}" \
           --output-dir "${GITHUB_WORKSPACE}/chromedriver_tests" \
