@@ -66,9 +66,6 @@ public class JavaSwitches {
 
   public static final String ENABLE_LOW_END_DEVICE_MODE_SWITCH = "--enable-low-end-device-mode";
 
-  /** flag to enable deferred V8 bytecode serialization in background/idle */
-  public static final String DEFER_V8_CODE_CACHE_WRITE = "DeferV8CodeCacheWrite";
-
   /** flag to re-enable freeze and resume events */
   public static final String ENABLE_FREEZE = "EnableFreeze";
 
@@ -436,10 +433,6 @@ public class JavaSwitches {
 
     if (featureParams.length() > 0) {
       extraCommandLineArgs.add("--enable-features=SmallerInterestArea:" + featureParams.toString());
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.DEFER_V8_CODE_CACHE_WRITE)) {
-      extraCommandLineArgs.add("--defer-v8-code-cache-write");
     }
 
     if (jsFlags.length() > 0) {
