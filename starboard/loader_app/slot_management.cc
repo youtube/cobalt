@@ -19,7 +19,7 @@
 
 #include <algorithm>
 #include <iostream>
-#include <sstream>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -67,29 +67,75 @@ const char kManifestFileName[] = "manifest.json";
 // Deliminator of the Evergreen version string segments.
 const char kEgVersionDeliminator = '.';
 
+// Parses |version|, a possibly NUL-terminated string of dot-separated
+// non-negative decimal integers (e.g. "1.2.3"), into |segments|. Returns false
+// if |version| is empty or malformed, i.e. if it contains an empty segment, a
+// non-digit character, or a segment whose value does not fit in an int.
+//
+// This intentionally avoids std::stoi(), which throws on malformed input and
+// therefore aborts the process when exceptions are disabled. The version
+// string is read from a manifest file in writable storage, so a corrupted
+// manifest must not be able to crash the loader app on every launch.
+bool ParseEvergreenVersion(const std::vector<char>& version,
+                           std::vector<int>* segments) {
+  segments->clear();
+  const auto end = std::find(version.begin(), version.end(), '\0');
+  if (end == version.begin()) {
+    return false;
+  }
+
+  int value = 0;
+  bool segment_empty = true;
+  for (auto it = version.begin(); it != end; ++it) {
+    const char c = *it;
+    if (c == kEgVersionDeliminator) {
+      if (segment_empty) {
+        return false;
+      }
+      segments->push_back(value);
+      value = 0;
+      segment_empty = true;
+      continue;
+    }
+    if (c < '0' || c > '9') {
+      return false;
+    }
+    const int digit = c - '0';
+    if (value > (std::numeric_limits<int>::max() - digit) / 10) {
+      return false;
+    }
+    value = value * 10 + digit;
+    segment_empty = false;
+  }
+  if (segment_empty) {
+    return false;
+  }
+  segments->push_back(value);
+  return true;
+}
+
 }  // namespace
 
 int CompareEvergreenVersion(const std::vector<char>& v1,
                             const std::vector<char>& v2) {
-  if ((v1)[0] == '\0' || (v2)[0] == '\0') {
+  // Split the version strings into segments of numbers.
+  std::vector<int> n1, n2;
+  if (!ParseEvergreenVersion(v1, &n1)) {
+    SB_LOG(WARNING) << "Invalid Evergreen version: "
+                    << std::string(v1.begin(),
+                                   std::find(v1.begin(), v1.end(), '\0'));
+    return 0;
+  }
+  if (!ParseEvergreenVersion(v2, &n2)) {
+    SB_LOG(WARNING) << "Invalid Evergreen version: "
+                    << std::string(v2.begin(),
+                                   std::find(v2.begin(), v2.end(), '\0'));
     return 0;
   }
 
-  // Split the version strings into segments of numbers
-  std::vector<int> n1, n2;
-  std::stringstream s1(std::string(v1.begin(), v1.end()));
-  std::stringstream s2(std::string(v2.begin(), v2.end()));
-  std::string seg;
-  while (std::getline(s1, seg, kEgVersionDeliminator)) {
-    n1.push_back(std::stoi(seg));
-  }
-  while (std::getline(s2, seg, kEgVersionDeliminator)) {
-    n2.push_back(std::stoi(seg));
-  }
-
   // Compare each segment
-  int size = std::min(n1.size(), n2.size());
-  for (int i = 0; i < size; i++) {
+  size_t size = std::min(n1.size(), n2.size());
+  for (size_t i = 0; i < size; i++) {
     if (n1[i] > n2[i]) {
       return 1;
     } else if (n1[i] < n2[i]) {
