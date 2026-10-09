@@ -160,6 +160,17 @@ extern const base::FeatureParam<int> kCobaltMemoryPressureCooldownSecondsParam;
 // that costs Mojo round trips to the browser UI thread on every request.
 BASE_DECLARE_FEATURE(kCobaltSkipTrustedHeaderClient);
 
+// Freezes the web app (document freeze event, JS timers stopped, freeze-time
+// memory purging) when the Android Activity is stopped, after an optional
+// delay. Disabled by default: Chrobalt currently never freezes in the
+// background on Android TV unless the EnableFreeze Java switch is set.
+BASE_DECLARE_FEATURE(kCobaltFreezeOnBackground);
+
+// Delay in milliseconds between the visibilitychange:hidden event and the
+// freeze event when kCobaltFreezeOnBackground is enabled. 0 freezes
+// immediately; 1500 matches the Cobalt 25 Conceal -> Freeze delay.
+extern const base::FeatureParam<int> kCobaltFreezeOnBackgroundDelayMs;
+
 }  // namespace features
 }  // namespace cobalt
 

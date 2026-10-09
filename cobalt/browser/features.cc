@@ -180,5 +180,14 @@ BASE_FEATURE(kCobaltSkipTrustedHeaderClient,
              "CobaltSkipTrustedHeaderClient",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kCobaltFreezeOnBackground,
+             "CobaltFreezeOnBackground",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Finch flattens params across features into one namespace, so the param name
+// is prefixed with the feature name (go/cobalt-finch-setup#naming-style-guide).
+const base::FeatureParam<int> kCobaltFreezeOnBackgroundDelayMs{
+    &kCobaltFreezeOnBackground, "CobaltFreezeOnBackground_delay_ms", 0};
+
 }  // namespace features
 }  // namespace cobalt
