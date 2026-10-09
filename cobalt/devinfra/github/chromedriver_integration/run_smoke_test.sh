@@ -60,11 +60,19 @@ if [[ "${DOWNLOAD_CHROMEDRIVER}" -eq 0 && ! -f "${CHROMEDRIVER_BIN}" ]]; then
 fi
 
 SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+REPO_ROOT="$(cd "${SKILL_DIR}/../../../.." &> /dev/null && pwd)"
 TEST_SCRIPT="${SKILL_DIR}/test_main.py"
 
 if [[ ! -f "${TEST_SCRIPT}" ]]; then
   echo "Error: test_main.py not found at ${TEST_SCRIPT}"
   exit 1
+fi
+
+VPYTHON_ARGS=()
+if [[ -f "${COBALT_PATH}/.vpython3" ]]; then
+  VPYTHON_ARGS+=(-vpython-spec "${COBALT_PATH}/.vpython3")
+elif [[ -f "${REPO_ROOT}/.vpython3" ]]; then
+  VPYTHON_ARGS+=(-vpython-spec "${REPO_ROOT}/.vpython3")
 fi
 
 XVFB_PID=""
@@ -98,7 +106,7 @@ if [[ "${DOWNLOAD_CHROMEDRIVER}" -eq 1 ]]; then
   echo "Detected version: ${VERSION}"
 
   mkdir -p "${DOWNLOAD_DIR}"
-  vpython3 "${SKILL_DIR}/download_chromedriver.py" "${VERSION}" --dest "${DOWNLOAD_DIR}"
+  vpython3 "${VPYTHON_ARGS[@]}" "${SKILL_DIR}/download_chromedriver.py" "${VERSION}" --dest "${DOWNLOAD_DIR}"
 
   CHROMEDRIVER_BIN=$(find "${DOWNLOAD_DIR}" -name "chromedriver" -type f | head -n 1)
   if [[ -z "${CHROMEDRIVER_BIN}" ]]; then
@@ -127,7 +135,7 @@ export LD_LIBRARY_PATH="${OUT_DIR}/starboard:${OUT_DIR}:${LD_LIBRARY_PATH:-}"
 # Run the test
 echo "Running smoke test..."
 exit_code=0
-DISPLAY="${XVFB_DISPLAY}" vpython3 "${TEST_SCRIPT}" \
+DISPLAY="${XVFB_DISPLAY}" vpython3 "${VPYTHON_ARGS[@]}" "${TEST_SCRIPT}" \
   --binary "${COBALT_BIN}" \
   --driver "${CHROMEDRIVER_BIN}" \
   --output-dir "${OUTPUT_DIR}" \
