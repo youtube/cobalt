@@ -517,9 +517,8 @@ class RunCoverageTest(unittest.TestCase):
     mock_logging_error.assert_any_call(
         'LLVM build directory not found at %s',
         '/test/src/root/third_party/llvm-build/Release+Asserts')
-    mock_logging_info.assert_any_call(
-        'Please run `gclient sync --no-history -r $(git rev-parse @)` '
-        'to install them.')
+    mock_logging_info.assert_any_call('Please run `gclient sync --no-history` '
+                                      'to install them.')
 
   @mock.patch('logging.info')
   @mock.patch('logging.error')
@@ -546,6 +545,5 @@ class RunCoverageTest(unittest.TestCase):
     mock_logging_error.assert_any_call(
         'The LLVM build directory %s is incomplete.',
         '/test/src/root/third_party/llvm-build/Release+Asserts')
-    mock_logging_info.assert_any_call(
-        'Please run `gclient sync --no-history -r $(git rev-parse @)` '
-        'to ensure a complete installation.')
+    mock_logging_info.assert_any_call('Please run `gclient sync --no-history` '
+                                      'to ensure a complete installation.')

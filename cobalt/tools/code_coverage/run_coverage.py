@@ -201,7 +201,7 @@ def main():
   if not os.path.isdir(llvm_release_asserts_dir):
     logging.error('LLVM build directory not found at %s',
                   llvm_release_asserts_dir)
-    logging.info('Please run `gclient sync --no-history -r $(git rev-parse @)` '
+    logging.info('Please run `gclient sync --no-history` '
                  'to install them.')
     return 1
 
@@ -213,7 +213,7 @@ def main():
     logging.error('The LLVM build directory %s is incomplete.',
                   llvm_release_asserts_dir)
     logging.error('Missing entries: %s', ', '.join(missing_entries))
-    logging.info('Please run `gclient sync --no-history -r $(git rev-parse @)` '
+    logging.info('Please run `gclient sync --no-history` '
                  'to ensure a complete installation.')
     return 1
 
