@@ -105,7 +105,6 @@ public class BaseStarboardBridgeTest {
 
   @Before
   public void setUp() {
-    BaseStarboardBridge.setActivityLifecycleCoordinationEnabledForTesting(true);
     BaseStarboardBridgeJni.setInstanceForTesting(mockNatives);
     VideoSurfaceViewJni.setInstanceForTesting(mockVideoNatives);
     ProcessExitReasonHelper.setActivityManagerForTesting(null);
@@ -117,11 +116,11 @@ public class BaseStarboardBridgeTest {
     bridge =
         new BaseStarboardBridge(
             context, activityHolder, serviceHolder, new String[] {"--test"}, "") {};
+    bridge.setActivityLifecycleCoordinationEnabled(true);
   }
 
   @After
   public void tearDown() {
-    BaseStarboardBridge.setActivityLifecycleCoordinationEnabledForTesting(null);
     BaseStarboardBridgeJni.setInstanceForTesting(null);
     VideoSurfaceViewJni.setInstanceForTesting(null);
     BaseStarboardBridge.setInstanceForTesting(null);
@@ -344,7 +343,7 @@ public class BaseStarboardBridgeTest {
 
   @Test
   public void videoSurface_withoutCoordinationSwitch_notifiesNullOnStaleDestroy() {
-    BaseStarboardBridge.setActivityLifecycleCoordinationEnabledForTesting(false);
+    bridge.setActivityLifecycleCoordinationEnabled(false);
     Surface surface1 = mock(Surface.class);
     Surface surface2 = mock(Surface.class);
 
@@ -365,7 +364,7 @@ public class BaseStarboardBridgeTest {
 
   @Test
   public void activityLifecycle_withoutCoordinationSwitch_callsResumeAndSuspendOnEveryActivity() {
-    BaseStarboardBridge.setActivityLifecycleCoordinationEnabledForTesting(false);
+    bridge.setActivityLifecycleCoordinationEnabled(false);
     final TestLifecycleCobaltService service = new TestLifecycleCobaltService();
     bridge.registerCobaltService(
         new CobaltService.Factory() {

@@ -1007,6 +1007,12 @@ const char kIpcDumpDirectory[] = "ipc-dump-directory";
 const char kIpcFuzzerTestcase[] = "ipc-fuzzer-testcase";
 #endif
 
+#if BUILDFLAG(IS_COBALT)
+// Allows critical memory pressure handling in the foreground for V8.
+const char kAllowCriticalMemoryPressureHandlingInForeground[] =
+    "allow-critical-memory-pressure-handling-in-foreground";
+#endif
+
 // Don't dump stuff here, follow the same order as the header.
 
 }  // namespace switches
