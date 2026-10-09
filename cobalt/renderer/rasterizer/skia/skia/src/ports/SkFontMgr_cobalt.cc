@@ -17,7 +17,9 @@
 #include <algorithm>
 #include <cctype>
 #include <memory>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "base/command_line.h"
 #include "base/logging.h"
@@ -27,6 +29,7 @@
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontConfigParser_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFreeType_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkTypeface_cobalt.h"
+#include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkWoff2FontCache_cobalt.h"
 #include "include/core/SkData.h"
 #include "include/core/SkGraphics.h"
 #include "include/core/SkStream.h"
@@ -148,6 +151,9 @@ SkFontMgr_Cobalt::SkFontMgr_Cobalt(
   GeneratePriorityOrderedFallbackFamilies(priority_fallback_families);
   FindDefaultFamily(default_families);
   initial_families_ = default_families_;
+  if (sk_woff2_cache_cobalt::IsMmapFontCacheEnabled()) {
+    ScheduleMmapFontCacheCleanup();
+  }
 }
 
 void SkFontMgr_Cobalt::PurgeCaches() {
@@ -639,6 +645,21 @@ bool SkFontMgr_Cobalt::CheckIfFamilyMatchesLocaleScript(
 
   default_families_.push_back(new_family.get());
   return true;
+}
+
+void SkFontMgr_Cobalt::ScheduleMmapFontCacheCleanup() {
+  DCHECK(sk_woff2_cache_cobalt::IsMmapFontCacheEnabled());
+  // This runs in the constructor, before the font manager is shared with other
+  // threads, so the styles can be read without locking |family_mutex_|. The
+  // list only holds paths; the cleanup task does all of the file I/O.
+  std::vector<std::string> font_file_paths;
+  for (const sk_sp<SkFontStyleSet_Cobalt>& family : families_) {
+    for (const sk_sp<SkFontStyleSet_Cobalt::SkFontStyleSetEntry_Cobalt>& style :
+         family->styles_) {
+      font_file_paths.emplace_back(style->font_file_path.c_str());
+    }
+  }
+  sk_woff2_cache_cobalt::ScheduleCacheCleanup(std::move(font_file_paths));
 }
 
 sk_sp<SkTypeface> SkFontMgr_Cobalt::FindFamilyStyleCharacter(
