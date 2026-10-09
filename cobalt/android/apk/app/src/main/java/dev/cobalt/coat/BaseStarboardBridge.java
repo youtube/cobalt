@@ -470,10 +470,6 @@ public class BaseStarboardBridge {
     return false;
   }
 
-  protected Holder<Activity> getActivityHolder() {
-    return mActivityHolder;
-  }
-
   @CalledByNative
   protected String[] getArgs() {
     if (mArgs == null) {
