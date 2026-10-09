@@ -128,6 +128,11 @@ extern const base::FeatureParam<base::TimeDelta> kMemoryAblationDelayParam;
 // that costs Mojo round trips to the browser UI thread on every request.
 BASE_DECLARE_FEATURE(kCobaltSkipTrustedHeaderClient);
 
+// Hands the Cobalt client hint headers to the network service once, through
+// NetworkContextParams, instead of installing a TrustedURLLoaderHeaderClient
+// that costs Mojo round trips to the browser UI thread on every request.
+BASE_DECLARE_FEATURE(kCobaltSkipTrustedHeaderClient);
+
 }  // namespace features
 }  // namespace cobalt
 
