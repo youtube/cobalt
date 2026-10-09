@@ -523,11 +523,34 @@ BASE_FEATURE(kCobaltBypassMojoForMedia,
 BASE_FEATURE(kCobaltDisableDecoderBufferAllocator,
              "CobaltDisableDecoderBufferAllocator",
              base::FEATURE_DISABLED_BY_DEFAULT);
+<<<<<<< HEAD
 // When enabled, Cobalt routes media frame buffer allocations into Starboard's
 // media memory pool via Chromium M126+ ExternalMemoryAllocator interface.
 BASE_FEATURE(kCobaltUseExternalMediaMemoryPool,
              "CobaltUseExternalMediaMemoryPool",
              base::FEATURE_ENABLED_BY_DEFAULT);
+=======
+// When enabled, the MediaSource stream parsers parse appended data in place
+// rather than copying it into an internal byte queue. Cobalt retains the
+// ArrayBuffer passed to SourceBuffer.appendBuffer() until the StreamParser is
+// done with it. The data is handed to the parser as a borrowed `base::span`
+// paired with a release closure; the parser destroys the closure to drop
+// Cobalt's reference to the ArrayBuffer.
+//
+// NOTE: This deviates from the MSE specification, which allows the web app to
+// modify or reuse the appended buffer as soon as appendBuffer() returns.
+BASE_FEATURE(kCobaltInPlaceMediaSourceParser,
+             "CobaltInPlaceMediaSourceParser",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+// Whether kCobaltInPlaceMediaSourceParser borrows or copies appended data.
+// When false, the stream parser is instead meant to copy each append into
+// memory that it owns, and then parse it in place.
+BASE_FEATURE_PARAM(bool,
+                   kCobaltInPlaceMediaSourceParserBorrowMode,
+                   &kCobaltInPlaceMediaSourceParser,
+                   "borrow_mode",
+                   false);
+>>>>>>> 10c5e9dd26 (media: Support In-Place WebMStreamParser (#13017))
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #if BUILDFLAG(IS_CHROMEOS)

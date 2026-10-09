@@ -233,7 +233,14 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltUsingAndroidOverlay);
 #endif  // BUILDFLAG(IS_ANDROID)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltBypassMojoForMedia);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltDisableDecoderBufferAllocator);
+<<<<<<< HEAD
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltUseExternalMediaMemoryPool);
+=======
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltInPlaceMediaSourceParser);
+MEDIA_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    bool,
+    kCobaltInPlaceMediaSourceParserBorrowMode);
+>>>>>>> 10c5e9dd26 (media: Support In-Place WebMStreamParser (#13017))
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 #if BUILDFLAG(IS_CHROMEOS)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCrOSSystemAEC);
