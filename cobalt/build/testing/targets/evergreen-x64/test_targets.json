@@ -208,5 +208,11 @@
     "runs_on": "host",
     "test_type": "gtest",
     "required": false
+  },
+  {
+    "target": "cobalt/testing/e2e:lifecycle_e2e_test",
+    "executable": "out/evergreen-x64_devel/bin/run_lifecycle_e2e_test",
+    "runs_on": "host",
+    "test_type": "junit"
   }
 ]
