@@ -208,5 +208,12 @@
     "runs_on": "host",
     "test_type": "gtest",
     "required": false
+  },
+  {
+    "target": "cobalt/testing/e2e:e2e_tests",
+    "executable": "cobalt/testing/e2e/e2e_tests.py",
+    "runs_on": "host",
+    "test_type": "junit",
+    "build": false
   }
 ]
