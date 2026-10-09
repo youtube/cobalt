@@ -866,31 +866,13 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
     max_video_size_ = video_stream_info.frame_size;
   }
 
-  // For H264 without `max_video_capabilities`, cap MediaCodec buffers
-  // (KEY_MAX_WIDTH/KEY_MAX_HEIGHT) at 1080p in the stream's orientation. This
-  // is kept separate from `max_video_size_` so it is not enforced in
-  // WriteInputBuffers().
-  //
-  // TODO(b/568493652): Revisit this change to see if it is still needed.
-  std::optional<Size> codec_max_frame_size = max_video_size_;
-  if (!codec_max_frame_size &&
-      video_stream_info.codec == kSbMediaVideoCodecH264) {
-    const Size& frame_size = video_stream_info.frame_size;
-    codec_max_frame_size = frame_size.height > frame_size.width
-                               ? Size{1080, 1920}
-                               : Size{1920, 1080};
-    SB_LOG(INFO) << "Using H264 default codec max frame size "
-                 << *codec_max_frame_size << " for frame size " << frame_size
-                 << ".";
-  }
-
   // TODO(b/281431214): Evaluate if we should also parse the fps from
   //                    `max_video_capabilities_` and pass to MediaCodecDecoder
   //                    ctor.
   auto result = MediaCodecDecoder::CreateForVideo(
       *media_codec_factory_, job_queue(), /*host=*/this,
-      video_stream_info.codec, video_stream_info.frame_size,
-      codec_max_frame_size, video_fps_, j_output_surface, drm_system_,
+      video_stream_info.codec, video_stream_info.frame_size, max_video_size_,
+      video_fps_, j_output_surface, drm_system_,
       color_metadata_ ? &*color_metadata_ : nullptr, require_software_codec_,
       std::bind(&MediaCodecVideoDecoder::OnFrameRendered, this, _1),
       std::bind(&MediaCodecVideoDecoder::OnFirstTunnelFrameReady, this),
