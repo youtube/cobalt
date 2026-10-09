@@ -29,10 +29,13 @@ import static org.mockito.Mockito.when;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.KeyEvent;
+import dev.cobalt.browser.CobaltContentBrowserClient;
+import dev.cobalt.browser.CobaltContentBrowserClientJni;
 import dev.cobalt.shell.StartupGuard;
 import dev.cobalt.util.JavaSwitches;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -390,6 +393,7 @@ public class CobaltActivityTest {
   @After
   public void tearDown() {
     StartupGuard.getInstance().disarm();
+    CobaltContentBrowserClientJni.setInstanceForTesting(null);
   }
 
   public CobaltActivity createActivityWithSwitches(final Map<String, String> switches) {
@@ -477,5 +481,86 @@ public class CobaltActivityTest {
             .getNextScheduledTaskTime()
             .minus(Duration.ofMillis(android.os.SystemClock.uptimeMillis()));
     org.junit.Assert.assertEquals(Duration.ofSeconds(120), nextTaskDelay);
+  }
+
+  private CobaltActivity createActivityForFreezeTests(
+      final Map<String, String> javaSwitches, final boolean finchFeatureEnabled) {
+    return new CobaltActivity() {
+      @Override
+      protected Map<String, String> getJavaSwitches() {
+        return javaSwitches;
+      }
+
+      @Override
+      protected boolean isFreezeOnBackgroundFeatureEnabled() {
+        return finchFeatureEnabled;
+      }
+
+      @Override
+      protected ImeAdapterImpl getImeAdapterImpl() {
+        return null;
+      }
+
+      @Override
+      protected StarboardBridge createStarboardBridge(String[] args, String startDeepLink) {
+        return null;
+      }
+    };
+  }
+
+  @Test
+  public void testShouldFreezeOnBackground_NoSwitchNoFinch_False() {
+    CobaltActivity activity =
+        createActivityForFreezeTests(Collections.emptyMap(), /* finchFeatureEnabled= */ false);
+    assertFalse(activity.shouldFreezeOnBackground());
+    assertEquals(0L, activity.getFreezeOnBackgroundDelayMs());
+  }
+
+  @Test
+  public void testShouldFreezeOnBackground_EnableFreezeSwitch_TrueWithNoDelay() {
+    CobaltActivity activity =
+        createActivityForFreezeTests(
+            Collections.singletonMap(JavaSwitches.ENABLE_FREEZE, "1"),
+            /* finchFeatureEnabled= */ false);
+    assertTrue(activity.shouldFreezeOnBackground());
+    assertEquals(0L, activity.getFreezeOnBackgroundDelayMs());
+  }
+
+  @Test
+  public void testShouldFreezeOnBackground_FinchFeature_True() {
+    CobaltContentBrowserClient.Natives natives = mock(CobaltContentBrowserClient.Natives.class);
+    when(natives.getFreezeOnBackgroundDelayMs()).thenReturn(1500);
+    CobaltContentBrowserClientJni.setInstanceForTesting(natives);
+
+    CobaltActivity activity =
+        createActivityForFreezeTests(Collections.emptyMap(), /* finchFeatureEnabled= */ true);
+    assertTrue(activity.shouldFreezeOnBackground());
+    assertEquals(1500L, activity.getFreezeOnBackgroundDelayMs());
+  }
+
+  @Test
+  public void testGetFreezeOnBackgroundDelayMs_FinchDisabled_IgnoresParam() {
+    CobaltContentBrowserClient.Natives natives = mock(CobaltContentBrowserClient.Natives.class);
+    when(natives.getFreezeOnBackgroundDelayMs()).thenReturn(1500);
+    CobaltContentBrowserClientJni.setInstanceForTesting(natives);
+
+    CobaltActivity activity =
+        createActivityForFreezeTests(
+            Collections.singletonMap(JavaSwitches.ENABLE_FREEZE, "1"),
+            /* finchFeatureEnabled= */ false);
+    assertTrue(activity.shouldFreezeOnBackground());
+    assertEquals(0L, activity.getFreezeOnBackgroundDelayMs());
+  }
+
+  @Test
+  public void testGetFreezeOnBackgroundDelayMs_NegativeParam_ClampedToZero() {
+    CobaltContentBrowserClient.Natives natives = mock(CobaltContentBrowserClient.Natives.class);
+    when(natives.getFreezeOnBackgroundDelayMs()).thenReturn(-5);
+    CobaltContentBrowserClientJni.setInstanceForTesting(natives);
+
+    CobaltActivity activity =
+        createActivityForFreezeTests(Collections.emptyMap(), /* finchFeatureEnabled= */ true);
+    assertTrue(activity.shouldFreezeOnBackground());
+    assertEquals(0L, activity.getFreezeOnBackgroundDelayMs());
   }
 }
