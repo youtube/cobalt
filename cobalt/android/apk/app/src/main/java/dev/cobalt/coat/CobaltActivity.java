@@ -552,22 +552,12 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
     javascriptInjector.setAllowInspection(true);
     for (CobaltJavaScriptAndroidObject javascriptAndroidObject : mJavaScriptAndroidObjectList) {
-      OriginMatcher matcher = new OriginMatcher();
-      try {
-        matcher.setRuleList(new ArrayList<String>());
-        Log.d(
-            TAG,
-            "Add JavaScriptAndroidObject:" + javascriptAndroidObject.getJavaScriptInterfaceName());
-        javascriptInjector.addPossiblyUnsafeInterfaceToOrigins(
-            javascriptAndroidObject,
-            javascriptAndroidObject.getJavaScriptInterfaceName(),
-            CobaltJavaScriptInterface.class,
-            matcher);
-        // We always need to clean the matcher when we
-        // are done with it.
-      } finally {
-        matcher.destroy();
-      }
+        Log.d(TAG,
+                "Add JavaScriptAndroidObject:"
+                        + javascriptAndroidObject.getJavaScriptInterfaceName());
+        javascriptInjector.addPossiblyUnsafeInterface(javascriptAndroidObject,
+                javascriptAndroidObject.getJavaScriptInterfaceName(),
+                CobaltJavaScriptInterface.class);
     }
   }
 
