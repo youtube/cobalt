@@ -42,6 +42,7 @@ env:
     cobalt/tools
   IS_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
   IS_NON_DRAFT_PULL_REQUEST: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft == false }}
+  IS_MERGE_GROUP: ${{ github.event_name == 'merge_group' }}
   RUN_ODT_ON_NIGHTLY: ${{ (inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False' }}
   RUN_ODT_ON_PUSH: ${{ github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False' }}
 
@@ -339,6 +340,7 @@ jobs:
             has_runtest_label=$(echo "${LABELS}" | jq 'any(. == "runtest")')
             if [[ "${TEST_ON_DEVICE}" == "true" && (
                   "${IS_NON_DRAFT_PULL_REQUEST}" == "true" ||
+                  "${IS_MERGE_GROUP}" == "true" ||
                   "${RUN_ODT_ON_NIGHTLY}" == "true" ||
                   "${RUN_ODT_ON_PUSH}" == "true" ||
                   "${has_runtest_label}" == "true" ) ]]; then
@@ -423,7 +425,7 @@ jobs:
         uses: ./.github/actions/docker
         with:
           docker_service: ${{ needs.initialize.outputs.docker_service }}
-          is_pr: ${{ (github.event_name == 'pull_request') }}
+          is_pr: ${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') }}
           docker_content_sha: ${{ needs.initialize.outputs.docker_content_sha }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
     outputs:
@@ -446,7 +448,7 @@ jobs:
         uses: ./.github/actions/docker
         with:
           docker_service: unittest
-          is_pr: ${{ (github.event_name == 'pull_request') }}
+          is_pr: ${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') }}
           docker_content_sha: ${{ needs.initialize.outputs.docker_content_sha }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
     outputs:
@@ -469,7 +471,7 @@ jobs:
         uses: ./.github/actions/docker
         with:
           docker_service: webtest
-          is_pr: ${{ (github.event_name == 'pull_request') }}
+          is_pr: ${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') }}
           docker_content_sha: ${{ needs.initialize.outputs.docker_content_sha }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
     outputs:
@@ -546,7 +548,7 @@ jobs:
           # Set fetch-depth to 2 to make checkout faster for pull requests and cobalt_sandbox repo.
           # Set fetch-dept to 0 for non pull request workflows in production repo which is needed
           # to properly calculate build id.
-          fetch_depth: ${{ ( github.event_name == 'pull_request' || github.repository == 'youtube/cobalt_sandbox' ) && 2 || 0 }}
+          fetch_depth: ${{ ( github.event_name == 'pull_request' || github.event_name == 'merge_group' || github.repository == 'youtube/cobalt_sandbox' ) && 2 || 0 }}
           use_cache: true
 
       - name: Set Up Depot Tools
@@ -641,6 +643,7 @@ jobs:
       needs.initialize.outputs.test_e2e == 'true' &&
         (
           (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
+          github.event_name == 'merge_group' ||
           ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
           (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False') ||
           contains(fromJson(needs.initialize.outputs.labels), 'runtest')
@@ -677,6 +680,7 @@ jobs:
       needs.initialize.outputs.test_yts == 'true' &&
         (
           (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
+          github.event_name == 'merge_group' ||
           ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
           (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False') ||
           contains(fromJson(needs.initialize.outputs.labels), 'runtest')
@@ -769,6 +773,7 @@ jobs:
       needs.initialize.outputs.test_yts_wpt == 'true' &&
         (
           (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
+          github.event_name == 'merge_group' ||
           (inputs.nightly == 'true' || github.event_name == 'schedule') ||
           (github.event_name == 'push')
         )
@@ -801,6 +806,7 @@ jobs:
       needs.initialize.outputs.test_yts_finch == 'true' &&
         (
           (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
+          github.event_name == 'merge_group' ||
           ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
           (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False') ||
           contains(fromJson(needs.initialize.outputs.labels), 'runtest')
@@ -938,7 +944,7 @@ jobs:
         with:
           path: cobalt/src
           ref: ${{ github.sha }}
-          fetch_depth: ${{ ( github.event_name == 'pull_request' || github.repository == 'youtube/cobalt_sandbox' ) && 2 || 0 }}
+          fetch_depth: ${{ ( github.event_name == 'pull_request' || github.event_name == 'merge_group' || github.repository == 'youtube/cobalt_sandbox' ) && 2 || 0 }}
           use_cache: true
 
       - name: Set Up Depot Tools
