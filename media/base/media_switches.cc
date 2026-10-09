@@ -543,6 +543,14 @@ BASE_FEATURE(kCobaltDisableDecoderBufferAllocator,
 BASE_FEATURE(kCobaltInPlaceMediaSourceParser,
              "CobaltInPlaceMediaSourceParser",
              base::FEATURE_DISABLED_BY_DEFAULT);
+// Whether kCobaltInPlaceMediaSourceParser borrows or copies appended data.
+// When false, the stream parser is instead meant to copy each append into
+// memory that it owns, and then parse it in place.
+BASE_FEATURE_PARAM(bool,
+                   kCobaltInPlaceMediaSourceParserBorrowMode,
+                   &kCobaltInPlaceMediaSourceParser,
+                   "borrow_mode",
+                   false);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #if BUILDFLAG(IS_CHROMEOS)
