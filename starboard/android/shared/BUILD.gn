@@ -102,6 +102,8 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/microphone/microphone_is_sample_rate_supported.cc",
     "//starboard/shared/starboard/microphone/microphone_open.cc",
     "//starboard/shared/starboard/microphone/microphone_read.cc",
+    "//starboard/shared/starboard/native_stability.cc",
+    "//starboard/shared/starboard/native_stability.h",
     "//starboard/shared/starboard/system_get_random_uint64.cc",
     "//starboard/shared/starboard/system_supports_resume.cc",
     "//starboard/shared/starboard/thread_checker.h",
@@ -337,8 +339,6 @@ static_library("starboard_platform") {
       "//starboard/shared/starboard/crash_handler.h",
       "//starboard/shared/starboard/loader_app_metrics.cc",
       "//starboard/shared/starboard/loader_app_metrics.h",
-      "//starboard/shared/starboard/native_stability.cc",
-      "//starboard/shared/starboard/native_stability.h",
 
       # TODO(https://crbug.com/495203133): Symbols required on AOSP. The
       # missing implementations are not not needed for the current set of

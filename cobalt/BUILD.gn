@@ -315,6 +315,10 @@ source_set("common") {
   if (use_evergreen) {
     deps += [ "//cobalt/updater" ]
   }
+
+  if (is_androidtv) {
+    deps += [ "//starboard/crashpad_wrapper:native_stability_reader" ]
+  }
 }
 
 action("cobalt_build_info") {
@@ -467,6 +471,10 @@ test("cobalt_unittests") {
     "//ui/events/devices",
   ]
 
+  if (is_starboard || is_androidtv) {
+    deps += [ "//cobalt/browser/h5vcc_native_stability" ]
+  }
+
   if (is_starboard) {
     deps += [ "//ui/ozone/platform/starboard" ]
   }
@@ -477,6 +485,10 @@ test("cobalt_unittests") {
       "//content/public/android:content_java",
       "//ui/android:ui_java",
     ]
+  }
+
+  if (is_androidtv) {
+    deps += [ "//starboard/crashpad_wrapper:native_stability_reader_test" ]
   }
 
   if (use_aura) {
