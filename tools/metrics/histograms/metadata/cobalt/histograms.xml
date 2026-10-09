@@ -540,6 +540,18 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Storage.Cookie.CommitDuration" units="ms"
+    expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the total wall-clock time spent executing a batch commit (including
+    the SQLite transaction commit and disk sync) in
+    SQLitePersistentCookieStore::Backend::DoCommit() when at least one pending
+    cookie operation is present.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.Storage.Cookie.CommitDurationPerOperation" units="ms"
     expires_after="never">
   <owner>charleykim@google.com</owner>
@@ -567,9 +579,9 @@ Always run the pretty print utility on this file after editing:
   <owner>charleykim@google.com</owner>
   <summary>
     Records the number of pending cookie operations (add, update, delete) that
-    are being committed to the database in a single batch. This gives an
-    indication of the amount of data at risk of loss if a crash occurs between
-    commits (the &quot;crash gap&quot;).
+    are being committed to the database in a single non-empty batch. This gives
+    an indication of the amount of data at risk of loss if a crash occurs
+    between commits (the &quot;crash gap&quot;).
   </summary>
 </histogram>
 
@@ -593,6 +605,17 @@ Always run the pretty print utility on this file after editing:
     `Flush()` is an asynchronous operation, this metric captures the time until
     the commit is scheduled, not the completion of the data write to persistent
     storage.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.LocalStorage.CommitDuration" units="ms"
+    expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the total wall-clock time spent committing a LevelDB WriteBatch
+    (including synchronous disk flush when options.sync is enabled) in
+    DomStorageDatabase::Commit().
   </summary>
 </histogram>
 
