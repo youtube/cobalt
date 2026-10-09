@@ -1558,10 +1558,6 @@ void SQLitePersistentCookieStore::Backend::BatchOperation(
 
 void SQLitePersistentCookieStore::Backend::DoCommit() {
   DCHECK(background_task_runner()->RunsTasksInCurrentSequence());
-#if BUILDFLAG(IS_COBALT)
-  size_t op_count = 0;
-  base::ElapsedTimer commit_timer;
-#endif  // BUILDFLAG(IS_COBALT)
 
   PendingOperationsMap ops;
   {
@@ -1570,17 +1566,20 @@ void SQLitePersistentCookieStore::Backend::DoCommit() {
     num_pending_ = 0;
   }
 
+  // Maybe an old timer fired or we are already Close()'ed.
+  if (!db() || ops.empty()) {
+    return;
+  }
+
 #if BUILDFLAG(IS_COBALT)
+  base::ElapsedTimer commit_timer;
+  size_t op_count = 0;
   for (const auto& op : ops) {
     op_count += op.second.size();
   }
   UMA_HISTOGRAM_COUNTS_1000("Cobalt.Storage.Cookie.PendingOperationsAtCommit",
-                           op_count);
+                            op_count);
 #endif  // BUILDFLAG(IS_COBALT)
-
-  // Maybe an old timer fired or we are already Close()'ed.
-  if (!db() || ops.empty())
-    return;
 
   sql::Statement add_statement(db()->GetCachedStatement(
       SQL_FROM_HERE,
@@ -1726,6 +1725,7 @@ void SQLitePersistentCookieStore::Backend::DoCommit() {
 #if BUILDFLAG(IS_COBALT)
   base::TimeDelta elapsed = commit_timer.Elapsed();
   if (op_count > 0) {
+    UMA_HISTOGRAM_TIMES("Cobalt.Storage.Cookie.CommitDuration", elapsed);
     UMA_HISTOGRAM_TIMES("Cobalt.Storage.Cookie.CommitDurationPerOperation",
                         elapsed / op_count);
   }

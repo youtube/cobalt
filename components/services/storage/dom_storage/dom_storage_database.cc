@@ -25,6 +25,11 @@
 #include "third_party/leveldatabase/leveldb_chrome.h"
 #include "third_party/leveldatabase/src/include/leveldb/write_batch.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/metrics/histogram_macros.h"
+#include "base/timer/elapsed_timer.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 namespace storage {
 
 namespace {
@@ -359,7 +364,11 @@ DomStorageDatabase::Status DomStorageDatabase::Commit(
   if (fail_commits_for_testing_)
     return Status::IOError("Simulated I/O Error");
 #if BUILDFLAG(IS_COBALT)
-  return db_->Write(CreateSyncWriteOptions(), batch);
+  base::ElapsedTimer commit_timer;
+  Status status = db_->Write(CreateSyncWriteOptions(), batch);
+  UMA_HISTOGRAM_TIMES("Cobalt.Storage.LocalStorage.CommitDuration",
+                      commit_timer.Elapsed());
+  return status;
 #else
   return db_->Write(leveldb::WriteOptions(), batch);
 #endif
