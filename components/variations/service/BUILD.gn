@@ -11,7 +11,7 @@ declare_args() {
   # Note: For Chrome-branded Android builds, this is always considered as set to
   # true (see below). This is done to avoid the binary size impact (~40 KiB) on
   # Android.
-  disable_fieldtrial_testing_config = false
+  disable_fieldtrial_testing_config = is_cobalt && cobalt_is_release_build
 
   # Set to true to make a build that force enables activation of field trial
   # tests specified in testing/variations/fieldtrial_testing_config.json.

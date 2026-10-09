@@ -27,6 +27,7 @@
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
+#include "base/metrics/field_trial_param_associator.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
@@ -39,10 +40,13 @@
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
 #include "base/threading/thread_restrictions.h"
+#include "base/values.h"
 #include "build/build_config.h"
 #include "cobalt/browser/client_hint_headers/cobalt_header_value_provider.h"
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 #include "cobalt/browser/cobalt_browser_main_parts.h"
+#include "cobalt/browser/constants/cobalt_experiment_names.h"
+#include "cobalt/browser/experiments/experiment_config_manager.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/h5vcc_platform_service/h5vcc_platform_service_manager_impl.h"
@@ -51,7 +55,10 @@
 #include "cobalt/browser/switches.h"
 #include "cobalt/shell/browser/shell_test_support.h"
 #include "cobalt/shell/common/shell_paths.h"
+#include "components/prefs/pref_service.h"
 #include "components/services/storage/public/cpp/constants.h"
+#include "components/variations/service/buildflags.h"
+#include "components/variations/variations_switches.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/overlay_window.h"
@@ -1377,6 +1384,90 @@ TEST_F(CobaltPlatformServiceBinderTest,
   service.reset();
   close_loop.Run();
 }
+
+#if BUILDFLAG(FIELDTRIAL_TESTING_ENABLED)
+TEST_F(CobaltContentBrowserClientTest,
+       SetUpCobaltFeaturesAndParamsAppliesFieldTrialTestingConfig) {
+  base::test::ScopedCommandLine scoped_command_line;
+  scoped_command_line.GetProcessCommandLine()->AppendSwitch(
+      variations::switches::kEnableFieldTrialTestingConfig);
+
+  auto* global_features = GlobalFeatures::GetInstance();
+  ASSERT_NE(global_features, nullptr);
+  global_features->experiment_config_manager()->ResetForTesting();
+  base::FieldTrialParamAssociator::GetInstance()->ClearAllParamsForTesting();
+
+  // Populate a cached experiment config to verify that testing config takes
+  // precedence and ignores the cached config.
+  global_features->experiment_config()->SetString(
+      kExperimentConfigActiveConfigData, "cached_active_config_data");
+
+  auto feature_list = std::make_unique<base::FeatureList>();
+  CobaltContentBrowserClient client(/*startup_timestamp=*/std::nullopt,
+                                    /*deep_link=*/"");
+  client.SetUpCobaltFeaturesAndParams(feature_list.get());
+
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatureList(std::move(feature_list));
+
+  EXPECT_TRUE(global_features->active_config_data().empty());
+  EXPECT_TRUE(base::FeatureList::IsEnabled(features::kTestFinchFeature));
+  EXPECT_EQ(features::kTestFinchFeatureParam.Get(), "1");
+
+  global_features->experiment_config()->ClearPref(
+      kExperimentConfigActiveConfigData);
+  global_features->experiment_config_manager()->ResetForTesting();
+  base::FieldTrialParamAssociator::GetInstance()->ClearAllParamsForTesting();
+}
+
+TEST_F(CobaltContentBrowserClientTest,
+       SetUpCobaltFeaturesAndParamsDisableFieldTrialTestingConfigUsesCache) {
+  base::test::ScopedCommandLine scoped_command_line;
+  scoped_command_line.GetProcessCommandLine()->AppendSwitch(
+      variations::switches::kDisableFieldTrialTestingConfig);
+
+  auto* global_features = GlobalFeatures::GetInstance();
+  ASSERT_NE(global_features, nullptr);
+  global_features->experiment_config_manager()->ResetForTesting();
+  base::FieldTrialParamAssociator::GetInstance()->ClearAllParamsForTesting();
+
+  base::DictValue feature_map;
+  feature_map.Set(features::kTestFinchFeature.name, true);
+  global_features->experiment_config()->SetDict(kExperimentConfigFeatures,
+                                                std::move(feature_map));
+  base::DictValue param_map;
+  param_map.Set(features::kTestFinchFeatureParam.name, "CachedConfigValue");
+  global_features->experiment_config()->SetDict(kExperimentConfigFeatureParams,
+                                                std::move(param_map));
+  global_features->experiment_config()->SetString(
+      kExperimentConfigActiveConfigData, "cached_active_config_data");
+
+  auto feature_list = std::make_unique<base::FeatureList>();
+  CobaltContentBrowserClient client(/*startup_timestamp=*/std::nullopt,
+                                    /*deep_link=*/"");
+  client.SetUpCobaltFeaturesAndParams(feature_list.get());
+
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatureList(std::move(feature_list));
+
+  EXPECT_EQ(
+      global_features->experiment_config_manager()->GetExperimentConfigType(),
+      ExperimentConfigType::kRegularConfig);
+  EXPECT_EQ(global_features->active_config_data(), "cached_active_config_data");
+  EXPECT_TRUE(base::FeatureList::IsEnabled(features::kTestFinchFeature));
+  EXPECT_EQ(features::kTestFinchFeatureParam.Get(), "CachedConfigValue");
+
+  global_features->experiment_config()->ClearPref(kExperimentConfigFeatures);
+  global_features->experiment_config()->ClearPref(
+      kExperimentConfigFeatureParams);
+  global_features->experiment_config()->ClearPref(
+      kExperimentConfigActiveConfigData);
+  global_features->InitializeActiveConfigData(
+      ExperimentConfigType::kEmptyConfig);
+  global_features->experiment_config_manager()->ResetForTesting();
+  base::FieldTrialParamAssociator::GetInstance()->ClearAllParamsForTesting();
+}
+#endif  // BUILDFLAG(FIELDTRIAL_TESTING_ENABLED)
 
 }  // namespace
 }  // namespace cobalt
