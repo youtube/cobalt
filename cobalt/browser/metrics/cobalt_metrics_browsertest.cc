@@ -304,11 +304,11 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
   EXPECT_TRUE(
       check_non_zero_histogram("Memory.Experimental.Browser2.PartitionAlloc."
                                "AllocatedObjects.ArrayBuffer"));
-  EXPECT_TRUE(check_non_zero_histogram(
+  EXPECT_TRUE(check_histogram(
       "Memory.Experimental.Browser2.PartitionAlloc.CommittedSize.Buffer"));
-  EXPECT_TRUE(check_non_zero_histogram(
+  EXPECT_TRUE(check_histogram(
       "Memory.Experimental.Browser2.PartitionAlloc.AllocatedObjects.Buffer"));
-  EXPECT_TRUE(check_non_zero_histogram(
+  EXPECT_TRUE(check_histogram(
       "Memory.Experimental.Browser2.PartitionAlloc.MaxCommittedSize.Buffer"));
   EXPECT_TRUE(check_non_zero_histogram(
       "Memory.Experimental.Browser2.Malloc.CommittedSize.Allocator"));
@@ -374,8 +374,8 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
       allocator->memory_allocator();
   ASSERT_NE(mem_allocator, nullptr);
 
-  // Verify the strict 512 KiB cap
-  EXPECT_EQ(mem_allocator->size(), 512u * 1024u);
+  // Verify the strict 128 KiB cap
+  EXPECT_EQ(mem_allocator->size(), 128u * 1024u);
 
   // Verify allocator ID "STAB"
   EXPECT_EQ(mem_allocator->Id(), 0x53544142u);

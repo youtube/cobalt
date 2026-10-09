@@ -231,7 +231,11 @@ class PLATFORM_EXPORT SimpleFontData final : public FontData {
   mutable std::unique_ptr<GlyphMetricsMap<gfx::RectF>> glyph_to_bounds_map_;
 #endif
 
+#if BUILDFLAG(IS_COBALT)
+  V8ExternalMemoryAccounter external_memory_accounter_;
+#else
   NO_UNIQUE_ADDRESS V8ExternalMemoryAccounterBase external_memory_accounter_;
+#endif
 };
 
 ALWAYS_INLINE gfx::RectF SimpleFontData::BoundsForGlyph(Glyph glyph) const {
