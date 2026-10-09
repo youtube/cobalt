@@ -171,6 +171,8 @@ class AppEventDelegate {
   bool is_tearing_down_ GUARDED_BY(lock_) = false;
   base::OnceClosure quit_closure_ GUARDED_BY(lock_);
 
+  bool awaiting_first_reveal_from_rewritten_start_ GUARDED_BY(lock_) = false;
+
 #if BUILDFLAG(IS_STARBOARD)
   // Ozone-specific bridge that converts Starboard events to Chromium events.
   // Non-Starboard platforms (like Android) handle these events natively.

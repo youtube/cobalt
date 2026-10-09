@@ -15,6 +15,7 @@
 #include "ui/ozone/platform/starboard/platform_window_starboard.h"
 
 #include <memory>
+#include <utility>
 
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
@@ -41,7 +42,22 @@ std::unique_ptr<PlatformWindowStarboard::WindowDestroyedCallback>
     g_destroyed_callback =
         std::make_unique<PlatformWindowStarboard::WindowDestroyedCallback>(
             base::DoNothing());
+
+// Created by PrecreateSbWindow() during preload; adopted by the first Show().
+SbWindow g_precreated_window = kSbWindowInvalid;
 }  // namespace
+
+// static
+void PlatformWindowStarboard::PrecreateSbWindow(const gfx::Size& size) {
+  if (SbWindowIsValid(g_precreated_window)) {
+    return;
+  }
+  SbWindowOptions options{};
+  SbWindowSetDefaultOptions(&options);
+  options.size.width = size.width();
+  options.size.height = size.height();
+  g_precreated_window = SbWindowCreate(&options);
+}
 
 // static
 void PlatformWindowStarboard::SetWindowCreatedCallback(
@@ -155,12 +171,16 @@ gfx::Rect PlatformWindowStarboard::GetBoundsInDIP() const {
 
 void PlatformWindowStarboard::Show(bool inactive) {
   if (!SbWindowIsValid(sb_window_)) {
-    SbWindowOptions options{};
-    SbWindowSetDefaultOptions(&options);
-    options.size.width = bounds_.width();
-    options.size.height = bounds_.height();
+    if (SbWindowIsValid(g_precreated_window)) {
+      sb_window_ = std::exchange(g_precreated_window, kSbWindowInvalid);
+    } else {
+      SbWindowOptions options{};
+      SbWindowSetDefaultOptions(&options);
+      options.size.width = bounds_.width();
+      options.size.height = bounds_.height();
 
-    sb_window_ = SbWindowCreate(&options);
+      sb_window_ = SbWindowCreate(&options);
+    }
     CHECK(SbWindowIsValid(sb_window_));
 
     SbWindowSize size{};

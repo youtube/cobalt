@@ -15,6 +15,7 @@
 #include "cobalt/app/app_event_delegate.h"
 
 #include <memory>
+#include <string_view>
 #include <utility>
 
 #include "base/check.h"
@@ -32,6 +33,26 @@
 namespace cobalt {
 
 namespace {
+
+bool HasPreloadLaunchParam(const SbEvent* event) {
+  // Only a kSbEventTypeStart that also carries launch=preload is rewritten.
+  if (!event || event->type != kSbEventTypeStart || !event->data) {
+    return false;
+  }
+  const auto* data = static_cast<const SbEventStartData*>(event->data);
+  if (data->link && std::string_view(data->link).find("launch=preload") !=
+                        std::string_view::npos) {
+    return true;
+  }
+  for (int i = 0; data->argument_values && i < data->argument_count; ++i) {
+    if (data->argument_values[i] &&
+        std::string_view(data->argument_values[i]).find("launch=preload") !=
+            std::string_view::npos) {
+      return true;
+    }
+  }
+  return false;
+}
 
 AppEventDelegate::ApplicationState SbEventToTargetApplicationState(
     SbEventType type) {
@@ -193,11 +214,21 @@ void AppEventDelegate::HandleEventLocked(const SbEvent* event) {
   if (application_state_ == ApplicationState::kInitial) {
     switch (event->type) {
       case kSbEventTypeStart:
-      case kSbEventTypePreload:
+      case kSbEventTypePreload: {
+        SbEvent preload_event;
+        if (HasPreloadLaunchParam(event)) {
+          awaiting_first_reveal_from_rewritten_start_ = true;
+          preload_event = {kSbEventTypePreload, event->timestamp, event->data};
+          event = &preload_event;
+        }
         runner_->OnStart(event);
+        if (awaiting_first_reveal_from_rewritten_start_) {
+          runner_->PrecreateWindow();
+        }
         SetApplicationState(SbEventToTargetApplicationState(event->type));
         target_state_ = application_state_;
         return;
+      }
       default:
         // Robustly handle events received before the application has started or
         // preloaded. This ensures that any early events are preceded by a
@@ -254,6 +285,9 @@ void AppEventDelegate::HandleEventLocked(const SbEvent* event) {
       runner_->OnInput(event);
       break;
     case kSbEventTypeLink:
+      if (awaiting_first_reveal_from_rewritten_start_) {
+        TransitionToLifeCycleState(ApplicationState::kStarted);
+      }
       runner_->OnLink(event);
       break;
     case kSbEventTypeLowMemory:
@@ -468,6 +502,9 @@ void AppEventDelegate::SetApplicationState(ApplicationState state) {
     return;
   }
   application_state_ = state;
+  if (state == ApplicationState::kStarted) {
+    awaiting_first_reveal_from_rewritten_start_ = false;
+  }
   SetApplicationStateAnnotation(state);
 }
 
