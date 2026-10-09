@@ -31,6 +31,7 @@
 */
 
 #include <errno.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -45,8 +46,15 @@ TEST(PosixLinkTest, SuccessfulCreation) {
   ScopedRandomFile old_file;
   const std::string new_path = old_file.filename() + ".link";
 
-  ASSERT_EQ(link(old_file.filename().c_str(), new_path.c_str()), 0)
-      << "link failed with error: " << strerror(errno);
+  if (link(old_file.filename().c_str(), new_path.c_str()) != 0) {
+    const int link_errno = errno;
+    // EACCES means hard links are forbidden here, e.g. by Android's SELinux
+    // policy for apps.
+    if (link_errno == EACCES) {
+      GTEST_SKIP() << "Hard links are not permitted: " << strerror(link_errno);
+    }
+    FAIL() << "link failed with error: " << strerror(link_errno);
+  }
 
   struct stat old_sb, new_sb;
   EXPECT_EQ(lstat(old_file.filename().c_str(), &old_sb), 0)
