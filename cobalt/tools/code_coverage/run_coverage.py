@@ -201,8 +201,7 @@ def main():
   if not os.path.isdir(llvm_release_asserts_dir):
     logging.error('LLVM build directory not found at %s',
                   llvm_release_asserts_dir)
-    logging.info('Please run `gclient sync --no-history` '
-                 'to install them.')
+    logging.info('Please run `gclient sync --no-history` to install them.')
     return 1
 
   actual_entries = os.listdir(llvm_release_asserts_dir)
