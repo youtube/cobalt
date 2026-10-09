@@ -371,6 +371,24 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Media.LatencyTiming.SbAudioSinkCreate{Occurrence}"
+    units="microseconds" expires_after="never">
+<!-- expires-never: Needed for long-term tracking of Starboard audio sink creation latency. -->
+
+  <owner>austinosagie@google.com</owner>
+  <owner>cobalt-media-team@google.com</owner>
+  <summary>
+    Wall-clock time taken by the SbAudioSinkCreate() Starboard call made by
+    CobaltAudioRendererSink (WebAudio / Chromium AudioRendererSink path).
+    Recorded for {Occurrence}.
+  </summary>
+  <token key="Occurrence">
+    <variant name="" summary="every call, including the first at startup"/>
+    <variant name=".Subsequent"
+        summary="every call after the first, e.g. re-creations on Flush()"/>
+  </token>
+</histogram>
+
 <histogram name="Cobalt.Network.CumulativePlatformErrorRaised" units="count"
     expires_after="never">
   <owner>charleykim@google.com</owner>
