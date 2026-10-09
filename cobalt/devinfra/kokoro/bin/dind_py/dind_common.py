@@ -17,8 +17,13 @@
 Implements methods for running Docker commands for building images or Cobalt.
 """
 
+import json
 import logging
 import os
+import subprocess
+import time
+import urllib.error
+import urllib.request
 import yaml
 
 import utils
@@ -44,6 +49,11 @@ _PLATFORM_TO_SERVICE_MAP = {
 
 _REGISTRY_FAILURE_IMAGE = 'docker-build-failure'
 _REGISTRY_FAILURE_TAG = 'latest'
+_REGISTRY_METADATA_VAR = 'REGISTRY_METADATA'
+_REGISTRY_HOSTNAME_VAR = 'REGISTRY_HOSTNAME'
+_DEFAULT_REGISTRY_HOSTNAME = 'us-central1-docker.pkg.dev'
+_METADATA_TOKEN_RETRIES = 3
+_METADATA_TOKEN_RETRY_DELAY_SECONDS = 2
 
 # Public constants for handling edge-cases with Clang Crosstool
 LINUX_CLANG_CROSSTOOL = 'linux-x64x11-clang-crosstool'
@@ -54,20 +64,86 @@ def get_failure_image():
   return f'{_REGISTRY_FAILURE_IMAGE}:{_REGISTRY_FAILURE_TAG}'
 
 
+def refresh_registry_auth():
+  """Refreshes Docker authentication with the configured Artifact Registry."""
+  registry_metadata = os.environ.get(_REGISTRY_METADATA_VAR)
+  if not registry_metadata:
+    logging.debug('%s is not set; skipping registry auth refresh.',
+                  _REGISTRY_METADATA_VAR)
+    return False
+
+  registry_hostname = os.environ.get(_REGISTRY_HOSTNAME_VAR,
+                                     _DEFAULT_REGISTRY_HOSTNAME)
+  token_url = (
+      f'{registry_metadata.rstrip("/")}/instance/service-accounts/default/token'
+  )
+
+  access_token = None
+  for attempt in range(1, _METADATA_TOKEN_RETRIES + 1):
+    try:
+      req = urllib.request.Request(
+          token_url, headers={'Metadata-Flavor': 'Google'})
+      with urllib.request.urlopen(req, timeout=10) as response:
+        payload = json.loads(response.read().decode('UTF-8'))
+        access_token = payload.get('access_token')
+      if access_token:
+        break
+    except (urllib.error.URLError, ValueError, OSError) as e:
+      logging.warning(
+          'Failed to fetch registry token from metadata server '
+          '(attempt %d/%d): %s', attempt, _METADATA_TOKEN_RETRIES, e)
+    if attempt < _METADATA_TOKEN_RETRIES:
+      time.sleep(_METADATA_TOKEN_RETRY_DELAY_SECONDS)
+
+  if not access_token:
+    logging.error('Unable to obtain registry access token from %s.', token_url)
+    return False
+
+  login_cmd = [
+      'docker', 'login', '-u', 'oauth2accesstoken', '--password-stdin',
+      f'https://{registry_hostname}',
+  ]
+  try:
+    subprocess.run(
+        login_cmd,
+        input=access_token,
+        encoding='UTF-8',
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT)
+    logging.info('Refreshed Docker registry authentication for %s',
+                 registry_hostname)
+    return True
+  except subprocess.CalledProcessError as e:
+    logging.error('Failed to login to %s: %s', registry_hostname, e.output)
+    return False
+
+
 def pull_image(target_image):
   """
   Pull an image from the passed in registry, image name and tag
   """
   command = f'docker pull {target_image}'
-  utils.exec_cmd(command)
+  try:
+    utils.exec_cmd(command)
+  except subprocess.CalledProcessError:
+    if not refresh_registry_auth():
+      raise
+    utils.exec_cmd(command)
 
 
 def push_image(target_image):
   """
   Push an image to the passed in registry, image name and tag
   """
+  refresh_registry_auth()
   command = f'docker push {target_image}'
-  utils.exec_cmd(command)
+  try:
+    utils.exec_cmd(command)
+  except subprocess.CalledProcessError:
+    if not refresh_registry_auth():
+      raise
+    utils.exec_cmd(command)
 
 
 def get_local_image_name(service, compose_file):
