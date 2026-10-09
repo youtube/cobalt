@@ -17,6 +17,7 @@
 #include <string>
 #include <vector>
 
+#include "starboard/android/shared/media_codec.h"
 #include "starboard/android/shared/mock_media_capabilities_cache.h"
 #include "starboard/common/size.h"
 #include "starboard/media.h"
@@ -459,6 +460,114 @@ TEST_F(MediaCapabilitiesCacheTest, RejectLowPerformanceSoftwareDecoder) {
                                      /*require_software_codec=*/true,
                                      /*must_support_tunnel_mode=*/false),
             "OMX.test.soft.vp9.decoder");
+}
+
+TEST_F(MediaCapabilitiesCacheTest, FindVideoCodecCapability) {
+  EXPECT_CALL(*mock_media_capabilities_provider_,
+              GetCodecCapabilities(testing::_, testing::_))
+      .WillOnce(testing::Invoke([](auto&, auto& video_caps) {
+        video_caps["video/x-vnd.on2.vp9"] = CreateVp9DecoderCaps(
+            /*is_tunnel_sup=*/false, /*is_secure_sup=*/true,
+            /*is_hdr_capable=*/false, Range{0, 3840}, Range{0, 2160},
+            Range{0, 20'000'000}, Range{0, 60});
+      }));
+
+  const VideoCodecCapability* cap = cache_->FindVideoCodecCapability(
+      "video/x-vnd.on2.vp9", "OMX.google.vp9.decoder");
+  ASSERT_NE(cap, nullptr);
+  EXPECT_EQ(cap->max_size(), Resolution::k4k);
+
+  const VideoCodecCapability* secure_cap = cache_->FindVideoCodecCapability(
+      "video/x-vnd.on2.vp9", "OMX.google.vp9.decoder.secure");
+  EXPECT_EQ(secure_cap, cap);
+
+  EXPECT_EQ(
+      cache_->FindVideoCodecCapability("video/x-vnd.on2.vp9", "nonexistent"),
+      nullptr);
+}
+
+TEST_F(MediaCapabilitiesCacheTest, GetSupportedMaxFrameSize_WithFps) {
+  MockVideoCodecCapability capability(
+      "OMX.google.vp9.decoder",
+      /*is_secure_req=*/false, /*is_secure_sup=*/false,
+      /*is_tunnel_req=*/false, /*is_tunnel_sup=*/false,
+      /*is_software_decoder=*/false, /*is_hdr_capable=*/false,
+      Range{0, Resolution::k4k.width}, Range{0, Resolution::k4k.height},
+      Range{0, 20'000'000}, Range{0, 60});
+
+  // No max_frame_size hint, 30 fps on API 29: uses supported upper bound (4K).
+  EXPECT_EQ(GetSupportedMaxFrameSize(&capability,
+                                     /*max_frame_size=*/std::nullopt,
+                                     /*fps=*/30, /*sdk_int=*/29),
+            Resolution::k4k);
+
+  // Explicit 8K hint on a 4K@60 decoder: 8K@60 fails, falls back to 4K@60.
+  EXPECT_EQ(GetSupportedMaxFrameSize(&capability,
+                                     /*max_frame_size=*/Resolution::k8k,
+                                     /*fps=*/60, /*sdk_int=*/29),
+            Resolution::k4k);
+
+  // Explicit 1080p hint at 60 fps on API 29: directly supported.
+  EXPECT_EQ(GetSupportedMaxFrameSize(&capability,
+                                     /*max_frame_size=*/Resolution::k1080p,
+                                     /*fps=*/60, /*sdk_int=*/29),
+            Resolution::k1080p);
+
+  // Unsupported frame rate (120 fps): falls back to 1080p default.
+  EXPECT_EQ(GetSupportedMaxFrameSize(&capability,
+                                     /*max_frame_size=*/Resolution::k4k,
+                                     /*fps=*/120, /*sdk_int=*/29),
+            Resolution::k1080p);
+}
+
+TEST_F(MediaCapabilitiesCacheTest, GetSupportedMaxFrameSize_WithoutFps) {
+  MockVideoCodecCapability capability(
+      "OMX.google.vp9.decoder",
+      /*is_secure_req=*/false, /*is_secure_sup=*/false,
+      /*is_tunnel_req=*/false, /*is_tunnel_sup=*/false,
+      /*is_software_decoder=*/false, /*is_hdr_capable=*/false,
+      Range{0, Resolution::k4k.width}, Range{0, Resolution::k4k.height},
+      Range{0, 20'000'000}, Range{0, 60});
+
+  // No max_frame_size hint, fps=0 on API 29: uses supported upper bound (4K).
+  EXPECT_EQ(GetSupportedMaxFrameSize(&capability,
+                                     /*max_frame_size=*/std::nullopt,
+                                     /*fps=*/0, /*sdk_int=*/29),
+            Resolution::k4k);
+
+  // Sub-480p explicit max_frame_size (e.g. 240p) with fps=0: height < 480 skips
+  // small-resolution optimization and falls back to 1080p.
+  EXPECT_EQ(GetSupportedMaxFrameSize(&capability,
+                                     /*max_frame_size=*/Resolution::k240p,
+                                     /*fps=*/0, /*sdk_int=*/29),
+            Resolution::k1080p);
+
+  // 720p explicit max_frame_size with fps=0: height >= 480 and supported.
+  EXPECT_EQ(GetSupportedMaxFrameSize(&capability,
+                                     /*max_frame_size=*/Resolution::k720p,
+                                     /*fps=*/0, /*sdk_int=*/29),
+            Resolution::k720p);
+}
+
+TEST_F(MediaCapabilitiesCacheTest, GetSupportedMaxFrameSize_SdkIntClamping) {
+  MockVideoCodecCapability capability(
+      "c2.android.av1.decoder",
+      /*is_secure_req=*/false, /*is_secure_sup=*/false,
+      /*is_tunnel_req=*/false, /*is_tunnel_sup=*/false,
+      /*is_software_decoder=*/false, /*is_hdr_capable=*/false, Range{0, 8192},
+      Range{0, 8192}, Range{0, 100'000'000}, Range{0, 60});
+
+  // API 28 clamps 8K down to 4K.
+  EXPECT_EQ(GetSupportedMaxFrameSize(&capability,
+                                     /*max_frame_size=*/Resolution::k8k,
+                                     /*fps=*/30, /*sdk_int=*/28),
+            Resolution::k4k);
+
+  // API 29 clamps >8K down to 8K.
+  EXPECT_EQ(GetSupportedMaxFrameSize(&capability,
+                                     /*max_frame_size=*/std::nullopt,
+                                     /*fps=*/30, /*sdk_int=*/29),
+            Resolution::k8k);
 }
 
 }  // namespace starboard

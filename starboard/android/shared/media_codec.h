@@ -30,6 +30,8 @@
 
 namespace starboard {
 
+class VideoCodecCapability;
+
 // GENERATED_JAVA_ENUM_PACKAGE: dev.cobalt.media
 // GENERATED_JAVA_PREFIX_TO_STRIP: MEDIA_CODEC_
 enum MediaCodecStatus {
@@ -199,6 +201,11 @@ class DefaultMediaCodecFactory : public MediaCodec::Factory {
       const SbMediaColorMetadata* color_metadata,
       const MediaCodec::VideoPlatformOptions& platform_options) override;
 };
+
+Size GetSupportedMaxFrameSize(const VideoCodecCapability* video_capability,
+                              const std::optional<Size>& max_frame_size,
+                              int fps,
+                              int sdk_int);
 
 std::ostream& operator<<(std::ostream& os,
                          const MediaCodec::VideoPlatformOptions& options);

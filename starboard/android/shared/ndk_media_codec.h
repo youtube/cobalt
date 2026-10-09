@@ -49,7 +49,7 @@ class NdkMediaCodec : public MediaCodec {
       const std::string& decoder_name,
       const Size& frame_size_hint,
       int fps,
-      const std::optional<Size>& max_frame_size,
+      Size max_frame_size,
       Handler* handler,
       const jni_zero::JavaRef<jobject>& j_surface,
       const jni_zero::JavaRef<jobject>& j_media_crypto,

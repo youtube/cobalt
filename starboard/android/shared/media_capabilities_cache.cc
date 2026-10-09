@@ -459,6 +459,28 @@ std::string MediaCapabilitiesCache::FindVideoDecoder(
                           Size(), /*bitrate=*/0, /*fps=*/0);
 }
 
+const VideoCodecCapability* MediaCapabilitiesCache::FindVideoCodecCapability(
+    std::string_view mime_type,
+    std::string_view decoder_name) {
+  std::lock_guard scoped_lock(mutex_);
+  UpdateMediaCapabilities_Locked();
+
+  for (const auto& video_capability :
+       video_codec_capabilities_map_[std::string(mime_type)]) {
+    const bool matches_name =
+        video_capability->name() == decoder_name ||
+        (video_capability->is_secure_supported() &&
+         video_capability->name() + SECURE_DECODER_SUFFIX == decoder_name);
+    if (matches_name) {
+      return video_capability.get();
+    }
+  }
+
+  SB_LOG(WARNING) << "Decoder capability not found for mime=" << mime_type
+                  << ", decoder_name=" << decoder_name;
+  return nullptr;
+}
+
 std::string MediaCapabilitiesCache::FindVideoDecoder(
     const std::string& mime_type,
     bool must_support_secure,
