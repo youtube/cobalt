@@ -78,6 +78,10 @@ Application* Application::Get() {
   return instance;
 }
 
+Application* Application::GetIfExists() {
+  return g_instance.load(std::memory_order_acquire);
+}
+
 int Application::Run(CommandLine command_line, const char* link_data) {
   Initialize();
   command_line_.reset(new CommandLine(command_line));
@@ -170,6 +174,13 @@ void Application::InjectOsNetworkConnectedEvent() {
 
 void Application::InjectDateTimeConfigurationChangedEvent() {
   Inject(new Event(kSbEventDateTimeConfigurationChanged, NULL, NULL));
+}
+
+void Application::InjectAccessibilityTextToSpeechSettingsChangedEvent(
+    bool enabled) {
+  bool* enabled_data = new bool(enabled);
+  Inject(new Event(kSbEventTypeAccessibilityTextToSpeechSettingsChanged,
+                   enabled_data, &DeleteDestructor<bool>));
 }
 
 void Application::WindowSizeChanged(void* context,
