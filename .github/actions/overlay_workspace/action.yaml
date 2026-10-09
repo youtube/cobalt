@@ -41,8 +41,13 @@ runs:
       shell: bash
       run: |
         cache_hit=false
-        if [ -w "/runner-cache" ] && [ -d "/runner-cache/golden-workspace" ] && [ -n "$(ls -A /runner-cache/golden-workspace 2>/dev/null)" ]; then
-          cache_hit=true
+        if [ -w "/runner-cache" ]; then
+          if [ -f "/runner-cache/golden-workspace/.runner_cache_ready" ]; then
+            cache_hit=true
+          elif [ -d "/runner-cache/golden-workspace" ]; then
+            echo "Golden workspace corrupted (missing .runner_cache_ready). Purging..."
+            rm -rf /runner-cache/golden-workspace
+          fi
         fi
         echo "cache_hit=${cache_hit}" >> "${GITHUB_OUTPUT}"
 
@@ -64,7 +69,7 @@ runs:
         PLATFORM_INPUT: ${{ inputs.platform }}
       run: |
         LOWER_DIR="/runner-cache/golden-workspace"
-        if [ ! -w "/runner-cache" ] || [ -d "${LOWER_DIR}" ]; then
+        if [ ! -w "/runner-cache" ] || [ -f "${LOWER_DIR}/.runner_cache_ready" ]; then
           exit 0
         fi
 
@@ -84,6 +89,7 @@ runs:
           # Seed vpython cache directory on the runner from snapshot
           mkdir -p /runner-cache/vpython
           cp -rn "${STAGING_DIR}/vpython/." /runner-cache/vpython/ 2>/dev/null || true
+          touch "${STAGING_DIR}/.runner_cache_ready"
           rm -rf "${LOWER_DIR}"
           mv "${STAGING_DIR}" "${LOWER_DIR}"
           echo "Extracted golden workspace snapshot to ${LOWER_DIR}"
@@ -97,7 +103,7 @@ runs:
       shell: bash
       run: |
         lower_dir=""
-        if [ -d "/runner-cache/golden-workspace" ]; then
+        if [ -f "/runner-cache/golden-workspace/.runner_cache_ready" ]; then
           lower_dir="/runner-cache/golden-workspace"
         fi
 
