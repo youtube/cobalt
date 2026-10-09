@@ -27,6 +27,10 @@ void SetWindowSurface(ANativeWindow* window);
 // Returns the currently held window or nullptr if there is no surface.
 ANativeWindow* AcquireWindowSurface();
 
+// Blocks until Android provides a surface. Call AcquireWindowSurface() to take
+// it.
+void WaitForWindowSurface();
+
 // Tells if Android currently has a surface for the app's window.
 bool HasWindowSurface();
 
