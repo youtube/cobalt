@@ -10,7 +10,7 @@
     "PosixFileGetInfoTest.ReportsHardLinkCount",
     "PosixLinkTest.SuccessfulCreation",
     "SbAudioSinkTest.ContinuousAppend",
-    "SbDrmSessionTest.*",
+    "SbDrmSessionTest.InvalidSessionUpdateRequestParams",
     "SbMediaCanPlayMimeAndKeySystem.MinimumSupport",
     "SbTimeZoneGetNameTest.IsIANAFormat"
   ]
