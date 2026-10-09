@@ -19,7 +19,7 @@ readonly XVFB_DISPLAY=":393"
 
 COBALT_PATH=""
 CONFIG="qa"
-DOWNLOAD_CHROMEDRIVER=0
+DOWNLOAD_CHROMEDRIVER=1
 OUTPUT_DIR="${HOME}/code/chromedriver_tests"
 
 while [[ "$#" -gt 0 ]]; do
@@ -28,13 +28,14 @@ while [[ "$#" -gt 0 ]]; do
     --config) CONFIG="$2"; shift ;;
     --output-dir) OUTPUT_DIR="$2"; shift ;;
     --download-chromedriver) DOWNLOAD_CHROMEDRIVER=1 ;;
+    --no-download-chromedriver) DOWNLOAD_CHROMEDRIVER=0 ;;
     *) echo "Unknown parameter passed: $1"; exit 1 ;;
   esac
   shift
 done
 
 if [[ -z "${COBALT_PATH}" ]]; then
-  echo "Usage: $0 --cobalt-path <path> [--config <config>] [--output-dir <dir>] [--download-chromedriver]"
+  echo "Usage: $0 --cobalt-path <path> [--config <config>] [--output-dir <dir>] [--download-chromedriver|--no-download-chromedriver]"
   exit 1
 fi
 

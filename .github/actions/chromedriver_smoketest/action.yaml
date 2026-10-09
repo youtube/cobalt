@@ -26,14 +26,10 @@ inputs:
   test_artifacts_key:
     description: "GCS artifact key for the Cobalt release package and symbols."
     required: true
-  chromedriver_artifacts_key:
-    description: "GCS artifact key for the linux-x64x11-no-starboard Chromedriver binary."
-    required: false
-    default: ""
   download_chromedriver:
-    description: "Download official Chromedriver instead of using the built binary."
+    description: "Download Chromedriver instead of using a locally built binary."
     required: false
-    default: "false"
+    default: "true"
 
 runs:
   using: "composite"
@@ -50,21 +46,12 @@ runs:
         archive_name: ${{ inputs.platform }}_${{ inputs.config }}.zip
         destination_path: artifacts
 
-    - name: Download Chromedriver QA Binary from GCS
-      if: inputs.download_chromedriver != 'true'
-      uses: ./.github/actions/download_test_artifacts
-      with:
-        test_artifacts_key: ${{ inputs.chromedriver_artifacts_key }}
-        archive_name: chromedriver
-        destination_path: artifacts/chromedriver_no_starboard
-
-    - name: Prepare Cobalt and Chromedriver Binaries
+    - name: Prepare Cobalt Binaries
       shell: bash
       env:
         PLATFORM: ${{ inputs.platform }}
         CONFIG: ${{ inputs.config }}
         TEST_ARTIFACTS_KEY: ${{ inputs.test_artifacts_key }}
-        DOWNLOAD_CHROMEDRIVER: ${{ inputs.download_chromedriver }}
       run: |
         set -euxo pipefail
         project_name=$(gcloud config get-value project)
@@ -89,10 +76,6 @@ runs:
         cp -f "${out_dir}/libstarboard.so.18" "${out_dir}/starboard/libstarboard.so.18"
 
         chmod +x "${out_dir}/cobalt" "${out_dir}/cobalt.stripped"
-        if [[ "${DOWNLOAD_CHROMEDRIVER}" != "true" ]]; then
-          cp -f "${GITHUB_WORKSPACE}/artifacts/chromedriver_no_starboard/chromedriver" "${out_dir}/chromedriver"
-          chmod +x "${out_dir}/chromedriver"
-        fi
         ls -la "${out_dir}"
 
     - name: Run Chromedriver Smoke Test
@@ -107,6 +90,8 @@ runs:
         extra_args=()
         if [[ "${DOWNLOAD_CHROMEDRIVER}" == "true" ]]; then
           extra_args+=(--download-chromedriver)
+        else
+          extra_args+=(--no-download-chromedriver)
         fi
         "${ACTION_PATH}/run_smoke_test.sh" \
           --cobalt-path "${GITHUB_WORKSPACE}/cobalt/src" \

@@ -1,12 +1,6 @@
 name: Build Cobalt
 description: Builds Cobalt targets
 inputs:
-  platform:
-    description: "The platform to build."
-    required: true
-  config:
-    description: "The build configuration (e.g., debug, devel, qa, gold)."
-    required: true
   targets:
     description: "JSON list of ninja targets for Cobalt build."
     required: true
@@ -36,8 +30,8 @@ runs:
       - name: GN gen
         env:
           ENABLE_SCCACHE: ${{ inputs.enable_sccache }}
-          PLATFORM: ${{ inputs.platform }}
-          CONFIG: ${{ inputs.config }}
+          PLATFORM: ${{ matrix.platform }}
+          CONFIG: ${{ matrix.config }}
         working-directory: cobalt/src
         run: |
           gn_flags=()
@@ -56,8 +50,8 @@ runs:
           echo "SISO_CREDENTIAL_HELPER=gcloud" >> "${GITHUB_ENV}"
       - name: List GN args
         env:
-          PLATFORM: ${{ inputs.platform }}
-          CONFIG: ${{ inputs.config }}
+          PLATFORM: ${{ matrix.platform }}
+          CONFIG: ${{ matrix.config }}
         working-directory: cobalt/src
         run: |
           gn args --list --short --overrides-only out/"${PLATFORM}_${CONFIG}"
@@ -81,14 +75,14 @@ runs:
         shell: bash
       - name: Calculate test targets
         # TODO(b/382508397): Ignore test_root_target until test target listing is dynamic.
-        if: inputs.config == 'devel' # && inputs.test_root_target != 'null'
+        if: matrix.config == 'devel' # && inputs.test_root_target != 'null'
         id: calculate-test-targets
         env:
           CHANGED_FILES_LIST: changed_files.txt
           ROOT_TARGET: ${{ inputs.test_root_target }}
-          STATIC_TEST_TARGETS_JSON_FILE: cobalt/build/testing/targets/${{ inputs.platform }}/test_targets.json
+          STATIC_TEST_TARGETS_JSON_FILE: cobalt/build/testing/targets/${{ matrix.platform }}/test_targets.json
           # TODO(b/382508397): Replace hardcoded list with dynamically generated one.
-          DYN_TEST_TARGETS_JSON_FILE: out/${{ inputs.platform }}_${{ inputs.config }}/dyn_targets.json
+          DYN_TEST_TARGETS_JSON_FILE: out/${{ matrix.platform }}_${{ matrix.config }}/dyn_targets.json
           TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
         working-directory: cobalt/src
         run: |
@@ -129,19 +123,18 @@ runs:
           echo "test_targets_count=${test_targets_count}" >> "${GITHUB_OUTPUT}"
         shell: bash
       - name: Archive test target JSON
-        if: ${{ inputs.config == 'devel' && fromJSON(steps.calculate-test-targets.outputs.test_targets_count || 0) > 0 }}
         uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
-          name: ${{ inputs.platform }}_test_targets_json
-          path: cobalt/src/out/${{ inputs.platform }}_${{ inputs.config }}/test_targets.json
+          name: ${{ matrix.platform }}_test_targets_json
+          path: cobalt/src/out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
       - name: Ninja build test targets
-        if: ${{ inputs.config == 'devel' && fromJSON(steps.calculate-test-targets.outputs.test_targets_count || 0) > 0 }}
+        if: ${{ matrix.config == 'devel' && fromJSON(steps.calculate-test-targets.outputs.test_targets_count || 0) > 0 }}
         id: build-test-targets
         working-directory: cobalt/src
         env:
           TEST_TARGETS_JSON: ${{ steps.calculate-test-targets.outputs.test_targets_json }}
-          PLATFORM: ${{ inputs.platform }}
-          CONFIG: ${{ inputs.config }}
+          PLATFORM: ${{ matrix.platform }}
+          CONFIG: ${{ matrix.config }}
         run: |
           set -ex
           readarray -t test_targets < <(echo "${TEST_TARGETS_JSON:-[]}" | jq -r '.[]')
@@ -152,8 +145,8 @@ runs:
         env:
           TARGETS_JSON: ${{ inputs.targets }}
           USE_SCCACHE: ${{ inputs.enable_sccache }}
-          PLATFORM: ${{ inputs.platform }}
-          CONFIG: ${{ inputs.config }}
+          PLATFORM: ${{ matrix.platform }}
+          CONFIG: ${{ matrix.config }}
         run: |
           set -ex
           readarray -t targets < <(echo "${TARGETS_JSON:-[]}" | jq -r '.[]')
@@ -163,11 +156,11 @@ runs:
           fi
         shell: bash
       - name: Archive Android APKs
-        if: (startsWith(inputs.platform, 'android') || contains(inputs.platform, 'aosp')) && inputs.config == 'qa'
+        if: (startsWith(matrix.platform, 'android') || contains(matrix.platform, 'aosp')) && matrix.config == 'qa'
         uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
-          name: ${{ inputs.platform }} APKs
+          name: ${{ matrix.platform }} APKs
           path: |
-            cobalt/src/out/${{ inputs.platform }}_qa/apks/*.apk
-            cobalt/src/out/${{ inputs.platform }}_qa/*_apk/*.apk
-            cobalt/src/out/${{ inputs.platform }}_qa/gen/build_info.json
+            cobalt/src/out/${{ matrix.platform }}_qa/apks/*.apk
+            cobalt/src/out/${{ matrix.platform }}_qa/*_apk/*.apk
+            cobalt/src/out/${{ matrix.platform }}_qa/gen/build_info.json

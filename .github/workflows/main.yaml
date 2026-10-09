@@ -569,8 +569,6 @@ jobs:
         # TODO(bug?): android debug builds are broken.
         if: ${{ ! (contains(matrix.platform, 'android') && matrix.config == 'debug') }}
         with:
-          platform: ${{ matrix.platform }}
-          config: ${{ matrix.config }}
           targets: ${{ needs.initialize.outputs.targets }}
           test_root_target: ${{ needs.initialize.outputs.test_root_target }}
           test_targets_json_file: out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
@@ -964,89 +962,8 @@ jobs:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
           test_results_key: Blink Web Test Results ${{ github.workflow }}
 
-  build-chromedriver:
-    needs: [initialize, docker-build-image]
-    if: needs.initialize.outputs.test_chromedriver == 'true'
-    permissions: {}
-    runs-on: ${{ fromJSON(needs.initialize.outputs.build_runners) }}
-    name: x64-no-starboard_chromedriver_qa
-    container:
-      image: ${{ needs.docker-build-image.outputs.docker_tag }}
-      options: --device /dev/fuse --cap-add SYS_ADMIN --security-opt apparmor=unconfined
-      volumes:
-        - /runner-cache:/runner-cache
-    env:
-      CHROMEDRIVER_ARTIFACTS_KEY: ${{ github.workflow }}/${{ github.run_number }}/linux-x64x11-no-starboard
-      DEPOT_TOOLS_UPDATE: 0
-      DEPOT_TOOLS_REPORT_BUILD: 0
-      DEPOT_TOOLS_COLLECT_METRICS: 0
-      DEPOT_TOOLS_METRICS: 0
-      IS_CI: 1
-    steps:
-      - name: Set TMPDIR
-        shell: bash
-        run: |
-          set -x
-          if [[ -w /__w/_temp/ ]]; then
-            echo "TMPDIR=/__w/_temp" >> "${GITHUB_ENV}"
-          else
-            echo "TMPDIR=${RUNNER_TEMP}" >> "${GITHUB_ENV}"
-          fi
-      - name: Restore CI Essentials
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          fetch-depth: 1
-          filter: blob:none
-          sparse-checkout: ${{ env.CI_ESSENTIALS }}
-      - name: Prepare OverlayFS Workspace
-        id: overlay_workspace
-        uses: ./.github/actions/overlay_workspace
-        with:
-          path: cobalt
-          use_gcloud: true
-      - name: Runner Cache Hot
-        if: steps.overlay_workspace.outputs.cache_hit == 'true'
-        shell: bash
-        run: echo "Golden workspace found on SSD."
-      - name: Runner Cache Cold
-        if: steps.overlay_workspace.outputs.cache_hit != 'true'
-        shell: bash
-        run: echo "Golden workspace missing or corrupted. Triggered full initialization sync."
-      - name: Checkout
-        uses: ./.github/actions/checkout
-        with:
-          path: cobalt/src
-          ref: ${{ github.sha }}
-          fetch_depth: ${{ ( github.event_name == 'pull_request' || github.repository == 'youtube/cobalt_sandbox' ) && 2 || 0 }}
-          use_cache: true
-      - name: Set Up Depot Tools
-        id: setup-depot-tools
-        uses: ./.github/actions/depot_tools
-        with:
-          use_gcloud: true
-      - name: Build Chromedriver (linux-x64x11-no-starboard)
-        uses: ./.github/actions/build
-        with:
-          platform: linux-x64x11-no-starboard
-          config: qa
-          targets: '["chromedriver"]'
-          test_root_target: 'null'
-          test_targets_json_file: out/linux-x64x11-no-starboard_qa/test_targets.json
-          enable_sccache: ${{ needs.initialize.outputs.enable_sccache == 'true' }}
-          sccache_gcs_key: ${{ secrets.sccache_gcs_key }}
-      - name: Upload Chromedriver to GCS
-        shell: bash
-        env:
-          CHROMEDRIVER_ARTIFACTS_KEY: ${{ env.CHROMEDRIVER_ARTIFACTS_KEY }}
-        run: |
-          set -eux
-          project_name=$(gcloud config get-value project)
-          gcloud storage cp \
-            "${GITHUB_WORKSPACE}/cobalt/src/out/linux-x64x11-no-starboard_qa/chromedriver" \
-            "gs://${project_name}-test-artifacts/${CHROMEDRIVER_ARTIFACTS_KEY}/chromedriver"
-
   chromedriver-smoketest:
-    needs: [initialize, docker-unittest-image, build, build-chromedriver]
+    needs: [initialize, docker-unittest-image, build]
     if: needs.initialize.outputs.test_chromedriver == 'true'
     permissions: {}
     runs-on: [self-hosted, chrobalt-linux-runner]
@@ -1056,7 +973,6 @@ jobs:
     env:
       TMPDIR: /__w/_temp
       TEST_ARTIFACTS_KEY: ${{ github.workflow }}/${{ github.run_number }}/linux-x64x11
-      CHROMEDRIVER_ARTIFACTS_KEY: ${{ github.workflow }}/${{ github.run_number }}/linux-x64x11-no-starboard
     steps:
       - name: Restore CI Essentials
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -1070,7 +986,6 @@ jobs:
           platform: linux-x64x11
           config: qa
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
-          chromedriver_artifacts_key: ${{ env.CHROMEDRIVER_ARTIFACTS_KEY }}
 
   test-results:
     needs: [initialize, build, on-device-test, on-host-test]
@@ -1231,7 +1146,6 @@ jobs:
       - yts-test
       - yts-finch-test
       - browser-test-on-host
-      - build-chromedriver
       - chromedriver-smoketest
     if: always() && needs.initialize.result == 'success'
     permissions: {}
