@@ -94,6 +94,8 @@ source_set("formats") {
 
   if (use_starboard_media) {
     sources += [
+      "common/offset_segmented_byte_queue.cc",
+      "common/offset_segmented_byte_queue.h",
       "common/segmented_byte_queue.cc",
       "common/segmented_byte_queue.h",
     ]
@@ -324,7 +326,10 @@ source_set("unit_tests") {
   ]
 
   if (use_starboard_media) {
-    sources += [ "common/segmented_byte_queue_unittest.cc" ]
+    sources += [
+      "common/offset_segmented_byte_queue_unittest.cc",
+      "common/segmented_byte_queue_unittest.cc",
+    ]
   }
 
   if (proprietary_codecs) {
