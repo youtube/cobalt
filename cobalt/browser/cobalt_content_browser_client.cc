@@ -14,6 +14,7 @@
 
 #include "cobalt/browser/cobalt_content_browser_client.h"
 
+#include <algorithm>
 #include <string>
 
 #include "base/base_switches.h"
@@ -34,6 +35,8 @@
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/task/thread_pool.h"
+#include "base/threading/scoped_blocking_call.h"
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
 #include "cobalt/browser/client_hint_headers/cobalt_header_value_provider.h"
@@ -80,6 +83,10 @@
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/service_manager/public/cpp/binder_registry.h"
+#include "starboard/configuration_constants.h"
+#include "storage/browser/quota/quota_device_info_helper.h"
+#include "storage/browser/quota/quota_features.h"
+#include "storage/browser/quota/quota_settings.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_registry.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
 
@@ -130,6 +137,17 @@ constexpr base::FilePath::CharType kTransportSecurityPersisterFilename[] =
     FILE_PATH_LITERAL("TransportSecurity");
 constexpr base::FilePath::CharType kTrustTokenFilename[] =
     FILE_PATH_LITERAL("Trust Tokens");
+
+// Budgets for non-HTTP-cache consumers of kSbSystemPathCacheDirectory. The
+// HTTP cache is sized to the remainder (see ComputeDefaultHttpCacheSize).
+
+// V8 JS code cache (see GetGeneratedCodeCacheSettings).
+constexpr uint32_t kGeneratedCodeCacheBytes = 5 * 1024 * 1024;
+// Service Worker CacheStorage quota pool.
+constexpr uint32_t kCacheStorageQuotaBytes = 6 * 1024 * 1024;
+// Directory headroom for index files, persistent metrics, and metadata
+// (matching Cobalt 25's 1 << 20 reserve).
+constexpr uint32_t kCacheDirectoryHeadroomBytes = 1 * 1024 * 1024;
 
 #if !BUILDFLAG(IS_ANDROIDTV)
 // This value is expected by offline data processing and should not be changed.
@@ -227,6 +245,56 @@ blink::UserAgentMetadata GetCobaltUserAgentMetadata() {
   metadata.wow64 = embedder_support::IsWoW64();
 
   return metadata;
+}
+
+std::optional<storage::QuotaSettings> CalculateCobaltCacheQuotaSettings(
+    const base::FilePath& cache_path,
+    storage::QuotaDeviceInfoHelper* device_info_helper) {
+  base::ScopedBlockingCall scoped_blocking_call(FROM_HERE,
+                                                base::BlockingType::MAY_BLOCK);
+
+  int64_t total = device_info_helper->AmountOfTotalDiskSpace(cache_path);
+  if (total <= 0) {
+    LOG(ERROR) << "Unable to compute QuotaSettings for cache path: "
+               << cache_path;
+    return std::nullopt;
+  }
+
+  // CacheStorage gets a fixed slice of the Starboard cache directory budget.
+  // The HTTP cache is sized around this reservation (see
+  // ComputeDefaultHttpCacheSize).
+  int64_t pool_size =
+      std::min(total, static_cast<int64_t>(kCacheStorageQuotaBytes));
+  if (kSbMaxSystemPathCacheDirectorySize > 0) {
+    pool_size = std::min(
+        pool_size, static_cast<int64_t>(kSbMaxSystemPathCacheDirectorySize));
+  }
+
+  const int64_t kMustRemainAvailableFixed =
+      static_cast<int64_t>(storage::features::kMustRemainAvailableBytes.Get());
+  const double kMustRemainAvailableRatio =
+      storage::features::kMustRemainAvailableRatio.Get();
+
+  const int64_t kShouldRemainAvailableFixed = static_cast<int64_t>(
+      storage::features::kShouldRemainAvailableBytes.Get());
+  const double kShouldRemainAvailableRatio =
+      storage::features::kShouldRemainAvailableRatio.Get();
+
+  storage::QuotaSettings settings;
+  settings.pool_size = pool_size;
+  // Cobalt only needs to cache data from a single origin (youtube.com),
+  // so allocate 100% of the pool to the storage key.
+  settings.per_storage_key_quota = pool_size;
+  settings.session_only_per_storage_key_quota = pool_size;
+  settings.should_remain_available =
+      std::min(kShouldRemainAvailableFixed,
+               static_cast<int64_t>(total * kShouldRemainAvailableRatio));
+  settings.must_remain_available =
+      std::min(kMustRemainAvailableFixed,
+               static_cast<int64_t>(total * kMustRemainAvailableRatio));
+  settings.refresh_interval = base::Seconds(60);
+
+  return settings;
 }
 
 CobaltContentBrowserClient::CobaltContentBrowserClient(
@@ -327,7 +395,7 @@ CobaltContentBrowserClient::GetGeneratedCodeCacheSettings(
   // Default compiled javascript quota in Cobalt 25 was 3 MB:
   // https://github.com/youtube/cobalt/blob/3ccdb04a5e36c2597fe7066039037eabf4906ba5/cobalt/network/disk_cache/resource_type.cc#L72
   // Increased to 5 MB for Cobalt 27+.
-  size_t size = 5 * 1024 * 1024;
+  size_t size = kGeneratedCodeCacheBytes;
   base::FilePath cache_path;
   CHECK(base::PathService::Get(base::DIR_CACHE, &cache_path));
   return content::GeneratedCodeCacheSettings(/*enabled=*/true, size,
@@ -342,7 +410,10 @@ uint32_t CobaltContentBrowserClient::ComputeDefaultHttpCacheSize(
   // - 6 MB for Service Worker CacheStorage
   // - 1 MB non-HTTP-cache directory headroom (matching Cobalt 25's 1 << 20
   //   reserve for index files, persistent metrics, and metadata)
-  constexpr uint32_t kNonHttpReserveBytes = 12 * 1024 * 1024;
+  constexpr uint32_t kNonHttpReserveBytes = kGeneratedCodeCacheBytes +
+                                            kCacheStorageQuotaBytes +
+                                            kCacheDirectoryHeadroomBytes;
+  static_assert(kNonHttpReserveBytes == 12 * 1024 * 1024);
   constexpr uint32_t kMinHttpCacheBytes = 1 * 1024 * 1024;
 
   if (total_dir_budget_bytes <= kNonHttpReserveBytes + kMinHttpCacheBytes) {
@@ -514,6 +585,34 @@ void CobaltContentBrowserClient::PopulateCobaltExtraRequestHeaders(
        browser::CobaltHeaderValueProvider::GetInstance()->GetHeaderValues()) {
     network_context_params->cobalt_extra_request_headers.emplace(name, value);
   }
+}
+
+void CobaltContentBrowserClient::GetCacheQuotaSettings(
+    content::BrowserContext* browser_context,
+    const base::FilePath& cache_path,
+    storage::OptionalQuotaSettingsCallback callback) {
+  if (browser_context && browser_context->IsOffTheRecord()) {
+    storage::GetNominalDynamicSettings(cache_path, /*is_incognito=*/true,
+                                       storage::GetDefaultDeviceInfoHelper(),
+                                       std::move(callback));
+    return;
+  }
+
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE,
+      {base::MayBlock(), base::TaskPriority::USER_VISIBLE,
+       base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
+      base::BindOnce(&CalculateCobaltCacheQuotaSettings, cache_path,
+                     storage::GetDefaultDeviceInfoHelper()),
+      std::move(callback));
+}
+
+// static
+std::optional<storage::QuotaSettings>
+CobaltContentBrowserClient::CalculateCacheQuotaSettingsForTesting(
+    const base::FilePath& cache_path,
+    storage::QuotaDeviceInfoHelper* device_info_helper) {
+  return CalculateCobaltCacheQuotaSettings(cache_path, device_info_helper);
 }
 
 void CobaltContentBrowserClient::OnWebContentsCreated(
