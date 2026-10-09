@@ -12,6 +12,7 @@
 #include "base/containers/span.h"
 #include "base/memory/raw_span.h"
 #include "base/process/memory.h"
+#include "build/build_config.h"
 #include "media/base/media_export.h"
 
 namespace media {
@@ -44,7 +45,18 @@ class MEDIA_EXPORT ByteQueue {
 
   // Get a read-only span view of the data. This is only valid until the next
   // Push() or Pop() call.
+<<<<<<< HEAD
   base::span<const uint8_t> Data() const { return data_; }
+=======
+  base::span<const uint8_t> Data() {
+    return {Front(), base::checked_cast<size_t>(used_)};
+  }
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  base::span<const uint8_t> Data() const {
+    return {Front(), base::checked_cast<size_t>(used_)};
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+>>>>>>> 10c5e9dd263 (media: Support In-Place WebMStreamParser (#13017))
 
  private:
   // Offset from the start of |buffer_| that marks the front of the queue.
