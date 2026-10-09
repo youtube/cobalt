@@ -32,8 +32,8 @@ bool MediaIsKeySystemSupported(SbMediaVideoCodec video_codec,
   // `com.widevine.alpha; encryptionscheme="cenc"`. We prepend "key_system/"
   // to it, so it can be parsed by MimeType.
   auto mime_type = MimeType::Create(std::string("key_system/") + key_system);
-  if (!mime_type || !mime_type->ValidateStringParameter("encryptionscheme",
-                                                        "cenc|cbcs|cbcs-1-9")) {
+  if (!mime_type || !mime_type->ValidateStringParameter(
+                        kMimeParamEncryptionScheme, "cenc|cbcs|cbcs-1-9")) {
     return false;
   }
 
@@ -56,7 +56,7 @@ bool MediaIsKeySystemSupported(SbMediaVideoCodec video_codec,
   }
 
   std::string encryption_scheme =
-      mime_type->GetParamStringValue("encryptionscheme", "");
+      mime_type->GetParamStringValue(kMimeParamEncryptionScheme, "");
   if (encryption_scheme == "cbcs" || encryption_scheme == "cbcs-1-9") {
     return MediaCapabilitiesCache::GetInstance()->IsCbcsSchemeSupported();
   }
