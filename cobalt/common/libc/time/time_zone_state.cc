@@ -37,7 +37,6 @@
 #include "starboard/log.h"
 #include "starboard/time_zone.h"
 #include "unicode/basictz.h"
-#include "unicode/calendar.h"
 #include "unicode/gregocal.h"
 #include "unicode/putil.h"
 #include "unicode/simpletz.h"
@@ -230,12 +229,8 @@ std::unique_ptr<icu::TimeZone> CreateIcuTimezoneFromParsedData(
 
 // Extracts the timezone abbreviation (e.g., "PST", "PDT") for a given
 // timezone. It uses a layered approach, first querying the TZDB for a name and
-// falling back to a generic name if the primary lookup fails. The optional
-// `date_for_name` parameter allows specifying a historical date to get the
-// correct abbreviation for that time (e.g., for zones that no longer use DST).
-std::string ExtractZoneName(const icu::TimeZone& tz,
-                            bool is_daylight,
-                            std::optional<UDate> date_for_name) {
+// falling back to a generic name if the primary lookup fails.
+std::string ExtractZoneName(const icu::TimeZone& tz, bool is_daylight) {
   UErrorCode status = U_ZERO_ERROR;
   icu::Locale locale = icu::Locale::getRoot();
   icu::UnicodeString timezone_id;
@@ -246,23 +241,18 @@ std::string ExtractZoneName(const icu::TimeZone& tz,
   std::unique_ptr<icu::TimeZoneNames> tz_db_names(
       icu::TimeZoneNames::createTZDBInstance(locale, status));
   icu::UnicodeString result_name;
-  UDate date;
 
-  if (date_for_name) {
-    date = *date_for_name;
-  } else {
-    // If no specific date is provided, use a representative date for the
-    // current year (January for standard time, July for daylight time).
-    std::optional<int> current_year_opt = GetCurrentYear();
-    if (!current_year_opt) {
-      return "";
-    }
-    icu::GregorianCalendar calendar(tz, locale, status);
-    calendar.set(*current_year_opt, is_daylight ? UCAL_JULY : UCAL_JANUARY, 1);
-    date = calendar.getTime(status);
-    if (U_FAILURE(status)) {
-      return "";
-    }
+  // Use a representative date for the current year (January for standard
+  // time, July for daylight time).
+  std::optional<int> current_year_opt = GetCurrentYear();
+  if (!current_year_opt) {
+    return "";
+  }
+  icu::GregorianCalendar calendar(tz, locale, status);
+  calendar.set(*current_year_opt, is_daylight ? UCAL_JULY : UCAL_JANUARY, 1);
+  UDate date = calendar.getTime(status);
+  if (U_FAILURE(status)) {
+    return "";
   }
 
   if (U_SUCCESS(status)) {
@@ -274,10 +264,6 @@ std::string ExtractZoneName(const icu::TimeZone& tz,
   // If the TZDB lookup fails or returns an invalid name, fall back.
   if (U_FAILURE(status) || result_name.isBogus() || result_name.isEmpty() ||
       result_name.length() > TZNAME_MAX) {
-    // If we already tried a specific date, retry with a generic one.
-    if (date_for_name) {
-      return ExtractZoneName(tz, is_daylight, std::nullopt);
-    }
     // Use ICU's generic display name as a final fallback.
     icu::UnicodeString fallback_name;
     tz.getDisplayName(is_daylight, icu::TimeZone::SHORT, locale, fallback_name);
@@ -291,56 +277,6 @@ std::string ExtractZoneName(const icu::TimeZone& tz,
   }
 
   return "";
-}
-
-// Finds the last date a timezone observed Daylight Saving Time since 1970.
-// This is useful for determining the correct DST abbreviation for timezones
-// that have since abandoned DST. For example, if a zone stopped using DST in
-// 2005, this function helps retrieve its historical DST name (e.g., "PDT")
-// instead of its current standard name (e.g., "PST").
-std::optional<UDate> FindLastDateWithDst(const icu::TimeZone& tz) {
-  UErrorCode status = U_ZERO_ERROR;
-  std::unique_ptr<icu::Calendar> cal(
-      icu::Calendar::createInstance(tz.clone(), status));
-  if (U_FAILURE(status)) {
-    return std::nullopt;
-  }
-
-  // Set a search end time a few years in the future to catch recent changes.
-  icu::GregorianCalendar end_cal(tz, status);
-  if (U_FAILURE(status)) {
-    return std::nullopt;
-  }
-  end_cal.setTime(icu::Calendar::getNow(), status);
-  if (U_FAILURE(status)) {
-    return std::nullopt;
-  }
-  end_cal.add(UCAL_YEAR, 5, status);
-  UDate end_time = end_cal.getTime(status);
-  if (U_FAILURE(status)) {
-    return std::nullopt;
-  }
-
-  // Start searching from the Unix epoch.
-  cal->set(1970, UCAL_JANUARY, 1);
-
-  std::optional<UDate> last_dst_date;
-  int32_t raw_offset, dst_offset;
-
-  // Iterate week by week to find periods with a non-zero DST offset.
-  while (cal->getTime(status) < end_time && U_SUCCESS(status)) {
-    UDate current_date = cal->getTime(status);
-    tz.getOffset(current_date, false, raw_offset, dst_offset, status);
-    if (U_FAILURE(status)) {
-      break;
-    }
-    if (dst_offset > 0) {
-      last_dst_date = current_date;
-    }
-    cal->add(UCAL_WEEK_OF_YEAR, 1, status);
-  }
-
-  return last_dst_date;
 }
 
 }  // namespace
@@ -452,10 +388,9 @@ std::unique_ptr<icu::TimeZone> TimeZoneState::CreateTimeZoneFromIanaId(
     }
   } else {
     // If no correction is found, extract names directly from the ICU data.
-    std_name_ = ExtractZoneName(*new_zone, false, std::nullopt);
+    std_name_ = ExtractZoneName(*new_zone, false);
     if (new_zone->useDaylightTime()) {
-      std::optional<UDate> last_dst_date = FindLastDateWithDst(*new_zone);
-      dst_name_ = ExtractZoneName(*new_zone, true, last_dst_date);
+      dst_name_ = ExtractZoneName(*new_zone, true);
     } else {
       dst_name_ = std_name_;
     }
