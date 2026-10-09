@@ -185,6 +185,12 @@ FakeMediaCodecFactory::CreateVideoMediaCodec(
     const SbMediaColorMetadata* color_metadata,
     const MediaCodec::VideoPlatformOptions& platform_options) {
   SB_LOG(INFO) << "[FakeMediaCodec] CreateVideoMediaCodec called";
+  {
+    std::lock_guard lock(mutex_);
+    last_video_color_metadata_ =
+        color_metadata ? std::make_optional(*color_metadata) : std::nullopt;
+  }
+  video_codec_create_count_++;
   auto fake =
       std::make_unique<FakeMediaCodec>(handler, &last_created_video_codec_);
   last_created_video_codec_ = fake.get();
