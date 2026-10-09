@@ -185,6 +185,31 @@ class TestConvertJsonToJunitXml(unittest.TestCase):
     self.assertIsNotNone(case_el)
     self.assertEqual(case_el.attrib["time"], "0.000")
 
+  def test_convert_vega_json_with_test_suite_category(self):
+    data = {
+        "tests": [{
+            "test_title": "Load the browse page",
+            "test_suite": "Vega Tests",
+            "test_category": "infra_smoke",
+            "result": "FAILED",
+            "start_time": 1000,
+            "end_time": 5000,
+            "output": ["Infra smoke test output"]
+        }]
+    }
+    json_path = self.dir_path / "vega_suite.json"
+    xml_path = self.dir_path / "vega_suite.xml"
+    json_path.write_text(json.dumps(data), encoding="utf-8")
+
+    convert(str(json_path), str(xml_path))
+    self.assertTrue(xml_path.is_file())
+
+    tree = ET.parse(xml_path)
+    case_el = tree.find(".//testcase")
+    self.assertIsNotNone(case_el)
+    self.assertEqual(case_el.attrib["classname"], "Vega Tests")
+    self.assertEqual(case_el.attrib["name"], "Load the browse page")
+
 
 if __name__ == "__main__":
   unittest.main()

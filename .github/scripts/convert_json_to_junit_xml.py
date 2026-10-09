@@ -87,7 +87,9 @@ def _extract_cases(data):
     return suites
 
   for t in data['tests']:
-    suites[t['class_name']].append({
+    classname = t.get('class_name') or t.get('test_suite') or t.get(
+        'test_category', 'VegaTest')
+    suites[classname].append({
         'name': t['test_title'],
         'status': _normalize_status(t.get('result', t.get('status', 'PASSED'))),
         'time': _parse_entry_duration(t),
