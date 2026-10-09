@@ -22,6 +22,7 @@
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_codec_audio_decoder.h"
 #include "starboard/common/check_op.h"
+#include "starboard/common/media.h"
 #include "starboard/common/string.h"
 #include "starboard/common/thread_options.h"
 #include "starboard/common/time.h"
@@ -75,10 +76,12 @@ int ParseAc3SyncframeAudioSampleCount(const uint8_t* buffer, int size) {
 
 // static
 NonNullResult<std::unique_ptr<AudioRendererPassthrough>>
-AudioRendererPassthrough::Create(JobQueue* job_queue,
-                                 const AudioStreamInfo& audio_stream_info,
-                                 SbDrmSystem drm_system,
-                                 bool enable_flush_during_seek) {
+AudioRendererPassthrough::Create(
+    JobQueue* job_queue,
+    const AudioStreamInfo& audio_stream_info,
+    SbDrmSystem drm_system,
+    bool enable_flush_during_seek,
+    std::optional<int> tunnel_mode_audio_session_id) {
   std::unique_ptr<AudioDecoder> decoder;
   if (SbDrmSystemIsValid(drm_system)) {
     SB_LOG(INFO) << "Creating AudioDecoder as decryptor.";
@@ -98,7 +101,7 @@ AudioRendererPassthrough::Create(JobQueue* job_queue,
 
   return std::make_unique<AudioRendererPassthrough>(
       PassKey<AudioRendererPassthrough>(), job_queue, audio_stream_info,
-      std::move(decoder), &AudioTrack::Create);
+      std::move(decoder), &AudioTrack::Create, tunnel_mode_audio_session_id);
 }
 
 // static
@@ -107,11 +110,13 @@ AudioRendererPassthrough::CreateForTesting(
     JobQueue* job_queue,
     const AudioStreamInfo& audio_stream_info,
     std::unique_ptr<AudioDecoder> decoder,
-    AudioTrackFactory audio_track_factory) {
+    AudioTrackFactory audio_track_factory,
+    std::optional<int> tunnel_mode_audio_session_id) {
   SB_CHECK(audio_track_factory);
   return std::make_unique<AudioRendererPassthrough>(
       PassKey<AudioRendererPassthrough>(), job_queue, audio_stream_info,
-      std::move(decoder), std::move(audio_track_factory));
+      std::move(decoder), std::move(audio_track_factory),
+      tunnel_mode_audio_session_id);
 }
 
 // static
@@ -126,9 +131,11 @@ AudioRendererPassthrough::AudioRendererPassthrough(
     JobQueue* job_queue,
     const AudioStreamInfo& audio_stream_info,
     std::unique_ptr<AudioDecoder> decoder,
-    AudioTrackFactory audio_track_factory)
+    AudioTrackFactory audio_track_factory,
+    std::optional<int> tunnel_mode_audio_session_id)
     : JobOwner(job_queue),
       audio_stream_info_(audio_stream_info),
+      tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id),
       decoder_(std::move(decoder)),
       audio_track_factory_(std::move(audio_track_factory)) {
   SB_CHECK(decoder_);
@@ -441,11 +448,17 @@ void AudioRendererPassthrough::CreateAudioTrackAndStartProcessing() {
       /*sample_type=*/std::nullopt,  // Not required in passthrough mode
       audio_stream_info_.number_of_channels,
       audio_stream_info_.samples_per_second, kPreferredBufferSizeInBytes,
-      /*tunnel_mode_audio_session_id=*/std::nullopt,
+      tunnel_mode_audio_session_id_,
       /*is_web_audio=*/false);
 
   if (!audio_track) {
-    error_cb_(kSbPlayerErrorDecode, "Error creating AudioTrack");
+    // In tunnel mode, there is no fallback to non-tunnel mode, as the video
+    // decoder has already been created with the same audio session id.
+    error_cb_(kSbPlayerErrorDecode,
+              FormatString("Error creating AudioTrack for %s passthrough "
+                           "(tunnel mode: %s).",
+                           GetMediaAudioCodecName(audio_stream_info_.codec),
+                           tunnel_mode_audio_session_id_ ? "true" : "false"));
     return;
   }
 
@@ -565,9 +578,11 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
       auto samples_to_write =
           (decoded_audio_writing_in_progress_->size_in_bytes() -
            decoded_audio_writing_offset_);
-      // TODO: |sync_time| currently doesn't take partial writes into account.
-      //       It is not used in non-tunneled mode so it doesn't matter, but we
-      //       should revisit this.
+      // |sync_time| is only used in tunnel mode, where it's written into the
+      // A/V sync header of the buffer.  On a partial write, AudioTrack keeps
+      // track of the remaining bytes of the current A/V sync packet, and
+      // ignores |sync_time| when the rest of the buffer is written.  So it's
+      // fine to always pass the timestamp of the buffer.
       auto sync_time = decoded_audio_writing_in_progress_->timestamp();
       int samples_written = audio_track_->WriteSample(
           MakeSpan(sample_buffer, samples_to_write), sync_time);

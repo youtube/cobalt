@@ -18,6 +18,7 @@
 #include <chrono>
 #include <cstdint>
 #include <functional>
+#include <limits>
 #include <memory>
 #include <string>
 #include <thread>
@@ -220,7 +221,8 @@ TEST_F(AudioRendererPassthroughTest, InitialState) {
   EXPECT_FALSE(renderer_->IsEndOfStreamWritten());
   EXPECT_FALSE(renderer_->IsEndOfStreamPlayed());
   EXPECT_TRUE(renderer_->CanAcceptMoreData());
-  EXPECT_EQ(renderer_->GetAudioWriteHead(), 0);
+  EXPECT_EQ(renderer_->GetAudioWriteHead(),
+            std::numeric_limits<int64_t>::max());
   EXPECT_EQ(renderer_->AdjustTimestampToAudioClock(12345), 12345);
 
   bool is_playing = true;
