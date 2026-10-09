@@ -14,6 +14,7 @@
 
 media_tests_sources = [
   "//starboard/shared/starboard/media/avc_util_test.cc",
+  "//starboard/shared/starboard/media/cenc_utils_test.cc",
   "//starboard/shared/starboard/media/codec_util_test.cc",
   "//starboard/shared/starboard/media/iamf_util_test.cc",
   "//starboard/shared/starboard/media/media_util_test.cc",

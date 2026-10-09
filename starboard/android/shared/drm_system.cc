@@ -28,6 +28,7 @@
 #include "starboard/common/instance_counter.h"
 #include "starboard/common/span.h"
 #include "starboard/common/string.h"
+#include "starboard/shared/starboard/media/cenc_utils.h"
 
 // Declare the function as static instead of putting it in the above anonymous
 // namespace so it can be picked up by `std::vector<SbDrmKeyId>::operator==()`
@@ -122,6 +123,16 @@ void DrmSystem::GenerateSessionUpdateRequest(
     std::string_view type,
     span<const uint8_t> initialization_data) {
   SB_CHECK(thread_checker_.CalledOnValidThread());
+  if (type == "cenc" && !ValidatePsshInput(initialization_data)) {
+    // Blink rejects such data before it reaches the CDM, but MediaDrm may
+    // accept it and return a license request, so reject it here as well.
+    callbacks_.update_request(this, context_, ticket, kSbDrmStatusTypeError,
+                              kSbDrmSessionRequestTypeLicenseRequest,
+                              "Initialization data for CENC is incorrect.",
+                              /*session_id=*/nullptr, /*session_id_size=*/0,
+                              /*content=*/nullptr, /*content_size=*/0, kNoUrl);
+    return;
+  }
   GenerateSessionUpdateRequest(std::make_unique<SessionUpdateRequest>(
       ticket, type, initialization_data));
 }
