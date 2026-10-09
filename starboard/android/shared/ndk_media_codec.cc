@@ -100,7 +100,7 @@ std::unique_ptr<NdkMediaCodec> NdkMediaCodec::Create(
     const std::string& decoder_name,
     const Size& frame_size_hint,
     int fps,
-    const std::optional<Size>& max_frame_size,
+    Size max_frame_size,
     Handler* handler,
     const jni_zero::JavaRef<jobject>& j_surface,
     const jni_zero::JavaRef<jobject>& j_media_crypto,
@@ -109,6 +109,9 @@ std::unique_ptr<NdkMediaCodec> NdkMediaCodec::Create(
     bool require_secured_decoder,
     bool require_software_codec,
     int max_video_input_size) {
+  SB_CHECK_GT(max_frame_size.width, 0);
+  SB_CHECK_GT(max_frame_size.height, 0);
+
   const char* mime = SupportedVideoCodecToMimeType(video_codec);
   if (!mime) {
     SB_LOG(ERROR) << "Unsupported video codec: "
@@ -132,13 +135,10 @@ std::unique_ptr<NdkMediaCodec> NdkMediaCodec::Create(
                         frame_size_hint.width);
   AMediaFormat_setInt32(format.get(), AMEDIAFORMAT_KEY_HEIGHT,
                         frame_size_hint.height);
-
-  if (max_frame_size) {
-    AMediaFormat_setInt32(format.get(), AMEDIAFORMAT_KEY_MAX_WIDTH,
-                          max_frame_size->width);
-    AMediaFormat_setInt32(format.get(), AMEDIAFORMAT_KEY_MAX_HEIGHT,
-                          max_frame_size->height);
-  }
+  AMediaFormat_setInt32(format.get(), AMEDIAFORMAT_KEY_MAX_WIDTH,
+                        max_frame_size.width);
+  AMediaFormat_setInt32(format.get(), AMEDIAFORMAT_KEY_MAX_HEIGHT,
+                        max_frame_size.height);
   if (max_video_input_size > 0) {
     AMediaFormat_setInt32(format.get(), AMEDIAFORMAT_KEY_MAX_INPUT_SIZE,
                           max_video_input_size);

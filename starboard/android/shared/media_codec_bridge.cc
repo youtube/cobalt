@@ -163,12 +163,15 @@ MediaCodecBridge::CreateVideoMediaCodec(
     const char* mime,
     const Size& frame_size_hint,
     int fps,
-    const std::optional<Size>& max_frame_size,
+    Size max_frame_size,
     Handler* handler,
     const jni_zero::JavaRef<jobject>& j_surface,
     const jni_zero::JavaRef<jobject>& j_media_crypto,
     const SbMediaColorMetadata* color_metadata,
     const MediaCodec::VideoPlatformOptions& platform_options) {
+  SB_CHECK_GT(max_frame_size.width, 0);
+  SB_CHECK_GT(max_frame_size.height, 0);
+
   JNIEnv* env = AttachCurrentThread();
 
   ScopedJavaLocalRef<jobject> j_color_info(nullptr);
@@ -207,9 +210,8 @@ MediaCodecBridge::CreateVideoMediaCodec(
       env, reinterpret_cast<jlong>(native_media_codec_bridge.get()),
       ConvertUTF8ToJavaString(env, mime),
       ConvertUTF8ToJavaString(env, decoder_name), frame_size_hint.width,
-      frame_size_hint.height, fps, max_frame_size ? max_frame_size->width : -1,
-      max_frame_size ? max_frame_size->height : -1, j_surface, j_media_crypto,
-      j_color_info,
+      frame_size_hint.height, max_frame_size.width, max_frame_size.height,
+      j_surface, j_media_crypto, j_color_info,
       platform_options.tunnel_mode_audio_session_id.value_or(
           TUNNEL_MODE_AUDIO_SESSION_ID_NONE),
       platform_options.max_input_size,

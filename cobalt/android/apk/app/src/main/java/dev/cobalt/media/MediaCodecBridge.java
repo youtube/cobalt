@@ -434,7 +434,6 @@ class MediaCodecBridge {
       // to be directly related to the resolution of the video.
       int widthHint,
       int heightHint,
-      int fps,
       int maxWidth,
       int maxHeight,
       Surface surface,
@@ -525,88 +524,6 @@ class MediaCodecBridge {
       // TODO (b/495868363): KEY_PRIORITY might be also needed for non tunnel playback.
       // Set KEY_PRIORITY to realtime priority.
       mediaFormat.setInteger(MediaFormat.KEY_PRIORITY, 0 /* realtime priority */);
-    }
-
-    if (maxWidth > 0 && maxHeight > 0) {
-      Log.i(TAG, "Evaluate maxWidth and maxHeight (%d, %d) passed in", maxWidth, maxHeight);
-    } else {
-      maxWidth = videoCapabilities.getSupportedWidths().getUpper();
-      maxHeight = videoCapabilities.getSupportedHeights().getUpper();
-      Log.i(
-          TAG,
-          "maxWidth and maxHeight not passed in, using result of getSupportedWidths()/Heights()"
-              + " (%d, %d)",
-          maxWidth,
-          maxHeight);
-    }
-
-    if (fps > 0) {
-      if (videoCapabilities.areSizeAndRateSupported(maxWidth, maxHeight, fps)) {
-        Log.i(
-            TAG,
-            "Set maxWidth and maxHeight to (%d, %d)@%d per `areSizeAndRateSupported()`",
-            maxWidth,
-            maxHeight,
-            fps);
-      } else {
-        Log.w(
-            TAG,
-            "maxWidth and maxHeight (%d, %d)@%d not supported per `areSizeAndRateSupported()`,"
-                + " continue searching",
-            maxWidth,
-            maxHeight,
-            fps);
-        if (maxHeight >= 4320 && videoCapabilities.areSizeAndRateSupported(7680, 4320, fps)) {
-          maxWidth = 7680;
-          maxHeight = 4320;
-        } else if (maxHeight >= 2160
-            && videoCapabilities.areSizeAndRateSupported(3840, 2160, fps)) {
-          maxWidth = 3840;
-          maxHeight = 2160;
-        } else if (maxHeight >= 1080
-            && videoCapabilities.areSizeAndRateSupported(1920, 1080, fps)) {
-          maxWidth = 1920;
-          maxHeight = 1080;
-        } else {
-          Log.e(TAG, "Failed to find a compatible resolution");
-          maxWidth = 1920;
-          maxHeight = 1080;
-        }
-        Log.i(
-            TAG,
-            "Set maxWidth and maxHeight to (%d, %d)@%d per `areSizeAndRateSupported()`",
-            maxWidth,
-            maxHeight,
-            fps);
-      }
-    } else {
-      if (maxHeight >= 480 && videoCapabilities.isSizeSupported(maxWidth, maxHeight)) {
-        // Technically we can do this check for all resolutions, but only check for resolution with
-        // height more than 480p to minimize production impact.  To use a lower resolution is more
-        // to reduce memory footprint, and optimize for lower resolution isn't as helpful anyway.
-        Log.i(
-            TAG,
-            "Set maxWidth and maxHeight to (%d, %d) per `isSizeSupported()`",
-            maxWidth,
-            maxHeight);
-      } else {
-        if (maxHeight >= 2160 && videoCapabilities.isSizeSupported(3840, 2160)) {
-          maxWidth = 3840;
-          maxHeight = 2160;
-        } else if (maxHeight >= 1080 && videoCapabilities.isSizeSupported(1920, 1080)) {
-          maxWidth = 1920;
-          maxHeight = 1080;
-        } else {
-          Log.e(TAG, "Failed to find a compatible resolution");
-          maxWidth = 1920;
-          maxHeight = 1080;
-        }
-        Log.i(
-            TAG,
-            "Set maxWidth and maxHeight to (%d, %d) per `isSizeSupported()`",
-            maxWidth,
-            maxHeight);
-      }
     }
 
     if (maxVideoInputSize > 0) {
@@ -959,20 +876,8 @@ class MediaCodecBridge {
       int maxSupportedHeight,
       CreateMediaCodecBridgeResult outCreateMediaCodecBridgeResult) {
     try {
-      // Since we haven't passed the properties of the stream we're playing down to this level, from
-      // our perspective, we could potentially adapt up to 8k at any point. We thus request 8k
-      // buffers up front, unless the decoder claims to not be able to do 8k, in which case we're
-      // ok, since we would've rejected a 8k stream when canPlayType was called, and then use those
-      // decoder values instead. We only support 8k for API level 29 and above.
-      if (Build.VERSION.SDK_INT > 28) {
-        format.setInteger(MediaFormat.KEY_MAX_WIDTH, Math.min(7680, maxSupportedWidth));
-        format.setInteger(MediaFormat.KEY_MAX_HEIGHT, Math.min(4320, maxSupportedHeight));
-      } else {
-        // Android 5.0/5.1 seems not support 8K. Fallback to 4K until we get a
-        // better way to get maximum supported resolution.
-        format.setInteger(MediaFormat.KEY_MAX_WIDTH, Math.min(3840, maxSupportedWidth));
-        format.setInteger(MediaFormat.KEY_MAX_HEIGHT, Math.min(2160, maxSupportedHeight));
-      }
+      format.setInteger(MediaFormat.KEY_MAX_WIDTH, maxSupportedWidth);
+      format.setInteger(MediaFormat.KEY_MAX_HEIGHT, maxSupportedHeight);
 
       maybeSetMaxVideoInputSize(format);
       mMediaCodec.get().configure(format, surface, crypto, flags);
