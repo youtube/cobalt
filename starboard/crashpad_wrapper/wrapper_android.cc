@@ -120,10 +120,11 @@ void InstallCrashpadHandler(const std::string& ca_certificates_path) {
   const std::optional<base::FilePath> handler_ca_certificates_path =
       CopyCACertificatesToCache(ca_certificates_path);
   if (!handler_ca_certificates_path) {
-    // TODO: Consider still starting the handler, with uploads disabled, so
-    // that it saves a minidump on the device without an unsafe upload. That
-    // needs the certificates resolved before the Crashpad database is
-    // initialized, and checks that database pruning works without uploads.
+    // TODO(b/571897340): Consider still starting the handler, with uploads
+    // disabled, so that it saves a minidump on the device without an unsafe
+    // upload. That needs the certificates resolved before the Crashpad
+    // database is initialized, and checks that database pruning works without
+    // uploads.
     LOG(ERROR) << "Failed to copy the CA certificates, not installing the "
                   "Crashpad handler";
     return;
