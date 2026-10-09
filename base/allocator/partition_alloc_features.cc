@@ -411,7 +411,6 @@ BASE_FEATURE(kPartitionAllocUsePriorityInheritanceLocks,
              FEATURE_DISABLED_BY_DEFAULT);
 #endif  // PA_BUILDFLAG(ENABLE_PARTITION_LOCK_PRIORITY_INHERITANCE)
 
-<<<<<<< HEAD
 BASE_FEATURE(kPartitionAllocFreeWithSize, FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE_PARAM(bool,
                    kPartitionAllocStrictFreeSizeCheck,
@@ -431,12 +430,4 @@ BASE_FEATURE_PARAM(int,
                    2048);
 #endif  // BUILDFLAG(IS_ANDROID) && defined(ARCH_CPU_ARM64)
 
-#if BUILDFLAG(IS_COBALT)
-BASE_FEATURE(kPartitionAllocReuseMainPartitionForBuffers,
-             "PartitionAllocReuseMainPartitionForBuffers",
-             FEATURE_DISABLED_BY_DEFAULT);
-#endif  // BUILDFLAG(IS_COBALT)
-
-=======
->>>>>>> a80e58efbe0 (Revert "cobalt: Reuse main PartitionAllocator for buffers" (#13279))
 }  // namespace base::features

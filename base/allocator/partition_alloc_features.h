@@ -220,7 +220,6 @@ BASE_EXPORT BASE_DECLARE_FEATURE(kPartitionAllocUseSmallSingleSlotSpans);
 BASE_EXPORT BASE_DECLARE_FEATURE(kPartitionAllocUsePriorityInheritanceLocks);
 #endif  // PA_BUILDFLAG(ENABLE_PARTITION_LOCK_PRIORITY_INHERITANCE)
 
-<<<<<<< HEAD
 BASE_EXPORT BASE_DECLARE_FEATURE(kPartitionAllocFreeWithSize);
 BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(bool,
                                        kPartitionAllocStrictFreeSizeCheck);
@@ -230,12 +229,6 @@ BASE_EXPORT BASE_DECLARE_FEATURE(kPartitionAllocLockTuneSpin);
 BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kPartitionAllocLockSpinCount);
 #endif  // BUILDFLAG(IS_ANDROID) && defined(ARCH_CPU_ARM64)
 
-#if BUILDFLAG(IS_COBALT)
-BASE_EXPORT BASE_DECLARE_FEATURE(kPartitionAllocReuseMainPartitionForBuffers);
-#endif  // BUILDFLAG(IS_COBALT)
-
-=======
->>>>>>> a80e58efbe0 (Revert "cobalt: Reuse main PartitionAllocator for buffers" (#13279))
 }  // namespace base::features
 
 #endif  // BASE_ALLOCATOR_PARTITION_ALLOC_FEATURES_H_

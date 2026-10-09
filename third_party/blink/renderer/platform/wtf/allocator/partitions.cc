@@ -48,15 +48,7 @@
 #include "partition_alloc/partition_root.h"
 #include "third_party/blink/renderer/platform/wtf/wtf.h"
 
-<<<<<<< HEAD
-#if BUILDFLAG(IS_COBALT) && PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
-#include "partition_alloc/shim/allocator_shim_default_dispatch_to_partition_alloc.h"
-#endif
-
 namespace blink {
-=======
-namespace WTF {
->>>>>>> a80e58efbe0 (Revert "cobalt: Reuse main PartitionAllocator for buffers" (#13279))
 
 const char* const Partitions::kAllocatedObjectPoolName =
     "partition_alloc/allocated_objects";
@@ -248,22 +240,6 @@ class LightPartitionStatsDumperImpl
 size_t Partitions::TotalSizeOfCommittedPages() {
   DCHECK(initialized_);
   size_t total_size = 0;
-<<<<<<< HEAD
-#if BUILDFLAG(IS_COBALT) && PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
-  // When reusing the main allocator, buffer_root_ and array_buffer_root_ point
-  // to the same root as the main malloc partition. Read the committed pages
-  // once to prevent double-counting during OOM reporting.
-  if (base::FeatureList::IsEnabled(
-          base::features::kPartitionAllocReuseMainPartitionForBuffers)) {
-    if (buffer_root_) {
-      total_size +=
-          TS_UNCHECKED_READ(buffer_root_->total_size_of_committed_pages_);
-    }
-    return total_size;
-  }
-#endif
-=======
->>>>>>> a80e58efbe0 (Revert "cobalt: Reuse main PartitionAllocator for buffers" (#13279))
   // Racy reads below: this is fine to collect statistics.
   if (auto* fast_malloc_partition = FastMallocPartition()) {
     total_size += TS_UNCHECKED_READ(
