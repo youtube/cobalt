@@ -100,7 +100,7 @@ OzoneImageBackingFactory::CreateGpuMemoryBufferHandle(
     device_queue = vulkan_context_provider->GetDeviceQueue();
   }
 #endif  // BUILDFLAG(ENABLE_VULKAN)
->>>>>>> parent of 67f2d478fd8 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 30bacca0f20 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   scoped_refptr<gfx::NativePixmap> pixmap =
       ui::OzonePlatform::GetInstance()
           ->GetSurfaceFactoryOzone()

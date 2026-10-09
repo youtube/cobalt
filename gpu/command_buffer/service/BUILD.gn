@@ -431,7 +431,7 @@ target(link_target_type, "gles2_sources") {
 
   deps += [ "//third_party/angle:translator" ]
 
->>>>>>> parent of 67f2d478fd8 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 30bacca0f20 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   if (use_ozone) {
     sources += [
       "shared_image/gl_ozone_image_representation.cc",

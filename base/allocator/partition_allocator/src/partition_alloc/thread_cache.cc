@@ -419,7 +419,7 @@ bool ThreadCache::IsInitialized() {
   return PA_UNSAFE_TODO(
              g_thread_cache_roots[internal::kDefaultRootThreadCacheIndex])
              .load(std::memory_order_acquire) != nullptr;
->>>>>>> parent of 67f2d478fd8 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 30bacca0f20 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 // static

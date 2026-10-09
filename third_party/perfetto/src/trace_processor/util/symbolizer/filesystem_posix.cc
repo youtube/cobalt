@@ -21,7 +21,7 @@
 #include "perfetto/base/compiler.h"
 =======
 #include "build/build_config.h"
->>>>>>> parent of 67f2d478fd8 (CONFLICTED Chromium Cherry pick: Revert Cobalt.):third_party/perfetto/src/profiling/symbolizer/filesystem_posix.cc
+>>>>>>> parent of 30bacca0f20 (CONFLICTED Chromium Cherry pick: Revert Cobalt.):third_party/perfetto/src/profiling/symbolizer/filesystem_posix.cc
 
 #if !PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
 #if PERFETTO_BUILDFLAG(PERFETTO_LOCAL_SYMBOLIZER)

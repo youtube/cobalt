@@ -442,7 +442,7 @@ URLLoader::URLLoader(
                                           GetClientSecurityState(),
                                           options_),
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
->>>>>>> parent of 67f2d478fd8 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 30bacca0f20 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
       trust_token_interceptor_(TrustTokenUrlLoaderInterceptor::MaybeCreate(
           std::move(trust_token_helper_factory))),
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
@@ -1342,7 +1342,7 @@ void URLLoader::ContinueOnResponseStarted() {
     if (result != MOJO_RESULT_OK) {
       NotifyCompleted(net::ERR_INSUFFICIENT_RESOURCES);
       return;
->>>>>>> parent of 67f2d478fd8 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 30bacca0f20 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     }
     CHECK(response_body_stream_.is_valid());
     peer_closed_handle_watcher_.Watch(

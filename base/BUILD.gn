@@ -1198,7 +1198,7 @@ component("base") {
       "containers/span_rust.h",
       "strings/string_view_rust.h",
     ]
->>>>>>> parent of 67f2d478fd8 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 30bacca0f20 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
     # Base provides conversions between CXX types and base types (e.g.
     # std::string_view).
@@ -4070,7 +4070,7 @@ test("base_unittests") {
 
 =======
   }
->>>>>>> parent of 67f2d478fd8 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 30bacca0f20 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   if (is_ios) {
     deps += [ "//base/test:test_shared_library_ios+bundle" ]
   }

@@ -170,7 +170,7 @@ class GpuRasterPixelTest : public testing::Test,
       FlushInProcessImageTransfers();
 #endif
       oop_image_cache_.reset();
->>>>>>> parent of 67f2d478fd8 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 30bacca0f20 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     }
 
     raster_context_provider_ =

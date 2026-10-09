@@ -508,7 +508,7 @@ class SQLitePersistentCookieStore::Backend
   // Timer for the total load time of the cookie database.
   std::unique_ptr<base::ElapsedTimer> load_timer_;
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> parent of 67f2d478fd8 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 30bacca0f20 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 };
 
 namespace {
