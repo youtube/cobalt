@@ -202,6 +202,13 @@ void AudioRendererPassthrough::WriteEndOfStream() {
 
   SB_LOG(INFO) << "Audio eos reached without any samples written.";
   end_of_stream_played_.store(true);
+  // No samples were written, so the AudioTrack thread, where
+  // prerolled_cb_() is normally called on end of stream, is never started.
+  // Preroll here, otherwise the player never reaches the presenting state
+  // and stays stuck
+  if (!prerolled_.exchange(true)) {
+    prerolled_cb_();
+  }
   ended_cb_();
 }
 

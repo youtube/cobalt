@@ -81,7 +81,13 @@ class MediaCodecVideoDecoderTest : public ::testing::Test {
     auto sink = decoder_->GetSink();
     ASSERT_NE(sink, nullptr);
     sink->SetRenderCB(
-        [](const VideoRendererSink::DrawFrameCB& draw_frame_cb) {});
+        [this](const VideoRendererSink::DrawFrameCB& draw_frame_cb) {
+          std::lock_guard lock(callback_mutex_);
+          render_count_++;
+          if (on_render_cb_) {
+            on_render_cb_();
+          }
+        });
   }
 
   scoped_refptr<InputBuffer> CreateDummyVideoInputBuffer(
@@ -117,6 +123,8 @@ class MediaCodecVideoDecoderTest : public ::testing::Test {
 
   std::mutex callback_mutex_;
   int need_more_input_count_ = 0;
+  int render_count_ = 0;
+  std::function<void()> on_render_cb_;
   JobQueue job_queue_;
   FakeMediaCodecFactory* fake_factory_ = nullptr;
   const jni_zero::ScopedJavaGlobalRef<jstring> dummy_surface_{
@@ -311,6 +319,45 @@ TEST_F(MediaCodecVideoDecoderTest, BackpressureOnOutputFrame) {
   {
     std::lock_guard lock(callback_mutex_);
     EXPECT_EQ(need_more_input_count_, kMaxPendingInputs - 1);
+  }
+}
+
+TEST_F(MediaCodecVideoDecoderTest, EndOfStreamWithoutInput) {
+  CreateDecoder();
+
+  int eos_frame_count = 0;
+  VideoDecoder::Status received_status = VideoDecoder::kNeedMoreInput;
+  bool eos_delivered_before_render = false;
+
+  on_render_cb_ = [&]() {
+    eos_delivered_before_render = (eos_frame_count == 1);
+  };
+
+  decoder_->Initialize(
+      [&](VideoDecoder::Status status, const scoped_refptr<VideoFrame>& frame) {
+        if (frame && frame->is_end_of_stream()) {
+          eos_frame_count++;
+          received_status = status;
+        }
+      },
+      [](SbPlayerError error, const std::string& msg) {});
+
+  decoder_->WriteEndOfStream();
+
+  EXPECT_EQ(eos_frame_count, 1);
+  EXPECT_EQ(received_status, VideoDecoder::kBufferFull);
+  {
+    std::lock_guard lock(callback_mutex_);
+    EXPECT_EQ(render_count_, 1);
+  }
+  EXPECT_TRUE(eos_delivered_before_render);
+
+  // A duplicate WriteEndOfStream() call should be ignored.
+  decoder_->WriteEndOfStream();
+  EXPECT_EQ(eos_frame_count, 1);
+  {
+    std::lock_guard lock(callback_mutex_);
+    EXPECT_EQ(render_count_, 1);
   }
 }
 
