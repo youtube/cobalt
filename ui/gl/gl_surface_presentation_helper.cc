@@ -209,13 +209,13 @@ void GLSurfacePresentationHelper::OnMakeCurrent(GLContext* context,
       egl_timestamp_client_ = nullptr;
   }
 
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(IS_STARBOARD)
   // Some embedded GL drivers (e.g. Mali on RDK reference boxes) advertise
-  // GL_EXT_disjoint_timer_query but return 0 from
-  // glGetInteger64v(GL_TIMESTAMP_EXT). GPUTimingImpl::CalculateTimerOffset()
-  // then derives a bogus CPU/GPU clock offset, the resulting presentation
-  // timestamps fail Display::SanitizePresentationFeedback()'s before-draw /
-  // in-the-future checks, and every frame is reported as
+  // GL_EXT_disjoint_timer_query but report GL_TIMESTAMP_EXT in raw GPU
+  // counter ticks (24 MHz on RDK) instead of nanoseconds. GPU time as seen by
+  // GPUTimingImpl then advances ~40x too slowly, the resulting
+  // presentation timestamps fail Display::SanitizePresentationFeedback()'s
+  // before-draw / in-the-future checks, and every frame is reported as
   // PresentationFeedback::Failure(). Skip the GPU timer and fall through to
   // the GLFence / VSync-snapped paths, which produce valid feedback on these
   // devices.
