@@ -330,7 +330,6 @@ static_library("starboard_platform") {
     sources -= [
       "crash_handler.cc",
       "crash_handler.h",
-      "system_platform_error.cc",
     ]
     sources += [
       "//starboard/shared/starboard/crash_handler.cc",
@@ -347,7 +346,6 @@ static_library("starboard_platform") {
       "//starboard/shared/stub/speech_synthesis_is_supported.cc",
       "//starboard/shared/stub/speech_synthesis_speak.cc",
       "//starboard/shared/stub/system_network_is_disconnected.cc",
-      "//starboard/shared/stub/system_raise_platform_error.cc",
       "asset_manager.cc",
       "asset_manager.h",
       "posix_emu/access.cc",
