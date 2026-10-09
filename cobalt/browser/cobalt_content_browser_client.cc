@@ -461,10 +461,10 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
 
 #if BUILDFLAG(IS_ANDROID)
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          "max-http-cache-size")) {
+          switches::kMaxHttpCacheSize)) {
     std::string size_str =
         base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
-            "max-http-cache-size");
+            switches::kMaxHttpCacheSize);
     int parsed_size = 0;
     if (base::StringToInt(size_str, &parsed_size)) {
       network_context_params->http_cache_max_size = parsed_size;

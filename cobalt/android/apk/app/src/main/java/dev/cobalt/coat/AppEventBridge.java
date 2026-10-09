@@ -69,6 +69,10 @@ public class AppEventBridge {
     AppEventBridgeJni.get().handleOsNetworkEvent(online);
   }
 
+  public static void applyDefaultCommandLineSwitches() {
+    AppEventBridgeJni.get().applyDefaultCommandLineSwitches();
+  }
+
   @NativeMethods
   interface Natives {
     void handlePreloadEvent(long timestamp);
@@ -90,5 +94,7 @@ public class AppEventBridge {
     void handleStartEvent(String[] args, String link, long timestamp);
 
     void handleOsNetworkEvent(boolean online);
+
+    void applyDefaultCommandLineSwitches();
   }
 }

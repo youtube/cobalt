@@ -39,6 +39,9 @@ constexpr char kWindowSize[] = "window-size";
 // --enable-h5vcc-settings=Key1=Val1;Key2=Val2
 constexpr char kEnableH5vccSettings[] = "enable-h5vcc-settings";
 
+// Specify the maximum HTTP disk cache size in bytes.
+constexpr char kMaxHttpCacheSize[] = "max-http-cache-size";
+
 }  // namespace switches
 }  // namespace cobalt
 
