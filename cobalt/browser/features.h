@@ -89,14 +89,6 @@ extern const base::Feature kCobaltVirtualAddressSpaceMetrics;
 extern const base::FeatureParam<double>
     kVirtualAddressSpaceSampleProbabilityParam;
 
-// Enables Cobalt Memory Attribution Manager.
-extern const base::Feature kCobaltMemoryAttributionManager;
-
-// Sets Cobalt Memory Attribution reporting interval in seconds (default 10
-// min).
-extern const base::FeatureParam<int>
-    kCobaltMemoryAttributionReportIntervalParam;
-
 // Enables custom memory buffer size for in-memory updates.
 extern const base::Feature kInMemoryUpdatesMemoryBuffer;
 
