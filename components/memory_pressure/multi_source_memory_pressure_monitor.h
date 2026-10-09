@@ -5,9 +5,14 @@
 #ifndef COMPONENTS_MEMORY_PRESSURE_MULTI_SOURCE_MEMORY_PRESSURE_MONITOR_H_
 #define COMPONENTS_MEMORY_PRESSURE_MULTI_SOURCE_MEMORY_PRESSURE_MONITOR_H_
 
+#include <memory>
+#include <vector>
+
 #include "base/memory/memory_pressure_monitor.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
+#include "build/build_config.h"
+#include "build/buildflag.h"
 #include "components/memory_pressure/memory_pressure_level_reporter.h"
 #include "components/memory_pressure/memory_pressure_voter.h"
 
@@ -50,7 +55,9 @@ class MultiSourceMemoryPressureMonitor
   std::unique_ptr<MemoryPressureVoter> CreateVoter();
 
   // Sets the system evaluator on platforms where no default implementation
-  // exists, because of layering concerns (ChromeOS & Chromecast).
+  // exists, because of layering concerns (ChromeOS & Chromecast). On Cobalt
+  // Android, multiple evaluators (e.g. OS signal + process budget) may be
+  // registered.
   void SetSystemEvaluator(
       std::unique_ptr<SystemMemoryPressureEvaluator> evaluator);
 
@@ -64,7 +71,12 @@ class MultiSourceMemoryPressureMonitor
   }
 
   SystemMemoryPressureEvaluator* system_evaluator_for_testing() {
+#if BUILDFLAG(IS_COBALT)
+    return system_evaluators_.empty() ? nullptr
+                                      : system_evaluators_.front().get();
+#else
     return system_evaluator_.get();
+#endif
   }
 
  private:
@@ -78,7 +90,23 @@ class MultiSourceMemoryPressureMonitor
 
   MemoryPressureVoteAggregator aggregator_;
 
+#if BUILDFLAG(IS_COBALT)
+  std::vector<std::unique_ptr<SystemMemoryPressureEvaluator>>
+      system_evaluators_;
+#else
   std::unique_ptr<SystemMemoryPressureEvaluator> system_evaluator_;
+#endif
+
+#if BUILDFLAG(IS_COBALT)
+  base::TimeDelta GetCooldownPeriod() const;
+
+  // The timestamp of the last dispatched notification.
+  base::TimeTicks last_dispatch_time_;
+
+  // The pressure level of the last dispatched notification.
+  MemoryPressureLevel last_dispatched_level_ =
+      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE;
+#endif
 
   // The timestamp of the last pressure change event.
   base::TimeTicks last_pressure_change_timestamp_;

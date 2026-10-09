@@ -48,20 +48,24 @@
 #include "components/metrics/persistent_histograms.h"
 #include "components/metrics/persistent_system_profile.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
+#include "base/memory/memory_pressure_monitor.h"
+#include "components/memory_pressure/multi_source_memory_pressure_monitor.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/resource_coordinator_service.h"
 #include "content/public/common/result_codes.h"
 
-#if BUILDFLAG(IS_STARBOARD)
-#include "base/memory/memory_pressure_monitor.h"
+#if BUILDFLAG(IS_ANDROID)
+#include "cobalt/memory/android_os_signal_evaluator.h"
+#endif
+
+#if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
 #include "cobalt/memory/cobalt_system_memory_pressure_evaluator.h"
-#include "components/memory_pressure/multi_source_memory_pressure_monitor.h"  // nogncheck
 #include "media/media_buildflags.h"
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/base/media_client.h"
-#endif
-#endif  // BUILDFLAG(IS_STARBOARD)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(USE_EVERGREEN)
 #include "starboard/extension/native_stability.h"
@@ -462,11 +466,11 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
     return result;
   }
 
-#if BUILDFLAG(IS_STARBOARD)
-  // Register the Cobalt system memory pressure evaluator on Starboard platforms
-  // when enabled via Finch or command line.
+#if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
+  // Register Cobalt memory pressure evaluators when enabled via Finch or
+  // command line.
   if (base::FeatureList::IsEnabled(
-          features::kCobaltSystemMemoryPressureEvaluator)) {
+          features::kEnableCobaltMemoryPressureEvaluator)) {
     // static_cast is safe because MultiSourceMemoryPressureMonitor is the only
     // implementation of MemoryPressureMonitor.
     auto* monitor =
@@ -480,20 +484,28 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
       media_allowance_getter = base::BindRepeating(
           &::media::MediaClient::GetMediaSourceCurrentMemoryCapacity);
-#endif
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
       monitor->SetSystemEvaluator(
           std::make_unique<cobalt::memory::CobaltSystemMemoryPressureEvaluator>(
               monitor->CreateVoter(), std::move(media_allowance_getter)));
       LOG(INFO)
           << "CobaltSystemMemoryPressureEvaluator registered successfully.";
+
+#if BUILDFLAG(IS_ANDROID)
+      // Register evaluator for Android OS memory pressure signals.
+      monitor->SetSystemEvaluator(
+          std::make_unique<cobalt::memory::AndroidOsSignalEvaluator>(
+              monitor->CreateVoter()));
+      LOG(INFO) << "AndroidOsSignalEvaluator registered successfully.";
+#endif  // BUILDFLAG(IS_ANDROID)
     } else {
       LOG(WARNING)
-          << "No MemoryPressureMonitor available; cannot register evaluator.";
+          << "No MemoryPressureMonitor available; cannot register evaluators.";
     }
   } else {
-    LOG(INFO) << "CobaltSystemMemoryPressureEvaluator is disabled by Finch.";
+    LOG(INFO) << "Cobalt memory pressure evaluators are disabled by Finch.";
   }
-#endif  // BUILDFLAG(IS_STARBOARD)
+#endif  // BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
 
   StartStorageMigration();
 

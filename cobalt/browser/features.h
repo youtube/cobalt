@@ -132,8 +132,8 @@ extern const base::FeatureParam<int> kGpuMemoryAblationSizeMBParam;
 // Delay before performing GPU memory ablation (default: 0s).
 extern const base::FeatureParam<base::TimeDelta> kGpuMemoryAblationDelayParam;
 
-// Enables Cobalt System Memory Pressure Evaluator on Starboard platforms.
-extern const base::Feature kCobaltSystemMemoryPressureEvaluator;
+// Enables Cobalt memory pressure evaluators.
+extern const base::Feature kEnableCobaltMemoryPressureEvaluator;
 
 // Threshold fraction of process memory budget for moderate memory pressure.
 extern const base::FeatureParam<double>
@@ -150,10 +150,6 @@ extern const base::FeatureParam<int> kCobaltMemoryPressureBudgetMBParam;
 // Polling interval in seconds for memory pressure evaluation.
 extern const base::FeatureParam<int>
     kCobaltMemoryPressurePollIntervalSecondsParam;
-
-// Cooldown period in seconds before re-notifying listeners of sustained
-// pressure.
-extern const base::FeatureParam<int> kCobaltMemoryPressureCooldownSecondsParam;
 
 // Hands the Cobalt client hint headers to the network service once, through
 // NetworkContextParams, instead of installing a TrustedURLLoaderHeaderClient
