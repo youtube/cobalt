@@ -3449,9 +3449,19 @@ void WebMediaPlayerImpl::FinishMemoryUsageReport(int64_t demuxer_memory_usage) {
                                                pipeline_metadata_.natural_size)
            : 0);
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  const int64_t reported_demuxer_memory_usage =
+      base::FeatureList::IsEnabled(media::kCobaltExcludeDemuxerMemoryFromV8)
+          ? 0
+          : demuxer_memory_usage;
+  const int64_t current_memory_usage =
+      stats.audio_memory_usage + video_memory_usage + data_source_memory_usage +
+      reported_demuxer_memory_usage;
+#else  // BUILDFLAG(USE_STARBOARD_MEDIA)
   const int64_t current_memory_usage =
       stats.audio_memory_usage + video_memory_usage + data_source_memory_usage +
       demuxer_memory_usage;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   DVLOG(3) << "Memory Usage -- Total: " << current_memory_usage
            << " Audio: " << stats.audio_memory_usage
