@@ -231,7 +231,7 @@ void AaudioAudioSink::SetVolume(double volume) {
 bool AaudioAudioSink::Flush() {
   // Acquire |flush_mutex_| to wait for any in-flight OnAudioData() callback.
   std::lock_guard lock(flush_mutex_);
-  flush_requested_.store(true, std::memory_order_relaxed);
+  flush_requested_ = true;
   return true;
 }
 
@@ -251,8 +251,7 @@ aaudio_data_callback_result_t AaudioAudioSink::OnAudioData(void* audio_data,
   // just requested, output silence and skip consume_frames() to avoid consuming
   // stale pre-seek frames.
   std::unique_lock lock(flush_mutex_, std::try_to_lock);
-  if (!lock.owns_lock() ||
-      flush_requested_.exchange(false, std::memory_order_relaxed)) {
+  if (!lock.owns_lock() || std::exchange(flush_requested_, false)) {
     WriteSilence(dest, num_frames);
     return AAUDIO_CALLBACK_RESULT_CONTINUE;
   }

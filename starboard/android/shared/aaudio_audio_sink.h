@@ -105,9 +105,9 @@ class AaudioAudioSink final : public AudioSinkAndroid {
   void* const context_;
 
   std::mutex flush_mutex_;
+  bool flush_requested_ = false;  // Guarded by |flush_mutex_|.
   std::atomic<float> volume_ = 1.0f;
   std::atomic<float> playback_rate_ = 1.0f;
-  std::atomic_bool flush_requested_ = false;
   std::atomic_bool quit_ = false;
 };
 
