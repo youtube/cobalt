@@ -26,6 +26,8 @@ import dev.cobalt.util.Holder;
  * subclass, so AOSP has to provide a class with this name. Remove those references.
  */
 public class StarboardBridge extends BaseStarboardBridge {
+  // The latest platform error. It is raised again when an activity starts, if it is still pending.
+  private volatile PlatformError mPlatformError;
 
   public StarboardBridge(
       Context appContext,
@@ -38,6 +40,15 @@ public class StarboardBridge extends BaseStarboardBridge {
 
   @Override
   void raisePlatformError(int errorType, long data, String url, boolean disableDismiss) {
-    new PlatformError(mActivityHolder, errorType, data, disableDismiss).raise();
+    mPlatformError = new PlatformError(mActivityHolder, errorType, data, disableDismiss);
+    mPlatformError.raise();
+  }
+
+  @Override
+  protected void onActivityStart(Activity activity) {
+    super.onActivityStart(activity);
+    if (mPlatformError != null && mPlatformError.isPending()) {
+      mPlatformError.raise();
+    }
   }
 }

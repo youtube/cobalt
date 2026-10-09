@@ -35,6 +35,9 @@ import org.jni_zero.NativeMethods;
  * The AOSP version of PlatformError. It mostly matches the Android TV one, minus the parts AOSP
  * doesn't build or need. It also retries when the device gets back online, which Android TV does in
  * CobaltActivity.
+ *
+ * <p>StarboardBridge creates one for each platform error. It lives until the error gets a response.
+ * raise() can be called from any thread, and everything else runs on the main thread.
  */
 public class PlatformError
     implements DialogInterface.OnClickListener, DialogInterface.OnDismissListener {
@@ -59,6 +62,8 @@ public class PlatformError
 
   private Dialog mDialog;
   private int mResponse;
+  private boolean mResponded;
+  private ConnectivityManager mConnectivityManager;
   private ConnectivityManager.NetworkCallback mNetworkCallback;
 
   public PlatformError(
@@ -71,15 +76,23 @@ public class PlatformError
     mResponse = CANCELLED;
   }
 
-  /** Displays the error. */
+  /** Displays the error. Without an activity, it waits until raise() is called again. */
   public void raise() {
     mUiThreadHandler.post(this::showDialogOnUiThread);
   }
 
+  /** Tells if the error still needs to be shown. Main thread only. */
+  public boolean isPending() {
+    return !mResponded && mDialog == null;
+  }
+
   private void showDialogOnUiThread() {
+    if (!isPending()) {
+      return;
+    }
     Activity activity = mActivityHolder.get();
     if (activity == null) {
-      sendResponse(CANCELLED, mData);
+      // The app is in the background. StarboardBridge raises it again when an activity starts.
       return;
     }
     ErrorDialog.Builder dialogBuilder = new ErrorDialog.Builder(activity);
@@ -110,7 +123,9 @@ public class PlatformError
    * when the error was raised doesn't retry, so an unreachable server doesn't cause a retry loop.
    */
   private void registerNetworkCallback(Activity activity) {
-    ConnectivityManager connectivityManager = activity.getSystemService(ConnectivityManager.class);
+    // Kept for unregistering, since the activity can be gone by then.
+    ConnectivityManager connectivityManager =
+        activity.getApplicationContext().getSystemService(ConnectivityManager.class);
     if (connectivityManager == null) {
       return;
     }
@@ -139,18 +154,16 @@ public class PlatformError
           }
         };
     connectivityManager.registerDefaultNetworkCallback(mNetworkCallback);
+    mConnectivityManager = connectivityManager;
   }
 
   private void unregisterNetworkCallback() {
-    Activity activity = mActivityHolder.get();
-    if (mNetworkCallback == null || activity == null) {
+    if (mNetworkCallback == null) {
       return;
     }
-    ConnectivityManager connectivityManager = activity.getSystemService(ConnectivityManager.class);
-    if (connectivityManager != null) {
-      connectivityManager.unregisterNetworkCallback(mNetworkCallback);
-    }
+    mConnectivityManager.unregisterNetworkCallback(mNetworkCallback);
     mNetworkCallback = null;
+    mConnectivityManager = null;
   }
 
   private void retryOnNetworkOnline() {
@@ -201,6 +214,7 @@ public class PlatformError
 
   /** Informs Starboard when the error dialog is dismissed. */
   private void sendResponse(int response, long data) {
+    mResponded = true;
     PlatformErrorJni.get().sendResponse(response, data);
   }
 
