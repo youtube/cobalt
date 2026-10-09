@@ -1,15 +1,6 @@
 name: win32_23.lts.1+
 
 on:
-  pull_request:
-    types: [ready_for_review, opened, reopened, synchronize, labeled]
-    branches:
-      - '23.lts.1\+'
-  push:
-    branches:
-      - '23.lts.1\+'
-  schedule:
-    - cron: '0 4 * * *'
   workflow_dispatch:
     inputs:
       nightly:
