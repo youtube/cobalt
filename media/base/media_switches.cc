@@ -543,6 +543,43 @@ BASE_FEATURE(kCobaltDisableDecoderBufferAllocator,
 BASE_FEATURE(kCobaltInPlaceMediaSourceParser,
              "CobaltInPlaceMediaSourceParser",
              base::FEATURE_DISABLED_BY_DEFAULT);
+// When enabled, each feature below replaces the video buffer budget returned by
+// SbMediaGetVideoBufferBudget() for its resolution tier with the value of its
+// "BudgetMB" param. The tiers mirror
+// starboard/shared/starboard/media/media_get_video_buffer_budget.cc. A value of
+// 0 or less leaves the platform's budget unchanged.
+BASE_FEATURE(kCobaltVideoBufferBudget1080p,
+             "CobaltVideoBufferBudget1080p",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(int,
+                   kCobaltVideoBufferBudget1080pMB,
+                   &kCobaltVideoBufferBudget1080p,
+                   "BudgetMB",
+                   0);
+BASE_FEATURE(kCobaltVideoBufferBudget4kSdr,
+             "CobaltVideoBufferBudget4kSdr",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(int,
+                   kCobaltVideoBufferBudget4kSdrMB,
+                   &kCobaltVideoBufferBudget4kSdr,
+                   "BudgetMB",
+                   0);
+BASE_FEATURE(kCobaltVideoBufferBudget4kHdr,
+             "CobaltVideoBufferBudget4kHdr",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(int,
+                   kCobaltVideoBufferBudget4kHdrMB,
+                   &kCobaltVideoBufferBudget4kHdr,
+                   "BudgetMB",
+                   0);
+BASE_FEATURE(kCobaltVideoBufferBudgetAbove4k,
+             "CobaltVideoBufferBudgetAbove4k",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(int,
+                   kCobaltVideoBufferBudgetAbove4kMB,
+                   &kCobaltVideoBufferBudgetAbove4k,
+                   "BudgetMB",
+                   0);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #if BUILDFLAG(IS_CHROMEOS)
