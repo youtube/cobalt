@@ -630,7 +630,6 @@ BASE_FEATURE(kNetworkServicePerPriorityTaskQueues,
 BASE_FEATURE(kUseUnexportableKeyServiceInBrowserProcess,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-<<<<<<< HEAD
 BASE_FEATURE(kServiceWorkerSyntheticResponseHeaderCheck,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -646,7 +645,7 @@ BASE_FEATURE_PARAM(bool,
                    &kServiceWorkerSyntheticResponseHeaderCheck,
                    /*name=*/"report_inconsistent_header",
                    /*default_value=*/false);
-=======
+
 #if BUILDFLAG(IS_COBALT)
 BASE_FEATURE(kCobaltDynamicMojoPipeSizing,
              "CobaltDynamicMojoPipeSizing",
@@ -673,6 +672,5 @@ BASE_FEATURE(kCobaltContentLengthAwareMojoPipeSizing,
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> parent of 67f2d478fd8 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 }  // namespace network::features

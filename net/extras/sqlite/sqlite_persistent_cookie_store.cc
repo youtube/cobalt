@@ -500,15 +500,13 @@ class SQLitePersistentCookieStore::Backend
   // Crypto instance, or nullptr if encryption is disabled.
   std::unique_ptr<CookieCryptoDelegate> crypto_;
 
-<<<<<<< HEAD
   // If true, LoadAndNotifyInBackground has not yet been called.
   bool first_load_and_notify_in_background_ = true;
-=======
+
 #if BUILDFLAG(IS_COBALT)
   // Timer for the total load time of the cookie database.
   std::unique_ptr<base::ElapsedTimer> load_timer_;
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> parent of 67f2d478fd8 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 };
 
 namespace {
