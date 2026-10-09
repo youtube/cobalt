@@ -27,6 +27,7 @@ enum class ExperimentConfigType {
   kRegularConfig,
   kSafeConfig,
   kEmptyConfig,
+  kTestingConfig,
 };
 
 // These values are persisted to logs. Entries should not be renumbered and
@@ -61,6 +62,17 @@ class ExperimentConfigManager {
   // This should only be called before any modification to
   // variations::prefs::kVariationsCrashStreak.
   void StoreSafeConfig();
+
+  // Marks that the current session is using fieldtrial_testing_config.json
+  // instead of the stored experiment config.
+  void SetUsingTestingConfig() {
+    cached_config_type_ = ExperimentConfigType::kTestingConfig;
+  }
+
+  void ResetForTesting() {
+    cached_config_type_.reset();
+    called_store_safe_config_ = false;
+  }
 
   // Public getter for testing.
   bool has_called_store_safe_config_for_testing() {

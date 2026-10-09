@@ -55,7 +55,8 @@ IN_PROC_BROWSER_TEST_F(ExperimentConfigBrowserTest,
       experiment_config_manager->GetExperimentConfigType();
   EXPECT_TRUE(config_type == ExperimentConfigType::kRegularConfig ||
               config_type == ExperimentConfigType::kSafeConfig ||
-              config_type == ExperimentConfigType::kEmptyConfig);
+              config_type == ExperimentConfigType::kEmptyConfig ||
+              config_type == ExperimentConfigType::kTestingConfig);
 }
 
 IN_PROC_BROWSER_TEST_F(ExperimentConfigBrowserTest, StoreSafeConfigBehavior) {

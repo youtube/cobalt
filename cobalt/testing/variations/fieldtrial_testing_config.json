@@ -1,0 +1,257 @@
+{
+    "CobaltCCImageCacheLimitItemsStudy": [
+        {
+            "platforms": [
+                "android"
+            ],
+            "experiments": [
+                {
+                    "name": "Experiment50Items",
+                    "params": {
+                        "cc_image_cache_limit_items": "50"
+                    },
+                    "enable_features": [
+                        "CobaltCCImageCacheLimitItems"
+                    ]
+                }
+            ]
+        }
+    ],
+    "CobaltChromiumBackportStudy": [
+        {
+            "platforms": [
+                "android"
+            ],
+            "experiments": [
+                {
+                    "name": "EnableAllChromiumBackports",
+                    "enable_features": [
+                        "DeferImplInvalidation",
+                        "FastPathNoRaster",
+                        "ImageLoadingPrioritizationFix",
+                        "OptimizeHTMLElementUrls",
+                        "PruneOldTransferCacheEntries",
+                        "RemoveCancelledScriptedIdleTasks",
+                        "SendExplicitDecodeRequestsImmediately"
+                    ]
+                }
+            ]
+        }
+    ],
+    "CobaltDisableDecoderBufferAllocatorLaunch": [
+        {
+            "platforms": [
+                "android"
+            ],
+            "experiments": [
+                {
+                    "name": "Treatment",
+                    "enable_features": [
+                        "CobaltDisableDecoderBufferAllocator"
+                    ]
+                }
+            ]
+        }
+    ],
+    "CobaltFinchTestLaunch": [
+        {
+            "platforms": [
+                "android",
+                "ios",
+                "linux"
+            ],
+            "experiments": [
+                {
+                    "name": "Treatment",
+                    "params": {
+                        "TestFinchFeatureParam": "1"
+                    },
+                    "enable_features": [
+                        "TestFinchFeature"
+                    ]
+                }
+            ]
+        }
+    ],
+    "CobaltGpuDiscardableCacheLimitStudy": [
+        {
+            "platforms": [
+                "android"
+            ],
+            "experiments": [
+                {
+                    "name": "Experiment16Mb",
+                    "params": {
+                        "CobaltGpuDiscardableCacheLimit_mb": "16"
+                    },
+                    "enable_features": [
+                        "CobaltGpuDiscardableCacheLimit"
+                    ]
+                }
+            ]
+        }
+    ],
+    "CobaltInProcessCcStudy": [
+        {
+            "platforms": [
+                "android"
+            ],
+            "experiments": [
+                {
+                    "name": "EnableInProcessImageTransferCacheAndInProcessDirectRaster",
+                    "enable_features": [
+                        "CobaltInProcessDirectRaster",
+                        "CobaltInProcessImageTransferCache"
+                    ]
+                }
+            ]
+        }
+    ],
+    "CobaltLavaLowMemoryTestStudy": [
+        {
+            "platforms": [
+                "android",
+                "ios",
+                "linux"
+            ],
+            "experiments": [
+                {
+                    "name": "Treatment",
+                    "params": {
+                        "TestFinchFeatureParam": "lava_low_memory"
+                    }
+                }
+            ]
+        }
+    ],
+    "CobaltMemoryAblationStudy": [
+        {
+            "platforms": [
+                "android"
+            ],
+            "experiments": [
+                {
+                    "name": "MemoryAblation60MbTreatment",
+                    "params": {
+                        "ablation_size_mb": "60"
+                    },
+                    "enable_features": [
+                        "CobaltNativeMemoryAblation"
+                    ]
+                }
+            ]
+        }
+    ],
+    "CobaltMemoryPressureHandlingStudy": [
+        {
+            "platforms": [
+                "android"
+            ],
+            "experiments": [
+                {
+                    "name": "ModerateMemoryPressureAndCooldown30sTreatment",
+                    "params": {
+                        "cooldown-seconds": "30"
+                    },
+                    "enable_features": [
+                        "CobaltEnableModerateMemoryPressure",
+                        "CobaltMemoryPressureCooldown"
+                    ]
+                }
+            ]
+        }
+    ],
+    "CobaltPartitionAllocReuseMainPartitionForBuffersStudy": [
+        {
+            "platforms": [
+                "android"
+            ],
+            "experiments": [
+                {
+                    "name": "EnablePartitionAllocReuseMainPartitionForBuffers",
+                    "enable_features": [
+                        "PartitionAllocReuseMainPartitionForBuffers"
+                    ]
+                }
+            ]
+        }
+    ],
+    "CobaltSkewportTargetTimeStudy": [
+        {
+            "platforms": [
+                "android"
+            ],
+            "experiments": [
+                {
+                    "name": "SkewportTargetTime0Treatment",
+                    "enable_features": [
+                        "CobaltSkewportTargetTime"
+                    ]
+                }
+            ]
+        }
+    ],
+    "CobaltSplashScreenStudy": [
+        {
+            "platforms": [
+                "android"
+            ],
+            "experiments": [
+                {
+                    "name": "DisableSplashScreenTreatment",
+                    "enable_features": [
+                        "DisableSplashScreen"
+                    ]
+                }
+            ]
+        }
+    ],
+    "CobaltUserAgentFinchTokenLaunch": [
+        {
+            "platforms": [
+                "android"
+            ],
+            "experiments": [
+                {
+                    "name": "Treatment",
+                    "params": {
+                        "token": "2"
+                    },
+                    "enable_features": [
+                        "EnableUserAgentFinchToken"
+                    ]
+                }
+            ]
+        }
+    ],
+    "ContentLengthAwareMojoPipeSizingStudy": [
+        {
+            "platforms": [
+                "android"
+            ],
+            "experiments": [
+                {
+                    "name": "Treatment",
+                    "enable_features": [
+                        "CobaltContentLengthAwareMojoPipeSizing"
+                    ]
+                }
+            ]
+        }
+    ],
+    "DisableNetworkDialogDismissButtonStudy": [
+        {
+            "platforms": [
+                "android"
+            ],
+            "experiments": [
+                {
+                    "name": "Treatment",
+                    "enable_features": [
+                        "DisableNetworkDialogDismissButton"
+                    ]
+                }
+            ]
+        }
+    ]
+}

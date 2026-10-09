@@ -437,6 +437,7 @@ test("cobalt_unittests") {
     "//components/prefs:test_support",
     "//components/variations",
     "//components/variations/service",
+    "//components/variations/service:buildflags",
     "//content/test:test_support",
     "//gin",
     "//gin:gin_test",
