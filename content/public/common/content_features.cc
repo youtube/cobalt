@@ -290,7 +290,12 @@ BASE_FEATURE(kDigitalGoodsApi,
 // Enables the BTM (Bounce Tracking Mitigation) feature.
 // On by default to allow for collecting metrics. All potentially dangerous
 // behavior (database persistence, storage deletion) will be gated by params.
-BASE_FEATURE(kBtm, "DIPS", base::FEATURE_ENABLED_BY_DEFAULT);
+// Disabled on Cobalt where cross-site bounce tracking does not apply and the
+// persistent DIPS SQLite WAL file consumes multi-MB of USER_DATA (b/571636212).
+BASE_FEATURE(kBtm,
+             "DIPS",
+             BUILDFLAG(IS_COBALT) ? base::FEATURE_DISABLED_BY_DEFAULT
+                                  : base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Flag used to control the TTL for user interactions (separately from the
 // |kBtm| feature flag).
