@@ -27,6 +27,7 @@ import android.view.Window;
 import dev.cobalt.coat.BaseCobaltActivity;
 import dev.cobalt.coat.BaseStarboardBridge;
 import dev.cobalt.coat.CobaltService;
+import dev.cobalt.coat.StarboardBridge;
 import dev.cobalt.libraries.services.clientloginfo.ClientLogInfoModule;
 import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.util.DisplayUtil;
@@ -251,7 +252,7 @@ public class MainActivity extends BaseCobaltActivity {
     Holder<Activity> activityHolder = new Holder<>();
     Holder<Service> serviceHolder = new Holder<>();
     BaseStarboardBridge bridge =
-        new BaseStarboardBridge(
+        new StarboardBridge(
             getApplicationContext(), activityHolder, serviceHolder, args, startDeepLink);
 
     CobaltService.Factory clientLogInfoFactory =

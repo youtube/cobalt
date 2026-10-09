@@ -84,7 +84,10 @@ generate_jni("jni_headers") {
     ]
   }
 
-  if (!is_starboard) {
+  if (is_starboard) {
+    sources +=
+        [ "//cobalt/aosp/apk/app/java/dev/cobalt/coat/PlatformError.java" ]
+  } else {
     sources += [ "apk/app/src/main/java/dev/cobalt/coat/PlatformError.java" ]
   }
 }
@@ -221,10 +224,14 @@ android_library("cobalt_main_java") {
   }
 
   if (is_starboard) {
-    # TODO(https://crbug.com/534656433): Temporary StarboardBridge stub to fix
-    # a symbol resolution error on BaseStarboardBridge and CobaltService.
-    sources +=
-        [ "//cobalt/aosp/apk/app/java/dev/cobalt/coat/StarboardBridge.java" ]
+    # AOSP versions of StarboardBridge and PlatformError, since the Android TV
+    # ones depend on classes AOSP doesn't build.
+    # TODO(b/534656433): Remove the StarboardBridge references from shared
+    # code, so AOSP doesn't need a class with that name.
+    sources += [
+      "//cobalt/aosp/apk/app/java/dev/cobalt/coat/PlatformError.java",
+      "//cobalt/aosp/apk/app/java/dev/cobalt/coat/StarboardBridge.java",
+    ]
   } else {
     sources += [
       "apk/app/src/main/java/dev/cobalt/coat/ArtworkDownloader.java",
