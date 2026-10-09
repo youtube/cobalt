@@ -3087,6 +3087,18 @@
       status: "stable",
     },
     {
+      // Cobalt comment: guards SourceBuffer.changeType(DOMString). Upstream
+      // exposes it unconditionally. Cobalt turns this off in
+      // CobaltContentRendererClient because Starboard ports may not support
+      // changing the type of an active SbPlayer (see SbMediaCanChangeType()).
+      // base_feature must stay "none" so that base::Feature state cannot
+      // re-enable it after Cobalt disables it.
+      name: "MediaSourceChangeType",
+      public: true,
+      status: "stable",
+      base_feature: "none",
+    },
+    {
       name: "MediaSourceExperimental",
       status: "experimental",
     },
