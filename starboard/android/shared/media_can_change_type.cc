@@ -26,16 +26,9 @@ bool IsAacOrOpus(SbMediaAudioCodec codec) {
   return codec == kSbMediaAudioCodecAac || codec == kSbMediaAudioCodecOpus;
 }
 
-// TODO(b/571981376): Connect this boolean to H5VCC.
-constexpr bool kEnableChangeType = false;
-
 }  // namespace
 
 bool SbMediaCanChangeType(const char* current_mime, const char* new_mime) {
-  if (!kEnableChangeType) {
-    return false;
-  }
-
   if (!current_mime) {
     SB_LOG(ERROR) << "current_mime cannot be NULL.";
     return false;

@@ -430,6 +430,10 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
                   const std::string& codecs);
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Enables SourceBuffer.changeType() for the rest of the process lifetime.
+  // TODO(b/571981376): Remove once experiments have run.
+  static void EnableChangeType();
+
   // Starboard-specific implementations of CanChangeType() and ChangeType()
   // that accept in the full mime_type string from the web app.
   bool CanChangeType(const std::string& id, 
