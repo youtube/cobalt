@@ -66,9 +66,6 @@ public class JavaSwitches {
 
   public static final String ENABLE_LOW_END_DEVICE_MODE_SWITCH = "--enable-low-end-device-mode";
 
-  /** flag to enable deferred V8 bytecode serialization in background/idle */
-  public static final String DEFER_V8_CODE_CACHE_WRITE = "DeferV8CodeCacheWrite";
-
   /** flag to re-enable freeze and resume events */
   public static final String ENABLE_FREEZE = "EnableFreeze";
 
@@ -441,6 +438,7 @@ public class JavaSwitches {
       extraCommandLineArgs.add("--enable-features=SmallerInterestArea:" + featureParams.toString());
     }
 
+<<<<<<< HEAD
     if (javaSwitches.containsKey(JavaSwitches.DEFER_V8_CODE_CACHE_WRITE)) {
       extraCommandLineArgs.add("--defer-v8-code-cache-write");
     }
@@ -451,6 +449,8 @@ public class JavaSwitches {
       extraCommandLineArgs.add("--max-http-cache-size=" + maxHttpCacheSize);
     }
 
+=======
+>>>>>>> 6c11d2e95 (blink/renderer: Defer V8 code cache write by default (#13167))
     if (jsFlags.length() > 0) {
       extraCommandLineArgs.add("--js-flags=" + jsFlags.toString());
     }
