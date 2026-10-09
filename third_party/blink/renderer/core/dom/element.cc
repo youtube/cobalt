@@ -34,6 +34,7 @@
 
 #include "base/containers/adapters.h"
 #include "base/feature_list.h"
+#include "build/build_config.h"
 #include "cc/input/snap_selection_strategy.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/privacy_budget/identifiability_metric_builder.h"
@@ -4357,11 +4358,25 @@ void Element::RecalcStyle(const StyleRecalcChange change,
     }
   }
 
+#if BUILDFLAG(IS_COBALT)
+  // As an optimization, we can skip most UpdatePseudoElement() calls
+  // (and similar) if the ComputedStyle doesn't have any pseudo-element styles
+  // and there are no existing pseudo-elements to be updated.
+  const bool need_to_check_pseudos =
+      child_change.TraversePseudoElements(*this) &&
+      ((GetElementRareData() && GetElementRareData()->HasPseudoElements()) ||
+       (GetComputedStyle() && GetComputedStyle()->HasAnyPseudoElementStyles()));
+#endif
   if (child_change.TraversePseudoElements(*this)) {
     UpdateBackdropPseudoElement(child_change, child_recalc_context);
     UpdatePseudoElement(kPseudoIdMarker, child_change, child_recalc_context);
     UpdateLayoutSiblingPseudoElement(kPseudoIdScrollMarkerGroupBefore,
                                      child_change, child_recalc_context);
+#if BUILDFLAG(IS_COBALT)
+    // clang-format off
+    if (need_to_check_pseudos) {
+    // clang-format on
+#endif
     UpdateLayoutSiblingPseudoElement(kPseudoIdScrollButtonBlockStart,
                                      child_change, child_recalc_context);
     UpdateLayoutSiblingPseudoElement(kPseudoIdScrollButtonInlineStart,
@@ -4382,6 +4397,9 @@ void Element::RecalcStyle(const StyleRecalcChange change,
     }
 
     UpdatePseudoElement(kPseudoIdBefore, child_change, child_recalc_context);
+#if BUILDFLAG(IS_COBALT)
+    }
+#endif
   }
 
   if (child_change.TraverseChildren(*this)) {
@@ -4404,6 +4422,11 @@ void Element::RecalcStyle(const StyleRecalcChange change,
   }
 
   if (child_change.TraversePseudoElements(*this)) {
+#if BUILDFLAG(IS_COBALT)
+    // clang-format off
+    if (need_to_check_pseudos) {
+    // clang-format on
+#endif
     UpdatePseudoElement(kPseudoIdAfter, child_change, child_recalc_context);
 
     if (HTMLSelectElement::CustomizableSelectEnabled(this)) {
@@ -4412,10 +4435,18 @@ void Element::RecalcStyle(const StyleRecalcChange change,
                             child_recalc_context);
       }
     }
+#if BUILDFLAG(IS_COBALT)
+    }
+#endif
 
     UpdateLayoutSiblingPseudoElement(kPseudoIdScrollMarkerGroupAfter,
                                      child_change, child_recalc_context);
 
+#if BUILDFLAG(IS_COBALT)
+    // clang-format off
+    if (need_to_check_pseudos) {
+    // clang-format on
+#endif
     // If we are re-attaching us or any of our descendants, we need to attach
     // the descendants before we know if this element generates a ::first-letter
     // and which element the ::first-letter inherits style from.
@@ -4440,6 +4471,9 @@ void Element::RecalcStyle(const StyleRecalcChange change,
       UpdateFirstLetterPseudoElement(StyleUpdatePhase::kRecalc,
                                      child_recalc_context);
     }
+#if BUILDFLAG(IS_COBALT)
+    }
+#endif
     // RecalcTransitionPseudoTreeStyle generally manages the transition pseudo
     // tree, but it won't be called after the transition is finished, so we need
     // to clean up here.
