@@ -16,6 +16,8 @@ RUN apt-get update && apt-get install -y \
     libegl1-mesa \
     libegl-mesa0 \
     libgbm-dev \
+    libgbm1 \
+    libgl1-mesa-dri \
     libglapi-mesa \
     libgles2-mesa \
     libglib2.0-0 \
@@ -24,6 +26,7 @@ RUN apt-get update && apt-get install -y \
     openbox \
     python3 \
     python3-dev \
+    unzip \
     x11-xserver-utils \
     xcompmgr \
     xcvt \

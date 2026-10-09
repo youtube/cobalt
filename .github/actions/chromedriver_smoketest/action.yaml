@@ -1,0 +1,107 @@
+# Copyright 2026 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Cobalt Chromedriver Smoke Test
+description: Downloads Cobalt and Chromedriver artifacts from GCS and runs the Chromedriver smoke test.
+inputs:
+  platform:
+    description: "The Cobalt platform being tested (e.g. linux-x64x11)."
+    required: false
+    default: "linux-x64x11"
+  config:
+    description: "The build config (e.g. qa, devel)."
+    required: false
+    default: "qa"
+  test_artifacts_key:
+    description: "GCS artifact key for the Cobalt release package and symbols."
+    required: true
+  download_chromedriver:
+    description: "Download Chromedriver instead of using a locally built binary."
+    required: false
+    default: "true"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set Up Depot Tools
+      uses: ./.github/actions/depot_tools
+      with:
+        run_sync: 'false'
+
+    - name: Download Cobalt QA Release Package from GCS
+      uses: ./.github/actions/download_test_artifacts
+      with:
+        test_artifacts_key: ${{ inputs.test_artifacts_key }}
+        archive_name: ${{ inputs.platform }}_${{ inputs.config }}.zip
+        destination_path: artifacts
+
+    - name: Prepare Cobalt Binaries
+      shell: bash
+      env:
+        PLATFORM: ${{ inputs.platform }}
+        CONFIG: ${{ inputs.config }}
+        TEST_ARTIFACTS_KEY: ${{ inputs.test_artifacts_key }}
+      run: |
+        set -euxo pipefail
+        project_name=$(gcloud config get-value project)
+        out_root="${GITHUB_WORKSPACE}/cobalt/src/out"
+        out_dir="${out_root}/${PLATFORM}_${CONFIG}"
+        mkdir -p "${out_root}"
+
+        mkdir -p "${GITHUB_WORKSPACE}/cobalt/src/chrome"
+        git -c safe.directory="${GITHUB_WORKSPACE}" -C "${GITHUB_WORKSPACE}" show HEAD:chrome/VERSION > "${GITHUB_WORKSPACE}/cobalt/src/chrome/VERSION"
+
+        unzip -q -o "${GITHUB_WORKSPACE}/artifacts/${PLATFORM}_${CONFIG}.zip" -d "${out_root}"
+
+        # packager.py renames cobalt.stripped -> cobalt inside the release zip.
+        # Keep the stripped binary at cobalt.stripped and download the unstripped
+        # cobalt binary from the packaged symbol directory in GCS.
+        mv "${out_dir}/cobalt" "${out_dir}/cobalt.stripped"
+        gcloud storage cp \
+          "gs://${project_name}-test-artifacts/${TEST_ARTIFACTS_KEY}/${PLATFORM}_${CONFIG}/symbol/cobalt" \
+          "${out_dir}/cobalt"
+
+        mkdir -p "${out_dir}/starboard"
+        cp -f "${out_dir}/libstarboard.so.18" "${out_dir}/starboard/libstarboard.so.18"
+
+        chmod +x "${out_dir}/cobalt" "${out_dir}/cobalt.stripped"
+        ls -la "${out_dir}"
+
+    - name: Run Chromedriver Smoke Test
+      shell: bash
+      env:
+        CONFIG: ${{ inputs.config }}
+        DOWNLOAD_CHROMEDRIVER: ${{ inputs.download_chromedriver }}
+      run: |
+        set -ex
+        smoke_test_script="${GITHUB_WORKSPACE}/cobalt/devinfra/github/chromedriver_integration/run_smoke_test.sh"
+        chmod +x "${smoke_test_script}"
+        extra_args=()
+        if [[ "${DOWNLOAD_CHROMEDRIVER}" == "true" ]]; then
+          extra_args+=(--download-chromedriver)
+        else
+          extra_args+=(--no-download-chromedriver)
+        fi
+        "${smoke_test_script}" \
+          --cobalt-path "${GITHUB_WORKSPACE}/cobalt/src" \
+          --config "${CONFIG}" \
+          --output-dir "${GITHUB_WORKSPACE}/chromedriver_tests" \
+          "${extra_args[@]}"
+
+    - name: Archive Chromedriver Smoke Test Artifacts
+      if: always()
+      uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+      with:
+        name: chromedriver_smoketest_results_${{ github.run_attempt }}
+        path: chromedriver_tests/**

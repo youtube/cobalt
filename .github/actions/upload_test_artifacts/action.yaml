@@ -4,6 +4,10 @@ inputs:
   upload_e2e_test_artifacts:
     description: "Indicates if E2E test artifacts should be uploaded."
     required: true
+  upload_chromedriver_test_artifacts:
+    description: "Indicates if Chromedriver test artifacts should be uploaded."
+    required: false
+    default: "false"
   upload_on_host_test_artifacts:
     description: "Indicates if on-host test artifacts should be uploaded."
     required: true
@@ -144,18 +148,19 @@ runs:
       shell: bash
 
     - name: Upload Test Artifacts to GCS
-      if: inputs.upload_on_device_test_artifacts == 'true' || inputs.upload_e2e_test_artifacts == 'true' || inputs.upload_on_host_test_artifacts == 'true'
+      if: inputs.upload_on_device_test_artifacts == 'true' || inputs.upload_e2e_test_artifacts == 'true' || inputs.upload_chromedriver_test_artifacts == 'true' || inputs.upload_on_host_test_artifacts == 'true'
       env:
         PLATFORM: ${{ inputs.platform }}
         CONFIG: ${{ inputs.config }}
         UPLOAD_E2E_TEST_ARTIFACTS: ${{ inputs.upload_e2e_test_artifacts }}
+        UPLOAD_CHROMEDRIVER_TEST_ARTIFACTS: ${{ inputs.upload_chromedriver_test_artifacts }}
         TEST_ARTIFACTS_KEY: ${{ inputs.test_artifacts_key }}
       run: |
         set -eux
         project_name=$(gcloud config get-value project)
 
         # Add Cobalt release artifacts for smoke tests.
-        if [[ "${UPLOAD_E2E_TEST_ARTIFACTS}" == "true" ]]; then
+        if [[ "${UPLOAD_E2E_TEST_ARTIFACTS}" == "true" || "${UPLOAD_CHROMEDRIVER_TEST_ARTIFACTS}" == "true" ]]; then
           mv ${GITHUB_WORKSPACE}/cobalt/src/out/test-package/* \
              ${GITHUB_WORKSPACE}/artifacts/
         fi

@@ -204,6 +204,13 @@ jobs:
           set -x
           web_tests=$(cat "${GITHUB_WORKSPACE}/.github/config/${PLATFORM}.json" | jq -rc '.web_tests')
           echo "web_tests=${web_tests}" >> "${GITHUB_OUTPUT}"
+      - name: Set chromedriver tests
+        id: set-test-chromedriver
+        shell: bash
+        run: |
+          set -x
+          test_chromedriver=$(cat "${GITHUB_WORKSPACE}/.github/config/${PLATFORM}.json" | jq -rc '.test_chromedriver')
+          echo "test_chromedriver=${test_chromedriver}" >> "${GITHUB_OUTPUT}"
       - name: Set root target for unit tests
         id: set-test-root-target
         shell: bash
@@ -388,6 +395,7 @@ jobs:
       test_yts_wpt: ${{ steps.set-test-yts-wpt.outputs.test_yts_wpt }}
       test_yts_finch: ${{ steps.set-test-yts-finch.outputs.test_yts_finch }}
       web_tests: ${{ steps.set-web-tests.outputs.web_tests }}
+      test_chromedriver: ${{ steps.set-test-chromedriver.outputs.test_chromedriver }}
       test_root_target: ${{ steps.set-test-root-target.outputs.test_root_target }}
       test_device_family: ${{ steps.set-test-device-family.outputs.test_device_family }}
       yts_test_targets: ${{ steps.set-yts-test-targets.outputs.yts_test_targets }}
@@ -431,7 +439,7 @@ jobs:
 
   # Builds, tags, and pushes Cobalt unit test image to ghr.
   docker-unittest-image:
-    if: needs.initialize.outputs.test_on_host == 'true'
+    if: needs.initialize.outputs.test_on_host == 'true' || needs.initialize.outputs.test_chromedriver == 'true'
     needs: [initialize]
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
@@ -568,7 +576,7 @@ jobs:
           sccache_gcs_key: ${{ secrets.sccache_gcs_key }}
 
       - name: Release Package
-        if:  (matrix.config == 'qa' || matrix.config == 'gold') && (needs.initialize.outputs.test_package == 'true' || needs.initialize.outputs.test_e2e == 'true' || needs.initialize.outputs.test_yts == 'true')
+        if:  (matrix.config == 'qa' || matrix.config == 'gold') && (needs.initialize.outputs.test_package == 'true' || needs.initialize.outputs.test_e2e == 'true' || needs.initialize.outputs.test_yts == 'true' || needs.initialize.outputs.test_chromedriver == 'true')
         uses: ./.github/actions/package
         with:
           package_dir: out/test-package
@@ -580,6 +588,7 @@ jobs:
           upload_on_host_test_artifacts: ${{ matrix.config == 'devel' && (needs.initialize.outputs.test_on_host == 'true' || needs.initialize.outputs.web_tests == 'true') }}
           upload_on_device_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_device == 'true' }}
           upload_e2e_test_artifacts: ${{ matrix.config == 'qa' && (needs.initialize.outputs.test_e2e == 'true' || needs.initialize.outputs.test_yts == 'true') }}
+          upload_chromedriver_test_artifacts: ${{ matrix.config == 'qa' && needs.initialize.outputs.test_chromedriver == 'true' }}
           test_targets_json_file: out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
           platform: ${{ matrix.platform }}
           config: ${{ matrix.config }}
@@ -953,6 +962,31 @@ jobs:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
           test_results_key: Blink Web Test Results ${{ github.workflow }}
 
+  chromedriver-smoketest:
+    needs: [initialize, docker-unittest-image, build]
+    if: needs.initialize.outputs.test_chromedriver == 'true'
+    permissions: {}
+    runs-on: [self-hosted, chrobalt-linux-runner]
+    name: x64_chromedriver_smoke_tests
+    container:
+      image: ${{ needs.docker-unittest-image.outputs.docker_tag }}
+    env:
+      TMPDIR: /__w/_temp
+      TEST_ARTIFACTS_KEY: ${{ github.workflow }}/${{ github.run_number }}/linux-x64x11
+    steps:
+      - name: Restore CI Essentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout: ${{ env.CI_ESSENTIALS }}
+      - name: Run Chromedriver Smoke Test
+        uses: ./.github/actions/chromedriver_smoketest
+        with:
+          platform: linux-x64x11
+          config: qa
+          test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
+
   test-results:
     needs: [initialize, build, on-device-test, on-host-test]
     if: always() && needs.build.result == 'success' && needs.initialize.outputs.expected_tests_json != '[]'
@@ -1112,6 +1146,7 @@ jobs:
       - yts-test
       - yts-finch-test
       - browser-test-on-host
+      - chromedriver-smoketest
     if: always() && needs.initialize.result == 'success'
     permissions: {}
     runs-on: ubuntu-latest
