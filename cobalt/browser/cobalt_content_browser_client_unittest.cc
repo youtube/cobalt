@@ -27,9 +27,11 @@
 #include "content/public/browser/overlay_window.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "net/base/isolation_info.h"
+#include "net/ssl/ssl_cipher_suite_names.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
 #include "services/network/public/cpp/url_loader_factory_builder.h"
 #include "services/network/public/mojom/network_context.mojom.h"
+#include "services/network/public/mojom/ssl_config.mojom.h"
 #include "starboard/configuration_constants.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -90,6 +92,29 @@ TEST_F(CobaltContentBrowserClientTest, ComputeDefaultHttpCacheSize) {
 
   // 3. Zero / unconfigured budget:
   EXPECT_EQ(CobaltContentBrowserClient::ComputeDefaultHttpCacheSize(0), 0u);
+}
+
+TEST_F(CobaltContentBrowserClientTest,
+       ConfigureNetworkContextParamsDisablesObsoleteCipherSuites) {
+  auto params = network::mojom::NetworkContextParams::New();
+  CobaltContentBrowserClient::ConfigureSSLConfig(params.get());
+
+  ASSERT_TRUE(params->initial_ssl_config);
+  const auto& disabled = params->initial_ssl_config->disabled_cipher_suites;
+  EXPECT_FALSE(disabled.empty());
+  for (uint16_t cipher_suite : disabled) {
+    EXPECT_FALSE(net::IsTLSCipherSuiteAllowedByHTTP2(cipher_suite));
+  }
+
+  // Static RSA (kRSA) and non-AEAD CBC-mode cipher suites must be disabled.
+  EXPECT_THAT(disabled, testing::IsSupersetOf(
+                            {0x002f, 0x0035, 0x009c, 0x009d, 0xc013, 0xc014}));
+
+  // Modern ECDHE AEAD cipher suites must not be disabled.
+  EXPECT_THAT(disabled, testing::Not(testing::Contains(0xc02b)));
+  EXPECT_THAT(disabled, testing::Not(testing::Contains(0xc02f)));
+  EXPECT_THAT(disabled, testing::Not(testing::Contains(0xcca8)));
+  EXPECT_THAT(disabled, testing::Not(testing::Contains(0xcca9)));
 }
 
 class CobaltContentBrowserClientHeaderTest
