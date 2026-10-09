@@ -87,6 +87,19 @@ base::TimeDelta ResolveTimeDeltaParam(
   return default_value;
 }
 
+const char* MemoryPressureLevelToString(
+    base::MemoryPressureListener::MemoryPressureLevel level) {
+  switch (level) {
+    case base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE:
+      return "NONE";
+    case base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE:
+      return "MODERATE";
+    case base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL:
+      return "CRITICAL";
+  }
+  return "UNKNOWN";
+}
+
 }  // namespace
 
 // static
@@ -248,6 +261,16 @@ CobaltSystemMemoryPressureEvaluator::CobaltSystemMemoryPressureEvaluator(
         base::Unretained(process_metrics_.get()));
   }
 
+  LOG(INFO) << "CobaltSystemMemoryPressureEvaluator initialized: "
+            << "baseline_budget="
+            << (process_memory_budget_bytes_ / (1024 * 1024))
+            << " MB, moderate_threshold="
+            << static_cast<int>(moderate_process_memory_fraction_ * 100)
+            << "%, critical_threshold="
+            << static_cast<int>(critical_process_memory_fraction_ * 100)
+            << "%, poll_interval=" << poll_interval_.InSecondsF()
+            << " s, cooldown=" << cooldown_.InSecondsF() << " s";
+
   Start();
 }
 
@@ -303,13 +326,27 @@ CobaltSystemMemoryPressureEvaluator::CalculateCurrentMemoryPressureLevel() {
   const float ratio =
       static_cast<float>(private_bytes) / static_cast<float>(effective_budget);
 
+  base::MemoryPressureListener::MemoryPressureLevel level =
+      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE;
   if (ratio >= critical_process_memory_fraction_) {
-    return base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL;
+    level = base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL;
+  } else if (ratio >= moderate_process_memory_fraction_) {
+    level = base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE;
   }
-  if (ratio >= moderate_process_memory_fraction_) {
-    return base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE;
-  }
-  return base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE;
+
+  VLOG(1) << "CobaltSystemMemoryPressureEvaluator: Evaluated memory: private="
+          << (private_bytes / (1024 * 1024))
+          << " MB, effective_budget=" << (effective_budget / (1024 * 1024))
+          << " MB (base=" << (process_memory_budget_bytes_ / (1024 * 1024))
+          << " MB, media="
+          << (effective_budget > process_memory_budget_bytes_
+                  ? (effective_budget - process_memory_budget_bytes_) /
+                        (1024 * 1024)
+                  : 0)
+          << " MB), usage=" << static_cast<int>(ratio * 100)
+          << "%, level=" << MemoryPressureLevelToString(level);
+
+  return level;
 }
 
 void CobaltSystemMemoryPressureEvaluator::UpdateMemoryPressureLevel(
@@ -346,6 +383,13 @@ void CobaltSystemMemoryPressureEvaluator::UpdateMemoryPressureLevel(
       // Always notify of critical pressure levels.
       notify = true;
       break;
+  }
+
+  if (notify) {
+    VLOG(1) << "CobaltSystemMemoryPressureEvaluator: [DISPATCH] "
+            << MemoryPressureLevelToString(current_vote())
+            << (old_vote != current_vote() ? " reason=transition"
+                                           : " reason=cooldown_expired");
   }
 
   SendCurrentVote(notify);
