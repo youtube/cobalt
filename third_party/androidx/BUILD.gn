@@ -2926,6 +2926,7 @@ if (!limit_android_deps) {
     visibility = [
       ":*",
       "//third_party/android_deps:*",
+      "//cobalt/*",
     ]
     deps = [
       ":androidx_annotation_annotation_java",
