@@ -162,6 +162,40 @@ int musl_errcodes_to_platform_errcodes(int ecode) {
   }
 }
 
+int platform_errcodes_to_musl_errcodes(int ecode) {
+  switch (ecode) {
+    case 0:
+      return 0;
+    case EAI_BADFLAGS:
+      return MUSL_EAI_BADFLAGS;
+    case EAI_NONAME:
+      return MUSL_EAI_NONAME;
+    case EAI_AGAIN:
+      return MUSL_EAI_AGAIN;
+    case EAI_FAIL:
+      return MUSL_EAI_FAIL;
+    case EAI_NODATA:
+      return MUSL_EAI_NODATA;
+    case EAI_FAMILY:
+      return MUSL_EAI_FAMILY;
+    case EAI_SOCKTYPE:
+      return MUSL_EAI_SOCKTYPE;
+    case EAI_SERVICE:
+      return MUSL_EAI_SERVICE;
+    case EAI_MEMORY:
+      return MUSL_EAI_MEMORY;
+    case EAI_SYSTEM:
+      return MUSL_EAI_SYSTEM;
+    case EAI_OVERFLOW:
+      return MUSL_EAI_OVERFLOW;
+    default:
+      // Pass it through, so gai_strerror() can still describe it.
+      SB_LOG(WARNING) << "Unable to convert platform errcode to musl errcode, "
+                         "using value as-is.";
+      return ecode;
+  }
+}
+
 int musl_hints_to_platform_hints(const struct musl_addrinfo* hints,
                                  struct addrinfo* platform_hints) {
   int ai_left = hints->ai_flags;
@@ -335,6 +369,9 @@ SB_EXPORT int __abi_wrap_getaddrinfo(const char* node,
         SbLog(kSbLogPriorityWarning,
               "Unable to convert platform addrinfo to musl-based struct.");
         free(musl_ai);
+        freeaddrinfo(native_res);
+        __abi_wrap_freeaddrinfo(*res);
+        *res = nullptr;
         return -1;
       }
       musl_ai->ai_addrlen =
@@ -368,7 +405,7 @@ SB_EXPORT int __abi_wrap_getaddrinfo(const char* node,
   }
   freeaddrinfo(native_res);
 
-  return result;
+  return platform_errcodes_to_musl_errcodes(result);
 }
 
 SB_EXPORT void __abi_wrap_freeaddrinfo(struct musl_addrinfo* ai) {

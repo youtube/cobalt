@@ -319,6 +319,21 @@ TEST_P(PosixSocketResolveTest, RainyDayNullHostname) {
   EXPECT_FALSE(getaddrinfo(nullptr, nullptr, &hints, &ai) == 0);
 }
 
+TEST_P(PosixSocketResolveTest, RainyDayUnknownHostname) {
+  struct addrinfo hints = {0};
+  hints.ai_family = GetAddressFamily();
+  hints.ai_socktype = GetSocketType();
+  hints.ai_protocol = GetProtocol();
+  struct addrinfo* ai = nullptr;
+
+  // The .invalid top-level domain never resolves. See RFC 6761 section 6.4.
+  int result = getaddrinfo("unknown-host.invalid", nullptr, &hints, &ai);
+  EXPECT_TRUE(result == EAI_NONAME || result == EAI_NODATA ||
+              result == EAI_AGAIN)
+      << " result = " << result;
+  EXPECT_EQ(nullptr, ai);
+}
+
 #if SB_HAS(IPV6)
 INSTANTIATE_TEST_SUITE_P(
     PosixSocketHints,
