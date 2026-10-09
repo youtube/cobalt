@@ -210,6 +210,43 @@ class TestConvertJsonToJunitXml(unittest.TestCase):
     self.assertEqual(case_el.attrib["classname"], "Vega Tests")
     self.assertEqual(case_el.attrib["name"], "Load the browse page")
 
+  def test_convert_vega_report_with_test_category(self):
+    vega_data = {
+        "tests": [{
+            "test_id":
+                "7a07e576-f086-4fca-bd3c-66e0a426d48c",
+            "test_category":
+                "infra_smoke",
+            "test_title":
+                "Load the browse page to exercise test infrastructure.",
+            "output": ["Test failed with timeout"],
+            "start_time":
+                1791505840514,
+            "end_time":
+                1791505914815,
+            "result":
+                "FAILED"
+        }]
+    }
+    json_path = self.dir_path / "vega_category_report.json"
+    xml_path = self.dir_path / "vega_category_output.xml"
+    json_path.write_text(json.dumps(vega_data), encoding="utf-8")
+
+    convert(str(json_path), str(xml_path))
+    self.assertTrue(xml_path.is_file())
+
+    tree = ET.parse(xml_path)
+    root = tree.getroot()
+    self.assertEqual(root.attrib["tests"], "1")
+    self.assertEqual(root.attrib["failures"], "1")
+    self.assertAlmostEqual(float(root.attrib["time"]), 74.301, places=3)
+
+    case_el = root.find(".//testcase")
+    self.assertIsNotNone(case_el)
+    self.assertEqual(case_el.attrib["classname"], "infra_smoke")
+    self.assertEqual(case_el.attrib["name"],
+                     "Load the browse page to exercise test infrastructure.")
+
 
 if __name__ == "__main__":
   unittest.main()
