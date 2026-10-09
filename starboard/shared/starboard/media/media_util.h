@@ -116,6 +116,11 @@ struct VideoSampleInfo {
 
 std::ostream& operator<<(std::ostream& os, const VideoSampleInfo& stream_info);
 
+// Returns true if the color description is SDR, regardless of bit depth.
+bool IsSDRColor(SbMediaPrimaryId primary_id,
+                SbMediaTransferId transfer_id,
+                SbMediaMatrixId matrix_id);
+// Returns true for 8-bit video with SDR color.
 bool IsSDRVideo(int bit_depth,
                 SbMediaPrimaryId primary_id,
                 SbMediaTransferId transfer_id,

@@ -231,16 +231,9 @@ std::ostream& operator<<(std::ostream& os, const VideoSampleInfo& sample_info) {
   return os;
 }
 
-bool IsSDRVideo(int bit_depth,
-                SbMediaPrimaryId primary_id,
+bool IsSDRColor(SbMediaPrimaryId primary_id,
                 SbMediaTransferId transfer_id,
                 SbMediaMatrixId matrix_id) {
-  SB_CHECK(bit_depth == 8 || bit_depth == 10 || bit_depth == 12);
-
-  if (bit_depth != 8) {
-    return false;
-  }
-
   if (primary_id != kSbMediaPrimaryIdBt709 &&
       primary_id != kSbMediaPrimaryIdUnspecified &&
       primary_id != kSbMediaPrimaryIdSmpte170M) {
@@ -260,6 +253,19 @@ bool IsSDRVideo(int bit_depth,
   }
 
   return true;
+}
+
+bool IsSDRVideo(int bit_depth,
+                SbMediaPrimaryId primary_id,
+                SbMediaTransferId transfer_id,
+                SbMediaMatrixId matrix_id) {
+  SB_CHECK(bit_depth == 8 || bit_depth == 10 || bit_depth == 12);
+
+  if (bit_depth != 8) {
+    return false;
+  }
+
+  return IsSDRColor(primary_id, transfer_id, matrix_id);
 }
 
 bool IsSDRVideo(const char* mime) {
