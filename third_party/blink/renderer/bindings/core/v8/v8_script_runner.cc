@@ -652,11 +652,12 @@ ScriptEvaluationResult V8ScriptRunner::CompileAndRunScript(
       }
 #if BUILDFLAG(IS_COBALT)
       if (produce_cache_options ==
-<<<<<<< HEAD
-              V8CodeCache::ProduceCacheOptions::kProduceCodeCache &&
-          defer_v8_code_cache_write) {
-        // Route V8 cache write through ThreadScheduler's Idle queue to free up thread
-        // space for more critical work on startup.
+              V8CodeCache::ProduceCacheOptions::kProduceCodeCache) {
+        // Route the V8 code cache write through ThreadScheduler's idle queue
+        // so that serializing bytecode to disk does not compete with more
+        // critical work (e.g. rendering) on the main thread during startup.
+        // The task only runs when the frame has leftover budget before the
+        // next vsync.
         auto code_cache_task = BindOnce(&DelayedProduceCodeCacheTask,
                                         WrapPersistent(script_state),
                                         v8::Global<v8::Script>(isolate, script),
@@ -664,20 +665,6 @@ ScriptEvaluationResult V8ScriptRunner::CompileAndRunScript(
                                         classic_script->SourceText().length(),
                                         classic_script->SourceUrl(),
                                         classic_script->StartPosition());
-=======
-          V8CodeCache::ProduceCacheOptions::kProduceCodeCache) {
-        // Route the V8 code cache write through ThreadScheduler's idle queue
-        // so that serializing bytecode to disk does not compete with more
-        // critical work (e.g. rendering) on the main thread during startup.
-        // The task only runs when the frame has leftover budget before the
-        // next vsync.
-        auto code_cache_task = WTF::BindOnce(
-            &DelayedProduceCodeCacheTask, WrapPersistent(script_state),
-            v8::Global<v8::Script>(isolate, script),
-            WrapPersistent(cache_handler),
-            classic_script->SourceText().length(), classic_script->SourceUrl(),
-            classic_script->StartPosition());
->>>>>>> 6c11d2e9555 (blink/renderer: Defer V8 code cache write by default (#13167))
 
         if (auto* scheduler = ThreadScheduler::Current()) {
           scheduler->PostDelayedIdleTask(
