@@ -66,6 +66,21 @@ ScriptPromise<IDLUndefined> H5vccNativeStability::acknowledgeReports(
   return resolver->Promise();
 }
 
+ScriptPromise<IDLBoolean> H5vccNativeStability::wasLowMemoryKilled(
+    ScriptState* script_state,
+    ExceptionState& exception_state) {
+  EnsureReceiverIsBound();
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLBoolean>>(
+      script_state, exception_state.GetContext());
+
+  ongoing_requests_.insert(resolver);
+  remote_native_stability_->GetWasLowMemoryKilled(
+      WTF::BindOnce(&H5vccNativeStability::OnGetWasLowMemoryKilled,
+                    WrapPersistent(this), WrapPersistent(resolver)));
+
+  return resolver->Promise();
+}
+
 namespace {
 template <typename T>
 void PopulateBaseReport(
@@ -81,11 +96,18 @@ void PopulateBaseReport(
 
 void H5vccNativeStability::OnGetPendingReports(
     ScriptPromiseResolver<IDLSequence<V8NativeStabilityReport>>* resolver,
-    Vector<h5vcc_native_stability::mojom::blink::NativeStabilityReportPtr>
+    std::optional<
+        Vector<h5vcc_native_stability::mojom::blink::NativeStabilityReportPtr>>
         mojo_reports) {
   ongoing_requests_.erase(resolver);
+  if (!mojo_reports.has_value()) {
+    resolver->RejectWithDOMException(
+        DOMExceptionCode::kNotSupportedError,
+        "Native stability reporting is not supported on this platform.");
+    return;
+  }
   HeapVector<Member<V8NativeStabilityReport>> result;
-  for (const auto& mojo_report : mojo_reports) {
+  for (const auto& mojo_report : *mojo_reports) {
     if (mojo_report->is_crash_report()) {
       const auto& mojo_crash_report = mojo_report->get_crash_report();
       auto* blink_crash_report = NativeCrashReport::Create();
@@ -107,9 +129,23 @@ void H5vccNativeStability::OnGetPendingReports(
 }
 
 void H5vccNativeStability::OnAcknowledgeReports(
-    ScriptPromiseResolver<IDLUndefined>* resolver) {
+    ScriptPromiseResolver<IDLUndefined>* resolver,
+    bool supported) {
   ongoing_requests_.erase(resolver);
+  if (!supported) {
+    resolver->RejectWithDOMException(
+        DOMExceptionCode::kNotSupportedError,
+        "Native stability reporting is not supported on this platform.");
+    return;
+  }
   resolver->Resolve();
+}
+
+void H5vccNativeStability::OnGetWasLowMemoryKilled(
+    ScriptPromiseResolver<IDLBoolean>* resolver,
+    bool result) {
+  ongoing_requests_.erase(resolver);
+  resolver->Resolve(result);
 }
 
 void H5vccNativeStability::EnsureReceiverIsBound() {

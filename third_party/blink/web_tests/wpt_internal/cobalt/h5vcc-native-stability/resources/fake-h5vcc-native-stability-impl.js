@@ -12,6 +12,7 @@ class FakeH5vccNativeStabilityImpl {
     this.receiver_ = new H5vccNativeStabilityReceiver(this);
     this.reports_ = [];
     this.ackedUuids_ = [];
+    this.wasLowMemoryKilled_ = false;
   }
 
   start() {
@@ -25,11 +26,17 @@ class FakeH5vccNativeStabilityImpl {
   reset() {
     this.reports_ = [];
     this.ackedUuids_ = [];
+    this.wasLowMemoryKilled_ = false;
   }
 
   // Added for stubbing getPendingReports() results in tests.
   stubReports(reports) {
     this.reports_ = reports;
+  }
+
+  // Added for stubbing wasLowMemoryKilled() results in tests.
+  stubWasLowMemoryKilled(wasLowMemoryKilled) {
+    this.wasLowMemoryKilled_ = wasLowMemoryKilled;
   }
 
   async getPendingReports() {
@@ -46,7 +53,13 @@ class FakeH5vccNativeStabilityImpl {
     if (uuids && Array.isArray(uuids)) {
       this.ackedUuids_.push(...uuids);
     }
-    return {};
+    return { supported: true };
+  }
+
+  async getWasLowMemoryKilled() {
+    return {
+      wasLowMemoryKilled: this.wasLowMemoryKilled_,
+    };
   }
 
   bind(handle) {

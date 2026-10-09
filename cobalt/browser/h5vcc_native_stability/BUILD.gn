@@ -16,13 +16,23 @@ source_set("h5vcc_native_stability") {
   sources = [
     "h5vcc_native_stability_impl.cc",
     "h5vcc_native_stability_impl.h",
+    "low_memory_kill.h",
     "native_stability_manager.cc",
     "native_stability_manager.h",
   ]
 
+  if (is_android) {
+    sources += [ "low_memory_kill_android.cc" ]
+  } else if (is_starboard) {
+    sources += [ "low_memory_kill_starboard.cc" ]
+  } else {
+    sources += [ "low_memory_kill_stub.cc" ]
+  }
+
   deps = [
     "//base",
     "//cobalt/browser/h5vcc_native_stability/public/mojom",
+    "//cobalt/build/configs:buildflags",
     "//content/public/browser",
     "//mojo/public/cpp/bindings",
     "//starboard:starboard_group",
