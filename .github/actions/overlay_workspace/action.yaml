@@ -36,18 +36,28 @@ runs:
         fusermount3 -u -z "${MERGED_DIR}" 2>/dev/null || fusermount -u -z "${MERGED_DIR}" 2>/dev/null || umount -l "${MERGED_DIR}" 2>/dev/null || true
         rm -rf /runner-cache/workspaces/*
 
+    # TODO: Clean up legacy .runner_cache_ready marker logic once all runner nodes
+    # have migrated to the new snapshot-based caching system.
+    - name: Validate Legacy Cache Marker
+      id: validate-marker
+      shell: bash
+      run: |
+        # If golden workspace exists but lacks .runner_cache_ready, it is an
+        # incomplete or corrupted artifact from an interrupted legacy sync.
+        if [ -w "/runner-cache" ] && [ -d "/runner-cache/golden-workspace" ]; then
+          if [ ! -f "/runner-cache/golden-workspace/.runner_cache_ready" ]; then
+            echo "Notice: Purging corrupted or incomplete golden workspace (missing .runner_cache_ready)..."
+            rm -rf /runner-cache/golden-workspace
+          fi
+        fi
+
     - name: Check SSD Cache Hit
       id: detect-cache
       shell: bash
       run: |
         cache_hit=false
-        if [ -w "/runner-cache" ]; then
-          if [ -f "/runner-cache/golden-workspace/.runner_cache_ready" ]; then
-            cache_hit=true
-          elif [ -d "/runner-cache/golden-workspace" ]; then
-            echo "Golden workspace corrupted (missing .runner_cache_ready). Purging..."
-            rm -rf /runner-cache/golden-workspace
-          fi
+        if [ -w "/runner-cache" ] && [ -d "/runner-cache/golden-workspace" ] && [ -n "$(ls -A /runner-cache/golden-workspace 2>/dev/null)" ]; then
+          cache_hit=true
         fi
         echo "cache_hit=${cache_hit}" >> "${GITHUB_OUTPUT}"
 
@@ -69,7 +79,7 @@ runs:
         PLATFORM_INPUT: ${{ inputs.platform }}
       run: |
         LOWER_DIR="/runner-cache/golden-workspace"
-        if [ ! -w "/runner-cache" ] || [ -f "${LOWER_DIR}/.runner_cache_ready" ]; then
+        if [ ! -w "/runner-cache" ] || [ -d "${LOWER_DIR}" ]; then
           exit 0
         fi
 
@@ -89,6 +99,7 @@ runs:
           # Seed vpython cache directory on the runner from snapshot
           mkdir -p /runner-cache/vpython
           cp -rn "${STAGING_DIR}/vpython/." /runner-cache/vpython/ 2>/dev/null || true
+          # Mark snapshot ready for legacy compatibility
           touch "${STAGING_DIR}/.runner_cache_ready"
           rm -rf "${LOWER_DIR}"
           mv "${STAGING_DIR}" "${LOWER_DIR}"
@@ -103,7 +114,7 @@ runs:
       shell: bash
       run: |
         lower_dir=""
-        if [ -f "/runner-cache/golden-workspace/.runner_cache_ready" ]; then
+        if [ -d "/runner-cache/golden-workspace" ]; then
           lower_dir="/runner-cache/golden-workspace"
         fi
 
