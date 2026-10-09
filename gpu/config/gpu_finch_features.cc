@@ -83,6 +83,25 @@ BASE_FEATURE_PARAM(base::TimeDelta,
 BASE_FEATURE(kCobaltRemoveUiPlaneDuringFullscreenVideo,
              "CobaltRemoveUiPlaneDuringFullscreenVideo",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// When enabled, Cobalt persists Skia's compiled shaders (GrShaderCache) to the
+// GPU shader disk cache instead of disabling the disk cache. The other GPU disk
+// caches stay off since every opened cache is read in full during startup.
+// Newly compiled shaders are written to disk in a batch when the GPU becomes
+// idle, when the app is backgrounded, or before a memory pressure purge,
+// instead of one IPC and disk write per shader during startup.
+BASE_FEATURE(kCobaltGpuShaderDiskCache,
+             "CobaltGpuShaderDiskCache",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Size in KB of the shader cache, both in memory and on disk. This replaces
+// the 128 KB low-end device default, which is too small to hold the shaders
+// used during startup. Non-positive values keep the platform default.
+BASE_FEATURE_PARAM(int,
+                   kCobaltGpuShaderDiskCacheSizeKb,
+                   &kCobaltGpuShaderDiskCache,
+                   "CobaltGpuShaderDiskCache_size_kb",
+                   2048);
 #endif  // BUILDFLAG(IS_ANDROID)
 #endif  // BUILDFLAG(IS_COBALT)
 

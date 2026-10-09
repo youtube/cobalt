@@ -295,6 +295,15 @@ void GpuHostImpl::SetChannelDiskCacheHandle(
     return;
   }
 
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  // Each opened cache is read in full during startup. Only Skia's
+  // GrShaderCache is worth that cost, so skip the other caches.
+  if (base::FeatureList::IsEnabled(features::kCobaltGpuShaderDiskCache) &&
+      handle != gpu::GpuDiskCacheHandle(gpu::kGrShaderGpuDiskCacheHandle)) {
+    return;
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+
   scoped_refptr<gpu::GpuDiskCache> cache =
       delegate_->GetGpuDiskCacheFactory()->Get(handle);
   if (!cache) {
