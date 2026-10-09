@@ -17,6 +17,7 @@
 import os
 import sys
 import unittest
+from unittest import mock
 
 _REPO_ROOT = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..", ".."))
@@ -109,6 +110,14 @@ class StorageMonitorTest(unittest.TestCase):
             "app_content_shell/content_shell/.org.chromium.Chromium.RZDMJu"),
         ("USER_DATA", ".org.chromium.Chromium.*"),
     )
+    self.assertEqual(
+        storage_monitor.classify_storage_path(
+            "/data/data/com.google.android.youtube.tv/"
+            "no_backup/androidx.work.workdb-wal",
+            package="com.google.android.youtube.tv",
+        ),
+        ("NO_BACKUP", "androidx.work.workdb"),
+    )
 
   def test_tracker_detects_transient_journal_and_compaction_spikes(self):
     tracker = storage_monitor.StorageTracker()
@@ -181,19 +190,220 @@ class StorageMonitorTest(unittest.TestCase):
     journal = by_file["app_content_shell/content_shell/Network/Cookies-journal"]
     self.assertFalse(journal["existed_at_end"])
     self.assertEqual(journal["status"], "**Transient (Deleted)**")
+    self.assertEqual(journal["start_kb"], 0.0)
     self.assertEqual(journal["peak_kb"], 16.0)
     self.assertEqual(journal["final_kb"], 0.0)
+    self.assertEqual(journal["delta_kb"], 0.0)
 
     old_log = by_file[
         "app_content_shell/content_shell/Local Storage/leveldb/000003.log"]
     self.assertFalse(old_log["existed_at_end"])
+    self.assertEqual(old_log["start_kb"], 64.0)
     self.assertEqual(old_log["peak_kb"], 64.0)
+    self.assertEqual(old_log["final_kb"], 0.0)
+    self.assertEqual(old_log["delta_kb"], -64.0)
 
-    # Verify Markdown formatting renders Proposal 1 headers and status
+    # Verify Markdown formatting renders Proposal 1 headers, Start/Delta KB,
+    # and status
     md = storage_monitor.format_markdown_report(report)
     self.assertIn("## Section A: Storage Type Summary", md)
     self.assertIn("## Section B: Transient & High-Churn File Hotspots", md)
+    self.assertIn(
+        "| Relative File Path | Storage Type | Status | Lifespan | "
+        "Start KB | Peak KB | Final KB | Delta KB | Writes (`mtime_changes`) |",
+        md,
+    )
+    self.assertIn("-64.00", md)
     self.assertIn("**Transient (Deleted)**", md)
+
+  def test_parse_and_track_proc_io(self):
+    raw_proc_io = "\n".join([
+        "pid: 1234",
+        "rchar: 102400",
+        "wchar: 204800",
+        "syscr: 50",
+        "syscw: 100",
+        "read_bytes: 40960",
+        "write_bytes: 81920",
+        "cancelled_write_bytes: 4096",
+        "---DISKSTATS---",
+        " 179 0 mmcblk0 1000 50 8000 400 2000 100 16000 800 0 600 1200",
+        " 179 1 mmcblk0p1 500 25 4000 200 1000 50 8000 400 0 300 600",
+        " 179 32 mmcblk0boot0 10 0 80 5 0 0 0 0 0 5 5",
+        "---PSI_IO---",
+        "some avg10=2.50 avg60=1.00 avg300=0.20 total=150000",
+        "full avg10=0.75 avg60=0.30 avg300=0.05 total=40000",
+    ])
+    sample = storage_monitor.parse_proc_io_output(raw_proc_io)
+    self.assertIsNotNone(sample)
+    self.assertEqual(sample.pid, 1234)
+    self.assertEqual(sample.rchar, 102400)
+    self.assertEqual(sample.wchar, 204800)
+    self.assertEqual(sample.syscr, 50)
+    self.assertEqual(sample.syscw, 100)
+    self.assertEqual(sample.read_bytes, 40960)
+    self.assertEqual(sample.write_bytes, 81920)
+    self.assertEqual(sample.cancelled_write_bytes, 4096)
+    self.assertEqual(sample.disk_reads_completed, 1000)
+    self.assertEqual(sample.disk_writes_completed, 2000)
+    self.assertEqual(sample.disk_io_time_ms, 600)
+    self.assertEqual(sample.psi_some_total_us, 150000)
+    self.assertEqual(sample.psi_full_total_us, 40000)
+    self.assertEqual(sample.psi_some_avg10, 2.50)
+    self.assertEqual(sample.psi_full_avg10, 0.75)
+
+    self.assertIsNone(storage_monitor.parse_proc_io_output(""))
+
+    tracker = storage_monitor.StorageTracker(
+        package="com.google.android.youtube.tv")
+    # PID 100 already running at t=0.0s (e.g. manual mode): baseline subtracted
+    tracker.record_proc_io(
+        0.0,
+        storage_monitor.ProcIoSample(
+            pid=100,
+            rchar=10240,
+            wchar=20480,
+            syscr=10,
+            syscw=20,
+            read_bytes=4096,
+            write_bytes=8192,
+            disk_reads_completed=100,
+            disk_writes_completed=200,
+            disk_io_time_ms=50,
+            psi_some_total_us=10000,
+            psi_full_total_us=2000,
+            psi_some_avg10=1.2,
+            psi_full_avg10=0.3,
+        ),
+    )
+    tracker.record_proc_io(
+        1.0,
+        storage_monitor.ProcIoSample(
+            pid=100,
+            rchar=30720,
+            wchar=61440,
+            syscr=30,
+            syscw=60,
+            read_bytes=12288,
+            write_bytes=24576,
+            disk_reads_completed=140,
+            disk_writes_completed=280,
+            disk_io_time_ms=110,
+            psi_some_total_us=35000,
+            psi_full_total_us=7000,
+            psi_some_avg10=3.5,
+            psi_full_avg10=1.1,
+        ),
+    )
+    # PID 200 spawned during warm_relaunch at t=2.0s: full counter accrued
+    tracker.record_proc_io(
+        2.0,
+        storage_monitor.ProcIoSample(
+            pid=200,
+            rchar=10240,
+            wchar=20480,
+            syscr=15,
+            syscw=25,
+            read_bytes=4096,
+            write_bytes=8192,
+            disk_reads_completed=160,
+            disk_writes_completed=310,
+            disk_io_time_ms=150,
+            psi_some_total_us=45000,
+            psi_full_total_us=9000,
+            psi_some_avg10=2.0,
+            psi_full_avg10=0.5,
+        ),
+    )
+
+    report = tracker.build_summary_data(
+        platform="android",
+        cuj="warm_relaunch",
+        duration_sec=2.0,
+        interval_sec=1.0,
+    )
+    self.assertEqual(report["metadata"]["package"],
+                     "com.google.android.youtube.tv")
+    pio = report["process_io_summary"]
+    self.assertEqual(pio["pids_tracked"], 2)
+    # PID 100 delta (20 KB rchar, 40 KB wchar) + PID 200 total (10 KB, 20 KB)
+    self.assertEqual(pio["rchar_kb"], 30.0)
+    self.assertEqual(pio["wchar_kb"], 60.0)
+    self.assertEqual(pio["read_kb"], 12.0)
+    self.assertEqual(pio["write_kb"], 24.0)
+    self.assertEqual(pio["syscr"], 35)
+    self.assertEqual(pio["syscw"], 65)
+    self.assertEqual(pio["peak_read_kbps"], 8.0)
+    self.assertEqual(pio["peak_read_at_sec"], 1.0)
+    self.assertEqual(pio["peak_write_kbps"], 16.0)
+    self.assertEqual(pio["peak_write_at_sec"], 1.0)
+    self.assertEqual(pio["write_amp_factor"], 0.4)
+
+    dio = report["disk_io_summary"]
+    self.assertEqual(dio["reads_completed"], 60)
+    self.assertEqual(dio["writes_completed"], 110)
+    self.assertEqual(dio["avg_read_iops"], 30.0)
+    self.assertEqual(dio["avg_write_iops"], 55.0)
+    self.assertEqual(dio["peak_read_iops"], 40.0)
+    self.assertEqual(dio["peak_read_iops_at_sec"], 1.0)
+    self.assertEqual(dio["peak_write_iops"], 80.0)
+    self.assertEqual(dio["peak_write_iops_at_sec"], 1.0)
+    self.assertEqual(dio["io_busy_ms"], 100)
+
+    psi = report["psi_io_summary"]
+    self.assertEqual(psi["some_stall_ms"], 35.0)
+    self.assertEqual(psi["full_stall_ms"], 7.0)
+    self.assertEqual(psi["peak_some_avg10"], 3.5)
+    self.assertEqual(psi["peak_full_avg10"], 1.1)
+
+    md = storage_monitor.format_markdown_report(report)
+    self.assertIn("- **Platform**: `android` (`com.google.android.youtube.tv`)",
+                  md)
+    self.assertIn("**Process I/O (`/proc/<pid>/io`)**:", md)
+    self.assertIn("VFS Write (`wchar`): `60.00 KB`", md)
+    self.assertIn("Block Write (`write_bytes`): `24.00 KB`", md)
+    self.assertIn("Peak: `16.00 KB/s` at `t=1.0s`", md)
+    self.assertIn("Write Amp (`write_bytes/wchar`): `0.40x`", md)
+    self.assertIn("**Block Device IOPS (`/proc/diskstats`)**:", md)
+    self.assertIn("Read IOPS: avg `30.00`, peak `40.00`", md)
+    self.assertIn("**I/O Pressure Stall (`/proc/pressure/io`)**:", md)
+    self.assertIn("Some Stall: `35.00 ms` (peak avg10: `3.50%`)", md)
+
+  def test_parse_args_defaults_and_custom_package(self):
+    args = storage_monitor.parse_args([])
+    self.assertEqual(args.cuj, "manual")
+    self.assertEqual(args.package, "dev.cobalt.coat")
+
+    custom = storage_monitor.parse_args([
+        "--cuj",
+        "cold_start",
+        "--package",
+        "com.google.android.youtube.tv",
+    ])
+    self.assertEqual(custom.cuj, "cold_start")
+    self.assertEqual(custom.package, "com.google.android.youtube.tv")
+
+  @mock.patch("cobalt.tools.storage.storage_monitor._poll_for_duration")
+  def test_manual_cuj_polls_passively(self, mock_poll_for_duration):
+    tracker = storage_monitor.StorageTracker()
+    duration = storage_monitor.run_cuj_android(
+        cuj="manual",
+        interval_sec=1.0,
+        tracker=tracker,
+        package="dev.cobalt.coat",
+        snapshot_fn=lambda: {},
+        proc_io_fn=lambda: None,
+    )
+    self.assertGreaterEqual(duration, 0.0)
+    mock_poll_for_duration.assert_called_once()
+    self.assertEqual(
+        mock_poll_for_duration.call_args.kwargs["duration_sec"],
+        float("inf"),
+    )
+    self.assertEqual(
+        mock_poll_for_duration.call_args.kwargs["phase_label"],
+        "manual",
+    )
 
   def test_format_adb_command(self):
     # pylint: disable=protected-access
