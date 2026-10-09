@@ -473,16 +473,6 @@ bool MP4StreamParser::ModulatedTrim(int64_t max_offset) {
 }
 
 ParseResult MP4StreamParser::ParseBox() {
-<<<<<<< HEAD
-  base::span<const uint8_t> buf = ModulatedPeek();
-
-  if (buf.empty()) {
-    return ParseResult::kNeedMoreData;
-  }
-
-  std::unique_ptr<BoxReader> reader;
-  ParseResult result = BoxReader::ReadTopLevelBox(buf, media_log_, &reader);
-=======
   std::unique_ptr<BoxReader> reader;
   ParseResult result;
 
@@ -496,7 +486,7 @@ ParseResult MP4StreamParser::ParseBox() {
     }
 
     result = BoxReader::ReadTopLevelBox(
-        contiguous_span.data(), contiguous_span.size(), media_log_, &reader);
+        contiguous_span, media_log_, &reader);
 
     if (result == ParseResult::kNeedMoreData) {
       const size_t available = base::checked_cast<size_t>(
@@ -543,24 +533,20 @@ ParseResult MP4StreamParser::ParseBox() {
         return ParseResult::kError;
       }
 
-      result = BoxReader::ReadTopLevelBox(box->data(), box->size(), media_log_,
-                                          &reader);
+      result = BoxReader::ReadTopLevelBox(*box, media_log_, &reader);
     }
   } else
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   {
-    const uint8_t* buf;
-    int size;
-    ModulatedPeek(&buf, &size);
+    base::span<const uint8_t> buf = ModulatedPeek();
 
-    if (!size) {
+    if (buf.empty()) {
       return ParseResult::kNeedMoreData;
     }
 
-    result = BoxReader::ReadTopLevelBox(buf, size, media_log_, &reader);
+    result = BoxReader::ReadTopLevelBox(buf, media_log_, &reader);
   }
 
->>>>>>> 97154d15d4b (media: Support In-Place MP4StreamParser (#13015))
   if (result != ParseResult::kOk)
     return result;
 
@@ -1198,13 +1184,7 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
     return ParseResult::kOk;
   }
 
-<<<<<<< HEAD
-  base::span<const uint8_t> buf = ModulatedPeek();
-  if (buf.empty()) {
-    return ParseResult::kNeedMoreData;
-=======
-  const uint8_t* buf;
-  int buf_size;
+  base::span<const uint8_t> buf;
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   if (segmented_queue_) {
     if (segmented_queue_->head() == max_parse_offset_) {
@@ -1213,11 +1193,10 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
   } else
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   {
-    ModulatedPeek(&buf, &buf_size);
-    if (!buf_size) {
+    buf = ModulatedPeek();
+    if (buf.empty()) {
       return ParseResult::kNeedMoreData;
     }
->>>>>>> 97154d15d4b (media: Support In-Place MP4StreamParser (#13015))
   }
 
   bool audio =
@@ -1240,17 +1219,6 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
   // memory-constrained devices where the source buffer consumes a substantial
   // portion of the total system memory.
   if (runs_->AuxInfoNeedsToBeCached()) {
-<<<<<<< HEAD
-    buf = ModulatedPeekAt(runs_->aux_info_offset() + moof_head_);
-    if (base::CheckedNumeric<int64_t>(buf.size()).ValueOrDie() <
-        runs_->aux_info_size()) {
-      return ParseResult::kNeedMoreData;
-    }
-
-    if (!runs_->CacheAuxInfo(buf)) {
-      return ParseResult::kError;
-    }
-=======
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
     if (segmented_queue_) {
       int64_t aux_head = runs_->aux_info_offset() + moof_head_;
@@ -1267,38 +1235,32 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
         // offset can cause, or this is an allocation failure.
         return ParseResult::kError;
       }
->>>>>>> 97154d15d4b (media: Support In-Place MP4StreamParser (#13015))
 
-      if (!runs_->CacheAuxInfo(aux_info->data(),
-                               base::checked_cast<int>(aux_info->size()))) {
+      if (!runs_->CacheAuxInfo(*aux_info)) {
         return ParseResult::kError;
       }
     } else
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     {
-      ModulatedPeekAt(runs_->aux_info_offset() + moof_head_, &buf, &buf_size);
-
-      if (buf_size < runs_->aux_info_size()) {
+      buf = ModulatedPeekAt(runs_->aux_info_offset() + moof_head_);
+      if (base::CheckedNumeric<int64_t>(buf.size()).ValueOrDie() <
+          runs_->aux_info_size()) {
         return ParseResult::kNeedMoreData;
       }
 
-      if (!runs_->CacheAuxInfo(buf, buf_size)) {
+      if (!runs_->CacheAuxInfo(buf)) {
         return ParseResult::kError;
       }
     }
     return ParseResult::kOk;
   }
 
-<<<<<<< HEAD
-  buf = ModulatedPeekAt(runs_->sample_offset() + moof_head_);
-=======
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   if (!segmented_queue_)
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   {
-    ModulatedPeekAt(runs_->sample_offset() + moof_head_, &buf, &buf_size);
+    buf = ModulatedPeekAt(runs_->sample_offset() + moof_head_);
   }
->>>>>>> 97154d15d4b (media: Support In-Place MP4StreamParser (#13015))
 
   if (runs_->sample_size() >
       static_cast<uint32_t>(std::numeric_limits<int>::max())) {
@@ -1308,23 +1270,18 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
 
   const size_t sample_size = runs_->sample_size();
 
-<<<<<<< HEAD
-  if (buf.size() < sample_size) {
-    return ParseResult::kNeedMoreData;
-=======
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   const int64_t sample_head = runs_->sample_offset() + moof_head_;
   if (segmented_queue_) {
-    if (max_parse_offset_ < sample_head + sample_size) {
+    if (max_parse_offset_ < sample_head + static_cast<int64_t>(sample_size)) {
       return ParseResult::kNeedMoreData;
     }
   } else
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   {
-    if (buf_size < sample_size) {
+    if (buf.size() < sample_size) {
       return ParseResult::kNeedMoreData;
     }
->>>>>>> 97154d15d4b (media: Support In-Place MP4StreamParser (#13015))
   }
 
   if (sample_size == 0) {
@@ -1373,9 +1330,6 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
             VideoCodec::kDolbyVision) {
       DCHECK(runs_->video_description().frame_bitstream_converter);
       BitstreamConverter::AnalysisResult analysis;
-<<<<<<< HEAD
-      frame_buf = base::ToVector(buf.first(sample_size));
-=======
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
       if (segmented_queue_) {
         std::optional<SegmentedByteQueue::Segments> segments =
@@ -1390,9 +1344,8 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
       } else
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
       {
-        frame_buf.assign(buf, buf + sample_size);
+        frame_buf = base::ToVector(buf.first(sample_size));
       }
->>>>>>> 97154d15d4b (media: Support In-Place MP4StreamParser (#13015))
       if (!runs_->video_description()
                .frame_bitstream_converter->ConvertAndAnalyzeFrame(
                    &frame_buf, is_keyframe, &subsamples, &analysis)) {
@@ -1440,10 +1393,6 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
   if (audio) {
     if (ESDescriptor::IsAAC(runs_->audio_description().esds.object_type)) {
 #if BUILDFLAG(USE_PROPRIETARY_CODECS)
-<<<<<<< HEAD
-      heap_frame_buf = PrepareAACBuffer(runs_->audio_description().esds.aac,
-                                        buf.first(sample_size), &subsamples);
-=======
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
       if (segmented_queue_) {
         std::optional<base::span<const uint8_t>> sample =
@@ -1460,11 +1409,9 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
       } else
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
       {
-        heap_frame_buf =
-            PrepareAACBuffer(runs_->audio_description().esds.aac,
-                             {buf, buf + sample_size}, &subsamples);
+        heap_frame_buf = PrepareAACBuffer(runs_->audio_description().esds.aac,
+                                        buf.first(sample_size), &subsamples);
       }
->>>>>>> 97154d15d4b (media: Support In-Place MP4StreamParser (#13015))
       if (heap_frame_buf.empty()) {
         MEDIA_LOG(ERROR, media_log_)
             << "Failed to prepare AAC sample for decode";
@@ -1499,14 +1446,6 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
 
   if (auto* media_client = GetMediaClient()) {
     if (auto* alloc = media_client->GetMediaAllocator()) {
-<<<<<<< HEAD
-      stream_buf = StreamParserBuffer::FromExternalMemory(
-          alloc->CopyFrom(frame_buf.empty()
-                              ? (heap_frame_buf.empty() ? buf.first(sample_size)
-                                                        : heap_frame_buf)
-                              : frame_buf),
-          is_keyframe, buffer_type, runs_->track_id());
-=======
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
       if (frame_buf.empty() && heap_frame_buf.empty() && segmented_queue_) {
         std::optional<SegmentedByteQueue::Segments> segments =
@@ -1521,25 +1460,18 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
       {
         stream_buf = StreamParserBuffer::FromExternalMemory(
-            alloc->CopyFrom(
-                frame_buf.empty()
-                    ? (heap_frame_buf.empty()
-                           ? base::span<const uint8_t>{buf, buf + sample_size}
-                           : heap_frame_buf)
-                    : frame_buf),
+            alloc->CopyFrom(frame_buf.empty()
+                                ? (heap_frame_buf.empty() ? buf.first(sample_size)
+                                                          : heap_frame_buf)
+                                : frame_buf),
             is_keyframe, buffer_type, runs_->track_id());
       }
->>>>>>> 97154d15d4b (media: Support In-Place MP4StreamParser (#13015))
     }
   }
   if (!stream_buf) {
     // Skip using the ExternalMemoryAdapter if possible since it can have more
     // overhead in some applications. See https://crbug.com/353751208.
     if (frame_buf.empty() && heap_frame_buf.empty()) {
-<<<<<<< HEAD
-      stream_buf = StreamParserBuffer::CopyFrom(
-          buf.first(sample_size), is_keyframe, buffer_type, runs_->track_id());
-=======
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
       if (segmented_queue_) {
         // No media allocator, which should not happen in production.
@@ -1557,12 +1489,9 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
       } else
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
       {
-        auto buf_span =
-            base::span(buf, base::checked_cast<size_t>(sample_size));
         stream_buf = StreamParserBuffer::CopyFrom(
-            buf_span, is_keyframe, buffer_type, runs_->track_id());
+          buf.first(sample_size), is_keyframe, buffer_type, runs_->track_id());
       }
->>>>>>> 97154d15d4b (media: Support In-Place MP4StreamParser (#13015))
     } else if (frame_buf.empty()) {
       stream_buf =
           StreamParserBuffer::FromArray(std::move(heap_frame_buf), is_keyframe,
@@ -1650,13 +1579,6 @@ bool MP4StreamParser::ReadAndDiscardMDATsUntil(int64_t max_clear_offset) {
   }
   int64_t upper_bound = std::min(max_clear_offset, max_parse_offset_);
   while (mdat_tail_ < upper_bound) {
-<<<<<<< HEAD
-    base::span<const uint8_t> buf = ModulatedPeekAt(mdat_tail_);
-
-    FourCC type;
-    size_t box_sz;
-    result = BoxReader::StartTopLevelBox(buf, media_log_, &type, &box_sz);
-=======
     FourCC type;
     size_t box_sz;
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -1674,14 +1596,10 @@ bool MP4StreamParser::ReadAndDiscardMDATsUntil(int64_t max_clear_offset) {
     } else
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     {
-      const uint8_t* buf = nullptr;
-      int size = 0;
-      ModulatedPeekAt(mdat_tail_, &buf, &size);
+      base::span<const uint8_t> buf = ModulatedPeekAt(mdat_tail_);
 
-      result =
-          BoxReader::StartTopLevelBox(buf, size, media_log_, &type, &box_sz);
+      result = BoxReader::StartTopLevelBox(buf, media_log_, &type, &box_sz);
     }
->>>>>>> 97154d15d4b (media: Support In-Place MP4StreamParser (#13015))
     if (result != ParseResult::kOk)
       break;
 
