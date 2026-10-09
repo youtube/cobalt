@@ -391,6 +391,25 @@ TEST_F(ExperimentConfigManagerTest, StoreSafeConfigIsNoOpForEmptyConfig) {
   EXPECT_TRUE(pref_service_->GetDict(kSafeConfigFeatures).empty());
 }
 
+TEST_F(ExperimentConfigManagerTest, StoreSafeConfigIsNoOpForTestingConfig) {
+  base::DictValue initial_features;
+  initial_features.Set("feature1", true);
+  pref_service_->SetDict(kExperimentConfigFeatures, initial_features.Clone());
+  metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
+                                    0);
+
+  experiment_config_manager_->SetUsingTestingConfig();
+  EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
+            ExperimentConfigType::kTestingConfig);
+
+  experiment_config_manager_->StoreSafeConfig();
+  task_environment_.RunUntilIdle();
+
+  EXPECT_FALSE(
+      experiment_config_manager_->has_called_store_safe_config_for_testing());
+  EXPECT_TRUE(pref_service_->GetDict(kSafeConfigFeatures).empty());
+}
+
 TEST_F(ExperimentConfigManagerTest, StoreSafeConfigIsOnlyCalledOnce) {
   base::DictValue initial_features;
   initial_features.Set("feature1", true);

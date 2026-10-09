@@ -66,7 +66,16 @@
 #include "components/prefs/pref_service.h"
 #include "components/prefs/pref_service_factory.h"
 #include "components/variations/pref_names.h"
+#include "components/variations/service/buildflags.h"
 #include "components/variations/service/variations_service.h"
+#include "components/variations/variations_switches.h"
+
+#if BUILDFLAG(FIELDTRIAL_TESTING_ENABLED)
+#include "base/functional/callback_helpers.h"
+#include "components/variations/client_filterable_state.h"
+#include "components/variations/field_trial_config/field_trial_util.h"
+#include "components/variations/proto/study.pb.h"
+#endif  // BUILDFLAG(FIELDTRIAL_TESTING_ENABLED)
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/overlay_window.h"
 #include "content/public/browser/render_frame_host.h"
@@ -686,17 +695,59 @@ void CobaltContentBrowserClient::FlushCookiesAndLocalStorage(
   cookie_manager->FlushCookieStore(std::move(callback));
 }
 
+#if BUILDFLAG(FIELDTRIAL_TESTING_ENABLED)
+bool ShouldUseFieldTrialTestingConfig(const base::CommandLine& command_line) {
+  bool is_enable_switch_set =
+      command_line.HasSwitch(
+          variations::switches::kEnableFieldTrialTestingConfig) ||
+      command_line.GetSwitchValueASCII(
+          variations::switches::kEnableBenchmarking) ==
+          variations::switches::kEnableFieldTrialTestingConfig;
+#if defined(OFFICIAL_BUILD)
+  return is_enable_switch_set;
+#else
+  return is_enable_switch_set ||
+         (!command_line.HasSwitch(
+              variations::switches::kDisableFieldTrialTestingConfig) &&
+          !command_line.HasSwitch(variations::switches::kVariationsServerURL));
+#endif  // defined(OFFICIAL_BUILD)
+}
+#endif  // BUILDFLAG(FIELDTRIAL_TESTING_ENABLED)
+
 void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
     base::FeatureList* feature_list) {
+  auto* global_features = GlobalFeatures::GetInstance();
+  auto* experiment_config_manager =
+      global_features->experiment_config_manager();
+
+  const base::CommandLine& command_line =
+      *base::CommandLine::ForCurrentProcess();
+#if BUILDFLAG(FIELDTRIAL_TESTING_ENABLED)
+  if (ShouldUseFieldTrialTestingConfig(command_line)) {
+    LOG(INFO) << "Applying FieldTrialTestingConfig.";
+    experiment_config_manager->SetUsingTestingConfig();
+    global_features->InitializeActiveConfigData(
+        ExperimentConfigType::kTestingConfig);
+    variations::AssociateDefaultFieldTrialConfig(
+        base::DoNothing(),
+        variations::ClientFilterableState::GetCurrentPlatform(),
+        variations::Study::TV, feature_list);
+    return;
+  }
+#else
+  if (command_line.HasSwitch(
+          variations::switches::kEnableFieldTrialTestingConfig)) {
+    LOG(WARNING) << "--" << variations::switches::kEnableFieldTrialTestingConfig
+                 << " was passed, but the field trial testing config was "
+                    "excluded from the build.";
+  }
+#endif  // BUILDFLAG(FIELDTRIAL_TESTING_ENABLED)
+
   // All Cobalt features are associated with the same field trial. This is for
   // easier feature param lookup.
   base::FieldTrial* cobalt_field_trial = base::FieldTrialList::CreateFieldTrial(
       kCobaltExperimentName, kCobaltGroupName);
   CHECK(cobalt_field_trial) << "Unexpected name conflict.";
-
-  auto* global_features = GlobalFeatures::GetInstance();
-  auto* experiment_config_manager =
-      global_features->experiment_config_manager();
 
   // It is critical that GetExperimentConfigType() is evaluated after
   // InstantiateFieldTrialList(), because the latter triggers

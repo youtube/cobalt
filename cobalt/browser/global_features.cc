@@ -189,7 +189,8 @@ void GlobalFeatures::CreateMetricsLocalState() {
 void GlobalFeatures::InitializeActiveConfigData(
     ExperimentConfigType experiment_config_type) {
   DCHECK(experiment_config_);
-  if (experiment_config_type == ExperimentConfigType::kEmptyConfig) {
+  if (experiment_config_type == ExperimentConfigType::kEmptyConfig ||
+      experiment_config_type == ExperimentConfigType::kTestingConfig) {
     active_config_data_.clear();
     return;
   }

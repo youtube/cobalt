@@ -154,6 +154,19 @@ TEST_F(GlobalFeaturesTest, InitializedActiveConfigDataClearedOnEmptyConfig) {
   EXPECT_TRUE(instance_->active_config_data().empty());
 }
 
+TEST_F(GlobalFeaturesTest, InitializedActiveConfigDataClearedOnTestingConfig) {
+  ASSERT_NE(instance_, nullptr);
+  auto* experiment_config = instance_->experiment_config();
+  experiment_config->SetString(kExperimentConfigActiveConfigData,
+                               "initial_data");
+
+  instance_->InitializeActiveConfigData(ExperimentConfigType::kRegularConfig);
+  EXPECT_EQ(instance_->active_config_data(), "initial_data");
+
+  instance_->InitializeActiveConfigData(ExperimentConfigType::kTestingConfig);
+  EXPECT_TRUE(instance_->active_config_data().empty());
+}
+
 TEST_F(GlobalFeaturesTest, InitializedActiveConfigDataSnapshotsSafeConfig) {
   ASSERT_NE(instance_, nullptr);
   auto* experiment_config = instance_->experiment_config();

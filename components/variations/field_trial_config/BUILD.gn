@@ -7,7 +7,11 @@ action("field_trial_testing_config_action") {
   visibility = [ ":field_trial_config" ]
   script = "//tools/variations/fieldtrial_to_struct.py"
 
-  source = "//testing/variations/fieldtrial_testing_config.json"
+  if (is_cobalt) {
+    source = "//cobalt/testing/variations/fieldtrial_testing_config.json"
+  } else {
+    source = "//testing/variations/fieldtrial_testing_config.json"
+  }
   inputs = JSON_TO_STRUCT_FILES + [ source ]
   out_name = "fieldtrial_testing_config"
   outputs = [
