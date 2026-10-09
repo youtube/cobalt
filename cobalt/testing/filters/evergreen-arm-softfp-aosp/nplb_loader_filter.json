@@ -6,8 +6,6 @@
     "*SbMediaSetAudioWriteDuration*",
     "*SbPlayer*",
     "*VerticalVideoTest*",
-    "PosixFileGetInfoTest.ReportsHardLinkCount",
-    "PosixLinkTest.SuccessfulCreation",
     "SbAudioSinkTest.ContinuousAppend",
     "SbDrmSessionTest.*",
     "SbMediaCanPlayMimeAndKeySystem.MinimumSupport"
