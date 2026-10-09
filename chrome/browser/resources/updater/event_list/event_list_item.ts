@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import '../enterprise_policy_table/enterprise_policy_table.js';
+import '../icons.html.js';
+import '../scope_icon.js';
 import './raw_event_details.js';
 import '//resources/cr_elements/cr_collapse/cr_collapse.js';
 import '//resources/cr_elements/cr_expand_button/cr_expand_button.js';
 import '//resources/cr_elements/cr_icon/cr_icon.js';
-import '../scope_icon.js';
-import '../icons.html.js';
 
 import {assert} from '//resources/js/assert.js';
 import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
@@ -19,6 +20,7 @@ import type {HistoryEvent, MergedActivateEvent, MergedAppCommandEvent, MergedHis
 import {loadTimeData} from '../i18n_setup.js';
 import {getKnownAppNamesById} from '../known_apps.js';
 import {formatDateLong, formatDuration} from '../tools.js';
+import {getUpdaterErrorDescription} from '../updater_errors.js';
 
 import {getCss} from './event_list_item.css.js';
 import {getHtml} from './event_list_item.html.js';
@@ -78,6 +80,8 @@ export class EventListItemElement extends CrLitElement {
   protected eventSummary: string|undefined = undefined;
 
   override willUpdate(changedProperties: PropertyValues<this>) {
+    super.willUpdate(changedProperties);
+
     if (changedProperties.has('event')) {
       this.expanded = false;
       if (this.event !== undefined) {
@@ -180,9 +184,7 @@ export class EventListItemElement extends CrLitElement {
     const errors = isMergedHistoryEvent(this.event) ?
         [...this.event.startEvent.errors, ...this.event.endEvent.errors] :
         this.event.errors;
-    return errors.map(
-        error => loadTimeData.getStringF(
-            'errorDetails', error.category, error.code, error.extracode1));
+    return errors.map(error => getUpdaterErrorDescription(error));
   }
 
   private computeStatus(): 'success'|'error'|'' {
@@ -343,6 +345,10 @@ export class EventListItemElement extends CrLitElement {
       string|undefined {
     if (event === undefined) {
       return undefined;
+    }
+
+    if (this.errors.length > 0) {
+      return this.errors[0];
     }
 
     if (isMergedHistoryEvent(event)) {

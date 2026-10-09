@@ -406,12 +406,13 @@ void ContextualSearchboxHandler::AddFileContext(
     // the flow.
     std::move(callback).Run(context_token);
     contextual_session_handle->StartFileContextUploadFlow(
-        context_token, file_info_mojom->mime_type, std::move(file_bytes),
-        CreateImageEncodingOptions());
+        context_token, file_info_mojom->file_name, file_info_mojom->mime_type,
+        std::move(file_bytes), CreateImageEncodingOptions());
   }
 }
 
 void ContextualSearchboxHandler::AddFileContextFromBrowser(
+    std::string file_name,
     std::string mime_type,
     mojo_base::BigBuffer file_bytes,
     std::optional<lens::ImageEncodingOptions> image_encoding_options,
@@ -425,7 +426,7 @@ void ContextualSearchboxHandler::AddFileContextFromBrowser(
     // the flow.
     std::move(callback).Run(context_token);
     contextual_session_handle->StartFileContextUploadFlow(
-        context_token, mime_type, std::move(file_bytes),
+        context_token, file_name, mime_type, std::move(file_bytes),
         std::move(image_encoding_options));
   }
 }
@@ -485,6 +486,12 @@ void ContextualSearchboxHandler::SetActiveToolMode(omnibox::ToolMode tool) {
   if (!input_state_model_) {
     return;
   }
+  if (auto* metrics_recorder = GetMetricsRecorder()) {
+    composebox_query::mojom::ToolMode mojom_tool_mode =
+        mojo::EnumTraits<composebox_query::mojom::ToolMode,
+                         omnibox::ToolMode>::ToMojom(tool);
+    metrics_recorder->RecordToolMode(mojom_tool_mode);
+  }
   input_state_model_->setActiveTool(tool);
 }
 
@@ -492,18 +499,27 @@ void ContextualSearchboxHandler::SetActiveModelMode(omnibox::ModelMode model) {
   if (!input_state_model_) {
     return;
   }
+  if (auto* metrics_recorder = GetMetricsRecorder()) {
+    composebox_query::mojom::ModelMode mojom_model_mode =
+        mojo::EnumTraits<composebox_query::mojom::ModelMode,
+                         omnibox::ModelMode>::ToMojom(model);
+    metrics_recorder->RecordModelMode(mojom_model_mode);
+  }
   input_state_model_->setActiveModel(model);
 }
 
-void ContextualSearchboxHandler::InitializeInputStateModelForDebugging() {
-  InitializeInputStateModel();
+void ContextualSearchboxHandler::ActivateMetricsFunnel(
+    const std::string& funnel_name) {
+  if (auto* metrics_recorder = GetMetricsRecorder()) {
+    metrics_recorder->ActivateMetricsFunnel(funnel_name);
+  }
 }
 
 void ContextualSearchboxHandler::GetInputState(GetInputStateCallback callback) {
   if (input_state_) {
-    std::move(callback).Run(contextual_search::ToMojom(*input_state_));
+    std::move(callback).Run(*input_state_);
   } else {
-    std::move(callback).Run(nullptr);
+    std::move(callback).Run(std::nullopt);
   }
 }
 
@@ -513,7 +529,7 @@ void ContextualSearchboxHandler::OnInputStateChanged(
   if (!IsRemoteBound()) {
     return;
   }
-  page_->OnInputStateChanged(contextual_search::ToMojom(state));
+  page_->OnInputStateChanged(state);
 }
 
 void ContextualSearchboxHandler::InitializeInputStateModel() {
@@ -690,11 +706,8 @@ void ContextualSearchboxHandler::OnFileUploadStatusChanged(
     contextual_search::FileUploadStatus file_upload_status,
     const std::optional<contextual_search::FileUploadErrorType>& error_type) {
   if (IsRemoteBound()) {
-    page_->OnContextualInputStatusChanged(
-        file_token, contextual_search::ToMojom(file_upload_status),
-        error_type.has_value()
-            ? std::make_optional(contextual_search::ToMojom(error_type.value()))
-            : std::nullopt);
+    page_->OnContextualInputStatusChanged(file_token, file_upload_status,
+                                          error_type);
   }
 
   // Ensure `input_state_model_` is updated when file is uploaded.
@@ -731,6 +744,7 @@ void ContextualSearchboxHandler::ComputeAndOpenQueryUrl(
     search_url_request_info->query_text = query_text;
     search_url_request_info->additional_params = additional_params;
     search_url_request_info->aim_entry_point = aim_entry_point;
+    search_url_request_info->active_model = GetInputState().active_model;
 
     contextual_session_handle->CreateSearchUrl(
         std::move(search_url_request_info),
@@ -804,9 +818,7 @@ void ContextualSearchboxHandler::SnapshotTabContext(
   tab_context_snapshot_.emplace(context_token, std::move(page_content_data));
 
   page_->OnContextualInputStatusChanged(
-      context_token,
-      contextual_search::ToMojom(
-          contextual_search::FileUploadStatus::kProcessing),
+      context_token, contextual_search::FileUploadStatus::kProcessing,
       std::nullopt);
 }
 

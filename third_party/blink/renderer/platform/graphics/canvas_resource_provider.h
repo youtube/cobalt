@@ -127,50 +127,12 @@ class PLATFORM_EXPORT CanvasResourceProvider
   };
 #pragma GCC diagnostic pop
 
-  virtual CanvasResourceProviderSharedImage* AsSharedImageProvider() {
+  virtual Canvas2DResourceProviderSharedImage* As2DSharedImageProvider() {
     return nullptr;
   }
 
   // Used to determine if the provider is going to be initialized or not.
   enum class ShouldInitialize { kNo, kCallClear };
-
-  static std::unique_ptr<CanvasResourceProviderSharedImage>
-  CreateSharedImageProviderForSoftwareCompositor(
-      gfx::Size size,
-      viz::SharedImageFormat format,
-      SkAlphaType alpha_type,
-      const gfx::ColorSpace& color_space,
-      ShouldInitialize initialize_provider,
-      WebGraphicsSharedImageInterfaceProvider* shared_image_interface_provider,
-      Delegate* delegate = nullptr);
-
-  static std::unique_ptr<CanvasResourceProviderSharedImage>
-  CreateSharedImageProvider(gfx::Size size,
-                            viz::SharedImageFormat format,
-                            SkAlphaType alpha_type,
-                            const gfx::ColorSpace& color_space,
-                            ShouldInitialize initialize_provider,
-                            base::WeakPtr<WebGraphicsContext3DProviderWrapper>,
-                            RasterMode raster_mode,
-                            gpu::SharedImageUsageSet shared_image_usage_flags,
-                            Delegate* delegate = nullptr);
-
-  static std::unique_ptr<CanvasResourceProviderSharedImage>
-  CreateSharedImageProviderForSoftwareCompositor(
-      gfx::Size size,
-      const Canvas2DColorParams& color_params,
-      ShouldInitialize initialize_provider,
-      WebGraphicsSharedImageInterfaceProvider* shared_image_interface_provider,
-      Delegate* delegate = nullptr);
-
-  static std::unique_ptr<CanvasResourceProviderSharedImage>
-  CreateSharedImageProvider(gfx::Size size,
-                            const Canvas2DColorParams& color_params,
-                            ShouldInitialize initialize_provider,
-                            base::WeakPtr<WebGraphicsContext3DProviderWrapper>,
-                            RasterMode raster_mode,
-                            gpu::SharedImageUsageSet shared_image_usage_flags,
-                            Delegate* delegate = nullptr);
 
   // The ImageOrientationEnum conveys the desired orientation of the image, and
   // should be derived from the source of the bitmap data.
@@ -202,8 +164,6 @@ class PLATFORM_EXPORT CanvasResourceProvider
       ImageOrientation orientation) override {
     NOTREACHED();
   }
-
-  uint32_t ContentUniqueID() const;
 
   virtual bool WritePixels(const SkImageInfo& orig_info,
                            const void* pixels,
@@ -285,6 +245,16 @@ class PLATFORM_EXPORT CanvasResourceProvider
       base::WeakPtr<WebGraphicsContext3DProviderWrapper>,
       RasterMode raster_mode,
       gpu::SharedImageUsageSet shared_image_usage_flags,
+      Delegate* delegate = nullptr);
+
+  template <class T>
+  static std::unique_ptr<T> CreateSharedImageProviderForSoftwareCompositorBase(
+      gfx::Size size,
+      viz::SharedImageFormat format,
+      SkAlphaType alpha_type,
+      const gfx::ColorSpace& color_space,
+      ShouldInitialize initialize_provider,
+      WebGraphicsSharedImageInterfaceProvider* shared_image_interface_provider,
       Delegate* delegate = nullptr);
 
  private:
@@ -451,7 +421,6 @@ class PLATFORM_EXPORT CanvasResourceProviderSharedImage
   void OnResourceRefReturned(
       scoped_refptr<CanvasResourceSharedImage>&& resource);
   void OnDestroyResource() { --num_inflight_resources_; }
-  void SetResourceRecyclingEnabled(bool value);
 
   bool unused_resources_reclaim_timer_is_running_for_testing() const {
     return unused_resources_reclaim_timer_.IsRunning();
@@ -463,15 +432,9 @@ class PLATFORM_EXPORT CanvasResourceProviderSharedImage
   constexpr static base::TimeDelta kUnusedResourceExpirationTime =
       base::Seconds(5);
 
-  // CanvasResourceProvider:
-  CanvasResourceProviderSharedImage* AsSharedImageProvider() final {
-    return this;
-  }
   bool IsAccelerated() const final { return is_accelerated_; }
   bool IsGpuContextLost() const override;
   base::ByteSize EstimatedSizeInBytes() const override;
-
-  gpu::raster::RasterInterface* RasterInterface() const;
 
   // Use Snapshot() for capturing a frame that is intended to be displayed via
   // the compositor. Cases that are destined to be transferred via a
@@ -516,11 +479,14 @@ class PLATFORM_EXPORT CanvasResourceProviderSharedImage
   CanvasResourceSharedImage* resource() {
     return static_cast<CanvasResourceSharedImage*>(resource_.get());
   }
+  gpu::raster::RasterInterface* RasterInterface() const;
   void EnsureWriteAccess();
   void EndWriteAccess();
   std::unique_ptr<gpu::RasterScopedAccess> WillDrawInternal();
 
   scoped_refptr<StaticBitmapImage> cached_snapshot_;
+
+  bool resource_recycling_enabled_ = true;
 
  private:
   CanvasImageProvider* GetOrCreateCanvasImageProvider();
@@ -576,7 +542,6 @@ class PLATFORM_EXPORT CanvasResourceProviderSharedImage
   int num_inflight_resources_ = 0;
   int max_inflight_resources_ = 0;
   base::OneShotTimer unused_resources_reclaim_timer_;
-  bool resource_recycling_enabled_ = true;
 
   // `raster_context_provider_` holds a reference on the shared
   // `RasterContextProvider`, to keep it alive until it notifies us after the
@@ -618,6 +583,16 @@ class PLATFORM_EXPORT Canvas2DResourceProviderSharedImage
       gpu::SharedImageUsageSet shared_image_usage_flags,
       Delegate* delegate = nullptr);
 
+  static std::unique_ptr<Canvas2DResourceProviderSharedImage>
+  CreateForSoftwareCompositor(
+      gfx::Size size,
+      viz::SharedImageFormat format,
+      SkAlphaType alpha_type,
+      const gfx::ColorSpace& color_space,
+      ShouldInitialize initialize_provider,
+      WebGraphicsSharedImageInterfaceProvider* shared_image_interface_provider,
+      Delegate* delegate = nullptr);
+
   Canvas2DResourceProviderSharedImage(
       gfx::Size,
       viz::SharedImageFormat,
@@ -627,7 +602,20 @@ class PLATFORM_EXPORT Canvas2DResourceProviderSharedImage
       bool is_accelerated,
       gpu::SharedImageUsageSet shared_image_usage_flags,
       Delegate*);
+  Canvas2DResourceProviderSharedImage(gfx::Size,
+                                      viz::SharedImageFormat,
+                                      SkAlphaType,
+                                      const gfx::ColorSpace&,
+                                      WebGraphicsSharedImageInterfaceProvider*,
+                                      Delegate*);
   ~Canvas2DResourceProviderSharedImage() override = default;
+
+  // CanvasResourceProvider:
+  Canvas2DResourceProviderSharedImage* As2DSharedImageProvider() final {
+    return this;
+  }
+
+  void SetResourceRecyclingEnabled(bool value);
 };
 
 // * Subclass of CanvasResourceProviderSharedImage that is specialized for usage
@@ -645,6 +633,14 @@ class PLATFORM_EXPORT CanvasNon2DResourceProviderSharedImage
       RasterMode raster_mode,
       gpu::SharedImageUsageSet shared_image_usage_flags,
       Delegate* delegate = nullptr);
+  static std::unique_ptr<CanvasNon2DResourceProviderSharedImage> Create(
+      gfx::Size size,
+      const Canvas2DColorParams& color_params,
+      ShouldInitialize initialize_provider,
+      base::WeakPtr<WebGraphicsContext3DProviderWrapper>,
+      RasterMode raster_mode,
+      gpu::SharedImageUsageSet shared_image_usage_flags,
+      Delegate* delegate = nullptr);
 
   static std::unique_ptr<CanvasNon2DResourceProviderSharedImage>
   CreateForWebGPU(gfx::Size size,
@@ -654,6 +650,23 @@ class PLATFORM_EXPORT CanvasNon2DResourceProviderSharedImage
                   gpu::SharedImageUsageSet shared_image_usage_flags = {},
                   Delegate* delegate = nullptr);
 
+  static std::unique_ptr<CanvasNon2DResourceProviderSharedImage>
+  CreateForSoftwareCompositor(
+      gfx::Size size,
+      viz::SharedImageFormat format,
+      SkAlphaType alpha_type,
+      const gfx::ColorSpace& color_space,
+      ShouldInitialize initialize_provider,
+      WebGraphicsSharedImageInterfaceProvider* shared_image_interface_provider,
+      Delegate* delegate = nullptr);
+  static std::unique_ptr<CanvasNon2DResourceProviderSharedImage>
+  CreateForSoftwareCompositor(
+      gfx::Size size,
+      const Canvas2DColorParams& color_params,
+      ShouldInitialize initialize_provider,
+      WebGraphicsSharedImageInterfaceProvider* shared_image_interface_provider,
+      Delegate* delegate = nullptr);
+
   CanvasNon2DResourceProviderSharedImage(
       gfx::Size,
       viz::SharedImageFormat,
@@ -662,6 +675,13 @@ class PLATFORM_EXPORT CanvasNon2DResourceProviderSharedImage
       base::WeakPtr<WebGraphicsContext3DProviderWrapper>,
       bool is_accelerated,
       gpu::SharedImageUsageSet shared_image_usage_flags,
+      Delegate*);
+  CanvasNon2DResourceProviderSharedImage(
+      gfx::Size,
+      viz::SharedImageFormat,
+      SkAlphaType,
+      const gfx::ColorSpace&,
+      WebGraphicsSharedImageInterfaceProvider*,
       Delegate*);
   ~CanvasNon2DResourceProviderSharedImage() override = default;
 

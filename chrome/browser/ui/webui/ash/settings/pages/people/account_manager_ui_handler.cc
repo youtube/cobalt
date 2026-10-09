@@ -23,7 +23,6 @@
 #include "chrome/browser/policy/profile_policy_connector.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/webui/ash/account_manager/account_migration_welcome_dialog.h"
-#include "chrome/browser/ui/webui/settings/settings_page_ui_handler.h"
 #include "chrome/browser/ui/webui/signin/ash/inline_login_dialog.h"
 #include "chrome/grit/generated_resources.h"
 #include "chromeos/ash/components/account_manager/account_manager_factory.h"
@@ -31,6 +30,7 @@
 #include "components/signin/public/base/consent_level.h"
 #include "components/signin/public/identity_manager/tribool.h"
 #include "components/user_manager/user.h"
+#include "content/public/browser/web_ui_message_handler.h"
 #include "google_apis/gaia/gaia_auth_util.h"
 #include "google_apis/gaia/gaia_id.h"
 #include "google_apis/gaia/google_service_auth_error.h"
@@ -328,18 +328,18 @@ base::ListValue AccountManagerUIHandler::GetSecondaryGaiaAccounts(
     account.SetId(account_key.id())
         .SetAccountType(static_cast<int>(account_key.account_type()))
         .SetIsDeviceAccount(false)
-        .SetFullName(maybe_account_info.full_name)
+        .SetFullName(std::string(maybe_account_info.GetFullName().value_or("")))
         .SetEmail(stored_account.raw_email)
         .SetUnmigrated(!is_child_user && account_token_pair.second)
         .SetIsManaged(maybe_account_info.IsManaged() == signin::Tribool::kTrue)
         .SetIsSignedIn(!identity_manager_
                             ->HasAccountWithRefreshTokenInPersistentErrorState(
-                                maybe_account_info.account_id));
+                                maybe_account_info.GetAccountId()));
     account.SetIsAvailableInArc(arc_accounts.contains(stored_account));
 
-    if (!maybe_account_info.account_image.IsEmpty()) {
-      account.SetPic(
-          webui::GetBitmapDataUrl(maybe_account_info.account_image.AsBitmap()));
+    if (maybe_account_info.GetAvatarImage().has_value()) {
+      account.SetPic(webui::GetBitmapDataUrl(
+          maybe_account_info.GetAvatarImage()->AsBitmap()));
     } else {
       gfx::ImageSkia default_icon =
           *ui::ResourceBundle::GetSharedInstance().GetImageSkiaNamed(

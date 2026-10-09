@@ -9,6 +9,7 @@
 #include <variant>
 
 #include "base/android/device_info.h"
+#include "base/containers/extend.h"
 #include "base/containers/span.h"
 #include "base/containers/to_vector.h"
 #include "base/feature_list.h"
@@ -982,11 +983,8 @@ std::vector<BnplIssuer> PaymentsDataManager::GetBnplIssuers() const {
 
   std::vector<BnplIssuer> result;
   result.reserve(linked_bnpl_issuers_.size() + unlinked_bnpl_issuers_.size());
-  result.insert(result.end(), linked_bnpl_issuers_.begin(),
-                linked_bnpl_issuers_.end());
-  result.insert(result.end(), unlinked_bnpl_issuers_.begin(),
-                unlinked_bnpl_issuers_.end());
-
+  base::Extend(result, linked_bnpl_issuers_);
+  base::Extend(result, unlinked_bnpl_issuers_);
   return result;
 }
 
@@ -1819,18 +1817,6 @@ bool PaymentsDataManager::ShouldSuggestServerPaymentMethods() const {
   }
 
   CHECK(sync_service_);
-
-  // Check if the user is in sync transport mode for wallet data.
-  // TODO(crbug.com/40066949): Simplify once ConsentLevel::kSync and
-  // SyncService::IsSyncFeatureEnabled() are deleted from the codebase.
-  if (!sync_service_->IsSyncFeatureEnabled()) {
-    // For SyncTransport, only show server payment methods if the user has
-    // opted in to seeing them in the dropdown.
-    if (!IsUserOptedInWalletSyncTransport(
-            pref_service_, sync_service_->GetAccountInfo().account_id)) {
-      return false;
-    }
-  }
 
   // Server payment methods should be suggested if the sync service is active.
   return sync_service_->GetActiveDataTypes().Has(syncer::AUTOFILL_WALLET_DATA);

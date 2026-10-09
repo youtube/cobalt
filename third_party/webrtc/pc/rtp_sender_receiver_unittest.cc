@@ -93,6 +93,21 @@ namespace webrtc {
 using ::testing::ContainerEq;
 using RidList = std::vector<std::string>;
 
+class MockVideoMediaSendChannel : public FakeVideoMediaSendChannel {
+ public:
+  MockVideoMediaSendChannel(const VideoOptions& options,
+                            TaskQueueBase* network_thread)
+      : FakeVideoMediaSendChannel(options, network_thread) {}
+
+  void SetFrameEncryptor(
+      uint32_t ssrc,
+      scoped_refptr<FrameEncryptorInterface> frame_encryptor) override {
+    last_set_frame_encryptor_ = frame_encryptor;
+  }
+
+  scoped_refptr<FrameEncryptorInterface> last_set_frame_encryptor_;
+};
+
 class RtpSenderReceiverTest
     : public ::testing::Test,
       public ::testing::WithParamInterface<std::pair<RidList, RidList>> {
@@ -2009,6 +2024,28 @@ TEST_F(RtpSenderReceiverTest, SenderSetStreamsEliminatesDuplicateIds) {
       video_track_->id(), nullptr, nullptr);
   video_rtp_sender_->SetStreams({"1", "2", "1"});
   EXPECT_EQ(video_rtp_sender_->stream_ids().size(), 2u);
+}
+
+TEST_F(RtpSenderReceiverTest, SetSsrcPropagatesFrameEncryptorWithNoEncodings) {
+  // Create mock channel with strict expectations.
+  auto mock_channel = std::make_unique<MockVideoMediaSendChannel>(
+      VideoOptions(), network_thread_.get());
+  MockVideoMediaSendChannel* mock_channel_ptr = mock_channel.get();
+  // RtpSenderReceiverTest takes ownership of the channel.
+  video_media_send_channel_ = std::move(mock_channel);
+
+  // Create sender with no track, which results in empty encodings.
+  CreateVideoRtpSenderWithNoTrack();
+  video_rtp_sender_->set_init_send_encodings({});
+
+  auto frame_encryptor =
+      scoped_refptr<FakeFrameEncryptor>(new FakeFrameEncryptor());
+  video_rtp_sender_->SetFrameEncryptor(frame_encryptor);
+  mock_channel_ptr->last_set_frame_encryptor_ = nullptr;
+
+  // Expect propagation to media channel when SSRC is set.
+  video_rtp_sender_->SetSsrc(kVideoSsrc);
+  EXPECT_EQ(mock_channel_ptr->last_set_frame_encryptor_, frame_encryptor);
 }
 
 // Helper method for syntactic sugar for accepting a vector with '{}' notation.

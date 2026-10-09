@@ -89,8 +89,7 @@ class CongestionControlFeedbackGenerator
   std::map</*ssrc=*/uint32_t, CongestionControlFeedbackTracker>
       feedback_trackers_;
 
-  // std::vector<PacketInfo> packets_;
-  Timestamp last_feedback_sent_time_ = Timestamp::Zero();
+  Timestamp last_feedback_sent_time_ = Timestamp::MinusInfinity();
   std::optional<Timestamp> first_arrival_time_since_feedback_;
   bool marker_bit_seen_ = false;
   Timestamp next_possible_feedback_send_time_ = Timestamp::Zero();

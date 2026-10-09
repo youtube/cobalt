@@ -17,7 +17,7 @@
 #include <vector>
 
 #include "absl/algorithm/container.h"
-
+#include "absl/base/casts.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_join.h"
@@ -195,10 +195,10 @@ std::string ObjectGenerator::FormatBitrateHistory() const {
 
 void ObjectReceiver::OnReply(
     const FullTrackName& full_track_name,
-    std::variant<SubscribeOkData, MoqtErrorPair> response) {
+    std::variant<SubscribeOkData, MoqtRequestErrorInfo> response) {
   QUICHE_CHECK(full_track_name == TrackName());
-  if (std::holds_alternative<MoqtErrorPair>(response)) {
-    MoqtErrorPair error = std::get<MoqtErrorPair>(response);
+  if (std::holds_alternative<MoqtRequestErrorInfo>(response)) {
+    MoqtRequestErrorInfo error = std::get<MoqtRequestErrorInfo>(response);
     QUICHE_CHECK(!error.reason_phrase.empty()) << error.reason_phrase;
   }
 }

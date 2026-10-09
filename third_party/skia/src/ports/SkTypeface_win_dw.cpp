@@ -47,7 +47,6 @@ SkFontStyle DWriteFontTypeface::GetStyle(IDWriteFont* font, IDWriteFontFace* fon
         default: SkASSERT(false); break;
     }
 
-#if defined(NTDDI_WIN10_RS3) && NTDDI_VERSION >= NTDDI_WIN10_RS3
     [&weight, &width, &slant, fontFace]() -> void {
         SkTScopedComPtr<IDWriteFontFace5> fontFace5;
         if (FAILED(fontFace->QueryInterface(&fontFace5))) {
@@ -82,7 +81,6 @@ SkFontStyle DWriteFontTypeface::GetStyle(IDWriteFont* font, IDWriteFontFace* fon
             }
         }
     }();
-#endif
     return SkFontStyle(weight, width, slant);
 }
 
@@ -194,6 +192,9 @@ DWriteFontTypeface::DWriteFontTypeface(const SkFontStyle& style,
     if (!SUCCEEDED(fDWriteFontFace->QueryInterface(&fDWriteFontFace4))) {
         SkASSERT_RELEASE(nullptr == fDWriteFontFace4.get());
     }
+    if (!SUCCEEDED(fDWriteFontFace->QueryInterface(&fDWriteFontFace5))) {
+        SkASSERT_RELEASE(nullptr == fDWriteFontFace5.get());
+    }
 #if DWRITE_CORE || (defined(NTDDI_WIN11_ZN) && NTDDI_VERSION >= NTDDI_WIN11_ZN)
     if (!SUCCEEDED(fDWriteFontFace->QueryInterface(&fDWriteFontFace7))) {
         SkASSERT_RELEASE(nullptr == fDWriteFontFace7/*.get()*/);
@@ -236,7 +237,11 @@ DWriteFontTypeface::Loaders::~Loaders() {
 
 void DWriteFontTypeface::onGetFamilyName(SkString* familyName) const {
     SkTScopedComPtr<IDWriteLocalizedStrings> familyNames;
-    HRV(fDWriteFontFamily->GetFamilyNames(&familyNames));
+    if (fDWriteFontFace3) {
+        HRV(fDWriteFontFace3->GetFamilyNames(&familyNames));
+    } else {
+        HRV(fDWriteFontFamily->GetFamilyNames(&familyNames));
+    }
 
     sk_get_locale_string(familyNames.get(), nullptr/*fMgr->fLocaleName.get()*/, familyName);
 }
@@ -245,14 +250,27 @@ bool DWriteFontTypeface::onGetPostScriptName(SkString* skPostScriptName) const {
     SkString localSkPostScriptName;
     SkTScopedComPtr<IDWriteLocalizedStrings> postScriptNames;
     BOOL exists = FALSE;
-    if (FAILED(fDWriteFont->GetInformationalStrings(
-                    DWRITE_INFORMATIONAL_STRING_POSTSCRIPT_NAME,
-                    &postScriptNames,
-                    &exists)) ||
-        !exists ||
-        FAILED(sk_get_locale_string(postScriptNames.get(), nullptr, &localSkPostScriptName)))
-    {
-        return false;
+    // Prefer to retrieve information directly from the face when available
+    if (fDWriteFontFace3) {
+        if (FAILED(fDWriteFontFace3->GetInformationalStrings(
+                       DWRITE_INFORMATIONAL_STRING_POSTSCRIPT_NAME,
+                       &postScriptNames,
+                       &exists)) ||
+            !exists ||
+            FAILED(sk_get_locale_string(postScriptNames.get(), nullptr, &localSkPostScriptName)))
+        {
+            return false;
+        }
+    } else {
+        if (FAILED(fDWriteFont->GetInformationalStrings(
+                       DWRITE_INFORMATIONAL_STRING_POSTSCRIPT_NAME,
+                       &postScriptNames,
+                       &exists)) ||
+            !exists ||
+            FAILED(sk_get_locale_string(postScriptNames.get(), nullptr, &localSkPostScriptName)))
+        {
+            return false;
+        }
     }
     if (skPostScriptName) {
         *skPostScriptName = localSkPostScriptName;
@@ -308,7 +326,11 @@ void DWriteFontTypeface::onGetFontDescriptor(SkFontDescriptor* desc,
                                              bool* serialize) const {
     // Get the family name.
     SkTScopedComPtr<IDWriteLocalizedStrings> familyNames;
-    HRV(fDWriteFontFamily->GetFamilyNames(&familyNames));
+    if (fDWriteFontFace3) {
+        HRV(fDWriteFontFace3->GetFamilyNames(&familyNames));
+    } else {
+        HRV(fDWriteFontFamily->GetFamilyNames(&familyNames));
+    }
 
     SkString utf8FamilyName;
     sk_get_locale_string(familyNames.get(), nullptr/*fMgr->fLocaleName.get()*/, &utf8FamilyName);
@@ -390,7 +412,13 @@ SkTypeface::LocalizedStrings* DWriteFontTypeface::onCreateFamilyNameIterator() c
         SkOTUtils::LocalizedStrings_NameTable::MakeForFamilyNames(*this);
     if (!nameIter) {
         SkTScopedComPtr<IDWriteLocalizedStrings> familyNames;
-        HRNM(fDWriteFontFamily->GetFamilyNames(&familyNames), "Could not obtain family names.");
+        if (fDWriteFontFace3) {
+            HRNM(fDWriteFontFace3->GetFamilyNames(&familyNames),
+                 "Could not obtain family names from font face.");
+        } else {
+            HRNM(fDWriteFontFamily->GetFamilyNames(&familyNames),
+                 "Could not obtain family names from font family.");
+        }
         nameIter = sk_make_sp<LocalizedStrings_IDWriteLocalizedStrings>(familyNames.release());
     }
     return nameIter.release();
@@ -403,22 +431,18 @@ bool DWriteFontTypeface::onGlyphMaskNeedsCurrentColor() const {
 int DWriteFontTypeface::onGetVariationDesignPosition(
     SkSpan<SkFontArguments::VariationPosition::Coordinate> coordinates) const
 {
-
-#if defined(NTDDI_WIN10_RS3) && NTDDI_VERSION >= NTDDI_WIN10_RS3
-
-    SkTScopedComPtr<IDWriteFontFace5> fontFace5;
-    if (FAILED(fDWriteFontFace->QueryInterface(&fontFace5))) {
+    if (!fDWriteFontFace5) {
         return -1;
     }
 
     // Return 0 if the font is not variable font.
-    if (!fontFace5->HasVariations()) {
+    if (!fDWriteFontFace5->HasVariations()) {
         return 0;
     }
 
-    UINT32 fontAxisCount = fontFace5->GetFontAxisValueCount();
+    UINT32 fontAxisCount = fDWriteFontFace5->GetFontAxisValueCount();
     SkTScopedComPtr<IDWriteFontResource> fontResource;
-    HR_GENERAL(fontFace5->GetFontResource(&fontResource), nullptr, -1);
+    HR_GENERAL(fDWriteFontFace5->GetFontResource(&fontResource), nullptr, -1);
     UINT32 variableAxisCount = 0;
     for (UINT32 i = 0; i < fontAxisCount; ++i) {
         if (fontResource->GetFontAxisAttributes(i) & DWRITE_FONT_AXIS_ATTRIBUTES_VARIABLE) {
@@ -431,7 +455,7 @@ int DWriteFontTypeface::onGetVariationDesignPosition(
     }
 
     AutoSTMalloc<8, DWRITE_FONT_AXIS_VALUE> fontAxisValue(fontAxisCount);
-    HR_GENERAL(fontFace5->GetFontAxisValues(fontAxisValue.get(), fontAxisCount), nullptr, -1);
+    HR_GENERAL(fDWriteFontFace5->GetFontAxisValues(fontAxisValue.get(), fontAxisCount), nullptr,-1);
     UINT32 coordIndex = 0;
     for (UINT32 axisIndex = 0; axisIndex < fontAxisCount; ++axisIndex) {
         if (fontResource->GetFontAxisAttributes(axisIndex) & DWRITE_FONT_AXIS_ATTRIBUTES_VARIABLE) {
@@ -443,31 +467,23 @@ int DWriteFontTypeface::onGetVariationDesignPosition(
 
     SkASSERT(coordIndex == variableAxisCount);
     return SkTo<int>(variableAxisCount);
-
-#else
-    return -1;
-#endif
 }
 
 int DWriteFontTypeface::onGetVariationDesignParameters(
     SkSpan<SkFontParameters::Variation::Axis> parameters) const
 {
-
-#if defined(NTDDI_WIN10_RS3) && NTDDI_VERSION >= NTDDI_WIN10_RS3
-
-    SkTScopedComPtr<IDWriteFontFace5> fontFace5;
-    if (FAILED(fDWriteFontFace->QueryInterface(&fontFace5))) {
+    if (!fDWriteFontFace5) {
         return -1;
     }
 
     // Return 0 if the font is not variable font.
-    if (!fontFace5->HasVariations()) {
+    if (!fDWriteFontFace5->HasVariations()) {
         return 0;
     }
 
-    UINT32 fontAxisCount = fontFace5->GetFontAxisValueCount();
+    UINT32 fontAxisCount = fDWriteFontFace5->GetFontAxisValueCount();
     SkTScopedComPtr<IDWriteFontResource> fontResource;
-    HR_GENERAL(fontFace5->GetFontResource(&fontResource), nullptr, -1);
+    HR_GENERAL(fDWriteFontFace5->GetFontResource(&fontResource), nullptr, -1);
     int variableAxisCount = 0;
     for (UINT32 i = 0; i < fontAxisCount; ++i) {
         if (fontResource->GetFontAxisAttributes(i) & DWRITE_FONT_AXIS_ATTRIBUTES_VARIABLE) {
@@ -499,10 +515,6 @@ int DWriteFontTypeface::onGetVariationDesignParameters(
     }
 
     return variableAxisCount;
-
-#else
-    return -1;
-#endif
 }
 
 bool DWriteFontTypeface::onIsSyntheticBold() const {
@@ -574,7 +586,7 @@ sk_sp<SkTypeface> DWriteFontTypeface::onMakeClone(const SkFontArguments& args) c
     }
 
     // Any "don't care" resolve to existing
-    DWRITE_FONT_SIMULATIONS originalSimulations = fDWriteFont->GetSimulations();
+    DWRITE_FONT_SIMULATIONS originalSimulations = fDWriteFontFace->GetSimulations();
     DWRITE_FONT_SIMULATIONS requestedSimulations = originalSimulations;
     if (args.getSyntheticBold().has_value()) {
         if (args.getSyntheticBold().value()) {
@@ -591,15 +603,11 @@ sk_sp<SkTypeface> DWriteFontTypeface::onMakeClone(const SkFontArguments& args) c
         }
     }
 
-#if defined(NTDDI_WIN10_RS3) && NTDDI_VERSION >= NTDDI_WIN10_RS3
-
-    SkTScopedComPtr<IDWriteFontFace5> fontFace5;
-
-    if (SUCCEEDED(fDWriteFontFace->QueryInterface(&fontFace5)) && fontFace5->HasVariations()) {
-        UINT32 fontAxisCount = fontFace5->GetFontAxisValueCount();
+    if (fDWriteFontFace5 && fDWriteFontFace5->HasVariations()) {
+        UINT32 fontAxisCount = fDWriteFontFace5->GetFontAxisValueCount();
         UINT32 argsCoordCount = args.getVariationDesignPosition().coordinateCount;
         AutoSTMalloc<8, DWRITE_FONT_AXIS_VALUE> fontAxisValue(fontAxisCount);
-        HRN(fontFace5->GetFontAxisValues(fontAxisValue.get(), fontAxisCount));
+        HRN(fDWriteFontFace5->GetFontAxisValues(fontAxisValue.get(), fontAxisCount));
 
         for (UINT32 fontIndex = 0; fontIndex < fontAxisCount; ++fontIndex) {
             for (UINT32 argsIndex = 0; argsIndex < argsCoordCount; ++argsIndex) {
@@ -611,7 +619,7 @@ sk_sp<SkTypeface> DWriteFontTypeface::onMakeClone(const SkFontArguments& args) c
             }
         }
         SkTScopedComPtr<IDWriteFontResource> fontResource;
-        HRN(fontFace5->GetFontResource(&fontResource));
+        HRN(fDWriteFontFace5->GetFontResource(&fontResource));
         SkTScopedComPtr<IDWriteFontFace5> newFontFace5;
         HRN(fontResource->CreateFontFace(requestedSimulations,
                                          fontAxisValue.get(),
@@ -627,8 +635,6 @@ sk_sp<SkTypeface> DWriteFontTypeface::onMakeClone(const SkFontArguments& args) c
                                         fLoaders,
                                         args.getPalette());
     }
-
-#endif
 
     // If a simulations have changed, a new DirectWrite font will need to be created.
     if (fDWriteFontFace3 && requestedSimulations != originalSimulations) {
@@ -1111,7 +1117,7 @@ public:
         }
     }
 
-    T* detatch() {
+    T* release() {
         T* old = fUnregister;
         fUnregister = nullptr;
         return old;
@@ -1143,10 +1149,8 @@ SK_STDMETHODIMP StreamFontCollectionLoader::CreateEnumeratorFromKey(
 }
 
 static HRESULT apply_fontargument_variation(SkTScopedComPtr<IDWriteFontFace>& fontFace,
-    const SkFontArguments& args)
+                                            const SkFontArguments& args)
 {
-#if defined(NTDDI_WIN10_RS3) && NTDDI_VERSION >= NTDDI_WIN10_RS3
-
     SkTScopedComPtr<IDWriteFontFace5> fontFace5;
     if (FAILED(fontFace->QueryInterface(&fontFace5)) || !fontFace5->HasVariations()) {
         return S_OK;
@@ -1174,11 +1178,11 @@ static HRESULT apply_fontargument_variation(SkTScopedComPtr<IDWriteFontFace>& fo
 
     SkTScopedComPtr<IDWriteFontFace5> fontFace5_Out;
     HR(fontResource->CreateFontFace(DWRITE_FONT_SIMULATIONS_NONE,
-        variation.get(), fontAxisCount,
-        &fontFace5_Out));
+                                    variation.get(), fontAxisCount,
+                                    &fontFace5_Out));
     fontFace.reset();
     HR(fontFace5_Out->QueryInterface(&fontFace));
-#endif
+
     return S_OK;
 }
 
@@ -1204,7 +1208,7 @@ sk_sp<SkTypeface> DWriteFontTypeface::MakeFromStream(std::unique_ptr<SkStreamAss
 
     SkTScopedComPtr<IDWriteFontCollection> fontCollection;
     HRN(factory->CreateCustomFontCollection(fontCollectionLoader.get(), nullptr, 0,
-        &fontCollection));
+                                            &fontCollection));
 
     struct BestMatch {
         UINT32 familyIndex = 0;
@@ -1286,8 +1290,8 @@ sk_sp<SkTypeface> DWriteFontTypeface::MakeFromStream(std::unique_ptr<SkStreamAss
             factory, fontFace.get(), font.get(), fontFamily.get(),
             sk_make_sp<DWriteFontTypeface::Loaders>(
                 factory,
-                autoUnregisterFontFileLoader.detatch(),
-                autoUnregisterFontCollectionLoader.detatch()),
+                autoUnregisterFontFileLoader.release(),
+                autoUnregisterFontCollectionLoader.release()),
             args.getPalette());
     }
 

@@ -139,6 +139,16 @@ class MockPeerConnectionObserver : public PeerConnectionObserver {
     ice_gathering_complete_ =
         new_state == PeerConnectionInterface::kIceGatheringComplete;
     callback_triggered_ = true;
+    if (ice_gathering_complete_ && ice_gathering_complete_callback_) {
+      // In case the callback modifies `ice_gathering_complete_callback_`.
+      auto cb = std::move(ice_gathering_complete_callback_);
+      ice_gathering_complete_callback_ = nullptr;
+      std::move(cb)();
+    }
+  }
+
+  void SetIceGatheringCompleteCallback(absl::AnyInvocable<void() &&> callback) {
+    ice_gathering_complete_callback_ = std::move(callback);
   }
   void OnIceCandidate(const IceCandidate* candidate) override {
     RTC_DCHECK(pc_);
@@ -146,11 +156,31 @@ class MockPeerConnectionObserver : public PeerConnectionObserver {
         candidate->sdp_mid(), candidate->sdp_mline_index(),
         candidate->candidate()));
     callback_triggered_ = true;
+    if (on_ice_candidate_callback_) {
+      absl::AnyInvocable<void() &&> cb = std::move(on_ice_candidate_callback_);
+      on_ice_candidate_callback_ = nullptr;
+      std::move(cb)();
+    }
+  }
+
+  void SetOnIceCandidateCallback(absl::AnyInvocable<void() &&> callback) {
+    on_ice_candidate_callback_ = std::move(callback);
   }
 
   void OnIceCandidateRemoved(const IceCandidate* candidate) override {
     ++num_candidates_removed_;
     callback_triggered_ = true;
+    if (on_ice_candidate_removed_callback_) {
+      absl::AnyInvocable<void() &&> cb =
+          std::move(on_ice_candidate_removed_callback_);
+      on_ice_candidate_removed_callback_ = nullptr;
+      std::move(cb)();
+    }
+  }
+
+  void SetOnIceCandidateRemovedCallback(
+      absl::AnyInvocable<void() &&> callback) {
+    on_ice_candidate_removed_callback_ = std::move(callback);
   }
 
   void OnIceConnectionReceivingChange(bool receiving) override {
@@ -241,6 +271,8 @@ class MockPeerConnectionObserver : public PeerConnectionObserver {
   bool legacy_renegotiation_needed() const { return renegotiation_needed_; }
   void clear_legacy_renegotiation_needed() { renegotiation_needed_ = false; }
 
+  bool ice_gathering_complete() const { return ice_gathering_complete_; }
+
   bool has_negotiation_needed_event() {
     return latest_negotiation_needed_event_.has_value();
   }
@@ -259,6 +291,9 @@ class MockPeerConnectionObserver : public PeerConnectionObserver {
   bool renegotiation_needed_ = false;
   std::optional<uint32_t> latest_negotiation_needed_event_;
   bool ice_gathering_complete_ = false;
+  absl::AnyInvocable<void() &&> ice_gathering_complete_callback_;
+  absl::AnyInvocable<void() &&> on_ice_candidate_callback_;
+  absl::AnyInvocable<void() &&> on_ice_candidate_removed_callback_;
   bool ice_connected_ = false;
   bool callback_triggered_ = false;
   int num_added_tracks_ = 0;
@@ -278,41 +313,46 @@ class MockCreateSessionDescriptionObserver
  public:
   MockCreateSessionDescriptionObserver()
       : called_(false),
-        error_("MockCreateSessionDescriptionObserver not called") {}
+        error_("MockCreateSessionDescriptionObserver not called"),
+        desc_(nullptr) {}
+  explicit MockCreateSessionDescriptionObserver(
+      absl::AnyInvocable<void()> quit_closure)
+      : quit_closure_(std::move(quit_closure)),
+        called_(false),
+        error_("MockCreateSessionDescriptionObserver not called"),
+        desc_(nullptr) {}
   ~MockCreateSessionDescriptionObserver() override {}
   void OnSuccess(SessionDescriptionInterface* desc) override {
-    MutexLock lock(&mutex_);
     called_ = true;
     error_ = "";
     desc_.reset(desc);
+    if (quit_closure_)
+      std::move(quit_closure_)();
   }
   void OnFailure(RTCError error) override {
-    MutexLock lock(&mutex_);
     called_ = true;
     error_ = error.message();
+    if (quit_closure_)
+      std::move(quit_closure_)();
   }
   bool called() const {
-    MutexLock lock(&mutex_);
     return called_;
   }
   bool result() const {
-    MutexLock lock(&mutex_);
     return error_.empty();
   }
   const std::string& error() const {
-    MutexLock lock(&mutex_);
     return error_;
   }
   std::unique_ptr<SessionDescriptionInterface> MoveDescription() {
-    MutexLock lock(&mutex_);
     return std::move(desc_);
   }
 
  private:
-  mutable Mutex mutex_;
-  bool called_ RTC_GUARDED_BY(mutex_);
-  std::string error_ RTC_GUARDED_BY(mutex_);
-  std::unique_ptr<SessionDescriptionInterface> desc_ RTC_GUARDED_BY(mutex_);
+  absl::AnyInvocable<void()> quit_closure_;
+  bool called_;
+  std::string error_;
+  std::unique_ptr<SessionDescriptionInterface> desc_;
 };
 
 class MockSetSessionDescriptionObserver : public SetSessionDescriptionObserver {

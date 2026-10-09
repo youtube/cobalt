@@ -12,7 +12,6 @@
 #include "base/test/test_future.h"
 #include "chrome/browser/actor/actor_features.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
-#include "chrome/browser/actor/actor_policy_checker.h"
 #include "chrome/browser/actor/actor_proto_conversion.h"
 #include "chrome/browser/actor/actor_task_metadata.h"
 #include "chrome/browser/actor/actor_test_util.h"
@@ -45,12 +44,8 @@ class ActorKeyedServiceBrowserTest : public PlatformBrowserTest {
   ActorKeyedServiceBrowserTest() {
     // TODO(crbug.com/443783931): Add test coverage for
     // kGlicTabScreenshotPaintPreviewBackend.
-    scoped_feature_list_.InitWithFeaturesAndParameters(
-        /*enabled_features=*/{{features::kGlic, {}},
-                              {features::kGlicActor,
-                               {{features::kGlicActorPolicyControlExemption
-                                     .name,
-                                 "true"}}}},
+    scoped_feature_list_.InitWithFeatures(
+        /*enabled_features=*/{features::kGlic, features::kGlicActor},
         /*disabled_features=*/{features::kGlicWarming});
   }
   ActorKeyedServiceBrowserTest(const ActorKeyedServiceBrowserTest&) = delete;
@@ -106,13 +101,15 @@ class ActorKeyedServiceBrowserTest : public PlatformBrowserTest {
 };
 
 IN_PROC_BROWSER_TEST_F(ActorKeyedServiceBrowserTest, StartStopTask) {
-  TaskId first_task_id = actor_keyed_service()->CreateTask();
+  TaskId first_task_id =
+      actor_keyed_service()->CreateTask(NoEnterprisePolicyChecker());
   EXPECT_FALSE(first_task_id.is_null());
 
   actor_keyed_service()->StopTask(first_task_id,
                                   ActorTask::StoppedReason::kTaskComplete);
 
-  TaskId second_task_id = actor_keyed_service()->CreateTask();
+  TaskId second_task_id =
+      actor_keyed_service()->CreateTask(NoEnterprisePolicyChecker());
   EXPECT_FALSE(first_task_id.is_null());
   EXPECT_NE(first_task_id, second_task_id);
 }
@@ -125,7 +122,8 @@ IN_PROC_BROWSER_TEST_F(ActorKeyedServiceBrowserTest, StartStopTask) {
 #endif
 IN_PROC_BROWSER_TEST_F(ActorKeyedServiceBrowserTest,
                        MAYBE_StartNavigateStopTask) {
-  TaskId first_task_id = actor_keyed_service()->CreateTask();
+  TaskId first_task_id =
+      actor_keyed_service()->CreateTask(NoEnterprisePolicyChecker());
   EXPECT_FALSE(first_task_id.is_null());
 
   PerformActionsFuture result_future;
@@ -143,7 +141,8 @@ IN_PROC_BROWSER_TEST_F(ActorKeyedServiceBrowserTest,
   actor_keyed_service()->StopTask(first_task_id,
                                   ActorTask::StoppedReason::kTaskComplete);
 
-  TaskId second_task_id = actor_keyed_service()->CreateTask();
+  TaskId second_task_id =
+      actor_keyed_service()->CreateTask(NoEnterprisePolicyChecker());
   EXPECT_FALSE(first_task_id.is_null());
   EXPECT_NE(first_task_id, second_task_id);
 }
@@ -158,7 +157,8 @@ IN_PROC_BROWSER_TEST_F(ActorKeyedServiceBrowserTest,
       "</head><body>Hello</body></html>");
   ASSERT_TRUE(chrome_test_utils::NavigateToURL(web_contents(), url));
 
-  TaskId task_id = actor_keyed_service()->CreateTask();
+  TaskId task_id =
+      actor_keyed_service()->CreateTask(NoEnterprisePolicyChecker());
 
   TestFuture<ActorKeyedService::TabObservationResult> future;
   actor_keyed_service()->RequestTabObservation(*active_tab(), task_id,
@@ -189,7 +189,8 @@ IN_PROC_BROWSER_TEST_F(ActorKeyedServiceBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(ActorKeyedServiceBrowserTest,
                        RequestTabObservationSkipCrashedMainFrame) {
-  TaskId task_id = actor_keyed_service()->CreateTask();
+  TaskId task_id =
+      actor_keyed_service()->CreateTask(NoEnterprisePolicyChecker());
 
   // Crash the main frame.
   {
@@ -213,7 +214,8 @@ IN_PROC_BROWSER_TEST_F(ActorKeyedServiceBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(ActorKeyedServiceBrowserTest,
                        RequestTabObservationSkipAsyncObservationInformation) {
-  TaskId task_id = actor_keyed_service()->CreateTask();
+  TaskId task_id =
+      actor_keyed_service()->CreateTask(NoEnterprisePolicyChecker());
   // Navigate the active tab to a new page.
   ASSERT_TRUE(chrome_test_utils::NavigateToURL(
       web_contents(),
@@ -247,7 +249,8 @@ IN_PROC_BROWSER_TEST_F(ActorKeyedServiceBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(ActorKeyedServiceBrowserTest, StopPausedTask) {
-  TaskId task_id = actor_keyed_service()->CreateTask();
+  TaskId task_id =
+      actor_keyed_service()->CreateTask(NoEnterprisePolicyChecker());
   // Navigate the active tab to a new page.
   ASSERT_TRUE(chrome_test_utils::NavigateToURL(
       web_contents(),

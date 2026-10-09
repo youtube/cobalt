@@ -28,7 +28,6 @@
 #include "api/peer_connection_interface.h"
 #include "api/rtc_error.h"
 #include "api/scoped_refptr.h"
-#include "api/test/rtc_error_matchers.h"
 #include "api/units/time_delta.h"
 #include "p2p/base/ice_transport_internal.h"
 #include "p2p/base/p2p_constants.h"
@@ -51,7 +50,7 @@
 #include "rtc_base/socket_server.h"
 #include "rtc_base/thread.h"
 #include "test/gtest.h"
-#include "test/wait_until.h"
+#include "test/run_loop.h"
 #ifdef WEBRTC_ANDROID
 #include "pc/test/android_test_initializer.h"
 #endif
@@ -96,7 +95,15 @@ constexpr int64_t kWaitTimeout = 10000;
 
 class PeerConnectionWrapperForIceTest : public PeerConnectionWrapper {
  public:
-  using PeerConnectionWrapper::PeerConnectionWrapper;
+  PeerConnectionWrapperForIceTest(
+      scoped_refptr<PeerConnectionFactoryInterface> pc_factory,
+      scoped_refptr<PeerConnectionInterface> pc,
+      std::unique_ptr<MockPeerConnectionObserver> observer,
+      FakeNetworkManager* network = nullptr)
+      : PeerConnectionWrapper(std::move(pc_factory),
+                              std::move(pc),
+                              std::move(observer)),
+        network_(network) {}
 
   std::unique_ptr<IceCandidate> CreateJsepCandidateForFirstTransport(
       Candidate* candidate) {
@@ -128,12 +135,21 @@ class PeerConnectionWrapperForIceTest : public PeerConnectionWrapper {
     return candidates;
   }
 
+  void AddInterface(const SocketAddress& iface) {
+    network_thread()->BlockingCall([&] { network_->AddInterface(iface); });
+  }
+
+  void RemoveInterface(const SocketAddress& iface) {
+    network_thread()->BlockingCall([&] { network_->RemoveInterface(iface); });
+  }
+
+  Thread* network_thread() {
+    return GetInternalPeerConnection()->network_thread();
+  }
   FakeNetworkManager* network() { return network_; }
 
-  void set_network(FakeNetworkManager* network) { network_ = network; }
-
  private:
-  FakeNetworkManager* network_;
+  FakeNetworkManager* const network_;
 };
 
 class PeerConnectionIceBaseTest : public ::testing::Test {
@@ -141,7 +157,11 @@ class PeerConnectionIceBaseTest : public ::testing::Test {
   typedef std::unique_ptr<PeerConnectionWrapperForIceTest> WrapperPtr;
 
   explicit PeerConnectionIceBaseTest(SdpSemantics sdp_semantics)
-      : main_(&vss_), sdp_semantics_(sdp_semantics) {
+      : network_thread_(new Thread(&vss_)),
+        worker_thread_(Thread::Create()),
+        sdp_semantics_(sdp_semantics) {
+    RTC_CHECK(network_thread_->Start());
+    RTC_CHECK(worker_thread_->Start());
 #ifdef WEBRTC_ANDROID
     InitializeAndroidObjects();
 #endif
@@ -153,8 +173,8 @@ class PeerConnectionIceBaseTest : public ::testing::Test {
 
   WrapperPtr CreatePeerConnection(const RTCConfiguration& config) {
     PeerConnectionFactoryDependencies pcf_deps;
-    pcf_deps.network_thread = Thread::Current();
-    pcf_deps.worker_thread = Thread::Current();
+    pcf_deps.network_thread = network_thread_.get();
+    pcf_deps.worker_thread = worker_thread_.get();
     pcf_deps.signaling_thread = Thread::Current();
     pcf_deps.socket_factory = &vss_;
     auto network_manager =
@@ -187,10 +207,9 @@ class PeerConnectionIceBaseTest : public ::testing::Test {
     }
 
     observer->SetPeerConnectionInterface(result.value().get());
-    auto wrapper = std::make_unique<PeerConnectionWrapperForIceTest>(
-        std::move(pc_factory), result.MoveValue(), std::move(observer));
-    wrapper->set_network(fake_network);
-    return wrapper;
+    return std::make_unique<PeerConnectionWrapperForIceTest>(
+        std::move(pc_factory), result.MoveValue(), std::move(observer),
+        fake_network);
   }
 
   // Accepts the same arguments as CreatePeerConnection and adds default audio
@@ -273,7 +292,9 @@ class PeerConnectionIceBaseTest : public ::testing::Test {
         auto dtls_transport =
             pc->transport_controller_s()->LookupDtlsTransportByMid(
                 *transceiver->internal()->mid());
-        return dtls_transport->ice_transport()->internal()->GetIceRole();
+        return network_thread_->BlockingCall([&dtls_transport]() {
+          return dtls_transport->ice_transport()->internal()->GetIceRole();
+        });
       }
     }
     RTC_DCHECK_NOTREACHED();
@@ -310,8 +331,10 @@ class PeerConnectionIceBaseTest : public ::testing::Test {
     return sdesc->AddCandidate(jsep_candidate.get());
   }
 
+  test::RunLoop main_;
   VirtualSocketServer vss_;
-  AutoSocketServerThread main_;
+  std::unique_ptr<Thread> network_thread_;
+  std::unique_ptr<Thread> worker_thread_;
   const SdpSemantics sdp_semantics_;
 };
 
@@ -356,15 +379,12 @@ TEST_P(PeerConnectionIceTest, OfferContainsGatheredCandidates) {
   const SocketAddress kLocalAddress("1.1.1.1", 0);
 
   auto caller = CreatePeerConnectionWithAudioVideo();
-  caller->network()->AddInterface(kLocalAddress);
+  caller->AddInterface(kLocalAddress);
 
   // Start ICE candidate gathering by setting the local offer.
   ASSERT_TRUE(caller->SetLocalDescription(caller->CreateOffer()));
 
-  EXPECT_THAT(WaitUntil([&] { return caller->IsIceGatheringDone(); },
-                        ::testing::IsTrue(),
-                        {.timeout = TimeDelta::Millis(kIceCandidatesTimeout)}),
-              IsRtcOk());
+  EXPECT_TRUE(caller->RunUntilIceGatheringDone(main_));
 
   std::unique_ptr<SessionDescriptionInterface> offer = caller->CreateOffer();
   EXPECT_LT(0u, caller->observer()->GetCandidatesByMline(0).size());
@@ -380,15 +400,12 @@ TEST_P(PeerConnectionIceTest, AnswerContainsGatheredCandidates) {
 
   auto caller = CreatePeerConnectionWithAudioVideo();
   auto callee = CreatePeerConnectionWithAudioVideo();
-  caller->network()->AddInterface(kCallerAddress);
+  caller->AddInterface(kCallerAddress);
 
   ASSERT_TRUE(callee->SetRemoteDescription(caller->CreateOfferAndSetAsLocal()));
   ASSERT_TRUE(callee->SetLocalDescription(callee->CreateAnswer()));
 
-  EXPECT_THAT(WaitUntil([&] { return callee->IsIceGatheringDone(); },
-                        ::testing::IsTrue(),
-                        {.timeout = TimeDelta::Millis(kIceCandidatesTimeout)}),
-              IsRtcOk());
+  EXPECT_TRUE(callee->RunUntilIceGatheringDone(main_));
 
   auto* answer = callee->pc()->local_description();
   EXPECT_LT(0u, caller->observer()->GetCandidatesByMline(0).size());
@@ -460,10 +477,10 @@ TEST_P(PeerConnectionIceTest, NoIceCandidatesBeforeSetLocalDescription) {
   const SocketAddress kLocalAddress("1.1.1.1", 0);
 
   auto caller = CreatePeerConnectionWithAudioVideo();
-  caller->network()->AddInterface(kLocalAddress);
+  caller->AddInterface(kLocalAddress);
 
   // Pump for 1 second and verify that no candidates are generated.
-  Thread::Current()->ProcessMessages(1000);
+  main_.RunFor(TimeDelta::Millis(1000));
 
   EXPECT_EQ(0u, caller->observer()->candidates_.size());
 }
@@ -473,7 +490,7 @@ TEST_P(PeerConnectionIceTest,
 
   auto caller = CreatePeerConnectionWithAudioVideo();
   auto callee = CreatePeerConnectionWithAudioVideo();
-  caller->network()->AddInterface(kCallerAddress);
+  caller->AddInterface(kCallerAddress);
 
   std::unique_ptr<SessionDescriptionInterface> offer =
       caller->CreateOfferAndSetAsLocal();
@@ -482,7 +499,7 @@ TEST_P(PeerConnectionIceTest,
   ASSERT_TRUE(callee->SetRemoteDescription(std::move(offer)));
 
   // Pump for 1 second and verify that no candidates are generated.
-  Thread::Current()->ProcessMessages(1000);
+  main_.RunFor(TimeDelta::Millis(1000));
 
   EXPECT_EQ(0u, callee->observer()->candidates_.size());
 }
@@ -720,14 +737,11 @@ TEST_P(PeerConnectionIceTest, CandidatesGeneratedForEachLocalInterface) {
   const SocketAddress kLocalAddress2("2.2.2.2", 0);
 
   auto caller = CreatePeerConnectionWithAudioVideo();
-  caller->network()->AddInterface(kLocalAddress1);
-  caller->network()->AddInterface(kLocalAddress2);
+  caller->AddInterface(kLocalAddress1);
+  caller->AddInterface(kLocalAddress2);
 
   caller->CreateOfferAndSetAsLocal();
-  EXPECT_THAT(WaitUntil([&] { return caller->IsIceGatheringDone(); },
-                        ::testing::IsTrue(),
-                        {.timeout = TimeDelta::Millis(kIceCandidatesTimeout)}),
-              IsRtcOk());
+  EXPECT_TRUE(caller->RunUntilIceGatheringDone(main_));
 
   auto candidates = caller->observer()->GetCandidatesByMline(0);
   EXPECT_PRED_FORMAT2(AssertIpInCandidates, kLocalAddress1, candidates);
@@ -786,15 +800,15 @@ TEST_P(PeerConnectionIceTest, AsyncAddIceCandidateIsAddedToRemoteDescription) {
   auto jsep_candidate =
       callee->CreateJsepCandidateForFirstTransport(&candidate);
   bool operation_completed = false;
-  callee->pc()->AddIceCandidate(std::move(jsep_candidate),
-                                [&operation_completed](RTCError result) {
-                                  EXPECT_TRUE(result.ok());
-                                  operation_completed = true;
-                                });
-  EXPECT_THAT(
-      WaitUntil([&] { return operation_completed; }, ::testing::IsTrue(),
-                {.timeout = TimeDelta::Millis(kWaitTimeout)}),
-      IsRtcOk());
+  callee->pc()->AddIceCandidate(
+      std::move(jsep_candidate),
+      [&operation_completed, &run_loop = main_](RTCError result) {
+        EXPECT_TRUE(result.ok());
+        operation_completed = true;
+        run_loop.Quit();
+      });
+  main_.RunFor(TimeDelta::Millis(kWaitTimeout));
+  EXPECT_TRUE(operation_completed);
 
   auto candidates = callee->GetIceCandidatesFromRemoteDescription();
   ASSERT_EQ(1u, candidates.size());
@@ -814,9 +828,11 @@ TEST_P(PeerConnectionIceTest,
   auto jsep_candidate =
       callee->CreateJsepCandidateForFirstTransport(&candidate);
   bool operation_completed = false;
-  callee->pc()->AddIceCandidate(
-      std::move(jsep_candidate),
-      [&operation_completed](RTCError result) { operation_completed = true; });
+  callee->pc()->AddIceCandidate(std::move(jsep_candidate),
+                                [&operation_completed](RTCError result) {
+                                  EXPECT_TRUE(result.ok());
+                                  operation_completed = true;
+                                });
   EXPECT_TRUE(operation_completed);
 }
 
@@ -830,8 +846,8 @@ TEST_P(PeerConnectionIceTest,
   ASSERT_TRUE(callee->SetRemoteDescription(caller->CreateOfferAndSetAsLocal()));
 
   // Chain an operation that will block AddIceCandidate() from executing.
-  auto answer_observer =
-      make_ref_counted<MockCreateSessionDescriptionObserver>();
+  auto answer_observer = make_ref_counted<MockCreateSessionDescriptionObserver>(
+      main_.QuitClosure());
   callee->pc()->CreateAnswer(answer_observer.get(), RTCOfferAnswerOptions());
 
   auto jsep_candidate =
@@ -840,13 +856,11 @@ TEST_P(PeerConnectionIceTest,
   callee->pc()->AddIceCandidate(
       std::move(jsep_candidate),
       [&operation_completed](RTCError result) { operation_completed = true; });
-  // The operation will not be able to complete until we EXPECT_TRUE_WAIT()
-  // allowing CreateAnswer() to complete.
+  // The operation will not be able to complete until we let the run loop
+  // process CreateAnswer().
   EXPECT_FALSE(operation_completed);
-  EXPECT_THAT(
-      WaitUntil([&] { return answer_observer->called(); }, ::testing::IsTrue(),
-                {.timeout = TimeDelta::Millis(kWaitTimeout)}),
-      IsRtcOk());
+  main_.Run();
+  EXPECT_TRUE(answer_observer->called());
   // As soon as it does, AddIceCandidate() will execute without delay, so it
   // must also have completed.
   EXPECT_TRUE(operation_completed);
@@ -865,16 +879,16 @@ TEST_P(PeerConnectionIceTest,
 
   bool operation_completed = false;
   caller->pc()->AddIceCandidate(
-      std::move(jsep_candidate), [&operation_completed](RTCError result) {
+      std::move(jsep_candidate),
+      [&operation_completed, &run_loop = main_](RTCError result) {
         EXPECT_FALSE(result.ok());
         EXPECT_EQ(result.message(),
                   std::string("The remote description was null"));
         operation_completed = true;
+        run_loop.Quit();
       });
-  EXPECT_THAT(
-      WaitUntil([&] { return operation_completed; }, ::testing::IsTrue(),
-                {.timeout = TimeDelta::Millis(kWaitTimeout)}),
-      IsRtcOk());
+  main_.RunFor(TimeDelta::Millis(kWaitTimeout));
+  EXPECT_TRUE(operation_completed);
 }
 
 TEST_P(PeerConnectionIceTest,
@@ -887,8 +901,8 @@ TEST_P(PeerConnectionIceTest,
   ASSERT_TRUE(callee->SetRemoteDescription(caller->CreateOfferAndSetAsLocal()));
 
   // Chain an operation that will block AddIceCandidate() from executing.
-  auto answer_observer =
-      make_ref_counted<MockCreateSessionDescriptionObserver>();
+  auto answer_observer = make_ref_counted<MockCreateSessionDescriptionObserver>(
+      main_.QuitClosure());
   callee->pc()->CreateAnswer(answer_observer.get(), RTCOfferAnswerOptions());
 
   auto jsep_candidate =
@@ -903,15 +917,15 @@ TEST_P(PeerConnectionIceTest,
                 "AddIceCandidate failed because the session was shut down"));
         operation_completed = true;
       });
-  // The operation will not be able to run until EXPECT_TRUE_WAIT(), giving us
-  // time to remove all references to the PeerConnection.
+  // The operation will not be able to run until we let the run loop
+  // process CreateAnswer(), giving us time to remove all references to the
+  // PeerConnection.
   EXPECT_FALSE(operation_completed);
   // This should delete the callee PC.
   callee = nullptr;
-  EXPECT_THAT(
-      WaitUntil([&] { return operation_completed; }, ::testing::IsTrue(),
-                {.timeout = TimeDelta::Millis(kWaitTimeout)}),
-      IsRtcOk());
+  main_.RunFor(TimeDelta::Millis(kWaitTimeout));
+  EXPECT_TRUE(answer_observer->called());
+  EXPECT_TRUE(operation_completed);
 }
 
 TEST_P(PeerConnectionIceTest, LocalDescriptionUpdatedWhenContinualGathering) {
@@ -922,20 +936,16 @@ TEST_P(PeerConnectionIceTest, LocalDescriptionUpdatedWhenContinualGathering) {
   config.continual_gathering_policy =
       PeerConnectionInterface::GATHER_CONTINUALLY;
   auto caller = CreatePeerConnectionWithAudioVideo(config);
-  caller->network()->AddInterface(kLocalAddress);
+  caller->AddInterface(kLocalAddress);
 
   // Start ICE candidate gathering by setting the local offer.
+  caller->observer()->SetOnIceCandidateCallback(main_.QuitClosure());
   ASSERT_TRUE(caller->SetLocalDescription(caller->CreateOffer()));
 
   // Since we're using continual gathering, we won't get "gathering done".
-  EXPECT_THAT(
-      WaitUntil(
-          [&] {
-            return caller->pc()->local_description()->candidates(0)->count();
-          },
-          ::testing::Gt(0),
-          {.timeout = TimeDelta::Millis(kIceCandidatesTimeout)}),
-      IsRtcOk());
+  main_.RunFor(TimeDelta::Millis(kIceCandidatesTimeout));
+  caller->observer()->SetOnIceCandidateCallback(nullptr);
+  EXPECT_GT(caller->pc()->local_description()->candidates(0)->count(), 0u);
 }
 
 // Test that when continual gathering is enabled, and a network interface goes
@@ -950,32 +960,25 @@ TEST_P(PeerConnectionIceTest,
   config.continual_gathering_policy =
       PeerConnectionInterface::GATHER_CONTINUALLY;
   auto caller = CreatePeerConnectionWithAudioVideo(config);
-  caller->network()->AddInterface(kLocalAddress);
+  caller->AddInterface(kLocalAddress);
 
   // Start ICE candidate gathering by setting the local offer.
+  caller->observer()->SetOnIceCandidateCallback(main_.QuitClosure());
   ASSERT_TRUE(caller->SetLocalDescription(caller->CreateOffer()));
-
-  EXPECT_THAT(
-      WaitUntil(
-          [&] {
-            return caller->pc()->local_description()->candidates(0)->count();
-          },
-          ::testing::Gt(0),
-          {.timeout = TimeDelta::Millis(kIceCandidatesTimeout)}),
-      IsRtcOk());
+  main_.RunFor(TimeDelta::Millis(kIceCandidatesTimeout));
+  caller->observer()->SetOnIceCandidateCallback(nullptr);
+  EXPECT_GT(caller->pc()->local_description()->candidates(0)->count(), 0u);
 
   // Remove the only network interface, causing the PeerConnection to signal
   // the removal of all candidates derived from this interface.
-  caller->network()->RemoveInterface(kLocalAddress);
+  caller->RemoveInterface(kLocalAddress);
 
-  EXPECT_THAT(
-      WaitUntil(
-          [&] {
-            return caller->pc()->local_description()->candidates(0)->count();
-          },
-          ::testing::Eq(0u),
-          {.timeout = TimeDelta::Millis(kIceCandidatesTimeout)}),
-      IsRtcOk());
+  if (caller->pc()->local_description()->candidates(0)->count() != 0) {
+    caller->observer()->SetOnIceCandidateRemovedCallback(main_.QuitClosure());
+    main_.RunFor(TimeDelta::Millis(kIceCandidatesTimeout));
+    caller->observer()->SetOnIceCandidateRemovedCallback(nullptr);
+  }
+  EXPECT_EQ(caller->pc()->local_description()->candidates(0)->count(), 0u);
   EXPECT_LT(0, caller->observer()->num_candidates_removed_);
 }
 
@@ -987,20 +990,17 @@ TEST_P(PeerConnectionIceTest,
   config.sdp_semantics = SdpSemantics::kUnifiedPlan;
   config.continual_gathering_policy = PeerConnectionInterface::GATHER_ONCE;
   auto caller = CreatePeerConnectionWithAudioVideo(config);
-  caller->network()->AddInterface(kLocalAddress);
+  caller->AddInterface(kLocalAddress);
 
   // Start ICE candidate gathering by setting the local offer.
   ASSERT_TRUE(caller->SetLocalDescription(caller->CreateOffer()));
 
-  EXPECT_THAT(WaitUntil([&] { return caller->IsIceGatheringDone(); },
-                        ::testing::IsTrue(),
-                        {.timeout = TimeDelta::Millis(kIceCandidatesTimeout)}),
-              IsRtcOk());
+  EXPECT_TRUE(caller->RunUntilIceGatheringDone(main_));
 
-  caller->network()->RemoveInterface(kLocalAddress);
+  caller->RemoveInterface(kLocalAddress);
 
   // Verify that the local candidates are not removed;
-  Thread::Current()->ProcessMessages(1000);
+  main_.RunFor(TimeDelta::Millis(1000));
   EXPECT_EQ(0, caller->observer()->num_candidates_removed_);
 }
 
@@ -1458,13 +1458,17 @@ INSTANTIATE_TEST_SUITE_P(PeerConnectionIceTest,
 class PeerConnectionIceConfigTest : public ::testing::Test {
  public:
   PeerConnectionIceConfigTest()
-      : socket_server_(CreateDefaultSocketServer()),
-        main_thread_(socket_server_.get()) {}
+      : worker_thread_(Thread::Create()),
+        socket_server_(CreateDefaultSocketServer()),
+        network_thread_(new Thread(socket_server_.get())) {
+    RTC_CHECK(network_thread_->Start());
+    RTC_CHECK(worker_thread_->Start());
+  }
 
  protected:
   void SetUp() override {
     pc_factory_ = CreatePeerConnectionFactory(
-        Thread::Current(), Thread::Current(), Thread::Current(),
+        network_thread_.get(), worker_thread_.get(), Thread::Current(),
         FakeAudioCaptureModule::Create(), CreateBuiltinAudioEncoderFactory(),
         CreateBuiltinAudioDecoderFactory(),
         std::make_unique<VideoEncoderFactoryTemplate<
@@ -1476,8 +1480,10 @@ class PeerConnectionIceConfigTest : public ::testing::Test {
         nullptr /* audio_mixer */, nullptr /* audio_processing */);
   }
   void CreatePeerConnection(const RTCConfiguration& config) {
-    auto port_allocator = std::make_unique<FakePortAllocator>(
-        CreateEnvironment(), socket_server_.get());
+    auto port_allocator = network_thread_->BlockingCall([&] {
+      return std::make_unique<FakePortAllocator>(CreateEnvironment(),
+                                                 socket_server_.get());
+    });
     port_allocator_ = port_allocator.get();
     PeerConnectionDependencies pc_dependencies(&observer_);
     pc_dependencies.allocator = std::move(port_allocator);
@@ -1487,8 +1493,10 @@ class PeerConnectionIceConfigTest : public ::testing::Test {
     pc_ = result.MoveValue();
   }
 
+  test::RunLoop main_thread_;
+  std::unique_ptr<Thread> worker_thread_;
   std::unique_ptr<SocketServer> socket_server_;
-  AutoSocketServerThread main_thread_;
+  std::unique_ptr<Thread> network_thread_;
   scoped_refptr<PeerConnectionFactoryInterface> pc_factory_ = nullptr;
   scoped_refptr<PeerConnectionInterface> pc_ = nullptr;
   FakePortAllocator* port_allocator_ = nullptr;
@@ -1503,11 +1511,15 @@ TEST_F(PeerConnectionIceConfigTest, SetStunCandidateKeepaliveInterval) {
   config.ice_candidate_pool_size = 1;
   CreatePeerConnection(config);
   ASSERT_NE(port_allocator_, nullptr);
-  EXPECT_EQ(port_allocator_->stun_candidate_keepalive_interval(),
+  EXPECT_EQ(network_thread_->BlockingCall([this] {
+    return port_allocator_->stun_candidate_keepalive_interval();
+  }),
             TimeDelta::Millis(123));
   config.stun_candidate_keepalive_interval = 321;
   ASSERT_TRUE(pc_->SetConfiguration(config).ok());
-  EXPECT_EQ(port_allocator_->stun_candidate_keepalive_interval(),
+  EXPECT_EQ(network_thread_->BlockingCall([this] {
+    return port_allocator_->stun_candidate_keepalive_interval();
+  }),
             TimeDelta::Millis(321));
 }
 
@@ -1551,9 +1563,11 @@ TEST_P(PeerConnectionIceTest, IceCredentialsCreateOffer) {
   auto pc = CreatePeerConnectionWithAudioVideo(config);
   ASSERT_NE(pc->GetInternalPeerConnection()->port_allocator(), nullptr);
   std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
-  auto credentials = pc->GetInternalPeerConnection()
-                         ->port_allocator()
-                         ->GetPooledIceCredentials();
+  auto credentials = pc->network_thread()->BlockingCall([&] {
+    return pc->GetInternalPeerConnection()
+        ->port_allocator()
+        ->GetPooledIceCredentials();
+  });
   ASSERT_EQ(1u, credentials.size());
 
   auto* desc = offer->description();
@@ -1574,9 +1588,11 @@ TEST_P(PeerConnectionIceTest, IceCredentialsCreateAnswer) {
   ASSERT_TRUE(pc->SetRemoteDescription(std::move(offer)));
   std::unique_ptr<SessionDescriptionInterface> answer = pc->CreateAnswer();
 
-  auto credentials = pc->GetInternalPeerConnection()
-                         ->port_allocator()
-                         ->GetPooledIceCredentials();
+  auto credentials = pc->network_thread()->BlockingCall([&] {
+    return pc->GetInternalPeerConnection()
+        ->port_allocator()
+        ->GetPooledIceCredentials();
+  });
   ASSERT_EQ(1u, credentials.size());
 
   auto* desc = answer->description();

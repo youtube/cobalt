@@ -353,7 +353,7 @@ bool RtpPacketizerVp9::NextPacket(RtpPacketToSend* packet) {
     return false;
 
   memcpy(buffer + header_size, remaining_payload_.data(), packet_payload_len);
-  remaining_payload_ = remaining_payload_.subview(packet_payload_len);
+  remaining_payload_ = remaining_payload_.subspan(packet_payload_len);
 
   // Ensure end_of_picture is always set on top spatial layer when it is not
   // dropped.

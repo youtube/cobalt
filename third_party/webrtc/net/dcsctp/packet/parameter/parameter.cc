@@ -43,12 +43,12 @@ std::vector<ParameterDescriptor> Parameters::descriptors() const {
     BoundedByteReader<kParameterHeaderSize> header(span);
     uint16_t type = header.Load16<0>();
     uint16_t length = header.Load16<2>();
-    result.emplace_back(type, span.subview(0, length));
+    result.emplace_back(type, span.subspan(0, length));
     size_t length_with_padding = RoundUpTo4(length);
     if (length_with_padding > span.size()) {
       break;
     }
-    span = span.subview(length_with_padding);
+    span = span.subspan(length_with_padding);
   }
   return result;
 }
@@ -72,7 +72,7 @@ std::optional<Parameters> Parameters::Parse(
     if (length_with_padding > span.size()) {
       break;
     }
-    span = span.subview(length_with_padding);
+    span = span.subspan(length_with_padding);
   }
   return Parameters(std::vector<uint8_t>(data.begin(), data.end()));
 }

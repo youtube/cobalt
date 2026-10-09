@@ -240,23 +240,23 @@ TEST(RtpPacketizerH264Test, StapA) {
             kNalHeaderSize + 3 * kLengthFieldLength + 2 + 2 + 0x123);
 
   EXPECT_EQ(payload[0], kStapA);
-  payload = payload.subview(kNalHeaderSize);
+  payload = payload.subspan(kNalHeaderSize);
   // 1st fragment.
-  EXPECT_THAT(payload.subview(0, kLengthFieldLength),
+  EXPECT_THAT(payload.subspan(0, kLengthFieldLength),
               ElementsAre(0, 2));  // Size.
-  EXPECT_THAT(payload.subview(kLengthFieldLength, 2),
+  EXPECT_THAT(payload.subspan(kLengthFieldLength, 2),
               ElementsAreArray(nalus[0]));
-  payload = payload.subview(kLengthFieldLength + 2);
+  payload = payload.subspan(kLengthFieldLength + 2);
   // 2nd fragment.
-  EXPECT_THAT(payload.subview(0, kLengthFieldLength),
+  EXPECT_THAT(payload.subspan(0, kLengthFieldLength),
               ElementsAre(0, 2));  // Size.
-  EXPECT_THAT(payload.subview(kLengthFieldLength, 2),
+  EXPECT_THAT(payload.subspan(kLengthFieldLength, 2),
               ElementsAreArray(nalus[1]));
-  payload = payload.subview(kLengthFieldLength + 2);
+  payload = payload.subspan(kLengthFieldLength + 2);
   // 3rd fragment.
-  EXPECT_THAT(payload.subview(0, kLengthFieldLength),
+  EXPECT_THAT(payload.subspan(0, kLengthFieldLength),
               ElementsAre(0x1, 0x23));  // Size.
-  EXPECT_THAT(payload.subview(kLengthFieldLength), ElementsAreArray(nalus[2]));
+  EXPECT_THAT(payload.subspan(kLengthFieldLength), ElementsAreArray(nalus[2]));
 }
 
 TEST(RtpPacketizerH264Test, SingleNalUnitModeHasNoStapA) {
@@ -399,30 +399,30 @@ TEST(RtpPacketizerH264Test, MixedStapAFUA) {
 
   ASSERT_THAT(packets, SizeIs(3));
   // First expect two FU-A packets.
-  EXPECT_THAT(packets[0].payload().subview(0, kFuAHeaderSize),
+  EXPECT_THAT(packets[0].payload().subspan(0, kFuAHeaderSize),
               ElementsAre(kFuA, kH264SBit | nalus[0][0]));
   EXPECT_THAT(
-      packets[0].payload().subview(kFuAHeaderSize),
+      packets[0].payload().subspan(kFuAHeaderSize),
       ElementsAreArray(nalus[0].data() + kNalHeaderSize, kFuaPayloadSize));
 
-  EXPECT_THAT(packets[1].payload().subview(0, kFuAHeaderSize),
+  EXPECT_THAT(packets[1].payload().subspan(0, kFuAHeaderSize),
               ElementsAre(kFuA, kH264EBit | nalus[0][0]));
   EXPECT_THAT(
-      packets[1].payload().subview(kFuAHeaderSize),
+      packets[1].payload().subspan(kFuAHeaderSize),
       ElementsAreArray(nalus[0].data() + kNalHeaderSize + kFuaPayloadSize,
                        kFuaPayloadSize));
 
   // Then expect one STAP-A packet with two nal units.
   EXPECT_THAT(packets[2].payload()[0], kStapA);
-  auto payload = packets[2].payload().subview(kNalHeaderSize);
-  EXPECT_THAT(payload.subview(0, kLengthFieldLength),
+  auto payload = packets[2].payload().subspan(kNalHeaderSize);
+  EXPECT_THAT(payload.subspan(0, kLengthFieldLength),
               ElementsAre(0, kStapANaluSize));
-  EXPECT_THAT(payload.subview(kLengthFieldLength, kStapANaluSize),
+  EXPECT_THAT(payload.subspan(kLengthFieldLength, kStapANaluSize),
               ElementsAreArray(nalus[1]));
-  payload = payload.subview(kLengthFieldLength + kStapANaluSize);
-  EXPECT_THAT(payload.subview(0, kLengthFieldLength),
+  payload = payload.subspan(kLengthFieldLength + kStapANaluSize);
+  EXPECT_THAT(payload.subspan(0, kLengthFieldLength),
               ElementsAre(0, kStapANaluSize));
-  EXPECT_THAT(payload.subview(kLengthFieldLength), ElementsAreArray(nalus[2]));
+  EXPECT_THAT(payload.subspan(kLengthFieldLength), ElementsAreArray(nalus[2]));
 }
 
 TEST(RtpPacketizerH264Test, LastFragmentFitsInSingleButNotLastPacket) {

@@ -383,6 +383,9 @@ bool EntityTable::AddOrUpdateEntityMetadata(
 }
 
 bool EntityTable::AddEntityInstance(const EntityInstance& entity) {
+  // Unmasked server entities must never be persisted on disk.
+  CHECK(!entity.IsUnmaskedServerEntity());
+
   HandleTestSwitchesIfNeeded(db(), *this);
 
   sql::Transaction transaction(db());
@@ -520,6 +523,18 @@ std::optional<EntityInstance::EntityMetadata> EntityTable::GetEntityMetadata(
                                         .date_modified = date_modified,
                                         .use_count = use_count,
                                         .use_date = use_date};
+}
+
+std::optional<EntityType> EntityTable::GetEntityType(
+    const EntityInstance::EntityId& guid) const {
+  sql::Statement s;
+  SelectBuilder(db(), s, entities::kTableName, {entities::kEntityType},
+                "WHERE guid = ?");
+  s.BindString(0, *guid);
+  if (!s.Step()) {
+    return std::nullopt;
+  }
+  return StringToEntityType(s.ColumnString(0));
 }
 
 std::map<EntityInstance::EntityId, EntityInstance::EntityMetadata>
@@ -707,7 +722,7 @@ std::optional<EntityInstance> EntityTable::ValidateInstance(
   }
 
   std::vector<AttributeInstance> attributes;
-
+  attributes.reserve(attribute_records.size());
   for (const auto& [attribute_type_name, records] : attribute_records) {
     if (std::optional<AttributeType> attribute_type =
             StringToAttributeType(*entity_type, attribute_type_name)) {
@@ -725,8 +740,13 @@ std::optional<EntityInstance> EntityTable::ValidateInstance(
     }
   }
 
+  const bool mask_obfuscated_attributes =
+      IsMaskedStorageSupported(*entity_type, *record_type);
   for (AttributeInstance& attribute : attributes) {
     attribute.FinalizeInfo();
+    if (mask_obfuscated_attributes && attribute.type().is_obfuscated()) {
+      attribute.mark_as_masked({});
+    }
   }
 
   // Remove attributes that don't belong to the entity according to the schema.

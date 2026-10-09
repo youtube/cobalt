@@ -124,7 +124,7 @@
 #endif
 
 #if (BUILDFLAG(ENABLE_VULKAN) || BUILDFLAG(SKIA_USE_DAWN)) && \
-    BUILDFLAG(IS_OZONE_X11)
+    BUILDFLAG(SUPPORTS_OZONE_X11)
 #include "components/viz/service/display_embedder/skia_output_device_x11.h"
 #endif
 
@@ -1571,7 +1571,7 @@ void SkiaOutputSurfaceImplOnGpu::CopyOutputNV12(
       for (size_t i = 0; i < CopyOutputResult::kNV12MaxPlanes; ++i) {
         SkISize size(plane_surfaces[i]->width(), plane_surfaces[i]->height());
         SkImageInfo dst_info = SkImageInfo::Make(
-            size, (i == 0) ? kAlpha_8_SkColorType : kR8G8_unorm_SkColorType,
+            size, (i == 0) ? kR8_unorm_SkColorType : kR8G8_unorm_SkColorType,
             kUnpremul_SkAlphaType);
 
         auto context =
@@ -2105,7 +2105,7 @@ bool SkiaOutputSurfaceImplOnGpu::InitializeForVulkan() {
         GetDidSwapBuffersCompleteCallback());
   }
   if (MayFallBackToSkiaOutputDeviceX11()) {
-#if BUILDFLAG(IS_OZONE_X11)
+#if BUILDFLAG(SUPPORTS_OZONE_X11)
     if (output_device) {
       output_device_ = std::move(output_device);
     } else {
@@ -2117,7 +2117,7 @@ bool SkiaOutputSurfaceImplOnGpu::InitializeForVulkan() {
     if (output_device_) {
       return true;
     }
-#endif  // BUILDFLAG(IS_OZONE_X11)
+#endif  // BUILDFLAG(SUPPORTS_OZONE_X11)
   }
   if (!output_device) {
     return false;
@@ -2149,7 +2149,7 @@ bool SkiaOutputSurfaceImplOnGpu::InitializeForDawn() {
     return true;
   }
 
-#if BUILDFLAG(IS_OZONE_X11)
+#if BUILDFLAG(SUPPORTS_OZONE_X11)
   // TODO(rivr): Set up a Vulkan swapchain so that Linux can also use
   // SkiaOutputDeviceDawn.
   if (MayFallBackToSkiaOutputDeviceX11()) {

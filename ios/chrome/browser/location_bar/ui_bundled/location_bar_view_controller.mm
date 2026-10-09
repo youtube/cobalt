@@ -54,6 +54,7 @@
 #import "ios/chrome/browser/shared/ui/util/layout_guide_names.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/browser/shared/ui/util/util_swift.h"
+#import "ios/chrome/browser/sharing/ui_bundled/sharing_metrics.h"
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/public/toolbar_type.h"
 #import "ios/chrome/common/NSString+Chromium.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
@@ -685,7 +686,7 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
     case kShareButton: {
       [self.locationBarSteadyView.trailingButton
                  addTarget:self.dispatcher
-                    action:@selector(showShareSheet)
+                    action:@selector(showShareSheetFromShareButton:)
           forControlEvents:UIControlEventTouchUpInside];
 
       // Add self as a target to collect the metrics.
@@ -769,6 +770,11 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
   }
   _trailingButtonState = state;
 
+  if (state == kShareButton) {
+    base::UmaHistogramEnumeration("Mobile.ShareThisPage.Shown",
+                                  ShareThisPageLocation::kLocationBar);
+  }
+
   [self updateTrailingButton];
 }
 
@@ -785,6 +791,8 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
 // here.
 - (void)shareButtonPressed {
   RecordAction(UserMetricsAction("MobileToolbarShareMenu"));
+  base::UmaHistogramEnumeration("Mobile.ShareThisPage.Used",
+                                ShareThisPageLocation::kLocationBar);
   [self.delegate recordShareButtonPressed];
 }
 
@@ -818,6 +826,8 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
   __weak __typeof__(self) weakSelf = self;
 
   if (base::FeatureList::IsEnabled(kShareInOmniboxLongPress)) {
+    base::UmaHistogramEnumeration("Mobile.ShareThisPage.Shown",
+                                  ShareThisPageLocation::kOmniboxLongPress);
     UIImage* image =
         DefaultSymbolWithPointSize(kShareSymbol, kSymbolImagePointSize);
 
@@ -827,7 +837,7 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
                             image:image
                        identifier:nil
                           handler:^(UIAction* action) {
-                            [weakSelf.dispatcher showShareSheet];
+                            [weakSelf shareThisPage];
                           }];
 
     UIMenu* divider = [UIMenu menuWithTitle:@""
@@ -1070,6 +1080,13 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
           [self.dispatcher hideComposebox];
         });
       }));
+}
+
+/// Shows the Share this page sheet.
+- (void)shareThisPage {
+  base::UmaHistogramEnumeration("Mobile.ShareThisPage.Used",
+                                ShareThisPageLocation::kOmniboxLongPress);
+  [self.dispatcher showShareSheetFromShareButton:_locationBarSteadyView];
 }
 
 /// Set the preferred omnibox position to `toolbarType`.

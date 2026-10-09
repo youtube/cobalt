@@ -197,7 +197,6 @@ class ExceptionHandlerInfo;
   V(MapPrototypeGet)                \
   V(MapPrototypeGetInt32Key)        \
   V(SetPrototypeHas)                \
-  V(StringSlice)                    \
   V(ObjectIsArray)
 
 #define TURBOLEV_NON_VALUE_NODE_LIST(V) \
@@ -382,6 +381,7 @@ class ExceptionHandlerInfo;
   V(VirtualObject)                                                    \
   V(GetContinuationPreservedEmbedderData)                             \
   V(ReturnedValue)                                                    \
+  V(StringSlice)                                                      \
   CONSTANT_VALUE_NODE_LIST(V)                                         \
   CONVERSION_NODE_LIST(V)                                             \
   INT32_OPERATIONS_NODE_LIST(V)                                       \
@@ -3093,33 +3093,6 @@ class BinaryWithFeedbackNode : public FixedInputValueNodeT<2, Derived> {
   const compiler::FeedbackSource feedback_;
 };
 
-#define DEF_OPERATION_WITH_FEEDBACK_NODE(Name, Super, OpName)         \
-  class Name : public Super<Name, Operation::k##OpName> {             \
-    using Base = Super<Name, Operation::k##OpName>;                   \
-                                                                      \
-   public:                                                            \
-    Name(uint64_t bitfield, const compiler::FeedbackSource& feedback) \
-        : Base(bitfield, feedback) {}                                 \
-    int MaxCallStackArgs() const { return 0; }                        \
-    void SetValueLocationConstraints();                               \
-    void GenerateCode(MaglevAssembler*, const ProcessingState&);      \
-  };
-
-#define DEF_UNARY_WITH_FEEDBACK_NODE(Name) \
-  DEF_OPERATION_WITH_FEEDBACK_NODE(Generic##Name, UnaryWithFeedbackNode, Name)
-#define DEF_BINARY_WITH_FEEDBACK_NODE(Name) \
-  DEF_OPERATION_WITH_FEEDBACK_NODE(Generic##Name, BinaryWithFeedbackNode, Name)
-UNARY_OPERATION_LIST(DEF_UNARY_WITH_FEEDBACK_NODE)
-ARITHMETIC_OPERATION_LIST(DEF_BINARY_WITH_FEEDBACK_NODE)
-DEF_BINARY_WITH_FEEDBACK_NODE(Equal)
-DEF_BINARY_WITH_FEEDBACK_NODE(LessThan)
-DEF_BINARY_WITH_FEEDBACK_NODE(LessThanOrEqual)
-DEF_BINARY_WITH_FEEDBACK_NODE(GreaterThan)
-DEF_BINARY_WITH_FEEDBACK_NODE(GreaterThanOrEqual)
-#undef DEF_UNARY_WITH_FEEDBACK_NODE
-#undef DEF_BINARY_WITH_FEEDBACK_NODE
-#undef DEF_OPERATION_WITH_FEEDBACK_NODE
-
 template <class Derived, Operation kOperation>
 class BinaryWithEmbeddedFeedbackNode : public FixedInputValueNodeT<2, Derived> {
   using Base = FixedInputValueNodeT<2, Derived>;
@@ -3138,26 +3111,51 @@ class BinaryWithEmbeddedFeedbackNode : public FixedInputValueNodeT<2, Derived> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const {}
 
   const compiler::EmbeddedFeedbackSource feedback_;
 };
 
-class GenericStrictEqual
-    : public BinaryWithEmbeddedFeedbackNode<GenericStrictEqual,
-                                            Operation::kStrictEqual> {
-  using Base = BinaryWithEmbeddedFeedbackNode<GenericStrictEqual,
-                                              Operation::kStrictEqual>;
+#define DEF_OPERATION_WITH_FEEDBACK_NODE(Name, Super, OpName)         \
+  class Name : public Super<Name, Operation::k##OpName> {             \
+    using Base = Super<Name, Operation::k##OpName>;                   \
+                                                                      \
+   public:                                                            \
+    Name(uint64_t bitfield, const compiler::FeedbackSource& feedback) \
+        : Base(bitfield, feedback) {}                                 \
+    int MaxCallStackArgs() const { return 0; }                        \
+    void SetValueLocationConstraints();                               \
+    void GenerateCode(MaglevAssembler*, const ProcessingState&);      \
+  };
 
- public:
-  explicit GenericStrictEqual(uint64_t bitfield,
-                              const compiler::EmbeddedFeedbackSource& feedback)
-      : Base(bitfield, feedback) {}
-  int MaxCallStackArgs() const { return 0; }
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const {}
-};
+#define DEF_OPERATION_WITH_EMBEDDED_FEEDBACK_NODE(Name, Super, OpName)        \
+  class Name : public Super<Name, Operation::k##OpName> {                     \
+    using Base = Super<Name, Operation::k##OpName>;                           \
+                                                                              \
+   public:                                                                    \
+    Name(uint64_t bitfield, const compiler::EmbeddedFeedbackSource& feedback) \
+        : Base(bitfield, feedback) {}                                         \
+    int MaxCallStackArgs() const { return 0; }                                \
+    void SetValueLocationConstraints();                                       \
+    void GenerateCode(MaglevAssembler*, const ProcessingState&);              \
+  };
+
+#define DEF_UNARY_WITH_FEEDBACK_NODE(Name) \
+  DEF_OPERATION_WITH_FEEDBACK_NODE(Generic##Name, UnaryWithFeedbackNode, Name)
+#define DEF_BINARY_WITH_FEEDBACK_NODE(Name) \
+  DEF_OPERATION_WITH_FEEDBACK_NODE(Generic##Name, BinaryWithFeedbackNode, Name)
+#define DEF_BINARY_WITH_EMBEDDED_FEEDBACK_NODE(Name) \
+  DEF_OPERATION_WITH_EMBEDDED_FEEDBACK_NODE(         \
+      Generic##Name, BinaryWithEmbeddedFeedbackNode, Name)
+
+UNARY_OPERATION_LIST(DEF_UNARY_WITH_FEEDBACK_NODE)
+ARITHMETIC_OPERATION_LIST(DEF_BINARY_WITH_FEEDBACK_NODE)
+COMPARISON_OPERATION_LIST(DEF_BINARY_WITH_EMBEDDED_FEEDBACK_NODE)
+
+#undef DEF_UNARY_WITH_FEEDBACK_NODE
+#undef DEF_BINARY_WITH_FEEDBACK_NODE
+#undef DEF_BINARY_WITH_EMBEDDED_FEEDBACK_NODE
+#undef DEF_OPERATION_WITH_FEEDBACK_NODE
+#undef DEF_OPERATION_WITH_EMBEDDED_FEEDBACK_NODE
 
 template <class Derived, Operation kOperation>
 class Int32BinaryWithOverflowNode : public FixedInputValueNodeT<2, Derived> {
@@ -7576,10 +7574,7 @@ class StringSlice : public FixedInputValueNodeT<3, StringSlice> {
       OpProperties::Call() | OpProperties::CanAllocate() |
       OpProperties::CanRead() | OpProperties::TaggedValue();
 
-  int MaxCallStackArgs() const {
-    // Only implemented in Turbolev.
-    UNREACHABLE();
-  }
+  int MaxCallStackArgs() const { return 0; }
 
   DECLARE_INPUTS(String, StartIndex, EndIndex)
   DECLARE_INPUT_TYPES(Tagged, Int32, Int32)

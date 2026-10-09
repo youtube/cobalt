@@ -42,6 +42,7 @@ Sumir eiginleikar kunna að vera óaðgengilegir og breytingar á kjörstillingu
 <translation id="137466361146087520">Google Chrome Beta</translation>
 <translation id="1383876407941801731">Leita</translation>
 <translation id="1399397803214730675">Þessi tölva er þegar búin nýrri útgáfu af Google Chrome. Ef hugbúnaðurinn virkar ekki skaltu fjarlægja Google Chrome og reyna aftur.</translation>
+<translation id="1404026649028693342">Alltaf sýna gervigreindarstillingu</translation>
 <translation id="141901961143729572">Segðu skoðun þína</translation>
 <translation id="1425903838053942728">{COUNT,plural, =0{Chrome-uppfærslu er lokið. Þú getur notað nýju útgáfuna um leið og þú hefur endurræst. Núverandi flipar opnast aftur þegar endurræsingu er lokið.}=1{Chrome-uppfærslu er lokið. Þú getur notað nýju útgáfuna um leið og þú hefur endurræst. Núverandi flipar opnast aftur þegar endurræsingu er lokið. Huliðsglugginn opnast ekki aftur.}one{Chrome-uppfærslu er lokið. Þú getur notað nýju útgáfuna um leið og þú hefur endurræst. Núverandi flipar opnast aftur þegar endurræsingu er lokið. # huliðsgluggi opnast ekki aftur.}other{Chrome-uppfærslu er lokið. Þú getur notað nýju útgáfuna um leið og þú hefur endurræst. Núverandi flipar opnast aftur þegar endurræsingu er lokið. # huliðsgluggar opnast ekki aftur.}}</translation>
 <translation id="1434626383986940139">Chrome Canary forrit</translation>
@@ -66,6 +67,7 @@ Sumir eiginleikar kunna að vera óaðgengilegir og breytingar á kjörstillingu
 <translation id="1640672724030957280">Sækir...</translation>
 <translation id="1651617469580841801">Þegar þú notar Google-linsu verða titill síðu, vefslóð og innihald, að meðtöldum PDF-skjölum, send til Google. <ph name="LEARN_MORE" /></translation>
 <translation id="1662146548738125461">Um ChromeOS Flex</translation>
+<translation id="1665867022636014702">Notaðu ráðlagðar vafrastillingar Google</translation>
 <translation id="1674870198290878346">Opna tengil í h&amp;uliðsglugga í Chrome</translation>
 <translation id="1682634494516646069">Google Chrome getur ekki lesið eða skrifað í gagnamöppu sína:
 
@@ -101,6 +103,7 @@ Sumir eiginleikar kunna að vera óaðgengilegir og breytingar á kjörstillingu
 <translation id="2026377840141807639">Chrome-prófílar gera þér kleift að halda persónulegri vefskoðun og vinnu aðskildu. Bættu nýjum prófíl við núna.</translation>
 <translation id="2034233344106846793">Chrome uppfærir óöruggar tengingar sjálfkrafa í HTTPS þegar hægt er</translation>
 <translation id="2039417478970545937">Stillingar.</translation>
+<translation id="2066690553719545730">Alltaf sýna gervigreindarstillingu</translation>
 <translation id="2091012649849228750">Til að fá frekari uppfærslur á Google Chrome þarftu Windows 10 eða nýrri útgáfu. Þessi tölva notar Windows 8.</translation>
 <translation id="2094648590148273905">Skilmálar ChromeOS Flex</translation>
 <translation id="2094919256425865063">Viltu samt loka Chrome?</translation>
@@ -204,6 +207,7 @@ Sumir eiginleikar kunna að vera óaðgengilegir og breytingar á kjörstillingu
 <translation id="308397506772922478">Ef þú gleymdir aðgangsorðinu eða vilt breyta þessari stillingu skaltu <ph name="BEGIN_LINK" />eyða Chrome-gögnunum á reikningnum þínum<ph name="END_LINK" /></translation>
 <translation id="3100998948628680988">Gefðu Chrome prófílnum þínum heiti</translation>
 <translation id="310459126943037700">Ekki tókst að ljúka verkefni/verkefnum.</translation>
+<translation id="3104828284009500087">Leitaðu að hverju sem er á síðunni</translation>
 <translation id="3112458742631356345">Chrome lokaði á þetta niðurhal vegna þess að skráin er ekki sótt oft og gæti verið hættuleg</translation>
 <translation id="3114643501466072395"><ph name="BEGIN_LINK" />Skráðu þig inn á Chrome<ph name="END_LINK" /> til að athuga hvort hin aðgangsorðin þín séu óhult fyrir öryggisbrotum og öðrum öryggisvandamálum.</translation>
 <translation id="3119573284443908657">Chrome lokaði á þetta niðurhal vegna þess að safnskráin getur innihaldið aðrar skrár sem geta falið spilliforrit</translation>
@@ -358,6 +362,7 @@ Sumir eiginleikar kunna að vera óaðgengilegir og breytingar á kjörstillingu
 <translation id="4885446229353981848">Alltaf sýna flýtileið Google-linsu</translation>
 <translation id="4891791193823137474">Leyfa Google Chrome að keyra í bakgrunni</translation>
 <translation id="4895437082222824641">Opna tengil í nýjum Chrome &amp;flipa</translation>
+<translation id="4896867431081882115">Fáðu greiðan aðgang að eiginleikunum sem þú þekkir, elskar og treystir með því að stilla Chrome sem sjálfgefinn vafra. Chrome verður festur við forritastikuna þína til að auðvelda aðgang.</translation>
 <translation id="4918086044614829423">Samþykkja</translation>
 <translation id="4918844574251943176">Mynd afrituð</translation>
 <translation id="4926882258455737990">Til að nota annan Google-reikning með Gemini í Chrome skaltu <ph name="BEGIN_LINK" />búa til nýjan prófíl<ph name="END_LINK" /> og skrá þig inn með reikningnum sem þú vilt nota</translation>
@@ -399,7 +404,6 @@ Sumir eiginleikar kunna að vera óaðgengilegir. Tilgreindu aðra prófílmöpp
 <translation id="5334309298019785904">ChromeOS gat ekki samstillt gögnin þín vegna þess að samstilling er ekki í boði fyrir lénið þitt.</translation>
 <translation id="5334487786912937552">Chrome verður að fá aðgang að geymslurými til að geta sótt skrár</translation>
 <translation id="5337648990166757586">Valfrjálst: Hjálpa til við að bæta eiginleika og afköst ChromeOS með því að senda greiningar- og notkunargögn sjálfkrafa til Google.</translation>
-<translation id="5346059693449184483">Hvað liggur þér á hjarta?</translation>
 <translation id="5346389065299425353">Dýpkaðu leitina þína með því að bæta við mörgum flipum, skrám og verkfærum</translation>
 <translation id="5353252989841766347">Flytja út aðgangsorð úr Chrome</translation>
 <translation id="5368118228313795342">Viðbótarkóði: <ph name="EXTRA_CODE" />.</translation>
@@ -509,7 +513,6 @@ Google Chrome getur ekki endurheimt stillingarnar þínar.</translation>
 <translation id="6321592572353357376">Viðbótin „<ph name="EXTENSION_NAME" />“ vill að þú skráir þig inn á Chrome</translation>
 <translation id="6326175484149238433">Fjarlægja úr Chrome</translation>
 <translation id="6327105987658262776">Uppfærsla er ekki tiltæk.</translation>
-<translation id="6333195756043503664">Opna Chrome þegar kveikt er á tölvunni</translation>
 <translation id="6334815226785304306">Gera Google Chrome að sjálfgefnum vafra og festa við forritastikuna</translation>
 <translation id="63540178978900677">Chrome er ekki lengur sjálfgefni vafrinn þinn. Gera Chrome að sjálfgefnum vafra?</translation>
 <translation id="6360449101159168105">Meðan þessi flipi var óvirkur var losað um minni til að gera Chrome hraðari. Þú getur valið að undanskilja þetta vefsvæði alltaf frá því að vera óvirkt.</translation>
@@ -562,6 +565,7 @@ Google Chrome getur ekki endurheimt stillingarnar þínar.</translation>
 <translation id="6885412569789873916">Chrome Beta forrit</translation>
 <translation id="6893363893008038481">Fjarlægja reikning úr Chrome</translation>
 <translation id="6896758677409633944">Afrita</translation>
+<translation id="6908182077349113099">Haltu aðgangsorðunum þínum, bókamerkjum og ferli fullkomlega samstilltum á milli tækja. Fáðu greiðan aðgang að eiginleikunum sem þú þekkir og elskar með því að uppfæra sjálfgefna vafrann þinn í Chrome.</translation>
 <translation id="6930294499209825">Heldur Google-hugbúnaðinum þínum uppfærðum. Ef slökkt er á þessari þjónustu eða hún stöðvuð verður Google-hugbúnaðinum þínum ekki haldið uppfærðum sem þýðir að ekki verður hægt að lagfæra öryggisveikleika sem kunna að koma upp og tilteknir eiginleikar virka hugsanlega ekki sem skyldi. Þjónustan fjarlægist sjálfkrafa ef enginn Google-hugbúnaður er að nota hana.</translation>
 <translation id="6933858244219479645">ChromeOS-kerfi</translation>
 <translation id="6938166777909186039">Til að fá frekari uppfærslur á Google Chrome þarftu Windows 10 eða nýrri útgáfu. Þessi tölva notar Windows 8.1.</translation>
@@ -693,7 +697,6 @@ Google Chrome getur ekki endurheimt stillingarnar þínar.</translation>
 <translation id="8162006532256575008">Nota Chrome án reiknings</translation>
 <translation id="8177472873527554730">Ekki tókst að finna efni á síðu</translation>
 <translation id="8221491193165283816">Þú lokar yfirleitt á tilkynningar. Ef þú vilt leyfa þessu vefsvæði að birta þér tilkynningar skaltu smella hér.</translation>
-<translation id="8223142476690844338">Hæ <ph name="USER_NAME" />, hvað liggur þér á hjarta?</translation>
 <translation id="8255190535488645436">Google Chrome er að nota myndavélina þína og hljóðnema.</translation>
 <translation id="8267953129876836456">Chrome fann öryggistillögur sem þú þarft að fara yfir</translation>
 <translation id="8286862437124483331">Google Chrome er að reyna að sýna aðgangsorð. Sláðu inn Windows-aðgangsorðið þitt til að heimila þetta.</translation>

@@ -93,6 +93,15 @@ CompositingReasons CompositingReasonsForWillChange(const ComputedStyle& style) {
   if (style.HasWillChangeMixBlendModeHint()) {
     reasons |= CompositingReason::kWillChangeMixBlendMode;
   }
+  // Even though 'mask' generally implies mask-image, will-change treats them
+  // separately, so we need to check them both to get accurate backdrop filter
+  // reasons.
+  if (style.HasWillChangeMaskHint()) {
+    reasons |= CompositingReason::kWillChangeMask;
+  }
+  if (style.HasWillChangeMaskImageHint()) {
+    reasons |= CompositingReason::kWillChangeMaskImage;
+  }
 
   // kWillChangeOther is needed only when none of the explicit kWillChange*
   // reasons are set.
@@ -331,20 +340,29 @@ bool IsEligibleForElementCapture(const LayoutObject& object) {
 CompositingReasons CompositingReasonFinder::DirectReasonsForPaintProperties(
     const LayoutObject& object,
     const LayoutObject* container_for_fixed_position) {
-  if (object.GetDocument().Printing())
+  if (object.GetDocument().Printing()) {
     return CompositingReason::kNone;
+  }
+
+  CompositingReasons reasons = CompositingReason::kNone;
 
   auto* element = DynamicTo<Element>(object.GetNode());
   if (element && RuntimeEnabledFeatures::CanvasDrawElementEnabled()) {
-    if (auto* canvas = DynamicTo<HTMLCanvasElement>(
-            element->ParentOrShadowHostNode())) [[unlikely]] {
-      if (canvas->layoutSubtree()) {
-        return CompositingReason::kCanvasChild;
+    if (element->IsInCanvasSubtree()) [[unlikely]] {
+      auto* canvas_parent =
+          DynamicTo<HTMLCanvasElement>(element->parentElement());
+      if (canvas_parent && canvas_parent->layoutSubtree() &&
+          !canvas_parent->IsInCanvasSubtree()) {
+        reasons |= CompositingReason::kCanvasChild;
+      } else {
+        // Disable compositing for elements in canvas subtrees other than the
+        // direct children of the outermost canvas element.
+        return CompositingReason::kNone;
       }
     }
   }
 
-  auto reasons = CompositingReasonsFor3DSceneLeaf(object);
+  reasons |= CompositingReasonsFor3DSceneLeaf(object);
 
   if (object.CanHaveAdditionalCompositingReasons())
     reasons |= object.AdditionalCompositingReasons();

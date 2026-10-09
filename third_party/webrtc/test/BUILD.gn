@@ -608,11 +608,13 @@ if (rtc_include_tests) {
       ]
 
       deps = [
+        ":create_test_environment",
         ":fileutils",
         ":perf_test",
         ":resources_dir_flag",
         ":test_flags",
         ":test_support",
+        "../api/environment",
         "../api/test/metrics:chrome_perf_dashboard_metrics_exporter",
         "../api/test/metrics:global_metrics_logger_and_exporter",
         "../api/test/metrics:metric",
@@ -1011,6 +1013,7 @@ rtc_library("direct_transport") {
     "../api:sequence_checker",
     "../api:simulated_network_api",
     "../api:transport_api",
+    "../api/environment",
     "../api/task_queue",
     "../api/units:time_delta",
     "../api/units:timestamp",
@@ -1024,6 +1027,7 @@ rtc_library("direct_transport") {
     "../rtc_base/network:sent_packet",
     "../rtc_base/synchronization:mutex",
     "../rtc_base/task_utils:repeating_task",
+    "../system_wrappers",
   ]
   public_deps +=  # no-presubmit-check TODO(webrtc:8603)
       [ "../call:fake_network" ]

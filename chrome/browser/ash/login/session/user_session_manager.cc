@@ -57,6 +57,7 @@
 #include "chrome/browser/ash/arc/arc_util.h"
 #include "chrome/browser/ash/base/locale_util.h"
 #include "chrome/browser/ash/boot_times_recorder/boot_times_recorder.h"
+#include "chrome/browser/ash/browser_delegate/browser_controller.h"
 #include "chrome/browser/ash/child_accounts/child_policy_observer.h"
 #include "chrome/browser/ash/drive/file_system_util.h"
 #include "chrome/browser/ash/eol/eol_notification.h"
@@ -112,7 +113,6 @@
 #include "chrome/browser/first_run/first_run.h"
 #include "chrome/browser/global_features.h"
 #include "chrome/browser/lifetime/application_lifetime.h"
-#include "chrome/browser/lifetime/browser_shutdown.h"
 #include "chrome/browser/metrics/first_web_contents_profiler.h"
 #include "chrome/browser/prefs/session_startup_pref.h"
 #include "chrome/browser/profiles/profile.h"
@@ -1159,9 +1159,9 @@ void UserSessionManager::OnSessionRestoreStateChanged(
 }
 
 void UserSessionManager::OnConnectionChanged(
-    network::mojom::ConnectionType type) {
+    net::NetworkChangeNotifier::ConnectionType type) {
   user_manager::UserManager* user_manager = user_manager::UserManager::Get();
-  if (type == network::mojom::ConnectionType::CONNECTION_NONE ||
+  if (type == net::NetworkChangeNotifier::ConnectionType::CONNECTION_NONE ||
       !user_manager->IsUserLoggedIn() ||
       !user_manager->IsLoggedInAsUserWithGaiaAccount() ||
       user_manager->IsLoggedInAsStub() || IsRunningTest()) {
@@ -2402,7 +2402,7 @@ void UserSessionManager::CheckEolInfo(Profile* profile) {
 void UserSessionManager::DoBrowserLaunchInternal(Profile* profile,
                                                  bool locale_pref_checked) {
   TRACE_EVENT0("login", "UserSessionManager::DoBrowserLaunchInternal");
-  if (browser_shutdown::IsTryingToQuit() ||
+  if (ash::BrowserController::GetInstance()->IsTryingToQuit() ||
       ash::SessionTerminationManager::IsSendingStopRequestToSessionManager()) {
     return;
   }
@@ -2524,7 +2524,7 @@ void UserSessionManager::DoBrowserLaunchInternal(Profile* profile,
 void UserSessionManager::RespectLocalePreferenceWrapper(
     Profile* profile,
     base::OnceClosure callback) {
-  if (browser_shutdown::IsTryingToQuit() ||
+  if (ash::BrowserController::GetInstance()->IsTryingToQuit() ||
       ash::SessionTerminationManager::IsSendingStopRequestToSessionManager()) {
     return;
   }

@@ -25,6 +25,7 @@
 #include "modules/audio_processing/aec3/aec3_common.h"
 #include "modules/audio_processing/aec3/fft_data.h"
 #include "modules/audio_processing/aec3/vector_math.h"
+#include "rtc_base/checks.h"
 
 // Defines WEBRTC_ARCH_X86_FAMILY, used below.
 #include "rtc_base/system/arch.h"
@@ -47,7 +48,7 @@ float GetNoiseFloorFactor(float noise_floor_dbfs) {
 
 // Table of sqrt(2) * sin(2*pi*i/32).
 // clang-format off
-constexpr float kSqrt2Sin[32] = {
+constexpr std::array<float,32> kSqrt2Sin = {
     +0.0000000f, +0.2758994f, +0.5411961f, +0.7856950f, +1.0000000f,
     +1.1758756f, +1.3065630f, +1.3870398f, +sqrt2_v<float>, +1.3870398f,
     +1.3065630f, +1.1758756f, +1.0000000f, +0.7856950f, +0.5411961f,
@@ -57,11 +58,36 @@ constexpr float kSqrt2Sin[32] = {
     -0.5411961f, -0.2758994f};
 // clang-format on
 
-void GenerateComfortNoise(Aec3Optimization optimization,
-                          const std::array<float, kFftLengthBy2Plus1>& N2,
-                          uint32_t* seed,
-                          FftData* lower_band_noise,
-                          FftData* upper_band_noise) {
+void GenerateRandomSinTableIndices(
+    uint32_t& seed,
+    ArrayView<int16_t, kFftLengthBy2 - 1> re_sin_table_indices,
+    ArrayView<int16_t, kFftLengthBy2 - 1> im_sin_table_indices) {
+  RTC_DCHECK_EQ(re_sin_table_indices.size(), im_sin_table_indices.size());
+
+  constexpr int32_t kSeedMask = 0x80000000 - 1;
+  constexpr int16_t kImIndexMask = 32 - 1;
+  for (size_t k = 0; k < re_sin_table_indices.size(); ++k) {
+    // Generate a random 31-bit integer.
+    seed = (seed * 69069 + 1) & kSeedMask;
+
+    // Convert to 5-bit indices.
+    int16_t index = seed >> 26;
+    RTC_DCHECK_LT(index, kSqrt2Sin.size());
+    re_sin_table_indices[k] = index;
+
+    index = (re_sin_table_indices[k] + 8) & kImIndexMask;
+    RTC_DCHECK_LT(index, kSqrt2Sin.size());
+    im_sin_table_indices[k] = index;
+  }
+}
+
+void GenerateComfortNoise(
+    Aec3Optimization optimization,
+    const std::array<float, kFftLengthBy2Plus1>& N2,
+    ArrayView<int16_t, kFftLengthBy2 - 1> re_sin_table_indices,
+    ArrayView<int16_t, kFftLengthBy2 - 1> im_sin_table_indices,
+    FftData* lower_band_noise,
+    FftData* upper_band_noise) {
   FftData* N_low = lower_band_noise;
   FftData* N_high = upper_band_noise;
 
@@ -85,16 +111,10 @@ void GenerateComfortNoise(Aec3Optimization optimization,
   N_low->re[0] = N_low->re[kFftLengthBy2] = N_high->re[0] =
       N_high->re[kFftLengthBy2] = 0.f;
   for (size_t k = 1; k < kFftLengthBy2; k++) {
-    constexpr int kIndexMask = 32 - 1;
-    // Generate a random 31-bit integer.
-    seed[0] = (seed[0] * 69069 + 1) & (0x80000000 - 1);
-    // Convert to a 5-bit index.
-    int i = seed[0] >> 26;
-
     // y = sqrt(2) * sin(a)
-    const float x = kSqrt2Sin[i];
+    const float& x = kSqrt2Sin[re_sin_table_indices[k - 1]];
     // x = sqrt(2) * cos(a) = sqrt(2) * sin(a + pi/2)
-    const float y = kSqrt2Sin[(i + 8) & kIndexMask];
+    const float& y = kSqrt2Sin[im_sin_table_indices[k - 1]];
 
     // Form low-frequency noise via spectral shaping.
     N_low->re[k] = N[k] * x;
@@ -185,8 +205,14 @@ void ComfortNoiseGenerator::Compute(
   // Choose N2 estimate to use.
   const auto& N2 = N2_initial_ ? (*N2_initial_) : N2_;
 
+  std::array<int16_t, kFftLengthBy2 - 1> re_sin_table_indices;
+  std::array<int16_t, kFftLengthBy2 - 1> im_sin_table_indices;
+  GenerateRandomSinTableIndices(seed_, re_sin_table_indices,
+                                im_sin_table_indices);
+
   for (size_t ch = 0; ch < num_capture_channels_; ++ch) {
-    GenerateComfortNoise(optimization_, N2[ch], &seed_, &lower_band_noise[ch],
+    GenerateComfortNoise(optimization_, N2[ch], re_sin_table_indices,
+                         im_sin_table_indices, &lower_band_noise[ch],
                          &upper_band_noise[ch]);
   }
 }

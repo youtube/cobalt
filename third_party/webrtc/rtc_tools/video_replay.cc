@@ -11,10 +11,8 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
-#include <fstream>
 #include <map>
 #include <memory>
-#include <sstream>  // no-presubmit-check TODO(webrtc:8982)
 #include <string>
 #include <string_view>
 #include <utility>
@@ -207,6 +205,25 @@ bool ValidateOptionalPayloadType(int32_t payload_type) {
 bool ValidateInputFilenameNotEmpty(const std::string& string) {
   return !string.empty();
 }
+
+std::string ReadFileToString(const std::string& file_path) {
+  FILE* file = fopen(file_path.c_str(), "rb");
+  if (!file) {
+    return "";
+  }
+  fseek(file, 0, SEEK_END);
+  size_t length = static_cast<size_t>(ftell(file));
+  fseek(file, 0, SEEK_SET);
+  if (length == 0) {
+    fclose(file);
+    return "";
+  }
+
+  std::string content(length, '\0');
+  RTC_CHECK_EQ(fread(&content[0], 1, length, file), length);
+  fclose(file);
+  return content;
+}
 }  // namespace
 
 namespace webrtc {
@@ -325,10 +342,11 @@ std::unique_ptr<StreamState> ConfigureFromFile(const std::string& config_path,
                                                Call* call) {
   auto stream_state = std::make_unique<StreamState>();
   // Parse the configuration file.
-  std::ifstream config_file(config_path);
-  std::stringstream raw_json_buffer;
-  raw_json_buffer << config_file.rdbuf();
-  std::string raw_json = raw_json_buffer.str();
+  std::string raw_json = ReadFileToString(config_path);
+  if (raw_json.empty()) {
+    fprintf(stderr, "Error reading config file: %s\n", config_path.c_str());
+    return nullptr;
+  }
   Json::CharReaderBuilder builder;
   Json::Value json_configs;
   std::string error_message;

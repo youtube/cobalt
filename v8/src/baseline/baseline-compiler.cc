@@ -31,6 +31,7 @@
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/shared-function-info-inl.h"
 #include "src/roots/roots.h"
+#include "src/roots/static-roots.h"
 
 #if V8_TARGET_ARCH_X64
 #include "src/baseline/x64/baseline-compiler-x64-inl.h"
@@ -764,6 +765,16 @@ void BaselineCompiler::CallRuntime(Runtime::FunctionId function, Args... args) {
 // Returns into kInterpreterAccumulatorRegister
 void BaselineCompiler::JumpIfToBoolean(bool do_jump_if_true, Label* label,
                                        Label::Distance distance) {
+#ifdef V8_STATIC_ROOTS
+  Label no_jump;
+  if (do_jump_if_true) {
+    __ JumpIfStaticRootToBoolean(kInterpreterAccumulatorRegister, label,
+                                 distance, &no_jump, Label::kNear);
+  } else {
+    __ JumpIfStaticRootToBoolean(kInterpreterAccumulatorRegister, &no_jump,
+                                 Label::kNear, label, distance);
+  }
+#endif
   CallBuiltin<Builtin::kToBooleanForBaselineJump>(
       kInterpreterAccumulatorRegister);
   // ToBooleanForBaselineJump returns the ToBoolean value into return reg 1, and
@@ -772,6 +783,10 @@ void BaselineCompiler::JumpIfToBoolean(bool do_jump_if_true, Label* label,
   static_assert(kReturnRegister0 == kInterpreterAccumulatorRegister);
   __ JumpIfSmi(do_jump_if_true ? kNotEqual : kEqual, kReturnRegister1,
                Smi::FromInt(0), label, distance);
+
+#ifdef V8_STATIC_ROOTS
+  __ Bind(&no_jump);
+#endif
 }
 
 void BaselineCompiler::VisitLdaZero() {
@@ -1708,13 +1723,16 @@ void BaselineCompiler::VisitConstructForwardAllArgs() {
 }
 
 void BaselineCompiler::VisitTestEqual() {
-  CallBuiltin<Builtin::kEqual_Baseline>(
-      RegisterOperand(0), kInterpreterAccumulatorRegister, FeedbackSlot(1));
+  auto feedback_value_offset =
+      iterator().GetEmbeddedFeedbackOffset(kEmbeddedFeedbackOperandIndex);
+  CallBuiltin<Builtin::kEqual_Baseline>(RegisterOperand(0),
+                                        kInterpreterAccumulatorRegister,
+                                        feedback_value_offset);
 }
 
 void BaselineCompiler::VisitTestEqualStrict() {
   auto feedback_value_offset =
-      iterator().GetEmbeddedFeedbackOffset(/*operand_index=*/1);
+      iterator().GetEmbeddedFeedbackOffset(kEmbeddedFeedbackOperandIndex);
 
 #ifdef V8_ENABLE_SPARKPLUG_PLUS
   if (v8_flags.sparkplug_plus) {
@@ -1746,23 +1764,35 @@ void BaselineCompiler::VisitTestEqualStrict() {
 }
 
 void BaselineCompiler::VisitTestLessThan() {
-  CallBuiltin<Builtin::kLessThan_Baseline>(
-      RegisterOperand(0), kInterpreterAccumulatorRegister, FeedbackSlot(1));
+  auto feedback_value_offset =
+      iterator().GetEmbeddedFeedbackOffset(kEmbeddedFeedbackOperandIndex);
+  CallBuiltin<Builtin::kLessThan_Baseline>(RegisterOperand(0),
+                                           kInterpreterAccumulatorRegister,
+                                           feedback_value_offset);
 }
 
 void BaselineCompiler::VisitTestGreaterThan() {
-  CallBuiltin<Builtin::kGreaterThan_Baseline>(
-      RegisterOperand(0), kInterpreterAccumulatorRegister, FeedbackSlot(1));
+  auto feedback_value_offset =
+      iterator().GetEmbeddedFeedbackOffset(kEmbeddedFeedbackOperandIndex);
+  CallBuiltin<Builtin::kGreaterThan_Baseline>(RegisterOperand(0),
+                                              kInterpreterAccumulatorRegister,
+                                              feedback_value_offset);
 }
 
 void BaselineCompiler::VisitTestLessThanOrEqual() {
+  auto feedback_value_offset =
+      iterator().GetEmbeddedFeedbackOffset(kEmbeddedFeedbackOperandIndex);
   CallBuiltin<Builtin::kLessThanOrEqual_Baseline>(
-      RegisterOperand(0), kInterpreterAccumulatorRegister, FeedbackSlot(1));
+      RegisterOperand(0), kInterpreterAccumulatorRegister,
+      feedback_value_offset);
 }
 
 void BaselineCompiler::VisitTestGreaterThanOrEqual() {
+  auto feedback_value_offset =
+      iterator().GetEmbeddedFeedbackOffset(kEmbeddedFeedbackOperandIndex);
   CallBuiltin<Builtin::kGreaterThanOrEqual_Baseline>(
-      RegisterOperand(0), kInterpreterAccumulatorRegister, FeedbackSlot(1));
+      RegisterOperand(0), kInterpreterAccumulatorRegister,
+      feedback_value_offset);
 }
 
 void BaselineCompiler::VisitTestReferenceEqual() {

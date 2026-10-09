@@ -132,10 +132,13 @@ class MockPeerConnectionInternal : public PeerConnectionInternal {
               GetTransceivers,
               (),
               (const, override));
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   MOCK_METHOD(bool,
               GetStats,
               (StatsObserver*, MediaStreamTrackInterface*, StatsOutputLevel),
               (override));
+#pragma clang diagnostic pop
   MOCK_METHOD(void, GetStats, (RTCStatsCollectorCallback*), (override));
   MOCK_METHOD(void,
               GetStats,

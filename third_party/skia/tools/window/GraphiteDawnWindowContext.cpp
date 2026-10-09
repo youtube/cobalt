@@ -28,16 +28,6 @@
 
 namespace skwindow::internal {
 
-namespace {
-SkColorType ToSkColorType(wgpu::TextureFormat format) {
-    if (format == wgpu::TextureFormat::RGBA8Unorm) {
-        return kRGBA_8888_SkColorType;
-    } else {
-        return kBGRA_8888_SkColorType;
-    }
-}
-}  // namespace
-
 GraphiteDawnWindowContext::GraphiteDawnWindowContext(std::unique_ptr<const DisplayParams> params,
                                                      wgpu::TextureFormat surfaceFormat)
         : WindowContext(std::move(params)), fSurfaceFormat(surfaceFormat) {
@@ -119,7 +109,6 @@ sk_sp<SkSurface> GraphiteDawnWindowContext::getBackbufferSurface() {
     SkASSERT(this->graphiteRecorder());
     auto surface = SkSurfaces::WrapBackendTexture(this->graphiteRecorder(),
                                                   backendTex,
-                                                  ToSkColorType(fSurfaceFormat),
                                                   fDisplayParams->colorSpace(),
                                                   &fDisplayParams->surfaceProps());
     SkASSERT(surface);
@@ -159,45 +148,7 @@ wgpu::Device GraphiteDawnWindowContext::createDevice(wgpu::BackendType type) {
     wgpu::Adapter adapter = adapters[0].Get();
 
     std::vector<wgpu::FeatureName> features;
-    if (adapter.HasFeature(wgpu::FeatureName::MSAARenderToSingleSampled)) {
-        features.push_back(wgpu::FeatureName::MSAARenderToSingleSampled);
-    }
-    if (adapter.HasFeature(wgpu::FeatureName::TransientAttachments)) {
-        features.push_back(wgpu::FeatureName::TransientAttachments);
-    }
-    if (adapter.HasFeature(wgpu::FeatureName::Unorm16TextureFormats)) {
-        features.push_back(wgpu::FeatureName::Unorm16TextureFormats);
-    }
-    if (adapter.HasFeature(wgpu::FeatureName::DualSourceBlending)) {
-        features.push_back(wgpu::FeatureName::DualSourceBlending);
-    }
-    if (adapter.HasFeature(wgpu::FeatureName::FramebufferFetch)) {
-        features.push_back(wgpu::FeatureName::FramebufferFetch);
-    }
-    if (adapter.HasFeature(wgpu::FeatureName::BufferMapExtendedUsages)) {
-        features.push_back(wgpu::FeatureName::BufferMapExtendedUsages);
-    }
-    if (adapter.HasFeature(wgpu::FeatureName::TextureCompressionETC2)) {
-        features.push_back(wgpu::FeatureName::TextureCompressionETC2);
-    }
-    if (adapter.HasFeature(wgpu::FeatureName::TextureCompressionBC)) {
-        features.push_back(wgpu::FeatureName::TextureCompressionBC);
-    }
-    if (adapter.HasFeature(wgpu::FeatureName::TextureFormatsTier1)) {
-        features.push_back(wgpu::FeatureName::TextureFormatsTier1);
-    }
-    if (adapter.HasFeature(wgpu::FeatureName::DawnLoadResolveTexture)) {
-        features.push_back(wgpu::FeatureName::DawnLoadResolveTexture);
-    }
-    if (adapter.HasFeature(wgpu::FeatureName::DawnPartialLoadResolveTexture)) {
-        features.push_back(wgpu::FeatureName::DawnPartialLoadResolveTexture);
-    }
-    if (adapter.HasFeature(wgpu::FeatureName::TimestampQuery)) {
-        features.push_back(wgpu::FeatureName::TimestampQuery);
-    }
-    if (adapter.HasFeature(wgpu::FeatureName::DawnTexelCopyBufferRowAlignment)) {
-        features.push_back(wgpu::FeatureName::DawnTexelCopyBufferRowAlignment);
-    }
+    skiatest::graphite::AddPreferredFeatures(adapter, features);
 
     wgpu::DeviceDescriptor deviceDescriptor;
     deviceDescriptor.requiredFeatures = features.data();

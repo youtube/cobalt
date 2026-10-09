@@ -133,10 +133,10 @@ void JSObjectFuzzingPrintDictProperties(Tagged<JSObject> obj,
 
 void JSObjectFuzzingPrintPrototype(Tagged<JSObject> obj,
                                    StringStream* accumulator, int depth) {
-  Tagged<Object> proto = obj->map()->prototype();
+  Tagged<HeapObject> proto = Tagged<HeapObject>::cast(obj->map()->prototype());
 
   // This is to avoid printing Object.prototype
-  if (obj->map()->instance_type() == JS_OBJECT_PROTOTYPE_TYPE) {
+  if (proto->map()->instance_type() == JS_OBJECT_PROTOTYPE_TYPE) {
     return;
   }
 
@@ -472,6 +472,10 @@ void HeapObjectFuzzingPrint(Tagged<HeapObject> obj, int depth,
     }
     case SCRIPT_TYPE: {
       os << "<ScriptType>";
+      break;
+    }
+    case FEEDBACK_VECTOR_TYPE: {
+      os << "<FeedbackVector[" << Cast<FeedbackVector>(obj)->length() << "]>";
       break;
     }
     default:

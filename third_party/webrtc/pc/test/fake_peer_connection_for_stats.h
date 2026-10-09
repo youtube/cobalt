@@ -25,7 +25,6 @@
 #include "api/audio_options.h"
 #include "api/crypto/crypto_options.h"
 #include "api/environment/environment.h"
-#include "api/environment/environment_factory.h"
 #include "api/ice_transport_interface.h"
 #include "api/jsep.h"
 #include "api/make_ref_counted.h"
@@ -271,20 +270,22 @@ class VideoChannelForTesting : public VideoChannel {
 class FakePeerConnectionForStats : public FakePeerConnectionBase,
                                    public JsepTransportController::Observer {
  public:
-  FakePeerConnectionForStats(Thread* worker_thread = Thread::Current(),
-                             Thread* network_thread = Thread::Current())
-      : network_thread_(network_thread),
+  explicit FakePeerConnectionForStats(
+      const Environment& env,
+      Thread* worker_thread = Thread::Current(),
+      Thread* network_thread = Thread::Current())
+      : FakePeerConnectionBase(env),
+        network_thread_(network_thread),
         worker_thread_(worker_thread),
         signaling_thread_(Thread::Current()),
         // TODO(hta): remove separate thread variables and use context.
-        env_(CreateEnvironment()),
         dependencies_(
             MakeDependencies(signaling_thread_, worker_thread, network_thread)),
-        context_(ConnectionContext::Create(env_, &dependencies_)),
+        context_(ConnectionContext::Create(env, &dependencies_)),
         local_streams_(StreamCollection::Create()),
         remote_streams_(StreamCollection::Create()),
         data_channel_controller_(network_thread_),
-        codec_lookup_helper_(context_.get(), env_.field_trials()),
+        codec_lookup_helper_(context_.get(), env.field_trials()),
         ice_transport_factory_(std::make_unique<FakeIceTransportFactory>()) {
     JsepTransportController::Config config;
     config.ice_transport_factory = ice_transport_factory_.get();
@@ -294,7 +295,7 @@ class FakePeerConnectionForStats : public FakePeerConnectionBase,
     config.un_demuxable_packet_handler =
         [](const RtpPacketReceived& parsed_packet) {};
     transport_controller_ = std::make_unique<JsepTransportController>(
-        env_, signaling_thread_, network_thread_, /*port_allocator=*/nullptr,
+        env, signaling_thread_, network_thread_, /*port_allocator=*/nullptr,
         /*async_dns_resolver_factory=*/nullptr,
         /*lna_permission_factory=*/nullptr, std::move(config));
   }
@@ -681,7 +682,6 @@ class FakePeerConnectionForStats : public FakePeerConnectionBase,
   Thread* const worker_thread_;
   Thread* const signaling_thread_;
 
-  Environment env_;
   PeerConnectionFactoryDependencies dependencies_;
   scoped_refptr<ConnectionContext> context_;
 

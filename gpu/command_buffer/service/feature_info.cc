@@ -931,7 +931,6 @@ void FeatureInfo::InitializeFeatures() {
         enable_texture_storage = false;
         break;
       case CONTEXT_TYPE_OPENGLES3:
-      case CONTEXT_TYPE_OPENGLES31_FOR_TESTING:
         enable_texture_format_bgra8888 = false;
         break;
       case CONTEXT_TYPE_WEBGL1:
@@ -969,6 +968,7 @@ void FeatureInfo::InitializeFeatures() {
   // alpha is false, so disable that case for now so that we go through
   // emulation.
   if (gl_version_info_->is_angle_swiftshader) {
+    feature_flags_.disable_mac_swangle_rgbx = true;
     feature_flags_.mappable_formats.erase(viz::SinglePlaneFormat::kBGRX_8888);
     feature_flags_.mappable_formats.erase(viz::SinglePlaneFormat::kRGBX_8888);
   }
@@ -2087,10 +2087,6 @@ bool FeatureInfo::IsWebGL2OrES3Context() const {
 
 bool FeatureInfo::IsWebGL2OrES3OrHigherContext() const {
   return IsWebGL2OrES3OrHigherContextType(context_type_);
-}
-
-bool FeatureInfo::IsES31ForTestingContext() const {
-  return IsES31ForTestingContextType(context_type_);
 }
 
 void FeatureInfo::AddExtensionString(std::string_view extension) {

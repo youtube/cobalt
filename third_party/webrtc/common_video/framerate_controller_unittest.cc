@@ -29,7 +29,7 @@ class FramerateControllerTest : public ::testing::Test {
     return next_timestamp_us_ * kNumNanosecsPerMicrosec;
   }
 
-  int64_t next_timestamp_us_ = TimeMicros();
+  int64_t next_timestamp_us_ = 6543210;
   FramerateController controller_;
 };
 

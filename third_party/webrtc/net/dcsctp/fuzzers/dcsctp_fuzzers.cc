@@ -430,7 +430,7 @@ void FuzzSocket(DcSctpSocketInterface& socket,
   // Set the socket in a specified valid starting state
   SetSocketState(socket, cb, static_cast<StartingState>(data[0]));
 
-  FuzzState state(data.subview(1));
+  FuzzState state(data.subspan(1));
 
   while (!state.empty()) {
     switch (state.GetByte()) {

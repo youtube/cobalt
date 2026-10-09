@@ -2795,7 +2795,7 @@ void WebContentsAccessibilityAndroid::ProcessCompletedAccessibilityTreeSnapshot(
   // We have fulfilled the request for an accessibility tree snapshot, so we can
   // now call the provided Java-side callback to inform original client that the
   // async construction is complete.
-  base::android::RunRunnableAndroid(on_done_callback_);
+  jni_zero::RunRunnable(on_done_callback_);
 }
 
 void WebContentsAccessibilityAndroid::RecursivelyPopulateViewStructureTree(
@@ -2910,6 +2910,22 @@ WebContentsAccessibilityAndroid::GetChildIdsForTesting(JNIEnv* env,
     child_ids.push_back(android_node.GetUniqueId());
   }
   return base::android::ToJavaIntArray(env, child_ids);
+}
+
+jint WebContentsAccessibilityAndroid::GetParentIdForTesting(  // IN-TEST
+    JNIEnv* env,
+    int32_t unique_id) {
+  BrowserAccessibilityAndroid* node = GetAXFromUniqueID(unique_id);
+  if (!node) {
+    return ui::kAXAndroidInvalidViewId;
+  }
+
+  ui::BrowserAccessibility* parent = node->PlatformGetParent();
+  if (!parent) {
+    return ui::kAXAndroidInvalidViewId;
+  }
+
+  return static_cast<BrowserAccessibilityAndroid*>(parent)->GetUniqueId();
 }
 
 ScopedJavaLocalRef<jintArray>

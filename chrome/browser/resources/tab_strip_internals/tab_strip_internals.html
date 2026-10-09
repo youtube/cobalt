@@ -4,11 +4,256 @@
 
 <!DOCTYPE html>
 <html>
+  <head>
   <meta charset="utf-8">
   <title>DebugUI TabStrip</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, sans-serif;
+    }
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      background: #fafafa;
+      border-bottom: 1px solid #ddd;
+    }
+    .toolbar h1 {
+      font-size: 16px;
+      margin: 0;
+      font-weight: 600;
+    }
+    .actions {
+      display: flex;
+      gap: 8px;
+    }
+    button {
+      padding: 4px 8px;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background: #fff;
+    }
+    button:hover {
+      background: #eee;
+    }
+    .split {
+      display: grid;
+      grid-template-columns: 320px 5px 1fr;
+      height: calc(100vh - 48px);
+    }
+    .tree-view-pane {
+      border-right: 1px solid #ddd;
+      overflow: auto;
+      padding: 6px;
+    }
+    .tree-node {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 2px 4px;
+      border-radius: 4px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .tree-node:hover { background: #eee; }
+    .tree-node.selected { background: #cce5ff; }
+    .expander {
+      width: 12px;
+      text-align: center;
+      font-family: system-ui, sans-serif;
+    }
+    .tree-children { margin-left: 16px; }
+    .divider {
+      cursor: col-resize;
+      background: #f0f0f0;
+    }
+    .divider:hover {
+      background: #e0e0e0;
+    }
+    .json-pane {
+      overflow: auto;
+      padding: 10px;
+    }
+    /* JSON colors */
+    .kv {
+      background: #f8f8f8;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 8px;
+      white-space: pre-wrap;
+      font-family: ui-monospace, monospace;
+      font-size: 12px;
+    }
+    .json .key {
+      color: #1c00cf;
+    }
+    .json .string {
+      color: #008000;
+    }
+    .json .number {
+      color: #b36b00;
+    }
+    .json .boolean {
+      color: #aa0d91;
+    }
+    .json .null {
+      color: #808080;
+      font-style: italic;
+    }
+    .json .punct {
+      color: #000;
+    }
+    .json .pair {
+      display: inline-block;
+      border-radius: 3px;
+      margin: 0 1px;
+      padding: 0 2px;
+    }
+    .json .pair:nth-child(odd) {
+      background: rgba(0, 0, 0, 0.02);
+    }
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      background: #323232;
+      color: #fff;
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      pointer-events: none;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    /* Icons */
+    .icon-group {
+      display: inline-flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 4px;
+      margin-left: auto;
+      flex-shrink: 0;
+    }
+    .icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.1em;
+      height: 1.1em;
+      opacity: 0.95;
+    }
+    /* Pinned icon */
+    .icon.pinned::before {
+      content: '📌';
+      color: #ff9e00;
+      font-size: 0.9em;
+      text-shadow: 0 0 1px rgba(255, 158, 0, 0.4);
+    }
+    /* --- Selected icon --- */
+    .icon.check::before {
+      content: '✓';
+      color: #2b6ef5;
+      font-weight: 700;
+      font-size: 0.85em;
+    }
+    /* --- Active icon --- */
+    .icon.dot::before {
+      content: '';
+      display: block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: transparent;
+      transform: translateY(0.5px);
+    }
+    .icon.dot.active::before {
+      background-color: #23d25f;
+    }
+    /* Dark Theme */
+    @media (prefers-color-scheme: dark) {
+      body {
+        background: #1e1e1e;
+        color: #e6e6e6;
+      }
+      .toolbar {
+        background: #2a2a2a;
+        border-bottom: 1px solid #3a3a3a;
+      }
+      button {
+        background: #2b2b2b;
+        border-color: #3a3a3a;
+        color: #e6e6e6;
+      }
+      button:hover {
+        background: #3a3a3a;
+      }
+      .tree-view-pane {
+        border-right: 1px solid #3a3a3a;
+      }
+      .tree-node:hover {
+        background: rgba(255, 255, 255, 0.08);
+      }
+      .tree-node.selected {
+        background: rgba(56, 139, 253, 0.25);
+      }
+      .divider {
+        background: #333;
+      }
+      .divider:hover {
+        background: #3a3a3a;
+      }
+      .json-pane .kv {
+        background: #252526;
+        border: 1px solid #3a3a3a;
+      }
+      /* JSON colors */
+      .json .key { color: #4fc3f7; }
+      .json .string { color: #98c379; }
+      .json .number { color: #ff9d00; }
+      .json .boolean { color: #c586c0; }
+      .json .null { color: #999; font-style: italic; }
+      .json .punct { color: #ccc; }
+      .json .pair:nth-child(odd) {
+        background: rgba(255, 255, 255, 0.06);
+      }
+      .toast {
+        background: #444;
+        color: #fff;
+      }
+      /* Icons */
+      .icon.pinned::before { color: #ffc04d; }
+      .icon.check::before { color: #6fa8ff; }
+      .icon.dot.active::before { background-color: #3ef27b; }
+    }
+  </style>
+  </head>
   <body>
-    <h1>DebugUI TabStrip</h1>
-    <div id="tabstrip-container">Unable to load contents</div>
+    <header class="toolbar">
+      <h1>TabStrip Internals</h1>
+      <div class="actions">
+        <button id="btn-expand">Expand All</button>
+        <button id="btn-collapse">Collapse All</button>
+        <button id="btn-copy">Copy JSON</button>
+      </div>
+    </header>
+    <main id="split" class="split">
+      <aside id="treeViewPane" class="tree-view-pane" role="tree"></aside>
+      <div id="divider" class="divider" role="separator" tabindex="0"></div>
+      <section id="jsonPane" class="json-pane">
+        <pre id="json" class="kv json"></pre>
+      </section>
+    </main>
+    <div id="toast" class="toast"></div>
     <script type="module" src="tab_strip_internals.js"></script>
   </body>
 </html>

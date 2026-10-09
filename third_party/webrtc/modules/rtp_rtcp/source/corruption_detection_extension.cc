@@ -72,7 +72,7 @@ bool CorruptionDetectionExtension::Write(
       std::round(message.std_dev() / kMaxValueForStdDev * 255.0));
   data[2] = (message.luma_error_threshold() << 4) |
             (message.chroma_error_threshold() & 0xF);
-  ArrayView<uint8_t> sample_values = data.subview(kConfigurationBytes);
+  ArrayView<uint8_t> sample_values = data.subspan(kConfigurationBytes);
   for (size_t i = 0; i < message.sample_values().size(); ++i) {
     sample_values[i] = std::floor(message.sample_values()[i]);
   }

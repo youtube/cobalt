@@ -70,6 +70,7 @@ source_set("model") {
     "//components/signin/core/browser",
     "//components/signin/internal/identity_manager",
     "//components/signin/ios/browser",
+    "//components/signin/ios/browser:signin_enabled_datasource",
     "//components/signin/public/identity_manager",
     "//components/signin/public/identity_manager/ios",
     "//components/sync",
@@ -141,7 +142,9 @@ source_set("authentication_service") {
     "//components/policy/core/common",
     "//components/pref_registry",
     "//components/prefs",
+    "//components/signin/ios/browser",
     "//components/signin/ios/browser:features",
+    "//components/signin/ios/browser:signin_enabled_datasource",
     "//components/signin/public/base",
     "//components/signin/public/base:signin_switches",
     "//components/signin/public/identity_manager",
@@ -162,7 +165,7 @@ source_set("authentication_service") {
     "//ios/chrome/browser/widget_kit/model:features",
     "//ios/chrome/common/app_group",
   ]
-  if (ios_enable_widget_kit_extension && ios_enable_widgets_for_mim) {
+  if (ios_enable_widget_kit_extension) {
     deps += [ "//ios/chrome/browser/widget_kit/model:model_swift" ]
   }
 }
@@ -179,6 +182,7 @@ source_set("authentication_service_factory") {
     ":model",
     "//base",
     "//components/browsing_data/core",
+    "//components/signin/ios/browser:signin_enabled_datasource",
     "//ios/chrome/browser/browsing_data/model",
     "//ios/chrome/browser/ntp/ui_bundled:feature_flags",
     "//ios/chrome/browser/shared/model/prefs:pref_names",
@@ -372,42 +376,6 @@ source_set("test_account_info") {
   ]
 }
 
-source_set("trusted_vault") {
-  sources = [
-    "trusted_vault_client_backend.h",
-    "trusted_vault_client_backend.mm",
-    "trusted_vault_configuration.h",
-    "trusted_vault_configuration.mm",
-  ]
-  deps = [
-    "//base",
-    "//components/trusted_vault",
-    "//google_apis",
-    "//ios/public/provider/chrome/browser/signin:signin_sso_api",
-  ]
-  frameworks = [
-    "UIKit.framework",
-    "Foundation.framework",
-  ]
-}
-
-source_set("trusted_vault_factory") {
-  sources = [
-    "trusted_vault_client_backend_factory.h",
-    "trusted_vault_client_backend_factory.mm",
-  ]
-  deps = [
-    ":trusted_vault",
-    "//base",
-    "//ios/chrome/app:tests_hook",
-    "//ios/chrome/browser/shared/model/application_context",
-    "//ios/chrome/browser/shared/model/profile",
-    "//ios/chrome/browser/shared/model/profile:profile_keyed_service_factory",
-    "//ios/public/provider/chrome/browser/signin:trusted_vault_api",
-  ]
-  frameworks = [ "Foundation.framework" ]
-}
-
 source_set("test_constants") {
   testonly = true
   sources = [
@@ -431,12 +399,12 @@ source_set("test_support") {
     ":authentication_service",
     ":model",
     ":system_identity",
-    ":trusted_vault",
     "//base",
     "//components/image_fetcher/core:test_support",
     "//components/signin/public/base:test_support",
     "//components/signin/public/identity_manager:test_support",
     "//ios/chrome/browser/shared/model/profile",
+    "//ios/chrome/browser/signin/model/trusted_vault",
     "//ios/chrome/browser/sync/model",
   ]
 }
@@ -486,6 +454,7 @@ source_set("unit_tests") {
     "//components/prefs",
     "//components/prefs:test_support",
     "//components/signin/internal/identity_manager",
+    "//components/signin/ios/browser:fake_signin_enabled_datasource",
     "//components/signin/ios/browser:features",
     "//components/signin/public/base:test_support",
     "//components/signin/public/identity_manager",

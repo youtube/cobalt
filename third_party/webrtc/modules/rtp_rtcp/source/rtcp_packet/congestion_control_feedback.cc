@@ -221,8 +221,8 @@ bool CongestionControlFeedback::Create(uint8_t* buffer,
       }
       ++number_of_packets_for_ssrc;
     }
-    write_report_for_ssrc(remaining.subview(0, number_of_packets_for_ssrc));
-    remaining = remaining.subview(number_of_packets_for_ssrc);
+    write_report_for_ssrc(remaining.subspan(0, number_of_packets_for_ssrc));
+    remaining = remaining.subspan(number_of_packets_for_ssrc);
   }
 
   //   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+

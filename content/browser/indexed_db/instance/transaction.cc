@@ -236,17 +236,7 @@ Status Transaction::Abort(const DatabaseError& error) {
   preemptive_task_queue_ = {};
   pending_preemptive_events_ = 0;
   task_queue_ = {};
-
-  // Backing store resources (held via cursors) must be released
-  // before script callbacks are fired, as the script callbacks may
-  // release references and allow the backing store itself to be
-  // released, and order is critical.
-  CloseOpenCursors();
   backing_store_transaction_.reset();
-
-  // Transactions must also be marked as completed before the
-  // front-end is notified, as the transaction completion unblocks
-  // operations like closing connections.
   locks_receiver_.locks.clear();
   locks_receiver_.CancelLockRequest();
 
@@ -336,8 +326,6 @@ void Transaction::Start() {
     return;
   }
   CHECK_EQ(CREATED, state_);
-  std::optional scheduling_priority_at_last_state_change =
-      scheduling_priority_at_last_state_change_;
   SetState(STARTED);
   CHECK(!locks_receiver_.locks.empty());
   diagnostics_.start_time = base::Time::Now();
@@ -354,30 +342,15 @@ void Transaction::Start() {
     case blink::mojom::IDBTransactionMode::ReadOnly:
       base::UmaHistogramMediumTimes(
           "WebCore.IndexedDB.Transaction.ReadOnly.TimeQueued", time_queued);
-      if (scheduling_priority_at_last_state_change == 0) {
-        base::UmaHistogramMediumTimes(
-            "WebCore.IndexedDB.Transaction.ReadOnly.TimeQueued.Foreground",
-            time_queued);
-      }
       break;
     case blink::mojom::IDBTransactionMode::ReadWrite:
       base::UmaHistogramMediumTimes(
           "WebCore.IndexedDB.Transaction.ReadWrite.TimeQueued", time_queued);
-      if (scheduling_priority_at_last_state_change == 0) {
-        base::UmaHistogramMediumTimes(
-            "WebCore.IndexedDB.Transaction.ReadWrite.TimeQueued.Foreground",
-            time_queued);
-      }
       break;
     case blink::mojom::IDBTransactionMode::VersionChange:
       base::UmaHistogramMediumTimes(
           "WebCore.IndexedDB.Transaction.VersionChange.TimeQueued",
           time_queued);
-      if (scheduling_priority_at_last_state_change == 0) {
-        base::UmaHistogramMediumTimes(
-            "WebCore.IndexedDB.Transaction.VersionChange.TimeQueued.Foreground",
-            time_queued);
-      }
       break;
   }
 
@@ -946,8 +919,6 @@ Status Transaction::CommitPhaseTwo() {
 
   CHECK_EQ(state_, COMMITTING);
 
-  std::optional scheduling_priority_at_last_state_change =
-      scheduling_priority_at_last_state_change_;
   SetState(FINISHED);
 
   Status s;
@@ -976,31 +947,15 @@ Status Transaction::CommitPhaseTwo() {
       case blink::mojom::IDBTransactionMode::ReadOnly:
         base::UmaHistogramMediumTimes(
             "WebCore.IndexedDB.Transaction.ReadOnly.TimeActive2", active_time);
-        if (scheduling_priority_at_last_state_change == 0) {
-          base::UmaHistogramMediumTimes(
-              "WebCore.IndexedDB.Transaction.ReadOnly.TimeActive2.Foreground",
-              active_time);
-        }
         break;
       case blink::mojom::IDBTransactionMode::ReadWrite:
         base::UmaHistogramMediumTimes(
             "WebCore.IndexedDB.Transaction.ReadWrite.TimeActive2", active_time);
-        if (scheduling_priority_at_last_state_change == 0) {
-          base::UmaHistogramMediumTimes(
-              "WebCore.IndexedDB.Transaction.ReadWrite.TimeActive2.Foreground",
-              active_time);
-        }
         break;
       case blink::mojom::IDBTransactionMode::VersionChange:
         base::UmaHistogramMediumTimes(
             "WebCore.IndexedDB.Transaction.VersionChange.TimeActive2",
             active_time);
-        if (scheduling_priority_at_last_state_change == 0) {
-          base::UmaHistogramMediumTimes(
-              "WebCore.IndexedDB.Transaction.VersionChange.TimeActive2."
-              "Foreground",
-              active_time);
-        }
         break;
       default:
         NOTREACHED();
@@ -1279,6 +1234,9 @@ void Transaction::SetState(State state) {
         connection_->scheduling_priority();
   } else {
     scheduling_priority_at_last_state_change_ = std::nullopt;
+  }
+  if (!IsAcceptingRequests()) {
+    CloseOpenCursors();
   }
   NotifyOfIdbInternalsRelevantChange();
 }

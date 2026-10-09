@@ -1419,14 +1419,13 @@ constexpr Builtin BuiltinFor(Operation operation) {
     return Builtin::k##name##_WithFeedback;
     ARITHMETIC_OPERATION_LIST(BUILTIN_NAME_CASE)
     UNARY_OPERATION_LIST(BUILTIN_NAME_CASE)
-    BUILTIN_NAME_CASE(Equal)
-    BUILTIN_NAME_CASE(LessThan)
-    BUILTIN_NAME_CASE(LessThanOrEqual)
-    BUILTIN_NAME_CASE(GreaterThan)
-    BUILTIN_NAME_CASE(GreaterThanOrEqual)
 #undef BUILTIN_NAME_CASE
-    case Operation::kStrictEqual:
-      return Builtin::kStrictEqual_WithEmbeddedFeedback;
+
+#define BUILTIN_WITH_EMBEDDED_FEEDBACK_NAME_CASE(name) \
+  case Operation::k##name:                             \
+    return Builtin::k##name##_WithEmbeddedFeedback;
+    COMPARISON_OPERATION_LIST(BUILTIN_WITH_EMBEDDED_FEEDBACK_NAME_CASE)
+#undef BUILTIN_WITH_EMBEDDED_FEEDBACK_NAME_CASE
     default:
       UNREACHABLE();
   }
@@ -5475,6 +5474,77 @@ void StringLength::SetValueLocationConstraints() {
 void StringLength::GenerateCode(MaglevAssembler* masm,
                                 const ProcessingState& state) {
   __ StringLength(ToRegister(result()), ToRegister(StringInput()));
+}
+
+void StringSlice::SetValueLocationConstraints() {
+  using D = StringSubstringDescriptor;
+  UseFixed(StringInput(), D::GetRegisterParameter(D::kString));
+  UseAndClobberFixed(StartIndexInput(), D::GetRegisterParameter(D::kFrom));
+  UseAndClobberFixed(EndIndexInput(), D::GetRegisterParameter(D::kTo));
+  DefineAsFixed(this, kReturnRegister0);
+  set_temporaries_needed(1);
+}
+
+void StringSlice::GenerateCode(MaglevAssembler* masm,
+                               const ProcessingState& state) {
+  Register string = ToRegister(StringInput());
+  Register start = ToRegister(StartIndexInput());
+  Register end = ToRegister(EndIndexInput());
+
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  Register length = temps.Acquire();
+
+  __ StringLength(length, string);
+
+  // Calculate relative start.
+  {
+    Label is_neg, done;
+    __ CompareInt32AndJumpIf(start, 0, kLessThan, &is_neg);
+
+    // start >= 0
+    __ CompareInt32AndJumpIf(start, length, kLessThan, &done);
+    __ Move(start, length);
+    __ Jump(&done);
+
+    __ bind(&is_neg);
+    // start < 0
+    __ AddInt32(start, length);
+    __ CompareInt32AndJumpIf(start, 0, kGreaterThanEqual, &done);
+    __ Move(start, 0);
+
+    __ bind(&done);
+  }
+
+  {
+    Label is_neg, done;
+    __ CompareInt32AndJumpIf(end, 0, kLessThan, &is_neg);
+
+    // end >= 0
+    __ CompareInt32AndJumpIf(end, length, kLessThan, &done);
+    __ Move(end, length);
+    __ Jump(&done);
+
+    __ bind(&is_neg);
+    // end < 0
+    __ AddInt32(end, length);
+    __ CompareInt32AndJumpIf(end, 0, kGreaterThanEqual, &done);
+    __ Move(end, 0);
+
+    __ bind(&done);
+  }
+
+  Label empty_string;
+  __ CompareInt32AndJumpIf(end, start, kLessThanEqual, &empty_string);
+
+  __ CallBuiltin<Builtin::kStringSubstring>(string, start, end);
+
+  Label done_all;
+  __ Jump(&done_all);
+
+  __ bind(&empty_string);
+  __ LoadRoot(kReturnRegister0, RootIndex::kempty_string);
+
+  __ bind(&done_all);
 }
 
 void StringConcat::SetValueLocationConstraints() {

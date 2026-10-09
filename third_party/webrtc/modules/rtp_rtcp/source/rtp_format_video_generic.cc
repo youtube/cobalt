@@ -73,7 +73,7 @@ bool RtpPacketizerGeneric::NextPacket(RtpPacketToSend* packet) {
   memcpy(out_ptr + header_size_, remaining_payload_.data(),
          next_packet_payload_len);
 
-  remaining_payload_ = remaining_payload_.subview(next_packet_payload_len);
+  remaining_payload_ = remaining_payload_.subspan(next_packet_payload_len);
 
   ++current_packet_;
 

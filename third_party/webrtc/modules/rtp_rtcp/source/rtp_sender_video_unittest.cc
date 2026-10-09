@@ -1509,7 +1509,7 @@ TEST_F(RtpSenderVideoTest, SendGenericVideo) {
   uint8_t generic_header = sent_payload[0];
   EXPECT_TRUE(generic_header & RtpFormatVideoGeneric::kKeyFrameBit);
   EXPECT_TRUE(generic_header & RtpFormatVideoGeneric::kFirstPacketBit);
-  EXPECT_THAT(sent_payload.subview(1), ElementsAreArray(kPayload));
+  EXPECT_THAT(sent_payload.subspan(1), ElementsAreArray(kPayload));
 
   // Send delta frame.
   const uint8_t kDeltaPayload[] = {13, 42, 32, 93, 13};
@@ -1523,7 +1523,7 @@ TEST_F(RtpSenderVideoTest, SendGenericVideo) {
   generic_header = sent_payload[0];
   EXPECT_FALSE(generic_header & RtpFormatVideoGeneric::kKeyFrameBit);
   EXPECT_TRUE(generic_header & RtpFormatVideoGeneric::kFirstPacketBit);
-  EXPECT_THAT(sent_payload.subview(1), ElementsAreArray(kDeltaPayload));
+  EXPECT_THAT(sent_payload.subspan(1), ElementsAreArray(kDeltaPayload));
 }
 
 class RtpSenderVideoRawPacketizationTest : public RtpSenderVideoTest {

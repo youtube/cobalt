@@ -51,6 +51,7 @@
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
 #include "third_party/blink/renderer/platform/wtf/text/strcat.h"
+#include "third_party/blink/renderer/platform/wtf/text/string_to_number.h"
 
 namespace blink {
 
@@ -169,11 +170,11 @@ void HTMLMarqueeElement::setScrollDelay(unsigned value) {
 }
 
 int HTMLMarqueeElement::loop() const {
-  bool ok;
-  int loop = FastGetAttribute(html_names::kLoopAttr).ToInt(&ok);
-  if (!ok || loop <= 0)
+  auto loop = StringToInt(FastGetAttribute(html_names::kLoopAttr));
+  if (!loop || *loop <= 0) {
     return kDefaultLoopLimit;
-  return loop;
+  }
+  return *loop;
 }
 
 void HTMLMarqueeElement::setLoop(int value, ExceptionState& exception_state) {
@@ -368,10 +369,14 @@ HTMLMarqueeElement::Metrics HTMLMarqueeElement::GetMetrics() {
   CSSStyleDeclaration* mover_style =
       GetDocument().domWindow()->getComputedStyle(mover_);
 
-  metrics.content_width = mover_style->getPropertyValue("width").ToDouble();
-  metrics.content_height = mover_style->getPropertyValue("height").ToDouble();
-  metrics.marquee_width = marquee_style->getPropertyValue("width").ToDouble();
-  metrics.marquee_height = marquee_style->getPropertyValue("height").ToDouble();
+  metrics.content_width =
+      StringToDouble(mover_style->getPropertyValue("width")).value_or(0);
+  metrics.content_height =
+      StringToDouble(mover_style->getPropertyValue("height")).value_or(0);
+  metrics.marquee_width =
+      StringToDouble(marquee_style->getPropertyValue("width")).value_or(0);
+  metrics.marquee_height =
+      StringToDouble(marquee_style->getPropertyValue("height")).value_or(0);
 
   if (IsHorizontal()) {
     mover_->style()->removeProperty("width", ASSERT_NO_EXCEPTION);

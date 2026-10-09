@@ -83,14 +83,14 @@ class BoundedByteReader {
     RTC_CHECK(FixedSize + variable_offset + SubSize <= data_.size());
 
     webrtc::ArrayView<const uint8_t> sub_span =
-        data_.subview(FixedSize + variable_offset, SubSize);
+        data_.subspan(FixedSize + variable_offset, SubSize);
     return BoundedByteReader<SubSize>(sub_span);
   }
 
   size_t variable_data_size() const { return data_.size() - FixedSize; }
 
   webrtc::ArrayView<const uint8_t> variable_data() const {
-    return data_.subview(FixedSize, data_.size() - FixedSize);
+    return data_.subspan(FixedSize);
   }
 
  private:

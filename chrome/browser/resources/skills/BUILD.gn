@@ -13,6 +13,9 @@ build_webui("build") {
   static_files = [
     "images/skills_empty.svg",
     "images/skills_empty_dark.svg",
+    "images/skills_undo.svg",
+    "images/skills_redo.svg",
+    "images/skills_pen_spark.svg",
     "skills.html",
     "skills_dialog.html",
   ]
@@ -25,6 +28,8 @@ build_webui("build") {
     "card.ts",
     "discover_skills_page.html.ts",
     "discover_skills_page.ts",
+    "error_page.html.ts",
+    "error_page.ts",
     "icons.html.ts",
     "sidebar.html.ts",
     "sidebar.ts",
@@ -40,7 +45,9 @@ build_webui("build") {
     "app.css",
     "card.css",
     "discover_skills_page.css",
+    "error_page.css",
     "shared_style.css",
+    "shared_vars.css",
     "sidebar.css",
     "skills_dialog.css",
     "user_skills_page.css",

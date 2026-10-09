@@ -877,10 +877,13 @@ static jboolean JNI_PeerConnection_OldGetStats(
     const jni_zero::JavaRef<jobject>& j_observer,
     jlong native_track) {
   auto observer = make_ref_counted<StatsObserverJni>(jni, j_observer);
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   return ExtractNativePC(jni, j_pc)->GetStats(
       observer.get(),
       reinterpret_cast<MediaStreamTrackInterface*>(native_track),
       PeerConnectionInterface::kStatsOutputLevelStandard);
+#pragma clang diagnostic pop
 }
 
 static void JNI_PeerConnection_NewGetStats(

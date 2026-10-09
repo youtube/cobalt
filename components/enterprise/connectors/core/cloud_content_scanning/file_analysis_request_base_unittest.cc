@@ -97,10 +97,6 @@ class FileAnalysisRequestBaseTest : public testing::Test {
   base::test::TaskEnvironment task_environment;
 };
 
-// TODO(crbug.com/461531817): Remove the `is_fuchsia` build flag.
-// Test fails on fuschsia likely due to platform-specific differences in the
-// underlying file system
-#if !BUILDFLAG(IS_FUCHSIA)
 TEST_F(FileAnalysisRequestBaseTest, InvalidFiles) {
   base::ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
@@ -161,7 +157,6 @@ TEST_F(FileAnalysisRequestBaseTest, InvalidFiles) {
     EXPECT_TRUE(data.mime_type.empty());
   }
 }
-#endif
 
 TEST_F(FileAnalysisRequestBaseTest, NormalFiles) {
   ScanRequestUploadResult result;
@@ -410,6 +405,8 @@ TEST_F(FileAnalysisRequestBaseTest, CachesResultsWithKnownMimetype) {
             "29644C10BD036866FCFD2BDACFF340DB5DE47A90002D6AB0C42DE6A22C26158B");
   EXPECT_EQ(request->digest(), data.hash);
   EXPECT_EQ(request->content_type(), "fake/mimetype");
+  EXPECT_EQ(data.size, 20UL);  // printf "Normal file contents" | wc -c
+  EXPECT_EQ(request->file_size(), data.size);
 }
 
 TEST_F(FileAnalysisRequestBaseTest, DelayedFileOpening) {

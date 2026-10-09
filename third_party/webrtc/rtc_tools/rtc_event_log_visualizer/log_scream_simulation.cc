@@ -173,12 +173,18 @@ void LogScreamSimulation::LogState(const TransportPacketsFeedback& msg) {
       .send_window_usage = send_window_usage_,
       .queue_delay_dev_norm =
           scream_->delay_based_congestion_control().queue_delay_dev_norm(),
-      .l4s_alpha = scream_->l4s_alpha(),
-      .l4s_alpha_v = scream_->delay_based_congestion_control().l4s_alpha_v(),
-      .ref_window_delay_increase_scale =
+      .ref_window_scale_factor_due_to_increased_delay =
           scream_->delay_based_congestion_control().IsQueueDelayDetected()
               ? 0.0
-              : scream_->delay_based_congestion_control().scale_increase()});
+              : scream_->delay_based_congestion_control()
+                    .ref_window_scale_factor_due_to_increased_delay(),
+      .ref_window_scale_factor_due_to_delay_variation =
+          scream_->delay_based_congestion_control()
+              .ref_window_scale_factor_due_to_delay_variation(
+                  scream_->ref_window_mss_ratio()),
+      .l4s_alpha = scream_->l4s_alpha(),
+      .l4s_alpha_v = scream_->delay_based_congestion_control().l4s_alpha_v(),
+  });
 }
 
 }  // namespace webrtc

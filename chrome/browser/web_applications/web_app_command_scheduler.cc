@@ -58,7 +58,7 @@
 #include "chrome/browser/web_applications/commands/web_app_install_from_migrate_from_field_command.h"
 #include "chrome/browser/web_applications/commands/web_app_uninstall_command.h"
 #include "chrome/browser/web_applications/commands/web_install_from_url_command.h"
-#include "chrome/browser/web_applications/isolated_web_apps/commands/check_isolated_web_app_bundle_installability_command.h"
+#include "chrome/browser/web_applications/isolated_web_apps/commands/check_isolated_web_app_bundle_user_installability_command.h"
 #include "chrome/browser/web_applications/isolated_web_apps/commands/cleanup_orphaned_isolated_web_apps_command.h"
 #include "chrome/browser/web_applications/isolated_web_apps/commands/get_controlled_frame_partition_command.h"
 #include "chrome/browser/web_applications/isolated_web_apps/commands/get_isolated_web_app_browsing_data_command.h"
@@ -76,6 +76,7 @@
 #include "chrome/browser/web_applications/locks/shared_web_contents_lock.h"
 #include "chrome/browser/web_applications/locks/shared_web_contents_with_app_lock.h"
 #include "chrome/browser/web_applications/os_integration/os_integration_sub_manager.h"
+#include "chrome/browser/web_applications/proto/web_app.pb.h"
 #include "chrome/browser/web_applications/proto/web_app_install_state.pb.h"
 #include "chrome/browser/web_applications/scheduler/apply_pending_manifest_update_result.h"
 #include "chrome/browser/web_applications/scheduler/fetch_install_info_from_install_url_result.h"
@@ -387,13 +388,13 @@ void WebAppCommandScheduler::ApplyPendingIsolatedWebAppUpdate(
 
 // Given the |bundle_metadata| of a Signed Web Bundle, schedules a command to
 // check the installability of the bundle.
-void WebAppCommandScheduler::CheckIsolatedWebAppBundleInstallability(
+void WebAppCommandScheduler::CheckIsolatedWebAppBundleUserInstallability(
     const SignedWebBundleMetadata& bundle_metadata,
     base::OnceCallback<void(IsolatedInstallabilityCheckResult,
                             std::optional<IwaVersion>)> callback,
     const base::Location& call_location) {
   provider_->command_manager().ScheduleCommand(
-      std::make_unique<CheckIsolatedWebAppBundleInstallabilityCommand>(
+      std::make_unique<CheckIsolatedWebAppBundleUserInstallabilityCommand>(
           &profile_.get(), bundle_metadata, std::move(callback)),
       call_location);
 }
@@ -892,14 +893,15 @@ void WebAppCommandScheduler::ScheduleWebAppInstallFromMigrateFromField(
 void WebAppCommandScheduler::ApplyManifestMigration(
     const webapps::AppId& source_app_id,
     const webapps::AppId& destination_app_id,
+    const proto::WebAppMigrationBehavior migration_behavior,
     std::unique_ptr<ScopedKeepAlive> keep_alive,
     std::unique_ptr<ScopedProfileKeepAlive> profile_keep_alive,
     ApplyManifestMigrationResultCallback callback,
     const base::Location& location) {
   provider_->command_manager().ScheduleCommand(
       std::make_unique<ApplyManifestMigrationCommand>(
-          source_app_id, destination_app_id, &profile_.get(),
-          std::move(keep_alive), std::move(profile_keep_alive),
+          source_app_id, destination_app_id, migration_behavior,
+          &profile_.get(), std::move(keep_alive), std::move(profile_keep_alive),
           std::move(callback)),
       location);
 }

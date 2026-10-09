@@ -21,6 +21,7 @@
                 ],
                 "build_config": "Release",
                 "config": "chromium",
+                "target_arch": "intel",
                 "target_bits": 64,
                 "target_platform": "chromeos"
               },
@@ -47,6 +48,8 @@
           "group": "tryserver.chromium.chromiumos"
         }
       ],
+      "retry_failed_shards": true,
+      "retry_invalid_shards": true,
       "targets_spec_directory": "infra/config/generated/builders/ci/linux-chromeos-treesinviz-enabled-rel/targets"
     }
   },

@@ -831,6 +831,50 @@ TEST(AudioSendStreamTest, ReconfigureTransportCcResetsFirst) {
   }
 }
 
+TEST(AudioSendStreamTest, ReconfigureTransportCcDeregistersExtension) {
+  for (bool use_null_audio_processing : {false, true}) {
+    ConfigHelper helper(false, true, use_null_audio_processing);
+    helper.config().rtp.extensions.push_back(RtpExtension(
+        RtpExtension::kTransportSequenceNumberUri, kTransportSequenceNumberId));
+
+    EXPECT_CALL(*helper.rtp_rtcp(),
+                RegisterRtpHeaderExtension(TransportSequenceNumber::Uri(),
+                                           kTransportSequenceNumberId))
+        .Times(1);
+    auto send_stream = helper.CreateAudioSendStream();
+
+    // Reconfigure with a different transport-cc extension ID.
+    constexpr int kNewTransportSequenceNumberId =
+        kTransportSequenceNumberId + 1;
+    auto new_config = helper.config();
+    new_config.rtp.extensions.clear();
+    new_config.rtp.extensions.push_back(
+        RtpExtension(RtpExtension::kAudioLevelUri, kAudioLevelId));
+    new_config.rtp.extensions.push_back(
+        RtpExtension(RtpExtension::kTransportSequenceNumberUri,
+                     kNewTransportSequenceNumberId));
+
+    // Expect deregistration before re-registration with the new ID.
+    EXPECT_CALL(*helper.rtp_rtcp(), DeregisterSendRtpHeaderExtension(
+                                        TransportSequenceNumber::Uri()))
+        .Times(1);
+    EXPECT_CALL(*helper.rtp_rtcp(),
+                RegisterRtpHeaderExtension(TransportSequenceNumber::Uri(),
+                                           kNewTransportSequenceNumberId))
+        .Times(1);
+    {
+      ::testing::InSequence seq;
+      EXPECT_CALL(*helper.channel_send(), ResetSenderCongestionControlObjects())
+          .Times(1);
+      EXPECT_CALL(*helper.channel_send(),
+                  RegisterSenderCongestionControlObjects(helper.transport()))
+          .Times(1);
+    }
+
+    send_stream->Reconfigure(new_config, nullptr);
+  }
+}
+
 TEST(AudioSendStreamTest, OnTransportOverheadChanged) {
   for (bool use_null_audio_processing : {false, true}) {
     ConfigHelper helper(false, true, use_null_audio_processing);

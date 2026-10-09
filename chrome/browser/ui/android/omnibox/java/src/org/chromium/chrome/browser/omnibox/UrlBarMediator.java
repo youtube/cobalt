@@ -9,6 +9,7 @@ import android.content.ClipboardManager;
 import android.content.Context;
 import android.text.Spanned;
 import android.text.TextUtils;
+import android.util.Range;
 import android.view.View;
 
 import androidx.annotation.ColorInt;
@@ -19,7 +20,6 @@ import org.chromium.base.ContextUtils;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.omnibox.UrlBar.ScrollType;
-import org.chromium.chrome.browser.omnibox.UrlBarCoordinator.SelectionState;
 import org.chromium.chrome.browser.omnibox.UrlBarProperties.AutocompleteText;
 import org.chromium.chrome.browser.omnibox.UrlBarProperties.UrlBarTextState;
 import org.chromium.chrome.browser.omnibox.styles.OmniboxResourceProvider;
@@ -39,9 +39,8 @@ class UrlBarMediator implements UrlBar.UrlBarTextContextMenuDelegate {
 
     private UrlBarData mUrlBarData = UrlBarData.EMPTY;
     private @ScrollType int mScrollType = UrlBar.ScrollType.NO_SCROLL;
-    private @SelectionState int mSelectionState = UrlBarCoordinator.SelectionState.SELECT_ALL;
+    private Range<Integer> mSelection = UrlBarData.SELECT_ALL;
 
-    private int mPreviousBrandedColorScheme;
     // For NTP, when in un-focus state, the search text hint color is fixed for the real search box
     // and we couldn't change it by the branded color scheme.
     private boolean mIsHintTextFixedForNtp;
@@ -83,8 +82,7 @@ class UrlBarMediator implements UrlBar.UrlBarTextContextMenuDelegate {
         mTextChangeListener = listener;
     }
 
-    @VisibleForTesting
-    void onTextChanged(String text) {
+    private void onTextChanged(String text) {
         mTextChangeListener.onResult(text);
         updateShowHintText(text);
     }
@@ -115,11 +113,11 @@ class UrlBarMediator implements UrlBar.UrlBarTextContextMenuDelegate {
      *
      * @param data The new data to be displayed.
      * @param scrollType The scroll type that should be applied to the data.
-     * @param selectionState Specifies how the text should be selected when focused.
+     * @param selection Specifies the range of text to be selected when focused.
      * @return Whether this data differs from the previously passed in values.
      */
     public boolean setUrlBarData(
-            UrlBarData data, @ScrollType int scrollType, @SelectionState int selectionState) {
+            UrlBarData data, @ScrollType int scrollType, Range<Integer> selection) {
         assert data != null;
 
         if (data.originEndIndex == data.originStartIndex) {
@@ -143,7 +141,7 @@ class UrlBarMediator implements UrlBar.UrlBarTextContextMenuDelegate {
         }
         mUrlBarData = data;
         mScrollType = scrollType;
-        mSelectionState = selectionState;
+        mSelection = selection;
 
         pushTextToModel();
         return true;
@@ -177,7 +175,7 @@ class UrlBarMediator implements UrlBar.UrlBarTextContextMenuDelegate {
                         textForAutofillServices,
                         scrollType,
                         mUrlBarData.originEndIndex,
-                        mSelectionState);
+                        mSelection);
         mModel.set(UrlBarProperties.TEXT_STATE, state);
         updateShowHintText(text.toString());
     }
@@ -237,18 +235,20 @@ class UrlBarMediator implements UrlBar.UrlBarTextContextMenuDelegate {
      *     default. Will usually be URL when autocompleting a title, and empty otherwise.
      */
     public void setAutocompleteText(
-            String userText, @Nullable String autocompleteText, @Nullable String additionalText) {
+            String userText,
+            @Nullable String autocompleteText,
+            @Nullable String additionalText,
+            @Nullable String siteSearchLabel) {
         if (!mHasFocus) {
             assert false : "Should not update autocomplete text when not focused";
             return;
         }
         mModel.set(
                 UrlBarProperties.AUTOCOMPLETE_TEXT,
-                new AutocompleteText(userText, autocompleteText, additionalText));
+                new AutocompleteText(userText, autocompleteText, additionalText, siteSearchLabel));
     }
 
-    @VisibleForTesting
-    void onUrlFocusChange(boolean focus) {
+    private void onUrlFocusChange(boolean focus) {
         mHasFocus = focus;
 
         if (mModel.get(UrlBarProperties.ALLOW_FOCUS)) {
@@ -269,23 +269,18 @@ class UrlBarMediator implements UrlBar.UrlBarTextContextMenuDelegate {
      * Sets the color scheme.
      *
      * @param brandedColorScheme The {@link @BrandedColorScheme}.
-     * @return Whether this resulted in a change from the previous value.
      */
-    public boolean setBrandedColorScheme(@BrandedColorScheme int brandedColorScheme) {
-        // TODO(bauerb): Make clients observe the property instead of checking the return value.
+    public void setBrandedColorScheme(@BrandedColorScheme int brandedColorScheme) {
         final @ColorInt int textColor =
                 OmniboxResourceProvider.getUrlBarPrimaryTextColor(mContext, brandedColorScheme);
-        final @ColorInt int hintTextColor =
-                OmniboxResourceProvider.getUrlBarHintTextColor(mContext, brandedColorScheme);
-
         mModel.set(UrlBarProperties.TEXT_COLOR, textColor);
+
         if (!mIsHintTextFixedForNtp) {
+            @ColorInt
+            int hintTextColor =
+                    OmniboxResourceProvider.getUrlBarHintTextColor(mContext, brandedColorScheme);
             mModel.set(UrlBarProperties.HINT_TEXT_COLOR, hintTextColor);
         }
-
-        boolean isBrandedColorSchemeChanged = mPreviousBrandedColorScheme != brandedColorScheme;
-        mPreviousBrandedColorScheme = brandedColorScheme;
-        return isBrandedColorSchemeChanged;
     }
 
     /**

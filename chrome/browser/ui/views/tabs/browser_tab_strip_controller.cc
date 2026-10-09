@@ -54,8 +54,8 @@
 #include "chrome/browser/ui/views/frame/browser_widget.h"
 #include "chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/tabs/tab.h"
+#include "chrome/browser/ui/views/tabs/tab/tab_context_menu_controller.h"
 #include "chrome/browser/ui/views/tabs/tab_accessibility.h"
-#include "chrome/browser/ui/views/tabs/tab_context_menu_controller.h"
 #include "chrome/browser/ui/views/tabs/tab_group_accessibility.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
 #include "chrome/browser/ui/views/tabs/tab_strip_types.h"
@@ -563,8 +563,12 @@ void BrowserTabStripController::OnStoppedDragging() {
   immersive_reveal_lock_.reset();
 }
 
-void BrowserTabStripController::OnKeyboardFocusedTabChanged(
-    std::optional<int> index) {
+void BrowserTabStripController::TabKeyboardFocusChangedTo(
+    const tabs::TabInterface* tab) {
+  std::optional<int> index = std::nullopt;
+  if (tab) {
+    index = model_->GetIndexOfTab(tab);
+  }
   browser_view_->browser()->command_controller()->TabKeyboardFocusChangedTo(
       index);
 }
@@ -909,13 +913,6 @@ void BrowserTabStripController::AddTabs(
   }
 
   tabstrip_->AddTabsAt(std::move(tabs_data));
-
-  // Try to show tab search IPH if needed.
-  constexpr int kTabSearchIPHTriggerThreshold = 8;
-  if (tabstrip_->GetTabCount() >= kTabSearchIPHTriggerThreshold) {
-    BrowserUserEducationInterface::From(GetBrowserWindowInterface())
-        ->MaybeShowFeaturePromo(feature_engagement::kIPHTabSearchFeature);
-  }
 }
 
 bool BrowserTabStripController::IsContextMenuCommandChecked(

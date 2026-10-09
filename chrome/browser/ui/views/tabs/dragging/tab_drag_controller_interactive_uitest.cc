@@ -181,7 +181,9 @@ class FakeTabDragTarget : public TabDragTarget {
     return nullptr;
   }
   void OnTabDragEntered() override { drag_entered_ = true; }
-  void OnTabDragExited() override { drag_exited_ = true; }
+  void OnTabDragExited(const gfx::Point& point_in_screen) override {
+    drag_exited_ = true;
+  }
   void OnTabDragEnded() override { drag_ended_ = true; }
   bool CanDropTab() override { return can_drop_; }
   void HandleTabDrop(DragController& controller) override {
@@ -2027,7 +2029,7 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
 }
 
 // Wayland-chrome doesn't cancel tab dragging on esc.
-#if !BUILDFLAG(IS_OZONE_WAYLAND)
+#if !BUILDFLAG(SUPPORTS_OZONE_WAYLAND)
 
 // Canceling tab dragging while the detached tab is reattached should
 // not cause dangling ptr. (crbug.com/459242414)
@@ -2073,7 +2075,7 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
   EXPECT_EQ("0 1", IDString(browser()->tab_strip_model()));
 }
 
-#endif  // !BUILDFLAG(IS_OZONE_WAYLAND)
+#endif  // !BUILDFLAG(SUPPORTS_OZONE_WAYLAND)
 
 #if BUILDFLAG(IS_WIN)
 
@@ -2306,7 +2308,7 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
 
 // TODO(crbug.com/40934892): ChromeOS and Wayland flakes for tests that involve
 // detaching to a new window.
-#if !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_OZONE_WAYLAND)
+#if !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(SUPPORTS_OZONE_WAYLAND)
 class TabDragTargetTest : public DetachToBrowserTabDragControllerTest {
  public:
   TabDragTargetTest() {
@@ -2323,7 +2325,7 @@ class TabDragTargetTest : public DetachToBrowserTabDragControllerTest {
   std::unique_ptr<test::FakeTabDragPointResolver> resolver_;
 };
 
-#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_OZONE_WAYLAND)
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(SUPPORTS_OZONE_WAYLAND)
 INSTANTIATE_TEST_SUITE_P(
     TabDragging,
     TabDragTargetTest,

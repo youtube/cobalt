@@ -314,9 +314,10 @@ search-animated-glow {
 }
 
 @keyframes color-change {
-  0%, 100%   { caret-color: var(--google-blue-500); }
+  0%,
+  100% { caret-color: var(--google-blue-500); }
   25% { caret-color: var(--google-red-500); }
-  50%  { caret-color: var(--google-yellow-500); }
+  50% { caret-color: var(--google-yellow-500); }
   75% { caret-color: var(--google-green-500); }
 }
 
@@ -454,7 +455,7 @@ search-animated-glow {
   --cr-icon-button-fill-color: var(--color-composebox-submit-button-icon, white);
   --cr-icon-button-icon-size: 16px;
   background-color: var(--color-composebox-submit-button-background);
-  margin-inline-start: 0px;
+  margin-inline-start: 0;
   inset-inline-start: 2px;
   opacity: 30%; /* For Lens side panel. */
   top: 2px;
@@ -621,7 +622,7 @@ contextual-entrypoint-and-carousel::part(voice-icon) {
 }
 
 :host([submit-enabled_][searchbox-layout-mode='TallTopContext']) contextual-entrypoint-and-carousel::part(voice-icon) {
-  margin-inline-end: 0px;
+  margin-inline-end: 0;
 }
 
 :host([submit-enabled_][searchbox-layout-mode='TallTopContext']) #submitContainer {
@@ -649,13 +650,13 @@ contextual-entrypoint-and-carousel::part(voice-icon) {
 }
 
 :host([submit-enabled_][searchbox-layout-mode='Compact']) #submitContainer {
-  margin-inline-end: 0px;
+  margin-inline-end: 0;
   margin-inline-start: auto;
   position: relative;
 }
 
 :host([submit-enabled_][searchbox-layout-mode='Compact'][context-files-size_='0']) #submitContainer {
-  bottom: 0px;
+  bottom: 0;
   margin-inline-end: -2px;
   margin-top: 16px;
 }
@@ -709,8 +710,12 @@ contextual-entrypoint-and-carousel::part(voice-icon) {
   --cr-icon-button-icon-size: 20px;
 }
 
-:host([searchbox-layout-mode='Compact']) contextual-entrypoint-and-carousel::part(cr-composebox-file-carousel) {
-  margin-top: 14px;
+:host([searchbox-next-enabled]) contextual-entrypoint-and-carousel::part(cr-composebox-file-carousel) {
+  margin-top: 16px;
+}
+
+contextual-entrypoint-and-carousel[is-omnibox-in-compact-mode_]::part(cr-composebox-file-carousel) {
+  margin-top: 12px !important;
 }
 
 :host([in-voice-search-mode_]) {

@@ -10,10 +10,13 @@
 
 #import "RTCTracing.h"
 
+#include "api/environment/environment.h"
+#include "api/environment/environment_factory.h"
 #include "rtc_base/event_tracer.h"
 
 void RTCSetupInternalTracer(void) {
-  webrtc::tracing::SetupInternalTracer();
+  webrtc::Environment env = webrtc::CreateEnvironment();
+  webrtc::tracing::SetupInternalTracer(env);
 }
 
 BOOL RTCStartInternalCapture(NSString *filePath) {

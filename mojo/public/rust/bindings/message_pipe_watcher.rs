@@ -16,13 +16,12 @@ use system::message::RawMojoMessage;
 use system::message_pipe::MessageEndpoint;
 use system::mojo_types::MojoResult;
 use system::raw_trap::{HandleSignals, TriggerCondition};
-use system::trap::{ArmingPolicyForBlockingEvents, Trap, TrapError, TrapEvent};
+use system::trap::{InitialArmingPolicy, RearmingPolicy, Trap, TrapError, TrapEvent};
 
 // TODO(crbug.com/477584253): Replace std::sync with std::nonpoison if there are
 // any non-sequenced versions remaining.
 use std::sync::{Arc, Mutex, Weak};
 
-// FOR_RELEASE: Add tests once this is finished and trap is functional.
 // FOR_RELEASE: Replace some/all of the std::sync imports with chromium
 // sequenced equivalents once those are implemented (figure out which, if any,
 // need to be replaced).
@@ -103,17 +102,22 @@ impl<T> MessagePipeWatcherHandler for T where
 impl MessagePipeWatcher {
     /// Create a new MessagePipeWatcher which schedules `message_handler` on
     /// the default sequence whenever the endpoint receives a new message.
+    ///
+    /// May fail if the system has run out of resources to allocate new Mojo
+    /// handles.
     pub fn new(
         endpoint: MessageEndpoint,
         message_handler: impl MessagePipeWatcherHandler,
-    ) -> MojoResult<Self> {
+        disconnect_handler: Option<Box<dyn FnOnce() + Send + 'static>>,
+    ) -> Option<Self> {
         Self::new_with_runner(
             endpoint,
-            message_handler,
             SequencedTaskRunnerHandle::get_current_default().expect(concat!(
                 "Must be called in a context with a default SequencedTaskRunner.\n",
                 "Use MessagePipeWatcher::new_with_runner instead to provide one explicitly."
             )),
+            message_handler,
+            disconnect_handler,
         )
     }
 
@@ -125,18 +129,25 @@ impl MessagePipeWatcher {
     /// `MessageEndpoint::read`. See that method's documentation for
     /// information about `method_handler`'s input type.
     ///
-    /// FOR_RELEASE: Document what MojoResults might occur if this fails
+    /// May fail if the system has run out of resources to allocate new Mojo
+    /// handles.
     pub fn new_with_runner(
         endpoint: MessageEndpoint,
-        message_handler: impl MessagePipeWatcherHandler,
         runner: SequencedTaskRunnerHandle,
-    ) -> MojoResult<Self> {
+        message_handler: impl MessagePipeWatcherHandler,
+        disconnect_handler: Option<Box<dyn FnOnce() + Send + 'static>>,
+    ) -> Option<Self> {
         // The main goal of this function is to construct a closure which reads
         // from the `endpoint` and schedules `message_handler` on `runner`.
 
+        let disconnect_info = match disconnect_handler {
+            None => DisconnectInfo::ConnectedNoHandler,
+            Some(f) => DisconnectInfo::ConnectedWithHandler(f),
+        };
+
         let watcher_state = Arc::new(MessagePipeWatcherState {
             endpoint,
-            disconnect_info: Mutex::new(DisconnectInfo::ConnectedNoHandler),
+            disconnect_info: Mutex::new(disconnect_info),
         });
 
         // Lifetime considerations:
@@ -160,10 +171,10 @@ impl MessagePipeWatcher {
         };
 
         // Define when we trigger the trap (whenever we get a new message)
-        let trigger_signals: HandleSignals = HandleSignals::NEW_DATA_READABLE;
+        let trigger_signals: HandleSignals = HandleSignals::READABLE;
         let trigger_condition: TriggerCondition = TriggerCondition::TriggerWhenSatisfied;
 
-        let trap = Trap::new()?;
+        let trap = Trap::new(RearmingPolicy::Automatic).ok()?;
 
         // This trap only ever has one trigger active, so no need to track its id
         let _trigger_id = trap.add_trigger(
@@ -171,11 +182,12 @@ impl MessagePipeWatcher {
             trigger_signals,
             trigger_condition,
             trigger_handler,
-        )?;
+        );
 
-        trap.arm(ArmingPolicyForBlockingEvents::RearmUntilNoBlockingEvents)?;
+        // The only way this can fail is if there aren't any triggers.
+        let _ = trap.arm(InitialArmingPolicy::RunTriggersOnBlockingEvents);
 
-        Ok(Self { trap, shared_state: watcher_state })
+        Some(Self { trap, shared_state: watcher_state })
     }
 
     /// Consume the MessagePipeWatcher, returning the endpoint. The watching
@@ -188,8 +200,7 @@ impl MessagePipeWatcher {
     pub fn into_endpoint(mut self) -> MessageEndpoint {
         // Clear any existing triggers, which ends the lifetime of any references
         // they contain.
-        // FOR_RELEASE: don't unwrap here, handle errors once we know what might happen
-        self.trap.clear_triggers().unwrap();
+        self.trap.clear_triggers();
         // We only hand out weak references (into the triggers), and the
         // triggers were cleared when we dropped the trap, so none of them are
         // running. Thus there should be exactly one strong reference.
@@ -200,26 +211,6 @@ impl MessagePipeWatcher {
     /// MessageEndpoint::write from the underlying endpoint.
     pub fn send_message(&self, msg: RawMojoMessage) -> MojoResult<()> {
         self.shared_state.endpoint.write(msg)
-    }
-
-    /// Designate a function to run if the underlying pipe becomes disconnected.
-    /// This can happen either because it sent a bad mojo message, or because it
-    /// was closed.
-    ///
-    /// When disconnection is detected, the disconnect handler will be scheduled
-    /// on the same sequence as incoming message notifications.
-    ///
-    /// Panics if the watcher is already disconnected.
-    pub fn set_disconnect_handler(&mut self, handler: impl FnOnce() + Send + 'static) {
-        let mut lock_contents = self
-            .shared_state
-            .disconnect_info
-            .lock()
-            .expect("disconnect_info should never be poisoned");
-        if matches!(*lock_contents, DisconnectInfo::Disconnected) {
-            panic!("Cannot set disconnect handler: Watcher is already disconnected")
-        }
-        *lock_contents = DisconnectInfo::ConnectedWithHandler(Box::new(handler));
     }
 
     /// Check if the watcher is currently connected
@@ -301,8 +292,5 @@ impl MessagePipeWatcher {
                 .expect("Sequence-bound mutex was locked or poisoned");
             message_handler(msg, response_sender)
         });
-
-        // FOR_RELEASE: Make sure we set the trap to automatically re-arm itself
-        // once that's implemented.
     }
 }

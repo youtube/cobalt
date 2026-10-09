@@ -80,6 +80,7 @@ class FakePeerConnectionBase : public PeerConnectionInternal {
  public:
   // PeerConnectionInterface implementation.
   FakePeerConnectionBase() : env_(CreateEnvironment()) {}
+  explicit FakePeerConnectionBase(const Environment& env) : env_(env) {}
 
   PLAN_B_ONLY scoped_refptr<StreamCollectionInterface> local_streams()
       override {
@@ -157,9 +158,9 @@ class FakePeerConnectionBase : public PeerConnectionInternal {
     return {};
   }
 
-  bool GetStats(StatsObserver* observer,
-                MediaStreamTrackInterface* track,
-                StatsOutputLevel level) override {
+  [[deprecated]] bool GetStats(StatsObserver* observer,
+                               MediaStreamTrackInterface* track,
+                               StatsOutputLevel level) override {
     return false;
   }
 
@@ -229,10 +230,11 @@ class FakePeerConnectionBase : public PeerConnectionInternal {
     return true;
   }
 
-  RTCConfiguration GetConfiguration() override { return RTCConfiguration(); }
+  RTCConfiguration GetConfiguration() override { return config_; }
 
   RTCError SetConfiguration(
       const PeerConnectionInterface::RTCConfiguration& config) override {
+    config_ = config;
     return RTCError();
   }
 
@@ -355,7 +357,7 @@ class FakePeerConnectionBase : public PeerConnectionInternal {
 
   const PeerConnectionInterface::RTCConfiguration* configuration()
       const override {
-    return nullptr;
+    return &config_;
   }
 
   void ReportSdpBundleUsage(
@@ -428,6 +430,7 @@ class FakePeerConnectionBase : public PeerConnectionInternal {
  protected:
   Environment env_;
   PayloadTypePicker payload_type_picker_;
+  RTCConfiguration config_;
 };
 
 static_assert(

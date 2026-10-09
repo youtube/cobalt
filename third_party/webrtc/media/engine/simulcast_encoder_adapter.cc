@@ -11,6 +11,7 @@
 #include "media/engine/simulcast_encoder_adapter.h"
 
 #include <algorithm>
+#include <bitset>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
@@ -51,6 +52,7 @@
 #include "api/video_codecs/video_encoder_software_fallback_wrapper.h"
 #include "common_video/framerate_controller.h"
 #include "media/base/sdp_video_format_utils.h"
+#include "modules/include/module_common_types_public.h"
 #include "modules/video_coding/include/video_error_codes.h"
 #include "modules/video_coding/include/video_error_codes_utils.h"
 #include "modules/video_coding/utility/simulcast_rate_allocator.h"
@@ -59,6 +61,7 @@
 #include "rtc_base/logging.h"
 #include "rtc_base/strings/str_join.h"
 #include "rtc_base/strings/string_builder.h"
+#include "rtc_base/synchronization/mutex.h"
 
 namespace webrtc {
 namespace {
@@ -141,13 +144,13 @@ void GetLowestAndHighestQualityStreamIndixes(
 
 std::vector<uint32_t> GetStreamStartBitratesKbps(const Environment& env,
                                                  const VideoCodec& codec) {
-  std::vector<uint32_t> start_bitrates;
   VideoBitrateAllocation allocation =
       SimulcastRateAllocator(env, codec)
           .Allocate(VideoBitrateAllocationParameters(codec.startBitrate * 1000,
                                                      codec.maxFramerate));
 
   int total_streams_count = CountAllStreams(codec);
+  std::vector<uint32_t> start_bitrates;
   for (int i = 0; i < total_streams_count; ++i) {
     uint32_t stream_bitrate = allocation.GetSpatialLayerSum(i) / 1000;
     start_bitrates.push_back(stream_bitrate);
@@ -194,6 +197,8 @@ SimulcastEncoderAdapter::StreamContext::StreamContext(
       is_paused_(is_paused) {
   if (parent_) {
     encoder_context_->encoder().RegisterEncodeCompleteCallback(this);
+  } else {
+    RTC_LOG(LS_ERROR) << "[SEA] StreamContext ctor parent is null";
   }
 }
 
@@ -243,14 +248,52 @@ SimulcastEncoderAdapter::StreamContext::OnEncodedImage(
     const EncodedImage& encoded_image,
     const CodecSpecificInfo* codec_specific_info) {
   RTC_CHECK(parent_);  // If null, this method should never be called.
+  // If encoder is simulcast capable, it should be used in bypass mode and never
+  // end up here - so we expect all frame to always be end of temporal unit in
+  // this context.
+  RTC_DCHECK(encoded_image.is_end_of_temporal_unit().value_or(true));
+  MaybeCullOldTimestamps(encoded_image.RtpTimestamp());
   return parent_->OnEncodedImage(stream_idx_, encoded_image,
                                  codec_specific_info);
 }
 
-void SimulcastEncoderAdapter::StreamContext::OnDroppedFrame(
-    DropReason /*reason*/) {
+void SimulcastEncoderAdapter::StreamContext::OnFrameDropped(
+    uint32_t rtp_timestamp,
+    int spatial_id,
+    bool is_end_of_temporal_unit) {
   RTC_CHECK(parent_);  // If null, this method should never be called.
-  parent_->OnDroppedFrame(stream_idx_);
+  // If encoder is simulcast capable, it should be used in bypass mode and never
+  // end up here - so we expect all frame to always be end of temporal unit in
+  // this context.
+  RTC_DCHECK(is_end_of_temporal_unit);
+  MaybeCullOldTimestamps(rtp_timestamp);
+  parent_->OnFrameDropped(rtp_timestamp, stream_idx_ + spatial_id);
+}
+
+int SimulcastEncoderAdapter::StreamContext::Encode(
+    const VideoFrame& frame,
+    const std::vector<VideoFrameType>* frame_types) {
+  pending_rtp_timestamps_.push_back(frame.rtp_timestamp());
+  int ret = encoder().Encode(frame, frame_types);
+  if (ret != WEBRTC_VIDEO_CODEC_OK) {
+    RTC_DCHECK_EQ(pending_rtp_timestamps_.back(), frame.rtp_timestamp());
+    pending_rtp_timestamps_.pop_back();
+  }
+  return ret;
+}
+
+void SimulcastEncoderAdapter::StreamContext::MaybeCullOldTimestamps(
+    uint32_t new_rtp_timestamp) {
+  while (!pending_rtp_timestamps_.empty() &&
+         pending_rtp_timestamps_.front() != new_rtp_timestamp &&
+         IsNewerTimestamp(new_rtp_timestamp, pending_rtp_timestamps_.front())) {
+    parent_->OnFrameDropped(pending_rtp_timestamps_.front(), stream_idx_);
+    pending_rtp_timestamps_.pop_front();
+  }
+  if (!pending_rtp_timestamps_.empty() &&
+      pending_rtp_timestamps_.front() == new_rtp_timestamp) {
+    pending_rtp_timestamps_.pop_front();
+  }
 }
 
 SimulcastEncoderAdapter::SimulcastEncoderAdapter(
@@ -278,11 +321,11 @@ SimulcastEncoderAdapter::SimulcastEncoderAdapter(
 
   // The adapter is typically created on the worker thread, but operated on
   // the encoder task queue.
-  encoder_queue_.Detach();
+  encoder_queue_checker_.Detach();
 }
 
 SimulcastEncoderAdapter::~SimulcastEncoderAdapter() {
-  RTC_DCHECK_RUN_ON(&encoder_queue_);
+  RTC_DCHECK_RUN_ON(&encoder_queue_checker_);
   RTC_DCHECK(!Initialized());
   DestroyStoredEncoders();
 }
@@ -293,7 +336,7 @@ void SimulcastEncoderAdapter::SetFecControllerOverride(
 }
 
 int SimulcastEncoderAdapter::Release() {
-  RTC_DCHECK_RUN_ON(&encoder_queue_);
+  RTC_DCHECK_RUN_ON(&encoder_queue_checker_);
 
   while (!stream_contexts_.empty()) {
     // Move the encoder instances and put it on the `cached_encoder_contexts_`
@@ -305,8 +348,13 @@ int SimulcastEncoderAdapter::Release() {
 
   bypass_mode_ = false;
 
+  {
+    MutexLock lock(&pending_frames_mutex_);
+    pending_frames_.clear();
+  }
+
   // It's legal to move the encoder to another queue now.
-  encoder_queue_.Detach();
+  encoder_queue_checker_.Detach();
 
   inited_.store(0);
 
@@ -316,7 +364,7 @@ int SimulcastEncoderAdapter::Release() {
 int SimulcastEncoderAdapter::InitEncode(
     const VideoCodec* codec_settings,
     const VideoEncoder::Settings& settings) {
-  RTC_DCHECK_RUN_ON(&encoder_queue_);
+  RTC_DCHECK_RUN_ON(&encoder_queue_checker_);
 
   if (settings.number_of_cores < 1) {
     return WEBRTC_VIDEO_CODEC_ERR_PARAMETER;
@@ -446,11 +494,7 @@ int SimulcastEncoderAdapter::InitEncode(
       return result;
     }
 
-    // Intercept frame encode complete callback only for upper streams, where
-    // we need to set a correct stream index. Set `parent` to nullptr for the
-    // lowest stream to bypass the callback.
-    SimulcastEncoderAdapter* parent = stream_idx > 0 ? this : nullptr;
-
+    SimulcastEncoderAdapter* parent = this;
     bool is_paused = stream_start_bitrate_kbps[stream_idx] == 0;
     stream_contexts_.emplace_back(
         parent, std::move(encoder_context),
@@ -458,7 +502,6 @@ int SimulcastEncoderAdapter::InitEncode(
         stream_idx, stream_codec.width, stream_codec.height, is_paused);
     encoder_context = nullptr;
   }
-
   // To save memory, don't store encoders that we don't use.
   DestroyStoredEncoders();
 
@@ -469,7 +512,7 @@ int SimulcastEncoderAdapter::InitEncode(
 int SimulcastEncoderAdapter::Encode(
     const VideoFrame& input_image,
     const std::vector<VideoFrameType>* frame_types) {
-  RTC_DCHECK_RUN_ON(&encoder_queue_);
+  RTC_DCHECK_RUN_ON(&encoder_queue_checker_);
 
   if (!Initialized()) {
     return WEBRTC_VIDEO_CODEC_UNINITIALIZED;
@@ -518,6 +561,42 @@ int SimulcastEncoderAdapter::Encode(
   int src_width = input_image.width();
   int src_height = input_image.height();
 
+  if (!bypass_mode_) {
+    // Limit to prevent this queue from growing if the underlying encoder is
+    // not reporting the completion of frames via either OnEncodedFrame or
+    // OnFrameDropped.
+    constexpr size_t kMaxPendingFrames = 15;
+    MutexLock lock(&pending_frames_mutex_);
+    if (pending_frames_.size() >= kMaxPendingFrames) {
+      // Drop the oldest frame.
+      PendingFrame& dropped_frame = pending_frames_.front();
+      RTC_LOG(LS_WARNING) << "Pending frames queue full. Dropping frame with "
+                             "rtp_timestamp="
+                          << dropped_frame.rtp_timestamp;
+      for (size_t stream_idx = 0; stream_idx < kMaxSimulcastStreams;
+           ++stream_idx) {
+        if (dropped_frame.expected_layer_index.test(stream_idx)) {
+          dropped_frame.expected_layer_index.reset(stream_idx);
+          bool is_last = dropped_frame.expected_layer_index.none();
+          encoded_complete_callback_->OnFrameDropped(
+              dropped_frame.rtp_timestamp, stream_idx, is_last);
+        }
+      }
+      pending_frames_.pop_front();
+    }
+
+    std::bitset<kMaxSimulcastStreams> expected_layer_index;
+    for (const auto& layer : stream_contexts_) {
+      if (!layer.is_paused()) {
+        expected_layer_index.set(layer.stream_idx());
+      }
+    }
+    pending_frames_.push_back({
+        .rtp_timestamp = input_image.rtp_timestamp(),
+        .expected_layer_index = expected_layer_index,
+    });
+  }
+
   for (auto& layer : stream_contexts_) {
     // Don't encode frames in resolutions that we don't intend to send.
     if (layer.is_paused()) {
@@ -563,6 +642,7 @@ int SimulcastEncoderAdapter::Encode(
     if (keyframe_requested) {
       layer.OnKeyframe(frame_timestamp);
     } else if (layer.ShouldDropFrame(frame_timestamp)) {
+      OnFrameDropped(input_image.rtp_timestamp(), layer.stream_idx());
       continue;
     }
 
@@ -580,8 +660,12 @@ int SimulcastEncoderAdapter::Encode(
         (input_image.video_frame_buffer()->type() ==
              VideoFrameBuffer::Type::kNative &&
          layer.encoder().GetEncoderInfo().supports_native_handle)) {
-      int ret = layer.encoder().Encode(input_image, &stream_frame_types);
+      int ret = layer.Encode(input_image, &stream_frame_types);
       if (ret != WEBRTC_VIDEO_CODEC_OK) {
+        if (!bypass_mode_) {
+          MutexLock lock(&pending_frames_mutex_);
+          pending_frames_.pop_back();
+        }
         return ret;
       }
     } else {
@@ -604,7 +688,8 @@ int SimulcastEncoderAdapter::Encode(
                                                    .offset_y = 0,
                                                    .width = frame.width(),
                                                    .height = frame.height()});
-      int ret = layer.encoder().Encode(frame, &stream_frame_types);
+
+      int ret = layer.Encode(frame, &stream_frame_types);
       if (ret != WEBRTC_VIDEO_CODEC_OK) {
         return ret;
       }
@@ -616,11 +701,9 @@ int SimulcastEncoderAdapter::Encode(
 
 int SimulcastEncoderAdapter::RegisterEncodeCompleteCallback(
     EncodedImageCallback* callback) {
-  RTC_DCHECK_RUN_ON(&encoder_queue_);
+  RTC_DCHECK_RUN_ON(&encoder_queue_checker_);
   encoded_complete_callback_ = callback;
-  if (!stream_contexts_.empty() && stream_contexts_.front().stream_idx() == 0) {
-    // Bypass frame encode complete callback for the lowest layer since there is
-    // no need to override frame's spatial index.
+  if (bypass_mode_ && !stream_contexts_.empty()) {
     stream_contexts_.front().encoder().RegisterEncodeCompleteCallback(callback);
   }
   return WEBRTC_VIDEO_CODEC_OK;
@@ -628,7 +711,7 @@ int SimulcastEncoderAdapter::RegisterEncodeCompleteCallback(
 
 void SimulcastEncoderAdapter::SetRates(
     const RateControlParameters& parameters) {
-  RTC_DCHECK_RUN_ON(&encoder_queue_);
+  RTC_DCHECK_RUN_ON(&encoder_queue_checker_);
 
   if (!Initialized()) {
     RTC_LOG(LS_WARNING) << "SetRates while not initialized";
@@ -711,27 +794,72 @@ void SimulcastEncoderAdapter::OnLossNotification(
   }
 }
 
-// TODO(brandtr): Add task checker to this member function, when all encoder
-// callbacks are coming in on the encoder queue.
 EncodedImageCallback::Result SimulcastEncoderAdapter::OnEncodedImage(
     size_t stream_idx,
     const EncodedImage& encodedImage,
     const CodecSpecificInfo* codecSpecificInfo) {
   EncodedImage stream_image(encodedImage);
-  CodecSpecificInfo stream_codec_specific = *codecSpecificInfo;
 
-  stream_image.SetSimulcastIndex(stream_idx);
+  if (!bypass_mode_) {
+    // In non-bypass mode, the adapter manages stream indices.
+    // Overwrite any index set by the underlying encoder.
+    stream_image.SetSimulcastIndex(stream_idx);
+  }
 
   if (codec_.IsMixedCodec()) {
     stream_image.SetSpatialIndex(std::nullopt);
   }
 
+  bool is_last_in_temporal_unit = false;
+  if (!bypass_mode_) {
+    MutexLock lock(&pending_frames_mutex_);
+    auto it = std::find_if(pending_frames_.begin(), pending_frames_.end(),
+                           [&](const PendingFrame& frame) {
+                             return frame.rtp_timestamp ==
+                                    encodedImage.RtpTimestamp();
+                           });
+    if (it != pending_frames_.end()) {
+      it->expected_layer_index.reset(stream_idx);
+      if (it->expected_layer_index.none()) {
+        pending_frames_.erase(it);
+        is_last_in_temporal_unit = true;
+      }
+    } else {
+      // The frame was removed from the queue (e.g. due to overflow).
+      // We should drop this encoded image and not propagate it.
+      return EncodedImageCallback::Result(EncodedImageCallback::Result::OK,
+                                          encodedImage.RtpTimestamp());
+    }
+    stream_image.set_end_of_temporal_unit(is_last_in_temporal_unit);
+  }
+
   return encoded_complete_callback_->OnEncodedImage(stream_image,
-                                                    &stream_codec_specific);
+                                                    codecSpecificInfo);
 }
 
-void SimulcastEncoderAdapter::OnDroppedFrame(size_t /* stream_idx */) {
-  // Not yet implemented.
+void SimulcastEncoderAdapter::OnFrameDropped(uint32_t rtp_timestamp,
+                                             int spatial_id) {
+  bool is_last_in_temporal_unit = false;
+  {
+    MutexLock lock(&pending_frames_mutex_);
+    auto it = std::find_if(pending_frames_.begin(), pending_frames_.end(),
+                           [rtp_timestamp](const PendingFrame& frame) {
+                             return frame.rtp_timestamp == rtp_timestamp;
+                           });
+    if (it != pending_frames_.end()) {
+      it->expected_layer_index.reset(spatial_id);
+      if (it->expected_layer_index.none()) {
+        pending_frames_.erase(it);
+        is_last_in_temporal_unit = true;
+      }
+    } else {
+      // Already removed, ignore.
+      return;
+    }
+  }
+
+  encoded_complete_callback_->OnFrameDropped(rtp_timestamp, spatial_id,
+                                             is_last_in_temporal_unit);
 }
 
 bool SimulcastEncoderAdapter::Initialized() const {
@@ -739,7 +867,7 @@ bool SimulcastEncoderAdapter::Initialized() const {
 }
 
 void SimulcastEncoderAdapter::DestroyStoredEncoders() {
-  RTC_DCHECK_RUN_ON(&encoder_queue_);
+  RTC_DCHECK_RUN_ON(&encoder_queue_checker_);
   while (!cached_encoder_contexts_.empty()) {
     cached_encoder_contexts_.pop_back();
   }
@@ -749,7 +877,7 @@ std::unique_ptr<SimulcastEncoderAdapter::EncoderContext>
 SimulcastEncoderAdapter::FetchOrCreateEncoderContext(
     bool is_lowest_quality_stream,
     std::optional<int> stream_idx) const {
-  RTC_DCHECK_RUN_ON(&encoder_queue_);
+  RTC_DCHECK_RUN_ON(&encoder_queue_checker_);
   if (stream_idx) {
     RTC_CHECK_LT(*stream_idx, codec_.numberOfSimulcastStreams);
   }

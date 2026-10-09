@@ -16,6 +16,7 @@
 
 #include "api/array_view.h"
 #include "api/call/transport.h"
+#include "api/environment/environment.h"
 #include "api/media_types.h"
 #include "api/rtp_parameters.h"
 #include "api/task_queue/task_queue_base.h"
@@ -31,6 +32,7 @@ namespace test {
 class LayerFilteringTransport : public test::DirectTransport {
  public:
   LayerFilteringTransport(
+      const Environment& env,
       TaskQueueBase* task_queue,
       std::unique_ptr<SimulatedPacketReceiverInterface> pipe,
       Call* send_call,
@@ -44,6 +46,7 @@ class LayerFilteringTransport : public test::DirectTransport {
       ArrayView<const RtpExtension> audio_extensions,
       ArrayView<const RtpExtension> video_extensions);
   LayerFilteringTransport(
+      const Environment& env,
       TaskQueueBase* task_queue,
       std::unique_ptr<SimulatedPacketReceiverInterface> pipe,
       Call* send_call,

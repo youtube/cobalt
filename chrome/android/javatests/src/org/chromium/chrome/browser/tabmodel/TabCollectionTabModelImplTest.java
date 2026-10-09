@@ -21,6 +21,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+import static org.chromium.chrome.browser.tabmodel.TabGroupTitleUtils.UNSET_TAB_GROUP_TITLE;
 import static org.chromium.chrome.browser.tasks.tab_management.TabUiTestHelper.clickFirstCardFromTabSwitcher;
 import static org.chromium.ui.test.util.ViewUtils.onViewWaiting;
 
@@ -52,7 +53,6 @@ import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tab.TabSelectionType;
 import org.chromium.chrome.browser.tab.TabTestUtils;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter.MergeNotificationType;
-import org.chromium.chrome.browser.tabmodel.TabGroupModelFilterObserver.DidRemoveTabGroupReason;
 import org.chromium.chrome.browser.tabmodel.TabModelActionListener.DialogType;
 import org.chromium.chrome.browser.tasks.tab_management.TabUiTestHelper;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
@@ -1428,7 +1428,7 @@ public class TabCollectionTabModelImplTest {
                     @Override
                     public void didChangeTabGroupTitle(Token id, String newTitle) {
                         assertEquals(tabGroupId, id);
-                        assertEquals("", newTitle);
+                        assertEquals(UNSET_TAB_GROUP_TITLE, newTitle);
                         titleDeletedHelper.notifyCalled();
                     }
                 };
@@ -1436,7 +1436,8 @@ public class TabCollectionTabModelImplTest {
                 () -> {
                     mCollectionModel.addTabGroupObserver(titleDeleteObserver);
                     mCollectionModel.deleteTabGroupTitle(tabGroupId);
-                    assertEquals("", mCollectionModel.getTabGroupTitle(tabGroupId));
+                    assertEquals(
+                            UNSET_TAB_GROUP_TITLE, mCollectionModel.getTabGroupTitle(tabGroupId));
                     mCollectionModel.removeTabGroupObserver(titleDeleteObserver);
                 });
         titleDeletedHelper.waitForOnly("deleteTabGroupTitle failed");
@@ -1713,16 +1714,16 @@ public class TabCollectionTabModelImplTest {
                 title,
                 TabGroupVisualDataStore.getTabGroupTitle(tabGroupId));
 
-        mCollectionModel.setTabGroupTitle(tabGroupId, "");
+        mCollectionModel.setTabGroupTitle(tabGroupId, UNSET_TAB_GROUP_TITLE);
 
         assertEquals(
-                "Native title should be cleared (empty string)",
-                "",
+                "Native title should be cleared (unset)",
+                UNSET_TAB_GROUP_TITLE,
                 mCollectionModel.getTabGroupTitle(tabGroupId));
 
         assertEquals(
-                "Store title should be deleted (empty string)",
-                "",
+                "Store title should be deleted (unset)",
+                UNSET_TAB_GROUP_TITLE,
                 TabGroupVisualDataStore.getTabGroupTitle(tabGroupId));
     }
 
@@ -1837,7 +1838,9 @@ public class TabCollectionTabModelImplTest {
                                     .build());
 
                     assertFalse(mCollectionModel.tabGroupExists(groupId));
-                    assertEquals("", TabGroupVisualDataStore.getTabGroupTitle(groupId));
+                    assertEquals(
+                            UNSET_TAB_GROUP_TITLE,
+                            TabGroupVisualDataStore.getTabGroupTitle(groupId));
                     assertEquals(
                             TabGroupColorUtils.INVALID_COLOR_ID,
                             TabGroupVisualDataStore.getTabGroupColor(groupId));
@@ -4258,5 +4261,74 @@ public class TabCollectionTabModelImplTest {
         onTabGroupVisualsChanged.waitForNext();
 
         ThreadUtils.runOnUiThreadBlocking(() -> mCollectionModel.removeObserver(observer));
+    }
+
+    @Test
+    @MediumTest
+    public void testIsClosingAllTabs() throws Exception {
+        Tab tab0 = getTabAt(0);
+        Tab tab1 = createTab();
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    assertFalse(mCollectionModel.isClosingAllTabs());
+                });
+
+        CallbackHelper allTabsAreClosingHelper = new CallbackHelper();
+        TabModelObserver allTabsObserver =
+                new TabModelObserver() {
+                    @Override
+                    public void allTabsAreClosing() {
+                        assertTrue(mCollectionModel.isClosingAllTabs());
+                        allTabsAreClosingHelper.notifyCalled();
+                    }
+                };
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mCollectionModel.addObserver(allTabsObserver);
+                    mCollectionModel.closeTabs(
+                            TabClosureParams.closeAllTabs().allowUndo(false).build());
+                });
+
+        allTabsAreClosingHelper.waitForOnly();
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    assertTrue(mCollectionModel.isClosingAllTabs());
+                    mCollectionModel.removeObserver(allTabsObserver);
+                });
+    }
+
+    @Test
+    @MediumTest
+    public void testIsClosingAllTabsIsFalse() throws Exception {
+        Tab tab0 = getTabAt(0);
+        Tab tab1 = createTab();
+        assertFalse(mCollectionModel.isClosingAllTabs());
+
+        CallbackHelper willCloseTabHelper = new CallbackHelper();
+        TabModelObserver observer =
+                new TabModelObserver() {
+                    @Override
+                    public void willCloseTab(Tab tab, boolean isSingle) {
+                        assertFalse(mCollectionModel.isClosingAllTabs());
+                        willCloseTabHelper.notifyCalled();
+                    }
+                };
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mCollectionModel.addObserver(observer);
+                    mCollectionModel.closeTabs(
+                            TabClosureParams.closeTab(tab0).allowUndo(false).build());
+                });
+
+        willCloseTabHelper.waitForOnly();
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    assertFalse(mCollectionModel.isClosingAllTabs());
+                    mCollectionModel.removeObserver(observer);
+                });
     }
 }

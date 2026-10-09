@@ -62,6 +62,7 @@
 #include "rtc_base/thread.h"
 #include "system_wrappers/include/clock.h"
 #include "system_wrappers/include/ntp_time.h"
+#include "test/create_test_environment.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 
@@ -585,12 +586,11 @@ void InitVoiceReceiverInfo(VoiceReceiverInfo* voice_receiver_info) {
   voice_receiver_info->decoding_codec_plc = 127;
 }
 
-
-
 class LegacyStatsCollectorTest : public ::testing::Test {
  protected:
   scoped_refptr<FakePeerConnectionForStats> CreatePeerConnection() {
-    return make_ref_counted<FakePeerConnectionForStats>();
+    return make_ref_counted<FakePeerConnectionForStats>(
+        CreateTestEnvironment({.time = &clock_}));
   }
 
   std::unique_ptr<LegacyStatsCollector> CreateStatsCollector(

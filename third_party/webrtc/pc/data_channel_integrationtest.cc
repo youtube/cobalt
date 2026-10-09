@@ -1226,20 +1226,20 @@ TEST_P(DataChannelIntegrationTest,
   ASSERT_THAT(WaitUntil([&] { return callee()->data_channel(); }, IsTrue()),
               IsRtcOk());
 
-  auto caller_report = caller()->NewGetStats();
+  auto caller_report = caller()->NewGetStats(run_loop());
   ASSERT_THAT(caller_report, NotNull());
   EXPECT_EQ(1u, caller_report->GetStatsOfType<RTCTransportStats>().size());
-  auto callee_report = callee()->NewGetStats();
+  auto callee_report = callee()->NewGetStats(run_loop());
   ASSERT_THAT(callee_report, NotNull());
   EXPECT_EQ(1u, callee_report->GetStatsOfType<RTCTransportStats>().size());
 }
 
 TEST_P(DataChannelIntegrationTest, CreateDataChannelInvalidatesStatsCache) {
   ASSERT_TRUE(CreatePeerConnectionWrappers());
-  auto first_report = caller()->NewGetStats();
+  auto first_report = caller()->NewGetStats(run_loop());
   ASSERT_THAT(first_report, NotNull());
   caller()->CreateDataChannel();
-  auto second_report = caller()->NewGetStats();
+  auto second_report = caller()->NewGetStats(run_loop());
   ASSERT_THAT(second_report, NotNull());
 
   EXPECT_EQ(0u, first_report->GetStatsOfType<RTCDataChannelStats>().size());

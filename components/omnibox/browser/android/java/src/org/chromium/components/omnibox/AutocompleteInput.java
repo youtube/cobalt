@@ -10,13 +10,14 @@ import androidx.annotation.IntDef;
 
 import org.chromium.base.UserData;
 import org.chromium.base.supplier.NonNullObservableSupplier;
-import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.build.BuildConfig;
 import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.metrics.OmniboxEventProtos.OmniboxEventProto.PageClassification;
-import org.chromium.components.omnibox.AimToolsProto.ToolMode;
+import org.chromium.components.omnibox.ToolModeProto.ToolMode;
 import org.chromium.url.GURL;
 
 import java.lang.annotation.Retention;
@@ -60,8 +61,10 @@ public class AutocompleteInput implements UserData {
     private int mSelectionEnd;
     private @RefineActionUsage int mRefineActionUsage;
     private boolean mSuggestionsListScrolled;
+    private @OmniboxFocusReason int mFocusReason;
     private final SettableNonNullObservableSupplier<@AutocompleteRequestType Integer>
-            mRequestTypeSupplier = new ObservableSupplierImpl<>(AutocompleteRequestType.SEARCH);
+            mRequestTypeSupplier =
+                    ObservableSuppliers.createNonNull(AutocompleteRequestType.SEARCH);
 
     public AutocompleteInput() {
         reset();
@@ -153,6 +156,17 @@ public class AutocompleteInput implements UserData {
         return mPageTitle;
     }
 
+    /** Sets the specific reason that activated the input session. */
+    public AutocompleteInput setFocusReason(@OmniboxFocusReason int focusReason) {
+        mFocusReason = focusReason;
+        return this;
+    }
+
+    /** Returns how the input session was activated. */
+    public @OmniboxFocusReason int getFocusReason() {
+        return mFocusReason;
+    }
+
     /** Set the AutocompleteRequestType */
     public AutocompleteInput setRequestType(@AutocompleteRequestType int type) {
         mRequestTypeSupplier.set(type);
@@ -198,13 +212,19 @@ public class AutocompleteInput implements UserData {
     }
 
     /**
-     * Set the text as currently typed by the User. This also updates the state for keyword
-     * matching.
+     * Set the text as currently typed by the User.
      *
-     * @param text The user-typed text.
+     * <p>Allows passing null text to indicate no/empty input. When the new text differs from the
+     * existing content of the UserText the selection markers and keyword matching flags are reset.
+     * When new text matches the existing text no action is taken.
+     *
+     * @param text The user-typed text. Null text is automatically replaced with empty string.
      * @return The AutocompleteInput object.
      */
-    public AutocompleteInput setUserText(String text) {
+    public AutocompleteInput setUserText(@Nullable String text) {
+        if (text == null) text = "";
+        if (TextUtils.equals(text, mUserText)) return this;
+
         boolean oldTextUsesKeywordActivator =
                 !TextUtils.isEmpty(mUserText) && TextUtils.indexOf(mUserText, ' ') > 0;
         boolean newTextUsesKeywordActivator =
@@ -216,6 +236,8 @@ public class AutocompleteInput implements UserData {
         mAllowExactKeywordMatch &= !(oldTextUsesKeywordActivator && !newTextUsesKeywordActivator);
 
         mUserText = text;
+        mSelectionStart = text.length();
+        mSelectionEnd = mSelectionStart;
         return this;
     }
 
@@ -259,9 +281,10 @@ public class AutocompleteInput implements UserData {
         mHasAttachments = hasAttachments;
     }
 
-    public void setSelection(int rangeStart, int rangeEnd) {
+    public AutocompleteInput setSelection(int rangeStart, int rangeEnd) {
         mSelectionStart = rangeStart;
         mSelectionEnd = rangeEnd;
+        return this;
     }
 
     public int getSelectionStart() {
@@ -302,6 +325,7 @@ public class AutocompleteInput implements UserData {
         mSelectionEnd = 0;
         mRefineActionUsage = RefineActionUsage.NOT_USED;
         mPageClassification = PageClassification.BLANK_VALUE;
+        mFocusReason = OmniboxFocusReason.OMNIBOX_TAP;
         mRequestTypeSupplier.set(AutocompleteRequestType.SEARCH);
         mUrlFocusTime = 0;
         mSuggestionsListScrolled = false;

@@ -115,7 +115,6 @@
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/ui/web_applications/web_app_launch_utils.h"
 #include "chrome/browser/ui/web_applications/web_app_tabbed_utils.h"
-#include "chrome/browser/ui/webui/commerce/product_specifications_disclosure_dialog.h"
 #include "chrome/browser/ui/webui/tab_search/tab_search.mojom.h"
 #include "chrome/browser/upgrade_detector/upgrade_detector.h"
 #include "chrome/browser/web_applications/web_app_constants.h"
@@ -134,7 +133,6 @@
 #include "components/bookmarks/common/bookmark_pref_names.h"
 #include "components/browsing_data/content/browsing_data_helper.h"
 #include "components/commerce/core/commerce_utils.h"
-#include "components/commerce/core/mojom/product_specifications.mojom.h"
 #include "components/commerce/core/pref_names.h"
 #include "components/embedder_support/user_agent_utils.h"
 #include "components/favicon/content/content_favicon_driver.h"
@@ -773,42 +771,16 @@ void OpenURLOffTheRecord(Profile* profile, const GURL& url) {
   AddSelectedTabWithURL(displayer.browser(), url, ui::PAGE_TRANSITION_LINK);
 }
 
-namespace {
-
-bool CanGoBackToOpener(content::WebContents* web_contents) {
-  if (!web_contents) {
-    return false;
-  }
-
-  tabs::TabInterface* tab =
-      tabs::TabInterface::MaybeGetFromContents(web_contents);
-  if (!tab) {
-    return false;
-  }
-
-  const back_to_opener::BackToOpenerController* controller =
-      back_to_opener::BackToOpenerController::From(tab);
-  return controller && controller->CanGoBackToOpener();
-}
-
-}  // namespace
 
 bool CanGoBack(const Browser* browser) {
   return CanGoBack(browser->tab_strip_model()->GetActiveWebContents());
 }
 
 bool CanGoBack(content::WebContents* web_contents) {
-  if (!web_contents) {
-    return false;
-  }
-
-  // Check for regular back navigation first.
-  if (web_contents->GetController().CanGoBack()) {
-    return true;
-  }
-
-  // If no regular back navigation, check for back-to-opener.
-  return CanGoBackToOpener(web_contents);
+  return web_contents &&
+         (web_contents->GetController().CanGoBack() ||
+          back_to_opener::BackToOpenerController::CanGoBackToOpener(
+              web_contents));
 }
 
 bool ShouldEnableBackButton(const Browser* browser) {
@@ -824,7 +796,8 @@ bool ShouldEnableBackButton(const Browser* browser) {
   }
 
   // If no regular back navigation, check for back-to-opener.
-  return CanGoBackToOpener(web_contents);
+  return back_to_opener::BackToOpenerController::CanGoBackToOpener(
+      web_contents);
 }
 
 enum class BackNavigationMenuIPHTrigger : int {
@@ -893,16 +866,7 @@ void GoBack(content::WebContents* web_contents) {
   }
 
   // If no regular back navigation, try back-to-opener.
-  tabs::TabInterface* tab =
-      tabs::TabInterface::MaybeGetFromContents(web_contents);
-  if (tab) {
-    back_to_opener::BackToOpenerController* controller =
-        back_to_opener::BackToOpenerController::From(tab);
-    if (controller && controller->CanGoBackToOpener()) {
-      controller->GoBackToOpener();
-      return;
-    }
-  }
+  back_to_opener::BackToOpenerController::GoBackToOpener(web_contents);
 }
 
 bool CanGoForward(const Browser* browser) {
@@ -2216,13 +2180,13 @@ void CloseTabSearch(Browser* browser) {
 }
 
 void ToggleContextualTasksSidePanel(BrowserWindowInterface* browser) {
-  auto* coordinator =
-      contextual_tasks::ContextualTasksSidePanelCoordinator::From(browser);
-  CHECK(coordinator);
-  if (coordinator->IsSidePanelOpenForContextualTask()) {
-    coordinator->Close();
+  auto* controller =
+      contextual_tasks::ContextualTasksPanelController::From(browser);
+  CHECK(controller);
+  if (controller->IsPanelOpenForContextualTask()) {
+    controller->Close();
   } else {
-    coordinator->Show();
+    controller->Show();
   }
 }
 
@@ -2355,6 +2319,13 @@ void OpenFeedbackDialog(BrowserWindowInterface* bwi,
                            std::string() /* description_placeholder_text */,
                            category_tag, std::string() /* extra_diagnostics */);
 }
+
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+void OpenReportUnsafeSiteDialog(Browser* browser) {
+  base::RecordAction(UserMetricsAction("ReportUnsafeSite"));
+  // TODO(crbug.com/468396148): Implement
+}
+#endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
 
 void ToggleBookmarkBar(Browser* browser) {
   base::RecordAction(UserMetricsAction("ShowBookmarksBar"));
@@ -2691,28 +2662,6 @@ void ExecLensRegionSearch(Browser* browser) {
         /*use_fullscreen_capture=*/false, is_google_dsp, entry_point);
   }
 #endif  // BUILDFLAG(ENABLE_LENS_DESKTOP_GOOGLE_BRANDED_FEATURES)
-}
-
-void OpenCommerceProductSpecificationsTab(Browser* browser,
-                                          const std::vector<GURL>& urls,
-                                          const int position) {
-  auto* prefs = browser->profile()->GetPrefs();
-  // If user has not accepted the latest disclosure, show the disclosure dialog
-  // first.
-  if (prefs && prefs->GetInteger(
-                   commerce::kProductSpecificationsAcceptedDisclosureVersion) !=
-                   static_cast<int>(commerce::product_specifications::mojom::
-                                        DisclosureVersion::kV1)) {
-    commerce::DialogArgs dialog_args(urls, std::string(), /*set_id=*/"",
-                                     /*in_new_tab=*/true);
-    commerce::ProductSpecificationsDisclosureDialog::ShowDialog(
-        browser->profile(), browser->tab_strip_model()->GetActiveWebContents(),
-        std::move(dialog_args));
-    return;
-  }
-
-  chrome::AddTabAt(browser, commerce::GetProductSpecsTabUrl(urls), position + 1,
-                   true, std::nullopt);
 }
 
 }  // namespace chrome

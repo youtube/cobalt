@@ -37,6 +37,7 @@
 #include "third_party/blink/renderer/core/dom/events/native_event_listener.h"
 #include "third_party/blink/renderer/core/dom/id_target_observer.h"
 #include "third_party/blink/renderer/core/frame/web_feature.h"
+#include "third_party/blink/renderer/core/svg/animation/smil_time.h"
 #include "third_party/blink/renderer/core/svg/animation/smil_time_container.h"
 #include "third_party/blink/renderer/core/svg/svg_set_element.h"
 #include "third_party/blink/renderer/core/svg/svg_svg_element.h"
@@ -46,6 +47,7 @@
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 #include "third_party/blink/renderer/platform/wtf/math_extras.h"
 #include "third_party/blink/renderer/platform/wtf/std_lib_extras.h"
+#include "third_party/blink/renderer/platform/wtf/text/string_to_number.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
 namespace blink {
@@ -403,25 +405,32 @@ void SVGSMILElement::RemovedFrom(ContainerNode& root_parent) {
   SVGElement::RemovedFrom(root_parent);
 }
 
-SMILTime SVGSMILElement::ParseOffsetValue(const String& data) {
-  bool ok;
+SMILTime SVGSMILElement::ParseOffsetValue(const StringView& data) {
+  std::optional<double> parsed;
   double result = 0;
-  const String parse = data.StripWhiteSpace();
-  if (parse.EndsWith('h')) {
-    result = parse.Left(parse.length() - 1).ToDouble(&ok) *
-             base::Time::kSecondsPerHour;
-  } else if (parse.EndsWith("min")) {
-    result = parse.Left(parse.length() - 3).ToDouble(&ok) *
-             base::Time::kSecondsPerMinute;
-  } else if (parse.EndsWith("ms")) {
-    result = parse.Left(parse.length() - 2).ToDouble(&ok) /
-             base::Time::kMillisecondsPerSecond;
-  } else if (parse.EndsWith('s')) {
-    result = parse.Left(parse.length() - 1).ToDouble(&ok);
+  StringView view = data.StripWhiteSpace();
+  if (view.ends_with('h')) {
+    view.remove_suffix(1);
+    parsed = StringToDouble(view);
+    result = parsed.value_or(0) * base::Time::kSecondsPerHour;
+  } else if (view.ends_with("min")) {
+    view.remove_suffix(3);
+    parsed = StringToDouble(view);
+    result = parsed.value_or(0) * base::Time::kSecondsPerMinute;
+  } else if (view.ends_with("ms")) {
+    view.remove_suffix(2);
+    parsed = StringToDouble(view);
+    result = parsed.value_or(0) / base::Time::kMillisecondsPerSecond;
+  } else if (view.ends_with('s')) {
+    view.remove_suffix(1);
+    parsed = StringToDouble(view);
+    result = parsed.value_or(0);
   } else {
-    result = parse.ToDouble(&ok);
+    parsed = StringToDouble(view);
+    result = parsed.value_or(0);
   }
-  return ok ? SMILTime::FromSecondsD(result) : SMILTime::Unresolved();
+  return parsed.has_value() ? SMILTime::FromSecondsD(result)
+                            : SMILTime::Unresolved();
 }
 
 SMILTime SVGSMILElement::ParseClockValue(const String& data) {
@@ -435,50 +444,48 @@ SMILTime SVGSMILElement::ParseClockValue(const String& data) {
     return SMILTime::Indefinite();
 
   double result = 0;
-  bool ok;
   wtf_size_t double_point_one = parse.find(':');
   wtf_size_t double_point_two = parse.find(':', double_point_one + 1);
   if (double_point_one == 2 && double_point_two == 5 && parse.length() >= 8) {
-    result += parse.Substring(0, 2).ToUIntStrict(&ok) * 60 * 60;
-    if (!ok)
+    auto parsed_hour = StringToUintStrict(parse.Substring(0, 2));
+    auto parsed_min = StringToUintStrict(parse.Substring(3, 2));
+    auto parsed_sec = StringToDouble(StringView(parse, 6));
+    if (!parsed_hour || !parsed_min || !parsed_sec) {
       return SMILTime::Unresolved();
-    result += parse.Substring(3, 2).ToUIntStrict(&ok) * 60;
-    if (!ok)
-      return SMILTime::Unresolved();
-    result += parse.Substring(6).ToDouble(&ok);
+    }
+    result += *parsed_hour * 60 * 60 + *parsed_min * 60 + *parsed_sec;
   } else if (double_point_one == 2 && double_point_two == kNotFound &&
              parse.length() >= 5) {
-    result += parse.Substring(0, 2).ToUIntStrict(&ok) * 60;
-    if (!ok)
+    auto parsed_min = StringToUintStrict(parse.Substring(0, 2));
+    auto parsed_sec = StringToDouble(StringView(parse, 3));
+    if (!parsed_min || !parsed_sec) {
       return SMILTime::Unresolved();
-    result += parse.Substring(3).ToDouble(&ok);
+    }
+    result += *parsed_min * 60 + *parsed_sec;
   } else {
     return ParseOffsetValue(parse);
   }
 
-  if (!ok)
-    return SMILTime::Unresolved();
   return SMILTime::FromSecondsD(result);
 }
 
-bool SVGSMILElement::ParseCondition(const String& value,
+bool SVGSMILElement::ParseCondition(const StringView& value,
                                     BeginOrEnd begin_or_end) {
-  String parse_string = value.StripWhiteSpace();
+  StringView parse_string = value.StripWhiteSpace();
 
   bool is_negated = false;
-  bool ok;
   wtf_size_t pos = parse_string.find('+');
   if (pos == kNotFound) {
     pos = parse_string.find('-');
     is_negated = pos != kNotFound;
   }
-  String condition_string;
+  StringView condition_string;
   SMILTime offset;
   if (pos == kNotFound) {
     condition_string = parse_string;
   } else {
-    condition_string = parse_string.Left(pos).StripWhiteSpace();
-    String offset_string = parse_string.Substring(pos + 1).StripWhiteSpace();
+    condition_string = parse_string.substr(0, pos).StripWhiteSpace();
+    StringView offset_string = parse_string.substr(pos + 1).StripWhiteSpace();
     offset = ParseOffsetValue(offset_string);
     if (offset.IsUnresolved())
       return false;
@@ -489,24 +496,26 @@ bool SVGSMILElement::ParseCondition(const String& value,
     return false;
   pos = condition_string.find('.');
 
-  String base_id;
-  String name_string;
+  StringView base_id;
+  StringView name_string;
   if (pos == kNotFound) {
     name_string = condition_string;
   } else {
-    base_id = condition_string.Left(pos);
-    name_string = condition_string.Substring(pos + 1);
+    base_id = condition_string.substr(0, pos);
+    name_string = condition_string.substr(pos + 1);
   }
   if (name_string.empty())
     return false;
 
   Condition::Type type;
   int repeat = -1;
-  if (name_string.StartsWith("repeat(") && name_string.EndsWith(')')) {
-    repeat =
-        name_string.Substring(7, name_string.length() - 8).ToUIntStrict(&ok);
-    if (!ok)
+  if (name_string.starts_with("repeat(") && name_string.ends_with(')')) {
+    auto parsed =
+        StringToUintStrict(name_string.substr(7, name_string.length() - 8));
+    if (!parsed) {
       return false;
+    }
+    repeat = *parsed;
     name_string = "repeat";
     type = Condition::kSyncBase;
   } else if (name_string == "begin" || name_string == "end") {
@@ -515,7 +524,7 @@ bool SVGSMILElement::ParseCondition(const String& value,
     UseCounter::Count(&GetDocument(),
                       WebFeature::kSVGSMILBeginOrEndSyncbaseValue);
     type = Condition::kSyncBase;
-  } else if (name_string.StartsWith("accesskey(")) {
+  } else if (name_string.starts_with("accesskey(")) {
     // FIXME: accesskey() support.
     type = Condition::kAccessKey;
   } else {
@@ -524,8 +533,8 @@ bool SVGSMILElement::ParseCondition(const String& value,
   }
 
   conditions_.push_back(MakeGarbageCollected<Condition>(
-      type, begin_or_end, AtomicString(base_id), AtomicString(name_string),
-      offset, repeat));
+      type, begin_or_end, base_id.ToAtomicString(),
+      name_string.ToAtomicString(), offset, repeat));
 
   if (RuntimeEnabledFeatures::SvgSmilPruneInstanceTimesEnabled()) {
     if (begin_or_end == kEnd) {
@@ -760,10 +769,10 @@ static SMILRepeatCount ParseRepeatCount(const AtomicString& value) {
     return SMILRepeatCount::Unspecified();
   if (value == "indefinite")
     return SMILRepeatCount::Indefinite();
-  bool ok;
-  double result = value.ToDouble(&ok);
-  if (ok && result > 0 && std::isfinite(result))
-    return SMILRepeatCount::Numeric(result);
+  auto result = StringToDouble(value);
+  if (result && *result > 0 && std::isfinite(*result)) {
+    return SMILRepeatCount::Numeric(*result);
+  }
   return SMILRepeatCount::Unspecified();
 }
 

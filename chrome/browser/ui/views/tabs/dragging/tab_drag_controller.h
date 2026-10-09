@@ -174,8 +174,8 @@ class TabDragController : public views::WidgetObserver,
   // Returns the tab group being dragged, if any. Will only return a value if
   // the user is dragging a tab group header, not an individual tab or tabs
   // from a group.
-  const std::optional<tab_groups::TabGroupId> group() const {
-    return drag_data_.group();
+  const std::optional<tab_groups::TabGroupId> group_header_id() const {
+    return drag_data_.group_header_id();
   }
 
   bool IsMovingLastTab() const { return is_moving_last_tab_; }
@@ -544,7 +544,8 @@ class TabDragController : public views::WidgetObserver,
 #endif  // defined(USE_AURA)
 
   // Updates the current drag target, and fires relevant handler events.
-  void UpdateDragTarget(TabDragTarget* new_target);
+  void UpdateDragTarget(TabDragTarget* new_target,
+                        const gfx::Point& point_in_screen);
   void ResetDragTarget();
 
   static void SetTabDragPointResolver(TabDragPointResolver& resolver);

@@ -2060,6 +2060,50 @@ TEST_F(SendStatisticsProxyTest, VerifyQpHistogramStats_H264) {
       1, metrics::NumEvents("WebRTC.Video.Encoded.Qp.H264.S1", kQpIdx1));
 }
 
+TEST_F(SendStatisticsProxyTest, VerifyQpHistogramStats_Av1) {
+  EncodedImage encoded_image;
+  CodecSpecificInfo codec_info;
+  codec_info.codecType = kVideoCodecAV1;
+
+  for (int i = 0; i < SendStatisticsProxy::kMinRequiredMetricsSamples; ++i) {
+    encoded_image.SetSpatialIndex(0);
+    encoded_image.qp_ = kQpIdx0;
+    statistics_proxy_->OnSendEncodedImage(encoded_image, &codec_info);
+    encoded_image.SetSpatialIndex(1);
+    encoded_image.qp_ = kQpIdx1;
+    statistics_proxy_->OnSendEncodedImage(encoded_image, &codec_info);
+  }
+  statistics_proxy_.reset();
+  EXPECT_METRIC_EQ(1, metrics::NumSamples("WebRTC.Video.Encoded.Qp.Av1.S0"));
+  EXPECT_METRIC_EQ(
+      1, metrics::NumEvents("WebRTC.Video.Encoded.Qp.Av1.S0", kQpIdx0));
+  EXPECT_METRIC_EQ(1, metrics::NumSamples("WebRTC.Video.Encoded.Qp.Av1.S1"));
+  EXPECT_METRIC_EQ(
+      1, metrics::NumEvents("WebRTC.Video.Encoded.Qp.Av1.S1", kQpIdx1));
+}
+
+TEST_F(SendStatisticsProxyTest, VerifyQpHistogramStats_H265) {
+  EncodedImage encoded_image;
+  CodecSpecificInfo codec_info;
+  codec_info.codecType = kVideoCodecH265;
+
+  for (int i = 0; i < SendStatisticsProxy::kMinRequiredMetricsSamples; ++i) {
+    encoded_image.SetSimulcastIndex(0);
+    encoded_image.qp_ = kQpIdx0;
+    statistics_proxy_->OnSendEncodedImage(encoded_image, &codec_info);
+    encoded_image.SetSimulcastIndex(1);
+    encoded_image.qp_ = kQpIdx1;
+    statistics_proxy_->OnSendEncodedImage(encoded_image, &codec_info);
+  }
+  statistics_proxy_.reset();
+  EXPECT_METRIC_EQ(1, metrics::NumSamples("WebRTC.Video.Encoded.Qp.H265.S0"));
+  EXPECT_METRIC_EQ(
+      1, metrics::NumEvents("WebRTC.Video.Encoded.Qp.H265.S0", kQpIdx0));
+  EXPECT_METRIC_EQ(1, metrics::NumSamples("WebRTC.Video.Encoded.Qp.H265.S1"));
+  EXPECT_METRIC_EQ(
+      1, metrics::NumEvents("WebRTC.Video.Encoded.Qp.H265.S1", kQpIdx1));
+}
+
 TEST_F(SendStatisticsProxyTest,
        BandwidthLimitedHistogramsNotUpdatedForOneStream) {
   // Configure one stream.
@@ -3134,6 +3178,118 @@ TEST_F(ForcedFallbackEnabled, FallbackIfAtMaxPixels) {
                    metrics::NumSamples(kPrefix + "FallbackTimeInPercent.Vp8"));
   EXPECT_METRIC_EQ(
       1, metrics::NumSamples(kPrefix + "FallbackChangesPerMinute.Vp8"));
+}
+
+TEST_F(SendStatisticsProxyTest, PsnrHistogramsRealtimeVideoSingleStream) {
+  // Reconfigure to single stream to test "WebRTC.Video.Psnr.Y" (no spatial
+  // index).
+  VideoSendStream::Config config(nullptr);
+  config.rtp.ssrcs.push_back(kFirstSsrc);
+  statistics_proxy_.reset(new SendStatisticsProxy(
+      &fake_clock_, config, VideoEncoderConfig::ContentType::kRealtimeVideo,
+      field_trials_));
+
+  for (int i = 0; i < SendStatisticsProxy::kMinRequiredPsnrSamples; ++i) {
+    EncodedImage encoded_image;
+    encoded_image.SetRtpTimestamp(i);
+    encoded_image.set_psnr(EncodedImage::Psnr{.y = 40, .u = 41, .v = 42});
+    statistics_proxy_->OnSendEncodedImage(encoded_image, nullptr);
+  }
+
+  // Verify internal stats first
+  EXPECT_EQ(5u, statistics_proxy_->GetStats().frames_encoded);
+  // Check PSNR measurements if possible, usually exposed in substreams
+  uint32_t ssrc = config.rtp.ssrcs[0];
+  EXPECT_EQ(5u,
+            statistics_proxy_->GetStats().substreams[ssrc].psnr_measurements);
+
+  statistics_proxy_.reset();
+
+  EXPECT_METRIC_EQ(1, metrics::NumSamples("WebRTC.Video.Psnr.Y"));
+  EXPECT_METRIC_EQ(1, metrics::NumEvents("WebRTC.Video.Psnr.Y", 400));
+  EXPECT_METRIC_EQ(1, metrics::NumSamples("WebRTC.Video.Psnr.U"));
+  EXPECT_METRIC_EQ(1, metrics::NumEvents("WebRTC.Video.Psnr.U", 410));
+  EXPECT_METRIC_EQ(1, metrics::NumSamples("WebRTC.Video.Psnr.V"));
+  EXPECT_METRIC_EQ(1, metrics::NumEvents("WebRTC.Video.Psnr.V", 420));
+}
+
+TEST_F(SendStatisticsProxyTest, PsnrHistogramsRealtimeVideoSimulcast) {
+  // Use more samples than min required to be safe.
+  const int kNumSamples = SendStatisticsProxy::kMinRequiredPsnrSamples + 5;
+  for (int i = 0; i < kNumSamples; ++i) {
+    EncodedImage encoded_image;
+    encoded_image.SetRtpTimestamp(i * 3000);
+    encoded_image.SetSimulcastIndex(0);
+    encoded_image.set_psnr(EncodedImage::Psnr{.y = 40, .u = 41, .v = 42});
+    statistics_proxy_->OnSendEncodedImage(encoded_image, nullptr);
+
+    EncodedImage encoded_image_s1;
+    encoded_image_s1.SetRtpTimestamp(i * 3000);
+    encoded_image_s1.SetSimulcastIndex(1);
+    encoded_image_s1.set_psnr(EncodedImage::Psnr{.y = 50, .u = 51, .v = 52});
+    statistics_proxy_->OnSendEncodedImage(encoded_image_s1, nullptr);
+    fake_clock_.AdvanceTimeMilliseconds(33);
+  }
+
+  // Verify internal stats
+  EXPECT_EQ(2u * kNumSamples, statistics_proxy_->GetStats().frames_encoded);
+  uint32_t ssrc0 = config_.rtp.ssrcs[0];
+  uint32_t ssrc1 = config_.rtp.ssrcs[1];
+  EXPECT_EQ(static_cast<uint32_t>(kNumSamples),
+            statistics_proxy_->GetStats().substreams[ssrc0].psnr_measurements);
+  EXPECT_EQ(static_cast<uint32_t>(kNumSamples),
+            statistics_proxy_->GetStats().substreams[ssrc1].psnr_measurements);
+
+  statistics_proxy_.reset();
+  EXPECT_METRIC_EQ(1, metrics::NumSamples("WebRTC.Video.Psnr.S0.Y"));
+  EXPECT_METRIC_EQ(1, metrics::NumEvents("WebRTC.Video.Psnr.S0.Y", 400));
+  EXPECT_METRIC_EQ(1, metrics::NumSamples("WebRTC.Video.Psnr.S0.U"));
+  EXPECT_METRIC_EQ(1, metrics::NumEvents("WebRTC.Video.Psnr.S0.U", 410));
+  EXPECT_METRIC_EQ(1, metrics::NumSamples("WebRTC.Video.Psnr.S0.V"));
+  EXPECT_METRIC_EQ(1, metrics::NumEvents("WebRTC.Video.Psnr.S0.V", 420));
+
+  EXPECT_METRIC_EQ(1, metrics::NumSamples("WebRTC.Video.Psnr.S1.Y"));
+  EXPECT_METRIC_EQ(1, metrics::NumEvents("WebRTC.Video.Psnr.S1.Y", 500));
+  EXPECT_METRIC_EQ(1, metrics::NumSamples("WebRTC.Video.Psnr.S1.U"));
+  EXPECT_METRIC_EQ(1, metrics::NumEvents("WebRTC.Video.Psnr.S1.U", 510));
+  EXPECT_METRIC_EQ(1, metrics::NumSamples("WebRTC.Video.Psnr.S1.V"));
+  EXPECT_METRIC_EQ(1, metrics::NumEvents("WebRTC.Video.Psnr.S1.V", 520));
+}
+
+TEST_F(SendStatisticsProxyTest, PsnrHistogramsScreenshare) {
+  // Reconfigure to single stream screenshare.
+  VideoSendStream::Config config(nullptr);
+  config.rtp.ssrcs.push_back(kFirstSsrc);
+  statistics_proxy_.reset(new SendStatisticsProxy(
+      &fake_clock_, config, VideoEncoderConfig::ContentType::kScreen,
+      field_trials_));
+
+  const int kNumSamples = SendStatisticsProxy::kMinRequiredPsnrSamples + 5;
+  for (int i = 0; i < kNumSamples; ++i) {
+    EncodedImage encoded_image;
+    encoded_image.SetRtpTimestamp(i * 3000);
+    encoded_image.set_psnr(EncodedImage::Psnr{.y = 40, .u = 41, .v = 42});
+    statistics_proxy_->OnSendEncodedImage(encoded_image, nullptr);
+    fake_clock_.AdvanceTimeMilliseconds(33);
+  }
+
+  // Verify internal stats
+  EXPECT_EQ(static_cast<uint32_t>(kNumSamples),
+            statistics_proxy_->GetStats().frames_encoded);
+  uint32_t ssrc = config.rtp.ssrcs[0];
+  EXPECT_EQ(static_cast<uint32_t>(kNumSamples),
+            statistics_proxy_->GetStats().substreams[ssrc].psnr_measurements);
+
+  statistics_proxy_.reset();
+  EXPECT_METRIC_EQ(1, metrics::NumSamples("WebRTC.Video.Screenshare.Psnr.Y"));
+  EXPECT_METRIC_EQ(1,
+                   metrics::NumEvents("WebRTC.Video.Screenshare.Psnr.Y", 400));
+  EXPECT_METRIC_EQ(1, metrics::NumSamples("WebRTC.Video.Screenshare.Psnr.U"));
+  EXPECT_METRIC_EQ(1,
+                   metrics::NumEvents("WebRTC.Video.Screenshare.Psnr.U", 410));
+  EXPECT_METRIC_EQ(1, metrics::NumSamples("WebRTC.Video.Screenshare.Psnr.V"));
+  EXPECT_METRIC_EQ(1,
+                   metrics::NumEvents("WebRTC.Video.Screenshare.Psnr.V", 420));
 }
 
 }  // namespace webrtc

@@ -18,6 +18,7 @@
 
 #include "api/array_view.h"
 #include "api/call/transport.h"
+#include "api/environment/environment.h"
 #include "api/media_types.h"
 #include "api/rtp_parameters.h"
 #include "api/task_queue/task_queue_base.h"
@@ -38,6 +39,7 @@ namespace webrtc {
 namespace test {
 
 LayerFilteringTransport::LayerFilteringTransport(
+    const Environment& env,
     TaskQueueBase* task_queue,
     std::unique_ptr<SimulatedPacketReceiverInterface> pipe,
     Call* send_call,
@@ -50,7 +52,8 @@ LayerFilteringTransport::LayerFilteringTransport(
     uint32_t ssrc_to_filter_max,
     ArrayView<const RtpExtension> audio_extensions,
     ArrayView<const RtpExtension> video_extensions)
-    : DirectTransport(task_queue,
+    : DirectTransport(env,
+                      task_queue,
                       std::move(pipe),
                       send_call,
                       payload_type_map,
@@ -67,6 +70,7 @@ LayerFilteringTransport::LayerFilteringTransport(
       ssrc_to_filter_max_(ssrc_to_filter_max) {}
 
 LayerFilteringTransport::LayerFilteringTransport(
+    const Environment& env,
     TaskQueueBase* task_queue,
     std::unique_ptr<SimulatedPacketReceiverInterface> pipe,
     Call* send_call,
@@ -77,7 +81,8 @@ LayerFilteringTransport::LayerFilteringTransport(
     const std::map<uint8_t, MediaType>& payload_type_map,
     ArrayView<const RtpExtension> audio_extensions,
     ArrayView<const RtpExtension> video_extensions)
-    : LayerFilteringTransport(task_queue,
+    : LayerFilteringTransport(env,
+                              task_queue,
                               std::move(pipe),
                               send_call,
                               vp8_video_payload_type,

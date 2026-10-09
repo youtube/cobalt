@@ -28,8 +28,10 @@
 #include "api/rtp_transceiver_interface.h"
 #include "api/scoped_refptr.h"
 #include "api/stats/rtc_stats_report.h"
+#include "api/units/time_delta.h"
 #include "pc/peer_connection.h"
 #include "pc/test/mock_peer_connection_observers.h"
+#include "test/run_loop.h"
 
 namespace webrtc {
 
@@ -87,6 +89,11 @@ class PeerConnectionWrapper {
       std::string* error_out = nullptr);
   // Calls CreateAnswer with the default options.
   std::unique_ptr<SessionDescriptionInterface> CreateAnswer();
+
+  // Returns true if ICE gathering is complete. Re-evaluates based on the
+  // observer callback.
+  bool RunUntilIceGatheringDone(test::RunLoop& run_loop,
+                                TimeDelta timeout = TimeDelta::Seconds(10));
   // Calls CreateAnswer and sets a copy of the offer as the local description.
   std::unique_ptr<SessionDescriptionInterface> CreateAnswerAndSetAsLocal(
       const PeerConnectionInterface::RTCOfferAnswerOptions& options);

@@ -136,6 +136,8 @@ _CONFIG = [
             'base::OptionalToPtr',
             'base::PassKey',
             'base::PersistentHash',
+            'base::Pickle',
+            'base::PickleIterator',
             'base::PlatformThread',
             'base::PlatformThreadId',
             'base::PostJob',
@@ -660,6 +662,7 @@ _CONFIG = [
             'gfx::SelectionBound',
 
             # cc::Layers.
+            'cc::HeadsUpDisplayLayer',
             'cc::Layer',
             'cc::LayerClient',
             'cc::LayerTreeDebugState',
@@ -762,9 +765,6 @@ _CONFIG = [
             # Common display structs across display <-> Blink.
             'display::ScreenInfo',
             'display::ScreenInfos',
-
-            # html-in-canvas
-            'cc::AllCanvasDrawElementIds',
 
             # Terminal value for display id's used across display <-> Blink.
             'display::kInvalidDisplayId',
@@ -965,6 +965,7 @@ _CONFIG = [
             'ui::IsLandmark',
             'ui::IsPlatformDocument',
             'ui::IsPresentational',
+            'ui::IsReadOnlySupported',
             'ui::IsSelectRequiredOrImplicit',
             'ui::IsStructure',
             'ui::IsTableLike',
@@ -972,6 +973,7 @@ _CONFIG = [
             'ui::IsTableHeader',
             'ui::IsText',
             'ui::IsTextField',
+            'ui::SupportsRequired',
 
             # Blink uses UKM for logging e.g. always-on leak detection (crbug/757374)
             'ukm::.+',
@@ -2016,6 +2018,14 @@ _CONFIG = [
         'allowed': [
             'gin::.+',
         ],
+    },
+    {
+        'paths': [
+            'third_party/blink/renderer/modules/speech/',
+        ],
+        'allowed': [
+            'media::AudioParameters',
+        ]
     },
     {
         'paths': [

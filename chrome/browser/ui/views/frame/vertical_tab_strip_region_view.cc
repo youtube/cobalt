@@ -11,6 +11,9 @@
 #include "base/callback_list.h"
 #include "base/containers/adapters.h"
 #include "base/functional/bind.h"
+#include "base/metrics/histogram_functions.h"
+#include "base/metrics/user_metrics.h"
+#include "base/metrics/user_metrics_action.h"
 #include "base/notimplemented.h"
 #include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
@@ -88,7 +91,10 @@ VerticalTabStripRegionView::VerticalTabStripRegionView(
 
   bottom_button_container_ =
       AddChildView(std::make_unique<VerticalTabStripBottomContainer>(
-          state_controller_, root_action_item));
+          state_controller_, root_action_item,
+          base::BindRepeating(
+              &VerticalTabStripRegionView::RecordNewTabButtonPressed,
+              base::Unretained(this))));
   bottom_button_container_->SetProperty(
       views::kFlexBehaviorKey,
       views::FlexSpecification(views::MinimumFlexSizeRule::kPreferred,
@@ -117,8 +123,8 @@ VerticalTabStripRegionView::VerticalTabStripRegionView(
 
   SetBackground(std::make_unique<CustomCornersBackground>(
       *this, *browser_view,
-      /*primary_color=*/CustomCornersBackground::FrameColor(),
-      /*corner_color=*/CustomCornersBackground::TopContainerTheme()));
+      /*primary_color=*/CustomCornersBackground::FrameTheme(),
+      /*corner_color=*/CustomCornersBackground::ToolbarTheme()));
 
   UpdateColors();
 }
@@ -159,6 +165,11 @@ void VerticalTabStripRegionView::Layout(PassKey) {
 }
 
 views::View* VerticalTabStripRegionView::GetDefaultFocusableChild() {
+  const int active_index = tab_strip_model_->active_index();
+  if (active_index != TabStripModel::kNoTab) {
+    return GetTabAnchorViewAt(active_index);
+  }
+
   return top_button_container_;
 }
 
@@ -194,12 +205,19 @@ void VerticalTabStripRegionView::InitializeTabStrip() {
   root_node_->SetController(tab_strip_controller_.get());
 
   root_node_->Init();
+
+  new_tab_button_pressed_start_time_ = std::nullopt;
+  on_children_added_subscription_ = root_node_->RegisterOnChildrenAddedCallback(
+      base::BindRepeating(&VerticalTabStripRegionView::OnChildrenAdded,
+                          base::Unretained(this)));
 }
 
 void VerticalTabStripRegionView::ResetTabStrip() {
   if (!root_node_) {
     return;
   }
+
+  on_children_added_subscription_.reset();
 
   root_node_->Reset();
 
@@ -253,8 +271,14 @@ void VerticalTabStripRegionView::DisableTabStripEditingForTesting() {
 }
 
 bool VerticalTabStripRegionView::IsTabStripCloseable() const {
-  return !drag_handler_ ||
-         !drag_handler_->GetDragContext()->GetDragController();
+  if (!drag_handler_) {
+    return true;
+  }
+  if (auto* drag_controller =
+          drag_handler_->GetDragContext()->GetDragController()) {
+    return drag_controller->IsMovingLastTab();
+  }
+  return true;
 }
 
 void VerticalTabStripRegionView::UpdateLoadingAnimations(
@@ -336,7 +360,8 @@ views::View* VerticalTabStripRegionView::GetTabGroupAnchorView(
 void VerticalTabStripRegionView::OnTabGroupFocusChanged(
     std::optional<tab_groups::TabGroupId> new_focused_group_id,
     std::optional<tab_groups::TabGroupId> old_focused_group_id) {
-  // TODO(crbug.com/479232024): Implement this.
+  top_button_container_->GetUnfocusButton()->SetVisible(
+      new_focused_group_id.has_value());
 }
 
 TabDragContext* VerticalTabStripRegionView::GetDragContext() {
@@ -364,6 +389,10 @@ void VerticalTabStripRegionView::SetTabStripObserver(
 
 views::View* VerticalTabStripRegionView::GetTabStripView() {
   return tab_strip_view_;
+}
+
+bool VerticalTabStripRegionView::TraverseUsingUpDownKeys() {
+  return true;
 }
 
 void VerticalTabStripRegionView::OnResize(int resize_amount,
@@ -423,6 +452,10 @@ bool VerticalTabStripRegionView::IsPositionInWindowCaption(
       }
       if (child == tab_strip_view_) {
         return tab_strip_view_->IsPositionInWindowCaption(point_in_child);
+      }
+      if (child == bottom_button_container_) {
+        return bottom_button_container_->IsPositionInWindowCaption(
+            point_in_child);
       }
       return false;
     }
@@ -495,8 +528,14 @@ void VerticalTabStripRegionView::OnCollapsedStateChanged(
           : LayoutConstant::kVerticalTabStripUncollapsedPadding);
   // The TopContainer handles the padding distance to the separator so that we
   // can control how far it is in the various states.
+  int separator_padding = padding;
+  if (state_controller_->IsCollapsed()) {
+    const int collapsed_separator_width = GetLayoutConstant(
+        LayoutConstant::kVerticalTabStripCollapsedSeparatorWidth);
+    separator_padding = (kCollapsedWidth - collapsed_separator_width) / 2;
+  }
   top_button_separator_->SetProperty(views::kMarginsKey,
-                                     gfx::Insets::VH(0, padding));
+                                     gfx::Insets::VH(0, separator_padding));
   if (state_controller->IsCollapsed()) {
     // If the VT Strip is collapsed, then we need exactly |padding| on the top,
     // left, and right.
@@ -555,6 +594,21 @@ void VerticalTabStripRegionView::UpdateColors() {
 
 bool VerticalTabStripRegionView::IsFrameActive() const {
   return GetWidget() ? GetWidget()->ShouldPaintAsActive() : true;
+}
+
+void VerticalTabStripRegionView::RecordNewTabButtonPressed() {
+  new_tab_button_pressed_start_time_ = base::TimeTicks::Now();
+
+  base::RecordAction(base::UserMetricsAction("NewTab_Button"));
+}
+
+void VerticalTabStripRegionView::OnChildrenAdded() {
+  if (new_tab_button_pressed_start_time_.has_value()) {
+    base::UmaHistogramTimes(
+        "TabStrip.TimeToCreateNewTabFromPress",
+        base::TimeTicks::Now() - new_tab_button_pressed_start_time_.value());
+    new_tab_button_pressed_start_time_.reset();
+  }
 }
 
 TabDragTarget* VerticalTabStripRegionView::GetTabDragTarget(

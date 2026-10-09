@@ -697,39 +697,41 @@ void RtpSenderBase::SetSsrc(uint32_t ssrc) {
     AddTrackToStats();
   }
 
-  if (ssrc_ == 0 || (init_parameters_.encodings.empty() &&
-                     !init_parameters_.degradation_preference.has_value())) {
-    return;
-  }
-
+  const bool update_parameters =
+      (ssrc_ != 0 && (!init_parameters_.encodings.empty() ||
+                      init_parameters_.degradation_preference.has_value()));
   RtpParameters current_parameters;
   bool params_modified = false;
   worker_thread_->BlockingCall([&, ssrc = ssrc_] {
     RTC_DCHECK_RUN_ON(worker_thread_);
-    RTC_DCHECK(media_channel_);
-    // Get the current parameters, which are constructed from the SDP. The
-    // number of layers in the SDP is currently authoritative to support SDP
-    // munging for Plan-B simulcast with "a=ssrc-group:SIM <ssrc-id>..." lines
-    // as described in RFC 5576. All fields should be default constructed and
-    // the SSRC field set, which we need to copy.
-    current_parameters = media_channel_->GetRtpSendParameters(ssrc);
-    // SSRC 0 has special meaning as "no stream". In this case,
-    // current_parameters may have size 0.
-    RTC_CHECK_GE(current_parameters.encodings.size(),
-                 init_parameters_.encodings.size());
-    for (size_t i = 0; i < init_parameters_.encodings.size(); ++i) {
-      init_parameters_.encodings[i].ssrc = current_parameters.encodings[i].ssrc;
-      init_parameters_.encodings[i].rid = current_parameters.encodings[i].rid;
-      current_parameters.encodings[i] = init_parameters_.encodings[i];
-    }
-    current_parameters.degradation_preference =
-        init_parameters_.degradation_preference;
-    params_modified =
-        media_channel_->SetRtpSendParameters(ssrc, current_parameters, nullptr)
-            .ok();
-    if (params_modified) {
-      // The parameters may change as they're applied.
+    if (update_parameters) {
+      RTC_DCHECK(media_channel_);
+      // Get the current parameters, which are constructed from the SDP. The
+      // number of layers in the SDP is currently authoritative to support SDP
+      // munging for Plan-B simulcast with "a=ssrc-group:SIM <ssrc-id>..." lines
+      // as described in RFC 5576. All fields should be default constructed and
+      // the SSRC field set, which we need to copy.
       current_parameters = media_channel_->GetRtpSendParameters(ssrc);
+      // SSRC 0 has special meaning as "no stream". In this case,
+      // current_parameters may have size 0.
+      RTC_CHECK_GE(current_parameters.encodings.size(),
+                   init_parameters_.encodings.size());
+      for (size_t i = 0; i < init_parameters_.encodings.size(); ++i) {
+        init_parameters_.encodings[i].ssrc =
+            current_parameters.encodings[i].ssrc;
+        init_parameters_.encodings[i].rid = current_parameters.encodings[i].rid;
+        current_parameters.encodings[i] = init_parameters_.encodings[i];
+      }
+      current_parameters.degradation_preference =
+          init_parameters_.degradation_preference;
+      params_modified =
+          media_channel_
+              ->SetRtpSendParameters(ssrc, current_parameters, nullptr)
+              .ok();
+      if (params_modified) {
+        // The parameters may change as they're applied.
+        current_parameters = media_channel_->GetRtpSendParameters(ssrc);
+      }
     }
 
     // While we're on the worker thread, attach the frame decryptor, transformer

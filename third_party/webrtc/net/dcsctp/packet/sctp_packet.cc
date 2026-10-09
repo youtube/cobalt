@@ -163,7 +163,7 @@ std::optional<SctpPacket> SctpPacket::Parse(
   std::vector<ChunkDescriptor> descriptors;
   descriptors.reserve(kExpectedDescriptorCount);
   webrtc::ArrayView<const uint8_t> descriptor_data =
-      webrtc::ArrayView<const uint8_t>(data_copy).subview(kHeaderSize);
+      webrtc::ArrayView<const uint8_t>(data_copy).subspan(kHeaderSize);
   while (!descriptor_data.empty()) {
     if (descriptor_data.size() < kChunkTlvHeaderSize) {
       RTC_DLOG(LS_WARNING) << "Too small chunk";
@@ -183,8 +183,8 @@ std::optional<SctpPacket> SctpPacket::Parse(
       return std::nullopt;
     }
     descriptors.emplace_back(type, flags,
-                             descriptor_data.subview(0, padded_length));
-    descriptor_data = descriptor_data.subview(padded_length);
+                             descriptor_data.subspan(0, padded_length));
+    descriptor_data = descriptor_data.subspan(padded_length);
   }
 
   // Note that iterators (and pointer) are guaranteed to be stable when moving a

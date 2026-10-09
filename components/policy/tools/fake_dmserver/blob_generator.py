@@ -162,7 +162,7 @@ def apply_extension_install_policies(policies, policy_blobs):
     encoded_policies = base64.b64encode(
         policies.SerializeToString()).decode("utf-8")
     policy_blobs.append({
-        "policy_type": f"google/chrome/machine-level-extension-install",
+        "policy_type": "google/extension-install-cloud-policy/chrome/machine",
         "entity_id": key,
         "value": encoded_policies,
     })

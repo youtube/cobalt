@@ -180,10 +180,10 @@ void ScreamV2::UpdateRefWindow(const TransportPacketsFeedback& msg) {
         // Counterbalance the limitation in reference window increase when the
         // queue delay varies. This helps to avoid starvation in the presence
         // of competing TCP Prague flows.
-        backoff *= std::max(
-            0.1,
-            (0.1 - delay_based_congestion_control_.queue_delay_dev_norm()) /
-                0.1);
+        backoff *=
+            std::max(0.1, delay_based_congestion_control_
+                              .ref_window_scale_factor_due_to_delay_variation(
+                                  ref_window_mss_ratio()));
       }
 
       if (msg.feedback_time - last_reaction_to_congestion_time_ >
@@ -245,15 +245,20 @@ void ScreamV2::UpdateRefWindow(const TransportPacketsFeedback& msg) {
 
     // Limit increase if L4S not enabled and queue delay is increased.
     if (l4s_alpha_ < 0.0001) {
-      increase = increase * delay_based_congestion_control_.scale_increase();
+      increase =
+          increase * delay_based_congestion_control_
+                         .ref_window_scale_factor_due_to_increased_delay();
     }
 
-    // Limit increase further if RTT varies.
+    // Put a additional restriction on reference window growth if rtt varies a
+    // lot.
+    // Better to enforce a slow increase in reference window and get
+    // a more stable bitrate.
     increase =
         increase *
-        std::max(0.1, (0.1 -
-                       delay_based_congestion_control_.queue_delay_dev_norm()) /
-                          0.1);
+        std::max(0.1, delay_based_congestion_control_
+                          .ref_window_scale_factor_due_to_delay_variation(
+                              ref_window_mss_ratio()));
 
     // Use lower multiplicative scale factor if congestion was detected
     // recently.
@@ -319,10 +324,10 @@ DataSize ScreamV2::max_data_in_flight() const {
       params_.ref_window_overhead_min.Get() +
       (params_.ref_window_overhead_max.Get() -
        params_.ref_window_overhead_min.Get()) *
-          std::max(
-              0.0,
-              (0.1 - delay_based_congestion_control_.queue_delay_dev_norm()) /
-                  0.1);
+          delay_based_congestion_control_
+              .ref_window_scale_factor_due_to_delay_variation(
+                  ref_window_mss_ratio());
+
   return ref_window_ * ref_window_overhead;
 }
 
@@ -375,6 +380,8 @@ void ScreamV2::UpdateTargetRate(const TransportPacketsFeedback& msg) {
     drain_queue_start_ = Timestamp::MinusInfinity();
   }
 
+  // TODO: bugs.webrtc.org/447037083 -  Consider implementing 4.4, compensation
+  // for increased pacer delay.
   target_rate =
       std::clamp(target_rate, min_target_bitrate_, max_target_bitrate_);
 

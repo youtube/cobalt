@@ -119,7 +119,7 @@ class TLVTrait {
         return std::nullopt;
       }
     }
-    return BoundedByteReader<Config::kHeaderSize>(data.subview(0, length));
+    return BoundedByteReader<Config::kHeaderSize>(data.subspan(0, length));
   }
 
   // Allocates space for data with a static header size, as defined by

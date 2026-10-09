@@ -20,6 +20,7 @@
 <translation id="1242008676835033345">Upotettu sivustolle <ph name="WEBSITE_URL" /></translation>
 <translation id="1263609676484797429">Valitse Sovellukset &gt; Oletussovellukset</translation>
 <translation id="1272079795634619415">Pysäytä</translation>
+<translation id="1275718070701477396">Valittu</translation>
 <translation id="1289742167380433257">Datan säästämiseksi Google on optimoinut tämän sivun kuvat.</translation>
 <translation id="129382876167171263">Sivustojen tallentamat tiedostot näkyvät tässä</translation>
 <translation id="131112695174432497">Mainosten personointiin vaikuttava data poistetaan</translation>
@@ -38,6 +39,7 @@
 <translation id="1415855080660575082">Salli Chromen jakaa viimeaikaiset välilehdet laitteelle, jotta näet ne laitteen sovelluslistalla ja hakutuloksissa. Voit laittaa tämän päälle tai pois päältä Chromen asetuksista.</translation>
 <translation id="1420688843103859429">Siirry taakse- ja eteenpäin pyyhkäisemällä kosketuslevyllä kahdella sormella</translation>
 <translation id="1432650420699700107">Sivustot voivat pyytää lupaa yhdistää paikallisessa verkossa oleviin laitteisiin</translation>
+<translation id="1442081309487427303">Laita lukutilan linkit päälle</translation>
 <translation id="1448064542941920355">Vähennä zoomausta</translation>
 <translation id="1464044141348608623">Älä salli sivustojen tietää, milloin käytät laitetta aktiivisesti</translation>
 <translation id="146867109637325312">{COUNT,plural, =1{<ph name="SITE_COUNT" /> sivusto}other{<ph name="SITE_COUNT" /> sivustoa}}</translation>
@@ -72,6 +74,7 @@
 <translation id="1766455884659449403">Chrome-vinkki-ilmoitusten vastaanottaminen</translation>
 <translation id="1777815584158991902">Discover-fiidin alapaneeli</translation>
 <translation id="1779089405699405702">Kuvien dekooderi</translation>
+<translation id="1781533683087883868">Laita lukutilan linkit pois päältä</translation>
 <translation id="1785415724048343560">Suositellaan parhaan kokemuksen saamiseksi</translation>
 <translation id="1796588414813960292">Ääntä edellyttävät ominaisuudet eivät enää toimi</translation>
 <translation id="1799920918471566157">Vinkkejä Chromen käyttöön</translation>
@@ -495,6 +498,7 @@ Lisäsuojaus ohjaa näitä Chromen asetuksia:
 <translation id="6085954183010297841">Poistetaanko tiedoston muokkauslupa? <ph name="FILE" /></translation>
 <translation id="6104860901391833523">Kun asetus on päällä, sivustot voivat siirtyä automaattisesti pikkuruututilaan. Kun asetus on pois päältä, sivustot eivät voi siirtyä automaattisesti pikkuruututilaan.</translation>
 <translation id="6120483543004435978">Kun tämä on päällä, sivustot voivat pyytää lupaa nähdä, milloin käytät laitetta aktiivisesti. Kun tämä on pois päältä, sivustot eivät saa tietää, milloin käytät laitetta aktiivisesti.</translation>
+<translation id="6132075343662013154">Chrome tarjoutuu tallentamaan salasanasi</translation>
 <translation id="615886654739818377">Älä salli sivustojen hallinnoida ikkunoita kaikilla näytöillä</translation>
 <translation id="6165508094623778733">Lisätietoja</translation>
 <translation id="6171020522141473435">Kun tämä on päällä, sivustot voivat pyytää lupaa käyttää Bluetooth-laitteita. Kun tämä on pois päältä, sivustot eivät voi käyttää Bluetooth-laitteita.</translation>

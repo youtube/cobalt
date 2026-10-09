@@ -2221,6 +2221,7 @@ PartitionRoot::SizeToBucketIndex(size_t size,
     case BucketDistribution::kDenser:
       return BucketIndexLookup::GetIndexForDenserBuckets(size);
   }
+  PA_NOTREACHED();
 }
 
 PA_ALWAYS_INLINE internal::BucketSizeDetails

@@ -20,6 +20,7 @@
 <translation id="1242008676835033345">Vdelano v <ph name="WEBSITE_URL" /></translation>
 <translation id="1263609676484797429">Dotaknite se Aplikacije &gt; Privzete aplikacije</translation>
 <translation id="1272079795634619415">Ustavi</translation>
+<translation id="1275718070701477396">Izbrano</translation>
 <translation id="1289742167380433257">Google optimizira slike na tej strani, da prihranite pri prenosu podatkov.</translation>
 <translation id="129382876167171263">Datoteke, ki jih shranijo spletna mesta, so prikazane tukaj</translation>
 <translation id="131112695174432497">Podatki, ki vplivajo na osebno prilagajanje oglasov, so izbrisani.</translation>
@@ -495,6 +496,7 @@ Dodatna zaščita upravlja te nastavitve za Chrome:
 <translation id="6085954183010297841">Želite izbrisati dovoljenje za urejanje datoteke? <ph name="FILE" /></translation>
 <translation id="6104860901391833523">Če je ta možnost vklopljena, lahko spletna mesta samodejno preklopijo v način slike v sliki. Če je ta možnost izklopljena, spletna mesta ne morejo samodejno preklopiti v način slike v sliki.</translation>
 <translation id="6120483543004435978">Če je ta možnost vklopljena, spletna mesta lahko vprašajo, ali aktivno uporabljate napravo. Če je ta možnost izklopljena, spletna mesta ne smejo vprašati, ali aktivno uporabljate napravo.</translation>
+<translation id="6132075343662013154">Chrome bo ponudil shranjevanje gesla</translation>
 <translation id="615886654739818377">Spletnim mestom ni dovoljeno upravljati oken na vseh prikazih</translation>
 <translation id="6165508094623778733">Več o tem</translation>
 <translation id="6171020522141473435">Če je ta možnost vklopljena, spletna mesta lahko zahtevajo uporabo naprav Bluetooth. Če je ta možnost izklopljena, spletna mesta ne smejo uporabljati naprav Bluetooth.</translation>

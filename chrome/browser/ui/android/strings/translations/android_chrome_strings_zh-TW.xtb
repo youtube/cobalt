@@ -851,6 +851,7 @@
 <translation id="4685741273709472646">開啟下拉式選單</translation>
 <translation id="4687718960473379118">網站建議廣告</translation>
 <translation id="468924408576231679">複製「<ph name="PAGE_TITLE" />」的網頁連結，來源：<ph name="PAGE_URL" /></translation>
+<translation id="4692623383562244444">搜尋引擎</translation>
 <translation id="469286762610133730">取得優質內容</translation>
 <translation id="4695891336199304370">{SHIPPING_OPTIONS,plural, =1{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 和另外 <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" /> 種運送方式}other{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 和另外 <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" /> 種運送方式}}</translation>
 <translation id="4698757800236023795">啟用 (<ph name="ITEM_COUNT" />)</translation>
@@ -1019,7 +1020,6 @@
 <translation id="5375374982898812658">你將立即無法存取「<ph name="GROUP_NAME" />」分頁群組，且該群組會從你的所有裝置中刪除</translation>
 <translation id="5375577065097716013">使用 Google 智慧鏡頭搜尋圖片 <ph name="BEGIN_NEW" />新功能<ph name="END_NEW" /></translation>
 <translation id="5390367025924544771"><ph name="WEBSITE_ORIGIN" /> 想要使用你在數位錢包中的個人資訊。除非你信任這個網站，否則請勿繼續操作。危險網站可能會誘騙你提供法定姓名或身分證字號等資料。</translation>
-<translation id="5394331612381306435">關閉無痕模式</translation>
 <translation id="5395376160638294582">確保你隨時可以使用 Google 帳戶中的 Chrome 資料</translation>
 <translation id="539881862970320163">建議使用高強度密碼。鍵盤已隱藏。</translation>
 <translation id="5409881200985013443">要在「<ph name="CLIENT_NAME" />」上提交 <ph name="ONE_TIME_CODE" /> 嗎？</translation>
@@ -1496,7 +1496,6 @@
 <translation id="7221869452894271364">重新載入此頁</translation>
 <translation id="722681077040152344">已取消訂閱 <ph name="COUNT" /> 個網站</translation>
 <translation id="7227218174981371415">{FILE_COUNT,plural, =1{1 項下載作業仍待處理}other{# 項下載作業仍待處理}}</translation>
-<translation id="7230064152164845085">開啟無痕模式</translation>
 <translation id="7237724030342645845">Google 密碼管理工具已停止運作</translation>
 <translation id="7239496616545081903">隱藏閱讀模式</translation>
 <translation id="72415438529550637">已關閉密碼建議功能。</translation>
@@ -1533,6 +1532,7 @@
 <translation id="7376560087009844242">使用輕觸搜尋功能時，納入較多網頁文字也許能找到更相關的結果。你隨時可以前往<ph name="BEGIN_LINK" />設定頁面<ph name="END_LINK" />調整設定。</translation>
 <translation id="7379900596734708416">現已推出網站的深色主題</translation>
 <translation id="7384486627147155832">提示通知的宣傳內容顯示在畫面下半部</translation>
+<translation id="7387951778417998929">如要使用非系統預設的搜尋引擎，請在網址列中輸入相應的搜尋捷徑，然後按下你慣用的鍵盤快速鍵。你也可以在這裡變更你的預設搜尋引擎。</translation>
 <translation id="7388615499319468910">網站和廣告主可以瞭解廣告成效。這項設定已關閉。</translation>
 <translation id="7400003506822844357">{FILE_COUNT,plural, =1{其他，清單中有 1 個檔案}other{其他，清單中有 # 個檔案}}</translation>
 <translation id="7400418766976504921">網址</translation>

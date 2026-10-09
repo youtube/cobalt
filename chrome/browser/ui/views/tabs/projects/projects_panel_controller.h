@@ -17,6 +17,8 @@ namespace tab_groups {
 class SavedTabGroup;
 }
 
+class BrowserWindowInterface;
+
 // Controller for the projects panel view. Handles fetching, resuming, and
 // activating tab groups and recent chat threads.
 class ProjectsPanelController : tab_groups::TabGroupSyncService::Observer {
@@ -43,6 +45,10 @@ class ProjectsPanelController : tab_groups::TabGroupSyncService::Observer {
   // Returns all tab groups.
   const std::vector<tab_groups::SavedTabGroup>& GetTabGroups();
 
+  // Opens the tab group.
+  void OpenTabGroup(const base::Uuid& group_guid,
+                    BrowserWindowInterface* browser);
+
   // Add and remove observers.
   void AddObserver(Observer* observer);
   void RemoveObserver(Observer* observer);
@@ -55,6 +61,9 @@ class ProjectsPanelController : tab_groups::TabGroupSyncService::Observer {
                          tab_groups::TriggerSource source) override;
   void OnTabGroupRemoved(const base::Uuid& sync_id,
                          tab_groups::TriggerSource source) override;
+  void OnTabGroupLocalIdChanged(
+      const base::Uuid& sync_id,
+      const std::optional<tab_groups::LocalTabGroupID>& local_id) override;
 
  private:
   void SortTabGroups();

@@ -224,7 +224,7 @@ class ChannelReceive : public ChannelReceiveInterface,
   int GetRtpTimestampRateHz() const;
 
   void OnReceivedPayloadData(ArrayView<const uint8_t> payload,
-                             const RTPHeader& rtpHeader,
+                             const RTPHeader& header,
                              Timestamp receive_time)
       RTC_RUN_ON(worker_thread_checker_);
 
@@ -338,7 +338,7 @@ class ChannelReceive : public ChannelReceiveInterface,
 };
 
 void ChannelReceive::OnReceivedPayloadData(ArrayView<const uint8_t> payload,
-                                           const RTPHeader& rtpHeader,
+                                           const RTPHeader& header,
                                            Timestamp receive_time) {
   if (!playing_) {
     // Avoid inserting into NetEQ when we are not playing. Count the
@@ -353,35 +353,23 @@ void ChannelReceive::OnReceivedPayloadData(ArrayView<const uint8_t> payload,
     // that muting playout also stops the SourceTracker from updating RtpSource
     // information.
     RtpPacketInfos::vector_type packet_vector = {
-        RtpPacketInfo(rtpHeader, receive_time)};
+        RtpPacketInfo(header, receive_time)};
     source_tracker_.OnFrameDelivered(RtpPacketInfos(packet_vector),
                                      env_.clock().CurrentTime());
     return;
   }
 
-  // Push the incoming payload (parsed and ready for decoding) into NetEq.
-  if (!payload.empty()) {
-    MutexLock lock(&neteq_mutex_);
-    if (neteq_->InsertPacket(rtpHeader, payload,
-                             RtpPacketInfo(rtpHeader, receive_time)) !=
-        NetEq::kOK) {
-      RTC_DLOG(LS_ERROR) << "ChannelReceive::OnReceivedPayloadData() unable to "
-                            "insert packet into NetEq; PT = "
-                         << static_cast<int>(rtpHeader.payloadType);
-      return;
-    }
+  if (payload.empty()) {
+    return;
   }
 
-  if (nack_tracker_) {
-    TimeDelta round_trip_time =
-        rtp_rtcp_->LastRtt().value_or(TimeDelta::Zero());
-    nack_tracker_->UpdateLastReceivedPacket(rtpHeader.sequenceNumber,
-                                            rtpHeader.timestamp);
-    std::vector<uint16_t> nack_list =
-        nack_tracker_->GetNackList(round_trip_time.ms());
-    if (!nack_list.empty()) {
-      rtp_rtcp_->SendNACK(nack_list.data(), nack_list.size());
-    }
+  // Push the incoming payload (parsed and ready for decoding) into NetEq.
+  MutexLock lock(&neteq_mutex_);
+  if (neteq_->InsertPacket(header, payload,
+                           RtpPacketInfo(header, receive_time)) != NetEq::kOK) {
+    RTC_DLOG(LS_ERROR) << "ChannelReceive::OnReceivedPayloadData() unable to "
+                          "insert packet into NetEq; PT = "
+                       << static_cast<int>(header.payloadType);
   }
 }
 
@@ -696,6 +684,15 @@ void ChannelReceive::OnRtpPacket(const RtpPacketReceived& packet) {
   packet_copy.set_payload_type_frequency(it->second);
   if (nack_tracker_) {
     nack_tracker_->UpdateSampleRate(it->second);
+    TimeDelta round_trip_time =
+        rtp_rtcp_->LastRtt().value_or(TimeDelta::Zero());
+    nack_tracker_->UpdateLastReceivedPacket(packet.SequenceNumber(),
+                                            packet.Timestamp());
+    std::vector<uint16_t> nack_list =
+        nack_tracker_->GetNackList(round_trip_time.ms());
+    if (!nack_list.empty()) {
+      rtp_rtcp_->SendNACK(nack_list.data(), nack_list.size());
+    }
   }
 
   rtp_receive_statistics_->OnRtpPacket(packet_copy);

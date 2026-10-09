@@ -1493,6 +1493,9 @@ class Heap final {
   void RemoveGCEpilogueCallback(v8::Isolate::GCCallbackWithData callback,
                                 void* data);
 
+  void AddGlobalGCRootsProvider(GCRootsProvider* provider);
+  void RemoveGlobalGCRootsProvider(GCRootsProvider* provider);
+
   void CallGCPrologueCallbacks(GCType gc_type, GCCallbackFlags flags,
                                GCTracer::Scope::ScopeId scope_id);
   void CallGCEpilogueCallbacks(GCType gc_type, GCCallbackFlags flags,
@@ -2247,6 +2250,11 @@ class Heap final {
   GCCallbacks gc_prologue_callbacks_;
   GCCallbacks gc_epilogue_callbacks_;
 
+  // Global list of GCRootsProvider objects. This should only be used for
+  // objects, which aren't strictly tied to a single thread/LocalHeap.
+  base::Mutex global_gc_roots_providers_mutex_;
+  base::SmallVector<GCRootsProvider*, 4> global_gc_roots_providers_;
+
   GetExternallyAllocatedMemoryInBytesCallback external_memory_callback_;
 
   base::SmallVector<v8::Isolate::UseCounterFeature, 8> deferred_counters_;
@@ -2525,6 +2533,19 @@ constexpr const char* ToString(Heap::SweepingForcedFinalizationMode mode) {
       return "v8 only";
     case Heap::SweepingForcedFinalizationMode::kUnifiedHeap:
       return "unified heap";
+  }
+}
+
+constexpr const char* ToString(Heap::HeapGrowingMode mode) {
+  switch (mode) {
+    case Heap::HeapGrowingMode::kSlow:
+      return "slow";
+    case Heap::HeapGrowingMode::kConservative:
+      return "conservative";
+    case Heap::HeapGrowingMode::kMinimal:
+      return "minimal";
+    case Heap::HeapGrowingMode::kDefault:
+      return "default";
   }
 }
 

@@ -22,9 +22,9 @@ import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.layouts.LayoutManager;
 import org.chromium.chrome.browser.layouts.LayoutStateProvider.LayoutStateObserver;
 import org.chromium.chrome.browser.layouts.LayoutType;
-import org.chromium.chrome.browser.omnibox.OmniboxFocusReason;
 import org.chromium.chrome.browser.toolbar.ToolbarManager;
 import org.chromium.chrome.browser.ui.ExclusiveAccessManager;
+import org.chromium.components.omnibox.OmniboxFocusReason;
 import org.chromium.ui.KeyboardVisibilityDelegate;
 
 /**
@@ -151,7 +151,7 @@ public class ActivityRecreationController {
 
         boolean isTabSwitcherShown = outPersistentState.getBoolean(IS_TAB_SWITCHER_SHOWN, false);
         if (isTabSwitcherShown) {
-            restoreTabSwitcherState(true, mLayoutManagerSupplier.get());
+            restoreTabSwitcherState(true, assertNonNull(mLayoutManagerSupplier.get()));
             if (ChromeFeatureList.sPersistAcrossRebootsDebugLogs.isEnabled()) {
                 Log.i(TAG_PERSIST_ACROSS_REBOOTS, "Restored persistent tab switcher state");
             }

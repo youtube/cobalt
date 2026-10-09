@@ -54,11 +54,11 @@ class LogScreamSimulation {
     // last packet was sent before the state was captured.
     SendWindowUsage send_window_usage = kBelowRefWindow;
 
-    double queue_delay_dev_norm;
+    double queue_delay_dev_norm = 0;
+    double ref_window_scale_factor_due_to_increased_delay = 0.0;
+    double ref_window_scale_factor_due_to_delay_variation = 0;
     double l4s_alpha = 0.0;
     double l4s_alpha_v = 0.0;
-
-    double ref_window_delay_increase_scale = 0.0;
   };
 
   struct Config {

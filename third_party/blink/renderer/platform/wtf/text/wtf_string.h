@@ -52,6 +52,11 @@ class CodePointIterator;
                                             : op##IgnoringASCIICase args)
 
 // You can find documentation about this class in README.md in this directory.
+//
+// When a method of this class is compatible with an equivalent method in
+// `std::string`, we use the same method name as `std::string` (i.e.,
+// `snake_case()`) rather than following the Google/Blink C++ style guide's
+// naming rules. This improves consistency in string manipulation.
 class WTF_EXPORT String {
   USING_FAST_MALLOC(String);
 
@@ -195,6 +200,8 @@ class WTF_EXPORT String {
     return base::as_string_view(Span16());
   }
 
+  // Returns a code unit at the specified index.
+  // This operator returns 0 if the specified index is out of range.
   UChar operator[](wtf_size_t index) const {
     if (!impl_ || index >= impl_->length())
       return 0;
@@ -457,7 +464,7 @@ class WTF_EXPORT String {
   //  - leading '+'
   //  - leading Unicode whitespace
   //  - trailing Unicode whitespace
-  //  - no "-0" (ToUIntStrict and ToUInt64Strict)
+  //  - no "-0" (ToUInt64Strict)
   //  - no out-of-range numbers which the resultant type can't represent
   //
   // If the input string is not acceptable, 0 is returned and |*ok| becomes
@@ -466,58 +473,12 @@ class WTF_EXPORT String {
   // We can use these functions to implement a Web Platform feature only if the
   // input string is already valid according to the specification of the
   // feature.
-  int ToIntStrict(bool* ok = nullptr) const;
-  unsigned ToUIntStrict(bool* ok = nullptr) const;
   unsigned HexToUIntStrict(bool* ok) const;
   uint64_t HexToUInt64Strict(bool* ok) const;
   int64_t ToInt64Strict(bool* ok = nullptr) const;
   uint64_t ToUInt64Strict(bool* ok = nullptr) const;
 
-  // The following ToFoo functions accept:
-  //  - leading '+'
-  //  - leading Unicode whitespace
-  //  - trailing garbage
-  //  - no "-0" (ToUInt and ToUInt64)
-  //  - no out-of-range numbers which the resultant type can't represent
-  //
-  // If the input string is not acceptable, 0 is returned and |*ok| becomes
-  // |false|.
-  //
-  // We can use these functions to implement a Web Platform feature only if the
-  // input string is already valid according to the specification of the
-  // feature.
-  int ToInt(bool* ok = nullptr) const;
-  unsigned ToUInt(bool* ok = nullptr) const;
-
-  // These functions accepts:
-  //  - leading '+'
-  //  - numbers without leading zeros such as ".5"
-  //  - numbers ending with "." such as "3."
-  //  - scientific notation
-  //  - leading whitespace (IsASCIISpace, not IsHTMLSpace)
-  //  - no trailing whitespace
-  //  - no trailing garbage
-  //  - no numbers such as "NaN" "Infinity"
-  //
-  // A huge absolute number which a double/float can't represent is accepted,
-  // and +Infinity or -Infinity is returned.
-  //
-  // A small absolute numbers which a double/float can't represent is accepted,
-  // and 0 is returned
-  //
-  // If the input string is not acceptable, 0.0 is returned and |*ok| becomes
-  // |false|.
-  //
-  // We can use these functions to implement a Web Platform feature only if the
-  // input string is already valid according to the specification of the
-  // feature.
-  //
-  // FIXME: Like the strict functions above, these give false for "ok" when
-  // there is trailing garbage.  Like the non-strict functions above, these
-  // return the value when there is trailing garbage.  It would be better if
-  // these were more consistent with the above functions instead.
-  double ToDouble(bool* ok = nullptr) const;
-  float ToFloat(bool* ok = nullptr) const;
+  // See string_to_number.h for float/double parsing.
 
 #ifdef __OBJC__
   String(NSString*);

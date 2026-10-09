@@ -32,6 +32,7 @@ import org.chromium.ui.test.util.DeviceRestriction;
 @SuppressLint("VisibleForTests")
 @Batch(Batch.PER_CLASS)
 @Restriction(DeviceRestriction.RESTRICTION_TYPE_NON_AUTO)
+@EnableFeatures(ContentFeatureList.ACCESSIBILITY_EXTENDED_SELECTION)
 @TestAnimations.EnableAnimations
 public class WebContentsAccessibilityEventsTest {
     // File path that holds all the relevant tests.
@@ -186,6 +187,7 @@ public class WebContentsAccessibilityEventsTest {
         ContentFeatureList.ACCESSIBILITY_IMPROVE_LIVE_REGION_ANNOUNCE,
         ContentFeatureList.ACCESSIBILITY_ATOMIC_LIVE_REGIONS
     })
+    @DisabledTest(message = "https://crbug.com/414363686")
     public void test_addAlertContent_exp() {
         performTest("add-alert-content.html", "add-alert-content-expected-android-exp.txt");
     }
@@ -360,7 +362,6 @@ public class WebContentsAccessibilityEventsTest {
 
     @Test
     @SmallTest
-    @EnableFeatures(ContentFeatureList.ACCESSIBILITY_EXTENDED_SELECTION)
     public void test_ariaComboboxFocus() {
         performTest("aria-combo-box-focus.html", "aria-combo-box-focus-expected-android.txt");
     }
@@ -659,14 +660,12 @@ public class WebContentsAccessibilityEventsTest {
 
     @Test
     @SmallTest
-    @EnableFeatures(ContentFeatureList.ACCESSIBILITY_EXTENDED_SELECTION)
     public void test_caretBrowsingDisabled() {
         performTest("caret-browsing-disabled.html", "caret-browsing-disabled-expected-android.txt");
     }
 
     @Test
     @SmallTest
-    @EnableFeatures(ContentFeatureList.ACCESSIBILITY_EXTENDED_SELECTION)
     public void test_caretBrowsingEnabled() {
         performTest("caret-browsing-enabled.html", "caret-browsing-enabled-expected-android.txt");
     }
@@ -1440,14 +1439,12 @@ public class WebContentsAccessibilityEventsTest {
 
     @Test
     @SmallTest
-    @EnableFeatures(ContentFeatureList.ACCESSIBILITY_EXTENDED_SELECTION)
     public void test_textSelectionChanged() {
         performTest("text-selection-changed.html", "text-selection-changed-expected-android.txt");
     }
 
     @Test
     @SmallTest
-    @EnableFeatures(ContentFeatureList.ACCESSIBILITY_EXTENDED_SELECTION)
     public void test_textSelectionInsideHiddenElement() {
         performTest(
                 "text-selection-inside-hidden-element.html",
@@ -1456,7 +1453,6 @@ public class WebContentsAccessibilityEventsTest {
 
     @Test
     @SmallTest
-    @EnableFeatures(ContentFeatureList.ACCESSIBILITY_EXTENDED_SELECTION)
     public void test_textSelectionInsideVideo() {
         performTest(
                 "text-selection-inside-video.html",

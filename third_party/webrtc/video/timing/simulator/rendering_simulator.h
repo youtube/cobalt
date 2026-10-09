@@ -27,6 +27,7 @@
 #include "logging/rtc_event_log/rtc_event_log_parser.h"
 #include "modules/video_coding/timing/timing.h"
 #include "video/timing/simulator/frame_base.h"
+#include "video/timing/simulator/results_base.h"
 #include "video/timing/simulator/stream_base.h"
 
 namespace webrtc::video_timing_simulator {
@@ -48,7 +49,7 @@ class RenderingSimulator {
 
     // Whether or not to reset the stream state on newly logged streams with the
     // same SSRC.
-    bool reuse_streams = true;
+    bool reuse_streams = false;
   };
 
   // Metadata about a single rendered frame.
@@ -162,7 +163,7 @@ class RenderingSimulator {
   };
 
   // All streams.
-  struct Results {
+  struct Results : public ResultsBase<Results> {
     std::string config_name;
     std::vector<Stream> streams;
   };

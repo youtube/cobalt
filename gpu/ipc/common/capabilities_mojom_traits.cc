@@ -14,6 +14,7 @@ bool StructTraits<gpu::mojom::CapabilitiesDataView, gpu::Capabilities>::Read(
   out->egl_image_external = data.egl_image_external();
   out->texture_format_bgra8888 = data.texture_format_bgra8888();
   out->texture_format_etc1_npot = data.texture_format_etc1_npot();
+  out->disable_mac_swangle_rgbx = data.disable_mac_swangle_rgbx();
   out->sync_query = data.sync_query();
   out->texture_rg = data.texture_rg();
   out->texture_norm16 = data.texture_norm16();
@@ -122,12 +123,6 @@ bool StructTraits<gpu::mojom::GLCapabilitiesDataView, gpu::GLCapabilities>::
       data.max_transform_feedback_separate_components();
   out->max_uniform_block_size = data.max_uniform_block_size();
   out->max_uniform_buffer_bindings = data.max_uniform_buffer_bindings();
-  out->max_atomic_counter_buffer_bindings =
-      data.max_atomic_counter_buffer_bindings();
-  out->max_shader_storage_buffer_bindings =
-      data.max_shader_storage_buffer_bindings();
-  out->shader_storage_buffer_offset_alignment =
-      data.shader_storage_buffer_offset_alignment();
   out->max_varying_components = data.max_varying_components();
   out->max_vertex_output_components = data.max_vertex_output_components();
   out->max_vertex_uniform_blocks = data.max_vertex_uniform_blocks();

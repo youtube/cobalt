@@ -13,8 +13,10 @@
 #define MEDIA_ENGINE_SIMULCAST_ENCODER_ADAPTER_H_
 
 #include <atomic>
+#include <bitset>
 #include <cstddef>
 #include <cstdint>
+#include <deque>
 #include <list>
 #include <memory>
 #include <optional>
@@ -26,6 +28,7 @@
 #include "api/sequence_checker.h"
 #include "api/units/timestamp.h"
 #include "api/video/encoded_image.h"
+#include "api/video/video_codec_constants.h"
 #include "api/video/video_frame.h"
 #include "api/video/video_frame_type.h"
 #include "api/video_codecs/sdp_video_format.h"
@@ -35,8 +38,10 @@
 #include "common_video/framerate_controller.h"
 #include "modules/video_coding/include/video_codec_interface.h"
 #include "rtc_base/experiments/encoder_info_settings.h"
+#include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/system/no_unique_address.h"
 #include "rtc_base/system/rtc_export.h"
+#include "rtc_base/thread_annotations.h"
 
 namespace webrtc {
 
@@ -119,10 +124,15 @@ class RTC_EXPORT SimulcastEncoderAdapter : public VideoEncoder {
     Result OnEncodedImage(
         const EncodedImage& encoded_image,
         const CodecSpecificInfo* codec_specific_info) override;
-    void OnDroppedFrame(DropReason reason) override;
+    void OnFrameDropped(uint32_t rtp_timestamp,
+                        int spatial_id,
+                        bool is_end_of_temporal_unit) override;
 
+    int Encode(const VideoFrame& frame,
+               const std::vector<VideoFrameType>* frame_types);
     VideoEncoder& encoder() { return encoder_context_->encoder(); }
     const VideoEncoder& encoder() const { return encoder_context_->encoder(); }
+
     int stream_idx() const { return stream_idx_; }
     uint16_t width() const { return width_; }
     uint16_t height() const { return height_; }
@@ -144,14 +154,23 @@ class RTC_EXPORT SimulcastEncoderAdapter : public VideoEncoder {
     bool ShouldDropFrame(Timestamp timestamp);
 
    private:
+    void MaybeCullOldTimestamps(uint32_t new_rtp_timestamp);
+
     SimulcastEncoderAdapter* const parent_;
     std::unique_ptr<EncoderContext> encoder_context_;
     std::unique_ptr<FramerateController> framerate_controller_;
+    std::deque<uint32_t> pending_rtp_timestamps_;
     const int stream_idx_;
     const uint16_t width_;
     const uint16_t height_;
     bool is_keyframe_needed_;
     bool is_paused_;
+  };
+
+  struct PendingFrame {
+    uint32_t rtp_timestamp;
+    // Bitmask of expected stream indices (1 << stream_idx).
+    std::bitset<kMaxSimulcastStreams> expected_layer_index;
   };
 
   bool Initialized() const;
@@ -174,7 +193,7 @@ class RTC_EXPORT SimulcastEncoderAdapter : public VideoEncoder {
       const EncodedImage& encoded_image,
       const CodecSpecificInfo* codec_specific_info);
 
-  void OnDroppedFrame(size_t stream_idx);
+  void OnFrameDropped(uint32_t rtp_timestamp, int spatial_id);
 
   void OverrideFromFieldTrial(VideoEncoder::EncoderInfo* info) const;
 
@@ -189,8 +208,18 @@ class RTC_EXPORT SimulcastEncoderAdapter : public VideoEncoder {
   std::vector<StreamContext> stream_contexts_;
   EncodedImageCallback* encoded_complete_callback_;
 
+  // TODO: webrtc:467444018 - Remove this mutex and post any callback to
+  // OnEncodedImage/OnFrameDropped to the encoder queue instead if not already
+  // on it.
+  mutable Mutex pending_frames_mutex_;
+  // A queue of pending frames for which we have not yet received a callback
+  // (either an encoded frame or frame drop notification), sorted by their
+  // RTP timestamp.
+  std::deque<PendingFrame> pending_frames_
+      RTC_GUARDED_BY(pending_frames_mutex_);
+
   // Used for checking the single-threaded access of the encoder interface.
-  RTC_NO_UNIQUE_ADDRESS SequenceChecker encoder_queue_;
+  RTC_NO_UNIQUE_ADDRESS SequenceChecker encoder_queue_checker_;
 
   // Store previously created and released encoders , so they don't have to be
   // recreated. Remaining encoders are destroyed by the destructor.

@@ -29,6 +29,25 @@ chromium-metrics-reviews@google.com.
       summary="Chrome starts up with intent to WebApkActivity"/>
 </variants>
 
+<!-- LINT.IfChange(StartupLaunchInfoBarType) -->
+
+<variants name="StartupLaunchInfoBarType">
+  <variant name="ForegroundOptIn"
+      summary="Opt-in to foreground launch on login"/>
+  <variant name="ForegroundOptOut"
+      summary="Opt-out of foreground launch on login"/>
+</variants>
+
+<!-- LINT.ThenChange(//chrome/browser/startup/startup_launch_infobar_manager.h:InfoBarType) -->
+
+<!-- LINT.IfChange(StartupLaunchMode) -->
+
+<variants name="StartupLaunchMode">
+  <variant name="Foreground" summary="Foreground"/>
+</variants>
+
+<!-- LINT.ThenChange(//chrome/browser/startup/startup_launch_features.h:LaunchOnStartupMode) -->
+
 <variants name="StartupTemperature">
   <variant name="" summary="All startups"/>
   <variant name=".ColdStartup"
@@ -121,6 +140,21 @@ chromium-metrics-reviews@google.com.
     NOTE: This metric is broken before October 2024 on Pixel 6+ on Android 14+
     due to an issue with the recording of BrowserProcessCreationReason affecting
     ColdStartTracker downstream.
+  </summary>
+</histogram>
+
+<histogram name="Startup.Android.Cold.TemperatureMismatch"
+    enum="AndroidColdStartMismatchLocation" expires_after="2026-07-28">
+  <owner>nafisabedin@google.com</owner>
+  <owner>yfriedman@chromium.org</owner>
+  <summary>
+    Records the nature of the disagreement between Clank's ColdStartTracker and
+    Android's ApplicationStartInfo regarding cold start status. The histogram is
+    split by whether Android considers the start component to be an ACTIVITY or
+    OTHER (Service, Broadcast, Provider).
+
+    Recorded only when a mismatch occurs during startup. Only available starting
+    with API Level 36.
   </summary>
 </histogram>
 
@@ -696,6 +730,17 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Startup.Android.Temperature" enum="AndroidStartupTemperature"
+    expires_after="2026-07-28">
+  <owner>nafisabedin@google.com</owner>
+  <owner>yfriedman@chromium.org</owner>
+  <summary>
+    Uses Android's ApplicationStartInfo API to determine the temperature of the
+    start: unset, cold, warm or hot every time Clank is brought to the
+    foreground. Only available starting with API Level 35.
+  </summary>
+</histogram>
+
 <histogram name="Startup.Android.Warm.MainIntentTimeToFirstDraw" units="ms"
     expires_after="2026-06-28">
   <owner>nafisabedin@google.com</owner>
@@ -1178,6 +1223,35 @@ chromium-metrics-reviews@google.com.
   <summary>
     Records session type for a cold start. It is recorded at cold start.
     Histogram only for iOS.
+  </summary>
+</histogram>
+
+<histogram name="Startup.Launch.InfoBar.{StartupLaunchInfoBarType}.Interaction"
+    enum="StartupLaunchInfoBarInteraction" expires_after="2027-02-05">
+  <owner>atharvmaan@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <summary>
+    Records user interactions with the {StartupLaunchInfoBarType} infobar.
+  </summary>
+</histogram>
+
+<histogram name="Startup.Launch.InfoBar.{StartupLaunchInfoBarType}.Shown"
+    units="times" expires_after="2027-02-05">
+  <owner>atharvmaan@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <summary>
+    Records how many times {StartupLaunchInfoBarType} infobar has been shown to
+    the user.
+  </summary>
+</histogram>
+
+<histogram name="Startup.Launch.{StartupLaunchMode}.PreferenceChanged"
+    enum="BooleanEnabled" expires_after="2027-02-05">
+  <owner>atharvmaan@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <summary>
+    Records the new value of the {StartupLaunchMode} launch on login preference
+    when it is changed by the user.
   </summary>
 </histogram>
 

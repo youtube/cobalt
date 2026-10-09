@@ -122,7 +122,7 @@ public class TabModelMultiWindowTest {
     }
 
     @Test
-    @DisableIf.Device(DeviceFormFactor.DESKTOP) // https://crbug.com/446934111
+    @DisableIf.Device(DeviceFormFactor.DESKTOP) // https://crbug.com/481443908
     @LargeTest
     public void testMoveTabGroupToWindow() {
         ChromeTabbedActivity activity1 = mActivityTestRule.getActivity();
@@ -157,7 +157,8 @@ public class TabModelMultiWindowTest {
                 () -> {
                     var taskTracker = ChromeAndroidTaskTrackerFactory.getInstance();
                     var chromeTask = taskTracker.get(activity.getTaskId());
-                    return chromeTask.getOrCreateNativeBrowserWindowPtr();
+                    var profile = activity.getTabModelSelector().getCurrentModel().getProfile();
+                    return chromeTask.getOrCreateNativeBrowserWindowPtr(profile);
                 });
     }
 

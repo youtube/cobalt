@@ -475,6 +475,10 @@ void ConfigBase::SetZeroAppShim() {
   zero_appshim_ = true;
 }
 
+void ConfigBase::SetSecurityAttributeName(std::wstring_view name) {
+  security_attribute_name_ = name;
+}
+
 TargetTokens::TargetTokens(base::win::AccessToken initial,
                            base::win::AccessToken lockdown)
     : initial_(std::move(initial)), lockdown_(std::move(lockdown)) {}
@@ -590,7 +594,7 @@ base::expected<TargetTokens, ResultCode> PolicyBase::MakeTokens() {
   // with the process and therefore with any thread that is not impersonating.
   std::optional<base::win::AccessToken> primary = CreateRestrictedToken(
       config()->GetLockdownTokenLevel(), integrity_level, TokenType::kPrimary,
-      lockdown_default_dacl, random_sid);
+      lockdown_default_dacl, random_sid, config()->security_attribute_name());
   if (!primary) {
     return base::unexpected(SBOX_ERROR_CANNOT_CREATE_RESTRICTED_TOKEN);
   }
@@ -613,9 +617,10 @@ base::expected<TargetTokens, ResultCode> PolicyBase::MakeTokens() {
   // Create the 'better' token. We use this token as the one that the main
   // thread uses when booting up the process. It should contain most of
   // what we need (before reaching main( ))
-  std::optional<base::win::AccessToken> impersonation = CreateRestrictedToken(
-      config()->GetInitialTokenLevel(), integrity_level,
-      TokenType::kImpersonation, lockdown_default_dacl, random_sid);
+  std::optional<base::win::AccessToken> impersonation =
+      CreateRestrictedToken(config()->GetInitialTokenLevel(), integrity_level,
+                            TokenType::kImpersonation, lockdown_default_dacl,
+                            random_sid, config()->security_attribute_name());
   if (!impersonation) {
     return base::unexpected(SBOX_ERROR_CANNOT_CREATE_RESTRICTED_IMP_TOKEN);
   }
@@ -725,25 +730,20 @@ ResultCode PolicyBase::InitProcess(HANDLE process_handle,
 EvalResult PolicyBase::EvalPolicy(IpcTag service,
                                   CountedParameterSetBase* params) {
   PolicyGlobal* policy = config()->policy();
-  if (policy) {
-    if (!policy->entry[static_cast<size_t>(service)]) {
-      // There is no policy for this particular service. This is not a big
-      // deal.
-      return DENY_ACCESS;
-    }
-    for (size_t i = 0; i < params->count; i++) {
-      if (!params->parameters[i].IsValid()) {
-        NOTREACHED();
-      }
-    }
-    PolicyProcessor pol_evaluator(policy->entry[static_cast<size_t>(service)]);
-    PolicyResult result =
-        pol_evaluator.Evaluate(kShortEval, params->parameters, params->count);
-    if (POLICY_MATCH == result)
-      return pol_evaluator.GetAction();
-
-    DCHECK(POLICY_ERROR != result);
+  if (!policy || !policy->NeedsIpc(service)) {
+    // There is no policy for this particular service.
+    return DENY_ACCESS;
   }
+  for (size_t i = 0; i < params->count; i++) {
+    CHECK(params->parameters[i].IsValid());
+  }
+  PolicyProcessor pol_evaluator(policy->GetService(service));
+  PolicyResult result =
+      pol_evaluator.Evaluate(params->parameters, params->count);
+  if (POLICY_MATCH == result) {
+    return pol_evaluator.GetAction();
+  }
+  DCHECK(POLICY_ERROR != result);
 
   return DENY_ACCESS;
 }

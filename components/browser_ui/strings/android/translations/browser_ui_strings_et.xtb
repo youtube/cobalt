@@ -20,6 +20,7 @@
 <translation id="1242008676835033345">Manustatud aadressil <ph name="WEBSITE_URL" /></translation>
 <translation id="1263609676484797429">Puudutage valikuid Rakendused &gt; Vaikerakendused</translation>
 <translation id="1272079795634619415">Peata</translation>
+<translation id="1275718070701477396">Valitud</translation>
 <translation id="1289742167380433257">Andmemahu säästmiseks optimeerib Google selle lehe kujutisi.</translation>
 <translation id="129382876167171263">Veebisaitide salvestatud failid kuvatakse siin</translation>
 <translation id="131112695174432497">Andmed, mis mõjutavad reklaamide isikupärastamist, kustutatakse</translation>
@@ -495,6 +496,7 @@ Täiustatud kaitse reguleerib neid Chrome’i seadeid:
 <translation id="6085954183010297841">Kas kustutada faili muutmise luba? <ph name="FILE" /></translation>
 <translation id="6104860901391833523">Kui see on sisse lülitatud, saavad saidid automaatselt režiimi Pilt pildis aktiveerida. Kui see on välja lülitatud, ei saa saidid automaatselt režiimi Pilt pildis aktiveerida.</translation>
 <translation id="6120483543004435978">Kui see on sisse lülitatud, võivad saidid küsida luba selle teadmiseks, millal seadet aktiivselt kasutate. Kui see on välja lülitatud, ei saa saidid teada, millal seadet aktiivselt kasutate.</translation>
+<translation id="6132075343662013154">Chrome pakub võimalust parool salvestada</translation>
 <translation id="615886654739818377">Saitidel pole lubatud aknaid kõikidel teie ekraanidel hallata</translation>
 <translation id="6165508094623778733">Lisateave</translation>
 <translation id="6171020522141473435">Kui see on sisse lülitatud, võivad saidid küsida luba Bluetooth-seadmete kasutamiseks. Kui see on välja lülitatud, ei saa saidid Bluetooth-seadmeid kasutada.</translation>

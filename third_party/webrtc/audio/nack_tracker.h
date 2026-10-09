@@ -115,7 +115,7 @@ class NackTracker {
     // If set, the maximum nack delay will be fixed and compared to the latest
     // received packet instead of using the time to play estimate and the loss
     // rate.
-    std::optional<TimeDelta> fixed_delay;
+    std::optional<TimeDelta> fixed_delay = TimeDelta::Seconds(1);
   };
 
   struct NackElement {

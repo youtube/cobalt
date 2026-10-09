@@ -15,6 +15,7 @@ AddNewAddressProfileTest.*
 AppInfoDialogBrowserTest.*
 AppMenuBrowserTest*.InvokeUi_*
 AskGoogleForSuggestionsDialogTest.*
+*AutofillAiImportDataBubbleViewBrowsertest.*
 BatchUploadDialogViewPixelTest.*
 BookmarkAccountStorageMoveDialogPixelTest*
 BookmarkBubbleViewBrowserTest.*
@@ -34,8 +35,6 @@ ContentAnalysysDialogUiTest.*
 ContentSettingBubbleDialogTest.*
 CookieClearOnExitMigrationNoticePixelTest.*
 CookieControlsBubbleViewPixelTest.*
-CookieControlsBubbleViewTrackingProtectionUiPixelTest.*
-OldCookieControlsBubbleViewTest.*
 *CreatePopupRowViewTest.*
 *CreatePopupRowViewWithNoUserEducationRateLimitTest.*
 CryptoModulePasswordDialogTest.*
@@ -139,13 +138,12 @@ RelaunchRequiredDialogViewDialogTest.*
 ReloadButtonWebViewPixelBrowserTest.*
 ReopenTabPromoControllerDialogBrowserTest.*
 SafetyTipPageInfoBubbleViewDialogTest.*
-*SaveOrUpdateAutofillAiDataBubbleViewBrowsertest*
 ScreenCaptureNotificationUiBrowserTest.*
 SearchEngineChoiceUIPixelTest.*
 SecurePaymentConfirmationDialogViewTest.InvokeUi_*
 *SendTabToSelfBubbleTest.*
 SessionCrashedBubbleViewTest.*
-SettingsOverriddenExplicitChoiceDialogBrowserTest.*
+SettingsOverriddenExplicitChoiceDialogInteractiveUiTest.*
 *SharedPasswordsNotificationBubbleInteractiveUiTest.*
 SharedTabGroupInteractiveUiTest.SharedTabGroupIn*
 SingleBookmarkUploadDialogPixelTest.InvokeUi

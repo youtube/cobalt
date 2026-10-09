@@ -88,7 +88,7 @@ class BoundedByteWriter {
     RTC_CHECK(FixedSize + variable_offset + SubSize <= data_.size());
 
     return BoundedByteWriter<SubSize>(
-        data_.subview(FixedSize + variable_offset, SubSize));
+        data_.subspan(FixedSize + variable_offset, SubSize));
   }
 
   void CopyToVariableData(webrtc::ArrayView<const uint8_t> source) {

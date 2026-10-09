@@ -15,6 +15,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/containers/to_vector.h"
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "base/scoped_observation.h"
@@ -76,7 +77,10 @@
 namespace autofill {
 namespace {
 
-using testing::Pointee;
+using ::testing::ElementsAre;
+using ::testing::Pointee;
+using ::testing::UnorderedElementsAre;
+using ::testing::UnorderedElementsAreArray;
 
 constexpr auto kArbitraryTime =
     base::Time::FromSecondsSinceUnixEpoch(86400 * 365 * 2);
@@ -381,7 +385,7 @@ TEST_F(PaymentsDataManagerTest,
   WaitForOnPaymentsDataChanged();
 
   EXPECT_THAT(payments_data_manager().GetOrderedIbansToSuggest(),
-              testing::ElementsAre(server_iban));
+              ElementsAre(server_iban));
 }
 
 // Test that IBANs are ordered according to the frecency rating. All of the
@@ -411,9 +415,9 @@ TEST_F(PaymentsDataManagerTest, GetIbansToSuggestOrdersByFrecency) {
   payments_data_manager().Refresh();
   WaitForOnPaymentsDataChanged();
 
-  EXPECT_THAT(payments_data_manager().GetOrderedIbansToSuggest(),
-              testing::ElementsAre(server_iban3, server_iban2, local_iban2,
-                                   local_iban1));
+  EXPECT_THAT(
+      payments_data_manager().GetOrderedIbansToSuggest(),
+      ElementsAre(server_iban3, server_iban2, local_iban2, local_iban1));
 }
 
 TEST_F(PaymentsDataManagerTest, AddLocalIbans) {
@@ -593,9 +597,9 @@ TEST_F(PaymentsDataManagerTest, AddUpdateRemoveCreditCards) {
 
   WaitForOnPaymentsDataChanged();
 
-  EXPECT_THAT(payments_data_manager().GetCreditCards(),
-              testing::UnorderedElementsAre(Pointee(credit_card0),
-                                            Pointee(credit_card1)));
+  EXPECT_THAT(
+      payments_data_manager().GetCreditCards(),
+      UnorderedElementsAre(Pointee(credit_card0), Pointee(credit_card1)));
 
   // Update, remove, and add.
   credit_card0.SetRawInfo(CREDIT_CARD_NAME_FULL, u"Joe");
@@ -606,9 +610,9 @@ TEST_F(PaymentsDataManagerTest, AddUpdateRemoveCreditCards) {
 
   WaitForOnPaymentsDataChanged();
 
-  EXPECT_THAT(payments_data_manager().GetCreditCards(),
-              testing::UnorderedElementsAre(Pointee(credit_card0),
-                                            Pointee(credit_card2)));
+  EXPECT_THAT(
+      payments_data_manager().GetCreditCards(),
+      UnorderedElementsAre(Pointee(credit_card0), Pointee(credit_card2)));
 
   // Reset the PaymentsDataManager.  This tests that the personal data was saved
   // to the web database, and that we can load the credit cards from the web
@@ -616,9 +620,9 @@ TEST_F(PaymentsDataManagerTest, AddUpdateRemoveCreditCards) {
   ResetPaymentsDataManager();
 
   // Verify that we've loaded the credit cards from the web database.
-  EXPECT_THAT(payments_data_manager().GetCreditCards(),
-              testing::UnorderedElementsAre(Pointee(credit_card0),
-                                            Pointee(credit_card2)));
+  EXPECT_THAT(
+      payments_data_manager().GetCreditCards(),
+      UnorderedElementsAre(Pointee(credit_card0), Pointee(credit_card2)));
 
   // Add a server card.
   CreditCard credit_card3(base::Uuid::GenerateRandomV4().AsLowercaseString(),
@@ -688,7 +692,7 @@ TEST_F(PaymentsDataManagerTest, RemoveLocalDataModifiedBetween) {
   WaitForOnPaymentsDataChanged();
   local_card1.clear_cvc();
   EXPECT_THAT(payments_data_manager().GetLocalCreditCards(),
-              testing::UnorderedElementsAre(Pointee(local_card1)));
+              UnorderedElementsAre(Pointee(local_card1)));
   // TODO(crbug.com/40276087): `CreditCard::operator==()` compares GUIDs even
   // for server cards, which change after every load from the database.
   std::vector<const CreditCard*> server_cards =
@@ -960,7 +964,7 @@ TEST_F(PaymentsDataManagerTest, UpdateUnverifiedCreditCards) {
   WaitForOnPaymentsDataChanged();
 
   EXPECT_THAT(payments_data_manager().GetCreditCards(),
-              testing::UnorderedElementsAre(Pointee(credit_card)));
+              UnorderedElementsAre(Pointee(credit_card)));
 
   // Try to update with just the origin changed.
   CreditCard original_credit_card(credit_card);
@@ -970,7 +974,7 @@ TEST_F(PaymentsDataManagerTest, UpdateUnverifiedCreditCards) {
 
   // Credit Card origin should not be overwritten.
   EXPECT_THAT(payments_data_manager().GetCreditCards(),
-              testing::UnorderedElementsAre(Pointee(original_credit_card)));
+              UnorderedElementsAre(Pointee(original_credit_card)));
 
   // Try to update with data changed as well.
   credit_card.SetRawInfo(CREDIT_CARD_NAME_FULL, u"Joe");
@@ -978,7 +982,7 @@ TEST_F(PaymentsDataManagerTest, UpdateUnverifiedCreditCards) {
   WaitForOnPaymentsDataChanged();
 
   EXPECT_THAT(payments_data_manager().GetCreditCards(),
-              testing::UnorderedElementsAre(Pointee(credit_card)));
+              UnorderedElementsAre(Pointee(credit_card)));
 }
 
 TEST_F(PaymentsDataManagerTest, SetUniqueCreditCardLabels) {
@@ -1016,9 +1020,9 @@ TEST_F(PaymentsDataManagerTest, SetUniqueCreditCardLabels) {
 
   EXPECT_THAT(
       payments_data_manager().GetCreditCards(),
-      testing::UnorderedElementsAre(
-          Pointee(credit_card0), Pointee(credit_card1), Pointee(credit_card2),
-          Pointee(credit_card3), Pointee(credit_card4), Pointee(credit_card5)));
+      UnorderedElementsAre(Pointee(credit_card0), Pointee(credit_card1),
+                           Pointee(credit_card2), Pointee(credit_card3),
+                           Pointee(credit_card4), Pointee(credit_card5)));
 }
 
 TEST_F(PaymentsDataManagerTest, SetEmptyCreditCard) {
@@ -1418,13 +1422,11 @@ TEST_F(PaymentsDataManagerTest, DeleteLocalCreditCards) {
   // Wait for the data to be refreshed.
   WaitForOnPaymentsDataChanged();
 
-  EXPECT_EQ(1U, payments_data_manager().GetCreditCards().size());
-
-  std::unordered_set<std::u16string> expected_to_remain = {u"Clyde"};
-  for (auto* card : payments_data_manager().GetCreditCards()) {
-    EXPECT_NE(expected_to_remain.end(),
-              expected_to_remain.find(card->GetRawInfo(CREDIT_CARD_NAME_FULL)));
-  }
+  EXPECT_THAT(base::ToVector(payments_data_manager().GetCreditCards(),
+                             [](const CreditCard* card) {
+                               return card->GetRawInfo(CREDIT_CARD_NAME_FULL);
+                             }),
+              ElementsAre(u"Clyde"));
 }
 
 TEST_F(PaymentsDataManagerTest, DeleteAllLocalCreditCards) {
@@ -1653,9 +1655,6 @@ TEST_F(PaymentsDataManagerSyncTransportModeTest,
       identity_test_env_.identity_manager()->GetPrimaryAccountInfo(
           signin::ConsentLevel::kSignin);
 
-  // Opt-in to seeing server card in sync transport mode.
-  SetUserOptedInWalletSyncTransport(prefs_.get(), active_info.account_id, true);
-
   // Check that the server card is available for suggestion.
   EXPECT_EQ(2U, payments_data_manager().GetCreditCards().size());
   EXPECT_EQ(2U, GetCreditCardsToSuggest(payments_data_manager()).size());
@@ -1672,33 +1671,6 @@ TEST_F(PaymentsDataManagerSyncTransportModeTest,
   EXPECT_EQ(1U, GetCreditCardsToSuggest(payments_data_manager()).size());
   EXPECT_EQ(1U, payments_data_manager().GetLocalCreditCards().size());
   EXPECT_EQ(0U, payments_data_manager().GetServerCreditCards().size());
-}
-
-// Make sure that the opt in is necessary to show server cards if the
-// appropriate feature is disabled.
-TEST_F(PaymentsDataManagerSyncTransportModeTest,
-       ServerCardsShowInTransportMode_NeedOptIn) {
-  SetUpTwoCardTypes();
-
-  CoreAccountInfo active_info =
-      identity_test_env_.identity_manager()->GetPrimaryAccountInfo(
-          signin::ConsentLevel::kSignin);
-
-  // The server card should not be available at first. The user needs to
-  // accept the opt-in offer.
-  EXPECT_EQ(2U, payments_data_manager().GetCreditCards().size());
-  EXPECT_EQ(1U, GetCreditCardsToSuggest(payments_data_manager()).size());
-  EXPECT_EQ(1U, payments_data_manager().GetLocalCreditCards().size());
-  EXPECT_EQ(1U, payments_data_manager().GetServerCreditCards().size());
-
-  // Opt-in to seeing server card in sync transport mode.
-  SetUserOptedInWalletSyncTransport(prefs_.get(), active_info.account_id, true);
-
-  // Check that the server card is available for suggestion.
-  EXPECT_EQ(2U, payments_data_manager().GetCreditCards().size());
-  EXPECT_EQ(2U, GetCreditCardsToSuggest(payments_data_manager()).size());
-  EXPECT_EQ(1U, payments_data_manager().GetLocalCreditCards().size());
-  EXPECT_EQ(1U, payments_data_manager().GetServerCreditCards().size());
 }
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
         // BUILDFLAG(IS_CHROMEOS)
@@ -3393,104 +3365,6 @@ TEST_F(PaymentsDataManagerSyncTransportModeTest,
       payments_data_manager().GetPaymentsSigninStateForMetrics());
 }
 
-// On mobile, no dedicated opt-in is required for WalletSyncTransport - the
-// user is always considered opted-in and thus this test doesn't make sense.
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
-TEST_F(PaymentsDataManagerSyncTransportModeTest, OnUserAcceptedUpstreamOffer) {
-  ///////////////////////////////////////////////////////////
-  // kSignedInAndWalletSyncTransportEnabled
-  ///////////////////////////////////////////////////////////
-  // Make sure a primary account with no sync consent is available so
-  // AUTOFILL_WALLET_DATA can run in sync-transport mode.
-  ASSERT_TRUE(identity_test_env_.identity_manager()->HasPrimaryAccount(
-      signin::ConsentLevel::kSignin));
-  ASSERT_FALSE(identity_test_env_.identity_manager()->HasPrimaryAccount(
-      signin::ConsentLevel::kSync));
-  CoreAccountInfo active_info =
-      identity_test_env_.identity_manager()->GetPrimaryAccountInfo(
-          signin::ConsentLevel::kSignin);
-  sync_service_.SetSignedIn(signin::ConsentLevel::kSignin, active_info);
-
-  sync_service_.GetUserSettings()->SetSelectedTypes(
-      /*sync_everything=*/false,
-      /*types=*/{syncer::UserSelectableType::kAutofill,
-                 syncer::UserSelectableType::kPayments});
-  // Make sure there are no opt-ins recorded yet.
-  ASSERT_FALSE(
-      IsUserOptedInWalletSyncTransport(prefs_.get(), active_info.account_id));
-
-  // Account wallet storage only makes sense together with support for
-  // unconsented primary accounts, i.e. on Win/Mac/Linux.
-#if !BUILDFLAG(IS_CHROMEOS)
-  EXPECT_TRUE(
-      !sync_service_.IsSyncFeatureEnabled() &&
-      sync_service_.GetActiveDataTypes().Has(syncer::AUTOFILL_WALLET_DATA));
-
-  // Make sure an opt-in gets recorded if the user accepted an Upstream offer.
-  payments_data_manager().OnUserAcceptedUpstreamOffer();
-  EXPECT_TRUE(
-      IsUserOptedInWalletSyncTransport(prefs_.get(), active_info.account_id));
-
-  // Clear the prefs.
-  prefs::ClearSyncTransportOptIns(prefs_.get());
-  ASSERT_FALSE(
-      IsUserOptedInWalletSyncTransport(prefs_.get(), active_info.account_id));
-
-  ///////////////////////////////////////////////////////////
-  // kSignedIn
-  ///////////////////////////////////////////////////////////
-  // Disable the wallet data type. kSignedInAndWalletSyncTransportEnabled
-  // shouldn't be available.
-  sync_service_.GetUserSettings()->SetSelectedTypes(
-      /*sync_everything=*/false,
-      /*types=*/syncer::UserSelectableTypeSet());
-  EXPECT_TRUE(!sync_service_.GetAccountInfo().IsEmpty());
-
-  // Make sure an opt-in does not get recorded even if the user accepted an
-  // Upstream offer.
-  payments_data_manager().OnUserAcceptedUpstreamOffer();
-  EXPECT_FALSE(
-      IsUserOptedInWalletSyncTransport(prefs_.get(), active_info.account_id));
-
-  // Clear the prefs.
-  prefs::ClearSyncTransportOptIns(prefs_.get());
-  ASSERT_FALSE(
-      IsUserOptedInWalletSyncTransport(prefs_.get(), active_info.account_id));
-
-  ///////////////////////////////////////////////////////////
-  // kSignedOut
-  ///////////////////////////////////////////////////////////
-  identity_test_env_.ClearPrimaryAccount();
-  sync_service_.SetSignedOut();
-  {
-    EXPECT_TRUE(sync_service_.GetAccountInfo().IsEmpty());
-
-    // Make sure an opt-in does not get recorded even if the user accepted an
-    // Upstream offer.
-    payments_data_manager().OnUserAcceptedUpstreamOffer();
-    EXPECT_FALSE(
-        IsUserOptedInWalletSyncTransport(prefs_.get(), active_info.account_id));
-  }
-#endif  // !BUILDFLAG(IS_CHROMEOS)
-
-  ///////////////////////////////////////////////////////////
-  // kSignedInAndSyncFeature
-  ///////////////////////////////////////////////////////////
-  identity_test_env_.MakePrimaryAccountAvailable(active_info.email,
-                                                 signin::ConsentLevel::kSync);
-  sync_service_.SetSignedIn(signin::ConsentLevel::kSync, active_info);
-  {
-    EXPECT_TRUE(sync_service_.IsSyncFeatureEnabled());
-
-    // Make sure an opt-in does not get recorded even if the user accepted an
-    // Upstream offer.
-    payments_data_manager().OnUserAcceptedUpstreamOffer();
-    EXPECT_FALSE(
-        IsUserOptedInWalletSyncTransport(prefs_.get(), active_info.account_id));
-  }
-}
-#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
-
 #if BUILDFLAG(IS_ANDROID)
 TEST_F(PaymentsDataManagerTest,
        AutofillPaymentMethodsMandatoryReauthAlwaysEnabledOnAutomotive) {
@@ -3700,7 +3574,7 @@ TEST_F(PaymentsDataManagerTest, SaveCardLocallyIfNewWithNewCard) {
     saved_credit_cards.push_back(*result);
   }
 
-  EXPECT_THAT(saved_credit_cards, testing::ElementsAre(credit_card));
+  EXPECT_THAT(saved_credit_cards, ElementsAre(credit_card));
 }
 
 TEST_F(PaymentsDataManagerTest, SaveCardLocallyIfNewWithExistingCard) {
@@ -3733,7 +3607,7 @@ TEST_F(PaymentsDataManagerTest, SaveCardLocallyIfNewWithExistingCard) {
     saved_credit_cards.push_back(*result);
   }
 
-  EXPECT_THAT(saved_credit_cards, testing::ElementsAre(credit_card));
+  EXPECT_THAT(saved_credit_cards, ElementsAre(credit_card));
 }
 
 TEST_F(PaymentsDataManagerTest, SaveCardLocallyIfNewWithDisallowedCvcStripped) {
@@ -3873,7 +3747,7 @@ TEST_F(PaymentsDataManagerTest,
                                       /*price_upper_bound=*/200)})};
 
   EXPECT_THAT(payments_data_manager().GetUnlinkedBnplIssuers(),
-              testing::UnorderedElementsAreArray(want_bnpl_issuers));
+              UnorderedElementsAreArray(want_bnpl_issuers));
 }
 
 // This test ensures that if the server accidentally returns duplicate unlinked
@@ -3918,7 +3792,7 @@ TEST_F(PaymentsDataManagerTest, GetUnlinkedBnplIssuers_DuplicateIssuers) {
                                       /*price_upper_bound=*/200)})};
 
   EXPECT_THAT(payments_data_manager().GetUnlinkedBnplIssuers(),
-              testing::UnorderedElementsAreArray(want_bnpl_issuers));
+              UnorderedElementsAreArray(want_bnpl_issuers));
 }
 
 // Tests that no unlinked BNPL issuers are cached if the only synced unlinked
@@ -4044,9 +3918,8 @@ TEST_F(PaymentsDataManagerTest, GetBnplIssuers) {
   test_api(payments_data_manager()).AddBnplIssuer(linked_issuer);
   test_api(payments_data_manager()).AddBnplIssuer(unlinked_issuer);
 
-  EXPECT_THAT(
-      payments_data_manager().GetBnplIssuers(),
-      testing::UnorderedElementsAreArray({linked_issuer, unlinked_issuer}));
+  EXPECT_THAT(payments_data_manager().GetBnplIssuers(),
+              UnorderedElementsAreArray({linked_issuer, unlinked_issuer}));
 }
 
 // Tests that Buy-now-pay-later issuer getters does not return any issuers if

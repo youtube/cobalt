@@ -859,6 +859,7 @@ if (current_os == "linux" || is_android) {
       "../../api/crypto:options",
       "../../api/environment",
       "../../api/environment:deprecated_global_field_trials",
+      "../../api/environment:environment_factory",
       "../../api/neteq:neteq_api",
       "../../api/rtc_event_log",
       "../../api/rtc_event_log:rtc_event_log_factory",

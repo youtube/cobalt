@@ -331,6 +331,10 @@ public final class ProductionSupportedFlagList {
                 "When enabled, two-part zip codes are splitted into two fields while filling and"
                         + " imported from two adjacent fields."),
         Flag.baseFeature(
+                AutofillFeatures.AUTOFILL_SUPPORT_COMBINED_ZIP_AND_CITY_FR,
+                "When enabled, fields that combine postal code and city in France will be parsed"
+                        + " correctly."),
+        Flag.baseFeature(
                 AutofillFeatures.AUTOFILL_EXTEND_ZIP_CODE_VALIDATION,
                 "When enabled, zip code validation is extended to support more countries."),
         Flag.baseFeature(
@@ -340,6 +344,9 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature(
                 AutofillFeatures.AUTOFILL_GREEK_REGEXES,
                 "When enabled, Greek regexes are used for parsing in branded builds."),
+        Flag.baseFeature(
+                AutofillFeatures.AUTOFILL_IMPROVE_PHONE_FIELD_PARSER,
+                "Enables some improvements to autofill::PhoneFieldParser."),
         Flag.baseFeature(
                 AutofillFeatures.AUTOFILL_ENABLE_CACHE_FOR_REGEX_MATCHING,
                 "When enabled, autofill uses an extra cache for matching regular expressions "
@@ -663,7 +670,6 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature("V8HighEndAndroid"),
         Flag.baseFeature("V8MemoryReducer"),
         Flag.baseFeature("V8MemoryPoolReleaseOnMallocFailures"),
-        Flag.baseFeature("V8MinorMS"),
         Flag.baseFeature("V8PreconfigureOldGen"),
         Flag.baseFeature("V8ScavengerHigherCapacity"),
         Flag.baseFeature("V8IncrementalMarkingStartUserVisible"),
@@ -1086,12 +1092,20 @@ public final class ProductionSupportedFlagList {
                 AwFeatures.WEBVIEW_EARLY_STARTUP_TRACING,
                 "Enables early startup tracing. This flag takes effect on subsequent application"
                     + " startups: After enabling this flag, applications must be started and then"
-                    + " restarted for tracing to apply."),
+                    + " restarted for changes to apply."),
         Flag.baseFeature(
-                AwFeatures.WEBVIEW_EARLY_PERFETTO_INIT,
-                "Initializes Perfetto as early as possible, right after native library load. "
+                AwFeatures.WEBVIEW_EARLY_TRACING_INIT,
+                "Initializes tracing as early as possible, right after native library load. "
                         + "After enabling this flag, applications must be started and then "
-                        + "restarted for tracing to apply."),
+                        + "restarted for changes to apply."),
+        Flag.baseFeature(
+                AwFeatures.WEBVIEW_BACKGROUND_TRACING_INIT,
+                "Initializes tracing on a background thread once native library has been loaded. "
+                        + "This flag is ignored if "
+                        + AwFeatures.WEBVIEW_EARLY_TRACING_INIT
+                        + " is enabled."
+                        + "After enabling this flag, applications must be started and then "
+                        + "restarted for changes to apply."),
         Flag.baseFeature(
                 BaseFeatures.LIBRARY_PREFETCHER_MADVISE,
                 "Use madvise MADV_WILLNEED to prefetch the native library. This replaces the "
@@ -1197,6 +1211,10 @@ public final class ProductionSupportedFlagList {
                 "Report external memory held by IndexedDB connections, so it's taken into account"
                         + " in GC heuristics."),
         Flag.baseFeature(
+                "MemoryDumpProviderGroupBySequence",
+                "Group MemoryDumpProvider by sequence affinity to reduce PostTask hops when"
+                        + " collecting dumps"),
+        Flag.baseFeature(
                 "VariationsStickyPersistence",
                 "Controls how prefs are written and persisted for tracking sticky study activation."
                     + " Note: The actual behavior is controlled by a feature param, but disabling"
@@ -1218,9 +1236,6 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature(
                 BaseFeatures.REBIND_SERVICE_BATCH_API,
                 "Use a batch API to rebind service connections."),
-
-        // Add new commandline switches and features above. The final entry should have a
-        // trailing comma for cleaner diffs.
 
         // Features for PerfCombined2025_WebView study
         Flag.baseFeature("AsyncSetCookie"),
@@ -1262,5 +1277,16 @@ public final class ProductionSupportedFlagList {
                 ContentFeatures.NO_SELECTION_MENU_CACHING,
                 "When this flag is enabled, the menu which is shown when selecting text will not be"
                         + " cached. Instead, it is recomputed each time it is shown."),
+        Flag.baseFeature(
+                BlinkFeatures.XML_RUST_FOR_NON_XSLT,
+                "Enables the Rust based XML parser in situations where the XML document is"
+                        + " guaranteed to not trigger XSLT processing."),
+        Flag.baseFeature(
+                AwFeatures.WEBVIEW_USE_NONEMBEDDED_LOW_ENTROPY_SOURCE,
+                "When enabled, WebView uses the low entropy source provided by the "
+                        + "nonembedded WebView service."),
+
+        // Add new commandline switches and features above. The final entry should have a
+        // trailing comma for cleaner diffs.
     };
 }

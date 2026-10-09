@@ -38,9 +38,8 @@ inline constexpr char kIPHDemoModeFeatureChoiceParam[] = "chosen_feature";
 // Defines a single flags_ui::FeatureEntry::FeatureVariation entry, fully
 // enclosed. This is intended to be used with the declaration of
 // |kIPHDemoModeChoiceVariations| below.
-#define VARIATION_ENTRY(base_feature)                               \
-  {base_feature##Variation[0].param_value, base_feature##Variation, \
-   std::size(base_feature##Variation), nullptr}
+#define VARIATION_ENTRY(base_feature) \
+  {base_feature##Variation[0].param_value, base_feature##Variation, nullptr}
 
 // Defines a flags_ui::FeatureEntry::FeatureParam for each feature.
 DEFINE_VARIATION_PARAM(kIPHDummyFeature, "IPH_Dummy");
@@ -119,6 +118,7 @@ DEFINE_VARIATION_PARAM(kIPHDownloadInfoBarDownloadsAreFasterFeature,
                        "IPH_DownloadInfoBarDownloadsAreFaster");
 DEFINE_VARIATION_PARAM(kIPHEphemeralTabFeature, "IPH_EphemeralTab");
 DEFINE_VARIATION_PARAM(kIPHFeedCardMenuFeature, "IPH_FeedCardMenu");
+DEFINE_VARIATION_PARAM(kIPHFuseboxAttachmentFeature, "IPH_FuseboxAttachment");
 DEFINE_VARIATION_PARAM(kIPHGenericAlwaysTriggerHelpUiFeature,
                        "IPH_GenericAlwaysTriggerHelpUiFeature");
 DEFINE_VARIATION_PARAM(kIPHIdentityDiscFeature, "IPH_IdentityDisc");
@@ -472,7 +472,6 @@ DEFINE_VARIATION_PARAM(kIPHPwaQuietNotificationFeature,
 DEFINE_VARIATION_PARAM(kIPHTabAudioMutingFeature, "IPH_TabAudioMuting");
 DEFINE_VARIATION_PARAM(kIPHTabOrganizationSuccessFeature,
                        "IPH_TabOrganizationSuccess");
-DEFINE_VARIATION_PARAM(kIPHTabSearchFeature, "IPH_TabSearch");
 DEFINE_VARIATION_PARAM(kIPHTabSearchToolbarButtonFeature,
                        "IPH_TabSearchToolbarButton");
 DEFINE_VARIATION_PARAM(kIPHDesktopPwaInstallFeature, "IPH_DesktopPwaInstall");
@@ -800,7 +799,6 @@ inline constexpr flags_ui::FeatureEntry::FeatureVariation
         VARIATION_ENTRY(kIPHSideSearchAutoTriggeringFeature),
         VARIATION_ENTRY(kIPHSideSearchPageActionLabelFeature),
         VARIATION_ENTRY(kIPHTabAudioMutingFeature),
-        VARIATION_ENTRY(kIPHTabSearchFeature),
         VARIATION_ENTRY(kIPHTabSearchToolbarButtonFeature),
         VARIATION_ENTRY(kIPHTabGroupsSharedTabChangedFeature),
         VARIATION_ENTRY(kIPHTabGroupsSharedTabFeedbackFeature),

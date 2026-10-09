@@ -365,7 +365,7 @@ class WTF_EXPORT StringImpl {
 
     constexpr hw::FixedTag<uint16_t, 8> d16;
     constexpr hw::FixedTag<uint8_t, 16> d8;
-    constexpr size_t kLanes = hw::Lanes(d8);
+    HWY_LANES_CONSTEXPR size_t kLanes = hw::Lanes(d8);
 
     const size_t length = source.size();
     const LChar* src = source.data();
@@ -426,20 +426,11 @@ class WTF_EXPORT StringImpl {
 
   bool ContainsOnlyWhitespaceOrEmpty();
 
-  int ToInt(NumberParsingOptions, bool* ok) const;
-  wtf_size_t ToUInt(NumberParsingOptions, bool* ok) const;
   int64_t ToInt64(NumberParsingOptions, bool* ok) const;
   uint64_t ToUInt64(NumberParsingOptions, bool* ok) const;
 
   wtf_size_t HexToUIntStrict(bool* ok);
   uint64_t HexToUInt64Strict(bool* ok);
-
-  // FIXME: Like NumberParsingOptions::kStrict, these give false for "ok" when
-  // there is trailing garbage.  Like NumberParsingOptions::kLoose, these return
-  // the value when there is trailing garbage.  It would be better if these were
-  // more consistent with the above functions instead.
-  double ToDouble(bool* ok = nullptr);
-  float ToFloat(bool* ok = nullptr);
 
   scoped_refptr<StringImpl> LowerASCII();
   scoped_refptr<StringImpl> UpperASCII();
@@ -783,7 +774,7 @@ ALWAYS_INLINE bool SimdEqualIgnoringASCIICase(base::span<const LChar> a,
                                               base::span<const LChar> b) {
   namespace hw = hwy::HWY_NAMESPACE;
   constexpr hw::FixedTag<uint8_t, 16> d;
-  constexpr size_t kLanes = hw::Lanes(d);
+  HWY_LANES_CONSTEXPR size_t kLanes = hw::Lanes(d);
 
   // SAFETY: The SIMD code requires raw buffer access.
   UNSAFE_BUFFERS({
@@ -818,7 +809,7 @@ ALWAYS_INLINE bool SimdEqualIgnoringASCIICase(base::span<const UChar> a,
   namespace hw = hwy::HWY_NAMESPACE;
   constexpr hw::FixedTag<uint16_t, 8> d16;
   constexpr hw::FixedTag<uint8_t, 8> d8;
-  constexpr size_t kLanes = hw::Lanes(d16);
+  HWY_LANES_CONSTEXPR size_t kLanes = hw::Lanes(d16);
 
   // SAFETY: The SIMD code requires raw buffer access.
   UNSAFE_BUFFERS({
@@ -855,7 +846,7 @@ ALWAYS_INLINE bool SimdEqualIgnoringASCIICase(base::span<const UChar> a,
                                               base::span<const UChar> b) {
   namespace hw = hwy::HWY_NAMESPACE;
   constexpr hw::FixedTag<uint16_t, 8> d;
-  constexpr size_t kLanes = hw::Lanes(d);
+  HWY_LANES_CONSTEXPR size_t kLanes = hw::Lanes(d);
 
   // SAFETY: The SIMD code requires raw buffer access.
   UNSAFE_BUFFERS({

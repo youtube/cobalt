@@ -29,6 +29,7 @@ using autofill_helper::GetProfileCount;
 using autofill_helper::RemoveKeys;
 using autofill_helper::RemoveProfile;
 using autofill_helper::UpdateProfile;
+using bookmarks_helper::StoreType;
 using sync_timing_helper::TimeMutualSyncCycle;
 
 // These numbers should be as far away from a multiple of
@@ -75,14 +76,6 @@ std::string IntToName(int n) {
   return base::StringPrintf("Name%d", n);
 }
 
-void ForceSync(int profile) {
-  static size_t id = 0;
-  ++id;
-  EXPECT_TRUE(bookmarks_helper::AddURL(
-                  profile, 0, bookmarks_helper::IndexedURLTitle(id),
-                  GURL(bookmarks_helper::IndexedURL(id))) != nullptr);
-}
-
 class AutofillProfileSyncPerfTest : public SyncTest {
  public:
   AutofillProfileSyncPerfTest() : SyncTest(TWO_CLIENT) {}
@@ -90,6 +83,11 @@ class AutofillProfileSyncPerfTest : public SyncTest {
   AutofillProfileSyncPerfTest(const AutofillProfileSyncPerfTest&) = delete;
   AutofillProfileSyncPerfTest& operator=(const AutofillProfileSyncPerfTest&) =
       delete;
+
+  SetupSyncMode GetSetupSyncMode() const override {
+    // The AUTOFILL_PROFILE data type is not supported in transport mode.
+    return SetupSyncMode::kSyncTheFeature;
+  }
 
   // Adds |num_profiles| new autofill profiles to the sync profile |profile|.
   void AddProfiles(int profile, int num_profiles);
@@ -99,6 +97,8 @@ class AutofillProfileSyncPerfTest : public SyncTest {
 
   // Removes all autofill profiles from |profile|.
   void RemoveProfiles(int profile);
+
+  void ForceSync(int profile);
 
  private:
   // Returns a new unique autofill profile.
@@ -150,6 +150,15 @@ void AutofillProfileSyncPerfTest::RemoveProfiles(int profile) {
   }
 }
 
+void ForceSync(int profile) {
+  static size_t id = 0;
+  ++id;
+  EXPECT_TRUE(bookmarks_helper::AddURL(
+                  profile, 0, bookmarks_helper::IndexedURLTitle(id),
+                  GURL(bookmarks_helper::IndexedURL(id)),
+                  StoreType::kLocalOrSyncableStore) != nullptr);
+}
+
 const AutofillProfile AutofillProfileSyncPerfTest::NextAutofillProfile() {
   AutofillProfile profile(
       autofill::i18n_model_definition::kLegacyHierarchyCountryCode);
@@ -198,6 +207,11 @@ class AutocompleteSyncPerfTest : public SyncTest {
 
   AutocompleteSyncPerfTest(const AutocompleteSyncPerfTest&) = delete;
   AutocompleteSyncPerfTest& operator=(const AutocompleteSyncPerfTest&) = delete;
+
+  SetupSyncMode GetSetupSyncMode() const override {
+    // The AUTOFILL_PROFILE data type is not supported in transport mode.
+    return SetupSyncMode::kSyncTheFeature;
+  }
 
   // Adds |num_keys| new autocomplete keys to the sync profile |profile|.
   void AddKeys(int profile, int num_keys);

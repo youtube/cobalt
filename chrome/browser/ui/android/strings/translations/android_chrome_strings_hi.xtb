@@ -157,6 +157,7 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="164269334534774161">इस पेज की <ph name="CREATION_TIME" /> वाली ऑफ़लाइन कॉपी देखी जा रही है</translation>
 <translation id="1644574205037202324">इतिहास</translation>
 <translation id="1645262572857218659"><ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> से साइन इन करें</translation>
+<translation id="1650979352027263879">दिखने से जुड़ी पिछली सेटिंग हटाई गईं</translation>
 <translation id="1671236975893690980">डाउनलोड लंबित…</translation>
 <translation id="1672586136351118594">फिर से न दिखाएं</translation>
 <translation id="1680919990519905526">Google Lens से इमेज खरीदें <ph name="BEGIN_NEW" />नए<ph name="END_NEW" /></translation>
@@ -425,6 +426,7 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="2854916915045135148">गुप्त मोड पर स्विच करने के लिए, टैब स्विचर बटन को दबाकर रखें</translation>
 <translation id="2860954141821109167">पक्का करें कि इस डिवाइस पर फ़ोन ऐप्लिकेशन चालू है</translation>
 <translation id="2861923151411510142">Chrome की कुछ सुविधाएं अब उपलब्ध नहीं होंगी</translation>
+<translation id="286473047976978798">क्या आपको दिखने से जुड़ी अपनी पिछली सेटिंग लागू करनी हैं?</translation>
 <translation id="2869416538780777323">{OTHER_TAB_COUNT,plural, =1{<ph name="URL" /> और 1 अन्य टैब}one{<ph name="URL" /> और <ph name="TAB_COUNT_MANY" /> अन्य टैब}other{<ph name="URL" /> और <ph name="TAB_COUNT_MANY" /> अन्य टैब}}</translation>
 <translation id="2869430948265924908">कार में अपने संवेदनशील कॉन्टेंट को सुरक्षित रखने के लिए, आपको कार का प्रोफ़ाइल लॉक सेट अप करना होगा.  इसके लिए, पिन, कोड या पासवर्ड का इस्तेमाल किया जा सकता है.</translation>
 <translation id="2870560284913253234">साइट</translation>
@@ -849,6 +851,7 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="4685741273709472646">ड्रॉपडाउन सूची में से चुनें</translation>
 <translation id="4687718960473379118">साइट की ओर से सुझाए गए विज्ञापन</translation>
 <translation id="468924408576231679">वेबपेज <ph name="PAGE_TITLE" /> का लिंक कॉपी करें. सोर्स: <ph name="PAGE_URL" /></translation>
+<translation id="4692623383562244444">सर्च इंजन</translation>
 <translation id="469286762610133730">कॉन्टेंट के बेहतर सुझाव पाएं</translation>
 <translation id="4695891336199304370">{SHIPPING_OPTIONS,plural, =1{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 और <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" /> अन्य}one{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 और <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" /> अन्य}other{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 और <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" /> अन्य}}</translation>
 <translation id="4698757800236023795">चालू टैब (<ph name="ITEM_COUNT" />)</translation>
@@ -1017,7 +1020,6 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="5375374982898812658">आपके लिए “<ph name="GROUP_NAME" />” टैब ग्रुप का ऐक्सेस तुरंत हटा दिया जाएगा. साथ ही, इसे आपके सभी डिवाइसों से मिटा दिया जाएगा</translation>
 <translation id="5375577065097716013">Google Lens से इमेज खोजें <ph name="BEGIN_NEW" />नया<ph name="END_NEW" /></translation>
 <translation id="5390367025924544771"><ph name="WEBSITE_ORIGIN" /> को आपके डिजिटल वॉलेट से निजी जानकारी का इस्तेमाल करना है. इसलिए, तब ही जारी करें जब आपको इस साइट पर भरोसा हो. खतरनाक साइटें, धोखे से आपसे आपका कानूनी नाम या आईडी नंबर जैसी जानकारी ज़ाहिर करवा सकती हैं.</translation>
-<translation id="5394331612381306435">गुप्त मोड से बाहर निकलें</translation>
 <translation id="5395376160638294582">यह पक्का करें कि आप जब चाहें, अपने Google खाते में Chrome के डेटा का इस्तेमाल कर सकें</translation>
 <translation id="539881862970320163">मज़बूत पासवर्ड बनाने का सुझाव दिया जाता है. कीबोर्ड छिपा हुआ है.</translation>
 <translation id="5409881200985013443">क्या आप <ph name="CLIENT_NAME" /> पर <ph name="ONE_TIME_CODE" /> सबमिट करना चाहते हैं?</translation>
@@ -1372,6 +1374,7 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="6811034713472274749">पेज देखने के लिए तैयार है</translation>
 <translation id="6813359536773993594">{FILE_COUNT,plural, =1{इमेज, सूची में 1 इमेज है}one{इमेज, सूची में # इमेज है}other{इमेज, सूची में # इमेज हैं}}</translation>
 <translation id="6813446258015311409">'Chrome में साइन इन करें' पेज खोला गया.</translation>
+<translation id="6815692190508268848">दिखने से जुड़ी पिछली सेटिंग लागू की गईं</translation>
 <translation id="6817747507826986771">इस पेज को तेज़ी से शेयर करें. इस शॉर्टकट में बदलाव करने के लिए, दबाकर रखें.</translation>
 <translation id="6820686453637990663">CVC</translation>
 <translation id="6820942662346226299">Google Password Manager अपडेट करने का डायलॉग बॉक्स बंद हो गया है</translation>
@@ -1493,7 +1496,6 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="7221869452894271364">यह पेज फिर से लोड करें</translation>
 <translation id="722681077040152344"><ph name="COUNT" /> साइटों की सदस्यता छोड़ी गई</translation>
 <translation id="7227218174981371415">{FILE_COUNT,plural, =1{1 डाउनलोड बाकी है}one{# डाउनलोड बाकी हैं}other{# डाउनलोड बाकी हैं}}</translation>
-<translation id="7230064152164845085">गुप्त मोड पर स्विच करें</translation>
 <translation id="7237724030342645845">Google Password Manager की सेवा काम नहीं कर रही</translation>
 <translation id="7239496616545081903">रीडिंग मोड छिपाएं</translation>
 <translation id="72415438529550637">पासवर्ड के सुझाव देने की सुविधा बंद है.</translation>
@@ -1530,6 +1532,7 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="7376560087009844242">खोजने के लिए टैप करने की सुविधा इस्तेमाल करते समय, किसी पेज के ज़्यादा शब्द शामिल करने पर, आपको बेहतर नतीजे दिख सकते हैं. इसमें बदलाव करने के लिए, आप जब चाहें <ph name="BEGIN_LINK" />सेटिंग<ph name="END_LINK" /> पर जा सकते हैं.</translation>
 <translation id="7379900596734708416">साइटों के लिए गहरे रंग वाली थीम</translation>
 <translation id="7384486627147155832">सलाह की सूचनाओं के प्रमोशन वाली शीट, आधी स्क्रीन पर खुली है</translation>
+<translation id="7387951778417998929">डिफ़ॉल्ट सर्च इंजन के अलावा, किसी दूसरे सर्च इंजन का इस्तेमाल करने के लिए, पता बार में उसका शॉर्टकट लिखें. इसके बाद, अपने हिसाब से कीबोर्ड शॉर्टकट लिखें. डिफ़ॉल्ट सर्च इंजन को यहां भी बदला जा सकता है.</translation>
 <translation id="7388615499319468910">साइटें और विज्ञापन देने वाले यह पता कर सकते हैं कि विज्ञापनों की परफ़ॉर्मेंस कैसी है. यह सेटिंग बंद है.</translation>
 <translation id="7400003506822844357">{FILE_COUNT,plural, =1{सूची में मौजूद अन्य 1 फ़ाइल}one{सूची में मौजूद # अन्य फ़ाइल}other{सूची में मौजूद # अन्य फ़ाइलें}}</translation>
 <translation id="7400418766976504921">URL</translation>

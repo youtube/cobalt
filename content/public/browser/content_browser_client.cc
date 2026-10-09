@@ -1101,6 +1101,13 @@ bool ContentBrowserClient::ShouldRestrictCoreSharingOnRenderer() {
   return false;
 }
 
+std::optional<std::wstring>
+ContentBrowserClient::GetWindowsSecurityAttributeName() const {
+  // Embedders should override this method and return the name of the security
+  // attribute previously assigned to the browser's process token.
+  return std::nullopt;
+}
+
 #endif  // BUILDFLAG(IS_WIN)
 
 std::vector<std::unique_ptr<blink::URLLoaderThrottle>>

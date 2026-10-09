@@ -38,6 +38,10 @@ const base::Feature* GetFeatureOfRegexFeature(RegexFeature feature) {
       return &features::kAutofillAddressImproveBuildingNumberRegex;
     case RegexFeature::kAutofillNewRegexForPhoneCountryCode:
       return &features::kAutofillNewRegexForPhoneCountryCode;
+    case RegexFeature::kAutofillSupportCombinedZipAndCityFR:
+      return &features::kAutofillSupportCombinedZipAndCityFR;
+    case RegexFeature::kAutofillImprovePhoneFieldParser:
+      return &features::kAutofillImprovePhoneFieldParser;
   }
   NOTREACHED();
 }

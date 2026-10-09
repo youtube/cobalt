@@ -114,16 +114,16 @@ TEST_F(SsrcEndToEndTest, UnknownRtpPacketTriggersUndemuxablePacketHandler) {
     CreateCalls();
 
     send_transport = std::make_unique<test::DirectTransport>(
-        task_queue(),
+        env(), task_queue(),
         std::make_unique<FakeNetworkPipe>(
-            Clock::GetRealTimeClock(),
+            &env().clock(),
             std::make_unique<SimulatedNetwork>(BuiltInNetworkBehaviorConfig())),
         sender_call_.get(), payload_type_map_, GetRegisteredExtensions(),
         GetRegisteredExtensions());
     receive_transport = std::make_unique<test::DirectTransport>(
-        task_queue(),
+        env(), task_queue(),
         std::make_unique<FakeNetworkPipe>(
-            Clock::GetRealTimeClock(),
+            &env().clock(),
             std::make_unique<SimulatedNetwork>(BuiltInNetworkBehaviorConfig())),
         receiver_call_.get(), payload_type_map_, GetRegisteredExtensions(),
         GetRegisteredExtensions());

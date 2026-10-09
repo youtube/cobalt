@@ -506,6 +506,20 @@ void OverlayProcessorOzone::InsertPrimaryPlane(
   candidates.insert(insert_positon, std::move(primary_plane));
 }
 
+bool OverlayProcessorOzone::ShouldCreatePrimaryPlane() const {
+#if BUILDFLAG(IS_CASTOS)
+  return false;
+#elif BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Cobalt uses OverlayProcessorOzone only for the Starboard video underlay.
+  // SkiaOutputDeviceGL reports supports_surfaceless but does not set
+  // renderer_allocates_images, so SkiaRenderer cannot schedule the root render
+  // pass as a primary plane overlay.
+  return false;
+#else
+  return true;
+#endif
+}
+
 bool OverlayProcessorOzone::SetNativePixmapForCandidate(
     ui::OverlaySurfaceCandidate* candidate,
     const gpu::Mailbox& mailbox,

@@ -182,6 +182,7 @@
 352085732 WIN INTEL VULKAN : OcclusionQueriesTest.MultiQueries/* = SKIP
 373818282 WIN INTEL OPENGL : ClearTest.ChangeFramebufferAttachmentFromRGBAtoRGB/* = SKIP
 388144480 WIN INTEL VULKAN : OcclusionQueriesTest.WrongSkippedQuery/* = SKIP
+478807229 WIN INTEL VULKAN : OcclusionQueriesTestES3.QueryReuseWithMultipleFBOs/* = SKIP
 
 434453468 WIN INTEL VULKAN : LineLoopIndirectTest.TwoIndirectDrawsInDifferentIndirectBuffer/* = SKIP
 
@@ -485,6 +486,7 @@
 
 // New failures on MacBook Pro 2019 macOS 13.2.1
 42266544 MAC METAL AMD : ClearTest.ClearStencilMask/* = SKIP
+42266544 MAC METAL AMD : ClearTest.StencilScissoredClearThenFullClear/* = SKIP
 42266544 MAC METAL AMD : ClearTestES3.ClearBufferivStencilMask/* = SKIP
 42266544 MAC METAL AMD : ClearTestES3.RepeatedStencilClear/* = SKIP
 42266544 MAC METAL AMD : DepthWriteTest.Test/* = SKIP
@@ -1835,11 +1837,7 @@
 376553328 LINUX INTEL WGPU : BasicUniformUsageTest.* = SKIP
 // Can't use a uniform struct outside of uniform address space.
 376553328 WGPU : SimpleUniformTestES3.UseUniformStructOutsideOfUniformAddressSpace/* = SKIP
-42267012 WGPU : ClearTest.*Scissor* = SKIP
-42267012 WGPU : ClearTest.*Mask* = SKIP
-42267012 WGPU : ClearTest.DefaultFramebuffer* = SKIP
 42267012 WGPU : ClearTest.ChangeFramebufferAttachmentFromRGBAtoRGB* = SKIP
-42267012 WGPU : ClearTest.ClearIssue*  = SKIP
 42266974 WGPU : Texture2DTest.Tex* = SKIP
 42266974 WGPU : Texture2DTest.Upload* = SKIP
 42266974 WGPU : Texture2DTest.*Superseding* = SKIP
@@ -1947,7 +1945,6 @@
 42266907 WGPU : LineLoopStateChangeTest.DrawElementsThenDrawArrays/* = SKIP
 42266907 WGPU : LineLoopStateChangeTest.DrawArraysThenDrawElements/* = SKIP
 42266907 WGPU : LineLoopStateChangeTest.DrawElementsThenDrawElements/* = SKIP
-42266907 WGPU : MaskedScissoredClearTest.Test/* = SKIP
 42266907 WGPU : PbufferTest.* = SKIP
 42266907 WGPU : PointSpritesTest.* = SKIP
 42266907 WGPU : RobustResourceInitTest.* = SKIP
@@ -2104,11 +2101,14 @@
 362486580 LINUX NVIDIA OPENGL : LineLoopIndirectTest.UseAsUBOThenUpdateThenUByteIndexIndirectBuffer/* = SKIP
 362486580 LINUX NVIDIA OPENGL : MultiDrawIndirectTest.MultiDrawArraysIndirect/* = SKIP
 362486580 LINUX NVIDIA OPENGL : MultiDrawIndirectTest.MultiDrawElementsIndirect/* = SKIP
+
+362486580 LINUX NVIDIA VULKAN : EGLSurfaceTest.ResizeBeforeMakeCurrent*/* = SKIP
+362486580 LINUX NVIDIA VULKAN : EXTBlendFuncExtendedDrawTestES31.UseProgramPipeline/* = SKIP
+362486580 LINUX NVIDIA VULKAN : EXTBlendFuncExtendedDrawTestES31.UseTwoProgramStages/* = SKIP
+362486580 LINUX NVIDIA VULKAN : FramebufferTestWithFormatFallback.R4G4B4A4_OutOfRangeStagedUpdateReformated/* = SKIP
+362486580 LINUX NVIDIA VULKAN : FramebufferTest_ES3.SurfaceDimensionsChangeAndFragCoord/* = SKIP
 362486580 LINUX NVIDIA VULKAN : SixteenBppTextureTest.RGBA5551Validation/* = SKIP
 362486580 LINUX NVIDIA VULKAN : SixteenBppTextureTestES3.RGB5A1UploadRGB10A2/* = SKIP
-362486580 LINUX NVIDIA VULKAN : FramebufferTestWithFormatFallback.R4G4B4A4_OutOfRangeStagedUpdateReformated/* = SKIP
-362486580 LINUX NVIDIA VULKAN : EXTBlendFuncExtendedDrawTestES31.UseProgramPipeline/* = SKIP
-362486580 LINUX NVIDIA VULKAN : EGLSurfaceTest.ResizeBeforeMakeCurrent*/* = SKIP
 
 // OpenGL/GLES failures related to GL_EXT_clear_texture
 361623543 WIN INTEL OPENGL : ClearTextureEXTTest.ClearCubeMapArray/* = SKIP

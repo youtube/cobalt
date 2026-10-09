@@ -13,6 +13,7 @@
 #include "chrome/browser/ui/webui/skills/skills_ui.h"
 #include "components/skills/public/skill.h"
 #include "components/skills/public/skills_service.h"
+#include "components/sync/protocol/skill_specifics.pb.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/views/widget/widget.h"
@@ -40,10 +41,10 @@ glic::mojom::SkillPreviewPtr GetPreviewFromSkill(const skills::Skill& skill) {
   skill_preview->icon = skill.icon;
 
   switch (skill.source) {
-    case skills::SkillSource::kFirstParty:
+    case sync_pb::SkillSource::SKILL_SOURCE_FIRST_PARTY:
       skill_preview->source = SkillSource::kFirstParty;
       break;
-    case skills::SkillSource::kUserCreated:
+    case sync_pb::SkillSource::SKILL_SOURCE_USER_CREATED:
       skill_preview->source = SkillSource::kUserCreated;
       break;
     default:
@@ -64,16 +65,17 @@ SkillsUiTabController::SkillsUiTabController(tabs::TabInterface& tab)
 
 SkillsUiTabController::~SkillsUiTabController() = default;
 
-void SkillsUiTabController::ShowDialog(const skills::Skill& skill) {
+void SkillsUiTabController::ShowDialog(Skill skill) {
   if (dialog_delegate_) {
     return;
   }
+
+  current_skill_ = skill;
+
   content::WebContents* contents = tab_->GetContents();
   CHECK(contents);
   Profile* profile = Profile::FromBrowserContext(contents->GetBrowserContext());
 
-  // TODO(crbug.com/476145843): Pass in the skill to the tab
-  // controller in the dialog.
   auto delegate = std::make_unique<SkillsDialog>(profile);
   delegate->RegisterOnDialogClosedCallback(base::BindOnce(
       &SkillsUiTabController::OnDialogClosed, weak_ptr_factory_.GetWeakPtr()));
@@ -86,7 +88,8 @@ void SkillsUiTabController::ShowDialog(const skills::Skill& skill) {
     if (dialog_contents && dialog_contents->GetWebUI()) {
       auto* controller = dialog_contents->GetWebUI()->GetController();
       if (auto* skills_ui = controller->GetAs<skills::SkillsUI>()) {
-        skills_ui->SetSkillsDialogDelegate(weak_ptr_factory_.GetWeakPtr());
+        skills_ui->InitializeDialog(weak_ptr_factory_.GetWeakPtr(),
+                                    std::move(skill));
       }
     }
   }
@@ -120,6 +123,10 @@ void SkillsUiTabController::OnSkillSaved(const std::string& skill_id) {
       window_controller->OnSkillSaved(skill_id);
     }
   }
+}
+
+bool SkillsUiTabController::IsShowing() const {
+  return dialog_delegate_ != nullptr;
 }
 
 void SkillsUiTabController::InvokeSkill(std::string_view skill_id) {

@@ -938,9 +938,10 @@ class RTC_EXPORT PeerConnectionInterface : public RefCountInterface {
   //
   // TODO(hbos): Deprecate and remove this when third parties have migrated to
   // the spec-compliant GetStats() API. https://crbug.com/822696
-  virtual bool GetStats(StatsObserver* observer,
-                        MediaStreamTrackInterface* track,  // Optional
-                        StatsOutputLevel level) = 0;
+  [[deprecated]] virtual bool GetStats(
+      StatsObserver* observer,
+      MediaStreamTrackInterface* track,  // Optional
+      StatsOutputLevel level) = 0;
   // The spec-compliant GetStats() API. This correspond to the promise-based
   // version of getStats() in JavaScript. Implementation status is described in
   // api/stats/rtcstats_objects.h. For more details on stats, see spec:

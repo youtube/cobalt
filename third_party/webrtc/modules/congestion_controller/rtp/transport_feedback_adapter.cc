@@ -34,8 +34,28 @@
 #include "rtc_base/network_route.h"
 
 namespace webrtc {
+namespace {
 
 constexpr TimeDelta kSendTimeHistoryWindow = TimeDelta::Seconds(60);
+
+class MinMax {
+ public:
+  explicit MinMax(int64_t value) : minimum_(value), maximum_(value) {}
+
+  void Update(int64_t value) {
+    minimum_ = std::min(minimum_, value);
+    maximum_ = std::max(maximum_, value);
+  }
+
+  int64_t minimum() const { return minimum_; }
+  int64_t maximum() const { return maximum_; }
+
+ private:
+  int64_t minimum_;
+  int64_t maximum_;
+};
+
+}  // namespace
 
 void InFlightBytesTracker::AddInFlightPacketBytes(
     const PacketFeedback& packet) {
@@ -286,6 +306,7 @@ TransportFeedbackAdapter::ProcessCongestionControlFeedback(
   int failed_lookups = 0;
   bool supports_ecn = true;
   std::vector<PacketResult> packet_result_vector;
+  std::optional<MinMax> sequence_number_in_report;
   for (const rtcp::CongestionControlFeedback::PacketInfo& packet_info :
        feedback.packets()) {
     std::optional<PacketFeedback> packet_feedback = RetrievePacketFeedback(
@@ -299,6 +320,11 @@ TransportFeedbackAdapter::ProcessCongestionControlFeedback(
     if (packet_feedback->network_route != network_route_) {
       ++ignored_packets;
       continue;
+    }
+    if (!sequence_number_in_report.has_value()) {
+      sequence_number_in_report.emplace(packet_feedback->sent.sequence_number);
+    } else {
+      sequence_number_in_report->Update(packet_feedback->sent.sequence_number);
     }
     PacketResult result;
     result.sent_packet = packet_feedback->sent;
@@ -319,6 +345,31 @@ TransportFeedbackAdapter::ProcessCongestionControlFeedback(
         .rtp_sequence_number = packet_feedback->rtp_sequence_number,
         .is_retransmission = packet_feedback->is_retransmission};
     packet_result_vector.push_back(result);
+  }
+
+  // Report packets as lost that are in the same transport sequence number range
+  // as reported packets, but that are not mentioned in the report.
+  // Code below relies on the fact that received packets are already erased from
+  // the `history_`.
+  if (sequence_number_in_report.has_value()) {
+    auto begin = history_.lower_bound(sequence_number_in_report->minimum());
+    auto end = history_.upper_bound(sequence_number_in_report->maximum());
+    for (auto it = begin; it != end; ++it) {
+      PacketFeedback& packet_feedback = it->second;
+      if (it->second.previously_reported_lost) {
+        continue;
+      }
+      it->second.previously_reported_lost = true;
+      PacketResult result;
+      result.sent_packet = packet_feedback.sent;
+      result.sent_with_ect1 = packet_feedback.sent_with_ect1;
+      result.reported_lost_for_the_first_time = true;
+      result.rtp_packet_info = {
+          .ssrc = packet_feedback.ssrc,
+          .rtp_sequence_number = packet_feedback.rtp_sequence_number,
+          .is_retransmission = packet_feedback.is_retransmission};
+      packet_result_vector.push_back(result);
+    }
   }
 
   if (failed_lookups > 0) {

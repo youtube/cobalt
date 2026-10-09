@@ -227,7 +227,7 @@ void RtcpTransceiverImpl::ReceivePacket(ArrayView<const uint8_t> packet,
 
     HandleReceivedPacket(rtcp_block, now, report_blocks);
 
-    packet = packet.subview(rtcp_block.packet_size());
+    packet = packet.subspan(rtcp_block.packet_size());
   }
 
   if (!report_blocks.empty()) {

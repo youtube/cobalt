@@ -36,7 +36,7 @@
 #include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "services/network/public/cpp/features.h"
-#include "services/network/public/cpp/private_network_access_check_result.h"
+#include "services/network/public/cpp/local_network_access_check_result.h"
 #include "services/network/public/cpp/url_loader_completion_status.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom.h"
@@ -422,7 +422,7 @@ IN_PROC_BROWSER_TEST_F(LocalNetworkAccessCountersBrowserTest,
   metrics::SubprocessMetricsProvider::MergeHistogramDeltasForTesting();
   base_histogram_tester.ExpectBucketCount(
       "Security.PrivateNetworkAccess.CheckResult",
-      network::PrivateNetworkAccessCheckResult::kLNAPermissionRequired, 1);
+      network::LocalNetworkAccessCheckResult::kLNAPermissionRequired, 1);
 
   EXPECT_THAT(
       feature_histogram_tester.GetNonZeroCounts(AllAddressSpaceFeatures()),
@@ -432,8 +432,9 @@ IN_PROC_BROWSER_TEST_F(LocalNetworkAccessCountersBrowserTest,
 // This test verifies that resources proxied through a proxy on localhost can
 // be fetched from documents in the public IP address space.
 // Regression test for https://crbug.com/1253239.
+// TODO(crbug.com/465260276): Disabled for being flaky.
 IN_PROC_BROWSER_TEST_F(LocalNetworkAccessCountersBrowserTest,
-                       ProxiedResourcesAllowed) {
+                       DISABLED_ProxiedResourcesAllowed) {
   EXPECT_TRUE(
       content::NavigateToURL(web_contents(), PublicSecureURL(https_server())));
 

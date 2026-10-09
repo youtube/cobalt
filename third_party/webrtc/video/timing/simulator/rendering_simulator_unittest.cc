@@ -78,8 +78,6 @@ Matcher<const Frame&> EqualsFrame(const Frame& expected) {
             Eq(expected.jitter_buffer_delay)));
 }
 
-// TODO: b/423646186 - Add tests for logs with losses.
-
 TEST(RenderingSimulatorTest, VideoRecvVp8) {
   std::unique_ptr<ParsedRtcEventLog> parsed_log =
       ParsedRtcEventLogFromResources("video_recv_vp8_pt96");

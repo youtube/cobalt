@@ -100,6 +100,8 @@ BASE_DECLARE_FEATURE_PARAM(bool, kLocalNetworkAccessChecksWarn);
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
 BASE_DECLARE_FEATURE(kLocalNetworkAccessChecksWebRTC);
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
+BASE_DECLARE_FEATURE(kURLLoaderUseProvidedResponseBodyStream);
+COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
 BASE_DECLARE_FEATURE_PARAM(bool, kLocalNetworkAccessChecksWebRTCLoopbackOnly);
 
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
@@ -369,6 +371,22 @@ BASE_DECLARE_FEATURE_PARAM(bool, kNetworkServiceTaskSchedulerURLLoader);
 // per-net::RequestrPriority task queues for each RequestPriority variant.
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
 BASE_DECLARE_FEATURE(kNetworkServicePerPriorityTaskQueues);
+
+// When enabled, URLLoader in Network Service check header consistency for the
+// ServiceWorker SyntheticResponse.
+// TODO(crbug.com/447039330): This is temporary for the SyntheticResponse
+// experiment and will be removed after standardization.
+COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
+BASE_DECLARE_FEATURE(kServiceWorkerSyntheticResponseHeaderCheck);
+
+COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
+BASE_DECLARE_FEATURE_PARAM(std::string,
+                           kServiceWorkerSyntheticResponseIgnoredHeaders);
+
+COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
+BASE_DECLARE_FEATURE_PARAM(
+    bool,
+    kServiceWorkerSyntheticResponseReportInconsistentHeader);
 
 // When enabled the browser process will start an UnexportableKeyService proxy
 // service that can be used by other processes. It will also make the network

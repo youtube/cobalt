@@ -76,6 +76,9 @@ struct ScreamV2Parameters {
   FieldTrialParameter<double> queue_delay_avg_g;
   FieldTrialParameter<double> queue_delay_dev_avg_g;
 
+  // Normalization factor for queue delay variation.
+  FieldTrialParameter<TimeDelta> queue_delay_dev_normalization;
+
   // Determines the length of the base delay history when estimating one way
   // delay (owd)
   FieldTrialParameter<int> base_delay_window_length;
@@ -83,14 +86,10 @@ struct ScreamV2Parameters {
   FieldTrialParameter<TimeDelta> base_delay_history_update_interval;
 
   // Reference window is reduced if average queue delay is above
-  // `queue_delay_first_reaction`. Reduction is reduced linearly between
-  // 'queue_delay_first_reaction' and 'queue_delay_max_reaction'.
-  FieldTrialParameter<TimeDelta> queue_delay_first_reaction;
-  // Reference window is reduced by 50% if average queue delay is
-  // `queue_delay_max_reaction` or above.
+  // `queue_delay_target/2`
   // TODO: bugs.webrtc.org/447037083 -  Consider implementing 4.2.1.4.1.
   // Competing Flows Compensation.
-  FieldTrialParameter<TimeDelta> queue_delay_max_reaction;
+  FieldTrialParameter<TimeDelta> queue_delay_target;
 
   // If the minimum queue delay is below this threshold, queues are deamed to be
   // drained.

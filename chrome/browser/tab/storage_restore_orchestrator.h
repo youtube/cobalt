@@ -10,6 +10,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/tab/collection_storage_observer.h"
+#include "chrome/browser/tab/storage_collection_synchronizer.h"
 #include "chrome/browser/tab/storage_loaded_data.h"
 #include "chrome/browser/tab/tab_state_storage_service.h"
 #include "components/tabs/public/tab_collection.h"
@@ -24,7 +25,8 @@ namespace tabs {
 // process.
 // Without the use of batching, this is inefficient. See
 // TabStateStorageService#CreateScopedBatch.
-class StorageRestoreOrchestrator : public TabCollectionObserver {
+class StorageRestoreOrchestrator
+    : public StorageCollectionSynchronizer::CollectionSynchronizerObserver {
  public:
   StorageRestoreOrchestrator(TabStripCollection* collection,
                              TabStateStorageService* service,
@@ -35,7 +37,7 @@ class StorageRestoreOrchestrator : public TabCollectionObserver {
   StorageRestoreOrchestrator& operator=(const StorageRestoreOrchestrator&) =
       delete;
 
-  // TabCollectionObserver:
+  // CollectionSynchronizerObserver:
   void OnChildrenAdded(const TabCollection::Position& position,
                        const TabCollectionNodes& handles,
                        bool insert_from_detached) override;
@@ -43,6 +45,8 @@ class StorageRestoreOrchestrator : public TabCollectionObserver {
                          const TabCollectionNodes& handles) override;
   void OnChildMoved(const TabCollection::Position& to_position,
                     const NodeData& node_data) override;
+  void SaveChildNodeOnly(TabCollectionNodeHandle handle) override;
+
   void OnChildRejected(const StorageId parent);
 
  private:
@@ -51,15 +55,19 @@ class StorageRestoreOrchestrator : public TabCollectionObserver {
     explicit ObserverImpl(StorageRestoreOrchestrator* orchestrator);
     ~ObserverImpl() override;
     void OnChildRejected(StorageId parent) override;
+    void OnDestroyed() override;
 
    private:
     raw_ptr<StorageRestoreOrchestrator> orchestrator_;
   };
 
-  void OnAddChildTab(const TabCollection::NodeHandle& handle);
-  void OnAddChildCollection(const TabCollection::NodeHandle& handle);
+  void OnSaveChildTab(const TabCollection::NodeHandle& handle,
+                      bool was_inserted);
+  void OnSaveChildCollection(const TabCollection::NodeHandle& handle,
+                             bool was_inserted);
   void MaybeAddModifiedParent(const StorageId& id,
                               std::optional<TabCollectionHandle> handle);
+  void OnDataDestroyed();
 
   // Represents default observer methods.
   CollectionStorageObserver default_observer_;
@@ -77,6 +85,8 @@ class StorageRestoreOrchestrator : public TabCollectionObserver {
   // Used to keep track of parents that have had their children vector modified.
   absl::flat_hash_map<StorageId, std::optional<TabCollectionHandle>>
       modified_parents_;
+
+  bool is_data_observer_registered_;
 };
 
 }  // namespace tabs

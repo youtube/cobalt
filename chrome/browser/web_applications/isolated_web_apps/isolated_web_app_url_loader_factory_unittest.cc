@@ -11,7 +11,6 @@
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
-#include "base/memory/raw_ptr.h"
 #include "base/strings/strcat.h"
 #include "base/test/gmock_expected_support.h"
 #include "base/test/scoped_feature_list.h"
@@ -21,28 +20,22 @@
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_info.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolation_data.h"
 #include "chrome/browser/web_applications/isolated_web_apps/test/isolated_web_app_builder.h"
-#include "chrome/browser/web_applications/proto/web_app_install_state.pb.h"
 #include "chrome/browser/web_applications/test/fake_web_app_database_factory.h"
 #include "chrome/browser/web_applications/test/fake_web_app_provider.h"
 #include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
 #include "chrome/browser/web_applications/test/web_app_test.h"
 #include "chrome/browser/web_applications/web_app.h"
-#include "chrome/browser/web_applications/web_app_constants.h"
 #include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chrome/browser/web_applications/web_app_management_type.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
 #include "chrome/common/chrome_features.h"
-#include "components/web_package/signed_web_bundles/ed25519_public_key.h"
 #include "components/web_package/signed_web_bundles/signed_web_bundle_id.h"
-#include "components/web_package/test_support/signed_web_bundles/web_bundle_signer.h"
-#include "components/web_package/web_bundle_builder.h"
 #include "components/webapps/common/web_app_id.h"
 #include "components/webapps/isolated_web_apps/scheme.h"
 #include "components/webapps/isolated_web_apps/types/source.h"
 #include "components/webapps/isolated_web_apps/types/storage_location.h"
 #include "components/webapps/isolated_web_apps/url_loading/url_loader_factory.h"
 #include "content/public/browser/render_frame_host.h"
-#include "content/public/browser/storage_partition_config.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_features.h"
 #include "content/public/test/simple_url_loader_test_helper.h"
@@ -407,8 +400,10 @@ TEST_F(
           .Build()));
 
   NonInstalledBundleInspectionContext::CreateForWebContents(
-      web_contents(), IwaSourceProxy{url::Origin::Create(
-                          GURL("http://pending-install-proxy-url.com"))});
+      web_contents(),
+      IwaSourceProxy{
+          url::Origin::Create(GURL("http://pending-install-proxy-url.com"))},
+      IwaInstallOperation{.source = webapps::WebappInstallSource::IWA_DEV_UI});
 
   CreateFactoryForFrame();
 
@@ -670,7 +665,8 @@ TEST_F(IsolatedWebAppURLLoaderFactoryTest,
        ReturnGeneratedPageWhenInstallingApplication) {
   NonInstalledBundleInspectionContext::CreateForWebContents(
       web_contents(),
-      IwaSourceProxy{url::Origin::Create(GURL("http://some-proxy-url.com"))});
+      IwaSourceProxy{url::Origin::Create(GURL("http://some-proxy-url.com"))},
+      IwaInstallOperation{.source = webapps::WebappInstallSource::IWA_DEV_UI});
   RegisterWebApp(CreateIsolatedWebApp(
       kDevAppStartUrl,
       IsolationData::Builder(
@@ -697,7 +693,8 @@ TEST_F(IsolatedWebAppURLLoaderFactoryTest,
        RequestsRedirectedToPendingInstallIsolationDataWhenAppIsInstalled) {
   NonInstalledBundleInspectionContext::CreateForWebContents(
       web_contents(),
-      IwaSourceProxy{url::Origin::Create(GURL("http://some-proxy-url.com"))});
+      IwaSourceProxy{url::Origin::Create(GURL("http://some-proxy-url.com"))},
+      IwaInstallOperation{.source = webapps::WebappInstallSource::IWA_DEV_UI});
 
   RegisterWebApp(CreateIsolatedWebApp(
       kDevAppStartUrl,
@@ -726,7 +723,8 @@ TEST_F(IsolatedWebAppURLLoaderFactoryTest,
 
   NonInstalledBundleInspectionContext::CreateForWebContents(
       web_contents(),
-      IwaSourceProxy{url::Origin::Create(GURL("http://some-proxy-url.com"))});
+      IwaSourceProxy{url::Origin::Create(GURL("http://some-proxy-url.com"))},
+      IwaInstallOperation{.source = webapps::WebappInstallSource::IWA_DEV_UI});
 
   CreateFactoryForFrame();
 
@@ -1001,8 +999,9 @@ TEST_P(IsolatedWebAppURLLoaderFactorySignedWebBundleTest,
     EXPECT_THAT(status, IsNetError(net::OK));
     EXPECT_THAT(ResponseInfo(), NotNull());
   } else {
-    EXPECT_THAT(status, IsNetError(net::ERR_INVALID_WEB_BUNDLE));
-    EXPECT_THAT(ResponseInfo(), IsNull());
+    // Installed apps are assumed to be trusted.
+    EXPECT_THAT(status, IsNetError(net::OK));
+    EXPECT_THAT(ResponseInfo(), NotNull());
   }
 }
 
@@ -1173,7 +1172,7 @@ TEST_P(IsolatedWebAppURLLoaderFactoryDevModeDisabledTest,
 
   int status = CreateLoaderAndRun(std::move(request));
   if (is_dev_mode_bundle_) {
-    EXPECT_THAT(status, IsNetError(net::ERR_FAILED));
+    EXPECT_THAT(status, IsNetError(net::ERR_INVALID_WEB_BUNDLE));
     EXPECT_THAT(ResponseInfo(), IsNull());
   } else {
     EXPECT_THAT(status, IsNetError(net::OK));

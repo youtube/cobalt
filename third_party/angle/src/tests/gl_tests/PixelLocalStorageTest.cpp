@@ -6756,49 +6756,49 @@ TEST_P(PixelLocalStorageValidationTest, GetFramebufferPixelLocalStorageParameter
     glGetFramebufferPixelLocalStorageParameterivRobustANGLE(0, GL_PIXEL_LOCAL_FORMAT_ANGLE, 0,
                                                             &length, ints);
     EXPECT_GL_SINGLE_ERROR(GL_INVALID_OPERATION);
-    EXPECT_GL_SINGLE_ERROR_MSG("More parameters are required than were provided.");
+    EXPECT_GL_SINGLE_ERROR_MSG("The paramCount is less than the number of returned values.");
     EXPECT_EQ(length, kLengthInitValue);
 
     length = kLengthInitValue;
     glGetFramebufferPixelLocalStorageParameterivRobustANGLE(0, GL_PIXEL_LOCAL_TEXTURE_NAME_ANGLE, 0,
                                                             &length, ints);
     EXPECT_GL_SINGLE_ERROR(GL_INVALID_OPERATION);
-    EXPECT_GL_SINGLE_ERROR_MSG("More parameters are required than were provided.");
+    EXPECT_GL_SINGLE_ERROR_MSG("The paramCount is less than the number of returned values.");
     EXPECT_EQ(length, kLengthInitValue);
 
     length = kLengthInitValue;
     glGetFramebufferPixelLocalStorageParameterivRobustANGLE(0, GL_PIXEL_LOCAL_TEXTURE_LEVEL_ANGLE,
                                                             0, &length, ints);
     EXPECT_GL_SINGLE_ERROR(GL_INVALID_OPERATION);
-    EXPECT_GL_SINGLE_ERROR_MSG("More parameters are required than were provided.");
+    EXPECT_GL_SINGLE_ERROR_MSG("The paramCount is less than the number of returned values.");
     EXPECT_EQ(length, kLengthInitValue);
 
     length = kLengthInitValue;
     glGetFramebufferPixelLocalStorageParameterivRobustANGLE(0, GL_PIXEL_LOCAL_TEXTURE_LAYER_ANGLE,
                                                             0, &length, ints);
     EXPECT_GL_SINGLE_ERROR(GL_INVALID_OPERATION);
-    EXPECT_GL_SINGLE_ERROR_MSG("More parameters are required than were provided.");
+    EXPECT_GL_SINGLE_ERROR_MSG("The paramCount is less than the number of returned values.");
     EXPECT_EQ(length, kLengthInitValue);
 
     length = kLengthInitValue;
     glGetFramebufferPixelLocalStorageParameterivRobustANGLE(0, GL_PIXEL_LOCAL_CLEAR_VALUE_INT_ANGLE,
                                                             3, &length, ints);
     EXPECT_GL_SINGLE_ERROR(GL_INVALID_OPERATION);
-    EXPECT_GL_SINGLE_ERROR_MSG("More parameters are required than were provided.");
+    EXPECT_GL_SINGLE_ERROR_MSG("The paramCount is less than the number of returned values.");
     EXPECT_EQ(length, kLengthInitValue);
 
     length = kLengthInitValue;
     glGetFramebufferPixelLocalStorageParameterivRobustANGLE(
         0, GL_PIXEL_LOCAL_CLEAR_VALUE_UNSIGNED_INT_ANGLE, 3, &length, ints);
     EXPECT_GL_SINGLE_ERROR(GL_INVALID_OPERATION);
-    EXPECT_GL_SINGLE_ERROR_MSG("More parameters are required than were provided.");
+    EXPECT_GL_SINGLE_ERROR_MSG("The paramCount is less than the number of returned values.");
     EXPECT_EQ(length, kLengthInitValue);
 
     length = kLengthInitValue;
     glGetFramebufferPixelLocalStorageParameterfvRobustANGLE(
         0, GL_PIXEL_LOCAL_CLEAR_VALUE_FLOAT_ANGLE, 3, &length, floats);
     EXPECT_GL_SINGLE_ERROR(GL_INVALID_OPERATION);
-    EXPECT_GL_SINGLE_ERROR_MSG("More parameters are required than were provided.");
+    EXPECT_GL_SINGLE_ERROR_MSG("The paramCount is less than the number of returned values.");
     EXPECT_EQ(length, kLengthInitValue);
 
     // Not quite pure validation, but also ensure that <length> gets written properly.
@@ -7641,19 +7641,6 @@ TEST_P(PixelLocalStorageValidationTest, ModifyTextureDuringPLS)
             glTexParameterfvRobustANGLE(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAX_LOD, 1, zerof));
         CHECK_TEXTURE_2D_ARRAY_MODIFICATION(
             glTexParameterivRobustANGLE(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAX_LEVEL, 1, zeroi));
-
-        // TODO: Re-enable these tests once glTexParameterI(u?)ivRobustANGLE are implemented.
-#if 0
-        CHECK_TEXTURE_2D_MODIFICATION(
-            glTexParameterIivRobustANGLE(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, 4, zeroi));
-        CHECK_TEXTURE_2D_MODIFICATION(
-            glTexParameterIuivRobustANGLE(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, 4, zeroui));
-
-        CHECK_TEXTURE_2D_ARRAY_MODIFICATION(
-            glTexParameterIivRobustANGLE(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_BORDER_COLOR, 4, zeroi));
-        CHECK_TEXTURE_2D_ARRAY_MODIFICATION(
-            glTexParameterIuivRobustANGLE(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_BORDER_COLOR, 4, zeroui));
-#endif
     }
 
     if (EnsureGLExtensionEnabled("GL_EXT_texture_border_clamp"))

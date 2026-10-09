@@ -59,6 +59,7 @@
 #include "pc/test/fake_rtc_certificate_generator.h"
 #include "pc/test/integration_test_helpers.h"
 #include "pc/test/mock_peer_connection_observers.h"
+#include "rtc_base/event.h"
 #include "rtc_base/strings/string_format.h"
 #include "rtc_base/thread.h"
 #include "system_wrappers/include/metrics.h"
@@ -545,14 +546,19 @@ TEST_F(SdpMungingTest, IceUfragRestrictedAddresses) {
     std::optional<RTCError> result;
     const std::string candidate = StringFormat(
         tmpl, absl::StrReplaceAll(address_test.first, {{":", " "}}).c_str());
+
+    Event event;
     caller->pc()->AddIceCandidate(
         std::unique_ptr<IceCandidate>(
             CreateIceCandidate("", 0, candidate, nullptr)),
-        [&result](RTCError error) { result = error; });
+        [&](RTCError error) {
+          result = error;
+          event.Set();
+        });
 
-    ASSERT_THAT(
-        WaitUntil([&] { return result.has_value(); }, ::testing::IsTrue()),
-        IsRtcOk());
+    ASSERT_TRUE(event.Wait(kDefaultTimeout));
+    EXPECT_TRUE(result.has_value());
+
     if (address_test.second == true) {
       EXPECT_TRUE(result.value().ok());
     } else {

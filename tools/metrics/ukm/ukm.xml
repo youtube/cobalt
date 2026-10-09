@@ -260,6 +260,39 @@ be describing additional metrics about the same event.
   </metric>
 </event>
 
+<event name="Accessibility.Canvas">
+  <owner>rhalavati@google.com</owner>
+  <summary>
+    Recorded once for any visible canvas, or offscreen canvas which pushes its
+    rendered output directly into a placeholder element in the DOM.
+  </summary>
+  <metric name="HasKeyboardListener" enum="Boolean">
+    <summary>
+      Records whether the canvas listens to keyboard events or not.
+    </summary>
+  </metric>
+  <metric name="HasMouseListener" enum="Boolean">
+    <summary>
+      Records whether the canvas listens to mouse events or not.
+    </summary>
+  </metric>
+  <metric name="HasText" enum="Boolean">
+    <summary>
+      Records whether the canvas drew any text or not.
+    </summary>
+  </metric>
+  <metric name="IsOffscreen" enum="Boolean">
+    <summary>
+      Records whether the canvas is off-screen or not.
+    </summary>
+  </metric>
+  <metric name="RenderingContext" enum="CanvasRenderingAPI">
+    <summary>
+      Type of the rendering contexts created for the canvas.
+    </summary>
+  </metric>
+</event>
+
 <event name="Accessibility.CanvasHasNonTrivialFallback">
   <owner>lucasradaelli@google.com</owner>
   <summary>
@@ -12560,6 +12593,74 @@ be describing additional metrics about the same event.
   </metric>
 </event>
 
+<event name="IOS.ModelPageClassification">
+  <owner>amarjotgill@chromium.org</owner>
+  <owner>bling-ai-foundations@google.com</owner>
+  <summary>
+    Recorded when a page is classified.
+  </summary>
+  <metric name="BestMatchCategory" enum="PageClassificationCategory">
+    <summary>
+      The category ID that was the best match.
+    </summary>
+  </metric>
+  <metric name="BestMatchConfidence">
+    <summary>
+      The confidence score (0-100) of the best match.
+    </summary>
+  </metric>
+  <metric name="ConfidenceCar">
+    <summary>
+      Confidence score (0-100) for Car Search.
+    </summary>
+  </metric>
+  <metric name="ConfidenceClothes">
+    <summary>
+      Confidence score (0-100) for Clothes Search.
+    </summary>
+  </metric>
+  <metric name="ConfidenceFlight">
+    <summary>
+      Confidence score (0-100) for Flight Search.
+    </summary>
+  </metric>
+  <metric name="ConfidenceHotel">
+    <summary>
+      Confidence score (0-100) for Hotel Search.
+    </summary>
+  </metric>
+  <metric name="ConfidenceJob">
+    <summary>
+      Confidence score (0-100) for Job Search.
+    </summary>
+  </metric>
+  <metric name="ConfidenceNews">
+    <summary>
+      Confidence score (0-100) for News Search.
+    </summary>
+  </metric>
+  <metric name="ConfidenceNone">
+    <summary>
+      Confidence score (0-100) for None/Unknown.
+    </summary>
+  </metric>
+  <metric name="ConfidenceRestaurant">
+    <summary>
+      Confidence score (0-100) for Restaurant Search.
+    </summary>
+  </metric>
+  <metric name="HasAPC" enum="Boolean">
+    <summary>
+      Whether Annotated Page Content (text) was successfully extracted.
+    </summary>
+  </metric>
+  <metric name="ShouldTryOn" enum="Boolean">
+    <summary>
+      Is this something to try on.
+    </summary>
+  </metric>
+</event>
+
 <event name="IOS.PageAddedToReadingList">
   <owner>thegreenfrog@chromium.org</owner>
   <summary>
@@ -15085,7 +15186,8 @@ be describing additional metrics about the same event.
       a percentage from 0 to 100. 0 means that the element is not visible due to
       factors like being off-screen, clipped, occluded by other elements, or
       styled as invisible (e.g., opacity:0). 100 means that the element is fully
-      visible. This value can be unset if nothing is reported.
+      visible. This value is currently set for only encrypted media and if the
+      kEncryptedMediaOcclusionTracking flag is enabled.
     </summary>
   </metric>
 </event>
@@ -28096,12 +28198,14 @@ be describing additional metrics about the same event.
   <owner>pwa-team@google.com</owner>
   <summary>
     Recorded when a site attempts to install another site that isn't the current
-    document via Web Install API.
+    document. There are two possible entry points to the install - The Web
+    Install API (navigator.install) and the install element. For any given
+    install, either the first *or* second metric pairs will be recorded.
   </summary>
-  <metric name="ResultByInstalledApp" enum="WebInstallApiResult">
+  <metric name="ElementResultByInstalledApp" enum="WebInstallServiceResult">
     <summary>
-      Records the result of the Web Install API for the URL of the target site
-      that we attempted to install as a web app via the API.
+      Records the result of one activation of the install element for the URL of
+      the target site that we attempted to install.
     </summary>
     <aggregation>
       <history>
@@ -28111,7 +28215,26 @@ be describing additional metrics about the same event.
       </history>
     </aggregation>
   </metric>
-  <metric name="ResultByRequestingPage" enum="WebInstallApiResult">
+  <metric name="ElementResultByRequestingPage" enum="WebInstallServiceResult">
+    <summary>
+      Records the result of one activation of the install element for the URL of
+      the requesting page that the element was activated from.
+    </summary>
+    <aggregation>
+      <history>
+        <statistics>
+          <enumeration/>
+        </statistics>
+      </history>
+    </aggregation>
+  </metric>
+  <metric name="ResultByInstalledApp" enum="WebInstallServiceResult">
+    <summary>
+      Records the result of the Web Install API for the URL of the target site
+      that we attempted to install as a web app via the API.
+    </summary>
+  </metric>
+  <metric name="ResultByRequestingPage" enum="WebInstallServiceResult">
     <summary>
       Records the result of the Web Install API for the URL of the requesting
       page that invoked the API.

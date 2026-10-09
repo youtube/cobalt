@@ -2904,6 +2904,51 @@ TEST_F(TurboshaftInstructionSelectorTest, AddReduce) {
   }
 }
 
+TEST_F(TurboshaftInstructionSelectorTest, ExtractLaneZero) {
+  {
+    StreamBuilder m(this, MachineType::Float32(), MachineType::Simd128());
+    m.Return(m.F16x8ExtractLane(m.Parameter(0), 0));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+  }
+  {
+    StreamBuilder m(this, MachineType::Float32(), MachineType::Simd128());
+    m.Return(m.F32x4ExtractLane(m.Parameter(0), 0));
+    Stream s = m.Build();
+    ASSERT_EQ(0U, s.size());
+  }
+  {
+    StreamBuilder m(this, MachineType::Float64(), MachineType::Simd128());
+    m.Return(m.F64x2ExtractLane(m.Parameter(0), 0));
+    Stream s = m.Build();
+    ASSERT_EQ(0U, s.size());
+  }
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Simd128());
+    m.Return(m.I8x16UExtractLane(m.Parameter(0), 0));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+  }
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Simd128());
+    m.Return(m.I16x8SExtractLane(m.Parameter(0), 0));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+  }
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Simd128());
+    m.Return(m.I32x4ExtractLane(m.Parameter(0), 0));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+  }
+  {
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Simd128());
+    m.Return(m.I64x2ExtractLane(m.Parameter(0), 0));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+  }
+}
+
 TEST_F(TurboshaftInstructionSelectorTest, I32x4AddPairwise) {
   StreamBuilder m(this, MachineType::Int32(), MachineType::Simd128(),
                   MachineType::Simd128());
@@ -6396,6 +6441,40 @@ INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
                          TurboshaftInstructionSelectorMemoryAccessTest,
                          (::testing::ValuesIn(kMemoryAccesses),
                           ::testing::ValuesIn(kMemoryAccessesTagged)));
+
+#if V8_ENABLE_WEBASSEMBLY
+TEST_F(TurboshaftInstructionSelectorTest, LoadTransform) {
+  using test_config =
+      std::tuple<Simd128LoadTransformOp::TransformKind, ArchOpcode, int>;
+  std::array configs = std::to_array<test_config>({
+      {Simd128LoadTransformOp::TransformKind::k8x8S, kArm64Sxtl, 16},
+      {Simd128LoadTransformOp::TransformKind::k8x8U, kArm64Uxtl, 16},
+      {Simd128LoadTransformOp::TransformKind::k16x4S, kArm64Sxtl, 32},
+      {Simd128LoadTransformOp::TransformKind::k16x4U, kArm64Uxtl, 32},
+      {Simd128LoadTransformOp::TransformKind::k32x2S, kArm64Sxtl, 64},
+      {Simd128LoadTransformOp::TransformKind::k32x2U, kArm64Uxtl, 64},
+  });
+
+  for (const auto& config : configs) {
+    StreamBuilder m(this, MachineType::Simd128(), MachineType::Pointer(),
+                    MachineType::Pointer());
+    OpIndex base = m.Parameter(0);
+    OpIndex index = m.Parameter(1);
+    Simd128LoadTransformOp::TransformKind transform_kind = std::get<0>(config);
+    LoadOp::Kind load_kind = LoadOp::Kind::Protected();
+    m.Return(m.Simd128LoadTransform(base, index, load_kind, transform_kind, 8));
+    Stream s = m.Build();
+
+    ArchOpcode expected_opcode = std::get<1>(config);
+    int expected_lanesize = std::get<2>(config);
+
+    ASSERT_EQ(2U, s.size());
+    EXPECT_EQ(kArm64LdrD, s[0]->arch_opcode());
+    EXPECT_EQ(expected_opcode, s[1]->arch_opcode());
+    EXPECT_EQ(expected_lanesize, LaneSizeField::decode(s[1]->opcode()));
+  }
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 // This list doesn't contain kIndirectPointerWriteBarrier because only indirect
 // pointer fields can be stored to with that barrier kind.

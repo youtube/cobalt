@@ -413,9 +413,7 @@ void ThreadCache::Init(PartitionRoot* root) {
 }
 
 bool ThreadCache::IsInitialized() {
-  return PA_UNSAFE_TODO(
-             g_thread_cache_roots[internal::kDefaultRootThreadCacheIndex])
-             .load(std::memory_order_acquire) != nullptr;
+  return g_thread_cache_roots->load(std::memory_order_acquire) != nullptr;
 }
 
 // static
@@ -837,8 +835,7 @@ void ThreadCache::AccumulateStats(ThreadCacheStats* stats) const {
 
 #if PA_CONFIG(THREAD_CACHE_ALLOC_STATS)
   for (size_t i = 0; i < BucketIndexLookup::kNumBuckets + 1; i++) {
-    PA_UNSAFE_TODO(stats->allocs_per_bucket_[i] +=
-                   stats_.allocs_per_bucket_[i]);
+    stats->allocs_per_bucket_[i] += stats_.allocs_per_bucket_[i];
   }
 #endif  // PA_CONFIG(THREAD_CACHE_ALLOC_STATS)
 
