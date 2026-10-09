@@ -51,6 +51,7 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/resource_coordinator_service.h"
 #include "content/public/common/result_codes.h"
+#include "net/disk_cache/cache_util.h"
 
 #if BUILDFLAG(IS_STARBOARD)
 #include "base/memory/memory_pressure_monitor.h"
@@ -298,7 +299,43 @@ bool GetStabilityMetricsBaseDirectory(base::FilePath* base_dir) {
 #endif
 }
 
+void CleanupOrphanedUserDataCacheDirectories() {
+  base::FilePath user_data_dir;
+  base::FilePath cache_dir;
+  if (!base::PathService::Get(content::SHELL_DIR_USER_DATA, &user_data_dir) ||
+      !base::PathService::Get(base::DIR_CACHE, &cache_dir)) {
+    return;
+  }
+  DeleteOrphanedUserDataCacheDirectories(user_data_dir, cache_dir);
+}
+
 }  // namespace
+
+void DeleteOrphanedUserDataCacheDirectories(const base::FilePath& user_data_dir,
+                                            const base::FilePath& cache_dir) {
+  if (user_data_dir.empty() || cache_dir.empty() ||
+      user_data_dir == cache_dir) {
+    return;
+  }
+
+  constexpr const char* kOrphanedCacheDirs[] = {
+      "Cache",
+      "Code Cache",
+      "ShaderCache",
+      "GrShaderCache",
+  };
+  for (const char* dir_name : kOrphanedCacheDirs) {
+    base::FilePath orphaned_dir = user_data_dir.AppendASCII(dir_name);
+    if (orphaned_dir == cache_dir || orphaned_dir.IsParent(cache_dir) ||
+        !base::PathExists(orphaned_dir)) {
+      continue;
+    }
+    if (!disk_cache::CleanupDirectorySync(orphaned_dir)) {
+      LOG(ERROR) << "Failed to cleanup orphaned cache directory: "
+                 << orphaned_dir;
+    }
+  }
+}
 
 int CobaltBrowserMainParts::PreEarlyInitialization() {
   if (!base::GlobalHistogramAllocator::Get()) {
@@ -422,6 +459,13 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
         base::BindOnce(&ClearOtherStabilityMetricsPmaFiles, metrics_dir,
                        kBrowserStabilityMetricsName, base::GetCurrentProcId()));
   }
+
+  base::ThreadPool::PostTask(
+      FROM_HERE,
+      {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
+       base::ThreadPolicy::PREFER_BACKGROUND,
+       base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN},
+      base::BindOnce(&CleanupOrphanedUserDataCacheDirectories));
 
 #if BUILDFLAG(IS_ANDROID)
   if (base::android::BuildInfo::GetInstance()->sdk_int() >=

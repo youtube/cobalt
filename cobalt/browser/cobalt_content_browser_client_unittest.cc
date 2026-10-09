@@ -17,8 +17,15 @@
 #include <string>
 #include <variant>
 
+#include "base/base_paths.h"
+#include "base/files/file_path.h"
+#include "base/files/file_util.h"
+#include "base/files/scoped_temp_dir.h"
+#include "base/path_service.h"
+#include "base/test/scoped_path_override.h"
 #include "base/test/task_environment.h"
 #include "build/build_config.h"
+#include "cobalt/browser/cobalt_browser_main_parts.h"
 #include "cobalt/browser/global_features.h"
 #include "content/public/browser/overlay_window.h"
 #include "starboard/configuration_constants.h"
@@ -79,6 +86,80 @@ TEST_F(CobaltContentBrowserClientTest, ComputeDefaultHttpCacheSize) {
 
   // 3. Zero / unconfigured budget:
   EXPECT_EQ(CobaltContentBrowserClient::ComputeDefaultHttpCacheSize(0), 0u);
+}
+
+#if BUILDFLAG(IS_ANDROID)
+TEST_F(CobaltContentBrowserClientTest, ShaderDiskCacheDirectoriesUseDirCache) {
+  base::ScopedTempDir temp_cache_dir;
+  ASSERT_TRUE(temp_cache_dir.CreateUniqueTempDir());
+  base::ScopedPathOverride cache_override(base::DIR_CACHE,
+                                          temp_cache_dir.GetPath());
+
+  CobaltContentBrowserClient client(/*startup_timestamp=*/absl::nullopt,
+                                    /*deep_link=*/"",
+                                    /*is_visible=*/true);
+  EXPECT_EQ(client.GetShaderDiskCacheDirectory(),
+            temp_cache_dir.GetPath().Append(FILE_PATH_LITERAL("ShaderCache")));
+  EXPECT_EQ(
+      client.GetGrShaderDiskCacheDirectory(),
+      temp_cache_dir.GetPath().Append(FILE_PATH_LITERAL("GrShaderCache")));
+}
+#endif
+
+TEST_F(CobaltContentBrowserClientTest, DeleteOrphanedUserDataCacheDirectories) {
+  base::ScopedTempDir temp_user_data_dir;
+  base::ScopedTempDir temp_cache_dir;
+  ASSERT_TRUE(temp_user_data_dir.CreateUniqueTempDir());
+  ASSERT_TRUE(temp_cache_dir.CreateUniqueTempDir());
+
+  const base::FilePath& user_data = temp_user_data_dir.GetPath();
+  const base::FilePath& cache_dir = temp_cache_dir.GetPath();
+
+  // Create orphaned cache directories and a persistent Local Storage directory
+  // in user_data, plus live cache directories in cache_dir.
+  for (const char* name :
+       {"Cache", "Code Cache", "ShaderCache", "GrShaderCache"}) {
+    ASSERT_TRUE(base::CreateDirectory(user_data.AppendASCII(name)));
+    ASSERT_TRUE(base::WriteFile(
+        user_data.AppendASCII(name).AppendASCII("entry"), "stale"));
+    ASSERT_TRUE(base::CreateDirectory(cache_dir.AppendASCII(name)));
+    ASSERT_TRUE(base::WriteFile(
+        cache_dir.AppendASCII(name).AppendASCII("entry"), "live"));
+  }
+  ASSERT_TRUE(base::CreateDirectory(user_data.AppendASCII("Local Storage")));
+
+  // Safety check: when user_data == cache_dir, nothing is deleted.
+  DeleteOrphanedUserDataCacheDirectories(user_data, user_data);
+  EXPECT_TRUE(base::PathExists(user_data.AppendASCII("Cache")));
+
+  // Safety check: when cache_dir is nested inside user_data (e.g.,
+  // user_data/Cache), user_data/Cache is preserved while other orphaned
+  // directories (e.g., Code Cache) are cleaned up.
+  DeleteOrphanedUserDataCacheDirectories(user_data,
+                                         user_data.AppendASCII("Cache"));
+  EXPECT_TRUE(base::PathExists(user_data.AppendASCII("Cache")));
+  EXPECT_FALSE(base::PathExists(user_data.AppendASCII("Code Cache")));
+
+  // Normal execution: all remaining orphaned cache directories in user_data are
+  // renamed to old_<name>_000 and deleted via
+  // disk_cache::CleanupDirectorySync(), while cache_dir and persistent
+  // user_data subdirectories remain intact.
+  DeleteOrphanedUserDataCacheDirectories(user_data, cache_dir);
+  for (const char* name :
+       {"Cache", "Code Cache", "ShaderCache", "GrShaderCache"}) {
+    EXPECT_FALSE(base::PathExists(user_data.AppendASCII(name)));
+    EXPECT_TRUE(base::PathExists(cache_dir.AppendASCII(name)));
+  }
+
+  // Run queued BEST_EFFORT tasks posted by disk_cache::CleanupDirectorySync()
+  // and verify old_<name>_000 temporary directories are deleted.
+  task_environment_.RunUntilIdle();
+  for (const char* name :
+       {"Cache", "Code Cache", "ShaderCache", "GrShaderCache"}) {
+    EXPECT_FALSE(base::PathExists(
+        user_data.AppendASCII(std::string("old_") + name + "_000")));
+  }
+  EXPECT_TRUE(base::PathExists(user_data.AppendASCII("Local Storage")));
 }
 
 }  // namespace
