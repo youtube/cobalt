@@ -14,16 +14,24 @@
 
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontMgr_cobalt.h"
 
+#include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/path_service.h"
+#include "base/test/scoped_feature_list.h"
+#include "base/test/scoped_path_override.h"
+#include "base/test/task_environment.h"
+#include "base/threading/thread_restrictions.h"
+#include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkWoff2FontCache_cobalt.h"
 #include "include/core/SkFont.h"
 #include "include/core/SkFontMetrics.h"
 #include "include/core/SkFontStyle.h"
+#include "include/core/SkStream.h"
 #include "include/core/SkString.h"
 #include "include/core/SkTypeface.h"
 #include "skia/ext/font_utils.h"
@@ -292,6 +300,210 @@ TEST_F(SkFontMgrCobaltTest, LimitedFontPackageLastResortFallbackSimulation) {
   SkString resolved_family;
   fallback_typeface->getFamilyName(&resolved_family);
   EXPECT_STREQ(resolved_family.c_str(), "sans-serif");
+}
+
+// Tests the CobaltMmapFontCache feature with font managers whose only font is
+// Roboto-Regular.woff2. Each font manager simulates an app session. The feature
+// is enabled unless a test disables it.
+class SkFontMgrCobaltMmapFontCacheTest : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
+    cache_override_ = std::make_unique<base::ScopedPathOverride>(
+        base::DIR_CACHE, temp_dir_.GetPath());
+
+    ASSERT_TRUE(
+        base::PathService::Get(base::DIR_SYSTEM_FONTS, &font_files_dir_));
+    woff2_path_ =
+        font_files_dir_.Append(FILE_PATH_LITERAL("Roboto-Regular.woff2"));
+    if (!base::PathExists(woff2_path_)) {
+      GTEST_SKIP() << "Roboto-Regular.woff2 is not installed.";
+    }
+
+    static constexpr char kFontsXml[] =
+        R"xml(<?xml version="1.0" encoding="utf-8"?>
+<familyset version="1">
+  <family name="sans-serif">
+    <font weight="400" style="normal">Roboto-Regular.woff2</font>
+  </family>
+</familyset>
+)xml";
+    config_dir_ = temp_dir_.GetPath().AppendASCII("config");
+    ASSERT_TRUE(base::CreateDirectory(config_dir_));
+    ASSERT_TRUE(
+        base::WriteFile(config_dir_.AppendASCII("fonts.xml"), kFontsXml));
+  }
+
+  void TearDown() override {
+    // Let scheduled cache work finish while DIR_CACHE is still overridden.
+    task_environment_.RunUntilIdle();
+    cache_override_.reset();
+  }
+
+  sk_sp<SkFontMgr_Cobalt> CreateFontMgr() const {
+    skia_private::TArray<SkString, true> default_families;
+    default_families.push_back(SkString("sans-serif"));
+    return sk_make_sp<SkFontMgr_Cobalt>(config_dir_.value().c_str(),
+                                        font_files_dir_.value().c_str(), "", "",
+                                        default_families);
+  }
+
+  // Returns the cache file of Roboto-Regular.woff2, or an empty path if it
+  // does not exist.
+  base::FilePath GetCacheFile() const {
+    return base::FilePath(sk_woff2_cache_cobalt::GetCachedSfntPath(
+                              SkString(woff2_path_.value().c_str()))
+                              .c_str());
+  }
+
+  base::test::ScopedFeatureList feature_list_{
+      sk_woff2_cache_cobalt::kCobaltMmapFontCache};
+  base::test::TaskEnvironment task_environment_;
+  base::ScopedTempDir temp_dir_;
+  std::unique_ptr<base::ScopedPathOverride> cache_override_;
+  base::FilePath font_files_dir_;
+  base::FilePath woff2_path_;
+  base::FilePath config_dir_;
+};
+
+// Font managers and typefaces can be created where blocking is disallowed
+// (e.g. on the browser UI thread, as in I18nBrowserTest). With the
+// CobaltMmapFontCache feature enabled, that must work both with a cold cache,
+// where the typeface is backed by the font decompressed into memory and the
+// cache file is written by a background task, and with a warm cache, where the
+// typeface is backed by the mmap'd cache file.
+TEST_F(SkFontMgrCobaltMmapFontCacheTest,
+       CreatesTypefacesWhereBlockingDisallowed) {
+  // Returns a stream of the font data backing |typeface|.
+  auto open_font_data = [](const sk_sp<SkTypeface>& typeface) {
+    int ttc_index = 0;
+    return typeface->openStream(&ttc_index);
+  };
+
+  // Cold cache: the typeface is backed by the decompressed font, in memory,
+  // and the cache file is written in the background. Font managers are
+  // created where blocking is disallowed too, because the constructor already
+  // creates the default typeface.
+  sk_sp<SkFontMgr_Cobalt> cold_font_mgr;
+  sk_sp<SkTypeface> cold_typeface;
+  {
+    base::ScopedDisallowBlocking disallow_blocking;
+    cold_font_mgr = CreateFontMgr();
+    cold_typeface =
+        cold_font_mgr->matchFamilyStyle("sans-serif", SkFontStyle());
+  }
+  ASSERT_TRUE(cold_typeface);
+  std::unique_ptr<SkStreamAsset> cold_data = open_font_data(cold_typeface);
+  ASSERT_TRUE(cold_data);
+  ASSERT_TRUE(cold_data->getMemoryBase());
+  task_environment_.RunUntilIdle();
+
+  // The cache file holds the same decompressed bytes.
+  const base::FilePath cache_file = GetCacheFile();
+  ASSERT_FALSE(cache_file.empty());
+  std::string cache_bytes;
+  ASSERT_TRUE(base::ReadFileToString(cache_file, &cache_bytes));
+  EXPECT_EQ(
+      cache_bytes,
+      std::string_view(static_cast<const char*>(cold_data->getMemoryBase()),
+                       cold_data->getLength()));
+
+  // Warm cache (next session): the typeface is backed by the cache file.
+  sk_sp<SkFontMgr_Cobalt> warm_font_mgr;
+  sk_sp<SkTypeface> warm_typeface;
+  {
+    base::ScopedDisallowBlocking disallow_blocking;
+    warm_font_mgr = CreateFontMgr();
+    warm_typeface =
+        warm_font_mgr->matchFamilyStyle("sans-serif", SkFontStyle());
+  }
+  ASSERT_TRUE(warm_typeface);
+  std::unique_ptr<SkStreamAsset> warm_data = open_font_data(warm_typeface);
+  ASSERT_TRUE(warm_data);
+  // SkStream::MakeFromFile() maps each file once and shares the mapping.
+  std::unique_ptr<SkStreamAsset> cache_file_data =
+      SkStream::MakeFromFile(cache_file.value().c_str());
+  ASSERT_TRUE(cache_file_data);
+  EXPECT_EQ(warm_data->getMemoryBase(), cache_file_data->getMemoryBase());
+  EXPECT_EQ(warm_data->getLength(), cache_bytes.size());
+}
+
+// Creating the font manager, i.e. starting an app session, deletes the stale
+// entries of the font cache and keeps the cache files of the current fonts.
+TEST_F(SkFontMgrCobaltMmapFontCacheTest, DeletesStaleCacheFilesAtStartup) {
+  // First session: creates the cache file.
+  ASSERT_TRUE(CreateFontMgr());
+  task_environment_.RunUntilIdle();
+  const base::FilePath cache_file = GetCacheFile();
+  ASSERT_FALSE(cache_file.empty());
+
+  // Leftovers of earlier sessions: the cache file of an earlier version of the
+  // font, the cache file of a font that was removed, and the temporary file of
+  // an interrupted cache file creation.
+  const base::FilePath cache_dir = cache_file.DirName();
+  const base::FilePath old_version =
+      cache_dir.AppendASCII("Roboto-Regular.1234.5678.ttf");
+  const base::FilePath removed_font =
+      cache_dir.AppendASCII("RemovedFont-Regular.1234.5678.ttf");
+  ASSERT_TRUE(base::WriteFile(old_version, "stale sfnt bytes"));
+  ASSERT_TRUE(base::WriteFile(removed_font, "stale sfnt bytes"));
+  base::FilePath temp_file;
+  ASSERT_TRUE(base::CreateTemporaryFileInDir(cache_dir, &temp_file));
+
+  // Next session. The cleanup is scheduled where blocking is disallowed too.
+  sk_sp<SkFontMgr_Cobalt> font_mgr;
+  {
+    base::ScopedDisallowBlocking disallow_blocking;
+    font_mgr = CreateFontMgr();
+  }
+  ASSERT_TRUE(font_mgr);
+  task_environment_.RunUntilIdle();
+
+  EXPECT_TRUE(base::PathExists(cache_file));
+  EXPECT_FALSE(base::PathExists(old_version));
+  EXPECT_FALSE(base::PathExists(removed_font));
+  EXPECT_FALSE(base::PathExists(temp_file));
+}
+
+// With the CobaltMmapFontCache feature disabled, the default, the font manager
+// loads fonts as without the feature and leaves the font cache alone: it does
+// not use the cache files left by a session that had the feature enabled, and
+// it neither writes nor deletes any.
+TEST_F(SkFontMgrCobaltMmapFontCacheTest, DoesNotUseFontCacheWhenDisabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(
+      sk_woff2_cache_cobalt::kCobaltMmapFontCache);
+
+  // Files left by a session with the feature enabled: the cache file of the
+  // font and a stale cache file.
+  const SkString woff2_path(woff2_path_.value().c_str());
+  sk_woff2_cache_cobalt::ScheduleCacheFileWrite(
+      woff2_path, sk_woff2_cache_cobalt::DecompressWoff2(woff2_path));
+  task_environment_.RunUntilIdle();
+  const base::FilePath cache_file = GetCacheFile();
+  ASSERT_FALSE(cache_file.empty());
+  const base::FilePath stale_file =
+      cache_file.DirName().AppendASCII("RemovedFont-Regular.1234.5678.ttf");
+  ASSERT_TRUE(base::WriteFile(stale_file, "stale sfnt bytes"));
+
+  sk_sp<SkFontMgr_Cobalt> font_mgr = CreateFontMgr();
+  ASSERT_TRUE(font_mgr);
+  sk_sp<SkTypeface> typeface =
+      font_mgr->matchFamilyStyle("sans-serif", SkFontStyle());
+  ASSERT_TRUE(typeface);
+  task_environment_.RunUntilIdle();
+
+  // The typeface reads the WOFF2 file, not the decompressed bytes of its
+  // cache file.
+  int ttc_index = 0;
+  std::unique_ptr<SkStreamAsset> font_data = typeface->openStream(&ttc_index);
+  ASSERT_TRUE(font_data);
+  EXPECT_FALSE(font_data->getMemoryBase());
+  EXPECT_EQ(base::GetFileSize(woff2_path_),
+            static_cast<int64_t>(font_data->getLength()));
+  // No cleanup ran.
+  EXPECT_TRUE(base::PathExists(cache_file));
+  EXPECT_TRUE(base::PathExists(stale_file));
 }
 
 }  // namespace
