@@ -2,7 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-
 import contextlib
 import collections
 import fnmatch
@@ -55,13 +54,12 @@ _EXTRA_COVERAGE_DEVICE_FILE = (
     'org.chromium.native_test.NativeTest.CoverageDeviceFile')
 _EXTRA_STDOUT_FILE = (
     'org.chromium.native_test.NativeTestInstrumentationTestRunner'
-        '.StdoutFile')
-_EXTRA_TEST = (
-    'org.chromium.native_test.NativeTestInstrumentationTestRunner'
-        '.Test')
+    '.StdoutFile')
+_EXTRA_TEST = ('org.chromium.native_test.NativeTestInstrumentationTestRunner'
+               '.Test')
 _EXTRA_TEST_LIST = (
     'org.chromium.native_test.NativeTestInstrumentationTestRunner'
-        '.TestList')
+    '.TestList')
 
 # Used to identify the prefix in gtests.
 _GTEST_PRETEST_PREFIX = 'PRE_'
@@ -73,15 +71,18 @@ _SECONDS_TO_NANOS = int(1e9)
 # TODO(jbudorick): Move this up to the test instance if the net test server is
 # handled outside of the APK for the remote_device environment.
 _SUITE_REQUIRES_TEST_SERVER_SPAWNER = [
-  'components_browsertests', 'content_unittests', 'content_browsertests',
-  'net_unittests', 'services_unittests', 'unit_tests'
+    'components_browsertests', 'content_unittests', 'content_browsertests',
+    'net_unittests', 'services_unittests', 'unit_tests'
 ]
+
 
 # No-op context manager. If we used Python 3, we could change this to
 # contextlib.ExitStack()
 class _NullContextManager:
+
   def __enter__(self):
     pass
+
   def __exit__(self, *args):
     pass
 
@@ -190,6 +191,7 @@ def _GroupPreTests(tests):
 
 
 class _ApkDelegate:
+
   def __init__(self, test_instance, env):
     self._activity = test_instance.activity
     self._additional_apks = test_instance.additional_apks
@@ -221,14 +223,15 @@ class _ApkDelegate:
       device.Install(additional_apk, allow_downgrade=True, reinstall=True)
 
     if self._test_apk_incremental_install_json:
-      installer.Install(device, self._test_apk_incremental_install_json,
-                        apk=self._apk_helper, permissions=self._permissions)
+      installer.Install(device,
+                        self._test_apk_incremental_install_json,
+                        apk=self._apk_helper,
+                        permissions=self._permissions)
     else:
-      device.Install(
-          self._apk_helper,
-          allow_downgrade=True,
-          reinstall=True,
-          permissions=self._permissions)
+      device.Install(self._apk_helper,
+                     allow_downgrade=True,
+                     reinstall=True,
+                     permissions=self._permissions)
 
   def ResultsDirectory(self, device):  # pylint: disable=no-self-use
     return device.GetExternalStoragePath()
@@ -257,7 +260,8 @@ class _ApkDelegate:
     command_line_file = _NullContextManager()
     if flags:
       if len(flags) > _MAX_INLINE_FLAGS_LENGTH:
-        command_line_file = device_temp_file.DeviceTempFile(device.adb)
+        command_line_file = device_temp_file.DeviceTempFile(
+            device.adb, dir=device.GetAppWritablePath(), device_utils=device)
         device.WriteFile(command_line_file.name, '_ %s' % flags)
         extras[_EXTRA_COMMAND_LINE_FILE] = command_line_file.name
       else:
@@ -266,7 +270,8 @@ class _ApkDelegate:
     test_list_file = _NullContextManager()
     if test:
       if len(test) > 1:
-        test_list_file = device_temp_file.DeviceTempFile(device.adb)
+        test_list_file = device_temp_file.DeviceTempFile(
+            device.adb, dir=device.GetAppWritablePath(), device_utils=device)
         device.WriteFile(test_list_file.name, '\n'.join(test))
         extras[_EXTRA_TEST_LIST] = test_list_file.name
       else:
@@ -292,8 +297,10 @@ class _ApkDelegate:
 
     with command_line_file, test_list_file, stdout_file:
       try:
-        device.StartInstrumentation(
-            self._component, extras=extras, raw=False, **kwargs)
+        device.StartInstrumentation(self._component,
+                                    extras=extras,
+                                    raw=False,
+                                    **kwargs)
       except device_errors.CommandFailedError as e:
         logging.exception('gtest shard failed.')
         exception_recorder.register(
@@ -306,8 +313,7 @@ class _ApkDelegate:
         exception_recorder.register(e)
         logging.exception('gtest shard device unreachable.')
       except Exception:
-        exception_recorder.register(
-            test_exception.StartInstrumentationError(e))
+        exception_recorder.register(test_exception.StartInstrumentationError(e))
         device.ForceStop(self._package)
         raise
       finally:
@@ -396,10 +402,10 @@ class _ExeDelegate:
     if self._coverage_dir:
       device_coverage_dir = (
           code_coverage_utils.GetDeviceClangCoverageDir(device))
-      env['LLVM_PROFILE_FILE'] = _GetLLVMProfilePath(
-          device_coverage_dir, self._suite, self._coverage_index)
+      env['LLVM_PROFILE_FILE'] = _GetLLVMProfilePath(device_coverage_dir,
+                                                     self._suite,
+                                                     self._coverage_index)
       self._coverage_index += 1
-
 
     try:
       gcov_strip_depth = os.environ['NATIVE_COVERAGE_DEPTH_STRIP']
@@ -411,8 +417,12 @@ class _ExeDelegate:
 
     # Executable tests return a nonzero exit code on test failure, which is
     # fine from the test runner's perspective; thus check_return=False.
-    output = device.RunShellCommand(
-        cmd, cwd=cwd, env=env, check_return=False, large_output=True, **kwargs)
+    output = device.RunShellCommand(cmd,
+                                    cwd=cwd,
+                                    env=env,
+                                    check_return=False,
+                                    large_output=True,
+                                    **kwargs)
 
     if self._coverage_dir:
       # TODO(b/293175593): Use device.ResolveSpecialPath for multi-user
@@ -462,6 +472,7 @@ class LocalDeviceGtestRun(local_device_test_run.LocalDeviceTestRun):
 
   #override
   def SetUp(self):
+
     @local_device_environment.handle_shard_failures_with(
         on_failure=self._env.DenylistDevice)
     @measures.timed_func('device_setup')
@@ -654,7 +665,7 @@ class LocalDeviceGtestRun(local_device_test_run.LocalDeviceTestRun):
     @local_device_environment.handle_shard_failures_with(
         on_failure=self._env.DenylistDevice)
     def list_tests(dev):
-      timeout = 30 * _GetDeviceTimeoutMultiplier()
+      timeout = 120 * _GetDeviceTimeoutMultiplier()
       retries = 1
       if self._test_instance.wait_for_java_debugger:
         timeout = None
@@ -874,9 +885,8 @@ class LocalDeviceGtestRun(local_device_test_run.LocalDeviceTestRun):
               device_temp_file.NamedDeviceTemporaryDirectory(
                   adb=device.adb,
                   dir=device.GetExternalStoragePath(),
-                  device_utils=device),
-              self._test_instance.render_test_output_dir
-          ) as render_test_output_dir:
+                  device_utils=device), self._test_instance.
+              render_test_output_dir) as render_test_output_dir:
 
             flags = list(self._test_instance.flags)
             if self._test_instance.enable_xml_result_parsing:
@@ -992,11 +1002,10 @@ class LocalDeviceGtestRun(local_device_test_run.LocalDeviceTestRun):
                 resolve_all_tombstones=True,
                 include_stack_symbols=False,
                 wipe_tombstones=True)
-            stream_name = 'tombstones_%s_%s' % (
-                time.strftime('%Y%m%dT%H%M%S', time.localtime()),
-                device.serial)
-            tombstones_url = logdog_helper.text(
-                stream_name, '\n'.join(resolved_tombstones))
+            stream_name = 'tombstones_%s_%s' % (time.strftime(
+                '%Y%m%dT%H%M%S', time.localtime()), device.serial)
+            tombstones_url = logdog_helper.text(stream_name,
+                                                '\n'.join(resolved_tombstones))
           r.SetLink('tombstones', tombstones_url)
 
     tests_stripped_disabled_prefix = set()
