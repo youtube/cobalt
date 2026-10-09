@@ -39,6 +39,12 @@ configure_environment () {
   # Use Kokor's default credentials instead of boto file.
   unset BOTO_PATH
 
+  # Ensure vpython virtualenvs are populated in a persistent directory for snapshot packaging
+  if [ -n "${KOKORO_ARTIFACTS_DIR:-}" ]; then
+    export VPYTHON_VIRTUALENV_ROOT="${KOKORO_ARTIFACTS_DIR}/git/vpython"
+    mkdir -p "${VPYTHON_VIRTUALENV_ROOT}"
+  fi
+
   # Add repository root to PYTHONPATH.
   export PYTHONPATH="${WORKSPACE_COBALT}${PYTHONPATH:+:${PYTHONPATH}}"
 
@@ -112,25 +118,56 @@ init_gcloud () {
     return
   fi
 
-  local gsutil="$(command -v gsutil)"
+  if [[ -z "${GSUTIL:-}" ]]; then
+    if command -v gcloud >/dev/null 2>&1 && gcloud storage --help >/dev/null 2>&1; then
+      gcloud_storage_shim() {
+        gcloud storage "$@"
+      }
+      export GSUTIL="gcloud_storage_shim"
+    else
+      local gsutil="$(command -v gsutil || true)"
 
-  # Installs Google Cloud CLI if not already present.
-  if [[ ! -f "${gsutil}" ]]; then
-    apt-get update -y
-    apt-get install -y apt-transport-https ca-certificates gnupg
-    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | \
-      gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
-    echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | \
-      tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
-    apt-get update -y
-    apt-get install -y google-cloud-cli
-    rm -rf "/var/lib/apt/lists"/* "/tmp"/* "/var/tmp"/*
-    rm -rf "/var/lib"/{apt,dpkg,cache,log}
+      # Installs Google Cloud CLI if not already present.
+      if [[ -z "${gsutil}" || ! -f "${gsutil}" ]]; then
+        apt-get update -y
+        apt-get install -y apt-transport-https ca-certificates gnupg
+        curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | \
+          gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
+        echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | \
+          tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
+        apt-get update -y
+        apt-get install -y google-cloud-cli
+        rm -rf "/var/lib/apt/lists"/* "/tmp"/* "/var/tmp"/*
+        rm -rf "/var/lib"/{apt,dpkg,cache,log}
 
-    gsutil="$(command -v gsutil)"
+        gsutil="$(command -v gsutil)"
+      fi
+
+      export GSUTIL="${gsutil}"
+    fi
   fi
 
-  export GSUTIL="${gsutil}"
+  # Authenticate gcloud and gsutil if running on Kokoro or GCE.
+  if command -v gcloud >/dev/null 2>&1; then
+    gcloud config set pass_credentials_to_gsutil true 2>/dev/null || true
+    local current_account
+    current_account="$(gcloud config get-value account 2>/dev/null || true)"
+    if [[ -z "${current_account}" || "${current_account}" == "(unset)" ]]; then
+      local meta_url="${REGISTRY_METADATA:-http://metadata.google.internal./computeMetadata/v1}"
+      local svc_account="${meta_url}/instance/service-accounts/default"
+      local sa_email
+      sa_email="$(curl -s -f -m 5 -H 'Metadata-Flavor: Google' "${svc_account}/email" 2>/dev/null || true)"
+      if [[ -z "${sa_email}" ]]; then
+        meta_url="http://169.254.169.254/computeMetadata/v1"
+        svc_account="${meta_url}/instance/service-accounts/default"
+        sa_email="$(curl -s -f -m 5 -H 'Metadata-Flavor: Google' "${svc_account}/email" 2>/dev/null || true)"
+      fi
+      if [[ -n "${sa_email}" ]]; then
+        echo "Configuring gcloud account: ${sa_email}"
+        gcloud config set account "${sa_email}" 2>/dev/null || true
+      fi
+    fi
+  fi
 }
 
 
@@ -243,3 +280,93 @@ run_package_release_pipeline () {
     "${GSUTIL}" cp -r "${package_dir}/." "${gcs_archive_path}"
   fi
 }
+
+_do_publish_golden_workspace_snapshot () {
+  local gclient_root="$1"
+  local platform="$2"
+  local gcs_archive_path="$3"
+  local src_commit="$4"
+
+  local staging_dir="${WORKSPACE_COBALT}/out/golden_workspace_staging_$$"
+  mkdir -p "${staging_dir}"
+
+  local archive="${staging_dir}/golden-workspace-latest.tar.zst"
+  local extra_tar_args=()
+  if [[ -d "${gclient_root}/vpython" ]]; then
+    extra_tar_args+=("vpython")
+  elif [[ -d "${HOME}/.cache/vpython" ]]; then
+    extra_tar_args+=("-C" "${HOME}/.cache" "vpython")
+  fi
+
+  tar --exclude='src/out' \
+      --use-compress-program="zstd -T0 -3" \
+      -cf "${archive}" \
+      -C "${gclient_root}" src tools/depot_tools .gclient \
+      "${extra_tar_args[@]}"
+
+  local archive_sha
+  if command -v sha256sum >/dev/null 2>&1; then
+    archive_sha=$(sha256sum "${archive}" | awk '{print $1}')
+  else
+    archive_sha=$(shasum -a 256 "${archive}" | awk '{print $1}')
+  fi
+
+  local archive_size
+  if stat -c%s "${archive}" >/dev/null 2>&1; then
+    archive_size=$(stat -c%s "${archive}")
+  else
+    archive_size=$(stat -f%z "${archive}")
+  fi
+
+  local manifest="${staging_dir}/manifest.json"
+  cat > "${manifest}" <<EOF
+{
+  "schema_version": "1.0",
+  "platform": "${platform}",
+  "archive_sha256": "${archive_sha}",
+  "archive_size_bytes": ${archive_size},
+  "src_commit": "${src_commit}",
+  "timestamp_utc": "$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+}
+EOF
+
+  echo "==> Uploading golden workspace snapshot to ${gcs_archive_path}/..."
+  "${GSUTIL}" cp "${archive}" "${gcs_archive_path}/golden-workspace-latest.tar.zst"
+  "${GSUTIL}" cp "${manifest}" "${gcs_archive_path}/manifest.json"
+  echo "==> Successfully uploaded golden workspace snapshot to ${gcs_archive_path}/"
+
+  rm -rf "${staging_dir}"
+}
+
+publish_golden_workspace_snapshot () {
+  local gclient_root="${KOKORO_ARTIFACTS_DIR:-}/git"
+  local platform="${TARGET_PLATFORM:-${PLATFORM:-}}"
+  if [[ -z "${platform}" ]]; then
+    echo "==> Error: Neither TARGET_PLATFORM nor PLATFORM is set. Cannot determine snapshot platform." >&2
+    return 1
+  fi
+
+  local bucket="cobalt-internal-build-artifacts"
+  if [[ "$(get_kokoro_env)" == "qa" ]]; then
+    bucket="cobalt-internal-build-artifacts-qa"
+  fi
+  local gcs_archive_path="gs://${bucket}/golden-workspace/${platform}"
+  local src_commit
+  src_commit=$(git -C "${WORKSPACE_COBALT}" rev-parse HEAD)
+
+  init_gcloud
+  local manifest_url="${gcs_archive_path}/manifest.json"
+  local remote_commit
+  remote_commit="$("${GSUTIL}" cat "${manifest_url}" 2>/dev/null | grep -o '"src_commit": *"[^"]*"' | head -n1 | cut -d'"' -f4 || true)"
+  if [[ -n "${remote_commit}" && "${remote_commit}" == "${src_commit}" ]]; then
+    echo "==> Golden workspace snapshot for ${platform} at commit ${src_commit} is already uploaded. Skipping."
+    return 0
+  fi
+
+  echo "==> Packaging golden workspace snapshot for ${platform}..."
+  if ! _do_publish_golden_workspace_snapshot "${gclient_root}" "${platform}" "${gcs_archive_path}" "${src_commit}"; then
+    echo "==> WARNING: Failed to publish golden workspace snapshot. Continuing build." >&2
+    return 0
+  fi
+}
+

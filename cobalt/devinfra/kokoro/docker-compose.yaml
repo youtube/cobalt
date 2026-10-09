@@ -21,6 +21,8 @@ services:
   # itself, and configure the metabuild system of GN and Ninja.
   kokoro-internal-cobalt-image:
     image: ${FULL_IMAGE_TARGET:-us-central1-docker.pkg.dev/cobalt-kokoro-gar/qa/docker-build-failure:latest}
+    extra_hosts:
+      - "metadata.google.internal:169.254.169.254"
     volumes:
       # This is the path that Kokoro is configured to clone the repo to.
       # This becomes the new mount point within the container as well, so that
@@ -64,3 +66,6 @@ services:
       KOKORO_ROOT_JOB_TYPE: ${KOKORO_ROOT_JOB_TYPE}
       KOKORO_JOB_NAME: ${KOKORO_JOB_NAME}
       DEPOT_TOOLS_UPDATE: "0"
+      REGISTRY_METADATA: ${REGISTRY_METADATA:-http://metadata.google.internal./computeMetadata/v1}
+      REGISTRY_HOSTNAME: ${REGISTRY_HOSTNAME:-us-central1-docker.pkg.dev}
+      REGISTRY_GCP_PROJECT: ${REGISTRY_GCP_PROJECT:-cobalt-kokoro-gar}
