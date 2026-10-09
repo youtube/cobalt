@@ -7,6 +7,10 @@
 #include <algorithm>
 #include <functional>
 
+#include "build/build_config.h"
+#if BUILDFLAG(IS_COBALT)
+#include "base/check_op.h"
+#endif
 #include "third_party/blink/renderer/core/dom/node.h"
 #include "third_party/blink/renderer/core/dom/text.h"
 #include "third_party/blink/renderer/core/editing/editing_utilities.h"
@@ -265,6 +269,9 @@ LayoutBlockFlow* OffsetMapping::GetInlineFormattingContextOf(
 
 OffsetMapping::OffsetMapping(UnitVector&& units, RangeMap&& ranges, String text)
     : units_(std::move(units)), ranges_(std::move(ranges)), text_(text) {
+#if BUILDFLAG(IS_COBALT)
+  DCHECK_EQ(units_.capacity(), units_.size());
+#endif
 #if ENABLE_SECURITY_ASSERT
   for (const auto& unit : units_) {
     SECURITY_DCHECK(unit.TextContentStart() <= text.length())

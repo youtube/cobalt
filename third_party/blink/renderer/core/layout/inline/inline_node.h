@@ -6,6 +6,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_INLINE_INLINE_NODE_H_
 
 #include "base/gtest_prod_util.h"
+#include "build/build_config.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/layout/inline/inline_node_data.h"
 #include "third_party/blink/renderer/core/layout/layout_block_flow.h"
@@ -186,12 +187,22 @@ class CORE_EXPORT InlineNode : public LayoutInputNode {
   const InlineNodeData& Data() const {
     DCHECK(IsPrepareLayoutFinished());
     DCHECK(!GetLayoutBlockFlow()->NeedsCollectInlines());
-    return *To<LayoutBlockFlow>(box_.Get())->GetInlineNodeData();
+    const InlineNodeData& data =
+        *To<LayoutBlockFlow>(box_.Get())->GetInlineNodeData();
+#if BUILDFLAG(IS_COBALT)
+    data.ValidateCapacity();
+#endif
+    return data;
   }
   // Same as |Data()| but can access even when |NeedsCollectInlines()| is set.
   const InlineNodeData& MaybeDirtyData() const {
     DCHECK(IsPrepareLayoutFinished());
-    return *To<LayoutBlockFlow>(box_.Get())->GetInlineNodeData();
+    const InlineNodeData& data =
+        *To<LayoutBlockFlow>(box_.Get())->GetInlineNodeData();
+#if BUILDFLAG(IS_COBALT)
+    data.ValidateCapacity();
+#endif
+    return data;
   }
   const InlineNodeData& EnsureData() const;
 
