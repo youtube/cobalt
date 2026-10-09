@@ -16,7 +16,6 @@
 #define COBALT_BROWSER_METRICS_COBALT_STABILITY_METRICS_HELPER_H_
 
 #include <string>
-#include <vector>
 
 #include "base/files/file_path.h"
 #include "base/process/process_handle.h"
@@ -36,16 +35,6 @@ bool EnsurePmaDirectoryBudget(const base::FilePath& metrics_dir,
                               const std::string& expected_allocator_name,
                               int64_t max_total_bytes,
                               int64_t bytes_to_add);
-
-// Extracts process IDs of prior sessions from persistent memory allocator
-// (.pma) files located in |metrics_dir| matching |expected_allocator_name|.
-// Ignores non-.pma files, files where ParseFilePath fails, files with
-// mismatched allocator names, PIDs <= 0, and |current_pid|. Returned PIDs are
-// deduplicated.
-std::vector<base::ProcessId> ExtractPriorSessionPids(
-    const base::FilePath& metrics_dir,
-    const std::string& expected_allocator_name,
-    base::ProcessId current_pid);
 
 // Reads all persistent memory allocator (.pma) files in |metrics_dir|
 // matching |expected_allocator_name| (excluding |current_pid|) into memory by

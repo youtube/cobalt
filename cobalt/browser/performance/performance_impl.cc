@@ -24,6 +24,8 @@
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "build/build_config.h"
+#include "cc/resources/resource_pool.h"
+#include "gpu/command_buffer/service/service_transfer_cache.h"
 
 #if BUILDFLAG(IS_POSIX)
 #include <unistd.h>
@@ -149,6 +151,15 @@ void PerformanceImpl::MeasureSystemMemoryInfo(
           }
         }
 #endif
+
+        info->decoded_image_cache_memory =
+            gpu::ServiceTransferCache::GetTotalImageMemoryUsageBytes();
+        info->decoded_image_cache_peak_memory =
+            gpu::ServiceTransferCache::GetPeakImageMemoryUsageBytes();
+        info->used_tile_memory =
+            cc::ResourcePool::GetGlobalTotalTileMemoryUsageBytes();
+        info->peak_tile_memory =
+            cc::ResourcePool::GetGlobalPeakTileMemoryUsageBytes();
 
         return info;
       }),
@@ -387,6 +398,30 @@ void PerformanceImpl::MeasureUsedGpuMemory(
 #else
   std::move(callback).Run(false, 0);
 #endif
+}
+
+void PerformanceImpl::MeasureDecodedImagesMemory(
+    MeasureDecodedImagesMemoryCallback callback) {
+  std::move(callback).Run(
+      gpu::ServiceTransferCache::GetTotalImageMemoryUsageBytes());
+}
+
+void PerformanceImpl::MeasureDecodedImagesPeakMemory(
+    MeasureDecodedImagesPeakMemoryCallback callback) {
+  std::move(callback).Run(
+      gpu::ServiceTransferCache::GetPeakImageMemoryUsageBytes());
+}
+
+void PerformanceImpl::MeasureUsedTileMemory(
+    MeasureUsedTileMemoryCallback callback) {
+  std::move(callback).Run(
+      cc::ResourcePool::GetGlobalTotalTileMemoryUsageBytes());
+}
+
+void PerformanceImpl::MeasurePeakTileMemory(
+    MeasurePeakTileMemoryCallback callback) {
+  std::move(callback).Run(
+      cc::ResourcePool::GetGlobalPeakTileMemoryUsageBytes());
 }
 
 void PerformanceImpl::GetAppStartupTimeStamp(

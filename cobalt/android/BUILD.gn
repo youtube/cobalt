@@ -55,6 +55,7 @@ generate_jni("jni_headers") {
     "apk/app/src/main/java/dev/cobalt/coat/AudioPermissionRequester.java",
     "apk/app/src/main/java/dev/cobalt/coat/BaseStarboardBridge.java",
     "apk/app/src/main/java/dev/cobalt/coat/CaptionSettings.java",
+    "apk/app/src/main/java/dev/cobalt/coat/CobaltProcessStateSummary.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltService.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltSystemConfigChangeReceiver.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltTextToSpeechHelper.java",
@@ -73,6 +74,7 @@ generate_jni("jni_headers") {
     "apk/app/src/main/java/dev/cobalt/util/CobaltPrefNamesTestHelper.java",
     "apk/app/src/main/java/dev/cobalt/util/DisplayUtil.java",
     "apk/app/src/main/java/dev/cobalt/util/JavaSwitches.java",
+    "apk/app/src/main/java/dev/cobalt/util/ProcessExitReasonHelper.java",
   ]
 
   if (!use_evergreen) {
@@ -101,6 +103,15 @@ source_set("app_event_bridge") {
     "//starboard:starboard_headers_only",
     "//starboard/common",
   ]
+}
+
+source_set("cobalt_process_state_summary_jni") {
+  sources = [
+    "cobalt_process_state_summary_jni.cc",
+    "cobalt_process_state_summary_jni.h",
+  ]
+  public_deps = [ ":jni_headers" ]
+  deps = [ "//base" ]
 }
 
 android_library("cobalt_browser_java") {
@@ -154,6 +165,7 @@ android_library("cobalt_main_java") {
     "apk/app/src/main/java/dev/cobalt/coat/BaseCobaltActivity.java",
     "apk/app/src/main/java/dev/cobalt/coat/BaseStarboardBridge.java",
     "apk/app/src/main/java/dev/cobalt/coat/CaptionSettings.java",
+    "apk/app/src/main/java/dev/cobalt/coat/CobaltProcessStateSummary.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltService.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltSystemConfigChangeReceiver.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltTextToSpeechHelper.java",
@@ -195,6 +207,7 @@ android_library("cobalt_main_java") {
     "apk/app/src/main/java/dev/cobalt/util/IsEmulator.java",
     "apk/app/src/main/java/dev/cobalt/util/JavaSwitches.java",
     "apk/app/src/main/java/dev/cobalt/util/Log.java",
+    "apk/app/src/main/java/dev/cobalt/util/ProcessExitReasonHelper.java",
     "apk/app/src/main/java/dev/cobalt/util/SynchronizedHolder.java",
     "apk/app/src/main/java/dev/cobalt/util/SystemPropertiesHelper.java",
   ]
@@ -294,6 +307,13 @@ android_assets("coat_assets") {
 # TODO(b/450024477): just a shared library once jni migration is complete
 shared_library_with_jni("libchrobalt") {
   remove_uncalled_jni = true
+
+  # Optimize at the ThinLTO link step, as Chrome's Android library does
+  # (chrome/android/chrome_common_shared_library.gni).
+  if (use_thin_lto) {
+    configs -= [ "//build/config/compiler:thinlto_optimize_default" ]
+    configs += [ "//build/config/compiler:thinlto_optimize_max" ]
+  }
   deps = [
     ":app_event_bridge",
     "//cobalt:cobalt_app",
@@ -379,6 +399,7 @@ robolectric_binary("cobalt_coat_junit_tests") {
     "apk/app/src/test/java/dev/cobalt/util/DeviceUtilTest.java",
     "apk/app/src/test/java/dev/cobalt/util/DisplayUtilTest.java",
     "apk/app/src/test/java/dev/cobalt/util/JavaSwitchesTest.java",
+    "apk/app/src/test/java/dev/cobalt/util/ProcessExitReasonHelperTest.java",
     "apk/app/src/test/java/dev/cobalt/util/StartupGuardTest.java",
   ]
   deps = [

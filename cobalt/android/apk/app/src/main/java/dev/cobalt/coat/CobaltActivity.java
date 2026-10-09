@@ -483,6 +483,12 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
       }
     }
     Log.i(TAG, "Arming StartupGuard with " + timeout + " second timeout.");
+    StartupGuard.getInstance()
+        .setPreCrashHook(
+            () ->
+                CobaltProcessStateSummary.setStartupGuardTriggeredKill(
+                    StartupGuard.getInstance().getStartupStatus(),
+                    StartupGuard.getInstance().getHighestMilestone()));
     StartupGuard.getInstance().scheduleCrash(timeout);
   }
 
@@ -549,7 +555,11 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
           javascriptAndroidObject,
           javascriptAndroidObject.getJavaScriptInterfaceName(),
           CobaltJavaScriptInterface.class,
-          /* originAllowlist= */ new ArrayList<String>());
+          // An empty allowlist matches no origin at all, which silently disables every
+          // injected Java object. "*" restores the pre-M138 behaviour of allowing all
+          // origins.
+          // TODO(b/543808733): consider a stricter allowlist than "*".
+          /* originAllowlist= */ List.of("*"));
     }
   }
 

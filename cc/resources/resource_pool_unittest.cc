@@ -25,6 +25,12 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/test/metrics/histogram_tester.h"
+#include "base/test/scoped_feature_list.h"
+#include "cc/base/features.h"
+#endif
+
 namespace cc {
 
 class ResourcePoolTest : public testing::Test {
@@ -762,5 +768,147 @@ TEST_F(ResourcePoolTest, InvalidResource) {
   EXPECT_FALSE(resource.backing());
   resource_pool_->ReleaseResource(std::move(resource));
 }
+
+#if BUILDFLAG(IS_COBALT)
+TEST_F(ResourcePoolTest, TileMemoryAndPeakMetrics) {
+  base::HistogramTester histogram_tester;
+
+  // Initial state: total and peak usage should be 0.
+  EXPECT_EQ(0u, resource_pool_->GetTotalMemoryUsageForTesting());
+  EXPECT_EQ(0u, resource_pool_->GetPeakMemoryUsageForTesting());
+
+  // Acquire a resource and assign a backing (e.g. 1000x1000 RGBA_8888 = 4MB).
+  gfx::Size size(1000, 1000);
+  viz::SharedImageFormat format = viz::SinglePlaneFormat::kRGBA_8888;
+  gfx::ColorSpace color_space = gfx::ColorSpace::CreateSRGB();
+  ResourcePool::InUsePoolResource resource1 =
+      resource_pool_->AcquireResource(size, format, color_space);
+  SetBackingOnResource(resource1);
+
+  size_t resource_size = resource1.memory_usage();
+  EXPECT_GT(resource_size, 0u);
+  EXPECT_EQ(resource_size, resource_pool_->GetTotalMemoryUsageForTesting());
+  EXPECT_EQ(resource_size, resource_pool_->GetPeakMemoryUsageForTesting());
+
+  // Acquire a second resource (e.g. another 4MB).
+  ResourcePool::InUsePoolResource resource2 =
+      resource_pool_->AcquireResource(size, format, color_space);
+  SetBackingOnResource(resource2);
+
+  size_t total_size = resource_size * 2;
+  EXPECT_EQ(total_size, resource_pool_->GetTotalMemoryUsageForTesting());
+  EXPECT_EQ(total_size, resource_pool_->GetPeakMemoryUsageForTesting());
+
+  // Release the first resource and delete it (by setting usage limits to 0).
+  resource_pool_->ReleaseResource(std::move(resource1));
+  resource_pool_->SetResourceUsageLimits(0, 0);
+
+  // Total memory is reduced back to resource_size, but peak retains total_size.
+  EXPECT_EQ(resource_size, resource_pool_->GetTotalMemoryUsageForTesting());
+  EXPECT_EQ(total_size, resource_pool_->GetPeakMemoryUsageForTesting());
+
+  // Fast forward by default 1 minute to trigger the periodic metric emission.
+  test_task_runner_->FastForwardBy(base::Minutes(1));
+
+  int expected_current_mb = static_cast<int>(resource_size / (1024 * 1024));
+  int expected_peak_mb = static_cast<int>(total_size / (1024 * 1024));
+  histogram_tester.ExpectUniqueSample("Memory.GPU.TileMemory",
+                                      expected_current_mb, 1);
+  histogram_tester.ExpectUniqueSample("Memory.GPU.TileMemory.Peak",
+                                      expected_peak_mb, 1);
+
+  // Peak should be reset to current total memory usage after recording.
+  EXPECT_EQ(resource_size, resource_pool_->GetPeakMemoryUsageForTesting());
+
+  // Clean up remaining resource.
+  resource_pool_->ReleaseResource(std::move(resource2));
+}
+
+TEST_F(ResourcePoolTest, GlobalTileMemoryGetters) {
+  uint64_t initial_total = ResourcePool::GetGlobalTotalTileMemoryUsageBytes();
+  uint64_t initial_peak = ResourcePool::GetGlobalPeakTileMemoryUsageBytes();
+
+  gfx::Size size(1000, 1000);
+  viz::SharedImageFormat format = viz::SinglePlaneFormat::kRGBA_8888;
+  gfx::ColorSpace color_space = gfx::ColorSpace::CreateSRGB();
+  ResourcePool::InUsePoolResource resource =
+      resource_pool_->AcquireResource(size, format, color_space);
+  SetBackingOnResource(resource);
+
+  size_t resource_size = resource.memory_usage();
+  EXPECT_EQ(initial_total + resource_size,
+            ResourcePool::GetGlobalTotalTileMemoryUsageBytes());
+  EXPECT_GE(ResourcePool::GetGlobalPeakTileMemoryUsageBytes(), initial_peak);
+
+  resource_pool_->ReleaseResource(std::move(resource));
+  resource_pool_->SetResourceUsageLimits(0, 0);
+
+  EXPECT_EQ(initial_total, ResourcePool::GetGlobalTotalTileMemoryUsageBytes());
+}
+
+TEST_F(ResourcePoolTest, TileMemoryAndPeakMetricsCustomInterval) {
+  resource_pool_.reset();
+
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(
+      features::kCobaltTileMemoryMetrics, {{"interval", "30s"}});
+
+  auto pool = std::make_unique<ResourcePool>(
+      resource_provider_.get(), context_provider_.get(), test_task_runner_,
+      ResourcePool::kDefaultExpirationDelay,
+      /*disallow_non_exact_reuse=*/false);
+  pool->SetClockForTesting(test_task_runner_->GetMockTickClock());
+
+  base::HistogramTester histogram_tester;
+
+  gfx::Size size(1000, 1000);
+  viz::SharedImageFormat format = viz::SinglePlaneFormat::kRGBA_8888;
+  gfx::ColorSpace color_space = gfx::ColorSpace::CreateSRGB();
+  ResourcePool::InUsePoolResource resource =
+      pool->AcquireResource(size, format, color_space);
+  SetBackingOnResource(resource);
+
+  size_t resource_size = resource.memory_usage();
+
+  // Fast forward by 30 seconds to trigger the customized periodic metric emission.
+  test_task_runner_->FastForwardBy(base::Seconds(30));
+
+  int expected_mb = static_cast<int>(resource_size / (1024 * 1024));
+  histogram_tester.ExpectUniqueSample("Memory.GPU.TileMemory", expected_mb, 1);
+  histogram_tester.ExpectUniqueSample("Memory.GPU.TileMemory.Peak", expected_mb,
+                                      1);
+
+  pool->ReleaseResource(std::move(resource));
+}
+
+TEST_F(ResourcePoolTest, TileMemoryMetricsDisabled) {
+  resource_pool_.reset();
+
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(features::kCobaltTileMemoryMetrics);
+
+  auto pool = std::make_unique<ResourcePool>(
+      resource_provider_.get(), context_provider_.get(), test_task_runner_,
+      ResourcePool::kDefaultExpirationDelay,
+      /*disallow_non_exact_reuse=*/false);
+
+  base::HistogramTester histogram_tester;
+
+  gfx::Size size(1000, 1000);
+  viz::SharedImageFormat format = viz::SinglePlaneFormat::kRGBA_8888;
+  gfx::ColorSpace color_space = gfx::ColorSpace::CreateSRGB();
+  ResourcePool::InUsePoolResource resource =
+      pool->AcquireResource(size, format, color_space);
+  SetBackingOnResource(resource);
+
+  // Fast forward by 5 minutes: no histograms should be emitted.
+  test_task_runner_->FastForwardBy(base::Minutes(5));
+
+  histogram_tester.ExpectTotalCount("Memory.GPU.TileMemory", 0);
+  histogram_tester.ExpectTotalCount("Memory.GPU.TileMemory.Peak", 0);
+
+  pool->ReleaseResource(std::move(resource));
+}
+#endif
 
 }  // namespace cc

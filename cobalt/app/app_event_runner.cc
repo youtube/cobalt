@@ -251,6 +251,7 @@ class AppEventRunnerImpl : public AppEventRunner,
 
   void DoFreeze(base::OnceClosure callback) override {
     content::Shell::OnFreeze();
+    WaitForAck(PendingAck::kFreeze);
     WaitForAck(PendingAck::kCookieFlush);
     std::move(callback).Run();
 #if BUILDFLAG(USE_EVERGREEN)
@@ -487,6 +488,12 @@ class AppEventRunnerImpl : public AppEventRunner,
       base::AutoUnlock unlock(lock_);
       run_loop.Run();
     }
+    if (quit_closure_) {
+      LOG(WARNING) << "WaitForAck timed out: timeout(msec)="
+                   << kTransitionTimeout.InMilliseconds()
+                   << ", ack_type=" << ack_type;
+      quit_closure_.Reset();
+    }
     pending_ack_ = PendingAck::kNone;
   }
 
@@ -524,6 +531,15 @@ class AppEventRunnerImpl : public AppEventRunner,
   void OnAllFramesResumed(content::WebContents* web_contents) override {
     base::AutoLock lock(lock_);
     if (pending_ack_ == PendingAck::kUnfreeze) {
+      if (quit_closure_) {
+        std::move(quit_closure_).Run();
+      }
+    }
+  }
+
+  void OnAllFramesFrozen(content::WebContents* web_contents) override {
+    base::AutoLock lock(lock_);
+    if (pending_ack_ == PendingAck::kFreeze) {
       if (quit_closure_) {
         std::move(quit_closure_).Run();
       }

@@ -135,7 +135,7 @@ ExperimentConfigType ExperimentConfigManager::GetExperimentConfigType() {
   DCHECK(experiment_config_);
   DCHECK(!called_store_safe_config_);
 
-  const base::Value::Dict& finch_params =
+  const base::DictValue& finch_params =
       experiment_config_->GetDict(kFinchParameters);
   const int crash_streak_empty_config_threshold =
       finch_params.FindInt(kCrashStreakEmptyConfigThreshold)
@@ -178,7 +178,7 @@ ExperimentConfigType ExperimentConfigManager::GetExperimentConfigType() {
   // global base::FeatureList is initialized.
   const bool use_safe_config =
       (config_type == ExperimentConfigType::kSafeConfig);
-  const base::Value::Dict& feature_map = experiment_config_->GetDict(
+  const base::DictValue& feature_map = experiment_config_->GetDict(
       use_safe_config ? kSafeConfigFeatures : kExperimentConfigFeatures);
   const bool expiration_enabled =
       feature_map.FindBool(features::kExperimentConfigExpiration.name)
