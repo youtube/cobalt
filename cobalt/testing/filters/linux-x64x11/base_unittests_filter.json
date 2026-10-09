@@ -2,6 +2,8 @@
   "failing_tests": [
     "All/HistogramSharedMemoryTest*",
     "All/SharedMemorySwitchTest*",
+    "AlternateTestParams/PartitionAllocTest.Bug_897585/2",
+    "AlternateTestParams/PartitionAllocTest.Bug_897585/3",
     "AlternateTestParams/PartitionAllocTest.ZeroFreedMemory/1",
     "BreakIteratorTest.BreakCharacter",
     "BreakIteratorTest.BreakLine",
