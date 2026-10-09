@@ -167,6 +167,8 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   void ReportError(SbPlayerError error, const std::string& error_message);
 
   void ResetInternal(bool skip_flush);
+  bool NeedsCodecTransition(
+      const scoped_refptr<InputBuffer>& input_buffer) const;
 
   // These variables will be initialized inside ctor or Initialize() and will
   // not be changed during the life time of this class.
@@ -256,6 +258,10 @@ class MediaCodecVideoDecoder : public VideoDecoder,
 
   std::atomic<int32_t> number_of_frames_being_decoded_{0};
   scoped_refptr<Sink> sink_;
+
+  // True until the first input after a reset (e.g. a seek). The codec holds
+  // nothing then, so a color transition rebuilds it immediately.
+  bool awaiting_first_input_after_reset_ = false;
 
   int input_buffer_written_ = 0;
   bool first_texture_received_ = false;
