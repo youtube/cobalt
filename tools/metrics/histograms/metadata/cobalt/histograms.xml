@@ -415,6 +415,24 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.SplashScreen.ContentEndedBeforeSwitch.{SplashMode}"
+    enum="Boolean" expires_after="never">
+  <owner>borongchen@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Records whether the splash screen content ended before Cobalt switched to
+    the main WebContents: the video reached its end, or the image splash screen
+    closed itself. For the video splash screen, false means the video was cut
+    off. Recorded once per launch that shows a splash screen, when switching to
+    the main WebContents. Launches that start hidden or are concealed before the
+    switch aren't recorded.
+  </summary>
+  <token key="SplashMode">
+    <variant name="Image" summary="The splash screen showed an image."/>
+    <variant name="Video" summary="The splash screen played a video."/>
+  </token>
+</histogram>
+
 <histogram name="Cobalt.SplashScreen.FetchedFromCache"
     enum="SplashScreenFetchedState" expires_after="never">
   <owner>tasunny@google.com</owner>
@@ -423,6 +441,51 @@ Always run the pretty print utility on this file after editing:
     cache and indicates the reason when on error. This is recorded for every
     splash screen request handled by h5vcc scheme loader.
   </summary>
+</histogram>
+
+<histogram name="Cobalt.SplashScreen.SwitchTrigger.{SplashMode}"
+    enum="CobaltSplashScreenSwitchTrigger" expires_after="never">
+  <owner>borongchen@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Records what caused Cobalt to switch from the splash screen to the main
+    WebContents: the minimum splash screen duration elapsed, the splash screen
+    closed itself, or the main WebContents finished loading after the splash
+    screen was done. Recorded once per launch that shows a splash screen.
+    Launches that start hidden or are concealed before the switch aren't
+    recorded.
+  </summary>
+  <token key="SplashMode">
+    <variant name="Image" summary="The splash screen showed an image."/>
+    <variant name="Video" summary="The splash screen played a video."/>
+  </token>
+</histogram>
+
+<histogram name="Cobalt.SplashScreen.Time.{Interval}.{SplashMode}" units="ms"
+    expires_after="never">
+  <owner>borongchen@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Measures the {Interval}. The splash content is shown when the image is
+    painted or the video starts playing, and the switch is when Cobalt switches
+    from the splash screen to the main WebContents. Recorded once per launch
+    that shows a splash screen, when switching to the main WebContents. Launches
+    that start hidden or are concealed before the switch aren't recorded.
+  </summary>
+  <token key="Interval">
+    <variant name="ContentShownToSwitch"
+        summary="time from the splash content being shown to the switch"/>
+    <variant name="LoadedToContentShown"
+        summary="time from splash screen load to its content being shown"/>
+    <variant name="MainLoadedToSwitch"
+        summary="time from the main WebContents loading to the switch"/>
+    <variant name="PageLoad"
+        summary="time the splash screen page takes to load"/>
+  </token>
+  <token key="SplashMode">
+    <variant name="Image" summary="The splash screen showed an image."/>
+    <variant name="Video" summary="The splash screen played a video."/>
+  </token>
 </histogram>
 
 <histogram name="Cobalt.Stability.Android.SystemExitReason"
@@ -538,6 +601,47 @@ Always run the pretty print utility on this file after editing:
     Measures the duration from DidStartNavigation to DidFinishNavigation
     (commit) for the initial startup navigation in the primary main frame.
   </summary>
+</histogram>
+
+<histogram name="Cobalt.Startup.Timeline.{Event}.{SplashMode}" units="ms"
+    expires_after="never">
+  <owner>borongchen@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Measures the time from the start of the launch, when Cobalt's main delegate
+    is created, to when {Event}. The splash content is shown when the image is
+    painted or the video starts playing, and ends when the video reaches its end
+    or the image splash screen closes itself. The main WebContents becomes
+    visible when Cobalt switches to it from the splash screen, or at its first
+    visually non-empty paint without a splash screen. Recorded once per launch:
+    with a splash screen, when switching to the main WebContents; without one,
+    once the main WebContents has painted and loaded. MainReady is recorded when
+    it happens. Splash screen events are only recorded when a splash screen is
+    shown. Launches that start hidden or are concealed before being recorded
+    aren't recorded.
+  </summary>
+  <token key="Event">
+    <variant name="MainCommit"
+        summary="the main WebContents commits its first navigation"/>
+    <variant name="MainLoaded" summary="the main WebContents finishes loading"/>
+    <variant name="MainNavigationStart"
+        summary="the main WebContents starts its first navigation"/>
+    <variant name="MainReady"
+        summary="the main WebContents calls h5vcc.system.hideSplashScreen()"/>
+    <variant name="MainVisible" summary="the main WebContents becomes visible"/>
+    <variant name="SplashContentEnded" summary="the splash content ends"/>
+    <variant name="SplashContentShown" summary="the splash content is shown"/>
+    <variant name="SplashFirstPaint"
+        summary="the splash screen's first visually non-empty paint happens"/>
+    <variant name="SplashLoaded" summary="the splash screen finishes loading"/>
+    <variant name="SplashStart"
+        summary="Cobalt starts loading the splash screen"/>
+  </token>
+  <token key="SplashMode">
+    <variant name="Image" summary="The splash screen showed an image."/>
+    <variant name="NoSplash" summary="No splash screen was shown."/>
+    <variant name="Video" summary="The splash screen played a video."/>
+  </token>
 </histogram>
 
 <histogram name="Cobalt.Storage.Cookie.CommitDurationPerOperation" units="ms"

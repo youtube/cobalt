@@ -117,6 +117,7 @@ void H5vccSystemImpl::PerformExitStrategy() {
 
 void H5vccSystemImpl::HideSplashScreen() {
   LOG(INFO) << "H5vccSystem HideSplashScreen.";
+  NotifyMainReady();
   JNIEnv* env = base::android::AttachCurrentThread();
   StarboardBridge::GetInstance()->HideSplashScreen(env);
 }
