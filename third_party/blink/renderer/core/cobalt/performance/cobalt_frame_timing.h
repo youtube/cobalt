@@ -36,12 +36,32 @@ namespace blink {
 struct CORE_EXPORT CobaltMainFrameSnapshot {
   // BeginFrameArgs::frame_time of the main frame (the VSync it targets).
   base::TimeTicks bmf_start;
+  // When the BeginMainFrame task started running on the main thread, before
+  // rAF-aligned input dispatch.
+  base::TimeTicks main_frame_run_time;
   std::unique_ptr<cc::BeginMainFrameMetrics> metrics;
 
   CobaltMainFrameSnapshot();
   CobaltMainFrameSnapshot(CobaltMainFrameSnapshot&&);
   CobaltMainFrameSnapshot& operator=(CobaltMainFrameSnapshot&&);
   ~CobaltMainFrameSnapshot();
+};
+
+// Main-thread input path of a main frame, in milliseconds. Both values are
+// nullopt for compositor-only frames. The two stages are consecutive and do
+// not overlap.
+struct CORE_EXPORT CobaltFrameInputTiming {
+  // VSync frame time -> BeginMainFrame task started running on the main
+  // thread (before rAF-aligned input dispatch). Covers cc scheduling plus the
+  // time the task waited in the main thread's queue behind other tasks
+  // (non-rAF-aligned input handlers such as keydown, JS, loading).
+  std::optional<double> main_frame_queue_duration;
+  // rAF-aligned input dispatch at the start of this main frame. 0 when there
+  // was no rAF-aligned input.
+  std::optional<double> handle_input_events_duration;
+
+  static CobaltFrameInputTiming FromMainFrameSnapshot(
+      const CobaltMainFrameSnapshot* snapshot);
 };
 
 // Splits the viz side of a presented frame into consecutive stages, using the
@@ -95,6 +115,7 @@ class CORE_EXPORT CobaltFrameTiming final : public PerformanceEntry {
                     double draw_duration,
                     double swap_duration,
                     const CobaltFrameDrawBreakdown& draw_breakdown,
+                    const CobaltFrameInputTiming& input_timing,
                     DOMWindow* source);
   ~CobaltFrameTiming() override;
 
@@ -130,6 +151,13 @@ class CORE_EXPORT CobaltFrameTiming final : public PerformanceEntry {
     return draw_breakdown_.gpu_draw_duration;
   }
 
+  std::optional<double> mainFrameQueueDuration() const {
+    return input_timing_.main_frame_queue_duration;
+  }
+  std::optional<double> handleInputEventsDuration() const {
+    return input_timing_.handle_input_events_duration;
+  }
+
   void Trace(Visitor*) const override;
 
  private:
@@ -146,6 +174,7 @@ class CORE_EXPORT CobaltFrameTiming final : public PerformanceEntry {
   double draw_duration_;
   double swap_duration_;
   CobaltFrameDrawBreakdown draw_breakdown_;
+  CobaltFrameInputTiming input_timing_;
 };
 
 }  // namespace blink

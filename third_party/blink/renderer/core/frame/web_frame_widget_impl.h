@@ -1312,6 +1312,11 @@ class CORE_EXPORT WebFrameWidgetImpl
 
 #if BUILDFLAG(IS_COBALT)
   base::TimeTicks cobalt_bmf_start_time_;
+  // When the main-thread BeginMainFrame task started running, i.e. before
+  // rAF-aligned input dispatch.
+  base::TimeTicks cobalt_main_frame_run_time_;
+  // Set by RecordDispatchRafAlignedInputTime() right before BeginMainFrame().
+  base::TimeTicks cobalt_raf_aligned_input_start_time_;
   // Snapshots resolved by the presentation currently being processed; see
   // OnCobaltPresentationCallback().
   Vector<CobaltMainFrameSnapshot> pending_cobalt_main_snapshots_;
