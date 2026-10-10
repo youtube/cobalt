@@ -6,7 +6,6 @@
     "*SbMediaSetAudioWriteDuration*",
     "*SbPlayer*",
     "*VerticalVideoTest*",
-    "SbAudioSinkTest.ContinuousAppend",
     "SbDrmSessionTest.*",
     "SbMediaCanPlayMimeAndKeySystem.MinimumSupport"
   ]
