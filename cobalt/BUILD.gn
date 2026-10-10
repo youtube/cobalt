@@ -397,6 +397,7 @@ test("cobalt_unittests") {
   if (!is_android) {
     sources += [
       "//cobalt/shell/browser/lifecycle_unittest.cc",
+      "//cobalt/shell/browser/splash_screen_metrics_unittest.cc",
       "//cobalt/shell/browser/splash_screen_unittest.cc",
     ]
   }

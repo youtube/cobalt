@@ -24,11 +24,13 @@
 #include "base/feature_list.h"
 #include "base/process/current_process.h"
 #include "base/threading/hang_watcher.h"
+#include "base/time/time.h"
 #include "build/buildflag.h"
 #include "cobalt/browser/cobalt_content_browser_client.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/common/cobalt_thread_checker.h"
 #include "cobalt/shell/app/shell_main_delegate.h"
+#include "cobalt/shell/browser/splash_screen_metrics.h"
 #include "cobalt/utility/cobalt_content_utility_client.h"
 #include "content/public/browser/browser_main_runner.h"
 #include "content/public/browser/content_browser_client.h"
@@ -74,6 +76,9 @@ CobaltMainDelegate::CobaltMainDelegate(std::optional<int64_t> startup_timestamp,
       startup_timestamp_(startup_timestamp),
       is_visible_(is_visible),
       deep_link_(initial_deep_link ? initial_deep_link : "") {
+  // The startup timeline is measured from here, the earliest point in native
+  // code that all platforms share.
+  content::SplashScreenMetrics::SetAppStartTime(base::TimeTicks::Now());
   is_content_browsertests_ = is_content_browsertests;
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 }

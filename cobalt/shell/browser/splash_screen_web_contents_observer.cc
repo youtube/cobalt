@@ -25,9 +25,11 @@ namespace content {
 
 SplashScreenWebContentsObserver::SplashScreenWebContentsObserver(
     WebContents* web_contents,
-    base::OnceClosure on_load_complete)
+    base::OnceClosure on_load_complete,
+    StartupEventCallback on_startup_event)
     : WebContentsObserver(web_contents),
-      on_load_complete_(std::move(on_load_complete)) {}
+      on_load_complete_(std::move(on_load_complete)),
+      on_startup_event_(std::move(on_startup_event)) {}
 
 SplashScreenWebContentsObserver::~SplashScreenWebContentsObserver() = default;
 
@@ -72,7 +74,33 @@ void SplashScreenWebContentsObserver::DidStopLoading() {
 }
 
 void SplashScreenWebContentsObserver::DidFirstVisuallyNonEmptyPaint() {
+  NotifyStartupEvent(SplashScreenMetrics::Event::kSplashFirstPaint);
   Shell::MaybeHideSystemSplashScreen();
+}
+
+void SplashScreenWebContentsObserver::MediaStartedPlaying(
+    const MediaPlayerInfo& video_type,
+    const MediaPlayerId& id) {
+  if (video_type.has_video) {
+    NotifyStartupEvent(SplashScreenMetrics::Event::kSplashVideoStarted);
+  }
+}
+
+void SplashScreenWebContentsObserver::MediaStoppedPlaying(
+    const MediaPlayerInfo& video_type,
+    const MediaPlayerId& id,
+    WebContentsObserver::MediaStoppedReason reason) {
+  if (video_type.has_video &&
+      reason == WebContentsObserver::MediaStoppedReason::kReachedEndOfStream) {
+    NotifyStartupEvent(SplashScreenMetrics::Event::kSplashVideoEnded);
+  }
+}
+
+void SplashScreenWebContentsObserver::NotifyStartupEvent(
+    SplashScreenMetrics::Event event) {
+  if (on_startup_event_) {
+    on_startup_event_.Run(event);
+  }
 }
 
 }  // namespace content

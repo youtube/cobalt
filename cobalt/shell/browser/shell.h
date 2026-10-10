@@ -29,6 +29,7 @@
 #include "build/build_config.h"
 #include "cobalt/build/configs/buildflags.h"
 #include "cobalt/shell/browser/shell_platform_delegate.h"
+#include "cobalt/shell/browser/splash_screen_metrics.h"
 #include "cobalt/shell/browser/splash_screen_web_contents_delegate.h"
 #include "cobalt/shell/browser/splash_screen_web_contents_observer.h"
 #include "components/js_injection/browser/js_communication_host.h"
@@ -93,6 +94,9 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   void ResizeWebContentForTests(const gfx::Size& content_size);
 
   void LoadSplashScreenWebContents();
+
+  // Called when the main WebContents calls h5vcc.system.hideSplashScreen().
+  void OnMainReady();
 
   // Do one-time initialization at application startup. This must be matched
   // with a Shell::Shutdown() at application termination, where |platform|
@@ -291,10 +295,11 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   void DidStopLoading() override;
 
   void RegisterInjectedJavaScript();
-  void SwitchToMainWebContents();
+  void SwitchToMainWebContents(SplashScreenMetrics::SwitchTrigger trigger);
   void ScheduleSwitchToMainWebContents();
   void ClosingSplashScreenWebContents();
   void OnSplashScreenLoadComplete();
+  void MarkStartupEvent(SplashScreenMetrics::Event event);
 
   std::unique_ptr<JavaScriptDialogManager> dialog_manager_;
 
@@ -307,6 +312,9 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   bool is_main_frame_loaded_ = false;
   bool has_switched_to_main_frame_ = false;
   base::TimeTicks splash_screen_start_time_;
+  // Startup timing metrics of the launch. Null for windows other than the
+  // first one.
+  std::unique_ptr<SplashScreenMetrics> splash_screen_metrics_;
 
   base::WeakPtr<ShellDevToolsFrontend> devtools_frontend_;
 

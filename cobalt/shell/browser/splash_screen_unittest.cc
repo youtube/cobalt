@@ -15,15 +15,20 @@
 #include <memory>
 #include <string>
 
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_test_support.h"
+#include "cobalt/shell/browser/splash_screen_metrics.h"
+#include "cobalt/shell/browser/splash_screen_web_contents_observer.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "content/browser/aggregation_service/aggregatable_report.h"
+#include "content/public/browser/media_player_id.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
+#include "content/public/browser/web_contents_observer.h"
 #include "content/test/test_web_contents.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -45,6 +50,14 @@ class SplashScreenTest : public ShellTestBase {
   void SetUp() override {
     ShellTestBase::SetUp();
     InitializeShell(true /* is_visible */);
+    // Each test is a new launch that starts at t=0.
+    SplashScreenMetrics::ResetForTesting();
+    SplashScreenMetrics::SetAppStartTime(base::TimeTicks::Now());
+  }
+
+  void TearDown() override {
+    SplashScreenMetrics::ResetForTesting();
+    ShellTestBase::TearDown();
   }
 
  protected:
@@ -80,6 +93,11 @@ class SplashScreenTest : public ShellTestBase {
 
   WebContents* GetSplashScreenWebContents(Shell* shell) {
     return shell->splash_screen_web_contents_.get();
+  }
+
+  SplashScreenWebContentsObserver* GetSplashScreenWebContentsObserver(
+      Shell* shell) {
+    return shell->splash_screen_web_contents_observer_.get();
   }
 
   // Returns the URL the splash screen WebContents is navigating to.
@@ -486,8 +504,9 @@ TEST_F(SplashScreenTest,
       WebContents::CreateParams::kNoRendererProcess;
   std::unique_ptr<WebContents> splash_contents(
       TestWebContents::Create(create_params));
-  SplashScreenWebContentsObserver observer(splash_contents.get(),
-                                           base::DoNothing());
+  SplashScreenWebContentsObserver observer(
+      splash_contents.get(), /*on_load_complete=*/base::DoNothing(),
+      /*on_startup_event=*/base::DoNothing());
 
   // First paint of splash screen should trigger system splash dismissal.
   observer.DidFirstVisuallyNonEmptyPaint();
@@ -656,6 +675,166 @@ TEST_F(SplashScreenTest, SplashTimeoutPassedToSplashScreen) {
   EXPECT_EQ(GetPendingSplashScreenURL(shell),
             GURL(std::string(switches::kSplashScreenURL) +
                  "?force_image=true&timeout=3000"));
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
+TEST_F(SplashScreenTest, StartupMetricsForImageSplashScreen) {
+  base::HistogramTester histogram_tester;
+  Shell* shell = CreateShellWithSplashScreen();
+
+  CallLoadSplashScreenWebContents(shell);  // t=0
+  task_environment()->FastForwardBy(base::Milliseconds(100));
+  CallOnSplashScreenLoadComplete(shell);  // t=100
+  task_environment()->FastForwardBy(base::Milliseconds(50));
+  GetSplashScreenWebContentsObserver(shell)
+      ->DidFirstVisuallyNonEmptyPaint();  // t=150
+  task_environment()->FastForwardBy(base::Milliseconds(250));
+  // The main WebContents loads at t=400, so the switch happens when the 1500ms
+  // minimum duration elapses at t=1600.
+  CallLoadProgressChanged(shell, 1.0);
+
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
+  task_environment()->FastForwardBy(base::Milliseconds(1300));
+  EXPECT_TRUE(HasSwitchedToMainFrame(shell));
+
+  histogram_tester.ExpectUniqueTimeSample(
+      "Cobalt.SplashScreen.Time.PageLoad.Image", base::Milliseconds(100), 1);
+  histogram_tester.ExpectUniqueTimeSample(
+      "Cobalt.SplashScreen.Time.LoadedToContentShown.Image",
+      base::Milliseconds(50), 1);
+  histogram_tester.ExpectUniqueTimeSample(
+      "Cobalt.SplashScreen.Time.ContentShownToSwitch.Image",
+      base::Milliseconds(1450), 1);
+  histogram_tester.ExpectUniqueTimeSample(
+      "Cobalt.SplashScreen.Time.MainLoadedToSwitch.Image",
+      base::Milliseconds(1200), 1);
+  histogram_tester.ExpectUniqueTimeSample(
+      "Cobalt.Startup.Timeline.MainVisible.Image", base::Milliseconds(1600), 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.SplashScreen.ContentEndedBeforeSwitch.Image", false, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.SplashScreen.SwitchTrigger.Image",
+      SplashScreenMetrics::SwitchTrigger::kTimer, 1);
+  histogram_tester.ExpectTotalCount("Cobalt.Startup.Timeline.MainReady.Image",
+                                    0);
+
+  task_environment()->FastForwardBy(base::Milliseconds(500));
+  shell->OnMainReady();  // t=2200
+  histogram_tester.ExpectUniqueTimeSample(
+      "Cobalt.Startup.Timeline.MainReady.Image", base::Milliseconds(2200), 1);
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
+TEST_F(SplashScreenTest, StartupMetricsForVideoSplashScreen) {
+  base::HistogramTester histogram_tester;
+  Shell* shell = CreateShellWithSplashScreen();
+  const WebContentsObserver::MediaPlayerInfo video(/*has_video=*/true,
+                                                   /*has_audio=*/false);
+  const MediaPlayerId player_id = MediaPlayerId::CreateMediaPlayerIdForTests();
+
+  CallLoadSplashScreenWebContents(shell);
+  CallOnSplashScreenLoadComplete(shell);  // t=0
+  task_environment()->FastForwardBy(base::Milliseconds(200));
+  GetSplashScreenWebContentsObserver(shell)->MediaStartedPlaying(
+      video, player_id);  // t=200
+  task_environment()->FastForwardBy(base::Milliseconds(500));
+  // Only reaching the end of the video counts as the content ending.
+  GetSplashScreenWebContentsObserver(shell)->MediaStoppedPlaying(
+      video, player_id,
+      WebContentsObserver::MediaStoppedReason::kUnspecified);  // t=700
+  task_environment()->FastForwardBy(base::Milliseconds(500));
+  GetSplashScreenWebContentsObserver(shell)->MediaStoppedPlaying(
+      video, player_id,
+      WebContentsObserver::MediaStoppedReason::kReachedEndOfStream);  // t=1200
+  // The main WebContents loads at t=1200, so the switch happens when the
+  // 1500ms minimum duration elapses at t=1500.
+  CallLoadProgressChanged(shell, 1.0);
+
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
+  task_environment()->FastForwardBy(base::Milliseconds(400));
+  EXPECT_TRUE(HasSwitchedToMainFrame(shell));
+
+  histogram_tester.ExpectUniqueTimeSample(
+      "Cobalt.SplashScreen.Time.LoadedToContentShown.Video",
+      base::Milliseconds(200), 1);
+  histogram_tester.ExpectUniqueTimeSample(
+      "Cobalt.SplashScreen.Time.ContentShownToSwitch.Video",
+      base::Milliseconds(1300), 1);
+  histogram_tester.ExpectUniqueTimeSample(
+      "Cobalt.SplashScreen.Time.MainLoadedToSwitch.Video",
+      base::Milliseconds(300), 1);
+  histogram_tester.ExpectUniqueTimeSample(
+      "Cobalt.Startup.Timeline.SplashContentEnded.Video",
+      base::Milliseconds(1200), 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.SplashScreen.ContentEndedBeforeSwitch.Video", true, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.SplashScreen.SwitchTrigger.Video",
+      SplashScreenMetrics::SwitchTrigger::kTimer, 1);
+  histogram_tester.ExpectTotalCount("Cobalt.SplashScreen.SwitchTrigger.Image",
+                                    0);
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
+TEST_F(SplashScreenTest, StartupMetricsWithoutSplashScreen) {
+  base::HistogramTester histogram_tester;
+  WebContents::CreateParams create_params(browser_context());
+  create_params.desired_renderer_state =
+      WebContents::CreateParams::kNoRendererProcess;
+  Shell* shell = CreateShell(
+      std::unique_ptr<WebContents>(TestWebContents::Create(create_params)),
+      /*splash_contents=*/nullptr);
+
+  task_environment()->FastForwardBy(base::Milliseconds(300));
+  CallDidFirstVisuallyNonEmptyPaint(shell);  // t=300
+  task_environment()->FastForwardBy(base::Milliseconds(200));
+  CallLoadProgressChanged(shell, 1.0);  // t=500
+
+  // Without a splash screen, the main WebContents is visible from its first
+  // paint.
+  histogram_tester.ExpectUniqueTimeSample(
+      "Cobalt.Startup.Timeline.MainVisible.NoSplash", base::Milliseconds(300),
+      1);
+  histogram_tester.ExpectUniqueTimeSample(
+      "Cobalt.Startup.Timeline.MainLoaded.NoSplash", base::Milliseconds(500),
+      1);
+  EXPECT_TRUE(
+      histogram_tester.GetTotalCountsForPrefix("Cobalt.SplashScreen.").empty());
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
+TEST_F(SplashScreenTest, StartupMetricsNotRecordedAfterConceal) {
+  base::HistogramTester histogram_tester;
+  Shell* shell = CreateShellWithSplashScreen();
+
+  CallLoadSplashScreenWebContents(shell);
+  CallOnSplashScreenLoadComplete(shell);
+  // Timings that include time in the background aren't recorded. The platform
+  // side of concealing isn't needed for this test.
+  EXPECT_CALL(*platform_, OnConceal()).WillOnce(testing::Return());
+  Shell::OnConceal();
+  CallClosingSplashScreenWebContents(shell);
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
+  CallLoadProgressChanged(shell, 1.0);
+  EXPECT_TRUE(HasSwitchedToMainFrame(shell));
+
+  EXPECT_TRUE(
+      histogram_tester.GetTotalCountsForPrefix("Cobalt.SplashScreen.").empty());
+  EXPECT_TRUE(
+      histogram_tester.GetTotalCountsForPrefix("Cobalt.Startup.Timeline.")
+          .empty());
 
   EXPECT_CALL(*platform_, DestroyShell(shell));
   EXPECT_CALL(*platform_, CleanUp(shell));
