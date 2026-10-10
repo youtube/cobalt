@@ -122,6 +122,24 @@ BASE_FEATURE(kForceVideoSplashScreen,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 
+BASE_FEATURE(kSplashScreenConfig,
+             "SplashScreenConfig",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kSplashScreenTimeoutParam,
+                   &kSplashScreenConfig,
+                   "timeout",
+                   base::Milliseconds(1500));
+
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+BASE_FEATURE_PARAM(std::string,
+                   kSplashScreenUrlParam,
+                   &kSplashScreenConfig,
+                   "url",
+                   "");
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kEnablePictureInPicture,
              "PictureInPicture",
