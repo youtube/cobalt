@@ -108,6 +108,10 @@
 #include "components/viz/service/display/overlay_processor_surface_control.h"
 #endif
 
+#if BUILDFLAG(IS_ANDROID) && BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "gpu/command_buffer/service/scheduler_sequence.h"
+#endif  // BUILDFLAG(IS_ANDROID) && BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace viz {
 
 namespace {
@@ -1049,6 +1053,9 @@ void SkiaRenderer::FinishDrawingFrame() {
   // TODO(weiliangc): Remove this once OverlayProcessor schedules overlays.
   if (current_frame()->output_surface_plane) {
     CHECK(output_surface_->capabilities().renderer_allocates_images);
+#if BUILDFLAG(IS_ANDROID) && BUILDFLAG(USE_STARBOARD_MEDIA)
+    destroy_buffers_timer_.Stop();
+#endif
 
     auto& surface_plane = current_frame()->output_surface_plane.value();
 
@@ -1120,15 +1127,17 @@ void SkiaRenderer::FinishDrawingFrame() {
 #if BUILDFLAG(IS_WIN)
       buffer_queue_->DestroyBuffers();
 #elif BUILDFLAG(IS_ANDROID) && BUILDFLAG(USE_STARBOARD_MEDIA)
-      // TODO(b/561683073): Add a cooldown/debounce timer (e.g., ~5s of
-      // continuous single-plane mode) before calling DestroyBuffers() so that
-      // brief 1-2s pauses between Closed Captions (CC) dialogue lines do not
-      // repeatedly free and re-allocate/zero-fill the 3 UI AHardwareBuffers.
-      buffer_queue_->DestroyBuffers();
-      if (render_pass_backings_.erase(
+      // Delay freeing the primary plane buffers so that brief pauses between
+      // Closed Captions (CC) dialogue lines do not repeatedly free and
+      // re-allocate the 3 UI AHardwareBuffers.
+      constexpr base::TimeDelta kDestroyBuffersDelay = base::Seconds(5);
+      if (!destroy_buffers_timer_.IsRunning() &&
+          render_pass_backings_.contains(
               current_frame()->root_render_pass->id)) {
-        skia_output_surface_->RemoveRenderPassResource(
-            {current_frame()->root_render_pass->id});
+        destroy_buffers_timer_.Start(
+            FROM_HERE, kDestroyBuffersDelay,
+            base::BindOnce(&SkiaRenderer::DestroyPrimaryPlaneBuffers,
+                           base::Unretained(this)));
       }
 #elif BUILDFLAG(IS_APPLE)
       buffer_queue_->SetBuffersPurgeable();
@@ -1139,6 +1148,27 @@ void SkiaRenderer::FinishDrawingFrame() {
   ScheduleOverlays();
   debug_tint_modulate_count_++;
 }
+
+#if BUILDFLAG(IS_ANDROID) && BUILDFLAG(USE_STARBOARD_MEDIA)
+void SkiaRenderer::DestroyPrimaryPlaneBuffers() {
+  if (!buffer_queue_) {
+    return;
+  }
+  gpu::ScopedAllowScheduleGpuTask allow_schedule_gpu_task;
+  buffer_queue_->DestroyBuffers();
+  for (auto it = render_pass_backings_.begin();
+       it != render_pass_backings_.end(); ++it) {
+    if (!it->second.is_root) {
+      continue;
+    }
+    AggregatedRenderPassId root_id = it->first;
+    render_pass_backings_.erase(it);
+    skia_output_surface_->RemoveRenderPassResource({root_id});
+    break;
+  }
+  FlushOutputSurface();
+}
+#endif  // BUILDFLAG(IS_ANDROID) && BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #if BUILDFLAG(IS_CHROMEOS) && BUILDFLAG(ENABLE_VULKAN) && \
     BUILDFLAG(USE_V4L2_CODEC)
@@ -3476,10 +3506,16 @@ void SkiaRenderer::CopyDrawnRenderPass(
 }
 
 void SkiaRenderer::DidChangeVisibility() {
-  if (visible_)
+  if (visible_) {
     output_surface_->EnsureBackbuffer();
-  else
+  } else {
+#if BUILDFLAG(IS_ANDROID) && BUILDFLAG(USE_STARBOARD_MEDIA)
+    if (destroy_buffers_timer_.IsRunning()) {
+      destroy_buffers_timer_.FireNow();
+    }
+#endif
     output_surface_->DiscardBackbuffer();
+  }
 }
 
 void SkiaRenderer::FinishDrawingRenderPass() {
@@ -3624,6 +3660,9 @@ void SkiaRenderer::AllocateRenderPassResourceIfNeeded(
   // Root render pass backings managed by |buffer_queue_| are not managed by
   // DisplayResourceProvider, so we should not allocate them here.
   if (buffer_queue_ && is_root) {
+#if BUILDFLAG(IS_ANDROID) && BUILDFLAG(USE_STARBOARD_MEDIA)
+    destroy_buffers_timer_.Stop();
+#endif
     auto& root_pass_backing = render_pass_backings_[render_pass_id];
     root_pass_backing.is_root = true;
     root_pass_backing.mailbox = buffer_queue_->GetCurrentBuffer();

@@ -25,6 +25,7 @@ class DisplayCompositorMemoryAndTaskController;
 class ScopedAllowGpuAccessForDisplayResourceProvider;
 class OutputSurfaceProviderImpl;
 class OverlayProcessorAndroid;
+class SkiaRenderer;
 }  // namespace viz
 
 namespace gpu {
@@ -51,6 +52,7 @@ class GPU_GLES2_EXPORT [[maybe_unused, nodiscard]] ScopedAllowScheduleGpuTask {
   // would trigger DCHECK, even though the task posting would not run on
   // WebView.
   friend class viz::OverlayProcessorAndroid;
+  friend class viz::SkiaRenderer;
   ScopedAllowScheduleGpuTask();
 
 #if DCHECK_IS_ON()
