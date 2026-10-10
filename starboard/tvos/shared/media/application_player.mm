@@ -39,6 +39,11 @@ constexpr char kPlatformDrmInitDataType[] = "";
 static const NSString* kPlayerItemStatusContext = @"kPlayerItemStatusContext";
 
 /**
+ *  @brief The context used to track the player status through KVO.
+ */
+static const NSString* kPlayerStatusContext = @"kPlayerStatusContext";
+
+/**
  *  @brief The context used to track the player rate through KVO.
  */
 static const NSString* kPlayerRateContext = @"kPlayerRateContext";
@@ -174,11 +179,6 @@ static NSTimeInterval kAccessLogTimerInterval = 1;
   SBDApplicationDrmSystem* _drmSystem;
 
   /**
-   *  @brief The point in time where playback should start (in microseconds).
-   */
-  NSInteger _playbackStartTime;
-
-  /**
    *  @brief The index of the last-processed event in the source's network
    *      access log.
    */
@@ -209,9 +209,10 @@ static NSTimeInterval kAccessLogTimerInterval = 1;
   BOOL _destroyCalled;
 
   /**
-   *  @brief Indicates that the tracks have already been loaded for the player.
+   *  @brief Indicates that @c kSbPlayerStateInitialized has been reported.
+   *      Only accessed on the main thread.
    */
-  BOOL _loadedTracks;
+  BOOL _initializedReported;
 
   /**
    *  @brief Indicates that the output doesn't have hdcp protection.
@@ -254,7 +255,7 @@ static NSTimeInterval kAccessLogTimerInterval = 1;
                        queue:dispatch_queue_create("keySessionQueue", NULL)];
 #endif  // TARGET_OS_EMBEDDED
 
-    [self updatePlayerState:kSbPlayerStateInitialized];
+    [self loadAsset];
 
     [[NSNotificationCenter defaultCenter]
         addObserver:self
@@ -310,14 +311,7 @@ static NSTimeInterval kAccessLogTimerInterval = 1;
   return _playerView;
 }
 
-- (void)startPlaybackAtTime:(NSInteger)startTime {
-  if (_loadedTracks) {
-    return;
-  }
-  _loadedTracks = YES;
-  _playbackStartTime = startTime;
-  [self updatePlayerState:kSbPlayerStatePrerolling];
-
+- (void)loadAsset {
   AVURLAsset* URLAsset = [[AVURLAsset alloc] initWithURL:_url options:nil];
   [_keySession addContentKeyRecipient:URLAsset];
   [URLAsset
@@ -372,6 +366,10 @@ static NSTimeInterval kAccessLogTimerInterval = 1;
   _player = [AVPlayer playerWithPlayerItem:playerItem];
 
   [_player addObserver:self
+            forKeyPath:@"status"
+               options:0
+               context:&kPlayerStatusContext];
+  [_player addObserver:self
             forKeyPath:@"rate"
                options:0
                context:&kPlayerRateContext];
@@ -383,6 +381,9 @@ static NSTimeInterval kAccessLogTimerInterval = 1;
               &kPlayerOutputObscuredDueToInsufficientExternalProtectionContext];
 
   _playerView.player = _player;
+
+  // The player may have become ready before its observer was added.
+  [self reportInitializedIfPrepared];
 }
 
 - (void)playbackStalled:(NSNotification*)notification {
@@ -393,16 +394,31 @@ static NSTimeInterval kAccessLogTimerInterval = 1;
   [self updatePlayerState:kSbPlayerStateEndOfStream];
 }
 
+- (void)playerStatusDidChange:(AVPlayer*)player {
+  switch (player.status) {
+    case AVPlayerStatusReadyToPlay: {
+      dispatch_async(dispatch_get_main_queue(), ^{
+        [self reportInitializedIfPrepared];
+      });
+      return;
+    }
+    case AVPlayerStatusUnknown:
+      return;
+    case AVPlayerStatusFailed: {
+      NSString* errorMessage = [NSString stringWithFormat:@"%@", player.error];
+      dispatch_async(dispatch_get_main_queue(), ^{
+        [self updatePlayerError:kSbPlayerErrorDecode message:errorMessage];
+      });
+      return;
+    }
+  }
+}
+
 - (void)playerItemStatusDidChange:(AVPlayerItem*)playerItem {
   switch (playerItem.status) {
     case AVPlayerItemStatusReadyToPlay: {
       dispatch_async(dispatch_get_main_queue(), ^{
-        if (self->_playbackStartTime) {
-          self.currentMediaTime = self->_playbackStartTime;
-          self->_playbackStartTime = 0;
-        } else {
-          [self updatePlayerState:kSbPlayerStatePresenting];
-        }
+        [self reportInitializedIfPrepared];
       });
       return;
     }
@@ -422,6 +438,17 @@ static NSTimeInterval kAccessLogTimerInterval = 1;
       return;
     }
   }
+}
+
+- (void)reportInitializedIfPrepared {
+  if (_initializedReported || _errorOccurred ||
+      _player.status != AVPlayerStatusReadyToPlay ||
+      _player.currentItem.status != AVPlayerItemStatusReadyToPlay) {
+    return;
+  }
+  _initializedReported = YES;
+  SB_LOG(INFO) << "[UrlPlayer] AVPlayer and its item are ready to play.";
+  [self updatePlayerState:kSbPlayerStateInitialized];
 }
 
 - (void)startAccessLogTimer {
@@ -447,6 +474,9 @@ static NSTimeInterval kAccessLogTimerInterval = 1;
                        context:(void*)context {
   if (context == &kPlayerItemStatusContext) {
     [self playerItemStatusDidChange:object];
+    return;
+  } else if (context == &kPlayerStatusContext) {
+    [self playerStatusDidChange:object];
     return;
   } else if (context == &kPlayerRateContext) {
     __weak AVPlayer* player = _player;
@@ -592,8 +622,10 @@ static NSTimeInterval kAccessLogTimerInterval = 1;
 }
 
 - (void)setCurrentMediaTime:(NSInteger)currentMediaTime {
-  if (!_player || _player.status != AVPlayerStatusReadyToPlay) {
-    [self startPlaybackAtTime:currentMediaTime];
+  if (_player.status != AVPlayerStatusReadyToPlay ||
+      _player.currentItem.status != AVPlayerItemStatusReadyToPlay) {
+    SB_LOG(ERROR) << "[UrlPlayer] Seek to " << currentMediaTime
+                  << " ignored: the player is not ready to play.";
     return;
   }
   [self updatePlayerState:kSbPlayerStatePrerolling];
@@ -612,6 +644,13 @@ static NSTimeInterval kAccessLogTimerInterval = 1;
 
 - (void)seekTo:(NSInteger)time ticket:(int)ticket {
   dispatch_async(dispatch_get_main_queue(), ^{
+    // Return before assigning _ticket, so that the Initialized still to come
+    // carries SB_PLAYER_INITIAL_TICKET.
+    if (!self->_initializedReported) {
+      SB_LOG(WARNING) << "[UrlPlayer] Seek to " << time
+                      << " ignored: the player is not initialized yet.";
+      return;
+    }
     self->_ticket = ticket;
     self.currentMediaTime = time;
   });
@@ -622,12 +661,8 @@ static NSTimeInterval kAccessLogTimerInterval = 1;
 }
 
 - (NSInteger)duration {
-  if (!_player) {
-    return SB_PLAYER_NO_DURATION;
-  }
-  if ((_playerState != kSbPlayerStatePresenting &&
-       _playerState != kSbPlayerStateEndOfStream) ||
-      _errorOccurred) {
+  if (_errorOccurred || _player.status != AVPlayerStatusReadyToPlay ||
+      _player.currentItem.status != AVPlayerItemStatusReadyToPlay) {
     return SB_PLAYER_NO_DURATION;
   }
   CMTime endTime = _player.currentItem.duration;
@@ -767,6 +802,7 @@ static NSTimeInterval kAccessLogTimerInterval = 1;
 }
 
 - (void)removePlayerNotifications {
+  [_player removeObserver:self forKeyPath:@"status"];
   [_player removeObserver:self forKeyPath:@"rate"];
   [_player removeObserver:self
                forKeyPath:@"outputObscuredDueToInsufficientExternalProtection"];
