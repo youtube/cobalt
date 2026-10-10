@@ -414,8 +414,11 @@ void DirectRenderer::DrawFrame(
       !needs_full_frame_redraw;
 
 #if BUILDFLAG(IS_ANDROID) && BUILDFLAG(USE_STARBOARD_MEDIA)
+  const bool has_primary_plane = std::ranges::any_of(
+      current_frame()->overlay_list,
+      [](const auto& candidate) { return candidate.is_root_render_pass; });
   const bool output_surface_plane_removed =
-      !current_frame()->output_surface_plane &&
+      !has_primary_plane &&
       output_surface_->capabilities().renderer_allocates_images;
   // The primary plane buffers are released while the plane is removed, so the
   // root render pass must be fully redrawn on the frame the plane returns.
