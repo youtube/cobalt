@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "base/containers/adapters.h"
+#include "base/feature_list.h"
 #include "base/logging.h"
 #include "base/unguessable_token.h"
 #include "components/viz/common/quads/draw_quad.h"
@@ -16,6 +17,10 @@
 #include "components/viz/service/display/overlay_candidate_factory.h"
 #include "components/viz/service/display/starboard/video_geometry_setter.h"
 #include "ui/gfx/geometry/rect_conversions.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "gpu/config/gpu_finch_features.h"
+#endif
 
 namespace viz {
 
@@ -141,6 +146,33 @@ bool OverlayStrategyUnderlayStarboard::Attempt(
     LOG(INFO) << (found_underlay ? "Overlay activated" : "Overlay deactivated");
   }
 
+#if BUILDFLAG(IS_ANDROID)
+  // Drop the UI plane (single-layer video) only when nothing visible is left
+  // above the video and the visible (clipped) video covers the whole output.
+  // SbPlayer places the video at the unclipped rect and the UI plane hides the
+  // part outside clip_rect, so removing the plane must not reveal it. The
+  // coverage check also keeps black backgrounds, which are skipped in
+  // |content_rect|.
+  bool remove_ui_plane = false;
+  if (found_underlay && content_rect.IsEmpty() &&
+      features::IsAndroidSurfaceControlEnabled() &&
+      base::FeatureList::IsEnabled(
+          features::kCobaltRemoveUiPlaneDuringFullscreenVideo)) {
+    const DrawQuad* quad = *proposed_candidate.quad_iter;
+    const SharedQuadState* sqs = quad->shared_quad_state;
+    gfx::Rect underlay_rect = sqs->quad_to_target_transform.MapRect(quad->rect);
+    if (sqs->clip_rect) {
+      underlay_rect.Intersect(*sqs->clip_rect);
+    }
+    remove_ui_plane = underlay_rect.Contains(render_pass->output_rect);
+  }
+  if (remove_ui_plane_ != remove_ui_plane) {
+    remove_ui_plane_ = remove_ui_plane;
+    LOG(INFO) << "Single-layer video "
+              << (remove_ui_plane ? "activated" : "deactivated");
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
+
   if (found_underlay) {
     for (auto it = quad_list.begin(); it != quad_list.end(); ++it) {
       OverlayCandidate candidate;
@@ -189,6 +221,10 @@ void OverlayStrategyUnderlayStarboard::AdjustOutputSurfaceOverlay(
   if (output_surface_plane) {
     output_surface_plane->enable_blending = true;
   }
+}
+
+bool OverlayStrategyUnderlayStarboard::RemoveOutputSurfaceAsOverlay() {
+  return remove_ui_plane_;
 }
 
 OverlayStrategy OverlayStrategyUnderlayStarboard::GetUMAEnum() const {
