@@ -45,6 +45,14 @@ For changes involving Web IDL, refer to the following guides for API design prin
 *   **Chromium IDL Extended Attributes**: /third_party/blink/renderer/bindings/IDLExtendedAttributes.md
 *   **Web IDL Interfaces**: /docs/website/site/developers/web-idl-interfaces/index.md
 
+When introducing or modifying Web IDL APIs (i.e. changes in files with idl extensions //third_party/blink), observe the best practices and suggestions of the following documents.
+
+*   **W3C Web Platform Design Principles**: https://www.w3.org/TR/design-principles
+*   **W3C Writing Promise-Using Specifications**: https://www.w3.org/2001/tag/doc/promises-guide
+*   **Introducing asynchronous JavaScript**: https://developer.mozilla.org/en-US/docs/Learn_web_development/Extensions/Async_JS/Introducing
+
+In particular, it's important to discourage the introduction of new synchronous Web APIs and the associated Sync Mojo patterns. It's also important to encourage using dictionaries for bags of data (either sent or received from the UA) that can easily be extended later on.
+
 # Class comments
 
 Every new added class should have a meaningful class comment, in particular
