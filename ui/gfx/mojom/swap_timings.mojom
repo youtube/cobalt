@@ -10,4 +10,13 @@ import "mojo/public/mojom/base/time.mojom";
 struct SwapTimings {
   mojo_base.mojom.TimeTicks swap_start;
   mojo_base.mojom.TimeTicks swap_end;
+
+  // Cobalt: forward the viz/GPU draw stages so that Blink can split the
+  // cobalt-frame drawDuration (see CobaltFrameDrawBreakdown).
+  [EnableIf=is_cobalt]
+  mojo_base.mojom.TimeTicks viz_scheduled_draw;
+  [EnableIf=is_cobalt]
+  mojo_base.mojom.TimeTicks gpu_started_draw;
+  [EnableIf=is_cobalt]
+  mojo_base.mojom.TimeTicks gpu_task_ready;
 };

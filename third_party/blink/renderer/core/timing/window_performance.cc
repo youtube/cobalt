@@ -1411,7 +1411,8 @@ CobaltFrameTiming* WindowPerformance::CreateCobaltFrameTiming(
   return MakeGarbageCollected<CobaltFrameTiming>(
       duration, start_time, frame_token, presentation_time, animate_duration,
       style_duration, layout_duration, prepaint_duration, paint_duration,
-      frame_prep_duration, draw_duration, swap_duration, window);
+      frame_prep_duration, draw_duration, swap_duration,
+      CobaltFrameDrawBreakdown::FromFrameTimingDetails(details), window);
 }
 #endif
 
