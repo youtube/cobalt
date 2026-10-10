@@ -14,6 +14,7 @@
 
 package dev.cobalt.util;
 
+import dev.cobalt.features.StarboardFeatures;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -24,6 +25,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
+import org.chromium.base.BaseFeatures;
+import org.chromium.base.BaseSwitches;
 import org.chromium.base.BuildInfo;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
@@ -36,7 +39,23 @@ import org.json.JSONObject;
 public class JavaSwitches {
   private static final String TAG = "JavaSwitches";
 
-  /** Default command line constants launched from A/B experiments. */
+  private static final String ARCH_ARM64 = "arm64";
+  private static final String ARCH_X86_64 = "x86_64";
+  private static final String FORCE_720P_DEVICE_SCALE_FACTOR = "1.5";
+  private static final String DEFAULT_MINOR_MS_MIN_NEW_SPACE_CAPACITY_MB = "0";
+
+  private static final String PARAM_SUBRESOURCE_SIZE = "subresource_size";
+  private static final String PARAM_MEDIA_SIZE = "media_size";
+  private static final String PARAM_SIZE_IN_PIXELS = "size_in_pixels";
+  private static final String PARAM_RECLAIM_DELAY_S = "reclaim_delay_s";
+  private static final String PARAM_COOLDOWN_SECONDS = "cooldown-seconds";
+
+  /**
+   * Default command line constants launched from A/B experiments.
+   *
+   * <p>Corresponds to {@code NETWORK_SWITCH(kDisableQuic, "disable-quic")} in {@code
+   * //components/network_session_configurator/common/network_switch_list.h}.
+   */
   public static final String DEFAULT_DISABLE_QUIC = "--disable-quic";
 
   public static final String DEFAULT_INITIAL_OLD_SPACE_SIZE = "64";
@@ -64,7 +83,8 @@ public class JavaSwitches {
   /** Kimono key to opt a device out of low-end device mode. */
   public static final String DISABLE_LOW_END_DEVICE_MODE = "DisableLowEndDeviceMode";
 
-  public static final String ENABLE_LOW_END_DEVICE_MODE_SWITCH = "--enable-low-end-device-mode";
+  public static final String ENABLE_LOW_END_DEVICE_MODE_SWITCH =
+      formatSwitch(BaseSwitches.ENABLE_LOW_END_DEVICE_MODE);
 
   /** flag to re-enable freeze and resume events */
   public static final String ENABLE_FREEZE = "EnableFreeze";
@@ -285,15 +305,20 @@ public class JavaSwitches {
     List<String> defaultArgs = new ArrayList<>();
     defaultArgs.add(DEFAULT_DISABLE_QUIC);
     defaultArgs.add(ENABLE_LOW_END_DEVICE_MODE_SWITCH);
-    if (!"arm64".equals(BuildInfo.getArch()) && !"x86_64".equals(BuildInfo.getArch())) {
-      defaultArgs.add("--force-gpu-mem-available-mb=" + DEFAULT_FORCE_GPU_MEM_AVAILABLE_MB);
+    if (!is64BitArch()) {
+      defaultArgs.add(
+          formatSwitch(
+              CobaltNativeSwitches.FORCE_GPU_MEM_AVAILABLE_MB, DEFAULT_FORCE_GPU_MEM_AVAILABLE_MB));
     }
+    StringJoiner defaultJsFlags = new StringJoiner(";");
+    defaultJsFlags.add(
+        formatSwitch(V8Flags.INITIAL_OLD_SPACE_SIZE, DEFAULT_INITIAL_OLD_SPACE_SIZE));
+    defaultJsFlags.add(formatSwitch(V8Flags.MAX_OLD_SPACE_SIZE, DEFAULT_MAX_OLD_SPACE_SIZE));
     defaultArgs.add(
-        "--js-flags=--initial-old-space-size="
-            + DEFAULT_INITIAL_OLD_SPACE_SIZE
-            + ";--max-old-space-size="
-            + DEFAULT_MAX_OLD_SPACE_SIZE);
-    defaultArgs.add("--force-device-scale-factor=" + DEFAULT_FORCE_DEVICE_SCALE_FACTOR);
+        formatSwitch(CobaltNativeSwitches.JAVA_SCRIPT_FLAGS, defaultJsFlags.toString()));
+    defaultArgs.add(
+        formatSwitch(
+            CobaltNativeSwitches.FORCE_DEVICE_SCALE_FACTOR, DEFAULT_FORCE_DEVICE_SCALE_FACTOR));
     return defaultArgs;
   }
 
@@ -326,67 +351,74 @@ public class JavaSwitches {
     }
 
     if (javaSwitches.containsKey(JavaSwitches.USE_MINOR_MS_FOR_MINOR_GC)) {
-      jsFlags.add("--minor-ms");
-      jsFlags.add("--minor-ms-min-new-space-capacity-for-concurrent-marking-mb=0");
+      jsFlags.add(formatSwitch(V8Flags.MINOR_MS));
+      jsFlags.add(
+          formatSwitch(
+              V8Flags.MINOR_MS_MIN_NEW_SPACE_CAPACITY_FOR_CONCURRENT_MARKING_MB,
+              DEFAULT_MINOR_MS_MIN_NEW_SPACE_CAPACITY_MB));
     }
 
     String oldTime = getSanitizedNumericValue(javaSwitches, JavaSwitches.V8_SET_BYTECODE_OLD_TIME);
     if (oldTime != null) {
-      jsFlags.add("--flush-bytecode");
-      jsFlags.add("--bytecode-old-time=" + oldTime);
+      jsFlags.add(formatSwitch(V8Flags.FLUSH_BYTECODE));
+      jsFlags.add(formatSwitch(V8Flags.BYTECODE_OLD_TIME, oldTime));
     }
 
     String initialOldSpace =
         getSanitizedNumericValue(javaSwitches, JavaSwitches.V8_INITIAL_OLD_SPACE_SIZE);
-    if (initialOldSpace != null) {
-      jsFlags.add("--initial-old-space-size=" + initialOldSpace);
-    } else {
-      jsFlags.add("--initial-old-space-size=" + DEFAULT_INITIAL_OLD_SPACE_SIZE);
-    }
+    jsFlags.add(
+        formatSwitch(
+            V8Flags.INITIAL_OLD_SPACE_SIZE,
+            initialOldSpace != null ? initialOldSpace : DEFAULT_INITIAL_OLD_SPACE_SIZE));
 
     if (javaSwitches.containsKey(JavaSwitches.V8_DISABLE_SPARKPLUG)) {
-      jsFlags.add("--no-sparkplug");
+      jsFlags.add(formatSwitch(V8Flags.NO_SPARKPLUG));
     }
 
     String maxOldSpace = getSanitizedNumericValue(javaSwitches, JavaSwitches.V8_MAX_OLD_SPACE_SIZE);
-    if (maxOldSpace != null) {
-      jsFlags.add("--max-old-space-size=" + maxOldSpace);
-    } else {
-      jsFlags.add("--max-old-space-size=" + DEFAULT_MAX_OLD_SPACE_SIZE);
-    }
+    jsFlags.add(
+        formatSwitch(
+            V8Flags.MAX_OLD_SPACE_SIZE,
+            maxOldSpace != null ? maxOldSpace : DEFAULT_MAX_OLD_SPACE_SIZE));
 
     String forceGpuMem =
         getSanitizedNumericValue(javaSwitches, JavaSwitches.FORCE_GPU_MEM_AVAILABLE_MB);
     if (forceGpuMem != null) {
-      extraCommandLineArgs.add("--force-gpu-mem-available-mb=" + forceGpuMem);
-    } else if (!"arm64".equals(BuildInfo.getArch()) && !"x86_64".equals(BuildInfo.getArch())) {
       extraCommandLineArgs.add(
-          "--force-gpu-mem-available-mb=" + DEFAULT_FORCE_GPU_MEM_AVAILABLE_MB);
+          formatSwitch(CobaltNativeSwitches.FORCE_GPU_MEM_AVAILABLE_MB, forceGpuMem));
+    } else if (!is64BitArch()) {
+      extraCommandLineArgs.add(
+          formatSwitch(
+              CobaltNativeSwitches.FORCE_GPU_MEM_AVAILABLE_MB, DEFAULT_FORCE_GPU_MEM_AVAILABLE_MB));
     }
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_GPU_MEMORY_BUFFER_COMPOSITOR_RESOURCES)) {
-      extraCommandLineArgs.add("--disable-gpu-memory-buffer-compositor-resources");
+      extraCommandLineArgs.add(
+          formatSwitch(CobaltNativeSwitches.DISABLE_GPU_MEMORY_BUFFER_COMPOSITOR_RESOURCES));
     }
 
     String limit = getSanitizedNumericValue(javaSwitches, JavaSwitches.GPU_IMAGE_CACHE_LIMIT_ITEMS);
     if (limit != null) {
-      extraCommandLineArgs.add("--cc-image-cache-limit-items=" + limit);
+      extraCommandLineArgs.add(
+          formatSwitch(CobaltNativeSwitches.CC_IMAGE_CACHE_LIMIT_ITEMS, limit));
     }
 
     String decodeLimit =
         getSanitizedNumericValue(javaSwitches, JavaSwitches.LIMIT_IMAGE_DECODE_CACHE_SIZE_MB);
     if (decodeLimit != null) {
-      extraCommandLineArgs.add("--cc-image-cache-limit-mbs=" + decodeLimit);
+      extraCommandLineArgs.add(
+          formatSwitch(CobaltNativeSwitches.CC_IMAGE_CACHE_LIMIT_MBS, decodeLimit));
     }
 
     String budget =
         getSanitizedNumericValue(javaSwitches, JavaSwitches.DECODED_IMAGE_WORKING_SET_BUDGET_BYTES);
     if (budget != null) {
-      extraCommandLineArgs.add("--decoded-image-working-set-budget-bytes=" + budget);
+      extraCommandLineArgs.add(
+          formatSwitch(CobaltNativeSwitches.DECODED_IMAGE_WORKING_SET_BUDGET_BYTES, budget));
     }
 
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_SCALING_CLIPPED_IMAGES)) {
-      extraCommandLineArgs.add("--enable-scaling-clipped-images");
+      extraCommandLineArgs.add(formatSwitch(CobaltNativeSwitches.ENABLE_CLIPPED_IMAGE_SCALING));
     }
 
     StringJoiner mojoPipeParams = new StringJoiner("/");
@@ -394,126 +426,163 @@ public class JavaSwitches {
         getSanitizedNumericValue(
             javaSwitches, JavaSwitches.COBALT_DYNAMIC_MOJO_PIPE_SUBRESOURCE_SIZE);
     if (subresourceSize != null) {
-      mojoPipeParams.add("subresource_size/" + subresourceSize);
+      mojoPipeParams.add(featureParam(PARAM_SUBRESOURCE_SIZE, subresourceSize));
     }
 
     String mediaSize =
         getSanitizedNumericValue(javaSwitches, JavaSwitches.COBALT_DYNAMIC_MOJO_PIPE_MEDIA_SIZE);
     if (mediaSize != null) {
-      mojoPipeParams.add("media_size/" + mediaSize);
+      mojoPipeParams.add(featureParam(PARAM_MEDIA_SIZE, mediaSize));
     }
 
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_COBALT_DYNAMIC_MOJO_PIPE_SIZING)
         || mojoPipeParams.length() > 0) {
       if (mojoPipeParams.length() > 0) {
         extraCommandLineArgs.add(
-            "--enable-features=CobaltDynamicMojoPipeSizing:" + mojoPipeParams.toString());
+            enableFeatures(
+                featureWithParams(
+                    CobaltNativeFeatures.COBALT_DYNAMIC_MOJO_PIPE_SIZING,
+                    mojoPipeParams.toString())));
       } else {
-        extraCommandLineArgs.add("--enable-features=CobaltDynamicMojoPipeSizing");
+        extraCommandLineArgs.add(
+            enableFeatures(CobaltNativeFeatures.COBALT_DYNAMIC_MOJO_PIPE_SIZING));
       }
     }
 
     if (javaSwitches.containsKey(
         JavaSwitches.ENABLE_COBALT_CONTENT_LENGTH_AWARE_MOJO_PIPE_SIZING)) {
-      extraCommandLineArgs.add("--enable-features=CobaltContentLengthAwareMojoPipeSizing");
+      extraCommandLineArgs.add(
+          enableFeatures(CobaltNativeFeatures.COBALT_CONTENT_LENGTH_AWARE_MOJO_PIPE_SIZING));
     }
 
     StringJoiner featureParams = new StringJoiner("/");
     String interestAreaSize =
         getSanitizedNumericValue(javaSwitches, JavaSwitches.INTEREST_AREA_SIZE_IN_PIXELS);
     if (interestAreaSize != null) {
-      featureParams.add("size_in_pixels/" + interestAreaSize);
+      featureParams.add(featureParam(PARAM_SIZE_IN_PIXELS, interestAreaSize));
     }
 
     String reclaimDelay =
         getSanitizedNumericValue(javaSwitches, JavaSwitches.RECLAIM_DELAY_IN_SECONDS);
     if (reclaimDelay != null) {
-      featureParams.add("reclaim_delay_s/" + reclaimDelay);
+      featureParams.add(featureParam(PARAM_RECLAIM_DELAY_S, reclaimDelay));
     }
 
     if (featureParams.length() > 0) {
-      extraCommandLineArgs.add("--enable-features=SmallerInterestArea:" + featureParams.toString());
+      extraCommandLineArgs.add(
+          enableFeatures(
+              featureWithParams(
+                  CobaltNativeFeatures.SMALLER_INTEREST_AREA, featureParams.toString())));
     }
 
     if (jsFlags.length() > 0) {
-      extraCommandLineArgs.add("--js-flags=" + jsFlags.toString());
+      extraCommandLineArgs.add(
+          formatSwitch(CobaltNativeSwitches.JAVA_SCRIPT_FLAGS, jsFlags.toString()));
     }
 
     if (javaSwitches.containsKey(JavaSwitches.AVOID_CC_REUSE_RESOURCE)) {
-      extraCommandLineArgs.add("--avoid-cc-reuse-resource");
+      extraCommandLineArgs.add(formatSwitch(CobaltNativeSwitches.AVOID_CC_REUSE_RESOURCE));
     }
 
     if (javaSwitches.containsKey(JavaSwitches.COBALT_BYPASS_RESOURCE_LOAD_SCHEDULER)) {
       extraCommandLineArgs.add(
-          "--enable-features=" + JavaSwitches.COBALT_BYPASS_RESOURCE_LOAD_SCHEDULER);
+          enableFeatures(CobaltNativeFeatures.COBALT_BYPASS_RESOURCE_LOAD_SCHEDULER));
     }
 
     if (javaSwitches.containsKey(JavaSwitches.COBALT_BYPASS_HTML_PRELOAD_SCANNER)) {
       extraCommandLineArgs.add(
-          "--enable-features=" + JavaSwitches.COBALT_BYPASS_HTML_PRELOAD_SCANNER);
+          enableFeatures(CobaltNativeFeatures.COBALT_BYPASS_HTML_PRELOAD_SCANNER));
     }
 
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_COBALT_MMAP_FONT_CACHE)) {
-      extraCommandLineArgs.add("--enable-features=CobaltMmapFontCache");
+      extraCommandLineArgs.add(enableFeatures(CobaltNativeFeatures.COBALT_MMAP_FONT_CACHE));
     }
 
     if (javaSwitches.containsKey(JavaSwitches.AREA_BASED_VIDEO_BUFFER_BUDGET)) {
-      extraCommandLineArgs.add("--enable-features=AreaBasedVideoBufferBudget");
+      extraCommandLineArgs.add(enableFeatures(StarboardFeatures.AREA_BASED_VIDEO_BUFFER_BUDGET));
     }
 
     if (javaSwitches.containsKey(
         JavaSwitches.ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND)) {
-      extraCommandLineArgs.add("--allow-critical-memory-pressure-handling-in-foreground");
+      extraCommandLineArgs.add(
+          formatSwitch(CobaltNativeSwitches.ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND));
     }
 
     if (javaSwitches.containsKey(JavaSwitches.EVICT_MEMORY_CACHE_ON_CRITICAL_MEMORY_PRESSURE)) {
       extraCommandLineArgs.add(
-          "--enable-features=" + JavaSwitches.EVICT_MEMORY_CACHE_ON_CRITICAL_MEMORY_PRESSURE);
+          enableFeatures(CobaltNativeFeatures.EVICT_MEMORY_CACHE_ON_CRITICAL_MEMORY_PRESSURE));
     }
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_LESS_AGGRESSIVE_PARKABLE_STRING)) {
-      extraCommandLineArgs.add("--disable-features=LessAggressiveParkableString");
+      extraCommandLineArgs.add(
+          disableFeatures(CobaltNativeFeatures.LESS_AGGRESSIVE_PARKABLE_STRING));
     }
 
     List<String> enabledMemoryPressureFeatures = new ArrayList<>();
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_MODERATE_MEMORY_PRESSURE)) {
-      enabledMemoryPressureFeatures.add("CobaltEnableModerateMemoryPressure");
+      enabledMemoryPressureFeatures.add(BaseFeatures.COBALT_ENABLE_MODERATE_MEMORY_PRESSURE);
     }
-    if (javaSwitches.containsKey(JavaSwitches.MEMORY_PRESSURE_COOLDOWN_IN_SECONDS)) {
-      String cooldown = javaSwitches.get(JavaSwitches.MEMORY_PRESSURE_COOLDOWN_IN_SECONDS);
-      if (cooldown != null) {
-        String cooldownVal = cooldown.replaceAll("[^0-9]", "");
-        if (!cooldownVal.isEmpty()) {
-          enabledMemoryPressureFeatures.add(
-              "CobaltMemoryPressureCooldown:cooldown-seconds/" + cooldownVal);
-        }
-      }
+    String cooldownVal =
+        getSanitizedNumericValue(javaSwitches, JavaSwitches.MEMORY_PRESSURE_COOLDOWN_IN_SECONDS);
+    if (cooldownVal != null) {
+      enabledMemoryPressureFeatures.add(
+          featureWithParams(
+              BaseFeatures.COBALT_MEMORY_PRESSURE_COOLDOWN,
+              featureParam(PARAM_COOLDOWN_SECONDS, cooldownVal)));
     }
     if (!enabledMemoryPressureFeatures.isEmpty()) {
-      extraCommandLineArgs.add(
-          "--enable-features=" + String.join(",", enabledMemoryPressureFeatures));
+      extraCommandLineArgs.add(enableFeatures(String.join(",", enabledMemoryPressureFeatures)));
     }
 
     // Convert the Java switch to a command-line flag so C++ code and non-Activity Java components
     // (such as NetworkStatus) can query
     // CommandLine.getInstance().hasSwitch("use-starboard-lifecycle").
     if (javaSwitches.containsKey(JavaSwitches.USE_STARBOARD_LIFECYCLE)) {
-      extraCommandLineArgs.add("--" + USE_STARBOARD_LIFECYCLE_SWITCH);
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.ENABLE_ACTIVITY_LIFECYCLE_COORDINATION)) {
-      extraCommandLineArgs.add("--enable-activity-lifecycle-coordination");
+      extraCommandLineArgs.add(formatSwitch(USE_STARBOARD_LIFECYCLE_SWITCH));
     }
 
     if (javaSwitches.containsKey(JavaSwitches.FORCE_720P_UI_ON_1GB_DEVICES)
         && DeviceUtil.is1GbDevice()
         && DeviceUtil.isDisplayAtLeast1080p()) {
-      extraCommandLineArgs.add("--force-device-scale-factor=1.5");
+      extraCommandLineArgs.add(
+          formatSwitch(
+              CobaltNativeSwitches.FORCE_DEVICE_SCALE_FACTOR, FORCE_720P_DEVICE_SCALE_FACTOR));
     } else {
-      extraCommandLineArgs.add("--force-device-scale-factor=" + DEFAULT_FORCE_DEVICE_SCALE_FACTOR);
+      extraCommandLineArgs.add(
+          formatSwitch(
+              CobaltNativeSwitches.FORCE_DEVICE_SCALE_FACTOR, DEFAULT_FORCE_DEVICE_SCALE_FACTOR));
     }
 
     return extraCommandLineArgs;
+  }
+
+  private static boolean is64BitArch() {
+    String arch = BuildInfo.getArch();
+    return ARCH_ARM64.equals(arch) || ARCH_X86_64.equals(arch);
+  }
+
+  private static String formatSwitch(String switchName) {
+    return "--" + switchName;
+  }
+
+  private static String formatSwitch(String switchName, String value) {
+    return "--" + switchName + "=" + value;
+  }
+
+  private static String enableFeatures(String features) {
+    return formatSwitch(BaseSwitches.ENABLE_FEATURES, features);
+  }
+
+  private static String disableFeatures(String features) {
+    return formatSwitch(BaseSwitches.DISABLE_FEATURES, features);
+  }
+
+  private static String featureWithParams(String featureName, String params) {
+    return featureName + ":" + params;
+  }
+
+  private static String featureParam(String paramName, String value) {
+    return paramName + "/" + value;
   }
 
   private static String getSanitizedNumericValue(Map<String, String> javaSwitches, String key) {

@@ -49,6 +49,31 @@ java_cpp_enum("cobalt_crash_streak_thresholds_java") {
   sources = [ "//cobalt/browser/constants/cobalt_experiment_names.h" ]
 }
 
+java_cpp_features("cobalt_native_features_java") {
+  visibility = [ ":*" ]
+  sources = [
+    "//cc/base/features.cc",
+    "//cobalt/renderer/rasterizer/skia/skia/src/ports/SkWoff2FontCache_cobalt.cc",
+    "//services/network/public/cpp/features.cc",
+    "//third_party/blink/common/features.cc",
+  ]
+  template =
+      "apk/app/src/main/java/dev/cobalt/util/CobaltNativeFeatures.java.tmpl"
+}
+
+java_cpp_strings("cobalt_native_switches_java") {
+  visibility = [ ":*" ]
+  sources = [
+    "//cc/base/switches.cc",
+    "//content/public/common/content_switches.cc",
+    "//gpu/command_buffer/service/gpu_switches.cc",
+    "//third_party/blink/common/switches.cc",
+    "//ui/display/display_switches.cc",
+  ]
+  template =
+      "apk/app/src/main/java/dev/cobalt/util/CobaltNativeSwitches.java.tmpl"
+}
+
 generate_jni("jni_headers") {
   sources = [
     "apk/app/src/main/java/dev/cobalt/coat/AppEventBridge.java",
@@ -152,6 +177,8 @@ android_library("cobalt_main_java") {
     ":cobalt_build_info_srcjar",
     ":cobalt_crash_streak_thresholds_java",
     ":cobalt_experiment_names_java",
+    ":cobalt_native_features_java",
+    ":cobalt_native_switches_java",
     ":cobalt_pref_names_java",
     ":java_features_srcjar",
     ":jni_headers",
@@ -210,6 +237,7 @@ android_library("cobalt_main_java") {
     "apk/app/src/main/java/dev/cobalt/util/ProcessExitReasonHelper.java",
     "apk/app/src/main/java/dev/cobalt/util/SynchronizedHolder.java",
     "apk/app/src/main/java/dev/cobalt/util/SystemPropertiesHelper.java",
+    "apk/app/src/main/java/dev/cobalt/util/V8Flags.java",
   ]
 
   if (!use_evergreen) {
