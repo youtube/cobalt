@@ -342,7 +342,7 @@ bool IsBackgrounded(std::optional<base::Process::Priority> process_priority) {
 bool IsCriticalAllowedInForeground() {
   static const bool kAllowCriticalInForeground =
       base::CommandLine::ForCurrentProcess()->HasSwitch(
-          "allow-critical-memory-pressure-handling-in-foreground");
+          switches::kAllowCriticalMemoryPressureHandlingInForeground);
   return kAllowCriticalInForeground;
 }
 #endif  // BUILDFLAG(IS_COBALT)

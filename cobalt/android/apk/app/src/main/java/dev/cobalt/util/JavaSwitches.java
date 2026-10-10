@@ -24,7 +24,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
-import org.chromium.base.BuildInfo;
+import org.chromium.base.BaseSwitches;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
 import org.jni_zero.CalledByNative;
@@ -33,141 +33,17 @@ import org.json.JSONObject;
 
 /** Defines the constant names for feature switches used in Kimono. */
 @JNINamespace("cobalt")
-public class JavaSwitches {
+public class JavaSwitches extends CobaltJavaSwitchNames {
   private static final String TAG = "JavaSwitches";
 
-  /** Default command line constants launched from A/B experiments. */
-  public static final String DEFAULT_DISABLE_QUIC = "--disable-quic";
-
-  public static final String DEFAULT_INITIAL_OLD_SPACE_SIZE = "64";
-  public static final String DEFAULT_MAX_OLD_SPACE_SIZE = "512";
-  public static final String DEFAULT_FORCE_GPU_MEM_AVAILABLE_MB = "64";
-  public static final String DEFAULT_FORCE_DEVICE_SCALE_FACTOR = "1";
-
-  public static final String ENABLE_QUIC = "EnableQUIC";
+  public static final String ENABLE_LOW_END_DEVICE_MODE_SWITCH =
+      "--" + BaseSwitches.ENABLE_LOW_END_DEVICE_MODE;
 
   /**
-   * Java switch key set via Intent or Android metadata bundle to enable Starboard lifecycle
-   * migration.
+   * Alias for {@link CobaltJavaSwitchNames#FORCE720P_UI_ON1_GB_DEVICES} to preserve the historical
+   * underscore before digits (`_720P_` / `_1GB_`).
    */
-  public static final String USE_STARBOARD_LIFECYCLE = "UseStarboardLifeCycle";
-
-  /**
-   * Command-line switch name passed to CommandLine when USE_STARBOARD_LIFECYCLE is set. Allows C++
-   * code and non-Activity Java classes (e.g. NetworkStatus) to query CommandLine.
-   */
-  public static final String USE_STARBOARD_LIFECYCLE_SWITCH = "use-starboard-lifecycle";
-
-  public static final String DISABLE_STARTUP_GUARD = "DisableStartupGuard";
-  public static final String STARTUP_GUARD_INTERVAL_IN_SECONDS = "StartupGuardIntervalInSeconds";
-
-  /** Kimono key to opt a device out of low-end device mode. */
-  public static final String DISABLE_LOW_END_DEVICE_MODE = "DisableLowEndDeviceMode";
-
-  public static final String ENABLE_LOW_END_DEVICE_MODE_SWITCH = "--enable-low-end-device-mode";
-
-  /** flag to re-enable freeze and resume events */
-  public static final String ENABLE_FREEZE = "EnableFreeze";
-
-  public static final String USE_MINOR_MS_FOR_MINOR_GC = "UseMinorMSForMinorGC";
-
-  /** flag to tune compositor offscreen interest area size in pixels. */
-  public static final String INTEREST_AREA_SIZE_IN_PIXELS = "InterestAreaSizeInPixels";
-
-  /** flag to tune delay in seconds before reclaiming prepaint tiles when idle. */
-  public static final String RECLAIM_DELAY_IN_SECONDS = "ReclaimDelayInSeconds";
-
-  /** flag to disable GPU memory buffer compositor resources. */
-  public static final String DISABLE_GPU_MEMORY_BUFFER_COMPOSITOR_RESOURCES =
-      "DisableGpuMemoryBufferCompositorResources";
-
-  /** flag to limit GPU image cache items */
-  public static final String GPU_IMAGE_CACHE_LIMIT_ITEMS = "GpuImageCacheLimitItems";
-
-  /** flag to limit GPU image cache bytes, resuing LimitImageDecodeCacheSizeMb */
-  public static final String LIMIT_IMAGE_DECODE_CACHE_SIZE_MB = "LimitImageDecodeCacheSizeMb";
-
-  /** flag to limit GPU image cache working set budget bytes */
-  public static final String DECODED_IMAGE_WORKING_SET_BUDGET_BYTES =
-      "DecodedImageWorkingSetBudgetBytes";
-
-  /** flag to allow scaling clipped images in GpuImageDecodeCache */
-  public static final String ENABLE_SCALING_CLIPPED_IMAGES = "EnableScalingClippedImages";
-
-  /** flag to enable dynamic mojo pipe sizing. */
-  public static final String ENABLE_COBALT_DYNAMIC_MOJO_PIPE_SIZING =
-      "EnableCobaltDynamicMojoPipeSizing";
-
-  /** flag to tune cobalt dynamic mojo pipe sizing subresource size in bytes. */
-  public static final String COBALT_DYNAMIC_MOJO_PIPE_SUBRESOURCE_SIZE =
-      "CobaltDynamicMojoPipeSubresourceSize";
-
-  /** flag to tune cobalt dynamic mojo pipe sizing media size in bytes. */
-  public static final String COBALT_DYNAMIC_MOJO_PIPE_MEDIA_SIZE = "CobaltDynamicMojoPipeMediaSize";
-
-  /** flag to shrink mojo data pipes to the response Content-Length when it is known. */
-  public static final String ENABLE_COBALT_CONTENT_LENGTH_AWARE_MOJO_PIPE_SIZING =
-      "EnableCobaltContentLengthAwareMojoPipeSizing";
-
-  /** Avoid reuse resource. */
-  public static final String AVOID_CC_REUSE_RESOURCE = "AvoidCCReuseResource";
-
-  /** flag to bypass ResourceLoadScheduler subresource queueing and throttling. */
-  public static final String COBALT_BYPASS_RESOURCE_LOAD_SCHEDULER =
-      "CobaltBypassResourceLoadScheduler";
-
-  /** flag to bypass Blink HTMLPreloadScanner and HTMLResourcePreloader. */
-  public static final String COBALT_BYPASS_HTML_PRELOAD_SCANNER = "CobaltBypassHTMLPreloadScanner";
-
-  /** flag to enable mmap-backed WOFF2 font decompression disk cache. */
-  public static final String ENABLE_COBALT_MMAP_FONT_CACHE = "EnableCobaltMmapFontCache";
-
-  /** flag to aggressively flush v8 bytecode after a configurable old time. */
-  public static final String V8_SET_BYTECODE_OLD_TIME = "V8SetBytecodeOldTime";
-
-  public static final String V8_INITIAL_OLD_SPACE_SIZE = "V8InitialOldSpaceSize";
-  public static final String V8_MAX_OLD_SPACE_SIZE = "V8MaxOldSpaceSize";
-
-  /** flag to force GPU memory available in MB. */
-  public static final String FORCE_GPU_MEM_AVAILABLE_MB = "ForceGpuMemAvailableMb";
-
-  /** flag to enable area based buffer budget experiment. */
-  public static final String AREA_BASED_VIDEO_BUFFER_BUDGET = "AreaBasedVideoBufferBudget";
-
-  /** flag to allow critical memory pressure handling in foreground for V8. */
-  public static final String ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND =
-      "AllowCriticalMemoryPressureHandlingInForeground";
-
-  /** flag to evict blink memory cache on critical memory pressure. */
-  public static final String EVICT_MEMORY_CACHE_ON_CRITICAL_MEMORY_PRESSURE =
-      "EvictMemoryCacheOnCriticalMemoryPressure";
-
-  /**
-   * Flag to disable LessAggressiveParkableString feature to unpause foreground compression and use
-   * a 2-second aging interval.
-   */
-  public static final String DISABLE_LESS_AGGRESSIVE_PARKABLE_STRING =
-      "DisableLessAggressiveParkableString";
-
-  /** Flag to disable v8 baseline compiler sparkplug. */
-  public static final String V8_DISABLE_SPARKPLUG = "V8DisableSparkplug";
-
-  /** flag to enable moderate memory pressure handling on Android. */
-  public static final String ENABLE_MODERATE_MEMORY_PRESSURE = "EnableModerateMemoryPressure";
-
-  /** flag to configure memory pressure throttling cooldown in seconds. */
-  public static final String MEMORY_PRESSURE_COOLDOWN_IN_SECONDS =
-      "MemoryPressureCooldownInSeconds";
-
-  /**
-   * Flag to enable activity lifecycle coordination and safe surface teardown across overlapping
-   * activities.
-   */
-  public static final String ENABLE_ACTIVITY_LIFECYCLE_COORDINATION =
-      "EnableActivityLifecycleCoordination";
-
-  /** Flag to force 720p UI for 1GB RAM devices on 1080p+ displays for A/B testing. */
-  public static final String FORCE_720P_UI_ON_1GB_DEVICES = "Force720pUiOn1GbDevices";
+  public static final String FORCE_720P_UI_ON_1GB_DEVICES = FORCE720P_UI_ON1_GB_DEVICES;
 
   private static Boolean sOverrideForTesting;
 
@@ -282,18 +158,11 @@ public class JavaSwitches {
   }
 
   public static List<String> getDefaultCommandLineArgs() {
+    // Only --enable-low-end-device-mode is needed before LibraryLoader initializes JNI.
+    // All other default switches (--disable-quic, --force-gpu-mem-available-mb, --js-flags,
+    // --force-device-scale-factor) are applied in C++ via ApplyJavaSwitches().
     List<String> defaultArgs = new ArrayList<>();
-    defaultArgs.add(DEFAULT_DISABLE_QUIC);
     defaultArgs.add(ENABLE_LOW_END_DEVICE_MODE_SWITCH);
-    if (!"arm64".equals(BuildInfo.getArch()) && !"x86_64".equals(BuildInfo.getArch())) {
-      defaultArgs.add("--force-gpu-mem-available-mb=" + DEFAULT_FORCE_GPU_MEM_AVAILABLE_MB);
-    }
-    defaultArgs.add(
-        "--js-flags=--initial-old-space-size="
-            + DEFAULT_INITIAL_OLD_SPACE_SIZE
-            + ";--max-old-space-size="
-            + DEFAULT_MAX_OLD_SPACE_SIZE);
-    defaultArgs.add("--force-device-scale-factor=" + DEFAULT_FORCE_DEVICE_SCALE_FACTOR);
     return defaultArgs;
   }
 
@@ -312,219 +181,45 @@ public class JavaSwitches {
     }
 
     List<String> extraCommandLineArgs = new ArrayList<>();
-    StringJoiner jsFlags = new StringJoiner(";");
-
-    if (!javaSwitches.containsKey(JavaSwitches.ENABLE_QUIC)) {
-      extraCommandLineArgs.add(DEFAULT_DISABLE_QUIC);
-    }
 
     // TODO(cobalt, b/563373348): Investigate performance impact on high-end devices. Use Java
-    // switch due to IsLowEndDevice called before Finch is initialized. We should migrate to Finch
+    // switch due to IsLowEndDevice called before Finch is initialized. We should migrate to
+    // Finch
     // if high-end device benefits from removing this low-end-device-mode flag.
-    if (!javaSwitches.containsKey(JavaSwitches.DISABLE_LOW_END_DEVICE_MODE)) {
+    if (!javaSwitches.containsKey(DISABLE_LOW_END_DEVICE_MODE)) {
       extraCommandLineArgs.add(ENABLE_LOW_END_DEVICE_MODE_SWITCH);
     }
 
-    if (javaSwitches.containsKey(JavaSwitches.USE_MINOR_MS_FOR_MINOR_GC)) {
-      jsFlags.add("--minor-ms");
-      jsFlags.add("--minor-ms-min-new-space-capacity-for-concurrent-marking-mb=0");
-    }
-
-    String oldTime = getSanitizedNumericValue(javaSwitches, JavaSwitches.V8_SET_BYTECODE_OLD_TIME);
-    if (oldTime != null) {
-      jsFlags.add("--flush-bytecode");
-      jsFlags.add("--bytecode-old-time=" + oldTime);
-    }
-
-    String initialOldSpace =
-        getSanitizedNumericValue(javaSwitches, JavaSwitches.V8_INITIAL_OLD_SPACE_SIZE);
-    if (initialOldSpace != null) {
-      jsFlags.add("--initial-old-space-size=" + initialOldSpace);
-    } else {
-      jsFlags.add("--initial-old-space-size=" + DEFAULT_INITIAL_OLD_SPACE_SIZE);
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.V8_DISABLE_SPARKPLUG)) {
-      jsFlags.add("--no-sparkplug");
-    }
-
-    String maxOldSpace = getSanitizedNumericValue(javaSwitches, JavaSwitches.V8_MAX_OLD_SPACE_SIZE);
-    if (maxOldSpace != null) {
-      jsFlags.add("--max-old-space-size=" + maxOldSpace);
-    } else {
-      jsFlags.add("--max-old-space-size=" + DEFAULT_MAX_OLD_SPACE_SIZE);
-    }
-
-    String forceGpuMem =
-        getSanitizedNumericValue(javaSwitches, JavaSwitches.FORCE_GPU_MEM_AVAILABLE_MB);
-    if (forceGpuMem != null) {
-      extraCommandLineArgs.add("--force-gpu-mem-available-mb=" + forceGpuMem);
-    } else if (!"arm64".equals(BuildInfo.getArch()) && !"x86_64".equals(BuildInfo.getArch())) {
-      extraCommandLineArgs.add(
-          "--force-gpu-mem-available-mb=" + DEFAULT_FORCE_GPU_MEM_AVAILABLE_MB);
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.DISABLE_GPU_MEMORY_BUFFER_COMPOSITOR_RESOURCES)) {
-      extraCommandLineArgs.add("--disable-gpu-memory-buffer-compositor-resources");
-    }
-
-    String limit = getSanitizedNumericValue(javaSwitches, JavaSwitches.GPU_IMAGE_CACHE_LIMIT_ITEMS);
-    if (limit != null) {
-      extraCommandLineArgs.add("--cc-image-cache-limit-items=" + limit);
-    }
-
-    String decodeLimit =
-        getSanitizedNumericValue(javaSwitches, JavaSwitches.LIMIT_IMAGE_DECODE_CACHE_SIZE_MB);
-    if (decodeLimit != null) {
-      extraCommandLineArgs.add("--cc-image-cache-limit-mbs=" + decodeLimit);
-    }
-
-    String budget =
-        getSanitizedNumericValue(javaSwitches, JavaSwitches.DECODED_IMAGE_WORKING_SET_BUDGET_BYTES);
-    if (budget != null) {
-      extraCommandLineArgs.add("--decoded-image-working-set-budget-bytes=" + budget);
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.ENABLE_SCALING_CLIPPED_IMAGES)) {
-      extraCommandLineArgs.add("--enable-scaling-clipped-images");
-    }
-
-    StringJoiner mojoPipeParams = new StringJoiner("/");
-    String subresourceSize =
-        getSanitizedNumericValue(
-            javaSwitches, JavaSwitches.COBALT_DYNAMIC_MOJO_PIPE_SUBRESOURCE_SIZE);
-    if (subresourceSize != null) {
-      mojoPipeParams.add("subresource_size/" + subresourceSize);
-    }
-
-    String mediaSize =
-        getSanitizedNumericValue(javaSwitches, JavaSwitches.COBALT_DYNAMIC_MOJO_PIPE_MEDIA_SIZE);
-    if (mediaSize != null) {
-      mojoPipeParams.add("media_size/" + mediaSize);
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.ENABLE_COBALT_DYNAMIC_MOJO_PIPE_SIZING)
-        || mojoPipeParams.length() > 0) {
-      if (mojoPipeParams.length() > 0) {
-        extraCommandLineArgs.add(
-            "--enable-features=CobaltDynamicMojoPipeSizing:" + mojoPipeParams.toString());
-      } else {
-        extraCommandLineArgs.add("--enable-features=CobaltDynamicMojoPipeSizing");
-      }
-    }
-
-    if (javaSwitches.containsKey(
-        JavaSwitches.ENABLE_COBALT_CONTENT_LENGTH_AWARE_MOJO_PIPE_SIZING)) {
-      extraCommandLineArgs.add("--enable-features=CobaltContentLengthAwareMojoPipeSizing");
-    }
-
-    StringJoiner featureParams = new StringJoiner("/");
-    String interestAreaSize =
-        getSanitizedNumericValue(javaSwitches, JavaSwitches.INTEREST_AREA_SIZE_IN_PIXELS);
-    if (interestAreaSize != null) {
-      featureParams.add("size_in_pixels/" + interestAreaSize);
-    }
-
-    String reclaimDelay =
-        getSanitizedNumericValue(javaSwitches, JavaSwitches.RECLAIM_DELAY_IN_SECONDS);
-    if (reclaimDelay != null) {
-      featureParams.add("reclaim_delay_s/" + reclaimDelay);
-    }
-
-    if (featureParams.length() > 0) {
-      extraCommandLineArgs.add("--enable-features=SmallerInterestArea:" + featureParams.toString());
-    }
-
-    if (jsFlags.length() > 0) {
-      extraCommandLineArgs.add("--js-flags=" + jsFlags.toString());
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.AVOID_CC_REUSE_RESOURCE)) {
-      extraCommandLineArgs.add("--avoid-cc-reuse-resource");
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.COBALT_BYPASS_RESOURCE_LOAD_SCHEDULER)) {
-      extraCommandLineArgs.add(
-          "--enable-features=" + JavaSwitches.COBALT_BYPASS_RESOURCE_LOAD_SCHEDULER);
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.COBALT_BYPASS_HTML_PRELOAD_SCANNER)) {
-      extraCommandLineArgs.add(
-          "--enable-features=" + JavaSwitches.COBALT_BYPASS_HTML_PRELOAD_SCANNER);
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.ENABLE_COBALT_MMAP_FONT_CACHE)) {
-      extraCommandLineArgs.add("--enable-features=CobaltMmapFontCache");
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.AREA_BASED_VIDEO_BUFFER_BUDGET)) {
-      extraCommandLineArgs.add("--enable-features=AreaBasedVideoBufferBudget");
-    }
-
-    if (javaSwitches.containsKey(
-        JavaSwitches.ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND)) {
-      extraCommandLineArgs.add("--allow-critical-memory-pressure-handling-in-foreground");
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.EVICT_MEMORY_CACHE_ON_CRITICAL_MEMORY_PRESSURE)) {
-      extraCommandLineArgs.add(
-          "--enable-features=" + JavaSwitches.EVICT_MEMORY_CACHE_ON_CRITICAL_MEMORY_PRESSURE);
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.DISABLE_LESS_AGGRESSIVE_PARKABLE_STRING)) {
-      extraCommandLineArgs.add("--disable-features=LessAggressiveParkableString");
-    }
-
-    List<String> enabledMemoryPressureFeatures = new ArrayList<>();
-    if (javaSwitches.containsKey(JavaSwitches.ENABLE_MODERATE_MEMORY_PRESSURE)) {
-      enabledMemoryPressureFeatures.add("CobaltEnableModerateMemoryPressure");
-    }
-    if (javaSwitches.containsKey(JavaSwitches.MEMORY_PRESSURE_COOLDOWN_IN_SECONDS)) {
-      String cooldown = javaSwitches.get(JavaSwitches.MEMORY_PRESSURE_COOLDOWN_IN_SECONDS);
-      if (cooldown != null) {
-        String cooldownVal = cooldown.replaceAll("[^0-9]", "");
-        if (!cooldownVal.isEmpty()) {
-          enabledMemoryPressureFeatures.add(
-              "CobaltMemoryPressureCooldown:cooldown-seconds/" + cooldownVal);
-        }
-      }
-    }
-    if (!enabledMemoryPressureFeatures.isEmpty()) {
-      extraCommandLineArgs.add(
-          "--enable-features=" + String.join(",", enabledMemoryPressureFeatures));
-    }
-
-    // Convert the Java switch to a command-line flag so C++ code and non-Activity Java components
+    // Convert the Java switch to a command-line flag so C++ code and non-Activity Java
+    // components
     // (such as NetworkStatus) can query
     // CommandLine.getInstance().hasSwitch("use-starboard-lifecycle").
-    if (javaSwitches.containsKey(JavaSwitches.USE_STARBOARD_LIFECYCLE)) {
+    if (javaSwitches.containsKey(USE_STARBOARD_LIFECYCLE)) {
       extraCommandLineArgs.add("--" + USE_STARBOARD_LIFECYCLE_SWITCH);
     }
 
-    if (javaSwitches.containsKey(JavaSwitches.ENABLE_ACTIVITY_LIFECYCLE_COORDINATION)) {
-      extraCommandLineArgs.add("--enable-activity-lifecycle-coordination");
+    // Serialize all Kimono Java switches into a single
+    // --cobalt-java-switches=Key1=Val1,Key2=Val2
+    // switch so C++ (ApplyJavaSwitches) can parse it into a map and translate to native
+    // switches,
+    // features, and V8 flags using C++ constants.
+    StringJoiner serializedSwitches = new StringJoiner(",");
+    for (Map.Entry<String, String> entry : javaSwitches.entrySet()) {
+      String key = entry.getKey();
+      if (key == null || key.isEmpty()) {
+        continue;
+      }
+      if (FORCE_720P_UI_ON_1GB_DEVICES.equals(key)
+          && (!DeviceUtil.is1GbDevice() || !DeviceUtil.isDisplayAtLeast1080p())) {
+        continue;
+      }
+      String val = entry.getValue();
+      serializedSwitches.add(key + "=" + (val != null ? val : ""));
     }
-
-    if (javaSwitches.containsKey(JavaSwitches.FORCE_720P_UI_ON_1GB_DEVICES)
-        && DeviceUtil.is1GbDevice()
-        && DeviceUtil.isDisplayAtLeast1080p()) {
-      extraCommandLineArgs.add("--force-device-scale-factor=1.5");
-    } else {
-      extraCommandLineArgs.add("--force-device-scale-factor=" + DEFAULT_FORCE_DEVICE_SCALE_FACTOR);
+    if (serializedSwitches.length() > 0) {
+      extraCommandLineArgs.add("--" + COBALT_JAVA_SWITCHES + "=" + serializedSwitches.toString());
     }
 
     return extraCommandLineArgs;
-  }
-
-  private static String getSanitizedNumericValue(Map<String, String> javaSwitches, String key) {
-    if (javaSwitches == null) {
-      return null;
-    }
-    String val = javaSwitches.get(key);
-    if (val == null) {
-      return null;
-    }
-    String digits = val.replaceAll("[^0-9]", "");
-    return digits.isEmpty() ? null : digits;
   }
 }

@@ -40,6 +40,12 @@ java_cpp_strings("cobalt_experiment_names_java") {
       "apk/app/src/main/java/dev/cobalt/util/CobaltExperimentNames.java.tmpl"
 }
 
+java_cpp_strings("cobalt_java_switch_names_java") {
+  sources = [ "//cobalt/browser/constants/cobalt_java_switch_names.h" ]
+  template =
+      "apk/app/src/main/java/dev/cobalt/util/CobaltJavaSwitchNames.java.tmpl"
+}
+
 java_cpp_strings("cobalt_pref_names_java") {
   sources = [ "//cobalt/browser/constants/cobalt_pref_names.h" ]
   template = "apk/app/src/main/java/dev/cobalt/util/CobaltPrefNames.java.tmpl"
@@ -152,6 +158,7 @@ android_library("cobalt_main_java") {
     ":cobalt_build_info_srcjar",
     ":cobalt_crash_streak_thresholds_java",
     ":cobalt_experiment_names_java",
+    ":cobalt_java_switch_names_java",
     ":cobalt_pref_names_java",
     ":java_features_srcjar",
     ":jni_headers",
