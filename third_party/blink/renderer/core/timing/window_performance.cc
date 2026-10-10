@@ -42,6 +42,7 @@
 #include "base/trace_event/common/trace_event_common.h"
 #include "base/trace_event/trace_event.h"
 #include "base/trace_event/trace_id_helper.h"
+#include "build/build_config.h"
 #include "components/viz/common/frame_timing_details.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "services/network/public/mojom/load_timing_info.mojom-blink.h"
@@ -1302,6 +1303,117 @@ void WindowPerformance::QueueLongAnimationFrameTiming(
         paint_timing_info));
   }
 }
+
+#if BUILDFLAG(IS_COBALT)
+void WindowPerformance::QueueCobaltFrameTiming(
+    uint32_t frame_token,
+    const viz::FrameTimingDetails& details,
+    std::optional<CobaltMainFrameSnapshot> main_snapshot) {
+  if (!HasObserverFor(PerformanceEntry::kCobaltFrame)) {
+    // Keep following the swap cadence while unobserved so that the first
+    // entry after an observer attaches gets a correct framePrepDuration.
+    UpdateCobaltFramePrep(details);
+    return;
+  }
+  if (CobaltFrameTiming* entry = CreateCobaltFrameTiming(
+          frame_token, details, std::move(main_snapshot))) {
+    NotifyObserversOfEntry(*entry);
+  }
+}
+
+double WindowPerformance::UpdateCobaltFramePrep(
+    const viz::FrameTimingDetails& details) {
+  // Frame prep: time between previous swap_end and current swap_start.
+  double frame_prep_duration = 0.0;
+  if (!last_cobalt_swap_end_.is_null() &&
+      !details.swap_timings.swap_start.is_null()) {
+    base::TimeDelta delta =
+        details.swap_timings.swap_start - last_cobalt_swap_end_;
+    if (delta.is_positive()) {
+      frame_prep_duration = delta.InMillisecondsF();
+    }
+  }
+  if (!details.swap_timings.swap_end.is_null()) {
+    last_cobalt_swap_end_ = details.swap_timings.swap_end;
+  }
+  return frame_prep_duration;
+}
+
+CobaltFrameTiming* WindowPerformance::CreateCobaltFrameTiming(
+    uint32_t frame_token,
+    const viz::FrameTimingDetails& details,
+    std::optional<CobaltMainFrameSnapshot> main_snapshot) {
+  DOMWindow* window = DomWindow();
+  if (!window) {
+    return nullptr;
+  }
+
+  DOMHighResTimeStamp presentation_time = MonotonicTimeToDOMHighResTimeStamp(
+      details.presentation_feedback.timestamp);
+
+  double frame_prep_duration = UpdateCobaltFramePrep(details);
+  // Failed presentations only advance `last_cobalt_swap_end_`; their
+  // timestamps are not meaningful, so no entry is reported.
+  if (details.presentation_feedback.failed()) {
+    return nullptr;
+  }
+
+  // Draw duration: viz draw_start -> swap_start (Display compositor draw).
+  double draw_duration = 0.0;
+  if (!details.draw_start_timestamp.is_null() &&
+      !details.swap_timings.swap_start.is_null()) {
+    base::TimeDelta delta =
+        details.swap_timings.swap_start - details.draw_start_timestamp;
+    if (delta.is_positive()) {
+      draw_duration = delta.InMillisecondsF();
+    }
+  }
+
+  // Swap duration: swap_start -> swap_end (EGL swap buffers time).
+  double swap_duration = 0.0;
+  if (!details.swap_timings.swap_start.is_null() &&
+      !details.swap_timings.swap_end.is_null()) {
+    base::TimeDelta delta =
+        details.swap_timings.swap_end - details.swap_timings.swap_start;
+    if (delta.is_positive()) {
+      swap_duration = delta.InMillisecondsF();
+    }
+  }
+
+  DOMHighResTimeStamp start_time = 0.0;
+  std::optional<double> animate_duration;
+  std::optional<double> style_duration;
+  std::optional<double> layout_duration;
+  std::optional<double> prepaint_duration;
+  std::optional<double> paint_duration;
+
+  if (main_snapshot.has_value() && !main_snapshot->bmf_start.is_null()) {
+    start_time = MonotonicTimeToDOMHighResTimeStamp(main_snapshot->bmf_start);
+  } else if (!details.draw_start_timestamp.is_null()) {
+    // Compositor-only frame (e.g. CSS transform animation).
+    start_time =
+        MonotonicTimeToDOMHighResTimeStamp(details.draw_start_timestamp);
+  } else {
+    start_time = presentation_time;
+  }
+  if (main_snapshot.has_value() && main_snapshot->metrics) {
+    animate_duration = main_snapshot->metrics->animate.InMillisecondsF();
+    style_duration = main_snapshot->metrics->style_update.InMillisecondsF();
+    layout_duration = main_snapshot->metrics->layout_update.InMillisecondsF();
+    prepaint_duration = main_snapshot->metrics->prepaint.InMillisecondsF();
+    paint_duration = main_snapshot->metrics->paint.InMillisecondsF();
+  }
+
+  double duration = presentation_time >= start_time
+                        ? (presentation_time - start_time)
+                        : 0.0;
+
+  return MakeGarbageCollected<CobaltFrameTiming>(
+      duration, start_time, frame_token, presentation_time, animate_duration,
+      style_duration, layout_duration, prepaint_duration, paint_duration,
+      frame_prep_duration, draw_duration, swap_duration, window);
+}
+#endif
 
 void WindowPerformance::AddFirstPaintTiming(
     const DOMPaintTimingInfo& paint_timing_info,

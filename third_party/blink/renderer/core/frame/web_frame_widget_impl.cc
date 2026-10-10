@@ -2687,6 +2687,10 @@ void WebFrameWidgetImpl::BeginMainFrame(const viz::BeginFrameArgs& args) {
   DCHECK(!last_frame_time.is_null());
   CHECK(LocalRootImpl());
 
+#if BUILDFLAG(IS_COBALT)
+  cobalt_bmf_start_time_ = last_frame_time;
+#endif
+
   if (animation_frame_timing_monitor_) {
     animation_frame_timing_monitor_->BeginMainFrame(
         *LocalRootImpl()->GetFrame()->DomWindow(), args.frame_id);
@@ -2768,6 +2772,46 @@ void WebFrameWidgetImpl::EndCommitCompositorFrame(
       next_commit_compositor_frame_start_time_;
   next_commit_compositor_frame_start_time_.reset();
 }
+
+#if BUILDFLAG(IS_COBALT)
+void WebFrameWidgetImpl::OnCobaltPresentationCallback(
+    CobaltMainFrameSnapshot snapshot,
+    const viz::FrameTimingDetails& /*frame_timing_details*/) {
+  // cc::LayerTreeHost::DidPresentCompositorFrame() runs successful-
+  // presentation callbacks synchronously, right before notifying
+  // LayerTreeView, which calls DidPresentCobaltFrame() for the same frame
+  // token. Several main frames can resolve on one presented frame (e.g. when
+  // an earlier frame was not presented), so keep them all and let
+  // DidPresentCobaltFrame() pick.
+  pending_cobalt_main_snapshots_.push_back(std::move(snapshot));
+}
+
+void WebFrameWidgetImpl::DidPresentCobaltFrame(
+    uint32_t frame_token,
+    const viz::FrameTimingDetails& frame_timing_details) {
+  // Only snapshots resolved by this presentation belong to this frame.
+  Vector<CobaltMainFrameSnapshot> snapshots;
+  snapshots.swap(pending_cobalt_main_snapshots_);
+
+  if (!LocalRootImpl() || !LocalRootImpl()->GetFrame() ||
+      !LocalRootImpl()->GetFrame()->DomWindow()) {
+    return;
+  }
+  WindowPerformance* performance = DOMWindowPerformance::performance(
+      *LocalRootImpl()->GetFrame()->DomWindow());
+  if (!performance) {
+    return;
+  }
+  // The newest main frame is the one whose content this frame presents;
+  // older ones were superseded before they reached the screen.
+  std::optional<CobaltMainFrameSnapshot> snapshot;
+  if (!snapshots.empty()) {
+    snapshot = std::move(snapshots.back());
+  }
+  performance->QueueCobaltFrameTiming(frame_token, frame_timing_details,
+                                      std::move(snapshot));
+}
+#endif
 
 void WebFrameWidgetImpl::ApplyViewportChanges(
     const ApplyViewportChangesArgs& args) {
@@ -2869,9 +2913,42 @@ void WebFrameWidgetImpl::EndUpdateLayers() {
         LocalFrameUkmAggregator::kUpdateLayers,
         update_layers_start_time_.value(), base::TimeTicks::Now());
     probe::LayerTreeDidChange(LocalRootImpl()->GetFrame());
+#if BUILDFLAG(IS_COBALT)
+    RequestCobaltMainFramePresentation();
+#endif
   }
   update_layers_start_time_.reset();
 }
+
+#if BUILDFLAG(IS_COBALT)
+void WebFrameWidgetImpl::RequestCobaltMainFramePresentation() {
+  // Runs inside cc::LayerTreeHost::UpdateLayers(), i.e. before
+  // LayerTreeHost::WillCommit() activates the pending commit state, so the
+  // callback is attached to the commit that carries this main frame. (From
+  // BeginCommitCompositorFrame() / EndCommitCompositorFrame() it would be
+  // attached to the following commit.)
+  LocalFrame* frame = LocalRootImpl()->GetFrame();
+  if (!frame->DomWindow()) {
+    return;
+  }
+  WindowPerformance* performance =
+      DOMWindowPerformance::performance(*frame->DomWindow());
+  if (!performance || !performance->HasCobaltFrameObserver()) {
+    return;
+  }
+  LocalFrameView* view = frame->View();
+  if (!view || !view->GetUkmAggregator() ||
+      !view->GetUkmAggregator()->InMainFrameUpdate()) {
+    return;
+  }
+  CobaltMainFrameSnapshot snapshot;
+  snapshot.bmf_start = cobalt_bmf_start_time_;
+  snapshot.metrics = view->GetUkmAggregator()->GetBeginMainFrameMetrics();
+  LayerTreeHost()->RequestSuccessfulPresentationTimeForNextFrame(
+      WTF::BindOnce(&WebFrameWidgetImpl::OnCobaltPresentationCallback,
+                    WrapWeakPersistent(this), std::move(snapshot)));
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 void WebFrameWidgetImpl::RecordStartOfFrameMetrics() {
   if (!LocalRootImpl())
