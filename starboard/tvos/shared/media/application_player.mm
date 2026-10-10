@@ -705,7 +705,7 @@ static NSTimeInterval kAccessLogTimerInterval = 1;
   }
   _playerState = state;
   _errorOccurred = false;
-  if (state == kSbPlayerStatePresenting) {
+  if (state == kSbPlayerStateInitialized || state == kSbPlayerStatePresenting) {
     CGSize naturalSize = _player.currentItem.presentationSize;
     _frameWidth = naturalSize.width;
     _frameHeight = naturalSize.height;
