@@ -36,7 +36,6 @@ extern const char kContentShellHostWindowSize[];
 extern const char kIsolatedContextOrigins[];
 extern const char kOmitDeviceAuthenticationQueryParameters[];
 extern const char kRemoteDebuggingAddress[];
-extern const char kSplashScreenShutdownDelayMs[];
 extern const char kTestRegisterStandardScheme[];
 
 // Checks if the splash screen should be created.

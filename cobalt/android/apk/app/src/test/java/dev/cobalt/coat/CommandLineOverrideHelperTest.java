@@ -112,8 +112,8 @@ public class CommandLineOverrideHelperTest {
 
     String actual = CommandLine.getInstance().getSwitchValue("enable-features");
     String expected =
-        CommandLineOverrideHelper.getDefaultEnableFeatureOverridesList().toString()
-            + ",TestFeature1,TestFeature2";
+        "TestFeature1,TestFeature2,"
+            + CommandLineOverrideHelper.getDefaultEnableFeatureOverridesList().toString();
     Assert.assertEquals(expected, actual);
   }
 
@@ -129,14 +129,14 @@ public class CommandLineOverrideHelperTest {
 
     String enableFeatures = CommandLine.getInstance().getSwitchValue("enable-features");
     String expectedEnable =
-        CommandLineOverrideHelper.getDefaultEnableFeatureOverridesList().toString()
-            + ",TestFeature1,TestFeature2";
+        "TestFeature1,TestFeature2,"
+            + CommandLineOverrideHelper.getDefaultEnableFeatureOverridesList().toString();
     Assert.assertEquals(expectedEnable, enableFeatures);
 
     String disableFeatures = CommandLine.getInstance().getSwitchValue("disable-features");
     String expectedDisable =
-        CommandLineOverrideHelper.getDefaultDisableFeatureOverridesList().toString()
-            + ",TestFeature3";
+        "TestFeature3,"
+            + CommandLineOverrideHelper.getDefaultDisableFeatureOverridesList().toString();
     Assert.assertEquals(expectedDisable, disableFeatures);
 
     String jsFlags = CommandLine.getInstance().getSwitchValue("js-flags");
@@ -189,14 +189,14 @@ public class CommandLineOverrideHelperTest {
 
     String enableFeatures = CommandLine.getInstance().getSwitchValue("enable-features");
     String expectedEnable =
-        CommandLineOverrideHelper.getDefaultEnableFeatureOverridesList().toString()
-            + ",TestFeature1";
+        "TestFeature1,"
+            + CommandLineOverrideHelper.getDefaultEnableFeatureOverridesList().toString();
     Assert.assertEquals(expectedEnable, enableFeatures);
 
     String disableFeatures = CommandLine.getInstance().getSwitchValue("disable-features");
     String expectedDisable =
-        CommandLineOverrideHelper.getDefaultDisableFeatureOverridesList().toString()
-            + ",TestFeature2";
+        "TestFeature2,"
+            + CommandLineOverrideHelper.getDefaultDisableFeatureOverridesList().toString();
     Assert.assertEquals(expectedDisable, disableFeatures);
   }
 
@@ -208,8 +208,8 @@ public class CommandLineOverrideHelperTest {
 
     String enableFeatures = CommandLine.getInstance().getSwitchValue("enable-features");
     String expectedEnable =
-        CommandLineOverrideHelper.getDefaultEnableFeatureOverridesList().toString()
-            + ",TestFeature1=value1,TestFeature2=value2";
+        "TestFeature1=value1,TestFeature2=value2,"
+            + CommandLineOverrideHelper.getDefaultEnableFeatureOverridesList().toString();
     Assert.assertEquals(expectedEnable, enableFeatures);
   }
 

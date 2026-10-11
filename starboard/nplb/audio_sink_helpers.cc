@@ -131,6 +131,11 @@ void AudioSinkTestEnvironment::AppendFrame(int frames_to_append) {
   AppendFrame_Locked(frames_to_append);
 }
 
+void AudioSinkTestEnvironment::FillFrameBuffer() {
+  std::lock_guard lock(mutex_);
+  AppendFrame_Locked(GetFrameBufferFreeSpaceInFrames_Locked());
+}
+
 int AudioSinkTestEnvironment::GetFrameBufferFreeSpaceInFrames() const {
   std::lock_guard lock(mutex_);
   return GetFrameBufferFreeSpaceInFrames_Locked();
