@@ -60,11 +60,18 @@ runs:
 
         git config --global --add safe.directory "$(cd "${DEST_PATH}" && pwd)"
 
+        # Ensure origin points to REPO_URL to repair any poisoned or stale remote URLs in cached workspaces
+        if git -C "${DEST_PATH}" remote get-url origin >/dev/null 2>&1; then
+          git -C "${DEST_PATH}" remote set-url origin "${REPO_URL}" 2>/dev/null || true
+        else
+          git -C "${DEST_PATH}" remote add origin "${REPO_URL}" 2>/dev/null || true
+        fi
+
         if [[ "${REF}" =~ ^[0-9a-fA-F]{40}$ ]] && git -C "${DEST_PATH}" cat-file -e "${REF}^{commit}" 2>/dev/null; then
           echo "Commit ${REF} already exists in ${DEST_PATH}. Skipping fetch."
         else
           for attempt in 1 2 3; do
-            if git -C "${DEST_PATH}" fetch "${depth_arg[@]}" origin "${REF}"; then
+            if git -C "${DEST_PATH}" fetch "${depth_arg[@]}" origin "${REF}" || git -C "${DEST_PATH}" fetch "${depth_arg[@]}" "${REPO_URL}" "${REF}"; then
               break
             fi
             if [ "${attempt}" -eq 3 ]; then
