@@ -14,6 +14,7 @@
 
 #include "cobalt/browser/cobalt_content_browser_client.h"
 
+#include <algorithm>
 #include <string>
 
 #include "base/base_switches.h"
@@ -202,6 +203,16 @@ static void JNI_CobaltContentBrowserClient_DispatchFocus(JNIEnv*) {
     return;
   }
   client->DispatchFocus();
+}
+
+static jboolean JNI_CobaltContentBrowserClient_IsFreezeOnBackgroundEnabled(
+    JNIEnv*) {
+  return base::FeatureList::IsEnabled(features::kCobaltFreezeOnBackground);
+}
+
+static jint JNI_CobaltContentBrowserClient_GetFreezeOnBackgroundDelayMs(
+    JNIEnv*) {
+  return std::max(0, features::kCobaltFreezeOnBackgroundDelayMs.Get());
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
