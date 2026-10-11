@@ -518,26 +518,6 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
-<<<<<<< HEAD
-=======
-      - name: Prepare OverlayFS Workspace
-        id: overlay_workspace
-        if: ${{ !contains(matrix.platform, 'tvos') }}
-        uses: ./.github/actions/overlay_workspace
-        with:
-          path: cobalt
-          platform: ${{ matrix.platform || inputs.platform }}
-          use_gcloud: true
-
-      - name: Runner Cache Hot
-        if: ${{ !contains(matrix.platform, 'tvos') && steps.overlay_workspace.outputs.cache_hit == 'true' }}
-        shell: bash
-        run: echo "Golden workspace found on SSD."
-      - name: Runner Cache Cold
-        if: ${{ !contains(matrix.platform, 'tvos') && steps.overlay_workspace.outputs.cache_hit != 'true' }}
-        shell: bash
-        run: echo "Golden workspace missing or corrupted. Triggered full initialization sync."
->>>>>>> 41266330ddf (ci: Streamline golden workspace and git caching into composable actions (#13087))
 
       - name: Checkout
         uses: ./.github/actions/checkout
@@ -921,24 +901,6 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
-<<<<<<< HEAD
-=======
-      - name: Prepare OverlayFS Workspace
-        id: overlay_workspace
-        uses: ./.github/actions/overlay_workspace
-        with:
-          path: cobalt
-          platform: ${{ matrix.platform || inputs.platform }}
-
-      - name: Runner Cache Hot
-        if: steps.overlay_workspace.outputs.cache_hit == 'true'
-        shell: bash
-        run: echo "Golden workspace found on SSD."
-      - name: Runner Cache Cold
-        if: steps.overlay_workspace.outputs.cache_hit != 'true'
-        shell: bash
-        run: echo "Golden workspace missing or corrupted. Triggered full initialization sync."
->>>>>>> 41266330ddf (ci: Streamline golden workspace and git caching into composable actions (#13087))
 
       - name: Checkout
         uses: ./.github/actions/checkout
