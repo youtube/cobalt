@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Integration and unit tests for autoroll.py and autoroll_lib.py.
+"""Integration/E2E blackbox tests for autoroll.py.
 
 Critical User Journeys (CUJs) Covered:
 - CUJ 1: Clean Roll (Full Mode)
@@ -86,78 +86,6 @@ sys.path.append(os.path.dirname(__file__))
 
 import autoroll  # pylint: disable=wrong-import-position
 import autoroll_lib as lib  # pylint: disable=wrong-import-position
-
-
-class TestAutorollLib(unittest.TestCase):
-  """Unit tests for autoroll_lib helper functions."""
-
-  def setUp(self):
-    lib._PR_LABELS_CACHE.clear()  # pylint: disable=protected-access
-
-  def tearDown(self):
-    lib._PR_LABELS_CACHE.clear()  # pylint: disable=protected-access
-
-  def test_load_pr_labels_from_file(self):
-    prs_data = [
-        {
-            'number': 123,
-            'labels': [{
-                'name': 'cp-27.lts'
-            }, {
-                'name': 'feature'
-            }]
-        },
-        {
-            'number': 456,
-            'labels': []
-        },
-    ]
-    with tempfile.NamedTemporaryFile(
-        mode='w', encoding='utf-8', delete=False) as f:
-      json.dump(prs_data, f)
-      temp_path = f.name
-
-    try:
-      lib.load_pr_labels_from_file(temp_path)
-      self.assertEqual(lib.get_pr_labels(123), {'cp-27.lts', 'feature'})
-      self.assertEqual(lib.get_pr_labels(456), set())
-      self.assertEqual(lib.get_pr_labels(999), set())
-    finally:
-      os.remove(temp_path)
-
-  @patch('autoroll_lib.get_out')
-  def test_get_rolled_source_items(self, mock_get_out):
-    mock_get_out.return_value = (
-        'Cherry pick PR #12799: content: Fail gracefully\n'
-        'Refer to original PR: #12799\n\n'
-        '(cherry picked from commit 1111111111111111111111111111111111111111)\n'
-        'Cherry pick PR #12800: some feature\n'
-        '(cherry picked from commit 2222222222222222222222222222222222222222)\n'
-    )
-    shas, prs = lib.get_rolled_source_items('27.lts')
-    self.assertEqual(
-        shas, {
-            '1111111111111111111111111111111111111111',
-            '2222222222222222222222222222222222222222',
-        })
-    self.assertEqual(prs, {12799, 12800})
-
-  @patch('autoroll_lib.get_out')
-  def test_get_cherry_pick_metadata(self, mock_get_out):
-    mock_get_out.return_value = (
-        'Mon Oct 6 00:00:00 2026\x00Author <a@b.com>\x00Body line')
-    date, author, msg = lib.get_cherry_pick_metadata('sha123', 'My Title',
-                                                     '101')
-    self.assertEqual(date, 'Mon Oct 6 00:00:00 2026')
-    self.assertEqual(author, 'Author <a@b.com>')
-    self.assertIn('Cherry pick PR #101: My Title', msg)
-    self.assertIn('Refer to original PR: #101', msg)
-    self.assertIn('(cherry picked from commit sha123)', msg)
-
-    _, _, msg_no_pr = lib.get_cherry_pick_metadata('sha456', 'Direct Commit',
-                                                   None)
-    self.assertIn('Cherry pick commit sha456: Direct Commit', msg_no_pr)
-    self.assertIn('Refer to original commit: sha456', msg_no_pr)
 
 
 class TestAutorollIntegration(unittest.TestCase):
