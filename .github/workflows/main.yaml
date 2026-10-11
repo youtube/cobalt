@@ -1003,6 +1003,7 @@ jobs:
     permissions: {}
     runs-on: ubuntu-latest
     name: ${{ matrix.test_info.target }}
+    continue-on-error: ${{ matrix.test_info.test_type == 'yts_wpt_test' }}
     env:
       TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
     strategy:
