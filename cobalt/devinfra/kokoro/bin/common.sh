@@ -284,11 +284,11 @@ _do_publish_golden_workspace_snapshot () {
   local gclient_file="${gclient_root}/.gclient"
 
   _restore_golden_workspace () {
-    if [[ -n "${orig_remote_url}" ]]; then
+    if [[ -n "${orig_remote_url:-}" ]]; then
       git -C "${gclient_root}/src" remote set-url origin "${orig_remote_url}" \
         2>/dev/null || true
     fi
-    if [[ -f "${staging_dir}/.gclient.bak" ]]; then
+    if [[ -n "${staging_dir:-}" && -f "${staging_dir}/.gclient.bak" ]]; then
       mv -f "${staging_dir}/.gclient.bak" "${gclient_file}" 2>/dev/null || true
     fi
   }
@@ -320,6 +320,7 @@ _do_publish_golden_workspace_snapshot () {
 
   # Restore origin URL and .gclient immediately after archive creation.
   _restore_golden_workspace
+  trap - RETURN
 
   local archive_sha
   if command -v sha256sum >/dev/null 2>&1; then
