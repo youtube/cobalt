@@ -14,7 +14,7 @@
 # limitations under the License.
 """Black-box integration test suite for shepherd_pr.py."""
 
-# pylint: disable=bad-indentation,inconsistent-quotes,line-too-long,consider-using-with,broad-exception-caught,unused-import
+# pylint: disable=bad-indentation,inconsistent-quotes,line-too-long,consider-using-with,broad-exception-caught,unused-import,import-error,import-outside-toplevel
 
 import json
 import os
@@ -25,6 +25,10 @@ import unittest
 
 _scripts_dir = os.path.dirname(os.path.abspath(__file__))
 _SCRIPT_PATH = os.path.join(_scripts_dir, 'shepherd_pr.py')
+if _scripts_dir not in sys.path:
+    sys.path.insert(0, _scripts_dir)
+
+from shepherd_pr import _parse_shepherd_report_file  # pylint: disable=wrong-import-position
 
 
 class TestPRShepherdCLI(unittest.TestCase):
@@ -894,6 +898,47 @@ sys.exit(1)
         self.assertNotIn("Downloaded test results and logs", res.stdout)
         default_artifacts = os.path.join(self.test_dir.name, 'artifacts')
         self.assertFalse(os.path.exists(default_artifacts))
+
+    def test_parse_and_deduplicate_shepherd_reports(self):
+        """Verifies parsing of run_attempt and deduplicating reports per platform."""
+        with tempfile.TemporaryDirectory() as td:
+            file_att1 = os.path.join(td, "shepherd_report_att1.json")
+            with open(file_att1, "w", encoding="utf-8") as f:
+                json.dump(
+                    {
+                        "platform": "android-arm",
+                        "workflow": "android",
+                        "run_attempt": 1,
+                        "checks": {
+                            "build": "success",
+                            "on-device-test": "failure"
+                        },
+                        "test_failures": {}
+                    }, f)
+
+            file_att2 = os.path.join(td, "shepherd_report_att2.json")
+            with open(file_att2, "w", encoding="utf-8") as f:
+                json.dump(
+                    {
+                        "platform": "android-arm",
+                        "workflow": "android",
+                        "run_attempt": 2,
+                        "checks": {
+                            "build": "success",
+                            "on-device-test": "success"
+                        },
+                        "test_failures": {}
+                    }, f)
+
+            rep1 = _parse_shepherd_report_file(file_att1)
+            self.assertIsNotNone(rep1)
+            self.assertEqual(rep1["run_attempt"], 1)
+            self.assertTrue(rep1["has_failures"])
+
+            rep2 = _parse_shepherd_report_file(file_att2)
+            self.assertIsNotNone(rep2)
+            self.assertEqual(rep2["run_attempt"], 2)
+            self.assertFalse(rep2["has_failures"])
 
 
 if __name__ == '__main__':

@@ -57,6 +57,7 @@ jobs:
       - name: Resolve Context
         id: resolve
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           HEAD_SHA_EVENT: ${{ github.event.workflow_run.head_sha }}
           PR_NUMBER_EVENT: ${{ github.event.workflow_run.pull_requests[0].number || inputs.pr_number }}
@@ -65,10 +66,17 @@ jobs:
           set -euo pipefail
           pr_number="${PR_NUMBER_EVENT:-}"
           head_sha="${HEAD_SHA_EVENT:-}"
-          [[ -z "$pr_number" && -n "$head_sha" ]] && pr_number=$(gh pr list --repo "$REPO" --search "$head_sha" --state all --json number --jq '.[0].number // ""')
-          [[ -z "$head_sha" && -n "$pr_number" ]] && head_sha=$(gh pr view "$pr_number" --repo "$REPO" --json headRefOid -q .headRefOid)
-          echo "head_sha=$head_sha" >> "$GITHUB_OUTPUT"
-          echo "pr_number=$pr_number" >> "$GITHUB_OUTPUT"
+          if [[ -z "${pr_number}" && -n "${head_sha}" ]]; then
+            pr_number=$(gh api "repos/${REPO}/commits/${head_sha}/pulls" --jq '.[0].number // ""' 2>/dev/null || true)
+            if [[ -z "${pr_number}" ]]; then
+              pr_number=$(gh pr list --repo "${REPO}" --search "${head_sha}" --state all --json number --jq '.[0].number // ""')
+            fi
+          fi
+          if [[ -z "${head_sha}" && -n "${pr_number}" ]]; then
+            head_sha=$(gh pr view "${pr_number}" --repo "${REPO}" --json headRefOid -q .headRefOid)
+          fi
+          echo "head_sha=${head_sha}" >> "${GITHUB_OUTPUT}"
+          echo "pr_number=${pr_number}" >> "${GITHUB_OUTPUT}"
 
       - name: Checkout files
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -167,7 +175,10 @@ jobs:
           pr_number="${PR_NUMBER_EVENT:-}"
           head_sha="${HEAD_SHA_EVENT:-}"
           if [[ -z "${pr_number}" && -n "${head_sha}" ]]; then
-            pr_number=$(gh pr list --repo "${REPO}" --search "${head_sha}" --state all --json number --jq '.[0].number // ""')
+            pr_number=$(gh api "repos/${REPO}/commits/${head_sha}/pulls" --jq '.[0].number // ""' 2>/dev/null || true)
+            if [[ -z "${pr_number}" ]]; then
+              pr_number=$(gh pr list --repo "${REPO}" --search "${head_sha}" --state all --json number --jq '.[0].number // ""')
+            fi
           fi
           if [[ -z "${head_sha}" && -n "${pr_number}" ]]; then
             head_sha=$(gh pr view "${pr_number}" --repo "${REPO}" --json headRefOid -q .headRefOid)
@@ -291,7 +302,28 @@ jobs:
             desc="Retrying failed jobs"
           else
             mkdir -p shepherd_artifacts
-            gh run download "${WORKFLOW_ID}" --repo "${REPO}" -p "shepherd-report-*" -D shepherd_artifacts 2>/dev/null || true
+            mapfile -t artifact_ids < <(gh api "repos/${REPO}/actions/runs/${WORKFLOW_ID}/artifacts" --paginate --jq '
+              [.artifacts[]? | select(.name | startswith("shepherd-report-"))]
+              | group_by(.name)
+              | map(max_by(.created_at))
+              | .[] | .id
+            ' 2>/dev/null || true)
+
+            for art_id in "${artifact_ids[@]}"; do
+              if [[ -n "${art_id}" ]]; then
+                art_dir="shepherd_artifacts/${art_id}"
+                mkdir -p "${art_dir}"
+                gh api "repos/${REPO}/actions/artifacts/${art_id}/zip" > "${art_dir}/artifact.zip" 2>/dev/null || true
+                if [[ -f "${art_dir}/artifact.zip" ]]; then
+                  unzip -qo "${art_dir}/artifact.zip" -d "${art_dir}" 2>/dev/null || true
+                  rm -f "${art_dir}/artifact.zip"
+                fi
+              fi
+            done
+
+            if [[ ${#artifact_ids[@]} -eq 0 ]]; then
+              gh run download "${WORKFLOW_ID}" --repo "${REPO}" -p "shepherd-report-*" -D shepherd_artifacts 2>/dev/null || true
+            fi
 
             shopt -s globstar nullglob
             reports=(shepherd_artifacts/**/shepherd_report.json)
@@ -300,14 +332,13 @@ jobs:
               desc="Failed"
             else
               has_failures=$(jq -s '
-                if length == 0 then true
-                else
-                  any(.[];
+                group_by(.platform // .platform_name // "default")
+                | map(max_by(.run_attempt | tonumber? // 0))
+                | any(.[];
                     any(.checks | objects | .[]?; . == "failure" or . == "cancelled")
                     or
                     any((.test_failures | objects | .failing_tests // .) | objects | .[]?; (arrays | length) > 0)
                   )
-                end
               ' "${reports[@]}" 2>/dev/null || echo "true")
 
               [[ "${has_failures}" == "true" ]] && state="failure" desc="Failed" || state="success" desc="Passed"
@@ -391,16 +422,19 @@ jobs:
             echo "|---|---|---|"
             gh api "repos/${REPO}/commits/${HEAD_SHA}/status" | jq -r '
               {success: "✅ PASS", pending: "⏳ PENDING"} as $icons |
-              .statuses[]? | select(.context | startswith("CI /")) |
-              "| [\(.context)](\(.target_url // "")) | \($icons[.state] // "❌ FAIL") | \(.description // "") |"
+              .statuses // [] | sort_by(.context)[] | select(.context | startswith("CI /")?) |
+              (if .target_url and .target_url != "" then "[\(.context)](\(.target_url))" else .context end) as $ctx |
+              "| \($ctx) | \($icons[.state] // "❌ FAIL") | \(.description // "") |"
             '
-            echo ""
-            echo "### 🤖 CI Shepherd Analysis"
-            echo ""
-            echo "- **Verdict**: ${VERDICT}"
-            echo "- **Confidence**: ${CONFIDENCE}"
-            echo ""
-            echo "${FINDINGS}"
+            if [[ -n "${VERDICT:-}" ]]; then
+              echo ""
+              echo "### 🤖 CI Shepherd Analysis"
+              echo ""
+              echo "- **Verdict**: ${VERDICT}"
+              echo "- **Confidence**: ${CONFIDENCE}"
+              echo ""
+              echo "${FINDINGS}"
+            fi
           } > shepherd_report.md
 
           gh api -X PATCH "repos/${REPO}/issues/comments/${comment_id}" -F body=@shepherd_report.md --silent

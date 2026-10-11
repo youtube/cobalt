@@ -175,10 +175,17 @@ def _parse_shepherd_report_file(filepath: str) -> Optional[Dict[str, Any]]:
         ]
         test_failures = _parse_test_failures(data.get("test_failures", {}))
 
+        run_attempt_raw = data.get("run_attempt", 1)
+        try:
+            run_attempt = int(run_attempt_raw)
+        except (ValueError, TypeError):
+            run_attempt = 1
+
         return {
             "platform": platform,
             "workflow": data.get("workflow", ""),
             "run_url": data.get("run_url", ""),
+            "run_attempt": run_attempt,
             "failing_jobs": failing_jobs,
             "test_failures": test_failures,
             "has_failures": bool(failing_jobs or test_failures),
@@ -297,12 +304,18 @@ def fetch_ci_shepherd_reports(
             _download_run_artifacts(owner, name, run_id,
                                     os.path.join(tmpdir, run_id))
 
+        reports_by_platform: Dict[str, Tuple[int, Dict[str, Any]]] = {}
         for rf in sorted(
                 glob.glob(os.path.join(tmpdir, "**", "shepherd_report.json"),
                           recursive=True)):
             report = _parse_shepherd_report_file(rf)
             if report:
-                reports.append(report)
+                attempt = report.get("run_attempt", 1)
+                plat = report["platform"]
+                if plat not in reports_by_platform or attempt >= reports_by_platform[
+                        plat][0]:
+                    reports_by_platform[plat] = (attempt, report)
+        reports = [r for _, r in reports_by_platform.values()]
     except Exception:
         pass
 
