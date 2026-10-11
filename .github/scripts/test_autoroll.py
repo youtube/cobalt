@@ -12,7 +12,57 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Integration and unit tests for autoroll.py and autoroll_lib.py."""
+"""Integration and unit tests for autoroll.py and autoroll_lib.py.
+
+Critical User Journeys (CUJs) Covered:
+- CUJ 1: Clean Roll (Full Mode)
+  Rolls eligible commits chronologically from source to target. On success,
+  updates the autoroll cursor file (.github/AUTOROLL) to the latest rolled SHA.
+- CUJ 2: Clean Roll (Label Mode)
+  Filters commits strictly by the `cp-<target_branch>` label. On success,
+  the AUTOROLL marker file SHA is NEVER updated and remains stickied to the
+  last full mode SHA.
+- CUJ 3: Target Branch History Deduplication
+  Candidate PRs already merged into target branch history (via cherry-pick
+  commit metadata or PR references) are detected and skipped.
+- CUJ 4: Incremental Stacking on Open PR
+  Candidate PRs already cherry-picked onto the active autoroll PR branch
+  (target..HEAD) are preserved in the PR description, and new candidate commits
+  are stacked incrementally.
+- CUJ 5: Conflict on First Commit (Full Mode)
+  When the first cherry-pick produces unresolvable conflicts, the unmerged files
+  are staged, the commit is committed with 'CONFLICTED ' prefix, the autoroll
+  cursor is updated with 'CONFLICTED:<sha>', and the script halts with a
+  conflict markdown block.
+- CUJ 6: Conflict on First Commit (Label Mode)
+  Behaves identically to full mode for conflict detection, staging, and PR
+  titling, EXCEPT the AUTOROLL marker file SHA is NOT updated to the candidate
+  commit SHA; it remains stickied to the last full mode SHA as
+  'CONFLICTED:<last_full_sha>'.
+- CUJ 7: Conflict on Subsequent Commit
+  If a conflict occurs on a commit after prior clean commits have already been
+  applied on the autoroll branch, a hard reset reverts the conflicted commit,
+  preserving the prior clean commits, and the script halts cleanly without
+  marking the PR as conflicted.
+- CUJ 8: Auto-Resolvable Conflicts
+  Resolves expected conflicts such as submodule pointer updates and deleted
+  files via `resolve_conflicts` without user intervention.
+- CUJ 9: Halt on Unresolved Conflicted PR Branch
+  If .github/AUTOROLL on HEAD contains 'CONFLICTED:<sha>', the autoroller aborts
+  immediately (exit code 1) until resolved.
+- CUJ 10: Halt on Resolved Conflicted PR Branch
+  If an existing open PR branch contains a commit starting with 'CONFLICTED',
+  the autoroller halts (exit code 1) until the PR is squashed and merged.
+- CUJ 11: Respects Max Commits Limit
+  Halts cherry-picking once the configured `--max-commits` limit is reached.
+- CUJ 12: Missing `--prs-json` Validation in Label Mode
+  Exits with error (exit code 1) if `--mode label` is invoked without providing
+  pre-fetched PR labels via `--prs-json`.
+- CUJ 13: Out-of-Order PR Migration in Label Mode
+  Because the roll cursor remains stickied to the last full mode SHA, any older
+  PRs labeled later are discovered and migrated even if newer PRs have already
+  been merged. The AUTOROLL file SHA remains stickied to the last full mode SHA.
+"""
 
 import io
 import json
@@ -464,8 +514,7 @@ class TestAutorollIntegration(unittest.TestCase):
 
     # Main modifies line 2 differently
     self.git('checkout', 'main')
-    sha1 = self.commit_file('conflict.txt', 'line 1\nmain edit\n',
-                            'Main edit (#101)')
+    self.commit_file('conflict.txt', 'line 1\nmain edit\n', 'Main edit (#101)')
     self.commit_file('other.txt', 'other\n', 'Other commit (#102)')
 
     self.git('checkout', '27.lts')
@@ -504,9 +553,10 @@ class TestAutorollIntegration(unittest.TestCase):
     last_title = self.git('log', '-1', '--format=%s').stdout.strip()
     self.assertTrue(last_title.startswith('CONFLICTED Cherry pick PR #101:'))
 
-    # Must write CONFLICTED:<sha> in label mode as well
+    # In label mode, AUTOROLL marker file SHA must not be updated to candidate
+    # SHA; it must remain stickied to the last full mode SHA (base_sha).
     autoroll_content = self.git('show', 'HEAD:.github/AUTOROLL').stdout.strip()
-    self.assertEqual(autoroll_content, f'CONFLICTED:{sha1}')
+    self.assertEqual(autoroll_content, f'CONFLICTED:{base_sha}')
 
   def test_cuj7_conflict_on_subsequent_commit(self):
     """CUJ 7: Conflict on subsequent commit executes hard reset."""
@@ -784,6 +834,9 @@ class TestAutorollIntegration(unittest.TestCase):
     self.assertEqual(exit_code, 0)
     self.assertEqual(stdout.strip(), '- #101')
     self.assertTrue(os.path.exists('a.txt'))
+    # Ensure AUTOROLL marker file SHA remains stickied to last full mode SHA
+    autoroll_content = self.git('show', 'HEAD:.github/AUTOROLL').stdout.strip()
+    self.assertEqual(autoroll_content, self.start_sha)
 
 
 if __name__ == '__main__':
