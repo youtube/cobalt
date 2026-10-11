@@ -12,103 +12,169 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Converts a chromium test JSON results file to JUnit XML format."""
+"""Converts JSON test results (GoogleTest, Vega, YTS) to JUnit XML format."""
 
+import collections
 import json
-import xml.etree.ElementTree as ET
 import sys
-import re
+import xml.etree.ElementTree as ET
+
+# Characters disallowed by XML 1.0 (excluding valid whitespace \t, \n, \r):
+# Disallowed: 0x00-0x08, 0x0B, 0x0C, 0x0E-0x1F, 0x7F-0x84, 0x86-0x9F
+_DISALLOWED_CODEPOINTS = (
+    set(range(0x00, 0x09))
+    | {0x0B, 0x0C}
+    | set(range(0x0E, 0x20))
+    | set(range(0x7F, 0x85))
+    | set(range(0x86, 0xA0)))
+_XML_CLEAN_TABLE = dict.fromkeys(_DISALLOWED_CODEPOINTS, None)
 
 
 def _sanitize_xml_string(s):
   if not s:
     return ''
-  # Remove invalid XML 1.0 characters
-  return re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x84\x86-\x9f]', '', s)
+  return str(s).translate(_XML_CLEAN_TABLE)
+
+
+def _normalize_status(raw_status):
+  status_str = str(raw_status).upper()
+  if 'FAIL' in status_str:
+    return 'FAILURE'
+  if any(code in status_str for code in ('CRASH', 'TIMEOUT', 'ERROR')):
+    return 'ERROR'
+  if 'SKIP' in status_str:
+    return 'SKIPPED'
+  return 'SUCCESS'
+
+
+def _parse_entry_duration(test):
+  duration = test.get('duration')
+  if duration is not None:
+    try:
+      return float(duration)
+    except (ValueError, TypeError):
+      return 0.0
+  start_time = test.get('start_time')
+  end_time = test.get('end_time')
+  if start_time is not None and end_time is not None:
+    try:
+      return max(0.0, (float(end_time) - float(start_time)) / 1000.0)
+    except (ValueError, TypeError):
+      return 0.0
+  return 0.0
+
+
+def _parse_entry_output(test):
+  lines = []
+  for key in ('output', 'errors'):
+    val = test.get(key)
+    if isinstance(val, list):
+      lines.extend(str(item) for item in val if item)
+    elif val:
+      lines.append(str(val))
+  return '\n'.join(lines)
+
+
+def _extract_cases(data):
+  """Extracts test cases grouped by classname."""
+  suites = collections.defaultdict(list)
+
+  if isinstance(data, dict) and 'per_iteration_data' in data:
+    for iteration in data.get('per_iteration_data', []):
+      for test_key, results in iteration.items():
+        for res in results:
+          if not isinstance(res, dict):
+            continue
+          classname, _, method = test_key.partition('#')
+          if not method:
+            classname, method = 'UnknownClass', classname
+          elapsed_ms = res.get('elapsed_time_ms')
+          try:
+            elapsed_time = float(
+                elapsed_ms) / 1000.0 if elapsed_ms is not None else 0.0
+          except (ValueError, TypeError):
+            elapsed_time = 0.0
+          suites[classname].append({
+              'name': method.split('[')[0],
+              'status': _normalize_status(res.get('status', 'SUCCESS')),
+              'time': elapsed_time,
+              'output': res.get('output_snippet', '')
+          })
+    return suites
+
+  tests = data.get('tests', []) if isinstance(
+      data, dict) else (data if isinstance(data, list) else [])
+  for t in tests:
+    if not isinstance(t, dict):
+      continue
+    name = (
+        t.get('test_title') or t.get('name') or t.get('test_category') or
+        'UnknownTest')
+    classname = (
+        t.get('class_name') or t.get('suite_name') or t.get('test_suite') or
+        t.get('test_category') or 'VegaTest')
+    suites[classname].append({
+        'name': name,
+        'status': _normalize_status(t.get('result', t.get('status', 'PASSED'))),
+        'time': _parse_entry_duration(t),
+        'output': _parse_entry_output(t)
+    })
+  return suites
+
+
+def _compute_stats(cases):
+  failures = sum(1 for c in cases if c['status'] in ('FAILURE', 'FAIL'))
+  errors = sum(1 for c in cases if c['status'] in ('CRASH', 'TIMEOUT', 'ERROR'))
+  total_time = sum(c['time'] for c in cases)
+  return {
+      'tests': str(len(cases)),
+      'failures': str(failures),
+      'errors': str(errors),
+      'time': f'{total_time:.3f}',
+  }
+
+
+def _add_testcase(parent, case, suite_name):
+  case_el = ET.SubElement(
+      parent,
+      'testcase',
+      {
+          'name': case['name'],
+          'classname': suite_name,
+          'time': f"{case['time']:.3f}",
+      },
+  )
+  status = case['status']
+  output_text = _sanitize_xml_string(case['output'])
+  if status in ('FAILURE', 'FAIL'):
+    ET.SubElement(case_el, 'failure', {
+        'message': 'Test failed'
+    }).text = output_text
+  elif status in ('CRASH', 'TIMEOUT', 'ERROR'):
+    ET.SubElement(case_el, 'error', {
+        'message': f'Test {status}'
+    }).text = output_text
+  elif status in ('SKIPPED', 'SKIP'):
+    ET.SubElement(case_el, 'skipped')
 
 
 def convert(json_path, xml_path):
   with open(json_path, 'r', encoding='utf-8') as f:
     data = json.load(f)
 
-  testsuites = ET.Element('testsuites')
+  suites = _extract_cases(data)
+  all_cases = [c for cases in suites.values() for c in cases]
 
-  # Group by class name
-  suites = {}
-
-  total_tests = 0
-  total_failures = 0
-  total_errors = 0
-  total_time = 0.0
-
-  for iteration in data.get('per_iteration_data', []):
-    for test_key, results in iteration.items():
-      for res in results:
-        # Key format: ClassName#MethodName[Suffix]
-        if '#' in test_key:
-          classname, method_with_suffix = test_key.split('#', 1)
-          method = method_with_suffix.split('[')[0]
-        else:
-          classname = 'UnknownClass'
-          method = test_key.split('[')[0]
-
-        status = res.get('status', 'SUCCESS')
-        elapsed_ms = res.get('elapsed_time_ms', 0)
-        elapsed_sec = elapsed_ms / 1000.0
-        output_snippet = res.get('output_snippet', '')
-
-        if classname not in suites:
-          suites[classname] = []
-        suites[classname].append({
-            'name': method,
-            'status': status,
-            'time': elapsed_sec,
-            'output': output_snippet
-        })
-
-        total_tests += 1
-        total_time += elapsed_sec
-        if status in ('FAILURE', 'FAIL'):
-          total_failures += 1
-        elif status in ('CRASH', 'TIMEOUT', 'ERROR'):
-          total_errors += 1
-
-  testsuites.set('tests', str(total_tests))
-  testsuites.set('failures', str(total_failures))
-  testsuites.set('errors', str(total_errors))
-  testsuites.set('time', f'{total_time:.3f}')
+  testsuites = ET.Element('testsuites', _compute_stats(all_cases))
   testsuites.set('name', 'AllTests')
 
   for suite_name, cases in suites.items():
-    suite_el = ET.SubElement(testsuites, 'testsuite')
-    suite_el.set('name', suite_name)
-
-    suite_tests = len(cases)
-    suite_failures = sum(1 for c in cases if c['status'] in ('FAILURE', 'FAIL'))
-    suite_errors = sum(
-        1 for c in cases if c['status'] in ('CRASH', 'TIMEOUT', 'ERROR'))
-    suite_time = sum(c['time'] for c in cases)
-
-    suite_el.set('tests', str(suite_tests))
-    suite_el.set('failures', str(suite_failures))
-    suite_el.set('errors', str(suite_errors))
-    suite_el.set('time', f'{suite_time:.3f}')
-
+    suite_el = ET.SubElement(testsuites, 'testsuite', {
+        'name': suite_name,
+        **_compute_stats(cases)
+    })
     for case in cases:
-      case_el = ET.SubElement(suite_el, 'testcase')
-      case_el.set('name', case['name'])
-      case_el.set('classname', suite_name)
-      case_time = case['time']
-      case_el.set('time', f'{case_time:.3f}')
-
-      if case['status'] in ('FAILURE', 'FAIL'):
-        fail_el = ET.SubElement(case_el, 'failure')
-        fail_el.set('message', 'Test failed')
-        fail_el.text = _sanitize_xml_string(case['output'])
-      elif case['status'] in ('CRASH', 'TIMEOUT', 'ERROR'):
-        err_el = ET.SubElement(case_el, 'error')
-        err_el.set('message', 'Test ' + case['status'])
-        err_el.text = _sanitize_xml_string(case['output'])
+      _add_testcase(suite_el, case, suite_name)
 
   tree = ET.ElementTree(testsuites)
   if hasattr(ET, 'indent'):

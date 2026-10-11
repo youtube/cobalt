@@ -35,5 +35,5 @@ runs:
       uses: ./.github/actions/download_test_results
       continue-on-error: true
       with:
-        pattern: ${{ inputs.test_results_key }}*_retry_filter_*
+        pattern: ${{ inputs.platform }}*retry_filter_*
         path: ${{ steps.prepare-filters.outputs.filter_dir }}
