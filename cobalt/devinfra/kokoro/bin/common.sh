@@ -275,6 +275,35 @@ _do_publish_golden_workspace_snapshot () {
   local staging_dir="${WORKSPACE_COBALT}/out/golden_workspace_staging_$$"
   mkdir -p "${staging_dir}"
 
+  # Sanitize git remote URL in src/.git/config and .gclient so downstream
+  # GitHub Actions runners do not inherit internal rpc:// Git-on-Borg URLs.
+  local public_repo_url="https://github.com/youtube/cobalt.git"
+  local orig_remote_url
+  orig_remote_url="$(git -C "${gclient_root}/src" remote get-url origin \
+    2>/dev/null || true)"
+  local gclient_file="${gclient_root}/.gclient"
+
+  _restore_golden_workspace () {
+    if [[ -n "${orig_remote_url}" ]]; then
+      git -C "${gclient_root}/src" remote set-url origin "${orig_remote_url}" \
+        2>/dev/null || true
+    fi
+    if [[ -f "${staging_dir}/.gclient.bak" ]]; then
+      mv -f "${staging_dir}/.gclient.bak" "${gclient_file}" 2>/dev/null || true
+    fi
+  }
+  trap '_restore_golden_workspace' RETURN
+
+  if [[ -n "${orig_remote_url}" ]]; then
+    git -C "${gclient_root}/src" remote set-url origin "${public_repo_url}"
+  fi
+
+  if [[ -f "${gclient_file}" ]]; then
+    cp "${gclient_file}" "${staging_dir}/.gclient.bak"
+    sed "s|rpc://[^\"' ]*|${public_repo_url}|g" \
+      "${staging_dir}/.gclient.bak" > "${gclient_file}"
+  fi
+
   local archive="${staging_dir}/golden-workspace-latest.tar.zst"
   local extra_tar_args=()
   if [[ -d "${gclient_root}/vpython" ]]; then
@@ -288,6 +317,9 @@ _do_publish_golden_workspace_snapshot () {
       -cf "${archive}" \
       -C "${gclient_root}" src tools/depot_tools .gclient \
       "${extra_tar_args[@]}"
+
+  # Restore origin URL and .gclient immediately after archive creation.
+  _restore_golden_workspace
 
   local archive_sha
   if command -v sha256sum >/dev/null 2>&1; then
@@ -354,4 +386,3 @@ publish_golden_workspace_snapshot () {
     return 0
   fi
 }
-
