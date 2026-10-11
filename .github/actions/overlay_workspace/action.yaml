@@ -133,3 +133,11 @@ runs:
         git config --global --add safe.directory "${MERGED_DIR}"
         git config --global --add safe.directory "${MERGED_DIR}/src"
         git config --global --add safe.directory "${MERGED_DIR}/depot_tools"
+
+        # Ensure any cached .gclient or git remotes do not reference internal rpc:// endpoints
+        if [ -f "${MERGED_DIR}/.gclient" ]; then
+          sed -i 's|rpc://[^ '\''"]*|https://github.com/youtube/cobalt|g' "${MERGED_DIR}/.gclient" || true
+        fi
+        if [ -d "${MERGED_DIR}/src/.git" ]; then
+          git -C "${MERGED_DIR}/src" remote set-url origin "https://github.com/youtube/cobalt" 2>/dev/null || true
+        fi
