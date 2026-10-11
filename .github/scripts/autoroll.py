@@ -88,8 +88,8 @@ def main():
     # Commit PR
     metadata = lib.get_cherry_pick_metadata(sha, title, pr_num)
     first_commit = not commits_added
-    autoroll_metadata = ((args.autoroll_file,
-                          sha) if args.mode == 'full' else None)
+    autoroll_sha = sha if args.mode == 'full' else target_start
+    autoroll_metadata = (args.autoroll_file, autoroll_sha, args.mode == 'full')
 
     result, unmerged_files = cherry_pick(sha, metadata, first_commit,
                                          autoroll_metadata)

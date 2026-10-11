@@ -253,13 +253,14 @@ def apply_and_commit(action,
 
   # Update autoroll file
   if autoroll_metadata:
-    autoroll_file, autoroll_sha = autoroll_metadata
-    with open(autoroll_file, 'w', encoding='utf-8') as f:
-      if result == CommitStatus.CONFLICTED:
-        f.write(f'CONFLICTED:{autoroll_sha}\n')
-      else:
-        f.write(f'{autoroll_sha}\n')
-    run(['git', 'add', '--', autoroll_file])
+    autoroll_file, autoroll_sha, update_on_success = autoroll_metadata
+    if result == CommitStatus.CONFLICTED or update_on_success:
+      with open(autoroll_file, 'w', encoding='utf-8') as f:
+        if result == CommitStatus.CONFLICTED:
+          f.write(f'CONFLICTED:{autoroll_sha}\n')
+        else:
+          f.write(f'{autoroll_sha}\n')
+      run(['git', 'add', '--', autoroll_file])
 
   # Commit
   run([
