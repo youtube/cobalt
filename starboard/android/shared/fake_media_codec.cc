@@ -189,6 +189,8 @@ FakeMediaCodecFactory::CreateVideoMediaCodec(
     std::lock_guard lock(mutex_);
     last_video_color_metadata_ =
         color_metadata ? std::make_optional(*color_metadata) : std::nullopt;
+    last_video_codec_ = video_codec;
+    last_video_surface_.Reset(j_surface);
   }
   video_codec_create_count_++;
   auto fake =

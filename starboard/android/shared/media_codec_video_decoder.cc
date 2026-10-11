@@ -163,6 +163,13 @@ bool IsFrameSizeExceedingCapabilities(const Size& frame_size,
          frame_size.height > max_video_size.height;
 }
 
+// Returns true if creating a codec for |video_codec| requires an estimate of
+// the frame rate, which is then derived from the first few inputs.
+bool NeedsFpsToInitializeCodec(SbMediaVideoCodec video_codec) {
+  return video_codec == kSbMediaVideoCodecAv1 &&
+         MediaCapabilitiesCache::GetInstance()->IsAv18kCappedAt30();
+}
+
 }  // namespace
 
 // TODO: Merge this with VideoFrameTracker, maybe?
@@ -331,9 +338,7 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       skip_flush_on_decoder_teardown_(
           pipeline_config.experimental_features.GetBool(
               kMediaSkipFlushOnDecoderTeardown)),
-      needs_fps_to_initialize_codec_(
-          video_codec_ == kSbMediaVideoCodecAv1 &&
-          MediaCapabilitiesCache::GetInstance()->IsAv18kCappedAt30()),
+      needs_fps_to_initialize_codec_(NeedsFpsToInitializeCodec(video_codec_)),
       skip_video_frames_over_60_fps_(
           pipeline_config.experimental_features.GetBool(
               kMediaSkipVideoFramesOver60Fps)),
@@ -498,7 +503,35 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
                     input_buffers.front()->timestamp(), "size",
                     input_buffers.size());
 
-  if (max_video_size_.has_value()) {
+  // A flushed codec keeps its configuration across a seek, so check the first
+  // input after the flush in case the codec needs to be rebuilt, e.g. after a
+  // SourceBuffer.changeType() call or a switch to another SourceBuffer. The new
+  // codec renders to the same output surface, so the last frame stays on screen
+  // until the new codec produces its first frame.
+  bool rebuilding_codec = false;
+  if (is_flushed_) {
+    if (NeedsCodecTransition(input_buffers.front())) {
+      SB_LOG(INFO) << "Video stream changed to "
+                   << GetMediaVideoCodecName(
+                          input_buffers.front()->video_stream_info().codec)
+                   << " at " << input_buffers.front()->timestamp()
+                   << " after a reset; rebuilding the codec on the same output"
+                      " surface.";
+      TeardownMediaDecoder();
+      if (reset_delay_usec_ > 0) {
+        usleep(reset_delay_usec_);
+      }
+      input_buffer_written_ = 0;
+      video_fps_ = 0;
+      rebuilding_codec = true;
+    }
+    is_flushed_ = false;
+  }
+
+  // A rebuilt codec is sized for the new stream by InitializeCodec(), as at
+  // startup, so the new stream's key frames aren't checked against the limit
+  // of the previous codec.
+  if (max_video_size_.has_value() && !rebuilding_codec) {
     for (const auto& input_buffer : input_buffers) {
       if (input_buffer->video_sample_info().is_key_frame) {
         const Size& frame_size = input_buffer->video_stream_info().frame_size;
@@ -515,42 +548,32 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
     }
   }
 
-  // A flushed codec keeps its configuration across a seek, so check the first
-  // input after the flush in case the codec needs to be rebuilt.
-  if (is_flushed_) {
-    if (NeedsCodecTransition(input_buffers.front())) {
-      SB_LOG(INFO) << "Codec configuration changed at "
-                   << input_buffers.front()->timestamp()
-                   << " after a reset; rebuilding the codec.";
-      TeardownCodec();
-      if (reset_delay_usec_ > 0) {
-        usleep(reset_delay_usec_);
-      }
-      input_buffer_written_ = 0;
-      video_fps_ = 0;
-    }
-    is_flushed_ = false;
-  }
-
   if (input_buffer_written_ == 0) {
     SB_DCHECK_EQ(video_fps_, 0);
+    const VideoStreamInfo& video_stream_info =
+        input_buffers.front()->video_stream_info();
     first_buffer_timestamp_ = input_buffers.front()->timestamp();
 
     // If color metadata is present and is not an identity mapping, then
-    // teardown the codec so it can be reinitalized with the new metadata.
-    const auto& color_metadata =
-        input_buffers.front()->video_stream_info().color_metadata;
+    // recreate the codec so it can be reinitalized with the new metadata.
+    const auto& color_metadata = video_stream_info.color_metadata;
     if (!IsIdentity(color_metadata)) {
       SB_DCHECK(!color_metadata_) << "Unexpected residual color metadata.";
       SB_LOG(INFO) << "Reinitializing codec with HDR color metadata.";
-      TeardownCodec();
+      TeardownMediaDecoder();
       color_metadata_ = color_metadata;
     }
 
+    // The codec is (re)created for the codec of the first input, which may
+    // differ from the previous one after a reset.
+    if (media_decoder_ == NULL) {
+      SetVideoCodec(video_stream_info.codec);
+    }
+
     // Re-initialize the codec now if it was torn down either in |Reset| or
-    // because we need to change the color metadata.
+    // because we need to change the codec or the color metadata.
     if (!needs_fps_to_initialize_codec_ && media_decoder_ == NULL) {
-      auto result = InitializeCodec(input_buffers.front()->video_stream_info());
+      auto result = InitializeCodec(video_stream_info);
       if (!result) {
         std::string error_message =
             "Failed to reinitialize codec with error: " + result.error();
@@ -802,21 +825,37 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
   // Setup the output surface object.  If we are in punch-out mode, target
   // the passed in Android video surface.  If we are in decode-to-texture
   // mode, create a surface from a new texture target and use that as the
-  // output surface.
+  // output surface. If the surface (or decode target) is still held from a
+  // previous codec (see TeardownMediaDecoder()), the new codec renders to it.
   JNIEnv* env = AttachCurrentThread();
   jni_zero::ScopedJavaLocalRef<jobject> j_output_surface;
   switch (output_mode_) {
     case kSbPlayerOutputModePunchOut: {
       if (surface_view_) {
         j_output_surface = surface_view_.AsLocalRef(env);
+      } else if (owns_video_surface_) {
+        j_output_surface = video_surface_.AsLocalRef(env);
       } else {
         j_output_surface = AcquireVideoSurface();
+        if (j_output_surface) {
+          video_surface_.Reset(j_output_surface);
+        }
       }
       if (j_output_surface) {
         owns_video_surface_ = true;
       }
     } break;
     case kSbPlayerOutputModeDecodeToTexture: {
+      {
+        std::lock_guard lock(decode_target_mutex_);
+        if (decode_target_) {
+          j_output_surface = jni_zero::ScopedJavaLocalRef<jobject>(
+              env, decode_target_->surface());
+        }
+      }
+      if (j_output_surface) {
+        break;
+      }
       // A width and height of (0, 0) is provided here because Android doesn't
       // actually allocate any memory into the texture at this time.  That is
       // done behind the scenes, the acquired texture is not actually backed
@@ -917,8 +956,8 @@ void MediaCodecVideoDecoder::TeardownCodec() {
     ReleaseVideoSurface();
     owns_video_surface_ = false;
   }
-  media_decoder_.reset();
-  color_metadata_ = std::nullopt;
+  video_surface_.Reset();
+  TeardownMediaDecoder();
 
   SbDecodeTarget decode_target_to_release = kSbDecodeTargetInvalid;
   {
@@ -949,6 +988,25 @@ void MediaCodecVideoDecoder::TeardownCodec() {
     SbDecodeTargetReleaseInGlesContext(decode_target_graphics_context_provider_,
                                        decode_target_to_release);
   }
+}
+
+void MediaCodecVideoDecoder::TeardownMediaDecoder() {
+  SB_CHECK(BelongsToCurrentThread());
+  media_decoder_.reset();
+  color_metadata_ = std::nullopt;
+}
+
+void MediaCodecVideoDecoder::SetVideoCodec(SbMediaVideoCodec video_codec) {
+  SB_CHECK(BelongsToCurrentThread());
+  SB_DCHECK(!media_decoder_);
+  if (video_codec == video_codec_) {
+    return;
+  }
+  SB_LOG(INFO) << "Video codec changed from "
+               << GetMediaVideoCodecName(video_codec_) << " to "
+               << GetMediaVideoCodecName(video_codec) << ".";
+  video_codec_ = video_codec;
+  needs_fps_to_initialize_codec_ = NeedsFpsToInitializeCodec(video_codec_);
 }
 
 void MediaCodecVideoDecoder::WriteInputBuffersInternal(
@@ -1257,13 +1315,15 @@ void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
 }
 
 // Returns true if |input_buffer| uses a configuration the current codec can't
-// decode, e.g. after a SourceBuffer.changeType() call.
-// TODO (b/564788162): Support cross-codec transitions.
+// decode, e.g. after a SourceBuffer.changeType() call or a switch to another
+// SourceBuffer: a different codec, or a different HDR color configuration.
 bool MediaCodecVideoDecoder::NeedsCodecTransition(
     const scoped_refptr<InputBuffer>& input_buffer) const {
-  SB_DCHECK_EQ(input_buffer->video_stream_info().codec, video_codec_);
   if (!media_decoder_) {
     return false;
+  }
+  if (input_buffer->video_stream_info().codec != video_codec_) {
+    return true;
   }
   const SbMediaColorMetadata& stream_color =
       input_buffer->video_stream_info().color_metadata;

@@ -141,9 +141,16 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   void OnFrameAvailable() override;
 
  private:
-  // Attempt to initialize the codec.
+  // Attempt to initialize the codec. If the decoder still holds an output
+  // surface (or decode target) from a previous codec, the new codec renders to
+  // it.
   Result<void> InitializeCodec(const VideoStreamInfo& video_stream_info);
+  // Destroys the codec and releases the output surface (or decode target).
   void TeardownCodec();
+  // Destroys the codec but keeps the output surface (or decode target), so that
+  // the next InitializeCodec() creates the new codec on the same surface.
+  void TeardownMediaDecoder();
+  void SetVideoCodec(SbMediaVideoCodec video_codec);
 
   void WriteInputBuffersInternal(const InputBuffers& input_buffers);
   void ProcessOutputBuffer(MediaCodec* media_codec_bridge,
@@ -170,9 +177,12 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   bool NeedsCodecTransition(
       const scoped_refptr<InputBuffer>& input_buffer) const;
 
+  // The codec of the current stream. Unlike the members below, this changes
+  // when the codec is rebuilt for a stream of another codec family.
+  SbMediaVideoCodec video_codec_;
+
   // These variables will be initialized inside ctor or Initialize() and will
   // not be changed during the life time of this class.
-  const SbMediaVideoCodec video_codec_;
   DecoderStatusCB decoder_status_cb_;
   ErrorCB error_cb_;
   DrmSystem* drm_system_;
@@ -207,7 +217,8 @@ class MediaCodecVideoDecoder : public VideoDecoder,
 
   // Codec initialization will be delayed until the decoder receives enough
   // inputs to estimate video fps when |needs_fps_to_initialize_codec_| is true.
-  const bool needs_fps_to_initialize_codec_;
+  // It depends on |video_codec_|, and is updated with it.
+  bool needs_fps_to_initialize_codec_;
   // Workaround for b/506257255, which skips some video frames to make the
   // effective frame rate no more than 60 fps. This is only used for tunnel
   // mode.
@@ -271,6 +282,9 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   // invocation of ReleaseVideoSurface(), though ReleaseVideoSurface() would
   // do nothing if not own the surface.
   bool owns_video_surface_ = false;
+  // The video surface acquired with AcquireVideoSurface(), kept while
+  // |owns_video_surface_| is true so a rebuilt codec can render to it.
+  jni_zero::ScopedJavaGlobalRef<jobject> video_surface_;
   std::mutex surface_destroy_mutex_;
   std::condition_variable surface_condition_variable_;
   bool surface_destroyed_ = false;  // Guarded by |surface_destroy_mutex_|.
