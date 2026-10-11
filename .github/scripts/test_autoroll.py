@@ -68,24 +68,21 @@ class TestAutorollLib(unittest.TestCase):
       os.remove(temp_path)
 
   @patch('autoroll_lib.get_out')
-  def test_get_rolled_source_items_patterns(self, mock_get_out):
+  def test_get_rolled_source_items(self, mock_get_out):
     mock_get_out.return_value = (
         'Cherry pick PR #12799: content: Fail gracefully\n'
         'Refer to original PR: #12799\n\n'
         '(cherry picked from commit 1111111111111111111111111111111111111111)\n'
         'Cherry pick PR #12800: some feature\n'
         '(cherry picked from commit 2222222222222222222222222222222222222222)\n'
-        'Autoroll from main to 27.lts (#13254)\n\n'
-        'Original pull requests:\n'
-        '- #13086\n'
-        '- #13087\n')
+    )
     shas, prs = lib.get_rolled_source_items('27.lts')
     self.assertEqual(
         shas, {
             '1111111111111111111111111111111111111111',
             '2222222222222222222222222222222222222222',
         })
-    self.assertEqual(prs, {12799, 12800, 13086, 13087})
+    self.assertEqual(prs, {12799, 12800})
 
   @patch('autoroll_lib.get_out')
   def test_get_cherry_pick_metadata(self, mock_get_out):
@@ -306,10 +303,10 @@ class TestAutorollIntegration(unittest.TestCase):
     self.init_target_branch('27.lts')
 
     sha1 = self.commit_file('a.txt', 'content a\n', 'Feature 101 (#101)')
-    self.commit_file('b.txt', 'content b\n', 'Feature 102 (#102)')
+    sha2 = self.commit_file('b.txt', 'content b\n', 'Feature 102 (#102)')
     self.commit_file('c.txt', 'content c\n', 'Feature 103 (#103)')
 
-    # On 27.lts: PR 101 merged via individual CP, 102 merged via squashed roll
+    # On 27.lts: PR 101 merged via individual CP, 102 merged via CP
     self.git('checkout', '27.lts')
     with open('a.txt', 'w', encoding='utf-8') as f:
       f.write('content a\n')
@@ -322,9 +319,10 @@ class TestAutorollIntegration(unittest.TestCase):
     with open('b.txt', 'w', encoding='utf-8') as f:
       f.write('content b\n')
     self.git('add', 'b.txt')
-    msg_squash = ('Autoroll from main to 27.lts (#13254)\n\n'
-                  'Original pull requests:\n- #102\n')
-    self.git('commit', '-m', msg_squash)
+    msg_cp2 = (f'Cherry pick PR #102: Feature 102\n\n'
+               f'Refer to original PR: #102\n\n'
+               f'(cherry picked from commit {sha2})')
+    self.git('commit', '-m', msg_cp2)
 
     self.git('checkout', '-b', 'autoroll-main-to-27.lts')
 

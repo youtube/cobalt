@@ -5,19 +5,9 @@ import sys
 import autoroll_lib as lib
 
 
-def cherry_pick(sha,
-                metadata,
-                first_commit,
-                autoroll_metadata,
-                *,
-                update_autoroll_on_success=True):
-  return lib.apply_and_commit(
-      'cherry-pick',
-      sha,
-      metadata,
-      first_commit,
-      autoroll_metadata,
-      update_autoroll_on_success=update_autoroll_on_success)
+def cherry_pick(sha, metadata, first_commit, autoroll_metadata):
+  return lib.apply_and_commit('cherry-pick', sha, metadata, first_commit,
+                              autoroll_metadata)
 
 
 def main():
@@ -98,15 +88,10 @@ def main():
     # Commit PR
     metadata = lib.get_cherry_pick_metadata(sha, title, pr_num)
     first_commit = not commits_added
-    autoroll_metadata = (args.autoroll_file, sha)
-    update_autoroll_on_success = args.mode == 'full'
+    autoroll_metadata = (args.autoroll_file, sha, args.mode == 'full')
 
-    result, unmerged_files = cherry_pick(
-        sha,
-        metadata,
-        first_commit,
-        autoroll_metadata,
-        update_autoroll_on_success=update_autoroll_on_success)
+    result, unmerged_files = cherry_pick(sha, metadata, first_commit,
+                                         autoroll_metadata)
 
     if result == lib.CommitStatus.FAILED:
       lib.log(f'Reached FAILED commit ({sha}).')

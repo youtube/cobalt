@@ -69,9 +69,8 @@ def get_rolled_source_items(rev_range):
   prs = set()
   pattern = (r'(?:Refer to (?:the )?original PR: '
              r'(?:https://github\.com/[^/]+/[^/]+/pull/)?#?|'
-             r'Cherry pick PR #|'
-             r'^\s*-\s*#)(\d+)')
-  for m in re.finditer(pattern, output, re.MULTILINE):
+             r'Cherry pick PR #)(\d+)')
+  for m in re.finditer(pattern, output):
     prs.add(int(m.group(1)))
   return shas, prs
 
@@ -220,9 +219,7 @@ def apply_and_commit(action,
                      sha,
                      metadata,
                      first_commit,
-                     autoroll_metadata=None,
-                     *,
-                     update_autoroll_on_success=True):
+                     autoroll_metadata=None):
   """Attempts to apply a single commit.
 
   Returns:
@@ -256,14 +253,15 @@ def apply_and_commit(action,
 
   # Update autoroll file
   if autoroll_metadata:
-    autoroll_file, autoroll_sha = autoroll_metadata
-    if result == CommitStatus.CONFLICTED:
+    autoroll_file, autoroll_sha = autoroll_metadata[:2]
+    update_on_success = autoroll_metadata[2] if len(
+        autoroll_metadata) > 2 else True
+    if result == CommitStatus.CONFLICTED or update_on_success:
       with open(autoroll_file, 'w', encoding='utf-8') as f:
-        f.write(f'CONFLICTED:{autoroll_sha}\n')
-      run(['git', 'add', '--', autoroll_file])
-    elif update_autoroll_on_success:
-      with open(autoroll_file, 'w', encoding='utf-8') as f:
-        f.write(f'{autoroll_sha}\n')
+        if result == CommitStatus.CONFLICTED:
+          f.write(f'CONFLICTED:{autoroll_sha}\n')
+        else:
+          f.write(f'{autoroll_sha}\n')
       run(['git', 'add', '--', autoroll_file])
 
   # Commit
