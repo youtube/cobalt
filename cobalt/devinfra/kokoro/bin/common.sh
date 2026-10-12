@@ -296,10 +296,9 @@ _do_publish_golden_workspace_snapshot () {
   fi
 
   tar --exclude='src/out' \
-      --use-compress-program="zstd -T0 -3" \
-      -cf "${archive}" \
+      -cf - \
       -C "${gclient_root}" src tools/depot_tools .gclient \
-      "${extra_tar_args[@]}"
+      "${extra_tar_args[@]}" | zstd -T0 -3 -o "${archive}"
 
   # Restore origin URL and .gclient immediately after archive creation.
   git -C "${gclient_root}/src" remote set-url origin "${orig_remote_url}"
