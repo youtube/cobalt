@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.ntp_customization;
 
+import static org.chromium.build.NullUtil.assertNonNull;
 import static org.chromium.build.NullUtil.assumeNonNull;
 import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator.BottomSheetType.CHROME_COLORS;
 import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator.BottomSheetType.FEED;
@@ -13,7 +14,7 @@ import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoor
 import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator.BottomSheetType.SINGLE_THEME_COLLECTION;
 import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator.BottomSheetType.THEME;
 import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator.BottomSheetType.THEME_COLLECTIONS;
-import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundImageType.THEME_COLLECTION;
+import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundType.THEME_COLLECTION;
 import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationViewProperties.LAYOUT_TO_DISPLAY;
 import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationViewProperties.LIST_CONTAINER_VIEW_DELEGATE;
 import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationViewProperties.MAIN_BOTTOM_SHEET_FEED_SECTION_SUBTITLE;
@@ -39,6 +40,7 @@ import org.chromium.components.browser_ui.bottomsheet.BottomSheetContent;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetObserver;
 import org.chromium.components.browser_ui.bottomsheet.EmptyBottomSheetObserver;
+import org.chromium.components.browser_ui.widget.scrim.ScrimManager;
 import org.chromium.components.prefs.PrefService;
 import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.ui.base.DeviceFormFactor;
@@ -57,6 +59,9 @@ import java.util.function.Supplier;
  */
 @NullMarked
 public class NtpCustomizationMediator {
+    @VisibleForTesting static final float PREVIEW_SCRIM_ALPHA = 0.12f;
+
+    @VisibleForTesting static final float DEFAULT_SCRIM_ALPHA = 1f;
     // Defines the back navigation hierarchy for theme-related bottom sheets. <Child, Parent>
     private final Map<Integer, Integer> mThemeBackNavigationMap =
             Map.ofEntries(
@@ -85,6 +90,7 @@ public class NtpCustomizationMediator {
     private boolean mShouldRecreate;
     private @Nullable Bitmap mNewThemeCollectionImage;
     private static @Nullable PrefService sPrefServiceForTest;
+    private @Nullable PropertyModel mScrimPropertyModel;
 
     public NtpCustomizationMediator(
             Context context,
@@ -111,13 +117,23 @@ public class NtpCustomizationMediator {
                     @Override
                     public void onSheetOpened(@BottomSheetController.StateChangeReason int reason) {
                         mBottomSheetContent.onSheetOpened();
+
+                        // The scrim requires the BottomSheet as an anchor. Calling
+                        // createScrimParams() inside onSheetOpened() guarantees that
+                        // requestShowContent() has already initialized the BottomSheet.
+                        mScrimPropertyModel = mBottomSheetController.createScrimParams();
+
+                        // This scrim is dedicated to NTP Customization and is used instead of the
+                        // BottomSheetController's scrim.
+                        ScrimManager scrimManager = mBottomSheetController.getScrimManager();
+                        scrimManager.showScrim(mScrimPropertyModel);
                     }
 
                     @Override
                     public void onSheetClosed(@BottomSheetController.StateChangeReason int reason) {
                         // Pick and save the primary color if a new theme collection image is
                         // selected.
-                        if (NtpCustomizationConfigManager.getInstance().getBackgroundImageType()
+                        if (NtpCustomizationConfigManager.getInstance().getBackgroundType()
                                         == THEME_COLLECTION
                                 && mNewThemeCollectionImage != null) {
                             NtpCustomizationUtils.pickAndSavePrimaryColor(mNewThemeCollectionImage);
@@ -129,6 +145,11 @@ public class NtpCustomizationMediator {
                         if (mShouldRecreate) {
                             NtpThemeStateProvider.getInstance().notifyApplyThemeChanges();
                         }
+
+                        assertNonNull(mScrimPropertyModel);
+                        ScrimManager scrimManager = mBottomSheetController.getScrimManager();
+                        scrimManager.hideScrim(mScrimPropertyModel, /* animate= */ true);
+                        mScrimPropertyModel = null;
                     }
                 };
         mBottomSheetController.addObserver(mBottomSheetObserver);
@@ -160,6 +181,13 @@ public class NtpCustomizationMediator {
         if (shouldRequestShowContent) {
             mBottomSheetController.requestShowContent(mBottomSheetContent, /* animate= */ true);
         }
+
+        // Resets the default scrim alpha when returning from a bottom sheet that used a reduced
+        // alpha.
+        if (mScrimPropertyModel != null) {
+            setScrimAlpha(DEFAULT_SCRIM_ALPHA);
+        }
+
         NtpCustomizationMetricsUtils.recordBottomSheetShown(type);
     }
 
@@ -372,6 +400,27 @@ public class NtpCustomizationMediator {
         return NtpCustomizationConfigManager.getInstance().getPrefIsMvtToggleOn()
                 ? R.string.text_on
                 : R.string.text_off;
+    }
+
+    /**
+     * Sets the alpha (transparency) of the scrim of the bottom sheet.
+     *
+     * @param alpha The desired alpha value for the scrim, between 0.0 (fully transparent) and 1.0
+     *     (fully opaque).
+     */
+    private void setScrimAlpha(float alpha) {
+        assertNonNull(mScrimPropertyModel);
+        mBottomSheetController.getScrimManager().setAlpha(alpha, mScrimPropertyModel);
+    }
+
+    /**
+     * Applies the preview alpha (transparency) to the scrim.
+     *
+     * <p>This ensures the changes to the NTP are visible to the user while the bottom sheet remains
+     * open.
+     */
+    void applyPreviewScrimAlpha() {
+        setScrimAlpha(PREVIEW_SCRIM_ALPHA);
     }
 
     private PrefService getPrefService() {

@@ -56,8 +56,7 @@ suite('TopToolbarTest', () => {
   });
 
   test('handles new thread button click', async () => {
-    const newThreadButton = topToolbar.shadowRoot.querySelector<HTMLElement>(
-        'cr-icon-button[title="New Thread"]');
+    const newThreadButton = topToolbar.$.newThreadButton;
     assertTrue(!!newThreadButton);
     const newThreadEvent = eventToPromise('new-thread-click', topToolbar);
     newThreadButton.click();
@@ -65,16 +64,14 @@ suite('TopToolbarTest', () => {
   });
 
   test('handles thread history button click', async () => {
-    const historyButton = topToolbar.shadowRoot.querySelector<HTMLElement>(
-        'cr-icon-button[title="Thread History"]');
+    const historyButton = topToolbar.$.threadHistoryButton;
     assertTrue(!!historyButton);
     historyButton.click();
     await proxy.handler.whenCalled('showThreadHistory');
   });
 
   test('handles close button click', async () => {
-    const closeButton = topToolbar.shadowRoot.querySelector<HTMLElement>(
-        'cr-icon-button[title="Close"]');
+    const closeButton = topToolbar.$.closeButton;
     assertTrue(!!closeButton);
     closeButton.click();
     await proxy.handler.whenCalled('closeSidePanel');
@@ -134,10 +131,10 @@ suite('TopToolbarTest', () => {
     assertEquals(1, headers.length);
 
     // Click the first tab item.
-    const tabButton = sourcesMenuElement.shadowRoot.querySelector<HTMLElement>(
-        'button.dropdown-item');
-    assertTrue(!!tabButton);
-    tabButton.click();
+    const tabItem = sourcesMenuElement.shadowRoot.querySelector<HTMLElement>(
+        'cr-url-list-item.dropdown-item');
+    assertTrue(!!tabItem);
+    tabItem.click();
 
     const [tabId, url] =
         await proxy.handler.whenCalled('onTabClickedFromSourcesMenu');
@@ -169,10 +166,10 @@ suite('TopToolbarTest', () => {
     assertEquals(1, headers.length);
 
     // Click the first file item.
-    const fileButton = sourcesMenuElement.shadowRoot.querySelector<HTMLElement>(
-        'button.dropdown-item');
-    assertTrue(!!fileButton);
-    fileButton.click();
+    const fileItem = sourcesMenuElement.shadowRoot.querySelector<HTMLElement>(
+        'cr-url-list-item.dropdown-item');
+    assertTrue(!!fileItem);
+    fileItem.click();
 
     const url = await proxy.handler.whenCalled('onFileClickedFromSourcesMenu');
     assertDeepEquals(url, file.url);
@@ -203,11 +200,10 @@ suite('TopToolbarTest', () => {
     assertEquals(1, headers.length);
 
     // Click the first image item.
-    const imageButton =
-        sourcesMenuElement.shadowRoot.querySelector<HTMLElement>(
-            'button.dropdown-item');
-    assertTrue(!!imageButton);
-    imageButton.click();
+    const imageItem = sourcesMenuElement.shadowRoot.querySelector<HTMLElement>(
+        'cr-url-list-item.dropdown-item');
+    assertTrue(!!imageItem);
+    imageItem.click();
 
     const url = await proxy.handler.whenCalled('onImageClickedFromSourcesMenu');
     assertDeepEquals(url, image.url);

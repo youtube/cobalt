@@ -2068,6 +2068,7 @@ export declare interface SuggestionContent {
   suggestion: string;
 }
 
+// LINT.IfChange(Skill)
 /** Represents a single skill preview. */
 export declare interface SkillPreview {
   /** A unique identifier for the skill. */
@@ -2078,6 +2079,8 @@ export declare interface SkillPreview {
   icon: string;
   /** The source of the skill. */
   source: SkillSource;
+  /** The description of the skill. */
+  description?: string;
 }
 
 /** Represents a single skill. */
@@ -2086,11 +2089,30 @@ export declare interface Skill {
   preview: SkillPreview;
   /** The underlying LLM prompt for the skill. */
   prompt: string;
+  /**
+   * The id of the source skill this skill is derived from. This is only
+   * present if the SkillSource is DERIVED_FROM_FIRST_PARTY.
+   */
+  sourceSkillId?: string;
 }
+// LINT.ThenChange(//chrome/browser/glic/host/glic.mojom:Skill)
 
 export declare interface CreateSkillRequest {
+  /**
+   * A unique identifier for the skill. This is only available when the user is
+   * trying to remix a 1P skill.
+   */
+  id?: string;
+  /** The user-facing name of the skill. Only available in 1P remix flow. */
+  name?: string;
+  /** The icon for the skill. Only available in 1P remix flow. */
+  icon?: string;
   /** A prompt for the skill, which can be empty. */
   prompt: string;
+  /** The description of the skill. Only available in 1P remix flow. */
+  description?: string;
+  /** The source of the skill. */
+  source?: SkillSource;
 }
 
 export declare interface UpdateSkillRequest {
@@ -2386,6 +2408,8 @@ export enum CreateTaskErrorReason {
   // The host already has an existing task in progress. The client must stop it
   // before requesting a new task.
   EXISTING_ACTIVE_TASK = 2,
+  // The user's browser policy or account settings prevent creating actor tasks.
+  BLOCKED_BY_POLICY = 3,
 }
 
 ///////////////////////////////////////////////
@@ -2496,6 +2520,8 @@ export enum SkillSource {
   FIRST_PARTY = 1,
   // Skill created by an end-user.
   USER_CREATED = 2,
+  // Skill derived from a first party skill.
+  DERIVED_FROM_FIRST_PARTY = 3,
 }
 
 ///////////////////////////////////////////////

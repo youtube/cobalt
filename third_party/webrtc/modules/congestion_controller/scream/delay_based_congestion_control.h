@@ -40,7 +40,10 @@ class DelayBasedCongestionControl {
   }
 
   // Returns true if queue delay is detected and above a threshold.
-  bool IsQueueDelayDetected() const;
+  bool IsQueueDelayDetected() const {
+    return queue_delay_avg_.IsFinite() &&
+           queue_delay_avg_ > params_.queue_delay_target.Get() / 2;
+  }
 
   DataSize UpdateReferenceWindow(DataSize rew_window,
                                  double ref_window_mss_ratio) const;
@@ -58,15 +61,31 @@ class DelayBasedCongestionControl {
   // Resets queue delay estimates to start values.
   void ResetQueueDelay();
 
-  double scale_increase() const {
-    return std::clamp(
-        1 - queue_delay_avg_ / params_.queue_delay_first_reaction.Get(), 0.1,
-        1.0);
-  }
-
   TimeDelta queue_delay() const { return queue_delay_avg_; }
 
   double queue_delay_dev_norm() const { return queue_delay_dev_norm_; }
+
+  // Scales the reference window increase/decrease due to increased delay if L4S
+  // does not appear to be used. See 4.2.2.1.
+  double ref_window_scale_factor_due_to_increased_delay() const {
+    return std::clamp(
+        1 - queue_delay_avg_ / (params_.queue_delay_target.Get() / 4), 0.1,
+        1.0);
+  }
+
+  // Scales the reference window increase/decrease due to delay variation.
+  // See 4.2.2.1 and 4.2.2.2. The scale factor is 0.0 if the delay variation
+  // is higher than the threshold, and decreases linearly to 1.0 if the delay
+  // variation is zero.
+  double ref_window_scale_factor_due_to_delay_variation(
+      double ref_window_mss_ratio) const {
+    // 4.2.1.4.
+    double queue_delay_dev_norm_threshold =
+        std::max(0.05, 0.1 * (1.0 - ref_window_mss_ratio / 0.1));
+    return std::clamp((queue_delay_dev_norm_threshold - queue_delay_dev_norm_) /
+                          queue_delay_dev_norm_threshold,
+                      0.0, 1.0);
+  }
 
   TimeDelta rtt() const { return last_smoothed_rtt_; }
 

@@ -895,7 +895,16 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Branches to {if_true} if ToBoolean applied to {value} yields true,
   // otherwise goes to {if_false}.
   void BranchIfToBooleanIsTrue(TNode<Object> value, Label* if_true,
-                               Label* if_false);
+                               Label* if_false) {
+    BranchIfToBooleanIsTrue(value, false, if_true, if_false);
+  }
+
+  // Branches to {if_true} if ToBoolean applied to {value} yields true,
+  // otherwise goes to {if_false}. Optionally skips the check for Smi values
+  // and static root values, in case those are inlined.
+  void BranchIfToBooleanIsTrue(TNode<Object> value,
+                               bool skip_smi_and_static_root_check,
+                               Label* if_true, Label* if_false);
 
   // Branches to {if_false} if ToBoolean applied to {value} yields false,
   // otherwise goes to {if_true}.
@@ -4384,6 +4393,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<NativeContext> native_context) {
     return AllocateRootFunctionWithContext(static_cast<RootIndex>(function),
                                            context, native_context);
+  }
+
+  TNode<BoolT> IsBaselineCode(TNode<Code> code) {
+    TNode<Int32T> code_flags =
+        LoadObjectField<Int32T>(code, Code::kFlagsOffset);
+    return Word32Equal(DecodeWord32<Code::KindField>(code_flags),
+                       Int32Constant(static_cast<int>(CodeKind::BASELINE)));
   }
 
   // Promise helpers

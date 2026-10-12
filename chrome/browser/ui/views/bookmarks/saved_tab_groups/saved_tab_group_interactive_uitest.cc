@@ -34,7 +34,7 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
 #include "chrome/browser/ui/views/tabs/tab.h"
-#include "chrome/browser/ui/views/tabs/tab_close_button.h"
+#include "chrome/browser/ui/views/tabs/tab/tab_close_button.h"
 #include "chrome/browser/ui/views/tabs/tab_group_editor_bubble_view.h"
 #include "chrome/browser/ui/views/tabs/tab_group_header.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
@@ -395,9 +395,13 @@ class SavedTabGroupInteractiveTest
       views::SubmenuView* submenu = menu_item_view->GetSubmenu();
       CHECK(submenu);
 
-      // There are 5 menu items in the menu not including the separator or tabs:
-      // Open, move, unpin, delete, and the tabs title
-      constexpr int num_non_tab_items_in_menu = 5;
+      // There are 5 or 6 menu items in the menu not including the separator or
+      // tabs: Open, move, unpin, delete, [convert to bookmark], and the tabs
+      // title
+      int num_non_tab_items_in_menu = 5;
+      if (features::IsTabGroupMenuImprovementsEnabled()) {
+        num_non_tab_items_in_menu++;
+      }
       const int total_items = submenu->GetMenuItems().size();
       const int num_tabs = total_items - num_non_tab_items_in_menu;
       EXPECT_EQ(num_tabs, expected_count);
@@ -507,6 +511,20 @@ IN_PROC_BROWSER_TEST_P(SavedTabGroupInteractiveTest,
             "Check all groups is empty."));
 }
 
+IN_PROC_BROWSER_TEST_P(SavedTabGroupInteractiveTest,
+                       ConvertGroupToBookmarkFromButtonMenu) {
+  browser()->tab_strip_model()->AddToNewGroup({0});
+
+  RunTestSequence(FinishTabstripAnimations(), ShowBookmarksBar(),
+                  EnsurePresent(kSavedTabGroupButtonElementId),
+                  FinishTabstripAnimations(), OpenTabGroupContextMenu(),
+                  EnsurePresent(STGTabsMenuModel::kConvertToBookmarkMenuItem),
+                  SelectMenuItem(STGTabsMenuModel::kConvertToBookmarkMenuItem),
+                  WaitForShow(kBookmarkEditorId),
+                  PressButton(kBookmarkEditorOkButtonId),
+                  WaitForHide(kSavedTabGroupButtonElementId));
+}
+
 IN_PROC_BROWSER_TEST_P(SavedTabGroupInteractiveTest, UnpinGroupFromButtonMenu) {
   // Add 1 tab into the browser. And verify there are 2 tabs (The tab when you
   // open the browser and the added one).
@@ -560,6 +578,7 @@ IN_PROC_BROWSER_TEST_P(SavedTabGroupInteractiveTest,
       EnsurePresent(STGTabsMenuModel::kMoveGroupToNewWindowMenuItem),
       EnsurePresent(STGTabsMenuModel::kToggleGroupPinStateMenuItem),
       EnsurePresent(STGTabsMenuModel::kDeleteGroupMenuItem),
+      EnsurePresent(STGTabsMenuModel::kConvertToBookmarkMenuItem),
       EnsurePresent(STGTabsMenuModel::kTabsTitleItem));
 }
 
@@ -581,6 +600,7 @@ IN_PROC_BROWSER_TEST_P(SavedTabGroupInteractiveTest,
       EnsurePresent(STGTabsMenuModel::kMoveGroupToNewWindowMenuItem),
       EnsurePresent(STGTabsMenuModel::kToggleGroupPinStateMenuItem),
       EnsurePresent(STGTabsMenuModel::kDeleteGroupMenuItem),
+      EnsurePresent(STGTabsMenuModel::kConvertToBookmarkMenuItem),
       EnsurePresent(STGTabsMenuModel::kTabsTitleItem),
       EnsurePresent(STGTabsMenuModel::kTab));
 }
@@ -1173,6 +1193,7 @@ IN_PROC_BROWSER_TEST_F(SavedTabGroupContextMenuFeatureInteractiveTest,
       EnsurePresent(STGTabsMenuModel::kDeleteGroupMenuItem),
       EnsurePresent(STGTabsMenuModel::kMoveGroupToNewWindowMenuItem),
       EnsurePresent(STGTabsMenuModel::kToggleGroupPinStateMenuItem),
+      EnsurePresent(STGTabsMenuModel::kConvertToBookmarkMenuItem),
       EnsurePresent(STGTabsMenuModel::kTabsTitleItem),
       EnsurePresent(STGTabsMenuModel::kTab));
 }
@@ -1378,12 +1399,10 @@ IN_PROC_BROWSER_TEST_F(TabGroupShortcutsInteractiveTest,
       // Use the keyboard shortcut command to create a new tab group.
       SendAccelerator(kBrowserViewElementId, create_accelerator),
       EnsurePresent(kTabGroupHeaderElementId),
-      // Refocus the first tab in the group to close the tab group editor
-      // bubble. We do this by opening the group.
-      PressButton(kSavedTabGroupButtonElementId),
-      PressButton(kSavedTabGroupButtonElementId),
-      WaitForShow(STGTabsMenuModel::kOpenGroup),
-      SelectMenuItem(STGTabsMenuModel::kOpenGroup),
+      // Close the tab group editor bubble.
+      SendAccelerator(kTabGroupEditorBubbleId,
+                      ui::Accelerator(ui::VKEY_ESCAPE, ui::MODIFIER_NONE)),
+      WaitForHide(kTabGroupEditorBubbleId), FinishTabstripAnimations(),
       // Use the keyboard shortcut command to add a new tab at the end of the
       // group.
       SendAccelerator(kBrowserViewElementId, add_new_tab_to_group_accelerator),
@@ -1422,11 +1441,10 @@ IN_PROC_BROWSER_TEST_F(TabGroupShortcutsInteractiveTest,
       // Use the keyboard shortcut command to create a new tab group.
       SendAccelerator(kBrowserViewElementId, create_accelerator),
       EnsurePresent(kTabGroupHeaderElementId),
-      // Refocus the first tab in the group to close the tab group editor
-      // bubble. We do this by opening the group.
-      PressButton(kSavedTabGroupButtonElementId),
-      WaitForShow(STGTabsMenuModel::kOpenGroup),
-      SelectMenuItem(STGTabsMenuModel::kOpenGroup),
+      // Close the tab group editor bubble.
+      SendAccelerator(kTabGroupEditorBubbleId,
+                      ui::Accelerator(ui::VKEY_ESCAPE, ui::MODIFIER_NONE)),
+      WaitForHide(kTabGroupEditorBubbleId), FinishTabstripAnimations(),
       // Use the keyboard shortcut command to close the tab group.
       SendAccelerator(kBrowserViewElementId, close_accelerator),
       WaitForHide(kTabGroupHeaderElementId),

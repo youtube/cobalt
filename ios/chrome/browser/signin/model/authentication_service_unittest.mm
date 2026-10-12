@@ -343,7 +343,7 @@ TEST_F(AuthenticationServiceTest, TestSetReauthPromptForSignInAndSync) {
 TEST_F(AuthenticationServiceTest, TestHandleForgottenIdentityNoPromptSignIn) {
   // Sign in.
   authentication_service()->SignIn(identity(0),
-                                   signin_metrics::AccessPoint::kUnknown);
+                                   signin_metrics::AccessPoint::kStartPage);
   VerifyLastSigninTimestamp();
 
   // Set the authentication service as "In Foreground", then remove the
@@ -367,7 +367,7 @@ TEST_F(AuthenticationServiceTest, TestHandleForgottenIdentityNoPromptSignIn) {
 TEST_F(AuthenticationServiceTest, TestHandleForgottenIdentityPromptSignIn) {
   // Sign in.
   authentication_service()->SignIn(identity(0),
-                                   signin_metrics::AccessPoint::kUnknown);
+                                   signin_metrics::AccessPoint::kStartPage);
   VerifyLastSigninTimestamp();
 
   // Set the authentication service as "In Background", then remove the
@@ -393,7 +393,7 @@ TEST_F(AuthenticationServiceTest, TestHandleForgottenIdentityPromptSignIn) {
 TEST_F(AuthenticationServiceTest, OnAddIdentity) {
   // Sign in.
   authentication_service()->SignIn(identity(0),
-                                   signin_metrics::AccessPoint::kUnknown);
+                                   signin_metrics::AccessPoint::kStartPage);
   VerifyLastSigninTimestamp();
 
   auto account_compare_func = [](const CoreAccountInfo& first,
@@ -430,7 +430,7 @@ TEST_F(AuthenticationServiceTest, OnAddIdentity) {
 TEST_F(AuthenticationServiceTest, HasPrimaryIdentityBackground) {
   // Sign in.
   authentication_service()->SignIn(identity(0),
-                                   signin_metrics::AccessPoint::kUnknown);
+                                   signin_metrics::AccessPoint::kStartPage);
   EXPECT_TRUE(authentication_service()->HasPrimaryIdentity(
       signin::ConsentLevel::kSignin));
   VerifyLastSigninTimestamp();
@@ -451,7 +451,7 @@ TEST_F(AuthenticationServiceTest, HasPrimaryIdentityBackground) {
 // notifications that the state of error has changed.
 TEST_F(AuthenticationServiceTest, MDMErrorsClearedOnForeground) {
   authentication_service()->SignIn(identity(0),
-                                   signin_metrics::AccessPoint::kUnknown);
+                                   signin_metrics::AccessPoint::kStartPage);
   EXPECT_EQ(identity_manager()->GetAccountsWithRefreshTokens().size(), 2UL);
   VerifyLastSigninTimestamp();
 
@@ -492,7 +492,7 @@ TEST_F(AuthenticationServiceTest, MDMErrorsClearedOnForeground) {
 // Tests that MDM errors are correctly cleared when signing out.
 TEST_F(AuthenticationServiceTest, MDMErrorsClearedOnSignout) {
   authentication_service()->SignIn(identity(0),
-                                   signin_metrics::AccessPoint::kUnknown);
+                                   signin_metrics::AccessPoint::kStartPage);
   ASSERT_EQ(identity_manager()->GetAccountsWithRefreshTokens().size(), 2UL);
   VerifyLastSigninTimestamp();
 
@@ -510,22 +510,21 @@ TEST_F(AuthenticationServiceTest, ManagedAccountSignOut_ClearDataFromSignin) {
       [FakeSystemIdentity fakeManagedIdentity];
   fake_system_identity_manager()->AddIdentity(fake_system_identity);
 
-  if (AreSeparateProfilesForManagedAccountsEnabled()) {
-    // The managed identity is assigned to a separate profile now.
-    ASSERT_EQ([account_manager_->GetAllIdentities() count], 2UL);
-    ASSERT_EQ(identity_manager()->GetAccountsWithRefreshTokens().size(), 2UL);
-    // Move the managed identity into the personal profile, to mimic the
-    // situation where the managed identity was already there before
-    // kSeparateProfilesForManagedAccounts was enabled.
-    GetApplicationContext()
-        ->GetAccountProfileMapper()
-        ->MoveManagedAccountToPersonalProfileForTesting(identity(2).gaiaId);
-  }
+  // The managed identity is assigned to a separate profile now.
+  ASSERT_EQ([account_manager_->GetAllIdentities() count], 2UL);
+  ASSERT_EQ(identity_manager()->GetAccountsWithRefreshTokens().size(), 2UL);
+  // Move the managed identity into the personal profile, to mimic the
+  // situation where the managed identity was already there before
+  // kSeparateProfilesForManagedAccounts was enabled.
+  GetApplicationContext()
+      ->GetAccountProfileMapper()
+      ->MoveManagedAccountToPersonalProfileForTesting(identity(2).gaiaId);
+
   ASSERT_EQ([account_manager_->GetAllIdentities() count], 3UL);
   ASSERT_EQ(identity_manager()->GetAccountsWithRefreshTokens().size(), 3UL);
 
   authentication_service()->SignIn(identity(2),
-                                   signin_metrics::AccessPoint::kUnknown);
+                                   signin_metrics::AccessPoint::kStartPage);
   ASSERT_TRUE(authentication_service()->HasPrimaryIdentityManaged(
       signin::ConsentLevel::kSignin));
   VerifyLastSigninTimestamp();
@@ -551,22 +550,21 @@ TEST_F(AuthenticationServiceTest,
       [FakeSystemIdentity fakeManagedIdentity];
   fake_system_identity_manager()->AddIdentity(fake_system_identity);
 
-  if (AreSeparateProfilesForManagedAccountsEnabled()) {
-    // The managed identity is assigned to a separate profile now.
-    ASSERT_EQ([account_manager_->GetAllIdentities() count], 2UL);
-    ASSERT_EQ(identity_manager()->GetAccountsWithRefreshTokens().size(), 2UL);
-    // Move the managed identity into the personal profile, to mimic the
-    // situation where the managed identity was already there before
-    // kSeparateProfilesForManagedAccounts was enabled.
-    GetApplicationContext()
-        ->GetAccountProfileMapper()
-        ->MoveManagedAccountToPersonalProfileForTesting(identity(2).gaiaId);
-  }
+  // The managed identity is assigned to a separate profile now.
+  ASSERT_EQ([account_manager_->GetAllIdentities() count], 2UL);
+  ASSERT_EQ(identity_manager()->GetAccountsWithRefreshTokens().size(), 2UL);
+  // Move the managed identity into the personal profile, to mimic the
+  // situation where the managed identity was already there before
+  // kSeparateProfilesForManagedAccounts was enabled.
+  GetApplicationContext()
+      ->GetAccountProfileMapper()
+      ->MoveManagedAccountToPersonalProfileForTesting(identity(2).gaiaId);
+
   ASSERT_EQ([account_manager_->GetAllIdentities() count], 3UL);
   ASSERT_EQ(identity_manager()->GetAccountsWithRefreshTokens().size(), 3UL);
 
   authentication_service()->SignIn(identity(2),
-                                   signin_metrics::AccessPoint::kUnknown);
+                                   signin_metrics::AccessPoint::kStartPage);
   ASSERT_TRUE(authentication_service()->HasPrimaryIdentityManaged(
       signin::ConsentLevel::kSignin));
   VerifyLastSigninTimestamp();
@@ -586,7 +584,7 @@ TEST_F(AuthenticationServiceTest,
 // Regression test for root cause of crbug.com/1482236
 TEST_F(AuthenticationServiceTest, MDMErrorsDontSeedEmptyAccountIds) {
   authentication_service()->SignIn(identity(0),
-                                   signin_metrics::AccessPoint::kUnknown);
+                                   signin_metrics::AccessPoint::kStartPage);
   ASSERT_EQ(identity_manager()->GetAccountsWithRefreshTokens().size(), 2UL);
   VerifyLastSigninTimestamp();
 
@@ -626,22 +624,21 @@ TEST_F(AuthenticationServiceTest, ManagedAccountSignOut_MigratedFromSyncing) {
       [FakeSystemIdentity fakeManagedIdentity];
   fake_system_identity_manager()->AddIdentity(fake_system_identity);
 
-  if (AreSeparateProfilesForManagedAccountsEnabled()) {
-    // The managed identity is assigned to a separate profile now.
-    ASSERT_EQ([account_manager_->GetAllIdentities() count], 2UL);
-    ASSERT_EQ(identity_manager()->GetAccountsWithRefreshTokens().size(), 2UL);
-    // Move the managed identity into the personal profile, to mimic the
-    // situation where the managed identity was already there before
-    // kSeparateProfilesForManagedAccounts was enabled.
-    GetApplicationContext()
-        ->GetAccountProfileMapper()
-        ->MoveManagedAccountToPersonalProfileForTesting(identity(2).gaiaId);
-  }
+  // The managed identity is assigned to a separate profile now.
+  ASSERT_EQ([account_manager_->GetAllIdentities() count], 2UL);
+  ASSERT_EQ(identity_manager()->GetAccountsWithRefreshTokens().size(), 2UL);
+  // Move the managed identity into the personal profile, to mimic the
+  // situation where the managed identity was already there before
+  // kSeparateProfilesForManagedAccounts was enabled.
+  GetApplicationContext()
+      ->GetAccountProfileMapper()
+      ->MoveManagedAccountToPersonalProfileForTesting(identity(2).gaiaId);
+
   ASSERT_EQ([account_manager_->GetAllIdentities() count], 3UL);
   ASSERT_EQ(identity_manager()->GetAccountsWithRefreshTokens().size(), 3UL);
 
   authentication_service()->SignIn(identity(2),
-                                   signin_metrics::AccessPoint::kUnknown);
+                                   signin_metrics::AccessPoint::kStartPage);
   ASSERT_TRUE(authentication_service()->HasPrimaryIdentityManaged(
       signin::ConsentLevel::kSignin));
   VerifyLastSigninTimestamp();
@@ -663,7 +660,7 @@ TEST_F(AuthenticationServiceTest, ManagedAccountSignOut_MigratedFromSyncing) {
 // to MDM service when necessary.
 TEST_F(AuthenticationServiceTest, HandleMDMNotification) {
   authentication_service()->SignIn(identity(0),
-                                   signin_metrics::AccessPoint::kUnknown);
+                                   signin_metrics::AccessPoint::kStartPage);
   VerifyLastSigninTimestamp();
 
   GoogleServiceAuthError error(
@@ -702,7 +699,7 @@ TEST_F(AuthenticationServiceTest, HandleMDMNotification) {
 TEST_F(AuthenticationServiceTest, HandleMDMNotificationSuppressed) {
   base::HistogramTester histogram_tester;
   authentication_service()->SignIn(identity(0),
-                                   signin_metrics::AccessPoint::kUnknown);
+                                   signin_metrics::AccessPoint::kStartPage);
   VerifyLastSigninTimestamp();
 
   GoogleServiceAuthError error =
@@ -730,7 +727,7 @@ TEST_F(AuthenticationServiceTest, HandleMDMNotificationSuppressed) {
 // the primary account is blocked.
 TEST_F(AuthenticationServiceTest, HandleMDMBlockedNotification) {
   authentication_service()->SignIn(identity(0),
-                                   signin_metrics::AccessPoint::kUnknown);
+                                   signin_metrics::AccessPoint::kStartPage);
   GoogleServiceAuthError error(
       GoogleServiceAuthError::INVALID_GAIA_CREDENTIALS);
   signin::UpdatePersistentErrorOfRefreshTokenForAccount(
@@ -779,7 +776,7 @@ TEST_F(AuthenticationServiceTest, ShowMDMErrorDialogInvalidCachedError) {
 // corresponding error for the account.
 TEST_F(AuthenticationServiceTest, ShowMDMErrorDialog) {
   authentication_service()->SignIn(identity(0),
-                                   signin_metrics::AccessPoint::kUnknown);
+                                   signin_metrics::AccessPoint::kStartPage);
   GoogleServiceAuthError error(
       GoogleServiceAuthError::INVALID_GAIA_CREDENTIALS);
   signin::UpdatePersistentErrorOfRefreshTokenForAccount(
@@ -803,7 +800,7 @@ TEST_F(AuthenticationServiceTest, SigninDisallowedCrash) {
 
   // Attempt to sign in, and verify there is a crash.
   EXPECT_CHECK_DEATH(authentication_service()->SignIn(
-      identity(0), signin_metrics::AccessPoint::kUnknown));
+      identity(0), signin_metrics::AccessPoint::kStartPage));
 }
 
 // Tests that reauth prompt is not set if the primary identity is restricted and
@@ -813,7 +810,7 @@ TEST_F(AuthenticationServiceTest, TestHandleRestrictedIdentityPromptSignIn) {
   authentication_service()->AddObserver(&observer_test);
   // Sign in.
   authentication_service()->SignIn(identity(0),
-                                   signin_metrics::AccessPoint::kUnknown);
+                                   signin_metrics::AccessPoint::kStartPage);
   VerifyLastSigninTimestamp();
 
   // Set the account restriction.

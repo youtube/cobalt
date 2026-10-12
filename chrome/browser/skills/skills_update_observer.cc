@@ -4,11 +4,12 @@
 
 #include "chrome/browser/skills/skills_update_observer.h"
 
-#include "chrome/browser/glic/host/glic.mojom.h"
+#include "chrome/browser/glic/host/glic_skills_manager.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "components/optimization_guide/core/hints/optimization_guide_decider.h"
 #include "components/optimization_guide/core/hints/optimization_guide_decision.h"
 #include "components/optimization_guide/core/hints/optimization_metadata.h"
@@ -19,26 +20,32 @@
 #include "content/public/browser/web_contents.h"
 
 namespace {
-std::vector<glic::mojom::SkillPreviewPtr> ConvertSkillsListToSkillPreviews(
+std::vector<glic::mojom::SkillPtr> ConvertSkillsListToSkills(
     const skills::proto::SkillsList* skills_list) {
-  std::vector<glic::mojom::SkillPreviewPtr> skill_previews;
+  std::vector<glic::mojom::SkillPtr> skills;
   if (!skills_list) {
-    return skill_previews;
+    return skills;
   }
-  for (const skills::proto::Skill& skill : skills_list->skills()) {
+  for (const skills::proto::Skill& skill_proto : skills_list->skills()) {
     glic::mojom::SkillPreviewPtr skill_preview =
         glic::mojom::SkillPreview::New();
-    skill_preview->id = skill.id();
-    skill_preview->name = skill.name();
-    skill_preview->icon = skill.icon();
+    skill_preview->id = skill_proto.id();
+    skill_preview->name = skill_proto.name();
+    skill_preview->icon = skill_proto.icon();
     skill_preview->source = glic::mojom::SkillSource::kFirstParty;
-    skill_previews.push_back(std::move(skill_preview));
+
+    glic::mojom::SkillPtr skill = glic::mojom::Skill::New();
+    skill->preview = std::move(skill_preview);
+    skill->prompt = skill_proto.prompt();
+    skills.push_back(std::move(skill));
   }
-  return skill_previews;
+  return skills;
 }
 }  // namespace
 
 namespace skills {
+
+DEFINE_USER_DATA(SkillsUpdateObserver);
 
 SkillsUpdateObserver::SkillsUpdateObserver(tabs::TabInterface& tab)
     : content::WebContentsObserver(tab.GetContents()),
@@ -46,9 +53,18 @@ SkillsUpdateObserver::SkillsUpdateObserver(tabs::TabInterface& tab)
       optimization_guide_decider_(
           OptimizationGuideKeyedServiceFactory::GetForProfile(
               Profile::FromBrowserContext(
-                  tab.GetContents()->GetBrowserContext()))) {}
+                  tab.GetContents()->GetBrowserContext()))),
+      scoped_data_(tab.GetUnownedUserDataHost(), *this) {}
 
 SkillsUpdateObserver::~SkillsUpdateObserver() = default;
+
+// static
+SkillsUpdateObserver* SkillsUpdateObserver::From(tabs::TabInterface* tab) {
+  if (!tab) {
+    return nullptr;
+  }
+  return Get(tab->GetUnownedUserDataHost());
+}
 
 void SkillsUpdateObserver::DidFinishNavigation(
     content::NavigationHandle* navigation_handle) {
@@ -73,11 +89,6 @@ void SkillsUpdateObserver::DidFinishNavigation(
                      weak_factory_.GetWeakPtr()));
 }
 
-void SkillsUpdateObserver::OnTabActivationChanged(bool is_active) {
-  is_tab_active_ = is_active;
-  SendContextualSkillsToGlic();
-}
-
 void SkillsUpdateObserver::OnOptimizationGuideDecision(
     optimization_guide::OptimizationGuideDecision decision,
     const optimization_guide::OptimizationMetadata& metadata) {
@@ -92,25 +103,24 @@ void SkillsUpdateObserver::OnOptimizationGuideDecision(
   }
   contextual_skills_ = std::make_unique<skills::proto::SkillsList>(
       std::move(skills_list.value()));
+  MaybeUpdateContextualSkills();
 }
 
-void SkillsUpdateObserver::SendContextualSkillsToGlic() {
-  if (!is_tab_active_) {
-    return;
-  }
+void SkillsUpdateObserver::MaybeUpdateContextualSkills() {
   glic::GlicKeyedService* glic_keyed_service = glic::GlicKeyedService::Get(
       Profile::FromBrowserContext(tab_->GetContents()->GetBrowserContext()));
   if (!glic_keyed_service) {
     return;
   }
-  glic::GlicInstance* instance =
-      glic_keyed_service->GetInstanceForTab(&(*tab_));
-  if (!instance || !instance->host().IsReady()) {
-    return;
+  if (glic::GlicInstance* instance =
+          glic_keyed_service->GetInstanceForTab(&(*tab_))) {
+    instance->host().skills_manager().UpdateSkillPreviews(&(*tab_));
   }
-  std::vector<glic::mojom::SkillPreviewPtr> skill_previews =
-      ConvertSkillsListToSkillPreviews(contextual_skills_.get());
-  // TODO(b:479620618): plumb to glic, when possible.
+}
+
+std::vector<glic::mojom::SkillPtr>
+SkillsUpdateObserver::GetContextualSkills() const {
+  return ConvertSkillsListToSkills(contextual_skills_.get());
 }
 
 }  // namespace skills

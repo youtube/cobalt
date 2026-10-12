@@ -16,11 +16,13 @@ def _return_type_cpp(java_type):
   return f'jni_zero::ScopedJavaLocalRef<{java_type.to_cpp()}>'
 
 
-def _param_type_cpp(java_type):
+def _param_type_cpp(java_type, use_const=False):
   if converted_type := java_type.converted_type:
     # Drop & when the type is obviously a pointer to avoid "const char *&".
     if not java_type.is_primitive() and not converted_type.endswith('*'):
       converted_type += '&'
+      if use_const and not converted_type.startswith('const '):
+        converted_type = 'const ' + converted_type
     return converted_type
 
   ret = java_type.to_cpp()
@@ -58,7 +60,7 @@ def _entry_point_example(sb, native):
       plist.append('JNIEnv* env')
       if not native.static:
         plist.append('const jni_zero::JavaRef<jobject>& jcaller')
-      plist.extend(f'{_param_type_cpp(p.java_type)} {p.cpp_name()}'
+      plist.extend(f'{_param_type_cpp(p.java_type, True)} {p.cpp_name()}'
                    for p in params)
 
 
@@ -72,6 +74,10 @@ def _prep_param(sb, is_proxy, param):
     with sb.statement():
       sb(f'{java_type.converted_type} {ret} = ')
       convert_type.from_jni_expression(sb, orig_name, java_type)
+    # TODO(crbug.com/469809169): Remove these exceptions.
+    if not java_type.converted_type.startswith(
+        'std::') and java_type.converted_type not in ('GURL', 'url::Origin'):
+      ret = f'std::move({ret})'
     return ret
 
   if java_type.is_primitive():
@@ -127,6 +133,7 @@ def entry_point_method(sb,
                        jni_obj,
                        native,
                        gen_jni_class,
+                       output_file,
                        include_forward_declaration=False):
   """The method called by JNI, or by multiplexing methods."""
   params = native.params
@@ -205,9 +212,10 @@ def entry_point_method(sb,
       with sb.block():
         with sb.statement():
           arg_types = [_param_type_for_assert_message(p) for p in params]
-          msg = (f'{func_name_full}() has incorrect signature. '
-                 f'It should accept an optional JNIEnv* parameter, plus: '
-                 f'({", ".join(arg_types)})')
+          msg = (f'{func_name_full}() is missing or has incorrect signature.\\n'
+                 f'It should accept an optional JNIEnv* parameter as well as rvalues of the given types: '
+                 f'({", ".join(arg_types)})\\n'
+                 f'See {output_file} for an example.')
           sb(f'static_assert(false, "{msg}")')
 
     with sb.statement():
@@ -248,13 +256,16 @@ def entry_point_method(sb,
         sb('converted_ret')
 
 
-def natives_macro_definition(sb, jni_mode, jni_obj, gen_jni_class, *,
+def natives_macro_definition(sb, jni_mode, jni_obj, gen_jni_class, output_file, *,
                              enable_definition_macros):
   macro_name = f'DEFINE_JNI_FOR_{jni_obj.java_class.name}_SEE_JNI_ZERO_README'
   if enable_definition_macros and jni_obj.natives:
     with sb.section(
         'Example signatures (to be implemented by #including file).'):
       with sb.commented_section():
+        sb('* JNIEnv* parameters are optional.\n')
+        sb('* Types do not have to be exact; they must accept rvalues of the examples.\n')
+        sb('\n')
         for native in jni_obj.natives:
           _entry_point_example(sb, native)
           sb('\n')
@@ -272,7 +283,7 @@ def natives_macro_definition(sb, jni_mode, jni_obj, gen_jni_class, *,
           if jni_obj.jni_namespace:
             sb(f'using namespace {jni_obj.jni_namespace};\n')
           for native in jni_obj.natives:
-            entry_point_method(sb, jni_mode, jni_obj, native, gen_jni_class)
+            entry_point_method(sb, jni_mode, jni_obj, native, gen_jni_class, output_file)
       sb('#pragma clang diagnostic pop')
   elif enable_definition_macros:
     sb(f'// There are no Java->Native methods.\n')

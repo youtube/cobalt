@@ -192,7 +192,7 @@ export enum PrivacyGuideInteractions {
   SWAA_COMPLETION_LINK = 8,
   PRIVACY_SANDBOX_COMPLETION_LINK = 9,
   SEARCH_SUGGESTIONS_NEXT_BUTTON = 10,
-  TRACKING_PROTECTION_COMPLETION_LINK = 11,
+  // TRACKING_PROTECTION_COMPLETION_LINK = 11, // OBSOLETE
   AD_TOPICS_NEXT_BUTTON = 12,
   AI_SETTINGS_COMPLETION_LINK = 13,
   // Max value should be updated whenever new entries are added.
@@ -331,7 +331,7 @@ export enum CardBenefitsUserAction {
 // LINT.IfChange(AiPageInteractions)
 export enum AiPageInteractions {
   HISTORY_SEARCH_CLICK = 0,
-  COMPARE_CLICK = 1,
+  // COMPARE_CLICK = 1, // DEPRECATED
   COMPOSE_CLICK = 2,
   TAB_ORGANIZATION_CLICK = 3,
   // WALLPAPER_SEARCH_CLICK = 4, // DEPRECATED
@@ -359,23 +359,6 @@ export enum AiPageHistorySearchInteractions {
   MAX_VALUE = 4,
 }
 // LINT.ThenChange(/tools/metrics/histograms/metadata/settings/enums.xml:SettingsAiPageHistorySearchInteractions)
-
-/**
- * Contains all recorded interactions in the AI Compare settings page.
- *
- * These values are persisted to logs. Entries should not be renumbered and
- * numeric values should never be reused.
- *
- * Must be kept in sync with the SettingsAiPageCompareInteractions enum in
- * histograms/metadata/settings/enums.xml
- */
-// LINT.IfChange(AiPageCompareInteractions)
-export enum AiPageCompareInteractions {
-  FEATURE_LINK_CLICKED = 0,
-  LEARN_MORE_LINK_CLICKED = 1,
-  MAX_VALUE = 2,
-}
-// LINT.ThenChange(/tools/metrics/histograms/metadata/settings/enums.xml:SettingsAiPageCompareInteractions)
 
 /**
  * Contains all recorded interactions in the AI Compose settings page.
@@ -660,12 +643,6 @@ export interface MetricsBrowserProxy {
 
   /**
    * Helper function that calls recordHistogram for the
-   * Settings.AiPage.Compare.Interactions histogram
-   */
-  recordAiPageCompareInteractions(interaction: AiPageCompareInteractions): void;
-
-  /**
-   * Helper function that calls recordHistogram for the
    * Settings.AiPage.Compose.Interactions histogram
    */
   recordAiPageComposeInteractions(interaction: AiPageComposeInteractions): void;
@@ -684,17 +661,20 @@ export interface MetricsBrowserProxy {
       histogramName: string, referrer: AutofillSettingsReferrer): void;
 
   /**
-   * Records a click on a category link on the Your saved info page.
+   * Records a click on a category link on the Your saved info page with
+   * a corresponding metric and user action.
    */
   recordYourSavedInfoCategoryClick(category: YourSavedInfoDataCategory): void;
 
   /**
-   * Records a click on a data chip on the Your saved info page.
+   * Records a click on a data chip on the Your saved info page with
+   * a corresponding metric and user action.
    */
   recordYourSavedInfoDataChipClick(chip: YourSavedInfoDataChip): void;
 
   /**
-   * Records a click on a related service link on the Your saved info page.
+   * Records a click on a related service link on the Your saved info page with
+   * a corresponding metric and user action.
    */
   recordYourSavedInfoRelatedServiceClick(service: YourSavedInfoRelatedService):
       void;
@@ -903,15 +883,6 @@ export class MetricsBrowserProxyImpl implements MetricsBrowserProxy {
     ]);
   }
 
-  recordAiPageCompareInteractions(interaction: AiPageCompareInteractions):
-      void {
-    chrome.send('metricsHandler:recordInHistogram', [
-      'Settings.AiPage.Compare.Interactions',
-      interaction,
-      AiPageCompareInteractions.MAX_VALUE,
-    ]);
-  }
-
   recordAiPageComposeInteractions(interaction: AiPageComposeInteractions):
       void {
     chrome.send('metricsHandler:recordInHistogram', [
@@ -943,6 +914,10 @@ export class MetricsBrowserProxyImpl implements MetricsBrowserProxy {
       category,
       YourSavedInfoDataCategory.MAX_VALUE,
     ]);
+    if (category !== YourSavedInfoDataCategory.MAX_VALUE) {
+      this.recordAction(`Settings.YourSavedInfo.CategoryClick.${
+          YourSavedInfoDataCategory[category]}`);
+    }
   }
 
   recordYourSavedInfoDataChipClick(chip: YourSavedInfoDataChip) {
@@ -951,6 +926,10 @@ export class MetricsBrowserProxyImpl implements MetricsBrowserProxy {
       chip,
       YourSavedInfoDataChip.MAX_VALUE,
     ]);
+    if (chip !== YourSavedInfoDataChip.MAX_VALUE) {
+      this.recordAction(
+          `Settings.YourSavedInfo.ChipClick.${YourSavedInfoDataChip[chip]}`);
+    }
   }
 
   recordYourSavedInfoRelatedServiceClick(service: YourSavedInfoRelatedService) {
@@ -959,6 +938,10 @@ export class MetricsBrowserProxyImpl implements MetricsBrowserProxy {
       service,
       YourSavedInfoRelatedService.MAX_VALUE,
     ]);
+    if (service !== YourSavedInfoRelatedService.MAX_VALUE) {
+      this.recordAction(`Settings.YourSavedInfo.RelatedServiceClick.${
+          YourSavedInfoRelatedService[service]}`);
+    }
   }
 
   static getInstance(): MetricsBrowserProxy {

@@ -127,7 +127,7 @@ bool Zygote::ProcessRequests() {
     // The receiving code is in
     // content/browser/zygote_host/zygote_host_impl_linux.cc.
     bool r = base::UnixDomainSocket::SendMsg(
-        kZygoteSocketPairFd, kZygoteHelloMessage, sizeof(kZygoteHelloMessage),
+        kZygoteSocketPairFd, base::as_byte_span(kZygoteHelloMessage),
         std::vector<int>());
 #if BUILDFLAG(IS_CHROMEOS)
     LOG_IF(WARNING, !r) << "Sending zygote magic failed";
@@ -230,8 +230,7 @@ bool Zygote::UsingNSSandbox() const {
 bool Zygote::HandleRequestFromBrowser(int fd) {
   std::vector<base::ScopedFD> fds;
   uint8_t buf[kZygoteMaxMessageLength];
-  const ssize_t len =
-      base::UnixDomainSocket::RecvMsg(fd, buf, sizeof(buf), &fds);
+  const ssize_t len = base::UnixDomainSocket::RecvMsg(fd, buf, &fds);
 
   if (len == 0 || (len == -1 && errno == ECONNRESET)) {
     // EOF from the browser. We should die.
@@ -492,8 +491,8 @@ int Zygote::ForkWithRealPid(const std::string& process_type,
   {
     std::vector<base::ScopedFD> recv_fds;
     uint8_t buf[kZygoteMaxMessageLength];
-    const ssize_t len = base::UnixDomainSocket::RecvMsg(
-        kZygoteSocketPairFd, buf, sizeof(buf), &recv_fds);
+    const ssize_t len =
+        base::UnixDomainSocket::RecvMsg(kZygoteSocketPairFd, buf, &recv_fds);
 
     if (len > 0) {
       CHECK(recv_fds.empty());

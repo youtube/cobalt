@@ -114,7 +114,7 @@ TEST(NackTrackerTest, LatePacketsMovedToNackThenNackListDoesNotChange) {
     timestamp += kTimestampIncrement;
     num_lost_packets++;
 
-    for (int n = 0; n < 100; ++n) {
+    for (int n = 0; n < 20; ++n) {
       nack.UpdateLastReceivedPacket(seq_num, timestamp);
       nack_list = nack.GetNackList(kShortRoundTripTimeMs);
       EXPECT_TRUE(IsNackListCorrect(nack_list, sequence_num_lost_packets,
@@ -251,7 +251,8 @@ TEST(NackTrackerTest, EstimateTimestampAndTimeToPlay) {
 
 TEST(NackTrackerTest,
      MissingPacketsPriorToLastDecodedRtpShouldNotBeInNackList) {
-  FieldTrials field_trials = CreateTestFieldTrials();
+  FieldTrials field_trials = CreateTestFieldTrials(
+      "WebRTC-Audio-NetEqNackTrackerConfig/fixed_delay:/");
   for (int m = 0; m < 2; ++m) {
     uint16_t seq_num_offset = (m == 0) ? 0 : 65531;  // Wrap around if `m` is 1.
     NackTracker nack(field_trials);
@@ -409,7 +410,8 @@ TEST(NackTrackerTest, ChangeOfListSizeAppliedAndOldElementsRemoved) {
 }
 
 TEST(NackTrackerTest, RoudTripTimeIsApplied) {
-  FieldTrials field_trials = CreateTestFieldTrials();
+  FieldTrials field_trials = CreateTestFieldTrials(
+      "WebRTC-Audio-NetEqNackTrackerConfig/fixed_delay:/");
   const int kNackListSize = 200;
   NackTracker nack(field_trials);
   nack.UpdateSampleRate(kSampleRateHz);
@@ -516,7 +518,7 @@ TEST(NackTrackerTest, DoNotNackAfterDtx) {
 
 TEST(NackTrackerTest, DoNotNackIfLossRateIsTooHigh) {
   FieldTrials field_trials = CreateTestFieldTrials(
-      "WebRTC-Audio-NetEqNackTrackerConfig/max_loss_rate:0.4/");
+      "WebRTC-Audio-NetEqNackTrackerConfig/max_loss_rate:0.4,fixed_delay:/");
   const int kNackListSize = 200;
   NackTracker nack(field_trials);
   nack.UpdateSampleRate(kSampleRateHz);
@@ -563,8 +565,7 @@ TEST(NackTrackerTest, OnlyNackIfRttIsValid) {
 }
 
 TEST(NackTrackerTest, FixedDelayMode) {
-  FieldTrials field_trials = CreateTestFieldTrials(
-      "WebRTC-Audio-NetEqNackTrackerConfig/fixed_delay:1s/");
+  FieldTrials field_trials = CreateTestFieldTrials();
   const int kNackListSize = 200;
   NackTracker nack(field_trials);
   nack.UpdateSampleRate(kSampleRateHz);

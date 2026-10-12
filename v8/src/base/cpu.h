@@ -146,6 +146,10 @@ class V8_BASE_EXPORT CPU final {
   RV_MMU_MODE riscv_mmu() const { return riscv_mmu_; }
   static const unsigned kUnknownVlen = 0;
 
+  // LoongArch features
+  bool has_lsx() const { return has_lsx_; }
+  bool has_lasx() const { return has_lasx_; }
+
  private:
   char vendor_[13];
   int stepping_;
@@ -212,6 +216,8 @@ class V8_BASE_EXPORT CPU final {
   bool has_zba_;
   bool has_zbb_;
   bool has_zbs_;
+  bool has_lsx_;
+  bool has_lasx_;
 };
 
 }  // namespace base

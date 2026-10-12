@@ -277,24 +277,6 @@ String String::NumberToStringFixedWidth(double number,
   return String(converter.ToStringWithFixedWidth(number, decimal_places));
 }
 
-int String::ToIntStrict(bool* ok) const {
-  if (!impl_) {
-    if (ok)
-      *ok = false;
-    return 0;
-  }
-  return impl_->ToInt(NumberParsingOptions::Strict(), ok);
-}
-
-unsigned String::ToUIntStrict(bool* ok) const {
-  if (!impl_) {
-    if (ok)
-      *ok = false;
-    return 0;
-  }
-  return impl_->ToUInt(NumberParsingOptions::Strict(), ok);
-}
-
 unsigned String::HexToUIntStrict(bool* ok) const {
   if (!impl_) {
     if (ok)
@@ -329,42 +311,6 @@ uint64_t String::ToUInt64Strict(bool* ok) const {
     return 0;
   }
   return impl_->ToUInt64(NumberParsingOptions::Strict(), ok);
-}
-
-int String::ToInt(bool* ok) const {
-  if (!impl_) {
-    if (ok)
-      *ok = false;
-    return 0;
-  }
-  return impl_->ToInt(NumberParsingOptions::Loose(), ok);
-}
-
-unsigned String::ToUInt(bool* ok) const {
-  if (!impl_) {
-    if (ok)
-      *ok = false;
-    return 0;
-  }
-  return impl_->ToUInt(NumberParsingOptions::Loose(), ok);
-}
-
-double String::ToDouble(bool* ok) const {
-  if (!impl_) {
-    if (ok)
-      *ok = false;
-    return 0.0;
-  }
-  return impl_->ToDouble(ok);
-}
-
-float String::ToFloat(bool* ok) const {
-  if (!impl_) {
-    if (ok)
-      *ok = false;
-    return 0.0f;
-  }
-  return impl_->ToFloat(ok);
 }
 
 void String::Split(const StringView& separator,

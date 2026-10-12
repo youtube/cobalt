@@ -10,6 +10,7 @@
 #import "ios/chrome/browser/intelligence/bwg/metrics/gemini_metrics.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_tab_helper.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_session_delegate.h"
+#import "ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
@@ -161,7 +162,7 @@ IOSGeminiSessionCancellationReason HistogramEnumFromGeminiCancelType(
 
 - (void)UIDidDisappearWithClientID:(NSString*)clientID
                           serverID:(NSString*)serverID {
-  [_BWGHandler dismissGeminiFlowWithCompletion:nil];
+  [_geminiHandler dismissGeminiFlowWithCompletion:nil];
   [self setSessionActive:NO clientID:clientID];
 
   web::WebState* webState = [self webStateWithClientID:clientID];
@@ -206,6 +207,14 @@ IOSGeminiSessionCancellationReason HistogramEnumFromGeminiCancelType(
   RecordSessionFirstPrompt(_hasSubmittedFirstPrompt);
 }
 
+- (void)startReceivingResponseWithSessionID:(NSString*)sessionID
+                             conversationID:(NSString*)conversationID {
+  [self.geminiHandler
+      updateFloatyVisibilityIfEligibleAnimated:NO
+                                    fromSource:gemini::FloatyUpdateSource::
+                                                   ForcedFromQueryResponse];
+}
+
 - (void)responseReceivedWithClientID:(NSString*)clientID
                             serverID:(NSString*)serverID
             isNanoBananaToolSelected:(BOOL)isNanoBananaToolSelected
@@ -231,7 +240,7 @@ IOSGeminiSessionCancellationReason HistogramEnumFromGeminiCancelType(
 }
 
 - (void)didTapGeminiSettingsButton {
-  [self.settingsHandler showBWGSettings];
+  [self.settingsHandler showGeminiSettings];
 }
 
 - (void)didSendQueryWithInputType:(BWGInputType)inputType
@@ -295,18 +304,19 @@ IOSGeminiSessionCancellationReason HistogramEnumFromGeminiCancelType(
 
 // Called when the user taps on the photo, gallery, CreateImageSelected or
 // CreateImageDeselected in Attachment sheet behind + button.
-- (void)didTapInputPlateAttachmentOption:(NSString*)attachmentOption
+- (void)didTapInputPlateAttachmentOption:
+            (gemini::InputPlateAttachmentOption)attachmentOption
                                sessionID:(NSString*)sessionID
                           conversationID:(NSString*)conversationID {
-  // TODO: Implement metrics once attachmentOption is available as an enum.
+  RecordGeminiInputPlateAttachmentOptionTapped(attachmentOption);
 }
 
 // Called when the user taps on save / share / copy / download image action
 // button.
-- (void)imageActionButtonTapped:(NSString*)actionButtonType
+- (void)imageActionButtonTapped:(gemini::ImageActionButtonType)actionButtonType
                       sessionID:(NSString*)sessionID
                  conversationID:(NSString*)conversationID {
-  // TODO: Implement metrics once actionButtonType is available as an enum.
+  RecordGeminiImageActionButtonTapped(actionButtonType);
 }
 
 #pragma mark - Private

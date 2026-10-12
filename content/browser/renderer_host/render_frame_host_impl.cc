@@ -2906,6 +2906,10 @@ RenderFrameHostImpl::~RenderFrameHostImpl() {
         GetNetworkIsolationKey());
   }
 
+  if (auto* lock_manager = GetStoragePartition()->GetLockManager()) {
+    lock_manager->RemoveLockObserver(GetFrameToken().value());
+  }
+
   GetTokenFrameMap().erase(frame_token_);
 
   // Ensure that the render process host has been notified that all media
@@ -4467,6 +4471,13 @@ void RenderFrameHostImpl::RenderProcessGone(
   // Note: don't add any more code at this point in the function because
   // |this| may be deleted. Any additional cleanup should happen before
   // the last block of code here.
+}
+
+void RenderFrameHostImpl::OnLockContention() {
+  if (IsInBackForwardCache()) {
+    EvictFromBackForwardCacheWithReason(
+        BackForwardCacheMetrics::NotRestoredReason::kWebLocksContention);
+  }
 }
 
 void RenderFrameHostImpl::PerformAction(const ui::AXActionData& data) {
@@ -7627,31 +7638,6 @@ void RenderFrameHostImpl::ClosePageTimeout(
   ClosePageIgnoringUnloadEvents(source, completion_callback);
 }
 
-void RenderFrameHostImpl::ShowCreatedWindow(
-    const blink::LocalFrameToken& opener_frame_token,
-    WindowOpenDisposition disposition,
-    blink::mojom::WindowFeaturesPtr window_features,
-    bool user_gesture,
-    ShowCreatedWindowCallback callback) {
-  CHECK(!base::FeatureList::IsEnabled(blink::features::kCombineNewWindowIPCs));
-  // This needs to be sent to the opener frame's delegate since it stores
-  // the handle to this class's associated RenderWidgetHostView.
-  RenderFrameHostImpl* opener_frame_host =
-      FromFrameToken(GetProcess()->GetDeprecatedID(), opener_frame_token);
-
-  // If |opener_frame_host| has been destroyed, just return. The opener frame is
-  // needed to find the newly created web contents. See crbug.com/40158114 for
-  // context.
-  if (!opener_frame_host) {
-    std::move(callback).Run();
-    return;
-  }
-  opener_frame_host->delegate()->ShowCreatedWindow(
-      opener_frame_host, GetRenderWidgetHost()->GetRoutingID(), disposition,
-      *window_features, user_gesture);
-  std::move(callback).Run();
-}
-
 void RenderFrameHostImpl::SetWindowRect(const gfx::Rect& bounds,
                                         SetWindowRectCallback callback) {
   // Prerendering pages should not reach this code.
@@ -8408,7 +8394,7 @@ void RenderFrameHostImpl::SetResizable(bool resizable) {
     return;
   }
 
-  GetPage().SetResizable(resizable);
+  delegate_->SetResizable(resizable);
 }
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 
@@ -10205,27 +10191,24 @@ void RenderFrameHostImpl::CreateNewWindow(
 
   new_main_rfh->render_view_host()->RenderViewCreated(new_main_rfh);
 
-  if (base::FeatureList::IsEnabled(blink::features::kCombineNewWindowIPCs)) {
-    // ShowCreatedWindow will return nullptr if the new WebContents has been
-    // destroyed, as described above (see NOTE).
-    WebContents* shown_contents = delegate()->ShowCreatedWindow(
-        this, new_rwh->GetRoutingID(), params->disposition, *params->features,
-        params->consumes_user_activation);
+  // ShowCreatedWindow will return nullptr if the new WebContents has been
+  // destroyed, as described above (see NOTE).
+  WebContents* shown_contents = delegate()->ShowCreatedWindow(
+      this, new_rwh->GetRoutingID(), params->disposition, *params->features,
+      params->consumes_user_activation);
 
-    if (!shown_contents) {
-      // These point to freed memory, so null them out to prevent inadvertent
-      // UAF in the future (see NOTE above).
-      new_frame_tree = nullptr;
-      new_main_rfh = nullptr;
-      new_rwh = nullptr;
-    } else if (new_main_rfh->GetView()) {
-      // Cannot populate window geometry until after ShowCreatedWindow().
-      reply->widget_screen_rect.emplace(
-          new_main_rfh->GetView()->GetViewBounds());
-      reply->window_screen_rect.emplace(
-          new_main_rfh->GetView()->GetBoundsInRootWindow());
-      reply->visual_properties = new_rwh->GetVisualProperties();
-    }
+  if (!shown_contents) {
+    // These point to freed memory, so null them out to prevent inadvertent
+    // UAF in the future (see NOTE above).
+    new_frame_tree = nullptr;
+    new_main_rfh = nullptr;
+    new_rwh = nullptr;
+  } else if (new_main_rfh->GetView()) {
+    // Cannot populate window geometry until after ShowCreatedWindow().
+    reply->widget_screen_rect.emplace(new_main_rfh->GetView()->GetViewBounds());
+    reply->window_screen_rect.emplace(
+        new_main_rfh->GetView()->GetBoundsInRootWindow());
+    reply->visual_properties = new_rwh->GetVisualProperties();
   }
 
   std::move(callback).Run(mojom::CreateNewWindowStatus::kSuccess,
@@ -13038,8 +13021,7 @@ void RenderFrameHostImpl::CommitNavigation(
         std::move(container_info),
         std::move(subresource_proxying_loader_factory_for_renderer),
         std::move(keep_alive_loader_factory),
-        std::move(fetch_later_loader_factory),
-        /*permissions_policy=*/std::nullopt, std::move(policy_container),
+        std::move(fetch_later_loader_factory), std::move(policy_container),
         *document_token, devtools_navigation_token);
     navigation_request->frame_tree_node()
         ->navigator()
@@ -14317,7 +14299,7 @@ void RenderFrameHostImpl::ResetPermissionsPolicy(
     }
 
     permissions_policy_ = network::PermissionsPolicy::CreateFromParsedPolicy(
-        header_policy, /*base_policy=*/std::nullopt, last_committed_origin_);
+        header_policy, last_committed_origin_);
     return;
   }
 
@@ -14955,6 +14937,8 @@ void RenderFrameHostImpl::CreateLockManager(
     mojo::PendingReceiver<blink::mojom::LockManager> receiver) {
   GetStoragePartition()->BindLockManager(
       GetStorageKey(), GetFrameToken().value(), std::move(receiver));
+  GetStoragePartition()->GetLockManager()->AddLockObserver(
+      GetFrameToken().value(), this);
 }
 
 void RenderFrameHostImpl::CreateIDBFactory(
@@ -16745,7 +16729,6 @@ void RenderFrameHostImpl::SendCommitNavigation(
         keep_alive_loader_factory,
     mojo::PendingAssociatedRemote<blink::mojom::FetchLaterLoaderFactory>
         fetch_later_loader_factory,
-    const std::optional<network::ParsedPermissionsPolicy>& permissions_policy,
     blink::mojom::PolicyContainerPtr policy_container,
     const blink::DocumentToken& document_token,
     const base::UnguessableToken& devtools_navigation_token) {
@@ -16891,7 +16874,7 @@ void RenderFrameHostImpl::SendCommitNavigation(
         std::move(subresource_proxying_loader_factory),
         std::move(keep_alive_loader_factory),
         std::move(fetch_later_loader_factory), document_token,
-        devtools_navigation_token, base_auction_nonce_, permissions_policy,
+        devtools_navigation_token, base_auction_nonce_,
         std::move(policy_container), std::move(code_cache_host),
         std::move(code_cache_host_for_background),
         std::move(cookie_manager_info), std::move(storage_info),

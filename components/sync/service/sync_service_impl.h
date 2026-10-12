@@ -36,7 +36,7 @@
 #include "components/sync/service/data_type_controller.h"
 #include "components/sync/service/data_type_manager.h"
 #include "components/sync/service/data_type_manager_observer.h"
-#include "components/sync/service/device_statistics_tracker.h"
+#include "components/sync/service/device_statistics_scheduler.h"
 #include "components/sync/service/local_data_migration_item_queue.h"
 #include "components/sync/service/sync_auth_manager.h"
 #include "components/sync/service/sync_client.h"
@@ -77,7 +77,8 @@ class SyncServiceImpl : public SyncService,
                         public SyncAuthManager::Delegate,
                         public SyncServiceCrypto::Delegate,
                         public SyncUserSettingsImpl::Delegate,
-                        public signin::IdentityManager::Observer {
+                        public signin::IdentityManager::Observer,
+                        public DeviceStatisticsScheduler::Delegate {
  public:
   // Bundles the arguments for SyncServiceImpl construction. This is a
   // movable struct. Because of the non-POD data members, it needs out-of-line
@@ -231,7 +232,16 @@ class SyncServiceImpl : public SyncService,
   void OnIdentityManagerShutdown(
       signin::IdentityManager* identity_manager) override;
 
-  // Similar to above but with a callback that will be invoked on completion.
+  // DeviceStatisticsScheduler::Delegate implementation.
+  bool IsDeviceStatisticsMetricReportingEnabled() override;
+  std::unique_ptr<DeviceStatisticsRequest> CreateDeviceStatisticsRequest(
+      const CoreAccountInfo&,
+      const GURL&) override;
+  std::vector<std::string> GetCurrentDeviceCacheGuidsForDeviceStatistics()
+      override;
+
+  // Similar to OnAccountsInCookieUpdated() but with a callback that will be
+  // invoked on completion.
   void OnAccountsInCookieUpdatedWithCallback(
       const signin::AccountsInCookieJarInfo& accounts_in_cookie_jar_info,
       base::OnceClosure callback);
@@ -410,8 +420,7 @@ class SyncServiceImpl : public SyncService,
       base::OnceCallback<void(std::map<DataType, LocalDataDescription>)>
           callback);
 
-  void MaybeStartDeviceStatisticsTracker();
-  void DeviceStatisticsTrackerDone();
+  void StartDeviceStatisticsScheduler();
 
   // This profile's SyncClient.
   const std::unique_ptr<SyncClient> sync_client_;
@@ -543,7 +552,7 @@ class SyncServiceImpl : public SyncService,
   // Tasks that should run after the engine is initialized.
   std::vector<base::OnceClosure> tasks_waiting_for_engine_initialization_;
 
-  std::unique_ptr<DeviceStatisticsTracker> device_statistics_tracker_;
+  std::unique_ptr<DeviceStatisticsScheduler> device_statistics_scheduler_;
 
 #if BUILDFLAG(IS_ANDROID)
   // Manage and fetch the java object that wraps this SyncService on

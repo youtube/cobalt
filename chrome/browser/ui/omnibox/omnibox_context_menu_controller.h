@@ -5,6 +5,7 @@
 #ifndef CHROME_BROWSER_UI_OMNIBOX_OMNIBOX_CONTEXT_MENU_CONTROLLER_H_
 #define CHROME_BROWSER_UI_OMNIBOX_OMNIBOX_CONTEXT_MENU_CONTROLLER_H_
 
+#include <optional>
 #include <string>
 
 #include "base/functional/callback.h"
@@ -15,6 +16,7 @@
 #include "base/time/time.h"
 #include "components/contextual_search/input_state_model.h"
 #include "components/omnibox/browser/searchbox.mojom.h"
+#include "components/omnibox/common/input_state.h"
 #include "components/omnibox/composebox/composebox_query.mojom.h"
 #include "ui/menus/simple_menu_model.h"
 #include "url/gurl.h"
@@ -95,7 +97,8 @@ class OmniboxContextMenuController : public ui::SimpleMenuModel::Delegate {
     kCanvas = 5,
     kAutoModel = 6,
     kThinkingModel = 7,
-    kMaxValue = kThinkingModel,
+    kRegularModel = 8,
+    kMaxValue = kRegularModel,
   };
   // LINT.ThenChange(//tools/metrics/histograms/metadata/omnibox/enums.xml:ContextType,//tools/metrics/histograms/metadata/omnibox/histograms.xml:ContextType)
 
@@ -134,11 +137,11 @@ class OmniboxContextMenuController : public ui::SimpleMenuModel::Delegate {
   // Adds a separator to the menu.
   void AddSeparator();
   // Adds recent tabs as items to the menu.
-  void AddRecentTabItems(bool add_separator = true);
+  void AddRecentTabItems();
   // Adds the contextual input items to the menu.
   void AddContextualInputItems();
   // Adds the tool items to the menu.
-  void AddToolItems(bool add_separator = true);
+  void AddToolItems();
   // Adds the model picker items to the menu.
   void AddModelPickerItems();
   // Adds a title with a localized string to the menu.
@@ -153,23 +156,30 @@ class OmniboxContextMenuController : public ui::SimpleMenuModel::Delegate {
   void OnFaviconDataAvailable(
       int command_id,
       const favicon_base::FaviconImageResult& image_result);
-  void OnGetInputState(composebox_query::mojom::InputStatePtr input_state_ptr);
+  void OnGetInputState(const std::optional<omnibox::InputState>& input_state);
 
   void UpdateSearchboxContextToolMode(searchbox::mojom::ToolMode tool_mode);
 
   bool IsContentSharingEnabled() const;
 
+  /* Helpers for InputType input_state fields. */
   omnibox::InputType GetInputTypeForCommandId(int command_id) const;
-  bool IsInputTypeAllowed(omnibox::InputType input_type) const;
-  bool IsInputTypeDisabled(omnibox::InputType input_type) const;
+  bool IsInputTypeVisible(omnibox::InputType input_type) const;
+  bool IsInputTypeEnabled(omnibox::InputType input_type) const;
 
+  /* Helpers for ToolMode input_state fields. */
   omnibox::ToolMode GetToolModeForCommandId(int command_id) const;
-  bool IsToolAllowed(omnibox::ToolMode tool) const;
-  bool IsToolDisabled(omnibox::ToolMode tool) const;
+  const omnibox::ToolConfig* GetToolConfig(omnibox::ToolMode tool) const;
+  std::optional<omnibox::SectionConfig> GetToolSectionConfig() const;
+  bool IsToolVisible(omnibox::ToolMode tool) const;
+  bool IsToolEnabled(omnibox::ToolMode tool) const;
 
+  /* Helpers for ModelMode input_state fields. */
   omnibox::ModelMode GetModelModeForCommandId(int command_id) const;
-  bool IsModelAllowed(omnibox::ModelMode model) const;
-  bool IsModelDisabled(omnibox::ModelMode model) const;
+  const omnibox::ModelConfig* GetModelConfig(omnibox::ModelMode model) const;
+  std::optional<omnibox::SectionConfig> GetModelSectionConfig() const;
+  bool IsModelVisible(omnibox::ModelMode model) const;
+  bool IsModelEnabled(omnibox::ModelMode model) const;
 
   raw_ptr<OmniboxController> GetOmniboxController() const;
   raw_ptr<OmniboxEditModel> GetEditModel();
@@ -185,7 +195,7 @@ class OmniboxContextMenuController : public ui::SimpleMenuModel::Delegate {
   raw_ptr<FaviconService> favicon_service_;
   int next_command_id_ = 0;
 
-  composebox_query::mojom::InputState input_state_;
+  omnibox::InputState input_state_;
 
   base::WeakPtrFactory<OmniboxContextMenuController> weak_ptr_factory_{this};
 };

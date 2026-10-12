@@ -266,12 +266,6 @@ BASE_FEATURE(kBocaScreenSharingTeacher, base::FEATURE_ENABLED_BY_DEFAULT);
 // Enables or disables sharing student's screen in the Boca app.
 BASE_FEATURE(kBocaScreenSharingStudent, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Enables or disables sharing host audio in the Boca app.
-BASE_FEATURE(kBocaHostAudio, base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Enables or disables using audio for the Kiosk client in the Boca app.
-BASE_FEATURE(kBocaAudioForKiosk, base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Enables or disables setting audio params when sharing from a student device
 // to a remote kiosk receiver.
 BASE_FEATURE(kBocaRedirectStudentAudioToKiosk,
@@ -368,11 +362,6 @@ const base::FeatureParam<CaptureModeEducationParam> kCaptureModeEducationParam{
     &kCaptureModeEducation, "CaptureModeEducationParam",
     CaptureModeEducationParam::kShortcutNudge,
     &capture_mode_education_type_options};
-
-// Enables bypassing the 3 times / 24 hours show limits for the Capture Mode
-// education nudges and tutorials.
-BASE_FEATURE(kCaptureModeEducationBypassLimits,
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables on-device OCR functionality in capture mode, used as part of the
 // Scanner and Sunfish features.
@@ -1021,9 +1010,6 @@ BASE_FEATURE(kHelpAppAutoTriggerInstallDialog,
 // articles about apps.
 BASE_FEATURE(kHelpAppHomePageAppArticles, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Enable showing search results from the help app in the launcher.
-BASE_FEATURE(kHelpAppLauncherSearch, base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Enables a new onboarding experience in the Help App.
 BASE_FEATURE(kHelpAppOnboardingRevamp, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -1617,9 +1603,6 @@ BASE_FEATURE(kPreferConstantFrameRate, base::FEATURE_DISABLED_BY_DEFAULT);
 // replace the existing Chrome print preview UI, and will require an additional
 // flag and pref configured to facilitate. See b/323421684 for more information.
 BASE_FEATURE(kPrintPreviewCrosApp, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Controls whether to enable Projector for managed users.
-BASE_FEATURE(kProjectorManagedUser, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Controls whether the Projector app launches in debug mode, with more detailed
 // error messages.
@@ -2372,14 +2355,6 @@ bool IsBocaScreenSharingStudentEnabled() {
   return base::FeatureList::IsEnabled(kBocaScreenSharingStudent);
 }
 
-bool IsBocaHostAudioEnabled() {
-  return base::FeatureList::IsEnabled(kBocaHostAudio);
-}
-
-bool IsBocaAudioForKioskEnabled() {
-  return base::FeatureList::IsEnabled(kBocaAudioForKiosk);
-}
-
 bool IsBocaRedirectStudentAudioToKioskEnabled() {
   return base::FeatureList::IsEnabled(kBocaRedirectStudentAudioToKiosk);
 }
@@ -2398,10 +2373,6 @@ bool IsBrightnessControlInSettingsEnabled() {
 
 bool IsCaptureModeEducationEnabled() {
   return base::FeatureList::IsEnabled(kCaptureModeEducation);
-}
-
-bool IsCaptureModeEducationBypassLimitsEnabled() {
-  return base::FeatureList::IsEnabled(kCaptureModeEducationBypassLimits);
 }
 
 bool IsCaptureModeOnDeviceOcrEnabled() {
@@ -3078,10 +3049,6 @@ bool IsPinAutosubmitBackfillFeatureEnabled() {
 
 bool IsPrinterPreviewCrosAppEnabled() {
   return base::FeatureList::IsEnabled(kPrintPreviewCrosApp);
-}
-
-bool IsProjectorManagedUserEnabled() {
-  return base::FeatureList::IsEnabled(kProjectorManagedUser);
 }
 
 bool IsProjectorAppDebugMode() {

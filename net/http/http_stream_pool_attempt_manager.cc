@@ -1813,6 +1813,12 @@ void HttpStreamPool::AttemptManager::OnJobDone(Job* job) {
 }
 
 bool HttpStreamPool::AttemptManager::HasAvailableSpdySession() const {
+  // Only SSL origins may have H2 sessions. This matches the behavior of
+  // HttpStreamPool::FindAvailableSpdySession().
+  if (!is_using_tls_) {
+    return false;
+  }
+
   // If the destination is marked as requiring HTTP/1.1, act as if there's no
   // available SPDY session. This matches the behavior of
   // HttpStreamPool::FindAvailableSpdySession().
@@ -2179,11 +2185,7 @@ void HttpStreamPool::AttemptManager::MaybeMarkQuicBroken() {
     return;
   }
 
-  if (*quic_attempt_result_ == OK ||
-      *quic_attempt_result_ == ERR_DNS_NO_MATCHING_SUPPORTED_ALPN ||
-      *quic_attempt_result_ == ERR_NETWORK_CHANGED ||
-      *quic_attempt_result_ == ERR_INTERNET_DISCONNECTED ||
-      *quic_attempt_result_ == ERR_ABORTED) {
+  if (!IsQuicErrorBrokenable(*quic_attempt_result_)) {
     return;
   }
 

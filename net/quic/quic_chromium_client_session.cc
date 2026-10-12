@@ -647,12 +647,6 @@ int QuicChromiumClientSession::Handle::GetSelfAddress(
   return OK;
 }
 
-void QuicChromiumClientSession::Handle::AssertIsValidFor(
-    const GURL& url) const {
-  CHECK(session_);
-  session_->AssertIsValidFor(url);
-}
-
 bool QuicChromiumClientSession::Handle::WasEverUsed() const {
   if (!session_) {
     return was_ever_used_;
@@ -1876,20 +1870,6 @@ void QuicChromiumClientSession::LogZeroRttStats() {
   net_log_.AddEvent(NetLogEventType::QUIC_SESSION_ZERO_RTT_STATE, [&] {
     return base::DictValue().Set("state", ZeroRttStateToString(state));
   });
-}
-
-void QuicChromiumClientSession::AssertIsValidFor(const GURL& url) const {
-  if (allow_any_url_for_testing_) {
-    return;
-  }
-  CHECK(cert_verify_result_);
-
-  // Don't check host for HTTP schemes. Non-tunnelled HTTP requests may be sent
-  // directly to a QUIC proxy - while we currently use tunnels for that case,
-  // best not to prohibit doing so at this layer.
-  if (!url.SchemeIs(url::kHttpsScheme)) {
-    CHECK(cert_verify_result_->verified_cert->VerifyNameMatch(url.host()));
-  }
 }
 
 void QuicChromiumClientSession::OnCryptoHandshakeMessageSent(
@@ -3139,8 +3119,7 @@ static void LogMTCCertVerifyMetrics(
   if (is_resumption) {
     result = MTCResult::kResumption;
   } else if (cert_is_mtc) {
-    if (MapCertStatusToNetError(
-            verify_details->cert_verify_result.cert_status) == OK) {
+    if (!IsCertStatusError(verify_details->cert_verify_result.cert_status)) {
       result = MTCResult::kValidMTC;
     } else {
       result = MTCResult::kInvalidMTC;
@@ -3183,8 +3162,13 @@ void QuicChromiumClientSession::OnProofVerifyDetailsAvailable(
     // 44363.48.7 encoded as a relative OID
     if (x509_util::LastOidComponentFromBase(id, kMtcExperimentBaseId) !=
         std::nullopt) {
-      server_advertised_mtc_tai_ = true;
+      server_supports_mtc_tai_ = true;
     }
+  }
+  if (verify_details_chromium->cert_verify_result.verified_cert
+          ->signature_algorithm() ==
+      bssl::SignatureAlgorithm::kMtcProofDraftDavidben08) {
+    server_supports_mtc_tai_ = true;
   }
 
   bool verify_mtcs_enabled = false;
@@ -3192,14 +3176,15 @@ void QuicChromiumClientSession::OnProofVerifyDetailsAvailable(
   verify_mtcs_enabled =
       base::FeatureList::IsEnabled(net::features::kVerifyMTCs);
 #endif
-  if (server_advertised_mtc_tai_ && verify_mtcs_enabled) {
+  if (server_supports_mtc_tai_ && verify_mtcs_enabled) {
     auto client_mtc_tais =
         ssl_config_service_->GetSSLContextConfig().mtc_trust_anchor_ids;
     int64_t mtc_update_time_seconds =
         ssl_config_service_->GetSSLContextConfig().mtc_update_time_seconds;
-    LogMTCCertVerifyMetrics(
-        client_mtc_tais, server_tais, verify_details_chromium,
-        crypto_stream_->IsResumption(), mtc_update_time_seconds);
+    bool is_resumption = SSL_session_reused(crypto_stream_->GetSsl());
+    LogMTCCertVerifyMetrics(client_mtc_tais, server_tais,
+                            verify_details_chromium, is_resumption,
+                            mtc_update_time_seconds);
   }
 }
 
@@ -4013,7 +3998,7 @@ void QuicChromiumClientSession::OnCryptoHandshakeComplete() {
       connect_timing_.connect_end - connect_timing_.connect_start;
   UMA_HISTOGRAM_TIMES("Net.QuicSession.HandshakeConfirmedTime",
                       handshake_confirmed_time);
-  if (server_advertised_mtc_tai_) {
+  if (server_supports_mtc_tai_) {
     UMA_HISTOGRAM_TIMES("Net.QuicSession.HandshakeConfirmedTime.MTC",
                         handshake_confirmed_time);
     size_t handshake_bytes = crypto_stream_->crypto_bytes_read() +

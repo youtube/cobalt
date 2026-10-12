@@ -6,10 +6,10 @@ import './icons.html.js';
 import '//resources/cr_elements/cr_action_menu/cr_action_menu.js';
 import '//resources/cr_elements/cr_icon/cr_icon.js';
 import '//resources/cr_elements/cr_auto_img/cr_auto_img.js';
+import '//resources/cr_elements/cr_url_list_item/cr_url_list_item.js';
 import 'chrome://resources/cr_components/composebox/icons.html.js';
 
 import {AnchorAlignment} from '//resources/cr_elements/cr_action_menu/cr_action_menu.js';
-import {assert} from '//resources/js/assert.js';
 import type {CrActionMenuElement} from 'chrome://resources/cr_elements/cr_action_menu/cr_action_menu.js';
 import {getFaviconForPageURL} from 'chrome://resources/js/icon.js';
 import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
@@ -58,37 +58,36 @@ export class SourcesMenuElement extends CrLitElement {
     this.$.menu.close();
   }
 
+  private getContextInfoFromEvent_(e: Event): ContextInfo {
+    const index = Number((e.currentTarget as HTMLElement).dataset['index']);
+    return this.contextInfos[index]!;
+  }
+
   protected onTabClick_(e: Event) {
     this.close();
-
-    const currentTarget = e.currentTarget as HTMLElement;
-    const index = Number(currentTarget.dataset['index']);
-    const tab = this.contextInfos[index]?.tab;
-    assert(tab);
 
     chrome.metricsPrivate.recordUserAction(
         'ContextualTasks.WebUI.UserAction.TabFromSourcesMenuClicked');
     chrome.metricsPrivate.recordBoolean(
         'ContextualTasks.WebUI.UserAction.TabFromSourcesMenuClicked', true);
-    this.browserProxy_.handler.onTabClickedFromSourcesMenu(tab.tabId, tab.url);
+    const contextInfo = this.getContextInfoFromEvent_(e);
+    this.browserProxy_.handler.onTabClickedFromSourcesMenu(
+        contextInfo.tab!.tabId, contextInfo.tab!.url);
   }
 
   protected onFileClick_(e: Event) {
     this.close();
 
-    const currentTarget = e.currentTarget as HTMLElement;
-    const index = Number(currentTarget.dataset['index']);
-    const file = this.contextInfos[index]?.file;
-    assert(file);
-    this.browserProxy_.handler.onFileClickedFromSourcesMenu(file.url);
+    const contextInfo = this.getContextInfoFromEvent_(e);
+    this.browserProxy_.handler.onFileClickedFromSourcesMenu(
+        contextInfo.file!.url);
   }
 
   protected onImageClick_(e: Event) {
     this.close();
-    const index = Number((e.currentTarget as HTMLElement).dataset['index']);
-    const image = this.contextInfos[index]?.image;
-    assert(image);
-    this.browserProxy_.handler.onImageClickedFromSourcesMenu(image.url);
+    const contextInfo = this.getContextInfoFromEvent_(e);
+    this.browserProxy_.handler.onImageClickedFromSourcesMenu(
+        contextInfo.image!.url);
   }
 
   protected faviconUrl_(url: string): string {

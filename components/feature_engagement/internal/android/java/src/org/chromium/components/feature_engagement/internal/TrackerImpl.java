@@ -8,6 +8,7 @@ import androidx.annotation.CheckResult;
 
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
+import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
 import org.chromium.base.Callback;
@@ -210,14 +211,16 @@ public class TrackerImpl implements Tracker {
 
         void registerPriorityNotificationHandler(
                 long nativeTrackerImplAndroid,
-                String feature,
-                Runnable priorityNotificationHandler);
+                @JniType("std::string") String feature,
+                @JniType("base::OnceClosure") Runnable priorityNotificationHandler);
 
         void unregisterPriorityNotificationHandler(long nativeTrackerImplAndroid, String feature);
 
         boolean isInitialized(long nativeTrackerImplAndroid);
 
-        void addOnInitializedCallback(long nativeTrackerImplAndroid, Callback<Boolean> callback);
+        void addOnInitializedCallback(
+                long nativeTrackerImplAndroid,
+                @JniType("base::OnceCallback<void(bool)>") Callback<Boolean> callback);
 
         void release(long nativeDisplayLockHandleAndroid);
     }

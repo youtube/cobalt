@@ -1428,6 +1428,9 @@ policies:
   1427: LoopbackNetworkAllowedForUrls
   1428: LoopbackNetworkBlockedForUrls
   1429: XSLTEnabled
+  1430: LocalNetworkAccessPermissionsPolicyDefaultEnabled
+  1431: ForceForegroundPriorityForAllTabs
+  1432: WebRtcDiagnosticLogCollectionAllowedForOrigins
 
 atomic_groups:
   1: Homepage

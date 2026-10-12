@@ -10,7 +10,6 @@
 #include "build/build_config.h"
 #include "cc/test/pixel_test_utils.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
-#include "chrome/browser/actor/actor_policy_checker.h"
 #include "chrome/browser/actor/actor_task_metadata.h"
 #include "chrome/browser/actor/actor_test_util.h"
 #include "chrome/browser/actor/ui/actor_ui_tab_controller.h"
@@ -27,7 +26,7 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/interaction/browser_elements_views.h"
-#include "chrome/browser/ui/views/tabs/glic/glic_button.h"
+#include "chrome/browser/ui/views/tabs/glic/tab_strip_glic_button.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -233,7 +232,6 @@ class ContextSharingBorderViewUiTestBase : public test::InteractiveGlicTest {
     if (!enabled_features.empty()) {
       enabled_features += ",";
     }
-    enabled_features += "GlicActor:glic_actor_policy_control_exemption/true";
 
     features_.InitFromCommandLine(enabled_features, disabled_features);
   }
@@ -264,8 +262,15 @@ class ContextSharingBorderViewUiTestBase : public test::InteractiveGlicTest {
     RunTestSequence(
         // See https://crrev.com/c/6373789: the glic window is in detach mode by
         // default.
-        OpenGlic(), ExecuteJsAt(test::kGlicContentsElementId,
-                                kContextAccessIndicatorCheckBox, kClickFn));
+        OpenGlic(), Do([this]() {
+          if (base::FeatureList::IsEnabled(features::kGlicMultiInstance)) {
+            if (auto* instance = GetGlicInstanceImpl()) {
+              instance->OnInteractionModeChange(mojom::WebClientMode::kAudio);
+            }
+          }
+        }),
+        ExecuteJsAt(test::kGlicContentsElementId,
+                    kContextAccessIndicatorCheckBox, kClickFn));
   }
 
   void CloseGlicWindow() {
@@ -658,7 +663,7 @@ IN_PROC_BROWSER_TEST_F(ContextSharingBorderViewUiTest, FocusedTabDestroyed) {
 
 // TODO(crbug.com/430097333): Wayland doesn't support programmatic window
 // activation. Re-enable when activation is supported.
-#if BUILDFLAG(IS_OZONE_WAYLAND)
+#if BUILDFLAG(SUPPORTS_OZONE_WAYLAND)
 #define MAYBE_FocusedWindowChange DISABLED_FocusedWindowChange
 #else
 #define MAYBE_FocusedWindowChange FocusedWindowChange
@@ -1013,7 +1018,8 @@ IN_PROC_BROWSER_TEST_F(ContextSharingBorderViewWithActorGlowUiTest,
   ASSERT_TRUE(actor_keyed_service);
 
   // Create a new task.
-  const actor::TaskId task_id = actor_keyed_service->CreateTask();
+  const actor::TaskId task_id =
+      actor_keyed_service->CreateTask(actor::NoEnterprisePolicyChecker());
   actor_keyed_service->GetTask(task_id)->AddTab(
       browser()->GetActiveTabInterface()->GetHandle(), base::DoNothing());
 
@@ -1076,7 +1082,8 @@ IN_PROC_BROWSER_TEST_F(
   ASSERT_TRUE(actor_keyed_service);
 
   // Create a new task.
-  const actor::TaskId task_id = actor_keyed_service->CreateTask();
+  const actor::TaskId task_id =
+      actor_keyed_service->CreateTask(actor::NoEnterprisePolicyChecker());
   actor_keyed_service->GetTask(task_id)->AddTab(
       browser()->GetActiveTabInterface()->GetHandle(), base::DoNothing());
 

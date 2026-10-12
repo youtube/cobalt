@@ -163,7 +163,14 @@ base::DictValue RecordToDictValue(BackingStore::Cursor& cursor,
   for (const IndexedDBExternalObject& object : value.external_objects) {
     base::DictValue object_dict;
     object_dict.Set("type", static_cast<int>(object.object_type()));
-    object_dict.Set("size", ToIntValue(object.size()));
+    if (object.object_type() ==
+        IndexedDBExternalObject::ObjectType::kFileSystemAccessHandle) {
+      object_dict.Set(
+          "fsa_handle",
+          base::BlobStorage(object.serialized_file_system_access_handle()));
+    } else {
+      object_dict.Set("size", ToIntValue(object.size()));
+    }
     external_objects.Append(std::move(object_dict));
   }
   record.Set("external_objects", std::move(external_objects));
@@ -331,8 +338,6 @@ StatusOr<base::DictValue> SnapshotDatabase(BackingStore::Database& db) {
   return result;
 }
 
-namespace {
-
 Status MigrateDatabase(BackingStore::Database& source,
                        BackingStore::Database& target) {
   const blink::IndexedDBDatabaseMetadata& metadata = source.GetMetadata();
@@ -442,23 +447,6 @@ Status MigrateDatabase(BackingStore::Database& source,
   // Commit the target transaction. We can skip phase one because there are no
   // async blob writing operations.
   return target_txn->CommitPhaseTwo();
-}
-
-}  // namespace
-
-void MigrateBackingStore(BackingStore& source, BackingStore& target) {
-  std::vector<blink::mojom::IDBNameAndVersionPtr> names_and_versions =
-      source.GetDatabaseNamesAndVersions().value();
-
-  for (const auto& name_and_version : names_and_versions) {
-    std::unique_ptr<BackingStore::Database> source_db =
-        source.CreateOrOpenDatabase(name_and_version->name).value();
-    std::unique_ptr<BackingStore::Database> target_db =
-        target.CreateOrOpenDatabase(name_and_version->name).value();
-
-    Status status = MigrateDatabase(*source_db, *target_db);
-    CHECK(status.ok()) << status.ToString();
-  }
 }
 
 }  // namespace content::indexed_db

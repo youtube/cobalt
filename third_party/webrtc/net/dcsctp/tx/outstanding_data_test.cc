@@ -135,8 +135,9 @@ TEST_F(OutstandingDataTest, AcksAndNacksWithGapAckBlocks) {
   EXPECT_EQ(ack.highest_tsn_acked.Wrap(), TSN(11));
   EXPECT_FALSE(ack.has_packet_loss);
 
-  EXPECT_EQ(buf_.unacked_payload_bytes(), 0u);
-  EXPECT_EQ(buf_.unacked_items(), 0u);
+  // TSN (10) is still outstanding.
+  EXPECT_EQ(buf_.unacked_payload_bytes(), 1u);
+  EXPECT_EQ(buf_.unacked_items(), 1u);
   EXPECT_FALSE(buf_.has_data_to_be_retransmitted());
   EXPECT_EQ(buf_.last_cumulative_tsn_ack().Wrap(), TSN(9));
   EXPECT_EQ(buf_.next_tsn().Wrap(), TSN(12));

@@ -3,6 +3,8 @@
 // found in the LICENSE file.
 
 #include "base/check_op.h"
+#include "base/test/metrics/histogram_tester.h"
+#include "base/test/metrics/user_action_tester.h"
 #include "build/build_config.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/views/bookmarks/saved_tab_groups/saved_tab_group_everything_menu.h"
@@ -23,15 +25,27 @@ class VerticalTabStripBottomContainerInteractiveUiTest
 // of the vertical tab strip
 IN_PROC_BROWSER_TEST_F(VerticalTabStripBottomContainerInteractiveUiTest,
                        VerifyNewTabButton) {
+  base::HistogramTester histogram_tester;
+  base::UserActionTester user_action_tester;
   RunTestSequence(
       CheckResult([this]() { return browser()->tab_strip_model()->count(); },
                   1),
+      Do([&]() {
+        histogram_tester.ExpectTotalCount(
+            "TabStrip.TimeToCreateNewTabFromPress", 0);
+        EXPECT_EQ(0, user_action_tester.GetActionCount("NewTab_Button"));
+      }),
       WaitForShow(kVerticalTabStripBottomContainerElementId),
       EnsurePresent(kNewTabButtonElementId),
       PressButton(kNewTabButtonElementId,
                   ui::test::InteractionTestUtil::InputType::kDontCare),
       CheckResult([this]() { return browser()->tab_strip_model()->count(); },
-                  2));
+                  2),
+      Do([&]() {
+        histogram_tester.ExpectTotalCount(
+            "TabStrip.TimeToCreateNewTabFromPress", 1);
+        EXPECT_EQ(1, user_action_tester.GetActionCount("NewTab_Button"));
+      }));
 }
 
 // This test checks that we can click the tab group button in the bottom

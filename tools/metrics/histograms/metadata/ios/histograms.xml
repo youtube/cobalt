@@ -2106,6 +2106,30 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="IOS.FileUploadPanel.NilImageInfo.{InfoKey}" enum="Boolean"
+    expires_after="2026-09-04">
+  <owner>qpubert@google.com</owner>
+  <owner>olivierrobin@chromium.org</owner>
+  <owner>bling-team@google.com</owner>
+  <summary>
+    Logs whether the {InfoKey} key is present in the info dictionary when the
+    image is nil in the file upload panel. This is used to diagnose why the
+    image is nil.
+  </summary>
+  <token key="InfoKey">
+    <variant name="CropRect"/>
+    <variant name="EditedImage"/>
+    <variant name="ImageURL"/>
+    <variant name="LivePhoto"/>
+    <variant name="MediaMetadata"/>
+    <variant name="MediaType"/>
+    <variant name="MediaURL"/>
+    <variant name="OriginalImage"/>
+    <variant name="PHAsset"/>
+    <variant name="ReferenceURL"/>
+  </token>
+</histogram>
+
 <histogram name="IOS.FileUploadPanel.PhotoPicker.FileCount" units="count"
     expires_after="2026-09-04">
   <owner>qpubert@google.com</owner>
@@ -2370,6 +2394,39 @@ chromium-metrics-reviews@google.com.
   </token>
 </histogram>
 
+<histogram name="IOS.Gemini.Camera.Settings.GeminiCameraPermissionToggled"
+    enum="Boolean" expires_after="2027-02-06">
+  <owner>joepeplowski@google.com</owner>
+  <owner>bling-alchemy-eng@google.com</owner>
+  <summary>
+    Records that the user toggled the Camera setting on (true) or off (false) in
+    the Gemini settings UI.
+  </summary>
+</histogram>
+
+<histogram name="IOS.Gemini.CameraFlow.CameraPicker.Result"
+    enum="IOSGeminiCameraPickerResult" expires_after="2027-01-28">
+  <owner>joepeplowski@google.com</owner>
+  <owner>bling-alchemy-eng@google.com</owner>
+  <summary>
+    Records the result of the OS camera picker operation in the Gemini camera
+    flow. The camera picker appears in the camera flow once the user has granted
+    both OS- and Gemini-level camera permissions and the result is recorded when
+    the camera picker is dismissed.
+  </summary>
+</histogram>
+
+<histogram name="IOS.Gemini.CameraFlow.GeminiCameraPermission.InitialValue"
+    enum="Boolean" expires_after="2027-01-28">
+  <owner>joepeplowski@google.com</owner>
+  <owner>bling-alchemy-eng@google.com</owner>
+  <summary>
+    Records the initial value of the Gemini camera permission setting in the
+    Gemini camera flow. This value is recorded once the camera flow starts and
+    the OS-level camera permission has been granted.
+  </summary>
+</histogram>
+
 <histogram name="IOS.Gemini.CameraFlow.GeminiCameraPermissionAlert.Result"
     enum="IOSGeminiCameraPermissionAlertResult" expires_after="2027-01-27">
   <owner>joepeplowski@google.com</owner>
@@ -2390,6 +2447,17 @@ chromium-metrics-reviews@google.com.
     Records the result of the alert directing users to OS camera settings in the
     Gemini camera flow. This alert appears after starting the camera flow when
     the OS-level camera permission has been denied by the user in the past.
+  </summary>
+</histogram>
+
+<histogram name="IOS.Gemini.CameraFlow.OSCameraAuthorization.InitialStatus"
+    enum="IOSGeminiOSCameraAuthorizationInitialStatus"
+    expires_after="2027-01-28">
+  <owner>joepeplowski@google.com</owner>
+  <owner>bling-alchemy-eng@google.com</owner>
+  <summary>
+    Records the initial status of the OS-level camera authorization setting in
+    the Gemini camera flow. This value is recorded when the camera flow starts.
   </summary>
 </histogram>
 
@@ -2526,6 +2594,15 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="IOS.Gemini.ImageActionButton"
+    enum="IOSGeminiImageActionButtonType" expires_after="2027-02-02">
+  <owner>joepeplowski@google.com</owner>
+  <owner>bling-alchemy-eng@google.com</owner>
+  <summary>
+    Records the type of action button tapped on an image in a Gemini response.
+  </summary>
+</histogram>
+
 <histogram
     name="IOS.Gemini.ImageRemix.ContextMenuEntryPoint.AspectRatio.Tapped"
     enum="IOSGeminiAspectRatioBucket" expires_after="2027-01-16">
@@ -2543,6 +2620,15 @@ chromium-metrics-reviews@google.com.
   <owner>bling-alchemy-eng@google.com</owner>
   <summary>
     Records the dismissal reason for the Gemini Image Remix IPH.
+  </summary>
+</histogram>
+
+<histogram name="IOS.Gemini.InputPlateAttachmentOption"
+    enum="IOSGeminiInputPlateAttachmentOption" expires_after="2027-02-02">
+  <owner>joepeplowski@google.com</owner>
+  <owner>bling-alchemy-eng@google.com</owner>
+  <summary>
+    Records the attachment option that was tapped in the input plate in Gemini.
   </summary>
 </histogram>
 
@@ -4338,7 +4424,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.NTP.Impression.CustomizationState"
-    enum="IOSNTPImpressionCustomizationState" expires_after="2026-02-22">
+    enum="IOSNTPImpressionCustomizationState" expires_after="2027-02-07">
   <owner>adamta@google.com</owner>
   <owner>bling-pandamonium@google.com</owner>
   <summary>
@@ -4969,7 +5055,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="IOS.PaymentsBottomSheetV3.TimeToTrigger.{Outcome}" units="ms"
+<histogram name="IOS.PaymentsBottomSheet.TimeToTrigger.{Outcome}" units="ms"
     expires_after="2026-07-01">
   <owner>vincb@google.com</owner>
   <owner>noemies@google.com</owner>

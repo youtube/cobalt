@@ -10,15 +10,19 @@
 #include <utility>
 #include <vector>
 
+#include "base/containers/flat_set.h"
+#include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_forward.h"
 #include "base/logging.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_split.h"
 #include "chrome/browser/browser_process.h"
 #include "components/component_updater/component_updater_service.h"
 #include "components/crx_file/id_util.h"
+#include "components/on_device_translation/features.h"
 #include "components/on_device_translation/public/language_pack.h"
 #include "components/on_device_translation/public/paths.h"
 #include "components/update_client/update_client_errors.h"
@@ -182,6 +186,52 @@ void RegisterTranslateKitLanguagePackComponentsForUpdate(
           cus, pref_service, language_pack_key, base::OnceClosure(),
           base::RepeatingClosure());
     }
+  }
+}
+
+void RegisterTranslateKitLanguagePackComponentsForAutoDownload(
+    ComponentUpdateService* cus,
+    PrefService* pref_service) {
+  if (!base::FeatureList::IsEnabled(
+          on_device_translation::kAutoDownloadTranslateLanguagePacks)) {
+    return;
+  }
+
+  // The list of language pairs for which language packs should be automatically
+  // downloaded. The format is a comma-separated list of language pairs, e.g.
+  // "en-es,en-fr".
+  const std::string language_pairs_str =
+      on_device_translation::kAutoDownloadTranslateLanguagePacksLanguagePairs
+          .Get();
+  if (language_pairs_str.empty()) {
+    return;
+  }
+
+  base::flat_set<LanguagePackKey> keys_to_register;
+  for (const std::string_view& pair :
+       base::SplitStringPiece(language_pairs_str, ",", base::TRIM_WHITESPACE,
+                              base::SPLIT_WANT_NONEMPTY)) {
+    std::vector<std::string_view> languages = base::SplitStringPiece(
+        pair, "-", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+    if (languages.size() != 2) {
+      continue;
+    }
+
+    auto language1 = on_device_translation::ToSupportedLanguage(languages[0]);
+    auto language2 = on_device_translation::ToSupportedLanguage(languages[1]);
+    for (const auto& [key, config] :
+         on_device_translation::kLanguagePackComponentConfigMap) {
+      if ((language1 == config->language1 && language2 == config->language2) ||
+          (language1 == config->language2 && language2 == config->language1)) {
+        keys_to_register.insert(key);
+        break;
+      }
+    }
+  }
+
+  for (const auto& key : keys_to_register) {
+    RegisterTranslateKitLanguagePackComponent(
+        cus, pref_service, key, base::OnceClosure(), base::RepeatingClosure());
   }
 }
 

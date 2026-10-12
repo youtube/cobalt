@@ -106,10 +106,6 @@ class CONTENT_EXPORT PrefetchService : public PrefetchContainer::Observer {
   virtual PrefetchOriginProber* GetPrefetchOriginProber() const;
   virtual void PrefetchUrl(base::WeakPtr<PrefetchContainer> prefetch_container);
 
-  // Copies any cookies in the isolated network context associated with
-  // |prefetch_container| to the default network context.
-  void CopyIsolatedCookies(PrefetchServingHandle& serving_handle);
-
   // Adds a `PrefetchContainer` created from the `PrefetchRequest` under control
   // of `PrefetchService` and returns `PrefetchHandle` so that the caller can
   // control prefetch resources associated with this.
@@ -251,6 +247,10 @@ class CONTENT_EXPORT PrefetchService : public PrefetchContainer::Observer {
   }
   PrefetchScheduler& GetPrefetchSchedulerForTesting() { return *scheduler_; }
 
+  mojo::Remote<network::mojom::NetworkContext>
+  CreateIsolatedNetworkContextForTesting(
+      bool is_proxy_required_when_cross_origin);
+
   base::WeakPtr<PrefetchService> GetWeakPtr();
 
  private:
@@ -358,6 +358,12 @@ class CONTENT_EXPORT PrefetchService : public PrefetchContainer::Observer {
   // called.
   void SendPrefetchRequest(base::WeakPtr<PrefetchContainer> prefetch_container);
 
+  // Creates an isolated network context for prefetching. While the returned
+  // `NetworkContext` will be owned/used by a `PrefetchContainer`, the creation
+  // logic here itself doesn't depend on `PrefetchContainer`.
+  mojo::Remote<network::mojom::NetworkContext> CreateIsolatedNetworkContext(
+      bool is_proxy_required_when_cross_origin);
+
   // Gets the URL loader for the given |prefetch_container|. If an override was
   // set by |SetURLLoaderFactoryForTesting|, then that will be returned instead.
   scoped_refptr<network::SharedURLLoaderFactory>
@@ -386,14 +392,6 @@ class CONTENT_EXPORT PrefetchService : public PrefetchContainer::Observer {
       const PrefetchContainer& prefetch_container,
       const network::URLLoaderCompletionStatus& completion_status,
       const std::optional<int>& response_code) override;
-
-  // Called when the cookies from |prefetch_conatiner| are read from the
-  // isolated network context and are ready to be written to the default network
-  // context.
-  void OnGotIsolatedCookiesForCopy(
-      PrefetchServingHandle serving_handle,
-      const net::CookieAccessResultList& cookie_list,
-      const net::CookieAccessResultList& excluded_cookies);
 
   enum class HandlePrefetchContainerResult {
     // No prefetch was available to be used.

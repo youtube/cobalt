@@ -33,6 +33,7 @@
 #include "api/enable_media.h"
 #include "api/environment/deprecated_global_field_trials.h"
 #include "api/environment/environment.h"
+#include "api/environment/environment_factory.h"
 #include "api/fec_controller.h"
 #include "api/media_stream_interface.h"
 #include "api/neteq/neteq_factory.h"
@@ -217,7 +218,8 @@ static void JNI_PeerConnectionFactory_InitializeFieldTrials(
 }
 
 static void JNI_PeerConnectionFactory_InitializeInternalTracer(JNIEnv* jni) {
-  tracing::SetupInternalTracer();
+  Environment env = CreateEnvironment();
+  tracing::SetupInternalTracer(env);
 }
 
 static jboolean JNI_PeerConnectionFactory_StartInternalTracingCapture(

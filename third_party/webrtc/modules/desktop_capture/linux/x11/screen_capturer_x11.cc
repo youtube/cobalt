@@ -17,10 +17,12 @@
 #include <X11/extensions/Xrandr.h>
 #include <X11/extensions/damagewire.h>
 #include <X11/extensions/randr.h>
+// X11 creates a CurrentTime macro, which causes compilation errors when
+// including webrtc::Clock.
+#undef CurrentTime
 #include <dlfcn.h>
 
 #include <cstdint>
-#include <cstring>
 #include <memory>
 #include <utility>
 

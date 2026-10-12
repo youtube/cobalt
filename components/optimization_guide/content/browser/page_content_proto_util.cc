@@ -547,7 +547,21 @@ optimization_guide::proto::RedactionDecision ConvertRedactionDecision(
       return optimization_guide::proto::
           REDACTION_DECISION_UNREDACTED_EMPTY_PASSWORD;
     case blink::mojom::AIPageContentRedactionDecision::
+        kUnredacted_EmptyCustomPassword:
+      // TODO(crbug.com/480135178): Extend
+      // optimization_guide::proto::RedactionDecision with dedicated values for
+      // custom password fields (CSS/JS masked) so downstream can distinguish
+      // them from native password inputs.
+      return optimization_guide::proto::
+          REDACTION_DECISION_UNREDACTED_EMPTY_PASSWORD;
+    case blink::mojom::AIPageContentRedactionDecision::
         kRedacted_HasBeenPassword:
+      return optimization_guide::proto::
+          REDACTION_DECISION_REDACTED_HAS_BEEN_PASSWORD;
+    case blink::mojom::AIPageContentRedactionDecision::
+        kRedacted_CustomPassword_CSS:
+    case blink::mojom::AIPageContentRedactionDecision::
+        kRedacted_CustomPassword_JS:
       return optimization_guide::proto::
           REDACTION_DECISION_REDACTED_HAS_BEEN_PASSWORD;
   }
@@ -669,6 +683,14 @@ base::expected<void, std::string> ConvertAttributes(
   if (mojom_attributes.node_interaction_info) {
     ConvertNodeInteractionInfo(*mojom_attributes.node_interaction_info,
                                proto_attributes->mutable_interaction_info());
+  }
+  if (mojom_attributes.node_interaction_info &&
+      mojom_attributes.form_control_data &&
+      mojom_attributes.form_control_data->is_readonly) {
+    // Temporarily map readonly to disabled. This is a lossy workaround that
+    // preserves "do not edit" intent for consumers that only read proto data.
+    // TODO(crbug.com/481361478): Add readonly field to FormControlData proto.
+    proto_attributes->mutable_interaction_info()->set_is_disabled(true);
   }
 
   if (mojom_attributes.text_info) {

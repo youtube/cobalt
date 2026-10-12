@@ -331,44 +331,32 @@ absl::Status MasqueOhttpClient::SendOhttpRequest(
   control_data.scheme = url.scheme();
   control_data.authority = url.HostPort();
   control_data.path = url.PathParamsQuery();
-  BinaryHttpRequest binary_request(control_data);
-  binary_request.set_body(post_data);
-  if (!per_request_config.private_token().empty()) {
-    QUICHE_ASSIGN_OR_RETURN(
-        std::string formatted_token,
-        FormatPrivateToken(per_request_config.private_token()));
-    binary_request.AddHeaderField({"authorization", formatted_token});
-  }
-  absl::StatusOr<std::string> encoded_request = binary_request.Serialize();
-  if (!encoded_request.ok()) {
-    return absl::InternalError(
-        absl::StrCat("Failed to serialize OHTTP request: ",
-                     encoded_request.status().message()));
-  }
   std::string encrypted_data;
   PendingRequest pending_request(per_request_config);
+  std::string formatted_token;
+  if (!per_request_config.private_token().empty()) {
+    QUICHE_ASSIGN_OR_RETURN(
+        formatted_token,
+        FormatPrivateToken(per_request_config.private_token()));
+  }
   if (!ohttp_client_.has_value()) {
     QUICHE_LOG(FATAL) << "Cannot send OHTTP request without OHTTP client";
     return absl::InternalError(
         "Cannot send OHTTP request without OHTTP client");
   }
-  if (pending_request.per_request_config.use_chunked_ohttp()) {
-    pending_request.chunk_handler = std::make_unique<ChunkHandler>();
-    absl::StatusOr<ChunkedObliviousHttpClient> chunked_client =
-        ChunkedObliviousHttpClient::Create(ohttp_client_->GetPublicKey(),
-                                           ohttp_client_->GetKeyConfig(),
-                                           pending_request.chunk_handler.get());
-    if (!chunked_client.ok()) {
-      return absl::InternalError(
-          absl::StrCat("Failed to create chunked OHTTP client: ",
-                       chunked_client.status().message()));
-    }
-
+  std::string encoded_data;
+  const bool use_indeterminate_length =
+      per_request_config.use_indeterminate_length().value_or(
+          per_request_config.use_chunked_ohttp());
+  if (use_indeterminate_length) {
     BinaryHttpRequest::IndeterminateLengthEncoder encoder;
 
-    QUICHE_ASSIGN_OR_RETURN(std::string encoded_data,
+    QUICHE_ASSIGN_OR_RETURN(encoded_data,
                             encoder.EncodeControlData(control_data));
     std::vector<quiche::BinaryHttpMessage::FieldView> headers;
+    if (!formatted_token.empty()) {
+      headers.push_back({"authorization", formatted_token});
+    }
     QUICHE_ASSIGN_OR_RETURN(std::string encoded_headers,
                             encoder.EncodeHeaders(absl::MakeSpan(headers)));
     encoded_data += encoded_headers;
@@ -398,29 +386,39 @@ absl::Status MasqueOhttpClient::SendOhttpRequest(
     QUICHE_ASSIGN_OR_RETURN(std::string encoded_trailers,
                             encoder.EncodeTrailers(absl::MakeSpan(trailers)));
     encoded_data += encoded_trailers;
-
+  } else {
+    BinaryHttpRequest binary_request(control_data);
+    binary_request.set_body(post_data);
+    if (!formatted_token.empty()) {
+      binary_request.AddHeaderField({"authorization", formatted_token});
+    }
+    QUICHE_ASSIGN_OR_RETURN(encoded_data, binary_request.Serialize());
+  }
+  if (pending_request.per_request_config.use_chunked_ohttp()) {
+    pending_request.chunk_handler = std::make_unique<ChunkHandler>();
+    QUICHE_ASSIGN_OR_RETURN(
+        ChunkedObliviousHttpClient chunked_client,
+        ChunkedObliviousHttpClient::Create(
+            ohttp_client_->GetPublicKey(), ohttp_client_->GetKeyConfig(),
+            pending_request.chunk_handler.get()));
     // Intentionally split the data into two chunks to test encryption chunking.
     QUICHE_ASSIGN_OR_RETURN(encrypted_data,
-                            chunked_client->EncryptRequestChunk(
+                            chunked_client.EncryptRequestChunk(
                                 absl::string_view(encoded_data).substr(0, 1),
                                 /*is_final_chunk=*/false));
     QUICHE_ASSIGN_OR_RETURN(std::string encrypted_data2,
-                            chunked_client->EncryptRequestChunk(
+                            chunked_client.EncryptRequestChunk(
                                 absl::string_view(encoded_data).substr(1),
                                 /*is_final_chunk=*/true));
     encrypted_data += encrypted_data2;
 
-    pending_request.chunk_handler->SetChunkedClient(std::move(*chunked_client));
+    pending_request.chunk_handler->SetChunkedClient(std::move(chunked_client));
   } else {
-    absl::StatusOr<ObliviousHttpRequest> ohttp_request =
-        ohttp_client_->CreateObliviousHttpRequest(*encoded_request);
-    if (!ohttp_request.ok()) {
-      return absl::InternalError(
-          absl::StrCat("Failed to create OHTTP request: ",
-                       ohttp_request.status().message()));
-    }
-    encrypted_data = ohttp_request->EncapsulateAndSerialize();
-    pending_request.context.emplace(std::move(*ohttp_request).ReleaseContext());
+    QUICHE_ASSIGN_OR_RETURN(
+        ObliviousHttpRequest ohttp_request,
+        ohttp_client_->CreateObliviousHttpRequest(encoded_data));
+    encrypted_data = ohttp_request.EncapsulateAndSerialize();
+    pending_request.context.emplace(std::move(ohttp_request).ReleaseContext());
   }
   Message request;
   request.headers[":method"] = "POST";
@@ -478,7 +476,15 @@ absl::Status MasqueOhttpClient::ProcessOhttpResponse(
   }
   auto cleanup =
       absl::MakeCleanup([this, it]() { pending_ohttp_requests_.erase(it); });
-  QUICHE_RETURN_IF_ERROR(response.status());
+  if (!response.ok()) {
+    if (it->second.per_request_config.expected_gateway_error().has_value() &&
+        absl::StrContains(
+            response.status().message(),
+            *it->second.per_request_config.expected_gateway_error())) {
+      return absl::OkStatus();
+    }
+    return response.status();
+  }
   int16_t gateway_status_code = MasqueConnectionPool::GetStatusCode(*response);
   if (it->second.per_request_config.expected_gateway_status_code()
           .has_value()) {

@@ -1920,9 +1920,10 @@ consteval bool BinaryOperationIsBitwiseInt32() {
 }
 
 static constexpr bool IsOperationWithEmbeddedFeedback(Operation op) {
+#define OP_WITH_EMBEDDED_FEEDBACK_CASE(op) case Operation::k##op:
   switch (op) {
-    case Operation::kStrictEqual:
-      return true;
+    COMPARISON_OPERATION_LIST(OP_WITH_EMBEDDED_FEEDBACK_CASE)
+    return true;
     default:
       return false;
   }
@@ -2867,13 +2868,7 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
     }
   };
 
-  CompareOperationHint hint;
-  if (kOperation == Operation::kStrictEqual) {
-    hint = iterator_.GetEmbeddedCompareOperationHint();
-  } else {
-    auto nexus = FeedbackNexusForOperand(1);
-    hint = nexus.GetCompareOperationFeedback();
-  }
+  CompareOperationHint hint = iterator_.GetEmbeddedCompareOperationHint();
 
   switch (hint) {
     case CompareOperationHint::kNone:
@@ -8396,10 +8391,10 @@ bool MaglevGraphBuilder::CanInlineCall(compiler::SharedFunctionInfoRef shared,
   return true;
 }
 
-bool MaglevGraphBuilder::IsFunctionSmall(compiler::SharedFunctionInfoRef shared,
-                                         CallArguments& args) {
+bool MaglevGraphBuilder::IsFunctionCandidateForEagerInlining(
+    compiler::SharedFunctionInfoRef shared, CallArguments& args) {
   compiler::BytecodeArrayRef bytecode = shared.GetBytecodeArray(broker());
-  if (bytecode.length() < flags_.max_inlined_bytecode_size_small) {
+  if (bytecode.length() < flags_.max_eager_inlined_bytecode) {
     TRACE_INLINING("  greedy inlining "
                    << shared << ": small function, skipping max-depth");
     return true;
@@ -8431,7 +8426,7 @@ bool MaglevGraphBuilder::IsFunctionSmall(compiler::SharedFunctionInfoRef shared,
 
 bool MaglevGraphBuilder::ShouldEagerInlineCall(
     compiler::SharedFunctionInfoRef shared, CallArguments& args) {
-  if (!IsFunctionSmall(shared, args)) {
+  if (!IsFunctionCandidateForEagerInlining(shared, args)) {
     // Functions that aren't small aren't greedily inlined.
     return false;
   }
@@ -8557,8 +8552,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlineCall(
           arguments, &generic_call->lazy_deopt_info()->top_frame(),
           call_aspects, loop_effects_, unobserved_context_slot_stores_,
           catch_details, GetLoopDepth(), peeled_iteration_count_,
-          /* is_eager_inline */ false, call_frequency,
-          current_inlining_tree_debug_info_},
+          /* is_eager_inline */ false, /* is_small_function */ false,
+          call_frequency, current_inlining_tree_debug_info_},
       generic_call, feedback_cell, score, bytecode.length());
   graph()->inlineable_calls().push(call_site);
   return generic_call;
@@ -8599,7 +8594,7 @@ ReduceResult MaglevGraphBuilder::BuildEagerInlineCall(
       current_interpreter_frame_.known_node_aspects(), loop_effects_,
       unobserved_context_slot_stores_, catch_block_details, GetLoopDepth(),
       peeled_iteration_count_,
-      /* is_eager_inline */ true, call_frequency,
+      /* is_eager_inline */ true, /* is_small_function */ true, call_frequency,
       current_inlining_tree_debug_info_);
 
   // Create a new graph builder for the inlined function.
@@ -9744,7 +9739,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeSlice(
                                  {receiver_length, GetInt32Constant(1)}));
           return AddNewNode<StringAt>({receiver, index_last});
         });
-  } else if (args.count() == 2 && is_turbolev()) {
+  } else if (args.count() == 2) {
     // These will deopt if the argument is not an Int32; CanSpeculateCall above
     // is needed for avoiding deopt loops.
     ValueNode* start_index;

@@ -103,10 +103,39 @@ class MockContextualSearchMetricsRecorder
               NotifySessionStateChanged,
               (contextual_search::SessionState session_state),
               (override));
+  MOCK_METHOD(void, ActivateMetricsFunnel, (const std::string&), (override));
+  MOCK_METHOD(void,
+              RecordToolMode,
+              (composebox_query::mojom::ToolMode tool_mode),
+              (override));
+  MOCK_METHOD(void,
+              RecordModelMode,
+              (composebox_query::mojom::ModelMode model_mode),
+              (override));
+  MOCK_METHOD(void,
+              RecordModesOnSubmission,
+              (composebox_query::mojom::ToolMode tool_mode,
+               composebox_query::mojom::ModelMode model_mode),
+              (override));
 
   void NotifySessionStateChangedBase(
       contextual_search::SessionState session_state) {
     ContextualSearchMetricsRecorder::NotifySessionStateChanged(session_state);
+  }
+
+  void RecordToolModeBase(composebox_query::mojom::ToolMode tool_mode) {
+    ContextualSearchMetricsRecorder::RecordToolMode(tool_mode);
+  }
+
+  void RecordModelModeBase(composebox_query::mojom::ModelMode model_mode) {
+    ContextualSearchMetricsRecorder::RecordModelMode(model_mode);
+  }
+
+  void RecordModesOnSubmissionBase(
+      composebox_query::mojom::ToolMode tool_mode,
+      composebox_query::mojom::ModelMode model_mode) {
+    ContextualSearchMetricsRecorder::RecordModesOnSubmission(tool_mode,
+                                                             model_mode);
   }
 };
 

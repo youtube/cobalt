@@ -1479,6 +1479,26 @@ void FinalizeUnoptimizedCompilation(
   }
 }
 
+void StressLazy(Isolate* isolate, Handle<Script> script) {
+  if (!v8_flags.stress_lazy) return;
+
+  HandleScope scope(isolate);
+  DirectHandle<WeakFixedArray> infos(script->infos(), isolate);
+  for (int i = 0; i < infos->length(); ++i) {
+    HandleScope loop_scope(isolate);
+    Tagged<MaybeObject> maybe_obj = infos->get(i);
+    Tagged<HeapObject> obj;
+    if (maybe_obj.GetHeapObject(&obj) && IsSharedFunctionInfo(obj)) {
+      Handle<SharedFunctionInfo> shared(Cast<SharedFunctionInfo>(obj), isolate);
+      if (!shared->is_compiled()) {
+        IsCompiledScope is_compiled_scope(*shared, isolate);
+        Compiler::Compile(isolate, shared, Compiler::CLEAR_EXCEPTION,
+                          &is_compiled_scope);
+      }
+    }
+  }
+}
+
 void FinalizeUnoptimizedScriptCompilation(
     Isolate* isolate, Handle<Script> script,
     const UnoptimizedCompileFlags& flags,
@@ -1487,6 +1507,8 @@ void FinalizeUnoptimizedScriptCompilation(
         finalize_unoptimized_compilation_data_list) {
   FinalizeUnoptimizedCompilation(isolate, script, flags, compile_state,
                                  finalize_unoptimized_compilation_data_list);
+
+  StressLazy(isolate, script);
 
   script->set_compilation_state(Script::CompilationState::kCompiled);
   DCHECK_IMPLIES(isolate->NeedsSourcePositions(), script->has_line_ends());
@@ -2455,6 +2477,13 @@ void BackgroundMergeTask::BeginMergeInBackground(
     }
 
     if (maybe_old_info.IsWeak()) {
+      Tagged<SharedFunctionInfo> sfi;
+      if (TryCast<SharedFunctionInfo>(maybe_old_info.GetHeapObjectAssumeWeak(),
+                                      &sfi)) {
+        if (sfi->scope_info()->IsEmpty()) {
+          sfis_without_scope_info_.insert(i);
+        }
+      }
       forwarder.RecordScopeInfos(maybe_old_info);
       // If the old script has a SFI, point to it from the new script to
       // indicate we've already seen it and we'll reuse it if necessary (if
@@ -2508,10 +2537,19 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
   // script's SFI's outer scope infos need to be used by the new script's outer
   // SFIs.
   for (int i = 0; i < old_script->infos()->length(); ++i) {
+    DisallowGarbageCollection no_gc;
     Tagged<MaybeObject> maybe_old_info = old_script->infos()->get(i);
     Tagged<MaybeObject> maybe_new_info = new_script->infos()->get(i);
-    if (maybe_new_info == maybe_old_info) continue;
-    DisallowGarbageCollection no_gc;
+    if (maybe_new_info == maybe_old_info) {
+      if (sfis_without_scope_info_.contains(i)) {
+        Tagged<SharedFunctionInfo> sfi =
+            Cast<SharedFunctionInfo>(maybe_old_info.GetHeapObjectAssumeWeak());
+        if (!sfi->scope_info()->IsEmpty()) {
+          forwarder.RecordScopeInfos(sfi);
+        }
+      }
+      continue;
+    }
     if (maybe_old_info.IsWeak()) {
       if (Is<SharedFunctionInfo>(maybe_old_info.GetHeapObjectAssumeWeak())) {
         forwarder.set_has_shared_function_info_to_forward();

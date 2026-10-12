@@ -47,6 +47,7 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/common/content_features.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom-shared.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -238,7 +239,7 @@ void ManifestUpdateManager::OnManifestSeenOnPrimaryPage(
 
   if (provider_->registrar_unsafe().AppMatches(
           GenerateAppIdFromManifest(*manifest),
-          WebAppFilter::IsIsolatedApp())) {
+          WebAppFilter::IsIsolatedApp() | WebAppFilter::IsIsolatedSubApp())) {
     return;
   }
   if (base::FeatureList::IsEnabled(blink::features::kWebAppMigrationApi) &&

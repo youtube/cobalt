@@ -193,30 +193,10 @@ enum class RtpPacketMediaType : size_t {
   // Again, don't forget to update `kNumMediaTypes` if you add another value!
 };
 
-struct RtpPacketSendInfo {
-  static RtpPacketSendInfo From(const RtpPacketToSend& rtp_packet_to_send,
-                                const PacedPacketInfo& pacing_info);
-
-  uint16_t transport_sequence_number = 0;
-  std::optional<uint32_t> media_ssrc;
-  uint16_t rtp_sequence_number = 0;  // Only valid if `media_ssrc` is set.
-  uint32_t rtp_timestamp = 0;
-  size_t length = 0;
-  std::optional<RtpPacketMediaType> packet_type;
-  PacedPacketInfo pacing_info;
-};
-
 class NetworkStateEstimateObserver {
  public:
   virtual void OnRemoteNetworkEstimate(NetworkStateEstimate estimate) = 0;
   virtual ~NetworkStateEstimateObserver() = default;
-};
-
-class TransportFeedbackObserver {
- public:
-  virtual ~TransportFeedbackObserver() = default;
-
-  virtual void OnAddPacket(const RtpPacketSendInfo& packet_info) = 0;
 };
 
 // Interface for PacketRouter to send rtcp feedback on behalf of

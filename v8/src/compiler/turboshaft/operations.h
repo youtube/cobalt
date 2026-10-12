@@ -2601,7 +2601,12 @@ struct PhiOp : OperationT<PhiOp> {
   }
 
   explicit PhiOp(base::Vector<const OpIndex> inputs, RegisterRepresentation rep)
-      : Base(inputs), rep(rep) {}
+      : Base(inputs), rep(rep) {
+    // We add an additional CHECK specifically for Phi, to prevent Wasm from
+    // passing too many inputs, e.g. as part of a br_table operation.
+    CHECK_LE(inputs.size(),
+             std::numeric_limits<decltype(this->input_count)>::max());
+  }
 
   // Helpers to access loop phis forward/backedge. These should only be used for
   // loop phis (which isn't trivial to DCHECK since PhiOp doesn't know if it's a
@@ -8838,6 +8843,21 @@ struct Simd128LaneMemoryOp : FixedArityOperationT<3, Simd128LaneMemoryOp> {
     return MaybeRepVector<RegisterRepresentation::WordPtr(),
                           RegisterRepresentation::WordPtr(),
                           RegisterRepresentation::Simd128()>();
+  }
+
+  static LaneKind LaneKindFromBytes(uint8_t size) {
+    switch (size) {
+      default:
+        UNREACHABLE();
+      case 1:
+        return LaneKind::k8;
+      case 2:
+        return LaneKind::k16;
+      case 4:
+        return LaneKind::k32;
+      case 8:
+        return LaneKind::k64;
+    }
   }
 
   Simd128LaneMemoryOp(OpIndex base, OpIndex index, OpIndex value, Mode mode,

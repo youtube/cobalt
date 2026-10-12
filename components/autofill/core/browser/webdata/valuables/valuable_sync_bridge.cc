@@ -6,14 +6,17 @@
 
 #include <algorithm>
 #include <optional>
+#include <string_view>
 
 #include "base/check.h"
 #include "base/functional/callback_helpers.h"
 #include "base/notreached.h"
+#include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
 #include "components/autofill/core/browser/data_model/valuables/loyalty_card.h"
 #include "components/autofill/core/browser/webdata/autofill_ai/entity_sync_util.h"
 #include "components/autofill/core/browser/webdata/autofill_webdata_service.h"
 #include "components/autofill/core/browser/webdata/valuables/valuables_sync_util.h"
+#include "components/autofill/core/common/autofill_features.h"
 #include "components/sync/base/data_type.h"
 #include "components/sync/base/features.h"
 #include "components/sync/model/client_tag_based_data_type_processor.h"
@@ -70,6 +73,10 @@ bool IsSyncAutofillValuableMetadataEnabled() {
   return base::FeatureList::IsEnabled(syncer::kSyncAutofillValuableMetadata);
 }
 
+bool IsSyncWalletPrivatePassesEnabled() {
+  return base::FeatureList::IsEnabled(features::kAutofillAiWalletPrivatePasses);
+}
+
 // Returns if the entity `change` should be uploaded to AUTOFILL_VALUABLE.
 bool ShouldUploadEntityChange(const EntityInstanceChange& change) {
   switch (change.data_model().record_type()) {
@@ -77,7 +84,11 @@ bool ShouldUploadEntityChange(const EntityInstanceChange& change) {
       // Local entities are not uploaded as AUTOFILL_VALUABLE.
       return false;
     case EntityInstance::RecordType::kServerWallet:
-      return true;
+      // Only public passes are uploaded. For private passes, the
+      // AUTOFILL_VALUABLE sync bridge is read-only.
+      return !IsMaskedStorageSupported(
+          change.data_model().type(),
+          EntityInstance::RecordType::kServerWallet);
   }
   NOTREACHED();
 }
@@ -119,7 +130,8 @@ ValuableSyncBridge::ValuableSyncBridge(
   }
 
   if (IsSyncWalletFlightReservationsEnabled() ||
-      IsSyncWalletVehicleRegistrationsEnabled()) {
+      IsSyncWalletVehicleRegistrationsEnabled() ||
+      IsSyncWalletPrivatePassesEnabled()) {
     scoped_observation_.Observe(web_data_backend_.get());
   }
 
@@ -182,7 +194,8 @@ ValuableDatabaseOperationResult ValuableSyncBridge::HandleDeleteRequest(
   }
 
   if (!IsSyncWalletFlightReservationsEnabled() &&
-      !IsSyncWalletVehicleRegistrationsEnabled()) {
+      !IsSyncWalletVehicleRegistrationsEnabled() &&
+      !IsSyncWalletPrivatePassesEnabled()) {
     return ValuableDatabaseOperationResult::kNoChange;
   }
   EntityInstance::EntityId entity_id(storage_key);
@@ -265,6 +278,13 @@ ValuableSyncBridge::ApplyIncrementalSyncChanges(
               }
             }
             break;
+          case sync_pb::AutofillValuableSpecifics::kPassport:
+          case sync_pb::AutofillValuableSpecifics::kDriverLicense:
+          case sync_pb::AutofillValuableSpecifics::kNationalIdCard:
+          case sync_pb::AutofillValuableSpecifics::kRedressNumber:
+          case sync_pb::AutofillValuableSpecifics::kKnownTravelerNumber:
+            // TODO(crbug.com/481650251): Implement
+            break;
           case sync_pb::AutofillValuableSpecifics::VALUABLE_DATA_NOT_SET:
             break;
         }
@@ -304,12 +324,12 @@ std::unique_ptr<syncer::MutableDataBatch> ValuableSyncBridge::GetData() {
   auto batch = std::make_unique<syncer::MutableDataBatch>();
   for (const LoyaltyCard& card : GetValuablesTable()->GetLoyaltyCards()) {
     const std::string& id = card.id().value();
-    batch->Put(id, CreateEntityDataFromLoyaltyCard(card));
+    batch->Put(id, CreateEntityDataFromLoyaltyCard(
+                       card, GetPossiblyTrimmedValuableSpecifics(id)));
   }
 
   const bool is_sync_flight_reservations_enabled =
       IsSyncWalletFlightReservationsEnabled();
-
   const bool is_sync_vehicle_registrations_enabled =
       IsSyncWalletVehicleRegistrationsEnabled();
 
@@ -318,16 +338,27 @@ std::unique_ptr<syncer::MutableDataBatch> ValuableSyncBridge::GetData() {
     if (instance.type().name() == EntityTypeName::kFlightReservation &&
         is_sync_flight_reservations_enabled) {
       const std::string& id = instance.guid().value();
-      batch->Put(id, CreateEntityDataFromEntityInstance(instance));
+      batch->Put(id, CreateEntityDataFromEntityInstance(
+                         instance, GetPossiblyTrimmedValuableSpecifics(id)));
     }
     if (instance.type().name() == EntityTypeName::kVehicle &&
         is_sync_vehicle_registrations_enabled) {
       const std::string& id = instance.guid().value();
-      batch->Put(id, CreateEntityDataFromEntityInstance(instance));
+      batch->Put(id, CreateEntityDataFromEntityInstance(
+                         instance, GetPossiblyTrimmedValuableSpecifics(id)));
     }
+    // TODO(crbug.com/481650251): Implement support for private passes.
   }
 
   return batch;
+}
+
+const sync_pb::AutofillValuableSpecifics&
+ValuableSyncBridge::GetPossiblyTrimmedValuableSpecifics(
+    std::string_view storage_key) {
+  return change_processor()
+      ->GetPossiblyTrimmedRemoteSpecifics(std::string(storage_key))
+      .autofill_valuable();
 }
 
 std::unique_ptr<syncer::DataBatch> ValuableSyncBridge::GetDataForCommit(
@@ -370,6 +401,13 @@ bool ValuableSyncBridge::IsEntityDataValid(
       return IsSyncWalletFlightReservationsEnabled();
     case sync_pb::AutofillValuableSpecifics::kVehicleRegistration:
       return IsSyncWalletVehicleRegistrationsEnabled();
+    case sync_pb::AutofillValuableSpecifics::kPassport:
+    case sync_pb::AutofillValuableSpecifics::kDriverLicense:
+    case sync_pb::AutofillValuableSpecifics::kNationalIdCard:
+    case sync_pb::AutofillValuableSpecifics::kRedressNumber:
+    case sync_pb::AutofillValuableSpecifics::kKnownTravelerNumber:
+      // TODO(crbug.com/481650251): Implement
+      return false;
     case sync_pb::AutofillValuableSpecifics::VALUABLE_DATA_NOT_SET:
       // Ignore new entry types that the client doesn't know about.
       return false;
@@ -492,7 +530,6 @@ ValuableDatabaseOperationResult ValuableSyncBridge::SetEntities(
 
   const bool is_sync_wallet_flight_reservations_enabled =
       IsSyncWalletFlightReservationsEnabled();
-
   const bool is_sync_wallet_vehicle_registrations_enabled =
       IsSyncWalletVehicleRegistrationsEnabled();
 
@@ -501,11 +538,11 @@ ValuableDatabaseOperationResult ValuableSyncBridge::SetEntities(
         is_sync_wallet_vehicle_registrations_enabled) {
       success &= entity_table->AddOrUpdateEntityInstance(entity);
     }
-
     if (entity.type().name() == EntityTypeName::kFlightReservation &&
         is_sync_wallet_flight_reservations_enabled) {
       success &= entity_table->AddOrUpdateEntityInstance(entity);
     }
+    // TODO(crbug.com/481650251): Implement support for private passes.
   }
 
   return success ? ValuableDatabaseOperationResult::kDataChanged
@@ -539,6 +576,13 @@ std::optional<syncer::ModelError> ValuableSyncBridge::SetSyncData(
                         autofill_valuable, *GetEntityTable())) {
               entities.push_back(std::move(*entity));
             }
+            break;
+          case sync_pb::AutofillValuableSpecifics::kPassport:
+          case sync_pb::AutofillValuableSpecifics::kDriverLicense:
+          case sync_pb::AutofillValuableSpecifics::kNationalIdCard:
+          case sync_pb::AutofillValuableSpecifics::kRedressNumber:
+          case sync_pb::AutofillValuableSpecifics::kKnownTravelerNumber:
+            // TODO(crbug.com/481650251): Implement
             break;
           case sync_pb::AutofillValuableSpecifics::VALUABLE_DATA_NOT_SET:
             // Ignore new entry types that the client doesn't know about.
@@ -596,7 +640,8 @@ void ValuableSyncBridge::EntityInstanceChanged(
     const EntityInstanceChange& change) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!IsSyncWalletFlightReservationsEnabled() &&
-      !IsSyncWalletVehicleRegistrationsEnabled()) {
+      !IsSyncWalletVehicleRegistrationsEnabled() &&
+      !IsSyncWalletPrivatePassesEnabled()) {
     return;
   }
 
@@ -614,7 +659,9 @@ void ValuableSyncBridge::EntityInstanceChanged(
     case EntityInstanceChange::UPDATE:
       change_processor()->Put(
           *change.key(),
-          CreateEntityDataFromEntityInstance(change.data_model()),
+          CreateEntityDataFromEntityInstance(
+              change.data_model(),
+              GetPossiblyTrimmedValuableSpecifics(*change.key())),
           metadata_change_list.get());
       break;
     case EntityInstanceChange::REMOVE:
