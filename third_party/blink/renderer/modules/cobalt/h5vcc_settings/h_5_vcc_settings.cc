@@ -19,15 +19,18 @@
 #include "media/base/decoder_buffer.h"
 #include "media/base/demuxer_memory_limit.h"
 #include "media/base/stream_parser.h"
-#include "media/filters/chunk_demuxer.h"
 #include "media/filters/source_buffer_state.h"
+#include "third_party/blink/public/mojom/origin_trials/origin_trial_feature.mojom-shared.h"
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
+#include "third_party/blink/public/platform/web_runtime_features.h"
 #include "third_party/blink/renderer/bindings/core/v8/idl_types.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_long_string.h"
+#include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
+#include "third_party/blink/renderer/core/origin_trials/origin_trial_context.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
@@ -130,6 +133,27 @@ ScriptPromise<IDLUndefined> ProcessSettingAsPositiveInt(
       });
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+// Exposes SourceBuffer.prototype.changeType, which is hidden by default behind
+// the MediaSourceChangeType runtime feature.
+// TODO(b/571981376): Remove once experiments have run.
+bool ExposeSourceBufferChangeType(ExecutionContext* execution_context) {
+  if (!execution_context) {
+    return false;
+  }
+  auto* origin_trial_context = execution_context->GetOriginTrialContext();
+  if (!origin_trial_context) {
+    return false;
+  }
+
+  WebRuntimeFeatures::EnableMediaSourceChangeType(true);
+  // Installs changeType() into the already-created SourceBuffer.prototype.
+  origin_trial_context->AddFeature(
+      mojom::blink::OriginTrialFeature::kMediaSourceChangeType);
+  return true;
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 }  // namespace
 
 H5vccSettings::H5vccSettings(LocalDOMWindow& window)
@@ -171,9 +195,9 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
   }
   if (name == "Media.EnableChangeType") {
     return ProcessSettingAsEnableOnly(
-        script_state, exception_context, name, *value, [] {
-          ::media::ChunkDemuxer::EnableChangeType();
-          return true;
+        script_state, exception_context, name, *value, [script_state] {
+          return ExposeSourceBufferChangeType(
+              ExecutionContext::From(script_state));
         });
   }
   if (name == "Media.ExperimentalMaxPendingBytesPerParse") {
