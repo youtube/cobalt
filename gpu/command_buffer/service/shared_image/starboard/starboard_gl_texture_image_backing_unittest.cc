@@ -74,7 +74,12 @@ TEST_F(StarboardGLTextureBackingTest, Basic) {
 
   auto backing = std::make_unique<StarboardGLTextureBacking>(
       mailbox, format, size, color_space, surface_origin, alpha_type, usage,
-      texture_ids, texture_targets, decode_target);
+      texture_ids, texture_targets, decode_target
+#if BUILDFLAG(IS_ANDROID)
+      ,
+      /*drdc_lock=*/nullptr
+#endif  // BUILDFLAG(IS_ANDROID)
+  );
 
   EXPECT_EQ(backing->mailbox(), mailbox);
   EXPECT_EQ(backing->size(), size);
@@ -122,7 +127,12 @@ TEST_F(StarboardGLTextureBackingTest, Multiplanar) {
 
   auto backing = std::make_unique<StarboardGLTextureBacking>(
       mailbox, format, size, color_space, surface_origin, alpha_type, usage,
-      texture_ids, texture_targets, decode_target);
+      texture_ids, texture_targets, decode_target
+#if BUILDFLAG(IS_ANDROID)
+      ,
+      /*drdc_lock=*/nullptr
+#endif  // BUILDFLAG(IS_ANDROID)
+  );
 
   auto factory_rep =
       shared_image_manager_.Register(std::move(backing), &memory_type_tracker_);
@@ -132,6 +142,49 @@ TEST_F(StarboardGLTextureBackingTest, Multiplanar) {
   ASSERT_NE(gl_rep, nullptr);
   EXPECT_EQ(gl_rep->GetTexturePassthrough(0)->service_id(), 1u);
   EXPECT_EQ(gl_rep->GetTexturePassthrough(1)->service_id(), 2u);
+
+  gl_rep.reset();
+  factory_rep.reset();
+
+  EXPECT_EQ(g_release_count, 1);
+}
+
+TEST_F(StarboardGLTextureBackingTest, RejectsNonReadAccess) {
+  Mailbox mailbox = Mailbox::Generate();
+  viz::SharedImageFormat format = viz::SinglePlaneFormat::kRGBA_8888;
+  gfx::Size size(100, 100);
+  gfx::ColorSpace color_space = gfx::ColorSpace::CreateSRGB();
+  GrSurfaceOrigin surface_origin = kTopLeft_GrSurfaceOrigin;
+  SkAlphaType alpha_type = kOpaque_SkAlphaType;
+  SharedImageUsageSet usage = SHARED_IMAGE_USAGE_GLES2_READ;
+  std::vector<uint32_t> texture_ids = {1};
+  std::vector<uint32_t> texture_targets = {0x0DE1};  // GL_TEXTURE_2D
+  uint64_t decode_target = 0xfeedface;
+
+  auto backing = std::make_unique<StarboardGLTextureBacking>(
+      mailbox, format, size, color_space, surface_origin, alpha_type, usage,
+      texture_ids, texture_targets, decode_target
+#if BUILDFLAG(IS_ANDROID)
+      ,
+      /*drdc_lock=*/nullptr
+#endif  // BUILDFLAG(IS_ANDROID)
+  );
+
+  auto factory_rep =
+      shared_image_manager_.Register(std::move(backing), &memory_type_tracker_);
+  auto gl_rep = shared_image_manager_.ProduceGLTexturePassthrough(
+      mailbox, &memory_type_tracker_);
+  ASSERT_NE(gl_rep, nullptr);
+
+  // Write access must be rejected in all builds, not only DCHECK builds.
+  EXPECT_FALSE(gl_rep->BeginScopedAccess(
+      GL_SHARED_IMAGE_ACCESS_MODE_READWRITE_CHROMIUM,
+      SharedImageRepresentation::AllowUnclearedAccess::kNo));
+
+  // Read access is still allowed.
+  EXPECT_TRUE(gl_rep->BeginScopedAccess(
+      GL_SHARED_IMAGE_ACCESS_MODE_READ_CHROMIUM,
+      SharedImageRepresentation::AllowUnclearedAccess::kNo));
 
   gl_rep.reset();
   factory_rep.reset();
