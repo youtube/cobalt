@@ -162,8 +162,13 @@ jobs:
             # "(cherry picked from commit ...)" lines the autoroller uses to
             # detect already-rolled commits in the target branch history.
             PR_TITLE="$(git log -1 --pretty=%s)"
-            # Command substitution strips the trailing newline(s) from %b.
-            printf '%s\n' "$(git log -1 --pretty=%b)" > "${PR_BODY_FILE}"
+            {
+              # Command substitution strips the trailing newline(s) from %b.
+              printf '%s\n' "$(git log -1 --pretty=%b)"
+              echo ""
+              # Drop the leading "- #<pr>" identifier; keep the CONFLICTED files block.
+              echo "${PR_LINKS#*$'\n\n'}"
+            } > "${PR_BODY_FILE}"
 
             # Keep resolution instructions out of the PR body (and thus out of
             # the squash commit message) by posting them as a comment instead.
@@ -185,9 +190,6 @@ jobs:
               echo '```'
               echo ""
               echo "When squash merging, keep the PR title and description as the commit message so the roll is recorded in the target branch history."
-              echo ""
-              # Drop the leading "- #<pr>" identifier; keep the CONFLICTED files block.
-              echo "${PR_LINKS#*$'\n\n'}"
             } > "${PR_COMMENT_FILE}"
           else
             {
