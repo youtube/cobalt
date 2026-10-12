@@ -10,6 +10,7 @@ This document records all notable changes made to Cobalt since the last release.
    - Enabled standard Chrome DevTools (`chrome://inspect`) out-of-the-box on non-gold builds, replacing legacy custom debugging tools.
  - Dynamic Media Codec Switching
    - Added `SbMediaCanChangeType()` and updated `SbPlayerWriteSamples()` to support on-the-fly mime-type and codec transitions.
+   - `SourceBuffer.changeType()` is hidden from web apps by default. Platforms that implement `SbMediaCanChangeType()` can expose it with `--enable-blink-features=MediaSourceChangeType`.
  - AV2 Video Codec Support
    - Added AV2 definition to `SbMediaVideoCodec` to prepare for next-generation video streams.
 

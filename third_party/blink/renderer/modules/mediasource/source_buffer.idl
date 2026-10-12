@@ -88,7 +88,9 @@ enum AppendMode {
     [RaisesException] void remove(double start, unrestricted double end);
 
     // Explicitly change the container or codecs
-    [RaisesException, Measure] void changeType(DOMString type);
+    // Cobalt comment: RuntimeEnabled=MediaSourceChangeType is Cobalt-specific.
+    // See runtime_enabled_features.json5.
+    [RaisesException, Measure, RuntimeEnabled=MediaSourceChangeType] void changeType(DOMString type);
 
     // For MSE-for-WebCodecs. Explainer:
     // https://github.com/wolenetz/mse-for-webcodecs/blob/main/explainer.md

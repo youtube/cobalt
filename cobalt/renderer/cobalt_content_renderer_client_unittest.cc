@@ -22,6 +22,7 @@
 #include "media/base/audio_codecs.h"
 #include "media/base/video_codecs.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/public/platform/web_runtime_features.h"
 
 namespace cobalt {
 namespace {
@@ -47,6 +48,23 @@ TEST(CobaltContentRendererClientTest, MediaQueriesCallableFromWorkerThread) {
           },
           base::Unretained(&client), run_loop.QuitClosure()));
   run_loop.Run();
+}
+
+// SourceBuffer.changeType() must stay hidden from script by default, so web
+// apps that feature-detect it do not switch codecs on platforms that reject
+// the switch.
+TEST(CobaltContentRendererClientTest, HidesSourceBufferChangeType) {
+  base::test::TaskEnvironment task_environment;
+  const bool was_enabled =
+      blink::WebRuntimeFeatures::IsMediaSourceChangeTypeEnabled();
+  blink::WebRuntimeFeatures::EnableMediaSourceChangeType(/*enable=*/true);
+
+  CobaltContentRendererClient client;
+  client.SetRuntimeFeaturesDefaultsBeforeBlinkInitialization();
+
+  EXPECT_FALSE(blink::WebRuntimeFeatures::IsMediaSourceChangeTypeEnabled());
+
+  blink::WebRuntimeFeatures::EnableMediaSourceChangeType(was_enabled);
 }
 
 }  // namespace
