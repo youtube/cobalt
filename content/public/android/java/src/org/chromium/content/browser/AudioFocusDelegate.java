@@ -126,33 +126,10 @@ public class AudioFocusDelegate implements AudioManager.OnAudioFocusChangeListen
                                 .getSystemService(Context.AUDIO_SERVICE);
 
         int result;
-<<<<<<< HEAD
-        AudioAttributes playbackAttributes =
-                new AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_MEDIA)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_UNKNOWN)
-                        .build();
-
-        boolean allowDelayedFocus =
+boolean allowDelayedFocus =
                 ContentFeatureMap.isEnabled(
                         ContentFeatureList.ALLOW_DELAYED_AUDIO_FOCUS_GAIN_ANDROID);
 
-        mFocusRequest =
-                new AudioFocusRequest.Builder(mFocusType)
-                        .setAudioAttributes(playbackAttributes)
-                        .setAcceptsDelayedFocusGain(allowDelayedFocus)
-                        .setWillPauseWhenDucked(false)
-                        .setOnAudioFocusChangeListener(this, mHandler)
-                        .build();
-        try {
-            result = am.requestAudioFocus(mFocusRequest);
-        } catch (SecurityException e) {
-            // If we get a SecurityException, the platform has a bug and requestAudioFocus is broken
-            // (at least under our current running conditions). Pretend that everything worked,
-            // because the alternative is that media such as videos may refuse to ever play.
-            Log.w(TAG, "audio focus coordination is broken", e);
-            return true;
-=======
         // Cobalt modification to support Android N devices.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             AudioAttributes playbackAttributes =
@@ -160,10 +137,11 @@ public class AudioFocusDelegate implements AudioManager.OnAudioFocusChangeListen
                             .setUsage(AudioAttributes.USAGE_MEDIA)
                             .setContentType(AudioAttributes.CONTENT_TYPE_UNKNOWN)
                             .build();
+
             mFocusRequest =
                     new AudioFocusRequest.Builder(mFocusType)
                             .setAudioAttributes(playbackAttributes)
-                            .setAcceptsDelayedFocusGain(false)
+                            .setAcceptsDelayedFocusGain(allowDelayedFocus)
                             .setWillPauseWhenDucked(false)
                             .setOnAudioFocusChangeListener(this, mHandler)
                             .build();
@@ -177,8 +155,8 @@ public class AudioFocusDelegate implements AudioManager.OnAudioFocusChangeListen
                 return true;
             }
         } else {
+            allowDelayedFocus = false;
             result = am.requestAudioFocus(this, AudioManager.STREAM_MUSIC, mFocusType);
->>>>>>> parent of 28a5aab59be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
         }
 
         RecordHistogram.recordEnumeratedHistogram(

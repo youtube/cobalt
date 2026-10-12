@@ -324,11 +324,10 @@ CC_BASE_EXPORT BASE_DECLARE_FEATURE(
 // When enabled uses derived state machine for Headless mode.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kHeadlessSchedulerStateMachine);
 
-<<<<<<< HEAD
 // When enabled, the browser controls will snap to their fully shown or hidden
 // positions on scroll instead of moving exactly by the scroll delta.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kBrowserControlsScrollSnapAnimation);
-=======
+
 #if BUILDFLAG(IS_COBALT)
 // Enables periodic emission of tile texture memory metrics (Memory.GPU.TileMemory and Memory.GPU.TileMemory.Peak).
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltTileMemoryMetrics);
@@ -337,7 +336,6 @@ CC_BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltTileMemoryMetrics);
 CC_BASE_EXPORT extern const base::FeatureParam<base::TimeDelta>
     kCobaltTileMemoryMetricsInterval;
 #endif
->>>>>>> parent of 28a5aab59be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 }  // namespace features
 
