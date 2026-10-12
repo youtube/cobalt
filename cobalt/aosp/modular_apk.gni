@@ -125,7 +125,7 @@ template("modular_apk") {
       ":$_assets_target",
       "//cobalt/aosp:cobalt_apk_java",
       "//cobalt/aosp:copy_libcpp_shared",
-      "//components/crash/core/app:chrome_crashpad_handler_named_as_so($native_toolchain)",
+      "//third_party/crashpad/crashpad/handler:crashpad_handler_named_as_so($native_toolchain)",
     ]
 
     if (_testonly) {
@@ -137,7 +137,7 @@ template("modular_apk") {
 
     loadable_modules = [
       "$root_build_dir/libc++_shared.so",
-      "$root_build_dir/native_target/libchrome_crashpad_handler.so",
+      "$root_build_dir/native_target/libcrashpad_handler.so",
     ]
     shared_libraries = [ _loader ]
 
