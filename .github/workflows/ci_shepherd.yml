@@ -58,13 +58,10 @@ jobs:
         run: |
           set -euo pipefail
 
-          pr_number="${PR_NUMBER:-}"
           head_sha="${HEAD_SHA:-}"
+          pr_number="${PR_NUMBER:-}"
           if [[ -z "${pr_number}" && -n "${head_sha}" ]]; then
             pr_number=$(gh api "repos/${REPO}/commits/${head_sha}/pulls" --jq '.[0].number // ""' 2>/dev/null || true)
-            if [[ -z "${pr_number}" ]]; then
-              pr_number=$(gh pr list --repo "${REPO}" --search "${head_sha}" --state all --json number --jq '.[0].number // ""')
-            fi
           fi
           if [[ -z "${head_sha}" && -n "${pr_number}" ]]; then
             head_sha=$(gh pr view "${pr_number}" --repo "${REPO}" --json headRefOid -q .headRefOid)
@@ -116,12 +113,12 @@ jobs:
           head_sha="${HEAD_SHA_EVENT:-}"
           if [[ -z "${pr_number}" && -n "${head_sha}" ]]; then
             pr_number=$(gh api "repos/${REPO}/commits/${head_sha}/pulls" --jq '.[0].number // ""' 2>/dev/null || true)
-            if [[ -z "${pr_number}" ]]; then
-              pr_number=$(gh pr list --repo "${REPO}" --search "${head_sha}" --state all --json number --jq '.[0].number // ""')
-            fi
           fi
           if [[ -z "${head_sha}" && -n "${pr_number}" ]]; then
             head_sha=$(gh pr view "${pr_number}" --repo "${REPO}" --json headRefOid -q .headRefOid)
+          fi
+          if [[ -z "${pr_number}" ]]; then
+            pr_number=$(gh pr list --repo "${REPO}" --search "${head_sha}" --state all --json number --jq '.[0].number // ""')
           fi
 
           echo "head_sha=${head_sha}" >> "${GITHUB_OUTPUT}"
@@ -220,28 +217,17 @@ jobs:
             desc="Retrying failed jobs"
           else
             mkdir -p shepherd_artifacts
-            mapfile -t artifact_ids < <(gh api "repos/${REPO}/actions/runs/${WORKFLOW_ID}/artifacts" --paginate --jq '
+            gh api "repos/${REPO}/actions/runs/${WORKFLOW_ID}/artifacts" --paginate --jq '
               [.artifacts[]? | select(.name | startswith("shepherd-report-"))]
-              | group_by(.name)
-              | map(max_by(.created_at))
-              | .[] | .id
-            ' 2>/dev/null || true)
-
-            for art_id in "${artifact_ids[@]}"; do
+              | group_by(.name) | map(max_by(.created_at)) | .[] | .id
+            ' | while read -r art_id; do
               if [[ -n "${art_id}" ]]; then
-                art_dir="shepherd_artifacts/${art_id}"
-                mkdir -p "${art_dir}"
-                gh api "repos/${REPO}/actions/artifacts/${art_id}/zip" > "${art_dir}/artifact.zip" 2>/dev/null || true
-                if [[ -f "${art_dir}/artifact.zip" ]]; then
-                  unzip -qo "${art_dir}/artifact.zip" -d "${art_dir}" 2>/dev/null || true
-                  rm -f "${art_dir}/artifact.zip"
-                fi
+                mkdir -p "shepherd_artifacts/${art_id}"
+                gh api "repos/${REPO}/actions/artifacts/${art_id}/zip" > "shepherd_artifacts/${art_id}/art.zip"
+                unzip -qo "shepherd_artifacts/${art_id}/art.zip" -d "shepherd_artifacts/${art_id}"
+                rm -f "shepherd_artifacts/${art_id}/art.zip"
               fi
             done
-
-            if [[ ${#artifact_ids[@]} -eq 0 ]]; then
-              gh run download "${WORKFLOW_ID}" --repo "${REPO}" -p "shepherd-report-*" -D shepherd_artifacts 2>/dev/null || true
-            fi
 
             shopt -s globstar nullglob
             reports=(shepherd_artifacts/**/shepherd_report.json)
@@ -250,13 +236,14 @@ jobs:
               desc="Failed"
             else
               has_failures=$(jq -s '
-                group_by(.platform // .platform_name // "default")
-                | map(max_by(.run_attempt | tonumber? // 0))
-                | any(.[];
+                if length == 0 then true
+                else
+                  any(.[];
                     any(.checks | objects | .[]?; . == "failure" or . == "cancelled")
                     or
                     any((.test_failures | objects | .failing_tests // .) | objects | .[]?; (arrays | length) > 0)
                   )
+                end
               ' "${reports[@]}" 2>/dev/null || echo "true")
 
               [[ "${has_failures}" == "true" ]] && state="failure" desc="Failed" || state="success" desc="Passed"
@@ -329,8 +316,7 @@ jobs:
           echo "${status_json}" | jq -r '
             {success: "✅ PASS", pending: "⏳ PENDING"} as $icons |
             .statuses // [] | sort_by(.context)[] | select(.context | startswith("CI /")?) |
-            (if .target_url and .target_url != "" then "[\(.context)](\(.target_url))" else .context end) as $ctx |
-            "| \($ctx) | \($icons[.state] // "❌ FAIL") | \(.description // "") |"
+            "| [\(.context)](\(.target_url // "")) | \($icons[.state] // "❌ FAIL") | \(.description // "") |"
           ' >> shepherd_report.md
 
           header="<!-- sticky-pull-request-comment: shepherd-report -->"
