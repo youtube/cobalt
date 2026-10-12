@@ -60,7 +60,9 @@
 #include "third_party/blink/renderer/core/frame/display_cutout_client_impl.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/loader/loader_factory_for_frame.h"
+#if !BUILDFLAG(IS_COBALT)
 #include "third_party/blink/renderer/modules/ml/webnn/webnn_introspection_impl.h"
+#endif
 #include "third_party/blink/renderer/platform/bindings/v8_per_isolate_data.h"
 #include "third_party/blink/renderer/platform/disk_data_allocator.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
@@ -288,10 +290,12 @@ void BlinkInitializer::RegisterInterfaces(mojo::BinderMap& binders) {
           CrossThreadBindRepeating(&JavaScriptCallStackGenerator::Bind)),
       Platform::Current()->GetIOTaskRunner());
 
+#if !BUILDFLAG(IS_COBALT)
   binders.Add<mojom::blink::WebNNIntrospection>(
       ConvertToBaseRepeatingCallback(
           CrossThreadBindRepeating(&WebNNIntrospectionImpl::BindReceiver)),
       main_thread_task_runner);
+#endif
 }
 
 void BlinkInitializer::RegisterMemoryWatchers(Platform* platform) {
