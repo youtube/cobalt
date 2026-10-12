@@ -461,9 +461,7 @@ TEST(PlatformThreadTest, SetHugeThreadName) {
 
 TEST(PlatformThreadTest, GetDefaultThreadStackSize) {
   size_t stack_size = PlatformThread::GetDefaultThreadStackSize();
-#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
-  EXPECT_EQ(256u * 1024u, stack_size);
-#elif BUILDFLAG(IS_IOS)
+#if BUILDFLAG(IS_IOS)
   EXPECT_EQ(1024u * 1024u, stack_size);
 #elif BUILDFLAG(IS_WIN) || BUILDFLAG(IS_FUCHSIA) ||                           \
     ((BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && defined(__GLIBC__) && \
@@ -624,7 +622,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 #endif  // BUILDFLAG(IS_APPLE)
 
-#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 
 namespace {
 
@@ -695,7 +693,7 @@ TEST(PlatformThreadTidCacheTest, MainThreadSecond) {
 
 }  // namespace
 
-#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_STARBOARD)
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_ANDROID)
 

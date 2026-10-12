@@ -280,30 +280,11 @@
 #include <ciso646>  // Pre-C++20
 #endif
 
-#include "build/build_config.h"
-
 #include <ctype.h>   // for isspace, etc
 #include <stddef.h>  // for ptrdiff_t
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
-
-#include <stdlib.h>
-#include <sys/stat.h>
-#include <stdio.h>
-#include <unistd.h>
-
-#include <cstddef>
-#include <cstdint>
-
-#include "starboard/common/log.h" // nogncheck
-#include "starboard/common/spin_lock.h" // nogncheck
-#include "starboard/common/string.h" // nogncheck
-#include "starboard/log.h" // nogncheck
-#include "starboard/system.h" // nogncheck
-#endif // !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 
 #include <cerrno>
 // #include <condition_variable>  // Guarded by GTEST_IS_THREADSAFE below
@@ -1063,6 +1044,7 @@ class GTEST_API_ GTestLog {
 };
 
 #if !defined(GTEST_LOG_)
+
 #define GTEST_LOG_(severity)                                           \
   ::testing::internal::GTestLog(::testing::internal::GTEST_##severity, \
                                 __FILE__, __LINE__)                    \
@@ -1998,7 +1980,6 @@ inline std::string StripTrailingSpaces(std::string str) {
 // as the wrapped function.
 
 namespace posix {
-// Functions with a different name on Windows.
 
 // File system porting.
 // Note: Not every I/O-related function is related to file systems, so don't
