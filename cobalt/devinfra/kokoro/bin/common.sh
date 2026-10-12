@@ -341,9 +341,9 @@ EOF
 
 publish_golden_workspace_snapshot () {
   local gclient_root="${KOKORO_ARTIFACTS_DIR:-}/git"
-  local platform="${TARGET_PLATFORM:-${PLATFORM:-}}"
+  local platform="${TARGET_PLATFORM:-}"
   if [[ -z "${platform}" ]]; then
-    echo "==> Error: Neither TARGET_PLATFORM nor PLATFORM is set. Cannot determine snapshot platform." >&2
+    echo "==> Error: TARGET_PLATFORM is not set. Cannot determine snapshot platform." >&2
     return 1
   fi
 
