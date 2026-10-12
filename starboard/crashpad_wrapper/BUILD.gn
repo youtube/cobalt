@@ -19,9 +19,6 @@ if ((is_starboard && current_toolchain == starboard_toolchain) ||
       "native_stability_reader.cc",
       "native_stability_reader.h",
     ]
-    if (is_android) {
-      sources += [ "wrapper_android.cc" ]
-    }
 
     deps = [
       "//starboard:starboard_headers_only",
@@ -56,6 +53,9 @@ if (is_starboard && current_toolchain == starboard_toolchain) {
       "wrapper.cc",
       "wrapper.h",
     ]
+    if (is_android) {
+      sources += [ "wrapper_android.cc" ]
+    }
 
     deps = [
       ":native_stability_reader",
