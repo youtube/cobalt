@@ -717,9 +717,7 @@ void StarboardRendererWrapper::CreateVideoFrame_OnImageReady(
     LOG(ERROR) << __func__ << " failed to create video frame";
     return;
   }
-<<<<<<< HEAD
   frame->set_color_space(shared_image_cs);
-=======
   if (has_cdm_) {
     // Mark frames from encrypted playback as protected content, matching
     // upstream decoders such as CdmAdapter and MediaCodecVideoDecoder. These
@@ -727,7 +725,6 @@ void StarboardRendererWrapper::CreateVideoFrame_OnImageReady(
     // `hw_protected` stays false.
     frame->metadata().protected_video = true;
   }
->>>>>>> 78f2a38862f (media: Mark decode-to-texture frames protected (#13116))
   current_frame_ = std::move(frame);
 }
 
