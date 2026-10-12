@@ -61,6 +61,7 @@ void Done(base::OnceCallback<
 #endif
               return out_result;
             }
+            DeleteFileAndEmptyParentDirectory(out_file);
 #else
           [&]() -> base::expected<base::FilePath, CategorizedError> {
             if (success) {
