@@ -6,16 +6,28 @@ inputs:
     description: Destination path (e.g. cobalt).
     required: true
   platform:
-    description: Target platform for platform-specific golden snapshot.
+    description: Target platform; selects the golden workspace profile (see .github/scripts/golden_workspace.sh).
     default: ''
   use_gcloud:
     description: "Whether to run gcloud config set account."
+    default: 'false'
+  use_snapshot:
+    description: "Whether to hydrate a cold node from the published GCS snapshot. The snapshot is verified against github.com before use."
+    default: 'true'
+  snapshot_gcs_prefix:
+    description: "GCS prefix containing one <profile>/ directory per golden workspace profile."
+    default: 'gs://cobalt-actions-prod-test-artifacts/golden-workspace'
+  deep_verify:
+    description: "Run a full `git fsck` on downloaded snapshots (slow). Connectivity-only check otherwise."
     default: 'false'
 
 outputs:
   cache_hit:
     description: "Whether the golden workspace cache was hit on the node SSD."
     value: ${{ steps.resolve-snapshot.outputs.cache_hit }}
+  cache_source:
+    description: "Where the golden workspace came from: node (already on SSD), snapshot (verified GCS snapshot) or cold (none)."
+    value: ${{ steps.resolve-snapshot.outputs.cache_source }}
 
 runs:
   using: "composite"
@@ -77,50 +89,76 @@ runs:
       shell: bash
       env:
         PLATFORM_INPUT: ${{ inputs.platform }}
+        USE_SNAPSHOT: ${{ inputs.use_snapshot }}
+        GW_GCS_PREFIX: ${{ inputs.snapshot_gcs_prefix }}
+        GW_DEEP_VERIFY: ${{ inputs.deep_verify }}
+        GW_FAIL_PREFIX: "::warning::"
+        GITHUB_TOKEN: ${{ github.token }}
+        GW_SCRIPT: ${{ github.action_path }}/../../scripts/golden_workspace.sh
       run: |
         LOWER_DIR="/runner-cache/golden-workspace"
-        if [ ! -w "/runner-cache" ] || [ -d "${LOWER_DIR}" ]; then
+        if [ "${USE_SNAPSHOT}" != "true" ] || [ ! -w "/runner-cache" ] || [ -d "${LOWER_DIR}" ]; then
           exit 0
         fi
 
-        GOLDEN_WORKSPACE_BUCKET="${GOLDEN_WORKSPACE_BUCKET:-cobalt-internal-build-artifacts/golden-workspace}"
-        ARCHIVE_GCS="gs://${GOLDEN_WORKSPACE_BUCKET}/${PLATFORM_INPUT}/golden-workspace-latest.tar.zst"
+        profile="$(bash "${GW_SCRIPT}" profile "${PLATFORM_INPUT}")"
+        if [ "${profile}" = "unsupported" ]; then
+          echo "No golden workspace profile for platform '${PLATFORM_INPUT}'. Proceeding with cold workspace."
+          exit 0
+        fi
+
+        # The snapshot is downloaded, extracted and verified in a staging
+        # directory. It only becomes the lower dir once every check passed;
+        # any failure leaves the node without a golden workspace, which the
+        # job handles exactly like a cold runner.
         STAGING_DIR="/runner-cache/staging.$$"
         rm -rf "${STAGING_DIR}"
-        mkdir -p "${STAGING_DIR}"
+        trap 'rm -rf "${STAGING_DIR}"' EXIT
 
-        echo "Streaming and decompressing snapshot from ${ARCHIVE_GCS}..."
-        if gcloud storage cat "${ARCHIVE_GCS}" \
-            | tar --no-same-owner --use-compress-program="zstd -d -T0" -xf - -C "${STAGING_DIR}"; then
-          # Refresh git stat cache so files extracted from the tarball match
-          # the recorded index mtime/size, preventing false-positive dirty status.
-          git -C "${STAGING_DIR}/src" update-index --refresh -q 2>/dev/null || true
-
-          # Seed vpython cache directory on the runner from snapshot
-          mkdir -p /runner-cache/vpython
-          cp -rn "${STAGING_DIR}/vpython/." /runner-cache/vpython/ 2>/dev/null || true
-          # Mark snapshot ready for legacy compatibility
-          touch "${STAGING_DIR}/.runner_cache_ready"
-          rm -rf "${LOWER_DIR}"
-          mv "${STAGING_DIR}" "${LOWER_DIR}"
-          echo "Extracted golden workspace snapshot to ${LOWER_DIR}"
-        else
-          echo "Notice: Golden workspace archive not found or failed to stream from GCS."
-          rm -rf "${STAGING_DIR}"
+        echo "Fetching golden workspace snapshot for profile '${profile}'..."
+        if ! sha="$(bash "${GW_SCRIPT}" fetch "${STAGING_DIR}" "${profile}")"; then
+          echo "Notice: golden workspace snapshot unavailable or failed validation; proceeding with cold workspace."
+          exit 0
         fi
+
+        echo "Verifying golden workspace snapshot ${sha} against github.com..."
+        if ! bash "${GW_SCRIPT}" verify "${sha}" "${STAGING_DIR}"; then
+          echo "::warning::golden workspace snapshot ${sha} failed verification; proceeding with cold workspace."
+          exit 0
+        fi
+
+        # Mark snapshot ready for legacy compatibility
+        touch "${STAGING_DIR}/.runner_cache_ready"
+        rm -rf "${LOWER_DIR}"
+        mv "${STAGING_DIR}" "${LOWER_DIR}"
+        trap - EXIT
+        echo "snapshot_installed=true" >> "${GITHUB_OUTPUT}"
+        echo "Installed verified golden workspace snapshot ${sha} (${profile}) at ${LOWER_DIR}"
 
     - name: Resolve Active Snapshot Directory
       id: resolve-snapshot
       shell: bash
+      env:
+        NODE_CACHE_HIT: ${{ steps.detect-cache.outputs.cache_hit }}
+        SNAPSHOT_INSTALLED: ${{ steps.hydrate-snapshot.outputs.snapshot_installed }}
       run: |
         lower_dir=""
         if [ -d "/runner-cache/golden-workspace" ]; then
           lower_dir="/runner-cache/golden-workspace"
         fi
 
+        cache_source="cold"
+        if [ "${NODE_CACHE_HIT}" = "true" ]; then
+          cache_source="node"
+        elif [ "${SNAPSHOT_INSTALLED}" = "true" ]; then
+          cache_source="snapshot"
+        fi
+        echo "cache_source=${cache_source}" >> "${GITHUB_OUTPUT}"
+
         if [ -n "${lower_dir}" ]; then
           echo "lower_dir=${lower_dir}" >> "${GITHUB_OUTPUT}"
           echo "cache_hit=true" >> "${GITHUB_OUTPUT}"
+          echo "Golden workspace source: ${cache_source}"
         else
           echo "lower_dir=" >> "${GITHUB_OUTPUT}"
           echo "cache_hit=false" >> "${GITHUB_OUTPUT}"

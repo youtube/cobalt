@@ -1,6 +1,12 @@
 # Set owners for the CODEOWNERS file itself.
 /.github/CODEOWNERS @youtube/cobalt-starboard-owners
 
+# Golden workspace snapshots are consumed by every CI job; changes to how they
+# are produced or validated need infra review.
+/.github/workflows/golden_workspace.yaml   @youtube/cobalt-infra
+/.github/scripts/golden_workspace.sh       @youtube/cobalt-infra
+/.github/actions/overlay_workspace/        @youtube/cobalt-infra
+
 /cobalt/media                               @youtube/cobalt-media
 /media/                                     @youtube/cobalt-media
 /starboard/shared/starboard/audio_sink      @youtube/cobalt-media
