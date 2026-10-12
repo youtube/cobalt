@@ -39,6 +39,8 @@ enum class FileUploadStatus {
   kUploadExpired = 6,
   // File being processed, and suggest signals are ready.
   kProcessingSuggestSignalsReady = 7,
+  // File is being replaced.
+  kUploadReplaced = 8,
 };
 
 // For upload error notifications and metrics.
@@ -114,29 +116,6 @@ struct FileInfo {
   // The input data associated with this file.
   std::unique_ptr<lens::ContextualInputData> input_data;
 };
-
-// LINT.IfChange(SubmissionType)
-
-// How an AIM Composebox query was submitted.
-enum class SubmissionType {
-  kDefault = 0,
-  kDeepSearch = 1,
-  kCreateImages = 2,
-  kMaxValue = kCreateImages,
-};
-
-// LINT.ThenChange(//tools/metrics/histograms/metadata/contextual_search/enums.xml:SubmissionType)
-
-// LINT.IfChange(AimToolState)
-
-// Value to hold the state of an AIM Tool.
-enum class AimToolState {
-  kDisabled = 0,
-  kEnabled = 1,
-  kMaxValue = kEnabled,
-};
-
-// LINT.ThenChange(//tools/metrics/histograms/metadata/contextual_search/enums.xml:AimToolState)
 
 // LINT.IfChange(ContextualSearchErrorPage)
 

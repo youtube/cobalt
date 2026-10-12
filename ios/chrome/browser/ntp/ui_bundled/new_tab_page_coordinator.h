@@ -16,6 +16,7 @@ class WebState;
 @class BubblePresenter;
 @protocol NewTabPageComponentFactoryProtocol;
 @protocol NewTabPageControllerDelegate;
+@protocol PromosManagerUIHandler;
 
 // Coordinator handling the NTP.
 @interface NewTabPageCoordinator : ChromeCoordinator <NewTabPageConfiguring>
@@ -55,9 +56,6 @@ class WebState;
 
 // Called when a snapshot of the content will be taken.
 - (void)willUpdateSnapshot;
-
-// Whether the NTP is scrolled to the top.
-- (BOOL)isScrolledToTop;
 
 // Scroll the NTP to the top.
 - (void)scrollToTop;
@@ -99,6 +97,10 @@ class WebState;
 
 // Presents an IPH bubble to highlight the Lens icon in the NTP Fakebox.
 - (void)presentLensIconBubble;
+
+// Shows the Home Background Customization promo.
+- (void)showHomeBackgroundCustomizationPromoWithUIHandler:
+    (id<PromosManagerUIHandler>)uiHandler;
 
 // Returns `YES` if the feed is currently visible on the NTP.
 - (BOOL)isFeedVisible;

@@ -674,7 +674,8 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
                                 /* showInProductHelp= */ false,
                                 !mIsDownloadRestrictedByPolicy));
             }
-            if (ChromeFeatureList.sContextMenuPictureInPictureAndroid.isEnabled()
+            if (ChromeFeatureList.isEnabled(
+                            ChromeFeatureList.CONTEXT_MENU_PICTURE_IN_PICTURE_ANDROID)
                     && mParams.canPictureInPicture()) {
                 int titleResId =
                         mParams.isPictureInPicture()
@@ -999,8 +1000,7 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
                                     ContextMenuUtils.getTitle(mParams),
                                     mParams.getPageUrl().getSpec())
                             .build();
-            mShareDelegateSupplier
-                    .get()
+            assumeNonNull(mShareDelegateSupplier.get())
                     .share(
                             linkShareParams,
                             new ChromeShareExtras.Builder().setSaveLastUsed(true).build(),
@@ -1017,8 +1017,7 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
                                     ContextMenuUtils.getTitle(mParams),
                                     mParams.getUrl().getSpec())
                             .build();
-            mShareDelegateSupplier
-                    .get()
+            assumeNonNull(mShareDelegateSupplier.get())
                     .share(
                             linkShareParams,
                             new ChromeShareExtras.Builder()
@@ -1042,8 +1041,7 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
                                     ContextMenuUtils.getTitle(mParams),
                                     mParams.getUrl().getSpec())
                             .build();
-            mShareDelegateSupplier
-                    .get()
+            assumeNonNull(mShareDelegateSupplier.get())
                     .share(
                             shareParams,
                             new ChromeShareExtras.Builder()
@@ -1175,8 +1173,7 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
                                 getWindow(), /* title= */ "", /* url= */ mParams.getUrl().getSpec())
                         .build();
 
-        mShareDelegateSupplier
-                .get()
+        assumeNonNull(mShareDelegateSupplier.get())
                 .share(
                         linkShareParams,
                         new ChromeShareExtras.Builder()
@@ -1239,8 +1236,7 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
                     } else {
                         detailedContentType = ChromeShareExtras.DetailedContentType.IMAGE;
                     }
-                    mShareDelegateSupplier
-                            .get()
+                    assumeNonNull(mShareDelegateSupplier.get())
                             .share(
                                     imageShareParams,
                                     new ChromeShareExtras.Builder()

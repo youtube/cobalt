@@ -90,6 +90,12 @@ const char kAutofillDisableSilentProfileUpdatesDescription[] =
     "When enabled, Autofill will not apply silent updates to address profiles. "
     "For testing purposes.";
 
+const char kAutofillEnableBottomSheetScanCardAndFillName[] =
+    "Enable scan card BottomSheet, then save and fill of the credit card";
+const char kAutofillEnableBottomSheetScanCardAndFillDescription[] =
+    "When enabled, offers a card scanning BottomSheet and allows users to "
+    "save and autofill credit cards in autofill forms.";
+
 const char kAutofillEnableCardBenefitsForAmericanExpressName[] =
     "Enable showing American Express card benefits";
 const char kAutofillEnableCardBenefitsForAmericanExpressDescription[] =
@@ -468,6 +474,11 @@ const char kDisableAutofillStrikeSystemDescription[] =
     "When enabled, the Autofill strike system will not block a feature from "
     "being offered.";
 
+const char kDisableComposeboxFromAIMNTPName[] = "DisableComposeboxFromAIMNTP";
+const char kDisableComposeboxFromAIMNTPDescription[] =
+    "When enabled, the NTP entrypoint will always lead to the AIM webpage even "
+    "when composebox is enabled.";
+
 const char kDisableKeyboardAccessoryName[] =
     "Disable Omnibox Keyboard Accessory";
 const char kDisableKeyboardAccessoryDescription[] =
@@ -551,12 +562,23 @@ const char kEnableFeedHeaderSettingsName[] =
 const char kEnableFeedHeaderSettingsDescription[] =
     "When enabled, some UI elements of the feed header can be modified.";
 
+const char kEnableFileDownloadConnectorIOSName[] =
+    "Enable file download connectors on iOS.";
+const char kEnableFileDownloadConnectorIOSDescription[] =
+    "When enabled, the enterprise DLP file download featured is available on "
+    "iOS. ";
+
 const char kEnableLensInOmniboxCopiedImageName[] =
     "Enable Google Lens in the Omnibox for Copied Images";
 const char kEnableLensInOmniboxCopiedImageDescription[] =
     "When enabled, use Lens to search images from your device clipboard "
     "when Google is the selected search engine, accessible from the omnibox or "
     "popup menu.";
+
+const char kEnableNTPBackgroundImageCacheName[] =
+    "Enable NTP Background Image Cache";
+const char kEnableNTPBackgroundImageCacheDescription[] =
+    "Enables the NTP background image cache service to improve performance.";
 
 const char kEnableNewStartupFlowName[] = "EnableNewStartupFlow";
 const char kEnableNewStartupFlowDescription[] =
@@ -601,12 +623,6 @@ const char kForceStartupSigninPromoName[] = "Display the startup sign-in promo";
 const char kForceStartupSigninPromoDescription[] =
     "When enabled, the startup sign-in promo is always displayed when starting "
     "Chrome.";
-
-const char kFullscreenPromosManagerSkipInternalLimitsName[] =
-    "Fullscreen Promos Manager (Skip internal Impression Limits)";
-const char kFullscreenPromosManagerSkipInternalLimitsDescription[] =
-    "When enabled, the internal Impression Limits of the Promos Manager will "
-    "be ignored; this is useful for local development.";
 
 const char kFullscreenScrollThresholdName[] = "Fullscreen Scroll Threshold";
 const char kFullscreenScrollThresholdDescription[] =
@@ -676,6 +692,11 @@ const char kGeminiRefactoredFREName[] = "Gemini Refactored FRE";
 const char kGeminiRefactoredFREDescription[] =
     "Enables the refactored Gemini First Run Experience (FRE).";
 
+const char kGeminiResponseViewDynamicResizingName[] =
+    "Gemini Response View Dynamic Resizing";
+const char kGeminiResponseViewDynamicResizingDescription[] =
+    "Enables dynamic resizing for the Gemini response view.";
+
 const char kGeminiUpdatedEligibilityName[] = "Gemini Updated Eligibility";
 const char kGeminiUpdatedEligibilityDescription[] =
     "Enables the updated eligibility checks for Gemini users.";
@@ -728,6 +749,11 @@ const char kIOSDockingPromoName[] = "Docking Promo";
 const char kIOSDockingPromoDescription[] =
     "When enabled, the user will be presented an animated, instructional "
     "promo showing how to move Chrome to their native iOS dock.";
+
+const char kIOSDockingPromoV2Name[] = "Docking Promo V2";
+const char kIOSDockingPromoV2Description[] =
+    "When enabled, the user will be presented an animated, instructional "
+    "promo V2 showing how to move Chrome to their native iOS dock.";
 
 const char kIOSEnableCloudProfileReportingName[] =
     "Enable profile reporting on iOS";
@@ -811,6 +837,10 @@ const char kIOSReactivationNotificationsDescription[] =
 const char kIOSSaveToDriveClientFolderName[] = "Save to Drive client folder";
 const char kIOSSaveToDriveClientFolderDescription[] =
     "Enables a feature to use a client folder API for Save to Drive on iOS.";
+
+const char kIOSSaveToDriveSignedOutName[] = "Save to Drive Signed Out";
+const char kIOSSaveToDriveSignedOutDescription[] =
+    "Enables the Save to Drive feature to signed out users.";
 
 const char kIOSSoftLockName[] = "Soft Lock on iOS";
 const char kIOSSoftLockDescription[] = "Enables experimental Soft Lock on iOS.";
@@ -1028,6 +1058,11 @@ const char kMobilePromoOnDesktopRecordActiveDaysName[] =
 const char kMobilePromoOnDesktopRecordActiveDaysDescription[] =
     "When enabled, records the user's number of active days for the mobile "
     "promo on desktop.";
+
+const char kModelBasedPageClassificationName[] =
+    "Model Based Page Classification";
+const char kModelBasedPageClassificationDescription[] =
+    "Enables the model based page classification.";
 
 const char kMostVisitedTilesCustomizationName[] =
     "Most Visited Tiles Customization on iOS";
@@ -1469,6 +1504,12 @@ const char kSmartTabGroupingDescription[] =
     "When enabled, users will have access to use the smart tab grouping "
     "feature in the tab grid.";
 
+const char kSmoothScrollingUseDelegateName[] =
+    "Fullscreen Smooth Scrolling No Broadcaster";
+const char kSmoothScrollingUseDelegateDescription[] =
+    "When enabled, the SmoothScrollingDefault experiment uses the regular "
+    "UIScrollViewDelegate instead of KVO and broadcasting.";
+
 const char kStrokesAPIEnabledName[] = "Enable Strokes API for Lens";
 const char kStrokesAPIEnabledDescription[] =
     "When enabled, Lens will use the Strokes API.";
@@ -1582,10 +1623,19 @@ const char kUseFeedEligibilityServiceDescription[] =
     "Use the new eligibility service to handle whether the Discover "
     "feed is displayed on NTP";
 
-const char kVariationsSeedCorpusName[] = "Variations seed corpus";
-const char kVariationsSeedCorpusDescription[] =
-    "The value of the 'corpus' parameter in the variations seed request. "
-    "If unspecified, the 'corpus' parameter is omitted from the request.";
+const char kUseSceneViewControllerName[] = "Use Scene View Controller";
+const char kUseSceneViewControllerDescription[] =
+    "Enables the use of SceneViewController.";
+
+const char kVariationsExperimentalCorpusName[] =
+    "Variations experimental corpus";
+const char kVariationsExperimentalCorpusDescription[] =
+    "When enabled, request the experimental variations seed from the "
+    "variations server.";
+
+const char kVariationsRestrictDogfoodName[] = "Variations restrict dogfood";
+const char kVariationsRestrictDogfoodDescription[] =
+    "When enabled, request dogfood variations from the variations server.";
 
 const char kViewCertificateInformationName[] = "View Certificate Information";
 const char kViewCertificateInformationDescription[] =
@@ -1611,12 +1661,6 @@ const char kWebPageDefaultZoomFromDynamicTypeName[] =
 const char kWebPageDefaultZoomFromDynamicTypeDescription[] =
     "When enabled, the default text zoom level for a website comes from the "
     "current dynamic type setting.";
-
-const char kWebPageReportedImagesSheetName[] =
-    "Surface web page-reported images";
-const char kWebPageReportedImagesSheetDescription[] =
-    "When enabled, surface a sheet on page load which shows web page-reported "
-    "images and associated metadata.";
 
 const char kWebPageTextZoomIPadName[] = "Enable text zoom on iPad";
 const char kWebPageTextZoomIPadDescription[] =

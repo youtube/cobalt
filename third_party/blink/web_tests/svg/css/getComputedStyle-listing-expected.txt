@@ -210,7 +210,6 @@ font-variant-numeric: normal
 font-variant-position: normal
 font-weight: 400
 frame-sizing: auto
-gap-rule-overlap: row-over-column
 grid-auto-columns: auto
 grid-auto-flow: row
 grid-auto-rows: auto
@@ -260,6 +259,7 @@ margin-inline-start: 0px
 margin-left: 0px
 margin-right: 0px
 margin-top: 0px
+margin-trim: none
 marker-end: none
 marker-mid: none
 marker-start: none
@@ -349,6 +349,7 @@ row-rule-width: 3px
 ruby-align: space-around
 ruby-overhang: auto
 ruby-position: over
+rule-overlap: row-over-column
 rx: auto
 ry: auto
 scale: none
@@ -413,10 +414,10 @@ text-underline-position: auto
 text-wrap-mode: wrap
 text-wrap-style: auto
 timeline-scope: none
+timeline-trigger-activation-range-end: normal
+timeline-trigger-activation-range-start: normal
 timeline-trigger-active-range-end: auto
 timeline-trigger-active-range-start: auto
-timeline-trigger-entry-range-end: normal
-timeline-trigger-entry-range-start: normal
 timeline-trigger-name: none
 timeline-trigger-source: auto
 top: auto

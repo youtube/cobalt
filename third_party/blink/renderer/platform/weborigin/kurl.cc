@@ -42,6 +42,7 @@
 #include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_hash.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_statics.h"
+#include "third_party/blink/renderer/platform/wtf/text/string_to_number.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_utf8_adaptor.h"
 #include "third_party/blink/renderer/platform/wtf/text/text_encoding.h"
 #include "third_party/perfetto/include/perfetto/tracing/traced_value.h"
@@ -658,12 +659,11 @@ bool KURL::SetPort(const String& input) {
   if (parsed_port.empty()) {
     return false;
   }
-  bool to_uint_ok;
-  unsigned port_value = parsed_port.ToString().ToUInt(&to_uint_ok);
-  if (port_value > UINT16_MAX || !to_uint_ok) {
+  auto port_value = StringToUint(parsed_port);
+  if (!port_value || *port_value > UINT16_MAX) {
     return false;
   }
-  SetPort(port_value);
+  SetPort(*port_value);
   return true;
 }
 
@@ -1062,7 +1062,7 @@ void KURL::WriteIntoTrace(perfetto::TracedValue context) const {
 
 KURL::operator GURL() const {
   StringUtf8Adaptor utf8(string_);
-  return GURL(utf8.data(), utf8.size(), parsed_, is_valid_);
+  return GURL(utf8.AsStringView(), parsed_, is_valid_);
 }
 bool operator==(const KURL& a, const KURL& b) {
   return a.GetString() == b.GetString();

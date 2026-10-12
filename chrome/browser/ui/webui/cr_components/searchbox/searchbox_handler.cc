@@ -34,6 +34,7 @@
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/bookmarks/browser/bookmark_model.h"
+#include "components/omnibox/browser/aim_eligibility_service_features.h"
 #include "components/omnibox/browser/autocomplete_match.h"
 #include "components/omnibox/browser/autocomplete_result.h"
 #include "components/omnibox/browser/omnibox_client.h"
@@ -401,10 +402,6 @@ void SearchboxHandler::SetupWebUIDataSource(content::WebUIDataSource* source,
                                  u"activitycontrols?settings=search&utm_source="
                                  u"aim&utm_campaign=aim_str"));
 
-  source->AddBoolean(
-      "searchboxMatchSearchboxTheme",
-      base::FeatureList::IsEnabled(ntp_features::kRealboxMatchSearchboxTheme));
-
   DefineChromeRefreshRealboxIcons();
   source->AddString(
       "searchboxDefaultIcon",
@@ -439,8 +436,10 @@ void SearchboxHandler::SetupWebUIDataSource(content::WebUIDataSource* source,
       profile->GetPrefs()->GetInteger(
           prefs::kNtpComposeButtonShownCountPrefName) <
           composebox_config.entry_point().num_page_load_animations());
-  source->AddBoolean("contextualMenuShowModelPicker",
-                     ntp_composebox::kShowModelPicker.Get());
+  source->AddBoolean("contextualMenuUsePecApi",
+                     base::FeatureList::IsEnabled(omnibox::kAimUsePecApi));
+  source->AddBoolean("ShowContextMenuHeaders",
+                     ntp_composebox::kShowContextMenuHeaders.Get());
 }
 
 std::string SearchboxHandler::AutocompleteIconToResourceName(
@@ -836,8 +835,8 @@ void SearchboxHandler::AddFileContextFromBrowser(
 
 void SearchboxHandler::OnContextualInputStatusChanged(
     base::UnguessableToken token,
-    composebox_query::mojom::FileUploadStatus status,
-    std::optional<composebox_query::mojom::FileUploadErrorType> error_type) {
+    contextual_search::FileUploadStatus status,
+    std::optional<contextual_search::FileUploadErrorType> error_type) {
   if (page_ && IsRemoteBound()) {
     page_->OnContextualInputStatusChanged(token, status, error_type);
   }

@@ -370,6 +370,36 @@ void FindAndSetPossibleDateFieldTypesAndFormatStrings(
   }
 }
 
+void RationalizePossibleSplitZipFieldTypes(
+    base::span<PossibleTypes> possible_types) {
+  bool is_prev_zip_prefix = false;
+
+  for (auto& possible_type : possible_types) {
+    // Voting for ADDRESS_HOME_ZIP_SUFFIX is allowed only if the previous field
+    // had ADDRESS_HOME_ZIP_PREFIX as one of its possible types.
+    if (possible_type.types.contains(ADDRESS_HOME_ZIP_SUFFIX) &&
+        !is_prev_zip_prefix) {
+      possible_type.types.erase(ADDRESS_HOME_ZIP_SUFFIX);
+    }
+
+    // Votes for ADDRESS_HOME_ZIP_PREFIX are mapped to ADDRESS_HOME_ZIP
+    // to prevent unexpected voting results on international forms.
+    // On such forms with a single zip code field, American users often
+    // enter a 5-digit zip code. Since these 5-digit values correspond to both
+    // ADDRESS_HOME_ZIP and ADDRESS_HOME_ZIP_PREFIX, they can cause votes
+    // for ADDRESS_HOME_ZIP_PREFIX, while users from other countries
+    // will send votes for ADDRESS_HOME_ZIP.
+    // If ADDRESS_HOME_ZIP_PREFIX wins the vote, it could result in
+    // partial zip values autofilled in Japan, Brazil, and other
+    // countries with split zip code formats.
+    is_prev_zip_prefix = false;
+    if (possible_type.types.erase(ADDRESS_HOME_ZIP_PREFIX)) {
+      possible_type.types.insert(ADDRESS_HOME_ZIP);
+      is_prev_zip_prefix = true;
+    }
+  }
+}
+
 // Matches the value from `field` against the values stored in the given
 // profiles etc.
 PossibleTypes GetPossibleTypes(
@@ -380,8 +410,8 @@ PossibleTypes GetPossibleTypes(
     base::span<const LoyaltyCard> loyalty_cards,
     const std::set<FieldGlobalId> fields_that_match_state,
     const std::string& app_locale) {
-  std::u16string value_u16 = field.value_for_import();
-  base::TrimWhitespace(value_u16, base::TRIM_ALL, &value_u16);
+  const std::u16string_view value_u16 =
+      base::TrimWhitespace(field.value_for_import(), base::TRIM_ALL);
 
   PossibleTypes pt;
 
@@ -424,9 +454,8 @@ void FindAndSetPossibleOtpFieldTypes(
   }
 
   for (auto [field, pt] : base::zip(fields, possible_types)) {
-    std::u16string field_value = field->value();
-    base::TrimWhitespace(field_value, base::TRIM_ALL, &field_value);
-    const std::string field_value_u8 = base::UTF16ToUTF8(field_value);
+    const std::string field_value_u8 =
+        base::UTF16ToUTF8(base::TrimWhitespace(field->value(), base::TRIM_ALL));
 
     // Check if the field value matches any of the recent OTPs.
     for (const OneTimeToken& otp : recent_otps) {
@@ -515,6 +544,10 @@ std::vector<PossibleTypes> DeterminePossibleFieldTypesForUpload(
       base::FeatureList::IsEnabled(features::kAutofillSmsOtpCrowdsourcing)) {
     // OTPs are not stored, run special logic to detect OTP values.
     FindAndSetPossibleOtpFieldTypes(fields, recent_otps, possible_types);
+  }
+
+  if (base::FeatureList::IsEnabled(features::kAutofillSupportSplitZipCode)) {
+    RationalizePossibleSplitZipFieldTypes(possible_types);
   }
 
   for (auto [field, pt] : base::zip(fields, possible_types)) {

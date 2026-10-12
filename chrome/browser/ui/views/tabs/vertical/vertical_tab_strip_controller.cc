@@ -6,19 +6,24 @@
 
 #include <variant>
 
-#include "base/metrics/histogram_macros.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/metrics/user_metrics.h"
 #include "base/metrics/user_metrics_action.h"
 #include "chrome/browser/tab_group_sync/tab_group_sync_service_factory.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_command_controller.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
+#include "chrome/browser/ui/tabs/split_tab_util.h"
+#include "chrome/browser/ui/tabs/tab_group_model.h"
+#include "chrome/browser/ui/tabs/tab_group_theme.h"
 #include "chrome/browser/ui/tabs/tab_menu_model_factory.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_delegate.h"
 #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
 #include "chrome/browser/ui/views/event_utils.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
-#include "chrome/browser/ui/views/tabs/tab_context_menu_controller.h"
+#include "chrome/browser/ui/views/tabs/tab/tab_context_menu_controller.h"
 #include "chrome/browser/ui/views/tabs/tab_group_editor_bubble_view.h"
 #include "chrome/browser/ui/views/tabs/vertical/tab_collection_node.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_drag_handler.h"
@@ -86,6 +91,15 @@ void VerticalTabStripController::SelectTab(
   std::optional<int> tab_index = model_->GetIndexOfTab(tab_interface);
   if (!tab_index.has_value()) {
     return;
+  }
+
+  if (!model_->IsTabInForeground(tab_index.value())) {
+    RecordMetricsOnTabSelectionChange(tab_interface->GetGroup());
+  }
+
+  std::optional<split_tabs::SplitTabId> split_id = tab_interface->GetSplit();
+  if (split_id.has_value()) {
+    tab_index = split_tabs::GetIndexOfLastActiveTab(model_, split_id.value());
   }
 
   model_->ActivateTabAt(tab_index.value(), gesture_detail);
@@ -225,23 +239,15 @@ bool VerticalTabStripController::IsCollapsed() const {
   return state_controller && state_controller->IsCollapsed();
 }
 
-void VerticalTabStripController::OnTabStripMouseEntered() {
-  mouse_entered_tabstrip_time_ = base::TimeTicks::Now();
-}
-
-void VerticalTabStripController::OnTabMousePressed() {
-  if (mouse_entered_tabstrip_time_.has_value()) {
-    DEPRECATED_UMA_HISTOGRAM_MEDIUM_TIMES(
-        "TabStrip.Vertical.TimeToSwitch",
-        base::TimeTicks::Now() - mouse_entered_tabstrip_time_.value());
-    mouse_entered_tabstrip_time_.reset();
-  }
-}
-
 tab_groups::TabGroupSyncService*
 VerticalTabStripController::GetTabGroupSyncService() {
   return tab_groups::TabGroupSyncServiceFactory::GetForProfile(
       browser_view_->GetProfile());
+}
+
+tabs::VerticalTabStripStateController*
+VerticalTabStripController::GetStateController() {
+  return tabs::VerticalTabStripStateController::From(browser_view_->browser());
 }
 
 bool VerticalTabStripController::IsContextMenuCommandChecked(
@@ -287,8 +293,65 @@ bool VerticalTabStripController::GetContextMenuAccelerator(
          browser_view_->GetWidget()->GetAccelerator(browser_cmd, accelerator);
 }
 
-void VerticalTabStripController::OnTabGroupFocusChanged(
+void VerticalTabStripController::TabGroupFocusChanged(
     std::optional<tab_groups::TabGroupId> new_focused_group_id,
     std::optional<tab_groups::TabGroupId> old_focused_group_id) {
-  // TODO(crbug.com/479232024): Implement this.
+  browser_view_->tab_strip_view()->OnTabGroupFocusChanged(new_focused_group_id,
+                                                          old_focused_group_id);
+
+  std::optional<SkColor> color;
+  if (new_focused_group_id.has_value()) {
+    const TabGroup* group =
+        model_->group_model()->GetTabGroup(new_focused_group_id.value());
+    const tab_groups::TabGroupVisualData* visual_data = group->visual_data();
+    const auto* color_provider = browser_view_->GetColorProvider();
+    color = color_provider->GetColor(
+        GetTabGroupDialogColorId(visual_data->color()));
+  }
+
+  browser_view_->browser_widget()->SetUserColorOverride(color);
+  browser_view_->browser_widget()->ThemeChanged();
+  browser_view_->GetWidget()->non_client_view()->frame_view()->SchedulePaint();
+}
+
+void VerticalTabStripController::TabKeyboardFocusChangedTo(
+    const tabs::TabInterface* tab) {
+  std::optional<int> tab_index = std::nullopt;
+  if (tab) {
+    tab_index = model_->GetIndexOfTab(tab);
+  }
+
+  browser_view_->browser()->command_controller()->TabKeyboardFocusChangedTo(
+      tab_index);
+}
+
+void VerticalTabStripController::RecordMetricsOnTabSelectionChange(
+    std::optional<tab_groups::TabGroupId> group) {
+  base::UmaHistogramEnumeration("TabStrip.Tab.Views.ActivationAction",
+                                TabActivationTypes::kTab);
+
+  if (!group) {
+    return;
+  }
+
+  base::RecordAction(base::UserMetricsAction("TabGroups_SwitchGroupedTab"));
+
+  if (!tab_groups::SavedTabGroupUtils::SupportsSharedTabGroups()) {
+    return;
+  }
+
+  tab_groups::TabGroupSyncService* tab_group_service =
+      tab_groups::TabGroupSyncServiceFactory::GetForProfile(
+          browser_view_->browser()->GetProfile());
+
+  if (!tab_group_service) {
+    return;
+  }
+
+  std::optional<tab_groups::SavedTabGroup> saved_group =
+      tab_group_service->GetGroup(group.value());
+  if (saved_group && saved_group->collaboration_id()) {
+    base::RecordAction(
+        base::UserMetricsAction("TabGroups.Shared.SwitchGroupedTab"));
+  }
 }

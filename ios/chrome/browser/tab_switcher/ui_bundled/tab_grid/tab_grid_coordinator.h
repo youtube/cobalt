@@ -36,6 +36,9 @@ class Browser;
 // The view controller, if any, that is active.
 @property(nonatomic, readonly, strong) UIViewController* activeViewController;
 
+// The view controller for the Tab Grid.
+@property(nonatomic, readonly) UIViewController* viewController;
+
 // If this property is YES, calls to `showTabGridPage:animated:` and
 // `showBrowserLayoutViewController:completion:` will present the
 // given view controllers without animation.  This should only be used by

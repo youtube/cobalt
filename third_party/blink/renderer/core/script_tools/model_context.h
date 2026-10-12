@@ -19,8 +19,11 @@
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/platform/allow_discouraged_type.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_map.h"
+#include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 
 namespace blink {
+
+class AbortSignal;
 
 class DeclarativeWebMCPTool {
  public:
@@ -61,6 +64,7 @@ class CORE_EXPORT ModelContext : public ScriptWrappable {
   std::optional<uint32_t> ExecuteTool(
       const String& name,
       const String& input_arguments,
+      AbortSignal* signal,
       WebDocument::ScriptToolExecutedCallback tool_executed_cb);
   using CrossDocumentScriptToolResultCallback =
       base::OnceCallback<void(String)>;
@@ -76,6 +80,7 @@ class CORE_EXPORT ModelContext : public ScriptWrappable {
   void RegisterDeclarativeTool(String name,
                                String description,
                                DeclarativeWebMCPTool* tool);
+  void PauseExecution();
   void DidFinishParsing();
 
   void Trace(Visitor*) const override;
@@ -87,6 +92,7 @@ class CORE_EXPORT ModelContext : public ScriptWrappable {
       V8ToolFunction* tool_function,
       const String& name,
       const String& input_arguments,
+      AbortSignal* signal,
       WebDocument::ScriptToolExecutedCallback tool_executed_cb);
   void ExecuteDeclarativeTool(
       DeclarativeWebMCPTool* tool,
@@ -115,8 +121,11 @@ class CORE_EXPORT ModelContext : public ScriptWrappable {
   HeapHashMap<String, Member<ToolData>> tool_map_;
 
   uint32_t next_execution_id_ = 0;
-  HashMap<uint32_t, WebDocument::ScriptToolExecutedCallback>
-      pending_executions_;
+  struct PendingExecution {
+    String tool_name;
+    WebDocument::ScriptToolExecutedCallback callback;
+  };
+  HashMap<uint32_t, PendingExecution> pending_executions_;
 
   Vector<CrossDocumentScriptToolResultCallback>
       cross_document_result_callbacks_;
@@ -124,6 +133,7 @@ class CORE_EXPORT ModelContext : public ScriptWrappable {
   std::optional<base::RepeatingClosure> tools_changed_closure_;
   Member<Document> document_;
   scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
+  HeapMojoRemote<mojom::blink::ScriptToolHost> script_tool_host_remote_;
 };
 
 }  // namespace blink

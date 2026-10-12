@@ -209,8 +209,12 @@ TEST_P(ClassifyUrlNavigationThrottleTest, AllowedUrlsRecordedInAllowBucket) {
             registry->throttles().back()->WillProcessResponse());
 
   histogram_tester()->ExpectBucketCount(
-      kSupervisedUserTopLevelURLFilteringResultHistogramName,
+      kSupervisedUserTopLevelURLFilteringResult2HistogramName,
       SupervisedUserFilterTopLevelResult::kAllow, 1);
+  histogram_tester()->ExpectBucketCount(
+      "SupervisedUsers.All.TopLevelFilteringResult.NavigationThrottle",
+      SupervisedUserFilterTopLevelResult::kAllow, 1);
+
   histogram_tester()->ExpectTotalCount(
       kClassifiedEarlierThanContentResponseHistogramName,
       /*expected_count(grew by)*/ 1);
@@ -231,7 +235,10 @@ TEST_P(ClassifyUrlNavigationThrottleTest,
             registry->throttles().back()->WillStartRequest());
 
   histogram_tester()->ExpectBucketCount(
-      kSupervisedUserTopLevelURLFilteringResultHistogramName,
+      kSupervisedUserTopLevelURLFilteringResult2HistogramName,
+      SupervisedUserFilterTopLevelResult::kBlockManual, 1);
+  histogram_tester()->ExpectBucketCount(
+      "SupervisedUsers.All.TopLevelFilteringResult.NavigationThrottle",
       SupervisedUserFilterTopLevelResult::kBlockManual, 1);
 
   // Since this is not a success path, no latency metric is recorded.
@@ -249,7 +256,10 @@ TEST_P(ClassifyUrlNavigationThrottleTest,
             registry->throttles().back()->WillStartRequest());
 
   histogram_tester()->ExpectBucketCount(
-      kSupervisedUserTopLevelURLFilteringResultHistogramName,
+      kSupervisedUserTopLevelURLFilteringResult2HistogramName,
+      SupervisedUserFilterTopLevelResult::kBlockNotInAllowlist, 1);
+  histogram_tester()->ExpectBucketCount(
+      "SupervisedUsers.All.TopLevelFilteringResult.NavigationThrottle",
       SupervisedUserFilterTopLevelResult::kBlockNotInAllowlist, 1);
 
   // Since this is not a success path, no latency metric is recorded.
@@ -320,7 +330,10 @@ TEST_P(ClassifyUrlNavigationThrottleAsyncCheckerTest,
             registry->throttles().back()->WillStartRequest());
 
   histogram_tester()->ExpectBucketCount(
-      kSupervisedUserTopLevelURLFilteringResultHistogramName,
+      kSupervisedUserTopLevelURLFilteringResult2HistogramName,
+      SupervisedUserFilterTopLevelResult::kBlockSafeSites, 1);
+  histogram_tester()->ExpectBucketCount(
+      "SupervisedUsers.All.TopLevelFilteringResult.NavigationThrottle",
       SupervisedUserFilterTopLevelResult::kBlockSafeSites, 1);
 
   // Since this is not a success path, no latency metric is recorded.
@@ -342,7 +355,10 @@ TEST_P(ClassifyUrlNavigationThrottleAsyncCheckerTest,
 
   // Check is not completed yet
   histogram_tester()->ExpectBucketCount(
-      kSupervisedUserTopLevelURLFilteringResultHistogramName,
+      kSupervisedUserTopLevelURLFilteringResult2HistogramName,
+      SupervisedUserFilterTopLevelResult::kAllow, 0);
+  histogram_tester()->ExpectBucketCount(
+      "SupervisedUsers.All.TopLevelFilteringResult.NavigationThrottle",
       SupervisedUserFilterTopLevelResult::kAllow, 0);
 
   // Before the throttle will be notified that the content is ready, complete
@@ -358,8 +374,12 @@ TEST_P(ClassifyUrlNavigationThrottleAsyncCheckerTest,
   EXPECT_FALSE(resume_called());
 
   histogram_tester()->ExpectBucketCount(
-      kSupervisedUserTopLevelURLFilteringResultHistogramName,
+      kSupervisedUserTopLevelURLFilteringResult2HistogramName,
       SupervisedUserFilterTopLevelResult::kAllow, 1);
+  histogram_tester()->ExpectBucketCount(
+      "SupervisedUsers.All.TopLevelFilteringResult.NavigationThrottle",
+      SupervisedUserFilterTopLevelResult::kAllow, 1);
+
   // Since the throttle had to wait for checks to complete, it recorded a
   // corresponding metric.
   histogram_tester()->ExpectTotalCount(
@@ -381,7 +401,10 @@ TEST_P(ClassifyUrlNavigationThrottleAsyncCheckerTest,
 
   // At this point, check was not completed.
   histogram_tester()->ExpectBucketCount(
-      kSupervisedUserTopLevelURLFilteringResultHistogramName,
+      kSupervisedUserTopLevelURLFilteringResult2HistogramName,
+      SupervisedUserFilterTopLevelResult::kAllow, 0);
+  histogram_tester()->ExpectBucketCount(
+      "SupervisedUsers.All.TopLevelFilteringResult.NavigationThrottle",
       SupervisedUserFilterTopLevelResult::kAllow, 0);
 
   // But will block at process response because the check is still
@@ -396,8 +419,12 @@ TEST_P(ClassifyUrlNavigationThrottleAsyncCheckerTest,
   // As a result, the navigation is resumed (and three checks registered)
   EXPECT_TRUE(resume_called());
   histogram_tester()->ExpectBucketCount(
-      kSupervisedUserTopLevelURLFilteringResultHistogramName,
+      kSupervisedUserTopLevelURLFilteringResult2HistogramName,
       SupervisedUserFilterTopLevelResult::kAllow, 1);
+  histogram_tester()->ExpectBucketCount(
+      "SupervisedUsers.All.TopLevelFilteringResult.NavigationThrottle",
+      SupervisedUserFilterTopLevelResult::kAllow, 1);
+
   // Since the throttle had to wait for checks to complete, it recorded a
   // corresponding metric.
   histogram_tester()->ExpectTotalCount(
@@ -438,10 +465,17 @@ TEST_P(ClassifyUrlNavigationThrottleAsyncCheckerTest,
       safe_search_api::ClientClassification::kAllowed);
 
   histogram_tester()->ExpectBucketCount(
-      kSupervisedUserTopLevelURLFilteringResultHistogramName,
+      kSupervisedUserTopLevelURLFilteringResult2HistogramName,
       SupervisedUserFilterTopLevelResult::kAllow, 1);
   histogram_tester()->ExpectBucketCount(
-      kSupervisedUserTopLevelURLFilteringResultHistogramName,
+      kSupervisedUserTopLevelURLFilteringResult2HistogramName,
+      SupervisedUserFilterTopLevelResult::kBlockSafeSites, 1);
+
+  histogram_tester()->ExpectBucketCount(
+      "SupervisedUsers.All.TopLevelFilteringResult.NavigationThrottle",
+      SupervisedUserFilterTopLevelResult::kAllow, 1);
+  histogram_tester()->ExpectBucketCount(
+      "SupervisedUsers.All.TopLevelFilteringResult.NavigationThrottle",
       SupervisedUserFilterTopLevelResult::kBlockSafeSites, 1);
 
   // Since this is not a success path, no latency metric is recorded.
@@ -527,7 +561,10 @@ TEST_P(ClassifyUrlNavigationThrottleParallelizationTest,
       mock_url_checker_client().GetPendingChecksCount();
   EXPECT_EQ(unique_urls.size(), pending_checks_count);
   histogram_tester()->ExpectBucketCount(
-      kSupervisedUserTopLevelURLFilteringResultHistogramName,
+      kSupervisedUserTopLevelURLFilteringResult2HistogramName,
+      SupervisedUserFilterTopLevelResult::kAllow, 0);
+  histogram_tester()->ExpectBucketCount(
+      "SupervisedUsers.All.TopLevelFilteringResult.NavigationThrottle",
       SupervisedUserFilterTopLevelResult::kAllow, 0);
 
   // Before the throttle will be notified that the content is ready, complete
@@ -545,8 +582,12 @@ TEST_P(ClassifyUrlNavigationThrottleParallelizationTest,
   EXPECT_FALSE(resume_called());
 
   histogram_tester()->ExpectBucketCount(
-      kSupervisedUserTopLevelURLFilteringResultHistogramName,
+      kSupervisedUserTopLevelURLFilteringResult2HistogramName,
       SupervisedUserFilterTopLevelResult::kAllow, 3);
+  histogram_tester()->ExpectBucketCount(
+      "SupervisedUsers.All.TopLevelFilteringResult.NavigationThrottle",
+      SupervisedUserFilterTopLevelResult::kAllow, 3);
+
   // Since the throttle had to wait for checks to complete, it recorded a
   // corresponding metric.
   histogram_tester()->ExpectTotalCount(
@@ -582,7 +623,7 @@ TEST_P(ClassifyUrlNavigationThrottleParallelizationTest,
       mock_url_checker_client().GetPendingChecksCount();
   EXPECT_EQ(unique_urls.size(), pending_checks_count);
   histogram_tester()->ExpectBucketCount(
-      kSupervisedUserTopLevelURLFilteringResultHistogramName,
+      kSupervisedUserTopLevelURLFilteringResult2HistogramName,
       SupervisedUserFilterTopLevelResult::kAllow, 0);
 
   // Before the throttle will be notified that the content is ready, complete
@@ -604,8 +645,12 @@ TEST_P(ClassifyUrlNavigationThrottleParallelizationTest,
   EXPECT_FALSE(resume_called());
 
   histogram_tester()->ExpectBucketCount(
-      kSupervisedUserTopLevelURLFilteringResultHistogramName,
+      kSupervisedUserTopLevelURLFilteringResult2HistogramName,
       SupervisedUserFilterTopLevelResult::kAllow, 3);
+  histogram_tester()->ExpectBucketCount(
+      "SupervisedUsers.All.TopLevelFilteringResult.NavigationThrottle",
+      SupervisedUserFilterTopLevelResult::kAllow, 3);
+
   // Since the throttle had to wait for checks to complete, it recorded a
   // corresponding metric.
   histogram_tester()->ExpectTotalCount(
@@ -640,7 +685,10 @@ TEST_P(ClassifyUrlNavigationThrottleParallelizationTest,
   EXPECT_EQ(unique_urls.size(),
             mock_url_checker_client().GetPendingChecksCount());
   histogram_tester()->ExpectBucketCount(
-      kSupervisedUserTopLevelURLFilteringResultHistogramName,
+      kSupervisedUserTopLevelURLFilteringResult2HistogramName,
+      SupervisedUserFilterTopLevelResult::kAllow, 0);
+  histogram_tester()->ExpectBucketCount(
+      "SupervisedUsers.All.TopLevelFilteringResult.NavigationThrottle",
       SupervisedUserFilterTopLevelResult::kAllow, 0);
 
   // Complete all but first check
@@ -656,7 +704,10 @@ TEST_P(ClassifyUrlNavigationThrottleParallelizationTest,
   // Now only one check is pending and the rest are completed.
   EXPECT_EQ(std::size_t(1), mock_url_checker_client().GetPendingChecksCount());
   histogram_tester()->ExpectBucketCount(
-      kSupervisedUserTopLevelURLFilteringResultHistogramName,
+      kSupervisedUserTopLevelURLFilteringResult2HistogramName,
+      SupervisedUserFilterTopLevelResult::kAllow, unique_urls.size() - 1);
+  histogram_tester()->ExpectBucketCount(
+      "SupervisedUsers.All.TopLevelFilteringResult.NavigationThrottle",
       SupervisedUserFilterTopLevelResult::kAllow, unique_urls.size() - 1);
 
   // But will block at process response because one check is still
@@ -673,8 +724,12 @@ TEST_P(ClassifyUrlNavigationThrottleParallelizationTest,
   // independently).
   EXPECT_TRUE(resume_called());
   histogram_tester()->ExpectBucketCount(
-      kSupervisedUserTopLevelURLFilteringResultHistogramName,
+      kSupervisedUserTopLevelURLFilteringResult2HistogramName,
       SupervisedUserFilterTopLevelResult::kAllow, 3);
+  histogram_tester()->ExpectBucketCount(
+      "SupervisedUsers.All.TopLevelFilteringResult.NavigationThrottle",
+      SupervisedUserFilterTopLevelResult::kAllow, 3);
+
   // Since the throttle had to wait for checks to complete, it recorded a
   // corresponding metric.
   histogram_tester()->ExpectTotalCount(
@@ -703,7 +758,10 @@ TEST_P(ClassifyUrlNavigationThrottleParallelizationTest,
 
   // And one completed block from safe-sites (async checker)
   histogram_tester()->ExpectBucketCount(
-      kSupervisedUserTopLevelURLFilteringResultHistogramName,
+      kSupervisedUserTopLevelURLFilteringResult2HistogramName,
+      SupervisedUserFilterTopLevelResult::kBlockSafeSites, 1);
+  histogram_tester()->ExpectBucketCount(
+      "SupervisedUsers.All.TopLevelFilteringResult.NavigationThrottle",
       SupervisedUserFilterTopLevelResult::kBlockSafeSites, 1);
 
   // As a result, the navigation is not resumed
@@ -749,7 +807,10 @@ TEST_P(ClassifyUrlNavigationThrottleParallelizationTest,
   // There will be two pending checks (first was synchronous)
   EXPECT_EQ(std::size_t(2), mock_url_checker_client().GetPendingChecksCount());
   histogram_tester()->ExpectBucketCount(
-      kSupervisedUserTopLevelURLFilteringResultHistogramName,
+      kSupervisedUserTopLevelURLFilteringResult2HistogramName,
+      SupervisedUserFilterTopLevelResult::kAllow, 1);
+  histogram_tester()->ExpectBucketCount(
+      "SupervisedUsers.All.TopLevelFilteringResult.NavigationThrottle",
       SupervisedUserFilterTopLevelResult::kAllow, 1);
 
   // Http server completes first
@@ -763,7 +824,10 @@ TEST_P(ClassifyUrlNavigationThrottleParallelizationTest,
   // Now two out of three checks are complete
   EXPECT_EQ(std::size_t(1), mock_url_checker_client().GetPendingChecksCount());
   histogram_tester()->ExpectBucketCount(
-      kSupervisedUserTopLevelURLFilteringResultHistogramName,
+      kSupervisedUserTopLevelURLFilteringResult2HistogramName,
+      SupervisedUserFilterTopLevelResult::kBlockSafeSites, 1);
+  histogram_tester()->ExpectBucketCount(
+      "SupervisedUsers.All.TopLevelFilteringResult.NavigationThrottle",
       SupervisedUserFilterTopLevelResult::kBlockSafeSites, 1);
 
   // As a result, the navigation is not resumed

@@ -112,7 +112,9 @@ void CongestionControlFeedbackGenerator::SendFeedback(Timestamp now) {
 void CongestionControlFeedbackGenerator::CalculateNextPossibleSendTime(
     DataSize feedback_size,
     Timestamp now) {
-  TimeDelta time_since_last_sent = now - last_feedback_sent_time_;
+  TimeDelta time_since_last_sent = last_feedback_sent_time_.IsFinite()
+                                       ? now - last_feedback_sent_time_
+                                       : TimeDelta::Zero();
   DataSize debt_payed = time_since_last_sent * kMaxFeedbackRate;
   send_rate_debt_ = debt_payed > send_rate_debt_ ? DataSize::Zero()
                                                  : send_rate_debt_ - debt_payed;

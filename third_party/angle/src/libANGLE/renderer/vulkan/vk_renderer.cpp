@@ -356,8 +356,6 @@ constexpr const char *kSkippedMessages[] = {
     "VUID-vkCmdEndQuery-None-07007",
     // https://anglebug.com/475549551
     "VUID-VkGraphicsPipelineCreateInfo-renderPass-09652",
-    // https://anglebug.com/481069415
-    "VUID-vkCmdDraw-viewMask-06178",
 };
 
 // Validation messages that should be ignored only when VK_EXT_primitive_topology_list_restart is
@@ -5735,7 +5733,8 @@ void Renderer::initFeatures(const vk::ExtensionNameList &deviceExtensionNames,
     // ARM proprietary driver does buffer copy on geometry pipeline, which may create a GPU pipeline
     // bubble that prevents vertex shader to overlap with fragment shader on job manager based
     // architecture. For now we always choose CPU to do copy on ARM job manager based GPU.
-    ANGLE_FEATURE_CONDITION(&mFeatures, preferCPUForBufferSubData, isARMProprietary);
+    ANGLE_FEATURE_CONDITION(&mFeatures, preferCPUForBufferSubData,
+                            isARMProprietary || isQualcommProprietary);
 
     // On android, we usually are GPU limited, we try to use CPU to do data copy when other
     // conditions are the same. Set to zero will use GPU to do copy. This is subject to further
@@ -6766,7 +6765,12 @@ void Renderer::initFeatures(const vk::ExtensionNameList &deviceExtensionNames,
                             mTextureCompressionASTC3DFeatures.textureCompressionASTC_3D == VK_TRUE);
 
     // This feature flag shows reduced CPU instruction.
-    ANGLE_FEATURE_CONDITION(&mFeatures, enableMergeClientAttribBuffer, true);
+    // Older Samsung drivers with version < 25.0.0 have a bug in vertex attribute packing that
+    // causes failures in some deqp tests when enableMergeClientAttribBuffer feature is enabled.
+    const bool isSamsungDriverWithVertexAttributePackingBug =
+        isSamsung && driverVersion < angle::VersionTriple(25, 0, 0);
+    ANGLE_FEATURE_CONDITION(&mFeatures, enableMergeClientAttribBuffer,
+                            !isSamsungDriverWithVertexAttributePackingBug);
 }
 
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -7365,26 +7369,26 @@ bool Renderer::cleanupOrphanedSamplers()
     }
 
     // Destroy any sampler that is no longer referenced.
-    std::vector<SharedSamplerPtr> remainingSamplers;
-    for (SharedSamplerPtr &sampler : mOrphanedSamplers)
-    {
-        if (!sampler.unique())
-        {
-            remainingSamplers.push_back(sampler);
-        }
-    }
-    const uint32_t destroyedSamplerCount =
-        static_cast<uint32_t>(mOrphanedSamplers.size() - remainingSamplers.size());
-    onDeallocateHandle(vk::HandleType::Sampler, destroyedSamplerCount);
-    mOrphanedSamplers = std::move(remainingSamplers);
+    const size_t samplerCountBefore = mOrphanedSamplers.size();
+    // Using remove_if to avoid unnecessary reference counter updates.
+    mOrphanedSamplers.erase(
+        std::remove_if(mOrphanedSamplers.begin(), mOrphanedSamplers.end(),
+                       [](SharedSamplerPtr &sampler) { return sampler.unique(); }),
+        mOrphanedSamplers.end());
+    const size_t destroyedSamplerCount = samplerCountBefore - mOrphanedSamplers.size();
 
     bool anyCleaned = destroyedSamplerCount > 0;
 
+    if (anyCleaned)
+    {
+        onDeallocateHandle(vk::HandleType::Sampler, static_cast<uint32_t>(destroyedSamplerCount));
+    }
+
     // If all samplers are gone, destroy all the ycbcr conversion objects too.  We don't track which
     // samplers use which ycbcr conversion objects, so they are destroyed conservatively.
-    if (remainingSamplers.empty())
+    if (mOrphanedSamplers.empty() && !mOrphanedSamplerYcbcrConversions.empty())
     {
-        anyCleaned = anyCleaned || !mOrphanedSamplerYcbcrConversions.empty();
+        anyCleaned = true;
         for (VkSamplerYcbcrConversion handle : mOrphanedSamplerYcbcrConversions)
         {
             vk::SamplerYcbcrConversion conversion;

@@ -6,6 +6,7 @@
 
 #include "third_party/blink/public/mojom/permissions/permission.mojom-blink.h"
 #include "third_party/blink/public/strings/grit/permission_element_strings.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_accuracy_mode.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/events/event.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
@@ -19,7 +20,6 @@
 namespace blink {
 
 namespace {
-const char kAccuracyModePrecise[] = "precise";
 
 // Timeout for querying location (in milliseconds).
 constexpr uint16_t kDefaultQueryLocationTimeoutMs = 10000;
@@ -28,7 +28,7 @@ PositionOptions* CreateDefaultLocationOptions() {
   PositionOptions* options = PositionOptions::Create();
   options->setTimeout(kDefaultQueryLocationTimeoutMs);
   options->setMaximumAge(0);
-  options->setEnableHighAccuracy(false);
+  options->setEnableHighAccuracy(true);
   return options;
 }
 
@@ -106,8 +106,9 @@ void HTMLGeolocationElement::ParseAttribute(
       ClearWatch();
     }
   } else if (params.name == html_names::kAccuracymodeAttr) {
-    SetPreciseLocation(
-        EqualIgnoringASCIICase(params.new_value, kAccuracyModePrecise));
+    SetPreciseLocation(EqualIgnoringASCIICase(
+        params.new_value,
+        V8AccuracyMode(V8AccuracyMode::Enum::kPrecise).AsStringView()));
   }
 
   // If it's not a geolocation element specific attribute, the base class

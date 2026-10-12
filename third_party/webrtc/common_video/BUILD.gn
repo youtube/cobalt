@@ -85,7 +85,10 @@ rtc_library("common_video") {
     "../rtc_base:timeutils",
     "../rtc_base/synchronization:mutex",
     "../rtc_base/system:rtc_export",
+    "../system_wrappers",
     "../system_wrappers:metrics",
+    "//third_party/abseil-cpp/absl/base:core_headers",
+    "//third_party/abseil-cpp/absl/base:nullability",
     "//third_party/abseil-cpp/absl/numeric:bits",
     "//third_party/libyuv",
   ]

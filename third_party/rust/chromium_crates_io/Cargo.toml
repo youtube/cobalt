@@ -21,6 +21,7 @@ anyhow = "1.0.98"
 base64 = "0.22"
 bitflags = "2"
 bytes = "1"
+chrono = "0.4.43"
 cxx = "1"
 fend-core = "1"
 font-types = "0.11"
@@ -30,6 +31,7 @@ indexmap = "2.12.1"
 lazy_static = "1"
 libc = "0.2"
 minijinja = "2.14.0"
+num-traits = "0.2"
 ordered-float = "5.1.0"
 png = "=0.18.0-rc"
 proc-macro2 = "1"
@@ -43,6 +45,7 @@ serde_json = "1.0.149"
 skrifa = "0.40.0"
 small_ctor = "0.1"
 static_assertions = "1"
+strum = "0.27.2"
 xml = "1.2.0"
 
 [dependencies.bytemuck]
@@ -130,7 +133,7 @@ version = "0.5.4"
 # codecs specifically added in `features`. Enabling new codec support requires a
 # package configuration through gnrt vendor and gnrt gen.
 default-features = false
-features = ["flac"]
+features = ["flac", "mp3", "pcm"]
 
 [dependencies.syn]
 version = "2"

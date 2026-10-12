@@ -296,7 +296,7 @@ class ExecutionEngine : public ToolDelegate {
 
   void LogNavigationGating(
       base::optional_ref<const url::Origin> initiator_origin,
-      const GURL& navigation_url,
+      const url::Origin& navigation_origin,
       bool applied_gate) const;
 
   // Returns the highest-priority navigation gating decision. Prioritizes
@@ -312,7 +312,7 @@ class ExecutionEngine : public ToolDelegate {
       NavigationDecisionCallback callback);
   void OnNavigationSensitiveUrlListChecked(
       base::optional_ref<const url::Origin> initiator_origin,
-      const GURL navigation_url,
+      const url::Origin& navigation_origin,
       bool skip_prompt,
       base::ScopedUmaHistogramTimer timer,
       NavigationDecisionCallback callback,
@@ -334,11 +334,8 @@ class ExecutionEngine : public ToolDelegate {
       NavigationDecisionCallback callback,
       webui::mojom::NavigationConfirmationResponsePtr response);
 
-  // Called when the browser detects the actor navigating to an origin in the
-  // sensitive origin list. The web client should confirm with the user that the
-  // actor is allowed to navigate to this origin.
-  // This may also be called when the browser detects the actor navigating to
-  // a novel origin when `kGlicPromptUserForNavigationToNewOrigins` is enabled.
+  // Makes the web client confirm with the user that the actor is allowed to
+  // navigate to this origin.
   void SendUserConfirmationDialogRequest(
       const url::Origin& navigation_origin,
       bool for_sensitive_origin,
@@ -346,7 +343,6 @@ class ExecutionEngine : public ToolDelegate {
       NavigationDecisionCallback callback);
   void OnPromptUserToConfirmNavigationDecision(
       url::Origin navigation_origin,
-      bool for_sensitive_origin,
       NavigationDecisionCallback callback,
       webui::mojom::UserConfirmationDialogResponsePtr response);
 
@@ -386,8 +382,8 @@ class ExecutionEngine : public ToolDelegate {
   // The results for actions so far.
   std::vector<ActionResultWithLatencyInfo> action_results_;
 
-  // Manages the sets of origins that have been allowed for navigations and
-  // sensitive operations.
+  // Manages the sets of origins that have been allowed for navigations and that
+  // the user has been prompted about.
   OriginChecker origin_checker_;
 
 #if !BUILDFLAG(SKIP_ANDROID_UNMIGRATED_ACTOR_FILES)

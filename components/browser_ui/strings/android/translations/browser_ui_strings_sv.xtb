@@ -20,6 +20,7 @@
 <translation id="1242008676835033345">Inbäddad på <ph name="WEBSITE_URL" /></translation>
 <translation id="1263609676484797429">Tryck på Appar &gt; Standardappar</translation>
 <translation id="1272079795634619415">Stopp</translation>
+<translation id="1275718070701477396">Markerad</translation>
 <translation id="1289742167380433257">Bilderna på den här sidan har optimerats av Google så att du sparar data.</translation>
 <translation id="129382876167171263">Filer som webbplatser har sparat visas här</translation>
 <translation id="131112695174432497">Data som påverkar annonsanpassning raderas</translation>
@@ -495,6 +496,7 @@ Avancerat skydd styr följande Chrome-inställningar:
 <translation id="6085954183010297841">Vill du radera behörigheten för filredigering? <ph name="FILE" /></translation>
 <translation id="6104860901391833523">När detta är aktiverat kan webbplatser öppna bild-i-bild automatiskt. När detta är inaktiverat kan webbplatser inte öppna bild-i-bild automatiskt.</translation>
 <translation id="6120483543004435978">När detta är aktiverat kan webbplatser be om att få veta om du använder enheten aktivt. När detta är inaktiverat får webbplatser inte veta om du använder enheten aktivt.</translation>
+<translation id="6132075343662013154">Chrome frågar om du vill spara lösenordet</translation>
 <translation id="615886654739818377">Tillåt inte att webbplatser hanterar fönster på alla skärmar</translation>
 <translation id="6165508094623778733">Läs mer</translation>
 <translation id="6171020522141473435">När detta är aktiverat kan webbplatser be om att få använda Bluetooth-enheter. När detta är inaktiverat får webbplatser inte använda Bluetooth-enheter.</translation>

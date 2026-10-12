@@ -10,11 +10,13 @@
 #include <vector>
 
 #include "absl/status/status.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "openssl/base.h"
 #include "quiche/quic/masque/masque_connection_pool.h"
 #include "quiche/quic/masque/masque_ohttp_client.h"
 #include "quiche/common/platform/api/quiche_command_line_flags.h"
+#include "quiche/common/platform/api/quiche_file_utils.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_status_utils.h"
 
@@ -28,6 +30,12 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(bool, chunked, false,
                                 "If true, use chunked OHTTP.");
+
+DEFINE_QUICHE_COMMAND_LINE_FLAG(std::optional<bool>, indeterminate_length,
+                                std::nullopt,
+                                "If set, overrides whether to use the "
+                                "indeterminate length binary HTTP encoding. If "
+                                "unset, uses the value of --chunked.");
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(int, address_family, 0,
                                 "IP address family to use. Must be 0, 4 or 6. "
@@ -45,6 +53,11 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     "When set, the client will send a POST request with this data.");
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::string, post_data_file, "",
+    "When set, the client will send a POST request with the contents of this "
+    "file.");
+
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
     std::string, private_token, "",
     "When set, the client will attach a base64-encoded private token to the "
     "encapsulated request. Accepts any base64 encoding.");
@@ -56,6 +69,11 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     "HOST2:PORT2. HOST1 and PORT1 can be empty, which matches any host and "
     "port. PORT2 can be empty to not override ports. Multiple overrides can be "
     "specified separated by semi-colons.");
+
+DEFINE_QUICHE_COMMAND_LINE_FLAG(std::optional<std::string>,
+                                expect_gateway_error, std::nullopt,
+                                "If set, the client will expect this text in "
+                                "the error message for the gateway response.");
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
     std::optional<int16_t>, expect_gateway_response_code, std::nullopt,
@@ -75,10 +93,14 @@ absl::Status RunMasqueOhttpClient(int argc, char* argv[]) {
       quiche::GetQuicheCommandLineFlag(FLAGS_use_mtls_for_key_fetch);
   const bool use_chunked_ohttp =
       quiche::GetQuicheCommandLineFlag(FLAGS_chunked);
+  const std::optional<bool> indeterminate_length =
+      quiche::GetQuicheCommandLineFlag(FLAGS_indeterminate_length);
   const std::string client_cert_file =
       quiche::GetQuicheCommandLineFlag(FLAGS_client_cert_file);
   const std::string client_cert_key_file =
       quiche::GetQuicheCommandLineFlag(FLAGS_client_cert_key_file);
+  const std::optional<std::string> expect_gateway_error =
+      quiche::GetQuicheCommandLineFlag(FLAGS_expect_gateway_error);
   const std::optional<int16_t> expect_gateway_response_code =
       quiche::GetQuicheCommandLineFlag(FLAGS_expect_gateway_response_code);
 
@@ -88,6 +110,21 @@ absl::Status RunMasqueOhttpClient(int argc, char* argv[]) {
   QUICHE_RETURN_IF_ERROR(dns_config.SetOverrides(
       quiche::GetQuicheCommandLineFlag(FLAGS_dns_override)));
   std::string post_data = quiche::GetQuicheCommandLineFlag(FLAGS_post_data);
+  std::string post_data_file =
+      quiche::GetQuicheCommandLineFlag(FLAGS_post_data_file);
+  if (!post_data_file.empty()) {
+    if (!post_data.empty()) {
+      return absl::InvalidArgumentError(
+          "Only one of --post_data and --post_data_file can be set.");
+    }
+    std::optional<std::string> post_data_from_file =
+        quiche::ReadFileContents(post_data_file);
+    if (!post_data_from_file.has_value()) {
+      return absl::InvalidArgumentError(absl::StrCat(
+          "Failed to read post data from file \"", post_data_file, "\""));
+    }
+    post_data = *post_data_from_file;
+  }
   std::string private_token =
       quiche::GetQuicheCommandLineFlag(FLAGS_private_token);
 
@@ -108,7 +145,11 @@ absl::Status RunMasqueOhttpClient(int argc, char* argv[]) {
     MasqueOhttpClient::Config::PerRequestConfig per_request_config(urls[i]);
     per_request_config.SetPostData(post_data);
     per_request_config.SetUseChunkedOhttp(use_chunked_ohttp);
+    per_request_config.SetUseIndeterminateLength(indeterminate_length);
     per_request_config.SetPrivateToken(private_token);
+    if (expect_gateway_error.has_value()) {
+      per_request_config.SetExpectedGatewayError(*expect_gateway_error);
+    }
     if (expect_gateway_response_code.has_value()) {
       per_request_config.SetExpectedGatewayStatusCode(
           *expect_gateway_response_code);

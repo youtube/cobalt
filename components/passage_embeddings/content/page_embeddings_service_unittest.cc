@@ -57,6 +57,7 @@ class EmbedderMock : public Embedder {
 class ObserverMock : public PageEmbeddingsService::Observer {
  public:
   MOCK_METHOD(PageEmbeddingsService::Priority, GetDefaultPriority, (), (const));
+  MOCK_METHOD(PageEmbeddingsService::UsageMode, GetUsageMode, (), (const));
 
   MOCK_METHOD(void,
               OnPageEmbeddingsAvailable,
@@ -71,7 +72,8 @@ class PageEmbeddingsServiceTest : public content::RenderViewHostTestHarness {
 
     os_crypt_async_ = os_crypt_async::GetTestOSCryptAsyncForTesting();
     page_content_extraction_service_.emplace(os_crypt_async_.get(),
-                                             GetBrowserContext()->GetPath());
+                                             GetBrowserContext()->GetPath(),
+                                             /*tracker=*/nullptr);
 
     page_embeddings_service_.emplace(base::BindRepeating(&GenerateCandidates),
                                      &page_content_extraction_service_.value(),
@@ -148,6 +150,8 @@ TEST_F(PageEmbeddingsServiceTest, NotifiesObserver) {
   ObserverMock observer;
   EXPECT_CALL(observer, GetDefaultPriority)
       .WillRepeatedly(Return(PageEmbeddingsService::kDefault));
+  EXPECT_CALL(observer, GetUsageMode)
+      .WillRepeatedly(Return(PageEmbeddingsService::kOnDemand));
   page_embeddings_service().AddObserver(&observer);
 
   Embedder::ComputePassagesEmbeddingsCallback
@@ -183,6 +187,8 @@ TEST_F(PageEmbeddingsServiceTest,
   ObserverMock observer;
   EXPECT_CALL(observer, GetDefaultPriority)
       .WillRepeatedly(Return(PageEmbeddingsService::kDefault));
+  EXPECT_CALL(observer, GetUsageMode)
+      .WillRepeatedly(Return(PageEmbeddingsService::kOnDemand));
   page_embeddings_service().AddObserver(&observer);
 
   Embedder::ComputePassagesEmbeddingsCallback
@@ -476,10 +482,14 @@ TEST_F(PageEmbeddingsServiceTest, PrioritySetBasedOnHighestPriorityObserver) {
   ObserverMock observer_urgent;
   EXPECT_CALL(observer_urgent, GetDefaultPriority)
       .WillRepeatedly(Return(PageEmbeddingsService::kUrgent));
+  EXPECT_CALL(observer_urgent, GetUsageMode)
+      .WillRepeatedly(Return(PageEmbeddingsService::kOnDemand));
 
   ObserverMock observer_user_blocking;
   EXPECT_CALL(observer_user_blocking, GetDefaultPriority)
       .WillRepeatedly(Return(PageEmbeddingsService::kUserBlocking));
+  EXPECT_CALL(observer_user_blocking, GetUsageMode)
+      .WillRepeatedly(Return(PageEmbeddingsService::kOnDemand));
 
   EXPECT_CALL(embedder_mock(), ComputePassagesEmbeddings).Times(AnyNumber());
   EXPECT_CALL(embedder_mock(), TryCancel).Times(AnyNumber());
@@ -547,6 +557,8 @@ TEST_F(PageEmbeddingsServiceTest, TasksReprioritized) {
   ObserverMock observer_urgent;
   EXPECT_CALL(observer_urgent, GetDefaultPriority)
       .WillRepeatedly(Return(PageEmbeddingsService::kUrgent));
+  EXPECT_CALL(observer_urgent, GetUsageMode)
+      .WillRepeatedly(Return(PageEmbeddingsService::kOnDemand));
 
   EXPECT_CALL(embedder_mock(), ComputePassagesEmbeddings).Times(AnyNumber());
 
@@ -575,6 +587,8 @@ TEST_F(PageEmbeddingsServiceTest, TasksReprioritized) {
   ObserverMock observer_user_blocking;
   EXPECT_CALL(observer_user_blocking, GetDefaultPriority)
       .WillRepeatedly(Return(PageEmbeddingsService::kUserBlocking));
+  EXPECT_CALL(observer_user_blocking, GetUsageMode)
+      .WillRepeatedly(Return(PageEmbeddingsService::kOnDemand));
 
   EXPECT_CALL(embedder_mock(),
               ReprioritizeTasks(kUserInitiated, ElementsAre(1, 2)));
@@ -602,6 +616,8 @@ TEST_F(PageEmbeddingsServiceTest, ScopedPriority) {
   ObserverMock observer;
   EXPECT_CALL(observer, GetDefaultPriority)
       .WillRepeatedly(Return(PageEmbeddingsService::kUrgent));
+  EXPECT_CALL(observer, GetUsageMode)
+      .WillRepeatedly(Return(PageEmbeddingsService::kOnDemand));
 
   EXPECT_CALL(embedder_mock(), ComputePassagesEmbeddings).Times(AnyNumber());
   EXPECT_CALL(embedder_mock(), TryCancel).Times(AnyNumber());
@@ -651,10 +667,14 @@ TEST_F(PageEmbeddingsServiceTest, ScopedPriorityWithHigherPriorityObserver) {
   ObserverMock observer_default;
   EXPECT_CALL(observer_default, GetDefaultPriority)
       .WillRepeatedly(Return(PageEmbeddingsService::kDefault));
+  EXPECT_CALL(observer_default, GetUsageMode)
+      .WillRepeatedly(Return(PageEmbeddingsService::kOnDemand));
 
   ObserverMock observer_user_blocking;
   EXPECT_CALL(observer_user_blocking, GetDefaultPriority)
       .WillRepeatedly(Return(PageEmbeddingsService::kUserBlocking));
+  EXPECT_CALL(observer_user_blocking, GetUsageMode)
+      .WillRepeatedly(Return(PageEmbeddingsService::kOnDemand));
 
   EXPECT_CALL(embedder_mock(), ComputePassagesEmbeddings).Times(AnyNumber());
   EXPECT_CALL(embedder_mock(), TryCancel).Times(AnyNumber());
@@ -696,8 +716,10 @@ TEST_F(PageEmbeddingsServiceTest, ScopedPriorityWithHigherPriorityObserver) {
   page_embeddings_service().RemoveObserver(&observer_default);
 }
 
-// Validates that the active tab's embeddings are not computed while visible.
-TEST_F(PageEmbeddingsServiceTest, EmbeddingsForActiveTabDeferredWhileVisible) {
+// Validates that the active tab's embeddings are not computed while visible in
+// on demand mode.
+TEST_F(PageEmbeddingsServiceTest,
+       EmbeddingsForActiveTabDeferredWhileVisibleInOnDemandMode) {
   std::unique_ptr<content::WebContents> web_contents =
       CreateTestWebContentsWithVisibility(content::Visibility::VISIBLE);
 
@@ -706,6 +728,8 @@ TEST_F(PageEmbeddingsServiceTest, EmbeddingsForActiveTabDeferredWhileVisible) {
   ObserverMock observer;
   EXPECT_CALL(observer, GetDefaultPriority)
       .WillRepeatedly(Return(PageEmbeddingsService::kDefault));
+  EXPECT_CALL(observer, GetUsageMode)
+      .WillRepeatedly(Return(PageEmbeddingsService::kOnDemand));
   EXPECT_CALL(observer, OnPageEmbeddingsAvailable(web_contents.get())).Times(0);
 
   page_embeddings_service().AddObserver(&observer);
@@ -717,9 +741,10 @@ TEST_F(PageEmbeddingsServiceTest, EmbeddingsForActiveTabDeferredWhileVisible) {
   page_embeddings_service().RemoveObserver(&observer);
 }
 
-// Validates that the active tab's embeddings are computed on the transition
-// from visible to hidden.
-TEST_F(PageEmbeddingsServiceTest, EmbeddingsForActiveTabComputedOnHidden) {
+// Validates that the active tab's embeddings are computed while visible in
+// continuous mode.
+TEST_F(PageEmbeddingsServiceTest,
+       EmbeddingsForActiveTabComputedWhileVisibleInContinuousMode) {
   std::unique_ptr<content::WebContents> web_contents =
       CreateTestWebContentsWithVisibility(content::Visibility::VISIBLE);
 
@@ -738,6 +763,101 @@ TEST_F(PageEmbeddingsServiceTest, EmbeddingsForActiveTabComputedOnHidden) {
   ObserverMock observer;
   EXPECT_CALL(observer, GetDefaultPriority)
       .WillRepeatedly(Return(PageEmbeddingsService::kDefault));
+  EXPECT_CALL(observer, GetUsageMode)
+      .WillRepeatedly(Return(PageEmbeddingsService::kContinuous));
+  EXPECT_CALL(observer, OnPageEmbeddingsAvailable(web_contents.get())).Times(1);
+
+  page_embeddings_service().AddObserver(&observer);
+
+  page_embeddings_service().OnPageContentExtracted(
+      web_contents->GetPrimaryPage(),
+      optimization_guide::proto::AnnotatedPageContent());
+
+  ASSERT_FALSE(compute_passages_embeddings_callback.is_null());
+  std::move(compute_passages_embeddings_callback)
+      .Run({"passage text"}, {Embedding({1.0f})}, 1,
+           ComputeEmbeddingsStatus::kSuccess);
+
+  page_embeddings_service().RemoveObserver(&observer);
+}
+
+// Validates that the active tab's embeddings are computed when switching from
+// on demand mode to continuous.
+TEST_F(PageEmbeddingsServiceTest,
+       EmbeddingsForActiveTabComputedWhenSwitchingToContinuousMode) {
+  std::unique_ptr<content::WebContents> web_contents =
+      CreateTestWebContentsWithVisibility(content::Visibility::VISIBLE);
+
+  Embedder::ComputePassagesEmbeddingsCallback
+      compute_passages_embeddings_callback;
+
+  ON_CALL(embedder_mock(), ComputePassagesEmbeddings)
+      .WillByDefault([&](PassagePriority priority,
+                         std::vector<std::string> passages,
+                         Embedder::ComputePassagesEmbeddingsCallback callback) {
+        compute_passages_embeddings_callback = std::move(callback);
+        return 1;
+      });
+  EXPECT_CALL(embedder_mock(), ComputePassagesEmbeddings).Times(1);
+
+  ObserverMock on_demand_observer;
+  EXPECT_CALL(on_demand_observer, GetDefaultPriority)
+      .WillRepeatedly(Return(PageEmbeddingsService::kDefault));
+  EXPECT_CALL(on_demand_observer, GetUsageMode)
+      .WillRepeatedly(Return(PageEmbeddingsService::kOnDemand));
+  EXPECT_CALL(on_demand_observer, OnPageEmbeddingsAvailable(web_contents.get()))
+      .Times(1);
+
+  page_embeddings_service().AddObserver(&on_demand_observer);
+
+  ObserverMock continuous_observer;
+  EXPECT_CALL(continuous_observer, GetDefaultPriority)
+      .WillRepeatedly(Return(PageEmbeddingsService::kDefault));
+  EXPECT_CALL(continuous_observer, GetUsageMode)
+      .WillRepeatedly(Return(PageEmbeddingsService::kContinuous));
+  EXPECT_CALL(continuous_observer,
+              OnPageEmbeddingsAvailable(web_contents.get()))
+      .Times(1);
+
+  page_embeddings_service().AddObserver(&continuous_observer);
+
+  page_embeddings_service().OnPageContentExtracted(
+      web_contents->GetPrimaryPage(),
+      optimization_guide::proto::AnnotatedPageContent());
+
+  ASSERT_FALSE(compute_passages_embeddings_callback.is_null());
+  std::move(compute_passages_embeddings_callback)
+      .Run({"passage text"}, {Embedding({1.0f})}, 1,
+           ComputeEmbeddingsStatus::kSuccess);
+
+  page_embeddings_service().RemoveObserver(&on_demand_observer);
+  page_embeddings_service().RemoveObserver(&continuous_observer);
+}
+
+// Validates that the active tab's embeddings are computed on the transition
+// from visible to hidden in on demand mode.
+TEST_F(PageEmbeddingsServiceTest,
+       EmbeddingsForActiveTabComputedOnHiddenInOnDemandMode) {
+  std::unique_ptr<content::WebContents> web_contents =
+      CreateTestWebContentsWithVisibility(content::Visibility::VISIBLE);
+
+  Embedder::ComputePassagesEmbeddingsCallback
+      compute_passages_embeddings_callback;
+
+  ON_CALL(embedder_mock(), ComputePassagesEmbeddings)
+      .WillByDefault([&](PassagePriority priority,
+                         std::vector<std::string> passages,
+                         Embedder::ComputePassagesEmbeddingsCallback callback) {
+        compute_passages_embeddings_callback = std::move(callback);
+        return 1;
+      });
+  EXPECT_CALL(embedder_mock(), ComputePassagesEmbeddings).Times(1);
+
+  ObserverMock observer;
+  EXPECT_CALL(observer, GetDefaultPriority)
+      .WillRepeatedly(Return(PageEmbeddingsService::kDefault));
+  EXPECT_CALL(observer, GetUsageMode)
+      .WillRepeatedly(Return(PageEmbeddingsService::kOnDemand));
   EXPECT_CALL(observer, OnPageEmbeddingsAvailable(web_contents.get())).Times(1);
 
   page_embeddings_service().OnPageContentExtracted(
@@ -757,9 +877,9 @@ TEST_F(PageEmbeddingsServiceTest, EmbeddingsForActiveTabComputedOnHidden) {
 }
 
 // Validates that the active tab's embeddings are computed on invoking
-// ProcessAllEmbeddings().
+// ProcessEmbeddingsOnDemand() in on demand mode.
 TEST_F(PageEmbeddingsServiceTest,
-       EmbeddingsForActiveTabComputedOnProcessAllEmbeddings) {
+       EmbeddingsForActiveTabComputedOnProcessEmbeddingsOnDemand) {
   std::unique_ptr<content::WebContents> web_contents =
       CreateTestWebContentsWithVisibility(content::Visibility::VISIBLE);
 
@@ -778,6 +898,8 @@ TEST_F(PageEmbeddingsServiceTest,
   ObserverMock observer;
   EXPECT_CALL(observer, GetDefaultPriority)
       .WillRepeatedly(Return(PageEmbeddingsService::kDefault));
+  EXPECT_CALL(observer, GetUsageMode)
+      .WillRepeatedly(Return(PageEmbeddingsService::kOnDemand));
   EXPECT_CALL(observer, OnPageEmbeddingsAvailable(web_contents.get())).Times(1);
 
   page_embeddings_service().OnPageContentExtracted(
@@ -786,7 +908,7 @@ TEST_F(PageEmbeddingsServiceTest,
 
   page_embeddings_service().AddObserver(&observer);
 
-  page_embeddings_service().ProcessAllEmbeddings();
+  page_embeddings_service().ProcessEmbeddingsOnDemand();
 
   ASSERT_FALSE(compute_passages_embeddings_callback.is_null());
   std::move(compute_passages_embeddings_callback)

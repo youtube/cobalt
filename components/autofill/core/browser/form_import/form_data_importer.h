@@ -18,6 +18,7 @@
 #include "components/autofill/core/browser/data_manager/addresses/address_data_manager.h"
 #include "components/autofill/core/browser/form_import/addresses/autofill_profile_import_process.h"
 #include "components/autofill/core/browser/form_import/form_data_importer_utils.h"
+#include "components/autofill/core/browser/form_import/payments/payments_form_data_importer.h"
 #include "components/autofill/core/browser/form_structure.h"
 #include "components/history/core/browser/history_service_observer.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
@@ -98,19 +99,9 @@ class FormDataImporter : public AddressDataManager::Observer,
                                 bool payment_methods_autofill_enabled,
                                 ukm::SourceId ukm_source_id);
 
-  struct ExtractCreditCardFromFormResult {
-    // The extracted credit card, which may be a candidate for import.
-    // If there is no credit card field in the form, the value is the default
-    // `CreditCard()`.
-    CreditCard card;
-    // If there are multiple credit card fields of the same type in the form, we
-    // won't know which value to import.
-    bool has_duplicate_credit_card_field_type = false;
-  };
-
   // Extracts credit card from the form structure.
-  ExtractCreditCardFromFormResult ExtractCreditCardFromForm(
-      const FormStructure& form);
+  payments::PaymentsFormDataImporter::ExtractCreditCardFromFormResult
+  ExtractCreditCardFromForm(const FormStructure& form);
 
   // Tries to initiate the saving of `extracted_iban` if applicable.
   bool ProcessIbanImportCandidate(Iban& extracted_iban);
@@ -154,6 +145,9 @@ class FormDataImporter : public AddressDataManager::Observer,
   void SetPaymentMethodTypeIfNonInteractiveAuthenticationFlowCompleted(
       std::optional<NonInteractivePaymentMethodType>
           payment_method_type_if_non_interactive_authentication_flow_completed);
+
+  // Gets the payments::PaymentsFormDataImporter owned by `this`.
+  payments::PaymentsFormDataImporter& GetPaymentsFormDataImporter();
 
  private:
   // Defines an extracted address profile, which is a candidate for address
@@ -360,6 +354,9 @@ class FormDataImporter : public AddressDataManager::Observer,
 
   // Enables associating recently submitted forms with each other.
   FormAssociator form_associator_;
+
+  // FormDataImporter to handle payments-related functionality.
+  payments::PaymentsFormDataImporter payments_form_data_importer_;
 
   // If the most recent payments autofill flow had a non-interactive
   // authentication,

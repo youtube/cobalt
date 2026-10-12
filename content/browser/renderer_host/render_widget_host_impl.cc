@@ -99,6 +99,7 @@
 #include "content/public/browser/render_widget_host_iterator.h"
 #include "content/public/browser/render_widget_host_observer.h"
 #include "content/public/browser/storage_partition.h"
+#include "content/public/browser/tracked_element_observer.h"
 #include "content/public/common/content_constants.h"
 #include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
@@ -1925,6 +1926,16 @@ void RenderWidgetHostImpl::RemoveInputEventObserver(
   input_event_observers_.RemoveObserver(observer);
 }
 
+void RenderWidgetHostImpl::AddTrackedElementObserver(
+    TrackedElementObserver* observer) {
+  tracked_element_observers_.AddObserver(observer);
+}
+
+void RenderWidgetHostImpl::RemoveTrackedElementObserver(
+    TrackedElementObserver* observer) {
+  tracked_element_observers_.RemoveObserver(observer);
+}
+
 void RenderWidgetHostImpl::AddObserver(RenderWidgetHostObserver* observer) {
   observers_.AddObserver(observer);
 }
@@ -2390,15 +2401,12 @@ void RenderWidgetHostImpl::ImeCancelComposition() {
 
 void RenderWidgetHostImpl::RejectPointerLockOrUnlockIfNecessary(
     blink::mojom::PointerLockResult reason) {
-  CHECK(!pending_pointer_lock_request_ || !IsPointerLocked());
+  CHECK(!request_pointer_lock_callback_ || !IsPointerLocked());
   CHECK(reason != blink::mojom::PointerLockResult::kSuccess);
-  if (pending_pointer_lock_request_) {
-    CHECK(request_pointer_lock_callback_);
-    pending_pointer_lock_request_ = false;
+  if (request_pointer_lock_callback_) {
     pointer_lock_raw_movement_ = false;
     std::move(request_pointer_lock_callback_)
         .Run(reason, /*context=*/mojo::NullRemote());
-
   } else if (IsPointerLocked()) {
     view_->UnlockPointer();
   }
@@ -3274,7 +3282,7 @@ void RenderWidgetHostImpl::RequestMouseLock(
     bool from_user_gesture,
     bool unadjusted_movement,
     input::InputRouterImpl::RequestMouseLockCallback response) {
-  if (pending_pointer_lock_request_ || IsPointerLocked()) {
+  if (IsPointerLocked()) {
     std::move(response).Run(blink::mojom::PointerLockResult::kAlreadyLocked,
                             /*context=*/mojo::NullRemote());
     return;
@@ -3288,7 +3296,6 @@ void RenderWidgetHostImpl::RequestMouseLock(
 
   request_pointer_lock_callback_ = std::move(response);
 
-  pending_pointer_lock_request_ = true;
   pointer_lock_raw_movement_ = unadjusted_movement;
   if (!delegate_) {
     // No delegate, reject message.
@@ -3307,11 +3314,6 @@ void RenderWidgetHostImpl::RequestMouseLock(
 void RenderWidgetHostImpl::RequestMouseLockChange(
     bool unadjusted_movement,
     PointerLockContext::RequestMouseLockChangeCallback response) {
-  if (pending_pointer_lock_request_) {
-    std::move(response).Run(blink::mojom::PointerLockResult::kAlreadyLocked);
-    return;
-  }
-
   if (!view_ || !view_->HasFocus()) {
     std::move(response).Run(blink::mojom::PointerLockResult::kWrongDocument);
     return;
@@ -3323,8 +3325,7 @@ void RenderWidgetHostImpl::RequestMouseLockChange(
 void RenderWidgetHostImpl::UnlockPointer() {
   // Got unlock request from renderer. Will update |is_last_unlocked_by_target_|
   // for silent re-lock.
-  const bool was_mouse_locked =
-      !pending_pointer_lock_request_ && IsPointerLocked();
+  const bool was_mouse_locked = IsPointerLocked();
   RejectPointerLockOrUnlockIfNecessary(
       blink::mojom::PointerLockResult::kUserRejected);
   if (was_mouse_locked) {
@@ -3493,14 +3494,11 @@ bool RenderWidgetHostImpl::GotResponseToPointerLockRequest(
   if (response != blink::mojom::PointerLockResult::kSuccess) {
     RejectPointerLockOrUnlockIfNecessary(response);
   }
-  if (!pending_pointer_lock_request_) {
-    // This is possible, e.g., the plugin sends us an unlock request before
-    // the user allows to lock to mouse.
+
+  if (!request_pointer_lock_callback_) {
     return false;
   }
 
-  CHECK(request_pointer_lock_callback_);
-  pending_pointer_lock_request_ = false;
   if (!view_ || !view_->HasFocus()) {
     std::move(request_pointer_lock_callback_)
         .Run(blink::mojom::PointerLockResult::kWrongDocument,
@@ -3898,6 +3896,11 @@ void RenderWidgetHostImpl::OnRenderFrameMetadataChangedAfterActivation(
 
   const auto& metadata =
       render_frame_metadata_provider_.LastRenderFrameMetadata();
+
+  for (TrackedElementObserver& observer : tracked_element_observers_) {
+    observer.OnTrackedElementBoundsChanged(metadata.tracked_element_bounds,
+                                           metadata.device_scale_factor);
+  }
 
   const bool mobile_optimized_state_changed =
       (is_mobile_optimized_ != metadata.is_mobile_optimized);

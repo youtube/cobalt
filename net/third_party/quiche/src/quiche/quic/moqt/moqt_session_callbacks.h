@@ -5,13 +5,17 @@
 #ifndef QUICHE_QUIC_MOQT_MOQT_SESSION_CALLBACKS_H_
 #define QUICHE_QUIC_MOQT_MOQT_SESSION_CALLBACKS_H_
 
+#include <memory>
 #include <optional>
 #include <utility>
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_clock.h"
 #include "quiche/quic/core/quic_default_clock.h"
-#include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_error.h"
+#include "quiche/quic/moqt/moqt_fetch_task.h"
+#include "quiche/quic/moqt/moqt_key_value_pair.h"
+#include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/common/quiche_callbacks.h"
 
 namespace moqt {
@@ -20,7 +24,7 @@ namespace moqt {
 // once; if the argument is nullopt, an OK response was received. Otherwise, an
 // ERROR response was received.
 using MoqtResponseCallback =
-    quiche::SingleUseCallback<void(std::optional<MoqtErrorPair>)>;
+    quiche::SingleUseCallback<void(std::optional<MoqtRequestErrorInfo>)>;
 
 // Called when the SETUP message from the peer is received.
 using MoqtSessionEstablishedCallback = quiche::SingleUseCallback<void()>;
@@ -38,7 +42,8 @@ using MoqtSessionDeletedCallback = quiche::SingleUseCallback<void()>;
 
 // Called whenever a PUBLISH_NAMESPACE or PUBLISH_NAMESPACE_DONE message is
 // received from the peer. PUBLISH_NAMESPACE sets a value for |parameters|,
-// PUBLISH_NAMESPACE_DONE does not..
+// PUBLISH_NAMESPACE_DONE does not. This callback is not invoked by NAMESPACE or
+// NAMESPACE_DONE messages that arrive on a SUBSCRIBE_NAMESPACE stream.
 using MoqtIncomingPublishNamespaceCallback = quiche::MultiUseCallback<void(
     const TrackNamespace& track_namespace,
     const std::optional<VersionSpecificParameters>& parameters,
@@ -48,10 +53,16 @@ using MoqtIncomingPublishNamespaceCallback = quiche::MultiUseCallback<void(
 // the peer. SUBSCRIBE_NAMESPACE sets a value for |parameters|,
 // UNSUBSCRIBE_NAMESPACE does not. For UNSUBSCRIBE_NAMESPACE, |callback| is
 // null.
-using MoqtIncomingSubscribeNamespaceCallback = quiche::MultiUseCallback<void(
-    const TrackNamespace& track_namespace,
-    std::optional<VersionSpecificParameters> parameters,
-    MoqtResponseCallback callback)>;
+// TODO(martinduke): Remove this callback once the new one is in use.
+using MoqtIncomingSubscribeNamespaceCallback =
+    quiche::MultiUseCallback<void(const TrackNamespace& track_namespace,
+                                  std::optional<MessageParameters> parameters,
+                                  MoqtResponseCallback callback)>;
+using MoqtIncomingSubscribeNamespaceCallbackNew =
+    quiche::MultiUseCallback<std::unique_ptr<MoqtNamespaceTask>(
+        const TrackNamespace& prefix, const MessageParameters& parameters,
+        MoqtResponseCallback response_callback,
+        ObjectsAvailableCallback objects_available_callback)>;
 
 inline void DefaultIncomingPublishNamespaceCallback(
     const TrackNamespace&, const std::optional<VersionSpecificParameters>&,
@@ -59,15 +70,25 @@ inline void DefaultIncomingPublishNamespaceCallback(
   if (callback == nullptr) {
     return;
   }
-  return std::move(callback)(MoqtErrorPair{
-      RequestErrorCode::kNotSupported,
+  return std::move(callback)(MoqtRequestErrorInfo{
+      RequestErrorCode::kNotSupported, std::nullopt,
       "This endpoint does not support incoming SUBSCRIBE_NAMESPACE messages"});
 };
 
+// TODO(martinduke): Remove this callback once the new one is in use.
 inline void DefaultIncomingSubscribeNamespaceCallback(
-    const TrackNamespace& track_namespace,
-    std::optional<VersionSpecificParameters>, MoqtResponseCallback callback) {
+    const TrackNamespace& track_namespace, std::optional<MessageParameters>,
+    MoqtResponseCallback callback) {
   std::move(callback)(std::nullopt);
+}
+inline std::unique_ptr<MoqtNamespaceTask>
+DefaultIncomingSubscribeNamespaceCallbackNew(
+    const TrackNamespace&, const MessageParameters&,
+    MoqtResponseCallback response_callback, ObjectsAvailableCallback) {
+  std::move(response_callback)(
+      MoqtRequestErrorInfo{RequestErrorCode::kNotSupported, std::nullopt,
+                           "This endpoint cannot publish."});
+  return nullptr;
 }
 
 // Callbacks for session-level events.

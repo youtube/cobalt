@@ -100,6 +100,10 @@ TEST_F(ConnectionAllowlistParserTest, MalformedHeader) {
       {"(); report-to=?0",
        mojom::ConnectionAllowlistIssue::kReportingEndpointNotToken},
 
+      // Invalid URL Pattern:
+      {"(\"*\")", mojom::ConnectionAllowlistIssue::kInvalidUrlPattern},
+      {"(\"/(\\\\d+)/\")", mojom::ConnectionAllowlistIssue::kInvalidUrlPattern},
+
       // Note: we're not testing dates (`@12345`) or display strings
       // (`%"display"`) because our structured field parser doesn't yet
       // support those types.
@@ -160,7 +164,6 @@ TEST_F(ConnectionAllowlistParserTest, ValidAllowlists) {
       {"(\"https://site.example\")", {"https://site.example"}},
       {"(\"https://site.example/*\")", {"https://site.example/*"}},
       {"(\"https://*.site.example/*\")", {"https://*.site.example/*"}},
-      {"(\"https://site.example/[0-9]+\")", {"https://site.example/[0-9]+"}},
       {"(response-origin)", {kSerializedExampleOrigin}},
 
       // Multiple items:
@@ -240,6 +243,25 @@ TEST_F(ConnectionAllowlistParserTest, MultipleLists) {
   ASSERT_EQ(1u, result.enforced->allowlist.size());
   EXPECT_EQ("https://a.example", result.enforced->allowlist[0]);
   EXPECT_FALSE(result.report_only);
+  EXPECT_TRUE(ConnectionAllowlistMatchesUrl(result.enforced.value(),
+                                            GURL("https://a.example")));
+  EXPECT_FALSE(ConnectionAllowlistMatchesUrl(result.enforced.value(),
+                                             GURL("https://c.example")));
+}
+
+TEST_F(ConnectionAllowlistParserTest, IsAllowlisted) {
+  ConnectionAllowlist connection_allowlist;
+  connection_allowlist.allowlist = {"https://a.example/",
+                                    "https://*.b.example/*"};
+
+  EXPECT_TRUE(ConnectionAllowlistMatchesUrl(connection_allowlist,
+                                            GURL("https://a.example/")));
+  EXPECT_TRUE(ConnectionAllowlistMatchesUrl(
+      connection_allowlist, GURL("https://sub.b.example/path")));
+  EXPECT_FALSE(ConnectionAllowlistMatchesUrl(connection_allowlist,
+                                             GURL("https://c.example/")));
+  EXPECT_FALSE(ConnectionAllowlistMatchesUrl(connection_allowlist,
+                                             GURL("http://a.example/")));
 }
 
 }  // namespace network

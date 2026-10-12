@@ -83,9 +83,10 @@ void MultiStreamTester::RunTest() {
   SendTask(task_queue.get(), [&]() {
     sender_call = Call::Create(std::move(sender_config));
     receiver_call = Call::Create(std::move(receiver_config));
-    sender_transport = CreateSendTransport(task_queue.get(), sender_call.get());
+    sender_transport =
+        CreateSendTransport(env, task_queue.get(), sender_call.get());
     receiver_transport =
-        CreateReceiveTransport(task_queue.get(), receiver_call.get());
+        CreateReceiveTransport(env, task_queue.get(), receiver_call.get());
     sender_transport->SetReceiver(receiver_call->Receiver());
     receiver_transport->SetReceiver(sender_call->Receiver());
 
@@ -169,25 +170,27 @@ void MultiStreamTester::UpdateReceiveConfig(
     VideoReceiveStreamInterface::Config* receive_config) {}
 
 std::unique_ptr<test::DirectTransport> MultiStreamTester::CreateSendTransport(
+    const Environment& env,
     TaskQueueBase* task_queue,
     Call* sender_call) {
   std::vector<RtpExtension> extensions = {};
   return std::make_unique<test::DirectTransport>(
-      task_queue,
+      env, task_queue,
       std::make_unique<FakeNetworkPipe>(
-          Clock::GetRealTimeClock(),
+          &env.clock(),
           std::make_unique<SimulatedNetwork>(BuiltInNetworkBehaviorConfig())),
       sender_call, payload_type_map_, extensions, extensions);
 }
 
 std::unique_ptr<test::DirectTransport>
-MultiStreamTester::CreateReceiveTransport(TaskQueueBase* task_queue,
+MultiStreamTester::CreateReceiveTransport(const Environment& env,
+                                          TaskQueueBase* task_queue,
                                           Call* receiver_call) {
   std::vector<RtpExtension> extensions = {};
   return std::make_unique<test::DirectTransport>(
-      task_queue,
+      env, task_queue,
       std::make_unique<FakeNetworkPipe>(
-          Clock::GetRealTimeClock(),
+          &env.clock(),
           std::make_unique<SimulatedNetwork>(BuiltInNetworkBehaviorConfig())),
       receiver_call, payload_type_map_, extensions, extensions);
 }

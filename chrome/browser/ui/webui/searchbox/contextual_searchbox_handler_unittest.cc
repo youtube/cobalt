@@ -235,6 +235,14 @@ TEST_F(ContextualSearchboxHandlerTest, SessionStarted) {
   EXPECT_EQ(state_arg, SessionState::kSessionStarted);
 }
 
+TEST_F(ContextualSearchboxHandlerTest, ActivateMetricsFunnel) {
+  auto* metrics_recorder_ptr = GetMetricsRecorderPtr();
+  ASSERT_THAT(metrics_recorder_ptr, testing::NotNull());
+
+  EXPECT_CALL(*metrics_recorder_ptr, ActivateMetricsFunnel("AiMode")).Times(1);
+  handler().ActivateMetricsFunnel("AiMode");
+}
+
 TEST_F(ContextualSearchboxHandlerTest, AddFile_Pdf) {
   searchbox::mojom::SelectedFileInfoPtr file_info =
       searchbox::mojom::SelectedFileInfo::New();
@@ -467,29 +475,43 @@ TEST_F(ContextualSearchboxHandlerTest, SubmitQuery_DelayUpload) {
 }
 
 TEST_F(ContextualSearchboxHandlerTest, OnInputStateChanged) {
-  composebox_query::mojom::InputStatePtr received_state_1;
-  composebox_query::mojom::InputStatePtr received_state_2;
+  omnibox::InputState received_state_1;
+  omnibox::InputState received_state_2;
 
   EXPECT_CALL(mock_searchbox_page_, OnInputStateChanged)
       .Times(2)
-      .WillOnce([&](composebox_query::mojom::InputStatePtr state) {
-        received_state_1 = std::move(state);
-      })
-      .WillOnce([&](composebox_query::mojom::InputStatePtr state) {
-        received_state_2 = std::move(state);
-      });
+      .WillOnce(
+          [&](const omnibox::InputState& state) { received_state_1 = state; })
+      .WillOnce(
+          [&](const omnibox::InputState& state) { received_state_2 = state; });
+  EXPECT_CALL(*GetMetricsRecorderPtr(),
+              RecordToolMode(composebox_query::mojom::ToolMode::kCanvas))
+      .WillOnce(testing::Invoke(
+          GetMetricsRecorderPtr(),
+          &MockContextualSearchMetricsRecorder::RecordToolModeBase));
 
   handler().SetActiveToolMode(omnibox::ToolMode::TOOL_MODE_CANVAS);
   mock_searchbox_page_.FlushForTesting();
-  ASSERT_TRUE(received_state_1);
-  EXPECT_EQ(received_state_1->active_tool, omnibox::ToolMode::TOOL_MODE_CANVAS);
+  EXPECT_EQ(received_state_1.active_tool, omnibox::ToolMode::TOOL_MODE_CANVAS);
+  histogram_tester().ExpectUniqueSample(
+      "ContextualSearch.Tools.NewTabPage",
+      composebox_query::mojom::ToolMode::kCanvas, 1);
+
+  EXPECT_CALL(
+      *GetMetricsRecorderPtr(),
+      RecordModelMode(composebox_query::mojom::ModelMode::kGeminiRegular))
+      .WillOnce(testing::Invoke(
+          GetMetricsRecorderPtr(),
+          &MockContextualSearchMetricsRecorder::RecordModelModeBase));
 
   handler().SetActiveModelMode(omnibox::ModelMode::MODEL_MODE_GEMINI_REGULAR);
   mock_searchbox_page_.FlushForTesting();
-  ASSERT_TRUE(received_state_2);
-  EXPECT_EQ(received_state_2->active_tool, omnibox::ToolMode::TOOL_MODE_CANVAS);
-  EXPECT_EQ(received_state_2->active_model,
+  EXPECT_EQ(received_state_2.active_tool, omnibox::ToolMode::TOOL_MODE_CANVAS);
+  EXPECT_EQ(received_state_2.active_model,
             omnibox::ModelMode::MODEL_MODE_GEMINI_REGULAR);
+  histogram_tester().ExpectUniqueSample(
+      "ContextualSearch.Models.NewTabPage",
+      composebox_query::mojom::ModelMode::kGeminiRegular, 1);
 }
 TEST_F(ContextualSearchboxHandlerTest, SubmitQueryWithAdditionalParams) {
   // Set deep search tool.
@@ -651,7 +673,7 @@ TEST_F(ContextualSearchboxHandlerTestTabsTest, AddTabContext_DelayUpload) {
   tabs::TabInterface* tab = AddTab(sample_url);
   const int sample_tab_id = tab->GetHandle().raw_value();
 
-  composebox_query::mojom::FileUploadStatus status;
+  contextual_search::FileUploadStatus status;
 
   tabs::TabFeatures* tab_features = tab->GetTabFeatures();
   MockTabContextualizationController* tab_contextualization_controller =
@@ -676,11 +698,12 @@ TEST_F(ContextualSearchboxHandlerTestTabsTest, AddTabContext_DelayUpload) {
   EXPECT_CALL(mock_searchbox_page_, OnContextualInputStatusChanged)
       .Times(1)
       .WillOnce(
-          [&status](
-              const base::UnguessableToken& file_token,
-              composebox_query::mojom::FileUploadStatus file_upload_status,
-              std::optional<composebox_query::mojom::FileUploadErrorType>
-                  file_upload_error_type) { status = file_upload_status; });
+          [&status](const base::UnguessableToken& file_token,
+                    contextual_search::FileUploadStatus file_upload_status,
+                    std::optional<contextual_search::FileUploadErrorType>
+                        file_upload_error_type) {
+            status = file_upload_status;
+          });
   EXPECT_CALL(mock_searchbox_page_, OnInputStateChanged).Times(1);
 
   base::MockCallback<ComposeboxHandler::AddTabContextCallback> callback;
@@ -698,7 +721,7 @@ TEST_F(ContextualSearchboxHandlerTestTabsTest, AddTabContext_DelayUpload) {
   // Assert
   ASSERT_TRUE(handler().tab_context_snapshot_.has_value());
   ASSERT_TRUE(handler().context_input_data().has_value());
-  ASSERT_EQ(composebox_query::mojom::FileUploadStatus::kProcessing, status);
+  ASSERT_EQ(contextual_search::FileUploadStatus::kProcessing, status);
 }
 
 TEST_F(ContextualSearchboxHandlerTestTabsTest, DeleteContext_DelayUpload) {
@@ -1228,25 +1251,30 @@ class ContextualSearchboxHandlerFileUploadStatusTest
 
 TEST_P(ContextualSearchboxHandlerFileUploadStatusTest,
        OnFileUploadStatusChanged) {
-  composebox_query::mojom::FileUploadStatus status;
+  contextual_search::FileUploadStatus status;
   EXPECT_CALL(mock_searchbox_page_, OnContextualInputStatusChanged)
       .Times(1)
       .WillOnce(
-          [&status](
-              const base::UnguessableToken& file_token,
-              composebox_query::mojom::FileUploadStatus file_upload_status,
-              std::optional<composebox_query::mojom::FileUploadErrorType>
-                  file_upload_error_type) { status = file_upload_status; });
+          [&status](const base::UnguessableToken& file_token,
+                    contextual_search::FileUploadStatus file_upload_status,
+                    std::optional<contextual_search::FileUploadErrorType>
+                        file_upload_error_type) {
+            status = file_upload_status;
+          });
   EXPECT_CALL(mock_searchbox_page_, OnInputStateChanged).Times(1);
 
   const auto expected_status = GetParam();
+  contextual_search::FileUploadStatus status_cpp;
+  EXPECT_TRUE((mojo::EnumTraits<
+               composebox_query::mojom::FileUploadStatus,
+               contextual_search::FileUploadStatus>::FromMojom(expected_status,
+                                                               &status_cpp)));
   base::UnguessableToken token = base::UnguessableToken::Create();
-  handler().OnFileUploadStatusChanged(
-      token, lens::MimeType::kPdf,
-      contextual_search::FromMojom(expected_status), std::nullopt);
+  handler().OnFileUploadStatusChanged(token, lens::MimeType::kPdf, status_cpp,
+                                      std::nullopt);
   mock_searchbox_page_.FlushForTesting();
 
-  EXPECT_EQ(expected_status, status);
+  EXPECT_EQ(status_cpp, status);
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -1259,4 +1287,5 @@ INSTANTIATE_TEST_SUITE_P(
         composebox_query::mojom::FileUploadStatus::kUploadStarted,
         composebox_query::mojom::FileUploadStatus::kUploadSuccessful,
         composebox_query::mojom::FileUploadStatus::kUploadFailed,
-        composebox_query::mojom::FileUploadStatus::kUploadExpired));
+        composebox_query::mojom::FileUploadStatus::kUploadExpired,
+        composebox_query::mojom::FileUploadStatus::kUploadReplaced));

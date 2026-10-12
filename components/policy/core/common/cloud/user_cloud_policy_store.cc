@@ -128,7 +128,8 @@ DesktopCloudPolicyStore::~DesktopCloudPolicyStore() = default;
 void DesktopCloudPolicyStore::LoadImmediately() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  DVLOG_POLICY(1, POLICY_PROCESSING)
+  VLOG_POLICY(1, POLICY_PROCESSING)
+      << PolicyTypeLogPrefix(policy_type(), std::string())
       << "Initiating immediate policy load from disk";
   // Cancel any pending Load/Store/Validate operations.
   weak_factory_.InvalidateWeakPtrs();
@@ -156,7 +157,9 @@ void DesktopCloudPolicyStore::Clear() {
 void DesktopCloudPolicyStore::Load() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  DVLOG_POLICY(1, POLICY_PROCESSING) << "Initiating policy load from disk";
+  VLOG_POLICY(1, POLICY_PROCESSING)
+      << PolicyTypeLogPrefix(policy_type(), std::string())
+      << "Initiating policy load from disk";
   // Cancel any pending Load/Store/Validate operations.
   weak_factory_.InvalidateWeakPtrs();
 
@@ -228,7 +231,9 @@ void DesktopCloudPolicyStore::PolicyLoaded(bool validate_in_background,
       break;
 
     case LOAD_RESULT_NO_POLICY_FILE:
-      DVLOG_POLICY(1, POLICY_PROCESSING) << "No policy found on disk";
+      VLOG_POLICY(1, POLICY_PROCESSING)
+          << PolicyTypeLogPrefix(policy_type(), std::string())
+          << "No policy found on disk";
       NotifyStoreLoaded();
       break;
 
@@ -246,11 +251,14 @@ void DesktopCloudPolicyStore::PolicyLoaded(bool validate_in_background,
         // rotation - make sure we request a new key from the server on our
         // next fetch.
         doing_key_rotation = true;
-        DLOG_POLICY(WARNING, POLICY_PROCESSING)
+        LOG_POLICY(WARNING, POLICY_PROCESSING)
+            << PolicyTypeLogPrefix(policy_type(), std::string())
             << "Verification key rotation detected";
       }
-      DVLOG_POLICY(1, POLICY_PROCESSING)
-          << "Loading policy from disk for policy type: " << policy_type();
+      VLOG_POLICY(1, POLICY_PROCESSING)
+          << PolicyTypeLogPrefix(policy_type(), std::string())
+          << "Loading policy from disk, doing_key_rotation: "
+          << doing_key_rotation;
       if (IsChromePolicyType(policy_type())) {
         Validate(
             std::move(cloud_policy), std::move(key), validate_in_background,
@@ -283,6 +291,16 @@ void DesktopCloudPolicyStore::ValidateKeyAndSignature(
   static_assert(std::is_same<PayloadProto, em::CloudPolicySettings>() ||
                 std::is_same<PayloadProto, em::ExtensionInstallPolicies>());
 
+  // TODO(crbug.com/483099777): Reenable signature verification once a good
+  // solution is found. This is temporarily disabled to avoid breaking existing
+  // enterprise policy fetches.
+  if (IsExtensionInstallPolicyType(policy_type())) {
+    return;
+  }
+
+  VLOG_POLICY(1, POLICY_PROCESSING)
+      << PolicyTypeLogPrefix(policy_type(), std::string())
+      << "Has cached key: " << cached_key;
   // There are 4 cases:
   //
   // 1) Validation after loading from cache with no cached key.
@@ -308,6 +326,7 @@ void DesktopCloudPolicyStore::ValidateKeyAndSignature(
            persisted_policy_key_ == cached_key->signing_key());
     if (!cached_key->has_signing_key()) {
       DLOG_POLICY(WARNING, POLICY_PROCESSING)
+          << PolicyTypeLogPrefix(policy_type(), std::string())
           << "Unsigned policy blob detected";
     }
 
@@ -342,17 +361,20 @@ void DesktopCloudPolicyStore::InstallLoadedPolicyAfterValidation(
     UserCloudPolicyValidator* validator) {
   validation_result_ = validator->GetValidationResult();
   if (!validator->success()) {
-    DVLOG_POLICY(1, POLICY_PROCESSING)
+    VLOG_POLICY(1, POLICY_PROCESSING)
+        << PolicyTypeLogPrefix(policy_type(), std::string())
         << "Validation failed: status=" << validator->status();
     status_ = STATUS_VALIDATION_ERROR;
     NotifyStoreError();
     return;
   }
 
-  DVLOG_POLICY(1, POLICY_PROCESSING)
+  VLOG_POLICY(1, POLICY_PROCESSING)
+      << PolicyTypeLogPrefix(policy_type(), std::string())
       << "Validation succeeded - installing policy with dm_token: "
       << validator->policy_data()->request_token();
-  DVLOG_POLICY(1, POLICY_PROCESSING)
+  VLOG_POLICY(1, POLICY_PROCESSING)
+      << PolicyTypeLogPrefix(policy_type(), std::string())
       << "Device ID: " << validator->policy_data()->device_id();
 
   // If we're doing a key rotation, clear the public key version so a future
@@ -420,7 +442,8 @@ void DesktopCloudPolicyStore::OnPolicyToStoreValidatedImpl(
                 std::is_same<PayloadProto, em::ExtensionInstallPolicies>());
 
   validation_result_ = validator->GetValidationResult();
-  DVLOG_POLICY(1, POLICY_PROCESSING)
+  VLOG_POLICY(1, POLICY_PROCESSING)
+      << PolicyTypeLogPrefix(policy_type(), std::string())
       << "Policy validation complete: status = " << validator->status();
   if (!validator->success()) {
     status_ = STATUS_VALIDATION_ERROR;
@@ -538,7 +561,9 @@ void UserCloudPolicyStore::ValidateImpl(
   // be empty during initial policy load because this happens before the
   // Prefs subsystem is initialized.
   if (account_id_.is_valid()) {
-    DVLOG_POLICY(1, POLICY_PROCESSING) << "Validating account: " << account_id_;
+    VLOG_POLICY(1, POLICY_PROCESSING)
+        << PolicyTypeLogPrefix(policy_type(), std::string())
+        << "Validating account: " << account_id_;
     validator->ValidateUser(account_id_);
     owning_domain = gaia::ExtractDomainName(gaia::CanonicalizeEmail(
         gaia::SanitizeEmail(account_id_.GetUserEmail())));

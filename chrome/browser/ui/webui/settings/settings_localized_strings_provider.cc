@@ -165,10 +165,11 @@
 #endif
 
 #if BUILDFLAG(ENABLE_GLIC)
-#include "chrome/browser/actor/actor_keyed_service_factory.h"
-#include "chrome/browser/actor/actor_policy_checker.h"
+#include "chrome/browser/glic/actor/glic_actor_policy_checker.h"
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
+#include "chrome/browser/glic/public/glic_keyed_service.h"
+#include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/subscription_eligibility/subscription_eligibility_service.h"
 #include "chrome/browser/subscription_eligibility/subscription_eligibility_service_factory.h"
 #endif
@@ -416,22 +417,6 @@ void AddAiStrings(content::WebUIDataSource* html_source) {
       {"historySearchWithAnswersSublabelOff",
        IDS_SETTINGS_HISTORY_SEARCH_WITH_ANSWERS_SUBLABEL_OFF},
 
-      // Compare strings.
-      {"aiCompareLabel", IDS_COMPARE_EMPTY_STATE_TITLE},
-      {"aiCompareSublabel", IDS_SETTINGS_COMPARE_SETTING_SUBLABEL},
-      {"aiCompareLearnMoreA11yLabel", IDS_SETTINGS_COMPARE_SETTING_LINK_A11Y},
-      {"aiCompareWhenOnProductDetails",
-       IDS_SETTINGS_COMPARE_WHEN_ON_PRODUCT_DETAILS},
-      {"aiCompareWhenOnProductSuggest",
-       IDS_SETTINGS_COMPARE_WHEN_ON_PRODUCT_SUGGEST},
-      {"aiCompareWhenOnProductFilter",
-       IDS_SETTINGS_COMPARE_WHEN_ON_PRODUCT_FILTER},
-      {"aiCompareWhenOnProductReviews",
-       IDS_SETTINGS_COMPARE_WHEN_ON_PRODUCT_REVIEWS},
-      {"aiCompareConsiderData", IDS_SETTINGS_COMPARE_CONSIDER_DATA},
-      {"aiCompareConsiderTablesInAccount",
-       IDS_SETTINGS_COMPARE_CONSIDER_TABLES_IN_ACCOUNT},
-
       // Compose strings.
       {"aiComposeLabel", IDS_COMPOSE_SUGGESTION_MAIN_TEXT},
       {"aiComposeSublabelV2", IDS_SETTINGS_AI_COMPOSE_SUBLABEL_V2},
@@ -492,11 +477,6 @@ void AddAiStrings(content::WebUIDataSource* html_source) {
                          chrome::kHistorySearchLearnMorePageManagedURL);
   html_source->AddString("historySearchDataHomeUrl",
                          chrome::kChromeUIHistoryURL);
-  html_source->AddString("compareLearnMoreUrl",
-                         commerce::kChromeUICompareLearnMoreUrl);
-  html_source->AddString("compareLearnMoreManagedUrl",
-                         commerce::kChromeUICompareLearnMoreManagedUrl);
-  html_source->AddString("compareDataHomeUrl", commerce::kChromeUICompareUrl);
   html_source->AddString("composeLearnMorePageURL",
                          chrome::kComposeLearnMorePageURL);
   html_source->AddString("composeLearnMorePageManagedURL",
@@ -750,15 +730,17 @@ void AddDownloadsStrings(content::WebUIDataSource* html_source) {
 #if BUILDFLAG(ENABLE_GLIC)
 
 bool IsWebActuationDisabledForEnterprise(Profile* profile) {
-  bool can_act_on_web = true;
-  if (base::FeatureList::IsEnabled(features::kGlicActor)) {
-    auto* actor_service =
-        actor::ActorKeyedServiceFactory::GetActorKeyedService(profile);
-    if (actor_service) {
-      can_act_on_web = actor_service->GetPolicyChecker().CanActOnWeb();
-    }
+  if (!base::FeatureList::IsEnabled(features::kGlicActor)) {
+    return false;
   }
-  return !can_act_on_web;
+  auto* glic_service =
+      glic::GlicKeyedServiceFactory::GetGlicKeyedService(profile);
+  if (!glic_service) {
+    return false;
+  }
+  return !glic_service->actor_policy_checker().CanActOnWeb() &&
+         glic_service->actor_policy_checker().CannotActOnWebReason() ==
+             glic::GlicActorPolicyChecker::CannotActReason::kDisabledByPolicy;
 }
 
 bool ShouldShowWebActuationToggle(Profile* profile) {
@@ -771,13 +753,13 @@ bool ShouldShowWebActuationToggle(Profile* profile) {
   }
 
   // If the account is ineligible, hide the toggle.
-  auto* actor_service =
-      actor::ActorKeyedServiceFactory::GetActorKeyedService(profile);
-  if (!actor_service) {
+  auto* glic_service =
+      glic::GlicKeyedServiceFactory::GetGlicKeyedService(profile);
+  if (!glic_service) {
     return false;
   }
-  if (actor_service->GetPolicyChecker().CannotActOnWebReason() ==
-      actor::ActorPolicyChecker::CannotActReason::
+  if (glic_service->actor_policy_checker().CannotActOnWebReason() ==
+      glic::GlicActorPolicyChecker::CannotActReason::
           kAccountCapabilityIneligible) {
     return false;
   }
@@ -788,7 +770,7 @@ bool ShouldShowWebActuationToggle(Profile* profile) {
   // consent card.
 
   const base::flat_set<int32_t>& allowed_tiers =
-      actor::ActorPolicyChecker::GetActorEligibleTiers();
+      glic::GlicActorPolicyChecker::GetActorEligibleTiers();
   // If no tiers are allowed, the toggle should never be shown.
   if (allowed_tiers.empty()) {
     return false;
@@ -1334,6 +1316,8 @@ void AddOnStartupStrings(content::WebUIDataSource* html_source) {
 #if BUILDFLAG(IS_WIN)
       {"onStartupForegroundLaunchOnStartupLabel",
        IDS_SETTINGS_FOREGROUND_LAUNCH_ON_STARTUP_LABEL},
+      {"onStartupForegroundLaunchOnStartupSubLabel",
+       IDS_SETTINGS_FOREGROUND_LAUNCH_ON_STARTUP_SUB_LABEL},
 #endif
   };
   html_source->AddLocalizedStrings(kLocalizedStrings);
@@ -1376,7 +1360,6 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
                         content::WebContents* web_contents) {
   static constexpr webui::LocalizedString kLocalizedStrings[] = {
       {"autofillPageTitle", IDS_SETTINGS_AUTOFILL_AND_PASSWORDS},
-      {"yourSavedInfoPageTitle", IDS_SETTINGS_YOUR_SAVED_INFO},
       {"yourSavedInfoPageDescription",
        IDS_SETTINGS_YOUR_SAVED_INFO_DESCRIPTION},
       {"yourSavedInfoAutofillSettingsLabel",
@@ -1629,6 +1612,8 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
        IDS_SETTINGS_AUTOFILL_AI_ADD_OR_EDIT_DIALOG_VALIDATION_ERROR},
       {"autofillAiAddOrEditDialogRequiredFieldError",
        IDS_AUTOFILL_AI_ADD_OR_EDIT_DIALOG_REQUIRED_FIELD_ERROR},
+      {"saveInfoToWalletAccountNotice",
+       IDS_AUTOFILL_AI_SAVE_ENTITY_TO_WALLET_DIALOG_SUBTITLE},
       {"autofillAiSubpageSublabelLoggingManagedDisabled",
        IDS_SETTINGS_AUTOFILL_AI_ENTERPRISE_LOGGING_MANAGED_DISABLED},
       {"autofillPayOverTimeSettingsLabel", IDS_AUTOFILL_BNPL_SETTINGS_LABEL},
@@ -1729,6 +1714,11 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
       "autofillEnableWalletBranding",
       base::FeatureList::IsEnabled(
           autofill::features::kAutofillEnableWalletBranding));
+
+  html_source->AddBoolean(
+      "enableSaveToWalletFromSettings",
+      base::FeatureList::IsEnabled(
+          autofill::features::kAutofillEnableSaveToWalletFromSettings));
 
   bool is_mandatory_reauth_feature_flag_enabled = false;
 

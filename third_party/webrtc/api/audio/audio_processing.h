@@ -80,7 +80,6 @@ class EchoDetector;
 //
 // AudioProcessing::Config config;
 // config.echo_canceller.enabled = true;
-// config.echo_canceller.mobile_mode = false;
 //
 // config.gain_controller1.enabled = true;
 // config.gain_controller1.mode =
@@ -199,10 +198,8 @@ class RTC_EXPORT AudioProcessing : public RefCountInterface {
 
     struct EchoCanceller {
       bool enabled = false;
-      bool mobile_mode = false;
       bool export_linear_aec_output = false;
-      // Enforce the highpass filter to be on (has no effect for the mobile
-      // mode).
+      // Enforce the highpass filter to be on.
       bool enforce_high_pass_filtering = true;
     } echo_canceller;
 

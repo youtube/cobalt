@@ -175,7 +175,7 @@ void NetworkServiceClient::OnConnectionTypeChanged(
   network_change_manager_->OnNetworkChanged(
       false /* dns_changed */,
       network::mojom::IPAddressChangeType::IP_ADDRESS_CHANGE_NONE,
-      true /* connection_type_changed */, network::mojom::ConnectionType(type),
+      true /* connection_type_changed */, type,
       false /* connection_subtype_changed */,
       network::mojom::ConnectionSubtype(
           net::NetworkChangeNotifier::GetConnectionSubtype()));
@@ -189,7 +189,7 @@ void NetworkServiceClient::OnMaxBandwidthChanged(
   network_change_manager_->OnNetworkChanged(
       false /* dns_changed */,
       network::mojom::IPAddressChangeType::IP_ADDRESS_CHANGE_NONE,
-      false /* connection_type_changed */, network::mojom::ConnectionType(type),
+      false /* connection_type_changed */, type,
       true /* connection_subtype_changed */,
       network::mojom::ConnectionSubtype(
           net::NetworkChangeNotifier::GetConnectionSubtype()));
@@ -200,8 +200,7 @@ void NetworkServiceClient::OnIPAddressChanged(
   network_change_manager_->OnNetworkChanged(
       false /* dns_changed */, network::mojom::IPAddressChangeType(change_type),
       false /* connection_type_changed */,
-      network::mojom::ConnectionType(
-          net::NetworkChangeNotifier::GetConnectionType()),
+      net::NetworkChangeNotifier::GetConnectionType(),
       false /* connection_subtype_changed */,
       network::mojom::ConnectionSubtype(
           net::NetworkChangeNotifier::GetConnectionSubtype()));
@@ -346,11 +345,11 @@ void NetworkServiceClient::Clone(
   url_loader_network_service_observers_.Add(this, std::move(observer));
 }
 
-void NetworkServiceClient::OnWebSocketConnectedToPrivateNetwork(
+void NetworkServiceClient::OnWebSocketConnectedToLocalNetwork(
     const GURL& request_url,
     network::mojom::IPAddressSpace ip_address_space) {}
 
-void NetworkServiceClient::OnUrlLoaderConnectedToPrivateNetwork(
+void NetworkServiceClient::OnUrlLoaderConnectedToLocalNetwork(
     const GURL& request_url,
     network::mojom::IPAddressSpace response_address_space,
     network::mojom::IPAddressSpace client_address_space,

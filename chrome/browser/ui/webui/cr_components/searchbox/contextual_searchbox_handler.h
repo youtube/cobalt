@@ -18,7 +18,6 @@
 #include "base/unguessable_token.h"
 #include "chrome/browser/ui/omnibox/omnibox_controller.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
-#include "chrome/browser/ui/webui/cr_components/searchbox/contextual_search_type_converters.h"
 #include "chrome/browser/ui/webui/cr_components/searchbox/searchbox_handler.h"
 #include "chrome/browser/ui/webui/cr_components/searchbox/searchbox_omnibox_client.h"
 #include "components/contextual_search/contextual_search_context_controller.h"
@@ -126,6 +125,7 @@ class ContextualSearchboxHandler
   // Called from browser code (e.g., Views-based file selector) to add file
   // context.
   void AddFileContextFromBrowser(
+      std::string file_name,
       std::string mime_type,
       mojo_base::BigBuffer file_bytes,
       std::optional<lens::ImageEncodingOptions> image_encoding_options,
@@ -169,9 +169,7 @@ class ContextualSearchboxHandler
   void ResetInputStateModel();
   void SetActiveToolMode(omnibox::ToolMode tool) override;
   void SetActiveModelMode(omnibox::ModelMode model) override;
-  // NOTE: This method is only intended for debugging purposes
-  // (chrome://omnibox/aim-eligibility).
-  void InitializeInputStateModelForDebugging();
+  void ActivateMetricsFunnel(const std::string& funnel_name) override;
 
  protected:
   void ComputeAndOpenQueryUrl(
@@ -219,6 +217,8 @@ class ContextualSearchboxHandler
   void RecordTabAddedMetric(tabs::TabInterface* const tab,
                             bool is_tab_suggestion_chip);
 
+  void InitializeInputStateModel();
+
   std::unique_ptr<contextual_search::InputStateModel> input_state_model_;
 
  private:
@@ -260,8 +260,6 @@ class ContextualSearchboxHandler
   std::optional<lens::ContextualInputData> context_input_data_;
   // Callback for `InputStateModel` changes.
   void OnInputStateChanged(const contextual_search::InputState& state);
-
-  void InitializeInputStateModel();
 
   std::unique_ptr<contextual_search::InputState> input_state_;
 

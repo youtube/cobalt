@@ -69,18 +69,12 @@ void AddMultipartFileContentHeader(std::string* post_data,
                              });
 }
 
-// Adds |compressed_log| to |post_data|.
-void AddLogData(std::string* post_data, const std::string& compressed_log) {
-  AddMultipartFileContentHeader(post_data, "webrtc_log");
-  base::StrAppend(post_data, {compressed_log, "\r\n"});
-}
-
-// Adds the RTP dump data to |post_data|.
-void AddRtpDumpData(std::string* post_data,
-                    const std::string& name,
-                    const std::string& dump_data) {
+// Adds |data| to |post_data|.
+void AddMultipartFileContent(std::string* post_data,
+                             const std::string& name,
+                             const std::string& data) {
   AddMultipartFileContentHeader(post_data, name);
-  base::StrAppend(post_data, {dump_data, "\r\n"});
+  base::StrAppend(post_data, {data, "\r\n"});
 }
 
 // Helper for WebRtcLogUploader::CompressLog().
@@ -170,6 +164,7 @@ void WebRtcLogUploader::LoggingStoppedDontUpload() {
 }
 
 void WebRtcLogUploader::OnLoggingStopped(
+    const std::string& content_name,
     std::unique_ptr<WebRtcLogBuffer> log_buffer,
     std::unique_ptr<WebRtcLogMetaDataMap> meta_data,
     WebRtcLogUploader::UploadDoneData upload_done_data,
@@ -184,7 +179,7 @@ void WebRtcLogUploader::OnLoggingStopped(
   std::string local_log_id;
 
   if (base::PathExists(upload_done_data.paths.directory)) {
-    webrtc_logging::DeleteOldWebRtcLogFiles(upload_done_data.paths.directory);
+    webrtc_logging::DeleteOldWebRtcLogFiles({upload_done_data.paths.directory});
 
     local_log_id =
         base::NumberToString(base::Time::Now().InSecondsFSinceUnixEpoch());
@@ -202,7 +197,7 @@ void WebRtcLogUploader::OnLoggingStopped(
   upload_done_data.local_log_id = local_log_id;
 
   if (is_text_log_upload_allowed) {
-    PrepareMultipartPostData(compressed_log, std::move(meta_data),
+    PrepareMultipartPostData(content_name, compressed_log, std::move(meta_data),
                              std::move(upload_done_data));
   } else {
     main_task_runner_->PostTask(
@@ -213,6 +208,7 @@ void WebRtcLogUploader::OnLoggingStopped(
 }
 
 void WebRtcLogUploader::PrepareMultipartPostData(
+    const std::string& content_name,
     const std::string& compressed_log,
     std::unique_ptr<WebRtcLogMetaDataMap> meta_data,
     WebRtcLogUploader::UploadDoneData upload_done_data) {
@@ -221,7 +217,7 @@ void WebRtcLogUploader::PrepareMultipartPostData(
   DCHECK(meta_data.get());
 
   std::unique_ptr<std::string> post_data(new std::string());
-  SetupMultipart(post_data.get(), compressed_log,
+  SetupMultipart(post_data.get(), content_name, compressed_log,
                  upload_done_data.paths.incoming_rtp_dump,
                  upload_done_data.paths.outgoing_rtp_dump, *meta_data.get());
 
@@ -244,58 +240,6 @@ void WebRtcLogUploader::PrepareMultipartPostData(
                      std::move(post_data)));
 }
 
-void WebRtcLogUploader::UploadStoredLog(
-    WebRtcLogUploader::UploadDoneData upload_data) {
-  DCHECK(background_task_runner_->RunsTasksInCurrentSequence());
-  DCHECK(!upload_data.local_log_id.empty());
-  DCHECK(!upload_data.paths.directory.empty());
-
-  base::FilePath native_log_path =
-      upload_data.paths.directory.AppendASCII(upload_data.local_log_id)
-          .AddExtension(FILE_PATH_LITERAL(".gz"));
-
-  std::string compressed_log;
-  if (!base::ReadFileToString(native_log_path, &compressed_log)) {
-    DPLOG(WARNING) << "Could not read WebRTC log file.";
-    base::UmaHistogramSparse("WebRtcTextLogging.UploadFailed",
-                             upload_data.web_app_id);
-    base::UmaHistogramSparse("WebRtcTextLogging.UploadFailureReason",
-                             WebRtcLogUploadFailureReason::kStoredLogNotFound);
-    main_task_runner_->PostTask(
-        FROM_HERE, base::BindOnce(std::move(upload_data).callback, false, "",
-                                  "Log doesn't exist."));
-    return;
-  }
-
-  // Optimistically set the rtp paths to what they should be if they exist.
-  upload_data.paths.incoming_rtp_dump =
-      upload_data.paths.directory.AppendASCII(upload_data.local_log_id)
-          .AddExtension(FILE_PATH_LITERAL(".rtp_in"));
-
-  upload_data.paths.outgoing_rtp_dump =
-      upload_data.paths.directory.AppendASCII(upload_data.local_log_id)
-          .AddExtension(FILE_PATH_LITERAL(".rtp_out"));
-
-  std::unique_ptr<WebRtcLogMetaDataMap> meta_data(new WebRtcLogMetaDataMap());
-  {
-    std::string meta_data_contents;
-    base::FilePath meta_path =
-        upload_data.paths.directory.AppendASCII(upload_data.local_log_id)
-            .AddExtension(FILE_PATH_LITERAL(".meta"));
-    if (base::ReadFileToString(meta_path, &meta_data_contents) &&
-        !meta_data_contents.empty()) {
-      base::PickleIterator it = base::PickleIterator::WithData(
-          base::as_byte_span(meta_data_contents));
-      std::string key, value;
-      while (it.ReadString(&key) && it.ReadString(&value))
-        (*meta_data.get())[key] = value;
-    }
-  }
-
-  PrepareMultipartPostData(compressed_log, std::move(meta_data),
-                           std::move(upload_data));
-}
-
 void WebRtcLogUploader::LoggingStoppedDoStore(
     const WebRtcLogPaths& log_paths,
     const std::string& log_id,
@@ -307,7 +251,7 @@ void WebRtcLogUploader::LoggingStoppedDoStore(
   DCHECK(log_buffer.get());
   DCHECK(!log_paths.directory.empty());
 
-  webrtc_logging::DeleteOldWebRtcLogFiles(log_paths.directory);
+  webrtc_logging::DeleteOldWebRtcLogFiles({log_paths.directory});
 
   base::FilePath log_list_path =
       webrtc_logging::TextLogList::GetWebRtcLogListFileForDirectory(
@@ -399,6 +343,7 @@ void WebRtcLogUploader::OnSimpleLoaderComplete(
 
 void WebRtcLogUploader::SetupMultipart(
     std::string* post_data,
+    const std::string& content_name,
     const std::string& compressed_log,
     const base::FilePath& incoming_rtp_dump,
     const base::FilePath& outgoing_rtp_dump,
@@ -418,7 +363,8 @@ void WebRtcLogUploader::SetupMultipart(
                                     kWebrtcLogMultipartBoundary, "", post_data);
   }
 
-  AddLogData(post_data, compressed_log);
+  // Add the compressed text log
+  AddMultipartFileContent(post_data, content_name, compressed_log);
 
   // Add the rtp dumps if they exist.
   std::array<base::FilePath, 2> rtp_dumps = {incoming_rtp_dump,
@@ -430,7 +376,7 @@ void WebRtcLogUploader::SetupMultipart(
     if (!rtp_dumps[i].empty() && base::PathExists(rtp_dumps[i])) {
       std::string dump_data;
       if (base::ReadFileToString(rtp_dumps[i], &dump_data))
-        AddRtpDumpData(post_data, kRtpDumpNames[i], dump_data);
+        AddMultipartFileContent(post_data, kRtpDumpNames[i], dump_data);
     }
   }
 

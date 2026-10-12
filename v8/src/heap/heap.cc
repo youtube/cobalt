@@ -1122,6 +1122,7 @@ static GCType GetGCTypeFromGarbageCollector(GarbageCollector collector) {
 void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
   TRACE_GC(tracer(), GCTracer::Scope::HEAP_EPILOGUE_SAFEPOINT);
 
+  // Invoke GCEpilogueCallbacks for all involved LocalHeaps.
   {
     // Allows handle derefs for all threads/isolates from this thread.
     AllowHandleUsageOnAllThreads allow_all_handle_derefs;
@@ -1139,6 +1140,25 @@ void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
                   GCCallbacksInSafepoint::GCType::kShared);
             });
       });
+    }
+  }
+
+  // Invoke global GCRootsProviders for all involved Heap.
+  {
+    GCType gc_type = GetGCTypeFromGarbageCollector(collector);
+    for (GCRootsProvider* provider : global_gc_roots_providers_) {
+      provider->GCEpilogueInSafepoint(gc_type);
+    }
+
+    if (collector == GarbageCollector::MARK_COMPACTOR &&
+        isolate()->is_shared_space_isolate()) {
+      isolate()->global_safepoint()->IterateClientIsolates(
+          [gc_type](Isolate* client) {
+            for (GCRootsProvider* provider :
+                 client->heap()->global_gc_roots_providers_) {
+              provider->GCEpilogueInSafepoint(gc_type);
+            }
+          });
     }
   }
 
@@ -2000,8 +2020,6 @@ void Heap::StartIncrementalMarking(GCFlags gc_flags,
     // allocation limits are at least at or above current sizes to not finalize
     // incremental marking prematurely.
     EnsureMinimumRemainingAllocationLimit(0);
-    CHECK_LE(OldGenerationConsumedBytes(),
-             limits()->old_generation_allocation_limit());
   }
 
   if (isolate()->is_shared_space_isolate()) {
@@ -4546,31 +4564,45 @@ void ClearStaleLeftTrimmedPointerVisitor::ClearLeftTrimmedOrForward(
   }
 }
 
+namespace {
+bool IsInterestingObjectStart(MapWord map_word) {
+  // Scavenge tasks may run concurrently to this function and therefore
+  // could introduce forwarding pointers at any moment. This is the reason
+  // why we pass the Map from the MapWord to
+  // InstanceTypeChecker::IsFreeSpaceOrFiller.
+  return map_word.IsForwardingAddress() ||
+         !InstanceTypeChecker::IsFreeSpaceOrFiller(map_word.ToMap());
+}
+}  // namespace
+
 bool ClearStaleLeftTrimmedPointerVisitor::IsLeftTrimmed(FullObjectSlot p) {
   Tagged<HeapObject> current;
   if (!TryCast<HeapObject>(*p, &current)) return false;
-  if (!current->map_word(cage_base(), kRelaxedLoad).IsForwardingAddress() &&
-      IsFreeSpaceOrFiller(current, cage_base())) {
+  // Using MapWord instead of `current` directly defends against concurrent
+  // Scavenge tasks installing forward pointers on `current`.
+  MapWord map_word = current->map_word(cage_base(), kRelaxedLoad);
+  if (!IsInterestingObjectStart(map_word)) {
 #ifdef DEBUG
       // We need to find a FixedArrayBase map after walking the fillers.
-      while (
-          !current->map_word(cage_base(), kRelaxedLoad).IsForwardingAddress() &&
-          IsFreeSpaceOrFiller(current, cage_base())) {
+      while (!IsInterestingObjectStart(map_word)) {
         Address next = current.ptr();
-        if (current->map(cage_base()) ==
-            ReadOnlyRoots(heap_).one_pointer_filler_map()) {
+        Tagged<Map> map = map_word.ToMap();
+        if (map == ReadOnlyRoots(heap_).one_pointer_filler_map()) {
           next += kTaggedSize;
-        } else if (current->map(cage_base()) ==
-                   ReadOnlyRoots(heap_).two_pointer_filler_map()) {
+        } else if (map == ReadOnlyRoots(heap_).two_pointer_filler_map()) {
           next += 2 * kTaggedSize;
         } else {
-          next += current->Size();
+          next += current->SizeFromMap(map);
         }
         current = Cast<HeapObject>(Tagged<Object>(next));
+        map_word = current->map_word(cage_base(), kRelaxedLoad);
       }
-      DCHECK(
-          current->map_word(cage_base(), kRelaxedLoad).IsForwardingAddress() ||
-          IsFixedArrayBase(current, cage_base()));
+      // Scavenge tasks may run concurrently to this function and therefore
+      // could introduce forwarding pointers at any moment. This is the reason
+      // why we pass the Map from the MapWord to
+      // InstanceTypeChecker::IsFreeSpaceOrFiller.
+      DCHECK(map_word.IsForwardingAddress() ||
+             InstanceTypeChecker::IsFixedArrayBase(map_word.ToMap()));
 #endif  // DEBUG
       return true;
   } else {
@@ -4727,6 +4759,13 @@ void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options,
       v->VisitRootPointers(Root::kStrongRoots, current->label, current->start,
                            current->end);
     }
+
+    v->Synchronize(VisitorSynchronization::kStrongRoots);
+
+    for (GCRootsProvider* provider : global_gc_roots_providers_) {
+      provider->Iterate(v);
+    }
+
     v->Synchronize(VisitorSynchronization::kStrongRoots);
 
     // Iterate over the startup and shared heap object caches unless
@@ -6549,6 +6588,20 @@ void Heap::AddGCEpilogueCallback(v8::Isolate::GCCallbackWithData callback,
 void Heap::RemoveGCEpilogueCallback(v8::Isolate::GCCallbackWithData callback,
                                     void* data) {
   gc_epilogue_callbacks_.Remove(callback, data);
+}
+
+void Heap::AddGlobalGCRootsProvider(GCRootsProvider* provider) {
+  base::MutexGuard guard(&global_gc_roots_providers_mutex_);
+  global_gc_roots_providers_.push_back(provider);
+}
+
+void Heap::RemoveGlobalGCRootsProvider(GCRootsProvider* provider) {
+  base::MutexGuard guard(&global_gc_roots_providers_mutex_);
+  auto it = std::find(global_gc_roots_providers_.begin(),
+                      global_gc_roots_providers_.end(), provider);
+  DCHECK_NE(it, global_gc_roots_providers_.end());
+  *it = global_gc_roots_providers_.back();
+  global_gc_roots_providers_.pop_back();
 }
 
 namespace {

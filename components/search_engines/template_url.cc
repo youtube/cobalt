@@ -1475,7 +1475,7 @@ std::string TemplateURLRef::HandleReplacements(
                                    metrics::OmniboxEventProto::NTP_COMPOSEBOX &&
                                !search_terms_args.current_page_url.empty()
                            ? "chrome-omni"
-                           : "chrome-compose")
+                           : omnibox::kComposeboxClientOverride.Get())
                     : "chrome-omni";
             HandleReplacement(std::string(), client_replacement, replacement,
                               &url);
@@ -2398,4 +2398,19 @@ bool TemplateURL::CanPolicyBeOverridden() const {
     case TemplateURLData::PolicyOrigin::kNoPolicy:
       return false;
   }
+}
+
+std::u16string TemplateURL::GetFullName() const {
+  std::u16string short_name = AdjustedShortNameForLocaleDirection();
+
+  if (is_ask_starter_pack()) {
+    return l10n_util::GetStringFUTF16(IDS_OMNIBOX_SELECTED_KEYWORD_ASK_TEXT,
+                                      short_name);
+  } else if (starter_pack_id() ==
+             template_url_starter_pack_data::StarterPackId::kPage) {
+    return l10n_util::GetStringUTF16(IDS_STARTER_PACK_PAGE_KEYWORD_TEXT);
+  } else if (type() == TemplateURL::OMNIBOX_API_EXTENSION) {
+    return short_name;
+  }
+  return l10n_util::GetStringFUTF16(IDS_OMNIBOX_KEYWORD_TEXT_MD, short_name);
 }

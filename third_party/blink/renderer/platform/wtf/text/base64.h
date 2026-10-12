@@ -53,13 +53,24 @@ WTF_EXPORT bool Base64Decode(
     Vector<uint8_t>&,
     Base64DecodePolicy policy = Base64DecodePolicy::kNoPaddingValidation);
 
-WTF_EXPORT bool Base64UnpaddedURLDecode(const String& in, Vector<uint8_t>&);
+WTF_EXPORT bool Base64UnpaddedUrlDecode(const String& in, Vector<uint8_t>&);
 
 // Given an encoding in either base64 or base64url, returns a normalized
 // encoding in plain base64.
 WTF_EXPORT String NormalizeToBase64(const String&);
 
-WTF_EXPORT String Base64URLEncode(base::span<const uint8_t>);
+enum class Base64UrlEncodePolicy {
+  // Include any required padding ('=') in the result.
+  kIncludePadding,
+
+  // Remove trailing padding from the result.
+  kOmitPadding,
+};
+
+// Encode to base64url. `policy` determines if padding should be included not.
+// https://datatracker.ietf.org/doc/html/rfc4648#section-5
+WTF_EXPORT String Base64UrlEncode(base::span<const uint8_t>,
+                                  Base64UrlEncodePolicy policy);
 
 }  // namespace blink
 

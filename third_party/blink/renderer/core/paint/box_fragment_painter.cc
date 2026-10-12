@@ -395,13 +395,15 @@ bool ShouldDelegatePaintingToViewTransition(const PhysicalBoxFragment& fragment,
   }
 }
 
-// Paints a highlight overlay for elements identified as ads. This supports the
-// "Highlight ads" feature in DevTools.
-void PaintAdHighlightIfNeeded(const PaintInfo& paint_info,
-                              const PhysicalOffset& paint_offset,
-                              const PhysicalBoxFragment& fragment,
-                              const DisplayItemClient& display_item_client,
-                              PaintPhase phase) {
+}  // anonymous namespace
+
+// static
+void BoxFragmentPainter::PaintAdHighlightIfNeeded(
+    const PaintInfo& paint_info,
+    const PhysicalOffset& paint_offset,
+    const PhysicalBoxFragment& fragment,
+    const DisplayItemClient& display_item_client,
+    PaintPhase phase) {
   // The highlight is an overlay, so it should only be painted during the
   // foreground phase, after all element content is drawn.
   if (phase != PaintPhase::kForeground) {
@@ -509,8 +511,6 @@ void PaintAdHighlightIfNeeded(const PaintInfo& paint_info,
   }
 }
 
-}  // anonymous namespace
-
 PhysicalRect BoxFragmentPainter::InkOverflowIncludingFilters() const {
   if (box_item_)
     return box_item_->SelfInkOverflowRect();
@@ -552,17 +552,6 @@ void BoxFragmentPainter::PaintFragment(const PhysicalBoxFragment& fragment,
   } else {
     layout_object->Paint(modified_paint_info);
   }
-
-  PhysicalOffset paint_offset;
-  if (const FragmentData* fragment_data = fragment.GetFragmentData()) {
-    paint_offset = fragment_data->PaintOffset();
-  }
-
-  // Paint the ad highlight last. For this monolithic path (e.g., <img>,
-  // <iframe>), the paint_offset is provided by FragmentData and represents the
-  // fragment's position in the paint layer.
-  PaintAdHighlightIfNeeded(modified_paint_info, paint_offset, fragment,
-                           *layout_object, paint_info.phase);
 }
 
 void BoxFragmentPainter::Paint(const PaintInfo& paint_info) {
@@ -570,6 +559,13 @@ void BoxFragmentPainter::Paint(const PaintInfo& paint_info) {
     return;
   }
   auto* layout_object = box_fragment_.GetLayoutObject();
+
+  if (layout_object && layout_object->NeedsLayout() &&
+      !layout_object->ChildLayoutBlockedByDisplayLock()) {
+    // TODO(crbug.com/478682594): Remove when done investigating.
+    layout_object->DumpForBug478682594();
+  }
+
   if (GetPhysicalFragment().IsPaintedAtomically() &&
       !box_fragment_.HasSelfPaintingLayer() &&
       paint_info.phase != PaintPhase::kOverlayOverflowControls) {
@@ -1526,11 +1522,11 @@ void BoxFragmentPainter::PaintGapDecorations(
   DrawingRecorder recorder(final_paint_info->context, *background_client,
                            DisplayItem::kColumnRules, visual_rect);
 
-  EGapRuleOverlap paint_order = box_fragment_.Style().GapRuleOverlap();
-  // `gap-rule-overlap` dictates whether to paint the columns over the
+  ERuleOverlap paint_order = box_fragment_.Style().RuleOverlap();
+  // `rule-overlap` dictates whether to paint the columns over the
   // rows, or the rows over the columns. The default is to paint the rows over
   // the columns.
-  if (paint_order == EGapRuleOverlap::kColumnOverRow) {
+  if (paint_order == ERuleOverlap::kColumnOverRow) {
     if (RuntimeEnabledFeatures::CSSGapDecorationEnabled()) {
       GapDecorationsPainter(box_fragment_)
           .Paint(kForRows, *final_paint_info, paint_rect, *gap_geometry);

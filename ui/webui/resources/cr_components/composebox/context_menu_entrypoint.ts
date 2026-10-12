@@ -17,11 +17,10 @@ import {I18nMixinLit} from '//resources/cr_elements/i18n_mixin_lit.js';
 import {assert} from '//resources/js/assert.js';
 import {loadTimeData} from '//resources/js/load_time_data.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
-import type {PageCallbackRouter as SearchboxPageCallbackRouter, PageHandlerRemote as SearchboxPageHandlerRemote, TabInfo} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
+import type {TabInfo} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import type {UnguessableToken} from '//resources/mojo/mojo/public/mojom/base/unguessable_token.mojom-webui.js';
 
 import {recordBoolean, recordContextAdditionMethod, TabUploadOrigin} from './common.js';
-import {ComposeboxProxyImpl} from './composebox_proxy.js';
 import {getCss} from './context_menu_entrypoint.css.js';
 import {getHtml} from './context_menu_entrypoint.html.js';
 
@@ -43,6 +42,13 @@ export enum GlifAnimationState {
 
 const ContextMenuEntrypointElementBase = I18nMixinLit(CrLitElement);
 
+/*
+ * This class is superceded by the `contextual_entrypoint_button.ts` and
+ * `contextual_action_menu.ts` files which support InputState model controlled
+ * menu action items. See: go/contexual-inputs-menu This class will be
+ * removed once the PEC API InputState feature launches.
+ * @deprecated
+ */
 export class ContextMenuEntrypointElement extends
     ContextMenuEntrypointElementBase {
   static get is() {
@@ -62,7 +68,7 @@ export class ContextMenuEntrypointElement extends
       // =========================================================================
       // Public properties
       // =========================================================================
-      inputsDisabled: {type: Boolean},
+      uploadButtonDisabled: {type: Boolean},
       fileNum: {type: Number},
       showContextMenuDescription: {type: Boolean},
       inCreateImageMode: {
@@ -103,7 +109,7 @@ export class ContextMenuEntrypointElement extends
     };
   }
 
-  accessor inputsDisabled: boolean = false;
+  accessor uploadButtonDisabled: boolean = false;
   accessor fileNum: number = 0;
   accessor showContextMenuDescription: boolean = false;
   accessor inCreateImageMode: boolean = false;
@@ -130,15 +136,9 @@ export class ContextMenuEntrypointElement extends
   protected maxFileCount_: number =
       loadTimeData.getInteger('composeboxFileMaxCount');
   private metricsSource_: string = loadTimeData.getString('composeboxSource');
-  private searchboxHandler_: SearchboxPageHandlerRemote;
-  private searchboxCallbackRouter_: SearchboxPageCallbackRouter;
-  private tabStripChangedListenerId_: number|null = null;
 
   constructor() {
     super();
-    this.searchboxCallbackRouter_ =
-        ComposeboxProxyImpl.getInstance().searchboxCallbackRouter;
-    this.searchboxHandler_ = ComposeboxProxyImpl.getInstance().searchboxHandler;
   }
 
   openMenuForMultiSelection() {
@@ -149,11 +149,6 @@ export class ContextMenuEntrypointElement extends
 
   closeMenu() {
     this.$.menu.close();
-    if (this.tabStripChangedListenerId_) {
-      this.searchboxCallbackRouter_.removeListener(
-          this.tabStripChangedListenerId_);
-      this.tabStripChangedListenerId_ = null;
-    }
   }
 
   // Checks if the image upload item in the context menu should be disabled.
@@ -195,21 +190,13 @@ export class ContextMenuEntrypointElement extends
 
   protected onEntrypointClick_(e: Event) {
     e.stopPropagation();
-    if (this.tabStripChangedListenerId_) {
-      this.searchboxCallbackRouter_.removeListener(
-          this.tabStripChangedListenerId_);
-      this.tabStripChangedListenerId_ = null;
-    }
-    this.tabStripChangedListenerId_ =
-        this.searchboxCallbackRouter_.onTabStripChanged.addListener(
-            this.refreshTabSuggestions_.bind(this));
+
     const metricName =
         'ContextualSearch.ContextMenuEntry.Clicked.' + this.metricsSource_;
     recordBoolean(metricName, true);
     const entrypoint =
         this.shadowRoot.querySelector<HTMLElement>('#entrypoint');
     assert(entrypoint);
-    this.refreshTabSuggestions_();
     this.fire('context-menu-entrypoint-click', {
       x: entrypoint.getBoundingClientRect().left,
       y: entrypoint.getBoundingClientRect().bottom,
@@ -299,7 +286,19 @@ export class ContextMenuEntrypointElement extends
     this.$.menu.close();
   }
 
-  protected onAnimationEnd_(e: AnimationEvent, animationName: string) {
+  protected onDescriptionAnimationEnd_(e: AnimationEvent) {
+    this.onAnimationEnd_(e, 'slide-in');
+  }
+
+  protected onAimBackgroundAnimationEnd_(e: AnimationEvent) {
+    if (this.showContextMenuDescription) {
+      return;
+    }
+
+    this.onAnimationEnd_(e, 'background-fade');
+  }
+
+  private onAnimationEnd_(e: AnimationEvent, animationName: string) {
     if (e.animationName === animationName) {
       this.glifAnimationState = GlifAnimationState.FINISHED;
     }
@@ -318,16 +317,12 @@ export class ContextMenuEntrypointElement extends
         this.shadowRoot.querySelector<HTMLElement>('#entrypoint');
     assert(entrypoint);
     entrypoint?.classList.add('menu-open');
+    this.fire('context-menu-opened');
     this.$.menu.showAt(entrypoint, {
       top: entrypoint.getBoundingClientRect().bottom,
       width: MENU_WIDTH_PX,
       anchorAlignmentX: AnchorAlignment['AFTER_START'],
     });
-  }
-
-  private async refreshTabSuggestions_() {
-    const {tabs} = await this.searchboxHandler_.getRecentTabs();
-    this.tabSuggestions = [...tabs];
   }
 }
 

@@ -214,8 +214,9 @@ TEST_F(MoqtBidiStreamTest, MessageBufferedThenSent) {
   stream_->set_stream(&mock_stream_);
   EXPECT_CALL(mock_stream_, CanWrite).WillRepeatedly(Return(false));
   EXPECT_CALL(mock_stream_, Writev).Times(0);
-  stream_->SendRequestOk(0, VersionSpecificParameters());
-  stream_->SendRequestError(2, RequestErrorCode::kUnauthorized, "bad request");
+  stream_->SendRequestOk(0, MessageParameters());
+  stream_->SendRequestError(2, RequestErrorCode::kUnauthorized, std::nullopt,
+                            "bad request");
   stream_->Fin();
   {
     testing::InSequence seq;
@@ -254,6 +255,21 @@ TEST_F(MoqtBidiStreamTest, Reset) {
 TEST_F(MoqtBidiStreamTest, DeletedCallback) {
   EXPECT_CALL(deleted_callback_, Call());
   stream_.reset();
+}
+
+TEST_F(MoqtBidiStreamTest, PendingQueueFull) {
+  stream_->set_stream(&mock_stream_);
+  EXPECT_CALL(mock_stream_, CanWrite).WillRepeatedly(Return(false));
+  for (int i = 0; i < 100; ++i) {  // kMaxPendingMessages = 100.
+    EXPECT_FALSE(stream_->QueueIsFull());
+    stream_->SendOrBufferMessage(
+        framer_.SerializeSubscribeUpdate(MoqtSubscribeUpdate{}));
+  }
+  EXPECT_TRUE(stream_->QueueIsFull());
+  EXPECT_CALL(error_callback_, Call(MoqtError::kInternalError, _));
+  stream_->SendOrBufferMessage(
+      framer_.SerializeSubscribeUpdate(MoqtSubscribeUpdate{}));
+  EXPECT_TRUE(stream_->QueueIsFull());
 }
 
 }  // namespace moqt::test

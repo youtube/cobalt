@@ -75,16 +75,16 @@ class ScreamV2 {
   // Average time feedback is delayed in the receiver.
   TimeDelta feedback_hold_time() const { return feedback_hold_time_; }
 
+  // Ratio between `max_segment_size` and `ref_window_`.
+  double ref_window_mss_ratio() const {
+    return std::min(1.0, params_.max_segment_size.Get() / ref_window_);
+  }
+
  private:
   void UpdateL4SAlpha(const TransportPacketsFeedback& msg);
   void UpdateRefWindow(const TransportPacketsFeedback& msg);
   void UpdateFeedbackHoldTime(const TransportPacketsFeedback& msg);
   void UpdateTargetRate(const TransportPacketsFeedback& msg);
-
-  // Ratio between `max_segment_size` and `ref_window_`.
-  double ref_window_mss_ratio() const {
-    return params_.max_segment_size.Get() / ref_window_;
-  }
 
   // Scaling factor for reference window adjustment
   // when close to the last known inflection point.

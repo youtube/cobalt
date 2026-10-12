@@ -80,7 +80,7 @@ void RtpFormatVp8TestHelper::GetAllPacketsAndCheck(
     int payload_offset = CheckHeader(rtp_payload, /*first=*/i == 0);
     // Verify that the payload (i.e., after the headers) of the packet is
     // identical to the expected (as found in data_ptr).
-    auto vp8_payload = rtp_payload.subview(payload_offset);
+    auto vp8_payload = rtp_payload.subspan(payload_offset);
     ASSERT_GE(payload_.end() - data_ptr, static_cast<int>(vp8_payload.size()));
     EXPECT_THAT(vp8_payload, ElementsAreArray(data_ptr, vp8_payload.size()));
     data_ptr += vp8_payload.size();

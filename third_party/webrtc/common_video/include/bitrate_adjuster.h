@@ -16,10 +16,13 @@
 
 #include <optional>
 
+#include "absl/base/macros.h"
+#include "absl/base/nullability.h"
 #include "rtc_base/rate_statistics.h"
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/system/rtc_export.h"
 #include "rtc_base/thread_annotations.h"
+#include "system_wrappers/include/clock.h"
 
 namespace webrtc {
 
@@ -31,9 +34,16 @@ class RTC_EXPORT BitrateAdjuster {
   // min_adjusted_bitrate_pct and max_adjusted_bitrate_pct are the lower and
   // upper bound outputted adjusted bitrates as a percentage of the target
   // bitrate.
-  BitrateAdjuster(float min_adjusted_bitrate_pct,
+  BitrateAdjuster(Clock* absl_nonnull clock,
+                  float min_adjusted_bitrate_pct,
                   float max_adjusted_bitrate_pct);
-  virtual ~BitrateAdjuster() {}
+  ABSL_DEPRECATE_AND_INLINE()
+  BitrateAdjuster(float min_adjusted_bitrate_pct,
+                  float max_adjusted_bitrate_pct)
+      : BitrateAdjuster(Clock::GetRealTimeClock(),
+                        min_adjusted_bitrate_pct,
+                        max_adjusted_bitrate_pct) {}
+  virtual ~BitrateAdjuster() = default;
 
   static const uint32_t kBitrateUpdateIntervalMs;
   static const uint32_t kBitrateUpdateFrameInterval;
@@ -72,6 +82,7 @@ class RTC_EXPORT BitrateAdjuster {
       RTC_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
   mutable Mutex mutex_;
+  Clock& clock_;
   const float min_adjusted_bitrate_pct_;
   const float max_adjusted_bitrate_pct_;
   // The bitrate we want.

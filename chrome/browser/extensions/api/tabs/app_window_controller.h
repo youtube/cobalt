@@ -38,11 +38,8 @@ class AppWindowController : public WindowController {
   std::string GetWindowTypeText() const override;
   void SetFullscreenMode(bool is_fullscreen,
                          const GURL& extension_url) const override;
-  bool CanClose(Reason* reason) const override;
   Browser* GetBrowser() const override;
-  bool IsDeleteScheduled() const override;
   content::WebContents* GetActiveTab() const override;
-  bool HasEditableTabStrip() const override;
   int GetTabCount() const override;
   content::WebContents* GetWebContentsAt(int i) const override;
   bool IsVisibleToTabsAPIForExtension(
@@ -57,7 +54,6 @@ class AppWindowController : public WindowController {
   bool OpenOptionsPage(const Extension* extension,
                        const GURL& url,
                        bool open_in_tab) override;
-  bool SupportsTabs() override;
 
  private:
   raw_ptr<AppWindow> app_window_;  // Owns us.

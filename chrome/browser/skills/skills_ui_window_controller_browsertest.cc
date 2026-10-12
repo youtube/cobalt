@@ -16,6 +16,7 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "components/skills/features.h"
 #include "components/skills/public/skill.h"
+#include "components/skills/public/skills_service.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -32,6 +33,15 @@ class SkillsUiWindowControllerBrowserTest : public InProcessBrowserTest {
  public:
   SkillsUiWindowControllerBrowserTest() {
     feature_list_.InitAndEnableFeature(features::kSkillsEnabled);
+  }
+
+  void SetUpOnMainThread() override {
+    InProcessBrowserTest::SetUpOnMainThread();
+    skills::SkillsService* skills_service =
+        skills::SkillsServiceFactory::GetForProfile(browser()->profile());
+    ASSERT_TRUE(skills_service);
+    skills_service->SetServiceStatusForTesting(
+        skills::SkillsService::ServiceStatus::kReady);
   }
 
   SkillsUiWindowController* window_controller() {
@@ -149,7 +159,7 @@ IN_PROC_BROWSER_TEST_F(SkillsUiWindowControllerBrowserTest,
   skills::Skill initial_skill(/*id=*/"",
                               /*name=*/"",
                               /*icon=*/"", "Skill Prompt");
-  tab_controller()->ShowDialog(initial_skill);
+  tab_controller()->ShowDialog(std::move(initial_skill));
 
   // Get WebContents to inject JS.
   auto* delegate = tab_controller()->GetDialogDelegateForTesting();
@@ -171,17 +181,23 @@ IN_PROC_BROWSER_TEST_F(SkillsUiWindowControllerBrowserTest,
       if (btn && !btn.disabled) { btn.click(); return 'CLICKED'; }
 
       // Fill inputs if found & empty
-      ['#nameText', '#instructionsText'].forEach(id => {
-        const el = root.querySelector(id);
-        if (el && !el.value) {
-          el.value = 'Test';
-          el.dispatchEvent(new CustomEvent('value-changed', {
-            bubbles: true,
-            composed: true,
-            detail: { value: 'Test' }
-          }));
-        }
-      });
+      let el = root.querySelector('#nameText');
+      if (el && !el.value) {
+        el.value = 'Test';
+        el.dispatchEvent(new CustomEvent('value-changed', {
+          bubbles: true,
+          composed: true,
+          detail: { value: 'Test' }
+        }));
+      }
+      el = root.querySelector('#instructionsText');
+      if (el && !el.value) {
+        el.value = 'Test';
+        el.dispatchEvent(new Event('input', {
+          bubbles: true,
+          composed: true
+        }));
+      }
       await new Promise(r => setTimeout(r, 100));
     }
     return 'TIMEOUT';

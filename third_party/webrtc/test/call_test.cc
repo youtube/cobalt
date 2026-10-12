@@ -650,10 +650,10 @@ void CallTest::CreateSendTransport(const BuiltInNetworkBehaviorConfig& config,
   auto network = std::make_unique<SimulatedNetwork>(config);
   send_simulated_network_ = network.get();
   send_transport_ = std::make_unique<PacketTransport>(
-      task_queue(), sender_call_.get(), observer,
+      env_, task_queue(), sender_call_.get(), observer,
       test::PacketTransport::kSender, payload_type_map_,
-      std::make_unique<FakeNetworkPipe>(Clock::GetRealTimeClock(),
-                                        std::move(network), receiver),
+      std::make_unique<FakeNetworkPipe>(&env_.clock(), std::move(network),
+                                        receiver),
       rtp_extensions_, rtp_extensions_);
 }
 
@@ -663,10 +663,9 @@ void CallTest::CreateReceiveTransport(
   auto network = std::make_unique<SimulatedNetwork>(config);
   receive_simulated_network_ = network.get();
   receive_transport_ = std::make_unique<PacketTransport>(
-      task_queue(), nullptr, observer, test::PacketTransport::kReceiver,
+      env_, task_queue(), nullptr, observer, test::PacketTransport::kReceiver,
       payload_type_map_,
-      std::make_unique<FakeNetworkPipe>(Clock::GetRealTimeClock(),
-                                        std::move(network),
+      std::make_unique<FakeNetworkPipe>(&env_.clock(), std::move(network),
                                         sender_call_->Receiver()),
       rtp_extensions_, rtp_extensions_);
 }

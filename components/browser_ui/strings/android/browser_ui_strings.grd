@@ -271,6 +271,9 @@
       <message name="IDS_SELECT" desc="Prompt for user to select something. [CHAR_LIMIT=20]">
         Select
       </message>
+      <message name="IDS_SELECTED" desc="Generic Lable saying something is selected." is_accessibility_with_no_ui="true">
+        Selected
+      </message>
       <message name="IDS_ADD" desc="Prompt for the user to add something, like a new address. [CHAR_LIMIT=20]">
         Add
       </message>
@@ -1030,14 +1033,20 @@
       <message name="IDS_FORCE_ENABLE_ZOOM_SUMMARY" desc="Summary of preference that allows the user to zoom in on any webpage, even if the page tries to disable zooming.">
         Override a website’s request to prevent zooming in
       </message>
-      <message name="IDS_READER_FOR_ACCESSIBILITY_TITLE" desc="Title of preference that allows the user to use simplified view on any articles, even if the page is mobile-friendly. Simplified view is the new user-facing name for Reader Mode, which extracts the content of an article and removes clutter from a web page and puts the result in a easier-to-read format.">
-        Simplified view for web pages
-      </message>
       <message name="IDS_ZOOM_INFO_PREFERENCE_TITLE" desc="Summary of preference that allows the user to view the set zoom levels for all websites.">
         Saved zoom for sites
       </message>
+      <message name="IDS_READER_FOR_ACCESSIBILITY_TITLE" desc="Title of preference that allows the user to use simplified view on any articles, even if the page is mobile-friendly. Simplified view is the new user-facing name for Reader Mode, which extracts the content of an article and removes clutter from a web page and puts the result in a easier-to-read format.">
+        Simplified view for web pages
+      </message>
       <message name="IDS_READER_FOR_ACCESSIBILITY_SUMMARY" desc="Summary of preference that allows the user to use simplified view on any supported articles, even if the page is mobile-friendly.">
         Get notified when an article can be shown in simplified view
+      </message>
+      <message name="IDS_READER_ENABLE_LINKS_TITLE" desc="Title of preference that allows the user to turn links on or off for Reading Mode.">
+        Show hyperlinks
+      </message>
+      <message name="IDS_READER_ENABLE_LINKS_SUMMARY" desc="Summary of preference that allows the user to turn links on or off for Reading Mode.">
+        Show links once Reading Mode is on
       </message>
       <message name="IDS_ACCESSIBILITY_CAPTIONS_TITLE" desc="Title of the preference that allows the user to update caption settings.">
         Captions
@@ -1060,6 +1069,12 @@
       </message>
       <message name="IDS_CARET_BROWSING_SUMMARY" desc="Summary of preference that allows the user to navigate pages with a text caret.">
         To turn caret browsing on or off, use the shortcut F7
+      </message>
+      <message name="IDS_READER_MODE_TOGGLE_LINKS_OFF_ACCESSIBILITY_LABEL" desc="Accessibility label for control to allow user to toggle links in reading mode. If pressed the button will turn links off.">
+        Turn Reading Mode links off
+      </message>
+      <message name="IDS_READER_MODE_TOGGLE_LINKS_ON_ACCESSIBILITY_LABEL" desc="Accessibility label for control to allow user to toggle links in reading mode. If pressed, the button will turn links on.">
+        Turn Reading Mode links on
       </message>
 
       <!-- Text Size Contrast -->
@@ -1352,6 +1367,26 @@
       </message>
       <message name="IDS_EDUCATIONAL_TIP_SAVE_PASSWORDS_BUTTON" desc="Text on the clickable button on the Save Passwords promo in the educational tip module on NTP.">
         Show me how
+      </message>
+
+      <!-- Save Passwords instructional bottom sheet strings -->
+      <message name="IDS_EDUCATIONAL_TIP_SAVE_PASSWORDS_BOTTOM_SHEET_FIRST_STEP" desc="The first step in the bottom sheet of the save passwords section within the educational tip module on the NTP.">
+        Sign in to any website
+      </message>
+      <message name="IDS_EDUCATIONAL_TIP_SAVE_PASSWORDS_BOTTOM_SHEET_SECOND_STEP" desc="The second step in the bottom sheet of the save passwords section within the educational tip module on the NTP.">
+        Chrome will offer to save your password
+      </message>
+      <message name="IDS_EDUCATIONAL_TIP_SAVE_PASSWORDS_BOTTOM_SHEET_THIRD_STEP" desc="The third step in the bottom sheet of the save passwords section within the educational tip module on the NTP.">
+        Tap Yes to easily use this password the next time you sign in
+      </message>
+      <message name="IDS_EDUCATIONAL_TIP_SAVE_PASSWORDS_BOTTOM_SHEET_ACCESSIBILITY_CLOSED" desc="Accessibility string that describes that the save passwords bottom sheet has closed.">
+        Save passwords instructional bottom sheet has closed
+      </message>
+      <message name="IDS_EDUCATIONAL_TIP_SAVE_PASSWORDS_BOTTOM_SHEET_CONTENT_DESCRIPTION" desc="Accessibility string that describes the save passwords bottom sheet.">
+        Instructional bottom sheet for saving passwords in Chrome
+      </message>
+      <message name="IDS_EDUCATIONAL_TIP_SAVE_PASSWORDS_BOTTOM_SHEET_ACCESSIBILITY_OPENED_FULL" desc="Accessibility string that describes that the save passwords bottom sheet has fully opened.">
+        Save passwords instructional bottom sheet has fully opened
       </message>
 
       <!-- Setup list Password Checkup promo strings -->

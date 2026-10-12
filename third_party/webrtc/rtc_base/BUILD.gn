@@ -223,9 +223,14 @@ rtc_library("event_tracer") {
     ":rtc_event",
     ":timeutils",
     "../api:sequence_checker",
+    "../api/environment",
     "../api/units:time_delta",
+    "../api/units:timestamp",
+    "../system_wrappers",
     "synchronization:mutex",
     "system:rtc_export",
+    "//third_party/abseil-cpp/absl/base:core_headers",
+    "//third_party/abseil-cpp/absl/base:nullability",
     "//third_party/abseil-cpp/absl/strings:string_view",
   ]
   all_dependent_configs = [ "//third_party/perfetto/gn:public_config" ]

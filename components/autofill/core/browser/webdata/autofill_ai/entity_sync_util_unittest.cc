@@ -10,14 +10,18 @@
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance_test_api.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/proto/autofill_ai_chrome_metadata.pb.h"
-#include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
+#include "components/autofill/core/browser/test_utils/entity_data_test_utils.h"
 #include "components/sync/protocol/autofill_valuable_metadata_specifics.pb.h"
 #include "components/sync/protocol/autofill_valuable_specifics.pb.h"
+#include "components/sync/test/unknown_field_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace autofill {
 
 namespace {
+
+using syncer::test::AddUnknownFieldToProto;
+using syncer::test::HasUnknownField;
 
 // Returns the string value of the attribute with the given type in `entity`.
 std::string GetStringValue(const EntityInstance& entity,
@@ -89,6 +93,51 @@ sync_pb::AutofillValuableSpecifics TestVehicleSpecifics() {
   return specifics;
 }
 
+TEST(EntitySyncUtilTest, CreateEntityDataFromEntityInstance) {
+  EntityInstance vehicle_entity = test::GetVehicleEntityInstance();
+  std::unique_ptr<syncer::EntityData> entity_data =
+      CreateEntityDataFromEntityInstance(vehicle_entity,
+                                         /*base_specifics=*/{});
+
+  sync_pb::AutofillValuableSpecifics specifics =
+      entity_data->specifics.autofill_valuable();
+  ASSERT_TRUE(entity_data->specifics.has_autofill_valuable());
+
+  const sync_pb::VehicleRegistration& vehicle_specifics =
+      specifics.vehicle_registration();
+
+  EXPECT_EQ(vehicle_entity.guid().value(), specifics.id());
+  EXPECT_EQ(
+      vehicle_entity.attribute(AttributeType(AttributeTypeName::kVehicleMake))
+          ->GetCompleteRawInfo(),
+      base::UTF8ToUTF16(vehicle_specifics.vehicle_make()));
+  EXPECT_EQ(
+      vehicle_entity.attribute(AttributeType(AttributeTypeName::kVehicleModel))
+          ->GetCompleteRawInfo(),
+      base::UTF8ToUTF16(vehicle_specifics.vehicle_model()));
+  EXPECT_EQ(
+      vehicle_entity.attribute(AttributeType(AttributeTypeName::kVehicleYear))
+          ->GetCompleteRawInfo(),
+      base::UTF8ToUTF16(vehicle_specifics.vehicle_year()));
+  EXPECT_EQ(
+      vehicle_entity.attribute(AttributeType(AttributeTypeName::kVehicleOwner))
+          ->GetCompleteRawInfo(),
+      base::UTF8ToUTF16(vehicle_specifics.owner_name()));
+  EXPECT_EQ(
+      vehicle_entity
+          .attribute(AttributeType(AttributeTypeName::kVehiclePlateNumber))
+          ->GetCompleteRawInfo(),
+      base::UTF8ToUTF16(vehicle_specifics.vehicle_license_plate()));
+  EXPECT_EQ(
+      vehicle_entity.attribute(AttributeType(AttributeTypeName::kVehicleVin))
+          ->GetCompleteRawInfo(),
+      base::UTF8ToUTF16(vehicle_specifics.vehicle_identification_number()));
+  EXPECT_EQ(vehicle_entity
+                .attribute(AttributeType(AttributeTypeName::kVehiclePlateState))
+                ->GetCompleteRawInfo(),
+            base::UTF8ToUTF16(vehicle_specifics.license_plate_region()));
+}
+
 // Tests that the `CreateEntityInstanceFromSpecifics` function correctly
 // deserializes the vehicle entity from its proto representation.
 TEST(EntitySyncUtilTest, CreateEntityInstanceFromSpecifics_Vehicle) {
@@ -119,7 +168,8 @@ TEST(EntitySyncUtilTest, CreateSpecificsFromEntityInstance_Vehicle) {
   EntityInstance vehicle = test::GetVehicleEntityInstance();
 
   sync_pb::AutofillValuableSpecifics specifics =
-      CreateSpecificsFromEntityInstance(vehicle);
+      CreateSpecificsFromEntityInstance(vehicle,
+                                        /*base_specifics=*/{});
 
   EXPECT_EQ(vehicle.guid().value(), specifics.id());
   EXPECT_EQ(GetStringValue(vehicle, AttributeTypeName::kVehicleMake),
@@ -185,6 +235,59 @@ TEST(EntitySyncUtilTest,
             specifics.vehicle_registration().vehicle_identification_number());
 }
 
+// Tests that the `CreateSpecificsFromEntityInstance` function correctly
+// merges the `base_specifics` into the result for the vehicle entity.
+TEST(EntitySyncUtilTest,
+     CreateSpecificsFromEntityInstance_Vehicle_MergesBaseSpecifics) {
+  sync_pb::AutofillValuableSpecifics base_specifics;
+  AddUnknownFieldToProto(base_specifics, "unknown_field");
+
+  EntityInstance vehicle = test::GetVehicleEntityInstance();
+  sync_pb::AutofillValuableSpecifics specifics =
+      CreateSpecificsFromEntityInstance(vehicle, base_specifics);
+
+  EXPECT_EQ(specifics.vehicle_registration().vehicle_make(),
+            GetStringValue(vehicle, AttributeTypeName::kVehicleMake));
+  EXPECT_THAT(specifics, HasUnknownField("unknown_field"));
+}
+
+// Tests that `CreateSpecificsFromEntityInstance` clears fields in
+// `base_specifics` if the corresponding attribute is missing in the vehicle
+// entity.
+TEST(EntitySyncUtilTest,
+     CreateSpecificsFromEntityInstance_Vehicle_ClearsMissingFields) {
+  sync_pb::AutofillValuableSpecifics base_specifics = TestVehicleSpecifics();
+
+  // Create a vehicle entity with only the Make attribute.
+  base::flat_set<AttributeInstance, AttributeInstance::CompareByType>
+      attributes;
+  AttributeInstance make_attr((AttributeType(AttributeTypeName::kVehicleMake)));
+  make_attr.SetRawInfo(
+      AttributeType(AttributeTypeName::kVehicleMake).field_type(), u"New Make",
+      VerificationStatus::kNoStatus);
+  attributes.insert(make_attr);
+
+  EntityInstance vehicle(
+      EntityType(EntityTypeName::kVehicle), std::move(attributes),
+      EntityInstance::EntityId("00000000-0000-4000-8000-200000000000"),
+      /*nickname=*/"", /*date_modified=*/{}, /*use_count=*/0, /*use_date=*/{},
+      EntityInstance::RecordType::kServerWallet,
+      EntityInstance::AreAttributesReadOnly(false),
+      /*frecency_override=*/"");
+
+  sync_pb::AutofillValuableSpecifics specifics =
+      CreateSpecificsFromEntityInstance(vehicle, base_specifics);
+
+  EXPECT_EQ(specifics.vehicle_registration().vehicle_make(), "New Make");
+  EXPECT_FALSE(specifics.vehicle_registration().has_vehicle_model());
+  EXPECT_FALSE(specifics.vehicle_registration().has_vehicle_year());
+  EXPECT_FALSE(
+      specifics.vehicle_registration().has_vehicle_identification_number());
+  EXPECT_FALSE(specifics.vehicle_registration().has_vehicle_license_plate());
+  EXPECT_FALSE(specifics.vehicle_registration().has_license_plate_region());
+  EXPECT_FALSE(specifics.vehicle_registration().has_owner_name());
+}
+
 // Tests that the `CreateEntityInstanceFromSpecifics` function correctly
 // deserializes the flight reservation entity from its proto representation.
 TEST(EntitySyncUtilTest, CreateEntityInstanceFromSpecifics_FlightReservation) {
@@ -248,7 +351,8 @@ TEST(EntitySyncUtilTest, CreateSpecificsFromEntityInstance_FlightReservation) {
       test::GetFlightReservationEntityInstance();
 
   sync_pb::AutofillValuableSpecifics specifics =
-      CreateSpecificsFromEntityInstance(flight_reservation);
+      CreateSpecificsFromEntityInstance(flight_reservation,
+                                        /*base_specifics=*/{});
 
   EXPECT_EQ(flight_reservation.guid().value(), specifics.id());
   EXPECT_EQ(GetStringValue(flight_reservation,
@@ -284,7 +388,8 @@ TEST(EntitySyncUtilTest,
   });
 
   sync_pb::AutofillValuableSpecifics specifics =
-      CreateSpecificsFromEntityInstance(flight_reservation);
+      CreateSpecificsFromEntityInstance(flight_reservation,
+                                        /*base_specifics=*/{});
 
   EXPECT_FALSE(
       specifics.flight_reservation().has_departure_date_unix_epoch_micros());
@@ -360,6 +465,25 @@ TEST(
             test_api(entity2).frecency_override());
 }
 
+// Tests that the `CreateSpecificsFromEntityInstance` function correctly
+// merges the `base_specifics` into the result for the flight reservation
+// entity.
+TEST(EntitySyncUtilTest,
+     CreateSpecificsFromEntityInstance_FlightReservation_MergesBaseSpecifics) {
+  sync_pb::AutofillValuableSpecifics base_specifics;
+  AddUnknownFieldToProto(base_specifics, "unknown_field");
+
+  EntityInstance flight_reservation =
+      test::GetFlightReservationEntityInstance();
+  sync_pb::AutofillValuableSpecifics specifics =
+      CreateSpecificsFromEntityInstance(flight_reservation, base_specifics);
+
+  EXPECT_EQ(specifics.flight_reservation().passenger_name(),
+            GetStringValue(flight_reservation,
+                           AttributeTypeName::kFlightReservationPassengerName));
+  EXPECT_THAT(specifics, HasUnknownField("unknown_field"));
+}
+
 // Tests that the `CreateEntityInstanceFromSpecifics` function correctly sets
 // the `are_attributes_read_only` property.
 TEST(EntitySyncUtilTest, CreateEntityInstanceFromSpecifics_IsEditable) {
@@ -392,7 +516,8 @@ TEST(EntitySyncUtilTest, CreateSpecificsFromEntityInstance_IsEditable) {
         CreateSpecificsFromEntityInstance(
             test::GetFlightReservationEntityInstance(
                 {.are_attributes_read_only =
-                     EntityInstance::AreAttributesReadOnly(false)}));
+                     EntityInstance::AreAttributesReadOnly(false)}),
+            /*base_specifics=*/{});
     EXPECT_TRUE(specifics.is_editable());
   }
   {
@@ -400,9 +525,38 @@ TEST(EntitySyncUtilTest, CreateSpecificsFromEntityInstance_IsEditable) {
         CreateSpecificsFromEntityInstance(
             test::GetFlightReservationEntityInstance(
                 {.are_attributes_read_only =
-                     EntityInstance::AreAttributesReadOnly(true)}));
+                     EntityInstance::AreAttributesReadOnly(true)}),
+            /*base_specifics=*/{});
     EXPECT_FALSE(specifics.is_editable());
   }
+}
+
+TEST(EntitySyncUtilTest, CreateEntityDataFromEntityMetadata) {
+  EntityInstance::EntityMetadata metadata;
+  metadata.guid = EntityInstance::EntityId("test-valuable-id");
+  metadata.date_modified = base::Time::FromDeltaSinceWindowsEpoch(
+      base::Microseconds(13379000000000000u));
+  metadata.use_count = 5;
+  metadata.use_date = base::Time::FromDeltaSinceWindowsEpoch(
+      base::Microseconds(13347400000000000u));
+
+  std::unique_ptr<syncer::EntityData> entity_data =
+      CreateEntityDataFromEntityMetadata(
+          metadata,
+          sync_pb::AutofillValuableMetadataSpecifics::VEHICLE_REGISTRATION,
+          /*base_specifics=*/{});
+
+  EXPECT_EQ(entity_data->name, metadata.guid.value());
+  EXPECT_EQ(entity_data->specifics.autofill_valuable_metadata().valuable_id(),
+            metadata.guid.value());
+  EXPECT_EQ(entity_data->specifics.autofill_valuable_metadata()
+                .last_modified_date_unix_epoch_micros(),
+            metadata.date_modified.ToDeltaSinceWindowsEpoch().InMicroseconds());
+  EXPECT_EQ(entity_data->specifics.autofill_valuable_metadata()
+                .last_used_date_unix_epoch_micros(),
+            metadata.use_date.ToDeltaSinceWindowsEpoch().InMicroseconds());
+  EXPECT_EQ(entity_data->specifics.autofill_valuable_metadata().pass_type(),
+            sync_pb::AutofillValuableMetadataSpecifics::VEHICLE_REGISTRATION);
 }
 
 // Tests that the `CreateSpecificsFromEntityMetadata` function correctly
@@ -419,18 +573,48 @@ TEST(EntitySyncUtilTest, CreateSpecificsFromEntityMetadata) {
       base::Microseconds(13347400000000000u));
 
   sync_pb::AutofillValuableMetadataSpecifics specifics =
-      CreateSpecificsFromEntityMetadata(metadata);
+      CreateSpecificsFromEntityMetadata(
+          metadata,
+          sync_pb::AutofillValuableMetadataSpecifics::VEHICLE_REGISTRATION,
+          /*base_specifics=*/{});
 
   EXPECT_EQ(specifics.valuable_id(), "test-valuable-id");
   EXPECT_EQ(specifics.last_modified_date_unix_epoch_micros(),
             13379000000000000ll);
   EXPECT_EQ(specifics.use_count(), 5u);
   EXPECT_EQ(specifics.last_used_date_unix_epoch_micros(), 13347400000000000ll);
+  EXPECT_EQ(specifics.pass_type(),
+            sync_pb::AutofillValuableMetadataSpecifics::VEHICLE_REGISTRATION);
 }
 
-// Tests that the `CreateValuableMetadataFromSpecifics` function correctly
+// Tests that the `CreateSpecificsFromEntityMetadata` function correctly
+// merges the `base_specifics` into the result.
+TEST(EntitySyncUtilTest,
+     CreateSpecificsFromEntityMetadata_MergesBaseSpecifics) {
+  EntityInstance::EntityMetadata metadata;
+  metadata.guid = EntityInstance::EntityId("test-valuable-id");
+  metadata.date_modified = base::Time::FromDeltaSinceWindowsEpoch(
+      base::Microseconds(13379000000000000u));
+  metadata.use_count = 5;
+  metadata.use_date = base::Time::FromDeltaSinceWindowsEpoch(
+      base::Microseconds(13347400000000000u));
+
+  sync_pb::AutofillValuableMetadataSpecifics base_specifics;
+  AddUnknownFieldToProto(base_specifics, "unknown_field");
+
+  sync_pb::AutofillValuableMetadataSpecifics specifics =
+      CreateSpecificsFromEntityMetadata(
+          metadata,
+          sync_pb::AutofillValuableMetadataSpecifics::VEHICLE_REGISTRATION,
+          base_specifics);
+
+  EXPECT_EQ(specifics.valuable_id(), "test-valuable-id");
+  EXPECT_THAT(specifics, HasUnknownField("unknown_field"));
+}
+
+// Tests that the `CreateEntityMetadataFromSpecifics` function correctly
 // converts the proto to EntityTable::EntityMetadata.
-TEST(EntitySyncUtilTest, CreateValuableMetadataFromSpecifics) {
+TEST(EntitySyncUtilTest, CreateEntityMetadataFromSpecifics) {
   sync_pb::AutofillValuableMetadataSpecifics specifics;
   specifics.set_valuable_id("test-valuable-id");
   // Corresponds to Jan 1, 2025, 00:00:00 UTC
@@ -440,7 +624,7 @@ TEST(EntitySyncUtilTest, CreateValuableMetadataFromSpecifics) {
   specifics.set_last_used_date_unix_epoch_micros(13347400000000000u);
 
   EntityInstance::EntityMetadata metadata =
-      CreateValuableMetadataFromSpecifics(specifics);
+      CreateEntityMetadataFromSpecifics(specifics);
 
   EXPECT_EQ(metadata.guid.value(), "test-valuable-id");
   EXPECT_EQ(metadata.date_modified,
@@ -449,6 +633,17 @@ TEST(EntitySyncUtilTest, CreateValuableMetadataFromSpecifics) {
   EXPECT_EQ(metadata.use_count, 5u);
   EXPECT_EQ(metadata.use_date, base::Time::FromDeltaSinceWindowsEpoch(
                                    base::Microseconds(13347400000000000u)));
+}
+
+// Tests that the `EntityTypeNameToPassType` function correctly maps
+// EntityTypeName to AutofillValuableMetadataSpecifics::PassType.
+TEST(EntitySyncUtilTest, EntityTypeToPassType) {
+  using enum EntityTypeName;
+  EXPECT_EQ(EntityTypeToPassType(EntityType(kFlightReservation)),
+            sync_pb::AutofillValuableMetadataSpecifics::FLIGHT_RESERVATION);
+  EXPECT_EQ(EntityTypeToPassType(EntityType(kVehicle)),
+            sync_pb::AutofillValuableMetadataSpecifics::VEHICLE_REGISTRATION);
+  EXPECT_FALSE(EntityTypeToPassType(EntityType(kPassport)).has_value());
 }
 
 }  // namespace

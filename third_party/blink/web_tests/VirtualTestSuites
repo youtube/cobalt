@@ -302,7 +302,10 @@
     "prefix": "connection-allowlist",
     "owners": [ "mkwst@chromium.org" ],
     "platforms": [ "Linux" ],
-    "bases": [ "external/wpt/connection-allowlist" ],
+    "bases": [
+      "external/wpt/connection-allowlist",
+      "http/tests/inspector-protocol/issues/connection-allowlists"
+    ],
     "exclusive_tests": "ALL",
     "args": [ "--enable-features=ConnectionAllowlists" ],
     "expires": "Jul 1, 2026"
@@ -630,8 +633,7 @@
     ],
     "exclusive_tests": "ALL",
     "args": [
-      "--enable-features=EnableBoundSessionCredentialsSoftwareKeysForManualTesting,DeviceBoundSessions:RefreshQuota/false/RequireOriginTrialTokens/false,DeviceBoundSessionsFederatedRegistration,DeviceBoundSessionsDevTools",
-      "--disable-features=TrackingProtection3pcd"
+      "--enable-features=EnableBoundSessionCredentialsSoftwareKeysForManualTesting,DeviceBoundSessions:RefreshQuota/false/RequireOriginTrialTokens/false,DeviceBoundSessionsFederatedRegistration,DeviceBoundSessionsDevTools"
     ],
     "expires": "never"
   },
@@ -1204,12 +1206,10 @@
       "Win"
     ],
     "bases": [
-      "wpt_internal/fenced_frame",
-      "wpt_internal/shared-worker/back-forward-cache/shared-worker-with-fenced-frame-client.https.window.js"
+      "wpt_internal/fenced_frame"
     ],
     "exclusive_tests": [
-      "wpt_internal/fenced_frame",
-      "wpt_internal/shared-worker/back-forward-cache/shared-worker-with-fenced-frame-client.https.window.js"
+      "wpt_internal/fenced_frame"
     ],
     "args": [
       "--enable-features=PrivacySandboxAdsAPIsOverride,Fledge,AdInterestGroupAPI,FencedFramesEnforceFocus,FencedFramesLocalUnpartitionedDataAccess,ExemptUrlFromNetworkRevocationForTesting,FencedFramesCrossOriginEventReportingAllTraffic,FencedFramesReportEventHeaderChanges,FencedFramesDefaultMode"
@@ -1695,7 +1695,6 @@
       "external/wpt/webcodecs/video-frame-serialization.any.html",
       "external/wpt/workers/data-url-shared.html",
       "external/wpt/workers/data-url.html",
-      "fast/dom/domstringlist.html",
       "http/tests/devtools/indexeddb/database-names.js",
       "http/tests/devtools/indexeddb/upgrade-events.js",
       "http/tests/inspector-protocol/storage/indexed-db-storage-key-request-database-names.js"
@@ -1941,7 +1940,8 @@
       "Win"
     ],
     "bases": [
-      "fast/peerconnection"
+      "fast/peerconnection",
+      "wpt_internal/peerconnection"
     ],
     "args": [
       "--enable-features=LocalNetworkAccessChecks,LocalNetworkAccessChecksWebRTC"
@@ -2390,6 +2390,7 @@
       "external/wpt/css/css-overflow/root-scroll-marker-activation-in-iframe.html",
       "external/wpt/css/css-overflow/scroll-marker-group-015.html",
       "external/wpt/css/css-overflow/scroll-target-group-003.html",
+      "external/wpt/css/css-overflow/scroll-marker-group-size-container-query-root.html",
       "external/wpt/css/css-overflow/targeted-column-scroll-marker-selection-001.html",
       "external/wpt/css/css-overflow/targeted-column-scroll-marker-selection-002.html",
       "external/wpt/css/css-overflow/targeted-column-scroll-marker-selection-003.html",
@@ -2580,7 +2581,7 @@
       "--enable-blink-features=PreferDefaultScrollbarStyles",
       "--blink-settings=prefersDefaultScrollbarStyles=true"
     ],
-    "expires": "Feb 1, 2026",
+    "expires": "Feb 1, 2027",
     "owners": [
       "evelynn.kaplan@microsoft.com",
       "almaher@microsoft.com"
@@ -2772,37 +2773,6 @@
     "expires": "never"
   },
   {
-    "prefix": "relax-dom-valid-names-disabled",
-    "owners": [
-      "jarhar@chromium.org"
-    ],
-    "platforms": [
-      "Linux"
-    ],
-    "bases": [
-      "external/wpt/acid/acid3/numbered-tests.html",
-      "external/wpt/dom/nodes/DOMImplementation-createDocument.html",
-      "external/wpt/dom/nodes/DOMImplementation-createDocumentType.html",
-      "external/wpt/dom/nodes/Document-createElement.html",
-      "external/wpt/dom/nodes/Document-createElementNS.html",
-      "external/wpt/dom/nodes/attributes.html",
-      "external/wpt/html/dom/elements/global-attributes/dataset-set.html",
-      "fast/dom/dataset-xhtml.xhtml",
-      "fast/dom/dataset.html",
-      "fast/dom/name-validity-usecounter.html",
-      "fast/dom/DOMImplementation/createDocument-namespace-err.html",
-      "fast/dom/DOMImplementation/createDocumentType-err.html",
-      "fast/dom/Document/createAttributeNS-namespace-err.html",
-      "fast/dom/Document/createElement-invalid-names.html",
-      "fast/dom/Document/createElementNS-namespace-err.html",
-      "fast/dom/Element/setAttributeNS-namespace-err.html"
-    ],
-    "args": [
-      "--disable-features=RelaxDOMValidNames"
-    ],
-    "expires": "Feb 1, 2026"
-  },
-  {
     "prefix": "renderer-side-content-decoding",
     "owners": [
       "horo@chromium.org"
@@ -2980,7 +2950,7 @@
     ]
   },
   {
-    "prefix": "scoped-custom-element-registry",
+    "prefix": "scoped-custom-element-registry-disabled",
     "owners": [
       "masonf@chromium.org",
       "tgivens@microsoft.com",
@@ -2995,7 +2965,7 @@
       "custom-elements/"
     ],
     "args": [
-      "--enable-blink-features=ScopedCustomElementRegistry"
+      "--disable-blink-features=ScopedCustomElementRegistry"
     ],
     "expires": "Jun 1, 2026"
   },
@@ -4640,10 +4610,10 @@
     "args": [
       "--disable-features=ThirdPartyStoragePartitioning"
     ],
-    "expires": "Feb 4, 2026",
+    "expires": "Feb 4, 2027",
     "owners": [
       "arichiv@chromium.org",
-      "bingler@chromium.org"
+      "katabolism-finch@google.com"
     ]
   },
   "The threaded virtual suite tests with threaded compositing, which is the",
@@ -6054,6 +6024,16 @@
       "--enable-features=UnrestrictSpellingAndGrammarForTesting"
     ],
     "expires": "never"
+  },
+  {
+    "prefix": "webaudio-playback-stats",
+    "platforms": ["Linux", "Mac", "Win"],
+    "bases": [
+      "external/wpt/webaudio/the-audio-api/the-audiocontext-interface/audiocontext-playbackstats.html"
+    ],
+    "args": ["--enable-blink-features=AudioContextPlaybackStats"],
+    "owners": ["hongchan@chromium.org"],
+    "expires": "Jan 1, 2027"
   },
   "Currently, XSLT is disabled on ToT for tests, via the",
   "fieldtrial_testing_config.json file which enables the XSLTSpecialTrial",

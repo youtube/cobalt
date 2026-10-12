@@ -13,9 +13,9 @@
 #include "base/notreached.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "chrome/browser/background/glic/glic_launcher_configuration.h"
 #include "chrome/browser/devtools/features.h"
 #include "chrome/browser/feature_engagement/tracker_factory.h"
-#include "chrome/browser/glic/common/local_hotkey_manager.h"
 #include "chrome/browser/performance_manager/public/user_tuning/user_performance_tuning_manager.h"
 #include "chrome/browser/privacy_sandbox/privacy_sandbox_queue_manager.h"
 #include "chrome/browser/privacy_sandbox/privacy_sandbox_service.h"
@@ -34,6 +34,7 @@
 #include "chrome/browser/ui/page_action/page_action_icon_type.h"
 #include "chrome/browser/ui/performance_controls/performance_controls_metrics.h"
 #include "chrome/browser/ui/singleton_tabs.h"
+#include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/most_recent_shared_tab_update_store.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
 #include "chrome/browser/ui/tabs/split_tab_menu_model.h"
@@ -51,8 +52,7 @@
 #include "chrome/browser/ui/views/frame/contents_web_view.h"
 #include "chrome/browser/ui/views/location_bar/cookie_controls/cookie_controls_icon_view.h"
 #include "chrome/browser/ui/views/page_action/page_action_view.h"
-#include "chrome/browser/ui/views/tabs/glic/glic_button.h"
-#include "chrome/browser/ui/views/tabs/tab_icon.h"
+#include "chrome/browser/ui/views/tabs/tab/tab_icon.h"
 #include "chrome/browser/ui/views/toolbar/pinned_action_toolbar_button.h"
 #include "chrome/browser/ui/views/user_education/autofill_help_bubble_factory.h"
 #include "chrome/browser/ui/views/user_education/browser_help_bubble.h"
@@ -743,8 +743,7 @@ void MaybeRegisterChromeFeaturePromos(
           kGlicButtonElementId, IDS_GLIC_SHORTCUT_IPH_TEXT_TEMPLATE,
           IDS_GLIC_SHORTCUT_IPH_SCREENREADER,
           FeaturePromoSpecification::AcceleratorInfo(
-              glic::LocalHotkeyManager::GetConfigurableAccelerator(
-                  glic::LocalHotkeyManager::Hotkey::kFocusToggle)))
+              glic::GlicLauncherConfiguration::GetGlobalHotkey()))
           .SetAdditionalConditions(std::move(
               AdditionalConditions().AddAdditionalCondition(AdditionalCondition{
                   feature_engagement::events::kGlicOnboardingCompleted,
@@ -1329,16 +1328,6 @@ void MaybeRegisterChromeFeaturePromos(
           .SetBubbleArrow(HelpBubbleArrow::kTopLeft)
           .SetMetadata(121, "dpenning@chromium.org",
                        "Triggered when tab organization is accepted.")));
-
-  // kIPHTabSearchFeature:
-  registry.RegisterFeature(
-      std::move(FeaturePromoSpecification::CreateForLegacyPromo(
-                    &feature_engagement::kIPHTabSearchFeature,
-                    kTabSearchButtonElementId, IDS_TAB_SEARCH_PROMO)
-                    .SetBubbleArrow(HelpBubbleArrow::kTopLeft)
-                    .SetMetadata(92, "tluk@chromium.org",
-                                 "Triggered once when there are more than 8 "
-                                 "tabs in the tab strip.")));
 
   // kIPHTabSearchToolbarButtonFeature:
   registry.RegisterFeature(std::move(
@@ -2085,6 +2074,20 @@ void MaybeRegisterChromeNewBadges(user_education::NewBadgeRegistry& registry) {
       user_education::Metadata(141, "emshack@chromium.org",
                                "Shown in the link context menu to open the "
                                "link in a new split tab.")));
+
+  registry.RegisterFeature(user_education::NewBadgeSpecification(
+      tabs::kVerticalTabsPreviewBadge,
+      user_education::Metadata(146, "stluong@chromium.org",
+                               "Show the preview badge in the system context "
+                               "menu to toggle the horizontal tab strip "
+                               "to be a vertical tab strip")));
+
+  registry.RegisterFeature(user_education::NewBadgeSpecification(
+      tabs::kVerticalTabsNewBadge,
+      user_education::Metadata(147, "stluong@chromium.org",
+                               "Show the new badge in the system context menu "
+                               "to toggle the horizontal tab strip "
+                               "to be a vertical tab strip")));
 }
 
 std::unique_ptr<user_education::FeaturePromoControllerCommon>

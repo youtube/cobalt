@@ -85,13 +85,11 @@ var skipWeakSymbols = []*regexp.Regexp{
 	regexp.MustCompile(`^fprintf$`),                                     // fprintf()
 	regexp.MustCompile(`^snprintf$`),                                    // snprintf()
 	regexp.MustCompile(`^vsnprintf$`),                                   // vsnprintf()
+}
 
-	// TODO(crbug.com/42220000): Temporary symbols, to be eliminated.
-	regexp.MustCompile(`.*ec_group_st.*`),
-	regexp.MustCompile(`.*ec_key_st.*`),
-	regexp.MustCompile(`.*evp_pkey_st.*`),
-	regexp.MustCompile(`.*rsa_st.*`),
-	regexp.MustCompile(`.*x509_store_st.*`),
+var skipSymbols = []*regexp.Regexp{
+	// TODO(crbug.com/42220000): Marker symbols for delocate.
+	regexp.MustCompile(`^BORINGSSL_bcm_text_(start|end)$`),
 }
 
 const (
@@ -198,6 +196,11 @@ SYMBOLS:
 				if symRE.MatchString(s) {
 					continue SYMBOLS
 				}
+			}
+		}
+		for _, symRE := range skipSymbols {
+			if symRE.MatchString(s) {
+				continue SYMBOLS
 			}
 		}
 		msg := s

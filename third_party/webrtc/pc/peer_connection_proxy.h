@@ -94,11 +94,14 @@ PROXY_CONSTMETHOD0(std::vector<scoped_refptr<RtpReceiverInterface>>,
                    GetReceivers)
 PROXY_CONSTMETHOD0(std::vector<scoped_refptr<RtpTransceiverInterface>>,
                    GetTransceivers)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 PROXY_METHOD3(bool,
               GetStats,
               StatsObserver*,
               MediaStreamTrackInterface*,
               StatsOutputLevel)
+#pragma clang diagnostic pop
 PROXY_METHOD1(void, GetStats, RTCStatsCollectorCallback*)
 PROXY_METHOD2(void,
               GetStats,

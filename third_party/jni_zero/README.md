@@ -1,6 +1,8 @@
 # JNI Zero
 A zero-overhead (or better!) middleware for JNI.
 
+For Googlers, see: go/jnizero.
+
 ## Overview
 JNI (Java Native Interface) is the mechanism that enables Java code to call
 native functions, and native code to call Java functions.
@@ -230,7 +232,7 @@ class MyClass {
 #include "third_party/jni_zero/jni_zero.h"
 #include "<path to BUILD.gn>/<generate_jni target name>/MyClass_jni.h"
 
-void JNI_MyClass_Foo(JNIEnv* env, std::string&, std::vector<std::string>>&, myModule::CPPClass&, std::vector<myModule::CPPClass>&) {...}
+void JNI_MyClass_Foo(JNIEnv* env, const std::string&, const std::vector<std::string>>&, myModule::CPPClass&&, const std::vector<myModule::CPPClass>&) {...}
 ```
 
 #### Implementing Conversion Functions

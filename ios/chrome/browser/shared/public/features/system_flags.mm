@@ -72,6 +72,8 @@ NSString* const kForceDisableCreateImagesEligibility =
     @"ForceDisableCreateImagesEligibility";
 NSString* const kForceDisableCanvasEligibility =
     @"ForceDisableCanvasEligibility";
+NSString* const kForceDisableDeepSearchEligibility =
+    @"ForceDisableDeepSearchEligibility";
 NSString* const kForceDisablePdfUploadEligibility =
     @"ForceDisablePdfUploadEligibility";
 NSString* const kShowCatalogItems = @"ShowCatalogItems";
@@ -214,6 +216,10 @@ base::TimeDelta GetReturnToHomeSurfaceDuration() {
       integerForKey:kHomeSurfaceDuration];
   if (duration == 0) {
     return base::Hours(4);
+  }
+  if (duration == -1) {
+    // if set to -1 the duration will be instant.
+    return base::Seconds(0);
   }
   return base::Seconds(duration);
 }
@@ -375,6 +381,11 @@ bool ShouldForceDisableComposeboxCreateImages() {
 bool ShouldForceDisableComposeboxCanvas() {
   return [[NSUserDefaults standardUserDefaults]
       boolForKey:kForceDisableCanvasEligibility];
+}
+
+bool ShouldForceDisableComposeboxDeepSearch() {
+  return [[NSUserDefaults standardUserDefaults]
+      boolForKey:kForceDisableDeepSearchEligibility];
 }
 
 bool ShouldForceDisableComposeboxPdfUpload() {

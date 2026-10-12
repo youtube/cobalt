@@ -11,7 +11,9 @@
 #include "rtc_base/event_tracer.h"
 
 #include <cstdio>
+#include <optional>
 
+#include "api/environment/environment.h"
 #include "api/units/time_delta.h"
 #include "rtc_base/trace_event.h"
 
@@ -21,13 +23,13 @@
 #else
 #include <atomic>
 #include <cinttypes>
-#include <cstdint>
 #include <cstring>
 #include <string>
 #include <vector>
 
 #include "absl/strings/string_view.h"
 #include "api/sequence_checker.h"
+#include "api/units/timestamp.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/event.h"
 #include "rtc_base/logging.h"
@@ -35,7 +37,7 @@
 #include "rtc_base/platform_thread_types.h"
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/thread_annotations.h"
-#include "rtc_base/time_utils.h"
+#include "system_wrappers/include/clock.h"
 #endif
 
 namespace webrtc {
@@ -92,7 +94,8 @@ void EventTracer::AddTraceEvent(char phase,
 #if defined(RTC_USE_PERFETTO)
 // TODO(bugs.webrtc.org/15917): Implement for perfetto.
 namespace tracing {
-void SetupInternalTracer(bool enable_all_categories) {}
+void SetupInternalTracer(bool) {}
+void SetupInternalTracer(const Environment&, bool) {}
 bool StartInternalCapture(absl::string_view filename) {
   return false;
 }
@@ -116,6 +119,9 @@ std::atomic<int> g_event_logging_active(0);
 // TODO(pbos): Log metadata for all threads, etc.
 class EventLogger final {
  public:
+  explicit EventLogger(std::optional<Environment> env)
+      : env_(env),
+        clock_(env.has_value() ? env->clock() : *Clock::GetRealTimeClock()) {}
   ~EventLogger() { RTC_DCHECK(thread_checker_.IsCurrent()); }
 
   void AddTraceEvent(const char* name,
@@ -125,9 +131,9 @@ class EventLogger final {
                      const char** arg_names,
                      const unsigned char* arg_types,
                      const unsigned long long* arg_values,
-                     uint64_t timestamp,
                      int /* pid */,
                      PlatformThreadId thread_id) {
+    Timestamp now = clock_.CurrentTime();
     std::vector<TraceArg> args(num_args);
     for (int i = 0; i < num_args; ++i) {
       TraceArg& arg = args[i];
@@ -149,7 +155,7 @@ class EventLogger final {
                              .category_enabled = category_enabled,
                              .phase = phase,
                              .args = args,
-                             .timestamp = timestamp,
+                             .timestamp = now,
                              .pid = 1,
                              .tid = thread_id});
   }
@@ -206,7 +212,7 @@ class EventLogger final {
                 "%s"
                 "}\n",
                 has_logged_event ? "," : " ", e.name, e.category_enabled,
-                e.phase, e.timestamp, e.pid, e.tid, args_str.c_str());
+                e.phase, e.timestamp.us(), e.pid, e.tid, args_str.c_str());
         has_logged_event = true;
       }
       if (shutting_down)
@@ -285,7 +291,7 @@ class EventLogger final {
     const unsigned char* category_enabled;
     char phase;
     std::vector<TraceArg> args;
-    uint64_t timestamp;
+    Timestamp timestamp;
     int pid;
     PlatformThreadId tid;
   };
@@ -352,6 +358,10 @@ class EventLogger final {
 
   Mutex mutex_;
   std::vector<TraceEvent> trace_events_ RTC_GUARDED_BY(mutex_);
+  // TODO(https://issues.webrtc.org/481963632): Make environment non-optional
+  // and remove `clock_` once an environment is required.
+  std::optional<Environment> env_;
+  Clock& clock_;
   PlatformThread logging_thread_;
   Event shutdown_event_;
   SequenceChecker thread_checker_;
@@ -391,16 +401,25 @@ void InternalAddTraceEvent(char phase,
     return;
 
   g_event_logger.load()->AddTraceEvent(name, category_enabled, phase, num_args,
-                                       arg_names, arg_types, arg_values,
-                                       TimeMicros(), 1, CurrentThreadId());
+                                       arg_names, arg_types, arg_values, 1,
+                                       CurrentThreadId());
 }
 
 }  // namespace
 
 void SetupInternalTracer(bool enable_all_categories) {
   EventLogger* null_logger = nullptr;
-  RTC_CHECK(
-      g_event_logger.compare_exchange_strong(null_logger, new EventLogger()));
+  RTC_CHECK(g_event_logger.compare_exchange_strong(
+      null_logger, new EventLogger(std::nullopt)));
+  SetupEventTracer(enable_all_categories ? InternalEnableAllCategories
+                                         : InternalGetCategoryEnabled,
+                   InternalAddTraceEvent);
+}
+
+void SetupInternalTracer(const Environment& env, bool enable_all_categories) {
+  EventLogger* null_logger = nullptr;
+  RTC_CHECK(g_event_logger.compare_exchange_strong(null_logger,
+                                                   new EventLogger(env)));
   SetupEventTracer(enable_all_categories ? InternalEnableAllCategories
                                          : InternalGetCategoryEnabled,
                    InternalAddTraceEvent);

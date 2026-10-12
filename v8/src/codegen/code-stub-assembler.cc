@@ -1710,38 +1710,48 @@ TNode<BoolT> CodeStubAssembler::IsRegularHeapObjectSize(TNode<IntPtrT> size) {
                                 IntPtrConstant(kMaxRegularHeapObjectSize));
 }
 
-void CodeStubAssembler::BranchIfToBooleanIsTrue(TNode<Object> value,
-                                                Label* if_true,
-                                                Label* if_false) {
+void CodeStubAssembler::BranchIfToBooleanIsTrue(
+    TNode<Object> value, bool skip_smi_and_static_root_check, Label* if_true,
+    Label* if_false) {
   Label if_smi(this, Label::kDeferred), if_heapnumber(this, Label::kDeferred),
       if_bigint(this, Label::kDeferred);
 
-  // Check if {value} is a Smi.
-  GotoIf(TaggedIsSmi(value), &if_smi);
+  if (skip_smi_and_static_root_check) {
+    CSA_DCHECK(this, TaggedIsNotSmi(value));
+  } else {
+    // Check if {value} is a Smi.
+    GotoIf(TaggedIsSmi(value), &if_smi);
+  }
 
   TNode<HeapObject> value_heapobject = CAST(value);
 
 #if V8_STATIC_ROOTS_BOOL
-  // Check if {object} is a falsey root or the true value.
-  // Undefined is the first root, so it's the smallest possible pointer
-  // value, which means we don't have to subtract it for the range check.
-  ReadOnlyRoots roots(isolate());
-  static_assert(StaticReadOnlyRoot::kFirstAllocatedRoot ==
-                StaticReadOnlyRoot::kUndefinedValue);
-  static_assert(StaticReadOnlyRoot::kUndefinedValue + sizeof(Undefined) ==
-                StaticReadOnlyRoot::kNullValue);
-  static_assert(StaticReadOnlyRoot::kNullValue + sizeof(Null) ==
-                StaticReadOnlyRoot::kempty_string);
-  static_assert(StaticReadOnlyRoot::kempty_string +
-                    SeqOneByteString::SizeFor(0) ==
-                StaticReadOnlyRoot::kFalseValue);
-  static_assert(StaticReadOnlyRoot::kFalseValue + sizeof(False) ==
-                StaticReadOnlyRoot::kTrueValue);
-  TNode<Word32T> object_as_word32 =
-      TruncateIntPtrToInt32(BitcastTaggedToWord(value_heapobject));
-  TNode<Word32T> true_as_word32 = Int32Constant(StaticReadOnlyRoot::kTrueValue);
-  GotoIf(Uint32LessThan(object_as_word32, true_as_word32), if_false);
-  GotoIf(Word32Equal(object_as_word32, true_as_word32), if_true);
+  if (skip_smi_and_static_root_check) {
+    CSA_DCHECK(this, Word32BitwiseNot(IsOddball(value_heapobject)));
+    CSA_DCHECK(this, Word32BitwiseNot(IsEmptyString(value_heapobject)));
+  } else {
+    // Check if {object} is a falsey root or the true value.
+    // Undefined is the first root, so it's the smallest possible pointer
+    // value, which means we don't have to subtract it for the range check.
+    ReadOnlyRoots roots(isolate());
+    static_assert(StaticReadOnlyRoot::kFirstAllocatedRoot ==
+                  StaticReadOnlyRoot::kUndefinedValue);
+    static_assert(StaticReadOnlyRoot::kUndefinedValue + sizeof(Undefined) ==
+                  StaticReadOnlyRoot::kNullValue);
+    static_assert(StaticReadOnlyRoot::kNullValue + sizeof(Null) ==
+                  StaticReadOnlyRoot::kempty_string);
+    static_assert(StaticReadOnlyRoot::kempty_string +
+                      SeqOneByteString::SizeFor(0) ==
+                  StaticReadOnlyRoot::kFalseValue);
+    static_assert(StaticReadOnlyRoot::kFalseValue + sizeof(False) ==
+                  StaticReadOnlyRoot::kTrueValue);
+    TNode<Word32T> object_as_word32 =
+        TruncateIntPtrToInt32(BitcastTaggedToWord(value_heapobject));
+    TNode<Word32T> true_as_word32 =
+        Int32Constant(StaticReadOnlyRoot::kTrueValue);
+    GotoIf(Uint32LessThan(object_as_word32, true_as_word32), if_false);
+    GotoIf(Word32Equal(object_as_word32, true_as_word32), if_true);
+  }
 #else
   // Rule out false {value}.
   GotoIf(TaggedEqual(value, FalseConstant()), if_false);
@@ -1769,10 +1779,12 @@ void CodeStubAssembler::BranchIfToBooleanIsTrue(TNode<Object> value,
   GotoIf(IsHeapNumberMap(value_map), &if_heapnumber);
   Branch(IsBigInt(value_heapobject), &if_bigint, if_true);
 
-  BIND(&if_smi);
-  {
-    // Check if the Smi {value} is a zero.
-    Branch(TaggedEqual(value, SmiConstant(0)), if_false, if_true);
+  if (!skip_smi_and_static_root_check) {
+    BIND(&if_smi);
+    {
+      // Check if the Smi {value} is a zero.
+      Branch(TaggedEqual(value, SmiConstant(0)), if_false, if_true);
+    }
   }
 
   BIND(&if_heapnumber);
@@ -3819,13 +3831,17 @@ TNode<Object> CodeStubAssembler::LoadSharedFunctionInfoUntrustedData(
 
 void CodeStubAssembler::GotoIfSharedFunctionInfoHasBaselineCode(
     TNode<SharedFunctionInfo> sfi, Label* if_baseline) {
-  Label if_default(this);
+  Label if_default(this), if_code(this);
 
   TVARIABLE(Object, var_result);
   LoadTrustedUnknownPointerFromObject(
       sfi, SharedFunctionInfo::kTrustedFunctionDataOffset, &var_result,
-      &if_default, &if_default, {{CODE_TYPE, if_baseline}},
+      &if_default, &if_default, {{CODE_TYPE, &if_code}},
       SharedFunctionInfo::kTrustedDataIndirectPointerRange);
+
+  BIND(&if_code);
+  CSA_SBXCHECK(this, IsBaselineCode(CAST(var_result.value())));
+  Goto(if_baseline);
 
   BIND(&if_default);
 }
@@ -3848,7 +3864,10 @@ TNode<BytecodeArray> CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(
       nullptr,
       {{BYTECODE_ARRAY_TYPE, &done},
        {INTERPRETER_DATA_TYPE, &is_interpreter_data},
-       {CODE_TYPE, &is_code}},
+#if !V8_JITLESS_BOOL
+       {CODE_TYPE, &is_code}
+#endif
+      },
       SharedFunctionInfo::kTrustedDataIndirectPointerRange);
 
   BIND(&is_interpreter_data);
@@ -3857,16 +3876,11 @@ TNode<BytecodeArray> CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(
     Goto(&done);
   }
 
+#if !V8_JITLESS_BOOL
   BIND(&is_code);
   {
     TNode<Code> code = CAST(var_result.value());
-#ifdef DEBUG
-    TNode<Int32T> code_flags =
-        LoadObjectField<Int32T>(code, Code::kFlagsOffset);
-    CSA_DCHECK(
-        this, Word32Equal(DecodeWord32<Code::KindField>(code_flags),
-                          Int32Constant(static_cast<int>(CodeKind::BASELINE))));
-#endif  // DEBUG
+    CSA_SBXCHECK(this, IsBaselineCode(code));
     TNode<HeapObject> baseline_data = CAST(LoadProtectedPointerField(
         code, Code::kDeoptimizationDataOrInterpreterDataOffset));
 
@@ -3887,6 +3901,7 @@ TNode<BytecodeArray> CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(
       Goto(&done);
     }
   }
+#endif
 
   BIND(&done);
   return CAST(var_result.value());
@@ -18545,6 +18560,7 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
   BIND(&check_is_baseline_data);
   {
     TNode<Code> baseline_code = CAST(sfi_data_out.value());
+    CSA_SBXCHECK(this, IsBaselineCode(baseline_code));
     sfi_code = baseline_code;
     Goto(&done);
   }

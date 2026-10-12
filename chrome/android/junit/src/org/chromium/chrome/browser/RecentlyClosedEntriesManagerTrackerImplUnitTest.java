@@ -29,6 +29,8 @@ import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 
+import java.util.Collections;
+
 /** Unit tests for {@link RecentlyClosedEntriesManagerTrackerImpl}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
@@ -58,12 +60,12 @@ public class RecentlyClosedEntriesManagerTrackerImplUnitTest {
     public void testDestroy() {
         RecentlyClosedEntriesManager manager =
                 mTracker.obtainManager(mMultiInstanceManager, mTabModelSelector);
-        assertTrue(mTracker.getManagersForTesting().contains(manager));
+        assertTrue(mTracker.getManagers().contains(manager));
 
         mTracker.destroy(manager);
 
         verify(mRecentlyClosedTabManager).destroy();
-        assertFalse(mTracker.getManagersForTesting().contains(manager));
+        assertFalse(mTracker.getManagers().contains(manager));
     }
 
     @Test
@@ -87,9 +89,9 @@ public class RecentlyClosedEntriesManagerTrackerImplUnitTest {
                         /* incognitoTabCount= */ 0,
                         /* isIncognitoSelected= */ false,
                         /* lastAccessedTime= */ 1,
-                        /* closureTime= */ 3,
-                        /* markedForDeletion= */ true);
-        mTracker.onInstanceClosed(info, /* isPermanentDeletion= */ false);
+                        /* closureTime= */ 3);
+        mTracker.onInstancesClosed(
+                Collections.singletonList(info), /* isPermanentDeletion= */ false);
 
         assertEquals(1, manager1.getRecentlyClosedEntries().size());
         assertEquals(1, manager2.getRecentlyClosedEntries().size());
@@ -115,9 +117,9 @@ public class RecentlyClosedEntriesManagerTrackerImplUnitTest {
                         /* incognitoTabCount= */ 0,
                         /* isIncognitoSelected= */ false,
                         /* lastAccessedTime= */ 1,
-                        /* closureTime= */ 3,
-                        /* markedForDeletion= */ true);
-        mTracker.onInstanceClosed(info, /* isPermanentDeletion= */ false);
+                        /* closureTime= */ 3);
+        mTracker.onInstancesClosed(
+                Collections.singletonList(info), /* isPermanentDeletion= */ false);
         assertEquals(1, manager1.getRecentlyClosedEntries().size());
         assertEquals(1, manager2.getRecentlyClosedEntries().size());
 

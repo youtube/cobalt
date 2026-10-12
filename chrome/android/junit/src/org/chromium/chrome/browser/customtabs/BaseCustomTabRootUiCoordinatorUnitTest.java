@@ -66,6 +66,7 @@ import org.chromium.chrome.browser.flags.ActivityType;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.fullscreen.BrowserControlsManager;
 import org.chromium.chrome.browser.fullscreen.FullscreenManager;
+import org.chromium.chrome.browser.incognito.reauth.IncognitoReauthManager;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.share.ShareDelegate;
@@ -111,11 +112,7 @@ public final class BaseCustomTabRootUiCoordinatorUnitTest {
 
     @Rule public FakeTimeTestRule mFakeTimeTestRule = new FakeTimeTestRule();
 
-    @Mock private MonotonicObservableSupplier<ShareDelegate> mShareDelegateSupplier;
     @Mock private CustomTabActivityTabProvider mCustomTabProvider;
-    @Mock private MonotonicObservableSupplier<BookmarkModel> mBookmarkModelSupplier;
-    @Mock private MonotonicObservableSupplier<TabBookmarker> mTabBookmarkerSupplier;
-    @Mock private MonotonicObservableSupplier<TabModelSelector> mTabModelSelectorSupplier;
 
     @Mock
     private SettableMonotonicObservableSupplier<EphemeralTabCoordinator>
@@ -132,13 +129,11 @@ public final class BaseCustomTabRootUiCoordinatorUnitTest {
     @Mock private ActivityLifecycleDispatcher mActivityLifecycleDispatcher;
     @Mock private MenuOrKeyboardActionController mMenuOrKeyboardActionController;
     @Mock private Supplier<Integer> mActivityThemeColorSupplier;
-    @Mock private MonotonicObservableSupplier<ModalDialogManager> mModalDialogManagerSupplier;
     @Mock private AppMenuBlocker mAppMenuBlocker;
     @Mock private BooleanSupplier mSupportsAppMenuSupplier;
     @Mock private BooleanSupplier mSupportsFindInPage;
     @Mock private Supplier<TabCreatorManager> mTabCreatorManagerSupplier;
     @Mock private FullscreenManager mFullscreenManager;
-    @Mock private MonotonicObservableSupplier<CompositorViewHolder> mCompositorViewHolderSupplier;
     @Mock private Supplier<TabContentManager> mTabContentManagerSupplier;
     @Mock private Supplier<SnackbarManager> mSnackbarManagerSupplier;
     @Mock private Supplier<Boolean> mIsInOverviewModeSupplier;
@@ -162,6 +157,18 @@ public final class BaseCustomTabRootUiCoordinatorUnitTest {
     @Mock private IdentityManager mIdentityManager;
     @Mock private Supplier<BrowserServicesThemeColorProvider> mBrowserServicesColorProviderSupplier;
 
+    private final MonotonicObservableSupplier<ShareDelegate> mShareDelegateSupplier =
+            ObservableSuppliers.alwaysNull();
+    private final MonotonicObservableSupplier<BookmarkModel> mBookmarkModelSupplier =
+            ObservableSuppliers.alwaysNull();
+    private final MonotonicObservableSupplier<TabBookmarker> mTabBookmarkerSupplier =
+            ObservableSuppliers.alwaysNull();
+    private final MonotonicObservableSupplier<TabModelSelector> mTabModelSelectorSupplier =
+            ObservableSuppliers.alwaysNull();
+    private final MonotonicObservableSupplier<ModalDialogManager> mModalDialogManagerSupplier =
+            ObservableSuppliers.alwaysNull();
+    private final MonotonicObservableSupplier<CompositorViewHolder> mCompositorViewHolderSupplier =
+            ObservableSuppliers.alwaysNull();
     private final SettableMonotonicObservableSupplier<EdgeToEdgeController>
             mEdgeToEdgeControllerSupplier = ObservableSuppliers.createMonotonic();
     private final ActivityTabProvider mActivityTabProvider = new ActivityTabProvider();
@@ -177,6 +184,7 @@ public final class BaseCustomTabRootUiCoordinatorUnitTest {
 
         // Setup the shopping service.
         CommerceFeatureUtilsJni.setInstanceForTesting(mCommerceFeatureUtilsJniMock);
+        IncognitoReauthManager.setIsIncognitoReauthFeatureAvailableForTesting(false);
         doReturn(false).when(mCommerceFeatureUtilsJniMock).isShoppingListEligible(anyLong());
 
         ShoppingServiceFactoryJni.setInstanceForTesting(mShoppingServiceFactoryJniMock);
@@ -287,8 +295,6 @@ public final class BaseCustomTabRootUiCoordinatorUnitTest {
                 BaseCustomTabRootUiCoordinator.isGoogleBottomBarEnabled(null));
     }
 
-    // TODO(crbug.com/450954710): This test fails on SDK 36.
-    @Config(sdk = 29)
     @Test
     @MediumTest
     public void testInitProfileDependantFeatures_callsInitDefaultSearchEngine() {

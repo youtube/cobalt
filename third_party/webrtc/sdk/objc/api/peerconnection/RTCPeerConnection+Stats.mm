@@ -106,8 +106,11 @@ class StatsObserverAdapter : public StatsObserver {
       webrtc::make_ref_counted<webrtc::StatsObserverAdapter>(completionHandler);
   webrtc::PeerConnectionInterface::StatsOutputLevel nativeOutputLevel =
       [[self class] nativeStatsOutputLevelForLevel:statsOutputLevel];
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   self.nativePeerConnection->GetStats(
       observer.get(), mediaStreamTrack.nativeTrack.get(), nativeOutputLevel);
+#pragma clang diagnostic pop
 }
 
 @end

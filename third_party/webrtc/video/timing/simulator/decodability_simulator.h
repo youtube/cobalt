@@ -21,6 +21,7 @@
 #include "api/units/timestamp.h"
 #include "logging/rtc_event_log/rtc_event_log_parser.h"
 #include "video/timing/simulator/frame_base.h"
+#include "video/timing/simulator/results_base.h"
 #include "video/timing/simulator/stream_base.h"
 
 namespace webrtc::video_timing_simulator {
@@ -72,7 +73,7 @@ class DecodabilitySimulator {
   };
 
   // All streams.
-  struct Results {
+  struct Results : public ResultsBase<Results> {
     std::vector<Stream> streams;
   };
 

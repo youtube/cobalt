@@ -108,6 +108,7 @@ namespace http://www.w3.org/1999/xhtml
     property contains
     property contentEditable
     property currentCSSZoom
+    property customElementRegistry
     property dataset
     property dir
     property dispatchEvent
@@ -326,6 +327,7 @@ namespace http://www.w3.org/1999/xhtml
     property setAttributeNS
     property setAttributeNode
     property setAttributeNodeNS
+    property setHTML
     property setHTMLUnsafe
     property setPointerCapture
     property shadowRoot
@@ -1097,6 +1099,7 @@ html element td
 html element template
     property content
     property shadowRootClonable
+    property shadowRootCustomElementRegistry
     property shadowRootDelegatesFocus
     property shadowRootMode
     property shadowRootSerializable
@@ -1368,6 +1371,7 @@ namespace http://www.w3.org/2000/svg
     property computedStyleMap
     property contains
     property currentCSSZoom
+    property customElementRegistry
     property dataset
     property dispatchEvent
     property elementTiming
@@ -1569,6 +1573,7 @@ namespace http://www.w3.org/2000/svg
     property setAttributeNS
     property setAttributeNode
     property setAttributeNodeNS
+    property setHTML
     property setHTMLUnsafe
     property setPointerCapture
     property shadowRoot

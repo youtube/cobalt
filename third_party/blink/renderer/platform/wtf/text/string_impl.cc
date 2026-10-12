@@ -711,18 +711,6 @@ scoped_refptr<StringImpl> StringImpl::SimplifyWhiteSpace(
   });
 }
 
-int StringImpl::ToInt(NumberParsingOptions options, bool* ok) const {
-  if (Is8Bit())
-    return CharactersToInt(Span8(), options, ok);
-  return CharactersToInt(Span16(), options, ok);
-}
-
-wtf_size_t StringImpl::ToUInt(NumberParsingOptions options, bool* ok) const {
-  if (Is8Bit())
-    return CharactersToUInt(Span8(), options, ok);
-  return CharactersToUInt(Span16(), options, ok);
-}
-
 wtf_size_t StringImpl::HexToUIntStrict(bool* ok) {
   constexpr auto kStrict = NumberParsingOptions::Strict();
   if (Is8Bit()) {
@@ -749,18 +737,6 @@ uint64_t StringImpl::ToUInt64(NumberParsingOptions options, bool* ok) const {
   if (Is8Bit())
     return CharactersToUInt64(Span8(), options, ok);
   return CharactersToUInt64(Span16(), options, ok);
-}
-
-double StringImpl::ToDouble(bool* ok) {
-  if (Is8Bit())
-    return CharactersToDouble(Span8(), ok);
-  return CharactersToDouble(Span16(), ok);
-}
-
-float StringImpl::ToFloat(bool* ok) {
-  if (Is8Bit())
-    return CharactersToFloat(Span8(), ok);
-  return CharactersToFloat(Span16(), ok);
 }
 
 // Table is based on ftp://ftp.unicode.org/Public/UNIDATA/CaseFolding.txt

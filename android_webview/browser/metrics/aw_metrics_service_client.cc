@@ -253,6 +253,14 @@ void AwMetricsServiceClient::SetInstance(
       g_aw_metrics_service_client->sequence_checker_);
 }
 
+// static
+void AwMetricsServiceClient::ClearInstanceForTesting() {
+  if (g_aw_metrics_service_client) {
+    delete g_aw_metrics_service_client;
+    g_aw_metrics_service_client = nullptr;
+  }
+}
+
 AwMetricsServiceClient::AwMetricsServiceClient(
     std::unique_ptr<Delegate> delegate)
     : time_created_(base::Time::Now()), delegate_(std::move(delegate)) {}
@@ -847,7 +855,7 @@ JNI_AwMetricsServiceClient_SetOnFinalMetricsCollectedListenerForTesting(
     const base::android::JavaRef<jobject>& listener) {
   AwMetricsServiceClient::GetInstance()
       ->SetOnFinalMetricsCollectedListenerForTesting(base::BindRepeating(
-          base::android::RunRunnableAndroid,
+          jni_zero::RunRunnable,
           base::android::ScopedJavaGlobalRef<jobject>(listener)));
 }
 
