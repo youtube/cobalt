@@ -406,8 +406,7 @@ bool IsProgressiveFormat(const ContentType& content_type) {
     return false;
   }
 
-  Vector<String> split_codecs;
-  codecs.Split(',', split_codecs);
+  const Vector<String> split_codecs = codecs.SplitSkippingEmpty(',');
   return type.Utf8() == "video/mp4" && split_codecs.size() == 2;
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
