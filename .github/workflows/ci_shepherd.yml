@@ -217,17 +217,7 @@ jobs:
             desc="Retrying failed jobs"
           else
             mkdir -p shepherd_artifacts
-            gh api "repos/${REPO}/actions/runs/${WORKFLOW_ID}/artifacts" --paginate --jq '
-              [.artifacts[]? | select(.name | startswith("shepherd-report-"))]
-              | group_by(.name) | map(max_by(.created_at)) | .[] | .id
-            ' | while read -r art_id; do
-              if [[ -n "${art_id}" ]]; then
-                mkdir -p "shepherd_artifacts/${art_id}"
-                gh api "repos/${REPO}/actions/artifacts/${art_id}/zip" > "shepherd_artifacts/${art_id}/art.zip"
-                unzip -qo "shepherd_artifacts/${art_id}/art.zip" -d "shepherd_artifacts/${art_id}"
-                rm -f "shepherd_artifacts/${art_id}/art.zip"
-              fi
-            done
+            gh run download "${WORKFLOW_ID}" --repo "${REPO}" -p "shepherd-report-*" -D shepherd_artifacts 2>/dev/null || true
 
             shopt -s globstar nullglob
             reports=(shepherd_artifacts/**/shepherd_report.json)
