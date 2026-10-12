@@ -27,6 +27,7 @@
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "media/base/starboard/sbmedia_interface.h"
+#include "media/filters/chunk_demuxer.h"
 #include "starboard/media.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
@@ -331,6 +332,8 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
                        SourceBufferChangeType_ForwardsRawCustomAttributes) {
+  // TODO(b/571981376): Remove once experiments have run.
+  ::media::ChunkDemuxer::EnableChangeType();
   test_media_.SetSupportType(kSbMediaSupportTypeProbably);
 
   const char kInitialMime[] =
@@ -413,6 +416,8 @@ IN_PROC_BROWSER_TEST_F(
 IN_PROC_BROWSER_TEST_F(
     CustomMimeTypeBrowserTest,
     SourceBufferChangeType_CodecTransitionRejectedThrowsNotSupportedError) {
+  // TODO(b/571981376): Remove once experiments have run.
+  ::media::ChunkDemuxer::EnableChangeType();
   test_media_.SetSupportType(kSbMediaSupportTypeProbably);
   test_media_.SetCanChangeType(false);
 
