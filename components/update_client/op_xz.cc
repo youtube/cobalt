@@ -45,16 +45,24 @@ void Done(base::OnceCallback<
           base::RepeatingCallback<void(base::DictValue)> event_adder,
           const base::FilePath& out_file,
           bool success) {
+#if BUILDFLAG(IS_STARBOARD)
+  using Result = base::expected<OperationResult, CategorizedError>;
+  OperationResult out_result = in_file_result;
+#if !defined(IN_MEMORY_UPDATES)
+  out_result.response = out_file;
+#endif
+#else
+  using Result = base::expected<base::FilePath, CategorizedError>;
+  const base::FilePath& out_result = out_file;
+#endif  // BUILDFLAG(IS_STARBOARD)
   const auto result =
-      success ? base::expected<base::FilePath, CategorizedError>(out_file)
+      success ? Result(out_result)
               : base::unexpected<CategorizedError>(
                     {.category = ErrorCategory::kUnpack,
                      .code = static_cast<int>(UnpackerError::kXzFailed)});
 
   base::OnceClosure done = base::BindOnce(
-      [](const base::expected<base::FilePath, CategorizedError>& result,
-         base::OnceCallback<void(
-             base::expected<base::FilePath, CategorizedError>)> callback,
+      [](const Result& result, base::OnceCallback<void(Result)> callback,
          base::RepeatingCallback<void(base::DictValue)> event_adder) {
         event_adder.Run(
             MakeSimpleOperationEvent(result, protocol_request::kEventXz));
@@ -71,35 +79,11 @@ void Done(base::OnceCallback<
   base::ThreadPool::PostTaskAndReply(
       FROM_HERE, kTaskTraits,
       base::BindOnce(
-<<<<<<< HEAD
           [](const base::FilePath& out_file) {
             DeleteFileAndEmptyParentDirectory(out_file);
           },
           out_file),
       std::move(done));
-=======
-          std::move(callback),
-#if BUILDFLAG(IS_STARBOARD)
-          [&]() -> base::expected<OperationResult, CategorizedError> {
-            if (success) {
-              OperationResult out_result = in_file_result;
-#if !defined(IN_MEMORY_UPDATES)
-              out_result.response = out_file;
-#endif
-              return out_result;
-            }
-#else
-          [&]() -> base::expected<base::FilePath, CategorizedError> {
-            if (success) {
-              return out_file;
-            }
-            DeleteFileAndEmptyParentDirectory(out_file);
-#endif  // BUILDFLAG(IS_STARBOARD)
-            return base::unexpected<CategorizedError>(
-                {.category = ErrorCategory::kUnpack,
-                 .code = static_cast<int>(UnpackerError::kXzFailed)});
-          }()));
->>>>>>> parent of 2cbfb655d11 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 }  // namespace
