@@ -51,6 +51,7 @@ void InProcessRendererThread::Init() {
   // Android. Temporary CHECK() to debug http://crbug.com/514141
   CHECK(!render_process_);
 
+#if BUILDFLAG(IS_COBALT)
   // Mirror renderer_main.cc: in multi-process mode CrRendererMain is display
   // critical, but single-process mode never runs that code, so the renderer
   // main thread stayed at default priority behind the compositor/GPU threads.
@@ -62,6 +63,7 @@ void InProcessRendererThread::Init() {
     base::PlatformThread::SetCurrentThreadType(
         base::ThreadType::kDisplayCritical);
   }
+#endif  // BUILDFLAG(IS_COBALT)
 #endif
   blink::Platform::InitializeBlink();
   std::unique_ptr<blink::scheduler::WebThreadScheduler> main_thread_scheduler =
