@@ -45,6 +45,7 @@ class DrmSystem : public ::SbDrmSystemPrivate, public MediaDrmBridge::Host {
     SbDrmSessionUpdateRequestFunc update_request;
     SbDrmSessionUpdatedFunc session_updated;
     SbDrmSessionKeyStatusesChangedFunc key_statuses_changed;
+    SbDrmSessionClosedFunc session_closed;
   };
   static std::unique_ptr<DrmSystem> Create(std::string_view key_system,
                                            void* context,
