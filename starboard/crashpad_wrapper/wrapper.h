@@ -46,6 +46,11 @@ extern const char kCrashpadCertScopeKey[];
 // upload.
 void InstallCrashpadHandler(const std::string& ca_certificates_path);
 
+// The implementation of InstallCrashpadHandler() shared by all platforms. A
+// platform that needs some setup first runs it in InstallCrashpadHandler(),
+// then calls this.
+void InstallCrashpadHandlerImpl(const std::string& ca_certificates_path);
+
 bool AddEvergreenInfoToCrashpad(EvergreenInfo evergreen_info);
 
 // Associates the given value with the given key in Crashpad's map of
