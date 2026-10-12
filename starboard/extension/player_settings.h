@@ -15,6 +15,7 @@
 #ifndef STARBOARD_EXTENSION_PLAYER_SETTINGS_H_
 #define STARBOARD_EXTENSION_PLAYER_SETTINGS_H_
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -45,6 +46,12 @@ typedef struct StarboardExtensionPlayerSettingsApi {
   // Sets the SurfaceView (jobject) for any subsequently created
   // SbPlayer on the current calling thread. Set to NULL to clear.
   void (*SetVideoSurfaceViewForCurrentThread)(void* surface_view);
+
+  // Sets whether single-layer video is enabled (i.e. the UI plane is removed
+  // during fullscreen video) for any subsequently created SbPlayer on the
+  // current calling thread. Set to false to clear.
+  void (*SetSingleLayerVideoEnabledForCurrentThread)(
+      bool single_layer_video_enabled);
 } StarboardExtensionPlayerSettingsApi;
 
 #ifdef __cplusplus

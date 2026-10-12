@@ -582,7 +582,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
          creation_parameters.max_video_resolution()},
         {tunnel_mode_audio_session_id, force_secure_pipeline_under_tunnel_mode},
         {max_video_input_size, enable_flush_during_seek, use_dual_threads,
-         experimental_features},
+         experimental_features,
+         creation_parameters.single_layer_video_enabled()},
         {reset_delay_usec, flush_delay_usec});
   }
 

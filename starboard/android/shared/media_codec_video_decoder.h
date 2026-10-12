@@ -79,6 +79,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
     bool enable_flush_during_seek = false;
     bool use_dual_threads = true;
     ExperimentalFeatures experimental_features;
+    bool single_layer_video_enabled = false;
   };
 
   struct PlatformOptions {

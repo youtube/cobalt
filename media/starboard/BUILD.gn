@@ -71,6 +71,7 @@ source_set("starboard") {
 
   deps += [
     "//base",
+    "//gpu/config",
     "//media:media_buildflags",
     "//media/base",
     "//media/renderers",

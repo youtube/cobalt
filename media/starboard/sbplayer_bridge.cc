@@ -42,6 +42,11 @@
 #include "starboard/extension/experimental/experimental_features.h"
 #include "starboard/extension/player_settings.h"
 
+#if BUILDFLAG(IS_ANDROID)
+#include "base/feature_list.h"
+#include "gpu/config/gpu_finch_features.h"
+#endif  // BUILDFLAG(IS_ANDROID)
+
 #if BUILDFLAG(COBALT_MEDIA_ENABLE_STARTUP_LATENCY_TRACKING)
 #include "cobalt/base/statistics.h"
 #endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_STARTUP_LATENCY_TRACKING)
@@ -784,6 +789,11 @@ void SbPlayerBridge::CreatePlayer() {
     if (player_settings_extension->SetVideoSurfaceViewForCurrentThread) {
       player_settings_extension->SetVideoSurfaceViewForCurrentThread(
           surface_view_);
+    }
+    if (player_settings_extension->SetSingleLayerVideoEnabledForCurrentThread) {
+      player_settings_extension->SetSingleLayerVideoEnabledForCurrentThread(
+          base::FeatureList::IsEnabled(
+              features::kCobaltRemoveUiPlaneDuringFullscreenVideo));
     }
 #endif  // BUILDFLAG(IS_ANDROID)
   }

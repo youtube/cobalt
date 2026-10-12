@@ -63,7 +63,8 @@ class MediaCodecVideoDecoderTest : public ::testing::Test {
   void CreateDecoder(const std::string& max_video_capabilities = "",
                      const VideoStreamInfo* initial_stream_info = nullptr,
                      ExperimentalFeatures experimental_features = {},
-                     bool enable_flush_during_seek = false) {
+                     bool enable_flush_during_seek = false,
+                     bool single_layer_video_enabled = false) {
     auto factory = std::make_unique<FakeMediaCodecFactory>();
     fake_factory_ = factory.get();  // Save raw pointer before moving!
 
@@ -79,6 +80,7 @@ class MediaCodecVideoDecoderTest : public ::testing::Test {
     MediaCodecVideoDecoder::PipelineConfig pipeline_config;
     pipeline_config.experimental_features = std::move(experimental_features);
     pipeline_config.enable_flush_during_seek = enable_flush_during_seek;
+    pipeline_config.single_layer_video_enabled = single_layer_video_enabled;
     MediaCodecVideoDecoder::PlatformOptions platform_options;
 
     auto result = MediaCodecVideoDecoder::CreateForTesting(
@@ -398,6 +400,18 @@ TEST_F(MediaCodecVideoDecoderTest, FlushSeekSameColorKeepsCodec) {
 
   EXPECT_EQ(fake_factory_->video_codec_create_count(), created);
   EXPECT_FALSE(error_called_);
+}
+
+TEST_F(MediaCodecVideoDecoderTest,
+       DisablesVideoFrameTrackerWhenSingleLayerVideoEnabled) {
+  CreateDecoder(/*max_video_capabilities=*/"", /*initial_stream_info=*/nullptr,
+                /*experimental_features=*/{},
+                /*enable_flush_during_seek=*/false,
+                /*single_layer_video_enabled=*/true);
+
+  auto platform_options = fake_factory_->last_video_platform_options();
+  ASSERT_TRUE(platform_options.has_value());
+  EXPECT_FALSE(platform_options->enable_frame_renderer_listener);
 }
 
 }  // namespace

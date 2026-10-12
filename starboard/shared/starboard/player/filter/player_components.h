@@ -80,7 +80,8 @@ class PlayerComponents {
                              decode_target_graphics_context_provider,
                          JobQueue* job_queue,
                          SbDrmSystem drm_system = kSbDrmSystemInvalid,
-                         const std::string& max_video_resolution = "");
+                         const std::string& max_video_resolution = "",
+                         bool single_layer_video_enabled = false);
       CreationParameters(const CreationParameters& that) = default;
       void operator=(const CreationParameters& that) = delete;
 
@@ -125,6 +126,10 @@ class PlayerComponents {
         return max_video_resolution_;
       }
 
+      bool single_layer_video_enabled() const {
+        return single_layer_video_enabled_;
+      }
+
       SbPlayer player() const { return player_; }
       SbPlayerOutputMode output_mode() const { return output_mode_; }
       int max_video_input_size() const { return max_video_input_size_; }
@@ -166,6 +171,7 @@ class PlayerComponents {
       SbDrmSystem drm_system_ = kSbDrmSystemInvalid;
 
       const std::string max_video_resolution_;
+      const bool single_layer_video_enabled_ = false;
     };
 
     virtual ~Factory() {}

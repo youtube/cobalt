@@ -107,6 +107,8 @@ class PlayerWorker {
     virtual void SetMaxVideoInputSize(int max_video_input_size) = 0;
     virtual void SetMaxVideoResolution(
         const std::string& max_video_resolution) = 0;
+    virtual void SetSingleLayerVideoEnabled(
+        bool single_layer_video_enabled) = 0;
 
     virtual void SetVideoSurfaceView(void* surface_view) = 0;
     virtual void SetExperimentalFeatures(

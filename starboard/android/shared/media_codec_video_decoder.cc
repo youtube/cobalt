@@ -163,6 +163,24 @@ bool IsFrameSizeExceedingCapabilities(const Size& frame_size,
          frame_size.height > max_video_size.height;
 }
 
+bool IsVideoFrameTrackerEnabled(bool is_tunnel_mode,
+                                bool single_layer_video_enabled) {
+  // Tunnel mode relies on VideoFrameTracker for dropped frames and preroll.
+  // Its render callbacks come from the sideband path and are unaffected by
+  // single-layer video.
+  if (is_tunnel_mode) {
+    return true;
+  }
+  // When single-layer video is enabled, the UI plane is removed during
+  // fullscreen playback and some HWCs (e.g. MediaTek mt8696) skip the display
+  // presentFence, so OnFrameRendered callbacks are unreliable. Fall back to
+  // timestamp-based dropped frame accounting in VideoRenderAlgorithmAndroid.
+  if (single_layer_video_enabled) {
+    return false;
+  }
+  return android_get_device_api_level() >= 34;
+}
+
 }  // namespace
 
 // TODO: Merge this with VideoFrameTracker, maybe?
@@ -345,8 +363,9 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
               kMediaEnableTrivialOptimizations)),
       enable_ndk_video_(
           pipeline_config.experimental_features.GetBool(kMediaNdkVideo)),
-      is_video_frame_tracker_enabled_(android_get_device_api_level() >= 34 ||
-                                      tunnel_mode_audio_session_id_),
+      is_video_frame_tracker_enabled_(IsVideoFrameTrackerEnabled(
+          tunnel_mode_audio_session_id_.has_value(),
+          pipeline_config.single_layer_video_enabled)),
       media_codec_factory_(std::move(media_codec_factory)),
       has_new_texture_available_(false),
       initial_number_of_preroll_frames_(

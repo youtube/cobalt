@@ -433,6 +433,7 @@ TEST(ExtensionTest, PlayerSettings) {
   EXPECT_NE(extension_api->SetMaxVideoInputSizeForCurrentThread, nullptr);
   EXPECT_NE(extension_api->SetMaxVideoResolutionForCurrentThread, nullptr);
   EXPECT_NE(extension_api->SetVideoSurfaceViewForCurrentThread, nullptr);
+  EXPECT_NE(extension_api->SetSingleLayerVideoEnabledForCurrentThread, nullptr);
 
   const ExtensionApi* second_extension_api =
       static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));

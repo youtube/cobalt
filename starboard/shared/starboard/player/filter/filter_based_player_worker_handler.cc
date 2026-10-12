@@ -100,7 +100,7 @@ Result<void> FilterBasedPlayerWorkerHandler::Init(
       audio_stream_info_, video_stream_info_, player_, output_mode_,
       max_video_input_size_, experimental_features_, surface_view_,
       decode_target_graphics_context_provider_, job_queue, drm_system_,
-      max_video_resolution_);
+      max_video_resolution_, single_layer_video_enabled_);
 
   {
     std::lock_guard lock(player_components_existence_mutex_);
@@ -387,6 +387,14 @@ void FilterBasedPlayerWorkerHandler::SetMaxVideoResolution(
   SB_LOG(INFO) << "Set max_video_resolution from \"" << max_video_resolution_
                << "\" to \"" << max_video_resolution << "\"";
   max_video_resolution_ = max_video_resolution;
+}
+
+void FilterBasedPlayerWorkerHandler::SetSingleLayerVideoEnabled(
+    bool single_layer_video_enabled) {
+  SB_LOG(INFO) << "Set single_layer_video_enabled from "
+               << ToString(single_layer_video_enabled_) << " to "
+               << ToString(single_layer_video_enabled);
+  single_layer_video_enabled_ = single_layer_video_enabled;
 }
 
 void FilterBasedPlayerWorkerHandler::SetExperimentalFeatures(

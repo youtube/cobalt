@@ -14,6 +14,7 @@
 
 #include "starboard/android/shared/player_settings.h"
 
+#include "starboard/android/shared/single_layer_video_enabled.h"
 #include "starboard/android/shared/video_max_video_input_size.h"
 #include "starboard/android/shared/video_max_video_resolution.h"
 #include "starboard/android/shared/video_surface_view.h"
@@ -29,6 +30,7 @@ const StarboardExtensionPlayerSettingsApi kPlayerSettingsApi = {
     &SetMaxVideoInputSizeForCurrentThread,
     &SetMaxVideoResolutionForCurrentThread,
     &SetVideoSurfaceViewForCurrentThread,
+    &SetSingleLayerVideoEnabledForCurrentThread,
 };
 
 }  // namespace
