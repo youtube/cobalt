@@ -279,30 +279,13 @@ _do_publish_golden_workspace_snapshot () {
   # GitHub Actions runners do not inherit internal rpc:// Git-on-Borg URLs.
   local public_repo_url="https://github.com/youtube/cobalt.git"
   local orig_remote_url
-  orig_remote_url="$(git -C "${gclient_root}/src" remote get-url origin \
-    2>/dev/null || true)"
+  orig_remote_url="$(git -C "${gclient_root}/src" remote get-url origin)"
   local gclient_file="${gclient_root}/.gclient"
 
-  _restore_golden_workspace () {
-    if [[ -n "${orig_remote_url:-}" ]]; then
-      git -C "${gclient_root}/src" remote set-url origin "${orig_remote_url}" \
-        2>/dev/null || true
-    fi
-    if [[ -n "${staging_dir:-}" && -f "${staging_dir}/.gclient.bak" ]]; then
-      mv -f "${staging_dir}/.gclient.bak" "${gclient_file}" 2>/dev/null || true
-    fi
-  }
-  trap '_restore_golden_workspace' RETURN
-
-  if [[ -n "${orig_remote_url}" ]]; then
-    git -C "${gclient_root}/src" remote set-url origin "${public_repo_url}"
-  fi
-
-  if [[ -f "${gclient_file}" ]]; then
-    cp "${gclient_file}" "${staging_dir}/.gclient.bak"
-    sed "s|rpc://[^\"' ]*|${public_repo_url}|g" \
-      "${staging_dir}/.gclient.bak" > "${gclient_file}"
-  fi
+  git -C "${gclient_root}/src" remote set-url origin "${public_repo_url}"
+  cp "${gclient_file}" "${staging_dir}/.gclient.bak"
+  sed "s|rpc://[^\"' ]*|${public_repo_url}|g" \
+    "${staging_dir}/.gclient.bak" > "${gclient_file}"
 
   local archive="${staging_dir}/golden-workspace-latest.tar.zst"
   local extra_tar_args=()
@@ -319,8 +302,8 @@ _do_publish_golden_workspace_snapshot () {
       "${extra_tar_args[@]}"
 
   # Restore origin URL and .gclient immediately after archive creation.
-  _restore_golden_workspace
-  trap - RETURN
+  git -C "${gclient_root}/src" remote set-url origin "${orig_remote_url}"
+  mv -f "${staging_dir}/.gclient.bak" "${gclient_file}"
 
   local archive_sha
   if command -v sha256sum >/dev/null 2>&1; then
