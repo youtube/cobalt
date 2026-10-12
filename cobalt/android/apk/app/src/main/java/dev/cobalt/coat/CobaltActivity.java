@@ -230,6 +230,9 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
         FontUtil.copyFontsXml(getApplicationContext());
       }
       StarboardBridge starboardBridge = createStarboardBridge(getArgs(), mStartDeepLink);
+      starboardBridge.setActivityLifecycleCoordinationEnabled(
+          getJavaSwitches().containsKey(JavaSwitches.ENABLE_ACTIVITY_LIFECYCLE_COORDINATION)
+              && JavaSwitches.shouldApplyExperimentConfigs());
       ((StarboardBridge.HostApplication) getApplication()).setStarboardBridge(starboardBridge);
       starboardBridge.onActivityCreate(this);
     } else {
