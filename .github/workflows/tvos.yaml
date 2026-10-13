@@ -5,8 +5,6 @@ on:
     types: [opened, reopened, synchronize, ready_for_review]
     branches:
       - main
-      - experimental/*
-      - feature/*
       - 'stack/**'
   workflow_dispatch:
     inputs:
@@ -76,12 +74,6 @@ jobs:
       invocation_id: ${{ steps.poll-status.outputs.invocation_id }}
       skipped: ${{ steps.check-skip.outputs.skipped }}
     steps:
-      - name: Checkout Scripts
-        if: github.event_name == 'pull_request'
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          sparse-checkout: .github/scripts
-
       - name: Check if tvOS build should be skipped
         id: check-skip
         if: github.event_name == 'pull_request'
@@ -91,7 +83,24 @@ jobs:
           IS_DRAFT: ${{ github.event.pull_request.draft }}
           REPO: ${{ github.repository }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python3 .github/scripts/check_tvos_impact.py wait-for-label
+        run: |
+          if [[ "${IS_DRAFT}" == "true" ]]; then
+            echo "PR #${PR_NUMBER} is a draft. Skipping tvOS build."
+            echo "skipped=true" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          for _ in {1..120}; do
+            status=$(gh api "repos/${REPO}/actions/workflows/auto_label_kokoro.yaml/runs?event=pull_request_target&per_page=50" \
+              --jq "[.workflow_runs[] | select((.display_title // \"\") | contains(\"${COMMIT_SHA}\"))][0].status // \"none\"")
+            [[ "${status}" == "completed" ]] && break
+            sleep 10
+          done
+          has_label=$(gh pr view "${PR_NUMBER}" --repo "${REPO}" --json labels \
+            --jq 'any(.labels[]; .name == "kokoro:run")')
+          if [[ "${has_label}" != "true" ]]; then
+            echo "No kokoro:run label on PR #${PR_NUMBER}. Skipping tvOS build."
+            echo "skipped=true" >> "${GITHUB_OUTPUT}"
+          fi
 
       - name: Poll GitHub Statuses API for Kokoro build
         id: poll-status

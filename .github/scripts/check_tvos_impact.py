@@ -12,28 +12,22 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Checks whether a PR affects the tvOS Cobalt build and manages CI labels."""
+"""Checks whether a PR's modified files affect the tvOS Cobalt build."""
 
 import argparse
 import contextlib
 import json
 import os
 import pathlib
-import re
 import shutil
 import subprocess
 import sys
 import tempfile
-import time
-from typing import Any, Iterable, List, Optional, Sequence, Set, Tuple
-import urllib.error
-import urllib.parse
+from typing import Any, Iterable, List, Optional, Sequence, Set
 import urllib.request
 
 PLATFORM = 'tvos-arm64-simulator'
 CONFIG = 'devel'
-KOKORO_RUN_LABEL = 'kokoro:run'
-KOKORO_FORCE_RUN_LABEL = 'kokoro:force-run'
 
 TEST_TARGETS_JSON_RELPATH = (
     f'cobalt/build/testing/targets/{PLATFORM}/test_targets.json')
@@ -62,16 +56,6 @@ HEADER_EXTENSIONS = frozenset({
     '.inc',
     '.inl',
     '.def',
-})
-
-ALLOWED_AUTHOR_ASSOCIATIONS = frozenset({
-    'OWNER',
-    'MEMBER',
-    'COLLABORATOR',
-})
-ALLOWED_COLLABORATOR_PERMISSIONS = frozenset({
-    'admin',
-    'write',
 })
 
 
@@ -208,6 +192,39 @@ def _find_gn_binary(src_dir: pathlib.Path) -> str:
   raise FileNotFoundError('Could not find `gn` binary in PATH or buildtools.')
 
 
+def fetch_pr_changed_files(repo: str, pr_number: str) -> List[str]:
+  """Fetches modified file paths for a PR via the GitHub REST API."""
+  api_base = os.environ.get('GITHUB_API_URL', 'https://api.github.com').rstrip(
+      '/')
+  token = os.environ.get('GH_TOKEN') or os.environ.get('GITHUB_TOKEN')
+  headers = {
+      'Accept': 'application/vnd.github+json',
+      'User-Agent': 'cobalt-check-tvos-impact',
+      'X-GitHub-Api-Version': '2022-11-28',
+  }
+  if token:
+    headers['Authorization'] = f'Bearer {token}'
+
+  files: List[str] = []
+  page = 1
+  while True:
+    url = (
+        f'{api_base}/repos/{repo}/pulls/{pr_number}/files'
+        f'?per_page=100&page={page}')
+    req = urllib.request.Request(url, headers=headers, method='GET')
+    with urllib.request.urlopen(req, timeout=30) as resp:
+      items = json.loads(resp.read().decode('utf-8'))
+    if not isinstance(items, list) or not items:
+      break
+    for item in items:
+      if isinstance(item, dict) and item.get('filename'):
+        files.append(item['filename'])
+    if len(items) < 100:
+      break
+    page += 1
+  return files
+
+
 def check_tvos_impact(
     src_dir: pathlib.Path,
     files: Sequence[str],
@@ -298,247 +315,6 @@ def check_tvos_impact(
     return status != 'No dependency'
 
 
-def _github_api_request(
-    method: str,
-    endpoint: str,
-    payload: Optional[dict] = None,
-) -> Any:
-  """Performs a GitHub REST API request using urllib."""
-  api_base = os.environ.get('GITHUB_API_URL', 'https://api.github.com').rstrip(
-      '/')
-  url = f'{api_base}/{endpoint.lstrip("/")}'
-  token = os.environ.get('GH_TOKEN') or os.environ.get('GITHUB_TOKEN')
-  headers = {
-      'Accept': 'application/vnd.github+json',
-      'User-Agent': 'cobalt-check-tvos-impact',
-      'X-GitHub-Api-Version': '2022-11-28',
-  }
-  if token:
-    headers['Authorization'] = f'Bearer {token}'
-  data = None
-  if payload is not None:
-    data = json.dumps(payload).encode('utf-8')
-    headers['Content-Type'] = 'application/json'
-
-  req = urllib.request.Request(url, data=data, headers=headers, method=method)
-  with urllib.request.urlopen(req, timeout=30) as resp:
-    body = resp.read().decode('utf-8')
-    return json.loads(body) if body else None
-
-
-def _resolve_repo_and_pr(
-    pr_url: Optional[str] = None) -> Optional[Tuple[str, str]]:
-  url = pr_url or os.environ.get('PR_URL', '')
-  if url:
-    match = re.search(r'github\.com/([^/]+/[^/]+)/pull/(\d+)', url)
-    if match:
-      return match.group(1), match.group(2)
-  repo = os.environ.get('REPO', '')
-  pr_number = os.environ.get('PR_NUMBER', '')
-  if repo and pr_number:
-    return repo, pr_number
-  return None
-
-
-def _get_pr_info(repo: str, pr_number: str) -> dict:
-  try:
-    data = _github_api_request('GET', f'repos/{repo}/pulls/{pr_number}')
-    return data if isinstance(data, dict) else {}
-  except (urllib.error.URLError, ValueError):
-    return {}
-
-
-def _extract_labels(pr_info: dict) -> Set[str]:
-  return {
-      item['name']
-      for item in pr_info.get('labels', [])
-      if isinstance(item, dict) and 'name' in item
-  }
-
-
-def _set_kokoro_label(repo: str, pr_number: str, should_have_label: bool):
-  labels = _extract_labels(_get_pr_info(repo, pr_number))
-  has_label = KOKORO_RUN_LABEL in labels
-  if should_have_label and not has_label:
-    print(f'Applying {KOKORO_RUN_LABEL} label to PR #{pr_number}...')
-    _github_api_request(
-        'POST',
-        f'repos/{repo}/issues/{pr_number}/labels',
-        {'labels': [KOKORO_RUN_LABEL]},
-    )
-  elif not should_have_label and has_label:
-    print(f'Removing {KOKORO_RUN_LABEL} label from PR #{pr_number}...')
-    encoded = urllib.parse.quote(KOKORO_RUN_LABEL, safe='')
-    try:
-      _github_api_request(
-          'DELETE', f'repos/{repo}/issues/{pr_number}/labels/{encoded}')
-    except urllib.error.HTTPError as exc:
-      if exc.code != 404:
-        raise
-  else:
-    state = 'already present' if has_label else 'not present'
-    print(f'Label {KOKORO_RUN_LABEL} is {state}; no change needed.')
-
-
-def _is_author_authorized(repo: str, author: str, author_assoc: str) -> bool:
-  print(f"Author '{author}' association: {author_assoc}")
-  if author_assoc in ALLOWED_AUTHOR_ASSOCIATIONS:
-    return True
-  try:
-    data = _github_api_request(
-        'GET', f'repos/{repo}/collaborators/{author}/permission')
-    permission = (data or {}).get('permission', 'none')
-  except (urllib.error.URLError, ValueError):
-    permission = 'none'
-  print(f"Author '{author}' permission: {permission}")
-  return permission in ALLOWED_COLLABORATOR_PERMISSIONS
-
-
-def _fetch_pr_changed_files(repo: str, pr_number: str) -> List[str]:
-  files: List[str] = []
-  page = 1
-  while True:
-    items = _github_api_request(
-        'GET',
-        f'repos/{repo}/pulls/{pr_number}/files?per_page=100&page={page}',
-    )
-    if not isinstance(items, list) or not items:
-      break
-    for item in items:
-      if isinstance(item, dict) and item.get('filename'):
-        files.append(item['filename'])
-    if len(items) < 100:
-      break
-    page += 1
-  return files
-
-
-def cmd_precheck(github_output: Optional[pathlib.Path] = None) -> int:
-  """Prechecks PR draft state, permissions, and fast-path files."""
-  resolved = _resolve_repo_and_pr()
-  if not resolved:
-    raise ValueError('REPO and PR_NUMBER (or PR_URL) must be set.')
-  repo, pr_number = resolved
-  is_draft = os.environ.get('IS_DRAFT', '').lower() == 'true'
-  event_action = os.environ.get('EVENT_ACTION', '')
-  author_assoc = os.environ.get('AUTHOR_ASSOC', '')
-  pr_author = os.environ.get('PR_AUTHOR', '')
-
-  if is_draft or event_action == 'converted_to_draft':
-    print(f'PR #{pr_number} is a draft. Skipping tvOS build.')
-    _set_kokoro_label(repo, pr_number, should_have_label=False)
-    _write_github_output(
-        github_output, should_analyze='false', changed_files='[]')
-    return 0
-
-  if not _is_author_authorized(repo, pr_author, author_assoc):
-    print(f"Author '{pr_author}' is not a committer. Skipping auto-labeling.")
-    _write_github_output(
-        github_output, should_analyze='false', changed_files='[]')
-    return 0
-
-  labels = _extract_labels(_get_pr_info(repo, pr_number))
-  if KOKORO_FORCE_RUN_LABEL in labels:
-    print(f'{KOKORO_FORCE_RUN_LABEL} is present. Ensuring {KOKORO_RUN_LABEL}.')
-    _set_kokoro_label(repo, pr_number, should_have_label=True)
-    _write_github_output(
-        github_output, should_analyze='false', changed_files='[]')
-    return 0
-
-  changed_files = _fetch_pr_changed_files(repo, pr_number)
-  print(f'Changed files in PR #{pr_number}: {json.dumps(changed_files)}')
-  if not changed_files:
-    _set_kokoro_label(repo, pr_number, should_have_label=False)
-    _write_github_output(
-        github_output, should_analyze='false', changed_files='[]')
-    return 0
-
-  always_match = matches_always_trigger(changed_files)
-  if always_match:
-    print(f'File "{always_match}" directly affects tvOS. Applying label.')
-    _set_kokoro_label(repo, pr_number, should_have_label=True)
-    _write_github_output(
-        github_output, should_analyze='false', changed_files='[]')
-    return 0
-
-  _write_github_output(
-      github_output,
-      should_analyze='true',
-      changed_files=json.dumps(changed_files, separators=(',', ':')),
-  )
-  return 0
-
-
-def cmd_wait_for_label(
-    github_output: Optional[pathlib.Path] = None,
-    max_attempts: int = 120,
-    sleep_seconds: int = 10,
-) -> int:
-  """Waits for Auto Label Kokoro to finish and checks if tvOS should run."""
-  commit_sha = os.environ['COMMIT_SHA']
-  resolved = _resolve_repo_and_pr()
-  if not resolved:
-    raise ValueError('REPO and PR_NUMBER (or PR_URL) must be set.')
-  repo, pr_number = resolved
-  is_draft = os.environ.get('IS_DRAFT', '').lower() == 'true'
-
-  if is_draft:
-    print(f'PR #{pr_number} is a draft. Skipping Kokoro build and tvOS tests.')
-    _write_github_output(github_output, skipped='true')
-    return 0
-
-  print(f'Waiting for Auto Label Kokoro workflow for commit {commit_sha}...')
-  runs_endpoint = (
-      f'repos/{repo}/actions/workflows/auto_label_kokoro.yaml/runs'
-      '?event=pull_request_target&per_page=50')
-  for attempt in range(1, max_attempts + 1):
-    try:
-      data = _github_api_request('GET', runs_endpoint)
-      runs = (data or {}).get('workflow_runs', [])
-    except (urllib.error.URLError, ValueError):
-      runs = []
-
-    matching = [
-        r for r in runs
-        if commit_sha in (r.get('display_title') or '')
-    ]
-    if matching:
-      run_info = matching[0]
-      status = run_info.get('status')
-      conclusion = run_info.get('conclusion')
-      print(f'Auto Label Kokoro status: {status} (conclusion: {conclusion})')
-      if status == 'completed':
-        break
-    elif attempt >= 3:
-      in_progress = [r for r in runs if r.get('status') != 'completed']
-      if not in_progress:
-        print('No active Auto Label Kokoro run found; checking PR labels.')
-        break
-
-    print(
-        f'Waiting {sleep_seconds}s for Auto Label Kokoro '
-        f'(attempt {attempt}/{max_attempts})...')
-    time.sleep(sleep_seconds)
-
-  pr_data = _get_pr_info(repo, pr_number)
-  if pr_data.get('draft'):
-    print(f'PR #{pr_number} is now a draft. Skipping tvOS build and tests.')
-    _write_github_output(github_output, skipped='true')
-    return 0
-
-  labels = _extract_labels(pr_data)
-  if KOKORO_RUN_LABEL not in labels and KOKORO_FORCE_RUN_LABEL not in labels:
-    print(
-        f'Neither {KOKORO_RUN_LABEL} nor {KOKORO_FORCE_RUN_LABEL} is present '
-        f'on PR #{pr_number}. Skipping Kokoro build and tvOS tests.')
-    _write_github_output(github_output, skipped='true')
-    return 0
-
-  print(f'Kokoro label is present on PR #{pr_number}. Proceeding...')
-  _write_github_output(github_output, skipped='false')
-  return 0
-
-
 def main(argv: Optional[Sequence[str]] = None) -> int:
   parser = argparse.ArgumentParser(description=__doc__)
   parser.add_argument(
@@ -552,6 +328,18 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
       type=pathlib.Path,
       default=None,
       help='Optional directory for gn gen output.',
+  )
+  parser.add_argument(
+      '--repo',
+      type=str,
+      default=None,
+      help='GitHub repository (owner/repo) to fetch PR files from.',
+  )
+  parser.add_argument(
+      '--pr-number',
+      type=str,
+      default=None,
+      help='Pull request number to fetch modified files from.',
   )
   parser.add_argument(
       '--files-json',
@@ -572,17 +360,6 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
       help='Additional compile targets for gn analyze (e.g. //cobalt:cobalt).',
   )
   parser.add_argument(
-      '--pr-url',
-      type=str,
-      default=None,
-      help='Optional PR URL to update kokoro:run label after analysis.',
-  )
-  parser.add_argument(
-      '--update-label',
-      action='store_true',
-      help='Update kokoro:run label on PR using REPO/PR_NUMBER or --pr-url.',
-  )
-  parser.add_argument(
       '--github-output',
       type=pathlib.Path,
       default=None,
@@ -591,25 +368,21 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
   parser.add_argument(
       'files',
       nargs='*',
-      help='Subcommand (precheck, wait-for-label) or modified file paths.',
+      help='Modified file paths relative to src_dir.',
   )
   args = parser.parse_args(argv)
 
-  if len(args.files) == 1 and not args.files_json:
-    if args.files[0] == 'precheck':
-      return cmd_precheck(args.github_output)
-    if args.files[0] == 'wait-for-label':
-      return cmd_wait_for_label(args.github_output)
-
-  files: List[str] = list(args.files)
-  if args.files_json:
-    parsed = json.loads(args.files_json)
-    if not isinstance(parsed, list):
-      raise ValueError('--files-json must decode to a JSON list of strings.')
-    files.extend(str(item) for item in parsed)
-
   src_dir = args.src_dir.resolve()
   try:
+    files: List[str] = list(args.files)
+    if args.files_json:
+      parsed = json.loads(args.files_json)
+      if not isinstance(parsed, list):
+        raise ValueError('--files-json must decode to a JSON list of strings.')
+      files.extend(str(item) for item in parsed)
+    if args.repo and args.pr_number:
+      files.extend(fetch_pr_changed_files(args.repo, args.pr_number))
+
     test_targets = (
         load_test_targets(src_dir, args.test_targets_json)
         if args.test_targets_json else None)
@@ -630,12 +403,6 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
   value = 'true' if affects else 'false'
   _write_github_output(args.github_output, affects_tvos=value)
-
-  if args.update_label or args.pr_url:
-    resolved = _resolve_repo_and_pr(args.pr_url)
-    if resolved:
-      _set_kokoro_label(resolved[0], resolved[1], should_have_label=affects)
-
   return 0
 
 

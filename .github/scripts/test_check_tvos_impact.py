@@ -15,7 +15,6 @@
 """Tests for check_tvos_impact."""
 
 import json
-import os
 import pathlib
 import tempfile
 import unittest
@@ -135,80 +134,6 @@ class CheckTvosImpactTest(unittest.TestCase):
               test_targets=['base:base_unittests'],
               compile_targets=['//cobalt:cobalt'],
           ))
-
-  @mock.patch('check_tvos_impact._github_api_request')
-  def test_cmd_precheck_draft_removes_label(self, mock_api):
-    mock_api.side_effect = [
-        {'draft': True, 'labels': [{'name': 'kokoro:run'}]},
-        None,
-    ]
-    with tempfile.TemporaryDirectory() as tmp:
-      out_file = pathlib.Path(tmp) / 'github_output.txt'
-      env = {
-          'REPO': 'youtube/cobalt',
-          'PR_NUMBER': '42',
-          'IS_DRAFT': 'true',
-          'EVENT_ACTION': 'converted_to_draft',
-          'AUTHOR_ASSOC': 'MEMBER',
-          'PR_AUTHOR': 'alice',
-      }
-      with mock.patch.dict(os.environ, env, clear=False):
-        rc = check_tvos_impact.cmd_precheck(out_file)
-      self.assertEqual(rc, 0)
-      self.assertIn(
-          'should_analyze=false', out_file.read_text(encoding='utf-8'))
-      mock_api.assert_any_call(
-          'DELETE', 'repos/youtube/cobalt/issues/42/labels/kokoro%3Arun')
-
-  @mock.patch('check_tvos_impact._github_api_request')
-  def test_cmd_precheck_outputs_changed_files_for_analyze(self, mock_api):
-    mock_api.side_effect = [
-        {'draft': False, 'labels': []},
-        [{'filename': 'starboard/android/shared/player.cc'}],
-    ]
-    with tempfile.TemporaryDirectory() as tmp:
-      out_file = pathlib.Path(tmp) / 'github_output.txt'
-      env = {
-          'REPO': 'youtube/cobalt',
-          'PR_NUMBER': '42',
-          'IS_DRAFT': 'false',
-          'EVENT_ACTION': 'synchronize',
-          'AUTHOR_ASSOC': 'MEMBER',
-          'PR_AUTHOR': 'alice',
-      }
-      with mock.patch.dict(os.environ, env, clear=False):
-        rc = check_tvos_impact.cmd_precheck(out_file)
-      self.assertEqual(rc, 0)
-      output = out_file.read_text(encoding='utf-8')
-      self.assertIn('should_analyze=true', output)
-      self.assertIn(
-          'changed_files=["starboard/android/shared/player.cc"]', output)
-
-  @mock.patch('check_tvos_impact._github_api_request')
-  def test_cmd_wait_for_label_checks_workflow_and_label(self, mock_api):
-    mock_api.side_effect = [
-        {
-            'workflow_runs': [{
-                'display_title': 'Auto Label Kokoro (#42 @ deadbeef)',
-                'status': 'completed',
-                'conclusion': 'success',
-            }]
-        },
-        {'draft': False, 'labels': [{'name': 'kokoro:run'}]},
-    ]
-    with tempfile.TemporaryDirectory() as tmp:
-      out_file = pathlib.Path(tmp) / 'github_output.txt'
-      env = {
-          'REPO': 'youtube/cobalt',
-          'PR_NUMBER': '42',
-          'COMMIT_SHA': 'deadbeef',
-          'IS_DRAFT': 'false',
-      }
-      with mock.patch.dict(os.environ, env, clear=False):
-        rc = check_tvos_impact.cmd_wait_for_label(
-            out_file, max_attempts=1, sleep_seconds=0)
-      self.assertEqual(rc, 0)
-      self.assertIn('skipped=false', out_file.read_text(encoding='utf-8'))
 
 
 if __name__ == '__main__':
