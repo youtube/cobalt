@@ -42,11 +42,8 @@
 #include "base/trace_event/common/trace_event_common.h"
 #include "base/trace_event/trace_event.h"
 #include "base/trace_event/trace_id_helper.h"
-<<<<<<< HEAD
-#include "cc/base/features.h"
-=======
 #include "build/build_config.h"
->>>>>>> c45b49fb782 (cobalt: Add cobalt-frame PerformanceObserver for core UMAs and EGL swap timings (#13249))
+#include "cc/base/features.h"
 #include "components/viz/common/frame_timing_details.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "services/network/public/mojom/load_timing_info.mojom-blink.h"

@@ -84,13 +84,10 @@ class CORE_EXPORT PerformanceEntry : public ScriptWrappable {
     kLongAnimationFrame = 1 << 15,
     kScript = 1 << 16,
     kContainer = 1 << 17,
-<<<<<<< HEAD
     kInteractionContentfulPaint = 1 << 18,
-=======
 #if BUILDFLAG(IS_COBALT)
-    kCobaltFrame = 1 << 18,
+    kCobaltFrame = 1 << 19,
 #endif
->>>>>>> c45b49fb782 (cobalt: Add cobalt-frame PerformanceObserver for core UMAs and EGL swap timings (#13249))
   };
 
   const AtomicString& name() const { return name_; }

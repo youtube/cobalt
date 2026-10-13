@@ -14,7 +14,7 @@
 #include "cc/trees/paint_holding_reason.h"
 
 namespace viz {
-struct FrameTimingDetails;
+class FrameTimingDetails;
 }
 
 namespace cc {

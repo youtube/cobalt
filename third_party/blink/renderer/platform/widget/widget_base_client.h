@@ -25,7 +25,7 @@
 #include "ui/display/mojom/screen_orientation.mojom-blink.h"
 
 namespace viz {
-struct FrameTimingDetails;
+class FrameTimingDetails;
 }
 
 namespace cc {

@@ -2901,8 +2901,8 @@ void WebFrameWidgetImpl::RequestCobaltMainFramePresentation() {
   snapshot.bmf_start = cobalt_bmf_start_time_;
   snapshot.metrics = view->GetUkmAggregator()->GetBeginMainFrameMetrics();
   LayerTreeHost()->RequestSuccessfulPresentationTimeForNextFrame(
-      WTF::BindOnce(&WebFrameWidgetImpl::OnCobaltPresentationCallback,
-                    WrapWeakPersistent(this), std::move(snapshot)));
+      BindOnce(&WebFrameWidgetImpl::OnCobaltPresentationCallback,
+               WrapWeakPersistent(this), std::move(snapshot)));
 }
 #endif  // BUILDFLAG(IS_COBALT)
 

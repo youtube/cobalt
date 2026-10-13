@@ -154,9 +154,6 @@ class CORE_EXPORT WindowPerformance final : public Performance,
   void QueueLongAnimationFrameTiming(
       AnimationFrameTimingInfo*,
       std::optional<DOMPaintTimingInfo> paint_timing_info = std::nullopt);
-<<<<<<< HEAD
-  void AddFirstPaintTiming(const DOMPaintTimingInfo& paint_timing_info);
-=======
 #if BUILDFLAG(IS_COBALT)
   bool HasCobaltFrameObserver() const {
     return HasObserverFor(PerformanceEntry::kCobaltFrame);
@@ -166,9 +163,7 @@ class CORE_EXPORT WindowPerformance final : public Performance,
       const viz::FrameTimingDetails& details,
       std::optional<CobaltMainFrameSnapshot> main_snapshot);
 #endif
-  void AddFirstPaintTiming(const DOMPaintTimingInfo& paint_timing_info,
-                           bool is_triggered_by_soft_navigation);
->>>>>>> c45b49fb782 (cobalt: Add cobalt-frame PerformanceObserver for core UMAs and EGL swap timings (#13249))
+  void AddFirstPaintTiming(const DOMPaintTimingInfo& paint_timing_info);
 
   void AddFirstContentfulPaintTiming(
       const DOMPaintTimingInfo& paint_timing_info);
@@ -336,15 +331,13 @@ class CORE_EXPORT WindowPerformance final : public Performance,
   // The event we are currently processing.
   WeakMember<const Event> current_event_;
 
-<<<<<<< HEAD
   // Implements the "assign a new navigation id" algorithm described in
   // https://w3c.github.io/performance-timeline/
   PerformanceTimelineEntryIdGenerator navigation_id_generator_;
-=======
+
 #if BUILDFLAG(IS_COBALT)
   base::TimeTicks last_cobalt_swap_end_;
 #endif
->>>>>>> c45b49fb782 (cobalt: Add cobalt-frame PerformanceObserver for core UMAs and EGL swap timings (#13249))
 };
 
 }  // namespace blink
