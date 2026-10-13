@@ -18,6 +18,7 @@
 import argparse
 import os
 import subprocess
+import sys
 from pathlib import Path
 from typing import List
 
@@ -80,8 +81,13 @@ _COBALT_TVOS_PLATFORMS = [
 
 
 # pylint: disable=too-many-positional-arguments
-def write_build_args(build_args_path, platform_args_path, build_type, use_rbe,
-                     use_coverage, use_sccache):
+def write_build_args(build_args_path,
+                     platform_args_path,
+                     build_type,
+                     use_rbe,
+                     use_coverage,
+                     use_sccache,
+                     allow_tvos_gn_on_linux=False):
   """ Write args file, modifying settings for config"""
   gen_comment = '# Set by gn.py'
   with open(build_args_path, 'w', encoding='utf-8') as f:
@@ -90,6 +96,8 @@ def write_build_args(build_args_path, platform_args_path, build_type, use_rbe,
       f.write(f'use_siso = true {gen_comment}\n')
     if use_sccache:
       f.write(f'cc_wrapper = "sccache" {gen_comment}\n')
+    if allow_tvos_gn_on_linux:
+      f.write(f'allow_tvos_gn_on_linux = true {gen_comment}\n')
     f.write(f'build_type = "{build_type}" {gen_comment}\n')
     for key, value in _BUILD_TYPES[build_type].items():
       f.write(f'{key} = {value} {gen_comment}\n')
@@ -105,6 +113,8 @@ def configure_out_directory(out_directory: str, platform: str, build_type: str,
   platform_path = f'cobalt/build/configs/{platform}'
   dst_args_gn_file = os.path.join(out_directory, 'args.gn')
   src_args_gn_file = os.path.join(platform_path, 'args.gn')
+  is_tvos_on_linux = (
+      sys.platform != 'darwin' and platform in _COBALT_TVOS_PLATFORMS)
 
   if os.path.exists(dst_args_gn_file):
     # Copy the stale args.gn into stale_args.gn
@@ -113,13 +123,30 @@ def configure_out_directory(out_directory: str, platform: str, build_type: str,
     print('WARNING: Existing args.gn was overwritten. '
           'Old file was copied to stale_args.gn.')
 
-  write_build_args(dst_args_gn_file, src_args_gn_file, build_type, use_rbe,
-                   use_coverage, use_sccache)
+  write_build_args(
+      dst_args_gn_file,
+      src_args_gn_file,
+      build_type,
+      use_rbe,
+      use_coverage,
+      use_sccache,
+      allow_tvos_gn_on_linux=is_tvos_on_linux)
 
-  gn_command = ['gn', 'gen', out_directory] + gn_gen_args
+  effective_gn_args = list(gn_gen_args)
+  env = os.environ.copy()
+  if is_tvos_on_linux:
+    src_wrapper = Path(__file__).resolve().parent / (
+        'tvos_linux_script_wrapper.py')
+    dst_wrapper = Path(out_directory).resolve() / 'tvos_linux_script_wrapper.py'
+    dst_wrapper.write_bytes(src_wrapper.read_bytes())
+    dst_wrapper.chmod(0o755)
+    env['PATH'] = f'{dst_wrapper.parent}{os.pathsep}{env.get("PATH", "")}'
+    effective_gn_args.append('--script-executable=tvos_linux_script_wrapper.py')
+
+  gn_command = ['gn', 'gen', out_directory] + effective_gn_args
   print('Running', ' '.join(gn_command))
   try:
-    subprocess.check_call(gn_command)
+    subprocess.check_call(gn_command, env=env)
   except subprocess.CalledProcessError:
     # A subprocess failed, so don't log the python traceback.
     raise SystemExit(1)  # pylint: disable=raise-missing-from

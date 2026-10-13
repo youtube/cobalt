@@ -4,6 +4,8 @@
 # actionlint: disable dangerous-triggers
 name: Auto Label Kokoro
 
+run-name: Auto Label Kokoro (#${{ github.event.pull_request.number }} @ ${{ github.event.pull_request.head.sha }})
+
 on: # zizmor: ignore[dangerous-triggers]
   pull_request_target:
     types:
@@ -11,11 +13,13 @@ on: # zizmor: ignore[dangerous-triggers]
       - reopened
       - synchronize
       - ready_for_review
+      - converted_to_draft
     branches:
       - main
       - staging
       - autoroll-chromium/main-to-staging
       - experimental/*
+      - feature/*
       - 'stack/**'
 
 concurrency:
@@ -26,33 +30,86 @@ permissions:
   contents: read
 
 jobs:
-  label-kokoro-run:
+  precheck:
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       pull-requests: write
-    if: github.event.pull_request.draft == false
+    outputs:
+      should_analyze: ${{ steps.precheck.outputs.should_analyze }}
+      changed_files: ${{ steps.precheck.outputs.changed_files }}
     steps:
-      - name: Apply kokoro:run label to PR for collaborators/committers
+      - name: Checkout Scripts
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          sparse-checkout: .github/scripts
+
+      - name: Precheck PR eligibility and fast-path files
+        id: precheck
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_URL: ${{ github.event.pull_request.html_url }}
-          PR_LABELS: ${{ toJson(github.event.pull_request.labels) }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          IS_DRAFT: ${{ github.event.pull_request.draft }}
+          EVENT_ACTION: ${{ github.event.action }}
           AUTHOR_ASSOC: ${{ github.event.pull_request.author_association }}
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+        run: python3 .github/scripts/check_tvos_impact.py precheck
+
+  analyze-tvos-impact:
+    needs: precheck
+    if: needs.precheck.outputs.should_analyze == 'true'
+    runs-on: [self-hosted, chrobalt-linux-runner]
+    permissions:
+      contents: read
+      pull-requests: write
+    timeout-minutes: 20
+    container:
+      image: ghcr.io/youtube/cobalt/linux:main
+      options: --device /dev/fuse --cap-add SYS_ADMIN --security-opt apparmor=unconfined
+      volumes:
+        - /runner-cache:/runner-cache
+    env:
+      DEPOT_TOOLS_UPDATE: 0
+      DEPOT_TOOLS_REPORT_BUILD: 0
+      DEPOT_TOOLS_COLLECT_METRICS: 0
+      DEPOT_TOOLS_METRICS: 0
+      IS_CI: 1
+    steps:
+      - name: Restore CI Essentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout: |
+            .github
+            cobalt/build
+
+      - name: Prepare OverlayFS Workspace
+        uses: ./.github/actions/overlay_workspace
+        with:
+          path: cobalt
+          use_gcloud: true
+
+      - name: Checkout
+        uses: ./.github/actions/checkout
+        with:
+          path: cobalt/src
+          ref: ${{ github.sha }}
+          fetch_depth: 1
+          use_cache: true
+
+      - name: Run GN Analyze and Update Label
+        if: always() && !cancelled()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          CHANGED_FILES: ${{ needs.precheck.outputs.changed_files }}
         run: |
-          echo "Author '${PR_AUTHOR}' association: ${AUTHOR_ASSOC}"
-
-          PERMISSION=$(gh api "repos/${REPO}/collaborators/${PR_AUTHOR}/permission" --jq '.permission' 2>/dev/null || echo "none")
-          echo "Author '${PR_AUTHOR}' permission: ${PERMISSION}"
-
-          if [[ "${AUTHOR_ASSOC}" == "OWNER" || "${AUTHOR_ASSOC}" == "MEMBER" || "${AUTHOR_ASSOC}" == "COLLABORATOR" || "${PERMISSION}" == "admin" || "${PERMISSION}" == "write" ]]; then
-            if ! echo "$PR_LABELS" | jq -e '.[] | select(.name == "kokoro:run")' > /dev/null; then
-              echo "Author is a collaborator/committer. Applying kokoro:run label..."
-              gh pr edit "$PR_URL" --add-label "kokoro:run"
-            else
-              echo "kokoro:run label is already present."
-            fi
-          else
-            echo "Author '${PR_AUTHOR}' (assoc: '${AUTHOR_ASSOC}', perm: '${PERMISSION}') is not a committer. Skipping auto-labeling."
-          fi
+          export PATH="/runner-cache/golden-workspace/depot_tools:${GITHUB_WORKSPACE}/cobalt/depot_tools:${PATH}"
+          python3 "${GITHUB_WORKSPACE}/.github/scripts/check_tvos_impact.py" \
+            --src-dir "${GITHUB_WORKSPACE}/cobalt/src" \
+            --files-json "${CHANGED_FILES}" \
+            --update-label

@@ -17,7 +17,9 @@ on:
         default: false
 
 permissions:
+  actions: read
   contents: read
+  pull-requests: read
   statuses: read
 
 jobs:
@@ -72,9 +74,28 @@ jobs:
     timeout-minutes: 150 # 2.5 hours timeout to ensure we don't block forever but allow 2h polling
     outputs:
       invocation_id: ${{ steps.poll-status.outputs.invocation_id }}
+      skipped: ${{ steps.check-skip.outputs.skipped }}
     steps:
+      - name: Checkout Scripts
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          sparse-checkout: .github/scripts
+
+      - name: Check if tvOS build should be skipped
+        id: check-skip
+        if: github.event_name == 'pull_request'
+        env:
+          COMMIT_SHA: ${{ needs.get-sha.outputs.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          IS_DRAFT: ${{ github.event.pull_request.draft }}
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 .github/scripts/check_tvos_impact.py wait-for-label
+
       - name: Poll GitHub Statuses API for Kokoro build
         id: poll-status
+        if: steps.check-skip.outputs.skipped != 'true'
         env:
           COMMIT_SHA: ${{ needs.get-sha.outputs.sha }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -123,6 +144,7 @@ jobs:
 
   download-artifacts:
     needs: [get-sha, wait-for-kokoro-build, get-targets]
+    if: needs.wait-for-kokoro-build.outputs.skipped != 'true'
     runs-on: [self-hosted, odt-runner]
     container:
       image: ghcr.io/youtube/cobalt/linux:main
@@ -150,7 +172,8 @@ jobs:
   # TODO(b/519669027): Refactor below steps to reuse the logic from main.yaml.
   run-tests:
     name: tvos_${{ matrix.target }}
-    needs: [get-targets, download-artifacts]
+    needs: [get-targets, wait-for-kokoro-build, download-artifacts]
+    if: needs.wait-for-kokoro-build.outputs.skipped != 'true'
     runs-on: macos-latest
     strategy:
       fail-fast: false
@@ -266,8 +289,8 @@ jobs:
               test_failures: {}
             }' > shepherd_report.json
 
-          if [[ "${RUN_TESTS_RESULT}" == "success" ]]; then
-            echo "All tvOS tests passed successfully!"
+          if [[ "${RUN_TESTS_RESULT}" == "success" || "${RUN_TESTS_RESULT}" == "skipped" ]]; then
+            echo "All tvOS tests passed or were skipped!"
             exit 0
           else
             echo "tvOS test job failed with result: ${RUN_TESTS_RESULT}"
