@@ -403,7 +403,10 @@ test("cobalt_unittests") {
   }
 
   if (is_android) {
-    sources += [ "//cobalt/app/cobalt_switch_defaults_android_test.cc" ]
+    sources += [
+      "//cobalt/android/androidtv_flag_map_test.cc",
+      "//cobalt/app/cobalt_switch_defaults_android_test.cc",
+    ]
   }
 
   if (use_evergreen) {
@@ -496,8 +499,11 @@ test("cobalt_unittests") {
   if (is_android) {
     deps += [
       "//base:base_java_test_support",
+      "//cobalt/android:androidtv_flags",
+      "//components/network_session_configurator/common",
       "//content/public/android:content_java",
       "//ui/android:ui_java",
+      "//ui/display",
     ]
   }
 
