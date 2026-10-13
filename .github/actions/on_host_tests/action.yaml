@@ -24,6 +24,10 @@ inputs:
     description: "Whether to retry all tests instead of analyzing previous results."
     required: false
     default: "false"
+  dry_run:
+    description: "Emit mock passing results instead of running tests. Used to exercise CI orchestration."
+    required: false
+    default: "false"
 runs:
   using: "composite"
   steps:
@@ -39,6 +43,7 @@ runs:
         git sparse-checkout add --skip-checks testing build third_party/catapult third_party/logdog
         git submodule update --init third_party/catapult
     - name: Download and Extract Test Artifacts from GCS
+      if: inputs.dry_run != 'true'
       uses: ./.github/actions/download_test_artifacts
       with:
         test_artifacts_key: ${{ inputs.test_artifacts_key }}
@@ -82,8 +87,47 @@ runs:
         mkdir -p "${test_output}"
         echo "test_output=${test_output}" >> "${GITHUB_ENV}"
 
+    - name: Generate Mock Test Results
+      if: ${{ inputs.dry_run == 'true' }}
+      shell: bash
+      env:
+        TEST_EXECUTABLES_JSON: ${{ inputs.test_executables_json }}
+        TEST_TYPE: ${{ inputs.test_type }}
+      run: |
+        set -exo pipefail
+
+        # A dry run never builds or runs anything, but downstream result processing
+        # expects one XML and one log per test target. Emit passing stubs with the
+        # exact filenames the real runners produce so the whole job graph is exercised.
+        readarray -t test_executables < <(echo "${TEST_EXECUTABLES_JSON:-[]}" | jq -r '.[] | if type == "object" then .target else . end')
+
+        for test_executable_path in "${test_executables[@]}"; do
+          filename=$(basename "${test_executable_path}")
+          test_executable="${filename%%.*}"
+          test_executable="${test_executable#*:}"
+          if [[ "${TEST_TYPE}" == "junit" ]]; then
+            # JUnit results are named after the wrapper script's target name.
+            test_executable="${test_executable#run_}"
+          fi
+
+          xml_path="${test_output}/${test_executable}_result.xml"
+          log_path="${test_output}/${test_executable}_log.txt"
+
+          printf '%s\n' \
+            '<?xml version="1.0" encoding="UTF-8"?>' \
+            '<testsuites tests="1" failures="0" disabled="0" errors="0" time="0.001" name="AllTests">' \
+            "  <testsuite name=\"${test_executable}\" tests=\"1\" failures=\"0\" disabled=\"0\" errors=\"0\" time=\"0.001\">" \
+            "    <testcase name=\"MockTestCase\" status=\"run\" time=\"0.001\" classname=\"${test_executable}\" />" \
+            '  </testsuite>' \
+            '</testsuites>' > "${xml_path}"
+
+          printf '%s\n' "MOCK TEST RUN (dry run): ${test_executable}" "All tests passed." > "${log_path}"
+        done
+
+        echo "Finished generating mock results for ${#test_executables[@]} target(s)."
+
     - name: Run GTest Suites
-      if: ${{ inputs.test_type == 'gtest' }}
+      if: ${{ inputs.test_type == 'gtest' && inputs.dry_run != 'true' }}
       id: run-gtest-suites
       shell: bash
       env:
@@ -167,7 +211,7 @@ runs:
         fi
 
     - name: Run JUnit Suites
-      if: ${{ inputs.test_type == 'junit' }}
+      if: ${{ inputs.test_type == 'junit' && inputs.dry_run != 'true' }}
       id: run-junit-suites
       shell: bash
       env:
