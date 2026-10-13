@@ -35,13 +35,6 @@ CONFIG = 'devel'
 KOKORO_RUN_LABEL = 'kokoro:run'
 KOKORO_FORCE_RUN_LABEL = 'kokoro:force-run'
 
-DEFAULT_COMPILE_TARGETS = ('//cobalt:cobalt',)
-DEFAULT_TEST_TARGETS = (
-    '//base:base_unittests',
-    '//cobalt/testing/browser_tests:cobalt_browsertests',
-    '//cobalt:cobalt_unittests',
-    '//starboard:starboard_unittests_wrapper',
-)
 TEST_TARGETS_JSON_RELPATH = (
     f'cobalt/build/testing/targets/{PLATFORM}/test_targets.json')
 
@@ -181,21 +174,28 @@ def _normalize_gn_target(target: str) -> str:
   return target
 
 
-def load_test_targets(src_dir: pathlib.Path) -> List[str]:
-  """Loads tvOS test targets from test_targets.json."""
+def _parse_targets_data(data: Any) -> List[str]:
+  if not isinstance(data, list):
+    raise ValueError('Test targets JSON must decode to a list.')
+  targets: List[str] = []
+  for item in data:
+    if isinstance(item, str) and item.strip():
+      targets.append(_normalize_gn_target(item))
+    elif isinstance(item, dict) and item.get('target'):
+      targets.append(_normalize_gn_target(str(item['target'])))
+  return targets
+
+
+def load_test_targets(
+    src_dir: pathlib.Path,
+    test_targets_json: Optional[str] = None,
+) -> List[str]:
+  """Loads tvOS test targets from CLI JSON or test_targets.json."""
+  if test_targets_json:
+    return _parse_targets_data(json.loads(test_targets_json))
   json_path = src_dir / TEST_TARGETS_JSON_RELPATH
-  if not json_path.is_file():
-    return list(DEFAULT_TEST_TARGETS)
-  try:
-    data = json.loads(json_path.read_text(encoding='utf-8'))
-    targets = [
-        _normalize_gn_target(entry['target'])
-        for entry in data
-        if entry.get('target')
-    ]
-    return targets or list(DEFAULT_TEST_TARGETS)
-  except (OSError, ValueError, KeyError, TypeError):
-    return list(DEFAULT_TEST_TARGETS)
+  data = json.loads(json_path.read_text(encoding='utf-8'))
+  return _parse_targets_data(data)
 
 
 def _find_gn_binary(src_dir: pathlib.Path) -> str:
@@ -212,6 +212,8 @@ def check_tvos_impact(
     src_dir: pathlib.Path,
     files: Sequence[str],
     out_dir: Optional[pathlib.Path] = None,
+    test_targets: Optional[Sequence[str]] = None,
+    compile_targets: Optional[Sequence[str]] = None,
 ) -> bool:
   """Returns True if any file in `files` affects the tvOS Cobalt build."""
   normalized = [_normalize_path(f) for f in files if _normalize_path(f)]
@@ -225,11 +227,16 @@ def check_tvos_impact(
     return True
 
   gn_files = expand_gn_files(src_dir, normalized)
-  test_targets = load_test_targets(src_dir)
+  resolved_test_targets = (
+      [_normalize_gn_target(t) for t in test_targets]
+      if test_targets is not None else load_test_targets(src_dir))
+  resolved_compile_targets = [
+      _normalize_gn_target(t) for t in (compile_targets or ())
+  ]
   analyze_input = {
       'files': gn_files,
-      'additional_compile_targets': list(DEFAULT_COMPILE_TARGETS),
-      'test_targets': test_targets,
+      'additional_compile_targets': resolved_compile_targets,
+      'test_targets': resolved_test_targets,
   }
   print('Running gn analyze with input:', json.dumps(analyze_input, indent=2))
 
@@ -553,6 +560,18 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
       help='JSON array of modified file paths.',
   )
   parser.add_argument(
+      '--test-targets-json',
+      type=str,
+      default=None,
+      help='JSON array of test targets (defaults to reading test_targets.json)',
+  )
+  parser.add_argument(
+      '--compile-targets',
+      nargs='*',
+      default=None,
+      help='Additional compile targets for gn analyze (e.g. //cobalt:cobalt).',
+  )
+  parser.add_argument(
       '--pr-url',
       type=str,
       default=None,
@@ -589,8 +608,18 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
       raise ValueError('--files-json must decode to a JSON list of strings.')
     files.extend(str(item) for item in parsed)
 
+  src_dir = args.src_dir.resolve()
   try:
-    affects = check_tvos_impact(args.src_dir.resolve(), files, args.out_dir)
+    test_targets = (
+        load_test_targets(src_dir, args.test_targets_json)
+        if args.test_targets_json else None)
+    affects = check_tvos_impact(
+        src_dir,
+        files,
+        out_dir=args.out_dir,
+        test_targets=test_targets,
+        compile_targets=args.compile_targets,
+    )
   except Exception as exc:  # pylint: disable=broad-exception-caught
     print(
         f'Error while checking tvOS impact ({exc}); '

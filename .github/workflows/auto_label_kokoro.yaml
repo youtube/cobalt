@@ -86,6 +86,12 @@ jobs:
             .github
             cobalt/build
 
+      - name: Parse Test Targets JSON
+        id: parse-targets
+        uses: ./.github/actions/test_targets_json
+        with:
+          test_targets_json_file: cobalt/build/testing/targets/tvos-arm64-simulator/test_targets.json
+
       - name: Prepare OverlayFS Workspace
         uses: ./.github/actions/overlay_workspace
         with:
@@ -107,9 +113,12 @@ jobs:
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           CHANGED_FILES: ${{ needs.precheck.outputs.changed_files }}
+          TEST_TARGETS: ${{ steps.parse-targets.outputs.test_targets_json }}
         run: |
           export PATH="/runner-cache/golden-workspace/depot_tools:${GITHUB_WORKSPACE}/cobalt/depot_tools:${PATH}"
           python3 "${GITHUB_WORKSPACE}/.github/scripts/check_tvos_impact.py" \
             --src-dir "${GITHUB_WORKSPACE}/cobalt/src" \
             --files-json "${CHANGED_FILES}" \
+            --test-targets-json "${TEST_TARGETS}" \
+            --compile-targets "//cobalt:cobalt" \
             --update-label

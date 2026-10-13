@@ -70,14 +70,9 @@ class CheckTvosImpactTest(unittest.TestCase):
           ],
       )
 
-  def test_load_test_targets_reads_json_or_falls_back(self):
+  def test_load_test_targets_reads_json_and_cli_arg(self):
     with tempfile.TemporaryDirectory() as tmp:
       root = pathlib.Path(tmp)
-      self.assertEqual(
-          check_tvos_impact.load_test_targets(root),
-          list(check_tvos_impact.DEFAULT_TEST_TARGETS),
-      )
-
       target_json = root / check_tvos_impact.TEST_TARGETS_JSON_RELPATH
       target_json.parent.mkdir(parents=True)
       target_json.write_text(
@@ -87,6 +82,11 @@ class CheckTvosImpactTest(unittest.TestCase):
       self.assertEqual(
           check_tvos_impact.load_test_targets(root),
           ['//cobalt:cobalt_unittests'],
+      )
+      self.assertEqual(
+          check_tvos_impact.load_test_targets(
+              root, json.dumps(['base:base_unittests'])),
+          ['//base:base_unittests'],
       )
 
   def test_check_tvos_impact_empty_files(self):
@@ -112,7 +112,12 @@ class CheckTvosImpactTest(unittest.TestCase):
       mock_run.side_effect = fake_run
       self.assertFalse(
           check_tvos_impact.check_tvos_impact(
-              root, ['starboard/android/shared/foo.cc'], out_dir=out_dir))
+              root,
+              ['starboard/android/shared/foo.cc'],
+              out_dir=out_dir,
+              test_targets=['base:base_unittests'],
+              compile_targets=['//cobalt:cobalt'],
+          ))
 
       def fake_run_dep(cmd, cwd, check, **kwargs):
         del cwd, check, kwargs
@@ -124,7 +129,12 @@ class CheckTvosImpactTest(unittest.TestCase):
       mock_run.side_effect = fake_run_dep
       self.assertTrue(
           check_tvos_impact.check_tvos_impact(
-              root, ['starboard/tvos/shared/foo.cc'], out_dir=out_dir))
+              root,
+              ['starboard/tvos/shared/foo.cc'],
+              out_dir=out_dir,
+              test_targets=['base:base_unittests'],
+              compile_targets=['//cobalt:cobalt'],
+          ))
 
   @mock.patch('check_tvos_impact._github_api_request')
   def test_cmd_precheck_draft_removes_label(self, mock_api):
