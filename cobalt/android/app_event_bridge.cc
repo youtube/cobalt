@@ -27,11 +27,6 @@
 SB_EXPORT_PLATFORM __attribute__((weak)) void SbEventHandle(
     const SbEvent* /*event*/) {}
 
-// Default weak implementation so test targets that omit Cobalt's switch
-// defaults link cleanly.
-SB_EXPORT_PLATFORM __attribute__((weak)) void
-ApplyDefaultCommandLineSwitches() {}
-
 namespace {
 
 void SendLifecycleEvent(SbEventType type, jlong timestamp) {
@@ -106,8 +101,4 @@ void JNI_AppEventBridge_HandleOsNetworkEvent(JNIEnv* env, jboolean online) {
   SendLifecycleEvent(online ? kSbEventTypeOsNetworkConnected
                             : kSbEventTypeOsNetworkDisconnected,
                      starboard::CurrentMonotonicTime());
-}
-
-void JNI_AppEventBridge_ApplyDefaultCommandLineSwitches(JNIEnv* /*env*/) {
-  ApplyDefaultCommandLineSwitches();
 }

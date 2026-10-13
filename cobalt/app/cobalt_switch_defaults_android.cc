@@ -35,11 +35,6 @@
 #include "ui/gl/gl_features.h"
 #include "ui/gl/gl_switches.h"
 
-void ApplyDefaultCommandLineSwitches() {
-  cobalt::CommandLinePreprocessor::ApplyDefaults(
-      base::CommandLine::ForCurrentProcess());
-}
-
 namespace cobalt {
 
 const std::vector<const char*>&
