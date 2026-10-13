@@ -22,6 +22,11 @@
 #include "components/services/storage/dom_storage/sqlite/sqlite_database_utils.h"
 #include "components/services/storage/public/cpp/constants.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/metrics/histogram_functions.h"
+#include "base/timer/elapsed_timer.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 namespace storage {
 namespace {
 
@@ -351,6 +356,7 @@ DbStatus PurgeOrigins(DomStorageDatabase& database,
 
     const blink::StorageKey& storage_key = metadata.map_locator.storage_key();
 
+<<<<<<< HEAD
     for (const url::Origin& origin : origins) {
       if (storage_key.origin() == origin ||
           (storage_key.IsThirdPartyContext() &&
@@ -364,6 +370,108 @@ DbStatus PurgeOrigins(DomStorageDatabase& database,
   return database.DeleteStorageKeysFromSession(kLocalStorageSessionId,
                                                std::move(metadata_to_delete),
                                                std::move(maps_to_delete));
+=======
+DomStorageDatabase::Status DomStorageDatabase::Put(KeyView key,
+                                                   ValueView value) const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!db_)
+    return Status::IOError(kInvalidDatabaseMessage);
+#if BUILDFLAG(IS_COBALT)
+  return db_->Put(CreateSyncWriteOptions(), MakeSlice(key), MakeSlice(value));
+#else
+  return db_->Put(leveldb::WriteOptions(), MakeSlice(key), MakeSlice(value));
+#endif
+}
+
+DomStorageDatabase::Status DomStorageDatabase::GetPrefixed(
+    KeyView prefix,
+    std::vector<KeyValuePair>* entries) const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!db_)
+    return Status::IOError(kInvalidDatabaseMessage);
+  return ForEachWithPrefix(
+      db_.get(), prefix,
+      [&](const leveldb::Slice& key, const leveldb::Slice& value) {
+        entries->push_back(MakeKeyValuePair(key, value));
+      });
+}
+
+DomStorageDatabase::Status DomStorageDatabase::DeletePrefixed(
+    KeyView prefix,
+    leveldb::WriteBatch* batch) const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!db_)
+    return Status::IOError(kInvalidDatabaseMessage);
+  Status status = ForEachWithPrefix(
+      db_.get(), prefix,
+      [&](const leveldb::Slice& key, const leveldb::Slice& value) {
+        batch->Delete(key);
+      });
+  return status;
+}
+
+DomStorageDatabase::Status DomStorageDatabase::CopyPrefixed(
+    KeyView prefix,
+    KeyView new_prefix,
+    leveldb::WriteBatch* batch) const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!db_)
+    return Status::IOError(kInvalidDatabaseMessage);
+  Key new_key(new_prefix.begin(), new_prefix.end());
+  Status status = ForEachWithPrefix(
+      db_.get(), prefix,
+      [&](const leveldb::Slice& key, const leveldb::Slice& value) {
+        DCHECK_GE(key.size(), prefix.size());  // By definition.
+        size_t suffix_length = key.size() - prefix.size();
+        new_key.resize(new_prefix.size() + suffix_length);
+        std::copy(key.data() + prefix.size(), key.data() + key.size(),
+                  new_key.begin() + new_prefix.size());
+        batch->Put(MakeSlice(new_key), value);
+      });
+  return status;
+}
+
+DomStorageDatabase::Status DomStorageDatabase::Commit(
+    leveldb::WriteBatch* batch) const {
+  if (!db_)
+    return Status::IOError(kInvalidDatabaseMessage);
+  if (fail_commits_for_testing_)
+    return Status::IOError("Simulated I/O Error");
+#if BUILDFLAG(IS_COBALT)
+  base::ElapsedTimer commit_timer;
+  Status status = db_->Write(CreateSyncWriteOptions(), batch);
+  base::UmaHistogramTimes("Cobalt.Storage.LocalStorage.CommitDuration",
+                          commit_timer.Elapsed());
+  return status;
+#else
+  return db_->Write(leveldb::WriteOptions(), batch);
+#endif
+}
+
+DomStorageDatabase::Status DomStorageDatabase::RewriteDB() {
+  if (!db_)
+    return Status::IOError(kInvalidDatabaseMessage);
+  Status status = leveldb_env::RewriteDB(options_, name_, &db_);
+  if (!status.ok())
+    db_.reset();
+  return status;
+}
+
+bool DomStorageDatabase::OnMemoryDump(
+    const base::trace_event::MemoryDumpArgs& args,
+    base::trace_event::ProcessMemoryDump* pmd) {
+  auto* dump = leveldb_env::DBTracker::GetOrCreateAllocatorDump(pmd, db_.get());
+  if (!dump)
+    return true;
+  auto* global_dump = pmd->CreateSharedGlobalAllocatorDump(*memory_dump_id_);
+  pmd->AddOwnershipEdge(global_dump->guid(), dump->guid());
+  // Add size to global dump to propagate the size of the database to the
+  // client's dump.
+  global_dump->AddScalar(base::trace_event::MemoryAllocatorDump::kNameSize,
+                         base::trace_event::MemoryAllocatorDump::kUnitsBytes,
+                         dump->GetSizeInternal());
+  return true;
+>>>>>>> 96ddfdd2f5c ([Storage] Telemetry: Add commit duration UMA histograms for SQLite Cookies and LevelDB LocalStorage (#13287))
 }
 
 }  // namespace storage
