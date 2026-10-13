@@ -43,11 +43,9 @@ runs:
       shell: bash
       run: |
         # Purge legacy unpartitioned golden workspace
-        if [ -w "/runner-cache" ] && [ -d "/runner-cache/golden-workspace" ]; then
-          if [ -d "/runner-cache/golden-workspace/src" ]; then
-            echo "Notice: Purging legacy unpartitioned golden workspace..."
-            rm -rf /runner-cache/golden-workspace
-          fi
+        if [ -w "/runner-cache" ] && [ -d "/runner-cache/golden-workspace/src" ]; then
+          echo "Notice: Purging legacy unpartitioned golden workspace..."
+          rm -rf /runner-cache/golden-workspace
         fi
 
     - name: Check SSD Cache Hit
@@ -58,7 +56,7 @@ runs:
       run: |
         cache_hit=false
         LOWER_DIR="/runner-cache/golden-workspace/${PLATFORM}"
-        if [ -w "/runner-cache" ] && [ -n "${PLATFORM}" ] && [ -d "${LOWER_DIR}" ] && [ -n "$(ls -A "${LOWER_DIR}" 2>/dev/null)" ]; then
+        if [ -d "${LOWER_DIR}" ]; then
           cache_hit=true
         fi
         echo "cache_hit=${cache_hit}" >> "${GITHUB_OUTPUT}"
@@ -72,7 +70,7 @@ runs:
           --arg url "https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
           --argjson cache_hit "${cache_hit}" \
           '{workflow: $workflow, job: $job, runner: $runner, run_id: $run_id, url: $url, cache_hit: $cache_hit}')
-        gcloud logging write github-actions-runners "${LOG_PAYLOAD}" --payload-type=json 2>/dev/null || true
+        gcloud logging write github-actions-runners "${LOG_PAYLOAD}" --payload-type=json || true
 
     - name: Hydrate Snapshot from GCS
       id: hydrate-snapshot
@@ -80,59 +78,54 @@ runs:
       env:
         PLATFORM: ${{ inputs.platform }}
       run: |
-        if [ ! -w "/runner-cache" ] || [ -z "${PLATFORM}" ]; then
+        if [ ! -w "/runner-cache" ]; then
           exit 0
         fi
 
         LOWER_DIR="/runner-cache/golden-workspace/${PLATFORM}"
+        REF="refs/remotes/origin/golden-workspace/${PLATFORM}"
 
-        git update-ref -d "refs/golden-workspace/${PLATFORM}" 2>/dev/null || true
-        EXPECTED=""
-        if git fetch -q origin "+refs/golden-workspace/${PLATFORM}:refs/golden-workspace/${PLATFORM}" 2>/dev/null; then
-          EXPECTED=$(git log -1 --format=%s "refs/golden-workspace/${PLATFORM}" 2>/dev/null || true)
-        fi
+        git fetch -q origin "+refs/golden-workspace/${PLATFORM}:${REF}" || true
 
-        # If cache exists on SSD, verify digest matches latest ref
-        if [ -d "${LOWER_DIR}" ]; then
-          if [[ -n "${EXPECTED}" && -f "${LOWER_DIR}/.digest" ]] && [ "$(<"${LOWER_DIR}/.digest")" = "${EXPECTED}" ]; then
-            echo "Golden workspace for ${PLATFORM} is up-to-date on SSD (${EXPECTED:0:12})."
+        # If cache exists on SSD, check if its digest is authenticated in the ref history
+        if [ -f "${LOWER_DIR}/.digest" ]; then
+          LOCAL_DIGEST=$(cat "${LOWER_DIR}/.digest")
+          if [ -n "${LOCAL_DIGEST}" ] && git log -n 50 --format=%s "${REF}" 2>/dev/null | grep -Fxq "${LOCAL_DIGEST}"; then
+            echo "Golden workspace for ${PLATFORM} on SSD is valid (${LOCAL_DIGEST:0:12})."
             exit 0
           fi
-          echo "Notice: Golden workspace on SSD is stale or untrusted; re-hydrating..."
+          echo "Notice: Golden workspace on SSD is stale or unverified; re-hydrating..."
           rm -rf "${LOWER_DIR}"
         fi
 
-        # Verify digest format before proceeding
-        if [[ ! "${EXPECTED}" =~ ^[0-9a-f]{64}$ ]]; then
-          echo "Notice: No valid golden workspace ref found for ${PLATFORM}."
+        EXPECTED=$(git log -1 --format=%s "${REF}" 2>/dev/null || true)
+        if [ -z "${EXPECTED}" ]; then
+          echo "Notice: No golden workspace snapshot ref found for ${PLATFORM}."
           exit 0
         fi
 
-        BUCKET="${GOLDEN_WORKSPACE_BUCKET:-cobalt-actions-prod-test-artifacts/golden-workspace}"
+        BUCKET="$(gcloud config get-value project)-test-artifacts/golden-workspace"
         ARCHIVE="/runner-cache/staging.${$}.tar.zst"
         STAGING_DIR="/runner-cache/staging.${$}"
         trap 'rm -rf "${ARCHIVE}" "${STAGING_DIR}"' EXIT
 
-        echo "Downloading golden workspace for ${PLATFORM} (${EXPECTED:0:12})..."
-        if ! gcloud storage cp -q "gs://${BUCKET}/${PLATFORM}/${EXPECTED}.tar.zst" "${ARCHIVE}" 2>/dev/null; then
-          echo "Notice: Golden workspace archive not found on GCS."
-          exit 0
-        fi
-
-        if ! echo "${EXPECTED}  ${ARCHIVE}" | sha256sum -c --strict --quiet 2>/dev/null; then
+        echo "Downloading and verifying golden workspace for ${PLATFORM} (${EXPECTED:0:12})..."
+        COMPUTED=$(gcloud storage cat "gs://${BUCKET}/${PLATFORM}/${EXPECTED}.tar.zst" | tee "${ARCHIVE}" | sha256sum | awk '{print $1}')
+        if [ "${COMPUTED}" != "${EXPECTED}" ]; then
           echo "::warning::Golden workspace checksum verification failed!"
           exit 0
         fi
 
         mkdir -p "${STAGING_DIR}"
         tar --no-same-owner --use-compress-program="zstd -d -T0" -xf "${ARCHIVE}" -C "${STAGING_DIR}"
+        rm -f "${ARCHIVE}"
 
         # Refresh git stat cache so extracted files match index
-        git -C "${STAGING_DIR}/src" update-index --refresh -q 2>/dev/null || true
+        git -C "${STAGING_DIR}/src" update-index --refresh -q || true
 
         # Seed vpython cache directory on the runner from snapshot
         mkdir -p /runner-cache/vpython
-        cp -rn "${STAGING_DIR}/vpython/." /runner-cache/vpython/ 2>/dev/null || true
+        cp -rn "${STAGING_DIR}/vpython/." /runner-cache/vpython/ || true
 
         echo "${EXPECTED}" > "${STAGING_DIR}/.digest"
         touch "${STAGING_DIR}/.runner_cache_ready"
@@ -150,7 +143,7 @@ runs:
       run: |
         lower_dir=""
         LOWER_DIR="/runner-cache/golden-workspace/${PLATFORM}"
-        if [ -n "${PLATFORM}" ] && [ -d "${LOWER_DIR}" ]; then
+        if [ -d "${LOWER_DIR}" ]; then
           lower_dir="${LOWER_DIR}"
         fi
 
