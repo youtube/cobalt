@@ -77,6 +77,7 @@ runs:
       shell: bash
       env:
         PLATFORM: ${{ inputs.platform }}
+        MAX_HISTORY_COMMITS: 200
       run: |
         if [ ! -w "/runner-cache" ]; then
           exit 0
@@ -90,7 +91,7 @@ runs:
         # If cache exists on SSD, check if its digest is authenticated in the ref history
         if [ -f "${LOWER_DIR}/.digest" ]; then
           LOCAL_DIGEST=$(cat "${LOWER_DIR}/.digest")
-          if [ -n "${LOCAL_DIGEST}" ] && git log -n 50 --format=%s "${REF}" 2>/dev/null | grep -Fxq "${LOCAL_DIGEST}"; then
+          if [ -n "${LOCAL_DIGEST}" ] && git log -n "${MAX_HISTORY_COMMITS}" --format=%s "${REF}" | grep -Fxq "${LOCAL_DIGEST}"; then
             echo "Golden workspace for ${PLATFORM} on SSD is valid (${LOCAL_DIGEST:0:12})."
             exit 0
           fi
@@ -98,27 +99,28 @@ runs:
           rm -rf "${LOWER_DIR}"
         fi
 
-        EXPECTED=$(git log -1 --format=%s "${REF}" 2>/dev/null || true)
+        EXPECTED=$(git log -1 --format=%s "${REF}" || true)
         if [ -z "${EXPECTED}" ]; then
           echo "Notice: No golden workspace snapshot ref found for ${PLATFORM}."
           exit 0
         fi
 
         BUCKET="$(gcloud config get-value project)-test-artifacts/golden-workspace"
-        ARCHIVE="/runner-cache/staging.${$}.tar.zst"
         STAGING_DIR="/runner-cache/staging.${$}"
-        trap 'rm -rf "${ARCHIVE}" "${STAGING_DIR}"' EXIT
+        trap 'rm -rf "${STAGING_DIR}"' EXIT
 
-        echo "Downloading and verifying golden workspace for ${PLATFORM} (${EXPECTED:0:12})..."
-        COMPUTED=$(gcloud storage cat "gs://${BUCKET}/${PLATFORM}/${EXPECTED}.tar.zst" | tee "${ARCHIVE}" | sha256sum | awk '{print $1}')
+        echo "Downloading, extracting, and verifying golden workspace for ${PLATFORM} (${EXPECTED:0:12})..."
+        mkdir -p "${STAGING_DIR}"
+        COMPUTED=$(gcloud storage cat "gs://${BUCKET}/${PLATFORM}/${EXPECTED}.tar.zst" \
+          | tee >(tar --no-same-owner --use-compress-program="zstd -d -T0" -xf - -C "${STAGING_DIR}") \
+          | sha256sum | awk '{print $1}') || true
+        wait || true
+
         if [ "${COMPUTED}" != "${EXPECTED}" ]; then
           echo "::warning::Golden workspace checksum verification failed!"
+          rm -rf "${STAGING_DIR}"
           exit 0
         fi
-
-        mkdir -p "${STAGING_DIR}"
-        tar --no-same-owner --use-compress-program="zstd -d -T0" -xf "${ARCHIVE}" -C "${STAGING_DIR}"
-        rm -f "${ARCHIVE}"
 
         # Refresh git stat cache so extracted files match index
         git -C "${STAGING_DIR}/src" update-index --refresh -q || true
