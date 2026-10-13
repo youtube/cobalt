@@ -27,10 +27,10 @@ namespace {
 
 // Applies Cobalt's command-line defaults right after LibraryLoader switches the
 // CommandLine to native. LibraryLoader runs this hook once per process.
+// Cobalt on Android runs in a single (browser) process (--single-process is a
+// default), so the library is never loaded by a child process.
 bool NativeInit(base::android::LibraryProcessType type) {
-  if (type != base::android::PROCESS_BROWSER) {
-    return true;
-  }
+  CHECK_EQ(type, base::android::PROCESS_BROWSER);
 
   // Defaults must be applied before base::FeatureList is created.
   CHECK(!base::FeatureList::GetInstance());
