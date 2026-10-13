@@ -1,5 +1,0 @@
-void func(float[2] x[2]) {}
-
-/*%%*
-multi-dimensional arrays are not supported
-*%%*/

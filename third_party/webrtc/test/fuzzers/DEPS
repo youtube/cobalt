@@ -1,6 +1,0 @@
-include_rules = [
-  "+audio",
-  "+pc",
-  "+net/dcsctp",
-  "+p2p",
-]
