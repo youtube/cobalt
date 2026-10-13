@@ -545,11 +545,6 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
     settings.scrollbar_animator = cc::LayerTreeSettings::ANDROID_OVERLAY;
   }
 
-<<<<<<< HEAD
-  // Avoid animating in web tests to improve reliability.
-  if (WebTestSupport::IsRunningWebTest() ||
-      !base::FeatureList::IsEnabled(::features::kScrollbarAnimations)) {
-=======
 #if BUILDFLAG(IS_COBALT)
   // Gates the compositor prepaint memory budget on every Cobalt platform (both
   // Android TV and 3P/Starboard), overriding the platform defaults assigned
@@ -569,8 +564,9 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
   }
 #endif  // BUILDFLAG(IS_COBALT)
 
-  if (!base::FeatureList::IsEnabled(::features::kScrollbarAnimations)) {
->>>>>>> parent of c82210b931c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+  // Avoid animating in web tests to improve reliability.
+  if (WebTestSupport::IsRunningWebTest() ||
+      !base::FeatureList::IsEnabled(::features::kScrollbarAnimations)) {
     settings.scrollbar_thinning_duration = base::TimeDelta();
     settings.scrollbar_fade_delay = base::TimeDelta::Max();
     settings.scrollbar_fade_duration = base::TimeDelta();

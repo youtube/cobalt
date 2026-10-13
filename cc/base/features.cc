@@ -286,10 +286,9 @@ BASE_FEATURE(kBrowserControlsHeightChangeCancelAnimations,
 // Killswitch for disabling Headless scheduler state machine.
 BASE_FEATURE(kHeadlessSchedulerStateMachine, base::FEATURE_ENABLED_BY_DEFAULT);
 
-<<<<<<< HEAD
 BASE_FEATURE(kBrowserControlsScrollSnapAnimation,
              base::FEATURE_DISABLED_BY_DEFAULT);
-=======
+
 #if BUILDFLAG(IS_COBALT)
 BASE_FEATURE(kCobaltTileMemoryMetrics,
              "CobaltTileMemoryMetrics",
@@ -298,6 +297,5 @@ BASE_FEATURE(kCobaltTileMemoryMetrics,
 const base::FeatureParam<base::TimeDelta> kCobaltTileMemoryMetricsInterval{
     &kCobaltTileMemoryMetrics, "interval", base::Minutes(1)};
 #endif
->>>>>>> parent of c82210b931c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 }  // namespace features
