@@ -1,3 +1,4 @@
+# EXPERIMENT: touch DEPS to force a sync + publish on warm nodes. Revert before merge.
 # This file is used to manage the dependencies of the Chromium src repo. It is
 # used by gclient to determine what version of each dependency to check out, and
 # where.
