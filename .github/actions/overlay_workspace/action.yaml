@@ -86,6 +86,8 @@ runs:
         LOWER_DIR="/runner-cache/golden-workspace/${PLATFORM}"
         REF="refs/remotes/origin/golden-workspace/${PLATFORM}"
 
+        # The workspace checkout is owned by the host runner UID inside the container.
+        git config --global --add safe.directory "${GITHUB_WORKSPACE}"
         git fetch -q origin "+refs/golden-workspace/${PLATFORM}:${REF}" || true
 
         # If cache exists on SSD, check if its digest is authenticated in the ref history
