@@ -177,30 +177,35 @@ runs:
           --revision "${REF}"
 
     - name: Publish Golden Workspace Snapshot
-      if: inputs.run_sync == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main' && (github.repository == 'youtube/cobalt' || github.repository == 'youtube/cobalt_sandbox')
+      # Publish only when a sync actually happened (DEPS or .gclient changed, or
+      # no usable snapshot existed), and only from one config per platform: the
+      # snapshot is taken before the build, so its content is config-independent.
+      if: inputs.run_sync == 'true' && steps.check-deps.outputs.deps_match != 'true' && matrix.config == 'devel' && github.event_name == 'push' && github.ref == 'refs/heads/main' && (github.repository == 'youtube/cobalt' || github.repository == 'youtube/cobalt_sandbox')
       shell: bash
       working-directory: cobalt
       env:
         PLATFORM: ${{ matrix.platform }}
         GIT_USER: github-actions[bot]
         GIT_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+        PUSH_URL: ${{ github.server_url }}/${{ github.repository }}
+        GH_TOKEN: ${{ github.token }}
       run: |
         BUCKET="$(gcloud config get-value project)-test-artifacts/golden-workspace"
         ARCHIVE="/runner-cache/golden-${PLATFORM}.${$}.tar.zst"
         trap 'rm -f "${ARCHIVE}"' EXIT
 
-        tar -cf - src depot_tools .gclient | zstd -T0 -3 -q -o "${ARCHIVE}"
-        DIGEST=$(sha256sum "${ARCHIVE}" | awk '{print $1}')
+        DIGEST=$(tar -cf - src depot_tools .gclient | zstd -T0 -3 -q | tee "${ARCHIVE}" | sha256sum | awk '{print $1}')
 
-        gcloud storage cp --no-clobber "${ARCHIVE}" "gs://${BUCKET}/${PLATFORM}/${DIGEST}.tar.zst" || true
+        gcloud storage cp --no-clobber "${ARCHIVE}" "gs://${BUCKET}/${PLATFORM}/${DIGEST}.tar.zst"
 
         PARENT=()
-        if git -C src fetch -q origin "refs/golden-workspace/${PLATFORM}:refs/remotes/origin/golden-workspace/${PLATFORM}" 2>/dev/null; then
+        if git -C src fetch -q origin "refs/golden-workspace/${PLATFORM}:refs/remotes/origin/golden-workspace/${PLATFORM}"; then
           PARENT=(-p "refs/remotes/origin/golden-workspace/${PLATFORM}")
         fi
         EMPTY_TREE=$(git -C src hash-object -t tree /dev/null -w)
         COMMIT=$(git -C src -c user.name="${GIT_USER}" -c user.email="${GIT_EMAIL}" commit-tree "${PARENT[@]}" -m "${DIGEST}" "${EMPTY_TREE}")
-        git -C src push origin "${COMMIT}:refs/golden-workspace/${PLATFORM}" || echo "::warning::Failed to update golden workspace ref"
+        AUTH_HEADER="AUTHORIZATION: basic $(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 -w0)"
+        git -C src -c "http.${PUSH_URL}/.extraheader=${AUTH_HEADER}" push "${PUSH_URL}" "${COMMIT}:refs/golden-workspace/${PLATFORM}"
 
     - name: Run gclient runhooks
       if: inputs.run_sync == 'true'

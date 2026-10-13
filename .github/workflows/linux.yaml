@@ -27,6 +27,7 @@ jobs:
   chromium_linux-x64:
     uses: ./.github/workflows/main.yaml
     permissions:
+      contents: write
       packages: write
       pull-requests: write
     with:
@@ -38,6 +39,7 @@ jobs:
   linux:
     uses: ./.github/workflows/main.yaml
     permissions:
+      contents: write
       packages: write
       pull-requests: write
     with:
@@ -49,6 +51,7 @@ jobs:
   linux-modular:
     uses: ./.github/workflows/main.yaml
     permissions:
+      contents: write
       packages: write
       pull-requests: write
     with:
@@ -60,6 +63,7 @@ jobs:
   linux-web-tests:
     uses: ./.github/workflows/main.yaml
     permissions:
+      contents: write
       packages: write
       pull-requests: write
     with:

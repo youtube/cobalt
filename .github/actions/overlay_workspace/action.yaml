@@ -86,20 +86,28 @@ runs:
         LOWER_DIR="/runner-cache/golden-workspace/${PLATFORM}"
         REF="refs/remotes/origin/golden-workspace/${PLATFORM}"
 
+        # The workspace checkout is owned by the host runner UID inside the container.
+        git config --global --add safe.directory "${GITHUB_WORKSPACE}"
         git fetch -q origin "+refs/golden-workspace/${PLATFORM}:${REF}" || true
+
+        EXPECTED=$(git log -1 --format=%s "${REF}" || true)
 
         # If cache exists on SSD, check if its digest is authenticated in the ref history
         if [ -f "${LOWER_DIR}/.digest" ]; then
           LOCAL_DIGEST=$(cat "${LOWER_DIR}/.digest")
           if [ -n "${LOCAL_DIGEST}" ] && git log -n "${MAX_HISTORY_COMMITS}" --format=%s "${REF}" | grep -Fxq "${LOCAL_DIGEST}"; then
             echo "Golden workspace for ${PLATFORM} on SSD is valid (${LOCAL_DIGEST:0:12})."
-            exit 0
+            # Only replace a valid snapshot if DEPS changed and a newer one exists.
+            if cmp -s DEPS "${LOWER_DIR}/src/DEPS" || [ "${LOCAL_DIGEST}" = "${EXPECTED}" ]; then
+              exit 0
+            fi
+            echo "Notice: DEPS differs from the SSD snapshot; fetching latest (${EXPECTED:0:12})..."
+          else
+            echo "Notice: Golden workspace on SSD is stale or unverified; re-hydrating..."
+            rm -rf "${LOWER_DIR}"
           fi
-          echo "Notice: Golden workspace on SSD is stale or unverified; re-hydrating..."
-          rm -rf "${LOWER_DIR}"
         fi
 
-        EXPECTED=$(git log -1 --format=%s "${REF}" || true)
         if [ -z "${EXPECTED}" ]; then
           echo "Notice: No golden workspace snapshot ref found for ${PLATFORM}."
           exit 0
@@ -146,7 +154,13 @@ runs:
         lower_dir=""
         LOWER_DIR="/runner-cache/golden-workspace/${PLATFORM}"
         if [ -d "${LOWER_DIR}" ]; then
-          lower_dir="${LOWER_DIR}"
+          if cmp -s DEPS "${LOWER_DIR}/src/DEPS"; then
+            lower_dir="${LOWER_DIR}"
+          else
+            # Syncing on top of the overlay is slower than a cold sync; leave the
+            # snapshot on disk for jobs whose DEPS still match.
+            echo "Notice: DEPS differs from the golden workspace snapshot. Skipping overlay."
+          fi
         fi
 
         if [ -n "${lower_dir}" ]; then

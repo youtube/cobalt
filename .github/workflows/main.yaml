@@ -477,7 +477,8 @@ jobs:
 
   build:
     needs: [initialize, docker-build-image]
-    permissions: {}
+    permissions:
+      contents: write
     runs-on: ${{ fromJSON(needs.initialize.outputs.build_runners) }}
     name: ${{ matrix.name }}_${{ matrix.config }}
     strategy:
