@@ -1264,8 +1264,22 @@ void StarboardRenderer::OnPlayerError(SbPlayerError error,
                                        message.c_str()));
       NotifyError(PIPELINE_ERROR_DECODE);
       break;
+    case kSbPlayerErrorSrcNotSupported:
+      MEDIA_LOG(ERROR, media_log_) << message;
+      NotifyError(DEMUXER_ERROR_COULD_NOT_OPEN);
+      break;
+    case kSbPlayerErrorNetwork:
+      MEDIA_LOG(ERROR, media_log_) << message;
+      NotifyError(PIPELINE_ERROR_NETWORK);
+      break;
     case kSbPlayerErrorMax:
       NOTREACHED();
+      break;
+    default:
+      // A port may send a code this build does not know; report it
+      // rather than dropping it.
+      MEDIA_LOG(ERROR, media_log_) << message;
+      NotifyError(PIPELINE_ERROR_DECODE);
       break;
   }
 }
