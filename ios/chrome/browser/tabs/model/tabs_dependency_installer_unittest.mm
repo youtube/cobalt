@@ -8,51 +8,18 @@
 #import <memory>
 #import <vector>
 
-#import "base/test/scoped_feature_list.h"
 #import "ios/chrome/browser/shared/model/browser/test/test_browser.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
 #import "ios/chrome/browser/shared/model/web_state_list/test/fake_web_state_list_delegate.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_opener.h"
 #import "ios/chrome/browser/tabs/model/tabs_dependency_installer_manager.h"
-#import "ios/web/common/features.h"
 #import "ios/web/public/test/fakes/fake_web_state.h"
 #import "ios/web/public/test/web_task_environment.h"
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
 
 namespace {
-
-// Represents the state of the kCreateTabHelperOnlyForRealizedWebStates
-// feature.
-enum class FeatureState {
-  kEnabled,
-  kDisabled,
-};
-
-// Parameters for TabsDependencyInstallerTest.
-using TestParams = std::tuple<FeatureState, TabsDependencyInstaller::Policy>;
-
-// A ScopedFeatureList that enable or disable the feature in its constructor.
-class ScopedFeatureListHelper {
- public:
-  ScopedFeatureListHelper(FeatureState state) {
-    switch (state) {
-      case FeatureState::kEnabled:
-        scoped_feature_list_.InitAndEnableFeature(
-            web::features::kCreateTabHelperOnlyForRealizedWebStates);
-        break;
-
-      case FeatureState::kDisabled:
-        scoped_feature_list_.InitAndDisableFeature(
-            web::features::kCreateTabHelperOnlyForRealizedWebStates);
-        break;
-    }
-  }
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
-};
 
 // TabsDependencyInstaller which simply tracks which WebStates have been passed
 // to the inserted/removed methods.
@@ -131,12 +98,9 @@ class TestTabsDependencyInstaller : public TabsDependencyInstaller {
 
 }  // anonymous namespace
 
-class TabsDependencyInstallerTest
-    : public PlatformTest,
-      public testing::WithParamInterface<TestParams> {
+class TabsDependencyInstallerTest : public PlatformTest {
  public:
-  TabsDependencyInstallerTest()
-      : scoped_feature_list_helper_(std::get<FeatureState>(GetParam())) {
+  TabsDependencyInstallerTest() {
     profile_ = TestProfileIOS::Builder().Build();
     browser_ = std::make_unique<TestBrowser>(
         profile_.get(), std::make_unique<FakeWebStateListDelegate>(
@@ -148,28 +112,16 @@ class TabsDependencyInstallerTest
 
  protected:
   web::WebTaskEnvironment task_environment_;
-
-  ScopedFeatureListHelper scoped_feature_list_helper_;
   std::unique_ptr<TestProfileIOS> profile_;
   std::unique_ptr<Browser> browser_;
   raw_ptr<WebStateList> web_state_list_;
   TestTabsDependencyInstaller installer_;
 };
 
-INSTANTIATE_TEST_SUITE_P(
-    ,
-    TabsDependencyInstallerTest,
-    ::testing::Combine(
-        ::testing::Values(FeatureState::kDisabled, FeatureState::kEnabled),
-        ::testing::Values(
-            TabsDependencyInstaller::Policy::kOnlyRealized,
-            TabsDependencyInstaller::Policy::kAccordingToFeature)));
-
 // Verifies that the appropriate inserted/removed methods are triggered
 // when a WebState is inserted, replaced, or removed.
-TEST_P(TabsDependencyInstallerTest, InsertReplaceAndRemoveWebState) {
-  installer_.StartObserving(
-      browser_.get(), std::get<TabsDependencyInstaller::Policy>(GetParam()));
+TEST_F(TabsDependencyInstallerTest, InsertReplaceAndRemoveWebState) {
+  installer_.StartObserving(browser_.get());
   auto web_state_1 = std::make_unique<web::FakeWebState>();
   const web::WebStateID web_state_1_id = web_state_1->GetUniqueIdentifier();
 
@@ -190,22 +142,20 @@ TEST_P(TabsDependencyInstallerTest, InsertReplaceAndRemoveWebState) {
 // Verifies that the appropriate inserted/removed methods are triggered
 // for any WebStates that were already in the WebStateList prior to its
 // observation.
-TEST_P(TabsDependencyInstallerTest, RespectsPreexistingWebState) {
+TEST_F(TabsDependencyInstallerTest, RespectsPreexistingWebState) {
   auto web_state = std::make_unique<web::FakeWebState>();
   web::WebStateID web_state_id = web_state->GetUniqueIdentifier();
   web_state_list_->InsertWebState(
       std::move(web_state),
       WebStateList::InsertionParams::Automatic().Activate());
-  installer_.StartObserving(
-      browser_.get(), std::get<TabsDependencyInstaller::Policy>(GetParam()));
+  installer_.StartObserving(browser_.get());
   EXPECT_TRUE(installer_.WasInstalled(web_state_id));
 }
 
 // Verifies that the inserted/removed methods are not triggered for any
 // unrealized WebStates.
-TEST_P(TabsDependencyInstallerTest, UnrealizedWebStates) {
-  installer_.StartObserving(
-      browser_.get(), std::get<TabsDependencyInstaller::Policy>(GetParam()));
+TEST_F(TabsDependencyInstallerTest, UnrealizedWebStates) {
+  installer_.StartObserving(browser_.get());
   auto web_state_1 = std::make_unique<web::FakeWebState>();
   web::WebStateID web_state_1_id = web_state_1->GetUniqueIdentifier();
   web_state_list_->InsertWebState(
@@ -217,22 +167,13 @@ TEST_P(TabsDependencyInstallerTest, UnrealizedWebStates) {
   web_state_2->SetIsRealized(false);
   web::WebStateID web_state_2_id = web_state_2->GetUniqueIdentifier();
 
-  const bool will_install_dependency_on_unrealized_web_states =
-      (std::get<FeatureState>(GetParam()) == FeatureState::kDisabled) &&
-      (std::get<TabsDependencyInstaller::Policy>(GetParam()) ==
-       TabsDependencyInstaller::Policy::kAccordingToFeature);
-
   // Insert the unrealized webstate but don't have it activate (since that
   // forces realization).
   const int index_2 = web_state_list_->InsertWebState(std::move(web_state_2));
-  if (!will_install_dependency_on_unrealized_web_states) {
-    // The unrealized webstate should not have dependencies installed.
-    EXPECT_FALSE(installer_.WasInstalled(web_state_2_id));
-  } else {
-    // The dependencies are installed even on unrealized WebStates if
-    // the feature is disabled and the policy is kAccordingToFeature.
-    EXPECT_TRUE(installer_.WasInstalled(web_state_2_id));
-  }
+
+  // The unrealized webstate should not have dependencies installed.
+  EXPECT_FALSE(installer_.WasInstalled(web_state_2_id));
+
   // Once realized, dependencies should be installed.
   ASSERT_NE(index_2, WebStateList::kInvalidIndex);
   web_state_list_->GetWebStateAt(index_2)->ForceRealized();
@@ -253,32 +194,30 @@ TEST_P(TabsDependencyInstallerTest, UnrealizedWebStates) {
   // Dependencies should have been installed only once
   EXPECT_EQ(1u, installer_.InstallCount(web_state_3_id));
 
-  if (!will_install_dependency_on_unrealized_web_states) {
-    auto web_state_4 = std::make_unique<web::FakeWebState>();
-    web_state_4->SetIsRealized(false);
-    web::WebStateID web_state_4_id = web_state_4->GetUniqueIdentifier();
+  auto web_state_4 = std::make_unique<web::FakeWebState>();
+  web_state_4->SetIsRealized(false);
+  web::WebStateID web_state_4_id = web_state_4->GetUniqueIdentifier();
 
-    // Insert the unrealized webstate but don't have it activate (since that
-    // forces realization).
-    const int index_4 = web_state_list_->InsertWebState(std::move(web_state_4));
-    // The unrealized webstate should not have dependencies installed.
-    EXPECT_FALSE(installer_.WasInstalled(web_state_4_id));
+  // Insert the unrealized webstate but don't have it activate (since that
+  // forces realization).
+  const int index_4 = web_state_list_->InsertWebState(std::move(web_state_4));
+  // The unrealized webstate should not have dependencies installed.
+  EXPECT_FALSE(installer_.WasInstalled(web_state_4_id));
 
-    ASSERT_NE(index_4, WebStateList::kInvalidIndex);
-    auto detached_web_state = web_state_list_->DetachWebStateAt(index_4);
-    ASSERT_TRUE(detached_web_state);
-    EXPECT_EQ(detached_web_state->GetUniqueIdentifier(), web_state_4_id);
-    detached_web_state->ForceRealized();
+  ASSERT_NE(index_4, WebStateList::kInvalidIndex);
+  auto detached_web_state = web_state_list_->DetachWebStateAt(index_4);
+  ASSERT_TRUE(detached_web_state);
+  EXPECT_EQ(detached_web_state->GetUniqueIdentifier(), web_state_4_id);
+  detached_web_state->ForceRealized();
 
-    // The dependencies should not have been installed as the WebState
-    // was realized after being removed from the WebStateList (and thus
-    // no longer tracked by TabsDependencyInstaller).
-    EXPECT_FALSE(installer_.WasInstalled(web_state_4_id));
-  }
+  // The dependencies should not have been installed as the WebState
+  // was realized after being removed from the WebStateList (and thus
+  // no longer tracked by TabsDependencyInstaller).
+  EXPECT_FALSE(installer_.WasInstalled(web_state_4_id));
 }
 
 // Verifies that the installer is notified of permanent deletion of WebState.
-TEST_P(TabsDependencyInstallerTest, Deleted) {
+TEST_F(TabsDependencyInstallerTest, Deleted) {
   struct TestCase {
     bool expect_notification;
     WebStateList::ClosingReason close_reason;
@@ -299,8 +238,7 @@ TEST_P(TabsDependencyInstallerTest, Deleted) {
       },
   };
 
-  installer_.StartObserving(
-      browser_.get(), std::get<TabsDependencyInstaller::Policy>(GetParam()));
+  installer_.StartObserving(browser_.get());
 
   // Check that the method WebStateDeleted() is called if the tabs is closed
   // due to an user action or due to tabs cleanup.
@@ -332,9 +270,8 @@ TEST_P(TabsDependencyInstallerTest, Deleted) {
 
 // Verifies that the WebStateActivated() method is correctly called when
 // the active WebState changes.
-TEST_P(TabsDependencyInstallerTest, Activation) {
-  installer_.StartObserving(
-      browser_.get(), std::get<TabsDependencyInstaller::Policy>(GetParam()));
+TEST_F(TabsDependencyInstallerTest, Activation) {
+  installer_.StartObserving(browser_.get());
 
   auto web_state_1 = std::make_unique<web::FakeWebState>();
   web::WebStateID web_state_1_id = web_state_1->GetUniqueIdentifier();
@@ -372,9 +309,8 @@ TEST_P(TabsDependencyInstallerTest, Activation) {
 }
 
 // Verifies that no methods are triggered after stopping the observation.
-TEST_P(TabsDependencyInstallerTest, Disconnect) {
-  installer_.StartObserving(
-      browser_.get(), std::get<TabsDependencyInstaller::Policy>(GetParam()));
+TEST_F(TabsDependencyInstallerTest, Disconnect) {
+  installer_.StartObserving(browser_.get());
   auto web_state_1 = std::make_unique<web::FakeWebState>();
   web::WebStateID web_state_1_id = web_state_1->GetUniqueIdentifier();
 
@@ -397,13 +333,12 @@ TEST_P(TabsDependencyInstallerTest, Disconnect) {
 
 // Verifies that stopping the observation for an installer will uninstall it
 // from the TabsDependencyInstallerManager.
-TEST_P(TabsDependencyInstallerTest, UninstallForManagerAfterDisconnect) {
+TEST_F(TabsDependencyInstallerTest, UninstallForManagerAfterDisconnect) {
   TabsDependencyInstallerManager::CreateForBrowser(browser_.get());
   TabsDependencyInstallerManager* manager =
       TabsDependencyInstallerManager::FromBrowser(browser_.get());
   ASSERT_TRUE(manager);
-  installer_.StartObserving(
-      browser_.get(), std::get<TabsDependencyInstaller::Policy>(GetParam()));
+  installer_.StartObserving(browser_.get());
 
   auto web_state = std::make_unique<web::FakeWebState>();
   const web::WebStateID web_state_id = web_state->GetUniqueIdentifier();

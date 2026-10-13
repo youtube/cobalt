@@ -191,6 +191,8 @@ void MaybeRecordWebSigninToChromeSigninTimes(
     case signin_metrics::AccessPoint::kNtpFeaturePromo:
     case signin_metrics::AccessPoint::kEnterpriseDialogAfterSigninInterception:
     case signin_metrics::AccessPoint::kCredentialExchangeImport:
+    case signin_metrics::AccessPoint::kSetSyncConsentFromSyncInternals:
+    case signin_metrics::AccessPoint::kIosChromeWebView:
       return;
   }
 
@@ -280,8 +282,7 @@ void SigninMetricsService::OnPrimaryAccountChanged(
       pref_service_->ClearPref(kWebSigninAccountStartTimesPref);
 
       RecordSigninInterceptionMetrics(
-          event_details.GetCurrentState().primary_account.gaia,
-          access_point.value());
+          event_details.GetCurrentState().primary_account.gaia);
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
       if (active_primary_accounts_metrics_recorder_) {
@@ -558,7 +559,7 @@ std::optional<base::Time> SigninMetricsService::GetTimeOfWebSignin(
     return std::nullopt;
   }
 
-  const base::Value::Dict& web_signin_account_start_time_dict =
+  const base::DictValue& web_signin_account_start_time_dict =
       pref_service_->GetDict(kWebSigninAccountStartTimesPref);
 
   // This value only exists if the initial signin was from a web signin
@@ -583,18 +584,12 @@ void SigninMetricsService::MaybeRecordWebSigninToChromeSigninMetrics(
 }
 
 void SigninMetricsService::RecordSigninInterceptionMetrics(
-    const GaiaId& gaia_id,
-    signin_metrics::AccessPoint access_point) {
+    const GaiaId& gaia_id) {
   ChromeSigninUserChoice signin_choice =
       SigninPrefs(pref_service_.get())
           .GetChromeSigninInterceptionUserChoice(gaia_id);
   base::UmaHistogramEnumeration("Signin.Settings.ChromeSignin.OnSignin",
                                 signin_choice);
-  if (signin_choice == ChromeSigninUserChoice::kDoNotSignin) {
-    base::UmaHistogramEnumeration(
-        "Signin.Settings.ChromeSignin.AccessPointWithDoNotSignin",
-        access_point);
-  }
 }
 
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)

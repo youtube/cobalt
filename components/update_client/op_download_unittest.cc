@@ -134,9 +134,9 @@ class OpDownloadTest : public testing::Test {
     return base::DoNothing();
   }
 
-  base::RepeatingCallback<void(base::Value::Dict)> MakePingCallback() {
+  base::RepeatingCallback<void(base::DictValue)> MakePingCallback() {
     return base::BindLambdaForTesting(
-        [&](base::Value::Dict ping) { pings_.push_back(std::move(ping)); });
+        [&](base::DictValue ping) { pings_.push_back(std::move(ping)); });
   }
 
 #if BUILDFLAG(IS_STARBOARD)
@@ -181,7 +181,7 @@ class OpDownloadTest : public testing::Test {
   base::ScopedTempDir temp_dir_;
   base::RunLoop runloop_;
 
-  std::vector<base::Value::Dict> pings_;
+  std::vector<base::DictValue> pings_;
 #if defined(IN_MEMORY_UPDATES)
   std::string crx_str_;
 #endif

@@ -8,6 +8,7 @@
 #include <memory>
 #include <utility>
 
+#include "base/i18n/rtl.h"
 #include "base/memory/raw_ptr.h"
 #include "base/test/mock_callback.h"
 #include "base/test/scoped_feature_list.h"
@@ -1008,6 +1009,32 @@ TEST_F(VideoOverlayWindowViewsTest,
 }
 #endif  // BUILDFLAG(IS_MAC)
 
+TEST_F(VideoOverlayWindowViewsTest, ReplayAndForward10SecondsOnKeyPress) {
+  overlay_window().ForceControlsVisibleForTesting(true);
+  media_session::MediaPosition media_position(/*playback_rate=*/0,
+                                              /*duration=*/base::Seconds(100),
+                                              /*position=*/base::Seconds(42),
+                                              /*end_of_media=*/false);
+  overlay_window().SetMediaPosition(media_position);
+
+  ui::KeyEvent left_event(ui::EventType::kKeyPressed, ui::VKEY_LEFT,
+                          ui::EF_NONE);
+  ui::KeyEvent right_event(ui::EventType::kKeyPressed, ui::VKEY_RIGHT,
+                           ui::EF_NONE);
+
+  // The left arrow key should seek the video backwards 10 seconds.
+  PictureInPictureWindowManager::GetInstance()
+      ->set_window_controller_for_testing(&pip_window_controller());
+  EXPECT_CALL(pip_window_controller(), SeekTo(base::Seconds(32)));
+  overlay_window().OnKeyEvent(&left_event);
+  testing::Mock::VerifyAndClearExpectations(&pip_window_controller());
+
+  // The right arrow key should seek the video forwards 10 seconds.
+  EXPECT_CALL(pip_window_controller(), SeekTo(base::Seconds(52)));
+  overlay_window().OnKeyEvent(&right_event);
+  testing::Mock::VerifyAndClearExpectations(&pip_window_controller());
+}
+
 TEST_F(VideoOverlayWindowViewsTest, DisplaysFavicon) {
   overlay_window().ForceControlsVisibleForTesting(true);
   views::ImageView* favicon_view = overlay_window().favicon_view_for_testing();
@@ -1060,6 +1087,22 @@ TEST_F(VideoOverlayWindowViewsTest, DisplaysOrigin) {
 
   overlay_window().SetSourceTitle(u"google.com");
   EXPECT_EQ(origin->GetText(), u"google.com");
+}
+
+TEST_F(VideoOverlayWindowViewsTest, OriginLabelHasCorrectDirectionality) {
+  views::Label* origin = overlay_window().origin_for_testing();
+  ASSERT_NE(nullptr, origin);
+
+  // The directionality should be LTR to prevent spoofing.
+  EXPECT_EQ(base::i18n::LEFT_TO_RIGHT, origin->GetTextDirectionForTesting());
+
+  // Set the source title to a RTL string.
+  const char16_t kRtl[] = u"אבג";
+  overlay_window().SetSourceTitle(kRtl);
+  EXPECT_EQ(kRtl, origin->GetText());
+
+  // The directionality should still be LTR to prevent spoofing.
+  EXPECT_EQ(base::i18n::LEFT_TO_RIGHT, origin->GetTextDirectionForTesting());
 }
 
 TEST_F(VideoOverlayWindowViewsTest,

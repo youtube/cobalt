@@ -334,6 +334,8 @@ class NetworkHandler : public DevToolsDomainHandler,
       const net::CookieAccessResultList& request_cookie_list,
       const std::vector<network::mojom::HttpRawHeaderPairPtr>& request_headers,
       const base::TimeTicks timestamp,
+      const std::vector<network::mojom::DeviceBoundSessionWithUsagePtr>&
+          device_bound_session_usages,
       const network::mojom::ClientSecurityStatePtr& security_state,
       const network::mojom::OtherPartitionInfoPtr& other_partition_info,
       std::optional<base::UnguessableToken> applied_network_conditions_id);
@@ -377,8 +379,8 @@ class NetworkHandler : public DevToolsDomainHandler,
       bool disable_third_party_cookie_heuristics) override;
 
   // Protocol builders.
-  static String BuildPrivateNetworkRequestPolicy(
-      network::mojom::PrivateNetworkRequestPolicy policy);
+  static String BuildLocalNetworkAccessRequestPolicy(
+      network::mojom::LocalNetworkAccessRequestPolicy policy);
   static protocol::Network::IPAddressSpace BuildIpAddressSpace(
       network::mojom::IPAddressSpace space);
   static std::unique_ptr<protocol::Network::ClientSecurityState>

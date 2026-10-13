@@ -60,7 +60,7 @@ class CallStats2Test : public ::testing::Test {
   std::unique_ptr<TaskQueueBase, TaskQueueDeleter> task_queue_ =
       CreateDefaultTaskQueueFactory()->CreateTaskQueue(
           "CallStats",
-          TaskQueueFactory::Priority::NORMAL);
+          TaskQueueFactory::Priority::kNormal);
 
   // Note: Since webrtc::Thread doesn't support injecting a Clock, we're going
   // to be using a mix of the fake clock (used by CallStats) as well as the

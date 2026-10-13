@@ -14,7 +14,7 @@
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_animator.h"
 #import "ios/chrome/browser/keyboard/ui_bundled/UIKeyCommand+Chrome.h"
 #import "ios/chrome/browser/omnibox/public/omnibox_ui_features.h"
-#import "ios/chrome/browser/shared/public/commands/omnibox_commands.h"
+#import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/util/dynamic_type_util.h"
 #import "ios/chrome/browser/shared/ui/util/layout_guide_names.h"
@@ -126,8 +126,8 @@ BASE_FEATURE(kPrimaryToolbarViewDidLoadUpdateViews,
   if (progress == 0 && !self.view.fakeOmniboxTarget) {
     [self.view addFakeOmniboxTarget];
     UITapGestureRecognizer* tapRecognizer = [[UITapGestureRecognizer alloc]
-        initWithTarget:self.omniboxCommandsHandler
-                action:@selector(focusOmnibox)];
+        initWithTarget:self.browserCoordinatorHandler
+                action:@selector(showComposebox)];
     [self.view.fakeOmniboxTarget addGestureRecognizer:tapRecognizer];
   } else if (progress > 0 && self.view.fakeOmniboxTarget) {
     [self.view removeFakeOmniboxTarget];
@@ -204,6 +204,10 @@ BASE_FEATURE(kPrimaryToolbarViewDidLoadUpdateViews,
   self.view.tabGroupIndicatorView = view;
 }
 
+- (UIView*)shareButton {
+  return self.view.shareButton;
+}
+
 #pragma mark - Property accessors
 
 - (void)setIsNTP:(BOOL)isNTP {
@@ -227,16 +231,6 @@ BASE_FEATURE(kPrimaryToolbarViewDidLoadUpdateViews,
 
 - (BOOL)locationBarIsExpanded {
   return self.view.expanded;
-}
-
-#pragma mark - SharingPositioner
-
-- (UIView*)sourceView {
-  return self.view.shareButton;
-}
-
-- (CGRect)sourceRect {
-  return self.view.shareButton.bounds;
 }
 
 #pragma mark - FullscreenUIElement

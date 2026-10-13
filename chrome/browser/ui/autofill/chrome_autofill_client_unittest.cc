@@ -41,7 +41,6 @@
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/foundations/test_autofill_manager_waiter.h"
 #include "components/autofill/core/browser/foundations/test_browser_autofill_manager.h"
-#include "components/autofill/core/browser/integrators/fast_checkout/mock_fast_checkout_client.h"
 #include "components/autofill/core/browser/integrators/password_form_classification.h"
 #include "components/autofill/core/browser/payments/payments_autofill_client.h"
 #include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
@@ -50,7 +49,6 @@
 #include "components/autofill/core/common/autofill_payments_features.h"
 #include "components/autofill/core/common/autofill_test_utils.h"
 #include "components/autofill/core/common/form_field_data.h"
-#include "components/autofill/core/common/form_interactions_flow.h"
 #include "components/feature_engagement/public/feature_constants.h"
 #include "components/plus_addresses/core/browser/fake_plus_address_service.h"
 #include "components/plus_addresses/core/browser/plus_address_hats_utils.h"
@@ -72,7 +70,6 @@
 #include "url/gurl.h"
 
 #if BUILDFLAG(IS_ANDROID)
-#include "chrome/browser/fast_checkout/fast_checkout_client_impl.h"
 #include "chrome/browser/ui/android/autofill/autofill_cvc_save_message_delegate.h"
 #include "chrome/browser/ui/android/autofill/autofill_save_card_bottom_sheet_bridge.h"
 #include "chrome/browser/ui/android/autofill/autofill_save_card_delegate_android.h"
@@ -116,6 +113,7 @@ class MockSaveCardBubbleController : public SaveCardBubbleControllerImpl {
       void,
       ShowConfirmationBubbleView,
       (bool,
+       bool,
        std::optional<
            payments::PaymentsAutofillClient::OnConfirmationClosedCallback>),
       (override));
@@ -150,10 +148,6 @@ class ChromeAutofillClientTest : public ChromeRenderViewHostTestHarness {
 
   void SetUp() override {
     ChromeRenderViewHostTestHarness::SetUp();
-    // Enable MSBB by default. If MSBB has been explicitly turned off, Fast
-    // Checkout is not supported.
-    profile()->GetPrefs()->SetBoolean(
-        unified_consent::prefs::kUrlKeyedAnonymizedDataCollectionEnabled, true);
     // Creates the AutofillDriver and AutofillManager.
     NavigateAndCommit(GURL("about:blank"));
 
@@ -342,48 +336,6 @@ TEST_F(ChromeAutofillClientTest, ClassifiesLoginFormOnChildFrame) {
                 main_driver->GetAutofillManager(), main_form.global_id(),
                 child_form.fields()[0].global_id()),
             expected);
-}
-
-TEST_F(ChromeAutofillClientTest, GetFormInteractionsFlowId_BelowMaxFlowTime) {
-  base::TimeDelta below_max_flow_time = base::Minutes(10);
-
-  FormInteractionsFlowId first_interaction_flow_id =
-      client()->GetCurrentFormInteractionsFlowId();
-
-  task_environment()->FastForwardBy(below_max_flow_time);
-
-  EXPECT_EQ(first_interaction_flow_id,
-            client()->GetCurrentFormInteractionsFlowId());
-}
-
-TEST_F(ChromeAutofillClientTest, GetFormInteractionsFlowId_AboveMaxFlowTime) {
-  base::TimeDelta above_max_flow_time = base::Minutes(21);
-
-  FormInteractionsFlowId first_interaction_flow_id =
-      client()->GetCurrentFormInteractionsFlowId();
-
-  task_environment()->FastForwardBy(above_max_flow_time);
-
-  EXPECT_NE(first_interaction_flow_id,
-            client()->GetCurrentFormInteractionsFlowId());
-}
-
-TEST_F(ChromeAutofillClientTest, GetFormInteractionsFlowId_AdvancedTwice) {
-  base::TimeDelta above_half_max_flow_time = base::Minutes(15);
-
-  FormInteractionsFlowId first_interaction_flow_id =
-      client()->GetCurrentFormInteractionsFlowId();
-
-  task_environment()->FastForwardBy(above_half_max_flow_time);
-
-  FormInteractionsFlowId second_interaction_flow_id =
-      client()->GetCurrentFormInteractionsFlowId();
-
-  task_environment()->FastForwardBy(above_half_max_flow_time);
-
-  EXPECT_EQ(first_interaction_flow_id, second_interaction_flow_id);
-  EXPECT_NE(first_interaction_flow_id,
-            client()->GetCurrentFormInteractionsFlowId());
 }
 
 // Ensure that, by default, the plus address service is not available.
@@ -646,8 +598,9 @@ TEST_F(ChromeAutofillClientTest,
        CreditCardUploadCompleted_ShowConfirmationBubbleView_CardSaved) {
   EXPECT_CALL(save_card_bubble_controller(),
               ShowConfirmationBubbleView(
-                  true, A<std::optional<payments::PaymentsAutofillClient::
-                                            OnConfirmationClosedCallback>>()));
+                  /*card_saved=*/true, /*is_for_save_and_fill=*/true,
+                  A<std::optional<payments::PaymentsAutofillClient::
+                                      OnConfirmationClosedCallback>>()));
   client()->GetPaymentsAutofillClient()->CreditCardUploadCompleted(
       payments::PaymentsAutofillClient::PaymentsRpcResult::kSuccess,
       /*on_confirmation_closed_callback=*/std::nullopt);
@@ -657,8 +610,9 @@ TEST_F(ChromeAutofillClientTest,
        CreditCardUploadCompleted_ShowConfirmationBubbleView_CardNotSaved) {
   EXPECT_CALL(save_card_bubble_controller(),
               ShowConfirmationBubbleView(
-                  false, A<std::optional<payments::PaymentsAutofillClient::
-                                             OnConfirmationClosedCallback>>()));
+                  /*card_saved=*/false, /*is_for_save_and_fill=*/false,
+                  A<std::optional<payments::PaymentsAutofillClient::
+                                      OnConfirmationClosedCallback>>()));
   client()->GetPaymentsAutofillClient()->CreditCardUploadCompleted(
       payments::PaymentsAutofillClient::PaymentsRpcResult::kPermanentFailure,
       /*on_confirmation_closed_callback=*/std::nullopt);
@@ -671,8 +625,9 @@ TEST_F(ChromeAutofillClientTest,
   EXPECT_CALL(save_card_bubble_controller(), HideSaveCardBubble());
   EXPECT_CALL(save_card_bubble_controller(),
               ShowConfirmationBubbleView(
-                  false, A<std::optional<payments::PaymentsAutofillClient::
-                                             OnConfirmationClosedCallback>>()))
+                  /*card_saved=*/false, /*is_for_save_and_fill=*/false,
+                  A<std::optional<payments::PaymentsAutofillClient::
+                                      OnConfirmationClosedCallback>>()))
       .Times(0);
   client()->GetPaymentsAutofillClient()->CreditCardUploadCompleted(
       payments::PaymentsAutofillClient::PaymentsRpcResult::kClientSideTimeout,

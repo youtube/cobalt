@@ -9,7 +9,6 @@
 #include <array>
 #include <string>
 #include <string_view>
-#include <unordered_set>
 
 #include "base/files/file_util.h"
 #include "base/format_macros.h"
@@ -45,6 +44,7 @@
 #include "google_apis/gaia/gaia_id.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/resource/resource_bundle.h"
@@ -591,7 +591,7 @@ TEST_F(ProfileAttributesStorageTest, AddStubProfile) {
   // Check that the profiles can be extracted from the local state.
   std::vector<std::string> names;
   PrefService* local_state = g_browser_process->local_state();
-  const base::Value::Dict& attributes =
+  const base::DictValue& attributes =
       local_state->GetDict(prefs::kProfileAttributes);
   for (const auto kv : attributes) {
     const base::Value& info = kv.second;
@@ -1273,7 +1273,7 @@ TEST_F(ProfileAttributesStorageTest, ChooseAvatarIconIndexForNewProfile) {
   // the final |icon_index| to add a profile. Multiple checks are needed because
   // ChooseAvatarIconIndexForNewProfile is non-deterministic.
   const int num_iterations = 10;
-  std::unordered_set<int> used_icon_indices;
+  absl::flat_hash_set<int> used_icon_indices;
 
   for (size_t i = 0; i < total_icon_count; ++i) {
     EXPECT_EQ(i, storage()->GetNumberOfProfiles());
@@ -2119,7 +2119,7 @@ TEST_F(ProfileAttributesStorageTest,
 TEST_F(ProfileAttributesStorageTest, RecoverProfileOrderPrefAfterIssues) {
   DisableObserver();
 
-  base::Value::List profile_keys;
+  base::ListValue profile_keys;
   profile_keys.with_capacity(3);
   profile_keys.Append(u"D");
   profile_keys.Append(u"B");
@@ -2132,13 +2132,13 @@ TEST_F(ProfileAttributesStorageTest, RecoverProfileOrderPrefAfterIssues) {
 
   PrefService* local_state = g_browser_process->local_state();
   ScopedListPrefUpdate update(local_state, prefs::kProfilesOrder);
-  base::Value::List& profiles_order = update.Get();
+  base::ListValue& profiles_order = update.Get();
 
   ASSERT_EQ(profile_keys, profiles_order);
 
   // After recovery, the expected order is modified to be alphabetically
   // ordered.
-  base::Value::List expected_recovered_keys;
+  base::ListValue expected_recovered_keys;
   expected_recovered_keys.with_capacity(profile_keys.size());
   expected_recovered_keys.Append(profile_keys[1].GetString());
   expected_recovered_keys.Append(profile_keys[2].GetString());

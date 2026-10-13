@@ -15,7 +15,7 @@
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_manager_ios.h"
 #import "ios/chrome/browser/signin/model/authentication_service.h"
 #import "ios/chrome/browser/signin/model/authentication_service_factory.h"
-#import "ios/chrome/browser/signin/model/avatar_provider.h"
+#import "ios/chrome/browser/signin/model/avatar/avatar_provider.h"
 #import "ios/chrome/browser/signin/model/chrome_account_manager_service_factory.h"
 #import "ios/chrome/browser/signin/model/fake_authentication_service_delegate.h"
 #import "ios/chrome/browser/signin/model/fake_system_identity.h"
@@ -268,7 +268,7 @@ TEST_F(WelcomeBackMediatorTest, ConfirmUserInformationRetrieved) {
   AuthenticationService* auth_service_ =
       AuthenticationServiceFactory::GetForProfile(profile_.get());
   auth_service_->SignIn(fake_system_identity_,
-                        signin_metrics::AccessPoint::kUnknown);
+                        signin_metrics::AccessPoint::kStartPage);
 
   // Expect Lens, Enhanced Safe Browsing, and Autofill Passwords in Other Apps
   // and the personalized title.

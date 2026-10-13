@@ -149,6 +149,7 @@
 #include "chromeos/ash/components/browser_context_helper/browser_context_helper.h"
 #include "chromeos/ash/components/dbus/concierge/concierge_client.h"
 #include "chromeos/ash/components/file_manager/app_id.h"
+#include "chromeos/ash/components/login/session/session_termination_manager.h"
 #include "chromeos/ash/experiences/arc/app/arc_app_constants.h"
 #include "chromeos/ash/experiences/arc/arc_prefs.h"
 #include "chromeos/ash/experiences/arc/metrics/arc_metrics_constants.h"
@@ -522,7 +523,7 @@ class ChromeShelfControllerTestBase : public BrowserWithTestWindowTest,
 
     model_ = std::make_unique<ash::ShelfModel>();
 
-    base::Value::Dict manifest;
+    base::DictValue manifest;
     manifest.SetByDottedPath(extensions::manifest_keys::kName,
                              "launcher controller test extension");
     manifest.SetByDottedPath(extensions::manifest_keys::kVersion, "1");
@@ -535,7 +536,7 @@ class ChromeShelfControllerTestBase : public BrowserWithTestWindowTest,
     manifest.SetByDottedPath(extensions::manifest_keys::kLaunchWebURL,
                              kLaunchURL);
 
-    base::Value::Dict manifest_platform_app;
+    base::DictValue manifest_platform_app;
     manifest_platform_app.SetByDottedPath(
         extensions::manifest_keys::kName,
         "launcher controller test platform app");
@@ -544,7 +545,7 @@ class ChromeShelfControllerTestBase : public BrowserWithTestWindowTest,
     manifest_platform_app.SetByDottedPath(
         extensions::manifest_keys::kDescription,
         "for testing pinned platform apps");
-    base::Value::List scripts;
+    base::ListValue scripts;
     scripts.Append("main.js");
     manifest_platform_app.SetByDottedPath(
         extensions::manifest_keys::kPlatformAppBackgroundScripts,
@@ -845,13 +846,13 @@ class ChromeShelfControllerTestBase : public BrowserWithTestWindowTest,
         base::WrapUnique<ShelfControllerHelper>(helper));
   }
 
-  void AppendPrefValue(base::Value::List& pref_values,
+  void AppendPrefValue(base::ListValue& pref_values,
                        std::string_view policy_id) {
-    pref_values.Append(base::Value::Dict().Set(
+    pref_values.Append(base::DictValue().Set(
         ChromeShelfPrefs::kPinnedAppsPrefAppIDKey, policy_id));
   }
 
-  void RemovePrefValue(base::Value::List& pref_values,
+  void RemovePrefValue(base::ListValue& pref_values,
                        std::string_view policy_id) {
     pref_values.EraseIf([&policy_id](const auto& entry) {
       return *entry.GetDict().FindString(
@@ -1331,7 +1332,7 @@ class ChromeShelfControllerTestBase : public BrowserWithTestWindowTest,
 
   template <class... Args>
   void SetPinnedLauncherAppsPolicy(Args&&... args) {
-    base::Value::List pinned_launcher_apps;
+    base::ListValue pinned_launcher_apps;
     (AppendPrefValue(pinned_launcher_apps, std::forward<Args>(args)), ...);
     profile()->GetTestingPrefService()->SetManagedPref(
         prefs::kPolicyPinnedLauncherApps,
@@ -1407,6 +1408,7 @@ class ChromeShelfControllerTestBase : public BrowserWithTestWindowTest,
     return std::make_unique<TestBrowserWindowAura>(std::move(window));
   }
 
+  ash::SessionTerminationManager session_termination_manager_;
   std::unique_ptr<ash::MultiUserWindowManagerBrowserAdaptor>
       multi_user_window_manager_browser_adaptor_;
   std::unique_ptr<WallpaperControllerClientImpl> wallpaper_controller_client_;
@@ -2012,7 +2014,7 @@ TEST_F(ChromeShelfControllerTest, MergePolicyAndUserPrefPinnedApps) {
   InsertAddPinChange(&sync_list, 2, ash::kGmailAppId);
   SendPinChanges(sync_list, /*reset_pin_model=*/true);
 
-  base::Value::List policy_value;
+  base::ListValue policy_value;
   // extension 2 4 are pinned by policy
   AppendPrefValue(policy_value, extension2_->id());
   AppendPrefValue(policy_value, google_docs_install_url_v2.spec());
@@ -3482,7 +3484,7 @@ TEST_F(ChromeShelfControllerTest, Policy) {
   InstallExternalWebApp(gmail_start_url, gmail_install_url);
 
   // Pin policy should be initialized before controller start.
-  base::Value::List policy_value;
+  base::ListValue policy_value;
   AppendPrefValue(policy_value, extension1_->id());
   AppendPrefValue(policy_value, extension2_->id());
   AppendPrefValue(policy_value,
@@ -5051,7 +5053,7 @@ class ChromeShelfControllerDemoModeTest : public ChromeShelfControllerTestBase {
 
 TEST_F(ChromeShelfControllerDemoModeTest, PinnedAppsOnline) {
   network::TestNetworkConnectionTracker::GetInstance()->SetConnectionType(
-      network::mojom::ConnectionType::CONNECTION_ETHERNET);
+      net::NetworkChangeNotifier::ConnectionType::CONNECTION_ETHERNET);
 
   InitShelfControllerWithBrowser();
 
@@ -5104,7 +5106,7 @@ TEST_F(ChromeShelfControllerDemoModeTest, PinnedAppsOnline) {
 
 TEST_F(ChromeShelfControllerDemoModeTest, PinnedAppsOffline) {
   network::TestNetworkConnectionTracker::GetInstance()->SetConnectionType(
-      network::mojom::ConnectionType::CONNECTION_NONE);
+      net::NetworkChangeNotifier::ConnectionType::CONNECTION_NONE);
 
   InitShelfControllerWithBrowser();
 

@@ -198,7 +198,7 @@ TEST_F(LargestContentfulPaintCalculatorTest, SingleImage) {
   EXPECT_TRUE(events[0]->HasStringArg("frame"));
 
   ASSERT_TRUE(events[0]->HasDictArg("data"));
-  base::Value::Dict arg_dict = events[0]->GetKnownArgAsDict("data");
+  base::DictValue arg_dict = events[0]->GetKnownArgAsDict("data");
   EXPECT_TRUE(arg_dict.FindDouble("imageLoadStart").has_value());
   EXPECT_TRUE(arg_dict.FindDouble("imageLoadEnd").has_value());
   EXPECT_TRUE(arg_dict.FindDouble("imageDiscoveryTime").has_value());
@@ -428,10 +428,10 @@ TEST_F(LargestContentfulPaintCalculatorTest, LargestPendingImage) {
   UpdateAllLifecyclePhasesForTest();
   SimulateImagePresentationPromise();
 
-  // Nothing should be reported to performance timeline because the largest
-  // image is still pending, but the UKM value should correspond to the pending
+  // The smaller image, which is the largest presented image, should be reported
+  // to performance timeline, but the UKM value should correspond to the pending
   // image.
-  EXPECT_EQ(LargestReportedSize(), 0u);
+  EXPECT_EQ(LargestReportedSize(), 9u);
   EXPECT_EQ(LargestImagePaintSize(), 30000u);
   EXPECT_TRUE(LargestImagePaintTime().is_null());
   trace_analyzer::Stop();
@@ -450,10 +450,10 @@ TEST_F(LargestContentfulPaintCalculatorTest, RemoveLargestPendingImage) {
   UpdateAllLifecyclePhasesForTest();
   SimulateImagePresentationPromise();
 
-  // Nothing should be reported to performance timeline because the largest
-  // image is still pending, but the UKM value should correspond to the pending
+  // The smaller image, which is the largest presented image, should be reported
+  // to performance timeline, but the UKM value should correspond to the pending
   // image.
-  EXPECT_EQ(LargestReportedSize(), 0u);
+  EXPECT_EQ(LargestReportedSize(), 9u);
   EXPECT_EQ(LargestImagePaintSize(), 30000u);
   EXPECT_TRUE(LargestImagePaintTime().is_null());
 
@@ -484,10 +484,10 @@ TEST_F(LargestContentfulPaintCalculatorTest, MulitiplePendingImages) {
   UpdateAllLifecyclePhasesForTest();
   SimulateImagePresentationPromise();
 
-  // Nothing should be reported to performance timeline because the largest
-  // image is still pending, but the UKM value should correspond to the pending
+  // The smaller image, which is the largest presented image, should be reported
+  // to performance timeline, but the UKM value should correspond to the pending
   // image.
-  EXPECT_EQ(LargestReportedSize(), 0u);
+  EXPECT_EQ(LargestReportedSize(), 9u);
   EXPECT_EQ(LargestImagePaintSize(), 45000u);
   EXPECT_TRUE(LargestImagePaintTime().is_null());
 

@@ -77,7 +77,6 @@
 #include "third_party/blink/renderer/platform/graphics/bitmap_image.h"
 #include "third_party/blink/renderer/platform/graphics/blend_mode.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_deferred_paint_record.h"
-#include "third_party/blink/renderer/platform/graphics/canvas_high_entropy_op_type.h"
 #include "third_party/blink/renderer/platform/graphics/flush_reason.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/shared_gpu_context.h"
 #if !BUILDFLAG(IS_COBALT)
@@ -1119,8 +1118,8 @@ void BaseRenderingContext2D::DrawTextInternal(
   Draw<OverdrawOp::kNone>(
       /*draw_func=*/
       [font, text = std::move(text), direction, bidi_override, location,
-       run_start, run_end, canvas, &text_painter,
-       paint_type](MemoryManagedPaintCanvas* c, const cc::PaintFlags* flags) {
+       run_start, run_end, canvas, &text_painter](MemoryManagedPaintCanvas* c,
+                                                  const cc::PaintFlags* flags) {
         TextRun text_run(text, direction, bidi_override);
         // Font::DrawType::kGlyphsAndClusters is required for printing to PDF,
         // otherwise the character to glyph mapping will not be reversible,
@@ -1134,11 +1133,6 @@ void BaseRenderingContext2D::DrawTextInternal(
         Font::DrawType draw_type = (canvas && canvas->IsPrinting())
                                        ? Font::DrawType::kGlyphsAndClusters
                                        : Font::DrawType::kGlyphsOnly;
-        // Only fill and stroke are used for DrawTextInternal.
-        c->AddHighEntropyCanvasOpTypes(
-            paint_type == CanvasRenderingContext2DState::kFillPaintType
-                ? HighEntropyCanvasOpType::kFillText
-                : HighEntropyCanvasOpType::kStrokeText);
         text_painter.DrawWithBidiReorder(text_run, run_start, run_end, *font,
                                          Font::kUseFallbackIfFontNotReady, *c,
                                          location, *flags, draw_type);
@@ -1413,8 +1407,8 @@ GPUTexture* BaseRenderingContext2D::transferToGPUTexture(
   // A texture needs to exist on the GPU. If we aren't able to create an
   // accelerated SharedImage provider, we won't be able to transfer the canvas.
   // In that case, WebGPU access is not possible.
-  CanvasResourceProviderSharedImage* provider =
-      GetOrCreateResourceProvider()->AsSharedImageProvider();
+  Canvas2DResourceProviderSharedImage* provider =
+      GetOrCreateResourceProvider()->As2DSharedImageProvider();
   if (!provider || !provider->IsAccelerated()) {
     exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
                                       "Unable to transfer canvas to GPU.");
@@ -1477,8 +1471,8 @@ GPUTexture* BaseRenderingContext2D::transferToGPUTexture(
   // Note: This must be a CRPSI since this method would have bailed out earlier
   // otherwise.
   resource_provider_from_webgpu_access_ =
-      base::WrapUnique<CanvasResourceProviderSharedImage>(
-          owned_provider.release()->AsSharedImageProvider());
+      base::WrapUnique<Canvas2DResourceProviderSharedImage>(
+          owned_provider.release()->As2DSharedImageProvider());
 
   // The user isn't obligated to ever transfer back, which means this resource
   // provider might stick around for while. Jettison any unnecessary resources.
@@ -1535,7 +1529,7 @@ void BaseRenderingContext2D::transferBackFromGPUTexture(
 
   // Restore the canvas' resource provider back onto the canvas host,
   // surrendering our temporary ownership of the provider.
-  CanvasResourceProviderSharedImage* resource_provider =
+  Canvas2DResourceProviderSharedImage* resource_provider =
       resource_provider_from_webgpu_access_.get();
   ReplaceResourceProvider(std::move(resource_provider_from_webgpu_access_));
   resource_provider->SetDelegate(host);

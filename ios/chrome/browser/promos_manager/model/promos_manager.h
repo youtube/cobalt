@@ -16,7 +16,7 @@
 #import "components/keyed_service/core/keyed_service.h"
 #import "ios/chrome/browser/promos_manager/model/promo_config.h"
 
-@class ImpressionLimit;
+struct PromoDisplayContext;
 
 namespace promos_manager {
 enum class Promo;
@@ -87,7 +87,8 @@ class PromosManager : public KeyedService {
   virtual void DeregisterAfterDisplay(promos_manager::Promo promo) = 0;
 
   // Returns the next promo for display, if any.
-  virtual std::optional<promos_manager::Promo> NextPromoForDisplay() = 0;
+  virtual std::optional<promos_manager::Promo> NextPromoForDisplay(
+      const PromoDisplayContext& display_context) = 0;
 };
 
 #endif  // IOS_CHROME_BROWSER_PROMOS_MANAGER_MODEL_PROMOS_MANAGER_H_

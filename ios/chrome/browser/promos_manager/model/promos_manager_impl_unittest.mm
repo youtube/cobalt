@@ -20,10 +20,8 @@
 #import "components/prefs/pref_registry_simple.h"
 #import "components/prefs/testing_pref_service.h"
 #import "ios/chrome/browser/promos_manager/model/constants.h"
-#import "ios/chrome/browser/promos_manager/model/features.h"
-#import "ios/chrome/browser/promos_manager/model/impression_limit.h"
-#import "ios/chrome/browser/promos_manager/model/promo.h"
 #import "ios/chrome/browser/promos_manager/model/promo_config.h"
+#import "ios/chrome/browser/promos_manager/model/promo_display_context.h"
 #import "ios/chrome/browser/promos_manager/model/promos_manager.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "testing/gmock/include/gmock/gmock.h"
@@ -55,15 +53,6 @@ class PromosManagerImplTest : public PlatformTest {
   PromosManagerImplTest();
   ~PromosManagerImplTest() override;
 
-  // Creates a mock promo without impression limits.
-  Promo* TestPromo();
-
-  // Creates a mock promo with impression limits.
-  Promo* TestPromoWithImpressionLimits();
-
-  // Creates mock impression limits.
-  NSArray<ImpressionLimit*>* TestImpressionLimits();
-
  protected:
   // Creates PromosManager with empty pref data.
   void CreatePromosManager();
@@ -84,30 +73,6 @@ PromosManagerImplTest::PromosManagerImplTest() {
 }
 
 PromosManagerImplTest::~PromosManagerImplTest() {}
-
-NSArray<ImpressionLimit*>* PromosManagerImplTest::TestImpressionLimits() {
-  static NSArray<ImpressionLimit*>* limits;
-  static dispatch_once_t onceToken;
-
-  dispatch_once(&onceToken, ^{
-    ImpressionLimit* oncePerWeek = [[ImpressionLimit alloc] initWithLimit:1
-                                                               forNumDays:7];
-    ImpressionLimit* twicePerMonth = [[ImpressionLimit alloc] initWithLimit:2
-                                                                 forNumDays:31];
-    limits = @[ oncePerWeek, twicePerMonth ];
-  });
-
-  return limits;
-}
-
-Promo* PromosManagerImplTest::TestPromo() {
-  return [[Promo alloc] initWithIdentifier:promos_manager::Promo::Test];
-}
-
-Promo* PromosManagerImplTest::TestPromoWithImpressionLimits() {
-  return [[Promo alloc] initWithIdentifier:promos_manager::Promo::Test
-                       andImpressionLimits:TestImpressionLimits()];
-}
 
 void PromosManagerImplTest::CreatePromosManager() {
   CreatePrefs();
@@ -165,35 +130,6 @@ TEST_F(PromosManagerImplTest, ReturnsNulloptForBadName) {
                    .has_value());
 }
 
-// Tests PromosManagerImplTest::TestPromo() correctly creates one mock promo.
-TEST_F(PromosManagerImplTest, CreatesPromo) {
-  Promo* promo = TestPromo();
-
-  EXPECT_NE(promo, nil);
-  EXPECT_EQ((int)promo.impressionLimits.count, 0);
-}
-
-// Tests PromosManagerImplTest::TestPromoWithImpressionLimits() correctly
-// creates one mock promo with mock impression limits.
-TEST_F(PromosManagerImplTest, CreatesPromoWithImpressionLimits) {
-  Promo* promoWithImpressionLimits = TestPromoWithImpressionLimits();
-
-  EXPECT_NE(promoWithImpressionLimits, nil);
-  EXPECT_EQ((int)promoWithImpressionLimits.impressionLimits.count, 2);
-}
-
-// Tests PromosManagerImplTest::TestImpressionLimits() correctly creates two
-// mock impression limits.
-TEST_F(PromosManagerImplTest, CreatesImpressionLimits) {
-  NSArray<ImpressionLimit*>* impressionLimits = TestImpressionLimits();
-
-  EXPECT_NE(impressionLimits, nil);
-  EXPECT_EQ(impressionLimits[0].numImpressions, 1);
-  EXPECT_EQ(impressionLimits[0].numDays, 7);
-  EXPECT_EQ(impressionLimits[1].numImpressions, 2);
-  EXPECT_EQ(impressionLimits[1].numDays, 31);
-}
-
 // Tests PromosManager::CanShowPromo() correctly allows a promo to be shown
 // because it hasn't met any impression limits.
 TEST_F(PromosManagerImplTest, DecidesCanShowPromo) {
@@ -202,7 +138,7 @@ TEST_F(PromosManagerImplTest, DecidesCanShowPromo) {
   CreatePromosManager();
 
   PromoConfigsSet promoConfigs;
-  promoConfigs.emplace(promos_manager::Promo::Test, &kTestFeatureOne);
+  promoConfigs.emplace(promos_manager::Promo::Test, kTestFeatureOne);
   promos_manager_->InitializePromoConfigs(std::move(promoConfigs));
 
   EXPECT_CALL(mock_tracker_, ShouldTriggerHelpUI(testing::Ref(kTestFeatureOne)))
@@ -219,10 +155,10 @@ TEST_F(PromosManagerImplTest, CanShowPromo_TestPromoSpecificLimits) {
   CreatePromosManager();
 
   PromoConfigsSet promoConfigs;
-  promoConfigs.emplace(promos_manager::Promo::Test, &kTestFeatureOne);
-  promoConfigs.emplace(promos_manager::Promo::AppStoreRating, &kTestFeatureTwo);
+  promoConfigs.emplace(promos_manager::Promo::Test, kTestFeatureOne);
+  promoConfigs.emplace(promos_manager::Promo::AppStoreRating, kTestFeatureTwo);
   promoConfigs.emplace(promos_manager::Promo::CredentialProviderExtension,
-                       &kTestFeatureThree);
+                       kTestFeatureThree);
   promos_manager_->InitializePromoConfigs(std::move(promoConfigs));
 
   // Mock the FET tracker to disallow Test and AppStoreRating due to impression
@@ -300,11 +236,11 @@ TEST_F(PromosManagerImplTest, ReturnsSortPromosBreakingTies) {
 
   PromoConfigsSet promoImpressionLimits;
   promoImpressionLimits.emplace(
-      promos_manager::Promo::CredentialProviderExtension, &kTestFeatureOne);
+      promos_manager::Promo::CredentialProviderExtension, kTestFeatureOne);
   promoImpressionLimits.emplace(promos_manager::Promo::AppStoreRating,
-                                &kTestFeatureTwo);
+                                kTestFeatureTwo);
   promoImpressionLimits.emplace(promos_manager::Promo::DefaultBrowser,
-                                &kTestFeatureThree);
+                                kTestFeatureThree);
   promos_manager_->InitializePromoConfigs(std::move(promoImpressionLimits));
 
   EXPECT_CALL(mock_tracker_, IsInitialized())
@@ -368,11 +304,11 @@ TEST_F(PromosManagerImplTest,
   };
 
   PromoConfigsSet promoImpressionLimits;
-  promoImpressionLimits.emplace(promos_manager::Promo::Test, &kTestFeatureOne);
+  promoImpressionLimits.emplace(promos_manager::Promo::Test, kTestFeatureOne);
   promoImpressionLimits.emplace(promos_manager::Promo::AppStoreRating,
-                                &kTestFeatureTwo);
+                                kTestFeatureTwo);
   promoImpressionLimits.emplace(promos_manager::Promo::DefaultBrowser,
-                                &kTestFeatureThree);
+                                kTestFeatureThree);
   promos_manager_->InitializePromoConfigs(std::move(promoImpressionLimits));
 
   EXPECT_CALL(mock_tracker_, IsInitialized())
@@ -440,10 +376,10 @@ TEST_F(PromosManagerImplTest, SortsPromosPreferPendingToNonPending) {
 }
 
 // Tests PromosManager::ActivePromos() correctly ingests active promos
-// (base::Value::List) and returns corresponding
+// (base::ListValue) and returns corresponding
 // std::vector<promos_manager::Promo>.
 TEST_F(PromosManagerImplTest, ReturnsActivePromos) {
-  base::Value::List promos;
+  base::ListValue promos;
   promos.Append("promos_manager::Promo::DefaultBrowser");
   promos.Append("promos_manager::Promo::AppStoreRating");
   promos.Append("promos_manager::Promo::CredentialProviderExtension");
@@ -461,9 +397,9 @@ TEST_F(PromosManagerImplTest, ReturnsActivePromos) {
 }
 
 // Tests PromosManager::ActivePromos() correctly ingests empty active promos
-// (base::Value::List) and returns empty std::set<promos_manager::Promo>.
+// (base::ListValue) and returns empty std::set<promos_manager::Promo>.
 TEST_F(PromosManagerImplTest, ReturnsBlankActivePromosForBlankPrefs) {
-  base::Value::List promos;
+  base::ListValue promos;
 
   std::set<promos_manager::Promo> result =
       promos_manager_->ActivePromos(promos);
@@ -472,10 +408,10 @@ TEST_F(PromosManagerImplTest, ReturnsBlankActivePromosForBlankPrefs) {
 }
 
 // Tests PromosManager::ActivePromos() correctly ingests active promos with
-// malformed data (base::Value::List) and returns corresponding
+// malformed data (base::ListValue) and returns corresponding
 // std::vector<promos_manager::Promo> with malformed entries pruned.
 TEST_F(PromosManagerImplTest, ReturnsActivePromosAndSkipsMalformedData) {
-  base::Value::List promos;
+  base::ListValue promos;
   promos.Append("promos_manager::Promo::DefaultBrowser");
   promos.Append("promos_manager::Promo::AppStoreRating");
   promos.Append("promos_manager::Promo::FOOBAR");
@@ -496,7 +432,7 @@ TEST_F(PromosManagerImplTest, InitializePendingPromos) {
   CreatePromosManager();
 
   // write to Pref
-  base::Value::Dict promos;
+  base::DictValue promos;
   promos.Set("promos_manager::Promo::DefaultBrowser",
              base::TimeToValue(test_clock_.Now()));
   promos.Set("promos_manager::Promo::AppStoreRating",
@@ -527,7 +463,7 @@ TEST_F(PromosManagerImplTest, InitializePendingPromosMalformedData) {
   CreatePromosManager();
 
   // write to Pref
-  base::Value::Dict promos;
+  base::DictValue promos;
   promos.Set("promos_manager::Promo::DefaultBrowser",
              base::TimeToValue(test_clock_.Now()));
   promos.Set("promos_manager::Promo::Foo",
@@ -1148,11 +1084,11 @@ TEST_F(PromosManagerImplTest, NextPromoForDisplayReturnsPendingPromo) {
   };
 
   PromoConfigsSet promoConfigs;
-  promoConfigs.emplace(promos_manager::Promo::Test, &kTestFeatureOne);
+  promoConfigs.emplace(promos_manager::Promo::Test, kTestFeatureOne);
   promoConfigs.emplace(promos_manager::Promo::CredentialProviderExtension,
-                       &kTestFeatureTwo);
+                       kTestFeatureTwo);
   promoConfigs.emplace(promos_manager::Promo::AppStoreRating,
-                       &kTestFeatureThree);
+                       kTestFeatureThree);
   promos_manager_->InitializePromoConfigs(std::move(promoConfigs));
 
   // Mock the FET tracker to allow all promos.
@@ -1164,8 +1100,9 @@ TEST_F(PromosManagerImplTest, NextPromoForDisplayReturnsPendingPromo) {
   // Advance to so that the CredentialProviderExtension becomes active.
   test_clock_.Advance(kTimeDelta1Day + kTimeDelta1Hour);
 
+  PromoDisplayContext context;
   std::optional<promos_manager::Promo> promo =
-      promos_manager_->NextPromoForDisplay();
+      promos_manager_->NextPromoForDisplay(context);
   ASSERT_TRUE(promo.has_value());
   EXPECT_EQ(promo.value(), promos_manager::Promo::CredentialProviderExtension);
   histogram_tester.ExpectUniqueSample(
@@ -1192,9 +1129,9 @@ TEST_F(PromosManagerImplTest,
 
   PromoConfigsSet promoConfigs;
   promoConfigs.emplace(promos_manager::Promo::PostRestoreSignInFullscreen,
-                       &kTestFeatureOne);
+                       kTestFeatureOne);
   promoConfigs.emplace(promos_manager::Promo::CredentialProviderExtension,
-                       &kTestFeatureTwo);
+                       kTestFeatureTwo);
   promos_manager_->InitializePromoConfigs(std::move(promoConfigs));
 
   // Mock the FET tracker to allow all promos.
@@ -1206,13 +1143,51 @@ TEST_F(PromosManagerImplTest,
   // Advance to so that the CredentialProviderExtension becomes active.
   test_clock_.Advance(kTimeDelta1Day + kTimeDelta1Hour);
 
+  PromoDisplayContext context;
   std::optional<promos_manager::Promo> promo =
-      promos_manager_->NextPromoForDisplay();
+      promos_manager_->NextPromoForDisplay(context);
 
   ASSERT_TRUE(promo.has_value());
   EXPECT_EQ(promo.value(), promos_manager::Promo::PostRestoreSignInFullscreen);
   histogram_tester.ExpectUniqueSample(
       "IOS.PromosManager.EligiblePromosInQueueCount", 2, 1);
+}
+
+// Tests `NextPromoForDisplay` correctly filters promos based on their
+// display_time requirement.
+TEST_F(PromosManagerImplTest, NextPromoForDisplayWithFreshNtpRequirement) {
+  base::test::ScopedFeatureList feature_list;
+  CreatePromosManager();
+
+  promos_manager_->active_promos_ = {
+      promos_manager::Promo::Test,
+  };
+
+  PromoConfigsSet promoConfigs;
+  promoConfigs.emplace(promos_manager::Promo::Test, kTestFeatureOne,
+                       PromoDisplayTime::kFreshNtp);
+  promos_manager_->InitializePromoConfigs(std::move(promoConfigs));
+
+  // Mock the FET tracker to allow the promo.
+  EXPECT_CALL(mock_tracker_, ShouldTriggerHelpUI(testing::_))
+      .WillRepeatedly(testing::Return(true));
+  EXPECT_CALL(mock_tracker_, WouldTriggerHelpUI(testing::_))
+      .WillRepeatedly(testing::Return(true));
+
+  // 1. Test when is_on_fresh_ntp is false: the promo should NOT be displayed.
+  PromoDisplayContext context_not_fresh;
+  context_not_fresh.is_on_fresh_ntp = false;
+  std::optional<promos_manager::Promo> promo_not_fresh =
+      promos_manager_->NextPromoForDisplay(context_not_fresh);
+  EXPECT_FALSE(promo_not_fresh.has_value());
+
+  // 2. Test when is_on_fresh_ntp is true: the promo SHOULD be displayed.
+  PromoDisplayContext context_fresh;
+  context_fresh.is_on_fresh_ntp = true;
+  std::optional<promos_manager::Promo> promo_fresh =
+      promos_manager_->NextPromoForDisplay(context_fresh);
+  ASSERT_TRUE(promo_fresh.has_value());
+  EXPECT_EQ(promo_fresh.value(), promos_manager::Promo::Test);
 }
 
 // Tests `NextPromoForDisplay` returns empty when non of the pending promos can
@@ -1231,8 +1206,9 @@ TEST_F(PromosManagerImplTest, NextPromoForDisplayReturnsEmpty) {
   // Advance to so that the none of the pending promo can become active.
   test_clock_.Advance(kTimeDelta1Hour);
 
+  PromoDisplayContext context;
   std::optional<promos_manager::Promo> promo =
-      promos_manager_->NextPromoForDisplay();
+      promos_manager_->NextPromoForDisplay(context);
 
   EXPECT_FALSE(promo.has_value());
   histogram_tester.ExpectTotalCount(

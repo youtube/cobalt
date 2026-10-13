@@ -1033,7 +1033,8 @@ function main(metadata) {
         ImageResourceContent* cached_image = svg_image->CachedImage();
         if (cached_image) {
           resource_serializer_->AddImageToResources(
-              cached_image, document.CompleteURL(svg_image->SourceURL()));
+              cached_image,
+              document.CompleteURL(svg_image->SourceURL().GetString()));
         }
       }
     } else if (const auto* input = DynamicTo<HTMLInputElement>(element)) {
@@ -1222,9 +1223,10 @@ function main(metadata) {
       case CSSRule::kLayerBlockRule:
       case CSSRule::kScopeRule:
       case CSSRule::kStartingStyleRule: {
-        CSSRuleList* rule_list = rule->cssRules();
-        for (unsigned i = 0; i < rule_list->length(); ++i) {
-          SerializeCSSRuleResources(rule_list->item(i));
+        if (CSSRuleList* rule_list = rule->cssRules()) {
+          for (unsigned i = 0; i < rule_list->length(); ++i) {
+            SerializeCSSRuleResources(rule_list->item(i));
+          }
         }
         break;
       }

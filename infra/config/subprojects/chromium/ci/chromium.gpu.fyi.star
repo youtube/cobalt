@@ -472,8 +472,13 @@ ci.thin_tester(
             "android_webview_gpu_telemetry_tests",
         ],
         mixins = [
-            "has_native_resultdb_integration",
             "gpu_pixel_10_stable",
+            "has_native_resultdb_integration",
+            # TODO(crbug.com/443001330): Remove the limited_capacity_bot mixin
+            # once additional devices are deployed. 49 devices is likely not enough
+            # to run both standard GPU and WebGPU tests on CI + have enough
+            # capacity for trybots without this.
+            "limited_capacity_bot",
         ],
         per_test_modifications = {
             "gl_tests_passthrough": targets.mixin(
@@ -985,10 +990,7 @@ gpu.ci.linux_builder(
             "gpu_common_gtests_passthrough_swiftshader",
         ],
         mixins = [
-            "gpu-swarming-pool",
-            "no_gpu",
-            "linux-jammy",
-            "x86-64",
+            "gpu_linux_gce_stable",
         ],
         per_test_modifications = {
             "gl_tests_passthrough": targets.mixin(
@@ -1823,56 +1825,55 @@ ci.thin_tester(
         # the gpu_noop_sleep_telemetry_test test should be used. Otherwise, this
         # should have the same test_suites as 'Mac FYI Release (Apple M1)'.
         targets = [
-            "gpu_fyi_mac_release_gtests",
-            "gpu_fyi_only_mac_release_graphite_telemetry_tests",
+            "gpu_noop_sleep_telemetry_test",
         ],
         mixins = [
             "mac_arm64_apple_m1_gpu_experimental",
         ],
-        per_test_modifications = {
-            "webgl_conformance_metal_passthrough_graphite_tests": targets.per_test_modification(
-                mixins = targets.mixin(
-                    args = [
-                        # TODO(crbug.com/414723481): Remove this once Graphite +
-                        # Metal no longer has issues when used in parallel.
-                        "--jobs=1",
-                    ],
-                ),
-                replacements = targets.replacements(
-                    args = {
-                        # Magic substitution happens after regular replacement, so remove it
-                        # now since we are manually applying the number of jobs above.
-                        targets.magic_args.GPU_PARALLEL_JOBS: None,
-                    },
-                ),
-            ),
-            "webgl2_conformance_metal_passthrough_graphite_tests": targets.per_test_modification(
-                mixins = targets.mixin(
-                    args = [
-                        # TODO(crbug.com/414723481): Remove this once Graphite +
-                        # Metal no longer has issues when used in parallel.
-                        "--jobs=1",
-                    ],
-                ),
-                replacements = targets.replacements(
-                    args = {
-                        # Magic substitution happens after regular replacement, so remove it
-                        # now since we are manually applying the number of jobs above.
-                        targets.magic_args.GPU_PARALLEL_JOBS: None,
-                    },
-                ),
-            ),
-        },
+        # per_test_modifications = {
+        #     "webgl_conformance_metal_passthrough_graphite_tests": targets.per_test_modification(
+        #         mixins = targets.mixin(
+        #             args = [
+        #                 # TODO(crbug.com/414723481): Remove this once Graphite +
+        #                 # Metal no longer has issues when used in parallel.
+        #                 "--jobs=1",
+        #             ],
+        #         ),
+        #         replacements = targets.replacements(
+        #             args = {
+        #                 # Magic substitution happens after regular replacement, so remove it
+        #                 # now since we are manually applying the number of jobs above.
+        #                 targets.magic_args.GPU_PARALLEL_JOBS: None,
+        #             },
+        #         ),
+        #     ),
+        #     "webgl2_conformance_metal_passthrough_graphite_tests": targets.per_test_modification(
+        #         mixins = targets.mixin(
+        #             args = [
+        #                 # TODO(crbug.com/414723481): Remove this once Graphite +
+        #                 # Metal no longer has issues when used in parallel.
+        #                 "--jobs=1",
+        #             ],
+        #         ),
+        #         replacements = targets.replacements(
+        #             args = {
+        #                 # Magic substitution happens after regular replacement, so remove it
+        #                 # now since we are manually applying the number of jobs above.
+        #                 targets.magic_args.GPU_PARALLEL_JOBS: None,
+        #             },
+        #         ),
+        #     ),
+        # },
     ),
     targets_settings = targets.settings(
         browser_config = targets.browser_config.RELEASE,
         os_type = targets.os_type.MAC,
     ),
     # Uncomment this entry when this experimental tester is actually in use.
-    console_view_entry = consoles.console_view_entry(
-        category = "Mac|Apple",
-        short_name = "exp",
-    ),
+    # console_view_entry = consoles.console_view_entry(
+    #     category = "Mac|Apple",
+    #     short_name = "exp",
+    # ),
     list_view = "chromium.gpu.experimental",
 )
 

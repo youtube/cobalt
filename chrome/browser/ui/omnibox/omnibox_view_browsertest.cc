@@ -269,20 +269,13 @@ class OmniboxViewTest : public InProcessBrowserTest {
   void ExpectBrowserClosed(Browser* browser,
                            ui::KeyboardCode key,
                            int modifiers) {
-    // Press the accelerator after starting to wait for a browser to close as
-    // the close may be synchronous.
-    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE,
-        base::BindOnce(
-            [](const Browser* browser, ui::KeyboardCode key, int modifiers) {
-              EXPECT_TRUE(ui_test_utils::SendKeyPressSync(
-                  browser, key, (modifiers & ui::EF_CONTROL_DOWN) != 0,
-                  (modifiers & ui::EF_SHIFT_DOWN) != 0,
-                  (modifiers & ui::EF_ALT_DOWN) != 0,
-                  (modifiers & ui::EF_COMMAND_DOWN) != 0));
-            },
-            browser, key, modifiers));
-    ui_test_utils::WaitForBrowserToClose(browser);
+    ui_test_utils::BrowserDestroyedObserver observer(browser);
+    EXPECT_TRUE(ui_test_utils::SendKeyPressSync(
+        browser, key, (modifiers & ui::EF_CONTROL_DOWN) != 0,
+        (modifiers & ui::EF_SHIFT_DOWN) != 0,
+        (modifiers & ui::EF_ALT_DOWN) != 0,
+        (modifiers & ui::EF_COMMAND_DOWN) != 0));
+    observer.Wait();
   }
 
   void NavigateExpectUrl(const GURL& url, int modifiers = 0) {
@@ -1537,8 +1530,8 @@ class SiteSearchPolicyOmniboxViewTest
   ~SiteSearchPolicyOmniboxViewTest() override = default;
 
   base::Value CreateSiteSearchPolicyValue(bool featured) {
-    base::Value::Dict policy_dict =
-        base::Value::Dict()
+    base::DictValue policy_dict =
+        base::DictValue()
             .Set(policy::SiteSearchPolicyHandler::kShortcut,
                  kSiteSearchPolicyKeyword)
             .Set(policy::SiteSearchPolicyHandler::kName, kSiteSearchPolicyName)
@@ -1548,7 +1541,7 @@ class SiteSearchPolicyOmniboxViewTest
       policy_dict.Set(policy::SiteSearchPolicyHandler::kAllowUserOverride,
                       is_allow_user_override().value());
     }
-    base::Value::List policy_value;
+    base::ListValue policy_value;
     policy_value.Append(std::move(policy_dict));
     return base::Value(std::move(policy_value));
   }
@@ -1713,8 +1706,8 @@ class SearchAggregatorPolicyOmniboxViewTest : public OmniboxViewTest {
   ~SearchAggregatorPolicyOmniboxViewTest() override = default;
 
   base::Value CreateEnterpriseSearchAggregatorPolicyValue() {
-    base::Value::Dict policy_value;
-    policy_value = base::Value::Dict()
+    base::DictValue policy_value;
+    policy_value = base::DictValue()
                        .Set(policy::SearchAggregatorPolicyHandler::kIconUrl,
                             kSearchAggregatorPolicyIconUrl)
                        .Set(policy::SearchAggregatorPolicyHandler::kShortcut,

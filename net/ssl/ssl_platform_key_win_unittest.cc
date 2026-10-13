@@ -126,7 +126,10 @@ bool PKCS8ToBLOBForCAPI(base::span<const uint8_t> pkcs8,
     return false;
   }
 
-  blob->assign(blob_data, UNSAFE_TODO(blob_data + blob_len));
+  // SAFETY: `CBB_finish` returns a buffer `blob_data` of length `blob_len`.
+  auto blob_span = UNSAFE_BUFFERS(base::span(blob_data, blob_len));
+
+  blob->assign(blob_span.begin(), blob_span.end());
   OPENSSL_free(blob_data);
   return true;
 }
@@ -181,7 +184,9 @@ bool PKCS8ToBLOBForCNG(base::span<const uint8_t> pkcs8,
     }
 
     *blob_type = BCRYPT_RSAFULLPRIVATE_BLOB;
-    blob->assign(blob_data, UNSAFE_TODO(blob_data + blob_len));
+    // SAFETY: `CBB_finish returns a buffer of `blob_len` bytes.
+    auto blob_span = UNSAFE_BUFFERS(base::span(blob_data, blob_len));
+    blob->assign(blob_span.begin(), blob_span.end());
     OPENSSL_free(blob_data);
     return true;
   }
@@ -229,7 +234,9 @@ bool PKCS8ToBLOBForCNG(base::span<const uint8_t> pkcs8,
     }
 
     *blob_type = BCRYPT_ECCPRIVATE_BLOB;
-    blob->assign(blob_data, UNSAFE_TODO(blob_data + blob_len));
+    // SAFETY: `CBB_finish returns a buffer of `blob_len` bytes.
+    auto blob_span = UNSAFE_BUFFERS(base::span(blob_data, blob_len));
+    blob->assign(blob_span.begin(), blob_span.end());
     OPENSSL_free(blob_data);
     return true;
   }
@@ -287,6 +294,8 @@ TEST_P(SSLPlatformKeyWinTest, KeyMatchesCNG) {
   EXPECT_EQ(SSLPrivateKey::DefaultAlgorithmPreferences(test_key.type,
                                                        /*supports_pss=*/true),
             key->GetAlgorithmPreferences());
+  EXPECT_EQ("CNG: Microsoft Software Key Storage Provider",
+            key->GetProviderName());
   TestSSLPrivateKeyMatches(key.get(), *pkcs8);
 }
 
@@ -337,6 +346,8 @@ TEST_P(SSLPlatformKeyWinTest, KeyMatchesCAPI) {
       SSL_SIGN_RSA_PKCS1_SHA1,
   };
   EXPECT_EQ(expected, key->GetAlgorithmPreferences());
+  EXPECT_EQ("CAPI: Microsoft Enhanced RSA and AES Cryptographic Provider",
+            key->GetProviderName());
   TestSSLPrivateKeyMatches(key.get(), *pkcs8);
 }
 

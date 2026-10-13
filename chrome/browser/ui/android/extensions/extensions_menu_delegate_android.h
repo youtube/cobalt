@@ -27,20 +27,24 @@ class ExtensionsMenuDelegateAndroid : public ExtensionsMenuViewModel::Delegate,
       const ExtensionsMenuDelegateAndroid&) = delete;
   ~ExtensionsMenuDelegateAndroid() override;
 
-  // JNI implementations.
+  // JNI implementations:
   void Destroy(JNIEnv* env);
+  // Returns a flattened list of action IDs and names from the menu model.
+  std::vector<std::string> GetActions(JNIEnv* env);
+  // Returns whether the menu model has been populated.
+  bool IsReady(JNIEnv* env);
 
   // ExtensionsMenuViewModel::Delegate:
   std::unique_ptr<ExtensionActionViewModel> CreateActionViewModel(
       const extensions::ExtensionId& extension_id) override;
 
   // ExtensionsMenuViewModel::Observer:
-  void OnActiveWebContentsChanged(content::WebContents* web_contents) override;
+  void OnPageNavigation() override;
   void OnActionAdded(ExtensionActionViewModel* action_model,
                      int index) override;
   void OnActionRemoved(const ToolbarActionsModel::ActionId& action_id,
                        int index) override;
-  void OnActionUpdated() override;
+  void OnActionUpdated(const ToolbarActionsModel::ActionId& action_id) override;
   void OnActionsInitialized() override;
   void OnHostAccessRequestAdded(const extensions::ExtensionId& extension_id,
                                 int index) override;
@@ -75,6 +79,9 @@ class ExtensionsMenuDelegateAndroid : public ExtensionsMenuViewModel::Delegate,
       const extensions::ExtensionId& extension_id) override;
 
  private:
+  // Notifies the Java side that the menu is ready to be shown.
+  void OnReady();
+
   const raw_ptr<BrowserWindowInterface> browser_;
 
   // The platform-agnostic menu view model.

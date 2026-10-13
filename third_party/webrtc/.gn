@@ -95,6 +95,8 @@ default_args = {
   # Use Siso instead of Ninja.
   use_siso = true
 
+  clang_unsafe_buffers_paths = "//unsafe_buffers_paths.txt"
+
   # WebRTC must stay in C++20 for longer compared to Chromium.
   use_cxx23 = false
 }

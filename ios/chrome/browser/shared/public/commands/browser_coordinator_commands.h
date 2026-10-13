@@ -57,18 +57,24 @@ enum class TrustedVaultUserActionTriggerForUMA;
 // Shows the online help page in a tab.
 - (void)showHelpPage;
 
-// Shows the composebox.
+// Shows the composebox with the default entrypoint and no query.
+- (void)showComposebox;
+
+// Shows the composebox from the `entryPoint` with `query`.
 - (void)showComposeboxFromEntrypoint:(ComposeboxEntrypoint)entryPoint
                            withQuery:(NSString*)query;
 
-// Hides the composebox. If not `immediately`, the prototype will be stopped
-// on the next run loop.
-- (void)hideComposeboxImmediately:(BOOL)immediately;
+// Hides the composebox on the next run loop.
+- (void)hideComposebox;
 
-// Hides the compose box. If `immediately` is NO, the operation stops on the
-// next run loop. The completion block is called once hidden.
-- (void)hideComposeboxImmediately:(BOOL)immediately
-                       completion:(ProceduralBlock)completion;
+// Hides the composebox and, upon completion, opens the share sheet.
+// This is a temporary command that is only introduced for an experiment, see
+// crbug.com/479521675 for context.
+- (void)hideComposeboxAndShowShareSheet;
+
+// Hides the compose box on the next run loop. The completion block is called
+// once hidden.
+- (void)hideComposeboxWithCompletion:(ProceduralBlock)completion;
 
 // Shows the activity indicator overlay that appears over the view to prevent
 // interaction with the web page until the returned value is destructed.
@@ -106,6 +112,9 @@ enum class TrustedVaultUserActionTriggerForUMA;
 
 // Dismiss the payments suggestions.
 - (void)dismissPaymentSuggestions;
+
+// Dismisses the passkey creation bottom sheet.
+- (void)dismissPasskeyCreation;
 
 // Dismiss the card unmask authentication prompt.
 - (void)dismissCardUnmaskAuthentication;
@@ -149,6 +158,10 @@ enum class TrustedVaultUserActionTriggerForUMA;
 
 // Forces fullscreen mode which means that toolbars are collapsed.
 - (void)forceFullscreenMode;
+
+// Clears any presented state on BVC.
+- (void)clearPresentedStateWithCompletion:(ProceduralBlock)completion
+                           dismissOmnibox:(BOOL)dismissOmnibox;
 
 @end
 

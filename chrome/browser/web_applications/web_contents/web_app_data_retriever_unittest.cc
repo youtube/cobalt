@@ -385,7 +385,6 @@ TEST_F(WebAppDataRetrieverTest, CheckInstallabilityAndRetrieveManifest) {
     manifest->start_url = manifest_start_url;
     manifest->id = GenerateManifestIdFromStartUrlOnly(manifest_start_url);
     manifest->scope = manifest_scope;
-    manifest->has_theme_color = true;
     manifest->theme_color = manifest_theme_color;
 
     webapps::FakeInstallableManager::CreateForWebContentsWithManifest(
@@ -474,7 +473,8 @@ TEST_F(WebAppDataRetrieverTest, CheckTimeoutTriggers) {
       primary_manifest_future;
 
   WebAppDataRetriever retriever;
-  retriever.SetManifestWaitTimeoutForTesting(base::Seconds(0));
+  base::AutoReset<int> manifest_wait_timeout =
+      WebAppDataRetriever::SetManifestWaitTimeoutForTesting(0);
   retriever.GetPrimaryPageFirstSpecifiedManifest(
       *web_contents(), base::BindOnce(&CopyMojoExpectedConstRef)
                            .Then(primary_manifest_future.GetCallback()));

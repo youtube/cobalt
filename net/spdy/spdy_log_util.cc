@@ -24,23 +24,21 @@ base::Value ElideGoAwayDebugDataForNetLog(NetLogCaptureMode capture_mode,
       {"[", base::NumberToString(debug_data.size()), " bytes were stripped]"}));
 }
 
-base::Value::List ElideHttpHeaderBlockForNetLog(
+base::ListValue ElideHttpHeaderBlockForNetLog(
     const quiche::HttpHeaderBlock& headers,
     NetLogCaptureMode capture_mode) {
-  base::Value::List headers_list;
+  base::ListValue headers_list;
   for (const auto& [key, value] : headers) {
-    headers_list.Append(NetLogStringValue(
-        base::StrCat({key, ": ",
-                      ElideHeaderValueForNetLog(capture_mode, std::string(key),
-                                                std::string(value))})));
+    headers_list.Append(NetLogStringValue(base::StrCat(
+        {key, ": ", ElideHeaderValueForNetLog(capture_mode, key, value)})));
   }
   return headers_list;
 }
 
-base::Value::Dict HttpHeaderBlockNetLogParams(
+base::DictValue HttpHeaderBlockNetLogParams(
     const quiche::HttpHeaderBlock* headers,
     NetLogCaptureMode capture_mode) {
-  return base::Value::Dict().Set(
+  return base::DictValue().Set(
       "headers", ElideHttpHeaderBlockForNetLog(*headers, capture_mode));
 }
 

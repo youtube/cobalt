@@ -88,6 +88,7 @@
 #include "src/objects/oddball-inl.h"
 #include "src/objects/promise-inl.h"
 #include "src/objects/property-descriptor-object-inl.h"
+#include "src/objects/string-forwarding-table-inl.h"
 #include "src/objects/struct-inl.h"
 #include "src/objects/swiss-name-dictionary-inl.h"
 #include "src/objects/synthetic-module-inl.h"
@@ -890,8 +891,8 @@ void FeedbackCell::FeedbackCellVerify(Isolate* isolate) {
   JSDispatchHandle handle = dispatch_handle();
   if (handle == kNullJSDispatchHandle) return;
 
-  JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
-  Tagged<Code> code = jdt->GetCode(handle);
+  JSDispatchTable& jdt = isolate->js_dispatch_table();
+  Tagged<Code> code = jdt.GetCode(handle);
   CodeKind kind = code->kind();
   CHECK(kind == CodeKind::FOR_TESTING_JS || kind == CodeKind::BUILTIN ||
         kind == CodeKind::INTERPRETED_FUNCTION || kind == CodeKind::BASELINE ||
@@ -1114,16 +1115,12 @@ void TransitionArray::TransitionArrayVerify(Isolate* isolate) {
       Tagged<MaybeObject> maybe_target = proto_trans->get(index);
       Tagged<HeapObject> target;
       if (maybe_target.GetHeapObjectIfWeak(&target)) {
-        if (v8_flags.move_prototype_transitions_first) {
-          Tagged<Map> parent =
-              Cast<Map>(Cast<Map>(target)->constructor_or_back_pointer());
-          if (owner.is_null()) {
-            parent = Cast<Map>(target);
-          } else {
-            CHECK_EQ(parent, owner);
-          }
+        Tagged<Map> parent =
+            Cast<Map>(Cast<Map>(target)->constructor_or_back_pointer());
+        if (owner.is_null()) {
+          parent = Cast<Map>(target);
         } else {
-          CHECK(IsUndefined(Cast<Map>(target)->GetBackPointer()));
+          CHECK_EQ(parent, owner);
         }
       }
     }
@@ -1177,34 +1174,43 @@ void SloppyArgumentsElementsVerify(Isolate* isolate,
   } else {
     accessor = ElementsAccessor::ForKind(DICTIONARY_ELEMENTS);
   }
-  int nofMappedParameters = 0;
-  int maxMappedIndex = 0;
-  for (int i = 0; i < nofMappedParameters; i++) {
+  // The value of elements->length() can be overshooted during optimization,
+  // for fast sloppy arguments take the minimum between the elements length and
+  // the argument count as done in the built-in NewSloppyArgumentsElements.
+  uint32_t mapped_elements_length =
+      is_fast ? std::min(elements->ulength(), arg_elements->ulength())
+              : elements->ulength();
+  uint32_t nofMappedParameters = 0;
+  for (uint32_t i = 0; i < mapped_elements_length; i++) {
     // Verify that each context-mapped argument is either the hole or a valid
     // Smi within context length range.
     Tagged<Object> mapped = elements->mapped_entries(i, kRelaxedLoad);
     if (IsTheHole(mapped, isolate)) {
-      // Slow sloppy arguments can be holey.
-      if (!is_fast) continue;
-      // Fast sloppy arguments elements are never holey. Either the element is
-      // context-mapped or present in the arguments elements.
-      CHECK(accessor->HasElement(isolate, holder, i, arg_elements));
+      // Both slow and fast sloppy arguments can be holey. Ensure that the fixed
+      // array backing the fast sloppy arguments is large enough.
+      CHECK(!is_fast || i < arg_elements->ulength());
       continue;
     }
     int mappedIndex = Smi::ToInt(mapped);
     nofMappedParameters++;
-    CHECK_LE(maxMappedIndex, mappedIndex);
-    maxMappedIndex = mappedIndex;
+    CHECK_LT(mappedIndex, context_object->length());
     Tagged<Object> value = context_object->GetNoCell(mappedIndex);
     CHECK(IsObject(value));
     // None of the context-mapped entries should exist in the arguments
     // elements.
     CHECK(!accessor->HasElement(isolate, holder, i, arg_elements));
   }
-  CHECK_LE(nofMappedParameters, context_object->length());
-  CHECK_LE(nofMappedParameters, arg_elements->length());
-  CHECK_LE(maxMappedIndex, context_object->length());
-  CHECK_LE(maxMappedIndex, arg_elements->length());
+  for (uint32_t i = mapped_elements_length; i < elements->ulength(); ++i) {
+    // Ensure that any overshooted element is the hole
+    CHECK(IsTheHole(elements->mapped_entries(i, kRelaxedLoad), isolate));
+  }
+  CHECK_LE(nofMappedParameters,
+           static_cast<uint32_t>(context_object->length()));
+  if (is_fast) {
+    CHECK_LE(nofMappedParameters, arg_elements->ulength());
+  } else {
+    CHECK(IsNumberDictionary(elements->arguments()));
+  }
 }
 }  // namespace
 
@@ -1277,6 +1283,12 @@ void String::StringVerify(Isolate* isolate) {
   if (IsInternalizedString(this)) {
     CHECK(HasHashCode());
     CHECK(!HeapLayout::InYoungGeneration(this));
+  }
+  const uint32_t raw_hash = raw_hash_field();
+  if (IsForwardingIndex(raw_hash)) {
+    const int forwarding_index =
+        Name::ForwardingIndexValueBits::decode(raw_hash);
+    CHECK_LT(forwarding_index, isolate->string_forwarding_table()->size());
   }
 }
 
@@ -1352,13 +1364,13 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
   // Ensure that the function's meta map belongs to the same native context.
   CHECK_EQ(map()->map()->native_context_or_null(), native_context());
 
-  JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
+  JSDispatchTable& jdt = isolate->js_dispatch_table();
   JSDispatchHandle handle = dispatch_handle();
   CHECK_NE(handle, kNullJSDispatchHandle);
-  uint16_t parameter_count = jdt->GetParameterCount(handle);
+  uint16_t parameter_count = jdt.GetParameterCount(handle);
   CHECK_EQ(parameter_count,
            shared(isolate)->internal_formal_parameter_count_with_receiver());
-  Tagged<Code> code_from_table = jdt->GetCode(handle);
+  Tagged<Code> code_from_table = jdt.GetCode(handle);
   CHECK(code_from_table->parameter_count() == kDontAdaptArgumentsSentinel ||
         code_from_table->parameter_count() == parameter_count);
   CHECK(!code_from_table->marked_for_deoptimization());
@@ -1381,7 +1393,7 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
   }
 
   // Verify the entrypoint corresponds to the code or a tiering builtin.
-  Address entrypoint = jdt->GetEntrypoint(handle);
+  Address entrypoint = jdt.GetEntrypoint(handle);
 #define CASE(name, ...) \
   entrypoint == BUILTIN_CODE(isolate, name)->instruction_start() ||
   CHECK(BUILTIN_LIST_BASE_TIERING(CASE)
@@ -2377,6 +2389,15 @@ void JSArrayBuffer::JSArrayBufferVerify(Isolate* isolate) {
     CHECK_EQ(0,
              *reinterpret_cast<uint32_t*>(address() + kOptionalPaddingOffset));
   }
+  Tagged<MaybeObject> v = views_or_detach_key();
+  if (is_shared() || !v8_flags.track_array_buffer_views) {
+    CHECK(has_detach_key() || v == kNoView);
+  } else {
+    CHECK_EQ(!v.IsWeak() && !v.IsSmi() && !v.IsCleared(), has_detach_key());
+    CHECK(v == kNoView || v == kManyViews || (v.IsStrong() && Is<Cell>(v)) ||
+          (v.IsWeak() && IsJSArrayBufferView(v.GetHeapObjectAssumeWeak())) ||
+          v.IsCleared());
+  }
 }
 
 void JSArrayBufferView::JSArrayBufferViewVerify(Isolate* isolate) {
@@ -2385,9 +2406,46 @@ void JSArrayBufferView::JSArrayBufferViewVerify(Isolate* isolate) {
   CHECK_LE(byte_offset(), JSArrayBuffer::kMaxByteLength);
 }
 
+void JSDetachedTypedArray::JSDetachedTypedArrayVerify(Isolate* isolate) {
+  TorqueGeneratedClassVerifiers::JSTypedArrayVerify(*this, isolate);
+  CHECK_LE(GetLength(), 0);
+  CHECK(WasDetached());
+}
+
+namespace {
+
+template <typename View>
+void CheckArrayBufferViewTrackingConsistency(Tagged<JSArrayBuffer> ab,
+                                             View view, Isolate* isolate) {
+  if (ab->is_shared()) return;
+  Tagged<MaybeObject> views = ab->views_or_detach_key();
+  CHECK(!view.IsCleared());
+  if (!IsUndefined(ab->DetachKey(isolate))) {
+    CHECK_EQ(ab->views(), JSArrayBuffer::kManyViews);
+    CHECK(!views.IsSmi() && views.IsStrong() && Is<Cell>(views));
+    return;
+  }
+  if (!v8_flags.track_array_buffer_views) {
+    CHECK_EQ(views, Smi::zero());
+    return;
+  }
+  if (views == JSArrayBuffer::kNoView) {
+    CHECK(view->WasDetached());
+  } else if (views != JSArrayBuffer::kManyViews) {
+    CHECK_EQ(views.GetHeapObjectAssumeWeak(), view);
+    CHECK(Is<JSArrayBufferView>(views.GetHeapObjectAssumeWeak()));
+  }
+}
+
+}  // namespace
+
 void JSTypedArray::JSTypedArrayVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSTypedArrayVerify(*this, isolate);
   CHECK_LE(GetLength(), JSTypedArray::kMaxByteLength / element_size());
+  if (IsJSArrayBuffer(buffer())) {
+    Tagged<JSArrayBuffer> ab = Cast<JSArrayBuffer>(buffer());
+    CheckArrayBufferViewTrackingConsistency(ab, *this, isolate);
+  }
 }
 
 void JSDataView::JSDataViewVerify(Isolate* isolate) {
@@ -2399,6 +2457,11 @@ void JSDataView::JSDataViewVerify(Isolate* isolate) {
                  byte_offset(),
              data_pointer());
   }
+
+  if (IsJSArrayBuffer(buffer())) {
+    Tagged<JSArrayBuffer> ab = Cast<JSArrayBuffer>(buffer());
+    CheckArrayBufferViewTrackingConsistency(ab, *this, isolate);
+  }
 }
 
 void JSRabGsabDataView::JSRabGsabDataViewVerify(Isolate* isolate) {
@@ -2409,6 +2472,11 @@ void JSRabGsabDataView::JSRabGsabDataViewVerify(Isolate* isolate) {
                  Cast<JSArrayBuffer>(buffer())->backing_store()) +
                  byte_offset(),
              data_pointer());
+  }
+
+  if (IsJSArrayBuffer(buffer())) {
+    Tagged<JSArrayBuffer> ab = Cast<JSArrayBuffer>(buffer());
+    CheckArrayBufferViewTrackingConsistency(ab, *this, isolate);
   }
 }
 
@@ -2437,11 +2505,16 @@ void Module::ModuleVerify(Isolate* isolate) {
 
   CHECK_EQ(status() == Module::kErrored, !IsTheHole(exception(), isolate));
 
-  CHECK(IsUndefined(module_namespace(), isolate) ||
-        IsJSModuleNamespace(module_namespace()));
-  if (IsJSModuleNamespace(module_namespace())) {
-    CHECK_LE(Module::kLinking, status());
-    CHECK_EQ(Cast<JSModuleNamespace>(module_namespace())->module(), *this);
+  CHECK(IsUndefined(module_namespace(), isolate) || IsCell(module_namespace()));
+  if (IsCell(module_namespace())) {
+    // Technically kLinking should be the correct check, however we can end up
+    // here in SourceTextModule::FinishInstantiate before updating the status.
+    CHECK_LE(Module::kPreLinking, status());
+    auto cell = Cast<Cell>(module_namespace());
+    CHECK(IsJSModuleNamespace(cell->value()) || IsUndefined(cell->value()));
+    if (IsJSModuleNamespace(cell->value())) {
+      CHECK_EQ(Cast<JSModuleNamespace>(cell->value())->module(), *this);
+    }
   }
 
   if (!(status() == kErrored || status() == kEvaluating ||
@@ -2963,8 +3036,12 @@ class StringTableVerifier : public RootVisitor {
         Tagged<HeapObject> object = Cast<HeapObject>(o);
         // Check that the string is actually internalized.
         CHECK(IsInternalizedString(object));
-        DCHECK_IMPLIES(v8_flags.shared_string_table,
-                       HeapLayout::InAnySharedSpace(object));
+        CHECK_IMPLIES(v8_flags.shared_string_table,
+                      HeapLayout::InAnySharedSpace(object));
+        // Internalized forwarding indices are never allowed in the string
+        // table.
+        uint32_t raw_hash = Cast<Name>(object)->raw_hash_field();
+        CHECK(!Name::IsInternalizedForwardingIndex(raw_hash));
       }
     }
   }
@@ -3198,11 +3275,6 @@ bool TransitionsAccessor::IsConsistentWithBackPointers() {
       };
   ForEachTransition(
       &no_gc, [&](Tagged<Map> target) { CheckTarget(target); },
-      [&](Tagged<Map> proto_target) {
-        if (v8_flags.move_prototype_transitions_first) {
-          CheckTarget(proto_target);
-        }
-      },
       [&](Tagged<Object> side_step) {
         if (!side_step.IsSmi()) {
           DCHECK_EQ(Cast<Map>(side_step)->map(), map_->map());

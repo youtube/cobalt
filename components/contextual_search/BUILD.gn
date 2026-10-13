@@ -4,20 +4,40 @@
 
 if (is_android) {
   import("//build/config/android/rules.gni")
+  import("//third_party/jni_zero/jni_zero.gni")
 }
 
 if (is_android) {
+  generate_jni("jni_headers") {
+    sources = [ "android/java/src/org/chromium/components/contextual_search/InputState.java" ]
+  }
+
   java_cpp_enum("java_enum_srcjar") {
     visibility = [ ":*" ]
     sources = [ "contextual_search_types.h" ]
   }
 
   android_library("components_contextual_search_java") {
+    sources = [ "android/java/src/org/chromium/components/contextual_search/InputState.java" ]
     srcjar_deps = [ ":java_enum_srcjar" ]
 
     # Important: the generated enum uses the @IntDef annotation provided by
     # this dependency.
-    deps = [ "//third_party/androidx:androidx_annotation_annotation_java" ]
+    deps = [
+      "//third_party/androidx:androidx_annotation_annotation_java",
+      "//third_party/jni_zero:jni_zero_java",
+    ]
+  }
+
+  robolectric_library("junit") {
+    sources = [ "android/java/src/org/chromium/components/contextual_search/InputStateTest.java" ]
+    deps = [
+      ":components_contextual_search_java",
+      "//base:base_java",
+      "//base:base_java_test_support",
+      "//base:base_junit_test_support",
+      "//third_party/junit",
+    ]
   }
 }
 
@@ -28,17 +48,14 @@ source_set("public") {
     "contextual_search_metrics_recorder.h",
     "contextual_search_service.h",
     "contextual_search_session_handle.h",
-    "contextual_search_types.cc",
-    "contextual_search_types.h",
+    "input_state_model.h",
   ]
-
-  if (!is_android) {
-    sources += [ "input_state_model.h" ]
-  }
 
   deps = [
     "//components/keyed_service/core",
     "//components/lens/proto/server:proto",
+    "//components/omnibox/common",
+    "//components/omnibox/composebox:mojo_bindings",
     "//components/prefs",
     "//components/search_engines",
     "//components/sessions",
@@ -52,9 +69,25 @@ source_set("public") {
   ]
 
   public_deps = [
+    ":types",
     "//base",
     "//components/lens",
     "//third_party/lens_server_proto:lens_overlay_proto",
+  ]
+}
+
+source_set("types") {
+  sources = [
+    "contextual_search_types.cc",
+    "contextual_search_types.h",
+  ]
+
+  public_deps = [
+    "//base",
+    "//components/lens",
+    "//components/sessions:session_id",
+    "//third_party/lens_server_proto:lens_overlay_proto",
+    "//url",
   ]
 }
 
@@ -66,11 +99,8 @@ source_set("impl") {
     "contextual_search_session_entry.cc",
     "contextual_search_session_entry.h",
     "contextual_search_session_handle.cc",
+    "input_state_model.cc",
   ]
-
-  if (!is_android) {
-    sources += [ "input_state_model.cc" ]
-  }
 
   deps = [
     ":prefs",
@@ -112,11 +142,8 @@ source_set("unit_tests") {
     "contextual_search_metrics_recorder_unittest.cc",
     "contextual_search_service_unittest.cc",
     "contextual_search_session_entry_unittest.cc",
+    "input_state_model_unittest.cc",
   ]
-
-  if (!is_android) {
-    sources += [ "input_state_model_unittest.cc" ]
-  }
 
   deps = [
     ":impl",
@@ -136,7 +163,7 @@ source_set("unit_tests") {
     "//testing/gtest",
   ]
 
-  if (!is_android && !is_fuchsia) {
+  if (!is_fuchsia) {
     sources += [ "search_content_sharing_policy_handler_unittest.cc" ]
     deps += [
       ":policy_handler",
@@ -145,7 +172,7 @@ source_set("unit_tests") {
   }
 }
 
-if (!is_android && !is_fuchsia) {
+if (!is_fuchsia) {
   source_set("policy_handler") {
     sources = [
       "search_content_sharing_policy_handler.cc",

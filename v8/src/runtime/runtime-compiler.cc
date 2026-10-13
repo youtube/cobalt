@@ -31,8 +31,7 @@ void LogExecution(Isolate* isolate, DirectHandle<JSFunction> function) {
   DCHECK(v8_flags.log_function_events);
   if (!function->has_feedback_vector()) return;
   DCHECK(function->IsLoggingRequested(isolate));
-  IsolateGroup::current()->js_dispatch_table()->ResetTieringRequest(
-      function->dispatch_handle());
+  isolate->js_dispatch_table().ResetTieringRequest(function->dispatch_handle());
   DirectHandle<SharedFunctionInfo> sfi(function->shared(), isolate);
   DirectHandle<String> name = SharedFunctionInfo::DebugName(isolate, sfi);
   DisallowGarbageCollection no_gc;
@@ -149,7 +148,7 @@ namespace {
 void CompileOptimized(DirectHandle<JSFunction> function, ConcurrencyMode mode,
                       CodeKind target_kind, Isolate* isolate) {
   // Ensure that the tiering request is reset even if compilation fails.
-  function->ResetTieringRequests();
+  function->ResetTieringRequests(isolate);
 
   // As a pre- and post-condition of CompileOptimized, the function *must* be
   // compiled, i.e. the installed InstructionStream object must not be
@@ -250,7 +249,7 @@ RUNTIME_FUNCTION(Runtime_MarkLazyDeoptimized) {
   }
 
   if (!function->code(isolate)->marked_for_deoptimization()) {
-    function->ResetTieringRequests();
+    function->ResetTieringRequests(isolate);
     if (reoptimize) {
       // Set the budget such that we have one invocation which allows us to
       // detect if any ICs need updating before re-optimization.
@@ -463,6 +462,26 @@ Tagged<Object> CompileOptimizedOSR(Isolate* isolate,
 }
 
 }  // namespace
+
+#ifdef V8_DUMPLING
+RUNTIME_FUNCTION(Runtime_PrintDumpedFrame) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(args.length(), 1);
+  CHECK(isolate->context().is_null());
+
+  DCHECK(!AllowGarbageCollection::IsAllowed());
+
+  Deoptimizer* dumper = isolate->GetAndClearCurrentDeoptimizer();
+
+  Tagged<Context> saved_context = isolate->context();
+  isolate->set_context(dumper->function()->native_context());
+  dumper->VirtualMaterializeAndPrint();
+  delete dumper;
+
+  isolate->set_context(saved_context);
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+#endif  // V8_DUMPLING
 
 RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   HandleScope scope(isolate);

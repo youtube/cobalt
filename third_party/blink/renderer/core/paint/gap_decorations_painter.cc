@@ -31,8 +31,6 @@ bool IsRuleSegmentVisible(const GridTrackSizingDirection track_direction,
   switch (rule_visibility) {
     case RuleVisibilityItems::kAll:
       return true;
-    case RuleVisibilityItems::kNone:
-      return false;
     case RuleVisibilityItems::kAround:
       // Paint if either side of the segment is occupied (i.e. not empty on both
       // sides).
@@ -101,12 +99,12 @@ bool ShouldMoveIntersectionEndForward(
       gap_geometry.GetIntersectionBlockedStatus(track_direction, gap_index,
                                                 end_index, intersections);
 
-  // For `kSpanningItem` rule break, decorations break only at "T"
+  // For `kNormal` rule break, decorations break only at "T"
   // intersections, so we simply check that the intersection isn't blocked
   // after.
   //
   // https://drafts.csswg.org/css-gaps-1/#determine-pairs-of-gap-decoration-endpoints
-  if (rule_break == RuleBreak::kSpanningItem) {
+  if (rule_break == RuleBreak::kNormal) {
     // Move forward only if the intersection is NOT blocked after.
     return !blocked_status.HasBlockedStatus(BlockedStatus::kBlockedAfter);
   }
@@ -211,8 +209,8 @@ void GapDecorationsPainter::Paint(GridTrackSizingDirection track_direction,
       is_column_gap ? style.ColumnRuleStyle() : style.RowRuleStyle();
   GapDataList<int> rule_widths =
       is_column_gap ? style.ColumnRuleWidth() : style.RowRuleWidth();
-  RuleBreak rule_break = CSSGapDecorationUtils::ResolveRuleBreakValue(
-      style, gap_geometry.GetContainerType(), track_direction);
+  RuleBreak rule_break =
+      CSSGapDecorationUtils::ResolveRuleBreakValue(style, track_direction);
 
   RuleVisibilityItems rule_visibility = is_column_gap
                                             ? style.ColumnRuleVisibilityItems()
@@ -286,17 +284,22 @@ void GapDecorationsPainter::Paint(GridTrackSizingDirection track_direction,
       // for now, we continue to resolve the crossing gap width as `0` for any
       // intersection in multicol containers. Discussion about this can be found
       // in https://github.com/w3c/csswg-drafts/issues/12784.
+      // TODO(javiercon): This is only temporary. The multicol special case here
+      // will be addressed in follow up CL which will make it so that we don't
+      // need any special casing here.
       const LayoutUnit start_width =
-          gap_geometry.GetContainerType() ==
-                      GapGeometry::ContainerType::kMultiColumn ||
+          (gap_geometry.GetContainerType() ==
+               GapGeometry::ContainerType::kMultiColumn &&
+           is_column_gap) ||
                   gap_geometry.IsEdgeIntersection(gap_index, start,
                                                   intersections.size(), is_main,
                                                   intersections)
               ? LayoutUnit()
               : cross_gutter_width;
       const LayoutUnit end_width =
-          gap_geometry.GetContainerType() ==
-                      GapGeometry::ContainerType::kMultiColumn ||
+          (gap_geometry.GetContainerType() ==
+               GapGeometry::ContainerType::kMultiColumn &&
+           is_column_gap) ||
                   gap_geometry.IsEdgeIntersection(gap_index, end,
                                                   intersections.size(), is_main,
                                                   intersections)
@@ -313,6 +316,7 @@ void GapDecorationsPainter::Paint(GridTrackSizingDirection track_direction,
       LayoutUnit end_inset =
           gap_geometry.ComputeInsetEnd(style, gap_index, end, intersections,
                                        is_column_gap, is_main, end_width);
+
       // Compute the gap decorations offset as half of the `crossing_gap_width`
       // plus the inset.
       // https://drafts.csswg.org/css-gaps-1/#compute-the-offset

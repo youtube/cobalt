@@ -315,13 +315,6 @@ bool HTMLInputElement::IsKeyboardFocusableSlow(
   return input_type_->IsKeyboardFocusableSlow(update_behavior);
 }
 
-bool HTMLInputElement::FillWebMCPData(JSONValue& data) {
-  CHECK(RuntimeEnabledFeatures::WebMCPEnabled());
-  String selected_value = GetMCPJSONValue(data);
-  SetValue(selected_value);
-  return true;
-}
-
 bool HTMLInputElement::MayTriggerVirtualKeyboard() const {
   return input_type_->MayTriggerVirtualKeyboard();
 }
@@ -2321,6 +2314,16 @@ void HTMLInputElement::DispatchSimulatedEnter() {
 
 bool HTMLInputElement::IsInteractiveContent() const {
   return input_type_->IsInteractiveContent();
+}
+
+FocusgroupFlags HTMLInputElement::NativeArrowKeyAxes() const {
+  // Text fields use arrow keys for cursor movement (both axes).
+  // Steppable inputs (number, range, date, etc.) use arrow keys for value
+  // adjustment.
+  if (IsTextField() || IsSteppable()) {
+    return FocusgroupFlags::kInline | FocusgroupFlags::kBlock;
+  }
+  return HTMLElement::NativeArrowKeyAxes();
 }
 
 void HTMLInputElement::AdjustStyle(ComputedStyleBuilder& builder) {

@@ -16,8 +16,9 @@
 #import "ios/chrome/browser/composebox/ui/composebox_input_plate_consumer.h"
 #import "ios/chrome/browser/composebox/ui/composebox_input_plate_mutator.h"
 #import "ios/chrome/browser/omnibox/ui/text_field_view_containing.h"
-#import "ios/chrome/browser/shared/public/commands/load_query_commands.h"
+#import "ios/public/provider/chrome/browser/voice_search/voice_search_controller.h"
 
+@protocol ComposeboxDebuggerLogger;
 @class ComposeboxMetricsRecorder;
 @protocol ComposeboxURLLoader;
 class AimEligibilityService;
@@ -50,8 +51,8 @@ class ContextualSearchSessionHandle;
                 ComposeboxFileUploadObserver,
                 ComposeboxModeObserver,
                 ComposeboxTabPickerSelectionDelegate,
-                LoadQueryCommands,
-                TextFieldViewContainingHeightDelegate>
+                TextFieldViewContainingHeightDelegate,
+                VoiceSearchDelegate>
 
 @property(nonatomic, weak) id<ComposeboxInputPlateConsumer> consumer;
 @property(nonatomic, weak) id<ComposeboxURLLoader> URLLoader;
@@ -59,6 +60,8 @@ class ContextualSearchSessionHandle;
 @property(nonatomic, weak) id<ComposeboxInputPlateMediatorDelegate> delegate;
 // The metrics recorder of the composebox.
 @property(nonatomic, weak) ComposeboxMetricsRecorder* metricsRecorder;
+// Delegate for logging events.
+@property(nonatomic, weak) id<ComposeboxDebuggerLogger> debugLogger;
 
 - (instancetype)
     initWithContextualSearchSession:

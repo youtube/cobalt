@@ -336,8 +336,9 @@ std::wstring GetClientStateMediumKeyPath() {
 std::wstring GetUninstallRegistryPath() {
   std::wstring result(
       L"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\");
-  if (*kCompanyPathName)
+  if constexpr (*kCompanyPathName) {
     result.append(kCompanyPathName).append(1, L' ');
+  }
   result.append(kProductPathName, kProductPathNameLength);
   return result.append(InstallDetails::Get().mode().install_suffix);
 }
@@ -511,7 +512,7 @@ bool SetCollectStatsInSample(bool in_sample) {
 std::wstring& AppendChromeInstallSubDirectory(const InstallConstants& mode,
                                               bool include_suffix,
                                               std::wstring* path) {
-  if (*kCompanyPathName) {
+  if constexpr (*kCompanyPathName) {
     path->append(kCompanyPathName);
     path->push_back(L'\\');
   }
@@ -571,7 +572,7 @@ bool ProcessNeedsProfileDir(const std::string& process_type) {
 std::wstring GetCrashDumpLocation() {
   // In order to be able to start crash handling very early and in chrome_elf,
   // we cannot rely on chrome's PathService entries (for DIR_CRASH_DUMPS) being
-  // available on Windows. See https://crbug.com/564398.
+  // available on Windows. See https://crbug.com/40447216.
   std::wstring user_data_dir;
   bool ret = GetUserDataDirectory(&user_data_dir, nullptr);
   assert(ret);

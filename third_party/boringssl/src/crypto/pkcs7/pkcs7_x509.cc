@@ -32,6 +32,7 @@
 
 #include "../asn1/internal.h"
 #include "../internal.h"
+#include "../mem_internal.h"
 #include "../x509/internal.h"
 #include "internal.h"
 
@@ -244,13 +245,12 @@ int PKCS7_bundle_CRLs(CBB *out, const STACK_OF(X509_CRL) *crls) {
 
 static PKCS7 *pkcs7_new(CBS *cbs) {
   CBS copy = *cbs, copy2 = *cbs;
-  PKCS7 *ret = reinterpret_cast<PKCS7 *>(OPENSSL_zalloc(sizeof(PKCS7)));
+  PKCS7 *ret = NewZeroed<PKCS7>();
   if (ret == nullptr) {
     return nullptr;
   }
   ret->type = OBJ_nid2obj(NID_pkcs7_signed);
-  ret->d.sign =
-      reinterpret_cast<PKCS7_SIGNED *>(OPENSSL_malloc(sizeof(PKCS7_SIGNED)));
+  ret->d.sign = New<PKCS7_SIGNED>();
   if (ret->d.sign == nullptr) {
     goto err;
   }
@@ -359,9 +359,9 @@ void PKCS7_free(PKCS7 *p7) {
   if (p7->d.sign != nullptr) {
     sk_X509_pop_free(p7->d.sign->cert, X509_free);
     sk_X509_CRL_pop_free(p7->d.sign->crl, X509_CRL_free);
-    OPENSSL_free(p7->d.sign);
+    Delete(p7->d.sign);
   }
-  OPENSSL_free(p7);
+  Delete(p7);
 }
 
 // We only support signed data, so these getters are no-ops.

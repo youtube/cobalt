@@ -148,10 +148,30 @@ class AttributeInstance final {
   // candidate).
   void FinalizeInfo();
 
+  // Returns whether the stored value is a mask of the full value, e.g., it
+  // contains the last four digits of the full value.
+  bool masked() const { return masked_; }
+
+  // Marks the attribute as masked.
+  //
+  // Since this does not perform any validation on the attribute value itself,
+  // it must only be called by code that is certain that the attribute value
+  // is indeed masked. The reason for not having a validation step is that
+  // masking happens purely on the server and the masking algorithm is not
+  // exposed to the client.
+  class MarkAsMaskedPasskey {
+   private:
+    MarkAsMaskedPasskey() = default;
+    friend class EntityTable;
+  };
+  void mark_as_masked(MarkAsMaskedPasskey) { masked_ = true; }
+
   friend bool operator==(const AttributeInstance& lhs,
                          const AttributeInstance& rhs) = default;
 
  private:
+  friend class AttributeInstanceTestApi;
+
   using StateInfo = base::StrongAlias<class StateInfoTag, std::u16string>;
   using InfoStructure =
       std::variant<CountryInfo, DateInfo, NameInfo, StateInfo, std::u16string>;
@@ -160,6 +180,7 @@ class AttributeInstance final {
 
   AttributeType type_;
   InfoStructure info_;
+  bool masked_ = false;
 };
 
 struct AttributeInstance::CompareByType {
@@ -378,6 +399,24 @@ class EntityInstance final {
   // same values or if `this` is a proper subset of `other`.
   bool IsSubsetOf(const EntityInstance& other) const;
 
+  // Returns whether any of the attributes are masked. This can only happen
+  // if `record_type()` is `kServerWallet`.
+  //
+  // Note that there can be entities with `record_type()` `kServerWallet` for
+  // which `IsMaskedServerEntity() == IsUnmaskedServerEntity() == false`.
+  // Examples include vehicle information, flight reservation entities,
+  // passport entities without a saved number, etc.
+  bool IsMaskedServerEntity() const;
+
+  // Returns whether `this` has `record_type() == kServerWallet` and any of
+  // its obfuscated attributes is not `masked()`.
+  // That is, `this` is an `EntityInstance` returned unmasked from a Wallet
+  // server; it is strictly transient and must never be persisted to disk.
+  bool IsUnmaskedServerEntity() const;
+
+  // Returns a copy of `this` with the given `record_type`.
+  EntityInstance CopyWithNewRecordType(RecordType record_type) const;
+
   friend bool operator==(const EntityInstance&,
                          const EntityInstance&) = default;
 
@@ -396,6 +435,7 @@ class EntityInstance final {
 };
 
 std::ostream& operator<<(std::ostream& os, const AttributeInstance& a);
+std::ostream& operator<<(std::ostream& os, const EntityInstance::RecordType& t);
 std::ostream& operator<<(std::ostream& os, const EntityInstance& e);
 
 struct EntityInstance::CompareByGuid {
@@ -413,6 +453,19 @@ struct EntityInstance::CompareByGuid {
     return lhs.guid() < rhs.guid();
   }
 };
+
+// Returns whether this (entity type, record type) combination supports
+// restricting local storage of obfuscated attributes to "masks" (e.g., the last
+// x digits/characters).
+//
+// If this is `true`, the full entity information can be stored on a server and
+// can be retrieved by the client only on demand. It is not persisted locally on
+// disk. However, note that even if this is `true` users may not be eligible for
+// creating masked server entities depending on their sync settings or their
+// locale. See `MayPerformAutofillAiAction`
+//   for the relevant permission checks.
+bool IsMaskedStorageSupported(EntityType type,
+                              EntityInstance::RecordType record_type);
 
 }  // namespace autofill
 

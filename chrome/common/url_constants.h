@@ -387,6 +387,12 @@ inline constexpr char16_t kGeminiPersonalContextUrl[] =
 inline constexpr char16_t kMyActivityGeminiAppsUrl[] =
     u"https://myactivity.google.com/product/gemini";
 
+#if !BUILDFLAG(IS_CHROMEOS) && BUILDFLAG(GOOGLE_CHROME_BRANDING)
+// "Learn more" URL for On-Device AI.
+inline constexpr char16_t kOnDeviceAiLearnMoreUrl[] =
+    u"https://support.google.com/chrome?p=on_device_genAI";
+#endif
+
 // Help URL for the Omnibox setting.
 inline constexpr char16_t kOmniboxLearnMoreURL[] =
 #if BUILDFLAG(IS_CHROMEOS)
@@ -991,10 +997,6 @@ inline constexpr char kWindowsXPVistaDeprecationURL[] =
 inline constexpr char kWindows78DeprecationURL[] =
     "https://support.google.com/chrome?p=unsupported_windows";
 #endif
-
-// "Learn more" URL for the one click signin infobar.
-inline constexpr char kChromeSyncLearnMoreURL[] =
-    "https://support.google.com/chrome?p=chrome_sync";
 
 #if BUILDFLAG(ENABLE_PLUGINS)
 // The URL for the "Learn more" page for the outdated plugin infobar.

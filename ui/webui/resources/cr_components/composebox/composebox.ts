@@ -27,6 +27,7 @@ import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import type {AutocompleteMatch, AutocompleteResult, PageCallbackRouter as SearchboxPageCallbackRouter, PageHandlerRemote as SearchboxPageHandlerRemote, SearchContext, SelectedFileInfo, TabInfo} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import type {InputState} from '//resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
+import {ModelMode, ToolMode} from '//resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
 import type {BigBuffer} from '//resources/mojo/mojo/public/mojom/base/big_buffer.mojom-webui.js';
 import type {UnguessableToken} from '//resources/mojo/mojo/public/mojom/base/unguessable_token.mojom-webui.js';
 import type {Url} from '//resources/mojo/url/mojom/url.mojom-webui.js';
@@ -41,7 +42,6 @@ import {FileUploadStatus} from './composebox_query.mojom-webui.js';
 import type {FileUploadErrorType} from './composebox_query.mojom-webui.js';
 import type {ComposeboxVoiceSearchElement} from './composebox_voice_search.js';
 import type {ContextualEntrypointAndCarouselElement} from './contextual_entrypoint_and_carousel.js';
-import {ComposeboxMode} from './contextual_entrypoint_and_carousel.js';
 import type {ErrorScrimElement} from './error_scrim.js';
 
 export enum VoiceSearchAction {
@@ -115,10 +115,6 @@ export class ComposeboxElement extends I18nMixinLit
         reflect: true,
         type: Boolean,
       },
-      showSubmit_: {
-        reflect: true,
-        type: Boolean,
-      },
       animationState: {
         reflect: true,
         type: String,
@@ -140,17 +136,13 @@ export class ComposeboxElement extends I18nMixinLit
         reflect: true,
         type: Boolean,
       },
-      inDeepSearchMode_: {
-        reflect: true,
-        type: Boolean,
-      },
       isDraggingFile: {
         reflect: true,
         type: Boolean,
       },
-      inCreateImageMode_: {
+      activeToolMode_: {
+        type: Number,
         reflect: true,
-        type: Boolean,
       },
       /**
        * Feature flag for New Tab Page Realbox Next.
@@ -170,12 +162,12 @@ export class ComposeboxElement extends I18nMixinLit
         type: Boolean,
         reflect: true,
       },
-      tabSuggestions: {type: Array},
+      tabSuggestions_: {type: Array},
       lensButtonDisabled: {
         reflect: true,
         type: Boolean,
       },
-      errorScrimVisible_: {type: Boolean},
+      errorMessage_: {type: String},
       contextFilesSize_: {
         type: Number,
         reflect: true,
@@ -191,6 +183,7 @@ export class ComposeboxElement extends I18nMixinLit
         type: Boolean,
         reflect: true,
       },
+      showMenuOnClick: {type: Boolean},
       entrypointName: {type: String},
       transcript_: {type: String},
       receivedSpeech_: {type: Boolean},
@@ -202,8 +195,20 @@ export class ComposeboxElement extends I18nMixinLit
       },
       disableComposeboxAnimation: {type: Boolean},
       fileUploadsComplete: {type: Boolean},
-      canSubmitFilesAndInput_: {type: Boolean},
+      canSubmitFilesAndInput_: {
+        type: Boolean,
+        reflect: true,
+      },
+      showModelPicker: {type: Boolean},
       inputState_: {type: Object},
+      showModelPicker_: {
+        type: Boolean,
+        reflect: true,
+      },
+      hasAllowedInputs_: {
+        type: Boolean,
+        reflect: true,
+      },
     };
   }
 
@@ -219,9 +224,10 @@ export class ComposeboxElement extends I18nMixinLit
   accessor carouselOnTop_: boolean = false;
   accessor isDraggingFile: boolean = false;
   accessor animationState: GlowAnimationState = GlowAnimationState.NONE;
+  accessor showMenuOnClick: boolean = true;
   accessor entrypointName: string = '';
   accessor disableVoiceSearchAnimation: boolean = false;
-  accessor tabSuggestions: TabInfo[] = [];
+  protected accessor tabSuggestions_: TabInfo[] = [];
   accessor lensButtonDisabled: boolean = false;
   protected composeboxNoFlickerSuggestionsFix_: boolean =
       loadTimeData.getBoolean('composeboxNoFlickerSuggestionsFix');
@@ -235,8 +241,6 @@ export class ComposeboxElement extends I18nMixinLit
   protected accessor input_: string = '';
   protected accessor showDropdown_: boolean =
       loadTimeData.getBoolean('composeboxShowZps');
-  protected accessor showSubmit_: boolean =
-      loadTimeData.getBoolean('composeboxShowSubmit');
   protected accessor enableImageContextualSuggestions_: boolean =
       loadTimeData.getBoolean('composeboxShowImageSuggest');
   // When enabled, the file input buttons will not be rendered.
@@ -249,9 +253,8 @@ export class ComposeboxElement extends I18nMixinLit
   protected accessor inputPlaceholder_: string =
       loadTimeData.getString('searchboxComposePlaceholder');
   protected accessor showFileCarousel_: boolean = false;
-  protected accessor inCreateImageMode_: boolean = false;
-  protected accessor inDeepSearchMode_: boolean = false;
-  protected accessor errorScrimVisible_: boolean = false;
+  protected accessor activeToolMode_: ToolMode = ToolMode.kUnspecified;
+  protected accessor errorMessage_: string = '';
   protected accessor contextFilesSize_: number = 0;
   protected accessor transcript_: string = '';
   protected accessor receivedSpeech_: boolean = false;
@@ -262,6 +265,11 @@ export class ComposeboxElement extends I18nMixinLit
       loadTimeData.getBoolean('steadyComposeboxShowVoiceSearch');
   protected showVoiceSearchInExpandedComposebox_: boolean =
       loadTimeData.getBoolean('expandedComposeboxShowVoiceSearch');
+  protected accessor showModelPicker_: boolean =
+      loadTimeData.valueExists('contextualMenuUsePecApi') ?
+      loadTimeData.getBoolean('contextualMenuUsePecApi') :
+      false;
+  protected accessor hasAllowedInputs_: boolean = false;
   protected dragAndDropHandler_: DragAndDropHandler;
   private showTypedSuggest_: boolean =
       loadTimeData.getBoolean('composeboxShowTypedSuggest');
@@ -293,8 +301,8 @@ export class ComposeboxElement extends I18nMixinLit
   // this is false, that means at least one response has been received (even if
   // the response was empty or had an error).
   private haveReceivedAutcompleteResponse_: boolean = false;
-  private isVoiceInput_: boolean = false;
   private pendingUploads_: Set<string> = new Set<string>([]);
+  private contextMenuOpened_: boolean = false;
 
   constructor() {
     super();
@@ -306,7 +314,7 @@ export class ComposeboxElement extends I18nMixinLit
         new DragAndDropHandler(this, this.dragAndDropEnabled_);
   }
 
-  override connectedCallback() {
+  override async connectedCallback() {
     super.connectedCallback();
 
     // Set the initial expanded state based on the inputted property.
@@ -348,16 +356,17 @@ export class ComposeboxElement extends I18nMixinLit
     // For "next" searchboxes (Realbox Next, Omnibox Next, etc.), the zps
     // autocomplete query is triggered after the state has been initialized.
     if (this.showZps && !this.searchboxNextEnabled) {
-      this.queryAutocomplete(/* clearMatches= */ false);
+      this.queryAutocomplete_(/* clearMatches= */ false);
     }
 
     this.searchboxHandler_.notifySessionStarted();
-    this.refreshTabSuggestions_();
 
     if (this.ntpRealboxNextEnabled) {
       this.fire('composebox-initialized', {
         initializeComposeboxState: this.initializeState_.bind(this),
       });
+    } else {
+      this.inputState_ = (await this.searchboxHandler_.getInputState()).state;
     }
 
     this.setupResizeObservers_();
@@ -408,13 +417,20 @@ export class ComposeboxElement extends I18nMixinLit
     if (changedPrivateProperties.has('input_') ||
         changedPrivateProperties.has('result_') ||
         changedPrivateProperties.has('contextFilesSize_') ||
-        changedPrivateProperties.has('errorScrimVisible_')) {
+        changedPrivateProperties.has('errorMessage_')) {
       this.showDropdown_ = this.computeShowDropdown_();
     }
     if (changedPrivateProperties.has('submitEnabled_') ||
         changedPrivateProperties.has('fileUploadsComplete')) {
       this.canSubmitFilesAndInput_ =
           this.submitEnabled_ && this.fileUploadsComplete;
+    }
+
+    if (changedPrivateProperties.has('inputState_')) {
+      this.hasAllowedInputs_ = !!this.inputState_ &&
+          (this.inputState_.allowedModels.length > 0 ||
+           this.inputState_.allowedTools.length > 0 ||
+           this.inputState_.allowedInputTypes.length > 0);
     }
   }
   override updated(changedProperties: PropertyValues<this>) {
@@ -423,26 +439,21 @@ export class ComposeboxElement extends I18nMixinLit
         changedProperties as Map<PropertyKey, unknown>;
     if (changedPrivateProperties.has('selectedMatchIndex_')) {
       if (this.selectedMatch_) {
-        // If the selected match is the default match (typing) the input will
-        // already have been set by handleInput.
-        if (!(this.selectedMatchIndex_ === 0 &&
-              this.selectedMatch_.allowedToBeDefaultMatch)) {
-          // Update the input.
-          const text = this.selectedMatch_.fillIntoEdit;
-          assert(text);
-          this.input_ = text;
-          this.submitEnabled_ = true;
-        }
+        // Update the input.
+        const text = this.selectedMatch_.fillIntoEdit;
+        this.input_ = text;
       } else if (!this.lastQueriedInput_) {
         // This is for cases when focus leaves the matches/input.
         // If there was already text in the input do not clear it.
         this.clearInput();
-        this.submitEnabled_ = this.contextFilesSize_ > 0;
       } else {
         // For typed queries reset the input back to typed value when
         // focus leaves the match.
         this.input_ = this.lastQueriedInput_;
       }
+      this.submitEnabled_ = this.computeSubmitEnabled_();
+      this.canSubmitFilesAndInput_ =
+          this.submitEnabled_ && this.fileUploadsComplete;
     }
     if (changedPrivateProperties.has('smartComposeInlineHint_')) {
       if (this.smartComposeInlineHint_) {
@@ -474,8 +485,8 @@ export class ComposeboxElement extends I18nMixinLit
     return this.input_;
   }
 
-  get isVoiceInput(): boolean {
-    return this.isVoiceInput_;
+  queryAutocomplete(clearMatches: boolean) {
+    this.queryAutocomplete_(clearMatches);
   }
 
   playGlowAnimation() {
@@ -526,19 +537,25 @@ export class ComposeboxElement extends I18nMixinLit
 
   protected initializeState_(
       text: string = '', files: ContextualUpload[] = [],
-      mode: ComposeboxMode = ComposeboxMode.DEFAULT) {
+      mode: ToolMode = ToolMode.kUnspecified,
+      model: ModelMode = ModelMode.kUnspecified,
+      inputState: InputState|null = null) {
     if (text) {
       this.input_ = text;
       this.lastQueriedInput_ = text;
     }
     if (this.showZps && files.length === 0) {
-      this.queryAutocomplete(/* clearMatches= */ false);
+      this.queryAutocomplete_(/* clearMatches= */ false);
     }
+    this.inputState_ = inputState;
     if (files.length > 0) {
       this.$.context.setContextFiles(files);
     }
-    if (mode !== ComposeboxMode.DEFAULT) {
+    if (mode !== ToolMode.kUnspecified) {
       this.$.context.setInitialMode(mode);
+    }
+    if (model !== ModelMode.kUnspecified) {
+      this.searchboxHandler_.setActiveModelMode(model);
     }
   }
 
@@ -560,7 +577,7 @@ export class ComposeboxElement extends I18nMixinLit
     }
 
     // Do not show dropdown if there's an error scrim.
-    if (this.errorScrimVisible_) {
+    if (this.errorMessage_ !== '') {
       return false;
     }
 
@@ -586,7 +603,8 @@ export class ComposeboxElement extends I18nMixinLit
 
   private computeSubmitEnabled_() {
     return this.input_.trim().length > 0 ||
-        (this.contextFilesSize_ > 0 && this.$.context.hasDeletableFiles());
+        (this.contextFilesSize_ > 0 && this.$.context.hasDeletableFiles()) ||
+        !!this.selectedMatch_;
   }
 
   protected shouldShowSuggestionActivityLink_() {
@@ -611,7 +629,7 @@ export class ComposeboxElement extends I18nMixinLit
   }
 
   protected onFileValidationError_(e: CustomEvent<{errorMessage: string}>) {
-    this.$.errorScrim.setErrorMessage(e.detail.errorMessage);
+    this.errorMessage_ = e.detail.errorMessage;
   }
 
   protected onTranscriptUpdate_(e: CustomEvent<string>) {
@@ -628,20 +646,15 @@ export class ComposeboxElement extends I18nMixinLit
       e: CustomEvent<
           {uuid: UnguessableToken, fromAutoSuggestedChip?: boolean}>) {
     // If we're in create image mode, notify that image is gone.
-    if (this.inCreateImageMode_) {
-      await this.setCreateImageMode_({
-        detail: {
-          inCreateImageMode: true,
-          imagePresent: this.$.context.hasImageFiles(),
-        },
-      } as CustomEvent<{inCreateImageMode: boolean, imagePresent: boolean}>);
+    if (this.activeToolMode_ === ToolMode.kImageGen) {
+      await this.handleToolMode_(ToolMode.kImageGen, true);
     }
     this.pendingUploads_.delete(e.detail.uuid);
     this.fileUploadsComplete = this.pendingUploads_.size === 0;
     this.searchboxHandler_.deleteContext(
         e.detail.uuid, e.detail.fromAutoSuggestedChip || false);
     this.focusInput();
-    this.queryAutocomplete(/* clearMatches= */ true);
+    this.queryAutocomplete_(/* clearMatches= */ true);
   }
 
   protected async addFileContext_(e: CustomEvent<{
@@ -675,12 +688,10 @@ export class ComposeboxElement extends I18nMixinLit
         tabId: null,
         isDeletable: true,
       };
-      this.pendingUploads_.add(token);
       composeboxFiles.set(token, attachment);
       const announcer = getAnnouncerInstance();
       announcer.announce(this.i18n('composeboxFileUploadStartedText'));
     }
-    this.fileUploadsComplete = false;
     e.detail.onContextAdded(composeboxFiles);
     this.focusInput();
   }
@@ -735,12 +746,13 @@ export class ComposeboxElement extends I18nMixinLit
       tabId: e.detail.id,
       isDeletable: true,
     };
+
     e.detail.onContextAdded(attachment);
     this.focusInput();
   }
 
   protected onPaste_(event: ClipboardEvent) {
-    if (!event.clipboardData?.items) {
+    if (!this.dragAndDropEnabled_ || !event.clipboardData?.items) {
       return;
     }
 
@@ -763,9 +775,21 @@ export class ComposeboxElement extends I18nMixinLit
     }
   }
 
+  protected onContextMenuClosed_() {
+    this.contextMenuOpened_ = false;
+  }
+
+  protected onContextMenuOpened_() {
+    this.contextMenuOpened_ = true;
+    this.refreshTabSuggestions_();
+  }
+
   protected async refreshTabSuggestions_() {
+    if (!this.contextMenuOpened_) {
+      return;
+    }
     const {tabs} = await this.searchboxHandler_.getRecentTabs();
-    this.tabSuggestions = [...tabs];
+    this.tabSuggestions_ = [...tabs];
   }
 
   protected async getTabPreview_(e: CustomEvent<{
@@ -790,6 +814,7 @@ export class ComposeboxElement extends I18nMixinLit
     if (this.autoSubmitVoiceSearch) {
       this.fire(
           'voice-search-action', {value: VoiceSearchAction.QUERY_SUBMITTED});
+      this.input_ = e.detail;
       this.searchboxHandler_.submitQuery(
           e.detail, /*mouse_button=*/ 0, /*alt_key=*/ false,
           /*ctrl_key=*/ false, /*meta_key=*/ false, /*shift_key=*/ false);
@@ -798,9 +823,8 @@ export class ComposeboxElement extends I18nMixinLit
       // query, clear autocomplete matches, and recompute whether submission
       // should be enabled.
       this.input_ = e.detail;
-      this.clearAutocompleteMatches();
+      this.queryAutocomplete_(/* clearMatches= */ true);
       this.submitEnabled_ = this.computeSubmitEnabled_();
-      this.isVoiceInput_ = true;
       await this.updateComplete;
       this.focusInput();
     }
@@ -841,7 +865,7 @@ export class ComposeboxElement extends I18nMixinLit
       this.resetModes();
       this.clearAllInputs(/* querySubmitted= */ false);
       this.focusInput();
-      this.queryAutocomplete(/* clearMatches= */ true);
+      this.queryAutocomplete_(/* clearMatches= */ true);
     } else {
       this.closeComposebox_();
     }
@@ -852,14 +876,14 @@ export class ComposeboxElement extends I18nMixinLit
       this.resetModes();
       this.clearAllInputs(/* querySubmitted= */ false);
       this.focusInput();
-      this.queryAutocomplete(/* clearMatches= */ true);
+      this.queryAutocomplete_(/* clearMatches= */ true);
     } else {
       this.closeComposebox_();
     }
   }
 
   private hasContent_(): boolean {
-    return this.inDeepSearchMode_ || this.inCreateImageMode_ ||
+    return this.activeToolMode_ !== ToolMode.kUnspecified ||
         this.input_.trim().length > 0 || this.contextFilesSize_ > 0;
   }
 
@@ -884,10 +908,10 @@ export class ComposeboxElement extends I18nMixinLit
   }
 
   private updateInputPlaceholder_() {
-    if (this.inDeepSearchMode_) {
+    if (this.activeToolMode_ === ToolMode.kDeepSearch) {
       this.inputPlaceholder_ =
           loadTimeData.getString('composeDeepSearchPlaceholder');
-    } else if (this.inCreateImageMode_) {
+    } else if (this.activeToolMode_ === ToolMode.kImageGen) {
       this.inputPlaceholder_ =
           loadTimeData.getString('composeCreateImagePlaceholder');
     } else {
@@ -896,41 +920,48 @@ export class ComposeboxElement extends I18nMixinLit
     }
   }
 
-  protected async setDeepSearchMode_(
-      e: CustomEvent<{inDeepSearchMode: boolean}>) {
-    this.inDeepSearchMode_ = e.detail.inDeepSearchMode;
-    this.pageHandler_.setDeepSearchMode(e.detail.inDeepSearchMode);
-    this.queryAutocomplete(/* clearMatches= */ true);
-    this.updateInputPlaceholder_();
+  protected async onSetToolMode_(
+      e: CustomEvent<{tool: ToolMode, enabled: boolean}>) {
+    await this.handleToolMode_(e.detail.tool, e.detail.enabled);
+    }
+
+  get activeToolMode(): ToolMode {
+    return this.activeToolMode_;
+  }
+
+  private async handleToolMode_(tool: ToolMode, enabled: boolean) {
+    if (enabled) {
+      this.activeToolMode_ = tool;
+    } else if (this.activeToolMode_ === tool) {
+      this.activeToolMode_ = ToolMode.kUnspecified;
+    }
+
+    this.searchboxHandler_.setActiveToolMode(this.activeToolMode_);
+    this.queryAutocomplete_(/* clearMatches= */ true);
+    if (tool !== ToolMode.kCanvas) {
+      this.updateInputPlaceholder_();
+    }
+    this.fire('active-tool-mode-changed', {value: this.activeToolMode_});
 
     await this.updateComplete;
     this.focusInput();
   }
 
-  protected async setCreateImageMode_(
-      e: CustomEvent<{inCreateImageMode: boolean, imagePresent: boolean}>) {
-    this.inCreateImageMode_ = e.detail.inCreateImageMode;
-    this.pageHandler_.setCreateImageMode(
-        e.detail.inCreateImageMode, e.detail.imagePresent);
-    this.queryAutocomplete(/* clearMatches= */ true);
-    this.updateInputPlaceholder_();
+  protected async onModelClick_(e: CustomEvent<{model: ModelMode}>) {
+    this.searchboxHandler_.setActiveModelMode(e.detail.model);
 
     await this.updateComplete;
     this.focusInput();
   }
 
-  protected onErrorScrimVisibilityChanged_(
-      e: CustomEvent<{showErrorScrim: boolean}>) {
-    this.errorScrimVisible_ = e.detail.showErrorScrim;
+  protected onErrorScrimDismissed_() {
+    this.errorMessage_ = '';
   }
 
   // Sets the input property to compute the cancel button title without using
   // "$." syntax  as this is not allowed in WillUpdate().
   protected handleInput_(e: Event) {
     const inputElement = e.target as HTMLInputElement;
-    if (inputElement.value === '') {
-      this.isVoiceInput_ = false;
-    }
     this.input_ = inputElement.value;
     // `clearMatches` is true if input is empty stop any in progress providers
     // before requerying for on-focus (zero-suggest) inputs. The searchbox
@@ -943,9 +974,9 @@ export class ComposeboxElement extends I18nMixinLit
       if (this.input_ === '') {
         this.searchboxHandler_.stopAutocomplete(/*clearResult=*/ true);
       }
-      this.queryAutocomplete(/* clearMatches= */ false);
+      this.queryAutocomplete_(/* clearMatches= */ false);
     } else {
-      this.queryAutocomplete(/* clearMatches= */ this.input_ === '');
+      this.queryAutocomplete_(/* clearMatches= */ this.input_ === '');
     }
   }
 
@@ -978,7 +1009,7 @@ export class ComposeboxElement extends I18nMixinLit
           this.input_ = this.input_ + this.smartComposeInlineHint_;
           this.smartComposeInlineHint_ = '';
           e.preventDefault();
-          this.queryAutocomplete(/* clearMatches= */ true);
+          this.queryAutocomplete_(/* clearMatches= */ true);
         }
         return;
       }
@@ -1013,7 +1044,7 @@ export class ComposeboxElement extends I18nMixinLit
     } else if (e.key === 'ArrowUp') {
       this.$.matches.selectPrevious();
     } else if (e.key === 'Escape' || e.key === 'PageUp') {
-      this.$.matches.selectFirst();
+      this.selectFirstMatch();
     } else if (e.key === 'PageDown') {
       this.$.matches.selectLast();
     } else if (e.key === 'Tab') {
@@ -1044,17 +1075,8 @@ export class ComposeboxElement extends I18nMixinLit
   protected handleInputFocusIn_() {
     // if there's a last queried input, it's guaranteed that at least
     // the verbatim match will exist.
-    if (this.lastQueriedInput_ && this.result_?.matches.length) {
-      this.$.matches.selectFirst();
-    }
-    if (this.ntpRealboxNextEnabled) {
-      this.fire('composebox-input-focus-changed', {value: true});
-    }
-  }
-
-  protected handleInputFocusOut_() {
-    if (this.ntpRealboxNextEnabled) {
-      this.fire('composebox-input-focus-changed', {value: false});
+    if (this.lastQueriedInput_) {
+      this.selectFirstMatch();
     }
   }
 
@@ -1067,7 +1089,7 @@ export class ComposeboxElement extends I18nMixinLit
     // If the composebox was focused out, collapsed and now focused in,
     // requery autocomplete to get fresh contextual suggestions.
     if (this.isCollapsible) {
-      this.queryAutocomplete(/* clearMatches= */ true);
+      this.queryAutocomplete_(/* clearMatches= */ true);
     }
 
     this.expanding_ = true;
@@ -1099,7 +1121,7 @@ export class ComposeboxElement extends I18nMixinLit
   protected handleSubmitFocusIn_() {
     // Matches should always be greater than 0 due to verbatim match.
     if (this.input_ && !this.selectedMatch_) {
-      this.$.matches.selectFirst();
+      this.selectFirstMatch();
     }
   }
 
@@ -1112,12 +1134,18 @@ export class ComposeboxElement extends I18nMixinLit
     }
     // Query for ZPS even if there's no context.
     if (this.showZps) {
-      this.queryAutocomplete(/* clearMatches= */ false);
+      this.queryAutocomplete_(/* clearMatches= */ false);
     }
   }
 
   private closeComposebox_() {
     this.resetModes();
+    this.searchboxHandler_.clearFiles();
+    if (this.inputState_) {
+      this.searchboxHandler_.setActiveToolMode(ToolMode.kUnspecified);
+      this.searchboxHandler_.setActiveModelMode(
+          this.inputState_?.allowedModels[0] || ModelMode.kUnspecified);
+    }
     this.fire('close-composebox', {composeboxText: this.input_});
 
     if (this.isCollapsible) {
@@ -1138,7 +1166,7 @@ export class ComposeboxElement extends I18nMixinLit
     // since the verbatim match is present.
     assert(
         (this.selectedMatchIndex_ >= 0 && this.result_) ||
-            this.contextFilesSize_ > 0 || this.isVoiceInput_,
+            this.contextFilesSize_ > 0,
         'Cannot submit query with no autocomplete matches and no files in ' +
             'context.');
 
@@ -1158,7 +1186,6 @@ export class ComposeboxElement extends I18nMixinLit
           e.ctrlKey, e.metaKey, e.shiftKey);
     }
 
-    this.isVoiceInput_ = false;
     this.animationState = GlowAnimationState.SUBMITTING;
 
     // If the composebox is expandable, collapse it and clear the input after
@@ -1168,8 +1195,6 @@ export class ComposeboxElement extends I18nMixinLit
     }
 
     if (this.isCollapsible) {
-      this.submitEnabled_ = this.computeSubmitEnabled_();
-      assert(!this.submitEnabled_);
       this.$.input.blur();
     }
     this.fire('composebox-submit');
@@ -1242,12 +1267,14 @@ export class ComposeboxElement extends I18nMixinLit
     }
     this.haveReceivedAutcompleteResponse_ = true;
     this.result_ = result;
+    this.fire('zero-state-result-changed', result);
+
     const hasMatches = this.result_.matches.length > 0;
     const firstMatch = hasMatches ? this.result_.matches[0] : null;
     // Zero suggest matches are not allowed to be default. Therefore, this
     // makes sure zero suggest results aren't focused when they are returned.
     if (firstMatch && firstMatch.allowedToBeDefaultMatch) {
-      this.$.matches.selectFirst();
+      this.selectFirstMatch();
     } else if (
         this.input_.trim() && hasMatches && this.selectedMatchIndex_ >= 0 &&
         this.selectedMatchIndex_ < this.result_.matches.length) {
@@ -1277,18 +1304,22 @@ export class ComposeboxElement extends I18nMixinLit
     const {file, errorMessage} =
         this.$.context.updateFileStatus(token, status, errorType);
     if (errorMessage) {
-      if (!this.$.errorScrim.isErrorScrimShowing()) {
-        this.$.errorScrim.setErrorMessage(errorMessage);
-      }
+      this.errorMessage_ = errorMessage;
+      this.pendingUploads_.delete(token);
+      this.fileUploadsComplete = this.pendingUploads_.size === 0;
     } else if (file) {
       if (status === FileUploadStatus.kProcessingSuggestSignalsReady &&
           this.showZps && !file.type.includes('image')) {
         // Query autocomplete to get contextual suggestions for files.
-        this.queryAutocomplete(/* clearMatches= */ true);
+        this.queryAutocomplete_(/* clearMatches= */ true);
       }
+      // `NotUploaded`, `UploadStarted` come before and after `kProcessing`
+      //  respectively, so we only need to add to `pendingUploads_` when in a
+      //  type of processing state.
       if (file.status === FileUploadStatus.kProcessing ||
           file.status === FileUploadStatus.kProcessingSuggestSignalsReady) {
         this.pendingUploads_.add(file.uuid);
+        this.fileUploadsComplete = this.pendingUploads_.size === 0;
       }
       const isFinished = file?.status === FileUploadStatus.kValidationFailed ||
           file.status === FileUploadStatus.kUploadSuccessful ||
@@ -1301,18 +1332,11 @@ export class ComposeboxElement extends I18nMixinLit
       if (status === FileUploadStatus.kProcessingSuggestSignalsReady &&
           file.type.includes('image')) {
         // If we're in create image mode, update the aim tool mode.
-        if (this.inCreateImageMode_) {
-          await this.setCreateImageMode_(
-              {
-                detail: {
-                  inCreateImageMode: true,
-                  imagePresent: true,
-                },
-              } as
-              CustomEvent<{inCreateImageMode: boolean, imagePresent: boolean}>);
+        if (this.activeToolMode_ === ToolMode.kImageGen) {
+          await this.handleToolMode_(ToolMode.kImageGen, true);
         } else if (this.enableImageContextualSuggestions_) {
           // Query autocomplete to get contextual suggestions for files.
-          this.queryAutocomplete(/* clearMatches= */ true);
+          this.queryAutocomplete_(/* clearMatches= */ true);
         } else {
           this.showDropdown_ = false;
         }
@@ -1321,7 +1345,7 @@ export class ComposeboxElement extends I18nMixinLit
       // Query autocomplete to get contextual suggestions for tabs.
       if (status === FileUploadStatus.kProcessing &&
           file.type.includes('tab')) {
-        this.queryAutocomplete(/* clearMatches= */ true);
+        this.queryAutocomplete_(/* clearMatches= */ true);
       }
 
       if (status === FileUploadStatus.kUploadSuccessful) {
@@ -1362,10 +1386,7 @@ export class ComposeboxElement extends I18nMixinLit
   // `queryAutocomplete` updates the `lastQueriedInput_` and makes an
   // autocomplete call through the handler. It also optionally clears existing
   // matches.
-  private queryAutocomplete(clearMatches: boolean) {
-    if (this.isVoiceInput_) {
-      return;
-    }
+  private queryAutocomplete_(clearMatches: boolean) {
     if (clearMatches) {
       this.clearAutocompleteMatches();
     }
@@ -1386,18 +1407,23 @@ export class ComposeboxElement extends I18nMixinLit
       // uploaded file state when the query submission is handled.
       this.searchboxHandler_.clearFiles();
     }
-    this.submitEnabled_ = this.computeSubmitEnabled_();
-    assert(!this.submitEnabled_);
     this.fileUploadsComplete = this.pendingUploads_.size === 0;
   }
 
   clearInput() {
     this.input_ = '';
-    this.isVoiceInput_ = false;
+    this.lastQueriedInput_ = '';
+    this.$.matches.unselect();
   }
 
   getInputText(): string {
     return this.input_;
+  }
+
+  private selectFirstMatch() {
+    if (this.result_?.matches.length) {
+      this.$.matches.selectFirst();
+    }
   }
 }
 

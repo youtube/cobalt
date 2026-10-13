@@ -348,8 +348,8 @@ void CanvasResourceSharedImage::OnRefReturned(
   // refs (necessary for the provider to actually recycle the resource in the
   // case where there this is the last outstanding ref).
   resource.reset();
-  if (Provider()) {
-    Provider()->OnResourceRefReturned(std::move(downcast_ref));
+  if (provider_) {
+    provider_->OnResourceRefReturned(std::move(downcast_ref));
   }
 }
 
@@ -375,8 +375,8 @@ CanvasResourceSharedImage::~CanvasResourceSharedImage() {
     return;
   }
 
-  if (Provider()) {
-    Provider()->OnDestroyResource();
+  if (provider_) {
+    provider_->OnDestroyResource();
   }
 }
 
@@ -416,7 +416,6 @@ scoped_refptr<StaticBitmapImage> CanvasResourceSharedImage::Bitmap() {
 
     auto image = UnacceleratedStaticBitmapImage::Create(sk_image);
     image->SetOriginClean(OriginClean());
-    image->SetHighEntropyCanvasOpTypes(HighEntropyCanvasOpTypes());
     return image;
   }
 
@@ -438,7 +437,6 @@ scoped_refptr<StaticBitmapImage> CanvasResourceSharedImage::Bitmap() {
       std::move(release_callback));
 
   DCHECK(image);
-  image->SetHighEntropyCanvasOpTypes(HighEntropyCanvasOpTypes());
   return image;
 }
 
@@ -571,10 +569,6 @@ void CanvasResourceSharedImage::OnMemoryDump(
       static_cast<int>(gpu::TracingImportance::kClientOwner));
 }
 
-CanvasResourceProviderSharedImage* CanvasResourceSharedImage::Provider() {
-  return provider_.get();
-}
-
 void CanvasResourceSharedImage::PrepareForWebGPUDummyMailbox() {
   // In the dummy WebGPU mailbox case, we skip write operation to CanvasResource
   // and therefore did not wait on `acquire_sync_token_`. Instead, the consumer
@@ -645,7 +639,6 @@ scoped_refptr<StaticBitmapImage> ExternalCanvasResource::Bitmap() {
           client_si_, sync_token(), GetAlphaType(), context_provider_wrapper_,
           owning_thread_ref_, owning_thread_task_runner_,
           std::move(release_callback));
-  image->SetHighEntropyCanvasOpTypes(HighEntropyCanvasOpTypes());
   return image;
 }
 

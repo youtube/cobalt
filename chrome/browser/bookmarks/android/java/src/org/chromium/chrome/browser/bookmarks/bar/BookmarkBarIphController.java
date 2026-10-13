@@ -14,6 +14,7 @@ import android.view.View;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.lifetime.Destroyable;
+import org.chromium.base.supplier.NonNullObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
@@ -38,6 +39,7 @@ public class BookmarkBarIphController extends BookmarkModelObserver implements D
     private final AppMenuHandler mAppMenuHandler;
     private final View mToolbarMenuButton;
     private final UserEducationHelper mUserEducationHelper;
+    private final NonNullObservableSupplier<Boolean> mXrSpaceModeObservableSupplier;
 
     /**
      * @param activity The current activity.
@@ -45,19 +47,22 @@ public class BookmarkBarIphController extends BookmarkModelObserver implements D
      * @param appMenuHandler The appMenuHandler, used to highlight the settings item.
      * @param toolbarMenuButton The toolbar menu button (3-dot) to which the IPH will be anchored.
      * @param bookmarkModel The bookmarkModel, which this class will observe for events.
+     * @param xrSpaceModeObservableSupplier The supplier for the XR space mode state.
      */
     public BookmarkBarIphController(
             Activity activity,
             Profile profile,
             AppMenuHandler appMenuHandler,
             View toolbarMenuButton,
-            BookmarkModel bookmarkModel) {
+            BookmarkModel bookmarkModel,
+            NonNullObservableSupplier<Boolean> xrSpaceModeObservableSupplier) {
         this(
                 profile,
                 appMenuHandler,
                 toolbarMenuButton,
                 bookmarkModel,
-                new UserEducationHelper(activity, profile, new Handler(Looper.getMainLooper())));
+                new UserEducationHelper(activity, profile, new Handler(Looper.getMainLooper())),
+                xrSpaceModeObservableSupplier);
     }
 
     @VisibleForTesting
@@ -66,11 +71,13 @@ public class BookmarkBarIphController extends BookmarkModelObserver implements D
             AppMenuHandler appMenuHandler,
             View toolbarMenuButton,
             BookmarkModel bookmarkModel,
-            UserEducationHelper userEducationHelper) {
+            UserEducationHelper userEducationHelper,
+            NonNullObservableSupplier<Boolean> xrSpaceModeObservableSupplier) {
         mProfile = profile;
         mAppMenuHandler = appMenuHandler;
         mToolbarMenuButton = toolbarMenuButton;
         mBookmarkModel = bookmarkModel;
+        mXrSpaceModeObservableSupplier = xrSpaceModeObservableSupplier;
         // The BookmarkBarIphController object subscribes to mBookmarkModel.
         mBookmarkModel.addObserver(this);
         mUserEducationHelper = userEducationHelper;
@@ -179,8 +186,12 @@ public class BookmarkBarIphController extends BookmarkModelObserver implements D
      */
     private boolean passesPreChecks() {
         // If the bookmark bar is already visible, there's no reason to show the IPH.
-        if (BookmarkBarUtils.isBookmarkBarVisible(mToolbarMenuButton.getContext(), mProfile))
+        boolean isXrFullSpaceMode = mXrSpaceModeObservableSupplier.get();
+        if (isXrFullSpaceMode
+                || BookmarkBarUtils.isBookmarkBarVisible(
+                        mToolbarMenuButton.getContext(), mProfile, isXrFullSpaceMode)) {
             return false;
+        }
 
         if (BookmarkBarUtils.hasUserSetDevicePrefShowBookmarksBar()) return false;
 

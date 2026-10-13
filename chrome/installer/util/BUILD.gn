@@ -46,6 +46,8 @@ if (is_win) {
       "delete_tree_work_item.h",
       "duplicate_tree_detector.cc",
       "duplicate_tree_detector.h",
+      "file_conductor.cc",
+      "file_conductor.h",
       "install_service_work_item.cc",
       "install_service_work_item.h",
       "install_service_work_item_impl.cc",
@@ -263,6 +265,16 @@ source_set("constants") {
 }
 
 if (is_win) {
+  source_set("isolation_support") {
+    public = [ "isolation_support.h" ]
+    sources = [ "isolation_support.cc" ]
+
+    deps = [
+      "//base",
+      "//chrome/install_static:install_static_util",
+    ]
+  }
+
   source_set("did_run_support") {
     public = [ "update_did_run_state.h" ]
 
@@ -327,11 +339,13 @@ if (is_win) {
       "delete_reg_value_work_item_unittest.cc",
       "delete_tree_work_item_unittest.cc",
       "duplicate_tree_detector_unittest.cc",
+      "file_conductor_unittest.cc",
       "google_update_settings_unittest.cc",
       "helper_unittest.cc",
       "initial_preferences_unittest.cc",
       "install_util_unittest.cc",
       "installation_state_unittest.cc",
+      "isolation_support_unittest.cc",
       "l10n_string_util_unittest.cc",
       "logging_installer_unittest.cc",
       "lzma_util_unittest.cc",
@@ -355,6 +369,7 @@ if (is_win) {
     ]
 
     deps = [
+      ":isolation_support",
       ":test_support",
       ":with_rc_strings",
       "//base",

@@ -148,7 +148,7 @@ class GlicApiTestBase : public T {
         base::BindRepeating(&GlicApiTestBase::OnEmbeddedTestServerHttpRequest,
                             base::Unretained(this)));
 
-    T::add_mock_glic_query_param(
+    T::AddMockGlicQueryParam(
         "test",
         ::testing::UnitTest::GetInstance()->current_test_info()->name());
 
@@ -171,7 +171,7 @@ class GlicApiTestBase : public T {
     base::CommandLine::ForCurrentProcess()->AppendSwitch(
         ::switches::kGlicHostLogging);
     T::SetGlicPagePath("/glic/browser_tests/test.html");
-    T::add_mock_glic_query_param("testsrc", js_source_path);
+    T::AddMockGlicQueryParam("testsrc", js_source_path);
   }
 
   ~GlicApiTestBase() override = default;
@@ -180,14 +180,14 @@ class GlicApiTestBase : public T {
     T::host_resolver()->AddRule("a.com", "127.0.0.1");
     T::host_resolver()->AddRule("b.com", "127.0.0.1");
     T::DisableWarming();
-    NonInteractiveGlicTest::SetUpOnMainThread();
+    T::SetUpOnMainThread();
   }
 
   void TearDownOnMainThread() override {
     if (!next_step_required_.empty()) {
       FAIL() << "Test not finished: call ContinueJsTest()";
     }
-    NonInteractiveGlicTest::TearDownOnMainThread();
+    T::TearDownOnMainThread();
   }
 
   GlicKeyedService* GetService() {
@@ -307,7 +307,7 @@ class GlicApiTestBase : public T {
 
     ASSERT_THAT(result, content::EvalJsResult::IsOk());
     if (result.is_dict()) {
-      const base::Value::Dict& dict = result.ExtractDict();
+      const base::DictValue& dict = result.ExtractDict();
       auto* id = dict.Find("id");
       if (id && id->is_string() && id->GetString() == "next-step") {
         step_data_ = dict.Find("payload")->Clone();

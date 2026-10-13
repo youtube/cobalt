@@ -1,6 +1,7 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="or">
+<translation id="1035560095760914532">ଯେ କୌଣସି ସମୟରେ Chromeକୁ ଆକ୍ସେସ କରିବା ପାଇଁ ଏହାକୁ ନିମ୍ନ ଏରିଆରେ ରଖନ୍ତୁ</translation>
 <translation id="1076643793026027628">Chrome ସ୍ୱତଃ YouTube ଇନକଗ୍ନିଟୋ ଲିଙ୍କଗୁଡ଼ିକୁ ଇନକଗ୍ନିଟୋରେ ଖୋଲେ।</translation>
 <translation id="1081114897601629648">ନିମ୍ନଲିଖିତ ପାସୱାର୍ଡଗୁଡ଼ିକ Google Password Managerରେ ଇମ୍ପୋର୍ଟ କରାଯାଇନାହିଁ, କାରଣ ସେଗୁଡ଼ିକ ଆବଶ୍ୟକତା ସହିତ ମେଳ ହେଉନାହିଁ।</translation>
 <translation id="1086486568852410168">Google Lens ମାଧ୍ୟମରେ ସର୍ଚ୍ଚ କରନ୍ତୁ</translation>
@@ -86,6 +87,10 @@
 <translation id="2767464022270041271">ସେଭ କରାଯାଇଥିବା କୌଣସି ପାସୱାର୍ଡ ନାହିଁ। ଆପଣ ଆପଣଙ୍କ ପାସୱାର୍ଡଗୁଡ଼ିକୁ ସେଭ କଲେ Google Password Manager ସେଗୁଡ଼ିକୁ ଯାଞ୍ଚ କରିପାରିବ।</translation>
 <translation id="2788811701191021538">Chromeରେ ପେମେଣ୍ଟ ପଦ୍ଧତି ସେଟିଂ ପୃଷ୍ଠା ଖୋଲେ।</translation>
 <translation id="2876628302275096482"><ph name="BEGIN_LINK" />Chrome ଆପଣଙ୍କ ଡାଟାକୁ କିପରି ପ୍ରାଇଭେଟ ରଖେ<ph name="END_LINK" /> ସେ ବିଷୟରେ ଅଧିକ ଜାଣନ୍ତୁ</translation>
+<translation id="288992067439702510">ଆପଣ Google Chromeର <ph name="LIMIT" /> ବୁକମାର୍କର ସୀମାରେ ପହଞ୍ଚିଯାଇଛନ୍ତି, ତେଣୁ ଆପଣଙ୍କର କିଛି ବୁକମାର୍କ ଏପର୍ଯ୍ୟନ୍ତ ଆପଣଙ୍କ Google ଆକାଉଣ୍ଟରେ ସେଭ ହୋଇନାହିଁ।
+
+ଆପଣ କିଛି ବୁକମାର୍କକୁ ଡିଲିଟ ନକରିବା ପର୍ଯ୍ୟନ୍ତ ଆପଣଙ୍କ ଆକାଉଣ୍ଟରେ ନୂଆ ବୁକମାର୍କଗୁଡ଼ିକୁ ସେଭ କରାଯାଇପାରିବ ନାହିଁ। ଯଦି ଆପଣ ବର୍ତ୍ତମାନ ସାଇନ ଆଉଟ କରନ୍ତି, ତେବେ ସେଭ ହୋଇନଥିବା ବୁକମାର୍କଗୁଡ଼ିକ ଡିଲିଟ ହୋଇଯିବ।</translation>
+<translation id="2901621928549457170">ଆପଣଙ୍କ iPadରେ ଆପଣ ଥିବା ସମୟରେ Chromeକୁ ତୁରନ୍ତ ଖୋଲନ୍ତୁ</translation>
 <translation id="2922914028977213693">ଆପଣଙ୍କ iPadରେ Chromeରୁ ସବୁଠୁ ଅଧିକ ସୁବିଧା ପାଇବା ପାଇଁ ଏଠାରେ ଟାପ କରନ୍ତୁ।</translation>
 <translation id="292371311537977079">Chrome ସେଟିଂସ</translation>
 <translation id="2923827943290349720">ଆପଣ Chrome ବନ୍ଦ କରିବା ସମୟରେ ଇନକଗ୍ନିଟୋ ଟାବଗୁଡ଼ିକୁ ଲକ୍ କରନ୍ତୁ</translation>
@@ -170,6 +175,8 @@
 <translation id="5119391094379141756">Chrome ଚୟନ କରନ୍ତୁ</translation>
 <translation id="5123188916260706415">Chromeରେ ଭଏସ ମାଧ୍ୟମରେ ସର୍ଚ୍ଚ କରନ୍ତୁ</translation>
 <translation id="5162467219239570114">Chromeର ସଂସ୍କରଣ ପୁରୁଣା ଅଟେ। ଯଦି <ph name="BEGIN_LINK" />ଆପ୍ ଷ୍ଟୋର<ph name="END_LINK" />ରେ କୌଣସି ଅପଡେଟ୍ ଉପଲବ୍ଧ ନାହିଁ, ତେବେ ଏହା ହୋଇପାରେ ଯେ ଆପଣଙ୍କ ଡିଭାଇସ୍ Chromeର ନୂଆ ସଂସ୍କରଣକୁ ଆଉ ସମର୍ଥନ କରୁନାହିଁ।</translation>
+<translation id="5172049865623113551">ଆପଣଙ୍କ iPhoneରେ ଆପଣ ଥିବା ସମୟରେ ତୁରନ୍ତ Chrome ଖୋଲନ୍ତୁ</translation>
+<translation id="5179095426828744632">ଆପଣଙ୍କ ଡକରୁ Chromeକୁ ଶୀଘ୍ର ଆକ୍ସେସ କରନ୍ତୁ</translation>
 <translation id="5184329579814168207">Chromeରେ ଖୋଲନ୍ତୁ</translation>
 <translation id="5190139289262548459">ଆପଣଙ୍କ ସଂସ୍ଥା, <ph name="DOMAIN" />, ଆପଣ ସାଇନ ଇନ କରିଥିବା ଆକାଉଣ୍ଟକୁ ଏବଂ Chromeକୁ କିପରି ବ୍ୟବହାର କରାଯାଏ, ତାହା ପରିଚାଳନା କରେ।</translation>
 <translation id="5209238444239954363">Chrome ଅପଡେଟଗୁଡ଼ିକ ପାଇଁ ଯାଞ୍ଚ କରିପାରିଲା ନାହିଁ। ପରେ ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।</translation>
@@ -304,7 +311,6 @@
 <translation id="7787205077729386167">iOSରେ Chrome ସେଟିଂସ ଖୋଲନ୍ତୁ, ତା'ପରେ "ଡିଫଲ୍ଟ ବ୍ରାଉଜର ଆପ"ରେ ଟାପ କରି Chromeକୁ ଚୟନ କରନ୍ତୁ।</translation>
 <translation id="778855399387580014">ଗୋଟିଏ ନୂଆ Chrome ଟାବ୍‌ରେ ଏକ ସର୍ଚ୍ଚ କରନ୍ତୁ।</translation>
 <translation id="7792140019572081272">ଫେସ ID ମାଧ୍ୟମରେ Chrome ଆପଣଙ୍କ ସମ୍ବେଦନଶୀଳ ଡାଟାକୁ ସୁରକ୍ଷିତ ରଖେ।</translation>
-<translation id="7825648984449922731">Chromeରେ Gemini ମାଧ୍ୟମରେ ଇମେଜକୁ ଏଡିଟ କରନ୍ତୁ</translation>
 <translation id="7855730255114109580">Google Chrome ଅପ୍-ଟୁ-ଡେଟ୍ ଅଛି</translation>
 <translation id="787226752901403048">ଟାବ ଗ୍ରୁପଗୁଡ଼ିକରେ ସେୟାର କରିବା ଓ ଯୋଗ ଦେବା ଏବଂ ଆଇଡିଆଗୁଡ଼ିକ ଉପରେ ଏକାଠି କାମ କରିବା ପାଇଁ Chromeରେ ସାଇନ ଇନ କରନ୍ତୁ</translation>
 <translation id="7897703007638178753">Chromeର ବର୍ତ୍ତମାନର ଟାବଗୁଡ଼ିକୁ ଦେଖନ୍ତୁ</translation>

@@ -191,7 +191,7 @@ export class ModuleElement extends I18nMixinLit
   }
 
   protected computeDomain_(urlVisit: URLVisit): string {
-    let domain = (new URL(urlVisit.url.url)).hostname;
+    let domain = (new URL(urlVisit.url)).hostname;
     domain = domain.replace('www.', '');
     return domain;
   }
@@ -233,6 +233,12 @@ export class ModuleElement extends I18nMixinLit
 
   protected onInfoDialogClose_() {
     this.showInfoDialog_ = false;
+  }
+}
+
+declare global {
+  interface HTMLElementTagNameMap {
+    'ntp-most-relevant-tab-resumption': ModuleElement;
   }
 }
 

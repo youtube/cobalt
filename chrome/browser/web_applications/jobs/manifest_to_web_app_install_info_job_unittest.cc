@@ -79,23 +79,14 @@ IconPurpose IconInfoPurposeToManifestPurpose(
   }
 }
 
-// Returns a simple `SafeUrlPattern` to match the given hostname.
-blink::SafeUrlPattern UrlPatternForHostname(std::string_view hostname) {
+// Returns a simple `SafeUrlPattern` for the "/foo" pathname.
+blink::SafeUrlPattern FooUrlPattern() {
   blink::SafeUrlPattern pattern;
-  pattern.hostname = {
+  pattern.pathname = {
       liburlpattern::Part(liburlpattern::PartType::kFixed,
-                          /*value=*/std::string(hostname),
-                          liburlpattern::Modifier::kNone),
+                          /*value=*/"/foo", liburlpattern::Modifier::kNone),
   };
   return pattern;
-}
-
-blink::SafeUrlPattern FooUrlPattern() {
-  return UrlPatternForHostname("foo.com");
-}
-
-blink::SafeUrlPattern BarUrlPattern() {
-  return UrlPatternForHostname("bar.com");
 }
 
 class ManifestToWebAppInstallInfoJobTest : public WebAppTest {
@@ -153,9 +144,7 @@ class ManifestToWebAppInstallInfoJobTest : public WebAppTest {
     manifest->display = DisplayMode::kStandalone;
     manifest->name = u"Foo App";
     manifest->icons = {icon};
-    manifest->has_background_color = true;
     manifest->background_color = SK_ColorRED;
-    manifest->has_theme_color = true;
     manifest->theme_color = SK_ColorGREEN;
     manifest->launch_handler = LaunchHandler(
         blink::mojom::ManifestLaunchHandler_ClientMode::kNavigateNew);
@@ -321,10 +310,6 @@ TEST_F(ManifestToWebAppInstallInfoJobTest, BasicFieldsPopulated) {
   EXPECT_EQ(u"platform", related_app.platform);
   EXPECT_EQ(GURL("http://www.example.com"), related_app.url);
   EXPECT_EQ(u"id", related_app.id);
-
-  // Check borderless URL patterns were set.
-  EXPECT_THAT(web_app_info->borderless_url_patterns,
-              testing::ElementsAre(FooUrlPattern()));
 }
 
 TEST_F(ManifestToWebAppInstallInfoJobTest, EmptyNameUsesShortName) {
@@ -946,7 +931,7 @@ TEST_F(ManifestToWebAppInstallInfoJobTest, DeferIconFetching) {
   shortcut_icon_state.bitmaps = {shortcut_icon_bitmap};
 
   // Verify no icons are downloaded.
-  base::Value::Dict debug_data;
+  base::DictValue debug_data;
   base::test::TestFuture<std::unique_ptr<WebAppInstallInfo>> future;
   std::unique_ptr<WebAppDataRetriever> retriever =
       provider().web_contents_manager().CreateDataRetriever();
@@ -1387,26 +1372,6 @@ TEST_F(ManifestToWebAppInstallInfoTrustedIconTest,
               gfx::test::EqualsBitmap(largest_icon));
 }
 
-TEST_F(ManifestToWebAppInstallInfoJobTest, BorderlessUrlPatternsOverwrite) {
-  SetupBasicPageState();
-  auto& manifest = GetPageManifest();
-
-  manifest->display_override = {
-      blink::Manifest::DisplayOverride::CreateUnframed({FooUrlPattern()}),
-      blink::Manifest::DisplayOverride::CreateUnframed({BarUrlPattern()})};
-
-  auto web_app_info = GetWebAppInstallInfoFromJob(*manifest);
-
-  // Expect only the patterns from the last "borderless" entry to be present
-  // because the current implementation overwrites `borderless_url_patterns`
-  // with every `url_patterns` entry in `display_override`. This is a temporary
-  // solution until `borderless_url_patterns` is replaced by `display_override`
-  // and `url_patterns`.
-  // TODO(crbug.com/467939520): Remove `borderless_url_patterns`.
-  EXPECT_THAT(web_app_info->borderless_url_patterns,
-              testing::ElementsAre(BarUrlPattern()));
-}
-
 class ManifestToWebAppInstallInfoLocalizationTest
     : public ManifestToWebAppInstallInfoJobTest {
  protected:
@@ -1440,6 +1405,67 @@ class ManifestToWebAppInstallInfoLocalizationTest
               locale);
         },
         original_locale));
+  }
+
+  blink::Manifest::ShortcutItem CreateShortcutWithLocalizedNames(
+      const std::u16string& default_name,
+      const GURL& url,
+      const std::vector<
+          std::tuple<std::string,
+                     std::u16string,
+                     std::optional<std::u16string>,
+                     std::optional<blink::mojom::Manifest_TextDirection>>>&
+          localized_names) {
+    blink::Manifest::ShortcutItem shortcut_item;
+    shortcut_item.name = default_name;
+    shortcut_item.url = url;
+    if (!localized_names.empty()) {
+      shortcut_item.name_localized.emplace();
+      for (const auto& [locale, name, lang, dir] : localized_names) {
+        blink::Manifest::ManifestLocalizedTextObject localized_text;
+        localized_text.value = name;
+        localized_text.lang = lang;
+        localized_text.dir = dir;
+        shortcut_item.name_localized->insert(
+            {icu::Locale(locale.c_str()), std::move(localized_text)});
+      }
+    }
+    return shortcut_item;
+  }
+
+  blink::Manifest::ShortcutItem CreateShortcutWithLocalizedIcons(
+      const std::u16string& name,
+      const GURL& url,
+      const GURL& default_icon_url,
+      const std::map<std::string, GURL>& localized_icons) {
+    blink::Manifest::ShortcutItem shortcut_item;
+    shortcut_item.name = name;
+    shortcut_item.url = url;
+
+    blink::Manifest::ImageResource default_icon;
+    default_icon.src = default_icon_url;
+    default_icon.sizes = {gfx::Size(kIconSize, kIconSize)};
+    default_icon.purpose = {Purpose::ANY};
+    shortcut_item.icons.push_back(default_icon);
+    web_contents_manager().GetOrCreateIconState(default_icon_url).bitmaps = {
+        GetBasicIconBitmap()};
+
+    if (!localized_icons.empty()) {
+      shortcut_item.icons_localized.emplace();
+      for (const auto& [locale, icon_url] : localized_icons) {
+        std::vector<blink::Manifest::ImageResource> icons;
+        blink::Manifest::ImageResource icon;
+        icon.src = icon_url;
+        icon.sizes = {gfx::Size(kIconSize, kIconSize)};
+        icon.purpose = {Purpose::ANY};
+        icons.push_back(icon);
+        shortcut_item.icons_localized->insert(
+            {icu::Locale(locale.c_str()), icons});
+        web_contents_manager().GetOrCreateIconState(icon_url).bitmaps = {
+            GetBasicIconBitmap()};
+      }
+    }
+    return shortcut_item;
   }
 
   base::test::ScopedFeatureList feature_list_;
@@ -1754,6 +1780,445 @@ TEST_F(ManifestToWebAppInstallInfoLocalizationTest, EmptyValueIgnored) {
   EXPECT_EQ(u"Default Description", web_app_info->description);
   EXPECT_FALSE(web_app_info->description.lang().has_value());
   EXPECT_FALSE(web_app_info->description.dir().has_value());
+}
+
+TEST_F(ManifestToWebAppInstallInfoLocalizationTest,
+       LocalizedIconsEmptyVectorIgnored) {
+  base::ScopedClosureRunner reset_locale = SaveAndRestoreLocale();
+
+  SetupBasicPageState();
+  auto& manifest = GetPageManifest();
+  manifest->icons_localized.emplace();
+
+  std::vector<blink::Manifest::ImageResource> empty_icons;
+  manifest->icons_localized->insert({icu::Locale("en-US"), empty_icons});
+
+  g_browser_process->GetFeatures()->application_locale_storage()->Set("en-US");
+
+  auto web_app_info = GetWebAppInstallInfoFromJob(*manifest);
+
+  // Should fall back to default icon from SetupBasicPageState() since the
+  // localized icons vector is empty.
+  ASSERT_EQ(1u, web_app_info->manifest_icons.size());
+  EXPECT_EQ(icon_url_, web_app_info->manifest_icons[0].url);
+
+  ASSERT_EQ(1u, web_app_info->trusted_icons.size());
+  EXPECT_EQ(icon_url_, web_app_info->trusted_icons[0].url);
+}
+
+TEST_F(ManifestToWebAppInstallInfoLocalizationTest,
+       LocalizedIconsExactLocaleMatch) {
+  base::ScopedClosureRunner reset_locale = SaveAndRestoreLocale();
+
+  SetupBasicPageState();
+  auto& manifest = GetPageManifest();
+  manifest->icons_localized.emplace();
+
+  const GURL en_us_icon_url("https://www.foo.bar/en_us_icon.png");
+  std::vector<blink::Manifest::ImageResource> en_us_icons;
+  blink::Manifest::ImageResource en_us_icon;
+  en_us_icon.src = en_us_icon_url;
+  en_us_icon.sizes = {gfx::Size(kIconSize, kIconSize)};
+  en_us_icon.purpose = {Purpose::ANY};
+  en_us_icons.push_back(en_us_icon);
+  manifest->icons_localized->insert({icu::Locale("en-US"), en_us_icons});
+  web_contents_manager().GetOrCreateIconState(en_us_icon_url).bitmaps = {
+      GetBasicIconBitmap()};
+
+  const GURL fr_fr_icon_url("https://www.foo.bar/fr_fr_icon.png");
+  std::vector<blink::Manifest::ImageResource> fr_fr_icons;
+  blink::Manifest::ImageResource fr_fr_icon;
+  fr_fr_icon.src = fr_fr_icon_url;
+  fr_fr_icon.sizes = {gfx::Size(kIconSize, kIconSize)};
+  fr_fr_icon.purpose = {Purpose::ANY};
+  fr_fr_icons.push_back(fr_fr_icon);
+  manifest->icons_localized->insert({icu::Locale("fr-FR"), fr_fr_icons});
+  web_contents_manager().GetOrCreateIconState(fr_fr_icon_url).bitmaps = {
+      GetBasicIconBitmap()};
+
+  g_browser_process->GetFeatures()->application_locale_storage()->Set("fr-FR");
+
+  auto web_app_info = GetWebAppInstallInfoFromJob(*manifest);
+  ASSERT_EQ(1u, web_app_info->manifest_icons.size());
+  EXPECT_EQ(fr_fr_icon_url, web_app_info->manifest_icons[0].url);
+
+  ASSERT_EQ(1u, web_app_info->trusted_icons.size());
+  EXPECT_EQ(fr_fr_icon_url, web_app_info->trusted_icons[0].url);
+}
+
+TEST_F(ManifestToWebAppInstallInfoLocalizationTest,
+       LocalizedIconsLanguageOnlyFallback) {
+  base::ScopedClosureRunner reset_locale = SaveAndRestoreLocale();
+
+  SetupBasicPageState();
+  auto& manifest = GetPageManifest();
+  manifest->icons_localized.emplace();
+
+  const GURL en_icon_url("https://www.foo.bar/en_icon.png");
+  std::vector<blink::Manifest::ImageResource> en_icons;
+  blink::Manifest::ImageResource en_icon;
+  en_icon.src = en_icon_url;
+  en_icon.sizes = {gfx::Size(kIconSize, kIconSize)};
+  en_icon.purpose = {Purpose::ANY};
+  en_icons.push_back(en_icon);
+  manifest->icons_localized->insert({icu::Locale("en"), en_icons});
+  web_contents_manager().GetOrCreateIconState(en_icon_url).bitmaps = {
+      GetBasicIconBitmap()};
+
+  // Set application locale to "en-US", localized icon should fall back to "en"
+  g_browser_process->GetFeatures()->application_locale_storage()->Set("en-US");
+
+  auto web_app_info = GetWebAppInstallInfoFromJob(*manifest);
+  ASSERT_EQ(1u, web_app_info->manifest_icons.size());
+  EXPECT_EQ(en_icon_url, web_app_info->manifest_icons[0].url);
+
+  ASSERT_EQ(1u, web_app_info->trusted_icons.size());
+  EXPECT_EQ(en_icon_url, web_app_info->trusted_icons[0].url);
+}
+
+TEST_F(ManifestToWebAppInstallInfoLocalizationTest,
+       LocalizedIconsFallbackToDefault) {
+  base::ScopedClosureRunner reset_locale = SaveAndRestoreLocale();
+
+  SetupBasicPageState();
+  auto& manifest = GetPageManifest();
+  manifest->icons_localized.emplace();
+
+  const GURL de_de_icon_url("https://www.foo.bar/de_de_icon.png");
+  std::vector<blink::Manifest::ImageResource> de_de_icons;
+  blink::Manifest::ImageResource de_de_icon;
+  de_de_icon.src = de_de_icon_url;
+  de_de_icon.sizes = {gfx::Size(kIconSize, kIconSize)};
+  de_de_icon.purpose = {Purpose::ANY};
+  de_de_icons.push_back(de_de_icon);
+  manifest->icons_localized->insert({icu::Locale("de-DE"), de_de_icons});
+  web_contents_manager().GetOrCreateIconState(de_de_icon_url).bitmaps = {
+      GetBasicIconBitmap()};
+
+  // Set application locale to "en-US", which has no match in icons_localized
+  g_browser_process->GetFeatures()->application_locale_storage()->Set("en-US");
+
+  auto web_app_info = GetWebAppInstallInfoFromJob(*manifest);
+
+  // Should fall back to default icon from SetupBasicPageState()
+  ASSERT_EQ(1u, web_app_info->manifest_icons.size());
+  EXPECT_EQ(icon_url_, web_app_info->manifest_icons[0].url);
+
+  ASSERT_EQ(1u, web_app_info->trusted_icons.size());
+  EXPECT_EQ(icon_url_, web_app_info->trusted_icons[0].url);
+}
+
+TEST_F(ManifestToWebAppInstallInfoLocalizationTest,
+       LocalizedIconsMultipleIconsInLocale) {
+  base::ScopedClosureRunner reset_locale = SaveAndRestoreLocale();
+
+  SetupBasicPageState();
+  auto& manifest = GetPageManifest();
+  manifest->icons_localized.emplace();
+
+  SkBitmap icon_64_bitmap = gfx::test::CreateBitmap(64, SK_ColorRED);
+  SkBitmap icon_128_bitmap = gfx::test::CreateBitmap(128, SK_ColorBLUE);
+
+  const GURL en_us_icon_64_url("https://www.foo.bar/en_us_icon_64.png");
+  const GURL en_us_icon_128_url("https://www.foo.bar/en_us_icon_128.png");
+
+  std::vector<blink::Manifest::ImageResource> en_us_icons;
+  blink::Manifest::ImageResource en_us_icon_64;
+  en_us_icon_64.src = en_us_icon_64_url;
+  en_us_icon_64.sizes = {gfx::Size(64, 64)};
+  en_us_icon_64.purpose = {Purpose::ANY};
+  en_us_icons.push_back(en_us_icon_64);
+  web_contents_manager().GetOrCreateIconState(en_us_icon_64_url).bitmaps = {
+      icon_64_bitmap};
+
+  blink::Manifest::ImageResource en_us_icon_128;
+  en_us_icon_128.src = en_us_icon_128_url;
+  en_us_icon_128.sizes = {gfx::Size(128, 128)};
+  en_us_icon_128.purpose = {Purpose::ANY};
+  en_us_icons.push_back(en_us_icon_128);
+  web_contents_manager().GetOrCreateIconState(en_us_icon_128_url).bitmaps = {
+      icon_128_bitmap};
+
+  manifest->icons_localized->insert({icu::Locale("en-US"), en_us_icons});
+
+  g_browser_process->GetFeatures()->application_locale_storage()->Set("en-US");
+
+  auto web_app_info = GetWebAppInstallInfoFromJob(*manifest);
+  ASSERT_EQ(2u, web_app_info->manifest_icons.size());
+  EXPECT_EQ(en_us_icon_64_url, web_app_info->manifest_icons[0].url);
+  EXPECT_EQ(en_us_icon_128_url, web_app_info->manifest_icons[1].url);
+
+  ASSERT_EQ(1u, web_app_info->trusted_icons.size());
+  EXPECT_EQ(en_us_icon_128_url, web_app_info->trusted_icons[0].url);
+
+  // Verify expected bitmap chosen of proper size.
+  EXPECT_THAT(web_app_info->trusted_icon_bitmaps.any[128],
+              gfx::test::EqualsBitmap(icon_128_bitmap));
+
+  // Verify bitmaps populated properly for `any` icons.
+  for (const auto& icon_data : web_app_info->trusted_icon_bitmaps.any) {
+    const SkBitmap& bitmap = icon_data.second;
+    gfx::test::CheckColors(
+        bitmap.getColor(bitmap.width() / 2, bitmap.height() / 2), SK_ColorBLUE);
+  }
+}
+
+TEST_F(ManifestToWebAppInstallInfoLocalizationTest,
+       LocalizedShortcutNameExactMatch) {
+  base::ScopedClosureRunner reset_locale = SaveAndRestoreLocale();
+
+  SetupBasicPageState();
+  auto& manifest = GetPageManifest();
+
+  manifest->shortcuts.push_back(CreateShortcutWithLocalizedNames(
+      u"Default Shortcut", GURL("https://www.foo.bar/shortcut"),
+      {{"en-US", u"American Shortcut", u"en-US",
+        blink::mojom::Manifest_TextDirection::kLTR},
+       {"fr-FR", u"Raccourci Français", u"fr-FR",
+        blink::mojom::Manifest_TextDirection::kLTR}}));
+
+  g_browser_process->GetFeatures()->application_locale_storage()->Set("en-US");
+
+  auto web_app_info = GetWebAppInstallInfoFromJob(*manifest);
+  ASSERT_EQ(1u, web_app_info->shortcuts_menu_item_infos.size());
+  EXPECT_EQ(u"American Shortcut",
+            web_app_info->shortcuts_menu_item_infos[0].name);
+}
+
+TEST_F(ManifestToWebAppInstallInfoLocalizationTest,
+       LocalizedShortcutNameLanguageOnlyFallback) {
+  base::ScopedClosureRunner reset_locale = SaveAndRestoreLocale();
+
+  SetupBasicPageState();
+  auto& manifest = GetPageManifest();
+
+  // Only "en" generic locale is provided, not "en-US".
+  manifest->shortcuts.push_back(CreateShortcutWithLocalizedNames(
+      u"Default Shortcut", GURL("https://www.foo.bar/shortcut"),
+      {{"en", u"Generic English Shortcut", u"en",
+        blink::mojom::Manifest_TextDirection::kLTR}}));
+
+  // Application locale is "en-US", should fall back to "en".
+  g_browser_process->GetFeatures()->application_locale_storage()->Set("en-US");
+
+  auto web_app_info = GetWebAppInstallInfoFromJob(*manifest);
+  ASSERT_EQ(1u, web_app_info->shortcuts_menu_item_infos.size());
+  EXPECT_EQ(u"Generic English Shortcut",
+            web_app_info->shortcuts_menu_item_infos[0].name);
+}
+
+TEST_F(ManifestToWebAppInstallInfoLocalizationTest,
+       LocalizedShortcutNameFallbackToDefault) {
+  base::ScopedClosureRunner reset_locale = SaveAndRestoreLocale();
+
+  SetupBasicPageState();
+  auto& manifest = GetPageManifest();
+
+  manifest->shortcuts.push_back(CreateShortcutWithLocalizedNames(
+      u"Default Shortcut", GURL("https://www.foo.bar/shortcut"),
+      {{"de-DE", u"Deutscher Shortcut", u"de-DE",
+        blink::mojom::Manifest_TextDirection::kLTR}}));
+
+  // Application locale is "en-US", no match found.
+  g_browser_process->GetFeatures()->application_locale_storage()->Set("en-US");
+
+  auto web_app_info = GetWebAppInstallInfoFromJob(*manifest);
+  ASSERT_EQ(1u, web_app_info->shortcuts_menu_item_infos.size());
+  EXPECT_EQ(u"Default Shortcut",
+            web_app_info->shortcuts_menu_item_infos[0].name);
+}
+
+TEST_F(ManifestToWebAppInstallInfoLocalizationTest,
+       LocalizedShortcutIconsExactMatch) {
+  base::ScopedClosureRunner reset_locale = SaveAndRestoreLocale();
+
+  SetupBasicPageState();
+  auto& manifest = GetPageManifest();
+
+  const GURL default_icon_url("https://www.foo.bar/default_shortcut_icon.png");
+  const GURL en_us_icon_url("https://www.foo.bar/en_us_shortcut_icon.png");
+  const GURL fr_fr_icon_url("https://www.foo.bar/fr_fr_shortcut_icon.png");
+
+  manifest->shortcuts.push_back(CreateShortcutWithLocalizedIcons(
+      u"Shortcut", GURL("https://www.foo.bar/shortcut"), default_icon_url,
+      {{"en-US", en_us_icon_url}, {"fr-FR", fr_fr_icon_url}}));
+
+  g_browser_process->GetFeatures()->application_locale_storage()->Set("fr-FR");
+
+  auto web_app_info = GetWebAppInstallInfoFromJob(*manifest);
+  ASSERT_EQ(1u, web_app_info->shortcuts_menu_item_infos.size());
+  auto& shortcut_info = web_app_info->shortcuts_menu_item_infos[0];
+  auto icons = shortcut_info.GetShortcutIconInfosForPurpose(IconPurpose::ANY);
+  ASSERT_EQ(1u, icons.size());
+  EXPECT_EQ(fr_fr_icon_url, icons[0].url);
+}
+
+TEST_F(ManifestToWebAppInstallInfoLocalizationTest,
+       LocalizedShortcutIconsLanguageOnlyFallback) {
+  base::ScopedClosureRunner reset_locale = SaveAndRestoreLocale();
+
+  SetupBasicPageState();
+  auto& manifest = GetPageManifest();
+
+  const GURL default_icon_url("https://www.foo.bar/default_shortcut_icon.png");
+  const GURL en_icon_url("https://www.foo.bar/en_shortcut_icon.png");
+
+  // Only "en" generic locale icon is provided.
+  manifest->shortcuts.push_back(CreateShortcutWithLocalizedIcons(
+      u"Shortcut", GURL("https://www.foo.bar/shortcut"), default_icon_url,
+      {{"en", en_icon_url}}));
+
+  // Application locale is "en-US", should fall back to "en".
+  g_browser_process->GetFeatures()->application_locale_storage()->Set("en-US");
+
+  auto web_app_info = GetWebAppInstallInfoFromJob(*manifest);
+  ASSERT_EQ(1u, web_app_info->shortcuts_menu_item_infos.size());
+  auto& shortcut_info = web_app_info->shortcuts_menu_item_infos[0];
+  auto icons = shortcut_info.GetShortcutIconInfosForPurpose(IconPurpose::ANY);
+  ASSERT_EQ(1u, icons.size());
+  EXPECT_EQ(en_icon_url, icons[0].url);
+}
+
+TEST_F(ManifestToWebAppInstallInfoLocalizationTest,
+       LocalizedShortcutIconsFallbackToDefault) {
+  base::ScopedClosureRunner reset_locale = SaveAndRestoreLocale();
+
+  SetupBasicPageState();
+  auto& manifest = GetPageManifest();
+
+  const GURL default_icon_url("https://www.foo.bar/default_shortcut_icon.png");
+  const GURL de_de_icon_url("https://www.foo.bar/de_de_shortcut_icon.png");
+
+  manifest->shortcuts.push_back(CreateShortcutWithLocalizedIcons(
+      u"Shortcut", GURL("https://www.foo.bar/shortcut"), default_icon_url,
+      {{"de-DE", de_de_icon_url}}));
+
+  // Application locale is "en-US", no match in icons_localized.
+  g_browser_process->GetFeatures()->application_locale_storage()->Set("en-US");
+
+  auto web_app_info = GetWebAppInstallInfoFromJob(*manifest);
+  ASSERT_EQ(1u, web_app_info->shortcuts_menu_item_infos.size());
+  auto& shortcut_info = web_app_info->shortcuts_menu_item_infos[0];
+  auto icons = shortcut_info.GetShortcutIconInfosForPurpose(IconPurpose::ANY);
+  ASSERT_EQ(1u, icons.size());
+  // Should fall back to default non-localized icon.
+  EXPECT_EQ(default_icon_url, icons[0].url);
+}
+
+TEST_F(ManifestToWebAppInstallInfoLocalizationTest,
+       LocalizedShortcutEmptyNameIgnored) {
+  base::ScopedClosureRunner reset_locale = SaveAndRestoreLocale();
+
+  SetupBasicPageState();
+  auto& manifest = GetPageManifest();
+
+  // Empty localized name should be ignored.
+  manifest->shortcuts.push_back(CreateShortcutWithLocalizedNames(
+      u"Default Shortcut", GURL("https://www.foo.bar/shortcut"),
+      {{"en-US", u"", u"en-US", blink::mojom::Manifest_TextDirection::kLTR}}));
+
+  g_browser_process->GetFeatures()->application_locale_storage()->Set("en-US");
+
+  auto web_app_info = GetWebAppInstallInfoFromJob(*manifest);
+  ASSERT_EQ(1u, web_app_info->shortcuts_menu_item_infos.size());
+
+  // Should fall back to default name since localized is empty.
+  EXPECT_EQ(u"Default Shortcut",
+            web_app_info->shortcuts_menu_item_infos[0].name);
+}
+
+TEST_F(ManifestToWebAppInstallInfoLocalizationTest,
+       LocalizedShortcutIconsEmptyVectorIgnored) {
+  base::ScopedClosureRunner reset_locale = SaveAndRestoreLocale();
+
+  SetupBasicPageState();
+  auto& manifest = GetPageManifest();
+
+  const GURL default_icon_url("https://www.foo.bar/default_shortcut_icon.png");
+
+  // Empty localized icons vector should be ignored
+  manifest->shortcuts.push_back(CreateShortcutWithLocalizedIcons(
+      u"Shortcut", GURL("https://www.foo.bar/shortcut"), default_icon_url, {}));
+
+  g_browser_process->GetFeatures()->application_locale_storage()->Set("en-US");
+
+  auto web_app_info = GetWebAppInstallInfoFromJob(*manifest);
+  ASSERT_EQ(1u, web_app_info->shortcuts_menu_item_infos.size());
+  auto& shortcut_info = web_app_info->shortcuts_menu_item_infos[0];
+  auto icons = shortcut_info.GetShortcutIconInfosForPurpose(IconPurpose::ANY);
+  ASSERT_EQ(1u, icons.size());
+  // Should fall back to default icon since localized is empty.
+  EXPECT_EQ(default_icon_url, icons[0].url);
+}
+
+TEST_F(ManifestToWebAppInstallInfoLocalizationTest,
+       LocalizedShortcutIconsOnlyWithDefaultName) {
+  base::ScopedClosureRunner reset_locale = SaveAndRestoreLocale();
+
+  SetupBasicPageState();
+  auto& manifest = GetPageManifest();
+
+  const GURL default_icon_url("https://www.foo.bar/default_shortcut_icon.png");
+  const GURL en_us_icon_url("https://www.foo.bar/en_us_shortcut_icon.png");
+
+  // Create a shortcut with default name and localized icons only.
+  manifest->shortcuts.push_back(CreateShortcutWithLocalizedIcons(
+      u"Default Shortcut Name", GURL("https://www.foo.bar/shortcut"),
+      default_icon_url, {{"en-US", en_us_icon_url}}));
+
+  g_browser_process->GetFeatures()->application_locale_storage()->Set("en-US");
+
+  auto web_app_info = GetWebAppInstallInfoFromJob(*manifest);
+  ASSERT_EQ(1u, web_app_info->shortcuts_menu_item_infos.size());
+  auto& shortcut_info = web_app_info->shortcuts_menu_item_infos[0];
+
+  // Default name should be used since no localized name was provided.
+  EXPECT_EQ(u"Default Shortcut Name", shortcut_info.name);
+
+  // Localized icon should be selected.
+  auto icons = shortcut_info.GetShortcutIconInfosForPurpose(IconPurpose::ANY);
+  ASSERT_EQ(1u, icons.size());
+  EXPECT_EQ(en_us_icon_url, icons[0].url);
+}
+
+TEST_F(ManifestToWebAppInstallInfoLocalizationTest,
+       LocalizedShortcutNameOnlyWithDefaultIcons) {
+  base::ScopedClosureRunner reset_locale = SaveAndRestoreLocale();
+
+  SetupBasicPageState();
+  auto& manifest = GetPageManifest();
+
+  const GURL default_icon_url("https://www.foo.bar/default_shortcut_icon.png");
+
+  // Create a shortcut with localized name but default icons only.
+  auto shortcut = CreateShortcutWithLocalizedNames(
+      u"Default Shortcut Name", GURL("https://www.foo.bar/shortcut"),
+      {{"en-US", u"American Shortcut Name", u"en-US",
+        blink::mojom::Manifest_TextDirection::kLTR}});
+
+  blink::Manifest::ImageResource default_icon;
+  default_icon.src = default_icon_url;
+  default_icon.sizes = {gfx::Size(kIconSize, kIconSize)};
+  default_icon.purpose = {Purpose::ANY};
+  shortcut.icons.push_back(default_icon);
+  web_contents_manager().GetOrCreateIconState(default_icon_url).bitmaps = {
+      GetBasicIconBitmap()};
+
+  manifest->shortcuts.push_back(std::move(shortcut));
+
+  g_browser_process->GetFeatures()->application_locale_storage()->Set("en-US");
+
+  auto web_app_info = GetWebAppInstallInfoFromJob(*manifest);
+  ASSERT_EQ(1u, web_app_info->shortcuts_menu_item_infos.size());
+  auto& shortcut_info = web_app_info->shortcuts_menu_item_infos[0];
+
+  // Localized name should be used.
+  EXPECT_EQ(u"American Shortcut Name", shortcut_info.name);
+
+  // Default icon should be used since no localized icons were provided.
+  auto icons = shortcut_info.GetShortcutIconInfosForPurpose(IconPurpose::ANY);
+  ASSERT_EQ(1u, icons.size());
+  EXPECT_EQ(default_icon_url, icons[0].url);
 }
 
 }  // namespace

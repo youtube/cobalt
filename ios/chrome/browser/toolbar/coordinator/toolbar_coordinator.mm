@@ -19,7 +19,7 @@
 #import "ios/chrome/browser/orchestrator/ui_bundled/omnibox_focus_orchestrator_parity.h"
 #import "ios/chrome/browser/overlays/model/public/overlay_presentation_context.h"
 #import "ios/chrome/browser/prerender/model/prerender_browser_agent.h"
-#import "ios/chrome/browser/segmentation_platform/model/segmentation_platform_service_factory.h"
+#import "ios/chrome/browser/shared/coordinator/layout_guide/layout_guide_util.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
@@ -27,15 +27,20 @@
 #import "ios/chrome/browser/shared/public/commands/activity_service_commands.h"
 #import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
+#import "ios/chrome/browser/shared/public/commands/contextual_panel_entrypoint_commands.h"
 #import "ios/chrome/browser/shared/public/commands/find_in_page_commands.h"
 #import "ios/chrome/browser/shared/public/commands/guided_tour_commands.h"
 #import "ios/chrome/browser/shared/public/commands/help_commands.h"
+#import "ios/chrome/browser/shared/public/commands/location_bar_badge_commands.h"
+#import "ios/chrome/browser/shared/public/commands/page_action_menu_entry_point_commands.h"
 #import "ios/chrome/browser/shared/public/commands/popup_menu_commands.h"
 #import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/shared/public/commands/text_zoom_commands.h"
 #import "ios/chrome/browser/shared/public/commands/toolbar_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
+#import "ios/chrome/browser/shared/ui/util/layout_guide_names.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
+#import "ios/chrome/browser/shared/ui/util/util_swift.h"
 #import "ios/chrome/browser/toolbar/coordinator/toolbar_mediator.h"
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/adaptive_toolbar_view_controller.h"
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/legacy_toolbar_mediator.h"
@@ -51,6 +56,7 @@
 #import "ios/chrome/browser/toolbar/ui/buttons/toolbar_button_factory.h"
 #import "ios/chrome/browser/toolbar/ui/toolbar_view_controller.h"
 #import "ios/chrome/browser/web/model/web_navigation_browser_agent.h"
+#import "ios/chrome/common/ui/util/constraints_ui_util.h"
 #import "ios/chrome/common/ui/util/ui_util.h"
 #import "ios/components/webui/web_ui_url_constants.h"
 #import "ios/web/public/web_state.h"
@@ -62,8 +68,11 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
 
 }  // namespace
 
-@interface ToolbarCoordinator () <GuidedTourCommands,
+@interface ToolbarCoordinator () <ContextualPanelEntrypointCommands,
+                                  GuidedTourCommands,
+                                  LocationBarBadgeCommands,
                                   LocationBarCoordinatorHeightDelegate,
+                                  PageActionMenuEntryPointCommands,
                                   PrimaryToolbarViewControllerDelegate,
                                   ToolbarCommands,
                                   ToolbarMediatorDelegate>
@@ -102,8 +111,6 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
   /// animation of focusing/defocusing the omnibox changes depending on this
   /// position.
   ToolbarType _steadyStateOmniboxPosition;
-  /// Whether the omnibox focusing should happen with animation.
-  BOOL _enableAnimationsForOmniboxFocus;
   //// Indicates whether the focus came from a tap on the NTP's fakebox.
   BOOL _focusedFromFakebox;
   /// Indicates whether the fakebox was pinned on last signal to focus from
@@ -115,10 +122,14 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
   ToolbarMediator* _topToolbarMediator;
   /// Top toolbar view controller.
   ToolbarViewController* _topToolbarViewController;
+  /// Top location bar coordinator.
+  LocationBarCoordinator* _topLocationBarCoordinator;
   /// Bottom toolbar mediator.
   ToolbarMediator* _bottomToolbarMediator;
   /// Bottom toolbar view controller.
   ToolbarViewController* _bottomToolbarViewController;
+  /// Bottom location bar coordinator.
+  LocationBarCoordinator* _bottomLocationBarCoordinator;
 }
 
 - (instancetype)initWithBrowser:(Browser*)browser {
@@ -146,7 +157,6 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
   if (self.started) {
     return;
   }
-  _enableAnimationsForOmniboxFocus = YES;
   // Set a default position, overriden by `setInitialOmniboxPosition` below.
   _omniboxPosition = ToolbarType::kPrimary;
 
@@ -154,6 +164,12 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
   [browser->GetCommandDispatcher()
       startDispatchingToTarget:self
                    forProtocol:@protocol(FakeboxFocuser)];
+
+  if (IsChromeNextIaEnabled()) {
+    [browser->GetCommandDispatcher()
+        startDispatchingToTarget:self
+                     forProtocol:@protocol(PageActionMenuEntryPointCommands)];
+  }
 
   if (IsBestOfAppGuidedTourEnabled()) {
     [self.browser->GetCommandDispatcher()
@@ -168,19 +184,45 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
     self.popupPresenterDelegate = self.drsViewController;
   }
 
-  segmentation_platform::DeviceSwitcherResultDispatcher* deviceSwitcherResult =
-      nullptr;
-  if (!browser->GetProfile()->IsOffTheRecord()) {
-    deviceSwitcherResult =
-        segmentation_platform::SegmentationPlatformServiceFactory::
-            GetDispatcherForProfile(browser->GetProfile());
-  }
   self.legacyToolbarMediator = [[LegacyToolbarMediator alloc]
       initWithWebStateList:browser->GetWebStateList()
                isIncognito:browser->GetProfile()->IsOffTheRecord()];
   self.legacyToolbarMediator.delegate = self;
-  self.legacyToolbarMediator.deviceSwitcherResultDispatcher =
-      deviceSwitcherResult;
+
+  if (IsChromeNextIaEnabled()) {
+    _topLocationBarCoordinator = [self createLocationBarCoordinator];
+    _topToolbarMediator = [self createToolbarMediatorTopPosition:YES];
+    _topToolbarViewController = [self
+        createToolbarViewControllerForMediator:_topToolbarMediator
+                                   locationBar:_topLocationBarCoordinator
+                                                   .locationBarViewController];
+
+    _bottomLocationBarCoordinator = [self createLocationBarCoordinator];
+    _bottomToolbarMediator = [self createToolbarMediatorTopPosition:NO];
+    _bottomToolbarViewController = [self
+        createToolbarViewControllerForMediator:_bottomToolbarMediator
+                                   locationBar:_bottomLocationBarCoordinator
+                                                   .locationBarViewController];
+
+    LayoutGuideCenter* layoutGuideCenter = LayoutGuideCenterForBrowser(browser);
+    [layoutGuideCenter referenceView:_topToolbarViewController.view
+                           underName:kPrimaryToolbarGuide];
+    [layoutGuideCenter
+        referenceView:_topLocationBarCoordinator.locationBarViewController.view
+            underName:kTopOmniboxGuide];
+    [layoutGuideCenter referenceView:_bottomToolbarViewController.view
+                           underName:kSecondaryToolbarGuide];
+
+    [self.browser->GetCommandDispatcher()
+        startDispatchingToTarget:self
+                     forProtocol:@protocol(ContextualPanelEntrypointCommands)];
+    [self.browser->GetCommandDispatcher()
+        startDispatchingToTarget:self
+                     forProtocol:@protocol(LocationBarBadgeCommands)];
+
+    self.started = YES;
+    return;
+  }
 
   self.locationBarCoordinator =
       [[LocationBarCoordinator alloc] initWithBrowser:browser];
@@ -190,19 +232,6 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
       self.popupPresenterDelegate;
   [self.locationBarCoordinator start];
 
-  if (IsChromeNextIaEnabled()) {
-    _topToolbarMediator = [self createToolbarMediatorTopPosition:YES];
-    _topToolbarViewController =
-        [self createToolbarViewControllerForMediator:_topToolbarMediator];
-
-    _bottomToolbarMediator = [self createToolbarMediatorTopPosition:NO];
-    _bottomToolbarViewController =
-        [self createToolbarViewControllerForMediator:_bottomToolbarMediator];
-
-    self.started = YES;
-    return;
-  }
-
   self.primaryToolbarCoordinator.viewControllerDelegate = self;
   self.primaryToolbarCoordinator.toolbarHeightDelegate =
       self.toolbarHeightDelegate;
@@ -211,13 +240,15 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
       self.toolbarHeightDelegate;
   [self.secondaryToolbarCoordinator start];
 
-  if (base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdateV2)) {
-    self.orchestrator = [[OmniboxFocusOrchestratorParity alloc] init];
-  } else {
-    self.orchestrator = [[OmniboxFocusOrchestrator alloc] init];
-  }
+  if (!IsChromeNextIaEnabled()) {
+    if (base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdateV2)) {
+      self.orchestrator = [[OmniboxFocusOrchestratorParity alloc] init];
+    } else {
+      self.orchestrator = [[OmniboxFocusOrchestrator alloc] init];
+    }
 
-  [self updateOrchestratorAnimatee];
+    [self updateOrchestratorAnimatee];
+  }
 
   if (IsBottomOmniboxAvailable()) {
     [self.legacyToolbarMediator setInitialOmniboxPosition];
@@ -241,6 +272,21 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
   if (!self.started) {
     return;
   }
+
+  if (IsChromeNextIaEnabled()) {
+    [_topToolbarMediator disconnect];
+    _topToolbarMediator = nil;
+    [_topLocationBarCoordinator stop];
+    _topLocationBarCoordinator = nil;
+    _topToolbarViewController = nil;
+
+    [_bottomToolbarMediator disconnect];
+    _bottomToolbarMediator = nil;
+    [_bottomLocationBarCoordinator stop];
+    _bottomLocationBarCoordinator = nil;
+    _bottomToolbarViewController = nil;
+  }
+
   self.orchestrator.editViewAnimatee = nil;
   self.orchestrator.locationBarAnimatee = nil;
   self.orchestrator = nil;
@@ -259,7 +305,6 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
   [self.legacyToolbarMediator disconnect];
   self.legacyToolbarMediator.omniboxConsumer = nil;
   self.legacyToolbarMediator.delegate = nil;
-  self.legacyToolbarMediator.deviceSwitcherResultDispatcher = nullptr;
   self.legacyToolbarMediator = nil;
 
   [self.browser->GetCommandDispatcher() stopDispatchingToTarget:self];
@@ -291,8 +336,8 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
   return self.secondaryToolbarCoordinator.viewController;
 }
 
-- (id<SharingPositioner>)sharingPositioner {
-  return self.primaryToolbarCoordinator.SharingPositioner;
+- (UIView*)shareButton {
+  return self.primaryToolbarCoordinator.shareButton;
 }
 
 // Public and in `ToolbarMediatorDelegate`.
@@ -327,13 +372,21 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
   BOOL isOffTheRecord = self.isOffTheRecord;
   BOOL canShowTabStrip = CanShowTabStrip(self.traitEnvironment);
 
-  // Hide the toolbar when displaying content suggestions without the tab
-  // strip, without the focused omnibox, only when in split toolbar mode.
-  BOOL hideToolbar = isNTP && !isOffTheRecord && ![self inEditState] &&
-                     !canShowTabStrip &&
-                     IsSplitToolbarMode(self.traitEnvironment);
+  if (IsChromeNextIaEnabled()) {
+    // Hide the toolbar when on regular NTP on iPhone landscape.
+    BOOL hideToolbar = isNTP && !isOffTheRecord && !canShowTabStrip &&
+                       IsSplitToolbarMode(self.traitEnvironment);
 
-  self.primaryToolbarViewController.view.hidden = hideToolbar;
+    self.primaryToolbarViewController.view.hidden = hideToolbar;
+  } else {
+    // Hide the toolbar when displaying content suggestions without the tab
+    // strip, without the focused omnibox, only when in split toolbar mode.
+    BOOL hideToolbar = isNTP && !isOffTheRecord && ![self inEditState] &&
+                       !canShowTabStrip &&
+                       IsSplitToolbarMode(self.traitEnvironment);
+
+    self.primaryToolbarViewController.view.hidden = hideToolbar;
+  }
 }
 
 - (BOOL)isLoadingPrerenderer {
@@ -356,6 +409,7 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
 
 - (void)transitionToLocationBarFocusedState:(BOOL)focused
                                  completion:(ProceduralBlock)completion {
+  CHECK(!IsChromeNextIaEnabled());
   // Disable infobarBanner overlays when focusing the omnibox as they overlap
   // with primary toolbar.
   OverlayPresentationContext* infobarBannerContext =
@@ -385,10 +439,8 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
     editStatePosition = ToolbarType::kPrimary;
   }
 
-  BOOL animateTransition = _enableAnimationsForOmniboxFocus &&
-                           (editStatePosition == _steadyStateOmniboxPosition);
+  BOOL animateTransition = (editStatePosition == _steadyStateOmniboxPosition);
 
-  __weak __typeof(self) weakSelf = self;
   BOOL toolbarExpanded = focused && !CanShowTabStrip(self.traitEnvironment);
   if (base::FeatureList::IsEnabled(kOmniboxDRSPrototype) && focused) {
     [self.baseViewController presentViewController:self.drsViewController
@@ -403,10 +455,7 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
                         toolbarExpanded:toolbarExpanded
                                 trigger:[self omniboxFocusTrigger]
                                animated:animateTransition
-                             completion:^{
-                               [weakSelf focusTransitionDidComplete:focused
-                                                         completion:completion];
-                             }];
+                             completion:completion];
   }
 
   [self.primaryToolbarCoordinator.viewController setLocationBarFocused:focused];
@@ -417,14 +466,17 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
 }
 
 - (BOOL)isOmniboxFirstResponder {
+  CHECK(!IsChromeNextIaEnabled());
   return [self.locationBarCoordinator isOmniboxFirstResponder];
 }
 
 - (BOOL)showingOmniboxPopup {
+  CHECK(!IsChromeNextIaEnabled());
   return [self.locationBarCoordinator showingOmniboxPopup];
 }
 
 - (BOOL)inEditState {
+  CHECK(!IsChromeNextIaEnabled());
   return [self isOmniboxFirstResponder] || [self showingOmniboxPopup];
 }
 
@@ -509,6 +561,7 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
 }
 
 - (CGFloat)locationBarCompactDisplayHeight {
+  CHECK(!IsChromeNextIaEnabled());
   return self.locationBarCoordinator.locationBarViewController.view.frame.size
              .height +
          kLocationBarCompactBottomPadding;
@@ -516,23 +569,11 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
 
 #pragma mark - FakeboxFocuser
 
-- (void)focusOmniboxNoAnimation {
-  _enableAnimationsForOmniboxFocus = NO;
-  [self.locationBarCoordinator focusOmniboxFromFakebox];
-  _enableAnimationsForOmniboxFocus = YES;
-  // If the pasteboard is containing a URL, the omnibox popup suggestions are
-  // displayed as soon as the omnibox is focused.
-  // If the fake omnibox animation is triggered at the same time, it is possible
-  // to see the NTP going up where the real omnibox should be displayed.
-  if ([self.locationBarCoordinator omniboxPopupHasAutocompleteResults]) {
-    [self onFakeboxAnimationComplete];
-  }
-}
-
 - (void)focusOmniboxFromFakebox:(BOOL)fromFakebox
                             pinned:(BOOL)pinned
     fakeboxButtonsSnapshotProvider:
         (id<FakeboxButtonsSnapshotProvider>)provider {
+  CHECK(!IsChromeNextIaEnabled());
   _focusedFromFakebox = fromFakebox;
   _fakeboxPinned = pinned;
   [self.locationBarCoordinator setFakeboxButtonsSnapshotProvider:provider];
@@ -540,6 +581,7 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
 }
 
 - (void)onFakeboxBlur {
+  CHECK(!IsChromeNextIaEnabled());
   // Hide the toolbar if the NTP is currently displayed.
   web::WebState* webState =
       self.browser->GetWebStateList()->GetActiveWebState();
@@ -551,6 +593,7 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
 }
 
 - (void)onFakeboxAnimationComplete {
+  CHECK(!IsChromeNextIaEnabled());
   self.primaryToolbarViewController.view.hidden = NO;
 }
 
@@ -573,24 +616,34 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
 #pragma mark - OmniboxStateProvider
 
 - (BOOL)isOmniboxFocused {
+  CHECK(!IsChromeNextIaEnabled());
   return [self.locationBarCoordinator isOmniboxFocused];
 }
 
 #pragma mark - PopupMenuUIUpdating
 
 - (void)updateUIForOverflowMenuIPHDisplayed {
+  if (IsChromeNextIaEnabled()) {
+    // TODO(crbug.com/472279443): implement this.
+  }
   for (id<ToolbarCoordinatee> coordinator in self.coordinators) {
     [coordinator.popupMenuUIUpdater updateUIForOverflowMenuIPHDisplayed];
   }
 }
 
 - (void)updateUIForIPHDismissed {
+  if (IsChromeNextIaEnabled()) {
+    // TODO(crbug.com/472279443): implement this.
+  }
   for (id<ToolbarCoordinatee> coordinator in self.coordinators) {
     [coordinator.popupMenuUIUpdater updateUIForIPHDismissed];
   }
 }
 
 - (void)setOverflowMenuBlueDot:(BOOL)hasBlueDot {
+  if (IsChromeNextIaEnabled()) {
+    // TODO(crbug.com/472279443): implement this.
+  }
   for (id<ToolbarCoordinatee> coordinator in self.coordinators) {
     [coordinator.popupMenuUIUpdater setOverflowMenuBlueDot:hasBlueDot];
   }
@@ -600,6 +653,7 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
 
 - (void)viewControllerTraitCollectionDidChange:
     (UITraitCollection*)previousTraitCollection {
+  CHECK(!IsChromeNextIaEnabled());
   if (!_started) {
     return;
   }
@@ -607,6 +661,7 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
 }
 
 - (void)close {
+  CHECK(!IsChromeNextIaEnabled());
   if (self.locationBarFocused) {
     id<SceneCommands> sceneHandler =
         HandlerForProtocol(self.browser->GetCommandDispatcher(), SceneCommands);
@@ -616,19 +671,23 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
 
 - (void)locationBarExpandedInViewController:
     (PrimaryToolbarViewController*)viewController {
+  CHECK(!IsChromeNextIaEnabled());
   // Do nothing.
 }
 - (void)locationBarContractedInViewController:
     (PrimaryToolbarViewController*)viewController {
+  CHECK(!IsChromeNextIaEnabled());
   // Do nothing.
 }
 
 - (void)viewController:(PrimaryToolbarViewController*)viewController
     tabGroupIndicatorVisibilityUpdated:(BOOL)visible {
+  CHECK(!IsChromeNextIaEnabled());
   // Do nothing.
 }
 
 - (ToolbarCancelButtonStyle)styleForCancelButtonInToolbar {
+  CHECK(!IsChromeNextIaEnabled());
   BOOL userPreferenceBottom = _legacyToolbarMediator.preferredOmniboxPosition ==
                               ToolbarType::kSecondary;
   BOOL followSteadyState =
@@ -646,15 +705,14 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
 #pragma mark - SideSwipeToolbarInteracting
 
 - (BOOL)isInsideToolbar:(CGPoint)point {
+  if (IsChromeNextIaEnabled()) {
+    return
+        [self isPoint:point insideViewController:_topToolbarViewController] ||
+        [self isPoint:point insideViewController:_bottomToolbarViewController];
+  }
   for (id<ToolbarCoordinatee> coordinator in self.coordinators) {
-    // The toolbar frame is inset by -1 because CGRectContainsPoint does
-    // include points on the max X and Y edges, which will happen frequently
-    // with edge swipes from the right side.
-    CGRect toolbarFrame =
-        CGRectInset([coordinator viewController].view.bounds, -1, -1);
-    CGPoint pointInToolbarCoordinates =
-        [[coordinator viewController].view convertPoint:point fromView:nil];
-    if (CGRectContainsPoint(toolbarFrame, pointInToolbarCoordinates)) {
+    if ([self isPoint:point
+            insideViewController:[coordinator viewController]]) {
       return YES;
     }
   }
@@ -665,11 +723,40 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
 
 - (UIImage*)toolbarSideSwipeSnapshotForWebState:(web::WebState*)webState
                                 withToolbarType:(ToolbarType)toolbarType {
+  if (IsChromeNextIaEnabled()) {
+    ToolbarViewController* toolbar;
+    ToolbarMediator* mediator;
+    switch (toolbarType) {
+      case ToolbarType::kPrimary:
+        toolbar = _topToolbarViewController;
+        mediator = _topToolbarMediator;
+        break;
+      case ToolbarType::kSecondary:
+        toolbar = _bottomToolbarViewController;
+        mediator = _bottomToolbarMediator;
+        break;
+    }
+
+    [mediator updateConsumerWithWebState:webState];
+
+    UIView* toolbarView = toolbar.view;
+    // The toolbar must be in the view hierarchy to be snapshotted.
+    if (!toolbarView.window) {
+      return nil;
+    }
+    UIImage* toolbarSnapshot = CaptureViewWithOption(
+        toolbarView, toolbarView.window.screen.scale, kClientSideRendering);
+
+    [mediator updateConsumerWithWebState:self.browser->GetWebStateList()
+                                             ->GetActiveWebState()];
+
+    return toolbarSnapshot;
+  }
+
   AdaptiveToolbarCoordinator* adaptiveToolbarCoordinator =
       [self coordinatorWithToolbarType:toolbarType];
 
   [adaptiveToolbarCoordinator updateToolbarForSideSwipeSnapshot:webState];
-  [self updateLocationBarForSideSwipeSnapshot:webState];
 
   UIView* toolbarView = adaptiveToolbarCoordinator.viewController.view;
   // The toolbar must be in the view hierarchy to be snapshotted.
@@ -680,7 +767,6 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
       toolbarView, [[UIScreen mainScreen] scale], kClientSideRendering);
 
   [adaptiveToolbarCoordinator resetToolbarAfterSideSwipeSnapshot];
-  [self resetLocationBarAfterSideSwipeSnapshot];
 
   return toolbarSnapshot;
 }
@@ -690,6 +776,7 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
 /// Returns the coordinator coresponding to `toolbarType`.
 - (AdaptiveToolbarCoordinator*)coordinatorWithToolbarType:
     (ToolbarType)toolbarType {
+  CHECK(!IsChromeNextIaEnabled());
   switch (toolbarType) {
     case ToolbarType::kPrimary:
       return self.primaryToolbarCoordinator;
@@ -700,6 +787,7 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
 
 /// Prepares location bar for a side swipe snapshot with`webState`.
 - (void)updateLocationBarForSideSwipeSnapshot:(web::WebState*)webState {
+  CHECK(!IsChromeNextIaEnabled());
   // Hide LocationBarView when taking a snapshot on a web state that is not the
   // active one, as the URL is not updated.
   if (webState != self.browser->GetWebStateList()->GetActiveWebState()) {
@@ -709,21 +797,116 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
 
 /// Resets location bar after a side swipe snapshot.
 - (void)resetLocationBarAfterSideSwipeSnapshot {
+  CHECK(!IsChromeNextIaEnabled());
   [self.locationBarCoordinator.locationBarViewController.view setHidden:NO];
 }
 
 #pragma mark - GuidedTourCommands
 
 - (void)highlightViewInStep:(GuidedTourStep)step {
+  if (IsChromeNextIaEnabled()) {
+    // TODO(crbug.com/472279443): implement this.
+    NOTREACHED() << "Not implemented yet";
+  }
   for (id<GuidedTourCommands> coordinator in self.coordinators) {
     [coordinator highlightViewInStep:step];
   }
 }
 
 - (void)stepCompleted:(GuidedTourStep)step {
+  if (IsChromeNextIaEnabled()) {
+    // TODO(crbug.com/472279443): implement this.
+    NOTREACHED() << "Not implemented yet";
+  }
   for (id<GuidedTourCommands> coordinator in self.coordinators) {
     [coordinator stepCompleted:step];
   }
+}
+
+#pragma mark - ComposeboxAnimationBase
+
+- (void)setEntrypointViewHidden:(BOOL)hidden {
+  if (IsChromeNextIaEnabled()) {
+    [_topToolbarViewController setLocationBarHidden:hidden];
+    [_bottomToolbarViewController setLocationBarHidden:hidden];
+    return;
+  }
+  AdaptiveToolbarCoordinator* adaptiveToolbarCoordinator =
+      [self coordinatorWithToolbarType:_omniboxPosition];
+  adaptiveToolbarCoordinator.viewController.locationBarContainer.hidden =
+      hidden;
+}
+
+- (UIView*)entrypointViewVisualCopy {
+  if (IsChromeNextIaEnabled()) {
+    if ([self isOmniboxInBottomPosition] || [self isNTP]) {
+      return nil;
+    }
+
+    UIView* entrypointCopy =
+        [_topToolbarViewController locationBarContainerCopy];
+    UIView* locationBarSteadyViewVisualCopy =
+        _topLocationBarCoordinator.locationBarSteadyViewVisualCopy;
+    [entrypointCopy addSubview:locationBarSteadyViewVisualCopy];
+    locationBarSteadyViewVisualCopy.translatesAutoresizingMaskIntoConstraints =
+        NO;
+
+    AddSameConstraints(entrypointCopy, locationBarSteadyViewVisualCopy);
+    return entrypointCopy;
+  }
+
+  if (_omniboxPosition == ToolbarType::kSecondary || [self isNTP]) {
+    return nil;
+  }
+
+  AdaptiveToolbarCoordinator* adaptiveToolbarCoordinator =
+      [self coordinatorWithToolbarType:_omniboxPosition];
+  UIView* locationBarContainer =
+      adaptiveToolbarCoordinator.viewController.locationBarContainer;
+
+  UIView* entrypointCopy = [[UIView alloc] init];
+  entrypointCopy.frame =
+      [locationBarContainer convertRect:locationBarContainer.bounds toView:nil];
+  entrypointCopy.layer.cornerRadius = locationBarContainer.layer.cornerRadius;
+  entrypointCopy.backgroundColor = locationBarContainer.backgroundColor;
+  UIView* locationBarSteadyViewVisualCopy =
+      self.locationBarCoordinator.locationBarSteadyViewVisualCopy;
+  [entrypointCopy addSubview:locationBarSteadyViewVisualCopy];
+  locationBarSteadyViewVisualCopy.translatesAutoresizingMaskIntoConstraints =
+      NO;
+
+  [NSLayoutConstraint activateConstraints:@[
+    [locationBarSteadyViewVisualCopy.centerXAnchor
+        constraintEqualToAnchor:entrypointCopy.centerXAnchor],
+    [locationBarSteadyViewVisualCopy.centerYAnchor
+        constraintEqualToAnchor:entrypointCopy.centerYAnchor],
+    [locationBarSteadyViewVisualCopy.widthAnchor
+        constraintEqualToAnchor:entrypointCopy.widthAnchor],
+    [locationBarSteadyViewVisualCopy.heightAnchor
+        constraintEqualToAnchor:entrypointCopy.heightAnchor],
+  ]];
+
+  return entrypointCopy;
+}
+
+#pragma mark - LocationBarBadgeCommands
+
+- (void)updateBadgeConfig:(LocationBarBadgeConfiguration*)config {
+  CHECK(IsChromeNextIaEnabled());
+  [_topLocationBarCoordinator updateBadgeConfig:config];
+  [_bottomLocationBarCoordinator updateBadgeConfig:config];
+}
+
+- (void)updateColorForIPH {
+  CHECK(IsChromeNextIaEnabled());
+  [_topLocationBarCoordinator updateColorForIPH];
+  [_bottomLocationBarCoordinator updateColorForIPH];
+}
+
+- (void)markDisplayedBadgeAsUnread:(BOOL)read {
+  CHECK(IsChromeNextIaEnabled());
+  [_topLocationBarCoordinator markDisplayedBadgeAsUnread:read];
+  [_bottomLocationBarCoordinator markDisplayedBadgeAsUnread:read];
 }
 
 #pragma mark - LocationBarCoordinatorHeightDelegate
@@ -766,19 +949,54 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
   }
 }
 
-#pragma mark - ToolbarCommands
+#pragma mark - ContextualPanelEntrypointCommands
 
-- (void)triggerToolbarSlideInAnimation {
-  for (id<ToolbarCommands> coordinator in self.coordinators) {
-    [coordinator triggerToolbarSlideInAnimation];
-  }
+- (void)notifyContextualPanelEntrypointIPHDismissed {
+  CHECK(IsChromeNextIaEnabled());
+  [_topLocationBarCoordinator notifyContextualPanelEntrypointIPHDismissed];
+  [_bottomLocationBarCoordinator notifyContextualPanelEntrypointIPHDismissed];
 }
 
+- (void)cancelContextualPanelEntrypointLoudMoment {
+  CHECK(IsChromeNextIaEnabled());
+  [_topLocationBarCoordinator cancelContextualPanelEntrypointLoudMoment];
+  [_bottomLocationBarCoordinator cancelContextualPanelEntrypointLoudMoment];
+}
+
+#pragma mark - PageActionMenuEntryPointCommands
+
+- (void)toggleEntryPointHighlight:(BOOL)highlight {
+  CHECK(IsChromeNextIaEnabled());
+  // TODO(crbug.com/472279443): implement this.
+  NOTREACHED();
+}
+
+#pragma mark - ToolbarCommands
+
 - (void)indicateLensOverlayVisible:(BOOL)lensOverlayVisible {
+  if (IsChromeNextIaEnabled()) {
+    // TODO(crbug.com/472279443): Implement this.
+    NOTREACHED();
+  }
+
   [self.locationBarCoordinator setLensOverlayVisible:lensOverlayVisible];
 
   for (id<ToolbarCommands> coordinator in self.coordinators) {
     [coordinator indicateLensOverlayVisible:lensOverlayVisible];
+  }
+}
+
+- (void)focusLocationBarForVoiceOver {
+  if (IsChromeNextIaEnabled()) {
+    if (_topToolbarViewController.visible) {
+      [_topLocationBarCoordinator focusOmniboxForVoiceOver];
+    } else {
+      [_bottomLocationBarCoordinator focusOmniboxForVoiceOver];
+    }
+  } else {
+    id<OmniboxCommands> omniboxHandler = HandlerForProtocol(
+        self.browser->GetCommandDispatcher(), OmniboxCommands);
+    [omniboxHandler focusOmniboxForVoiceOver];
   }
 }
 
@@ -787,7 +1005,9 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
 - (void)transitionOmniboxToToolbarType:(ToolbarType)toolbarType {
   _omniboxPosition = toolbarType;
 
-  [self updateOrchestratorAnimatee];
+  if (!IsChromeNextIaEnabled()) {
+    [self updateOrchestratorAnimatee];
+  }
 
   OmniboxPositionBrowserAgent* positionBrowserAgent =
       OmniboxPositionBrowserAgent::FromBrowser(self.browser);
@@ -915,15 +1135,8 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
   }
 }
 
-- (void)focusTransitionDidComplete:(BOOL)focused
-                        completion:(ProceduralBlock)completion {
-  if (completion) {
-    completion();
-    completion = nil;
-  }
-}
-
 - (void)updateOrchestratorAnimatee {
+  CHECK(!IsChromeNextIaEnabled());
   id<ToolbarAnimatee> updatedToolbarAnimatee =
       _omniboxPosition == ToolbarType::kPrimary
           ? self.primaryToolbarCoordinator.toolbarAnimatee
@@ -949,48 +1162,6 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
       [self.locationBarCoordinator editViewAnimatee];
 }
 
-- (void)setEntrypointViewHidden:(BOOL)hidden {
-  AdaptiveToolbarCoordinator* adaptiveToolbarCoordinator =
-      [self coordinatorWithToolbarType:_omniboxPosition];
-  adaptiveToolbarCoordinator.viewController.locationBarContainer.hidden =
-      hidden;
-}
-
-- (UIView*)entrypointViewVisualCopy {
-  if (_omniboxPosition == ToolbarType::kSecondary || [self isNTP]) {
-    return nil;
-  }
-
-  AdaptiveToolbarCoordinator* adaptiveToolbarCoordinator =
-      [self coordinatorWithToolbarType:_omniboxPosition];
-  UIView* locationBarContainer =
-      adaptiveToolbarCoordinator.viewController.locationBarContainer;
-
-  UIView* entrypointCopy = [[UIView alloc] init];
-  entrypointCopy.frame =
-      [locationBarContainer convertRect:locationBarContainer.bounds toView:nil];
-  entrypointCopy.layer.cornerRadius = locationBarContainer.layer.cornerRadius;
-  entrypointCopy.backgroundColor = locationBarContainer.backgroundColor;
-  UIView* locationBarSteadyViewVisualCopy =
-      self.locationBarCoordinator.locationBarSteadyViewVisualCopy;
-  [entrypointCopy addSubview:locationBarSteadyViewVisualCopy];
-  locationBarSteadyViewVisualCopy.translatesAutoresizingMaskIntoConstraints =
-      NO;
-
-  [NSLayoutConstraint activateConstraints:@[
-    [locationBarSteadyViewVisualCopy.centerXAnchor
-        constraintEqualToAnchor:entrypointCopy.centerXAnchor],
-    [locationBarSteadyViewVisualCopy.centerYAnchor
-        constraintEqualToAnchor:entrypointCopy.centerYAnchor],
-    [locationBarSteadyViewVisualCopy.widthAnchor
-        constraintEqualToAnchor:entrypointCopy.widthAnchor],
-    [locationBarSteadyViewVisualCopy.heightAnchor
-        constraintEqualToAnchor:entrypointCopy.heightAnchor],
-  ]];
-
-  return entrypointCopy;
-}
-
 - (BOOL)isNTP {
   web::WebState* webState =
       self.browser->GetWebStateList()->GetActiveWebState();
@@ -1001,8 +1172,9 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
 }
 
 // Creates a new toolbar view controller, for the associated `mediator`.
-- (ToolbarViewController*)createToolbarViewControllerForMediator:
-    (ToolbarMediator*)mediator {
+- (ToolbarViewController*)
+    createToolbarViewControllerForMediator:(ToolbarMediator*)mediator
+                               locationBar:(UIViewController*)locationBar {
   CHECK(IsChromeNextIaEnabled());
 
   Browser* browser = self.browser;
@@ -1021,10 +1193,25 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
   toolbarViewController.sceneHandler =
       HandlerForProtocol(dispatcher, SceneCommands);
   toolbarViewController.toolbarHeightDelegate = self.toolbarHeightDelegate;
+  toolbarViewController.locationBarViewController = locationBar;
+
+  if (self.profile->IsOffTheRecord()) {
+    toolbarViewController.overrideUserInterfaceStyle = UIUserInterfaceStyleDark;
+  }
 
   mediator.consumer = toolbarViewController;
 
   return toolbarViewController;
+}
+
+// Creates a new location bar coordinator.
+- (LocationBarCoordinator*)createLocationBarCoordinator {
+  LocationBarCoordinator* coordinator =
+      [[LocationBarCoordinator alloc] initWithBrowser:self.browser];
+  coordinator.heightDelegate = self;
+  [coordinator start];
+
+  return coordinator;
 }
 
 // Creates a new toolbar mediator.
@@ -1044,9 +1231,23 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
 
 // Returns true if the omnibox is in the bottom position.
 - (BOOL)isOmniboxInBottomPosition {
+  CHECK(IsChromeNextIaEnabled());
   return IsBottomOmniboxAvailable() &&
          GetApplicationContext()->GetLocalState()->GetBoolean(
              omnibox::kIsOmniboxInBottomPosition);
+}
+
+// Returns whether `point` in window coordinates is inside the frame of
+// `viewController`'s view.
+- (BOOL)isPoint:(CGPoint)point
+    insideViewController:(UIViewController*)viewController {
+  // The toolbar bounds are inset by 1 because CGRectContainsPoint does
+  // include points on the max X and Y edges, which will happen frequently
+  // with edge swipes from the right side.
+  CGRect toolbarBounds = CGRectInset(viewController.view.bounds, -1, -1);
+  CGPoint pointInToolbarCoordinates = [viewController.view convertPoint:point
+                                                               fromView:nil];
+  return CGRectContainsPoint(toolbarBounds, pointInToolbarCoordinates);
 }
 
 @end

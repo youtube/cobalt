@@ -5,10 +5,10 @@ import 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
 
 import type {ContextualUpload, TabUpload} from 'chrome://resources/cr_components/composebox/common.js';
 import {TabUploadOrigin} from 'chrome://resources/cr_components/composebox/common.js';
-import {ComposeboxMode} from 'chrome://resources/cr_components/composebox/contextual_entrypoint_and_carousel.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import type {PropertyValues} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
+import {ToolMode} from 'chrome://resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
 
 import type {ActionChip, ActionChipsHandlerInterface, PageCallbackRouter} from '../action_chips.mojom-webui.js';
 import {ChipType} from '../action_chips.mojom-webui.js';
@@ -60,6 +60,10 @@ export class ActionChipsElement extends CrLitElement {
     return getCss();
   }
 
+  override render() {
+    return getHtml.bind(this)();
+  }
+
   static override get properties() {
     return {
       actionChips_: {type: Array, state: true},
@@ -88,11 +92,6 @@ export class ActionChipsElement extends CrLitElement {
 
   private delayTabUploads_: boolean =
       loadTimeData.getBoolean('addTabUploadDelayOnActionChipClick');
-
-  override render() {
-    return getHtml.bind(this)();
-  }
-
 
   protected getAdditionalIconClasses_(chip: ActionChip): string {
     switch (chip.type) {
@@ -165,7 +164,7 @@ export class ActionChipsElement extends CrLitElement {
 
   protected onCreateImageClick_(chip: ActionChip) {
     recordClick(ChipType.kImage);
-    this.onActionChipClick_(chip.suggestion, [], ComposeboxMode.CREATE_IMAGE);
+    this.onActionChipClick_(chip.suggestion, [], ToolMode.kImageGen);
   }
 
   protected onDeepDiveClick_(chip: ActionChip) {
@@ -179,12 +178,12 @@ export class ActionChipsElement extends CrLitElement {
       origin: TabUploadOrigin.ACTION_CHIP,
     };
     this.onActionChipClick_(
-        chip.suggestion, [deepDiveTabInfo], ComposeboxMode.DEFAULT);
+        chip.suggestion, [deepDiveTabInfo], ToolMode.kUnspecified);
   }
 
   protected onDeepSearchClick_(chip: ActionChip) {
     recordClick(ChipType.kDeepSearch);
-    this.onActionChipClick_(chip.suggestion, [], ComposeboxMode.DEEP_SEARCH);
+    this.onActionChipClick_(chip.suggestion, [], ToolMode.kDeepSearch);
   }
 
   protected onTabContextClick_(chip: ActionChip) {
@@ -198,21 +197,27 @@ export class ActionChipsElement extends CrLitElement {
       origin: TabUploadOrigin.ACTION_CHIP,
     };
     this.onActionChipClick_(
-        chip.suggestion, [recentTabInfo], ComposeboxMode.DEFAULT);
+        chip.suggestion, [recentTabInfo], ToolMode.kUnspecified);
   }
 
-  protected handleClick_(chip: ActionChip): void {
+  protected handleClick_(e: Event): void {
+    const index = Number((e.currentTarget as HTMLElement).dataset['index']);
+    const chip = this.actionChips_[index]!;
     switch (chip.type) {
       case ChipType.kImage:
+        this.handler.activateMetricsFunnel('CreateImageChip');
         this.onCreateImageClick_(chip);
         break;
       case ChipType.kDeepSearch:
+        this.handler.activateMetricsFunnel('DeepSearchChip');
         this.onDeepSearchClick_(chip);
         break;
       case ChipType.kRecentTab:
+        this.handler.activateMetricsFunnel('RecentTabChip');
         this.onTabContextClick_(chip);
         break;
       case ChipType.kDeepDive:
+        this.handler.activateMetricsFunnel('DeepDiveChip');
         this.onDeepDiveClick_(chip);
         break;
       default:
@@ -220,9 +225,11 @@ export class ActionChipsElement extends CrLitElement {
     }
   }
 
-  protected removeChip_(chip: ActionChip, e: MouseEvent) {
+  protected removeChip_(e: MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
+    const index = Number((e.currentTarget as HTMLElement).dataset['index']);
+    const chip = this.actionChips_[index]!;
     this.actionChips_ =
         this.actionChips_.filter((c) => c.suggestion !== chip.suggestion);
   }
@@ -237,11 +244,11 @@ export class ActionChipsElement extends CrLitElement {
   }
 
   protected getMostRecentTabFaviconUrl_(chip: ActionChip) {
-    return chip.tab ? this.getFaviconUrl_(chip.tab.url.url) : '';
+    return chip.tab ? this.getFaviconUrl_(chip.tab.url) : '';
   }
 
   private onActionChipClick_(
-      query: string, contextFiles: ContextualUpload[], mode: ComposeboxMode) {
+      query: string, contextFiles: ContextualUpload[], mode: ToolMode) {
     this.fire('action-chip-click', {searchboxText: query, contextFiles, mode});
   }
 
@@ -249,7 +256,7 @@ export class ActionChipsElement extends CrLitElement {
     if (!chip.tab) {
       return '';
     }
-    const url = new URL(chip.tab.url.url);
+    const url = new URL(chip.tab.url);
     const domain = url.hostname.replace(/^www\./, '');
     return `${chip.subtitle} - ${domain}`;
   }
@@ -266,6 +273,17 @@ export class ActionChipsElement extends CrLitElement {
     return chip.type !== ChipType.kDeepDive && this.showSimplifiedUI_;
   }
 
+  protected getChipSubtitle_(chip: ActionChip): string {
+    const subtitle = (this.showSimplifiedUI_ &&
+                      (chip.type === ChipType.kImage ||
+                       chip.type === ChipType.kDeepSearch) &&
+                      chip.suggestion) ?
+        chip.suggestion :
+        chip.subtitle;
+    const prefix = (subtitle && this.showDashSimplifiedUI_(chip)) ? ' - ' : '';
+    return `${prefix}${subtitle}`;
+  }
+
   protected getChipTitle_(chip: ActionChip) {
     const suggestion = chip.suggestion;
 
@@ -274,15 +292,15 @@ export class ActionChipsElement extends CrLitElement {
     }
 
     const tabTitle = chip.tab.title;
-    const url = new URL(chip.tab.url.url);
+    const url = new URL(chip.tab.url);
     const domain = url.hostname.replace(/^www\./, '');
 
     if (this.isRecentTabChip_(chip)) {
-      return `${suggestion} - ${domain}`;
+      return `${tabTitle}\n${domain}`;
     }
 
     if (this.isDeepDiveChip_(chip)) {
-      return `${tabTitle} - ${domain} - ${suggestion}`;
+      return `${suggestion}\n${domain}`;
     }
 
     return suggestion;

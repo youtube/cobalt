@@ -34,7 +34,8 @@ import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
-import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.base.supplier.ObservableSuppliers;
+import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.bookmarks.BookmarkManagerOpener;
@@ -72,7 +73,6 @@ public class BookmarkBarMediatorTest {
     @Mock private PropertyModel mPropertyModel;
     @Mock private ModelList mItemsModel;
     @Mock private PropertyModel mAllBookmarksButtonModel;
-    @Mock private ObservableSupplierImpl<Boolean> mItemsOverflowSupplier;
     @Mock private Profile mProfile;
     @Mock private BookmarkOpener mBookmarkOpener;
     @Mock private RecyclerView mItemsRecyclerView;
@@ -82,18 +82,20 @@ public class BookmarkBarMediatorTest {
     @Mock private BasicListMenu mMockListMenu;
     @Mock private BookmarkBarItemsLayoutManager mLayoutManager;
 
+    private final SettableNonNullObservableSupplier<Boolean> mItemsOverflowSupplier =
+            ObservableSuppliers.createNonNull(false);
     private Activity mActivity;
     private BookmarkBarMediator mMediator;
     private FakeBookmarkModel mBookmarkModel;
-    private ObservableSupplierImpl<Profile> mProfileSupplier;
+    private SettableNonNullObservableSupplier<Profile> mProfileSupplier;
 
     @Before
     public void setUp() {
+        mProfileSupplier = ObservableSuppliers.createNonNull(mProfile);
         mActivityScenarioRule.getScenario().onActivity((activity) -> mActivity = activity);
 
         mBookmarkModel = FakeBookmarkModel.createModel();
         BookmarkModel.setInstanceForTesting(mBookmarkModel);
-        mProfileSupplier = new ObservableSupplierImpl<>(mProfile);
         Supplier<Pair<Integer, Integer>> controlsHeightSupplier = () -> new Pair<>(0, 0);
         when(mLayoutManager.getItemsOverflowSupplier()).thenReturn(mItemsOverflowSupplier);
 
@@ -108,7 +110,7 @@ public class BookmarkBarMediatorTest {
                         mProfileSupplier,
                         /* currentTab= */ null,
                         mBookmarkOpener,
-                        new ObservableSupplierImpl<>(mBookmarkManagerOpener),
+                        ObservableSuppliers.createNonNull(mBookmarkManagerOpener),
                         mItemsRecyclerView,
                         mBookmarkBarView);
     }

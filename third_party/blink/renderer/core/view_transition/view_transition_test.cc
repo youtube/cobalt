@@ -654,7 +654,8 @@ TEST_P(ViewTransitionTest, ViewTransitionPseudoTree) {
       [](const v8::FunctionCallbackInfo<v8::Value>& info) {};
   auto start_setup_callback =
       v8::Function::New(script_state->GetContext(), start_setup_lambda,
-                        v8::External::New(script_state->GetIsolate(), &data))
+                        v8::External::New(script_state->GetIsolate(), &data,
+                                          gin::kViewTransitionTestDataTag))
           .ToLocalChecked();
 
   auto* transition = ViewTransitionSupplement::startViewTransition(
@@ -721,7 +722,8 @@ TEST_P(ViewTransitionTest, ScopedPseudoTree) {
   auto lambda = [](const v8::FunctionCallbackInfo<v8::Value>& info) {};
   auto* callback = V8ViewTransitionCallback::Create(
       v8::Function::New(script_state->GetContext(), lambda,
-                        v8::External::New(script_state->GetIsolate(), document))
+                        v8::External::New(script_state->GetIsolate(), document,
+                                          gin::kViewTransitionTestDocumentTag))
           .ToLocalChecked());
 
   auto* transition = ScopedViewTransition::startViewTransition(
@@ -1521,13 +1523,13 @@ TEST_P(ViewTransitionTest, SubframeSnapshotLayer) {
   UpdateAllLifecyclePhasesForTest();
   auto layer = transition->GetScopeSnapshotLayer();
   ASSERT_TRUE(layer);
-  EXPECT_TRUE(layer->is_live_content_layer_for_testing());
+  EXPECT_TRUE(layer->is_live_content_layer());
 
   child_document.GetPage()->GetChromeClient().WillCommitCompositorFrame();
   auto new_layer = transition->GetScopeSnapshotLayer();
   ASSERT_TRUE(new_layer);
   EXPECT_NE(layer, new_layer);
-  EXPECT_FALSE(new_layer->is_live_content_layer_for_testing());
+  EXPECT_FALSE(new_layer->is_live_content_layer());
 }
 
 TEST_P(ViewTransitionTest, ReplaceDocumentElement) {

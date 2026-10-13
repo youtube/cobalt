@@ -23,6 +23,7 @@
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/testing_pref_service.h"
+#include "components/signin/public/base/signin_buildflags.h"
 #include "content/public/test/test_web_ui.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -104,7 +105,7 @@ class PromoCardsHandlerTest : public ChromeRenderViewHostTestHarness {
     ChromeRenderViewHostTestHarness::TearDown();
   }
 
-  const base::Value::Dict& GetLastSuccessfulResponse() {
+  const base::DictValue& GetLastSuccessfulResponse() {
     auto& data = *web_ui_.call_data().back();
     EXPECT_EQ("cr.webUIResponse", data.function_name());
 
@@ -152,17 +153,20 @@ TEST_F(PromoCardsHandlerTest, GetAllPromoCards) {
   auto promo_card_handler = PromoCardsHandler(profile());
   task_environment()->RunUntilIdle();
 
-  const base::Value::List& list =
+  const base::ListValue& list =
       profile()->GetPrefs()->GetList(prefs::kPasswordManagerPromoCardsList);
   task_environment()->RunUntilIdle();
 
   std::vector<std::string> promo_cards = {
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
       "password_checkup_promo", "passwords_on_web_promo",
-      "password_shortcut_promo", "access_on_any_device_promo",
-      "move_passwords_promo"
+      "password_shortcut_promo", "access_on_any_device_promo"
 #endif
   };
+
+#if BUILDFLAG(ENABLE_DICE_SUPPORT) && BUILDFLAG(GOOGLE_CHROME_BRANDING)
+  promo_cards.emplace_back("move_passwords_promo");
+#endif
 
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
   promo_cards.emplace_back("relaunch_chrome_promo");
@@ -176,7 +180,7 @@ TEST_F(PromoCardsHandlerTest, GetAvailablePromoCard) {
   ASSERT_EQ(0, first_card()->number_of_times_shown());
   ASSERT_EQ(0, second_card()->number_of_times_shown());
 
-  base::Value::List args;
+  base::ListValue args;
   args.Append(kTestCallbackId);
 
   EXPECT_CALL(*first_card(), ShouldShowPromo).WillRepeatedly(Return(false));
@@ -193,7 +197,7 @@ TEST_F(PromoCardsHandlerTest, GetAvailablePromoCard) {
   EXPECT_EQ(0, first_card()->number_of_times_shown());
   EXPECT_EQ(1, second_card()->number_of_times_shown());
 
-  const base::Value::Dict& response = GetLastSuccessfulResponse();
+  const base::DictValue& response = GetLastSuccessfulResponse();
   EXPECT_EQ(second_card()->GetPromoID(), *response.FindString("id"));
   EXPECT_EQ(base::UTF16ToUTF8(second_card()->GetTitle()),
             *response.FindString("title"));
@@ -211,7 +215,7 @@ TEST_F(PromoCardsHandlerTest, TheOldestPromoReturned) {
   ASSERT_EQ(1, first_card()->number_of_times_shown());
   ASSERT_EQ(1, second_card()->number_of_times_shown());
 
-  base::Value::List args;
+  base::ListValue args;
   args.Append(kTestCallbackId);
 
   EXPECT_CALL(*first_card(), ShouldShowPromo).WillRepeatedly(Return(true));
@@ -224,7 +228,7 @@ TEST_F(PromoCardsHandlerTest, TheOldestPromoReturned) {
   EXPECT_EQ(2, first_card()->number_of_times_shown());
   EXPECT_EQ(1, second_card()->number_of_times_shown());
 
-  const base::Value::Dict& response = GetLastSuccessfulResponse();
+  const base::DictValue& response = GetLastSuccessfulResponse();
   EXPECT_EQ(first_card()->GetPromoID(), *response.FindString("id"));
 }
 
@@ -232,7 +236,7 @@ TEST_F(PromoCardsHandlerTest, NoAvailablePromo) {
   ASSERT_EQ(0, first_card()->number_of_times_shown());
   ASSERT_EQ(0, second_card()->number_of_times_shown());
 
-  base::Value::List args;
+  base::ListValue args;
   args.Append(kTestCallbackId);
 
   EXPECT_CALL(*first_card(), ShouldShowPromo).WillRepeatedly(Return(false));
@@ -249,7 +253,7 @@ TEST_F(PromoCardsHandlerTest, RecordPromoDismissed) {
   ASSERT_FALSE(first_card()->was_dismissed());
   ASSERT_FALSE(second_card()->was_dismissed());
 
-  base::Value::List args;
+  base::ListValue args;
   args.Append(first_card()->GetPromoID());
 
   web_ui()->ProcessWebUIMessage(GURL(), "recordPromoDismissed",
@@ -266,7 +270,7 @@ TEST_F(PromoCardsHandlerTest, RelaunchChromePromoHasTheHighestPriority) {
   ASSERT_EQ(0, some_card->number_of_times_shown());
   ASSERT_EQ(0, relaunch_chrome_card->number_of_times_shown());
 
-  base::Value::List args;
+  base::ListValue args;
   args.Append(kTestCallbackId);
 
   EXPECT_CALL(*some_card, ShouldShowPromo).WillRepeatedly(Return(true));

@@ -40,10 +40,10 @@ WebSigninBridge::WebSigninBridge(
 
 WebSigninBridge::~WebSigninBridge() = default;
 
-static jlong JNI_WebSigninBridge_CreateWithCoreAccountId(
+static int64_t JNI_WebSigninBridge_CreateWithCoreAccountId(
     JNIEnv* env,
     Profile* profile,
-    CoreAccountId& account_id,
+    const CoreAccountId& account_id,
     const JavaRef<jobject>& j_listener) {
   CHECK(j_listener) << "Listener should be non-null";
 
@@ -60,7 +60,7 @@ static jlong JNI_WebSigninBridge_CreateWithCoreAccountId(
                           std::move(on_signin_completed)));
 }
 
-static jlong JNI_WebSigninBridge_CreateWithEmail(
+static int64_t JNI_WebSigninBridge_CreateWithEmail(
     JNIEnv* env,
     Profile* profile,
     std::string& account_email,
@@ -80,7 +80,8 @@ static jlong JNI_WebSigninBridge_CreateWithEmail(
                           std::move(on_signin_completed)));
 }
 
-static void JNI_WebSigninBridge_Destroy(JNIEnv* env, jlong web_signin_bridge) {
+static void JNI_WebSigninBridge_Destroy(JNIEnv* env,
+                                        int64_t web_signin_bridge) {
   delete reinterpret_cast<WebSigninBridge*>(web_signin_bridge);
 }
 

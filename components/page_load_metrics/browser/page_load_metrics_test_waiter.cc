@@ -56,7 +56,7 @@ class WaiterMetricsObserver final : public PageLoadMetricsObserver {
   void OnSoftNavigationUpdated(
       const mojom::SoftNavigationMetrics& soft_navigation_metrics) override;
 
-  void OnPageInputTimingUpdate(uint64_t num_interactions) override;
+  void OnPageEventTimingUpdate(uint64_t num_interactions) override;
 
   void OnCpuTimingUpdate(content::RenderFrameHost* subframe_rfh,
                          const mojom::CpuTiming& timing) override;
@@ -363,7 +363,7 @@ void PageLoadMetricsTestWaiter::OnSoftNavigationMetricsUpdated(
   }
 }
 
-void PageLoadMetricsTestWaiter::OnPageInputTimingUpdated(
+void PageLoadMetricsTestWaiter::OnPageEventTimingUpdated(
     uint64_t num_interactions) {
   // The number of user interactions, including click, tap and key press in this
   // update.
@@ -502,7 +502,7 @@ void PageLoadMetricsTestWaiter::OnPageRenderDataUpdate(
                     : shift_frame_ == ShiftFrame::LayoutShiftOnlyInSubFrame;
   if ((is_relevant_frame ||
        shift_frame_ == ShiftFrame::LayoutShiftOnlyInBothFrames) &&
-      render_data.layout_shift_delta > 0) {
+      !render_data.new_layout_shifts.empty()) {
     observed_.num_layout_shifts_ += render_data.new_layout_shifts.size();
   }
 
@@ -853,9 +853,9 @@ void WaiterMetricsObserver::OnSoftNavigationUpdated(
   }
 }
 
-void WaiterMetricsObserver::OnPageInputTimingUpdate(uint64_t num_interactions) {
+void WaiterMetricsObserver::OnPageEventTimingUpdate(uint64_t num_interactions) {
   if (waiter_) {
-    waiter_->OnPageInputTimingUpdated(num_interactions);
+    waiter_->OnPageEventTimingUpdated(num_interactions);
   }
 }
 

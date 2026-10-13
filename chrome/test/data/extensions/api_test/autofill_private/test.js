@@ -69,6 +69,7 @@ var ENTITY_INSTANCE = {
   guid: GUID,
   nickname: 'Personal car',
   shouldAuthenticateToView: false,
+  storedInWallet: false,
 };
 
 var UPDATED_ENTITY_INSTANCE = structuredClone(ENTITY_INSTANCE);
@@ -1448,6 +1449,21 @@ var availableTests = [
         typeName: 9,
         typeNameAsString: 'Expiration date',
         dataType: AttributeTypeDataType.DATE,
+      },
+    ];
+    chrome.test.assertEq(expectedAttributeTypesList, attributeTypesList);
+    chrome.test.succeed();
+  },
+
+  async function getAllAttributeTypesForEntityTypeName() {
+    const attributeTypesList =
+        await chrome.autofillPrivate.getRequiredAttributeTypesForEntityTypeName(
+            /*entityTypeName=*/ 1);
+    const expectedAttributeTypesList = [
+      {
+        typeName: 7,
+        typeNameAsString: 'Number',
+        dataType: AttributeTypeDataType.STRING,
       },
     ];
     chrome.test.assertEq(expectedAttributeTypesList, attributeTypesList);

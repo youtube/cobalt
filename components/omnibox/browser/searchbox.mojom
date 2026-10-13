@@ -110,15 +110,14 @@ struct TabInfo {
   mojo_base.mojom.TimeTicks last_active;
 };
 
-// LINT.IfChange(ToolMode)
 // See also:
 // https://crsrc.org/c/third_party/omnibox_proto/aim_tools.proto
 enum ToolMode {
   kDefault = 0,
   kDeepSearch = 1,
+  kCanvas = 2,
   kCreateImage = 4,
 };
-// LINT.ThenChange(//ui/webui/resources/cr_components/composebox/contextual_entrypoint_and_carousel.ts:ComposeboxMode)
 
 // Represents a file attachment who's upload was started browser-side (currently
 // an image or PDF only).
@@ -311,6 +310,9 @@ interface PageHandler {
   // Returns a data URL for the preview of the tab with the given ID.
   GetTabPreview(int32 tab_id) => (string? preview_data_url);
 
+  // Returns information about the current input state.
+  GetInputState() => (composebox_query.mojom.InputState? state);
+
   // Called when a user has started a contextual searchbox session.
   NotifySessionStarted();
 
@@ -356,6 +358,14 @@ interface PageHandler {
 
   // Opens the Lens search UI.
   OpenLensSearch();
+
+  // Called when a user enables a tool.
+  SetActiveToolMode(composebox_query.mojom.ToolMode tool);
+  // Called when a user enables a model.
+  SetActiveModelMode(composebox_query.mojom.ModelMode model);
+
+  // Activates a metrics funnel for the session.
+  ActivateMetricsFunnel(string funnel_name);
 };
 
 // WebUI-side handler for requests from the browser.

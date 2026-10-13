@@ -69,10 +69,6 @@ function showBottomSheet(hasUserGesture: boolean): void {
     form = lastBlurredElement_;
   }
 
-  // TODO(crbug.com/40261693): convert these "gCrWebLegacy.fill" and
-  // "gCrWebLegacy.form" calls to import and call the functions directly once
-  // the conversion to TypeScript is done.
-
   const msg = {
     'frameID': gCrWeb.getFrameId(),
     'formName': getFormIdentifier(form),
@@ -252,11 +248,11 @@ function detachListeners(rendererIds: number[], refocus: boolean): void {
   }
 }
 
-const bottomSheetApi = new CrWebApi();
+const bottomSheetApi = new CrWebApi('bottomSheet');
 
 bottomSheetApi.addFunction('attachListeners', attachListeners);
 bottomSheetApi.addFunction('detachListeners', detachListeners);
 bottomSheetApi.addFunction(
     'refocusLastBlurredElement', refocusLastBlurredElement);
 
-gCrWeb.registerApi('bottomSheet', bottomSheetApi);
+gCrWeb.registerApi(bottomSheetApi);

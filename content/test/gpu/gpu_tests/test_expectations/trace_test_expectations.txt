@@ -226,11 +226,11 @@ crbug.com/329138770 [ graphite-enabled no-clang-coverage nvidia-0x2184 nvidia_lt
 crbug.com/329138770 [ graphite-enabled no-clang-coverage nvidia-0x2184 nvidia_lt_32.0.15.8180 release target-cpu-32 win10 ] WebGPUCachingTraceTest_RenderPipelineDifferentOrigins [ Failure ]
 crbug.com/329138770 [ graphite-enabled no-clang-coverage nvidia-0x2184 nvidia_lt_32.0.15.8180 release target-cpu-32 win10 ] WebGPUCachingTraceTest_RenderPipelineIncognito [ Failure ]
 
+# Win/AMD RX 5500XT Failures
+crbug.com/402989071 [ win11 amd-0x7340 ] TraceTest_MediaFoundationD3D11VideoCapture [ RetryOnFailure ]
+
 # Win/AMD RX 7600 failures
 crbug.com/402989071 [ win11 amd-0x7480 ] TraceTest_MediaFoundationD3D11VideoCapture [ Failure ]
-
-# Win/AMD RX 5500XT failures
-crbug.com/476124193 [ win11 amd-0x7340 ] TraceTest_MediaFoundationD3D11VideoCapture [ Failure ]
 
 # Win/AMD 780M failures
 # Commented out until full procurement is ready since UAT is done.
@@ -255,7 +255,6 @@ crbug.com/476124193 [ win11 amd-0x7340 ] TraceTest_MediaFoundationD3D11VideoCapt
 # New CopyToGpuMemoryBufferAsync events not found.
 crbug.com/397485312 [ win10 intel-0x9bc5 ] TraceTest_MediaFoundationD3D11VideoCapture [ Failure ]
 crbug.com/397485312 [ win10 amd-0x7340 ] TraceTest_MediaFoundationD3D11VideoCapture [ Failure ]
-
 
 crbug.com/438512194 [ win11 nvidia-0x2783 ] OverlayModeTraceTest_DirectComposition_Underlay [ Failure ]
 crbug.com/438512194 [ win11 nvidia-0x2783 ] OverlayModeTraceTest_DirectComposition_Video_MP4_Rounded_Corner [ Failure ]
@@ -298,7 +297,9 @@ crbug.com/453704683 [ win11 qualcomm-0x36334330 ] OverlayModeTraceTest_DirectCom
 
 
 # Readback assertion on macOS
-crbug.com/474873836 [ mac intel-0x3e9b angle-metal ] WebGLCanvasCaptureTraceTest_VideoStreamFrom2DAlphaCanvas_DisableReadbackFromTexture [ Failure ]
+crbug.com/474873836 [ angle-metal clang-coverage intel-0x3e9b no-asan release sonoma ] WebGLCanvasCaptureTraceTest_VideoStreamFrom2DAlphaCanvas_DisableReadbackFromTexture [ Failure ]
+crbug.com/474873836 [ angle-metal debug intel-0x3e9b no-asan no-clang-coverage sonoma ] WebGLCanvasCaptureTraceTest_VideoStreamFrom2DAlphaCanvas_DisableReadbackFromTexture [ Failure ]
+crbug.com/474873836 [ angle-metal intel-0x3e9b no-asan no-clang-coverage release sequoia ] WebGLCanvasCaptureTraceTest_VideoStreamFrom2DAlphaCanvas_DisableReadbackFromTexture [ Failure ]
 
 ###############################
 # Permanent Slow Expectations #

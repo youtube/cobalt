@@ -16,7 +16,7 @@ fn get_test_ref_ptr(b: *mut bool) -> ScopedRefPtr<test_cxx::ffi::TestRefCounted>
     unsafe { ScopedRefPtr::wrap_ref_counted(test_cxx::ffi::CreateTestRefCounted(&mut *b)) }.unwrap()
 }
 
-#[gtest(Sequences, TestScopedRefPtr)]
+#[gtest(RustSequences, TestScopedRefPtr)]
 fn test_scoped_refptr() {
     // Put the flag in an UnsafeCell so Rust won't move it around while C++
     // has it, and the borrow checker won't stop us from examining it.
@@ -46,7 +46,7 @@ fn test_scoped_refptr() {
     expect_true!(unsafe { *destroyed_flag.get() });
 }
 
-#[gtest(Sequences, TestSequencedTaskrunner)]
+#[gtest(RustSequences, TestSequencedTaskrunner)]
 fn test_sequenced_task_runner() {
     // Set up the environment so we can get a task runner and execute the tasks
     let _task_env = test_cxx::ffi::CreateTaskEnvironment();
@@ -54,7 +54,7 @@ fn test_sequenced_task_runner() {
     let task_runner = SequencedTaskRunnerHandle::get_current_default()
         .expect("We just initialized an environment so there should be a default task runner");
 
-    let run_tasks = || test_cxx::ffi::RunAllCurrentTasks(task_runner.as_scoped_refptr().as_pin());
+    let run_tasks = SequencedTaskRunnerHandle::run_all_current_tasks_on_default_runner_for_testing;
 
     // FOR_RELEASE: It would be nice to make our own type that wraps Arc<RwLock>
     // to provide a nicer API to users (in particular, no blocking functions).

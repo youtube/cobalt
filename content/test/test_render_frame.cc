@@ -186,8 +186,9 @@ class MockFrameHost : public mojom::FrameHost {
       mojo::PendingRemote<blink::mojom::BlobURLToken> blob_url_token,
       mojo::PendingAssociatedRemote<mojom::NavigationClient>,
       mojo::PendingRemote<blink::mojom::NavigationStateKeepAliveHandle>,
-      mojo::PendingReceiver<mojom::NavigationRendererCancellationListener>)
-      override {}
+      mojo::PendingReceiver<mojom::NavigationRendererCancellationListener>,
+      mojo::PendingReceiver<
+          blink::mojom::NavigationResumeDeferredCommitListener>) override {}
 
   void SubresourceResponseStarted(const url::SchemeHostPort& final_response_url,
                                   net::CertStatus cert_status) override {}
@@ -273,7 +274,6 @@ void TestRenderFrame::Navigate(
       /*document_token=*/blink::DocumentToken(),
       /*devtools_navigation_token=*/base::UnguessableToken::Create(),
       /*base_auction_nonce=*/base::Uuid::GenerateRandomV4(),
-      network::ParsedPermissionsPolicy(),
       blink::mojom::PolicyContainer::New(
           blink::mojom::PolicyContainerPolicies::New(),
           mock_policy_container_host.BindNewEndpointAndPassDedicatedRemote()),
@@ -397,7 +397,10 @@ void TestRenderFrame::SimulateBeforeUnload(bool is_reload) {
   // local descendant frames, including children of remote frames. The browser
   // process will send separate IPCs to dispatch beforeunload in any
   // out-of-process child frames.
-  frame_->DispatchBeforeUnloadEvent(is_reload);
+  base::TimeTicks before_unload_dialog_opened_time;
+  base::TimeTicks before_unload_dialog_closed_time;
+  frame_->DispatchBeforeUnloadEvent(is_reload, before_unload_dialog_opened_time,
+                                    before_unload_dialog_closed_time);
 }
 
 bool TestRenderFrame::IsPageStateUpdated() const {

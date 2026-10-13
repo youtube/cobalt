@@ -187,26 +187,27 @@ class SyncServiceImplHarness {
   // already be signed in, or this will have no effect. Returns true on success.
   [[nodiscard]] bool EnableHistorySyncNoWaitForCompletion();
 
-  // Enables Sync-the-feature for all registered sync datatypes. Returns true on
-  // success.
-  // TODO(crbug.com/353425612): Replace all calls to this with either
-  // SetupSync() or EnableAllSelectableTypes().
-  [[nodiscard]] bool EnableSyncForRegisteredDatatypes();
-
-  // Disables sync for all sync datatypes. Returns true on success.
-  // TODO(crbug.com/353425612): Replace all calls to this with
-  // DisableAllSelectableTypes() which is identical.
-  [[nodiscard]] bool DisableSyncForAllDatatypes();
-
   // Enables/disables a particular selectable type. The user must already be
   // signed in, or this has no effect.
   [[nodiscard]] bool EnableSelectableType(syncer::UserSelectableType type);
   [[nodiscard]] bool DisableSelectableType(syncer::UserSelectableType type);
 
+#if BUILDFLAG(IS_CHROMEOS)
+  // Enables a particular selectable OS type. The user must already be signed
+  // in, or this has no effect.
+  [[nodiscard]] bool EnableSelectableOsType(syncer::UserSelectableOsType type);
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
   // Enables/disables all available selectable types. The user must already be
   // signed in, or this has no effect.
   [[nodiscard]] bool EnableAllSelectableTypes();
   [[nodiscard]] bool DisableAllSelectableTypes();
+
+#if BUILDFLAG(IS_CHROMEOS)
+  // Disables all available selectable OS types. The user must already be signed
+  // in, or this has no effect.
+  [[nodiscard]] bool DisableAllSelectableOsTypes();
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
   // Returns a snapshot of the current sync session.
   syncer::SyncCycleSnapshot GetLastCycleSnapshot() const;

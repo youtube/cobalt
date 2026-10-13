@@ -265,7 +265,7 @@ MCSProbe::MCSProbe(const base::CommandLine& command_line)
       net_log_(net::NetLog::Get()),
       file_thread_("FileThread") {
   network_connection_tracker_->SetConnectionType(
-      network::mojom::ConnectionType::CONNECTION_ETHERNET);
+      net::NetworkChangeNotifier::ConnectionType::CONNECTION_ETHERNET);
   if (command_line.HasSwitch(kRMQFileName)) {
     gcm_store_path_ = command_line.GetSwitchValuePath(kRMQFileName);
   }
@@ -386,7 +386,8 @@ void MCSProbe::InitializeNetworkState() {
       /*cors_exempt_header_list=*/std::vector<std::string>());
   auto url_loader_factory_params =
       network::mojom::URLLoaderFactoryParams::New();
-  url_loader_factory_params->process_id = network::mojom::kBrowserProcessId;
+  url_loader_factory_params->process_id =
+      network::OriginatingProcess::browser();
   url_loader_factory_params->is_orb_enabled = false;
   network_context_->CreateURLLoaderFactory(
       url_loader_factory_.BindNewPipeAndPassReceiver(),

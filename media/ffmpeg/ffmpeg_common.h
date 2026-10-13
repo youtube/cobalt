@@ -49,14 +49,6 @@ namespace media {
 
 constexpr int64_t kNoFFmpegTimestamp = static_cast<int64_t>(AV_NOPTS_VALUE);
 
-// Alignment requirement by FFmpeg for input and output buffers. This need to
-// be updated to match FFmpeg when it changes.
-#if defined(ARCH_CPU_ARM_FAMILY)
-constexpr inline int kFFmpegBufferAddressAlignment = 16;
-#else
-constexpr inline int kFFmpegBufferAddressAlignment = 32;
-#endif
-
 class AudioDecoderConfig;
 class VideoDecoderConfig;
 
@@ -188,8 +180,8 @@ MEDIA_EXPORT bool AVCodecContextToAudioDecoderConfig(
 // Converts FFmpeg's channel layout to chrome's ChannelLayout.  |channels| can
 // be used when FFmpeg's channel layout is not informative in order to make a
 // good guess about the plausible channel layout based on number of channels.
-MEDIA_EXPORT ChannelLayout ChannelLayoutToChromeChannelLayout(int64_t layout,
-                                                              int channels);
+MEDIA_EXPORT ChannelLayout
+ChannelLayoutToChromeChannelLayout(const AVChannelLayout& layout);
 
 MEDIA_EXPORT AVCodecID AudioCodecToCodecID(AudioCodec audio_codec,
                                            SampleFormat sample_format);

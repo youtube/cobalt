@@ -170,7 +170,7 @@ void DownloadRequestLimiter::TabDownloadState::DidFinishNavigation(
   if (status_ == ALLOW_ONE_DOWNLOAD) {
     // When the user reloads the page without responding to the prompt,
     // they are expecting DownloadRequestLimiter to behave as if they had
-    // just initially navigated to this page. See http://crbug.com/171372.
+    // just initially navigated to this page. See http://crbug.com/40299431.
     // However, explicitly leave the limiter in place if the navigation was
     // renderer-initiated and we are in a prompt state.
     NotifyCallbacks(false);
@@ -478,21 +478,22 @@ DownloadRequestLimiter::~DownloadRequestLimiter() {
 }
 
 DownloadRequestLimiter::DownloadStatus
-DownloadRequestLimiter::GetDownloadStatus(content::WebContents* web_contents) {
-  TabDownloadState* state = GetDownloadState(web_contents, false);
+DownloadRequestLimiter::GetDownloadStatus(
+    content::WebContents* web_contents) const {
+  const TabDownloadState* state = GetDownloadState(web_contents);
   return state ? state->download_status() : ALLOW_ONE_DOWNLOAD;
 }
 
 DownloadRequestLimiter::DownloadUiStatus
 DownloadRequestLimiter::GetDownloadUiStatus(
-    content::WebContents* web_contents) {
-  TabDownloadState* state = GetDownloadState(web_contents, false);
+    content::WebContents* web_contents) const {
+  const TabDownloadState* state = GetDownloadState(web_contents);
   return state ? state->download_ui_status() : DOWNLOAD_UI_DEFAULT;
 }
 
 GURL DownloadRequestLimiter::GetDownloadOrigin(
-    content::WebContents* web_contents) {
-  TabDownloadState* state = GetDownloadState(web_contents, false);
+    content::WebContents* web_contents) const {
+  const TabDownloadState* state = GetDownloadState(web_contents);
   if (state && !state->origin().opaque())
     return state->origin().GetURL();
   return web_contents->GetVisibleURL();
@@ -500,17 +501,24 @@ GURL DownloadRequestLimiter::GetDownloadOrigin(
 
 DownloadRequestLimiter::TabDownloadState*
 DownloadRequestLimiter::GetDownloadState(
-    content::WebContents* web_contents,
-    bool create) {
+    content::WebContents* web_contents) const {
   DCHECK(web_contents);
   auto i = state_map_.find(web_contents);
-  if (i != state_map_.end())
-    return i->second;
-
-  if (!create)
+  if (i == state_map_.end()) {
     return nullptr;
+  }
+  return i->second;
+}
 
-  TabDownloadState* state = new TabDownloadState(this, web_contents);
+DownloadRequestLimiter::TabDownloadState*
+DownloadRequestLimiter::GetOrCreateDownloadState(
+    content::WebContents* web_contents) {
+  TabDownloadState* state = GetDownloadState(web_contents);
+  if (state) {
+    return state;
+  }
+
+  state = new TabDownloadState(this, web_contents);
   state_map_[web_contents] = state;
   return state;
 }
@@ -605,7 +613,7 @@ void DownloadRequestLimiter::CanDownloadImpl(
     return;
   }
 
-  TabDownloadState* state = GetDownloadState(originating_contents, true);
+  TabDownloadState* state = GetOrCreateDownloadState(originating_contents);
   state->set_download_seen();
   bool ret = true;
 

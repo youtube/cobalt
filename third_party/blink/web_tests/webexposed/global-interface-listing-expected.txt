@@ -183,6 +183,7 @@ interface AudioContext : BaseAudioContext
     getter onerror
     getter onsinkchange
     getter outputLatency
+    getter playbackStats
     getter playoutStats
     getter sinkId
     method close
@@ -295,6 +296,17 @@ interface AudioParamMap
     method has
     method keys
     method values
+interface AudioPlaybackStats
+    attribute @@toStringTag
+    getter averageLatency
+    getter maximumLatency
+    getter minimumLatency
+    getter totalDuration
+    getter underrunDuration
+    getter underrunEvents
+    method constructor
+    method resetLatency
+    method toJSON
 interface AudioPlayoutStats
     attribute @@toStringTag
     getter averageLatency
@@ -375,8 +387,8 @@ interface AuthenticatorResponse
     method constructor
 interface AutofillEvent : Event
     attribute @@toStringTag
+    getter autofillValues
     getter refill
-    method autofillValues
     method constructor
 interface BackForwardCacheRestoration : PerformanceEntry
     attribute @@toStringTag
@@ -422,6 +434,7 @@ interface BaseAudioContext : EventTarget
     getter destination
     getter listener
     getter onstatechange
+    getter renderQuantumSize
     getter sampleRate
     getter state
     method constructor
@@ -1436,11 +1449,18 @@ interface ChildNodePart : Part
     method replaceChildren
 interface Clipboard : EventTarget
     attribute @@toStringTag
+    getter onclipboardchange
     method constructor
     method read
     method readText
     method write
     method writeText
+    setter onclipboardchange
+interface ClipboardChangeEvent : Event
+    attribute @@toStringTag
+    getter changeId
+    getter types
+    method constructor
 interface ClipboardEvent : Event
     attribute @@toStringTag
     getter clipboardData
@@ -1585,6 +1605,7 @@ interface CustomElementRegistry
     method define
     method get
     method getName
+    method initialize
     method upgrade
     method whenDefined
 interface CustomEvent : Event
@@ -1974,6 +1995,7 @@ interface Document : Node
     getter contentType
     getter cookie
     getter currentScript
+    getter customElementRegistry
     getter defaultView
     getter designMode
     getter dir
@@ -2511,6 +2533,7 @@ interface Element : Node
     getter containerTiming
     getter containerTimingIgnore
     getter currentCSSZoom
+    getter customElementRegistry
     getter elementTiming
     getter firstElementChild
     getter headingOffset
@@ -4169,6 +4192,9 @@ interface HTMLEmbedElement : HTMLElement
     setter src
     setter type
     setter width
+interface HTMLFederationElement : HTMLElement
+    attribute @@toStringTag
+    method constructor
 interface HTMLFencedFrameElement : HTMLElement
     static method canLoadOpaqueURL
     attribute @@toStringTag
@@ -4662,6 +4688,9 @@ interface HTMLLinkElement : HTMLElement
     setter sizes
     setter target
     setter type
+interface HTMLLoginElement : HTMLElement
+    attribute @@toStringTag
+    method constructor
 interface HTMLMapElement : HTMLElement
     attribute @@toStringTag
     getter areas
@@ -5248,12 +5277,14 @@ interface HTMLTemplateElement : HTMLElement
     getter content
     getter parseparts
     getter shadowRootClonable
+    getter shadowRootCustomElementRegistry
     getter shadowRootDelegatesFocus
     getter shadowRootMode
     getter shadowRootSerializable
     method constructor
     setter parseparts
     setter shadowRootClonable
+    setter shadowRootCustomElementRegistry
     setter shadowRootDelegatesFocus
     setter shadowRootMode
     setter shadowRootSerializable
@@ -6762,6 +6793,7 @@ interface NavigateEvent : Event
     getter sourceElement
     getter userInitiated
     method constructor
+    method deferPageSwap
     method intercept
     method scroll
 interface Navigation : EventTarget
@@ -6797,6 +6829,10 @@ interface NavigationCurrentEntryChangeEvent : Event
     attribute @@toStringTag
     getter from
     getter navigationType
+    method constructor
+interface NavigationDeferPageSwapController
+    attribute @@toStringTag
+    method addRestoreCallback
     method constructor
 interface NavigationDestination
     attribute @@toStringTag
@@ -7513,6 +7549,7 @@ interface PerformanceLongAnimationFrameTiming : PerformanceEntry
     getter renderStart
     getter scripts
     getter styleAndLayoutStart
+    getter styleDuration
     method constructor
     method toJSON
 interface PerformanceLongTaskTiming : PerformanceEntry
@@ -7613,6 +7650,7 @@ interface PerformanceScriptTiming : PerformanceEntry
     attribute @@toStringTag
     getter executionStart
     getter forcedStyleAndLayoutDuration
+    getter forcedStyleDuration
     getter invoker
     getter invokerType
     getter pauseDuration
@@ -9866,6 +9904,7 @@ interface ShadowRoot : DocumentFragment
     getter activeElement
     getter adoptedStyleSheets
     getter clonable
+    getter customElementRegistry
     getter delegatesFocus
     getter fullscreenElement
     getter host
@@ -10211,8 +10250,10 @@ interface StyleSheetList
     method item
 interface SubmitEvent : Event
     attribute @@toStringTag
+    getter agentInvoked
     getter submitter
     method constructor
+    method respondWith
 interface Subscriber
     attribute @@toStringTag
     getter active
@@ -10442,10 +10483,10 @@ interface TimelineTrigger : AnimationTrigger
     method constructor
 interface TimelineTriggerRange
     attribute @@toStringTag
+    getter activationRangeEnd
+    getter activationRangeStart
     getter activeRangeEnd
     getter activeRangeStart
-    getter entryRangeEnd
-    getter entryRangeStart
     getter timeline
     method constructor
 interface TimelineTriggerRangeList
@@ -12394,6 +12435,10 @@ interface WebKitMutationObserver
     method disconnect
     method observe
     method takeRecords
+interface WebMCPEvent : Event
+    attribute @@toStringTag
+    getter toolName
+    method constructor
 interface WebSocket : EventTarget
     attribute @@toStringTag
     attribute CLOSED
@@ -12947,6 +12992,7 @@ interface XRSession : EventTarget
     getter inputSources
     getter interactionMode
     getter isSystemKeyboardSupported
+    getter maxRenderLayers
     getter onend
     getter onframeratechange
     getter oninputsourceschange

@@ -11,7 +11,6 @@
 
 #include <algorithm>
 #include <memory>
-#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -47,6 +46,7 @@
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/mojom/fetch_api.mojom.h"
 #include "services/service_manager/public/cpp/interface_provider.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 #include "third_party/protobuf/src/google/protobuf/repeated_ptr_field.h"
 
 using content::BrowserThread;
@@ -70,24 +70,14 @@ const int kElementIdNoParent = -1;
 // The number of user gestures to trace back for the referrer chain.
 const int kThreatDetailsUserGestureLimit = 2;
 
-typedef std::unordered_set<std::string> StringSet;
 // A set of HTTPS headers that are allowed to be collected. Contains both
 // request and response headers. All entries in this list should be lower-case
 // to support case-insensitive comparison.
-struct AllowlistedHttpsHeadersTraits
-    : base::internal::DestructorAtExitLazyInstanceTraits<StringSet> {
-  static StringSet* New(void* instance) {
-    StringSet* headers =
-        base::internal::DestructorAtExitLazyInstanceTraits<StringSet>::New(
-            instance);
-    headers->insert({"google-creative-id", "google-lineitem-id", "referer",
-                     "content-type", "content-length", "date", "server",
-                     "cache-control", "pragma", "expires"});
-    return headers;
-  }
-};
-base::LazyInstance<StringSet, AllowlistedHttpsHeadersTraits>
-    g_https_headers_allowlist = LAZY_INSTANCE_INITIALIZER;
+static constexpr auto kAllowlistedHttpsHeaders =
+    base::MakeFixedFlatSet<std::string_view>(
+        {"google-creative-id", "google-lineitem-id", "referer", "content-type",
+         "content-length", "date", "server", "cache-control", "pragma",
+         "expires"});
 
 // Clears the specified HTTPS resource of any sensitive data, only retaining
 // data that is allowlisted for collection.
@@ -100,8 +90,8 @@ void ClearHttpsResource(ClientSafeBrowsingReportRequest::Resource* resource) {
   for (int i = 0; i < orig_resource.request().headers_size(); ++i) {
     ClientSafeBrowsingReportRequest::HTTPHeader* orig_header =
         orig_resource.mutable_request()->mutable_headers(i);
-    if (g_https_headers_allowlist.Get().count(
-            base::ToLowerASCII(orig_header->name())) > 0) {
+    if (kAllowlistedHttpsHeaders.contains(
+            base::ToLowerASCII(orig_header->name()))) {
       resource->mutable_request()->add_headers()->Swap(orig_header);
     }
   }
@@ -116,8 +106,8 @@ void ClearHttpsResource(ClientSafeBrowsingReportRequest::Resource* resource) {
   for (int i = 0; i < orig_resource.response().headers_size(); ++i) {
     ClientSafeBrowsingReportRequest::HTTPHeader* orig_header =
         orig_resource.mutable_response()->mutable_headers(i);
-    if (g_https_headers_allowlist.Get().count(
-            base::ToLowerASCII(orig_header->name())) > 0) {
+    if (kAllowlistedHttpsHeaders.contains(
+            base::ToLowerASCII(orig_header->name()))) {
       resource->mutable_response()->add_headers()->Swap(orig_header);
     }
   }
@@ -245,7 +235,7 @@ void TrimElements(const std::set<int> target_ids,
             resource_id_to_url[element.resource_id()];
         resources->erase(resource_url);
       }
-      element_iter = elements->erase(element_iter);
+      elements->erase(element_iter++);
     } else {
       ++element_iter;
     }
@@ -694,7 +684,7 @@ void ThreatDetails::FinishCollection(
     if (auto it = iframe_key_to_frame_tree_id_map_.find(element_key);
         it != iframe_key_to_frame_tree_id_map_.end()) {
       content::FrameTreeNodeId frame_tree_id_of_iframe_renderer = it->second;
-      const std::unordered_set<int>& child_ids =
+      const absl::flat_hash_set<int>& child_ids =
           frame_tree_id_to_children_map_[frame_tree_id_of_iframe_renderer];
       for (const int child_id : child_ids) {
         element->add_child_ids(child_id);

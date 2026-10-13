@@ -17,18 +17,6 @@ if (is_mac) {
   import("//build/config/mac/rules.gni")
 }
 
-group("sdk") {
-  public_deps = []
-  if (!build_with_chromium) {
-    if (is_android) {
-      public_deps += [ "android" ]
-    }
-    if (is_ios) {
-      public_deps += [ ":framework_objc" ]
-    }
-  }
-}
-
 rtc_library("media_constraints") {
   sources = [
     "media_constraints.cc",
@@ -1158,6 +1146,7 @@ if (is_ios || is_mac) {
         "../rtc_base:stringutils",
         "../rtc_base:threading",
         "../rtc_base:timeutils",
+        "../rtc_base/system:plan_b_only",
         "../stats:rtc_stats",
         "../system_wrappers:metrics",
       ]
@@ -1295,7 +1284,7 @@ if (is_ios || is_mac) {
             ":sdk_unittests_bundle_data",
             ":sdk_unittests_sources",
             "../rtc_base:threading",
-            "//test:test_support",
+            "//test:test_support_objc",
           ]
           ldflags = [ "-all_load" ]
         }
@@ -1314,7 +1303,7 @@ if (is_ios || is_mac) {
             ":framework_objc+link",
             ":ios_framework_bundle",
             "../rtc_base:threading",
-            "//test:test_support",
+            "//test:test_support_objc",
           ]
         }
       }
@@ -1815,6 +1804,7 @@ if (is_ios || is_mac) {
         "../rtc_base:checks",
         "../rtc_base:logging",
         "../rtc_base:timeutils",
+        "../system_wrappers",
         "//third_party/libyuv",
       ]
 

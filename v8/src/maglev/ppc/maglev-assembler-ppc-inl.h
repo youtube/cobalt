@@ -216,17 +216,9 @@ inline void MaglevAssembler::BindBlock(BasicBlock* block) {
 // Returns the condition code for the no overflow flag.
 inline Condition MaglevAssembler::TrySmiTagInt32(Register dst, Register src) {
   if (SmiValuesAre31Bits()) {
-    if (CpuFeatures::IsSupported(PPC_9_PLUS)) {
       add(dst, src, src, SetOE);
       MoveToCrFromXer(cr0);
       return nooverflow32;
-    } else {
-      extsw(r0, src);
-      add(r0, r0, r0);
-      extsw(dst, r0);
-      CmpS64(r0, dst);
-      return eq;
-    }
   } else {
     SmiTag(dst, src);
   }
@@ -256,17 +248,9 @@ inline void MaglevAssembler::SmiAddConstant(Register dst, Register src,
 
   Move(scratch, Smi::FromInt(value));
   if (SmiValuesAre31Bits()) {
-    if (CpuFeatures::IsSupported(PPC_9_PLUS)) {
       add(dst, src, scratch, SetOE);
       MoveToCrFromXer(cr0);
       JumpIf(overflow32, fail);
-    } else {
-      extsw(r0, src);
-      add(r0, r0, scratch);
-      extsw(dst, r0);
-      CmpS64(r0, dst);
-      JumpIf(ne, fail);
-    }
   } else {
     AddS64(dst, src, scratch, SetOE, SetRC);
     JumpIf(kOverflow, fail, distance);
@@ -286,17 +270,9 @@ inline void MaglevAssembler::SmiSubConstant(Register dst, Register src,
 
   Move(scratch, Smi::FromInt(value));
   if (SmiValuesAre31Bits()) {
-    if (CpuFeatures::IsSupported(PPC_9_PLUS)) {
       sub(dst, src, scratch, SetOE);
       MoveToCrFromXer(cr0);
       JumpIf(overflow32, fail);
-    } else {
-      extsw(r0, src);
-      sub(r0, r0, scratch);
-      extsw(dst, r0);
-      CmpS64(r0, dst);
-      JumpIf(ne, fail);
-    }
   } else {
     SubS64(dst, src, scratch, SetOE, SetRC);
     JumpIf(kOverflow, fail, distance);
@@ -584,6 +560,10 @@ inline void MaglevAssembler::AddInt32(Register reg, int amount) {
   AddS32(reg, reg, Operand(amount), r0);
 }
 
+inline void MaglevAssembler::AddInt32(Register reg, Register other) {
+  AddS32(reg, reg, other);
+}
+
 inline void MaglevAssembler::AndInt32(Register reg, int mask) {
   AndU32(reg, reg, Operand(mask), r0);
 }
@@ -625,7 +605,6 @@ inline void MaglevAssembler::LoadAddress(Register dst, MemOperand location) {
 
 inline void MaglevAssembler::EmitEnterExitFrame(int extra_slots,
                                                 StackFrame::Type frame_type,
-                                                Register c_function,
                                                 Register scratch) {
   EnterExitFrame(scratch, extra_slots, frame_type);
 }
@@ -1054,6 +1033,59 @@ void MaglevAssembler::JumpIfByte(Condition cc, Register value, int32_t byte,
 void MaglevAssembler::Float64SilenceNan(DoubleRegister value) {
   CanonicalizeNaN(value, value);
 }
+
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+void MaglevAssembler::JumpIfUndefinedNan(DoubleRegister value, Register scratch,
+                                         Label* target,
+                                         Label::Distance distance) {
+  // TODO(leszeks): Right now this only accepts Zone-allocated target labels.
+  // This works because all callsites are jumping to either a deopt, deferred
+  // code, or a basic block. If we ever need to jump to an on-stack label, we
+  // have to add support for it here change the caller to pass a ZoneLabelRef.
+  DCHECK(compilation_info()->zone()->Contains(target));
+  ZoneLabelRef is_undefined = ZoneLabelRef::UnsafeFromLabelPointer(target);
+  ZoneLabelRef is_not_undefined(this);
+  fcmpu(value, value);
+  JumpIf(unordered,
+         MakeDeferredCode(
+             [](MaglevAssembler* masm, DoubleRegister value, Register scratch,
+                ZoneLabelRef is_undefined, ZoneLabelRef is_not_undefined) {
+               masm->MovDoubleToInt64(scratch, value);
+               masm->ShiftRightU64(scratch, scratch, Operand(32));
+               masm->CompareInt32AndJumpIf(scratch, kUndefinedNanUpper32,
+                                           kEqual, *is_undefined);
+               masm->Jump(*is_not_undefined);
+             },
+             value, scratch, is_undefined, is_not_undefined));
+  bind(*is_not_undefined);
+}
+
+void MaglevAssembler::JumpIfUndefinedNan(MemOperand operand, Label* target,
+                                         Label::Distance distance) {
+  MaglevAssembler::TemporaryRegisterScope temps(this);
+  Register upper_bits = temps.AcquireScratch();
+#if V8_TARGET_BIG_ENDIAN
+  LoadU32(upper_bits, operand, r0);
+#else
+  LoadU32(upper_bits,
+          MemOperand(operand.ra(), operand.rb(),
+                     operand.offset() + (kDoubleSize / 2)),
+          r0);
+#endif
+  CompareInt32AndJumpIf(upper_bits, kUndefinedNanUpper32, kEqual, target,
+                        distance);
+}
+
+void MaglevAssembler::JumpIfNotUndefinedNan(DoubleRegister value,
+                                            Register scratch, Label* target,
+                                            Label::Distance distance) {
+  JumpIfNotNan(value, target, distance);
+  MovDoubleToInt64(scratch, value);
+  ShiftRightU64(scratch, scratch, Operand(32));
+  CompareInt32AndJumpIf(scratch, kUndefinedNanUpper32, kNotEqual, target,
+                        distance);
+}
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
 
 void MaglevAssembler::JumpIfHoleNan(DoubleRegister value, Register scratch,
                                     Label* target, Label::Distance distance) {

@@ -98,7 +98,7 @@ void InstallComplete(
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
 #endif
         callback,
-    base::RepeatingCallback<void(base::Value::Dict)> event_adder,
+    base::RepeatingCallback<void(base::DictValue)> event_adder,
 #if BUILDFLAG(IS_STARBOARD)
     const OperationResult& crx_operation_result,
 #else
@@ -327,7 +327,7 @@ base::OnceClosure InstallOperation(
 #if BUILDFLAG(IS_STARBOARD)
     PersistedData* metadata,
 #endif
-    base::RepeatingCallback<void(base::Value::Dict)> event_adder,
+    base::RepeatingCallback<void(base::DictValue)> event_adder,
     base::RepeatingCallback<void(ComponentState)> state_tracker,
     CrxInstaller::ProgressCallback progress_callback,
     base::OnceCallback<void(const CrxInstaller::Result&)>

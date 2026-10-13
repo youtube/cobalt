@@ -7,12 +7,17 @@
 #include "base/test/run_until.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
+#include "chrome/browser/ui/tabs/tab_group_attention_indicator.h"
+#include "chrome/browser/ui/tabs/tab_group_features.h"
+#include "chrome/browser/ui/tabs/tab_group_model.h"
 #include "chrome/browser/ui/views/tabs/vertical/root_tab_collection_node.h"
 #include "chrome/browser/ui/views/tabs/vertical/tab_collection_node.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_group_header_view.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_view.h"
 #include "chrome/browser/ui/views/test/vertical_tabs_browser_test_mixin.h"
 #include "chrome/test/base/in_process_browser_test.h"
+#include "components/data_sharing/public/features.h"
+#include "components/tabs/public/tab_group.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/test/browser_test.h"
 #include "ui/base/models/image_model.h"
@@ -22,6 +27,12 @@
 class VerticalTabGroupViewTest
     : public VerticalTabsBrowserTestMixin<InProcessBrowserTest> {
  public:
+  const std::vector<base::test::FeatureRefAndParams> GetEnabledFeatures()
+      override {
+    return {{tabs::kVerticalTabs, {}},
+            {data_sharing::features::kDataSharingFeature, {}}};
+  }
+
   RootTabCollectionNode* root_node() {
     VerticalTabStripRegionView* region_view =
         browser()
@@ -42,16 +53,18 @@ class VerticalTabGroupViewTest
     RunScheduledLayouts();
   }
 
-  void CreateInactiveTabGroup() {
+  tab_groups::TabGroupId CreateInactiveTabGroup() {
     AppendTab();
     AppendTab();
 
-    browser()->tab_strip_model()->AddToNewGroup({1});
+    tab_groups::TabGroupId group_id =
+        browser()->tab_strip_model()->AddToNewGroup({1});
 
     browser()->tab_strip_model()->ActivateTabAt(
         2, TabStripUserGestureDetails(
                TabStripUserGestureDetails::GestureType::kOther));
     RunScheduledLayouts();
+    return group_id;
   }
 
   void ClickTabGroupHeaderToToggleCollapse() {
@@ -79,17 +92,6 @@ class VerticalTabGroupViewTest
   const tabs::TabInterface* GetTabInterfaceForNode(TabCollectionNode* node) {
     return std::get<const tabs::TabInterface*>(node->GetNodeData());
   }
-
- protected:
-  // Appends a new tab to the end of the tab strip.
-  content::WebContents* AppendTab() {
-    std::unique_ptr<content::WebContents> contents =
-        content::WebContents::Create(
-            content::WebContents::CreateParams(browser()->profile()));
-    content::WebContents* raw_contents = contents.get();
-    tab_strip_model()->AppendWebContents(std::move(contents), true);
-    return raw_contents;
-  }
 };
 
 IN_PROC_BROWSER_TEST_F(VerticalTabGroupViewTest,
@@ -100,9 +102,11 @@ IN_PROC_BROWSER_TEST_F(VerticalTabGroupViewTest,
   // second child of the unpinned collection which is the second child of the
   // root node.
   TabCollectionNode* tab_node =
-      root_node()->children()[1]->children()[1]->children()[0].get();
-  VerticalTabView* tab =
-      static_cast<VerticalTabView*>(tab_node->get_view_for_testing());
+      unpinned_collection_node()
+          ->GetChildNodeOfType(TabCollectionNode::Type::GROUP)
+          ->children()[0]
+          .get();
+  VerticalTabView* tab = static_cast<VerticalTabView*>(tab_node->view());
   // Verify the tab in the group is visible.
   EXPECT_TRUE(tab->GetVisible());
 
@@ -120,13 +124,12 @@ IN_PROC_BROWSER_TEST_F(VerticalTabGroupViewTest,
                        HeaderCollapseIconUpdatesWithCollapseState) {
   CreateInactiveTabGroup();
 
-  // The group is the second child of the unpinned collection which is the
-  // second child of the root node. Verify the collapse icon is correct.
+  // Verify the collapse icon is correct.
   TabCollectionNode* group_node =
-      root_node()->children()[1]->children()[1].get();
+      unpinned_collection_node()->GetChildNodeOfType(
+          TabCollectionNode::Type::GROUP);
   VerticalTabGroupHeaderView* group_header =
-      static_cast<VerticalTabGroupView*>(group_node->get_view_for_testing())
-          ->group_header_for_testing();
+      static_cast<VerticalTabGroupView*>(group_node->view())->group_header();
   EXPECT_EQ(group_header->collapse_icon_for_testing()
                 ->GetImageModel()
                 .GetVectorIcon()
@@ -149,13 +152,12 @@ IN_PROC_BROWSER_TEST_F(VerticalTabGroupViewTest,
                        CollapsingGroupWithActiveTabActivatesNextTab) {
   CreateActiveTabGroup();
 
-  // The grouped tab is the first child of the group collection, which is the
-  // second child of the unpinned collection which is the second child of the
-  // root node.
   TabCollectionNode* tab_node =
-      root_node()->children()[1]->children()[1]->children()[0].get();
-  VerticalTabView* tab =
-      static_cast<VerticalTabView*>(tab_node->get_view_for_testing());
+      unpinned_collection_node()
+          ->GetChildNodeOfType(TabCollectionNode::Type::GROUP)
+          ->children()[0]
+          .get();
+  VerticalTabView* tab = static_cast<VerticalTabView*>(tab_node->view());
   const tabs::TabInterface* tab_interface = GetTabInterfaceForNode(tab_node);
   // Verify the tab in the group is visible and active.
   EXPECT_TRUE(tab->GetVisible());
@@ -166,10 +168,9 @@ IN_PROC_BROWSER_TEST_F(VerticalTabGroupViewTest,
   EXPECT_TRUE(base::test::RunUntil([&]() { return !tab->GetVisible(); }));
   EXPECT_FALSE(tab_interface->IsActivated());
 
-  // The tab after the group will be the third child of the unpinned collection
-  // which is the second child of the root node.
+  // The tab after the group will be the third child of the unpinned collection.
   TabCollectionNode* next_tab_node =
-      root_node()->children()[1]->children()[2].get();
+      unpinned_collection_node()->children()[2].get();
   EXPECT_TRUE(GetTabInterfaceForNode(next_tab_node)->IsActivated());
 }
 
@@ -177,21 +178,18 @@ IN_PROC_BROWSER_TEST_F(VerticalTabGroupViewTest,
                        CollapsingGroupWithOnlyTabInStripAddsNewTab) {
   browser()->tab_strip_model()->AddToNewGroup({0});
 
-  // The unpinned collection is the second child of the
-  // root node, it should only have one child, the tab group.
-  TabCollectionNode* unpinned_collection_node =
-      root_node()->children()[1].get();
-  EXPECT_EQ(unpinned_collection_node->children().size(), 1u);
+  // The unpinned collection should only have one child, the tab group.
+  EXPECT_EQ(unpinned_collection_node()->children().size(), 1u);
 
   // Collapse the tab group and verify there are now two children and the
   // ungrouped tab is active.
   ClickTabGroupHeaderToToggleCollapse();
   EXPECT_TRUE(base::test::RunUntil(
-      [&]() { return unpinned_collection_node->children().size() == 2u; }));
-  // The tab after the group will be the second child of the unpinned collection
-  // which is the second child of the root node.
+      [&]() { return unpinned_collection_node()->children().size() == 2u; }));
+  // The tab after the group will be the second child of the unpinned
+  // collection.
   TabCollectionNode* next_tab_node =
-      root_node()->children()[1]->children()[1].get();
+      unpinned_collection_node()->children()[1].get();
   EXPECT_TRUE(GetTabInterfaceForNode(next_tab_node)->IsActivated());
 }
 
@@ -261,5 +259,34 @@ IN_PROC_BROWSER_TEST_F(VerticalTabGroupViewTest,
       kTabGroupEditorBubbleId));
   EXPECT_TRUE(base::test::RunUntil([&]() {
     return tab_group_header->editor_bubble_button()->GetVisible();
+  }));
+}
+
+IN_PROC_BROWSER_TEST_F(VerticalTabGroupViewTest, AttentionIndicator) {
+  tab_groups::TabGroupId group_id = CreateInactiveTabGroup();
+
+  TabCollectionNode* tab_node =
+      root_node()->children()[1]->children()[1]->children()[0].get();
+  VerticalTabView* tab = static_cast<VerticalTabView*>(tab_node->view());
+  // Verify the tab in the group is visible.
+  EXPECT_TRUE(tab->GetVisible());
+
+  // Collapse the tab group and verify the tab in the group is not visible.
+  ClickTabGroupHeaderToToggleCollapse();
+  EXPECT_TRUE(base::test::RunUntil([&]() { return !tab->GetVisible(); }));
+  // Set the attention indicator to true and verify its visibility.
+  browser()
+      ->tab_strip_model()
+      ->group_model()
+      ->GetTabGroup(group_id)
+      ->GetTabGroupFeatures()
+      ->attention_indicator()
+      ->SetHasAttention(true);
+  VerticalTabGroupHeaderView* const tab_group_header =
+      static_cast<VerticalTabGroupHeaderView*>(
+          BrowserElementsViews::From(browser())->GetView(
+              kTabGroupHeaderElementId));
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return tab_group_header->attention_indicator_for_testing()->GetVisible();
   }));
 }

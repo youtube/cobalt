@@ -33,7 +33,6 @@ export function getHtml(this: HistoryAppElement) {
         @search-term-native-input="${this.onToolbarSearchInputNativeInput_}"
         @search-term-cleared="${this.onToolbarSearchCleared_}">
     </history-toolbar>
-    <div id="drop-shadow" class="cr-container-shadow"></div>
     <div id="main-container">
       <history-side-bar id="contentSideBar"
           .selectedPage="${this.selectedPage_}"
@@ -72,6 +71,13 @@ export function getHtml(this: HistoryAppElement) {
                   @selected-changed="${this.onSelectedTabChanged_}">
               </cr-tabs>
             </div>` : ''}
+          ${this.showFilterChips_() ? html`
+            <history-filter-chips
+                .userVisits="${this.includeUserVisits_}"
+                .actorVisits="${this.includeActorVisits_}"
+                @filter-changed="${this.onFilterChipsChanged_}">
+            </history-filter-chips>
+          ` : ''}
           <div id="tabsScrollContainer" class="cr-scrollable">
             <div class="cr-scrollable-top-shadow" ?hidden="${this.showTabs_}"></div>
             <if expr="not is_chromeos">

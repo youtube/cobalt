@@ -45,7 +45,8 @@ NavigationCapturingSettingsCrosImpl::GetCapturingWebAppForUrl(const GURL& url) {
   if (url.SchemeIs(webapps::kIsolatedAppScheme)) {
     return WebAppProvider::GetForWebApps(&profile_.get())
         ->registrar_unsafe()
-        .FindBestAppWithUrlInScope(url, WebAppFilter::IsIsolatedApp());
+        .FindBestAppWithUrlInScope(url, WebAppFilter::IsIsolatedApp() |
+                                            WebAppFilter::IsIsolatedSubApp());
   }
 
   if (!apps::AppServiceProxyFactory::IsAppServiceAvailableForProfile(

@@ -527,63 +527,6 @@ SequenceManagerImpl::SelectNextTask(LazyNow& lazy_now,
   return selected_task;
 }
 
-#if DCHECK_IS_ON()
-void SequenceManagerImpl::LogTaskDebugInfo(
-    const WorkQueue* selected_work_queue) const {
-  const Task* task = selected_work_queue->GetFrontTask();
-  switch (settings_.task_execution_logging) {
-    case Settings::TaskLogging::kNone:
-      break;
-
-    case Settings::TaskLogging::kEnabled:
-      LOG(INFO) << "#" << static_cast<uint64_t>(task->enqueue_order()) << " "
-                << selected_work_queue->task_queue()->GetName()
-                << (task->cross_thread_ ? " Run crossthread " : " Run ")
-                << task->posted_from.ToString();
-      break;
-
-    case Settings::TaskLogging::kEnabledWithBacktrace: {
-      std::array<const void*, PendingTask::kTaskBacktraceLength + 1> task_trace;
-      task_trace[0] = task->posted_from.program_counter();
-      std::ranges::copy(task->task_backtrace, task_trace.begin() + 1);
-      size_t length = 0;
-      while (length < task_trace.size() && task_trace[length]) {
-        ++length;
-      }
-      if (length == 0) {
-        break;
-      }
-      LOG(INFO) << "#" << static_cast<uint64_t>(task->enqueue_order()) << " "
-                << selected_work_queue->task_queue()->GetName()
-                << (task->cross_thread_ ? " Run crossthread " : " Run ")
-                << debug::StackTrace(base::span(task_trace).first(length));
-      break;
-    }
-
-    case Settings::TaskLogging::kReorderedOnly: {
-      std::vector<const Task*> skipped_tasks;
-      main_thread_only().selector.CollectSkippedOverLowerPriorityTasks(
-          selected_work_queue, &skipped_tasks);
-
-      if (skipped_tasks.empty()) {
-        break;
-      }
-
-      LOG(INFO) << "#" << static_cast<uint64_t>(task->enqueue_order()) << " "
-                << selected_work_queue->task_queue()->GetName()
-                << (task->cross_thread_ ? " Run crossthread " : " Run ")
-                << task->posted_from.ToString();
-
-      for (const Task* skipped_task : skipped_tasks) {
-        LOG(INFO) << "# (skipped over) "
-                  << static_cast<uint64_t>(skipped_task->enqueue_order()) << " "
-                  << skipped_task->posted_from.ToString();
-      }
-    }
-  }
-}
-#endif  // DCHECK_IS_ON()
-
 std::optional<SequenceManagerImpl::SelectedTask>
 SequenceManagerImpl::SelectNextTaskImpl(LazyNow& lazy_now,
                                         SelectTaskOption option) {
@@ -633,10 +576,6 @@ SequenceManagerImpl::SelectNextTaskImpl(LazyNow& lazy_now,
           std::move(deferred_task));
       continue;
     }
-
-#if DCHECK_IS_ON()
-    LogTaskDebugInfo(work_queue);
-#endif  // DCHECK_IS_ON()
 
     main_thread_only().task_execution_stack.emplace_back(
         work_queue->TakeTaskFromWorkQueue(), work_queue->task_queue(),
@@ -1010,20 +949,20 @@ SequenceManagerImpl::AsValueWithSelectorResultForTracing(
       Value(AsValueWithSelectorResult(selected_work_queue, force_verbose)));
 }
 
-Value::Dict SequenceManagerImpl::AsValueWithSelectorResult(
+DictValue SequenceManagerImpl::AsValueWithSelectorResult(
     internal::WorkQueue* selected_work_queue,
     bool force_verbose) const {
   DCHECK_CALLED_ON_VALID_THREAD(associated_thread_->thread_checker);
   TimeTicks now = NowTicks();
-  Value::Dict state;
-  Value::List active_queues;
+  DictValue state;
+  ListValue active_queues;
   for (internal::TaskQueueImpl* const queue :
        main_thread_only().active_queues) {
     active_queues.Append(queue->AsValue(now, force_verbose));
   }
   state.Set("active_queues", std::move(active_queues));
-  Value::List shutdown_queues;
-  Value::List queues_to_delete;
+  ListValue shutdown_queues;
+  ListValue queues_to_delete;
   for (const auto& pair : main_thread_only().queues_to_delete) {
     queues_to_delete.Append(pair.first->AsValue(now, force_verbose));
   }
@@ -1035,7 +974,7 @@ Value::Dict SequenceManagerImpl::AsValueWithSelectorResult(
   }
   state.Set("time_domain", main_thread_only().time_domain
                                ? main_thread_only().time_domain->AsValue()
-                               : Value::Dict());
+                               : DictValue());
   state.Set("wake_up_queue", main_thread_only().wake_up_queue->AsValue(now));
   state.Set("non_waking_wake_up_queue",
             main_thread_only().non_waking_wake_up_queue->AsValue(now));
@@ -1169,7 +1108,7 @@ TaskQueue::Handle SequenceManagerImpl::CreateTaskQueue(
 }
 
 std::string SequenceManagerImpl::DescribeAllPendingTasks() const {
-  Value::Dict value =
+  DictValue value =
       AsValueWithSelectorResult(nullptr, /* force_verbose */ true);
   return WriteJson(value).value_or("");
 }

@@ -342,7 +342,6 @@
 <translation id="2201071101391734388">हालसालैका <ph name="TOTAL_COUNT" /> वटा फोटोमध्ये <ph name="INDEX" /> औँ फोटो।</translation>
 <translation id="2201687081523799384">Google Tasks कोल्याप्स गर्नुहोस्</translation>
 <translation id="2208323208084708176">एकीकृत डेस्कटप मोड</translation>
-<translation id="2210311543574621570">तपाईंले Ctrl + V थिचिराख्नुभयो भने तपाईं क्लिपबोर्ड देख्नु हुने छ। तपाईं chrome://flags मा गई #clipboard-history-longpress फ्ल्याग अफ गरेर यो सर्टकट अफ गर्न सक्नुहुन्छ।</translation>
 <translation id="2215920961700443347">इन्टरनेट कनेक्ट गरिएको छैन। इन्टरनेट कनेक्ट गर्नुहोस् र फेरि प्रयास गर्नुहोस्।</translation>
 <translation id="2222841058024245321">डेस्क ७</translation>
 <translation id="2223384056430485343">स्प्लिट स्क्रिनमा</translation>
@@ -1838,7 +1837,7 @@
 <translation id="7055910611768509537">स्टाइलस प्रयोग नगरेको एक हप्ताभन्दा बढी भइसकेको छ</translation>
 <translation id="7061457967428964661">क्यामेराको प्रिभ्यू, यो प्रिभ्यू सारेर कुनै अर्को कुनामा लैजान कन्ट्रोल + एरो कीहरू थिच्नुहोस्</translation>
 <translation id="7064351585062927183">आउँदो <ph name="DAY_OF_WEEK" /></translation>
-<translation id="7066646422045619941">यस नेटवर्कलाई तपाईंको प्रशासकद्वारा असक्षम गरिएको छ।</translation>
+<translation id="7066646422045619941">यस नेटवर्कलाई तपाईंको एडमिनद्वारा असक्षम गरिएको छ।</translation>
 <translation id="7067196344162293536">स्वतः घुमाउनुहोस्</translation>
 <translation id="7076293881109082629">साइनइन गर्दै</translation>
 <translation id="7076878155205969899">आवाज म्युट गर्नुहोस्</translation>
@@ -2195,7 +2194,6 @@
 <translation id="8241650983304689286">नयाँ स्प्लिट भ्यूमा ट्याब हाल्नुहोस्</translation>
 <translation id="8247060538831475781"><ph name="CONNECTION_STATUS" />, सिग्नलको क्षमता <ph name="SIGNAL_STRENGTH" />, फोनको ब्याट्री <ph name="BATTERY_STATUS" /></translation>
 <translation id="825129991941217170">Google Drive मा भएका सबै सामग्री देखाउनुहोस्</translation>
-<translation id="8257510091797044096">आफ्नो डिभाइस सेटअप गर्नुहोस्</translation>
 <translation id="8261506727792406068">मेट्नुहोस्</translation>
 <translation id="8262312463845990408">प्लेब्याक टगल गर्नुहोस्</translation>
 <translation id="8268302343625273732">Google Classroom का सबै असाइनमेन्टहरू हेर्नुहोस्</translation>

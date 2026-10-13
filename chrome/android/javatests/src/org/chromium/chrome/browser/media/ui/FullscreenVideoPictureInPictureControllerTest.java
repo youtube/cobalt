@@ -19,11 +19,10 @@ import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.CriteriaHelper;
+import org.chromium.base.test.util.DisableIf;
 import org.chromium.base.test.util.DisabledTest;
-import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Restriction;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.init.AsyncInitializationActivity;
 import org.chromium.chrome.browser.tab.EmptyTabObserver;
@@ -37,6 +36,7 @@ import org.chromium.content_public.browser.test.util.DOMUtils;
 import org.chromium.content_public.browser.test.util.JavaScriptUtils;
 import org.chromium.content_public.browser.test.util.WebContentsUtils;
 import org.chromium.media.MediaSwitches;
+import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.test.util.DeviceRestriction;
 
 /** Tests for FullscreenVideoPictureInPictureController and related methods. */
@@ -50,6 +50,7 @@ import org.chromium.ui.test.util.DeviceRestriction;
     RESTRICTION_TYPE_NON_LOW_END_DEVICE,
     DeviceRestriction.RESTRICTION_TYPE_NON_AUTO // PiP not supported on AAOS.
 })
+@DisableIf.Device(DeviceFormFactor.DESKTOP) // https://crbug.com/481444525
 public class FullscreenVideoPictureInPictureControllerTest {
     // TODO(peconn): Add a test for exit on Tab Reparenting.
     private static final String TEST_PATH = "/chrome/test/data/media/bigbuck-player.html";
@@ -70,8 +71,6 @@ public class FullscreenVideoPictureInPictureControllerTest {
     /** Tests that we can detect when a video is playing fullscreen, a prerequisite for PiP. */
     @Test
     @MediumTest
-    // TODO(crbug.com/473893732): Fix the clickNode.
-    @DisableFeatures(ChromeFeatureList.LOCK_TOP_CONTROLS_ON_LARGE_TABLETS_V2)
     public void testFullscreenVideoDetected() throws Throwable {
         enterFullscreen();
     }
@@ -137,8 +136,6 @@ public class FullscreenVideoPictureInPictureControllerTest {
     /** Tests that PiP is left when the renderer crashes. */
     @Test
     @MediumTest
-    // TODO(crbug.com/473893732): Fix the clickNode.
-    @DisableFeatures(ChromeFeatureList.LOCK_TOP_CONTROLS_ON_LARGE_TABLETS_V2)
     public void testExitOnCrash() throws Throwable {
         testExitOn(() -> WebContentsUtils.simulateRendererKilled(getWebContents()));
     }
@@ -196,8 +193,6 @@ public class FullscreenVideoPictureInPictureControllerTest {
     @Test
     @MediumTest
     @DisabledTest(message = "https://crbug.com/1429112")
-    // TODO(crbug.com/473893732): Fix the clickNode.
-    @DisableFeatures(ChromeFeatureList.LOCK_TOP_CONTROLS_ON_LARGE_TABLETS_V2)
     public void testReenterPip() throws Throwable {
         enterFullscreen();
         triggerAutoPiPAndWait();

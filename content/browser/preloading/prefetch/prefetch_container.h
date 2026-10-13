@@ -7,6 +7,7 @@
 
 #include <optional>
 
+#include "base/auto_reset.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/observer_list_types.h"
@@ -17,19 +18,17 @@
 #include "content/browser/preloading/preload_serving_metrics.h"
 #include "content/common/content_export.h"
 #include "content/public/browser/preloading.h"
+#include "mojo/public/cpp/bindings/remote.h"
 #include "net/http/http_no_vary_search_data.h"
 #include "net/http/http_request_headers.h"
 #include "services/network/public/mojom/devtools_observer.mojom-forward.h"
+#include "services/network/public/mojom/network_context.mojom-forward.h"
 #include "third_party/blink/public/mojom/loader/referrer.mojom.h"
 #include "url/gurl.h"
 
 namespace base {
 class OneShotTimer;
 }  // namespace base
-
-namespace network::mojom {
-class CookieManager;
-}  // namespace network::mojom
 
 namespace url {
 class Origin;
@@ -47,7 +46,6 @@ class PrefetchServingHandle;
 class PrefetchServingPageMetricsContainer;
 class PrefetchSingleRedirectHop;
 class PrefetchStreamingURLLoader;
-class ProxyLookupClientImpl;
 enum class PrefetchPotentialCandidateServingResult;
 enum class PrefetchProbeResult;
 enum class PrefetchServableState;
@@ -203,17 +201,20 @@ class CONTENT_EXPORT PrefetchContainer {
     //
     // TODO(crbug.com/356314759): Update the description to "Called just
     // before dtor is called."
-    virtual void OnWillBeDestroyed(PrefetchContainer& prefetch_container) = 0;
+    virtual void OnWillBeDestroyed(
+        const PrefetchContainer& prefetch_container) = 0;
     // Called when initial eligibility is got.
-    virtual void OnGotInitialEligibility(PrefetchContainer& prefetch_container,
-                                         PreloadingEligibility eligibility) = 0;
+    virtual void OnGotInitialEligibility(
+        const PrefetchContainer& prefetch_container,
+        PreloadingEligibility eligibility) = 0;
     // Called if non-redirect header of prefetch response is determined, i.e.
     // successfully received or fetch requests including redirects failed.
     // Callers can check success/failure by `GetNonRedirectHead()`.
-    virtual void OnDeterminedHead(PrefetchContainer& prefetch_container) = 0;
+    virtual void OnDeterminedHead(
+        const PrefetchContainer& prefetch_container) = 0;
     // Called when load of prefetch completed or failed.
     virtual void OnPrefetchCompletedOrFailed(
-        PrefetchContainer& prefetch_container,
+        const PrefetchContainer& prefetch_container,
         const network::URLLoaderCompletionStatus& completion_status,
         const std::optional<int>& response_code) = 0;
   };
@@ -250,16 +251,14 @@ class CONTENT_EXPORT PrefetchContainer {
   }
   void MakeResourceRequest();
 
-  // Updates |referrer_| after a redirect.
-  void UpdateReferrer(
-      const GURL& new_referrer_url,
-      const network::mojom::ReferrerPolicy& new_referrer_policy);
-
   // Equivalent to `request().no_vary_search_hint()`.
   // Exposed for `PrefetchMatchResolver`.
   const std::optional<net::HttpNoVarySearchData>& GetNoVarySearchHint() const;
 
   base::WeakPtr<PrefetchContainer> GetWeakPtr() {
+    return weak_method_factory_.GetWeakPtr();
+  }
+  base::WeakPtr<const PrefetchContainer> GetWeakPtr() const {
     return weak_method_factory_.GetWeakPtr();
   }
 
@@ -283,12 +282,6 @@ class CONTENT_EXPORT PrefetchContainer {
 
   const PrefetchRequest& request() const { return *request_; }
 
-  // Controls ownership of the |ProxyLookupClientImpl| used during the
-  // eligibility check.
-  void TakeProxyLookupClient(
-      std::unique_ptr<ProxyLookupClientImpl> proxy_lookup_client);
-  std::unique_ptr<ProxyLookupClientImpl> ReleaseProxyLookupClient();
-
   // Called when it is added to `PrefetchService::owned_prefetches_`.
   void OnAddedToPrefetchService();
 
@@ -298,7 +291,16 @@ class CONTENT_EXPORT PrefetchContainer {
   // Adds a the new URL to |redirect_chain_|.
   void AddRedirectHop(const net::RedirectInfo& redirect_info);
 
-  void UpdateResourceRequest(const net::RedirectInfo& redirect_info);
+  // Returns a tuple of `PrefetchUpdateHeadersParams`s that indicates the header
+  // modification upon redirect, to be passed to `UpdateResourceRequest()` and
+  // `URLLoader::FollowRedirect()`, respectively.
+  // TODO(crbug.com/467177773): Ideally these two should be equal, but currently
+  // we are incrementally adding headers to the latter.
+  std::tuple<PrefetchUpdateHeadersParams, PrefetchUpdateHeadersParams>
+  PrepareUpdateHeaders(const GURL& url) const;
+  // Performs the actual modification to `resource_request_` upon redirect.
+  void UpdateResourceRequest(const net::RedirectInfo& redirect_info,
+                             PrefetchUpdateHeadersParams params);
 
   // The length of the redirect chain for this prefetch.
   size_t GetRedirectChainSize() const { return redirect_chain_.size(); }
@@ -318,9 +320,9 @@ class CONTENT_EXPORT PrefetchContainer {
   bool IsCrossSiteContaminated() const { return is_cross_site_contaminated_; }
   void MarkCrossSiteContaminated();
 
-  // Allows for |PrefetchCookieListener|s to be reigsitered for
+  // Allows for |PrefetchCookieListener|s to be registered for
   // `GetCurrentSingleRedirectHopToPrefetch()`.
-  void RegisterCookieListener(network::mojom::CookieManager* cookie_manager);
+  void RegisterCookieListener();
   void PauseAllCookieListeners();
   void ResumeAllCookieListeners();
 
@@ -329,8 +331,10 @@ class CONTENT_EXPORT PrefetchContainer {
   PrefetchNetworkContext* GetNetworkContext(
       bool is_isolated_network_context_required) const;
 
-  // The network context used to make network requests for the next prefetch.
-  PrefetchNetworkContext* GetOrCreateNetworkContextForCurrentPrefetch();
+  // Creates the network context for `is_isolated_network_context_required`.
+  PrefetchNetworkContext* CreateNetworkContext(
+      bool is_isolated_network_context_required,
+      mojo::Remote<network::mojom::NetworkContext> isolated_network_context);
 
   // Closes idle connections for all elements in |network_contexts_|.
   void CloseIdleConnections();
@@ -378,9 +382,10 @@ class CONTENT_EXPORT PrefetchContainer {
   // Note: Even if this returns `kServable`, `CreateRequestHandler()` can still
   // fail (returning null handler) due to final checks. See also the comment for
   // `PrefetchResponseReader::CreateRequestHandler()`.
-  PrefetchServableState GetServableState(
-      base::TimeDelta cacheable_duration) const;
-  PrefetchMatchResolverAction GetMatchResolverAction(
+  PrefetchServableState GetServableState() const;
+  PrefetchMatchResolverAction GetMatchResolverAction() const;
+  // Allows to pass `cacheable_duration` for testing.
+  PrefetchServableState GetServableStateForTesting(
       base::TimeDelta cacheable_duration) const;
 
   // Starts blocking `PrefetchMatchResolver` until non-redirect response header
@@ -473,6 +478,10 @@ class CONTENT_EXPORT PrefetchContainer {
   void OnPrefetchStarted();
 
   PrefetchServingHandle CreateServingHandle();
+
+  // Only for temporary const queries to `PrefetchServingHandle`, namely
+  // `HaveDefaultContextCookiesChanged()`.
+  std::unique_ptr<const PrefetchServingHandle> CreateConstServingHandle() const;
 
   void AddObserver(Observer* observer);
   void RemoveObserver(Observer* observer);
@@ -589,6 +598,12 @@ class CONTENT_EXPORT PrefetchContainer {
   void SetTriggeringOutcomeAndFailureReasonFromStatus(
       PrefetchStatus new_prefetch_status);
 
+  template <typename Method, typename... Args>
+  void NotifyObservers(Method method, const Args&... args) {
+    base::AutoReset<bool> auto_reset(&during_observer_notification_, true);
+    observers_.Notify(method, *this, args...);
+  }
+
   // Returns if WebContents-level UA overrides should be applied for a prefetch
   // request for `request_url`. Note that not only the User-Agent header but
   // also Client-Hints headers are affected by the UA overrides.
@@ -600,7 +615,7 @@ class CONTENT_EXPORT PrefetchContainer {
       network::ResourceRequest& resource_request);
   // Adds client hints headers to a request bound for |origin|.
   void AddClientHintsHeaders(const url::Origin& origin,
-                             net::HttpRequestHeaders* request_headers);
+                             net::HttpRequestHeaders* request_headers) const;
   // Adds X-Client-Data request header to a request.
   void AddXClientDataHeader(network::ResourceRequest& request);
 
@@ -618,6 +633,11 @@ class CONTENT_EXPORT PrefetchContainer {
 
   // Returns "Sec-Purpose" header value for a prefetch request to `request_url`.
   const char* GetSecPurposeHeaderValue(const GURL& request_url) const;
+
+  // Adds Speculation Rules Tags headers for a prefetch request to `request_url`
+  // to `headers`.
+  void AddSpeculationTagsHeader(const GURL& request_url,
+                                net::HttpRequestHeaders& headers) const;
 
   // Called when a prefetch request could not be started because of eligibility
   // reasons. Should only be called for the initial prefetch request and not
@@ -663,6 +683,10 @@ class CONTENT_EXPORT PrefetchContainer {
 
   PrefetchServableState GetServableStateInternal(
       base::TimeDelta cacheable_duration) const;
+  PrefetchServableState GetServableStateInternal2(
+      base::TimeDelta cacheable_duration) const;
+  PrefetchMatchResolverAction GetMatchResolverActionInternal(
+      base::TimeDelta cacheable_duration) const;
 
   // The prefetch request parameters of the very first initiator/requester of
   // this prefetch at the time of request creation.
@@ -674,9 +698,6 @@ class CONTENT_EXPORT PrefetchContainer {
 
   PrefetchServiceWorkerState service_worker_state_ =
       PrefetchServiceWorkerState::kAllowed;
-
-  // The referrer to use for the request. This is updated through redirects.
-  blink::mojom::Referrer referrer_;
 
   // Information about the current prefetch request. Updated when a redirect is
   // encountered, whether or not the direct can be processed by the same URL
@@ -702,10 +723,6 @@ class CONTENT_EXPORT PrefetchContainer {
 
   // The current status of the prefetch.
   LoadState load_state_ = LoadState::kNotStarted;
-
-  // Looks up the proxy settings in the default network context all URLs in
-  // |redirect_chain_|.
-  std::unique_ptr<ProxyLookupClientImpl> proxy_lookup_client_;
 
   // Whether this prefetch is a decoy or not. If the prefetch is a decoy then
   // any prefetched resources will not be served.
@@ -790,7 +807,15 @@ class CONTENT_EXPORT PrefetchContainer {
   // True iff the destructor was called.
   bool is_in_dtor_ = false;
 
-  base::ObserverList<Observer> observers_;
+  // True during notifying `observers_`.
+  // This is used to `DUMP_WILL_BE_CHECK()` the disallowed operations during
+  // `Observer` callbacks. Theoretically there can still be violating corner
+  // cases, so `DUMP_WILL_BE_CHECK()` is used, to first monitor if there are
+  // actual violations in the wild.
+  bool during_observer_notification_ = false;
+
+  base::ObserverList<Observer> observers_{
+      base::ObserverListPolicy::EXISTING_ONLY};
 
   bool is_likely_ahead_of_prerender_ = false;
 

@@ -93,7 +93,7 @@ TEST(EnvironmentTest, DefaultEnvironmentHasAllUtilities) {
   // Try to use each utility, expect no crashes.
   env.clock().CurrentTime();
   EXPECT_THAT(env.task_queue_factory().CreateTaskQueue(
-                  "test", TaskQueueFactory::Priority::NORMAL),
+                  "test", TaskQueueFactory::Priority::kNormal),
               NotNull());
   env.event_log().Log(std::make_unique<FakeEvent>());
   env.field_trials().Lookup("WebRTC-Debugging-RtpDump");

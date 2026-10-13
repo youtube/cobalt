@@ -44,7 +44,7 @@ IN_PROC_BROWSER_TEST_F(ContentBrowserTest, ExpectedThreadPriorities) {
   // unexpectedly.
   expected_priority = base::ThreadType::kDefault;
 #else
-  expected_priority = base::ThreadType::kDisplayCritical;
+  expected_priority = base::ThreadType::kPresentation;
 #endif
 
   EXPECT_EQ(base::PlatformThread::GetCurrentEffectiveThreadTypeForTest(),
@@ -62,7 +62,7 @@ IN_PROC_BROWSER_TEST_F(ContentBrowserTest, ExpectedThreadPriorities) {
                 base::PlatformThread::GetCurrentEffectiveThreadTypeForTest() ==
                     expected_priority ||
                 base::PlatformThread::GetCurrentEffectiveThreadTypeForTest() ==
-                    base::ThreadType::kInteractive);
+                    base::ThreadType::kAudioProcessing);
           },
           expected_priority));
   BrowserThread::RunAllPendingTasksOnThreadForTesting(BrowserThread::IO);

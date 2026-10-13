@@ -105,6 +105,7 @@
 #include "extensions/test/test_extension_dir.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "third_party/blink/public/common/features.h"
+#include "third_party/blink/public/common/features_generated.h"
 #include "third_party/blink/public/common/widget/constants.h"
 #include "third_party/blink/public/mojom/manifest/display_mode.mojom.h"
 #include "third_party/skia/include/core/SkColor.h"
@@ -176,7 +177,7 @@ content::EvalJsResult EvalDisplayStateChange(
     const content::ToRenderFrameHost& execution_target,
     std::string window_method,
     std::string expected_state) {
-  constexpr char script[] =
+  static constexpr char script[] =
       R"(new Promise((resolve, reject) => {
         window.$1().then(() => {
           if (window.matchMedia('(display-state: $2)').matches) {
@@ -194,9 +195,29 @@ content::EvalJsResult EvalDisplayStateChange(
           nullptr));
 }
 
+content::EvalJsResult EvalSetResizable(
+    const content::ToRenderFrameHost& execution_target,
+    bool resizable_passed,
+    bool resizable_expected) {
+  static constexpr char script[] =
+      R"(new Promise((resolve, reject) => {
+        window.setResizable($1).then(() => {
+          if (window.matchMedia('(resizable: $2)').matches) {
+            resolve('window.setResizable($1) succeeded.');
+          } else {
+            reject('window.setResizable($1) resolved, but ' +
+            '`resizable: $2` not matched.');
+          }
+        }).catch(() => reject('window.setResizable($1) rejected.'));
+      });)";
+  return content::EvalJs(
+      execution_target,
+      content::JsReplace(script, resizable_passed, resizable_expected));
+}
+
 content::EvalJsResult EvalFullscreenRequest(
     const content::ToRenderFrameHost& execution_target) {
-  constexpr char script[] = R"(
+  static constexpr char script[] = R"(
     new Promise((resolve, reject) => {
       window.matchMedia('(display-state: fullscreen)').addEventListener(
         'change', e => {
@@ -1525,7 +1546,7 @@ IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest_WindowControlsOverlay,
       "titlebarAreaWidthRectInt, "
       "titlebarAreaHeightRectInt];";
 
-  base::Value::List initial_rect_list = helper()->GetXYWidthHeightListValue(
+  base::ListValue initial_rect_list = helper()->GetXYWidthHeightListValue(
       helper()->browser_view()->GetActiveWebContents(), kRectListString,
       "rect");
 
@@ -1552,7 +1573,7 @@ IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest_WindowControlsOverlay,
 
   EXPECT_TRUE(ExecJs(web_contents->GetPrimaryMainFrame(), kCSSTitlebarRect));
 
-  base::Value::List updated_rect_list = helper()->GetXYWidthHeightListValue(
+  base::ListValue updated_rect_list = helper()->GetXYWidthHeightListValue(
       helper()->browser_view()->GetActiveWebContents(), kRectListString,
       "rect");
 
@@ -1580,7 +1601,7 @@ IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest_WindowControlsOverlay,
       "titlebarAreaWidthRectInt, "
       "titlebarAreaHeightRectInt];";
 
-  base::Value::List initial_rect_list = helper()->GetXYWidthHeightListValue(
+  base::ListValue initial_rect_list = helper()->GetXYWidthHeightListValue(
       helper()->browser_view()->GetActiveWebContents(), kRectListString,
       "rect");
 
@@ -1602,7 +1623,7 @@ IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest_WindowControlsOverlay,
 
   EXPECT_TRUE(ExecJs(web_contents->GetPrimaryMainFrame(), kCSSTitlebarRect));
 
-  base::Value::List updated_rect_list = helper()->GetXYWidthHeightListValue(
+  base::ListValue updated_rect_list = helper()->GetXYWidthHeightListValue(
       helper()->browser_view()->GetActiveWebContents(), kRectListString,
       "rect");
 
@@ -2112,8 +2133,10 @@ class WebAppFrameToolbarBrowserTest_AdditionalWindowingControls
     : public WebAppFrameToolbarBrowserTest {
  public:
   WebAppFrameToolbarBrowserTest_AdditionalWindowingControls() {
-    scoped_feature_list_.InitAndEnableFeature(
-        blink::features::kDesktopPWAsAdditionalWindowingControls);
+    scoped_feature_list_.InitWithFeatures(
+        {blink::features::kDesktopPWAsAdditionalWindowingControls,
+         blink::features::kDesktopPWAsTabStrip},
+        {});
   }
 
   void SetUp() override {
@@ -2123,7 +2146,7 @@ class WebAppFrameToolbarBrowserTest_AdditionalWindowingControls
     WebAppFrameToolbarBrowserTest::SetUp();
   }
 
-  webapps::AppId InstallAndLaunchWebApp() {
+  webapps::AppId InstallAndLaunchWebApp(bool tabbed = false) {
     DCHECK(https_server()->Started());
 
     const GURL start_url = helper()->LoadTestPageWithDataAndGetURL(
@@ -2135,9 +2158,15 @@ class WebAppFrameToolbarBrowserTest_AdditionalWindowingControls
         web_app::WebAppInstallInfo::CreateWithStartUrlForTesting(start_url);
     web_app_info->scope = start_url.GetWithoutFilename();
     web_app_info->title = std::move(u"Test app");
-    web_app_info->display_mode = web_app::DisplayMode::kStandalone;
-    web_app_info->user_display_mode =
-        web_app::mojom::UserDisplayMode::kStandalone;
+    if (tabbed) {
+      web_app_info->display_mode = web_app::DisplayMode::kTabbed;
+      web_app_info->user_display_mode =
+          web_app::mojom::UserDisplayMode::kTabbed;
+    } else {
+      web_app_info->display_mode = web_app::DisplayMode::kStandalone;
+      web_app_info->user_display_mode =
+          web_app::mojom::UserDisplayMode::kStandalone;
+    }
 
     return helper()->InstallAndLaunchCustomWebApp(
         browser(), std::move(web_app_info), start_url);
@@ -2163,21 +2192,6 @@ class WebAppFrameToolbarBrowserTest_AdditionalWindowingControls
   bool MatchMediaMatches(content::WebContents* web_contents,
                          std::string match_media_script) {
     return EvalJs(web_contents, match_media_script).ExtractBool();
-  }
-
-  void SetResizableAndWait(content::WebContents* web_contents,
-                           bool resizable,
-                           bool expected) {
-    auto set_resizable_script =
-        content::JsReplace("window.setResizable($1)", resizable);
-    EXPECT_TRUE(ExecJs(web_contents, set_resizable_script));
-    content::WaitForLoadStop(web_contents);
-    RunUntil([&]() {
-      return MatchMediaMatches(
-          web_contents,
-          content::JsReplace("window.matchMedia('(resizable: $1)').matches",
-                             expected));
-    });
   }
 
   void CheckCanResize(bool browser_view_can_resize_expected,
@@ -2244,25 +2258,31 @@ IN_PROC_BROWSER_TEST_F(
   CheckCanResize(true, std::nullopt);
 
   // Explicitly set to false -> Returns false.
-  SetResizableAndWait(web_contents, /*resizable=*/false, /*expected=*/false);
+  EXPECT_EQ(EvalSetResizable(web_contents, /*resizable_passed=*/false,
+                             /*resizable_expected=*/false),
+            "window.setResizable(false) succeeded.");
   CheckCanResize(false, false);
 
   // Explicitly set to true -> Returns true.
-  SetResizableAndWait(web_contents, /*resizable=*/true, /*expected=*/true);
+  EXPECT_EQ(EvalSetResizable(web_contents, /*resizable_passed=*/true,
+                             /*resizable_expected=*/true),
+            "window.setResizable(true) succeeded.");
   CheckCanResize(true, true);
 
   // `window.setResizable()` API can only alter the resizability of
   // `BrowserView` which `can_resize` is true. Otherwise it cannot be overridden
   // by the web API.
   helper()->browser_view()->SetCanResize(false);
-  web_contents->GetPrimaryPage().SetResizableForTesting(std::nullopt);
+  helper()->browser_view()->SetResizableFromWebApi(std::nullopt);
   CheckCanResize(false, std::nullopt);
 
-  SetResizableAndWait(web_contents, /*resizable=*/false, /*expected=*/false);
+  EXPECT_EQ(EvalSetResizable(web_contents, /*resizable_passed=*/false,
+                             /*resizable_expected=*/false),
+            "window.setResizable(false) succeeded.");
   CheckCanResize(false, false);
 
-  SetResizableAndWait(web_contents, /*resizable=*/true, /*expected=*/false);
-  CheckCanResize(false, true);
+  // TODO(crbug.com/288265319): implement rejecting the promise if
+  // SetCanResize(false) was called and add a test case here.
 }
 
 IN_PROC_BROWSER_TEST_F(
@@ -2290,79 +2310,109 @@ IN_PROC_BROWSER_TEST_F(
   auto* web_contents = helper()->browser_view()->GetActiveWebContents();
 
   // Sets the resizability false for the main page.
-  SetResizableAndWait(web_contents, /*resizable=*/false, /*expected=*/false);
+  EXPECT_EQ(EvalSetResizable(web_contents, /*resizable_passed=*/false,
+                             /*resizable_expected=*/false),
+            "window.setResizable(false) succeeded.");
   CheckCanResize(false, false);
 
   // Navigates to the second page of the app.
   ASSERT_TRUE(
       ui_test_utils::NavigateToURL(helper()->app_browser(), second_page_url()));
   content::WaitForLoadStop(web_contents);
-  EXPECT_EQ(helper()->browser_view()->GetWebApiWindowResizable(), std::nullopt);
+  EXPECT_EQ(helper()->browser_view()->GetWebApiWindowResizable(), false);
 
   // Sets the resizability true for the second page.
-  SetResizableAndWait(web_contents, /*resizable=*/true, /*expected=*/true);
+  EXPECT_EQ(EvalSetResizable(web_contents, /*resizable_passed=*/true,
+                             /*resizable_expected=*/true),
+            "window.setResizable(true) succeeded.");
   CheckCanResize(true, true);
 
   // Returns back to the main page.
   web_contents->GetController().GoBack();
   content::WaitForLoadStop(web_contents);
-  // Reads the resizability from the BFCache if it's enabled. Otherwise null.
-  if (content::BackForwardCache::IsBackForwardCacheFeatureEnabled()) {
-    EXPECT_FALSE(helper()->browser_view()->GetWebApiWindowResizable().value());
-  } else {
-    EXPECT_EQ(helper()->browser_view()->GetWebApiWindowResizable(),
-              std::nullopt);
-  }
+  EXPECT_EQ(helper()->browser_view()->GetWebApiWindowResizable(), true);
 
   // Navigates forward to the already visited second page.
   web_contents->GetController().GoForward();
   content::WaitForLoadStop(web_contents);
-  // Reads the resizability from the BFCache if it's enabled. Otherwise null.
-  if (content::BackForwardCache::IsBackForwardCacheFeatureEnabled()) {
-    EXPECT_TRUE(helper()->browser_view()->GetWebApiWindowResizable().value());
-  } else {
-    EXPECT_EQ(helper()->browser_view()->GetWebApiWindowResizable(),
-              std::nullopt);
-  }
+  EXPECT_EQ(helper()->browser_view()->GetWebApiWindowResizable(), true);
 }
 
 // TODO(crbug.com/362078628): Gardening. This test has been flaky for long.
 #if BUILDFLAG(IS_MAC)
-#define MAYBE_NavigatingOutsideTheAppScopeAndBackResetsAndThenRestoresResizability \
-  DISABLED_NavigatingOutsideTheAppScopeAndBackResetsAndThenRestoresResizability
+#define MAYBE_NavigatingOutsideTheAppScopeAndBack \
+  DISABLED_NavigatingOutsideTheAppScopeAndBack
 #else
-#define MAYBE_NavigatingOutsideTheAppScopeAndBackResetsAndThenRestoresResizability \
-  NavigatingOutsideTheAppScopeAndBackResetsAndThenRestoresResizability
+#define MAYBE_NavigatingOutsideTheAppScopeAndBack \
+  NavigatingOutsideTheAppScopeAndBack
 #endif
 IN_PROC_BROWSER_TEST_F(
     WebAppFrameToolbarBrowserTest_AdditionalWindowingControls,
-    MAYBE_NavigatingOutsideTheAppScopeAndBackResetsAndThenRestoresResizability) {
+    MAYBE_NavigatingOutsideTheAppScopeAndBack) {
   InstallAndLaunchWebApp();
   helper()->GrantWindowManagementPermission();
 
   auto* web_contents = helper()->browser_view()->GetActiveWebContents();
 
   // Sets the resizability true for the app.
-  SetResizableAndWait(web_contents, /*resizable=*/true, /*expected=*/true);
-  CheckCanResize(true, true);
+  EXPECT_EQ(EvalSetResizable(web_contents, /*resizable_passed=*/false,
+                             /*resizable_expected=*/false),
+            "window.setResizable(false) succeeded.");
+  CheckCanResize(false, false);
 
-  // Another URL where resizability is not set resets the web API overridden
-  // resizability.
+  // Navigating to a different URL.
   ASSERT_TRUE(ui_test_utils::NavigateToURL(helper()->app_browser(),
                                            GURL("https://www.google.com/")));
   content::WaitForLoadStop(web_contents);
-  EXPECT_EQ(helper()->browser_view()->GetWebApiWindowResizable(), std::nullopt);
+  EXPECT_EQ(helper()->browser_view()->GetWebApiWindowResizable(), false);
 
-  // Returning to the original URL then reads the resizability from the BFCache
-  // if it's enabled.
+  // Returning to the original URL.
   web_contents->GetController().GoBack();
   content::WaitForLoadStop(web_contents);
-  if (content::BackForwardCache::IsBackForwardCacheFeatureEnabled()) {
-    EXPECT_TRUE(helper()->browser_view()->GetWebApiWindowResizable().value());
-  } else {
-    EXPECT_EQ(helper()->browser_view()->GetWebApiWindowResizable(),
-              std::nullopt);
-  }
+  EXPECT_EQ(helper()->browser_view()->GetWebApiWindowResizable(), false);
+}
+
+IN_PROC_BROWSER_TEST_F(
+    WebAppFrameToolbarBrowserTest_AdditionalWindowingControls,
+    SetResizableMultiTabWebApp) {
+  InstallAndLaunchWebApp(/*tabbed=*/true);
+  helper()->GrantWindowManagementPermission();
+
+  // Add second tab.
+  chrome::NewTab(helper()->app_browser());
+  ASSERT_EQ(helper()->app_browser()->tab_strip_model()->count(), 2);
+  ASSERT_TRUE(
+      ui_test_utils::NavigateToURL(helper()->app_browser(), second_page_url()));
+
+  // Return to the first tab.
+  chrome::SelectNextTab(helper()->app_browser());
+  auto* const web_contents_first_tab =
+      helper()->browser_view()->GetActiveWebContents();
+  content::WaitForLoadStop(web_contents_first_tab);
+
+  // Set the resizability to false in the first tab.
+  EXPECT_EQ(EvalSetResizable(web_contents_first_tab, /*resizable_passed=*/false,
+                             /*resizable_expected=*/false),
+            "window.setResizable(false) succeeded.");
+  CheckCanResize(false, false);
+
+  // Switch to the second tab of the app.
+  chrome::SelectNextTab(helper()->app_browser());
+  auto* const web_contents_second_tab =
+      helper()->browser_view()->GetActiveWebContents();
+  content::WaitForLoadStop(web_contents_second_tab);
+  CheckCanResize(false, false);
+
+  // Set the resizability to true in the second tab.
+  EXPECT_EQ(EvalSetResizable(web_contents_second_tab, /*resizable_passed=*/true,
+                             /*resizable_expected=*/true),
+            "window.setResizable(true) succeeded.");
+  CheckCanResize(true, true);
+
+  // Return back to the first tab.
+  chrome::SelectNextTab(helper()->app_browser());
+  content::WaitForLoadStop(web_contents_first_tab);
+  CheckCanResize(true, true);
 }
 
 IN_PROC_BROWSER_TEST_F(
@@ -2483,7 +2533,7 @@ IN_PROC_BROWSER_TEST_F(
 }
 
 // TODO(crbug.com/459532445): Flaky on Linux Wayland.
-#if BUILDFLAG(IS_OZONE_WAYLAND)
+#if BUILDFLAG(SUPPORTS_OZONE_WAYLAND)
 #define MAYBE_FullscreenAndRestoreWindowWithApi \
   DISABLED_FullscreenAndRestoreWindowWithApi
 #else
@@ -2713,7 +2763,9 @@ IN_PROC_BROWSER_TEST_F(
     return EvalJs(web_contents, "window.screenX").ExtractInt() < 50;
   }));
 
-  SetResizableAndWait(web_contents, /*resizable=*/false, /*expected=*/false);
+  EXPECT_EQ(EvalSetResizable(web_contents, /*resizable_passed=*/false,
+                             /*resizable_expected=*/false),
+            "window.setResizable(false) succeeded.");
   CheckCanResize(false, false);
 
   // Checking exact size may be flaky, so just test if was changed
@@ -2769,7 +2821,9 @@ IN_PROC_BROWSER_TEST_F(
   auto* browser_view = helper()->browser_view();
   auto* web_contents = browser_view->GetActiveWebContents();
 
-  SetResizableAndWait(web_contents, /*resizable=*/false, /*expected=*/false);
+  EXPECT_EQ(EvalSetResizable(web_contents, /*resizable_passed=*/false,
+                             /*resizable_expected=*/false),
+            "window.setResizable(false) succeeded.");
   EXPECT_FALSE(browser_view->IsFullscreen());
 
   EnterTabFullscreenThroughWebAPI();
@@ -2787,7 +2841,9 @@ IN_PROC_BROWSER_TEST_F(
   helper()->GrantWindowManagementPermission();
   auto* browser_view = helper()->browser_view();
   auto* web_contents = browser_view->GetActiveWebContents();
-  SetResizableAndWait(web_contents, /*resizable=*/false, /*expected=*/false);
+  EXPECT_EQ(EvalSetResizable(web_contents, /*resizable_passed=*/false,
+                             /*resizable_expected=*/false),
+            "window.setResizable(false) succeeded.");
 
   // User can escape not user-initiated browser fullscreen
   ToggleBrowserFullscreen(/*user_initiated=*/false);
@@ -2810,7 +2866,9 @@ IN_PROC_BROWSER_TEST_F(
   auto* browser_view = helper()->browser_view();
   auto* web_contents = browser_view->GetActiveWebContents();
 
-  SetResizableAndWait(web_contents, false, false);
+  EXPECT_EQ(EvalSetResizable(web_contents, /*resizable_passed=*/false,
+                             /*resizable_expected=*/false),
+            "window.setResizable(false) succeeded.");
   EXPECT_FALSE(helper()->browser_view()->IsFullscreen());
 
   // Most accelerators (e.g., F11, ⛶, Fn+F) maps to IDC_FULLSCREEN command

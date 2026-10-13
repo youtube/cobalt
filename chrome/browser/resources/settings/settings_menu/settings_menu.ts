@@ -76,41 +76,18 @@ export class SettingsMenuElement extends SettingsMenuElementBase {
           return loadTimeData.getBoolean('enableYourSavedInfoSettingsPage');
         },
       },
-
-      /**
-       * Icon name to be used for the autofill section.
-       */
-      autofillIcon_: {
-        type: String,
-        value: () => loadTimeData.getBoolean('enableYourSavedInfoBranding') ?
-            'settings20:person-text' :
-            'settings:assignment',
-      },
     };
   }
 
   declare private pageVisibility_?: PageVisibility;
   declare private showAiPage_: boolean;
   declare private enableYourSavedInfoSettingsPage_: boolean;
-  declare private autofillIcon_: string;
   private metricsBrowserProxy_: MetricsBrowserProxy =
       MetricsBrowserProxyImpl.getInstance();
 
   private showAiPageMenuItem_(): boolean {
     return this.showAiPage_ &&
         (!this.pageVisibility_ || this.pageVisibility_.ai !== false);
-  }
-
-  private showYourSavedInfoPageMenuItem_(): boolean {
-    return this.enableYourSavedInfoSettingsPage_ &&
-        (!this.pageVisibility_ ||
-          this.pageVisibility_.yourSavedInfo !== false);
-  }
-
-  private showAutofillPageMenuItem_(): boolean {
-    return !this.enableYourSavedInfoSettingsPage_ &&
-        (!this.pageVisibility_ ||
-          this.pageVisibility_.autofill !== false);
   }
 
   override currentRouteChanged(newRoute: Route) {
@@ -172,9 +149,11 @@ export class SettingsMenuElement extends SettingsMenuElementBase {
   }
 
   private onAutofillClick_() {
+    const metricName = this.enableYourSavedInfoSettingsPage_ ?
+        'Autofill.YourSavedInfoSettingsPage.VisitReferrer' :
+        'Autofill.AutofillAndPasswordsSettingsPage.VisitReferrer';
     this.metricsBrowserProxy_.recordAutofillSettingsReferrer(
-        'Autofill.AutofillAndPasswordsSettingsPage.VisitReferrer',
-        AutofillSettingsReferrer.SETTINGS_MENU);
+        metricName, AutofillSettingsReferrer.SETTINGS_MENU);
   }
 
   private onYourSavedInfoClick_() {

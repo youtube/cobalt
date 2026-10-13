@@ -502,9 +502,15 @@ void maybeShowSettingsIPH(Browser* browser) {
 }
 
 - (void)openBookmarksLimitExceededHelp {
+  if (_syncService) {
+    _syncService->AcknowledgeBookmarksLimitExceededError(
+        syncer::SyncService::BookmarksLimitExceededHelpClickedSource::
+            kAccountMenu);
+  }
   GURL helpUrl(kBookmarksLimitExceededHelpCenter);
   OpenNewTabCommand* command =
       [OpenNewTabCommand commandWithURLFromChrome:helpUrl];
+  command.appendTo = OpenPosition::kCurrentTab;
   id<SceneCommands> handler =
       HandlerForProtocol(self.browser->GetCommandDispatcher(), SceneCommands);
   [handler closePresentedViewsAndOpenURL:command];

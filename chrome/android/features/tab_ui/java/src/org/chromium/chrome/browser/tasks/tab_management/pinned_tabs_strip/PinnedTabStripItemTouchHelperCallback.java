@@ -40,7 +40,7 @@ public class PinnedTabStripItemTouchHelperCallback extends ItemTouchHelper2.Simp
     private static final long LONGPRESS_DURATION_MS = ViewConfiguration.getLongPressTimeout();
     private final TabGridItemLongPressOrchestrator mTabGridItemLongPressOrchestrator;
     private final TabListModel mModel;
-    private final MonotonicObservableSupplier<@Nullable TabGroupModelFilter>
+    private final MonotonicObservableSupplier<TabGroupModelFilter>
             mCurrentTabGroupModelFilterSupplier;
     private final int mFixedScrollAmount;
     private int mSelectedTabIndex = TabModel.INVALID_TAB_INDEX;
@@ -53,9 +53,9 @@ public class PinnedTabStripItemTouchHelperCallback extends ItemTouchHelper2.Simp
      */
     public PinnedTabStripItemTouchHelperCallback(
             Context context,
-            MonotonicObservableSupplier<@Nullable TabGroupModelFilter> tabGroupModelFilter,
+            MonotonicObservableSupplier<TabGroupModelFilter> tabGroupModelFilter,
             TabListModel model,
-            Supplier<RecyclerView> recyclerViewSupplier,
+            Supplier<@Nullable RecyclerView> recyclerViewSupplier,
             OnLongPressTabItemEventListener onLongPress) {
         super(/* dragDirs= */ 0, /* swipeDirs= */ 0);
         Resources res = context.getResources();

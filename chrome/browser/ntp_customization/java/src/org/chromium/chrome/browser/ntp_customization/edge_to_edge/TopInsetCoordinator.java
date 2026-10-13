@@ -22,7 +22,7 @@ import org.chromium.chrome.browser.layouts.LayoutStateProvider;
 import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationConfigManager;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils;
-import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundImageType;
+import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundType;
 import org.chromium.chrome.browser.ntp_customization.theme.chrome_colors.NtpThemeColorInfo;
 import org.chromium.chrome.browser.ntp_customization.theme.upload_image.BackgroundImageInfo;
 import org.chromium.chrome.browser.tab.EmptyTabObserver;
@@ -112,14 +112,16 @@ public class TopInsetCoordinator implements InsetObserver.WindowInsetsConsumer, 
                         } else {
                             mIsTabSwitcherShowing = false;
                         }
+                    }
 
-                        // When GTS is hiding, ToolbarPositionController updates the position of
-                        // toolbar in #onFinishedShowing() of the next layout. Therefore, calling
-                        // retriggerOnApplyWindowInsets() to apply the top insets if the transition
-                        // happens from GTS to a NTP. This can't be handled in #onTabSwitched()
-                        // which happens before the ToolbarPositionController updates the Toolbar's
-                        // position.
-                        if (mInTabSwitcherToNtpTransition && layoutType == LayoutType.BROWSING) {
+                    @Override
+                    public void onFinishedHiding(int layoutType) {
+                        // When GTS is hiding, calling retriggerOnApplyWindowInsets() to apply the
+                        // top insets if the transition happens from GTS to a NTP. This can't be
+                        // handled in #onTabSwitched() which happens before the
+                        // ToolbarPositionController updates the Toolbar's position.
+                        if (mInTabSwitcherToNtpTransition
+                                && layoutType == LayoutType.TAB_SWITCHER) {
                             mInTabSwitcherToNtpTransition = false;
                             mInsetObserver.retriggerOnApplyWindowInsets();
                         }
@@ -136,8 +138,8 @@ public class TopInsetCoordinator implements InsetObserver.WindowInsetsConsumer, 
                             Bitmap originalBitmap,
                             @Nullable BackgroundImageInfo backgroundImageInfo,
                             boolean fromInitialization,
-                            @NtpBackgroundImageType int oldType,
-                            @NtpBackgroundImageType int newType) {
+                            @NtpBackgroundType int oldType,
+                            @NtpBackgroundType int newType) {
                         onNtpBackgroundChanged(fromInitialization, oldType, newType);
                     }
 
@@ -146,19 +148,14 @@ public class TopInsetCoordinator implements InsetObserver.WindowInsetsConsumer, 
                             @Nullable NtpThemeColorInfo ntpThemeColorInfo,
                             @ColorInt int backgroundColor,
                             boolean fromInitialization,
-                            @NtpBackgroundImageType int oldType,
-                            @NtpBackgroundImageType int newType) {
+                            @NtpBackgroundType int oldType,
+                            @NtpBackgroundType int newType) {
                         onNtpBackgroundChanged(fromInitialization, oldType, newType);
                     }
 
                     @Override
-                    public void onBackgroundReset(@NtpBackgroundImageType int oldType) {
+                    public void onBackgroundReset(@NtpBackgroundType int oldType) {
                         onNtpBackgroundReset(oldType);
-                    }
-
-                    @Override
-                    public void refreshWindowInsets(boolean consumeTopInset) {
-                        TopInsetCoordinator.this.refreshWindowInsets(consumeTopInset);
                     }
                 };
         NtpCustomizationConfigManager.getInstance()
@@ -177,7 +174,16 @@ public class TopInsetCoordinator implements InsetObserver.WindowInsetsConsumer, 
         // We shouldn't use mTrackingTab, which can be set to null in removeObservers(), and it
         // won't be updated if mTabSupplierObserver is removed.
         Tab currentTab = mTabSupplier.get();
-        if (currentTab == null) return windowInsetsCompat;
+        if (currentTab == null
+                // When swipe the toolbar inside NTP, currentTab == null. So the
+                // EdgeToEdgeLayoutCoordinator will add the top padding.
+                // We need to notify the observer of ToolbarPositionController to remove the top
+                // padding.
+                && (mLayoutStateProvider == null
+                        || mLayoutStateProvider.getActiveLayoutType()
+                                != LayoutType.TOOLBAR_SWIPE)) {
+            return windowInsetsCompat;
+        }
 
         mSystemInsets = windowInsetsCompat.getInsets(WindowInsetsCompat.Type.systemBars());
 
@@ -289,12 +295,12 @@ public class TopInsetCoordinator implements InsetObserver.WindowInsetsConsumer, 
     @VisibleForTesting
     void onNtpBackgroundChanged(
             boolean fromInitialization,
-            @NtpBackgroundImageType int oldType,
-            @NtpBackgroundImageType int newType) {
+            @NtpBackgroundType int oldType,
+            @NtpBackgroundType int newType) {
         if (oldType == newType) return;
 
         boolean shouldRefreshWindowInsets = false;
-        if (oldType == NtpBackgroundImageType.DEFAULT) {
+        if (oldType == NtpBackgroundType.DEFAULT) {
             addObservers();
             shouldRefreshWindowInsets = true;
         }
@@ -305,17 +311,11 @@ public class TopInsetCoordinator implements InsetObserver.WindowInsetsConsumer, 
     }
 
     @VisibleForTesting
-    void onNtpBackgroundReset(@NtpBackgroundImageType int oldType) {
-        if (oldType == NtpBackgroundImageType.DEFAULT) return;
+    void onNtpBackgroundReset(@NtpBackgroundType int oldType) {
+        if (oldType == NtpBackgroundType.DEFAULT) return;
 
         removeObservers();
         refreshWindowInsets(/* consumeTopInset= */ false);
-    }
-
-    /** Returns the system's top inset. */
-    @Override
-    public int getSystemTopInset() {
-        return mSystemInsets.top;
     }
 
     // Adds observers which track Tab and Layout transitions and are only needed when the customized

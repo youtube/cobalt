@@ -130,8 +130,12 @@ class AimEligibilityService
   // Checks if user is eligible for Canvas in AIM features.
   virtual bool IsCanvasEligible() const;
 
+  // Determining whether the provided URL is an AI page based on server-provided
+  // params.
+  virtual bool HasAimUrlParams(const GURL& url) const;
+
   // Returns the most recent eligibility response proto.
-  const omnibox::AimEligibilityResponse& GetMostRecentResponse() const;
+  virtual const omnibox::AimEligibilityResponse& GetMostRecentResponse() const;
 
   // Returns the source of the most recent eligibility response.
   EligibilityResponseSource GetMostRecentResponseSource() const;
@@ -218,6 +222,7 @@ class AimEligibilityService
   void UpdateMostRecentResponse(
       const omnibox::AimEligibilityResponse& response_proto,
       EligibilityResponseSource response_source);
+
   // Loads `most_recent_response_` from the prefs, if valid.
   void LoadMostRecentResponse();
 
@@ -295,6 +300,9 @@ class AimEligibilityService
 
   // Tracks whether the startup request has been sent.
   bool startup_request_sent_ = false;
+
+  // Used to store the default config when the response doesn't have one.
+  mutable omnibox::SearchboxConfig fallback_config_;
 
   // For binding the `OnServerEligibilityResponse()` callback.
   base::WeakPtrFactory<AimEligibilityService> weak_factory_{this};

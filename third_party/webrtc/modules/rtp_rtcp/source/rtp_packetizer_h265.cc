@@ -36,7 +36,7 @@ RtpPacketizerH265::RtpPacketizerH265(ArrayView<const uint8_t> payload,
       return;
     }
     input_fragments_.push_back(
-        payload.subview(nalu.payload_start_offset, nalu.payload_size));
+        payload.subspan(nalu.payload_start_offset, nalu.payload_size));
   }
 
   if (!GeneratePackets()) {
@@ -125,7 +125,7 @@ bool RtpPacketizerH265::PacketizeFu(size_t fragment_index) {
     int packet_length = payload_sizes[i];
     RTC_CHECK_GT(packet_length, 0);
     uint16_t header = (fragment[0] << 8) | fragment[1];
-    packets_.push({.source_fragment = fragment.subview(offset, packet_length),
+    packets_.push({.source_fragment = fragment.subspan(offset, packet_length),
                    .first_fragment = (i == 0),
                    .last_fragment = (i == payload_sizes.size() - 1),
                    .aggregated = false,

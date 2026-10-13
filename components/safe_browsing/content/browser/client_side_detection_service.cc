@@ -501,7 +501,7 @@ bool ClientSideDetectionService::AddPhishingReport(base::Time timestamp) {
 
   phishing_report_times_.push_back(timestamp);
 
-  base::Value::List time_list;
+  base::ListValue time_list;
   for (const base::Time& report_time : phishing_report_times_) {
     time_list.Append(base::Value(report_time.InSecondsFSinceUnixEpoch()));
   }
@@ -813,7 +813,8 @@ void ClientSideDetectionService::ClassifyPhishingThroughThresholds(
           similarity.value() >= target_image_embedding.threshold) {
         verdict->set_is_phishing(true);
         ClientPhishingRequest::EmbeddingMatchMetadata embedding_match_metadata;
-        const auto& value_floats = feature_vector.value_float();
+        const auto& value_floats =
+            target_image_embedding.embedding.value_float();
         embedding_match_metadata.set_id(
             ClientSidePhishingModel::GetHashFromEmbedding(
                 std::vector<float>(value_floats.begin(), value_floats.end())));

@@ -5,19 +5,22 @@
 #include "src/dumpling/dumpling-manager.h"
 
 #include <fstream>
+#include <sstream>
 
 #include "src/dumpling/object-dumping.h"
+#include "src/execution/frames-inl.h"
 #include "src/execution/isolate.h"
 #include "src/objects/bytecode-array-inl.h"
 #include "src/objects/bytecode-array.h"
+#include "src/objects/js-function-inl.h"
 
 namespace v8::internal {
 
 namespace {
 
-V8_INLINE void MaybePrint(std::string short_name,
+V8_INLINE void MaybePrint(const std::string& short_name,
                           std::optional<std::string> maybe_value,
-                          std::ofstream& os) {
+                          std::ostream& os) {
   if (maybe_value.has_value()) {
     os << short_name << maybe_value.value() << "\n";
   }
@@ -25,7 +28,47 @@ V8_INLINE void MaybePrint(std::string short_name,
 
 }  // namespace
 
-void DumplingManager::DoPrint(UnoptimizedJSFrame* frame,
+Tagged<JSFunction> DumplingUnoptimizedJSFrame::function() {
+  return frame_->function();
+}
+
+Tagged<JSFunction> DumplingFrameDescriptionFrame::function() {
+  return Cast<JSFunction>(function_slot_object());
+}
+
+Tagged<Object> DumplingFrameDescriptionFrame::GetValueFromDescription(
+    int offset_from_fp) {
+  intptr_t fp_to_sp_delta = frame_->GetFp() - frame_->GetTop();
+  unsigned offset_from_sp =
+      static_cast<unsigned>(offset_from_fp + fp_to_sp_delta);
+  Address raw_value = frame_->GetFrameSlot(offset_from_sp);
+
+  // TODO(mdanylo): it's not really optimized out, but as we
+  // not materialize values only temporarily, it will do.
+  if (raw_value == 0xdeadbeef) {
+    return ReadOnlyRoots(isolate_).optimized_out();
+  }
+
+  return Tagged<Object>(raw_value);
+}
+
+void DumplingManager::PrintDumpedFrame(DumplingJSFrame* frame,
+                                       Tagged<JSFunction> function,
+                                       Isolate* isolate, int bytecode_offset,
+                                       DumpFrameType frame_dump_type) {
+  Handle<BytecodeArray> bytecode_array(
+      function->shared()->GetBytecodeArray(isolate), isolate);
+
+  // accumulator is located directly after the registers in the stack frame
+  int accumulator_reg_idx = bytecode_array->register_count();
+  Tagged<Object> accumulator_t = frame->GetRegisterValue(accumulator_reg_idx);
+  Handle<Object> accumulator(accumulator_t, isolate);
+
+  DoPrint(frame, function, bytecode_offset, frame_dump_type, bytecode_array,
+          accumulator);
+}
+
+void DumplingManager::DoPrint(DumplingJSFrame* frame,
                               Tagged<JSFunction> function, int bytecode_offset,
                               DumpFrameType frame_dump_type,
                               Handle<BytecodeArray> bytecode_array,
@@ -34,10 +77,16 @@ void DumplingManager::DoPrint(UnoptimizedJSFrame* frame,
 
   switch (frame_dump_type) {
     case DumpFrameType::kInterpreterFrame:
-      dumpling_os_ << "---I" << '\n';
+      *dumpling_stream_ << "---I" << '\n';
       break;
     case DumpFrameType::kSparkplugFrame:
-      dumpling_os_ << "---S" << '\n';
+      *dumpling_stream_ << "---S" << '\n';
+      break;
+    case DumpFrameType::kMaglevFrame:
+      *dumpling_stream_ << "---M" << '\n';
+      break;
+    case DumpFrameType::kTurbofanFrame:
+      *dumpling_stream_ << "---T" << '\n';
       break;
     default:
       UNREACHABLE();
@@ -55,36 +104,36 @@ void DumplingManager::DoPrint(UnoptimizedJSFrame* frame,
     }
   }
 
-  MaybePrint("b:", DumpBytecodeOffset(bytecode_offset), dumpling_os_);
+  MaybePrint("b:", DumpBytecodeOffset(bytecode_offset), *dumpling_stream_);
 
-  MaybePrint("f:", DumpFunctionId(function_id), dumpling_os_);
+  MaybePrint("f:", DumpFunctionId(function_id), *dumpling_stream_);
 
   std::stringstream check_acc;
   DifferentialFuzzingPrint(*accumulator, check_acc);
-  MaybePrint("x:", DumpAcc(check_acc.str()), dumpling_os_);
+  MaybePrint("x:", DumpAcc(check_acc.str()), *dumpling_stream_);
 
   int param_count = bytecode_array->parameter_count() - 1;
-  MaybePrint("n:", DumpArgCount(param_count), dumpling_os_);
+  MaybePrint("n:", DumpArgCount(param_count), *dumpling_stream_);
   int register_count = bytecode_array->register_count();
-  MaybePrint("m:", DumpRegCount(register_count), dumpling_os_);
+  MaybePrint("m:", DumpRegCount(register_count), *dumpling_stream_);
 
   for (int i = 0; i < param_count; i++) {
     std::stringstream check_arg;
     Tagged<Object> arg_object = frame->GetParameter(i);
     DifferentialFuzzingPrint(arg_object, check_arg);
     std::string label = "a" + std::to_string(i) + ":";
-    MaybePrint(label, DumpArg(i, check_arg.str()), dumpling_os_);
+    MaybePrint(label, DumpArg(i, check_arg.str()), *dumpling_stream_);
   }
 
   for (int i = 0; i < register_count; i++) {
     std::stringstream check_reg;
-    Tagged<Object> reg_object = frame->ReadInterpreterRegister(i);
+    Tagged<Object> reg_object = frame->GetRegisterValue(i);
     DifferentialFuzzingPrint(reg_object, check_reg);
     std::string label = "r" + std::to_string(i) + ":";
-    MaybePrint(label, DumpReg(i, check_reg.str()), dumpling_os_);
+    MaybePrint(label, DumpReg(i, check_reg.str()), *dumpling_stream_);
   }
 
-  dumpling_os_ << "\n";
+  *dumpling_stream_ << "\n";
 }
 
 std::string DumplingManager::GetDumpOutFilename() const {
@@ -155,8 +204,7 @@ std::optional<std::string> DumplingManager::DumpFunctionId(int function_id) {
   return DumpValue(function_id, dumpling_last_frame_.function_id);
 }
 
-DumplingManager::DumplingManager()
-    : dumpling_os_(GetDumpOutFilename(), std::ofstream::out) {
+DumplingManager::DumplingManager() {
   ResetLastFrame();
   if (v8_flags.load_dump_positions) {
     LoadDumpPositionsFromFile();
@@ -167,11 +215,11 @@ DumplingManager::~DumplingManager() {
   if (v8_flags.generate_dump_positions) {
     WriteDumpPositionsToFile();
   }
-  dumpling_os_.close();
 }
 
 bool DumplingManager::AnyDumplingFlagsSet() const {
-  return v8_flags.interpreter_dumping || v8_flags.sparkplug_dumping;
+  return v8_flags.interpreter_dumping || v8_flags.sparkplug_dumping ||
+         v8_flags.maglev_dumping || v8_flags.turbofan_dumping;
 }
 
 void DumplingManager::RecordDumpPosition(int function_id, int bytecode_offset) {
@@ -218,11 +266,18 @@ void DumplingManager::ResetLastFrame() {
                           -1};
 }
 
+void DumplingManager::FinishCurrentREPRLCycle() { dumpling_stream_.reset(); }
+
 void DumplingManager::PrepareForNextREPRLCycle() {
   ResetLastFrame();
   dump_positions_.clear();
-  // this will truncate the file
-  dumpling_os_.open(GetDumpOutFilename());
+
+  if (print_into_string_) {
+    dumpling_stream_ = std::make_unique<std::ostringstream>();
+  } else {
+    // this will truncate the file
+    dumpling_stream_ = std::make_unique<std::ofstream>(GetDumpOutFilename());
+  }
 }
 
 }  // namespace v8::internal

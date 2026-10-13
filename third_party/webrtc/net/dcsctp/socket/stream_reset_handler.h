@@ -163,6 +163,9 @@ class StreamResetHandler {
       req_seq_nbr_ = new_req_seq_nbr;
     }
 
+    void set_deferred(bool is_deferred) { is_deferred_ = is_deferred; }
+    bool is_deferred() const { return is_deferred_; }
+
    private:
     // If this is set, this request has been sent. If it's not set, the request
     // has been prepared, but has not yet been sent. This is typically used when
@@ -174,6 +177,9 @@ class StreamResetHandler {
     TSN sender_last_assigned_tsn_;
     // The streams that are to be reset in this request.
     const std::vector<StreamID> streams_;
+    // If the request is deferred (received "In Progress"), the next timeout
+    // should not be treated as a timeout.
+    bool is_deferred_ = false;
   };
 
   // Called to validate an incoming RE-CONFIG chunk.

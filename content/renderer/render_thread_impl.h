@@ -109,8 +109,6 @@ class VariationsRenderThreadObserver;
 
 #if BUILDFLAG(IS_WIN)
 class DCOMPTextureFactory;
-class OverlayStateServiceProvider;
-class OverlayStateServiceProviderImpl;
 #endif
 
 // The RenderThreadImpl class represents the main thread, where `blink::WebView`
@@ -240,10 +238,6 @@ class CONTENT_EXPORT RenderThreadImpl
 
 #if BUILDFLAG(IS_WIN)
   scoped_refptr<DCOMPTextureFactory> GetDCOMPTextureFactory();
-  // The OverlayStateService is only available where Media Foundation for
-  // clear is supported, otherwise GetOverlayStateServiceProvider will return
-  // nullptr.
-  scoped_refptr<OverlayStateServiceProvider> GetOverlayStateServiceProvider();
 #endif
 
   blink::WebVideoCaptureImplManager* video_capture_impl_manager() const {
@@ -403,7 +397,9 @@ class CONTENT_EXPORT RenderThreadImpl
                                base::TimeDelta http_rtt,
                                base::TimeDelta transport_rtt,
                                double bandwidth_kbps) override;
+#if BUILDFLAG(IS_ANDROID)
   void SetWebKitSharedTimersSuspended(bool suspend) override;
+#endif
   void InitializeRenderer(
       const std::string& user_agent,
       const blink::UserAgentMetadata& user_agent_metadata,
@@ -411,9 +407,11 @@ class CONTENT_EXPORT RenderThreadImpl
       blink::mojom::OriginTrialsSettingsPtr origin_trial_settings,
       blink::mojom::PerformanceTier cpu_performance_tier,
       uint64_t trace_id) override;
+#if BUILDFLAG(IS_MAC)
   void UpdateScrollbarTheme(
       mojom::UpdateScrollbarThemeParamsPtr params) override;
   void OnSystemColorsChanged(int32_t aqua_color_variant) override;
+#endif
   void UpdateSystemColorInfo(
       mojom::UpdateSystemColorInfoParamsPtr params) override;
   void PurgePluginListCache() override;
@@ -425,7 +423,6 @@ class CONTENT_EXPORT RenderThreadImpl
   void WriteClangProfilingProfile(
       WriteClangProfilingProfileCallback callback) override;
 #endif
-  void SetIsCrossOriginIsolated(bool value) override;
   void SetIsWebSecurityDisabled(bool value) override;
   void SetIsIsolatedContext(bool value) override;
   void SetWebUIResourceUrlToCodeCacheMap(
@@ -513,8 +510,6 @@ class CONTENT_EXPORT RenderThreadImpl
 
 #if BUILDFLAG(IS_WIN)
   scoped_refptr<DCOMPTextureFactory> dcomp_texture_factory_;
-  scoped_refptr<OverlayStateServiceProviderImpl>
-      overlay_state_service_provider_;
 #endif
 
   scoped_refptr<viz::ContextProviderCommandBuffer> shared_main_thread_contexts_;

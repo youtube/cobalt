@@ -31,6 +31,7 @@
 #include "chrome/browser/shortcuts/shortcut_icon_generator.h"
 #include "chrome/browser/ssl/chrome_security_state_tab_helper.h"
 #include "chrome/browser/sync/sync_service_factory.h"
+#include "chrome/browser/web_applications/model/display_override.h"
 #include "chrome/browser/web_applications/os_integration/os_integration_manager.h"
 #include "chrome/browser/web_applications/os_integration/web_app_file_handler_manager.h"
 #include "chrome/browser/web_applications/policy/pre_redirection_url_observer.h"
@@ -664,6 +665,7 @@ WebAppManagement::Type ConvertInstallSurfaceToWebAppSource(
     case webapps::WebappInstallSource::OOBE_APP_RECOMMENDATIONS:
     case webapps::WebappInstallSource::WEB_INSTALL:
     case webapps::WebappInstallSource::CHROMEOS_HELP_APP:
+    case webapps::WebappInstallSource::MIGRATION:
       return WebAppManagement::kUserInstalled;
 
     case webapps::WebappInstallSource::IWA_GRAPHICAL_INSTALLER:
@@ -742,8 +744,6 @@ void SetWebAppManifestFields(const WebAppInstallInfo& web_app_info,
   web_app.SetDisplayMode(web_app_info.display_mode);
   web_app.SetDisplayModeOverride(web_app_info.display_override);
 
-  web_app.SetBorderlessUrlPatterns(web_app_info.borderless_url_patterns);
-
   web_app.SetDescription(base::UTF16ToUTF8(web_app_info.description.value()));
   web_app.SetLaunchQueryParams(web_app_info.launch_query_params);
 
@@ -796,12 +796,6 @@ void SetWebAppManifestFields(const WebAppInstallInfo& web_app_info,
   }
 
   web_app.SetPermissionsPolicy(web_app_info.permissions_policy);
-
-  if (web_app.file_handler_approval_state() == ApiApprovalState::kAllowed &&
-      !AreNewFileHandlersASubsetOfOld(web_app.file_handlers(),
-                                      web_app_info.file_handlers)) {
-    web_app.SetFileHandlerApprovalState(ApiApprovalState::kRequiresPrompt);
-  }
   web_app.SetFileHandlers(web_app_info.file_handlers);
   web_app.SetShareTarget(web_app_info.share_target);
   web_app.SetProtocolHandlers(web_app_info.protocol_handlers);

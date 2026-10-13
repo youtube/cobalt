@@ -7,8 +7,8 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "chrome/browser/ui/webui/settings/settings_page_ui_handler.h"
 #include "components/prefs/pref_change_registrar.h"
+#include "content/public/browser/web_ui_message_handler.h"
 
 class PrefService;
 class Profile;
@@ -16,23 +16,23 @@ class Profile;
 namespace ash::settings {
 
 // Settings WebUI handler for quick unlock settings.
-class QuickUnlockHandler : public ::settings::SettingsPageUIHandler {
+class QuickUnlockHandler : public content::WebUIMessageHandler {
  public:
   QuickUnlockHandler(Profile* profile, PrefService* pref_service);
   QuickUnlockHandler(const QuickUnlockHandler&) = delete;
   QuickUnlockHandler& operator=(const QuickUnlockHandler&) = delete;
   ~QuickUnlockHandler() override;
 
-  // SettingsPageUIHandler:
+  // content::WebUIMessageHandler:
   void RegisterMessages() override;
   void OnJavascriptAllowed() override;
   void OnJavascriptDisallowed() override;
 
  private:
-  void HandleRequestPinLoginState(const base::Value::List& args);
+  void HandleRequestPinLoginState(const base::ListValue& args);
   void OnPinLoginAvailable(bool is_available);
 
-  void HandleQuickUnlockDisabledByPolicy(const base::Value::List& args);
+  void HandleQuickUnlockDisabledByPolicy(const base::ListValue& args);
   void UpdateQuickUnlockDisabledByPolicy();
 
   raw_ptr<Profile> profile_;

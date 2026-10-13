@@ -71,7 +71,6 @@ namespace Stop = api::webrtc_logging_private::Stop;
 namespace StopRtpDump = api::webrtc_logging_private::StopRtpDump;
 namespace Store = api::webrtc_logging_private::Store;
 namespace Upload = api::webrtc_logging_private::Upload;
-namespace UploadStored = api::webrtc_logging_private::UploadStored;
 namespace StartAudioDebugRecordings =
     api::webrtc_logging_private::StartAudioDebugRecordings;
 namespace StopAudioDebugRecordings =
@@ -342,28 +341,6 @@ ExtensionFunction::ResponseAction WebrtcLoggingPrivateStoreFunction::Run() {
   return RespondLater();
 }
 
-ExtensionFunction::ResponseAction
-WebrtcLoggingPrivateUploadStoredFunction::Run() {
-  std::optional<UploadStored::Params> params =
-      UploadStored::Params::Create(args());
-  EXTENSION_FUNCTION_VALIDATE(params);
-
-  std::string error;
-  WebRtcLoggingController* logging_controller = LoggingControllerFromRequest(
-      params->request, params->security_origin, &error);
-  if (!logging_controller)
-    return RespondNow(Error(std::move(error)));
-
-  WebRtcLoggingController::UploadDoneCallback callback = base::BindOnce(
-      &WebrtcLoggingPrivateUploadStoredFunction::FireCallback, this);
-
-  const std::string local_log_id(HashIdWithOrigin(params->security_origin,
-                                                  params->log_id));
-
-  logging_controller->UploadStoredLog(local_log_id, std::move(callback));
-  return RespondLater();
-}
-
 ExtensionFunction::ResponseAction WebrtcLoggingPrivateUploadFunction::Run() {
   std::optional<Upload::Params> params = Upload::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
@@ -612,7 +589,7 @@ void WebrtcLoggingPrivateGetLogsDirectoryFunction::FireCallback(
     const std::string& filesystem_id,
     const std::string& base_name) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-  base::Value::Dict dict;
+  base::DictValue dict;
   dict.Set("fileSystemId", filesystem_id);
   dict.Set("baseName", base_name);
   Respond(WithArguments(std::move(dict)));

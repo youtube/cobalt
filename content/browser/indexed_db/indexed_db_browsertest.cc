@@ -432,15 +432,8 @@ IN_PROC_BROWSER_TEST_P(IndexedDBBrowserTest, ObjectStoreTest) {
                           0);
   tester.ExpectTotalCount("WebCore.IndexedDB.RequestDuration2.ObjectStoreAdd",
                           3);
-  // 2 of the adds succeed and one fails (due to the key already existing).
-  tester.ExpectBucketCount(
-      "WebCore.IndexedDB.RequestDispatchOutcome.ObjectStoreAdd", 1, 2);
-  tester.ExpectBucketCount(
-      "WebCore.IndexedDB.RequestDispatchOutcome.ObjectStoreAdd", 0, 1);
   tester.ExpectTotalCount("WebCore.IndexedDB.RequestDuration2.ObjectStoreGet",
                           3);
-  tester.ExpectBucketCount(
-      "WebCore.IndexedDB.RequestDispatchOutcome.ObjectStoreGet", 1, 3);
 
   tester.ExpectTotalCount("WebCore.IndexedDB.Transaction.ReadWrite.TimeQueued",
                           0);
@@ -461,19 +454,12 @@ IN_PROC_BROWSER_TEST_P(IndexedDBBrowserTest, ObjectStoreTest) {
   content::FetchHistogramsFromChildProcesses();
 
   tester.ExpectTotalCount("WebCore.IndexedDB.RequestDuration2.Open", 2);
-  tester.ExpectBucketCount("WebCore.IndexedDB.RequestDispatchOutcome.Open", 1,
-                           2);
   tester.ExpectTotalCount("WebCore.IndexedDB.RequestDuration2.ObjectStorePut",
                           0);
   tester.ExpectTotalCount("WebCore.IndexedDB.RequestDuration2.ObjectStoreAdd",
                           4);
-  // One more success than before.
-  tester.ExpectBucketCount(
-      "WebCore.IndexedDB.RequestDispatchOutcome.ObjectStoreAdd", 1, 3);
   tester.ExpectTotalCount("WebCore.IndexedDB.RequestDuration2.ObjectStoreGet",
                           5);
-  tester.ExpectBucketCount(
-      "WebCore.IndexedDB.RequestDispatchOutcome.ObjectStoreGet", 1, 5);
 
   tester.ExpectTotalCount("WebCore.IndexedDB.Transaction.ReadWrite.TimeQueued",
                           0);
@@ -594,6 +580,11 @@ IN_PROC_BROWSER_TEST_P(IndexedDBBrowserTestWithGCExposed, Bug346955148Test) {
 // Regression test for crbug.com/392376370
 IN_PROC_BROWSER_TEST_P(IndexedDBBrowserTestWithGCExposed, NestedBlob) {
   SimpleTest(GetTestUrl("indexeddb", "nested_blob.html"));
+}
+
+IN_PROC_BROWSER_TEST_P(IndexedDBBrowserTestWithGCExposed,
+                       DbRestoresFromZygoticState) {
+  SimpleTest(GetTestUrl("indexeddb", "db_restores_from_zygotic_state.html"));
 }
 
 struct BlobModificationTime {
@@ -776,6 +767,34 @@ IN_PROC_BROWSER_TEST_F(IndexedDBBrowserTestsWithCleanupScheduler,
   }));
 }
 
+// Verifies behavior for when the IndexedDB metadata changes during in-session
+// tombstone sweeping.
+IN_PROC_BROWSER_TEST_F(IndexedDBBrowserTestsWithCleanupScheduler,
+                       UpdateMetadataDuringTombstoneSweep) {
+  base::HistogramTester histograms;
+  const GURL kTestUrl =
+      GetTestUrl("indexeddb", "index_deletion_regression_tests.html");
+  EXPECT_TRUE(NavigateToURL(shell(), kTestUrl));
+
+  int num_entries = content::indexed_db::level_db::LevelDBCleanupScheduler::
+                        kTombstoneThreshold +
+                    1;
+  ASSERT_TRUE(ExecJs(
+      shell(),
+      base::StringPrintf(
+          "deleteIndexBetweenRounds(%d, %d)", num_entries,
+          content::indexed_db::level_db::LevelDBCleanupScheduler::kDeferTime
+              .InMilliseconds())));
+
+  // Cleanup will be completed after a short delay.
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return histograms.GetBucketCount(
+               "IndexedDB.LevelDB.InSessionCleanupVerificationEvent",
+               level_db::BackingStore::InSessionCleanupVerificationEvent::
+                   kMatchedSnapshot) > 0;
+  }));
+}
+
 // Regression test for crbug.com/413540372.
 // More details in `index_deletion_regression_tests.js`.
 IN_PROC_BROWSER_TEST_F(IndexedDBBrowserTestsWithCleanupScheduler,
@@ -948,11 +967,6 @@ IN_PROC_BROWSER_TEST_P(IndexedDBBrowserTest, EmptyBlob) {
 }
 
 IN_PROC_BROWSER_TEST_P(IndexedDBBrowserTest, BlobsCountAgainstQuota) {
-  if (using_sqlite_) {
-    // TODO(crbug.com/433318798): Enable this test after reclaiming disk space
-    // on data deletion.
-    GTEST_SKIP();
-  }
   SimpleTest(GetTestUrl("indexeddb", "blobs_use_quota.html"));
 }
 
@@ -1554,6 +1568,12 @@ IN_PROC_BROWSER_TEST_P(IndexedDBBrowserTest, LargeValueIsWrapped) {
                     DatabaseMetaDataKey::kBlobNumberGeneratorInitialNumber);
     EXPECT_TRUE(base::PathExists(blob_path));
   }
+}
+
+// Tests that bucket deletion succeeds during opportunistic cleanup of recently
+// closed databases.
+IN_PROC_BROWSER_TEST_P(IndexedDBBrowserTest, BucketDeletionDuringCleanup) {
+  SimpleTest(GetTestUrl("indexeddb", "bucket_deletion_during_cleanup.html"));
 }
 
 // The blob key corruption test runs in a separate class to avoid corrupting

@@ -34,12 +34,12 @@ using MediapipeGesture = FaceGazeTestUtils::MediapipeGesture;
 namespace {
 
 const char* kDefaultDisplaySize = "1200x800";
-constexpr char kMediapipeMV3TestFilePath[] =
-    "resources/chromeos/accessibility/accessibility_common/mv3/third_party/"
+constexpr char kMediapipeTestFilePath[] =
+    "resources/chromeos/accessibility/accessibility_common/third_party/"
     "mediapipe_task_vision";
 const int kMouseDeviceId = 1;
-constexpr char kTestSupportMV3Path[] =
-    "chrome/browser/resources/chromeos/accessibility/accessibility_common/mv3/"
+constexpr char kTestSupportPath[] =
+    "chrome/browser/resources/chromeos/accessibility/accessibility_common/"
     "facegaze/facegaze_test_support.js";
 
 PrefService* GetPrefs() {
@@ -151,7 +151,7 @@ FaceGazeTestUtils::MockFaceLandmarkerResult::WithGesture(
   // receives confidence scores as values [0, 1], so we need to convert the
   // confidence to a decimal before processing it.
   recognized_gestures_.Append(
-      base::Value::Dict()
+      base::DictValue()
           .Set("categoryName", ToString(gesture))
           .Set("score", static_cast<double>(confidence) / 100.0));
   return *this;
@@ -280,7 +280,7 @@ void FaceGazeTestUtils::EnableFaceGaze(const Config& config) {
       prefs::kAccessibilityFaceGazeAcceleratorDialogHasBeenAccepted,
       config.dialog_accepted());
 
-  FaceGazeTestUtils::SetUpMediapipeDir(kMediapipeMV3TestFilePath);
+  FaceGazeTestUtils::SetUpMediapipeDir(kMediapipeTestFilePath);
   ASSERT_FALSE(AccessibilityManager::Get()->IsFaceGazeEnabled());
   // Watch events from an MV3 extension which runs in a service worker.
   extensions::ExtensionRegistryTestHelper observer(
@@ -290,7 +290,7 @@ void FaceGazeTestUtils::EnableFaceGaze(const Config& config) {
   observer.WaitForServiceWorkerStart();
 
   WaitForJSReady();
-  SetUpJSTestSupport(kTestSupportMV3Path);
+  SetUpJSTestSupport(kTestSupportPath);
   if (config.dialog_accepted()) {
     // The FaceLandmarker will be automatically initialized after the dialog has
     // been accepted.
@@ -493,7 +493,7 @@ void FaceGazeTestUtils::SetGesturesToMacros(
     const base::flat_map<FaceGazeGesture, MacroName>& gestures_to_macros) {
   // Copy the stricly-typed mapping of gestures to macros into a dictionary
   // value that can be used as the preference value.
-  base::Value::Dict dict;
+  base::DictValue dict;
   for (const auto& mapping : gestures_to_macros) {
     dict.Set(ToString(mapping.first), mapping.second);
   }
@@ -506,7 +506,7 @@ void FaceGazeTestUtils::SetGestureConfidences(
     const base::flat_map<FaceGazeGesture, int>& gesture_confidences) {
   // Copy the stricly-typed mapping of gestures to confidences into a dictionary
   // value that can be used as the preference value.
-  base::Value::Dict dict;
+  base::DictValue dict;
   for (const auto& mapping : gesture_confidences) {
     dict.Set(ToString(mapping.first), mapping.second);
   }

@@ -33,6 +33,7 @@
 #include "components/autofill/core/browser/foundations/test_autofill_manager_waiter.h"
 #include "components/autofill/core/browser/metrics/payments/iban_metrics.h"
 #include "components/autofill/core/browser/payments/iban_save_manager.h"
+#include "components/autofill/core/browser/payments/iban_save_manager_test_api.h"
 #include "components/autofill/core/browser/payments/payments_autofill_client.h"
 #include "components/autofill/core/browser/payments/payments_network_interface.h"
 #include "components/autofill/core/browser/strike_databases/payments/iban_save_strike_database.h"
@@ -80,7 +81,7 @@ constexpr char kResponsePaymentsFailure[] =
 
 class IbanBubbleViewFullFormBrowserTest
     : public SyncTest,
-      public testing::WithParamInterface<bool>,
+      public testing::WithParamInterface<std::tuple<bool, bool>>,
       public IbanSaveManager::ObserverForTest,
       public IbanBubbleControllerImpl::ObserverForTest {
  protected:
@@ -88,7 +89,7 @@ class IbanBubbleViewFullFormBrowserTest
     std::vector<base::test::FeatureRefAndParams> enabled_features = {};
     std::vector<base::test::FeatureRef> disabled_features = {};
 
-    const bool is_page_action_migration_enabled = GetParam();
+    const bool is_page_action_migration_enabled = std::get<0>(GetParam());
     if (is_page_action_migration_enabled) {
       enabled_features.push_back({
           ::features::kPageActionsMigration,
@@ -100,6 +101,14 @@ class IbanBubbleViewFullFormBrowserTest
     } else {
       disabled_features.emplace_back(::features::kPageActionsMigration);
     }
+
+    const bool is_wallet_branding_enabled = IsWalletBrandingEnabled();
+    if (is_wallet_branding_enabled) {
+      enabled_features.push_back({features::kAutofillEnableWalletBranding, {}});
+    } else {
+      disabled_features.emplace_back(features::kAutofillEnableWalletBranding);
+    }
+
     feature_list_.InitWithFeaturesAndParameters(enabled_features,
                                                 disabled_features);
 
@@ -145,13 +154,11 @@ class IbanBubbleViewFullFormBrowserTest
 
   // SyncTest::SetUpOnMainThread:
   void SetUpOnMainThread() override {
-    SyncTest::SetUpOnMainThread();
-
     // Set up the HTTPS server (uses the embedded_test_server).
-    ASSERT_TRUE(embedded_test_server()->InitializeAndListen());
     embedded_test_server()->ServeFilesFromSourceDirectory(
         "components/test/data/autofill");
-    embedded_test_server()->StartAcceptingConnections();
+
+    SyncTest::SetUpOnMainThread();
 
     ASSERT_TRUE(SetupClients());
 
@@ -180,7 +187,7 @@ class IbanBubbleViewFullFormBrowserTest
     iban_save_manager_ =
         test_api(*autofill_manager()->client().GetFormDataImporter())
             .iban_save_manager();
-    iban_save_manager_->SetEventObserverForTesting(this);
+    test_api(*iban_save_manager_).SetEventObserverForTesting(this);
     AddEventObserverToController();
   }
 
@@ -448,6 +455,8 @@ class IbanBubbleViewFullFormBrowserTest
     return IsPageActionMigrated(PageActionIconType::kSaveIban);
   }
 
+  bool IsWalletBrandingEnabled() { return std::get<1>(GetParam()); }
+
   [[nodiscard]] testing::AssertionResult WaitForObservedEvent() {
     return event_waiter_->Wait();
   }
@@ -507,10 +516,10 @@ IN_PROC_BROWSER_TEST_P(IbanBubbleViewFullFormBrowserTest,
   ASSERT_TRUE(WaitForObservedEvent());
 
   EXPECT_FALSE(GetSaveIbanBubbleView());
-  EXPECT_EQ(
-      1, iban_save_manager_->GetIbanSaveStrikeDatabaseForTesting()->GetStrikes(
-             IbanSaveManager::GetPartialIbanHashString(
-                 kIbanValueWithoutWhitespaces)));
+  EXPECT_EQ(1, test_api(*iban_save_manager_)
+                   .GetIbanSaveStrikeDatabase()
+                   ->GetStrikes(IbanSaveManager::GetPartialIbanHashString(
+                       kIbanValueWithoutWhitespaces)));
   histogram_tester.ExpectUniqueSample(
       "Autofill.SaveIbanPromptOffer.Local.FirstShow",
       autofill_metrics::SaveIbanPromptOffer::kShown, 1);
@@ -533,16 +542,27 @@ IN_PROC_BROWSER_TEST_P(IbanBubbleViewFullFormBrowserTest,
   ASSERT_TRUE(WaitForObservedEvent());
 
   EXPECT_FALSE(GetSaveIbanBubbleView());
-  EXPECT_EQ(
-      1, iban_save_manager_->GetIbanSaveStrikeDatabaseForTesting()->GetStrikes(
-             IbanSaveManager::GetPartialIbanHashString(
-                 kIbanValueWithoutWhitespaces)));
+  EXPECT_EQ(1, test_api(*iban_save_manager_)
+                   .GetIbanSaveStrikeDatabase()
+                   ->GetStrikes(IbanSaveManager::GetPartialIbanHashString(
+                       kIbanValueWithoutWhitespaces)));
   histogram_tester.ExpectUniqueSample(
       "Autofill.SaveIbanPromptOffer.Local.FirstShow",
       autofill_metrics::SaveIbanPromptOffer::kShown, 1);
   histogram_tester.ExpectUniqueSample(
       "Autofill.SaveIbanPromptResult2.Local.FirstShow",
       autofill_metrics::SaveIbanPromptResult::kClosed, 1);
+}
+
+// Tests the local save bubble. Ensures that no icon is displayed.
+IN_PROC_BROWSER_TEST_P(IbanBubbleViewFullFormBrowserTest,
+                       Local_NoIconDisplayed) {
+  FillForm(kIbanValue);
+  SubmitFormAndWaitForIbanLocalSaveBubble();
+
+  EXPECT_EQ(GetSaveIbanBubbleView()->GetBubbleFrameView()->title()->GetViewByID(
+                DialogViewId::BUBBLE_TITLE_ICON),
+            nullptr);
 }
 
 // Tests overall StrikeDatabase interaction with the local save bubble. Runs an
@@ -553,7 +573,8 @@ IN_PROC_BROWSER_TEST_P(IbanBubbleViewFullFormBrowserTest,
                        StrikeDatabase_Local_FullFlowTest) {
   base::HistogramTester histogram_tester;
   // Show and ignore the bubble enough times in order to accrue maximum strikes.
-  for (int i = 0; i < iban_save_manager_->GetIbanSaveStrikeDatabaseForTesting()
+  for (int i = 0; i < test_api(*iban_save_manager_)
+                          .GetIbanSaveStrikeDatabase()
                           ->GetMaxStrikesLimit();
        ++i) {
     FillForm(kIbanValue);
@@ -563,12 +584,13 @@ IN_PROC_BROWSER_TEST_P(IbanBubbleViewFullFormBrowserTest,
     ClickOnCancelButton();
     ASSERT_TRUE(WaitForObservedEvent());
   }
-  EXPECT_EQ(
-      iban_save_manager_->GetIbanSaveStrikeDatabaseForTesting()->GetStrikes(
-          IbanSaveManager::GetPartialIbanHashString(
-              kIbanValueWithoutWhitespaces)),
-      iban_save_manager_->GetIbanSaveStrikeDatabaseForTesting()
-          ->GetMaxStrikesLimit());
+  EXPECT_EQ(test_api(*iban_save_manager_)
+                .GetIbanSaveStrikeDatabase()
+                ->GetStrikes(IbanSaveManager::GetPartialIbanHashString(
+                    kIbanValueWithoutWhitespaces)),
+            test_api(*iban_save_manager_)
+                .GetIbanSaveStrikeDatabase()
+                ->GetMaxStrikesLimit());
   // Submit the form a fourth time. Since the IBAN now has maximum strikes,
   // the bubble should not be shown.
   FillForm(kIbanValue);
@@ -578,7 +600,8 @@ IN_PROC_BROWSER_TEST_P(IbanBubbleViewFullFormBrowserTest,
   ASSERT_TRUE(WaitForObservedEvent());
 
   EXPECT_TRUE(
-      iban_save_manager_->GetIbanSaveStrikeDatabaseForTesting()
+      test_api(*iban_save_manager_)
+          .GetIbanSaveStrikeDatabase()
           ->ShouldBlockFeature(IbanSaveManager::GetPartialIbanHashString(
               kIbanValueWithoutWhitespaces)));
 
@@ -848,10 +871,56 @@ IN_PROC_BROWSER_TEST_P(IbanBubbleViewSyncTransportFullFormBrowserTest,
 
   EXPECT_TRUE(GetSaveIbanBubbleView());
   ASSERT_TRUE(WaitForObservedEvent());
-  EXPECT_EQ(
-      1, iban_save_manager_->GetIbanSaveStrikeDatabaseForTesting()->GetStrikes(
-             IbanSaveManager::GetPartialIbanHashString(
-                 kIbanValueWithoutWhitespaces)));
+  EXPECT_EQ(1, test_api(*iban_save_manager_)
+                   .GetIbanSaveStrikeDatabase()
+                   ->GetStrikes(IbanSaveManager::GetPartialIbanHashString(
+                       kIbanValueWithoutWhitespaces)));
+}
+
+// Tests the local save fallback bubble. Ensures that when a upload save fails,
+// the bubble falls back to a local save, and the Google Pay icon is removed if
+// Google Wallet branding is enabled.
+// TODO(crbug.com/478718852): Flaky on Linux.
+#if BUILDFLAG(IS_LINUX)
+#define MAYBE_Upload_FallsBackToLocalSave_IconDisplayed \
+  DISABLED_Upload_FallsBackToLocalSave_IconDisplayed
+#else
+#define MAYBE_Upload_FallsBackToLocalSave_IconDisplayed \
+  Upload_FallsBackToLocalSave_IconDisplayed
+#endif
+IN_PROC_BROWSER_TEST_P(IbanBubbleViewSyncTransportFullFormBrowserTest,
+                       MAYBE_Upload_FallsBackToLocalSave_IconDisplayed) {
+  SetUploadIbanRpcPaymentsFails();
+  SetUpForSyncTransportModeTest();
+
+  FillForm(kIbanValue);
+  SubmitFormAndWaitForUploadSaveBubble();
+
+  EXPECT_NE(GetSaveIbanBubbleView()->GetBubbleFrameView()->title()->GetViewByID(
+                DialogViewId::BUBBLE_TITLE_ICON),
+            nullptr);
+
+  ResetEventWaiterForSequence({DialogEvent::REQUESTED_UPLOAD_SAVE,
+                               DialogEvent::ACCEPT_UPLOAD_SAVE_IBAN_FAILED});
+  ClickOnDialogView(FindViewInBubbleById(DialogViewId::OK_BUTTON));
+
+  EXPECT_TRUE(GetSaveIbanBubbleView());
+  ASSERT_TRUE(WaitForObservedEvent());
+
+  // When Google Wallet branding is enabled, the GPay icon should be removed
+  // from the local save fallback bubble.
+  if (IsWalletBrandingEnabled()) {
+    EXPECT_EQ(
+        GetSaveIbanBubbleView()->GetBubbleFrameView()->title()->GetViewByID(
+            DialogViewId::BUBBLE_TITLE_ICON),
+        nullptr);
+  } else {
+    // If Google Wallet branding is disabled, we continue to show the GPay icon.
+    EXPECT_NE(
+        GetSaveIbanBubbleView()->GetBubbleFrameView()->title()->GetViewByID(
+            DialogViewId::BUBBLE_TITLE_ICON),
+        nullptr);
+  }
 }
 
 // Tests the upload save bubble. Ensures that clicking the 'No thanks' button
@@ -869,10 +938,10 @@ IN_PROC_BROWSER_TEST_P(IbanBubbleViewSyncTransportFullFormBrowserTest,
   ResetEventWaiterForSequence({DialogEvent::DECLINE_SAVE_IBAN_COMPLETE});
   ClickOnCancelButton();
   ASSERT_TRUE(WaitForObservedEvent());
-  EXPECT_EQ(
-      1, iban_save_manager_->GetIbanSaveStrikeDatabaseForTesting()->GetStrikes(
-             IbanSaveManager::GetPartialIbanHashString(
-                 kIbanValueWithoutWhitespaces)));
+  EXPECT_EQ(1, test_api(*iban_save_manager_)
+                   .GetIbanSaveStrikeDatabase()
+                   ->GetStrikes(IbanSaveManager::GetPartialIbanHashString(
+                       kIbanValueWithoutWhitespaces)));
 }
 
 // Test that upload save should not be offered when the preflight call failed.
@@ -921,23 +990,25 @@ IN_PROC_BROWSER_TEST_P(IbanBubbleViewSyncTransportFullFormBrowserTest,
 INSTANTIATE_TEST_SUITE_P(
     ,
     IbanBubbleViewFullFormBrowserTest,
-    ::testing::Bool(),
+    testing::Combine(testing::Bool(), testing::Bool()),
     [](const ::testing::TestParamInfo<
-        IbanBubbleViewFullFormBrowserTest::ParamType>& info) {
-      return base::StrCat({
-          info.param ? "NewPageAction" : "OriginalPageAction",
-      });
+        IbanBubbleViewSyncTransportFullFormBrowserTest::ParamType>& info) {
+      return base::StrCat(
+          {std::get<0>(info.param) ? "NewPage_" : "OriginalPage_",
+           std::get<1>(info.param) ? "WalletBrandingEnabled"
+                                   : "WalletBrandingDisabled"});
     });
 
 INSTANTIATE_TEST_SUITE_P(
     ,
     IbanBubbleViewSyncTransportFullFormBrowserTest,
-    ::testing::Bool(),
+    testing::Combine(testing::Bool(), testing::Bool()),
     [](const ::testing::TestParamInfo<
         IbanBubbleViewSyncTransportFullFormBrowserTest::ParamType>& info) {
-      return base::StrCat({
-          info.param ? "NewPageAction" : "OriginalPageAction",
-      });
+      return base::StrCat(
+          {std::get<0>(info.param) ? "NewPage_" : "OriginalPage_",
+           std::get<1>(info.param) ? "WalletBrandingEnabled"
+                                   : "WalletBrandingDisabled"});
     });
 
 }  // namespace

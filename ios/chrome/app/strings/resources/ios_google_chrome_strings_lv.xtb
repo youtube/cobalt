@@ -1,6 +1,7 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="lv">
+<translation id="1035560095760914532">Novietojiet pārlūku Chrome apakšējā apgabalā, lai jebkurā laikā varētu tam piekļūt</translation>
 <translation id="1076643793026027628">Pārlūkā Chrome YouTube inkognito saites tiek automātiski atvērtas inkognito režīmā.</translation>
 <translation id="1081114897601629648">Tālāk norādītās paroles netika importētas Google paroļu pārvaldniekā, jo tās neatbilst prasībām.</translation>
 <translation id="1086486568852410168">Meklēt, izmantojot Google Lens</translation>
@@ -86,6 +87,10 @@ Pirms izrakstāties, uzgaidiet dažas minūtes. Ja izrakstīsieties tūlīt, ši
 <translation id="2767464022270041271">Nav saglabātu paroļu. Google paroļu pārvaldnieks var pārbaudīt jūsu paroles, ja jūs tās saglabājat.</translation>
 <translation id="2788811701191021538">Atver maksājumu veidu iestatījumu lapu pārlūkā Chrome.</translation>
 <translation id="2876628302275096482">Uzziniet vairāk par to, <ph name="BEGIN_LINK" />kā pārlūkā Chrome tiek saglabāta jūsu datu konfidencialitāte<ph name="END_LINK" />.</translation>
+<translation id="288992067439702510">Ir sasniegts Google Chrome grāmatzīmju skaita ierobežojums (<ph name="LIMIT" />), tāpēc noteiktas jūsu grāmatzīmes vēl nav saglabātas jūsu Google kontā.
+
+Jaunas grāmatzīmes nevarēs saglabāt jūsu kontā, kamēr neizdzēsīsiet dažas esošajām. Ja izrakstīsieties tūlīt, nesaglabātās grāmatzīmes tiks dzēstas.</translation>
+<translation id="2901621928549457170">Atveriet pārlūku Chrome uzreiz, kad izmantojat iPad planšetdatoru</translation>
 <translation id="2922914028977213693">Pieskarieties šeit, lai iPad planšetdatorā pilnvērtīgi izmantotu visas Chrome iespējas.</translation>
 <translation id="292371311537977079">Chrome iestatījumi</translation>
 <translation id="2923827943290349720">Bloķēt inkognito cilnes, aizverot pārlūku Chrome</translation>
@@ -170,6 +175,8 @@ Pirms izrakstāties, uzgaidiet dažas minūtes. Ja izrakstīsieties tūlīt, ši
 <translation id="5119391094379141756">Atlasiet Chrome</translation>
 <translation id="5123188916260706415">Meklēšana ar balsi pārlūkā Chrome.</translation>
 <translation id="5162467219239570114">Pārlūka Chrome versija ir novecojusi. Ja veikalā <ph name="BEGIN_LINK" />App Store<ph name="END_LINK" /> nav pieejami atjauninājumi, iespējams, jūsu ierīcē vairs netiek atbalstītas pārlūka Chrome jaunās versijas.</translation>
+<translation id="5172049865623113551">Atveriet pārlūku Chrome uzreiz, kad izmantojat iPhone tālruni</translation>
+<translation id="5179095426828744632">Ātrāk piekļūstiet pārlūkam Chrome no doka</translation>
 <translation id="5184329579814168207">Atvērt pārlūkā Chrome</translation>
 <translation id="5190139289262548459">Jūsu organizācija (<ph name="DOMAIN" />) pārvalda kontu, kurā esat pierakstījies, un to, kā tiek izmantots pārlūks Chrome.</translation>
 <translation id="5209238444239954363">Pārlūkā Chrome nevarēja pārbaudīt atjauninājumu pieejamību. Vēlāk mēģiniet vēlreiz.</translation>
@@ -304,7 +311,6 @@ Lai skatītu citus iestatījumus, kuros dati tiek izmantoti Chrome lietošanas i
 <translation id="7787205077729386167">Atveriet Chrome iestatījumus iOS ierīcē, pēc tam pieskarieties iestatījumam “Noklusējuma pārlūka lietotne” un atlasiet pārlūku Chrome.</translation>
 <translation id="778855399387580014">Meklējiet jaunā Chrome cilnē.</translation>
 <translation id="7792140019572081272">Pārlūkā Chrome jūsu sensitīvie dati tiek aizsargāti, izmantojot sejas ID.</translation>
-<translation id="7825648984449922731">Rediģēt attēlu, izmantojot Gemini pārlūkā Chrome</translation>
 <translation id="7855730255114109580">Pārlūks Google Chrome ir atjaunināts.</translation>
 <translation id="787226752901403048">Pierakstieties pārlūkā Chrome, lai kopīgotu ciļņu grupas, pievienotos tām un kopīgi radītu jaunas idejas.</translation>
 <translation id="7897703007638178753">Skatīt pārlūkā Chrome nesen atvērtās cilnes</translation>

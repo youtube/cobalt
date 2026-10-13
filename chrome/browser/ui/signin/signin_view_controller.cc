@@ -12,6 +12,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
+#include "base/metrics/histogram_functions.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
@@ -19,9 +20,9 @@
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/signin/signin_ui_util.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_dialogs.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/dialogs/browser_dialogs.h"
 #include "chrome/browser/ui/profiles/signin_intercept_first_run_experience_dialog.h"
 #include "chrome/browser/ui/signin/signin_modal_dialog.h"
 #include "chrome/browser/ui/signin/signin_modal_dialog_impl.h"
@@ -59,9 +60,9 @@
 #include "chrome/browser/signin/logout_tab_helper.h"
 #include "chrome/browser/signin/signin_promo.h"
 #include "chrome/browser/sync/sync_service_factory.h"
-#include "chrome/browser/ui/browser_dialogs.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
+#include "chrome/browser/ui/dialogs/browser_dialogs.h"
 #include "chrome/browser/ui/signin/chrome_signout_confirmation_prompt.h"
 #include "chrome/browser/ui/singleton_tabs.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -323,6 +324,8 @@ DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(SigninViewController,
 
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(SigninViewController,
                                       kHistorySyncOptinViewId);
+
+DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(SigninViewController, kSigninErrorViewId);
 
 SigninViewController::SigninViewController(BrowserWindowInterface* browser,
                                            Profile* profile,
@@ -806,6 +809,9 @@ void SigninViewController::SignoutOrReauthWithPromptWithUnsyncedDataTypes(
     return;
   }
 
+  base::UmaHistogramBoolean("Sync.BookmarksLimitExceededOnSignoutPrompt",
+                            is_bookmarks_limit_exceeded);
+
   ChromeSignoutConfirmationPromptVariant prompt_variant =
       GetSignoutConfirmationPromptVariant(
           unsynced_data_count, is_bookmarks_limit_exceeded, needs_reauth);
@@ -877,12 +883,11 @@ void SigninViewController::ShowChromeSigninDialogForExtensions(
                 extension_name_for_display);
 
   std::u16string continue_as_text =
-      base::UTF8ToUTF16(!account_info_for_promos.given_name.empty()
-                            ? account_info_for_promos.given_name
-                            : account_info_for_promos.email);
+      base::UTF8ToUTF16(account_info_for_promos.GetGivenName().value_or(
+          account_info_for_promos.GetEmail()));
   std::u16string body = l10n_util::GetStringFUTF16(
       IDS_EXTENSION_ASKS_IDENTITY_WHILE_SIGNED_IN_WEB_ONLY_BODY_PART_1,
-      base::UTF8ToUTF16(account_info_for_promos.email));
+      base::UTF8ToUTF16(account_info_for_promos.GetEmail()));
 
   ui::DialogModel::Builder dialog_builder;
   dialog_builder.SetInternalName("ChromeSigninChoiceForExtensionsPrompt")

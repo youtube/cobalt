@@ -48,6 +48,7 @@
 #include "components/services/app_service/public/cpp/file_handler.h"
 #include "components/sync/base/time.h"
 #include "components/webapps/browser/install_result_code.h"
+#include "components/webapps/isolated_web_apps/test_support/signing_keys.h"
 #include "components/webapps/isolated_web_apps/types/storage_location.h"
 #include "mojo/public/cpp/bindings/struct_ptr.h"
 #include "services/data_decoder/public/cpp/test_support/in_process_data_decoder.h"
@@ -556,7 +557,7 @@ TEST_F(WebAppInstallFinalizerUnitTest, IsolationDataSetInWebAppDB) {
   IwaVersion version = *IwaVersion::Create("1.2.3");
 
   auto info = WebAppInstallInfo::CreateWithStartUrlForTesting(
-      GURL("isolated-app://random_app"));
+      IwaOrigin(test::GetDefaultEcdsaP256WebBundleId()).origin().GetURL());
   info->title = u"Foo Title";
   info->set_isolated_web_app_version(version);
 
@@ -675,7 +676,7 @@ TEST_F(WebAppInstallFinalizerUnitTest, ValidateMigrationSourcesApproved) {
   static_cast<FakeWebAppOriginAssociationManager&>(
       provider().origin_association_manager())
       .SetMigrationSourcesData(
-          {webapps::ManifestId("https://migration.foo.example/")});
+          {webapps::ManifestId(GURL("https://migration.foo.example/"))});
 
   EXPECT_CALL(*mock_scheduler_, ScheduleResolveWebAppPendingMigrationInfo(_, _))
       .WillOnce(base::test::RunOnceClosure<0>());
@@ -756,7 +757,7 @@ TEST_F(WebAppInstallFinalizerUnitTest, MigrationSourceChangeSchedulesSync) {
   static_cast<FakeWebAppOriginAssociationManager&>(
       provider().origin_association_manager())
       .SetMigrationSourcesData(
-          {webapps::ManifestId("https://migration.foo.example/")});
+          {webapps::ManifestId(GURL("https://migration.foo.example/"))});
 
   // 1. Install without migration sources.
   {

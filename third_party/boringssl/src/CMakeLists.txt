@@ -75,35 +75,16 @@ foreach(VAR CMAKE_C_FLAGS CMAKE_CXX_FLAGS CMAKE_ASM_FLAGS)
          "${${VAR}_RELEASE}")
 endforeach()
 
-if(BORINGSSL_PREFIX AND BORINGSSL_PREFIX_SYMBOLS)
-  require_go()
+if(BORINGSSL_PREFIX)
   add_definitions(-DBORINGSSL_PREFIX=${BORINGSSL_PREFIX})
+
   # CMake automatically connects include_directories to the NASM command-line,
   # but not add_definitions.
+  set(CMAKE_ASM_FLAGS "${CMAKE_ASM_FLAGS} -DBORINGSSL_PREFIX=${BORINGSSL_PREFIX}")
   set(CMAKE_ASM_NASM_FLAGS "${CMAKE_ASM_NASM_FLAGS} -DBORINGSSL_PREFIX=${BORINGSSL_PREFIX}")
 
-  # Use "symbol_prefix_include" to store generated header files
-  include_directories(${CMAKE_CURRENT_BINARY_DIR}/symbol_prefix_include)
-  add_custom_command(
-    OUTPUT symbol_prefix_include/boringssl_prefix_symbols.h
-           symbol_prefix_include/boringssl_prefix_symbols_asm.h
-           symbol_prefix_include/boringssl_prefix_symbols_nasm.inc
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/symbol_prefix_include
-    COMMAND ${GO_EXECUTABLE} run ${CMAKE_CURRENT_SOURCE_DIR}/util/make_prefix_headers.go -out ${CMAKE_CURRENT_BINARY_DIR}/symbol_prefix_include ${BORINGSSL_PREFIX_SYMBOLS}
-    DEPENDS util/make_prefix_headers.go
-            ${BORINGSSL_PREFIX_SYMBOLS})
-
-  # add_dependencies needs a target, not a file, so we add an intermediate
-  # target.
-  add_custom_target(
-    boringssl_prefix_symbols
-    DEPENDS symbol_prefix_include/boringssl_prefix_symbols.h
-            symbol_prefix_include/boringssl_prefix_symbols_asm.h
-            symbol_prefix_include/boringssl_prefix_symbols_nasm.inc)
-elseif(BORINGSSL_PREFIX OR BORINGSSL_PREFIX_SYMBOLS)
-  message(FATAL_ERROR "Must specify both or neither of BORINGSSL_PREFIX and BORINGSSL_PREFIX_SYMBOLS")
-else()
-  add_custom_target(boringssl_prefix_symbols)
+  # Also add the generated files to NASM's includes. With a final slash for NASM 2.
+  set(CMAKE_ASM_NASM_FLAGS "${CMAKE_ASM_NASM_FLAGS} -I${CMAKE_CURRENT_SOURCE_DIR}/gen/")
 endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -169,8 +150,6 @@ if(FUZZ)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address,fuzzer-no-link -fsanitize-coverage=edge,indirect-calls")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address,fuzzer-no-link -fsanitize-coverage=edge,indirect-calls")
 endif()
-
-add_definitions(-DBORINGSSL_IMPLEMENTATION)
 
 if(BUILD_SHARED_LIBS)
   add_definitions(-DBORINGSSL_SHARED_LIBRARY)
@@ -403,6 +382,7 @@ if(BUILD_TESTING)
   # googletest has a very straightforward build.
   add_library(
     boringssl_gtest
+    STATIC
     third_party/googletest/googlemock/src/gmock-all.cc
     third_party/googletest/googletest/src/gtest-all.cc
   )
@@ -574,9 +554,9 @@ if(FIPS_DELOCATE)
   add_library(bcm_c_generated_asm STATIC ${BCM_SOURCES})
   # The C++ code in libcrypto shouldn't depend on libstdc++.
   target_compile_options(bcm_c_generated_asm PRIVATE $<$<COMPILE_LANGUAGE:CXX>:${NO_CXX_RUNTIME_FLAGS}> "-S")
-  add_dependencies(bcm_c_generated_asm boringssl_prefix_symbols)
   target_include_directories(bcm_c_generated_asm PRIVATE ${PROJECT_SOURCE_DIR}/include)
   set_target_properties(bcm_c_generated_asm PROPERTIES POSITION_INDEPENDENT_CODE ON)
+  target_compile_definitions(bcm_c_generated_asm PRIVATE -DBORINGSSL_IMPLEMENTATION)
   if(CLANG)
     # Clang warns when passing both -c (from CMake) and -S.
     target_compile_options(bcm_c_generated_asm PRIVATE "-Wno-unused-command-line-argument")
@@ -634,8 +614,8 @@ elseif(FIPS_SHARED)
   add_library(bcm_library STATIC ${BCM_SOURCES} ${BCM_SOURCES_ASM_USED})
   # The C++ code in libcrypto shouldn't depend on libstdc++.
   target_compile_options(bcm_library PRIVATE $<$<COMPILE_LANGUAGE:CXX>:${NO_CXX_RUNTIME_FLAGS}>)
-  add_dependencies(bcm_library boringssl_prefix_symbols)
   target_include_directories(bcm_library PRIVATE ${PROJECT_SOURCE_DIR}/include)
+  target_compile_definitions(bcm_library PRIVATE -DBORINGSSL_IMPLEMENTATION)
 
   add_custom_command(
     OUTPUT bcm.o
@@ -648,8 +628,8 @@ else()
   add_library(fipsmodule OBJECT ${BCM_SOURCES} ${BCM_SOURCES_ASM_USED})
   # The C++ code in libcrypto shouldn't depend on libstdc++.
   target_compile_options(fipsmodule PRIVATE $<$<COMPILE_LANGUAGE:CXX>:${NO_CXX_RUNTIME_FLAGS}>)
-  add_dependencies(fipsmodule boringssl_prefix_symbols)
   target_include_directories(fipsmodule PRIVATE ${PROJECT_SOURCE_DIR}/include)
+  target_compile_definitions(fipsmodule PRIVATE -DBORINGSSL_IMPLEMENTATION)
   set(CRYPTO_FIPS_OBJECTS $<TARGET_OBJECTS:fipsmodule>)
 endif()
 
@@ -660,6 +640,7 @@ target_include_directories(crypto PUBLIC
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
 )
+target_compile_definitions(crypto PRIVATE -DBORINGSSL_IMPLEMENTATION)
 set_property(TARGET crypto PROPERTY EXPORT_NAME Crypto)
 
 if(FIPS_SHARED)
@@ -678,7 +659,6 @@ if(FIPS_SHARED)
   )
 endif()
 
-add_dependencies(crypto boringssl_prefix_symbols)
 if(WIN32)
   target_link_libraries(crypto ws2_32)
 endif()
@@ -700,9 +680,11 @@ add_library(ssl ${SSL_SOURCES})
 # here.
 set_property(TARGET ssl PROPERTY EXPORT_NAME SSL)
 target_link_libraries(ssl crypto)
+target_compile_definitions(ssl PRIVATE -DBORINGSSL_IMPLEMENTATION)
 
 add_library(decrepit ${DECREPIT_SOURCES})
 target_link_libraries(decrepit ssl crypto)
+target_compile_definitions(decrepit PRIVATE -DBORINGSSL_IMPLEMENTATION)
 
 if(APPLE)
   set(PKI_CXX_FLAGS "-fno-aligned-new")
@@ -710,6 +692,15 @@ endif()
 add_library(pki ${PKI_SOURCES})
 target_link_libraries(pki crypto)
 target_compile_options(pki PRIVATE ${PKI_CXX_FLAGS})
+target_compile_definitions(pki PRIVATE -DBORINGSSL_IMPLEMENTATION)
+if(MSVC)
+  # libpki has a DLL C++ interface, where this warning is expected:
+  set(PKI_MSVC_DISABLED_WARNINGS_LIST
+      "-wd4251" # assignment within conditional expression
+      )
+  target_compile_options(pki PUBLIC
+    "$<$<COMPILE_LANGUAGE:C,CXX>:${PKI_MSVC_DISABLED_WARNINGS_LIST}>")
+endif()
 
 if(BUILD_TESTING)
   add_library(test_support_lib STATIC
@@ -851,6 +842,20 @@ if(BUILD_TESTING)
           COMMAND ${CMAKE_COMMAND} -E false)
     endif()
   endif()
+endif()
+
+if(BORINGSSL_PREFIX)
+  require_go()
+  add_custom_target(
+    verify_boringssl_prefix ALL
+    COMMENT "Verifying symbol prefixing"
+    COMMAND ${GO_EXECUTABLE}
+            run ${CMAKE_CURRENT_SOURCE_DIR}/util/audit_symbols.go
+            -ignore-symbols-with ${BORINGSSL_PREFIX}
+            $<TARGET_FILE:crypto>
+    DEPENDS crypto
+    USES_TERMINAL
+  )
 endif()
 
 if(INSTALL_ENABLED)

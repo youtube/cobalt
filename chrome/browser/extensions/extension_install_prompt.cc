@@ -429,13 +429,13 @@ ExtensionInstallPrompt::GetReEnablePromptTypeForExtension(
 // static
 scoped_refptr<Extension>
 ExtensionInstallPrompt::GetLocalizedExtensionForDisplay(
-    const base::Value::Dict& manifest,
+    const base::DictValue& manifest,
     int flags,
     const std::string& id,
     const std::string& localized_name,
     const std::string& localized_description,
     std::u16string* error) {
-  std::optional<base::Value::Dict> localized_manifest;
+  std::optional<base::DictValue> localized_manifest;
   if (!localized_name.empty() || !localized_description.empty()) {
     localized_manifest = manifest.Clone();
     if (!localized_name.empty()) {
@@ -533,6 +533,31 @@ void ExtensionInstallPrompt::OnInstallSuccess(
 void ExtensionInstallPrompt::OnInstallFailure(
     const extensions::CrxInstallError& error) {
   install_ui_->OnInstallFailure(error);
+}
+
+void ExtensionInstallPrompt::SetUseAppInstalledBubble(bool use_bubble) {
+  install_ui_->SetUseAppInstalledBubble(use_bubble);
+}
+
+void ExtensionInstallPrompt::SetSkipPostInstallUI(bool skip_ui) {
+  install_ui_->SetSkipPostInstallUI(skip_ui);
+}
+
+void ExtensionInstallPrompt::ConfirmInstall(
+    DoneCallback install_callback,
+    const extensions::Extension* extension) {
+  ShowDialog(std::move(install_callback), extension, nullptr,
+             GetDefaultShowDialogCallback());
+}
+
+void ExtensionInstallPrompt::ConfirmReEnable(
+    DoneCallback install_callback,
+    const extensions::Extension* extension,
+    content::BrowserContext* browser_context) {
+  PromptType type =
+      GetReEnablePromptTypeForExtension(browser_context, extension);
+  ShowDialog(std::move(install_callback), extension, nullptr,
+             std::make_unique<Prompt>(type), GetDefaultShowDialogCallback());
 }
 
 std::unique_ptr<ExtensionInstallPrompt::Prompt>

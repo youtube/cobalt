@@ -18,9 +18,9 @@
 #include "base/values.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
+#include "chrome/browser/ui/tab_search_feature.h"
 #include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model_factory.h"
 #include "chrome/browser/ui/toolbar/toolbar_pref_names.h"
-#include "chrome/browser/ui/ui_features.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/pref_names.h"
 #include "components/prefs/pref_change_registrar.h"
@@ -179,7 +179,7 @@ void PinnedToolbarActionsModel::UnpinAction(actions::ActionId action_id) {
 }
 
 void PinnedToolbarActionsModel::UpdatePinnedActionIds() {
-  const base::Value::List& updated_pinned_action_ids =
+  const base::ListValue& updated_pinned_action_ids =
       pref_service_->GetList(prefs::kPinnedActions);
 
   // TODO(dljames): Investigate if there is a more optimal way to do this kind
@@ -270,7 +270,7 @@ PinnedToolbarActionsModel::PinnedActionIds() const {
 void PinnedToolbarActionsModel::UpdatePref(
     const std::vector<actions::ActionId>& updated_list) {
   ScopedListPrefUpdate update(pref_service_, prefs::kPinnedActions);
-  base::Value::List& list_of_values = update.Get();
+  base::ListValue& list_of_values = update.Get();
   list_of_values.clear();
   for (auto id : updated_list) {
     const std::optional<std::string>& id_string =

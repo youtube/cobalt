@@ -10,6 +10,7 @@
 
 #include "modules/desktop_capture/linux/wayland/shared_screencast_stream.h"
 
+#include <libdrm/drm_fourcc.h>
 #include <sys/types.h>
 
 #include <cstdint>
@@ -17,6 +18,7 @@
 
 #include "api/scoped_refptr.h"
 #include "api/units/time_delta.h"
+#include "modules/desktop_capture/linux/wayland/test/test_egl_dmabuf.h"
 #include "modules/desktop_capture/linux/wayland/test/test_screencast_stream_provider.h"
 #include "modules/desktop_capture/rgba_color.h"
 #include "modules/desktop_capture/shared_desktop_frame.h"
@@ -72,10 +74,16 @@ class MAYBE_PipeWireStreamTest : public ::testing::Test,
   MOCK_METHOD(void, OnBufferCorruptedData, (), (override));
   MOCK_METHOD(void, OnEmptyBuffer, (), (override));
   MOCK_METHOD(void, OnStreamConfigured, (), (override));
-  MOCK_METHOD(void, OnFrameRateChanged, (uint32_t), (override));
+  MOCK_METHOD(void,
+              OnFormatChanged,
+              (uint32_t, uint32_t, uint32_t, uint32_t, uint64_t),
+              (override));
 
   void SetUp() override {
-    shared_screencast_stream_ = SharedScreenCastStream::CreateDefault();
+    auto shared_screencast_egl_dmabuf = TestEglDmaBuf::CreateDefault();
+    shared_screencast_egl_dmabuf_ = shared_screencast_egl_dmabuf.get();
+    shared_screencast_stream_ = SharedScreenCastStream::CreateWithEglDmaBuf(
+        std::move(shared_screencast_egl_dmabuf));
     shared_screencast_stream_->SetObserver(this);
     test_screencast_stream_provider_ =
         std::make_unique<TestScreenCastStreamProvider>(this, kWidth, kHeight);
@@ -93,6 +101,7 @@ class MAYBE_PipeWireStreamTest : public ::testing::Test,
  protected:
   uint recorded_frames_ = 0;
   bool streaming_ = false;
+  TestEglDmaBuf* shared_screencast_egl_dmabuf_ = nullptr;
   std::unique_ptr<TestScreenCastStreamProvider>
       test_screencast_stream_provider_;
   scoped_refptr<SharedScreenCastStream> shared_screencast_stream_;
@@ -114,7 +123,13 @@ TEST_F(MAYBE_PipeWireStreamTest, TestPipeWire) {
   EXPECT_CALL(*this, OnStartStreaming).WillOnce([&waitStartStreamingEvent] {
     waitStartStreamingEvent.Set();
   });
-  EXPECT_CALL(*this, OnFrameRateChanged(60)).Times(1);  // Default frame rate.
+  // Default format is using BGRA pixel format, 800x600 resolution with 60fps
+  // framerate and defaulting to DRM_FORMAT_MOD_LINEAR modifier.
+  // This is called twice, because first format changed is not fixated on a
+  // particular modifier from the producer side.
+  EXPECT_CALL(*this, OnFormatChanged(SPA_VIDEO_FORMAT_BGRA, 800, 640, 60,
+                                     DRM_FORMAT_MOD_LINEAR))
+      .Times(2);  // Default frame rate.
 
   // Give it some time to connect, the order between these shouldn't matter, but
   // we need to be sure we are connected before we proceed to work with frames.
@@ -124,7 +139,7 @@ TEST_F(MAYBE_PipeWireStreamTest, TestPipeWire) {
   waitStartStreamingEvent.Wait(kShortWait);
 
   Event frameRetrievedEvent;
-  EXPECT_CALL(*this, OnFrameRecorded).Times(8);
+  EXPECT_CALL(*this, OnFrameRecorded).Times(7);
   EXPECT_CALL(*this, OnDesktopFrameChanged)
       .Times(3)
       .WillRepeatedly([&frameRetrievedEvent] { frameRetrievedEvent.Set(); });
@@ -197,17 +212,9 @@ TEST_F(MAYBE_PipeWireStreamTest, TestPipeWire) {
       blue_color, TestScreenCastStreamProvider::CorruptedData);
   corruptedDataFrameEvent.Wait(kShortWait);
 
-  Event emptyFrameEvent;
-  EXPECT_CALL(*this, OnEmptyBuffer).WillOnce([&emptyFrameEvent] {
-    emptyFrameEvent.Set();
-  });
-
-  test_screencast_stream_provider_->RecordFrame(
-      blue_color, TestScreenCastStreamProvider::EmptyData);
-  emptyFrameEvent.Wait(kShortWait);
-
   // Update stream parameters.
-  EXPECT_CALL(*this, OnFrameRateChanged(0))
+  EXPECT_CALL(*this, OnFormatChanged(SPA_VIDEO_FORMAT_BGRA, 800, 640, 0,
+                                     DRM_FORMAT_MOD_LINEAR))
       .Times(1)
       .WillOnce([&waitStreamParamChangedEvent1] {
         waitStreamParamChangedEvent1.Set();
@@ -222,15 +229,16 @@ TEST_F(MAYBE_PipeWireStreamTest, TestPipeWire) {
     waitStartStreamingEvent2.Set();
   });
   Event emptyFrameEvent2;
-  EXPECT_CALL(*this, OnEmptyBuffer).WillOnce([&emptyFrameEvent2] {
+  EXPECT_CALL(*this, OnBufferCorruptedData).WillOnce([&emptyFrameEvent2] {
     emptyFrameEvent2.Set();
   });
   waitStartStreamingEvent2.Wait(kShortWait);
   test_screencast_stream_provider_->RecordFrame(
-      red_color, TestScreenCastStreamProvider::EmptyData);
+      red_color, TestScreenCastStreamProvider::CorruptedData);
   emptyFrameEvent2.Wait(kShortWait);
 
-  EXPECT_CALL(*this, OnFrameRateChanged(22))
+  EXPECT_CALL(*this, OnFormatChanged(SPA_VIDEO_FORMAT_BGRA, 800, 640, 22,
+                                     DRM_FORMAT_MOD_LINEAR))
       .Times(1)
       .WillOnce([&waitStreamParamChangedEvent2] {
         waitStreamParamChangedEvent2.Set();
@@ -245,13 +253,147 @@ TEST_F(MAYBE_PipeWireStreamTest, TestPipeWire) {
     waitStartStreamingEvent3.Set();
   });
   Event emptyFrameEvent3;
-  EXPECT_CALL(*this, OnEmptyBuffer).WillOnce([&emptyFrameEvent3] {
+  EXPECT_CALL(*this, OnBufferCorruptedMetadata).WillOnce([&emptyFrameEvent3] {
     emptyFrameEvent3.Set();
   });
   waitStartStreamingEvent3.Wait(kShortWait);
   test_screencast_stream_provider_->RecordFrame(
-      red_color, TestScreenCastStreamProvider::EmptyData);
+      red_color, TestScreenCastStreamProvider::CorruptedMetadata);
   emptyFrameEvent3.Wait(kShortWait);
+
+  // Test disconnection from stream
+  EXPECT_CALL(*this, OnStopStreaming);
+  shared_screencast_stream_->StopScreenCastStream();
+}
+
+TEST_F(MAYBE_PipeWireStreamTest, TestModifierFallback) {
+  // Set expectations for initial connection with DRM_FORMAT_MOD_LINEAR
+  Event waitConnectEvent;
+  Event waitStartStreamingEvent;
+
+  EXPECT_CALL(*this, OnStreamReady(_))
+      .WillOnce(Invoke(this, &MAYBE_PipeWireStreamTest::StartScreenCastStream));
+  EXPECT_CALL(*this, OnStreamConfigured).WillOnce([&waitConnectEvent] {
+    waitConnectEvent.Set();
+  });
+  EXPECT_CALL(*this, OnBufferAdded).Times(AtLeast(1));
+  EXPECT_CALL(*this, OnStartStreaming).WillOnce([&waitStartStreamingEvent] {
+    waitStartStreamingEvent.Set();
+  });
+  EXPECT_CALL(*this, OnFormatChanged(SPA_VIDEO_FORMAT_BGRA, 800, 640, 60,
+                                     DRM_FORMAT_MOD_LINEAR))
+      .Times(AtLeast(1));
+
+  waitConnectEvent.Wait(kLongWait);
+  waitStartStreamingEvent.Wait(kShortWait);
+
+  // Mark DRM_FORMAT_MOD_LINEAR as failed, expect renegotiation to
+  // kTestFailingModifier
+  Event waitRenegotiation1;
+  EXPECT_CALL(*this, OnStopStreaming);
+  EXPECT_CALL(*this,
+              OnFormatChanged(SPA_VIDEO_FORMAT_BGRA, 800, 640, 60,
+                              static_cast<uint64_t>(kTestFailingModifier)))
+      .Times(AtLeast(1))
+      .WillRepeatedly([&waitRenegotiation1] { waitRenegotiation1.Set(); });
+  EXPECT_CALL(*this, OnBufferAdded).Times(AtLeast(1));
+  Event waitStartStreaming2;
+  EXPECT_CALL(*this, OnStartStreaming).WillOnce([&waitStartStreaming2] {
+    waitStartStreaming2.Set();
+  });
+
+  // Mark modifier as failed in both producer and consumer
+  auto render_device = shared_screencast_egl_dmabuf_->GetRenderDevice();
+  if (render_device) {
+    render_device->MarkModifierFailed(DRM_FORMAT_MOD_LINEAR);
+  }
+  test_screencast_stream_provider_->MarkModifierFailed(DRM_FORMAT_MOD_LINEAR);
+  waitRenegotiation1.Wait(kShortWait);
+  waitStartStreaming2.Wait(kShortWait);
+
+  // Try to record frame with kTestFailingModifier - should fail on
+  // import
+  Event frameFailedEvent;
+  EXPECT_CALL(*this, OnFailedToProcessBuffer).WillOnce([&frameFailedEvent] {
+    frameFailedEvent.Set();
+  });
+  EXPECT_CALL(*this, OnFrameRecorded);
+
+  RgbaColor red_color(0, 0, 255);
+  test_screencast_stream_provider_->RecordFrame(red_color);
+  frameFailedEvent.Wait(kShortWait);
+
+  // Mark kTestFailingModifier as failed, expect renegotiation to
+  // kTestSuccessModifier
+  Event waitRenegotiation2;
+  EXPECT_CALL(*this, OnStopStreaming);
+  EXPECT_CALL(*this, OnFormatChanged(SPA_VIDEO_FORMAT_BGRA, 800, 640, 60,
+                                     kTestSuccessModifier))
+      .Times(AtLeast(1))
+      .WillRepeatedly([&waitRenegotiation2] { waitRenegotiation2.Set(); });
+  EXPECT_CALL(*this, OnBufferAdded).Times(AtLeast(1));
+  Event waitStartStreaming3;
+  EXPECT_CALL(*this, OnStartStreaming).WillOnce([&waitStartStreaming3] {
+    waitStartStreaming3.Set();
+  });
+
+  // Mark modifier as failed in both producer and consumer
+  if (render_device) {
+    render_device->MarkModifierFailed(kTestFailingModifier);
+  }
+  test_screencast_stream_provider_->MarkModifierFailed(kTestFailingModifier);
+  waitRenegotiation2.Wait(kShortWait);
+  waitStartStreaming3.Wait(kShortWait);
+
+  // Record frame with kTestSuccessModifier
+  Event frameSuccessEvent;
+  EXPECT_CALL(*this, OnFrameRecorded);
+  EXPECT_CALL(*this, OnDesktopFrameChanged).WillOnce([&frameSuccessEvent] {
+    frameSuccessEvent.Set();
+  });
+
+  RgbaColor green_color(0, 255, 0);
+  test_screencast_stream_provider_->RecordFrame(green_color);
+  frameSuccessEvent.Wait(kShortWait);
+
+  std::unique_ptr<SharedDesktopFrame> frame =
+      shared_screencast_stream_->CaptureFrame();
+  ASSERT_NE(frame, nullptr);
+  EXPECT_EQ(RgbaColor(frame->data()), green_color);
+
+  // Mark kTestSuccessModifier as failed, expect fallback to MemFd (no
+  // modifier)
+  Event waitRenegotiation3;
+  EXPECT_CALL(*this, OnStopStreaming);
+  // When falling back to MemFd, modifier should be DRM_FORMAT_MOD_INVALID
+  EXPECT_CALL(*this, OnFormatChanged(SPA_VIDEO_FORMAT_BGRA, 800, 640, 60,
+                                     DRM_FORMAT_MOD_INVALID))
+      .Times(AtLeast(1))
+      .WillOnce([&waitRenegotiation3] { waitRenegotiation3.Set(); });
+  EXPECT_CALL(*this, OnBufferAdded).Times(AtLeast(1));
+  Event waitStartStreaming4;
+  EXPECT_CALL(*this, OnStartStreaming).WillOnce([&waitStartStreaming4] {
+    waitStartStreaming4.Set();
+  });
+
+  if (render_device) {
+    render_device->MarkModifierFailed(kTestSuccessModifier);
+  }
+  test_screencast_stream_provider_->MarkModifierFailed(kTestSuccessModifier);
+  waitRenegotiation3.Wait(kShortWait);
+  waitStartStreaming4.Wait(kShortWait);
+
+  // Record empty frame with MemFd
+  Event emptyFrameEvent;
+  EXPECT_CALL(*this, OnFrameRecorded);
+  EXPECT_CALL(*this, OnEmptyBuffer).WillOnce([&emptyFrameEvent] {
+    emptyFrameEvent.Set();
+  });
+
+  RgbaColor blue_color(255, 0, 0);
+  test_screencast_stream_provider_->RecordFrame(
+      blue_color, TestScreenCastStreamProvider::EmptyData);
+  emptyFrameEvent.Wait(kShortWait);
 
   // Test disconnection from stream
   EXPECT_CALL(*this, OnStopStreaming);

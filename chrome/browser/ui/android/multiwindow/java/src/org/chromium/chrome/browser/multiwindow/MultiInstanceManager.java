@@ -37,12 +37,13 @@ import java.util.List;
 @NullMarked
 public abstract class MultiInstanceManager {
     public static final int INVALID_TASK_ID = -1; // Defined in android.app.ActivityTaskManager.
+    public static final int INVALID_WINDOW_ID = -1;
     public static final String NEW_WINDOW_APP_SOURCE_HISTOGRAM =
             "Android.MultiWindowMode.NewWindow.AppSource2";
 
     @VisibleForTesting
     static final String CLOSE_WINDOW_APP_SOURCE_HISTOGRAM =
-            "Android.MultiWindowMode.CloseWindow.AppSource";
+            "Android.MultiWindowMode.CloseWindow.AppSource2";
 
     // These values are persisted to logs. Entries should not be renumbered and numeric values
     // should never be reused.
@@ -201,13 +202,30 @@ public abstract class MultiInstanceManager {
     public abstract void maybeMergeTabs();
 
     /**
-     * Open a new instance of the ChromeTabbedActivity window and move the specified tabs from
-     * existing instance to the new one.
+     * Moves the specified tabs to the specified ChromeTabbedActivity instance. This accepts inputs
+     * to determine the position of the moved tabs in the destination window and an intent to create
+     * a new window.
      *
-     * @param tabs Tabs that are to be moved to a new Chrome instance.
-     * @param source The new window creation source used for metrics.
+     * @param destWindowId The id of the destination window. To move tabs to a new window, set this
+     *     to {@link INVALID_WINDOW_ID}.
+     * @param tabs The list of tabs that will be moved to the destination window.
+     * @param destTabIndex The tab index in the destination window where the tabs will be
+     *     positioned. This will be ignored if {@code destGroupTabId} is set. To use the default tab
+     *     index, set this to {@code TabList.INVALID_TAB_INDEX}.
+     * @param destGroupTabId The id of the tab in the destination tab group, if the tabs need to be
+     *     moved to a specific tab group in the destination window. The tabs will be added to the
+     *     end of the destination tab group. A tab with this id must exist in the destination
+     *     window, otherwise this operation will fail. If there is no tab group to move the
+     *     specified tabs to, set this to {@code TabList.INVALID_TAB_INDEX}.
+     * @param source The new window creation source used for metrics. This is applicable only when
+     *     tabs are moved to a new window.
      */
-    public void moveTabsToNewWindow(List<Tab> tabs, @NewWindowAppSource int source) {
+    public void moveTabsToWindow(
+            int destWindowId,
+            List<Tab> tabs,
+            int destTabIndex,
+            int destGroupTabId,
+            @NewWindowAppSource int source) {
         // Not implemented
     }
 
@@ -244,20 +262,6 @@ public abstract class MultiInstanceManager {
      */
     public void moveTabsToWindow(
             InstanceInfo info, List<Tab> tabs, int atIndex, @NewWindowAppSource int source) {
-        // Not implemented
-    }
-
-    /**
-     * Move the specified tabs to the specified instance of the ChromeTabbedActivity window and
-     * merge with the destination tab group. The tabs are added to the end of the destination tab
-     * group. If the activity from {@code info} does not exist, this will not create a new window.
-     *
-     * @param info {@link InstanceInfo} describing the destination window.
-     * @param tabs The list of ungrouped tabs that is to be moved to the current instance.
-     * @param destTabId The id of the tab in the destination tab group. The tab with this ID must
-     *     exist in the destination window, otherwise this operation will fail.
-     */
-    public void moveTabsToWindowAndMergeToDest(InstanceInfo info, List<Tab> tabs, int destTabId) {
         // Not implemented
     }
 
@@ -330,10 +334,19 @@ public abstract class MultiInstanceManager {
     }
 
     /**
-     * @return List of {@link InstanceInfo} structs with {@link PersistedInstanceType} {@param type}
-     *     for an activity that can be switched to, or newly launched.
+     * @return A list of {@link InstanceInfo} structs for the specified {@link
+     *     PersistedInstanceType}. This excludes unusable instances that are marked for deletion.
      */
     public List<InstanceInfo> getInstanceInfo(@PersistedInstanceType int type) {
+        return Collections.emptyList();
+    }
+
+    /**
+     * @return A list of {@link InstanceInfo} structs for inactive instances, including currently
+     *     unusable instances that are marked for deletion. This excludes {@link
+     *     PersistedInstanceType#OFF_THE_RECORD} type instances.
+     */
+    public List<InstanceInfo> getRecentlyClosedInstances() {
         return Collections.emptyList();
     }
 

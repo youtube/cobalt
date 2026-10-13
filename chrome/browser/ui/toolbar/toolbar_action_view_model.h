@@ -56,10 +56,13 @@ class ToolbarActionViewModel {
     kApi = 4,
 
     // The action was invoked by the user activating (via mouse or keyboard) the
-    // request access button in the toolbar
+    // request access button in the toolbar.
     kRequestAccessButton = 5,
 
-    kMaxValue = kRequestAccessButton,
+    // The action was invoked by the Chrome Devtools Protocol.
+    kCdp = 6,
+
+    kMaxValue = kCdp,
   };
 
   // State for the toolbar action view's hover card.
@@ -100,8 +103,8 @@ class ToolbarActionViewModel {
   // the extension id; for component actions, this is the name of the component.
   virtual std::string GetId() const = 0;
 
-  // Registers an update observer of the view model.
-  virtual base::CallbackListSubscription RegisterUpdateObserver(
+  // Registers an update observer of the action's icon.
+  virtual base::CallbackListSubscription RegisterIconUpdateObserver(
       base::RepeatingClosure observer) = 0;
 
   // Returns the icon to use for the given |web_contents| and |size|.

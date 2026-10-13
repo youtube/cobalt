@@ -51,7 +51,8 @@ enum class Promo {
   SafariImportRemindMeLater =
       20,                       // Reminder for the Safari import entry point.
   DefaultBrowserOffCycle = 21,  // Off-cycle fullscreen default browser promo.
-  kMaxValue = DefaultBrowserOffCycle,
+  HomeBackgroundCustomization = 22,  // Home (NTP) background customization.
+  kMaxValue = HomeBackgroundCustomization,
 };
 // LINT.ThenChange(/ios/chrome/browser/promos_manager/model/constants.cc)
 // Also update IOSPromosManagerPromo in
@@ -91,7 +92,7 @@ std::string_view ShortNameForPromo(Promo promo);
 // Returns promos_manager::Promo for string `promo`.
 std::optional<Promo> PromoForName(std::string_view promo);
 
-std::optional<Impression> ImpressionFromDict(const base::Value::Dict& dict);
+std::optional<Impression> ImpressionFromDict(const base::DictValue& dict);
 
 // Represents distinct outcomes of the promo registration lifecycle.
 // LINT.IfChange(PromoRegistrationState)

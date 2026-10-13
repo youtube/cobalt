@@ -137,6 +137,22 @@ struct builtin : CallDescriptorBuilder {
         base_effects.CanReadMemory().RequiredWhenUnused();
   };
 
+  struct CheckMaglevType : public Descriptor<CheckMaglevType> {
+    static constexpr auto kFunction = Builtin::kCheckMaglevType;
+    struct Arguments : ArgumentsBase {
+      ARG(V<Object>, object)
+      ARG(V<Smi>, type)
+    };
+    using returns_t = std::tuple<V<Object>>;
+
+    static constexpr bool kCanTriggerLazyDeopt = false;
+    static constexpr bool kNeedsFrameState = false;
+    static constexpr bool kNeedsContext = false;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+    static constexpr OpEffects kEffects =
+        base_effects.CanReadMemory().RequiredWhenUnused();
+  };
+
 #define DECL_GENERIC_BINOP(Name)                                          \
   struct Name : public Descriptor<Name> {                                 \
     static constexpr auto kFunction = Builtin::k##Name;                   \
@@ -1740,8 +1756,8 @@ struct BuiltinCallDescriptor {
   struct WasmFXResumeThrow : public Descriptor<WasmFXResumeThrow> {
     static constexpr auto kFunction = Builtin::kWasmFXResumeThrow;
     // Target stack, tag, exception array and instance.
-    using arguments_t = std::tuple<V<WordPtr>, V<WasmTagObject>, V<FixedArray>,
-                                   V<WasmTrustedInstanceData>>;
+    using arguments_t = std::tuple<V<WordPtr>, V<WasmExceptionTag>,
+                                   V<FixedArray>, V<WasmTrustedInstanceData>>;
     // Return values buffer.
     using results_t = std::tuple<V<WordPtr>>;
 
@@ -1754,7 +1770,8 @@ struct BuiltinCallDescriptor {
   struct WasmFXSuspend : public Descriptor<WasmFXSuspend> {
     static constexpr auto kFunction = Builtin::kWasmFXSuspend;
     using arguments_t =
-        std::tuple<V<WasmExceptionTag>, V<WasmContinuationObject>, V<WordPtr>>;
+        std::tuple<V<WasmExceptionTag>, V<WasmContinuationObject>, V<WordPtr>,
+                   V<WordPtr>>;
     // Arg buffer.
     using results_t = std::tuple<V<WordPtr>>;
 

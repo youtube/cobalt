@@ -254,7 +254,7 @@ void LayoutText::StyleDidChange(
   if (!old_style && text_autosizer)
     text_autosizer->Record(this);
 
-  if (diff.NeedsReshape()) {
+  if (diff.needs_reshape) {
     valid_ng_items_ = false;
     SetNeedsCollectInlines();
   }
@@ -265,9 +265,6 @@ void LayoutText::StyleDidChange(
 void LayoutText::RemoveAndDestroyTextBoxes() {
   NOT_DESTROYED();
   if (!DocumentBeingDestroyed()) {
-    if (Parent()) {
-      Parent()->DirtyLinesFromChangedChild(this);
-    }
     if (FirstInlineFragmentItemIndex()) {
       DetachAxHooksIfNeeded();
       FragmentItems::LayoutObjectWillBeDestroyed(*this);

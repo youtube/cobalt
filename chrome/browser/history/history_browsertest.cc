@@ -16,7 +16,6 @@
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/actor/actor_features.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
-#include "chrome/browser/actor/actor_policy_checker.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/actor_test_util.h"
 #include "chrome/browser/actor/execution_engine.h"
@@ -1160,9 +1159,7 @@ IN_PROC_BROWSER_TEST_F(HistoryBrowserTest,
 class HistoryTaskTagBrowserTest : public HistoryBrowserTest {
  public:
   HistoryTaskTagBrowserTest() {
-    scoped_feature_list_.InitWithFeatures(
-        /*enabled_features=*/{features::kGlicActor},
-        /*disabled_features=*/{actor::kGlicActionAllowlist});
+    scoped_feature_list_.InitAndDisableFeature(actor::kGlicActionAllowlist);
   }
 
  protected:
@@ -1182,8 +1179,8 @@ class HistoryTaskTagBrowserTest : public HistoryBrowserTest {
 
   actor::TaskId CreateActingTask(content::WebContents* web_contents) {
     auto* actor_service = actor::ActorKeyedService::Get(profile());
-    actor_service->GetPolicyChecker().set_act_on_web_for_testing(true);
-    actor::TaskId id = actor_service->CreateTask();
+    actor::TaskId id =
+        actor_service->CreateTask(actor::NoEnterprisePolicyChecker());
     std::unique_ptr<actor::ToolRequest> action = actor::MakeClickRequest(
         *tabs::TabInterface::GetFromContents(web_contents), gfx::Point(0, 0));
 

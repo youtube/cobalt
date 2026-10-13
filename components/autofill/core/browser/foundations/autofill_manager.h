@@ -195,7 +195,8 @@ class AutofillManager
     };
     virtual void OnFieldTypesDetermined(AutofillManager& manager,
                                         FormGlobalId form,
-                                        FieldTypeSource source) {}
+                                        FieldTypeSource source,
+                                        bool small_forms_were_parsed) {}
 
     // Fired when the suggestions are *actually* shown or hidden.
     virtual void OnSuggestionsShown(AutofillManager& manager,
@@ -321,11 +322,6 @@ class AutofillManager
   // Searches for any cached form that contains a field with `field_id`.
   // Runs in linear time.
   const FormStructure* FindCachedFormById(const FieldGlobalId& field_id) const;
-
-  // Returns all FormStructures with the given `form_signature` and
-  // Runs in linear time.
-  std::vector<raw_ref<const FormStructure>> FindCachedFormsBySignature(
-      FormSignature form_signature) const;
 
   // Calls `fun` for each cached FormStructure.
   void ForEachCachedForm(
@@ -461,12 +457,6 @@ class AutofillManager
 
   struct AsyncContext;
 
-  // Returns the number of FormStructures with the given |form_signature| and
-  // appends them to |form_structures|. Runs in linear time.
-  size_t FindCachedFormsBySignature(
-      FormSignature form_signature,
-      std::vector<raw_ref<FormStructure>>* form_structures) const;
-
   // Parses multiple forms in one go. The function proceeds in four stages:
   //
   // 1. Turn (almost) every FormData into a FormStructure.
@@ -510,7 +500,8 @@ class AutofillManager
   // Triggers the server predictions query for all `forms` that
   // `ShouldBeQueried()`. This is used when kAutofillServerQueryPredictionsEarly
   // is enabled.
-  void QueryServerPredictions(base::span<const FormData> forms);
+  void QueryServerPredictions(base::span<const FormData> forms,
+                              base::TimeTicks form_seen_timestamp);
 
   // Populates the form cache with the queried form signatures from `response`
   // if the feature kAutofillServerQueryPredictionsEarly is enabled.
@@ -521,6 +512,7 @@ class AutofillManager
   // Invoked by `AutofillCrowdsourcingManager`.
   void OnLoadedServerPredictions(
       base::span<const FormData> forms,
+      base::TimeTicks form_seen_timestamp,
       std::optional<AutofillCrowdsourcingManager::QueryResponse> response);
 
   // Emits the metrics that result from a server query response in
@@ -530,7 +522,8 @@ class AutofillManager
 
   // Invoked when forms from OnFormsSeen() have been parsed to
   // |form_structures|.
-  void OnFormsParsed(const std::vector<FormData>& forms);
+  void OnFormsParsed(const std::vector<FormData>& forms,
+                     base::TimeTicks form_seen_timestamp);
 
   // Updates `form_structures_` with the information in `forms` and `context`,
   // if available. `context` is available when this function is called as a

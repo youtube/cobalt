@@ -717,7 +717,55 @@ void CodeGenerator::AssemblePrepareTailCall() {
 
 void CodeGenerator::AssembleArchSelect(Instruction* instr,
                                        FlagsCondition condition) {
-  UNIMPLEMENTED();
+  ASM_CODE_COMMENT(masm());
+  RiscvOperandConverter i(this, instr);
+  // The result register is always the last output of the instruction.
+  size_t output_index = instr->OutputCount() - 1;
+  MachineRepresentation rep =
+      LocationOperand::cast(instr->OutputAt(output_index))->representation();
+  Condition cc = FlagsConditionToConditionCmp(condition);
+  DCHECK_GE(instr->InputCount(), 3);
+  Register left = i.InputRegister(0);
+  Operand right = i.InputOperand(1);
+  if (instr->arch_opcode() == kRiscvCmpZero ||
+      instr->arch_opcode() == kRiscvCmpZero32) {
+    right = Operand(zero_reg);
+  } else if (instr->arch_opcode() == kRiscvTst32 ||
+             instr->arch_opcode() == kRiscvTst64) {
+    left = kScratchReg;
+    right = Operand(zero_reg);
+  } else {
+    DCHECK(instr->arch_opcode() == kRiscvCmp32 ||
+           instr->arch_opcode() == kRiscvCmp);
+  }
+  // We don't know how many inputs were consumed by the condition, so we have to
+  // calculate the indices of the last two inputs.
+  size_t true_value_index = instr->InputCount() - 2;
+  size_t false_value_index = instr->InputCount() - 1;
+
+  if ((rep == MachineRepresentation::kFloat32) ||
+      (rep == MachineRepresentation::kFloat64)) {
+    UNREACHABLE();
+  } else if ((rep == MachineRepresentation::kWord32) ||
+             (rep == MachineRepresentation::kWord64)) {
+    auto true_op = i.InputOperand(true_value_index);
+    auto false_op = i.InputOperand(false_value_index);
+    Label true_label, end_label;
+    __ Branch(&true_label, cc, left, right);
+    if (false_op.is_reg()) {
+      __ Move(i.OutputRegister(output_index), false_op.rm());
+    } else {
+      __ li(i.OutputRegister(output_index), false_op);
+    }
+    __ Branch(&end_label);
+    __ bind(&true_label);
+    if (true_op.is_reg()) {
+      __ Move(i.OutputRegister(output_index), true_op.rm());
+    } else {
+      __ li(i.OutputRegister(output_index), true_op);
+    }
+    __ bind(&end_label);
+  }
 }
 
 namespace {
@@ -1069,7 +1117,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ RecordComment("-- Set simulator stack limit --");
         __ LoadStackLimit(kSimulatorBreakArgument,
                           StackLimitKind::kRealStackLimit);
-        __ break_(kExceptionIsSwitchStackLimit);
+        __ break_(kExceptionIsSwitchStackLimit, false);
       }
       __ Move(sp, i.InputRegister(0));
       break;
@@ -1862,6 +1910,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
 #endif
+    case kRiscvFloat64ToFloat16RawBits: {
+      DoubleRegister tmp_dst = i.TempDoubleRegister(0);
+      __ fcvt_h_d(tmp_dst, i.InputDoubleRegister(0));
+      __ fmv_x_h(i.OutputRegister(), tmp_dst);
+      break;
+    }
+    case kRiscvFloat16RawBitsToFloat64: {
+      DoubleRegister tmp_src = i.TempDoubleRegister(0);
+      __ fmv_h_x(tmp_src, i.InputRegister(0));
+      __ fcvt_d_h(i.OutputDoubleRegister(), tmp_src);
+      break;
+    }
     case kRiscvCvtDUw: {
       __ Cvt_d_uw(i.OutputDoubleRegister(), i.InputRegister(0));
       break;
@@ -5262,6 +5322,14 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     __ CallCFunction(ExternalReference::wasm_shrink_stack(), 1);
     __ mv(fp, kReturnRegister0);
     __ MultiPop(regs_to_save);
+    if (masm()->options().enable_simulator_code) {
+      UseScratchRegisterScope temps(masm());
+      temps.Exclude(kSimulatorBreakArgument);
+      __ RecordComment("-- Set simulator stack limit --");
+      __ LoadStackLimit(kSimulatorBreakArgument,
+                        StackLimitKind::kRealStackLimit);
+      __ break_(kExceptionIsSwitchStackLimit, false);
+    }
     __ bind(&done);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY

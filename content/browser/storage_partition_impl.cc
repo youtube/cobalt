@@ -142,6 +142,7 @@
 #include "content/public/browser/storage_notification_service.h"
 #include "content/public/browser/storage_partition_config.h"
 #include "content/public/browser/storage_usage_info.h"
+#include "content/public/common/child_process_id_util.h"
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_constants.h"
 #include "content/public/common/content_features.h"
@@ -473,7 +474,7 @@ class LoginHandlerDelegate {
       const net::AuthChallengeInfo& auth_info,
       bool is_request_for_primary_main_frame_navigation,
       bool is_request_for_navigation,
-      base::StrictNumeric<int32_t> process_id,
+      const network::OriginatingProcess& process_id,
       base::StrictNumeric<int32_t> request_id,
       const GURL& url,
       scoped_refptr<net::HttpResponseHeaders> response_headers,
@@ -2147,6 +2148,7 @@ void StoragePartitionImpl::OnAuthRequired(
         auth_challenge_responder) {
   URLLoaderNetworkContext context =
       url_loader_network_observers_.current_context();
+  URLLoaderNetworkContext original_context = context;
   std::optional<bool> is_primary_main_frame_navigation;
   std::optional<bool> is_navigation_request;
 
@@ -2211,20 +2213,41 @@ void StoragePartitionImpl::OnAuthRequired(
     return;
   }
 
+  // If the request was initiated by a service worker, we should not treat it as
+  // a navigation request for the purpose of authentication. This is because
+  // even if the request is associated with an ongoing navigation for UI
+  // purposes, the network request itself is issued by the service worker.
+  // `WebRequestAPI::MaybeProxyAuthRequest` overrides the process ID to -1
+  // for navigation requests, but the `WebRequestProxyingURLLoaderFactory`
+  // for service worker subresources is registered with the service worker's
+  // actual process ID. Treating this as a non-navigation ensures the
+  // `GlobalRequestID` matches and the proxy can be found.
+  if (original_context.type() == ContextType::kSharedOrServiceWorkerContext) {
+    is_navigation_request = false;
+  }
+
   if (!is_primary_main_frame_navigation.has_value()) {
     is_primary_main_frame_navigation = context.IsPrimaryMainFrameRequest();
   }
   if (!is_navigation_request.has_value()) {
     is_navigation_request = context.IsNavigationRequestContext();
   }
-  int process_id = network::mojom::kBrowserProcessId;
-  if (context.type() == ContextType::kRenderFrameHostContext) {
+  network::OriginatingProcess process_id =
+      network::OriginatingProcess::browser();
+  if (original_context.type() == ContextType::kSharedOrServiceWorkerContext) {
+    // If the request was initiated by a service worker, use the service
+    // worker's process ID. This ensures the `GlobalRequestID` used to look up
+    // the proxy (e.g. in `WebRequestAPI`) matches the one used when the factory
+    // was created, which for service worker subresources is the worker's
+    // process ID.
+    process_id = original_context.process_id();
+  } else if (context.type() == ContextType::kRenderFrameHostContext) {
     // Set `process_id` to `kInvalidProcessId` considering `render_frame_host`
     // can be null when it's destroyed already. `process_id` is updated only if
     // `render_frame_host` is not null. If `render_frame_host` is null,
     // later logic will call OnAuthCredentials() with a nullopt that triggers
     // CancelAuth().
-    process_id = network::mojom::kInvalidProcessId;
+    process_id = network::OriginatingProcess();
 
     // `navigation_or_document_` can be null when `context` is created with
     // an invalid RenderFrameHost after a page is destroyed.
@@ -2239,12 +2262,10 @@ void StoragePartitionImpl::OnAuthRequired(
     if (context.navigation_or_document()) {
       auto* render_frame_host = context.navigation_or_document()->GetDocument();
       if (render_frame_host) {
-        // TODO(crbug.com/379869738) Remove GetUnsafeValue.
-        process_id = render_frame_host->GetGlobalId().child_id.GetUnsafeValue();
+        process_id =
+            ToOriginatingProcess(render_frame_host->GetGlobalId().child_id);
       }
     }
-  } else if (context.type() == ContextType::kSharedOrServiceWorkerContext) {
-    process_id = context.process_id();
   }
 
   FrameTreeNodeId frame_tree_node_id;
@@ -2497,10 +2518,12 @@ void StoragePartitionImpl::OnLocalNetworkAccessPermissionRequired(
 
     PermissionController& permission_controller =
         CHECK_DEREF(browser_context_->GetPermissionController());
+    CHECK(!context.process_id().is_browser());
     auto status = permission_controller.GetPermissionStatusForWorker(
         content::PermissionDescriptorUtil::
             CreatePermissionDescriptorForPermissionType(permission_type),
-        content::RenderProcessHost::FromID(context.process_id()),
+        content::RenderProcessHost::FromID(
+            ToChildProcessId(context.process_id().renderer_process())),
         context.worker_origin().value());
 
     // If the request was loaded from cache, prefer retrying over the network
@@ -2593,7 +2616,9 @@ void StoragePartitionImpl::OnCertificateRequested(
   base::WeakPtr<WebContents> web_contents_weak;
   int process_id = network::mojom::kInvalidProcessId;
   if (context.type() == ContextType::kSharedOrServiceWorkerContext) {
-    process_id = context.process_id();
+    // TODO(crbug.com/379869738) Remove GetUnsafeValue.
+    // TODO(crbug.com/479742988) This can be the browser process and shouldn't.
+    process_id = context.process_id().GetUnsafeValue();
   } else {
     WebContents* web_contents = context.GetWebContents();
     // The WebContents is already invalid. Bail.
@@ -2718,7 +2743,7 @@ void StoragePartitionImpl::Clone(
       url_loader_network_observers_.current_context());
 }
 
-void StoragePartitionImpl::OnWebSocketConnectedToPrivateNetwork(
+void StoragePartitionImpl::OnWebSocketConnectedToLocalNetwork(
     const GURL& request_url,
     network::mojom::IPAddressSpace ip_address_space) {
   RenderFrameHostImpl* render_frame_host_impl =
@@ -2734,7 +2759,7 @@ void StoragePartitionImpl::OnWebSocketConnectedToPrivateNetwork(
 
     // Log a UseCounter for potential LNA breakage, where we cannot auto-detect
     // a mixed content bypass situation. This is similar to the check below in
-    // StoragePartitionImpl::OnUrlLoaderConnectedToPrivateNetwork.
+    // StoragePartitionImpl::OnUrlLoaderConnectedToLocalNetwork.
     if (!network::IsUrlPotentiallyTrustworthy(request_url) &&
         !request_url.HostIsIPAddress() && !request_url.DomainIs("local")) {
       GetContentClient()->browser()->LogWebFeatureForCurrentPage(
@@ -2745,7 +2770,7 @@ void StoragePartitionImpl::OnWebSocketConnectedToPrivateNetwork(
   }
 }
 
-void StoragePartitionImpl::OnUrlLoaderConnectedToPrivateNetwork(
+void StoragePartitionImpl::OnUrlLoaderConnectedToLocalNetwork(
     const GURL& request_url,
     network::mojom::IPAddressSpace response_address_space,
     network::mojom::IPAddressSpace client_address_space,
@@ -2792,13 +2817,12 @@ void StoragePartitionImpl::OnUrlLoaderConnectedToPrivateNetwork(
 }
 
 mojo::PendingRemote<network::mojom::URLLoaderNetworkServiceObserver>
-StoragePartitionImpl::CreateURLLoaderNetworkObserverForFrame(int process_id,
-                                                             int routing_id) {
+StoragePartitionImpl::CreateURLLoaderNetworkObserverForFrame(
+    const content::GlobalRenderFrameHostId& frame_id) {
   mojo::PendingRemote<network::mojom::URLLoaderNetworkServiceObserver> remote;
   url_loader_network_observers_.Add(
       this, remote.InitWithNewPipeAndPassReceiver(),
-      URLLoaderNetworkContext::CreateForRenderFrameHost(
-          GlobalRenderFrameHostId(process_id, routing_id)));
+      URLLoaderNetworkContext::CreateForRenderFrameHost(frame_id));
   return remote;
 }
 
@@ -2814,7 +2838,7 @@ StoragePartitionImpl::CreateURLLoaderNetworkObserverForNavigationRequest(
 
 mojo::PendingRemote<network::mojom::URLLoaderNetworkServiceObserver>
 StoragePartitionImpl::CreateURLLoaderNetworkObserverForServiceOrSharedWorker(
-    int process_id,
+    const network::OriginatingProcess& process_id,
     const url::Origin& worker_origin) {
   mojo::PendingRemote<network::mojom::URLLoaderNetworkServiceObserver> remote;
   url_loader_network_observers_.Add(
@@ -3707,6 +3731,28 @@ void StoragePartitionImpl::BindIndexedDB(
       std::move(receiver));
 }
 
+void StoragePartitionImpl::BindLockManager(
+    const blink::StorageKey& storage_key,
+    const base::UnguessableToken& token,
+    mojo::PendingReceiver<blink::mojom::LockManager> receiver) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+
+  GetQuotaManagerProxy()->UpdateOrCreateBucket(
+      storage::BucketInitParams::ForDefaultBucket(storage_key),
+      GetUIThreadTaskRunner({}),
+      base::BindOnce(&StoragePartitionImpl::CreateLockManagerWithBucketInfo,
+                     weak_factory_.GetWeakPtr(), std::move(receiver), token));
+}
+
+void StoragePartitionImpl::CreateLockManagerWithBucketInfo(
+    mojo::PendingReceiver<blink::mojom::LockManager> receiver,
+    const base::UnguessableToken& token,
+    storage::QuotaErrorOr<storage::BucketInfo> bucket) {
+  GetLockManager()->BindReceiver(
+      bucket.has_value() ? bucket->id : storage::BucketId(), token,
+      std::move(receiver));
+}
+
 mojo::ReceiverId StoragePartitionImpl::BindDomStorage(
     int process_id,
     mojo::PendingReceiver<blink::mojom::DomStorage> receiver,
@@ -3933,7 +3979,7 @@ StoragePartitionImpl::CreateURLLoaderFactoryParams() {
       network::mojom::URLLoaderFactoryParams::New();
   // This method is used for browser-process initiated requests for which there
   // is no corresponding RenderProcessHost.
-  params->process_id = network::mojom::kBrowserProcessId;
+  params->process_id = network::OriginatingProcess::browser();
   params->automatically_assign_isolation_info = true;
   params->is_orb_enabled = false;
   params->is_trusted = true;
@@ -4151,7 +4197,7 @@ StoragePartitionImpl::URLLoaderNetworkContext::URLLoaderNetworkContext(
 }
 
 StoragePartitionImpl::URLLoaderNetworkContext::URLLoaderNetworkContext(
-    int process_id,
+    const network::OriginatingProcess& process_id,
     const url::Origin& worker_origin)
     : type_(Type::kSharedOrServiceWorkerContext),
       process_id_(process_id),

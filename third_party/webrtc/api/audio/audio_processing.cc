@@ -145,7 +145,6 @@ std::string AudioProcessing::Config::ToString() const {
           << capture_level_adjustment.analog_mic_gain_emulation.initial_level
           << " }}, high_pass_filter: { enabled: " << high_pass_filter.enabled
           << " }, echo_canceller: { enabled: " << echo_canceller.enabled
-          << ", mobile_mode: " << echo_canceller.mobile_mode
           << ", enforce_high_pass_filtering: "
           << echo_canceller.enforce_high_pass_filtering
           << " }, noise_suppression: { enabled: " << noise_suppression.enabled

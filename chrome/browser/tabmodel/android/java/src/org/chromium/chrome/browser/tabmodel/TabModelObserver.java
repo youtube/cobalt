@@ -175,6 +175,9 @@ public interface TabModelObserver {
     /** Called when an "all tabs" closure has been committed and can't be undone anymore. */
     default void allTabsClosureCommitted(boolean isIncognito) {}
 
+    /** Called when tabs are being closed, and none will be left in the {@link TabModel}. */
+    default void allTabsAreClosing() {}
+
     /**
      * Called after a tab has been removed. At this point, the tab is no longer in the tab model.
      *
@@ -253,6 +256,15 @@ public interface TabModelObserver {
      * @param oldIndex The previous index of the group in the tab strip.
      */
     default void onTabGroupMoved(Token groupId, int oldIndex) {}
+
+    /**
+     * Called after a tab group's visual data (title, color, etc.) is changed. Note that new code
+     * should prefer using {@link TabGroupModelFilterObserver} for tab groups over this interface
+     * and method.
+     *
+     * @param groupId The ID of the group that was changed.
+     */
+    default void onTabGroupVisualsChanged(Token groupId) {}
 
     /**
      * Called when the TabModel is destroyed. Note that for the incognito tab model this may be

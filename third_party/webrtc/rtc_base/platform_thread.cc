@@ -36,7 +36,10 @@ int Win32PriorityFromThreadPriority(ThreadPriority priority) {
     case ThreadPriority::kNormal:
       return THREAD_PRIORITY_NORMAL;
     case ThreadPriority::kHigh:
+    case ThreadPriority::kVideo:
       return THREAD_PRIORITY_ABOVE_NORMAL;
+    case ThreadPriority::kAudio:
+      return THREAD_PRIORITY_HIGHEST;
     case ThreadPriority::kRealtime:
       return THREAD_PRIORITY_TIME_CRITICAL;
   }
@@ -81,7 +84,11 @@ bool SetPriority(ThreadPriority priority) {
       param.sched_priority = (low_prio + top_prio - 1) / 2;
       break;
     case ThreadPriority::kHigh:
+    case ThreadPriority::kVideo:
       param.sched_priority = std::max(top_prio - 2, low_prio);
+      break;
+    case ThreadPriority::kAudio:
+      param.sched_priority = std::max(top_prio - 1, low_prio);
       break;
     case ThreadPriority::kRealtime:
       param.sched_priority = top_prio;

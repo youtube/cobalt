@@ -128,6 +128,11 @@ extern const char kCSSCustomStateDeprecatedSyntaxEnabled[] =
 // signal to dismiss a splash screen.
 const char kNetworkQuietTimeout[] = "network-quiet-timeout";
 
+// Visibly render a border around paint rects in the web page to help debug
+// and study painting behavior.  Unlike "show-paint-rects", this only visualizes
+// new contentful paints for each element (e.g. for LCP).
+const char kShowContentfulPaintRects[] = "show-contentful-paint-rects";
+
 // Visibly render a border around layout shift rects in the web page to help
 // debug and study layout shifts.
 const char kShowLayoutShiftRegions[] = "show-layout-shift-regions";
@@ -159,6 +164,9 @@ const char kWebAudioBypassOutputBufferingOptOut[] =
 // Override mechanism for ReduceAcceptLanguage. This feature is typically
 // controlled by base features, but requires an enterprise policy override.
 const char kDisableReduceAcceptLanguage[] = "disable-reduce-accept-language";
+
+// A switch that controls XSLT availability via enterprise policy.
+const char kXSLTEnabledPolicy[] = "xslt-enabled-policy";
 
 }  // namespace switches
 }  // namespace blink

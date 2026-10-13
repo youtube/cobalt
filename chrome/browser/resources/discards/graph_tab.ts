@@ -60,6 +60,8 @@ export class GraphTabElement extends CrLitElement {
   }
 
   override disconnectedCallback() {
+    super.disconnectedCallback();
+
     // TODO(siggi): Is there a way to tear down the binding explicitly?
     this.graphDump_ = null;
     if (this.resizeObserver_) {
@@ -76,6 +78,12 @@ export class GraphTabElement extends CrLitElement {
         .then(
             (descriptions) => this.graph_!.nodeDescriptions(
                 descriptions.nodeDescriptionsJson));
+  }
+}
+
+declare global {
+  interface HTMLElementTagNameMap {
+    'graph-tab': GraphTabElement;
   }
 }
 

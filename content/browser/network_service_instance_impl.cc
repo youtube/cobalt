@@ -44,7 +44,6 @@
 #include "content/browser/browser_main_loop.h"
 #include "content/browser/first_party_sets/first_party_sets_handler_impl.h"
 #include "content/browser/network/http_cache_backend_file_operations_factory.h"
-#include "content/browser/network/socket_broker_impl.h"
 #include "content/browser/network_sandbox_grant_result.h"
 #include "content/browser/network_service_client.h"
 #include "content/public/browser/browser_task_traits.h"
@@ -321,7 +320,7 @@ void CreateInProcessNetworkService(
     // from an unfair to a fair lock.
     if (base::android::BackgroundThreadPoolFieldTrial::
             ShouldUsePriorityInheritanceLocks()) {
-      options.thread_type = base::ThreadType::kDisplayCritical;
+      options.thread_type = base::ThreadType::kPresentation;
     }
 #endif  // BUILDFLAG(IS_ANDROID)
     GetNetworkServiceDedicatedThread().StartWithOptions(std::move(options));
@@ -363,8 +362,7 @@ network::mojom::NetworkServiceParamsPtr CreateNetworkServiceParams() {
   network::mojom::NetworkServiceParamsPtr network_service_params =
       network::mojom::NetworkServiceParams::New();
   network_service_params->initial_connection_type =
-      network::mojom::ConnectionType(
-          net::NetworkChangeNotifier::GetConnectionType());
+      net::NetworkChangeNotifier::GetConnectionType();
   network_service_params->initial_connection_subtype =
       network::mojom::ConnectionSubtype(
           net::NetworkChangeNotifier::GetConnectionSubtype());

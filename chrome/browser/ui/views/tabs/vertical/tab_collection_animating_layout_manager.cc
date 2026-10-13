@@ -15,6 +15,10 @@
 #include "ui/gfx/animation/tween.h"
 #include "ui/views/view.h"
 #include "ui/views/view_class_properties.h"
+#include "ui/views/view_utils.h"
+
+DEFINE_UI_CLASS_PROPERTY_TYPE(
+    TabCollectionAnimatingLayoutManager::SourceLayoutInfo*)
 
 namespace {
 
@@ -27,15 +31,37 @@ DEFINE_UI_CLASS_PROPERTY_KEY(bool, kPendingDeletion, false)
 // removed from its host TabCollectionNode. Used for collection move animations.
 DEFINE_OWNED_UI_CLASS_PROPERTY_KEY(gfx::Rect, kPreviousCollectionBounds)
 
+// Stores optional source layout information of the associated View. Used for
+// collection move animations.
+DEFINE_OWNED_UI_CLASS_PROPERTY_KEY(
+    TabCollectionAnimatingLayoutManager::SourceLayoutInfo,
+    kSourceLayoutInfo)
+
 }  // namespace
+
+bool TabCollectionAnimatingLayoutManager::Delegate::IsViewDragging(
+    const views::View& child_view) const {
+  return false;
+}
+
+bool TabCollectionAnimatingLayoutManager::Delegate::ShouldSnapToTarget(
+    const views::View& child_view) const {
+  return false;
+}
+
+void TabCollectionAnimatingLayoutManager::Delegate::OnAnimationEnded() {}
 
 TabCollectionAnimatingLayoutManager::TabCollectionAnimatingLayoutManager(
     std::unique_ptr<LayoutManagerBase> target_layout_manager,
-    Delegate* delegate)
+    Delegate* delegate,
+    AnimationAxis animation_axis,
+    bool animate_host_size)
     : target_layout_manager_(
           CHECK_DEREF(AddOwnedLayout(std::move(target_layout_manager)))),
       animation_(this),
-      delegate_(delegate) {
+      delegate_(delegate),
+      animation_axis_(animation_axis),
+      animate_host_size_(animate_host_size) {
   // TODO(crbug.com/459824840): Determine the appropriate animation duration.
   // Currently set to match the duration of TabContainerImpl.
   animation_.SetSlideDuration(
@@ -46,15 +72,39 @@ TabCollectionAnimatingLayoutManager::TabCollectionAnimatingLayoutManager(
 TabCollectionAnimatingLayoutManager::~TabCollectionAnimatingLayoutManager() =
     default;
 
+bool TabCollectionAnimatingLayoutManager::OnViewRemoved(views::View* host,
+                                                        views::View* view) {
+  ClearViewAnimationMetadataForView(view);
+  return LayoutManagerBase::OnViewRemoved(host, view);
+}
+
 gfx::Size TabCollectionAnimatingLayoutManager::GetPreferredSize(
     const views::View* host) const {
-  return target_layout_manager_->GetPreferredSize(host);
+  // Update to reflect current content height only in the case where it is less
+  // than the target height. Do so to avoid clipping fade-out animations that
+  // are not reflected in the target.
+  gfx::Size target_preferred_size =
+      target_layout_manager_->GetPreferredSize(host);
+  if (animate_host_size_ && animation_.is_animating() &&
+      (target_preferred_size.height() < current_layout_content_height_)) {
+    target_preferred_size.set_height(current_layout_content_height_);
+  }
+  return target_preferred_size;
 }
 
 gfx::Size TabCollectionAnimatingLayoutManager::GetPreferredSize(
     const views::View* host,
     const views::SizeBounds& available_size) const {
-  return target_layout_manager_->GetPreferredSize(host, available_size);
+  // Update to reflect current content height only in the case where it is less
+  // than the target height. Do so to avoid clipping fade-out animations that
+  // are not reflected in the target.
+  gfx::Size target_preferred_size =
+      target_layout_manager_->GetPreferredSize(host, available_size);
+  if (animate_host_size_ && animation_.is_animating() &&
+      (target_preferred_size.height() < current_layout_content_height_)) {
+    target_preferred_size.set_height(current_layout_content_height_);
+  }
+  return target_preferred_size;
 }
 
 gfx::Size TabCollectionAnimatingLayoutManager::GetMinimumSize(
@@ -92,6 +142,14 @@ void TabCollectionAnimatingLayoutManager::AnimationEnded(
   }
 }
 
+// static.
+void TabCollectionAnimatingLayoutManager::SetSourceLayoutInfo(
+    views::View* view_to_reparent,
+    std::unique_ptr<SourceLayoutInfo> source_layout_info) {
+  view_to_reparent->SetProperty(kSourceLayoutInfo,
+                                std::move(source_layout_info));
+}
+
 views::ProposedLayout
 TabCollectionAnimatingLayoutManager::CalculateProposedLayout(
     const views::SizeBounds& size_bounds) const {
@@ -117,7 +175,7 @@ void TabCollectionAnimatingLayoutManager::LayoutImpl() {
     current_offset_ = 1.0;
     starting_offset_ = 0.0;
     current_layout_ = target_layout_;
-    starting_layout_ = target_layout_;
+    SetStartingLayout(target_layout_);
     ApplyLayout(target_layout_);
     RemoveNonAnimatingPendingDeleteViews();
     ClearViewAnimationMetadata();
@@ -127,6 +185,44 @@ void TabCollectionAnimatingLayoutManager::LayoutImpl() {
 void TabCollectionAnimatingLayoutManager::OnInstalled(views::View* host) {
   LayoutManagerBase::OnInstalled(host);
   RecalculateTarget();
+}
+
+void TabCollectionAnimatingLayoutManager::SetStartingLayout(
+    const views::ProposedLayout& starting_layout) {
+  // Create a set of current child views for fast lookup. This is necessary
+  // as `starting_layout` may contain Views already removed from the View tree
+  // and destroyed.
+  std::vector<const views::View*> child_views;
+  child_views.reserve(host_view()->children().size());
+  std::ranges::transform(
+      host_view()->children(), std::back_inserter(child_views),
+      [](const auto& child_view) { return child_view.get(); });
+  base::flat_set<const views::View*> child_view_set(std::move(child_views));
+
+  // Map view pointers to their starting layouts.
+  std::vector<ChildViewLayoutMap::value_type> start_bounds_pairs;
+  start_bounds_pairs.reserve(starting_layout.child_layouts.size());
+  for (const views::ChildLayout& layout : starting_layout.child_layouts) {
+    if (child_view_set.contains(layout.child_view.get())) {
+      start_bounds_pairs.emplace_back(layout.child_view.get(), layout);
+    }
+  }
+  start_view_layout_map_ = ChildViewLayoutMap(std::move(start_bounds_pairs));
+
+  starting_layout_ = starting_layout;
+}
+
+void TabCollectionAnimatingLayoutManager::SetTargetLayout(
+    const views::ProposedLayout& target_layout) {
+  // Map view pointers to their target layouts.
+  std::vector<ChildViewLayoutMap::value_type> target_bounds_pairs;
+  target_bounds_pairs.reserve(target_layout.child_layouts.size());
+  for (const views::ChildLayout& layout : target_layout.child_layouts) {
+    target_bounds_pairs.emplace_back(layout.child_view.get(), layout);
+  }
+  target_view_layout_map_ = ChildViewLayoutMap(std::move(target_bounds_pairs));
+
+  target_layout_ = target_layout;
 }
 
 void TabCollectionAnimatingLayoutManager::RecalculateTarget() {
@@ -144,20 +240,19 @@ void TabCollectionAnimatingLayoutManager::RecalculateTarget() {
     return;
   }
 
-  // If this is the first layout and we are not animating, just snap to target.
   // Animating horizontal bounds is not supported and layout should immediately
   // snap to target for horizontal bounds changes.
-  if ((target_layout_.child_layouts.empty() && !animation_.is_animating()) ||
+  if (!current_layout_.host_size.IsEmpty() &&
       (current_layout_.host_size.width() != new_target.host_size.width())) {
-    target_layout_ = new_target;
     current_layout_ = new_target;
-    starting_layout_ = new_target;
+    SetStartingLayout(new_target);
+    SetTargetLayout(new_target);
     starting_offset_ = 0.0;
     current_offset_ = 1.0;
     return;
   }
 
-  target_layout_ = new_target;
+  SetTargetLayout(new_target);
 
   // If we haven't actually rendered a frame yet keep the original
   // starting_layout.
@@ -170,7 +265,7 @@ void TabCollectionAnimatingLayoutManager::RecalculateTarget() {
   if (current_offset_ > kResetAnimationThreshold) {
     // We are far enough along that we should start a "fresh" animation
     // from 0% to avoid awkward slow-downs at the end of the curve.
-    starting_layout_ = current_layout_;
+    SetStartingLayout(current_layout_);
     starting_offset_ = 0.0;
     current_offset_ = 0.0;
     animation_.Reset(0.0);
@@ -178,7 +273,7 @@ void TabCollectionAnimatingLayoutManager::RecalculateTarget() {
     // We are still early in the animation. Simply update the starting offset.
     // The timer remains running and we just calculate a new slope in
     // LayoutImpl.
-    starting_layout_ = current_layout_;
+    SetStartingLayout(current_layout_);
     starting_offset_ = current_offset_;
   }
 
@@ -190,7 +285,7 @@ void TabCollectionAnimatingLayoutManager::RecalculateTarget() {
 void TabCollectionAnimatingLayoutManager::ResetToTargetLayout() {
   RecalculateTarget();
   animation_.Reset(0.0);
-  starting_layout_ = target_layout_;
+  SetStartingLayout(target_layout_);
   current_layout_ = target_layout_;
   InvalidateHost(/*mark_layouts_changed=*/false);
 }
@@ -208,7 +303,7 @@ void TabCollectionAnimatingLayoutManager::AnimateAndReparentView(
     std::unique_ptr<views::View> view_to_reparent,
     const gfx::Rect& previous_bounds_in_screen) {
   auto* child_view = host_view()->AddChildView(std::move(view_to_reparent));
-  if (delegate_ && !delegate_->IsViewDragging(*child_view)) {
+  if (!delegate_ || !delegate_->IsViewDragging(*child_view)) {
     child_view->SetPaintToLayer();
     child_view->SetProperty(kPreviousCollectionBounds,
                             previous_bounds_in_screen);
@@ -223,72 +318,139 @@ views::ProposedLayout TabCollectionAnimatingLayoutManager::InterpolateLayout(
   // animation.
   result.host_size = target_layout_.host_size;
 
-  // Map view pointers to their starting bounds for fast lookup
-  std::vector<std::pair<const views::View*, gfx::Rect>> start_bounds_pairs;
-  start_bounds_pairs.reserve(starting_layout_.child_layouts.size());
-  for (const views::ChildLayout& layout : starting_layout_.child_layouts) {
-    start_bounds_pairs.emplace_back(layout.child_view.get(), layout.bounds);
-  }
-  base::flat_map<const views::View*, gfx::Rect> start_bounds_map(
-      std::move(start_bounds_pairs));
+  // Reset the previously computed total content height.
+  current_layout_content_height_ = 0;
 
-  for (const auto& target_child : target_layout_.child_layouts) {
-    views::ChildLayout interpolated_child = target_child;
-    auto it = start_bounds_map.find(target_child.child_view);
+  for (views::View* child_view : host_view()->children()) {
+    auto target_it = target_view_layout_map_.find(child_view);
+    if (target_it != target_view_layout_map_.end()) {
+      views::ChildLayout interpolated_child = target_it->second;
 
-    if (it != start_bounds_map.end()) {
-      // Moved child.
-      // Interpolate between start and target bounds.
-      interpolated_child.bounds =
-          gfx::Tween::RectValueBetween(value, it->second, target_child.bounds);
-      // Snap visibility to target.
-      interpolated_child.visible = target_child.visible;
-    } else if (delegate_ &&
-               !delegate_->IsViewDragging(*target_child.child_view)) {
-      // Added child.
-      // Animate-in new Views from empty bounds.
-      gfx::Rect* previous_container_bounds =
-          target_child.child_view->GetProperty(kPreviousCollectionBounds);
-      if (previous_container_bounds) {
-        gfx::Rect initial_bounds = views::View::ConvertRectFromScreen(
-            host_view(), *previous_container_bounds);
+      auto start_it = start_view_layout_map_.find(child_view);
+      if (start_it != start_view_layout_map_.end()) {
+        // Moved child.
+        // Interpolate between start and target bounds.
         interpolated_child.bounds = gfx::Tween::RectValueBetween(
-            value, initial_bounds, target_child.bounds);
+            value, start_it->second.bounds, target_it->second.bounds);
+        // Snap visibility to target.
+        interpolated_child.visible = target_it->second.visible;
+      } else if (!delegate_ || (!delegate_->IsViewDragging(*child_view) &&
+                                !delegate_->ShouldSnapToTarget(*child_view))) {
+        // Added child.
+        // Animate-in new Views from empty bounds.
+        gfx::Rect* previous_container_bounds =
+            child_view->GetProperty(kPreviousCollectionBounds);
+        if (previous_container_bounds) {
+          gfx::Rect initial_bounds = views::View::ConvertRectFromScreen(
+              host_view(), *previous_container_bounds);
+          interpolated_child.bounds = gfx::Tween::RectValueBetween(
+              value, initial_bounds, target_it->second.bounds);
+        } else {
+          gfx::Rect initial_bounds = target_it->second.bounds;
+          if (animation_axis_ == AnimationAxis::kVertical) {
+            initial_bounds.set_height(0);
+          } else {
+            initial_bounds.set_width(0);
+          }
+          interpolated_child.bounds = gfx::Tween::RectValueBetween(
+              value, initial_bounds, target_it->second.bounds);
+        }
       } else {
-        gfx::Rect initial_bounds = target_child.bounds;
-        initial_bounds.set_height(0);
-        interpolated_child.bounds = gfx::Tween::RectValueBetween(
-            value, initial_bounds, target_child.bounds);
+        // This branch results in new children being snapped to target bounds
+        // (e.g. drag-and-drop or split-tabs which explicitly requires no
+        // animated transition).
       }
-    } else {
-      // Snap new children to target bounds in the case of drag-and-drop.
+      current_layout_content_height_ = std::max(
+          current_layout_content_height_, interpolated_child.bounds.bottom());
+      result.child_layouts.push_back(interpolated_child);
+      continue;
     }
-    result.child_layouts.push_back(interpolated_child);
-  }
 
-  // Create a set of current child views for fast lookup.
-  std::vector<const views::View*> child_views;
-  child_views.reserve(host_view()->children().size());
-  std::ranges::transform(
-      host_view()->children(), std::back_inserter(child_views),
-      [](const auto& child_view) { return child_view.get(); });
-  base::flat_set<const views::View*> child_view_set(std::move(child_views));
-
-  for (const auto& start_child : starting_layout_.child_layouts) {
+    // Note: `start_view_layout_map_` will only contain start ChildLayouts for
+    // the views that are still parented to `host_view()`. This is not the case
+    // for `start_layout_`.
     // Animate-out only pending delete views that were present in the previous
     // layout.
-    if (child_view_set.contains(start_child.child_view) &&
-        start_child.child_view->GetProperty(kPendingDeletion)) {
+    auto start_it = start_view_layout_map_.find(child_view);
+    if (start_it != start_view_layout_map_.end() &&
+        child_view->GetProperty(kPendingDeletion)) {
       // Removed child.
       // Pending delete Views will remain in the Views hierarchy until they are
       // no longer needed for animation (i.e. they are no longer in
       // `starting_layout_`), at which point they will be removed by
       // `RemoveNonAnimatingPendingDeleteViews()`.
-      views::ChildLayout interpolated_child = start_child;
-      gfx::Rect target_bounds = start_child.bounds;
-      target_bounds.set_height(0);
+      views::ChildLayout interpolated_child = start_it->second;
+      gfx::Rect target_bounds = start_it->second.bounds;
+      if (animation_axis_ == AnimationAxis::kVertical) {
+        target_bounds.set_height(0);
+      } else {
+        target_bounds.set_width(0);
+      }
       interpolated_child.bounds = gfx::Tween::RectValueBetween(
-          value, start_child.bounds, target_bounds);
+          value, start_it->second.bounds, target_bounds);
+
+      current_layout_content_height_ = std::max(
+          current_layout_content_height_, interpolated_child.bounds.bottom());
+      result.child_layouts.push_back(interpolated_child);
+      continue;
+    }
+
+    // Animate out any child views moved into `host_view()` with their
+    // TabCollectioNode subsequently destroyed before a layout and animation has
+    // had the chance to occur. In such cases where the child view's
+    // TabCollectionNode is destroyed it will not appear in proposed layouts
+    // (which are based on the current TabStripCollection model). This can occur
+    // in compound model updates involving moving tabs into their parent
+    // collection after which the tab and its source collection are destroyed.
+    // Note: Guard against container views that update target layouts without
+    // directly removing the view children from the view tree. This can happen
+    // during teardown for e.g. where a container node is reset and animated
+    // away before removing and/or animating out its children. The target layout
+    // of the container in this case would have no view children since its
+    // TabCollectionNode is destroyed, despite these views still being present
+    // in the start layout.
+    gfx::Rect* previous_collection_bounds =
+        child_view->GetProperty(kPreviousCollectionBounds);
+    DCHECK(!target_view_layout_map_.contains(child_view));
+    if (previous_collection_bounds &&
+        !start_view_layout_map_.contains(child_view)) {
+      const gfx::Rect start_bounds = views::View::ConvertRectFromScreen(
+          host_view(), *previous_collection_bounds);
+
+      // Target bounds for the animate-out animation depends on
+      // source_layout_info.
+      gfx::Rect target_bounds = start_bounds;
+      SourceLayoutInfo* source_layout_info =
+          child_view->GetProperty(kSourceLayoutInfo);
+      if (!source_layout_info) {
+        if (animation_axis_ == AnimationAxis::kVertical) {
+          target_bounds.set_height(0);
+        } else {
+          target_bounds.set_width(0);
+        }
+      } else if (source_layout_info->animation_axis.value_or(animation_axis_) ==
+                 AnimationAxis::kVertical) {
+        if (source_layout_info->animation_direction ==
+            AnimationDirection::kStartToEnd) {
+          target_bounds.set_y(start_bounds.bottom());
+        }
+        target_bounds.set_height(0);
+      } else {
+        if (source_layout_info->animation_direction ==
+            AnimationDirection::kStartToEnd) {
+          target_bounds.set_x(start_bounds.right());
+        }
+        target_bounds.set_width(0);
+      }
+
+      views::ChildLayout interpolated_child;
+      interpolated_child.visible = child_view->GetVisible();
+      interpolated_child.child_view = child_view;
+      interpolated_child.bounds =
+          gfx::Tween::RectValueBetween(value, start_bounds, target_bounds);
+
+      current_layout_content_height_ = std::max(
+          current_layout_content_height_, interpolated_child.bounds.bottom());
       result.child_layouts.push_back(interpolated_child);
     }
   }
@@ -336,9 +498,15 @@ void TabCollectionAnimatingLayoutManager::
 
 void TabCollectionAnimatingLayoutManager::ClearViewAnimationMetadata() {
   for (views::View* child_view : host_view()->children()) {
-    if (child_view->GetProperty(kPreviousCollectionBounds)) {
-      child_view->DestroyLayer();
-      child_view->ClearProperty(kPreviousCollectionBounds);
-    }
+    ClearViewAnimationMetadataForView(child_view);
   }
+}
+
+void TabCollectionAnimatingLayoutManager::ClearViewAnimationMetadataForView(
+    views::View* view) {
+  if (view->GetProperty(kPreviousCollectionBounds)) {
+    view->DestroyLayer();
+    view->ClearProperty(kPreviousCollectionBounds);
+  }
+  view->ClearProperty(kSourceLayoutInfo);
 }

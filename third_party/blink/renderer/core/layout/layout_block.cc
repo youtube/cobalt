@@ -100,8 +100,6 @@ void LayoutBlock::RemoveFromGlobalMaps() {
 
 void LayoutBlock::WillBeDestroyed() {
   NOT_DESTROYED();
-  if (!DocumentBeingDestroyed() && Parent())
-    Parent()->DirtyLinesFromChangedChild(this);
 
   if (LocalFrame* frame = GetFrame()) {
     frame->Selection().LayoutBlockWillBeDestroyed(*this);
@@ -114,14 +112,6 @@ void LayoutBlock::WillBeDestroyed() {
   RemoveFromGlobalMaps();
 
   LayoutBox::WillBeDestroyed();
-}
-
-void LayoutBlock::StyleWillChange(StyleDifference diff,
-                                  const ComputedStyle& new_style,
-                                  StyleChangeContext& style_change_context) {
-  NOT_DESTROYED();
-  SetIsAtomicInlineLevel(ShouldBeHandledAsInline(new_style));
-  LayoutBox::StyleWillChange(diff, new_style, style_change_context);
 }
 
 // Compute a local version of the "font size scale factor" used by SVG
@@ -143,7 +133,7 @@ void LayoutBlock::StyleDidChange(
   // Computes old scaling factor before PaintLayer::UpdateTransform()
   // updates Layer()->Transform().
   double old_squared_scale = 1;
-  if (Layer() && diff.TransformChanged() && HasSVGTextDescendants()) {
+  if (Layer() && diff.transform_changed && HasSVGTextDescendants()) {
     old_squared_scale =
         ComputeSquaredLocalFontSizeScalingFactor(Layer()->Transform());
   }
@@ -172,7 +162,7 @@ void LayoutBlock::StyleDidChange(
 
   PropagateStyleToAnonymousChildren();
 
-  if (diff.TransformChanged() && HasSVGTextDescendants()) {
+  if (diff.transform_changed && HasSVGTextDescendants()) {
     const double new_squared_scale = ComputeSquaredLocalFontSizeScalingFactor(
         Layer() ? Layer()->Transform() : nullptr);
     // Compare local scale before and after.
@@ -299,6 +289,7 @@ void LayoutBlock::Paint(const PaintInfo& paint_info) const {
 
   // Avoid painting dirty objects because descendants maybe already destroyed.
   if (NeedsLayout() && !ChildLayoutBlockedByDisplayLock()) [[unlikely]] {
+    DumpForBug478682594();
     DUMP_WILL_BE_NOTREACHED();
     return;
   }
@@ -459,7 +450,7 @@ bool LayoutBlock::NodeAtPoint(HitTestResult& result,
 PositionWithAffinity LayoutBlock::PositionForPointIfOutsideAtomicInlineLevel(
     const PhysicalOffset& point) const {
   NOT_DESTROYED();
-  DCHECK(IsAtomicInlineLevel());
+  DCHECK(IsInline());
   LogicalOffset logical_offset =
       WritingModeConverter({StyleRef().GetWritingMode(), ResolvedDirection()},
                            StitchedSize())
@@ -483,7 +474,7 @@ PositionWithAffinity LayoutBlock::PositionForPoint(
   DCHECK(GetDocument().Lifecycle().GetState() >=
          DocumentLifecycle::kPrePaintClean);
 
-  if (IsAtomicInlineLevel()) {
+  if (IsInline()) {
     PositionWithAffinity position =
         PositionForPointIfOutsideAtomicInlineLevel(point);
     if (!position.IsNull())
@@ -530,8 +521,9 @@ const LayoutBlock* LayoutBlock::FirstLineStyleParentBlock() const {
   NOT_DESTROYED();
   const LayoutBlock* first_line_block = this;
   // Inline blocks do not get ::first-line style from its containing blocks.
-  if (IsAtomicInlineLevel())
+  if (IsInline()) {
     return nullptr;
+  }
   // Floats and out of flow blocks do not get ::first-line style from its
   // containing blocks.
   if (IsFloatingOrOutOfFlowPositioned())
@@ -575,8 +567,8 @@ LayoutBlockFlow* LayoutBlock::NearestInnerBlockWithFirstLine() {
 // so the firstChild() is nullptr if the only child is an empty inline-block.
 inline bool LayoutBlock::IsInlineBoxWrapperActuallyChild() const {
   NOT_DESTROYED();
-  return IsInline() && IsAtomicInlineLevel() && !StitchedSize().IsEmpty() &&
-         GetNode() && EditingIgnoresContent(*GetNode());
+  return IsInline() && !StitchedSize().IsEmpty() && GetNode() &&
+         EditingIgnoresContent(*GetNode());
 }
 
 PhysicalRect LayoutBlock::LocalCaretRect(int caret_offset,

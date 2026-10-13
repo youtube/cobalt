@@ -42,9 +42,11 @@
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
+#include "build/config/linux/dbus/buildflags.h"
 #include "chrome/browser/accessibility/soda_installer_impl.h"
 #include "chrome/browser/battery/battery_metrics.h"
 #include "chrome/browser/browser_process_platform_part.h"
+#include "chrome/browser/buildflags.h"
 #include "chrome/browser/chrome_browser_main.h"
 #include "chrome/browser/chrome_content_browser_client.h"
 #include "chrome/browser/component_updater/chrome_component_updater_configurator.h"
@@ -87,8 +89,9 @@
 #include "chrome/browser/ssl/secure_origin_prefs_observer.h"
 #include "chrome/browser/startup_data.h"
 #include "chrome/browser/status_icons/status_tray.h"
-#include "chrome/browser/ui/browser_dialogs.h"
+#include "chrome/browser/ui/dialogs/browser_dialogs.h"
 #include "chrome/browser/update_client/chrome_update_query_params_delegate.h"
+#include "chrome/browser/updater/updater.h"
 #include "chrome/common/buildflags.h"
 #include "chrome/common/channel_info.h"
 #include "chrome/common/chrome_constants.h"
@@ -134,6 +137,7 @@
 #include "components/supervised_user/core/browser/device_parental_controls_noop_impl.h"
 #include "components/translate/core/browser/translate_download_manager.h"
 #include "components/ukm/ukm_service.h"
+#include "components/update_client/net/network_chromium.h"
 #include "components/update_client/update_query_params.h"
 #include "components/variations/service/variations_service.h"
 #include "components/web_resource/web_resource_pref_names.h"
@@ -164,6 +168,7 @@
 #include "base/win/windows_version.h"
 #include "chrome/browser/browser_features.h"
 #include "chrome/browser/os_crypt/app_bound_encryption_provider_win.h"
+#include "chrome/installer/util/install_util.h"
 #include "components/app_launch_prefetch/app_launch_prefetch.h"
 #include "components/os_crypt/async/browser/dpapi_key_provider.h"
 #elif BUILDFLAG(IS_MAC)
@@ -173,6 +178,7 @@
 
 #if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/media_galleries/media_file_system_registry.h"
+#include "components/password_manager/core/common/password_manager_pref_names.h"
 #include "components/soda/soda_installer_impl_chromeos.h"
 #else
 #include "ui/message_center/message_center.h"
@@ -260,7 +266,7 @@ void OnLocalStatePrefsLoaded();
 #include "components/enterprise/browser/controller/chrome_browser_cloud_management_controller.h"
 #endif
 
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX) && BUILDFLAG(USE_DBUS)
 #include "chrome/browser/browser_features.h"
 #include "components/os_crypt/async/browser/freedesktop_secret_key_provider.h"
 #include "components/os_crypt/async/browser/secret_portal_key_provider.h"
@@ -821,7 +827,7 @@ void BrowserProcessImpl::EndSession() {
 
   // This wait is legitimate and necessary on Windows, since the process will
   // be terminated soon.
-  // http://crbug.com/125207
+  // http://crbug.com/40198606
   base::ScopedAllowBaseSyncPrimitivesOutsideBlockingScope allow_wait;
 
 #if BUILDFLAG(IS_CHROMEOS_DEVICE)
@@ -857,7 +863,7 @@ void BrowserProcessImpl::EndSession() {
   // blocking the message loop attempting to re-establish a connection to the
   // GPU process synchronously. Because the system may not be allowing
   // processes to launch, this can result in a hang. See
-  // http://crbug.com/318527.
+  // http://crbug.com/40341017.
   rundown_counter->TimedWait(kEndSessionTimeout);
 #else
   NOTIMPLEMENTED();
@@ -1042,7 +1048,7 @@ void BrowserProcessImpl::CreateDevToolsAutoOpener() {
 
 bool BrowserProcessImpl::IsShuttingDown() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  // TODO (crbug.com/560486): Fix the tests that make the check of
+  // TODO (crbug.com/41222012): Fix the tests that make the check of
   // |tearing_down_| necessary here.
   // TODO (crbug/1155597): Maybe use browser_shutdown::HasShutdownStarted here.
   return shutting_down_ || tearing_down_;
@@ -1236,6 +1242,8 @@ void BrowserProcessImpl::RegisterPrefs(PrefRegistrySimple* registry) {
 #if BUILDFLAG(IS_CHROMEOS)
   registry->RegisterStringPref(prefs::kOwnerLocale, std::string());
   registry->RegisterStringPref(prefs::kHardwareKeyboardLayout, std::string());
+  registry->RegisterBooleanPref(
+      password_manager::prefs::kPinAuthenticationAvailableOnChromeOS, false);
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
   registry->RegisterBooleanPref(metrics::prefs::kMetricsReportingEnabled,
@@ -1243,7 +1251,7 @@ void BrowserProcessImpl::RegisterPrefs(PrefRegistrySimple* registry) {
   registry->RegisterBooleanPref(prefs::kDevToolsRemoteDebuggingAllowed, true);
   registry->RegisterBooleanPref(prefs::kDevToolsRemoteDebuggingEnabled, false);
 
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX) && BUILDFLAG(USE_DBUS)
   os_crypt_async::SecretPortalKeyProvider::RegisterLocalPrefs(registry);
 #endif
 }
@@ -1317,7 +1325,22 @@ void BrowserProcessImpl::StartAutoupdateTimer() {
 activity_reporter::ActivityReporter* BrowserProcessImpl::activity_reporter() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!activity_reporter_) {
-    activity_reporter_ = activity_reporter::CreateActivityReporter();
+    activity_reporter_ = activity_reporter::CreateActivityReporter(
+        base::BindRepeating(
+            [](PrefService* pref_service) { return pref_service; },
+            local_state()),
+        base::MakeRefCounted<update_client::NetworkFetcherChromiumFactory>(
+            system_network_context_manager()->GetSharedURLLoaderFactory(),
+            // Never send cookies for activity reports.
+            base::BindRepeating([](const GURL& url) { return false; })),
+        base::BindRepeating(&chrome::GetChannel),
+        base::BindRepeating(&updater::SetActive),
+#if BUILDFLAG(IS_WIN)
+        InstallUtil::IsPerUserInstall()
+#else
+        false
+#endif
+    );
   }
   return activity_reporter_.get();
 }
@@ -1445,7 +1468,7 @@ void BrowserProcessImpl::PreMainMessageLoopRun() {
           local_state())));
 #endif  // BUILDFLAG(IS_WIN)
 
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX) && BUILDFLAG(USE_DBUS)
   base::CommandLine* cmd_line = base::CommandLine::ForCurrentProcess();
   const auto password_store =
       cmd_line->GetSwitchValueASCII(password_manager::kPasswordStore);
@@ -1670,7 +1693,7 @@ void BrowserProcessImpl::CreateSubresourceFilterRulesetService() {
 // Android's GCMDriver currently makes the assumption that it's a singleton.
 // Until this gets fixed, instantiating multiple Java GCMDrivers will throw an
 // exception, but because they're only initialized on demand these crashes
-// would be very difficult to triage. See http://crbug.com/437827.
+// would be very difficult to triage. See http://crbug.com/41145548.
 void BrowserProcessImpl::CreateGCMDriver() {
   DCHECK(!gcm_driver_);
 

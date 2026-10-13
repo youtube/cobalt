@@ -8,12 +8,20 @@
 
 #include "base/test/mock_callback.h"
 #include "components/contextual_search/contextual_search_session_handle.h"
+#include "components/contextual_search/mock_contextual_search_context_controller.h"
 #include "components/contextual_search/mock_contextual_search_session_handle.h"
+#include "components/contextual_search/pref_names.h"
+#include "components/prefs/pref_registry_simple.h"
+#include "components/prefs/testing_pref_service.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/omnibox_proto/rule_set.pb.h"
 #include "third_party/omnibox_proto/searchbox_config.pb.h"
+#include "url/gurl.h"
 
 namespace contextual_search {
+
+using ::testing::UnorderedElementsAre;
 
 class InputStateModelTest : public testing::Test {
  public:
@@ -21,17 +29,47 @@ class InputStateModelTest : public testing::Test {
   ~InputStateModelTest() override = default;
 
   void SetUp() override {
-    input_state_model_ = std::make_unique<InputStateModel>(
-        session_handle_, omnibox::SearchboxConfig());
+    mock_controller_ =
+        std::make_unique<MockContextualSearchContextController>();
+    ON_CALL(session_handle_, GetController())
+        .WillByDefault(testing::Return(mock_controller_.get()));
+    ON_CALL(*mock_controller_, GetFileInfoList())
+        .WillByDefault(testing::Return(empty_file_info_list_));
+    pref_service_.registry()->RegisterIntegerPref(
+        contextual_search::kSearchContentSharingSettings,
+        static_cast<int>(
+            contextual_search::SearchContentSharingSettingsValue::kEnabled));
+    input_state_model_ =
+        std::make_unique<InputStateModel>(session_handle_, config_);
+    input_state_model_->SetPrefService(&pref_service_);
   }
 
  protected:
+  TestingPrefServiceSimple pref_service_;
   std::unique_ptr<InputStateModel> input_state_model_;
   MockContextualSearchSessionHandle session_handle_;
+  std::unique_ptr<MockContextualSearchContextController> mock_controller_;
+  omnibox::SearchboxConfig config_;
+  InputState state_;
+  const std::vector<const contextual_search::FileInfo*> empty_file_info_list_;
 };
 
 TEST_F(InputStateModelTest, TestInitialization) {
   EXPECT_TRUE(input_state_model_);
+  const auto& state = input_state_model_->get_state_for_testing();
+
+  // All values should be default since we are using a default
+  // `SearchboxConfig`. Except INPUT_TYPE_BROWSER_TAB should be added manually
+  // since it doesn't exist in the `allowed_input_types`.
+  EXPECT_TRUE(state.allowed_tools.empty());
+  EXPECT_TRUE(state.allowed_models.empty());
+  EXPECT_THAT(state.allowed_input_types,
+              testing::UnorderedElementsAre(omnibox::INPUT_TYPE_BROWSER_TAB));
+  EXPECT_EQ(state.active_tool, omnibox::ToolMode::TOOL_MODE_UNSPECIFIED);
+  EXPECT_EQ(state.active_model, omnibox::ModelMode::MODEL_MODE_UNSPECIFIED);
+  EXPECT_TRUE(state.disabled_tools.empty());
+  EXPECT_TRUE(state.disabled_models.empty());
+  EXPECT_TRUE(state.disabled_input_types.empty());
 }
 
 TEST_F(InputStateModelTest, TestSubscribeAndNotify) {
@@ -42,6 +80,533 @@ TEST_F(InputStateModelTest, TestSubscribeAndNotify) {
   EXPECT_CALL(mock_subscriber, Run(testing::_)).Times(1);
   // Setting a tool notifies subscribers.
   input_state_model_->setActiveTool(ToolMode::TOOL_MODE_UNSPECIFIED);
+}
+
+TEST_F(InputStateModelTest, DefaultToFirstAllowedModel) {
+  omnibox::SearchboxConfig config;
+  auto* rule_set = config.mutable_rule_set();
+
+  // Setup Allowed Models.
+  // Add Gemini Regular first. It becomes allowed_models[0].
+  rule_set->add_allowed_models(omnibox::ModelMode::MODEL_MODE_GEMINI_REGULAR);
+  // Add Gemini Pro as the second option.
+  rule_set->add_allowed_models(omnibox::ModelMode::MODEL_MODE_GEMINI_PRO);
+
+  auto* auto_rule = rule_set->add_model_rules();
+  auto_rule->set_model(omnibox::ModelMode::MODEL_MODE_GEMINI_REGULAR);
+
+  auto* pro_rule = rule_set->add_model_rules();
+  pro_rule->set_model(omnibox::ModelMode::MODEL_MODE_GEMINI_PRO);
+
+  // Initialize Model.
+  input_state_model_ =
+      std::make_unique<InputStateModel>(session_handle_, config);
+  const auto& state = input_state_model_->get_state_for_testing();
+
+  // Verify Initialization Logic.
+  // Active model defaults to allowed_models[0].
+  EXPECT_EQ(state.active_model, omnibox::ModelMode::MODEL_MODE_GEMINI_REGULAR);
+
+  // Verify: Even though Regular is active, Pro should remain enabled.
+  EXPECT_TRUE(state.disabled_models.empty());
+}
+
+TEST_F(InputStateModelTest, RegularModelAllowsAllToolsAndInputsWithEmptyLists) {
+  omnibox::SearchboxConfig config;
+  auto* rule_set = config.mutable_rule_set();
+
+  // 1. Prepare data: Add some Tools and Inputs to the global allowed list.
+  rule_set->add_allowed_models(omnibox::ModelMode::MODEL_MODE_GEMINI_REGULAR);
+
+  rule_set->add_allowed_tools(omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH);
+  rule_set->add_allowed_tools(omnibox::ToolMode::TOOL_MODE_IMAGE_GEN);
+
+  rule_set->add_allowed_input_types(omnibox::InputType::INPUT_TYPE_LENS_IMAGE);
+  rule_set->add_allowed_input_types(omnibox::InputType::INPUT_TYPE_LENS_FILE);
+
+  auto* deep_search_rule = rule_set->add_tool_rules();
+  deep_search_rule->set_tool(omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH);
+  deep_search_rule->set_allow_all_input_types(true);
+
+  auto* image_gen_rule = rule_set->add_tool_rules();
+  image_gen_rule->set_tool(omnibox::ToolMode::TOOL_MODE_IMAGE_GEN);
+  image_gen_rule->set_allow_all_input_types(true);
+
+  // 2.Configure rules for the Regular model.
+  // We set `allow_all_*` to true, but intentionally keep the `allowed_tools`
+  // and `allowed_input_types` lists empty.
+  auto* model_rule = rule_set->add_model_rules();
+  model_rule->set_model(omnibox::ModelMode::MODEL_MODE_GEMINI_REGULAR);
+  model_rule->set_allow_all_tools(true);
+  model_rule->set_allow_all_input_types(true);
+
+  // 3. Initialize the model.
+  input_state_model_ =
+      std::make_unique<InputStateModel>(session_handle_, config);
+  input_state_model_->SetPrefService(
+      &pref_service_);
+
+  const auto& state = input_state_model_->get_state_for_testing();
+
+  // 4. Verify the Active Model is Regular.
+  EXPECT_EQ(state.active_model, omnibox::ModelMode::MODEL_MODE_GEMINI_REGULAR);
+
+  // 5. Verify core logic: Even though the specific allowed list for Regular is
+  // empty, no Tools or Inputs should be disabled due to the presence of the
+  // `allow_all_*` flags.
+  EXPECT_TRUE(state.disabled_tools.empty());
+  EXPECT_TRUE(state.disabled_input_types.empty());
+}
+
+TEST_F(InputStateModelTest, ModelWithAllowAllToolsIsNotDisabled) {
+  omnibox::SearchboxConfig config;
+  auto* rule_set = config.mutable_rule_set();
+
+  // Regular model allows everything.
+  auto* model_gemini_rule = rule_set->add_model_rules();
+  model_gemini_rule->set_model(omnibox::ModelMode::MODEL_MODE_GEMINI_REGULAR);
+  model_gemini_rule->set_allow_all_tools(true);
+  model_gemini_rule->set_allow_all_input_types(true);
+
+  // Pro model only allows Image Gen tool.
+  auto* model_pro_rule = rule_set->add_model_rules();
+  model_pro_rule->set_model(omnibox::ModelMode::MODEL_MODE_GEMINI_PRO);
+  model_pro_rule->add_allowed_tools(omnibox::ToolMode::TOOL_MODE_IMAGE_GEN);
+
+  // Add allowed models and tools.
+  rule_set->add_allowed_models(omnibox::ModelMode::MODEL_MODE_GEMINI_REGULAR);
+  rule_set->add_allowed_models(omnibox::ModelMode::MODEL_MODE_GEMINI_PRO);
+  rule_set->add_allowed_tools(omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH);
+  rule_set->add_allowed_tools(omnibox::ToolMode::TOOL_MODE_IMAGE_GEN);
+
+  input_state_model_ =
+      std::make_unique<InputStateModel>(session_handle_, config);
+  input_state_model_->SetPrefService(&pref_service_);
+
+  // Select Deep Search tool.
+  input_state_model_->setActiveTool(omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH);
+  const auto& state = input_state_model_->get_state_for_testing();
+
+  // Pro model should be disabled as it doesn't support Deep Search.
+  // Regular model should not be disabled as it allows all tools.
+  EXPECT_THAT(state.disabled_models,
+              UnorderedElementsAre(omnibox::ModelMode::MODEL_MODE_GEMINI_PRO));
+}
+
+TEST_F(InputStateModelTest, ModelWithAllowAllInputsIsNotDisabled) {
+  omnibox::SearchboxConfig config;
+  auto* rule_set = config.mutable_rule_set();
+
+  // Regular model allows everything.
+  auto* model_gemini_rule = rule_set->add_model_rules();
+  model_gemini_rule->set_model(omnibox::ModelMode::MODEL_MODE_GEMINI_REGULAR);
+  model_gemini_rule->set_allow_all_tools(true);
+  model_gemini_rule->set_allow_all_input_types(true);
+
+  // Pro model only allows image input.
+  auto* model_pro_rule = rule_set->add_model_rules();
+  model_pro_rule->set_model(omnibox::ModelMode::MODEL_MODE_GEMINI_PRO);
+  model_pro_rule->add_allowed_input_types(
+      omnibox::InputType::INPUT_TYPE_LENS_IMAGE);
+
+  // Globally allowed models and inputs.
+  rule_set->add_allowed_models(omnibox::ModelMode::MODEL_MODE_GEMINI_REGULAR);
+  rule_set->add_allowed_models(omnibox::ModelMode::MODEL_MODE_GEMINI_PRO);
+  rule_set->add_allowed_input_types(omnibox::InputType::INPUT_TYPE_LENS_IMAGE);
+  rule_set->add_allowed_input_types(omnibox::InputType::INPUT_TYPE_LENS_FILE);
+
+  input_state_model_ =
+      std::make_unique<InputStateModel>(session_handle_, config);
+  input_state_model_->SetPrefService(&pref_service_);
+
+  // Simulate adding a file.
+  std::vector<FileInfo> file_infos;
+  file_infos.emplace_back();
+  file_infos.back().mime_type = lens::MimeType::kPdf;
+  ON_CALL(session_handle_, GetUploadedContextFileInfos())
+      .WillByDefault(testing::Return(file_infos));
+
+  // Trigger an update.
+  input_state_model_->OnContextChanged();
+  const auto& state = input_state_model_->get_state_for_testing();
+
+  // Pro model should be disabled as it doesn't support file input.
+  // Regular model should not be disabled as it allows all input types.
+  EXPECT_THAT(state.disabled_models,
+              UnorderedElementsAre(omnibox::ModelMode::MODEL_MODE_GEMINI_PRO));
+}
+
+class InputStateModelCompatibilityTest : public InputStateModelTest {
+ public:
+  void SetUp() override {
+    auto* rule_set = config_.mutable_rule_set();
+
+    // Gemini only allows image input.
+    auto* model_gemini_rule = rule_set->add_model_rules();
+    model_gemini_rule->set_model(omnibox::ModelMode::MODEL_MODE_GEMINI_REGULAR);
+    model_gemini_rule->add_allowed_input_types(
+        omnibox::InputType::INPUT_TYPE_LENS_IMAGE);
+
+    // Pro allows Create Images and image and file input.
+    auto* model_pro_rule = rule_set->add_model_rules();
+    model_pro_rule->set_model(omnibox::ModelMode::MODEL_MODE_GEMINI_PRO);
+    model_pro_rule->add_allowed_tools(omnibox::ToolMode::TOOL_MODE_IMAGE_GEN);
+    model_pro_rule->add_allowed_input_types(
+        omnibox::InputType::INPUT_TYPE_LENS_IMAGE);
+    model_pro_rule->add_allowed_input_types(
+        omnibox::InputType::INPUT_TYPE_LENS_FILE);
+    model_pro_rule->add_allowed_input_types(
+        omnibox::InputType::INPUT_TYPE_BROWSER_TAB);
+
+    auto* tool_ds_rule = rule_set->add_tool_rules();
+    tool_ds_rule->set_tool(omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH);
+
+    // Image input is only compatible with other image inputs.
+    auto* input_image_rule = rule_set->add_input_type_rules();
+    input_image_rule->set_input_type(omnibox::InputType::INPUT_TYPE_LENS_IMAGE);
+    input_image_rule->add_allowed_input_types(
+        omnibox::InputType::INPUT_TYPE_LENS_IMAGE);
+
+    // By default, all models and tools are allowed.
+    state_.allowed_models = {omnibox::ModelMode::MODEL_MODE_GEMINI_REGULAR,
+                             omnibox::ModelMode::MODEL_MODE_GEMINI_PRO};
+    state_.allowed_tools = {omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH,
+                            omnibox::ToolMode::TOOL_MODE_CANVAS,
+                            omnibox::ToolMode::TOOL_MODE_IMAGE_GEN};
+    state_.allowed_input_types = {omnibox::InputType::INPUT_TYPE_LENS_IMAGE,
+                                  omnibox::InputType::INPUT_TYPE_LENS_FILE,
+                                  omnibox::InputType::INPUT_TYPE_BROWSER_TAB};
+    state_.active_tool = omnibox::ToolMode::TOOL_MODE_UNSPECIFIED;
+    state_.active_model = omnibox::ModelMode::MODEL_MODE_UNSPECIFIED;
+    state_.disabled_tools = {};
+    state_.disabled_models = {};
+    state_.disabled_input_types = {};
+
+    // Create the model *after* the config is set up.
+    InputStateModelTest::SetUp();
+    input_state_model_->set_state_for_testing(state_);
+  }
+};
+
+TEST_F(InputStateModelCompatibilityTest, SelectTool) {
+  // Select Deep Search.
+  input_state_model_->setActiveTool(omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH);
+  const auto& new_state = input_state_model_->get_state_for_testing();
+
+  // Both models should be disabled because neither supports Deep Search.
+  EXPECT_THAT(
+      new_state.disabled_models,
+      UnorderedElementsAre(omnibox::ModelMode::MODEL_MODE_GEMINI_REGULAR,
+                           omnibox::ModelMode::MODEL_MODE_GEMINI_PRO));
+
+  // All other tools should be disabled (including Deep Search itself).
+  EXPECT_THAT(new_state.disabled_tools,
+              UnorderedElementsAre(omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH,
+                                   omnibox::ToolMode::TOOL_MODE_IMAGE_GEN,
+                                   omnibox::ToolMode::TOOL_MODE_CANVAS));
+
+  // All inputs disabled.
+  EXPECT_THAT(new_state.disabled_input_types,
+              UnorderedElementsAre(omnibox::InputType::INPUT_TYPE_LENS_IMAGE,
+                                   omnibox::InputType::INPUT_TYPE_LENS_FILE,
+                                   omnibox::InputType::INPUT_TYPE_BROWSER_TAB));
+}
+
+TEST_F(InputStateModelCompatibilityTest, SelectModel) {
+  // Select Gemini.
+  input_state_model_->setActiveModel(
+      omnibox::ModelMode::MODEL_MODE_GEMINI_REGULAR);
+  const auto& new_state = input_state_model_->get_state_for_testing();
+
+  // No models should be disabled.
+  EXPECT_TRUE(new_state.disabled_models.empty());
+
+  // All tools disabled when a model is selected.
+  EXPECT_THAT(new_state.disabled_tools,
+              UnorderedElementsAre(omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH,
+                                   omnibox::ToolMode::TOOL_MODE_IMAGE_GEN,
+                                   omnibox::ToolMode::TOOL_MODE_CANVAS));
+
+  // Only images can be uploaded with Gemini so file and tab are disabled.
+  EXPECT_THAT(new_state.disabled_input_types,
+              UnorderedElementsAre(omnibox::InputType::INPUT_TYPE_LENS_FILE,
+                                   omnibox::InputType::INPUT_TYPE_BROWSER_TAB));
+}
+
+TEST_F(InputStateModelCompatibilityTest, SelectImageInput) {
+  // Simulate adding an image.
+  std::vector<FileInfo> file_infos;
+  file_infos.emplace_back();
+  file_infos.back().mime_type = lens::MimeType::kImage;
+  ON_CALL(session_handle_, GetUploadedContextFileInfos())
+      .WillByDefault(testing::Return(file_infos));
+
+  // Trigger an update.
+  input_state_model_->setActiveTool(omnibox::ToolMode::TOOL_MODE_UNSPECIFIED);
+  const auto& new_state = input_state_model_->get_state_for_testing();
+
+  // With an image, tools that don't support images are disabled.
+  EXPECT_THAT(new_state.disabled_tools,
+              UnorderedElementsAre(omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH,
+                                   omnibox::ToolMode::TOOL_MODE_CANVAS,
+                                   omnibox::ToolMode::TOOL_MODE_IMAGE_GEN));
+
+  // Models are not disabled, since they both support images.
+  EXPECT_TRUE(new_state.disabled_models.empty());
+
+  // No input types are disabled based on other inputs.
+  EXPECT_TRUE(new_state.disabled_input_types.empty());
+}
+
+TEST_F(InputStateModelCompatibilityTest, SelectTabInput) {
+  // Simulate adding a tab.
+  std::vector<FileInfo> file_infos;
+  file_infos.emplace_back();
+  file_infos.back().tab_url = GURL("https://www.google.com");
+  ON_CALL(session_handle_, GetUploadedContextFileInfos())
+      .WillByDefault(testing::Return(file_infos));
+
+  // Pro supports tabs, but regular Gemini does not.
+  input_state_model_->setActiveModel(omnibox::ModelMode::MODEL_MODE_GEMINI_PRO);
+  const auto& new_state = input_state_model_->get_state_for_testing();
+
+  // Gemini regular should be disabled.
+  EXPECT_THAT(
+      new_state.disabled_models,
+      UnorderedElementsAre(omnibox::ModelMode::MODEL_MODE_GEMINI_REGULAR));
+}
+
+TEST_F(InputStateModelTest, GetAdditionalQueryParams) {
+  // No tool or model added.
+  input_state_model_->setActiveTool(omnibox::ToolMode::TOOL_MODE_UNSPECIFIED);
+  input_state_model_->setActiveModel(
+      omnibox::ModelMode::MODEL_MODE_UNSPECIFIED);
+  EXPECT_TRUE(input_state_model_->GetAdditionalQueryParams().empty());
+
+  // Deep Search added.
+  input_state_model_->setActiveTool(omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH);
+  EXPECT_THAT(input_state_model_->GetAdditionalQueryParams(),
+              testing::UnorderedElementsAre(testing::Pair("dr", "1")));
+
+  // Canvas added.
+  input_state_model_->setActiveTool(omnibox::ToolMode::TOOL_MODE_CANVAS);
+  EXPECT_THAT(input_state_model_->GetAdditionalQueryParams(),
+              testing::UnorderedElementsAre(testing::Pair("rc", "1")));
+
+  // Image Gen added.
+  input_state_model_->setActiveTool(omnibox::ToolMode::TOOL_MODE_IMAGE_GEN);
+  EXPECT_THAT(input_state_model_->GetAdditionalQueryParams(),
+              testing::UnorderedElementsAre(testing::Pair("imgn", "1")));
+
+  // Image Gen Upload added.
+  input_state_model_->setActiveTool(
+      omnibox::ToolMode::TOOL_MODE_IMAGE_GEN_UPLOAD);
+  EXPECT_THAT(input_state_model_->GetAdditionalQueryParams(),
+              testing::UnorderedElementsAre(testing::Pair("imgn", "1")));
+
+  // Reset all tools.
+  input_state_model_->setActiveTool(omnibox::ToolMode::TOOL_MODE_UNSPECIFIED);
+
+  // Set a model, should have no query params.
+  input_state_model_->setActiveModel(omnibox::ModelMode::MODEL_MODE_GEMINI_PRO);
+  EXPECT_TRUE(input_state_model_->GetAdditionalQueryParams().empty());
+
+  // Deep Search and Gemini Pro added. Only tool should be in params.
+  input_state_model_->setActiveTool(omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH);
+  input_state_model_->setActiveModel(omnibox::ModelMode::MODEL_MODE_GEMINI_PRO);
+  EXPECT_THAT(input_state_model_->GetAdditionalQueryParams(),
+              testing::UnorderedElementsAre(testing::Pair("dr", "1")));
+}
+
+TEST_F(InputStateModelCompatibilityTest, PolicyDisablesInputs) {
+  // 1. Initial Setup: Explicitly allow restricted inputs.
+  state_.allowed_input_types = {
+      omnibox::InputType::INPUT_TYPE_LENS_IMAGE,
+      omnibox::InputType::INPUT_TYPE_LENS_FILE,
+      omnibox::InputType::INPUT_TYPE_BROWSER_TAB,
+  };
+
+  // Enable content sharing policy.
+  pref_service_.SetInteger(
+      contextual_search::kSearchContentSharingSettings,
+      static_cast<int>(
+          contextual_search::SearchContentSharingSettingsValue::kEnabled));
+
+  input_state_model_->set_state_for_testing(state_);
+  input_state_model_->setActiveModel(
+      omnibox::ModelMode::MODEL_MODE_UNSPECIFIED);
+  auto new_state = input_state_model_->get_state_for_testing();
+
+  // Verify: Inputs remain allowed and are not disabled.
+  EXPECT_FALSE(new_state.allowed_input_types.empty());
+  EXPECT_TRUE(new_state.disabled_input_types.empty());
+
+  // 2. Disable content sharing policy.
+  pref_service_.SetInteger(
+      contextual_search::kSearchContentSharingSettings,
+      static_cast<int>(
+          contextual_search::SearchContentSharingSettingsValue::kDisabled));
+
+  // Trigger update.
+  input_state_model_->setActiveModel(
+      omnibox::ModelMode::MODEL_MODE_UNSPECIFIED);
+  new_state = input_state_model_->get_state_for_testing();
+
+  // Verify: Restricted inputs are removed from the allowed list entirely.
+  // Consequently, the disabled list remains empty as the inputs no longer
+  // exist.
+  EXPECT_TRUE(new_state.allowed_input_types.empty());
+  EXPECT_TRUE(new_state.disabled_input_types.empty());
+
+  // 3. Re-enable content sharing policy.
+  pref_service_.SetInteger(
+      contextual_search::kSearchContentSharingSettings,
+      static_cast<int>(
+          contextual_search::SearchContentSharingSettingsValue::kEnabled));
+
+  // Reset the state with the original inputs, as they were erased in step 2.
+  state_.allowed_input_types = {
+      omnibox::InputType::INPUT_TYPE_LENS_IMAGE,
+      omnibox::InputType::INPUT_TYPE_LENS_FILE,
+      omnibox::InputType::INPUT_TYPE_BROWSER_TAB,
+  };
+  input_state_model_->set_state_for_testing(state_);
+
+  // Trigger update.
+  input_state_model_->setActiveModel(
+      omnibox::ModelMode::MODEL_MODE_UNSPECIFIED);
+  new_state = input_state_model_->get_state_for_testing();
+
+  // Verify: Inputs are restored and enabled.
+  EXPECT_THAT(new_state.allowed_input_types,
+              UnorderedElementsAre(omnibox::InputType::INPUT_TYPE_LENS_IMAGE,
+                                   omnibox::InputType::INPUT_TYPE_LENS_FILE,
+                                   omnibox::InputType::INPUT_TYPE_BROWSER_TAB));
+  EXPECT_TRUE(new_state.disabled_input_types.empty());
+}
+
+TEST_F(InputStateModelCompatibilityTest, MaxTotalInputsDisablesInputs) {
+  // Set max_total_inputs to 2.
+  config_.mutable_rule_set()->set_max_total_inputs(2);
+  // Recreate the model with the new config.
+  input_state_model_ =
+      std::make_unique<InputStateModel>(session_handle_, config_);
+  input_state_model_->SetPrefService(&pref_service_);
+  input_state_model_->set_state_for_testing(state_);
+
+  // Simulate adding two images.
+  std::vector<FileInfo> file_infos;
+  file_infos.emplace_back();
+  file_infos.back().mime_type = lens::MimeType::kImage;
+  file_infos.emplace_back();
+  file_infos.back().mime_type = lens::MimeType::kImage;
+  ON_CALL(session_handle_, GetUploadedContextFileInfos())
+      .WillByDefault(testing::Return(file_infos));
+
+  // Trigger an update.
+  input_state_model_->OnContextChanged();
+  const auto& new_state = input_state_model_->get_state_for_testing();
+
+  // All input types should be disabled.
+  EXPECT_THAT(new_state.disabled_input_types,
+              UnorderedElementsAre(omnibox::InputType::INPUT_TYPE_LENS_IMAGE,
+                                   omnibox::InputType::INPUT_TYPE_LENS_FILE,
+                                   omnibox::InputType::INPUT_TYPE_BROWSER_TAB));
+
+  // Simulate removing one image.
+  file_infos.pop_back();
+  ON_CALL(session_handle_, GetUploadedContextFileInfos())
+      .WillByDefault(testing::Return(file_infos));
+
+  // Trigger an update.
+  input_state_model_->OnContextChanged();
+  const auto& final_state = input_state_model_->get_state_for_testing();
+
+  // Input types should no longer be disabled.
+  EXPECT_TRUE(final_state.disabled_input_types.empty());
+}
+
+TEST_F(InputStateModelCompatibilityTest, ToolWithAllowAllInputs) {
+  // Set Canvas tool rule `allow_all_input_types` to true.
+  auto* tool_canvas_rule = config_.mutable_rule_set()->add_tool_rules();
+  tool_canvas_rule->set_tool(omnibox::ToolMode::TOOL_MODE_CANVAS);
+  tool_canvas_rule->set_allow_all_input_types(true);
+
+  // Re-create the model with the modified config.
+  input_state_model_ =
+      std::make_unique<InputStateModel>(session_handle_, config_);
+  input_state_model_->SetPrefService(&pref_service_);
+  input_state_model_->set_state_for_testing(state_);
+
+  // Simulate adding a file.
+  std::vector<FileInfo> file_infos;
+  file_infos.emplace_back();
+  file_infos.back().mime_type = lens::MimeType::kPdf;
+  ON_CALL(session_handle_, GetUploadedContextFileInfos())
+      .WillByDefault(testing::Return(file_infos));
+
+  // Trigger an update.
+  input_state_model_->OnContextChanged();
+  const auto& new_state = input_state_model_->get_state_for_testing();
+
+  // With allow_all_input_types, Canvas should not be disabled.
+  // Deep search is disabled as it does not support any inputs.
+  // Image Gen is disabled as it has no rule.
+  EXPECT_THAT(new_state.disabled_tools,
+              UnorderedElementsAre(omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH,
+                                   omnibox::ToolMode::TOOL_MODE_IMAGE_GEN));
+}
+
+TEST_F(InputStateModelCompatibilityTest, ToolWithSpecificInputs) {
+  // Set up a rule for Canvas tool to only allow images.
+  auto* tool_canvas_rule = config_.mutable_rule_set()->add_tool_rules();
+  tool_canvas_rule->set_tool(omnibox::ToolMode::TOOL_MODE_CANVAS);
+  tool_canvas_rule->set_allow_all_input_types(false);
+  tool_canvas_rule->add_allowed_input_types(
+      omnibox::InputType::INPUT_TYPE_LENS_IMAGE);
+
+  // Re-create the model with the modified config.
+  input_state_model_ =
+      std::make_unique<InputStateModel>(session_handle_, config_);
+  input_state_model_->SetPrefService(&pref_service_);
+  input_state_model_->set_state_for_testing(state_);
+
+  // Simulate adding a file, which is not allowed by Canvas.
+  std::vector<FileInfo> file_infos;
+  file_infos.emplace_back();
+  file_infos.back().mime_type = lens::MimeType::kPdf;
+  ON_CALL(session_handle_, GetUploadedContextFileInfos())
+      .WillByDefault(testing::Return(file_infos));
+
+  // Trigger an update.
+  input_state_model_->OnContextChanged();
+  auto new_state = input_state_model_->get_state_for_testing();
+
+  // Canvas tool should be disabled because it doesn't support file inputs.
+  // Deep search is disabled as it does not support any inputs.
+  // Image Gen is disabled as it has no rule.
+  EXPECT_THAT(new_state.disabled_tools,
+              UnorderedElementsAre(omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH,
+                                   omnibox::ToolMode::TOOL_MODE_CANVAS,
+                                   omnibox::ToolMode::TOOL_MODE_IMAGE_GEN));
+
+  // Now simulate adding an image, which is allowed.
+  file_infos.clear();
+  file_infos.emplace_back();
+  file_infos.back().mime_type = lens::MimeType::kImage;
+  ON_CALL(session_handle_, GetUploadedContextFileInfos())
+      .WillByDefault(testing::Return(file_infos));
+
+  // Trigger an update.
+  input_state_model_->OnContextChanged();
+  new_state = input_state_model_->get_state_for_testing();
+
+  // Canvas tool should now be enabled.
+  // Deep search is still disabled because it has no allowed inputs.
+  // Image Gen is still disabled as it has no rule.
+  EXPECT_THAT(new_state.disabled_tools,
+              UnorderedElementsAre(omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH,
+                                   omnibox::ToolMode::TOOL_MODE_IMAGE_GEN));
 }
 
 }  // namespace contextual_search

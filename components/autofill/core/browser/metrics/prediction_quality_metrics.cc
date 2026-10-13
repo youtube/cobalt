@@ -86,6 +86,7 @@ enum FieldTypeGroupForMetrics {
   GROUP_AUTOFILL_AI = 48,
   GROUP_LOYALTY_CARD = 49,
   GROUP_ONE_TIME_PASSWORD = 50,
+  GROUP_ADDRESS_HOME_ZIP_AND_CITY = 51,
   // Note: if adding an enum value here, run
   // tools/metrics/histograms/update_autofill_enums.py
   NUM_FIELD_TYPE_GROUPS_FOR_METRICS
@@ -325,6 +326,9 @@ int GetFieldTypeGroupPredictionQualityMetric(FieldType field_type,
         case ADDRESS_HOME_DEPENDENT_LOCALITY_AND_LANDMARK:
           group = GROUP_ADDRESS_HOME_DEPENDENT_LOCALITY_AND_LANDMARK;
           break;
+        case ADDRESS_HOME_ZIP_AND_CITY:
+          group = GROUP_ADDRESS_HOME_ZIP_AND_CITY;
+          break;
         case DELIVERY_INSTRUCTIONS:
           group = GROUP_DELIVERY_INSTRUCTIONS;
           break;
@@ -511,8 +515,6 @@ const char* GetQualityMetricPredictionSource(
       return "Server";
     case PREDICTION_SOURCE_OVERALL:
       return "Overall";
-    case PREDICTION_SOURCE_ML_PREDICTIONS:
-      return "ML";
   }
 }
 
@@ -795,20 +797,6 @@ void LogHeuristicPredictionQualityPerLabelSourceMetric(
              LabelSourceToString(field.label_source())}),
         predicted_type == actual_type);
   }
-}
-
-void LogMlPredictionQualityMetrics(
-    FormInteractionsUkmLogger& form_interactions_ukm_logger,
-    ukm::SourceId source_id,
-    const FormStructure& form,
-    const AutofillField& field,
-    QualityMetricType metric_type,
-    base::TimeTicks now) {
-  LogPredictionQualityMetrics(
-      PREDICTION_SOURCE_ML_PREDICTIONS,
-      field.heuristic_type(HeuristicSource::kAutofillMachineLearning),
-      form_interactions_ukm_logger, source_id, form, field, metric_type,
-      /*log_rationalization_metrics=*/false, now);
 }
 
 void LogServerPredictionQualityMetrics(

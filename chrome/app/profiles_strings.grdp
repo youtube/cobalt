@@ -560,6 +560,9 @@
   <message name="IDS_SYNC_LOGIN_NAME_PROHIBITED" desc="The error message shown when the user tries to sign in to sync using a name that is not allowed by the admin policy">
     Your organization doesn't allow you to turn on sync with this account
   </message>
+   <message name="IDS_SIGN_IN_LOGIN_NAME_PROHIBITED" desc="The error message shown when the user tries to sign in using a name that is not allowed by the admin policy">
+    Your organization doesn't allow you to sign in with this account
+  </message>
   <message name="IDS_SUPERVISED_USER_NOT_ALLOWED_BY_POLICY" desc="The error message shown when the user tries to use the supervised user profile when it's disabled by policy">
     Supervised users have been disabled by your administrator.
   </message>
@@ -1104,6 +1107,14 @@
     </message>
     <message name="IDS_FRE_DEFAULT_BROWSER_SKIP" desc="The label for a button to skip setting Chrome as their default browser.">
       Skip
+    </message>
+
+    <!-- Default Browser Promo Refresh -->
+    <message name="IDS_FRE_REFRESH_DEFAULT_BROWSER_SET_AS_DEFAULT" desc="The label for a button to confirm setting Chrome as their default browser.">
+      Set as default
+    </message>
+    <message name="IDS_FRE_REFRESH_DEFAULT_BROWSER_NO_THANKS" desc="The label for a button to skip setting Chrome as their default browser.">
+      No thanks
     </message>
 
     <!-- Batch Upload Desktop -->

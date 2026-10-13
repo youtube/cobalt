@@ -36,33 +36,26 @@
             [[getSummaryAriaLabel_(creditCard)]],
             [[getSummaryAriaSublabel_(creditCard)]]
           </div>
-          <template is="dom-if" if="[[!shouldShowNewFopDisplay_()]]">
-            <div id="summaryLabel" class="ellipses" aria-hidden="true">
+          <div>
+            <span id="label" class="ellipses" aria-hidden="true">
               [[creditCard.metadata.summaryLabel]]
-            </div>
-          </template>
-          <template is="dom-if" if="[[shouldShowNewFopDisplay_()]]">
-            <div>
-              <span id="label" class="ellipses" aria-hidden="true">
-                [[creditCard.metadata.summaryLabel]]
-              </span>
-              <template is="dom-if" if="[[hasCardIdentifier_(creditCard)]]">
-                <div class="sub-label" aria-hidden="true">
-                  <span id="summaryLabel_1">
-                    [[creditCard.metadata.summarySublabel]]
-                  </span>
-                  <span id="summaryLabel_2">
-                    [[getExpirationlabel_(creditCard)]]
-                  </span>
-                </div>
-              </template>
-              <template is="dom-if" if="[[!hasCardIdentifier_(creditCard)]]">
-                <span id="expirationLabel" class="sub-label">
+            </span>
+            <template is="dom-if" if="[[hasCardIdentifier_(creditCard)]]">
+              <div class="sub-label" aria-hidden="true">
+                <span id="summaryLabel_1">
+                  [[creditCard.metadata.summarySublabel]]
+                </span>
+                <span id="summaryLabel_2">
                   [[getExpirationlabel_(creditCard)]]
                 </span>
-              </template>
-            </div>
-          </template>
+              </div>
+            </template>
+            <template is="dom-if" if="[[!hasCardIdentifier_(creditCard)]]">
+              <span id="expirationLabel" class="sub-label">
+                [[getExpirationlabel_(creditCard)]]
+              </span>
+            </template>
+          </div>
           <div id="summarySublabel" class="sub-label">
             <span aria-hidden="true">[[getSummarySublabel_(creditCard)]]</span>
             <template is="dom-if"
@@ -104,7 +97,15 @@
                 on-click="onDotsMenuClick_">
             </cr-icon-button>
           </template>
-          <template is="dom-if" if="[[!showDots_(creditCard.metadata)]]">
+          <template is="dom-if"
+              if="[[shouldShowOutlinkWithWalletBranding_(creditCard.metadata)]]">
+            <cr-icon-button class="icon-external" id="remoteCreditCardLink"
+                title="$i18n{remotePaymentMethodsWalletLinkLabel}" role="link"
+                on-click="onRemoteEditClick_"
+                aria-description="$i18n{opensInNewTab}"></cr-icon-button>
+          </template>
+          <template is="dom-if"
+              if="[[shouldShowOutlinkWithoutWalletBranding_(creditCard.metadata)]]">
             <cr-icon-button class="icon-external" id="remoteCreditCardLink"
                 title="$i18n{remotePaymentMethodsLinkLabel}" role="link"
                 on-click="onRemoteEditClick_"

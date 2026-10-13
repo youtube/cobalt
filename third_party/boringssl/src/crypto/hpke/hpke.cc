@@ -34,6 +34,7 @@
 #include "../fipsmodule/bcm_interface.h"
 #include "../fipsmodule/ec/internal.h"
 #include "../internal.h"
+#include "../mem_internal.h"
 
 
 using namespace bssl;
@@ -898,8 +899,7 @@ void EVP_HPKE_KEY_cleanup(EVP_HPKE_KEY *key) {
 }
 
 EVP_HPKE_KEY *EVP_HPKE_KEY_new() {
-  EVP_HPKE_KEY *key =
-      reinterpret_cast<EVP_HPKE_KEY *>(OPENSSL_malloc(sizeof(EVP_HPKE_KEY)));
+  EVP_HPKE_KEY *key = New<EVP_HPKE_KEY>();
   if (key == nullptr) {
     return nullptr;
   }
@@ -910,7 +910,7 @@ EVP_HPKE_KEY *EVP_HPKE_KEY_new() {
 void EVP_HPKE_KEY_free(EVP_HPKE_KEY *key) {
   if (key != nullptr) {
     EVP_HPKE_KEY_cleanup(key);
-    OPENSSL_free(key);
+    Delete(key);
   }
 }
 
@@ -1124,8 +1124,7 @@ void EVP_HPKE_CTX_cleanup(EVP_HPKE_CTX *ctx) {
 }
 
 EVP_HPKE_CTX *EVP_HPKE_CTX_new() {
-  EVP_HPKE_CTX *ctx =
-      reinterpret_cast<EVP_HPKE_CTX *>(OPENSSL_malloc(sizeof(EVP_HPKE_CTX)));
+  EVP_HPKE_CTX *ctx = New<EVP_HPKE_CTX>();
   if (ctx == nullptr) {
     return nullptr;
   }
@@ -1136,7 +1135,7 @@ EVP_HPKE_CTX *EVP_HPKE_CTX_new() {
 void EVP_HPKE_CTX_free(EVP_HPKE_CTX *ctx) {
   if (ctx != nullptr) {
     EVP_HPKE_CTX_cleanup(ctx);
-    OPENSSL_free(ctx);
+    Delete(ctx);
   }
 }
 

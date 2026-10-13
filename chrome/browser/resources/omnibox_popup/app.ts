@@ -18,6 +18,7 @@ import {MetricsReporterImpl} from '//resources/js/metrics_reporter/metrics_repor
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
 import type {AutocompleteResult, OmniboxPopupSelection, PageCallbackRouter, PageHandlerInterface, TabInfo} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
+import type {InputState} from '//resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
 import type {Url} from '//resources/mojo/url/mojom/url.mojom-webui.js';
 
 import {getCss} from './app.css.js';
@@ -95,6 +96,9 @@ export class OmniboxPopupAppElement extends I18nMixinLit
       isAimEligible_: {type: Boolean},
       isRecentTabChipEnabled_: {type: Boolean},
       tabSuggestions_: {type: Array},
+      inputState_: {type: Object},
+      showModelPicker_: {type: Boolean},
+      usePecApi_: {type: Boolean},
     };
   }
 
@@ -117,6 +121,9 @@ export class OmniboxPopupAppElement extends I18nMixinLit
   protected accessor isLensSearchEligible_: boolean = false;
   protected accessor isAimEligible_: boolean = false;
   protected accessor tabSuggestions_: TabInfo[] = [];
+  protected accessor inputState_: InputState|null = null;
+  protected accessor usePecApi_: boolean =
+      loadTimeData.getBoolean('contextualMenuUsePecApi');
 
   private callbackRouter_: PageCallbackRouter;
   private eventTracker_ = new EventTracker();
@@ -131,7 +138,7 @@ export class OmniboxPopupAppElement extends I18nMixinLit
     ColorChangeUpdater.forDocument().start();
   }
 
-  override connectedCallback() {
+  override async connectedCallback() {
     super.connectedCallback();
     // TODO(b:468113419): the handlers and their definitions are not ordered the
     // same as the
@@ -150,8 +157,6 @@ export class OmniboxPopupAppElement extends I18nMixinLit
           (eligible: boolean) => {
             this.isLensSearchEligible_ = this.isLensSearchEnabled_ && eligible;
           }),
-      this.callbackRouter_.onTabStripChanged.addListener(
-          this.refreshTabSuggestions_.bind(this)),
       this.callbackRouter_.updateAimEligibility.addListener(
           (eligible: boolean) => {
             this.isAimEligible_ = eligible;
@@ -164,11 +169,14 @@ export class OmniboxPopupAppElement extends I18nMixinLit
           (enabled: boolean) => {
             this.isContentSharingEnabled_ = enabled;
           }),
+      this.callbackRouter_.onInputStateChanged.addListener(
+          (inputState: InputState) => {
+            this.inputState_ = inputState;
+          }),
     ];
+    this.inputState_ = (await this.pageHandler_.getInputState()).state;
     canShowSecondarySideMediaQueryList.addEventListener(
         'change', this.onCanShowSecondarySideChanged_.bind(this));
-
-    this.refreshTabSuggestions_();
 
     if (!this.isDebug) {
       this.eventTracker_.add(
@@ -206,8 +214,7 @@ export class OmniboxPopupAppElement extends I18nMixinLit
         changedPrivateProperties.has('showAiModePrefEnabled_') ||
         changedPrivateProperties.has('tabSuggestions_') ||
         changedPrivateProperties.has('result_') ||
-        changedPrivateProperties.has('isLensSearchEligible_') ||
-        changedPrivateProperties.has('isContentSharingEnabled_')) {
+        changedPrivateProperties.has('isLensSearchEligible_')) {
       this.showContextEntrypoint_ = this.computeShowContextEntrypoint_();
     }
   }
@@ -231,7 +238,7 @@ export class OmniboxPopupAppElement extends I18nMixinLit
         showContextualChips && this.searchboxLayoutMode_ === 'Compact';
     return this.isAimEligible_ && this.showAiModePrefEnabled_ &&
         (isTallSearchbox || showContextualChipsInCompactMode) &&
-        !this.isInKeywordMode_ && this.isContentSharingEnabled_;
+        !this.isInKeywordMode_;
   }
 
   private onCanShowSecondarySideChanged_(e: MediaQueryListEvent) {
@@ -258,9 +265,10 @@ export class OmniboxPopupAppElement extends I18nMixinLit
     // When the popup is shown, blur the contextual entrypoint. This prevents a
     // focus ring from appearing on the entrypoint, e.g. when the user clicks
     // away and then re-focuses the Omnibox.
-    if (this.showContextEntrypoint_) {
+    if (this.showContextEntrypoint_ && !this.shouldHideEntrypointButton_) {
       this.$.context.blurEntrypoint();
     }
+    this.refreshTabSuggestions_();
   }
 
   protected onResultRepaint_() {
@@ -268,7 +276,8 @@ export class OmniboxPopupAppElement extends I18nMixinLit
     metricsReporter.measure('ResultChanged')
         .then(
             duration => metricsReporter.umaReportTime(
-                'WebUIOmnibox.ResultChangedToRepaintLatency.ToPaint', duration))
+                loadTimeData.getString('resultChangedToPaintMetricName'),
+                duration))
         .then(() => metricsReporter.clearMark('ResultChanged'))
         // Ignore silently if mark 'ResultChanged' is missing.
         .catch(() => {});
@@ -323,7 +332,7 @@ export class OmniboxPopupAppElement extends I18nMixinLit
     // so strip both input and url from the recent tab chip.
     return loadTimeData.getBoolean('composeboxShowRecentTabChip') &&
         (input?.length === 0 ||
-         this.stripUrl_(input) === this.stripUrl_(recentTabForChip?.url.url));
+         this.stripUrl_(input) === this.stripUrl_(recentTabForChip?.url));
   }
 
   private stripUrl_(url: string|undefined): string {

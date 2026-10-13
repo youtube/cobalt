@@ -1314,12 +1314,6 @@ bool BlockNode::IsInlineLevel() const {
   return GetLayoutBox()->IsInline();
 }
 
-bool BlockNode::IsAtomicInlineLevel() const {
-  // LayoutObject::IsAtomicInlineLevel() returns true for e.g., <img
-  // style="display: block">. Check IsInline() as well.
-  return GetLayoutBox()->IsAtomicInlineLevel() && GetLayoutBox()->IsInline();
-}
-
 bool BlockNode::IsInTopOrViewTransitionLayer() const {
   return GetLayoutBox()->IsInTopOrViewTransitionLayer();
 }

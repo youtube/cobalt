@@ -14,6 +14,7 @@ source_set("tabs_public") {
     "public/tab_dialog_manager.h",
     "public/tab_features.h",
     "tab_network_state.h",
+    "tab_removed_reason.h",
   ]
   sources = [ "tab_network_state.cc" ]
   public_deps = [
@@ -55,6 +56,7 @@ source_set("tab_list_interface") {
   ]
 
   deps = [
+    ":tabs_public",
     "//build:android_buildflags",
     "//components/tab_groups",
     "//components/tabs:public",
@@ -197,6 +199,7 @@ if (!is_android) {
       "//chrome/browser/ui:ui_features",
       "//chrome/browser/ui/browser_window",
       "//chrome/browser/ui/color:color_headers",
+      "//chrome/browser/ui/dialogs",
       "//chrome/browser/ui/tabs:tab_strip",
       "//chrome/browser/ui/tabs/saved_tab_groups",
       "//chrome/browser/ui/toasts",
@@ -211,7 +214,6 @@ if (!is_android) {
   source_set("tab_model") {
     sources = [
       "existing_base_sub_menu_model.h",
-      "existing_comparison_table_sub_menu_model.h",
       "existing_tab_group_sub_menu_model.h",
       "existing_window_sub_menu_model.h",
       "recent_tabs_sub_menu_model.h",
@@ -228,7 +230,6 @@ if (!is_android) {
       ":tabs_public",
       "//base",
       "//components/back_forward_cache",
-      "//components/commerce/core/product_specifications",
       "//components/constrained_window",
       "//components/favicon/core",
       "//components/sessions",
@@ -250,7 +251,6 @@ if (!is_android) {
 
     sources = [
       "existing_base_sub_menu_model.cc",
-      "existing_comparison_table_sub_menu_model.cc",
       "existing_tab_group_sub_menu_model.cc",
       "existing_window_sub_menu_model.cc",
       "split_tab_menu_model.cc",
@@ -273,9 +273,9 @@ if (!is_android) {
       "//chrome/browser/ui/commerce",
       "//chrome/browser/ui/tabs/saved_tab_groups",
       "//chrome/browser/ui/toasts",
-      "//components/commerce/core/product_specifications",
       "//components/saved_tab_groups/public",
       "//components/tab_groups",
+      "//components/tabs",
     ]
 
     if (is_chromeos) {
@@ -334,6 +334,7 @@ if (!is_android) {
       "//chrome/browser/reading_list",
       "//chrome/browser/ui:browser_list",
       "//chrome/browser/ui:browser_tab_strip",
+      "//chrome/browser/ui:tab_search_feature",
       "//chrome/browser/ui:ui_features",
       "//chrome/browser/ui/browser_window",
       "//chrome/browser/ui/commerce",
@@ -461,6 +462,7 @@ if (!is_android) {
       "//chrome/browser/sessions",
       "//chrome/browser/ui:browser_list",
       "//chrome/browser/ui:layout_constants",
+      "//chrome/browser/ui/browser_window",
       "//chrome/browser/ui/color:color_headers",
       "//chrome/browser/ui/omnibox",
       "//chrome/browser/ui/startup:startup_tab",
@@ -534,6 +536,8 @@ if (!is_android) {
       "//chrome/browser/search",
       "//chrome/browser/sessions",
       "//chrome/browser/signin",
+      "//chrome/browser/skills:public",
+      "//chrome/browser/skills:ui",
       "//chrome/browser/sync",
       "//chrome/browser/sync:factories",
       "//chrome/browser/tab_group_sync:factories",
@@ -545,6 +549,7 @@ if (!is_android) {
       "//chrome/browser/ui/autofill",
       "//chrome/browser/ui/browser_window",
       "//chrome/browser/ui/commerce",
+      "//chrome/browser/ui/context_highlight",
       "//chrome/browser/ui/contextual_search",
       "//chrome/browser/ui/cookie_controls",
       "//chrome/browser/ui/interaction",
@@ -554,7 +559,7 @@ if (!is_android) {
       "//chrome/browser/ui/tabs/alert:tab_alert",
       "//chrome/browser/ui/tabs/back_to_opener",
       "//chrome/browser/ui/tabs/back_to_opener:impl",
-      "//chrome/browser/ui/tabs/projects",
+      "//chrome/browser/ui/tabs/projects:impl",
       "//chrome/browser/ui/tabs/saved_tab_groups",
       "//chrome/browser/ui/thumbnails",
       "//chrome/browser/ui/toolbar",
@@ -581,13 +586,14 @@ if (!is_android) {
       "//components/image_fetcher/core",
       "//components/lens",
       "//components/metrics:content",
-      "//components/passage_embeddings",
+      "//components/passage_embeddings/core",
       "//components/performance_manager",
       "//components/permissions",
       "//components/pref_registry",
       "//components/privacy_sandbox:features",
       "//components/security_interstitials/content:security_interstitial_page",
       "//components/sessions",
+      "//components/skills:features",
       "//components/sync_sessions",
       "//components/tab_groups",
       "//components/tabs",
@@ -795,7 +801,6 @@ if (!is_android) {
   source_set("unit_tests") {
     testonly = true
     sources = [
-      "existing_comparison_table_sub_menu_model_unittest.cc",
       "inactive_window_mouse_event_controller_unittest.cc",
       "split_view_iph_controller_unittest.cc",
       "tab_collection_storage_unittest.cc",

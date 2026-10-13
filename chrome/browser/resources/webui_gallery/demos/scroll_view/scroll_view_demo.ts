@@ -4,7 +4,6 @@
 
 import '//resources/cr_elements/cr_slider/cr_slider.js';
 
-import {CrContainerShadowMixinLit} from '//resources/cr_elements/cr_container_shadow_mixin_lit.js';
 import type {CrSliderElement} from '//resources/cr_elements/cr_slider/cr_slider.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
@@ -17,9 +16,7 @@ export interface ScrollViewDemoElement {
   };
 }
 
-const ScrollViewDemoElementBase = CrContainerShadowMixinLit(CrLitElement);
-
-export class ScrollViewDemoElement extends ScrollViewDemoElementBase {
+export class ScrollViewDemoElement extends CrLitElement {
   static get is() {
     return 'scroll-view-demo';
   }
@@ -47,6 +44,12 @@ export class ScrollViewDemoElement extends ScrollViewDemoElementBase {
       items.push(i);
     }
     this.items_ = items;
+  }
+}
+
+declare global {
+  interface HTMLElementTagNameMap {
+    'scroll-view-demo': ScrollViewDemoElement;
   }
 }
 

@@ -40,9 +40,6 @@ struct InternalAPMConfig {
   bool aec_drift_compensation_enabled = false;
   bool aec_extended_filter_enabled = false;
   int aec_suppression_level = 0;
-  bool aecm_enabled = false;
-  bool aecm_comfort_noise_enabled = false;
-  int aecm_routing_mode = 0;
   bool agc_enabled = false;
   int agc_mode = 0;
   bool agc_limiter_enabled = false;
@@ -54,6 +51,7 @@ struct InternalAPMConfig {
   bool pre_amplifier_enabled = false;
   float pre_amplifier_fixed_gain_factor = 1.f;
   std::string experiments_description = "";
+  std::string api_config_string = "";
 };
 
 // An interface for recording configuration and input/output streams

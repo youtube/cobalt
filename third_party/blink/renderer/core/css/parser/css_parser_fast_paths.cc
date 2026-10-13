@@ -1211,14 +1211,18 @@ bool CSSParserFastPaths::IsValidKeywordPropertyAndValue(
              value_id == CSSValueID::kOptimizequality;
     case CSSPropertyID::kColumnRuleBreak:
     case CSSPropertyID::kRowRuleBreak:
-      return value_id == CSSValueID::kAuto || value_id == CSSValueID::kNone ||
-             value_id == CSSValueID::kSpanningItem ||
+      return value_id == CSSValueID::kNone ||
+             value_id == CSSValueID::kNormal ||
              value_id == CSSValueID::kIntersection;
     case CSSPropertyID::kColumnRuleVisibilityItems:
     case CSSPropertyID::kRowRuleVisibilityItems:
-      return value_id == CSSValueID::kNone || value_id == CSSValueID::kAll ||
-             value_id == CSSValueID::kAround ||
+      return value_id == CSSValueID::kAll || value_id == CSSValueID::kAround ||
              value_id == CSSValueID::kBetween;
+    case CSSPropertyID::kColumnSpan:
+      return value_id == CSSValueID::kAll || value_id == CSSValueID::kNone;
+    case CSSPropertyID::kContentVisibility:
+      return value_id == CSSValueID::kVisible ||
+             value_id == CSSValueID::kAuto || value_id == CSSValueID::kHidden;
     case CSSPropertyID::kDirection:
       return value_id == CSSValueID::kLtr || value_id == CSSValueID::kRtl;
     case CSSPropertyID::kDominantBaseline:
@@ -1240,11 +1244,14 @@ bool CSSParserFastPaths::IsValidKeywordPropertyAndValue(
     case CSSPropertyID::kForcedColorAdjust:
       return value_id == CSSValueID::kNone || value_id == CSSValueID::kAuto ||
              value_id == CSSValueID::kPreserveParentColor;
-    case CSSPropertyID::kGapRuleOverlap:
+    case CSSPropertyID::kRuleOverlap:
       return value_id == CSSValueID::kRowOverColumn ||
              value_id == CSSValueID::kColumnOverRow;
     case CSSPropertyID::kGridLanesPack:
       return value_id == CSSValueID::kNormal || value_id == CSSValueID::kDense;
+    case CSSPropertyID::kImageAnimation:
+      return value_id == CSSValueID::kRunning ||
+             value_id == CSSValueID::kPaused || value_id == CSSValueID::kNormal;
     case CSSPropertyID::kImageRendering:
       return value_id == CSSValueID::kAuto ||
              value_id == CSSValueID::kWebkitOptimizeContrast ||
@@ -1442,6 +1449,8 @@ bool CSSParserFastPaths::IsValidKeywordPropertyAndValue(
     case CSSPropertyID::kVectorEffect:
       return value_id == CSSValueID::kNone ||
              value_id == CSSValueID::kNonScalingStroke;
+    case CSSPropertyID::kViewTransitionScope:
+      return value_id == CSSValueID::kNone || value_id == CSSValueID::kAuto;
     case CSSPropertyID::kVisibility:
       return value_id == CSSValueID::kVisible ||
              value_id == CSSValueID::kHidden ||
@@ -1550,6 +1559,12 @@ bool CSSParserFastPaths::IsValidKeywordPropertyAndValue(
              value_id == CSSValueID::kColumnReverse;
     case CSSPropertyID::kFieldSizing:
       return value_id == CSSValueID::kFixed || value_id == CSSValueID::kContent;
+    case CSSPropertyID::kFrameSizing:
+      return value_id == CSSValueID::kAuto ||
+             value_id == CSSValueID::kContentWidth ||
+             value_id == CSSValueID::kContentHeight ||
+             value_id == CSSValueID::kContentInlineSize ||
+             value_id == CSSValueID::kContentBlockSize;
     case CSSPropertyID::kHyphens:
 #if BUILDFLAG(USE_MINIKIN_HYPHENATION) || BUILDFLAG(IS_APPLE)
       return value_id == CSSValueID::kAuto || value_id == CSSValueID::kNone ||
@@ -1743,6 +1758,8 @@ CSSBitset CSSParserFastPaths::handled_by_keyword_fast_paths_properties_{{
     CSSPropertyID::kColorRendering,
     CSSPropertyID::kColumnRuleBreak,
     CSSPropertyID::kColumnRuleVisibilityItems,
+    CSSPropertyID::kColumnSpan,
+    CSSPropertyID::kContentVisibility,
     CSSPropertyID::kContinue,
     CSSPropertyID::kDirection,
     CSSPropertyID::kDominantBaseline,
@@ -1750,10 +1767,12 @@ CSSBitset CSSParserFastPaths::handled_by_keyword_fast_paths_properties_{{
     CSSPropertyID::kFillRule,
     CSSPropertyID::kFloat,
     CSSPropertyID::kFieldSizing,
+    CSSPropertyID::kFrameSizing,
     CSSPropertyID::kForcedColorAdjust,
-    CSSPropertyID::kGapRuleOverlap,
+    CSSPropertyID::kRuleOverlap,
     CSSPropertyID::kGridLanesPack,
     CSSPropertyID::kHyphens,
+    CSSPropertyID::kImageAnimation,
     CSSPropertyID::kImageRendering,
     CSSPropertyID::kInterpolateSize,
     CSSPropertyID::kListStylePosition,
@@ -1807,6 +1826,7 @@ CSSBitset CSSParserFastPaths::handled_by_keyword_fast_paths_properties_{{
     CSSPropertyID::kTextTransform,
     CSSPropertyID::kUnicodeBidi,
     CSSPropertyID::kVectorEffect,
+    CSSPropertyID::kViewTransitionScope,
     CSSPropertyID::kVisibility,
     CSSPropertyID::kAppRegion,
     CSSPropertyID::kBackfaceVisibility,

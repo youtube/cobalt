@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_UI_TABS_TAB_LIST_INTERFACE_OBSERVER_H_
 
 #include "base/observer_list_types.h"
+#include "chrome/browser/ui/tabs/tab_removed_reason.h"
 
 namespace tabs {
 class TabInterface;
@@ -13,6 +14,9 @@ class TabInterface;
 
 class TabListInterface;
 
+// An observer for events that may occur on a TabListInterface, irrespective of
+// platform.
+// TODO(https://crbug.com/482392299): Move to a more appropriate directory.
 class TabListInterfaceObserver : public base::CheckedObserver {
  public:
   // Called when a new tab is added to the tab list. `tab` is the newly-added
@@ -29,9 +33,12 @@ class TabListInterfaceObserver : public base::CheckedObserver {
   // never null.
   virtual void OnActiveTabChanged(tabs::TabInterface* tab) {}
 
-  // Called when a tab is removed from the tab list. `tab` is the removed tab
-  // and may be null after this call.
-  virtual void OnTabRemoved(tabs::TabInterface* tab) {}
+  // Called when a tab is removed from the tab list. This may be the result of
+  // detaching the tab for reparenting, or for the tab being closed. `tab` is
+  // the removed tab and may be null after this call.  `removed_reason`
+  // indicates the reason for the tab removal.
+  virtual void OnTabRemoved(tabs::TabInterface* tab,
+                            TabRemovedReason removed_reason) {}
 
   // Called when a tab is moved within the tab list from `from_index` to
   // `to_index`.
@@ -41,6 +48,9 @@ class TabListInterfaceObserver : public base::CheckedObserver {
 
   // Called when the TabListInterface is destroyed.
   virtual void OnTabListDestroyed(TabListInterface& tab_list) {}
+
+  // Called when all tabs in the TabListInterface are closing.
+  virtual void OnAllTabsAreClosing(TabListInterface& tab_list) {}
 };
 
 #endif  // CHROME_BROWSER_UI_TABS_TAB_LIST_INTERFACE_OBSERVER_H_

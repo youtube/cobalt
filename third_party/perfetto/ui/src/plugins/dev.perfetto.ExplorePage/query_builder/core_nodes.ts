@@ -34,6 +34,7 @@ import {
   FilterDuringNode,
   FilterDuringNodeState,
 } from './nodes/filter_during_node';
+import {FilterInNode, FilterInNodeState} from './nodes/filter_in_node';
 import {
   IntervalIntersectNode,
   IntervalIntersectNodeState,
@@ -61,7 +62,7 @@ export function registerCoreNodes() {
     name: 'Slices',
     description: 'Explore all the slices from your trace.',
     icon: 'bar_chart',
-    hotkey: 's',
+    hotkey: 'l',
     type: 'source',
     showOnLandingPage: true,
     factory: (state) => new SlicesSourceNode(state),
@@ -80,7 +81,6 @@ export function registerCoreNodes() {
         // Return an array of states, one for each selected table
         return selections.map((selection) => ({
           sqlTable: selection.sqlTable,
-          sqlModules,
         }));
       }
       return null;
@@ -197,6 +197,18 @@ export function registerCoreNodes() {
     category: 'Time',
     factory: (state) => {
       return new FilterDuringNode(state as FilterDuringNodeState);
+    },
+  });
+
+  nodeRegistry.register('filter_in', {
+    name: 'Filter In',
+    description:
+      'Filter rows to only those where a column value exists in another query result.',
+    icon: Icons.Filter,
+    type: 'multisource',
+    category: 'Filtering',
+    factory: (state) => {
+      return new FilterInNode(state as FilterInNodeState);
     },
   });
 

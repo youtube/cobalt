@@ -137,7 +137,7 @@ async function iwaDevProxyInstall() {
 
   setDevInstallMessageText(`Installing IWA: ${iwaDevProxyInstallUrl.value}...`);
 
-  const location: Url = {url: iwaDevProxyInstallUrl.value};
+  const location: Url = iwaDevProxyInstallUrl.value;
 
   const result: InstallIsolatedWebAppResult =
       (await webAppInternalsHandler.installIsolatedWebAppFromDevProxy(location))
@@ -204,7 +204,7 @@ async function iwaDevFetchUpdateManifest() {
   setDevInstallMessageText(
       `Fetching the update manifest at ${iwaDevUpdateManifestUrl.value}...`);
 
-  const updateManifestUrl: Url = {url: iwaDevUpdateManifestUrl.value};
+  const updateManifestUrl: Url = iwaDevUpdateManifestUrl.value;
 
   const result: ParseUpdateManifestFromUrlResult =
       (await webAppInternalsHandler.parseUpdateManifestFromUrl(
@@ -269,8 +269,8 @@ async function iwaDevFetchUpdateManifest() {
     const selectedVersion = select.value;
     iwaDevUpdateManifestDialog.close();
 
-    setDevInstallMessageText(`Installing version ${selectedVersion} from ${
-        updateManifestUrl.url}...`);
+    setDevInstallMessageText(
+        `Installing version ${selectedVersion} from ${updateManifestUrl}...`);
     const selectedVersionEntry: VersionEntry|null =
         versions.find(
             versionEntry => versionEntry.version === selectedVersion) ||
@@ -278,7 +278,7 @@ async function iwaDevFetchUpdateManifest() {
 
     if (!selectedVersionEntry) {
       setDevInstallMessageText(`Installing version ${selectedVersion} from ${
-          updateManifestUrl.url} failed: no such version`);
+          updateManifestUrl} failed: no such version`);
       return;
     }
 
@@ -295,10 +295,10 @@ async function iwaDevFetchUpdateManifest() {
         })).result;
     if (installResult.success) {
       setDevInstallMessageText(`Installing version ${selectedVersion} from ${
-          updateManifestUrl.url}: success!`);
+          updateManifestUrl}: success!`);
     } else {
       setDevInstallMessageText(`Installing version ${selectedVersion} from ${
-          updateManifestUrl.url} failed: ${installResult.error}`);
+          updateManifestUrl} failed: ${installResult.error}`);
     }
 
     refreshDevModeAppList();
@@ -444,27 +444,27 @@ iwaRotateKeyButton.addEventListener('click', () => {
     return;
   }
 
-  let publicKeyBytes: number[]|null = null;
-  if (publicKeyBase64.value.length > 0) {
-    try {
-      const pk = atob(publicKeyBase64.value);
+  if (publicKeyBase64.value.length === 0) {
+    keyRotationMessageDiv.innerText = `rotated-key must not be empty.`;
+    return;
+  }
 
-      publicKeyBytes = [];
-      for (let i = 0; i < pk.length; i++) {
-        publicKeyBytes.push(pk.charCodeAt(i));
-      }
-    } catch (err) {
-      // This block handles `atob()` errors.
-      keyRotationMessageDiv.innerText =
-          `${publicKeyBase64.value} is not a base64 encoded key.`;
-      return;
+  let publicKeyBytes: number[] = [];
+  try {
+    const pk = atob(publicKeyBase64.value);
+
+    publicKeyBytes = [];
+    for (let i = 0; i < pk.length; i++) {
+      publicKeyBytes.push(pk.charCodeAt(i));
     }
+  } catch (err) {
+    // This block handles `atob()` errors.
+    keyRotationMessageDiv.innerText =
+        `${publicKeyBase64.value} is not a base64 encoded key.`;
+    return;
   }
 
   iwaRotateKeyButton.disabled = true;
-
-  // If `publicKeyBytes` are `null`, the app with this `webBundleId` will be
-  // disabled.
   webAppInternalsHandler.rotateKey(webBundleId.value, publicKeyBytes);
 
   // Improve end user experience by providing a delay of 1000 ms to enable the
@@ -495,7 +495,7 @@ function describeIsolatedWebApp(
   if (updateInfo) {
     const pinnedVersionValue =
         updateInfo.pinnedVersion ? updateInfo.pinnedVersion : '-';
-    updateMsg += ` ${updateInfo.updateManifestUrl.url} ( update_channel: ${
+    updateMsg += ` ${updateInfo.updateManifestUrl} ( update_channel: ${
         updateInfo.updateChannel} | pinned_version: ${
         pinnedVersionValue} | allow_downgrades: ${updateInfo.allowDowngrades})`;
   } else {

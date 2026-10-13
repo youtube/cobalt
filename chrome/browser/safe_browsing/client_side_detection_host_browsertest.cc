@@ -8,6 +8,7 @@
 #include "base/test/bind.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
+#include "chrome/browser/interstitials/security_interstitial_page_test_utils.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/safe_browsing/chrome_client_side_detection_host_delegate.h"
 #include "chrome/browser/safe_browsing/chrome_safe_browsing_blocking_page_factory.h"
@@ -373,6 +374,63 @@ IN_PROC_BROWSER_TEST_F(ClientSideDetectionHostPrerenderBrowserTest,
   EXPECT_CALL(*mock_ui_manager, DisplayBlockingPage(_));
   std::move(fake_csd_service.saved_callback())
       .Run(page_url, true, net::HTTP_OK, std::nullopt);
+}
+
+IN_PROC_BROWSER_TEST_F(ClientSideDetectionHostPrerenderBrowserTest,
+                       SamePageNavigationShouldNotAffectClientSideDetection) {
+  if (base::FeatureList::IsEnabled(kClientSideDetectionKillswitch)) {
+    GTEST_SKIP();
+  }
+
+  FakeClientSideDetectionService fake_csd_service;
+  fake_csd_service.SetModel(client_side_model());
+
+  auto* web_contents = browser()->tab_strip_model()->GetActiveWebContents();
+  std::unique_ptr<ClientSideDetectionHost> csd_host =
+      ChromeClientSideDetectionHostDelegate::CreateHost(web_contents);
+  csd_host->set_client_side_detection_service(fake_csd_service.GetWeakPtr());
+
+  fake_csd_service.SendModelToRenderers();
+
+  GURL page_url(embedded_test_server()->GetURL("/safe_browsing/malware.html"));
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), page_url));
+
+  base::RunLoop run_loop;
+  fake_csd_service.SetRequestCallback(run_loop.QuitClosure());
+
+  // Bypass the pre-classification checks.
+  csd_host->OnPhishingPreClassificationDone(
+      ClientSideDetectionType::TRIGGER_MODELS, /*should_classify=*/true,
+      /*is_sample_ping=*/false, /*did_match_high_confidence_allowlist=*/false);
+
+  run_loop.Run();
+
+  // A same page navigation committing should not cancel classification.
+  // The worst case if navigation in an iframe, so locate the iframe.
+  size_t frame_counter = 0;
+  content::RenderFrameHost* iframe_rfh = nullptr;
+  web_contents->ForEachRenderFrameHostWithAction(
+      [&frame_counter, &iframe_rfh](content::RenderFrameHost* current_frame) {
+        if (frame_counter == 1) {
+          iframe_rfh = current_frame;
+          return content::RenderFrameHost::FrameIterationAction::kStop;
+        }
+        frame_counter++;
+        return content::RenderFrameHost::FrameIterationAction::kContinue;
+      });
+
+  ASSERT_TRUE(content::ExecJs(iframe_rfh, "window.location.hash='#foo';"));
+
+  ASSERT_FALSE(fake_csd_service.saved_callback_is_null());
+
+  // Expect an interstitial to be shown. We intentionally use real ui manager to
+  // check that all ui manager pipeline works correctly.
+  content::TestNavigationObserver observer(web_contents);
+  std::move(fake_csd_service.saved_callback())
+      .Run(page_url, true, net::HTTP_OK, std::nullopt);
+  observer.Wait();
+  EXPECT_TRUE(
+      chrome_browser_interstitials::IsShowingInterstitial(web_contents));
 }
 
 IN_PROC_BROWSER_TEST_F(ClientSideDetectionHostPrerenderBrowserTest,
@@ -816,9 +874,6 @@ class ClientSideDetectionHostVibrateTest : public InProcessBrowserTest {
     std::move(vibrate_done).Run();
   }
 
-  base::test::ScopedFeatureList scoped_feature_list_{
-      kClientSideDetectionVibrationApi};
-
  private:
   std::string flatbuffer_model_str_;
 };
@@ -848,8 +903,7 @@ class VibrationObserverWaiter : public content::WebContentsObserver {
 
 IN_PROC_BROWSER_TEST_F(ClientSideDetectionHostVibrateTest,
                        VibrationApiTriggersPreclassificationCheck) {
-  if (base::FeatureList::IsEnabled(kClientSideDetectionKillswitch) ||
-      !base::FeatureList::IsEnabled(kClientSideDetectionVibrationApi)) {
+  if (base::FeatureList::IsEnabled(kClientSideDetectionKillswitch)) {
     GTEST_SKIP();
   }
   SetSafeBrowsingState(browser()->profile()->GetPrefs(),
@@ -908,8 +962,7 @@ IN_PROC_BROWSER_TEST_F(ClientSideDetectionHostVibrateTest,
 
 IN_PROC_BROWSER_TEST_F(ClientSideDetectionHostVibrateTest,
                        VibrationApiClassificationTriggersCSPPPing) {
-  if (base::FeatureList::IsEnabled(kClientSideDetectionKillswitch) ||
-      !base::FeatureList::IsEnabled(kClientSideDetectionVibrationApi)) {
+  if (base::FeatureList::IsEnabled(kClientSideDetectionKillswitch)) {
     GTEST_SKIP();
   }
   SetSafeBrowsingState(browser()->profile()->GetPrefs(),
@@ -1195,7 +1248,7 @@ IN_PROC_BROWSER_TEST_P(ClientSideDetectionHostClipboardTest,
     histogram_tester.ExpectTotalCount(
         "SBClientPhishing.ClipboardCopyApi.PayloadExtraction.TokenCount", 1);
     histogram_tester.ExpectUniqueSample(
-        "SBClientPhishing.ClipboardCopyApi.PayloadExtraction.TokenCount", 4, 1);
+        "SBClientPhishing.ClipboardCopyApi.PayloadExtraction.TokenCount", 3, 1);
     histogram_tester.ExpectUniqueSample(
         "SBClientPhishing.ClipboardCopyApi.PayloadExtraction."
         "SuspiciousTokenCount",
@@ -1477,6 +1530,100 @@ IN_PROC_BROWSER_TEST_F(ClientSideDetectionHostCreditCardFormTest,
       "SBClientPhishing.ClientSideDetectionTypeRequest", 1);
   histogram_tester.ExpectTotalCount(
       "SBClientPhishing.ServerModelDetectsPhishing.CreditCardForm", 1);
+}
+
+class ClientSideDetectionHostGeminiAntiscamProtectionTest
+    : public InProcessBrowserTest {
+ public:
+  ClientSideDetectionHostGeminiAntiscamProtectionTest() {
+    scoped_feature_list_.InitAndEnableFeature(
+        kGeminiAntiscamProtectionForMetricsCollection);
+    prerender_helper_ = std::make_unique<
+        content::test::PrerenderTestHelper>(base::BindRepeating(
+        &ClientSideDetectionHostGeminiAntiscamProtectionTest::GetWebContents,
+        base::Unretained(this)));
+  }
+  ~ClientSideDetectionHostGeminiAntiscamProtectionTest() override = default;
+  ClientSideDetectionHostGeminiAntiscamProtectionTest(
+      const ClientSideDetectionHostGeminiAntiscamProtectionTest&) = delete;
+  ClientSideDetectionHostGeminiAntiscamProtectionTest& operator=(
+      const ClientSideDetectionHostGeminiAntiscamProtectionTest&) = delete;
+
+  void SetUp() override {
+    prerender_helper_->RegisterServerRequestMonitor(embedded_test_server());
+    InProcessBrowserTest::SetUp();
+  }
+
+  void SetUpOnMainThread() override {
+    flatbuffer_model_str_ = set_up_client_side_model();
+    host_resolver()->AddRule("*", "127.0.0.1");
+    ASSERT_TRUE(embedded_test_server()->Start());
+  }
+
+  content::test::PrerenderTestHelper& prerender_helper() {
+    return *prerender_helper_.get();
+  }
+
+  content::WebContents* GetWebContents() {
+    return browser()->tab_strip_model()->GetActiveWebContents();
+  }
+
+  std::string client_side_model() { return flatbuffer_model_str_; }
+
+ protected:
+  base::test::ScopedFeatureList scoped_feature_list_;
+
+ private:
+  std::unique_ptr<content::test::PrerenderTestHelper> prerender_helper_;
+  std::string flatbuffer_model_str_;
+};
+
+IN_PROC_BROWSER_TEST_F(ClientSideDetectionHostGeminiAntiscamProtectionTest,
+                       GeminiAntiscamProtectionServiceCalledWithInnerText) {
+  if (base::FeatureList::IsEnabled(kClientSideDetectionKillswitch)) {
+    GTEST_SKIP();
+  }
+  base::HistogramTester histogram_tester;
+  SetSafeBrowsingState(browser()->profile()->GetPrefs(),
+                       SafeBrowsingState::ENHANCED_PROTECTION);
+  FakeClientSideDetectionService fake_csd_service;
+  fake_csd_service.SetModel(client_side_model());
+
+  std::unique_ptr<ClientSideDetectionHost> csd_host =
+      ChromeClientSideDetectionHostDelegate::CreateHost(
+          browser()->tab_strip_model()->GetActiveWebContents());
+  csd_host->set_client_side_detection_service(fake_csd_service.GetWeakPtr());
+
+  fake_csd_service.SendModelToRenderers();
+
+  base::RunLoop run_loop;
+  fake_csd_service.SetRequestCallback(run_loop.QuitClosure());
+
+  const GURL initial_url(embedded_test_server()->GetURL("/title1.html"));
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), initial_url));
+  prerender_helper().AddPrerender(initial_url);
+  prerender_helper().NavigatePrimaryPage(initial_url);
+
+  csd_host->OnPhishingPreClassificationDone(
+      ClientSideDetectionType::FORCE_REQUEST, /*should_classify=*/true,
+      /*is_sample_ping=*/false,
+      /*did_match_high_confidence_allowlist=*/false);
+
+  run_loop.Run();
+
+  std::move(fake_csd_service.saved_callback())
+      .Run(initial_url, true, net::HTTP_OK, std::nullopt);
+
+  content::RunAllTasksUntilIdle();
+  EXPECT_GT(
+      histogram_tester
+          .GetTotalCountsForPrefix("SafeBrowsing.GeminiAntiscamProtection")
+          .size(),
+      1);
+  histogram_tester.ExpectUniqueSample(
+      "SafeBrowsing.GeminiAntiscamProtection.IsHistoryServiceResultValid",
+      /*sample=*/true,
+      /*expected_bucket_count=*/1);
 }
 
 }  // namespace safe_browsing

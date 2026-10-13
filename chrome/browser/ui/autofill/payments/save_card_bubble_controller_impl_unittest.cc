@@ -303,7 +303,9 @@ class SaveCardBubbleControllerImplTest : public BrowserWithTestWindowTest {
   void ShowConfirmationBubbleView(bool card_saved) {
     controller()->ShowConfirmationBubbleView(
         /*card_saved=*/card_saved,
-        /*on_confirmation_closed_callback=*/base::BindOnce(
+        /*is_for_save_and_fill=*/false,
+        /*on_confirmation_closed_callback=*/
+        base::BindOnce(
             &SaveCardBubbleControllerImplTest::OnConfirmationClosedCallback,
             weak_ptr_factory_.GetWeakPtr()));
   }
@@ -1484,7 +1486,20 @@ TEST_F(SaveCardBubbleControllerImplTest, LocalCvcOnlySaveDialogContent) {
             u"faster checkout");
 }
 
-TEST_F(SaveCardBubbleControllerImplTest, UploadCvcOnlySaveDialogContent) {
+class SaveCvcBubbleControllerImplTestWithWalletBranding
+    : public SaveCardBubbleControllerImplTest {
+ public:
+  SaveCvcBubbleControllerImplTestWithWalletBranding() {
+    scoped_feature_list_.InitAndEnableFeature(
+        features::kAutofillEnableWalletBranding);
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+TEST_F(SaveCvcBubbleControllerImplTestWithWalletBranding,
+       UploadCvcOnlySaveDialogContent) {
   // Show the server CVC save bubble.
   ShowUploadBubble(
       /*options=*/SaveCreditCardOptions()
@@ -1496,8 +1511,38 @@ TEST_F(SaveCardBubbleControllerImplTest, UploadCvcOnlySaveDialogContent) {
   ASSERT_NE(nullptr, controller()->GetPaymentBubbleView());
   EXPECT_EQ(controller()->GetWindowTitle(), u"Save security code?");
   EXPECT_EQ(controller()->GetExplanatoryMessage(),
-            u"This card's CVC will be encrypted and saved in your Google "
-            u"Account for faster checkout");
+            l10n_util::GetStringUTF16(
+                IDS_AUTOFILL_SAVE_CVC_TO_WALLET_PROMPT_EXPLANATION_UPLOAD));
+  EXPECT_TRUE(controller()->GetLegalMessageLines().empty());
+}
+
+class SaveCvcBubbleControllerImplTestWithoutWalletBranding
+    : public SaveCardBubbleControllerImplTest {
+ public:
+  SaveCvcBubbleControllerImplTestWithoutWalletBranding() {
+    scoped_feature_list_.InitAndDisableFeature(
+        features::kAutofillEnableWalletBranding);
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+TEST_F(SaveCvcBubbleControllerImplTestWithoutWalletBranding,
+       UploadCvcOnlySaveDialogContent) {
+  // Show the server CVC save bubble.
+  ShowUploadBubble(
+      /*options=*/SaveCreditCardOptions()
+          .with_card_save_type(CardSaveType::kCvcSaveOnly)
+          .with_show_prompt(true));
+
+  ASSERT_EQ(PaymentsBubbleType::kUploadCvcSave,
+            controller()->GetPaymentsBubbleType());
+  ASSERT_NE(nullptr, controller()->GetPaymentBubbleView());
+  EXPECT_EQ(controller()->GetWindowTitle(), u"Save security code?");
+  EXPECT_EQ(controller()->GetExplanatoryMessage(),
+            l10n_util::GetStringUTF16(
+                IDS_AUTOFILL_SAVE_CVC_PROMPT_EXPLANATION_UPLOAD));
   EXPECT_TRUE(controller()->GetLegalMessageLines().empty());
 }
 
@@ -1901,6 +1946,7 @@ TEST_F(SaveCardBubbleControllerImplTest,
   // Simulate that the upload is completed.
   save_card_controller->ShowConfirmationBubbleView(
       /*card_saved=*/true,
+      /*is_for_save_and_fill=*/false,
       /*on_confirmation_closed_callback=*/std::nullopt);
 
   // Expect that the confirmation bubble doesn't show up on the other tab.
@@ -2006,6 +2052,26 @@ TEST_F(SaveCardBubbleControllerImplTest,
       SaveCardBubbleControllerImpl::kAutoCloseConfirmationBubbleWaitSec);
   EXPECT_TRUE(did_on_confirmation_closed_callback_run_);
   EXPECT_EQ(controller()->GetPaymentBubbleView(), nullptr);
+}
+
+TEST_F(SaveCardBubbleControllerImplTest, ReturnsApplicableExplanatoryMessage) {
+  base::test::ScopedFeatureList feature_list{
+      features::kAutofillEnableWalletBranding};
+  ShowUploadBubble();
+  EXPECT_EQ(
+      l10n_util::GetStringUTF16(
+          IDS_AUTOFILL_SAVE_CARD_PROMPT_UPLOAD_TO_WALLET_EXPLANATION_SECURITY),
+      controller()->GetExplanatoryMessage());
+}
+
+TEST_F(SaveCardBubbleControllerImplTest,
+       ReturnsApplicableExplanatoryMessage_FlagOff) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(features::kAutofillEnableWalletBranding);
+  ShowUploadBubble();
+  EXPECT_EQ(l10n_util::GetStringUTF16(
+                IDS_AUTOFILL_SAVE_CARD_PROMPT_UPLOAD_EXPLANATION_SECURITY),
+            controller()->GetExplanatoryMessage());
 }
 
 class SaveCardBubbleControllerImplTestWithCvCStorageAndFilling

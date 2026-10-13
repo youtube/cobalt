@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// This file was exported from google3, do not edit manually.
+// See README.chromium for details.
+
 edition = "2023";
 
 option optimize_for = LITE_RUNTIME;
@@ -36,6 +39,7 @@ message Layer {
       // First slot in the range (inclusive). This range has to be
       // in the [0..`num_slots`) range of the layer.
       uint32 start = 1;
+
       // Last slot in the range (inclusive).
       uint32 end = 2;
     }
@@ -43,6 +47,7 @@ message Layer {
     // An id (unique within the Layer) that studies will use to refer to this
     // particular member.
     uint32 id = 1;
+
     // Ranges of slots that belong to this member. These slot ranges must not
     // overlap with the slot ranges of other members within the layer, so
     // that at most one member within the layer will be active. The ranges must

@@ -46,9 +46,8 @@
 extern "C" void* __libc_memalign(size_t align, size_t s);
 #endif
 
-#if PA_BUILDFLAG( \
-    ENABLE_ALLOCATOR_SHIM_PARTITION_ALLOC_DISPATCH_WITH_ADVANCED_CHECKS_SUPPORT)
-#include "partition_alloc/shim/allocator_shim_default_dispatch_to_partition_alloc_with_advanced_checks.h"
+#if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+#include "partition_alloc/shim/allocator_shim_default_dispatch_to_partition_alloc.h"
 #endif
 
 // Weak as this is a C11 function, which is not always available. It is also not
@@ -78,41 +77,51 @@ class AllocatorShimTest : public testing::Test {
     return reinterpret_cast<uintptr_t>(ptr) % MaxSizeTracked();
   }
 
-  static void* MockAlloc(size_t size, void* context) {
+  static void* MockAlloc(size_t size, AllocToken alloc_token, void* context) {
     if (instance_ && size < MaxSizeTracked()) {
       ++(instance_->allocs_intercepted_by_size[size]);
     }
-    return g_mock_dispatch.next->alloc_function(size, context);
+    return g_mock_dispatch.next->alloc_function(size, alloc_token, context);
   }
 
-  static void* MockAllocUnchecked(size_t size, void* context) {
+  static void* MockAllocUnchecked(size_t size,
+                                  AllocToken alloc_token,
+                                  void* context) {
     if (instance_ && size < MaxSizeTracked()) {
       ++(instance_->allocs_intercepted_by_size[size]);
     }
-    return g_mock_dispatch.next->alloc_unchecked_function(size, context);
+    return g_mock_dispatch.next->alloc_unchecked_function(size, alloc_token,
+                                                          context);
   }
 
-  static void* MockAllocZeroInit(size_t n, size_t size, void* context) {
+  static void* MockAllocZeroInit(size_t n,
+                                 size_t size,
+                                 AllocToken alloc_token,
+                                 void* context) {
     const size_t real_size = n * size;
     if (instance_ && real_size < MaxSizeTracked()) {
       ++(instance_->zero_allocs_intercepted_by_size[real_size]);
     }
-    return g_mock_dispatch.next->alloc_zero_initialized_function(n, size,
-                                                                 context);
+    return g_mock_dispatch.next->alloc_zero_initialized_function(
+        n, size, alloc_token, context);
   }
 
   static void* MockAllocZeroInitUnchecked(size_t n,
                                           size_t size,
+                                          AllocToken alloc_token,
                                           void* context) {
     const size_t real_size = n * size;
     if (instance_ && real_size < MaxSizeTracked()) {
       ++(instance_->zero_allocs_intercepted_by_size[real_size]);
     }
     return g_mock_dispatch.next->alloc_zero_initialized_unchecked_function(
-        n, size, context);
+        n, size, alloc_token, context);
   }
 
-  static void* MockAllocAligned(size_t alignment, size_t size, void* context) {
+  static void* MockAllocAligned(size_t alignment,
+                                size_t size,
+                                AllocToken alloc_token,
+                                void* context) {
     if (instance_) {
       if (size < MaxSizeTracked()) {
         ++(instance_->allocs_intercepted_by_size[size]);
@@ -122,10 +131,13 @@ class AllocatorShimTest : public testing::Test {
       }
     }
     return g_mock_dispatch.next->alloc_aligned_function(alignment, size,
-                                                        context);
+                                                        alloc_token, context);
   }
 
-  static void* MockRealloc(void* address, size_t size, void* context) {
+  static void* MockRealloc(void* address,
+                           size_t size,
+                           AllocToken alloc_token,
+                           void* context) {
     if (instance_) {
       // Size 0xFEED is a special sentinel for the NewHandlerConcurrency test.
       // Hitting it for the first time will cause a failure, causing the
@@ -144,10 +156,14 @@ class AllocatorShimTest : public testing::Test {
       }
       ++instance_->reallocs_intercepted_by_addr[Hash(address)];
     }
-    return g_mock_dispatch.next->realloc_function(address, size, context);
+    return g_mock_dispatch.next->realloc_function(address, size, alloc_token,
+                                                  context);
   }
 
-  static void* MockReallocUnchecked(void* address, size_t size, void* context) {
+  static void* MockReallocUnchecked(void* address,
+                                    size_t size,
+                                    AllocToken alloc_token,
+                                    void* context) {
     if (instance_) {
       // Size 0xFEED is a special sentinel for the NewHandlerConcurrency test.
       // Hitting it for the first time will cause a failure, causing the
@@ -166,8 +182,8 @@ class AllocatorShimTest : public testing::Test {
       }
       ++instance_->reallocs_intercepted_by_addr[Hash(address)];
     }
-    return g_mock_dispatch.next->realloc_unchecked_function(address, size,
-                                                            context);
+    return g_mock_dispatch.next->realloc_unchecked_function(
+        address, size, alloc_token, context);
   }
 
   static void MockFree(void* address, void* context) {
@@ -266,7 +282,10 @@ class AllocatorShimTest : public testing::Test {
     g_mock_dispatch.next->try_free_default_function(ptr, context);
   }
 
-  static void* MockAlignedMalloc(size_t size, size_t alignment, void* context) {
+  static void* MockAlignedMalloc(size_t size,
+                                 size_t alignment,
+                                 AllocToken alloc_token,
+                                 void* context) {
     if (instance_ && size < MaxSizeTracked()) {
       ++instance_->allocs_intercepted_by_size[size];
     }
@@ -274,11 +293,12 @@ class AllocatorShimTest : public testing::Test {
       ++(instance_->allocs_intercepted_by_alignment[alignment]);
     }
     return g_mock_dispatch.next->aligned_malloc_function(size, alignment,
-                                                         context);
+                                                         alloc_token, context);
   }
 
   static void* MockAlignedMallocUnchecked(size_t size,
                                           size_t alignment,
+                                          AllocToken alloc_token,
                                           void* context) {
     if (instance_ && size < MaxSizeTracked()) {
       ++instance_->allocs_intercepted_by_size[size];
@@ -287,12 +307,13 @@ class AllocatorShimTest : public testing::Test {
       ++(instance_->allocs_intercepted_by_alignment[alignment]);
     }
     return g_mock_dispatch.next->aligned_malloc_unchecked_function(
-        size, alignment, context);
+        size, alignment, alloc_token, context);
   }
 
   static void* MockAlignedRealloc(void* address,
                                   size_t size,
                                   size_t alignment,
+                                  AllocToken alloc_token,
                                   void* context) {
     if (instance_) {
       if (size < MaxSizeTracked()) {
@@ -300,13 +321,14 @@ class AllocatorShimTest : public testing::Test {
       }
       ++instance_->aligned_reallocs_intercepted_by_addr[Hash(address)];
     }
-    return g_mock_dispatch.next->aligned_realloc_function(address, size,
-                                                          alignment, context);
+    return g_mock_dispatch.next->aligned_realloc_function(
+        address, size, alignment, alloc_token, context);
   }
 
   static void* MockAlignedReallocUnchecked(void* address,
                                            size_t size,
                                            size_t alignment,
+                                           AllocToken alloc_token,
                                            void* context) {
     if (instance_) {
       if (size < MaxSizeTracked()) {
@@ -315,7 +337,7 @@ class AllocatorShimTest : public testing::Test {
       ++instance_->aligned_reallocs_intercepted_by_addr[Hash(address)];
     }
     return g_mock_dispatch.next->aligned_realloc_unchecked_function(
-        address, size, alignment, context);
+        address, size, alignment, alloc_token, context);
   }
 
   static void MockAlignedFree(void* address, void* context) {
@@ -1561,20 +1583,22 @@ TEST_F(AllocatorShimCppOperatorTest, MakeVectorPolymorphicStruct) {
   ASSERT_FALSE(given_alignment_on_delete_);
 }
 
-#if PA_BUILDFLAG( \
-    ENABLE_ALLOCATOR_SHIM_PARTITION_ALLOC_DISPATCH_WITH_ADVANCED_CHECKS_SUPPORT)
+#if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
 
-void* MockAllocWithAdvancedChecks(size_t, void*);
+void* MockAllocWithAdvancedChecks(size_t, AllocToken, void*);
 
-void* MockAllocUncheckedWithAdvancedChecks(size_t, void*);
+void* MockAllocUncheckedWithAdvancedChecks(size_t, AllocToken, void*);
 
-void* MockAllocZeroInitializedWithAdvancedChecks(size_t n, size_t, void*);
+void* MockAllocZeroInitializedWithAdvancedChecks(size_t n,
+                                                 size_t,
+                                                 AllocToken,
+                                                 void*);
 
-void* MockAllocAlignedWithAdvancedChecks(size_t, size_t, void*);
+void* MockAllocAlignedWithAdvancedChecks(size_t, size_t, AllocToken, void*);
 
-void* MockReallocWithAdvancedChecks(void*, size_t, void*);
+void* MockReallocWithAdvancedChecks(void*, size_t, AllocToken, void*);
 
-void* MockReallocUncheckedWithAdvancedChecks(void*, size_t, void*);
+void* MockReallocUncheckedWithAdvancedChecks(void*, size_t, AllocToken, void*);
 
 void MockFreeWithAdvancedChecks(void*, void*);
 
@@ -1599,15 +1623,23 @@ void MockBatchFreeWithAdvancedChecks(void**, unsigned, void*);
 
 void MockTryFreeDefaultWithAdvancedChecks(void*, void*);
 
-void* MockAlignedMallocWithAdvancedChecks(size_t, size_t, void*);
+void* MockAlignedMallocWithAdvancedChecks(size_t, size_t, AllocToken, void*);
 
-void* MockAlignedMallocUncheckedWithAdvancedChecks(size_t, size_t, void*);
+void* MockAlignedMallocUncheckedWithAdvancedChecks(size_t,
+                                                   size_t,
+                                                   AllocToken,
+                                                   void*);
 
-void* MockAlignedReallocWithAdvancedChecks(void*, size_t, size_t, void*);
+void* MockAlignedReallocWithAdvancedChecks(void*,
+                                           size_t,
+                                           size_t,
+                                           AllocToken,
+                                           void*);
 
 void* MockAlignedReallocUncheckedWithAdvancedChecks(void*,
                                                     size_t,
                                                     size_t,
+                                                    AllocToken,
                                                     void*);
 
 void MockAlignedFreeWithAdvancedChecks(void*, void*);
@@ -1643,46 +1675,56 @@ AllocatorDispatch g_mock_dispatch_for_advanced_checks = {
     .next = nullptr,
 };
 
-void* MockAllocWithAdvancedChecks(size_t size, void* context) {
+void* MockAllocWithAdvancedChecks(size_t size,
+                                  AllocToken alloc_token,
+                                  void* context) {
   // no-op.
-  return g_mock_dispatch_for_advanced_checks.next->alloc_function(size,
-                                                                  context);
+  return g_mock_dispatch_for_advanced_checks.next->alloc_function(
+      size, alloc_token, context);
 }
 
-void* MockAllocUncheckedWithAdvancedChecks(size_t size, void* context) {
+void* MockAllocUncheckedWithAdvancedChecks(size_t size,
+                                           AllocToken alloc_token,
+                                           void* context) {
   // no-op.
   return g_mock_dispatch_for_advanced_checks.next->alloc_unchecked_function(
-      size, context);
+      size, alloc_token, context);
 }
 
 void* MockAllocZeroInitializedWithAdvancedChecks(size_t n,
                                                  size_t size,
+                                                 AllocToken alloc_token,
                                                  void* context) {
   // no-op.
   return g_mock_dispatch_for_advanced_checks.next
-      ->alloc_zero_initialized_function(n, size, context);
+      ->alloc_zero_initialized_function(n, size, alloc_token, context);
 }
 
 void* MockAllocAlignedWithAdvancedChecks(size_t alignment,
                                          size_t size,
+                                         AllocToken alloc_token,
                                          void* context) {
   // no-op.
   return g_mock_dispatch_for_advanced_checks.next->alloc_aligned_function(
-      alignment, size, context);
+      alignment, size, alloc_token, context);
 }
 
-void* MockReallocWithAdvancedChecks(void* address, size_t size, void* context) {
+void* MockReallocWithAdvancedChecks(void* address,
+                                    size_t size,
+                                    AllocToken alloc_token,
+                                    void* context) {
   // no-op.
   return g_mock_dispatch_for_advanced_checks.next->realloc_function(
-      address, size, context);
+      address, size, alloc_token, context);
 }
 
 void* MockReallocUncheckedWithAdvancedChecks(void* address,
                                              size_t size,
+                                             AllocToken alloc_token,
                                              void* context) {
   // no-op.
   return g_mock_dispatch_for_advanced_checks.next->realloc_unchecked_function(
-      address, size, context);
+      address, size, alloc_token, context);
 }
 
 void MockFreeWithAdvancedChecks(void* address, void* context) {
@@ -1759,36 +1801,42 @@ void MockTryFreeDefaultWithAdvancedChecks(void* address, void* context) {
 
 void* MockAlignedMallocWithAdvancedChecks(size_t size,
                                           size_t alignment,
+                                          AllocToken alloc_token,
                                           void* context) {
   // no-op.
   return g_mock_dispatch_for_advanced_checks.next->aligned_malloc_function(
-      size, alignment, context);
+      size, alignment, alloc_token, context);
 }
 
 void* MockAlignedMallocUncheckedWithAdvancedChecks(size_t size,
                                                    size_t alignment,
+                                                   AllocToken alloc_token,
                                                    void* context) {
   // no-op.
   return g_mock_dispatch_for_advanced_checks.next
-      ->aligned_malloc_unchecked_function(size, alignment, context);
+      ->aligned_malloc_unchecked_function(size, alignment, alloc_token,
+                                          context);
 }
 
 void* MockAlignedReallocWithAdvancedChecks(void* address,
                                            size_t size,
                                            size_t alignment,
+                                           AllocToken alloc_token,
                                            void* context) {
   // no-op.
   return g_mock_dispatch_for_advanced_checks.next->aligned_realloc_function(
-      address, size, alignment, context);
+      address, size, alignment, alloc_token, context);
 }
 
 void* MockAlignedReallocUncheckedWithAdvancedChecks(void* address,
                                                     size_t size,
                                                     size_t alignment,
+                                                    AllocToken alloc_token,
                                                     void* context) {
   // no-op.
   return g_mock_dispatch_for_advanced_checks.next
-      ->aligned_realloc_unchecked_function(address, size, alignment, context);
+      ->aligned_realloc_unchecked_function(address, size, alignment,
+                                           alloc_token, context);
 }
 
 void MockAlignedFreeWithAdvancedChecks(void* address, void* context) {

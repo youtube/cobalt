@@ -13,6 +13,7 @@
 
 #include "base/base_export.h"
 #include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "base/strings/cstring_view.h"
 #include "base/win/access_control_list.h"
 #include "base/win/scoped_handle.h"
@@ -78,12 +79,15 @@ class BASE_EXPORT AccessToken {
 
   class BASE_EXPORT SecurityAttribute {
    public:
-    SecurityAttribute(std::wstring_view name,
-                      ULONG type,
-                      ULONG flags,
-                      std::vector<std::wstring> values);
     SecurityAttribute(SecurityAttribute&&);
     ~SecurityAttribute();
+
+    // Create a security attribute object for testing.
+    static SecurityAttribute CreateForTesting(
+        std::wstring_view name,
+        bool is_string,
+        ULONG flags,
+        base::span<std::wstring_view> values);
 
     // Indicates if the attribute was originally a list of strings types.
     bool is_string() const;
@@ -96,8 +100,17 @@ class BASE_EXPORT AccessToken {
     const std::vector<std::wstring>& values() const { return values_; }
     // The flags for the attribute.
     ULONG flags() const { return flags_; }
+    // Gets an SDDL format equality conditional expression for the security
+    // attribute. This can be used to add a conditional ACE to a security
+    // descriptor to limit access based on the presence of the attribute.
+    std::wstring GetConditionalExpression() const;
 
    private:
+    friend class AccessToken;
+    SecurityAttribute(std::wstring_view name,
+                      ULONG type,
+                      ULONG flags,
+                      std::vector<std::wstring> values);
     std::wstring name_;
     ULONG type_;
     ULONG flags_;
@@ -319,9 +332,9 @@ class BASE_EXPORT AccessToken {
   // The token needs to be opened with TOKEN_DUPLICATE access.
   std::optional<AccessToken> CreateRestricted(
       DWORD flags,
-      const std::vector<Sid>& sids_to_disable,
-      const std::vector<std::wstring>& privileges_to_delete,
-      const std::vector<Sid>& sids_to_restrict,
+      base::span<const Sid> sids_to_disable,
+      base::span<const std::wstring> privileges_to_delete,
+      base::span<const Sid> sids_to_restrict,
       ACCESS_MASK desired_access = 0) const;
 
   // Create a new AppContainer primary token from this token.
@@ -331,7 +344,7 @@ class BASE_EXPORT AccessToken {
   // The token needs to be opened with TOKEN_DUPLICATE access.
   std::optional<AccessToken> CreateAppContainer(
       const Sid& appcontainer_sid,
-      const std::vector<Sid>& capabilities,
+      base::span<const Sid> capabilities,
       ACCESS_MASK desired_access = 0) const;
 
   // Enable or disable a privilege.

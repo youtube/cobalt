@@ -5,10 +5,12 @@
 #ifndef CHROME_BROWSER_UI_VIEWS_TABS_VERTICAL_VERTICAL_DRAGGED_TABS_CONTAINER_H_
 #define CHROME_BROWSER_UI_VIEWS_TABS_VERTICAL_VERTICAL_DRAGGED_TABS_CONTAINER_H_
 
-#include "base/containers/flat_set.h"
+#include "base/containers/flat_map.h"
 #include "base/memory/raw_ref.h"
 #include "base/scoped_observation.h"
 #include "chrome/browser/ui/views/tabs/dragging/tab_drag_target.h"
+#include "ui/gfx/geometry/rect.h"
+#include "ui/gfx/geometry/vector2d.h"
 #include "ui/views/view_observer.h"
 
 class VerticalTabDragHandler;
@@ -27,7 +29,15 @@ class ScrollView;
 class VerticalDraggedTabsContainer : public TabDragTarget,
                                      public views::ViewObserver {
  public:
-  explicit VerticalDraggedTabsContainer(views::View& host_view);
+  // The axes that the dragged tabs can move on.
+  enum class DragAxes { kVerticalOnly, kBoth };
+
+  // How the dragged tabs should be laid out.
+  enum class DragLayout { kVertical, kSquash };
+
+  VerticalDraggedTabsContainer(views::View& host_view,
+                               DragAxes drag_axis,
+                               DragLayout drag_layout);
   VerticalDraggedTabsContainer(const VerticalDraggedTabsContainer& other) =
       delete;
   VerticalDraggedTabsContainer& operator=(const VerticalDraggedTabsContainer&) =
@@ -36,14 +46,14 @@ class VerticalDraggedTabsContainer : public TabDragTarget,
 
   // Recursively searches through the view hierarchy to find the collection
   // that should should be handling the tab drag at the given point.
-  VerticalDraggedTabsContainer& GetTabDragTarget(
+  virtual VerticalDraggedTabsContainer& GetTabDragTarget(
       const gfx::Point& point_in_screen);
 
   // TabDragTarget
   TabDragContext* OnTabDragUpdated(TabDragTarget::DragController& controller,
                                    const gfx::Point& point_in_screen) override;
   void OnTabDragEntered() override {}
-  void OnTabDragExited() override;
+  void OnTabDragExited(const gfx::Point& point_in_screen) override;
   void OnTabDragEnded() override;
   bool CanDropTab() final;
   void HandleTabDrop(TabDragTarget::DragController& controller) final {}
@@ -53,18 +63,48 @@ class VerticalDraggedTabsContainer : public TabDragTarget,
   // ViewObserver
   void OnViewBoundsChanged(views::View* observed_view) override;
 
- protected:
-  // Returns the expected Y coordinate for a dragged tab view's bounds, or null
-  // if the view isn't being dragged in this.
-  std::optional<int> GetYForDraggedTabBounds(const views::View& view) const;
+  // Whether this container is currently handling a drag.
+  bool IsHandlingDrag() const;
 
-  // Helper for getting the view at a given point, excluding dragged views.
-  views::View* GetViewAtPoint(const views::ProposedLayout& layout,
-                              const gfx::Point& point);
+  // Returns the bounds of the box containing all dragged views, adjusted to
+  // the point `point_in_container`. The returned bounds are not clamped to
+  // the container bounds.
+  gfx::Rect GetDraggingViewsBoundsAtPoint(
+      const gfx::Point& point_in_container) const;
+
+ protected:
+  struct DraggedViewVisualData {
+    gfx::Vector2d offset;
+    bool should_hide = false;
+  };
+
+  // Returns the expected visual data, relative to the host view, for a dragged
+  // view. Returns std::nullopt if the view is not being dragged.
+  std::optional<DraggedViewVisualData> GetVisualDataForDraggedView(
+      const views::View& view) const;
+
+  // Helper for getting the target view for the given drag bounds, excluding
+  // dragged views.
+  views::View* GetViewForDragBounds(const views::ProposedLayout& layout,
+                                    const gfx::Rect& dragged_tab_bounds);
+
+  // Returns whether the two rects overlap by at least the provided minimums for
+  // each axis.
+  // E.g, if only `min_x_overlap` is provided, then this will return true
+  // iff the range of [a.x(), a.right()] overlaps with the range [b.x(),
+  // b.right()]. If both axes are specified, then this must be true for each
+  // respective axis.
+  bool HasMinimumOverlap(const gfx::Rect& a,
+                         const gfx::Rect& b,
+                         std::optional<int> min_x_overlap,
+                         std::optional<int> min_y_overlap) const;
 
  private:
   virtual VerticalTabDragHandler& GetDragHandler() = 0;
   virtual const VerticalTabDragHandler& GetDragHandler() const = 0;
+
+  // Whether the tab strip is collapsed.
+  virtual bool IsTabStripCollapsed() const = 0;
 
   // Returns the scroll view for the container.
   virtual views::ScrollView* GetScrollViewForContainer() const = 0;
@@ -75,11 +115,19 @@ class VerticalDraggedTabsContainer : public TabDragTarget,
   // Handles a dragged tab that is parented within this target.
   // `point_in_container` is a point relative to this target's view.
   virtual void HandleTabDragInContainer(
-      const gfx::Point point_in_container) = 0;
+      const gfx::Rect& dragged_tab_bounds) = 0;
 
   // Updates state related to dragging tabs, to be used when this container
   // starts handling a drag.
   void InitializeDragState(TabDragTarget::DragController& controller);
+
+  // Builds `dragging_views_` and `dragging_views_bounds_` for the given
+  // drag data.
+  void BuildDragLayout(const DragSessionData& drag_data);
+  void AddViewToVerticalDragLayout(views::View* dragging_view,
+                                   bool is_source_dragged_view);
+  void AddViewToSquashedDragLayout(views::View* dragging_view,
+                                   bool is_source_dragged_view);
 
   // Clears drag state and removes the transformations that were being used for
   // the drag.
@@ -89,15 +137,29 @@ class VerticalDraggedTabsContainer : public TabDragTarget,
   // the last drag point.
   void UpdateDraggingViewTransforms(const gfx::Point& point_in_container);
 
-  // Returns the minimum top bounds to clamp the transformation applied to the
-  // drag view. This is to ensure the dragged view transform doesn't clip.
-  int GetMinYForDragToClamp() const;
+  bool IsHorizontalDragSupported() const;
+
+  // Returns the bounds of the box containing all dragged views, adjusted to
+  // the point `point_in_container` and clamped to the bounds of the
+  // scroll view, which should be used for visual representation of the dragged
+  // views.
+  gfx::Rect GetDraggingViewsBoundsAtPointClamped(
+      const gfx::Point& point_in_container) const;
 
   const raw_ref<const views::View> host_view_;
+  int tab_strip_padding_;
 
-  // Child views that are being dragged.
-  base::flat_set<raw_ptr<views::View>> dragging_views_;
   gfx::Point last_drag_point_in_screen_;
+
+  // The bounding box of all the dragged views, relative to the drag point.
+  gfx::Rect dragging_views_bounds_;
+
+  // Child views that are being dragged, mapped to their DraggedViewVisualData,
+  // whose offset is relative within `dragging_views_bounds_`.
+  base::flat_map<raw_ptr<views::View>, DraggedViewVisualData> dragging_views_;
+
+  const DragAxes drag_axes_;
+  const DragLayout drag_layout_;
 
   base::ScopedObservation<views::View, views::ViewObserver>
       host_view_observation_{this};

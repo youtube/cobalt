@@ -500,6 +500,8 @@ class PasswordAutofillAgent : public content::RenderFrameObserver,
   // `password` respectively into them.
   // Uses `suggestion_source` to update the `FieldPropertiesMask` of filled
   // fields.
+  // Returns whether the fields were filled with the requested values
+  // successfully.
   bool FillUsernameAndPasswordElements(
       blink::WebInputElement username_element,
       blink::WebInputElement password_element,
@@ -519,14 +521,11 @@ class PasswordAutofillAgent : public content::RenderFrameObserver,
   // This function attempts to fill `username_element` and `password_element`
   // with values from `fill_data` when the page is loaded. The
   // `username_element` and `password_element` will only have the suggestedValue
-  // set. Notifies the browser about successful filling based on
-  // `notify_browser_of_successful_filling`. Returns true if filling was
-  // successful.
+  // set. Returns true if filling was successful.
   bool FillCredentialsAutomatically(blink::WebInputElement username_element,
                                     blink::WebInputElement password_element,
                                     const PasswordFormFillData& fill_data,
-                                    RendererSavePasswordProgressLogger* logger,
-                                    bool notify_browser_of_successful_filling);
+                                    RendererSavePasswordProgressLogger* logger);
 
   void HidePopup();
 

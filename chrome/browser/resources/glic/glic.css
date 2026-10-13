@@ -14,9 +14,10 @@
   --color--surface-container: light-dark(#F0F4F9, #282A2C);
 }
 
-html, body {
+html,
+body {
   margin: 0;
-  height: 100%
+  height: 100%;
 }
 
 body {
@@ -67,7 +68,7 @@ webview:not([hidden]) {
   display: flex;
   flex-direction: column;
   background: var(--color--surface);
-  height: 100%
+  height: 100%;
 }
 
 #loadingPanel {
@@ -156,6 +157,7 @@ webview:not([hidden]) {
   display: flex;
   justify-content: space-between;
   cursor: grab;
+  -webkit-app-region: drag;
 }
 
 #loadingPanel .header {
@@ -186,10 +188,6 @@ webview:not([hidden]) {
   --cr-icon-button-size: 24px;
   --cr-icon-button-icon-size: 20px;
   color: var(--color--on-surface-variant);
-}
-
-.panel .header {
-  -webkit-app-region: drag;
 }
 
 .dialog .notice {
@@ -391,7 +389,7 @@ cr-progress {
 
 .overlay.hidden .message {
   opacity: 0;
-  transition-delay: 0s
+  transition-delay: 0s;
 }
 
 .overlay cr-icon {

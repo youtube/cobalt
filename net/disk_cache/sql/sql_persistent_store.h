@@ -7,6 +7,7 @@
 
 #include <optional>
 #include <set>
+#include <variant>
 
 #include "base/containers/flat_set.h"
 #include "base/functional/callback_forward.h"
@@ -19,6 +20,7 @@
 #include "net/disk_cache/buildflags.h"
 #include "net/disk_cache/disk_cache.h"
 #include "net/disk_cache/sql/cache_entry_key.h"
+#include "net/disk_cache/sql/entry_write_buffer.h"
 #include "net/disk_cache/sql/sql_backend_aliases.h"
 #include "net/disk_cache/sql/sql_persistent_store_in_memory_index.h"
 
@@ -110,6 +112,23 @@ class NET_EXPORT_PRIVATE SqlPersistentStore {
     scoped_refptr<net::GrowableIOBuffer> head;
     // True if the entry was opened, false if it was newly created.
     bool opened = false;
+  };
+
+  // Represents the result of a read operation.
+  struct NET_EXPORT_PRIVATE ReadResult {
+    ReadResult();
+    ~ReadResult();
+    ReadResult(const ReadResult&);
+    ReadResult& operator=(const ReadResult&);
+    ReadResult(ReadResult&&);
+    ReadResult& operator=(ReadResult&&);
+
+    // The number of bytes successfully read.
+    int read_bytes = 0;
+    // Optionally, a buffer containing data read beyond the requested range.
+    scoped_refptr<net::IOBuffer> cache_buffer;
+    // The offset within the entry's body where `cache_buffer` starts.
+    int64_t cache_buffer_offset = 0;
   };
 
   // Holds a resource ID and the ID of the shard it belongs to.
@@ -208,10 +227,11 @@ class NET_EXPORT_PRIVATE SqlPersistentStore {
       std::optional<EntryInfoWithKeyAndIterator>;
   using OptionalEntryInfoWithKeyAndIteratorCallback =
       base::OnceCallback<void(OptionalEntryInfoWithKeyAndIterator)>;
-  using IntOrError = base::expected<int, Error>;
-  using IntOrErrorCallback = base::OnceCallback<void(IntOrError)>;
+  using ReadResultOrError = base::expected<ReadResult, Error>;
+  using ReadResultOrErrorCallback = base::OnceCallback<void(ReadResultOrError)>;
   using Int64OrError = base::expected<int64_t, Error>;
   using Int64OrErrorCallback = base::OnceCallback<void(Int64OrError)>;
+  using ResIdOrTime = std::variant<ResId, base::Time>;
 
   using ResIdList = std::vector<ResId>;
   using ResIdListOrError = base::expected<ResIdList, Error>;
@@ -219,7 +239,11 @@ class NET_EXPORT_PRIVATE SqlPersistentStore {
 
   using ErrorAndStoreStatus = ResultAndStoreStatus<Error>;
   using EntryInfoOrErrorAndStoreStatus = ResultAndStoreStatus<EntryInfoOrError>;
-  using IntOrErrorAndStoreStatus = ResultAndStoreStatus<IntOrError>;
+  using ReadResultOrErrorAndStoreStatus =
+      ResultAndStoreStatus<ReadResultOrError>;
+  using ResIdOrError = base::expected<ResId, Error>;
+  using ResIdOrErrorCallback = base::OnceCallback<void(ResIdOrError)>;
+  using ResIdOrErrorAndStoreStatus = ResultAndStoreStatus<ResIdOrError>;
   using ResIdListOrErrorAndStoreStatus = ResultAndStoreStatus<ResIdListOrError>;
   using ResIdListOrErrorAndStoreStatusCallback =
       base::OnceCallback<void(ResIdListOrErrorAndStoreStatus)>;
@@ -306,51 +330,53 @@ class NET_EXPORT_PRIVATE SqlPersistentStore {
                                 base::Time last_used,
                                 ErrorCallback callback);
 
-  // Updates the `last_used` timestamp for the entry with the specified
-  // `res_id`. `callback` is invoked with `kOk` on success, or `kNotFound` if
-  // the entry does not exist or is already doomed.
-  void UpdateEntryLastUsedByResId(const CacheEntryKey& key,
-                                  ResId res_id,
-                                  base::Time last_used,
-                                  ErrorCallback callback);
-
-  // Updates the header data (stream 0), `last_used` timestamp, and optionally
-  // the in-memory `hints` for a specific cache entry. The `bytes_usage` for
-  // the entry is adjusted based on `header_size_delta`. `callback` is invoked
-  // with `kOk` on success, `kNotFound` if the entry (matching `key` and
-  // `res_id`) is not found or is doomed, or `kInvalidData` if internal data
-  // consistency checks fail. `buffer` must not be null. `header_size_delta`
-  // is the change in the size of the header data.
-  void UpdateEntryHeaderAndLastUsed(
+  // Writes data and updates metadata (header and last_used) for an entry in a
+  // single operation.
+  // `key` and `res_id` identify the target entry. If `res_id` is std::nullopt,
+  // a new entry is created.
+  // `old_body_end`: If provided, indicates that body data should be updated.
+  //                 It represents the expected current size of the body.
+  // `buffer`: contains the body data and offset to write.
+  // `last_used`: The new last used time. If a new entry is created, this is
+  //              used as the creation time.
+  // `new_hints`: Optional new hints to set.
+  // `head_buffer`: Optional new header data.
+  // `header_size_delta`: The change in header size.
+  // `callback`: Invoked with the result of the operation. Returns the resource
+  //             ID on success, or an error code on failure.
+  void WriteEntryDataAndMetadata(
       const CacheEntryKey& key,
-      ResId res_id,
+      std::optional<ResId> res_id,
+      std::optional<int64_t> old_body_end,
+      EntryWriteBuffer buffer,
       base::Time last_used,
       const std::optional<MemoryEntryDataHints>& new_hints,
-      scoped_refptr<net::IOBuffer> buffer,
+      scoped_refptr<net::IOBuffer> head_buffer,
       int64_t header_size_delta,
-      ErrorCallback callback);
+      ResIdOrErrorCallback callback);
 
   // Writes data to an entry's body. This can be used to write new data,
   // overwrite existing data, or append to the entry.
-  // `key` and `res_id` identify the target entry.
-  // `old_body_end` is the expected current size of the body. It is used to
-  // determine whether to trim or truncate existing data, and for consistency
-  // checks.
-  // `offset` is the position within the entry's body to start writing.
-  // `buffer` contains the data to be written. This can be null for truncation.
-  // `buf_len` is the size of `buffer`.
-  // If `truncate` is true, the entry's body will be truncated to the end of
-  // this write. Otherwise, the body size will grow if the write extends past
-  // the current end.
-  // `callback` is invoked upon completion with an error code.
+  // `key`: Identifies the target entry.
+  // `res_id_or_last_used_time`: Identifies the target entry. If it holds
+  //                             `base::Time`, a new entry is created with that
+  //                             time as the creation time. Otherwise, it holds
+  //                             the `ResId` of the existing entry.
+  // `old_body_end`: The expected current size of the body. It is used to
+  //                 determine whether to trim or truncate existing data, and
+  //                 for consistency checks.
+  // `buffer`: Contains the data and offset to be written.
+  // `truncate`: If true, the entry's body will be truncated to the end of this
+  //             write. Otherwise, the body size will grow if the write extends
+  //             past the current end.
+  // `callback`: Invoked with the result of the operation. Returns the resource
+  //             ID on success, or an error code on failure.
   void WriteEntryData(const CacheEntryKey& key,
-                      ResId res_id,
+                      const ResIdOrTime& res_id_or_last_used_time,
                       int64_t old_body_end,
-                      int64_t offset,
-                      scoped_refptr<net::IOBuffer> buffer,
-                      int buf_len,
+                      EntryWriteBuffer buffer,
                       bool truncate,
-                      ErrorCallback callback);
+                      ResIdOrErrorCallback callback);
 
   // Reads data from an entry's body.
   // `res_id` identifies the entry to read from.
@@ -369,7 +395,7 @@ class NET_EXPORT_PRIVATE SqlPersistentStore {
                      int buf_len,
                      int64_t body_end,
                      bool sparse_reading,
-                     IntOrErrorCallback callback);
+                     ReadResultOrErrorCallback callback);
 
   // Finds the available contiguous range of data for a given entry.
   // `res_id` identifies the entry.

@@ -24,6 +24,7 @@ export {DeletePasskeyDialogElement} from './dialogs/delete_passkey_dialog.js';
 export {DisconnectCloudAuthenticatorDialogElement} from './dialogs/disconnect_cloud_authenticator_dialog.js';
 export {EditPasskeyDialogElement} from './dialogs/edit_passkey_dialog.js';
 export {EditPasswordDialogElement} from './dialogs/edit_password_dialog.js';
+export {MovePasswordsDialogElement} from './dialogs/move_passwords_dialog.js';
 export {RemoveActorLoginPermissionDialogElement} from './dialogs/remove_actor_login_permission_dialog.js';
 export {FullDataResetElement} from './full_data_reset.js';
 // <if expr="is_win or is_macosx">
@@ -33,7 +34,7 @@ export type {PasskeysBrowserProxy} from './passkeys_browser_proxy.js';
 export {PasswordDetailsSectionElement} from './password_details_section.js';
 export {PasswordListItemElement} from './password_list_item.js';
 export {PasswordManagerAppElement} from './password_manager_app.js';
-export type {AccountStorageEnabledStateChangedListener, BlockedSite, BlockedSitesListChangedListener, CredentialsChangedListener, PasswordCheckStatusChangedListener, PasswordManagerAuthTimeoutListener, PasswordManagerProxy, PasswordsFileExportProgressListener, ShouldShowAccountStorageToggleChangedListener} from './password_manager_proxy.js';
+export type {AccountStorageActiveStateChangedListener, BlockedSite, BlockedSitesListChangedListener, CredentialsChangedListener, PasswordCheckStatusChangedListener, PasswordManagerAuthTimeoutListener, PasswordManagerProxy, PasswordsFileExportProgressListener, ShouldShowAccountStorageToggleChangedListener} from './password_manager_proxy.js';
 export {PasswordCheckInteraction, PasswordManagerImpl, PasswordViewPageInteractions} from './password_manager_proxy.js';
 export {PasswordsExporterElement} from './passwords_exporter.js';
 export {PasswordsImporterElement} from './passwords_importer.js';

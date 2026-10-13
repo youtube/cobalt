@@ -13,6 +13,8 @@
 #include "base/not_fatal_until.h"
 #include "base/trace_event/trace_event.h"
 #include "third_party/blink/renderer/core/dom/text_diff_range.h"
+#include "third_party/blink/renderer/core/frame/local_frame.h"
+#include "third_party/blink/renderer/core/frame/settings.h"
 #include "third_party/blink/renderer/core/frame/web_feature.h"
 #include "third_party/blink/renderer/core/layout/block_break_token.h"
 #include "third_party/blink/renderer/core/layout/constraint_space.h"
@@ -386,7 +388,7 @@ void CollectInlinesInternal(ItemsBuilder* builder,
         return;
 
       builder->ClearInlineFragment(node);
-    } else if (node->IsAtomicInlineLevel()) {
+    } else if (node->IsAtomicInline()) {
       if (node->IsLayoutOutsideListMarker()) {
         // LayoutListItem produces the 'outside' list marker as an inline
         // block. This is an out-of-flow item whose position is computed
@@ -1453,9 +1455,6 @@ bool InlineNode::IsNGShapeCacheAllowed(const String& text_content,
   if (items.size() != 1) {
     return false;
   }
-  if (text_content.length() > NGShapeCache::kMaxTextLengthOfEntries) {
-    return false;
-  }
   const InlineItem& single_item = *items[0];
   if (!(single_item.Type() == InlineItem::kText &&
         single_item.StartOffset() == 0 &&
@@ -2297,6 +2296,16 @@ const Font& InlineNode::FontForTab() const {
                                                     : Style().GetFont();
   DCHECK(font);
   return *font;
+}
+
+std::optional<float> InlineNode::MinimumFontPhysicalSize() const {
+  const LocalFrame* frame = GetDocument().GetFrame();
+  if (const auto* settings = frame->GetSettings()) {
+    if (int min_size = settings->GetMinimumFontSize(); min_size > 0) {
+      return min_size * frame->DevicePixelRatio();
+    }
+  }
+  return std::nullopt;
 }
 
 void InlineNode::AdjustFontForTextCombineUprightAll() const {

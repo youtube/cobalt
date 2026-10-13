@@ -36,6 +36,7 @@
 #include "content/public/browser/devtools_agent_host_client.h"
 #include "content/public/browser/devtools_manager_delegate.h"
 #include "content/public/browser/navigation_throttle.h"
+#include "content/public/common/content_client.h"
 #include "url/url_constants.h"
 
 namespace content::protocol {
@@ -226,7 +227,7 @@ class BrowserToPageConnector {
     SendProtocolMessageToPage("Page.enable", base::Value());
     SendProtocolMessageToPage("Runtime.enable", base::Value());
 
-    base::Value::Dict add_binding_params;
+    base::DictValue add_binding_params;
     add_binding_params.Set("name", binding_name);
     // Expose to the default execution context only.
     add_binding_params.Set("executionContextName", "");
@@ -236,7 +237,7 @@ class BrowserToPageConnector {
     std::string initializer_script =
         base::StringPrintf(kInitializerScript, binding_name.c_str());
 
-    base::Value::Dict params;
+    base::DictValue params;
     params.Set("source", initializer_script);
     params.Set("worldName", "");
     // Run the initializer script immediately on the current page. This is
@@ -260,7 +261,7 @@ class BrowserToPageConnector {
 
  private:
   int SendProtocolMessageToPage(const char* method, base::Value params) {
-    base::Value::Dict message_dict;
+    base::DictValue message_dict;
     int id = page_message_id_++;
     message_dict.Set("id", id);
     message_dict.Set("method", method);
@@ -277,7 +278,7 @@ class BrowserToPageConnector {
     std::string_view message_sp(reinterpret_cast<const char*>(message.data()),
                                 message.size());
     if (agent_host == page_host_.get()) {
-      std::optional<base::Value::Dict> value = base::JSONReader::ReadDict(
+      std::optional<base::DictValue> value = base::JSONReader::ReadDict(
           message_sp, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
       if (!value) {
         return;
@@ -297,7 +298,7 @@ class BrowserToPageConnector {
         return;
       }
 
-      const base::Value::Dict* params = value->FindDict("params");
+      const base::DictValue* params = value->FindDict("params");
       if (!params) {
         return;
       }
@@ -325,7 +326,7 @@ class BrowserToPageConnector {
     eval_code.append(encoded);
     eval_code.append(eval_suffix);
 
-    base::Value::Dict params;
+    base::DictValue params;
     params.Set("expression", std::move(eval_code));
     SendProtocolMessageToPage("Runtime.evaluate",
                               base::Value(std::move(params)));
@@ -542,7 +543,7 @@ class TargetHandler::Session : public DevToolsAgentHostClient {
     DCHECK(!flatten_protocol_);
 
     if (throttle_ || worker_throttle_) {
-      std::optional<base::Value::Dict> value = base::JSONReader::ReadDict(
+      std::optional<base::DictValue> value = base::JSONReader::ReadDict(
           std::string_view(reinterpret_cast<const char*>(message.data()),
                            message.size()),
           base::JSON_PARSE_CHROMIUM_EXTENSIONS);
@@ -1296,6 +1297,7 @@ Response TargetHandler::CreateTarget(
     std::optional<bool> background,
     std::optional<bool> for_tab,
     std::optional<bool> hidden,
+    std::optional<bool> focus,
     std::string* out_target_id) {
   if (access_mode_ == AccessMode::kAutoAttachOnly) {
     return Response::ServerError(kNotAllowedError);
@@ -1377,6 +1379,14 @@ Response TargetHandler::GetTargets(
   *target_infos = std::make_unique<protocol::Array<Target::TargetInfo>>();
   for (const auto& host : DevToolsAgentHost::GetOrCreateAll()) {
     if (effective_filter->Match(*host)) {
+#if !BUILDFLAG(IS_ANDROID)
+      // Do not return initial WebUI as the DevTools targets.
+      // TODO(crbug.com/444358999): consider adding this into the `filter` when
+      // we really need to get the initial WebUI target.
+      if (GetContentClient()->browser()->IsInitialWebUIURL(host->GetURL())) {
+        continue;
+      }
+#endif  //  !BUILDFLAG(IS_ANDROID)
       (*target_infos)->emplace_back(BuildTargetInfo(host.get()));
     }
   }

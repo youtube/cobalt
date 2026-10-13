@@ -7,10 +7,11 @@
 #include <stdint.h>
 
 #include <memory>
-#include <set>
 #include <string>
+#include <string_view>
 
 #include "ash/constants/ash_features.h"
+#include "base/containers/fixed_flat_set.h"
 #include "base/i18n/encoding_detection.h"
 #include "base/i18n/icu_string_conversions.h"
 #include "base/notreached.h"
@@ -33,8 +34,8 @@ std::string ValidateUTF8(const std::string& str) {
   std::string result;
   for (size_t index = 0; index < str.size(); ++index) {
     base_icu::UChar32 code_point_out;
-    bool is_unicode_char = base::ReadUnicodeCharacter(str.c_str(), str.size(),
-                                                      &index, &code_point_out);
+    bool is_unicode_char =
+        base::ReadUnicodeCharacter(str, &index, &code_point_out);
     constexpr base_icu::UChar32 kFirstNonControlChar = 0x20;
     if (is_unicode_char && (code_point_out >= kFirstNonControlChar)) {
       base::WriteUnicodeCharacter(code_point_out, &result);
@@ -50,9 +51,9 @@ std::string ValidateUTF8(const std::string& str) {
 
 // If existent and non-empty, copies the string at |key| from |source| to
 // |dest|. Returns true if the string was copied.
-bool CopyStringFromDictionary(const base::Value::Dict& source,
+bool CopyStringFromDictionary(const base::DictValue& source,
                               const std::string& key,
-                              base::Value::Dict* dest) {
+                              base::DictValue* dest) {
   const std::string* string_value = source.FindString(key);
   if (!string_value || string_value->empty()) {
     return false;
@@ -61,7 +62,7 @@ bool CopyStringFromDictionary(const base::Value::Dict& source,
   return true;
 }
 
-std::string GetStringFromDictionary(const base::Value::Dict& dict,
+std::string GetStringFromDictionary(const base::DictValue& dict,
                                     const char* key) {
   const std::string* v = dict.FindString(key);
   return v ? *v : std::string();
@@ -69,11 +70,11 @@ std::string GetStringFromDictionary(const base::Value::Dict& dict,
 
 }  // namespace
 
-void SetSSID(const std::string& ssid, base::Value::Dict* properties) {
+void SetSSID(const std::string& ssid, base::DictValue* properties) {
   properties->Set(shill::kWifiHexSsid, base::HexEncode(ssid));
 }
 
-std::string GetSSIDFromProperties(const base::Value::Dict& properties,
+std::string GetSSIDFromProperties(const base::DictValue& properties,
                                   bool verbose_logging,
                                   bool* unknown_encoding) {
   if (unknown_encoding)
@@ -135,7 +136,7 @@ std::string GetSSIDFromProperties(const base::Value::Dict& properties,
   return ssid;
 }
 
-std::string GetNetworkIdFromProperties(const base::Value::Dict& properties) {
+std::string GetNetworkIdFromProperties(const base::DictValue& properties) {
   if (properties.empty()) {
     return "EmptyProperties";
   }
@@ -153,7 +154,7 @@ std::string GetNetworkIdFromProperties(const base::Value::Dict& properties) {
 }
 
 std::string GetNameFromProperties(const std::string& service_path,
-                                  const base::Value::Dict& properties) {
+                                  const base::DictValue& properties) {
   std::string name = GetStringFromDictionary(properties, shill::kNameProperty);
   std::string validated_name = ValidateUTF8(name);
   if (validated_name != name) {
@@ -199,7 +200,7 @@ std::unique_ptr<NetworkUIData> GetUIDataFromValue(
   if (ui_data_str->empty()) {
     return std::make_unique<NetworkUIData>();
   }
-  std::optional<base::Value::Dict> ui_data_dict =
+  std::optional<base::DictValue> ui_data_dict =
       chromeos::onc::ReadDictionaryFromJson(*ui_data_str);
   if (!ui_data_dict.has_value()) {
     return nullptr;
@@ -208,7 +209,7 @@ std::unique_ptr<NetworkUIData> GetUIDataFromValue(
 }
 
 std::unique_ptr<NetworkUIData> GetUIDataFromProperties(
-    const base::Value::Dict& shill_dictionary) {
+    const base::DictValue& shill_dictionary) {
   const base::Value* ui_data_value =
       shill_dictionary.Find(shill::kUIDataProperty);
   if (!ui_data_value) {
@@ -223,7 +224,7 @@ std::unique_ptr<NetworkUIData> GetUIDataFromProperties(
 }
 
 void SetRandomMACPolicy(::onc::ONCSource onc_source,
-                        base::Value::Dict* shill_dictionary) {
+                        base::DictValue* shill_dictionary) {
   std::string* service_type =
       shill_dictionary->FindString(shill::kTypeProperty);
   DCHECK(service_type);
@@ -261,7 +262,7 @@ void SetRandomMACPolicy(::onc::ONCSource onc_source,
 }
 
 void SetUIDataAndSource(const NetworkUIData& ui_data,
-                        base::Value::Dict* shill_dictionary) {
+                        base::DictValue* shill_dictionary) {
   shill_dictionary->Set(shill::kUIDataProperty, ui_data.GetAsJson());
   std::string source;
   switch (ui_data.onc_source()) {
@@ -284,9 +285,9 @@ void SetUIDataAndSource(const NetworkUIData& ui_data,
   shill_dictionary->Set(shill::kONCSourceProperty, source);
 }
 
-bool CopyIdentifyingProperties(const base::Value::Dict& service_properties,
+bool CopyIdentifyingProperties(const base::DictValue& service_properties,
                                const bool properties_read_from_shill,
-                               base::Value::Dict* dest) {
+                               base::DictValue* dest) {
   bool success = true;
 
   // GUID is optional.
@@ -316,7 +317,7 @@ bool CopyIdentifyingProperties(const base::Value::Dict& service_properties,
     std::string vpn_provider_type;
     std::string vpn_provider_host;
     if (properties_read_from_shill) {
-      const base::Value::Dict* provider_properties =
+      const base::DictValue* provider_properties =
           service_properties.FindDict(shill::kProviderProperty);
       if (!provider_properties) {
         NET_LOG(ERROR) << "Missing VPN provider dict: "
@@ -361,15 +362,15 @@ bool CopyIdentifyingProperties(const base::Value::Dict& service_properties,
   return success;
 }
 
-bool DoIdentifyingPropertiesMatch(const base::Value::Dict& new_properties,
-                                  const base::Value::Dict& old_properties) {
-  base::Value::Dict new_identifying;
+bool DoIdentifyingPropertiesMatch(const base::DictValue& new_properties,
+                                  const base::DictValue& old_properties) {
+  base::DictValue new_identifying;
   if (!CopyIdentifyingProperties(
           new_properties, false /* properties were not read from Shill */,
           &new_identifying)) {
     return false;
   }
-  base::Value::Dict old_identifying;
+  base::DictValue old_identifying;
   if (!CopyIdentifyingProperties(old_properties,
                                  true /* properties were read from Shill */,
                                  &old_identifying)) {
@@ -379,30 +380,29 @@ bool DoIdentifyingPropertiesMatch(const base::Value::Dict& new_properties,
   return new_identifying == old_identifying;
 }
 
-bool IsLoggableShillProperty(const std::string& key) {
-  static std::set<std::string>* s_skip_properties = nullptr;
-  if (!s_skip_properties) {
-    s_skip_properties = new std::set<std::string>;
-    s_skip_properties->insert(shill::kApnPasswordProperty);
-    s_skip_properties->insert(shill::kEapCaCertPemProperty);
-    s_skip_properties->insert(shill::kEapCaCertProperty);
-    s_skip_properties->insert(shill::kEapPasswordProperty);
-    s_skip_properties->insert(shill::kEapPinProperty);
-    s_skip_properties->insert(shill::kL2TPIPsecCaCertPemProperty);
-    s_skip_properties->insert(shill::kL2TPIPsecPasswordProperty);
-    s_skip_properties->insert(shill::kL2TPIPsecPinProperty);
-    s_skip_properties->insert(shill::kL2TPIPsecPskProperty);
-    s_skip_properties->insert(shill::kOpenVPNAuthUserPassProperty);
-    s_skip_properties->insert(shill::kOpenVPNCaCertPemProperty);
-    s_skip_properties->insert(shill::kOpenVPNExtraCertPemProperty);
-    s_skip_properties->insert(shill::kOpenVPNOTPProperty);
-    s_skip_properties->insert(shill::kOpenVPNPasswordProperty);
-    s_skip_properties->insert(shill::kOpenVPNPinProperty);
-    s_skip_properties->insert(shill::kOpenVPNTLSAuthContentsProperty);
-    s_skip_properties->insert(shill::kPassphraseProperty);
-    s_skip_properties->insert(shill::kUIDataProperty);
-  }
-  return s_skip_properties->count(key) == 0;
+bool IsLoggableShillProperty(std::string_view key) {
+  static constexpr auto kSSkipProperties =
+      base::MakeFixedFlatSet<std::string_view>({
+          shill::kApnPasswordProperty,
+          shill::kEapCaCertPemProperty,
+          shill::kEapCaCertProperty,
+          shill::kEapPasswordProperty,
+          shill::kEapPinProperty,
+          shill::kL2TPIPsecCaCertPemProperty,
+          shill::kL2TPIPsecPasswordProperty,
+          shill::kL2TPIPsecPinProperty,
+          shill::kL2TPIPsecPskProperty,
+          shill::kOpenVPNAuthUserPassProperty,
+          shill::kOpenVPNCaCertPemProperty,
+          shill::kOpenVPNExtraCertPemProperty,
+          shill::kOpenVPNOTPProperty,
+          shill::kOpenVPNPasswordProperty,
+          shill::kOpenVPNPinProperty,
+          shill::kOpenVPNTLSAuthContentsProperty,
+          shill::kPassphraseProperty,
+          shill::kUIDataProperty,
+      });
+  return !kSSkipProperties.contains(key);
 }
 
 }  // namespace ash::shill_property_util

@@ -525,20 +525,20 @@ class CloudPolicyClientTest : public testing::Test {
     CreateClient("", "", kFlexSysVendor, kFlexProductName, kFlexProductVersion);
   }
 
-  base::Value::Dict MakeDefaultRealtimeReport() {
-    base::Value::Dict context;
+  base::DictValue MakeDefaultRealtimeReport() {
+    base::DictValue context;
     context.SetByDottedPath("profile.gaiaEmail", "name@gmail.com");
     context.SetByDottedPath("browser.userAgent", "User-Agent");
     context.SetByDottedPath("profile.profileName", "Profile 1");
     context.SetByDottedPath("profile.profilePath", "C:\\User Data\\Profile 1");
 
-    base::Value::Dict event;
+    base::DictValue event;
     event.Set("time", "2019-05-22T13:01:45Z");
     event.SetByDottedPath("foo.prop1", "value1");
     event.SetByDottedPath("foo.prop2", "value2");
     event.SetByDottedPath("foo.prop3", "value3");
 
-    base::Value::List event_list;
+    base::ListValue event_list;
     event_list.Append(std::move(event));
     return policy::RealtimeReportingJobConfiguration::BuildReport(
         std::move(event_list), std::move(context));
@@ -1707,6 +1707,7 @@ TEST_F(CloudPolicyClientTest, PolicyFetchSHA256) {
 }
 
 TEST_F(CloudPolicyClientTest, PolicyFetchDisabledSHA256) {
+  // Proto-based reporting is not applicable to tests for deprecated reporting.
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitAndDisableFeature(policy::kPolicyFetchWithSha256);
   RegisterClient();
@@ -2036,7 +2037,7 @@ TEST_F(CloudPolicyClientTest,
                 kExtension.extension_id);
       EXPECT_EQ(fetch_request.extension_ids_and_version(0).extension_version(),
                 kExtension.extension_version);
-      EXPECT_TRUE(fetch_request.has_settings_entity_id());
+      EXPECT_FALSE(fetch_request.has_settings_entity_id());
     } else {
       EXPECT_FALSE(fetch_request.has_settings_entity_id());
     }
@@ -2743,6 +2744,11 @@ INSTANTIATE_TEST_SUITE_P(
 
 TEST_F(CloudPolicyClientTest,
        UploadSecurityEventReportDeprecatedNotRegistered) {
+  // Proto-based reporting is not applicable to tests for deprecated reporting.
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      kUploadRealtimeReportingEventsUsingProto);
+
   ASSERT_FALSE(client_->is_registered());
 
   base::test::TestFuture<CloudPolicyClient::Result> result_future;
@@ -2759,7 +2765,7 @@ TEST_F(CloudPolicyClientTest,
 TEST_F(CloudPolicyClientTest, UploadSecurityEventNotRegistered) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitAndEnableFeature(
-      policy::kUploadRealtimeReportingEventsUsingProto);
+      kUploadRealtimeReportingEventsUsingProto);
   ASSERT_FALSE(client_->is_registered());
 
   base::test::TestFuture<CloudPolicyClient::Result> result_future;
@@ -2778,8 +2784,11 @@ class CloudPolicyClientUploadSecurityEventReportDeprecatedTest
       public testing::WithParamInterface<bool> {
  public:
   CloudPolicyClientUploadSecurityEventReportDeprecatedTest() {
-    scoped_feature_list_.InitAndEnableFeature(
-        policy::features::kEnhancedSecurityEventFields);
+    scoped_feature_list_
+        .InitWithFeatures(/*enabled_features=*/
+                          {policy::features::kEnhancedSecurityEventFields},
+                          /*disabled_features=*/{
+                              kUploadRealtimeReportingEventsUsingProto});
   }
   bool include_device_info() const { return GetParam(); }
 
@@ -2814,7 +2823,7 @@ TEST_P(CloudPolicyClientUploadSecurityEventReportDeprecatedTest,
   std::optional<base::Value> payload = base::JSONReader::Read(
       job_payload_, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   ASSERT_TRUE(payload);
-  const base::Value::Dict& payload_dict = payload->GetDict();
+  const base::DictValue& payload_dict = payload->GetDict();
 
   ASSERT_FALSE(policy::GetDeviceName().empty());
   EXPECT_EQ(version_info::GetVersionNumber(),
@@ -2886,6 +2895,11 @@ TEST_P(CloudPolicyClientUploadSecurityEventReportDeprecatedTest,
 }
 
 TEST_F(CloudPolicyClientTest, UploadSecurityEventReportNoResponse) {
+  // Proto-based reporting is not applicable to tests for deprecated reporting.
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      kUploadRealtimeReportingEventsUsingProto);
+
   RegisterClient();
 
   ExpectAndCaptureJSONJob(/*response=*/"");
@@ -2907,7 +2921,7 @@ TEST_F(CloudPolicyClientTest, UploadSecurityEventReportNoResponse) {
   std::optional<base::Value> payload = base::JSONReader::Read(
       job_payload_, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   ASSERT_TRUE(payload);
-  const base::Value::Dict& payload_dict = payload->GetDict();
+  const base::DictValue& payload_dict = payload->GetDict();
 
   ASSERT_FALSE(policy::GetDeviceName().empty());
   EXPECT_EQ(version_info::GetVersionNumber(),
@@ -2922,9 +2936,9 @@ class CloudPolicyClientUploadSecurityEventTest
  public:
   CloudPolicyClientUploadSecurityEventTest() {
     scoped_feature_list_.InitWithFeatures(
-        {policy::kUploadRealtimeReportingEventsUsingProto,
-         policy::features::kEnhancedSecurityEventFields},
-        {});
+        /*enabled_features=*/{kUploadRealtimeReportingEventsUsingProto,
+                              policy::features::kEnhancedSecurityEventFields},
+        /*disabled_features=*/{});
   }
   bool include_device_info() const { return GetParam(); }
 
@@ -2988,7 +3002,7 @@ TEST_P(CloudPolicyClientUploadSecurityEventTest, TestWithProtoFormat) {
 TEST_F(CloudPolicyClientTest, RealtimeReportMerge) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitAndEnableFeature(
-      policy::kUploadRealtimeReportingEventsUsingProto);
+      kUploadRealtimeReportingEventsUsingProto);
 
   auto config = std::make_unique<RealtimeReportingJobConfiguration>(
       client_.get(), service_.configuration()->GetRealtimeReportingServerUrl(),
@@ -3046,6 +3060,11 @@ TEST_F(CloudPolicyClientTest, RealtimeReportMerge) {
 }
 
 TEST_F(CloudPolicyClientTest, RealtimeReportMergeDeprecated) {
+  // Proto-based reporting is not applicable to tests for deprecated reporting.
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      kUploadRealtimeReportingEventsUsingProto);
+
   auto config = std::make_unique<RealtimeReportingJobConfiguration>(
       client_.get(), service_.configuration()->GetRealtimeReportingServerUrl(),
       /*include_device_info*/ true,
@@ -3053,22 +3072,22 @@ TEST_F(CloudPolicyClientTest, RealtimeReportMergeDeprecated) {
 
   // Add one report to the config.
   {
-    base::Value::Dict context;
+    base::DictValue context;
     context.SetByDottedPath("profile.gaiaEmail", "name@gmail.com");
     context.SetByDottedPath("browser.userAgent", "User-Agent");
     context.SetByDottedPath("profile.profileName", "Profile 1");
     context.SetByDottedPath("profile.profilePath", "C:\\User Data\\Profile 1");
 
-    base::Value::Dict event;
+    base::DictValue event;
     event.Set("time", "2019-09-10T20:01:45Z");
     event.SetByDottedPath("foo.prop1", "value1");
     event.SetByDottedPath("foo.prop2", "value2");
     event.SetByDottedPath("foo.prop3", "value3");
 
-    base::Value::List events;
+    base::ListValue events;
     events.Append(std::move(event));
 
-    base::Value::Dict report;
+    base::DictValue report;
     report.Set(RealtimeReportingJobConfiguration::kEventListKey,
                std::move(events));
     report.Set(RealtimeReportingJobConfiguration::kContextKey,
@@ -3079,21 +3098,21 @@ TEST_F(CloudPolicyClientTest, RealtimeReportMergeDeprecated) {
 
   // Add a second report to the config with a different context.
   {
-    base::Value::Dict context;
+    base::DictValue context;
     context.SetByDottedPath("profile.gaiaEmail", "name2@gmail.com");
     context.SetByDottedPath("browser.userAgent", "User-Agent2");
     context.SetByDottedPath("browser.version", "1.0.0.0");
 
-    base::Value::Dict event;
+    base::DictValue event;
     event.Set("time", "2019-09-10T20:02:45Z");
     event.SetByDottedPath("foo.prop1", "value1");
     event.SetByDottedPath("foo.prop2", "value2");
     event.SetByDottedPath("foo.prop3", "value3");
 
-    base::Value::List events;
+    base::ListValue events;
     events.Append(std::move(event));
 
-    base::Value::Dict report;
+    base::DictValue report;
     report.Set(RealtimeReportingJobConfiguration::kEventListKey,
                std::move(events));
     report.Set(RealtimeReportingJobConfiguration::kContextKey,
@@ -3107,7 +3126,7 @@ TEST_F(CloudPolicyClientTest, RealtimeReportMergeDeprecated) {
   std::optional<base::Value> payload = base::JSONReader::Read(
       job_config->GetPayload(), base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   ASSERT_TRUE(payload);
-  const base::Value::Dict& payload_dict = payload->GetDict();
+  const base::DictValue& payload_dict = payload->GetDict();
 
   ASSERT_EQ("name2@gmail.com",
             *payload_dict.FindStringByDottedPath("profile.gaiaEmail"));
@@ -3124,6 +3143,11 @@ TEST_F(CloudPolicyClientTest, RealtimeReportMergeDeprecated) {
 }
 
 TEST_F(CloudPolicyClientTest, UploadAppInstallReportNotRegistered) {
+  // Proto-based reporting is not applicable to tests for deprecated reporting.
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      kUploadRealtimeReportingEventsUsingProto);
+
   ASSERT_FALSE(client_->is_registered());
 
   base::test::TestFuture<CloudPolicyClient::Result> result_future;
@@ -3137,6 +3161,11 @@ TEST_F(CloudPolicyClientTest, UploadAppInstallReportNotRegistered) {
 }
 
 TEST_F(CloudPolicyClientTest, UploadAppInstallReport) {
+  // Proto-based reporting is not applicable to tests for deprecated reporting.
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      kUploadRealtimeReportingEventsUsingProto);
+
   RegisterClient();
 
   ExpectAndCaptureJSONJob(/*response=*/"{}");
@@ -3155,6 +3184,11 @@ TEST_F(CloudPolicyClientTest, UploadAppInstallReport) {
 }
 
 TEST_F(CloudPolicyClientTest, CancelUploadAppInstallReport) {
+  // Proto-based reporting is not applicable to tests for deprecated reporting.
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      kUploadRealtimeReportingEventsUsingProto);
+
   RegisterClient();
 
   ExpectAndCaptureJSONJob(/*response=*/"{}");
@@ -3180,6 +3214,11 @@ TEST_F(CloudPolicyClientTest, CancelUploadAppInstallReport) {
 }
 
 TEST_F(CloudPolicyClientTest, UploadAppInstallReportSupersedesPending) {
+  // Proto-based reporting is not applicable to tests for deprecated reporting.
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      kUploadRealtimeReportingEventsUsingProto);
+
   RegisterClient();
 
   ExpectAndCaptureJSONJob(/*response=*/"{}");
@@ -3643,7 +3682,7 @@ TEST_F(CloudPolicyClientTest, PolicyReregistrationFailsWithNonMatchingDMToken) {
 
 TEST_F(CloudPolicyClientTest, ResultCopyAssignment) {
   CloudPolicyClient::Result result1 =
-      CloudPolicyClient::Result(DM_STATUS_SUCCESS, 400, base::Value::Dict());
+      CloudPolicyClient::Result(DM_STATUS_SUCCESS, 400, base::DictValue());
   CloudPolicyClient::Result result2 =
       CloudPolicyClient::Result(DM_STATUS_REQUEST_FAILED);
 

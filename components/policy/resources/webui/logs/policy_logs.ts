@@ -11,7 +11,6 @@ import '/strings.m.js';
 
 import {sendWithPromise} from 'chrome://resources/js/cr.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
-import {sanitizeInnerHtml} from 'chrome://resources/js/parse_html_subset.js';
 import {getRequiredElement} from 'chrome://resources/js/util.js';
 
 import type {Log, VersionInfo} from './types.js';
@@ -44,7 +43,9 @@ function displayList() {
     logMessageContainer.innerHTML = '';
   }
   logs.forEach(log => {
-    const logMessage = document.createElement('li');
+    const logMessage = document.createElement('div');
+    logMessage.setAttribute('role', 'row');
+    logMessage.className = 'log-line';
 
     // Use en-CA locale to get a format of YYYY-MM-DD, HH:MM:SS.
     const timestamp = new Date(log.timestamp).toLocaleString('en-CA', {
@@ -52,9 +53,45 @@ function displayList() {
       hour12: false,
     });
 
-    // `log.message` is already escaped on the C++ side with EscapeForHTML().
-    logMessage.innerHTML =
-        sanitizeInnerHtml(`[${log.logSeverity}][${timestamp}] ${log.message}`);
+    // Create a row with 4 columns: timestamp, severity, file and line, message.
+
+    const timestampDiv = document.createElement('div');
+    timestampDiv.setAttribute('role', 'gridcell');
+    timestampDiv.className = 'log-column timestamp';
+    timestampDiv.textContent = timestamp;
+    logMessage.appendChild(timestampDiv);
+
+    const severityDiv = document.createElement('div');
+    severityDiv.setAttribute('role', 'gridcell');
+    severityDiv.className = 'log-column severity';
+    severityDiv.textContent = log.logSeverity;
+    logMessage.appendChild(severityDiv);
+
+    const fileAndLineDiv = document.createElement('div');
+    fileAndLineDiv.setAttribute('role', 'gridcell');
+    fileAndLineDiv.className = 'log-column file-and-line';
+    // "file.cc:123" is a link to the file in the Chromium code search.
+    const anchor = document.createElement('a');
+    anchor.href = log.location;
+    anchor.title = log.fileAndLine;
+    anchor.setAttribute('target', '_blank');
+    // If the name is too long, only shorten the "file" part with ellipses,
+    // not the line number.
+    const [file, line] = log.fileAndLine.split(':');
+    const fileSpan = document.createElement('span');
+    fileSpan.className = 'file';
+    fileSpan.textContent = file ?? null;
+    anchor.appendChild(fileSpan);
+    anchor.appendChild(document.createTextNode(':' + line));
+    fileAndLineDiv.appendChild(anchor);
+    logMessage.appendChild(fileAndLineDiv);
+
+    const messageDiv = document.createElement('div');
+    messageDiv.setAttribute('role', 'gridcell');
+    messageDiv.className = 'log-column message';
+    messageDiv.textContent = log.message;
+    logMessage.appendChild(messageDiv);
+
     logMessageContainer.appendChild(logMessage);
   });
 }

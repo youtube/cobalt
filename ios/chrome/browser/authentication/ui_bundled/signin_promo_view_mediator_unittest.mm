@@ -167,11 +167,7 @@ class SigninPromoViewMediatorTest : public PlatformTest {
   void TestSigninPromoWithAccount(SigninPromoViewStyle style) {
     // Expect to receive an update to the consumer with a configurator.
     ExpectConfiguratorNotification(/*identity_changed=*/YES);
-    if (!AreSeparateProfilesForManagedAccountsEnabled()) {
-      // With this feature configuration, AccountProfileMapper sends an extra
-      // "account changed" notification when adding an account to the device.
-      ExpectConfiguratorNotification(/*identity_changed=*/NO);
-    }
+
     AddDefaultIdentity();
     // Check the configurator received by the consumer.
     CheckSigninWithAccountConfigurator(configurator_, style);
@@ -380,6 +376,8 @@ class SigninPromoViewMediatorTest : public PlatformTest {
     configurator_ = nil;
     ExpectConfiguratorNotification(/*identity_changed=*/NO);
 
+    fake_system_identity_manager()->UpdateSystemIdentityAvatar(identity_.gaiaId,
+                                                               nil);
     fake_system_identity_manager()->WaitForServiceCallbacksToComplete();
     // Check the configurator received by the consumer.
     CheckSigninWithAccountConfigurator(configurator_, style);
@@ -605,6 +603,7 @@ TEST_F(SigninPromoViewMediatorTest, SigninPromoWhileSignedIn) {
       identity_, signin_metrics::AccessPoint::kFullscreenSigninPromo);
   CreateMediator(signin_metrics::AccessPoint::kRecentTabs);
   ExpectConfiguratorNotification(/*identity_changed=*/NO);
+  fake_system_identity_manager()->FireIdentityUpdatedNotification(identity_);
   [mediator_ signinPromoViewIsVisible];
   EXPECT_EQ(identity_, mediator_.displayedIdentity);
   fake_system_identity_manager()->WaitForServiceCallbacksToComplete();
@@ -689,7 +688,6 @@ TEST_F(SigninPromoViewMediatorTest,
        SigninPromoWithSigninWithNoDefaultIdentity) {
   AddDefaultIdentity();
   CreateMediator(signin_metrics::AccessPoint::kRecentTabs);
-  ExpectConfiguratorNotification(/*identity_changed=*/NO);
   [mediator_ signinPromoViewIsVisible];
   ExpectConfiguratorNotification(/*identity_changed=*/NO);
   [mediator_
@@ -709,7 +707,6 @@ TEST_F(SigninPromoViewMediatorTest,
       identity_, signin_metrics::AccessPoint::kFullscreenSigninPromo);
 
   CreateMediator(signin_metrics::AccessPoint::kBookmarkManager);
-  ExpectConfiguratorNotification(/*identity_changed=*/NO);
   [mediator_ signinPromoViewIsVisible];
   ExpectConfiguratorNotification(/*identity_changed=*/NO);
   [mediator_ setSigninPromoAction:SigninPromoAction::kReviewAccountSettings];

@@ -7,8 +7,9 @@ package org.chromium.chrome.browser.setup_list;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.magic_stack.ModuleDelegate.ModuleType;
+import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
+import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /** Utilities for setup list modules. */
@@ -25,16 +26,12 @@ public class SetupListModuleUtils {
         if (sRankedModuleTypesForTesting != null) {
             return sRankedModuleTypesForTesting;
         }
-        List<Integer> modules = new ArrayList<>();
-        // TODO(crbug.com/469425754): Add all the modules once they're ready, in the following order
-        // 1. Default Browser
-        // 2. Sign In/ Sync
-        // 3. Enhanced Safe Browsing
-        // 4. PW Management
-        // 5. Address bar Placement
-        modules.add(ModuleType.ENHANCED_SAFE_BROWSING_PROMO);
-        modules.add(ModuleType.ADDRESS_BAR_PLACEMENT_PROMO);
-        return modules;
+        return SetupListManager.getInstance().getRankedModuleTypes();
+    }
+
+    /** Returns the module type list for the two-cell container. */
+    public static List<Integer> getTwoCellContainerModuleTypes() {
+        return SetupListManager.getInstance().getTwoCellContainerModuleTypes();
     }
 
     /** Returns whether the setup list is active based on the 14-day window. */
@@ -47,15 +44,43 @@ public class SetupListModuleUtils {
         return SetupListManager.getInstance().shouldShowTwoCellLayout();
     }
 
-    /** Returns whether the module type belongs to the setup list. */
+    /**
+     * Returns the manual rank for the given module type, or null if it shouldn't be manually
+     * ranked.
+     */
+    @Nullable
+    public static Integer getManualRank(@ModuleType int moduleType) {
+        return SetupListManager.getInstance().getManualRank(moduleType);
+    }
+
+    /** Returns whether the module type belongs to the currently active setup list view. */
     public static boolean isSetupListModule(@ModuleType int moduleType) {
-        switch (moduleType) {
-            case ModuleType.ENHANCED_SAFE_BROWSING_PROMO:
-            case ModuleType.ADDRESS_BAR_PLACEMENT_PROMO:
-                return isSetupListActive();
-            default:
-                return false;
+        return SetupListManager.getInstance().isSetupListModule(moduleType);
+    }
+
+    /** Returns whether the given module is completed, using the optimized manager state. */
+    public static boolean isModuleCompleted(@ModuleType int moduleType) {
+        return SetupListManager.getInstance().isModuleCompleted(moduleType);
+    }
+
+    /**
+     * Marks the given module type as completed by setting its individual boolean preference key.
+     * The {@link SetupListManager} will observe this change and update the ranking automatically.
+     */
+    public static void setModuleCompleted(@ModuleType int moduleType) {
+        String individualPrefKey = getCompletionKeyForModule(moduleType);
+        if (individualPrefKey != null) {
+            ChromeSharedPreferences.getInstance().writeBoolean(individualPrefKey, true);
         }
+    }
+
+    @Nullable
+    public static String getCompletionKeyForModule(@ModuleType int type) {
+        if (SetupListManager.isBaseSetupListModule(type)) {
+            return ChromePreferenceKeys.SETUP_LIST_COMPLETED_KEY_PREFIX.createKey(
+                    String.valueOf(type));
+        }
+        return null;
     }
 
     public static void setRankedModuleTypesForTesting(List<Integer> rankedModuleTypes) {

@@ -27,27 +27,58 @@ namespace skills {
 
 namespace {
 
-sync_pb::SkillSpecifics SkillToSpecifics(const Skill& skill) {
-  // Skill ID must be a valid GUID.
-  CHECK(base::Uuid::ParseLowercase(skill.id).is_valid());
+constexpr int kSchemaVersion = 1;
 
-  sync_pb::SkillSpecifics specifics;
+base::Time FromWindowsEpochMicros(int64_t windows_epoch_micros) {
+  return base::Time::FromDeltaSinceWindowsEpoch(
+      base::Microseconds(windows_epoch_micros));
+}
+
+int64_t ToWindowsEpochMicros(base::Time time) {
+  return time.ToDeltaSinceWindowsEpoch().InMicroseconds();
+}
+
+// Converts a `skill` to specifics proto. `base_specifics` is used to preserve
+// unknown fields when committing to the server.
+sync_pb::SkillSpecifics SkillToSpecifics(
+    const Skill& skill,
+    sync_pb::SkillSpecifics base_specifics) {
+  sync_pb::SkillSpecifics specifics = std::move(base_specifics);
   specifics.set_guid(skill.id);
+  specifics.set_source_skill_id(skill.source_skill_id);
   specifics.set_name(skill.name);
   specifics.set_icon(skill.icon);
   specifics.mutable_simple_skill()->set_prompt(skill.prompt);
-  // TODO(crbug.com/471795213): support other fields once available.
+  specifics.mutable_simple_skill()->set_description(skill.description);
+  specifics.set_creation_time_windows_epoch_micros(
+      ToWindowsEpochMicros(skill.creation_time));
+  specifics.set_last_update_time_windows_epoch_micros(
+      ToWindowsEpochMicros(skill.last_update_time));
+  specifics.set_schema_version(kSchemaVersion);
+  specifics.set_skill_source(skill.source);
   return specifics;
 }
 
 std::unique_ptr<Skill> SpecificsToSkill(
     const sync_pb::SkillSpecifics& specifics) {
-  CHECK(base::Uuid::ParseLowercase(specifics.guid()).is_valid());
+  CHECK(specifics.has_simple_skill());
 
-  return std::make_unique<Skill>(/*id=*/specifics.guid(),
-                                 /*name=*/specifics.name(),
-                                 /*icon=*/specifics.icon(),
-                                 /*prompt=*/specifics.simple_skill().prompt());
+  auto skill = std::make_unique<Skill>(
+      /*id=*/specifics.guid(),
+      /*name=*/specifics.name(),
+      /*icon=*/specifics.icon(),
+      /*prompt=*/specifics.simple_skill().prompt(),
+      /*description=*/specifics.simple_skill().description());
+  if (!specifics.source_skill_id().empty()) {
+    skill->source_skill_id = specifics.source_skill_id();
+  }
+
+  skill->creation_time =
+      FromWindowsEpochMicros(specifics.creation_time_windows_epoch_micros());
+  skill->last_update_time =
+      FromWindowsEpochMicros(specifics.last_update_time_windows_epoch_micros());
+  skill->source = specifics.skill_source();
+  return skill;
 }
 
 syncer::EntityData SpecificsToEntityData(
@@ -61,7 +92,10 @@ syncer::EntityData SpecificsToEntityData(
 void StoreSkill(const Skill& skill,
                 syncer::DataTypeStore::WriteBatch& write_batch) {
   proto::SkillLocalData local_data;
-  *local_data.mutable_specifics() = SkillToSpecifics(skill);
+  // Do not store unknown fields to avoid duplicating data as it's already
+  // stored in the sync metadata.
+  *local_data.mutable_specifics() =
+      SkillToSpecifics(skill, /*base_specifics=*/sync_pb::SkillSpecifics());
   write_batch.WriteData(skill.id, local_data.SerializeAsString());
 }
 
@@ -90,13 +124,16 @@ SkillsSyncBridge::CreateMetadataChangeList() {
 
 std::optional<syncer::ModelError> SkillsSyncBridge::MergeFullSyncData(
     std::unique_ptr<syncer::MetadataChangeList> metadata_change_list,
-    syncer::EntityChangeList entity_data) {
+    syncer::EntityChangeList entity_changes) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   // This data type does not store local-only data so the initial merge is the
   // same as an incremental update.
-  return ApplyIncrementalSyncChanges(std::move(metadata_change_list),
-                                     std::move(entity_data));
+  std::optional<syncer::ModelError> error = ApplyIncrementalSyncChanges(
+      std::move(metadata_change_list), std::move(entity_changes));
+  skills_service_->SyncStatusChanged();
+
+  return error;
 }
 
 std::optional<syncer::ModelError> SkillsSyncBridge::ApplyIncrementalSyncChanges(
@@ -115,19 +152,23 @@ std::optional<syncer::ModelError> SkillsSyncBridge::ApplyIncrementalSyncChanges(
       case syncer::EntityChange::ACTION_UPDATE: {
         const sync_pb::SkillSpecifics& skill_specifics =
             entity_change->data().specifics.skill();
-        const Skill* skill =
-            skills_service_->GetSkillById(entity_change->storage_key());
-        if (skill) {
-          // Skill already exists locally.
-          skill = skills_service_->UpdateSkill(
-              skill_specifics.guid(), skill_specifics.name(),
-              skill_specifics.icon(), skill_specifics.simple_skill().prompt(),
-              SkillsService::UpdateSource::kSync);
-        } else {
-          skill = skills_service_->AddSkillFromSync(
-              skill_specifics.guid(), skill_specifics.name(),
-              skill_specifics.icon(), skill_specifics.simple_skill().prompt());
+
+        if (!skill_specifics.has_simple_skill()) {
+          // This is a new type of skill, ignore it in the bridge but its
+          // metadata should still be stored.
+          continue;
         }
+
+        const Skill* skill = skills_service_->AddOrUpdateSkillFromSync(
+            skill_specifics.guid(), skill_specifics.source_skill_id(),
+            skill_specifics.name(), skill_specifics.icon(),
+            skill_specifics.simple_skill().prompt(),
+            skill_specifics.simple_skill().description(),
+            FromWindowsEpochMicros(
+                skill_specifics.creation_time_windows_epoch_micros()),
+            FromWindowsEpochMicros(
+                skill_specifics.last_update_time_windows_epoch_micros()),
+            skill_specifics.skill_source());
         CHECK(skill);
 
         StoreSkill(*skill, *write_batch);
@@ -165,7 +206,8 @@ std::unique_ptr<syncer::DataBatch> SkillsSyncBridge::GetDataForCommit(
 
     batch->Put(storage_key,
                std::make_unique<syncer::EntityData>(
-                   SpecificsToEntityData(SkillToSpecifics(*skill))));
+                   SpecificsToEntityData(SkillToSpecifics(
+                       *skill, GetPossiblyTrimmedSpecifics(storage_key)))));
   }
 
   return batch;
@@ -176,8 +218,11 @@ std::unique_ptr<syncer::DataBatch> SkillsSyncBridge::GetAllDataForDebugging() {
   auto batch = std::make_unique<syncer::MutableDataBatch>();
 
   for (const std::unique_ptr<Skill>& skill : skills_service_->GetSkills()) {
-    batch->Put(skill->id, std::make_unique<syncer::EntityData>(
-                              SpecificsToEntityData(SkillToSpecifics(*skill))));
+    batch->Put(
+        skill->id,
+        std::make_unique<syncer::EntityData>(SpecificsToEntityData(
+            SkillToSpecifics(*skill,
+                             /*base_specifics=*/sync_pb::SkillSpecifics()))));
   }
 
   return batch;
@@ -197,8 +242,26 @@ std::string SkillsSyncBridge::GetStorageKey(
 void SkillsSyncBridge::ApplyDisableSyncChanges(
     std::unique_ptr<syncer::MetadataChangeList> delete_metadata_change_list) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  NOTIMPLEMENTED();
-  return;
+
+  std::vector<std::string> skills_to_delete;
+  skills_to_delete.reserve(skills_service_->GetSkills().size());
+  for (const std::unique_ptr<Skill>& skill : skills_service_->GetSkills()) {
+    skills_to_delete.push_back(skill->id);
+  }
+
+  for (const std::string& skill_id : skills_to_delete) {
+    skills_service_->DeleteSkill(skill_id, SkillsService::UpdateSource::kSync);
+  }
+
+  // All skills must be deleted from the service.
+  CHECK(skills_service_->GetSkills().empty());
+
+  // Do not use `delete_metadata_change_list` as all data and metadata should be
+  // deleted.
+  store_->DeleteAllDataAndMetadata(base::BindOnce(
+      &SkillsSyncBridge::OnDatabaseSave, weak_ptr_factory_.GetWeakPtr()));
+
+  skills_service_->SyncStatusChanged();
 }
 
 sync_pb::EntitySpecifics
@@ -214,9 +277,12 @@ SkillsSyncBridge::TrimAllSupportedFieldsFromRemoteSpecifics(
   trimmed_specifics.clear_creation_time_windows_epoch_micros();
   trimmed_specifics.clear_last_update_time_windows_epoch_micros();
   trimmed_specifics.clear_schema_version();
+  trimmed_specifics.clear_skill_source();
+  trimmed_specifics.clear_source_skill_id();
 
   if (trimmed_specifics.has_simple_skill()) {
     trimmed_specifics.mutable_simple_skill()->clear_prompt();
+    trimmed_specifics.mutable_simple_skill()->clear_description();
 
     if (trimmed_specifics.simple_skill().ByteSizeLong() == 0) {
       trimmed_specifics.clear_simple_skill();
@@ -239,21 +305,16 @@ bool SkillsSyncBridge::IsEntityDataValid(
     return false;
   }
 
-  const sync_pb::SkillSpecifics& skill_specifics =
-      entity_data.specifics.skill();
-  if (skill_specifics.guid().empty()) {
-    return false;
-  }
-
-  if (!skill_specifics.has_simple_skill()) {
-    return false;
-  }
+  // Do not validate the presence of `simple_skill` for forward compatibility
+  // with the newer version which may contain other skill types. The bridge will
+  // not propagate those changes to the server but it would be stored in sync
+  // metadata to detect unknown fields and potentially redownload the data.
 
   return true;
 }
 
 void SkillsSyncBridge::OnSkillUpdated(
-    const std::string& skill_id,
+    std::string_view skill_id,
     SkillsService::UpdateSource update_source) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
@@ -272,16 +333,18 @@ void SkillsSyncBridge::OnSkillUpdated(
   const Skill* skill = skills_service_->GetSkillById(skill_id);
   if (!skill) {
     // Skill was deleted locally.
-    batch->DeleteData(skill_id);
-    change_processor()->Delete(skill_id, syncer::DeletionOrigin::Unspecified(),
+    std::string skill_id_str(skill_id.data());
+    batch->DeleteData(skill_id_str);
+    change_processor()->Delete(skill_id_str,
+                               syncer::DeletionOrigin::Unspecified(),
                                batch->GetMetadataChangeList());
   } else {
     // Skill was created or updated locally.
     StoreSkill(*skill, *batch);
     change_processor()->Put(
         skill->id,
-        std::make_unique<syncer::EntityData>(
-            SpecificsToEntityData(SkillToSpecifics(*skill))),
+        std::make_unique<syncer::EntityData>(SpecificsToEntityData(
+            SkillToSpecifics(*skill, GetPossiblyTrimmedSpecifics(skill->id)))),
         batch->GetMetadataChangeList());
   }
 
@@ -321,15 +384,16 @@ void SkillsSyncBridge::OnReadAllDataAndMetadata(
   for (const syncer::DataTypeStore::Record& record : *entries) {
     proto::SkillLocalData local_data;
     if (!local_data.ParseFromString(record.value)) {
-      // TODO(crbug.com/471795213): record invalid data histogram.
       continue;
     }
     if (!IsEntityDataValid(SpecificsToEntityData(local_data.specifics()))) {
-      // TODO(crbug.com/471795213): record invalid data histogram.
+      continue;
+    }
+    if (!local_data.specifics().has_simple_skill()) {
+      // Verify this explicitly as `IsEntityDataValid()` does not check for it.
       continue;
     }
     if (record.id != local_data.specifics().guid()) {
-      // TODO(crbug.com/471795213): record invalid data histogram.
       continue;
     }
 
@@ -340,6 +404,10 @@ void SkillsSyncBridge::OnReadAllDataAndMetadata(
   skills_service_observation_.Observe(&skills_service_.get());
 
   change_processor()->ModelReadyToSync(std::move(metadata_batch));
+
+  if (change_processor()->IsTrackingMetadata()) {
+    skills_service_->SyncStatusChanged();
+  }
 }
 
 void SkillsSyncBridge::OnDatabaseSave(
@@ -349,6 +417,18 @@ void SkillsSyncBridge::OnDatabaseSave(
   if (error) {
     change_processor()->ReportError(*error);
   }
+}
+
+const sync_pb::SkillSpecifics& SkillsSyncBridge::GetPossiblyTrimmedSpecifics(
+    const std::string& storage_key) const {
+  // TODO(crbug.com/471795213): verify that metadata is being tracked.
+  if (!change_processor()->IsTrackingMetadata()) {
+    return sync_pb::SkillSpecifics::default_instance();
+  }
+
+  return change_processor()
+      ->GetPossiblyTrimmedRemoteSpecifics(storage_key)
+      .skill();
 }
 
 }  // namespace skills

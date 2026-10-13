@@ -16,6 +16,7 @@
 #include "third_party/blink/renderer/core/frame/root_frame_viewport.h"
 #include "third_party/blink/renderer/core/frame/visual_viewport.h"
 #include "third_party/blink/renderer/core/html/html_frame_owner_element.h"
+#include "third_party/blink/renderer/core/layout/geometry/axis.h"
 #include "third_party/blink/renderer/core/layout/geometry/box_strut.h"
 #include "third_party/blink/renderer/core/layout/geometry/physical_rect.h"
 #include "third_party/blink/renderer/core/layout/layout_box.h"
@@ -313,21 +314,68 @@ BubblingScrollResult PerformBubblingScrollIntoViewWithResult(
     AdjustRectAndParamsForParentFrame(*current_box, next_box,
                                       absolute_rect_to_scroll, params);
 
-    // Once we've taken the scroll-margin into account, don't apply it to
-    // ancestor scrollers.
-    // TODO(crbug.com/1325839): Instead of just nullifying the scroll-margin,
-    // maybe we should be applying the scroll-margin of the containing
-    // scrollers themselves? This will probably need to be spec'd as the current
-    // scroll-into-view spec[1] only refers to the bounding border box.
-    // [1] https://drafts.csswg.org/cssom-view-1/#scroll-a-target-into-view
-    if (any_actual_scroll) {
-      active_scroll_margin = PhysicalBoxStrut();
-    }
-
     current_box = next_box;
   }
 
   return BubblingScrollResult{absolute_rect_to_scroll, any_actual_scroll};
+}
+
+struct LayoutRange {
+  LayoutRange(LayoutUnit range_start, LayoutUnit range_end)
+      : start(range_start), end(range_end) {}
+
+  LayoutUnit Length() const { return end - start; }
+  LayoutUnit start;
+  LayoutUnit end;
+};
+
+LayoutRange IntersectRange(const LayoutRange& a, const LayoutRange& b) {
+  return LayoutRange(std::max(a.start, b.start), std::min(a.end, b.end));
+}
+
+// Full intersection if one range completely encapsulates the other
+bool FullyIntersects(const LayoutRange& a, const LayoutRange& b) {
+  LayoutRange intersection = IntersectRange(a, b);
+  return intersection.Length() == a.Length() ||
+         intersection.Length() == b.Length();
+}
+
+bool PartiallyIntersects(const LayoutRange& a, const LayoutRange& b) {
+  return IntersectRange(a, b).Length() > 0;
+}
+
+LayoutRange RangeFrom(const PhysicalRect& rect, PhysicalAxis axis) {
+  if (axis == PhysicalAxis::kHorizontal) {
+    return LayoutRange(rect.X(), rect.Right());
+  }
+  return LayoutRange(rect.Y(), rect.Bottom());
+}
+
+// Return the scroll behavior from |alignment| for |axis| given the
+// visible scrollport, and rectangle to be exposed with and without margins.
+// We want to include the margin for deciding whether it is fully visible,
+// but exclude it when determining if the element is partially visible or
+// completely hidden in that axis.
+mojom::blink::ScrollAlignment::Behavior CalculateScrollAlignment(
+    const mojom::blink::ScrollAlignment& alignment,
+    PhysicalAxis axis,
+    const PhysicalRect& scrollport,
+    const PhysicalRect& expose_rect_no_margin,
+    const PhysicalRect& expose_rect) {
+  LayoutRange scrollport_range = RangeFrom(scrollport, axis);
+  if (FullyIntersects(scrollport_range, RangeFrom(expose_rect, axis))) {
+    // If the rectangle is fully visible with its expected scroll margin,
+    // or is bigger than the visible area,
+    // use the specified visible behavior.
+    return alignment.rect_visible;
+  }
+  if (PartiallyIntersects(scrollport_range,
+                          RangeFrom(expose_rect_no_margin, axis))) {
+    // If the rectangle is partially visible,
+    // use the specified partial behavior.
+    return alignment.rect_partial;
+  }
+  return alignment.rect_hidden;
 }
 
 }  // namespace
@@ -348,7 +396,7 @@ ScrollableArea* GetScrollableAreaForLayoutBox(
 }
 
 bool ScrollRectToVisible(const LayoutObject& layout_object,
-                         const PhysicalRect& absolute_rect,
+                         const PhysicalRect& absolute_rect_to_scroll,
                          mojom::blink::ScrollIntoViewParamsPtr params,
                          const LayoutObject* container,
                          bool from_remote_frame,
@@ -370,8 +418,6 @@ bool ScrollRectToVisible(const LayoutObject& layout_object,
   PhysicalBoxStrut scroll_margin =
       layout_object.Style() ? layout_object.Style()->ScrollMarginStrut()
                             : PhysicalBoxStrut();
-  PhysicalRect absolute_rect_to_scroll = absolute_rect;
-  absolute_rect_to_scroll.Expand(scroll_margin);
   BubblingScrollResult result = PerformBubblingScrollIntoViewWithResult(
       *enclosing_box, absolute_rect_to_scroll, params, scroll_margin, container,
       from_remote_frame, include_self);
@@ -593,8 +639,10 @@ ScrollOffset GetScrollOffsetToExpose(
     const mojom::blink::ScrollAlignment& align_x,
     const mojom::blink::ScrollAlignment& align_y) {
   // Represent the rect in the container's scroll-origin coordinate.
-  PhysicalRect scroll_origin_to_expose_rect = local_expose_rect;
-  scroll_origin_to_expose_rect.Move(scroll_area.LocalToScrollOriginOffset());
+  PhysicalRect expose_rect_no_margin = local_expose_rect;
+  expose_rect_no_margin.Move(scroll_area.LocalToScrollOriginOffset());
+  PhysicalRect scroll_origin_to_expose_rect = expose_rect_no_margin;
+  scroll_origin_to_expose_rect.Expand(expose_scroll_margin);
   // Prevent degenerate cases by giving the visible rect a minimum non-0 size.
   PhysicalRect non_zero_visible_rect = scroll_area.VisibleScrollSnapportRect();
   ScrollOffset current_scroll_offset = scroll_area.GetScrollOffset();
@@ -607,33 +655,10 @@ ScrollOffset GetScrollOffsetToExpose(
     non_zero_visible_rect.SetHeight(minimum_layout_unit);
   }
 
-  // The scroll_origin_to_expose_rect includes the scroll-margin of the element
-  // that is being exposed. We want to exclude the margin for deciding whether
-  // it's already visible, but include it when calculating the scroll offset
-  // that we need to scroll to in order to achieve the desired alignment.
-  PhysicalRect expose_rect_no_margin = scroll_origin_to_expose_rect;
-  expose_rect_no_margin.Contract(expose_scroll_margin);
-
   // Determine the appropriate X behavior.
-  mojom::blink::ScrollAlignment::Behavior scroll_x;
-  PhysicalRect expose_rect_x(
-      expose_rect_no_margin.X(), non_zero_visible_rect.Y(),
-      expose_rect_no_margin.Width(), non_zero_visible_rect.Height());
-  LayoutUnit intersect_width =
-      Intersection(non_zero_visible_rect, expose_rect_x).Width();
-  if (intersect_width == expose_rect_no_margin.Width()) {
-    // If the rectangle is fully visible, use the specified visible behavior.
-    scroll_x = align_x.rect_visible;
-  } else if (intersect_width == non_zero_visible_rect.Width()) {
-    // The rect is bigger than the visible area.
-    scroll_x = align_x.rect_visible;
-  } else if (intersect_width > 0) {
-    // If the rectangle is partially visible, use the specified partial
-    // behavior.
-    scroll_x = align_x.rect_partial;
-  } else {
-    scroll_x = align_x.rect_hidden;
-  }
+  mojom::blink::ScrollAlignment::Behavior scroll_x = CalculateScrollAlignment(
+      align_x, PhysicalAxis::kHorizontal, non_zero_visible_rect,
+      expose_rect_no_margin, scroll_origin_to_expose_rect);
 
   if (scroll_x == mojom::blink::ScrollAlignment::Behavior::kClosestEdge) {
     // Closest edge is the right in two cases:
@@ -650,25 +675,9 @@ ScrollOffset GetScrollOffsetToExpose(
   }
 
   // Determine the appropriate Y behavior.
-  mojom::blink::ScrollAlignment::Behavior scroll_y;
-  PhysicalRect expose_rect_y(
-      non_zero_visible_rect.X(), expose_rect_no_margin.Y(),
-      non_zero_visible_rect.Width(), expose_rect_no_margin.Height());
-  LayoutUnit intersect_height =
-      Intersection(non_zero_visible_rect, expose_rect_y).Height();
-  if (intersect_height == expose_rect_no_margin.Height()) {
-    // If the rectangle is fully visible, use the specified visible behavior.
-    scroll_y = align_y.rect_visible;
-  } else if (intersect_height == non_zero_visible_rect.Height()) {
-    // The rect is bigger than the visible area.
-    scroll_y = align_y.rect_visible;
-  } else if (intersect_height > 0) {
-    // If the rectangle is partially visible, use the specified partial
-    // behavior.
-    scroll_y = align_y.rect_partial;
-  } else {
-    scroll_y = align_y.rect_hidden;
-  }
+  mojom::blink::ScrollAlignment::Behavior scroll_y = CalculateScrollAlignment(
+      align_y, PhysicalAxis::kVertical, non_zero_visible_rect,
+      expose_rect_no_margin, scroll_origin_to_expose_rect);
 
   if (scroll_y == mojom::blink::ScrollAlignment::Behavior::kClosestEdge) {
     // Closest edge is the bottom in two cases:

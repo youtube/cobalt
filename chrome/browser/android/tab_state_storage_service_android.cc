@@ -52,6 +52,12 @@ void RunJavaCallbackLoadAll(JNIEnv* env,
                                           data_android->GetJavaObject());
 }
 
+void RunJavaCallbackCountTabsForWindow(JNIEnv* env,
+                                       const JavaRef<jobject>& j_count_callback,
+                                       int count) {
+  base::android::RunIntCallbackAndroid(j_count_callback, count);
+}
+
 // Recursively crawls the entire tree and retrieves storage ids for all nodes.
 class CollectionStorageIdCrawler : public DirectChildWalker::Processor {
  public:
@@ -88,7 +94,7 @@ ScopedBatchAndroid::ScopedBatchAndroid(
 ScopedBatchAndroid::~ScopedBatchAndroid() = default;
 
 static void JNI_TabStateStorageService_CommitBatch(JNIEnv* env,
-                                                   jlong batch_android_ptr) {
+                                                   int64_t batch_android_ptr) {
   delete reinterpret_cast<ScopedBatchAndroid*>(batch_android_ptr);
 }
 
@@ -120,6 +126,18 @@ void TabStateStorageServiceAndroid::LoadAllData(
       jni_zero::ScopedJavaGlobalRef<jobject>(j_loaded_data_callback));
   tab_state_storage_service_->LoadAllNodes(window_tag, is_off_the_record,
                                            std::move(load_data_callback));
+}
+
+void TabStateStorageServiceAndroid::CountTabsForWindow(
+    JNIEnv* env,
+    const std::string& window_tag,
+    bool is_off_the_record,
+    const jni_zero::JavaRef<jobject>& j_callback) {
+  auto count_callback =
+      base::BindOnce(&RunJavaCallbackCountTabsForWindow, env,
+                     jni_zero::ScopedJavaGlobalRef<jobject>(j_callback));
+  tab_state_storage_service_->CountTabsForWindow(window_tag, is_off_the_record,
+                                                 std::move(count_callback));
 }
 
 void TabStateStorageServiceAndroid::ClearState(JNIEnv* env) {
@@ -165,8 +183,8 @@ void TabStateStorageServiceAndroid::PrintAll(JNIEnv* env) {
 #endif
 }
 
-jlong TabStateStorageServiceAndroid::CreateBatch(JNIEnv* env) {
-  return reinterpret_cast<jlong>(
+int64_t TabStateStorageServiceAndroid::CreateBatch(JNIEnv* env) {
+  return reinterpret_cast<int64_t>(
       new ScopedBatchAndroid(tab_state_storage_service_->CreateScopedBatch()));
 }
 

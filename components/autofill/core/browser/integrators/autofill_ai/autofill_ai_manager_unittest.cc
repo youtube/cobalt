@@ -32,7 +32,7 @@
 #include "components/autofill/core/browser/strike_databases/payments/test_strike_database.h"
 #include "components/autofill/core/browser/suggestions/suggestion_type.h"
 #include "components/autofill/core/browser/test_utils/autofill_form_test_utils.h"
-#include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
+#include "components/autofill/core/browser/test_utils/entity_data_test_utils.h"
 #include "components/autofill/core/browser/webdata/autofill_ai/entity_table.h"
 #include "components/autofill/core/browser/webdata/autofill_webdata_service_test_helper.h"
 #include "components/autofill/core/common/autofill_features.h"
@@ -75,11 +75,10 @@ using ::testing::Truly;
 using ::testing::VariantWith;
 
 constexpr auto kAcceptBubble =
-    AutofillClient::AutofillAiBubbleClosedReason::kAccepted;
-constexpr auto kDeclineBubble =
-    AutofillClient::AutofillAiBubbleClosedReason::kClosed;
+    AutofillClient::AutofillAiBubbleResult::kAccepted;
+constexpr auto kDeclineBubble = AutofillClient::AutofillAiBubbleResult::kClosed;
 constexpr auto kIgnoreBubble =
-    AutofillClient::AutofillAiBubbleClosedReason::kNotInteracted;
+    AutofillClient::AutofillAiBubbleResult::kNotInteracted;
 
 auto FirstElementIs(auto&& matcher) {
   return ResultOf(
@@ -132,7 +131,8 @@ class MockAutofillClient : public TestAutofillClient {
               ShowEntityImportBubble,
               (EntityInstance entity,
                std::optional<EntityInstance> old_entity,
-               EntityImportPromptResultCallback prompt_acceptance_callback),
+               bool save_is_synchronous,
+               EntityImportPromptResultCallback prompt_result_callback),
               (override));
   MOCK_METHOD(void,
               TriggerAutofillAiSavePromptSurvey,
@@ -162,7 +162,8 @@ class AutofillAiManagerTest : public testing::Test {
             autofill_client().GetSyncService(),
             webdata_helper_.autofill_webdata_service(),
             /*history_service=*/nullptr,
-            /*strike_database=*/nullptr));
+            /*strike_database=*/nullptr,
+            /*variation_country_code=*/GeoIpCountryCode("US")));
     autofill_client().SetUpPrefsAndIdentityForAutofillAi();
     autofill_client().set_sync_service(&sync_service_);
     autofill_client().GetSyncService()->GetUserSettings()->SetSelectedType(
@@ -276,55 +277,10 @@ TEST_F(AutofillAiManagerTest, ShouldDisplayIph) {
       manager().ShouldDisplayIph(form_structure, form.fields()[0].global_id()));
 }
 
-// Tests that IPH should not be displayed if the user is opted out of the
-// feature, but does not have address or payments data stored.
-TEST_F(AutofillAiManagerTest,
-       ShouldNotDisplayIphWhenUserHasNoAddressOrPaymentsData) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndDisableFeature(
-      features::kAutofillAiIgnoreWhetherUserHasAddressOrPaymentsDataForIph);
-  test::FormDescription form_description = {.fields = {{}}};
-  FormData form = test::GetFormData(form_description);
-  FormStructure form_structure = FormStructure(form);
-  AddPredictionsToFormStructure(form_structure, {{PASSPORT_NUMBER}});
-  SetAutofillAiOptInStatus(autofill_client(), AutofillAiOptInStatus::kOptedOut);
-
-  EXPECT_FALSE(
-      manager().ShouldDisplayIph(form_structure, form.fields()[0].global_id()));
-}
-
-// Tests that IPH is not displayed if the user has disabled, say,
-// identity-related entities, and the submitted form would import (only) an
-// identity-related entity.
-TEST_F(AutofillAiManagerTest,
-       ShouldNotDisplayIphWhenUserHasDisabledTheGroupOfEntities) {
-  test::FormDescription form_description = {.fields = {{}}};
-  FormData form = test::GetFormData(form_description);
-  FormStructure form_structure = FormStructure(form);
-  FieldGlobalId field_id = form.fields()[0].global_id();
-  AddPredictionsToFormStructure(form_structure, {{PASSPORT_NUMBER}});
-  AddAutofillProfile();
-  SetAutofillAiOptInStatus(autofill_client(), AutofillAiOptInStatus::kOptedOut);
-
-  autofill_client().GetPrefs()->SetBoolean(
-      prefs::kAutofillAiTravelEntitiesEnabled, false);
-  autofill_client().GetPrefs()->SetBoolean(
-      prefs::kAutofillAiIdentityEntitiesEnabled, false);
-  EXPECT_FALSE(manager().ShouldDisplayIph(form_structure, field_id));
-
-  // Confirm that it is only the pref for identity entities that affects IPH.
-  autofill_client().GetPrefs()->SetBoolean(
-      prefs::kAutofillAiIdentityEntitiesEnabled, true);
-  EXPECT_TRUE(manager().ShouldDisplayIph(form_structure, field_id));
-}
-
-// Tests that if kAutofillAiIgnoreWhetherUserHasAddressOrPaymentsDataForIph is
-// enabled, IPH should be displayed when the user is opted out of the feature
+// Tests that IPH should be displayed when the user is opted out of the feature
 // and does not have address or payments data stored.
 TEST_F(AutofillAiManagerTest,
-       ShouldDisplayIphWhenUserHasNoAddressOrPaymentsDataAndFeatureFlagIsOn) {
-  base::test::ScopedFeatureList feature_list{
-      features::kAutofillAiIgnoreWhetherUserHasAddressOrPaymentsDataForIph};
+       ShouldDisplayIphWhenUserHasNoAddressOrPaymentsData) {
   test::FormDescription form_description = {.fields = {{}}};
   FormData form = test::GetFormData(form_description);
   FormStructure form_structure = FormStructure(form);
@@ -565,22 +521,22 @@ TEST_F(AutofillAiManagerImportFormTest, StrikesForSavePromptsPerUrl) {
     InSequence s;
     EXPECT_CALL(autofill_client(),
                 ShowEntityImportBubble(
-                    PassportWithNumber(kDefaultPassportNumber), _, _))
+                    PassportWithNumber(kDefaultPassportNumber), _, _, _))
         .Times(2)
-        .WillRepeatedly(RunOnceCallbackRepeatedly<2>(kDeclineBubble));
-    EXPECT_CALL(
-        autofill_client(),
-        ShowEntityImportBubble(PassportWithNumber(kOtherPassportNumber), _, _))
-        .WillOnce(RunOnceCallback<2>(kDeclineBubble));
+        .WillRepeatedly(RunOnceCallbackRepeatedly<3>(kDeclineBubble));
+    EXPECT_CALL(autofill_client(),
+                ShowEntityImportBubble(PassportWithNumber(kOtherPassportNumber),
+                                       _, _, _))
+        .WillOnce(RunOnceCallback<3>(kDeclineBubble));
     EXPECT_CALL(check, Call);
     EXPECT_CALL(autofill_client(),
                 ShowEntityImportBubble(
-                    PassportWithNumber(kDefaultPassportNumber), _, _))
-        .WillOnce(RunOnceCallback<2>(kDeclineBubble));
+                    PassportWithNumber(kDefaultPassportNumber), _, _, _))
+        .WillOnce(RunOnceCallback<3>(kDeclineBubble));
     EXPECT_CALL(autofill_client(),
                 ShowEntityImportBubble(
-                    VehicleWithLicensePlate(kDefaultLicensePlate), _, _))
-        .WillOnce(RunOnceCallback<2>(kDeclineBubble));
+                    VehicleWithLicensePlate(kDefaultLicensePlate), _, _, _))
+        .WillOnce(RunOnceCallback<3>(kDeclineBubble));
   }
 
   ASSERT_TRUE(
@@ -613,19 +569,19 @@ TEST_F(AutofillAiManagerImportFormTest, StrikesForSavePromptsPerAttribute) {
     InSequence s;
     EXPECT_CALL(autofill_client(),
                 ShowEntityImportBubble(
-                    PassportWithNumber(kDefaultPassportNumber), _, _))
+                    PassportWithNumber(kDefaultPassportNumber), _, _, _))
         .Times(2)
-        .WillRepeatedly(RunOnceCallbackRepeatedly<2>(kIgnoreBubble));
+        .WillRepeatedly(RunOnceCallbackRepeatedly<3>(kIgnoreBubble));
     EXPECT_CALL(autofill_client(),
                 ShowEntityImportBubble(
-                    PassportWithNumber(kDefaultPassportNumber), _, _))
+                    PassportWithNumber(kDefaultPassportNumber), _, _, _))
         .Times(3)
-        .WillRepeatedly(RunOnceCallbackRepeatedly<2>(kDeclineBubble));
+        .WillRepeatedly(RunOnceCallbackRepeatedly<3>(kDeclineBubble));
     EXPECT_CALL(check, Call);
-    EXPECT_CALL(
-        autofill_client(),
-        ShowEntityImportBubble(PassportWithNumber(kOtherPassportNumber), _, _))
-        .WillOnce(RunOnceCallback<2>(kDeclineBubble));
+    EXPECT_CALL(autofill_client(),
+                ShowEntityImportBubble(PassportWithNumber(kOtherPassportNumber),
+                                       _, _, _))
+        .WillOnce(RunOnceCallback<3>(kDeclineBubble));
   }
 
   ASSERT_TRUE(
@@ -672,19 +628,19 @@ TEST_F(AutofillAiManagerImportFormTest,
     InSequence s;
     EXPECT_CALL(autofill_client(),
                 ShowEntityImportBubble(
-                    VehicleWithLicensePlate(kDefaultLicensePlate), _, _))
+                    VehicleWithLicensePlate(kDefaultLicensePlate), _, _, _))
         .Times(2)
-        .WillRepeatedly(RunOnceCallbackRepeatedly<2>(kIgnoreBubble));
+        .WillRepeatedly(RunOnceCallbackRepeatedly<3>(kIgnoreBubble));
     EXPECT_CALL(autofill_client(),
                 ShowEntityImportBubble(
-                    VehicleWithLicensePlate(kDefaultLicensePlate), _, _))
+                    VehicleWithLicensePlate(kDefaultLicensePlate), _, _, _))
         .Times(3)
-        .WillRepeatedly(RunOnceCallbackRepeatedly<2>(kDeclineBubble));
+        .WillRepeatedly(RunOnceCallbackRepeatedly<3>(kDeclineBubble));
     EXPECT_CALL(check, Call);
     EXPECT_CALL(autofill_client(),
                 ShowEntityImportBubble(
-                    VehicleWithLicensePlate(kOtherLicensePlate), _, _))
-        .WillOnce(RunOnceCallback<2>(kDeclineBubble));
+                    VehicleWithLicensePlate(kOtherLicensePlate), _, _, _))
+        .WillOnce(RunOnceCallback<3>(kDeclineBubble));
   }
 
   std::unique_ptr<FormStructure> form = CreateVehicleForm();
@@ -719,34 +675,34 @@ TEST_F(AutofillAiManagerImportFormTest, StrikesForUpdates) {
     // Accept the first prompt.
     EXPECT_CALL(autofill_client(),
                 ShowEntityImportBubble(
-                    PassportWithNumber(kDefaultPassportNumber), _, _))
-        .WillOnce(RunOnceCallback<2>(kAcceptBubble));
+                    PassportWithNumber(kDefaultPassportNumber), _, _, _))
+        .WillOnce(RunOnceCallback<3>(kAcceptBubble));
 
     // Accept the third prompt.
-    EXPECT_CALL(
-        autofill_client(),
-        ShowEntityImportBubble(PassportWithNumber(kOtherPassportNumber), _, _))
+    EXPECT_CALL(autofill_client(),
+                ShowEntityImportBubble(PassportWithNumber(kOtherPassportNumber),
+                                       _, _, _))
         .Times(2)
-        .WillRepeatedly(RunOnceCallbackRepeatedly<2>(kDeclineBubble));
-    EXPECT_CALL(
-        autofill_client(),
-        ShowEntityImportBubble(PassportWithNumber(kOtherPassportNumber), _, _))
-        .WillOnce(RunOnceCallback<2>(kAcceptBubble));
+        .WillRepeatedly(RunOnceCallbackRepeatedly<3>(kDeclineBubble));
+    EXPECT_CALL(autofill_client(),
+                ShowEntityImportBubble(PassportWithNumber(kOtherPassportNumber),
+                                       _, _, _))
+        .WillOnce(RunOnceCallback<3>(kAcceptBubble));
 
     // If the user just ignores the prompt, no strikes are recorded.
-    EXPECT_CALL(
-        autofill_client(),
-        ShowEntityImportBubble(PassportWithNumber(kOtherPassportNumber2), _, _))
+    EXPECT_CALL(autofill_client(),
+                ShowEntityImportBubble(
+                    PassportWithNumber(kOtherPassportNumber2), _, _, _))
         .Times(2)
-        .WillRepeatedly(RunOnceCallbackRepeatedly<2>(kIgnoreBubble));
+        .WillRepeatedly(RunOnceCallbackRepeatedly<3>(kIgnoreBubble));
 
     // Only three more prompts will be shown for the next update because the
     // user declines explicitly.
-    EXPECT_CALL(
-        autofill_client(),
-        ShowEntityImportBubble(PassportWithNumber(kOtherPassportNumber2), _, _))
+    EXPECT_CALL(autofill_client(),
+                ShowEntityImportBubble(
+                    PassportWithNumber(kOtherPassportNumber2), _, _, _))
         .Times(3)
-        .WillRepeatedly(RunOnceCallbackRepeatedly<2>(kDeclineBubble));
+        .WillRepeatedly(RunOnceCallbackRepeatedly<3>(kDeclineBubble));
   }
 
   ASSERT_TRUE(
@@ -790,34 +746,34 @@ TEST_F(AutofillAiManagerImportFormTest, AcceptingResetsStrikesPerUrl) {
     // attempts for a vehicle.
     EXPECT_CALL(autofill_client(),
                 ShowEntityImportBubble(
-                    PassportWithNumber(kDefaultPassportNumber), _, _))
+                    PassportWithNumber(kDefaultPassportNumber), _, _, _))
         .Times(2)
-        .WillRepeatedly(RunOnceCallbackRepeatedly<2>(kDeclineBubble));
+        .WillRepeatedly(RunOnceCallbackRepeatedly<3>(kDeclineBubble));
     EXPECT_CALL(autofill_client(),
                 ShowEntityImportBubble(
-                    VehicleWithLicensePlate(kDefaultLicensePlate), _, _))
+                    VehicleWithLicensePlate(kDefaultLicensePlate), _, _, _))
         .Times(2)
-        .WillRepeatedly(RunOnceCallbackRepeatedly<2>(kDeclineBubble));
+        .WillRepeatedly(RunOnceCallbackRepeatedly<3>(kDeclineBubble));
     EXPECT_CALL(check, Call);
 
     // We accept the next save prompt for a passport form.
     EXPECT_CALL(autofill_client(),
                 ShowEntityImportBubble(
-                    PassportWithNumber(kDefaultPassportNumber), _, _))
-        .WillOnce(RunOnceCallback<2>(kAcceptBubble));
+                    PassportWithNumber(kDefaultPassportNumber), _, _, _))
+        .WillOnce(RunOnceCallback<3>(kAcceptBubble));
 
     // We now only get one more vehicle save prompt (despite submitting a form
     // twice), but two more passport prompts because passport strikes were
     // reset.
     EXPECT_CALL(autofill_client(),
                 ShowEntityImportBubble(
-                    VehicleWithLicensePlate(kOtherLicensePlate), _, _))
-        .WillOnce(RunOnceCallback<2>(kDeclineBubble));
-    EXPECT_CALL(
-        autofill_client(),
-        ShowEntityImportBubble(PassportWithNumber(kOtherPassportNumber), _, _))
+                    VehicleWithLicensePlate(kOtherLicensePlate), _, _, _))
+        .WillOnce(RunOnceCallback<3>(kDeclineBubble));
+    EXPECT_CALL(autofill_client(),
+                ShowEntityImportBubble(PassportWithNumber(kOtherPassportNumber),
+                                       _, _, _))
         .Times(2)
-        .WillRepeatedly(RunOnceCallbackRepeatedly<2>(kDeclineBubble));
+        .WillRepeatedly(RunOnceCallbackRepeatedly<3>(kDeclineBubble));
   }
 
   ASSERT_TRUE(
@@ -854,23 +810,23 @@ TEST_F(AutofillAiManagerImportFormTest, AcceptingResetsStrikesPerAttribute) {
     // First, we expect to see two save attempts for a passport.
     EXPECT_CALL(autofill_client(),
                 ShowEntityImportBubble(
-                    PassportWithNumber(kDefaultPassportNumber), _, _))
+                    PassportWithNumber(kDefaultPassportNumber), _, _, _))
         .Times(2)
-        .WillRepeatedly(RunOnceCallbackRepeatedly<2>(kDeclineBubble));
+        .WillRepeatedly(RunOnceCallbackRepeatedly<3>(kDeclineBubble));
     // We accept the next save prompt for a passport form.
     EXPECT_CALL(autofill_client(),
                 ShowEntityImportBubble(
-                    PassportWithNumber(kDefaultPassportNumber), _, _))
-        .WillOnce(RunOnceCallback<2>(kAcceptBubble));
+                    PassportWithNumber(kDefaultPassportNumber), _, _, _))
+        .WillOnce(RunOnceCallback<3>(kAcceptBubble));
 
     // (User now deletes the passport.)
 
     // We now get more prompts for the same passport number again.
     EXPECT_CALL(autofill_client(),
                 ShowEntityImportBubble(
-                    PassportWithNumber(kDefaultPassportNumber), _, _))
+                    PassportWithNumber(kDefaultPassportNumber), _, _, _))
         .Times(2)
-        .WillRepeatedly(RunOnceCallbackRepeatedly<2>(kDeclineBubble));
+        .WillRepeatedly(RunOnceCallbackRepeatedly<3>(kDeclineBubble));
   }
 
   ASSERT_TRUE(
@@ -909,18 +865,18 @@ TEST_F(AutofillAiManagerImportFormTest, StrikesForMigrationPromptsPerUrl) {
     InSequence s;
     EXPECT_CALL(autofill_client(),
                 ShowEntityImportBubble(
-                    VehicleWithLicensePlate(kDefaultLicensePlate), _, _))
+                    VehicleWithLicensePlate(kDefaultLicensePlate), _, _, _))
         .Times(2)
-        .WillRepeatedly(RunOnceCallbackRepeatedly<2>(kDeclineBubble));
+        .WillRepeatedly(RunOnceCallbackRepeatedly<3>(kDeclineBubble));
     EXPECT_CALL(autofill_client(),
                 ShowEntityImportBubble(
-                    VehicleWithLicensePlate(kOtherLicensePlate), _, _))
-        .WillOnce(RunOnceCallbackRepeatedly<2>(kDeclineBubble));
+                    VehicleWithLicensePlate(kOtherLicensePlate), _, _, _))
+        .WillOnce(RunOnceCallbackRepeatedly<3>(kDeclineBubble));
     EXPECT_CALL(check, Call);
     EXPECT_CALL(autofill_client(),
                 ShowEntityImportBubble(
-                    VehicleWithLicensePlate(kDefaultLicensePlate), _, _))
-        .WillOnce(RunOnceCallback<2>(kDeclineBubble));
+                    VehicleWithLicensePlate(kDefaultLicensePlate), _, _, _))
+        .WillOnce(RunOnceCallback<3>(kDeclineBubble));
   }
 
   std::unique_ptr<FormStructure> submitted_form_entity_with_default_plate =
@@ -965,24 +921,24 @@ TEST_F(AutofillAiManagerImportFormTest, AcceptingMigrationResetsStrikesPerUrl) {
     // First, we expect to see two migration attempts for a vehicle.
     EXPECT_CALL(autofill_client(),
                 ShowEntityImportBubble(
-                    VehicleWithLicensePlate(kDefaultLicensePlate), _, _))
+                    VehicleWithLicensePlate(kDefaultLicensePlate), _, _, _))
         .Times(2)
-        .WillRepeatedly(RunOnceCallbackRepeatedly<2>(kDeclineBubble));
+        .WillRepeatedly(RunOnceCallbackRepeatedly<3>(kDeclineBubble));
     EXPECT_CALL(check, Call);
 
     // We accept the next migration prompt for a vehicle form.
     EXPECT_CALL(autofill_client(),
                 ShowEntityImportBubble(
-                    VehicleWithLicensePlate(kDefaultLicensePlate), _, _))
-        .WillOnce(RunOnceCallback<2>(kAcceptBubble));
+                    VehicleWithLicensePlate(kDefaultLicensePlate), _, _, _))
+        .WillOnce(RunOnceCallback<3>(kAcceptBubble));
 
     // We now get two more vehicle migration prompts because vehicle strikes
     // were reset.
     EXPECT_CALL(autofill_client(),
                 ShowEntityImportBubble(
-                    VehicleWithLicensePlate(kOtherLicensePlate), _, _))
+                    VehicleWithLicensePlate(kOtherLicensePlate), _, _, _))
         .Times(2)
-        .WillRepeatedly(RunOnceCallbackRepeatedly<2>(kDeclineBubble));
+        .WillRepeatedly(RunOnceCallbackRepeatedly<3>(kDeclineBubble));
   }
 
   std::unique_ptr<FormStructure> form = CreateVehicleForm();
@@ -1015,21 +971,21 @@ TEST_F(AutofillAiManagerImportFormTest,
     // First, we expect to see two migration attempts for a vehicle.
     EXPECT_CALL(autofill_client(),
                 ShowEntityImportBubble(
-                    VehicleWithLicensePlate(kDefaultLicensePlate), _, _))
+                    VehicleWithLicensePlate(kDefaultLicensePlate), _, _, _))
         .Times(2)
-        .WillRepeatedly(RunOnceCallbackRepeatedly<2>(kDeclineBubble));
+        .WillRepeatedly(RunOnceCallbackRepeatedly<3>(kDeclineBubble));
     // We accept the next migration prompt for a vehicle form.
     EXPECT_CALL(autofill_client(),
                 ShowEntityImportBubble(
-                    VehicleWithLicensePlate(kDefaultLicensePlate), _, _))
-        .WillOnce(RunOnceCallback<2>(kAcceptBubble));
+                    VehicleWithLicensePlate(kDefaultLicensePlate), _, _, _))
+        .WillOnce(RunOnceCallback<3>(kAcceptBubble));
 
     // We now get more prompts for the same vehicle license plate again.
     EXPECT_CALL(autofill_client(),
                 ShowEntityImportBubble(
-                    VehicleWithLicensePlate(kDefaultLicensePlate), _, _))
+                    VehicleWithLicensePlate(kDefaultLicensePlate), _, _, _))
         .Times(2)
-        .WillRepeatedly(RunOnceCallbackRepeatedly<2>(kDeclineBubble));
+        .WillRepeatedly(RunOnceCallbackRepeatedly<3>(kDeclineBubble));
   }
 
   std::unique_ptr<FormStructure> form = CreateVehicleForm();
@@ -1085,7 +1041,7 @@ TEST_F(AutofillAiManagerImportFormTest,
   AutofillClient::EntityImportPromptResultCallback save_callback;
   EXPECT_CALL(autofill_client(), ShowEntityImportBubble)
       .WillOnce(DoAll(SaveArg<0>(&new_entity), SaveArg<1>(&old_entity),
-                      MoveArg<2>(&save_callback)));
+                      MoveArg<3>(&save_callback)));
   // Save prompts lead to a hats survey being triggered.
   EXPECT_CALL(autofill_client(),
               TriggerAutofillAiSavePromptSurvey(
@@ -1126,7 +1082,7 @@ TEST_F(AutofillAiManagerImportFormTest,
 
   AutofillClient::EntityImportPromptResultCallback save_callback;
   EXPECT_CALL(autofill_client(), ShowEntityImportBubble)
-      .WillOnce(MoveArg<2>(&save_callback));
+      .WillOnce(MoveArg<3>(&save_callback));
   // Save prompts lead to a hats survey being triggered.
   EXPECT_CALL(
       autofill_client(),
@@ -1194,7 +1150,7 @@ TEST_F(AutofillAiManagerImportFormTest, NewEntity_ShowPromptAndAccept) {
   AutofillClient::EntityImportPromptResultCallback save_callback;
   EXPECT_CALL(autofill_client(), ShowEntityImportBubble)
       .WillOnce(DoAll(SaveArg<0>(&entity), SaveArg<1>(&old_entity),
-                      MoveArg<2>(&save_callback)));
+                      MoveArg<3>(&save_callback)));
 
   EXPECT_TRUE(manager().OnFormSubmitted(*form, /*ukm_source_id=*/{}));
   // This is a save bubble, `old_entity` should not exist.
@@ -1234,7 +1190,7 @@ TEST_F(AutofillAiManagerImportFormTest,
   AutofillClient::EntityImportPromptResultCallback save_callback;
   EXPECT_CALL(autofill_client(), ShowEntityImportBubble)
       .WillOnce(DoAll(SaveArg<0>(&new_entity), SaveArg<1>(&old_entity),
-                      MoveArg<2>(&save_callback)));
+                      MoveArg<3>(&save_callback)));
   EXPECT_TRUE(manager().OnFormSubmitted(*form, /*ukm_source_id=*/{}));
   // This is a save bubble, `old_entity` should not exist.
   EXPECT_FALSE(old_entity.has_value());
@@ -1304,7 +1260,7 @@ TEST_F(AutofillAiManagerImportFormTest, UpdateEntity_NewInfo) {
   AutofillClient::EntityImportPromptResultCallback save_callback;
   EXPECT_CALL(autofill_client(), ShowEntityImportBubble)
       .WillOnce(DoAll(SaveArg<0>(&new_entity), SaveArg<1>(&old_entity),
-                      MoveArg<2>(&save_callback)));
+                      MoveArg<3>(&save_callback)));
 
   // An update bubble should be shown.
   ASSERT_TRUE(manager().OnFormSubmitted(*form, /*ukm_source_id=*/{}));
@@ -1355,7 +1311,7 @@ TEST_F(AutofillAiManagerImportFormTest,
   AutofillClient::EntityImportPromptResultCallback save_callback;
   EXPECT_CALL(autofill_client(), ShowEntityImportBubble)
       .WillOnce(DoAll(SaveArg<0>(&new_entity), SaveArg<1>(&old_entity),
-                      MoveArg<2>(&save_callback)));
+                      MoveArg<3>(&save_callback)));
 
   // An update bubble should be shown.
   ASSERT_TRUE(manager().OnFormSubmitted(*form, /*ukm_source_id=*/{}));
@@ -1425,7 +1381,7 @@ TEST_F(AutofillAiManagerImportFormTest, UpdateEntity_UpdateInfo) {
   AutofillClient::EntityImportPromptResultCallback save_callback;
   EXPECT_CALL(autofill_client(), ShowEntityImportBubble)
       .WillOnce(DoAll(SaveArg<0>(&new_entity), SaveArg<1>(&old_entity),
-                      MoveArg<2>(&save_callback)));
+                      MoveArg<3>(&save_callback)));
 
   // An update bubble should be shown.
   ASSERT_TRUE(manager().OnFormSubmitted(*form, /*ukm_source_id=*/{}));
@@ -1634,7 +1590,7 @@ TEST_F(AutofillAiManagerUpstreamTest,
   AutofillClient::EntityImportPromptResultCallback upstream_callback;
   EXPECT_CALL(autofill_client(), ShowEntityImportBubble)
       .WillOnce(DoAll(SaveArg<0>(&entity_to_upstream), SaveArg<1>(&old_entity),
-                      MoveArg<2>(&upstream_callback)));
+                      MoveArg<3>(&upstream_callback)));
   EXPECT_TRUE(manager().OnFormSubmitted(*form, /*ukm_source_id=*/{}));
   ASSERT_FALSE(old_entity);
   ASSERT_TRUE(entity_to_upstream);

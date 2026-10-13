@@ -18,7 +18,6 @@ import org.chromium.chrome.browser.compositor.layouts.LayoutManagerImpl;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.layouts.LayoutStateProvider.LayoutStateObserver;
 import org.chromium.chrome.browser.layouts.LayoutType;
-import org.chromium.chrome.browser.omnibox.OmniboxFocusReason;
 import org.chromium.chrome.browser.omnibox.OmniboxStub;
 import org.chromium.chrome.browser.omnibox.UrlFocusChangeListener;
 import org.chromium.chrome.browser.tab.EmptyTabObserver;
@@ -30,7 +29,7 @@ import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelObserver;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.components.embedder_support.util.UrlUtilities;
-import org.chromium.components.omnibox.AutocompleteRequestType;
+import org.chromium.components.omnibox.AutocompleteInput;
 import org.chromium.ui.UiUtils;
 import org.chromium.ui.accessibility.AccessibilityState;
 import org.chromium.url.GURL;
@@ -50,7 +49,14 @@ import java.util.function.Function;
 public class IncognitoNtpOmniboxAutofocusManager {
     private static @Nullable IncognitoNtpOmniboxAutofocusManager sInstanceForTesting;
     private final Set<Tab> mProcessedTabs = new HashSet<>();
+
+    /**
+     * Stores Incognito NTP tabs that are ready for autofocus but might be blocked by transient
+     * conditions like layout transitions. This allows retrying the autofocus once conditions are
+     * met, for instance, when the layout animation completes.
+     */
     private final Set<Tab> mTabsPendingAutofocus = new HashSet<>();
+
     private final OmniboxStub mOmniboxStub;
     private final TabModelSelector mTabModelSelector;
     private @Nullable TabObserver mTabObserver;
@@ -79,7 +85,7 @@ public class IncognitoNtpOmniboxAutofocusManager {
     private final boolean mIsWithHardwareKeyboardEnabled;
 
     private boolean mIsLayoutInTransition;
-    private int mTabsPreviouslyOpenedCount;
+    private int mNtpOpenedCount;
     private final @NonNull GestureDetector mNtpSingleTapDetector;
     private boolean mIsAutofocusing;
     private double mTabHeightBeforeFocus;
@@ -148,18 +154,14 @@ public class IncognitoNtpOmniboxAutofocusManager {
         mLayoutManager = layoutManager;
         mNtpViewProvider = ntpViewProvider;
         mNtpContentMetricsProvider = ntpContentMetricsProvider;
-        mTabsPreviouslyOpenedCount = 0;
+        mNtpOpenedCount = 0;
         mNtpSingleTapDetector =
                 new GestureDetector(
                         context,
                         new GestureDetector.SimpleOnGestureListener() {
                             @Override
                             public boolean onSingleTapConfirmed(MotionEvent e) {
-                                mOmniboxStub.setUrlBarFocus(
-                                        false,
-                                        null,
-                                        OmniboxFocusReason.UNFOCUS,
-                                        AutocompleteRequestType.SEARCH);
+                                mOmniboxStub.setUrlBarFocus(null);
                                 return false;
                             }
                         });
@@ -291,7 +293,6 @@ public class IncognitoNtpOmniboxAutofocusManager {
                             @TabCreationState int creationState,
                             boolean markedForSelection) {
                         if (!tab.isIncognitoBranded() || mTabObserver == null) return;
-                        ++mTabsPreviouslyOpenedCount;
                         tab.addObserver(mTabObserver);
                     }
 
@@ -311,7 +312,6 @@ public class IncognitoNtpOmniboxAutofocusManager {
                     Tab tab = model.getTabAt(i);
                     if (tab == null) continue;
 
-                    ++mTabsPreviouslyOpenedCount;
                     tab.addObserver(mTabObserver);
 
                     // Handle already loaded NTPs.
@@ -382,6 +382,10 @@ public class IncognitoNtpOmniboxAutofocusManager {
         }
 
         if (UrlUtilities.isNtpUrl(tab.getUrl())) {
+            ++mNtpOpenedCount;
+
+            // Autofocus can fail due to layout transitions. Add the tab to the pending set to allow
+            // the LayoutStateObserver to retry when the transition is complete.
             mTabsPendingAutofocus.add(tab);
             tryAutofocus(tab);
         } else {
@@ -454,19 +458,22 @@ public class IncognitoNtpOmniboxAutofocusManager {
     /** Performs the actual focus action and updates the state. */
     private void autofocus(Tab tab) {
         mIsAutofocusing = true;
-        mOmniboxStub.setUrlBarFocus(
-                true, null, OmniboxFocusReason.OMNIBOX_TAP, AutocompleteRequestType.SEARCH);
+        mOmniboxStub.setUrlBarFocus(new AutocompleteInput());
 
         // Mark the tab as processed to prevent future autofocus attempts.
         markTabAsProcessed(tab);
     }
 
     /**
-     * Checks if autofocus is allowed for a tab that is not the very first Incognito tab opened in
-     * the current session.
+     * Checks if autofocus is allowed for a tab, by verifying whether Incognito NTP has already been
+     * shown in the current session.
+     *
+     * <p>The check occurs within {@link #tryAutofocus(Tab)}, which may be delayed or retried (e.g.,
+     * until layout transitions are complete). By the time this check runs, the NTP is fully loaded
+     * and {@link #mNtpOpenedCount} has already been incremented for the current tab.
      */
     private boolean checkAutofocusAllowedNotFirstTab() {
-        return mTabsPreviouslyOpenedCount > 1;
+        return mNtpOpenedCount >= 2;
     }
 
     /** Checks if autofocus is allowed when a hardware keyboard is connected. */

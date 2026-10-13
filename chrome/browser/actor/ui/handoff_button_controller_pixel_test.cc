@@ -5,7 +5,6 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
-#include "chrome/browser/actor/actor_policy_checker.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/actor_task_metadata.h"
 #include "chrome/browser/actor/actor_test_util.h"
@@ -29,18 +28,12 @@ class ActorUiHandoffButtonControllerPixelTest : public DialogBrowserTest {
  public:
   ActorUiHandoffButtonControllerPixelTest() {
     feature_list_.InitWithFeaturesAndParameters(
-        /*enabled_features=*/{{features::kGlicActor, {}},
-                              {features::kGlicActorUi,
+        /*enabled_features=*/{{features::kGlicActorUi,
                                {{features::kGlicActorUiHandoffButtonName,
                                  "true"}}}},
         /*disabled_features=*/{});
   }
   ~ActorUiHandoffButtonControllerPixelTest() override = default;
-
-  void SetUpOnMainThread() override {
-    DialogBrowserTest::SetUpOnMainThread();
-    GetActorKeyedService()->GetPolicyChecker().set_act_on_web_for_testing(true);
-  }
 
   ActorKeyedService* GetActorKeyedService() {
     return ActorKeyedService::Get(browser()->profile());
@@ -49,7 +42,8 @@ class ActorUiHandoffButtonControllerPixelTest : public DialogBrowserTest {
   std::string GetNonDialogName() override { return "HandoffButtonWidget"; }
 
   void ShowUi(const std::string& name) override {
-    task_id_ = GetActorKeyedService()->CreateTask();
+    task_id_ =
+        GetActorKeyedService()->CreateTask(actor::NoEnterprisePolicyChecker());
     TestFuture<actor::mojom::ActionResultPtr> future;
     GetActorKeyedService()->GetTask(task_id_)->AddTab(
         browser()->GetActiveTabInterface()->GetHandle(), future.GetCallback());
@@ -85,24 +79,6 @@ class ActorUiHandoffButtonControllerPixelTest : public DialogBrowserTest {
 
 IN_PROC_BROWSER_TEST_F(ActorUiHandoffButtonControllerPixelTest,
                        InvokeUi_TakeOverTask) {
-  ShowAndVerifyUi();
-}
-
-class ActorUiHandoffButtonHiddenPixelTest
-    : public ActorUiHandoffButtonControllerPixelTest {
- public:
-  ActorUiHandoffButtonHiddenPixelTest() {
-    override_feature_list_.InitAndDisableFeature(
-        features::kGlicHandoffButtonHiddenClientControl);
-  }
-
- private:
-  base::test::ScopedFeatureList override_feature_list_;
-};
-
-IN_PROC_BROWSER_TEST_F(ActorUiHandoffButtonHiddenPixelTest,
-                       InvokeUi_TakeOverTask) {
-  ownership_ = HandoffButtonState::ControlOwnership::kClient;
   ShowAndVerifyUi();
 }
 }  // namespace

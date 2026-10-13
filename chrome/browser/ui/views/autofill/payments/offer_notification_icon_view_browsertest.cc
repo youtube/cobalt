@@ -104,7 +104,7 @@ class OfferNotificationIconViewBrowserTest
   void WaitForUserDismissal() override {
     // Consider closing the browser to be dismissal. This is useful when using
     // the test-launcher-interactive option.
-    ui_test_utils::WaitForBrowserToClose();
+    ui_test_utils::BrowserDestroyedObserver().Wait();
   }
 
  protected:
@@ -145,7 +145,7 @@ class OfferNotificationIconViewBrowserTest
   }
 
   LocationBarView* GetLocationBarView() {
-    return GetBrowserView()->toolbar()->location_bar();
+    return GetBrowserView()->toolbar()->location_bar_view();
   }
 
   base::test::ScopedFeatureList feature_list_;

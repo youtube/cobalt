@@ -6,9 +6,7 @@
 
 #include <algorithm>
 
-#include "base/auto_reset.h"
 #include "base/check.h"
-#include "base/functional/bind.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/user_metrics.h"
 #include "base/observer_list.h"
@@ -18,8 +16,6 @@
 #include "chrome/browser/lifetime/browser_shutdown.h"
 #include "chrome/browser/lifetime/termination_notification.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/sessions/app_session_service_factory.h"
-#include "chrome/browser/sessions/session_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_list_enumerator.h"
@@ -31,32 +27,6 @@
 #include "components/keep_alive_registry/keep_alive_types.h"
 
 using base::UserMetricsAction;
-using content::WebContents;
-
-namespace {
-
-BrowserList::BrowserWeakVector GetBrowsersToClose(Profile* profile) {
-  BrowserList::BrowserWeakVector browsers_to_close;
-  for (Browser* browser : *BrowserList::GetInstance()) {
-    if (browser->profile()->GetOriginalProfile() ==
-        profile->GetOriginalProfile()) {
-      browsers_to_close.push_back(browser->AsWeakPtr());
-    }
-  }
-  return browsers_to_close;
-}
-
-BrowserList::BrowserWeakVector GetIncognitoBrowsersToClose(Profile* profile) {
-  BrowserList::BrowserWeakVector browsers_to_close;
-  for (Browser* browser : *BrowserList::GetInstance()) {
-    if (browser->profile() == profile) {
-      browsers_to_close.push_back(browser->AsWeakPtr());
-    }
-  }
-  return browsers_to_close;
-}
-
-}  // namespace
 
 // static
 base::LazyInstance<base::ObserverList<BrowserListObserver>,
@@ -159,119 +129,9 @@ void BrowserList::RemoveObserver(BrowserListObserver* observer) {
 }
 
 // static
-void BrowserList::CloseAllBrowsersWithProfile(Profile* profile) {
-  BrowserVector browsers_to_close;
-  for (Browser* browser : *BrowserList::GetInstance()) {
-    if (browser->profile()->GetOriginalProfile() ==
-        profile->GetOriginalProfile()) {
-      browsers_to_close.push_back(browser);
-    }
-  }
-
-  for (const auto& it : browsers_to_close) {
-    it->window()->Close();
-  }
-}
-
-// static
-void BrowserList::CloseAllBrowsersWithProfile(
-    Profile* profile,
-    const CloseCallback& on_close_success,
-    const CloseCallback& on_close_aborted,
-    bool skip_beforeunload) {
-  SessionServiceFactory::ShutdownForProfile(profile);
-  AppSessionServiceFactory::ShutdownForProfile(profile);
-
-  TryToCloseBrowserList(GetBrowsersToClose(profile), on_close_success,
-                        on_close_aborted, profile->GetPath(),
-                        skip_beforeunload);
-}
-
-// static
-void BrowserList::CloseAllBrowsersWithIncognitoProfile(
-    Profile* profile,
-    const CloseCallback& on_close_success,
-    const CloseCallback& on_close_aborted,
-    bool skip_beforeunload) {
-  DCHECK(profile->IsOffTheRecord());
-  auto browsers_to_close = GetIncognitoBrowsersToClose(profile);
-
-  // When closing devtools browser related to incognito browser, do not skip
-  // calling before unload handlers.
-  skip_beforeunload =
-      skip_beforeunload &&
-      std::ranges::none_of(browsers_to_close, &Browser::is_type_devtools);
-  TryToCloseBrowserList(browsers_to_close, on_close_success, on_close_aborted,
-                        profile->GetPath(), skip_beforeunload);
-}
-
-// static
-void BrowserList::TryToCloseBrowserList(
-    const BrowserWeakVector& browsers_to_close,
-    const CloseCallback& on_close_success,
-    const CloseCallback& on_close_aborted,
-    const base::FilePath& profile_path,
-    const bool skip_beforeunload) {
-  for (auto& weak_browser : browsers_to_close) {
-    if (weak_browser &&
-        weak_browser->TryToCloseWindow(
-            skip_beforeunload,
-            base::BindRepeating(&BrowserList::PostTryToCloseBrowserWindow,
-                                browsers_to_close, on_close_success,
-                                on_close_aborted, profile_path,
-                                skip_beforeunload))) {
-      return;
-    }
-  }
-
-  if (on_close_success) {
-    on_close_success.Run(profile_path);
-  }
-
-  for (auto& weak_b : browsers_to_close) {
-    // BeforeUnload handlers may close browser windows, so we need to explicitly
-    // check whether they still exist.
-    if (weak_b && weak_b->window()) {
-      weak_b->window()->Close();
-    }
-  }
-}
-
-// static
-void BrowserList::PostTryToCloseBrowserWindow(
-    const BrowserWeakVector& browsers_to_close,
-    const CloseCallback& on_close_success,
-    const CloseCallback& on_close_aborted,
-    const base::FilePath& profile_path,
-    const bool skip_beforeunload,
-    bool tab_close_confirmed) {
-  // We need this bool to avoid infinite recursion when resetting the
-  // BeforeUnload handlers, since doing that will trigger calls back to this
-  // method for each affected window.
-  static bool resetting_handlers = false;
-
-  if (tab_close_confirmed) {
-    TryToCloseBrowserList(browsers_to_close, on_close_success, on_close_aborted,
-                          profile_path, skip_beforeunload);
-  } else if (!resetting_handlers) {
-    base::AutoReset<bool> resetting_handlers_scoper(&resetting_handlers, true);
-    for (auto& weak_browser : browsers_to_close) {
-      // This function is called asynchronously, so that the Browser may have
-      // been destroyed by the time we get here.
-      if (weak_browser) {
-        weak_browser->ResetTryToCloseWindow();
-      }
-    }
-    if (on_close_aborted) {
-      on_close_aborted.Run(profile_path);
-    }
-  }
-}
-
-// static
 void BrowserList::SetLastActive(Browser* browser) {
   BrowserList* instance = GetInstance();
-  DCHECK(std::ranges::contains(*instance, browser))
+  DCHECK(std::ranges::contains(instance->browsers_, browser))
       << "SetLastActive called for a browser before the browser was added to "
          "the BrowserList.";
   DCHECK(browser->window())
@@ -290,7 +150,7 @@ void BrowserList::SetLastActive(Browser* browser) {
 // static
 void BrowserList::NotifyBrowserNoLongerActive(Browser* browser) {
   BrowserList* instance = GetInstance();
-  DCHECK(std::ranges::contains(*instance, browser))
+  DCHECK(std::ranges::contains(instance->browsers_, browser))
       << "NotifyBrowserNoLongerActive called for a browser before the browser "
          "was added to the BrowserList.";
   DCHECK(browser->window())

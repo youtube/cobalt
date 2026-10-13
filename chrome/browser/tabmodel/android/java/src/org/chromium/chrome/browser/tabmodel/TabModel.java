@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.tabmodel;
 
+import androidx.annotation.IntDef;
+
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.supplier.NonNullObservableSupplier;
 import org.chromium.base.supplier.NullableObservableSupplier;
@@ -17,6 +19,8 @@ import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tab.TabSelectionType;
 import org.chromium.components.tabs.TabStripCollection;
 
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +34,24 @@ import java.util.Set;
 public interface TabModel extends SupportsTabModelObserver, TabList {
     static final long INVALID_TIMESTAMP = -1L;
     Map<Integer, Long> sTabPinTimestampMap = new HashMap<>();
+
+    @IntDef({
+        RecentlyClosedEntryType.NONE,
+        RecentlyClosedEntryType.TAB,
+        RecentlyClosedEntryType.TABS,
+        RecentlyClosedEntryType.GROUP
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    @interface RecentlyClosedEntryType {
+        int NONE = 0;
+        int TAB = 1;
+        int TABS = 2;
+        int GROUP = 3;
+    }
+
+    /** Returns the {@link TabModelType} of this tab model. */
+    @TabModelType
+    int getTabModelType();
 
     /** Returns the profile associated with the current model. */
     @Nullable Profile getProfile();
@@ -98,6 +120,10 @@ public interface TabModel extends SupportsTabModelObserver, TabList {
      * this model if the original model no longer exists.
      */
     void openMostRecentlyClosedEntry();
+
+    /** Returns the type of the most recently closed entry. */
+    @RecentlyClosedEntryType
+    int getMostRecentlyClosedEntryType();
 
     /**
      * Gets the timestamp of the most recent tab closure event. If a valid, non-zero timestamp is
@@ -306,4 +332,7 @@ public interface TabModel extends SupportsTabModelObserver, TabList {
 
     /** Duplicates the given tab. */
     @Nullable Tab duplicateTab(Tab tab);
+
+    /** Whether the model is currently in the process of closing all of its tabs. */
+    boolean isClosingAllTabs();
 }

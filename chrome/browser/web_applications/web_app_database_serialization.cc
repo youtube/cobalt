@@ -300,9 +300,8 @@ std::string FilePathToProto(const base::FilePath& path) {
 }
 
 std::optional<base::FilePath> ProtoToFilePath(const std::string& bytes) {
-  const base::Pickle pickle =
-      base::Pickle::WithUnownedBuffer(base::as_byte_span(bytes));
-  base::PickleIterator pickle_iterator(pickle);
+  base::PickleIterator pickle_iterator =
+      base::PickleIterator::WithData(base::as_byte_span(bytes));
 
   base::FilePath path;
   if (!path.ReadFromPickle(&pickle_iterator)) {
@@ -425,6 +424,17 @@ std::unique_ptr<WebApp> ParseWebAppProto(
     DLOG(ERROR) << "WebApp proto start_url parse error: "
                 << start_url.possibly_invalid_spec();
     return nullptr;
+  }
+
+  if (sync_data.has_migrated_from_manifest_id()) {
+    webapps::ManifestId migrated_from_manifest_id(
+        sync_data.migrated_from_manifest_id());
+    if (!migrated_from_manifest_id.is_valid()) {
+      RecordProtoParseResult(ProtoParseResult::kMigratedFromManifestIdInvalid);
+      DLOG(ERROR) << "WebApp sync proto migrated from manifest id parse error "
+                  << migrated_from_manifest_id.possibly_invalid_spec();
+      return nullptr;
+    }
   }
 
   // Post-migration check: Scope should not be empty.
@@ -1506,13 +1516,6 @@ std::unique_ptr<WebApp> ParseWebAppProto(
       IconPurpose::MASKABLE,
       SortedSizesPx(std::move(trusted_icon_sizes_maskable)));
 
-  auto borderless_url_patterns = ToUrlPatterns(proto.borderless_url_patterns());
-  if (!borderless_url_patterns.has_value()) {
-    RecordProtoParseResult(ProtoParseResult::kInvalidBorderlessUrlPatterns);
-    return nullptr;
-  }
-  web_app->SetBorderlessUrlPatterns(std::move(borderless_url_patterns.value()));
-
   std::deque<AppInstalledBy> installed_by_data;
   for (const auto& installed_by_proto : proto.installed_by()) {
     std::optional<AppInstalledBy> installed_by =
@@ -2131,10 +2134,6 @@ std::unique_ptr<proto::WebApp> WebAppToProto(const WebApp& web_app) {
   for (SquareSizePx size :
        web_app.stored_trusted_icon_sizes(IconPurpose::MASKABLE)) {
     local_data->add_stored_trusted_icon_sizes_maskable(size);
-  }
-
-  for (const auto& pattern : web_app.borderless_url_patterns()) {
-    *(local_data->add_borderless_url_patterns()) = ToUrlPatternProto(pattern);
   }
 
   for (const auto& installed_by_data : web_app.installed_by()) {

@@ -19,15 +19,20 @@
 #include "base/test/bind.h"
 #include "base/test/gmock_callback_support.h"
 #include "base/test/mock_callback.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/simple_test_clock.h"
 #include "base/time/time.h"
 #include "base/values.h"
 #include "build/build_config.h"
 #include "chrome/browser/bookmarks/bookmark_model_factory.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
+#include "chrome/browser/ui/hats/hats_service_factory.h"
+#include "chrome/browser/ui/hats/mock_hats_service.h"
+#include "chrome/common/chrome_features.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/history/core/browser/browsing_history_service.h"
+#include "components/history/core/browser/features.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
 #include "components/sync/base/data_type.h"
@@ -158,7 +163,8 @@ class BrowsingHistoryHandlerTest : public ChromeRenderViewHostTestHarness {
                 /*host_only=*/options.host_only,
                 /*visit_order=*/options.visit_order,
                 /*app_id=*/options.app_id,
-                /*include_actor_visits=*/true)))
+                /*include_actor_visits=*/true,
+                /*include_user_visits=*/true)))
         .Times(1)
         .WillOnce([&, mock_results](const std::u16string& search_text,
                                     const QueryOptions& options) {
@@ -189,7 +195,7 @@ class BrowsingHistoryHandlerTest : public ChromeRenderViewHostTestHarness {
     mojom::QueryResultPtr history_query_results;
     base::RunLoop run_loop;
     handler_->QueryHistory(
-        query, 150, begin_timestamp,
+        query, 150, begin_timestamp, true, true,
         base::BindLambdaForTesting([&](history::mojom::QueryResultPtr result) {
           history_query_results = std::move(result);
           run_loop.Quit();
@@ -312,7 +318,8 @@ TEST_F(BrowsingHistoryHandlerTest, RequestAccountInfo) {
       IdentityManagerFactory::GetForProfile(profile());
   AccountInfo account_info = signin::MakePrimaryAccountAvailable(
       identity_manager, "test@example.com", signin::ConsentLevel::kSignin);
-  account_info.full_name = "Test User";
+  account_info =
+      AccountInfo::Builder(account_info).SetFullName("Test User").Build();
   signin::UpdateAccountInfoForAccount(identity_manager, account_info);
 
   base::MockCallback<BrowsingHistoryHandler::RequestAccountInfoCallback>
@@ -480,4 +487,128 @@ INSTANTIATE_TEST_SUITE_P(,
 
 #endif  // !BUILDFLAG(IS_CHROMEOS)
 
+class BrowsingHistoryHandlerHatsSurveyTest
+    : public BrowsingHistoryHandlerTest,
+      public testing::WithParamInterface<
+          std::tuple<bool, bool, bool, const char*, const base::Feature*>> {
+ public:
+  BrowsingHistoryHandlerHatsSurveyTest() {
+    std::tie(history_actor_enabled_, hats_feature_enabled_, should_launch_,
+             hats_trigger_, hats_feature_) = GetParam();
+
+    std::vector<base::test::FeatureRef> enabled_features;
+    std::vector<base::test::FeatureRef> disabled_features;
+
+    if (history_actor_enabled_) {
+      enabled_features.push_back(history::kBrowsingHistoryActorIntegrationM3);
+    } else {
+      disabled_features.push_back(history::kBrowsingHistoryActorIntegrationM3);
+    }
+
+    if (hats_feature_enabled_ && hats_feature_) {
+      enabled_features.push_back(*hats_feature_);
+    } else if (hats_feature_) {
+      disabled_features.push_back(*hats_feature_);
+    }
+
+    feature_list_.InitWithFeatures(enabled_features, disabled_features);
+  }
+
+  void SetUp() override {
+    BrowsingHistoryHandlerTest::SetUp();
+    HatsServiceFactory::GetInstance()->SetTestingFactoryAndUse(
+        profile(), base::BindRepeating(&BuildMockHatsService));
+  }
+
+ protected:
+  bool history_actor_enabled_;
+  bool hats_feature_enabled_;
+  bool should_launch_;
+  const char* hats_trigger_;
+  raw_ptr<const base::Feature> hats_feature_ = nullptr;
+  base::test::ScopedFeatureList feature_list_;
+
+ private:
+  static std::unique_ptr<KeyedService> BuildMockHatsService(
+      content::BrowserContext* context) {
+    return std::make_unique<testing::StrictMock<MockHatsService>>(
+        Profile::FromBrowserContext(context));
+  }
+};
+
+TEST_P(BrowsingHistoryHandlerHatsSurveyTest, TriggersHatsSurvey) {
+  auto* mock_hats_service = static_cast<MockHatsService*>(
+      HatsServiceFactory::GetInstance()->GetForProfile(
+          profile(),
+          /*create_if_necessary=*/true));
+  if (should_launch_) {
+    EXPECT_CALL(
+        *mock_hats_service,
+        LaunchDelayedSurveyForWebContents(
+            hats_trigger_, web_contents(), testing::_, testing::_, testing::_,
+            testing::_, testing::_, testing::_, testing::_, testing::_));
+  } else {
+    EXPECT_CALL(*mock_hats_service,
+                LaunchDelayedSurveyForWebContents(_, _, _, _, _, _, _, _, _, _))
+        .Times(0);
+  }
+
+  // Re-create handler to pick up feature flags.
+  auto handler = std::make_unique<BrowsingHistoryHandlerWithWebUIForTesting>(
+      mojo::PendingReceiver<history::mojom::PageHandler>(), profile(),
+      web_contents());
+  auto mock_page = std::make_unique<MockHistoryPage>();
+  handler->SetPage(mock_page->BindAndGetRemote());
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    BrowsingHistoryHandlerHatsSurveyTest,
+    testing::Values(
+        std::make_tuple(
+            /*history_actor_enabled_=*/true,
+            /*hats_feature_enabled_=*/true,
+            /*should_launch_=*/true,
+            /*hats_trigger_=*/kHatsSurveyTriggerHistoryPageExperiment,
+            /*hats_feature_=*/
+            &features::
+                kHappinessTrackingSurveysForDesktopHistoryPageExperiment),
+        std::make_tuple(
+            /*history_actor_enabled_=*/true,
+            /*hats_feature_enabled_=*/false,
+            /*should_launch_=*/false,
+            /*hats_trigger_=*/kHatsSurveyTriggerHistoryPageExperiment,
+            /*hats_feature_=*/
+            &features::
+                kHappinessTrackingSurveysForDesktopHistoryPageExperiment),
+        std::make_tuple(
+            /*history_actor_enabled_=*/false,
+            /*hats_feature_enabled_=*/true,
+            /*should_launch_=*/true,
+            /*hats_trigger_=*/kHatsSurveyTriggerHistoryPageControl,
+            /*hats_feature_=*/
+            &features::kHappinessTrackingSurveysForDesktopHistoryPageControl),
+        std::make_tuple(
+            /*history_actor_enabled_=*/false,
+            /*hats_feature_enabled_=*/false,
+            /*should_launch_=*/false,
+            /*hats_trigger_=*/kHatsSurveyTriggerHistoryPageControl,
+            /*hats_feature_=*/
+            &features::kHappinessTrackingSurveysForDesktopHistoryPageControl),
+        // No trigger should be launched if the history actor state is swapped.
+        std::make_tuple(
+            /*history_actor_enabled_=*/false,
+            /*hats_feature_enabled_=*/true,
+            /*should_launch_=*/false,
+            /*hats_trigger_=*/kHatsSurveyTriggerHistoryPageExperiment,
+            /*hats_feature_=*/
+            &features::
+                kHappinessTrackingSurveysForDesktopHistoryPageExperiment),
+        std::make_tuple(
+            /*history_actor_enabled_=*/true,
+            /*hats_feature_enabled_=*/true,
+            /*should_launch_=*/false,
+            /*hats_trigger_=*/kHatsSurveyTriggerHistoryPageControl,
+            /*hats_feature_=*/
+            &features::kHappinessTrackingSurveysForDesktopHistoryPageControl)));
 }  // namespace history

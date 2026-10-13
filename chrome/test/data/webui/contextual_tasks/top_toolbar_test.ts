@@ -56,8 +56,7 @@ suite('TopToolbarTest', () => {
   });
 
   test('handles new thread button click', async () => {
-    const newThreadButton = topToolbar.shadowRoot.querySelector<HTMLElement>(
-        'cr-icon-button[title="New Thread"]');
+    const newThreadButton = topToolbar.$.newThreadButton;
     assertTrue(!!newThreadButton);
     const newThreadEvent = eventToPromise('new-thread-click', topToolbar);
     newThreadButton.click();
@@ -65,16 +64,14 @@ suite('TopToolbarTest', () => {
   });
 
   test('handles thread history button click', async () => {
-    const historyButton = topToolbar.shadowRoot.querySelector<HTMLElement>(
-        'cr-icon-button[title="Thread History"]');
+    const historyButton = topToolbar.$.threadHistoryButton;
     assertTrue(!!historyButton);
     historyButton.click();
     await proxy.handler.whenCalled('showThreadHistory');
   });
 
   test('handles close button click', async () => {
-    const closeButton = topToolbar.shadowRoot.querySelector<HTMLElement>(
-        'cr-icon-button[title="Close"]');
+    const closeButton = topToolbar.$.closeButton;
     assertTrue(!!closeButton);
     closeButton.click();
     await proxy.handler.whenCalled('closeSidePanel');
@@ -91,8 +88,13 @@ suite('TopToolbarTest', () => {
     assertTrue(sourcesButton.hidden);
     assertFalse(!!sourcesButton.shadowRoot.querySelector('.favicon-item'));
 
-    topToolbar.attachedTabs =
-        [{tabId: 1, title: 'Tab 1', url: {url: 'https://example.com'}}];
+    topToolbar.contextInfos = [{
+      tab: {
+        title: 'Tab 1',
+        url: 'https://example.com',
+        tabId: 1,
+      },
+    }];
     await microtasksFinished();
 
     // After attaching a tab, the sources button should be visible and contain
@@ -102,8 +104,12 @@ suite('TopToolbarTest', () => {
   });
 
   test('handles sources menu interactions', async () => {
-    const tab = {tabId: 1, title: 'Tab 1', url: {url: 'https://example.com'}};
-    topToolbar.attachedTabs = [tab];
+    const tab = {
+      title: 'Tab 1',
+      url: 'https://example.com',
+      tabId: 1,
+    };
+    topToolbar.contextInfos = [{tab: tab}];
     await microtasksFinished();
 
     const sourcesButton =
@@ -120,22 +126,87 @@ suite('TopToolbarTest', () => {
     assertTrue(!!crActionMenu);
     assertTrue(crActionMenu.open);
 
-    // The first header is "Shared tabs and files", the second (optional) is
-    // "Tabs". We expect only 1 header since we only have one type of item
-    // (tabs) and the "Tabs" header should be hidden.
+    // The header is "Shared tabs and files".
     const headers = sourcesMenuElement.shadowRoot.querySelectorAll('.header');
     assertEquals(1, headers.length);
 
     // Click the first tab item.
-    const tabButton = sourcesMenuElement.shadowRoot.querySelector<HTMLElement>(
-        'button.dropdown-item');
-    assertTrue(!!tabButton);
-    tabButton.click();
+    const tabItem = sourcesMenuElement.shadowRoot.querySelector<HTMLElement>(
+        'cr-url-list-item.dropdown-item');
+    assertTrue(!!tabItem);
+    tabItem.click();
 
     const [tabId, url] =
         await proxy.handler.whenCalled('onTabClickedFromSourcesMenu');
     assertEquals(tabId, 1);
     assertDeepEquals(url, tab.url);
+  });
+
+  test('handles file sources menu interactions', async () => {
+    const file = {
+      title: 'Sample Document',
+      url: 'https://example/sample.pdf',
+    };
+    topToolbar.contextInfos = [{file: file}];
+    await microtasksFinished();
+
+    const sourcesButton =
+        topToolbar.shadowRoot.querySelector<HTMLElement>('#sources');
+    assertTrue(!!sourcesButton);
+    sourcesButton.click();
+    await microtasksFinished();
+
+    const sourcesMenuElement = topToolbar.$.sourcesMenu.get();
+    const crActionMenu =
+        sourcesMenuElement.shadowRoot.querySelector('cr-action-menu');
+    assertTrue(!!crActionMenu);
+    assertTrue(crActionMenu.open);
+
+    const headers = sourcesMenuElement.shadowRoot.querySelectorAll('.header');
+    assertEquals(1, headers.length);
+
+    // Click the first file item.
+    const fileItem = sourcesMenuElement.shadowRoot.querySelector<HTMLElement>(
+        'cr-url-list-item.dropdown-item');
+    assertTrue(!!fileItem);
+    fileItem.click();
+
+    const url = await proxy.handler.whenCalled('onFileClickedFromSourcesMenu');
+    assertDeepEquals(url, file.url);
+  });
+
+  test('handles image sources menu interactions', async () => {
+    const image = {
+      title: 'Test Image',
+      url: 'https://www.example.com/example.jpeg',
+    };
+    topToolbar.contextInfos = [{image: image}];
+    await microtasksFinished();
+
+    const sourcesButton =
+        topToolbar.shadowRoot.querySelector<HTMLElement>('#sources');
+    assertTrue(!!sourcesButton);
+    sourcesButton.click();
+    await microtasksFinished();
+
+    const sourcesMenuElement = topToolbar.$.sourcesMenu.get();
+
+    const crActionMenu =
+        sourcesMenuElement.shadowRoot.querySelector('cr-action-menu');
+    assertTrue(!!crActionMenu);
+    assertTrue(crActionMenu.open);
+
+    const headers = sourcesMenuElement.shadowRoot.querySelectorAll('.header');
+    assertEquals(1, headers.length);
+
+    // Click the first image item.
+    const imageItem = sourcesMenuElement.shadowRoot.querySelector<HTMLElement>(
+        'cr-url-list-item.dropdown-item');
+    assertTrue(!!imageItem);
+    imageItem.click();
+
+    const url = await proxy.handler.whenCalled('onImageClickedFromSourcesMenu');
+    assertDeepEquals(url, image.url);
   });
 
   test('handles more menu interactions', async () => {
@@ -210,10 +281,28 @@ suite('TopToolbarTest', () => {
             '#sources');
     assertTrue(!!sourcesButton);
 
-    topToolbar.attachedTabs = [
-      {tabId: 1, title: 'Tab 1', url: {url: 'https://example.com/1'}},
-      {tabId: 2, title: 'Tab 2', url: {url: 'https://example.com/2'}},
-      {tabId: 3, title: 'Tab 3', url: {url: 'https://example.com/3'}},
+    topToolbar.contextInfos = [
+      {
+        tab: {
+          title: 'Tab 1',
+          url: 'https://example.com/1',
+          tabId: 1,
+        },
+      },
+      {
+        tab: {
+          title: 'Tab 2',
+          url: 'https://example.com/2',
+          tabId: 2,
+        },
+      },
+      {
+        tab: {
+          title: 'Tab 3',
+          url: 'https://example.com/3',
+          tabId: 3,
+        },
+      },
     ];
     await microtasksFinished();
 
@@ -229,20 +318,44 @@ suite('TopToolbarTest', () => {
             '#sources');
     assertTrue(!!sourcesButton);
 
-    topToolbar.attachedTabs = [
-      {tabId: 1, title: 'Tab 1', url: {url: 'https://example.com/1'}},
-      {tabId: 2, title: 'Tab 2', url: {url: 'https://example.com/2'}},
-      {tabId: 3, title: 'Tab 3', url: {url: 'https://example.com/3'}},
-      {tabId: 4, title: 'Tab 4', url: {url: 'https://example.com/4'}},
+    topToolbar.contextInfos = [
+      {
+        tab: {
+          title: 'Tab 1',
+          url: 'https://example.com/1',
+          tabId: 1,
+        },
+      },
+      {
+        tab: {
+          title: 'Tab 2',
+          url: 'https://example.com/2',
+          tabId: 2,
+        },
+      },
+      {
+        tab: {
+          title: 'Tab 3',
+          url: 'https://example.com/3',
+          tabId: 3,
+        },
+      },
+      {
+        tab: {
+          title: 'Tab 4',
+          url: 'https://example.com/4',
+          tabId: 4,
+        },
+      },
     ];
     await microtasksFinished();
 
-    const faviconItems =
-        sourcesButton.shadowRoot.querySelectorAll('.favicon-item');
+    const faviconItems = sourcesButton.shadowRoot.querySelectorAll(
+        '.favicon-item:not(#more-items)');
     assertEquals(faviconItems.length, 3);
     const moreItems =
-        sourcesButton.shadowRoot.querySelector<HTMLElement>('.more-items');
+        sourcesButton.shadowRoot.querySelector<HTMLElement>('#more-items');
     assertTrue(!!moreItems);
-    assertEquals(moreItems.textContent, '+1');
+    assertEquals(moreItems.innerText, '+1');
   });
 });

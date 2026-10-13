@@ -54,11 +54,11 @@ AudioRtpReceiver::AudioRtpReceiver(
     absl::string_view receiver_id,
     const std::vector<scoped_refptr<MediaStreamInterface>>& streams,
     bool is_unified_plan,
-    VoiceMediaReceiveChannelInterface* voice_channel)
+    VoiceMediaReceiveChannelInterface* media_channel)
     : AudioRtpReceiver(worker_thread,
                        receiver_id,
                        streams,
-                       voice_channel,
+                       media_channel,
                        RemoteAudioSource::OnAudioChannelGoneAction::kEnd) {
   RTC_DCHECK(!is_unified_plan);
 }
@@ -67,11 +67,11 @@ AudioRtpReceiver::AudioRtpReceiver(
     Thread* worker_thread,
     absl::string_view receiver_id,
     const std::vector<scoped_refptr<MediaStreamInterface>>& streams,
-    VoiceMediaReceiveChannelInterface* voice_channel)
+    VoiceMediaReceiveChannelInterface* media_channel)
     : AudioRtpReceiver(worker_thread,
                        receiver_id,
                        streams,
-                       voice_channel,
+                       media_channel,
                        RemoteAudioSource::OnAudioChannelGoneAction::kSurvive) {}
 
 AudioRtpReceiver::AudioRtpReceiver(

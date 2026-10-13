@@ -7,6 +7,7 @@
 
 #include <string_view>
 
+#include "components/enterprise/common/proto/synced/saas_usage_report_event.pb.h"
 #include "components/prefs/pref_service.h"
 
 namespace enterprise_reporting {
@@ -14,10 +15,15 @@ namespace enterprise_reporting {
 // These functions are used to aggregate domain reporting data. They store the
 // aggregated data using PrefService.
 
-void RecordNavigation(PrefService* pref_service,
+void RecordNavigation(PrefService& pref_service,
                       std::string_view domain,
                       std::string_view encryption_protocol);
-void RecordContentTransfer(PrefService* pref_service, std::string_view domain);
+
+void PopulateSaasUsageDomainMetrics(
+    PrefService& pref_service,
+    ::chrome::cros::reporting::proto::SaasUsageReportEvent& report);
+
+void ClearSaasUsageReport(PrefService& pref_service);
 
 }  // namespace enterprise_reporting
 

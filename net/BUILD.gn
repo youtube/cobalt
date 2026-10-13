@@ -497,6 +497,7 @@ component("net") {
     "device_bound_sessions/session_key.h",
     "device_bound_sessions/session_params.cc",
     "device_bound_sessions/session_params.h",
+    "device_bound_sessions/session_usage.cc",
     "device_bound_sessions/session_usage.h",
     "device_bound_sessions/url_rule_display.cc",
     "device_bound_sessions/url_rule_display.h",
@@ -544,6 +545,7 @@ component("net") {
     "disk_cache/blockfile/storage_block.h",
     "disk_cache/blockfile/stress_support.h",
     "disk_cache/cache_encryption_delegate.h",
+    "disk_cache/cache_entry_hasher.h",
     "disk_cache/cache_file.h",
     "disk_cache/cache_util.cc",
     "disk_cache/cache_util.h",
@@ -585,6 +587,8 @@ component("net") {
     "disk_cache/simple/simple_util.h",
     "disk_cache/simple/simple_version_upgrade.cc",
     "disk_cache/simple/simple_version_upgrade.h",
+    "disk_cache/trivial_cache_entry_hasher.cc",
+    "disk_cache/trivial_cache_entry_hasher.h",
     "filter/filter_source_stream.cc",
     "filter/filter_source_stream.h",
     "filter/gzip_header.cc",
@@ -1694,6 +1698,7 @@ component("net") {
     libs = [ "resolv" ]
     frameworks = [
       "CFNetwork.framework",
+      "Network.framework",
       "MobileCoreServices.framework",
       "Security.framework",
       "SystemConfiguration.framework",
@@ -1854,6 +1859,10 @@ component("net") {
     sources += [
       "disk_cache/sql/cache_entry_key.cc",
       "disk_cache/sql/cache_entry_key.h",
+      "disk_cache/sql/entry_db_handle.cc",
+      "disk_cache/sql/entry_db_handle.h",
+      "disk_cache/sql/entry_write_buffer.cc",
+      "disk_cache/sql/entry_write_buffer.h",
       "disk_cache/sql/eviction_candidate_aggregator.cc",
       "disk_cache/sql/eviction_candidate_aggregator.h",
       "disk_cache/sql/exclusive_operation_coordinator.cc",
@@ -1874,6 +1883,10 @@ component("net") {
       "disk_cache/sql/sql_persistent_store_in_memory_index.cc",
       "disk_cache/sql/sql_persistent_store_in_memory_index.h",
       "disk_cache/sql/sql_persistent_store_queries.h",
+      "disk_cache/sql/sql_read_cache_memory_monitor.cc",
+      "disk_cache/sql/sql_read_cache_memory_monitor.h",
+      "disk_cache/sql/sql_write_buffer_memory_monitor.cc",
+      "disk_cache/sql/sql_write_buffer_memory_monitor.h",
     ]
     deps += [
       "//components/performance_manager/scenario_api",
@@ -1891,7 +1904,10 @@ component("net") {
       "cert/internal/trust_store_in_memory_starboard.h",
     ]
     deps += [ "//starboard/common" ]
-    data_deps = [ "//starboard/content/ssl:copy_ssl_certificates_evergreen" ]
+
+    if (!use_evergreen) {
+      data_deps = [ "//starboard/content/ssl:copy_ssl_certificates" ]
+    }
   } else if (is_cobalt && is_linux && chrome_root_store_supported) {
     # We use `is_cobalt` here because non-starboard configs builds Chromedriver
     # which needs to use the Chrome Root Store only.
@@ -2754,20 +2770,28 @@ if (is_ios) {
   }
 }
 
+# TODO(crbug.com/477528387): Consider enabling net_fuzztests for cronet builds.
 if (!is_cronet_build) {
   test("net_fuzztests") {
     sources = [
       "cert/qwac_fuzztest.cc",
       "cert/x509_certificate_fuzztest.cc",
       "http/http_cookie_indices_fuzztest.cc",
+      "http/http_security_headers_hsts_fuzzer.cc",
     ]
 
     fuzztests = [
       "CookieIndicesFuzzTest.FuzzParseFromHeader",
+      "HttpSecurityHeadersHstsFuzzer.TestParseHSTSHeader",
       "QwacFuzzTest.FuzzParseQcStatements",
       "QwacFuzzTest.FuzzParseQcTypeInfo",
       "QwacFuzzTest.FuzzParseTwoQwacCertBinding",
       "X509CertificateFuzzTest.FuzzCreateFromDERCertChain",
+    ]
+
+    data = [
+      "data/fuzzer_data/",
+      "data/fuzzer_dictionaries/",
     ]
 
     deps = [
@@ -2886,6 +2910,7 @@ target(_test_target_type, "net_unittests") {
     "cookies/parsed_cookie_unittest.cc",
     "cookies/site_for_cookies_unittest.cc",
     "cookies/static_cookie_policy_unittest.cc",
+    "device_bound_sessions/session_usage_unittest.cc",
     "disk_cache/backend_cleanup_tracker_unittest.cc",
     "disk_cache/backend_unittest.cc",
     "disk_cache/blockfile/addr_unittest.cc",
@@ -3588,6 +3613,7 @@ target(_test_target_type, "net_unittests") {
       "device_bound_sessions/session_store_unittest.cc",
       "device_bound_sessions/session_unittest.cc",
       "device_bound_sessions/unexportable_key_service_factory_unittest.cc",
+      "device_bound_sessions/url_fetcher_unittest.cc",
     ]
     deps += [
       ":device_bound_sessions_storage_proto",
@@ -3599,6 +3625,7 @@ target(_test_target_type, "net_unittests") {
   if (enable_disk_cache_sql_backend) {
     sources += [
       "disk_cache/sql/cache_entry_key_unittest.cc",
+      "disk_cache/sql/entry_write_buffer_unittest.cc",
       "disk_cache/sql/eviction_candidate_aggregator_unittest.cc",
       "disk_cache/sql/exclusive_operation_coordinator_unittest.cc",
       "disk_cache/sql/indexed_pair_set_unittest.cc",
@@ -4254,16 +4281,6 @@ fuzzer_test("net_auth_challenge_tokenizer_fuzzer") {
     "//base",
     "//net",
   ]
-}
-
-fuzzer_test("net_http_security_headers_hsts_fuzzer") {
-  sources = [ "http/http_security_headers_hsts_fuzzer.cc" ]
-  deps = [
-    "//base",
-    "//net",
-  ]
-  dict = "data/fuzzer_dictionaries/net_http_security_headers_fuzzer.dict"
-  seed_corpus = "data/fuzzer_data/http_security_headers/"
 }
 
 fuzzer_test("net_http_transport_security_state_static_fuzzer") {

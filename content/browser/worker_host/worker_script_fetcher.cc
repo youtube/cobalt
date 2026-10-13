@@ -317,7 +317,7 @@ void WorkerScriptFetcher::CreateAndStart(
   // Propagate the actual permissions policy once it is available.
   resource_request->permissions_policy =
       *network::PermissionsPolicy::CreateFromParsedPolicy(
-          {}, {}, url::Origin::Create(resource_request->url));
+          {}, url::Origin::Create(resource_request->url));
 
   // For a classic worker script request:
   // https://html.spec.whatwg.org/C/#fetch-a-classic-worker-script
@@ -437,8 +437,9 @@ void WorkerScriptFetcher::CreateScriptLoader(
       url_loader_network_observer =
           factory_process->GetStoragePartition()
               ->CreateURLLoaderNetworkObserverForFrame(
-                  creator_render_frame_host->GetProcess()->GetDeprecatedID(),
-                  creator_render_frame_host->GetRoutingID());
+                  content::GlobalRenderFrameHostId(
+                      creator_render_frame_host->GetProcess()->GetID(),
+                      creator_render_frame_host->GetRoutingID()));
       devtools_observer = NetworkServiceDevToolsObserver::MakeSelfOwned(
           creator_render_frame_host->GetDevToolsFrameToken().ToString());
     }

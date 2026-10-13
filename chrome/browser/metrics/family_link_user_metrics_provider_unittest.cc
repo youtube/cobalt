@@ -4,35 +4,33 @@
 
 #include "chrome/browser/metrics/family_link_user_metrics_provider.h"
 
+#include <optional>
 #include <string>
-#include <utility>
 
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/metrics/histogram_tester.h"
-#include "base/test/scoped_feature_list.h"
-#include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/signin/identity_test_environment_profile_adaptor.h"
-#include "chrome/browser/supervised_user/supervised_user_settings_service_factory.h"
 #include "chrome/browser/supervised_user/supervised_user_test_util.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/base/testing_profile_manager.h"
-#include "components/content_settings/core/browser/host_content_settings_map.h"
-#include "components/content_settings/core/test/content_settings_mock_provider.h"
-#include "components/content_settings/core/test/content_settings_test_utils.h"
 #include "components/prefs/pref_service.h"
 #include "components/signin/public/identity_manager/account_capabilities_test_mutator.h"
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/supervised_user/core/browser/supervised_user_log_record.h"
-#include "components/supervised_user/core/browser/supervised_user_preferences.h"
-#include "components/supervised_user/core/browser/supervised_user_test_environment.h"
 #include "components/supervised_user/core/browser/supervised_user_utils.h"
 #include "components/supervised_user/core/common/features.h"
 #include "components/supervised_user/core/common/pref_names.h"
 #include "components/supervised_user/core/common/supervised_user_constants.h"
 #include "content/public/test/browser_task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "base/check.h"
+#include "chrome/browser/supervised_user/supervised_user_service_factory.h"
+#include "components/supervised_user/core/browser/android/android_parental_controls.h"
+#endif  // BUILDFLAG(IS_ANDROID)
 
 namespace supervised_user {
 namespace {
@@ -105,19 +103,7 @@ class FamilyLinkUserMetricsProviderTest : public testing::Test {
     TestingProfile::TestingFactories factories =
         IdentityTestEnvironmentProfileAdaptor::
             GetIdentityTestEnvironmentFactories();
-    factories.emplace_back(
-        SupervisedUserServiceFactory::GetInstance(),
-        base::BindOnce(
-            &FamilyLinkUserMetricsProviderTest::BuildSupervisedUserService,
-            base::Unretained(this)));
     return factories;
-  }
-
-  // Default supervised user service, as in production.
-  virtual std::unique_ptr<KeyedService> BuildSupervisedUserService(
-      content::BrowserContext* browser_context) {
-    return SupervisedUserServiceFactory::BuildInstanceFor(
-        Profile::FromBrowserContext(browser_context));
   }
 
   void SetFamilyRole(Profile* profile, kidsmanagement::FamilyRole family_role) {
@@ -518,18 +504,81 @@ TEST_F(FamilyLinkUserMetricsProviderTest,
 }
 
 #if BUILDFLAG(IS_ANDROID)
+
 struct ContentFiltersTestCase {
   std::size_t profile_count;
   std::string test_name;
 };
 
+class FamilyLinkUserMetricsProviderWithContentFiltersAndroidTest
+    : public FamilyLinkUserMetricsProviderTest {
+ protected:
+  virtual void SetUpFeatureList() {
+    scoped_feature_list_.InitAndEnableFeature(
+        kSupervisedUserUseEmitDeviceLogRecordSeparately);
+  }
+
+  void SetUp() override {
+    FamilyLinkUserMetricsProviderTest::SetUp();
+    SetUpFeatureList();
+  }
+
+  // Enables or disables the browser content filters for all profiles.
+  void SetBrowserContentFilters(bool enabled) {
+    TestingBrowserProcess::GetGlobal()
+        ->android_parental_controls()
+        .SetBrowserContentFiltersEnabledForTesting(enabled);
+  }
+
+  // Enables or disables the search content filters for all profiles.
+  void SetSearchContentFilters(bool enabled) {
+    TestingBrowserProcess::GetGlobal()
+        ->android_parental_controls()
+        .SetSearchContentFiltersEnabledForTesting(enabled);
+  }
+
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+TEST_F(FamilyLinkUserMetricsProviderWithContentFiltersAndroidTest,
+       FamilyLinkAndDeviceSupervisionEnabled) {
+  CreateTestingProfile(kTestEmail, kTestProfile,
+                       /*is_subject_to_parental_controls=*/true,
+                       /*is_opted_in_to_parental_supervision=*/true);
+  SetBrowserContentFilters(true);
+  SetSearchContentFilters(true);
+
+  base::HistogramTester histogram_tester;
+  metrics_provider()->OnDidCreateMetricsLog();
+
+  histogram_tester.ExpectBucketCount(
+      kFamilyLinkUserLogSegmentHistogramName,
+      SupervisedUserLogRecord::Segment::kSupervisionEnabledLocally,
+      /*expected_count=*/1);
+  histogram_tester.ExpectBucketCount(
+      kFamilyLinkUserLogSegmentHistogramName,
+      SupervisedUserLogRecord::Segment::kSupervisionEnabledByFamilyLinkUser,
+      /*expected_count=*/1);
+
+  histogram_tester.ExpectUniqueSample(
+      kFamilyLinkUserLogSegmentWebFilterHistogramName,
+      WebFilterType::kTryToBlockMatureSites,
+      /*expected_bucket_count=*/1);
+}
+
 // Test fixture for verifying that the content filters are correctly
 // reflected in the metrics. Content filters are mutually exclusive with
 // Family-Link supervision and cannot be applied to these profiles.
-class FamilyLinkUserMetricsProviderWithContentFiltersAndroidTest
-    : public FamilyLinkUserMetricsProviderTest,
+class
+    FamilyLinkUserMetricsProviderExclusiveContentFiltersAndFamilyLinkAndroidTest
+    : public FamilyLinkUserMetricsProviderWithContentFiltersAndroidTest,
       public testing::WithParamInterface<ContentFiltersTestCase> {
  protected:
+  void SetUpFeatureList() override {
+    scoped_feature_list_.InitAndDisableFeature(
+        kSupervisedUserUseEmitDeviceLogRecordSeparately);
+  }
+
   void CreateProfiles(std::size_t count) {
     CHECK_GE(email_addresses_.size(), count) << "Not enough email addresses";
     CHECK_GE(profile_names_.size(), count) << "Not enough profile names";
@@ -553,60 +602,14 @@ class FamilyLinkUserMetricsProviderWithContentFiltersAndroidTest
                                 /*is_opted_in_to_parental_supervision=*/false);
   }
 
-  // Builds the `SupervisedUserService` with a fake url content filter delegate.
-  std::unique_ptr<KeyedService> BuildSupervisedUserService(
-      content::BrowserContext* browser_context) override {
-    Profile* profile = Profile::FromBrowserContext(browser_context);
-
-    std::unique_ptr<SupervisedUserServicePlatformDelegate> platform_delegate =
-        std::make_unique<SupervisedUserServicePlatformDelegate>(*profile);
-
-    return std::make_unique<SupervisedUserService>(
-        IdentityManagerFactory::GetForProfile(profile),
-        profile->GetDefaultStoragePartition()
-            ->GetURLLoaderFactoryForBrowserProcess(),
-        *profile->GetPrefs(),
-        *SupervisedUserSettingsServiceFactory::GetInstance()->GetForKey(
-            profile->GetProfileKey()),
-        SyncServiceFactory::GetInstance()->GetForProfile(profile),
-        std::make_unique<SupervisedUserURLFilter>(
-            *profile->GetPrefs(), std::make_unique<FakeURLFilterDelegate>(),
-            std::make_unique<KidsChromeManagementURLCheckerClient>(
-                IdentityManagerFactory::GetForProfile(profile),
-                profile->GetDefaultStoragePartition()
-                    ->GetURLLoaderFactoryForBrowserProcess(),
-                *profile->GetPrefs(), platform_delegate->GetCountryCode(),
-                platform_delegate->GetChannel())),
-        std::make_unique<SupervisedUserServicePlatformDelegate>(*profile),
-        TestingBrowserProcess::GetGlobal()->device_parental_controls());
-  }
-
-  // Enables or disables the browser content filters for all profiles.
-  void SetBrowserContentFilters(bool enabled) {
-    TestingBrowserProcess::GetGlobal()
-        ->android_parental_controls()
-        .SetBrowserContentFiltersEnabledForTesting(enabled);
-  }
-
-  // Enables or disables the search content filters for all profiles.
-  void SetSearchContentFilters(bool enabled) {
-    TestingBrowserProcess::GetGlobal()
-        ->android_parental_controls()
-        .SetSearchContentFiltersEnabledForTesting(enabled);
-  }
-
  private:
-  // Required to propagate the device content filters to the supervised user
-  // service. FakeContentFiltersObserverBridge which is in action here only
-  // avoids creating the java bridge class, but uses prod notification patterns.
-  base::test::ScopedFeatureList scoped_feature_list_{
-      kPropagateDeviceContentFiltersToSupervisedUser};
   std::vector<std::string> email_addresses_{kTestEmail, kTestEmail1};
   std::vector<std::string> profile_names_{kTestProfile, kTestProfile1};
 };
 
-TEST_P(FamilyLinkUserMetricsProviderWithContentFiltersAndroidTest,
-       AllFiltersDisabled) {
+TEST_P(
+    FamilyLinkUserMetricsProviderExclusiveContentFiltersAndFamilyLinkAndroidTest,
+    AllFiltersDisabled) {
   CreateProfiles(GetParam().profile_count);
 
   base::HistogramTester histogram_tester;
@@ -621,8 +624,9 @@ TEST_P(FamilyLinkUserMetricsProviderWithContentFiltersAndroidTest,
       /*expected_count=*/0);
 }
 
-TEST_P(FamilyLinkUserMetricsProviderWithContentFiltersAndroidTest,
-       SearchFilterEnabled) {
+TEST_P(
+    FamilyLinkUserMetricsProviderExclusiveContentFiltersAndFamilyLinkAndroidTest,
+    SearchFilterEnabled) {
   CreateProfiles(GetParam().profile_count);
   SetSearchContentFilters(true);
 
@@ -638,8 +642,9 @@ TEST_P(FamilyLinkUserMetricsProviderWithContentFiltersAndroidTest,
       /*expected_count=*/1);
 }
 
-TEST_P(FamilyLinkUserMetricsProviderWithContentFiltersAndroidTest,
-       ContentFiltersEnabled) {
+TEST_P(
+    FamilyLinkUserMetricsProviderExclusiveContentFiltersAndFamilyLinkAndroidTest,
+    ContentFiltersEnabled) {
   CreateProfiles(GetParam().profile_count);
   SetBrowserContentFilters(true);
 
@@ -656,8 +661,9 @@ TEST_P(FamilyLinkUserMetricsProviderWithContentFiltersAndroidTest,
       /*expected_bucket_count=*/1);
 }
 
-TEST_P(FamilyLinkUserMetricsProviderWithContentFiltersAndroidTest,
-       AllFiltersEnabled) {
+TEST_P(
+    FamilyLinkUserMetricsProviderExclusiveContentFiltersAndFamilyLinkAndroidTest,
+    AllFiltersEnabled) {
   CreateProfiles(GetParam().profile_count);
   SetBrowserContentFilters(true);
   SetSearchContentFilters(true);
@@ -677,7 +683,7 @@ TEST_P(FamilyLinkUserMetricsProviderWithContentFiltersAndroidTest,
 
 INSTANTIATE_TEST_SUITE_P(
     ,
-    FamilyLinkUserMetricsProviderWithContentFiltersAndroidTest,
+    FamilyLinkUserMetricsProviderExclusiveContentFiltersAndFamilyLinkAndroidTest,
     testing::ValuesIn<ContentFiltersTestCase>({
         {1, "SingleProfile"},
         {2, "MultipleProfiles"},

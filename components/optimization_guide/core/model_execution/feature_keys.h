@@ -43,6 +43,9 @@ enum class ModelBasedCapabilityKey {
       MODEL_EXECUTION_FEATURE_IOS_SMART_TAB_GROUPING,
   kScamDetection =
       proto::ModelExecutionFeature::MODEL_EXECUTION_FEATURE_SCAM_DETECTION,
+  kSkills = proto::ModelExecutionFeature::MODEL_EXECUTION_FEATURE_SKILLS,
+  kGeminiAntiscamProtection = proto::ModelExecutionFeature::
+      MODEL_EXECUTION_FEATURE_GEMINI_ANTISCAM_PROTECTION,
 };
 
 inline std::ostream& operator<<(std::ostream& out,
@@ -76,6 +79,10 @@ inline std::ostream& operator<<(std::ostream& out,
       return out << "IosSmartTabGrouping";
     case ModelBasedCapabilityKey::kScamDetection:
       return out << "ScamDetection";
+    case ModelBasedCapabilityKey::kSkills:
+      return out << "Skills";
+    case ModelBasedCapabilityKey::kGeminiAntiscamProtection:
+      return out << "GeminiAntiscamProtection";
   }
   return out;
 }
@@ -161,6 +168,11 @@ inline proto::ModelExecutionFeature ToModelExecutionFeatureProto(
     case ModelBasedCapabilityKey::kScamDetection:
       return proto::ModelExecutionFeature::
           MODEL_EXECUTION_FEATURE_SCAM_DETECTION;
+    case ModelBasedCapabilityKey::kSkills:
+      return proto::ModelExecutionFeature::MODEL_EXECUTION_FEATURE_SKILLS;
+    case ModelBasedCapabilityKey::kGeminiAntiscamProtection:
+      return proto::ModelExecutionFeature::
+          MODEL_EXECUTION_FEATURE_GEMINI_ANTISCAM_PROTECTION;
   }
 }
 

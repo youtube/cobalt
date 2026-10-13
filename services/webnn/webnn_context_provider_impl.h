@@ -73,7 +73,8 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) WebNNContextProviderImpl
   // Called to add a another WebNNContextProvider receiver to this
   // existing `WebNNContextProviderImpl` instance.
   void BindWebNNContextProvider(
-      mojo::PendingReceiver<mojom::WebNNContextProvider> receiver);
+      mojo::PendingReceiver<mojom::WebNNContextProvider> receiver,
+      bool is_incognito);
 
   enum class WebNNStatus {
     kWebNNGpuDisabled = 0,
@@ -164,8 +165,25 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) WebNNContextProviderImpl
       scoped_refptr<base::SingleThreadTaskRunner> task_runner,
       mojo::PendingReceiver<mojom::WebNNContext> receiver,
       mojo::PendingRemote<mojom::WebNNContext> remote,
-      CreateWebNNContextCallback callback);
+      CreateWebNNContextCallback callback,
+      bool is_incognito);
 #endif  // BUILDFLAG(WEBNN_USE_TFLITE)
+
+#if BUILDFLAG(WEBNN_USE_LITERT)
+  void CreateLiteRtContext(
+      ScopedTrace scoped_trace,
+      mojom::CreateContextOptionsPtr options,
+      mojo::ScopedDataPipeProducerHandle write_tensor_producer,
+      mojo::ScopedDataPipeConsumerHandle write_tensor_consumer,
+      mojo::ScopedDataPipeProducerHandle read_tensor_producer,
+      mojo::ScopedDataPipeConsumerHandle read_tensor_consumer,
+      gpu::CommandBufferId command_buffer_id,
+      std::unique_ptr<ScopedGpuSequence> gpu_sequence,
+      scoped_refptr<base::SingleThreadTaskRunner> task_runner,
+      mojo::PendingReceiver<mojom::WebNNContext> receiver,
+      mojo::PendingRemote<mojom::WebNNContext> remote,
+      CreateWebNNContextCallback callback);
+#endif  // BUILDFLAG(WEBNN_USE_LITERT)
 
 #if BUILDFLAG(IS_WIN)
   void OnOrtEnvCreated(ScopedTrace scoped_trace,
@@ -180,6 +198,7 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) WebNNContextProviderImpl
                        mojo::PendingReceiver<mojom::WebNNContext> receiver,
                        mojo::PendingRemote<mojom::WebNNContext> remote,
                        CreateWebNNContextCallback callback,
+                       bool is_incognito,
                        base::expected<scoped_refptr<ort::Environment>,
                                       std::string> env_creation_results);
 
@@ -196,6 +215,7 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) WebNNContextProviderImpl
       mojo::PendingReceiver<mojom::WebNNContext> receiver,
       mojo::PendingRemote<mojom::WebNNContext> remote,
       CreateWebNNContextCallback callback,
+      bool is_incognito,
       base::flat_map<std::string, mojom::EpPackageInfoPtr> ep_package_info);
 #endif  // BUILDFLAG(IS_WIN)
 
@@ -213,7 +233,10 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) WebNNContextProviderImpl
   // destroy all contexts.
   LoseAllContextsCallback lose_all_contexts_callback_;
 
-  mojo::ReceiverSet<mojom::WebNNContextProvider> provider_receivers_
+  // Receivers for the WebNNContextProvider interface.
+  // The context value (a boolean) indicates whether the provider is operating
+  // in incognito mode.
+  mojo::ReceiverSet<mojom::WebNNContextProvider, bool> provider_receivers_
       GUARDED_BY_CONTEXT(main_sequence_checker_);
 
   // Lifetime of the scheduler is managed by the GPU service. The GPU service

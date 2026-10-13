@@ -178,12 +178,7 @@ suite('Toolbar Settings Menu', () => {
     assertTrue(!!languageMenu);
     const dialog = languageMenu.$.languageMenu;
 
-    dialog.dispatchEvent(new PointerEvent('click', {
-      bubbles: true,
-      composed: true,
-      cancelable: true,
-      view: window,
-    }));
+    dialog.click();
 
     assertTrue(settingsMenu.$.lazyMenu.get().open);
   });
@@ -199,11 +194,7 @@ suite('Toolbar Settings Menu', () => {
     const elapsedTime = MENU_SHOW_DELAY_MS - 10;
     timer.tick(elapsedTime);
 
-    settingsMenu.dispatchEvent(new KeyboardEvent('keydown', {
-      key: 'ArrowDown',
-      bubbles: true,
-      composed: true,
-    }));
+    keyDownOn(settingsMenu, 0, undefined, 'ArrowDown');
     timer.tick(elapsedTime + 20);
     assertFalse(toolbar.$.fontMenu.$.menu.$.lazyMenu.get().open);
     timer.uninstall();
@@ -238,11 +229,7 @@ suite('Toolbar Settings Menu', () => {
     chrome.readingMode.onLinksEnabledToggled = () => {
       didToggleLinks = true;
     };
-    settingsMenu.dispatchEvent(new KeyboardEvent('keydown', {
-      key: 'ArrowRight',
-      bubbles: true,
-      composed: true,
-    }));
+    keyDownOn(settingsMenu, 0, undefined, 'ArrowRight');
     assertFalse(didToggleLinks);
   });
 
@@ -278,5 +265,17 @@ suite('Toolbar Settings Menu', () => {
 
     assertFalse(toolbar.$.fontMenu.$.menu.$.lazyMenu.get().open);
     timer.uninstall();
+  });
+
+  test('close button appears in immersive mode', async () => {
+    toolbar.isImmersiveMode = true;
+    await microtasksFinished();
+    const closeButton = getButton('close');
+    assertTrue(!!closeButton);
+  });
+
+  test('close button does not appear in side panel mode', () => {
+    const closeButton = getButton('close');
+    assertFalse(!!closeButton);
   });
 });

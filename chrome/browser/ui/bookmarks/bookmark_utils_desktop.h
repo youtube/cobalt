@@ -26,6 +26,7 @@ class NavigationHandle;
 }  // namespace content
 
 namespace tab_groups {
+class SavedTabGroup;
 class TabGroupSyncService;
 }  // namespace tab_groups
 
@@ -112,6 +113,10 @@ void ShowBookmarkTabGroupDialog(
     base::OnceCallback<void(Browser*, const tab_groups::TabGroupId&)>
         on_save_callback = base::DoNothing());
 
+// Shows the bookmark tab group dialog for a saved tab group.
+void ShowBookmarkSavedTabGroupDialog(Browser* browser,
+                                     const tab_groups::SavedTabGroup& group);
+
 // Returns true if OpenAll() can open at least one bookmark of type url
 // in |selection|.
 bool HasBookmarkURLs(const std::vector<raw_ptr<const bookmarks::BookmarkNode,
@@ -122,6 +127,13 @@ bool HasBookmarkURLs(const std::vector<raw_ptr<const bookmarks::BookmarkNode,
 bool HasBookmarkURLsAllowedInIncognitoMode(
     const std::vector<
         raw_ptr<const bookmarks::BookmarkNode, VectorExperimental>>& selection);
+
+// Returns true if the "Open in Incognito Window" command should be enabled
+// for the given |selection| and |profile|.
+bool IsOpenInIncognitoAllowed(
+    const std::vector<
+        raw_ptr<const bookmarks::BookmarkNode, VectorExperimental>>& selection,
+    Profile* profile);
 
 // Populates |folder_data| with all tab items and sub-folders for any open tab
 // groups.

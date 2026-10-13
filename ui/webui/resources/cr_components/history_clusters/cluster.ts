@@ -28,12 +28,6 @@ import {insertHighlightedTextWithMatchesIntoElement} from './utils.js';
  * @fileoverview This file provides a custom element displaying a cluster.
  */
 
-declare global {
-  interface HTMLElementTagNameMap {
-    'history-cluster': ClusterElement;
-  }
-}
-
 const ClusterElementBase = I18nMixinLit(CrLitElement);
 
 export interface ClusterElement {
@@ -157,7 +151,7 @@ export class ClusterElement extends ClusterElementBase {
     if (changedProperties.has('cluster')) {
       assert(this.cluster);
       this.label_ = this.cluster.label ? this.cluster.label : 'no_label';
-      this.imageUrl_ = this.cluster.imageUrl ? this.cluster.imageUrl.url : '';
+      this.imageUrl_ = this.cluster.imageUrl ? this.cluster.imageUrl : '';
       this.relatedSearches_ = this.cluster.relatedSearches.filter(
           (query: SearchQuery, index: number) => {
             return query && !(this.inSidePanel && index > 2);
@@ -288,7 +282,7 @@ export class ClusterElement extends ClusterElementBase {
     assert(this.cluster);
     const visitHasBeenRemoved = (visit: URLVisit) => {
       return removedVisits.findIndex((removedVisit) => {
-        if (visit.normalizedUrl.url !== removedVisit.normalizedUrl.url) {
+        if (visit.normalizedUrl !== removedVisit.normalizedUrl) {
           return false;
         }
 
@@ -349,6 +343,12 @@ export class ClusterElement extends ClusterElementBase {
 
   protected visits_(): URLVisit[] {
     return this.cluster ? this.cluster.visits : [];
+  }
+}
+
+declare global {
+  interface HTMLElementTagNameMap {
+    'history-cluster': ClusterElement;
   }
 }
 

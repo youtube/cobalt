@@ -186,6 +186,16 @@ try_.builder(
             "components/cast_streaming/.+",
             "third_party/cast_core/.+",
             "third_party/openscreen/.+",
+            r"ui/events/platform/platform_event_dispatcher\.h",
+            r"ui/gfx/client_native_pixmap\.h",
+            r"ui/gfx/client_native_pixmap_factory\.h",
+            r"ui/gl/gl_surface_egl\.h",
+            r"ui/ozone/common/gl_ozone_egl\.h",
+            "ui/ozone/platform/cast/.+",
+            r"ui/platform_window/stub/stub_window\.h",
+            r"ui/ozone/public/overlay_manager_ozone\.h",
+            r"ui/ozone/public/ozone_platform\.h",
+            r"ui/ozone/public/surface_factory_ozone\.h",
         ],
     ),
 )
@@ -453,22 +463,6 @@ try_.orchestrator_builder(
 try_.compilator_builder(
     name = "linux-full-remote-rel-compilator",
     contact_team_email = "chrome-build-team@google.com",
-)
-
-try_.builder(
-    name = "linux-rel-test-selection",
-    description_html = "Experimental " + linkify_builder("try", "linux-rel", "chromium") + " builder with smart tests selection. go/chrome-sts",
-    mirrors = builder_config.copy_from("linux-rel"),
-    gn_args = "try/linux-rel",
-    builderless = False,
-    contact_team_email = "chrome-sts@google.com",
-    experiments = {
-        "chromium_rts.rts": 100,
-    },
-    tryjob = try_.job(
-        experiment_percentage = 10,
-    ),
-    use_clang_coverage = True,
 )
 
 try_.builder(
@@ -1023,6 +1017,15 @@ try_.builder(
     ),
 )
 
+try_.builder(
+    name = "linux-treesinviz-disabled-rel",
+    mirrors = [
+        "ci/linux-treesinviz-disabled-rel",
+    ],
+    gn_args = "ci/linux-treesinviz-disabled-rel",
+    contact_team_email = "chrome-gpu-team@google.com",
+)
+
 gpu.try_.optional_tests_builder(
     name = "linux_optional_gpu_tests_rel",
     branch_selector = branches.selector.LINUX_BRANCHES,
@@ -1167,4 +1170,9 @@ try_.builder(
     executable = "recipe:security/metadata_validator",
     builderless = True,
     contact_team_email = "chops-security-core@google.com",
+    tryjob = try_.job(
+        location_filters = [
+            cq.location_filter(path_regexp = r".*/README\.(chromium|angle|pdfium|crashpad|skia|swarming|v8|webrtc|google|libaom)"),
+        ],
+    ),
 )

@@ -43,6 +43,7 @@
 #include "third_party/blink/renderer/core/geometry/dom_rect.h"
 #include "third_party/blink/renderer/core/html/html_div_element.h"
 #include "third_party/blink/renderer/core/html/html_element.h"
+#include "third_party/blink/renderer/core/html/html_install_element.h"
 #include "third_party/blink/renderer/core/html/html_permission_element_strings_map.h"
 #include "third_party/blink/renderer/core/html/html_permission_element_utils.h"
 #include "third_party/blink/renderer/core/html/html_slot_element.h"
@@ -363,6 +364,8 @@ HTMLPermissionElement::HTMLPermissionElement(
         RuntimeEnabledFeatures::GeolocationElementEnabled(
             document.GetExecutionContext()) ||
         RuntimeEnabledFeatures::UserMediaElementEnabled(
+            document.GetExecutionContext()) ||
+        RuntimeEnabledFeatures::InstallElementEnabled(
             document.GetExecutionContext()));
   SetHasCustomStyleCallbacks();
   EnsureUserAgentShadowRoot();
@@ -414,7 +417,8 @@ void HTMLPermissionElement::OnPermissionStatusInitialized(
 Node::InsertionNotificationRequest HTMLPermissionElement::InsertedInto(
     ContainerNode& insertion_point) {
   HTMLElement::InsertedInto(insertion_point);
-  if (!is_cache_registered_ && !permission_descriptors_.empty()) {
+  if (!is_cache_registered_ && !permission_descriptors_.empty() &&
+      GetExecutionContext()) {
     CachedPermissionStatus::From(GetExecutionContext())
         ->RegisterClient(this, permission_descriptors_);
     is_cache_registered_ = true;
@@ -628,9 +632,9 @@ void HTMLPermissionElement::UpdateAppearance() {
       GetLocale().QueryString(translated_message_id));
 }
 
-void HTMLPermissionElement::UpdateIcon(PermissionName permnission) {
+void HTMLPermissionElement::UpdateIcon(PermissionName permission) {
   PermissionIconType icon_type;
-  switch (permnission) {
+  switch (permission) {
     case PermissionName::GEOLOCATION:
       icon_type = is_precise_location_ ? PermissionIconType::kLocationPrecise
                                        : PermissionIconType::kLocation;
@@ -640,9 +644,6 @@ void HTMLPermissionElement::UpdateIcon(PermissionName permnission) {
       break;
     case PermissionName::AUDIO_CAPTURE:
       icon_type = PermissionIconType::kMicrophone;
-      break;
-    case PermissionName::WEB_APP_INSTALLATION:
-      icon_type = PermissionIconType::kInstall;
       break;
     default:
       return;
@@ -854,7 +855,7 @@ void HTMLPermissionElement::LangAttributeChanged() {
   HTMLElement::LangAttributeChanged();
 }
 
-void HTMLPermissionElement::AttributeChanged(
+void HTMLPermissionElement::ParseAttribute(
     const AttributeModificationParams& params) {
   if (params.name == html_names::kTypeAttr) {
     setType(params.new_value);
@@ -866,7 +867,7 @@ void HTMLPermissionElement::AttributeChanged(
     SetPreciseLocation(params.new_value != nullptr);
   }
 
-  HTMLElement::AttributeChanged(params);
+  HTMLElement::ParseAttribute(params);
 }
 
 void HTMLPermissionElement::DidAddUserAgentShadowRoot(ShadowRoot& root) {
@@ -1289,7 +1290,7 @@ void HTMLPermissionElement::MaybeDispatchValidationChangeEvent() {
 
 scoped_refptr<base::SingleThreadTaskRunner>
 HTMLPermissionElement::GetTaskRunner() {
-  return GetExecutionContext()->GetTaskRunner(TaskType::kInternalDefault);
+  return GetDocument().GetTaskRunner(TaskType::kInternalDefault);
 }
 
 bool HTMLPermissionElement::IsClickingEnabled() {

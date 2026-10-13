@@ -19,10 +19,11 @@
 #include "chrome/browser/actor/actor_features.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/actor_keyed_service_factory.h"
-#include "chrome/browser/actor/actor_policy_checker.h"
 #include "chrome/browser/actor/actor_tab_data.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/actor_test_util.h"
+#include "chrome/browser/actor/enterprise_policy_url_checker.h"
+#include "chrome/browser/actor/safety_list_manager.h"
 #include "chrome/browser/actor/shared_types.h"
 #include "chrome/browser/actor/tool_request_variant.h"
 #include "chrome/browser/actor/tools/click_tool_request.h"
@@ -137,6 +138,13 @@ class FakeChromeRenderFrame : public chrome::mojom::ChromeRenderFrame {
       const TaskId& task_id,
       bool supports_paint_stability) override {}
   void CancelTool(const TaskId& task_id) override {}
+  void GetCrossDocumentScriptToolResult(
+      GetCrossDocumentScriptToolResultCallback callback) override {
+    std::move(callback).Run("");
+  }
+#if BUILDFLAG(IS_ANDROID)
+  void SetCCTClientHeader(const std::string& header) override {}
+#endif
 
  private:
   void Bind(mojo::ScopedInterfaceEndpointHandle handle) {
@@ -200,13 +208,12 @@ class ExecutionEngineTest : public ChromeRenderViewHostTestHarness {
  public:
   ExecutionEngineTest()
       : ChromeRenderViewHostTestHarness(
-            content::BrowserTaskEnvironment::TimeSource::MOCK_TIME) {}
+            content::BrowserTaskEnvironment::TimeSource::MOCK_TIME) {
+    scoped_feature_list_.InitAndEnableFeature(features::kGlicActor);
+  }
   ~ExecutionEngineTest() override = default;
 
   void SetUp() override {
-    scoped_feature_list_.InitWithFeatures(
-        /*enabled_features=*/{features::kGlicActor},
-        /*disabled_features=*/{});
     ChromeRenderViewHostTestHarness::SetUp();
     AssociateTabInterface();
 
@@ -221,15 +228,17 @@ class ExecutionEngineTest : public ChromeRenderViewHostTestHarness {
     task_mock_ui_event_dispatcher_ =
         static_cast<ui::MockUiEventDispatcher*>(task_ui_event_dispatcher.get());
 
-    auto execution_engine = ExecutionEngine::CreateForTesting(
-        profile(), std::move(ui_event_dispatcher));
-    auto raw_execution_engine = execution_engine.get();
-    task_ = std::make_unique<ActorTask>(profile(), std::move(execution_engine),
-                                        std::move(task_ui_event_dispatcher),
-                                        /*options=*/nullptr,
-                                        mock_actor_task_delegate_.GetWeakPtr());
-    task_->SetIdForTesting(0);
-    raw_execution_engine->SetOwner(task_.get());
+    ScopedExecutionEngineFactory scoped_execution_engine_factory(
+        base::BindLambdaForTesting([&](actor::ActorTask& task) {
+          CHECK(ui_event_dispatcher);
+          return actor::ExecutionEngine::CreateForTesting(
+              task, std::move(ui_event_dispatcher));
+        }));
+
+    task_ = ActorTask::CreateForTesting(
+        profile(), TaskId(1), std::move(task_ui_event_dispatcher),
+        /*options=*/nullptr, &no_enterprise_checker_,
+        mock_actor_task_delegate_.GetWeakPtr());
 
     for (auto& mock :
          {mock_ui_event_dispatcher_, task_mock_ui_event_dispatcher_}) {
@@ -247,10 +256,6 @@ class ExecutionEngineTest : public ChromeRenderViewHostTestHarness {
               base::BindRepeating(MakeOkResult,
                                   /*requires_page_stabilization=*/true)));
     }
-
-    ActorKeyedService::Get(profile())
-        ->GetPolicyChecker()
-        .set_act_on_web_for_testing(true);
   }
 
   void TearDown() override {
@@ -307,12 +312,13 @@ class ExecutionEngineTest : public ChromeRenderViewHostTestHarness {
   void AssociateTabInterface() { tab_state_.emplace(web_contents()); }
   void ClearTabInterface() { tab_state_.reset(); }
 
+  base::test::ScopedFeatureList scoped_feature_list_;
   base::HistogramTester histograms_;
   FakeChromeRenderFrame fake_chrome_render_frame_;
   std::unique_ptr<ActorTask> task_;
   raw_ptr<ui::MockUiEventDispatcher> mock_ui_event_dispatcher_;
   raw_ptr<ui::MockUiEventDispatcher> task_mock_ui_event_dispatcher_;
-  MockActorTaskDelegate mock_actor_task_delegate_;
+  testing::NiceMock<MockActorTaskDelegate> mock_actor_task_delegate_;
 
  private:
   struct TabState {
@@ -345,10 +351,17 @@ class ExecutionEngineTest : public ChromeRenderViewHostTestHarness {
   };
   std::optional<TabState> tab_state_;
 
-  base::test::ScopedFeatureList scoped_feature_list_;
+  MockPolicyChecker no_enterprise_checker_{
+      EnterprisePolicyBlockReason::kNotBlocked};
 };
 
-TEST_F(ExecutionEngineTest, ActSucceedsOnSupportedUrl) {
+// TODO(crbug.com/480230075): Crashing on Android.
+#if BUILDFLAG(SKIP_ANDROID_UNMIGRATED_ACTOR_FILES)
+#define MAYBE_ActSucceedsOnSupportedUrl DISABLED_ActSucceedsOnSupportedUrl
+#else
+#define MAYBE_ActSucceedsOnSupportedUrl ActSucceedsOnSupportedUrl
+#endif
+TEST_F(ExecutionEngineTest, MAYBE_ActSucceedsOnSupportedUrl) {
   EXPECT_CALL(*mock_ui_event_dispatcher_,
               OnPreTool(Property(&ToolRequest::JournalEvent, Eq("Click")), _))
       .Times(1);
@@ -383,7 +396,13 @@ TEST_F(ExecutionEngineTest, ActFailsOnUnsupportedUrl) {
                    MakeClickCallback(kFakeContentNodeId)));
 }
 
-TEST_F(ExecutionEngineTest, UiOnPreToolFails) {
+// TODO(crbug.com/480230075): Crashing on Android.
+#if BUILDFLAG(SKIP_ANDROID_UNMIGRATED_ACTOR_FILES)
+#define MAYBE_UiOnPreToolFails DISABLED_UiOnPreToolFails
+#else
+#define MAYBE_UiOnPreToolFails UiOnPreToolFails
+#endif
+TEST_F(ExecutionEngineTest, MAYBE_UiOnPreToolFails) {
   EXPECT_CALL(*mock_ui_event_dispatcher_, OnPreTool)
       .WillOnce(UiEventDispatcherCallback<ToolRequest>(
           base::BindRepeating(MakeNotImplementedResult)));
@@ -394,7 +413,13 @@ TEST_F(ExecutionEngineTest, UiOnPreToolFails) {
                                  mojom::ActionResultCode::kNotImplemented, 1);
 }
 
-TEST_F(ExecutionEngineTest, UiOnPostToolFails) {
+// TODO(crbug.com/480230075): Crashing on Android.
+#if BUILDFLAG(SKIP_ANDROID_UNMIGRATED_ACTOR_FILES)
+#define MAYBE_UiOnPostToolFails DISABLED_UiOnPostToolFails
+#else
+#define MAYBE_UiOnPostToolFails UiOnPostToolFails
+#endif
+TEST_F(ExecutionEngineTest, MAYBE_UiOnPostToolFails) {
   EXPECT_CALL(*mock_ui_event_dispatcher_, OnPreTool).Times(1);
   EXPECT_CALL(*mock_ui_event_dispatcher_, OnPostTool)
       .WillOnce(UiEventDispatcherCallback<ToolRequest>(
@@ -405,7 +430,13 @@ TEST_F(ExecutionEngineTest, UiOnPostToolFails) {
                                  mojom::ActionResultCode::kNotImplemented, 1);
 }
 
-TEST_F(ExecutionEngineTest, ActFailsWhenAddTabFails) {
+// TODO(crbug.com/480230075): Crashing on Android.
+#if BUILDFLAG(SKIP_ANDROID_UNMIGRATED_ACTOR_FILES)
+#define MAYBE_ActFailsWhenAddTabFails DISABLED_ActFailsWhenAddTabFails
+#else
+#define MAYBE_ActFailsWhenAddTabFails ActFailsWhenAddTabFails
+#endif
+TEST_F(ExecutionEngineTest, MAYBE_ActFailsWhenAddTabFails) {
   EXPECT_CALL(*task_mock_ui_event_dispatcher_,
               OnActorTaskAsyncChange(VariantWith<AddTab>(_), _))
       .WillOnce(UiEventDispatcherCallback<
@@ -419,7 +450,13 @@ TEST_F(ExecutionEngineTest, ActFailsWhenAddTabFails) {
   histograms_.ExpectTotalCount(kActionResultHistogram, 0);
 }
 
-TEST_F(ExecutionEngineTest, ActFailsWhenTabDestroyed) {
+// TODO(crbug.com/480230075): Crashing on Android.
+#if BUILDFLAG(SKIP_ANDROID_UNMIGRATED_ACTOR_FILES)
+#define MAYBE_ActFailsWhenTabDestroyed DISABLED_ActFailsWhenTabDestroyed
+#else
+#define MAYBE_ActFailsWhenTabDestroyed ActFailsWhenTabDestroyed
+#endif
+TEST_F(ExecutionEngineTest, MAYBE_ActFailsWhenTabDestroyed) {
   content::NavigationSimulator::NavigateAndCommitFromBrowser(
       web_contents(), GURL("http://localhost/"));
 
@@ -440,7 +477,15 @@ TEST_F(ExecutionEngineTest, ActFailsWhenTabDestroyed) {
                                  mojom::ActionResultCode::kTabWentAway, 1);
 }
 
-TEST_F(ExecutionEngineTest, CrossOriginNavigationBeforeAction) {
+// TODO(crbug.com/480230075): Crashing on Android.
+#if BUILDFLAG(SKIP_ANDROID_UNMIGRATED_ACTOR_FILES)
+#define MAYBE_CrossOriginNavigationBeforeAction \
+  DISABLED_CrossOriginNavigationBeforeAction
+#else
+#define MAYBE_CrossOriginNavigationBeforeAction \
+  CrossOriginNavigationBeforeAction
+#endif
+TEST_F(ExecutionEngineTest, MAYBE_CrossOriginNavigationBeforeAction) {
   content::NavigationSimulator::NavigateAndCommitFromBrowser(
       web_contents(), GURL("http://localhost/"));
 
@@ -450,7 +495,7 @@ TEST_F(ExecutionEngineTest, CrossOriginNavigationBeforeAction) {
   ActResultFuture result;
   base::test::TestFuture<void> start_future;
   ExecutionEngineStateWaiter state_waiter(start_future.GetCallback(),
-                                          *task_->GetExecutionEngine(),
+                                          task_->GetExecutionEngine(),
                                           ExecutionEngine::State::kStartAction);
   std::unique_ptr<ToolRequest> action =
       MakeClickCallback(kFakeContentNodeId).Run();
@@ -470,7 +515,13 @@ TEST_F(ExecutionEngineTest, CrossOriginNavigationBeforeAction) {
       1);
 }
 
-TEST_F(ExecutionEngineTest, CancelOngoingAction) {
+// TODO(crbug.com/480230075): Crashing on Android.
+#if BUILDFLAG(SKIP_ANDROID_UNMIGRATED_ACTOR_FILES)
+#define MAYBE_CancelOngoingAction DISABLED_CancelOngoingAction
+#else
+#define MAYBE_CancelOngoingAction CancelOngoingAction
+#endif
+TEST_F(ExecutionEngineTest, MAYBE_CancelOngoingAction) {
   content::NavigationSimulator::NavigateAndCommitFromBrowser(
       web_contents(), GURL("http://localhost/"));
 
@@ -485,7 +536,7 @@ TEST_F(ExecutionEngineTest, CancelOngoingAction) {
   // Wait for the tool to be invoked, but don't complete it.
   EXPECT_TRUE(on_invoke_future.Wait());
 
-  task_->GetExecutionEngine()->CancelOngoingActions(
+  task_->GetExecutionEngine().CancelOngoingActions(
       mojom::ActionResultCode::kTaskWentAway);
 
   // The cancellation should destroy the tool.
@@ -494,11 +545,13 @@ TEST_F(ExecutionEngineTest, CancelOngoingAction) {
   ExpectErrorResult(result, mojom::ActionResultCode::kTaskWentAway);
 }
 
-TEST_F(ExecutionEngineTest, ActorTaskCompletedHistogram) {
-  base::test::ScopedFeatureList scoped_features;
-  scoped_features.InitAndEnableFeatureWithParameters(
-      features::kGlicActorUiGlobalTaskIndicator, {});
-
+// TODO(crbug.com/480230075): Crashing on Android.
+#if BUILDFLAG(SKIP_ANDROID_UNMIGRATED_ACTOR_FILES)
+#define MAYBE_ActorTaskCompletedHistogram DISABLED_ActorTaskCompletedHistogram
+#else
+#define MAYBE_ActorTaskCompletedHistogram ActorTaskCompletedHistogram
+#endif
+TEST_F(ExecutionEngineTest, MAYBE_ActorTaskCompletedHistogram) {
   content::NavigationSimulator::NavigateAndCommitFromBrowser(
       web_contents(), GURL("http://localhost/"));
 
@@ -539,7 +592,15 @@ TEST_F(ExecutionEngineTest, ActorTaskCompletedHistogram) {
       kActorTaskDurationWallClockCompletedHistogram, task_duration, 1);
 }
 
-TEST_F(ExecutionEngineTest, ActorTaskCompletedWithPauseHistogram) {
+// TODO(crbug.com/480230075): Crashing on Android.
+#if BUILDFLAG(SKIP_ANDROID_UNMIGRATED_ACTOR_FILES)
+#define MAYBE_ActorTaskCompletedWithPauseHistogram \
+  DISABLED_ActorTaskCompletedWithPauseHistogram
+#else
+#define MAYBE_ActorTaskCompletedWithPauseHistogram \
+  ActorTaskCompletedWithPauseHistogram
+#endif
+TEST_F(ExecutionEngineTest, MAYBE_ActorTaskCompletedWithPauseHistogram) {
   content::NavigationSimulator::NavigateAndCommitFromBrowser(
       web_contents(), GURL("http://localhost/"));
 
@@ -584,7 +645,13 @@ class ExecutionEngineStopReasonParamTest
   ExecutionEngineStopReasonParamTest() = default;
 };
 
-TEST_P(ExecutionEngineStopReasonParamTest, ActorTaskStoppedHistogram) {
+// TODO(crbug.com/480230075): Crashing on Android.
+#if BUILDFLAG(SKIP_ANDROID_UNMIGRATED_ACTOR_FILES)
+#define MAYBE_ActorTaskStoppedHistogram DISABLED_ActorTaskStoppedHistogram
+#else
+#define MAYBE_ActorTaskStoppedHistogram ActorTaskStoppedHistogram
+#endif
+TEST_P(ExecutionEngineStopReasonParamTest, MAYBE_ActorTaskStoppedHistogram) {
   content::NavigationSimulator::NavigateAndCommitFromBrowser(
       web_contents(), GURL("http://localhost/"));
 
@@ -678,7 +745,15 @@ TEST_F(ExecutionEngineTest, ActorTaskCountAndDurationHistograms) {
   histograms_.ExpectBucketCount(kActorTaskInterruptionCompletedHistogram, 2, 1);
 }
 
-TEST_F(ExecutionEngineTest, LatencyInfoAndActionDurationHistogram) {
+// TODO(crbug.com/480230075): Crashing on Android.
+#if BUILDFLAG(SKIP_ANDROID_UNMIGRATED_ACTOR_FILES)
+#define MAYBE_LatencyInfoAndActionDurationHistogram \
+  DISABLED_LatencyInfoAndActionDurationHistogram
+#else
+#define MAYBE_LatencyInfoAndActionDurationHistogram \
+  LatencyInfoAndActionDurationHistogram
+#endif
+TEST_F(ExecutionEngineTest, MAYBE_LatencyInfoAndActionDurationHistogram) {
   content::NavigationSimulator::NavigateAndCommitFromBrowser(
       web_contents(), GURL("http://localhost/"));
 
@@ -719,7 +794,14 @@ TEST_F(ExecutionEngineTest, LatencyInfoAndActionDurationHistogram) {
                                     simulated_duration, 1);
 }
 
-TEST_F(ExecutionEngineTest, CompletedWithInterruptHistogram) {
+// TODO(crbug.com/480230075): Crashing on Android.
+#if BUILDFLAG(SKIP_ANDROID_UNMIGRATED_ACTOR_FILES)
+#define MAYBE_CompletedWithInterruptHistogram \
+  DISABLED_CompletedWithInterruptHistogram
+#else
+#define MAYBE_CompletedWithInterruptHistogram CompletedWithInterruptHistogram
+#endif
+TEST_F(ExecutionEngineTest, MAYBE_CompletedWithInterruptHistogram) {
   content::NavigationSimulator::NavigateAndCommitFromBrowser(
       web_contents(), GURL("http://localhost/"));
 
@@ -757,7 +839,16 @@ TEST_F(ExecutionEngineTest, CompletedWithInterruptHistogram) {
       1);
 }
 
-TEST_F(ExecutionEngineTest, VisibleNotVisibleActuationCompletedHistogram) {
+// TODO(crbug.com/480230075): Crashing on Android.
+#if BUILDFLAG(SKIP_ANDROID_UNMIGRATED_ACTOR_FILES)
+#define MAYBE_VisibleNotVisibleActuationCompletedHistogram \
+  DISABLED_VisibleNotVisibleActuationCompletedHistogram
+#else
+#define MAYBE_VisibleNotVisibleActuationCompletedHistogram \
+  VisibleNotVisibleActuationCompletedHistogram
+#endif
+TEST_F(ExecutionEngineTest,
+       MAYBE_VisibleNotVisibleActuationCompletedHistogram) {
   content::NavigationSimulator::NavigateAndCommitFromBrowser(
       web_contents(), GURL("http://localhost/"));
   task_->AddTab(GetTab()->GetHandle(), base::DoNothing());
@@ -783,8 +874,16 @@ TEST_F(ExecutionEngineTest, VisibleNotVisibleActuationCompletedHistogram) {
       kActorTaskDurationNotVisibleCompletedHistogram, not_visible_duration, 1);
 }
 
+// TODO(crbug.com/480230075): Crashing on Android.
+#if BUILDFLAG(SKIP_ANDROID_UNMIGRATED_ACTOR_FILES)
+#define MAYBE_VisibleNotVisibleActuationStoppedHistogram \
+  DISABLED_VisibleNotVisibleActuationStoppedHistogram
+#else
+#define MAYBE_VisibleNotVisibleActuationStoppedHistogram \
+  VisibleNotVisibleActuationStoppedHistogram
+#endif
 TEST_P(ExecutionEngineStopReasonParamTest,
-       VisibleNotVisibleActuationStoppedHistogram) {
+       MAYBE_VisibleNotVisibleActuationStoppedHistogram) {
   content::NavigationSimulator::NavigateAndCommitFromBrowser(
       web_contents(), GURL("http://localhost/"));
   task_->AddTab(GetTab()->GetHandle(), base::DoNothing());
@@ -812,7 +911,16 @@ TEST_P(ExecutionEngineStopReasonParamTest,
       not_visible_duration, 1);
 }
 
-TEST_F(ExecutionEngineTest, VisibleNotVisibleActuationWithPauseHistogram) {
+// TODO(crbug.com/480230075): Crashing on Android.
+#if BUILDFLAG(SKIP_ANDROID_UNMIGRATED_ACTOR_FILES)
+#define MAYBE_VisibleNotVisibleActuationWithPauseHistogram \
+  DISABLED_VisibleNotVisibleActuationWithPauseHistogram
+#else
+#define MAYBE_VisibleNotVisibleActuationWithPauseHistogram \
+  VisibleNotVisibleActuationWithPauseHistogram
+#endif
+TEST_F(ExecutionEngineTest,
+       MAYBE_VisibleNotVisibleActuationWithPauseHistogram) {
   content::NavigationSimulator::NavigateAndCommitFromBrowser(
       web_contents(), GURL("http://localhost/"));
   task_->AddTab(GetTab()->GetHandle(), base::DoNothing());
@@ -843,7 +951,16 @@ TEST_F(ExecutionEngineTest, VisibleNotVisibleActuationWithPauseHistogram) {
       kActorTaskDurationNotVisibleCompletedHistogram, base::Milliseconds(0), 1);
 }
 
-TEST_F(ExecutionEngineTest, VisibleNotVisibleActuationWithWaitingHistogram) {
+// TODO(crbug.com/480230075): Crashing on Android.
+#if BUILDFLAG(SKIP_ANDROID_UNMIGRATED_ACTOR_FILES)
+#define MAYBE_VisibleNotVisibleActuationWithWaitingHistogram \
+  DISABLED_VisibleNotVisibleActuationWithWaitingHistogram
+#else
+#define MAYBE_VisibleNotVisibleActuationWithWaitingHistogram \
+  VisibleNotVisibleActuationWithWaitingHistogram
+#endif
+TEST_F(ExecutionEngineTest,
+       MAYBE_VisibleNotVisibleActuationWithWaitingHistogram) {
   content::NavigationSimulator::NavigateAndCommitFromBrowser(
       web_contents(), GURL("http://localhost/"));
   task_->AddTab(GetTab()->GetHandle(), base::DoNothing());
@@ -884,7 +1001,7 @@ TEST_F(ExecutionEngineTest,
   ASSERT_TRUE(actor_service);
 
   // Prepare the data to be sent.
-  ExecutionEngine* execution_engine = task_->GetExecutionEngine();
+  ExecutionEngine& execution_engine = task_->GetExecutionEngine();
   std::vector<autofill::ActorFormFillingRequest> test_requests;
   test_requests.emplace_back().requested_data =
       optimization_guide::proto::FormFillingRequest_RequestedData_ADDRESS;
@@ -898,8 +1015,8 @@ TEST_F(ExecutionEngineTest,
       .WillOnce(testing::SaveArg<1>(&received_requests));
 
   // Call the method under test on the ExecutionEngine.
-  execution_engine->RequestToShowAutofillSuggestions(test_requests,
-                                                     base::DoNothing());
+  execution_engine.RequestToShowAutofillSuggestions(test_requests,
+                                                    base::DoNothing());
 
   // The vector of requests broadcast by the service should match what we sent.
   ASSERT_EQ(received_requests.size(), 1u);
@@ -919,6 +1036,45 @@ INSTANTIATE_TEST_SUITE_P(
                     std::make_tuple(kShutdown, "Shutdown"),
                     std::make_tuple(kUserStartedNewChat, "NewChat"),
                     std::make_tuple(kUserLoadedPreviousChat, "PreviousChat")));
+
+class ExecutionEngineNavigationGatingTest : public ExecutionEngineTest {
+ public:
+  ExecutionEngineNavigationGatingTest() {
+    scoped_feature_list_.InitAndEnableFeature(kGlicCrossOriginNavigationGating);
+  }
+  ~ExecutionEngineNavigationGatingTest() override = default;
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+TEST_F(ExecutionEngineNavigationGatingTest,
+       NavigationGatingMetricsRecordInitiatorOrigin_SameOriginAllowed) {
+  const GURL kInitiatorUrl("https://initiator.com/");
+  const url::Origin kInitiatorOrigin = url::Origin::Create(kInitiatorUrl);
+  const GURL kDestinationUrl("https://destination.com/");
+
+  content::NavigationSimulator::NavigateAndCommitFromBrowser(web_contents(),
+                                                             kDestinationUrl);
+
+  content::MockNavigationHandle navigation_handle(kDestinationUrl, main_rfh());
+  navigation_handle.set_initiator_origin(kInitiatorOrigin);
+
+  EXPECT_EQ(task_->GetExecutionEngine().ShouldDeferNavigation(
+                navigation_handle, base::NullCallback()),
+            content::NavigationThrottle::PROCEED);
+
+  histograms_.ExpectUniqueSample(
+      "Actor.NavigationGating.GatingDecision",
+      /*sample=*/ExecutionEngine::GatingDecision::kAllowSameOrigin,
+      /*expected_bucket_count=*/1);
+  // The navigation is cross-origin and cross-site since initiator !=
+  // destination.
+  histograms_.ExpectUniqueSample("Actor.NavigationGating.CrossOrigin2",
+                                 /*sample=*/true, /*expected_bucket_count=*/1);
+  histograms_.ExpectUniqueSample("Actor.NavigationGating.CrossSite2",
+                                 /*sample=*/true, /*expected_bucket_count=*/1);
+}
 
 }  // namespace
 

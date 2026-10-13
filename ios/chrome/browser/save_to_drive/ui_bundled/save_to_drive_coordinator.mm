@@ -31,7 +31,9 @@
 #import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/shared/public/commands/show_signin_command.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
+#import "ios/chrome/browser/signin/model/authentication_service_factory.h"
 #import "ios/chrome/browser/signin/model/chrome_account_manager_service_factory.h"
+#import "ios/chrome/browser/signin/model/identity_manager_factory.h"
 #import "ios/chrome/browser/signin/model/system_identity.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/web/public/download/download_task.h"
@@ -76,17 +78,22 @@
       drive::DriveServiceFactory::GetForProfile(profile);
   ChromeAccountManagerService* accountManagerService =
       ChromeAccountManagerServiceFactory::GetForProfile(profile);
+  signin::IdentityManager* identityManager =
+      IdentityManagerFactory::GetForProfile(profile);
   PrefService* prefService = profile->GetPrefs();
   id<SaveToDriveCommands> saveToDriveHandler =
       HandlerForProtocol(dispatcher, SaveToDriveCommands);
-  _mediator =
-      [[SaveToDriveMediator alloc] initWithDownloadTask:_downloadTask
-                                     saveToDriveHandler:saveToDriveHandler
-                              manageStorageAlertHandler:self
-                                   accountPickerHandler:self
-                                            prefService:prefService
-                                  accountManagerService:accountManagerService
-                                           driveService:driveService];
+  _mediator = [[SaveToDriveMediator alloc]
+           initWithDownloadTask:_downloadTask
+             saveToDriveHandler:saveToDriveHandler
+      manageStorageAlertHandler:self
+           accountPickerHandler:self
+                    prefService:prefService
+          authenticationService:AuthenticationServiceFactory::GetForProfile(
+                                    self.profile)
+          accountManagerService:accountManagerService
+                identityManager:identityManager
+                   driveService:driveService];
 
   AccountPickerConfiguration* accountPickerConfiguration =
       drive::GetAccountPickerConfiguration(_downloadTask);
@@ -137,7 +144,7 @@
   [_mediator saveWithSelectedIdentity:identity];
 }
 
-- (void)accountPickerCoordinatorCancel:
+- (void)accountPickerCoordinatorWantsToBeStopped:
     (AccountPickerCoordinator*)accountPickerCoordinator {
   [_mediator cancelSaveToDrive];
 }

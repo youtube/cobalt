@@ -48,6 +48,8 @@ class NetworkServiceDevToolsObserver : public network::mojom::DevToolsObserver {
       const net::CookieAccessResultList& request_cookie_list,
       std::vector<network::mojom::HttpRawHeaderPairPtr> request_headers,
       const base::TimeTicks timestamp,
+      std::vector<network::mojom::DeviceBoundSessionWithUsagePtr>
+          device_bound_session_usages,
       network::mojom::ClientSecurityStatePtr security_state,
       network::mojom::OtherPartitionInfoPtr other_partition_info,
       const std::optional<base::UnguessableToken>&
@@ -67,7 +69,7 @@ class NetworkServiceDevToolsObserver : public network::mojom::DevToolsObserver {
   void OnTrustTokenOperationDone(
       const std::string& devtools_request_id,
       network::mojom::TrustTokenOperationResultPtr result) override;
-  void OnPrivateNetworkRequest(
+  void OnLocalNetworkRequest(
       const std::optional<std::string>& devtools_request_id,
       const GURL& url,
       bool is_warning,
@@ -106,6 +108,10 @@ class NetworkServiceDevToolsObserver : public network::mojom::DevToolsObserver {
       const std::string& devtool_request_id,
       const GURL& url,
       network::mojom::UnencodedDigestIssue issue) override;
+  void OnConnectionAllowlistIssue(
+      const std::string& devtool_request_id,
+      const GURL& url,
+      network::mojom::ConnectionAllowlistIssue issue) override;
   void Clone(mojo::PendingReceiver<network::mojom::DevToolsObserver> listener)
       override;
 

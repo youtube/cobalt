@@ -5,6 +5,8 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_SCRIPT_TOOLS_MODEL_CONTEXT_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_SCRIPT_TOOLS_MODEL_CONTEXT_H_
 
+#include <optional>
+
 #include "base/functional/callback.h"
 #include "base/functional/callback_forward.h"
 #include "third_party/blink/public/mojom/content_extraction/script_tools.mojom-blink.h"
@@ -14,18 +16,26 @@
 #include "third_party/blink/renderer/bindings/core/v8/v8_tool_function.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_tool_registration_params.h"
 #include "third_party/blink/renderer/core/core_export.h"
+#include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/platform/allow_discouraged_type.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_map.h"
+#include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 
 namespace blink {
+
+class AbortSignal;
 
 class DeclarativeWebMCPTool {
  public:
   // Executes the associated tool and invokes `done_callback` with the result
   // when the execution is finished. The callback is invoked with a null string
-  // if the execution failed.
-  virtual void ExecuteTool(String input_arguments,
-                           base::OnceCallback<void(String)> done_callback) = 0;
+  // if the execution resulted in a navigation, or an error if the execution
+  // failed.
+  virtual void ExecuteTool(
+      String input_arguments,
+      base::OnceCallback<
+          void(base::expected<String, WebDocument::ScriptToolError>)>
+          done_callback) = 0;
 
   // Returns the input json-schema associated with the tool.
   virtual String ComputeInputSchema() = 0;
@@ -35,7 +45,7 @@ class CORE_EXPORT ModelContext : public ScriptWrappable {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  explicit ModelContext(scoped_refptr<base::SingleThreadTaskRunner>);
+  ModelContext(Document& document, scoped_refptr<base::SingleThreadTaskRunner>);
 
   void ForEachScriptTool(
       base::FunctionRef<void(const mojom::blink::ScriptTool&)>) const;
@@ -50,9 +60,18 @@ class CORE_EXPORT ModelContext : public ScriptWrappable {
                       ExceptionState& exception_state);
   void clearContext();
 
-  void ExecuteTool(const String& name,
-                   const String& input_arguments,
-                   WebDocument::ScriptToolExecutedCallback tool_executed_cb);
+  // TODO: crbug.com/479291237 - remove public/web dependency
+  std::optional<uint32_t> ExecuteTool(
+      const String& name,
+      const String& input_arguments,
+      AbortSignal* signal,
+      WebDocument::ScriptToolExecutedCallback tool_executed_cb);
+  using CrossDocumentScriptToolResultCallback =
+      base::OnceCallback<void(String)>;
+  void GetCrossDocumentScriptToolResult(
+      CrossDocumentScriptToolResultCallback result_callback);
+
+  void CancelTool(uint32_t execution_id);
 
   void SetToolsChangedCallback(std::optional<base::RepeatingClosure> cb) {
     tools_changed_closure_ = std::move(cb);
@@ -61,16 +80,20 @@ class CORE_EXPORT ModelContext : public ScriptWrappable {
   void RegisterDeclarativeTool(String name,
                                String description,
                                DeclarativeWebMCPTool* tool);
+  void PauseExecution();
+  void DidFinishParsing();
 
   void Trace(Visitor*) const override;
 
  private:
   class ToolFunctionFinishedCallback;
 
-  void ExecuteV8Tool(V8ToolFunction* tool_function,
-                     const String& name,
-                     const String& input_arguments,
-                     WebDocument::ScriptToolExecutedCallback tool_executed_cb);
+  std::optional<uint32_t> ExecuteV8Tool(
+      V8ToolFunction* tool_function,
+      const String& name,
+      const String& input_arguments,
+      AbortSignal* signal,
+      WebDocument::ScriptToolExecutedCallback tool_executed_cb);
   void ExecuteDeclarativeTool(
       DeclarativeWebMCPTool* tool,
       const String& input_arguments,
@@ -98,11 +121,19 @@ class CORE_EXPORT ModelContext : public ScriptWrappable {
   HeapHashMap<String, Member<ToolData>> tool_map_;
 
   uint32_t next_execution_id_ = 0;
-  HashMap<uint32_t, WebDocument::ScriptToolExecutedCallback>
-      pending_executions_;
+  struct PendingExecution {
+    String tool_name;
+    WebDocument::ScriptToolExecutedCallback callback;
+  };
+  HashMap<uint32_t, PendingExecution> pending_executions_;
+
+  Vector<CrossDocumentScriptToolResultCallback>
+      cross_document_result_callbacks_;
 
   std::optional<base::RepeatingClosure> tools_changed_closure_;
+  Member<Document> document_;
   scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
+  HeapMojoRemote<mojom::blink::ScriptToolHost> script_tool_host_remote_;
 };
 
 }  // namespace blink

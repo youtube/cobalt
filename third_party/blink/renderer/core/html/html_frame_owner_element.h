@@ -179,6 +179,7 @@ class CORE_EXPORT HTMLFrameOwnerElement : public HTMLElement,
   bool IsKeyboardFocusableSlow(
       UpdateBehavior update_behavior =
           UpdateBehavior::kStyleAndLayout) const override;
+  FocusgroupFlags NativeArrowKeyAxes() const final;
   void FrameOwnerPropertiesChanged() override;
 
   void DisposePluginSoon(WebPluginContainerImpl*);
@@ -187,7 +188,7 @@ class CORE_EXPORT HTMLFrameOwnerElement : public HTMLElement,
   // policies, as "the origin of the URL in the frame's src attribute" (see
   // https://w3c.github.io/webappsec-permissions-policy/#iframe-allow-attribute).
   // This method is intended to be overridden by specific frame classes.
-  virtual scoped_refptr<const SecurityOrigin> GetOriginForPermissionsPolicy()
+  virtual scoped_refptr<const SecurityOrigin> MakeOriginForPermissionsPolicy()
       const {
     return SecurityOrigin::CreateUniqueOpaque();
   }

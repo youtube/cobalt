@@ -212,6 +212,17 @@ ContentWebState::~ContentWebState() {
   NSNotificationCenter* default_center = [NSNotificationCenter defaultCenter];
   [default_center removeObserver:keyboard_showing_observer_];
   [default_center removeObserver:keyboard_hiding_observer_];
+
+  // Destroy all attached UserData before invalidating the vtable. As most of
+  // them have a pointer back to the WebState, this ensures they are destroyed
+  // while the pointer is still valid (i.e. they can use the pointer in their
+  // destructor, even if they don't observe WebStateDestroyed).
+  //
+  // This also aligns with the implementation of WebStateImpl of destroying
+  // the attached UserData before the ObserverList<...> and thus giving them
+  // an opportunity to remove themselves from the list before their destructor
+  // checks if the list are empty on destruction.
+  ClearAllUserData();
 }
 
 content::WebContents* ContentWebState::GetWebContents() {
@@ -743,6 +754,10 @@ content::WebContents* ContentWebState::AddNewContents(
                                user_gesture);
   DCHECK(!child_web_contents_);
   return nullptr;
+}
+
+void ContentWebState::CloseContents(content::WebContents* source) {
+  CloseWebState();
 }
 
 int ContentWebState::GetTopControlsHeight() {

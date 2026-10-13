@@ -43,7 +43,7 @@ suite('NewTabPageActionChipsTest', () => {
           suggestion: 'Suggestion for recent tab',
           tab: {
             tabId: 1,
-            url: {url: 'https://example.com/test'},
+            url: 'https://example.com/test',
             title: 'Example Tab',
             lastActiveTime: {internalValue: BigInt(12345)},
           },
@@ -113,7 +113,7 @@ suite('NewTabPageActionChipsTest', () => {
     const fakeTab: TabInfo = {
       tabId: 1,
       title: 'Test Title',
-      url: {url: 'https://example.com/test'},
+      url: 'https://example.com/test',
       lastActiveTime: {internalValue: BigInt(12345)},
     };
     await initializeChips({
@@ -157,7 +157,7 @@ suite('NewTabPageActionChipsTest', () => {
         subtitle: 'Subtitle for recent tab',
         suggestion: 'Suggestion for recent tab',
         tab: {
-          url: {url: 'https://example.com'},
+          url: 'https://example.com',
           tabId: 0,
           title: 'Example Tab',
           lastActiveTime: {internalValue: BigInt(0)},
@@ -177,7 +177,7 @@ suite('NewTabPageActionChipsTest', () => {
         subtitle: 'Subtitle for deep dive',
         suggestion: 'Suggestion for deep dive',
         tab: {
-          url: {url: 'https://example.com'},
+          url: 'https://example.com',
           tabId: 0,
           title: 'Example Tab',
           lastActiveTime: {internalValue: BigInt(0)},
@@ -267,7 +267,7 @@ suite('NewTabPageActionChipsTest', () => {
           subtitle: 'Subtitle for deep dive',
           suggestion: 'Suggestion for deep dive',
           tab: {
-            url: {url: 'https://example.com'},
+            url: 'https://example.com',
             tabId: 0,
             title: 'Example Tab',
             lastActiveTime: {internalValue: BigInt(0)},
@@ -360,6 +360,9 @@ suite('NewTabPageActionChipsTest', () => {
     test(
         'The number of chips is equal to the number of items in the response',
         async () => {
+          loadTimeData.overrideValues({
+            ntpNextShowSimplificationUIEnabled: true,
+          });
           await initializeChips({});
           assertTrue(!!chips);
           const allChips = Array.from<HTMLButtonElement>(
@@ -371,15 +374,15 @@ suite('NewTabPageActionChipsTest', () => {
               [
                 {
                   title: 'Example Tab',
-                  body: 'Subtitle for recent tab',
+                  body: '- Subtitle for recent tab',
                 },
                 {
                   title: 'Nano Banana',
-                  body: 'Subtitle for image',
+                  body: '- Suggestion for image',
                 },
                 {
                   title: 'Deep Search',
-                  body: 'Subtitle for deep search',
+                  body: '- Suggestion for deep search',
                 },
               ],
               allChips.map((chip: HTMLButtonElement) => {
@@ -398,6 +401,94 @@ suite('NewTabPageActionChipsTest', () => {
                           ?.textContent.trim(),
                 };
               }));
+        });
+
+    test('Uses subtitle when simplification UI is disabled', async () => {
+      loadTimeData.overrideValues({
+        ntpNextShowSimplificationUIEnabled: false,
+      });
+      await initializeChips({});
+      assertTrue(!!chips);
+      const allChips = Array.from<HTMLButtonElement>(
+          chips.shadowRoot.querySelectorAll<HTMLButtonElement>('button'));
+      assertEquals(3, allChips.length);
+
+      assertDeepEquals(
+          [
+            {
+              title: 'Example Tab',
+              body: 'Subtitle for recent tab',
+            },
+            {
+              title: 'Nano Banana',
+              body: 'Subtitle for image',
+            },
+            {
+              title: 'Deep Search',
+              body: 'Subtitle for deep search',
+            },
+          ],
+          allChips.map((chip: HTMLButtonElement) => {
+            const spans =
+                Array.from<Element>(chip.querySelectorAll<Element>('span'));
+            return {
+              title:
+                  spans
+                      .find((e: Element) => e.classList.contains('chip-title'))
+                      ?.textContent.trim(),
+              body:
+                  spans.find((e: Element) => e.classList.contains('chip-body'))
+                      ?.textContent.trim(),
+            };
+          }));
+    });
+
+    test(
+        'Uses subtitle when row UI is enabled but suggestion is empty',
+        async () => {
+          loadTimeData.overrideValues({
+            ntpNextShowSimplificationUIEnabled: true,
+          });
+          await initializeChips({
+            actionChips: [{
+              type: ChipType.kDeepSearch,
+              title: 'Deep Search',
+              subtitle: 'Subtitle for deep search',
+              suggestion: '',
+              tab: null,
+            }],
+          });
+          const chip =
+              chips.shadowRoot.querySelector<HTMLButtonElement>('button');
+          assertTrue(!!chip);
+          const bodyElement = chip.querySelector('.chip-body');
+          assertTrue(!!bodyElement);
+          const body = bodyElement.textContent?.trim();
+          assertEquals('- Subtitle for deep search', body);
+        });
+
+    test(
+        'Returns empty string when both suggestion and subtitle are empty',
+        async () => {
+          loadTimeData.overrideValues({
+            ntpNextShowSimplificationUIEnabled: true,
+          });
+          await initializeChips({
+            actionChips: [{
+              type: ChipType.kDeepSearch,
+              title: 'Deep Search',
+              subtitle: '',
+              suggestion: '',
+              tab: null,
+            }],
+          });
+          const chip =
+              chips.shadowRoot.querySelector<HTMLButtonElement>('button');
+          assertTrue(!!chip);
+          const bodyElement = chip.querySelector('.chip-body');
+          assertTrue(!!bodyElement);
+          const body = bodyElement.textContent?.trim();
+          assertEquals('', body);
         });
 
     test('should dismiss a chip when remove button is clicked', async () => {

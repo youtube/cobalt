@@ -65,7 +65,7 @@ void OnUpdateCallback(
     bool success) {
   DCHECK(success) << "There was an error modifying MerchantSignalDB";
   if (joncomplete_for_testing)
-    base::android::RunRunnableAndroid(joncomplete_for_testing);
+    jni_zero::RunRunnable(joncomplete_for_testing);
 }
 }  // namespace
 
@@ -76,7 +76,7 @@ MerchantSignalDB::~MerchantSignalDB() = default;
 
 void MerchantSignalDB::Save(JNIEnv* env,
                             std::string& key,
-                            const jlong jtimestamp,
+                            const int64_t jtimestamp,
                             const base::android::JavaRef<jobject>& jcallback) {
   MerchantSignalProto proto;
   proto.set_key(key);

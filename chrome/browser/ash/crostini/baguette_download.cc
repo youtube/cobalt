@@ -5,6 +5,7 @@
 #include "chrome/browser/ash/crostini/baguette_download.h"
 
 #include <memory>
+#include <utility>
 
 #include "base/check.h"
 #include "base/files/file_path.h"
@@ -13,8 +14,6 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
-#include "chrome/browser/browser_process.h"
-#include "chrome/browser/profiles/profile.h"
 #include "crypto/hash.h"
 #include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
@@ -91,8 +90,11 @@ std::string Sha256FileForTesting(const base::FilePath& path) {
   return Sha256File(path);
 }
 
-SimpleURLLoaderDownload::SimpleURLLoaderDownload(PrefService& local_state)
-    : local_state_(local_state) {}
+SimpleURLLoaderDownload::SimpleURLLoaderDownload(
+    scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory)
+    : shared_url_loader_factory_(std::move(shared_url_loader_factory)) {
+  CHECK(shared_url_loader_factory_);
+}
 
 SimpleURLLoaderDownload::~SimpleURLLoaderDownload() {
   auto seq = base::ThreadPool::CreateSequencedTaskRunner({base::MayBlock()});
@@ -103,7 +105,6 @@ SimpleURLLoaderDownload::~SimpleURLLoaderDownload() {
 }
 
 void SimpleURLLoaderDownload::StartDownload(
-    Profile* profile,
     GURL url,
     base::OnceCallback<void(base::FilePath path, std::string sha256)>
         callback) {
@@ -113,11 +114,10 @@ void SimpleURLLoaderDownload::StartDownload(
   base::ThreadPool::PostTaskAndReplyWithResult(
       FROM_HERE, {base::MayBlock()}, base::BindOnce(&MakeTempDir),
       base::BindOnce(&SimpleURLLoaderDownload::Download,
-                     weak_ptr_factory_.GetWeakPtr(), profile));
+                     weak_ptr_factory_.GetWeakPtr()));
 }
 
 void SimpleURLLoaderDownload::Download(
-    Profile* profile,
     std::unique_ptr<base::ScopedTempDir> dir) {
   scoped_temp_dir_ = std::move(dir);
   auto path = scoped_temp_dir_->GetPath().Append("download");
@@ -130,7 +130,7 @@ void SimpleURLLoaderDownload::Download(
                                              kBaguetteTrafficAnnotation);
   loader_->SetRetryOptions(
       5, network::SimpleURLLoader::RetryMode::RETRY_ON_NETWORK_CHANGE);
-  loader_->DownloadToFile(g_browser_process->shared_url_loader_factory().get(),
+  loader_->DownloadToFile(shared_url_loader_factory_.get(),
                           base::BindOnce(&SimpleURLLoaderDownload::Finished,
                                          weak_ptr_factory_.GetWeakPtr()),
                           std::move(path));

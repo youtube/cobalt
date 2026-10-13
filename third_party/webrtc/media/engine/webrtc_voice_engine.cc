@@ -526,7 +526,7 @@ void WebRtcVoiceEngine::Init() {
   // TaskQueue expects to be created/destroyed on the same thread.
   RTC_DCHECK(!low_priority_worker_queue_);
   low_priority_worker_queue_ = env_.task_queue_factory().CreateTaskQueue(
-      "rtc-low-prio", TaskQueueFactory::Priority::LOW);
+      "rtc-low-prio", TaskQueueFactory::Priority::kLow);
 
   adm_helpers::Init(adm());
 
@@ -1131,6 +1131,11 @@ class WebRtcVoiceSendChannel::WebRtcAudioSendStream : public AudioSource::Sink {
         config_.send_codec_spec->target_bitrate_bps = send_rate;
       }
     }
+
+    rtp_parameters_.rtcp.cname = config_.rtp.c_name;
+    rtp_parameters_.rtcp.reduced_size =
+        config_.rtp.rtcp_mode == RtcpMode::kReducedSize;
+
     if (reconfigure_send_stream) {
       // Changing adaptive_ptime may update the audio network adaptor config
       // used.
@@ -1140,10 +1145,6 @@ class WebRtcVoiceSendChannel::WebRtcAudioSendStream : public AudioSource::Sink {
     } else {
       InvokeSetParametersCallback(callback, RTCError::OK());
     }
-
-    rtp_parameters_.rtcp.cname = config_.rtp.c_name;
-    rtp_parameters_.rtcp.reduced_size =
-        config_.rtp.rtcp_mode == RtcpMode::kReducedSize;
 
     // parameters.encodings[0].active could have changed.
     UpdateSendState();
@@ -1357,11 +1358,7 @@ bool WebRtcVoiceSendChannel::SetSenderParameters(
           }
         }
         if (needs_update) {
-          RTCError error =
-              send_stream->SetRtpParameters(rtp_parameters, nullptr);
-          if (error.ok()) {
-            on_rtp_send_parameters_changed_callback_.Send(ssrc, rtp_parameters);
-          }
+          send_stream->SetRtpParameters(rtp_parameters, nullptr);
         } else {
           RTC_DCHECK(rtp_parameters == send_stream->rtp_parameters());
         }
@@ -1684,21 +1681,6 @@ void WebRtcVoiceSendChannel::SetSsrcListChangedCallback(
   RTC_DCHECK_RUN_ON(worker_thread_);
   RTC_DCHECK(!ssrc_list_changed_callback_);
   ssrc_list_changed_callback_ = std::move(callback);
-}
-
-void WebRtcVoiceSendChannel::SubscribeRtpSendParametersChanged(
-    const void* tag,
-    absl::AnyInvocable<void(std::optional<uint32_t>, const RtpParameters&)>
-        callback) {
-  RTC_DCHECK_RUN_ON(worker_thread_);
-  on_rtp_send_parameters_changed_callback_.AddReceiver(tag,
-                                                       std::move(callback));
-}
-
-void WebRtcVoiceSendChannel::UnsubscribeRtpSendParametersChanged(
-    const void* tag) {
-  RTC_DCHECK_RUN_ON(worker_thread_);
-  on_rtp_send_parameters_changed_callback_.RemoveReceivers(tag);
 }
 
 bool WebRtcVoiceSendChannel::SetLocalSource(uint32_t ssrc,
@@ -2032,12 +2014,7 @@ RTCError WebRtcVoiceSendChannel::SetRtpSendParameters(
   // Codecs are handled at the WebRtcVoiceMediaChannel level.
   RtpParameters reduced_params = parameters;
   reduced_params.codecs.clear();
-  RTCError error =
-      it->second->SetRtpParameters(reduced_params, std::move(callback));
-  if (error.ok()) {
-    on_rtp_send_parameters_changed_callback_.Send(ssrc, reduced_params);
-  }
-  return error;
+  return it->second->SetRtpParameters(reduced_params, std::move(callback));
 }
 
 // -------------------------- WebRtcVoiceReceiveChannel ----------------------

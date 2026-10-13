@@ -2691,55 +2691,19 @@ void MacroAssembler::DivU32(Register dst, Register src, Register value, OEBit s,
 }
 
 void MacroAssembler::ModS64(Register dst, Register src, Register value) {
-  if (CpuFeatures::IsSupported(PPC_9_PLUS)) {
-    modsd(dst, src, value);
-  } else {
-    Register scratch = GetRegisterThatIsNotOneOf(dst, src, value);
-    Push(scratch);
-    divd(scratch, src, value);
-    mulld(scratch, scratch, value);
-    sub(dst, src, scratch);
-    Pop(scratch);
-  }
+  modsd(dst, src, value);
 }
 
 void MacroAssembler::ModU64(Register dst, Register src, Register value) {
-  if (CpuFeatures::IsSupported(PPC_9_PLUS)) {
-    modud(dst, src, value);
-  } else {
-    Register scratch = GetRegisterThatIsNotOneOf(dst, src, value);
-    Push(scratch);
-    divdu(scratch, src, value);
-    mulld(scratch, scratch, value);
-    sub(dst, src, scratch);
-    Pop(scratch);
-  }
+  modud(dst, src, value);
 }
 
 void MacroAssembler::ModS32(Register dst, Register src, Register value) {
-  if (CpuFeatures::IsSupported(PPC_9_PLUS)) {
-    modsw(dst, src, value);
-  } else {
-    Register scratch = GetRegisterThatIsNotOneOf(dst, src, value);
-    Push(scratch);
-    divw(scratch, src, value);
-    mullw(scratch, scratch, value);
-    sub(dst, src, scratch);
-    Pop(scratch);
-  }
+  modsw(dst, src, value);
   extsw(dst, dst);
 }
 void MacroAssembler::ModU32(Register dst, Register src, Register value) {
-  if (CpuFeatures::IsSupported(PPC_9_PLUS)) {
-    moduw(dst, src, value);
-  } else {
-    Register scratch = GetRegisterThatIsNotOneOf(dst, src, value);
-    Push(scratch);
-    divwu(scratch, src, value);
-    mullw(scratch, scratch, value);
-    sub(dst, src, scratch);
-    Pop(scratch);
-  }
+  moduw(dst, src, value);
   ZeroExtWord32(dst, dst);
 }
 
@@ -4924,8 +4888,7 @@ void MacroAssembler::CallJSDispatchEntry(JSDispatchHandle dispatch_handle,
   static_assert(!JSDispatchTable::kSupportsCompaction);
   LoadEntrypointFromJSDispatchTable(code, dispatch_handle_reg, scratch);
   CHECK_EQ(argument_count,
-           IsolateGroup::current()->js_dispatch_table()->GetParameterCount(
-               dispatch_handle));
+           isolate()->js_dispatch_table().GetParameterCount(dispatch_handle));
   Call(code);
 }
 
@@ -5054,39 +5017,15 @@ void MacroAssembler::CountLeadingZerosU64(Register dst, Register src, RCBit r) {
   cntlzd(dst, src, r);
 }
 
-#define COUNT_TRAILING_ZEROES_SLOW(max_count, scratch1, scratch2) \
-  Label loop, done;                                               \
-  li(scratch1, Operand(max_count));                               \
-  mtctr(scratch1);                                                \
-  mr(scratch1, src);                                              \
-  li(dst, Operand::Zero());                                       \
-  bind(&loop); /* while ((src & 1) == 0) */                       \
-  andi(scratch2, scratch1, Operand(1));                           \
-  bne(&done, cr0);                                                \
-  srdi(scratch1, scratch1, Operand(1)); /* src >>= 1;*/           \
-  addi(dst, dst, Operand(1));           /* dst++ */               \
-  bdnz(&loop);                                                    \
-  bind(&done);
 void MacroAssembler::CountTrailingZerosU32(Register dst, Register src,
-                                           Register scratch1, Register scratch2,
                                            RCBit r) {
-  if (CpuFeatures::IsSupported(PPC_9_PLUS)) {
     cnttzw(dst, src, r);
-  } else {
-    COUNT_TRAILING_ZEROES_SLOW(32, scratch1, scratch2);
-  }
 }
 
 void MacroAssembler::CountTrailingZerosU64(Register dst, Register src,
-                                           Register scratch1, Register scratch2,
                                            RCBit r) {
-  if (CpuFeatures::IsSupported(PPC_9_PLUS)) {
     cnttzd(dst, src, r);
-  } else {
-    COUNT_TRAILING_ZEROES_SLOW(64, scratch1, scratch2);
-  }
 }
-#undef COUNT_TRAILING_ZEROES_SLOW
 
 void MacroAssembler::ClearByteU64(Register dst, int byte_idx) {
   CHECK(0 <= byte_idx && byte_idx <= 7);
@@ -5205,7 +5144,8 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
                               ExternalReference thunk_ref, Register thunk_arg,
                               int slots_to_drop_on_return,
                               MemOperand* argc_operand,
-                              MemOperand return_value_operand) {
+                              MemOperand return_value_operand,
+                              bool handle_interceptor_result) {
   using ER = ExternalReference;
 
   Isolate* isolate = masm->isolate();
@@ -5228,14 +5168,14 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
   Register prev_limit_reg = r15;
   Register prev_level_reg = r16;
 
-  // C arguments (kCArgRegs[0/1]) are expected to be initialized outside, so
+  // C arguments (kCArgRegs[0/1/2]) are expected to be initialized outside, so
   // this function must not corrupt them (return_value overlaps with
   // kCArgRegs[0] but that's ok because we start using it only after the C
   // call).
-  DCHECK(!AreAliased(kCArgRegs[0], kCArgRegs[1],  // C args
+  DCHECK(!AreAliased(kCArgRegs[0], kCArgRegs[1], kCArgRegs[2],  // C args
                      scratch, scratch2, prev_next_address_reg, prev_limit_reg));
   // function_address and thunk_arg might overlap but this function must not
-  // corrupted them until the call is made (i.e. overlap with return_value is
+  // corrupt them until the call is made (i.e. overlap with return_value is
   // fine).
   DCHECK(!AreAliased(function_address,  // incoming parameters
                      scratch, scratch2, prev_next_address_reg, prev_limit_reg));
@@ -5251,7 +5191,8 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
     __ stw(scratch, level_mem_op);
   }
 
-  Label profiler_or_side_effects_check_enabled, done_api_call;
+  Label profiler_or_side_effects_check_enabled, done_api_call,
+      done_reading_result;
   if (with_profiling) {
     __ RecordComment("Check if profiler or side effects check is enabled");
     __ lbz(scratch,
@@ -5271,6 +5212,18 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
   __ StoreReturnAddressAndCall(function_address);
   __ bind(&done_api_call);
 
+  if (handle_interceptor_result) {
+    // Skip reading return value if the callback returned kInterceptedNo,
+    // this would make the builtin return kNotInterceptedSentinel value.
+    // Size is important here, otherwise the C++ function could have returned
+    // one- or two-byte value with junk in the upper part.
+    static_assert(kInterceptedNo == 1 && kInterceptedSize == 4);
+    static_assert(kInterceptedNo == kNotInterceptedSentinel);
+    static_assert(kInterceptedYes == 0);
+    __ andi(r0, return_value, Operand(1));
+    __ b(to_condition(kNotZero), &done_reading_result);
+  }
+
   Label propagate_exception;
   Label delete_allocated_handles;
   Label leave_exit_frame;
@@ -5278,6 +5231,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
   // load value from ReturnValue
   __ RecordComment("Load the value from ReturnValue");
   __ LoadU64(r3, return_value_operand);
+  __ bind(&done_reading_result);
 
   {
     ASM_CODE_COMMENT_STRING(
@@ -5316,8 +5270,16 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
     __ bne(&propagate_exception);
   }
 
-  __ AssertJSAny(return_value, scratch, scratch2,
-                 AbortReason::kAPICallReturnedInvalidObject);
+  if (v8_flags.debug_code) {
+    Label ok;
+    if (handle_interceptor_result) {
+      __ Cmp(return_value, kNotInterceptedSentinel);
+      __ beq(&ok);
+    }
+    __ AssertJSAny(return_value, scratch, scratch2,
+                   AbortReason::kAPICallReturnedInvalidObject);
+    __ bind(&ok);
+  }
 
   if (argc_operand == nullptr) {
     DCHECK_NE(slots_to_drop_on_return, 0);
@@ -5335,7 +5297,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
   if (with_profiling) {
     ASM_CODE_COMMENT_STRING(masm, "Call the api function via the thunk.");
     __ bind(&profiler_or_side_effects_check_enabled);
-    // Additional parameter is the address of the actual callback function.
+    // Additional parameter if provided.
     if (thunk_arg.is_valid()) {
       MemOperand thunk_arg_mem_op = __ ExternalReferenceAsOperand(
           IsolateFieldId::kApiCallbackThunkArgument);

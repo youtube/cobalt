@@ -381,7 +381,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="PerformanceMonitor.UsageScenario.LongInterval"
     enum="PerformanceMonitor.UsageScenario.LongInterval"
-    expires_after="2026-05-24">
+    expires_after="2026-07-26">
   <owner>olivierli@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
@@ -744,7 +744,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Power.BatteryDischargeRate" units="mW"
-    expires_after="2026-05-24">
+    expires_after="2026-07-26">
   <owner>puthik@chromium.org</owner>
   <owner>chromeos-platform-power@google.com</owner>
   <summary>
@@ -975,7 +975,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Power.BatterySaver.UserBrightenedSec" units="seconds"
-    expires_after="2026-05-17">
+    expires_after="2026-07-26">
   <owner>zactu@google.com</owner>
   <owner>chromeos-bsm@google.com</owner>
   <summary>
@@ -1005,7 +1005,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Power.CpuTimeSecondsPerProcessType" enum="ProcessType2"
-    expires_after="2026-05-24">
+    expires_after="2026-07-26">
   <owner>eseckler@chromium.org</owner>
   <owner>skyostil@chromium.org</owner>
   <owner>woa-performance@google.com</owner>
@@ -1202,9 +1202,10 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Power.DimEvent{PowerSource}" enum="PowerDimEvent"
-    expires_after="2026-03-01">
+    expires_after="2027-03-01">
   <owner>mqg@chromium.org</owner>
   <owner>amoylan@chromium.org</owner>
+  <owner>chromeos-power-team@google.com</owner>
   <summary>
     The dimming events inside power_manager.metrics.DimEvent, recorded when a
     quick-dim/standard-dim starts or ends. The device is on {PowerSource} when
@@ -1217,7 +1218,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Power.DisplayAfterResumeDurationMs{PowerSource}" units="ms"
-    expires_after="2026-05-17">
+    expires_after="2026-07-26">
   <owner>mhiramat@google.com</owner>
   <owner>cros-suspend-resume@google.com</owner>
   <summary>
@@ -1314,7 +1315,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Power.ForegroundBatteryDrain.30Seconds{Exclusive}" units="uAh"
-    expires_after="2026-05-24">
+    expires_after="2026-07-26">
   <owner>eseckler@chromium.org</owner>
   <owner>skyostil@chromium.org</owner>
   <owner>woa-performance@google.com</owner>
@@ -1346,7 +1347,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Power.ForegroundBatteryDrainPerScenario.30Seconds{Exclusive}{LoadingScenario}{InputScenario}"
-    units="uAh" expires_after="2026-05-31">
+    units="uAh" expires_after="2026-08-02">
   <owner>kraskevich@google.com</owner>
   <owner>woa-performance@google.com</owner>
   <summary>
@@ -1360,7 +1361,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Power.ForegroundBatteryDrain{Exclusive}" units="0.1 mAh"
-    expires_after="2026-05-24">
+    expires_after="2026-07-26">
   <owner>eseckler@chromium.org</owner>
   <owner>skyostil@chromium.org</owner>
   <owner>woa-performance@google.com</owner>
@@ -1566,7 +1567,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Power.KeyboardBacklightLevel" units="%"
-    expires_after="2026-05-03">
+    expires_after="2026-08-02">
   <owner>tbroch@chromium.org</owner>
   <summary>
     The level of the keyboard backlight as a percentage. Sampled every 30
@@ -1575,9 +1576,10 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Power.LockEvent{PowerSource}" enum="PowerLockEvent"
-    expires_after="2026-03-01">
+    expires_after="2027-03-01">
   <owner>mqg@chromium.org</owner>
   <owner>amoylan@chromium.org</owner>
+  <owner>chromeos-power-team@google.com</owner>
   <summary>
     The lock events inside power_manager.metrics.LockEvent, recorded when a
     quick-lock/standard-lock starts. The device is on {PowerSource} when the
@@ -1786,7 +1788,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Power.PowerSupplyType" enum="PowerSupplyType"
-    expires_after="2026-05-17">
+    expires_after="2026-07-26">
   <owner>bleung@chromium.org</owner>
   <owner>puthik@chromium.org</owner>
   <owner>chromeos-platform-power@google.com</owner>
@@ -1881,7 +1883,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Power.SuspendResult" enum="SuspendResult"
-    expires_after="2026-05-31">
+    expires_after="2026-08-02">
   <owner>puthik@chromium.org</owner>
   <owner>chromeos-platform-power@google.com</owner>
   <summary>
@@ -1932,7 +1934,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Power.UserBrightnessAdjustmentsPerSessionOnBattery"
-    units="units" expires_after="2026-05-31">
+    units="units" expires_after="2026-08-02">
   <owner>alanlxl@chromium.org</owner>
   <owner>amoylan@chromium.org</owner>
   <owner>napper@chromium.org</owner>
@@ -1944,9 +1946,10 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Power.{HpsEvent}.DurationSeconds" units="seconds"
-    expires_after="2026-03-01">
+    expires_after="2027-03-01">
   <owner>mqg@chromium.org</owner>
   <owner>amoylan@chromium.org</owner>
+  <owner>chromeos-power-team@google.com</owner>
   <summary>
     The duration of a {HpsEvent}, recorded on undimming/deferring.
   </summary>
@@ -1963,7 +1966,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PowerML.DimImminent.Action" enum="PowerMLDimImminentAction"
-    expires_after="2026-03-08">
+    expires_after="2026-09-08">
   <owner>alanlxl@chromium.org</owner>
   <owner>amoylan@chromium.org</owner>
   <owner>napper@chromium.org</owner>

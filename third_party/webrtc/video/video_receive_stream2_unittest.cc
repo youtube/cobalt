@@ -706,7 +706,7 @@ std::unique_ptr<test::FakeEncodedFrame> MakeFrameWithResolution(
                    .PayloadType(kH264PayloadType)
                    .AsLast()
                    .Build();
-  frame->SetFrameType(frame_type);
+  frame->set_frame_type(frame_type);
   frame->_encodedWidth = width;
   frame->_encodedHeight = height;
   return frame;

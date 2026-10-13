@@ -14,11 +14,11 @@
 #include "chrome/browser/ui/webui/theme_colors_source_manager.h"
 #include "chrome/browser/ui/webui/theme_colors_source_manager_factory.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
-#include "chrome/browser/ui/webui/webui_toolbar/webui_toolbar.mojom.h"
 #include "chrome/browser/ui/webui/webui_toolbar/webui_toolbar_test_utils.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/views/chrome_views_test_base.h"
+#include "components/browser_apis/browser_controls/browser_controls_api.mojom.h"
 #include "content/public/common/content_features.h"
 #include "content/public/test/browser_task_environment.h"
 #include "content/public/test/test_renderer_host.h"
@@ -35,34 +35,33 @@
 namespace {
 
 // Helper class to manage mojo remote to the WebUIToolbarUI.
-class MockWebUIToolbarPageHandlerFactory {
+class MockBrowserControlsServiceConnection {
  public:
-  explicit MockWebUIToolbarPageHandlerFactory(WebUIToolbarUI* ui) {
-    ui->BindInterface(factory_remote_.BindNewPipeAndPassReceiver());
+  explicit MockBrowserControlsServiceConnection(WebUIToolbarUI* ui) {
+    ui->BindInterface(service_remote_.BindNewPipeAndPassReceiver());
   }
 
   // Not movable or copyable.
-  MockWebUIToolbarPageHandlerFactory(
-      const MockWebUIToolbarPageHandlerFactory&) = delete;
-  MockWebUIToolbarPageHandlerFactory& operator=(
-      const MockWebUIToolbarPageHandlerFactory&) = delete;
+  MockBrowserControlsServiceConnection(
+      const MockBrowserControlsServiceConnection&) = delete;
+  MockBrowserControlsServiceConnection& operator=(
+      const MockBrowserControlsServiceConnection&) = delete;
 
-  void CreatePageHandler() {
-    factory_remote_->CreatePageHandler(
-        mock_page_.BindAndGetRemote(),
-        handler_remote_.BindNewPipeAndPassReceiver());
-    factory_remote_.FlushForTesting();
+  void RegisterObserver() {
+    service_remote_->AddObserver(
+        mock_observer_.BindAndGetRemote());
+    service_remote_.FlushForTesting();
   }
 
-  bool is_bound() { return factory_remote_.is_bound(); }
-  bool is_connected() { return factory_remote_.is_connected(); }
+  bool is_bound() { return service_remote_.is_bound(); }
+  bool is_connected() { return service_remote_.is_connected(); }
 
-  MockReloadButtonPage& mock_page() { return mock_page_; }
+  MockReloadButtonPage& mock_observer() { return mock_observer_; }
 
  private:
-  testing::StrictMock<MockReloadButtonPage> mock_page_;
-  mojo::Remote<webui_toolbar::mojom::PageHandlerFactory> factory_remote_;
-  mojo::Remote<webui_toolbar::mojom::PageHandler> handler_remote_;
+  testing::StrictMock<MockReloadButtonPage> mock_observer_;
+  mojo::Remote<browser_controls_api::mojom::BrowserControlsService>
+      service_remote_;
 };
 
 }  // namespace
@@ -122,49 +121,111 @@ class WebUIToolbarUITest : public ChromeViewsTestBase {
   std::unique_ptr<testing::NiceMock<MockCommandUpdater>> mock_command_updater_;
 };
 
-// Tests that SetReloadButtonState calls the page handler with the correct
-// parameters.
+// Tests that OnNavigationStatusChanged and OnDevToolsStatusChanged call the
+// browser controls observer with the correct parameters.
 TEST_F(WebUIToolbarUITest, SetReloadButtonState) {
-  MockWebUIToolbarPageHandlerFactory factory(ui());
-  factory.CreatePageHandler();
+  MockBrowserControlsServiceConnection connection(ui());
+  connection.RegisterObserver();
 
-  EXPECT_CALL(factory.mock_page(), SetReloadButtonState(true, false)).Times(1);
-  ui()->SetReloadButtonState(true, false);
-  factory.mock_page().FlushForTesting();
+  EXPECT_CALL(connection.mock_observer(),
+              OnNavigationStatusChanged(
+                  browser_controls_api::mojom::NavigationState::kLoading))
+      .Times(1);
+  ui()->OnNavigationStatusChanged(
+      browser_controls_api::mojom::NavigationState::kLoading);
+  connection.mock_observer().FlushForTesting();
 
-  EXPECT_CALL(factory.mock_page(), SetReloadButtonState(false, true)).Times(1);
-  ui()->SetReloadButtonState(false, true);
-  factory.mock_page().FlushForTesting();
+  EXPECT_CALL(connection.mock_observer(),
+              OnNavigationStatusChanged(
+                  browser_controls_api::mojom::NavigationState::kNotLoading))
+      .Times(1);
+  ui()->OnNavigationStatusChanged(
+      browser_controls_api::mojom::NavigationState::kNotLoading);
+  connection.mock_observer().FlushForTesting();
+
+  EXPECT_CALL(connection.mock_observer(),
+              OnDevToolsStatusChanged(
+                  browser_controls_api::mojom::DevToolsState::kConnected))
+      .Times(1);
+  ui()->OnDevToolsStatusChanged(
+      browser_controls_api::mojom::DevToolsState::kConnected);
+  connection.mock_observer().FlushForTesting();
+
+  EXPECT_CALL(connection.mock_observer(),
+              OnDevToolsStatusChanged(
+                  browser_controls_api::mojom::DevToolsState::kDisconnected))
+      .Times(1);
+  ui()->OnDevToolsStatusChanged(
+      browser_controls_api::mojom::DevToolsState::kDisconnected);
+  connection.mock_observer().FlushForTesting();
 }
 
-// Tests that the BindInterface method for PageHandlerFactory works correctly.
-TEST_F(WebUIToolbarUITest, BindPageHandlerFactory) {
-  MockWebUIToolbarPageHandlerFactory factory(ui());
+// Tests that OnTabSplitStatusChanged calls the browser controls observer with
+// the correct parameters.
+TEST_F(WebUIToolbarUITest, OnTabSplitStatusChanged) {
+  MockBrowserControlsServiceConnection connection(ui());
+  connection.RegisterObserver();
 
-  EXPECT_TRUE(factory.is_bound());
-  EXPECT_TRUE(factory.is_connected());
+  EXPECT_CALL(
+      connection.mock_observer(),
+      OnTabSplitStatusChanged(
+          true, browser_controls_api::mojom::SplitTabActiveLocation::kStart))
+      .Times(1);
+  ui()->OnTabSplitStatusChanged(
+      true, browser_controls_api::mojom::SplitTabActiveLocation::kStart);
+  connection.mock_observer().FlushForTesting();
 }
 
-// Tests that the CreatePageHandler method instantiates the page handler.
-TEST_F(WebUIToolbarUITest, CreatePageHandler) {
-  MockWebUIToolbarPageHandlerFactory factory(ui());
+// Tests that OnButtonPinStateChanged calls the browser controls observer with
+// the correct parameters.
+TEST_F(WebUIToolbarUITest, OnButtonPinStateChanged) {
+  MockBrowserControlsServiceConnection connection(ui());
+  connection.RegisterObserver();
 
-  factory.CreatePageHandler();
-  EXPECT_THAT(ui()->webui_toolbar_page_handler_for_testing(),
-              testing::NotNull());
+  EXPECT_CALL(
+      connection.mock_observer(),
+      OnButtonPinStateChanged(
+          browser_controls_api::mojom::ToolbarButtonType::kSplitTabs, true))
+      .Times(1);
+  ui()->OnButtonPinStateChanged(
+      browser_controls_api::mojom::ToolbarButtonType::kSplitTabs, true);
+  connection.mock_observer().FlushForTesting();
+
+  EXPECT_CALL(
+      connection.mock_observer(),
+      OnButtonPinStateChanged(
+          browser_controls_api::mojom::ToolbarButtonType::kSplitTabs, false))
+      .Times(1);
+  ui()->OnButtonPinStateChanged(
+      browser_controls_api::mojom::ToolbarButtonType::kSplitTabs, false);
+  connection.mock_observer().FlushForTesting();
 }
 
-// Tests that CreatePageHandler handles a null CommandUpdater gracefully.
-TEST_F(WebUIToolbarUITest, CreatePageHandler_NullCommandUpdater) {
+// Tests that the BindInterface method for BrowserControlsService works
+// correctly.
+TEST_F(WebUIToolbarUITest, BindService) {
+  MockBrowserControlsServiceConnection connection(ui());
+
+  EXPECT_TRUE(connection.is_bound());
+  EXPECT_TRUE(connection.is_connected());
+}
+
+// Tests that connecting to the service instantiates the BrowserControlsService.
+TEST_F(WebUIToolbarUITest, CreateService) {
+  MockBrowserControlsServiceConnection connection(ui());
+
+  EXPECT_THAT(ui()->browser_controls_service_for_testing(), testing::NotNull());
+}
+
+// Tests that Service creation handles a null CommandUpdater gracefully.
+TEST_F(WebUIToolbarUITest, CreateService_NullCommandUpdater) {
   // Set command updater to null to simulate the crash scenario.
   ui()->SetCommandUpdaterForTesting(nullptr);
 
-  MockWebUIToolbarPageHandlerFactory factory(ui());
+  MockBrowserControlsServiceConnection connection(ui());
 
-  factory.CreatePageHandler();
-  // Expect page handler is NOT created.
-  EXPECT_THAT(ui()->webui_toolbar_page_handler_for_testing(),
-              testing::IsNull());
+  // Expect service is NOT created.
+  EXPECT_THAT(ui()->browser_controls_service_for_testing(), testing::IsNull());
 }
 
 // Tests that PopulateLocalResourceLoaderConfig provides the theme source.
@@ -215,13 +276,24 @@ TEST_F(WebUIToolbarUIConfigTest, IsWebUIEnabled) {
   {
     base::test::ScopedFeatureList feature_list;
     feature_list.InitWithFeatures(
-        {features::kInitialWebUI, features::kWebUIReloadButton}, {});
+        {features::kInitialWebUI, features::kWebUIReloadButton},
+        {features::kWebUISplitTabsButton});
     EXPECT_TRUE(config.IsWebUIEnabled(&profile));
   }
 
   {
     base::test::ScopedFeatureList feature_list;
-    feature_list.InitAndDisableFeature(features::kWebUIReloadButton);
+    feature_list.InitWithFeatures(
+        {features::kInitialWebUI, features::kWebUISplitTabsButton},
+        {features::kWebUIReloadButton});
+    EXPECT_TRUE(config.IsWebUIEnabled(&profile));
+  }
+
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitWithFeatures(
+        {features::kInitialWebUI},
+        {features::kWebUIReloadButton, features::kWebUISplitTabsButton});
     EXPECT_FALSE(config.IsWebUIEnabled(&profile));
   }
 }

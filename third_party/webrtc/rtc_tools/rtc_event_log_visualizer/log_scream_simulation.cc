@@ -32,10 +32,12 @@ namespace webrtc {
 
 LogScreamSimulation::LogScreamSimulation(const Config& config,
                                          const Environment& env)
-
     : env_(env), send_rate_tracker_(config.rate_window) {
   // Scream is recreated if candidates change.
   scream_.emplace(env_);
+  scream_->SetTargetBitrateConstraints(
+      /*min=*/DataRate::Zero(), /*max=*/DataRate::PlusInfinity(),
+      /*start=*/DataRate::KilobitsPerSec(300));
 }
 
 void LogScreamSimulation::ProcessUntil(Timestamp to_time) {
@@ -120,7 +122,9 @@ void LogScreamSimulation::OnIceConfig(
       // Recreate Scream. This is inline with behaviour in
       // ScreamNetworkController::OnNetworkRouteChange.
       scream_.emplace(env_);
-      scream_->SetFirstTargetRate(DataRate::KilobitsPerSec(300));
+      scream_->SetTargetBitrateConstraints(
+          /*min=*/DataRate::Zero() /*max=*/, DataRate::PlusInfinity(),
+          /*start=*/DataRate::KilobitsPerSec(300));
       local_candidate_type_ = candidate.local_candidate_type;
       remote_candidate_type_ = candidate.remote_candidate_type;
     }
@@ -169,12 +173,18 @@ void LogScreamSimulation::LogState(const TransportPacketsFeedback& msg) {
       .send_window_usage = send_window_usage_,
       .queue_delay_dev_norm =
           scream_->delay_based_congestion_control().queue_delay_dev_norm(),
-      .l4s_alpha = scream_->l4s_alpha(),
-      .l4s_alpha_v = scream_->delay_based_congestion_control().l4s_alpha_v(),
-      .ref_window_delay_increase_scale =
+      .ref_window_scale_factor_due_to_increased_delay =
           scream_->delay_based_congestion_control().IsQueueDelayDetected()
               ? 0.0
-              : scream_->delay_based_congestion_control().scale_increase()});
+              : scream_->delay_based_congestion_control()
+                    .ref_window_scale_factor_due_to_increased_delay(),
+      .ref_window_scale_factor_due_to_delay_variation =
+          scream_->delay_based_congestion_control()
+              .ref_window_scale_factor_due_to_delay_variation(
+                  scream_->ref_window_mss_ratio()),
+      .l4s_alpha = scream_->l4s_alpha(),
+      .l4s_alpha_v = scream_->delay_based_congestion_control().l4s_alpha_v(),
+  });
 }
 
 }  // namespace webrtc

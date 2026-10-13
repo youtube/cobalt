@@ -79,9 +79,6 @@ CGFloat CompactButtonHorizontalPadding() {
   if (self) {
     [self setupViews];
     [self updateLayout];
-    NSArray<UITrait>* traits = TraitCollectionSetForTraits(
-        @[ UITraitVerticalSizeClass.class, UITraitHorizontalSizeClass.class ]);
-    [self registerForTraitChanges:traits withAction:@selector(updateLayout)];
   }
   return self;
 }
@@ -102,6 +99,10 @@ CGFloat CompactButtonHorizontalPadding() {
           .active = YES;
     }
   }
+
+  NSArray<UITrait>* traits = TraitCollectionSetForTraits(
+      @[ UITraitVerticalSizeClass.class, UITraitHorizontalSizeClass.class ]);
+  [self registerForTraitChanges:traits withAction:@selector(updateLayout)];
   [super didMoveToSuperview];
 }
 
@@ -201,6 +202,11 @@ CGFloat CompactButtonHorizontalPadding() {
                           animated:(BOOL)animated {
   [_scrollBackgroundView setContentOffset:backgroundContentOffset
                                  animated:animated];
+}
+
+- (void)updateNewTabButtonBackgroundColor:(UIColor*)backgroundColor {
+  _smallNewTabButton.buttonColor = backgroundColor;
+  _largeNewTabButton.buttonColor = backgroundColor;
 }
 
 #pragma mark Close Tabs
@@ -536,6 +542,10 @@ CGFloat CompactButtonHorizontalPadding() {
   }
 
   if (useCompactLayout) {
+    if (IsChromeNextIaEnabled()) {
+      // If ChromeNext is enabled, there is no toolbar in normal mode compact.
+      return;
+    }
     if (self.page == TabGridPageTabGroups) {
       _doneButton.hidden = NO;
 

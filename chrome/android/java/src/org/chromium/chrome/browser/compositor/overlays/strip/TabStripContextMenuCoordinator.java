@@ -23,6 +23,7 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
+import org.chromium.chrome.browser.tabmodel.TabModel.RecentlyClosedEntryType;
 import org.chromium.chrome.browser.tasks.tab_management.TabOverflowMenuCoordinator;
 import org.chromium.chrome.tab_ui.R;
 import org.chromium.components.browser_ui.widget.ListItemBuilder;
@@ -67,6 +68,7 @@ public class TabStripContextMenuCoordinator {
             RectProvider anchorViewRectProvider, boolean isIncognito, Activity activity) {
         ModelList modelList = new ModelList();
         configureMenuItems(modelList, isIncognito);
+        if (modelList.isEmpty()) return;
 
         Drawable background = TabOverflowMenuCoordinator.getMenuBackground(mContext, isIncognito);
 
@@ -85,16 +87,6 @@ public class TabStripContextMenuCoordinator {
         touchTrackingListView.setAdapter(adapter);
 
         View decorView = activity.getWindow().getDecorView();
-        mMenuWindow =
-                new AnchoredPopupWindow(
-                        mContext, decorView, background, contentView, anchorViewRectProvider);
-        mMenuWindow.setFocusable(true);
-        mMenuWindow.setHorizontalOverlapAnchor(true);
-        mMenuWindow.setVerticalOverlapAnchor(true);
-        mMenuWindow.setPreferredHorizontalOrientation(HorizontalOrientation.LAYOUT_DIRECTION);
-        mMenuWindow.setElevation(
-                contentView.getResources().getDimension(R.dimen.tab_overflow_menu_elevation));
-        mMenuWindow.setAnimateFromAnchor(true);
         var popupWidthPx =
                 MathUtils.clamp(
                         anchorViewRectProvider.getRect().width(),
@@ -102,7 +94,27 @@ public class TabStripContextMenuCoordinator {
                                 .getDimensionPixelSize(R.dimen.tab_strip_context_menu_min_width),
                         mContext.getResources()
                                 .getDimensionPixelSize(R.dimen.tab_strip_context_menu_max_width));
-        mMenuWindow.setMaxWidth(popupWidthPx);
+
+        AnchoredPopupWindow.Builder builder =
+                new AnchoredPopupWindow.Builder(
+                                mContext,
+                                decorView,
+                                background,
+                                () -> contentView,
+                                anchorViewRectProvider)
+                        .setFocusable(true)
+                        .setOutsideTouchable(true)
+                        .setHorizontalOverlapAnchor(true)
+                        .setVerticalOverlapAnchor(true)
+                        .setPreferredHorizontalOrientation(HorizontalOrientation.LAYOUT_DIRECTION)
+                        .setMaxWidth(popupWidthPx)
+                        .setAllowNonTouchableSize(true)
+                        .setElevation(
+                                contentView
+                                        .getResources()
+                                        .getDimension(R.dimen.tab_overflow_menu_elevation))
+                        .setAnimateFromAnchor(true);
+        mMenuWindow = builder.build();
         mMenuWindow.show();
     }
 
@@ -116,6 +128,23 @@ public class TabStripContextMenuCoordinator {
                             .withMenuId(R.id.new_tab_menu_id)
                             .withIsIncognito(isIncognito)
                             .build());
+            // Add "Reopen closed tab/tabs/group" option.
+            @RecentlyClosedEntryType
+            int recentlyClosedEntryType = mDelegate.getRecentlyClosedEntryType();
+            if (recentlyClosedEntryType != RecentlyClosedEntryType.NONE) {
+                int titleRes = R.string.menu_reopen_closed_tab;
+                if (recentlyClosedEntryType == RecentlyClosedEntryType.TABS) {
+                    titleRes = R.string.menu_reopen_closed_tabs;
+                } else if (recentlyClosedEntryType == RecentlyClosedEntryType.GROUP) {
+                    titleRes = R.string.menu_reopen_closed_group;
+                }
+                itemList.add(
+                        new ListItemBuilder()
+                                .withTitleRes(titleRes)
+                                .withMenuId(R.id.reopen_closed_entry)
+                                .withIsIncognito(false)
+                                .build());
+            }
         }
         // Add "Name window" option.
         if (MultiWindowUtils.isMultiInstanceApi31Enabled()
@@ -155,6 +184,8 @@ public class TabStripContextMenuCoordinator {
             }
             if (model.get(MENU_ITEM_ID) == R.id.new_tab_menu_id) {
                 mDelegate.onNewTab();
+            } else if (model.get(MENU_ITEM_ID) == R.id.reopen_closed_entry) {
+                mDelegate.onReopenClosedEntry();
             } else if (model.get(MENU_ITEM_ID) == R.id.name_window) {
                 mDelegate.onNameWindow();
             }

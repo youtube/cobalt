@@ -412,8 +412,7 @@ void FreezingPolicy::UpdateFrozenState(
   // Determine whether:
   // - Any connected page has a `CannotFreezeReason`.
   // - Any browsing instance hosting a frame from a connected page was CPU
-  //   intensive in the background and Battery Saver is active and the
-  //   `kFreezingOnBatterySaver` feature is enabled.
+  //   intensive in the background and Battery Saver mode is active.
   // - Any connected page is in a periodic unfreeze period.
   // - All connected page have a freeze vote.
   CanFreezePerTypeTracker can_freeze_per_type_tracker;
@@ -445,16 +444,7 @@ void FreezingPolicy::UpdateFrozenState(
       if (browsing_instance_state
                   .highest_cpu_without_battery_saver_cannot_freeze >=
               high_cpu_proportion &&
-          is_battery_saver_active_ &&
-          // Note: Feature state is checked last so that only clients that
-          // have a browsing instance that is CPU intensive in background
-          // while Battery Saver is active are enrolled in the experiment.
-          base::FeatureList::IsEnabled(features::kFreezingOnBatterySaver)) {
-        eligible_for_freezing_on_battery_saver = true;
-      }
-
-      if (base::FeatureList::IsEnabled(
-              features::kFreezingOnBatterySaverForTesting)) {
+          is_battery_saver_active_) {
         eligible_for_freezing_on_battery_saver = true;
       }
     }
@@ -956,9 +946,9 @@ void FreezingPolicy::OnIsCapturingDisplayChanged(const PageNode* page_node) {
                              CannotFreezeReason::kCapturingDisplay);
 }
 
-base::Value::Dict FreezingPolicy::DescribePageNodeData(
+base::DictValue FreezingPolicy::DescribePageNodeData(
     const PageNode* node) const {
-  base::Value::Dict ret;
+  base::DictValue ret;
 
   const auto& page_freezing_state = GetFreezingState(node);
 
@@ -967,7 +957,7 @@ base::Value::Dict FreezingPolicy::DescribePageNodeData(
 
   // Present browsing instances for this page.
   {
-    base::Value::List browsing_instances;
+    base::ListValue browsing_instances;
     for (auto browsing_instance : GetBrowsingInstances(node)) {
       browsing_instances.Append(browsing_instance.value());
     }
@@ -976,7 +966,7 @@ base::Value::Dict FreezingPolicy::DescribePageNodeData(
 
   // Present `CannotFreezeReason`s for this page.
   {
-    base::Value::List cannot_freeze_reasons_list;
+    base::ListValue cannot_freeze_reasons_list;
     for (auto reason : page_freezing_state.cannot_freeze_reasons) {
       cannot_freeze_reasons_list.Append(CannotFreezeReasonToString(reason));
     }
@@ -1001,7 +991,7 @@ base::Value::Dict FreezingPolicy::DescribePageNodeData(
         }
       }
     }
-    base::Value::List cannot_freeze_reasons_other_pages_list;
+    base::ListValue cannot_freeze_reasons_other_pages_list;
     for (CannotFreezeReason reason : cannot_freeze_reasons_other_pages) {
       cannot_freeze_reasons_other_pages_list.Append(
           CannotFreezeReasonToString(reason));
@@ -1404,7 +1394,7 @@ void FreezingPolicy::RecordFreezingEligibilityUKMForPageStatic(
 
 base::TimeTicks FreezingPolicy::GenerateRandomPeriodicUnfreezePhase() const {
   return base::TimeTicks() +
-         base::Milliseconds(base::RandInt(
+         base::Milliseconds(base::RandIntInclusive(
              0, features::kInfiniteTabsFreezing_UnfreezeInterval.Get()
                     .InMilliseconds()));
 }

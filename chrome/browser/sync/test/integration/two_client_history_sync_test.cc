@@ -37,6 +37,7 @@
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #endif
 
+using bookmarks_helper::StoreType;
 using history_helper::HasVisitDuration;
 using history_helper::UrlIs;
 using history_helper::VisitRowHasDuration;
@@ -92,8 +93,6 @@ class TwoClientHistorySyncTest
 
   void SetUpOnMainThread() override {
     host_resolver()->AddRule("*", "127.0.0.1");
-
-    ASSERT_TRUE(embedded_test_server()->Start());
 
     SyncTest::SetUpOnMainThread();
   }
@@ -154,14 +153,10 @@ class TwoClientHistorySyncTest
     return GetBrowser(profile_index)->tab_strip_model()->GetActiveWebContents();
   }
 
-  const bookmarks::BookmarkNode* GetBookmarkBarNode() {
-    bookmarks::BookmarkModel* model = bookmarks_helper::GetBookmarkModel(0);
-    switch (GetSetupSyncMode()) {
-      case SetupSyncMode::kSyncTransportOnly:
-        return model->account_bookmark_bar_node();
-      case SetupSyncMode::kSyncTheFeature:
-        return model->bookmark_bar_node();
-    }
+  StoreType GetStoreType() {
+    return GetSetupSyncMode() == SyncTest::SetupSyncMode::kSyncTransportOnly
+               ? StoreType::kAccountStore
+               : StoreType::kLocalOrSyncableStore;
   }
 
  private:
@@ -196,8 +191,7 @@ IN_PROC_BROWSER_TEST_P(TwoClientHistorySyncTest, SyncsVisitForBookmarkedUrl) {
 
   // Create a bookmark and wait for it to sync.
   const bookmarks::BookmarkNode* node = bookmarks_helper::AddURL(
-      0, GetBookmarkBarNode(), 0, bookmarks_helper::IndexedURLTitle(0),
-      bookmark_url);
+      0, bookmarks_helper::IndexedURLTitle(0), bookmark_url, GetStoreType());
   bookmarks_helper::SetFavicon(0, node, bookmark_icon_url,
                                bookmarks_helper::CreateFavicon(SK_ColorWHITE),
                                bookmarks_helper::FROM_UI);

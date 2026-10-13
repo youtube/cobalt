@@ -657,9 +657,41 @@ TEST_F(StreamResetHandlerTest, SendOutgoingResetRetransmitOnInProgress) {
       OutgoingSSNResetRequestParameter req2,
       reconfig2.parameters().get<OutgoingSSNResetRequestParameter>());
 
-  EXPECT_EQ(req2.request_sequence_number(),
-            AddTo(req1.request_sequence_number(), 1));
+  EXPECT_EQ(req2.request_sequence_number(), req1.request_sequence_number());
   EXPECT_THAT(req2.stream_ids(), UnorderedElementsAre(kStreamToReset));
+}
+
+TEST_F(StreamResetHandlerTest,
+       SendOutgoingResetRetransmitOnInProgressDoesNotIncrementErrorCounter) {
+  static constexpr StreamID kStreamToReset = StreamID(42);
+
+  EXPECT_CALL(producer_, PrepareResetStream(kStreamToReset));
+  handler_->ResetStreams(std::vector<StreamID>({kStreamToReset}));
+
+  EXPECT_CALL(producer_, HasStreamsReadyToBeReset()).WillOnce(Return(true));
+  EXPECT_CALL(producer_, GetStreamsReadyToBeReset())
+      .WillOnce(Return(std::vector<StreamID>({kStreamToReset})));
+
+  std::optional<ReConfigChunk> reconfig1 = handler_->MakeStreamResetRequest();
+  ASSERT_TRUE(reconfig1.has_value());
+  ASSERT_HAS_VALUE_AND_ASSIGN(
+      OutgoingSSNResetRequestParameter req1,
+      reconfig1->parameters().get<OutgoingSSNResetRequestParameter>());
+
+  // Simulate that the peer responded "In Progress".
+  Parameters::Builder builder;
+  builder.Add(ReconfigurationResponseParameter(req1.request_sequence_number(),
+                                               ResponseResult::kInProgress));
+  ReConfigChunk response_reconfig(builder.Build());
+
+  // Processing "In Progress" should NOT increment error counter.
+  EXPECT_CALL(ctx_, IncrementTxErrorCounter).Times(0);
+  handler_->HandleReConfig(std::move(response_reconfig));
+
+  // Timer expires. Should re-send, but NOT increment error counter.
+  EXPECT_CALL(ctx_, IncrementTxErrorCounter).Times(0);
+  EXPECT_CALL(callbacks_, SendPacketWithStatus).Times(1);
+  AdvanceTime(kRto);
 }
 
 TEST_F(StreamResetHandlerTest, ResetWhileRequestIsSentWillQueue) {

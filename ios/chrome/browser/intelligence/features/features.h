@@ -271,10 +271,11 @@ BASE_DECLARE_FEATURE(kGeminiRefactoredFRE);
 // Returns true if the Gemini refactored FRE is enabled.
 bool IsGeminiRefactoredFREEnabled();
 
-// Feature flag for displaying a sheet which shows the web page's self-reported
-// important images. Experimental.
-BASE_DECLARE_FEATURE(kWebPageReportedImagesSheet);
-bool IsWebPageReportedImagesSheetEnabled();
+// Feature flag to enable the updated eligibility checks for Gemini.
+BASE_DECLARE_FEATURE(kGeminiUpdatedEligibility);
+
+// Returns true if the updated eligibiliy checks for Gemini are enabled.
+bool IsGeminiUpdatedEligibilityEnabled();
 
 // Feature flag for enabling the image remixing tool in the Gemini floaty.
 BASE_DECLARE_FEATURE(kGeminiImageRemixTool);
@@ -283,6 +284,16 @@ bool IsGeminiImageRemixToolEnabled();
 // Returns true if the Gemini FRE should show the image remix row.
 bool IsGeminiImageRemixToolShowFRERowEnabled();
 extern const char kGeminiImageRemixToolShowFRERow[];
+
+// Returns true if the image remix tool should appear above
+// search image with Google (entry point will be in that same section).
+bool IsGeminiImageRemixToolShowAboveSearchImageEnabled();
+extern const char kGeminiImageRemixToolShowAboveSearchImage[];
+
+// Returns true if the image remix tool should appear below
+// search image with Google (entry point will be in that same section).
+bool IsGeminiImageRemixToolShowBelowSearchImageEnabled();
+extern const char kGeminiImageRemixToolShowBelowSearchImage[];
 
 // Feature flag for enabling the Gemini eligibility ablation experiment.
 BASE_DECLARE_FEATURE(kGeminiEligibilityAblation);
@@ -300,6 +311,16 @@ bool IsGeminiPersonalizationEnabled();
 BASE_DECLARE_FEATURE(kGeminiCopresence);
 bool IsGeminiCopresenceEnabled();
 
+// The threshold interval for displaying the response ready state in seconds.
+extern const char kGeminiCopresenceResponseReadyInterval[];
+double GetGeminiCopresenceResponseReadyInterval();
+
+// Feature flag for Gemini Dynamic Resizing.
+BASE_DECLARE_FEATURE(kGeminiResponseViewDynamicResizing);
+
+// Returns true if Gemini Dynamic Resizing is enabled.
+bool IsGeminiResponseViewDynamicResizingEnabled();
+
 // Feature flag for Gemini Dynamic Settings.
 BASE_DECLARE_FEATURE(kGeminiDynamicSettings);
 bool IsGeminiDynamicSettingsEnabled();
@@ -311,5 +332,16 @@ bool IsActuationEnabled();
 // Returns true if the specified tool is disabled via the "DisabledTools"
 // feature parameter of the `kActuationTools` feature.
 bool IsToolDisabled(optimization_guide::proto::Action::ActionCase tool);
+
+// Feature flag for Model based page classification experiment.
+BASE_DECLARE_FEATURE(kModelBasedPageClassification);
+
+// Returns true if Model based page classification is enabled.
+bool IsModelBasedPageClassificationEnabled();
+
+// Returns the execution rate (0-100) for the classification experiment.
+int GetModelBasedPageClassificationExecutionRate();
+
+extern const char kModelBasedPageClassificationExecutionRateParam[];
 
 #endif  // IOS_CHROME_BROWSER_INTELLIGENCE_FEATURES_FEATURES_H_

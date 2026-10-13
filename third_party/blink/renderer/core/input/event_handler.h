@@ -269,6 +269,10 @@ class CORE_EXPORT EventHandler final : public GarbageCollected<EventHandler> {
     return *keyboard_event_manager_;
   }
 
+  MouseWheelEventManager& GetMouseWheelEventManager() const {
+    return *mouse_wheel_event_manager_;
+  }
+
   void RecomputeMouseHoverStateIfNeeded();
 
   void MarkHoverStateDirty();
@@ -297,8 +301,6 @@ class CORE_EXPORT EventHandler final : public GarbageCollected<EventHandler> {
   void SetDelayedNavigationTaskHandle(TaskHandle task_handle);
 
   TaskHandle& GetDelayedNavigationTaskHandle();
-
-  base::debug::CrashKeyString* CrashKeyForBug1519197() const;
 
   // Testing helper: Returns the LocalFrame from a target node for drag/drop.
   // This exposes the logic of LocalFrameFromTargetNode for testing purposes.

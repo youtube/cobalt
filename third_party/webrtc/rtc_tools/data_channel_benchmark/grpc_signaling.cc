@@ -23,6 +23,7 @@
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "api/jsep.h"
+#include "api/sequence_checker.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/thread.h"
@@ -41,9 +42,7 @@ using GrpcSignaling::SignalingMessage;
 template <class T>
 class SessionData : public SignalingInterface {
  public:
-  SessionData() {}
-  explicit SessionData(T* stream) : stream_(stream) {}
-  void SetStream(T* stream) { stream_ = stream; }
+  explicit SessionData(T* stream) : stream_(stream) { RTC_CHECK(stream_); }
 
   void SendIceCandidate(const ::webrtc::IceCandidate* candidate) override {
     RTC_LOG(LS_INFO) << "SendIceCandidate";
@@ -53,7 +52,6 @@ class SessionData : public SignalingInterface {
     proto_candidate->set_description(serialized_candidate);
     proto_candidate->set_mid(candidate->sdp_mid());
     proto_candidate->set_mline_index(candidate->sdp_mline_index());
-
     stream_->Write(message);
   }
 
@@ -69,7 +67,6 @@ class SessionData : public SignalingInterface {
     else if (sdp->GetType() == SdpType::kAnswer)
       message.mutable_description()->set_type(SessionDescription::ANSWER);
     message.mutable_description()->set_content(serialized_sdp);
-
     stream_->Write(message);
   }
 
@@ -87,8 +84,7 @@ class SessionData : public SignalingInterface {
     ice_candidate_callback_ = callback;
   }
 
-  T* stream_;
-
+  T* const stream_;
   std::function<void(std::unique_ptr<webrtc::IceCandidate>)>
       ice_candidate_callback_;
   std::function<void(std::unique_ptr<SessionDescriptionInterface>)>
@@ -203,7 +199,6 @@ class GrpcNegotiationServer : public GrpcSignalingServerInterface,
   int requested_port_;
   int selected_port_;
   bool oneshot_;
-
   std::unique_ptr<grpc::Server> server_;
   std::unique_ptr<Thread> server_stop_thread_;
 };
@@ -220,28 +215,40 @@ class GrpcNegotiationClient : public GrpcSignalingClientInterface {
     if (reading_thread_)
       reading_thread_->Stop();
   }
-
-  bool Start() override {
+  bool Connect() override {
+    RTC_DCHECK_RUN_ON(&main_thread_);
+    RTC_CHECK(!session_);
     if (!channel_->WaitForConnected(
             absl::ToChronoTime(absl::Now() + absl::Seconds(3)))) {
       return false;
     }
-
     stream_ = stub_->Connect(&context_);
-    session_.SetStream(stream_.get());
+    session_ = std::make_unique<ClientSessionData>(stream_.get());
+    return true;
+  }
+  bool Start() override {
+    RTC_DCHECK_RUN_ON(&main_thread_);
+    if (!session_) {
+      RTC_DCHECK_NOTREACHED();
+      return false;
+    }
 
     reading_thread_ = Thread::Create();
     reading_thread_->Start();
     reading_thread_->PostTask([this] {
-      ProcessMessages<SignalingMessage>(stream_.get(), &session_);
+      ProcessMessages<SignalingMessage>(stream_.get(), session_.get());
     });
 
     return true;
   }
 
-  SignalingInterface* signaling_client() override { return &session_; }
+  SignalingInterface* signaling_client() override {
+    RTC_DCHECK_RUN_ON(&main_thread_);
+    return session_.get();
+  }
 
  private:
+  SequenceChecker main_thread_;
   std::shared_ptr<grpc::Channel> channel_;
   std::unique_ptr<PeerConnectionSignaling::Stub> stub_;
   std::unique_ptr<Thread> reading_thread_;
@@ -249,7 +256,7 @@ class GrpcNegotiationClient : public GrpcSignalingClientInterface {
   std::unique_ptr<
       ::grpc::ClientReaderWriter<SignalingMessage, SignalingMessage>>
       stream_;
-  ClientSessionData session_;
+  std::unique_ptr<ClientSessionData> session_;
 };
 }  // namespace
 

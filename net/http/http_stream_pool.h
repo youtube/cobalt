@@ -191,6 +191,8 @@ class NET_EXPORT_PRIVATE HttpStreamPool
   // Returns when to start the stream attempt delay timer.
   static TcpBasedAttemptDelayBehavior GetTcpBasedAttemptDelayBehavior();
 
+  static bool IsQuicErrorBrokenable(int net_error);
+
   explicit HttpStreamPool(HttpNetworkSession* http_network_session,
                           bool cleanup_on_ip_address_change = true);
 
@@ -309,7 +311,7 @@ class NET_EXPORT_PRIVATE HttpStreamPool
   CompletionOnceCallback GetAltSvcQuicPreconnectCallback();
 
   // Retrieves information on the current state of the pool as a base::Value.
-  base::Value::Dict GetInfoAsValue() const;
+  base::DictValue GetInfoAsValue() const;
 
   void SetDelegateForTesting(std::unique_ptr<TestDelegate> observer);
 

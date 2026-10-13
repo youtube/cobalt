@@ -258,6 +258,22 @@ if (build_epoll_based_tools) {
     ]
   }
 
+  static_library("masque_private_tokens") {
+    testonly = true
+    sources = masque_private_tokens_srcs + masque_private_tokens_hdrs
+
+    configs += [ ":quiche_internal_config" ]
+    public_configs = [ ":quiche_config" ]
+
+    deps = [ "//net" ]
+
+    public_deps = [
+      "//third_party/anonymous_tokens:crypto_utils",
+      "//third_party/anonymous_tokens:rsa_blinder",
+      "//third_party/anonymous_tokens:tokens_encodings",
+    ]
+  }
+
   static_library("epoll_test_support") {
     testonly = true
     sources = io_test_support_srcs + io_test_support_hdrs
@@ -496,6 +512,8 @@ source_set("quiche_tests") {
     "src/quiche/common/quiche_random_test.cc",
     "src/quiche/common/quiche_simple_arena_test.cc",
     "src/quiche/common/quiche_socket_address_test.cc",
+    "src/quiche/common/quiche_status_utils_test.cc",
+    "src/quiche/common/quiche_string_tuple_test.cc",
     "src/quiche/common/quiche_text_utils_test.cc",
     "src/quiche/common/simple_buffer_allocator_test.cc",
     "src/quiche/common/structured_headers_generated_test.cc",
@@ -567,12 +585,13 @@ source_set("quiche_tests") {
     "src/quiche/http2/test_tools/http2_frame_builder_test.cc",
     "src/quiche/http2/test_tools/http2_random_test.cc",
     "src/quiche/http2/test_tools/random_decoder_test_base_test.cc",
-    "src/quiche/oblivious_http/buffers/oblivious_http_integration_test.cc",
+    "src/quiche/oblivious_http/buffers/oblivious_http_buffers_integration_test.cc",
     "src/quiche/oblivious_http/buffers/oblivious_http_request_test.cc",
     "src/quiche/oblivious_http/buffers/oblivious_http_response_test.cc",
     "src/quiche/oblivious_http/common/oblivious_http_header_key_config_test.cc",
     "src/quiche/oblivious_http/oblivious_http_client_test.cc",
     "src/quiche/oblivious_http/oblivious_http_gateway_test.cc",
+    "src/quiche/oblivious_http/oblivious_http_integration_test.cc",
     "src/quiche/quic/core/congestion_control/bandwidth_sampler_test.cc",
     "src/quiche/quic/core/congestion_control/bbr2_simulator_test.cc",
     "src/quiche/quic/core/congestion_control/bbr_sender_test.cc",
@@ -599,7 +618,6 @@ source_set("quiche_tests") {
     "src/quiche/quic/core/crypto/chacha20_poly1305_encrypter_test.cc",
     "src/quiche/quic/core/crypto/chacha20_poly1305_tls_decrypter_test.cc",
     "src/quiche/quic/core/crypto/chacha20_poly1305_tls_encrypter_test.cc",
-    "src/quiche/quic/core/crypto/channel_id_test.cc",
     "src/quiche/quic/core/crypto/client_proof_source_test.cc",
     "src/quiche/quic/core/crypto/crypto_framer_test.cc",
     "src/quiche/quic/core/crypto/crypto_handshake_message_test.cc",

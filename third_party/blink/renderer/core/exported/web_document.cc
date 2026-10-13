@@ -407,14 +407,37 @@ size_t WebDocument::ActiveResourceRequestCount() const {
   return ConstUnwrap<Document>()->Fetcher()->ActiveRequestCount();
 }
 
-void WebDocument::ExecuteScriptTool(
+std::optional<uint32_t> WebDocument::ExecuteScriptTool(
     const WebString& name,
     const WebString& input_arguments,
     ScriptToolExecutedCallback tool_executed_cb) {
   if (auto* model_context = ModelContextSupplement::modelContext(
           *Unwrap<Document>()->domWindow()->navigator())) {
-    model_context->ExecuteTool(name, input_arguments,
-                               std::move(tool_executed_cb));
+    // TODO(481899636): PLUMB SIGNAL TO THE BROWSER SIDE!
+    return model_context->ExecuteTool(name, input_arguments,
+                                      /* signal= */ nullptr,
+                                      std::move(tool_executed_cb));
+  }
+  return std::nullopt;
+}
+
+void WebDocument::CancelScriptTool(uint32_t execution_id) {
+  if (auto* model_context = ModelContextSupplement::modelContext(
+          *Unwrap<Document>()->domWindow()->navigator())) {
+    model_context->CancelTool(execution_id);
+  }
+}
+
+void WebDocument::GetCrossDocumentScriptToolResult(
+    CrossDocumentScriptToolResultCallback result_callback) {
+  if (auto* model_context = ModelContextSupplement::modelContext(
+          *Unwrap<Document>()->domWindow()->navigator())) {
+    model_context->GetCrossDocumentScriptToolResult(blink::BindOnce(
+        [](CrossDocumentScriptToolResultCallback original_callback,
+           String result) {
+          std::move(original_callback).Run(WebString(result));
+        },
+        std::move(result_callback)));
   }
 }
 

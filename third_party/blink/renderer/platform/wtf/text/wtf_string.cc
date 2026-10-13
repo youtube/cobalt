@@ -208,7 +208,10 @@ String String::Format(const char* format, ...) {
   Vector<char, kDefaultSize> buffer(kDefaultSize);
 
   va_start(args, format);
-  int length = UNSAFE_TODO(base::VSpanPrintf(buffer, format, args));
+  // SAFETY: The safety of this code depends on the content of `format`. Since
+  // unsafe usage is marked with UNSAFE_TODO or UNSAFE_BUFFERS at the call
+  // site, no action is required here.
+  int length = UNSAFE_BUFFERS(base::VSpanPrintf(buffer, format, args));
   va_end(args);
 
   // TODO(esprehn): Negative result can only happen if there's an encoding
@@ -235,7 +238,8 @@ String String::Format(const char* format, ...) {
     // Not calling va_end/va_start here happens to work on lots of systems, but
     // fails e.g. on 64bit Linux.
     va_start(args, format);
-    length = UNSAFE_TODO(base::VSpanPrintf(buffer, format, args));
+    // SAFETY: See the previous comment on base::VSpanPrintf().
+    length = UNSAFE_BUFFERS(base::VSpanPrintf(buffer, format, args));
     va_end(args);
 
     // TODO(tsepez): can we get an error the second time around if
@@ -273,24 +277,6 @@ String String::NumberToStringFixedWidth(double number,
   return String(converter.ToStringWithFixedWidth(number, decimal_places));
 }
 
-int String::ToIntStrict(bool* ok) const {
-  if (!impl_) {
-    if (ok)
-      *ok = false;
-    return 0;
-  }
-  return impl_->ToInt(NumberParsingOptions::Strict(), ok);
-}
-
-unsigned String::ToUIntStrict(bool* ok) const {
-  if (!impl_) {
-    if (ok)
-      *ok = false;
-    return 0;
-  }
-  return impl_->ToUInt(NumberParsingOptions::Strict(), ok);
-}
-
 unsigned String::HexToUIntStrict(bool* ok) const {
   if (!impl_) {
     if (ok)
@@ -325,42 +311,6 @@ uint64_t String::ToUInt64Strict(bool* ok) const {
     return 0;
   }
   return impl_->ToUInt64(NumberParsingOptions::Strict(), ok);
-}
-
-int String::ToInt(bool* ok) const {
-  if (!impl_) {
-    if (ok)
-      *ok = false;
-    return 0;
-  }
-  return impl_->ToInt(NumberParsingOptions::Loose(), ok);
-}
-
-unsigned String::ToUInt(bool* ok) const {
-  if (!impl_) {
-    if (ok)
-      *ok = false;
-    return 0;
-  }
-  return impl_->ToUInt(NumberParsingOptions::Loose(), ok);
-}
-
-double String::ToDouble(bool* ok) const {
-  if (!impl_) {
-    if (ok)
-      *ok = false;
-    return 0.0;
-  }
-  return impl_->ToDouble(ok);
-}
-
-float String::ToFloat(bool* ok) const {
-  if (!impl_) {
-    if (ok)
-      *ok = false;
-    return 0.0f;
-  }
-  return impl_->ToFloat(ok);
 }
 
 void String::Split(const StringView& separator,

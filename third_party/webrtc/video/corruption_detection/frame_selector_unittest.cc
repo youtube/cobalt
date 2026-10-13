@@ -75,7 +75,7 @@ EncodedImage CreateEncodedImage(VideoFrameType frame_type,
                                 int simulcast_index = 0,
                                 uint32_t rtp_timestamp = 0) {
   EncodedImage encoded_image;
-  encoded_image._frameType = frame_type;
+  encoded_image.set_frame_type(frame_type);
   encoded_image.SetSpatialIndex(spatial_index);
   encoded_image.SetSimulcastIndex(simulcast_index);
   encoded_image.capture_time_ms_ = capture_time.ms();

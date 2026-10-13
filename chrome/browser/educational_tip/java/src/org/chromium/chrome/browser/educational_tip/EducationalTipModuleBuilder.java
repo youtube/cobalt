@@ -42,9 +42,8 @@ public class EducationalTipModuleBuilder implements ModuleProviderBuilder, Modul
     @Override
     public boolean build(
             ModuleDelegate moduleDelegate, Callback<ModuleProvider> onModuleBuiltCallback) {
-        if (!ChromeFeatureList.sEducationalTipModule.isEnabled()
-                || !ChromeFeatureList.isEnabled(
-                        ChromeFeatureList.SEGMENTATION_PLATFORM_EPHEMERAL_CARD_RANKER)) {
+        if (!ChromeFeatureList.isEnabled(
+                ChromeFeatureList.SEGMENTATION_PLATFORM_EPHEMERAL_CARD_RANKER)) {
             return false;
         }
 
@@ -87,16 +86,15 @@ public class EducationalTipModuleBuilder implements ModuleProviderBuilder, Modul
     }
 
     @Override
-    public boolean hasManualOrdering() {
-        // Manual ordering is only needed for setup list items, when the setup list is active.
-        return SetupListModuleUtils.isSetupListModule(mModuleType);
+    public @Nullable Integer getManualRank() {
+        return SetupListModuleUtils.getManualRank(mModuleType);
     }
 
     // ModuleEligibilityChecker implementation:
 
     @Override
     public boolean isEligible() {
-        return ChromeFeatureList.sEducationalTipModule.isEnabled();
+        return true;
     }
 
     @Override

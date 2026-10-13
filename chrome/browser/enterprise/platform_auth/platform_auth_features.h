@@ -6,15 +6,10 @@
 #define CHROME_BROWSER_ENTERPRISE_PLATFORM_AUTH_PLATFORM_AUTH_FEATURES_H_
 
 #include "base/feature_list.h"
-#include "build/build_config.h"
 
 namespace enterprise_auth {
 
 BASE_DECLARE_FEATURE(kEnableExtensibleEnterpriseSSO);
-
-#if BUILDFLAG(IS_MAC)
-BASE_DECLARE_FEATURE(kOktaSSO);
-#endif
 
 }  // namespace enterprise_auth
 

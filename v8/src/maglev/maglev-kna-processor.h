@@ -16,6 +16,7 @@
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-known-node-aspects.h"
+#include "src/maglev/maglev-node-type.h"
 
 namespace v8 {
 namespace internal {
@@ -86,14 +87,16 @@ class RecomputeKnownNodeAspectsProcessor {
     }
     DCHECK_NOT_NULL(known_node_aspects_);
 
-    if (block->has_state()) {
+    if (block->has_state() && !block->is_exception_handler_block()) {
       // We might now have more accurate types for phi inputs; recompute the phi
       // types based on them.
       for (Phi* phi : *block->state()->phis()) {
+        DCHECK_GE(phi->input_count(), 1);
         NodeType new_type = NodeType::kNone;
         for (int i = 0; i < phi->input_count(); ++i) {
           ValueNode* input = phi->input_node(i)->UnwrapIdentities();
-          NodeType input_type = known_node_aspects_->GetType(broker(), input);
+          NodeType input_type =
+              known_node_aspects_->GetTypeUnchecked(broker(), input);
           new_type = UnionType(new_type, input_type);
         }
         known_node_aspects_->GetOrCreateInfoFor(broker(), phi)
@@ -199,9 +202,6 @@ class RecomputeKnownNodeAspectsProcessor {
   bool EnsureType(ValueNode* node, NodeType type) {
     return known_node_aspects().EnsureType(broker(), node, type);
   }
-  NodeType GetType(ValueNode* node) {
-    return known_node_aspects().GetType(broker(), node);
-  }
 
   BlockProcessResult AbortBlock(BasicBlock* block) {
     ControlNode* control = block->reset_control_node();
@@ -235,13 +235,27 @@ class RecomputeKnownNodeAspectsProcessor {
     return ProcessResult::kContinue;                    \
   }
   PROCESS_CHECK(Smi)
-  PROCESS_CHECK(Number)
   PROCESS_CHECK(String)
   PROCESS_CHECK(SeqOneByteString)
   PROCESS_CHECK(StringOrStringWrapper)
   PROCESS_CHECK(StringOrOddball)
   PROCESS_CHECK(Symbol)
 #undef PROCESS_CHECK
+
+  ProcessResult ProcessNode(CheckNumber* node) {
+    switch (node->mode()) {
+      case Object::Conversion::kToNumber:
+        EnsureType(node->input_node(0), NodeType::kNumber);
+        break;
+      case Object::Conversion::kToNumeric:
+        // Smi, HeapNumber or BigInt. There's no separate type for BigInt, but
+        // it's a kOtherHeapObject.
+        EnsureType(node->input_node(0),
+                   UnionType(NodeType::kNumber, NodeType::kOtherHeapObject));
+        break;
+    }
+    return ProcessResult::kContinue;
+  }
 
 #define PROCESS_SAFE_CONV(Node, Alt, Type)                                     \
   ProcessResult ProcessNode(Node* node) {                                      \

@@ -53,6 +53,7 @@
 #include "chrome/browser/ui/search/omnibox_utils.h"
 #include "chrome/browser/ui/send_tab_to_self/send_tab_to_self_bubble.h"
 #include "chrome/browser/ui/send_tab_to_self/send_tab_to_self_toolbar_icon_controller.h"
+#include "chrome/browser/ui/tab_search_feature.h"
 #include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/projects/projects_panel_state_controller.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
@@ -625,7 +626,7 @@ void BrowserActions::InitializeBrowserActions() {
                 },
                 bwi),
             kActionTabSearch, IDS_TAB_SEARCH_MENU, IDS_TAB_SEARCH_MENU,
-            vector_icons::kTabSearchIcon)
+            kTabSearchTabStripIcon)
             .Build());
   }
 
@@ -1369,6 +1370,28 @@ void BrowserActions::InitializeBrowserActions() {
                     actions::ActionPinnableState::kNotPinnable))
             .Build());
   }
+
+  if (base::FeatureList::IsEnabled(features::kTabGroupsFocusing)) {
+    root_action_item_->AddChild(
+        actions::ActionItem::Builder(
+            base::BindRepeating(
+                [](BrowserWindowInterface* bwi, actions::ActionItem* item,
+                   actions::ActionInvocationContext context) {
+                  if (!bwi || !bwi->GetTabStripModel()) {
+                    return;
+                  }
+                  bwi->GetTabStripModel()->SetFocusedGroup(std::nullopt);
+                },
+                bwi))
+            .SetActionId(kActionUnfocusTabGroup)
+            .SetTooltipText(BrowserActions::GetCleanTitleAndTooltipText(
+                l10n_util::GetStringUTF16(
+                    IDS_TAB_GROUP_HEADER_CXMENU_UNFOCUS_GROUP)))
+            .SetImage(ui::ImageModel::FromVectorIcon(
+                vector_icons::kArrowBackIcon, ui::kColorIcon))
+            .Build());
+  }
+
 // TODO(crbug.com/454112198): Delete this after Multi Instance launches. This
 // is currently only used in the experimental single instance side panel.
 #if BUILDFLAG(ENABLE_GLIC)

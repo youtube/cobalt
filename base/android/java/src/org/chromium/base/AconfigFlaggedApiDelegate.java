@@ -4,7 +4,6 @@
 
 package org.chromium.base;
 
-import android.app.ActivityManager;
 import android.app.ActivityManager.AppTask;
 import android.app.ActivityOptions;
 import android.content.Context;
@@ -14,6 +13,7 @@ import android.graphics.Rect;
 import android.graphics.RectF;
 import android.hardware.display.DisplayManager;
 import android.os.Bundle;
+import android.os.OutcomeReceiver;
 import android.util.Pair;
 import android.util.SparseArray;
 import android.view.Display;
@@ -26,6 +26,7 @@ import android.webkit.WebViewDelegate;
 
 import androidx.core.view.accessibility.AccessibilityNodeInfoCompat;
 
+import org.chromium.base.serial.SerialManager;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 
@@ -52,16 +53,6 @@ public interface AconfigFlaggedApiDelegate {
 
     static void setInstanceForTesting(AconfigFlaggedApiDelegate testInstance) {
         ServiceLoaderUtil.setInstanceForTesting(AconfigFlaggedApiDelegate.class, testInstance);
-    }
-
-    /**
-     * Calls the {@link android.app.ActivityManager#isTaskMoveAllowedOnDisplay} method if supported,
-     * otherwise returns false.
-     *
-     * @param am {@link android.app.ActivityManager} on which the method should be called.
-     */
-    default boolean isTaskMoveAllowedOnDisplay(ActivityManager am, int displayId) {
-        return false;
     }
 
     /**
@@ -277,6 +268,32 @@ public interface AconfigFlaggedApiDelegate {
     default void clearSelection(AccessibilityNodeInfoCompat info) {}
 
     /**
+     * Calls {@link android.view.accessibility.AccessibilityNodeInfoCompat#getSelection()} if
+     * supported.
+     *
+     * @param info The node for which the selection is queried.
+     * @return Null if selection is empty or feature is not available, otherwise a pair of two
+     *     integers, representing startVirtualDescendantId and startOffset for the selection.
+     */
+    default @Nullable Pair<Integer, Integer> getExtendedSelectionStart(
+            AccessibilityNodeInfoCompat info) {
+        return null;
+    }
+
+    /**
+     * Calls {@link android.view.accessibility.AccessibilityNodeInfoCompat#getSelection()} if
+     * supported.
+     *
+     * @param info The node for which the selection is queried.
+     * @return Null if selection is empty or feature is not available, otherwise a pair of two
+     *     integers, representing endVirtualDescendantId and endOffset for the selection.
+     */
+    default @Nullable Pair<Integer, Integer> getExtendedSelectionEnd(
+            AccessibilityNodeInfoCompat info) {
+        return null;
+    }
+
+    /**
      * @return True if requirements for processing ACTION_SET_EXTENDED_SELECTION are supported by
      *     the platform.
      */
@@ -290,8 +307,7 @@ public interface AconfigFlaggedApiDelegate {
      *
      * @param arguments Arguments sent with the ACTION_SET_EXTENDED_SELECTION action.
      * @return Null if selection is empty or feature is not available, otherwise a pair of two
-     *     integers, representing startVirtualDescendentId and startOffset for the selection start
-     *     node.
+     *     integers, representing startVirtualDescendantId and startOffset for the selection.
      */
     default @Nullable Pair<Integer, Integer> getActionSetExtendedSelectionStartArgument(
             Bundle arguments) {
@@ -304,7 +320,7 @@ public interface AconfigFlaggedApiDelegate {
      *
      * @param arguments Arguments sent with the ACTION_SET_EXTENDED_SELECTION action.
      * @return Null if selection is empty or feature is not available, otherwise a pair of two
-     *     integers, representing startVirtualDescendentId and startOffset for the selection end
+     *     integers, representing startVirtualDescendantId and startOffset for the selection end
      *     node.
      */
     default @Nullable Pair<Integer, Integer> getActionSetExtendedSelectionEndArgument(
@@ -412,5 +428,28 @@ public interface AconfigFlaggedApiDelegate {
      */
     default boolean isInfeasibleActivityOptionsException(Exception e) {
         return false;
+    }
+
+    /**
+     * Calls the {@link android.app.ActivityManager.AppTask#requestWindowingLayer(AppTask,
+     * AppTask.WINDOWING_LAYER_PINNED, Executor, OutcomeReceiver<Integer, Exception>)} method.
+     *
+     * @param appTask {@link android.app.ActivityManager.AppTask} on which the method should be
+     *     called.
+     * @param executor {@link java.util.concurrent.Executor} The executor specifying the thread on
+     *     which the callbacks will be invoked.
+     * @return A promise fulfilled if going into pinned windowing layer is successful, rejected
+     *     otherwise with {@link UnsupportedOperationException} if not supported or with the
+     *     exception received from the API call.
+     */
+    default Promise<Void> requestPinnedWindowingLayer(AppTask appTask, Executor executor) {
+        Promise<Void> promise = new Promise<>();
+        promise.reject(new UnsupportedOperationException("Not supported"));
+        return promise;
+    }
+
+    /** Gets an Android SerialManager wrapped in an intermediary object. */
+    default @Nullable SerialManager getSerialManager() {
+        return null;
     }
 }

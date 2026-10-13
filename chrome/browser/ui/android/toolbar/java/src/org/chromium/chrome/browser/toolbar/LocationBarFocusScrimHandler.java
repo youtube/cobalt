@@ -79,7 +79,7 @@ public class LocationBarFocusScrimHandler implements UrlFocusChangeListener {
         mTabStripHeightSupplier = tabStripHeightSupplier;
         mTabStripHeightChangeCallback =
                 newHeight -> mScrimModel.set(ScrimProperties.TOP_MARGIN, newHeight);
-        mTabStripHeightSupplier.addObserver(mTabStripHeightChangeCallback);
+        mTabStripHeightSupplier.addSyncObserverAndPostIfNonNull(mTabStripHeightChangeCallback);
     }
 
     @Override
@@ -96,9 +96,7 @@ public class LocationBarFocusScrimHandler implements UrlFocusChangeListener {
                 !isTablet
                         && !mLocationBarDataProvider.isIncognitoBranded()
                         && !ColorUtils.inNightMode(mContext);
-        mScrimModel.set(
-                ScrimProperties.BACKGROUND_COLOR,
-                useLightColor ? mLightScrimColor : ScrimProperties.INVALID_COLOR);
+        mScrimModel.set(ScrimProperties.BACKGROUND_COLOR, useLightColor ? mLightScrimColor : null);
         mScrimModel.set(
                 ScrimProperties.BOTTOM_MARGIN,
                 mBottomControlsStacker.getHeightFromLayerToBottom(LayerType.BOTTOM_CHIN));

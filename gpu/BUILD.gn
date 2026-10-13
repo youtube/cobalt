@@ -122,7 +122,6 @@ static_library("test_support") {
     "//gpu/ipc/client",
     "//gpu/ipc/common",
     "//gpu/ipc/service",
-    "//gpu/skia_bindings",
     "//media",
     "//testing/gmock",
     "//testing/gtest",

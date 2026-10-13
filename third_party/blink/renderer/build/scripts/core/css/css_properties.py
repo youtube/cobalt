@@ -57,6 +57,8 @@ def validate_property(prop, props_by_name):
         'Only longhands can be valid_for_highlight [%s]' % name
     assert not prop.is_internal or prop.computable is None, \
         'Internal properties are always non-computable [%s]' % name
+    assert not has_method('ParseSingleValue') or not prop.field_template == 'keyword', \
+        'When using the keyword template, implement parsing in css_parser_fast_paths.cc [%s]' % name
     if prop.supports_incremental_style:
         assert not prop.is_animation_property, \
             'Animation properties can not be applied incrementally [%s]' % name
@@ -85,6 +87,8 @@ def validate_property(prop, props_by_name):
         assert prop.reset_on_new_style, 'Derived flags must have reset_on_new_style [%s]' % name
     if prop.is_logical:
         assert not prop.field_group, 'Logical properties can not have fields [%s]' % name
+    if prop.is_animation_property:
+        assert prop.is_animation_affecting, 'Animation properties must always be animation-affecting [%s]' % name
 
 # Determines whether or not style builders (i.e. Apply functions)
 # should be generated for the given property.
@@ -161,6 +165,14 @@ class PropertyBase(object):
             and not self.alternative
 
     @property
+    def effective_is_animation_affecting(self):
+        """True if this property may not be animated.
+
+        Internal properties are not animatable because they should not be exposed
+        to the page/author in the first place."""
+        return self.is_animation_affecting or self.is_internal
+
+    @property
     def ultimate_property(self):
         """Returns the ultimate property, which is the final property
             in the alternative_of chain."""
@@ -176,6 +188,25 @@ class PropertyBase(object):
         # properties are use-counted the same way as their main properties.
         return self.ultimate_property.enum_key
 
+    @property
+    def may_be_affected_by_transition_all(self):
+        """Whether the property may be affected by transition: all.
+
+        See ComputedStyleBase::TransitionAllDiff() for caveats."""
+        return self.interpolable and not self.is_internal
+
+    @property
+    def may_be_affected_by_transition_all_discrete(self):
+        """Whether the property may be affected by transition: all if discrete.
+
+        Notably, this excludes everything marked may_be_affected_by_transition_all
+        (it is exclusive). See TransitionAllWithDiscreteDiff() for why."""
+        return \
+           not self.effective_is_animation_affecting \
+           and not self.is_shorthand \
+           and not self.is_internal \
+           and not self.is_extra_field \
+           and not self.may_be_affected_by_transition_all
 
 def generate_property_field(default):
     # Must use 'default_factory' rather than 'default' for list/dict.
@@ -205,6 +236,7 @@ def generate_property_class(parameters):
         'name': None,
         'alternative': None,
         'visited_property': None,
+        'is_extra_field': False,
     }
 
     fields += additional.items()
@@ -278,6 +310,8 @@ class CSSProperties(object):
             self._extra_fields = [
                 Property(**x) for x in fields.name_dictionaries
             ]
+            for property_ in self._extra_fields:
+                property_.is_extra_field = True
 
         self._properties_by_name = {p.name.original: p for p in properties}
 
@@ -535,9 +569,9 @@ class CSSProperties(object):
             self._field_alias_expander.expand_field_alias(property_)
 
             type_name = property_.type_name
-            if (property_.field_template == 'keyword'
-                    or property_.field_template == 'multi_keyword'
-                    or property_.field_template == 'bitset_keyword'):
+            if (property_.field_template
+                    in ('keyword', 'keyword_custom', 'multi_keyword',
+                        'bitset_keyword')):
                 default_value = (type_name + '::' + NameStyleConverter(
                     property_.default_value).to_enum_value())
             elif (property_.field_template == 'external'

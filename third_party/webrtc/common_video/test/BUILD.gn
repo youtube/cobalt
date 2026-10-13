@@ -17,7 +17,6 @@ if (rtc_include_tests) {
     ]
     deps = [
       "../../api:rtp_packet_info",
-      "../../api/video:video_frame",
       "../../api/video:video_rtp_headers",
     ]
   }

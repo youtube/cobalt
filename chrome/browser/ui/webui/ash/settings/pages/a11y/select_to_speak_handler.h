@@ -20,11 +20,11 @@ class SelectToSpeakHandler : public SettingsWithTtsPreviewHandler {
 
   ~SelectToSpeakHandler() override;
 
-  void HandleGetAllTtsVoiceData(const base::Value::List& args);
-  void HandleGetAppLocale(const base::Value::List& args);
-  void HandlePreviewTtsVoice(const base::Value::List& args);
+  void HandleGetAllTtsVoiceData(const base::ListValue& args);
+  void HandleGetAppLocale(const base::ListValue& args);
+  void HandlePreviewTtsVoice(const base::ListValue& args);
 
-  // SettingsPageUIHandler implementation.
+  // content::WebUIMessageHandler implementation.
   void RegisterMessages() override;
 
   // VoicesChangedDelegate implementation.

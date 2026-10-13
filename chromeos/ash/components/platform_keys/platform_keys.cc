@@ -18,8 +18,8 @@
 #include "base/notreached.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
-#include "chromeos/crosapi/cpp/keystore_service_util.h"
-#include "chromeos/crosapi/mojom/keystore_error.mojom.h"
+#include "chromeos/ash/components/platform_keys/keystore_service_util.h"
+#include "chromeos/ash/components/platform_keys/keystore_types.h"
 #include "crypto/evp.h"
 #include "crypto/openssl_util.h"
 #include "net/base/hash_value.h"
@@ -34,9 +34,9 @@
 
 namespace {
 
-using crosapi::keystore_service_util::kWebCryptoEcdsa;
-using crosapi::keystore_service_util::kWebCryptoNamedCurveP256;
-using crosapi::keystore_service_util::kWebCryptoRsassaPkcs1v15;
+using chromeos::keystore_service_util::kWebCryptoEcdsa;
+using chromeos::keystore_service_util::kWebCryptoNamedCurveP256;
+using chromeos::keystore_service_util::kWebCryptoRsassaPkcs1v15;
 
 void IntersectOnWorkerThread(const net::CertificateList& certs1,
                              const net::CertificateList& certs2,
@@ -106,10 +106,8 @@ std::string StatusToString(Status status) {
   }
 }
 
-crosapi::mojom::KeystoreError StatusToKeystoreError(Status status) {
+KeystoreError StatusToKeystoreError(Status status) {
   DCHECK(status != Status::kSuccess);
-  using crosapi::mojom::KeystoreError;
-
   switch (status) {
     case Status::kSuccess:
       return KeystoreError::kUnknown;
@@ -147,12 +145,9 @@ crosapi::mojom::KeystoreError StatusToKeystoreError(Status status) {
   NOTREACHED();
 }
 
-Status StatusFromKeystoreError(crosapi::mojom::KeystoreError error) {
-  using crosapi::mojom::KeystoreError;
-
+Status StatusFromKeystoreError(KeystoreError error) {
   switch (error) {
     case KeystoreError::kUnknown:
-    case KeystoreError::kUnsupportedKeystoreType:
     case KeystoreError::kUnsupportedAlgorithmType:
     case KeystoreError::kUnsupportedKeyTag:
     case KeystoreError::kMojoUnavailable:
@@ -195,15 +190,11 @@ Status StatusFromKeystoreError(crosapi::mojom::KeystoreError error) {
   NOTREACHED();
 }
 
-std::string KeystoreErrorToString(crosapi::mojom::KeystoreError error) {
-  using crosapi::mojom::KeystoreError;
-
+std::string KeystoreErrorToString(KeystoreError error) {
   // Handle Keystore specific errors.
   switch (error) {
     case KeystoreError::kUnknown:
       return "Unknown keystore error.";
-    case KeystoreError::kUnsupportedKeystoreType:
-      return "The token is not valid.";
     case KeystoreError::kUnsupportedAlgorithmType:
       return "Algorithm type is not supported.";
     case KeystoreError::kMojoUnavailable:
@@ -417,7 +408,7 @@ GetPublicKeyAndAlgorithmOutput GetPublicKeyAndAlgorithm(
     return output;
   }
 
-  std::optional<base::Value::Dict> algorithm =
+  std::optional<base::DictValue> algorithm =
       BuildWebCryptoAlgorithmDictionary(key_info);
   DCHECK(algorithm.has_value());
   output.algorithm = std::move(algorithm.value());
@@ -466,16 +457,16 @@ net::X509Certificate::PublicKeyType GetKeyTypeForAlgorithm(
   return net::X509Certificate::kPublicKeyTypeUnknown;
 }
 
-std::optional<base::Value::Dict> BuildWebCryptoAlgorithmDictionary(
+std::optional<base::DictValue> BuildWebCryptoAlgorithmDictionary(
     const PublicKeyInfo& key_info) {
   switch (key_info.key_type) {
     case net::X509Certificate::kPublicKeyTypeRSA: {
-      base::Value::Dict result;
+      base::DictValue result;
       BuildWebCryptoRSAAlgorithmDictionary(key_info, &result);
       return result;
     }
     case net::X509Certificate::kPublicKeyTypeECDSA: {
-      base::Value::Dict result;
+      base::DictValue result;
       BuildWebCryptoEcdsaAlgorithmDictionary(key_info, &result);
       return result;
     }
@@ -485,7 +476,7 @@ std::optional<base::Value::Dict> BuildWebCryptoAlgorithmDictionary(
 }
 
 void BuildWebCryptoRSAAlgorithmDictionary(const PublicKeyInfo& key_info,
-                                          base::Value::Dict* algorithm) {
+                                          base::DictValue* algorithm) {
   CHECK_EQ(net::X509Certificate::kPublicKeyTypeRSA, key_info.key_type);
   algorithm->Set("name", kWebCryptoRsassaPkcs1v15);
   algorithm->Set("modulusLength", static_cast<int>(key_info.key_size_bits));
@@ -498,7 +489,7 @@ void BuildWebCryptoRSAAlgorithmDictionary(const PublicKeyInfo& key_info,
 }
 
 void BuildWebCryptoEcdsaAlgorithmDictionary(const PublicKeyInfo& key_info,
-                                            base::Value::Dict* algorithm) {
+                                            base::DictValue* algorithm) {
   CHECK_EQ(net::X509Certificate::kPublicKeyTypeECDSA, key_info.key_type);
   algorithm->Set("name", kWebCryptoEcdsa);
 

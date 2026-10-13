@@ -64,6 +64,7 @@
 #include "chrome/browser/ui/webui/favicon_source.h"
 #include "chrome/browser/ui/webui/new_tab_page/action_chips/action_chips_generator.h"
 #include "chrome/browser/ui/webui/new_tab_page/action_chips/action_chips_handler.h"
+#include "chrome/browser/ui/webui/new_tab_page/action_chips/action_chips_metrics.h"
 #include "chrome/browser/ui/webui/new_tab_page/action_chips/tab_id_generator.h"
 #include "chrome/browser/ui/webui/new_tab_page/composebox/variations/composebox_fieldtrial.h"
 #include "chrome/browser/ui/webui/new_tab_page/new_tab_page_handler.h"
@@ -96,6 +97,8 @@
 #include "components/google/core/common/google_util.h"
 #include "components/grit/components_scaled_resources.h"
 #include "components/history_clusters/core/features.h"
+#include "components/lens/lens_overlay_invocation_source.h"
+#include "components/lens/lens_url_utils.h"
 #include "components/ntp_tiles/features.h"
 #include "components/ntp_tiles/most_visited_sites.h"
 #include "components/ntp_tiles/pref_names.h"
@@ -123,6 +126,7 @@
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/mojom/content_security_policy.mojom.h"
 #include "skia/ext/skia_utils_base.h"
+#include "third_party/omnibox_proto/chrome_aim_entry_point.pb.h"
 #include "ui/base/accelerators/accelerator.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/resource/resource_bundle.h"
@@ -170,6 +174,12 @@ namespace {
 
 constexpr char kPrevNavigationTimePrefName[] = "NewTabPage.PrevNavigationTime";
 constexpr int kContextMenuDescriptionClickThreshold = 2;
+// The value for the "udm" (Unified Drilldown Mode) query parameter.
+// value "50" triggers AI mode as opposed to traditional search.
+constexpr char kAIMDisplayMode[] = "50";
+// The value for the "atvm" (AIM Threads Visibility Mode) query parameter.
+// value "3" corresponds to Threads Visibility Mode "Always Open".
+constexpr char kAIMThreadsVisibilityMode[] = "3";
 
 bool HasCredentials(Profile* profile) {
   auto* identity_manager = IdentityManagerFactory::GetForProfile(profile);
@@ -195,8 +205,15 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(Profile* profile) {
   source->AddString("googleBaseUrl", google_base_url.spec());
 
   GURL threads_url = google_base_url.Resolve("/search");
-  threads_url = net::AppendQueryParameter(threads_url, "udm", "50");
-  threads_url = net::AppendQueryParameter(threads_url, "atvm", "1");
+  threads_url = net::AppendQueryParameter(threads_url, "udm", kAIMDisplayMode);
+  threads_url = net::AppendQueryParameter(
+      threads_url, "aep",
+      base::NumberToString(omnibox::DESKTOP_CHROME_NTP_THREADS_ENTRY_POINT));
+  threads_url =
+      net::AppendQueryParameter(threads_url, "atvm", kAIMThreadsVisibilityMode);
+  threads_url = lens::AppendInvocationSourceParamToURL(
+      threads_url, lens::LensOverlayInvocationSource::kNtpContextualQuery,
+      /*is_contextual_tasks=*/true);
   source->AddString("threadsUrl", threads_url.spec());
 
   source->AddInteger(
@@ -218,7 +235,8 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(Profile* profile) {
 
   source->AddBoolean(
       "ntpNextFeaturesEnabled",
-      base::FeatureList::IsEnabled(ntp_features::kNtpNextFeatures));
+      ntp_realbox::IsNtpRealboxNextEnabled(profile) &&
+          base::FeatureList::IsEnabled(ntp_features::kNtpNextFeatures));
   source->AddBoolean("ntpNextShowSimplificationUIEnabled",
                      ntp_features::kNtpNextShowSimplificationUIParam.Get());
   source->AddBoolean("ntpNextShowDismissalUIEnabled",
@@ -237,8 +255,6 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(Profile* profile) {
   source->AddBoolean(
       "middleSlotPromoDismissalEnabled",
       base::FeatureList::IsEnabled(ntp_features::kNtpMiddleSlotPromoDismissal));
-  source->AddBoolean("mobilePromoEnabled", base::FeatureList::IsEnabled(
-                                               ntp_features::kNtpMobilePromo));
   source->AddBoolean(
       "modulesDragAndDropEnabled",
       base::FeatureList::IsEnabled(ntp_features::kNtpModulesDragAndDrop));
@@ -273,9 +289,6 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(Profile* profile) {
   source->AddBoolean("searchboxCyclingPlaceholders",
                      ntp_realbox::IsNtpRealboxNextEnabled(profile) &&
                          ntp_realbox::kCyclingPlaceholders.Get());
-  source->AddBoolean("expandedSearchboxShowVoiceSearch",
-                     ntp_realbox::IsNtpRealboxNextEnabled(profile) &&
-                         ntp_realbox::kShowVoiceSearchInExpandedRealbox.Get());
   source->AddBoolean("multiLineEnabled",
                      ntp_realbox::IsNtpRealboxNextEnabled(profile) &&
                          ntp_realbox::kMultiLineEnabled.Get());
@@ -645,8 +658,7 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(Profile* profile) {
                      ntp_composebox::kContextMenuEnableMultiTabSelection.Get());
   source->AddBoolean("searchboxShowComposebox",
                      ntp_composebox::IsNtpComposeboxEnabled(profile));
-  source->AddBoolean("composeboxShowZps",
-                     ntp_composebox::kShowComposeboxZps.Get());
+  source->AddBoolean("composeboxShowZps", true);
   source->AddBoolean("composeboxShowTypedSuggest",
                      ntp_composebox::kShowComposeboxTypedSuggest.Get());
   source->AddBoolean("composeboxShowImageSuggest",
@@ -690,8 +702,6 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(Profile* profile) {
                          composebox_config.is_pdf_upload_enabled();
   source->AddBoolean("composeboxShowPdfUpload", show_pdf_upload);
 
-  source->AddBoolean("composeboxShowSubmit", ntp_composebox::kShowSubmit.Get());
-
   source->AddBoolean("steadyComposeboxShowVoiceSearch",
                      ntp_composebox::kShowVoiceSearchInSteadyComposebox.Get());
 
@@ -701,8 +711,6 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(Profile* profile) {
   source->AddBoolean(
       "addTabUploadDelayOnRecentTabChipClick",
       ntp_composebox::kAddTabUploadDelayOnRecentTabChipClick.Get());
-  source->AddBoolean("enableModalComposebox",
-                     ntp_composebox::kEnableModalComposebox.Get());
   source->AddBoolean("enableThreadsRail",
                      ntp_composebox::kEnableThreadsRail.Get());
 
@@ -715,18 +723,18 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(Profile* profile) {
 
   // Action Chips LoadTimeData
   bool action_chips_eligible =
-      ntp_features::kNtpNextShowSimplificationUIParam.Get()
-          ? aim_eligibility_service &&
-                (aim_eligibility_service->IsDeepSearchEligible() ||
-                 aim_eligibility_service->IsCreateImagesEligible())
-          : aim_eligibility_service &&
-                aim_eligibility_service->IsDeepSearchEligible() &&
-                aim_eligibility_service->IsCreateImagesEligible();
+      aim_eligibility_service && aim_eligibility_service->IsAimEligible() &&
+      (ntp_features::kNtpNextShowSimplificationUIParam.Get()
+           ? (aim_eligibility_service->IsDeepSearchEligible() ||
+              aim_eligibility_service->IsCreateImagesEligible())
+           : (aim_eligibility_service->IsDeepSearchEligible() &&
+              aim_eligibility_service->IsCreateImagesEligible()));
   bool show_action_chips =
       action_chips_eligible &&
-      contextual_search::ContextualSearchService::IsContextSharingEnabled(
-          profile->GetPrefs()) &&
       profile->GetPrefs()->GetBoolean(prefs::kNtpToolChipsVisible);
+  if (!show_action_chips) {
+    action_chips::RecordActionChipsAnyShown(false);
+  }
   source->AddBoolean("actionChipsEnabled", show_action_chips);
   source->AddBoolean("addTabUploadDelayOnActionChipClick",
                      ntp_features::kAddTabUploadDelayOnActionChipClick.Get());
@@ -958,9 +966,9 @@ void NewTabPageUI::ResetProfilePrefs(PrefService* prefs) {
   prefs->SetBoolean(ntp_prefs::kNtpPersonalShortcutsVisible, true);
   prefs->SetBoolean(ntp_prefs::kNtpShowAllMostVisitedTiles, false);
   prefs->SetTime(ntp_prefs::kNtpLastModuleStalenessUpdate, base::Time());
-  prefs->SetDict(ntp_prefs::kNtpModuleStalenessCountDict, base::Value::Dict());
+  prefs->SetDict(ntp_prefs::kNtpModuleStalenessCountDict, base::DictValue());
   prefs->SetDict(ntp_prefs::kNtpModulesAutoRemovalDisabledDict,
-                 base::Value::Dict());
+                 base::DictValue());
   prefs->SetInteger(ntp_prefs::kNtpContextMenuClickCount, 0);
 }
 
@@ -1285,7 +1293,7 @@ void NewTabPageUI::CreateActionChipsHandler(
 // OnColorProviderChanged can be called during the destruction process and
 // should not directly access any member variables.
 void NewTabPageUI::OnColorProviderChanged() {
-  base::Value::Dict update;
+  base::DictValue update;
   if (!web_contents() || !web_ui()) {
     return;
   }
@@ -1298,7 +1306,7 @@ void NewTabPageUI::OnColorProviderChanged() {
 }
 
 void NewTabPageUI::OnCustomBackgroundImageUpdated() {
-  base::Value::Dict update;
+  base::DictValue update;
   url::RawCanonOutputT<char> encoded_url;
   auto custom_background_url =
       (ntp_custom_background_service_
@@ -1395,7 +1403,7 @@ void NewTabPageUI::OnEnterpriseShortcutsPolicyChanged() {
 
 void NewTabPageUI::OnLoad() {
   MaybeEnableEnterpriseShortcutsVisibility();
-  base::Value::Dict update;
+  base::DictValue update;
   update.Set("navigationStartTime",
              navigation_start_time_.InMillisecondsFSinceUnixEpoch());
   const bool modules_enabled = ntp::HasModulesEnabled(

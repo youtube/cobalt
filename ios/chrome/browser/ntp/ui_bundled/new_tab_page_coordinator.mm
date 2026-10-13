@@ -498,7 +498,16 @@
 }
 
 - (BOOL)isScrolledToTop {
-  return [self.NTPViewController isNTPScrolledToTop];
+  if (!self.webState) {
+    return YES;
+  }
+  NewTabPageTabHelper* NTPHelper =
+      NewTabPageTabHelper::FromWebState(self.webState);
+  return NTPHelper && NTPHelper->IsScrolledToTop();
+}
+
+- (void)scrollToTop {
+  [self.NTPViewController setContentOffsetToTop];
 }
 
 - (void)willUpdateSnapshot {
@@ -673,6 +682,8 @@
   id<NewTabPageComponentFactoryProtocol> componentFactory =
       self.componentFactory;
   self.NTPViewController = [componentFactory NTPViewController];
+  self.NTPViewController.engagementTracker =
+      feature_engagement::TrackerFactory::GetForProfile(self.profile);
   self.NTPViewController.incognitoDisabled =
       IsIncognitoModeDisabled(self.prefService);
   self.headerViewController =
@@ -764,6 +775,7 @@
 - (void)configureNTPMediator {
   NewTabPageMediator* NTPMediator = self.NTPMediator;
   DCHECK(NTPMediator);
+  NTPMediator.webState = self.webState;
   NTPMediator.feedVisibilityObserver = self;
   NTPMediator.feedControlDelegate = self;
   NTPMediator.NTPContentDelegate = self;
@@ -1051,7 +1063,7 @@
       initWithBaseViewController:self.NTPViewController
                          browser:self.browser
                           params:params
-                      originView:view];
+                      sourceItem:view];
   [_sharingCoordinator start];
 }
 
@@ -1080,6 +1092,7 @@
           initWithBaseViewController:self.NTPViewController
                              browser:self.browser];
   _safariDataImportExportCoordinator.delegate = self;
+  [self.NTPMediator markSafariDataImportSetupListItemAsComplete];
   [_safariDataImportExportCoordinator start];
 }
 
@@ -1179,9 +1192,9 @@
 }
 
 - (void)cancelOmniboxEdit {
-  id<OmniboxCommands> omniboxCommandHandler =
-      HandlerForProtocol(self.browser->GetCommandDispatcher(), OmniboxCommands);
-  [omniboxCommandHandler cancelOmniboxEdit];
+  id<BrowserCoordinatorCommands> browserCoordinatorHandler = HandlerForProtocol(
+      self.browser->GetCommandDispatcher(), BrowserCoordinatorCommands);
+  [browserCoordinatorHandler hideComposebox];
 }
 
 - (void)onFakeboxBlur {
@@ -1191,11 +1204,18 @@
 }
 
 - (void)focusOmnibox {
-  id<FakeboxFocuser> fakeboxFocuserHandler =
-      HandlerForProtocol(self.browser->GetCommandDispatcher(), FakeboxFocuser);
-  [fakeboxFocuserHandler focusOmniboxFromFakebox:_fakeboxTapped
-                                          pinned:[self isFakeboxPinned]
-                  fakeboxButtonsSnapshotProvider:self.headerViewController];
+  if (IsChromeNextIaEnabled()) {
+    id<BrowserCoordinatorCommands> browserCoordinatorHandler =
+        HandlerForProtocol(self.browser->GetCommandDispatcher(),
+                           BrowserCoordinatorCommands);
+    [browserCoordinatorHandler showComposebox];
+  } else {
+    id<FakeboxFocuser> fakeboxFocuserHandler = HandlerForProtocol(
+        self.browser->GetCommandDispatcher(), FakeboxFocuser);
+    [fakeboxFocuserHandler focusOmniboxFromFakebox:_fakeboxTapped
+                                            pinned:[self isFakeboxPinned]
+                    fakeboxButtonsSnapshotProvider:self.headerViewController];
+  }
 }
 
 - (void)refreshNTPContent {
@@ -1638,6 +1658,7 @@
   }
 
   _webState = webState;
+  self.NTPMediator.webState = _webState;
   self.contentSuggestionsCoordinator.webState = _webState;
   [_searchEngineLogoMediator setWebState:_webState];
 }
@@ -1737,8 +1758,15 @@
   _customizationCoordinator.delegate = self;
   [_customizationCoordinator start];
   [_customizationCoordinator presentCustomizationMenuPage:page];
-  feature_engagement::TrackerFactory::GetForProfile(self.profile)
-      ->NotifyEvent(feature_engagement::events::kHomeCustomizationMenuUsed);
+  feature_engagement::Tracker* tracker =
+      feature_engagement::TrackerFactory::GetForProfile(self.profile);
+
+  tracker->NotifyEvent(feature_engagement::events::kHomeCustomizationMenuUsed);
+  if (page == CustomizationMenuPage::kMain &&
+      IsNTPBackgroundCustomizationEnabled()) {
+    tracker->NotifyEvent(
+        feature_engagement::events::kHomeBackgroundCustomizationMenuUsed);
+  }
 }
 
 // Returns the current customization state represnting the visibility of NTP
@@ -1842,7 +1870,7 @@
 
 - (void)openMIA {
   [self.NTPMetricsRecorder recordMIATapped];
-  if (!IsComposeboxAIMDisabled() &&
+  if (!IsDisableComposeboxFromAIMNTPEnabled() && !IsComposeboxAIMDisabled() &&
       MaybeShowComposebox(self.browser, ComposeboxEntrypoint::kNTPAIMButton)) {
     return;
   }
@@ -1910,6 +1938,36 @@
   }
   [_safariDataImportExportCoordinator stop];
   _safariDataImportExportCoordinator = nil;
+}
+
+- (void)showHomeBackgroundCustomizationPromoWithUIHandler:
+    (id<PromosManagerUIHandler>)uiHandler {
+  // The promo includes an in-product help bubble for the menu button itself.
+  if (self.browser) {
+    [HandlerForProtocol(self.browser->GetCommandDispatcher(), HelpCommands)
+        presentInProductHelpWithType:InProductHelpType::
+                                         kHomeBackgroundCustomization];
+  }
+
+  if (_customizationCoordinator) {
+    // Make sure to alert the coordinator that user education is active, so it
+    // can alert the Feature Engagement Tracker on dismissal.
+    _customizationCoordinator.openedForUserEducation = YES;
+    _customizationCoordinator.promosManagerUIHandler = uiHandler;
+    return;
+  }
+
+  // Hide the 'new' badge for the current session after being tapped.
+  [self.headerViewController hideBadgeOnCustomizationMenu];
+
+  [self.NTPMetricsRecorder recordHomeCustomizationMenuOpenedFromEntrypoint:
+                               HomeCustomizationEntrypoint::kPromo];
+
+  [self openCustomizationMenuAtPage:CustomizationMenuPage::kMain animated:YES];
+  // Make sure to alert the coordinator that user education is active, so it can
+  // alert the Feature Engagement Tracker on dismissal.
+  _customizationCoordinator.openedForUserEducation = YES;
+  _customizationCoordinator.promosManagerUIHandler = uiHandler;
 }
 
 @end

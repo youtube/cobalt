@@ -14,7 +14,6 @@
 namespace v8 {
 namespace internal {
 
-const int MemoryReducer::kLongDelayMs = 8000;
 const int MemoryReducer::kShortDelayMs = 500;
 const int MemoryReducer::kWatchdogDelayMs = 100000;
 const double MemoryReducer::kCommittedMemoryFactor = 1.1;
@@ -88,10 +87,7 @@ void MemoryReducer::NotifyTimer(const Event& event) {
       heap()->isolate()->PrintWithTimestamp("Memory reducer: started GC #%d\n",
                                             state_.started_gcs());
     }
-    GCFlags gc_flags = v8_flags.memory_reducer_favors_memory
-                           ? GCFlag::kReduceMemoryFootprint
-                           : heap()->GCFlagsForIncrementalMarking();
-    heap()->StartIncrementalMarking(gc_flags,
+    heap()->StartIncrementalMarking(GCFlag::kReduceMemoryFootprint,
                                     GarbageCollectionReason::kMemoryReducer,
                                     kGCCallbackFlagCollectAllExternalMemory);
   } else if (state_.id() == kWait) {
@@ -174,8 +170,9 @@ MemoryReducer::State MemoryReducer::Step(const State& state,
                 state.committed_memory_at_last_run() + kCommittedMemoryDelta)) {
           return state;
         } else {
-          return State::CreateWait(0, event.time_ms + kLongDelayMs,
-                                   event.time_ms);
+          return State::CreateWait(
+              0, event.time_ms + v8_flags.memory_reducer_delay_ms,
+              event.time_ms);
         }
       } else {
         DCHECK_EQ(kPossibleGarbage, event.type);
@@ -201,13 +198,15 @@ MemoryReducer::State MemoryReducer::Step(const State& state,
               return state;
             }
           } else {
-            return State::CreateWait(state.started_gcs(),
-                                     event.time_ms + kLongDelayMs,
-                                     state.last_gc_time_ms());
+            return State::CreateWait(
+                state.started_gcs(),
+                event.time_ms + v8_flags.memory_reducer_delay_ms,
+                state.last_gc_time_ms());
           }
         case kMarkCompact:
-          return State::CreateWait(state.started_gcs(),
-                                   event.time_ms + kLongDelayMs, event.time_ms);
+          return State::CreateWait(
+              state.started_gcs(),
+              event.time_ms + v8_flags.memory_reducer_delay_ms, event.time_ms);
       }
     case kRun:
       CHECK_LE(state.started_gcs(), MaxNumberOfGCs());

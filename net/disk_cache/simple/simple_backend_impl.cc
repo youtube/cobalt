@@ -30,6 +30,7 @@
 #include "net/base/net_errors.h"
 #include "net/base/prioritized_task_runner.h"
 #include "net/disk_cache/backend_cleanup_tracker.h"
+#include "net/disk_cache/cache_entry_hasher.h"
 #include "net/disk_cache/cache_util.h"
 #include "net/disk_cache/simple/simple_entry_format.h"
 #include "net/disk_cache/simple/simple_entry_impl.h"
@@ -40,6 +41,7 @@
 #include "net/disk_cache/simple/simple_synchronous_entry.h"
 #include "net/disk_cache/simple/simple_util.h"
 #include "net/disk_cache/simple/simple_version_upgrade.h"
+#include "net/disk_cache/trivial_cache_entry_hasher.h"
 
 #if BUILDFLAG(IS_POSIX)
 #include <sys/resource.h>
@@ -213,9 +215,11 @@ SimpleBackendImpl::SimpleBackendImpl(
     SimpleFileTracker* file_tracker,
     int64_t max_bytes,
     net::CacheType cache_type,
-    net::NetLog* net_log,
-    net::CacheEncryptionDelegate* cache_encryption_delegate)
+    std::unique_ptr<CacheEntryHasher> entry_hasher,
+    net::NetLog* net_log)
     : Backend(cache_type),
+      entry_hasher_(entry_hasher ? std::move(entry_hasher)
+                                 : std::make_unique<TrivialCacheEntryHasher>()),
       file_operations_factory_(
           file_operations_factory
               ? std::move(file_operations_factory)
@@ -229,8 +233,7 @@ SimpleBackendImpl::SimpleBackendImpl(
           base::MakeRefCounted<SimplePostOperationWaiterTable>()),
       post_open_by_hash_waiting_(
           base::MakeRefCounted<SimplePostOperationWaiterTable>()),
-      net_log_(net_log),
-      cache_encryption_delegate_(cache_encryption_delegate) {
+      net_log_(net_log) {
   // Treat negative passed-in sizes same as in other backends, as default.
   if (orig_max_size_ < 0)
     orig_max_size_ = 0;
@@ -369,7 +372,7 @@ base::expected<int32_t, net::Error> SimpleBackendImpl::GetEntryCount(
 EntryResult SimpleBackendImpl::OpenEntry(const std::string& key,
                                          net::RequestPriority request_priority,
                                          EntryResultCallback callback) {
-  const uint64_t entry_hash = simple_util::GetEntryHashKey(key);
+  const uint64_t entry_hash = entry_hasher_->GetEntryHashKey(key);
 
   std::vector<base::OnceClosure>* post_operation = nullptr;
   PostOperationQueue post_operation_queue = PostOperationQueue::kNone;
@@ -406,7 +409,7 @@ EntryResult SimpleBackendImpl::CreateEntry(
     net::RequestPriority request_priority,
     EntryResultCallback callback) {
   DCHECK_LT(0u, key.size());
-  const uint64_t entry_hash = simple_util::GetEntryHashKey(key);
+  const uint64_t entry_hash = entry_hasher_->GetEntryHashKey(key);
 
   std::vector<base::OnceClosure>* post_operation = nullptr;
   PostOperationQueue post_operation_queue = PostOperationQueue::kNone;
@@ -439,7 +442,7 @@ EntryResult SimpleBackendImpl::OpenOrCreateEntry(
     net::RequestPriority request_priority,
     EntryResultCallback callback) {
   DCHECK_LT(0u, key.size());
-  const uint64_t entry_hash = simple_util::GetEntryHashKey(key);
+  const uint64_t entry_hash = entry_hasher_->GetEntryHashKey(key);
 
   std::vector<base::OnceClosure>* post_operation = nullptr;
   PostOperationQueue post_operation_queue = PostOperationQueue::kNone;
@@ -504,7 +507,7 @@ SimpleBackendImpl::MaybeOptimisticCreateForPostDoom(
 net::Error SimpleBackendImpl::DoomEntry(const std::string& key,
                                         net::RequestPriority priority,
                                         CompletionOnceCallback callback) {
-  const uint64_t entry_hash = simple_util::GetEntryHashKey(key);
+  const uint64_t entry_hash = entry_hasher_->GetEntryHashKey(key);
 
   std::vector<base::OnceClosure>* post_operation = nullptr;
   PostOperationQueue post_operation_queue = PostOperationQueue::kNone;
@@ -574,8 +577,9 @@ class SimpleBackendImpl::SimpleIterator final : public Iterator {
 
   // From Backend::Iterator:
   EntryResult OpenNextEntry(EntryResultCallback callback) override {
-    if (!backend_)
+    if (!backend_) {
       return EntryResult::MakeError(net::ERR_FAILED);
+    }
     CompletionOnceCallback open_next_entry_impl =
         base::BindOnce(&SimpleIterator::OpenNextEntryImpl,
                        weak_factory_.GetWeakPtr(), std::move(callback));
@@ -594,8 +598,9 @@ class SimpleBackendImpl::SimpleIterator final : public Iterator {
           static_cast<net::Error>(index_initialization_error_code)));
       return;
     }
-    if (!hashes_to_enumerate_)
+    if (!hashes_to_enumerate_) {
       hashes_to_enumerate_ = backend_->index()->GetAllHashes();
+    }
 
     while (!hashes_to_enumerate_->empty()) {
       uint64_t entry_hash = hashes_to_enumerate_->back();
@@ -608,8 +613,9 @@ class SimpleBackendImpl::SimpleIterator final : public Iterator {
             weak_factory_.GetWeakPtr(), std::move(split_callback.second));
         EntryResult open_result = backend_->OpenEntryFromHash(
             entry_hash, std::move(continue_iteration));
-        if (open_result.net_error() == net::ERR_IO_PENDING)
+        if (open_result.net_error() == net::ERR_IO_PENDING) {
           return;
+        }
         if (open_result.net_error() != net::ERR_FAILED) {
           std::move(callback).Run(std::move(open_result));
           return;
@@ -646,11 +652,11 @@ void SimpleBackendImpl::GetStats(base::StringPairs* stats) {
 }
 
 void SimpleBackendImpl::OnExternalCacheHit(const std::string& key) {
-  index_->UseIfExists(simple_util::GetEntryHashKey(key));
+  index_->UseIfExists(entry_hasher_->GetEntryHashKey(key));
 }
 
 uint8_t SimpleBackendImpl::GetEntryInMemoryData(const std::string& key) {
-  const uint64_t entry_hash = simple_util::GetEntryHashKey(key);
+  const uint64_t entry_hash = entry_hasher_->GetEntryHashKey(key);
   return index_->GetEntryInMemoryData(entry_hash);
 }
 
@@ -776,7 +782,7 @@ SimpleBackendImpl::CreateOrFindActiveOrDoomedEntry(
     net::RequestPriority request_priority,
     std::vector<base::OnceClosure>*& post_operation,
     PostOperationQueue& post_operation_queue) {
-  DCHECK_EQ(entry_hash, simple_util::GetEntryHashKey(key));
+  DCHECK_EQ(entry_hash, entry_hasher_->GetEntryHashKey(key));
 
   // If there is a doom pending, we would want to serialize after it.
   std::vector<base::OnceClosure>* post_doom =
@@ -886,8 +892,9 @@ net::Error SimpleBackendImpl::DoomEntryFromHash(
   }
 
   auto active_it = active_entries_.find(entry_hash);
-  if (active_it != active_entries_.end())
+  if (active_it != active_entries_.end()) {
     return active_it->second->DoomEntry(std::move(callback));
+  }
 
   // There's no pending dooms, nor any open entry. We can make a trivial
   // call to DoomEntries() to delete this entry.
@@ -897,10 +904,9 @@ net::Error SimpleBackendImpl::DoomEntryFromHash(
   return net::ERR_IO_PENDING;
 }
 
-void SimpleBackendImpl::OnEntryOpenedFromHash(
-    uint64_t hash,
-    EntryResultCallback callback,
-    EntryResult result) {
+void SimpleBackendImpl::OnEntryOpenedFromHash(uint64_t hash,
+                                              EntryResultCallback callback,
+                                              EntryResult result) {
   post_open_by_hash_waiting_->OnOperationComplete(hash);
   std::move(callback).Run(std::move(result));
 }

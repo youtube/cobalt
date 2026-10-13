@@ -100,6 +100,8 @@ _NEGATIVE_FILTER = [
     'BidiTest.testFocusInFirstTab',
     # crbug.com/372153090. The feature is not yet supported.
     'ChromeDriverTest.testCreateWindowFromScript',
+    # Flaky crbug.com/481485821
+    'ChromeDriverTest.testWebviewDetactedDuringClick',
 ]
 
 
@@ -173,8 +175,6 @@ _BROWSER_SPECIFIC_FILTER['chrome-headless-shell'] = [
     'ChromeDriverTest.testSetRPHResgistrationMode',
     # The test is only intended for the headless mode of Chrome.
     'ChromeDriverTest.testBrowserNameHeadlessMode',
-    # chrome-headless-shell does not support Browser.executeBrowserCommand
-    'ChromeDriverTest.testWebviewDetactedDuringClick',
 ]
 
 _BROWSER_AND_PLATFORM_SPECIFIC_FILTER = {
@@ -4454,6 +4454,29 @@ class ChromeDriverTest(ChromeDriverBaseTestWithWebServer):
     self.assertTrue(
         self.WaitForCondition(
             lambda: len(self._driver.GetWindowHandles()) == 1))
+
+  # Regression test for https://crbug.com/478783560.
+  def testWebSocketConnectionFromRemoteOriginFails(self):
+    driver = self.CreateDriver(
+        chrome_switches=['--host-resolver-rules=MAP * 127.0.0.1'])
+    server_url = urllib.parse.urlparse(_CHROMEDRIVER_SERVER_URL)
+    ws_url = f'ws://127.0.0.1:{server_url.port}/session'
+    driver.Load(self._http_server.GetUrl('example.com') +
+                '/chromedriver/empty.html')
+    script = """
+      let ws_url = arguments[0];
+      let done = arguments[1];
+      let ws = new WebSocket(ws_url);
+      ws.onopen = function() {
+        ws.close();
+        done('UNEXPECTEDLY_OPEN');
+      };
+      ws.onclose = function() {
+        done('CORRECTLY_CLOSED');
+      };
+    """
+    result = driver.ExecuteAsyncScript(script, ws_url)
+    self.assertEqual('CORRECTLY_CLOSED', result)
 
 class ChromeDriverPdfTest(ChromeDriverBaseTestWithWebServer):
   """ Regression test for crbug.com/396611138 """

@@ -4,10 +4,13 @@
 
 package org.chromium.chrome.browser.compositor.layouts;
 
+import static org.chromium.build.NullUtil.assertNonNull;
+
 import android.content.Context;
 import android.view.ViewGroup;
 
 import org.chromium.base.supplier.MonotonicObservableSupplier;
+import org.chromium.base.supplier.NonNullObservableSupplier;
 import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -38,9 +41,9 @@ import java.util.function.Supplier;
 public class LayoutManagerChromePhone extends LayoutManagerChrome {
     // TODO(crbug.com/40282469): Rename SimpleAnimationLayout to NewTabAnimationLayout once it is
     // rolled out.
-    private final MonotonicObservableSupplier<CompositorViewHolder> mCompositorViewHolderSupplier;
-    private final MonotonicObservableSupplier<TopInsetProvider> mTopInsetProviderSupplier;
-    private final MonotonicObservableSupplier<Boolean> mScrimVisibilitySupplier;
+    private final Supplier<@Nullable CompositorViewHolder> mCompositorViewHolderSupplier;
+    private final TopInsetProvider mTopInsetProvider;
+    private final NonNullObservableSupplier<Boolean> mScrimVisibilitySupplier;
     private final ToolbarManager mToolbarManager;
     private final ViewGroup mContentView;
     private Layout mSimpleAnimationLayout;
@@ -61,6 +64,7 @@ public class LayoutManagerChromePhone extends LayoutManagerChrome {
      * @param contentView The base content view.
      * @param toolbarManager The {@link ToolbarManager} instance.
      * @param scrimVisibilitySupplier Supplier for the Scrim visibility.
+     * @param topInsetProvider The {@link TopInsetProvider} instance.
      */
     public LayoutManagerChromePhone(
             LayoutManagerHost host,
@@ -70,11 +74,11 @@ public class LayoutManagerChromePhone extends LayoutManagerChrome {
             MonotonicObservableSupplier<TabContentManager> tabContentManagerSupplier,
             Supplier<TopUiThemeColorProvider> topUiThemeColorProvider,
             HubLayoutDependencyHolder hubLayoutDependencyHolder,
-            MonotonicObservableSupplier<CompositorViewHolder> compositorViewHolderSupplier,
+            Supplier<@Nullable CompositorViewHolder> compositorViewHolderSupplier,
             ViewGroup contentView,
             ToolbarManager toolbarManager,
-            MonotonicObservableSupplier<Boolean> scrimVisibilitySupplier,
-            MonotonicObservableSupplier<TopInsetProvider> topInsetProviderSupplier) {
+            NonNullObservableSupplier<Boolean> scrimVisibilitySupplier,
+            TopInsetProvider topInsetProvider) {
         super(
                 host,
                 contentContainer,
@@ -87,7 +91,7 @@ public class LayoutManagerChromePhone extends LayoutManagerChrome {
         mContentView = contentView;
         mToolbarManager = toolbarManager;
         mScrimVisibilitySupplier = scrimVisibilitySupplier;
-        mTopInsetProviderSupplier = topInsetProviderSupplier;
+        mTopInsetProvider = topInsetProvider;
     }
 
     @Override
@@ -104,7 +108,7 @@ public class LayoutManagerChromePhone extends LayoutManagerChrome {
             @Nullable ControlContainer controlContainer,
             DynamicResourceLoader dynamicResourceLoader,
             TopUiThemeColorProvider topUiColorProvider,
-            MonotonicObservableSupplier<Integer> bottomControlsOffsetSupplier) {
+            NonNullObservableSupplier<Integer> bottomControlsOffsetSupplier) {
         Context context = mHost.getContext();
         LayoutRenderHost renderHost = mHost.getLayoutRenderHost();
 
@@ -118,12 +122,12 @@ public class LayoutManagerChromePhone extends LayoutManagerChrome {
                             renderHost,
                             this,
                             getContentContainer(),
-                            mCompositorViewHolderSupplier,
+                            assertNonNull(mCompositorViewHolderSupplier.get()),
                             mContentView,
                             mToolbarManager,
                             getBrowserControlsManager(),
                             mScrimVisibilitySupplier,
-                            mTopInsetProviderSupplier);
+                            mTopInsetProvider);
         } else {
             mSimpleAnimationLayout =
                     new SimpleAnimationLayout(context, this, renderHost, getContentContainer());

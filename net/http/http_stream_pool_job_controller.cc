@@ -172,7 +172,7 @@ HttpStreamPool::JobController::JobController(
               "destination", request_info.destination.Serialize());
   net_log_.BeginEvent(
       NetLogEventType::HTTP_STREAM_POOL_JOB_CONTROLLER_ALIVE, [&] {
-        base::Value::Dict dict;
+        base::DictValue dict;
         dict.Set("origin_destination",
                  origin_stream_key_.destination().Serialize());
         if (alternative_.has_value()) {
@@ -298,7 +298,9 @@ int HttpStreamPool::JobController::Preconnect(
   }
 
   Group& group = pool_->GetOrCreateGroup(origin_stream_key_);
-  if (group.ActiveStreamSocketCount() >= num_streams) {
+  const size_t active_stream_count =
+      group.HandedOutStreamSocketCount() + group.IdleStreamSocketCount();
+  if (active_stream_count >= num_streams) {
     return OK;
   }
 
@@ -493,8 +495,8 @@ void HttpStreamPool::JobController::SetPriority(RequestPriority priority) {
   }
 }
 
-base::Value::Dict HttpStreamPool::JobController::GetInfoAsValue() const {
-  base::Value::Dict dict;
+base::DictValue HttpStreamPool::JobController::GetInfoAsValue() const {
+  base::DictValue dict;
   dict.Set("origin_stream_key", origin_stream_key_.ToValue());
   if (alternative_.has_value()) {
     dict.Set("alternative_stream_key", alternative_->stream_key.ToValue());
@@ -730,6 +732,11 @@ void HttpStreamPool::JobController::MaybeMarkAlternativeServiceBroken() {
 
   // No brokenness to report if the origin job fails.
   if (origin_job_result_.has_value() && *origin_job_result_ != OK) {
+    return;
+  }
+
+  // Only mark broken if the error is actually a protocol failure.
+  if (!IsQuicErrorBrokenable(*alternative_job_result_)) {
     return;
   }
 

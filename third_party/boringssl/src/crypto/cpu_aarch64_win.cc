@@ -21,11 +21,16 @@
 #include <windows.h>
 
 
+#if !defined(PF_ARM_SHA3_INSTRUCTIONS_AVAILABLE)
+#define PF_ARM_SHA3_INSTRUCTIONS_AVAILABLE 64
+#endif
 #if !defined(PF_ARM_SHA512_INSTRUCTIONS_AVAILABLE)
 #define PF_ARM_SHA512_INSTRUCTIONS_AVAILABLE 65
 #endif
 
-void OPENSSL_cpuid_setup() {
+using namespace bssl;
+
+void bssl::OPENSSL_cpuid_setup() {
   // We do not need to check for the presence of NEON, as Armv8-A always has it
   OPENSSL_armcap_P |= ARMV7_NEON;
 
@@ -38,6 +43,9 @@ void OPENSSL_cpuid_setup() {
   }
   if (IsProcessorFeaturePresent(PF_ARM_SHA512_INSTRUCTIONS_AVAILABLE)) {
     OPENSSL_armcap_P |= ARMV8_SHA512;
+  }
+  if (IsProcessorFeaturePresent(PF_ARM_SHA3_INSTRUCTIONS_AVAILABLE)) {
+    OPENSSL_armcap_P |= ARMV8_SHA3;
   }
 }
 

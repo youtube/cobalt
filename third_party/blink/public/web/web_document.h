@@ -31,6 +31,7 @@
 #ifndef THIRD_PARTY_BLINK_PUBLIC_WEB_WEB_DOCUMENT_H_
 #define THIRD_PARTY_BLINK_PUBLIC_WEB_WEB_DOCUMENT_H_
 
+#include <optional>
 #include <vector>
 
 #include "base/types/expected.h"
@@ -44,6 +45,7 @@
 #include "third_party/blink/public/platform/cross_variant_mojo_util.h"
 #include "third_party/blink/public/platform/web_common.h"
 #include "third_party/blink/public/platform/web_security_origin.h"
+#include "third_party/blink/public/platform/web_string.h"
 #include "third_party/blink/public/web/web_css_origin.h"
 #include "third_party/blink/public/web/web_draggable_region.h"
 #include "third_party/blink/public/web/web_node.h"
@@ -67,7 +69,6 @@ class WebFormElement;
 class WebFormControlElement;
 class WebElementCollection;
 class WebLocalFrame;
-class WebString;
 class WebURL;
 struct WebDistillabilityFeatures;
 
@@ -218,18 +219,48 @@ class BLINK_EXPORT WebDocument : public WebNode {
   // Executes a script tool with the given `name` and `input_arguments`.
   //
   // The associated callback is invoked once the async execution of the tool is
-  // finished along with the result of the execution. A null response indicates
-  // a failure in tool execution.
-  enum class ScriptToolError {
-    kInvalidToolName,
-    kInvalidInputArguments,
-    kToolInvocationFailed
+  // finished along with the result of the execution.
+  // A null response indicates a navigation was triggered and the response will
+  // be on the next Document.
+  // An error is returned if the execution failed.
+  //
+  // The return value is a document-scoped execution ID which can be used to
+  // cancel the tool execution.
+  struct BLINK_EXPORT ScriptToolError {
+    enum Code {
+      kInvalidToolName,
+      kInvalidInputArguments,
+      kMissingRequiredSubmitButton,
+      kToolInvocationFailed,
+      kToolCancelled,
+    };
+    Code code;
+    WebString message;
+
+    ScriptToolError(Code code, WebString message = WebString())
+        : code(code), message(std::move(message)) {}
+
+    bool operator==(const ScriptToolError& other) const {
+      return code == other.code;
+    }
+    bool operator==(Code other_code) const { return code == other_code; }
   };
   using ScriptToolExecutedCallback =
       base::OnceCallback<void(base::expected<WebString, ScriptToolError>)>;
-  void ExecuteScriptTool(const WebString& name,
-                         const WebString& input_arguments,
-                         ScriptToolExecutedCallback tool_executed_cb);
+  std::optional<uint32_t> ExecuteScriptTool(
+      const WebString& name,
+      const WebString& input_arguments,
+      ScriptToolExecutedCallback tool_executed_cb);
+
+  // Provides the result of a script tool execution initiated on an old
+  // Document.
+  using CrossDocumentScriptToolResultCallback =
+      base::OnceCallback<void(WebString)>;
+  void GetCrossDocumentScriptToolResult(
+      CrossDocumentScriptToolResultCallback result_callback);
+
+  // Cancels a script tool with the given execution ID.
+  void CancelScriptTool(uint32_t execution_id);
 
   // Dispatches an autofill event on the document with the given field data.
   // This is called by the autofill agent before filling form fields.

@@ -114,7 +114,7 @@ syncer::DataTypeController::TypeVector CreateControllers(
   controller_builder.SetSessionSyncService(nullptr);
   controller_builder.SetSharingMessageBridge(nullptr);
 #if BUILDFLAG(ENABLE_SUPERVISED_USERS)
-  controller_builder.SetSupervisedUserSettingsService(nullptr);
+  controller_builder.SetFamilyLinkSettingsService(nullptr);
 #endif  // BUILDFLAG(ENABLE_SUPERVISED_USERS)
   controller_builder.SetTabGroupSyncService(nullptr);
   controller_builder.SetTemplateURLService(nullptr);
@@ -185,10 +185,8 @@ WebViewSyncServiceFactory::BuildServiceInstanceFor(
   init_params.network_connection_tracker =
       ApplicationContext::GetInstance()->GetNetworkConnectionTracker();
   init_params.channel = version_info::Channel::STABLE;
-  if (base::FeatureList::IsEnabled(syncer::kSyncUseOsCryptAsync)) {
-    init_params.os_crypt_async =
-        ApplicationContext::GetInstance()->GetOSCryptAsync();
-  }
+  init_params.os_crypt_async =
+      ApplicationContext::GetInstance()->GetOSCryptAsync();
 
   auto sync_service =
       std::make_unique<syncer::SyncServiceImpl>(std::move(init_params));

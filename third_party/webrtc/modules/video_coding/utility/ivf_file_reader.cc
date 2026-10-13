@@ -177,7 +177,7 @@ std::optional<EncodedImage> IvfFileReader::NextFrame() {
     image.SetSpatialLayerFrameSize(static_cast<int>(i), layer_sizes[i]);
   }
   if (is_first_frame) {
-    image._frameType = VideoFrameType::kVideoFrameKey;
+    image.set_frame_type(VideoFrameType::kVideoFrameKey);
   }
 
   return image;

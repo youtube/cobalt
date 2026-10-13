@@ -27,6 +27,7 @@ class POLICY_EXPORT MachineLevelUserCloudPolicyStore
       const base::FilePath& external_policy_info_path,
       const base::FilePath& policy_path,
       const base::FilePath& key_path,
+      const std::string& policy_type,
       scoped_refptr<base::SequencedTaskRunner> background_task_runner);
   MachineLevelUserCloudPolicyStore(const MachineLevelUserCloudPolicyStore&) =
       delete;
@@ -62,6 +63,12 @@ class POLICY_EXPORT MachineLevelUserCloudPolicyStore
       std::unique_ptr<enterprise_management::PolicyFetchResponse> policy,
       CloudPolicyValidatorBase::ValidateTimestampOption option) override;
 
+  // override UserCloudPolicyStoreBase
+  std::unique_ptr<ExtensionInstallCloudPolicyValidator>
+  CreateExtensionInstallValidator(
+      std::unique_ptr<enterprise_management::PolicyFetchResponse> policy,
+      CloudPolicyValidatorBase::ValidateTimestampOption option) override;
+
   // Setup global |dm_token| and |client_id| in store for the validation purpose
   // before policy refresh.
   void SetupRegistration(const DMToken& machine_dm_token,
@@ -89,6 +96,26 @@ class POLICY_EXPORT MachineLevelUserCloudPolicyStore
       std::unique_ptr<enterprise_management::PolicySigningKey> key,
       bool validate_in_background,
       UserCloudPolicyValidator::CompletionCallback callback) override;
+
+  void ValidateExtensionInstallPolicy(
+      std::unique_ptr<enterprise_management::PolicyFetchResponse> policy,
+      std::unique_ptr<enterprise_management::PolicySigningKey> key,
+      bool validate_in_background,
+      ExtensionInstallCloudPolicyValidator::CompletionCallback callback)
+      override;
+
+  template <typename PayloadProto>
+  void ValidateImpl(
+      std::unique_ptr<CloudPolicyValidator<PayloadProto>> validator,
+      std::unique_ptr<enterprise_management::PolicySigningKey> cached_key,
+      bool validate_in_background,
+      CloudPolicyValidator<PayloadProto>::CompletionCallback callback);
+
+  template <typename PayloadProto>
+  std::unique_ptr<CloudPolicyValidator<PayloadProto>> CreateValidatorImpl(
+      std::unique_ptr<enterprise_management::PolicyFetchResponse>
+          policy_fetch_response,
+      CloudPolicyValidatorBase::ValidateTimestampOption timestamp_option);
 
   DMToken machine_dm_token_;
   std::string machine_client_id_;

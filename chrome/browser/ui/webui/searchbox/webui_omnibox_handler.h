@@ -74,6 +74,8 @@ class WebuiOmniboxHandler : public ContextualSearchboxHandler,
       bookmarks::BookmarkModel* bookmark_model,
       const omnibox::GroupConfigMap& suggestion_groups_map,
       const TemplateURLService* turl_service) const override;
+  std::string AutocompleteIconToResourceName(
+      const gfx::VectorIcon& icon) const override;
 
   // AutocompleteController::Observer:
   void OnStart(AutocompleteController* controller,
@@ -87,6 +89,7 @@ class WebuiOmniboxHandler : public ContextualSearchboxHandler,
   void OnMatchIconUpdated(size_t index) override {}
   void OnContentsChanged() override {}
   void OnKeywordStateChanged(bool is_keyword_selected) override;
+  void OnCharTyped(base::TimeTicks timstamp) override;
 
   // `AimEligibilityService` callback.
   void OnAimEligibilityChanged();

@@ -214,38 +214,16 @@ size_t ModuleDecoder::IdentifyUnknownSection(ModuleDecoder* decoder,
 
 bool ModuleDecoder::ok() const { return impl_->ok(); }
 
-Result<const FunctionSig*> DecodeWasmSignatureForTesting(
-    WasmEnabledFeatures enabled_features, Zone* zone,
-    base::Vector<const uint8_t> bytes) {
+Result<std::pair<WasmModuleSignatureStorage, const FunctionSig*>>
+DecodeWasmSignatureForTesting(WasmEnabledFeatures enabled_features,
+                              base::Vector<const uint8_t> bytes) {
   WasmDetectedFeatures unused_detected_features;
   ModuleDecoderImpl decoder{enabled_features, bytes, kWasmOrigin,
                             &unused_detected_features};
-  return decoder.toResult(
-      decoder.DecodeFunctionSignatureForTesting(zone, bytes.begin()));
-}
-
-ConstantExpression DecodeWasmInitExprForTesting(
-    WasmEnabledFeatures enabled_features, base::Vector<const uint8_t> bytes,
-    ValueType expected) {
-  WasmDetectedFeatures unused_detected_features;
-  ModuleDecoderImpl decoder{enabled_features, bytes, kWasmOrigin,
-                            &unused_detected_features};
-  return decoder.DecodeInitExprForTesting(expected);
-}
-
-FunctionResult DecodeWasmFunctionForTesting(
-    WasmEnabledFeatures enabled_features, Zone* zone,
-    ModuleWireBytes wire_bytes, const WasmModule* module,
-    base::Vector<const uint8_t> function_bytes) {
-  if (function_bytes.size() > kV8MaxWasmFunctionSize) {
-    return FunctionResult{
-        WasmError{0, "size > maximum function size (%zu): %zu",
-                  kV8MaxWasmFunctionSize, function_bytes.size()}};
-  }
-  WasmDetectedFeatures unused_detected_features;
-  ModuleDecoderImpl decoder{enabled_features, function_bytes, kWasmOrigin,
-                            &unused_detected_features};
-  return decoder.DecodeSingleFunctionForTesting(zone, wire_bytes, module);
+  const FunctionSig* sig =
+      decoder.DecodeFunctionSignatureForTesting(bytes.begin());
+  return decoder.toResult(std::make_pair(
+      std::move(decoder.shared_module()->signature_storage), sig));
 }
 
 AsmJsOffsetsResult DecodeAsmJsOffsets(
@@ -557,7 +535,7 @@ class ValidateFunctionsTask : public JobTask {
                  "wasm.ValidateFunctionsTask");
 
     WasmDetectedFeatures detected_features;
-    Zone zone(GetWasmEngine()->allocator(), ZONE_NAME);
+    Zone zone(GetWasmEngine()->allocator(), "Wasm ValidateFunctionsTask");
     do {
       // Get the index of the next function to validate.
       // {fetch_add} might overrun {after_last_function_} by a bit. Since the

@@ -415,7 +415,8 @@ TEST_F(SharedPasswordControllerTest,
   using Observer = autofill::AutofillManager::Observer;
   manager->NotifyObservers(&Observer::OnFieldTypesDetermined,
                            main_form.global_id(),
-                           Observer::FieldTypeSource::kAutofillServer);
+                           Observer::FieldTypeSource::kAutofillServer,
+                           /*small_forms_were_parsed=*/false);
 }
 
 // Tests that the password manager is notified about model predictions for a
@@ -996,6 +997,40 @@ TEST_F(SharedPasswordControllerTest, PresavesGeneratedPassword) {
   // entrypoint was used.
   histogram_tester.ExpectTotalCount(
       "PasswordManager.TouchToFill.PasswordGeneration.UserChoice", 0);
+}
+
+// Tests that selecting a passkey suggestion invokes the
+// WebAuthnCredentialsDelegate.
+TEST_F(SharedPasswordControllerTest, SelectPasskeySuggestion) {
+  // Set up the frame.
+  auto web_frame =
+      web::FakeWebFrame::Create(SysNSStringToUTF8(kTestFrameID),
+                                /*is_main_frame=*/true, GURL(kTestURL));
+  AddWebFrame(std::move(web_frame));
+
+  // Set up the mocks.
+  EXPECT_CALL(password_manager_client_, GetWebAuthnCredentialsDelegateForDriver)
+      .WillRepeatedly(Return(&webauthn_credentials_delegate_));
+  std::string credential_id = "credential_id";
+  EXPECT_CALL(webauthn_credentials_delegate_, SelectPasskey(credential_id, _));
+
+  // Create and select a passkey suggestion.
+  FormSuggestion* suggestion = [FormSuggestion
+      suggestionWithValue:@"passkey"
+       displayDescription:@"description"
+                     icon:nil
+                     type:autofill::SuggestionType::kWebauthnCredential
+                  payload:autofill::Suggestion::Guid(credential_id)
+           requiresReauth:NO];
+  [controller_ didSelectSuggestion:suggestion
+                           atIndex:0
+                              form:@"form-name"
+                    formRendererID:autofill::FormRendererId(1)
+                   fieldIdentifier:@"field-id"
+                   fieldRendererID:autofill::FieldRendererId(2)
+                           frameID:kTestFrameID
+                 completionHandler:^{
+                 }];
 }
 
 // Tests that generated passwords that are empty aren't presaved.

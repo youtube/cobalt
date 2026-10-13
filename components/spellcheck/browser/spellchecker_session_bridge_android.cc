@@ -12,41 +12,18 @@
 #include "base/android/jni_string.h"
 #include "base/android/scoped_java_ref.h"
 #include "base/feature_list.h"
+#include "components/spellcheck/common/spellcheck_decoration.h"
 #include "components/spellcheck/common/spellcheck_features.h"
 #include "components/spellcheck/common/spellcheck_result.h"
+#include "components/spellcheck/common/spelling_marker.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/render_process_host.h"
 #include "third_party/blink/public/common/features.h"
-#include "ui/gfx/range/range.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "components/spellcheck/browser/android/jni_headers/SpellCheckerSessionBridge_jni.h"
 
 using base::android::JavaRef;
-
-namespace {
-
-base::android::ScopedJavaLocalRef<jobjectArray> ToRangeJniArray(
-    JNIEnv* env,
-    const std::vector<gfx::Range>& spelling_markers) {
-  base::android::ScopedJavaLocalRef<jclass> range_clazz =
-      base::android::GetClass(env, "android/util/Range");
-  jobjectArray range_array =
-      env->NewObjectArray(spelling_markers.size(), range_clazz.obj(), nullptr);
-
-  base::android::CheckException(env);
-
-  int i = 0;
-  for (const auto& range : spelling_markers) {
-    base::android::ScopedJavaLocalRef<jobject> j_range =
-        Java_SpellCheckerSessionBridge_createRange(env, range.start(),
-                                                   range.end());
-    env->SetObjectArrayElement(range_array, i++, j_range.obj());
-  }
-  return base::android::ScopedJavaLocalRef<jobjectArray>::Adopt(env,
-                                                                range_array);
-}
-}  // namespace
 
 SpellCheckerSessionBridge::SpellCheckerSessionBridge()
     : java_object_initialization_failed_(false) {}
@@ -59,7 +36,7 @@ SpellCheckerSessionBridge::~SpellCheckerSessionBridge() {
 
 void SpellCheckerSessionBridge::RequestTextCheck(
     const std::u16string& text,
-    const std::vector<gfx::Range>& spelling_markers,
+    const std::vector<spellcheck::SpellingMarker>& spelling_markers,
     RequestTextCheckCallback callback) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
@@ -111,7 +88,7 @@ void SpellCheckerSessionBridge::RequestTextCheck(
   JNIEnv* env = base::android::AttachCurrentThread();
   Java_SpellCheckerSessionBridge_requestTextCheck(
       env, java_object_, base::android::ConvertUTF16ToJavaString(env, text),
-      ToRangeJniArray(env, spelling_markers));
+      spelling_markers);
 }
 
 void SpellCheckerSessionBridge::ProcessSpellCheckResults(
@@ -157,7 +134,7 @@ void SpellCheckerSessionBridge::ProcessSpellCheckResults(
     Java_SpellCheckerSessionBridge_requestTextCheck(
         env, java_object_,
         base::android::ConvertUTF16ToJavaString(env, active_request_->text_),
-        ToRangeJniArray(env, active_request_->spelling_markers_));
+        active_request_->spelling_markers_);
   }
 }
 
@@ -178,7 +155,7 @@ void SpellCheckerSessionBridge::DisconnectSession() {
 
 SpellCheckerSessionBridge::SpellingRequest::SpellingRequest(
     const std::u16string& text,
-    const std::vector<gfx::Range>& spelling_markers,
+    const std::vector<spellcheck::SpellingMarker>& spelling_markers,
     RequestTextCheckCallback callback)
     : text_(text),
       spelling_markers_(spelling_markers),
@@ -188,6 +165,20 @@ SpellCheckerSessionBridge::SpellingRequest::~SpellingRequest() {
   // Ensure that we don't clear an uncalled RequestTextCheckCallback
   if (callback_)
     std::move(callback_).Run(std::vector<SpellCheckResult>());
+}
+
+base::android::ScopedJavaLocalRef<jobject> ToJavaSpellingMarker(
+    JNIEnv* env,
+    const spellcheck::SpellingMarker& spelling_marker) {
+  base::android::ScopedJavaLocalRef<jobject> j_spelling_marker =
+      Java_SpellCheckerSessionBridge_createSpellingMarker(
+          env, spelling_marker.start, spelling_marker.end,
+          spelling_marker.marker_type);
+  if (j_spelling_marker.is_null()) {
+    LOG(ERROR) << "Failed to create a spelling marker with range ["
+               << spelling_marker.start << ", " << spelling_marker.end << "];";
+  }
+  return j_spelling_marker;
 }
 
 DEFINE_JNI(SpellCheckerSessionBridge)

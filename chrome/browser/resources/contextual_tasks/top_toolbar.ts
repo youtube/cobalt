@@ -11,11 +11,13 @@ import '//resources/cr_elements/icons.html.js';
 import './favicon_group.js';
 import './sources_menu.js';
 
+import {AnchorAlignment} from '//resources/cr_elements/cr_action_menu/cr_action_menu.js';
 import type {CrActionMenuElement} from 'chrome://resources/cr_elements/cr_action_menu/cr_action_menu.js';
 import type {CrLazyRenderLitElement} from 'chrome://resources/cr_elements/cr_lazy_render/cr_lazy_render_lit.js';
+import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 
-import type {Tab} from './contextual_tasks.mojom-webui.js';
+import type {ContextInfo} from './contextual_tasks.mojom-webui.js';
 import type {BrowserProxy} from './contextual_tasks_browser_proxy.js';
 import {BrowserProxyImpl} from './contextual_tasks_browser_proxy.js';
 import type {SourcesMenuElement} from './sources_menu.js';
@@ -24,8 +26,12 @@ import {getHtml} from './top_toolbar.html.js';
 
 export interface TopToolbarElement {
   $: {
+    closeButton: HTMLImageElement,
+    contextButton: HTMLImageElement,
     menu: CrLazyRenderLitElement<CrActionMenuElement>,
+    newThreadButton: HTMLImageElement,
     sourcesMenu: CrLazyRenderLitElement<SourcesMenuElement>,
+    threadHistoryButton: HTMLImageElement,
     topToolbarLogo: HTMLImageElement,
   };
 }
@@ -39,9 +45,13 @@ export class TopToolbarElement extends CrLitElement {
     return getCss();
   }
 
+  override render() {
+    return getHtml.bind(this)();
+  }
+
   static override get properties() {
     return {
-      attachedTabs: {type: Array},
+      contextInfos: {type: Array},
       darkMode: {
         type: Boolean,
         reflect: true,
@@ -58,18 +68,32 @@ export class TopToolbarElement extends CrLitElement {
   }
 
   override accessor title: string = '';
-  accessor attachedTabs: Tab[] = [];
+  accessor contextInfos: ContextInfo[] = [];
   accessor darkMode: boolean = false;
   accessor isAiPage: boolean = false;
   private browserProxy_: BrowserProxy = BrowserProxyImpl.getInstance();
+  private listenerIds_: number[] = [];
+  protected isExpandButtonEnabled: boolean =
+      loadTimeData.getBoolean('expandButtonEnabled');
 
-  override render() {
-    return getHtml.bind(this)();
+  override connectedCallback() {
+    super.connectedCallback();
+    const callbackRouter = this.browserProxy_.callbackRouter;
+    this.listenerIds_ = [callbackRouter.onContextUpdated.addListener(
+        (contextInfos: ContextInfo[]) => {
+          this.contextInfos = contextInfos;
+        })];
+  }
+
+  override disconnectedCallback() {
+    super.disconnectedCallback();
+    this.listenerIds_.forEach(
+        id => this.browserProxy_.callbackRouter.removeListener(id));
+    this.listenerIds_ = [];
   }
 
   protected shouldShowSourcesMenuButton_(): boolean {
-    // TODO(crbug.com/467166272): Update this when adding images and files.
-    return this.attachedTabs.length > 0;
+    return this.contextInfos.length > 0;
   }
 
   protected onCloseButtonClick_() {
@@ -93,10 +117,17 @@ export class TopToolbarElement extends CrLitElement {
   }
 
   protected onMoreClick_(e: Event) {
-    this.$.menu.get().showAt(e.target as HTMLElement);
+    this.$.menu.get().showAt(e.target as HTMLElement, {
+      noOffset: true,
+      anchorAlignmentY: AnchorAlignment.AFTER_END,
+    });
   }
 
   protected onSourcesClick_(e: Event) {
+    chrome.metricsPrivate.recordUserAction(
+        'ContextualTasks.WebUI.UserAction.OpenSourcesMenu');
+    chrome.metricsPrivate.recordBoolean(
+        'ContextualTasks.WebUI.UserAction.OpenSourcesMenu', true);
     this.$.sourcesMenu.get().showAt(e.target as HTMLElement);
   }
 

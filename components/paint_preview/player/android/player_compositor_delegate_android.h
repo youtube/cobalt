@@ -7,6 +7,7 @@
 
 #include "base/android/jni_android.h"
 #include "base/android/scoped_java_ref.h"
+#include "base/functional/callback.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/task/task_runner.h"
@@ -23,7 +24,7 @@ class PlayerCompositorDelegateAndroid : public PlayerCompositorDelegate {
       JNIEnv* env,
       const base::android::JavaRef<jobject>& j_object,
       PaintPreviewBaseService* paint_preview_service,
-      jlong j_capture_result_ptr,
+      int64_t j_capture_result_ptr,
       const base::android::JavaRef<jstring>& j_url_spec,
       const base::android::JavaRef<jstring>& j_directory_key,
       bool j_main_frame_mode,
@@ -45,8 +46,8 @@ class PlayerCompositorDelegateAndroid : public PlayerCompositorDelegate {
       JNIEnv* env,
       std::optional<base::UnguessableToken>& frame_guid,
       const base::android::JavaRef<jobject>& j_bitmap_callback,
-      const base::android::JavaRef<jobject>& j_error_callback,
-      jfloat j_scale_factor,
+      base::OnceClosure&& error_callback,
+      float j_scale_factor,
       int32_t j_clip_x,
       int32_t j_clip_y,
       int32_t j_clip_width,
@@ -82,7 +83,7 @@ class PlayerCompositorDelegateAndroid : public PlayerCompositorDelegate {
 
   void OnJavaBitmapCallback(
       const base::android::ScopedJavaGlobalRef<jobject>& j_bitmap_callback,
-      const base::android::ScopedJavaGlobalRef<jobject>& j_error_callback,
+      base::OnceClosure&& error_callback,
       int request_id,
       JavaBitmapResult result);
 

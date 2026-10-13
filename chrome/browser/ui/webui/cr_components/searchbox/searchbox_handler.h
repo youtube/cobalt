@@ -12,11 +12,15 @@
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/time/time.h"
+#include "components/contextual_search/contextual_search_types.h"
 #include "components/omnibox/browser/autocomplete_controller.h"
 #include "components/omnibox/browser/searchbox.mojom.h"
+#include "components/omnibox/common/input_state.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "third_party/omnibox_proto/model_mode.pb.h"
+#include "third_party/omnibox_proto/tool_mode.pb.h"
 #include "ui/gfx/vector_icon_types.h"
 #include "ui/webui/resources/cr_components/composebox/composebox.mojom.h"
 
@@ -65,8 +69,8 @@ class SearchboxHandler : public searchbox::mojom::PageHandler,
   // Notifies the WebUI that the contextual input status has changed.
   void OnContextualInputStatusChanged(
       base::UnguessableToken token,
-      composebox_query::mojom::FileUploadStatus status,
-      std::optional<composebox_query::mojom::FileUploadErrorType> error_type);
+      contextual_search::FileUploadStatus status,
+      std::optional<contextual_search::FileUploadErrorType> error_type);
 
   // AutocompleteController::Observer:
   void OnResultChanged(AutocompleteController* controller,
@@ -109,6 +113,7 @@ class SearchboxHandler : public searchbox::mojom::PageHandler,
   void GetPlaceholderConfig(GetPlaceholderConfigCallback callback) override;
   void GetRecentTabs(GetRecentTabsCallback callback) override;
   void GetTabPreview(int32_t tab_id, GetTabPreviewCallback callback) override {}
+  void GetInputState(GetInputStateCallback callback) override;
   void NotifySessionStarted() override {}
   void NotifySessionAbandoned() override {}
   void AddFileContext(searchbox::mojom::SelectedFileInfoPtr file_info,
@@ -127,6 +132,9 @@ class SearchboxHandler : public searchbox::mojom::PageHandler,
                    bool meta_key,
                    bool shift_key) override {}
   void OpenLensSearch() override {}
+  void SetActiveToolMode(omnibox::ToolMode tool) override {}
+  void SetActiveModelMode(omnibox::ModelMode model) override {}
+  void ActivateMetricsFunnel(const std::string& funnel_name) override {}
 
   // Stores `callback` to be run when the page remote is bound and ready to
   // receive calls. Runs `callback` immediately if the remote is already bound.
@@ -150,7 +158,7 @@ class SearchboxHandler : public searchbox::mojom::PageHandler,
 
   const AutocompleteMatch* GetMatchWithUrl(size_t index, const GURL& url) const;
 
-  virtual omnibox::ToolMode GetAimToolMode() const;
+  virtual omnibox::InputState GetInputState() const;
 
   raw_ptr<Profile> profile_;
   raw_ptr<content::WebContents> web_contents_;

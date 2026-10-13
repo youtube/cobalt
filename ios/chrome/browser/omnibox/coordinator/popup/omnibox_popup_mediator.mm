@@ -36,6 +36,8 @@
 #import "ios/chrome/browser/omnibox/ui/popup/carousel/carousel_item_menu_provider.h"
 #import "ios/chrome/browser/omnibox/ui/popup/omnibox_popup_consumer.h"
 #import "ios/chrome/browser/omnibox/ui/popup/omnibox_popup_presenter.h"
+#import "ios/chrome/browser/shared/public/commands/activity_service_commands.h"
+#import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
 #import "ios/chrome/browser/shared/public/commands/omnibox_commands.h"
 #import "ios/chrome/browser/shared/public/commands/open_new_tab_command.h"
 #import "ios/chrome/browser/shared/public/commands/scene_commands.h"
@@ -43,6 +45,7 @@
 #import "ios/chrome/browser/shared/public/features/system_flags.h"
 #import "ios/chrome/browser/shared/ui/util/pasteboard_util.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
+#import "ios/chrome/browser/sharing/ui_bundled/sharing_metrics.h"
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/public/toolbar_omnibox_consumer.h"
 #import "net/base/apple/url_conversions.h"
 #import "ui/base/l10n/l10n_util.h"
@@ -102,8 +105,11 @@ const NSUInteger kMaxSuggestTileTypePosition = 15;
             (OmniboxAutocompleteController*)autocompleteController
                                            hasSuggestions:(BOOL)hasSuggestions
                                                isFocusing:(BOOL)isFocusing {
-  [self.consumer setKeyboardAttachedBottomOmniboxHeight:
-                     self.presenter.keyboardAttachedBottomOmniboxHeight];
+  if (!base::FeatureList::IsEnabled(kComposeboxIOS)) {
+    [self.consumer setKeyboardAttachedBottomOmniboxHeight:
+                       self.presenter.keyboardAttachedBottomOmniboxHeight];
+  }
+
   [self.consumer newResultsAvailable];
   [_consumer setUseBottomOmniboxInPopup:self.presenter.useBottomOmniboxInPopup];
 
@@ -253,6 +259,15 @@ const NSUInteger kMaxSuggestTileTypePosition = 15;
         (AutocompleteMatchFormatter*)suggestion;
     const AutocompleteMatch& match =
         autocompleteMatchFormatter.autocompleteMatch;
+    if (suggestion.isShareable) {
+      base::UmaHistogramEnumeration(
+          "Mobile.ShareThisPage.Used",
+          ShareThisPageLocation::kOmniboxVerbatimMatch);
+      [self.browserCoordinatorCommandsHandler hideComposeboxAndShowShareSheet];
+      [self.omniboxAutocompleteController closeOmniboxPopup];
+      return;
+    }
+
     if (match.has_tab_match.value_or(false)) {
       [self.omniboxAutocompleteController
           selectMatchForOpening:match
@@ -290,7 +305,7 @@ const NSUInteger kMaxSuggestTileTypePosition = 15;
 }
 
 - (void)closeButtonTapped {
-  [self.omniboxCommandsHandler cancelOmniboxEdit];
+  [self.browserCoordinatorCommandsHandler hideComposebox];
   [self.omniboxAutocompleteController closeOmniboxPopup];
 }
 

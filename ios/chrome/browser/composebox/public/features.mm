@@ -46,7 +46,20 @@ bool AlignComposeboxCloseButtonToInputPlateTop() {
   return base::FeatureList::IsEnabled(kComposeboxCloseButtonTopAlign);
 }
 
+BASE_FEATURE(kComposeboxAdditionalAdvancedTools,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool ShowComposeboxAdditionalAdvancedTools() {
+  return base::FeatureList::IsEnabled(kComposeboxAdditionalAdvancedTools);
+}
+
 BASE_FEATURE(kComposeboxCompactMode, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool ShowDeepSearchTool() {
+  return base::FeatureList::IsEnabled(kComposeboxDeepSearch);
+}
+
+BASE_FEATURE(kComposeboxDeepSearch, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsComposeboxCompactModeEnabled() {
   return base::FeatureList::IsEnabled(kComposeboxCompactMode);

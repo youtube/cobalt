@@ -38,6 +38,7 @@
 
 #include "base/functional/callback_helpers.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/mock_callback.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_mock_time_task_runner.h"
 #include "base/time/time.h"
@@ -5525,7 +5526,11 @@ TEST_F(WebViewTest, SubframeBeforeUnloadUseCounter) {
   {
     frame->ExecuteScript(
         WebScriptSource("addEventListener('beforeunload', function() {});"));
-    web_view->MainFrameImpl()->DispatchBeforeUnloadEvent(false);
+    base::TimeTicks before_unload_dialog_opened_time;
+    base::TimeTicks before_unload_dialog_closed_time;
+    web_view->MainFrameImpl()->DispatchBeforeUnloadEvent(
+        false, before_unload_dialog_opened_time,
+        before_unload_dialog_closed_time);
     EXPECT_FALSE(
         document->IsUseCounted(WebFeature::kSubFrameBeforeUnloadFired));
   }
@@ -5536,9 +5541,12 @@ TEST_F(WebViewTest, SubframeBeforeUnloadUseCounter) {
     frame->ExecuteScript(WebScriptSource(
         "document.getElementsByTagName('iframe')[0].contentWindow."
         "addEventListener('beforeunload', function() {});"));
+    base::TimeTicks before_unload_dialog_opened_time;
+    base::TimeTicks before_unload_dialog_closed_time;
     To<WebLocalFrameImpl>(
         web_view->MainFrame()->FirstChild()->ToWebLocalFrame())
-        ->DispatchBeforeUnloadEvent(false);
+        ->DispatchBeforeUnloadEvent(false, before_unload_dialog_opened_time,
+                                    before_unload_dialog_closed_time);
 
     Document* child_document = To<LocalFrame>(web_view_helper_.GetWebView()
                                                   ->GetPage()
@@ -7011,6 +7019,118 @@ TEST_F(WebViewTest, DragAndDropPenButtonHistogramsTest) {
 }
 #endif  // BUILDFLAG(IS_WIN)
 
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+
+class WebViewTestAdditionalWindowingControls : public WebViewTest {
+ public:
+  void SetUp() override {
+    feature_list_.InitAndEnableFeature(
+        features::kDesktopPWAsAdditionalWindowingControls);
+    WebViewTest::SetUp();
+    web_view_impl_ = web_view_helper_.Initialize();
+  }
+  WebViewImpl* WebView() { return web_view_impl_; }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+  WebViewImpl* web_view_impl_;
+};
+
+TEST_F(WebViewTestAdditionalWindowingControls, MaximizeCallbackCalled) {
+  using ui::mojom::blink::WindowShowState;
+
+  const std::vector<WindowShowState> start_states = {
+      WindowShowState::kDefault, WindowShowState::kNormal,
+      WindowShowState::kMinimized, WindowShowState::kFullscreen};
+
+  for (const WindowShowState start_state : start_states) {
+    SCOPED_TRACE(testing::Message() << "Testing transition from " << start_state
+                                    << " to " << WindowShowState::kMaximized);
+    base::MockOnceCallback<void(bool)> maximize_callback;
+    EXPECT_CALL(maximize_callback, Run(true));
+
+    WebView()->Maximize(maximize_callback.Get());
+    WebView()->OnWindowShowStateChanged(
+        /*old_state=*/start_state,
+        /*new_state=*/WindowShowState::kMaximized);
+  }
+}
+
+TEST_F(WebViewTestAdditionalWindowingControls, MinimizeCallbackCalled) {
+  using ui::mojom::blink::WindowShowState;
+
+  const std::vector<WindowShowState> start_states = {
+      WindowShowState::kDefault, WindowShowState::kNormal,
+      WindowShowState::kMaximized, WindowShowState::kFullscreen};
+
+  for (const WindowShowState start_state : start_states) {
+    SCOPED_TRACE(testing::Message() << "Testing transition from " << start_state
+                                    << " to " << WindowShowState::kMinimized);
+    base::MockOnceCallback<void(bool)> minimize_callback;
+    EXPECT_CALL(minimize_callback, Run(true));
+
+    WebView()->Minimize(minimize_callback.Get());
+    WebView()->OnWindowShowStateChanged(
+        /*old_state=*/start_state,
+        /*new_state=*/WindowShowState::kMinimized);
+  }
+}
+
+TEST_F(WebViewTestAdditionalWindowingControls, RestoreToNormalCallbackCalled) {
+  using ui::mojom::blink::WindowShowState;
+
+  const std::vector<WindowShowState> start_states = {
+      WindowShowState::kMinimized, WindowShowState::kMaximized,
+      WindowShowState::kFullscreen};
+
+  for (const WindowShowState start_state : start_states) {
+    SCOPED_TRACE(testing::Message() << "Testing transition from " << start_state
+                                    << " to " << WindowShowState::kNormal);
+    base::MockOnceCallback<void(bool)> restore_callback;
+    EXPECT_CALL(restore_callback, Run(true));
+
+    WebView()->Restore(restore_callback.Get());
+    WebView()->OnWindowShowStateChanged(
+        /*old_state=*/start_state,
+        /*new_state=*/WindowShowState::kNormal);
+  }
+}
+
+TEST_F(WebViewTestAdditionalWindowingControls,
+       RestoreToMaximizedCallbackCalled) {
+  using ui::mojom::blink::WindowShowState;
+
+  const std::vector<WindowShowState> start_states = {
+      WindowShowState::kMinimized, WindowShowState::kFullscreen};
+
+  for (const WindowShowState start_state : start_states) {
+    SCOPED_TRACE(testing::Message() << "Testing transition from " << start_state
+                                    << " to " << WindowShowState::kMaximized);
+    base::MockOnceCallback<void(bool)> restore_callback;
+    EXPECT_CALL(restore_callback, Run(true));
+
+    WebView()->Restore(restore_callback.Get());
+    WebView()->OnWindowShowStateChanged(
+        /*old_state=*/start_state,
+        /*new_state=*/WindowShowState::kMaximized);
+  }
+}
+
+TEST_F(WebViewTestAdditionalWindowingControls, SetResizableCallbackCalled) {
+  using ui::mojom::blink::WindowShowState;
+
+  const std::vector<bool> values_to_test = {true, false};
+  for (const bool value_to_test : values_to_test) {
+    base::MockOnceCallback<void(bool)> set_resizable_callback;
+    EXPECT_CALL(set_resizable_callback, Run(true));
+
+    WebView()->SetResizable(value_to_test, set_resizable_callback.Get());
+    WebView()->OnResizableChanged(/*new_resizable=*/value_to_test);
+  }
+}
+
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+
 INSTANTIATE_TEST_SUITE_P(
     All,
     WebViewTestTouchDragEndContextMenuWithPointerType,
@@ -7023,5 +7143,54 @@ INSTANTIATE_TEST_SUITE_P(
     WebViewTestWithPointerType,
     ::testing::Values(WebPointerProperties::PointerType::kTouch,
                       WebPointerProperties::PointerType::kPen));
+
+TEST_F(WebViewTest, MouseFocusOnTabindexLinkDoesNotShowBubble) {
+  WebViewImpl* web_view = web_view_helper_.Initialize();
+  WebLocalFrameImpl* frame = web_view->MainFrameImpl();
+  frame_test_helpers::LoadHTMLString(frame,
+                                     "<a id='link' href='http://example.com/' "
+                                     "tabindex='0'>link</a>",
+                                     KURL("http://internal.test/"));
+
+  Document* document = frame->GetFrame()->GetDocument();
+  Element* link = document->getElementById(AtomicString("link"));
+
+  // Focus via mouse
+  link->Focus(FocusParams(SelectionBehaviorOnFocus::kReset,
+                          mojom::blink::FocusType::kMouse, nullptr,
+                          FocusOptions::Create(), FocusTrigger::kUserGesture));
+
+  // Verify focus_url_ is NOT set in WebViewImpl (because it was mouse focus)
+  EXPECT_TRUE(web_view->focus_url_.IsEmpty());
+
+  // Mouse out (clear mouse over URL)
+  web_view->SetMouseOverURL(KURL());
+
+  // Verify target_url_ (Status bubble) is empty
+  EXPECT_TRUE(web_view->target_url_.IsEmpty());
+}
+
+TEST_F(WebViewTest, KeyboardFocusOnTabindexLinkShowsBubble) {
+  WebViewImpl* web_view = web_view_helper_.Initialize();
+  WebLocalFrameImpl* frame = web_view->MainFrameImpl();
+  frame_test_helpers::LoadHTMLString(frame,
+                                     "<a id='link' href='http://example.com/' "
+                                     "tabindex='0'>link</a>",
+                                     KURL("http://internal.test/"));
+
+  Document* document = frame->GetFrame()->GetDocument();
+  Element* link = document->getElementById(AtomicString("link"));
+
+  // Focus via keyboard
+  link->Focus(FocusParams(SelectionBehaviorOnFocus::kReset,
+                          mojom::blink::FocusType::kForward, nullptr,
+                          FocusOptions::Create(), FocusTrigger::kUserGesture));
+
+  // Verify focus_url_ IS set in WebViewImpl
+  EXPECT_EQ(KURL("http://example.com/"), web_view->focus_url_);
+
+  // Verify target_url_ (Status bubble) is showing the link URL
+  EXPECT_EQ(KURL("http://example.com/"), web_view->target_url_);
+}
 
 }  // namespace blink

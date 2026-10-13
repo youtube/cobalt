@@ -44,6 +44,13 @@ public class HomeTipsModulesProviderUnitTest {
     @Before
     public void setUp() {
         SetupListManager.setInstanceForTesting(mSetupListManager);
+        when(mSetupListManager.getRankedModuleTypes())
+                .thenReturn(
+                        List.of(
+                                ModuleType.ENHANCED_SAFE_BROWSING_PROMO,
+                                ModuleType.ADDRESS_BAR_PLACEMENT_PROMO));
+        when(mSetupListManager.getTwoCellContainerModuleTypes())
+                .thenReturn(List.of(ModuleType.SETUP_LIST_TWO_CELL_CONTAINER));
     }
 
     @Test
@@ -56,7 +63,7 @@ public class HomeTipsModulesProviderUnitTest {
 
         verify(mModuleRegistry)
                 .registerModule(
-                        eq(ModuleType.SETUP_LIST_TWO_CELL_CONTAINER),
+                        eq(SetupListModuleUtils.getTwoCellContainerModuleTypes().get(0)),
                         any(EducationalTipModuleTwoCellBuilder.class));
     }
 
@@ -114,7 +121,8 @@ public class HomeTipsModulesProviderUnitTest {
     @SmallTest
     public void
             testGetModulesToRegister_returnsTwoCellContainerWhenSetupListActiveAndTwoCellEnabled() {
-        Collection<Integer> expectedModules = List.of(ModuleType.SETUP_LIST_TWO_CELL_CONTAINER);
+        Collection<Integer> expectedModules =
+                List.of(SetupListModuleUtils.getTwoCellContainerModuleTypes().get(0));
         Collection<Integer> actualModules =
                 HomeTipsModulesProvider.getModuleTypesToRegister(
                         /* isSetupListActive= */ true, /* showTwoCell= */ true);

@@ -61,7 +61,7 @@ class AppBannerManagerDesktop
                                    const blink::mojom::Manifest& manifest,
                                    NativeCheckCallback callback) override;
   void OnWebAppInstallableCheckedNoErrors(
-      const ManifestId& manifest_id) const override;
+      const ManifestId& manifest_id) override;
   base::expected<void, InstallableStatusCode> CanRunWebAppInstallableChecks(
       const blink::mojom::Manifest& manifest) override;
   bool IsSupportedNonWebAppPlatform(
@@ -69,7 +69,6 @@ class AppBannerManagerDesktop
   bool IsRelatedNonWebAppInstalled(
       const blink::Manifest::RelatedApplication& related_app) const override;
   void MaybeShowAmbientBadge(const InstallBannerConfig& config) override;
-  base::WeakPtr<AppBannerManager> GetWeakPtrForThisNavigation() override;
   void InvalidateWeakPtrsForThisNavigation() override;
   void ResetCurrentPageData() override;
   void OnMlInstallPrediction(base::PassKey<MLInstallabilityPromoter>,
@@ -78,8 +77,7 @@ class AppBannerManagerDesktop
                     const InstallBannerConfig& config) override;
 
   // Called when the web app install initiated by a banner has completed.
-  // Virtual for testing.
-  virtual void DidFinishCreatingWebApp(
+  void DidFinishCreatingWebApp(
       const webapps::ManifestId& manifest_id,
       base::WeakPtr<AppBannerManagerDesktop> is_navigation_current,
       const webapps::AppId& app_id,

@@ -10,13 +10,20 @@
 
 #include "video/timing/simulator/rtp_packet_simulator.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <vector>
+
 #include "api/environment/environment.h"
 #include "api/rtp_headers.h"
 #include "logging/rtc_event_log/events/logged_rtp_rtcp.h"
 #include "logging/rtc_event_log/rtc_event_log_parser.h"
+#include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
+#include "modules/rtp_rtcp/source/byte_io.h"
 #include "modules/rtp_rtcp/source/rtp_dependency_descriptor_extension.h"
 #include "modules/rtp_rtcp/source/rtp_header_extensions.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
+#include "rtc_base/logging.h"
 
 namespace webrtc::video_timing_simulator {
 
@@ -25,7 +32,8 @@ RtpPacketSimulator::RtpPacketSimulator(const Environment& env)
       rtp_header_extension_map_(
           ParsedRtcEventLog::GetDefaultHeaderExtensionMap()) {}
 
-RtpPacketReceived RtpPacketSimulator::SimulateRtpPacketReceived(
+RtpPacketSimulator::SimulatedPacket
+RtpPacketSimulator::SimulateRtpPacketReceived(
     const LoggedRtpPacket& logged_packet) const {
   RtpPacketReceived rtp_packet(&rtp_header_extension_map_);
   rtp_packet.set_arrival_time(env_.clock().CurrentTime());
@@ -55,12 +63,25 @@ RtpPacketReceived RtpPacketSimulator::SimulateRtpPacketReceived(
       logged_packet.dependency_descriptor_wire_format);
 
   // Payload and padding.
-  rtp_packet.AllocatePayload(logged_packet.total_length -
-                             logged_packet.header_length -
-                             header.paddingLength);
+  size_t payload_size = logged_packet.total_length -
+                        logged_packet.header_length - header.paddingLength;
+  std::vector<uint8_t> payload(payload_size, 0u);  // Zero initialize.
+  bool has_rtx_osn = logged_packet.rtx_original_sequence_number.has_value();
+  if (has_rtx_osn) {
+    if (payload.size() < kRtpHeaderSize) {
+      RTC_LOG(LS_WARNING) << "Packet was logged with RTX OSN, but payload size "
+                             "could not fit it";
+    } else {
+      // Storing the RTX OSN in-band is required for downstream handling of the
+      // packets.
+      uint16_t rtx_osn = *logged_packet.rtx_original_sequence_number;
+      ByteWriter<uint16_t>::WriteBigEndian(payload.data(), rtx_osn);
+    }
+  }
+  rtp_packet.SetPayload(payload);
   rtp_packet.SetPadding(header.paddingLength);
 
-  return rtp_packet;
+  return {.rtp_packet = rtp_packet, .has_rtx_osn = has_rtx_osn};
 }
 
 }  // namespace webrtc::video_timing_simulator

@@ -1061,7 +1061,8 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
                 isMenuIconAtStart,
                 mBaseCustomTabRootUiCoordinator.getReadAloudControllerSupplier(),
                 mBaseCustomTabRootUiCoordinator::getContextualPageActionController,
-                mIntentDataProvider.getClientPackageNameIdentitySharing() != null);
+                mIntentDataProvider.getClientPackageNameIdentitySharing() != null,
+                mBaseCustomTabRootUiCoordinator.getOpenInAppMenuItemProvider());
     }
 
     @Override
@@ -1652,7 +1653,8 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
                         getLifecycleDispatcher(),
                         getSavedInstanceState(),
                         null,
-                        getEdgeToEdgeManager().getEdgeToEdgeStateProvider());
+                        getEdgeToEdgeManager().getEdgeToEdgeStateProvider(),
+                        null);
 
         return mAppHeaderCoordinator;
     }
@@ -1713,12 +1715,23 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
     @Nullable
     @BrowserWindowType
     Integer getSupportedBrowserWindowType() {
-        if (mIntentDataProvider.getUiType() == CustomTabsUiType.POPUP) {
-            return BrowserWindowType.POPUP;
+        // PWA
+        if (mIntentDataProvider.getActivityType() == ActivityType.WEBAPP) {
+            return BrowserWindowType.APP;
         }
 
-        if (mIntentDataProvider.getActivityType() == ActivityType.WEBAPP) {
-            return BrowserWindowType.APP_POPUP;
+        @CustomTabsUiType int type = mIntentDataProvider.getUiType();
+        switch (type) {
+            // Popups
+            case CustomTabsUiType.POPUP:
+                return BrowserWindowType.POPUP;
+            // PWA and TWA
+            case CustomTabsUiType.MINIMAL_UI_WEBAPP:
+            /* fallthrough */
+            case CustomTabsUiType.TRUSTED_WEB_ACTIVITY:
+                return BrowserWindowType.APP;
+            default:
+                break;
         }
 
         return null;

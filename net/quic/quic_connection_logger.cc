@@ -529,8 +529,9 @@ void QuicConnectionLogger::UpdateReceivedFrameCounts(
 }
 
 void QuicConnectionLogger::OnCertificateVerified(
-    const CertVerifyResult& result) {
-  event_logger_.OnCertificateVerified(result);
+    const CertVerifyResult& result,
+    const std::vector<std::vector<uint8_t>>& server_tais) {
+  event_logger_.OnCertificateVerified(result, server_tais);
 }
 
 float QuicConnectionLogger::ReceivedPacketLossRate() const {

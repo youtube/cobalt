@@ -15,16 +15,16 @@
 #include "base/supports_user_data.h"
 #include "base/types/expected.h"
 #include "base/types/pass_key.h"
-#include "chrome/browser/ai/ai_model_download_progress_manager.h"
 #include "components/component_updater/component_updater_service.h"
 #include "components/on_device_translation/public/mojom/translator.mojom.h"
+#include "components/optimization_guide/core/model_execution/on_device_model_download_progress_manager.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "mojo/public/cpp/bindings/unique_receiver_set.h"
-#include "third_party/blink/public/mojom/ai/model_download_progress_observer.mojom-forward.h"
+#include "services/on_device_model/public/mojom/download_observer.mojom-forward.h"
 #include "third_party/blink/public/mojom/on_device_translation/translation_manager.mojom.h"
 #include "third_party/blink/public/mojom/on_device_translation/translator.mojom.h"
 #include "url/origin.h"
@@ -77,8 +77,6 @@ class TranslationManagerImpl : public base::SupportsUserData::Data,
   content::RenderProcessHost* process_host() { return process_host_.get(); }
 
  private:
-  friend class TranslationManagerImplTest;
-
   static TranslationManagerImpl* GetOrCreate(
       content::RenderProcessHost* process_host,
       content::BrowserContext* browser_context,
@@ -133,6 +131,8 @@ class TranslationManagerImpl : public base::SupportsUserData::Data,
           blink::mojom::TranslationManagerCreateTranslatorClient> client,
       const std::string& source_language,
       const std::string& target_language,
+      std::unique_ptr<optimization_guide::OnDeviceModelDownloadProgressManager>
+          model_download_progress_manager,
       base::expected<mojo::PendingRemote<mojom::Translator>,
                      blink::mojom::CreateTranslatorError> result);
 
@@ -160,7 +160,6 @@ class TranslationManagerImpl : public base::SupportsUserData::Data,
   mojo::ReceiverSet<blink::mojom::TranslationManager> receiver_set_;
   raw_ptr<component_updater::ComponentUpdateService> component_update_service_;
 
-  on_device_ai::AIModelDownloadProgressManager model_download_progress_manager_;
   base::WeakPtrFactory<TranslationManagerImpl> weak_ptr_factory_{this};
 };
 

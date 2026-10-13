@@ -36,6 +36,10 @@
   return self.coordinator.viewController;
 }
 
+- (BrowserLayoutViewController*)browserLayoutViewController {
+  return self.coordinator.browserLayoutViewController;
+}
+
 - (Browser*)browser {
   return self.coordinator.browser;
 }
@@ -50,12 +54,6 @@
 
 - (BOOL)playingTTS {
   return self.coordinator.playingTTS;
-}
-
-- (void)clearPresentedStateWithCompletion:(ProceduralBlock)completion
-                           dismissOmnibox:(BOOL)dismissOmnibox {
-  [self.coordinator clearPresentedStateWithCompletion:completion
-                                       dismissOmnibox:dismissOmnibox];
 }
 
 @end

@@ -116,15 +116,42 @@ void SetEnabledExtensions(const TExtensionBehavior &behavior, ffi::ExtensionsEna
     extensions->OVR_multiview2      = IsExtensionEnabled(behavior, TExtension::OVR_multiview2);
     extensions->WEBGL_video_texture = IsExtensionEnabled(behavior, TExtension::WEBGL_video_texture);
 }
+
+void SetLimits(const ShBuiltInResources &resources, ffi::Limits *limits)
+{
+    limits->max_combined_draw_buffers_and_pixel_local_storage_planes =
+        resources.MaxCombinedDrawBuffersAndPixelLocalStoragePlanes;
+}
+
+void SetOptions(TCompiler *compiler, const ShCompileOptions &options, ffi::CompileOptions *opt)
+{
+    opt->shader_version = compiler->getShaderVersion();
+    opt->output         = static_cast<ffi::OutputLanguage>(compiler->getOutputType());
+    opt->is_es1         = compiler->getShaderVersion() == 100;
+
+    opt->initialize_uninitialized_variables = options.initializeUninitializedLocals ||
+                                              options.initOutputVariables || options.initGLPosition;
+    opt->loops_allowed_when_initializing_variables = !options.dontUseLoopsToInitializeVariables;
+    opt->initializer_allowed_on_non_constant_global_variables =
+        !options.forceDeferNonConstGlobalInitializers;
+    opt->pass_highp_to_pack_unorm_snorm_built_ins = options.passHighpToPackUnormSnormBuiltins;
+
+    opt->rewrite_pixel_local_storage = compiler->hasPixelLocalStorageUniforms();
+    opt->pls_options.implementation  = static_cast<ffi::PixelLocalStorageImpl>(options.pls.type);
+    opt->pls_options.fragment_sync =
+        static_cast<ffi::PixelLocalStorageSync>(options.pls.fragmentSyncType);
+    opt->pls_options.supports_noncoherent = options.pls.supportsNoncoherent;
+    opt->pls_options.supports_native_rgba8_image_formats =
+        options.pls.supportsNativeRGBA8ImageFormats;
+}
 }  // namespace
 
 Output GenerateAST(IR ir, TCompiler *compiler, const ShCompileOptions &options)
 {
     ffi::CompileOptions opt;
-    opt.shader_version = compiler->getShaderVersion();
-    opt.is_es1 = compiler->getShaderVersion() == 100;
-
+    SetOptions(compiler, options, &opt);
     SetEnabledExtensions(compiler->getExtensionBehavior(), &opt.extensions);
+    SetLimits(compiler->getResources(), &opt.limits);
 
     ffi::Output output = ffi::generate_ast(std::move(ir), compiler, GetGlobalPoolAllocator(), opt);
 

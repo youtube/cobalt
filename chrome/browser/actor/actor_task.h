@@ -14,6 +14,8 @@
 #include "base/cancelable_callback.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
 #include "base/timer/elapsed_timer.h"
 #include "base/types/pass_key.h"
@@ -34,6 +36,7 @@ namespace actor {
 
 class ActionTrackerForMetrics;
 class ActorKeyedService;
+class EnterprisePolicyUrlChecker;
 class ExecutionEngine;
 
 namespace ui {
@@ -61,24 +64,37 @@ class ActorTask {
                               std::optional<size_t>,
                               std::vector<ActionResultWithLatencyInfo>)>;
 
-  ActorTask() = delete;
-  ActorTask(Profile* profile,
-            std::unique_ptr<ExecutionEngine> execution_engine,
+  // Created only via ActorKeyedService::CreateTask or the CreateForTesting
+  // method in this class.
+  ActorTask(base::PassKey<ActorKeyedService, ActorTask>,
+            Profile* profile,
+            TaskId id,
             std::unique_ptr<ui::UiEventDispatcher> ui_event_dispatcher,
             webui::mojom::TaskOptionsPtr options,
+            const EnterprisePolicyUrlChecker* policy_checker,
             base::WeakPtr<ActorTaskDelegate> delegate = nullptr);
-  ActorTask(const ActorTask&) = delete;
-  ActorTask& operator=(const ActorTask&) = delete;
   ~ActorTask();
 
-  // Can only be called by ActorKeyedService
-  void SetId(base::PassKey<ActorKeyedService>, TaskId id);
+  ActorTask() = delete;
+  ActorTask(const ActorTask&) = delete;
+  ActorTask& operator=(const ActorTask&) = delete;
+
+  static std::unique_ptr<ActorTask> CreateForTesting(
+      Profile* profile,
+      TaskId id,
+      std::unique_ptr<ui::UiEventDispatcher> ui_event_dispatcher,
+      webui::mojom::TaskOptionsPtr options,
+      const EnterprisePolicyUrlChecker* policy_checker,
+      base::WeakPtr<ActorTaskDelegate> delegate);
+
   TaskId id() const { return id_; }
-  // Can only be called by unit tests.
-  void SetIdForTesting(int id);
 
   const std::string& title() const { return title_; }
   base::WeakPtr<ActorTaskDelegate> delegate() const { return delegate_; }
+
+  const EnterprisePolicyUrlChecker& policy_checker() const {
+    return policy_checker_.get();
+  }
 
   // Once `state_` leaves kCreated it should never go back. Once `state_` enters
   // kFinished, kCancelled, or kFailed it should never change. These states are
@@ -170,7 +186,7 @@ class ActorTask {
   bool IsCompleted() const;
   static bool IsCompletedState(State state);
 
-  ExecutionEngine* GetExecutionEngine() const;
+  ExecutionEngine& GetExecutionEngine() const;
 
   // Add/remove the given TabHandle to the set of tabs this task is operating
   // over and notify the UI if this is a new tab for the task. Added tabs will
@@ -199,9 +215,9 @@ class ActorTask {
   // The set of tabs that were acted on by the last call to Act.
   TabHandleSet GetLastActedTabs() const;
 
-  void SetExecutionEngineForTesting(std::unique_ptr<ExecutionEngine> engine);
-
   base::WeakPtr<ActorTask> GetWeakPtr();
+
+  Profile* profile() const { return profile_; }
 
  private:
   class ActorControlledTabState : public content::WebContentsObserver {
@@ -269,6 +285,8 @@ class ActorTask {
   State state_ = State::kCreated;
   raw_ptr<Profile> profile_;
 
+  TaskId id_;
+
   // The time at which the task was created.
   base::TimeTicks create_time_;
 
@@ -277,13 +295,11 @@ class ActorTask {
 
   std::unique_ptr<ActionTrackerForMetrics> action_tracker_for_metrics_;
 
-  // There are multiple possible execution engines. For now we only support
-  // ExecutionEngine.
+  // The engine responsible for actually processing and invoking a list of
+  // ToolRequests. Always non-null.
   std::unique_ptr<ExecutionEngine> execution_engine_;
 
   std::unique_ptr<ui::UiEventDispatcher> ui_event_dispatcher_;
-
-  TaskId id_;
 
   base::SafeRef<AggregatedJournal> journal_;
 
@@ -331,6 +347,9 @@ class ActorTask {
 
   // Once a task is stopped what the reason was.
   std::optional<StoppedReason> stopped_reason_;
+
+  // This is owned by actor keyed service which owns this class.
+  const raw_ref<const EnterprisePolicyUrlChecker> policy_checker_;
 
   // Delegate for task-related events.
   base::WeakPtr<ActorTaskDelegate> delegate_;

@@ -343,7 +343,7 @@ IN_PROC_BROWSER_TEST_F(NetworkServiceBrowserSimpleCacheTest,
 
   network::mojom::URLLoaderFactoryParamsPtr params =
       network::mojom::URLLoaderFactoryParams::New();
-  params->process_id = network::mojom::kBrowserProcessId;
+  params->process_id = network::OriginatingProcess::browser();
   params->automatically_assign_isolation_info = true;
   params->is_orb_enabled = false;
   params->is_trusted = true;
@@ -390,7 +390,7 @@ class NetworkConnectionObserver
         this);
   }
 
-  void WaitForConnectionType(network::mojom::ConnectionType type) {
+  void WaitForConnectionType(net::NetworkChangeNotifier::ConnectionType type) {
     type_to_wait_for_ = type;
     if (last_connection_type_ == type_to_wait_for_)
       return;
@@ -400,17 +400,18 @@ class NetworkConnectionObserver
   }
 
   // network::NetworkConnectionTracker::NetworkConnectionObserver:
-  void OnConnectionChanged(network::mojom::ConnectionType type) override {
+  void OnConnectionChanged(
+      net::NetworkChangeNotifier::ConnectionType type) override {
     last_connection_type_ = type;
     if (run_loop_ && type_to_wait_for_ == type)
       run_loop_->Quit();
   }
 
  private:
-  network::mojom::ConnectionType type_to_wait_for_ =
-      network::mojom::ConnectionType::CONNECTION_UNKNOWN;
-  network::mojom::ConnectionType last_connection_type_ =
-      network::mojom::ConnectionType::CONNECTION_UNKNOWN;
+  net::NetworkChangeNotifier::ConnectionType type_to_wait_for_ =
+      net::NetworkChangeNotifier::ConnectionType::CONNECTION_UNKNOWN;
+  net::NetworkChangeNotifier::ConnectionType last_connection_type_ =
+      net::NetworkChangeNotifier::ConnectionType::CONNECTION_UNKNOWN;
   std::unique_ptr<base::RunLoop> run_loop_;
 };
 
@@ -437,12 +438,12 @@ IN_PROC_BROWSER_TEST_F(NetworkServiceConnectionTypeSyncedBrowserTest,
   net::NetworkChangeNotifier::NotifyObserversOfConnectionTypeChangeForTests(
       net::NetworkChangeNotifier::CONNECTION_WIFI);
   observer.WaitForConnectionType(
-      network::mojom::ConnectionType::CONNECTION_WIFI);
+      net::NetworkChangeNotifier::ConnectionType::CONNECTION_WIFI);
 
   net::NetworkChangeNotifier::NotifyObserversOfConnectionTypeChangeForTests(
       net::NetworkChangeNotifier::CONNECTION_ETHERNET);
   observer.WaitForConnectionType(
-      network::mojom::ConnectionType::CONNECTION_ETHERNET);
+      net::NetworkChangeNotifier::ConnectionType::CONNECTION_ETHERNET);
 }
 #endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
 
@@ -593,7 +594,7 @@ IN_PROC_BROWSER_TEST_F(NetworkServiceBrowserTest, FactoryOverride) {
   auto loader = network::SimpleURLLoader::Create(std::move(request),
                                                  TRAFFIC_ANNOTATION_FOR_TESTS);
   auto params = network::mojom::URLLoaderFactoryParams::New();
-  params->process_id = 0;
+  params->process_id = network::OriginatingProcess::browser();
   params->factory_override = network::mojom::URLLoaderFactoryOverride::New();
   params->factory_override->overriding_factory =
       test_loader_factory_receiver.BindNewPipeAndPassRemote();
@@ -704,7 +705,7 @@ class NetworkServiceBrowserCacheResetTest : public NetworkServiceBrowserTest {
 
     network::mojom::URLLoaderFactoryParamsPtr url_loader_params =
         network::mojom::URLLoaderFactoryParams::New();
-    url_loader_params->process_id = network::mojom::kBrowserProcessId;
+    url_loader_params->process_id = network::OriginatingProcess::browser();
     url_loader_params->is_trusted = true;
     mojo::Remote<network::mojom::URLLoaderFactory> url_loader_factory;
     network_context->CreateURLLoaderFactory(

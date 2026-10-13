@@ -10,13 +10,13 @@ mojom("mojom") {
     "chromoting_host_services.mojom",
     "desktop_session.mojom",
     "keyboard_layout.mojom",
+    "login_session.mojom",
     "remote_security_key.mojom",
     "remote_support.mojom",
     "remote_url_opener.mojom",
     "remoting_host.mojom",
     "webauthn_proxy.mojom",
     "webrtc_types.mojom",
-    "wrapped_primitives.mojom",
   ]
 
   deps = [

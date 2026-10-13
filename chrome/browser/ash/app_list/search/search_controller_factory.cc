@@ -81,10 +81,8 @@ std::unique_ptr<SearchController> CreateSearchController(
     }
   }
 
-  if (app_list_features::IsLauncherPlayStoreSearchEnabled()) {
-    controller->AddProvider(std::make_unique<ArcPlayStoreSearchProvider>(
-        kMaxPlayStoreResults, profile, list_controller));
-  }
+  controller->AddProvider(std::make_unique<ArcPlayStoreSearchProvider>(
+      kMaxPlayStoreResults, profile, list_controller));
 
   if (arc::IsArcAllowedForProfile(profile)) {
     controller->AddProvider(std::make_unique<ArcAppShortcutsSearchProvider>(
@@ -104,9 +102,7 @@ std::unique_ptr<SearchController> CreateSearchController(
 
   controller->AddProvider(std::make_unique<KeyboardShortcutProvider>(profile));
 
-  if (base::FeatureList::IsEnabled(ash::features::kHelpAppLauncherSearch)) {
-    controller->AddProvider(std::make_unique<HelpAppProvider>(profile));
-  }
+  controller->AddProvider(std::make_unique<HelpAppProvider>(profile));
 
   controller->AddProvider(
       std::make_unique<HelpAppZeroStateProvider>(profile, notifier));

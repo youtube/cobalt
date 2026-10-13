@@ -925,6 +925,10 @@ mojom("url_loader_base") {
           mojom = "network.mojom.NetworkInterface"
           cpp = "::net::NetworkInterface"
         },
+        {
+          mojom = "network.mojom.ConnectionType"
+          cpp = "::net::NetworkChangeNotifier::ConnectionType"
+        },
       ]
       traits_headers =
           [ "//services/network/public/cpp/network_interface_mojom_traits.h" ]
@@ -1814,6 +1818,7 @@ mojom("mojom") {
     "network_service.mojom",
     "network_service_test.mojom",
     "oblivious_http_request.mojom",
+    "originating_process.mojom",
     "proxy_lookup_client.mojom",
     "proxy_resolving_socket.mojom",
     "reporting_service.mojom",
@@ -2088,6 +2093,37 @@ mojom("mojom") {
       traits_headers = [ "//services/network/public/cpp/connection_change_observer_client_mojom_traits.h" ]
       traits_sources = [ "//services/network/public/cpp/connection_change_observer_client_mojom_traits.cc" ]
       traits_public_deps = [ "//net" ]
+    },
+    {
+      types = [
+        {
+          mojom = "network.mojom.RendererProcess"
+          cpp = "::network::RendererProcess"
+          copyable_pass_by_value = true
+        },
+      ]
+      traits_headers =
+          [ "//services/network/public/cpp/renderer_process_mojom_traits.h" ]
+      traits_sources =
+          [ "//services/network/public/cpp/renderer_process_mojom_traits.cc" ]
+      traits_public_deps = [ "//base" ]
+    },
+    {
+      types = [
+        {
+          mojom = "network.mojom.OriginatingProcess"
+          cpp = "::network::OriginatingProcess"
+        },
+      ]
+      traits_headers =
+          [ "//services/network/public/cpp/originating_process_mojom_traits.h" ]
+      traits_sources = [
+        "//services/network/public/cpp/originating_process_mojom_traits.cc",
+      ]
+      traits_public_deps = [
+        "//base",
+        "//services/network/public/cpp:cpp_base",
+      ]
     },
   ]
 

@@ -13,21 +13,13 @@ BASE_FEATURE(kDeferredSyncStartupCustomDelay,
 
 BASE_FEATURE(kSyncAccountSettings, base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kSyncAutofillLoyaltyCard,
-#if !BUILDFLAG(IS_IOS)
-             base::FEATURE_ENABLED_BY_DEFAULT
-#else
-             base::FEATURE_DISABLED_BY_DEFAULT
-#endif
-);
+BASE_FEATURE(kSyncAutofillLoyaltyCard, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enabled by default, intended as a kill switch.
 BASE_FEATURE(kSyncMakeAutofillValuableNonEncryptable,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kSyncAutofillValuableMetadata, base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kSyncMoveValuablesToProfileDb, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kSyncSharedTabGroupAccountData, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -37,7 +29,7 @@ BASE_FEATURE(kSyncAIThread, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kSyncContextualTask, base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kSyncSkill, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kSyncGeminiThread, base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if !BUILDFLAG(IS_CHROMEOS)
 BASE_FEATURE(kUnoPhase2FollowUp,
@@ -92,6 +84,26 @@ BASE_FEATURE(kReplaceSyncPromosWithSignInPromos,
              base::FEATURE_DISABLED_BY_DEFAULT
 #endif
 );
+BASE_FEATURE_PARAM(bool,
+                   kExplicitSigninForExtensions,
+                   &kReplaceSyncPromosWithSignInPromos,
+                   "explicit_signin_for_extensions",
+                   false);
+
+BASE_FEATURE(kEnableAwaitSyncServiceStartup, base::FEATURE_DISABLED_BY_DEFAULT);
+
+const int kAwaitSyncServiceStartupInProfilePickerTimeoutDefaultValue = 10;
+const base::FeatureParam<int>
+    kAwaitSyncServiceStartupInProfilePickerTimeoutSeconds{
+        &kEnableAwaitSyncServiceStartup,
+        /*name=*/"AwaitSyncServiceStartupInProfilePickerTimeoutSeconds",
+        kAwaitSyncServiceStartupInProfilePickerTimeoutDefaultValue};
+
+const int kAwaitSyncServiceStartupInBrowserTimeoutDefaultValue = 3;
+const base::FeatureParam<int> kAwaitSyncServiceStartupInBrowserTimeoutSeconds{
+    &kEnableAwaitSyncServiceStartup,
+    /*name=*/"AwaitSyncServiceStartupInBrowserTimeoutSeconds",
+    kAwaitSyncServiceStartupInBrowserTimeoutDefaultValue};
 
 BASE_FEATURE(kSyncSupportAlwaysSyncingPriorityPreferences,
 #if BUILDFLAG(IS_CHROMEOS)
@@ -133,7 +145,7 @@ bool IsReadingListAccountStorageEnabled() {
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 
 #if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_ANDROID)
-BASE_FEATURE(kMigrateAccountPrefs, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kMigrateAccountPrefs, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_IOS) || BUILDFLAG(IS_ANDROID)
 
 // Enabled by default, intended as a kill switch.
@@ -160,6 +172,9 @@ BASE_FEATURE(kWebApkBackupAndRestoreBackend, base::FEATURE_DISABLED_BY_DEFAULT);
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kSyncEnablePasswordsSyncErrorMessageAlternative,
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kSyncTrustedVaultErrorMessageDuration,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_IOS)
@@ -169,8 +184,6 @@ BASE_FEATURE(kSyncTrustedVaultInfobarMessageImprovements,
 
 BASE_FEATURE(kSyncPreferencesUseSelectedTypes,
              base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kSyncUseOsCryptAsync, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kSyncDetermineAccountManagedStatus,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -183,6 +196,9 @@ BASE_FEATURE_PARAM(base::TimeDelta,
 BASE_FEATURE(kSyncEnableNewSyncDashboardUrl, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kSyncRecordDeviceStatisticsMetrics,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kSyncDeviceInfoUseWallClockTimer,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace syncer

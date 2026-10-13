@@ -18,12 +18,12 @@
 
 #include "api/array_view.h"
 #include "api/call/transport.h"
+#include "api/environment/environment.h"
 #include "api/media_types.h"
 #include "api/rtp_headers.h"
 #include "api/rtp_parameters.h"
 #include "api/task_queue/task_queue_base.h"
 #include "api/units/time_delta.h"
-#include "api/units/timestamp.h"
 #include "call/call.h"
 #include "call/fake_network_pipe.h"
 #include "call/simulated_packet_receiver.h"
@@ -36,7 +36,6 @@
 #include "rtc_base/network/sent_packet.h"
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/task_utils/repeating_task.h"
-#include "rtc_base/time_utils.h"
 
 namespace webrtc {
 namespace test {
@@ -65,7 +64,27 @@ DirectTransport::DirectTransport(
     const std::map<uint8_t, MediaType>& payload_type_map,
     ArrayView<const RtpExtension> audio_extensions,
     ArrayView<const RtpExtension> video_extensions)
-    : send_call_(send_call),
+    : clock_(*Clock::GetRealTimeClock()),
+      send_call_(send_call),
+      task_queue_(task_queue),
+      demuxer_(payload_type_map),
+      fake_network_(std::move(pipe)),
+      audio_extensions_(audio_extensions),
+      video_extensions_(video_extensions) {
+  Start();
+}
+
+DirectTransport::DirectTransport(
+    const Environment& env,
+    TaskQueueBase* task_queue,
+    std::unique_ptr<SimulatedPacketReceiverInterface> pipe,
+    Call* send_call,
+    const std::map<uint8_t, MediaType>& payload_type_map,
+    ArrayView<const RtpExtension> audio_extensions,
+    ArrayView<const RtpExtension> video_extensions)
+    : env_(env),
+      clock_(env.clock()),
+      send_call_(send_call),
       task_queue_(task_queue),
       demuxer_(payload_type_map),
       fake_network_(std::move(pipe)),
@@ -85,7 +104,7 @@ void DirectTransport::SetReceiver(PacketReceiver* receiver) {
 bool DirectTransport::SendRtp(ArrayView<const uint8_t> data,
                               const PacketOptions& options) {
   if (send_call_) {
-    SentPacketInfo sent_packet(options.packet_id, TimeMillis());
+    SentPacketInfo sent_packet(options.packet_id, clock_.TimeInMilliseconds());
     sent_packet.info.included_in_feedback = options.included_in_feedback;
     sent_packet.info.included_in_allocation = options.included_in_allocation;
     sent_packet.info.packet_size_bytes = data.size();
@@ -105,7 +124,7 @@ bool DirectTransport::SendRtp(ArrayView<const uint8_t> data,
     default:
       RTC_CHECK_NOTREACHED();
   }
-  RtpPacketReceived packet(extensions, Timestamp::Micros(TimeMicros()));
+  RtpPacketReceived packet(extensions, clock_.CurrentTime());
   if (media_type == MediaType::VIDEO) {
     packet.set_payload_type_frequency(kVideoPayloadTypeFrequency);
   }

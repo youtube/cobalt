@@ -100,7 +100,14 @@ void AccessibilityEventRewriterDelegateImpl::DispatchKeyEventToChromeVoxMv3(
     unsigned int id,
     std::unique_ptr<ui::Event> event) {
   CHECK(::features::IsAccessibilityManifestV3EnabledForChromeVox());
-  CHECK(AccessibilityManager::Get()->IsSpokenFeedbackEnabled());
+  if (!AccessibilityManager::Get()->IsSpokenFeedbackEnabled()) {
+    // This shouldn't be common, but may happen due to the async nature of MV3
+    // and loading/unloading ChromeVox combined with async getting of prefs when
+    // switching profiles. See b:458302114.
+    // AccessibilityManager is the source of truth for whether Spoken Feedback
+    // is enabled since it handles loading/unloading.
+    return;
+  }
   CHECK(event->IsKeyEvent());
   extensions::EventRouter* event_router =
       extensions::EventRouter::Get(AccessibilityManager::Get()->profile());
@@ -122,7 +129,7 @@ void AccessibilityEventRewriterDelegateImpl::DispatchKeyEventToChromeVoxMv3(
   keyboard_event.shift_key = key_event->IsShiftDown();
 
   // Build the extension event.
-  base::Value::List event_args;
+  base::ListValue event_args;
   event_args.Append(keyboard_event.ToValue());
   std::unique_ptr<extensions::Event> extension_event;
   if (key_event->type() == ui::EventType::kKeyPressed) {
@@ -168,7 +175,7 @@ void AccessibilityEventRewriterDelegateImpl::SendSwitchAccessCommand(
   extensions::EventRouter* event_router =
       extensions::EventRouter::Get(AccessibilityManager::Get()->profile());
 
-  base::Value::List event_args;
+  base::ListValue event_args;
   event_args.Append(ToString(command));
 
   auto event = std::make_unique<extensions::Event>(
@@ -185,11 +192,11 @@ void AccessibilityEventRewriterDelegateImpl::SendPointScanPoint(
   extensions::EventRouter* event_router =
       extensions::EventRouter::Get(AccessibilityManager::Get()->profile());
 
-  base::Value::Dict point_dict;
+  base::DictValue point_dict;
   point_dict.Set("x", point.x());
   point_dict.Set("y", point.y());
 
-  base::Value::List event_args;
+  base::ListValue event_args;
   event_args.Append(std::move(point_dict));
 
   auto event = std::make_unique<extensions::Event>(
@@ -206,7 +213,7 @@ void AccessibilityEventRewriterDelegateImpl::SendMagnifierCommand(
   extensions::EventRouter* event_router =
       extensions::EventRouter::Get(AccessibilityManager::Get()->profile());
 
-  base::Value::List event_args;
+  base::ListValue event_args;
   event_args.Append(ToString(command));
 
   auto event = std::make_unique<extensions::Event>(

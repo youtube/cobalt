@@ -68,7 +68,6 @@
 #include "content/common/frame_messages.mojom.h"
 #include "content/common/main_frame_counter.h"
 #include "content/common/navigation_client.mojom.h"
-#include "content/common/navigation_gesture.h"
 #include "content/common/navigation_params_utils.h"
 #include "content/common/renderer_host.mojom.h"
 #include "content/common/web_package/signed_exchange_utils.h"
@@ -558,7 +557,7 @@ void FillNavigationParamsRequest(
       });
 
   navigation_params->had_transient_user_activation =
-      common_params.has_user_gesture;
+      common_params.has_possibly_filtered_user_gesture;
 
   navigation_params->force_enabled_origin_trials = base::ToVector(
       commit_params.force_enabled_origin_trials, &WebString::FromASCII);
@@ -2594,7 +2593,6 @@ void RenderFrameImpl::CommitNavigation(
     const blink::DocumentToken& document_token,
     const base::UnguessableToken& devtools_navigation_token,
     const base::Uuid& base_auction_nonce,
-    const std::optional<network::ParsedPermissionsPolicy>& permissions_policy,
     blink::mojom::PolicyContainerPtr policy_container,
     mojo::PendingRemote<blink::mojom::CodeCacheHost> code_cache_host,
     mojo::PendingRemote<blink::mojom::CodeCacheHost>
@@ -2717,8 +2715,17 @@ void RenderFrameImpl::CommitNavigation(
       .total_lifecycle_events_processing_time_on_commit =
       total_lifecycle_events_processing_time_on_commit;
 
-  if (frame_->IsOutermostMainFrame() && permissions_policy) {
-    navigation_params->permissions_policy_override = permissions_policy;
+  if (frame_->IsOutermostMainFrame() &&
+      commit_params->isolated_app_policy.has_value()) {
+    navigation_params->isolated_app_policy = base::ToVector(
+        commit_params->isolated_app_policy.value(), [](const auto& ptr) {
+          return blink::IsolatedAppPermissionPolicyEntry{
+              .feature = WebString::FromUTF8(ptr->feature),
+              .allowed_origins =
+                  base::ToVector(ptr->allowed_origins, [](const auto& origin) {
+                    return WebString::FromUTF8(origin);
+                  })};
+        });
   }
 
   if (IsForInitialWebUI() && base::FeatureList::IsEnabled(
@@ -3141,8 +3148,8 @@ void RenderFrameImpl::CommitFailedNavigation(
   // Make sure we never show errors in view source mode.
   frame_->EnableViewSourceMode(false);
 
-  auto page_state =
-      blink::PageState::CreateFromEncodedData(commit_params->page_state);
+  auto page_state = blink::PageState::CreateFromEncodedData(
+      std::move(commit_params->page_state));
   if (page_state.IsValid())
     navigation_params->history_item = WebHistoryItem(page_state);
   if (!navigation_params->history_item.IsNull()) {
@@ -3298,7 +3305,7 @@ void RenderFrameImpl::CommitSameDocumentNavigation(
     bool is_client_redirect = !!(navigation_state->common_params().transition &
                                  ui::PAGE_TRANSITION_CLIENT_REDIRECT);
     bool started_with_transient_activation =
-        navigation_state->common_params().has_user_gesture;
+        navigation_state->common_params().has_possibly_filtered_user_gesture;
     bool is_browser_initiated =
         navigation_state->commit_params().is_browser_initiated;
     bool has_ua_visual_transition =
@@ -5609,9 +5616,12 @@ void RenderFrameImpl::BeginNavigation(
   // BeforeUnload event destroyed this frame.
   base::WeakPtr<RenderFrameImpl> weak_self = weak_factory_.GetWeakPtr();
 
+  base::TimeTicks before_unload_dialog_opened_time;
+  base::TimeTicks before_unload_dialog_closed_time;
   base::TimeTicks renderer_before_unload_start = base::TimeTicks::Now();
-  if (!frame_->DispatchBeforeUnloadEvent(info->navigation_type ==
-                                         blink::kWebNavigationTypeReload) ||
+  if (!frame_->DispatchBeforeUnloadEvent(
+          info->navigation_type == blink::kWebNavigationTypeReload,
+          before_unload_dialog_opened_time, before_unload_dialog_closed_time) ||
       !weak_self) {
     return;
   }
@@ -5695,7 +5705,8 @@ void RenderFrameImpl::BeginNavigation(
   auto do_begin_navigation = base::BindOnce(
       &RenderFrameImpl::BeginNavigationInternal, base::Unretained(this),
       std::move(info), is_history_navigation_in_new_child_frame,
-      renderer_before_unload_start, renderer_before_unload_end);
+      renderer_before_unload_start, renderer_before_unload_end,
+      before_unload_dialog_opened_time, before_unload_dialog_closed_time);
   client_navigation_throttler_.DispatchOrScheduleNavigation(
       std::move(do_begin_navigation));
 }
@@ -5922,11 +5933,8 @@ void RenderFrameImpl::OpenURL(std::unique_ptr<blink::WebNavigationInfo> info) {
           frame_->GetSecurityOrigin()),
       has_download_sandbox_flag, from_ad);
 
-  params->initiator_activation_and_ad_status =
-      blink::GetNavigationInitiatorActivationAndAdStatus(
-          info->url_request.HasUserGesture(), info->initiator_frame_is_ad,
-          info->is_ad_script_in_stack);
-
+  params->started_by_ad =
+      info->initiator_frame_is_ad || info->is_ad_script_in_stack;
   params->has_rel_opener = info->has_rel_opener;
 
   GetFrameHost()->OpenURL(std::move(params));
@@ -6113,7 +6121,9 @@ void RenderFrameImpl::BeginNavigationInternal(
     std::unique_ptr<blink::WebNavigationInfo> info,
     bool is_history_navigation_in_new_child_frame,
     base::TimeTicks renderer_before_unload_start,
-    base::TimeTicks renderer_before_unload_end) {
+    base::TimeTicks renderer_before_unload_end,
+    base::TimeTicks before_unload_dialog_opened,
+    base::TimeTicks before_unload_dialog_closed) {
   // Provisional frames shouldn't initiate navigations.
   CHECK(!GetWebFrame()->IsProvisional());
 
@@ -6202,7 +6212,7 @@ void RenderFrameImpl::BeginNavigationInternal(
       CloneBlobURLToken(info->blob_url_token));
 
   int load_flags = info->url_request.GetLoadFlagsForWebUrlRequest();
-  std::optional<base::Value::Dict> devtools_initiator;
+  std::optional<base::DictValue> devtools_initiator;
   if (!info->devtools_initiator_info.IsNull()) {
     std::optional<base::Value> devtools_initiator_value =
         base::JSONReader::Read(info->devtools_initiator_info.Utf8(),
@@ -6211,12 +6221,6 @@ void RenderFrameImpl::BeginNavigationInternal(
       devtools_initiator = std::move(*devtools_initiator_value).TakeDict();
     }
   }
-
-  blink::mojom::NavigationInitiatorActivationAndAdStatus
-      initiator_activation_and_ad_status =
-          blink::GetNavigationInitiatorActivationAndAdStatus(
-              info->url_request.HasUserGesture(), info->initiator_frame_is_ad,
-              info->is_ad_script_in_stack);
 
   blink::mojom::BeginNavigationParamsPtr begin_params =
       blink::mojom::BeginNavigationParams::New(
@@ -6233,7 +6237,12 @@ void RenderFrameImpl::BeginNavigationInternal(
               ? info->url_request.TrustTokenParams()->Clone()
               : nullptr,
           info->impression, renderer_before_unload_start,
-          renderer_before_unload_end, initiator_activation_and_ad_status,
+          renderer_before_unload_end, before_unload_dialog_opened,
+          before_unload_dialog_closed,
+          /*started_with_transient_activation=*/
+          info->url_request.HasUserGesture(),
+          /*started_by_ad=*/
+          (info->initiator_frame_is_ad || info->is_ad_script_in_stack),
           info->is_container_initiated, info->storage_access_api_status,
           info->has_rel_opener);
 
@@ -6249,6 +6258,10 @@ void RenderFrameImpl::BeginNavigationInternal(
 
   network::mojom::RequestDestination request_destination =
       blink::GetRequestDestinationForWebURLRequest(info->url_request);
+
+  mojo::PendingReceiver<blink::mojom::NavigationResumeDeferredCommitListener>
+      resume_defer_commit_listener(
+          std::move(info->resume_defer_commit_listener));
 
   blink::mojom::CommonNavigationParamsPtr common_params =
       MakeCommonNavigationParams(frame_->GetSecurityOrigin(), std::move(info),
@@ -6272,8 +6285,8 @@ void RenderFrameImpl::BeginNavigationInternal(
         common_params->method == "GET" && prev_common_params.method == "GET" &&
         common_params->initiator_origin ==
             prev_common_params.initiator_origin &&
-        common_params->has_user_gesture ==
-            prev_common_params.has_user_gesture &&
+        common_params->has_possibly_filtered_user_gesture ==
+            prev_common_params.has_possibly_filtered_user_gesture &&
         common_params->referrer == prev_common_params.referrer &&
         common_params->transition == prev_common_params.transition &&
         common_params->should_replace_current_entry ==
@@ -6300,12 +6313,34 @@ void RenderFrameImpl::BeginNavigationInternal(
     base::UmaHistogramTimes(
         "Navigation.RendererInitiated.DuplicateNavStartTimeDiff2",
         nav_start_diff);
+    const auto& new_input_start = common_params->input_start;
+    const auto& old_input_start =
+        navigation_client_impl_->common_params().input_start;
+    blink::InputStartPresence presence;
+    if (new_input_start.is_null() && old_input_start.is_null()) {
+      presence = blink::InputStartPresence::kNone;
+    } else if (new_input_start.is_null()) {
+      presence = blink::InputStartPresence::kOnlyOld;
+    } else if (old_input_start.is_null()) {
+      presence = blink::InputStartPresence::kOnlyNew;
+    } else {
+      presence = blink::InputStartPresence::kBoth;
+    }
+    base::UmaHistogramEnumeration(
+        "Navigation.RendererInitiated.DuplicateNavigationInputStartPresence2",
+        presence);
+    if (presence == blink::InputStartPresence::kBoth) {
+      const base::TimeDelta input_diff = new_input_start - old_input_start;
+      base::UmaHistogramTimes(
+          "Navigation.RendererInitiated.DuplicateNavInputTimeDiff2",
+          input_diff);
+    }
     if (start_diff_under_threshold &&
         GetContentClient()->ShouldIgnoreDuplicateNavs(
             common_params->url, /*is_renderer_initiated=*/true)) {
       if (!base::FeatureList::IsEnabled(
               features::kIgnoreDuplicateNavsOnlyWithUserGesture) ||
-          common_params->has_user_gesture) {
+          common_params->has_possibly_filtered_user_gesture) {
         DVLOG(0) << "Ignoring duplicate navigation to " << common_params->url
                  << " due to the short interval of " << nav_start_diff
                  << " since the previous one.";
@@ -6328,7 +6363,8 @@ void RenderFrameImpl::BeginNavigationInternal(
       std::move(common_params), std::move(begin_params),
       std::move(blob_url_token), std::move(navigation_client_remote),
       std::move(initiator_navigation_state_keep_alive_handle),
-      std::move(renderer_cancellation_listener_receiver));
+      std::move(renderer_cancellation_listener_receiver),
+      std::move(resume_defer_commit_listener));
 }
 
 void RenderFrameImpl::DecodeDataURL(
@@ -6805,10 +6841,9 @@ WebView* RenderFrameImpl::CreateNewWindow(
       /*openee_can_access_opener_origin=*/true,
       !GetWebFrame()->IsAllowedToDownload(), GetWebFrame()->IsAdFrame());
 
-  params->initiator_activation_and_ad_status =
-      blink::GetNavigationInitiatorActivationAndAdStatus(
-          request.HasUserGesture(), GetWebFrame()->IsAdFrame(),
-          GetWebFrame()->IsAdScriptInStack());
+  params->started_with_transient_activation = request.HasUserGesture();
+  params->started_by_ad =
+      GetWebFrame()->IsAdFrame() || GetWebFrame()->IsAdScriptInStack();
 
   // We preserve this information before sending the message since |params| is
   // moved on send.
@@ -6957,7 +6992,6 @@ WebView* RenderFrameImpl::CreateNewWindow(
 
   if (reply->widget_screen_rect.has_value() &&
       reply->window_screen_rect.has_value()) {
-    CHECK(base::FeatureList::IsEnabled(blink::features::kCombineNewWindowIPCs));
     web_view->MainFrameWidget()->SetScreenRects(*reply->widget_screen_rect,
                                                 *reply->window_screen_rect);
   } else {

@@ -77,6 +77,10 @@ constexpr auto kReasonDescriptionMap = std::to_array<ReasonAndDescription>({
      "Has a will-change: clip-path compositing hint."},
     {CompositingReason::kWillChangeMixBlendMode,
      "Has a will-change: mix-blend-mode compositing hint."},
+    {CompositingReason::kWillChangeMask,
+     "Has a will-change: mask compositing hint."},
+    {CompositingReason::kWillChangeMaskImage,
+     "Has a will-change: mask-image compositing hint."},
     {CompositingReason::kWillChangeOther,
      "Has a will-change compositing hint other than transform, opacity, filter"
      " and backdrop-filter."},
@@ -112,6 +116,8 @@ constexpr auto kReasonDescriptionMap = std::to_array<ReasonAndDescription>({
     {CompositingReason::kCanvas,
      "Is an accelerated canvas, or is a display list backed canvas that was "
      "promoted to a layer based on a performance heuristic."},
+    {CompositingReason::kCanvasChild,
+     "Is the direct child of a canvas with 'layoutSubtree' attribute."},
     {CompositingReason::kPlugin, "Is an accelerated plugin."},
     {CompositingReason::kScrollbar, "Is an accelerated scrollbar."},
     {CompositingReason::kLinkHighlight, "Is a tap highlight on a link."},

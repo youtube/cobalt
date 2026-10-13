@@ -3,20 +3,24 @@
 <translationbundle lang="bn">
 <translation id="1006017844123154345">অনলাইনে খুলুন</translation>
 <translation id="1036348656032585052">বন্ধ করুন</translation>
+<translation id="1046742265332833834">ব্লু থিম</translation>
 <translation id="1070329623210597193">এই সাইট যেসব ফাইল দেখতে বা এডিট করতে পারবে</translation>
 <translation id="1073417869336441572">আপনি কেন থার্ড-পার্টি কুকিতে অনুমতি দিয়েছেন তা আমাদের জানিয়ে Chrome উন্নত করতে সাহায্য করুন। <ph name="BEGIN_LINK" />মতামত জানান<ph name="END_LINK" /></translation>
 <translation id="1074758928858737435">আপনি সাইটের ডেস্কটপ ভার্সন দেখতে চাইতে পারেন</translation>
 <translation id="1085696779717592361">ডিফল্ট হিসেবে Chrome ব্যবহার করুন</translation>
 <translation id="113098737392899175">কোনও কীবোর্ড অ্যাটাচ করা থাকলে টেক্সট কার্সরের মাধ্যমে পৃষ্ঠায় নেভিগেট করুন</translation>
+<translation id="1149644372535087155">Chrome-এ পাসওয়ার্ড সেভ করুন</translation>
 <translation id="1178015372320901893">স্ক্রিনের নিচে অ্যাটাচ করা শিটে আমার শর্টকাট</translation>
 <translation id="1178581264944972037">বিরতি</translation>
 <translation id="1181037720776840403">সরান</translation>
 <translation id="1192844206376121885">এটি আপনার <ph name="ORIGIN" />-এর মাধ্যমে সেভ হওয়া সব ডেটা এবং কুকি মুছে দেবে।</translation>
+<translation id="1199963004393929848">গ্রিন থিম</translation>
 <translation id="1201402288615127009">পরের</translation>
 <translation id="1240190568154816272">Chrome সংক্রান্ত পরামর্শ</translation>
 <translation id="1242008676835033345"><ph name="WEBSITE_URL" />-এ এম্বেড করা হয়েছে</translation>
 <translation id="1263609676484797429">অ্যাপ  &gt; ডিফল্ট অ্যাপ বিকল্পে ট্যাপ করুন</translation>
 <translation id="1272079795634619415">বন্ধ</translation>
+<translation id="1275718070701477396">নির্বাচিত</translation>
 <translation id="1289742167380433257">আপনার ডেটা সেভ করার জন্য, এই পৃষ্ঠার ছবিগুলি Google অপ্টিমাইজ করেছে।</translation>
 <translation id="129382876167171263">ওয়েবসাইট যেসব ফাইল সেভ করে সেগুলি এখানে দেখা যায়</translation>
 <translation id="131112695174432497">পছন্দমতো বিজ্ঞাপন সাজানোর বিষয়টিকে প্রভাবিত করে এমন ডেটা মুছে দেওয়া হয়</translation>
@@ -47,6 +51,8 @@
 <translation id="1547123415014299762">থার্ড-পার্টি কুকির অনুমতি আছে</translation>
 <translation id="1569054338208717605">Chrome-এর V8 ইঞ্জিনের সাহায্যে সাইটের কাজ করার স্পিড বাড়ান কিন্তু এর ফলে Chrome-এ সুরক্ষা সম্পর্কিত ঝুঁকির সম্ভাবনা কিছুটা বেড়ে যায়</translation>
 <translation id="1593426485665524382">স্ক্রিনের উপরের ডানদিকে নতুন অ্যাকশন উপলভ্য আছে</translation>
+<translation id="1594521731409209842">ফটোর সাইজ পরিবর্তন করতে স্ক্রিন পিঞ্চ করুন</translation>
+<translation id="1601560923496285236">প্রয়োগ করুন</translation>
 <translation id="1615755956145364867">সুরক্ষিত কন্টেন্ট চালানোর জন্য সাইট আপনার অনুমতি চাইতে পারে</translation>
 <translation id="1620510694547887537">ক্যামেরা</translation>
 <translation id="1621729191093924223">যেসব ফিচার ব্যবহার করতে মাইক্রোফোন দরকার সেগুলি কাজ করবে না</translation>
@@ -169,6 +175,7 @@ Chrome-এর এই সেটিংস উন্নত সুরক্ষা �
 <translation id="2682367912565197520">সেভ করা জুম লেভেল মুছে দিন</translation>
 <translation id="2683434792633810741">মুছতে ও রিসেট করতে চান?</translation>
 <translation id="2685514716378236873">অনুমোদিত নয়</translation>
+<translation id="2710883118091822664">আপনার সব ডিভাইসে সহজেই চালিয়ে যেতে সাইন-ইন করুন</translation>
 <translation id="2713106313042589954">ক্যামেরা বন্ধ করুন</translation>
 <translation id="2717722538473713889">ইমেল আইডি</translation>
 <translation id="2726059656860238749">বহুউপযোগী ক্ষেত্রে ফোকাস করে, Chrome চালু করুন। এর ফলে Chrome লো-এন্ড ডিভাইসে স্টার্ট-আপের সময় কমিয়ে দেয়।</translation>
@@ -196,6 +203,7 @@ Chrome-এর এই সেটিংস উন্নত সুরক্ষা �
 <translation id="3004438526346162184">আপনার সব ডিসপ্লেতে সাইটগুলি উইন্ডো ম্যানেজ করতে এই ফিচার ব্যবহার করতে পারে</translation>
 <translation id="3008272652534848354">অনুমতি রিসেট করুন</translation>
 <translation id="301521992641321250">স্বয়ংক্রিয়ভাবে ব্লক করা হয়েছে</translation>
+<translation id="3026311960038210">থিম কালেকশন</translation>
 <translation id="3064871050034234884">সাইট সাউন্ড চালাতে পারে</translation>
 <translation id="3065787901655140044">উন্নত সুরক্ষা চালু আছে</translation>
 <translation id="3069226013421428034">কোনও নির্দিষ্ট সাইটের জন্য থার্ড-পার্টি সাইন-ইনের অনুমতি দিন।</translation>
@@ -215,6 +223,7 @@ Chrome-এর এই সেটিংস উন্নত সুরক্ষা �
 <translation id="3167868116600277716">ডিসকভার ফিড</translation>
 <translation id="3198916472715691905"><ph name="STORAGE_AMOUNT" /> সংরক্ষিত ডেটা</translation>
 <translation id="3199078925536734975">এখন অনুমতি আছে • আনুমানিক</translation>
+<translation id="3208584281581115441">এখনই চেক করুন</translation>
 <translation id="321187648315454507">তাছাড়া, যাতে <ph name="APP_NAME" /> আপনাকে বিজ্ঞপ্তি পাঠাতে পারে, তার জন্য <ph name="BEGIN_LINK" />Android সেটিংসে<ph name="END_LINK" /> গিয়েও বিজ্ঞপ্তি চালু করে দিন।</translation>
 <translation id="3223425961342298674">লোকেশন ব্যবহারের অনুমতি নেই</translation>
 <translation id="3227137524299004712">মাইক্রোফোন</translation>
@@ -264,6 +273,7 @@ Chrome-এর এই সেটিংস উন্নত সুরক্ষা �
 <translation id="3721953990244350188">এই অ্যাকশন বাতিল করে উপলভ্য পরবর্তী অ্যাকশন দেখুন</translation>
 <translation id="3744111561329211289">পটভূমি সিঙ্ক</translation>
 <translation id="3746834924069123416">আরও সাম্প্রতিক ট্যাব দেখুন</translation>
+<translation id="3753618528540214374">ভিরিডিয়ান থিম</translation>
 <translation id="3763247130972274048">১০ সেকেন্ড আগে পরে স্কিপ করতে বাঁদিকে অথবা ডানদিকে ডবল ট্যাপ করুন</translation>
 <translation id="3776508619697147021">একাধিক ফাইল অটোমেটিক ডাউনলোড করতে, সাইট অনুমতি চাইতে পারে</translation>
 <translation id="3779154269823594982">পাসওয়ার্ড পরিবর্তন করুন</translation>
@@ -273,6 +283,7 @@ Chrome-এর এই সেটিংস উন্নত সুরক্ষা �
 <translation id="381841723434055211">ফোন নম্বর</translation>
 <translation id="3823453485268218808">ফন্ট Mono</translation>
 <translation id="3826050100957962900">থার্ড-পার্টির সাইন-ইন</translation>
+<translation id="3831065134033923230">আপনার সেভ করা পাসওয়ার্ড ঠিক আছে কিনা তা চেক করুন</translation>
 <translation id="3835233591525155343">আপনার ডিভাইসের ব্যবহার</translation>
 <translation id="3843916486309149084">Chrome আজ আবার কুকি ব্লক করে দেবে</translation>
 <translation id="385051799172605136">ফিরুন</translation>
@@ -335,6 +346,7 @@ Chrome-এর এই সেটিংস উন্নত সুরক্ষা �
 <translation id="4478158430052450698">বিভিন্ন সাইটের জন্য 'জুম' ফিচার আরও সহজে কাস্টমাইজ করুন</translation>
 <translation id="4479647676395637221">সাইটগুলিকে আপনার ক্যামেরা ব্যবহার করতে দিতে মঞ্জুরি দেওয়ার আগে প্রথমে জিজ্ঞাসা করুন (প্রস্তাবিত)</translation>
 <translation id="4505788138578415521">ইউআরএল বড় করা হয়েছে</translation>
+<translation id="4523472416386354622">শুরু করতে সাইন-ইন করুন</translation>
 <translation id="4534723447064627427">তাছাড়া, যাতে <ph name="APP_NAME" /> আপনার মাইক্রোফোন অ্যাক্সেস করতে পারে, তার জন্য <ph name="BEGIN_LINK" />Android সেটিংসে<ph name="END_LINK" /> গিয়েও মাইক্রোফোন চালু করে দিন।</translation>
 <translation id="4566417217121906555">মাইক্রোফোন মিউট করুন</translation>
 <translation id="4570913071927164677">বিবরণ</translation>
@@ -391,6 +403,7 @@ Chrome-এর এই সেটিংস উন্নত সুরক্ষা �
 <translation id="512938610812707830">স্ক্রিনের নিচে থিম কালেকশনের অ্যাটাচ করা শিট সম্পূর্ণভাবে খুলে রাখলে সেখানে নতুন ট্যাব পৃষ্ঠা কেমন দেখাবে</translation>
 <translation id="5137460097045297858">স্ক্রিনের নিচে অ্যাটাচ করা শিট অর্ধেক খুলে রাখা অবস্থায় সেখানে দেখানো ডিসকভার ফিড</translation>
 <translation id="5139253256813381453">{PRICE_DROP_COUNT,plural, =1{আপনার খোলা ট্যাবে দাম কমার তথ্য}one{আপনার খোলা ট্যাবে দাম কমার তথ্য}other{আপনার খোলা ট্যাবে দাম কমার তথ্য}}</translation>
+<translation id="5150048675001754041">সাইট ও অ্যাপে দ্রুত ও সহজে সাইন-ইন করুন</translation>
 <translation id="5186036860380548585">স্ক্রিনের উপরের দিকে বিকল্পগুলি দেখানো হয়েছে</translation>
 <translation id="5197729504361054390">আপনার বেছে নেওয়া পরিচিতি <ph name="BEGIN_BOLD" /><ph name="SITE" /><ph name="END_BOLD" />-এর সাথে শেয়ার করা হবে।</translation>
 <translation id="5198930230016462977">আপনার 'নতুন ট্যাব' পৃষ্ঠা কাস্টমাইজ করার জন্য স্ক্রিনের নিচে অ্যাটাচ করা শিট বন্ধ আছে</translation>
@@ -475,6 +488,7 @@ Chrome-এর এই সেটিংস উন্নত সুরক্ষা �
 <translation id="5998071268779572583">ডিসকভার ফিড চালু করুন</translation>
 <translation id="6012967556075291653">পিন করা শর্টকাট</translation>
 <translation id="6015775454662021376">আপনার ডিভাইসে এই সাইটের অ্যাক্সেস নিয়ন্ত্রণ করুন</translation>
+<translation id="6022659036123304283">Chrome-কে আপনার করে নিন</translation>
 <translation id="6040143037577758943">বন্ধ</translation>
 <translation id="6042308850641462728">আরও</translation>
 <translation id="6064125863973209585">সম্পূর্ণ হয়ে যাওয়া ডাউনলোড</translation>
@@ -482,6 +496,7 @@ Chrome-এর এই সেটিংস উন্নত সুরক্ষা �
 <translation id="6085954183010297841">ফাইল এডিট করার অনুদান মুছে দেবেন? <ph name="FILE" /></translation>
 <translation id="6104860901391833523">চালু করা থাকলে, সাইট অটোমেটিক ছবির-মধ্যে-ছবি ফিচার ব্যবহার করতে পারবে। বন্ধ করা থাকলে, সাইট অটোমেটিক ছবির-মধ্যে-ছবি ফিচার ব্যবহার করতে পারবে না।</translation>
 <translation id="6120483543004435978">চালু থাকলে, সাইট আপনি সক্রিয়ভাবে নিজের ডিভাইস কখন ব্যবহার করেন তা জানতে চাইতে পারে। চালু থাকলে, সাইট আপনি সক্রিয়ভাবে নিজের ডিভাইস কখন ব্যবহার করেন তা জানতে পারে না।</translation>
+<translation id="6132075343662013154">Chrome আপনার পাসওয়ার্ড সেভ করার সুবিধা প্রদান করবে</translation>
 <translation id="615886654739818377">আপনার সব ডিসপ্লেতে সাইটগুলিকে উইন্ডো ম্যানেজ করার অনুমতি দেবেন না</translation>
 <translation id="6165508094623778733">আরও জানুন</translation>
 <translation id="6171020522141473435">চালু থাকলে, সাইট আপনার ব্লুটুথ ডিভাইস ব্যবহার করার জন্য অনুমতি চাইতে পারে। বন্ধ থাকলে, সাইট আপনার ব্লুটুথ ডিভাইস ব্যবহার করতে পারে না।</translation>
@@ -492,13 +507,13 @@ Chrome-এর এই সেটিংস উন্নত সুরক্ষা �
 <translation id="6196640612572343990">তৃতীয় পক্ষের কুকিজ অবরুদ্ধ করুন</translation>
 <translation id="6205314730813004066">বিজ্ঞাপন সংক্রান্ত গোপনীয়তা</translation>
 <translation id="6207207788774442484">ডেটা মুছে দিয়ে অনুমতি রিসেট করুন</translation>
+<translation id="6218508144653756827">ফিউসা থিম</translation>
 <translation id="6231752747840485235"><ph name="APP_NAME" /> আনইনস্টল করবেন?</translation>
 <translation id="6234351944623978659">ব্রাউজার অ্যাপ &gt; Chrome বিকল্পে ট্যাপ করুন</translation>
 <translation id="6260830281887654268">স্ক্রিনের নিচে থিম কালেকশনের অ্যাটাচ করা শিট অর্ধেক খুলে রাখা অবস্থায় সেখানে নতুন ট্যাব পৃষ্ঠা যেভাবে দেখাবে</translation>
 <translation id="6262191102408817757">আপনার শেষ ট্যাবের উপর ভিত্তি করে</translation>
 <translation id="6262279340360821358"><ph name="PERMISSION_1" /> ও <ph name="PERMISSION_2" /> ব্লক করা হয়েছে</translation>
 <translation id="6270391203985052864">সাইট আপনাকে বিজ্ঞপ্তি পাঠানোর আগে অনুমতি চাইতে পারে</translation>
-<translation id="6278428485366576908">থীম</translation>
 <translation id="6295158916970320988">সমস্ত সাইট</translation>
 <translation id="6320088164292336938">কম্পন</translation>
 <translation id="6367753977865761591">কোনও নির্দিষ্ট সাইটের জন্য থার্ড-পার্টি সাইন-ইন ব্লক করুন।</translation>
@@ -517,6 +532,7 @@ Chrome-এর এই সেটিংস উন্নত সুরক্ষা �
 <translation id="6545864417968258051">ব্লুটুথ স্ক্যানিং</translation>
 <translation id="6552800053856095716">{PERMISSIONS_SUMMARY_BLOCKED,plural, =1{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> আরও <ph name="NUM_MORE" />টি সুবিধা ব্লক করা হয়েছে}one{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> আরও <ph name="NUM_MORE" />টি সুবিধা ব্লক করা হয়েছে}other{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> আরও <ph name="NUM_MORE" />টি সুবিধা ব্লক করা হয়েছে}}</translation>
 <translation id="6554732001434021288"><ph name="NUM_DAYS" /> দিন আগে শেষবার দেখেছেন</translation>
+<translation id="6556866813142980365">আবার করুন</translation>
 <translation id="6557290421156335491">আমার শর্টকাট</translation>
 <translation id="656065428026159829">আরও দেখুন</translation>
 <translation id="6561560012278703671">আওয়াজ ছাড়া বিজ্ঞপ্তি (বিজ্ঞপ্তির ক্ষেত্রে আওয়াজ সহ প্রম্পট ব্লক করা হয়, যাতে কাজের সময় ব্যাঘাত না ঘটে)</translation>
@@ -525,6 +541,7 @@ Chrome-এর এই সেটিংস উন্নত সুরক্ষা �
 <translation id="659938948789980540">{COUNT,plural, =1{<ph name="RWS_OWNER" />-এর <ph name="RWS_MEMBERS_COUNT" />টি সাইটের জন্য কুকির অনুমতি আছে}one{<ph name="RWS_OWNER" />-এর <ph name="RWS_MEMBERS_COUNT" />টি সাইটের জন্য কুকির অনুমতি আছে}other{<ph name="RWS_OWNER" />-এর <ph name="RWS_MEMBERS_COUNT" />টি সাইটের জন্য কুকির অনুমতি আছে}}</translation>
 <translation id="6608650720463149374"><ph name="GIGABYTES" /> জিবি</translation>
 <translation id="6612358246767739896">সুরক্ষিত কন্টেন্ট</translation>
+<translation id="6619015782482868078">অ্যাকুয়া থিম</translation>
 <translation id="662080504995468778">থাকুন</translation>
 <translation id="6630443592285535486">এখানে হেক্স টাইপ করুন</translation>
 <translation id="6635327442719709864">চালু থাকলে, সাইট সিরিয়াল পোর্ট ব্যবহার করার জন্য বলতে পারে। বন্ধ থাকলে, সাইট সিরিয়াল পোর্ট ব্যবহার করতে পারে না।</translation>
@@ -553,9 +570,11 @@ Chrome-এর এই সেটিংস উন্নত সুরক্ষা �
 <translation id="6945221475159498467">নির্বাচন</translation>
 <translation id="6950072572526089586">আপনি যে সাইটটি ভিজিট করেন সেটিতে আপনি কী করছেন সেই সম্পর্কিত তথ্য সেভ করা হতে পারে যাতে এটি আপনার প্রত্যাশা অনুযায়ী কাজ করে — যেমন, আপনাকে একটি সাইটে সাইন-ইন রাখতে বা আপনার শপিং কার্টে আইটেমগুলি সেভ করতে। প্রায়শই সাইটগুলি আপনার ডিভাইসে সাময়িকভাবে এই তথ্য সেভ করে।</translation>
 <translation id="6965382102122355670">ঠিক আছে</translation>
+<translation id="6980507581230208647">রোজ থিম</translation>
 <translation id="6980861169612950611">সাইট ডেটা মুছতে চান? <ph name="SITE_NAME" /></translation>
 <translation id="6981982820502123353">ব্যবহারযোগ্যতা</translation>
 <translation id="6991142177939282156">অনুমতি দেওয়া হয়েছে • আনুমানিক লোকেশন ব্যবহার করা হচ্ছে</translation>
+<translation id="6992014788289743568">আপনার পাসওয়ার্ড চেক করার মাধ্যমে নিরাপত্তা আরও জোরদার করুন এবং ডেটা আরও সুরক্ষিত রাখুন</translation>
 <translation id="6992289844737586249">সাইটগুলিকে আপনার মাইক্রোফোন ব্যবহার করতে দিতে মঞ্জুরি দেওয়ার আগে প্রথমে জিজ্ঞাসা করুন (প্রস্তাবিত)</translation>
 <translation id="7000754031042624318">Android সেটিংসে বন্ধ করা আছে</translation>
 <translation id="702275896380648118">এই সাইটটি আপনার পছন্দের জিনিসগুলি নির্ধারণ করে এবং তারপরে অন্যান্য সাইটে বিজ্ঞাপন সাজেস্ট করে। এই সাইটটি আপনাকে আরও প্রাসঙ্গিক বিজ্ঞাপন দেখানোর জন্য Chrome থেকে আপনার বিজ্ঞাপনের বিষয় নেয়।</translation>
@@ -581,6 +600,7 @@ Chrome-এর এই সেটিংস উন্নত সুরক্ষা �
 <translation id="7250468141469952378"><ph name="ITEM_COUNT" />টি বেছে নেওয়া হয়েছে</translation>
 <translation id="7260727271532453612"><ph name="PERMISSION_1" /> ও <ph name="PERMISSION_2" /> ব্যবহারের অনুমতি দেওয়া হয়েছে</translation>
 <translation id="7276071417425470385">চালু থাকলে, সাইট ভার্চুয়াল রিয়ালিটি ডিভাইস ব্যবহার করার জন্য অনুমতি চাইতে পারে। বন্ধ থাকলে, সাইট ভার্চুয়াল রিয়ালিটি ডিভাইস ব্যবহার করতে পারে না।</translation>
+<translation id="7282197670900591579">সিট্রন থিম</translation>
 <translation id="728412880473384942">সাইট দ্রুত কাজ করে কিন্তু সুরক্ষা সম্পর্কিত ঝুঁকি বেড়ে যায়</translation>
 <translation id="7366415735885268578">একটি সাইট যোগ করুন</translation>
 <translation id="7368695150573390554">যেকোনও অফলাইন ডেটা মুছে যাবে</translation>
@@ -619,6 +639,7 @@ Chrome-এর এই সেটিংস উন্নত সুরক্ষা �
 <translation id="7688240020069572972">Chrome সম্পর্কিত পরামর্শের কার্ড আড়াল করুন</translation>
 <translation id="7719367874908701697">পৃষ্ঠা জুম</translation>
 <translation id="775043444390799886">অনুমতি তুলে নিন</translation>
+<translation id="7758789811447313947">ভায়োলেট থিম</translation>
 <translation id="7759147511335618829">MIDI ডিভাইস কন্ট্রোল ও রিপ্রোগ্রাম</translation>
 <translation id="7781829728241885113">গতকাল</translation>
 <translation id="7791543448312431591">জুড়ুন</translation>
@@ -637,6 +658,7 @@ Chrome-এর এই সেটিংস উন্নত সুরক্ষা �
 <translation id="7940722705963108451">আমাকে মনে করিয়ে দিও</translation>
 <translation id="7948081750384205628"><ph name="SETTING_TITLE" /> সম্পর্কে আরও জানুন</translation>
 <translation id="7952708427581814389">আপনার ক্লিপবোর্ডে টেক্সট ও ছবি দেখতে, সাইট অনুমতি চাইতে পারে</translation>
+<translation id="798299424881500862">অরেঞ্জ থিম</translation>
 <translation id="7986741934819883144">একটি পরিচিতি বেছে নিন</translation>
 <translation id="7990211076305263060">চালু থাকলে, সাইট আপনার মাইক্রোফোন ব্যবহার করার জন্য অনুমতি চাইতে পারে। চালু থাকলে, সাইট আপনার মাইক্রোফোন ব্যবহার করার করতে পারে না।</translation>
 <translation id="8007176423574883786">এই ডিভাইসের জন্য বন্ধ করা আছে</translation>

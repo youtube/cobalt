@@ -1,5 +1,0 @@
-This is a testharness.js-based test.
-[FAIL] Connecting a custom element candiate with a scoped custom element registry does not change the registry
-  assert_equals: expected object "[object CustomElementRegistry]" but got object "[object CustomElementRegistry]"
-Harness: the test ran to completion.
-

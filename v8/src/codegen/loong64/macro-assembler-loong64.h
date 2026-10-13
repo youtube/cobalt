@@ -180,12 +180,20 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void BranchTrueF(Label* target, CFRegister cc = FCC0);
   void BranchFalseF(Label* target, CFRegister cc = FCC0);
 
+  void BranchLSX(Label* target, LSXBranchDF df, LSXBranchCondition cond,
+                 VRegister vj, CFRegister cc = FCC0);
+  void BranchShortLSX(Label* target, LSXBranchDF df, LSXBranchCondition cond,
+                      VRegister vj, CFRegister cc = FCC0);
+
   static int InstrCountForLi64Bit(int64_t value);
   inline void LiLower32BitHelper(Register rd, Operand j);
   void li_optimized(Register rd, Operand j, LiFlags mode = OPTIMIZE_SIZE);
   void li(Register rd, Operand j, LiFlags mode = OPTIMIZE_SIZE);
   inline void li(Register rd, int64_t j, LiFlags mode = OPTIMIZE_SIZE) {
     li(rd, Operand(j), mode);
+  }
+  inline void li(Register rd, uint64_t j, LiFlags mode = OPTIMIZE_SIZE) {
+    li(rd, Operand(static_cast<int64_t>(j)), mode);
   }
   inline void li(Register rd, int32_t j, LiFlags mode = OPTIMIZE_SIZE) {
     li(rd, Operand(static_cast<int64_t>(j)), mode);
@@ -413,6 +421,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void MultiPush(RegList regs1, RegList regs2);
   void MultiPush(RegList regs1, RegList regs2, RegList regs3);
   void MultiPushFPU(DoubleRegList regs);
+  void MultiPushLSX(DoubleRegList regs);
 
   // Calculate how much stack space (in bytes) are required to store caller
   // registers excluding those specified in the arguments.
@@ -460,6 +469,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void MultiPop(RegList regs1, RegList regs2, RegList regs3);
 
   void MultiPopFPU(DoubleRegList regs);
+  void MultiPopLSX(DoubleRegList regs);
 
   // These PushAll/PopAll respect the order of the registers in the stack from
   // low index to high.
@@ -785,6 +795,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   void FmoveLow(FPURegister dst, Register src_low);
 
+  inline void Move(Register dst, FPURegister src) { movfr2gr_d(dst, src); }
+
+  inline void Move(FPURegister dst, Register src) { movgr2fr_d(dst, src); }
+
   inline void Move(FPURegister dst, FPURegister src) { Move_d(dst, src); }
 
   inline void Move_d(FPURegister dst, FPURegister src) {
@@ -903,6 +917,27 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void Round_s(FPURegister fd, FPURegister fj);
   void Floor_s(FPURegister fd, FPURegister fj);
   void Ceil_s(FPURegister fd, FPURegister fj);
+
+  // LSX
+  void Vst(VRegister vd, const MemOperand& vj, int* trap_pc = NULL);
+  void Vld(VRegister vd, const MemOperand& vj, int* trap_pc = NULL);
+  void Vmove(VRegister dst, VRegister src);
+  void LoadSplat(LSXSize, VRegister dst, MemOperand src, int* trap_pc = NULL);
+  void ExtAddPairwise(LSXDataType type, VRegister dst, VRegister src);
+  void LoadLane(LSXSize sz, VRegister dst, uint8_t laneidx, MemOperand src,
+                int* trap_pc = NULL);
+  void StoreLane(LSXSize sz, VRegister src, uint8_t laneidx, MemOperand dst,
+                 int* trap_pc = NULL);
+  void Dotp_w(VRegister dst, VRegister src1, VRegister src2,
+              VRegister temp = kSimd128ScratchReg);
+  void Dotp_h(VRegister dst, VRegister src1, VRegister src2,
+              VRegister temp = kSimd128ScratchReg);
+  void ExtMulLow(LSXDataType type, VRegister dst, VRegister src1,
+                 VRegister src2);
+  void ExtMulHigh(LSXDataType type, VRegister dst, VRegister src1,
+                  VRegister src2);
+  void LSXRoundW(VRegister dst, VRegister src, FPURoundingMode mode);
+  void LSXRoundD(VRegister dst, VRegister src, FPURoundingMode mode);
 
   // Jump the register contains a smi.
   void JumpIfSmi(Register value, Label* smi_label);
@@ -1046,7 +1081,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Only available when the sandbox is enabled, but always visible to avoid
   // having to place the #ifdefs into the caller.
   void LoadIndirectPointerField(Register destination, MemOperand field_operand,
-                                IndirectPointerTag tag);
+                                IndirectPointerTagRange tag_range);
 
   // Store an indirect pointer field.
   // Only available when the sandbox is enabled, but always visible to avoid
@@ -1058,11 +1093,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Retrieve the heap object referenced by the given indirect pointer handle,
   // which can either be a trusted pointer handle or a code pointer handle.
   void ResolveIndirectPointerHandle(Register destination, Register handle,
-                                    IndirectPointerTag tag);
+                                    IndirectPointerTagRange tag_range);
 
   // Retrieve the heap object referenced by the given trusted pointer handle.
   void ResolveTrustedPointerHandle(Register destination, Register handle,
-                                   IndirectPointerTag tag);
+                                   IndirectPointerTagRange tag_range);
   // Retrieve the Code object referenced by the given code pointer handle.
   void ResolveCodePointerHandle(Register destination, Register handle);
 
@@ -1081,9 +1116,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   void LoadEntrypointFromJSDispatchTable(Register destination,
                                          Register dispatch_handle,
-                                         Register scratch);
-  void LoadEntrypointFromJSDispatchTable(Register destination,
-                                         JSDispatchHandle dispatch_handle,
                                          Register scratch);
   void LoadParameterCountFromJSDispatchTable(Register destination,
                                              Register dispatch_handle,
@@ -1506,7 +1538,8 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
                               ExternalReference thunk_ref, Register thunk_arg,
                               int slots_to_drop_on_return,
                               MemOperand* argc_operand,
-                              MemOperand return_value_operand);
+                              MemOperand return_value_operand,
+                              bool handle_interceptor_result);
 
 }  // namespace internal
 }  // namespace v8

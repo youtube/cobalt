@@ -41,6 +41,8 @@ source_set("manual_fill") {
     "manual_fill_password_mediator.mm",
     "manual_fill_plus_address_mediator.h",
     "manual_fill_plus_address_mediator.mm",
+    "manual_fill_virtual_card_cache.h",
+    "manual_fill_virtual_card_cache.mm",
     "plus_address_coordinator_delegate.h",
   ]
   deps = [
@@ -172,7 +174,7 @@ source_set("manual_fill_ui") {
     "//ios/chrome/browser/favicon/model",
     "//ios/chrome/browser/menu/ui_bundled",
     "//ios/chrome/browser/net/model:crurl",
-    "//ios/chrome/browser/passwords/ui_bundled:password_suggestion_utils",
+    "//ios/chrome/browser/passwords/password_suggestion/ui:password_suggestion_utils",
     "//ios/chrome/browser/settings/ui_bundled/password:title_view",
     "//ios/chrome/browser/shared/model/application_context",
     "//ios/chrome/browser/shared/ui/elements",
@@ -220,6 +222,7 @@ source_set("unit_tests") {
     "manual_fill_credit_card_unittest.mm",
     "manual_fill_labeled_chip_unittest.mm",
     "manual_fill_password_mediator_unittest.mm",
+    "manual_fill_virtual_card_cache_unittest.mm",
     "password_view_controller_unittest.mm",
   ]
   deps = [
@@ -236,6 +239,7 @@ source_set("unit_tests") {
     "//components/autofill/core/common",
     "//components/autofill/core/common:credit_card_number_validation",
     "//components/autofill/ios/browser",
+    "//components/autofill/ios/browser:test_support",
     "//components/autofill/ios/form_util",
     "//components/autofill/ios/form_util:test_support",
     "//components/leveldb_proto",
@@ -354,8 +358,8 @@ source_set("eg2_tests") {
     "//ios/chrome/browser/autofill/ui_bundled/manual_fill:eg_test_support+eg2",
     "//ios/chrome/browser/infobars/ui_bundled/banners:public",
     "//ios/chrome/browser/metrics/model:eg_test_support+eg2",
-    "//ios/chrome/browser/passwords/ui_bundled:constants",
-    "//ios/chrome/browser/passwords/ui_bundled/bottom_sheet:eg_test_support+eg2",
+    "//ios/chrome/browser/passwords/bottom_sheet/test:eg_test_support+eg2",
+    "//ios/chrome/browser/passwords/password_suggestion/public",
     "//ios/chrome/browser/plus_addresses/ui:eg_test_support+eg2",
     "//ios/chrome/browser/settings/ui_bundled/autofill:constants",
     "//ios/chrome/browser/settings/ui_bundled/google_services:constants",

@@ -61,7 +61,8 @@ import org.mockito.junit.MockitoRule;
 import org.chromium.base.Callback;
 import org.chromium.base.GarbageCollectionTestUtils;
 import org.chromium.base.ThreadUtils;
-import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.base.supplier.ObservableSuppliers;
+import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Criteria;
@@ -158,7 +159,7 @@ public class SelectableTabListEditorTest {
     private SnackbarManager mSnackbarManager;
     private BookmarkModel mBookmarkModel;
     private AppHeaderCoordinator mAppHeaderStateProvider;
-    private ObservableSupplierImpl<EdgeToEdgeController> mEdgeToEdgeSupplier;
+    private SettableMonotonicObservableSupplier<EdgeToEdgeController> mEdgeToEdgeSupplier;
     private WebPageStation mPage;
 
     @Before
@@ -186,7 +187,9 @@ public class SelectableTabListEditorTest {
                             DeviceFormFactor.isNonMultiDisplayContextOnTablet(cta)
                                     ? (ViewGroup) cta.findViewById(R.id.tab_switcher_view_holder)
                                     : compositorViewHolder;
-                    mSnackbarManager = new SnackbarManager(cta, rootView, null);
+                    mSnackbarManager =
+                            new SnackbarManager(
+                                    cta, rootView, null, null, cta.getModalDialogManager());
                     var currentTabGroupModelFilterSupplier =
                             mTabModelSelector.getCurrentTabGroupModelFilterSupplier();
                     mAppHeaderStateProvider =
@@ -195,7 +198,7 @@ public class SelectableTabListEditorTest {
                                             .getActivity()
                                             .getRootUiCoordinatorForTesting()
                                             .getDesktopWindowStateManager();
-                    mEdgeToEdgeSupplier = new ObservableSupplierImpl<>();
+                    mEdgeToEdgeSupplier = ObservableSuppliers.createMonotonic();
                     mTabListEditorCoordinator =
                             new TabListEditorCoordinator(
                                     cta,

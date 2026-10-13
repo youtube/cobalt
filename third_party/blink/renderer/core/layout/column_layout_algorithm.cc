@@ -602,6 +602,15 @@ MinMaxSizesResult ColumnLayoutAlgorithm::ComputeSpannersMinMaxSizes(
 
 BreakStatus ColumnLayoutAlgorithm::LayoutChildren() {
   MarginStrut margin_strut;
+
+  if (Style().MarginTrim() & kMarginTrimBlockStart) {
+    // If the first piece of child content is a spanner, block-start margins on
+    // that spanner should be trimmed. Note that margin trimming won't apply to
+    // column (fragmented) content, since columns establish a block formatting
+    // context root, which means that no child margin can propagate through.
+    margin_strut.trim_leading_margins = true;
+  }
+
   MulticolPartWalker walker(Node(), GetBreakToken());
   while (!walker.IsFinished()) {
     auto entry = walker.Current();
@@ -637,8 +646,10 @@ BreakStatus ColumnLayoutAlgorithm::LayoutChildren() {
         BlockNode spanner_node = GetSpannerFromPath(path);
 
         if (Node().FirstChild() != spanner_node) {
-          // Preceded by column content. Done with any block-start trimming.
+          // Preceded by column content. Done with any block-start text box or
+          // margin trimming.
           container_builder_.ClearShouldTextBoxTrimNodeStart();
+          margin_strut.trim_leading_margins = false;
         }
 
         walker.MoveToSpanner(spanner_node, next_column_token);
@@ -733,6 +744,11 @@ BreakStatus ColumnLayoutAlgorithm::LayoutChildren() {
     // context. In that case we must make sure to skip the contents when
     // resuming.
     container_builder_.SetHasSeenAllChildren();
+
+    if (Style().MarginTrim() & kMarginTrimBlockEnd) {
+      // Trim outgoing margins from trailing spanner, if any.
+      margin_strut = MarginStrut();
+    }
 
     // TODO(mstensho): Truncate the child margin if it overflows the
     // fragmentainer, by using AdjustedMarginAfterFinalChildFragment().
@@ -1094,7 +1110,7 @@ const LayoutResult* ColumnLayoutAlgorithm::LayoutLine(
         if (line_offset + block_end_overflow >
             FragmentainerSpaceLeftForChildren()) {
           if (GetConstraintSpace().IsInsideBalancedColumns() &&
-              !container_builder_.IsInitialColumnBalancingPass()) {
+              !GetConstraintSpace().IsInitialColumnBalancingPass()) {
             container_builder_.PropagateSpaceShortage(minimal_space_shortage);
           }
           if (!minimum_column_block_size &&
@@ -1230,8 +1246,9 @@ const LayoutResult* ColumnLayoutAlgorithm::LayoutLine(
         // If we're doing nested column balancing, propagate any space shortage
         // to the outer multicol container, so that the outer multicol container
         // can attempt to stretch, so that this inner one may fit as well.
-        if (!container_builder_.IsInitialColumnBalancingPass())
+        if (!GetConstraintSpace().IsInitialColumnBalancingPass()) {
           container_builder_.PropagateSpaceShortage(minimal_space_shortage);
+        }
       }
       break;
     }
@@ -1888,7 +1905,7 @@ LayoutUnit ColumnLayoutAlgorithm::ConstrainColumnBlockSize(
   size = std::min(size, max);
   size = (size - extra).ClampNegativeToZero();
 
-  if (ShouldWrapColumns() && HasRowHeight()) {
+  if (HasRowHeight()) {
     // Never become taller than used `column-height`.
     size = std::min(size, RemainingRowHeightAtOffset(line_offset));
   }

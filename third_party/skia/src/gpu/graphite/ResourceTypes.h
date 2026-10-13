@@ -25,14 +25,14 @@ class Buffer;
 // it to appear as just an enum class.
 SK_MAKE_BITMASK_OPS(DepthStencilFlags)
 // The same goes for SampleCount
-SK_MAKE_BITMASK_OPS(SampleCount::V)
+SK_MAKE_BITMASK_OPS(SampleCount)
 
 /**
  * There are only a few possible valid sample counts (1, 2, 4, 8, 16). So we can key on those 5
  * options instead of the actual sample value. The resulting key value only requires 3 bits of space
  */
 static constexpr uint32_t SamplesToKey(SampleCount numSamples) {
-    switch ((SampleCount::V) numSamples) {
+    switch (numSamples) {
         case SampleCount::k1:
             return 0;
         case SampleCount::k2:
@@ -48,7 +48,7 @@ static constexpr uint32_t SamplesToKey(SampleCount numSamples) {
 }
 static constexpr SampleCount KeyToSamples(uint32_t keyBits) {
     SkASSERT(keyBits <= 4);
-    return static_cast<SampleCount::V>(1 << keyBits);
+    return static_cast<SampleCount>(1 << keyBits);
 }
 static constexpr int kNumSampleKeyBits = 3;
 
@@ -116,16 +116,20 @@ static const int kBufferTypeCount = static_cast<int>(BufferType::kLast) + 1;
 enum class Layout : uint8_t {
     kInvalid = 0,
     kStd140,
+    kStd140_F16,
     kStd430,
+    kStd430_F16,
     kMetal,
 };
 
 static constexpr const char* LayoutString(Layout layout) {
     switch(layout) {
-        case Layout::kStd140:  return "std140";
-        case Layout::kStd430:  return "std430";
-        case Layout::kMetal:   return "metal";
-        case Layout::kInvalid: return "invalid";
+        case Layout::kStd140:     return "std140";
+        case Layout::kStd140_F16: return "std140-f16";
+        case Layout::kStd430:     return "std430";
+        case Layout::kStd430_F16: return "std430-f16";
+        case Layout::kMetal:      return "metal";
+        case Layout::kInvalid:    return "invalid";
     }
     SkUNREACHABLE;
 }

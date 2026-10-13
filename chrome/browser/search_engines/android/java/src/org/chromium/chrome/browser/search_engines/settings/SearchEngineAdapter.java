@@ -37,19 +37,15 @@ import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.regional_capabilities.RegionalCapabilitiesServiceFactory;
 import org.chromium.chrome.browser.search_engines.R;
 import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
-import org.chromium.chrome.browser.ui.favicon.FaviconUtils;
 import org.chromium.components.browser_ui.widget.containment.ContainerStyle;
 import org.chromium.components.browser_ui.widget.containment.ContainmentItemController;
 import org.chromium.components.browser_ui.widget.containment.ContainmentViewStyler;
 import org.chromium.components.favicon.LargeIconBridge;
-import org.chromium.components.favicon.LargeIconBridge.GoogleFaviconServerCallback;
-import org.chromium.components.favicon.LargeIconBridge.LargeIconCallback;
 import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.components.regional_capabilities.RegionalCapabilitiesService;
 import org.chromium.components.search_engines.ChoiceMadeLocation;
 import org.chromium.components.search_engines.TemplateUrl;
 import org.chromium.components.search_engines.TemplateUrlService;
-import org.chromium.net.NetworkTrafficAnnotationTag;
 import org.chromium.url.GURL;
 
 import java.lang.annotation.Retention;
@@ -70,44 +66,20 @@ public class SearchEngineAdapter extends BaseAdapter
                 TemplateUrlService.TemplateUrlServiceObserver,
                 OnClickListener {
 
-    @VisibleForTesting static final int VIEW_TYPE_ITEM = 0;
-    @VisibleForTesting static final int VIEW_TYPE_DIVIDER = 1;
-    private static final int VIEW_TYPE_COUNT = 2;
-
     public static final int MAX_RECENT_ENGINE_NUM = 3;
     public static final long MAX_DISPLAY_TIME_SPAN_MS = DateUtils.DAY_IN_MILLIS * 2;
+    private static final Runnable NO_OP = () -> {};
 
-    private static final NetworkTrafficAnnotationTag TRAFFIC_ANNOTATION =
-            NetworkTrafficAnnotationTag.createComplete(
-                    "search_engine_adapter",
-                    """
-                    semantics {
-                        sender: 'SearchEngineAdapter'
-                        description: 'Sends a request to a Google server to retrieve the favicon bitmap.'
-                        trigger:
-                            'A request is sent when the user opens search engine settings and Chrome does '
-                            'not have a favicon.'
-                        data: 'Search engine URL and desired icon size.'
-                        destination: GOOGLE_OWNED_SERVICE
-                        internal {
-                            contacts {
-                                email: 'chrome-signin-team@google.com'
-                            }
-                            contacts {
-                                email: 'triploblastic@google.com'
-                            }
-                        }
-                        user_data {
-                            type: NONE
-                        }
-                        last_reviewed: '2023-12-04'
-                    }
-                    policy {
-                        cookies_allowed: NO
-                        policy_exception_justification: 'Not implemented.'
-                        setting: 'This feature cannot be disabled by settings.'
-                    }\
-                    """);
+    private static final int VIEW_TYPE_COUNT = 3;
+
+    @VisibleForTesting
+    @IntDef({ViewType.ITEM, ViewType.DIVIDER, ViewType.SITE_SEARCH_SETTINGS})
+    @Retention(RetentionPolicy.SOURCE)
+    @interface ViewType {
+        int ITEM = 0;
+        int DIVIDER = 1;
+        int SITE_SEARCH_SETTINGS = 2;
+    }
 
     /**
      * Type for source of search engine. This is needed because if a custom search engine is set as
@@ -129,6 +101,8 @@ public class SearchEngineAdapter extends BaseAdapter
     private final Context mContext;
 
     private final Profile mProfile;
+
+    private final Runnable mSiteSearchClickHandler;
 
     /** The layout inflater to use for the custom views. */
     private final LayoutInflater mLayoutInflater;
@@ -167,13 +141,22 @@ public class SearchEngineAdapter extends BaseAdapter
      *
      * @param context The current context.
      * @param profile The Profile associated with these settings.
+     * @param siteSearchClickHandler Used for "Manage search engines and site search". Only
+     *     avaliable when OmniboxFeatures.sOmniboxSiteSearch is enabled.
      */
-    public SearchEngineAdapter(Context context, Profile profile) {
+    public SearchEngineAdapter(
+            Context context, Profile profile, @Nullable Runnable siteSearchClickHandler) {
         mContext = context;
         mProfile = profile;
         mLayoutInflater =
                 (LayoutInflater) mContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
         mContainmentItemController = new ContainmentItemController(mContext);
+
+        if (OmniboxFeatures.sOmniboxSiteSearch.isEnabled() && siteSearchClickHandler != null) {
+            this.mSiteSearchClickHandler = siteSearchClickHandler;
+        } else {
+            this.mSiteSearchClickHandler = NO_OP;
+        }
     }
 
     /** Start the adapter to gather the available search engines and listen for updates. */
@@ -327,13 +310,16 @@ public class SearchEngineAdapter extends BaseAdapter
         int recentEngineNum = 0;
         long displayTime = System.currentTimeMillis() - MAX_DISPLAY_TIME_SPAN_MS;
         Iterator<TemplateUrl> iterator = templateUrls.iterator();
+        // Recently visited search engines is disabled as site search can set more advance settings.
+        boolean shouldShowRecentSearchEngines = !OmniboxFeatures.sOmniboxSiteSearch.isEnabled();
         while (iterator.hasNext()) {
             TemplateUrl templateUrl = iterator.next();
             if (getSearchEngineSourceType(templateUrl, defaultSearchEngine)
                     != TemplateUrlSourceType.RECENT) {
                 continue;
             }
-            if (recentEngineNum < MAX_RECENT_ENGINE_NUM
+            if (shouldShowRecentSearchEngines
+                    && recentEngineNum < MAX_RECENT_ENGINE_NUM
                     && templateUrl.getLastVisitedTime() > displayTime) {
                 recentEngineNum++;
             } else {
@@ -448,6 +434,9 @@ public class SearchEngineAdapter extends BaseAdapter
             // Account for the header by adding one to the size.
             size += mRecentSearchEngines.size() + 1;
         }
+        if (mSiteSearchClickHandler != NO_OP) {
+            size += 1;
+        }
         return size;
     }
 
@@ -458,6 +447,9 @@ public class SearchEngineAdapter extends BaseAdapter
 
     @Override
     public @Nullable Object getItem(int pos) {
+        if (getItemViewType(pos) == ViewType.SITE_SEARCH_SETTINGS) {
+            return null;
+        }
         if (pos < mPrepopulatedSearchEngines.size()) {
             return mPrepopulatedSearchEngines.get(pos);
         } else if (pos > mPrepopulatedSearchEngines.size()) {
@@ -473,11 +465,14 @@ public class SearchEngineAdapter extends BaseAdapter
     }
 
     @Override
-    public int getItemViewType(int position) {
-        if (position == mPrepopulatedSearchEngines.size() && mRecentSearchEngines.size() != 0) {
-            return VIEW_TYPE_DIVIDER;
+    public @ViewType int getItemViewType(int position) {
+        if (mSiteSearchClickHandler != NO_OP && position == getCount() - 1) {
+            return ViewType.SITE_SEARCH_SETTINGS;
+        } else if (position == mPrepopulatedSearchEngines.size()
+                && mRecentSearchEngines.size() != 0) {
+            return ViewType.DIVIDER;
         } else {
-            return VIEW_TYPE_ITEM;
+            return ViewType.ITEM;
         }
     }
 
@@ -487,7 +482,7 @@ public class SearchEngineAdapter extends BaseAdapter
 
         View view = convertView;
         int itemViewType = getItemViewType(position);
-        if (itemViewType == VIEW_TYPE_DIVIDER) {
+        if (itemViewType == ViewType.DIVIDER) {
             if (convertView == null && mRecentSearchEngines.size() != 0) {
                 view = mLayoutInflater.inflate(R.layout.search_engine_recent_title, parent, false);
             }
@@ -495,15 +490,19 @@ public class SearchEngineAdapter extends BaseAdapter
         }
 
         if (convertView == null) {
-            int layoutId = R.layout.search_engine_with_logo;
+            int layoutId;
+            if (itemViewType == ViewType.SITE_SEARCH_SETTINGS) {
+                layoutId = R.layout.search_engine_site_search_link;
+            } else {
+                layoutId = R.layout.search_engine_with_logo;
+            }
             view = mLayoutInflater.inflate(layoutId, parent, false);
         }
 
         if (ChromeFeatureList.sAndroidSettingsContainment.isEnabled()) {
-            boolean isTop = position == 0 || getItemViewType(position - 1) == VIEW_TYPE_DIVIDER;
+            boolean isTop = position == 0 || getItemViewType(position - 1) == ViewType.DIVIDER;
             boolean isBottom =
-                    position == getCount() - 1
-                            || getItemViewType(position + 1) == VIEW_TYPE_DIVIDER;
+                    position == getCount() - 1 || getItemViewType(position + 1) == ViewType.DIVIDER;
 
             View containerView = view.findViewById(R.id.container);
 
@@ -513,6 +512,12 @@ public class SearchEngineAdapter extends BaseAdapter
                             .build();
             ContainmentViewStyler.applyBackgroundStyle(containerView, containerStyle);
             ContainmentViewStyler.applyMargins(containerView, containerStyle);
+        }
+
+        if (itemViewType == ViewType.SITE_SEARCH_SETTINGS) {
+            view.setOnClickListener(this);
+            view.setTag(position);
+            return view;
         }
 
         view.setOnClickListener(this);
@@ -568,53 +573,8 @@ public class SearchEngineAdapter extends BaseAdapter
     }
 
     private void updateLogo(ImageView logoView, TemplateUrl templateUrl, GURL faviconUrl) {
-        if (mIconCache.containsKey(faviconUrl)) {
-            logoView.setImageBitmap(mIconCache.get(faviconUrl));
-            return;
-        }
-
-        if (OmniboxFeatures.sOmniboxParityRetrieveBuiltInEngineIcon.getValue()) {
-            @Nullable Bitmap bitmap = templateUrl.getBuiltInSearchEngineIcon();
-            if (bitmap != null) {
-                mIconCache.put(faviconUrl, bitmap);
-                logoView.setImageBitmap(bitmap);
-                return;
-            }
-        }
-
-        // Use a placeholder image while trying to fetch the logo.
-        int uiElementSizeInPx =
-                mContext.getResources().getDimensionPixelSize(R.dimen.search_engine_favicon_size);
-        logoView.setImageBitmap(
-                FaviconUtils.createGenericFaviconBitmap(mContext, uiElementSizeInPx, null));
-        LargeIconCallback onFaviconAvailable =
-                (icon, fallbackColor, isFallbackColorDefault, iconType) -> {
-                    if (icon != null) {
-                        logoView.setImageBitmap(icon);
-                        mIconCache.put(faviconUrl, icon);
-                    }
-                };
-        GoogleFaviconServerCallback googleServerCallback =
-                (status) -> {
-                    // Update the time the icon was last requested to avoid automatic eviction
-                    // from cache.
-                    mLargeIconBridge.touchIconFromGoogleServer(faviconUrl);
-                    // The search engine logo will be fetched from google servers, so the actual
-                    // size of the image is controlled by LargeIconService configuration.
-                    // minSizePx=1 is used to accept logo of any size.
-                    mLargeIconBridge.getLargeIconForUrl(
-                            faviconUrl,
-                            /* minSizePx= */ 1,
-                            /* desiredSizePx= */ uiElementSizeInPx,
-                            onFaviconAvailable);
-                };
-        // If the icon already exists in the cache no network request will be made, but the
-        // callback will be triggered nonetheless.
-        mLargeIconBridge.getLargeIconOrFallbackStyleFromGoogleServerSkippingLocalCache(
-                faviconUrl,
-                /* shouldTrimPageUrlPath= */ true,
-                TRAFFIC_ANNOTATION,
-                googleServerCallback);
+        SearchEngineIconUtils.updateIcon(
+                mContext, logoView, templateUrl, faviconUrl, mLargeIconBridge, mIconCache);
     }
 
     // TemplateUrlService.LoadListener
@@ -635,7 +595,12 @@ public class SearchEngineAdapter extends BaseAdapter
 
     @Override
     public void onClick(View view) {
-        searchEngineSelected((int) view.getTag());
+        int position = (int) view.getTag();
+        if (getItemViewType(position) == ViewType.SITE_SEARCH_SETTINGS) {
+            mSiteSearchClickHandler.run();
+            return;
+        }
+        searchEngineSelected(position);
     }
 
     private String searchEngineSelected(int position) {

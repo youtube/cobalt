@@ -1075,7 +1075,8 @@ CSSPrimitiveValue* ComputedStyleUtils::ValueForFontStretch(
 }
 
 CSSValue* ComputedStyleUtils::ValueForFontStyle(const ComputedStyle& style) {
-  FontSelectionValue angle = style.GetFontDescription().Style();
+  FontSelectionValue angle =
+      style.GetFontDescription().Style().ClampToObliqueRange();
   if (angle == kNormalSlopeValue) {
     return CSSIdentifierValue::Create(CSSValueID::kNormal);
   }
@@ -2281,9 +2282,22 @@ static bool IsSVGObjectWithWidthAndHeight(const LayoutObject& layout_object) {
           IsA<SVGRectElement>(layout_object.GetNode()));
 }
 
-gfx::SizeF ComputedStyleUtils::UsedBoxSize(const LayoutObject& layout_object) {
-  if (layout_object.IsSVGChild() &&
-      IsSVGObjectWithWidthAndHeight(layout_object)) {
+// https://drafts.csswg.org/cssom/#resolved-value
+//
+// For 'width' and 'height':
+//
+// If the property applies to the element or pseudo-element and the resolved
+// value of the display property is not none or contents, then the resolved
+// value is the used value. Otherwise the resolved value is the computed value
+// (https://drafts.csswg.org/css-cascade-4/#computed-value).
+//
+// (Note that the computed value exists even when the property does not apply.)
+std::optional<gfx::SizeF> ComputedStyleUtils::UsedBoxSize(
+    const LayoutObject& layout_object) {
+  if (layout_object.IsSVGChild()) {
+    if (!IsSVGObjectWithWidthAndHeight(layout_object)) {
+      return std::nullopt;
+    }
     auto* viewport_container =
         DynamicTo<LayoutSVGViewportContainer>(layout_object);
     gfx::SizeF size =
@@ -2297,13 +2311,12 @@ gfx::SizeF ComputedStyleUtils::UsedBoxSize(const LayoutObject& layout_object) {
     size.Scale(layout_object.StyleRef().EffectiveZoom());
     return size;
   }
-  if (!layout_object.IsBox()) {
-    return gfx::SizeF();
+  if (const auto* box = DynamicTo<LayoutBox>(layout_object)) {
+    return gfx::SizeF(box->StyleRef().BoxSizing() == EBoxSizing::kBorderBox
+                          ? box->PhysicalBorderBoxRect().size
+                          : box->ComputedCSSContentBoxRect().size);
   }
-  const auto& box = To<LayoutBox>(layout_object);
-  return gfx::SizeF(box.StyleRef().BoxSizing() == EBoxSizing::kBorderBox
-                        ? box.PhysicalBorderBoxRect().size
-                        : box.ComputedCSSContentBoxRect().size);
+  return std::nullopt;
 }
 
 CSSValue* ComputedStyleUtils::RenderTextDecorationFlagsToCSSValue(
@@ -2811,27 +2824,27 @@ CSSValue* ComputedStyleUtils::ValueForAnimationTriggerBehaviorList(
                                   &ValueForAnimationTriggerBehavior);
 }
 
-CSSValue* ComputedStyleUtils::ValueForTimelineTriggerEntryRangeStartList(
+CSSValue* ComputedStyleUtils::ValueForTimelineTriggerActivationRangeStartList(
     const CSSAnimationData* animation_data,
     const ComputedStyle& style) {
   return ValueForAnimationRangeList(
       animation_data
-          ? animation_data->TimelineTriggerEntryRangeStartList()
+          ? animation_data->TimelineTriggerActivationRangeStartList()
           : Vector<std::optional<
                 TimelineOffset>>{CSSAnimationData::
-                                     InitialTimelineTriggerEntryRangeStart()},
+                                     InitialTimelineTriggerActivationRangeStart()},
       style, Length::Percent(0.0));
 }
 
-CSSValue* ComputedStyleUtils::ValueForTimelineTriggerEntryRangeEndList(
+CSSValue* ComputedStyleUtils::ValueForTimelineTriggerActivationRangeEndList(
     const CSSAnimationData* animation_data,
     const ComputedStyle& style) {
   return ValueForAnimationRangeList(
       animation_data
-          ? animation_data->TimelineTriggerEntryRangeEndList()
+          ? animation_data->TimelineTriggerActivationRangeEndList()
           : Vector<std::optional<
                 TimelineOffset>>{CSSAnimationData::
-                                     InitialTimelineTriggerEntryRangeEnd()},
+                                     InitialTimelineTriggerActivationRangeEnd()},
       style, Length::Percent(100.0));
 }
 
@@ -4019,34 +4032,6 @@ CSSValue* ComputedStyleUtils::ValueForWebkitColumnBreakInside(
   }
 }
 
-// https://drafts.csswg.org/cssom/#resolved-value
-//
-// For 'width' and 'height':
-//
-// If the property applies to the element or pseudo-element and the resolved
-// value of the display property is not none or contents, then the resolved
-// value is the used value. Otherwise the resolved value is the computed value
-// (https://drafts.csswg.org/css-cascade-4/#computed-value).
-//
-// (Note that the computed value exists even when the property does not apply.)
-bool ComputedStyleUtils::WidthOrHeightShouldReturnUsedValue(
-    const LayoutObject* object) {
-  // The display property is 'none'.
-  if (!object) {
-    return false;
-  }
-  // Non-root SVG objects return the resolved value except <image>,
-  // <rect> and <foreignObject> which return the used value.
-  if (object->IsSVGChild()) {
-    return IsSVGObjectWithWidthAndHeight(*object);
-  }
-  // According to
-  // http://www.w3.org/TR/CSS2/visudet.html#the-width-property and
-  // http://www.w3.org/TR/CSS2/visudet.html#the-height-property, the "width" or
-  // "height" property does not apply to non-atomic inline elements.
-  return object->IsAtomicInlineLevel() || !object->IsInline();
-}
-
 CSSValueList* ComputedStyleUtils::ValuesForShorthandProperty(
     const StylePropertyShorthand& shorthand,
     const ComputedStyle& style,
@@ -4912,9 +4897,6 @@ CSSValue* ComputedStyleUtils::ValueForIntrinsicLength(
   CSSIdentifierValue* option = nullptr;
   if (intrinsic_length.HasAuto()) {
     option = CSSIdentifierValue::Create(CSSValueID::kAuto);
-  } else if (intrinsic_length.IsFromElement()) {
-    DCHECK(RuntimeEnabledFeatures::ResponsiveIframesEnabled());
-    option = CSSIdentifierValue::Create(CSSValueID::kFromElement);
   } else {
     return length_value;
   }
@@ -5180,37 +5162,38 @@ CSSValue* ComputedStyleUtils::ValueForPositionTryFallbacks(
 CSSValue* ComputedStyleUtils::ValueForFitText(const ComputedStyle& style,
                                               const FitText& fit_text) {
   CSSValueList* list = CSSValueList::CreateSpaceSeparated();
-  CSSValueID target_id;
+  CSSValueID type_id;
+  switch (fit_text.Type()) {
+    case FitTextType::kNone:
+      type_id = CSSValueID::kNone;
+      break;
+    case FitTextType::kGrow:
+      type_id = CSSValueID::kGrow;
+      break;
+    case FitTextType::kShrink:
+      type_id = CSSValueID::kShrink;
+      break;
+  }
+  list->Append(*CSSIdentifierValue::Create(type_id));
+  if (type_id == CSSValueID::kNone) {
+    return list;
+  }
+
   switch (fit_text.Target()) {
-    case FitTextTarget::kNone:
-      target_id = CSSValueID::kNone;
+    case FitTextTarget::kConsistent:
+      // It's a default value.
       break;
     case FitTextTarget::kPerLine:
-      target_id = CSSValueID::kPerLine;
+      list->Append(*CSSIdentifierValue::Create(CSSValueID::kPerLine));
       break;
-    case FitTextTarget::kConsistent:
-      target_id = CSSValueID::kConsistent;
-      break;
-  }
-  list->Append(*CSSIdentifierValue::Create(target_id));
-
-  switch (fit_text.Method()) {
-    case FitTextMethod::kScale:
-      // The default value.
-      break;
-    case FitTextMethod::kFontSize:
-      list->Append(*CSSIdentifierValue::Create(CSSValueID::kFontSize));
-      break;
-    case FitTextMethod::kScaleInline:
-      list->Append(*CSSIdentifierValue::Create(CSSValueID::kScaleInline));
-      break;
-    case FitTextMethod::kLetterSpacing:
-      list->Append(*CSSIdentifierValue::Create(CSSValueID::kLetterSpacing));
+    case FitTextTarget::kPerLineAll:
+      list->Append(*CSSIdentifierValue::Create(CSSValueID::kPerLineAll));
       break;
   }
 
-  if (auto size = fit_text.SizeLimit()) {
-    list->Append(*ZoomAdjustedPixelValue(*size, style));
+  if (auto limit = fit_text.ScaleFactorLimit()) {
+    list->Append(*CSSNumericLiteralValue::Create(
+        *limit * 100, CSSPrimitiveValue::UnitType::kPercentage));
   }
   return list;
 }
@@ -5227,14 +5210,8 @@ CSSValueList* ComputedStyleUtils::ValuesForGridLanesShorthand(
       shorthand.properties()[0]->CSSValueFromComputedStyle(
           style, layout_object, allow_visited_style, value_phase);
   DCHECK(template_area_values);
-  // Note: `shorthand.properties()[1]` is intentionally not used here because it
-  // always refers to `grid-template-columns`.
-  // Instead, we use `GetCSSPropertyGridTemplateColumns()` or
-  // `GetCSSPropertyGridTemplateRows()` depending on the `grid-lanes-direction`,
-  // since `grid-template-rows` is not listed in the `grid-lanes` shorthand
-  // property.
   const CSSValue* grid_lanes_direction_values =
-      shorthand.properties()[2]->CSSValueFromComputedStyle(
+      shorthand.properties()[3]->CSSValueFromComputedStyle(
           style, layout_object, allow_visited_style, value_phase);
   DCHECK(grid_lanes_direction_values);
   const CSSValue* grid_lanes_template_tracks_values =
@@ -5242,9 +5219,9 @@ CSSValueList* ComputedStyleUtils::ValuesForGridLanesShorthand(
           grid_lanes_direction_values) ||
               CSSOMUtils::IsGridLanesColumnDirectionValue(
                   grid_lanes_direction_values)
-          ? GetCSSPropertyGridTemplateColumns().CSSValueFromComputedStyle(
+          ? shorthand.properties()[1]->CSSValueFromComputedStyle(
                 style, layout_object, allow_visited_style, value_phase)
-          : GetCSSPropertyGridTemplateRows().CSSValueFromComputedStyle(
+          : shorthand.properties()[2]->CSSValueFromComputedStyle(
                 style, layout_object, allow_visited_style, value_phase);
   DCHECK(grid_lanes_template_tracks_values);
 

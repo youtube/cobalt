@@ -209,6 +209,10 @@ void BinaryUploadRequest::set_is_content_too_large(bool is_content_too_large) {
   is_content_too_large_ = is_content_too_large;
 }
 
+void BinaryUploadRequest::set_should_skip_malware_scan(bool should_skip) {
+  should_skip_malware_scan_ = should_skip;
+}
+
 void BinaryUploadRequest::set_blocking(bool blocking) {
   content_analysis_request_.set_blocking(blocking);
 }
@@ -246,6 +250,10 @@ void BinaryUploadRequest::set_content_hash_in_final_call(
     bool content_hash_in_final_call) {
   content_analysis_request_.set_content_hash_in_final_call(
       content_hash_in_final_call);
+}
+
+void BinaryUploadRequest::set_file_size(uint64_t file_size) {
+  content_analysis_request_.mutable_request_data()->set_file_size(file_size);
 }
 
 std::string BinaryUploadRequest::SetRandomRequestToken() {
@@ -333,12 +341,20 @@ bool BinaryUploadRequest::is_content_too_large() const {
   return is_content_too_large_;
 }
 
+bool BinaryUploadRequest::should_skip_malware_scan() const {
+  return should_skip_malware_scan_;
+}
+
 bool BinaryUploadRequest::is_content_encrypted() const {
   return content_analysis_request_.is_content_encrypted();
 }
 
 bool BinaryUploadRequest::content_hash_in_final_call() const {
   return content_analysis_request_.content_hash_in_final_call();
+}
+
+uint64_t BinaryUploadRequest::file_size() const {
+  return content_analysis_request_.request_data().file_size();
 }
 
 void BinaryUploadRequest::StartRequest() {

@@ -7,7 +7,7 @@
 #include "base/rand_util.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/contextual_search/contextual_search_service_factory.h"
-#include "chrome/browser/contextual_tasks/contextual_tasks_side_panel_coordinator.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_panel_controller.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service_factory.h"
 #include "chrome/browser/lens/core/mojom/lens.mojom.h"
@@ -28,6 +28,7 @@
 #include "components/lens/lens_url_utils.h"
 #include "components/lens/ref_counted_lens_overlay_client_logs.h"
 #include "components/omnibox/browser/lens_suggest_inputs_utils.h"
+#include "components/omnibox/common/logger.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "net/base/url_util.h"
 #include "third_party/lens_server_proto/lens_overlay_server.pb.h"
@@ -89,12 +90,15 @@ void LensQueryFlowRouter::StartQueryFlow(
     // remove the observer before creating a new session handle.
     file_upload_status_observation_.Reset();
 
-    pending_session_handle_ = CreateContextualSearchSessionHandle();
-    pending_session_handle_->NotifySessionStarted();
-
-    // Add observer to listen for file upload status changes.
-    file_upload_status_observation_.Observe(
-        pending_session_handle_->GetController());
+    if (!GetContextualSearchSessionHandle()) {
+      pending_session_handle_ = CreateContextualSearchSessionHandle();
+      pending_session_handle_->NotifySessionStarted();
+      // Add observer to listen for file upload status changes. This is only
+      // needed when a new session handle is created as part of this flow as
+      // the response is not used by the overlay otherwise.
+      file_upload_status_observation_.Observe(
+          GetContextualSearchSessionHandle()->GetController());
+    }
 
     // If permissions have been granted, start uploading the current viewport
     // and page content. If not, store as a callback to be run later.
@@ -402,11 +406,7 @@ void LensQueryFlowRouter::SendInteractionToContextualTasks(
     pending_session_handle_->NotifySessionStarted();
   }
 
-  bool needs_overlay_tab_context =
-      lens_search_controller_->invocation_source() !=
-      lens::LensOverlayInvocationSource::kContextualTasksComposebox;
-  if (needs_overlay_tab_context &&
-      !overlay_tab_context_file_token_.has_value()) {
+  if (!overlay_tab_context_file_token_.has_value()) {
     pending_search_url_request_ = std::move(request_info);
     // Upload the page context when creating a session handle.
     if (auto* controller =
@@ -433,6 +433,10 @@ void LensQueryFlowRouter::OpenContextualTasksPanel(GURL url) {
     return;
   }
 
+  // Log the URL the debug omnibox webui page. Do this first so it makes
+  // chronological sense in the logs.
+  OMNIBOX_LOG("lens_results_nav") << url.spec();
+
   // Show the side panel. This will create a new task and associate it with the
   // active tab.
   contextual_tasks::ContextualTasksUiServiceFactory::GetForBrowserContext(
@@ -447,17 +451,7 @@ void LensQueryFlowRouter::OpenContextualTasksPanel(GURL url) {
 void LensQueryFlowRouter::UploadContextualInputData(
     std::unique_ptr<lens::ContextualInputData> contextual_input_data) {
   auto* session_handle = GetContextualSearchSessionHandle();
-  GetContextualSearchSessionHandle()->AddTabContext(
-      sessions::SessionTabHelper::IdForTab(web_contents()).id(),
-      base::BindOnce(&LensQueryFlowRouter::OnFinishedAddingTabContext,
-                     weak_factory_.GetWeakPtr(), session_handle,
-                     std::move(contextual_input_data)));
-}
-
-void LensQueryFlowRouter::OnFinishedAddingTabContext(
-    contextual_search::ContextualSearchSessionHandle* session_handle,
-    std::unique_ptr<lens::ContextualInputData> contextual_input_data,
-    const base::UnguessableToken& token) {
+  auto token = GetContextualSearchSessionHandle()->CreateContextToken();
   overlay_tab_context_file_token_ = token;
   // TODO(crbug.com/463400248): Use contextual tasks image upload config params
   // for Lens requests.
@@ -512,6 +506,12 @@ LensQueryFlowRouter::CreateContextualInputData(
           ->GetCurrentPageContextEligibility();
   contextual_input_data->tab_session_id =
       sessions::SessionTabHelper::IdForTab(web_contents());
+  // LensOverlay full-page uploads specifically do not have Lens user intent.
+  // The context upload needs to occur immediately in order to receive CSB
+  // suggestions, but the user intent is signaled to the server via the
+  // presence of a follow-up interaction request instead of this bit in the
+  // context upload request.
+  contextual_input_data->has_lens_usage_intent = false;
   return contextual_input_data;
 }
 
@@ -570,14 +570,13 @@ LensQueryFlowRouter::GetContextualSearchSessionHandle() const {
     return pending_session_handle_.get();
   }
 
-  auto* coordinator =
-      contextual_tasks::ContextualTasksSidePanelCoordinator::From(
-          browser_window_interface());
-  if (!coordinator || !coordinator->IsSidePanelOpenForContextualTask()) {
+  auto* controller = contextual_tasks::ContextualTasksPanelController::From(
+      browser_window_interface());
+  if (!controller || !controller->IsPanelOpenForContextualTask()) {
     return nullptr;
   }
 
-  return coordinator->GetContextualSearchSessionHandleForSidePanel();
+  return controller->GetContextualSearchSessionHandleForPanel();
 }
 
 }  // namespace lens

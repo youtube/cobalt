@@ -20,10 +20,10 @@
 
 namespace content {
 
-base::Value::List GetFontList_SlowBlocking() {
+base::ListValue GetFontList_SlowBlocking() {
   // Only a stub is needed for Starboard (similar to Android and Fuchsia).
   NOTIMPLEMENTED();
-  return base::Value::List();
+  return base::ListValue();
 }
 
 }  // namespace content

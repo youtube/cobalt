@@ -18,6 +18,7 @@
 #include "base/unguessable_token.h"
 #include "content/browser/browser_interface_broker_impl.h"
 #include "content/browser/buckets/bucket_context.h"
+#include "content/browser/locks/lock_manager.h"
 #include "content/browser/renderer_host/back_forward_cache_metrics.h"
 #include "content/browser/renderer_host/code_cache_host_impl.h"
 #include "content/browser/renderer_host/policy_container_host.h"
@@ -75,15 +76,18 @@ class ServiceWorkerMainResourceHandle;
 class SharedWorkerContentSettingsProxyImpl;
 class SharedWorkerServiceImpl;
 class SiteInstanceImpl;
+class StoragePartitionImpl;
 struct WorkerScriptFetcherResult;
 
 // SharedWorkerHost is the browser-side host of a single shared worker running
 // in the renderer. This class is owned by the SharedWorkerServiceImpl of the
 // current BrowserContext.
-class CONTENT_EXPORT SharedWorkerHost : public blink::mojom::SharedWorkerHost,
-                                        public RenderProcessHostObserver,
-                                        public BucketContext,
-                                        public base::SupportsUserData {
+class CONTENT_EXPORT SharedWorkerHost
+    : public blink::mojom::SharedWorkerHost,
+      public RenderProcessHostObserver,
+      public LockManager<storage::BucketId>::Observer,
+      public BucketContext,
+      public base::SupportsUserData {
  public:
   SharedWorkerHost(
       SharedWorkerServiceImpl* service,
@@ -138,6 +142,8 @@ class CONTENT_EXPORT SharedWorkerHost : public blink::mojom::SharedWorkerHost,
       mojo::PendingReceiver<blink::mojom::BlobURLStore> receiver);
   void CreateBucketManagerHost(
       mojo::PendingReceiver<blink::mojom::BucketManagerHost> receiver);
+  void CreateLockManager(
+      mojo::PendingReceiver<blink::mojom::LockManager> receiver);
 
 #if BUILDFLAG(ENABLE_COMPUTE_PRESSURE)
   void BindPressureService(
@@ -170,6 +176,11 @@ class CONTENT_EXPORT SharedWorkerHost : public blink::mojom::SharedWorkerHost,
   // Evicts other BFCached clients and returns true if `render_frame_host` is
   // the last active client.
   bool EvictBFCachedClientsIfLastActive(RenderFrameHostImpl* render_frame_host);
+
+  // Updates the worker's freeze state based on client status. This is called
+  // when a client transitions to/from the BackForwardCache, or when a client is
+  // added or removed.
+  void OnClientStateChanged();
 
   // Returns the frame ids of this worker's clients.
   std::vector<GlobalRenderFrameHostId> GetRenderFrameIDsForWorker();
@@ -278,6 +289,8 @@ class CONTENT_EXPORT SharedWorkerHost : public blink::mojom::SharedWorkerHost,
       network::CrossOriginEmbedderPolicy creator_cross_origin_embedder_policy,
       network::CrossOriginEmbedderPolicy worker_cross_origin_embedder_policy);
 
+  bool HasActiveClients() const;
+
   // blink::mojom::SharedWorkerHost methods:
   void OnConnected(int connection_request_id) override;
   void OnContextClosed() override;
@@ -297,14 +310,21 @@ class CONTENT_EXPORT SharedWorkerHost : public blink::mojom::SharedWorkerHost,
   void OnClientConnectionLost();
   void OnWorkerConnectionLost();
 
+  // LockObserver
+  void OnLockContention() override;
+
   void BindCacheStorageInternal(
       mojo::PendingReceiver<blink::mojom::CacheStorage> receiver,
       const storage::BucketLocator& bucket_locator);
+
+  void FreezeIfNoActiveClient();
 
   // Creates a network factory for subresource requests from this worker. The
   // network factory is meant to be passed to the renderer.
   mojo::PendingRemote<network::mojom::URLLoaderFactory>
   CreateNetworkFactoryForSubresources(bool* bypass_redirect_checks);
+
+  StoragePartitionImpl* GetStoragePartitionImpl();
 
   mojo::Receiver<blink::mojom::SharedWorkerHost> receiver_{this};
 
@@ -364,6 +384,9 @@ class CONTENT_EXPORT SharedWorkerHost : public blink::mojom::SharedWorkerHost,
 
   // Indicates if Start() was invoked on this instance.
   bool started_ = false;
+
+  // Indicates if the worker is frozen.
+  bool is_frozen_ = false;
 
   GURL final_response_url_;
 

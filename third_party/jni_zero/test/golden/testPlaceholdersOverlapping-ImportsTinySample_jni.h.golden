@@ -12,6 +12,9 @@
 #include "extra_include.h"
 
 // Example signatures (to be implemented by #including file).
+// * JNIEnv* parameters are optional.
+// * Types do not have to be exact; they must accept rvalues of the examples.
+//
 // static void JNI_ImportsTinySample_Asdf(JNIEnv* env);
 //
 
@@ -25,12 +28,22 @@
   JNI_ZERO_BOUNDARY_EXPORT void Java_org_jni_1zero_GEN_1JNI_org_1jni_11zero_1extrapackage_1ImportsTinySample_1asdf( \
       JNIEnv* env,                                                                                 \
       jclass jcaller) {                                                                            \
-    /* Use a wrapper function to allow compiler to pick an overloaded version of JNI function */   \
-    auto _jni_func_wrapper = [&](auto&&... args) ->                                                \
-    decltype(JNI_ImportsTinySample_Asdf(std::forward<decltype(args)>(args)...)) {                  \
-      return JNI_ImportsTinySample_Asdf(std::forward<decltype(args)>(args)...);                    \
+    /* Lambda required to make "if constexpr" work properly. */                                    \
+    auto dependent_context = [&](auto) {                                                           \
+      /* Lambda required to disambiguate overloads. */                                             \
+      auto func_wrapper = [&](auto&&... args) ->                                                   \
+      decltype(JNI_ImportsTinySample_Asdf(std::forward<decltype(args)>(args)...)) {                \
+        return JNI_ImportsTinySample_Asdf(std::forward<decltype(args)>(args)...);                  \
+      };                                                                                           \
+      if constexpr (requires { func_wrapper(env); }) {                                             \
+        return func_wrapper(env);                                                                  \
+      } else if constexpr (requires { func_wrapper(); }) {                                         \
+        return func_wrapper();                                                                     \
+      } else {                                                                                     \
+        static_assert(false, "JNI_ImportsTinySample_Asdf() is missing or has incorrect signature.\nIt should accept an optional JNIEnv* parameter as well as rvalues of the given types: ()\nSee ImportsTinySample_jni.h for an example."); \
+      }                                                                                            \
     };                                                                                             \
-    jni_zero::internal::DispatchJniFunc(_jni_func_wrapper, env);                                   \
+    dependent_context(0);                                                                          \
   }                                                                                                \
                                                                                                    \
                                                                                                    \

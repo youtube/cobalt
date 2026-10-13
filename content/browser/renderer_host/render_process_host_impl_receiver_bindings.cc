@@ -18,7 +18,7 @@
 #include "content/browser/file_system/file_system_manager_impl.h"
 #include "content/browser/gpu/gpu_data_manager_impl.h"
 #include "content/browser/media/media_internals.h"
-#include "content/browser/memory_coordinator/browser_memory_consumer_registry.h"
+#include "content/browser/memory_coordinator/browser_memory_coordinator.h"
 #include "content/browser/mime_registry_impl.h"
 #include "content/browser/push_messaging/push_messaging_manager.h"
 #include "content/browser/renderer_host/embedded_frame_sink_provider_impl.h"
@@ -135,10 +135,10 @@ void RenderProcessHostImpl::RegisterMojoInterfaces() {
       registry.get(),
       base::BindRepeating(
           [](ChildProcessId rph_id,
-             mojo::PendingReceiver<mojom::BrowserMemoryConsumerRegistry>
+             mojo::PendingReceiver<mojom::ChildMemoryConsumerRegistryHost>
                  receiver) {
-            BindBrowserMemoryConsumerRegistry(PROCESS_TYPE_RENDERER, rph_id,
-                                              std::move(receiver));
+            BrowserMemoryCoordinator::Get().Bind(PROCESS_TYPE_RENDERER, rph_id,
+                                                 std::move(receiver));
           },
           GetID()));
 
@@ -230,7 +230,8 @@ void RenderProcessHostImpl::RegisterMojoInterfaces() {
 #endif
 
   file_system_manager_impl_.reset(new FileSystemManagerImpl(
-      GetDeprecatedID(), storage_partition_impl_->GetFileSystemContext(),
+      ChildProcessSecurityPolicyImpl::GetInstance()->CreateHandle(GetID()),
+      storage_partition_impl_->GetFileSystemContext(),
       ChromeBlobStorageContext::GetFor(GetBrowserContext())));
 
   AddUIThreadInterface(

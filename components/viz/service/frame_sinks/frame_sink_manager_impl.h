@@ -19,6 +19,7 @@
 #include "base/containers/flat_set.h"
 #include "base/containers/unique_ptr_adapters.h"
 #include "base/functional/callback_helpers.h"
+#include "base/functional/function_ref.h"
 #include "base/memory/raw_ptr.h"
 #include "base/observer_list.h"
 #include "base/sequence_checker.h"
@@ -432,6 +433,12 @@ class VIZ_SERVICE_EXPORT FrameSinkManagerImpl
 
   GpuServiceImpl* GetGpuService();
 
+#if BUILDFLAG(IS_ANDROID)
+  // Android: if true, opts the current ADPF session (held by viz) into
+  // power-efficient scheduling.
+  void SetPreferEfficientScheduling(bool prefer_efficient_scheduling) const;
+#endif
+
 #if BUILDFLAG(IS_MAC)
   // This is called after SetSupportedDisplayLinkId() in the browser process.
   // This function will force ExternalDisplayLinkMac in every
@@ -443,6 +450,11 @@ class VIZ_SERVICE_EXPORT FrameSinkManagerImpl
  private:
   void OnViewTransitionResourcesCaptured(
       const blink::ViewTransitionToken& transition_token);
+
+  void RecurseChildren(const FrameSinkId& frame_sink_id,
+                       base::FunctionRef<void(const FrameSinkId&)> callback);
+  void RecurseParents(const FrameSinkId& frame_sink_id,
+                      base::FunctionRef<void(const FrameSinkId&)> callback);
 
   friend class FrameSinkManagerTest;
   friend class CompositorFrameSinkSupportTestBase;
@@ -507,10 +519,11 @@ class VIZ_SERVICE_EXPORT FrameSinkManagerImpl
   bool ChildContains(const FrameSinkId& child_frame_sink_id,
                      const FrameSinkId& search_frame_sink_id) const;
 
-  // Updates throttling recursively on a frame sink specified by its |id|
-  // and all its descendants to send BeginFrames at |interval|.
-  void UpdateThrottlingRecursively(const FrameSinkId& id,
-                                   base::TimeDelta interval);
+  // Updates the throttling state for the hierarchy containing `frame_sink_id`.
+  // This ensures that `frame_sink_id` and its descendants are correctly
+  // throttled based on global settings, explicit throttle requests, and active
+  // video capture, while accounting for the current hierarchy.
+  void UpdateThrottlingRecursively(FrameSinkId frame_sink_id);
 
   // Called when throttling needs to be updated. Some examples can trigger such
   // an update include: starting of video capturing requires throttling on the
@@ -518,9 +531,16 @@ class VIZ_SERVICE_EXPORT FrameSinkManagerImpl
   // requires throttling on affected frame sinks to be started or stopped.
   void UpdateThrottling();
 
-  // Clears throttling operation on the frame sink with |id| and all its
-  // descendants.
-  void ClearThrottling(const FrameSinkId& id);
+  // Applies throttling to all descendants of `throttled_roots`, and disables
+  // throttling for all descendants of `captured_roots` (e.g. during video
+  // capture).
+  void ApplyThrottlingRules(const base::flat_set<FrameSinkId>& throttled_roots,
+                            const base::flat_set<FrameSinkId>& captured_roots);
+
+  // Check to see if |throttle_interval_| has any effect. For example if
+  // |global_throttle_interval_| is longer then |throttle_interval| it will
+  // never do anything, because the longer interval wins
+  bool ThrottleIntervalHasEffect() const;
 
   // Clears HitTestQuery stored for |frame_sink_id| in
   // `display_hit_test_query_` when `InputOnViz` flag is enabled.
@@ -614,7 +634,7 @@ class VIZ_SERVICE_EXPORT FrameSinkManagerImpl
   base::flat_set<FrameSinkId> captured_frame_sink_ids_;
 
   // Ids of the frame sinks that have been requested to throttle.
-  std::vector<FrameSinkId> frame_sink_ids_to_throttle_;
+  base::flat_set<FrameSinkId> frame_sink_ids_to_throttle_;
 
   // The throttling interval which defines how often BeginFrames are sent for
   // frame sinks in `frame_sink_ids_to_throttle_`, if

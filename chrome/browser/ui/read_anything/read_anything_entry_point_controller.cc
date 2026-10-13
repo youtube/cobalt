@@ -6,6 +6,8 @@
 
 #include <type_traits>
 
+#include "base/command_line.h"
+#include "chrome/browser/dom_distiller/tab_utils.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/read_anything/read_anything_controller.h"
 #include "chrome/browser/ui/read_anything/read_anything_enums.h"
@@ -21,11 +23,17 @@
 #include "chrome/browser/ui/views/side_panel/side_panel_enums.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_ui.h"
 #include "components/prefs/pref_filter.h"
+#include "content/public/browser/web_contents.h"
+#include "content/public/common/content_switches.h"
 #include "ui/accessibility/accessibility_features.h"
 
 namespace {
 
 static const int kMaxChipIgnoredCount = 5;
+const char* const kDenyList[] = {
+    "mail.google.com",         "whatsapp.com", "chatgpt.com", "docs.google.com",
+    "docs.sandbox.google.com",
+};
 
 int GetOmniboxChipIgnoredCount(PrefService* prefs) {
   return prefs->GetInteger(
@@ -119,7 +127,7 @@ void ReadAnythingEntryPointController::ToggleUI(
     if (tabs::TabInterface* tab = bwi->GetActiveTabInterface()) {
       auto* controller = ReadAnythingController::From(tab);
       CHECK(controller);
-      controller->ToggleImmersiveUI(open_trigger);
+      controller->ToggleUI(open_trigger);
     }
   } else {
     SidePanelOpenTrigger side_panel_open_trigger =
@@ -128,6 +136,22 @@ void ReadAnythingEntryPointController::ToggleUI(
     bwi->GetFeatures().side_panel_ui()->Toggle(
         SidePanelEntryKey(SidePanelEntryId::kReadAnything),
         side_panel_open_trigger);
+  }
+}
+
+// static
+bool ReadAnythingEntryPointController::IsUIShowing(
+    BrowserWindowInterface* bwi) {
+  if (features::IsImmersiveReadAnythingEnabled()) {
+    auto* controller =
+        ReadAnythingController::From(bwi->GetActiveTabInterface());
+    CHECK(controller);
+    auto state = controller->GetPresentationState();
+    return state ==
+               ReadAnythingController::PresentationState::kInImmersiveOverlay ||
+           state == ReadAnythingController::PresentationState::kInSidePanel;
+  } else {
+    return IsReadAnythingEntryShowing(bwi);
   }
 }
 
@@ -146,8 +170,7 @@ void ReadAnythingEntryPointController::UpdatePageActionVisibility(
       bwi->GetActiveTabInterface()->GetTabFeatures()->page_action_controller();
   auto* const user_ed = BrowserUserEducationInterface::From(bwi);
   // No need to show the button if reading mode is already open.
-  // TODO(crbug.com/447418049): Check for immersive reading mode here too.
-  if (should_show_page_action && !IsReadAnythingEntryShowing(bwi)) {
+  if (should_show_page_action && !IsUIShowing(bwi)) {
     page_action_controller->Show(kActionSidePanelShowReadAnything);
     if (ShouldShowOmniboxChip(bwi)) {
       page_action_controller->ShowSuggestionChip(
@@ -164,6 +187,59 @@ void ReadAnythingEntryPointController::UpdatePageActionVisibility(
         feature_engagement::kIPHReadingModePageActionLabelFeature);
     page_action_controller->Hide(kActionSidePanelShowReadAnything);
   }
+}
+
+// static
+bool ReadAnythingEntryPointController::CheckIfShouldSuggestReadingModeNaive(
+    BrowserWindowInterface* bwi) {
+  if (!features::IsReadAnythingOmniboxChipEnabled() || !bwi) {
+    return false;
+  }
+
+  // Don't show the omnibox entrypoint for non-HTTP(S) URLs. These URLs are
+  // not supported by Readability, which is used to check whether the current
+  // page is a good candidate for distillation.
+  content::WebContents* contents = bwi->GetActiveTabInterface()->GetContents();
+  const GURL& url = contents->GetLastCommittedURL();
+  if (!url.SchemeIsHTTPOrHTTPS()) {
+    return false;
+  }
+
+  // Don't show the omnibox entrypoint for sites we know don't distill well.
+  for (const char* domain : kDenyList) {
+    if (url.DomainIs(domain)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+// static
+void ReadAnythingEntryPointController::CheckIfShouldSuggestReadingMode(
+    BrowserWindowInterface* bwi,
+    base::OnceCallback<void(bool)> result_callback) {
+  if (!features::IsReadAnythingOmniboxChipEnabled() || !bwi) {
+    std::move(result_callback).Run(false);
+    return;
+  }
+  // Don't show the omnibox entrypoint if automation is enabled, such as
+  // during automated testing.
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kEnableAutomation)) {
+    std::move(result_callback).Run(false);
+    return;
+  }
+
+  if (!CheckIfShouldSuggestReadingModeNaive(bwi)) {
+    std::move(result_callback).Run(false);
+    return;
+  }
+
+  // Readability will callback with whether or not the current contents are a
+  // good candidate for distillation.
+  content::WebContents* contents = bwi->GetActiveTabInterface()->GetContents();
+  RunReadabilityHeuristicsOnWebContents(contents, std::move(result_callback));
 }
 
 // static

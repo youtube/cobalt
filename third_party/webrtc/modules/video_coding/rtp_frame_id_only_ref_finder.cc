@@ -13,7 +13,6 @@
 #include <memory>
 #include <utility>
 
-#include "api/video/video_frame_type.h"
 #include "modules/rtp_rtcp/source/frame_object.h"
 #include "modules/video_coding/rtp_frame_reference_finder.h"
 
@@ -24,8 +23,7 @@ RtpFrameReferenceFinder::ReturnVector RtpFrameIdOnlyRefFinder::ManageFrame(
     int frame_id) {
   frame->SetSpatialIndex(0);
   frame->SetId(unwrapper_.Unwrap(frame_id & (kFrameIdLength - 1)));
-  frame->num_references =
-      frame->frame_type() == VideoFrameType::kVideoFrameKey ? 0 : 1;
+  frame->num_references = frame->IsKey() ? 0 : 1;
   frame->references[0] = frame->Id() - 1;
 
   RtpFrameReferenceFinder::ReturnVector res;

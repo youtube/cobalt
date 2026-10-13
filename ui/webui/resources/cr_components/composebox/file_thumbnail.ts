@@ -9,6 +9,7 @@ import './composebox_tab_favicon.js';
 
 import {loadTimeData} from '//resources/js/load_time_data.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
+import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
 
 import type {ComposeboxFile} from './common.js';
 import {FileUploadStatus} from './composebox_query.mojom-webui.js';
@@ -39,6 +40,10 @@ export class ComposeboxFileThumbnailElement extends CrLitElement {
   static override get properties() {
     return {
       file: {type: Object},
+      isUploading_: {
+        type: Boolean,
+        reflect: true,
+      },
     };
   }
 
@@ -54,6 +59,19 @@ export class ComposeboxFileThumbnailElement extends CrLitElement {
     isDeletable: true,
   };
 
+  protected accessor isUploading_: boolean = false;
+
+  override willUpdate(changedProperties: PropertyValues<this>) {
+    super.willUpdate(changedProperties);
+    if (changedProperties.has('file')) {
+      this.isUploading_ = this.file.status === FileUploadStatus.kNotUploaded ||
+          this.file.status === FileUploadStatus.kProcessing ||
+          this.file.status ===
+              FileUploadStatus.kProcessingSuggestSignalsReady ||
+          this.file.status === FileUploadStatus.kUploadStarted;
+    }
+  }
+
   protected deleteFile_() {
     // TODO(crbug.com/422559977): Send call to handler to delete file from
     // cache.
@@ -68,7 +86,7 @@ export class ComposeboxFileThumbnailElement extends CrLitElement {
     if (!this.file?.url) {
       return null;
     }
-    const link = new URL(this.file.url.url);
+    const link = new URL(this.file.url);
     return (link.host + link.pathname).replace(/\/$/, '');
   }
 }

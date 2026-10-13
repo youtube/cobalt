@@ -26,6 +26,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_HTML_FORMS_HTML_FORM_ELEMENT_H_
 
 #include "base/functional/callback.h"
+#include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/html/forms/html_form_control_element.h"
 #include "third_party/blink/renderer/core/html/forms/radio_button_group_scope.h"
@@ -159,7 +160,12 @@ class CORE_EXPORT HTMLFormElement final : public HTMLElement {
   void UseCountPropertyAccess(v8::Local<v8::Name>&,
                               const v8::PropertyCallbackInfo<v8::Value>&);
 
+  bool IsActiveToolSubmitButton(const HTMLFormControlElement* element) const;
+  bool MatchesToolFormActivePseudoClass() const;
+
  private:
+  friend class HTMLFormMcpToolTest;
+
   InsertionNotificationRequest InsertedInto(ContainerNode&) override;
   void RemovedFrom(ContainerNode&) override;
   void FinishParsingChildren() override;
@@ -218,8 +224,6 @@ class CORE_EXPORT HTMLFormElement final : public HTMLElement {
 
   bool IsValidWebMCPForm() const;
   void UpdateMcpDefinitionsIfNeeded();
-  void ExecuteDeclarativeWebMCPFunction(String input_arguments);
-  String UpdateDeclarativeWebMCPInputSchema();
 
   using PastNamesMap = GCedHeapHashMap<AtomicString, Member<Element>>;
 
@@ -238,13 +242,16 @@ class CORE_EXPORT HTMLFormElement final : public HTMLElement {
 
   base::OnceClosure cancel_last_submission_;
 
-  class HTMLFormMcpTool final : public GarbageCollected<HTMLFormMcpTool>,
-                                public DeclarativeWebMCPTool {
+  using McpToolCallbackResult =
+      base::expected<blink::String, blink::WebDocument::ScriptToolError>;
+  class CORE_EXPORT HTMLFormMcpTool final
+      : public GarbageCollected<HTMLFormMcpTool>,
+        public DeclarativeWebMCPTool {
    public:
     HTMLFormMcpTool() = delete;
     HTMLFormMcpTool(const HTMLFormMcpTool&) = delete;
     HTMLFormMcpTool& operator=(const HTMLFormMcpTool&) = delete;
-    HTMLFormMcpTool(HTMLFormElement* form,
+    HTMLFormMcpTool(HTMLFormElement& form,
                     String tool_name,
                     String tool_description)
         : tool_name_(tool_name),
@@ -253,18 +260,44 @@ class CORE_EXPORT HTMLFormElement final : public HTMLElement {
       CHECK(!tool_name.IsNull() && !tool_description.IsNull());
     }
     String ComputeInputSchema() override;
-    void ExecuteTool(String input_arguments,
-                     base::OnceCallback<void(String)> done_callback) override;
+    void ExecuteTool(
+        String input_arguments,
+        base::OnceCallback<void(McpToolCallbackResult)> done_callback) override;
+    // Fill form controls with data as provided by `input_arguments`.
+    //
+    // If no error is returned, then all specified tool parameters (form
+    // controls) were filled successfully. Otherwise, the state of all form
+    // controls are left unchanged.
+    std::optional<WebDocument::ScriptToolError> FillFormControls(
+        const String& input_arguments,
+        bool require_submit_button,
+        HTMLFormControlElement** submit_button);
     String ToolName() const { return tool_name_; }
     String ToolDescription() const { return tool_description_; }
     bool IsValidTool() const { return !tool_name_.IsNull(); }
+    bool CurrentlyRunning() const {
+      return IsValidTool() && is_currently_running_;
+    }
+    HTMLFormControlElement* ActiveToolSubmitButton() const {
+      CHECK(is_currently_running_);
+      return active_submit_button_;
+    }
+    void CallDoneCallback(McpToolCallbackResult result);
     void Trace(Visitor* visitor) const;
 
    private:
+    bool is_currently_running_ = false;
     String tool_name_;
     String tool_description_;
     Member<HTMLFormElement> form_;
+    Member<HTMLFormControlElement> active_submit_button_;
+    base::OnceCallback<void(McpToolCallbackResult)> done_callback_;
   };
+
+  void HandleWebMcpToolResponse(HTMLFormMcpTool* tool,
+                                bool resolved,
+                                ScriptState* script_state,
+                                ScriptValue value);
 
   // Used only for (experimental) declarative WebMCP.
   Member<HTMLFormMcpTool> active_webmcp_tool_;

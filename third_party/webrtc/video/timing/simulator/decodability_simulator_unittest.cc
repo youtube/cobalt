@@ -12,11 +12,13 @@
 
 #include <memory>
 
+#include "absl/algorithm/container.h"
 #include "api/units/data_size.h"
 #include "api/units/timestamp.h"
 #include "logging/rtc_event_log/rtc_event_log_parser.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
+#include "video/timing/simulator/frame_base.h"
 #include "video/timing/simulator/test/parsed_rtc_event_log_from_resources.h"
 
 namespace webrtc::video_timing_simulator {
@@ -27,6 +29,7 @@ using ::testing::ElementsAre;
 using ::testing::Eq;
 using ::testing::Field;
 using ::testing::Matcher;
+using ::testing::Ne;
 using ::testing::SizeIs;
 
 using Frame = DecodabilitySimulator::Frame;
@@ -44,13 +47,12 @@ Matcher<const Frame&> EqualsFrame(const Frame& expected) {
             Eq(expected.decodable_timestamp)));
 }
 
-// TODO: b/423646186 - Add tests for logs with losses.
-
 TEST(DecodabilitySimulatorTest, VideoRecvVp8) {
   std::unique_ptr<ParsedRtcEventLog> parsed_log =
       ParsedRtcEventLogFromResources("video_recv_vp8_pt96");
 
-  DecodabilitySimulator simulator;
+  DecodabilitySimulator::Config config;
+  DecodabilitySimulator simulator(config);
   DecodabilitySimulator::Results results = simulator.Simulate(*parsed_log);
 
   ASSERT_THAT(results.streams, SizeIs(1));
@@ -73,7 +75,8 @@ TEST(DecodabilitySimulatorTest, VideoRecvVp9) {
   std::unique_ptr<ParsedRtcEventLog> parsed_log =
       ParsedRtcEventLogFromResources("video_recv_vp9_pt98");
 
-  DecodabilitySimulator simulator;
+  DecodabilitySimulator::Config config;
+  DecodabilitySimulator simulator(config);
   DecodabilitySimulator::Results results = simulator.Simulate(*parsed_log);
 
   ASSERT_THAT(results.streams, SizeIs(1));
@@ -96,7 +99,8 @@ TEST(DecodabilitySimulatorTest, VideoRecvAv1) {
   std::unique_ptr<ParsedRtcEventLog> parsed_log =
       ParsedRtcEventLogFromResources("video_recv_av1_pt45");
 
-  DecodabilitySimulator simulator;
+  DecodabilitySimulator::Config config;
+  DecodabilitySimulator simulator(config);
   DecodabilitySimulator::Results results = simulator.Simulate(*parsed_log);
 
   ASSERT_THAT(results.streams, SizeIs(1));
@@ -120,7 +124,8 @@ TEST(DecodabilitySimulatorTest, VideoRecvSequentialJoinVp8Vp9Av1) {
   std::unique_ptr<ParsedRtcEventLog> parsed_log =
       ParsedRtcEventLogFromResources("video_recv_sequential_join_vp8_vp9_av1");
 
-  DecodabilitySimulator simulator;
+  DecodabilitySimulator::Config config;
+  DecodabilitySimulator simulator(config);
   DecodabilitySimulator::Results results = simulator.Simulate(*parsed_log);
 
   EXPECT_THAT(results.streams,
@@ -130,6 +135,45 @@ TEST(DecodabilitySimulatorTest, VideoRecvSequentialJoinVp8Vp9Av1) {
                                 Field(&Stream::frames, SizeIs(1157))),
                           AllOf(Field(&Stream::ssrc, Eq(1934275846)),
                                 Field(&Stream::frames, SizeIs(361)))));
+}
+
+// This log starts experiencing packet losses after half the duration.
+TEST(DecodabilitySimulatorTest, VideoRecvVp8Lossy) {
+  std::unique_ptr<ParsedRtcEventLog> parsed_log =
+      ParsedRtcEventLogFromResources("video_recv_vp8_pt96_lossy");
+
+  DecodabilitySimulator::Config config;
+  DecodabilitySimulator simulator(config);
+  DecodabilitySimulator::Results results = simulator.Simulate(*parsed_log);
+
+  ASSERT_THAT(results.streams, SizeIs(1));
+  const auto& stream = results.streams.front();
+  EXPECT_THAT(stream.creation_timestamp, Eq(Timestamp::Millis(821417933)));
+  EXPECT_THAT(stream.ssrc, Eq(4096673911));
+  EXPECT_THAT(stream.frames, SizeIs(1145));
+  // Number of decodable frames.
+  EXPECT_THAT(absl::c_count_if(stream.frames,
+                               [](const auto& e) {
+                                 return e.ArrivalTimestamp().IsFinite();
+                               }),
+              Eq(1117));
+
+  // Find the last decodable frame.
+  EXPECT_TRUE(absl::c_is_sorted(stream.frames,
+                                ArrivalOrder<DecodabilitySimulator::Frame>));
+  auto it = stream.frames.rbegin();
+  while (it != stream.frames.rend() && !it->ArrivalTimestamp().IsFinite()) {
+    ++it;
+  }
+  ASSERT_THAT(it, Ne(stream.frames.rend()));
+
+  // Spot check the last decodable frame.
+  EXPECT_THAT(
+      *it, EqualsFrame({.num_packets = 4,
+                        .size = DataSize::Bytes(3902),
+                        .unwrapped_rtp_timestamp = 2607363343,
+                        .assembled_timestamp = Timestamp::Millis(821457158),
+                        .decodable_timestamp = Timestamp::Millis(821457158)}));
 }
 
 }  // namespace

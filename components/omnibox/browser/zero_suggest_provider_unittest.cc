@@ -273,6 +273,16 @@ class ZeroSuggestProviderTest : public testing::Test,
     return input;
   }
 
+  AutocompleteInput ZeroPrefixInputForOmniboxComposebox(
+      const std::string& input_url = "https://example.com/") {
+    AutocompleteInput input(u"",
+                            metrics::OmniboxEventProto::NTP_OMNIBOX_COMPOSEBOX,
+                            TestSchemeClassifier());
+    input.set_current_url(GURL(input_url));
+    input.set_focus_type(metrics::OmniboxFocusType::INTERACTION_FOCUS);
+    return input;
+  }
+
   base::test::SingleThreadTaskEnvironment task_environment_;
   std::unique_ptr<base::test::ScopedFeatureList> scoped_feature_list_;
   variations::test::ScopedVariationsIdsProvider scoped_variations_ids_provider_{
@@ -302,8 +312,7 @@ void ZeroSuggestProviderTest::SetUp() {
   // Ensure the prefs-based cache is empty.
   PrefService* prefs = client_->GetPrefs();
   prefs->SetString(omnibox::kZeroSuggestCachedResults, "");
-  prefs->SetDict(omnibox::kZeroSuggestCachedResultsWithURL,
-                 base::Value::Dict());
+  prefs->SetDict(omnibox::kZeroSuggestCachedResultsWithURL, base::DictValue());
 
   // Ensure the cache is empty.
   ZeroSuggestCacheService* cache_svc = client_->GetZeroSuggestCacheService();
@@ -636,7 +645,10 @@ TEST_F(ZeroSuggestProviderTest, SendRequestWithoutLensInteractionResponse) {
 
 TEST_F(ZeroSuggestProviderTest, SendRequestWithAimToolMode) {
   AutocompleteInput input = ZeroPrefixInputForComposebox();
-  input.set_aim_tool_mode(omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH);
+  input.set_focus_type(metrics::OmniboxFocusType::INTERACTION_FOCUS);
+  omnibox::InputState input_state;
+  input_state.active_tool = omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH;
+  input.set_input_state(input_state);
   provider_->Start(input, false);
 
   // Make sure the default provider's suggest endpoint was queried with the
@@ -651,6 +663,35 @@ TEST_F(ZeroSuggestProviderTest, SendRequestWithAimToolMode) {
       test_loader_factory()->GetPendingRequest(0)->request.url.spec(),
       R"(["",[],[],[],{}])");
   EXPECT_TRUE(base::test::RunUntil([&] { return provider_->done(); }));
+}
+
+TEST_F(ZeroSuggestProviderTest, SendRequestForThreadsSuggestion) {
+  EXPECT_CALL(*client_, IsAuthenticated())
+      .WillRepeatedly(testing::Return(true));
+  AutocompleteInput input = ZeroPrefixInputForOmniboxComposebox();
+  provider_->Start(input, false);
+
+  // Make sure the default provider's suggest endpoint was queried with the
+  // expected client
+  EXPECT_FALSE(provider_->done());
+  EXPECT_EQ(1, test_loader_factory()->NumPending());
+
+  std::string json_response(
+      R"(["",["", "search2", "search3"],)"
+      R"([],[],{"google:suggestrelevance":[602, 601, 600],)"
+      R"("google:verbatimrelevance":1300,)"
+      R"("google:suggestdetail": [)"
+      R"({"google:suggesttemplate": "CAIQCRobChlWaWV3IHlvdXIgQUkgTW9kZSBoaXN0b3J5MgoKA2FlcBIDMTMxMgkKBGF0dm0SATM="},)"
+      R"({}, {}]}])");
+
+  test_loader_factory()->AddResponse(
+      test_loader_factory()->GetPendingRequest(0)->request.url.spec(),
+      json_response);
+
+  EXPECT_TRUE(base::test::RunUntil([&] { return provider_->done(); }));
+
+  // Expect no matches were dropped even though the query/suggestion is empty.
+  EXPECT_EQ(3U, provider_->matches().size());
 }
 
 TEST_F(ZeroSuggestProviderTest, SendRequestWithLensInteractionResponse) {
@@ -1057,8 +1098,7 @@ TEST_F(ZeroSuggestProviderTest,
   // Ensure the cache is empty.
   PrefService* prefs = client_->GetPrefs();
   prefs->SetString(omnibox::kZeroSuggestCachedResults, "");
-  prefs->SetDict(omnibox::kZeroSuggestCachedResultsWithURL,
-                 base::Value::Dict());
+  prefs->SetDict(omnibox::kZeroSuggestCachedResultsWithURL, base::DictValue());
 
   provider_->Start(input, false);
   ASSERT_EQ(ZeroSuggestProvider::ResultType::kRemoteNoURL,
@@ -1090,8 +1130,7 @@ TEST_F(ZeroSuggestProviderTest,
   // Ensure the cache is empty.
   PrefService* prefs = client_->GetPrefs();
   prefs->SetString(omnibox::kZeroSuggestCachedResults, "");
-  prefs->SetDict(omnibox::kZeroSuggestCachedResultsWithURL,
-                 base::Value::Dict());
+  prefs->SetDict(omnibox::kZeroSuggestCachedResultsWithURL, base::DictValue());
 
   provider_->Start(input, false);
   ASSERT_EQ(ZeroSuggestProvider::ResultType::kRemoteSendURL,
@@ -1123,8 +1162,7 @@ TEST_F(ZeroSuggestProviderTest,
   // Ensure the cache is empty.
   PrefService* prefs = client_->GetPrefs();
   prefs->SetString(omnibox::kZeroSuggestCachedResults, "");
-  prefs->SetDict(omnibox::kZeroSuggestCachedResultsWithURL,
-                 base::Value::Dict());
+  prefs->SetDict(omnibox::kZeroSuggestCachedResultsWithURL, base::DictValue());
 
   provider_->Start(input, false);
   ASSERT_EQ(ZeroSuggestProvider::ResultType::kRemoteSendURL,
@@ -3006,7 +3044,7 @@ TEST_F(ZeroSuggestProviderTest, TestDeleteMatchClearsPrefsBasedCache) {
   PrefService* prefs = client_->GetPrefs();
   prefs->SetString(omnibox::kZeroSuggestCachedResults, json_response);
 
-  base::Value::Dict new_dict;
+  base::DictValue new_dict;
   new_dict.Set("https://www.google.com", json_response);
   prefs->SetDict(omnibox::kZeroSuggestCachedResultsWithURL,
                  std::move(new_dict));

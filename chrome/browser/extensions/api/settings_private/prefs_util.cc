@@ -149,6 +149,17 @@ bool IsSettingReadOnly(const std::string& pref_name) {
   if (pref_name == prefs::kDownloadDefaultDirectory) {
     return true;
   }
+
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID) || \
+    BUILDFLAG(IS_CHROMEOS)
+  // Changing this pref value is protected by reauthentication.
+  if (pref_name ==
+      autofill::prefs::kAutofillAiReauthBeforeViewingSensitiveData) {
+    return true;
+  }
+#endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID) ||
+        // BUILDFLAG(IS_CHROMEOS)
+
 #if BUILDFLAG(IS_CHROMEOS)
   // System timezone is never directly changeable by the user.
   if (pref_name == ash::kSystemTimezone) {
@@ -158,6 +169,13 @@ bool IsSettingReadOnly(const std::string& pref_name) {
   // must be changed through the quickUnlockPrivate API.
   if (pref_name == ash::prefs::kEnableAutoScreenLock ||
       pref_name == ::prefs::kPinUnlockAutosubmitEnabled) {
+    return true;
+  }
+#endif
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
+  // Can be changed only from C++ after successful re-auth.
+  if (pref_name ==
+      password_manager::prefs::kBiometricAuthenticationBeforeFilling) {
     return true;
   }
 #endif

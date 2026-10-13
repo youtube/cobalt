@@ -27,14 +27,13 @@
 #include <openssl/rsa.h>
 #include <openssl/x509.h>
 
+#include "../mem_internal.h"
 #include "internal.h"
 
 
 using namespace bssl;
 
-static X509_PKEY *X509_PKEY_new() {
-  return reinterpret_cast<X509_PKEY *>(OPENSSL_zalloc(sizeof(X509_PKEY)));
-}
+static X509_PKEY *X509_PKEY_new() { return NewZeroed<X509_PKEY>(); }
 
 static void X509_PKEY_free(X509_PKEY *x) {
   if (x == nullptr) {
@@ -42,12 +41,10 @@ static void X509_PKEY_free(X509_PKEY *x) {
   }
 
   EVP_PKEY_free(x->dec_pkey);
-  OPENSSL_free(x);
+  Delete(x);
 }
 
-static X509_INFO *X509_INFO_new() {
-  return reinterpret_cast<X509_INFO *>(OPENSSL_zalloc(sizeof(X509_INFO)));
-}
+static X509_INFO *X509_INFO_new() { return NewZeroed<X509_INFO>(); }
 
 void X509_INFO_free(X509_INFO *x) {
   if (x == nullptr) {
@@ -58,7 +55,7 @@ void X509_INFO_free(X509_INFO *x) {
   X509_CRL_free(x->crl);
   X509_PKEY_free(x->x_pkey);
   OPENSSL_free(x->enc_data);
-  OPENSSL_free(x);
+  Delete(x);
 }
 
 

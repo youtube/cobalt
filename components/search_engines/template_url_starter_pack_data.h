@@ -21,7 +21,11 @@ struct TemplateURLData;
 
 namespace template_url_starter_pack_data {
 
-typedef enum {
+// GENERATED_JAVA_ENUM_PACKAGE: org.chromium.components.search_engines
+// GENERATED_JAVA_PREFIX_TO_STRIP: k
+enum class StarterPackId {
+  kNone = 0,
+
   kBookmarks = 1,
   kHistory = 2,
   kTabs = 3,
@@ -30,7 +34,7 @@ typedef enum {
   kAiMode = 6,
 
   kMaxStarterPackId
-} StarterPackId;
+};
 
 struct StarterPackEngine {
   int name_message_id;
@@ -66,7 +70,7 @@ std::vector<std::unique_ptr<TemplateURLData>> GetStarterPackEngines();
 
 // Returns the destination url for the starter pack engine associated with a
 // given starter pack id.
-std::u16string GetDestinationUrlForStarterPackId(int id);
+std::u16string GetDestinationUrlForStarterPackId(StarterPackId id);
 
 }  // namespace template_url_starter_pack_data
 

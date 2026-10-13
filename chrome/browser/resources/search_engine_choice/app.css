@@ -148,6 +148,7 @@ cr-radio-button:last-of-type {
   border-bottom-left-radius: 16px;
   border-bottom-right-radius: 16px;
 }
+
 cr-radio-button[checked] {
   background-color: var(--cr-fallback-color-tonal-container);
 }
@@ -182,7 +183,7 @@ cr-dialog {
   --cr-dialog-title-slot-padding-top: 24px;
 }
 
-cr-dialog div[slot="title"] {
+cr-dialog div[slot='title'] {
   font-size: 1.375rem;
   font-weight: 400;
   line-height: 28px;

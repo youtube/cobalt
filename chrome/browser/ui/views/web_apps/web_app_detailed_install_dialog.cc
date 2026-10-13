@@ -31,7 +31,6 @@
 #include "components/constrained_window/constrained_window_views.h"
 #include "components/prefs/pref_service.h"
 #include "components/strings/grit/components_strings.h"
-#include "components/url_formatter/elide_url.h"
 #include "components/web_modal/web_contents_modal_dialog_manager.h"
 #include "components/webapps/browser/installable/installable_data.h"
 #include "components/webapps/browser/installable/ml_install_operation_tracker.h"
@@ -437,14 +436,10 @@ void ShowWebAppDetailedInstallDialog(
 
   auto title = install_info->title;
   GURL start_url = install_info->start_url();
-  std::u16string start_url_host_formatted_for_display =
-      url_formatter::FormatUrlForDisplayOmitSchemePathAndTrivialSubdomains(
-          start_url);
-
   const std::u16string description = gfx::TruncateString(
       install_info->description.value(), webapps::kMaximumDescriptionLength,
       gfx::CHARACTER_BREAK);
-  auto manifest_id = install_info->manifest_id();
+  webapps::ManifestId manifest_id = install_info->manifest_id();
 
   auto delegate = std::make_unique<WebAppInstallDialogDelegate>(
       web_contents, std::move(install_info), std::move(install_tracker),

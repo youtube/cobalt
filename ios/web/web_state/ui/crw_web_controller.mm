@@ -984,7 +984,7 @@ BOOL ExtractInteractionState(NSData* data, NSData** interactionState) {
   [self.jsNavigationHandler handleNavigationWillChangeState];
 }
 
-- (void)handleNavigationDidPushStateMessage:(base::Value::Dict*)dict {
+- (void)handleNavigationDidPushStateMessage:(base::DictValue*)dict {
   [self.jsNavigationHandler
       handleNavigationDidPushStateMessage:dict
                                  webState:_webStateImpl
@@ -994,7 +994,7 @@ BOOL ExtractInteractionState(NSData* data, NSData** interactionState) {
   [self updateSSLStatusForCurrentNavigationItem];
 }
 
-- (void)handleNavigationDidReplaceStateMessage:(base::Value::Dict*)dict {
+- (void)handleNavigationDidReplaceStateMessage:(base::DictValue*)dict {
   [self.jsNavigationHandler
       handleNavigationDidReplaceStateMessage:dict
                                     webState:_webStateImpl
@@ -1742,10 +1742,9 @@ CrFullscreenState CrFullscreenStateFromWKFullscreenState(
                                             webView:self.webView];
   newContext->SetHasCommitted(!isSameDocumentNavigation);
   self.webStateImpl->OnNavigationFinished(newContext.get());
-  // TODO(crbug.com/41359661): It is OK, but very brittle, to call
-  // `didFinishNavigation:` here because the gating condition is mutually
-  // exclusive with the condition below. Refactor this method after
-  // deprecating self.navigationHandler.pendingNavigationInfo.
+  // It is OK, but very brittle, to call `didFinishNavigation:` here because the
+  // gating condition is mutually exclusive with the condition below. A planned
+  // refactoring was abandoned. See crbug.com/41359661 for context.
   if (newContext->GetWKNavigationType() == WKNavigationTypeBackForward) {
     [self didFinishNavigation:newContext.get()];
   }

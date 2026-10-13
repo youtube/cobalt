@@ -4,6 +4,7 @@
 
 #include "chrome/browser/extensions/sync/account_extension_tracker.h"
 
+#include "base/test/metrics/histogram_tester.h"
 #include "chrome/browser/extensions/chrome_test_extension_loader.h"
 #include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/extensions/extension_service_test_with_install.h"
@@ -17,6 +18,7 @@
 #include "components/signin/public/base/signin_pref_names.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
+#include "components/sync/base/data_type_histogram.h"
 #include "components/sync/base/pref_names.h"
 #include "components/sync/base/user_selectable_type.h"
 #include "components/sync/service/sync_service.h"
@@ -70,6 +72,9 @@ class AccountExtensionTrackerUnitTest : public ExtensionServiceTestWithInstall {
 
 // Test that an extension's AccountExtensionType is set to the right value based
 // on whether it was installed when there is a signed in user with sync enabled.
+// TODO(crbug.com/40066949): Remove once kSync becomes unreachable or is
+// deleted from the codebase. See ConsentLevel::kSync documentation for
+// details.
 TEST_F(AccountExtensionTrackerUnitTest, AccountExtensionTypeSignedIn) {
   base::FilePath good_crx_path = data_dir().AppendASCII("good.crx");
   InstallCRX(good_crx_path, INSTALL_NEW);
@@ -229,12 +234,18 @@ TEST_F(AccountExtensionTrackerSyncToSigninMigrationTest,
 
   signin_test_util::SimulateExplicitSignIn(profile(), identity_test_env());
 
+  base::HistogramTester histogram_tester;
+
   // Simulate receiving the extension via sync.
   AccountExtensionTracker::Get(profile())->OnExtensionSyncDataReceived(
       kGoodCrx);
   ASSERT_EQ(
       AccountExtensionTracker::AccountExtensionType::kAccountInstalledLocally,
       GetAccountExtensionType(kGoodCrx));
+
+  // Migration is only triggered upon all initial sync data being processed.
+  histogram_tester.ExpectTotalCount(
+      "Sync.SyncToSigninMigration.ExtensionsMigrationStep", 0);
 
   // Trigger the migration.
   profile()->GetPrefs()->SetBoolean(
@@ -248,6 +259,20 @@ TEST_F(AccountExtensionTrackerSyncToSigninMigrationTest,
       GetAccountExtensionType(kGoodCrx));
   EXPECT_FALSE(profile()->GetPrefs()->GetBoolean(
       syncer::prefs::internal::kMigrateExtensionsFromLocalToAccount));
+
+  EXPECT_THAT(
+      histogram_tester.GetAllSamples(
+          "Sync.SyncToSigninMigration.ExtensionsMigrationStep"),
+      ::testing::ElementsAre(
+          base::Bucket(
+              syncer::SyncToSigninMigrationExtensionsStep::kMigrationStarted,
+              1),
+          base::Bucket(syncer::SyncToSigninMigrationExtensionsStep::
+                           kMigrationFinishedAndPrefCleared,
+                       1)));
+  histogram_tester.ExpectUniqueSample(
+      "Sync.SyncToSigninMigrationOutcome.ExtensionsDeduplicatedCount",
+      /*sample=*/1, /*expected_bucket_count=*/1);
 }
 
 TEST_F(AccountExtensionTrackerSyncToSigninMigrationTest,

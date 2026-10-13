@@ -164,7 +164,7 @@ class OneTimeMessageHandler {
 
   // Creates a callback to be called after an event is dispatched.
   // `listener_error_callback_id` is provided if
-  // extensions_features::kRuntimeOnMessageWebExtensionPolyfillSupport is
+  // extensions_features::kExtensionBrowserNamespaceAndPolyfillSupport is
   // enabled to help cleanup the listener error callback.
   std::unique_ptr<OneTimeMessageCallback> CreateEventDispatchCallback(
       const PortId& port_id,
@@ -174,7 +174,6 @@ class OneTimeMessageHandler {
   // been collected and can no longer be called in v8. Doesn't close the channel
   // because another receiver may reply.
   void OnAllCallbacksCollected(ScriptContext* script_context,
-                               v8::Local<v8::Context> context,
                                const PortId& port_id);
 
   // Helper methods to deliver a message to an opener/receiver.
@@ -191,10 +190,10 @@ class OneTimeMessageHandler {
                         const PortId& port_id,
                         const std::string& error_message);
 
-  // Closes the receiver message port and cleans up all the port's state if
-  // `close_channel` is false. If `close_channel` is true, then we request the
-  // entire channel to close. `error` can be provided to provide an error to the
-  // message sender when closing the channel.
+  // Closes the receiver message port if `close_channel` is false. If
+  // `close_channel` is true, then we request the entire channel to close.
+  // `error` can be provided to provide an error to the message sender when
+  // closing the channel.
   void CloseReceiverMessagePortOrChannel(ScriptContext* script_context,
                                          const PortId& port_id,
                                          bool close_channel,
@@ -231,7 +230,7 @@ class OneTimeMessageHandler {
   // Called when the messaging event has been dispatched with the result of the
   // listeners.
   // `listener_error_callback_id` is provided if
-  // extensions_features::kRuntimeOnMessageWebExtensionPolyfillSupport is
+  // extensions_features::kExtensionBrowserNamespaceAndPolyfillSupport is
   // enabled to help cleanup the listener error callback.
   void OnEventFired(const PortId& port_id,
                     std::optional<CallbackID> listener_error_callback_id,

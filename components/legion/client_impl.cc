@@ -8,13 +8,11 @@
 #include <utility>
 
 #include "base/functional/bind.h"
-#include "base/functional/callback_helpers.h"
+#include "base/location.h"
 #include "base/logging.h"
-#include "base/metrics/histogram_functions.h"
-#include "base/task/sequenced_task_runner.h"
-#include "base/task/task_runner.h"
-#include "base/time/time.h"
-#include "components/legion/phosphor/token_manager.h"
+#include "base/strings/to_string.h"
+#include "components/legion/common/legion_logger.h"
+#include "components/legion/connection.h"
 #include "components/legion/proto/legion.pb.h"
 #include "components/legion/proto_utils/generate_content_response_utils.h"
 
@@ -22,7 +20,7 @@ namespace legion {
 
 namespace {
 
-void OnGenerateContentRequestCompleted(
+void ReceiveTextRequest(
     Client::OnTextRequestCompletedCallback cb,
     base::expected<proto::GenerateContentResponse, ErrorCode> result) {
   if (!result.has_value()) {
@@ -40,148 +38,59 @@ void OnGenerateContentRequestCompleted(
   std::move(cb).Run(text.value());
 }
 
-void OnRequestSent(
+void ReceiveGenerateContentResponse(
     Client::OnGenerateContentRequestCompletedCallback cb,
-    base::expected<ClientImpl::BinaryEncodedProtoResponse, ErrorCode> result) {
-  if (!result.has_value()) {
-    std::move(cb).Run(base::unexpected(result.error()));
+    base::expected<proto::LegionResponse, ErrorCode> legion_response) {
+  if (!legion_response.has_value()) {
+    std::move(cb).Run(base::unexpected(legion_response.error()));
     return;
   }
 
-  proto::LegionResponse legion_response;
-  if (!legion_response.ParseFromArray(result->data(), result->size())) {
-    LOG(ERROR) << "Failed to parse LegionResponse";
-    std::move(cb).Run(base::unexpected(ErrorCode::kResponseParseError));
-    return;
-  }
-
-  if (!legion_response.has_generate_content_response()) {
+  if (!legion_response->has_generate_content_response()) {
     LOG(ERROR) << "LegionResponse did not contain a "
                   "generate_content_response";
     std::move(cb).Run(base::unexpected(ErrorCode::kNoResponse));
     return;
   }
-
-  std::move(cb).Run(legion_response.generate_content_response());
+  std::move(cb).Run(std::move(legion_response->generate_content_response()));
 }
 
-ClientImpl::BinaryEncodedProtoRequest CreateClientAttestationRequest(
-    phosphor::BlindSignedAuthToken blind_token,
-    int32_t request_id) {
-  proto::LegionRequest request_proto;
+void ReceivePaicMessage(
+    Client::OnPaicMessageRequestCompletedCallback cb,
+    base::expected<proto::LegionResponse, ErrorCode> legion_response) {
+  if (!legion_response.has_value()) {
+    std::move(cb).Run(base::unexpected(legion_response.error()));
+    return;
+  }
 
-  request_proto.set_request_id(request_id);
-  request_proto.mutable_anonymous_token_request()->set_anonymous_token(
-      blind_token.token);
-  request_proto.mutable_anonymous_token_request()->set_encoded_extensions(
-      blind_token.encoded_extensions);
-
-  std::string serialized_request;
-  request_proto.SerializeToString(&serialized_request);
-  return ClientImpl::BinaryEncodedProtoRequest(serialized_request.begin(),
-                                               serialized_request.end());
+  if (!legion_response->has_paic_response()) {
+    LOG(ERROR) << "LegionResponse did not contain a "
+                  "paic_response";
+    std::move(cb).Run(base::unexpected(ErrorCode::kNoResponse));
+    return;
+  }
+  std::move(cb).Run(std::move(legion_response->paic_response()));
 }
 
 }  // namespace
 
-ClientImpl::ClientImpl(SecureChannelFactory channel_factory,
-                       phosphor::TokenManager* token_manager)
-    : secure_channel_factory_(std::move(channel_factory)),
-      token_manager_(token_manager) {
-  CHECK(token_manager_);
-}
+ClientImpl::ClientImpl(std::unique_ptr<ConnectionFactory> connection_factory)
+    : connection_factory_(std::move(connection_factory)) {}
 
 ClientImpl::~ClientImpl() = default;
 
 void ClientImpl::EstablishSession(
     OnEstablishSessionCompletedCallback callback) {
-  GetOrCreateSecureChannel()->EstablishChannel(
-      base::BindOnce(&ClientImpl::OnSessionEstablished,
-                     weak_factory_.GetWeakPtr(), std::move(callback)));
+  GetOrCreateConnection();
+  std::move(callback).Run(base::ok());
 }
 
-SecureChannel* ClientImpl::GetOrCreateSecureChannel() {
-  if (!secure_channel_) {
-    secure_channel_ = secure_channel_factory_.Run();
-    secure_channel_->SetResponseCallback(base::BindRepeating(
-        &ClientImpl::OnResponseReceived, base::Unretained(this)));
-    TrySendClientAttestationRequest();
+Connection* ClientImpl::GetOrCreateConnection() {
+  if (!connection_) {
+    connection_ = connection_factory_->Create(base::BindRepeating(
+        &ClientImpl::OnConnectionDisconnected, base::Unretained(this)));
   }
-  return secure_channel_.get();
-}
-
-int32_t ClientImpl::CreateRequestId() {
-  int32_t request_id = next_request_id_;
-  next_request_id_++;
-  return request_id;
-}
-
-void ClientImpl::TrySendClientAttestationRequest() {
-  // TODO(b/469382780): Make GetAuthToken() async.
-  // TODO(b/475513974): Make it possible to get a token without a feature name.
-  std::optional<phosphor::BlindSignedAuthToken> auth_token =
-      token_manager_->GetAuthToken(
-          proto::FeatureName::FEATURE_NAME_CHROME_ZERO_STATE_SUGGESTION);
-
-  if (!auth_token.has_value()) {
-    base::UmaHistogramEnumeration("Legion.Client.RequestErrorCode",
-                                  ErrorCode::kClientAttestationFailed);
-    LOG(ERROR) << "Failed to get anonymous auth token.";
-    return;
-  }
-
-  int32_t request_id = CreateRequestId();
-
-  BinaryEncodedProtoRequest request =
-      CreateClientAttestationRequest(auth_token.value(), request_id);
-
-  // This must be true because `TrySendClientAttestationRequest()` is called
-  // right after `secure_channel_` creation.
-  CHECK(secure_channel_);
-  if (secure_channel_->Write(std::move(request))) {
-    pending_requests_.emplace(
-        request_id, base::BindOnce(&ClientImpl::OnClientAttestationRequest,
-                                   base::Unretained(this)));
-  }
-}
-
-void ClientImpl::OnClientAttestationRequest(
-    base::expected<BinaryEncodedProtoResponse, ErrorCode> result) {
-  // If `result` is error, then this function was called from
-  // `FailAllPendingRequests()`, therefore all pending requests will fail
-  // anyway, so no-op here.
-  if (!result.has_value()) {
-    LOG(ERROR) << "Client attestation request failed.";
-    return;
-  }
-}
-
-void ClientImpl::SendRequest(int32_t request_id,
-                             BinaryEncodedProtoRequest request,
-                             OnRequestCompletedCallback callback,
-                             base::TimeDelta timeout) {
-  DVLOG(1) << "SendRequest started.";
-
-  // Records the request size in bytes. The max value is 1M bytes.
-  base::UmaHistogramCounts1M("Legion.Client.RequestSize", request.size());
-  auto wrapped_callback = base::BindOnce(
-      &ClientImpl::OnRequestCompleted, weak_factory_.GetWeakPtr(),
-      std::move(callback), base::TimeTicks::Now());
-
-  // TODO(b/475215692): Make it possible to buffer requests until client
-  // attestation response is received.
-  if (GetOrCreateSecureChannel()->Write(std::move(request))) {
-    pending_requests_.emplace(request_id, std::move(wrapped_callback));
-    base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
-        FROM_HERE,
-        base::BindOnce(&ClientImpl::OnRequestTimeout,
-                       weak_factory_.GetWeakPtr(), request_id),
-        timeout);
-  } else {
-    // The channel is in a permanent failure state, so fail the current request.
-    DVLOG(1) << "Secure channel write failed.";
-    std::move(wrapped_callback).Run(base::unexpected(ErrorCode::kError));
-  }
+  return connection_.get();
 }
 
 void ClientImpl::SendTextRequest(proto::FeatureName feature_name,
@@ -199,10 +108,14 @@ void ClientImpl::SendTextRequest(proto::FeatureName feature_name,
   part->set_text(text);
 
   auto text_response_callback =
-      base::BindOnce(&OnGenerateContentRequestCompleted, std::move(callback));
+      base::BindOnce(&ReceiveTextRequest, std::move(callback));
 
   SendGenerateContentRequest(feature_name, request,
                              std::move(text_response_callback), options);
+}
+
+LegionLogger* ClientImpl::GetLogger() {
+  return &logger_;
 }
 
 void ClientImpl::SendGenerateContentRequest(
@@ -210,120 +123,59 @@ void ClientImpl::SendGenerateContentRequest(
     const proto::GenerateContentRequest& request,
     OnGenerateContentRequestCompletedCallback callback,
     const RequestOptions& options) {
-  int32_t request_id = CreateRequestId();
-
   proto::LegionRequest request_proto;
-  request_proto.set_feature_name(feature_name);
-  request_proto.set_request_id(request_id);
   *request_proto.mutable_generate_content_request() = request;
 
-  base::UmaHistogramSparse("Legion.Client.FeatureName",
-                           static_cast<int>(feature_name));
+  auto response_callback =
+      base::BindOnce(&ReceiveGenerateContentResponse, std::move(callback));
 
-  std::string serialized_request;
-  request_proto.SerializeToString(&serialized_request);
-  BinaryEncodedProtoRequest binary_encoded_proto_request(
-      serialized_request.begin(), serialized_request.end());
-
-  // The callback for when the response is received.
-  auto response_parsing_callback =
-      base::BindOnce(&OnRequestSent, std::move(callback));
-
-  SendRequest(request_id, std::move(binary_encoded_proto_request),
-              std::move(response_parsing_callback), options.timeout);
+  SendRequest(feature_name, std::move(request_proto),
+              std::move(response_callback), options);
 }
 
-void ClientImpl::FailAllPendingRequests(ErrorCode error_code) {
-  auto pending_requests = std::move(pending_requests_);
-  for (auto& entry : pending_requests) {
-    std::move(entry.second).Run(base::unexpected(error_code));
-  }
+void ClientImpl::SendPaicRequest(proto::FeatureName feature_name,
+                                 const proto::PaicMessage& request,
+                                 OnPaicMessageRequestCompletedCallback callback,
+                                 const RequestOptions& options) {
+  proto::LegionRequest legion_request;
+  *legion_request.mutable_paic_request() = request;
+
+  auto response_callback =
+      base::BindOnce(&ReceivePaicMessage, std::move(callback));
+
+  SendRequest(feature_name, std::move(legion_request),
+              std::move(response_callback), options);
 }
 
-void ClientImpl::OnSessionEstablished(
-    OnEstablishSessionCompletedCallback callback,
-    base::expected<void, ErrorCode> result) {
-  std::move(callback).Run(std::move(result));
+void ClientImpl::SendRequest(proto::FeatureName feature_name,
+                             proto::LegionRequest legion_request,
+                             OnRequestCompletedCallback callback,
+                             const RequestOptions& options) {
+  logger_.LogInfo(FROM_HERE, "SendRequest started.");
+
+  legion_request.set_feature_name(feature_name);
+
+  GetOrCreateConnection()->Send(
+      std::move(legion_request), options.timeout,
+      base::BindOnce(&ClientImpl::OnReponseReceived, weak_factory_.GetWeakPtr(),
+                     std::move(callback)));
 }
 
-void ClientImpl::OnRequestTimeout(int32_t request_id) {
-  auto it = pending_requests_.find(request_id);
-  if (it != pending_requests_.end()) {
-    DLOG(ERROR) << "Request timed out: " << request_id;
-    timed_out_requests_.insert(request_id);
-    auto callback = std::move(it->second);
-    pending_requests_.erase(it);
-    std::move(callback).Run(base::unexpected(ErrorCode::kTimeout));
-  }
-}
-
-void ClientImpl::OnResponseReceived(
-    base::expected<BinaryEncodedProtoResponse, ErrorCode> result) {
-  if (!result.has_value()) {
-    // The secure channel is broken. Fail all pending requests and destroy the
-    // channel. It will be recreated on the next request.
-    DVLOG(1) << "Secure channel read failed. Destroying channel.";
-    FailAllPendingRequests(result.error());
-    secure_channel_.reset();
-    return;
-  }
-
-  proto::LegionResponse legion_response;
-  if (!legion_response.ParseFromArray(result->data(), result->size())) {
-    LOG(ERROR) << "Failed to parse LegionResponse";
-    // This is a protocol error. We don't know which request this response was
-    // for, so we fail all of them.
-    FailAllPendingRequests(ErrorCode::kResponseParseError);
-    return;
-  }
-
-  auto it = pending_requests_.find(legion_response.request_id());
-  if (it == pending_requests_.end()) {
-    auto timed_out_it = timed_out_requests_.find(legion_response.request_id());
-    if (timed_out_it != timed_out_requests_.end()) {
-      DLOG(ERROR) << "Received response for timed out request_id: "
-                  << legion_response.request_id();
-      timed_out_requests_.erase(timed_out_it);
-    } else {
-      DLOG(ERROR) << "Received response for unknown request_id: "
-                  << legion_response.request_id();
-    }
-    // This could be a response to a request that has already timed out and was
-    // removed from the pending list. In this case we should just ignore it and
-    // not cancel other pending requests.
-    return;
-  }
-
-  auto callback = std::move(it->second);
-  pending_requests_.erase(it);
-
-  std::move(callback).Run(std::move(result));
-}
-
-void ClientImpl::OnRequestCompleted(
-    OnRequestCompletedCallback callback,
-    base::TimeTicks start_time,
-    base::expected<BinaryEncodedProtoResponse, ErrorCode> result) {
-  const auto latency = base::TimeTicks::Now() - start_time;
-
-  if (result.has_value()) {
-    // Records the response size in bytes. The max value is 1M bytes.
-    base::UmaHistogramCounts1M("Legion.Client.ResponseSize.Success",
-                               result->size());
-    base::UmaHistogramMediumTimes("Legion.Client.RequestLatency.Success",
-                                  latency);
-  } else if (result.error() == ErrorCode::kTimeout) {
-    base::UmaHistogramEnumeration("Legion.Client.RequestErrorCode",
-                                  ErrorCode::kTimeout);
-    base::UmaHistogramMediumTimes("Legion.Client.RequestLatency.Timeout",
-                                  latency);
+void ClientImpl::OnReponseReceived(
+    OnRequestCompletedCallback cb,
+    base::expected<proto::LegionResponse, ErrorCode> legion_response) {
+  if (legion_response.has_value()) {
+    logger_.LogInfo(FROM_HERE, "Response received");
   } else {
-    base::UmaHistogramEnumeration("Legion.Client.RequestErrorCode",
-                                  result.error());
-    base::UmaHistogramMediumTimes("Legion.Client.RequestLatency.Error",
-                                  latency);
+    logger_.LogError(FROM_HERE,
+                     "Error: " + base::ToString(legion_response.error()));
   }
-  std::move(callback).Run(std::move(result));
+  std::move(cb).Run(legion_response);
+}
+
+void ClientImpl::OnConnectionDisconnected() {
+  logger_.LogInfo(FROM_HERE, "Connection disconnected. Destroying connection.");
+  connection_.reset();
 }
 
 }  // namespace legion

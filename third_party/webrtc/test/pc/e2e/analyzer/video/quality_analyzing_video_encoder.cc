@@ -384,8 +384,7 @@ bool QualityAnalyzingVideoEncoder::ShouldDiscard(
         // is interesting, so all others except the ones depending on the
         // keyframes can be discarded. There's no good test for that, so we keep
         // all of temporal layer 0 for now.
-        if (encoded_image._frameType == VideoFrameType::kVideoFrameKey ||
-            cur_temporal_index == 0)
+        if (encoded_image.IsKey() || cur_temporal_index == 0)
           return cur_stream_index > *emulated_sfu_config->target_layer_index;
         return cur_stream_index != *emulated_sfu_config->target_layer_index;
       case SimulcastMode::kNormal:

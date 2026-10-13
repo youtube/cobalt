@@ -15,7 +15,7 @@
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/password_manager/actor_login/actor_login_service.h"
-#include "chrome/test/base/in_process_browser_test.h"
+#include "chrome/test/base/platform_browser_test.h"
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
 #include "components/password_manager/core/browser/actor_login/actor_login_quality_logger_interface.h"
 #include "content/public/browser/render_frame_host.h"
@@ -53,6 +53,7 @@ class MockActorLoginService : public actor_login::ActorLoginService {
       const actor_login::Credential& credential,
       bool should_store_permission,
       base::WeakPtr<actor_login::ActorLoginQualityLoggerInterface> mqls_logger,
+      base::TimeTicks attempt_login_tool_start_time,
       actor_login::LoginStatusResultOrErrorReply callback) override;
 
   void SetCredentials(const actor_login::CredentialsOrError& credentials);
@@ -74,7 +75,7 @@ class MockActorLoginService : public actor_login::ActorLoginService {
 inline constexpr int32_t kNonExistentContentNodeId =
     std::numeric_limits<int32_t>::max();
 
-class ActorToolsTest : public InProcessBrowserTest {
+class ActorToolsTest : public PlatformBrowserTest {
  public:
   ActorToolsTest();
   ActorToolsTest(const ActorToolsTest&) = delete;
@@ -97,13 +98,6 @@ class ActorToolsTest : public InProcessBrowserTest {
   void GetPageApc();
 
  protected:
-  virtual std::unique_ptr<ExecutionEngine> CreateExecutionEngine(
-      Profile* profile);
-
-  // Returns true if actuation should always be enabled for the test (regardless
-  // of policy / opt-in status).
-  virtual bool ShouldForceActOnWeb();
-
   TaskId CreateNewTask();
 
   void SetPageContent(

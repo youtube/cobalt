@@ -6,9 +6,11 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_HTML_HTML_STREAM_H_
 
 namespace blink {
+class AtomicString;
 class ContainerNode;
 class ExceptionState;
 class ScriptState;
+class SetHTMLUnsafeOptions;
 class WritableStream;
 
 // This creates a Writable stream that takes string and inserts them into an
@@ -17,6 +19,8 @@ class HTMLStream {
  public:
   static WritableStream* Create(ScriptState*,
                                 ContainerNode* target,
+                                const SetHTMLUnsafeOptions* options,
+                                const AtomicString& property_name,
                                 ExceptionState&);
 };
 }  // namespace blink

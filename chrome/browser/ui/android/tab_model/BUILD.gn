@@ -63,6 +63,7 @@ source_set("impl") {
     "//chrome/browser/ui:browser_navigator_params_headers",
     "//chrome/browser/ui/browser_window",
     "//chrome/browser/ui/browser_window/internal",
+    "//chrome/browser/ui/tabs:tabs_public",
     "//components/content_settings/core/browser",
     "//content/public/browser",
     "//content/public/common",
@@ -97,6 +98,20 @@ source_set("test_support") {
 source_set("unit_tests") {
   testonly = true
   sources = [ "tab_model_list_unittest.cc" ]
+  deps = [
+    ":test_support",
+    "//chrome/test:test_support",
+    "//content/public/browser",
+  ]
+}
+
+source_set("browser_tests") {
+  testonly = true
+  defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+  sources = [
+    "tab_collection_tab_model_impl_browsertest.cc",
+    "tab_model_jni_bridge_browsertest.cc",
+  ]
   deps = [
     ":test_support",
     "//chrome/test:test_support",

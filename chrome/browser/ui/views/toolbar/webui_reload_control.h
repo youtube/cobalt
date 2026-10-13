@@ -18,6 +18,7 @@ class MenuRunner;
 }  // namespace views
 
 class WebUIToolbarWebView;
+class WebUIToolbarWebViewPixelBrowserTest;
 
 // WebUIReloadControl implements C++-side functionality for the WebUI-based
 // implementation of the reload button in the toolbar.
@@ -32,8 +33,8 @@ class WebUIReloadControl : public ReloadControl {
 
   // ReloadControl overrides:
   void ChangeMode(ReloadControl::Mode mode, bool force) override;
-  bool GetMenuEnabled() const override;
-  void SetMenuEnabled(bool is_menu_enabled) override;
+  bool GetDevToolsStatusForTesting() const override;
+  void SetDevToolsStatus(bool is_dev_tools_connected) override;
 
   bool HandleContextMenu(views::Widget* widget,
                          gfx::Point screen_location,
@@ -50,12 +51,17 @@ class WebUIReloadControl : public ReloadControl {
   bool is_initialized() const { return is_initialized_; }
 
  private:
-  void SetReloadButtonUIState();
+  FRIEND_TEST_ALL_PREFIXES(WebUIToolbarWebViewPixelBrowserTest,
+                           CheckReloadButtonColor);
+
+  void OnNavigationStatusChanged();
+  void OnDevToolsStatusChanged();
+  void OnContextMenuClosed();
 
   const raw_ptr<WebUIToolbarWebView> webui_toolbar_web_view_;
   std::unique_ptr<ui::SimpleMenuModel> menu_model_;
   std::unique_ptr<views::MenuRunner> menu_runner_;
-  bool is_menu_enabled_ = false;
+  bool is_dev_tools_connected_ = false;
   ReloadControl::Mode mode_ = ReloadControl::Mode::kReload;
   bool is_initialized_ = false;
 };

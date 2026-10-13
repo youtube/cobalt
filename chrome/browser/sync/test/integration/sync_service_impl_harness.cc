@@ -562,18 +562,36 @@ bool SyncServiceImplHarness::DisableSelectableType(
   return false;
 }
 
-bool SyncServiceImplHarness::EnableSyncForRegisteredDatatypes() {
-  DVLOG(1) << GetClientInfoString("EnableSyncForRegisteredDatatypes");
-
-  if (!IsSyncEnabledByUser()) {
-    bool result = SetupSync();
-    // If SetupSync() succeeded, then Sync must now be enabled.
-    DCHECK(!result || IsSyncEnabledByUser());
-    return result;
+#if BUILDFLAG(IS_CHROMEOS)
+bool SyncServiceImplHarness::EnableSelectableOsType(
+    syncer::UserSelectableOsType type) {
+  if (service() == nullptr) {
+    LOG(ERROR) << "EnableSelectableOsType(): service() is null.";
+    return false;
   }
 
-  return EnableAllSelectableTypes();
+  syncer::UserSelectableOsTypeSet selected_os_types =
+      service()->GetUserSettings()->GetSelectedOsTypes();
+  if (selected_os_types.Has(type)) {
+    DVLOG(1) << "EnableSelectableOsType(): Sync already enabled for type "
+             << syncer::GetUserSelectableOsTypeName(type) << " on "
+             << profile_debug_name_ << ".";
+    return true;
+  }
+
+  selected_os_types.Put(type);
+  service()->GetUserSettings()->SetSelectedOsTypes(false, selected_os_types);
+  if (AwaitSyncTransportActive()) {
+    DVLOG(1) << "EnableSelectableOsType(): Enabled sync for type "
+             << syncer::GetUserSelectableOsTypeName(type) << " on "
+             << profile_debug_name_ << ".";
+    return true;
+  }
+
+  DVLOG(0) << GetClientInfoString("EnableSelectableOsType failed");
+  return false;
 }
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 bool SyncServiceImplHarness::EnableAllSelectableTypes() {
   if (service() == nullptr) {
@@ -593,10 +611,6 @@ bool SyncServiceImplHarness::EnableAllSelectableTypes() {
   return false;
 }
 
-bool SyncServiceImplHarness::DisableSyncForAllDatatypes() {
-  return DisableAllSelectableTypes();
-}
-
 bool SyncServiceImplHarness::DisableAllSelectableTypes() {
   DVLOG(1) << GetClientInfoString("DisableAllSelectableTypes");
 
@@ -612,6 +626,24 @@ bool SyncServiceImplHarness::DisableAllSelectableTypes() {
            << profile_debug_name_ << ".";
   return true;
 }
+
+#if BUILDFLAG(IS_CHROMEOS)
+bool SyncServiceImplHarness::DisableAllSelectableOsTypes() {
+  DVLOG(1) << GetClientInfoString("DisableAllSelectableOsTypes");
+
+  if (service() == nullptr) {
+    LOG(ERROR) << "DisableAllSelectableOsTypes(): service() is null.";
+    return false;
+  }
+
+  service()->GetUserSettings()->SetSelectedOsTypes(
+      /*sync_everything=*/false, syncer::UserSelectableOsTypeSet());
+
+  DVLOG(1) << "DisableAllSelectableOsTypes(): Disabled all types on "
+           << profile_debug_name_ << ".";
+  return true;
+}
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 SyncCycleSnapshot SyncServiceImplHarness::GetLastCycleSnapshot() const {
   DCHECK(service() != nullptr) << "Sync service has not yet been set up.";
@@ -655,7 +687,7 @@ SyncServiceImplHarness::GetLocalDataDescriptionAndWait(
 std::string SyncServiceImplHarness::GetServiceStatus() {
   // This method is only used in test code for debugging purposes, so it's fine
   // to include sensitive data in ConstructAboutInformation().
-  base::Value::Dict value = syncer::sync_ui_util::ConstructAboutInformation(
+  base::DictValue value = syncer::sync_ui_util::ConstructAboutInformation(
       syncer::sync_ui_util::IncludeSensitiveData(true), service(),
       chrome::GetChannelName(chrome::WithExtendedStable(true)));
   std::string service_status;

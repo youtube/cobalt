@@ -171,6 +171,14 @@ static SkColor4f FadedGreen(int initial_value, int step) {
   int value = step * initial_value / DebugColors::kFadeSteps;
   return {0.0f, 195.0f / 255.0f, 0.0f, static_cast<float>(value) / 255.0f};
 }
+
+static SkColor4f FadedOrange(int initial_value, int step) {
+  DCHECK_GE(step, 0);
+  DCHECK_LE(step, DebugColors::kFadeSteps);
+  int value = step * initial_value / DebugColors::kFadeSteps;
+  return {1.0f, 140.0f / 255.0f, 0.0f, static_cast<float>(value) / 255.0f};
+}
+
 // Paint rects in green.
 SkColor4f DebugColors::PaintRectBorderColor(int step) {
   return FadedGreen(255, step);
@@ -186,9 +194,9 @@ static SkColor4f FadedBlue(int initial_value, int step) {
   int value = step * initial_value / DebugColors::kFadeSteps;
   return {0.0f, 0.0f, 1.0f, static_cast<float>(value) / 255.0f};
 }
-/// Layout Shift rects in blue.
-SkColor4f DebugColors::LayoutShiftRectBorderColor() {
-  return {0.0f, 0.0f, 1.0f, 0.0f};
+
+SkColor4f DebugColors::LayoutShiftRectBorderColor(int step) {
+  return FadedBlue(255, step);
 }
 int DebugColors::LayoutShiftRectBorderWidth() {
   // We don't want any border showing for the layout shift debug rects so we set
@@ -197,6 +205,26 @@ int DebugColors::LayoutShiftRectBorderWidth() {
 }
 SkColor4f DebugColors::LayoutShiftRectFillColor(int step) {
   return FadedBlue(60, step);
+}
+
+SkColor4f DebugColors::InteractionContentfulPaintRectBorderColor(int step) {
+  return FadedOrange(255, step);
+}
+int DebugColors::InteractionContentfulPaintRectBorderWidth() {
+  return 2;
+}
+SkColor4f DebugColors::InteractionContentfulPaintRectFillColor(int step) {
+  return FadedOrange(60, step);
+}
+
+SkColor4f DebugColors::NavigationContentfulPaintRectBorderColor(int step) {
+  return FadedGreen(255, step);
+}
+int DebugColors::NavigationContentfulPaintRectBorderWidth() {
+  return 2;
+}
+SkColor4f DebugColors::NavigationContentfulPaintRectFillColor(int step) {
+  return FadedGreen(60, step);
 }
 
 // Property-changed rects in blue.

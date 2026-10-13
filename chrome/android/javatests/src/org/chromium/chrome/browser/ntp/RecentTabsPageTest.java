@@ -100,7 +100,6 @@ import java.util.concurrent.ExecutionException;
 /** Instrumentation tests for {@link RecentTabsPage}. */
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
-@EnableFeatures({ChromeFeatureList.UNO_PHASE_2_FOLLOW_UP})
 @DoNotBatch(reason = "Tests manipulate UI which can interfere between tests.")
 public class RecentTabsPageTest {
     private static final int COLOR_ID = TabGroupColorId.YELLOW;
@@ -119,7 +118,7 @@ public class RecentTabsPageTest {
     @Rule
     public final ChromeRenderTestRule mRenderTestRule =
             ChromeRenderTestRule.Builder.withPublicCorpus()
-                    .setRevision(9)
+                    .setRevision(10)
                     .setBugComponent(ChromeRenderTestRule.Component.UI_BROWSER_MOBILE_RECENT_TABS)
                     .build();
 
@@ -177,6 +176,37 @@ public class RecentTabsPageTest {
                 view, RecentTabsRowAdapter.RecentlyClosedTabsGroup.ID_REMOVE_ALL);
         assertEquals(0, mManager.getRecentlyClosedEntries(1).size());
         waitForViewToDisappear(title);
+    }
+
+    @Test
+    @MediumTest
+    @Feature({"RecentTabsPage"})
+    public void testRecentlyClosedTabs_specialUrls() throws ExecutionException {
+        mPage = loadRecentTabsPage();
+
+        final RecentlyClosedTab aboutTab =
+                new RecentlyClosedTab(0, 0, "About", new GURL("about:blank"), null);
+        final RecentlyClosedTab chromeTab =
+                new RecentlyClosedTab(1, 0, "Chrome", new GURL("chrome://version"), null);
+        final RecentlyClosedTab chromeNativeTab =
+                new RecentlyClosedTab(
+                        2, 0, "Chrome-Native", new GURL("chrome-native://newtab"), null);
+
+        setRecentlyClosedEntries(Arrays.asList(aboutTab, chromeTab, chromeNativeTab));
+        assertEquals(3, mManager.getRecentlyClosedEntries(3).size());
+
+        // For special URLs, the domain part should show the full URL spec.
+        View aboutDomainView = waitForView("about:blank");
+        assertThat(aboutDomainView, instanceOf(TextView.class));
+        assertEquals(View.VISIBLE, aboutDomainView.getVisibility());
+
+        View chromeDomainView = waitForView("chrome://version");
+        assertThat(chromeDomainView, instanceOf(TextView.class));
+        assertEquals(View.VISIBLE, chromeDomainView.getVisibility());
+
+        View chromeNativeDomainView = waitForView("chrome-native://newtab");
+        assertThat(chromeNativeDomainView, instanceOf(TextView.class));
+        assertEquals(View.VISIBLE, chromeNativeDomainView.getVisibility());
     }
 
     @Test
@@ -526,16 +556,16 @@ public class RecentTabsPageTest {
                 mActivity.getRecentlyClosedEntriesManagerForTesting();
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    recentlyClosedEntriesManager.onWindowClosed(
-                            window2, /* isPermanentDeletion= */ false);
-                    recentlyClosedEntriesManager.onWindowClosed(
-                            window1, /* isPermanentDeletion= */ false);
+                    recentlyClosedEntriesManager.onWindowsClosed(
+                            Collections.singletonList(window2), /* isPermanentDeletion= */ false);
+                    recentlyClosedEntriesManager.onWindowsClosed(
+                            Collections.singletonList(window1), /* isPermanentDeletion= */ false);
                 });
         assertEquals(2, recentlyClosedEntriesManager.getRecentlyClosedEntries().size());
 
         final String eventDescriptionString1 = "google.com and " + (tabCount - 1) + " other tabs";
         final String eventDescriptionString2 =
-                activeTabTitle2 + " and " + (tabCount - 1) + " other tabs";
+                activeTabUrl2 + " and " + (tabCount - 1) + " other tabs";
         waitForView(title1);
         waitForView(eventDescriptionString1);
         waitForView(title2);
@@ -618,8 +648,15 @@ public class RecentTabsPageTest {
         final RecentlyClosedTab tab =
                 new RecentlyClosedTab(
                         0, 0, "Tab Title", new GURL("https://www.example.com/"), null);
-        setRecentlyClosedEntries(Arrays.asList(tab, window));
-        assertEquals(2, mManager.getRecentlyClosedEntries(2).size());
+        RecentlyClosedEntriesManager recentlyClosedEntriesManager =
+                mActivity.getRecentlyClosedEntriesManagerForTesting();
+        setRecentlyClosedEntries(List.of(tab));
+        ThreadUtils.runOnUiThreadBlocking(
+                () ->
+                        recentlyClosedEntriesManager.onWindowsClosed(
+                                Collections.singletonList(window),
+                                /* isPermanentDeletion= */ false));
+        assertEquals(2, recentlyClosedEntriesManager.getRecentlyClosedEntries().size());
 
         final String windowDescriptionString = "google.com and " + (tabCount - 1) + " other tabs";
         View windowView = waitForView(windowTitle);
@@ -631,8 +668,6 @@ public class RecentTabsPageTest {
         // Confirm the recently closed entries are all gone after "Remove all" is clicked.
         openContextMenuAndInvokeItem(
                 windowView, RecentTabsRowAdapter.RecentlyClosedTabsGroup.ID_REMOVE_ALL);
-        RecentlyClosedEntriesManager recentlyClosedEntriesManager =
-                mActivity.getRecentlyClosedEntriesManagerForTesting();
         assertEquals(0, recentlyClosedEntriesManager.getRecentlyClosedEntries().size());
         waitForViewToDisappear(windowDescriptionString);
     }

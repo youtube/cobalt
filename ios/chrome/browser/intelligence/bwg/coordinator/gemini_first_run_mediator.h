@@ -8,25 +8,25 @@
 #import <UIKit/UIKit.h>
 
 #import "components/feature_engagement/public/tracker.h"
-#import "ios/chrome/browser/intelligence/bwg/ui/bwg_consent_mutator.h"
+#import "ios/chrome/browser/intelligence/bwg/ui/gemini_consent_mutator.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h"
 
 @protocol SceneCommands;
 class BwgService;
-class BwgBrowserAgent;
+class GeminiBrowserAgent;
 class PrefService;
 class WebStateList;
 
 @protocol GeminiFirstRunMediatorDelegate;
 
 // Gemini First Run Mediator.
-@interface GeminiFirstRunMediator : NSObject <BWGConsentMutator>
+@interface GeminiFirstRunMediator : NSObject <GeminiConsentMutator>
 
 - (instancetype)initWithPrefService:(PrefService*)prefService
                        webStateList:(WebStateList*)webStateList
                  baseViewController:(UIViewController*)baseViewController
                          BWGService:(BwgService*)geminiService
-                    BwgBrowserAgent:(BwgBrowserAgent*)geminiBrowserAgent
+                 geminiBrowserAgent:(GeminiBrowserAgent*)geminiBrowserAgent
                             tracker:(feature_engagement::Tracker*)tracker
                          entryPoint:(gemini::EntryPoint)entryPoint
                   completionHandler:(void (^)(BOOL success))completion;

@@ -35,6 +35,22 @@ public class TabStateStorageService {
         }
     }
 
+    /** Data shared between stores. */
+    public static class SharedStoreData {
+        private boolean mWasStoreRazed;
+
+        /** Whether a store has razed its data during startup. */
+        public boolean wasStoreRazed() {
+            return mWasStoreRazed;
+        }
+
+        /** Called when a store has razed its data. */
+        public void onStoreRazed() {
+            mWasStoreRazed = true;
+        }
+    }
+
+    private final SharedStoreData mSharedStoreData = new SharedStoreData();
     private final long mNativeTabStateStorageService;
 
     private TabStateStorageService(long nativeTabStateStorageService) {
@@ -77,6 +93,20 @@ public class TabStateStorageService {
         assert !windowTag.isEmpty();
         TabStateStorageServiceJni.get()
                 .loadAllData(mNativeTabStateStorageService, windowTag, isOffTheRecord, callback);
+    }
+
+    /**
+     * Counts the number of tabs for a given window.
+     *
+     * @param windowTag The window tag to count tabs for.
+     * @param isOffTheRecord Whether the tabs are off the record.
+     * @param callback The callback to be called with the number of tabs.
+     */
+    public void countTabsForWindow(
+            String windowTag, boolean isOffTheRecord, Callback<Integer> callback) {
+        TabStateStorageServiceJni.get()
+                .countTabsForWindow(
+                        mNativeTabStateStorageService, windowTag, isOffTheRecord, callback);
     }
 
     /** Clears all the tabs from persistent storage. */
@@ -160,6 +190,11 @@ public class TabStateStorageService {
                 .generateKey(mNativeTabStateStorageService, windowTag);
     }
 
+    /** Returns the data shared between all clients of this service. */
+    public SharedStoreData getSharedStoreData() {
+        return mSharedStoreData;
+    }
+
     @NativeMethods
     interface Natives {
         void boostPriority(long nativeTabStateStorageServiceAndroid);
@@ -171,6 +206,12 @@ public class TabStateStorageService {
                 @JniType("std::string") String windowTag,
                 boolean isOffTheRecord,
                 Callback<StorageLoadedData> loadedDataCallback);
+
+        void countTabsForWindow(
+                long nativeTabStateStorageServiceAndroid,
+                @JniType("std::string") String windowTag,
+                boolean isOffTheRecord,
+                Callback<Integer> countCallback);
 
         void clearState(long nativeTabStateStorageServiceAndroid);
 

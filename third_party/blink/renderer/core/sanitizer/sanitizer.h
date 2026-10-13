@@ -8,6 +8,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/v8_sanitizer_presets.h"
 #include "third_party/blink/renderer/core/dom/qualified_name.h"
 #include "third_party/blink/renderer/core/sanitizer/sanitizer_names.h"
+#include "third_party/blink/renderer/core/sanitizer/streaming_sanitizer.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 
 namespace blink {
@@ -27,12 +28,20 @@ class CORE_EXPORT Sanitizer final : public ScriptWrappable {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
+  enum class Action {
+    kKeep,
+    kKeepElement,
+    kDrop,
+    kReplaceWithChildren,
+  };
+  enum class Mode { kSafe, kUnsafe };
+
   // Called by WebIDL for Sanitizer constructor, new Sanitizer(xxx).
   static Sanitizer* Create(const V8UnionSanitizerConfigOrSanitizerPresets*,
                            ExceptionState&);
 
   // Called by Sanitizer API, to implement setHTML / setHTMLUnsafe & friends.
-  static Sanitizer* Create(const SanitizerConfig*, bool safe, ExceptionState&);
+  static Sanitizer* Create(const SanitizerConfig*, Mode safe, ExceptionState&);
   static Sanitizer* Create(const V8SanitizerPresets::Enum, ExceptionState&);
 
   static Sanitizer* CreateEmpty();
@@ -105,20 +114,31 @@ class CORE_EXPORT Sanitizer final : public ScriptWrappable {
     return comments_ == SanitizerBoolWithAbsence::kTrue;
   }
 
+  Action ActionForNode(Node* node, Node* root) const;
+  // Sanitizes a node insertion operation. Can modify element attributes, change
+  // the insertion target, or discard the element. Returns the adjusted
+  // insertion target, or null if the element is to be discarded.
+  // This is used for streaming.
+  bool SanitizeSingleNode(Node* node, Mode safe) const;
+
+  bool ShouldReplaceNodeWithChildren(Node* node) const;
+
+  // Helper for Create: Convert from IDL representation to internal.
+  bool setFrom(const SanitizerConfig*, bool allowCommentsAndDataAttributes);
+  // Helper for constructors: Copy from other Sanitizer.
+  void setFrom(const Sanitizer&);
+
  private:
   enum class SanitizerBoolWithAbsence { kAbsent, kTrue, kFalse };
 
-  // Helper methods for SanitizeSafe/Unsafe:
-  void Sanitize(Node* node, bool safe) const;
-  void SanitizeElement(Element* element) const;
-  void SanitizeJavascriptNavigationAttributes(Element* element,
-                                              bool safe) const;
-  void SanitizeTemplate(Node* node, bool safe) const;
+  void ProcessElement(Element* element, Mode safe) const;
 
-  // Helper for Create: Convert from IDL representation to internal.
-  bool setFrom(const SanitizerConfig*, bool safe);
-  // Helper for constructors: Copy from other Sanitizer.
-  void setFrom(const Sanitizer&);
+  // Helper methods for SanitizeSafe/Unsafe:
+  void Sanitize(Node* node, Mode safe) const;
+  void SanitizeElement(Element* element, Mode safe) const;
+  void SanitizeJavascriptNavigationAttributes(Element* element,
+                                              Mode safe) const;
+  void SanitizeTemplate(Node* node, Mode safe) const;
 
   // Helpers for get(): Convert from internal to IDL representation.
   QualifiedName getFrom(const String& name, const String& namespaceURI) const;

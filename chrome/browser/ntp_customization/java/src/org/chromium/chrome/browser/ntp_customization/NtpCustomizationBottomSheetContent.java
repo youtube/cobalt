@@ -105,7 +105,7 @@ public class NtpCustomizationBottomSheetContent implements BottomSheetContent {
             if (contentHeight != RECYCLER_VIEW_INVALID_HEIGHT) {
                 float contentRatio = (float) contentHeight / containerHeight;
                 if (contentRatio > 0.5) {
-                    return 0.5f;
+                    return Math.min(contentRatio, MAX_HEIGHT_RATIO);
                 }
             }
         }
@@ -173,14 +173,14 @@ public class NtpCustomizationBottomSheetContent implements BottomSheetContent {
         return R.string.ntp_customization_main_bottom_sheet_closed;
     }
 
-    /** Sets up ObservableSupplierImpl<Boolean> when opening the bottom sheet. */
+    /** Sets up the supplier when opening the bottom sheet. */
     void onSheetOpened() {
         // Sets the value in the supplier to true to indicate that back press should be handled by
         // the bottom sheet.
         mBackPressStateChangedSupplier.set(true);
     }
 
-    /** Sets up ObservableSupplierImpl<Boolean> when closing the bottom sheet. */
+    /** Sets up the supplier when closing the bottom sheet. */
     void onSheetClosed() {
         // Sets the value in the supplier to false to indicate that back press should not be handled
         // by the bottom sheet.
@@ -256,5 +256,10 @@ public class NtpCustomizationBottomSheetContent implements BottomSheetContent {
 
     void setCurrentBottomSheetTypeSupplierForTesting(Supplier<@Nullable Integer> supplier) {
         mCurrentBottomSheetTypeSupplier = supplier;
+    }
+
+    @Override
+    public boolean hasCustomScrimLifecycle() {
+        return true;
     }
 }

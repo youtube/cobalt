@@ -24,10 +24,10 @@
 #include "chrome/browser/profiles/keep_alive/profile_keep_alive_types.h"
 #include "chrome/browser/profiles/keep_alive/scoped_profile_keep_alive.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/web_applications/commands/manifest_silent_update_command.h"
 #include "chrome/browser/web_applications/manifest_update_utils.h"
 #include "chrome/browser/web_applications/os_integration/os_integration_manager.h"
 #include "chrome/browser/web_applications/proto/web_app_install_state.pb.h"
+#include "chrome/browser/web_applications/scheduler/manifest_silent_update_result.h"
 #include "chrome/browser/web_applications/web_app_command_manager.h"
 #include "chrome/browser/web_applications/web_app_command_scheduler.h"
 #include "chrome/browser/web_applications/web_app_constants.h"
@@ -47,6 +47,7 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/common/content_features.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom-shared.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -238,8 +239,15 @@ void ManifestUpdateManager::OnManifestSeenOnPrimaryPage(
 
   if (provider_->registrar_unsafe().AppMatches(
           GenerateAppIdFromManifest(*manifest),
-          WebAppFilter::IsIsolatedApp())) {
+          WebAppFilter::IsIsolatedApp() | WebAppFilter::IsIsolatedSubApp())) {
     return;
+  }
+  if (base::FeatureList::IsEnabled(blink::features::kWebAppMigrationApi) &&
+      !manifest->migrate_from.empty()) {
+    // If the manifest contains a `migrate_from` field, we might need to install
+    // the app if one of the source apps is installed.
+    provider_->scheduler().ScheduleWebAppInstallFromMigrateFromField(
+        web_contents.GetWeakPtr(), manifest.Clone(), base::DoNothing());
   }
 
   webapps::AppId app_id = GenerateAppIdFromManifest(*manifest);
@@ -391,7 +399,7 @@ void ManifestUpdateManager::OnManifestSilentUpdateComplete(
     case ManifestSilentUpdateCheckResult::kSystemShutdown:
     case ManifestSilentUpdateCheckResult::kAppUpToDate:
     case ManifestSilentUpdateCheckResult::kIconReadFromDiskFailed:
-    case ManifestSilentUpdateCheckResult::kWebContentsDestroyed:
+    case ManifestSilentUpdateCheckResult::kWebContentsWasDestroyed:
     case ManifestSilentUpdateCheckResult::kPendingIconWriteToDiskFailed:
     case ManifestSilentUpdateCheckResult::kInvalidManifest:
     case ManifestSilentUpdateCheckResult::kInvalidPendingUpdateInfo:

@@ -364,9 +364,7 @@ class FakeFlexfecReceiveStream final : public FlexfecReceiveStream {
  public:
   explicit FakeFlexfecReceiveStream(const FlexfecReceiveStream::Config config);
 
-  void SetLocalSsrc(uint32_t local_ssrc) {
-    config_.rtp.local_ssrc = local_ssrc;
-  }
+  void SetLocalSsrc(uint32_t local_ssrc) { config_.local_ssrc = local_ssrc; }
 
   void SetRtcpMode(RtcpMode mode) override { config_.rtcp_mode = mode; }
 
@@ -377,7 +375,7 @@ class FakeFlexfecReceiveStream final : public FlexfecReceiveStream {
 
   const FlexfecReceiveStream::Config& GetConfig() const;
 
-  uint32_t remote_ssrc() const { return config_.rtp.remote_ssrc; }
+  uint32_t remote_ssrc() const { return config_.remote_ssrc; }
 
   const ReceiveStatistics* GetStats() const override { return nullptr; }
 

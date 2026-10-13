@@ -77,6 +77,7 @@
 #include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
+#include "components/tabs/public/split_tab_data.h"
 #include "components/webapps/isolated_web_apps/scheme.h"
 #endif
 
@@ -114,6 +115,8 @@ constexpr char kWindowCreateLockedFullscreenUrlCountMismatchError[] =
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 constexpr char kInvalidWindowTypeError[] = "Invalid value for type";
+constexpr char kNoHighlightedTabError[] = "No highlighted tab";
+constexpr char kTabIndexNotFoundError[] = "No tab at index: *.";
 
 #if !BUILDFLAG(IS_ANDROID)
 constexpr char kWindowCreateSupportsOnlySingleIwaUrlError[] =
@@ -300,6 +303,19 @@ bool IsLockedFullscreen(BrowserWindowInterface* browser) {
 #endif
 }
 
+// Returns the tab group ID for the tab at `index`. Returns nullopt if the index
+// is out of range, the tab is not found, or the tab is not part of a group.
+std::optional<tab_groups::TabGroupId> GetTabGroupForTab(
+    TabListInterface& tab_list,
+    int index) {
+  if (index < 0 || index >= tab_list.GetTabCount()) {
+    return std::nullopt;
+  }
+  ::tabs::TabInterface* tab = tab_list.GetTab(index);
+  CHECK(tab);
+  return tab->GetGroup();
+}
+
 // Places the window in a special type of fullscreen where the user is locked
 // into one browser window based on `is_locked_fullscreen`.
 void MaybeSetLockedFullscreenState(const api::windows::Update::Params& params,
@@ -351,6 +367,128 @@ bool UpdateWindowBoundsFromParams(const api::windows::Update::Params& params,
     set_window_bounds = true;
   }
   return set_window_bounds;
+}
+
+// Moves the given tab to the `target_browser`. On success, returns the new
+// index of the tab in the target tabstrip. On failure, returns -1. Assumes that
+// the caller has already checked whether the target window is different from
+// the source. `allow_other_window_types` indicates whether moving tabs to
+// windows with types other than BrowserWindowInterface::TYPE_NORMAL is
+// supported; this is allowed in certain cases (like moving a tab to a popup).
+int MoveTabToWindow(ExtensionFunction* function,
+                    int tab_id,
+                    BrowserWindowInterface* target_browser,
+                    int new_index,
+                    bool allow_other_window_types,
+                    std::string* error) {
+  WindowController* source_window = nullptr;
+  int source_index = -1;
+  if (!tabs_internal::GetTabById(tab_id, function->browser_context(),
+                                 function->include_incognito_information(),
+                                 &source_window, nullptr, &source_index,
+                                 error) ||
+      !source_window) {
+    return -1;
+  }
+
+  if (!ExtensionTabUtil::IsTabStripEditable()) {
+    *error = ExtensionTabUtil::kTabStripNotEditableError;
+    return -1;
+  }
+
+  // TODO(crbug.com/40638654): Rather than calling checking against
+  // TYPE_NORMAL, should this call
+  // SupportsWindowFeature(Browser::kFeatureTabstrip)?
+  if (!allow_other_window_types &&
+      target_browser->GetType() != BrowserWindowInterface::TYPE_NORMAL) {
+    *error = ExtensionTabUtil::kCanOnlyMoveTabsWithinNormalWindowsError;
+    return -1;
+  }
+
+  if (target_browser->GetProfile() != source_window->profile()) {
+    *error = ExtensionTabUtil::kCanOnlyMoveTabsWithinSameProfileError;
+    return -1;
+  }
+
+  TabListInterface* target_tab_list =
+      ExtensionTabUtil::GetEditableTabList(*target_browser);
+  CHECK(target_tab_list);
+
+  // Clamp move location to the last position.
+  // This is ">" because it can append to a new index position.
+  // -1 means set the move location to the last position.
+  int target_index = new_index;
+  if (target_index > target_tab_list->GetTabCount() || target_index < 0) {
+    target_index = target_tab_list->GetTabCount();
+  }
+
+  TabListInterface* tab_list =
+      ExtensionTabUtil::GetEditableTabList(*target_browser);
+  CHECK(tab_list);
+  if (ExtensionTabUtil::SupportsTabGroups(target_browser)) {
+    std::optional<tab_groups::TabGroupId> next_tab_dst_group =
+        GetTabGroupForTab(*tab_list, target_index);
+
+    std::optional<tab_groups::TabGroupId> prev_tab_dst_group =
+        GetTabGroupForTab(*tab_list, target_index - 1);
+
+    // Group contiguity is not respected in the target tabstrip.
+    if (next_tab_dst_group.has_value() && prev_tab_dst_group.has_value() &&
+        next_tab_dst_group == prev_tab_dst_group) {
+      *error = tabs_constants::kInvalidTabIndexBreaksGroupContiguity;
+      return -1;
+    }
+  }
+
+  BrowserWindowInterface* source_browser =
+      source_window->GetBrowserWindowInterface();
+  if (!source_browser) {
+    *error = ExtensionTabUtil::kCanOnlyMoveTabsWithinNormalWindowsError;
+    return -1;
+  }
+
+  TabListInterface* source_tab_list = TabListInterface::From(source_browser);
+  ::tabs::TabInterface* tab = source_tab_list->GetTab(source_index);
+  if (!tab) {
+    *error = ErrorUtils::FormatErrorMessage(ExtensionTabUtil::kTabNotFoundError,
+                                            base::NumberToString(tab_id));
+    return -1;
+  }
+
+  source_tab_list->MoveTabToWindow(
+      tab->GetHandle(), target_browser->GetSessionID(), target_index);
+
+  // The new index may differ from `target_index` if the target index was
+  // invalid for any reason, or could be -1 if the move failed.
+  int final_index = target_tab_list->GetIndexOfTab(tab->GetHandle());
+  return final_index;
+}
+
+bool GetTabHandleById(int tab_id,
+                      content::BrowserContext& context,
+                      bool include_incognito,
+                      ::tabs::TabHandle* tab_handle_out,
+                      std::string* error_out) {
+  WindowController* window = nullptr;
+  int index = -1;
+  if (!tabs_internal::GetTabById(tab_id, &context, include_incognito, &window,
+                                 /*contents_out=*/nullptr, &index, error_out)) {
+    return false;
+  }
+  // Some tabs (e.g. prerendering) don't return an index or a window controller.
+  if (index == -1 || !window) {
+    return false;
+  }
+  BrowserWindowInterface* browser = window->GetBrowserWindowInterface();
+  if (!browser) {
+    return false;
+  }
+  TabListInterface* tab_list = TabListInterface::From(browser);
+  if (!tab_list) {
+    return false;
+  }
+  *tab_handle_out = tab_list->GetTab(index)->GetHandle();
+  return true;
 }
 
 }  // namespace
@@ -482,98 +620,6 @@ bool WindowBoundsIntersectDisplays(const gfx::Rect& bounds) {
   return intersect_area >= (bounds.size().GetArea() / 2);
 }
 
-int MoveTabToWindow(ExtensionFunction* function,
-                    int tab_id,
-                    BrowserWindowInterface* target_browser,
-                    int new_index,
-                    bool allow_other_window_types,
-                    std::string* error) {
-  WindowController* source_window = nullptr;
-  int source_index = -1;
-  if (!tabs_internal::GetTabById(tab_id, function->browser_context(),
-                                 function->include_incognito_information(),
-                                 &source_window, nullptr, &source_index,
-                                 error) ||
-      !source_window) {
-    return -1;
-  }
-
-  if (!ExtensionTabUtil::IsTabStripEditable()) {
-    *error = ExtensionTabUtil::kTabStripNotEditableError;
-    return -1;
-  }
-
-  // TODO(crbug.com/40638654): Rather than calling checking against
-  // TYPE_NORMAL, should this call
-  // SupportsWindowFeature(Browser::kFeatureTabstrip)?
-  if (!allow_other_window_types &&
-      target_browser->GetType() != BrowserWindowInterface::TYPE_NORMAL) {
-    *error = ExtensionTabUtil::kCanOnlyMoveTabsWithinNormalWindowsError;
-    return -1;
-  }
-
-  if (target_browser->GetProfile() != source_window->profile()) {
-    *error = ExtensionTabUtil::kCanOnlyMoveTabsWithinSameProfileError;
-    return -1;
-  }
-
-  TabListInterface* target_tab_list =
-      ExtensionTabUtil::GetEditableTabList(*target_browser);
-  DCHECK(target_tab_list);
-
-  // Clamp move location to the last position.
-  // This is ">" because it can append to a new index position.
-  // -1 means set the move location to the last position.
-  int target_index = new_index;
-  if (target_index > target_tab_list->GetTabCount() || target_index < 0) {
-    target_index = target_tab_list->GetTabCount();
-  }
-
-  // TODO(https://crbug.com/371432155): Update this to use cross-platform
-  // support for checking tab groups.
-#if !BUILDFLAG(IS_ANDROID)
-  TabStripModel* target_tab_strip = ExtensionTabUtil::GetEditableTabStripModel(
-      target_browser->GetBrowserForMigrationOnly());
-  DCHECK(target_tab_strip);
-  if (target_tab_strip->SupportsTabGroups()) {
-    std::optional<tab_groups::TabGroupId> next_tab_dst_group =
-        target_tab_strip->GetTabGroupForTab(target_index);
-    std::optional<tab_groups::TabGroupId> prev_tab_dst_group =
-        target_tab_strip->GetTabGroupForTab(target_index - 1);
-
-    // Group contiguity is not respected in the target tabstrip.
-    if (next_tab_dst_group.has_value() && prev_tab_dst_group.has_value() &&
-        next_tab_dst_group == prev_tab_dst_group) {
-      *error = tabs_constants::kInvalidTabIndexBreaksGroupContiguity;
-      return -1;
-    }
-  }
-#endif
-
-  BrowserWindowInterface* source_browser =
-      source_window->GetBrowserWindowInterface();
-  if (!source_browser) {
-    *error = ExtensionTabUtil::kCanOnlyMoveTabsWithinNormalWindowsError;
-    return -1;
-  }
-
-  TabListInterface* source_tab_list = TabListInterface::From(source_browser);
-  ::tabs::TabInterface* tab = source_tab_list->GetTab(source_index);
-  if (!tab) {
-    *error = ErrorUtils::FormatErrorMessage(ExtensionTabUtil::kTabNotFoundError,
-                                            base::NumberToString(tab_id));
-    return -1;
-  }
-
-  source_tab_list->MoveTabToWindow(
-      tab->GetHandle(), target_browser->GetSessionID(), target_index);
-
-  // The new index may differ from `target_index` if the target index was
-  // invalid for any reason, or could be -1 if the move failed.
-  int final_index = target_tab_list->GetIndexOfTab(tab->GetHandle());
-  return final_index;
-}
-
 }  // namespace tabs_internal
 
 void ZoomModeToZoomSettings(zoom::ZoomController::ZoomMode zoom_mode,
@@ -616,7 +662,7 @@ ExtensionFunction::ResponseAction WindowsGetFunction::Run() {
   WindowController::PopulateTabBehavior populate_tab_behavior =
       extractor.populate_tabs() ? WindowController::kPopulateTabs
                                 : WindowController::kDontPopulateTabs;
-  base::Value::Dict windows = window_controller->CreateWindowValueForExtension(
+  base::DictValue windows = window_controller->CreateWindowValueForExtension(
       extension(), populate_tab_behavior, source_context_type());
   return RespondNow(WithArguments(std::move(windows)));
 }
@@ -639,7 +685,7 @@ ExtensionFunction::ResponseAction WindowsGetCurrentFunction::Run() {
   WindowController::PopulateTabBehavior populate_tab_behavior =
       extractor.populate_tabs() ? WindowController::kPopulateTabs
                                 : WindowController::kDontPopulateTabs;
-  base::Value::Dict windows = window_controller->CreateWindowValueForExtension(
+  base::DictValue windows = window_controller->CreateWindowValueForExtension(
       extension(), populate_tab_behavior, source_context_type());
   return RespondNow(WithArguments(std::move(windows)));
 }
@@ -670,7 +716,7 @@ ExtensionFunction::ResponseAction WindowsGetLastFocusedFunction::Run() {
   WindowController::PopulateTabBehavior populate_tab_behavior =
       extractor.populate_tabs() ? WindowController::kPopulateTabs
                                 : WindowController::kDontPopulateTabs;
-  base::Value::Dict windows = ExtensionTabUtil::CreateWindowValueForExtension(
+  base::DictValue windows = ExtensionTabUtil::CreateWindowValueForExtension(
       *last_focused_browser, extension(), populate_tab_behavior,
       source_context_type());
   return RespondNow(WithArguments(std::move(windows)));
@@ -683,7 +729,7 @@ ExtensionFunction::ResponseAction WindowsGetAllFunction::Run() {
 
   tabs_internal::ApiParameterExtractor<windows::GetAll::Params> extractor(
       params);
-  base::Value::List window_list;
+  base::ListValue window_list;
   WindowController::PopulateTabBehavior populate_tab_behavior =
       extractor.populate_tabs() ? WindowController::kPopulateTabs
                                 : WindowController::kDontPopulateTabs;
@@ -984,10 +1030,15 @@ ExtensionFunction::ResponseValue WindowsCreateFunction::OnBrowserWindowCreated(
     // to be compatible with the navigation capturing behavior.
     navigate_params.pwa_navigation_capturing_force_off = true;
 
-    // Depending on the |setSelfAsOpener| option, we need to put the new
-    // contents in the same BrowsingInstance as their opener.  See also
-    // https://crbug.com/713888.
+    if (OpenTabHelper::MaybeSetPdfNavigateParams(*this, navigate_params)) {
+      return navigate_params;
+    }
+
     if (set_self_as_opener_) {
+      // Depending on the `setSelfAsOpener` option, we need to put the new
+      // contents in the same BrowsingInstance as their opener.  See also
+      // https://crbug.com/713888.
+      //
       // TODO(crbug.com/40636155): Add tests for checking opener SiteInstance
       // behavior from a SW based extension's extension frame (e.g. from popup).
       // See ExtensionApiTest.WindowsCreate* tests for details.
@@ -1040,6 +1091,9 @@ ExtensionFunction::ResponseValue WindowsCreateFunction::OnBrowserWindowCreated(
     }
   }
 
+  TabListInterface* tab_list = TabListInterface::From(new_window);
+  CHECK(tab_list);
+
 #if !BUILDFLAG(IS_ANDROID)
   bool moved_tab = false;
 #endif
@@ -1051,12 +1105,33 @@ ExtensionFunction::ResponseValue WindowsCreateFunction::OnBrowserWindowCreated(
       std::string error;
       // -1 means "move tab to the end", which is what we want.
       int new_index = -1;
-      if (tabs_internal::MoveTabToWindow(
-              this, *create_data_->tab_id, new_window, new_index,
-              /*allow_other_window_types=*/true, &error) < 0) {
+      if (MoveTabToWindow(this, *create_data_->tab_id, new_window, new_index,
+                          /*allow_other_window_types=*/true, &error) < 0) {
         return Error(std::move(error));
       }
-#if !BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_ANDROID)
+      // On Android, a new window is created with a single default tab. If urls_
+      // is empty, it means:
+      //
+      // (1) We haven't navigated, which would have navigated the default tab to
+      // a URL;
+      //
+      // (2) There should be only 2 tabs: the default tab and the tab with
+      // "create_data_->tab_id".
+      //
+      // As the tab with "create_data_->tab_id" is added to the end of the tab
+      // list, we close the first (default) tab to match the behavior on other
+      // platforms: the new window should only have the tab with
+      // "create_data_->tab_id".
+      //
+      // TODO(crbug.com/477611601): Remove this logic when a new Android window
+      // has no tabs, like Windows/Mac/Linux.
+      if (urls_.empty()) {
+        CHECK(tab_list->GetTabCount() == 2);
+        tab_list->CloseTab(tab_list->GetTab(0)->GetHandle());
+      }
+#else
       moved_tab = true;
 #endif
     }
@@ -1077,8 +1152,6 @@ ExtensionFunction::ResponseValue WindowsCreateFunction::OnBrowserWindowCreated(
 
   // Select the first tab in the window, if there's at least one tab. There may
   // be no tabs, since we allow the creation of an empty popup above.
-  TabListInterface* tab_list = TabListInterface::From(new_window);
-  CHECK(tab_list);
   if (tab_list->GetTabCount() > 0) {
     tab_list->ActivateTab(tab_list->GetTab(0)->GetHandle());
   }
@@ -1114,12 +1187,12 @@ ExtensionFunction::ResponseValue WindowsCreateFunction::OnBrowserWindowCreated(
 // created as minimized.
 // TODO(crbug.com/40254339): Remove this workaround when linux is fixed.
 // TODO(crbug.com/40254339): Find a fix for wayland as well.
-#if BUILDFLAG(IS_LINUX) && BUILDFLAG(IS_OZONE_X11)
+#if BUILDFLAG(IS_LINUX) && BUILDFLAG(SUPPORTS_OZONE_X11)
   if (new_window->GetBrowserForMigrationOnly()->initial_show_state() ==
       ui::mojom::WindowShowState::kMinimized) {
     new_window->GetWindow()->Minimize();
   }
-#endif  // BUILDFLAG(IS_LINUX) && BUILDFLAG(IS_OZONE_X11)
+#endif  // BUILDFLAG(IS_LINUX) && BUILDFLAG(SUPPORTS_OZONE_X11)
 
   // Lock the window fullscreen only after the new tab has been created
   // (otherwise the tabstrip is empty), and window()->show() has been called
@@ -1410,11 +1483,10 @@ ExtensionFunction::ResponseAction WindowsRemoveFunction::Run() {
   }
 #endif
 
-  WindowController::Reason reason;
-  if (!window_controller->CanClose(&reason)) {
-    return RespondNow(Error(reason == WindowController::REASON_NOT_EDITABLE
-                                ? ExtensionTabUtil::kTabStripNotEditableError
-                                : kUnknownErrorDoNotUse));
+  TabListInterface* tab_list =
+      TabListInterface::From(window_controller->GetBrowserWindowInterface());
+  if (tab_list && !tab_list->IsThisTabListEditable()) {
+    return RespondNow(Error(ExtensionTabUtil::kTabStripNotEditableError));
   }
   window_controller->window()->Close();
   return RespondNow(NoArguments());
@@ -1572,21 +1644,21 @@ ExtensionFunction::ResponseAction TabsQueryFunction::Run() {
     // Note: current_browser may still be null.
   }
 
-  base::Value::List result =
+  base::ListValue result =
       BuildTabList(current_browser, last_active_browser, url_patterns,
                    window_type, window_id, index);
 
   return RespondNow(WithArguments(std::move(result)));
 }
 
-base::Value::List TabsQueryFunction::BuildTabList(
+base::ListValue TabsQueryFunction::BuildTabList(
     BrowserWindowInterface* current_browser,
     BrowserWindowInterface* last_active_browser,
     const URLPatternSet& url_patterns,
     const std::string& window_type,
     int window_id,
     int tab_index) {
-  base::Value::List result;
+  base::ListValue result;
   // Historically, we queried browsers in creation order. Maintain that behavior
   // (for now).
   std::vector<BrowserWindowInterface*> all_browsers =
@@ -2087,6 +2159,101 @@ ExtensionFunction::ResponseAction TabsDuplicateFunction::Run() {
           new_tab_index))));
 }
 
+ExtensionFunction::ResponseAction TabsHighlightFunction::Run() {
+  std::optional<tabs::Highlight::Params> params =
+      tabs::Highlight::Params::Create(args());
+  EXTENSION_FUNCTION_VALIDATE(params);
+
+  // Get the window id from the params; default to current window if omitted.
+  int window_id = params->highlight_info.window_id.value_or(
+      extension_misc::kCurrentWindowId);
+
+  std::string error;
+  WindowController* window_controller =
+      ExtensionTabUtil::GetControllerFromWindowID(
+          ChromeExtensionFunctionDetails(this), window_id, &error);
+  if (!window_controller) {
+    return RespondNow(Error(std::move(error)));
+  }
+
+  // Don't let the extension update the tab if the user is dragging tabs.
+  TabListInterface* tab_list = ExtensionTabUtil::GetEditableTabList(
+      *window_controller->GetBrowserWindowInterface());
+  if (!tab_list) {
+    return RespondNow(Error(ExtensionTabUtil::kTabStripNotEditableError));
+  }
+
+  std::set<int> tab_indices;
+  int active_tab_index = -1;
+  if (params->highlight_info.tabs.as_integers) {
+    std::vector<int>& source = *params->highlight_info.tabs.as_integers;
+    // Make sure they actually specified tabs to select.
+    if (source.empty()) {
+      return RespondNow(Error(kNoHighlightedTabError));
+    }
+
+    // By default, we make the first tab in the list active.
+    active_tab_index = source[0];
+
+    tab_indices.insert(std::make_move_iterator(source.begin()),
+                       std::make_move_iterator(source.end()));
+  } else {
+    EXTENSION_FUNCTION_VALIDATE(params->highlight_info.tabs.as_integer);
+    int tab_index = *params->highlight_info.tabs.as_integer;
+    tab_indices.insert(tab_index);
+    active_tab_index = tab_index;
+  }
+
+  std::set<::tabs::TabHandle> tabs;
+#if !BUILDFLAG(IS_ANDROID)
+  TabStripModel* tab_strip = window_controller->GetBrowser()->tab_strip_model();
+#endif
+  for (int index : tab_indices) {
+    // Make sure the index is in range.
+    if (index < 0 || index >= tab_list->GetTabCount()) {
+      return RespondNow(Error(ErrorUtils::FormatErrorMessage(
+          kTabIndexNotFoundError, base::NumberToString(index))));
+    }
+
+    ::tabs::TabInterface* tab = tab_list->GetTab(index);
+    CHECK(tab);
+    tabs.insert(tab->GetHandle());
+
+    // TODO(https://crbug.com/480192698): When split tabs are available on
+    // android, port this logic.
+#if !BUILDFLAG(IS_ANDROID)
+    // Extend selection for any split tabs.
+    std::optional<split_tabs::SplitTabId> split_id =
+        tab_strip->GetSplitForTab(index);
+    if (!split_id.has_value()) {
+      continue;
+    }
+
+    // All the tabs in a split should be contiguous.
+    std::vector<::tabs::TabInterface*> split_tabs =
+        tab_strip->GetSplitData(split_id.value())->ListTabs();
+    size_t start = tab_strip->GetIndexOfTab(split_tabs[0]);
+    for (size_t i = start; i < start + split_tabs.size(); ++i) {
+      ::tabs::TabInterface* split_tab = tab_list->GetTab(i);
+      CHECK(split_tab);
+      tabs.insert(split_tab->GetHandle());
+    }
+#endif  // !BUILDFLAG(IS_ANDROID)
+  }
+
+  // We just checked all the indices above (of which active_tab_index is a
+  // member), so it must be valid.
+  CHECK(active_tab_index >= 0 && active_tab_index <= tab_list->GetTabCount());
+  ::tabs::TabInterface* active_tab = tab_list->GetTab(active_tab_index);
+
+  tab_list->HighlightTabs(active_tab->GetHandle(), tabs);
+
+  return RespondNow(
+      WithArguments(window_controller->CreateWindowValueForExtension(
+          extension(), WindowController::kPopulateTabs,
+          source_context_type())));
+}
+
 TabsUpdateFunction::TabsUpdateFunction() = default;
 
 ExtensionFunction::ResponseAction TabsUpdateFunction::Run() {
@@ -2119,7 +2286,8 @@ ExtensionFunction::ResponseAction TabsUpdateFunction::Run() {
   }
 
   // tabs_internal::GetTabById may return a null window for prerender tabs.
-  if (!window || !window->SupportsTabs()) {
+  if (!window || !ExtensionTabUtil::BrowserSupportsTabs(
+                     window->GetBrowserWindowInterface())) {
     return RespondNow(Error(ExtensionTabUtil::kNoCurrentWindowError));
   }
 
@@ -2384,7 +2552,7 @@ ExtensionFunction::ResponseAction TabsMoveFunction::Run() {
 
   int new_index = params->move_properties.index;
   const auto& window_id = params->move_properties.window_id;
-  base::Value::List tab_values;
+  base::ListValue tab_values;
 
   size_t num_tabs = 0;
   std::string error;
@@ -2426,7 +2594,7 @@ ExtensionFunction::ResponseAction TabsMoveFunction::Run() {
 
 bool TabsMoveFunction::MoveTab(int tab_id,
                                int* new_index,
-                               base::Value::List& tab_values,
+                               base::ListValue& tab_values,
                                const std::optional<int>& window_id,
                                std::string* error) {
   WindowController* source_window = nullptr;
@@ -2460,9 +2628,9 @@ bool TabsMoveFunction::MoveTab(int tab_id,
 
     BrowserWindowInterface* target_browser =
         target_controller->GetBrowserWindowInterface();
-    int inserted_index = tabs_internal::MoveTabToWindow(
-        this, tab_id, target_browser, *new_index,
-        /*allow_other_window_types=*/false, error);
+    int inserted_index =
+        MoveTabToWindow(this, tab_id, target_browser, *new_index,
+                        /*allow_other_window_types=*/false, error);
     if (inserted_index < 0) {
       return false;
     }
@@ -2627,7 +2795,12 @@ bool TabsRemoveFunction::RemoveTab(int tab_id, std::string* error) {
   }
 
   // Don't let the extension remove a tab if the user is dragging tabs around.
-  if (!window->HasEditableTabStrip()) {
+  // TODO(https://crbug.com/482088886): Update this to check all tab lists for
+  // a profile.
+  TabListInterface* tab_list =
+      TabListInterface::From(window->GetBrowserWindowInterface());
+  CHECK(tab_list);
+  if (!tab_list->IsThisTabListEditable()) {
     *error = ExtensionTabUtil::kTabStripNotEditableError;
     return false;
   }
@@ -2674,6 +2847,214 @@ void TabsRemoveFunction::TabDestroyed() {
     Respond(NoArguments());
   }
   Release();
+}
+
+ExtensionFunction::ResponseAction TabsGroupFunction::Run() {
+  std::optional<tabs::Group::Params> params =
+      tabs::Group::Params::Create(args());
+  EXTENSION_FUNCTION_VALIDATE(params);
+
+  std::string error;
+
+  // Get the target browser from the parameters.
+  int group_id = -1;
+  WindowController* target_window = nullptr;
+  tab_groups::TabGroupId group = tab_groups::TabGroupId::CreateEmpty();
+  if (params->options.group_id) {
+    if (params->options.create_properties) {
+      return RespondNow(Error(tabs_constants::kGroupParamsError));
+    }
+
+    group_id = *params->options.group_id;
+    if (!ExtensionTabUtil::GetGroupById(
+            group_id, browser_context(), include_incognito_information(),
+            &target_window, &group, nullptr, &error)) {
+      return RespondNow(Error(std::move(error)));
+    }
+  } else {
+    int window_id = extension_misc::kCurrentWindowId;
+    if (params->options.create_properties &&
+        params->options.create_properties->window_id) {
+      window_id = *params->options.create_properties->window_id;
+    }
+    target_window = ExtensionTabUtil::GetControllerFromWindowID(
+        ChromeExtensionFunctionDetails(this), window_id, &error);
+    if (!target_window) {
+      return RespondNow(Error(std::move(error)));
+    }
+  }
+
+  CHECK(target_window);
+  BrowserWindowInterface* target_browser =
+      target_window->GetBrowserWindowInterface();
+  if (!ExtensionTabUtil::SupportsTabGroups(target_browser)) {
+    return RespondNow(
+        Error(ExtensionTabUtil::kTabStripDoesNotSupportTabGroupsError));
+  }
+  TabListInterface* tab_list = TabListInterface::From(target_browser);
+  if (!tab_list) {
+    return RespondNow(
+        Error(ExtensionTabUtil::kTabStripDoesNotSupportTabGroupsError));
+  }
+
+  if (!ExtensionTabUtil::IsTabStripEditable()) {
+    return RespondNow(Error(ExtensionTabUtil::kTabStripNotEditableError));
+  }
+
+  // Get all tab IDs from parameters.
+  std::vector<int> tab_ids;
+  if (params->options.tab_ids.as_integers) {
+    tab_ids = *params->options.tab_ids.as_integers;
+    EXTENSION_FUNCTION_VALIDATE(!tab_ids.empty());
+  } else {
+    EXTENSION_FUNCTION_VALIDATE(params->options.tab_ids.as_integer);
+    tab_ids.push_back(*params->options.tab_ids.as_integer);
+  }
+
+  // Get each tab's current window. All tabs will need to be moved into the
+  // target window before grouping.
+  std::vector<WindowController*> tab_windows;
+  tab_windows.reserve(tab_ids.size());
+  for (int tab_id : tab_ids) {
+    WindowController* tab_window = nullptr;
+    content::WebContents* web_contents = nullptr;
+    if (!tabs_internal::GetTabById(tab_id, browser_context(),
+                                   include_incognito_information(), &tab_window,
+                                   &web_contents, nullptr, &error)) {
+      return RespondNow(Error(std::move(error)));
+    }
+    if (tab_window) {
+      tab_windows.push_back(tab_window);
+    }
+
+    if (DevToolsWindow::IsDevToolsWindow(web_contents)) {
+      return RespondNow(Error(tabs_constants::kNotAllowedForDevToolsError));
+    }
+  }
+
+  // Move all tabs to the target browser, appending to the end each time. Only
+  // tabs that are not already in the target browser are moved.
+  for (size_t i = 0; i < tab_ids.size(); ++i) {
+    if (tab_windows[i] != target_window) {
+      if (MoveTabToWindow(this, tab_ids[i],
+                          target_window->GetBrowserWindowInterface(), -1,
+                          /*allow_other_window_types=*/false, &error) < 0) {
+        return RespondNow(Error(std::move(error)));
+      }
+    }
+  }
+
+  // Get the resulting tab handles in the target browser. We recalculate these
+  // after all tabs are moved so that any callbacks are resolved. The set will
+  // dedupe any duplicate tabs.
+  std::set<::tabs::TabHandle> tab_handles;
+  for (int tab_id : tab_ids) {
+    ::tabs::TabHandle tab_handle;
+    if (!GetTabHandleById(tab_id, *browser_context(),
+                          include_incognito_information(), &tab_handle,
+                          &error)) {
+      return RespondNow(Error(std::move(error)));
+    }
+    tab_handles.insert(tab_handle);
+  }
+
+  // Get the remaining group metadata and add the tabs to the group.
+  // At this point, we assume this is a valid action due to the checks above.
+
+  // Either create a new tab group (if `group` is empty) or add to an existing
+  // group. The API requires std::nullopt for a "null" group ID, so convert
+  // `group` to a std::optional<>.
+  std::optional<tab_groups::TabGroupId> existing_group;
+  if (!group.is_empty()) {
+    existing_group = group;
+  }
+  // AddTabsToGroup() can both create a new group or add to an existing group.
+  std::optional<tab_groups::TabGroupId> final_group =
+      tab_list->AddTabsToGroup(existing_group, tab_handles);
+  if (!final_group) {
+    return RespondNow(
+        Error(ExtensionTabUtil::kTabStripDoesNotSupportTabGroupsError));
+  }
+  group_id = ExtensionTabUtil::GetGroupId(*final_group);
+  DCHECK_GT(group_id, 0);
+
+  return RespondNow(WithArguments(group_id));
+}
+
+ExtensionFunction::ResponseAction TabsUngroupFunction::Run() {
+  std::optional<tabs::Ungroup::Params> params =
+      tabs::Ungroup::Params::Create(args());
+  EXTENSION_FUNCTION_VALIDATE(params);
+
+  std::vector<int> tab_ids;
+  if (params->tab_ids.as_integers) {
+    tab_ids = *params->tab_ids.as_integers;
+    EXTENSION_FUNCTION_VALIDATE(!tab_ids.empty());
+  } else {
+    EXTENSION_FUNCTION_VALIDATE(params->tab_ids.as_integer);
+    tab_ids.push_back(*params->tab_ids.as_integer);
+  }
+
+  std::string error;
+  for (int tab_id : tab_ids) {
+    if (!UngroupTab(tab_id, &error)) {
+      return RespondNow(Error(std::move(error)));
+    }
+  }
+
+  return RespondNow(NoArguments());
+}
+
+bool TabsUngroupFunction::UngroupTab(int tab_id, std::string* error) {
+  WindowController* window = nullptr;
+  int tab_index = -1;
+  if (!tabs_internal::GetTabById(tab_id, browser_context(),
+                                 include_incognito_information(), &window,
+                                 nullptr, &tab_index, error) ||
+      !window) {
+    return false;
+  }
+
+  if (!ExtensionTabUtil::IsTabStripEditable()) {
+    *error = ExtensionTabUtil::kTabStripNotEditableError;
+    return false;
+  }
+
+  BrowserWindowInterface* browser_window = window->GetBrowserWindowInterface();
+  if (!ExtensionTabUtil::SupportsTabGroups(browser_window)) {
+    *error = ExtensionTabUtil::kTabStripDoesNotSupportTabGroupsError;
+    return false;
+  }
+
+  TabListInterface* tab_list = TabListInterface::From(browser_window);
+  std::set<::tabs::TabHandle> tabs;
+
+  ::tabs::TabInterface* tab = tab_list->GetTab(tab_index);
+  CHECK(tab);
+  tabs.insert(tab->GetHandle());
+
+  // TODO(https://crbug.com/480192698): When split tabs are available on
+  // android, port this logic.
+#if !BUILDFLAG(IS_ANDROID)
+  // Extend selection for any split tabs.
+  TabStripModel* tab_strip = window->GetBrowser()->tab_strip_model();
+  std::optional<split_tabs::SplitTabId> split_id =
+      tab_strip->GetSplitForTab(tab_index);
+  if (split_id.has_value()) {
+    // All the tabs in a split should be contiguous.
+    std::vector<::tabs::TabInterface*> split_tabs =
+        tab_strip->GetSplitData(split_id.value())->ListTabs();
+    size_t start = tab_strip->GetIndexOfTab(split_tabs[0]);
+    for (size_t i = start; i < start + split_tabs.size(); ++i) {
+      ::tabs::TabInterface* split_tab = tab_list->GetTab(i);
+      CHECK(split_tab);
+      tabs.insert(split_tab->GetHandle());
+    }
+  }
+#endif  // !BUILDFLAG(IS_ANDROID)
+
+  tab_list->Ungroup(tabs);
+  return true;
 }
 
 ExtensionFunction::ResponseAction TabsDetectLanguageFunction::Run() {

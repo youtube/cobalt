@@ -1,6 +1,7 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="lt">
+<translation id="1035560095760914532">Įdėkite „Chrome“ į apatinę sritį, kad bet kada galėtumėte ją pasiekti</translation>
 <translation id="1076643793026027628">„Chrome“ automatiškai atidaro „YouTube“ inkognito nuorodas inkognito režimu.</translation>
 <translation id="1081114897601629648">Toliau nurodyti slaptažodžiai nebuvo importuoti į „Google“ slaptažodžių tvarkyklę, nes jie neatitinka reikalavimų.</translation>
 <translation id="1086486568852410168">Paieška naudojant „Google Lens“</translation>
@@ -86,6 +87,10 @@ Pabandykite palaukti kelias minutes prieš atsijungdami. Jei atsijungsite dabar,
 <translation id="2767464022270041271">Nėra išsaugotų slaptažodžių. „Google“ slaptažodžių tvarkyklė gali tikrinti slaptažodžius, kai juos išsaugote.</translation>
 <translation id="2788811701191021538">Atidaromas „Chrome“ mokėjimo metodų nustatymo puslapis.</translation>
 <translation id="2876628302275096482">Sužinokite daugiau, <ph name="BEGIN_LINK" />kaip „Chrome“ užtikrina jūsų duomenų privatumą<ph name="END_LINK" /></translation>
+<translation id="288992067439702510">Pasiekėte „Google Chrome“ žymių apribojimą (<ph name="LIMIT" />), todėl kai kurios žymės dar neišsaugotos „Google“ paskyroje.
+
+Naujų žymių negalima išsaugoti paskyroje, kol ištrinsite kai kurias žymes. Jei atsijungsite dabar, neišsaugotos žymės bus ištrintos.</translation>
+<translation id="2901621928549457170">Akimirksniu atidarykite „Chrome“ „iPad“ įrenginyje</translation>
 <translation id="2922914028977213693">Palieskite čia, kad išnaudotumėte visas „Chrome“ galimybes „iPad“ įrenginyje.</translation>
 <translation id="292371311537977079">„Chrome“ nustatymai</translation>
 <translation id="2923827943290349720">Užrakinti inkognito skirtukus uždarius „Chrome“</translation>
@@ -170,6 +175,8 @@ Pabandykite palaukti kelias minutes prieš atsijungdami. Jei atsijungsite dabar,
 <translation id="5119391094379141756">Pasirinkite „Chrome“</translation>
 <translation id="5123188916260706415">Paieška balsu naršyklėje „Chrome“</translation>
 <translation id="5162467219239570114">„Chrome“ versija yra pasenusi. Jei <ph name="BEGIN_LINK" />programų parduotuvėje<ph name="END_LINK" /> nėra jokio naujinio, gali būti, kad įrenginys nebepalaiko naujų versijų „Chrome“.</translation>
+<translation id="5172049865623113551">Akimirksniu atidarykite „Chrome“ „iPhone“ įrenginyje</translation>
+<translation id="5179095426828744632">Greičiau pasiekite „Chrome“ naudodami doką</translation>
 <translation id="5184329579814168207">Atidaryti naudojant „Chrome“</translation>
 <translation id="5190139289262548459">Jūsų organizacija (<ph name="DOMAIN" />) tvarko paskyrą, prie kurios esate prisijungę, ir tai, kaip naudojama „Chrome“.</translation>
 <translation id="5209238444239954363">„Chrome“ nepavyko patikrinti, ar yra naujinių. Vėliau bandykite dar kartą.</translation>
@@ -304,7 +311,6 @@ Jei reikia daugiau nustatymų, pagal kuriuos duomenys naudojami „Chrome“ fun
 <translation id="7787205077729386167">Atidarykite „Chrome“ nustatymus sistemoje „iOS“, tada palieskite „Numatytoji naršyklės programa“ ir pasirinkite „Chrome“.</translation>
 <translation id="778855399387580014">Pradėti paiešką naujame „Chrome“ skirtuke.</translation>
 <translation id="7792140019572081272">„Chrome“ apsaugo neskelbtinus duomenis, kai naudodamas „Face ID“.</translation>
-<translation id="7825648984449922731">Redaguokite vaizdą naudodami „Gemini“ naršyklėje „Chrome“</translation>
 <translation id="7855730255114109580">„Google Chrome“ yra naujausios versijos</translation>
 <translation id="787226752901403048">Prisijunkite prie „Chrome“, kad galėtumėte bendrinti skirtukų grupes ir prie jų prisijungti bei kartu kurti idėjas</translation>
 <translation id="7897703007638178753">Žr. „Chrome“ naujausius skirtukus</translation>

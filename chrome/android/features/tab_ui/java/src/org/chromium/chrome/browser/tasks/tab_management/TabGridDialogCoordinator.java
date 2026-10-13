@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.tasks.tab_management;
 
+import static org.chromium.build.NullUtil.assertNonNull;
 import static org.chromium.build.NullUtil.assumeNonNull;
 import static org.chromium.chrome.browser.tasks.tab_management.TabGridDialogProperties.PAGE_KEY_LISTENER;
 
@@ -27,11 +28,11 @@ import org.chromium.base.Callback;
 import org.chromium.base.Token;
 import org.chromium.base.TraceEvent;
 import org.chromium.base.supplier.LazyOneshotSupplier;
-import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.NonNullObservableSupplier;
-import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.base.supplier.NullableObservableSupplier;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.SettableNonNullObservableSupplier;
+import org.chromium.base.supplier.SettableNullableObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.bookmarks.TabBookmarker;
@@ -96,7 +97,7 @@ public class TabGridDialogCoordinator implements TabGridDialogMediator.DialogCon
             ObservableSuppliers.createNonNull(false);
 
     private final Activity mActivity;
-    private final MonotonicObservableSupplier<@Nullable TabGroupModelFilter>
+    private final NullableObservableSupplier<TabGroupModelFilter>
             mCurrentTabGroupModelFilterSupplier;
     private final BrowserControlsStateProvider mBrowserControlsStateProvider;
     private final ModalDialogManager mModalDialogManager;
@@ -104,10 +105,10 @@ public class TabGridDialogCoordinator implements TabGridDialogMediator.DialogCon
     private final BottomSheetController mBottomSheetController;
     private final UndoBarThrottle mUndoBarThrottle;
     private @Nullable final TabLabeller mTabLabeller;
-    private final ObservableSupplierImpl<Boolean> mShowingOrAnimationSupplier =
-            new ObservableSupplierImpl<>(false);
-    private final ObservableSupplierImpl<@Nullable Token> mCurrentTabGroupId =
-            new ObservableSupplierImpl<>();
+    private final SettableNonNullObservableSupplier<Boolean> mShowingOrAnimationSupplier =
+            ObservableSuppliers.createNonNull(false);
+    private final SettableNullableObservableSupplier<Token> mCurrentTabGroupId =
+            ObservableSuppliers.createNullable();
     private final TabContentManager mTabContentManager;
     private final @Nullable SnackbarManager mSnackbarManager;
     private final @Nullable TabSwitcherResetHandler mTabSwitcherResetHandler;
@@ -125,8 +126,7 @@ public class TabGridDialogCoordinator implements TabGridDialogMediator.DialogCon
             BrowserControlsStateProvider browserControlsStateProvider,
             BottomSheetController bottomSheetController,
             DataSharingTabManager dataSharingTabManager,
-            MonotonicObservableSupplier<@Nullable TabGroupModelFilter>
-                    currentTabGroupModelFilterSupplier,
+            NullableObservableSupplier<TabGroupModelFilter> currentTabGroupModelFilterSupplier,
             TabContentManager tabContentManager,
             @Nullable TabSwitcherResetHandler resetHandler,
             @Nullable GridCardOnClickListenerProvider gridCardOnClickListenerProvider,
@@ -135,8 +135,8 @@ public class TabGridDialogCoordinator implements TabGridDialogMediator.DialogCon
             ModalDialogManager modalDialogManager,
             @Nullable DesktopWindowStateManager desktopWindowStateManager,
             UndoBarThrottle undoBarThrottle,
-            MonotonicObservableSupplier<TabBookmarker> tabBookmarkerSupplier,
-            Supplier<ShareDelegate> shareDelegateSupplier,
+            Supplier<@Nullable TabBookmarker> tabBookmarkerSupplier,
+            Supplier<@Nullable ShareDelegate> shareDelegateSupplier,
             Callback<@Nullable View> attachViewCallback) {
         try (TraceEvent e = TraceEvent.scoped("TabGridDialogCoordinator.constructor")) {
             mActivity = activity;
@@ -184,7 +184,13 @@ public class TabGridDialogCoordinator implements TabGridDialogMediator.DialogCon
 
             if (!activity.isDestroyed() && !activity.isFinishing()) {
                 mSnackbarManager =
-                        new SnackbarManager(activity, mDialogView.getSnackBarContainer(), null);
+                        new SnackbarManager(
+                                activity,
+                                mDialogView.getSnackBarContainer(),
+                                null,
+                                null,
+                                modalDialogManager);
+
             } else {
                 mSnackbarManager = null;
             }
@@ -272,7 +278,7 @@ public class TabGridDialogCoordinator implements TabGridDialogMediator.DialogCon
 
             mTabListOnScrollListener
                     .getYOffsetNonZeroSupplier()
-                    .addObserver(
+                    .addSyncObserverAndPostIfNonNull(
                             (showHairline) ->
                                     mModel.set(
                                             TabGridDialogProperties.HAIRLINE_VISIBILITY,
@@ -398,7 +404,8 @@ public class TabGridDialogCoordinator implements TabGridDialogMediator.DialogCon
                     public void onDismiss() {
                         assumeNonNull(mColorPickerCoordinator);
                         mMediator.setSelectedTabGroupColor(
-                                mColorPickerCoordinator.getSelectedColorSupplier().get());
+                                assertNonNull(
+                                        mColorPickerCoordinator.getSelectedColorSupplier().get()));
 
                         // Only require a refresh of the tab list if accessed from the GTS,
                         // skip if this is reached from the tab strip as the color will
@@ -582,7 +589,7 @@ public class TabGridDialogCoordinator implements TabGridDialogMediator.DialogCon
     }
 
     @Override
-    public MonotonicObservableSupplier<Boolean> getShowingOrAnimationSupplier() {
+    public NonNullObservableSupplier<Boolean> getShowingOrAnimationSupplier() {
         return mShowingOrAnimationSupplier;
     }
 

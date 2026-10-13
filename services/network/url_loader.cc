@@ -91,6 +91,7 @@
 #include "services/network/devtools_durable_msg_writer.h"
 #include "services/network/file_opener_for_upload.h"
 #include "services/network/orb/orb_impl.h"
+#include "services/network/pervasive_resources/shared_resource_checker.h"
 #include "services/network/public/cpp/client_hints.h"
 #include "services/network/public/cpp/constants.h"
 #include "services/network/public/cpp/cors/cors.h"
@@ -106,6 +107,7 @@
 #include "services/network/public/cpp/parsed_headers.h"
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/cpp/sri_message_signatures.h"
+#include "services/network/public/cpp/synthetic_response_util.h"
 #include "services/network/public/mojom/client_security_state.mojom.h"
 #include "services/network/public/mojom/cookie_access_observer.mojom.h"
 #include "services/network/public/mojom/cookie_manager.mojom.h"
@@ -123,7 +125,6 @@
 #include "services/network/shared_dictionary/shared_dictionary_access_checker.h"
 #include "services/network/shared_dictionary/shared_dictionary_manager.h"
 #include "services/network/shared_dictionary/shared_dictionary_storage.h"
-#include "services/network/shared_resource_checker.h"
 #include "services/network/shared_storage/shared_storage_request_helper.h"
 #include "services/network/slop_bucket.h"
 #include "services/network/ssl_private_key_proxy.h"
@@ -390,7 +391,8 @@ URLLoader::URLLoader(
     mojo::PendingRemote<mojom::AcceptCHFrameObserver> accept_ch_frame_observer,
     bool shared_storage_writable_eligible,
     SharedResourceChecker& shared_resource_checker,
-    std::unique_ptr<DevtoolsDurableMessageWriter> maybe_durable_message_writer)
+    std::unique_ptr<DevtoolsDurableMessageWriter> maybe_durable_message_writer,
+    mojo::ScopedDataPipeProducerHandle response_body_stream)
     : url_request_context_(context.GetUrlRequestContext()),
       network_context_client_(context.GetNetworkContextClient()),
       delete_callback_(std::move(delete_callback)),
@@ -410,6 +412,7 @@ URLLoader::URLLoader(
       receiver_(this, std::move(url_loader_receiver)),
       url_loader_client_(std::move(url_loader_client),
                          std::move(sync_url_loader_client)),
+      response_body_stream_(std::move(response_body_stream)),
       writable_handle_watcher_(FROM_HERE,
                                mojo::SimpleWatcher::ArmingPolicy::MANUAL,
                                TaskRunner(request.priority)),
@@ -430,9 +433,9 @@ URLLoader::URLLoader(
       resource_scheduler_client_(context.GetResourceSchedulerClient()),
       keepalive_statistics_recorder_(std::move(keepalive_statistics_recorder)),
       fetch_window_id_(request.fetch_window_id),
-      private_network_access_interceptor_(request,
-                                          GetClientSecurityState(),
-                                          options_),
+      local_network_access_interceptor_(request,
+                                        GetClientSecurityState(),
+                                        options_),
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
       trust_token_interceptor_(TrustTokenUrlLoaderInterceptor::MaybeCreate(
           std::move(trust_token_helper_factory))),
@@ -476,6 +479,11 @@ URLLoader::URLLoader(
       provide_data_use_updates_(context.DataUseUpdatesEnabled()),
       partial_decoder_decoding_buffer_size_(net::kMaxBytesToSniff),
       permissions_policy_(request.permissions_policy),
+      expected_response_headers_for_synthetic_response(
+          request.trusted_params
+              ? request.trusted_params
+                    ->expected_response_headers_for_synthetic_response
+              : nullptr),
       durable_message_writer_(std::move(maybe_durable_message_writer)) {
   DCHECK(delete_callback_);
 
@@ -505,6 +513,10 @@ URLLoader::URLLoader(
   receiver_.set_disconnect_handler(
       base::BindOnce(&URLLoader::OnMojoDisconnect, base::Unretained(this)));
 
+  url_request_ = url_request_context_->CreateRequest(
+      request.url, request.priority, this, traffic_annotation,
+      /*is_for_websockets=*/false, request.net_log_create_info);
+
   // If the request is to a URL that we can determine is an LNA request from
   // just the URL, then trigger the LNA prompt. We only trigger this for request
   // where GetAddressSpaceFromUrl() returns a value as those would also trigger
@@ -513,16 +525,16 @@ URLLoader::URLLoader(
   const mojom::ClientSecurityState* client_security_state =
       GetClientSecurityState();
   if (client_security_state &&
-      client_security_state->private_network_request_policy ==
-          mojom::PrivateNetworkRequestPolicy::kPermissionBlock &&
+      client_security_state->local_network_access_request_policy ==
+          mojom::LocalNetworkAccessRequestPolicy::kPermissionBlock &&
       url_loader_network_observer_) {
     std::optional<mojom::IPAddressSpace> url_address_space =
         GetAddressSpaceFromUrl(request.url);
     if (url_address_space) {
-      PrivateNetworkAccessChecker lna_checker(request, client_security_state,
-                                              options_);
+      LocalNetworkAccessChecker lna_checker(request, client_security_state,
+                                            options_);
       if (lna_checker.CheckAddressSpace(*url_address_space) ==
-          PrivateNetworkAccessCheckResult::kLNAPermissionRequired) {
+          LocalNetworkAccessCheckResult::kLNAPermissionRequired) {
         // This passes in `TransportType::kDirect`, regardless of how the
         // request may end up being connected -- the cases where we know this
         // is an LNA request from the URL alone are ones where we have high
@@ -534,14 +546,29 @@ URLLoader::URLLoader(
         // the result.
         url_loader_network_observer_->OnLocalNetworkAccessPermissionRequired(
             mojom::TransportType::kDirect, *url_address_space,
-            base::BindOnce([](mojom::LocalNetworkAccessResult result) {}));
+            base::BindOnce(
+                [](const net::NetLogWithSource& net_log,
+                   const mojom::TransportType transport_type,
+                   const mojom::IPAddressSpace address_space,
+                   mojom::LocalNetworkAccessResult result) {
+                  net_log.AddEvent(
+                      net::NetLogEventType::
+                          LOCAL_NETWORK_ACCESS_PERMISSION_REQUESTED,
+                      [&] {
+                        return base::DictValue()
+                            .Set("address_space",
+                                 IPAddressSpaceToStringPiece(address_space))
+                            .Set("transport_type",
+                                 TransportTypeToStringPiece(transport_type))
+                            .Set("result",
+                                 LocalNetworkAccessResultToStringPiece(result));
+                      });
+                },
+                url_request_->net_log(), mojom::TransportType::kDirect,
+                *url_address_space));
       }
     }
   }
-
-  url_request_ = url_request_context_->CreateRequest(
-      request.url, request.priority, this, traffic_annotation,
-      /*is_for_websockets=*/false, request.net_log_create_info);
 
   TRACE_EVENT("loading", "URLLoader::URLLoader",
               net::NetLogWithSourceToFlow(url_request_->net_log()));
@@ -643,9 +670,10 @@ void URLLoader::OpenFilesForUpload(const ResourceRequest& request) {
     return;
   }
   url_request_->LogBlockedBy("Opening Files");
+  // TODO(crbug.com/379869738): Remove GetUnsafeValue.
   file_opener_for_upload_ = std::make_unique<FileOpenerForUpload>(
-      std::move(paths), url_request_->url(), factory_params_->process_id,
-      network_context_client_,
+      std::move(paths), url_request_->url(),
+      factory_params_->process_id.GetUnsafeValue(), network_context_client_,
       base::BindOnce(&URLLoader::SetUpUpload, base::Unretained(this), request));
   file_opener_for_upload_->Start();
 }
@@ -851,9 +879,9 @@ void URLLoader::FollowRedirect(
         modified_headers, modified_cors_exempt_headers);
   }
 
-  // Reset the state of the PNA checker - redirects should be treated like new
+  // Reset the state of the LNA checker - redirects should be treated like new
   // requests by the same client.
-  private_network_access_interceptor_.ResetForRedirect(
+  local_network_access_interceptor_.ResetForRedirect(
       new_url ? *new_url : *deferred_redirect_url_);
 
   // Propagate removal or restoration of shared storage eligiblity to the helper
@@ -886,8 +914,8 @@ int URLLoader::OnConnected(net::URLRequest* url_request,
                            net::CompletionOnceCallback callback) {
   DCHECK_EQ(url_request, url_request_.get());
 
-  // Delegate the PNA check to the interceptor.
-  net::Error net_error = private_network_access_interceptor_.OnConnected(
+  // Delegate the LNA check to the interceptor.
+  net::Error net_error = local_network_access_interceptor_.OnConnected(
       url_request_->url(), info,
       // Callback getter for async continuation:
       base::BindOnce(
@@ -916,13 +944,13 @@ int URLLoader::OnConnected(net::URLRequest* url_request,
       url_request_->net_log(), devtools_observer_.get(), devtools_request_id(),
       url_loader_network_observer_.get());
 
-  // If PNA failed synchronously or requires async LNA (ERR_IO_PENDING), return
+  // If LNA failed synchronously or requires async LNA (ERR_IO_PENDING), return
   // now.
   if (net_error != net::OK) {
     return net_error;
   }
 
-  // PNA passed synchronously. Proceed to Accept-CH handling.
+  // LNA passed synchronously. Proceed to Accept-CH handling.
   return ProcessAcceptCHFrameOnConnected(info, std::move(callback));
 }
 
@@ -970,8 +998,8 @@ mojom::URLResponseHeadPtr URLLoader::BuildResponseHead() const {
   CHECK(request_cookies_.empty() || include_request_cookies_with_response_);
   return url_loader_util::BuildResponseHead(
       *url_request_, request_cookies_,
-      private_network_access_interceptor_.ClientAddressSpace(),
-      private_network_access_interceptor_.ResponseAddressSpace().value_or(
+      local_network_access_interceptor_.ClientAddressSpace(),
+      local_network_access_interceptor_.ResponseAddressSpace().value_or(
           mojom::IPAddressSpace::kUnknown),
       options_, ShouldSetLoadWithStorageAccess(), is_load_timing_enabled_,
       include_load_timing_internal_info_with_response_,
@@ -1057,6 +1085,14 @@ void URLLoader::OnReceivedRedirect(net::URLRequest* url_request,
 
   DCHECK_EQ(emitted_devtools_raw_request_, emitted_devtools_raw_response_);
   response->emitted_extra_info = emitted_devtools_raw_request_;
+
+  if (expected_response_headers_for_synthetic_response) {
+    // If `expected_response_headers_for_synthetic_response` is set, the client
+    // is expecting non-redirect response. So receiving `OnReceivedRedirect`
+    // indicates that the response is not as expected, and we should fallback.
+    PerformSyntheticResponseFallback();
+    return;
+  }
 
   ad_auction_event_record_request_helper_.HandleResponse(
       *url_request_, GetPermissionsPolicy());
@@ -1187,6 +1223,16 @@ void URLLoader::OnResponseStarted(net::URLRequest* url_request, int net_error) {
   response_ = BuildResponseHead();
   DispatchOnRawResponse();
 
+  if (expected_response_headers_for_synthetic_response &&
+      !CheckHeaderConsistencyForSyntheticResponse(
+          *response_->headers,
+          *expected_response_headers_for_synthetic_response)) {
+    // If `expected_response_headers_for_synthetic_response` is set, check the
+    // headers are expected ones. If not, returns a fallback response.
+    PerformSyntheticResponseFallback();
+    return;
+  }
+
   ad_auction_event_record_request_helper_.HandleResponse(
       *url_request_, GetPermissionsPolicy());
 
@@ -1226,57 +1272,64 @@ void URLLoader::ContinueOnResponseStarted() {
   }
 
   if (!(options_ & mojom::kURLLoadOptionReadAndDiscardBody)) {
-    MojoCreateDataPipeOptions options;
-    options.struct_size = sizeof(MojoCreateDataPipeOptions);
-    options.flags = MOJO_CREATE_DATA_PIPE_FLAG_NONE;
-    options.element_num_bytes = 1;
-    options.capacity_num_bytes = GetDataPipeDefaultAllocationSize(
-        DataPipeAllocationSize::kLargerSizeIfPossible);
+    if (!response_body_stream_.is_valid()) {
+      MojoCreateDataPipeOptions options;
+      options.struct_size = sizeof(MojoCreateDataPipeOptions);
+      options.flags = MOJO_CREATE_DATA_PIPE_FLAG_NONE;
+      options.element_num_bytes = 1;
+      options.capacity_num_bytes = GetDataPipeDefaultAllocationSize(
+          DataPipeAllocationSize::kLargerSizeIfPossible);
 #if BUILDFLAG(IS_COBALT)
-    if (base::FeatureList::IsEnabled(features::kCobaltDynamicMojoPipeSizing)) {
-      // Dynamic allocation for Cobalt to save memory on low-end TVs.
-      // Video/audio streams get the large buffer; images and APIs get 128 KB.
-      bool is_media_stream = (request_destination_ == mojom::RequestDestination::kVideo ||
-                              request_destination_ == mojom::RequestDestination::kAudio);
-      // YouTube TV specific: check for /videoplayback URL path
-      if (!is_media_stream) {
-        is_media_stream = (url_request_->url().path() == "/videoplayback");
+      if (base::FeatureList::IsEnabled(
+              features::kCobaltDynamicMojoPipeSizing)) {
+        // Dynamic allocation for Cobalt to save memory on low-end TVs.
+        // Video/audio streams get the large buffer; images and APIs get 128 KB.
+        bool is_media_stream =
+            (request_destination_ == mojom::RequestDestination::kVideo ||
+             request_destination_ == mojom::RequestDestination::kAudio);
+        // YouTube TV specific: check for /videoplayback URL path
+        if (!is_media_stream) {
+          is_media_stream = (url_request_->url().path() == "/videoplayback");
+        }
+        // General MSE: check for standard video/audio mime-types or YouTube's
+        // custom UMP format
+        if (!is_media_stream && response_ && !response_->mime_type.empty()) {
+          const std::string& mime = response_->mime_type;
+          is_media_stream =
+              (base::StartsWith(mime, "video/", base::CompareCase::SENSITIVE) ||
+               base::StartsWith(mime, "audio/", base::CompareCase::SENSITIVE) ||
+               mime == "application/vnd.yt-ump");
+        }
+        int configured_size =
+            is_media_stream
+                ? features::kCobaltDynamicMojoPipeSizingMediaSize.Get()
+                : features::kCobaltDynamicMojoPipeSizingSubresourceSize.Get();
+        if (configured_size > 0) {
+          options.capacity_num_bytes = static_cast<uint32_t>(configured_size);
+        }
       }
-      // General MSE: check for standard video/audio mime-types or YouTube's custom UMP format
-      if (!is_media_stream && response_ && !response_->mime_type.empty()) {
-        const std::string& mime = response_->mime_type;
-        is_media_stream = (base::StartsWith(mime, "video/", base::CompareCase::SENSITIVE) ||
-                           base::StartsWith(mime, "audio/", base::CompareCase::SENSITIVE) ||
-                           mime == "application/vnd.yt-ump");
-      }
-      int configured_size = is_media_stream
-                                ? features::kCobaltDynamicMojoPipeSizingMediaSize.Get()
-                                : features::kCobaltDynamicMojoPipeSizingSubresourceSize.Get();
-      if (configured_size > 0) {
-        options.capacity_num_bytes = static_cast<uint32_t>(configured_size);
-      }
-    }
 
-    // Shrink the pipe to the response body whenever its length is known and
-    // smaller than the capacity chosen above. This applies to every resource
-    // type: media segments are typically larger than the default capacity, so
-    // they keep it, while small subresources stop pinning shared memory they
-    // cannot use.
-    if (base::FeatureList::IsEnabled(
-            features::kCobaltContentLengthAwareMojoPipeSizing)) {
-      options.capacity_num_bytes = GetCobaltContentLengthAwarePipeCapacity(
-          response_ ? response_->content_length : -1,
-          options.capacity_num_bytes);
-    }
+      // Shrink the pipe to the response body whenever its length is known and
+      // smaller than the capacity chosen above. This applies to every resource
+      // type: media segments are typically larger than the default capacity, so
+      // they keep it, while small subresources stop pinning shared memory they
+      // cannot use.
+      if (base::FeatureList::IsEnabled(
+              features::kCobaltContentLengthAwareMojoPipeSizing)) {
+        options.capacity_num_bytes = GetCobaltContentLengthAwarePipeCapacity(
+            response_ ? response_->content_length : -1,
+            options.capacity_num_bytes);
+      }
 #endif  // BUILDFLAG(IS_COBALT)
-    MojoResult result =
-        mojo::CreateDataPipe(&options, response_body_stream_, consumer_handle_);
-    if (result != MOJO_RESULT_OK) {
-      NotifyCompleted(net::ERR_INSUFFICIENT_RESOURCES);
-      return;
+      MojoResult result = mojo::CreateDataPipe(&options, response_body_stream_,
+                                               consumer_handle_);
+      if (result != MOJO_RESULT_OK) {
+        NotifyCompleted(net::ERR_INSUFFICIENT_RESOURCES);
+        return;
+      }
+      CHECK(consumer_handle_.is_valid());
     }
     CHECK(response_body_stream_.is_valid());
-    CHECK(consumer_handle_.is_valid());
     peer_closed_handle_watcher_.Watch(
         response_body_stream_.get(), MOJO_HANDLE_SIGNAL_PEER_CLOSED,
         base::BindRepeating(&URLLoader::OnResponseBodyStreamConsumerClosed,
@@ -1902,7 +1955,8 @@ net::UploadProgress URLLoader::GetUploadProgress() const {
 }
 
 int32_t URLLoader::GetProcessId() const {
-  return factory_params_->process_id;
+  // TODO(crbug.com/379869738): Remove GetUnsafeValue.
+  return factory_params_->process_id.GetUnsafeValue();
 }
 
 uint32_t URLLoader::GetResourceType() const {
@@ -2288,25 +2342,29 @@ void URLLoader::DispatchOnRawRequest(
     }
   }
 
+  std::vector<mojom::DeviceBoundSessionWithUsagePtr>
+      device_bound_session_usages;
+  device_bound_session_usages.reserve(
+      url_request_->device_bound_session_usage().size());
+  for (const auto& [session_key, usage] :
+       url_request_->device_bound_session_usage()) {
+    auto entry = mojom::DeviceBoundSessionWithUsage::New();
+    entry->session_key = session_key;
+    entry->usage = static_cast<network::mojom::DeviceBoundSessionUsage>(usage);
+    device_bound_session_usages.push_back(std::move(entry));
+  }
+
   devtools_observer_->OnRawRequest(
       devtools_request_id().value(), url_request_->maybe_sent_cookies(),
       std::move(headers), load_timing_info.request_start,
-      private_network_access_interceptor_.CloneClientSecurityState(),
+      std::move(device_bound_session_usages),
+      local_network_access_interceptor_.CloneClientSecurityState(),
       std::move(other_partition_info),
       std::move(applied_network_conditions_id));
 }
 
 void URLLoader::DispatchOnRawResponse() {
   if (!emitted_devtools_raw_request_) {
-    // TODO(ortuno): not sure why emitting of metrics is gated upon request not
-    // having been dispatched to DevTools, but this has been so since it raw
-    // header size metrics have been introduced by https://crrev.com/c/5824030.
-    if (url_request_->response_headers()) {
-      // Record request metrics here instead of in NotifyCompleted to account
-      // for redirects.
-      url_loader_util::RecordURLLoaderRequestMetrics(
-          *url_request_, raw_request_line_size_, raw_request_headers_size_);
-    }
     // If there were no raw request headers, we assume no raw response headers
     // either, to make client logic simpler.
     // TODO(caseq): ensure this is actually an invariant?
@@ -2343,7 +2401,7 @@ void URLLoader::DispatchOnRawResponse() {
   devtools_observer_->OnRawResponse(
       devtools_request_id().value(), url_request_->maybe_stored_cookies(),
       std::move(header_array), raw_response_headers,
-      private_network_access_interceptor_.ResponseAddressSpace().value_or(
+      local_network_access_interceptor_.ResponseAddressSpace().value_or(
           mojom::IPAddressSpace::kUnknown),
       response_headers->response_code(), url_request_->cookie_partition_key());
 }
@@ -2721,6 +2779,33 @@ void URLLoader::MaybeCollectDurableMessage(size_t new_data_offset,
               .subspan(new_data_offset, static_cast<size_t>(num_bytes))),
       raw_bytes_delta);
   devtools_durable_message_raw_size_ = raw_bytes_cur_size;
+}
+
+void URLLoader::PerformSyntheticResponseFallback() {
+  TRACE_EVENT("loading", "URLLoader::PerformSyntheticResponseFallback");
+  if (url_request_) {
+    url_request_->Cancel();
+  }
+  if (upload_progress_tracker_) {
+    upload_progress_tracker_ = nullptr;
+  }
+
+  // Always use a synthetic response head for fallback. This ensures that the
+  // client receives consistent headers (HTTP/1.1 200 OK) and, crucially,
+  // that the `Service-Worker-Synthetic-Response` opt-in header is ABSENT.
+  // The absence of this header is used by the browser process to detect
+  // that a fallback has occurred and to clear its cache.
+  response_ = mojom::URLResponseHead::New();
+  response_->headers = base::MakeRefCounted<net::HttpResponseHeaders>(
+      "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n");
+
+  size_t written_bytes =
+      WriteSyntheticResponseFallbackBody(response_body_stream_);
+  CHECK_GT(written_bytes, 0u);
+  total_written_bytes_ += written_bytes;
+
+  SendResponseToClient();
+  NotifyCompleted(net::OK);
 }
 
 }  // namespace network

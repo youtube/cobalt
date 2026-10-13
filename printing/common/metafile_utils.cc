@@ -86,6 +86,37 @@ sk_sp<SkPicture> GetEmptyPicture() {
   return rec.finishRecordingAsPicture();
 }
 
+void AppendCheckedStateIfTrue(const ui::AXNode* ax_node,
+                              SkPDF::StructureElementNode* tag) {
+  // Handle checked state (default "off").
+  if (ax_node->data().GetCheckedState() == ax::mojom::CheckedState::kTrue) {
+    tag->fAttributes.appendName(chrome_pdf::kPDFPrintFieldAttributeOwner,
+                                chrome_pdf::kPDFPrintFieldCheckedAttribute,
+                                chrome_pdf::kPDFCheckedOnAttribute);
+  }
+}
+
+void AppendFormFieldDescFromAccessibleName(const ui::AXNode* ax_node,
+                                           SkPDF::StructureElementNode* tag) {
+  auto name_from = ax_node->GetNameFrom();
+  if (name_from == ax::mojom::NameFrom::kAttributeExplicitlyEmpty) {
+    // Represent explicitly empty name (aria-label="") as an empty Desc.
+    tag->fAttributes.appendTextString(chrome_pdf::kPDFPrintFieldAttributeOwner,
+                                      chrome_pdf::kPDFPrintFieldDescAttribute,
+                                      "");
+  } else if (name_from == ax::mojom::NameFrom::kAttribute ||
+             name_from == ax::mojom::NameFrom::kTitle ||
+             name_from == ax::mojom::NameFrom::kCssAltText) {
+    const std::string& name_ref =
+        ax_node->data().GetStringAttribute(ax::mojom::StringAttribute::kName);
+    if (!name_ref.empty()) {
+      tag->fAttributes.appendTextString(
+          chrome_pdf::kPDFPrintFieldAttributeOwner,
+          chrome_pdf::kPDFPrintFieldDescAttribute, SkString(name_ref));
+    }
+  }
+}
+
 // Convert an AXNode into a SkPDF::StructureElementNode in order to make a
 // tagged (accessible) PDF. Returns true on success and false if we don't
 // have enough data to build a valid tree.
@@ -215,43 +246,70 @@ bool RecursiveBuildStructureTree(const ui::AXNode* ax_node,
       tag->fTypeString = chrome_pdf::kPDFStructureTypeNonStruct;
       valid = true;
       break;
-    case ax::mojom::Role::kCheckBox: {
+    case ax::mojom::Role::kCheckBox:
+    case ax::mojom::Role::kSwitch:
       tag->fTypeString = chrome_pdf::kPDFStructureTypeForm;
       tag->fAttributes.appendName(chrome_pdf::kPDFPrintFieldAttributeOwner,
                                   chrome_pdf::kPDFPrintFieldRoleAttribute,
                                   chrome_pdf::kPDFRoleCheckBoxAttribute);
 
-      // The default value of the "checked" attribute is "Off". All other
-      // CheckedStates options do not clearly apply to PDF.
-      if (ax_node->data().GetCheckedState() == ax::mojom::CheckedState::kTrue) {
-        tag->fAttributes.appendName(chrome_pdf::kPDFPrintFieldAttributeOwner,
-                                    chrome_pdf::kPDFPrintFieldCheckedAttribute,
-                                    chrome_pdf::kPDFCheckedOnAttribute);
-      }
+      AppendCheckedStateIfTrue(ax_node, tag);
 
-      // If the name comes from an attribute, it's unlikely to otherwise
-      // appear as text in the PDF, so provide this name as the Desc.
-      auto name_from = ax_node->GetNameFrom();
-      if (name_from == ax::mojom::NameFrom::kAttribute ||
-          name_from == ax::mojom::NameFrom::kTitle ||
-          name_from == ax::mojom::NameFrom::kCssAltText) {
-        // `appendTextString` does not copy, it only saves a `const char*`.
-        // The ax_node->data() is expected to persist, as part of the AXTree,
-        // until that value is read in `SkDocument::Close()`.
-        const std::string& name_ref = ax_node->data().GetStringAttribute(
-            ax::mojom::StringAttribute::kName);
-        if (!name_ref.empty()) {
-          tag->fAttributes.appendTextString(
-              chrome_pdf::kPDFPrintFieldAttributeOwner,
-              chrome_pdf::kPDFPrintFieldDescAttribute, name_ref.c_str());
-        }
-      }
+      AppendFormFieldDescFromAccessibleName(ax_node, tag);
 
       // In case someone is printing to PDF a web page that is 100% checkboxes
       // (no kStaticText nodes), the PDF should still be tagged.
       valid = true;
       break;
-    }
+    case ax::mojom::Role::kRadioButton:
+      tag->fTypeString = chrome_pdf::kPDFStructureTypeForm;
+      tag->fAttributes.appendName(chrome_pdf::kPDFPrintFieldAttributeOwner,
+                                  chrome_pdf::kPDFPrintFieldRoleAttribute,
+                                  chrome_pdf::kPDFRoleRadioButtonAttribute);
+
+      AppendCheckedStateIfTrue(ax_node, tag);
+
+      AppendFormFieldDescFromAccessibleName(ax_node, tag);
+
+      valid = true;
+      break;
+    case ax::mojom::Role::kToggleButton:
+      // Toggle button has pressed state (aria-pressed) mapped to checked.
+      tag->fTypeString = chrome_pdf::kPDFStructureTypeForm;
+      tag->fAttributes.appendName(chrome_pdf::kPDFPrintFieldAttributeOwner,
+                                  chrome_pdf::kPDFPrintFieldRoleAttribute,
+                                  chrome_pdf::kPDFRolePushButtonAttribute);
+
+      AppendCheckedStateIfTrue(ax_node, tag);
+
+      AppendFormFieldDescFromAccessibleName(ax_node, tag);
+
+      valid = true;
+      break;
+    case ax::mojom::Role::kButton:
+    case ax::mojom::Role::kPopUpButton:
+      tag->fTypeString = chrome_pdf::kPDFStructureTypeForm;
+      tag->fAttributes.appendName(chrome_pdf::kPDFPrintFieldAttributeOwner,
+                                  chrome_pdf::kPDFPrintFieldRoleAttribute,
+                                  chrome_pdf::kPDFRolePushButtonAttribute);
+
+      AppendFormFieldDescFromAccessibleName(ax_node, tag);
+
+      valid = true;
+      break;
+    case ax::mojom::Role::kTextField:
+    case ax::mojom::Role::kTextFieldWithComboBox:
+    case ax::mojom::Role::kSearchBox:
+    case ax::mojom::Role::kSpinButton:
+      tag->fTypeString = chrome_pdf::kPDFStructureTypeForm;
+      tag->fAttributes.appendName(chrome_pdf::kPDFPrintFieldAttributeOwner,
+                                  chrome_pdf::kPDFPrintFieldRoleAttribute,
+                                  chrome_pdf::kPDFRoleTextValueAttribute);
+
+      AppendFormFieldDescFromAccessibleName(ax_node, tag);
+
+      valid = true;
+      break;
     default:
       tag->fTypeString = chrome_pdf::kPDFStructureTypeNonStruct;
       break;
@@ -310,7 +368,7 @@ namespace printing {
 sk_sp<SkDocument> MakePdfDocument(
     std::string_view creator,
     std::string_view title,
-    ui::AXTree* tree,
+    const ui::AXTreeUpdate& accessibility_tree,
     mojom::GenerateDocumentOutline generate_document_outline,
     SkWStream* stream) {
   SkPDF::Metadata metadata;
@@ -323,12 +381,15 @@ sk_sp<SkDocument> MakePdfDocument(
   metadata.fRasterDPI = 300.0f;
 
   SkPDF::StructureElementNode tag_root = {};
-  if (tree && RecursiveBuildStructureTree(tree->root(), &tag_root)) {
-    metadata.fStructureElementTreeRoot = &tag_root;
-    metadata.fOutline =
-        generate_document_outline == mojom::GenerateDocumentOutline::kNone
-            ? SkPDF::Metadata::Outline::None
-            : SkPDF::Metadata::Outline::StructureElementHeaders;
+  if (!accessibility_tree.nodes.empty()) {
+    ui::AXTree tree(accessibility_tree);
+    if (RecursiveBuildStructureTree(tree.root(), &tag_root)) {
+      metadata.fStructureElementTreeRoot = &tag_root;
+      metadata.fOutline =
+          generate_document_outline == mojom::GenerateDocumentOutline::kNone
+              ? SkPDF::Metadata::Outline::None
+              : SkPDF::Metadata::Outline::StructureElementHeaders;
+    }
   }
 
   return SkPDF::MakeDocument(stream, metadata);
@@ -401,20 +462,13 @@ SkSerialReturnType SerializeOopTypeface(SkTypeface* typeface, void* ctx) {
   return stream.detachAsData();
 }
 
-sk_sp<SkTypeface> DeserializeOopTypeface(const void* data,
-                                         size_t length,
-                                         void* ctx) {
-  SkStream* stream = *(reinterpret_cast<SkStream**>(const_cast<void*>(data)));
-  if (length < sizeof(stream)) {
-    NOTREACHED();  // Should not happen if the content is as written.
-  }
-
+sk_sp<SkTypeface> DeserializeOopTypeface(SkStream& stream, void* ctx) {
   SkTypefaceID id;
-  if (!stream->readU32(&id)) {
+  if (!stream.readU32(&id)) {
     return nullptr;
   }
   bool data_included;
-  if (!stream->readBool(&data_included)) {
+  if (!stream.readBool(&data_included)) {
     return nullptr;
   }
 
@@ -428,7 +482,7 @@ sk_sp<SkTypeface> DeserializeOopTypeface(const void* data,
   // Typeface not encountered before, expect it to be present in the stream.
   DCHECK(data_included);
   sk_sp<SkTypeface> typeface =
-      SkTypeface::MakeDeserialize(stream, skia::DefaultFontMgr());
+      SkTypeface::MakeDeserialize(&stream, skia::DefaultFontMgr());
   context->emplace(id, typeface);
   return typeface;
 }
@@ -527,7 +581,7 @@ SkDeserialProcs DeserializationProcs(
   procs.fImageCtx = image_ctx;
   procs.fPictureProc = DeserializeOopPicture;
   procs.fPictureCtx = picture_ctx;
-  procs.fTypefaceProc = DeserializeOopTypeface;
+  procs.fTypefaceStreamProc = DeserializeOopTypeface;
   procs.fTypefaceCtx = typeface_ctx;
   return procs;
 }

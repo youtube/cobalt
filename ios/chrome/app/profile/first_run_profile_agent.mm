@@ -114,6 +114,15 @@ const char kGuidedTourStepDidFinishHistogram[] = "IOS.GuidedTour.DidFinishStep";
   std::unique_ptr<feature_engagement::DisplayLockHandle> _displayLock;
 }
 
+- (void)dealloc {
+  CHECK(!_firstRunUIBlocker, base::NotFatalUntil::M155);
+  CHECK(!_firstRunCoordinator, base::NotFatalUntil::M155);
+  CHECK(!_guidedTourPromoCoordinator, base::NotFatalUntil::M155);
+  CHECK(!_guidedTourCoordinator, base::NotFatalUntil::M155);
+  CHECK(!_scopedForceOrientation, base::NotFatalUntil::M155);
+  CHECK(!_displayLock, base::NotFatalUntil::M155);
+}
+
 #pragma mark - Public
 
 - (void)tabGridWasPresented {
@@ -131,7 +140,13 @@ const char kGuidedTourStepDidFinishHistogram[] = "IOS.GuidedTour.DidFinishStep";
 #pragma mark - SceneStateObserver
 
 - (void)sceneStateDidDisableUI:(SceneState*)sceneState {
-  _firstRunUIBlocker.reset();
+  [self releaseUILocks];
+
+  [_guidedTourCoordinator stop];
+  _guidedTourCoordinator = nil;
+
+  [_guidedTourPromoCoordinator stopWithCompletion:nil];
+  _guidedTourPromoCoordinator = nil;
 
   [_firstRunCoordinator stop];
   _firstRunCoordinator = nil;
@@ -201,6 +216,9 @@ const char kGuidedTourStepDidFinishHistogram[] = "IOS.GuidedTour.DidFinishStep";
 - (void)stepCompleted:(GuidedTourStep)step {
   CHECK_EQ(step, _currentGuidedTourStep);
   if (step == GuidedTourStep::kNTP) {
+    [_guidedTourCoordinator stop];
+    _guidedTourCoordinator = nil;
+
     _currentGuidedTourStep = GuidedTourStep::kTabGridIncognito;
     id<SceneCommands> sceneHandler =
         HandlerForProtocol([self commandDispatcher], SceneCommands);
@@ -228,16 +246,19 @@ const char kGuidedTourStepDidFinishHistogram[] = "IOS.GuidedTour.DidFinishStep";
 
 - (void)dismissGuidedTourPromo {
   [_guidedTourPromoCoordinator stopWithCompletion:nil];
+  _guidedTourPromoCoordinator = nil;
   [self guidedTourCompleted];
   [self logGuidedTourPromoResult:NO];
 }
 
 - (void)startGuidedTour {
+  [_postActionsProvider setGuidedTourStarted:YES];
   __weak FirstRunProfileAgent* weakSelf = self;
   ProceduralBlock completion = ^{
     [weakSelf showNTPStep];
   };
   [_guidedTourPromoCoordinator stopWithCompletion:completion];
+  _guidedTourPromoCoordinator = nil;
   [self logGuidedTourPromoResult:YES];
 }
 
@@ -310,6 +331,7 @@ const char kGuidedTourStepDidFinishHistogram[] = "IOS.GuidedTour.DidFinishStep";
   DCHECK(_presentingSceneState);
 
   ProfileIOS* profile = [self originalProfile];
+  CHECK(profile);
 
   DCHECK(!_firstRunUIBlocker);
   _firstRunUIBlocker = std::make_unique<ScopedUIBlocker>(_presentingSceneState);
@@ -459,6 +481,7 @@ const char kGuidedTourStepDidFinishHistogram[] = "IOS.GuidedTour.DidFinishStep";
   _displayLock.reset();
   _scopedForceOrientation.reset();
   _firstRunUIBlocker.reset();
+  _scopedForceOrientation.reset();
 }
 
 // Returns the profile pref service for the original (i.e., not off-the-record)

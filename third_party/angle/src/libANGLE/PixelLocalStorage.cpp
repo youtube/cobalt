@@ -609,7 +609,10 @@ void PixelLocalStorage::end(Context *context, GLsizei n, const GLenum storeops[]
 
 void PixelLocalStorage::barrier(Context *context)
 {
-    onBarrier(context);
+    if (mPLSOptions.supportsNoncoherent)
+    {
+        onBarrier(context);
+    }
 }
 
 void PixelLocalStorage::interrupt(Context *context)
@@ -691,7 +694,7 @@ class PixelLocalStorageImageLoadStore : public PixelLocalStorage
         }
 
         Framebuffer *framebuffer = state.getDrawFramebuffer();
-        if (mPLSOptions.renderPassNeedsAMDRasterOrderGroupsWorkaround)
+        if (context->getLimitations().noRasterOrderGroupWithoutAttachmentZero)
         {
             // anglebug.com/42266263 -- Metal [[raster_order_group()]] does not work for read_write
             // textures on AMD when the render pass doesn't have a color attachment on slot 0. To
@@ -838,7 +841,7 @@ class PixelLocalStorageImageLoadStore : public PixelLocalStorage
         }
         mSavedImageBindings.clear();
 
-        if (mPLSOptions.renderPassNeedsAMDRasterOrderGroupsWorkaround)
+        if (context->getLimitations().noRasterOrderGroupWithoutAttachmentZero)
         {
             if (!mHadColorAttachment0)
             {
@@ -1020,18 +1023,7 @@ class PixelLocalStorageFramebufferFetch : public PixelLocalStorage
         barrier(context);
     }
 
-    void onBarrier(Context *context) override
-    {
-        if (context->getExtensions().shaderFramebufferFetchNonCoherentEXT)
-        {
-            context->framebufferFetchBarrier();
-        }
-        else
-        {
-            // Ignore barriers if we don't have EXT_shader_framebuffer_fetch_non_coherent.
-            ASSERT(context->getExtensions().shaderPixelLocalStorageCoherentANGLE);
-        }
-    }
+    void onBarrier(Context *context) override { context->framebufferFetchBarrier(); }
 
   private:
     static GLuint GetDrawBufferIdx(const Caps &caps, GLuint plsPlaneIdx)

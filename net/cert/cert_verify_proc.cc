@@ -286,6 +286,7 @@ void RecordTrustAnchorHistogram(const std::vector<SHA256HashValue>& spki_hashes,
   }
 
   verify_result->has_sha1 =
+      verify_result->has_sha1 ||
       *cert_algorithm == bssl::SignatureAlgorithm::kRsaPkcs1Sha1 ||
       *cert_algorithm == bssl::SignatureAlgorithm::kEcdsaSha1;
   return true;
@@ -339,13 +340,13 @@ void RecordTrustAnchorHistogram(const std::vector<SHA256HashValue>& spki_hashes,
   return true;
 }
 
-base::Value::Dict CertVerifyParams(X509Certificate* cert,
-                                   const std::string& hostname,
-                                   const std::string& ocsp_response,
-                                   const std::string& sct_list,
-                                   int flags,
-                                   CRLSet* crl_set) {
-  base::Value::Dict dict;
+base::DictValue CertVerifyParams(X509Certificate* cert,
+                                 const std::string& hostname,
+                                 const std::string& ocsp_response,
+                                 const std::string& sct_list,
+                                 int flags,
+                                 CRLSet* crl_set) {
+  base::DictValue dict;
   dict.Set("certificates", NetLogX509CertificateList(cert));
   if (!ocsp_response.empty()) {
     dict.Set("stapled_ocsp_response",

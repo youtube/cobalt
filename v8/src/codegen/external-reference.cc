@@ -361,10 +361,9 @@ ExternalReference ExternalReference::memory_chunk_metadata_table_address() {
 
 #endif  // V8_ENABLE_SANDBOX
 
-ExternalReference ExternalReference::js_dispatch_table_address() {
-  // TODO(saelo): maybe rename to js_dispatch_table_base_address?
-  return ExternalReference(
-      IsolateGroup::current()->js_dispatch_table()->base_address());
+ExternalReference ExternalReference::js_dispatch_table_address(
+    Isolate* isolate) {
+  return ExternalReference(isolate->js_dispatch_table().base_address());
 }
 
 ExternalReference ExternalReference::interpreter_dispatch_table_address(
@@ -888,6 +887,11 @@ ExternalReference ExternalReference::address_of_shared_string_table_flag() {
   return ExternalReference(&v8_flags.shared_string_table);
 }
 
+ExternalReference
+ExternalReference::address_of_track_array_buffer_views_flag() {
+  return ExternalReference(&v8_flags.track_array_buffer_views);
+}
+
 #ifdef V8_ENABLE_CET_SHADOW_STACK
 ExternalReference ExternalReference::address_of_cet_compatible_flag() {
   return ExternalReference(&v8_flags.cet_compatible);
@@ -1075,6 +1079,22 @@ ExternalReference ExternalReference::invoke_function_callback(
 ExternalReference ExternalReference::invoke_accessor_getter_callback() {
   Address thunk_address = FUNCTION_ADDR(&InvokeAccessorGetterCallback);
   ExternalReference::Type thunk_type = ExternalReference::DIRECT_GETTER_CALL;
+  ApiFunction thunk_fun(thunk_address);
+  return ExternalReference::Create(&thunk_fun, thunk_type);
+}
+
+ExternalReference
+ExternalReference::invoke_named_interceptor_getter_callback() {
+  Address thunk_address = FUNCTION_ADDR(&InvokeNamedInterceptorGetterCallback);
+  ExternalReference::Type thunk_type = ExternalReference::DIRECT_GETTER_CALL;
+  ApiFunction thunk_fun(thunk_address);
+  return ExternalReference::Create(&thunk_fun, thunk_type);
+}
+
+ExternalReference
+ExternalReference::invoke_named_interceptor_setter_callback() {
+  Address thunk_address = FUNCTION_ADDR(&InvokeNamedInterceptorSetterCallback);
+  ExternalReference::Type thunk_type = ExternalReference::DIRECT_SETTER_CALL;
   ApiFunction thunk_fun(thunk_address);
   return ExternalReference::Create(&thunk_fun, thunk_type);
 }

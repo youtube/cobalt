@@ -326,6 +326,8 @@ std::u16string IOSPromoBubbleView::GetConfirmationDescriptionText(
     const std::u16string& device_name) {
   switch (promo_type_) {
     case PromoType::kPassword:
+    case PromoType::kTabGroups:
+    case PromoType::kPriceTracking:
       return l10n_util::GetStringFUTF16(config_.promo_description_id,
                                         device_name);
     case PromoType::kEnhancedBrowsing:
@@ -364,6 +366,8 @@ bool IOSPromoBubbleView::ShouldHighlightAnchorButton() const {
     case PromoType::kEnhancedBrowsing:
     case PromoType::kAddress:
     case PromoType::kPayment:
+    case PromoType::kTabGroups:
+    case PromoType::kPriceTracking:
       return false;
   }
 }

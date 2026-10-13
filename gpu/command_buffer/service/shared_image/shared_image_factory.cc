@@ -7,6 +7,7 @@
 #include <inttypes.h>
 
 #include <memory>
+#include <utility>
 
 #include "base/debug/crash_logging.h"
 #include "base/debug/dump_without_crashing.h"
@@ -93,6 +94,10 @@
 #if BUILDFLAG(USE_DAWN)
 #include "gpu/command_buffer/service/shared_image/dawn_image_backing_factory.h"
 #endif  // BUILDFLAG(USE_DAWN)
+
+#if BUILDFLAG(IS_CHROMEOS)
+#include "ash/constants/ash_switches.h"
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 #include "base/feature_list.h"
 
@@ -488,13 +493,6 @@ bool SharedImageFactory::CreateSharedImage(const Mailbox& mailbox,
                                            SharedImageUsageSet usage,
                                            std::string debug_label,
                                            gfx::BufferUsage buffer_usage) {
-  if (!viz::HasEquivalentBufferFormat(format)) {
-    // Client GMB code still operates on BufferFormat so the SharedImageFormat
-    // received here must have an equivalent BufferFormat.
-    LOG(ERROR) << "Invalid format " << format.ToString();
-    return false;
-  }
-
   auto native_buffer_supported =
       IsNativeBufferSupported(format, buffer_usage, gpu_extra_info_);
   std::unique_ptr<SharedImageBacking> backing;
@@ -602,6 +600,16 @@ bool SharedImageFactory::CreateSharedImage(const Mailbox& mailbox,
       mailbox, format, size, color_space, surface_origin, alpha_type,
       SharedImageUsageSet(usage), std::move(debug_label),
       IsSharedBetweenThreads(usage), data);
+
+#if BUILDFLAG(IS_ANDROID)
+  LOG_IF(ERROR, !temp_backing)
+      << "Could not CreateSharedImagePixels type="
+      << std::to_underlying(factory->GetBackingType())
+      << " with params: usage: " << CreateLabelForSharedImageUsage(usage)
+      << ", format: " << format.ToString()
+      << ", share_between_threads: " << IsSharedBetweenThreads(usage)
+      << ", size: " << size.ToString() << ", debug_label: " << debug_label;
+#endif  // BUILDFLAG(IS_ANDROID)
 
   std::unique_ptr<SharedImageBacking> backing =
       base::FeatureList::IsEnabled(kUseCompoundImageBackingAsDefault)
@@ -1012,6 +1020,14 @@ void SharedImageFactory::LogGetFactoryFailed(gpu::SharedImageUsageSet usage,
              << ", size: " << size.ToString()
              << ", debug_label: " << debug_label;
 
+#if BUILDFLAG(IS_CHROMEOS)
+  // Do not dump crash reports for Reven ChromeOS boards.
+  auto* command_line = base::CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(ash::switches::kRevenBranding)) {
+    return;
+  }
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
   std::string new_debug_label = debug_label;
   // Get the debug label with Process Id for filtering crash reports by label as
   // key.
@@ -1027,7 +1043,17 @@ void SharedImageFactory::LogGetFactoryFailed(gpu::SharedImageUsageSet usage,
   if (new_debug_label.find("CanvasResourceRasterGmb") != std::string::npos) {
     return;
   }
-#endif
+#endif  // BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_LINUX)
+  // VizBufferQueue with Vulkan enabled over command-line for Linux does not
+  // work. Suppress dumps for these cases.
+  if (context_state_->GrContextIsVulkan() &&
+      new_debug_label.find("VizBufferQueue") != std::string::npos) {
+    return;
+  }
+#endif  // BUILDFLAG(IS_LINUX)
+
   SCOPED_CRASH_KEY_STRING64("SIFactory", "DebugLabel", new_debug_label);
   SCOPED_CRASH_KEY_STRING64("SIFactory", "Format", format.ToString());
   SCOPED_CRASH_KEY_NUMBER("SIFactory", "Usage", static_cast<uint32_t>(usage));

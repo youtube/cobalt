@@ -35,6 +35,7 @@
 #include "components/search_engines/search_engines_pref_names.h"
 #include "components/search_engines/template_url.h"
 #include "components/search_engines/template_url_service.h"
+#include "components/search_engines/template_url_starter_pack_data.h"
 #include "content/public/browser/web_ui.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/extension_system.h"
@@ -155,7 +156,7 @@ void SearchEnginesHandler::OnJavascriptDisallowed() {
   pref_change_registrar_.RemoveAll();
 }
 
-base::Value::Dict SearchEnginesHandler::GetSearchEnginesList() {
+base::DictValue SearchEnginesHandler::GetSearchEnginesList() {
   // Find the default engine.
   const TemplateURL* default_engine =
       list_controller_.GetDefaultSearchProvider();
@@ -163,7 +164,7 @@ base::Value::Dict SearchEnginesHandler::GetSearchEnginesList() {
       list_controller_.table_model()->IndexOfTemplateURL(default_engine);
 
   // Build the first list (default search engines).
-  base::Value::List defaults;
+  base::ListValue defaults;
   size_t last_default_engine_index =
       list_controller_.table_model()->last_search_engine_index();
 
@@ -173,7 +174,7 @@ base::Value::Dict SearchEnginesHandler::GetSearchEnginesList() {
   }
 
   // Build the second list (active search engines).
-  base::Value::List actives;
+  base::ListValue actives;
   size_t last_active_engine_index =
       list_controller_.table_model()->last_active_engine_index();
 
@@ -185,7 +186,7 @@ base::Value::Dict SearchEnginesHandler::GetSearchEnginesList() {
   }
 
   // Build the third list (other search engines).
-  base::Value::List others;
+  base::ListValue others;
   size_t last_other_engine_index =
       list_controller_.table_model()->last_other_engine_index();
 
@@ -197,7 +198,7 @@ base::Value::Dict SearchEnginesHandler::GetSearchEnginesList() {
   }
 
   // Build the third list (omnibox extensions).
-  base::Value::List extensions;
+  base::ListValue extensions;
   size_t engine_count = list_controller_.table_model()->RowCount();
 
   // Sanity check for https://crbug.com/781703.
@@ -207,7 +208,7 @@ base::Value::Dict SearchEnginesHandler::GetSearchEnginesList() {
     extensions.Append(CreateDictionaryForEngine(i, i == default_index));
   }
 
-  base::Value::Dict search_engines_info;
+  base::DictValue search_engines_info;
   search_engines_info.Set("defaults", std::move(defaults));
   search_engines_info.Set("actives", std::move(actives));
   search_engines_info.Set("others", std::move(others));
@@ -232,7 +233,7 @@ void SearchEnginesHandler::OnItemsRemoved(size_t start, size_t length) {
   OnModelChanged();
 }
 
-base::Value::Dict SearchEnginesHandler::CreateDictionaryForEngine(
+base::DictValue SearchEnginesHandler::CreateDictionaryForEngine(
     size_t index,
     bool is_default) {
   TemplateURLTableModel* table_model = list_controller_.table_model();
@@ -246,7 +247,7 @@ base::Value::Dict SearchEnginesHandler::CreateDictionaryForEngine(
   // chrome/browser/resources/settings/search_engines_page/
   // in @typedef for SearchEngine. Please update it whenever you add or remove
   // any keys here.
-  base::Value::Dict dict;
+  base::DictValue dict;
   dict.Set("id", static_cast<int>(template_url->id()));
   dict.Set("name", template_url->short_name());
   dict.Set("displayName",
@@ -257,8 +258,10 @@ base::Value::Dict SearchEnginesHandler::CreateDictionaryForEngine(
   Profile* profile = Profile::FromWebUI(web_ui());
   dict.Set("url",
            template_url->url_ref().DisplayURL(UIThreadSearchTermsData()));
-  dict.Set("urlLocked", ((template_url->prepopulate_id() > 0) ||
-                         (template_url->starter_pack_id() > 0)));
+  dict.Set("urlLocked",
+           ((template_url->prepopulate_id() > 0) ||
+            (template_url->starter_pack_id() !=
+             template_url_starter_pack_data::StarterPackId::kNone)));
   GURL icon_url = template_url->favicon_url();
   if (icon_url.is_valid()) {
     dict.Set("iconURL", icon_url.spec());
@@ -304,7 +307,9 @@ base::Value::Dict SearchEnginesHandler::CreateDictionaryForEngine(
   TemplateURL::Type type = template_url->type();
   dict.Set("isOmniboxExtension", type == TemplateURL::OMNIBOX_API_EXTENSION);
   dict.Set("isPrepopulated", template_url->prepopulate_id() > 0);
-  dict.Set("isStarterPack", template_url->starter_pack_id() > 0);
+  dict.Set("isStarterPack",
+           template_url->starter_pack_id() !=
+               template_url_starter_pack_data::StarterPackId::kNone);
   if (type == TemplateURL::NORMAL_CONTROLLED_BY_EXTENSION ||
       type == TemplateURL::OMNIBOX_API_EXTENSION) {
     const extensions::Extension* extension =
@@ -312,8 +317,7 @@ base::Value::Dict SearchEnginesHandler::CreateDictionaryForEngine(
             template_url->GetExtensionId(),
             extensions::ExtensionRegistry::EVERYTHING);
     if (extension) {
-      base::Value::Dict ext_info =
-          extensions::util::GetExtensionInfo(extension);
+      base::DictValue ext_info = extensions::util::GetExtensionInfo(extension);
       ext_info.Set("canBeDisabled",
                    !extensions::ExtensionSystem::Get(profile)
                         ->management_policy()
@@ -325,7 +329,7 @@ base::Value::Dict SearchEnginesHandler::CreateDictionaryForEngine(
 }
 
 void SearchEnginesHandler::HandleGetSearchEnginesList(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   CHECK_EQ(1U, args.size());
   const base::Value& callback_id = args[0];
   AllowJavascript();
@@ -333,7 +337,7 @@ void SearchEnginesHandler::HandleGetSearchEnginesList(
 }
 
 void SearchEnginesHandler::HandleSetDefaultSearchEngine(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   CHECK_EQ(3U, args.size());
   int index = args[0].GetInt();
   if (index < 0 || static_cast<size_t>(index) >=
@@ -359,7 +363,7 @@ void SearchEnginesHandler::HandleSetDefaultSearchEngine(
 }
 
 void SearchEnginesHandler::HandleGetSaveGuestChoice(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   CHECK_EQ(1U, args.size());
   const base::Value& callback_id = args[0];
   AllowJavascript();
@@ -375,7 +379,7 @@ void SearchEnginesHandler::HandleGetSaveGuestChoice(
 }
 
 void SearchEnginesHandler::HandleSetIsActiveSearchEngine(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   CHECK_EQ(2U, args.size());
   const int index = args[0].GetInt();
   const bool is_active = args[1].GetBool();
@@ -389,7 +393,7 @@ void SearchEnginesHandler::HandleSetIsActiveSearchEngine(
 }
 
 void SearchEnginesHandler::HandleRemoveSearchEngine(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   CHECK_EQ(1U, args.size());
   int index = args[0].GetInt();
   if (index < 0 || static_cast<size_t>(index) >=
@@ -404,7 +408,7 @@ void SearchEnginesHandler::HandleRemoveSearchEngine(
 }
 
 void SearchEnginesHandler::HandleSearchEngineEditStarted(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   CHECK_EQ(1U, args.size());
   int index = args[0].GetInt();
 
@@ -435,7 +439,7 @@ void SearchEnginesHandler::OnEditedKeyword(TemplateURL* template_url,
 }
 
 void SearchEnginesHandler::HandleValidateSearchEngineInput(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   CHECK_EQ(3U, args.size());
 
   const base::Value& callback_id = args[0];
@@ -466,7 +470,7 @@ bool SearchEnginesHandler::CheckFieldValidity(const std::string& field_name,
 }
 
 void SearchEnginesHandler::HandleSearchEngineEditCancelled(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   if (!edit_controller_.get()) {
     return;
   }
@@ -475,7 +479,7 @@ void SearchEnginesHandler::HandleSearchEngineEditCancelled(
 }
 
 void SearchEnginesHandler::HandleSearchEngineEditCompleted(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   if (!edit_controller_.get()) {
     return;
   }
@@ -497,7 +501,7 @@ void SearchEnginesHandler::HandleSearchEngineEditCompleted(
 
 #if BUILDFLAG(IS_CHROMEOS)
 void SearchEnginesHandler::HandleOpenBrowserSearchSettings(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   ash::NewWindowDelegate::GetInstance()->OpenUrl(
       GURL(chrome::kChromeUISettingsURL).Resolve(chrome::kSearchSubPage),
       ash::NewWindowDelegate::OpenUrlFrom::kUserInteraction,

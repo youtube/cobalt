@@ -20,42 +20,48 @@
 #include "../internal.h"
 
 
+#if defined(BORINGSSL_PREFIX)
+#define BCM_ADD_PREFIX(name) BORINGSSL_ADD_PREFIX(bcm_##name)
+#else
+#define BCM_ADD_PREFIX(name) bcm_##name
+#endif
+
 #if !defined(BORINGSSL_SHARED_LIBRARY) && defined(BORINGSSL_FIPS) && \
     !defined(OPENSSL_ASAN) && !defined(OPENSSL_MSAN)
 #define DEFINE_BSS_GET(type, name, init_value)                                 \
   /* delocate needs C linkage and for |name| to be unique across BCM. */       \
   extern "C" {                                                                 \
-  extern type bcm_##name;                                                      \
-  type bcm_##name = init_value;                                                \
-  type *bcm_##name##_bss_get() __attribute__((const));                         \
+  extern type BCM_ADD_PREFIX(name);                                            \
+  type BCM_ADD_PREFIX(name) = init_value;                                      \
+  type *BCM_ADD_PREFIX(name##_bss_get)() __attribute__((const));               \
   } /* extern "C" */                                                           \
                                                                                \
   /* The getter functions are exported, but static variables are usually named \
    * with short names. Define a static wrapper function so the caller can use  \
    * a short name, while the symbol itself is prefixed. */                     \
-  static type *name##_bss_get() { return bcm_##name##_bss_get(); }
+  static type *name##_bss_get() { return BCM_ADD_PREFIX(name##_bss_get)(); }
 // For FIPS builds we require that CRYPTO_ONCE_INIT be zero.
 #define DEFINE_STATIC_ONCE(name) \
-  DEFINE_BSS_GET(CRYPTO_once_t, name, CRYPTO_ONCE_INIT)
+  DEFINE_BSS_GET(bssl::CRYPTO_once_t, name, CRYPTO_ONCE_INIT)
 // For FIPS builds we require that CRYPTO_MUTEX_INIT be zero.
 #define DEFINE_STATIC_MUTEX(name) \
-  DEFINE_BSS_GET(CRYPTO_MUTEX, name, CRYPTO_MUTEX_INIT)
+  DEFINE_BSS_GET(bssl::CRYPTO_MUTEX, name, CRYPTO_MUTEX_INIT)
 // For FIPS builds we require that CRYPTO_EX_DATA_CLASS_INIT be zero.
 #define DEFINE_STATIC_EX_DATA_CLASS(name) \
-  DEFINE_BSS_GET(CRYPTO_EX_DATA_CLASS, name, CRYPTO_EX_DATA_CLASS_INIT)
+  DEFINE_BSS_GET(bssl::CRYPTO_EX_DATA_CLASS, name, CRYPTO_EX_DATA_CLASS_INIT)
 #else
 #define DEFINE_BSS_GET(type, name, init_value) \
   static type name = init_value;               \
   static type *name##_bss_get() { return &name; }
-#define DEFINE_STATIC_ONCE(name)                \
-  static CRYPTO_once_t name = CRYPTO_ONCE_INIT; \
-  static CRYPTO_once_t *name##_bss_get() { return &name; }
-#define DEFINE_STATIC_MUTEX(name)               \
-  static CRYPTO_MUTEX name = CRYPTO_MUTEX_INIT; \
-  static CRYPTO_MUTEX *name##_bss_get() { return &name; }
-#define DEFINE_STATIC_EX_DATA_CLASS(name)                       \
-  static CRYPTO_EX_DATA_CLASS name = CRYPTO_EX_DATA_CLASS_INIT; \
-  static CRYPTO_EX_DATA_CLASS *name##_bss_get() { return &name; }
+#define DEFINE_STATIC_ONCE(name)                      \
+  static bssl::CRYPTO_once_t name = CRYPTO_ONCE_INIT; \
+  static bssl::CRYPTO_once_t *name##_bss_get() { return &name; }
+#define DEFINE_STATIC_MUTEX(name)                     \
+  static bssl::CRYPTO_MUTEX name = CRYPTO_MUTEX_INIT; \
+  static bssl::CRYPTO_MUTEX *name##_bss_get() { return &name; }
+#define DEFINE_STATIC_EX_DATA_CLASS(name)                             \
+  static bssl::CRYPTO_EX_DATA_CLASS name = CRYPTO_EX_DATA_CLASS_INIT; \
+  static bssl::CRYPTO_EX_DATA_CLASS *name##_bss_get() { return &name; }
 #endif
 
 #define DEFINE_DATA(type, name, accessor_decorations)                     \
@@ -64,7 +70,7 @@
   static void name##_do_init(type *out);                                  \
   static void name##_init() { name##_do_init(name##_storage_bss_get()); } \
   accessor_decorations type *name() {                                     \
-    CRYPTO_once(name##_once_bss_get(), name##_init);                      \
+    bssl::CRYPTO_once(name##_once_bss_get(), name##_init);                \
     /* See http://c-faq.com/ansi/constmismatch.html for why the following \
      * cast is needed. */                                                 \
     return (const type *)name##_storage_bss_get();                        \

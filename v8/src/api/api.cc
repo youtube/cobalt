@@ -194,6 +194,10 @@
 
 namespace v8 {
 
+static_assert(static_cast<uint32_t>(Intercepted::kNo) == i::kInterceptedNo);
+static_assert(static_cast<uint32_t>(Intercepted::kYes) == i::kInterceptedYes);
+static_assert(sizeof(Intercepted) == i::kInterceptedSize);
+
 i::ExternalPointerTag ToExternalPointerTag(v8::EmbedderDataTypeTag api_tag) {
   uint16_t tag_value = static_cast<uint16_t>(i::kFirstEmbedderDataTag) +
                        static_cast<uint16_t>(api_tag);
@@ -1887,10 +1891,12 @@ Local<Script> UnboundScript::BindToCurrentContext() {
   return ToApiHandle<Script>(function);
 }
 
-int UnboundScript::GetId() const {
+int UnboundScript::GetId() const { return ScriptId(); }
+
+int UnboundScript::ScriptId() const {
   auto function_info = Utils::OpenDirectHandle(this);
   ApiRuntimeCallStatsScope rcs_scope(i::Isolate::Current(),
-                                     RCCId::kAPI_UnboundScript_GetId);
+                                     RCCId::kAPI_UnboundScript_ScriptId);
   return i::Cast<i::Script>(function_info->script())->id();
 }
 
@@ -1961,6 +1967,14 @@ Local<Value> UnboundModuleScript::GetSourceURL() {
   EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
   i::Tagged<i::Object> url = i::Cast<i::Script>(obj->script())->source_url();
   return Utils::ToLocal(i::direct_handle(url, i_isolate));
+}
+
+int UnboundModuleScript::ScriptId() const {
+  ApiRuntimeCallStatsScope rcs_scope(i::Isolate::Current(),
+                                     RCCId::kAPI_UnboundModuleScript_ScriptId);
+  auto obj = Utils::OpenDirectHandle(this);
+  if (!i::IsScript(obj->script())) return kNoScriptId;
+  return i::Cast<i::Script>(obj->script())->id();
 }
 
 Local<Value> UnboundModuleScript::GetSourceMappingURL() {
@@ -2037,6 +2051,16 @@ Local<UnboundScript> Script::GetUnboundScript() {
                                              i::Isolate::Current());
   DCHECK(!i::HeapLayout::InReadOnlySpace(*sfi));
   return ToApiHandle<UnboundScript>(sfi);
+}
+
+int Script::ScriptId() const {
+  i::DisallowGarbageCollection no_gc;
+  auto obj = Utils::OpenDirectHandle(this);
+  auto sfi = obj->shared();
+  DCHECK(!i::HeapLayout::InReadOnlySpace(sfi));
+  auto script = sfi->script();
+  CHECK(IsScript(sfi->script()));
+  return i::Cast<i::Script>(script)->id();
 }
 
 Local<Value> Script::GetResourceName() {
@@ -3238,6 +3262,17 @@ int StackTrace::CurrentScriptId(Isolate* v8_isolate) {
   return i_isolate->CurrentScriptId();
 }
 
+v8::MemorySpan<v8::StackTrace::ScriptIdAndContext>
+StackTrace::CurrentScriptIdsAndContexts(
+    Isolate* v8_isolate,
+    v8::MemorySpan<StackTrace::ScriptIdAndContext> frame_data) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
+
+  size_t written = i_isolate->CurrentScriptIdsAndContexts(frame_data);
+  return {frame_data.data(), written};
+}
+
 // --- S t a c k F r a m e ---
 
 Location StackFrame::GetLocation() const {
@@ -3343,7 +3378,7 @@ MaybeLocal<Value> JSON::Parse(Local<Context> context, Local<String> json_string,
         script_origin.ColumnOffset(), script_origin.SourceMapUrl(),
         script_origin.GetHostDefinedOptions(), script_origin.Options()));
   }
-  auto maybe_result = source->IsOneByteRepresentation()
+  auto maybe_result = i::String::IsOneByteRepresentationUnderneath(*source)
                           ? i::JsonParser<uint8_t>::Parse(
                                 i_isolate, source, undefined, script_details)
                           : i::JsonParser<uint16_t>::Parse(
@@ -6143,32 +6178,6 @@ void v8::Object::SetAlignedPointerInInternalField(int index, void* value,
   DCHECK_EQ(value, GetAlignedPointerFromInternalField(index, tag));
 }
 
-void v8::Object::SetAlignedPointerInInternalFields(int argc, int indices[],
-                                                   void* values[]) {
-  EmbedderDataTypeTag tag = kEmbedderDataTypeTagDefault;
-
-  auto obj = Utils::OpenDirectHandle(this);
-  if (!IsJSObject(*obj)) return;
-  i::DisallowGarbageCollection no_gc;
-  const char* location = "v8::Object::SetAlignedPointerInInternalFields()";
-  auto js_obj = i::Cast<i::JSObject>(*obj);
-  int nof_embedder_fields = js_obj->GetEmbedderFieldCount();
-  for (int i = 0; i < argc; i++) {
-    int index = indices[i];
-    if (!Utils::ApiCheck(index < nof_embedder_fields, location,
-                         "Internal field out of bounds")) {
-      return;
-    }
-    void* value = values[i];
-    Utils::ApiCheck(
-        i::EmbedderDataSlot(js_obj, index)
-            .store_aligned_pointer(i::Isolate::Current(), *obj, value,
-                                   ToExternalPointerTag(tag)),
-        location, "Unaligned pointer");
-    DCHECK_EQ(value, GetAlignedPointerFromInternalField(index, tag));
-  }
-}
-
 // static
 void* v8::Object::Unwrap(v8::Isolate* isolate, i::Address wrapper_obj,
                          CppHeapPointerTagRange tag_range) {
@@ -8234,7 +8243,7 @@ FastIterateResult FastIterateArray(DirectHandle<JSArray> array,
   }
   // The input value of the switch is untrusted, so even if it's exhaustive, it
   // can skip all cases and end up here, triggering UB since there's no return.
-  SBXCHECK(false);
+  UNREACHABLE();
 }
 
 }  // namespace internal
@@ -8904,9 +8913,11 @@ Maybe<bool> v8::ArrayBuffer::Detach(v8::Local<v8::Value> key) {
 void v8::ArrayBuffer::Detach() { Detach(Local<Value>()).Check(); }
 
 void v8::ArrayBuffer::SetDetachKey(v8::Local<v8::Value> key) {
+  i::Isolate* i_isolate = i::Isolate::Current();
+  i::HandleScope scope(i_isolate);
   auto obj = Utils::OpenDirectHandle(this);
   auto i_key = Utils::OpenDirectHandle(*key);
-  obj->set_detach_key(*i_key);
+  i::JSArrayBuffer::SetDetachKey(obj, i_key, i_isolate);
 }
 
 size_t v8::ArrayBuffer::ByteLength() const {
@@ -12215,6 +12226,60 @@ void InvokeAccessorGetterCallback(
   getter(property, info);
 }
 
+v8::Intercepted InvokeNamedInterceptorGetterCallback(
+    v8::Local<v8::Name> property,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  // Leaving JavaScript.
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  RCS_SCOPE(i_isolate, RuntimeCallCounterId::kNamedGetterCallback);
+
+  v8::NamedPropertyGetterCallback getter;
+  {
+    DirectHandle<InterceptorInfo> interceptor_info =
+        PropertyCallbackArguments::GetInterceptorInfo(info);
+    getter = reinterpret_cast<v8::NamedPropertyGetterCallback>(
+        interceptor_info->named_getter(i_isolate));
+
+    if (i_isolate->should_check_side_effects() &&
+        !i_isolate->debug()->PerformSideEffectCheckForInterceptor(
+            interceptor_info)) {
+      return {};
+    }
+  }
+  ExternalCallbackScope call_scope(i_isolate, FUNCTION_ADDR(getter),
+                                   v8::ExceptionContext::kNamedGetter, &info);
+  v8::Intercepted intercepted = getter(property, info);
+  return intercepted;
+}
+
+// TODO(https://crbug.com/348660658): migrate setter callbacks to a new
+// signature with const v8::PropertyCallbackInfo<v8::Boolean>& info.
+v8::Intercepted InvokeNamedInterceptorSetterCallback(
+    v8::Local<v8::Name> property, v8::Local<v8::Value> value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  // Leaving JavaScript.
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  RCS_SCOPE(i_isolate, RuntimeCallCounterId::kNamedSetterCallback);
+
+  v8::NamedPropertySetterCallback setter;
+  {
+    DirectHandle<InterceptorInfo> interceptor_info =
+        PropertyCallbackArguments::GetInterceptorInfo(info);
+    setter = reinterpret_cast<v8::NamedPropertySetterCallback>(
+        interceptor_info->named_setter(i_isolate));
+
+    if (i_isolate->should_check_side_effects() &&
+        !i_isolate->debug()->PerformSideEffectCheckForInterceptor(
+            interceptor_info)) {
+      return {};
+    }
+  }
+  ExternalCallbackScope call_scope(i_isolate, FUNCTION_ADDR(setter),
+                                   v8::ExceptionContext::kNamedSetter, &info);
+  v8::Intercepted intercepted = setter(property, value, info);
+  return intercepted;
+}
+
 namespace {
 
 inline Tagged<FunctionTemplateInfo> GetTargetFunctionTemplateInfo(
@@ -12366,11 +12431,6 @@ template <typename T>
 bool ValidatePropertyCallbackInfo(const PropertyCallbackInfo<T>& info) {
   auto* i_isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   CHECK_EQ(i_isolate, Isolate::Current());
-  // Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
-  // TODO(https://crbug.com/455600234): remove.
-  START_ALLOW_USE_DEPRECATED()
-  CHECK(info.This()->IsValue());
-  END_ALLOW_USE_DEPRECATED()
   CHECK(info.HolderV2()->IsObject());
   CHECK(!i::IsJSGlobalObject(*Utils::OpenDirectHandle(*info.HolderV2())));
 

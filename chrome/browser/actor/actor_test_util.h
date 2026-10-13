@@ -16,7 +16,9 @@
 #include "base/test/test_future.h"
 #include "base/time/time.h"
 #include "base/types/expected.h"
+#include "chrome/browser/actor/enterprise_policy_url_checker.h"
 #include "chrome/browser/actor/execution_engine.h"
+#include "chrome/browser/actor/shared_types.h"
 #include "chrome/browser/actor/tools/media_control_tool_request.h"
 #include "chrome/browser/actor/tools/tool_request.h"
 #include "chrome/browser/actor/ui/event_dispatcher.h"
@@ -128,7 +130,6 @@ optimization_guide::proto::Actions MakeDragAndRelease(
 optimization_guide::proto::Actions MakeWait(
     std::optional<base::TimeDelta> duration = std::nullopt,
     std::optional<tabs::TabHandle> observe_tab_handle = std::nullopt);
-optimization_guide::proto::Actions MakeAttemptLogin();
 optimization_guide::proto::Actions MakeScriptTool(
     content::RenderFrameHost& rfh,
     const std::string& name,
@@ -177,7 +178,12 @@ std::unique_ptr<ToolRequest> MakeWaitRequest(
     tabs::TabInterface* observe_tab = nullptr);
 std::unique_ptr<ToolRequest> MakeCreateTabRequest(SessionID window_id,
                                                   bool foreground);
-std::unique_ptr<ToolRequest> MakeAttemptLoginRequest(tabs::TabInterface& tab);
+std::unique_ptr<ToolRequest> MakeActivateTabRequest(tabs::TabHandle tab);
+std::unique_ptr<ToolRequest> MakeCloseTabRequest(tabs::TabHandle tab);
+std::unique_ptr<ToolRequest> MakeAttemptLoginRequest(
+    tabs::TabInterface& tab,
+    std::optional<PageTarget> password_button = std::nullopt,
+    std::optional<PageTarget> sign_in_with_google_button = std::nullopt);
 std::unique_ptr<ToolRequest> MakeScriptToolRequest(
     content::RenderFrameHost& rfh,
     const std::string& name,
@@ -202,12 +208,7 @@ std::vector<std::unique_ptr<ToolRequest>> ToRequestList(T&& first,
   std::vector<std::unique_ptr<ToolRequest>> items;
   items.reserve(1 + sizeof...(rest));
   items.push_back(std::move(first));
-
-  // This is a hack to push_back each item from the pack using pack expansion.
-  // Fold expressions would make this cleaner but aren't yet allowed in
-  // Chromium.
-  int dummy[] = {0, (items.push_back(std::move(rest)), 0)...};
-  (void)dummy;
+  (items.push_back(std::move(rest)), ...);
 
   return items;
 }
@@ -222,7 +223,11 @@ void ExpectErrorResult(PerformActionsFuture& future,
                        mojom::ActionResultCode expected_code);
 void PrintTo(const mojom::ActionResultCode& code, std::ostream* os);
 
-// Sets up GLIC_ACTION_PAGE_BLOCK to block the given host.
+// Sets up GLIC_ACTION_PAGE_BLOCK to block the given host via component updater.
+bool SetUpOptimizationGuideComponentBlocklist(const base::FilePath& path,
+                                              const std::string& blocked_host);
+
+// Sets up GLIC_ACTION_PAGE_BLOCK to block the given host via the command line.
 void SetUpBlocklist(base::CommandLine* command_line,
                     const std::string& blocked_host);
 
@@ -263,6 +268,30 @@ class ExecutionEngineStateWaiter : public ExecutionEngine::StateObserver {
   const base::WeakPtr<ExecutionEngine> execution_engine_;
   ExecutionEngine::State target_state_;
 };
+
+// Use this RAII helper to provide a factory function for constructing
+// ExecutionEngine. This allows tests to provide a mock ExecutionEngine or one
+// constructed specially to be instrumented for testing.
+class ScopedExecutionEngineFactory {
+ public:
+  explicit ScopedExecutionEngineFactory(
+      ExecutionEngine::FactoryFunction factory);
+  ~ScopedExecutionEngineFactory();
+};
+
+class MockPolicyChecker : public EnterprisePolicyUrlChecker {
+ public:
+  explicit MockPolicyChecker(EnterprisePolicyBlockReason reason);
+  ~MockPolicyChecker();
+
+  EnterprisePolicyBlockReason Evaluate(const GURL& url) const override;
+ private:
+  EnterprisePolicyBlockReason reason_;
+};
+
+// Returns a passthrough EnterprisePolicyUrlChecker tests can use to avoid
+// policy checks.
+const EnterprisePolicyUrlChecker* NoEnterprisePolicyChecker();
 
 }  // namespace actor
 

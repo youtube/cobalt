@@ -8,11 +8,11 @@
 // Protocol that describes the commands that trigger Toolbar UI changes.
 @protocol ToolbarCommands
 
-// Triggers a slide-in animation for the toolbar(s).
-- (void)triggerToolbarSlideInAnimation;
-
 // Visually indicates a Lens Overlay visibility change.
 - (void)indicateLensOverlayVisible:(BOOL)lensOverlayVisible;
+
+// Moves the focus of VoiceOver to the location bar, without activating it.
+- (void)focusLocationBarForVoiceOver;
 
 @end
 

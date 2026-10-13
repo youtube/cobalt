@@ -57,6 +57,7 @@
 #include "chrome/browser/ash/arc/arc_util.h"
 #include "chrome/browser/ash/base/locale_util.h"
 #include "chrome/browser/ash/boot_times_recorder/boot_times_recorder.h"
+#include "chrome/browser/ash/browser_delegate/browser_controller.h"
 #include "chrome/browser/ash/child_accounts/child_policy_observer.h"
 #include "chrome/browser/ash/drive/file_system_util.h"
 #include "chrome/browser/ash/eol/eol_notification.h"
@@ -107,13 +108,11 @@
 #include "chrome/browser/ash/system_web_apps/apps/help_app/help_app_notification_controller.h"
 #include "chrome/browser/ash/tether/tether_service.h"
 #include "chrome/browser/ash/tpm/tpm_firmware_update_notification.h"
-#include "chrome/browser/ash/u2f/u2f_notification.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/browser_process_platform_part_ash.h"
 #include "chrome/browser/first_run/first_run.h"
+#include "chrome/browser/global_features.h"
 #include "chrome/browser/lifetime/application_lifetime.h"
-#include "chrome/browser/lifetime/application_lifetime_chromeos.h"
-#include "chrome/browser/lifetime/browser_shutdown.h"
 #include "chrome/browser/metrics/first_web_contents_profiler.h"
 #include "chrome/browser/prefs/session_startup_pref.h"
 #include "chrome/browser/profiles/profile.h"
@@ -1003,6 +1002,10 @@ bool UserSessionManager::RespectLocalePreference(
 
   profile->ChangeAppLocale(pref_locale, app_locale_changed_via);
 
+  // TODO(crbug.com/404133029): Avoid g_browser_process usage.
+  ApplicationLocaleStorage* application_locale_storage =
+      g_browser_process->GetFeatures()->application_locale_storage();
+
   // Here we don't enable keyboard layouts for normal users. Input methods
   // are set up when the user first logs in. Then the user may customize the
   // input methods.  Hence changing input methods here, just because the user's
@@ -1014,8 +1017,8 @@ bool UserSessionManager::RespectLocalePreference(
   // So input methods should be enabled somewhere.
   const bool enable_layouts =
       user_manager::UserManager::Get()->IsLoggedInAsGuest();
-  locale_util::SwitchLanguage(pref_locale, enable_layouts,
-                              false /* login_layouts_only */,
+  locale_util::SwitchLanguage(application_locale_storage, pref_locale,
+                              enable_layouts, false /* login_layouts_only */,
                               std::move(callback), profile);
 
   return true;
@@ -1156,9 +1159,9 @@ void UserSessionManager::OnSessionRestoreStateChanged(
 }
 
 void UserSessionManager::OnConnectionChanged(
-    network::mojom::ConnectionType type) {
+    net::NetworkChangeNotifier::ConnectionType type) {
   user_manager::UserManager* user_manager = user_manager::UserManager::Get();
-  if (type == network::mojom::ConnectionType::CONNECTION_NONE ||
+  if (type == net::NetworkChangeNotifier::ConnectionType::CONNECTION_NONE ||
       !user_manager->IsUserLoggedIn() ||
       !user_manager->IsLoggedInAsUserWithGaiaAccount() ||
       user_manager->IsLoggedInAsStub() || IsRunningTest()) {
@@ -2218,9 +2221,6 @@ void UserSessionManager::ShowNotificationsIfNeeded(Profile* profile) {
   // and show the message accordingly.
   tpm_firmware_update::ShowNotificationIfNeeded(profile);
 
-  // Show legacy U2F notification if applicable.
-  MaybeShowU2FNotification();
-
   MaybeShowHelpAppReleaseNotesNotification(profile);
 
   g_browser_process->platform_part()
@@ -2402,9 +2402,10 @@ void UserSessionManager::CheckEolInfo(Profile* profile) {
 void UserSessionManager::DoBrowserLaunchInternal(Profile* profile,
                                                  bool locale_pref_checked) {
   TRACE_EVENT0("login", "UserSessionManager::DoBrowserLaunchInternal");
-  if (browser_shutdown::IsTryingToQuit() ||
-      chrome::IsSendingStopRequestToSessionManager())
+  if (ash::BrowserController::GetInstance()->IsTryingToQuit() ||
+      ash::SessionTerminationManager::IsSendingStopRequestToSessionManager()) {
     return;
+  }
 
   if (!locale_pref_checked) {
     RespectLocalePreferenceWrapper(
@@ -2523,9 +2524,10 @@ void UserSessionManager::DoBrowserLaunchInternal(Profile* profile,
 void UserSessionManager::RespectLocalePreferenceWrapper(
     Profile* profile,
     base::OnceClosure callback) {
-  if (browser_shutdown::IsTryingToQuit() ||
-      chrome::IsSendingStopRequestToSessionManager())
+  if (ash::BrowserController::GetInstance()->IsTryingToQuit() ||
+      ash::SessionTerminationManager::IsSendingStopRequestToSessionManager()) {
     return;
+  }
 
   const user_manager::User* const user =
       ProfileHelper::Get()->GetUserByProfile(profile);
@@ -2622,7 +2624,6 @@ void UserSessionManager::Shutdown() {
   token_observers_.clear();
   always_on_vpn_manager_.reset();
   child_policy_observer_.reset();
-  u2f_notification_.reset();
   help_app_notification_controller_.reset();
   password_service_voted_.reset();
   password_was_saved_ = false;
@@ -2656,13 +2657,6 @@ void UserSessionManager::SetSwitchesForUser(
   SessionManagerClient::Get()->SetFlagsForUser(
       cryptohome::CreateAccountIdentifierFromAccountId(account_id),
       all_switches);
-}
-
-void UserSessionManager::MaybeShowU2FNotification() {
-  if (!u2f_notification_) {
-    u2f_notification_ = std::make_unique<U2FNotification>();
-    u2f_notification_->Check();
-  }
 }
 
 void UserSessionManager::MaybeShowHelpAppReleaseNotesNotification(

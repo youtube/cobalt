@@ -15,6 +15,8 @@ use crate::reader::lexer::{Lexer, Token};
 use std::collections::HashMap;
 use std::io::Read;
 
+static STRING_RESERVE_CAPACITY: usize = 20;
+
 macro_rules! gen_takes(
     ($($field:ident -> $method:ident, $t:ty, $def:expr);+) => (
         $(
@@ -31,8 +33,8 @@ macro_rules! gen_takes(
 );
 
 gen_takes!(
-    name         -> take_name, String, String::new();
-    ref_data     -> take_ref_data, String, String::new();
+    name         -> take_name, String, String::with_capacity(STRING_RESERVE_CAPACITY);
+    ref_data     -> take_ref_data, String, String::with_capacity(STRING_RESERVE_CAPACITY);
 
     encoding     -> take_encoding, Option<String>, None;
 
@@ -61,12 +63,16 @@ type ElementStack = Vec<OwnedName>;
 pub type Result = super::Result<XmlEvent>;
 
 /// Pull-based XML parser.
+#[derive(Clone)]
 pub(crate) struct PullParser {
     config: ParserConfig,
     lexer: Lexer,
     st: State,
     state_after_reference: State,
     buf: String,
+    // Separate scratch space as an optimization avoiding reallocations
+    // for parsing qualified names.
+    qualified_name_buf: String,
 
     /// From DTD internal subset
     entities: HashMap<String, String>,
@@ -118,7 +124,8 @@ impl PullParser {
             lexer,
             st: State::DocumentStart,
             state_after_reference: State::OutsideTag,
-            buf: String::new(),
+            buf: String::with_capacity(STRING_RESERVE_CAPACITY),
+            qualified_name_buf: String::with_capacity(STRING_RESERVE_CAPACITY),
             entities: HashMap::new(),
             nst: NamespaceStack::default(),
 
@@ -340,6 +347,7 @@ impl QuoteToken {
     }
 }
 
+#[derive(Clone)]
 struct MarkupData {
     name: String,     // used for processing instruction name
     ref_data: String,  // used for reference content
@@ -500,7 +508,7 @@ impl PullParser {
 
     #[inline]
     fn take_buf(&mut self) -> String {
-        std::mem::take(&mut self.buf)
+        std::mem::replace(&mut self.buf, String::with_capacity(STRING_RESERVE_CAPACITY))
     }
 
     #[inline]
@@ -539,28 +547,30 @@ impl PullParser {
       where F: Fn(&mut Self, Token, OwnedName) -> Option<Result> {
 
         let try_consume_name = move |this: &mut Self, t| {
-            let name = this.take_buf();
+
             this.seen_prefix_separator = false;
-            match name.parse() {
+            let result = match this.qualified_name_buf.parse() {
                 Ok(name) => on_name(this, t, name),
-                Err(()) => Some(this.error(SyntaxError::InvalidQualifiedName(name.into()))),
-            }
+                Err(()) => Some(this.error(SyntaxError::InvalidQualifiedName(this.qualified_name_buf.clone().into()))),
+            };
+            this.qualified_name_buf.clear();
+            result
         };
 
         match t {
             // There can be only one colon, and not as the first character
-            Token::Character(':') if self.buf_has_data() && !self.seen_prefix_separator => {
-                self.buf.push(':');
+            Token::Character(':') if !self.qualified_name_buf.is_empty() && !self.seen_prefix_separator => {
+                self.qualified_name_buf.push(':');
                 self.seen_prefix_separator = true;
                 None
             },
 
-            Token::Character(c) if c != ':' && (self.buf.is_empty() && is_name_start_char(c) ||
-                                          self.buf_has_data() && is_name_char(c)) => {
-                if self.buf.len() > self.config.max_name_length {
+            Token::Character(c) if c != ':' && (self.qualified_name_buf.is_empty() && is_name_start_char(c) ||
+                                          !self.qualified_name_buf.is_empty() && is_name_char(c)) => {
+                if self.qualified_name_buf.len() > self.config.max_name_length {
                     return Some(self.error(SyntaxError::ExceededConfiguredLimit));
                 }
-                self.buf.push(c);
+                self.qualified_name_buf.push(c);
                 None
             },
 

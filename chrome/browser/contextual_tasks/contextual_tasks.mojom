@@ -6,18 +6,36 @@ module contextual_tasks.mojom;
 
 import "mojo/public/mojom/base/uuid.mojom";
 import "url/mojom/url.mojom";
+import "ui/base/mojom/window_open_disposition.mojom";
 
-// Represents the visual information needed to display a single tab in the
-// sources menu.
-struct Tab {
-  // The unique identifier of the tab.
-  int32 tab_id;
-
-  // The title of the tab.
-  string title;
-
-  // The URL of the tab.
+// Represents the the visual information needed to display a single context row
+// of a tab where title and url will be displayed in the sources menu.
+struct TabContext {
   url.mojom.Url url;
+  string title;
+  int32 tab_id;
+};
+
+// Represents the the visual information needed to display a single context row
+// of an image in the sources menu.
+struct ImageContext {
+  url.mojom.Url url;
+  string title;
+};
+
+// Represents the the visual information needed to display a single context row
+// of a file in the sources menu.
+struct FileContext {
+  url.mojom.Url url;
+  string title;
+};
+
+// Union representing different types (tabs, files and images) of context
+// information.
+union ContextInfo {
+  TabContext tab;
+  ImageContext image;
+  FileContext file;
 };
 
 // Browser-side handler for requests from the WebUI page.
@@ -40,6 +58,9 @@ interface PageHandler {
   // if the URL is an AI page and no queries have been submitted yet in this
   // thread.
   IsZeroState(url.mojom.Url url) => (bool is_zero_state);
+
+  // Returns if the given URL is an AI page.
+  IsAiPage(url.mojom.Url url) => (bool is_ai_page);
 
   // Set the title of the active thread.
   SetThreadTitle(string title);
@@ -65,6 +86,10 @@ interface PageHandler {
   // Opens the onboarding help page in a new tab.
   OpenOnboardingHelpUi();
 
+  // Open the URL with window open disposition.
+  // Used for handling newwindow event inside <webview>.
+  OpenUrl(url.mojom.Url url, ui.mojom.WindowOpenDisposition disposition);
+
   // Moves the contents of the side panel to a new tab.
   MoveTaskUiToNewTab();
 
@@ -74,6 +99,14 @@ interface PageHandler {
   // `url`. If still no matching tab is found, a new foreground tab will be
   // opened with the provided `url`.
   OnTabClickedFromSourcesMenu(int32 tab_id, url.mojom.Url url);
+
+  // Called when a file in the sources menu is clicked. The file associated with
+  // the `url` will be opened in a new tab in the current browser window.
+  OnFileClickedFromSourcesMenu(url.mojom.Url url);
+
+  // Called when an image in the sources menu is clicked. The image will be
+  // opened in a new tab in the current browser window.
+  OnImageClickedFromSourcesMenu(url.mojom.Url url);
 
   // Called by the WebUI when a 'message' event is received from
   // the <webview> guest. The 'message' is expected to be a serialized
@@ -125,9 +158,9 @@ interface Page {
   SetOAuthToken(string oauth_token);
 
   // Called by the browser process (C++) when the context associated with the
-  // task is updated (e.g. tabs added/removed). This is used for updating the
-  // icon shown on the sources menu entry point.
-  OnContextUpdated(array<Tab> context_tabs);
+  // task is updated (e.g. tabs, files or images added/removed). This is used
+  // for updating the icon shown on the sources menu entry point.
+  OnContextUpdated(array<ContextInfo> context);
 
   // Called by the browser process (C++) when the AIM server sends a HideInput
   // command to hide the compose box.
@@ -155,6 +188,9 @@ interface Page {
   // Called by the browser process (C++) to notify the UI to hide the error
   // page.
   HideErrorPage();
+
+  // Called by the browser process (C++) to show an OAuth error dialog.
+  ShowOauthErrorDialog();
 };
 
 // Used to bootstrip bi-directional communication between the browser and webui.

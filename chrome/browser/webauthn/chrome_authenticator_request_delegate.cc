@@ -213,23 +213,6 @@ bool SkipGpmPasskeyCreationForOwnAccount(
           user_name == account_email_local_part);
 }
 
-bool PasswordsUsable(int credential_types, UIPresentation ui_presentation) {
-  if (!(credential_types &
-        static_cast<int>(blink::mojom::CredentialTypeFlags::kPassword))) {
-    return false;
-  }
-
-  if (base::FeatureList::IsEnabled(device::kWebAuthnAmbientSignin) &&
-      ui_presentation == UIPresentation::kAutofill) {
-    // TODO(https://crbug.com/358119268): This will probably get its own
-    // mediation type, but for prototyping we assume any conditional request
-    // with passwords uses ambient.
-    return true;
-  }
-
-  return ui_presentation == UIPresentation::kModalImmediate;
-}
-
 }  // namespace
 
 // static
@@ -277,7 +260,9 @@ ChromeAuthenticatorRequestDelegate::ChromeAuthenticatorRequestDelegate(
           GetRenderFrameHost())),
       dialog_controller_(std::make_unique<AuthenticatorRequestDialogController>(
           dialog_model_.get(),
-          GetRenderFrameHost())) {
+          GetRenderFrameHost())),
+      barrier_(
+          std::make_unique<UiReadinessBarrier>(this, dialog_model_.get())) {
   dialog_model_->observers.AddObserver(this);
   if (g_observer) {
     g_observer->Created(this);
@@ -649,9 +634,7 @@ void ChromeAuthenticatorRequestDelegate::SetHints(
 void ChromeAuthenticatorRequestDelegate::MaybeStartPasswordFetch(
     const url::Origin& origin,
     bool synthesize_tai) {
-  if (PasswordsUsable(credential_types_,
-                      dialog_controller_->ui_presentation()) &&
-      GetRenderFrameHost()->IsInPrimaryMainFrame()) {
+  if (PasswordsUsable() && GetRenderFrameHost()->IsInPrimaryMainFrame()) {
     if (!password_ui_controller_) {
       password_ui_controller_ =
           std::make_unique<PasswordCredentialUIController>(
@@ -755,10 +738,7 @@ void ChromeAuthenticatorRequestDelegate::OnTransportAvailabilityEnumerated(
     return;
   }
 
-  pending_transport_availability_info_ = std::make_unique<
-      device::FidoRequestHandlerBase::TransportAvailabilityInfo>(
-      std::move(data));
-  TryToShowUI();
+  barrier_->SetTransportAvailabilityInfo(std::move(data));
 }
 
 bool ChromeAuthenticatorRequestDelegate::EmbedderControlsAuthenticatorDispatch(
@@ -931,45 +911,8 @@ bool ChromeAuthenticatorRequestDelegate::MaybeHandleImmediateMediation(
   return false;
 }
 
-void ChromeAuthenticatorRequestDelegate::TryToShowUI() {
-  if (!pending_transport_availability_info_) {
-    return;
-  }
-  if (enclave_controller_ && !enclave_controller_->ready_for_ui()) {
-    // Delay showing UI until GPM state is loaded. It's only after this
-    // point that we know whether GPM will be active for this request or not.
-    return;
-  }
-  if (PasswordsUsable(credential_types_,
-                      dialog_controller_->ui_presentation()) &&
-      !pending_password_credentials_) {
-    return;
-  }
-  auto tai = std::move(pending_transport_availability_info_);
-  auto passwords = pending_password_credentials_
-                       ? std::move(pending_password_credentials_)
-                       : std::make_unique<PasswordCredentials>();
-  MaybeShowUI(std::move(*tai), std::move(*passwords));
-}
-
-void ChromeAuthenticatorRequestDelegate::MaybeShowUI(
-    TransportAvailabilityInfo tai,
-    PasswordCredentials passwords) {
-  if (can_use_synced_phone_passkeys_ ||
-      (enclave_controller_ && enclave_controller_->is_active())) {
-    GetPhoneContactableGpmPasskeysForRpId(
-        std::move(tai),
-        base::BindOnce(&ChromeAuthenticatorRequestDelegate::FinishMaybeShowUI,
-                       weak_ptr_factory_.GetWeakPtr(), std::move(passwords)));
-    return;
-  }
-
-  FinishMaybeShowUI(std::move(passwords), std::move(tai));
-}
-
-void ChromeAuthenticatorRequestDelegate::FinishMaybeShowUI(
-    PasswordCredentials passwords,
-    TransportAvailabilityInfo tai) {
+void ChromeAuthenticatorRequestDelegate::ShowUI(TransportAvailabilityInfo tai,
+                                                PasswordCredentials passwords) {
   FilterRecognizedCredentials(&tai);
 
   if (MaybeHandleImmediateMediation(tai, passwords)) {
@@ -1007,8 +950,26 @@ void ChromeAuthenticatorRequestDelegate::FinishMaybeShowUI(
   }
 }
 
-void ChromeAuthenticatorRequestDelegate::OnGPMReadyForUI() {
-  TryToShowUI();
+bool ChromeAuthenticatorRequestDelegate::PasswordsUsable() {
+  if (!(credential_types_ &
+        static_cast<int>(blink::mojom::CredentialTypeFlags::kPassword))) {
+    return false;
+  }
+
+  UIPresentation ui_presentation = dialog_controller_->ui_presentation();
+  if (ui_presentation == UIPresentation::kAmbient) {
+    return true;
+  }
+
+  return ui_presentation == UIPresentation::kModalImmediate;
+}
+
+bool ChromeAuthenticatorRequestDelegate::IsEnclaveActive() {
+  return enclave_controller_ && enclave_controller_->is_active();
+}
+
+bool ChromeAuthenticatorRequestDelegate::IsEnclaveReady() {
+  return !enclave_controller_ || enclave_controller_->ready_for_ui();
 }
 
 bool ChromeAuthenticatorRequestDelegate::ShouldPermitCableExtension(
@@ -1039,7 +1000,7 @@ void ChromeAuthenticatorRequestDelegate::OnCableEvent(
   dialog_controller_->OnCableEvent(event);
 }
 
-void ChromeAuthenticatorRequestDelegate::GetPhoneContactableGpmPasskeysForRpId(
+void ChromeAuthenticatorRequestDelegate::GetGpmPasskeys(
     TransportAvailabilityInfo tai,
     base::OnceCallback<void(TransportAvailabilityInfo)> callback) {
   // For immediate `get()` requests, the enclave might need to do an async check
@@ -1054,11 +1015,10 @@ void ChromeAuthenticatorRequestDelegate::GetPhoneContactableGpmPasskeysForRpId(
       enclave_controller_) {
     switch (enclave_controller_->account_ready_state()) {
       case GPMEnclaveController::AccountReadyState::kLoading:
-        enclave_controller_->RunWhenAccountReady(
-            base::BindOnce(&ChromeAuthenticatorRequestDelegate::
-                               DoGetPhoneContactableGpmPasskeysForRpId,
-                           weak_ptr_factory_.GetWeakPtr(), std::move(tai),
-                           std::move(callback)));
+        enclave_controller_->RunWhenAccountReady(base::BindOnce(
+            &ChromeAuthenticatorRequestDelegate::DoGetGpmPasskeys,
+            weak_ptr_factory_.GetWeakPtr(), std::move(tai),
+            std::move(callback)));
         return;
       case GPMEnclaveController::AccountReadyState::kReady:
       case GPMEnclaveController::AccountReadyState::kNotReady:
@@ -1067,13 +1027,12 @@ void ChromeAuthenticatorRequestDelegate::GetPhoneContactableGpmPasskeysForRpId(
     }
   }
 
-  DoGetPhoneContactableGpmPasskeysForRpId(std::move(tai), std::move(callback));
+  DoGetGpmPasskeys(std::move(tai), std::move(callback));
 }
 
-void ChromeAuthenticatorRequestDelegate::
-    DoGetPhoneContactableGpmPasskeysForRpId(
-        TransportAvailabilityInfo tai,
-        base::OnceCallback<void(TransportAvailabilityInfo)> callback) {
+void ChromeAuthenticatorRequestDelegate::DoGetGpmPasskeys(
+    TransportAvailabilityInfo tai,
+    base::OnceCallback<void(TransportAvailabilityInfo)> callback) {
   if (!enclave_controller_ || !enclave_controller_->is_active() ||
       enclave_controller_->creds().empty()) {
     std::move(callback).Run(std::move(tai));
@@ -1308,9 +1267,7 @@ void ChromeAuthenticatorRequestDelegate::OnPasswordSelected(
 
 void ChromeAuthenticatorRequestDelegate::OnPasswordCredentialsReceived(
     PasswordCredentials credentials) {
-  pending_password_credentials_ =
-      std::make_unique<PasswordCredentials>(std::move(credentials));
-  TryToShowUI();
+  barrier_->SetPasswordCredentials(std::move(credentials));
 }
 
 void ChromeAuthenticatorRequestDelegate::UpdateModelForTransportAvailability(

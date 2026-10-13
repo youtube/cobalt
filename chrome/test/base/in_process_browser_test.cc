@@ -37,6 +37,7 @@
 #include "chrome/browser/devtools/devtools_window.h"
 #include "chrome/browser/lifetime/application_lifetime.h"
 #include "chrome/browser/lifetime/application_lifetime_desktop.h"
+#include "chrome/browser/lifetime/browser_shutdown.h"
 #include "chrome/browser/lifetime/termination_notification.h"
 #include "chrome/browser/navigation_predictor/search_engine_preconnector.h"
 #include "chrome/browser/net/chrome_network_delegate.h"
@@ -59,6 +60,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+#include "chrome/browser/ui/tabs/tab_list_interface.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/toolbar_controller_util.h"
 #include "chrome/browser/ui/views/toolbar/webui_test_utils.h"
@@ -95,6 +97,7 @@
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "services/device/public/cpp/device_features.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
+#include "ui/base/mojom/window_show_state.mojom-forward.h"
 #include "ui/base/test/ui_controls.h"
 #include "ui/base/ui_base_features.h"
 
@@ -548,8 +551,9 @@ void InProcessBrowserTest::SetUpDefaultCommandLine(
       command_line, open_about_blank_on_browser_launch_);
 
   // TODO(pkotwicz): Investigate if we can remove this switch.
-  if (exit_when_last_browser_closes_)
+  if (exit_when_last_browser_closes_) {
     command_line->AppendSwitch(switches::kDisableZeroBrowsersOpenForTests);
+  }
 #if BUILDFLAG(IS_CHROMEOS)
   // Do not automaximize in browser tests.
   command_line->AppendSwitch(switches::kDisableAutoMaximizeForTests);
@@ -614,12 +618,14 @@ void InProcessBrowserTest::RecordPropertyFromMap(
            tag_pair.first.find("=") == std::string::npos);
     DCHECK(tag_pair.second.find(";") == std::string::npos &&
            tag_pair.second.find("=") == std::string::npos);
-    if (!result.empty())
+    if (!result.empty()) {
       result = base::StrCat({result, ";"});
+    }
     result = base::StrCat({result, tag_pair.first, "=", tag_pair.second});
   }
-  if (!result.empty())
+  if (!result.empty()) {
     RecordProperty("gtest_tag", result);
+  }
 }
 
 void InProcessBrowserTest::SetUpLocalStatePrefService(
@@ -636,10 +642,15 @@ Profile* InProcessBrowserTest::GetProfile() const {
   return browser() ? browser()->profile() : nullptr;
 }
 
+TabListInterface* InProcessBrowserTest::GetTabListInterface() const {
+  return TabListInterface::From(browser());
+}
+
 void InProcessBrowserTest::CloseBrowserSynchronously(
     BrowserWindowInterface* browser) {
+  ui_test_utils::BrowserDestroyedObserver observer(browser);
   CloseBrowserAsynchronously(browser);
-  ui_test_utils::WaitForBrowserToClose(browser);
+  observer.Wait();
 }
 
 void InProcessBrowserTest::CloseBrowserAsynchronously(
@@ -667,7 +678,7 @@ void InProcessBrowserTest::RunUntilBrowserProcessQuits() {
 
 // TODO(alexmos): This function should expose success of the underlying
 // navigation to tests, which should make sure navigations succeed when
-// appropriate. See https://crbug.com/425335
+// appropriate. See https://crbug.com/40390083
 bool InProcessBrowserTest::AddTabAtIndexToBrowser(
     BrowserWindowInterface* browser,
     int index,
@@ -748,8 +759,9 @@ Browser* InProcessBrowserTest::CreateBrowser(Profile* profile) {
 
 Browser* InProcessBrowserTest::CreateIncognitoBrowser(Profile* profile) {
   // Use active profile if default nullptr was passed.
-  if (!profile)
+  if (!profile) {
     profile = browser()->profile();
+  }
   // Create a new browser with using the incognito profile.
   Browser* incognito = Browser::Create(Browser::CreateParams(
       profile->GetPrimaryOTRProfile(/*create_if_needed=*/true), true));
@@ -792,13 +804,17 @@ Browser* InProcessBrowserTest::CreateGuestBrowser() {
 }
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS)
 
-void InProcessBrowserTest::AddBlankTabAndShow(Browser* browser) {
+void InProcessBrowserTest::AddBlankTabAndShow(Browser* browser,
+                                              bool wait_for_activation) {
   content::WebContents* blank_tab = chrome::AddSelectedTabWithURL(
       browser, GURL(url::kAboutBlankURL), ui::PAGE_TRANSITION_AUTO_TOPLEVEL);
   content::TestNavigationObserver observer(blank_tab);
   observer.Wait();
   RunScheduledLayouts();
   browser->window()->Show();
+  if (wait_for_activation && !browser_shutdown::IsTryingToQuit()) {
+    ui_test_utils::WaitForBrowserSetLastActive(browser);
+  }
 }
 
 #if !BUILDFLAG(IS_MAC)

@@ -545,6 +545,14 @@ chromium-metrics-reviews@google.com.
   <int value="909" label="SERVICE_INVALID_PACKAGED_DEVICE_FOR_KIOSK"/>
 </enum>
 
+<enum name="EnterpriseDiskCacheError">
+  <summary>Errors triggered by encrypted HTTP cache file operations.</summary>
+  <int value="0" label="Success"/>
+  <int value="1" label="Invalid Key"/>
+  <int value="2" label="Invalid Header"/>
+  <int value="3" label="Decryption Failed"/>
+</enum>
+
 <enum name="EnterpriseDlpFileAccessDefaultAction">
   <summary>Type of action triggering a default file access behaviour.</summary>
   <int value="0" label="Creating file access in MyFiles"/>
@@ -2327,7 +2335,7 @@ chromium-metrics-reviews@google.com.
   <int value="1402" label="GeminiActOnWebSettings"/>
   <int value="1403" label="LocalAuthFactorsComplexity"/>
   <int value="1404" label="ProxyOverrideRules"/>
-  <int value="1405" label="LocalAuthFactors"/>
+  <int value="1405" label="AllowedLocalAuthFactors"/>
   <int value="1406" label="EnableProxyOverrideRulesForAllUsers"/>
   <int value="1407" label="DefaultIdleDetectionSetting"/>
   <int value="1408" label="IdleDetectionAllowedForUrls"/>
@@ -2345,6 +2353,16 @@ chromium-metrics-reviews@google.com.
   <int value="1420" label="GeminiActOnWebAllowedForURLs"/>
   <int value="1421" label="GeminiActOnWebBlockedForURLs"/>
   <int value="1422" label="WebAppInstallByUserEnabled"/>
+  <int value="1423" label="LocalNetworkAccessIpAddressSpaceOverrides"/>
+  <int value="1424" label="RestrictPdfSaveToDriveAccountsToPattern"/>
+  <int value="1425" label="LocalNetworkAllowedForUrls"/>
+  <int value="1426" label="LocalNetworkBlockedForUrls"/>
+  <int value="1427" label="LoopbackNetworkAllowedForUrls"/>
+  <int value="1428" label="LoopbackNetworkBlockedForUrls"/>
+  <int value="1429" label="XSLTEnabled"/>
+  <int value="1430" label="LocalNetworkAccessPermissionsPolicyDefaultEnabled"/>
+  <int value="1431" label="ForceForegroundPriorityForAllTabs"/>
+  <int value="1432" label="WebRtcDiagnosticLogCollectionAllowedForOrigins"/>
 </enum>
 
 <enum name="EnterprisePoliciesSources">

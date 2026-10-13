@@ -84,6 +84,7 @@
 #define IDC_MOVE_TAB_TO_NEW_WINDOW      34054
 #define IDC_NEW_SPLIT_TAB               34055
 #define IDC_TOGGLE_VERTICAL_TABS        34056
+#define IDC_VERTICAL_TABS_SEND_FEEDBACK 34057
 
 // Web app window commands
 #define IDC_COPY_URL                    34060
@@ -110,7 +111,8 @@
 #define IDC_CLOSE_TAB_GROUP           34104
 #define IDC_GROUP_UNGROUPED_TABS      34105
 #define IDC_CREATE_NEW_TAB_GROUP_TOP_LEVEL 34106
-#define IDC_ADD_NEW_TAB_RECENT_GROUP 34107
+#define IDC_ADD_NEW_TAB_RECENT_GROUP  34107
+#define IDC_UNFOCUS_TAB_GROUP         34108
 
 // Page-related commands
 #define IDC_BOOKMARK_THIS_TAB           35000
@@ -304,6 +306,9 @@
 #define IDC_SHOW_COMMENTS_SIDE_PANEL  40297
 #define IDC_RECENT_TABS_SEE_DEVICE_TABS  40298
 #define IDC_SHOW_AI_MODE_OMNIBOX_BUTTON 40299
+#define IDC_CONTENT_CONTEXT_INSPECTELEMENT_WITH_GEMINI 40300
+#define IDC_CONTENT_CONTEXT_INSPECTELEMENT_WITH_DEVTOOLS 40301
+#define IDC_REPORT_UNSAFE_SITE 40302
 
 // Spell-check
 // Insert any additional suggestions before _LAST; these have to be consecutive.
@@ -605,6 +610,10 @@
 #define IDC_OMNIBOX_CONTEXT_ADD_FILE                          54011
 #define IDC_OMNIBOX_CONTEXT_CREATE_IMAGES                     54012
 #define IDC_OMNIBOX_CONTEXT_DEEP_RESEARCH                     54013
+#define IDC_OMNIBOX_CONTEXT_CANVAS                            54014
+#define IDC_OMNIBOX_CONTEXT_SET_MODEL_AUTO                    54015
+#define IDC_OMNIBOX_CONTEXT_SET_MODEL_THINKING                54016
+#define IDC_OMNIBOX_CONTEXT_SET_MODEL_REGULAR                 54017
 
 // NOTE: The last valid command value is 57343 (0xDFFF)
 // See http://msdn.microsoft.com/en-us/library/t2zechd4(VS.71).aspx

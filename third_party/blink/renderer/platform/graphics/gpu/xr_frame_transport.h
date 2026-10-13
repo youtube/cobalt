@@ -26,7 +26,7 @@ class GpuFence;
 namespace blink {
 
 class ImageToBufferCopier;
-class StaticBitmapImage;
+struct SharedImageHolder;
 
 class PLATFORM_EXPORT XRFrameTransport final
     : public GarbageCollected<XRFrameTransport>,
@@ -54,13 +54,18 @@ class PLATFORM_EXPORT XRFrameTransport final
   bool FrameSubmit(device::mojom::blink::XRPresentationProvider*,
                    XRFrameTransportDelegate* delegate,
                    Vector<device::LayerId> layer_ids,
-                   Vector<scoped_refptr<StaticBitmapImage>> image_refs,
+                   Vector<std::unique_ptr<SharedImageHolder>> image_refs,
                    int16_t vr_frame_id);
 
   void FrameSubmitMissing(device::mojom::blink::XRPresentationProvider*,
                           XRFrameTransportDelegate* delegate,
                           int16_t vr_frame_id);
 
+  using OnSubmitFrameTransferredCallback = base::RepeatingCallback<
+      void(bool /*succeeded*/, const Vector<device::LayerId>& /*layer_ids*/)>;
+
+  void RegisterFrameTransferredCallback(
+      OnSubmitFrameTransferredCallback callback);
   void RegisterFrameRenderedCallback(base::RepeatingClosure callback);
 
   void Trace(Visitor*) const;
@@ -71,7 +76,8 @@ class PLATFORM_EXPORT XRFrameTransport final
   base::TimeDelta WaitForGpuFenceReceived();
 
   // XRPresentationClient
-  void OnSubmitFrameTransferred(bool success) override;
+  void OnSubmitFrameTransferred(bool success,
+                                const Vector<device::LayerId>& layers) override;
   void OnSubmitFrameRendered() override;
   void OnSubmitFrameGpuFence(gfx::GpuFenceHandle) override;
 
@@ -80,7 +86,7 @@ class PLATFORM_EXPORT XRFrameTransport final
 
   // Used to keep the image alive until the next frame if using
   // waitForPreviousTransferToFinish.
-  Vector<scoped_refptr<StaticBitmapImage>> previous_images_;
+  Vector<std::unique_ptr<SharedImageHolder>> previous_images_;
 
   bool waiting_for_previous_frame_transfer_ = false;
   bool last_transfer_succeeded_ = false;
@@ -94,6 +100,7 @@ class PLATFORM_EXPORT XRFrameTransport final
 
   device::mojom::blink::XRPresentationTransportOptionsPtr transport_options_;
 
+  OnSubmitFrameTransferredCallback on_submit_frame_transferred_callback_;
   base::RepeatingClosure on_submit_frame_rendered_callback_;
 
   std::unique_ptr<ImageToBufferCopier> frame_copier_;

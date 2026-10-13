@@ -20,7 +20,6 @@ namespace glic::prefs {
 // Boolean pref that enables or disables the launcher.
 inline constexpr char kGlicLauncherEnabled[] = "glic.launcher_enabled";
 
-#if !BUILDFLAG(IS_ANDROID)  // NEEDS_ANDROID_IMPL
 // String pref that keeps track of the non-localized version of the registered
 // hotkey for Glic.
 inline constexpr char kGlicLauncherHotkey[] = "glic.launcher_hotkey";
@@ -28,12 +27,19 @@ inline constexpr char kGlicLauncherHotkey[] = "glic.launcher_hotkey";
 // String pref that keeps track of the non-localized version of the registered
 // hotkey for toggling focus between Glic and the browser window.
 inline constexpr char kGlicFocusToggleHotkey[] = "glic.focus_toggle_hotkey";
-#endif
 
 // String pref that keeps track of whether any loaded profile is, or has ever
 // been, of a subscription tier that should enable multi-instance.
 inline constexpr char kGlicMultiInstanceEnabledBySubscriptionTier[] =
     "glic.multi_instance_enabled_by_tier";
+
+// String prefs that keep track of user-configured Glic guest URL presets for
+// different environments.
+inline constexpr char kGlicGuestUrlPresetAutopush[] =
+    "glic.guest_url_preset_autopush";
+inline constexpr char kGlicGuestUrlPresetPreprod[] =
+    "glic.guest_url_preset_preprod";
+inline constexpr char kGlicGuestUrlPresetProd[] = "glic.guest_url_preset_prod";
 
 // ************* PROFILE PREFS ***************
 // Prefs below are tied to a user profile

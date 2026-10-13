@@ -15,7 +15,6 @@
 #include "base/test/bind.h"
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
-#include "chrome/browser/actor/actor_policy_checker.h"
 #include "chrome/browser/contextual_cueing/contextual_cueing_features.h"
 #include "chrome/browser/glic/fre/fre_util.h"
 #include "chrome/browser/glic/fre/glic_fre_dialog_view.h"
@@ -108,6 +107,12 @@ void GlicE2ETest::SetUp() {
       command_line_of_test->GetSwitchValueASCII(kGlicE2ETestModeSwitch);
 
   running_actor_tests_ = command_line_of_test->HasSwitch(kEnableActorTests);
+  if (running_actor_tests_) {
+    exempt_actor_policy_control_feature_list_
+        .InitAndEnableFeatureWithParameters(
+            features::kGlicActor,
+            {{features::kGlicActorPolicyControlExemption.name, "true"}});
+  }
   enable_low_bandwidth_tests_ =
       command_line_of_test->HasSwitch(kEnableLowBandwidthTestsSwitch);
 
@@ -172,9 +177,15 @@ void GlicE2ETest::PreRunTestOnMainThread() {
 
 void GlicE2ETest::LoginTestAccountOrForceFakeSignin() {
   if (test_mode_ == kRealBackend || test_mode_ == kRecord) {
+    std::string account_label = test_account_label_;
+    // TODO(crbug.com/476984789): Remove this fallback once all tests have been
+    // updated to call set_test_account_label().
+    if (account_label.empty()) {
+      account_label =
+          running_actor_tests_ ? kTestActorAccountLabel : kTestAccountLabel;
+    }
     std::optional<signin::TestAccountSigninCredentials> test_account =
-        GetTestAccounts()->GetAccount(
-            running_actor_tests_ ? kTestActorAccountLabel : kTestAccountLabel);
+        GetTestAccounts()->GetAccount(account_label);
     signin::test::SignInFunctions sign_in_functions =
         signin::test::SignInFunctions(
             base::BindLambdaForTesting(
@@ -187,11 +198,6 @@ void GlicE2ETest::LoginTestAccountOrForceFakeSignin() {
     // Sign in to opted in test account.
     CHECK(test_account.has_value());
     sign_in_functions.TurnOnSync(*test_account, 0);
-    if (running_actor_tests_) {
-      actor::ActorKeyedService::Get(browser()->profile())
-          ->GetPolicyChecker()
-          .set_act_on_web_for_testing(true);
-    }
   } else {
     SigninWithPrimaryAccount(browser()->profile());
     SetGlicCapability(browser()->profile(), true);
@@ -325,12 +331,12 @@ void GlicE2ETest::ThrottleWebContentsNetwork(
     devtools_client_ptr =
         std::make_unique<content::TestDevToolsProtocolClient>();
     devtools_client_ptr->AttachToWebContents(web_contents);
-    devtools_client_ptr->SendCommand("Network.enable", base::Value::Dict());
+    devtools_client_ptr->SendCommand("Network.enable", base::DictValue());
   }
 
   // Corresponds to the "Slow 3G" preset in
   // third_party/devtools-frontend/src/front_end/core/sdk/NetworkManager.ts
-  base::Value::Dict params;
+  base::DictValue params;
   params.Set("offline", false);
   // Latency in ms.
   params.Set("latency", 2000.0);

@@ -4,6 +4,8 @@
 
 #include "third_party/blink/renderer/modules/canvas/offscreencanvas2d/offscreen_canvas_rendering_context_2d.h"
 
+#include <optional>
+
 #include "base/metrics/histogram_functions.h"
 #include "base/trace_event/trace_event.h"
 #include "third_party/blink/public/common/features.h"
@@ -221,7 +223,7 @@ OffscreenCanvasRenderingContext2D::GetOrCreateResourceProvider() {
   const viz::SharedImageFormat format = GetSharedImageFormat();
   const gfx::ColorSpace color_space = GetColorSpace();
   if (use_shared_image) {
-    provider = CanvasResourceProvider::CreateSharedImageProvider(
+    provider = Canvas2DResourceProviderSharedImage::Create(
         host->Size(), format, alpha_type, color_space,
         CanvasResourceProvider::ShouldInitialize::kCallClear,
         SharedGpuContext::ContextProviderWrapper(),
@@ -231,11 +233,10 @@ OffscreenCanvasRenderingContext2D::GetOrCreateResourceProvider() {
     // using the software compositor
     base::WeakPtr<CanvasResourceDispatcher> dispatcher_weakptr =
         host->GetOrCreateResourceDispatcher()->GetWeakPtr();
-    provider =
-        CanvasResourceProvider::CreateSharedImageProviderForSoftwareCompositor(
-            host->Size(), format, alpha_type, color_space,
-            CanvasResourceProvider::ShouldInitialize::kCallClear,
-            SharedGpuContext::SharedImageInterfaceProvider(), host);
+    provider = Canvas2DResourceProviderSharedImage::CreateForSoftwareCompositor(
+        host->Size(), format, alpha_type, color_space,
+        CanvasResourceProvider::ShouldInitialize::kCallClear,
+        SharedGpuContext::SharedImageInterfaceProvider(), host);
   }
 
   if (!provider) {
@@ -300,8 +301,8 @@ OffscreenCanvasRenderingContext2D::ProduceCanvasResource(FlushReason reason) {
   }
 
   // Only CRPSI can produce CanvasResources.
-  CanvasResourceProviderSharedImage* si_provider =
-      provider->AsSharedImageProvider();
+  Canvas2DResourceProviderSharedImage* si_provider =
+      provider->As2DSharedImageProvider();
   if (!si_provider) {
     return nullptr;
   }
@@ -445,7 +446,7 @@ void OffscreenCanvasRenderingContext2D::LoseContext(LostContextMode lost_mode) {
     host->DiscardResources();
     host->DiscardResourceDispatcher();
   }
-  uint32_t delay = base::RandInt(1, kMaxIframeContextLoseDelay);
+  uint32_t delay = base::RandIntInclusive(1, kMaxIframeContextLoseDelay);
   dispatch_context_lost_event_timer_.StartOneShot(base::Milliseconds(delay),
                                                   FROM_HERE);
 }
@@ -491,8 +492,12 @@ bool OffscreenCanvasRenderingContext2D::ResolveFont(const String& new_font) {
     if (!style) {
       return false;
     }
-    FontDescription desc = FontStyleResolver::ComputeFont(
+    std::optional<FontDescription> maybe_desc = FontStyleResolver::ComputeFont(
         *style, host->GetFontSelector()->BaseFontSelector());
+    if (!maybe_desc.has_value()) {
+      return false;
+    }
+    FontDescription desc = maybe_desc.value();
     desc.SetLocale(locale);
     font_cache.AddFont(new_font, desc);
     GetState().SetFont(desc, host->GetFontSelector());

@@ -5,6 +5,7 @@
 #include "src/compiler/turboshaft/wasm-shuffle-reducer.h"
 
 #include "src/base/iterator.h"
+#include "src/flags/flags.h"
 #include "src/wasm/simd-shuffle.h"
 
 namespace v8::internal::compiler::turboshaft {
@@ -214,6 +215,11 @@ void WasmShuffleAnalyzer::Process(const Operation& op) {
     ProcessShuffle(*shuffle_op);
     return;
   }
+
+  if (auto* replace_op = op.TryCast<Simd128ReplaceLaneOp>()) {
+    ProcessReplaceLane(*replace_op);
+    return;
+  }
 }
 
 void WasmShuffleAnalyzer::ProcessUnary(const Simd128UnaryOp& unop) {
@@ -222,6 +228,23 @@ void WasmShuffleAnalyzer::ProcessUnary(const Simd128UnaryOp& unop) {
 
 void WasmShuffleAnalyzer::ProcessBinary(const Simd128BinopOp& binop) {
   demanded_element_analysis.AddBinaryOp(binop, DemandedElementAnalysis::k8x16);
+}
+
+void WasmShuffleAnalyzer::ProcessReplaceLane(
+    const Simd128ReplaceLaneOp& replace_op) {
+  // FP16 isn't supported.
+  if (replace_op.kind == Simd128ReplaceLaneOp::Kind::kF16x8) return;
+
+  if (const LoadOp* load =
+          input_graph().Get(replace_op.new_lane()).TryCast<LoadOp>()) {
+    int replace_bytes =
+        ElementSizeInBytes(Simd128ReplaceLaneOp::element_rep(replace_op.kind));
+    if (load->saturated_use_count.IsOne() &&
+        load->loaded_rep.SizeInBytes() == replace_bytes &&
+        !load->kind.tagged_base && !load->kind.is_atomic) {
+      AddLoadLaneCandidate(load, replace_op);
+    }
+  }
 }
 
 void WasmShuffleAnalyzer::ProcessShuffleOfShuffle(
@@ -332,7 +355,6 @@ void WasmShuffleAnalyzer::ProcessShuffleOfShuffle(
   }
 }
 
-#if V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
 bool WasmShuffleAnalyzer::CouldLoadPair(const LoadOp& load0,
                                         const LoadOp& load1) const {
   DCHECK_NE(load0, load1);
@@ -480,16 +502,20 @@ void WasmShuffleAnalyzer::ProcessShuffleOfLoads(const Simd128ShuffleOp& shuffle,
     }
   }
 }
-#endif  // V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
 
 void WasmShuffleAnalyzer::ProcessShuffle(const Simd128ShuffleOp& shuffle) {
+#if V8_TARGET_ARCH_ARM64
+  // Experimental flags controls the generation of deinterleaving loads and
+  // reducing shuffles depending on specific bit patterns.
+  if (!v8_flags.experimental_wasm_simd_opt) return;
+#endif
+
   if (shuffle.kind != Simd128ShuffleOp::Kind::kI8x16) {
     return;
   }
   const Operation& left = input_graph().Get(shuffle.left());
   const Operation& right = input_graph().Get(shuffle.right());
 
-#if V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
   auto* load_left = left.TryCast<LoadOp>();
   auto* load_right = right.TryCast<LoadOp>();
 
@@ -499,7 +525,6 @@ void WasmShuffleAnalyzer::ProcessShuffle(const Simd128ShuffleOp& shuffle) {
     ProcessShuffleOfLoads(shuffle, *load_left, *load_right);
     return;
   }
-#endif  // V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
 
   auto* shuffle_left = left.TryCast<Simd128ShuffleOp>();
   auto* shuffle_right = right.TryCast<Simd128ShuffleOp>();

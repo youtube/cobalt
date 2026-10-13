@@ -55,7 +55,7 @@ TEST(TaskQueueTest, DISABLED_PostDelayedHighRes) {
 
   static const char kQueueName[] = "PostDelayedHighRes";
   Event event;
-  TaskQueueForTest queue(kQueueName, TaskQueueFactory::Priority::HIGH);
+  TaskQueueForTest queue(kQueueName, TaskQueueFactory::Priority::kHigh);
 
   uint32_t start = TimeMillis();
   queue.PostDelayedTask(

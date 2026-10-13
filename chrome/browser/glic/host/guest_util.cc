@@ -8,13 +8,16 @@
 #include "base/metrics/histogram_functions.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/widget/glic_window_controller.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/webui_url_constants.h"
+#include "components/guest_view/buildflags/buildflags.h"
 #include "components/language/core/common/language_util.h"
+#include "components/prefs/pref_service.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_frame_host.h"
 #include "mojo/public/cpp/bindings/associated_remote.h"
@@ -27,8 +30,12 @@
 #include "ui/gfx/geometry/skia_conversions.h"
 #include "url/gurl.h"
 
-#if !BUILDFLAG(IS_ANDROID)  // NEEDS_ANDROID_IMPL
+// Note: guest_view isn't available on android mobile yet. Once it is, we can
+// include these unconditionally.
+#if BUILDFLAG(ENABLE_GUEST_VIEW)
 #include "components/guest_view/browser/guest_view_base.h"
+#endif
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 #include "extensions/browser/guest_view/web_view/web_view_guest.h"
 #endif
 
@@ -81,6 +88,10 @@ GURL GetGuestURL() {
       GURL(has_glic_guest_url
                ? command_line->GetSwitchValueASCII(::switches::kGlicGuestURL)
                : features::kGlicGuestURL.Get());
+
+  // If a preset url is enabled, use it instead.
+  url = MaybeApplyPresetGuestUrl(std::move(url));
+
   if (url.is_empty()) {
     LOG(ERROR) << "No glic guest url";
     return GURL();
@@ -93,6 +104,37 @@ GURL GetGuestURL() {
 
 url::Origin GetGuestOrigin() {
   return url::Origin::Create(GetGuestURL());
+}
+
+GURL MaybeApplyPresetGuestUrl(GURL guest_url) {
+  if (!base::FeatureList::IsEnabled(features::kGlicGuestUrlPresets)) {
+    return guest_url;
+  }
+
+  GURL preset_url;
+  switch (features::kGlicGuestUrlPresetType.Get()) {
+    case 0:
+      preset_url = GURL(g_browser_process->local_state()->GetString(
+          prefs::kGlicGuestUrlPresetAutopush));
+      break;
+    case 1:
+      preset_url = GURL(g_browser_process->local_state()->GetString(
+          prefs::kGlicGuestUrlPresetPreprod));
+      break;
+    case 2:
+      preset_url = GURL(g_browser_process->local_state()->GetString(
+          prefs::kGlicGuestUrlPresetProd));
+      break;
+    default:
+      return guest_url;
+  }
+
+  if (preset_url.is_valid()) {
+    return preset_url;
+  } else {
+    LOG(ERROR) << "Invalid preset glic guest url, ignoring.";
+    return guest_url;
+  }
 }
 
 GURL GetLocalizedGuestURL(const GURL& guest_url) {
@@ -119,8 +161,10 @@ bool IsGlicWebUI(const content::WebContents* web_contents) {
 }
 
 bool OnGuestAdded(content::WebContents* guest_contents) {
-#if BUILDFLAG(IS_ANDROID)
-  // TODO_GLIC_ANDROID: revisit this.
+#if !BUILDFLAG(ENABLE_GUEST_VIEW) || !BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+  // NEEDS_MOBILE_ANDROID_IMPL: Guest view is not yet enabled on mobile android.
+  // Also, we're using extensions::WebViewGuest, which will need refactored
+  // when we have a guest_view that doesn't use extensions.
   return false;
 #else
   // Only handle the glic webview. Explicitly check the guest type here in case

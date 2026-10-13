@@ -42,6 +42,24 @@ source_set("ios") {
   ]
 }
 
+static_library("test_support") {
+  testonly = true
+  sources = [
+    "fake_ios_passkey_client.h",
+    "fake_ios_passkey_client.mm",
+    "passkey_test_util.h",
+    "passkey_test_util.mm",
+  ]
+  deps = [
+    ":ios",
+    "//base",
+    "//components/sync/protocol",
+    "//components/webauthn/core/browser:passkey_model",
+    "//components/webauthn/ios",
+    "//ios/web/public/test/fakes",
+  ]
+}
+
 source_set("passkey_types") {
   sources = [ "passkey_types.h" ]
   deps = [ "//base" ]
@@ -78,6 +96,8 @@ source_set("utils") {
     "//base",
     "//components/autofill/ios/browser",
     "//components/password_manager/core/browser:passkey_credential",
+    "//components/strings",
+    "//ui/base",
   ]
 }
 
@@ -92,11 +112,13 @@ source_set("unit_tests") {
   deps = [
     ":ios",
     ":js_tests",
+    ":test_support",
     ":utils",
     "//base/test:test_support",
     "//components/autofill/ios/browser",
     "//components/password_manager/core/browser:test_support",
     "//components/password_manager/ios",
+    "//components/strings",
     "//components/webauthn/core/browser:passkey_model",
     "//components/webauthn/core/browser:test_support",
     "//device/fido/public",

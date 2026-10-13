@@ -168,10 +168,10 @@ void DisplayMtl::terminate()
 {
     mUtils = nullptr;
     mCmdQueue.reset();
-    mDefaultShaders = nil;
-    mMetalDevice    = nil;
+    mDefaultShaders      = nil;
+    mMetalDevice         = nil;
     mSharedEventListener = nil;
-    mCapsInitialized = false;
+    mCapsInitialized     = false;
 
     mMetalDeviceVendorId = 0;
     mComputedAMDBronze   = false;
@@ -280,7 +280,9 @@ angle::ObjCPtr<id<MTLDevice>> DisplayMtl::getMetalDeviceMatchingAttribute(
         for (id<MTLDevice> device in discreteGPUs.get())
         {
             if (![device isHeadless])
+            {
                 return device;
+            }
         }
     }
     else if (attribs.get(EGL_POWER_PREFERENCE_ANGLE, 0) == EGL_LOW_POWER_ANGLE)
@@ -289,7 +291,9 @@ angle::ObjCPtr<id<MTLDevice>> DisplayMtl::getMetalDeviceMatchingAttribute(
         for (id<MTLDevice> device in integratedGPUs.get())
         {
             if (![device isHeadless])
+            {
                 return device;
+            }
         }
     }
 
@@ -859,7 +863,7 @@ void DisplayMtl::ensureCapsInitialized() const
     // Fill in additional limits for UBOs and SSBOs.
     mNativeCaps.maxUniformBufferBindings = mNativeCaps.maxCombinedUniformBlocks;
     static_assert(mtl::kMaxUBOSize <= gl::IMPLEMENTATION_MAX_UNIFORM_BLOCK_SIZE);
-    mNativeCaps.maxUniformBlockSize      = mtl::kMaxUBOSize;  // Default according to GLES 3.0 spec.
+    mNativeCaps.maxUniformBlockSize = mtl::kMaxUBOSize;  // Default according to GLES 3.0 spec.
     if (supportsAppleGPUFamily(1))
     {
         mNativeCaps.uniformBufferOffsetAlignment =
@@ -904,6 +908,21 @@ void DisplayMtl::ensureCapsInitialized() const
 
     // Apple platforms require PVRTC1 textures to be squares.
     mNativeLimitations.squarePvrtc1 = true;
+
+    if (mFeatures.disableProgrammableBlending.enabled || !supportsAppleGPUFamily(1))
+    {
+        const MTLReadWriteTextureTier readWriteTextureTier = [mMetalDevice readWriteTextureSupport];
+        if (readWriteTextureTier != MTLReadWriteTextureTierNone)
+        {
+            const bool rasterOrderGroupsSupported = !mFeatures.disableRasterOrderGroups.enabled &&
+                                                    [mMetalDevice areRasterOrderGroupsSupported];
+
+            if (rasterOrderGroupsSupported && isAMD())
+            {
+                mNativeLimitations.noRasterOrderGroupWithoutAttachmentZero = true;
+            }
+        }
+    }
 }
 
 void DisplayMtl::initializeExtensions() const
@@ -1102,15 +1121,6 @@ void DisplayMtl::initializeExtensions() const
                 !mFeatures.disableRWTextureTier2Support.enabled &&
                 readWriteTextureTier == MTLReadWriteTextureTier2;
 
-            if (rasterOrderGroupsSupported && isAMD())
-            {
-                // anglebug.com/42266263 -- [[raster_order_group()]] does not work for read_write
-                // textures on AMD when the render pass doesn't have a color attachment on slot 0.
-                // To work around this we attach one of the PLS textures to GL_COLOR_ATTACHMENT0, if
-                // there isn't one already.
-                mNativePLSOptions.renderPassNeedsAMDRasterOrderGroupsWorkaround = true;
-            }
-
             mNativeExtensions.shaderPixelLocalStorageANGLE         = true;
             mNativeExtensions.shaderPixelLocalStorageCoherentANGLE = rasterOrderGroupsSupported;
 
@@ -1128,6 +1138,11 @@ void DisplayMtl::initializeExtensions() const
             mNativeCaps.maxImageUnits = gl::IMPLEMENTATION_MAX_PIXEL_LOCAL_STORAGE_PLANES;
         }
     }
+
+    // Apple Silicon doesn't support image memory barriers, so we ignore the PLS "noncoherent"
+    // qualifier on that hardware.
+    mNativePLSOptions.supportsNoncoherent = !supportsAppleGPUFamily(1);
+
     // "The GPUs in Apple3 through Apple8 families only support memory barriers for compute command
     // encoders, and for vertex-to-vertex and vertex-to-fragment stages of render command encoders."
     mHasFragmentMemoryBarriers = !supportsAppleGPUFamily(3);
@@ -1306,15 +1321,8 @@ void DisplayMtl::initializeFeatures()
            mFeatures.allowSamplerCompareGradient.enabled);
 
     // Metal compiler optimizations may remove infinite loops causing crashes later in shader
-    // execution. http://crbug.com/1513738
-    ANGLE_FEATURE_CONDITION((&mFeatures), ensureLoopForwardProgress, false);
-
-    // Once not used, injectAsmStatementIntoLoopBodies should be removed and
-    // ensureLoopForwardProgress should default to true.
-    // http://crbug.com/1522730
-    bool shouldUseInjectAsmIntoLoopBodies = !mFeatures.ensureLoopForwardProgress.enabled;
-    ANGLE_FEATURE_CONDITION((&mFeatures), injectAsmStatementIntoLoopBodies,
-                            shouldUseInjectAsmIntoLoopBodies);
+    // execution. http://crbug.com/41486305
+    ANGLE_FEATURE_CONDITION((&mFeatures), ensureLoopForwardProgress, true);
 }
 
 angle::Result DisplayMtl::initializeShaderLibrary()

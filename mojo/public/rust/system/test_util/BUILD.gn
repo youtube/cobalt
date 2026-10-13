@@ -1,0 +1,26 @@
+import("//build/rust/rust_static_library.gni")
+
+rust_static_library("test_util") {
+  testonly = true
+  allow_unsafe = true
+  crate_root = "test_util.rs"
+  sources = [ "test_util.rs" ]
+  cxx_bindings = [ "test_util.rs" ]
+  deps = [
+    ":cxx_shim",
+    "//base",
+    "//mojo/core/embedder",
+  ]
+
+  allow_circular_includes_from = [ ":cxx_shim" ]
+
+  visibility = [ "../../*" ]
+}
+
+source_set("cxx_shim") {
+  sources = [ "cxx_shim.h" ]
+  deps = [
+    "//base",
+    "//mojo/public/cpp/system",
+  ]
+}

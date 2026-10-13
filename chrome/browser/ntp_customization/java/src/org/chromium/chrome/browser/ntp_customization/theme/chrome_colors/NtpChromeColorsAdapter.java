@@ -58,7 +58,8 @@ public class NtpChromeColorsAdapter
         NtpThemeColorInfo colorInfo = mColorInfoList.get(position);
         View.OnClickListener clickListener =
                 v -> {
-                    setSelectedPositionImpl(holder.getBindingAdapterPosition(), colorInfo);
+                    setSelectedPositionImpl(
+                            holder.getBindingAdapterPosition(), colorInfo, /* isFromClick= */ true);
                 };
 
         holder.bind(colorInfo, clickListener, mSelectedPosition);
@@ -78,8 +79,11 @@ public class NtpChromeColorsAdapter
      * Selects the given position.
      *
      * @param position The position of the newly selected item
+     * @param isFromClick Whether this selection was triggered by a user click. If true, external
+     *     listeners are notified via the selection callback. If false, only the visual highlight is
+     *     updated.
      */
-    void setSelectedPosition(int position) {
+    void setSelectedPosition(int position, boolean isFromClick) {
         NtpThemeColorInfo colorInfo = null;
 
         if (position > RecyclerView.NO_POSITION && position < mColorInfoList.size()) {
@@ -89,7 +93,7 @@ public class NtpChromeColorsAdapter
             position = RecyclerView.NO_POSITION;
         }
 
-        setSelectedPositionImpl(position, colorInfo);
+        setSelectedPositionImpl(position, colorInfo, isFromClick);
     }
 
     /**
@@ -98,9 +102,12 @@ public class NtpChromeColorsAdapter
      *
      * @param newPosition The newly selected position
      * @param colorInfo The corresponding colorInfo of the newly selected position
+     * @param isFromClick Whether the setSelectedPositionImpl() is called due to the user clicks an
+     *     color item. The mOnClickCallback will be called if true.
      */
-    private void setSelectedPositionImpl(int newPosition, @Nullable NtpThemeColorInfo colorInfo) {
-        if (colorInfo != null) {
+    private void setSelectedPositionImpl(
+            int newPosition, @Nullable NtpThemeColorInfo colorInfo, boolean isFromClick) {
+        if (colorInfo != null && isFromClick) {
             mOnClickCallback.onResult(colorInfo);
         }
 
@@ -156,12 +163,17 @@ public class NtpChromeColorsAdapter
             colorCircle.setForeground(colorInfo.iconDrawable);
             itemView.setOnClickListener(onClickListener);
 
-            // Sets the activated status.
-            if (bindingAdaptorPosition == selectedPosition) {
-                itemView.setActivated(true);
-            } else {
-                itemView.setActivated(false);
+            if (colorInfo.colorStringResId != NtpThemeColorUtils.INVALID_ID) {
+                String contentDescription =
+                        itemView.getResources().getString(colorInfo.colorStringResId);
+                itemView.setContentDescription(contentDescription);
             }
+
+            // Sets the activated status.
+            boolean isSelected = bindingAdaptorPosition == selectedPosition;
+            itemView.setActivated(isSelected);
+            // It allows to pronounce "selected" when isSelected is true.
+            itemView.setSelected(isSelected);
         }
     }
 }

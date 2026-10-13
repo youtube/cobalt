@@ -22,7 +22,6 @@
 #include "base/threading/thread_restrictions.h"
 #include "base/values.h"
 #include "build/build_config.h"
-#include "chrome/browser/apps/app_service/app_launch_params.h"
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
 #include "chrome/browser/apps/app_service/browser_app_launcher.h"
@@ -48,6 +47,7 @@
 #include "components/infobars/core/infobar.h"
 #include "components/infobars/core/infobar_delegate.h"
 #include "components/privacy_sandbox/privacy_sandbox_attestations/privacy_sandbox_attestations.h"
+#include "components/services/app_service/public/cpp/app_launch_params.h"
 #include "content/public/browser/btm_redirect.h"
 #include "content/public/browser/btm_service.h"
 #include "content/public/browser/cookie_access_details.h"
@@ -80,7 +80,17 @@
 #include "url/origin.h"
 
 #if !BUILDFLAG(IS_ANDROID)
+#include "base/task/sequenced_task_runner.h"
+#include "chrome/browser/prefs/session_startup_pref.h"
+#include "chrome/browser/profiles/keep_alive/profile_keep_alive_types.h"
+#include "chrome/browser/profiles/keep_alive/scoped_profile_keep_alive.h"
+#include "chrome/browser/profiles/profile_window.h"
+#include "chrome/browser/resource_coordinator/tab_manager.h"
+#include "chrome/browser/sessions/session_restore_test_helper.h"
+#include "chrome/browser/sessions/session_service_test_helper.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_commands.h"
+#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/web_applications/test/isolated_web_app_test_utils.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_info.h"
 #include "chrome/browser/web_applications/isolated_web_apps/test/isolated_web_app_builder.h"
@@ -89,6 +99,9 @@
 #include "components/guest_view/browser/guest_view_base.h"
 #include "components/guest_view/browser/guest_view_manager_delegate.h"
 #include "components/guest_view/browser/test_guest_view_manager.h"
+#include "components/keep_alive_registry/keep_alive_types.h"
+#include "components/keep_alive_registry/scoped_keep_alive.h"
+#include "components/memory_pressure/fake_memory_pressure_monitor.h"
 #include "content/public/browser/devtools_agent_host_client.h"
 #include "content/public/test/browser_test_utils.h"
 #endif  // !BUILDFLAG(IS_ANDROID)
@@ -131,7 +144,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest,
 
   Attach();
   SendCommandAsync("Security.enable");
-  base::Value::Dict params =
+  base::DictValue params =
       WaitForNotification("Security.visibleSecurityStateChanged", true);
 
   std::string* security_state =
@@ -151,16 +164,16 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest,
 IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest, CreateDeleteContext) {
   AttachToBrowserTarget();
   for (int i = 0; i < 2; i++) {
-    const base::Value::Dict* result =
+    const base::DictValue* result =
         SendCommandSync("Target.createBrowserContext");
     std::string context_id = *result->FindString("browserContextId");
 
-    base::Value::Dict params;
+    base::DictValue params;
     params.Set("url", "about:blank");
     params.Set("browserContextId", context_id);
     SendCommandSync("Target.createTarget", std::move(params));
 
-    params = base::Value::Dict();
+    params = base::DictValue();
     params.Set("browserContextId", context_id);
     SendCommandSync("Target.disposeBrowserContext", std::move(params));
   }
@@ -169,11 +182,11 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest, CreateDeleteContext) {
 IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest,
                        NewTabPageInCreatedContextDoesNotCrash) {
   AttachToBrowserTarget();
-  const base::Value::Dict* result =
+  const base::DictValue* result =
       SendCommandSync("Target.createBrowserContext");
   std::string context_id = *result->FindString("browserContextId");
 
-  base::Value::Dict params;
+  base::DictValue params;
   params.Set("url", chrome::kChromeUINewTabURL);
   params.Set("browserContextId", context_id);
   content::WebContentsAddedObserver observer;
@@ -204,16 +217,16 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest,
       }));
   ASSERT_TRUE(embedded_test_server()->Start());
 
-  base::Value::Dict params;
+  base::DictValue params;
   params.Set("proxyServer",
              embedded_test_server()->host_port_pair().ToString());
-  const base::Value::Dict* result =
+  const base::DictValue* result =
       SendCommandSync("Target.createBrowserContext", std::move(params));
   std::string context_id = *result->FindString("browserContextId");
 
   content::WebContentsAddedObserver observer;
 
-  params = base::Value::Dict();
+  params = base::DictValue();
   params.Set("url", "http://this-page-does-not-exist.com/site.html");
   params.Set("browserContextId", context_id);
   result = SendCommandSync("Target.createTarget", std::move(params));
@@ -229,13 +242,13 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest,
 
 IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest, CreateInDefaultContextById) {
   AttachToBrowserTarget();
-  const base::Value::Dict* result = SendCommandSync("Target.getTargets");
-  const base::Value::List* list = result->FindList("targetInfos");
+  const base::DictValue* result = SendCommandSync("Target.getTargets");
+  const base::ListValue* list = result->FindList("targetInfos");
   ASSERT_TRUE(list->size() == 1);
   const std::string context_id =
       *list->front().GetDict().FindString("browserContextId");
 
-  base::Value::Dict params;
+  base::DictValue params;
   params.Set("url", "about:blank");
   params.Set("browserContextId", context_id);
   result = SendCommandSync("Target.createTarget", std::move(params));
@@ -264,7 +277,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest,
   EXPECT_TRUE(content::EvalJs(target_web_contents, setup_logging).is_ok());
   EXPECT_TRUE(content::EvalJs(other_web_contents, setup_logging).is_ok());
 
-  base::Value::Dict params;
+  base::DictValue params;
   params.Set("button", "left");
   params.Set("clickCount", 1);
   params.Set("x", 100);
@@ -281,20 +294,20 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest,
   params.Set("type", "mouseReleased");
   SendCommandSync("Input.dispatchMouseEvent", std::move(params));
 
-  params = base::Value::Dict();
+  params = base::DictValue();
   params.Set("x", 100);
   params.Set("y", 250);
   params.Set("type", "dragEnter");
   params.SetByDottedPath("data.dragOperationsMask", 1);
-  params.SetByDottedPath("data.items", base::Value::List());
+  params.SetByDottedPath("data.items", base::ListValue());
   SendCommandSync("Input.dispatchDragEvent", std::move(params));
 
-  params = base::Value::Dict();
+  params = base::DictValue();
   params.Set("x", 100);
   params.Set("y", 250);
   SendCommandSync("Input.synthesizeTapGesture", std::move(params));
 
-  params = base::Value::Dict();
+  params = base::DictValue();
   params.Set("type", "keyDown");
   params.Set("key", "a");
   SendCommandSync("Input.dispatchKeyEvent", std::move(params));
@@ -316,6 +329,215 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest,
               AllOf(Not(Contains("click")), Not(Contains("dragenter")),
                     Not(Contains("keydown"))));
 }
+
+IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest, CreateTargetWithFocus) {
+  AttachToBrowserTarget();
+  content::WebContents* const initial_tab =
+      chrome_test_utils::GetActiveWebContents(this);
+  ASSERT_TRUE(initial_tab);
+  EXPECT_EQ(1, browser()->tab_strip_model()->count());
+
+  // By default, creating a new target also focuses it.
+  SendCommandSync("Target.createTarget",
+                  base::DictValue().Set("url", "about:blank#1"));
+  ASSERT_FALSE(error());
+  content::WebContents* const focused_tab =
+      chrome_test_utils::GetActiveWebContents(this);
+  EXPECT_NE(initial_tab, focused_tab);
+  EXPECT_EQ(2, browser()->tab_strip_model()->count());
+  EXPECT_EQ(GURL("about:blank#1"), focused_tab->GetVisibleURL());
+
+  // When focus=false, the new target is not focused.
+  SendCommandSync(
+      "Target.createTarget",
+      base::DictValue().Set("url", "about:blank#2").Set("focus", false));
+  ASSERT_FALSE(error());
+  EXPECT_EQ(focused_tab, chrome_test_utils::GetActiveWebContents(this));
+  EXPECT_EQ(3, browser()->tab_strip_model()->count());
+  EXPECT_EQ(GURL("about:blank#2"),
+            browser()->tab_strip_model()->GetWebContentsAt(2)->GetVisibleURL());
+
+  // When background=true, the new target is not focused by default.
+  SendCommandSync(
+      "Target.createTarget",
+      base::DictValue().Set("url", "about:blank#3").Set("background", true));
+  ASSERT_FALSE(error());
+  EXPECT_EQ(focused_tab, chrome_test_utils::GetActiveWebContents(this));
+  EXPECT_EQ(4, browser()->tab_strip_model()->count());
+  EXPECT_EQ(GURL("about:blank#3"),
+            browser()->tab_strip_model()->GetWebContentsAt(3)->GetVisibleURL());
+
+  // It's an error to use focus=true and background=true.
+  SendCommandSync("Target.createTarget", base::DictValue()
+                                             .Set("url", "about:blank#4")
+                                             .Set("focus", true)
+                                             .Set("background", true));
+  ASSERT_TRUE(error());
+  EXPECT_EQ(
+      "Can't focus a target in the background. Use background=false instead.",
+      *error()->FindString("message"));
+  EXPECT_EQ(4, browser()->tab_strip_model()->count());
+}
+
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_MAC)
+// On ChromeOS and MacOS, the tabs are not backgrounded and unloaded in the same way as
+// on other platforms.
+#define MAYBE_AutoAttachToUnloadedTab DISABLED_AutoAttachToUnloadedTab
+#else
+#define MAYBE_AutoAttachToUnloadedTab AutoAttachToUnloadedTab
+#endif
+
+IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest, MAYBE_AutoAttachToUnloadedTab) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL url1 = embedded_test_server()->GetURL("/title1.html");
+  GURL url2 = embedded_test_server()->GetURL("/title2.html");
+
+  // 1. Create two tabs.
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url1));
+  ui_test_utils::NavigateToURLWithDisposition(
+      browser(), url2, WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
+  ASSERT_EQ(2, browser()->tab_strip_model()->count());
+  ASSERT_EQ(1, browser()->tab_strip_model()->active_index());
+
+  content::WebContents* background_tab =
+      browser()->tab_strip_model()->GetWebContentsAt(0);
+  content::WebContents* active_tab =
+      browser()->tab_strip_model()->GetWebContentsAt(1);
+
+  // 2. Restore session without loading background tabs.
+  Profile* profile = browser()->profile();
+  SessionStartupPref::SetStartupPref(
+      profile, SessionStartupPref(SessionStartupPref::LAST));
+  SessionServiceTestHelper(profile).SetForceBrowserNotAliveWithNoWindows(true);
+
+  auto keep_alive = std::make_unique<ScopedKeepAlive>(
+      KeepAliveOrigin::SESSION_RESTORE, KeepAliveRestartOption::DISABLED);
+  auto profile_keep_alive = std::make_unique<ScopedProfileKeepAlive>(
+      profile, ProfileKeepAliveOrigin::kBrowserWindow);
+  CloseBrowserSynchronously(browser());
+
+  ui_test_utils::AllBrowserTabAddedWaiter tab_waiter;
+  SessionRestoreTestHelper restore_observer;
+
+  chrome::NewEmptyWindow(profile);
+
+  Browser* new_browser = chrome::FindBrowserWithTab(tab_waiter.Wait());
+
+  memory_pressure::test::FakeMemoryPressureMonitor fake_memory_pressure_monitor;
+  fake_memory_pressure_monitor.SetAndNotifyMemoryPressure(
+      base::MEMORY_PRESSURE_LEVEL_CRITICAL);
+  // Wait for async memory notifications to be delivered to Performance
+  // Manager on the main thread.
+  // TODO(crbug.com/436324601): Remove once memory pressure notifications
+  // are synchronous.
+  base::RunLoop run_loop;
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, run_loop.QuitClosure());
+  run_loop.Run();
+
+  keep_alive.reset();
+  profile_keep_alive.reset();
+
+  // The new browser should have 2 tabs.
+  ASSERT_EQ(2, new_browser->tab_strip_model()->count());
+  ASSERT_EQ(1, new_browser->tab_strip_model()->active_index());
+
+  background_tab = new_browser->tab_strip_model()->GetWebContentsAt(0);
+  active_tab = new_browser->tab_strip_model()->GetWebContentsAt(1);
+
+  // Background tab should not have a renderer.
+  EXPECT_FALSE(background_tab->GetPrimaryMainFrame()->IsRenderFrameLive());
+  ASSERT_TRUE(content::WaitForLoadStop(active_tab));
+  EXPECT_TRUE(active_tab->GetPrimaryMainFrame()->IsRenderFrameLive());
+
+  // Attach to the browser target.
+  AttachToBrowserTarget();
+  // Send Target.setAutoAttach with autoAttach=true, flatten=true.
+  base::DictValue set_auto_attach_params;
+  set_auto_attach_params.Set("autoAttach", true);
+  set_auto_attach_params.Set("waitForDebuggerOnStart", false);
+  set_auto_attach_params.Set("flatten", true);
+  base::ListValue filter;
+  // Include tab target.
+  base::DictValue page_filter;
+  page_filter.Set("type", "page");
+  page_filter.Set("exclude", true);
+  filter.Append(std::move(page_filter));
+  filter.Append(base::DictValue());
+  set_auto_attach_params.Set("filter", std::move(filter));
+  SendCommandSync("Target.setAutoAttach", std::move(set_auto_attach_params));
+
+  // Verify that two attachedToTarget tab target events are received.
+  const base::DictValue& attached_tab1_notif =
+      WaitForNotification("Target.attachedToTarget", true);
+  const std::string& session_id1 =
+      *attached_tab1_notif.FindStringByDottedPath("sessionId");
+  ASSERT_EQ("tab",
+            *attached_tab1_notif.FindStringByDottedPath("targetInfo.type"));
+
+  base::DictValue set_auto_attach_params_for_tab;
+  set_auto_attach_params_for_tab.Set("autoAttach", true);
+  set_auto_attach_params_for_tab.Set("waitForDebuggerOnStart", false);
+  set_auto_attach_params_for_tab.Set("flatten", true);
+  SendSessionCommand("Target.setAutoAttach",
+                     set_auto_attach_params_for_tab.Clone(), session_id1,
+                     false);
+
+  const base::DictValue& attached_tab2_notif =
+      WaitForNotification("Target.attachedToTarget", true);
+  const std::string& session_id2 =
+      *attached_tab2_notif.FindStringByDottedPath("sessionId");
+  ASSERT_EQ("tab",
+            *attached_tab2_notif.FindStringByDottedPath("targetInfo.type"));
+
+  SendSessionCommand("Target.setAutoAttach",
+                     std::move(set_auto_attach_params_for_tab), session_id2,
+                     false);
+
+  // Verify two attachedToTarget events for page targets are received.
+  base::DictValue attached_page1_notif =
+      WaitForNotification("Target.attachedToTarget", true);
+  base::DictValue attached_page2_notif =
+      WaitForNotification("Target.attachedToTarget", true);
+
+  // The notifications can arrive in any order. The active tab is eagerly
+  // loaded, so it should have a URL. The background tab may not.
+  if (const std::string* url =
+          attached_page1_notif.FindStringByDottedPath("targetInfo.url");
+      url && *url == url2.spec()) {
+    std::swap(attached_page1_notif, attached_page2_notif);
+  }
+  // The background tab's URL may not be available yet.
+  ASSERT_THAT(attached_page2_notif.FindStringByDottedPath("targetInfo.url"),
+              testing::Pointee(url2.spec()));
+
+  const std::string& page_session_id1 =
+      *attached_page1_notif.FindStringByDottedPath("sessionId");
+  ASSERT_EQ("page",
+            *attached_page1_notif.FindStringByDottedPath("targetInfo.type"));
+
+  const std::string& page_session_id2 =
+      *attached_page2_notif.FindStringByDottedPath("sessionId");
+  ASSERT_EQ("page",
+            *attached_page2_notif.FindStringByDottedPath("targetInfo.type"));
+
+  // Send Runtime.evaluate to both page targets and verify script result is
+  // received for both.
+  EXPECT_TRUE(background_tab->GetPrimaryMainFrame()->IsRenderFrameLive());
+  EXPECT_TRUE(active_tab->GetPrimaryMainFrame()->IsRenderFrameLive());
+
+  base::DictValue evaluate_params;
+  evaluate_params.Set("expression", "1 + 2");
+  const base::DictValue* evaluate_result1 = SendSessionCommand(
+      "Runtime.evaluate", evaluate_params.Clone(), page_session_id1, true);
+  ASSERT_EQ(3, evaluate_result1->FindIntByDottedPath("result.value"));
+
+  const base::DictValue* evaluate_result2 = SendSessionCommand(
+      "Runtime.evaluate", std::move(evaluate_params), page_session_id2, true);
+  ASSERT_EQ(3, evaluate_result2->FindIntByDottedPath("result.value"));
+}
+
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest,
@@ -323,7 +545,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest,
   SetIsTrusted(false);
   Attach();
 
-  base::Value::Dict params;
+  base::DictValue params;
   params.Set("type", "rawKeyDown");
   params.Set("key", "F12");
   params.Set("windowsVirtualKeyCode", 123);
@@ -338,7 +560,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest,
   Attach();
 
   SendCommandAsync("Preload.enable");
-  const base::Value::Dict result =
+  const base::DictValue result =
       WaitForNotification("Preload.preloadEnabledStateUpdated", true);
 
   EXPECT_THAT(result.FindBool("disabledByPreference"), false);
@@ -357,7 +579,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest,
       prefetch::PreloadPagesState::kNoPreloading);
 
   SendCommandAsync("Preload.enable");
-  const base::Value::Dict result =
+  const base::DictValue result =
       WaitForNotification("Preload.preloadEnabledStateUpdated", true);
 
   EXPECT_THAT(result.FindBool("disabledByPreference"), true);
@@ -390,7 +612,7 @@ IN_PROC_BROWSER_TEST_F(
   Attach();
 
   SendCommandAsync("Preload.enable");
-  const base::Value::Dict result =
+  const base::DictValue result =
       WaitForNotification("Preload.preloadEnabledStateUpdated", true);
 
   EXPECT_THAT(result.FindBool("disabledByHoldbackPrefetchSpeculationRules"),
@@ -422,7 +644,7 @@ IN_PROC_BROWSER_TEST_F(
 
   {
     SendCommandAsync("Preload.enable");
-    const base::Value::Dict result =
+    const base::DictValue result =
         WaitForNotification("Preload.preloadEnabledStateUpdated", true);
 
     EXPECT_THAT(result.FindBool("disabledByHoldbackPrefetchSpeculationRules"),
@@ -452,7 +674,7 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_TRUE(content::EvalJs(web_contents(), add_specrules).is_ok());
 
   {
-    base::Value::Dict result;
+    base::DictValue result;
     while (true) {
       result = WaitForNotification("Preload.prefetchStatusUpdated", true);
       if (*result.FindString("status") == "Ready") {
@@ -508,7 +730,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest,
   // Attach DevTools and start a navigation but don't wait for it to finish.
   Attach();
   SendCommandSync("Page.enable");
-  base::Value::Dict params;
+  base::DictValue params;
   params.Set("url", url.spec());
   SendCommandAsync("Page.navigate", std::move(params));
   content::NavigationController& navigation_controller =
@@ -543,14 +765,14 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest, SetRPHRegistrationMode) {
             registry->registration_mode());
 
   // Set a invalid value
-  base::Value::Dict params_invalid;
+  base::DictValue params_invalid;
   params_invalid.Set("mode", "accept");
   SendCommand("Page.setRPHRegistrationMode", std::move(params_invalid));
   EXPECT_EQ(custom_handlers::RphRegistrationMode::kNone,
             registry->registration_mode());
 
   // Set a valid value
-  base::Value::Dict params;
+  base::DictValue params;
   params.Set("mode", "autoAccept");
   SendCommand("Page.setRPHRegistrationMode", std::move(params));
   EXPECT_EQ(custom_handlers::RphRegistrationMode::kAutoAccept,
@@ -707,7 +929,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest_BounceTrackingMitigations,
 
   SendCommandSync("Storage.runBounceTrackingMitigations");
 
-  const base::Value::List* deleted_sites_list =
+  const base::ListValue* deleted_sites_list =
       result()->FindList("deletedSites");
   ASSERT_TRUE(deleted_sites_list);
 
@@ -756,7 +978,7 @@ IN_PROC_BROWSER_TEST_P(BtmStatusDevToolsProtocolTest,
                        TrueWhenEnabledAndDeleting) {
   AttachToBrowserTarget();
 
-  base::Value::Dict btm_params;
+  base::DictValue btm_params;
   btm_params.Set("featureState", "DIPS");
 
   SendCommand("SystemInfo.getFeatureState", std::move(btm_params));
@@ -780,7 +1002,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest_AppId, ReturnsManifestAppId) {
       chrome_test_utils::GetActiveWebContents(this), url));
   Attach();
 
-  const base::Value::Dict* result = SendCommandSync("Page.getAppId");
+  const base::DictValue* result = SendCommandSync("Page.getAppId");
   EXPECT_EQ(*result->FindString("appId"),
             embedded_test_server()->GetURL("/some_id"));
 }
@@ -794,7 +1016,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest_AppId,
       chrome_test_utils::GetActiveWebContents(this), url));
   Attach();
 
-  const base::Value::Dict* result = SendCommandSync("Page.getAppId");
+  const base::DictValue* result = SendCommandSync("Page.getAppId");
   EXPECT_EQ(*result->FindString("appId"),
             embedded_test_server()->GetURL("/web_apps/no_service_worker.html"));
   EXPECT_EQ(*result->FindString("recommendedId"),
@@ -808,7 +1030,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest_AppId, ReturnsNoAppIdIfNoManifest) {
       chrome_test_utils::GetActiveWebContents(this), url));
   Attach();
 
-  const base::Value::Dict* result = SendCommandSync("Page.getAppId");
+  const base::DictValue* result = SendCommandSync("Page.getAppId");
   EXPECT_FALSE(result->Find("appId"));
   EXPECT_FALSE(result->Find("recommendedId"));
 }
@@ -885,12 +1107,12 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest, VisibleSecurityStateSecureState) {
 
   Attach();
   SendCommandAsync("Security.enable");
-  auto has_certificate = [](const base::Value::Dict& params) {
+  auto has_certificate = [](const base::DictValue& params) {
     return params.FindListByDottedPath(
                "visibleSecurityState.certificateSecurityState.certificate") !=
            nullptr;
   };
-  base::Value::Dict params =
+  base::DictValue params =
       WaitForMatchingNotification("Security.visibleSecurityStateChanged",
                                   base::BindRepeating(has_certificate));
 
@@ -903,7 +1125,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest, VisibleSecurityStateSecureState) {
   base::Value* certificate_security_state =
       params.FindByDottedPath("visibleSecurityState.certificateSecurityState");
   ASSERT_TRUE(certificate_security_state);
-  base::Value::Dict& dict = certificate_security_state->GetDict();
+  base::DictValue& dict = certificate_security_state->GetDict();
 
   std::string* protocol = dict.FindString("protocol");
   ASSERT_TRUE(protocol);
@@ -981,7 +1203,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest, VisibleSecurityStateSecureState) {
   ASSERT_TRUE(obsolete_ssl_signature);
   ASSERT_EQ(*obsolete_ssl_signature, page_obsolete_ssl_signature);
 
-  const base::Value::List* certificate_value = dict.FindList("certificate");
+  const base::ListValue* certificate_value = dict.FindList("certificate");
   ASSERT_TRUE(certificate_value);
   std::vector<std::string> der_certs;
   for (const auto& cert : *certificate_value) {
@@ -1016,13 +1238,13 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest,
   auto* manager = infobars::ContentInfoBarManager::FromWebContents(
       chrome_test_utils::GetActiveWebContents(this));
   {
-    base::Value::Dict params;
+    base::DictValue params;
     params.Set("enabled", true);
     SendCommandSync("Emulation.setAutomationOverride", std::move(params));
   }
   EXPECT_EQ(manager->infobars().size(), 1u);
   {
-    base::Value::Dict params;
+    base::DictValue params;
     params.Set("enabled", false);
     SendCommandSync("Emulation.setAutomationOverride", std::move(params));
   }
@@ -1035,13 +1257,13 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest,
   auto* manager = infobars::ContentInfoBarManager::FromWebContents(
       chrome_test_utils::GetActiveWebContents(this));
   {
-    base::Value::Dict params;
+    base::DictValue params;
     params.Set("enabled", true);
     SendCommandSync("Emulation.setAutomationOverride", std::move(params));
   }
   EXPECT_EQ(manager->infobars().size(), 1u);
   {
-    base::Value::Dict params;
+    base::DictValue params;
     params.Set("enabled", true);
     SendCommandSync("Emulation.setAutomationOverride", std::move(params));
   }
@@ -1194,7 +1416,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionProtocolTest, ReloadTracedExtension) {
   ASSERT_TRUE(extension);
   Attach();
   ReloadExtension(extension->id());
-  base::Value::Dict params;
+  base::DictValue params;
   params.Set("categories", "-*");
   SendCommandSync("Tracing.start", std::move(params));
   SendCommandAsync("Tracing.end");
@@ -1216,9 +1438,9 @@ IN_PROC_BROWSER_TEST_F(ExtensionProtocolTest,
     extension_id = extension->id();
   }
   AttachToBrowserTarget();
-  const base::Value::Dict* result = SendCommandSync("Target.getTargets");
+  const base::DictValue* result = SendCommandSync("Target.getTargets");
 
-  base::Value::Dict ext_target;
+  base::DictValue ext_target;
   for (const auto& target : *result->FindList("targetInfos")) {
     if (*target.GetDict().FindString("type") == "service_worker") {
       ext_target = target.Clone().TakeDict();
@@ -1226,13 +1448,13 @@ IN_PROC_BROWSER_TEST_F(ExtensionProtocolTest,
     }
   }
   {
-    base::Value::Dict params;
+    base::DictValue params;
     params.Set("targetId", CHECK_DEREF(ext_target.FindString("targetId")));
     params.Set("waitForDebuggerOnStart", false);
     SendCommandSync("Target.autoAttachRelated", std::move(params));
   }
   ReloadExtension(extension_id);
-  base::Value::Dict attached =
+  base::DictValue attached =
       WaitForNotification("Target.attachedToTarget", true);
   base::Value* targetInfo = attached.Find("targetInfo");
   ASSERT_THAT(targetInfo, testing::NotNull());
@@ -1244,7 +1466,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionProtocolTest,
               testing::Optional(false));
 
   {
-    base::Value::Dict params;
+    base::DictValue params;
     params.Set("targetId", *targetInfo->GetDict().FindString("targetId"));
     params.Set("waitForDebuggerOnStart", false);
     SendCommandSync("Target.autoAttachRelated", std::move(params));
@@ -1368,14 +1590,14 @@ IN_PROC_BROWSER_TEST_F(ExtensionProtocolTestWithGuestViewInnerWebContents,
             content::DevToolsAgentHost::GetOrCreateForTab(wcs[1]));
   // Assure host does not auto-attach view.
   AttachToTabTarget(wcs[0]);
-  base::Value::Dict command_params;
-  command_params = base::Value::Dict();
+  base::DictValue command_params;
+  command_params = base::DictValue();
   command_params.Set("autoAttach", true);
   command_params.Set("waitForDebuggerOnStart", false);
   command_params.Set("flatten", true);
   SendCommandSync("Target.setAutoAttach", std::move(command_params));
-  EXPECT_FALSE(HasExistingNotificationMatching(
-      [](const base::Value::Dict& notification) {
+  EXPECT_FALSE(
+      HasExistingNotificationMatching([](const base::DictValue& notification) {
         if (*notification.FindString("method") != "Target.attachedToTarget") {
           return false;
         }
@@ -1429,13 +1651,13 @@ IN_PROC_BROWSER_TEST_F(ExtensionProtocolTestWithGuestViewMPArch,
 
   // Assure tab-target does not auto-attach view.
   AttachToTabTarget(wcs[0]);
-  auto command_params = base::Value::Dict()
+  auto command_params = base::DictValue()
                             .Set("autoAttach", true)
                             .Set("waitForDebuggerOnStart", false)
                             .Set("flatten", true);
   SendCommandSync("Target.setAutoAttach", std::move(command_params));
-  EXPECT_FALSE(HasExistingNotificationMatching(
-      [](const base::Value::Dict& notification) {
+  EXPECT_FALSE(
+      HasExistingNotificationMatching([](const base::DictValue& notification) {
         if (*notification.FindString("method") != "Target.attachedToTarget") {
           return false;
         }
@@ -1471,12 +1693,12 @@ IN_PROC_BROWSER_TEST_F(ExtensionProtocolTestWithGuestViewMPArch,
   GetGuestViewManager()->WaitUntilAttached(guest_view);
 
   AttachToWebContents(wcs[0]);
-  auto command_params = base::Value::Dict()
+  auto command_params = base::DictValue()
                             .Set("autoAttach", true)
                             .Set("waitForDebuggerOnStart", false)
                             .Set("flatten", true);
   SendCommand("Target.setAutoAttach", std::move(command_params));
-  base::Value::Dict params =
+  base::DictValue params =
       WaitForNotification("Target.attachedToTarget", /*allow_existing=*/true);
 
   EXPECT_EQ("webview", *params.FindStringByDottedPath("targetInfo.type"));
@@ -1513,12 +1735,12 @@ IN_PROC_BROWSER_TEST_F(ExtensionProtocolTestWithGuestViewMPArch,
   AttachToWebContents(wcs[0]);
 
   // Get the document's NodeId.
-  const base::Value::Dict* result = SendCommandSync("DOM.getDocument");
+  const base::DictValue* result = SendCommandSync("DOM.getDocument");
   ASSERT_TRUE(result);
   int document_node_id = result->FindIntByDottedPath("root.nodeId").value();
 
   // Get the <webview>'s nodeId (by searching for it using querySelector).
-  auto params = base::Value::Dict()
+  auto params = base::DictValue()
                     .Set("nodeId", document_node_id)
                     .Set("selector", "webview");
   result = SendCommandSync("DOM.querySelector", std::move(params));
@@ -1538,7 +1760,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionProtocolTestWithGuestViewMPArch,
   //       }]
   //    }]
   // }
-  params = base::Value::Dict()
+  params = base::DictValue()
                .Set("nodeId", web_view_node_id)
                .Set("depth", 2)
                .Set("pierce", true);
@@ -1615,7 +1837,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderDataSaverProtocolTest,
   EXPECT_TRUE(host_id.is_null());
 
   SendCommandAsync("Preload.enable");
-  const base::Value::Dict result =
+  const base::DictValue result =
       WaitForNotification("Preload.preloadEnabledStateUpdated", true);
 
   EXPECT_THAT(result.FindBool("disabledByDataSaver"), true);
@@ -1639,7 +1861,7 @@ IN_PROC_BROWSER_TEST_F(PrivacySandboxAttestationsOverrideTest,
                        PrivacySandboxEnrollmentOverride) {
   Attach();
 
-  base::Value::Dict btm_params;
+  base::DictValue btm_params;
   const std::string attestation_url = "https://google.com";
   btm_params.Set("url", attestation_url);
 
@@ -1655,7 +1877,7 @@ IN_PROC_BROWSER_TEST_F(PrivacySandboxAttestationsOverrideTest,
                        PrivacySandboxEnrollmentOverrideInvalidUrl) {
   Attach();
 
-  base::Value::Dict btm_params;
+  base::DictValue btm_params;
   const std::string attestation_url = "this is a bad url";
   btm_params.Set("url", attestation_url);
 
@@ -1699,19 +1921,19 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest_RelatedWebsiteSets,
   SendCommandSync("Storage.getRelatedWebsiteSets");
 
   if (result()) {
-    const base::Value::List* set_list = result()->FindList("sets");
+    const base::ListValue* set_list = result()->FindList("sets");
     ASSERT_TRUE(set_list);
 
-    base::Value::List expected =
-        base::Value::List()  //
-            .Append(base::Value::Dict()
+    base::ListValue expected =
+        base::ListValue()  //
+            .Append(base::DictValue()
                         .Set("associatedSites",
-                             base::Value::List().Append(kAssociatedSite))
-                        .Set("primarySites", base::Value::List()
+                             base::ListValue().Append(kAssociatedSite))
+                        .Set("primarySites", base::ListValue()
                                                  .Append(kPrimaryCcTLD)
                                                  .Append(kPrimarySite))
                         .Set("serviceSites",
-                             base::Value::List().Append(kServiceSite)));
+                             base::ListValue().Append(kServiceSite)));
 
     EXPECT_EQ(*set_list, expected);
   } else if (error()) {
@@ -1733,9 +1955,9 @@ IN_PROC_BROWSER_TEST_F(GetAffectedUrlsForThirdPartyCookieMetadataTest,
                        InvalidFirstParty) {
   Attach();
 
-  base::Value::Dict params;
+  base::DictValue params;
   params.Set("firstPartyUrl", "");
-  params.Set("thirdPartyUrls", base::Value::List());
+  params.Set("thirdPartyUrls", base::ListValue());
 
   SendCommandSync("Storage.getAffectedUrlsForThirdPartyCookieMetadata",
                   std::move(params));
@@ -1748,9 +1970,9 @@ IN_PROC_BROWSER_TEST_F(GetAffectedUrlsForThirdPartyCookieMetadataTest,
                        InvalidThirdParty) {
   Attach();
 
-  base::Value::Dict params;
+  base::DictValue params;
   params.Set("firstPartyUrl", "https://a.test");
-  params.Set("thirdPartyUrls", base::Value::List().Append(""));
+  params.Set("thirdPartyUrls", base::ListValue().Append(""));
 
   SendCommandSync("Storage.getAffectedUrlsForThirdPartyCookieMetadata",
                   std::move(params));
@@ -1773,9 +1995,9 @@ IN_PROC_BROWSER_TEST_F(GetAffectedUrlsForThirdPartyCookieMetadataTest,
   tpcd::metadata::Manager* tpcd_metadata_manager = GetTpcdManager();
   tpcd_metadata_manager->SetGrantsForTesting(tpcd_metadata_grants);
 
-  base::Value::Dict params;
+  base::DictValue params;
   params.Set("firstPartyUrl", "https://b.test");
-  params.Set("thirdPartyUrls", base::Value::List());
+  params.Set("thirdPartyUrls", base::ListValue());
 
   SendCommandSync("Storage.getAffectedUrlsForThirdPartyCookieMetadata",
                   std::move(params));
@@ -1798,15 +2020,15 @@ IN_PROC_BROWSER_TEST_F(GetAffectedUrlsForThirdPartyCookieMetadataTest,
   tpcd::metadata::Manager* tpcd_metadata_manager = GetTpcdManager();
   tpcd_metadata_manager->SetGrantsForTesting(tpcd_metadata_grants);
 
-  base::Value::Dict params;
+  base::DictValue params;
   params.Set("firstPartyUrl", first_party_url);
-  params.Set("thirdPartyUrls", base::Value::List());
+  params.Set("thirdPartyUrls", base::ListValue());
 
   SendCommandSync("Storage.getAffectedUrlsForThirdPartyCookieMetadata",
                   std::move(params));
 
   EXPECT_EQ(*(result()->FindList("matchedUrls")),
-            base::Value::List().Append(base::Value(first_party_url)));
+            base::ListValue().Append(base::Value(first_party_url)));
 }
 
 IN_PROC_BROWSER_TEST_F(GetAffectedUrlsForThirdPartyCookieMetadataTest,
@@ -1833,9 +2055,9 @@ IN_PROC_BROWSER_TEST_F(GetAffectedUrlsForThirdPartyCookieMetadataTest,
   tpcd::metadata::Manager* tpcd_metadata_manager = GetTpcdManager();
   tpcd_metadata_manager->SetGrantsForTesting(tpcd_metadata_grants);
 
-  base::Value::Dict params;
+  base::DictValue params;
   params.Set("firstPartyUrl", first_party_url);
-  params.Set("thirdPartyUrls", base::Value::List()
+  params.Set("thirdPartyUrls", base::ListValue()
                                    .Append(third_party_url_v1)
                                    .Append(third_party_url_v2)
                                    .Append("https://d.test"));
@@ -1843,8 +2065,8 @@ IN_PROC_BROWSER_TEST_F(GetAffectedUrlsForThirdPartyCookieMetadataTest,
   SendCommandSync("Storage.getAffectedUrlsForThirdPartyCookieMetadata",
                   std::move(params));
 
-  base::Value::List expected =
-      base::Value::List().Append(third_party_url_v1).Append(third_party_url_v2);
+  base::ListValue expected =
+      base::ListValue().Append(third_party_url_v1).Append(third_party_url_v2);
   EXPECT_EQ(*(result()->FindList("matchedUrls")), expected);
 }
 
@@ -1857,7 +2079,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest,
   SendCommandSync("Target.getTargets");
   ASSERT_EQ(1u, result()->FindList("targetInfos")->size());
 
-  base::Value::Dict params;
+  base::DictValue params;
   params.Set("url", "about:blank");
   params.Set("hidden", true);
   SendCommandSync("Target.createTarget", std::move(params));
@@ -1879,7 +2101,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest,
   SendCommandSync("Target.getTargets");
   ASSERT_EQ(1u, result()->FindList("targetInfos")->size());
 
-  base::Value::Dict params;
+  base::DictValue params;
   params.Set("url", "about:blank");
   params.Set("hidden", true);
   SendCommandSync("Target.createTarget", std::move(params));
@@ -1908,14 +2130,14 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest, HiddenTargetCanBeClosed) {
   SendCommandSync("Target.getTargets");
   ASSERT_EQ(1u, result()->FindList("targetInfos")->size());
 
-  SendCommand("Target.setAutoAttach", base::Value::Dict()
+  SendCommand("Target.setAutoAttach", base::DictValue()
                                           .Set("autoAttach", true)
                                           .Set("waitForDebuggerOnStart", false)
                                           .Set("flatten", true));
 
   SendCommandSync(
       "Target.createTarget",
-      base::Value::Dict().Set("url", "about:blank").Set("hidden", true));
+      base::DictValue().Set("url", "about:blank").Set("hidden", true));
 
   const std::string targetId(*result()->FindStringByDottedPath("targetId"));
 
@@ -1924,7 +2146,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest, HiddenTargetCanBeClosed) {
   EXPECT_EQ(2u, result()->FindList("targetInfos")->size());
 
   SendCommandSync("Target.closeTarget",
-                  base::Value::Dict().Set("targetId", targetId));
+                  base::DictValue().Set("targetId", targetId));
 
   WaitForNotification("Target.detachedFromTarget", true);
 
@@ -1947,15 +2169,16 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest, HiddenTargetIsTheLastOne) {
 
   SendCommandSync(
       "Target.createTarget",
-      base::Value::Dict().Set("url", "about:blank").Set("hidden", true));
+      base::DictValue().Set("url", "about:blank").Set("hidden", true));
 
   SendCommandSync("Target.getTargets");
   EXPECT_EQ(2u, result()->FindList("targetInfos")->size());
 
+  ui_test_utils::BrowserDestroyedObserver observer;
   SendCommandSync("Target.closeTarget",
-                  base::Value::Dict().Set("targetId", targetId));
+                  base::DictValue().Set("targetId", targetId));
 
-  ui_test_utils::WaitForBrowserToClose();
+  observer.Wait();
 }
 
 IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest,
@@ -1967,7 +2190,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest,
   SendCommandSync("Target.getTargets");
   ASSERT_EQ(1u, result()->FindList("targetInfos")->size());
 
-  base::Value::Dict params;
+  base::DictValue params;
   params.Set("url", "about:blank");
   params.Set("hidden", false);
   SendCommandSync("Target.createTarget", std::move(params));
@@ -1985,16 +2208,16 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest,
 class DevToolsProtocolTest_OpensDevTools : public DevToolsProtocolTest {
  public:
   std::string GetCurrentPageTargetId() {
-    const base::Value::Dict* result = SendCommandSync("Target.getTargets");
-    const base::Value::List* list = result->FindList("targetInfos");
+    const base::DictValue* result = SendCommandSync("Target.getTargets");
+    const base::ListValue* list = result->FindList("targetInfos");
     EXPECT_EQ(list->size(), 1u);
     return *list->front().GetDict().FindString("targetId");
   }
 
-  const base::Value::Dict* OpenDevToolsForCurrentPageTarget(
+  const base::DictValue* OpenDevToolsForCurrentPageTarget(
       std::optional<std::string> panel_id = std::nullopt) {
     const std::string target_id = GetCurrentPageTargetId();
-    base::Value::Dict params;
+    base::DictValue params;
     params.Set("targetId", target_id);
     if (panel_id.has_value()) {
       params.Set("panelId", *panel_id);
@@ -2002,11 +2225,11 @@ class DevToolsProtocolTest_OpensDevTools : public DevToolsProtocolTest {
     return SendCommandSync("Target.openDevTools", std::move(params));
   }
 
-  base::Value::Dict FindDevToolsTarget() {
+  base::DictValue FindDevToolsTarget() {
     // CDP `Target.getTargets` result should contain the new DevTools target.
-    const base::Value::Dict* result = SendCommandSync("Target.getTargets");
+    const base::DictValue* result = SendCommandSync("Target.getTargets");
 
-    base::Value::Dict devtools_target;
+    base::DictValue devtools_target;
     for (const auto& target : *result->FindList("targetInfos")) {
       if (*target.GetDict().FindString("type") == "other") {
         devtools_target = target.Clone().TakeDict();
@@ -2026,9 +2249,9 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest_OpensDevTools,
   const std::string target_id = GetCurrentPageTargetId();
 
   // 1. Check there is no devtools target initially.
-  base::Value::Dict params;
+  base::DictValue params;
   params.Set("targetId", target_id);
-  const base::Value::Dict* result =
+  const base::DictValue* result =
       SendCommandSync("Target.getDevToolsTarget", params.Clone());
   EXPECT_FALSE(error());
   EXPECT_FALSE(result->Find("targetId"));
@@ -2038,7 +2261,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest_OpensDevTools,
   EXPECT_FALSE(error());
 
   // 3. Check that devtools target is found.
-  const base::Value::Dict* devtools_target_result =
+  const base::DictValue* devtools_target_result =
       SendCommandSync("Target.getDevToolsTarget", std::move(params));
   EXPECT_FALSE(error());
   const std::string* devtools_target_id =
@@ -2060,7 +2283,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest,
                        OpensDevTools_FailsForNonExistentTarget) {
   AttachToBrowserTarget();
 
-  base::Value::Dict params;
+  base::DictValue params;
   params.Set("targetId", "<NonExistentTargetId>");
   SendCommandSync("Target.openDevTools", std::move(params));
 
@@ -2071,11 +2294,11 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest_OpensDevTools,
                        OpensDevTools_OpensForPageTarget) {
   AttachToBrowserTarget();
 
-  const base::Value::Dict* result = OpenDevToolsForCurrentPageTarget();
+  const base::DictValue* result = OpenDevToolsForCurrentPageTarget();
 
   const std::string devtools_target_id(*result->FindString("targetId"));
 
-  const base::Value::Dict devtools_target = FindDevToolsTarget();
+  const base::DictValue devtools_target = FindDevToolsTarget();
   EXPECT_EQ(devtools_target_id, *devtools_target.FindString("targetId"));
 
   const std::string url = *devtools_target.FindString("url");
@@ -2085,17 +2308,16 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest_OpensDevTools,
 IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest, OpensDevTools_OpensForTabTarget) {
   AttachToBrowserTarget();
 
-  base::Value::Dict tabFilter = base::Value::Dict();
+  base::DictValue tabFilter = base::DictValue();
   tabFilter.Set("type", "tab");
   tabFilter.Set("exclude", false);
-  base::Value::List targetFilter =
-      base::Value::List().Append(std::move(tabFilter));
-  base::Value::Dict getTargetParams = base::Value::Dict();
+  base::ListValue targetFilter = base::ListValue().Append(std::move(tabFilter));
+  base::DictValue getTargetParams = base::DictValue();
   getTargetParams.Set("filter", std::move(targetFilter));
 
-  const base::Value::Dict* result =
+  const base::DictValue* result =
       SendCommandSync("Target.getTargets", std::move(getTargetParams));
-  base::Value::Dict tab_target;
+  base::DictValue tab_target;
   for (const auto& target : *result->FindList("targetInfos")) {
     if (*target.GetDict().FindString("type") == "tab") {
       tab_target = target.Clone().TakeDict();
@@ -2103,7 +2325,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest, OpensDevTools_OpensForTabTarget) {
     }
   }
 
-  base::Value::Dict params;
+  base::DictValue params;
   params.Set("targetId", *tab_target.FindString("targetId"));
   result = SendCommandSync("Target.openDevTools", std::move(params));
 
@@ -2112,7 +2334,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest, OpensDevTools_OpensForTabTarget) {
   // CDP `Target.getTargets` result should contain the new DevTools target.
   result = SendCommandSync("Target.getTargets");
 
-  base::Value::Dict devtools_target;
+  base::DictValue devtools_target;
   for (const auto& target : *result->FindList("targetInfos")) {
     if (*target.GetDict().FindString("type") == "other") {
       devtools_target = target.Clone().TakeDict();
@@ -2127,24 +2349,23 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest, OpensDevTools_OpensForTabTarget) {
 IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest, OpensDevTools_OpensUndocked) {
   set_agent_host_can_close();
 
-  base::Value::Dict prefs;
+  base::DictValue prefs;
   prefs.Set("isUnderTest", "true");
   prefs.Set("currentDockState", "undocked");
   browser()->profile()->GetPrefs()->SetDict(prefs::kDevToolsPreferences,
                                             std::move(prefs));
   AttachToBrowserTarget();
 
-  base::Value::Dict tabFilter = base::Value::Dict();
+  base::DictValue tabFilter = base::DictValue();
   tabFilter.Set("type", "tab");
   tabFilter.Set("exclude", false);
-  base::Value::List targetFilter =
-      base::Value::List().Append(std::move(tabFilter));
-  base::Value::Dict getTargetParams = base::Value::Dict();
+  base::ListValue targetFilter = base::ListValue().Append(std::move(tabFilter));
+  base::DictValue getTargetParams = base::DictValue();
   getTargetParams.Set("filter", std::move(targetFilter));
 
-  const base::Value::Dict* result =
+  const base::DictValue* result =
       SendCommandSync("Target.getTargets", std::move(getTargetParams));
-  base::Value::Dict tab_target;
+  base::DictValue tab_target;
   for (const auto& target : *result->FindList("targetInfos")) {
     if (*target.GetDict().FindString("type") == "tab") {
       tab_target = target.Clone().TakeDict();
@@ -2152,7 +2373,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest, OpensDevTools_OpensUndocked) {
     }
   }
 
-  base::Value::Dict params;
+  base::DictValue params;
   params.Set("targetId", *tab_target.FindString("targetId"));
   result = SendCommandSync("Target.openDevTools", std::move(params));
 
@@ -2161,7 +2382,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest, OpensDevTools_OpensUndocked) {
   // CDP `Target.getTargets` result should contain the new DevTools target.
   result = SendCommandSync("Target.getTargets");
 
-  base::Value::Dict devtools_target;
+  base::DictValue devtools_target;
   for (const auto& target : *result->FindList("targetInfos")) {
     if (*target.GetDict().FindString("type") == "other") {
       devtools_target = target.Clone().TakeDict();
@@ -2177,11 +2398,10 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest_OpensDevTools,
                        OpensDevTools_OpensInResourcesPanel) {
   AttachToBrowserTarget();
 
-  const base::Value::Dict* result =
-      OpenDevToolsForCurrentPageTarget("resources");
+  const base::DictValue* result = OpenDevToolsForCurrentPageTarget("resources");
   const std::string devtools_target_id(*result->FindString("targetId"));
 
-  const base::Value::Dict devtools_target = FindDevToolsTarget();
+  const base::DictValue devtools_target = FindDevToolsTarget();
   EXPECT_EQ(devtools_target_id, *devtools_target.FindString("targetId"));
 
   const std::string url = *devtools_target.FindString("url");
@@ -2192,11 +2412,11 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest_OpensDevTools,
                        OpensDevTools_OpensInUnsuportedPanel) {
   AttachToBrowserTarget();
 
-  const base::Value::Dict* result =
+  const base::DictValue* result =
       OpenDevToolsForCurrentPageTarget("unsupported");
   const std::string devtools_target_id(*result->FindString("targetId"));
 
-  const base::Value::Dict devtools_target = FindDevToolsTarget();
+  const base::DictValue devtools_target = FindDevToolsTarget();
   EXPECT_EQ(devtools_target_id, *devtools_target.FindString("targetId"));
 
   const std::string url = *devtools_target.FindString("url");
@@ -2238,7 +2458,7 @@ class IsolatedWebMulticastSocketsTest
     if (!parsed || !parsed->is_dict()) {
       return;
     }
-    base::Value::Dict command = std::move(parsed->GetDict());
+    base::DictValue command = std::move(parsed->GetDict());
     const std::string* method = command.FindString("method");
     if (!method) {
       return;
@@ -2277,8 +2497,8 @@ class IsolatedWebMulticastSocketsTest
     agent_host_->AttachClient(this);
   }
 
-  void sendCommand(const std::string& method, base::Value::Dict params) {
-    base::Value::Dict command;
+  void sendCommand(const std::string& method, base::DictValue params) {
+    base::DictValue command;
     command.Set("id", ++last_id_);
     command.Set("method", method);
     if (!params.empty()) {
@@ -2290,12 +2510,12 @@ class IsolatedWebMulticastSocketsTest
         this, std::vector<uint8_t>(json_command.begin(), json_command.end()));
   }
 
-  base::Value::Dict WaitForNotification(const std::string& method,
-                                        bool allow_existing = false) {
+  base::DictValue WaitForNotification(const std::string& method,
+                                      bool allow_existing = false) {
     if (allow_existing) {
       if (auto it = notifications_.find(method);
           it != notifications_.end() && !it->second.empty()) {
-        base::Value::Dict notification = std::move(it->second.front());
+        base::DictValue notification = std::move(it->second.front());
         it->second.erase(it->second.begin());
         return notification;
       }
@@ -2309,7 +2529,7 @@ class IsolatedWebMulticastSocketsTest
     auto it = notifications_.find(method);
     EXPECT_TRUE(it != notifications_.end());
     EXPECT_TRUE(!it->second.empty());
-    base::Value::Dict notification = std::move(it->second.front());
+    base::DictValue notification = std::move(it->second.front());
     it->second.erase(it->second.begin());
     return notification;
   }
@@ -2317,7 +2537,7 @@ class IsolatedWebMulticastSocketsTest
   scoped_refptr<content::DevToolsAgentHost> agent_host_;
 
  private:
-  std::map<std::string, std::vector<base::Value::Dict>> notifications_;
+  std::map<std::string, std::vector<base::DictValue>> notifications_;
   std::unique_ptr<base::RunLoop> wait_for_notification_run_loop_;
   std::string wait_for_method_;
   int last_id_ = 0;
@@ -2332,7 +2552,7 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebMulticastSocketsTest,
   AttachToFrame(iwa_frame);
   ASSERT_TRUE(agent_host_);
 
-  sendCommand("Network.enable", base::Value::Dict());
+  sendCommand("Network.enable", base::DictValue());
 
   const std::string multicast_script =
       R"JS(
@@ -2353,13 +2573,13 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebMulticastSocketsTest,
       << "Connect script failed: " << result.ExtractError();
 
   // Check for Join event
-  base::Value::Dict joined_params =
+  base::DictValue joined_params =
       WaitForNotification("Network.directUDPSocketJoinedMulticastGroup", true);
   EXPECT_EQ(*joined_params.FindStringByDottedPath("params.IPAddress"),
             "237.132.100.17");
 
   // Check for Leave event
-  base::Value::Dict left_params =
+  base::DictValue left_params =
       WaitForNotification("Network.directUDPSocketLeftMulticastGroup", true);
   EXPECT_EQ(*left_params.FindStringByDottedPath("params.IPAddress"),
             "237.132.100.17");

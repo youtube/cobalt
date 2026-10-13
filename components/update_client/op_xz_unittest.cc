@@ -33,7 +33,7 @@ namespace update_client {
 // FilePath and expect a FilePath back) so they can stay identical to upstream.
 base::OnceClosure XzOperation(
     std::unique_ptr<Unzipper> unzipper,
-    base::RepeatingCallback<void(base::Value::Dict)> event_adder,
+    base::RepeatingCallback<void(base::DictValue)> event_adder,
     const base::FilePath& in_file,
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)> callback) {
   OperationResult op_result;
@@ -70,9 +70,9 @@ class XzOperationTest : public testing::Test {
     return dest;
   }
 
-  base::RepeatingCallback<void(base::Value::Dict)> MakePingCallback() {
+  base::RepeatingCallback<void(base::DictValue)> MakePingCallback() {
     return base::BindLambdaForTesting(
-        [&](base::Value::Dict ping) { pings_.push_back(std::move(ping)); });
+        [&](base::DictValue ping) { pings_.push_back(std::move(ping)); });
   }
 
   base::RepeatingCallback<void(update_client::ComponentState)>
@@ -84,7 +84,7 @@ class XzOperationTest : public testing::Test {
 
   SEQUENCE_CHECKER(sequence_checker_);
   base::RunLoop loop_;
-  std::vector<base::Value::Dict> pings_;
+  std::vector<base::DictValue> pings_;
 
  private:
   base::ScopedTempDir temp_dir_;

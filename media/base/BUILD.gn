@@ -418,6 +418,7 @@ source_set("base") {
     "//gpu/command_buffer/client:interface_base",
     "//gpu/command_buffer/client:raster_interface",
     "//gpu/command_buffer/common",
+    "//gpu/config",
     "//gpu/ipc/common",
     "//media/cdm:clear_key_cdm_common",
     "//net",
@@ -482,7 +483,6 @@ source_set("base") {
     public_deps += [
       "//media/base/win:dcomp_texture_wrapper",
       "//media/base/win:mf_cdm_proxy",
-      "//media/base/win:overlay_state_observer_subscription",
     ]
     sources += [
       "win/media_foundation_package_locator_helper.cc",
@@ -659,6 +659,7 @@ source_set("unit_tests") {
     "callback_registry_unittest.cc",
     "callback_timeout_helpers_unittest.cc",
     "capture_version_unittest.cc",
+    "channel_layout_unittest.cc",
     "channel_mixer_unittest.cc",
     "channel_mixing_matrix_unittest.cc",
     "container_names_unittest.cc",

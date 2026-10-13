@@ -159,7 +159,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkService
   void StartNetLog(base::File file,
                    uint64_t max_total_size,
                    net::NetLogCaptureMode capture_mode,
-                   base::Value::Dict constants,
+                   base::DictValue constants,
                    std::optional<base::TimeDelta> duration) override;
   void AttachNetLogProxy(
       mojo::PendingRemote<mojom::NetLogProxySource> proxy_source,
@@ -180,7 +180,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkService
       mojom::HttpAuthStaticParamsPtr http_auth_static_params) override;
   void ConfigureHttpAuthPrefs(
       mojom::HttpAuthDynamicParamsPtr http_auth_dynamic_params) override;
-  void SetRawHeadersAccess(int32_t process_id,
+  void SetRawHeadersAccess(network::RendererProcess process_id,
                            const std::vector<url::Origin>& origins) override;
   void SetMaxConnectionsPerProxyChain(uint32_t max_connections) override;
   void GetNetworkChangeManager(
@@ -273,19 +273,19 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkService
   void StartNetLogBounded(base::File file,
                           uint64_t max_total_size,
                           net::NetLogCaptureMode capture_mode,
-                          base::Value::Dict client_constants);
+                          base::DictValue client_constants);
 
   // Called after StartNetLogBounded() finishes creating a scratch dir.
   void OnStartNetLogBoundedScratchDirectoryCreated(
       base::File file,
       uint64_t max_total_size,
       net::NetLogCaptureMode capture_mode,
-      base::Value::Dict constants,
+      base::DictValue constants,
       const base::FilePath& in_progress_dir_path);
 
   void StartNetLogUnbounded(base::File file,
                             net::NetLogCaptureMode capture_mode,
-                            base::Value::Dict client_constants);
+                            base::DictValue client_constants);
 
   // Returns an HttpAuthHandlerFactory for the given NetworkContext.
   std::unique_ptr<net::HttpAuthHandlerFactory> CreateHttpAuthHandlerFactory(
@@ -297,7 +297,8 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkService
 #endif  // BUILDFLAG(IS_LINUX)
 
   bool quic_disabled() const { return quic_disabled_; }
-  bool HasRawHeadersAccess(int32_t process_id, const GURL& resource_url) const;
+  bool HasRawHeadersAccess(const network::OriginatingProcess& process_id,
+                           const GURL& resource_url) const;
 
   net::NetworkQualityEstimator* network_quality_estimator() {
     return network_quality_estimator_manager_->GetNetworkQualityEstimator();
@@ -441,7 +442,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkService
   std::unique_ptr<net::FileNetLogObserver> file_net_log_observer_;
   // When capturing NetLog events, this keeps a NetworkContext's polled data
   // on the destruction of the NetworkContext.
-  base::Value::List net_log_polled_data_list_;
+  base::ListValue net_log_polled_data_list_;
 
   net::TraceNetLogObserver trace_net_log_observer_;
 
@@ -500,7 +501,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkService
 
   // A per-process_id map of origins that are white-listed to allow
   // them to request raw headers for resources they request.
-  std::map<int32_t, base::flat_set<url::Origin>>
+  std::map<network::RendererProcess, base::flat_set<url::Origin>>
       raw_headers_access_origins_by_pid_;
 
   bool quic_disabled_ = false;
@@ -543,6 +544,9 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkService
   std::unique_ptr<network::tpcd::metadata::Manager> tpcd_metadata_manager_;
 
   bool exclusive_cookie_database_locking_ = true;
+
+  // When this is set, it overrides the default setting used by the net stack.
+  std::optional<bool> tls_13_early_data_enabled_;
 
   std::unique_ptr<DevtoolsDurableMessageCollectorManager>
       durable_message_collector_manager_;

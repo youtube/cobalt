@@ -830,6 +830,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> WordIsAligned(TNode<WordT> word, size_t alignment);
   TNode<BoolT> WordIsPowerOfTwo(TNode<IntPtrT> value);
 
+  TNode<BoolT> TaggedIsNotInterceptedSentinel(TNode<Object> a);
+
   // Check if lower_limit <= value <= higher_limit.
   template <typename U>
   TNode<BoolT> IsInRange(TNode<Word32T> value, U lower_limit, U higher_limit) {
@@ -893,7 +895,16 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Branches to {if_true} if ToBoolean applied to {value} yields true,
   // otherwise goes to {if_false}.
   void BranchIfToBooleanIsTrue(TNode<Object> value, Label* if_true,
-                               Label* if_false);
+                               Label* if_false) {
+    BranchIfToBooleanIsTrue(value, false, if_true, if_false);
+  }
+
+  // Branches to {if_true} if ToBoolean applied to {value} yields true,
+  // otherwise goes to {if_false}. Optionally skips the check for Smi values
+  // and static root values, in case those are inlined.
+  void BranchIfToBooleanIsTrue(TNode<Object> value,
+                               bool skip_smi_and_static_root_check,
+                               Label* if_true, Label* if_false);
 
   // Branches to {if_false} if ToBoolean applied to {value} yields false,
   // otherwise goes to {if_true}.
@@ -990,14 +1001,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Load a trusted pointer field.
   // When the sandbox is enabled, these are indirect pointers using the trusted
   // pointer table. Otherwise they are regular tagged fields.
-  TNode<TrustedObject> LoadTrustedPointerFromObject(TNode<HeapObject> object,
-                                                    int offset,
-                                                    IndirectPointerTag tag);
+  TNode<TrustedObject> LoadTrustedPointerFromObject(
+      TNode<HeapObject> object, int offset, IndirectPointerTagRange tag_range);
 
   void LoadTrustedUnknownPointerFromObject(
       TNode<HeapObject> object, int offset, TVariable<Object>* value_out,
       Label* if_empty, Label* if_default,
-      const std::initializer_list<std::pair<InstanceType, Label*>>& cases);
+      const std::initializer_list<std::pair<InstanceType, Label*>>& cases,
+      IndirectPointerTagRange tag_range = kAllIndirectPointerTags);
 
   // Load a code pointer field.
   // These are special versions of trusted pointers that, when the sandbox is
@@ -1010,9 +1021,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
 #ifdef V8_ENABLE_SANDBOX
   // Load an indirect pointer field.
-  TNode<TrustedObject> LoadIndirectPointerFromObject(TNode<HeapObject> object,
-                                                     int offset,
-                                                     IndirectPointerTag tag);
+  TNode<TrustedObject> LoadIndirectPointerFromObject(
+      TNode<HeapObject> object, int offset, IndirectPointerTagRange tag_range);
 
   // Determines whether the given indirect pointer handle is a trusted pointer
   // handle or a code pointer handle.
@@ -1021,19 +1031,20 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Retrieve the heap object referenced by the given indirect pointer handle,
   // which can either be a trusted pointer handle or a code pointer handle.
   TNode<TrustedObject> ResolveIndirectPointerHandle(
-      TNode<IndirectPointerHandleT> handle, IndirectPointerTag tag);
+      TNode<IndirectPointerHandleT> handle, IndirectPointerTagRange tag_range);
 
   void ResolveIndirectUnknownPointerHandle(
       TNode<IndirectPointerHandleT> handle, TVariable<Object>* value_out,
       TVariable<Uint16T>* type_out, Label* if_default,
-      const std::initializer_list<std::pair<InstanceType, Label*>>& cases);
+      const std::initializer_list<std::pair<InstanceType, Label*>>& cases,
+      IndirectPointerTagRange tag_range = kAllIndirectPointerTags);
 
   // Retrieve the Code object referenced by the given trusted pointer handle.
   TNode<Code> ResolveCodePointerHandle(TNode<IndirectPointerHandleT> handle);
 
   // Retrieve the heap object referenced by the given trusted pointer handle.
   TNode<TrustedObject> ResolveTrustedPointerHandle(
-      TNode<IndirectPointerHandleT> handle, IndirectPointerTag tag);
+      TNode<IndirectPointerHandleT> handle, IndirectPointerTagRange tag_range);
 
   // Helper function to compute the offset into the code pointer table from a
   // code pointer handle.
@@ -1747,8 +1758,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<SharedFunctionInfo> sfi);
 
 #ifdef V8_ENABLE_WEBASSEMBLY
-  TNode<WasmFunctionData> LoadSharedFunctionInfoWasmFunctionData(
-      TNode<SharedFunctionInfo> sfi);
   TNode<WasmExportedFunctionData>
   LoadSharedFunctionInfoWasmExportedFunctionData(TNode<SharedFunctionInfo> sfi);
   TNode<WasmJSFunctionData> LoadSharedFunctionInfoWasmJSFunctionData(
@@ -2795,6 +2804,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                             const char* method_name);
   void ThrowIfNotCallable(TNode<Context> context, TNode<Object> value,
                           const char* method_name);
+  void ThrowIfNotJSTypedArray(TNode<Context> context, TNode<Object> value,
+                              Label* if_marked_detached,
+                              char const* method_name);
 
   void ThrowRangeError(TNode<Context> context, MessageTemplate message,
                        std::optional<TNode<Object>> arg0 = std::nullopt,
@@ -2901,9 +2913,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> JSAnyIsPrimitiveMap(TNode<Map> map);
   TNode<BoolT> JSAnyIsPrimitive(TNode<HeapObject> object);
   TNode<BoolT> IsJSRegExp(TNode<HeapObject> object);
-  TNode<BoolT> IsJSTypedArrayInstanceType(TNode<Int32T> instance_type);
+  // Check if the instance type is a typed array. A detached typed array can
+  // also have the JS_DETACHED_TYPED_ARRAY_TYPE type and will thus be ignored by
+  // this test. Note, if the check passes the typed array can still be detached!
+  TNode<BoolT> IsJSTypedArrayInstanceTypeMaybeFalseIfDetached(
+      TNode<Int32T> instance_type);
   TNode<BoolT> IsJSTypedArrayMap(TNode<Map> map);
   TNode<BoolT> IsJSTypedArray(TNode<HeapObject> object);
+  TNode<BoolT> IsJSTypedArrayInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsJSGeneratorMap(TNode<Map> map);
   TNode<BoolT> IsJSPrimitiveWrapperInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsJSPrimitiveWrapperMap(TNode<Map> map);
@@ -3873,7 +3890,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // used for a property store or deletion.
   void CheckForAssociatedProtector(TNode<Name> name, Label* if_protector);
 
-  TNode<Map> LoadReceiverMap(TNode<Object> receiver);
+  // Sanitizes Smi receiver (ensures that the upper part is set to cage base,
+  // only for V8_SANDBOX) and loads receiver map.
+  std::tuple<TNode<JSAny>, TNode<Map>> SanitizeReceiverAndLoadReceiverMap(
+      TNode<Object> unsanitized_receiver);
 
   // Loads script context from the script context table.
   TNode<Context> LoadScriptContext(TNode<Context> context,
@@ -4373,6 +4393,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<NativeContext> native_context) {
     return AllocateRootFunctionWithContext(static_cast<RootIndex>(function),
                                            context, native_context);
+  }
+
+  TNode<BoolT> IsBaselineCode(TNode<Code> code) {
+    TNode<Int32T> code_flags =
+        LoadObjectField<Int32T>(code, Code::kFlagsOffset);
+    return Word32Equal(DecodeWord32<Code::KindField>(code_flags),
+                       Int32Constant(static_cast<int>(CodeKind::BASELINE)));
   }
 
   // Promise helpers

@@ -46,6 +46,7 @@ class FirstRunFlowController : public ProfileManagementFlowControllerImpl {
       const base::FilePath& profile_path,
       ProfilePicker::ProfilePickingArgs args,
       base::OnceCallback<void(bool)> pick_profile_complete_callback) override;
+  void ShowSigninError(Profile* profile, const SigninUIError& error) override;
 
  protected:
   // ProfileManagementFlowControllerImpl
@@ -63,6 +64,8 @@ class FirstRunFlowController : public ProfileManagementFlowControllerImpl {
 
   // Run the `finish_flow_callback_` if it's not empty.
   void RunFinishFlowCallback();
+
+  void MaybeTriggerHatsSurvey();
 
   const raw_ptr<Profile> profile_;
   ProfilePicker::FirstRunExitedCallback first_run_exited_callback_;

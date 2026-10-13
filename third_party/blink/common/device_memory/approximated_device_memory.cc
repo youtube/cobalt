@@ -5,7 +5,9 @@
 #include "third_party/blink/public/common/device_memory/approximated_device_memory.h"
 
 #include "base/check_op.h"
+#include "base/feature_list.h"
 #include "base/system/sys_info.h"
+#include "third_party/blink/public/common/features.h"
 
 namespace blink {
 
@@ -53,10 +55,32 @@ void ApproximatedDeviceMemory::CalculateAndSetApproximatedDeviceMemory() {
   else
     approximated_device_memory_gb_ = static_cast<float>(upper_bound) / 1024.0;
 
-  // Max-limit the reported value to 8GB to reduce fingerprintability of
-  // high-spec machines.
-  if (approximated_device_memory_gb_ > 8)
-    approximated_device_memory_gb_ = 8.0;
+  // Limit the values to reduce fingerprintability.
+  float kMinMemory = 0.25f;
+  float kMaxMemory = 8.0f;
+
+  // We're rolling out improved limits. See: https://crbug.com/454354290.
+  if (base::FeatureList::IsEnabled(
+          blink::features::kUpdatedDeviceMemoryLimitsFor2026)) {
+#if BUILDFLAG(IS_ANDROID)
+    // Allow smaller lower limits on Android where lower RAM is still common.
+    // Note: As of Jan-2026 some Google Search tests in out test suite
+    // (GoogleAmpSXGStory2019 and BackgroundGoogleStory2019) serve different
+    // content to 1G and lower. So when increasing this lower limit you will
+    // see memory regressions.
+    kMinMemory = 1.0f;
+#else
+    // Increased limits on other platforms where higher RAM is more common.
+    kMinMemory = 2.0f;
+    kMaxMemory = 32.0f;
+#endif
+  }
+
+  if (approximated_device_memory_gb_ < kMinMemory) {
+    approximated_device_memory_gb_ = kMinMemory;
+  } else if (approximated_device_memory_gb_ > kMaxMemory) {
+    approximated_device_memory_gb_ = kMaxMemory;
+  }
 }
 
 // static

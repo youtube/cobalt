@@ -113,8 +113,9 @@ NOINLINE void FatalGpuProcessLaunchFailureOnBackground() {
     // app has crashed which doesn't look good. So we use SIGKILL instead. But
     // still do a crash dump for 1% cases to make sure we're not regressing this
     // case.
-    if (base::RandInt(1, 100) == 1)
+    if (base::RandIntInclusive(1, 100) == 1) {
       base::debug::DumpWithoutCrashing();
+    }
     kill(getpid(), SIGKILL);
   }
 }
@@ -1455,10 +1456,10 @@ void GpuDataManagerImplPrivate::ProcessCrashed() {
                          &GpuDataManagerObserver::OnGpuProcessCrashed);
 }
 
-base::Value::List GpuDataManagerImplPrivate::GetLogMessages() const {
-  base::Value::List value;
+base::ListValue GpuDataManagerImplPrivate::GetLogMessages() const {
+  base::ListValue value;
   for (const auto& log_message : log_messages_) {
-    base::Value::Dict dict;
+    base::DictValue dict;
     dict.Set("level", log_message.level);
     dict.Set("header", log_message.header);
     dict.Set("message", log_message.message);

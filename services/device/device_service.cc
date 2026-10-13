@@ -23,7 +23,7 @@
 #include "services/device/power_monitor/power_monitor_message_broadcaster.h"
 #include "services/device/public/mojom/battery_monitor.mojom.h"
 #if defined(IS_SERIAL_ENABLED_PLATFORM)
-#include "services/device/serial/serial_port_manager_impl.h"
+#include "services/device/serial/serial_port_manager_impl.h"  // nogncheck
 #endif
 #include "services/device/time_zone_monitor/time_zone_monitor.h"
 #include "services/device/vibration/vibration_manager_impl.h"

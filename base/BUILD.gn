@@ -124,6 +124,10 @@ if (is_fuchsia) {
 
 _build_date_header = "$target_gen_dir/generated_build_date.h"
 
+_enable_code_ordering = is_android && !is_component_build &&
+                        (current_cpu == "arm" || current_cpu == "arm64" ||
+                         current_cpu == "x86" || current_cpu == "x64")
+
 if (is_win) {
   # This is in a separate config so the flags can be applied to dependents.
   # ldflags in GN aren't automatically inherited.
@@ -406,12 +410,6 @@ component("base") {
     "memory/protected_memory.h",
     "memory/ptr_util.h",
     "memory/raw_ptr.h",
-    "memory/raw_ptr_asan_bound_arg_tracker.cc",
-    "memory/raw_ptr_asan_bound_arg_tracker.h",
-    "memory/raw_ptr_asan_hooks.cc",
-    "memory/raw_ptr_asan_hooks.h",
-    "memory/raw_ptr_asan_service.cc",
-    "memory/raw_ptr_asan_service.h",
     "memory/raw_ptr_cast.h",
     "memory/raw_ptr_exclusion.h",
     "memory/raw_ref.h",
@@ -493,7 +491,6 @@ component("base") {
     "metrics/histogram_base.h",
     "metrics/histogram_delta_serialization.cc",
     "metrics/histogram_delta_serialization.h",
-    "metrics/histogram_flattener.h",
     "metrics/histogram_functions.cc",
     "metrics/histogram_functions.h",
     "metrics/histogram_functions_internal_overloads.h",
@@ -857,6 +854,7 @@ component("base") {
     "task/thread_pool/worker_thread_observer.h",
     "task/thread_pool/worker_thread_set.cc",
     "task/thread_pool/worker_thread_set.h",
+    "task/thread_type.h",
     "task/updateable_sequenced_task_runner.h",
     "test/scoped_logging_settings.h",
     "test/spin_wait.h",
@@ -949,7 +947,6 @@ component("base") {
     "trace_event/trace_session_observer.h",
     "traits_bag.h",
     "tuple.h",
-    "types/cxx23_from_range.h",
     "types/cxx26_projected_value_t.h",
     "types/expected.h",
     "types/expected_internal.h",
@@ -1131,6 +1128,25 @@ component("base") {
     deps += [ "//starboard/common" ]
   }
 
+  if (use_asan_backup_ref_ptr) {
+    # Used by raw_ptr_service.cc to override {malloc,free,ignore_free} hooks.
+    sources += [
+      "memory/raw_ptr_asan_allocator.cc",
+      "memory/raw_ptr_asan_allocator.h",
+      "memory/raw_ptr_asan_bound_arg_tracker.cc",
+      "memory/raw_ptr_asan_bound_arg_tracker.h",
+      "memory/raw_ptr_asan_event.cc",
+      "memory/raw_ptr_asan_event.h",
+      "memory/raw_ptr_asan_hooks.cc",
+      "memory/raw_ptr_asan_hooks.h",
+      "memory/raw_ptr_asan_service.cc",
+      "memory/raw_ptr_asan_service.h",
+    ]
+    if (use_asan_backup_ref_ptr_v2) {
+      deps += [ "//build/config/sanitizers:sanitizer_shared_hooks" ]
+    }
+  }
+
   # `raw_ptr` cannot be made a component due to CRT symbol issues.
   # Its gateway to being a component is through `//base`, so we have
   # to provide the appropriate `#define` here.
@@ -1162,6 +1178,14 @@ component("base") {
     "//build:chromecast_buildflags",
     "//third_party/abseil-cpp:absl",
   ]
+
+  if (use_asan_backup_ref_ptr) {
+    # raw_ptr_asan_service.cc depends on:
+    deps += [ "//base/allocator/partition_allocator/src/partition_alloc" ]
+    if (use_asan_backup_ref_ptr_v2) {
+      deps += [ "//build/config/sanitizers:sanitizer_shared_hooks" ]
+    }
+  }
 
   if (!(is_cobalt && is_partner_toolchain)) {
     sources += [
@@ -1382,7 +1406,9 @@ component("base") {
 
     # This is actually a linker script, but it can be added to the link in the
     # same way as a library.
-    libs += [ "android/library_loader/anchor_functions.lds" ]
+    if (_enable_code_ordering) {
+      libs += [ "android/library_loader/anchor_functions.lds" ]
+    }
   }  # is_android
 
   if (build_allocation_stack_trace_recorder) {
@@ -2258,6 +2284,8 @@ component("base") {
       "system/sys_info_mac.mm",
     ]
 
+    deps += [ ":plist_size_buildflags" ]
+
     libs += [
       "bsm",
       "pmenergy",
@@ -2908,13 +2936,10 @@ buildflag_header("synchronization_buildflags") {
 buildflag_header("anchor_functions_buildflags") {
   header = "anchor_functions_buildflags.h"
   header_dir = "base/android/library_loader"
-  _supports_code_ordering =
-      is_android && (current_cpu == "arm" || current_cpu == "arm64" ||
-                     current_cpu == "x86" || current_cpu == "x64")
 
   flags = [
     "USE_LLD=$use_lld",
-    "SUPPORTS_CODE_ORDERING=$_supports_code_ordering",
+    "SUPPORTS_CODE_ORDERING=$_enable_code_ordering",
   ]
 }
 
@@ -2972,6 +2997,14 @@ buildflag_header("power_monitor_buildflags") {
 buildflag_header("fuzzing_buildflags") {
   header = "fuzzing_buildflags.h"
   flags = [ "USE_FUZZING_ENGINE=$use_fuzzing_engine" ]
+}
+
+buildflag_header("plist_size_buildflags") {
+  header = "app_plist_size_buildflags.h"
+  header_dir = "base/apple"
+
+  plist_file = read_file("//chrome/app/app-Info.plist", "string")
+  flags = [ "APP_INFO_PLIST_FILE_SIZE=" + len(plist_file) ]
 }
 
 # This is the subset of files from base that should not be used with a dynamic
@@ -3660,7 +3693,6 @@ test("base_unittests") {
     "memory/platform_shared_memory_region_unittest.cc",
     "memory/protected_memory_unittest.cc",
     "memory/ptr_util_unittest.cc",
-    "memory/raw_ptr_asan_unittest.cc",
     "memory/raw_ptr_chromium_unittest.cc",
     "memory/raw_span_unittest.cc",
     "memory/ref_counted_memory_unittest.cc",
@@ -4024,6 +4056,11 @@ test("base_unittests") {
     "//testing/buildbot/filters:base_unittests_filters",
   ]
   }
+
+  if (is_asan) {
+    sources += [ "memory/raw_ptr_asan_unittest.cc" ]
+  }
+
   if (is_ios) {
     deps += [ "//base/test:test_shared_library_ios+bundle" ]
   }
@@ -4728,11 +4765,7 @@ if (enable_nocompile_tests) {
       "unsafe_buffers_nocompile.nc",
       "values_nocompile.nc",
     ]
-    if (use_cxx23) {
-      sources += [ "containers/adapters_nocompile_cpp23.nc" ]
-    } else {
-      sources += [ "containers/adapters_nocompile.nc" ]
-    }
+    sources += [ "containers/adapters_nocompile.nc" ]
     deps = [ ":base" ]
   }
 }
@@ -5665,6 +5698,10 @@ if (is_android) {
       "android/java/src/org/chromium/base/AconfigFlaggedApiDelegate.java",
       "android/java/src/org/chromium/base/BindingRequestQueue.java",
       "android/java/src/org/chromium/base/SelectionActionMenuClientWrapper.java",
+      "android/java/src/org/chromium/base/serial/SerialManager.java",
+      "android/java/src/org/chromium/base/serial/SerialPort.java",
+      "android/java/src/org/chromium/base/serial/SerialPortListener.java",
+      "android/java/src/org/chromium/base/serial/SerialPortResponse.java",
     ]
   }
 

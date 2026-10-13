@@ -9,7 +9,6 @@
 
 #include "base/check.h"
 #include "base/check_op.h"
-#include "base/functional/bind.h"
 
 namespace content {
 
@@ -22,57 +21,6 @@ BrowserMemoryConsumerRegistry& GetInstance() {
 }
 
 }  // namespace
-
-void BindBrowserMemoryConsumerRegistry(
-    ProcessType process_type,
-    ChildProcessId child_process_id,
-    mojo::PendingReceiver<mojom::BrowserMemoryConsumerRegistry>
-        pending_receiver) {
-  auto& instance = GetInstance();
-  instance.Bind(process_type, child_process_id, std::move(pending_receiver));
-}
-
-// BrowserMemoryConsumerRegistry::ConsumerInfo ---------------------------------
-
-BrowserMemoryConsumerRegistry::ConsumerInfo::ConsumerInfo(
-    std::string consumer_id,
-    base::MemoryConsumerTraits traits,
-    ProcessType process_type,
-    ChildProcessId child_process_id,
-    base::RegisteredMemoryConsumer consumer)
-    : consumer_id(std::move(consumer_id)),
-      traits(traits),
-      process_type(process_type),
-      child_process_id(child_process_id),
-      consumer(consumer) {}
-
-BrowserMemoryConsumerRegistry::ConsumerInfo::ConsumerInfo(ConsumerInfo&&) =
-    default;
-
-BrowserMemoryConsumerRegistry::ConsumerInfo&
-BrowserMemoryConsumerRegistry::ConsumerInfo::operator=(ConsumerInfo&&) =
-    default;
-
-// BrowserMemoryConsumerRegistry::ChildMemoryConsumer --------------------------
-
-BrowserMemoryConsumerRegistry::ChildMemoryConsumer::ChildMemoryConsumer(
-    mojo::PendingRemote<mojom::ChildMemoryConsumer> remote_consumer,
-    base::OnceCallback<void(ChildMemoryConsumer*)> on_disconnect_handler)
-    : remote_consumer_(std::move(remote_consumer)) {
-  remote_consumer_.set_disconnect_handler(
-      base::BindOnce(std::move(on_disconnect_handler), this));
-}
-
-BrowserMemoryConsumerRegistry::ChildMemoryConsumer::~ChildMemoryConsumer() =
-    default;
-
-void BrowserMemoryConsumerRegistry::ChildMemoryConsumer::OnReleaseMemory() {
-  remote_consumer_->NotifyReleaseMemory();
-}
-
-void BrowserMemoryConsumerRegistry::ChildMemoryConsumer::OnUpdateMemoryLimit() {
-  remote_consumer_->NotifyUpdateMemoryLimit(memory_limit());
-}
 
 // BrowserMemoryConsumerRegistry::ConsumerGroup --------------------------------
 
@@ -99,7 +47,14 @@ void BrowserMemoryConsumerRegistry::ConsumerGroup::AddMemoryConsumer(
     base::RegisteredMemoryConsumer consumer) {
   CHECK(!std::ranges::contains(memory_consumers_, consumer));
   memory_consumers_.push_back(consumer);
+
+  // Ensure the added consumer is up to date with the current memory limit
+  // applied to this consumer group.
+  if (memory_limit() != base::MemoryConsumer::kDefaultMemoryLimit) {
+    consumer.UpdateMemoryLimit(memory_limit());
+  }
 }
+
 void BrowserMemoryConsumerRegistry::ConsumerGroup::RemoveMemoryConsumer(
     base::RegisteredMemoryConsumer consumer) {
   size_t removed = std::erase(memory_consumers_, consumer);
@@ -108,78 +63,58 @@ void BrowserMemoryConsumerRegistry::ConsumerGroup::RemoveMemoryConsumer(
 
 // BrowserMemoryConsumerRegistry -----------------------------------------------
 
-BrowserMemoryConsumerRegistry::BrowserMemoryConsumerRegistry() = default;
+BrowserMemoryConsumerRegistry::BrowserMemoryConsumerRegistry(
+    MemoryConsumerGroupController& controller)
+    : controller_(controller) {}
 
 BrowserMemoryConsumerRegistry::~BrowserMemoryConsumerRegistry() {
   NotifyDestruction();
 
   // Clear all references to consumers that live in a child process, as it's not
   // worth the hassle to wait until all disconnect notifications are received.
-
-  // `consumer_infos_` must be cleared before `consumer_groups_` to avoid a
-  // dangling pointer.
-  std::erase_if(consumer_infos_, [](const auto& consumer_info) {
-    return consumer_info.process_type != content::PROCESS_TYPE_BROWSER;
-  });
-
-  // `consumer_groups_` must be cleared before `child_memory_consumers_` to
-  // avoid a dangling pointer.
-  std::erase_if(consumer_groups_, [](const auto& element) {
+  absl::erase_if(consumer_groups_, [](const auto& element) {
     return std::get<1>(element.first) != ChildProcessId();
   });
-  child_memory_consumers_.clear();
-  receivers_.Clear();
 
   // This checks that all local consumers have unregistered in time.
   CHECK(consumer_groups_.empty());
-  CHECK(consumer_infos_.empty());
 }
 
-void BrowserMemoryConsumerRegistry::Bind(
+void BrowserMemoryConsumerRegistry::AddMemoryConsumerFromChildProcess(
+    std::string_view consumer_id,
+    base::MemoryConsumerTraits traits,
     ProcessType process_type,
     ChildProcessId child_process_id,
-    mojo::PendingReceiver<mojom::BrowserMemoryConsumerRegistry>
-        pending_receiver) {
-  receivers_.Add(this, std::move(pending_receiver),
-                 {process_type, child_process_id});
+    base::MemoryConsumer* consumer) {
+  CHECK_NE(process_type, PROCESS_TYPE_BROWSER);
+  CHECK(!child_process_id.is_null());
+  AddMemoryConsumerImpl(consumer_id, traits, process_type, child_process_id,
+                        CreateRegisteredMemoryConsumer(consumer));
 }
 
-void BrowserMemoryConsumerRegistry::RegisterChildMemoryConsumer(
-    const std::string& consumer_id,
-    base::MemoryConsumerTraits traits,
-    mojo::PendingRemote<mojom::ChildMemoryConsumer> remote_consumer) {
-  ChildProcessId child_process_id =
-      receivers_.current_context().child_process_id;
+void BrowserMemoryConsumerRegistry::RemoveMemoryConsumerFromChildProcess(
+    std::string_view consumer_id,
+    ChildProcessId child_process_id,
+    base::MemoryConsumer* consumer) {
+  CHECK(!child_process_id.is_null());
+  RemoveMemoryConsumerImpl(consumer_id, child_process_id,
+                           CreateRegisteredMemoryConsumer(consumer));
+}
 
-  // In some edge cases related to RPH reuse, there might already be a
-  // registered consumer group for this ChildProcessId. Simply overwrite it.
-  // Note that the value type (ChildMemoryConsumer) is not copyable or movable,
-  // so it's not possible to simply overwrite the previous value. We must remove
-  // and emplace afterwards.
-  auto consumer_group_key = std::tie(consumer_id, child_process_id);
-  auto it = child_memory_consumers_.lower_bound(consumer_group_key);
-  if (it != child_memory_consumers_.end() && it->first == consumer_group_key) {
-    ChildMemoryConsumer& child_memory_consumer = it->second;
-    RemoveMemoryConsumerImpl(
-        consumer_id, child_process_id,
-        CreateRegisteredMemoryConsumer(&child_memory_consumer));
-
-    it = child_memory_consumers_.erase(it);
+void BrowserMemoryConsumerRegistry::NotifyReleaseMemoryForTesting() {
+  auto& instance = GetInstance();
+  for (auto& [key, group] : instance.consumer_groups_) {
+    instance.CreateRegisteredMemoryConsumer(group.get()).ReleaseMemory();
   }
+}
 
-  it = child_memory_consumers_.emplace_hint(
-      it, std::piecewise_construct,
-      std::forward_as_tuple(consumer_id, child_process_id),
-      std::forward_as_tuple(
-          std::move(remote_consumer),
-          base::BindOnce(
-              &BrowserMemoryConsumerRegistry::OnChildMemoryConsumerDisconnected,
-              base::Unretained(this), consumer_id, child_process_id)));
-
-  ProcessType process_type = receivers_.current_context().process_type;
-
-  AddMemoryConsumerImpl(consumer_id, traits, process_type, child_process_id,
-                        CreateRegisteredMemoryConsumer(&it->second));
+void BrowserMemoryConsumerRegistry::NotifyUpdateMemoryLimitForTesting(
+    int percentage) {
+  auto& instance = GetInstance();
+  for (auto& [key, group] : instance.consumer_groups_) {
+    instance.CreateRegisteredMemoryConsumer(group.get())
+        .UpdateMemoryLimit(percentage);
+  }
 }
 
 void BrowserMemoryConsumerRegistry::OnMemoryConsumerAdded(
@@ -202,17 +137,20 @@ void BrowserMemoryConsumerRegistry::AddMemoryConsumerImpl(
     ProcessType process_type,
     ChildProcessId child_process_id,
     base::RegisteredMemoryConsumer consumer) {
-  auto [it, inserted] = consumer_groups_.emplace(
-      std::piecewise_construct,
-      std::forward_as_tuple(consumer_id, child_process_id),
-      std::forward_as_tuple(traits, process_type));
-  ConsumerGroup& consumer_group = it->second;
+  auto [it, inserted] = consumer_groups_.try_emplace(
+      ConsumerGroupKey(consumer_id, child_process_id), nullptr);
 
   if (inserted) {
-    // First time seeing a consumer with this ID in this process. Add to
-    // `consumer_infos_` to facilitate iteration by external callers.
-    consumer_infos_.emplace_back(
-        std::string(consumer_id), traits, process_type, child_process_id,
+    it->second = std::make_unique<ConsumerGroup>(traits, process_type);
+  }
+
+  ConsumerGroup& consumer_group = *it->second;
+
+  if (inserted) {
+    // First time seeing a consumer with this ID in this process. Notify the
+    // controller.
+    controller_->OnConsumerGroupAdded(
+        consumer_id, traits, process_type, child_process_id,
         CreateRegisteredMemoryConsumer(&consumer_group));
   }
 
@@ -226,54 +164,20 @@ void BrowserMemoryConsumerRegistry::RemoveMemoryConsumerImpl(
     std::string_view consumer_id,
     ChildProcessId child_process_id,
     base::RegisteredMemoryConsumer consumer) {
-  auto it = consumer_groups_.find(std::tie(consumer_id, child_process_id));
+  auto it =
+      consumer_groups_.find(ConsumerGroupKey(consumer_id, child_process_id));
   CHECK(it != consumer_groups_.end());
-  ConsumerGroup& consumer_group = it->second;
+  ConsumerGroup& consumer_group = *it->second;
 
   consumer_group.RemoveMemoryConsumer(consumer);
 
   if (consumer_group.empty()) {
-    // Last consumer with this ID. Clean up from `consumer_infos_`.
-    size_t removed = std::erase_if(
-        consumer_infos_,
-        [consumer_id, child_process_id](const ConsumerInfo& consumer_info) {
-          return consumer_info.consumer_id == consumer_id &&
-                 consumer_info.child_process_id == child_process_id;
-        });
-    CHECK_EQ(removed, 1u);
+    // Last consumer with this ID. Notify the controller.
+    controller_->OnConsumerGroupRemoved(consumer_id, child_process_id);
 
     // Also remove the group.
     consumer_groups_.erase(it);
   }
 }
-
-void BrowserMemoryConsumerRegistry::OnChildMemoryConsumerDisconnected(
-    const std::string& consumer_id,
-    ChildProcessId child_process_id,
-    ChildMemoryConsumer* child_memory_consumer) {
-  RemoveMemoryConsumerImpl(
-      consumer_id, child_process_id,
-      CreateRegisteredMemoryConsumer(child_memory_consumer));
-
-  size_t removed =
-      child_memory_consumers_.erase(std::tie(consumer_id, child_process_id));
-  CHECK_EQ(removed, 1u);
-}
-
-namespace test {
-
-void NotifyReleaseMemoryForTesting() {
-  for (auto& consumer_info : GetInstance()) {
-    consumer_info.consumer.ReleaseMemory();
-  }
-}
-
-void NotifyUpdateMemoryLimitForTesting(int percentage) {
-  for (auto& consumer_info : GetInstance()) {
-    consumer_info.consumer.UpdateMemoryLimit(percentage);
-  }
-}
-
-}  // namespace test
 
 }  // namespace content

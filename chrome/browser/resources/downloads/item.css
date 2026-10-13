@@ -56,6 +56,7 @@ cr-button {
   width: var(--downloads-card-width);
   max-width: calc(100% - 2 * var(--downloads-card-margin));
 }
+
 #main-content {
   display: flex;
   flex: none;
@@ -85,6 +86,7 @@ cr-button {
   display: flex;
   flex: 1;
   flex-direction: column;
+  min-width: 0;  /* This allows #file-link to elide correctly. */
   padding-bottom: 16px;
   padding-inline-end: 16px;
   padding-inline-start: var(--downloads-card-margin);
@@ -193,17 +195,13 @@ cr-button {
 
 #name,
 #file-link {
+  font-weight: 500;
   max-width: 100%;
   overflow: hidden;
+  text-align: start;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-#name,
-#file-link {
-  font-weight: 500;
   word-break: break-all;
-  text-align: start;
 }
 
 @media (prefers-color-scheme: light) {

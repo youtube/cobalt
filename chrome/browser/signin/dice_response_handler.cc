@@ -33,7 +33,6 @@
 #include "components/signin/public/base/signin_switches.h"
 #include "components/signin/public/identity_manager/accounts_mutator.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
-#include "components/signin/public/identity_manager/identity_utils.h"
 #include "components/unexportable_keys/unexportable_key_id.h"
 #include "components/unexportable_keys/unexportable_key_service.h"
 #include "google_apis/gaia/gaia_auth_fetcher.h"
@@ -41,6 +40,7 @@
 #include "google_apis/gaia/gaia_id.h"
 #include "google_apis/gaia/gaia_urls.h"
 #include "google_apis/gaia/google_service_auth_error.h"
+#include "net/http/structured_headers.h"
 #include "third_party/blink/public/common/user_agent/user_agent_metadata.h"
 
 const int kDiceTokenFetchTimeoutSeconds = 10;
@@ -93,6 +93,15 @@ void RecordDiceResponseHeader(DiceResponseHeader header) {
 void RecordDiceFetchTokenResult(DiceTokenFetchResult result) {
   base::UmaHistogramEnumeration(kDiceTokenFetchResultHistogram, result,
                                 kDiceTokenFetchResultCount);
+}
+
+// Creates a serialized string header value out of the input type, using
+// structured headers.
+template <typename T>
+std::string SerializeHeaderString(const T& value) {
+  return net::structured_headers::SerializeItem(
+             net::structured_headers::Item(value))
+      .value_or(std::string());
 }
 
 }  // namespace
@@ -181,12 +190,14 @@ void DiceResponseHandler::DiceTokenFetcher::StartTokenFetch() {
   VLOG(1) << "Start fetching token for account: " << email_;
   gaia_auth_fetcher_ =
       signin_client_->CreateGaiaAuthFetcher(this, gaia::GaiaSource::kChrome);
+  blink::UserAgentMetadata ua_metadata =
+      embedder_support::GetUserAgentMetadata();
   // `binding_registration_token_` is empty if the binding key was not
   // generated.
   gaia_auth_fetcher_->StartAuthCodeForOAuth2TokenExchange(
-      authorization_code_,
-      embedder_support::GetUserAgentMetadata().SerializeBrandFullVersionList(),
-      binding_registration_token_);
+      authorization_code_, binding_registration_token_,
+      {.full_version_list = ua_metadata.SerializeBrandFullVersionList(),
+       .platform = SerializeHeaderString(ua_metadata.platform)});
   base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
       FROM_HERE, timeout_closure_.callback(),
       base::Seconds(kDiceTokenFetchTimeoutSeconds));
@@ -379,17 +390,6 @@ void DiceResponseHandler::ProcessDiceSignoutHeader(
     const std::vector<signin::DiceResponseParams::AccountInfo>& account_infos) {
   VLOG(1) << "Start processing Dice signout response";
 
-  // In some cases, the primary account can only be invalidated:
-  // - There is a sync primary account
-  // - Browser explicit sign in is enabled, setting/clearing the primary account
-  //   requires explicit user action through chrome UI.
-  // - If there is a policy restriction on removing the primary account.
-  bool invalidate_only_primary_account =
-      identity_manager_->HasPrimaryAccount(signin::ConsentLevel::kSync) ||
-      !signin::IsImplicitBrowserSigninOrExplicitDisabled(
-          identity_manager_, signin_client_->GetPrefs()) ||
-      !signin_client_->IsClearPrimaryAccountAllowed();
-
   CoreAccountId primary_account =
       identity_manager_->GetPrimaryAccountId(signin::ConsentLevel::kSignin);
   bool primary_account_signed_out = false;
@@ -398,8 +398,10 @@ void DiceResponseHandler::ProcessDiceSignoutHeader(
     CoreAccountId signed_out_account =
         identity_manager_->PickAccountIdForAccount(account_info.gaia_id,
                                                    account_info.email);
-    if (invalidate_only_primary_account &&
-        signed_out_account == primary_account) {
+
+    // The primary account can only be invalidated. Removing the primary accouny
+    // requires explicit user action from the Chrome UI.
+    if (!primary_account.empty() && signed_out_account == primary_account) {
       primary_account_signed_out = true;
       RecordDiceResponseHeader(kSignoutPrimary);
 

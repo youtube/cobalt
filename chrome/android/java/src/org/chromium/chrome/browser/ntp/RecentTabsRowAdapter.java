@@ -31,7 +31,6 @@ import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.native_page.ContextMenuManager;
 import org.chromium.chrome.browser.recent_tabs.ForeignSessionHelper.ForeignSession;
 import org.chromium.chrome.browser.recent_tabs.ForeignSessionHelper.ForeignSessionTab;
@@ -43,9 +42,12 @@ import org.chromium.chrome.browser.ui.favicon.FaviconUtils;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.components.browser_ui.widget.HoverHighlightViewListener;
 import org.chromium.components.browser_ui.widget.RoundedIconGenerator;
+import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.components.embedder_support.util.UrlUtilities;
 import org.chromium.components.tab_groups.TabGroupColorId;
 import org.chromium.components.tab_groups.TabGroupColorPickerUtils;
+import org.chromium.components.url_formatter.UrlFormatter;
+import org.chromium.content_public.common.ContentUrlConstants;
 import org.chromium.ui.UiUtils;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.mojom.WindowOpenDisposition;
@@ -316,7 +318,7 @@ public class RecentTabsRowAdapter extends BaseExpandableListAdapter {
             String url = sessionTab.url.getSpec();
             String text = TextUtils.isEmpty(sessionTab.title) ? url : sessionTab.title;
             viewHolder.textView.setText(text);
-            String domain = UrlUtilities.getDomainAndRegistry(url, false);
+            String domain = formatUrlForDisplay(sessionTab.url);
             if (!TextUtils.isEmpty(domain)) {
                 viewHolder.domainView.setText(domain);
                 viewHolder.domainView.setVisibility(View.VISIBLE);
@@ -471,29 +473,7 @@ public class RecentTabsRowAdapter extends BaseExpandableListAdapter {
         }
     }
 
-    /** A group containing the personalized sync promo. */
-    class PersonalizedSigninPromoGroup extends PromoGroup {
-        @Override
-        @ChildType
-        int getChildType() {
-            return ChildType.SIGNIN_PROMO;
-        }
-
-        @Override
-        View getChildView(
-                int childPosition, boolean isLastChild, View convertView, ViewGroup parent) {
-            if (convertView == null) {
-                LayoutInflater layoutInflater = LayoutInflater.from(parent.getContext());
-                convertView =
-                        layoutInflater.inflate(R.layout.sync_promo_view_recent_tabs, parent, false);
-            }
-            mRecentTabsManager.setUpSyncPromoView(
-                    convertView.findViewById(R.id.signin_promo_view_container));
-            return convertView;
-        }
-    }
-
-    /** A group containing the personalized sync promo. */
+    /** A group containing the signin promo. */
     class SigninPromoGroup extends PromoGroup {
         @Override
         public @ChildType int getChildType() {
@@ -627,7 +607,7 @@ public class RecentTabsRowAdapter extends BaseExpandableListAdapter {
                 List<RecentlyClosedTab> tabList) {
             List<String> domainList = new ArrayList<>();
             for (RecentlyClosedTab tab : tabList) {
-                String domain = UrlUtilities.getDomainAndRegistry(tab.getUrl().getSpec(), false);
+                String domain = formatUrlForDisplay(tab.getUrl());
                 domainList.add(domain);
             }
             String domainText =
@@ -679,8 +659,7 @@ public class RecentTabsRowAdapter extends BaseExpandableListAdapter {
             RecentlyClosedEntry entry = assumeNonNull(getChild(childPosition));
             if (entry instanceof RecentlyClosedWindow recentlyClosedWindow) {
                 viewHolder.textView.setText(recentlyClosedWindow.getTitle());
-                String activeTabDomain =
-                        UrlUtilities.getDomainAndRegistry(recentlyClosedWindow.getUrl(), false);
+                String activeTabDomain = formatUrlForDisplay(recentlyClosedWindow.getUrl());
                 String activeTabInfo =
                         TextUtils.isEmpty(activeTabDomain)
                                 ? recentlyClosedWindow.getActiveTabTitle()
@@ -737,7 +716,7 @@ public class RecentTabsRowAdapter extends BaseExpandableListAdapter {
                 String title = TitleUtil.getTitleForDisplay(tab.getTitle(), tab.getUrl());
                 viewHolder.textView.setText(title);
 
-                String domain = UrlUtilities.getDomainAndRegistry(tab.getUrl().getSpec(), false);
+                String domain = formatUrlForDisplay(tab.getUrl());
                 if (!TextUtils.isEmpty(domain)) {
                     viewHolder.domainView.setText(domain);
                     viewHolder.domainView.setVisibility(View.VISIBLE);
@@ -906,6 +885,29 @@ public class RecentTabsRowAdapter extends BaseExpandableListAdapter {
                 "HistoryPage.OtherDevicesMenu",
                 OtherSessionsActions.MENU_INITIALIZED,
                 OtherSessionsActions.NUM_ENTRIES);
+    }
+
+    /**
+     * Formats a URL for display. For most URLs, this is just the domain and registry. For about and
+     * chrome scheme URLs, the entire URL is returned.
+     *
+     * @param gurl The URL to format.
+     * @return The formatted URL or null if the domain could not be extracted.
+     */
+    private @Nullable String formatUrlForDisplay(GURL gurl) {
+        String urlSpec = gurl.getSpec();
+        String scheme = gurl.getScheme();
+        if (ContentUrlConstants.ABOUT_SCHEME.equals(scheme)
+                || UrlConstants.CHROME_SCHEME.equals(scheme)
+                || UrlConstants.CHROME_NATIVE_SCHEME.equals(scheme)) {
+            return UrlFormatter.formatUrlForDisplayOmitHTTPScheme(urlSpec);
+        }
+        // This should perhaps use UrlFormatter as well, but it has used domain for a long time.
+        return UrlUtilities.getDomainAndRegistry(urlSpec, false);
+    }
+
+    private @Nullable String formatUrlForDisplay(String urlSpec) {
+        return formatUrlForDisplay(new GURL(urlSpec));
     }
 
     /**
@@ -1097,11 +1099,7 @@ public class RecentTabsRowAdapter extends BaseExpandableListAdapter {
         }
 
         if (mRecentTabsManager.shouldShowPromo()) {
-            if (ChromeFeatureList.isEnabled(ChromeFeatureList.UNO_PHASE_2_FOLLOW_UP)) {
-                addGroup(new SigninPromoGroup());
-            } else {
-                addGroup(new PersonalizedSigninPromoGroup());
-            }
+            addGroup(new SigninPromoGroup());
         } else {
             boolean recentlyClosedGroupIsOnlyHeader =
                     mRecentlyClosedTabsGroup.getChildrenCount() == 1;

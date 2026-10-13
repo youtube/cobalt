@@ -22,19 +22,10 @@ BASE_DECLARE_FEATURE(kNtpComposebox);
 
 // The serialized base64 encoded `omnibox::NTPComposeboxConfig`.
 extern const base::FeatureParam<std::string> kConfigParam;
-// Whether or not to use separate request ids for viewport images if the
-// multi-context input flow is enabled.
-extern const base::FeatureParam<bool>
-    kUseSeparateRequestIdsForMultiContextViewportImages;
-// Whether to show zps suggestions under the composebox.
-extern const base::FeatureParam<bool> kShowComposeboxZps;
 // Whether to show typed suggestions under the composebox.
 extern const base::FeatureParam<bool> kShowComposeboxTypedSuggest;
 // Whether to show image suggestions under the composebox.
 extern const base::FeatureParam<bool> kShowComposeboxImageSuggestions;
-// Whether or not to attach the page title and url directly to the suggest
-// request params.
-extern const base::FeatureParam<bool> kAttachPageTitleAndUrlToSuggestRequest;
 // Whether to show the + entrypoint and contextual input menu in the realbox and
 // composebox.
 extern const base::FeatureParam<bool> kShowContextMenu;
@@ -55,19 +46,11 @@ extern const base::FeatureParam<bool> kShowContextMenuDescription;
 // Whether or not to show the context menu description only when the user
 // hovers over the button.
 extern const base::FeatureParam<bool> kEnableEphemeralContextMenuDescription;
-// Whether or not to enable viewport images with page context uploads.
-extern const base::FeatureParam<bool> kEnableViewportImages;
-// Whether to show the tools and models in the composebox.
-extern const base::FeatureParam<bool> kShowToolsAndModels;
-// Whether to show canvas in the composebox.
-extern const base::FeatureParam<bool> kShowCanvas;
-// Whether to show the model picker in the composebox.
-extern const base::FeatureParam<bool> kShowModelPicker;
+// Whether to show section headers in the context menu.
+extern const base::FeatureParam<bool> kShowContextMenuHeaders;
 // Whether to allow drag and drop files on composebox
 extern const base::FeatureParam<bool> kEnableContextDragAndDrop;
 
-// Whether to show the submit button in the composebox.
-extern const base::FeatureParam<bool> kShowSubmit;
 // Whether to show the smart compose in the composebox.
 extern const base::FeatureParam<bool> kShowSmartCompose;
 // Whether to show the voice search button in steady state composebox.
@@ -80,8 +63,6 @@ extern const base::FeatureParam<bool> kCloseComposeboxByEscape;
 extern const base::FeatureParam<bool> kCloseComposeboxByClickOutside;
 // Whether to delay an upload if tab context is added from the recent tab chip.
 extern const base::FeatureParam<bool> kAddTabUploadDelayOnRecentTabChipClick;
-// Whether to trap tab focus within the composebox.
-extern const base::FeatureParam<bool> kEnableModalComposebox;
 // Whether to show the AIM threads rail when composebox is open.
 extern const base::FeatureParam<bool> kEnableThreadsRail;
 // Whether to show the AIM threads rail Google logo.
@@ -137,9 +118,6 @@ extern const base::FeatureParam<PlaceholderText> kSteadyPlaceholder;
 
 // Whether to show a series of cycling placeholder texts on the search input UI.
 extern const base::FeatureParam<bool> kCyclingPlaceholders;
-
-// Whether to show the voice search button in the realbox.
-extern const base::FeatureParam<bool> kShowVoiceSearchInExpandedRealbox;
 
 // Enum for `kRealboxLayoutMode`.
 enum class RealboxLayoutMode {

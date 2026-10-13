@@ -17,6 +17,7 @@
 #include "url/gurl.h"
 
 class BrowserWindowInterface;
+class Profile;
 class SessionID;
 class TabListInterfaceObserver;
 
@@ -68,6 +69,9 @@ class TabListInterface {
   virtual void SetOpenerForTab(tabs::TabHandle target,
                                tabs::TabHandle opener) = 0;
 
+  // Get the `opener` tab from `target` tab.
+  virtual tabs::TabInterface* GetOpenerForTab(tabs::TabHandle target) = 0;
+
   // Attempts to discard the renderer for the `tab` from memory.
   //
   // For details refer to:
@@ -86,10 +90,9 @@ class TabListInterface {
   // Otherwise, returns -1.
   virtual int GetIndexOfTab(tabs::TabHandle tab) = 0;
 
-  // Highlights a set of tabs, adding them to the multi-selection set and
-  // activating one of them. This is an additive operation; it does not clear
-  // other currently selected tabs. The `tab_to_activate` becomes the active
-  // tab. The `tab_to_activate` must be present in `tabs`.
+  // Highlights a set of tabs. This will clear any initially-selected tabs and
+  // highlight the new set.  The `tab_to_activate` becomes the active tab and
+  // must be present in `tabs`.
   virtual void HighlightTabs(tabs::TabHandle tab_to_activate,
                              const std::set<tabs::TabHandle>& tabs) = 0;
 
@@ -173,6 +176,22 @@ class TabListInterface {
   virtual void MoveTabGroupToWindow(tab_groups::TabGroupId group_id,
                                     SessionID destination_window_id,
                                     int destination_index) = 0;
+
+  // Returns true if *this* tab list is currently editable according to its own
+  // internal state.
+  // NOTE: For most operations, you probably want to use the static
+  // method `CanEditTabList()` below. See also comments there.
+  virtual bool IsThisTabListEditable() = 0;
+
+  // Returns true if all tabs in this tab list are in the process of closing.
+  virtual bool IsClosingAllTabs() = 0;
+
+  // Returns true if the tab list is currently considered editable. This will
+  // return false if *any* tab list for the given `profile` has a tab being
+  // dragged / dropped. This is because, even if the tab list doesn't have a
+  // tab that's being dragged from it, a different drag could be placed into it,
+  // affecting the list.
+  static bool CanEditTabList(Profile& profile);
 };
 
 namespace base {

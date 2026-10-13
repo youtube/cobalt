@@ -47,13 +47,12 @@
 #include "content/child/child_performance_coordinator.h"
 #include "content/child/child_process.h"
 #include "content/child/child_process_synthetic_trial_syncer.h"
-#include "content/child/memory_coordinator/child_memory_consumer_registry.h"
+#include "content/child/memory_coordinator/child_memory_coordinator.h"
 #include "content/common/child_process.mojom.h"
 #include "content/common/content_constants_internal.h"
 #include "content/common/features.h"
 #include "content/common/field_trial_recorder.mojom.h"
 #include "content/common/in_process_child_thread_params.h"
-#include "content/common/pseudonymization_salt.h"
 #include "content/public/child/child_thread.h"
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_features.h"
@@ -439,10 +438,6 @@ class ChildThreadImpl::IOThreadState
   }
 #endif
 
-  void SetPseudonymizationSalt(uint32_t salt) override {
-    content::SetPseudonymizationSalt(salt);
-  }
-
 #if BUILDFLAG(IS_CHROMEOS)
   void ReinitializeLogging(mojom::LoggingSettingsPtr settings) override {
     logging::LoggingSettings logging_settings;
@@ -700,8 +695,8 @@ void ChildThreadImpl::Init(const Options& options) {
   BindHostReceiver(performance_coordinator_->InitializeAndPassReceiver());
 
   if (!IsInBrowserProcess()) {
-    // Connect the global ChildMemoryConsumerRegistry with the browser registry.
-    BindHostReceiver(ChildMemoryConsumerRegistry::BindAndPassReceiver());
+    // Connect the global ChildMemoryCoordinator with the browser registry.
+    BindHostReceiver(ChildMemoryCoordinator::BindAndPassReceiver());
   }
 
 #if BUILDFLAG(IS_POSIX)

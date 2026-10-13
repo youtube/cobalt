@@ -6,20 +6,37 @@
 
 #include "base/debug/leak_annotations.h"
 #include "base/feature_list.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
-#include "base/task/bind_post_task.h"
 #include "base/task/thread_pool.h"
+#include "base/types/expected_macros.h"
+#include "components/services/storage/dom_storage/dom_storage_constants.h"
 #include "components/services/storage/dom_storage/features.h"
 #include "components/services/storage/dom_storage/leveldb/dom_storage_database_leveldb.h"
 #include "components/services/storage/dom_storage/leveldb/local_storage_leveldb.h"
 #include "components/services/storage/dom_storage/leveldb/session_storage_leveldb.h"
-#include "components/services/storage/dom_storage/sqlite/dom_storage_sqlite.h"
+#include "components/services/storage/dom_storage/sqlite/local_storage_sqlite.h"
+#include "components/services/storage/dom_storage/sqlite/session_storage_sqlite.h"
+#include "components/services/storage/dom_storage/sqlite/sqlite_database_utils.h"
 #include "components/services/storage/public/cpp/constants.h"
 
 namespace storage {
 namespace {
+
+// Returns true if the SQLite backend should be used for DOMStorage.
+// `kDomStorageSqlite` enables SQLite for both in-memory and on-disk databases.
+// `kDomStorageSqliteInMemory` enables SQLite only for in-memory databases.
+bool ShouldUseSqliteBackend(const base::FilePath& database_path) {
+  if (base::FeatureList::IsEnabled(kDomStorageSqlite)) {
+    return true;
+  }
+  if (database_path.empty()) {
+    return base::FeatureList::IsEnabled(kDomStorageSqliteInMemory);
+  }
+  return false;
+}
 
 // Constructs an absolute path to the session storage database using
 // `storage_partition_dir`.  For LevelDB, the path is a directory:
@@ -94,17 +111,17 @@ bool DomStorageDatabase::KeyValuePair::operator==(
   return std::tie(key, value) == std::tie(rhs.key, rhs.value);
 }
 
-DomStorageDatabase::MapLocator::MapLocator(std::string source_session_id,
-                                           blink::StorageKey source_storage_key)
-    : storage_key_(source_storage_key) {
-  session_ids_.push_back(std::move(source_session_id));
+DomStorageDatabase::MapLocator::MapLocator(std::string session_id,
+                                           blink::StorageKey storage_key)
+    : storage_key_(storage_key) {
+  session_ids_.push_back(std::move(session_id));
 }
 
-DomStorageDatabase::MapLocator::MapLocator(std::string source_session_id,
-                                           blink::StorageKey source_storage_key,
-                                           int64_t source_map_id)
-    : storage_key_(source_storage_key), map_id_(source_map_id) {
-  session_ids_.push_back(std::move(source_session_id));
+DomStorageDatabase::MapLocator::MapLocator(std::string session_id,
+                                           blink::StorageKey storage_key,
+                                           int64_t map_id)
+    : storage_key_(storage_key), map_id_(map_id) {
+  session_ids_.push_back(std::move(session_id));
 }
 
 DomStorageDatabase::MapLocator::~MapLocator() = default;
@@ -204,25 +221,31 @@ void DomStorageDatabaseFactory::Open(
   scoped_refptr<base::SequencedTaskRunner> blocking_task_runner =
       GetTaskRunnerForDb(database_path);
 
-  if (base::FeatureList::IsEnabled(kDomStorageSqlite)) {
-    return CreateSequenceBoundDomStorageDatabase<DomStorageSqlite>(
-        std::move(blocking_task_runner), database_path, memory_dump_id,
-        base::BindOnce(&OnDatabaseOpened<DomStorageSqlite>,
-                       std::move(callback)));
-  }
-
   switch (storage_type) {
-    case StorageType::kLocalStorage:
+    case StorageType::kLocalStorage: {
+      if (ShouldUseSqliteBackend(database_path)) {
+        return CreateSequenceBoundDomStorageDatabase<LocalStorageSqlite>(
+            std::move(blocking_task_runner), database_path, memory_dump_id,
+            base::BindOnce(&OnDatabaseOpened<LocalStorageSqlite>,
+                           std::move(callback)));
+      }
       return CreateSequenceBoundDomStorageDatabase<LocalStorageLevelDB>(
           std::move(blocking_task_runner), database_path, memory_dump_id,
           base::BindOnce(&OnDatabaseOpened<LocalStorageLevelDB>,
                          std::move(callback)));
-
-    case StorageType::kSessionStorage:
+    }
+    case StorageType::kSessionStorage: {
+      if (ShouldUseSqliteBackend(database_path)) {
+        return CreateSequenceBoundDomStorageDatabase<SessionStorageSqlite>(
+            std::move(blocking_task_runner), database_path, memory_dump_id,
+            base::BindOnce(&OnDatabaseOpened<SessionStorageSqlite>,
+                           std::move(callback)));
+      }
       return CreateSequenceBoundDomStorageDatabase<SessionStorageLevelDB>(
           std::move(blocking_task_runner), database_path, memory_dump_id,
           base::BindOnce(&OnDatabaseOpened<SessionStorageLevelDB>,
                          std::move(callback)));
+    }
   }
   NOTREACHED();
 }
@@ -236,10 +259,16 @@ void DomStorageDatabaseFactory::Destroy(const base::FilePath& database_path,
   scoped_refptr<base::SequencedTaskRunner> blocking_task_runner =
       GetTaskRunnerForDb(database_path);
 
+  base::OnceCallback<DbStatus()> destroy_database_callback;
+  if (base::FeatureList::IsEnabled(kDomStorageSqlite)) {
+    destroy_database_callback =
+        base::BindOnce(&sqlite::DestroyDatabase, database_path);
+  } else {
+    destroy_database_callback =
+        base::BindOnce(&DomStorageDatabaseLevelDB::Destroy, database_path);
+  }
   blocking_task_runner->PostTaskAndReplyWithResult(
-      FROM_HERE,
-      base::BindOnce(&DomStorageDatabaseLevelDB::Destroy, database_path),
-      std::move(callback));
+      FROM_HERE, std::move(destroy_database_callback), std::move(callback));
 }
 
 template <typename TDatabase>
@@ -295,6 +324,46 @@ void DomStorageDatabaseFactory::CreateSequenceBoundDomStorageDatabase(
 base::PassKey<DomStorageDatabaseFactory>
 DomStorageDatabaseFactory::CreatePassKeyForTesting() {
   return base::PassKey<DomStorageDatabaseFactory>();
+}
+
+DbStatus PurgeOrigins(DomStorageDatabase& database,
+                      std::set<url::Origin> origins) {
+  ASSIGN_OR_RETURN(DomStorageDatabase::Metadata all_metadata,
+                   database.ReadAllMetadata());
+
+  std::vector<blink::StorageKey> metadata_to_delete;
+  std::vector<DomStorageDatabase::MapLocator> maps_to_delete;
+
+  for (const DomStorageDatabase::MapMetadata& metadata :
+       all_metadata.map_metadata) {
+    // Ideally we would be recording last_accessed instead, but there is no
+    // historical data on that. Instead, we will use last_modified as a sanity
+    // check against other data as we try to understand how many 'old' storage
+    // buckets are still in use. This is split into two buckets for greater
+    // resolution on near and far term ages.
+    if (metadata.last_modified && *metadata.last_modified < base::Time::Now()) {
+      const int days_since_last_modified =
+          (base::Time::Now() - *metadata.last_modified).InDays();
+      base::UmaHistogramCustomCounts("LocalStorage.DaysSinceLastModified",
+                                     days_since_last_modified, 1,
+                                     kLocalStorageStaleBucketCutoffInDays, 100);
+    }
+
+    const blink::StorageKey& storage_key = metadata.map_locator.storage_key();
+
+    for (const url::Origin& origin : origins) {
+      if (storage_key.origin() == origin ||
+          (storage_key.IsThirdPartyContext() &&
+           storage_key.top_level_site().IsSameSiteWith(origin))) {
+        metadata_to_delete.push_back(storage_key);
+        maps_to_delete.emplace_back(kLocalStorageSessionId, storage_key);
+        break;
+      }
+    }
+  }
+  return database.DeleteStorageKeysFromSession(kLocalStorageSessionId,
+                                               std::move(metadata_to_delete),
+                                               std::move(maps_to_delete));
 }
 
 }  // namespace storage

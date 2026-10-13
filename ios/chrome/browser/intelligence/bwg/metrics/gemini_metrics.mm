@@ -9,6 +9,7 @@
 #import "base/metrics/user_metrics_action.h"
 #import "base/time/time.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h"
+#import "ios/public/provider/chrome/browser/bwg/bwg_api.h"
 
 namespace {
 // Minimum time between FRE entry point impression logs.
@@ -19,6 +20,33 @@ base::TimeTicks& GetLastGeminiImpressionTime() {
   static base::TimeTicks last_impression_time;
   return last_impression_time;
 }
+
+// Returns an IOSGeminiAspectRatioBucket for a given aspect ratio.
+IOSGeminiAspectRatioBucket GetAspectRatioBucket(double aspect_ratio) {
+  if (aspect_ratio <= 0) {
+    return IOSGeminiAspectRatioBucket::kUnknown;
+  }
+  if (aspect_ratio < 0.3) {
+    return IOSGeminiAspectRatioBucket::kVeryTall;
+  }
+  if (aspect_ratio < 0.8) {
+    return IOSGeminiAspectRatioBucket::kTall;
+  }
+  if (aspect_ratio < 1.0) {
+    return IOSGeminiAspectRatioBucket::kSlightlyTall;
+  }
+  if (aspect_ratio == 1.0) {
+    return IOSGeminiAspectRatioBucket::kPerfectSquare;
+  }
+  if (aspect_ratio <= 1.2) {
+    return IOSGeminiAspectRatioBucket::kSlightlyWide;
+  }
+  if (aspect_ratio <= 1.7) {
+    return IOSGeminiAspectRatioBucket::kWide;
+  }
+  return IOSGeminiAspectRatioBucket::kVeryWide;
+}
+
 }  // namespace
 
 const char kEligibilityHistogram[] = "IOS.Gemini.Eligibility";
@@ -26,6 +54,11 @@ const char kEligibilityHistogram[] = "IOS.Gemini.Eligibility";
 const char kEntryPointHistogram[] = "IOS.Gemini.EntryPoint";
 
 const char kFeedbackHistogram[] = "IOS.Gemini.Feedback";
+
+const char kImageActionButtonHistogram[] = "IOS.Gemini.ImageActionButton";
+
+const char kInputPlateAttachmentOptionHistogram[] =
+    "IOS.Gemini.InputPlateAttachmentOption";
 
 const char kFREEntryPointHistogram[] = "IOS.Gemini.FRE.EntryPoint";
 
@@ -57,8 +90,20 @@ const char kGeminiSessionTimeHistogram[] = "IOS.Gemini.Session.Time";
 const char kFirstPromptSubmissionMethodHistogram[] =
     "IOS.Gemini.FirstPrompt.SubmissionMethod";
 
+const char kPromptImagesAttachedCountHistogram[] =
+    "IOS.Gemini.Prompt.ImagesAttached.Count";
+
+const char kPromptImageRemixEnabledHistogram[] =
+    "IOS.Gemini.Prompt.ImageRemix.Enabled";
+
+const char kPromptLongPressImageIncludedHistogram[] =
+    "IOS.Gemini.Prompt.LongPressImage.Included";
+
 const char kPromptContextAttachmentHistogram[] =
     "IOS.Gemini.Prompt.ContextAttachment";
+
+const char kResponseGeneratedImageIncluded[] =
+    "IOS.Gemini.Response.GeneratedImage.Included";
 
 const char kResponseLatencyWithContextHistogram[] =
     "IOS.Gemini.Response.Latency.WithContext";
@@ -66,9 +111,47 @@ const char kResponseLatencyWithContextHistogram[] =
 const char kResponseLatencyWithoutContextHistogram[] =
     "IOS.Gemini.Response.Latency.WithoutContext";
 
+const char kResponseLatencyWithGeneratedImageHistogram[] =
+    "IOS.Gemini.Response.Latency.WithGeneratedImage";
+
+const char kResponseLatencyWithoutGeneratedImageHistogram[] =
+    "IOS.Gemini.Response.Latency.WithoutGeneratedImage";
+
 const char kSessionPromptCountHistogram[] = "IOS.Gemini.Session.PromptCount";
 
 const char kSessionFirstPromptHistogram[] = "IOS.Gemini.Session.FirstPrompt";
+
+const char kFloatyTimeMinimizedHistogram[] = "IOS.Gemini.Floaty.TimeMinimized";
+
+const char kFloatyViewStateTransitionHistogram[] =
+    "IOS.Gemini.Floaty.ViewStateTransition";
+
+const char kFloatyShownFromSourceHistogram[] =
+    "IOS.Gemini.Floaty.ShownFromSource";
+
+const char kFloatyHiddenFromSourceHistogram[] =
+    "IOS.Gemini.Floaty.HiddenFromSource";
+
+const char kImageRemixContextMenuEntryPointAspectRatioTappedHistogram[] =
+    "IOS.Gemini.ImageRemix.ContextMenuEntryPoint.AspectRatio.Tapped";
+
+const char kCameraFlowOSCameraAuthorizationInitialStatusHistogram[] =
+    "IOS.Gemini.CameraFlow.OSCameraAuthorization.InitialStatus";
+
+const char kCameraFlowOSAuthorizationRequestResultHistogram[] =
+    "IOS.Gemini.CameraFlow.OSCameraAuthorizationRequest.Result";
+
+const char kCameraFlowGoToOSSettingsAlertResultHistogram[] =
+    "IOS.Gemini.CameraFlow.GoToOSSettingsAlert.Result";
+
+const char kCameraFlowGeminiCameraPermissionInitialValueHistogram[] =
+    "IOS.Gemini.CameraFlow.GeminiCameraPermission.InitialValue";
+
+const char kCameraFlowGeminiCameraPermissionAlertResultHistogram[] =
+    "IOS.Gemini.CameraFlow.GeminiCameraPermissionAlert.Result";
+
+const char kCameraFlowCameraPickerResultHistogram[] =
+    "IOS.Gemini.CameraFlow.CameraPicker.Result";
 
 void RecordFREPromoAction(IOSGeminiFREAction action) {
   switch (action) {
@@ -170,8 +253,10 @@ void RecordFirstPromptSubmission(IOSGeminiFirstPromptSubmissionMethod method) {
   base::UmaHistogramEnumeration(kFirstPromptSubmissionMethodHistogram, method);
 }
 
-void RecordGeminiResponseReceived() {
+void RecordGeminiResponseReceived(bool generated_image_included) {
   base::RecordAction(base::UserMetricsAction("MobileGeminiResponseReceived"));
+  base::UmaHistogramBoolean(kResponseGeneratedImageIncluded,
+                            generated_image_included);
 }
 
 void RecordFREPromoAccept() {
@@ -195,18 +280,23 @@ void RecordFREConsentLinkClick() {
       base::UserMetricsAction("MobileGeminiFREConsentLinkClick"));
 }
 
-void RecordPromptContextAttachment(bool has_page_context) {
-  base::UmaHistogramBoolean(kPromptContextAttachmentHistogram,
-                            has_page_context);
-}
-
-void RecordResponseLatency(base::TimeDelta latency, bool had_page_context) {
+void RecordResponseLatency(base::TimeDelta latency,
+                           bool had_page_context,
+                           bool had_generated_image) {
   if (had_page_context) {
     base::UmaHistogramMediumTimes(kResponseLatencyWithContextHistogram,
                                   latency);
   } else {
     base::UmaHistogramMediumTimes(kResponseLatencyWithoutContextHistogram,
                                   latency);
+  }
+
+  if (had_generated_image) {
+    base::UmaHistogramMediumTimes(kResponseLatencyWithGeneratedImageHistogram,
+                                  latency);
+  } else {
+    base::UmaHistogramMediumTimes(
+        kResponseLatencyWithoutGeneratedImageHistogram, latency);
   }
 }
 
@@ -216,6 +306,65 @@ void RecordSessionPromptCount(int prompt_count) {
 
 void RecordSessionFirstPrompt(bool had_first_prompt) {
   base::UmaHistogramBoolean(kSessionFirstPromptHistogram, had_first_prompt);
+}
+
+void RecordFloatyExpandedToCollapsed() {
+  base::RecordAction(
+      base::UserMetricsAction("MobileGeminiFloatyExpandedToCollapsed"));
+  RecordGeminiViewStateTransition(
+      IOSGeminiViewStateTransition::kExpandedToCollapsed);
+}
+
+void RecordFloatyCollapsedToExpanded() {
+  base::RecordAction(
+      base::UserMetricsAction("MobileGeminiFloatyCollapsedToExpanded"));
+  RecordGeminiViewStateTransition(
+      IOSGeminiViewStateTransition::kCollapsedToExpanded);
+}
+
+void RecordFloatyDismissedWhileCollapsed() {
+  base::RecordAction(
+      base::UserMetricsAction("MobileGeminiFloatyCollapsedToDismissed"));
+}
+
+void RecordFloatyMinimizedTime(base::TimeTicks elapsed_minimized_floaty_time) {
+  if (elapsed_minimized_floaty_time.is_null()) {
+    return;
+  }
+
+  base::TimeDelta minimized_floaty_time =
+      base::TimeTicks::Now() - elapsed_minimized_floaty_time;
+  base::UmaHistogramLongTimes100(kFloatyTimeMinimizedHistogram,
+                                 minimized_floaty_time);
+}
+
+void RecordGeminiViewStateTransition(IOSGeminiViewStateTransition transition) {
+  base::UmaHistogramEnumeration(kFloatyViewStateTransitionHistogram,
+                                transition);
+}
+
+void RecordGeminiViewStateHiddenToShown(
+    ios::provider::GeminiViewState view_state) {
+  switch (view_state) {
+    case ios::provider::GeminiViewState::kCollapsed:
+      RecordGeminiViewStateTransition(
+          IOSGeminiViewStateTransition::kHiddenToCollapsed);
+      break;
+    case ios::provider::GeminiViewState::kExpanded:
+      RecordGeminiViewStateTransition(
+          IOSGeminiViewStateTransition::kHiddenToExpanded);
+      break;
+    default:
+      break;
+  }
+}
+
+void RecordFloatyShownFromSource(gemini::FloatyUpdateSource source) {
+  base::UmaHistogramEnumeration(kFloatyShownFromSourceHistogram, source);
+}
+
+void RecordFloatyHiddenFromSource(gemini::FloatyUpdateSource source) {
+  base::UmaHistogramEnumeration(kFloatyHiddenFromSourceHistogram, source);
 }
 
 void RecordURLOpened() {
@@ -248,8 +397,19 @@ void RecordAIHubIconTapped() {
   base::RecordAction(base::UserMetricsAction("MobileAIHubIconTapped"));
 }
 
-void RecordGeminiPromptSent() {
+void RecordGeminiPromptSent(bool is_nano_banana_enabled,
+                            int images_attached_count,
+                            bool long_press_image_included,
+                            bool has_page_context) {
   base::RecordAction(base::UserMetricsAction("MobileGeminiPromptSent"));
+  base::UmaHistogramBoolean(kPromptImageRemixEnabledHistogram,
+                            is_nano_banana_enabled);
+  base::UmaHistogramCounts100(kPromptImagesAttachedCountHistogram,
+                              images_attached_count);
+  base::UmaHistogramBoolean(kPromptLongPressImageIncludedHistogram,
+                            long_press_image_included);
+  base::UmaHistogramBoolean(kPromptContextAttachmentHistogram,
+                            has_page_context);
 }
 
 void RecordGeminiFeedback(IOSGeminiFeedback feedback) {
@@ -265,4 +425,112 @@ void RecordGeminiFeedback(IOSGeminiFeedback feedback) {
           base::UserMetricsAction("MobileGeminiFeedbackThumbsDown"));
       break;
   }
+}
+
+void RecordImageRemixContextMenuEntryPointShown() {
+  base::RecordAction(base::UserMetricsAction(
+      "MobileGeminiImageRemixContextMenuEntryPointShown"));
+}
+
+void RecordImageRemixContextMenuEntryPointTapped(double aspect_ratio) {
+  base::RecordAction(base::UserMetricsAction(
+      "MobileGeminiImageRemixContextMenuEntryPointTapped"));
+  base::UmaHistogramEnumeration(
+      kImageRemixContextMenuEntryPointAspectRatioTappedHistogram,
+      GetAspectRatioBucket(aspect_ratio));
+}
+
+void RecordGeminiCameraFlowBegan() {
+  base::RecordAction(base::UserMetricsAction("MobileGeminiCameraFlowBegan"));
+}
+
+void RecordGeminiCameraFlowOSCameraAuthorizationInitialStatus(
+    IOSGeminiOSCameraAuthorizationInitialStatus authorization_status) {
+  base::UmaHistogramEnumeration(
+      kCameraFlowOSCameraAuthorizationInitialStatusHistogram,
+      authorization_status);
+}
+
+void RecordGeminiCameraFlowOSAuthorizationResult(bool granted) {
+  if (granted) {
+    base::RecordAction(base::UserMetricsAction(
+        "MobileGeminiCameraFlowOSCameraAuthorizationRequestGranted"));
+  } else {
+    base::RecordAction(base::UserMetricsAction(
+        "MobileGeminiCameraFlowOSCameraAuthorizationRequestDenied"));
+  }
+  base::UmaHistogramEnumeration(
+      kCameraFlowOSAuthorizationRequestResultHistogram,
+      granted ? IOSGeminiCameraFlowOSCameraAuthorizationResult::kGranted
+              : IOSGeminiCameraFlowOSCameraAuthorizationResult::kDenied);
+}
+
+void RecordGeminiCameraFlowGoToOSSettingsAlertResult(bool accepted) {
+  if (accepted) {
+    base::RecordAction(base::UserMetricsAction(
+        "MobileGeminiCameraFlowGoToOSSettingsAlertGoToSettings"));
+  } else {
+    base::RecordAction(base::UserMetricsAction(
+        "MobileGeminiCameraFlowGoToOSSettingsAlertNoThanks"));
+  }
+  base::UmaHistogramEnumeration(
+      kCameraFlowGoToOSSettingsAlertResultHistogram,
+      accepted ? IOSGeminiGoToOSSettingsAlertResult::kGoToSettings
+               : IOSGeminiGoToOSSettingsAlertResult::kNoThanks);
+}
+
+void RecordGeminiCameraFlowGeminiCameraPermissionInitialValue(bool enabled) {
+  base::UmaHistogramBoolean(
+      kCameraFlowGeminiCameraPermissionInitialValueHistogram, enabled);
+}
+
+void RecordGeminiCameraFlowGeminiCameraPermissionAlertResult(bool allowed) {
+  if (allowed) {
+    base::RecordAction(base::UserMetricsAction(
+        "MobileGeminiCameraFlowGeminiCameraPermissionAlertAllow"));
+  } else {
+    base::RecordAction(base::UserMetricsAction(
+        "MobileGeminiCameraFlowGeminiCameraPermissionAlertDontAllow"));
+  }
+  base::UmaHistogramEnumeration(
+      kCameraFlowGeminiCameraPermissionAlertResultHistogram,
+      allowed ? IOSGeminiCameraPermissionAlertResult::kAllow
+              : IOSGeminiCameraPermissionAlertResult::kDontAllow);
+}
+
+void RecordGeminiCameraFlowPresentCameraPicker() {
+  base::RecordAction(
+      base::UserMetricsAction("MobileGeminiCameraFlowCameraPickerPresented"));
+}
+
+void RecordGeminiCameraFlowCameraPickerResult(
+    IOSGeminiCameraPickerResult result) {
+  switch (result) {
+    case IOSGeminiCameraPickerResult::kCancelled:
+      base::RecordAction(base::UserMetricsAction(
+          "MobileGeminiCameraFlowCameraPickerCancelled"));
+      break;
+    case IOSGeminiCameraPickerResult::kFinishedWithoutImage:
+      base::RecordAction(base::UserMetricsAction(
+          "MobileGeminiCameraFlowCameraPickerFinishedWithoutImage"));
+      break;
+    case IOSGeminiCameraPickerResult::kFinishedWithImage:
+      base::RecordAction(base::UserMetricsAction(
+          "MobileGeminiCameraFlowCameraPickerFinishedWithImage"));
+      break;
+  }
+  base::UmaHistogramEnumeration(kCameraFlowCameraPickerResultHistogram, result);
+}
+
+void RecordGeminiImageActionButtonTapped(gemini::ImageActionButtonType type) {
+  base::RecordAction(
+      base::UserMetricsAction("MobileGeminiImageActionButtonTapped"));
+  base::UmaHistogramEnumeration(kImageActionButtonHistogram, type);
+}
+
+void RecordGeminiInputPlateAttachmentOptionTapped(
+    gemini::InputPlateAttachmentOption option) {
+  base::RecordAction(
+      base::UserMetricsAction("MobileGeminiInputPlateAttachmentOptionTapped"));
+  base::UmaHistogramEnumeration(kInputPlateAttachmentOptionHistogram, option);
 }

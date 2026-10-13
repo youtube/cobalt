@@ -9,7 +9,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/tabs/tab_style.h"
-#include "chrome/browser/ui/views/tabs/glow_hover_controller.h"
+#include "chrome/browser/ui/views/tabs/tab/glow_hover_controller.h"
 #include "ui/base/metadata/base_type_conversion.h"
 #include "ui/gfx/geometry/rect_f.h"
 
@@ -23,6 +23,7 @@ struct ui::metadata::TypeConverter<TabStyle::TabColors>
   static ui::metadata::ValidStrings GetValidStrings();
 };
 
+class BrowserFrameView;
 class Tab;
 
 namespace gfx {
@@ -88,6 +89,8 @@ class TabStyleViews {
   const TabStyle* tab_style() const { return tab_style_; }
 
  private:
+  BrowserFrameView* GetFrameView();
+
   const raw_ptr<const TabStyle> tab_style_;
 };
 

@@ -101,14 +101,15 @@ class ThreadGroupImplImplTestBase : public ThreadGroup::Delegate {
       size_t max_tasks,
       std::optional<int> max_best_effort_tasks = std::nullopt,
       WorkerThreadObserver* worker_observer = nullptr,
-      std::optional<TimeDelta> may_block_threshold = std::nullopt) {
+      std::optional<TimeDelta> may_block_threshold_for_testing = std::nullopt) {
     ASSERT_TRUE(thread_group_);
     thread_group_->Start(
         max_tasks,
         max_best_effort_tasks ? max_best_effort_tasks.value() : max_tasks,
         suggested_reclaim_time, service_thread_.task_runner(), worker_observer,
         ThreadGroup::WorkerEnvironment::NONE,
-        /* synchronous_thread_start_for_testing=*/false, may_block_threshold);
+        /* synchronous_thread_start_for_testing=*/false,
+        may_block_threshold_for_testing);
   }
 
   void CreateAndStartThreadGroup(
@@ -116,10 +117,10 @@ class ThreadGroupImplImplTestBase : public ThreadGroup::Delegate {
       size_t max_tasks = kMaxTasks,
       std::optional<int> max_best_effort_tasks = std::nullopt,
       WorkerThreadObserver* worker_observer = nullptr,
-      std::optional<TimeDelta> may_block_threshold = std::nullopt) {
+      std::optional<TimeDelta> may_block_threshold_for_testing = std::nullopt) {
     CreateThreadGroup();
     StartThreadGroup(suggested_reclaim_time, max_tasks, max_best_effort_tasks,
-                     worker_observer, may_block_threshold);
+                     worker_observer, may_block_threshold_for_testing);
   }
 
   Thread service_thread_;
@@ -132,7 +133,8 @@ class ThreadGroupImplImplTestBase : public ThreadGroup::Delegate {
 
  private:
   // ThreadGroup::Delegate:
-  ThreadGroup* GetThreadGroupForTraits(const TaskTraits& traits) override {
+  ThreadGroup* GetThreadGroup(ThreadType thread_type,
+                              ThreadPolicy policy) override {
     return thread_group_.get();
   }
 };
@@ -244,8 +246,7 @@ TEST_P(ThreadGroupImplImplTestParam, PostTasksWithOneAvailableWorker) {
             GetParam(), &mock_pooled_task_runner_delegate_),
         GetParam()));
     EXPECT_TRUE(blocked_task_factories.back()->PostTask(
-        PostNestedTask::NO,
-        BindOnce(&TestWaitableEvent::Wait, Unretained(&event))));
+        PostNestedTask::NO, event.GetWaitCallbackForTesting()));
     blocked_task_factories.back()->WaitForAllTasksToRun();
   }
 
@@ -280,9 +281,8 @@ TEST_P(ThreadGroupImplImplTestParam, Saturate) {
         CreatePooledTaskRunnerWithExecutionMode(
             GetParam(), &mock_pooled_task_runner_delegate_),
         GetParam()));
-    EXPECT_TRUE(factories.back()->PostTask(
-        PostNestedTask::NO,
-        BindOnce(&TestWaitableEvent::Wait, Unretained(&event))));
+    EXPECT_TRUE(factories.back()->PostTask(PostNestedTask::NO,
+                                           event.GetWaitCallbackForTesting()));
     factories.back()->WaitForAllTasksToRun();
   }
 
@@ -337,17 +337,17 @@ TEST_F(ThreadGroupImplImplTest, ShouldYieldFloodedUserVisible) {
       ->PostTask(
           FROM_HERE, BindLambdaForTesting([&] {
             EXPECT_FALSE(thread_group_->ShouldYield(
-                {TaskPriority::BEST_EFFORT, TimeTicks(), /* worker_count=*/1}));
+                {ThreadType::kBackground, TimeTicks(), /* worker_count=*/1}));
           }));
   // A BEST_EFFORT task with more workers shouldn't have to yield.
   EXPECT_FALSE(thread_group_->ShouldYield(
-      {TaskPriority::BEST_EFFORT, TimeTicks(), /* worker_count=*/2}));
+      {ThreadType::kBackground, TimeTicks(), /* worker_count=*/2}));
   EXPECT_FALSE(thread_group_->ShouldYield(
-      {TaskPriority::BEST_EFFORT, TimeTicks(), /* worker_count=*/0}));
+      {ThreadType::kBackground, TimeTicks(), /* worker_count=*/0}));
   EXPECT_FALSE(thread_group_->ShouldYield(
-      {TaskPriority::USER_VISIBLE, TimeTicks(), /* worker_count=*/0}));
+      {ThreadType::kUtility, TimeTicks(), /* worker_count=*/0}));
   EXPECT_FALSE(thread_group_->ShouldYield(
-      {TaskPriority::USER_BLOCKING, TimeTicks(), /* worker_count=*/0}));
+      {ThreadType::kDefault, TimeTicks(), /* worker_count=*/0}));
 
   // Posting a USER_VISIBLE task should cause BEST_EFFORT and USER_VISIBLE with
   // higher worker_count tasks to yield.
@@ -356,22 +356,22 @@ TEST_F(ThreadGroupImplImplTest, ShouldYieldFloodedUserVisible) {
                                  &mock_pooled_task_runner_delegate_)
         ->PostTask(FROM_HERE, BindLambdaForTesting([&] {
                      EXPECT_FALSE(thread_group_->ShouldYield(
-                         {TaskPriority::USER_VISIBLE, TimeTicks(),
+                         {ThreadType::kUtility, TimeTicks(),
                           /* worker_count=*/1}));
                    }));
   };
   // A USER_VISIBLE task with too many workers should yield.
   post_user_visible();
   EXPECT_TRUE(thread_group_->ShouldYield(
-      {TaskPriority::USER_VISIBLE, TimeTicks(), /* worker_count=*/2}));
+      {ThreadType::kUtility, TimeTicks(), /* worker_count=*/2}));
   post_user_visible();
   EXPECT_TRUE(thread_group_->ShouldYield(
-      {TaskPriority::BEST_EFFORT, TimeTicks(), /* worker_count=*/0}));
+      {ThreadType::kBackground, TimeTicks(), /* worker_count=*/0}));
   post_user_visible();
   EXPECT_FALSE(thread_group_->ShouldYield(
-      {TaskPriority::USER_VISIBLE, TimeTicks(), /* worker_count=*/1}));
+      {ThreadType::kUtility, TimeTicks(), /* worker_count=*/1}));
   EXPECT_FALSE(thread_group_->ShouldYield(
-      {TaskPriority::USER_BLOCKING, TimeTicks(), /* worker_count=*/0}));
+      {ThreadType::kDefault, TimeTicks(), /* worker_count=*/0}));
 
   // Posting a USER_BLOCKING task should cause BEST_EFFORT, USER_VISIBLE and
   // USER_BLOCKING with higher worker_count tasks to yield.
@@ -382,23 +382,23 @@ TEST_F(ThreadGroupImplImplTest, ShouldYieldFloodedUserVisible) {
                      // Once this task got to start, no other task needs to
                      // yield.
                      EXPECT_FALSE(thread_group_->ShouldYield(
-                         {TaskPriority::USER_BLOCKING, TimeTicks(),
+                         {ThreadType::kDefault, TimeTicks(),
                           /* worker_count=*/1}));
                    }));
   };
   // A USER_BLOCKING task with too many workers should have to yield.
   post_user_blocking();
   EXPECT_TRUE(thread_group_->ShouldYield(
-      {TaskPriority::USER_BLOCKING, TimeTicks(), /* worker_count=*/2}));
+      {ThreadType::kDefault, TimeTicks(), /* worker_count=*/2}));
   post_user_blocking();
   EXPECT_TRUE(thread_group_->ShouldYield(
-      {TaskPriority::BEST_EFFORT, TimeTicks(), /* worker_count=*/0}));
+      {ThreadType::kBackground, TimeTicks(), /* worker_count=*/0}));
   post_user_blocking();
   EXPECT_TRUE(thread_group_->ShouldYield(
-      {TaskPriority::USER_VISIBLE, TimeTicks(), /* worker_count=*/0}));
+      {ThreadType::kUtility, TimeTicks(), /* worker_count=*/0}));
   post_user_blocking();
   EXPECT_FALSE(thread_group_->ShouldYield(
-      {TaskPriority::USER_BLOCKING, TimeTicks(), /* worker_count=*/1}));
+      {ThreadType::kDefault, TimeTicks(), /* worker_count=*/1}));
 
   threads_continue.Signal();
   task_tracker_.FlushForTesting();
@@ -1012,10 +1012,10 @@ TEST_P(ThreadGroupImplBlockingTest, ThreadBlockedUnblockedShouldYield) {
   ASSERT_EQ(thread_group_->GetMaxTasksForTesting(), kMaxTasks);
 
   EXPECT_FALSE(
-      thread_group_->ShouldYield({TaskPriority::BEST_EFFORT, TimeTicks()}));
+      thread_group_->ShouldYield({ThreadType::kBackground, TimeTicks()}));
   SaturateWithBlockingTasks(GetParam());
   EXPECT_FALSE(
-      thread_group_->ShouldYield({TaskPriority::BEST_EFFORT, TimeTicks()}));
+      thread_group_->ShouldYield({ThreadType::kBackground, TimeTicks()}));
 
   // Forces |kMaxTasks| extra workers to be instantiated by posting tasks. This
   // should not block forever.
@@ -1023,7 +1023,7 @@ TEST_P(ThreadGroupImplBlockingTest, ThreadBlockedUnblockedShouldYield) {
 
   // All tasks can run, hence ShouldYield returns false.
   EXPECT_FALSE(
-      thread_group_->ShouldYield({TaskPriority::BEST_EFFORT, TimeTicks()}));
+      thread_group_->ShouldYield({ThreadType::kBackground, TimeTicks()}));
 
   // Post a USER_VISIBLE task that can't run since workers are saturated. This
   // should cause BEST_EFFORT tasks to yield.
@@ -1031,10 +1031,10 @@ TEST_P(ThreadGroupImplBlockingTest, ThreadBlockedUnblockedShouldYield) {
                                &mock_pooled_task_runner_delegate_)
       ->PostTask(FROM_HERE, BindLambdaForTesting([&] {
                    EXPECT_FALSE(thread_group_->ShouldYield(
-                       {TaskPriority::BEST_EFFORT, TimeTicks()}));
+                       {ThreadType::kBackground, TimeTicks()}));
                  }));
   EXPECT_TRUE(
-      thread_group_->ShouldYield({TaskPriority::BEST_EFFORT, TimeTicks()}));
+      thread_group_->ShouldYield({ThreadType::kBackground, TimeTicks()}));
 
   // Post a USER_BLOCKING task that can't run since workers are saturated. This
   // should cause USER_VISIBLE tasks to yield.
@@ -1042,10 +1042,9 @@ TEST_P(ThreadGroupImplBlockingTest, ThreadBlockedUnblockedShouldYield) {
                                &mock_pooled_task_runner_delegate_)
       ->PostTask(FROM_HERE, BindLambdaForTesting([&] {
                    EXPECT_FALSE(thread_group_->ShouldYield(
-                       {TaskPriority::USER_VISIBLE, TimeTicks()}));
+                       {ThreadType::kUtility, TimeTicks()}));
                  }));
-  EXPECT_TRUE(
-      thread_group_->ShouldYield({TaskPriority::USER_VISIBLE, TimeTicks()}));
+  EXPECT_TRUE(thread_group_->ShouldYield({ThreadType::kUtility, TimeTicks()}));
 
   UnblockBusyTasks();
   UnblockBlockingTasks();
@@ -1143,8 +1142,7 @@ TEST_F(ThreadGroupImplBlockingTest, MayBlockIncreaseCapacityNestedWillBlock) {
   // Saturate the thread group so that a MAY_BLOCK ScopedBlockingCall would
   // increment the max tasks.
   for (size_t i = 0; i < kMaxTasks - 1; ++i) {
-    task_runner->PostTask(
-        FROM_HERE, BindOnce(&TestWaitableEvent::Wait, Unretained(&can_return)));
+    task_runner->PostTask(FROM_HERE, can_return.GetWaitCallbackForTesting());
   }
 
   TestWaitableEvent can_instantiate_will_block;
@@ -1561,8 +1559,7 @@ class ThreadGroupImplBlockingCallAndMaxBestEffortTasksTest
     thread_group_->Start(kMaxTasks, kMaxBestEffortTasks, base::TimeDelta::Max(),
                          service_thread_.task_runner(), nullptr,
                          ThreadGroup::WorkerEnvironment::NONE,
-                         /*synchronous_thread_start_for_testing=*/false,
-                         /*may_block_threshold=*/{});
+                         /*synchronous_thread_start_for_testing=*/false);
   }
 
   void TearDown() override { ThreadGroupImplImplTestBase::CommonTearDown(); }
@@ -1638,8 +1635,7 @@ TEST_F(ThreadGroupImplImplStartInBodyTest, RacyCleanup) {
                        kReclaimTimeForRacyCleanupTest,
                        service_thread_.task_runner(), nullptr,
                        ThreadGroup::WorkerEnvironment::NONE,
-                       /*synchronous_thread_start_for_testing=*/false,
-                       /*may_block_threshold=*/{});
+                       /*synchronous_thread_start_for_testing=*/false);
 
   scoped_refptr<TaskRunner> task_runner = test::CreatePooledTaskRunner(
       {WithBaseSyncPrimitives()}, &mock_pooled_task_runner_delegate_);

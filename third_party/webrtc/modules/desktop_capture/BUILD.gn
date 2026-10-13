@@ -95,6 +95,8 @@ if (rtc_include_tests) {
 
       sources = [
         "linux/wayland/shared_screencast_stream_unittest.cc",
+        "linux/wayland/test/test_egl_dmabuf.cc",
+        "linux/wayland/test/test_egl_dmabuf.h",
         "linux/wayland/test/test_screencast_stream_provider.cc",
         "linux/wayland/test/test_screencast_stream_provider.h",
       ]
@@ -109,6 +111,7 @@ if (rtc_include_tests) {
         "../../rtc_base:checks",
         "../../rtc_base:logging",
         "../../rtc_base:random",
+        "../../rtc_base:stringutils",
         "../../rtc_base:timeutils",
         "../portal",
 
@@ -282,6 +285,8 @@ rtc_library("desktop_capture") {
   defines = []
   deps = [
     "../../media:video_common",
+    "../../rtc_base/containers:flat_map",
+    "../../rtc_base/containers:flat_set",
     "//third_party/abseil-cpp/absl/memory",
     "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:string_view",

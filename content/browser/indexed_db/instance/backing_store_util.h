@@ -31,6 +31,10 @@ namespace content::indexed_db {
 CONTENT_EXPORT StatusOr<base::DictValue> SnapshotDatabase(
     BackingStore::Database& db);
 
+// Reads everything from `source` and clones it into `target`.
+CONTENT_EXPORT Status MigrateDatabase(BackingStore::Database& source,
+                                      BackingStore::Database& target);
+
 }  // namespace content::indexed_db
 
 #endif  // CONTENT_BROWSER_INDEXED_DB_INSTANCE_BACKING_STORE_UTIL_H_

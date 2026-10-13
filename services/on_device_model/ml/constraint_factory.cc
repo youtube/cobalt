@@ -1,4 +1,4 @@
-// Copyright 2025 The Chromium Authors
+// Copyright 2026 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -35,6 +35,7 @@ ConstraintFactory::~ConstraintFactory() {
 #endif
 }
 
+DISABLE_CFI_DLSYM
 bool ConstraintFactory::GetTokenizerParams(
     ChromeMLModel model,
     ChromeMLSession session,
@@ -50,7 +51,6 @@ bool ConstraintFactory::GetTokenizerParams(
 #endif
 }
 
-DISABLE_CFI_DLSYM
 ChromeMLConstraint ConstraintFactory::CreateConstraint(
     ChromeMLSession session,
     ChromeMLModel model,

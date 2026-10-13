@@ -13,7 +13,6 @@
 #include "base/scoped_observation.h"
 #include "base/task/task_traits.h"
 #include "chrome/browser/profiles/profile_keyed_service_factory.h"
-#include "chrome/browser/safe_browsing/advanced_protection_status_manager.h"
 #include "chrome/browser/ssl/daily_navigation_counter.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/prefs/pref_change_registrar.h"
@@ -53,22 +52,17 @@ enum class HttpsFirstModeSetting {
 // profile. This is currently used for:
 // - Recording pref state in metrics and registering the client for a synthetic
 //   field trial based on that state.
-// - Changing the pref based on user's Advanced Protection status.
+// - Computing the user's effective HTTPS-First Mode setting (based on flags,
+//   prefs, and Advanced Protection status).
 // - Checking the Site Engagement scores of a site and enable/disable HFM based
 //   on that.
-class HttpsFirstModeService
-    : public KeyedService,
-      public safe_browsing::AdvancedProtectionStatusManager::
-          StatusChangedObserver {
+class HttpsFirstModeService : public KeyedService {
  public:
   explicit HttpsFirstModeService(Profile* profile, base::Clock* clock);
   ~HttpsFirstModeService() override;
 
   HttpsFirstModeService(const HttpsFirstModeService&) = delete;
   HttpsFirstModeService& operator=(const HttpsFirstModeService&) = delete;
-
-  // safe_browsing::AdvancedProtectionStatusManager::StatusChangedObserver:
-  void OnAdvancedProtectionStatusChanged(bool enabled) override;
 
   // Runs Typically Secure User and Site Engagement heuristics after the service
   // is created.
@@ -140,13 +134,8 @@ class HttpsFirstModeService
   PrefChangeRegistrar pref_change_registrar_;
   raw_ptr<base::Clock> clock_;
 
-  base::Value::Dict navigation_counts_dict_;
+  base::DictValue navigation_counts_dict_;
   std::unique_ptr<DailyNavigationCounter> navigation_counter_;
-
-  base::ScopedObservation<
-      safe_browsing::AdvancedProtectionStatusManager,
-      safe_browsing::AdvancedProtectionStatusManager::StatusChangedObserver>
-      obs_{this};
 
   base::WeakPtrFactory<HttpsFirstModeService> weak_factory_{this};
 };

@@ -321,10 +321,13 @@ enum class AccessPoint : int {
   // Triggered when the user attempts to import credentials through the
   // ASCredentialImportManager without being signed in.
   kCredentialExchangeImport = 92,
+  // Set sync consent from sync internals.
+  kSetSyncConsentFromSyncInternals = 93,
+  kIosChromeWebView = 94,
   // Add values above this line with a corresponding label to the
   // "SigninAccessPoint" enum in
   // tools/metrics/histograms/metadata/signin/enums.xml.
-  kMaxValue = kCredentialExchangeImport,  // This must be last.
+  kMaxValue = kIosChromeWebView,  // This must be last.
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/signin/enums.xml)
 
@@ -427,10 +430,6 @@ enum class AccountConsistencyPromoAction : int {
 #endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
 
 // Enum values which enumerates all reasons to start sign in process.
-// These values are persisted to logs. Entries should not be renumbered and
-// numeric values should never be reused.
-// Please keep in sync with "SigninReason" in
-// src/tools/metrics/histograms/enums.xml.
 enum class Reason : int {
   // Used only for the Sync flows, i.e. the user will be proposed to enable Sync
   // after sign-in.
@@ -442,7 +441,9 @@ enum class Reason : int {
   // REASON_UNLOCK = 3,  // DEPRECATED, profile unlocking was removed.
   // This should never have been used to get signin URL.
   kUnknownReason = 4,
-  kForcedSigninPrimaryAccount = 5,
+  // kForcedSigninPrimaryAccount = 5, // DEPRECATED, force signin follows the
+  // regular flow in the profile picker.
+
   // Used to simply login and acquire a login scope token without actually
   // signing into any profiles on Chrome. This allows the Chrome sign-in page to
   // work in incognito mode.
@@ -512,7 +513,8 @@ enum class SourceForRefreshTokenOperation {
   kTokenService_LoadCredentials = 1,
   // DEPRECATED
   // kSupervisedUser_InitSync = 2,
-  kInlineLoginHandler_Signin = 3,
+  // DEPRECATED
+  // kInlineLoginHandler_Signin = 3,
   kPrimaryAccountManager_ClearAccount = 4,
   // DEPRECATED
   // kPrimaryAccountManager_LegacyPreDiceSigninFlow = 5,
@@ -652,6 +654,8 @@ enum class ReauthAccessPoint : int {
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/signin/enums.xml:ReauthAccessPoint)
 #endif  // BUILDFLAG(IS_IOS)
+
+std::optional<AccessPoint> AccessPointFromInt(int access_point);
 
 // -----------------------------------------------------------------------------
 // Histograms

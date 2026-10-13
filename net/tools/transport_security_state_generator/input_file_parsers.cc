@@ -4,7 +4,6 @@
 
 #include "net/tools/transport_security_state_generator/input_file_parsers.h"
 
-#include <set>
 #include <sstream>
 #include <string_view>
 #include <vector>
@@ -29,14 +28,10 @@ namespace net::transport_security_state {
 namespace {
 
 bool IsImportantWordInCertificateName(std::string_view name) {
-  const char* const important_words[] = {"Universal", "Global", "EV", "G1",
-                                         "G2",        "G3",     "G4", "G5"};
-  for (auto* important_word : important_words) {
-    if (name == important_word) {
-      return true;
-    }
-  }
-  return false;
+  static constexpr auto kImportantWords =
+      base::MakeFixedFlatSet<std::string_view>(
+          {"Universal", "Global", "EV", "G1", "G2", "G3", "G4", "G5"});
+  return kImportantWords.contains(name);
 }
 
 // Strips all characters not matched by the RegEx [A-Za-z0-9_] from |name| and
@@ -334,33 +329,33 @@ bool ParseJSON(std::string_view hsts_json,
 
   // See the comments in net/http/transport_security_state_static.json for more
   // info on these policies.
-  std::set<std::string> valid_policies = {
-      "test",        "public-suffix", "google",      "custom",
-      "bulk-legacy", "bulk-18-weeks", "bulk-1-year", "public-suffix-requested"};
+  static constexpr auto kValidPolicies =
+      base::MakeFixedFlatSet<std::string_view>(
+          {"test", "public-suffix", "google", "custom", "bulk-legacy",
+           "bulk-18-weeks", "bulk-1-year", "public-suffix-requested"});
 
-  std::optional<base::Value::Dict> hsts_dict = base::JSONReader::ReadDict(
+  std::optional<base::DictValue> hsts_dict = base::JSONReader::ReadDict(
       hsts_json, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   if (!hsts_dict) {
     LOG(ERROR) << "Could not parse the input HSTS JSON file";
     return false;
   }
 
-  std::optional<base::Value::Dict> pins_dict = base::JSONReader::ReadDict(
+  std::optional<base::DictValue> pins_dict = base::JSONReader::ReadDict(
       pins_json, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   if (!pins_dict) {
     LOG(ERROR) << "Could not parse the input pins JSON file";
     return false;
   }
 
-  const base::Value::List* pinning_entries_list =
-      pins_dict->FindList("entries");
+  const base::ListValue* pinning_entries_list = pins_dict->FindList("entries");
   if (!pinning_entries_list) {
     LOG(ERROR) << "Could not parse the entries in the input pins JSON";
     return false;
   }
   std::map<std::string, std::pair<std::string, bool>> pins_map;
   for (size_t i = 0; i < pinning_entries_list->size(); ++i) {
-    const base::Value::Dict* parsed = (*pinning_entries_list)[i].GetIfDict();
+    const base::DictValue* parsed = (*pinning_entries_list)[i].GetIfDict();
     if (!parsed) {
       LOG(ERROR) << "Could not parse entry " << base::NumberToString(i)
                  << " in the input pins JSON";
@@ -405,15 +400,14 @@ bool ParseJSON(std::string_view hsts_json,
                   parsed->FindBool(kIncludeSubdomainsJSONKey).value_or(false));
   }
 
-  const base::Value::List* preload_entries_list =
-      hsts_dict->FindList("entries");
+  const base::ListValue* preload_entries_list = hsts_dict->FindList("entries");
   if (!preload_entries_list) {
     LOG(ERROR) << "Could not parse the entries in the input HSTS JSON";
     return false;
   }
 
   for (size_t i = 0; i < preload_entries_list->size(); ++i) {
-    const base::Value::Dict* parsed = (*preload_entries_list)[i].GetIfDict();
+    const base::DictValue* parsed = (*preload_entries_list)[i].GetIfDict();
     if (!parsed) {
       LOG(ERROR) << "Could not parse entry " << base::NumberToString(i)
                  << " in the input HSTS JSON";
@@ -444,7 +438,7 @@ bool ParseJSON(std::string_view hsts_json,
     }
 
     const std::string* policy = parsed->FindString(kPolicyJSONKey);
-    if (!policy || !valid_policies.contains(*policy)) {
+    if (!policy || !kValidPolicies.contains(*policy)) {
       LOG(ERROR) << "The entry for " << entry->hostname
                  << " does not have a valid policy";
       return false;
@@ -484,14 +478,14 @@ bool ParseJSON(std::string_view hsts_json,
     entries->push_back(std::move(entry));
   }
 
-  base::Value::List* pinsets_list = pins_dict->FindList("pinsets");
+  base::ListValue* pinsets_list = pins_dict->FindList("pinsets");
   if (!pinsets_list) {
     LOG(ERROR) << "Could not parse the pinsets in the input JSON";
     return false;
   }
 
   for (size_t i = 0; i < pinsets_list->size(); ++i) {
-    const base::Value::Dict* parsed = (*pinsets_list)[i].GetIfDict();
+    const base::DictValue* parsed = (*pinsets_list)[i].GetIfDict();
     if (!parsed) {
       LOG(ERROR) << "Could not parse pinset " << base::NumberToString(i)
                  << " in the input JSON";
@@ -508,7 +502,7 @@ bool ParseJSON(std::string_view hsts_json,
 
     auto pinset = std::make_unique<Pinset>(name);
 
-    const base::Value::List* pinset_static_hashes_list =
+    const base::ListValue* pinset_static_hashes_list =
         parsed->FindList("static_spki_hashes");
     if (pinset_static_hashes_list) {
       for (const auto& hash : *pinset_static_hashes_list) {
@@ -521,7 +515,7 @@ bool ParseJSON(std::string_view hsts_json,
       }
     }
 
-    const base::Value::List* pinset_bad_static_hashes_list =
+    const base::ListValue* pinset_bad_static_hashes_list =
         parsed->FindList("bad_static_spki_hashes");
     if (pinset_bad_static_hashes_list) {
       for (const auto& hash : *pinset_bad_static_hashes_list) {

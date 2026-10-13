@@ -106,10 +106,8 @@ class AccountCapabilities {
   signin::Tribool can_use_edu_features() const;
 #endif
 
-#if !BUILDFLAG(IS_IOS)
   // The user account is able to use Gemini in Chrome.
   signin::Tribool can_use_gemini_in_chrome() const;
-#endif
 
 #if BUILDFLAG(IS_CHROMEOS)
   // The user account is able to use generative AI in recorder app.
@@ -187,11 +185,11 @@ class AccountCapabilities {
 
   friend std::optional<AccountCapabilities>
   signin::AccountCapabilitiesFromServerResponse(
-      const base::Value::Dict& account_capabilities);
-  friend base::Value::Dict signin::SerializeAccountCapabilities(
+      const base::DictValue& account_capabilities);
+  friend base::DictValue signin::SerializeAccountCapabilities(
       const AccountCapabilities& account_capabilities);
   friend AccountCapabilities signin::DeserializeAccountCapabilities(
-      const base::Value::Dict& dict);
+      const base::DictValue& dict);
   friend class AccountCapabilitiesFetcherGaia;
 #if BUILDFLAG(IS_IOS)
   friend base::span<const std::string_view>

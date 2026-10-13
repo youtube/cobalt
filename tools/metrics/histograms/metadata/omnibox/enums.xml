@@ -109,6 +109,18 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="Off the record"/>
 </enum>
 
+<!-- LINT.IfChange(ComposeboxDragAndDropType) -->
+
+<enum name="ComposeboxDragAndDropType">
+  <int value="0" label="Text"/>
+  <int value="1" label="Image"/>
+  <int value="2" label="Tab"/>
+  <int value="3" label="PDF"/>
+  <int value="4" label="Unknown"/>
+</enum>
+
+<!-- LINT.ThenChange(ios/chrome/browser/composebox/ui/composebox_metrics_recorder.h:ComposeboxDragAndDropType, //tools/metrics/histograms/metadata/omnibox/histograms.xml:ComposeboxDragAndDropType) -->
+
 <!-- LINT.IfChange(ContextType) -->
 
 <enum name="ContextType">
@@ -117,6 +129,10 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="Image"/>
   <int value="3" label="ImageGen"/>
   <int value="4" label="DeepResearch"/>
+  <int value="5" label="Canvas"/>
+  <int value="6" label="AutoModel"/>
+  <int value="7" label="ThinkingModel"/>
+  <int value="8" label="RegularModel"/>
 </enum>
 
 <!-- LINT.ThenChange(chrome/browser/ui/omnibox/omnibox_context_menu_controller.h:ContextType) -->
@@ -308,12 +324,27 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//components/omnibox/browser/lens_suggest_inputs_utils.h:PaywallSignal) -->
 
+<!-- LINT.IfChange(ReconciliationType) -->
+
 <enum name="ReconciliationType">
   <int value="0" label="No Reconciliation"/>
-  <int value="1" label="By prepopulate_id"/>
+  <int value="1" label="By prepopulate_id">Deprecated umbrella bucket</int>
   <int value="2" label="By keyword"/>
-  <int value="3" label="By domain based keyword"/>
+  <int value="3" label="By domain based keyword">
+    Deprecated umbrella bucket
+  </int>
+  <int value="4" label="By keyword (seznam migration)"/>
+  <int value="5" label="By keyword (yahoo migration)"/>
+  <int value="6" label="By prepopulate_id (global)"/>
+  <int value="7" label="By prepopulate_id (regional)"/>
+  <int value="8" label="By prepopulate_id (no match)">
+    Recorded when we attempt reconciliation by prepopulate_id but none of the
+    global nor regional buckets returned a match. The data provided will be set
+    without mixing in any prepopulated engine's data
+  </int>
 </enum>
+
+<!-- LINT.ThenChange(//components/search_engines/reconciling_template_url_data_holder.h:ReconciliationType) -->
 
 <enum name="RegulatoryExtensionVariant">
   <int value="0" label="Default extension"/>

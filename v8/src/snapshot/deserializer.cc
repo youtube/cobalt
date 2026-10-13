@@ -498,6 +498,14 @@ void PostProcessExternalString(Tagged<ExternalString> string,
                                Isolate* isolate) {
   DisallowGarbageCollection no_gc;
   uint32_t index = string->GetResourceRefForDeserialization();
+  // Our (sandbox) fuzzers can sometimes get here by mutating an in-sandbox
+  // object after deserialization but before post-processing, and making it
+  // look like an ExternalString. In that case, the Isolate may not have any
+  // external references and this CHECK then avoids false-positive crashes.
+  // Technically we should probably also check that the index is in-bounds if
+  // we do have external references on the Isolate, but in our current fuzzer
+  // setup, this doesn't seem to be the case.
+  CHECK_NE(isolate->api_external_references(), nullptr);
   Address address =
       static_cast<Address>(isolate->api_external_references()[index]);
   string->InitExternalPointerFields(isolate);
@@ -574,7 +582,8 @@ void Deserializer<Isolate>::PostProcessNewJSReceiver(
       ResizableFlag resizable = bs && bs->is_resizable_by_js()
                                     ? ResizableFlag::kResizable
                                     : ResizableFlag::kNotResizable;
-      buffer->Setup(shared, resizable, bs, main_thread_isolate());
+      buffer->Setup(shared, resizable, bs, main_thread_isolate(),
+                    buffer->views());
     }
   } else if (InstanceTypeChecker::IsJSDate(instance_type)) {
     Cast<JSDate>(*obj)->UpdateFieldsAfterDeserialization(main_thread_isolate());

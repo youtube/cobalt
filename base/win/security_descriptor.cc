@@ -232,8 +232,10 @@ std::optional<SecurityDescriptor> SecurityDescriptor::FromPointer(
       GetSecurityDescriptorSid(sd, ::GetSecurityDescriptorGroup),
       GetSecurityDescriptorAcl(sd, ::GetSecurityDescriptorDacl),
       !!(control & SE_DACL_PROTECTED),
+      !!(control & SE_DACL_AUTO_INHERITED),
       GetSecurityDescriptorAcl(sd, ::GetSecurityDescriptorSacl),
-      !!(control & SE_SACL_PROTECTED)};
+      !!(control & SE_SACL_PROTECTED),
+      !!(control & SE_SACL_AUTO_INHERITED)};
 }
 
 std::optional<SecurityDescriptor> SecurityDescriptor::FromFile(
@@ -243,7 +245,7 @@ std::optional<SecurityDescriptor> SecurityDescriptor::FromFile(
 }
 
 std::optional<SecurityDescriptor> SecurityDescriptor::FromName(
-    const std::wstring& name,
+    wcstring_view name,
     SecurityObjectType object_type,
     SECURITY_INFORMATION security_info) {
   return GetSecurityDescriptor(name.c_str(), object_type, security_info,
@@ -259,7 +261,7 @@ std::optional<SecurityDescriptor> SecurityDescriptor::FromHandle(
 }
 
 std::optional<SecurityDescriptor> SecurityDescriptor::FromSddl(
-    const std::wstring& sddl) {
+    wcstring_view sddl) {
   PSECURITY_DESCRIPTOR sd;
   if (!::ConvertStringSecurityDescriptorToSecurityDescriptor(
           sddl.c_str(), SDDL_REVISION_1, &sd, nullptr)) {
@@ -267,6 +269,18 @@ std::optional<SecurityDescriptor> SecurityDescriptor::FromSddl(
   }
   auto sd_ptr = TakeLocalAlloc(sd);
   return FromPointer(sd_ptr.get());
+}
+
+// static
+SecurityDescriptor SecurityDescriptor::CreateWithEmptyDacl() {
+  return {std::nullopt,
+          std::nullopt,
+          AccessControlList{},
+          /*dacl_protected=*/false,
+          /*dacl_auto_inherited=*/false,
+          std::nullopt,
+          /*sacl_protected=*/false,
+          /*sacl_auto_inherited=*/false};
 }
 
 SecurityDescriptor::SecurityDescriptor() = default;
@@ -280,7 +294,7 @@ bool SecurityDescriptor::WriteToFile(const base::FilePath& path,
   return WriteToName(path.value(), SecurityObjectType::kFile, security_info);
 }
 
-bool SecurityDescriptor::WriteToName(const std::wstring& name,
+bool SecurityDescriptor::WriteToName(wcstring_view name,
                                      SecurityObjectType object_type,
                                      SECURITY_INFORMATION security_info) const {
   return SetSecurityDescriptor<wchar_t*>(
@@ -325,12 +339,18 @@ SECURITY_DESCRIPTOR SecurityDescriptor::ToAbsolute() {
     if (dacl_protected_) {
       sd.Control |= SE_DACL_PROTECTED;
     }
+    if (dacl_auto_inherited_) {
+      sd.Control |= SE_DACL_AUTO_INHERITED;
+    }
   }
   if (sacl_) {
     sd.Sacl = sacl_->get();
     sd.Control |= SE_SACL_PRESENT;
     if (sacl_protected_) {
       sd.Control |= SE_SACL_PROTECTED;
+    }
+    if (sacl_auto_inherited_) {
+      sd.Control |= SE_SACL_AUTO_INHERITED;
     }
   }
   DCHECK(::IsValidSecurityDescriptor(&sd));
@@ -364,9 +384,9 @@ SecurityDescriptor::ToSelfRelative() const {
 }
 
 SecurityDescriptor SecurityDescriptor::Clone() const {
-  return SecurityDescriptor{CloneValue(owner_), CloneValue(group_),
-                            CloneValue(dacl_),  dacl_protected_,
-                            CloneValue(sacl_),  sacl_protected_};
+  return {CloneValue(owner_), CloneValue(group_),   CloneValue(dacl_),
+          dacl_protected_,    dacl_auto_inherited_, CloneValue(sacl_),
+          sacl_protected_,    sacl_auto_inherited_};
 }
 
 bool SecurityDescriptor::SetMandatoryLabel(DWORD integrity_level,
@@ -382,7 +402,7 @@ bool SecurityDescriptor::SetMandatoryLabel(DWORD integrity_level,
 }
 
 bool SecurityDescriptor::SetDaclEntries(
-    const std::vector<ExplicitAccessEntry>& entries) {
+    base::span<const ExplicitAccessEntry> entries) {
   if (!dacl_) {
     dacl_ = AccessControlList{};
   }
@@ -441,18 +461,22 @@ std::optional<AccessCheckResult> SecurityDescriptor::AccessCheck(
                      GetGenericMappingForType(object_type));
 }
 
-SecurityDescriptor::SecurityDescriptor(std::optional<Sid>&& owner,
-                                       std::optional<Sid>&& group,
-                                       std::optional<AccessControlList>&& dacl,
+SecurityDescriptor::SecurityDescriptor(std::optional<Sid> owner,
+                                       std::optional<Sid> group,
+                                       std::optional<AccessControlList> dacl,
                                        bool dacl_protected,
-                                       std::optional<AccessControlList>&& sacl,
-                                       bool sacl_protected) {
+                                       bool dacl_auto_inherited,
+                                       std::optional<AccessControlList> sacl,
+                                       bool sacl_protected,
+                                       bool sacl_auto_inherited) {
   owner_.swap(owner);
   group_.swap(group);
   dacl_.swap(dacl);
   dacl_protected_ = dacl_protected;
+  dacl_auto_inherited_ = dacl_auto_inherited;
   sacl_.swap(sacl);
   sacl_protected_ = sacl_protected;
+  sacl_auto_inherited_ = sacl_auto_inherited;
 }
 
 }  // namespace base::win

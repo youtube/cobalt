@@ -376,7 +376,7 @@ TemplateURLServiceTestBase::CreatePreloadedTemplateURL(
 
 void TemplateURLServiceTestBase::SetOverriddenEngines() {
   // Set custom search engine as default fallback through overrides.
-  base::Value::Dict entry;
+  base::DictValue entry;
   entry.Set("name", "override_name");
   entry.Set("keyword", "override_keyword");
   entry.Set("search_url", "http://override.com/s?q={searchTerms}");
@@ -385,7 +385,7 @@ void TemplateURLServiceTestBase::SetOverriddenEngines() {
   entry.Set("id", 1001);
   entry.Set("suggest_url", "http://override.com/suggest?q={searchTerms}");
 
-  base::Value::List overrides_list;
+  base::ListValue overrides_list;
   overrides_list.Append(std::move(entry));
 
   auto* prefs = test_util()->profile()->GetTestingPrefService();
@@ -482,7 +482,7 @@ TEST_F(TemplateURLServiceTest, AddUpdateRemove) {
   // Verify site search overridden keywords preference was not updated.
   auto* prefs = test_util()->profile()->GetTestingPrefService();
   ASSERT_TRUE(prefs);
-  const base::Value::List& overridden_keywords = prefs->GetList(
+  const base::ListValue& overridden_keywords = prefs->GetList(
       EnterpriseSearchManager::kSiteSearchSettingsOverriddenKeywordsPrefName);
   EXPECT_TRUE(overridden_keywords.empty());
 }
@@ -833,7 +833,7 @@ TEST_F(TemplateURLServiceTest, Reset) {
   // Verify preference was not updated.
   auto* prefs = test_util()->profile()->GetTestingPrefService();
   ASSERT_TRUE(prefs);
-  const base::Value::List& overridden_keywords = prefs->GetList(
+  const base::ListValue& overridden_keywords = prefs->GetList(
       EnterpriseSearchManager::kSiteSearchSettingsOverriddenKeywordsPrefName);
   EXPECT_TRUE(overridden_keywords.empty());
 }
@@ -888,7 +888,7 @@ TEST_F(TemplateURLServiceTest, Reset_SiteSearchPolicyEngine) {
   // Verify preference was updated to include keyword.
   auto* prefs = test_util()->profile()->GetTestingPrefService();
   ASSERT_TRUE(prefs);
-  const base::Value::List& overridden_keywords = prefs->GetList(
+  const base::ListValue& overridden_keywords = prefs->GetList(
       EnterpriseSearchManager::kSiteSearchSettingsOverriddenKeywordsPrefName);
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
     BUILDFLAG(IS_CHROMEOS)
@@ -932,7 +932,7 @@ TEST_F(TemplateURLServiceTest, Remove_SiteSearchPolicyEngine) {
   // Verify preference was updated to include keyword.
   auto* prefs = test_util()->profile()->GetTestingPrefService();
   ASSERT_TRUE(prefs);
-  const base::Value::List& overridden_keywords = prefs->GetList(
+  const base::ListValue& overridden_keywords = prefs->GetList(
       EnterpriseSearchManager::kSiteSearchSettingsOverriddenKeywordsPrefName);
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
     BUILDFLAG(IS_CHROMEOS)
@@ -1505,7 +1505,8 @@ TEST_F(TemplateURLServiceTest, RepairStarterPackEngines) {
   history = nullptr;
   for (TemplateURL* turl : model()->GetTemplateURLs()) {
     if (turl->keyword() == u"@history" && turl->type() == TemplateURL::NORMAL &&
-        turl->starter_pack_id() > 0) {
+        turl->starter_pack_id() !=
+            template_url_starter_pack_data::StarterPackId::kNone) {
       history = turl;
       break;
     }
@@ -1806,7 +1807,8 @@ TEST_F(TemplateURLServiceTest,
       first_compatible_version);
 
   TemplateURL* t_url = model()->GetTemplateURLForKeyword(u"@history");
-  EXPECT_GT(t_url->starter_pack_id(), 0);
+  EXPECT_NE(t_url->starter_pack_id(),
+            template_url_starter_pack_data::StarterPackId::kNone);
   const std::u16string original_title = t_url->short_name();
 
   model()->ResetTemplateURL(t_url, u"not history", u"@history", t_url->url());

@@ -25,6 +25,7 @@
 
 #include "../ec/internal.h"
 #include "../fipsmodule/ec/internal.h"
+#include "../mem_internal.h"
 
 #include "internal.h"
 
@@ -211,8 +212,7 @@ static STACK_OF(TRUST_TOKEN_PRETOKEN) *voprf_blind(const VOPRF_METHOD *method,
 
   for (size_t i = 0; i < count; i++) {
     // Insert |pretoken| into |pretokens| early to simplify error-handling.
-    TRUST_TOKEN_PRETOKEN *pretoken = reinterpret_cast<TRUST_TOKEN_PRETOKEN *>(
-        OPENSSL_malloc(sizeof(TRUST_TOKEN_PRETOKEN)));
+    TRUST_TOKEN_PRETOKEN *pretoken = New<TRUST_TOKEN_PRETOKEN>();
     if (pretoken == nullptr ||
         !sk_TRUST_TOKEN_PRETOKEN_push(pretokens, pretoken)) {
       TRUST_TOKEN_PRETOKEN_free(pretoken);
@@ -557,9 +557,9 @@ static int voprf_sign_tt(const VOPRF_METHOD *method,
   }
 
 err:
-  OPENSSL_free(BTs);
-  OPENSSL_free(Zs);
-  OPENSSL_free(es);
+  Delete(BTs);
+  Delete(Zs);
+  Delete(es);
   CBB_cleanup(&batch_cbb);
   return ret;
 }
@@ -666,9 +666,9 @@ static STACK_OF(TRUST_TOKEN) *voprf_unblind_tt(
   ok = 1;
 
 err:
-  OPENSSL_free(BTs);
-  OPENSSL_free(Zs);
-  OPENSSL_free(es);
+  Delete(BTs);
+  Delete(Zs);
+  Delete(es);
   CBB_cleanup(&batch_cbb);
   if (!ok) {
     sk_TRUST_TOKEN_pop_free(ret, TRUST_TOKEN_free);
@@ -924,9 +924,9 @@ static int voprf_sign_impl(const VOPRF_METHOD *method,
   }
 
 err:
-  OPENSSL_free(BTs);
-  OPENSSL_free(Zs);
-  OPENSSL_free(dis);
+  Delete(BTs);
+  Delete(Zs);
+  Delete(dis);
   return ret;
 }
 
@@ -1049,9 +1049,9 @@ static STACK_OF(TRUST_TOKEN) *voprf_unblind(
   ok = 1;
 
 err:
-  OPENSSL_free(BTs);
-  OPENSSL_free(Zs);
-  OPENSSL_free(dis);
+  Delete(BTs);
+  Delete(Zs);
+  Delete(dis);
   if (!ok) {
     sk_TRUST_TOKEN_pop_free(ret, TRUST_TOKEN_free);
     ret = nullptr;

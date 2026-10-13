@@ -35,11 +35,22 @@
 - (void)openNewTabWithMostVisitedItem:(MostVisitedItem*)item
                             incognito:(BOOL)incognito;
 
+// Pins or unpins the item to/from the most visited tile, depending on whether
+// the item is already pinned or not.
+- (void)pinOrUnpinMostVisited:(MostVisitedItem*)item;
+
 // Removes the most visited `item`.
 - (void)removeMostVisited:(MostVisitedItem*)item;
 
+// Reorders the most visited `item` to `toIndex`.
+- (void)moveMostVisitedItem:(MostVisitedItem*)item toIndex:(NSUInteger)index;
+
 // Opens the modal for user to add a new pinned site to the most visited tiles.
 - (void)openModalToAddPinnedSite;
+
+// Opens the modal for user to edit an existing pinned site on the most visited
+// tiles.
+- (void)openModalToEditPinnedSite:(MostVisitedItem*)item;
 
 @end
 

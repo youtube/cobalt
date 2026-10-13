@@ -27,6 +27,7 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/defaults.h"
 #include "chrome/browser/extensions/extension_ui_util.h"
+#include "chrome/browser/feedback/report_unsafe_site_dialog.h"
 #include "chrome/browser/media/router/media_router_feature.h"
 #include "chrome/browser/prefs/incognito_mode_prefs.h"
 #include "chrome/browser/profiles/profile.h"
@@ -66,6 +67,7 @@
 #include "chrome/browser/ui/safety_hub/safety_hub_hats_service.h"
 #include "chrome/browser/ui/safety_hub/safety_hub_hats_service_factory.h"
 #include "chrome/browser/ui/startup/default_browser_prompt/default_browser_prompt_manager.h"
+#include "chrome/browser/ui/tab_search_feature.h"
 #include "chrome/browser/ui/tabs/organization/tab_declutter_controller.h"
 #include "chrome/browser/ui/tabs/organization/tab_organization_service_factory.h"
 #include "chrome/browser/ui/tabs/organization/tab_organization_utils.h"
@@ -678,12 +680,11 @@ bool ProfileSubMenuModel::BuildSyncSection() {
           icon = &vector_icons::kErrorOutlineIcon;
           break;
         case syncer::SyncService::UserActionableError::kBookmarksLimitExceeded:
-          // TODO(crbug.com/452968646): For kBookmarksLimitExceeded, lead to
-          // sync settings instead of a help article. The "Learn more" string is
-          // generic, and the sync settings page would show the user the
-          // specific error.
-          break;
+          // For this specific error (as opposed to all others), there is no
+          // error UI in the menu.
+          return true;
       }
+      CHECK_NE(command_id, 0);
       AddItemWithStringIdAndVectorIcon(this, command_id, button_string_id,
                                        *icon);
       return true;
@@ -948,11 +949,19 @@ class HelpMenuModel : public ui::SimpleMenuModel {
     } else {
       SetCommandIcon(this, IDC_HELP_PAGE_VIA_MENU, kHelpMenuIcon);
     }
-    if (browser->profile()->GetPrefs()->GetBoolean(
-            prefs::kUserFeedbackAllowed)) {
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+    PrefService* pref_service = browser->profile()->GetPrefs();
+    if (pref_service->GetBoolean(prefs::kUserFeedbackAllowed)) {
       AddItemWithStringIdAndVectorIcon(this, IDC_FEEDBACK, IDS_FEEDBACK,
                                        kReportIcon);
+
+      if (feedback::ReportUnsafeSiteDialog::IsEnabled(*browser->profile())) {
+        AddItemWithStringIdAndVectorIcon(this, IDC_REPORT_UNSAFE_SITE,
+                                         IDS_REPORT_UNSAFE_SITE,
+                                         vector_icons::kWarningIcon);
+      }
     }
+#endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
   }
 };
 
@@ -983,9 +992,8 @@ void ToolsMenuModel::Build(Browser* browser) {
 #endif  // BUILDFLAG(IS_CHROMEOS)
   if (!is_tablet_mode) {
     if (features::HasTabSearchToolbarButton()) {
-      AddItemWithStringIdAndVectorIcon(this, IDC_TAB_SEARCH,
-                                       IDS_TAB_SEARCH_MENU,
-                                       vector_icons::kTabSearchIcon);
+      AddItemWithStringIdAndVectorIcon(
+          this, IDC_TAB_SEARCH, IDS_TAB_SEARCH_MENU, kTabSearchToolbarIcon);
     }
 
     if (base::FeatureList::IsEnabled(features::kTabOrganizationAppMenuItem) &&
@@ -1979,20 +1987,9 @@ void AppMenuModel::Build() {
   if (!browser_->profile()->IsGuestSession()) {
     sub_menus_.push_back(
         std::make_unique<PasswordsAndAutofillSubMenuModel>(this));
-    bool use_your_saved_info_branding =
-        base::FeatureList::IsEnabled(
-            autofill::features::kYourSavedInfoSettingsPage) ||
-        base::FeatureList::IsEnabled(
-            autofill::features::kYourSavedInfoBrandingInSettings);
-    int string_id = use_your_saved_info_branding
-                        ? IDS_SETTINGS_YOUR_SAVED_INFO
-                        : IDS_PASSWORDS_AND_AUTOFILL_MENU;
-    const gfx::VectorIcon& vector_icon =
-        use_your_saved_info_branding ? vector_icons::kPersonTextIcon
-                                     : vector_icons::kPasswordManagerIcon;
     AddSubMenuWithStringIdAndVectorIcon(this, IDC_PASSWORDS_AND_AUTOFILL_MENU,
-                                        string_id, sub_menus_.back().get(),
-                                        vector_icon);
+                                        IDS_PASSWORDS_AND_AUTOFILL_MENU, sub_menus_.back().get(),
+                                        vector_icons::kPasswordManagerIcon);
     SetElementIdentifierAt(
         GetIndexOfCommandId(IDC_PASSWORDS_AND_AUTOFILL_MENU).value(),
         kPasswordAndAutofillMenuItem);

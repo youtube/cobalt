@@ -20,6 +20,7 @@ import android.content.ClipboardManager;
 import android.content.ContentResolver;
 import android.content.Intent;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.SpannableString;
@@ -217,21 +218,25 @@ public class ClipboardTest {
         assertEquals(file2, clipCaptor.getValue().getItemAt(1).getUri().toString());
     }
 
-    // TODO(crbug.com/450954710): This test fails on SDK 36.
     @Test
-    @Config(sdk = 29, shadows = ShadowToast.class)
+    @Config(shadows = ShadowToast.class)
     public void setTextWithNotification() {
         Clipboard.getInstance().setText("label", "text", false);
+        ShadowLooper.idleMainLooper();
         assertNull(ShadowToast.getLatestToast());
 
         Clipboard.getInstance().setText("label", "text", true);
-        assertNotNull(ShadowToast.getLatestToast());
-        assertTextFromLatestToast(R.string.copied);
+        ShadowLooper.idleMainLooper();
+        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.S_V2) {
+            assertNotNull(ShadowToast.getLatestToast());
+            assertTextFromLatestToast(R.string.copied);
+        } else {
+            assertNull(ShadowToast.getLatestToast());
+        }
     }
 
-    // TODO(crbug.com/450954710): This test fails on SDK 36.
     @Test
-    @Config(sdk = 29, shadows = ShadowToast.class)
+    @Config(shadows = ShadowToast.class)
     public void setImageWithNotification() {
         Clipboard.getInstance().setImageUri(mTempImageUri, false);
         ShadowLooper.idleMainLooper();
@@ -239,8 +244,12 @@ public class ClipboardTest {
 
         Clipboard.getInstance().setImageUri(mTempImageUri, true);
         ShadowLooper.idleMainLooper();
-        assertNotNull(ShadowToast.getLatestToast());
-        assertTextFromLatestToast(R.string.image_copied);
+        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.S_V2) {
+            assertNotNull(ShadowToast.getLatestToast());
+            assertTextFromLatestToast(R.string.image_copied);
+        } else {
+            assertNull(ShadowToast.getLatestToast());
+        }
     }
 
     @Test

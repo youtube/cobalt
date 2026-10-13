@@ -18,7 +18,6 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import static org.chromium.build.NullUtil.assertNonNull;
@@ -54,9 +53,11 @@ import org.robolectric.annotation.Config;
 import org.robolectric.shadows.ShadowLooper;
 
 import org.chromium.base.Callback;
-import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.base.supplier.ObservableSuppliers;
+import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.omnibox.R;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxAttachmentRecyclerViewAdapter.FuseboxAttachmentType;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxCoordinator.FuseboxState;
@@ -70,6 +71,9 @@ import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.components.browser_ui.util.ChromeItemPickerExtras;
+import org.chromium.components.feature_engagement.Tracker;
+import org.chromium.components.metrics.OmniboxEventProtos.OmniboxEventProto.PageClassification;
+import org.chromium.components.omnibox.AutocompleteInput;
 import org.chromium.components.omnibox.AutocompleteRequestType;
 import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.content_public.browser.RenderWidgetHostView;
@@ -84,6 +88,7 @@ import org.chromium.url.GURL;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -98,7 +103,7 @@ public class FuseboxMediatorUnitTest {
     @Mock private FuseboxPopup mPopup;
     @Mock private Profile mProfile;
     @Mock private WindowAndroid mWindowAndroid;
-    @Mock private ComposeBoxQueryControllerBridge mComposeBoxQueryControllerBridge;
+    @Mock private ComposeboxQueryControllerBridge mComposeboxQueryControllerBridge;
     @Mock private Clipboard mClipboard;
     @Mock private TabModelSelector mTabModelSelector;
     @Mock private Tab mTab1;
@@ -108,6 +113,7 @@ public class FuseboxMediatorUnitTest {
     @Mock private Function<Tab, @Nullable Bitmap> mTabFaviconFactory;
     @Mock private ProfileResolver.Natives mProfileResolverNatives;
     @Mock private SnackbarManager mSnackbarManager;
+    @Mock private Tracker mTracker;
 
     @Captor private ArgumentCaptor<Intent> mIntentCaptor;
 
@@ -117,20 +123,17 @@ public class FuseboxMediatorUnitTest {
     private PropertyModel mModel;
     private FuseboxMediator mMediator;
     private FuseboxAttachmentModelList mAttachments;
-    private ObservableSupplierImpl<TabModelSelector> mTabModelSelectorSupplier;
-    private ObservableSupplierImpl<@AutocompleteRequestType Integer>
-            mAutocompleteRequestTypeSupplier;
-    private final ObservableSupplierImpl<@FuseboxState Integer> mFuseboxStateSupplier =
-            new ObservableSupplierImpl<>(FuseboxState.DISABLED);
+    private SettableNonNullObservableSupplier<TabModelSelector> mTabModelSelectorSupplier;
+    private final SettableNonNullObservableSupplier<@FuseboxState Integer> mFuseboxStateSupplier =
+            ObservableSuppliers.createNonNull(FuseboxState.DISABLED);
     private boolean mCompactModeEnabled;
     private final Bitmap mBitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888);
+    private final AutocompleteInput mInput = new AutocompleteInput();
 
     @Before
     public void setUp() {
         OmniboxFeatures.sMultiattachmentFusebox.setForTesting(true);
-        mTabModelSelectorSupplier = new ObservableSupplierImpl<>(mTabModelSelector);
-        mAutocompleteRequestTypeSupplier =
-                new ObservableSupplierImpl<>(AutocompleteRequestType.SEARCH);
+        mTabModelSelectorSupplier = ObservableSuppliers.createNonNull(mTabModelSelector);
         mActivityController = Robolectric.buildActivity(TestActivity.class).setup();
         Activity activity = mActivityController.get();
         ConstraintLayout viewGroup = new ConstraintLayout(activity);
@@ -138,6 +141,7 @@ public class FuseboxMediatorUnitTest {
         LayoutInflater.from(activity).inflate(R.layout.fusebox_layout, viewGroup, true);
 
         ProfileResolverJni.setInstanceForTesting(mProfileResolverNatives);
+        TrackerFactory.setTrackerForTests(mTracker);
 
         mContext =
                 new ContextThemeWrapper(
@@ -148,26 +152,17 @@ public class FuseboxMediatorUnitTest {
 
         mViewHolder = new FuseboxViewHolder(viewGroup, mPopup);
         mAttachments = new FuseboxAttachmentModelList(mTabModelSelectorSupplier);
-        mAttachments.setComposeBoxQueryControllerBridge(mComposeBoxQueryControllerBridge);
-        mMediator =
-                new FuseboxMediator(
-                        mContext,
-                        mProfile,
-                        mWindowAndroid,
-                        mModel,
-                        mViewHolder,
-                        mAttachments,
-                        mAutocompleteRequestTypeSupplier,
-                        mTabModelSelectorSupplier,
-                        mComposeBoxQueryControllerBridge,
-                        mFuseboxStateSupplier,
-                        mSnackbarManager);
+        mAttachments.setComposeboxQueryControllerBridge(mComposeboxQueryControllerBridge);
         Clipboard.setInstanceForTesting(mClipboard);
         OmniboxResourceProvider.setTabFaviconFactory(mTabFaviconFactory);
         doReturn(mBitmap).when(mTabFaviconFactory).apply(any());
 
+        mInput.setPageClassification(
+                PageClassification.INSTANT_NTP_WITH_OMNIBOX_AS_STARTING_FOCUS_VALUE);
+        recreateMediator();
+
         // Start with no init calls.
-        clearInvocations(mComposeBoxQueryControllerBridge);
+        clearInvocations(mComposeboxQueryControllerBridge);
     }
 
     @After
@@ -177,6 +172,9 @@ public class FuseboxMediatorUnitTest {
 
     /* Useful for testing logic in the mediator's constructor. */
     private void recreateMediator() {
+        if (mMediator != null) {
+            mMediator.destroy();
+        }
         mMediator =
                 new FuseboxMediator(
                         mContext,
@@ -184,12 +182,12 @@ public class FuseboxMediatorUnitTest {
                         mWindowAndroid,
                         mModel,
                         mViewHolder,
-                        new FuseboxAttachmentModelList(mTabModelSelectorSupplier),
-                        mAutocompleteRequestTypeSupplier,
+                        mAttachments,
                         mTabModelSelectorSupplier,
-                        mComposeBoxQueryControllerBridge,
+                        mComposeboxQueryControllerBridge,
                         mFuseboxStateSupplier,
                         mSnackbarManager);
+        mMediator.beginInput(mInput);
     }
 
     private void addTabAttachment(Tab tab) {
@@ -205,14 +203,14 @@ public class FuseboxMediatorUnitTest {
             when(mockTab.getId()).thenReturn(0);
             when(mockTab.getWebContents())
                     .thenReturn(null); // This will trigger addTabContextFromCache path
-            when(mComposeBoxQueryControllerBridge.addTabContext(mockTab)).thenReturn(token);
-            when(mComposeBoxQueryControllerBridge.addTabContextFromCache(0)).thenReturn(token);
+            when(mComposeboxQueryControllerBridge.addTabContext(mockTab)).thenReturn(token);
+            when(mComposeboxQueryControllerBridge.addTabContextFromCache(0)).thenReturn(token);
             attachment = FuseboxAttachment.forTab(mockTab, mResources);
         } else if (attachmentType == FuseboxAttachmentType.ATTACHMENT_FILE) {
-            doReturn(token).when(mComposeBoxQueryControllerBridge).addFile(eq(title), any(), any());
+            doReturn(token).when(mComposeboxQueryControllerBridge).addFile(eq(title), any(), any());
             attachment = FuseboxAttachment.forFile(null, title, "image/", new byte[0]);
         } else if (attachmentType == FuseboxAttachmentType.ATTACHMENT_IMAGE) {
-            doReturn(token).when(mComposeBoxQueryControllerBridge).addFile(eq(title), any(), any());
+            doReturn(token).when(mComposeboxQueryControllerBridge).addFile(eq(title), any(), any());
             attachment =
                     FuseboxAttachment.forCameraImage(
                             /* thumbnail= */ null, title, "image/", new byte[0]);
@@ -232,8 +230,8 @@ public class FuseboxMediatorUnitTest {
         when(tab.getTitle()).thenReturn("Tab " + id);
         when(mTabModelSelector.getTabById(id)).thenReturn(tab);
 
-        when(mComposeBoxQueryControllerBridge.addTabContext(tab)).thenReturn(token);
-        when(mComposeBoxQueryControllerBridge.addTabContextFromCache(id)).thenReturn(token);
+        when(mComposeboxQueryControllerBridge.addTabContext(tab)).thenReturn(token);
+        when(mComposeboxQueryControllerBridge.addTabContextFromCache(id)).thenReturn(token);
         return tab;
     }
 
@@ -264,13 +262,25 @@ public class FuseboxMediatorUnitTest {
 
     @Test
     public void testDestroy() {
-        assertTrue(mAutocompleteRequestTypeSupplier.hasObservers());
+        // Use a temp for mock to avoid DirectInvocationOnMock lint check. This test cases uses a
+        // mock for mAttachments but the rest of this test file does not.
+        FuseboxAttachmentModelList mockAttachments = mock(FuseboxAttachmentModelList.class);
+        when(mockAttachments.iterator()).thenReturn(Collections.emptyIterator());
+        mAttachments = mockAttachments;
+        recreateMediator();
+
+        assertTrue(mInput.getRequestTypeSupplier().hasObservers());
+        verify(mAttachments).addObserver(any());
+
         mMediator.destroy();
-        assertFalse(mAutocompleteRequestTypeSupplier.hasObservers());
+
+        assertFalse(mInput.getRequestTypeSupplier().hasObservers());
+        verify(mAttachments).removeObserver(any());
     }
 
     @Test
     public void initialState_toolbarIsHidden() {
+        mMediator.endInput();
         assertFalse(mModel.get(FuseboxProperties.ATTACHMENTS_TOOLBAR_VISIBLE));
     }
 
@@ -283,7 +293,7 @@ public class FuseboxMediatorUnitTest {
     @Test
     public void onUrlFocusChange_startInAiMode() {
         OmniboxFeatures.sCompactFusebox.setForTesting(true);
-        mAutocompleteRequestTypeSupplier.set(AutocompleteRequestType.AI_MODE);
+        mInput.setRequestType(AutocompleteRequestType.AI_MODE);
         mMediator.setToolbarVisible(true);
         assertTrue(mModel.get(FuseboxProperties.ATTACHMENTS_TOOLBAR_VISIBLE));
         assertFalse(mModel.get(FuseboxProperties.COMPACT_UI));
@@ -291,17 +301,13 @@ public class FuseboxMediatorUnitTest {
 
     @Test
     public void onUrlFocusChange_viewsHiddenWhenNotFocused() {
-        // Show it first
+        // Show it first.
         mMediator.setToolbarVisible(true);
-        mMediator.setAutocompleteRequestTypeChangeable(true);
         assertTrue(mModel.get(FuseboxProperties.ATTACHMENTS_TOOLBAR_VISIBLE));
-        assertTrue(mModel.get(FuseboxProperties.AUTOCOMPLETE_REQUEST_TYPE_CHANGEABLE));
 
-        // Then hide it
+        // Then hide it.
         mMediator.setToolbarVisible(false);
-        mMediator.setAutocompleteRequestTypeChangeable(false);
         assertFalse(mModel.get(FuseboxProperties.ATTACHMENTS_TOOLBAR_VISIBLE));
-        assertFalse(mModel.get(FuseboxProperties.AUTOCOMPLETE_REQUEST_TYPE_CHANGEABLE));
     }
 
     @Test
@@ -322,7 +328,7 @@ public class FuseboxMediatorUnitTest {
 
     @Test
     public void popupAddsTabs() {
-        assertFalse(mModel.get(FuseboxProperties.CURRENT_TAB_BUTTON_VISIBLE));
+        assertFalse(mModel.get(FuseboxProperties.POPUP_ATTACH_CURRENT_TAB_VISIBLE));
         doReturn(mTab1).when(mTabModelSelector).getCurrentTab();
         doReturn("Title1").when(mTab1).getTitle();
         doReturn(new GURL("https://www.google.com")).when(mTab1).getUrl();
@@ -340,23 +346,28 @@ public class FuseboxMediatorUnitTest {
         doReturn(false).when(mPopup).isShowing();
 
         mMediator.onToggleAttachmentsPopup();
-        assertTrue(mModel.get(FuseboxProperties.CURRENT_TAB_BUTTON_VISIBLE));
-        assertNonNull(mModel.get(FuseboxProperties.CURRENT_TAB_BUTTON_FAVICON));
+        assertTrue(mModel.get(FuseboxProperties.POPUP_ATTACH_CURRENT_TAB_VISIBLE));
+        assertNonNull(mModel.get(FuseboxProperties.POPUP_ATTACH_CURRENT_TAB_FAVICON));
 
+        OmniboxFeatures.sAllowCurrentTab.setForTesting(false);
+        mMediator.onToggleAttachmentsPopup();
+        assertFalse(mModel.get(FuseboxProperties.POPUP_ATTACH_CURRENT_TAB_VISIBLE));
+
+        OmniboxFeatures.sAllowCurrentTab.setForTesting(true);
         doReturn(null).when(mTabFaviconFactory).apply(any());
         mMediator.onToggleAttachmentsPopup();
-        assertTrue(mModel.get(FuseboxProperties.CURRENT_TAB_BUTTON_VISIBLE));
-        assertNull(mModel.get(FuseboxProperties.CURRENT_TAB_BUTTON_FAVICON));
+        assertTrue(mModel.get(FuseboxProperties.POPUP_ATTACH_CURRENT_TAB_VISIBLE));
+        assertNull(mModel.get(FuseboxProperties.POPUP_ATTACH_CURRENT_TAB_FAVICON));
 
         doReturn(mBitmap).when(mTabFaviconFactory).apply(any());
-        doReturn("token").when(mComposeBoxQueryControllerBridge).addTabContext(mTab1);
-        mModel.get(FuseboxProperties.CURRENT_TAB_BUTTON_CLICKED).run();
-        verify(mComposeBoxQueryControllerBridge).addTabContext(mTab1);
+        doReturn("token").when(mComposeboxQueryControllerBridge).addTabContext(mTab1);
+        mModel.get(FuseboxProperties.POPUP_ATTACH_CURRENT_TAB_CLICKED).run();
+        verify(mComposeboxQueryControllerBridge).addTabContext(mTab1);
         assertEquals(mBitmap, ((BitmapDrawable) mAttachments.get(0).thumbnail).getBitmap());
 
         doReturn(mTab2).when(mTabModelSelector).getCurrentTab();
         mMediator.onToggleAttachmentsPopup();
-        assertFalse(mModel.get(FuseboxProperties.CURRENT_TAB_BUTTON_VISIBLE));
+        assertFalse(mModel.get(FuseboxProperties.POPUP_ATTACH_CURRENT_TAB_VISIBLE));
     }
 
     @Test
@@ -382,18 +393,18 @@ public class FuseboxMediatorUnitTest {
     @Test
     public void addAttachment_addAttachment_success() {
         // Success is captured with a valid unique token.
-        doReturn("123").when(mComposeBoxQueryControllerBridge).addFile(any(), any(), any());
+        doReturn("123").when(mComposeboxQueryControllerBridge).addFile(any(), any(), any());
         byte[] byteArray = new byte[] {1, 2, 3};
         FuseboxAttachment attachment = FuseboxAttachment.forFile(null, "title", "image", byteArray);
         mMediator.uploadAndAddAttachment(attachment);
         assertTrue(mModel.get(FuseboxProperties.ATTACHMENTS_VISIBLE));
-        verify(mComposeBoxQueryControllerBridge).addFile("title", "image", byteArray);
+        verify(mComposeboxQueryControllerBridge).addFile("title", "image", byteArray);
     }
 
     @Test
     public void addAttachment_addAttachment_failure() {
         // Failure: no token.
-        doReturn(null).when(mComposeBoxQueryControllerBridge).addFile(any(), any(), any());
+        doReturn(null).when(mComposeboxQueryControllerBridge).addFile(any(), any(), any());
         byte[] byteArray = new byte[] {1, 2, 3};
         FuseboxAttachment attachment = FuseboxAttachment.forFile(null, "title", "image", byteArray);
         mMediator.uploadAndAddAttachment(attachment);
@@ -405,7 +416,7 @@ public class FuseboxMediatorUnitTest {
         addAttachment("title1", "token1", FuseboxAttachmentType.ATTACHMENT_IMAGE);
         assertEquals(1, mAttachments.size());
 
-        mModel.get(FuseboxProperties.POPUP_CREATE_IMAGE_CLICKED).run();
+        mModel.get(FuseboxProperties.POPUP_TOOL_CREATE_IMAGE_CLICKED).run();
 
         addAttachment("title2", "token2", FuseboxAttachmentType.ATTACHMENT_IMAGE);
         assertEquals(1, mAttachments.size());
@@ -432,7 +443,7 @@ public class FuseboxMediatorUnitTest {
     @Test
     public void activateAiMode_startsSession() {
         mMediator.activateAiMode(AiModeActivationSource.DEDICATED_BUTTON);
-        verify(mComposeBoxQueryControllerBridge, never()).notifySessionStarted();
+        verify(mComposeboxQueryControllerBridge, never()).notifySessionStarted();
         assertEquals(
                 AutocompleteRequestType.AI_MODE,
                 (int) mModel.get(FuseboxProperties.AUTOCOMPLETE_REQUEST_TYPE));
@@ -441,7 +452,7 @@ public class FuseboxMediatorUnitTest {
     @Test
     public void activateImageGeneration_startsSession() {
         mMediator.activateImageGeneration();
-        verify(mComposeBoxQueryControllerBridge, never()).notifySessionStarted();
+        verify(mComposeboxQueryControllerBridge, never()).notifySessionStarted();
         assertEquals(
                 AutocompleteRequestType.IMAGE_GENERATION,
                 (int) mModel.get(FuseboxProperties.AUTOCOMPLETE_REQUEST_TYPE));
@@ -449,7 +460,7 @@ public class FuseboxMediatorUnitTest {
 
     @Test
     public void activateImageGeneration_disablesNonImageInput() {
-        doReturn(true).when(mComposeBoxQueryControllerBridge).isPdfUploadEligible();
+        doReturn(true).when(mComposeboxQueryControllerBridge).isPdfUploadEligible();
         doReturn(mTab1).when(mTabModelSelector).getCurrentTab();
         doReturn("Title1").when(mTab1).getTitle();
         doReturn(new GURL("https://www.google.com")).when(mTab1).getUrl();
@@ -459,29 +470,28 @@ public class FuseboxMediatorUnitTest {
         doReturn(false).when(mWebContents).isLoading();
         doReturn(mRenderWidgetHostView).when(mWebContents).getRenderWidgetHostView();
 
-        mAutocompleteRequestTypeSupplier.set(AutocompleteRequestType.SEARCH);
         recreateMediator();
         ShadowLooper.idleMainLooper();
 
         mModel.get(FuseboxProperties.BUTTON_ADD_CLICKED).run();
-        assertTrue(mModel.get(FuseboxProperties.CURRENT_TAB_BUTTON_VISIBLE));
-        assertTrue(mModel.get(FuseboxProperties.CURRENT_TAB_BUTTON_ENABLED));
-        assertTrue(mModel.get(FuseboxProperties.POPUP_FILE_BUTTON_VISIBLE));
-        assertTrue(mModel.get(FuseboxProperties.POPUP_FILE_BUTTON_ENABLED));
-        assertTrue(mModel.get(FuseboxProperties.POPUP_TAB_PICKER_ENABLED));
+        assertTrue(mModel.get(FuseboxProperties.POPUP_ATTACH_CURRENT_TAB_VISIBLE));
+        assertTrue(mModel.get(FuseboxProperties.POPUP_ATTACH_CURRENT_TAB_ENABLED));
+        assertTrue(mModel.get(FuseboxProperties.POPUP_ATTACH_FILE_VISIBLE));
+        assertTrue(mModel.get(FuseboxProperties.POPUP_ATTACH_FILE_ENABLED));
+        assertTrue(mModel.get(FuseboxProperties.POPUP_ATTACH_TAB_PICKER_ENABLED));
 
-        mModel.get(FuseboxProperties.POPUP_CREATE_IMAGE_CLICKED).run();
+        mModel.get(FuseboxProperties.POPUP_TOOL_CREATE_IMAGE_CLICKED).run();
         mModel.get(FuseboxProperties.BUTTON_ADD_CLICKED).run();
-        assertTrue(mModel.get(FuseboxProperties.CURRENT_TAB_BUTTON_VISIBLE));
-        assertFalse(mModel.get(FuseboxProperties.CURRENT_TAB_BUTTON_ENABLED));
-        assertTrue(mModel.get(FuseboxProperties.POPUP_FILE_BUTTON_VISIBLE));
-        assertFalse(mModel.get(FuseboxProperties.POPUP_FILE_BUTTON_ENABLED));
-        assertFalse(mModel.get(FuseboxProperties.POPUP_TAB_PICKER_ENABLED));
+        assertTrue(mModel.get(FuseboxProperties.POPUP_ATTACH_CURRENT_TAB_VISIBLE));
+        assertFalse(mModel.get(FuseboxProperties.POPUP_ATTACH_CURRENT_TAB_ENABLED));
+        assertTrue(mModel.get(FuseboxProperties.POPUP_ATTACH_FILE_VISIBLE));
+        assertFalse(mModel.get(FuseboxProperties.POPUP_ATTACH_FILE_ENABLED));
+        assertFalse(mModel.get(FuseboxProperties.POPUP_ATTACH_TAB_PICKER_ENABLED));
     }
 
     @Test
     public void maybeActivateAiMode_takesEffectInSearchMode() {
-        mAutocompleteRequestTypeSupplier.set(AutocompleteRequestType.SEARCH);
+        mInput.setRequestType(AutocompleteRequestType.SEARCH);
         mMediator.maybeActivateAiMode(AiModeActivationSource.DEDICATED_BUTTON);
         assertEquals(
                 AutocompleteRequestType.AI_MODE,
@@ -491,7 +501,7 @@ public class FuseboxMediatorUnitTest {
 
     @Test
     public void maybeActivateAiMode_doesNotAlterCurrentCustomMode() {
-        mAutocompleteRequestTypeSupplier.set(AutocompleteRequestType.IMAGE_GENERATION);
+        mInput.setRequestType(AutocompleteRequestType.IMAGE_GENERATION);
         mMediator.maybeActivateAiMode(AiModeActivationSource.DEDICATED_BUTTON);
         assertEquals(
                 AutocompleteRequestType.IMAGE_GENERATION,
@@ -513,92 +523,37 @@ public class FuseboxMediatorUnitTest {
     }
 
     @Test
-    public void setToolbarVisible_noBridge_doesNothing() {
-        ObservableSupplierImpl<Integer> requestTypeSupplier = new ObservableSupplierImpl<>();
-        requestTypeSupplier.set(AutocompleteRequestType.SEARCH);
-
-        // Create a mediator, but don't initialize the bridge.
-        FuseboxMediator mediator =
-                new FuseboxMediator(
-                        mContext,
-                        mProfile,
-                        mWindowAndroid,
-                        mModel,
-                        mViewHolder,
-                        new FuseboxAttachmentModelList(mTabModelSelectorSupplier),
-                        requestTypeSupplier,
-                        mTabModelSelectorSupplier,
-                        mComposeBoxQueryControllerBridge,
-                        mFuseboxStateSupplier,
-                        mSnackbarManager);
-
-        // The bridge is not initialized, so no native calls should be made.
-        mediator.setToolbarVisible(true);
-        verify(mComposeBoxQueryControllerBridge, never()).notifySessionStarted();
-
-        mediator.setToolbarVisible(false);
-        verify(mComposeBoxQueryControllerBridge, never()).notifySessionAbandoned();
-    }
-
-    @Test
-    public void setToolbarVisible_stateNotChanged_doesNothing() {
-        // Initial state is false. Calling with false should do nothing.
-        mMediator.setToolbarVisible(false);
-        verifyNoMoreInteractions(mComposeBoxQueryControllerBridge);
-
-        // Transition to true. Should NOT start a session.
-        mMediator.setAutocompleteRequestTypeChangeable(true);
-        verifyNoMoreInteractions(mComposeBoxQueryControllerBridge);
-
-        // Manually start a session to test the hiding part.
-        mMediator.activateAiMode(AiModeActivationSource.DEDICATED_BUTTON);
-        verifyNoMoreInteractions(mComposeBoxQueryControllerBridge);
-
-        // Calling with true again. Should do nothing.
-        mMediator.setAutocompleteRequestTypeChangeable(true);
-        verifyNoMoreInteractions(mComposeBoxQueryControllerBridge);
-
-        // Transition to false. Should abandon the session.
-        mMediator.setAutocompleteRequestTypeChangeable(false);
-        verifyNoMoreInteractions(mComposeBoxQueryControllerBridge);
-
-        // Calling with false again. Should do nothing.
-        mMediator.setAutocompleteRequestTypeChangeable(false);
-        verifyNoMoreInteractions(mComposeBoxQueryControllerBridge);
-    }
-
-    @Test
     public void onToggleAttachmentsPopup_clipboardHasImage_showsClipboardButton() {
         doReturn(true).when(mClipboard).hasImage();
         mMediator.onToggleAttachmentsPopup();
-        assertTrue(mModel.get(FuseboxProperties.POPUP_CLIPBOARD_BUTTON_VISIBLE));
+        assertTrue(mModel.get(FuseboxProperties.POPUP_ATTACH_CLIPBOARD_VISIBLE));
     }
 
     @Test
     public void onToggleAttachmentsPopup_clipboardDoesNotHaveImage_hidesClipboardButton() {
         doReturn(false).when(mClipboard).hasImage();
         mMediator.onToggleAttachmentsPopup();
-        assertFalse(mModel.get(FuseboxProperties.POPUP_CLIPBOARD_BUTTON_VISIBLE));
+        assertFalse(mModel.get(FuseboxProperties.POPUP_ATTACH_CLIPBOARD_VISIBLE));
     }
 
     @Test
     public void onToggleAttachmentsPopup_pdfUploadEligible_showsFileButton() {
-        doReturn(true).when(mComposeBoxQueryControllerBridge).isPdfUploadEligible();
+        doReturn(true).when(mComposeboxQueryControllerBridge).isPdfUploadEligible();
         recreateMediator();
-        assertTrue(mModel.get(FuseboxProperties.POPUP_FILE_BUTTON_VISIBLE));
+        assertTrue(mModel.get(FuseboxProperties.POPUP_ATTACH_FILE_VISIBLE));
     }
 
     @Test
     public void onToggleAttachmentsPopup_pdfUploadNotEligible_hidesFileButton() {
-        doReturn(false).when(mComposeBoxQueryControllerBridge).isPdfUploadEligible();
+        doReturn(false).when(mComposeboxQueryControllerBridge).isPdfUploadEligible();
         recreateMediator();
-        assertFalse(mModel.get(FuseboxProperties.POPUP_FILE_BUTTON_VISIBLE));
+        assertFalse(mModel.get(FuseboxProperties.POPUP_ATTACH_FILE_VISIBLE));
     }
 
     @Test
     @Config(sdk = Build.VERSION_CODES.S_V2)
     public void testGalleryIntent_extraAllowMultiple() {
-        mModel.get(FuseboxProperties.POPUP_GALLERY_CLICKED).run();
+        mModel.get(FuseboxProperties.POPUP_ATTACH_GALLERY_CLICKED).run();
         verify(mWindowAndroid).showCancelableIntent(mIntentCaptor.capture(), any(), any());
         Intent intent = mIntentCaptor.getValue();
         assertTrue(intent.getBooleanExtra(Intent.EXTRA_ALLOW_MULTIPLE, /* defaultValue= */ false));
@@ -607,7 +562,7 @@ public class FuseboxMediatorUnitTest {
     @Test
     @Config(sdk = Build.VERSION_CODES.TIRAMISU)
     public void testGalleryIntent_extraPickImagesMax() {
-        mModel.get(FuseboxProperties.POPUP_GALLERY_CLICKED).run();
+        mModel.get(FuseboxProperties.POPUP_ATTACH_GALLERY_CLICKED).run();
         verify(mWindowAndroid).showCancelableIntent(mIntentCaptor.capture(), any(), any());
         Intent intent = mIntentCaptor.getValue();
         assertEquals(
@@ -618,8 +573,8 @@ public class FuseboxMediatorUnitTest {
     @Test
     @Config(sdk = Build.VERSION_CODES.S_V2)
     public void testGalleryIntent_extraAllowMultiple_duringCreateImage() {
-        mModel.get(FuseboxProperties.POPUP_CREATE_IMAGE_CLICKED).run();
-        mModel.get(FuseboxProperties.POPUP_GALLERY_CLICKED).run();
+        mModel.get(FuseboxProperties.POPUP_TOOL_CREATE_IMAGE_CLICKED).run();
+        mModel.get(FuseboxProperties.POPUP_ATTACH_GALLERY_CLICKED).run();
         verify(mWindowAndroid).showCancelableIntent(mIntentCaptor.capture(), any(), any());
         Intent intent = mIntentCaptor.getValue();
         assertFalse(intent.getBooleanExtra(Intent.EXTRA_ALLOW_MULTIPLE, /* defaultValue= */ true));
@@ -628,8 +583,8 @@ public class FuseboxMediatorUnitTest {
     @Test
     @Config(sdk = Build.VERSION_CODES.TIRAMISU)
     public void testGalleryIntent_extraPickImagesMax_duringCreateImage() {
-        mModel.get(FuseboxProperties.POPUP_CREATE_IMAGE_CLICKED).run();
-        mModel.get(FuseboxProperties.POPUP_GALLERY_CLICKED).run();
+        mModel.get(FuseboxProperties.POPUP_TOOL_CREATE_IMAGE_CLICKED).run();
+        mModel.get(FuseboxProperties.POPUP_ATTACH_GALLERY_CLICKED).run();
         verify(mWindowAndroid).showCancelableIntent(mIntentCaptor.capture(), any(), any());
         Intent intent = mIntentCaptor.getValue();
         assertEquals(
@@ -638,29 +593,29 @@ public class FuseboxMediatorUnitTest {
 
     @Test
     public void onImagePickerClicked_setsMimeType() {
-        mModel.get(FuseboxProperties.POPUP_GALLERY_CLICKED).run();
+        mModel.get(FuseboxProperties.POPUP_ATTACH_GALLERY_CLICKED).run();
         verify(mWindowAndroid).showCancelableIntent(mIntentCaptor.capture(), any(), any());
         assertEquals(MimeTypeUtils.IMAGE_ANY_MIME_TYPE, mIntentCaptor.getValue().getType());
     }
 
     @Test
     public void onFilePickerClicked_setsMimeType() {
-        mModel.get(FuseboxProperties.POPUP_FILE_CLICKED).run();
+        mModel.get(FuseboxProperties.POPUP_ATTACH_FILE_CLICKED).run();
         verify(mWindowAndroid).showCancelableIntent(mIntentCaptor.capture(), any(), any());
         assertEquals(MimeTypeUtils.PDF_MIME_TYPE, mIntentCaptor.getValue().getType());
     }
 
     @Test
     public void autocompleteRequestTypeClicked_activatesSearchMode() {
-        mAutocompleteRequestTypeSupplier.set(AutocompleteRequestType.AI_MODE);
+        mInput.setRequestType(AutocompleteRequestType.AI_MODE);
         mModel.get(FuseboxProperties.AUTOCOMPLETE_REQUEST_TYPE_CLICKED).run();
-        assertEquals(AutocompleteRequestType.SEARCH, (int) mAutocompleteRequestTypeSupplier.get());
+        assertEquals(AutocompleteRequestType.SEARCH, mInput.getRequestType());
     }
 
     @Test
     public void testUploadAndAddAttachment_integrationFlow_noCasting() {
         // Setup: Mock successful file upload
-        when(mComposeBoxQueryControllerBridge.addFile(anyString(), anyString(), any(byte[].class)))
+        when(mComposeboxQueryControllerBridge.addFile(anyString(), anyString(), any(byte[].class)))
                 .thenReturn("integration-token");
 
         // Create attachment without token
@@ -676,7 +631,7 @@ public class FuseboxMediatorUnitTest {
 
         // Verification: Should work without any casting
         assertEquals(1, mAttachments.size());
-        verify(mComposeBoxQueryControllerBridge)
+        verify(mComposeboxQueryControllerBridge)
                 .addFile(
                         eq("integration-test.txt"),
                         eq("text/plain"),
@@ -684,12 +639,12 @@ public class FuseboxMediatorUnitTest {
         assertEquals("integration-token", attachment.getToken());
 
         // Verify AI mode is activated
-        assertEquals(AutocompleteRequestType.AI_MODE, (int) mAutocompleteRequestTypeSupplier.get());
+        assertEquals(AutocompleteRequestType.AI_MODE, mInput.getRequestType());
     }
 
     @Test
     public void testAddAttachment_disablesCreateImage() {
-        doReturn("token-tab1").when(mComposeBoxQueryControllerBridge).addTabContext(mTab1);
+        doReturn("token-tab1").when(mComposeboxQueryControllerBridge).addTabContext(mTab1);
         doReturn(mTab1).when(mTabModelSelector).getCurrentTab();
         doReturn("Title1").when(mTab1).getTitle();
         doReturn(new GURL("https://www.google.com")).when(mTab1).getUrl();
@@ -701,37 +656,37 @@ public class FuseboxMediatorUnitTest {
         doReturn(mRenderWidgetHostView).when(mWebContents).getRenderWidgetHostView();
 
         mModel.get(FuseboxProperties.BUTTON_ADD_CLICKED).run();
-        assertTrue(mModel.get(FuseboxProperties.POPUP_CREATE_IMAGE_BUTTON_ENABLED));
+        assertTrue(mModel.get(FuseboxProperties.POPUP_TOOL_CREATE_IMAGE_ENABLED));
 
-        mModel.get(FuseboxProperties.CURRENT_TAB_BUTTON_CLICKED).run();
+        mModel.get(FuseboxProperties.POPUP_ATTACH_CURRENT_TAB_CLICKED).run();
         assertEquals(1, mAttachments.size());
         mModel.get(FuseboxProperties.BUTTON_ADD_CLICKED).run();
-        assertFalse(mModel.get(FuseboxProperties.POPUP_CREATE_IMAGE_BUTTON_ENABLED));
+        assertFalse(mModel.get(FuseboxProperties.POPUP_TOOL_CREATE_IMAGE_ENABLED));
 
         mAttachments.get(0).model.get(FuseboxAttachmentProperties.ON_REMOVE).run();
         assertEquals(0, mAttachments.size());
         mModel.get(FuseboxProperties.BUTTON_ADD_CLICKED).run();
-        assertTrue(mModel.get(FuseboxProperties.POPUP_CREATE_IMAGE_BUTTON_ENABLED));
+        assertTrue(mModel.get(FuseboxProperties.POPUP_TOOL_CREATE_IMAGE_ENABLED));
 
         addAttachment("title", "token1", FuseboxAttachmentType.ATTACHMENT_FILE);
         assertEquals(1, mAttachments.size());
-        assertFalse(mModel.get(FuseboxProperties.POPUP_CREATE_IMAGE_BUTTON_ENABLED));
+        assertFalse(mModel.get(FuseboxProperties.POPUP_TOOL_CREATE_IMAGE_ENABLED));
 
         mAttachments.get(0).model.get(FuseboxAttachmentProperties.ON_REMOVE).run();
         assertEquals(0, mAttachments.size());
-        assertTrue(mModel.get(FuseboxProperties.POPUP_CREATE_IMAGE_BUTTON_ENABLED));
+        assertTrue(mModel.get(FuseboxProperties.POPUP_TOOL_CREATE_IMAGE_ENABLED));
 
         addAttachment("title", "token2", FuseboxAttachmentType.ATTACHMENT_IMAGE);
         assertEquals(1, mAttachments.size());
-        assertTrue(mModel.get(FuseboxProperties.POPUP_CREATE_IMAGE_BUTTON_ENABLED));
+        assertTrue(mModel.get(FuseboxProperties.POPUP_TOOL_CREATE_IMAGE_ENABLED));
 
         addAttachment("title", "token3", FuseboxAttachmentType.ATTACHMENT_IMAGE);
         assertEquals(2, mAttachments.size());
-        assertFalse(mModel.get(FuseboxProperties.POPUP_CREATE_IMAGE_BUTTON_ENABLED));
+        assertFalse(mModel.get(FuseboxProperties.POPUP_TOOL_CREATE_IMAGE_ENABLED));
 
         mAttachments.get(0).model.get(FuseboxAttachmentProperties.ON_REMOVE).run();
         assertEquals(1, mAttachments.size());
-        assertTrue(mModel.get(FuseboxProperties.POPUP_CREATE_IMAGE_BUTTON_ENABLED));
+        assertTrue(mModel.get(FuseboxProperties.POPUP_TOOL_CREATE_IMAGE_ENABLED));
     }
 
     @Test
@@ -740,17 +695,17 @@ public class FuseboxMediatorUnitTest {
         recreateMediator();
         Callback<@FuseboxState Integer> compactModeCallback =
                 (val) -> mCompactModeEnabled = val == FuseboxState.COMPACT;
-        mFuseboxStateSupplier.addObserver(compactModeCallback);
+        mFuseboxStateSupplier.addSyncObserverAndCallIfNonNull(compactModeCallback);
 
         mMediator.setToolbarVisible(true);
         assertTrue(mModel.get(FuseboxProperties.COMPACT_UI));
         assertTrue(mCompactModeEnabled);
 
-        mAutocompleteRequestTypeSupplier.set(AutocompleteRequestType.AI_MODE);
+        mInput.setRequestType(AutocompleteRequestType.AI_MODE);
         assertFalse(mModel.get(FuseboxProperties.COMPACT_UI));
         assertFalse(mCompactModeEnabled);
 
-        mAutocompleteRequestTypeSupplier.set(AutocompleteRequestType.SEARCH);
+        mInput.setRequestType(AutocompleteRequestType.SEARCH);
         assertTrue(mModel.get(FuseboxProperties.COMPACT_UI));
         assertTrue(mCompactModeEnabled);
 
@@ -778,7 +733,7 @@ public class FuseboxMediatorUnitTest {
 
     @Test
     public void onTabPickerClicked_launchesTabPickerActivity() {
-        mModel.get(FuseboxProperties.POPUP_TAB_PICKER_CLICKED).run();
+        mModel.get(FuseboxProperties.POPUP_ATTACH_TAB_PICKER_CLICKED).run();
 
         verify(mPopup).dismiss();
         verify(mWindowAndroid).showCancelableIntent(mIntentCaptor.capture(), any(), any());
@@ -800,7 +755,7 @@ public class FuseboxMediatorUnitTest {
         addTabAttachment(tab1);
         addTabAttachment(tab2);
 
-        mModel.get(FuseboxProperties.POPUP_TAB_PICKER_CLICKED).run();
+        mModel.get(FuseboxProperties.POPUP_ATTACH_TAB_PICKER_CLICKED).run();
 
         verify(mWindowAndroid).showCancelableIntent(mIntentCaptor.capture(), any(), any());
         Intent intent = mIntentCaptor.getValue();
@@ -821,7 +776,7 @@ public class FuseboxMediatorUnitTest {
         addAttachment("title1", "token1", FuseboxAttachmentType.ATTACHMENT_IMAGE);
         addAttachment("title2", "token2", FuseboxAttachmentType.ATTACHMENT_FILE);
 
-        mModel.get(FuseboxProperties.POPUP_TAB_PICKER_CLICKED).run();
+        mModel.get(FuseboxProperties.POPUP_ATTACH_TAB_PICKER_CLICKED).run();
 
         verify(mWindowAndroid).showCancelableIntent(mIntentCaptor.capture(), any(), any());
         Intent intent = mIntentCaptor.getValue();
@@ -871,7 +826,7 @@ public class FuseboxMediatorUnitTest {
         assertEquals(new HashSet<>(selectedTabIds), getCurrentlyAttachedIdsFromModel());
 
         // Verify AutocompleteRequestType is AI Mode.
-        assertEquals(AutocompleteRequestType.AI_MODE, (int) mAutocompleteRequestTypeSupplier.get());
+        assertEquals(AutocompleteRequestType.AI_MODE, mInput.getRequestType());
     }
 
     @Test
@@ -879,13 +834,13 @@ public class FuseboxMediatorUnitTest {
         Intent resultIntent = createTabPickerResultIntent(new ArrayList<>());
 
         // Set a non-AI mode starting state
-        mAutocompleteRequestTypeSupplier.set(AutocompleteRequestType.SEARCH);
+        mInput.setRequestType(AutocompleteRequestType.SEARCH);
 
         mMediator.onTabPickerResult(Activity.RESULT_OK, resultIntent);
         assertEquals(new HashSet<>(), getCurrentlyAttachedIdsFromModel());
 
         // AI Mode is NOT activated and AutocompleteRequestType remains SEARCH.
-        assertEquals(AutocompleteRequestType.SEARCH, (int) mAutocompleteRequestTypeSupplier.get());
+        assertEquals(AutocompleteRequestType.SEARCH, mInput.getRequestType());
     }
 
     @Test
@@ -896,7 +851,7 @@ public class FuseboxMediatorUnitTest {
 
     @Test
     public void testIsMaxAttachmentCountReached_imageInImageGeneration() {
-        mAutocompleteRequestTypeSupplier.set(AutocompleteRequestType.IMAGE_GENERATION);
+        mInput.setRequestType(AutocompleteRequestType.IMAGE_GENERATION);
         assertFalse(mMediator.isMaxAttachmentCountReached(FuseboxAttachmentType.ATTACHMENT_IMAGE));
         verify(mSnackbarManager, never()).showSnackbar(any());
 
@@ -907,7 +862,7 @@ public class FuseboxMediatorUnitTest {
 
     @Test
     public void testIsMaxAttachmentCountReached_nonImageInImageGeneration() {
-        mAutocompleteRequestTypeSupplier.set(AutocompleteRequestType.IMAGE_GENERATION);
+        mInput.setRequestType(AutocompleteRequestType.IMAGE_GENERATION);
 
         assertTrue(mMediator.isMaxAttachmentCountReached(FuseboxAttachmentType.ATTACHMENT_TAB));
 
@@ -958,12 +913,12 @@ public class FuseboxMediatorUnitTest {
 
     @Test
     public void testUpdatePopupButtonEnabledStates_maxAttachmentsReached() {
-        mAutocompleteRequestTypeSupplier.set(AutocompleteRequestType.SEARCH);
-        assertTrue(mModel.get(FuseboxProperties.POPUP_CAMERA_BUTTON_ENABLED));
-        assertTrue(mModel.get(FuseboxProperties.POPUP_GALLERY_BUTTON_ENABLED));
-        assertTrue(mModel.get(FuseboxProperties.POPUP_TAB_PICKER_ENABLED));
-        assertTrue(mModel.get(FuseboxProperties.POPUP_FILE_BUTTON_ENABLED));
-        assertTrue(mModel.get(FuseboxProperties.CURRENT_TAB_BUTTON_ENABLED));
+        mInput.setRequestType(AutocompleteRequestType.SEARCH);
+        assertTrue(mModel.get(FuseboxProperties.POPUP_ATTACH_CAMERA_ENABLED));
+        assertTrue(mModel.get(FuseboxProperties.POPUP_ATTACH_GALLERY_ENABLED));
+        assertTrue(mModel.get(FuseboxProperties.POPUP_ATTACH_TAB_PICKER_ENABLED));
+        assertTrue(mModel.get(FuseboxProperties.POPUP_ATTACH_FILE_ENABLED));
+        assertTrue(mModel.get(FuseboxProperties.POPUP_ATTACH_CURRENT_TAB_ENABLED));
 
         // Add maximum attachments
         for (int i = 0; i < FuseboxAttachmentModelList.MAX_ATTACHMENTS; i++) {
@@ -971,32 +926,57 @@ public class FuseboxMediatorUnitTest {
         }
         assertEquals(0, mAttachments.getRemainingAttachments());
 
-        assertFalse(mModel.get(FuseboxProperties.POPUP_CAMERA_BUTTON_ENABLED));
-        assertFalse(mModel.get(FuseboxProperties.POPUP_GALLERY_BUTTON_ENABLED));
-        assertFalse(mModel.get(FuseboxProperties.POPUP_TAB_PICKER_ENABLED));
-        assertFalse(mModel.get(FuseboxProperties.CURRENT_TAB_BUTTON_ENABLED));
-        assertFalse(mModel.get(FuseboxProperties.POPUP_FILE_BUTTON_ENABLED));
+        assertFalse(mModel.get(FuseboxProperties.POPUP_ATTACH_CAMERA_ENABLED));
+        assertFalse(mModel.get(FuseboxProperties.POPUP_ATTACH_GALLERY_ENABLED));
+        assertFalse(mModel.get(FuseboxProperties.POPUP_ATTACH_TAB_PICKER_ENABLED));
+        assertFalse(mModel.get(FuseboxProperties.POPUP_ATTACH_CURRENT_TAB_ENABLED));
+        assertFalse(mModel.get(FuseboxProperties.POPUP_ATTACH_FILE_ENABLED));
 
         // Remove one attachment to free up space
         mAttachments.get(0).model.get(FuseboxAttachmentProperties.ON_REMOVE).run();
         assertTrue(mAttachments.getRemainingAttachments() > 0);
 
-        assertTrue(mModel.get(FuseboxProperties.POPUP_CAMERA_BUTTON_ENABLED));
-        assertTrue(mModel.get(FuseboxProperties.POPUP_GALLERY_BUTTON_ENABLED));
-        assertTrue(mModel.get(FuseboxProperties.POPUP_TAB_PICKER_ENABLED));
-        assertTrue(mModel.get(FuseboxProperties.POPUP_FILE_BUTTON_ENABLED));
-        assertTrue(mModel.get(FuseboxProperties.CURRENT_TAB_BUTTON_ENABLED));
+        assertTrue(mModel.get(FuseboxProperties.POPUP_ATTACH_CAMERA_ENABLED));
+        assertTrue(mModel.get(FuseboxProperties.POPUP_ATTACH_GALLERY_ENABLED));
+        assertTrue(mModel.get(FuseboxProperties.POPUP_ATTACH_TAB_PICKER_ENABLED));
+        assertTrue(mModel.get(FuseboxProperties.POPUP_ATTACH_FILE_ENABLED));
+        assertTrue(mModel.get(FuseboxProperties.POPUP_ATTACH_CURRENT_TAB_ENABLED));
     }
 
     @Test
     public void testUpdatePopupButtonEnabledStates_modeChanges() {
-        mAutocompleteRequestTypeSupplier.set(AutocompleteRequestType.IMAGE_GENERATION);
+        mInput.setRequestType(AutocompleteRequestType.IMAGE_GENERATION);
 
-        assertTrue(mModel.get(FuseboxProperties.POPUP_CAMERA_BUTTON_ENABLED));
-        assertTrue(mModel.get(FuseboxProperties.POPUP_GALLERY_BUTTON_ENABLED));
+        assertTrue(mModel.get(FuseboxProperties.POPUP_ATTACH_CAMERA_ENABLED));
+        assertTrue(mModel.get(FuseboxProperties.POPUP_ATTACH_GALLERY_ENABLED));
+        assertFalse(mModel.get(FuseboxProperties.POPUP_ATTACH_TAB_PICKER_ENABLED));
+        assertFalse(mModel.get(FuseboxProperties.POPUP_ATTACH_CURRENT_TAB_ENABLED));
+        assertFalse(mModel.get(FuseboxProperties.POPUP_ATTACH_FILE_ENABLED));
+    }
 
-        assertFalse(mModel.get(FuseboxProperties.POPUP_TAB_PICKER_ENABLED));
-        assertFalse(mModel.get(FuseboxProperties.CURRENT_TAB_BUTTON_ENABLED));
-        assertFalse(mModel.get(FuseboxProperties.POPUP_FILE_BUTTON_ENABLED));
+    @Test
+    public void testPopupCreateImageButtonVisible() {
+        OmniboxFeatures.sShowImageGenerationButtonInIncognito.setForTesting(true);
+        doReturn(true).when(mComposeboxQueryControllerBridge).isCreateImagesEligible();
+        doReturn(false).when(mProfile).isIncognitoBranded();
+        recreateMediator();
+        assertTrue(mModel.get(FuseboxProperties.POPUP_TOOL_CREATE_IMAGE_VISIBLE));
+
+        doReturn(false).when(mComposeboxQueryControllerBridge).isCreateImagesEligible();
+        recreateMediator();
+        assertFalse(mModel.get(FuseboxProperties.POPUP_TOOL_CREATE_IMAGE_VISIBLE));
+    }
+
+    @Test
+    public void testPopupCreateImageButtonVisible_incognitoBranded() {
+        OmniboxFeatures.sShowImageGenerationButtonInIncognito.setForTesting(false);
+        doReturn(true).when(mComposeboxQueryControllerBridge).isCreateImagesEligible();
+        doReturn(true).when(mProfile).isIncognitoBranded();
+        recreateMediator();
+        assertFalse(mModel.get(FuseboxProperties.POPUP_TOOL_CREATE_IMAGE_VISIBLE));
+
+        OmniboxFeatures.sShowImageGenerationButtonInIncognito.setForTesting(true);
+        recreateMediator();
+        assertTrue(mModel.get(FuseboxProperties.POPUP_TOOL_CREATE_IMAGE_VISIBLE));
     }
 }

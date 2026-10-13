@@ -36,13 +36,13 @@ SkColor4f EvaluateColorGainFunction(const AdaptiveGlobalToneMap::ColorGainFuncti
                                     const SkColor4f& c);
 
 /**
- * The function evaluation described in Clause 5.2.3.
+ * The function evaluation described in Clause 6.4.3.
  */
 SkColor4f EvaluateComponentMixingFunction(const AdaptiveGlobalToneMap::ComponentMixingFunction& mix,
                                           const SkColor4f& c);
 
 /**
- * The function evaluation described in Clause 6.1.3.
+ * The function evaluation described in Clause 6.5.3.
  */
 float EvaluateGainCurve(const AdaptiveGlobalToneMap::GainCurve& gainCurve, float x);
 
@@ -55,7 +55,7 @@ void PopulateSlopeFromPCHIP(AdaptiveGlobalToneMap::GainCurve& gainCurve);
 
 /**
  * Compute the weighting for the specified targeted HDR headroom according to the computations
- * in Clause 6.4.5, Computation of the adaptive tone map.
+ * in Clause 6.2.5, Computation of the headroom-adaptive tone map.
  */
 struct Weighting {
     // The index into fAlternateImages for fWeight. If fWeight[i] is 0 then
@@ -82,7 +82,8 @@ void PopulateUsingRwtmo(AdaptiveGlobalToneMap::HeadroomAdaptiveToneMap& hatm);
  */
 bool PopulateToneMapAgtmParams(const Metadata& metadata,
                                const SkColorSpace* inputColorSpace,
-                               AdaptiveGlobalToneMap* outAgtm);
+                               AdaptiveGlobalToneMap* outAgtm,
+                               float* outScaleFactor);
 
 /**
  * Apply the tone mapping to `colors` in the gain application color space, targeting the
@@ -99,7 +100,8 @@ void ApplyGain(
  */
 sk_sp<SkColorFilter> MakeColorFilter(
     const AdaptiveGlobalToneMap::HeadroomAdaptiveToneMap& hatm,
-    float targetedHdrHeadroom);
+    float targetedHdrHeadroom,
+    float scaleFactor);
 
 /**
  * Return an SkImage containing the control point values for use by the color filter.
@@ -113,36 +115,13 @@ sk_sp<SkImage> MakeGainCurveXYMImage(
 sk_sp<SkColorSpace> GetGainApplicationSpace(
     const AdaptiveGlobalToneMap::HeadroomAdaptiveToneMap& hatm);
 
-}  // namespace AgtmHelpers
-
 /**
- * Interface for adaptive global tone mapping.
- * TODO(https://crbug.com/468928417): This structure was originally designed to be the interface
- * for parsing SMPTE ST 2094-50 metadata. It is no longer being used in this way, and should be
- * removed or recycled.
+ * Return true if `hatm` or `agtm` satisfies all normative constraints.
  */
-class AgtmImpl final : public Agtm {
-  public:
-    AdaptiveGlobalToneMap fMetadata;
+bool Validate(const AdaptiveGlobalToneMap& agtm);
+bool Validate(const AdaptiveGlobalToneMap::HeadroomAdaptiveToneMap& hatm);
 
-    /**
-     * The encoding is defined in SMPTE ST 2094-50 candidate draft 2. This will deserialize the
-     * smpte_st_2094_50_application_info_v0() bitstream. Return false if parsing fails.
-     */
-    bool parse(const SkData* data);
-
-    /**
-     * Implementation of the Agtm interface.
-     */
-    ~AgtmImpl() override = default;
-    sk_sp<SkData> serialize() const override;
-    float getHdrReferenceWhite() const override;
-    bool hasBaselineHdrHeadroom() const override;
-    float getBaselineHdrHeadroom() const override;
-    bool isClamp() const override;
-    sk_sp<SkColorFilter> makeColorFilter(float targetedHdrHeadroom) const override;
-    SkString toString() const override;
-};
+}  // namespace AgtmHelpers
 
 }  // namespace skhdr
 

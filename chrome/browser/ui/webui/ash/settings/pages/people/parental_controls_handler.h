@@ -6,14 +6,14 @@
 #define CHROME_BROWSER_UI_WEBUI_ASH_SETTINGS_PAGES_PEOPLE_PARENTAL_CONTROLS_HANDLER_H_
 
 #include "base/memory/raw_ptr.h"
-#include "chrome/browser/ui/webui/settings/settings_page_ui_handler.h"
+#include "content/public/browser/web_ui_message_handler.h"
 
 class Profile;
 
 namespace ash::settings {
 
 // Chrome "Parental Controls" settings page UI handler.
-class ParentalControlsHandler : public ::settings::SettingsPageUIHandler {
+class ParentalControlsHandler : public content::WebUIMessageHandler {
  public:
   explicit ParentalControlsHandler(Profile* profile);
 
@@ -27,13 +27,13 @@ class ParentalControlsHandler : public ::settings::SettingsPageUIHandler {
   void RegisterMessages() override;
 
  private:
-  // ::settings::SettingsPageUIHandler:
+  // content::WebUIMessageHandler:
   void OnJavascriptAllowed() override;
   void OnJavascriptDisallowed() override;
 
   // Callbacks for handling chrome.send() events.
-  void HandleShowAddSupervisionDialog(const base::Value::List& args);
-  void HandleLaunchFamilyLinkSettings(const base::Value::List& args);
+  void HandleShowAddSupervisionDialog(const base::ListValue& args);
+  void HandleLaunchFamilyLinkSettings(const base::ListValue& args);
 
   raw_ptr<Profile> profile_;
 };

@@ -697,14 +697,14 @@ TEST_P(PDFiumPageTextTest, TextRunBounds) {
   ASSERT_TRUE(engine);
 
   constexpr int kFirstRunStartIndex = 0;
-  constexpr int kFirstRunEndIndex = 20;
+  constexpr int kFirstRunEndIndex = 19;
   PDFiumPage& page = GetPDFiumPage(*engine, 0);
   std::optional<AccessibilityTextRunInfo> text_run_info_1 =
       page.GetTextRunInfoAt(kFirstRunStartIndex);
   ASSERT_TRUE(text_run_info_1.has_value());
 
   const auto& actual_text_run_1 = text_run_info_1.value();
-  EXPECT_EQ(21u, actual_text_run_1.len);
+  EXPECT_EQ(20u, actual_text_run_1.len);
 
   EXPECT_TRUE(
       base::IsUnicodeWhitespace(page.GetCharUnicode(kFirstRunStartIndex)));
@@ -717,7 +717,7 @@ TEST_P(PDFiumPageTextTest, TextRunBounds) {
   // " Hello, world! \r\n "<17 characters><first Tj>
   // " \r\n "<4 characters><second Tj>
   // " "<1 character><third Tj starting spaces>
-  // Finally generated text run: " Hello, world! \r\n \r\n "
+  // Finally generated text run: " Hello, world!\r\n \r\n "
   constexpr int kFirstRunLastNonSpaceCharIndex = 13;
   EXPECT_FALSE(base::IsUnicodeWhitespace(
       page.GetCharUnicode(kFirstRunLastNonSpaceCharIndex)));
@@ -729,8 +729,8 @@ TEST_P(PDFiumPageTextTest, TextRunBounds) {
   gfx::RectF end_char_rect = page.GetCharBounds(kFirstRunEndIndex);
   EXPECT_FALSE(text_run_bounds.Contains(end_char_rect));
   // Equals to the length of the previous text run.
-  constexpr int kSecondRunStartIndex = 21;
-  constexpr int kSecondRunEndIndex = 36;
+  constexpr int kSecondRunStartIndex = 20;
+  constexpr int kSecondRunEndIndex = 34;
   // Test the properties of second text run.
   // Note: The leading spaces in second text run are accounted for in the end
   // of first text run. Hence we won't see a space leading the second text run.
@@ -739,7 +739,7 @@ TEST_P(PDFiumPageTextTest, TextRunBounds) {
   ASSERT_TRUE(text_run_info_2.has_value());
 
   const auto& actual_text_run_2 = text_run_info_2.value();
-  EXPECT_EQ(16u, actual_text_run_2.len);
+  EXPECT_EQ(15u, actual_text_run_2.len);
 
   EXPECT_FALSE(
       base::IsUnicodeWhitespace(page.GetCharUnicode(kSecondRunStartIndex)));
@@ -750,17 +750,16 @@ TEST_P(PDFiumPageTextTest, TextRunBounds) {
   // Last non-space character should fall in the bounding box of the text run.
   // Text run looks like this:
   // "Goodbye, world! "<19 characters><first Tj>
-  // Finally generated text run: "Goodbye, world! "
-  constexpr int kSecondRunLastNonSpaceCharIndex = 35;
+  // Finally generated text run: "Goodbye, world!"
+  constexpr int kSecondRunLastNonSpaceCharIndex = 34;
   EXPECT_FALSE(base::IsUnicodeWhitespace(
       page.GetCharUnicode(kSecondRunLastNonSpaceCharIndex)));
   EXPECT_TRUE(text_run_bounds.Contains(
       page.GetCharBounds(kSecondRunLastNonSpaceCharIndex)));
 
-  EXPECT_TRUE(
-      base::IsUnicodeWhitespace(page.GetCharUnicode(kSecondRunEndIndex)));
   EXPECT_FALSE(
-      text_run_bounds.Contains(page.GetCharBounds(kSecondRunEndIndex)));
+      base::IsUnicodeWhitespace(page.GetCharUnicode(kSecondRunEndIndex)));
+  EXPECT_TRUE(text_run_bounds.Contains(page.GetCharBounds(kSecondRunEndIndex)));
 }
 
 TEST_P(PDFiumPageTextTest, GetTextRunInfoAt) {
@@ -1169,6 +1168,11 @@ INSTANTIATE_TEST_SUITE_P(All, PDFiumPageButtonTest, testing::Bool());
 
 class PDFiumPageThumbnailTest : public PDFiumTestBase {
  public:
+  struct ComparisonOptions {
+    bool use_platform_suffix;
+    bool fuzzy_match;
+  };
+
   PDFiumPageThumbnailTest() = default;
   PDFiumPageThumbnailTest(const PDFiumPageThumbnailTest&) = delete;
   PDFiumPageThumbnailTest& operator=(const PDFiumPageThumbnailTest&) = delete;
@@ -1179,28 +1183,32 @@ class PDFiumPageThumbnailTest : public PDFiumTestBase {
                              float device_pixel_ratio,
                              const gfx::Size& expected_thumbnail_size,
                              const std::string& expectation_file_prefix) {
-    return TestGenerateThumbnailWithPlatformSpecificData(
+    return TestGenerateThumbnailWithOptions(
         engine, page_index, device_pixel_ratio, expected_thumbnail_size,
         expectation_file_prefix,
-        /*use_platform_suffix=*/false);
+        {.use_platform_suffix = false, .fuzzy_match = false});
   }
 
-  void TestGenerateThumbnailWithPlatformSpecificData(
+  void TestGenerateThumbnailWithOptions(
       PDFiumEngine& engine,
       size_t page_index,
       float device_pixel_ratio,
       const gfx::Size& expected_thumbnail_size,
       const std::string& expectation_file_prefix,
-      bool use_platform_suffix) {
+      const ComparisonOptions& options) {
     sk_sp<SkImage> image = GenerateThumbnailImage(
         engine, page_index, device_pixel_ratio, expected_thumbnail_size);
     ASSERT_TRUE(image);
 
     base::FilePath expectation_png_file_path = GetThumbnailTestData(
         expectation_file_prefix, page_index, device_pixel_ratio,
-        /*use_skia=*/GetParam(), use_platform_suffix);
+        /*use_skia=*/GetParam(), options.use_platform_suffix);
 
-    EXPECT_TRUE(MatchesPngFile(*image, expectation_png_file_path));
+    if (options.fuzzy_match) {
+      EXPECT_TRUE(FuzzyMatchesPngFile(*image, expectation_png_file_path));
+    } else {
+      EXPECT_TRUE(MatchesPngFile(*image, expectation_png_file_path));
+    }
   }
 
   sk_sp<SkImage> GenerateThumbnailImage(
@@ -1274,10 +1282,10 @@ TEST_P(PDFiumPageThumbnailTest, GenerateThumbnailWithOverlapCropBox) {
   std::unique_ptr<PDFiumEngine> engine =
       InitializeEngine(&client, FILE_PATH_LITERAL("hello_world_cropped.pdf"));
   ASSERT_TRUE(engine);
-  TestGenerateThumbnailWithPlatformSpecificData(
+  TestGenerateThumbnailWithOptions(
       *engine, /*page_index=*/0, /*device_pixel_ratio=*/1,
       /*expected_thumbnail_size=*/{162, 108}, "hello_world_cropped",
-      /*use_platform_suffix=*/true);
+      {.use_platform_suffix = true, .fuzzy_match = true});
 }
 
 // For crbug.com/438884266

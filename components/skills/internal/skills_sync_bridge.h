@@ -43,7 +43,7 @@ class SkillsSyncBridge : public syncer::DataTypeSyncBridge,
       override;
   std::optional<syncer::ModelError> MergeFullSyncData(
       std::unique_ptr<syncer::MetadataChangeList> metadata_change_list,
-      syncer::EntityChangeList entity_data) override;
+      syncer::EntityChangeList entity_changes) override;
   std::optional<syncer::ModelError> ApplyIncrementalSyncChanges(
       std::unique_ptr<syncer::MetadataChangeList> metadata_change_list,
       syncer::EntityChangeList entity_changes) override;
@@ -61,7 +61,7 @@ class SkillsSyncBridge : public syncer::DataTypeSyncBridge,
   bool IsEntityDataValid(const syncer::EntityData& entity_data) const override;
 
   // SkillsService::Observer implementation.
-  void OnSkillUpdated(const std::string& skill_id,
+  void OnSkillUpdated(std::string_view skill_id,
                       SkillsService::UpdateSource update_source) override;
 
  private:
@@ -77,6 +77,11 @@ class SkillsSyncBridge : public syncer::DataTypeSyncBridge,
 
   // Called on database save completion.
   void OnDatabaseSave(const std::optional<syncer::ModelError>& error);
+
+  // Returns the trimmed specifics for `storage_key` which may contain unknown
+  // fields.
+  const sync_pb::SkillSpecifics& GetPossiblyTrimmedSpecifics(
+      const std::string& storage_key) const;
 
   SEQUENCE_CHECKER(sequence_checker_);
 

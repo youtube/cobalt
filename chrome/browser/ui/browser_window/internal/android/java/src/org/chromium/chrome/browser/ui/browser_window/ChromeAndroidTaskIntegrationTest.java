@@ -32,10 +32,10 @@ import org.chromium.base.ApplicationStatus;
 import org.chromium.base.BaseSwitches;
 import org.chromium.base.IntentUtils;
 import org.chromium.base.ThreadUtils;
-import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
+import org.chromium.base.test.util.DoNotBatch;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.MinAndroidSdkLevel;
 import org.chromium.base.test.util.Restriction;
@@ -44,8 +44,10 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider.CustomTabsUiType;
 import org.chromium.chrome.browser.customtabs.CustomTabActivityTestRule;
+import org.chromium.chrome.browser.customtabs.CustomTabActivityTypeTestUtils;
 import org.chromium.chrome.browser.customtabs.CustomTabIntentDataProvider;
 import org.chromium.chrome.browser.customtabs.CustomTabsIntentTestUtils;
+import org.chromium.chrome.browser.flags.ActivityType;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.init.AsyncInitializationActivity;
@@ -86,7 +88,10 @@ import java.util.concurrent.atomic.AtomicReference;
     BaseSwitches.FORCE_DESKTOP_ANDROID,
     ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE
 })
-@Batch(value = Batch.PER_CLASS)
+@DoNotBatch(
+        reason =
+                "Tests will be flaky if batched as they create/close windows and change window"
+                    + " states in quick succession")
 @NullMarked
 public class ChromeAndroidTaskIntegrationTest {
 
@@ -155,6 +160,19 @@ public class ChromeAndroidTaskIntegrationTest {
 
     @Test
     @MediumTest
+    public void startTwa_createsChromeAndroidTask() throws Exception {
+        // Act.
+        CustomTabActivityTypeTestUtils.launchActivity(
+                ActivityType.TRUSTED_WEB_ACTIVITY, mCustomTabActivityTestRule, "about:blank");
+
+        // Assert.
+        int taskId = mCustomTabActivityTestRule.getActivity().getTaskId();
+        var chromeAndroidTask = getChromeAndroidTask(taskId);
+        assertNotNull(chromeAndroidTask);
+    }
+
+    @Test
+    @MediumTest
     public void startChromeTabbedActivity_chromeAndroidTaskAndTabModelHaveSameSessionId() {
         // Arrange.
         mFreshCtaTransitTestRule.startOnBlankPage();
@@ -164,12 +182,13 @@ public class ChromeAndroidTaskIntegrationTest {
         assertNotNull(chromeAndroidTask);
 
         var tabModel = mFreshCtaTransitTestRule.getActivity().getCurrentTabModel();
+        var profile = assumeNonNull(tabModel.getProfile());
 
         // Assert.
-        assertNotNull(chromeAndroidTask.getSessionIdForTesting());
+        assertNotNull(chromeAndroidTask.getSessionIdForTesting(profile));
         assertNotNull(tabModel.getNativeSessionIdForTesting());
         assertEquals(
-                chromeAndroidTask.getSessionIdForTesting(),
+                chromeAndroidTask.getSessionIdForTesting(profile),
                 tabModel.getNativeSessionIdForTesting());
     }
 
@@ -188,11 +207,12 @@ public class ChromeAndroidTaskIntegrationTest {
         assertNotNull(chromeAndroidTask);
 
         var tabModel = mCustomTabActivityTestRule.getActivity().getCurrentTabModel();
+        var profile = assumeNonNull(tabModel.getProfile());
 
-        assertNotNull(chromeAndroidTask.getSessionIdForTesting());
+        assertNotNull(chromeAndroidTask.getSessionIdForTesting(profile));
         assertNotNull(tabModel.getNativeSessionIdForTesting());
         assertEquals(
-                chromeAndroidTask.getSessionIdForTesting(),
+                chromeAndroidTask.getSessionIdForTesting(profile),
                 tabModel.getNativeSessionIdForTesting());
     }
 
@@ -207,12 +227,35 @@ public class ChromeAndroidTaskIntegrationTest {
         assertNotNull(chromeAndroidTask);
 
         var tabModel = mWebappActivityTestRule.getActivity().getCurrentTabModel();
+        var profile = assumeNonNull(tabModel.getProfile());
 
         // Assert.
-        assertNotNull(chromeAndroidTask.getSessionIdForTesting());
+        assertNotNull(chromeAndroidTask.getSessionIdForTesting(profile));
         assertNotNull(tabModel.getNativeSessionIdForTesting());
         assertEquals(
-                chromeAndroidTask.getSessionIdForTesting(),
+                chromeAndroidTask.getSessionIdForTesting(profile),
+                tabModel.getNativeSessionIdForTesting());
+    }
+
+    @Test
+    @MediumTest
+    public void startTwa_chromeAndroidTaskAndTabModelHaveSameSessionId() throws Exception {
+        // Arrange.
+        CustomTabActivityTypeTestUtils.launchActivity(
+                ActivityType.TRUSTED_WEB_ACTIVITY, mCustomTabActivityTestRule, "about:blank");
+
+        int taskId = mCustomTabActivityTestRule.getActivity().getTaskId();
+        var chromeAndroidTask = getChromeAndroidTask(taskId);
+        assertNotNull(chromeAndroidTask);
+
+        var tabModel = mCustomTabActivityTestRule.getActivity().getCurrentTabModel();
+        var profile = assumeNonNull(tabModel.getProfile());
+
+        // Assert.
+        assertNotNull(chromeAndroidTask.getSessionIdForTesting(profile));
+        assertNotNull(tabModel.getNativeSessionIdForTesting());
+        assertEquals(
+                chromeAndroidTask.getSessionIdForTesting(profile),
                 tabModel.getNativeSessionIdForTesting());
     }
 
@@ -282,7 +325,10 @@ public class ChromeAndroidTaskIntegrationTest {
         ThreadUtils.runOnUiThreadBlocking(
                 () ->
                         firstChromeAndroidTask.addFeature(
-                                TestChromeAndroidTaskFeature.class, () -> testFeature));
+                                new ChromeAndroidTaskFeatureKey(
+                                        TestChromeAndroidTaskFeature.class,
+                                        webPageStation.getTab().getProfile()),
+                                () -> testFeature));
 
         // Act:
         // Open a new window. The first window will lose focus.
@@ -1110,7 +1156,7 @@ public class ChromeAndroidTaskIntegrationTest {
         public void onAddedToTask() {}
 
         @Override
-        public void onTaskRemoved() {}
+        public void onFeatureRemoved() {}
 
         @Override
         public void onTaskBoundsChanged(Rect newBoundsInDp) {

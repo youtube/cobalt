@@ -29,9 +29,11 @@ EntityDataManager::EntityDataManager(
     syncer::SyncService* sync_service,
     scoped_refptr<AutofillWebDataService> webdata_service,
     history::HistoryService* history_service,
-    strike_database::StrikeDatabaseBase* strike_database)
+    strike_database::StrikeDatabaseBase* strike_database,
+    GeoIpCountryCode variation_country_code)
     : webdata_service_(std::move(webdata_service)),
-      entity_instance_cleaner_(this, sync_service, pref_service) {
+      entity_instance_cleaner_(this, sync_service, pref_service),
+      variation_country_code_(std::move(variation_country_code)) {
   CHECK(webdata_service_);
   webdata_service_observation_.Observe(webdata_service_.get());
   LoadEntities();
@@ -114,7 +116,7 @@ void EntityDataManager::LoadEntities() {
           self->NotifyEntityInstancesChanged();
         }
       },
-      weak_ptr_factory_.GetWeakPtr()));
+      GetWeakPtr()));
 }
 
 void EntityDataManager::AddOrUpdateEntityInstance(EntityInstance entity) {
@@ -133,7 +135,7 @@ void EntityDataManager::AddOrUpdateEntityInstance(EntityInstance entity) {
             }
             self->NotifyEntityInstancesChanged();
           },
-          weak_ptr_factory_.GetWeakPtr()));
+          GetWeakPtr()));
 }
 
 void EntityDataManager::RemoveEntityInstance(EntityInstance::EntityId guid) {
@@ -153,7 +155,7 @@ void EntityDataManager::RemoveEntityInstance(EntityInstance::EntityId guid) {
             self->entities_.erase(eic.key());
             self->NotifyEntityInstancesChanged();
           },
-          weak_ptr_factory_.GetWeakPtr()));
+          GetWeakPtr()));
 }
 
 void EntityDataManager::RemoveEntityInstancesModifiedBetween(
@@ -216,6 +218,10 @@ void EntityDataManager::NotifyEntityInstancesChanged() {
   for (Observer& observer : observers_) {
     observer.OnEntityInstancesChanged();
   }
+}
+
+const GeoIpCountryCode& EntityDataManager::GetVariationCountryCode() const {
+  return variation_country_code_;
 }
 
 }  // namespace autofill

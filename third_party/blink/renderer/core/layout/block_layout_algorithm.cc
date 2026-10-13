@@ -384,6 +384,13 @@ void BlockLayoutAlgorithm::SetupRelayoutData(
           previous.override_text_box_trim_end_break_token_;
     }
   }
+
+  last_non_self_collapsing_child_ = previous.last_non_self_collapsing_child_;
+  is_last_non_self_collapsing_child_determined_ = true;
+  if (relayout_type == kRelayoutForMarginTrim) {
+    pending_margin_end_trim_child_ = last_non_self_collapsing_child_;
+    is_relayout_for_margin_end_trim_ = true;
+  }
 }
 
 void BlockLayoutAlgorithm::SetBoxType(PhysicalFragment::BoxType type) {
@@ -646,6 +653,8 @@ BlockLayoutAlgorithm::HandleNonsuccessfulLayoutResult(
       return RelayoutWithoutFragmentation<BlockLayoutAlgorithm>();
     case LayoutResult::kTextBoxTrimEndDidNotApply:
       return RelayoutForTextBoxTrimEnd();
+    case LayoutResult::kMarginTrimEndDidNotApply:
+      return RelayoutForMarginTrimEnd();
     default:
       return result;
   }
@@ -655,10 +664,13 @@ const LayoutResult* BlockLayoutAlgorithm::LayoutInlineChild(
     const InlineNode& node) {
   ParagraphScale paragraph_scale;
   if (RuntimeEnabledFeatures::CssFitWidthTextEnabled()) {
+    const FitText& fit_text = Style().TextFit();
     const bool grow_consistent =
-        Style().TextGrow().Target() == FitTextTarget::kConsistent;
+        fit_text.Type() == FitTextType::kGrow &&
+        fit_text.Target() == FitTextTarget::kConsistent;
     const bool shrink_consistent =
-        Style().TextShrink().Target() == FitTextTarget::kConsistent;
+        fit_text.Type() == FitTextType::kShrink &&
+        fit_text.Target() == FitTextTarget::kConsistent;
     if (grow_consistent || shrink_consistent) {
       // Compute the paragraph scaling factor with a cloned
       // BlockLayoutAlgorithm.
@@ -751,6 +763,10 @@ BlockLayoutAlgorithm::RelayoutClampingAfterLayoutObject(
 NOINLINE const LayoutResult* BlockLayoutAlgorithm::RelayoutForTextBoxTrimEnd() {
   DCHECK(last_non_empty_inflow_child_);
   return Relayout<BlockLayoutAlgorithm>(kRelayoutForTextBoxTrim);
+}
+
+NOINLINE const LayoutResult* BlockLayoutAlgorithm::RelayoutForMarginTrimEnd() {
+  return Relayout<BlockLayoutAlgorithm>(kRelayoutForMarginTrim);
 }
 
 inline const LayoutResult* BlockLayoutAlgorithm::Layout(
@@ -909,6 +925,15 @@ inline const LayoutResult* BlockLayoutAlgorithm::Layout(
     // we need to make sure subsequent content discard theirs.
     if (discard_subsequent_margins)
       previous_inflow_position.margin_strut.discard_margins = true;
+  }
+
+  if (Style().MarginTrim() & kMarginTrimBlock) {
+    // Keep a copy of the incoming margin strut. Margins on the inside may be
+    // trimmed, but that should not affect margins from the outside.
+    incoming_margin_strut_ = previous_inflow_position.margin_strut;
+    if (Style().MarginTrim() & kMarginTrimBlockStart) {
+      previous_inflow_position.margin_strut.trim_leading_margins = true;
+    }
   }
 
 #if DCHECK_IS_ON()
@@ -1192,7 +1217,7 @@ const LayoutResult* BlockLayoutAlgorithm::FinishLayout(
     intrinsic_block_size_ = std::max(
         intrinsic_block_size_, BorderScrollbarPadding().block_start +
                                    Node().EmptyLineBlockSize(GetBreakToken()));
-    if (container_builder_.IsInitialColumnBalancingPass()) {
+    if (GetConstraintSpace().IsInitialColumnBalancingPass()) {
       container_builder_.PropagateTallestUnbreakableBlockSize(
           intrinsic_block_size_);
     }
@@ -1216,6 +1241,37 @@ const LayoutResult* BlockLayoutAlgorithm::FinishLayout(
         -previous_inflow_position->block_end_annotation_space;
     previous_inflow_position->logical_block_offset -=
         std::min(container_builder_.Padding().block_end, annotation_overflow);
+  }
+
+  // Trim the trailing margin strut now, if applicable. It should not be applied
+  // inside the container, nor be propagated to siblings / ancestors. If this
+  // container doesn't capture the margin, but rather wants to propagate it, we
+  // need to lay out again, since this may affect the positioning of
+  // self-collapsing children, since they may have margins specified, which
+  // should have been trimmed.
+  if (Style().MarginTrim() & kMarginTrimBlock) {
+    bool is_self_collapsing = !last_non_self_collapsing_child_;
+    MarginStrut trimmed_margin_strut;
+    if (is_self_collapsing) {
+      // Self-collapsing container. Discard whatever happened to margins inside
+      // this container, but keep the incoming strut.
+      trimmed_margin_strut = incoming_margin_strut_;
+    }
+    if (Style().MarginTrim() & kMarginTrimBlockEnd) {
+      if (!is_relayout_for_margin_end_trim_ && !end_margin_strut.IsEmpty()) {
+        // This container should trim its end margins, and there's a non-empty
+        // margin strut here, that shouldn't have been applied. Everything that
+        // took place after the last non-self-collapsing child may have been
+        // done wrong.
+        return container_builder_.Abort(
+            LayoutResult::kMarginTrimEndDidNotApply);
+      }
+      end_margin_strut = trimmed_margin_strut;
+    } else if (is_self_collapsing) {
+      // Self-collapsing container with trimmed block-start margins.
+      DCHECK(Style().MarginTrim() & kMarginTrimBlockStart);
+      end_margin_strut = trimmed_margin_strut;
+    }
   }
 
   // If line clamping occurred, and we're using the legacy behavior, the
@@ -1314,6 +1370,16 @@ const LayoutResult* BlockLayoutAlgorithm::FinishLayout(
     // container, so ignore it.
     intrinsic_block_size_ = std::max(
         intrinsic_block_size_, previous_inflow_position->logical_block_offset);
+
+    if (GetConstraintSpace().ShouldForceMarginTrimEnd() &&
+        !is_relayout_for_margin_end_trim_ && !end_margin_strut.IsEmpty()) {
+      // There's an ancestor that trims end margins, and the end margin of this
+      // child is affected. Since there's a non-empty margin strut here that
+      // shouldn't have been applied, preventing it from propagating isn't
+      // enough. Anything that took place inside after the last
+      // non-self-collapsing child may be wrong. So we need to re-layout.
+      return container_builder_.Abort(LayoutResult::kMarginTrimEndDidNotApply);
+    }
   }
 
   LayoutUnit unconstrained_intrinsic_block_size = intrinsic_block_size_;
@@ -1366,11 +1432,15 @@ const LayoutResult* BlockLayoutAlgorithm::FinishLayout(
     // of its parent if:
     //  - The block-size differs from the intrinsic size.
     //  - The parent has a definite initial block-size.
-    const LayoutUnit initial_block_size = ComputeInitialBlockSizeForFragment(
-        constraint_space, Node(), BorderPadding(), kIndefiniteSize,
-        border_box_size.inline_size);
-    if (border_box_size.block_size != intrinsic_block_size_ ||
-        initial_block_size != kIndefiniteSize) {
+    //
+    // Note that, for block fragmentation, the values here all refer to the
+    // total block-size of all fragments combined, i.e. the "stitched" size.
+    LayoutUnit stitched_intrinsic_block_size =
+        previously_consumed_block_size + intrinsic_block_size_;
+    if (border_box_size.block_size != stitched_intrinsic_block_size ||
+        ComputeInitialBlockSizeForFragment(
+            constraint_space, Node(), BorderPadding(), kIndefiniteSize,
+            border_box_size.inline_size) != kIndefiniteSize) {
       end_margin_strut = MarginStrut();
     }
   }
@@ -1721,6 +1791,10 @@ void BlockLayoutAlgorithm::HandleFloat(
   if (positioned_float.minimum_space_shortage > LayoutUnit()) {
     container_builder_.PropagateSpaceShortage(
         positioned_float.minimum_space_shortage);
+    DCHECK_EQ(positioned_float.tallest_unbreakable_block_size, LayoutUnit());
+  } else if (positioned_float.tallest_unbreakable_block_size) {
+    container_builder_.PropagateTallestUnbreakableBlockSize(
+        positioned_float.tallest_unbreakable_block_size);
   }
 
   if (positioned_float.break_before_token) {
@@ -1785,9 +1859,7 @@ LayoutResult::EStatus BlockLayoutAlgorithm::HandleNewFormattingContext(
   // realize that the child isn't going to fit beside the floats at the current
   // position, and therefore re-resolve the BFC block offset with the child's
   // margin non-adjoining. This is akin to clearance.
-  MarginStrut adjoining_margin_strut(previous_inflow_position->margin_strut);
-  adjoining_margin_strut.Append(child_data.margins.block_start,
-                                child_style.HasMarginBlockStartQuirk());
+  MarginStrut adjoining_margin_strut(child_data.margin_strut);
   LayoutUnit adjoining_bfc_offset_estimate =
       child_data.bfc_offset_estimate.block_offset +
       adjoining_margin_strut.Sum();
@@ -2793,6 +2865,13 @@ InflowChildData BlockLayoutAlgorithm::ComputeChildData(
 
   margin_strut.Append(margins.block_start,
                       child.Style().HasMarginBlockStartQuirk());
+
+  if (is_relayout_for_margin_end_trim_ && !pending_margin_end_trim_child_) {
+    // We are in the part of the container whose child margins are adjoining
+    // with the block-end of this container, and they are all to be trimmed.
+    margin_strut = MarginStrut();
+  }
+
   if (child.IsBlock())
     SetSubtreeModifiedMarginStrutIfNeeded(&child.Style().MarginBlockStart());
 
@@ -2920,6 +2999,22 @@ PreviousInflowPosition BlockLayoutAlgorithm::ComputeInflowPosition(
   margin_strut.Append(child_data.margins.block_end, is_quirky);
   if (child.IsBlock())
     SetSubtreeModifiedMarginStrutIfNeeded(&child.Style().MarginBlockEnd());
+
+  if (is_relayout_for_margin_end_trim_) {
+    if (!pending_margin_end_trim_child_ ||
+        child == pending_margin_end_trim_child_) {
+      // We have entered the area (after the last non-self-collapsing child, if
+      // any) where all margins are to be trimmed.
+      margin_strut = MarginStrut();
+      pending_margin_end_trim_child_ = nullptr;
+    }
+  } else if (!is_self_collapsing &&
+             !is_last_non_self_collapsing_child_determined_) {
+    // Keep track of the last non-self-collapsing child. If end margins on this
+    // container are to be trimmed, the last such child is where we need to
+    // start trimming.
+    last_non_self_collapsing_child_ = child;
+  }
 
   if (GetConstraintSpace().HasBlockFragmentation()) [[unlikely]] {
     // If the child broke inside, don't apply any trailing margin, since it's
@@ -3154,15 +3249,23 @@ BreakStatus BlockLayoutAlgorithm::BreakBeforeChildIfNeeded(
         // there'll be enough lines after the break as well. Attempt to honor
         // the widows request.
         DCHECK_GE(line_count, first_overflowing_line_);
+        // If this is a block-in-inline, the layout result is for the block, not
+        // its containing dummy line. So we cannot assume that everything is
+        // PhysicalLineBoxFragment here.
+        const auto* line_box = DynamicTo<PhysicalLineBoxFragment>(
+            &layout_result.GetPhysicalFragment());
         int widows_found = line_count - first_overflowing_line_ + 1;
-        if (widows_found < Style().Widows()) {
+        if (widows_found < Style().Widows() ||
+            (line_box && line_box->IsEmptyLineBox())) {
           // Although we're out of space, we have to continue layout to figure
           // out exactly where to break in order to honor the widows
           // request. We'll make sure that we're going to leave at least as many
           // lines as specified by the 'widows' property for the next fragment
           // (if at all possible), which means that lines that could fit in the
           // current fragment (that we have already laid out) may have to be
-          // saved for the next fragment.
+          // saved for the next fragment. Ignore empty line boxes for these
+          // purposes. Empty line boxes may be created e.g. for floats, but they
+          // should not affect widows calculation.
           //
           // However, any text box block-end trimming must take place before
           // calculating widows, since we might fit an additional line by
@@ -3384,8 +3487,7 @@ ConstraintSpace BlockLayoutAlgorithm::CreateConstraintSpaceForChild(
     // up with zero block size.
     if (constraint_space.IsRestrictedBlockSizeTableCell() &&
         child_percentage_size_.block_size == kIndefiniteSize &&
-        !child.ShouldBeConsideredAsReplaced() &&
-        child_style.LogicalHeight().HasPercent() &&
+        !child.IsSemiReplaced() && child_style.LogicalHeight().HasPercent() &&
         (child_style.OverflowBlockDirection() == EOverflow::kAuto ||
          child_style.OverflowBlockDirection() == EOverflow::kScroll)) {
       builder.SetIsRestrictedBlockSizeTableCellChild();
@@ -3503,6 +3605,15 @@ ConstraintSpace BlockLayoutAlgorithm::CreateConstraintSpaceForChild(
               To<InlineBreakToken>(child_break_token))) {
         builder.SetShouldForceTextBoxTrimEnd();
       }
+    }
+  }
+
+  if (is_relayout_for_margin_end_trim_) {
+    if (!pending_margin_end_trim_child_ ||
+        child == pending_margin_end_trim_child_) {
+      // This container, or an ancestor, truncates end margins. This affects
+      // margins after last non-self-collapsing descendants.
+      builder.SetShouldForceMarginTrimEnd();
     }
   }
 

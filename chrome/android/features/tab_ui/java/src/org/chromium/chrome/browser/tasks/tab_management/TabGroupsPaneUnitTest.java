@@ -29,8 +29,9 @@ import org.mockito.junit.MockitoRule;
 import org.robolectric.shadows.ShadowLooper;
 
 import org.chromium.base.supplier.LazyOneshotSupplier;
-import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.OneshotSupplierImpl;
+import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.browser.collaboration.CollaborationServiceFactory;
@@ -65,7 +66,6 @@ import org.chromium.components.tab_group_sync.TabGroupUiActionHandler;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 
 import java.util.function.DoubleConsumer;
-import java.util.function.Supplier;
 
 /** Unit tests for {@link TabGroupsPane}. */
 @RunWith(BaseRobolectricTestRunner.class)
@@ -85,9 +85,9 @@ public class TabGroupsPaneUnitTest {
     @Mock private MessagingBackendService mMessagingBackendService;
     @Mock private IdentityServicesProvider mIdentityServicesProvider;
     @Mock private IdentityManager mIdentityManager;
-    @Mock private Supplier<PaneManager> mPaneManagerSupplier;
+    @Mock private PaneManager mPaneManager;
     @Mock private DataSharingTabManager mDataSharingTabManager;
-    @Mock Supplier<TabGroupUiActionHandler> mTabGroupUiActionHandlerSupplier;
+    @Mock private TabGroupUiActionHandler mTabGroupUiActionHandler;
     @Mock FaviconHelper.Natives mFaviconHelperJniMock;
     @Mock SyncService mSyncService;
     @Mock ModalDialogManager mModalDialogManager;
@@ -99,8 +99,8 @@ public class TabGroupsPaneUnitTest {
             new OneshotSupplierImpl<>();
     private final OneshotSupplierImpl<ModalDialogManager> mModalDialogManagerSupplier =
             new OneshotSupplierImpl<>();
-    private final ObservableSupplierImpl<EdgeToEdgeController> mEdgeToEdgeSupplier =
-            new ObservableSupplierImpl<>();
+    private final SettableMonotonicObservableSupplier<EdgeToEdgeController> mEdgeToEdgeSupplier =
+            ObservableSuppliers.createMonotonic();
 
     private TabGroupsPane mTabGroupsPane;
 
@@ -134,8 +134,8 @@ public class TabGroupsPaneUnitTest {
                         LazyOneshotSupplier.fromValue(mTabGroupModelFilter),
                         mOnToolbarAlphaChange,
                         mProfileSupplier,
-                        mPaneManagerSupplier,
-                        mTabGroupUiActionHandlerSupplier,
+                        () -> mPaneManager,
+                        () -> mTabGroupUiActionHandler,
                         mModalDialogManagerSupplier,
                         mEdgeToEdgeSupplier,
                         mDataSharingTabManager);

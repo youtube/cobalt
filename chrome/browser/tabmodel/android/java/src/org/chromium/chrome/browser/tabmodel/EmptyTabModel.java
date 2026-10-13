@@ -58,6 +58,11 @@ public class EmptyTabModel implements IncognitoTabModelInternal {
     }
 
     @Override
+    public @TabModelType int getTabModelType() {
+        return TabModelType.EMPTY;
+    }
+
+    @Override
     public @Nullable Profile getProfile() {
         return null;
     }
@@ -226,6 +231,11 @@ public class EmptyTabModel implements IncognitoTabModelInternal {
     public void openMostRecentlyClosedEntry() {}
 
     @Override
+    public @RecentlyClosedEntryType int getMostRecentlyClosedEntryType() {
+        return RecentlyClosedEntryType.NONE;
+    }
+
+    @Override
     public long getMostRecentClosureTime() {
         return TabModel.INVALID_TIMESTAMP;
     }
@@ -292,5 +302,10 @@ public class EmptyTabModel implements IncognitoTabModelInternal {
     @Override
     public @Nullable Tab duplicateTab(Tab tab) {
         return null;
+    }
+
+    @Override
+    public boolean isClosingAllTabs() {
+        return false;
     }
 }

@@ -242,8 +242,8 @@ fontVariantPosition
 fontVariationSettings
 fontWeight
 forcedColorAdjust
+frameSizing
 gap
-gapRuleOverlap
 getPropertyPriority
 getPropertyValue
 grid
@@ -273,6 +273,7 @@ hostname
 hyphenateCharacter
 hyphenateLimitChars
 hyphens
+imageAnimation
 imageOrientation
 imageRendering
 inherits
@@ -319,6 +320,7 @@ marginInlineStart
 marginLeft
 marginRight
 marginTop
+marginTrim
 marker
 markerEnd
 markerMid
@@ -452,7 +454,9 @@ ruleColor
 ruleEdgeInset
 ruleInset
 ruleInteriorInset
+ruleOverlap
 ruleStyle
+ruleVisibilityItems
 ruleWidth
 rx
 ry
@@ -537,14 +541,13 @@ textEmphasis
 textEmphasisColor
 textEmphasisPosition
 textEmphasisStyle
-textGrow
+textFit
 textIndent
 textJustify
 textOrientation
 textOverflow
 textRendering
 textShadow
-textShrink
 textSizeAdjust
 textSpacing
 textSpacingTrim
@@ -556,12 +559,12 @@ textWrapMode
 textWrapStyle
 timelineScope
 timelineTrigger
+timelineTriggerActivationRange
+timelineTriggerActivationRangeEnd
+timelineTriggerActivationRangeStart
 timelineTriggerActiveRange
 timelineTriggerActiveRangeEnd
 timelineTriggerActiveRangeStart
-timelineTriggerEntryRange
-timelineTriggerEntryRangeEnd
-timelineTriggerEntryRangeStart
 timelineTriggerName
 timelineTriggerSource
 top
@@ -591,6 +594,7 @@ viewTimelineName
 viewTransitionClass
 viewTransitionGroup
 viewTransitionName
+viewTransitionScope
 visibility
 webkitAlignContent
 webkitAlignItems

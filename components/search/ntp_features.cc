@@ -14,14 +14,6 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 
-namespace {
-
-const char kMobilePromoQRCodeURL[] =
-    "https://apps.apple.com/app/apple-store/"
-    "id535886823?pt=9008&ct=desktop-chr-ntp&mt=8";
-
-}  // namespace
-
 namespace ntp_features {
 
 // If enabled, shows a confirm dialog before removing search suggestions from
@@ -58,12 +50,6 @@ BASE_FEATURE(kCustomizeChromeWallpaperSearchInspirationCard,
 // matching omnibox theme and increased realbox shadow.
 BASE_FEATURE(kRealboxCr23Theming,
              "NtpRealboxCr23Theming",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-// If enabled, the NTP "realbox" will have same border/drop shadow in hover
-// state as searchbox.
-BASE_FEATURE(kRealboxMatchSearchboxTheme,
-             "NtpRealboxMatchSearchboxTheme",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // If enabled, the real search box ("realbox") on the New Tab page will show a
@@ -107,9 +93,6 @@ BASE_FEATURE(kNtpDriveModuleHistorySyncRequirement,
 // If enabled, segmentation data will be collected to decide whether or not to
 // show the Drive module.
 BASE_FEATURE(kNtpDriveModuleSegmentation, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// If enabled, six files show in the NTP Drive module, instead of three.
-BASE_FEATURE(kNtpDriveModuleShowSixFiles, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, logo will be shown.
 // This is a kill switch. Keep indefinitely.
@@ -231,9 +214,6 @@ BASE_FEATURE(kNtpWallpaperSearchButtonHideCondition,
 BASE_FEATURE(kNtpWallpaperSearchButtonAnimationShownThreshold,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Feature to control the display of a mobile promo on the NTP.
-BASE_FEATURE(kNtpMobilePromo, base::FEATURE_DISABLED_BY_DEFAULT);
-
 // If enabled, the Microsoft Authentication module will be shown.
 BASE_FEATURE(kNtpMicrosoftAuthenticationModule,
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -334,7 +314,6 @@ const char kNtpWallpaperSearchButtonHideConditionParam[] =
 const char kNtpWallpaperSearchButtonAnimationShownThresholdParam[] =
     "NtpWallpaperSearchButtonAnimationShownThresholdParam";
 const char kWallpaperSearchHatsDelayParam[] = "WallpaperSearchHatsDelayParam";
-const char kNtpMobilePromoTargetUrlParam[] = "NtpMobilePromoTargetUrlParam";
 
 const base::FeatureParam<bool> kNtpNextShowStaticTextParam(
     &ntp_features::kNtpNextFeatures,
@@ -353,6 +332,10 @@ const base::FeatureParam<bool>
         &ntp_features::kNtpNextFeatures,
         "NtpNextSuggestionsFromNewSearchSuggestionsEndpointParam",
         false);
+const base::FeatureParam<bool> kNtpNextShowStaticRecentTabChipParam(
+    &ntp_features::kNtpNextFeatures,
+    "NtpNextShowStaticRecentTabChipParam",
+    true);
 const base::FeatureParam<bool> kNtpNextShowSimplificationUIParam(
     &ntp_features::kNtpNextFeatures,
     "NtpNextShowSimplificationUIParam",
@@ -420,10 +403,6 @@ const base::FeatureParam<bool> kNtpRealboxCr23SteadyStateShadow(
     &ntp_features::kRealboxCr23Theming,
     "kNtpRealboxCr23SteadyStateShadow",
     false);
-const base::FeatureParam<int> kNtpMobilePromoImpressionLimit(
-    &ntp_features::kNtpMobilePromo,
-    "kNtpMobilePromoImpressionLimit",
-    10);
 const base::FeatureParam<bool>
     kNtpMostRelevantTabResumptionModuleFilterLocalTabsParam{
         &kNtpMostRelevantTabResumptionModule,
@@ -534,13 +513,6 @@ int GetWallpaperSearchButtonHideCondition() {
   return base::GetFieldTrialParamByFeatureAsInt(
       kNtpWallpaperSearchButtonHideCondition,
       kNtpWallpaperSearchButtonHideConditionParam, 2);
-}
-
-std::string GetMobilePromoTargetURL() {
-  std::string field_trial_url = base::GetFieldTrialParamValueByFeature(
-      ntp_features::kNtpMobilePromo,
-      ntp_features::kNtpMobilePromoTargetUrlParam);
-  return (field_trial_url.empty()) ? kMobilePromoQRCodeURL : field_trial_url;
 }
 
 int GetMaxTilesBeforeShowMore() {

@@ -11,6 +11,8 @@
 #include "chrome/browser/ash/browser_delegate/browser_delegate_impl.h"
 #include "chrome/browser/ash/browser_delegate/browser_type.h"
 #include "chrome/browser/ash/browser_delegate/browser_type_conversion.h"
+#include "chrome/browser/lifetime/application_lifetime_desktop.h"
+#include "chrome/browser/lifetime/browser_shutdown.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/autofill/chrome_autofill_client.h"
 #include "chrome/browser/ui/browser.h"
@@ -242,25 +244,20 @@ BrowserDelegate* BrowserControllerImpl::CreateWebApp(
       web_app::CreateWebAppWindowMaybeWithHomeTab(app_id, cparams));
 }
 
-BrowserDelegate* BrowserControllerImpl::CreateCustomTab(
-    const AccountId& account_id,
-    std::unique_ptr<content::WebContents> contents) {
-  Profile* profile = Profile::FromBrowserContext(
-      BrowserContextHelper::Get()->GetBrowserContextByAccountId(account_id));
-  CHECK(profile);
+void BrowserControllerImpl::MayCloseAllBrowsers() {
+  return chrome::CloseAllBrowsers();
+}
 
-  if (Browser::GetCreationStatusForProfile(profile) !=
-      Browser::CreationStatus::kOk) {
-    return nullptr;
-  }
+void BrowserControllerImpl::MayCloseAllBrowsersAndQuit() {
+  return chrome::CloseAllBrowsersAndQuit();
+}
 
-  Browser::CreateParams params(Browser::TYPE_CUSTOM_TAB, profile,
-                               /*user_gesture=*/true);
-  params.omit_from_session_restore = true;
-  Browser* browser = Browser::Create(params);
-  browser->tab_strip_model()->AppendWebContents(std::move(contents),
-                                                /*foreground=*/true);
-  return GetDelegate(browser);
+bool BrowserControllerImpl::IsTryingToQuit() {
+  return browser_shutdown::IsTryingToQuit();
+}
+
+bool BrowserControllerImpl::HasShutdownStarted() {
+  return browser_shutdown::HasShutdownStarted();
 }
 
 void BrowserControllerImpl::AddObserver(Observer* observer) {

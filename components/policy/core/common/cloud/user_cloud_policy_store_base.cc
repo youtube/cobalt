@@ -14,54 +14,57 @@
 #include "components/policy/proto/cloud_policy.pb.h"
 #include "components/policy/proto/device_management_backend.pb.h"
 
+namespace em = enterprise_management;
+
 namespace policy {
 
 UserCloudPolicyStoreBase::UserCloudPolicyStoreBase(
     scoped_refptr<base::SequencedTaskRunner> background_task_runner,
-    PolicyScope policy_scope)
-    : background_task_runner_(background_task_runner),
+    PolicyScope policy_scope,
+    const std::string& policy_type)
+    : CloudPolicyStore(policy_type),
+      background_task_runner_(background_task_runner),
       policy_scope_(policy_scope) {}
 
 UserCloudPolicyStoreBase::~UserCloudPolicyStoreBase() = default;
 
 std::unique_ptr<UserCloudPolicyValidator>
 UserCloudPolicyStoreBase::CreateValidator(
-    std::unique_ptr<enterprise_management::PolicyFetchResponse>
-        policy_fetch_response,
+    std::unique_ptr<em::PolicyFetchResponse> policy_fetch_response,
     CloudPolicyValidatorBase::ValidateTimestampOption timestamp_option) {
+  CHECK_EQ(policy_type(), dm_protocol::GetChromeUserPolicyType());
+  return CreateValidatorImpl<em::CloudPolicySettings>(
+      std::move(policy_fetch_response), timestamp_option);
+}
+
+std::unique_ptr<ExtensionInstallCloudPolicyValidator>
+UserCloudPolicyStoreBase::CreateExtensionInstallValidator(
+    std::unique_ptr<em::PolicyFetchResponse> policy_fetch_response,
+    CloudPolicyValidatorBase::ValidateTimestampOption timestamp_option) {
+  CHECK_EQ(policy_type(),
+           dm_protocol::kChromeExtensionInstallUserCloudPolicyType);
+  return CreateValidatorImpl<em::ExtensionInstallPolicies>(
+      std::move(policy_fetch_response),
+      timestamp_option);
+}
+
+template <typename PayloadProto>
+std::unique_ptr<CloudPolicyValidator<PayloadProto>>
+UserCloudPolicyStoreBase::CreateValidatorImpl(
+    std::unique_ptr<em::PolicyFetchResponse> policy_fetch_response,
+    CloudPolicyValidatorBase::ValidateTimestampOption timestamp_option) {
+  static_assert(std::is_same<PayloadProto, em::CloudPolicySettings>() ||
+                std::is_same<PayloadProto, em::ExtensionInstallPolicies>());
+
   // Configure the validator.
-  auto validator = std::make_unique<UserCloudPolicyValidator>(
+  auto validator = std::make_unique<CloudPolicyValidator<PayloadProto>>(
       std::move(policy_fetch_response), background_task_runner_);
-  validator->ValidatePolicyType(dm_protocol::GetChromeUserPolicyType());
+  validator->ValidatePolicyType(policy_type());
   validator->ValidateAgainstCurrentPolicy(
       policy(), timestamp_option, CloudPolicyValidatorBase::DM_TOKEN_REQUIRED,
       CloudPolicyValidatorBase::DEVICE_ID_REQUIRED);
   validator->ValidatePayload();
   return validator;
-}
-
-void UserCloudPolicyStoreBase::InstallPolicy(
-    std::unique_ptr<enterprise_management::PolicyData> policy_data,
-    std::unique_ptr<enterprise_management::CloudPolicySettings> payload,
-    const std::string& policy_signature_public_key) {
-  // Decode the payload.
-  policy_map_.Clear();
-  PolicyPerProfileFilter filter = PolicyPerProfileFilter::kAny;
-  DecodeProtoFields(*payload, external_data_manager(), POLICY_SOURCE_CLOUD,
-                    policy_scope_, &policy_map_, filter);
-
-  if (policy_data->user_affiliation_ids_size() > 0) {
-    policy_map_.SetUserAffiliationIds(
-        {policy_data->user_affiliation_ids().begin(),
-         policy_data->user_affiliation_ids().end()});
-  }
-  if (policy_data->device_affiliation_ids_size() > 0) {
-    policy_map_.SetDeviceAffiliationIds(
-        {policy_data->device_affiliation_ids().begin(),
-         policy_data->device_affiliation_ids().end()});
-  }
-  SetPolicy(std::move(policy_data));
-  policy_signature_public_key_ = policy_signature_public_key;
 }
 
 }  // namespace policy

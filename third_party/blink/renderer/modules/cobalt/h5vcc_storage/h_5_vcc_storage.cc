@@ -14,6 +14,8 @@
 
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_storage/h_5_vcc_storage.h"
 
+#include <optional>
+
 #include "build/build_config.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
@@ -48,6 +50,44 @@ ScriptPromise<IDLUndefined> H5vccStorage::clearCrashpadDatabase(
 #endif  // BUILDFLAG(USE_EVERGREEN)
 
   return resolver->Promise();
+}
+
+H5vccStorageWriteTestResponse* H5vccStorage::writeTest(
+    uint32_t test_size,
+    const String& test_string) {
+  CHECK_GT(test_size, 0U);
+  CHECK(!test_string.empty());
+  auto* response = H5vccStorageWriteTestResponse::Create();
+  EnsureReceiverIsBound();
+  std::optional<uint32_t> bytes_written;
+  String error;
+  remote_h5vcc_storage_->WriteTest(test_size, test_string, &bytes_written,
+                                   &error);
+  if (bytes_written) {
+    response->setBytesWritten(*bytes_written);
+  }
+  response->setError(!error.empty() ? error : "");
+  return response;
+}
+
+H5vccStorageVerifyTestResponse* H5vccStorage::verifyTest(
+    uint32_t test_size,
+    const String& test_string) {
+  CHECK_GT(test_size, 0U);
+  CHECK(!test_string.empty());
+  auto* response = H5vccStorageVerifyTestResponse::Create();
+  EnsureReceiverIsBound();
+  std::optional<uint32_t> bytes_read;
+  String error;
+  bool verified;
+  remote_h5vcc_storage_->VerifyTest(test_size, test_string, &bytes_read, &error,
+                                    &verified);
+  if (bytes_read) {
+    response->setBytesRead(*bytes_read);
+  }
+  response->setError(!error.empty() ? error : "");
+  response->setVerified(verified);
+  return response;
 }
 
 void H5vccStorage::EnsureReceiverIsBound() {

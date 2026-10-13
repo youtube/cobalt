@@ -24,6 +24,8 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
 
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.CallbackHelper;
@@ -36,6 +38,7 @@ import org.chromium.base.test.util.UrlUtils;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tab.TabHidingType;
 import org.chromium.chrome.browser.tabmodel.TabClosureParams;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelUtils;
@@ -44,10 +47,13 @@ import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.chrome.test.transit.ChromeTransitTestRules;
 import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
 import org.chromium.chrome.test.transit.page.WebPageStation;
+import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.printing.PrintDocumentAdapterWrapper.LayoutResultCallbackWrapper;
 import org.chromium.printing.PrintDocumentAdapterWrapper.WriteResultCallbackWrapper;
 import org.chromium.printing.PrintManagerDelegate;
 import org.chromium.printing.PrintingControllerImpl;
+import org.chromium.ui.widget.Toast;
+import org.chromium.ui.widget.ToastManager;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -386,14 +392,53 @@ public class PrintingControllerTest {
         Tab currentTab =
                 ThreadUtils.runOnUiThreadBlocking(() -> cta.getCurrentTabModel().getTabAt(1));
 
-        // hidden (background) tab should not be allowed to print.
-        assertTrue("hiddenTab should be hidden.", hiddenTab.isHidden());
-        assertFalse(
-                "hiddenTab should not be allowed to print.", new TabPrinter(hiddenTab).canPrint());
+        // These asserts needs to be on the UI thread since they are inspecting tab
+        // state. (well... mainly canPrint() at the moment)
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    // hidden (background) tab should not be allowed to print.
+                    assertTrue("hiddenTab should be hidden.", hiddenTab.isHidden());
+                    assertFalse(
+                            "hiddenTab should not be allowed to print.",
+                            new TabPrinter(hiddenTab).canPrint());
 
-        // current tab should be allowed to print.
-        assertFalse("currentTab should not be hidden.", currentTab.isHidden());
-        assertTrue("currentTab should be allowed to print.", new TabPrinter(currentTab).canPrint());
+                    // current tab should be allowed to print.
+                    assertFalse("currentTab should not be hidden.", currentTab.isHidden());
+                    assertTrue(
+                            "currentTab should be allowed to print.",
+                            new TabPrinter(currentTab).canPrint());
+
+                    // Hiding the current tab should still allow it to be printed.
+                    currentTab.hide(TabHidingType.ACTIVITY_HIDDEN);
+                    assertTrue("currentTab should be hidden.", currentTab.isHidden());
+                    assertTrue(
+                            "currentTab should be allowed to print even when hidden.",
+                            new TabPrinter(currentTab).canPrint());
+                });
+    }
+
+    @Test
+    @SmallTest
+    @Feature({"Printing"})
+    public void testDisallowPrintOnNativePage() {
+        mActivityTestRule.startOnUrl(UrlConstants.HISTORY_URL);
+        ChromeTabbedActivity cta = mActivityTestRule.getActivity();
+        Tab currentTab = ThreadUtils.runOnUiThreadBlocking(() -> cta.getActivityTab());
+        ToastManager toastManager = Mockito.mock(ToastManager.class);
+        ToastManager.setInstanceForTesting(toastManager);
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    assertTrue("Should be a native page.", currentTab.isNativePage());
+                    assertFalse(
+                            "Should return false to indicate the print is not allowed (by showing a"
+                                + " toast).",
+                            cta.onMenuOrKeyboardAction(org.chromium.chrome.R.id.print_id, false));
+                });
+
+        ArgumentCaptor<Toast> toastCaptor = ArgumentCaptor.forClass(Toast.class);
+        Mockito.verify(toastManager, Mockito.times(1)).requestShow(toastCaptor.capture());
+        Assert.assertEquals("This page can't be printed", toastCaptor.getValue().getText());
     }
 
     /**

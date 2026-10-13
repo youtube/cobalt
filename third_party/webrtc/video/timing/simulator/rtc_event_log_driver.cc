@@ -31,6 +31,7 @@
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "test/time_controller/simulated_time_task_queue_controller.h"
+#include "video/timing/simulator/rtp_packet_simulator.h"
 
 namespace webrtc::video_timing_simulator {
 
@@ -50,7 +51,7 @@ RtcEventLogDriver::RtcEventLogDriver(
       prev_log_timestamp_(std::nullopt),
       simulator_queue_(time_controller_.GetTaskQueueFactory()->CreateTaskQueue(
           "simulator_queue",
-          TaskQueueFactory::Priority::NORMAL)),
+          TaskQueueFactory::Priority::kNormal)),
       packet_simulator_(env_) {
   RTC_DCHECK(stream_factory_) << "stream_factory must be provided";
 
@@ -59,14 +60,12 @@ RtcEventLogDriver::RtcEventLogDriver(
       parsed_log_.video_recv_configs(),
       [&](const auto& config) { OnLoggedVideoRecvConfig(config); });
 
-  // Video packet events.
+  // Video packet events (media + RTX).
   for (const auto& stream : parsed_log_.incoming_rtp_packets_by_ssrc()) {
     bool is_video = parsed_log_.GetMediaType(
                         stream.ssrc, PacketDirection::kIncomingPacket) ==
                     ParsedRtcEventLog::MediaType::VIDEO;
-    bool is_rtx = parsed_log_.incoming_rtx_ssrcs().contains(stream.ssrc);
-    // TODO: b/423646186 - Handle RTX.
-    if (!is_video || is_rtx) {
+    if (!is_video) {
       continue;
     }
     processor_.AddEvents(stream.incoming_packets, [&](const auto& packet) {
@@ -92,6 +91,7 @@ void RtcEventLogDriver::Simulate() {
     for (auto& stream : streams_) {
       stream.second->Close();
     }
+    receiving_streams_.clear();
     streams_.clear();
     done = true;
   });
@@ -137,28 +137,36 @@ void RtcEventLogDriver::HandleEvent(Timestamp log_timestamp,
 void RtcEventLogDriver::OnLoggedVideoRecvConfig(
     const webrtc::LoggedVideoRecvConfig& config) {
   uint32_t ssrc = config.config.remote_ssrc;
-  HandleEvent(config.log_time(), [this, ssrc]() {
+  uint32_t rtx_ssrc = config.config.rtx_ssrc;
+  HandleEvent(config.log_time(), [this, ssrc, rtx_ssrc]() {
     RTC_DCHECK_RUN_ON(simulator_queue_.get());
-    RTC_LOG(LS_INFO) << "OnLoggedVideoRecvConfig for ssrc=" << ssrc
+    RTC_LOG(LS_INFO) << "OnLoggedVideoRecvConfig for "
+                     << "ssrc=" << ssrc << ", rtx_ssrc=" << rtx_ssrc
                      << " (simulated_ts=" << env_.clock().CurrentTime() << ")";
     if (auto it = streams_.find(ssrc); it != streams_.end()) {
       if (config_.reuse_streams) {
+        // TODO(b/384950328): Support changing RTX SSRCs on the fly?
         RTC_LOG(LS_WARNING)
-            << "Video receive stream for ssrc=" << ssrc
-            << " already existed. Reusing it."
+            << "Stream for ssrc=" << ssrc << " already existed. Reusing it."
             << " (simulated_ts=" << env_.clock().CurrentTime() << ")";
         return;
       } else {
         RTC_LOG(LS_WARNING)
-            << "Video receive stream for ssrc=" << ssrc
-            << " already existed. Overwriting it."
+            << "Stream for ssrc=" << ssrc << " already existed. Overwriting it."
             << " (simulated_ts=" << env_.clock().CurrentTime() << ")";
         it->second->Close();
       }
     }
-    std::unique_ptr<StreamInterface> stream = stream_factory_(env_, ssrc);
+    std::unique_ptr<StreamInterface> stream =
+        stream_factory_(env_, ssrc, rtx_ssrc);
     RTC_DCHECK(stream);
+    // Keep track of the stream object for ownership purposes.
     streams_[ssrc] = std::move(stream);
+    // Also map it by the two SSRCs, for packet demuxing purposes.
+    receiving_streams_[ssrc] = streams_[ssrc].get();
+    if (rtx_ssrc != 0) {
+      receiving_streams_[rtx_ssrc] = streams_[ssrc].get();
+    }
   });
 }
 
@@ -166,15 +174,17 @@ void RtcEventLogDriver::OnLoggedRtpPacketIncoming(
     const webrtc::LoggedRtpPacketIncoming& packet) {
   HandleEvent(packet.log_time(), [this, packet]() {
     RTC_DCHECK_RUN_ON(simulator_queue_.get());
-    if (auto it = streams_.find(packet.rtp.header.ssrc); it != streams_.end()) {
-      RtpPacketReceived rtp_packet =
+    uint32_t ssrc = packet.rtp.header.ssrc;
+    if (auto it = receiving_streams_.find(ssrc);
+        it != receiving_streams_.end()) {
+      RtpPacketSimulator::SimulatedPacket simulated_packet =
           packet_simulator_.SimulateRtpPacketReceived(packet.rtp);
-      RTC_DCHECK_EQ(rtp_packet.arrival_time(), packet.log_time());
+      RTC_DCHECK_EQ(simulated_packet.rtp_packet.arrival_time(),
+                    packet.log_time());
       RTC_DCHECK_EQ(env_.clock().CurrentTime(), packet.log_time());
-      it->second->InsertPacket(rtp_packet);
+      it->second->InsertSimulatedPacket(simulated_packet);
     } else {
-      RTC_LOG(LS_WARNING) << "Received packet for unknown ssrc="
-                          << packet.rtp.header.ssrc
+      RTC_LOG(LS_WARNING) << "Received packet for unknown ssrc=" << ssrc
                           << " (simulated_ts=" << env_.clock().CurrentTime()
                           << ")";
     }

@@ -276,11 +276,10 @@ InputHandlerProxy::InputHandlerProxy(cc::InputHandler& input_handler,
       tick_clock_(base::DefaultTickClock::GetInstance()),
       snap_fling_controller_(std::make_unique<cc::SnapFlingController>(this)),
       cursor_control_handler_(std::make_unique<CursorControlHandler>()),
-      update_scroll_predictor_(
-          base::FeatureList::IsEnabled(
-              input::features::kUpdateScrollPredictorInputMapping) &&
-          base::FeatureList::IsEnabled(
-              features::kRefactorCompositorThreadEventQueue)) {
+      update_scroll_predictor_(base::FeatureList::IsEnabled(
+          input::features::kUpdateScrollPredictorInputMapping)),
+      fling_scheduling_improvements_(base::FeatureList::IsEnabled(
+          ::features::kFlingSchedulingImprovements)) {
   DCHECK(client);
   input_handler_->BindToClient(this);
 
@@ -343,6 +342,9 @@ void InputHandlerProxy::HandleInputEventWithLatencyInfo(
            WebGestureEvent::InertialPhaseState::kMomentum);
   DCHECK(input_handler_);
   input_handler_->NotifyInputEvent(is_fling);
+  if (is_fling && fling_scheduling_improvements_) {
+    handling_fling_ = true;
+  }
 
   // Prevent the events to be counted into INP metrics if there is an active
   // scroll.
@@ -656,13 +658,10 @@ bool InputHandlerProxy::HasQueuedEventsReadyForDispatch(
     return false;
   }
 
-  if (base::FeatureList::IsEnabled(
-          features::kRefactorCompositorThreadEventQueue)) {
-    // We delegate the check to the queue, which knows if the next event is
-    // forced (backlog) or valid based on time.
-    if (!compositor_event_queue_->IsNextEventReady(sample_time)) {
-      return false;
-    }
+  // We delegate the check to the queue, which knows if the next event is
+  // forced (backlog) or valid based on time.
+  if (!compositor_event_queue_->IsNextEventReady(sample_time)) {
+    return false;
   }
 
   return true;
@@ -672,10 +671,7 @@ void InputHandlerProxy::DispatchQueuedInputEvents(bool frame_aligned) {
   //  Coalesce all events in the queue before dispatching.
   auto sample_time = base::TimeTicks::Max();
 
-  if (base::FeatureList::IsEnabled(
-          features::kRefactorCompositorThreadEventQueue)) {
-    compositor_event_queue_->CoalesceEvents(sample_time);
-  }
+  compositor_event_queue_->CoalesceEvents(sample_time);
   while (HasQueuedEventsReadyForDispatch(frame_aligned, sample_time)) {
     DispatchSingleInputEvent(compositor_event_queue_->Pop());
   }
@@ -1092,8 +1088,10 @@ void InputHandlerProxy::RecordScrollBegin(
 
 InputHandlerProxy::EventDisposition InputHandlerProxy::HandleMouseWheel(
     const WebMouseWheelEvent& wheel_event) {
-  if (wheel_event.phase == WebMouseWheelEvent::kPhaseMayBegin) {
-    mouse_wheel_result_ = DID_NOT_HANDLE;
+  if (base::FeatureList::IsEnabled(
+          blink::features::kFadeInScrollbarWhenMouseWheelMayBegin) &&
+      wheel_event.phase == WebMouseWheelEvent::kPhaseMayBegin) {
+    mouse_wheel_result_ = DID_NOT_HANDLE_NON_BLOCKING;
     return *mouse_wheel_result_;
   }
 
@@ -1146,6 +1144,19 @@ InputHandlerProxy::EventDisposition InputHandlerProxy::HandleMouseWheel(
     }
   }
 
+  if (base::FeatureList::IsEnabled(
+          blink::features::kFadeInScrollbarWhenMouseWheelMayBegin) &&
+      result == DROP_EVENT) {
+    // Do not drop began and cancelled events to ensure that the events are
+    // forwarded to the main thread to start fading out scrollbars after a
+    // MayBegin event.
+    if (wheel_event.phase == WebMouseWheelEvent::kPhaseBegan ||
+        wheel_event.momentum_phase == WebMouseWheelEvent::kPhaseBegan ||
+        wheel_event.phase == WebMouseWheelEvent::kPhaseCancelled) {
+      result = DID_NOT_HANDLE_NON_BLOCKING;
+    }
+  }
+
   mouse_wheel_result_ = result;
   return result;
 }
@@ -1153,6 +1164,7 @@ InputHandlerProxy::EventDisposition InputHandlerProxy::HandleMouseWheel(
 InputHandlerProxy::EventDisposition InputHandlerProxy::HandleGestureScrollBegin(
     const WebGestureEvent& gesture_event) {
   TRACE_EVENT0("input", "InputHandlerProxy::HandleGestureScrollBegin");
+  handling_fling_ = false;
 
   if (scroll_predictor_)
     scroll_predictor_->ResetOnGestureScrollBegin(gesture_event);
@@ -1716,16 +1728,18 @@ void InputHandlerProxy::DeliverInputForBeginFrame(
   }
 
   base::TimeTicks sample_time = base::TimeTicks::Max();
-  if (update_scroll_predictor_ && scroll_predictor_) {
+  if (!handling_fling_ && update_scroll_predictor_ && scroll_predictor_) {
     base::TimeDelta latency = scroll_predictor_->ResampleLatency(args.interval);
     sample_time = args.frame_time + latency;
   }
+
   // Determine if we should attempt to generate a synthetic scroll event. This
   // is done in two main scenarios:
   // 1. The queue is empty and kUseScrollPredictorForEmptyQueue mode is enabled.
   // 2. The kUpdateScrollPredictorInputMapping feature and its
   // kGenerateSyntheticScrollPrediction param are both enabled.
   bool should_attempt_synthetic =
+      !handling_fling_ &&
       (scroll_event_dispatch_mode_ ==
            cc::InputHandlerClient::ScrollEventDispatchMode::
                kUseScrollPredictorForEmptyQueue ||
@@ -1754,16 +1768,16 @@ void InputHandlerProxy::DeliverInputForBeginFrame(
                                   static_cast<const WebGestureEvent*>(event)
                                           ->data.scroll_update.delta_y == 0;
   }
-
   ProcessQueuedEventsUpToSampleTime(args, sample_time);
 
-  if (base::FeatureList::IsEnabled(
-          features::kRefactorCompositorThreadEventQueue)) {
-    compositor_event_queue_->DidFinishDispatch();
-  }
+  compositor_event_queue_->DidFinishDispatch();
 
   if (!queue_flushed_callback_.is_null()) {
     std::move(queue_flushed_callback_).Run();
+  }
+
+  if (compositor_event_queue_->empty()) {
+    handling_fling_ = false;
   }
 }
 
@@ -1796,14 +1810,11 @@ void InputHandlerProxy::GenerateSyntheticScrollPredictionFromFutureEvent(
 void InputHandlerProxy::ProcessQueuedEventsUpToSampleTime(
     const viz::BeginFrameArgs& args,
     base::TimeTicks sample_time) {
-  if (base::FeatureList::IsEnabled(
-          features::kRefactorCompositorThreadEventQueue)) {
-    // Coalesce scroll and pinch events in the |compositor_event_queue_| till
-    // sample_time. It automatically includes the backlog.
-    compositor_event_queue_->CoalesceEvents(sample_time);
-  }
+  // Coalesce scroll and pinch events in the |compositor_event_queue_| till
+  // sample_time. It automatically includes the backlog.
+  compositor_event_queue_->CoalesceEvents(sample_time);
 
-  while (HasQueuedEventsReadyForDispatch(true /*frame_aligned*/, sample_time)) {
+  while (HasQueuedEventsReadyForDispatch(/*frame_aligned=*/true, sample_time)) {
     auto event_with_callback = compositor_event_queue_->Pop();
     const WebInputEvent* next_event = nullptr;
     // Provide the next event to the predictor ONLY if it\'s a GSU.

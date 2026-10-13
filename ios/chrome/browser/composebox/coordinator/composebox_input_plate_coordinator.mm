@@ -22,13 +22,16 @@
 #import "ios/chrome/browser/composebox/coordinator/composebox_mode_holder.h"
 #import "ios/chrome/browser/composebox/coordinator/composebox_omnibox_client.h"
 #import "ios/chrome/browser/composebox/coordinator/composebox_tab_picker_coordinator.h"
+#import "ios/chrome/browser/composebox/debugger/composebox_debugger_logger.h"
 #import "ios/chrome/browser/composebox/model/ios_contextual_search_service_factory.h"
+#import "ios/chrome/browser/composebox/public/composebox_model_option.h"
 #import "ios/chrome/browser/composebox/public/composebox_theme.h"
 #import "ios/chrome/browser/composebox/public/features.h"
 #import "ios/chrome/browser/composebox/ui/composebox_input_plate_view_controller.h"
 #import "ios/chrome/browser/composebox/ui/composebox_input_plate_view_controller_delegate.h"
 #import "ios/chrome/browser/composebox/ui/composebox_metrics_recorder.h"
 #import "ios/chrome/browser/composebox/ui/composebox_snackbar_presenter.h"
+#import "ios/chrome/browser/drag_and_drop/model/drag_item_util.h"
 #import "ios/chrome/browser/favicon/model/ios_chrome_favicon_loader_factory.h"
 #import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
 #import "ios/chrome/browser/intelligence/persist_tab_context/model/persist_tab_context_browser_agent.h"
@@ -43,6 +46,9 @@
 #import "ios/chrome/browser/search_engines/model/template_url_service_factory.h"
 #import "ios/chrome/browser/shared/coordinator/layout_guide/layout_guide_util.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
+#import "ios/chrome/browser/shared/model/browser/browser.h"
+#import "ios/chrome/browser/shared/model/browser/browser_list.h"
+#import "ios/chrome/browser/shared/model/browser/browser_list_factory.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
@@ -54,6 +60,7 @@
 #import "ios/chrome/browser/shared/ui/util/layout_guide_names.h"
 #import "ios/chrome/browser/shared/ui/util/util_swift.h"
 #import "ios/chrome/browser/signin/model/identity_manager_factory.h"
+#import "ios/chrome/browser/tab_switcher/ui_bundled/tab_utils.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_browser_agent.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_params.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_util.h"
@@ -76,6 +83,7 @@ const CGFloat kSnackbarBottomMargin = 10;
     ComposeboxInputPlateViewControllerDelegate,
     LocationBarModelDelegateWebStateProvider,
     LocationBarURLLoader,
+    OmniboxFocusDelegate,
     PHPickerViewControllerDelegate,
     UIDocumentPickerDelegate,
     UIImagePickerControllerDelegate,
@@ -145,7 +153,6 @@ const CGFloat kSnackbarBottomMargin = 10;
   auto query_controller_config_params = std::make_unique<
       contextual_search::ContextualSearchContextController::ConfigParams>();
   query_controller_config_params->send_lns_surface = false;
-  query_controller_config_params->enable_multi_context_input_flow = true;
   query_controller_config_params->enable_viewport_images = true;
   query_controller_config_params
       ->prioritize_suggestions_for_the_first_attached_document = true;
@@ -175,14 +182,15 @@ const CGFloat kSnackbarBottomMargin = 10;
                 aimEligibilityService:IOSChromeAimEligibilityServiceFactory::
                                           GetForProfile(self.profile)
                           prefService:self.profile->GetPrefs()];
-
+  _mediator.debugLogger = self.debugLogger;
   _mediator.URLLoader = _URLLoader;
   _mediator.consumer = _viewController;
   _mediator.delegate = self;
   _mediator.metricsRecorder = _metricsRecorder;
 
   _viewController.mutator = _mediator;
-  _voiceSearchController.dispatcher = _mediator;
+  // Mediator is the voice search delegate to load queries in composebox.
+  _voiceSearchController.delegate = _mediator;
 
   _locationBar = std::make_unique<WebLocationBarImpl>(self);
   _locationBar->SetURLLoader(self);
@@ -202,6 +210,7 @@ const CGFloat kSnackbarBottomMargin = 10;
                    omniboxClient:std::move(omniboxClient)
              presentationContext:OmniboxPresentationContext::kComposebox];
   _omniboxCoordinator.presenterDelegate = self.omniboxPopupPresenterDelegate;
+  _omniboxCoordinator.focusDelegate = self;
   [_omniboxCoordinator start];
 
   [_omniboxCoordinator.managedViewController
@@ -229,7 +238,6 @@ const CGFloat kSnackbarBottomMargin = 10;
   _picker = nil;
   [_voiceSearchController dismissMicPermissionHelp];
   [_voiceSearchController disconnect];
-  _voiceSearchController.dispatcher = nil;
   _voiceSearchController = nil;
   [_mediator disconnect];
   _mediator = nil;
@@ -365,6 +373,12 @@ const CGFloat kSnackbarBottomMargin = 10;
   [self showComposeboxTabPicker];
 }
 
+- (void)composeboxViewController:
+            (ComposeboxInputPlateViewController*)viewController
+       didAttemptDragAndDropType:(ComposeboxDragAndDropType)type {
+  [_metricsRecorder recordDragAndDropAttempt:type];
+}
+
 - (void)composeboxViewControllerDidTapAIMButton:
             (ComposeboxInputPlateViewController*)viewController
                                activationSource:
@@ -392,12 +406,32 @@ const CGFloat kSnackbarBottomMargin = 10;
   [_omniboxCoordinator acceptInput];
 }
 
+- (void)composeboxViewControllerDidTapCanvasButton:
+    (ComposeboxInputPlateViewController*)composeboxViewController {
+  if (_modeHolder.mode == ComposeboxMode::kCanvas) {
+    _modeHolder.mode = ComposeboxMode::kRegularSearch;
+  } else {
+    _modeHolder.mode = ComposeboxMode::kCanvas;
+  }
+}
+
+- (void)composeboxViewControllerDidTapDeepSearchButton:
+    (ComposeboxInputPlateViewController*)composeboxViewController {
+  if (_modeHolder.mode == ComposeboxMode::kDeepSearch) {
+    _modeHolder.mode = ComposeboxMode::kRegularSearch;
+  } else {
+    _modeHolder.mode = ComposeboxMode::kDeepSearch;
+  }
+}
+
 - (void)didFailToAttachDueToIneligibleAttachments:
     (ComposeboxInputPlateViewController*)composeboxViewController {
   CHECK_EQ(_viewController, composeboxViewController);
   switch (_modeHolder.mode) {
     case ComposeboxMode::kRegularSearch:
     case ComposeboxMode::kAIM:
+    case ComposeboxMode::kCanvas:
+    case ComposeboxMode::kDeepSearch:
       [self showMaxAttachmentSnackbarError];
       return;
     case ComposeboxMode::kImageGeneration:
@@ -405,6 +439,36 @@ const CGFloat kSnackbarBottomMargin = 10;
       return;
   }
   NOTREACHED();
+}
+
+- (BOOL)tabExistsOnCurrentProfile:(TabInfo*)tabInfo {
+  if (self.profile != tabInfo.profile) {
+    return NO;
+  }
+
+  BrowserList* browserList = BrowserListFactory::GetForProfile(tabInfo.profile);
+  WebStateSearchCriteria tabSearchCriteria = WebStateSearchCriteria{
+      .identifier = tabInfo.tabID,
+      .pinned_state = WebStateSearchCriteria::PinnedState::kAny,
+  };
+
+  return GetBrowserForTabWithCriteria(browserList, tabSearchCriteria,
+                                      /*is_otr_tab*/ _theme.incognito);
+}
+
+- (web::WebState*)webStateForTabOnCurrentProfile:(TabInfo*)tabInfo {
+  if (self.profile != tabInfo.profile) {
+    return nullptr;
+  }
+
+  BrowserList* browserList = BrowserListFactory::GetForProfile(tabInfo.profile);
+  WebStateSearchCriteria tabSearchCriteria = WebStateSearchCriteria{
+      .identifier = tabInfo.tabID,
+      .pinned_state = WebStateSearchCriteria::PinnedState::kAny,
+  };
+
+  return GetWebStateForTabWithCriteria(browserList, tabSearchCriteria,
+                                       _theme.incognito);
 }
 
 #pragma mark - PHPickerViewControllerDelegate
@@ -543,6 +607,7 @@ const CGFloat kSnackbarBottomMargin = 10;
       initWithBaseViewController:_viewController
                          browser:self.browser
                            theme:_theme];
+  _tabPickerCoordinator.debugLogger = self.debugLogger;
   _tabPickerCoordinator.delegate = _mediator;
   _tabPickerCoordinator.composeboxTabPickerHandler = self;
   [_tabPickerCoordinator start];
@@ -553,6 +618,21 @@ const CGFloat kSnackbarBottomMargin = 10;
   _tabPickerCoordinator = nil;
 }
 
+#pragma mark - OmniboxFocusDelegate
+
+- (void)omniboxDidBecomeFirstResponder {
+  // When the omnibox is focused the first time, set the initial `_query` if
+  // there is one. This can be used by features like QR code scanner to write
+  // URLs in the omnibox.
+  if (_query) {
+    [_omniboxCoordinator insertTextToOmnibox:_query];
+    _query = nil;
+  }
+}
+
+- (void)omniboxDidResignFirstResponder {
+}
+
 #pragma mark - Private helpers
 
 - (void)focusComposebox {
@@ -561,9 +641,9 @@ const CGFloat kSnackbarBottomMargin = 10;
 
 /// Dismisses the composebox via a command to the browser coordinator.
 - (void)dismissComposebox {
-  id<BrowserCoordinatorCommands> commands = HandlerForProtocol(
+  id<BrowserCoordinatorCommands> browserCoordinatorHandler = HandlerForProtocol(
       self.browser->GetCommandDispatcher(), BrowserCoordinatorCommands);
-  [commands hideComposeboxImmediately:NO];
+  [browserCoordinatorHandler hideComposebox];
 }
 
 /// Displays a snackbar error indicating the maximum number of attachments has

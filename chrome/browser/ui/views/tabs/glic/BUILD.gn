@@ -4,7 +4,7 @@
 
 import("//chrome/common/features.gni")
 
-assert(enable_glic || enable_glic_android)
+assert(enable_glic)
 
 source_set("glic") {
   sources = [ "glic_actor_constants.h" ]
@@ -13,16 +13,16 @@ source_set("glic") {
     sources += [
       "glic_actor_task_icon.h",
       "glic_and_actor_buttons_container.h",
-      "glic_button.h",
+      "tab_strip_glic_button.h",
     ]
     deps = [
       "//base",
       "//chrome/browser/glic",
-      "//chrome/browser/glic/fre:mojo_bindings",
       "//chrome/browser/ui:layout_constants",
       "//chrome/browser/ui/tabs",
       "//chrome/browser/ui/tabs:tab_strip",
       "//chrome/browser/ui/views",
+      "//chrome/browser/ui/views/glic",
       "//chrome/browser/ui/views/tabs/dragging:tab_drag_target",
       "//components/tabs",
       "//ui/base/metadata",
@@ -37,7 +37,7 @@ if (!is_android) {
     sources = [
       "glic_actor_task_icon.cc",
       "glic_and_actor_buttons_container.cc",
-      "glic_button.cc",
+      "tab_strip_glic_button.cc",
     ]
     deps = [
       ":glic",
@@ -56,6 +56,7 @@ if (!is_android) {
       "//chrome/browser/ui/color:color_headers",
       "//chrome/browser/ui/tabs",
       "//chrome/browser/ui/user_education",
+      "//chrome/browser/ui/views/glic",
       "//chrome/browser/ui/views/interaction",
       "//chrome/common:chrome_features",
       "//ui/base",

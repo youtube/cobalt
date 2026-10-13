@@ -25,28 +25,28 @@ using BWGEligibilityCallback = void (^)(BOOL eligible);
 
 namespace ios::provider {
 
-// Enum representing the location permission state of the BWG experience. A full
-// permission grant is gated by first the OS level (for Chrome) location
-// permission and then the user level BWG-specific location permission.
+// Enum representing the location permission state of the Gemini experience.
+// A full permission grant is gated by first the OS level (for Chrome) location
+// permission and then the user level Gemini-specific location permission.
 // This needs to stay in sync with GCRGeminiLocationPermissionState (and its SDK
 // counterpart).
-enum class BWGLocationPermissionState {
+enum class GeminiLocationPermissionState {
   // Default state.
   kUnknown,
   // The location permission is fully granted.
   kFullyGranted,
   // The location permission is granted only at the OS level.
   kBWGDisabled,
-  // The location permission is disabled at both the OS level and BWG level.
+  // The location permission is disabled at both the OS level and Gemini level.
   kBWGAndOSDisabled,
   // The location permission is disable by an Enterprise policy.
   kEnterpriseDisabled,
 };
 
-// Enum representing the page context computation state of the BWG experience.
+// Enum representing a page context computation state for the Gemini experience.
 // This needs to stay in sync with GCRGeminiPageContextComputationState (and its
 // SDK counterpart).
-enum class BWGPageContextComputationState {
+enum class GeminiPageContextComputationState {
   // The state of the page context is unknown; this likely means that it was not
   // set.
   kUnknown,
@@ -64,6 +64,9 @@ enum class BWGPageContextComputationState {
   // The page context is still being created.
   kPending,
 };
+
+// TODO(crbug.com/467341090): Remove this alias once all callers have migrated.
+using BWGPageContextComputationState = GeminiPageContextComputationState;
 
 // Enum representing the page context attachment state of the BWG experience.
 // This needs to stay in sync with GCRGeminiPageContextAttachmentState (and its
@@ -160,6 +163,9 @@ GeminiViewState GetCurrentGeminiViewState();
 
 // Requests a UI change for a specific element type.
 void RequestUIChange(GeminiUIElementType ui_element_type);
+
+// Attaches an image to the Gemini floaty.
+void AttachImage(UIImage* image);
 
 }  // namespace ios::provider
 

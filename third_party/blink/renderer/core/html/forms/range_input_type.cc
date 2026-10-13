@@ -60,6 +60,7 @@
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
+#include "third_party/blink/renderer/platform/json/json_values.h"
 #include "third_party/blink/renderer/platform/text/platform_locale.h"
 #include "third_party/blink/renderer/platform/text/text_direction.h"
 #include "third_party/blink/renderer/platform/wtf/math_extras.h"
@@ -165,8 +166,9 @@ StepRange RangeInputType::CreateStepRange(
   // Range type always has range limitations because it has default
   // minimum/maximum.
   // https://html.spec.whatwg.org/C/#range-state-(type=range):concept-input-min-default
-  const bool kHasRangeLimitations = true;
-  return StepRange(step_base, minimum, maximum, kHasRangeLimitations,
+  const bool has_min = true;
+  const bool has_max = true;
+  return StepRange(step_base, minimum, maximum, has_min, has_max,
                    /*has_reversed_range=*/false, step, step_description);
 }
 

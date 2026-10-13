@@ -26,12 +26,27 @@ void AutofillManagerObserverBridge::OnAutofillManagerStateChanged(
 void AutofillManagerObserverBridge::OnFieldTypesDetermined(
     AutofillManager& manager,
     FormGlobalId form,
-    FieldTypeSource source) {
-  const SEL selector = @selector(onFieldTypesDetermined:forForm:fromSource:);
+    FieldTypeSource source,
+    bool small_forms_were_parsed) {
+  const SEL selector = @selector
+      (onFieldTypesDetermined:forForm:fromSource:smallFormsWereParsed:);
   if (![observer_ respondsToSelector:selector]) {
     return;
   }
-  [observer_ onFieldTypesDetermined:manager forForm:form fromSource:source];
+  [observer_ onFieldTypesDetermined:manager
+                            forForm:form
+                         fromSource:source
+               smallFormsWereParsed:small_forms_were_parsed];
+}
+
+void AutofillManagerObserverBridge::OnAfterFormSubmitted(
+    AutofillManager& manager,
+    const FormData& form) {
+  const SEL selector = @selector(onAfterFormSubmitted:formData:);
+  if (![observer_ respondsToSelector:selector]) {
+    return;
+  }
+  [observer_ onAfterFormSubmitted:manager formData:form];
 }
 
 }  // namespace autofill

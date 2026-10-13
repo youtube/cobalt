@@ -8,7 +8,6 @@
 #include <cstdint>
 
 #include "components/viz/common/resources/shared_image_format.h"
-#include "ui/gfx/buffer_types.h"
 
 namespace ui {
 
@@ -30,14 +29,12 @@ inline constexpr auto kDrmSharedImageFormats = {
     viz::MultiPlaneFormat::kNV12,
     viz::MultiPlaneFormat::kP010};
 
-int GetFourCCFormatFromBufferFormat(gfx::BufferFormat format);
 int GetFourCCFormatFromSharedImageFormat(const viz::SharedImageFormat& format);
 
-gfx::BufferFormat GetBufferFormatFromFourCCFormat(int format);
 viz::SharedImageFormat GetSharedImageFormatFromFourCCFormat(int format);
 
-// Returns true if the fourcc format is known.
-bool IsValidBufferFormat(uint32_t current_format);
+// Returns true if the DRM FourCC format is known.
+bool IsValidDrmFormat(uint32_t current_format);
 
 // Returns a human-readable string for a DRM FourCC format, or
 // DRM_FORMAT_INVALID for an unknown or unsupported DRM format.

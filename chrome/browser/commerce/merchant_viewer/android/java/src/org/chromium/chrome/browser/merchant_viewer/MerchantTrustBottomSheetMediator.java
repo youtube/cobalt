@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.merchant_viewer;
 
+import static org.chromium.build.NullUtil.assertNonNull;
 import static org.chromium.build.NullUtil.assumeNonNull;
 
 import android.content.Context;
@@ -13,7 +14,7 @@ import android.view.ViewGroup;
 import androidx.annotation.DrawableRes;
 import androidx.appcompat.content.res.AppCompatResources;
 
-import org.chromium.base.supplier.NonNullObservableSupplier;
+import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
 import org.chromium.base.version_info.VersionInfo;
@@ -56,7 +57,7 @@ public class MerchantTrustBottomSheetMediator {
     private final int mTopControlsHeightDp;
     private final FaviconHelper mFaviconHelper;
     private final int mFaviconSize;
-    private final NonNullObservableSupplier<Profile> mProfileSupplier;
+    private final MonotonicObservableSupplier<Profile> mProfileSupplier;
 
     private @Nullable PropertyModel mToolbarModel;
     private @Nullable WebContents mWebContents;
@@ -71,7 +72,7 @@ public class MerchantTrustBottomSheetMediator {
             Context context,
             WindowAndroid windowAndroid,
             MerchantTrustMetrics metrics,
-            NonNullObservableSupplier<Profile> profileSupplier,
+            MonotonicObservableSupplier<Profile> profileSupplier,
             FaviconHelper faviconHelper) {
         mContext = context;
         mWindowAndroid = windowAndroid;
@@ -224,7 +225,9 @@ public class MerchantTrustBottomSheetMediator {
             mWebContents = mWebContentsForTesting;
             return;
         }
-        mWebContents = WebContentsFactory.createWebContents(mProfileSupplier.get(), false, false);
+        mWebContents =
+                WebContentsFactory.createWebContents(
+                        assertNonNull(mProfileSupplier.get()), false, false);
         mWebContentView = ContentView.createContentView(mContext, mWebContents);
         final ViewAndroidDelegate delegate =
                 ViewAndroidDelegate.createBasicDelegate(mWebContentView);

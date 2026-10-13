@@ -35,8 +35,14 @@ a {
 .action-container {
   column-gap: 8px;
   display: flex;
+<if expr="not (is_macosx or is_linux or is_chromeos)">
   justify-content: flex-end;
+</if>
   padding: var(--action-container-padding);
+<if expr="is_macosx or is_linux or is_chromeos">
+  flex-flow: row-reverse;
+  justify-content: flex-start;
+</if>
 }
 
 .custom-scrollbar::-webkit-scrollbar {
@@ -54,12 +60,6 @@ a {
   border-radius: var(--scrollbar-width);
 }
 
-<if expr="is_macosx or is_linux or is_chromeos">
-.action-container {
-  flex-flow: row-reverse;
-  justify-content: flex-start;
-}
-</if>
 
 @media (prefers-color-scheme: dark) {
   :host {

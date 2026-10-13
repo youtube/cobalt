@@ -9,10 +9,13 @@
 #include <vector>
 
 #include "base/memory/weak_ptr.h"
+#include "base/types/expected.h"
 #include "components/webapps/common/web_app_id.h"
 #include "content/public/browser/document_service.h"
 #include "content/public/browser/permission_result.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 #include "third_party/blink/public/mojom/manifest/manifest.mojom-forward.h"
+#include "third_party/blink/public/mojom/manifest/manifest_manager.mojom-forward.h"
 #include "third_party/blink/public/mojom/permissions/permission_status.mojom.h"
 #include "third_party/blink/public/mojom/web_install/web_install.mojom.h"
 #include "url/gurl.h"
@@ -28,14 +31,15 @@ enum class InstallableStatusCode;
 namespace web_app {
 class AppLock;
 struct WebAppInstallInfo;
+class WebAppDataRetriever;
 class WebAppProvider;
 
 // Result codes for Web Install API results.
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
 //
-// LINT.IfChange(WebInstallApiResult)
-enum class WebInstallApiResult {
+// LINT.IfChange(WebInstallServiceResult)
+enum class WebInstallServiceResult {
   kSuccess = 0,
   kSuccessAlreadyInstalled = 1,
   kUnexpectedFailure = 2,
@@ -48,25 +52,25 @@ enum class WebInstallApiResult {
   // Insert new values above this line.
   kMaxValue = kManifestIdMismatch,
 };
-// LINT.ThenChange(//tools/metrics/histograms/metadata/webapps/enums.xml:WebInstallApiResult)
+// LINT.ThenChange(//tools/metrics/histograms/metadata/webapps/enums.xml:WebInstallServiceResult)
 
 // Install types for the Web Install API.
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
 //
-// LINT.IfChange(WebInstallApiType)
-enum class WebInstallApiType {
+// LINT.IfChange(WebInstallServiceType)
+enum class WebInstallServiceType {
   kCurrentDocument = 0,
   kBackgroundDocument = 1,
   // Insert new values above this line.
   kMaxValue = kBackgroundDocument,
 };
-// LINT.ThenChange(//tools/metrics/histograms/metadata/webapps/enums.xml:WebInstallApiType)
+// LINT.ThenChange(//tools/metrics/histograms/metadata/webapps/enums.xml:WebInstallServiceType)
 
 // Used to coordinate running the `InstallCallback` from `Install()` with firing
 // the appropriate Uma result.
 using InstallCallbackWithMetrics =
-    base::OnceCallback<void(web_app::WebInstallApiResult,
+    base::OnceCallback<void(web_app::WebInstallServiceResult,
                             blink::mojom::WebInstallServiceResult,
                             webapps::ManifestId)>;
 
@@ -86,6 +90,8 @@ class WebInstallServiceImpl
       mojo::PendingReceiver<blink::mojom::WebInstallService> receiver);
 
   // blink::mojom::WebInstallService implementation:
+  void IsInstalled(blink::mojom::InstallOptionsPtr options,
+                   IsInstalledCallback callback) override;
   void Install(blink::mojom::InstallOptionsPtr options,
                InstallCallback callback) override;
   void InstallFromElement(blink::mojom::InstallOptionsPtr options,
@@ -107,19 +113,19 @@ class WebInstallServiceImpl
       content::WebContents* web_contents,
       InstallCallbackWithMetrics callback_with_metrics,
       AppLock& lock,
-      base::Value::Dict& debug_value);
+      base::DictValue& debug_value);
 
   void OnIntentPickerMaybeLaunched(
       InstallCallbackWithMetrics callback_with_metrics,
       webapps::AppId app_id,
       bool user_chose_to_open);
 
-  void OnDidRetrieveManifestForCurrentDocumentInstall(
+  void OnGotManifestForCurrentDocumentInstall(
       InstallCallbackWithMetrics callback_with_metrics,
       WebAppProvider* provider,
-      blink::mojom::ManifestPtr opt_manifest,
-      bool valid_manifest_for_web_app,
-      webapps::InstallableStatusCode error_code);
+      base::WeakPtr<WebAppDataRetriever> data_retriever,
+      const base::expected<blink::mojom::ManifestPtr,
+                           blink::mojom::RequestManifestErrorPtr>& result);
 
   void RequestWebInstallPermission(
       base::OnceCallback<void(const std::vector<content::PermissionResult>&)>
@@ -165,6 +171,10 @@ class WebInstallServiceImpl
   GURL last_committed_url_;
   // True if install was triggered from <install> element rather than JS API.
   bool triggered_from_element_ = false;
+  // Active data retrievers. They are destroyed when this service is destroyed
+  // or when their callback completes.
+  absl::flat_hash_set<std::unique_ptr<WebAppDataRetriever>> data_retrievers_;
+
   base::WeakPtrFactory<web_app::WebInstallServiceImpl> weak_ptr_factory_{this};
 };
 

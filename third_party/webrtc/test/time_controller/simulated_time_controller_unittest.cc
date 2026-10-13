@@ -43,7 +43,7 @@ TEST(SimulatedTimeControllerTest, TaskIsStoppedOnStop) {
   GlobalSimulatedTimeController time_simulation(kStartTime);
   std::unique_ptr<TaskQueueBase, TaskQueueDeleter> task_queue =
       time_simulation.GetTaskQueueFactory()->CreateTaskQueue(
-          "TestQueue", TaskQueueFactory::Priority::NORMAL);
+          "TestQueue", TaskQueueFactory::Priority::kNormal);
   std::atomic_int counter(0);
   auto handle = RepeatingTaskHandle::Start(task_queue.get(), [&] {
     if (++counter >= kShortIntervalCount)
@@ -68,7 +68,7 @@ TEST(SimulatedTimeControllerTest, TaskCanStopItself) {
   GlobalSimulatedTimeController time_simulation(kStartTime);
   std::unique_ptr<TaskQueueBase, TaskQueueDeleter> task_queue =
       time_simulation.GetTaskQueueFactory()->CreateTaskQueue(
-          "TestQueue", TaskQueueFactory::Priority::NORMAL);
+          "TestQueue", TaskQueueFactory::Priority::kNormal);
 
   RepeatingTaskHandle handle;
   task_queue->PostTask([&] {
@@ -98,7 +98,7 @@ TEST(SimulatedTimeControllerTest, Example) {
   GlobalSimulatedTimeController time_simulation(kStartTime);
   std::unique_ptr<TaskQueueBase, TaskQueueDeleter> task_queue =
       time_simulation.GetTaskQueueFactory()->CreateTaskQueue(
-          "TestQueue", TaskQueueFactory::Priority::NORMAL);
+          "TestQueue", TaskQueueFactory::Priority::kNormal);
   auto object = std::make_unique<ObjectOnTaskQueue>();
   // Create and start the periodic task.
   RepeatingTaskHandle handle;
@@ -117,7 +117,7 @@ TEST(SimulatedTimeControllerTest, DelayTaskRunOnTime) {
   GlobalSimulatedTimeController time_simulation(kStartTime);
   std::unique_ptr<TaskQueueBase, TaskQueueDeleter> task_queue =
       time_simulation.GetTaskQueueFactory()->CreateTaskQueue(
-          "TestQueue", TaskQueueFactory::Priority::NORMAL);
+          "TestQueue", TaskQueueFactory::Priority::kNormal);
 
   bool delay_task_executed = false;
   task_queue->PostDelayedTask([&] { delay_task_executed = true; },

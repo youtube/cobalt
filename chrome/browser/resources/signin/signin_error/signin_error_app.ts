@@ -33,14 +33,11 @@ export class SigninErrorAppElement extends SigninErrorAppElementBase {
 
   static override get properties() {
     return {
-      fromProfilePicker_: {type: Boolean},
       switchButtonUnavailable_: {type: Boolean},
       hideNormalError_: {type: Boolean},
     };
   }
 
-  protected accessor fromProfilePicker_: boolean =
-      loadTimeData.getBoolean('fromProfilePicker');
   protected accessor switchButtonUnavailable_: boolean = false;
   protected accessor hideNormalError_: boolean =
       loadTimeData.getString('signinErrorMessage').length === 0;
@@ -73,6 +70,12 @@ export class SigninErrorAppElement extends SigninErrorAppElementBase {
 
   protected onLearnMore_() {
     chrome.send('learnMore');
+  }
+}
+
+declare global {
+  interface HTMLElementTagNameMap {
+    'signin-error-app': SigninErrorAppElement;
   }
 }
 

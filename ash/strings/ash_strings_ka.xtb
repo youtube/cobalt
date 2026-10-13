@@ -342,7 +342,6 @@
 <translation id="2201071101391734388">ბოლოდროინდელი ფოტო <ph name="INDEX" /> / <ph name="TOTAL_COUNT" />-დან.</translation>
 <translation id="2201687081523799384">Google Tasks-ის ჩაკეცვა</translation>
 <translation id="2208323208084708176">ერთიანი დესკტოპის რეჟიმი</translation>
-<translation id="2210311543574621570">კლავიშთა კომბინაციაზე Ctrl + V ხანგრძლივად დაჭერისას გაცვლის ბუფერს იხილავთ. ამ მალსახმობის გამორთვა შეგიძლიათ #clipboard-history-longpress ალმის გათიშვით მისამართზე chrome://flags.</translation>
 <translation id="2215920961700443347">ინტერნეტთან კავშირი არ არის. დაუკავშირდით ინტერნეტს და ცადეთ ხელახლა.</translation>
 <translation id="2222841058024245321">სამუშაო მაგიდა 7</translation>
 <translation id="2223384056430485343">გაყოფილ ეკრანზე</translation>
@@ -2195,7 +2194,6 @@
 <translation id="8241650983304689286">დაამატეთ ჩანართი გაყოფის ახალ ხედში</translation>
 <translation id="8247060538831475781"><ph name="CONNECTION_STATUS" />, სიგნალის სიძლიერე: <ph name="SIGNAL_STRENGTH" />, ტელეფონის ბატარეა: <ph name="BATTERY_STATUS" /></translation>
 <translation id="825129991941217170">Google Drive-ის ყველა კონტენტის ჩვენება</translation>
-<translation id="8257510091797044096">თქვენი მოწყობილობის დაყენება</translation>
 <translation id="8261506727792406068">წაშლა</translation>
 <translation id="8262312463845990408">დაკვრის გადართვა</translation>
 <translation id="8268302343625273732">ყველა დავალების Google Classroom-ში ნახვა</translation>

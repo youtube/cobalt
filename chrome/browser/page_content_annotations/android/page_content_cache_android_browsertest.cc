@@ -11,13 +11,13 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
 #include "chrome/browser/android/tab_android.h"
-#include "chrome/browser/page_content_annotations/page_content_extraction_service.h"
 #include "chrome/browser/page_content_annotations/page_content_extraction_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/android/tab_model/tab_model.h"
 #include "chrome/browser/ui/android/tab_model/tab_model_list.h"
 #include "chrome/test/base/android/android_browser_test.h"
 #include "chrome/test/base/chrome_test_utils.h"
+#include "components/page_content_annotations/content/page_content_extraction_service.h"
 #include "components/page_content_annotations/core/page_content_annotations_features.h"
 #include "components/page_content_annotations/core/page_content_annotations_switches.h"
 #include "content/public/browser/web_contents.h"
@@ -182,20 +182,20 @@ IN_PROC_BROWSER_TEST_F(PageContentCacheBrowserTest,
   AddTab(url1);
 
   cache_observer.WaitForPopulated(tab_id1);
-  base::test::TestFuture<std::optional<optimization_guide::PageContentResult>>
+  base::test::TestFuture<std::optional<optimization_guide::proto::PageContext>>
       future1;
   cache->GetPageContentForTab(tab_id1, future1.GetCallback());
-  auto result1 = future1.Take();
+  auto result1 = future1.Get();
   EXPECT_TRUE(result1.has_value());
 
   // Close tab: tab_id1, it should delete the cached contents.
   CloseTab(tab_id1);
 
   cache_observer.WaitForRemoved(tab_id1);
-  base::test::TestFuture<std::optional<optimization_guide::PageContentResult>>
+  base::test::TestFuture<std::optional<optimization_guide::proto::PageContext>>
       future_after_close;
   cache->GetPageContentForTab(tab_id1, future_after_close.GetCallback());
-  auto result_after_close = future_after_close.Take();
+  auto result_after_close = future_after_close.Get();
   EXPECT_FALSE(result_after_close.has_value());
 }
 

@@ -51,12 +51,18 @@ const char kHistogramGWSNavigationStartToFinalRequestStart[] =
     HISTOGRAM_PREFIX "NavigationTiming.NavigationStartToFinalRequestStart";
 const char kHistogramGWSNavigationStartToFinalResponseStart[] =
     HISTOGRAM_PREFIX "NavigationTiming.NavigationStartToFinalResponseStart";
+const char kHistogramGWSFinalRequestStartToFinalResponseStart[] =
+    HISTOGRAM_PREFIX "NavigationTiming.FinalRequestStartToFinalResponseStart";
 const char kHistogramGWSNavigationStartToFinalLoaderCallback[] =
     HISTOGRAM_PREFIX "NavigationTiming.NavigationStartToFinalLoaderCallback";
 const char kHistogramGWSNavigationStartToFirstRequestStart[] =
     HISTOGRAM_PREFIX "NavigationTiming.NavigationStartToFirstRequestStart";
 const char kHistogramGWSNavigationStartToFirstResponseStart[] =
     HISTOGRAM_PREFIX "NavigationTiming.NavigationStartToFirstResponseStart";
+const char kHistogramGWSFirstRequestStartToFirstResponseStart[] =
+    HISTOGRAM_PREFIX "NavigationTiming.FirstRequestStartToFirstResponseStart";
+const char kHistogramGWSFirstRequestStartToFinalResponseStart[] =
+    HISTOGRAM_PREFIX "NavigationTiming.FirstRequestStartToFinalResponseStart";
 const char kHistogramGWSNavigationStartToFirstLoaderCallback[] =
     HISTOGRAM_PREFIX "NavigationTiming.NavigationStartToFirstLoaderCallback";
 const char kHistogramGWSNavigationStartToOnComplete[] =
@@ -145,6 +151,9 @@ const char kHistogramGWSHttpNetworkSessionQuicEnabled[] =
 const char kTraverseNavigation[] = ".TraverseNavigation";
 const char kRestoreNavigation[] = ".Restored";
 const char kNonRestoreNavigation[] = ".NotRestored";
+
+// Suffix for context menu navigation
+const char kStartedFromContextMenu[] = ".ContextMenu";
 
 // Prerender related histograms.
 const char kHistogramPrerenderHostReused[] =
@@ -361,6 +370,9 @@ GWSPageLoadMetricsObserver::OnStart(
   is_traverse_navigation_ = navigation_handle->IsHistory();
   is_restore_navigation_ =
       navigation_handle->GetRestoreType() == content::RestoreType::kRestored;
+
+  was_started_from_context_menu_ =
+      navigation_handle->WasStartedFromContextMenu();
 
   return CONTINUE_OBSERVING;
 }
@@ -792,6 +804,13 @@ void GWSPageLoadMetricsObserver::LogMetricsOnComplete() {
         is_restore_navigation_, internal::kHistogramGWSLargestContentfulPaint,
         all_frames_largest_contentful_paint.Time().value());
   }
+  if (was_started_from_context_menu_) {
+    auto context_menu_histogram_name =
+        base::StrCat({internal::kHistogramGWSLargestContentfulPaint,
+                      internal::kStartedFromContextMenu});
+    PAGE_LOAD_HISTOGRAM(context_menu_histogram_name,
+                        all_frames_largest_contentful_paint.Time().value());
+  }
 }
 
 void GWSPageLoadMetricsObserver::RecordNavigationTimingHistograms() {
@@ -821,6 +840,12 @@ void GWSPageLoadMetricsObserver::RecordNavigationTimingHistograms() {
       internal::kHistogramGWSNavigationStartToFirstResponseStart,
       timing.first_response_start_time - navigation_start_time);
   PAGE_LOAD_HISTOGRAM(
+      internal::kHistogramGWSFirstRequestStartToFirstResponseStart,
+      timing.first_response_start_time - timing.first_request_start_time);
+  PAGE_LOAD_HISTOGRAM(
+      internal::kHistogramGWSFirstRequestStartToFinalResponseStart,
+      timing.final_response_start_time - timing.first_request_start_time);
+  PAGE_LOAD_HISTOGRAM(
       internal::kHistogramGWSNavigationStartToFirstLoaderCallback,
       timing.first_loader_callback_time - navigation_start_time);
   PAGE_LOAD_HISTOGRAM(internal::kHistogramGWSNavigationStartToFinalRequestStart,
@@ -828,6 +853,9 @@ void GWSPageLoadMetricsObserver::RecordNavigationTimingHistograms() {
   PAGE_LOAD_HISTOGRAM(
       internal::kHistogramGWSNavigationStartToFinalResponseStart,
       timing.final_response_start_time - navigation_start_time);
+  PAGE_LOAD_HISTOGRAM(
+      internal::kHistogramGWSFinalRequestStartToFinalResponseStart,
+      timing.final_response_start_time - timing.final_request_start_time);
   PAGE_LOAD_HISTOGRAM(
       internal::kHistogramGWSNavigationStartToFinalLoaderCallback,
       timing.final_loader_callback_time - navigation_start_time);

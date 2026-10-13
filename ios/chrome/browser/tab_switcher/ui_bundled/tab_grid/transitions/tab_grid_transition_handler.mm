@@ -16,6 +16,7 @@
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/transitions/animations/tab_grid_reduced_animation.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/transitions/animations/tab_grid_transition_animation.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/transitions/animations/tab_to_grid_animation.h"
+#import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/transitions/tab_grid_transition_context_provider.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/transitions/tab_grid_transition_item.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/transitions/tab_grid_transition_layout.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/transitions/tab_grid_transition_layout_providing.h"
@@ -25,10 +26,11 @@
   TabGridTransitionDirection _direction;
 
   UIViewController* _tabGridViewController;
-  UIViewController* _BVCContainerViewController;
+  UIViewController<TabGridTransitionContextProvider>*
+      _browserLayoutViewController;
 
   // Transition layout provider for the tab grid.
-  id<TabGridTransitionLayoutProviding> _tabGridTransitionLayoutProvider;
+  __weak id<TabGridTransitionLayoutProviding> _tabGridTransitionLayoutProvider;
 
   // Transition item for the selected cell in tab grid.
   TabGridTransitionItem* _tabGridCellItem;
@@ -62,8 +64,9 @@
        tabGridTransitionLayoutProvider:
            (id<TabGridTransitionLayoutProviding>)tabGridTransitionLayoutProvider
                  tabGridViewController:(UIViewController*)tabGridViewController
-            bvcContainerViewController:
-                (UIViewController*)bvcContainerViewController
+           browserLayoutViewController:
+               (UIViewController<TabGridTransitionContextProvider>*)
+                   browserLayoutViewController
                      layoutGuideCenter:(LayoutGuideCenter*)layoutGuideCenter
                    isRegularBrowserNTP:(BOOL)isRegularBrowserNTP
                              incognito:(BOOL)incognito {
@@ -75,7 +78,7 @@
     _direction = direction;
     _tabGridTransitionLayoutProvider = tabGridTransitionLayoutProvider;
     _tabGridViewController = tabGridViewController;
-    _BVCContainerViewController = bvcContainerViewController;
+    _browserLayoutViewController = browserLayoutViewController;
     _tabGridCellItem = transitionLayout.activeCell;
     _activeGrid = transitionLayout.activeGrid;
     _pinnedTabsViewController = transitionLayout.pinnedTabs;
@@ -135,39 +138,40 @@
 
 // Prepares items for the Browser to Tab Grid transition.
 - (void)prepareBrowserToTabGridTransition {
-  [_BVCContainerViewController willMoveToParentViewController:nil];
+  [_browserLayoutViewController willMoveToParentViewController:nil];
 }
 
 // Prepares items for the Tab Grid to Browser transition.
 - (void)prepareTabGridToBrowserTransition {
-  [_tabGridViewController addChildViewController:_BVCContainerViewController];
+  [_tabGridViewController addChildViewController:_browserLayoutViewController];
   if (IsChromeNextIaEnabled()) {
     CGRect frame = _tabGridViewController.view.bounds;
     // TODO(crbug.com/472279443): Use autolayout instead of fixed margins.
     frame.size.height -= 50;
-    _BVCContainerViewController.view.frame = frame;
+    _browserLayoutViewController.view.frame = frame;
   } else {
-    _BVCContainerViewController.view.frame = _tabGridViewController.view.bounds;
+    _browserLayoutViewController.view.frame =
+        _tabGridViewController.view.bounds;
   }
-  [_tabGridViewController.view addSubview:_BVCContainerViewController.view];
+  [_tabGridViewController.view addSubview:_browserLayoutViewController.view];
 
-  _BVCContainerViewController.view.accessibilityViewIsModal = YES;
+  _browserLayoutViewController.view.accessibilityViewIsModal = YES;
 }
 
 // Takes all necessary actions to finish Browser to TabGrid transition.
 - (void)finalizeBrowserToTabGridTransition {
-  [_BVCContainerViewController.view removeFromSuperview];
-  [_BVCContainerViewController removeFromParentViewController];
+  [_browserLayoutViewController.view removeFromSuperview];
+  [_browserLayoutViewController removeFromParentViewController];
 
   [_tabGridViewController setNeedsStatusBarAppearanceUpdate];
 }
 
 // Takes all necessary actions to finish TabGrid to Browser transition.
 - (void)finalizeTabGridToBrowserTransition {
-  [_BVCContainerViewController
+  [_browserLayoutViewController
       didMoveToParentViewController:_tabGridViewController];
 
-  [_BVCContainerViewController setNeedsStatusBarAppearanceUpdate];
+  [_browserLayoutViewController setNeedsStatusBarAppearanceUpdate];
 }
 
 // Performs transition animation.
@@ -202,7 +206,7 @@
 
     case TabGridTransitionType::kReducedMotion: {
       _animation = [[TabGridReducedAnimation alloc]
-          initWithAnimatedView:_BVCContainerViewController.view
+          initWithAnimatedView:_browserLayoutViewController.view
                 beingPresented:_direction == TabGridTransitionDirection::
                                                  kFromTabGridToBrowser];
       break;
@@ -251,10 +255,13 @@
       !_isRegularBrowserNTP && IsSplitToolbarMode(_activeGrid);
 
   // Get the content area frame.
-  UIView* tabContentView = [self tabContentView];
-  CGRect contentAreaFrame = [NamedGuide guideWithName:kContentAreaGuide
-                                                 view:tabContentView]
-                                .layoutFrame;
+  UIView* tabContentView = _browserLayoutViewController.view;
+  NamedGuide* contentAreaGuide =
+      [_browserLayoutViewController contentAreaGuide];
+  UIView* browserViewControllerView = contentAreaGuide.owningView;
+  CGRect contentAreaFrame = contentAreaGuide.layoutFrame;
+  contentAreaFrame = [browserViewControllerView convertRect:contentAreaFrame
+                                                     toView:tabContentView];
 
   // No top toolbar snapshot for regular browser NTPs for grid to tab
   // animations. `topToolbarHidden` is not directly used here as the screenshot
@@ -271,11 +278,11 @@
   CGRect destinationFrame =
       _direction == TabGridTransitionDirection::kFromBrowserToTabGrid
           ? _tabGridCellItem.originalFrame
-          : _BVCContainerViewController.view.frame;
+          : _browserLayoutViewController.view.frame;
 
   CGRect originFrame =
       _direction == TabGridTransitionDirection::kFromBrowserToTabGrid
-          ? _BVCContainerViewController.view.frame
+          ? _browserLayoutViewController.view.frame
           : _tabGridCellItem.originalFrame;
 
   CHECK(_tabGridCellItem);
@@ -286,7 +293,7 @@
                      activeGrid:_activeGrid
                      pinnedTabs:_pinnedTabsViewController
                activeCellPinned:_activeCellPinned
-                   animatedView:_BVCContainerViewController.view
+                   animatedView:_browserLayoutViewController.view
                 contentSnapshot:_tabGridCellItem.snapshot
                topToolbarHeight:topToolbarHeight
             bottomToolbarHeight:bottomToolbarHeight
@@ -297,19 +304,6 @@
           shouldScaleTopToolbar:scaleTopToolbar
                       incognito:_incognito
                topToolbarHidden:topToolbarHidden];
-}
-
-// Returns the frame for the snapshotted content of the active tab.
-// Conceptually the transition is dismissing/presenting a tab (a BVC).
-// However, currently the BVC instances are themselves contained within a
-// BVCContainer view controller. This means that the
-// `viewControllerForTab.view` is not the BVC's view; rather it's the view of
-// the view controller that contains the BVC. Unfortunately, the layout guide
-// needed here is attached to the BVC's view, which is the first (and only)
-// subview of the BVCContainerViewController's view.
-// TODO(crbug.com/40583629) Clean up this arrangement.
-- (UIView*)tabContentView {
-  return _BVCContainerViewController.view.subviews[0];
 }
 
 // Returns a snapshot of the portion of the view that is above the given rect.

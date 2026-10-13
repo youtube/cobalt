@@ -6,12 +6,15 @@
 #define CHROME_BROWSER_SAFE_BROWSING_CLOUD_CONTENT_SCANNING_FILE_ANALYSIS_REQUEST_H_
 
 #include "base/functional/callback_helpers.h"
-#include "chrome/common/safe_browsing/archive_analyzer_results.h"
-#include "chrome/services/file_util/public/cpp/sandboxed_rar_analyzer.h"
-#include "chrome/services/file_util/public/cpp/sandboxed_zip_analyzer.h"
 #include "components/enterprise/connectors/core/cloud_content_scanning/file_analysis_request_base.h"
 #include "components/enterprise/connectors/core/service_provider_config.h"
 #include "components/file_access/scoped_file_access.h"
+
+#if !BUILDFLAG(IS_ANDROID)
+#include "chrome/common/safe_browsing/archive_analyzer_results.h"
+#include "chrome/services/file_util/public/cpp/sandboxed_rar_analyzer.h"
+#include "chrome/services/file_util/public/cpp/sandboxed_zip_analyzer.h"
+#endif  //! BUILDFLAG(IS_ANDROID)
 
 namespace safe_browsing {
 
@@ -31,12 +34,14 @@ class FileAnalysisRequest
           callback,
       enterprise_connectors::BinaryUploadRequest::RequestStartCallback
           start_callback = base::DoNothing(),
-      bool is_obfuscated = false);
+      bool is_obfuscated = false,
+      bool force_sync_hash_computation = true);
   FileAnalysisRequest(const FileAnalysisRequest&) = delete;
   FileAnalysisRequest& operator=(const FileAnalysisRequest&) = delete;
   ~FileAnalysisRequest() override;
 
  private:
+#if !BUILDFLAG(IS_ANDROID)
   void ProcessZipFile(Data data) override;
   void ProcessRarFile(Data data) override;
 
@@ -48,6 +53,8 @@ class FileAnalysisRequest
       zip_analyzer_{nullptr, base::OnTaskRunnerDeleter(nullptr)};
   std::unique_ptr<SandboxedRarAnalyzer, base::OnTaskRunnerDeleter>
       rar_analyzer_{nullptr, base::OnTaskRunnerDeleter(nullptr)};
+
+#endif
 
   base::WeakPtrFactory<FileAnalysisRequest> weakptr_factory_{this};
 };

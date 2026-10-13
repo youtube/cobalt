@@ -115,10 +115,9 @@ int OpenSLESRecorder::InitRecording() {
     ALOGE("Failed to obtain SL Engine interface");
     return -1;
   }
-  CreateAudioRecorder();
-  initialized_ = true;
+  initialized_ = CreateAudioRecorder();
   buffer_index_ = 0;
-  return 0;
+  return initialized_ ? 0 : -1;
 }
 
 bool OpenSLESRecorder::RecordingIsInitialized() const {

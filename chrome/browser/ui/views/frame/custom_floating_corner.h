@@ -41,7 +41,8 @@ class CustomFloatingCorner : public views::View, public CustomCorners {
                        CornerOrientation orientation,
                        views::ShapeContextTokens corner_radius_token,
                        ColorChoice color,
-                       std::optional<ui::ColorId> stroke_color = std::nullopt);
+                       std::optional<ui::ColorId> stroke_color = std::nullopt,
+                       bool is_vertical_window_edge = false);
   ~CustomFloatingCorner() override;
 
   // Sets the color to paint the corner.
@@ -53,13 +54,16 @@ class CustomFloatingCorner : public views::View, public CustomCorners {
   // Set the corner radius.
   void SetCornerRadius(views::ShapeContextTokens corner_radius_token);
 
-  // Sets a stroke, or no stroke (std::nullopt).
-  void SetStrokeColor(std::optional<ui::ColorId> stroke_color);
+  // Sets a stroke, or no stroke (std::nullopt). If `is_vertical_window_edge` is
+  // true, the stroke ends outside the vertical bounds of the corner.
+  void SetStroke(std::optional<ui::ColorId> stroke_color,
+                 bool is_vertical_window_edge);
 
   // views::View:
   gfx::Size CalculatePreferredSize(
       const views::SizeBounds& available_size) const override;
   void OnPaint(gfx::Canvas* canvas) override;
+  void OnThemeChanged() override;
 
   CornerOrientation orientation_for_testing() const { return orientation_; }
 
@@ -72,6 +76,7 @@ class CustomFloatingCorner : public views::View, public CustomCorners {
   views::ShapeContextTokens corner_radius_token_;
   ColorChoice color_;
   std::optional<ui::ColorId> stroke_color_;
+  bool is_vertical_window_edge_ = false;
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_FRAME_CUSTOM_FLOATING_CORNER_H_

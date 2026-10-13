@@ -111,6 +111,12 @@ class BrowserWindowInterface : public content::PageNavigator {
   // Returns a session-unique ID.
   virtual const SessionID& GetSessionID() const = 0;
 
+  // Returns true if the browser window is currently scheduled for deletion. At
+  // this stage, the browser window will definitely be closed, and it cannot be
+  // stopped. This is true after all the various tab unload handlers and similar
+  // have ran.
+  virtual bool IsDeleteScheduled() const = 0;
+
   // SessionService::WindowType mirrors these values.  If you add to this
   // enum, look at SessionService::WindowType to see if it needs to be
   // updated.
@@ -145,14 +151,6 @@ class BrowserWindowInterface : public content::PageNavigator {
     // AppBrowserController) but looks like a popup (e.g. it never has a tab
     // strip).
     TYPE_APP_POPUP,
-#if BUILDFLAG(IS_CHROMEOS)
-    // Browser for ARC++ Chrome custom tabs.
-    // It's an enhanced version of TYPE_POPUP, and is used to show the Chrome
-    // Custom Tab toolbar for ARC++ apps. It has UI customizations like using
-    // the Android app's theme color, and the three dot menu in
-    // CustomTabToolbarview.
-    TYPE_CUSTOM_TAB,
-#endif
 #if !BUILDFLAG(IS_ANDROID)
     // Document picture-in-picture browser.  It's mostly the same as a
     // TYPE_POPUP, except that it floats above other windows.  It also has some
@@ -189,10 +187,37 @@ class BrowserWindowInterface : public content::PageNavigator {
 #endif
   };
 
+  // WARNING: Many uses of base::WeakPtr are inappropriate and lead to bugs.
+  // An appropriate use case is as a variable passed to an asynchronously
+  // invoked PostTask.
+  // An inappropriate use case is to store as a member of an object that can
+  // outlive BrowserWindowInterface. This leads to inconsistent state machines.
+  // For example (don't do this):
+  // class FooOutlivesBrowser {
+  //   base::WeakPtr<BrowserWindowInterface> bwi_;
+  //   // Conceptually, this member should only be set if bwi_ is set.
+  //   std::optional<SkColor> color_of_browser_;
+  // };
+  // For example (do this):
+  // class FooOutlivesBrowser {
+  //   // Use RegisterBrowserDidClose() to clear both bwi_ and
+  //   // color_of_browser_ prior to bwi_ destruction.
+  //   raw_ptr<BrowserWindowInterface> bwi_;
+  //   std::optional<SkColor> color_of_browser_;
+  // };
+  virtual base::WeakPtr<BrowserWindowInterface> GetWeakPtr() = 0;
+
   // S T O P
   // Please do not add new features here without consulting desktop leads
   // (erikchen@) and Clank leads (twellington@, dtrainor@). See comment at the
   // top of this file.
+  //
+  // As alternatives, consider:
+  // Tab/Navigation: `TabListInterface::From(BrowserWindowInterface*)`.
+  // Windowing: `base::Window* GetWindow()`.
+  //
+  // For other methods, consult the leads above for guidance.
+  //
   // The following methods will be removed in the future.
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -228,26 +253,6 @@ class BrowserWindowInterface : public content::PageNavigator {
       base::RepeatingCallback<void(BrowserWindowInterface*, ClosingStatus)>;
   virtual base::CallbackListSubscription RegisterBrowserCloseCancelled(
       BrowserCloseCancelledCallback callback) = 0;
-
-  // WARNING: Many uses of base::WeakPtr are inappropriate and lead to bugs.
-  // An appropriate use case is as a variable passed to an asynchronously
-  // invoked PostTask.
-  // An inappropriate use case is to store as a member of an object that can
-  // outlive BrowserWindowInterface. This leads to inconsistent state machines.
-  // For example (don't do this):
-  // class FooOutlivesBrowser {
-  //   base::WeakPtr<BrowserWindowInterface> bwi_;
-  //   // Conceptually, this member should only be set if bwi_ is set.
-  //   std::optional<SkColor> color_of_browser_;
-  // };
-  // For example (do this):
-  // class FooOutlivesBrowser {
-  //   // Use RegisterBrowserDidClose() to clear both bwi_ and
-  //   // color_of_browser_ prior to bwi_ destruction.
-  //   raw_ptr<BrowserWindowInterface> bwi_;
-  //   std::optional<SkColor> color_of_browser_;
-  // };
-  virtual base::WeakPtr<BrowserWindowInterface> GetWeakPtr() = 0;
 
   using ActiveTabChangeCallback =
       base::RepeatingCallback<void(BrowserWindowInterface*)>;

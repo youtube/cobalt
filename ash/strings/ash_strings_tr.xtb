@@ -342,7 +342,6 @@
 <translation id="2201071101391734388">Son <ph name="TOTAL_COUNT" /> fotoğraftan <ph name="INDEX" />. fotoğraf.</translation>
 <translation id="2201687081523799384">Google Görevler'i daraltın</translation>
 <translation id="2208323208084708176">Birleştirilmiş masaüstü modu</translation>
-<translation id="2210311543574621570">Ctrl + V tuşlarını basılı tuttuğunuzda panoyu görürsünüz. chrome://flags'de #clipboard-history-longpress flag'ini devre dışı bırakarak bu kısayolu kapatabilirsiniz.</translation>
 <translation id="2215920961700443347">İnternet yok. İnternete bağlanıp tekrar deneyin.</translation>
 <translation id="2222841058024245321">Masa 7</translation>
 <translation id="2223384056430485343">Bölünmüş ekranda</translation>
@@ -2195,7 +2194,6 @@ Cihazı kapatmak için cihazın güç düğmesini tekrar basılı tutun.</transl
 <translation id="8241650983304689286">Sekmeyi yeni bölünmüş görünüme ekle</translation>
 <translation id="8247060538831475781"><ph name="CONNECTION_STATUS" />, <ph name="SIGNAL_STRENGTH" /> Sinyal Gücü, <ph name="BATTERY_STATUS" /> Telefon Pili</translation>
 <translation id="825129991941217170">Tüm Google Drive içeriklerini göster</translation>
-<translation id="8257510091797044096">Cihazınızı ayarlayın</translation>
 <translation id="8261506727792406068">Sil</translation>
 <translation id="8262312463845990408">Çal/duraklat</translation>
 <translation id="8268302343625273732">Google Classroom'daki tüm ödevleri göster</translation>

@@ -11,10 +11,8 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
-#include <fstream>
 #include <map>
 #include <memory>
-#include <sstream>  // no-presubmit-check TODO(webrtc:8982)
 #include <string>
 #include <string_view>
 #include <utility>
@@ -56,7 +54,6 @@
 #include "rtc_base/event.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/strings/json.h"
-#include "rtc_base/system/file_wrapper.h"
 #include "rtc_base/thread.h"
 #include "system_wrappers/include/clock.h"
 #include "test/call_config_utils.h"
@@ -208,6 +205,25 @@ bool ValidateOptionalPayloadType(int32_t payload_type) {
 bool ValidateInputFilenameNotEmpty(const std::string& string) {
   return !string.empty();
 }
+
+std::string ReadFileToString(const std::string& file_path) {
+  FILE* file = fopen(file_path.c_str(), "rb");
+  if (!file) {
+    return "";
+  }
+  fseek(file, 0, SEEK_END);
+  size_t length = static_cast<size_t>(ftell(file));
+  fseek(file, 0, SEEK_SET);
+  if (length == 0) {
+    fclose(file);
+    return "";
+  }
+
+  std::string content(length, '\0');
+  RTC_CHECK_EQ(fread(&content[0], 1, length, file), length);
+  fclose(file);
+  return content;
+}
 }  // namespace
 
 namespace webrtc {
@@ -278,8 +294,7 @@ class DecoderBitstreamFileWriter : public test::FakeDecoder {
 class DecoderIvfFileWriter : public test::FakeDecoder {
  public:
   explicit DecoderIvfFileWriter(const char* filename, const std::string& codec)
-      : file_writer_(
-            IvfFileWriter::Wrap(FileWrapper::OpenWriteOnly(filename), 0)) {
+      : file_writer_(IvfFileWriter::Wrap(filename, /*byte_limit=*/0)) {
     RTC_DCHECK(file_writer_.get());
     if (codec == "VP8") {
       video_codec_type_ = VideoCodecType::kVideoCodecVP8;
@@ -327,10 +342,11 @@ std::unique_ptr<StreamState> ConfigureFromFile(const std::string& config_path,
                                                Call* call) {
   auto stream_state = std::make_unique<StreamState>();
   // Parse the configuration file.
-  std::ifstream config_file(config_path);
-  std::stringstream raw_json_buffer;
-  raw_json_buffer << config_file.rdbuf();
-  std::string raw_json = raw_json_buffer.str();
+  std::string raw_json = ReadFileToString(config_path);
+  if (raw_json.empty()) {
+    fprintf(stderr, "Error reading config file: %s\n", config_path.c_str());
+    return nullptr;
+  }
   Json::CharReaderBuilder builder;
   Json::Value json_configs;
   std::string error_message;
@@ -420,7 +436,7 @@ std::unique_ptr<StreamState> ConfigureFromFlags(
     FlexfecReceiveStream::Config flexfec_config(&(stream_state->transport));
     flexfec_config.payload_type = absl::GetFlag(FLAGS_flexfec_payload_type);
     flexfec_config.protected_media_ssrcs.push_back(absl::GetFlag(FLAGS_ssrc));
-    flexfec_config.rtp.remote_ssrc = absl::GetFlag(FLAGS_ssrc_flexfec);
+    flexfec_config.remote_ssrc = absl::GetFlag(FLAGS_ssrc_flexfec);
     FlexfecReceiveStream* flexfec_stream =
         call->CreateFlexfecReceiveStream(flexfec_config);
     receive_config.rtp.packet_sink_ = flexfec_stream;
@@ -510,7 +526,7 @@ class RtpReplayer final {
             time_sim_ ? time_sim_->GetClock() : nullptr)),
         rtp_reader_(CreateRtpReader(rtp_dump_path_)) {
     worker_thread_ = env_.task_queue_factory().CreateTaskQueue(
-        "worker_thread", TaskQueueFactory::Priority::NORMAL);
+        "worker_thread", TaskQueueFactory::Priority::kNormal);
     Event event;
     worker_thread_->PostTask([&]() {
       call_ = Call::Create(CallConfig(env_));

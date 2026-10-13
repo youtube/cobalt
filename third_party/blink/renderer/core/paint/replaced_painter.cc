@@ -18,6 +18,7 @@
 #include "third_party/blink/renderer/core/paint/border_shape_utils.h"
 #include "third_party/blink/renderer/core/paint/box_background_paint_context.h"
 #include "third_party/blink/renderer/core/paint/box_decoration_data.h"
+#include "third_party/blink/renderer/core/paint/box_fragment_painter.h"
 #include "third_party/blink/renderer/core/paint/box_model_object_painter.h"
 #include "third_party/blink/renderer/core/paint/box_painter.h"
 #include "third_party/blink/renderer/core/paint/box_painter_base.h"
@@ -183,6 +184,17 @@ void ReplacedPainter::Paint(const PaintInfo& paint_info) {
     layout_replaced_.PaintReplaced(content_paint_state.GetPaintInfo(),
                                    content_paint_state.PaintOffset());
     MeasureOverflowMetrics();
+
+    // Ad Highlight Logic
+    //
+    // Guard against empty fragments, because the layout results may be missing
+    // in certain paint phases or states.
+    if (!layout_replaced_.PhysicalFragments().IsEmpty()) {
+      const auto& fragment = layout_replaced_.PhysicalFragments().front();
+      BoxFragmentPainter::PaintAdHighlightIfNeeded(
+          local_paint_info, paint_offset, fragment, layout_replaced_,
+          local_paint_info.phase);
+    }
   }
 
   if (layout_replaced_.StyleRef().Visibility() == EVisibility::kVisible &&
@@ -448,8 +460,10 @@ void ReplacedPainter::PaintBoxDecorationBackgroundWithRect(
   }
 
   if (box_decoration_data.ShouldPaintShadow()) {
-    BoxPainterBase::PaintInsetBoxShadowWithBorderRect(paint_info, paint_rect,
-                                                      style);
+    std::optional<BorderShapeReferenceRects> border_shape_rects =
+        ComputeBorderShapeReferenceRects(paint_rect, style, layout_replaced_);
+    BoxPainterBase::PaintInsetBoxShadowWithBorderRect(
+        paint_info, paint_rect, style, border_shape_rects);
   }
 
   // The theme will tell us whether or not we should also paint the CSS

@@ -4,12 +4,18 @@
 
 package org.chromium.chrome.browser.autofill.options;
 
+import static org.chromium.chrome.browser.autofill.options.AutofillOptionsProperties.AUTOFILL_AI_SETTING_ELIGIBLE;
+import static org.chromium.chrome.browser.autofill.options.AutofillOptionsProperties.AUTOFILL_AI_SETTING_ON;
+import static org.chromium.chrome.browser.autofill.options.AutofillOptionsProperties.AUTOFILL_AI_SETTING_VISIBLE;
+import static org.chromium.chrome.browser.autofill.options.AutofillOptionsProperties.ON_AUTOFILL_AI_SETTING_TOGGLED;
 import static org.chromium.chrome.browser.autofill.options.AutofillOptionsProperties.ON_THIRD_PARTY_TOGGLE_CHANGED;
 import static org.chromium.chrome.browser.autofill.options.AutofillOptionsProperties.THIRD_PARTY_AUTOFILL_ENABLED;
 import static org.chromium.chrome.browser.autofill.options.AutofillOptionsProperties.THIRD_PARTY_TOGGLE_HINT;
 import static org.chromium.chrome.browser.autofill.options.AutofillOptionsProperties.THIRD_PARTY_TOGGLE_IS_READ_ONLY;
 
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.chrome.browser.autofill.R;
+import org.chromium.components.browser_ui.settings.ChromeSwitchPreference;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
 
@@ -54,6 +60,23 @@ class AutofillOptionsViewBinder {
         } else if (key == THIRD_PARTY_TOGGLE_HINT) {
             view.getHint().setSummary(model.get(THIRD_PARTY_TOGGLE_HINT));
             view.getHint().setVisible(model.get(THIRD_PARTY_TOGGLE_HINT) != null);
+        } else if (key == AUTOFILL_AI_SETTING_VISIBLE) {
+            ChromeSwitchPreference autofillAiSwitch = view.getAutofillAiSwitch();
+            autofillAiSwitch.setVisible(model.get(AUTOFILL_AI_SETTING_VISIBLE));
+            autofillAiSwitch.setTitle(R.string.settings_autofill_ai_page_title);
+            autofillAiSwitch.setSummary(R.string.settings_autofill_ai_description);
+        } else if (key == AUTOFILL_AI_SETTING_ELIGIBLE) {
+            view.getAutofillAiSwitch().setEnabled(model.get(AUTOFILL_AI_SETTING_ELIGIBLE));
+        } else if (key == AUTOFILL_AI_SETTING_ON) {
+            view.getAutofillAiSwitch().setChecked(model.get(AUTOFILL_AI_SETTING_ON));
+        } else if (key == ON_AUTOFILL_AI_SETTING_TOGGLED) {
+            view.getAutofillAiSwitch()
+                    .setOnPreferenceChangeListener(
+                            (preference, newValue) -> {
+                                model.get(ON_AUTOFILL_AI_SETTING_TOGGLED)
+                                        .onResult((boolean) newValue);
+                                return true;
+                            });
         } else {
             assert false : "Unhandled property: " + key;
         }

@@ -15,10 +15,9 @@
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/time/time.h"
-#include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/location_bar/location_bar.h"
 #include "chrome/browser/ui/page_info/page_info_dialog.h"
 #include "chrome/browser/ui/views/content_setting_bubble_contents.h"
-#include "chrome/browser/ui/views/location_bar/location_bar_view.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_view_views.h"
 #include "chrome/browser/ui/views/page_info/page_info_bubble_specification.h"
 #include "chrome/browser/ui/views/page_info/page_info_bubble_view.h"
@@ -73,11 +72,13 @@ class BubbleButtonController : public views::ButtonController {
 };
 
 ChipController::ChipController(
-    LocationBarView* location_bar_view,
+    LocationBar* location_bar,
+    ContentSettingImageViewDelegate* content_settings_image_delegate,
     PermissionChipView* chip_view,
     PermissionDashboardView* permission_dashboard_view,
     PermissionDashboardController* permission_dashboard_controller)
-    : location_bar_view_(location_bar_view),
+    : location_bar_(location_bar),
+      content_settings_image_delegate_(content_settings_image_delegate),
       chip_(chip_view),
       permission_dashboard_view_(permission_dashboard_view),
       permission_dashboard_controller_(permission_dashboard_controller) {
@@ -137,8 +138,8 @@ void ChipController::OnPromptRemoved() {
 void ChipController::OnRequestDecided(
     permissions::PermissionAction permission_action) {
   RemoveBubbleObserverAndResetTimersAndChipCallbacks();
-  if (!GetLocationBarView()->IsDrawn() ||
-      GetLocationBarView()->GetWidget()->GetTopLevelWidget()->IsFullscreen() ||
+  if (!GetLocationBar()->IsDrawn() ||
+      GetLocationBar()->IsTopLevelFullscreen() ||
       permission_action == permissions::PermissionAction::IGNORED ||
       permission_action == permissions::PermissionAction::DISMISSED ||
       permission_action == permissions::PermissionAction::REVOKED ||
@@ -151,7 +152,7 @@ void ChipController::OnRequestDecided(
         permission_prompt_model_->content_settings_type() ==
             ContentSettingsType::MEDIASTREAM_MIC))) {
     // Reset everything and hide chip if:
-    // - `LocationBarView` isn't visible
+    // - `LocationBar` isn't visible
     // - Permission request was ignored or dismissed as we do not confirm such
     // actions.
     // - LHS indicator is displayed.
@@ -222,15 +223,24 @@ void ChipController::OnWidgetDestroyed(views::Widget* widget) {
     return;
   }
 
+  CHECK_NE(active_chip_permission_request_manager_.value()
+               ->Requests()
+               .front()
+               ->GetContentSettingsType(),
+           ContentSettingsType::GEOLOCATION_WITH_OPTIONS);
+
   switch (action) {
     case permissions::PermissionAction::GRANTED:
-      active_chip_permission_request_manager_.value()->Accept();
+      active_chip_permission_request_manager_.value()->Accept(
+          /*prompt_options=*/std::monostate());
       break;
     case permissions::PermissionAction::GRANTED_ONCE:
-      active_chip_permission_request_manager_.value()->AcceptThisTime();
+      active_chip_permission_request_manager_.value()->AcceptThisTime(
+          /*prompt_options=*/std::monostate());
       break;
     case permissions::PermissionAction::DENIED:
-      active_chip_permission_request_manager_.value()->Deny();
+      active_chip_permission_request_manager_.value()->Deny(
+          /*prompt_options=*/std::monostate());
       break;
     default:
       NOTREACHED();
@@ -306,6 +316,8 @@ void ChipController::InitializePermissionPrompt(
       permissions::PermissionRequestManager::FromWebContents(
           delegate->GetAssociatedWebContents());
   active_chip_permission_request_manager_.value()->AddObserver(this);
+
+  observation_.Reset();
   observation_.Observe(chip_);
   std::move(callback).Run();
 }
@@ -433,13 +445,28 @@ void ChipController::ResetPermissionPromptChip() {
       // is holding. The typical update is for it to destruct the
       // PermissionPrompt instance and not to hold any PermissionPrompt instance
       // during the edit time.
-      if (GetLocationBarView()->IsEditingOrEmpty() &&
-          (active_chip_permission_request_manager_.value()
-               ->IsRequestInProgress() &&
-           (active_chip_permission_request_manager_.value()
-                ->web_contents()
-                ->GetVisibleURL() != GURL(chrome::kChromeUINewTabURL)))) {
-        active_chip_permission_request_manager_.value()->Ignore();
+      //
+      // Keep the permission request active for WebUI pages (NTP, Omnibox Popup,
+      // Contextual Tasks) that should bypass the omnibox empty or editing state
+      // check.
+      const GURL visible_url = active_chip_permission_request_manager_.value()
+                                   ->web_contents()
+                                   ->GetVisibleURL();
+      const GURL committed_url =
+          active_chip_permission_request_manager_.value()
+              ->web_contents()
+              ->GetLastCommittedURL();
+      bool should_ignore_omnibox_state_check =
+          visible_url == GURL(chrome::kChromeUINewTabURL) ||
+          committed_url.host() == chrome::kChromeUIOmniboxPopupHost ||
+          committed_url.host() == chrome::kChromeUIContextualTasksHost;
+
+      if (GetLocationBar()->IsEditingOrEmpty() &&
+          active_chip_permission_request_manager_.value()
+              ->IsRequestInProgress() &&
+          !should_ignore_omnibox_state_check) {
+        active_chip_permission_request_manager_.value()->Ignore(
+            /*prompt_options=*/std::monostate());
       }
       active_chip_permission_request_manager_.reset();
     }
@@ -457,7 +484,7 @@ void ChipController::ResetPermissionRequestChip() {
 }
 
 void ChipController::ShowPageInfoDialog() {
-  content::WebContents* contents = GetLocationBarView()->GetWebContents();
+  content::WebContents* contents = GetLocationBar()->GetWebContents();
   if (!contents) {
     return;
   }
@@ -611,18 +638,17 @@ void ChipController::HideChip() {
   }
   // When the chip visibility changed from visible -> hidden, the locationbar
   // layout should be updated.
-  GetLocationBarView()->InvalidateLayout();
+  GetLocationBar()->InvalidateLayout();
 }
 
 void ChipController::OpenPermissionPromptBubble() {
   DCHECK(!IsBubbleShowing());
   if (!permission_prompt_model_ || !permission_prompt_model_->GetDelegate() ||
-      !location_bar_view_->GetWebContents()) {
+      !location_bar_->GetWebContents()) {
     return;
   }
 
-  Browser* browser =
-      chrome::FindBrowserWithTab(location_bar_view_->GetWebContents());
+  Browser* browser = location_bar_->GetBrowser();
   if (!browser) {
     DLOG(WARNING) << "Permission prompt suppressed because the WebContents is "
                      "not attached to any Browser window.";
@@ -649,17 +675,21 @@ void ChipController::OpenPermissionPromptBubble() {
   } else if (permission_prompt_model_->GetPromptStyle() ==
              PermissionPromptStyle::kQuietChip) {
     // Quiet prompt bubble.
-    LocationBarView* lbv = GetLocationBarView();
-    content::WebContents* web_contents = lbv->GetContentSettingWebContents();
+    content::WebContents* web_contents =
+        content_settings_image_delegate_->GetContentSettingWebContents();
 
     if (web_contents) {
       std::unique_ptr<ContentSettingQuietRequestBubbleModel>
           content_setting_bubble_model =
               std::make_unique<ContentSettingQuietRequestBubbleModel>(
-                  lbv->GetContentSettingBubbleModelDelegate(), web_contents);
+                  content_settings_image_delegate_
+                      ->GetContentSettingBubbleModelDelegate(),
+                  web_contents);
+      ui::TrackedElement* anchor = location_bar_->GetAnchorOrNull();
+      DCHECK(anchor);  // We should get here only if location bar is visible.
       ContentSettingBubbleContents* quiet_request_bubble =
           new ContentSettingBubbleContents(
-              std::move(content_setting_bubble_model), web_contents, lbv,
+              std::move(content_setting_bubble_model), web_contents, anchor,
               views::BubbleBorder::TOP_LEFT);
       quiet_request_bubble->set_close_on_deactivate(false);
       views::Widget* bubble_widget =
@@ -707,7 +737,8 @@ void ChipController::OnPromptBubbleDismissed() {
     permission_prompt_model_->GetDelegate()->SetDecisionTime();
     // If a permission popup bubble is closed/dismissed, a permission request
     // should be dismissed as well.
-    permission_prompt_model_->GetDelegate()->Dismiss();
+    permission_prompt_model_->GetDelegate()->Dismiss(
+        /*prompt_options=*/std::monostate());
   }
 }
 
@@ -723,7 +754,8 @@ void ChipController::OnPromptExpired() {
   // existing permission request before resolving it as `Ignore`.
   if (permission_prompt_model_ && permission_prompt_model_->GetDelegate() &&
       !permission_prompt_model_->GetDelegate()->Requests().empty()) {
-    permission_prompt_model_->GetDelegate()->Ignore();
+    permission_prompt_model_->GetDelegate()->Ignore(
+        /*prompt_options=*/std::monostate());
   }
 
   ResetPermissionPromptChip();

@@ -70,16 +70,7 @@ PrefetchDocumentManager::PrefetchDocumentManager(RenderFrameHost* rfh)
           static_cast<RenderFrameHostImpl*>(rfh)->GetDocumentToken()),
       prefetch_destruction_callback_(base::DoNothing()) {}
 
-PrefetchDocumentManager::~PrefetchDocumentManager() {
-  PrefetchService* prefetch_service = GetPrefetchService();
-  if (!prefetch_service)
-    return;
-
-  // Invalidate weak pointers to `this` a little earlier to avoid callbacks to
-  // `this` (especially `PrefetchWillBeDestroyed()`) during
-  // `MayReleasePrefetch()` below.
-  weak_method_factory_.InvalidateWeakPtrs();
-}
+PrefetchDocumentManager::~PrefetchDocumentManager() = default;
 
 // static
 PrefetchDocumentManager* PrefetchDocumentManager::FromDocumentToken(
@@ -124,7 +115,7 @@ void PrefetchDocumentManager::ProcessCandidates(
   }
   base::flat_set<GURL> url_set(std::move(urls_from_candidates));
   std::vector<std::pair<GURL, PreloadingType>> prefetches_to_evict;
-  for (const auto& [all_prefetches_key, prefetch] : all_prefetches_) {
+  for (const auto& [all_prefetches_key, prefetch] : all_prefetches()) {
     const auto& [url, planned_max_preloading_type] = all_prefetches_key;
 
     // Don't evict prefetch ahead of prerender, which is initiated by
@@ -211,8 +202,8 @@ void PrefetchDocumentManager::PrefetchUrl(
                               .planned_max_preloading_type());
 
   // Skip prefetches that have already been requested.
-  auto prefetch_container_iter = all_prefetches_.find(all_prefetches_key);
-  if (prefetch_container_iter != all_prefetches_.end() &&
+  auto prefetch_container_iter = all_prefetches().find(all_prefetches_key);
+  if (prefetch_container_iter != all_prefetches().end() &&
       static_cast<PrefetchHandleImpl*>(prefetch_container_iter->second.get())
           ->IsAlive()) {
     return;
@@ -290,8 +281,8 @@ void PrefetchDocumentManager::SetPrefetchServiceForTesting(
 void PrefetchDocumentManager::ResetPrefetchAheadOfPrerenderIfExist(
     PreloadingType preloading_type,
     const GURL& url) {
-  auto it = all_prefetches_.find(std::make_pair(url, preloading_type));
-  if (it == all_prefetches_.end()) {
+  auto it = all_prefetches().find(std::make_pair(url, preloading_type));
+  if (it == all_prefetches().end()) {
     return;
   }
 
@@ -313,8 +304,9 @@ PrefetchService* PrefetchDocumentManager::GetPrefetchService() const {
 }
 
 void PrefetchDocumentManager::OnEligibilityCheckComplete(bool is_eligible) {
-  if (is_eligible)
+  if (is_eligible) {
     referring_page_metrics_.prefetch_eligible_count++;
+  }
 }
 
 void PrefetchDocumentManager::OnPrefetchSuccessful(

@@ -8,12 +8,12 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/thread_pool.h"
-#include "chrome/browser/page_content_annotations/page_content_extraction_service.h"
 #include "chrome/browser/page_content_annotations/page_content_extraction_service_factory.h"
-#include "chrome/browser/page_content_annotations/page_content_extraction_types.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/lens/lens_features.h"
 #include "components/optimization_guide/content/browser/page_context_eligibility.h"
+#include "components/page_content_annotations/content/page_content_extraction_service.h"
+#include "components/page_content_annotations/core/page_content_extraction_types.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "components/viz/common/frame_sinks/copy_output_result.h"
 #include "content/public/browser/navigation_handle.h"
@@ -174,14 +174,10 @@ bool TabContextualizationController::GetInitialPageContextEligibility() {
     return false;
   }
 
-  std::optional<page_content_annotations::ExtractedPageContentResult>
-      extracted_page_content_result =
-          page_content_extraction_service
-              ->GetExtractedPageContentAndEligibilityForPage(
-                  web_contents->GetPrimaryPage());
-
-  return !extracted_page_content_result ||
-         extracted_page_content_result->is_eligible_for_server_upload;
+  std::optional<bool> server_upload_eligibility =
+      page_content_extraction_service->GetServerUploadEligibilityForPage(
+          web_contents->GetPrimaryPage());
+  return server_upload_eligibility.value_or(true);
 }
 
 bool TabContextualizationController::GetCurrentPageContextEligibility() {

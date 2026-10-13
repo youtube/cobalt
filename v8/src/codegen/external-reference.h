@@ -73,7 +73,8 @@ enum class IsolateFieldId : uint8_t;
     "RegExpStack::stack_pointer_address()")                                    \
   V(address_of_regexp_static_result_offsets_vector,                            \
     "Isolate::address_of_regexp_static_result_offsets_vector")                 \
-  EXTERNAL_REFERENCE_LIST_WITH_ISOLATE_SANDBOX(V)
+  EXTERNAL_REFERENCE_LIST_WITH_ISOLATE_SANDBOX(V)                              \
+  EXTERNAL_REFERENCE_LIST_LEAPTIERING(V)
 
 #ifdef V8_ENABLE_SANDBOX
 #define EXTERNAL_REFERENCE_LIST_WITH_ISOLATE_SANDBOX(V)         \
@@ -112,6 +113,8 @@ enum class IsolateFieldId : uint8_t;
   V(address_of_runtime_stats_flag, "TracingFlags::runtime_stats")              \
   V(address_of_shared_string_table_flag, "v8_flags.shared_string_table")       \
   V(address_of_the_hole_nan, "the_hole_nan")                                   \
+  V(address_of_track_array_buffer_views_flag,                                  \
+    "v8_flags.track_array_buffer_view")                                        \
   V(address_of_uint32_bias, "uint32_bias")                                     \
   V(allocate_and_initialize_young_external_pointer_table_entry,                \
     "AllocateAndInitializeYoungExternalPointerTableEntry")                     \
@@ -168,6 +171,10 @@ enum class IsolateFieldId : uint8_t;
   V(invalidate_prototype_chains_function,                                      \
     "JSObject::InvalidatePrototypeChains()")                                   \
   V(invoke_accessor_getter_callback, "InvokeAccessorGetterCallback")           \
+  V(invoke_named_interceptor_getter_callback,                                  \
+    "InvokeNamedInterceptorGetterCallback")                                    \
+  V(invoke_named_interceptor_setter_callback,                                  \
+    "InvokeNamedInterceptorSetterCallback")                                    \
   V(invoke_function_callback_generic, "InvokeFunctionCallbackGeneric")         \
   V(invoke_function_callback_optimized, "InvokeFunctionCallbackOptimized")     \
   V(jsarray_array_join_concat_to_sequential_string,                            \
@@ -483,7 +490,6 @@ enum class IsolateFieldId : uint8_t;
   V(allocate_buffer, "AllocateBuffer")                                         \
   EXTERNAL_REFERENCE_LIST_INTL(V)                                              \
   EXTERNAL_REFERENCE_LIST_SANDBOX(V)                                           \
-  EXTERNAL_REFERENCE_LIST_LEAPTIERING(V)                                       \
   EXTERNAL_REFERENCE_LIST_CET_SHADOW_STACK(V)
 
 #ifdef V8_INTL_SUPPORT
@@ -519,7 +525,7 @@ enum class IsolateFieldId : uint8_t;
 #endif  // V8_ENABLE_SANDBOX
 
 #define EXTERNAL_REFERENCE_LIST_LEAPTIERING(V) \
-  V(js_dispatch_table_address, "IsolateGroup::current()->js_dispatch_table()")
+  V(js_dispatch_table_address, "Isolate::Current()->js_dispatch_table()")
 
 #ifdef V8_ENABLE_CET_SHADOW_STACK
 #define EXTERNAL_REFERENCE_LIST_CET_SHADOW_STACK(V)            \
@@ -579,8 +585,14 @@ class ExternalReference {
     DIRECT_API_CALL,
 
     // Direct call to accessor getter callback.
-    // void f(Local<Name> property, PropertyCallbackInfo& info)
+    // void f(Local<Name>, PropertyCallbackInfo&)
+    // v8::Intercepted f(Local<Name>, PropertyCallbackInfo&)
     DIRECT_GETTER_CALL,
+
+    // Direct call to accessor setter callback.
+    // void f(Local<Name>, Local<Value>, PropertyCallbackInfo&)
+    // v8::Intercepted f(Local<Name>, Local<Value>, PropertyCallbackInfo&)
+    DIRECT_SETTER_CALL,
 
     // C call, either representing a fast API call or used in tests.
     // Can have arbitrary signature from the types supported by the fast API.

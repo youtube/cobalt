@@ -90,11 +90,8 @@ gpu.ci.linux_builder(
             "gpu_swangle_telemetry_tests",
         ],
         mixins = [
-            "gpu-swarming-pool",
+            "gpu_linux_gce_stable",
             "isolate_profile_data",
-            "linux-jammy",
-            "no_gpu",
-            "x86-64",
         ],
     ),
     targets_settings = targets.settings(
@@ -142,11 +139,8 @@ gpu.ci.linux_builder(
     ),
     targets = targets.bundle(
         mixins = [
-            "gpu-swarming-pool",
+            "gpu_linux_gce_stable",
             "isolate_profile_data",
-            "linux-jammy",
-            "no_gpu",
-            "x86-64",
         ],
     ),
     targets_settings = targets.settings(
@@ -199,12 +193,9 @@ gpu.ci.linux_builder(
             "swangle_gtests",
         ],
         mixins = [
-            "gpu-swarming-pool",
+            "gpu_linux_gce_stable",
             "isolate_profile_data",
-            "linux-jammy",
-            "no_gpu",
             "timeout_15m",
-            "x86-64",
         ],
     ),
     targets_settings = targets.settings(
@@ -252,12 +243,9 @@ gpu.ci.linux_builder(
             "swangle_gtests",
         ],
         mixins = [
-            "gpu-swarming-pool",
+            "gpu_linux_gce_stable",
             "isolate_profile_data",
-            "linux-jammy",
-            "no_gpu",
             "timeout_15m",
-            "x86-64",
         ],
     ),
     targets_settings = targets.settings(
@@ -302,12 +290,9 @@ gpu.ci.linux_builder(
     ),
     targets = targets.bundle(
         mixins = [
-            "gpu-swarming-pool",
+            "gpu_linux_gce_stable",
             "isolate_profile_data",
-            "linux-jammy",
-            "no_gpu",
             "timeout_15m",
-            "x86-64",
         ],
     ),
     targets_settings = targets.settings(
@@ -410,7 +395,7 @@ gpu.ci.windows_builder(
             "gpu_swangle_telemetry_tests",
         ],
         mixins = [
-            "win10_gce_gpu_pool",
+            "gpu_win_gce_stable",
         ],
     ),
     targets_settings = targets.settings(
@@ -461,7 +446,7 @@ gpu.ci.windows_builder(
             "swangle_gtests",
         ],
         mixins = [
-            "win10_gce_gpu_pool",
+            "gpu_win_gce_stable",
             "timeout_15m",
         ],
     ),
@@ -512,7 +497,7 @@ gpu.ci.windows_builder(
             "swangle_gtests",
         ],
         mixins = [
-            "win10_gce_gpu_pool",
+            "gpu_win_gce_stable",
             "timeout_15m",
         ],
     ),
@@ -561,7 +546,7 @@ gpu.ci.windows_builder(
             "swangle_gtests",
         ],
         mixins = [
-            "win10_gce_gpu_pool",
+            "gpu_win_gce_stable",
             "timeout_15m",
         ],
     ),
@@ -610,7 +595,7 @@ gpu.ci.windows_builder(
             "swangle_gtests",
         ],
         mixins = [
-            "win10_gce_gpu_pool",
+            "gpu_win_gce_stable",
             "timeout_15m",
         ],
     ),

@@ -25,12 +25,14 @@ namespace media {
 ScopedJavaLocalRef<jobject>
 VideoCaptureDeviceFactoryAndroid::createVideoCaptureAndroid(
     int id,
-    jlong nativeVideoCaptureDeviceAndroid) {
+    int64_t nativeVideoCaptureDeviceAndroid) {
   return (Java_VideoCaptureFactory_createVideoCapture(
       AttachCurrentThread(), id, nativeVideoCaptureDeviceAndroid));
 }
 
-VideoCaptureDeviceFactoryAndroid::VideoCaptureDeviceFactoryAndroid() = default;
+VideoCaptureDeviceFactoryAndroid::VideoCaptureDeviceFactoryAndroid(
+    const gpu::GpuDriverBugWorkarounds& gpu_workarounds)
+    : gpu_workarounds_(gpu_workarounds) {}
 
 VideoCaptureDeviceFactoryAndroid::~VideoCaptureDeviceFactoryAndroid() = default;
 
@@ -43,8 +45,8 @@ VideoCaptureErrorOrDevice VideoCaptureDeviceFactoryAndroid::CreateDevice(
         VideoCaptureError::
             kVideoCaptureControllerInvalidOrUnsupportedVideoCaptureParametersRequested);
 
-  auto video_capture_device =
-      std::make_unique<VideoCaptureDeviceAndroid>(device_descriptor);
+  auto video_capture_device = std::make_unique<VideoCaptureDeviceAndroid>(
+      device_descriptor, gpu_workarounds_);
 
   if (video_capture_device->Init()) {
     if (test_mode_)

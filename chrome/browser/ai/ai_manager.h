@@ -9,15 +9,14 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/scoped_observation.h"
 #include "base/supports_user_data.h"
 #include "base/types/pass_key.h"
 #include "chrome/browser/ai/ai_context_bound_object_set.h"
 #include "chrome/browser/ai/ai_language_model.h"
-#include "chrome/browser/ai/ai_model_download_progress_manager.h"
 #include "chrome/browser/ai/ai_proofreader.h"
 #include "chrome/browser/ai/ai_summarizer.h"
-#include "chrome/browser/ai/ai_utils.h"
-#include "components/component_updater/component_updater_service.h"
+#include "components/on_device_ai/ai_utils.h"
 #include "components/optimization_guide/public/mojom/model_broker.mojom-forward.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/render_widget_host.h"
@@ -26,10 +25,10 @@
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "mojo/public/cpp/bindings/remote_set.h"
+#include "services/on_device_model/public/mojom/download_observer.mojom-forward.h"
 #include "third_party/blink/public/mojom/ai/ai_common.mojom-forward.h"
 #include "third_party/blink/public/mojom/ai/ai_language_model.mojom-forward.h"
 #include "third_party/blink/public/mojom/ai/ai_manager.mojom.h"
-#include "third_party/blink/public/mojom/ai/model_download_progress_observer.mojom-forward.h"
 #include "third_party/blink/public/mojom/devtools/console_message.mojom-forward.h"
 
 namespace base {
@@ -52,7 +51,6 @@ class AIManager : public base::SupportsUserData::Data,
       base::expected<std::unique_ptr<AILanguageModel>,
                      blink::mojom::AIManagerCreateClientError>;
   AIManager(content::BrowserContext* browser_context,
-            component_updater::ComponentUpdateService* component_update_service,
             content::RenderFrameHost* rfh);
   AIManager(const AIManager&) = delete;
   AIManager& operator=(const AIManager&) = delete;
@@ -63,10 +61,6 @@ class AIManager : public base::SupportsUserData::Data,
 
   size_t GetContextBoundObjectSetSizeForTesting() {
     return context_bound_object_set_.GetSize();
-  }
-
-  size_t GetDownloadProgressObserversSizeForTesting() {
-    return model_download_progress_manager_.GetNumberOfReporters();
   }
 
   // Return the default and max sampling params for the LanguageModel API.
@@ -103,7 +97,7 @@ class AIManager : public base::SupportsUserData::Data,
           client,
       blink::mojom::AIProofreaderCreateOptionsPtr options) override;
   void AddModelDownloadProgressObserver(
-      mojo::PendingRemote<blink::mojom::ModelDownloadProgressObserver>
+      mojo::PendingRemote<on_device_model::mojom::DownloadObserver>
           observer_remote) override;
 
   // Check whether optimization guide supports the feature matching `capability`
@@ -150,11 +144,20 @@ class AIManager : public base::SupportsUserData::Data,
             typename ClientRemoteInterface,
             typename CreateOptionsPtrType>
   void OnSessionCreated(
-      AIContextBoundObjectSet& context_bound_object_set,
       CreateOptionsPtrType options,
       std::optional<optimization_guide::MultimodalMessage> initial_request,
       mojo::PendingRemote<ClientRemoteInterface> client,
       std::unique_ptr<optimization_guide::OnDeviceSession> session);
+
+  template <typename ContextBoundObjectType,
+            typename ContextBoundObjectReceiverInterface,
+            typename ClientRemoteInterface,
+            typename CreateOptionsPtrType>
+  void OnGotExecutionInputSizeInTokens(
+      CreateOptionsPtrType options,
+      mojo::Remote<ClientRemoteInterface> client_remote,
+      std::unique_ptr<optimization_guide::OnDeviceSession> session,
+      std::optional<uint32_t> result);
 
   // Eagerly initializes a broad set of features.
   void MaybeTryEagerInit();
@@ -172,9 +175,6 @@ class AIManager : public base::SupportsUserData::Data,
 
   mojo::ReceiverSet<blink::mojom::AIManager> receivers_;
 
-  on_device_ai::AIModelDownloadProgressManager model_download_progress_manager_;
-
-  raw_ref<component_updater::ComponentUpdateService> component_update_service_;
   AIContextBoundObjectSet context_bound_object_set_;
   raw_ptr<content::BrowserContext> browser_context_;
 

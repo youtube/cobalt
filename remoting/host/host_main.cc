@@ -47,9 +47,11 @@ namespace remoting {
 // Known entry points.
 int SingleProcessHostProcessMain();
 int NetworkProcessMain();
-#if BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
 int DaemonProcessMain();
 int DesktopProcessMain();
+#endif
+#if BUILDFLAG(IS_WIN)
 int FileChooserMain();
 int RdpDesktopSessionMain();
 int UrlForwarderConfiguratorMain();
@@ -148,11 +150,13 @@ MainRoutineFn SelectMainRoutine(const std::string& process_type) {
     main_routine = &SingleProcessHostProcessMain;
   } else if (process_type == kProcessTypeNetwork) {
     main_routine = &NetworkProcessMain;
-#if BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
   } else if (process_type == kProcessTypeDaemon) {
     main_routine = &DaemonProcessMain;
   } else if (process_type == kProcessTypeDesktop) {
     main_routine = &DesktopProcessMain;
+#endif
+#if BUILDFLAG(IS_WIN)
   } else if (process_type == kProcessTypeFileChooser) {
     main_routine = &FileChooserMain;
   } else if (process_type == kProcessTypeRdpDesktopSession) {
@@ -272,9 +276,8 @@ int HostMain(int argc, char** argv) {
   // Mac, where the broker process is the agent process broker.
   is_broker_process |= main_routine == &SingleProcessHostProcessMain;
 #endif
-#if BUILDFLAG(IS_WIN)
-  // For multi-process Windows hosts, the daemon process should act as the
-  // broker.
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
+  // For multi-process hosts, the daemon process acts as the broker.
   is_broker_process |= main_routine == &DaemonProcessMain;
 #endif
 

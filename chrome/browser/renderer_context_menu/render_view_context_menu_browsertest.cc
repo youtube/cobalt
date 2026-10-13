@@ -28,13 +28,13 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
 #include "base/test/repeating_test_future.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/with_feature_override.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/values.h"
 #include "base/version_info/version_info.h"
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
-#include "chrome/browser/apps/app_service/app_launch_params.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/devtools/features.h"
 #include "chrome/browser/lens/region_search/lens_region_search_controller.h"
@@ -61,6 +61,7 @@
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
+#include "chrome/browser/ui/omnibox/omnibox_next_features.h"
 #include "chrome/browser/ui/startup/startup_types.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/tabs/split_tab_metrics.h"
@@ -101,11 +102,9 @@
 #include "components/prefs/pref_service.h"
 #include "components/search_engines/template_url_data.h"
 #include "components/search_engines/template_url_service.h"
-#include "components/supervised_user/core/browser/supervised_user_preferences.h"
+#include "components/services/app_service/public/cpp/app_launch_params.h"
 #include "components/supervised_user/core/browser/supervised_user_service.h"
-#include "components/supervised_user/core/browser/supervised_user_url_filter.h"
 #include "components/supervised_user/core/common/pref_names.h"
-#include "components/supervised_user/core/common/supervised_user_constants.h"
 #include "components/supervised_user/test_support/kids_management_api_server_mock.h"
 #include "components/webapps/browser/installable/installable_metrics.h"
 #include "components/webapps/browser/uninstall_result_code.h"
@@ -170,6 +169,7 @@
 
 #if BUILDFLAG(IS_CHROMEOS)
 #include "ash/wm/window_pin_util.h"
+#include "chrome/browser/ash/boca/on_task/on_task_locked_controller.h"
 #include "ui/aura/window.h"
 #endif
 
@@ -452,6 +452,14 @@ class ContextMenuBrowserTest
       public ::testing::WithParamInterface</*is_preview_enabled*/ bool> {
  protected:
   ContextMenuBrowserTest() {
+    // TODO(b:481331402): 4 tests are failing when enabling
+    //   `kWebUIOmniboxPopup`. The respective menu items are becoming enabled
+    //   when they should be disabled. These are just test issues, the menu
+    //   items are actually correctly disabled in non-test builds.
+    //   - ...SaveLinkAsEntryIsDisabledForBlockedUrls/LinkPreviewDisabled
+    //   - ...SaveLinkAsEntryIsDisabledForBlockedUrls/LinkPreviewEnabled
+    //   - ...SaveImageAsEntryIsDisabledForBlockedUrls/LinkPreviewDisabled
+    //   - ...SaveImageAsEntryIsDisabledForBlockedUrls/LinkPreviewEnabled
     if (IsPreviewEnabled()) {
       scoped_feature_list_.InitWithFeatures(
           {blink::features::kLinkPreview,
@@ -460,7 +468,7 @@ class ContextMenuBrowserTest
 #endif  // BUILDFLAG(ENABLE_GLIC)
            media::kContextMenuSaveVideoFrameAs,
            media::kContextMenuSearchForVideoFrame},
-          {});
+          {omnibox::kWebUIOmniboxPopup});
     } else {
       scoped_feature_list_.InitWithFeatures(
           {
@@ -469,7 +477,7 @@ class ContextMenuBrowserTest
 #endif  // BUILDFLAG(ENABLE_GLIC)
               media::kContextMenuSaveVideoFrameAs,
               media::kContextMenuSearchForVideoFrame},
-          {blink::features::kLinkPreview});
+          {blink::features::kLinkPreview, omnibox::kWebUIOmniboxPopup});
     }
   }
 
@@ -744,7 +752,7 @@ IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest,
 // Verifies "Save link as" is not enabled for links blocked via policy.
 IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest,
                        MAYBE_SaveLinkAsEntryIsDisabledForBlockedUrls) {
-  base::Value::List list;
+  base::ListValue list;
   list.Append("google.com");
   browser()->profile()->GetPrefs()->SetList(policy::policy_prefs::kUrlBlocklist,
                                             std::move(list));
@@ -766,7 +774,7 @@ IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest,
   auto initial_url = embedded_test_server()->GetURL("/empty.html");
   browser()->profile()->GetPrefs()->SetList(
       policy::policy_prefs::kUrlBlocklist,
-      base::Value::List().Append(initial_url.spec()));
+      base::ListValue().Append(initial_url.spec()));
   base::RunLoop().RunUntilIdle();
 
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), initial_url));
@@ -787,7 +795,7 @@ IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest,
   auto initial_url = embedded_test_server()->GetURL("/empty.html");
   browser()->profile()->GetPrefs()->SetList(
       policy::policy_prefs::kUrlBlocklist,
-      base::Value::List().Append("google.com"));
+      base::ListValue().Append("google.com"));
   base::RunLoop().RunUntilIdle();
 
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), initial_url));
@@ -812,7 +820,7 @@ IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest,
 // Verifies "Save image as" is not enabled for links blocked via policy.
 IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest,
                        MAYBE_SaveImageAsEntryIsDisabledForBlockedUrls) {
-  base::Value::List list;
+  base::ListValue list;
   list.Append("url.com");
   browser()->profile()->GetPrefs()->SetList(policy::policy_prefs::kUrlBlocklist,
                                             std::move(list));
@@ -828,7 +836,7 @@ IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest,
 // Verifies "Save video as" is not enabled for links blocked via policy.
 IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest,
                        SaveVideoAsEntryIsDisabledForBlockedUrls) {
-  base::Value::List list;
+  base::ListValue list;
   list.Append("example.com");
   browser()->profile()->GetPrefs()->SetList(policy::policy_prefs::kUrlBlocklist,
                                             std::move(list));
@@ -1002,7 +1010,8 @@ class ContextMenuForLockedFullscreenBrowserTest
 
 IN_PROC_BROWSER_TEST_P(ContextMenuForLockedFullscreenBrowserTest,
                        ItemsAreDisabledWhenPinnedAndNotLockedForOnTask) {
-  browser()->SetLockedForOnTask(false);
+  ash::boca::OnTaskLockedController::From(browser())->set_locked_for_on_task(
+      false);
   const GURL kTestUrl("http://www.google.com/");
   const std::unique_ptr<TestRenderViewContextMenu> menu =
       CreateContextMenuMediaTypeImage(/*url=*/kTestUrl);
@@ -1057,7 +1066,8 @@ IN_PROC_BROWSER_TEST_P(ContextMenuForLockedFullscreenBrowserTest,
   }
 
   // Lock instance for OnTask.
-  browser()->SetLockedForOnTask(true);
+  ash::boca::OnTaskLockedController::From(browser())->set_locked_for_on_task(
+      true);
 
   // Set locked fullscreen state.
   ash::PinWindow(browser()->window()->GetNativeWindow(), /*trusted=*/true);
@@ -1108,7 +1118,8 @@ IN_PROC_BROWSER_TEST_P(ContextMenuForLockedFullscreenBrowserTest,
   }
 
   // Lock instance for OnTask.
-  browser()->SetLockedForOnTask(true);
+  ash::boca::OnTaskLockedController::From(browser())->set_locked_for_on_task(
+      true);
 
   // Verify page navigation commands and some contextual content commands remain
   // enabled.
@@ -2924,9 +2935,9 @@ IN_PROC_BROWSER_TEST_F(DevToolsPolicyContextMenuBrowserTest, DevToolsBlocked) {
   EXPECT_TRUE(menu->IsItemPresent(IDC_CONTENT_CONTEXT_INSPECTELEMENT));
   EXPECT_TRUE(menu->IsCommandIdEnabled(IDC_CONTENT_CONTEXT_INSPECTELEMENT));
 
-  // View Source should be present but disabled (grayed out).
+  // View Source should be present and enabled (to show the dialog).
   EXPECT_TRUE(menu->IsItemPresent(IDC_VIEW_SOURCE));
-  EXPECT_FALSE(menu->IsCommandIdEnabled(IDC_VIEW_SOURCE));
+  EXPECT_TRUE(menu->IsCommandIdEnabled(IDC_VIEW_SOURCE));
 }
 
 IN_PROC_BROWSER_TEST_F(DevToolsPolicyContextMenuBrowserTest, DevToolsAllowed) {

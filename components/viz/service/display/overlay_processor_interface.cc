@@ -216,9 +216,10 @@ OverlayCandidate OverlayProcessorInterface::CreatePrimaryPlane(
   overlay_plane.is_opaque = false;
 #endif
 
-#if BUILDFLAG(IS_OZONE)
   overlay_plane.format = params.si_format;
   overlay_plane.color_space = params.color_space;
+
+#if BUILDFLAG(IS_OZONE)
   overlay_plane.mailbox = params.overlay_testing_mailbox;
 #endif
 

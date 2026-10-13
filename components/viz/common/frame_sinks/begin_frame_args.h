@@ -130,6 +130,13 @@ struct VIZ_COMMON_EXPORT BeginFrameArgs {
   static constexpr uint64_t kInvalidFrameNumber = 0;
   static constexpr uint64_t kStartingFrameNumber = 1;
 
+  // The maximum factor by which the unthrottled interval can exceed the current
+  // interval. Because unthrottled_interval is the minimum possible interval, it
+  // is usually strictly less than or equal to interval. This multiplier
+  // accounts for potential jitter or rounding errors when the two intervals are
+  // theoretically equal.
+  static constexpr float kUnthrottledIntervalJitterMultiplier = 1.5f;
+
   // Creates an invalid set of values.
   BeginFrameArgs();
   ~BeginFrameArgs();
@@ -147,13 +154,15 @@ struct VIZ_COMMON_EXPORT BeginFrameArgs {
   // You should be able to find all instances where a BeginFrame has been
   // created by searching for "BeginFrameArgs::Create".
   // The location argument should **always** be BEGINFRAME_FROM_HERE macro.
-  static BeginFrameArgs Create(CreationLocation location,
-                               uint64_t source_id,
-                               uint64_t sequence_number,
-                               base::TimeTicks frame_time,
-                               base::TimeTicks deadline,
-                               base::TimeDelta interval,
-                               BeginFrameArgsType type);
+  static BeginFrameArgs Create(
+      CreationLocation location,
+      uint64_t source_id,
+      uint64_t sequence_number,
+      base::TimeTicks frame_time,
+      base::TimeTicks deadline,
+      base::TimeDelta interval,
+      BeginFrameArgsType type,
+      base::TimeDelta unthrottled_interval = base::TimeDelta());
 
   // This is the default interval assuming 60Hz to use to avoid sprinkling the
   // code with magic numbers.
@@ -193,10 +202,21 @@ struct VIZ_COMMON_EXPORT BeginFrameArgs {
   // The time at which the frame started. Used, for example, by animations to
   // decide to slow down or skip ahead.
   base::TimeTicks frame_time;
+
+  // For excluding the time spent between swap throttled and the next
+  // ScheduleBeginFrameDeadline in ADPF frame duration reports.
+  bool is_throttled = false;
+  base::TimeTicks throttled_adjusted_frame_time;
+
   // The time by which the receiving pipeline stage should do its work.
   base::TimeTicks deadline;
   // The inverse of the desired frame rate.
   base::TimeDelta interval;
+
+  // The inverse of the maximum possible hardware refresh rate. If positive,
+  // this is the minimum possible vsync interval, even if |interval| might be
+  // throttled to a lower frame rate.
+  base::TimeDelta unthrottled_interval;
 
   BeginFrameId frame_id;
 
@@ -243,7 +263,8 @@ struct VIZ_COMMON_EXPORT BeginFrameArgs {
                  base::TimeTicks frame_time,
                  base::TimeTicks deadline,
                  base::TimeDelta interval,
-                 BeginFrameArgsType type);
+                 BeginFrameArgsType type,
+                 base::TimeDelta unthrottled_interval);
 };
 
 // Sent by a BeginFrameObserver as acknowledgment of completing a BeginFrame.

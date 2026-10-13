@@ -15,7 +15,6 @@
 #import "base/strings/string_number_conversions.h"
 #import "base/task/thread_pool.h"
 #import "base/time/time.h"
-#import "components/page_content_annotations/core/page_content_store.h"
 #import "components/prefs/pref_service.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/intelligence/persist_tab_context/metrics/persist_tab_context_metrics.h"
@@ -299,18 +298,17 @@ void DeletePersistedContextsDirectory(base::FilePath contexts_dir) {
           : IOSPersistTabContextDeleteDirectoryResult::kDeleteFailure);
 }
 
-// Calculates the total number of WebStates across all Browser instances
-// associated with the given `profile` which are eligibile to have their
-// contexts persisted.
-int GetPersistedWebStateCountForProfile(ProfileIOS* profile) {
+// Returns a set of unique identifiers for all WebStates across all regular
+// browsers in the given `profile` that are eligible for persistence.
+std::set<int64_t> GetAllEligibleWebStateIDs(ProfileIOS* profile) {
   CHECK(profile);
   BrowserList* browser_list = BrowserListFactory::GetForProfile(profile);
   CHECK(browser_list);
 
   const std::set<Browser*>& browsers =
       browser_list->BrowsersOfType(BrowserList::BrowserType::kRegular);
+  std::set<int64_t> eligible_ids;
 
-  int total_web_state_count = 0;
   for (Browser* browser : browsers) {
     if (!browser || !browser->GetWebStateList()) {
       continue;
@@ -318,28 +316,36 @@ int GetPersistedWebStateCountForProfile(ProfileIOS* profile) {
 
     for (int i = 0; i < browser->GetWebStateList()->count(); i++) {
       web::WebState* web_state = browser->GetWebStateList()->GetWebStateAt(i);
-      if (!CanExtractPageContextForWebState(web_state)) {
-        continue;
+      if (CanExtractPageContextForWebState(web_state)) {
+        eligible_ids.insert(static_cast<int64_t>(
+            web_state->GetUniqueIdentifier().identifier()));
       }
-
-      total_web_state_count++;
     }
   }
-  return total_web_state_count;
+  return eligible_ids;
+}
+
+// Calculates the total number of WebStates across all Browser instances
+// associated with the given `profile` which are eligibile to have their
+// contexts persisted.
+int GetPersistedWebStateCountForProfile(ProfileIOS* profile) {
+  return GetAllEligibleWebStateIDs(profile).size();
 }
 
 // Helper function to adapt the GetPageContentCache callback to the one used in
-// this component.
+// this component, which uses unique_ptr.
 void OnGetPageContent(
-    base::OnceCallback<
-        void(std::optional<optimization_guide::proto::PageContext>)> callback,
-    std::optional<optimization_guide::PageContentResult> page_content) {
-  if (!page_content) {
+    base::OnceCallback<void(
+        std::optional<std::unique_ptr<optimization_guide::proto::PageContext>>)>
+        callback,
+    std::optional<optimization_guide::proto::PageContext> page_context) {
+  if (!page_context) {
     std::move(callback).Run(std::nullopt);
     return;
   }
 
-  std::move(callback).Run(std::move(page_content->page_context));
+  std::move(callback).Run(
+      std::make_unique<optimization_guide::proto::PageContext>(*page_context));
 }
 
 }  // namespace
@@ -371,7 +377,7 @@ PersistTabContextBrowserAgent::PersistTabContextBrowserAgent(Browser* browser)
                 &PersistTabContextBrowserAgent::OnSceneActivationLevelChanged,
                 weak_factory_.GetWeakPtr())];
     [browser->GetSceneState() addObserver:persist_tab_context_state_agent_];
-    StartObserving(browser, Policy::kAccordingToFeature);
+    StartObserving(browser);
 
     PrefService* prefs = profile->GetPrefs();
     CHECK(prefs);
@@ -394,6 +400,12 @@ PersistTabContextBrowserAgent::PersistTabContextBrowserAgent(Browser* browser)
                   kPersistTabContextStorageDifferenceHistogram, difference);
             },
             total_web_state_count));
+
+        base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+            FROM_HERE,
+            base::BindOnce(&PersistTabContextBrowserAgent::RunCacheCleanup,
+                           weak_factory_.GetWeakPtr()),
+            kPurgeTaskDelay);
       }
     } else {
       base::TimeDelta ttl = GetPersistedContextEffectiveTTL(prefs);
@@ -683,23 +695,8 @@ void PersistTabContextBrowserAgent::ReadAndParseContextFromContentCache(
       },
       std::move(callback), start_time);
 
-  auto callback_adapter = base::BindOnce(
-      [](base::OnceCallback<void(std::optional<std::unique_ptr<
-                                     optimization_guide::proto::PageContext>>)>
-             original_callback,
-         std::optional<optimization_guide::proto::PageContext> result) {
-        if (!result) {
-          std::move(original_callback).Run(std::nullopt);
-          return;
-        }
-        std::move(original_callback)
-            .Run(std::make_unique<optimization_guide::proto::PageContext>(
-                std::move(*result)));
-      },
-      std::move(wrapped_callback));
-
   page_content_cache_service_->GetPageContentForTab(
-      tab_id, base::BindOnce(&OnGetPageContent, std::move(callback_adapter)));
+      tab_id, base::BindOnce(&OnGetPageContent, std::move(wrapped_callback)));
 }
 
 void PersistTabContextBrowserAgent::DeleteContextFromContentCache(
@@ -746,4 +743,15 @@ void PersistTabContextBrowserAgent::RemoveSqliteStorage() {
       base::BindOnce(&DeletePersistedContextsDirectory,
                      storage_directory_path_db),
       kPurgeTaskDelay);
+}
+
+void PersistTabContextBrowserAgent::RunCacheCleanup() {
+  ProfileIOS* profile = browser_->GetProfile();
+  if (!profile || !page_content_cache_service_) {
+    return;
+  }
+
+  std::set<int64_t> active_ids = GetAllEligibleWebStateIDs(profile);
+
+  page_content_cache_service_->RunCleanUpTasksWithActiveTabs(active_ids);
 }

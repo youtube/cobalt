@@ -28,7 +28,7 @@ function findScrollAnchor(): void {
     const rect = closestParagraph.getBoundingClientRect();
     const pText = closestParagraph.innerText;
     // The hashing method must be consistent with `scrollToParagraphByHash` in
-    // `components/dom_distiller/core/javascript/dom_distiller_viewer.js`.
+    // `components/dom_distiller/core/javascript/dom_distiller_viewer_main.js`.
     const hashCode = (s: string) =>
         s.split('').reduce((a, b) => ((a << 5) - a + b.charCodeAt(0)) | 0, 0);
     const progress = (viewportMiddle - rect.top) / rect.height;
@@ -41,6 +41,6 @@ function findScrollAnchor(): void {
   }
 }
 
-const readerModeScrollAnchorApi = new CrWebApi();
+const readerModeScrollAnchorApi = new CrWebApi('readerModeScrollAnchor');
 readerModeScrollAnchorApi.addFunction('findScrollAnchor', findScrollAnchor);
-gCrWeb.registerApi('readerModeScrollAnchor', readerModeScrollAnchorApi);
+gCrWeb.registerApi(readerModeScrollAnchorApi);

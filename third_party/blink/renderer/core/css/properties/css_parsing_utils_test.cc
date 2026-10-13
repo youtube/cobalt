@@ -92,18 +92,6 @@ double ConsumeAngleValue(String target) {
       ->ComputeDegrees(conversion_data);
 }
 
-double ConsumeAngleValue(String target, double min, double max) {
-  CSSParserTokenStream stream(target);
-  // This function only works on calc() expressions that can be resolved at
-  // parse time.
-  CSSToLengthConversionData conversion_data(/*element=*/nullptr);
-  CSSParserLocalContext local_context =
-      CSSParserLocalContext::CreateWithoutPropertyForTest();
-  return ConsumeAngle(stream, *MakeContext(), local_context, std::nullopt, min,
-                      max)
-      ->ComputeDegrees(conversion_data);
-}
-
 TEST(CSSParsingUtilsTest, ConsumeAngles) {
   const double kMaxDegreeValue = 2867080569122160;
 
@@ -114,11 +102,6 @@ TEST(CSSParsingUtilsTest, ConsumeAngles) {
   EXPECT_EQ(kMaxDegreeValue, ConsumeAngleValue("calc(infinity * 1deg)"));
   EXPECT_EQ(-kMaxDegreeValue, ConsumeAngleValue("calc(-infinity * 1deg)"));
   EXPECT_EQ(0, ConsumeAngleValue("calc(NaN * 1deg)"));
-
-  // Math function with min and max ranges
-
-  EXPECT_EQ(-100, ConsumeAngleValue("calc(-3.40282e+38deg)", -100, 100));
-  EXPECT_EQ(100, ConsumeAngleValue("calc(3.40282e+38deg)", -100, 100));
 }
 
 TEST(CSSParsingUtilsTest, AtIdent) {
@@ -323,7 +306,7 @@ TEST(CSSParsingUtilsTest, InternalColorsOnlyAllowedInUaMode) {
 TEST(CSSParsingUtilsTest, ConsumeColorRangePreservation) {
   const char* tests[] = {
       "color-mix(42deg)",
-      "color-contrast(42deg)",
+      "contrast-color(42deg)",
   };
   for (const char*& test : tests) {
     String input(test);

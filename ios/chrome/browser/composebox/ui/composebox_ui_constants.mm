@@ -6,6 +6,10 @@
 
 const CGFloat kOmniboxMinHeight = 44.0;
 
+const CGFloat kInputPlateMargin = 10.0f;
+
+const CGFloat kInputPlateCornerRadius = 24.0f;
+
 NSString* const kComposeboxAccessibilityIdentifier =
     @"kComposeboxAccessibilityIdentifier";
 NSString* const kComposeboxPlusButtonAccessibilityIdentifier =
@@ -42,3 +46,10 @@ NSString* const kComposeboxTabPickerCollectionViewAccessibilityIdentifier =
     @"kComposeboxTabPickerCollectionViewAccessibilityIdentifier";
 NSString* const kComposeboxTabPickerEmptyStateViewAccessibilityIdentifier =
     @"kComposeboxTabPickerEmptyStateViewAccessibilityIdentifier";
+
+NSString* const kComposeboxCarouselAccessibilityIdentifier =
+    @"kComposeboxCarouselAccessibilityIdentifier";
+NSString* const kComposeboxCarouselItemAccessibilityIdentifier =
+    @"kComposeboxCarouselItemAccessibilityIdentifier";
+NSString* const kComposeboxInputItemCellCloseButtonAccessibilityIdentifier =
+    @"kComposeboxInputItemCellCloseButtonAccessibilityIdentifier";

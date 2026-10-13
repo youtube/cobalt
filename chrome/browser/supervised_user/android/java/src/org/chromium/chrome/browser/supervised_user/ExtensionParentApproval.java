@@ -37,25 +37,16 @@ class ExtensionParentApproval {
     private static void requestExtensionApproval(WindowAndroid windowAndroid) {
         ParentAuthDelegate delegate = ParentAuthDelegateProvider.getInstance();
         assert delegate != null;
-        delegate.requestExtensionAuth(
+
+        delegate.requestExtensionAuthWithResult(
                 windowAndroid,
-                (success) -> {
-                    onParentAuthComplete(success);
+                (result) -> {
+                    ExtensionParentApprovalJni.get().onCompletion(result);
                 });
-    }
-
-    private static void onParentAuthComplete(boolean success) {
-        if (!success) {
-            ExtensionParentApprovalJni.get()
-                    .onCompletion(SupervisedExtensionApprovalResult.CANCELED);
-            return;
-        }
-
-        ExtensionParentApprovalJni.get().onCompletion(SupervisedExtensionApprovalResult.APPROVED);
     }
 
     @NativeMethods
     interface Natives {
-        void onCompletion(int resultValue);
+        void onCompletion(@SupervisedExtensionApprovalResult int resultValue);
     }
 }

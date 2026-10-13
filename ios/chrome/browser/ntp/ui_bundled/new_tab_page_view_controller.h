@@ -17,11 +17,17 @@
 typedef NS_ENUM(NSInteger, FeedLayoutUpdateType);
 @protocol HelpCommands;
 @class MagicStackCollectionViewController;
+@protocol NewTabPageCommands;
 @protocol NewTabPageContentDelegate;
 @protocol NewTabPageShortcutsHandler;
 @class NewTabPageHeaderViewController;
 @protocol NewTabPageMutator;
+@class NewTabPageViewController;
 @protocol OverscrollActionsControllerDelegate;
+
+namespace feature_engagement {
+class Tracker;
+}
 
 // View controller containing all the content presented on a standard,
 // non-incognito new tab page.
@@ -97,6 +103,9 @@ typedef NS_ENUM(NSInteger, FeedLayoutUpdateType);
 
 // Whether incognito is disabled (e.g. by privacy policy).
 @property(nonatomic, assign) BOOL incognitoDisabled;
+
+// Engagement tracker to use for checking whether IPH should show.
+@property(nonatomic, assign) feature_engagement::Tracker* engagementTracker;
 
 // Initializes the new tab page view controller.
 - (instancetype)init NS_DESIGNATED_INITIALIZER;

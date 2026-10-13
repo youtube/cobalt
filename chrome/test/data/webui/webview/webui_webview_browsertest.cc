@@ -50,7 +50,7 @@
 
 // Turn these tests off on Mac while we collect data on windows server crashes
 // on mac chromium builders.
-// http://crbug.com/653353
+// http://crbug.com/41279287
 #if !BUILDFLAG(IS_MAC)
 
 namespace {
@@ -207,7 +207,7 @@ class WebUIWebViewBrowserTest : public WebUIMochaBrowserTest {
 
 // Checks that hiding and showing the WebUI host page doesn't break guests in
 // it.
-// Regression test for http://crbug.com/515268
+// Regression test for http://crbug.com/40429108
 IN_PROC_BROWSER_TEST_F(WebUIWebViewBrowserTest, DisplayNone) {
   ASSERT_TRUE(RunTestOnWebContents(
       GetWebContentsForTesting(), "webview/webview_basic_test.js",
@@ -287,10 +287,8 @@ IN_PROC_BROWSER_TEST_F(
       GetTestUrl("empty.html").spec()));
 }
 
-#if (BUILDFLAG(IS_CHROMEOS) && !defined(NDEBUG)) || \
-    BUILDFLAG(USE_JAVASCRIPT_COVERAGE)
+#if BUILDFLAG(IS_CHROMEOS) && !defined(NDEBUG)
 // TODO(crbug.com/40583245) Fails on CrOS dbg with --enable-features=Mash.
-// TODO(crbug.com/41496635): Webviews don't work properly with JS coverage.
 #define MAYBE_AddContentScriptToOneWebViewShouldNotInjectToTheOtherWebView \
   DISABLED_AddContentScriptToOneWebViewShouldNotInjectToTheOtherWebView
 #else
@@ -310,18 +308,6 @@ IN_PROC_BROWSER_TEST_F(WebUIWebViewBrowserTest, AddAndRemoveContentScripts) {
                                        GetTestUrl("empty.html").spec()));
 }
 
-// Disable code coverage for the NewWindowAPI test. Currently code coverage
-// seems to break for tests that open a new window to run extra scripts,
-// which this test does.
-// See https://crbug.com/1489565
-class WebUIWebViewCoverageDisabledBrowserTest : public WebUIWebViewBrowserTest {
- public:
-  void SetUpCommandLine(base::CommandLine* command_line) override {
-    WebUIWebViewBrowserTest::SetUpCommandLine(command_line);
-    command_line->RemoveSwitch(switches::kDevtoolsCodeCoverage);
-  }
-};
-
 #if BUILDFLAG(IS_WIN) || (BUILDFLAG(IS_CHROMEOS) && \
                           (!defined(NDEBUG) || defined(ADDRESS_SANITIZER)))
 // TODO(crbug.com/40583245) Fails on CrOS dbg with --enable-features=Mash.
@@ -333,7 +319,7 @@ class WebUIWebViewCoverageDisabledBrowserTest : public WebUIWebViewBrowserTest {
 #define MAYBE_AddContentScriptsWithNewWindowAPI \
   AddContentScriptsWithNewWindowAPI
 #endif
-IN_PROC_BROWSER_TEST_F(WebUIWebViewCoverageDisabledBrowserTest,
+IN_PROC_BROWSER_TEST_F(WebUIWebViewBrowserTest,
                        MAYBE_AddContentScriptsWithNewWindowAPI) {
   if (!content::BackForwardCache::IsBackForwardCacheFeatureEnabled()) {
     // The case below currently is flaky on the linux-bfcache-rel bot with
@@ -346,7 +332,7 @@ IN_PROC_BROWSER_TEST_F(WebUIWebViewCoverageDisabledBrowserTest,
                                GetTestUrl("guest_from_opener.html").spec()));
 }
 
-// https://crbug.com/665512.
+// https://crbug.com/41286338.
 IN_PROC_BROWSER_TEST_F(
     WebUIWebViewBrowserTest,
     DISABLED_ContentScriptIsInjectedAfterTerminateAndReloadWebView) {
@@ -356,9 +342,7 @@ IN_PROC_BROWSER_TEST_F(
 }
 
 // TODO(crbug.com/41284814) Flaky on CrOS trybots.
-// TODO(crbug.com/40937256): Fails due to reattaching webview, need to fix on JS
-// coverage builders.
-#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(USE_JAVASCRIPT_COVERAGE)
+#if BUILDFLAG(IS_CHROMEOS)
 #define MAYBE_ContentScriptExistsAsLongAsWebViewTagExists \
   DISABLED_ContentScriptExistsAsLongAsWebViewTagExists
 #else

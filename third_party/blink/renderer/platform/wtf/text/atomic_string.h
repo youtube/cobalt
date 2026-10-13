@@ -53,10 +53,18 @@ namespace blink {
 // instances can share their string storage if the strings are
 // identical. Comparing two AtomicString instances is much faster than comparing
 // two String instances because we just check string storage identity.
+//
+// When a method of this class is compatible with an equivalent method in
+// `std::string`, we use the same method name as `std::string` (i.e.,
+// `snake_case()`) rather than following the Google/Blink C++ style guide's
+// naming rules. This improves consistency in string manipulation.
 class WTF_EXPORT AtomicString {
   USING_FAST_MALLOC(AtomicString);
 
  public:
+  using size_type = string_size_t;
+  static constexpr size_type npos = kNotFound;
+
   // The function is defined in StringStatics.cpp.
   static void Init();
 
@@ -163,12 +171,6 @@ class WTF_EXPORT AtomicString {
       TextCaseSensitivity case_sensitivity = kTextCaseSensitive) const {
     return string_.EndsWith(suffix, case_sensitivity);
   }
-  // Unicode aware case insensitive string matching. Non-ASCII characters might
-  // match to ASCII characters. This function is rarely used to implement web
-  // platform features.  See crbug.com/40476285.
-  bool DeprecatedEndsWithIgnoringCase(const StringView& suffix) const {
-    return string_.DeprecatedEndsWithIgnoringCase(suffix);
-  }
   bool EndsWith(UChar character) const { return string_.EndsWith(character); }
 
   // Returns a lowercase/uppercase version of the string.
@@ -178,11 +180,6 @@ class WTF_EXPORT AtomicString {
   AtomicString UpperASCII() const;
 
   bool IsLowerASCII() const { return string_.IsLowerASCII(); }
-
-  // See comments in WTFString.h.
-  int ToInt(bool* ok = nullptr) const { return string_.ToInt(ok); }
-  double ToDouble(bool* ok = nullptr) const { return string_.ToDouble(ok); }
-  float ToFloat(bool* ok = nullptr) const { return string_.ToFloat(ok); }
 
   template <typename IntegerType>
   static AtomicString Number(IntegerType number) {

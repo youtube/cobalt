@@ -29,7 +29,6 @@ import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup.LayoutParams;
 import android.view.ViewParent;
-import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.Toast;
 import android.window.OnBackInvokedCallback;
@@ -66,7 +65,6 @@ import org.chromium.base.library_loader.LibraryProcessType;
 import org.chromium.base.memory.MemoryPressureMonitor;
 import org.chromium.base.memory.MemoryPressureUma;
 import org.chromium.base.metrics.RecordHistogram;
-import org.chromium.components.origin_matcher.OriginMatcher;
 import org.chromium.content.browser.input.ImeAdapterImpl;
 import org.chromium.content_public.browser.BrowserStartupController;
 import org.chromium.content_public.browser.DeviceUtils;
@@ -104,8 +102,6 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   private Intent mLastSentIntent;
   private String mStartupUrl;
   private IntentRequestTracker mIntentRequestTracker;
-  // Tracks the status of the FLAG_KEEP_SCREEN_ON window flag.
-  private Boolean mIsKeepScreenOnEnabled = false;
   private Runnable mFreezeRunnable;
   private final Handler mHandler = new Handler(Looper.getMainLooper());
 
@@ -310,8 +306,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
               /* scheduleFlushStartupTasks= */ false,
               new BrowserStartupController.StartupCallback() {
                 @Override
-                public void onSuccess(
-                    @Nullable BrowserStartupController.StartupMetrics metrics) {
+                public void onSuccess(@Nullable BrowserStartupController.StartupMetrics metrics) {
                   // NOTE: This log message is hard-coded in smoke tests to detect browser startup
                   // success.
                   // See ManekiBaseDeviceUtil.CHROBALT_BROWSER_READY_REGEX in the internal test
@@ -487,6 +482,12 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
       }
     }
     Log.i(TAG, "Arming StartupGuard with " + timeout + " second timeout.");
+    StartupGuard.getInstance()
+        .setPreCrashHook(
+            () ->
+                CobaltProcessStateSummary.setStartupGuardTriggeredKill(
+                    StartupGuard.getInstance().getStartupStatus(),
+                    StartupGuard.getInstance().getHighestMilestone()));
     StartupGuard.getInstance().scheduleCrash(timeout);
   }
 
@@ -546,22 +547,13 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
     javascriptInjector.setAllowInspection(true);
     for (CobaltJavaScriptAndroidObject javascriptAndroidObject : mJavaScriptAndroidObjectList) {
-      OriginMatcher matcher = new OriginMatcher();
-      try {
-        matcher.setRuleList(new ArrayList<String>());
-        Log.d(
-            TAG,
-            "Add JavaScriptAndroidObject:" + javascriptAndroidObject.getJavaScriptInterfaceName());
-        javascriptInjector.addPossiblyUnsafeInterfaceToOrigins(
-            javascriptAndroidObject,
-            javascriptAndroidObject.getJavaScriptInterfaceName(),
-            CobaltJavaScriptInterface.class,
-            matcher);
-        // We always need to clean the matcher when we
-        // are done with it.
-      } finally {
-        matcher.destroy();
-      }
+      Log.d(
+          TAG,
+          "Add JavaScriptAndroidObject:" + javascriptAndroidObject.getJavaScriptInterfaceName());
+      javascriptInjector.addPossiblyUnsafeInterface(
+          javascriptAndroidObject,
+          javascriptAndroidObject.getJavaScriptInterfaceName(),
+          CobaltJavaScriptInterface.class);
     }
   }
 
@@ -644,6 +636,8 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     if (isNvidiaShield()) {
       unregisterDisplayListener();
     }
+    DisplayUtil.removeDisplayListener(this);
+    AudioOutputManager.removeAudioDeviceListener(this);
     super.onStop();
 
     if (useStarboardLifeCycle()) {
@@ -973,25 +967,6 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
             }
           }
         });
-  }
-
-  public void toggleKeepScreenOn(boolean keepOn) {
-    if (mIsKeepScreenOnEnabled != keepOn) {
-      runOnUiThread(
-          new Runnable() {
-            @Override
-            public void run() {
-              if (keepOn) {
-                getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-                Log.i(TAG, "Screen keep-on enabled for video playback");
-              } else {
-                getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-                Log.i(TAG, "Screen keep-on disabled");
-              }
-            }
-          });
-      mIsKeepScreenOnEnabled = keepOn;
-    }
   }
 
   private void updateShellActivityVisible(boolean isVisible) {

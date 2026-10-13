@@ -13,10 +13,10 @@
 #include "chrome/browser/ui/actions/chrome_actions.h"
 #include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
+#include "chrome/browser/ui/tab_search_feature.h"
 #include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model.h"
 #include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model_factory.h"
 #include "chrome/browser/ui/toolbar/toolbar_pref_names.h"
-#include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/test_with_browser_view.h"
 #include "chrome/browser/ui/views/toolbar/pinned_action_toolbar_button.h"
@@ -155,7 +155,7 @@ class PinnedToolbarActionsContainerTest : public TestWithBrowserView {
 
   void UpdatePref(const std::vector<actions::ActionId>& updated_list) {
     ScopedListPrefUpdate update(profile()->GetPrefs(), prefs::kPinnedActions);
-    base::Value::List& list_of_values = update.Get();
+    base::ListValue& list_of_values = update.Get();
     list_of_values.clear();
     for (auto id : updated_list) {
       const std::optional<std::string>& id_string =

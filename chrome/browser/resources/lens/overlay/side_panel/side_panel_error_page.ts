@@ -4,6 +4,7 @@
 
 import '/strings.m.js';
 
+import {I18nMixinLit} from '//resources/cr_elements/i18n_mixin_lit.js';
 import {loadTimeData} from '//resources/js/load_time_data.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
@@ -13,9 +14,20 @@ import {getHtml} from './side_panel_error_page.html.js';
 /*
  * Element responsible for rendering the error page in the side panel.
  */
-export class SidePanelErrorPageElement extends CrLitElement {
+
+const SidePanelErrorPageElementBase = I18nMixinLit(CrLitElement);
+
+export class SidePanelErrorPageElement extends SidePanelErrorPageElementBase {
   static get is() {
     return 'side-panel-error-page';
+  }
+
+  static override get styles() {
+    return getCss();
+  }
+
+  override render() {
+    return getHtml.bind(this)();
   }
 
   static override get properties() {
@@ -29,14 +41,6 @@ export class SidePanelErrorPageElement extends CrLitElement {
         reflect: true,
       },
     };
-  }
-
-  static override get styles() {
-    return getCss();
-  }
-
-  override render() {
-    return getHtml.bind(this)();
   }
 
   // Whether the error denoted by this page is a network/server error or a
@@ -55,6 +59,18 @@ export class SidePanelErrorPageElement extends CrLitElement {
 
   setIsProtectedError(isProtectedError: boolean) {
     this.isProtectedError = isProtectedError;
+  }
+
+  protected getTopLineError_(): string {
+    return this.i18n(
+        this.isProtectedError ? 'protectedErrorPageTopLine' :
+                                'networkErrorPageTopLine');
+  }
+
+  protected getBottomLineError_(): string {
+    return this.i18n(
+        this.isProtectedError ? 'protectedErrorPageBottomLine' :
+                                'networkErrorPageBottomLine');
   }
 }
 

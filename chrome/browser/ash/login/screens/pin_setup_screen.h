@@ -46,6 +46,7 @@ class PinSetupScreen : public BaseScreen {
     kUsupportedHardware,
     kNotSupportedAsPrimaryFactor,
     kNotSupportedAsPrimaryFactorForManagedUsers,
+    kNotAllowedByPolicyAsPrimaryFactor,
   };
 
   // This enum is tied directly to a UMA enum defined in
@@ -95,7 +96,7 @@ class PinSetupScreen : public BaseScreen {
   bool MaybeSkip(WizardContext& context) override;
   void ShowImpl() override;
   void HideImpl() override;
-  void OnUserAction(const base::Value::List& args) override;
+  void OnUserAction(const base::ListValue& args) override;
 
  private:
   // Checks if the screen should be skipped by returning a detailed reason.

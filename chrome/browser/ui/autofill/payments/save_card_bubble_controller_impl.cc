@@ -236,6 +236,7 @@ void SaveCardBubbleControllerImpl::ReshowBubble(
 
 void SaveCardBubbleControllerImpl::ShowConfirmationBubbleView(
     bool card_saved,
+    bool is_for_save_and_fill,
     std::optional<
         payments::PaymentsAutofillClient::OnConfirmationClosedCallback>
         on_confirmation_closed_callback) {
@@ -249,9 +250,9 @@ void SaveCardBubbleControllerImpl::ShowConfirmationBubbleView(
   current_bubble_type_ = PaymentsBubbleType::kUploadComplete;
   confirmation_ui_params_ =
       card_saved ? SavePaymentMethodAndVirtualCardEnrollConfirmationUiParams::
-                       CreateForSaveCardSuccess()
+                       CreateForSaveCardSuccess(is_for_save_and_fill)
                  : SavePaymentMethodAndVirtualCardEnrollConfirmationUiParams::
-                       CreateForSaveCardFailure();
+                       CreateForSaveCardFailure(is_for_save_and_fill);
   on_confirmation_closed_callback_ = std::move(on_confirmation_closed_callback);
 
   // Show upload confirmation bubble.
@@ -271,7 +272,9 @@ base::OnceClosure SaveCardBubbleControllerImpl::
     GetShowConfirmationForCardSuccessfullySavedCallback() {
   return base::BindOnce(
       &SaveCardBubbleControllerImpl::ShowConfirmationBubbleView,
-      weak_ptr_factory_.GetWeakPtr(), true, std::nullopt);
+      weak_ptr_factory_.GetWeakPtr(), /*card_saved=*/true,
+      /*is_for_save_and_fill=*/true,
+      /*on_confirmation_closed_callback=*/std::nullopt);
 }
 
 base::OnceClosure
@@ -327,7 +330,9 @@ std::u16string SaveCardBubbleControllerImpl::GetExplanatoryMessage() const {
 
   if (current_bubble_type_ == PaymentsBubbleType::kUploadCvcSave) {
     return l10n_util::GetStringUTF16(
-        IDS_AUTOFILL_SAVE_CVC_PROMPT_EXPLANATION_UPLOAD);
+        base::FeatureList::IsEnabled(features::kAutofillEnableWalletBranding)
+            ? IDS_AUTOFILL_SAVE_CVC_TO_WALLET_PROMPT_EXPLANATION_UPLOAD
+            : IDS_AUTOFILL_SAVE_CVC_PROMPT_EXPLANATION_UPLOAD);
   }
 
   if (current_bubble_type_ != PaymentsBubbleType::kUploadSave &&
@@ -336,7 +341,9 @@ std::u16string SaveCardBubbleControllerImpl::GetExplanatoryMessage() const {
   }
 
   return l10n_util::GetStringUTF16(
-      IDS_AUTOFILL_SAVE_CARD_PROMPT_UPLOAD_EXPLANATION_SECURITY);
+      base::FeatureList::IsEnabled(features::kAutofillEnableWalletBranding)
+          ? IDS_AUTOFILL_SAVE_CARD_PROMPT_UPLOAD_TO_WALLET_EXPLANATION_SECURITY
+          : IDS_AUTOFILL_SAVE_CARD_PROMPT_UPLOAD_EXPLANATION_SECURITY);
 }
 
 std::u16string SaveCardBubbleControllerImpl::GetAcceptButtonText() const {
@@ -449,7 +456,7 @@ void SaveCardBubbleControllerImpl::OnSaveButton(
         // without edits.
         autofill_metrics::LogSaveCardCardholderNameWasEdited(
             user_provided_card_details.cardholder_name !=
-            base::UTF8ToUTF16(GetAccountInfo().full_name));
+            base::UTF8ToUTF16(GetAccountInfo().GetFullName().value_or("")));
         // Trim the cardholder name provided by the user and send it in the
         // callback so it can be included in the final request.
         CHECK(ShouldRequestNameFromUser());

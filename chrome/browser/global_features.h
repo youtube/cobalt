@@ -14,6 +14,8 @@
 #include "net/net_buildflags.h"
 #include "ui/base/unowned_user_data/user_data_factory.h"
 
+class GlobalBrowserCollection;
+
 namespace system_permission_settings {
 class PlatformHandle;
 }  // namespace system_permission_settings
@@ -27,7 +29,7 @@ class DefaultBrowserManager;
 }  // namespace default_browser
 #endif
 
-#if BUILDFLAG(ENABLE_GLIC) || BUILDFLAG(ENABLE_GLIC_ANDROID)
+#if BUILDFLAG(ENABLE_GLIC)
 namespace glic {
 class GlicBackgroundModeManager;
 class GlicGlobalEnabling;
@@ -53,7 +55,7 @@ class ApplicationAdvancedProtectionStatusDetector;
 }  // namespace safe_browsing
 
 #if !BUILDFLAG(IS_ANDROID)
-class GlobalBrowserCollection;
+class ProfileLaunchObserver;
 class StartupLaunchManager;
 #endif  // !BUILDFLAG(IS_ANDROID)
 
@@ -62,6 +64,14 @@ namespace unexportable_keys {
 class UnexportableKeyObsoleteProfileGarbageCollector;
 }  // namespace unexportable_keys
 #endif  // BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
+
+namespace local_network_access {
+class IPAddressSpaceOverridesPrefsObserver;
+}  // namespace local_network_access
+
+namespace on_device_translation {
+class OnDeviceTranslationInstaller;
+}
 
 // This class owns the core controllers for features that are globally
 // scoped on desktop and Android. It can be subclassed by tests to perform
@@ -135,7 +145,7 @@ class GlobalFeatures {
   }
 #endif
 
-#if BUILDFLAG(ENABLE_GLIC) || BUILDFLAG(ENABLE_GLIC_ANDROID)
+#if BUILDFLAG(ENABLE_GLIC)
   glic::GlicSyntheticTrialManager* glic_synthetic_trial_manager() {
     return synthetic_trial_manager_.get();
   }
@@ -170,14 +180,20 @@ class GlobalFeatures {
     return application_advanced_protection_status_detector_.get();
   }
 
-#if !BUILDFLAG(IS_ANDROID)
   GlobalBrowserCollection* global_browser_collection() {
     return global_browser_collection_.get();
   }
-#endif  // !BUILDFLAG(IS_ANDROID)
 
   static ui::UserDataFactoryWithOwner<BrowserProcess>&
   GetUserDataFactoryForTesting();
+
+#if !BUILDFLAG(IS_ANDROID)
+  // Prefer using ProfileLaunchObserver::GetInstance() over calling this method
+  // directly.
+  ProfileLaunchObserver* profile_launch_observer() {
+    return profile_launch_observer_.get();
+  }
+#endif  // !BUILDFLAG(IS_ANDROID)
 
  protected:
   GlobalFeatures();
@@ -207,7 +223,7 @@ class GlobalFeatures {
       default_browser_manager_;
 #endif
 
-#if BUILDFLAG(ENABLE_GLIC) || BUILDFLAG(ENABLE_GLIC_ANDROID)
+#if BUILDFLAG(ENABLE_GLIC)
   std::unique_ptr<glic::GlicGlobalEnabling> glic_global_enabling_;
 #endif
 #if BUILDFLAG(ENABLE_GLIC)
@@ -217,7 +233,7 @@ class GlobalFeatures {
   std::unique_ptr<glic::GlicBackgroundModeManager>
       glic_background_mode_manager_;
 #endif
-#if BUILDFLAG(ENABLE_GLIC) || BUILDFLAG(ENABLE_GLIC_ANDROID)
+#if BUILDFLAG(ENABLE_GLIC)
   std::unique_ptr<glic::GlicSyntheticTrialManager> synthetic_trial_manager_;
 #endif
 
@@ -238,8 +254,12 @@ class GlobalFeatures {
   std::unique_ptr<safe_browsing::ApplicationAdvancedProtectionStatusDetector>
       application_advanced_protection_status_detector_;
 
-#if !BUILDFLAG(IS_ANDROID)
+  std::unique_ptr<local_network_access::IPAddressSpaceOverridesPrefsObserver>
+      ip_address_space_overrides_prefs_observer_;
+
   std::unique_ptr<GlobalBrowserCollection> global_browser_collection_;
+
+#if !BUILDFLAG(IS_ANDROID)
   std::unique_ptr<StartupLaunchManager> startup_launch_manager_;
 #endif  // !BUILDFLAG(IS_ANDROID)
 
@@ -248,6 +268,13 @@ class GlobalFeatures {
       unexportable_keys::UnexportableKeyObsoleteProfileGarbageCollector>
       unexportable_key_obsolete_profile_garbage_collector_;
 #endif  // BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
+
+#if !BUILDFLAG(IS_ANDROID)
+  std::unique_ptr<on_device_translation::OnDeviceTranslationInstaller>
+      on_device_translation_installer_;
+
+  std::unique_ptr<ProfileLaunchObserver> profile_launch_observer_;
+#endif  // !BUILDFLAG(IS_ANDROID)
 };
 
 #endif  // CHROME_BROWSER_GLOBAL_FEATURES_H_

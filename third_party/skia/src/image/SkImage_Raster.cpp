@@ -7,11 +7,13 @@
 #include "src/image/SkImage_Raster.h"
 
 #include "include/core/SkBitmap.h"
+#include "include/core/SkBlendMode.h"
 #include "include/core/SkCPURecorder.h"
 #include "include/core/SkColorSpace.h"
 #include "include/core/SkData.h"
 #include "include/core/SkImage.h"
 #include "include/core/SkImageInfo.h"
+#include "include/core/SkPaint.h"
 #include "include/core/SkPixelRef.h"
 #include "include/core/SkPixmap.h"
 #include "include/core/SkPoint.h"
@@ -19,11 +21,12 @@
 #include "include/core/SkRect.h"
 #include "include/core/SkRefCnt.h"
 #include "include/core/SkSize.h"
+#include "include/core/SkSurface.h"
 #include "include/core/SkTypes.h"
 #include "src/base/SkRectMemcpy.h"
 #include "src/core/SkImageInfoPriv.h"
-#include "src/core/SkImagePriv.h"
 #include "src/image/SkImage_Base.h"
+#include "src/shaders/SkImageShader.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -45,19 +48,23 @@ static void release_data(void* addr, void* context) {
     data->unref();
 }
 
-SkImage_Raster::SkImage_Raster(const SkImageInfo& info, sk_sp<SkData> data, size_t rowBytes,
+SkImage_Raster::SkImage_Raster(const SkImageInfo& info,
+                               sk_sp<SkData> data,
+                               size_t rowBytes,
+                               sk_sp<SkMipmap> mips,
                                uint32_t id)
-        : SkImage_Base(info, id) {
+        : SkImage_Base(info, id), fMips(mips) {
     void* addr = const_cast<void*>(data->data());
 
     fBitmap.installPixels(info, addr, rowBytes, release_data, data.release());
     fBitmap.setImmutable();
 }
 
-SkImage_Raster::SkImage_Raster(const SkBitmap& bm, bool bitmapMayBeMutable)
+SkImage_Raster::SkImage_Raster(const SkBitmap& bm, sk_sp<SkMipmap> mips, bool bitmapMayBeMutable)
         : SkImage_Base(bm.info(),
-                    is_not_subset(bm) ? bm.getGenerationID() : (uint32_t)kNeedNewImageUniqueID)
-        , fBitmap(bm) {
+                       is_not_subset(bm) ? bm.getGenerationID() : (uint32_t)kNeedNewImageUniqueID)
+        , fBitmap(bm)
+        , fMips(mips) {
     SkASSERT(bitmapMayBeMutable || fBitmap.isImmutable());
 }
 
@@ -145,7 +152,7 @@ sk_sp<SkImage> SkImage_Raster::onMakeSubset(SkRecorder*,
     if (requiredProperties.fMipmapped) {
         bool fullCopy = subset == SkIRect::MakeSize(fBitmap.dimensions());
 
-        sk_sp<SkMipmap> mips = fullCopy ? copy_mipmaps(fBitmap, fBitmap.fMips.get()) : nullptr;
+        sk_sp<SkMipmap> mips = fullCopy ? copy_mipmaps(fBitmap, fMips.get()) : nullptr;
 
         // SkImage::withMipmaps will always make a copy for us so we can temporarily share
         // the pixel ref with fBitmap
@@ -154,7 +161,8 @@ sk_sp<SkImage> SkImage_Raster::onMakeSubset(SkRecorder*,
             return nullptr;
         }
 
-        sk_sp<SkImage> tmp(new SkImage_Raster(tmpSubset, /* bitmapMayBeMutable= */ true));
+        sk_sp<SkImage> tmp(
+                new SkImage_Raster(tmpSubset, /*mips=*/nullptr, /* bitmapMayBeMutable= */ true));
 
         // withMipmaps will auto generate the mipmaps if a nullptr is passed in
         SkASSERT(!mips || mips->validForRootLevel(tmp->imageInfo()));
@@ -169,31 +177,31 @@ sk_sp<SkImage> SkImage_Raster::onMakeSubset(SkRecorder*,
     return img;
 }
 
-///////////////////////////////////////////////////////////////////////////////
-
-sk_sp<SkImage> SkMakeImageFromRasterBitmapPriv(const SkBitmap& bm, SkCopyPixelsMode cpm,
-                                               uint32_t idForCopy) {
-    if (kAlways_SkCopyPixelsMode == cpm || (!bm.isImmutable() && kNever_SkCopyPixelsMode != cpm)) {
-        SkPixmap pmap;
-        if (bm.peekPixels(&pmap)) {
-            return MakeRasterCopyPriv(pmap, idForCopy);
-        } else {
-            return sk_sp<SkImage>();
-        }
-    }
-    return sk_make_sp<SkImage_Raster>(bm, kNever_SkCopyPixelsMode == cpm);
-}
-
-sk_sp<SkImage> SkMakeImageFromRasterBitmap(const SkBitmap& bm, SkCopyPixelsMode cpm) {
+sk_sp<SkImage_Raster> SkImage_Raster::MakeFromBitmap(const SkBitmap& bm,
+                                              SkCopyPixelsMode cpm,
+                                              sk_sp<SkMipmap> mips) {
     if (!SkImageInfoIsValid(bm.info()) || bm.rowBytes() < bm.info().minRowBytes()) {
         return nullptr;
     }
 
-    return SkMakeImageFromRasterBitmapPriv(bm, cpm, kNeedNewImageUniqueID);
-}
+    if (!bm.getPixels()) {
+        return nullptr;
+    }
 
-const SkPixelRef* SkBitmapImageGetPixelRef(const SkImage* image) {
-    return ((const SkImage_Raster*)image)->getPixelRef();
+    if (SkCopyPixelsMode::kAlways == cpm ||
+        (!bm.isImmutable() && SkCopyPixelsMode::kNever != cpm)) {
+        size_t size = bm.computeByteSize();
+        if (SkImageInfo::ByteSizeOverflowed(size)) {
+            return nullptr;
+        }
+
+        sk_sp<SkData> data(SkData::MakeWithCopy(bm.getPixels(), size));
+
+        return sk_sp<SkImage_Raster>(new SkImage_Raster(
+                bm.info(), std::move(data), bm.rowBytes(), std::move(mips), kNeedNewImageUniqueID));
+    }
+    return sk_sp<SkImage_Raster>(
+            new SkImage_Raster(bm, std::move(mips), SkCopyPixelsMode::kNever == cpm));
 }
 
 bool SkImage_Raster::onAsLegacyBitmap(GrDirectContext*, SkBitmap* bitmap) const {
@@ -210,7 +218,35 @@ bool SkImage_Raster::onAsLegacyBitmap(GrDirectContext*, SkBitmap* bitmap) const 
     return this->SkImage_Base::onAsLegacyBitmap(nullptr, bitmap);
 }
 
-///////////////////////////////////////////////////////////////////////////////
+sk_sp<SkShader> SkImage_Raster::makeShaderForPaint(const SkPaint& paint,
+                                                   SkTileMode tmx,
+                                                   SkTileMode tmy,
+                                                   const SkSamplingOptions& sampling,
+                                                   const SkMatrix* localMatrix) {
+    auto s = SkImageShader::Make(sk_ref_sp<SkImage>(this), tmx, tmy, sampling, localMatrix);
+    if (!s) {
+        return nullptr;
+    }
+    if (SkColorTypeIsAlphaOnly(this->colorType()) && paint.getShader()) {
+        // Compose the image shader with the paint's shader. Alpha images+shaders should output the
+        // texture's alpha multiplied by the shader's color. DstIn (d*sa) will achieve this with
+        // the source image and dst shader (MakeBlend takes dst first, src second).
+        s = SkShaders::Blend(SkBlendMode::kDstIn, paint.refShader(), std::move(s));
+    }
+    return s;
+}
+
+sk_sp<SkImage> SkImage_Raster::onMakeWithMipmaps(sk_sp<SkMipmap> mips) const {
+    // It's dangerous to have two SkBitmaps that share a SkPixelRef but have different SkMipmaps
+    // since various caches key on SkPixelRef's generation ID. Also, SkPixelRefs that back
+    // SkSurfaces are marked "temporarily immutable" and making an image that uses the same
+    // SkPixelRef can interact badly with SkSurface/SkImage copy-on-write. So we just always
+    // make a copy with a new ID.
+    if (!mips) {
+        mips.reset(SkMipmap::Build(fBitmap.pixmap(), nullptr));
+    }
+    return SkImage_Raster::MakeFromBitmap(fBitmap, SkCopyPixelsMode::kAlways, std::move(mips));
+}
 
 sk_sp<SkImage> SkImage_Raster::makeColorTypeAndColorSpace(SkRecorder*,
                                                           SkColorType targetColorType,

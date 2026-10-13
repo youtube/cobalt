@@ -7,13 +7,13 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "chrome/browser/ui/webui/settings/settings_page_ui_handler.h"
+#include "content/public/browser/web_ui_message_handler.h"
 
 class Profile;
 
 namespace ash::settings {
 
-class PluginVmHandler : public ::settings::SettingsPageUIHandler {
+class PluginVmHandler : public content::WebUIMessageHandler {
  public:
   explicit PluginVmHandler(Profile* profile);
 
@@ -22,7 +22,7 @@ class PluginVmHandler : public ::settings::SettingsPageUIHandler {
 
   ~PluginVmHandler() override;
 
-  // SettingsPageUIHandler
+  // content::WebUIMessageHandler
   void RegisterMessages() override;
   void OnJavascriptAllowed() override;
   void OnJavascriptDisallowed() override;
@@ -30,9 +30,9 @@ class PluginVmHandler : public ::settings::SettingsPageUIHandler {
  private:
   // Checks if Plugin VM would need to be relaunched if the proposed changes are
   // made.
-  void HandleIsRelaunchNeededForNewPermissions(const base::Value::List& args);
+  void HandleIsRelaunchNeededForNewPermissions(const base::ListValue& args);
   // Relaunches Plugin VM.
-  void HandleRelaunchPluginVm(const base::Value::List& args);
+  void HandleRelaunchPluginVm(const base::ListValue& args);
 
   raw_ptr<Profile> profile_;
   // weak_ptr_factory_ should always be last member.

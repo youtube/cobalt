@@ -5,11 +5,15 @@
 #include "chrome/browser/ui/tabs/split_tab_menu_model.h"
 
 #include <string>
+#include <string_view>
 
 #include "base/check.h"
 #include "base/i18n/rtl.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/metrics/user_metrics.h"
+#include "base/metrics/user_metrics_action.h"
 #include "base/notreached.h"
+#include "base/strings/strcat.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/feedback/show_feedback_page.h"
 #include "chrome/browser/profiles/profile.h"
@@ -23,9 +27,9 @@
 #include "chrome/common/pref_names.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/prefs/pref_service.h"
+#include "components/split_tabs/split_tab_id.h"
+#include "components/split_tabs/split_tab_visual_data.h"
 #include "components/tabs/public/split_tab_data.h"
-#include "components/tabs/public/split_tab_id.h"
-#include "components/tabs/public/split_tab_visual_data.h"
 #include "components/tabs/public/tab_interface.h"
 #include "components/vector_icons/vector_icons.h"
 #include "ui/base/interaction/element_identifier.h"
@@ -35,7 +39,7 @@
 #include "ui/menus/simple_menu_model.h"
 
 namespace {
-std::string GetMetricsSuffixForSource(
+std::string_view GetMetricsSuffixForSource(
     SplitTabMenuModel::MenuSource menu_source) {
   // These strings are persisted to logs. Entries should not be changed.
   switch (menu_source) {
@@ -57,6 +61,25 @@ int GetCommandIdInt(SplitTabMenuModel::CommandId command_id) {
 SplitTabMenuModel::CommandId GetCommandIdEnum(int command_id) {
   return static_cast<SplitTabMenuModel::CommandId>(
       command_id - ExistingBaseSubMenuModel::kMinSplitTabMenuModelCommandId);
+}
+
+std::string_view GetMetricsSuffixForCommand(
+    SplitTabMenuModel::CommandId command_id) {
+  // These strings are persisted to logs. Entries should not be changed.
+  switch (command_id) {
+    case SplitTabMenuModel::CommandId::kReversePosition:
+      return "ReversePosition";
+    case SplitTabMenuModel::CommandId::kCloseSpecifiedTab:
+      return "CloseSpecifiedTab";
+    case SplitTabMenuModel::CommandId::kCloseStartTab:
+      return "CloseStartTab";
+    case SplitTabMenuModel::CommandId::kCloseEndTab:
+      return "CloseEndTab";
+    case SplitTabMenuModel::CommandId::kExitSplit:
+      return "ExitSplit";
+    case SplitTabMenuModel::CommandId::kSendFeedback:
+      return "SendFeedback";
+  }
 }
 
 BrowserWindowInterface* GetBrowserWithTabStripModel(
@@ -227,8 +250,14 @@ void SplitTabMenuModel::ExecuteCommand(int command_id, int event_flags) {
   }
 
   base::UmaHistogramEnumeration(
-      "Tabs.SplitViewMenu." + GetMetricsSuffixForSource(menu_source_),
+      base::StrCat(
+          {"Tabs.SplitViewMenu.", GetMetricsSuffixForSource(menu_source_)}),
       split_command_id);
+
+  base::RecordAction(base::UserMetricsAction(
+      base::StrCat({"SplitViewMenuClicked_",
+                    GetMetricsSuffixForCommand(split_command_id)})
+          .c_str()));
 }
 
 split_tabs::SplitTabId SplitTabMenuModel::GetSplitTabId() const {

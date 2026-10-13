@@ -380,10 +380,7 @@ void RecentlyClosedTabsBridge::ClearLeastRecentlyUsedClosedEntries(
     int32_t num_to_remove) {
   EnsureTabRestoreService();
   if (tab_restore_service_) {
-    for (int i = 0; i < num_to_remove; i++) {
-      SessionID id = tab_restore_service_->entries().back()->id;
-      tab_restore_service_->RemoveEntryById(id);
-    }
+    tab_restore_service_->RemoveLeastRecentlyUsedEntries(num_to_remove);
   }
 }
 
@@ -429,9 +426,9 @@ void RecentlyClosedTabsBridge::RestoreAndroidTabGroups(
   }
 }
 
-static jlong JNI_RecentlyClosedBridge_Init(JNIEnv* env,
-                                           const JavaRef<jobject>& jbridge,
-                                           Profile* profile) {
+static int64_t JNI_RecentlyClosedBridge_Init(JNIEnv* env,
+                                             const JavaRef<jobject>& jbridge,
+                                             Profile* profile) {
   RecentlyClosedTabsBridge* bridge = new RecentlyClosedTabsBridge(
       ScopedJavaGlobalRef<jobject>(env, jbridge), profile);
   return reinterpret_cast<intptr_t>(bridge);

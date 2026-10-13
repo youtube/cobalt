@@ -15,8 +15,10 @@
 // TODO(chrstne): Move interactive tests to a new tests/ folder
 class ActorUiInteractiveBrowserTest : public InteractiveBrowserTest {
  public:
+  ActorUiInteractiveBrowserTest();
+  ~ActorUiInteractiveBrowserTest() override;
+
   void SetUpCommandLine(base::CommandLine* command_line) override;
-  void SetUpOnMainThread() override;
 
   void StartActingOnTab();
   void PauseTask();

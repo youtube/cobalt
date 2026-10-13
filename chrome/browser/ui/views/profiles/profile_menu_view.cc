@@ -47,13 +47,13 @@
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
-#include "chrome/browser/ui/browser_dialogs.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
+#include "chrome/browser/ui/dialogs/browser_dialogs.h"
 #include "chrome/browser/ui/hats/survey_config.h"
 #include "chrome/browser/ui/managed_ui.h"
 #include "chrome/browser/ui/passwords/ui_utils.h"
@@ -191,7 +191,7 @@ void ProfileMenuView::OnClose() {
     // Launch a HaTS survey only if the user dismissed the menu without
     // selecting an item (e.g., by clicking outside or pressing ESC), and the
     // browser window remains active.
-    signin::LaunchSigninHatsSurveyForProfile(
+    signin::LaunchHatsSurveyForProfile(
         kHatsSurveyTriggerIdentityProfileMenuDismissed, &profile());
   }
 }
@@ -322,7 +322,9 @@ void ProfileMenuView::OnPasskeyUnlockButtonClicked() {
   if (!perform_menu_actions()) {
     return;
   }
-  webauthn::PasskeyUnlockManager::OpenTabWithPasskeyUnlockChallenge(&browser());
+  webauthn::PasskeyUnlockManager::OpenTabWithPasskeyUnlockChallenge(
+      &browser(), trusted_vault::TrustedVaultUserActionTriggerForUMA::
+                      kPasskeyUnlockProfileMenu);
 }
 
 void ProfileMenuView::OnSyncErrorButtonClicked(
@@ -455,7 +457,7 @@ void ProfileMenuView::OnOtherProfileSelected(
           if (!browser) {
             return;
           }
-          signin::LaunchSigninHatsSurveyForProfile(
+          signin::LaunchHatsSurveyForProfile(
               kHatsSurveyTriggerIdentitySwitchProfileFromProfileMenu,
               browser->GetProfile());
         }));
@@ -535,7 +537,7 @@ void ProfileMenuView::OnYourSavedInfoSettingsButtonClicked() {
   base::UmaHistogramEnumeration(
       "Autofill.YourSavedInfoSettingsPage.VisitReferrer",
       autofill::autofill_metrics::AutofillSettingsReferrer::kProfileMenu);
-  chrome::ShowSettingsSubPage(&browser(), chrome::kYourSavedInfoSubPage);
+  chrome::ShowSettingsSubPage(&browser(), chrome::kAutofillSubPage);
 }
 
 void ProfileMenuView::OnBatchUploadButtonClicked(ActionableItem button_type) {
@@ -607,14 +609,14 @@ void ProfileMenuView::SetMenuTitleForAccessibility() {
     } break;
     case signin_util::SignedInState::kSyncPaused:
     case signin_util::SignedInState::kSignInPending:
-      menu_title_ = base::UTF8ToUTF16(account_info.full_name);
+      menu_title_ = base::UTF8ToUTF16(account_info.GetFullName().value_or(""));
       menu_subtitle_ =
           l10n_util::GetStringUTF16(IDS_PROFILES_LOCAL_PROFILE_STATE);
       break;
     case signin_util::SignedInState::kSyncing:
     case signin_util::SignedInState::kSignedIn:
-      menu_title_ = base::UTF8ToUTF16(account_info.full_name);
-      menu_subtitle_ = base::UTF8ToUTF16(account_info.email);
+      menu_title_ = base::UTF8ToUTF16(account_info.GetFullName().value_or(""));
+      menu_subtitle_ = base::UTF8ToUTF16(account_info.GetEmail());
       break;
   }
 
@@ -655,10 +657,9 @@ ProfileMenuView::GetIdentitySectionParams(const ProfileAttributesEntry& entry) {
   profiles::PlaceholderAvatarIconParams icon_params = {.has_padding = true,
                                                        .has_background = false};
   params.profile_image = ui::ImageModel::FromImage(
-      primary_extended_account_info.account_image.IsEmpty()
-          ? entry.GetAvatarIcon(kIdentityInfoImageSize,
-                                /*use_high_res_file=*/true, icon_params)
-          : primary_extended_account_info.account_image);
+      primary_extended_account_info.GetAvatarImage().value_or(
+          entry.GetAvatarIcon(kIdentityInfoImageSize,
+                              /*use_high_res_file=*/true, icon_params)));
 
   ui::ImageModel* custom_management_image = nullptr;
   if (enterprise_util::CanShowEnterpriseBadgingForMenu(&profile())) {
@@ -786,11 +787,10 @@ ProfileMenuView::GetIdentitySectionParams(const ProfileAttributesEntry& entry) {
           base::UTF8ToUTF16(account_info_for_promos.email));
       params.button_text = l10n_util::GetStringFUTF16(
           IDS_PROFILES_DICE_WEB_ONLY_SIGNIN_BUTTON,
-          base::UTF8ToUTF16(!account_info_for_promos.given_name.empty()
-                                ? account_info_for_promos.given_name
-                                : account_info_for_promos.email));
+          base::UTF8ToUTF16(account_info_for_promos.GetGivenName().value_or(
+              account_info_for_promos.GetEmail())));
       gfx::Image account_image;
-      if (account_info_for_promos.account_image.IsEmpty()) {
+      if (!account_info_for_promos.GetAvatarImage().has_value()) {
         // No account image, use a placeholder.
         ProfileAttributesEntry* profile_attributes =
             g_browser_process->profile_manager()
@@ -955,17 +955,8 @@ void ProfileMenuView::MaybeBuildBatchUploadButton() {
 void ProfileMenuView::BuildAutofillSettingsButton() {
   CHECK(!profile().IsGuestSession());
 
-  bool use_your_saved_info_branding =
-      base::FeatureList::IsEnabled(
-          autofill::features::kYourSavedInfoSettingsPage) ||
-      base::FeatureList::IsEnabled(
-          autofill::features::kYourSavedInfoBrandingInSettings);
-  int message_id = use_your_saved_info_branding
-                       ? IDS_SETTINGS_YOUR_SAVED_INFO
-                       : IDS_PROFILE_MENU_AUTOFILL_SETTINGS_BUTTON;
-  const gfx::VectorIcon& icon = use_your_saved_info_branding
-                                    ? vector_icons::kPersonTextIcon
-                                    : vector_icons::kPasswordManagerIcon;
+  int message_id = IDS_PROFILE_MENU_AUTOFILL_SETTINGS_BUTTON;
+  const gfx::VectorIcon& icon = vector_icons::kPasswordManagerIcon;
   auto action = base::FeatureList::IsEnabled(
                     autofill::features::kYourSavedInfoSettingsPage)
                     ? &ProfileMenuView::OnYourSavedInfoSettingsButtonClicked

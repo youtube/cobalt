@@ -57,7 +57,6 @@ using extensions::WebrtcLoggingPrivateStopFunction;
 using extensions::WebrtcLoggingPrivateStopRtpDumpFunction;
 using extensions::WebrtcLoggingPrivateStoreFunction;
 using extensions::WebrtcLoggingPrivateUploadFunction;
-using extensions::WebrtcLoggingPrivateUploadStoredFunction;
 using webrtc_event_logging::kMaxOutputPeriodMs;
 using webrtc_event_logging::kMaxRemoteLogFileSizeBytes;
 using webrtc_event_logging::kStartRemoteLoggingFailureAlreadyLogging;
@@ -84,19 +83,19 @@ constexpr int kWebAppId = 15;  // Arbitrary.
 constexpr char kTestUploadUrlPath[] = "/upload_webrtc_log";
 constexpr char kTestReportId[] = "report_id";
 
-std::string ParamsToString(const base::Value::List& parameters) {
+std::string ParamsToString(const base::ListValue& parameters) {
   std::optional<std::string> parameters_string = base::WriteJson(parameters);
   EXPECT_TRUE(parameters_string.has_value());
   return parameters_string.value_or("");
 }
 
-void InitializeTestMetaData(base::Value::List& parameters) {
-  base::Value::Dict meta_data_entry;
+void InitializeTestMetaData(base::ListValue& parameters) {
+  base::DictValue meta_data_entry;
   meta_data_entry.Set("key", kTestLoggingSessionIdKey);
   meta_data_entry.Set("value", kTestLoggingSessionIdValue);
-  base::Value::List meta_data;
+  base::ListValue meta_data;
   meta_data.Append(std::move(meta_data_entry));
-  base::Value::Dict meta_data_entry2;
+  base::DictValue meta_data_entry2;
   meta_data_entry2.Set("key", "url");
   meta_data_entry2.Set("value", kTestLoggingUrl);
   meta_data.Append(std::move(meta_data_entry2));
@@ -160,8 +159,8 @@ class WebrtcLoggingPrivateApiTest : public extensions::ExtensionApiTest {
     return nullptr;
   }
 
-  void AppendTabIdAndUrl(base::Value::List& parameters) {
-    base::Value::Dict request_info;
+  void AppendTabIdAndUrl(base::ListValue& parameters) {
+    base::DictValue request_info;
     request_info.Set("tabId",
                      extensions::ExtensionTabUtil::GetTabId(GetWebContents()));
     parameters.Append(std::move(request_info));
@@ -175,7 +174,7 @@ class WebrtcLoggingPrivateApiTest : public extensions::ExtensionApiTest {
   // initiated otherwise).
   // Returns the value (NOT whether it had succeeded or failed).
   template <typename Function>
-  std::optional<base::Value> RunFunction(const base::Value::List& parameters) {
+  std::optional<base::Value> RunFunction(const base::ListValue& parameters) {
     scoped_refptr<Function> function(CreateFunction<Function>());
     std::optional<base::Value> result = utils::RunFunctionAndReturnSingleResult(
         function.get(), ParamsToString(parameters), GetProfile());
@@ -187,7 +186,7 @@ class WebrtcLoggingPrivateApiTest : public extensions::ExtensionApiTest {
   // Returns the value (NOT whether it had succeeded or failed).
   template <typename Function>
   std::optional<base::Value> RunNoArgsFunction() {
-    base::Value::List params;
+    base::ListValue params;
     AppendTabIdAndUrl(params);
     scoped_refptr<Function> function(CreateFunction<Function>());
     std::optional<base::Value> result = utils::RunFunctionAndReturnSingleResult(
@@ -196,7 +195,7 @@ class WebrtcLoggingPrivateApiTest : public extensions::ExtensionApiTest {
   }
 
   template <typename Function>
-  void RunFunctionAndExpectError(const base::Value::List& parameters,
+  void RunFunctionAndExpectError(const base::ListValue& parameters,
                                  const std::string& expected_error) {
     DCHECK(!expected_error.empty());
     scoped_refptr<Function> function(CreateFunction<Function>());
@@ -259,7 +258,7 @@ class WebrtcLoggingPrivateApiTest : public extensions::ExtensionApiTest {
   // initiated otherwise).
   // Returns whether the function that was run returned a value, or avoided
   // returning a value, according to expectation.
-  bool SetMetaData(const base::Value::List& data) {
+  bool SetMetaData(const base::ListValue& data) {
     constexpr bool value_expected = false;
     std::optional<base::Value> value =
         RunFunction<WebrtcLoggingPrivateSetMetaDataFunction>(data);
@@ -271,7 +270,7 @@ class WebrtcLoggingPrivateApiTest : public extensions::ExtensionApiTest {
   // Returns whether the function that was run returned a value, or avoided
   // returning a value, according to expectation.
   bool StartRtpDump(bool incoming, bool outgoing) {
-    base::Value::List params;
+    base::ListValue params;
     AppendTabIdAndUrl(params);
     params.Append(incoming);
     params.Append(outgoing);
@@ -286,7 +285,7 @@ class WebrtcLoggingPrivateApiTest : public extensions::ExtensionApiTest {
   // Returns whether the function that was run returned a value, or avoided
   // returning a value, according to expectation.
   bool StopRtpDump(bool incoming, bool outgoing) {
-    base::Value::List params;
+    base::ListValue params;
     AppendTabIdAndUrl(params);
     params.Append(incoming);
     params.Append(outgoing);
@@ -301,7 +300,7 @@ class WebrtcLoggingPrivateApiTest : public extensions::ExtensionApiTest {
   // Returns whether the function that was run returned a value, or avoided
   // returning a value, according to expectation.
   bool StoreLog(const std::string& log_id) {
-    base::Value::List params;
+    base::ListValue params;
     AppendTabIdAndUrl(params);
     params.Append(log_id);
     constexpr bool value_expected = false;
@@ -314,26 +313,8 @@ class WebrtcLoggingPrivateApiTest : public extensions::ExtensionApiTest {
   // initiated otherwise).
   // Returns whether the function that was run returned a value, or avoided
   // returning a value, according to expectation.
-  bool UploadStoredLog(const std::string& log_id, std::string* report_id) {
-    base::Value::List params;
-    AppendTabIdAndUrl(params);
-    params.Append(log_id);
-    constexpr bool value_expected = true;
-    std::optional<base::Value> value =
-        RunFunction<WebrtcLoggingPrivateUploadStoredFunction>(params);
-    const bool value_returned = value.has_value();
-    if (value_returned) {
-      *report_id = *value->GetDict().FindString("reportId");
-    }
-    return value_expected == value_returned;
-  }
-
-  // This function implicitly expects the function to succeed (test failure
-  // initiated otherwise).
-  // Returns whether the function that was run returned a value, or avoided
-  // returning a value, according to expectation.
   bool StartAudioDebugRecordings(int seconds) {
-    base::Value::List params;
+    base::ListValue params;
     AppendTabIdAndUrl(params);
     params.Append(seconds);
     constexpr bool value_expected = true;
@@ -348,7 +329,7 @@ class WebrtcLoggingPrivateApiTest : public extensions::ExtensionApiTest {
   // Returns whether the function that was run returned a value, or avoided
   // returning a value, according to expectation.
   bool StopAudioDebugRecordings() {
-    base::Value::List params;
+    base::ListValue params;
     AppendTabIdAndUrl(params);
     constexpr bool value_expected = true;
     std::optional<base::Value> value =
@@ -368,7 +349,7 @@ class WebrtcLoggingPrivateApiTest : public extensions::ExtensionApiTest {
                          const std::string& expected_error = std::string()) {
     DCHECK_EQ(expect_success, expected_error.empty());
 
-    base::Value::List params;
+    base::ListValue params;
     AppendTabIdAndUrl(params);
     params.Append(session_id);
     params.Append(max_log_size_bytes);
@@ -385,7 +366,7 @@ class WebrtcLoggingPrivateApiTest : public extensions::ExtensionApiTest {
 
       ASSERT_TRUE(result);
       ASSERT_TRUE(result->is_dict());
-      const base::Value::Dict& result_dict = result->GetDict();
+      const base::DictValue& result_dict = result->GetDict();
       ASSERT_EQ(result_dict.size(), 1u);
 
       const std::string* log_id = result_dict.FindString("logId");
@@ -480,7 +461,7 @@ IN_PROC_BROWSER_TEST_F(WebrtcLoggingPrivateApiTest, TestStartStopDiscard) {
 IN_PROC_BROWSER_TEST_F(WebrtcLoggingPrivateApiTest, TestStartStopUpload) {
   ASSERT_TRUE(SetupTestServerLogUploading());
 
-  base::Value::List parameters;
+  base::ListValue parameters;
   AppendTabIdAndUrl(parameters);
   InitializeTestMetaData(parameters);
 
@@ -590,7 +571,7 @@ IN_PROC_BROWSER_TEST_F(WebrtcLoggingPrivateApiTest, TestStartStopRtpDump) {
 // Tests trying to store a log when a log is not being captured.
 // We should get a failure callback in this case.
 IN_PROC_BROWSER_TEST_F(WebrtcLoggingPrivateApiTest, TestStoreWithoutLog) {
-  base::Value::List parameters;
+  base::ListValue parameters;
   AppendTabIdAndUrl(parameters);
   parameters.Append("MyLogId");
   scoped_refptr<WebrtcLoggingPrivateStoreFunction> store(
@@ -606,24 +587,16 @@ IN_PROC_BROWSER_TEST_F(WebrtcLoggingPrivateApiTest, TestStartStopStore) {
   EXPECT_TRUE(StoreLog("MyLogID"));
 }
 
-IN_PROC_BROWSER_TEST_F(WebrtcLoggingPrivateApiTest,
-                       TestStartStopStoreAndUpload) {
+IN_PROC_BROWSER_TEST_F(WebrtcLoggingPrivateApiTest, TestStartStopAndStore) {
   ASSERT_TRUE(SetupTestServerLogUploading());
 
   static const char kLogId[] = "TestStartStopStoreAndUpload";
   ASSERT_TRUE(StartLogging());
   ASSERT_TRUE(StopLogging());
   ASSERT_TRUE(StoreLog(kLogId));
-
-  std::string report_id;
-  EXPECT_TRUE(UploadStoredLog(kLogId, &report_id));
-  EXPECT_NE(std::string::npos,
-            upload_request_content_.find("filename=\"webrtc_log.gz\""));
-  EXPECT_STREQ(kTestReportId, report_id.c_str());
 }
 
-IN_PROC_BROWSER_TEST_F(WebrtcLoggingPrivateApiTest,
-                       TestStartStopStoreAndUploadWithRtp) {
+IN_PROC_BROWSER_TEST_F(WebrtcLoggingPrivateApiTest, TestStartStopStoreWithRtp) {
   ASSERT_TRUE(SetupTestServerLogUploading());
 
   static const char kLogId[] = "TestStartStopStoreAndUploadWithRtp";
@@ -632,35 +605,22 @@ IN_PROC_BROWSER_TEST_F(WebrtcLoggingPrivateApiTest,
   ASSERT_TRUE(StopLogging());
   ASSERT_TRUE(StopRtpDump(true, true));
   ASSERT_TRUE(StoreLog(kLogId));
-
-  std::string report_id;
-  EXPECT_TRUE(UploadStoredLog(kLogId, &report_id));
-  EXPECT_NE(std::string::npos,
-            upload_request_content_.find("filename=\"webrtc_log.gz\""));
-  EXPECT_STREQ(kTestReportId, report_id.c_str());
 }
 
 IN_PROC_BROWSER_TEST_F(WebrtcLoggingPrivateApiTest,
-                       TestStartStopStoreAndUploadWithMetaData) {
+                       TestStartStopAndStoreWithMetaData) {
   ASSERT_TRUE(SetupTestServerLogUploading());
 
   static const char kLogId[] = "TestStartStopStoreAndUploadWithRtp";
   ASSERT_TRUE(StartLogging());
 
-  base::Value::List parameters;
+  base::ListValue parameters;
   AppendTabIdAndUrl(parameters);
   InitializeTestMetaData(parameters);
   SetMetaData(parameters);
 
   ASSERT_TRUE(StopLogging());
   ASSERT_TRUE(StoreLog(kLogId));
-
-  std::string report_id;
-  EXPECT_TRUE(UploadStoredLog(kLogId, &report_id));
-  EXPECT_NE(std::string::npos,
-            upload_request_content_.find("filename=\"webrtc_log.gz\""));
-  EXPECT_NE(std::string::npos, upload_request_content_.find(kTestLoggingUrl));
-  EXPECT_STREQ(kTestReportId, report_id.c_str());
 }
 
 IN_PROC_BROWSER_TEST_F(WebrtcLoggingPrivateApiTest,

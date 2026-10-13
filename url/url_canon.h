@@ -77,14 +77,14 @@ class CanonOutputT {
 
   // Returns the contents of the buffer as a string_view.
   std::basic_string_view<T> view() const {
-    return std::basic_string_view<T>(data(), length());
+    return std::basic_string_view<T>(buffer_, length());
   }
 
   // Called by the user of this class to get the output. The output will NOT
-  // be NULL-terminated. Call length() to get the
-  // length.
-  const T* data() const { return buffer_; }
-  T* data() { return buffer_; }
+  // be NULL-terminated. Call length() to get the length.
+  //
+  // This is unsafe, and we should use view() instead.
+  UNSAFE_BUFFER_USAGE const T* data() const { return buffer_; }
 
   // Shortens the URL to the new length. Used for "backing up" when processing
   // relative paths. This can also be used if an external function writes a lot
@@ -144,6 +144,12 @@ class CanonOutputT {
     Append(copy);
   }
 
+  // Returns a span for the whole buffer.
+  base::span<T> Span() {
+    // SAFETY: Resize() must ensure `buffer_` has `buffer_len_` size.
+    return UNSAFE_BUFFERS(base::span(buffer_, buffer_len_));
+  }
+
  protected:
   // Grows the given buffer so that it can fit at least |min_additional|
   // characters. Returns true if the buffer could be resized, false on OOM.
@@ -157,12 +163,6 @@ class CanonOutputT {
     } while (new_len < buffer_len_ + min_additional);
     Resize(new_len);
     return true;
-  }
-
-  // Returns a span for the whole buffer.
-  base::span<T> Span() {
-    // SAFETY: Resize() must ensure `buffer_` has `buffer_len_` size.
-    return UNSAFE_BUFFERS(base::span(buffer_, buffer_len_));
   }
 
   // RAW_PTR_EXCLUSION: Performance (based on analysis of sampling profiler
@@ -205,7 +205,7 @@ class RawCanonOutputT : public CanonOutputT<T> {
   T fixed_buffer_[fixed_capacity];
 };
 
-// Explicitely instantiate commonly used instatiations.
+// Explicitly instantiate commonly used instantiations.
 extern template class EXPORT_TEMPLATE_DECLARE(COMPONENT_EXPORT(URL))
     CanonOutputT<char>;
 extern template class EXPORT_TEMPLATE_DECLARE(COMPONENT_EXPORT(URL))
@@ -1036,7 +1036,7 @@ class Replacements {
     sources_.path = Placeholder();
     components_.path = Component();
   }
-  // Return the path part of the source string if the path component is alid.
+  // Return the path part of the source string if the path component is valid.
   std::optional<StringViewT> MaybePath() const {
     return components_.path.MaybeAsViewOn(sources_.path);
   }

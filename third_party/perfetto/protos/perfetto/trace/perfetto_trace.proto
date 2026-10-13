@@ -5170,6 +5170,29 @@ message TraceConfig {
   // Supported on: Android 26Q1+.
   optional WriteFlushMode write_flush_mode = 44;
 
+  enum FFlushMode {
+    // Default: same as FFLUSH_DISABLED.
+    FFLUSH_UNSPECIFIED = 0;
+
+    // Do not explicitly sync the file to storage after each write pass.
+    FFLUSH_DISABLED = 1;
+
+    // Explicitly sync the file to storage (via fdatasync) after each periodic
+    // write pass. Increases data durability at the cost of higher disk I/O
+    // overhead.
+    FFLUSH_ENABLED = 2;
+  }
+
+  // Whether to sync the output file to storage after each periodic write pass.
+  // Only applicable when |write_into_file| is true.
+  //
+  // By default, no fflush is invoked. FFLUSH_ENABLED must be set to explicitly
+  // sync to storage on every write.
+  //
+  // Introduced in: perfetto v54.
+  // Supported on: Android 26Q1+.
+  optional FFlushMode fflush_post_write = 45;
+
   // When true, data sources in remote producers (machines connected via
   // traced_relay) will be matched by default. When false (the default), data
   // sources only match the host machine. In either case, an explicit
@@ -6732,7 +6755,7 @@ message LayerProto {
   // Layer's corner radius
   optional float corner_radius = 41 [deprecated = true];
   // Metadata map. May be empty.
-  map<int32, string> metadata = 42;
+  map<int32, bytes> metadata = 42;
 
   optional TransformProto effective_transform = 43;
   optional FloatRectProto source_bounds = 44;
@@ -7247,6 +7270,10 @@ message ChromeMetadataPacket {
 
   // List of Finch study/groups that apply to this trace.
   repeated FinchHash field_trial_hashes = 4;
+
+  // The package name of the app which is being traced. This field is only set
+  // on Android.
+  optional string app_package_name = 5;
 }
 
 // Metadata related to background tracing scenarios, states and triggers.
@@ -11545,6 +11572,10 @@ message PanelWriteGenericFtraceEvent {
   optional uint32 type = 5;
   optional int32 value = 6;
 }
+message GramCollisionFtraceEvent {
+  optional int32 panel_index = 1;
+  optional uint32 collision_cnt = 2;
+}
 
 // End of protos/perfetto/trace/ftrace/panel.proto
 
@@ -13169,6 +13200,7 @@ message FtraceEvent {
     ScsiEhWakeupFtraceEvent scsi_eh_wakeup = 599;
     FwtpPerfettoSliceFtraceEvent fwtp_perfetto_slice = 600;
     GpuPowerStateFtraceEvent gpu_power_state = 601;
+    GramCollisionFtraceEvent gram_collision = 602;
   }
 }
 
@@ -13559,6 +13591,9 @@ message GenericKernelProcessTree {
 
     // True if thread is the main thread.
     optional bool is_main_thread = 4;
+
+    // True if thread is an idle thread.
+    optional bool is_idle = 5;
   }
 
   // Representation of a process.
@@ -15570,6 +15605,8 @@ message InternedData {
   repeated InternedString viewcapture_window_name = 39;
   repeated InternedString viewcapture_view_id = 40;
   repeated InternedString viewcapture_class_name = 41;
+  repeated InternedString viewcapture_content_description = 45;
+  repeated InternedString viewcapture_text = 46;
 
   // Interned context for android.app_wakelocks.
   repeated AppWakelockInfo app_wakelock_info = 42;
@@ -15752,6 +15789,27 @@ message PerfettoMetatrace {
 }
 
 // End of protos/perfetto/trace/perfetto/perfetto_metatrace.proto
+
+// Begin of protos/perfetto/trace/perfetto/trace_provenance.proto
+
+message TraceProvenance {
+  message Sequence {
+    // The trusted_packet_sequence_id reported in each TracePacket.
+    optional uint32 id = 1;
+
+    // ID of the producer, as per Producer.id.
+    optional int32 producer_id = 2;
+  }
+
+  // Describes a trace buffer and all the sequences writing to it.
+  message Buffer {
+    repeated Sequence sequences = 1;
+  }
+
+  repeated Buffer buffers = 2;
+}
+
+// End of protos/perfetto/trace/perfetto/trace_provenance.proto
 
 // Begin of protos/perfetto/trace/perfetto/tracing_service_event.proto
 
@@ -17817,7 +17875,7 @@ message UiState {
 // See the [Buffers and Dataflow](/docs/concepts/buffers.md) doc for details.
 //
 // Next reserved id: 14 (up to 15).
-// Next id: 124.
+// Next id: 125.
 message TracePacket {
   // The timestamp of the TracePacket.
   // By default this timestamps refers to the trace clock (CLOCK_BOOTTIME on
@@ -17888,6 +17946,7 @@ message TracePacket {
     StatsdAtom statsd_atom = 84;
     AndroidSystemProperty android_system_property = 86;
     EntityStateResidency entity_state_residency = 91;
+    TraceProvenance trace_provenance = 124;
 
     // Only used in profile packets.
     ModuleSymbols module_symbols = 61;

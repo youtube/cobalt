@@ -72,14 +72,14 @@ class AndroidBrowserWindowUnitTest : public testing::Test {
             AttachCurrentThread(), java_test_support_));
   }
 
-  void InvokeJavaResetAndDestroy() {
-    Java_AndroidBrowserWindowNativeUnitTestSupport_invokeResetAndDestroy(
+  bool InvokeJavaIsDeleteScheduled() const {
+    return Java_AndroidBrowserWindowNativeUnitTestSupport_invokeIsDeleteScheduled(
         AttachCurrentThread(), java_test_support_);
   }
 
-  void InvokeJavaSetProfileForTesting(Profile* profile) const {
-    Java_AndroidBrowserWindowNativeUnitTestSupport_setProfileForTesting(
-        AttachCurrentThread(), java_test_support_, profile->GetJavaObject());
+  void InvokeJavaResetAndDestroy() {
+    Java_AndroidBrowserWindowNativeUnitTestSupport_invokeResetAndDestroy(
+        AttachCurrentThread(), java_test_support_);
   }
 
  protected:
@@ -120,6 +120,17 @@ TEST_F(AndroidBrowserWindowUnitTest,
   EXPECT_NE(nullptr, ptr1);
   EXPECT_NE(nullptr, ptr2);
   EXPECT_EQ(ptr1, ptr2);
+}
+
+TEST_F(AndroidBrowserWindowUnitTest,
+       JavaDestroyMethodMarksWindowAsScheduledForDeletion) {
+  // Arrange.
+  InvokeJavaGetOrCreateNativePtr();
+  EXPECT_FALSE(InvokeJavaIsDeleteScheduled());
+
+  // Act: call Java destroy().
+  InvokeJavaResetAndDestroy();
+  EXPECT_TRUE(InvokeJavaIsDeleteScheduled());
 }
 
 TEST_F(AndroidBrowserWindowUnitTest,

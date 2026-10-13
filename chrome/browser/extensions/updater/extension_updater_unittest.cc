@@ -226,7 +226,7 @@ class StubExtensionRegistrarDelegate : public ExtensionRegistrar::Delegate {
   void OnExtensionInstalled(const Extension* extension,
                             const syncer::StringOrdinal& page_ordinal,
                             int install_flags,
-                            base::Value::Dict ruleset_install_prefs) override {}
+                            base::DictValue ruleset_install_prefs) override {}
 };
 
 class MockUpdateService : public UpdateService {
@@ -348,7 +348,7 @@ class TestDownloaderFactory {
       ExtensionDownloaderDelegate* delegate) {
     identity_test_env_ = std::make_unique<signin::IdentityTestEnvironment>();
     account_info_ = identity_test_env_->MakePrimaryAccountAvailable(
-        "bobloblaw@lawblog.example.com", signin::ConsentLevel::kSync);
+        "bobloblaw@lawblog.example.com", signin::ConsentLevel::kSignin);
 
     std::unique_ptr<ExtensionDownloader> downloader(
         CreateExtensionDownloader(delegate));
@@ -541,7 +541,7 @@ class ExtensionUpdaterTest : public testing::Test {
       CHECK_EQ(count, 1) << "Can't create two extensions with the same key";
     }
     for (int i = 1; i <= count; i++) {
-      base::Value::Dict manifest;
+      base::DictValue manifest;
       manifest.Set(manifest_keys::kVersion, base::StringPrintf("%d.0.0.0", i));
       manifest.Set(manifest_keys::kName,
                    base::StringPrintf("Extension %d.%d", id, i));
@@ -2644,12 +2644,11 @@ TEST_F(ExtensionUpdaterTest, TestUpdatingRemotelyDisabledExtensions) {
 
 TEST_F(ExtensionUpdaterTest, TestPendingInstall) {
   // Add an extension as a pending update with a higher version number.
-  base::Value::Dict manifest;
+  base::DictValue manifest;
   manifest.Set(manifest_keys::kKey, kExtensionManifestKey);
   manifest.Set(manifest_keys::kName, "Fake extension");
   manifest.Set(manifest_keys::kVersion, "1.0.0.1");
   manifest.Set(manifest_keys::kManifestVersion, 2);
-  manifest.Set(manifest_keys::kDifferentialFingerprint, "fingerprint");
   scoped_refptr<Extension> pending_update =
       prefs_->AddExtensionWithManifest(manifest, ManifestLocation::kInternal);
   DelayedInstallManager::Get(profile())->Insert(pending_update);
@@ -2672,17 +2671,16 @@ TEST_F(ExtensionUpdaterTest, TestPendingInstall) {
   ASSERT_EQ(enabled_extensions[0]->VersionString(), "1.0.0.0");
 
   // When StartUpdateCheck is called, we expect the pending version is used.
-  EXPECT_CALL(
-      update_service,
-      StartUpdateCheck(
-          ::testing::Field(
-              &ExtensionUpdateCheckParams::update_info,
-              ::testing::ElementsAre(::testing::Pair(
-                  enabled_extensions[0]->id(),
-                  ::testing::FieldsAre(
-                      "", false, ::testing::Optional(std::string("1.0.0.1")),
-                      ::testing::Optional(std::string("fingerprint")))))),
-          _, _));
+  EXPECT_CALL(update_service,
+              StartUpdateCheck(
+                  ::testing::Field(
+                      &ExtensionUpdateCheckParams::update_info,
+                      ::testing::ElementsAre(::testing::Pair(
+                          enabled_extensions[0]->id(),
+                          ::testing::FieldsAre(
+                              "", false,
+                              ::testing::Optional(std::string("1.0.0.1")))))),
+                  _, _));
 
   SetExtensions(enabled_extensions, ExtensionList());
   updater.Start();

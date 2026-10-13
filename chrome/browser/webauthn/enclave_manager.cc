@@ -9,6 +9,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <deque>
+#include <limits>
 #include <memory>
 #include <optional>
 #include <string>
@@ -962,13 +963,19 @@ base::flat_map<int32_t, std::vector<uint8_t>> GetNewSecretsToStore(
     const EnclaveManager::StoreKeysArgs& args) {
   const auto& existing = user.wrapped_security_domain_secrets();
   base::flat_map<int32_t, std::vector<uint8_t>> new_secrets;
-  for (int32_t i = args.last_key_version - args.keys.size() + 1;
-       i <= args.last_key_version; i++) {
-    if (existing.find(i) == existing.end()) {
-      new_secrets.emplace(i, args.keys[args.last_key_version - i]);
+  CHECK(args.keys.size() <= std::numeric_limits<int32_t>::max());
+
+  // Return previously unknown keys by version. Key version for the initial key
+  // was chosen at random, and increments with each new key. The caller provides
+  // all known keys, but only the version of the last one.
+  int32_t first_key_version = args.last_key_version - args.keys.size() + 1;
+  for (int32_t i = 0; i < static_cast<int32_t>(args.keys.size()); i++) {
+    int32_t current_key_version = first_key_version + i;
+    if (existing.find(current_key_version) == existing.end()) {
+      new_secrets.emplace(current_key_version,
+                          args.keys[args.keys.size() - i - 1]);
     }
   }
-
   return new_secrets;
 }
 
@@ -3755,10 +3762,18 @@ void EnclaveManager::TemporarilyCachePendingOpportunisticKeys(
       base::Seconds(ttl_seconds));
 }
 
-void EnclaveManager::StoreKeys(const GaiaId& gaia_id,
-                               std::vector<std::vector<uint8_t>> keys,
-                               int last_key_version) {
+void EnclaveManager::StoreKeys(
+    const GaiaId& gaia_id,
+    std::vector<std::vector<uint8_t>> keys,
+    int last_key_version,
+    std::optional<trusted_vault::TrustedVaultUserActionTriggerForUMA>
+        user_action_trigger) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (user_action_trigger.has_value()) {
+    base::UmaHistogramEnumeration(
+        "PasswordManager.UserActionTriggerThatRetrievedPasskeySecret",
+        user_action_trigger.value());
+  }
   if (base::FeatureList::IsEnabled(device::kWebAuthnOpportunisticRetrieval)) {
     if (store_keys_lock_depth_) {
       webauthn::metrics::RecordGPMRecoveryEvent(
@@ -4101,7 +4116,8 @@ void EnclaveManager::HandleIdentityChange(bool is_post_load) {
       // the primary account was either empty or had a different Gaia Id. Now
       // the primary account is available so we can store them.
       StoreKeys(store_keys_arg->gaia_id, std::move(store_keys_arg->keys),
-                store_keys_arg->last_key_version);
+                store_keys_arg->last_key_version,
+                /*user_action_trigger=*/std::nullopt);
       webauthn::metrics::RecordGPMCachedOpportunisticallyRetrievedKeyEvent(
           webauthn::metrics::
               WebAuthenticationGPMCachedOpportunisticallyRetrievedKeyEvent::
@@ -4289,7 +4305,7 @@ void EnclaveManager::ClearRegistration() {
             if (crypto::StatefulUnexportableKeyProvider* stateful_provider =
                     provider ? provider->AsStatefulUnexportableKeyProvider()
                              : nullptr) {
-              stateful_provider->DeleteSigningKeysSlowly(
+              stateful_provider->DeleteWrappedKeysSlowly(
                   {wrapped_identity_private_key});
             }
           },

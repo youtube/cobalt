@@ -893,7 +893,8 @@ component("platform") {
     "graphics/canvas_deferred_paint_record.h",
     "graphics/canvas_hibernation_handler.cc",
     "graphics/canvas_hibernation_handler.h",
-    "graphics/canvas_high_entropy_op_type.h",
+    "graphics/canvas_non2d_snapshot_provider_bitmap.cc",
+    "graphics/canvas_non2d_snapshot_provider_bitmap.h",
     "graphics/canvas_resource.cc",
     "graphics/canvas_resource.h",
     "graphics/canvas_resource_dispatcher.cc",
@@ -901,8 +902,6 @@ component("platform") {
     "graphics/canvas_resource_provider.cc",
     "graphics/canvas_resource_provider.h",
     "graphics/canvas_snapshot_provider.h",
-    "graphics/canvas_snapshot_provider_external_bitmap.cc",
-    "graphics/canvas_snapshot_provider_external_bitmap.h",
     "graphics/color.cc",
     "graphics/color.h",
     "graphics/color_behavior.h",
@@ -1085,6 +1084,7 @@ component("platform") {
     "graphics/image_decoding_store.h",
     "graphics/image_frame_generator.cc",
     "graphics/image_frame_generator.h",
+    "graphics/image_node_animation_info.h",
     "graphics/image_observer.cc",
     "graphics/image_observer.h",
     "graphics/image_orientation.cc",
@@ -2026,7 +2026,7 @@ static_library("test_support") {
     "graphics/paint/paint_controller_test.h",
     "graphics/test/fake_gles2_interface.h",
     "graphics/test/fake_web_graphics_context_3d_provider.h",
-    "graphics/test/gpu_memory_buffer_test_platform.h",
+    "graphics/test/gpu_compositing_test_platform.h",
     "graphics/test/gpu_test_utils.cc",
     "graphics/test/gpu_test_utils.h",
     "graphics/test/mock_compositor_frame_sink.h",
@@ -2441,7 +2441,7 @@ source_set("blink_platform_unittests_sources") {
     "widget/input/main_thread_event_queue_unittest.cc",
     "widget/input/mock_input_handler_proxy.h",
     "widget/input/mock_input_handler_proxy_client.h",
-    "widget/input/prediction/filter_factory_unittests.cc",
+    "widget/input/prediction/filter_factory_unittest.cc",
     "widget/input/scroll_predictor_unittest.cc",
     "widget/input/widget_input_handler_manager_unittest.cc",
   ]
@@ -2762,7 +2762,7 @@ source_set("blink_image_decoder_fuzzer_test_support") {
   ]
   deps = [ ":platform" ]
   if (enable_jxl_decoder) {
-    deps += [ "//third_party/rust/jxl/v0_2/wrapper:jxl_rs" ]
+    deps += [ "//third_party/rust/jxl/v0_3/wrapper:jxl_rs" ]
   }
 }
 
@@ -2877,7 +2877,7 @@ fuzzer_test("web_icon_sizes_fuzzer") {
 }
 
 if (enable_dav1d_decoder) {
-  # Fuzzer for blink::CrabbyAVIFImageDecoder
+  # Fuzzer for blink::AVIFImageDecoder
   fuzzer_test("blink_avif_decoder_fuzzer") {
     sources = [ "image-decoders/avif/avif_image_decoder_fuzzer.cc" ]
     deps = [
@@ -2886,7 +2886,14 @@ if (enable_dav1d_decoder) {
       ":platform",
     ]
     seed_corpuses = [ "//third_party/blink/web_tests/images/resources/avif" ]
-    libfuzzer_options = [ "rss_limit_mb=8192" ]
+    libfuzzer_options = [
+      "rss_limit_mb=8192",
+
+      # Large AVIF images can take a while to decode under ASAN (especially when
+      # they are fuzzer generated). The default timeout is 25 seconds.
+      "timeout_per_input=50",
+    ]
+    centipede_options = libfuzzer_options
     additional_configs = [ "//third_party/blink/renderer:inside_blink" ]
   }
 }
@@ -2899,7 +2906,7 @@ if (enable_jxl_decoder) {
       ":blink_fuzzer_test_support",
       ":blink_image_decoder_fuzzer_test_support",
       ":platform",
-      "//third_party/rust/jxl/v0_2/wrapper:jxl_rs",
+      "//third_party/rust/jxl/v0_3/wrapper:jxl_rs",
     ]
     seed_corpuses =
         [ "//third_party/blink/web_tests/external/wpt/jpegxl/resources" ]

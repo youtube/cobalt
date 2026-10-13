@@ -101,7 +101,7 @@ CallTest::CallTest(FieldTrials field_trials)
       audio_encoder_factory_(CreateBuiltinAudioEncoderFactory()),
       task_queue_(env_.task_queue_factory().CreateTaskQueue(
           "CallTestTaskQueue",
-          TaskQueueFactory::Priority::NORMAL)) {}
+          TaskQueueFactory::Priority::kNormal)) {}
 
 CallTest::~CallTest() = default;
 
@@ -512,9 +512,9 @@ void CallTest::CreateMatchingFecConfig(
     const VideoSendStream::Config& send_config) {
   FlexfecReceiveStream::Config config(transport);
   config.payload_type = send_config.rtp.flexfec.payload_type;
-  config.rtp.remote_ssrc = send_config.rtp.flexfec.ssrc;
+  config.remote_ssrc = send_config.rtp.flexfec.ssrc;
   config.protected_media_ssrcs = send_config.rtp.flexfec.protected_media_ssrcs;
-  config.rtp.local_ssrc = VideoTestConstants::kReceiverLocalVideoSsrc;
+  config.local_ssrc = VideoTestConstants::kReceiverLocalVideoSsrc;
   if (!video_receive_configs_.empty()) {
     video_receive_configs_[0].rtp.protected_by_flexfec = true;
     video_receive_configs_[0].rtp.packet_sink_ = this;
@@ -650,10 +650,10 @@ void CallTest::CreateSendTransport(const BuiltInNetworkBehaviorConfig& config,
   auto network = std::make_unique<SimulatedNetwork>(config);
   send_simulated_network_ = network.get();
   send_transport_ = std::make_unique<PacketTransport>(
-      task_queue(), sender_call_.get(), observer,
+      env_, task_queue(), sender_call_.get(), observer,
       test::PacketTransport::kSender, payload_type_map_,
-      std::make_unique<FakeNetworkPipe>(Clock::GetRealTimeClock(),
-                                        std::move(network), receiver),
+      std::make_unique<FakeNetworkPipe>(&env_.clock(), std::move(network),
+                                        receiver),
       rtp_extensions_, rtp_extensions_);
 }
 
@@ -663,10 +663,9 @@ void CallTest::CreateReceiveTransport(
   auto network = std::make_unique<SimulatedNetwork>(config);
   receive_simulated_network_ = network.get();
   receive_transport_ = std::make_unique<PacketTransport>(
-      task_queue(), nullptr, observer, test::PacketTransport::kReceiver,
+      env_, task_queue(), nullptr, observer, test::PacketTransport::kReceiver,
       payload_type_map_,
-      std::make_unique<FakeNetworkPipe>(Clock::GetRealTimeClock(),
-                                        std::move(network),
+      std::make_unique<FakeNetworkPipe>(&env_.clock(), std::move(network),
                                         sender_call_->Receiver()),
       rtp_extensions_, rtp_extensions_);
 }

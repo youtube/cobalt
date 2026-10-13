@@ -25,7 +25,7 @@
 //     sure precision is always assigned.
 //   - Case values are always ConstantId (int/uint only too?)
 //   - Variables are Pointers
-//   - Pointers only valid in the right arg of load/store/access/call
+//   - Pointers only valid in the left arg of load/store/access/call
 //   - Loop blocks ends in the appropriate instructions.
 //   - Do blocks end in DoLoop (unless already terminated by something else, like Return)
 //   - If condition is a bool.
@@ -46,6 +46,7 @@
 //     passed a Pointer at the call site.  For that matter, do the same for user function calls too.
 //   - Check for invalid texture* combinations, like non-shadow samplers with TextureCompare ops, or
 //     is_proj is false for cubemaps.
+//   - Check that function parameter variables don't have an initializer.
 //   - Check that returned values from functions match the type of the function's return value.
 //   - Validate that if there's a merge variable in an if block, both true and false blocks exist
 //     and they both end in a Merge with an ID.  (Technically, we should be able to also support one

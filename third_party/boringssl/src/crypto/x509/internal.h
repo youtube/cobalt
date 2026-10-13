@@ -25,6 +25,10 @@
 
 // Internal structures.
 
+DECLARE_OPAQUE_STRUCT(x509_st, X509Impl)
+DECLARE_OPAQUE_STRUCT(x509_store_st, X509Store)
+DECLARE_OPAQUE_STRUCT(X509_name_st, X509Name)
+
 struct X509_pubkey_st {
   X509_ALGOR algor;
   ASN1_BIT_STRING public_key;
@@ -37,7 +41,7 @@ void x509_pubkey_init(X509_PUBKEY *key);
 void x509_pubkey_cleanup(X509_PUBKEY *key);
 
 int x509_parse_public_key(CBS *cbs, X509_PUBKEY *out,
-                          bssl::Span<const EVP_PKEY_ALG *const> algs);
+                          Span<const EVP_PKEY_ALG *const> algs);
 int x509_marshal_public_key(CBB *cbb, const X509_PUBKEY *in);
 int x509_pubkey_set1(X509_PUBKEY *key, EVP_PKEY *pkey);
 
@@ -71,12 +75,13 @@ struct X509_NAME_CACHE {
   size_t der_len;
 };
 
-BSSL_NAMESPACE_END
-
-struct X509_name_st {
+class X509Name : public X509_name_st {
+ public:
   STACK_OF(X509_NAME_ENTRY) *entries;
   mutable bssl::Atomic<bssl::X509_NAME_CACHE *> cache;
 } /* X509_NAME */;
+
+BSSL_NAMESPACE_END
 
 struct x509_attributes_st {
   ASN1_OBJECT *object;
@@ -116,17 +121,20 @@ BSSL_NAMESPACE_BEGIN
 // (RFC 5280) and C type is |STACK_OF(X509_EXTENSION)*|.
 DECLARE_ASN1_ITEM(X509_EXTENSIONS)
 
-BSSL_NAMESPACE_END
+class X509Impl : public x509_st {
+ public:
+  static constexpr bool kAllowUniquePtr = true;
 
-struct x509_st {
+  ~X509Impl();
+
   // TBSCertificate fields:
   uint8_t version;  // One of the |X509_VERSION_*| constants.
   ASN1_INTEGER serialNumber;
   X509_ALGOR tbs_sig_alg;
-  X509_NAME issuer;
+  X509Name issuer;
   ASN1_TIME notBefore;
   ASN1_TIME notAfter;
-  X509_NAME subject;
+  X509Name subject;
   X509_PUBKEY key;
   ASN1_BIT_STRING *issuerUID;            // [ 1 ] optional in v2
   ASN1_BIT_STRING *subjectUID;           // [ 2 ] optional in v2
@@ -139,7 +147,7 @@ struct x509_st {
   // TODO(davidben): Now every parsed |X509| has an underlying |CRYPTO_BUFFER|,
   // but |X509|s created peacemeal do not. Can we make this more uniform?
   CRYPTO_BUFFER *buf;
-  CRYPTO_refcount_t references;
+  bssl::CRYPTO_refcount_t references;
   CRYPTO_EX_DATA ex_data;
   // These contain copies of various extension values
   long ex_pathlen;
@@ -153,10 +161,8 @@ struct x509_st {
   NAME_CONSTRAINTS *nc;
   unsigned char cert_hash[SHA256_DIGEST_LENGTH];
   bssl::X509_CERT_AUX *aux;
-  CRYPTO_MUTEX lock;
+  bssl::CRYPTO_MUTEX lock;
 } /* X509 */;
-
-BSSL_NAMESPACE_BEGIN
 
 int x509_marshal_tbs_cert(CBB *cbb, const X509 *x509);
 
@@ -242,7 +248,7 @@ struct X509_crl_st {
   bssl::X509_CRL_INFO *crl;
   X509_ALGOR *sig_alg;
   ASN1_BIT_STRING *signature;
-  CRYPTO_refcount_t references;
+  bssl::CRYPTO_refcount_t references;
   int flags;
   // Copies of various extensions
   AUTHORITY_KEYID *akid;
@@ -324,15 +330,16 @@ DEFINE_NAMESPACED_STACK_OF(X509_LOOKUP)
 
 using StackOfX509Lookup = STACK_OF(X509_LOOKUP);
 
-BSSL_NAMESPACE_END
-
 // This is used to hold everything.  It is used for all certificate
 // validation.  Once we have a certificate chain, the 'verify'
 // function is then called to actually check the cert chain.
-struct x509_store_st {
+class X509Store : public x509_store_st {
+ public:
+  ~X509Store();
+
   // The following is a cache of trusted certs
   STACK_OF(X509_OBJECT) *objs;  // Cache of all objects
-  CRYPTO_MUTEX objs_lock;
+  bssl::CRYPTO_MUTEX objs_lock;
 
   // These are external lookup methods
   bssl::StackOfX509Lookup *get_cert_methods;
@@ -342,8 +349,10 @@ struct x509_store_st {
   // Callbacks for various operations
   X509_STORE_CTX_verify_cb verify_cb;       // error callback
 
-  CRYPTO_refcount_t references;
+  bssl::CRYPTO_refcount_t references;
 } /* X509_STORE */;
+
+BSSL_NAMESPACE_END
 
 // This is the functions plus an instance of the local variables.
 struct x509_lookup_st {
@@ -435,12 +444,12 @@ int x509_digest_verify_init(EVP_MD_CTX *ctx, const X509_ALGOR *sigalg,
 // |in|. It returns one if the signature is valid and zero on error.
 int x509_verify_signature(const X509_ALGOR *sigalg,
                           const ASN1_BIT_STRING *signature,
-                          bssl::Span<const uint8_t> in, EVP_PKEY *pkey);
+                          Span<const uint8_t> in, EVP_PKEY *pkey);
 
 // x509_sign_to_bit_string signs |in| using |ctx| and saves the result in |out|.
 // It returns the length of the signature on success and zero on error.
 int x509_sign_to_bit_string(EVP_MD_CTX *ctx, ASN1_BIT_STRING *out,
-                            bssl::Span<const uint8_t> in);
+                            Span<const uint8_t> in);
 
 
 // Path-building functions.

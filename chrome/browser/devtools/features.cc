@@ -216,4 +216,12 @@ const base::FeatureParam<bool> kDevToolsConsoleInsightsTeasersAllowWithoutGpu{
     &kDevToolsConsoleInsightsTeasers, "allow_without_gpu",
     /*default_value=*/false};
 
+BASE_FEATURE(kDevToolsAiAssistanceV2, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Whether the Protocol Monitor panel is enabled.
+BASE_FEATURE(kDevToolsProtocolMonitor, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Whether to display the Gemini rebranding for AI Assistance.
+BASE_FEATURE(kDevToolsGeminiRebranding, base::FEATURE_DISABLED_BY_DEFAULT);
+
 }  // namespace features

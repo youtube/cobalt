@@ -170,7 +170,8 @@ base::File OpenV8File(const char* file_name,
   const int kMaxOpenAttempts = 5;
   const int kOpenRetryDelayMillis = 250;
 
-  int flags = base::File::FLAG_OPEN | base::File::FLAG_READ;
+  int flags = base::File::FLAG_OPEN | base::File::FLAG_READ |
+              base::File::FLAG_WIN_SHARE_DELETE;
   base::File file;
   for (int attempt = 0; attempt < kMaxOpenAttempts; attempt++) {
     file.Initialize(path, flags);
@@ -363,12 +364,6 @@ void SetFeatureFlags() {
   SetV8FlagsIfOverridden(features::kV8OffThreadFinalization,
                          "--finalize-streaming-on-background",
                          "--no-finalize-streaming-on-background");
-  if (base::FeatureList::IsEnabled(features::kV8DelayMemoryReducer)) {
-    SetV8FlagsFormatted(
-        "--gc-memory-reducer-start-delay-ms=%i",
-        static_cast<int>(
-            features::kV8MemoryReducerStartDelay.Get().InMilliseconds()));
-  }
   SetV8FlagsIfOverridden(features::kV8ConcurrentMarkingHighPriorityThreads,
                          "--concurrent-marking-high-priority-threads",
                          "--no-concurrent-marking-high-priority-threads");
@@ -434,7 +429,6 @@ void SetFeatureFlags() {
   SetV8FlagsIfOverridden(features::kV8MemoryPoolReleaseOnMallocFailures,
                          "--memory-pool-release-on-malloc-failures",
                          "--no-memory-pool-release-on-malloc-failures");
-  SetV8FlagsIfOverridden(features::kV8MinorMS, "--minor-ms", "--no-minor-ms");
   if (base::FeatureList::IsEnabled(features::kV8ScavengerHigherCapacity)) {
     SetV8FlagsFormatted("--scavenger-max-new-space-capacity-mb=%i",
                         features::kV8ScavengerMaxCapacity.Get());

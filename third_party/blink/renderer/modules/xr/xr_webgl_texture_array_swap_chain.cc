@@ -7,7 +7,6 @@
 #include "third_party/blink/renderer/modules/webgl/webgl_framebuffer.h"
 #include "third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.h"
 #include "third_party/blink/renderer/modules/webgl/webgl_texture.h"
-#include "third_party/blink/renderer/platform/graphics/accelerated_static_bitmap_image.h"
 
 namespace blink {
 
@@ -15,7 +14,8 @@ namespace {
 
 XRWebGLSwapChain::Descriptor MakeLayerDescriptor(
     XRWebGLSwapChain* wrapped_swap_chain,
-    uint32_t layers) {
+    uint32_t layers,
+    bool clear_on_access) {
   // Copy the wrapped swap chain's descriptor and divide its width by the
   // number of requested layers.
   XRWebGLSwapChain::Descriptor descriptor = wrapped_swap_chain->descriptor();
@@ -24,6 +24,7 @@ XRWebGLSwapChain::Descriptor MakeLayerDescriptor(
   descriptor.width /= layers;
   descriptor.layers = layers;
   descriptor.is_texture_array = true;
+  descriptor.clear_on_access = clear_on_access;
   return descriptor;
 }
 
@@ -31,10 +32,12 @@ XRWebGLSwapChain::Descriptor MakeLayerDescriptor(
 
 XRWebGLTextureArraySwapChain::XRWebGLTextureArraySwapChain(
     XRWebGLSwapChain* wrapped_swap_chain,
-    uint32_t layers)
-    : XRWebGLSwapChain(wrapped_swap_chain->context(),
-                       MakeLayerDescriptor(wrapped_swap_chain, layers),
-                       wrapped_swap_chain->webgl2()),
+    uint32_t layers,
+    bool clear_on_access)
+    : XRWebGLSwapChain(
+          wrapped_swap_chain->context(),
+          MakeLayerDescriptor(wrapped_swap_chain, layers, clear_on_access),
+          wrapped_swap_chain->webgl2()),
       wrapped_swap_chain_(wrapped_swap_chain) {
   CHECK(wrapped_swap_chain_);
   CHECK(webgl2());  // Texture arrays are only available in WebGL 2
@@ -145,10 +148,6 @@ void XRWebGLTextureArraySwapChain::OnFrameEnd() {
   // Draw one quad for each layer.
   gl->DrawArraysInstancedANGLE(GL_TRIANGLES, 0, 6, descriptor().layers);
 
-  // ClearCurrentTexture resets the framebuffer binding and mask/clear values
-  // prior to returning.
-  ClearCurrentTexture();
-
   // Restore manually tracked state
   gl->Viewport(curr_viewport[0], curr_viewport[1], curr_viewport[2],
                curr_viewport[3]);
@@ -174,6 +173,8 @@ void XRWebGLTextureArraySwapChain::OnFrameEnd() {
       static_cast<DrawingBuffer::Client*>(context());
   client->DrawingBufferClientRestoreTexture2DArrayBinding();
   client->DrawingBufferClientRestoreScissorTest();
+  client->DrawingBufferClientRestoreMaskAndClearValues();
+  client->DrawingBufferClientRestoreFramebufferBinding();
 
   context()->RestoreVertexArrayObjectBinding();
   context()->RestoreProgram();
@@ -262,9 +263,9 @@ GLuint XRWebGLTextureArraySwapChain::GetCopyProgram() {
   return copy_program_;
 }
 
-scoped_refptr<StaticBitmapImage>
-XRWebGLTextureArraySwapChain::TransferToStaticBitmapImage() {
-  return wrapped_swap_chain_->TransferToStaticBitmapImage();
+std::unique_ptr<SharedImageHolder>
+XRWebGLTextureArraySwapChain::TransferToSharedImageHolder() {
+  return wrapped_swap_chain_->TransferToSharedImageHolder();
 }
 
 void XRWebGLTextureArraySwapChain::Trace(Visitor* visitor) const {

@@ -257,8 +257,6 @@ base::flat_set<FieldGlobalId> AutofillDriverIOS::ApplyFormAction(
     const Section& section_for_clear_form_on_ios) {
   switch (action_type) {
     case mojom::FormActionType::kUndo:
-      // TODO(crbug.com/40266549) Add Undo support on iOS.
-      return {};
     case mojom::FormActionType::kFill: {
       auto callback = [&section_for_clear_form_on_ios](
                           AutofillDriver& driver,
@@ -363,8 +361,7 @@ void AutofillDriverIOS::ExtractFormWithField(
               field_renderer_id, std::move(renderer_form_handler));
 
           auto& source = static_cast<AutofillDriverIOS&>(request_target);
-          [source.bridge_ fetchFormsFiltered:NO
-                                    withName:std::u16string()
+          [source.bridge_ fetchFormsFiltered:std::nullopt
                                      inFrame:source.web_frame()
                            completionHandler:std::move(completion_handler)];
         },
@@ -433,8 +430,7 @@ void AutofillDriverIOS::ScanForms(bool immediately) {
                 : document_scan_batcher_.PushRequest(base::BindOnce(
                       callback, bridge_, web_frame()->AsWeakPtr()));
   } else {
-    [bridge_ fetchFormsFiltered:NO
-                       withName:std::u16string()
+    [bridge_ fetchFormsFiltered:std::nullopt
                         inFrame:web_frame()
               completionHandler:base::BindOnce(callback, bridge_,
                                                web_frame()->AsWeakPtr())];
@@ -453,8 +449,7 @@ void AutofillDriverIOS::FetchFormsFilteredByName(
     document_filtered_scan_batcher_.PushRequest(std::move(completion),
                                                 form_name);
   } else {
-    [bridge_ fetchFormsFiltered:YES
-                       withName:form_name
+    [bridge_ fetchFormsFiltered:form_name
                         inFrame:web_frame()
               completionHandler:std::move(completion)];
   }

@@ -348,7 +348,8 @@ void RequestService::RequestToken(
   }
 
   can_accept_redirect_to_ =
-      IsNavigationInterceptionEnabled() && navigation_handle != nullptr;
+      force_allow_redirect_to_for_testing_ ||
+      (IsNavigationInterceptionEnabled() && navigation_handle != nullptr);
 
   had_transient_user_activation_ =
       (navigation_handle &&
@@ -629,6 +630,7 @@ void RequestService::CancelTokenRequest() {
 
 void RequestService::ResolveTokenRequest(
     const std::optional<std::string>& account_id,
+    const std::optional<GURL>& redirect_to,
     base::Value token,
     ResolveTokenRequestCallback callback) {
   if (!identity_registry_ && !SetupIdentityRegistryFromPopup()) {
@@ -636,8 +638,8 @@ void RequestService::ResolveTokenRequest(
     return;
   }
 
-  bool accepted =
-      identity_registry_->NotifyResolve(origin(), account_id, token);
+  bool accepted = identity_registry_->NotifyResolve(origin(), account_id,
+                                                    redirect_to, token);
   std::move(callback).Run(accepted);
 }
 
@@ -1788,6 +1790,11 @@ void RequestService::OnRedirectToResponseReceived(
     IdentityProviderRequestOptionsPtr idp,
     FetchStatus status,
     const GURL& redirect_to) {
+  RedirectTo(idp->config->config_url, redirect_to);
+}
+
+void RequestService::RedirectTo(const GURL& idp_config_url,
+                                const GURL& redirect_to) {
   // Navigate the top-level frame to the URL specified by the IdP.
   //
   // This is done here rather than in the callers of the RequestService because
@@ -1822,8 +1829,8 @@ void RequestService::OnRedirectToResponseReceived(
   // rather than kSuccessUsingTokenInHttpResponse.
   CompleteRequest(FederatedAuthRequestResult::kSuccess,
                   TokenStatus::kSuccessUsingTokenInHttpResponse,
-                  /*token_error=*/std::nullopt, idp->config->config_url,
-                  /*token_data=*/std::nullopt,
+                  /*token_error=*/std::nullopt, idp_config_url,
+                  /*token_data=*/base::Value(),
                   /*should_delay_callback=*/false);
 }
 
@@ -2005,6 +2012,8 @@ void RequestService::CompleteRequest(
   if (!auth_request_token_callback_) {
     return;
   }
+  // We don't just return if `complete_request_delayed_` is true because in the
+  // case of abort() we still want to invoke the callback.
   if (!complete_request_delayed_) {
     // Record metrics and console errors only the first time we complete the
     // request, even if the callback is delayed.
@@ -2022,6 +2031,7 @@ void RequestService::CompleteRequest(
     CompleteRequestInternal(result, token_error, selected_idp_config_url,
                             std::move(token_data), is_auto_selected);
   } else {
+    DCHECK(!complete_request_delayed_);
     complete_request_delayed_ = true;
     base::TimeDelta delay = GetRandomRejectionTime();
     TRACE_EVENT_INSTANT("content.fedcm", "Delaying FedCM rejection",
@@ -2334,6 +2344,7 @@ void RequestService::OnClose() {
 
 bool RequestService::OnResolve(GURL idp_config_url,
                                const std::optional<std::string>& account_id,
+                               const std::optional<GURL>& redirect_to,
                                const base::Value& token) {
   // Close the pop-up window post user permission.
   if (!request_dialog_controller_) {
@@ -2361,6 +2372,12 @@ bool RequestService::OnResolve(GURL idp_config_url,
       idp_infos_[idp_config_url]->provider;
   DCHECK(provider);
 
+  if (redirect_to && redirect_to->is_valid() &&
+      IsNavigationInterceptionEnabled()) {
+    RedirectTo(idp_config_url, *redirect_to);
+    return true;
+  }
+
   if (provider->format && *provider->format == blink::mojom::Format::kSdJwt) {
     if (token.is_string()) {
       federated_sdjwt_handler_->ProcessSdJwt(token.GetString());
@@ -2377,8 +2394,6 @@ bool RequestService::OnResolve(GURL idp_config_url,
                   TokenStatus::kSuccessUsingIdentityProviderResolve,
                   /*token_error=*/std::nullopt, idp_config_url, token.Clone(),
                   /*should_delay_callback=*/false);
-  // TODO(crbug.com/40262526): handle the corner cases where CompleteRequest
-  // can't actually fulfill the request.
   return true;
 }
 

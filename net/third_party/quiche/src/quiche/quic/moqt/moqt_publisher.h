@@ -11,8 +11,11 @@
 
 #include "absl/base/nullability.h"
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
+#include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/web_transport/web_transport.h"
@@ -31,7 +34,7 @@ class MoqtObjectListener {
   virtual void OnSubscribeAccepted() = 0;
   // Called when the publisher is sure that it cannot serve the subscription.
   // This could happen synchronously or asynchronously.
-  virtual void OnSubscribeRejected(MoqtErrorPair reason) = 0;
+  virtual void OnSubscribeRejected(MoqtRequestErrorInfo info) = 0;
 
   // Notifies that a new object is available on the track.  The object payload
   // itself may be retrieved via GetCachedObject method of the associated track
@@ -94,16 +97,11 @@ class MoqtTrackPublisher {
   virtual void RemoveObjectListener(MoqtObjectListener* listener) = 0;
 
   // Methods to return various track properties. Returns nullopt if the value is
-  // not yet available. Guaranteed to be non-null if an object is available
-  // and/or OnSubscribeAccepted() has been called.
+  // not yet available.
   // Track alias is not present because MoqtSession always uses locally
   // generated values.
   virtual std::optional<Location> largest_location() const = 0;
-  // TODO(martinduke): Delete this; datagrams and streams can coexist in a
-  // track.
-  virtual std::optional<MoqtForwardingPreference> forwarding_preference()
-      const = 0;
-  virtual std::optional<MoqtDeliveryOrder> delivery_order() const = 0;
+  virtual const TrackExtensions& extensions() const = 0;
   virtual std::optional<quic::QuicTimeDelta> expiration() const = 0;
 
   // Performs a fetch for the specified range of objects.

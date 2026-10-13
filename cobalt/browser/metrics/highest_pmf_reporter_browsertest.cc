@@ -127,6 +127,11 @@ class HighestPmfReporterBrowserTest : public content::ContentBrowserTest {
 IN_PROC_BROWSER_TEST_F(HighestPmfReporterBrowserTest, MAYBE_ReportMetric) {
   base::HistogramTester histogram_tester;
 
+  // Simulate startup background/foreground transitions before initial metrics
+  // have completed.
+  reporter_->OnProcessBackgrounded();
+  reporter_->OnProcessForegrounded();
+
   reporter_->ForceFirstNavigationStarted();
   memory_usage_monitor_->usage_.private_footprint_bytes =
       1000.0 * 1024.0 * 1024.0;
@@ -136,20 +141,79 @@ IN_PROC_BROWSER_TEST_F(HighestPmfReporterBrowserTest, MAYBE_ReportMetric) {
   // OnMemoryPing
   test_task_runner_->FastForwardBy(base::Seconds(1));
 
-  // Fast forward by 2 minutes and 2 seconds.
-  // If parameter override succeeds, both 1minTest and 2minTest buckets trigger.
-  // If the override fails (e.g. single-process early caching), the 0to2min
-  // baseline bucket triggers.
-  test_task_runner_->FastForwardBy(base::Minutes(2) + base::Seconds(2));
+  // Simulate another BG/FG transition while initial reporting is in flight.
+  reporter_->OnProcessBackgrounded();
+  reporter_->OnProcessForegrounded();
+
+  // Fast forward by 16 minutes and 2 seconds so all initial buckets complete
+  // whether the parameter override (1,2 min) or baseline (2,4,8,16 min) is
+  // active.
+  test_task_runner_->FastForwardBy(base::Minutes(16) + base::Seconds(2));
 
   auto samples_override = histogram_tester.GetAllSamples(
       "Memory.Experimental.Renderer.HighestPrivateMemoryFootprint.1minTest");
   auto samples_baseline = histogram_tester.GetAllSamples(
       "Memory.Experimental.Renderer.HighestPrivateMemoryFootprint.0to2min");
+  auto rss_samples_override = histogram_tester.GetAllSamples(
+      "Memory.Experimental.Renderer.PeakResidentSet."
+      "AtHighestPrivateMemoryFootprint.1minTest");
+  auto rss_samples_baseline = histogram_tester.GetAllSamples(
+      "Memory.Experimental.Renderer.PeakResidentSet."
+      "AtHighestPrivateMemoryFootprint.0to2min");
 
   // At least one of the config models must successfully register an
-  // initialization ping.
+  // initialization ping on the initial (non-WhenForegrounded) histograms.
   EXPECT_FALSE(samples_override.empty() && samples_baseline.empty());
+  EXPECT_FALSE(rss_samples_override.empty() && rss_samples_baseline.empty());
+  const size_t initial_pmf_count =
+      samples_override.size() + samples_baseline.size();
+
+  auto fg_samples_override = histogram_tester.GetAllSamples(
+      "Memory.Experimental.Renderer."
+      "HighestPrivateMemoryFootprintWhenForegrounded.1minTest");
+  auto fg_samples_baseline = histogram_tester.GetAllSamples(
+      "Memory.Experimental.Renderer."
+      "HighestPrivateMemoryFootprintWhenForegrounded.0to2min");
+  auto fg_rss_override = histogram_tester.GetAllSamples(
+      "Memory.Experimental.Renderer.PeakResidentSet."
+      "AtHighestPrivateMemoryFootprintWhenForegrounded.1minTest");
+  auto fg_rss_baseline = histogram_tester.GetAllSamples(
+      "Memory.Experimental.Renderer.PeakResidentSet."
+      "AtHighestPrivateMemoryFootprintWhenForegrounded.0to2min");
+  EXPECT_TRUE(fg_samples_override.empty() && fg_samples_baseline.empty());
+  EXPECT_TRUE(fg_rss_override.empty() && fg_rss_baseline.empty());
+
+  // Now that the initial metrics have completed, a subsequent
+  // background/foreground transition should emit WhenForegrounded.
+  reporter_->OnProcessBackgrounded();
+  reporter_->OnProcessForegrounded();
+  test_task_runner_->FastForwardBy(base::Minutes(2) + base::Seconds(2));
+
+  fg_samples_override = histogram_tester.GetAllSamples(
+      "Memory.Experimental.Renderer."
+      "HighestPrivateMemoryFootprintWhenForegrounded.1minTest");
+  fg_samples_baseline = histogram_tester.GetAllSamples(
+      "Memory.Experimental.Renderer."
+      "HighestPrivateMemoryFootprintWhenForegrounded.0to2min");
+  fg_rss_override = histogram_tester.GetAllSamples(
+      "Memory.Experimental.Renderer.PeakResidentSet."
+      "AtHighestPrivateMemoryFootprintWhenForegrounded.1minTest");
+  fg_rss_baseline = histogram_tester.GetAllSamples(
+      "Memory.Experimental.Renderer.PeakResidentSet."
+      "AtHighestPrivateMemoryFootprintWhenForegrounded.0to2min");
+  EXPECT_FALSE(fg_samples_override.empty() && fg_samples_baseline.empty());
+  EXPECT_FALSE(fg_rss_override.empty() && fg_rss_baseline.empty());
+
+  // Initial (non-WhenForegrounded) sample counts must not increase.
+  EXPECT_EQ(initial_pmf_count,
+            histogram_tester
+                    .GetAllSamples("Memory.Experimental.Renderer."
+                                   "HighestPrivateMemoryFootprint.1minTest")
+                    .size() +
+                histogram_tester
+                    .GetAllSamples("Memory.Experimental.Renderer."
+                                   "HighestPrivateMemoryFootprint.0to2min")
+                    .size());
 }
 
 }  // namespace metrics

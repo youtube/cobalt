@@ -6,7 +6,7 @@ package org.chromium.chrome.browser.ntp_customization.theme;
 
 import static org.mockito.Mockito.verify;
 
-import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundImageType.DEFAULT;
+import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundType.DEFAULT;
 
 import android.content.Context;
 import android.graphics.drawable.Drawable;
@@ -73,17 +73,17 @@ public class NtpThemeViewBinderUnitTest {
     }
 
     @Test
-    public void testSectionTrailingIconVisibility() {
+    public void testIsSectionSelected() {
         PropertyModelChangeProcessor.create(
                 mModel, mNtpThemeBottomSheetView, NtpThemeViewBinder::bindThemeBottomSheet);
 
         Pair<Integer, Boolean> pair = new Pair<>(DEFAULT, true);
-        mModel.set(NtpThemeProperty.IS_SECTION_TRAILING_ICON_VISIBLE, pair);
-        verify(mNtpThemeBottomSheetView).setSectionTrailingIconVisibility(DEFAULT, true);
+        mModel.set(NtpThemeProperty.IS_SECTION_SELECTED, pair);
+        verify(mNtpThemeBottomSheetView).updateSectionTrailingIcon(DEFAULT, true);
 
         pair = new Pair<>(DEFAULT, false);
-        mModel.set(NtpThemeProperty.IS_SECTION_TRAILING_ICON_VISIBLE, pair);
-        verify(mNtpThemeBottomSheetView).setSectionTrailingIconVisibility(DEFAULT, false);
+        mModel.set(NtpThemeProperty.IS_SECTION_SELECTED, pair);
+        verify(mNtpThemeBottomSheetView).updateSectionTrailingIcon(DEFAULT, false);
     }
 
     @Test

@@ -9,8 +9,6 @@
 #include <map>
 #include <memory>
 #include <optional>
-#include <unordered_map>
-#include <unordered_set>
 #include <utility>
 
 #include "include/v8-extension.h"
@@ -46,6 +44,10 @@
 #include "src/parsing/parse-info.h"
 #include "src/parsing/token.h"
 #include "src/utils/ostreams.h"
+
+#ifdef DEBUG
+#include "absl/container/flat_hash_map.h"
+#endif
 
 namespace v8 {
 namespace internal {
@@ -2229,10 +2231,10 @@ void BytecodeGenerator::VisitModuleNamespaceImports() {
       closure_scope()->AsModuleScope()->module();
   for (auto entry : descriptor->namespace_imports()) {
     builder()
-        ->LoadLiteral(Smi::FromInt(entry->module_request))
+        ->LoadLiteral(Smi::FromInt(entry.second->module_request))
         .StoreAccumulatorInRegister(module_request)
         .CallRuntime(Runtime::kGetModuleNamespace, module_request);
-    Variable* var = closure_scope()->LookupInModule(entry->local_name);
+    Variable* var = closure_scope()->LookupInModule(entry.first);
     BuildVariableAssignment(var, Token::kInit, HoleCheckMode::kElided);
   }
 }
@@ -2450,6 +2452,9 @@ void BytecodeGenerator::VisitConsecutivePrototypeAssignments(
 
 void BytecodeGenerator::VisitStatements(
     const ZonePtrList<Statement>* statements, int start) {
+
+  if (builder()->RemainderOfBlockIsDead()) return;
+
   for (int stmt_idx = start; stmt_idx < statements->length(); stmt_idx++) {
     if (v8_flags.proto_assign_seq_opt) {
       int proto_assign_idx = stmt_idx;
@@ -2806,18 +2811,14 @@ void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
 
     builder()->LoadLiteral(Smi::kMinValue);
     builder()->StoreAccumulatorInRegister(r2);
-    builder()->CompareOperation(
-        Token::kGreaterThanEq, r1,
-        feedback_index(feedback_spec()->AddCompareICSlot()));
+    builder()->CompareOperation(Token::kGreaterThanEq, r1, kFeedbackIsEmbedded);
 
     switch_builder.JumpToFallThroughIfFalse();
     builder()->LoadAccumulatorWithRegister(r1);
 
     builder()->LoadLiteral(Smi::kMaxValue);
     builder()->StoreAccumulatorInRegister(r2);
-    builder()->CompareOperation(
-        Token::kLessThanEq, r1,
-        feedback_index(feedback_spec()->AddCompareICSlot()));
+    builder()->CompareOperation(Token::kLessThanEq, r1, kFeedbackIsEmbedded);
 
     switch_builder.JumpToFallThroughIfFalse();
     builder()->LoadAccumulatorWithRegister(r1);
@@ -2846,7 +2847,7 @@ void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
 
   int case_compare_ctr = 0;
 #ifdef DEBUG
-  std::unordered_map<int, int> case_ctr_checker;
+  absl::flat_hash_map<int, int> case_ctr_checker;
 #endif
 
   if (use_jumps) {
@@ -6753,7 +6754,15 @@ void BytecodeGenerator::VisitCall(Call* expr) {
   //     callee(1, ...x, 2)
   // to
   //     %reflect_apply(callee, receiver, [1, ...x, 2])
+  //
+  // For direct eval calls with a final spread like eval(...iter), we also use
+  // %reflect_apply so we can extract the first argument for eval resolution.
   const Call::SpreadPosition spread_position = expr->spread_position();
+  const bool eval_with_final_spread =
+      spread_position == Call::kHasFinalSpread && expr->is_possibly_eval() &&
+      expr->arguments()->length() > 0;
+  const bool use_reflect_apply =
+      spread_position == Call::kHasNonFinalSpread || eval_with_final_spread;
 
   // Grow the args list as we visit receiver / arguments to avoid allocating all
   // the registers up-front. Otherwise these registers are unavailable during
@@ -6871,7 +6880,7 @@ void BytecodeGenerator::VisitCall(Call* expr) {
   }
 
   int receiver_arg_count = -1;
-  if (spread_position == Call::kHasNonFinalSpread) {
+  if (use_reflect_apply) {
     // If we're building %reflect_apply, build the array literal and put it in
     // the 3rd argument.
     DCHECK(!implicit_undefined_receiver);
@@ -6900,7 +6909,7 @@ void BytecodeGenerator::VisitCall(Call* expr) {
     // position.
 
     // Move the first arg.
-    if (spread_position == Call::kHasNonFinalSpread) {
+    if (use_reflect_apply) {
       int feedback_slot_index =
           feedback_index(feedback_spec()->AddKeyedLoadICSlot());
       Register args_array = args[2];
@@ -6909,7 +6918,6 @@ void BytecodeGenerator::VisitCall(Call* expr) {
           .LoadKeyedProperty(args_array, feedback_slot_index)
           .StoreAccumulatorInRegister(runtime_call_args[1]);
     } else {
-      // FIXME(v8:5690): Support final spreads for eval.
       DCHECK_GE(receiver_arg_count, 0);
       builder()->MoveRegister(args[receiver_arg_count], runtime_call_args[1]);
     }
@@ -6938,12 +6946,12 @@ void BytecodeGenerator::VisitCall(Call* expr) {
 
   builder()->SetExpressionPosition(expr);
 
-  if (spread_position == Call::kHasFinalSpread) {
+  if (use_reflect_apply) {
+    builder()->CallJSRuntime(Context::REFLECT_APPLY_INDEX, args);
+  } else if (spread_position == Call::kHasFinalSpread) {
     DCHECK(!implicit_undefined_receiver);
     builder()->CallWithSpread(callee, args,
                               feedback_index(feedback_spec()->AddCallICSlot()));
-  } else if (spread_position == Call::kHasNonFinalSpread) {
-    builder()->CallJSRuntime(Context::REFLECT_APPLY_INDEX, args);
   } else if (call_type == Call::NAMED_PROPERTY_CALL ||
              call_type == Call::KEYED_PROPERTY_CALL) {
     DCHECK(!implicit_undefined_receiver);
@@ -7671,13 +7679,23 @@ static bool IsCharU(const AstRawString* str) {
 static bool IsLiteralCompareTypeof(CompareOperation* expr,
                                    Expression** sub_expr,
                                    TestTypeOfFlags::LiteralFlag* flag,
+                                   bool* negate,
                                    const AstStringConstants* ast_constants) {
+  // Note: The parser normalizes `typeof x !== 'string'` to
+  // `!(typeof x === 'string')` at the AST level, so we only see Eq/EqStrict
+  // here, never NotEq/NotEqStrict. The wrapping Not is handled by VisitNot,
+  // which applies InvertControlFlow in test context.
+  // See ParseBinaryContinuation in parser-base.h.
+  DCHECK_NE(expr->op(), Token::kNotEq);
+  DCHECK_NE(expr->op(), Token::kNotEqStrict);
+
   if (IsTypeof(expr->left()) && expr->right()->IsStringLiteral()) {
     Literal* right_lit = expr->right()->AsLiteral();
 
     if (Token::IsEqualityOp(expr->op())) {
       // typeof(x) === 'string'
       *flag = TestTypeOfFlags::GetFlagForLiteral(ast_constants, right_lit);
+      *negate = false;
     } else if (expr->op() == Token::kGreaterThan &&
                IsCharU(right_lit->AsRawString())) {
       // typeof(x) > 'u'
@@ -7685,6 +7703,14 @@ static bool IsLiteralCompareTypeof(CompareOperation* expr,
       // since `undefined` is the only valid value that is greater than 'u'.
       // Check the test OnlyUndefinedGreaterThanU in bytecodes-unittest.cc
       *flag = TestTypeOfFlags::LiteralFlag::kUndefined;
+      *negate = false;
+    } else if (expr->op() == Token::kLessThan &&
+               IsCharU(right_lit->AsRawString())) {
+      // typeof(x) < 'u'
+      // Minifier may convert `typeof(x) !== 'undefined'` to this form,
+      // since `undefined` is the only valid value that is greater than 'u'.
+      *flag = TestTypeOfFlags::LiteralFlag::kUndefined;
+      *negate = true;
     } else {
       return false;
     }
@@ -7699,10 +7725,17 @@ static bool IsLiteralCompareTypeof(CompareOperation* expr,
     if (Token::IsEqualityOp(expr->op())) {
       // 'string' === typeof(x)
       *flag = TestTypeOfFlags::GetFlagForLiteral(ast_constants, left_lit);
+      *negate = false;
     } else if (expr->op() == Token::kLessThan &&
                IsCharU(left_lit->AsRawString())) {
       // 'u' < typeof(x)
       *flag = TestTypeOfFlags::LiteralFlag::kUndefined;
+      *negate = false;
+    } else if (expr->op() == Token::kGreaterThan &&
+               IsCharU(left_lit->AsRawString())) {
+      // 'u' > typeof(x)
+      *flag = TestTypeOfFlags::LiteralFlag::kUndefined;
+      *negate = true;
     } else {
       return false;
     }
@@ -7718,15 +7751,25 @@ void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
   Expression* sub_expr;
   Literal* literal;
   TestTypeOfFlags::LiteralFlag flag;
-  if (IsLiteralCompareTypeof(expr, &sub_expr, &flag, ast_string_constants())) {
+  bool negate;
+  if (IsLiteralCompareTypeof(expr, &sub_expr, &flag, &negate,
+                             ast_string_constants())) {
     // Emit a fast literal comparison for expressions of the form:
     // typeof(x) === 'string'.
     VisitForTypeOfValue(sub_expr);
     builder()->SetExpressionPosition(expr);
     if (flag == TestTypeOfFlags::LiteralFlag::kOther) {
+      DCHECK(!negate);
       builder()->LoadFalse();
     } else {
       builder()->CompareTypeOf(flag);
+      if (negate) {
+        if (execution_result()->IsTest()) {
+          execution_result()->AsTest()->InvertControlFlow();
+        } else {
+          builder()->LogicalNot(ToBooleanMode::kAlreadyBoolean);
+        }
+      }
     }
   } else if (expr->IsLiteralStrictCompareBoolean(&sub_expr, &literal)) {
     DCHECK(expr->op() == Token::kEqStrict);
@@ -7764,10 +7807,9 @@ void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       slot = feedback_spec()->AddKeyedHasICSlot();
     } else if (expr->op() == Token::kInstanceOf) {
       slot = feedback_spec()->AddInstanceOfSlot();
-    } else if (expr->op() == Token::kEqStrict) {
-    } else {
-      slot = feedback_spec()->AddCompareICSlot();
     }
+    // feedback is embedded for other compare operations
+
     builder()->CompareOperation(
         expr->op(), lhs,
         slot.IsInvalid() ? kFeedbackIsEmbedded : feedback_index(slot));

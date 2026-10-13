@@ -96,13 +96,17 @@ class VIZ_SERVICE_EXPORT OverlayProcessorInterface {
     bool supports_hdr = false;
     bool is_opaque = false;
 
+    // Used by Ozone to create a dummy buffer to test overlay support.
+    const SharedImageFormat si_format;
+    // Used by Ozone to create a dummy buffer to test overlay support. Used by
+    // Android to determine the output color space, especially for HDR output.
+    const gfx::ColorSpace color_space;
+
 #if BUILDFLAG(IS_OZONE)
     // Ozone requires checking for overlay support with an actual buffer. To
     // create the primary plane, `OverlayProcessorOzone` will use an existing
     // `overlay_testing_mailbox` (usually, the last swapped primary plane
     // buffer) or will make a dummy buffer using `si_format` and `color_space`.
-    const SharedImageFormat si_format;
-    const gfx::ColorSpace color_space;
     const gpu::Mailbox overlay_testing_mailbox;
 #endif
   };

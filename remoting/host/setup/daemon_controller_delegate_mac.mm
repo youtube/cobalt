@@ -169,7 +169,7 @@ bool RunHelperAsRoot(const std::string& command,
   return false;
 }
 
-void ElevateAndSetConfig(base::Value::Dict config,
+void ElevateAndSetConfig(base::DictValue config,
                          DaemonController::CompletionCallback done) {
   // Find out if the host service is running.
   pid_t job_pid = base::mac::PIDForJob(remoting::kServiceName);
@@ -227,25 +227,26 @@ DaemonControllerDelegateMac::~DaemonControllerDelegateMac() {
 }
 
 DaemonController::State DaemonControllerDelegateMac::GetState() {
-  pid_t job_pid = base::mac::PIDForJob(kServiceName);
-  if (job_pid < 0) {
-    return DaemonController::STATE_UNKNOWN;
-  } else if (job_pid == 0) {
-    // Service is stopped, or a start attempt failed.
-    return DaemonController::STATE_STOPPED;
-  } else {
-    return DaemonController::STATE_STARTED;
+  pid_t job_pid = base::mac::PIDForJobIfLoaded(kServiceName);
+  switch (job_pid) {
+    case -1:  // Error.
+      return DaemonController::STATE_UNKNOWN;
+    case -2:  // Not loaded.
+    case 0:   // Loaded but not running.
+      return DaemonController::STATE_STOPPED;
+    default:  // Loaded and running with specified pid.
+      return DaemonController::STATE_STARTED;
   }
 }
 
-std::optional<base::Value::Dict> DaemonControllerDelegateMac::GetConfig() {
+std::optional<base::DictValue> DaemonControllerDelegateMac::GetConfig() {
   base::FilePath config_path(kHostConfigFilePath);
   auto host_config = HostConfigFromJsonFile(config_path);
   if (!host_config.has_value()) {
     return std::nullopt;
   }
 
-  base::Value::Dict config;
+  base::DictValue config;
   std::string* value = host_config->FindString(kHostIdConfigPath);
   if (value) {
     config.Set(kHostIdConfigPath, *value);
@@ -273,7 +274,7 @@ void DaemonControllerDelegateMac::CheckPermission(
 }
 
 void DaemonControllerDelegateMac::SetConfigAndStart(
-    base::Value::Dict config,
+    base::DictValue config,
     bool consent,
     DaemonController::CompletionCallback done) {
   config.Set(kUsageStatsConsentConfigPath, consent);
@@ -281,10 +282,10 @@ void DaemonControllerDelegateMac::SetConfigAndStart(
 }
 
 void DaemonControllerDelegateMac::UpdateConfig(
-    base::Value::Dict config,
+    base::DictValue config,
     DaemonController::CompletionCallback done) {
   base::FilePath config_file_path(kHostConfigFilePath);
-  std::optional<base::Value::Dict> host_config(
+  std::optional<base::DictValue> host_config(
       HostConfigFromJsonFile(config_file_path));
   if (!host_config.has_value()) {
     std::move(done).Run(DaemonController::RESULT_FAILED);
@@ -309,7 +310,7 @@ DaemonControllerDelegateMac::GetUsageStatsConsent() {
   consent.set_by_policy = false;
 
   base::FilePath config_file_path(kHostConfigFilePath);
-  std::optional<base::Value::Dict> host_config(
+  std::optional<base::DictValue> host_config(
       HostConfigFromJsonFile(config_file_path));
   if (host_config.has_value()) {
     std::optional<bool> host_config_value =

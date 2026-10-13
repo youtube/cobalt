@@ -144,8 +144,6 @@ class CORE_EXPORT LayoutReplaced : public LayoutBox {
            phase == HitTestPhase::kSelfBlockBackground;
   }
 
-  void WillBeDestroyed() override;
-
   // This function calculates the placement of the replaced contents. It takes
   // natural dimensions of the replaced contents, stretch to fit CSS content
   // box according to object-fit, object-position and object-view-box.
@@ -160,6 +158,11 @@ class CORE_EXPORT LayoutReplaced : public LayoutBox {
   PositionWithAffinity PositionForPoint(const PhysicalOffset&) const override;
 
   bool IsLayoutReplaced() const final {
+    NOT_DESTROYED();
+    return true;
+  }
+
+  bool IsMonolithic() const final {
     NOT_DESTROYED();
     return true;
   }

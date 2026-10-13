@@ -26,6 +26,7 @@
 #include "../bytestring/internal.h"
 #include "../fipsmodule/ecdsa/internal.h"
 #include "../internal.h"
+#include "../mem_internal.h"
 
 
 using namespace bssl;
@@ -75,9 +76,10 @@ static int ecdsa_sig_to_fixed(const EC_KEY *key, uint8_t *out, size_t *out_len,
 
 int ECDSA_sign(int type, const uint8_t *digest, size_t digest_len, uint8_t *sig,
                unsigned int *out_sig_len, const EC_KEY *eckey) {
-  if (eckey->ecdsa_meth && eckey->ecdsa_meth->sign) {
-    return eckey->ecdsa_meth->sign(digest, digest_len, sig, out_sig_len,
-                                   (EC_KEY *)eckey /* cast away const */);
+  const ECKey *eckey_impl = FromOpaque(eckey);
+  if (eckey_impl->ecdsa_meth && eckey_impl->ecdsa_meth->sign) {
+    return eckey_impl->ecdsa_meth->sign(digest, digest_len, sig, out_sig_len,
+                                        (EC_KEY *)eckey /* cast away const */);
   }
 
   *out_sig_len = 0;
@@ -154,8 +156,7 @@ size_t ECDSA_size(const EC_KEY *key) {
 }
 
 ECDSA_SIG *ECDSA_SIG_new() {
-  ECDSA_SIG *sig =
-      reinterpret_cast<ECDSA_SIG *>(OPENSSL_malloc(sizeof(ECDSA_SIG)));
+  ECDSA_SIG *sig = New<ECDSA_SIG>();
   if (sig == nullptr) {
     return nullptr;
   }
@@ -175,7 +176,7 @@ void ECDSA_SIG_free(ECDSA_SIG *sig) {
 
   BN_free(sig->r);
   BN_free(sig->s);
-  OPENSSL_free(sig);
+  Delete(sig);
 }
 
 const BIGNUM *ECDSA_SIG_get0_r(const ECDSA_SIG *sig) { return sig->r; }

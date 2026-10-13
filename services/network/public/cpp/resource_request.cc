@@ -23,6 +23,12 @@
 
 namespace network {
 
+SharedDataPipeProducerHandle::SharedDataPipeProducerHandle(
+    mojo::ScopedDataPipeProducerHandle pipe)
+    : pipe(std::move(pipe)) {}
+
+SharedDataPipeProducerHandle::~SharedDataPipeProducerHandle() = default;
+
 ResourceRequest::TrustedParams::EnabledClientHints::EnabledClientHints() =
     default;
 ResourceRequest::TrustedParams::EnabledClientHints::~EnabledClientHints() =
@@ -221,6 +227,9 @@ ResourceRequest::TrustedParams& ResourceRequest::TrustedParams::operator=(
   shared_dictionary_observer = Clone(
       const_cast<mojo::PendingRemote<mojom::SharedDictionaryAccessObserver>&>(
           other.shared_dictionary_observer));
+  response_body_stream = other.response_body_stream;
+  expected_response_headers_for_synthetic_response =
+      other.expected_response_headers_for_synthetic_response;
   return *this;
 }
 
@@ -237,7 +246,14 @@ bool ResourceRequest::TrustedParams::EqualsForTesting(
          include_request_cookies_with_response ==
              other.include_request_cookies_with_response &&
          enabled_client_hints == other.enabled_client_hints &&
-         client_security_state == other.client_security_state;
+         client_security_state == other.client_security_state &&
+         // `response_body_stream` holds a `mojo::ScopedDataPipeProducerHandle`
+         // which is moved during serialization. Therefore, we only check for
+         // its presence (null or not null) for equality, rather than direct
+         // comparison of the refptrs themselves.
+         (!!response_body_stream == !!other.response_body_stream) &&
+         expected_response_headers_for_synthetic_response ==
+             other.expected_response_headers_for_synthetic_response;
 }
 
 ResourceRequest::WebBundleTokenParams::WebBundleTokenParams() = default;
@@ -380,6 +396,20 @@ bool ResourceRequest::SendsCookies() const {
 bool ResourceRequest::SavesCookies() const {
   return credentials_mode == network::mojom::CredentialsMode::kInclude &&
          !(load_flags & net::LOAD_DO_NOT_SAVE_COOKIES);
+}
+
+void ResourceRequest::UpdateOnRedirect(const net::RedirectInfo& redirect_info) {
+  url = redirect_info.new_url;
+  method = redirect_info.new_method;
+  referrer = GURL(redirect_info.new_referrer);
+  referrer_policy = redirect_info.new_referrer_policy;
+  site_for_cookies = redirect_info.new_site_for_cookies;
+
+  if (trusted_params) {
+    trusted_params->isolation_info =
+        trusted_params->isolation_info.CreateForRedirect(
+            url::Origin::Create(url));
+  }
 }
 
 net::ReferrerPolicy ReferrerPolicyForUrlRequest(

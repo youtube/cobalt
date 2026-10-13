@@ -9,12 +9,25 @@
 #include "include/core/SkColorFilter.h"
 #include "include/effects/SkRuntimeEffect.h"
 #include "include/private/SkHdrMetadata.h"
+#include "src/codec/SkCodecPriv.h"
 #include "src/codec/SkHdrAgtmPriv.h"
 
 namespace {
 
+// The maximum and minimum HDR headroom values allowed by the specification.
+static constexpr float kMinHdrHeadroom = 0.f;
+static constexpr float kMaxHdrHeadroom = 6.f;
+
+// The maximum linear value is exp2(kMaxHdrHeadroom) =  64.
+static constexpr float kMaxLinearHdrHeadroom = 64.f;
+
+static bool in_unit_interval(float x) {
+  return x >= 0.f && x <= 1.f;
+}
+
 // AGTM tone mapping shader.
 static constexpr char gAgtmSKSL[] =
+    "uniform half scale_factor;"       // The scale to apply in linear space
     "uniform shader curve_xym;"        // The texture containing control points.
     "uniform half weight_i;"           // The weight of gain curve "i"
     "uniform half4 mix_rgbx_i;"        // The red,green,blue mixing coefficients.
@@ -98,6 +111,7 @@ static constexpr char gAgtmSKSL[] =
 
      // Shader equivalent of AgtmHelpers::ApplyGain.
     "half4 main(half4 color) {"
+      "color.rgb *= scale_factor;"
       "if (weight_i > 0.0) {"
          // Unpremultiply alpha is needed.
         "float a_inv = (color.a == 0.0) ? 1.0 : 1.0 / color.a;"
@@ -129,21 +143,9 @@ static sk_sp<SkRuntimeEffect> agtm_runtime_effect() {
 
 namespace skhdr {
 
-AdaptiveGlobalToneMap::HeadroomAdaptiveToneMap::HeadroomAdaptiveToneMap() = default;
-
 SkColor4f AgtmHelpers::EvaluateComponentMixingFunction(
         const AdaptiveGlobalToneMap::ComponentMixingFunction& mix, const SkColor4f& c) {
-    // Assert that the parameters satisfy the constraints in clause 5.2.2.
-    SkASSERT(0.f <= mix.fRed        && mix.fRed       <= 1.f);
-    SkASSERT(0.f <= mix.fGreen      && mix.fGreen     <= 1.f);
-    SkASSERT(0.f <= mix.fBlue       && mix.fBlue      <= 1.f);
-    SkASSERT(0.f <= mix.fMax        && mix.fMax       <= 1.f);
-    SkASSERT(0.f <= mix.fMin        && mix.fMin       <= 1.f);
-    SkASSERT(0.f <= mix.fComponent  && mix.fComponent <= 1.f);
-    SkASSERT(0.99999f <= mix.fRed + mix.fGreen + mix.fBlue + mix.fMax + mix.fMin + mix.fComponent);
-    SkASSERT(1.00001f >= mix.fRed + mix.fGreen + mix.fBlue + mix.fMax + mix.fMin + mix.fComponent);
-
-    // This implements that math in Formula 3 of SMPTE ST 2094-50.
+    // This implements that math in Formula (9).
     float common = mix.fRed * c.fR + mix.fGreen * c.fG + mix.fBlue * c.fB  +
                    mix.fMax * std::max(std::max(c.fR, c.fG), c.fB) +
                    mix.fMin * std::min(std::max(c.fR, c.fG), c.fB);
@@ -153,7 +155,7 @@ SkColor4f AgtmHelpers::EvaluateComponentMixingFunction(
         return {common, common, common, c.fA};
     }
 
-    // Formula 4 of SMPTE ST 2094-50.
+    // Formula (10).
     return {mix.fComponent * c.fR + common,
             mix.fComponent * c.fG + common,
             mix.fComponent * c.fB + common,
@@ -166,7 +168,7 @@ float EvaluateGainCurve(const AdaptiveGlobalToneMap::GainCurve& gainCurve, float
     auto& cp = gainCurve.fControlPoints;
     size_t N = cp.size();
 
-    // This implements that math in Formula 1 of SMPTE ST 2094-50.
+    // This implements that math in Formula (11).
     SkASSERT(N > 0 && N <= 32);
 
     // Handle points off of the left endpoint.
@@ -246,7 +248,7 @@ void PopulateSlopeFromPCHIP(AdaptiveGlobalToneMap::GainCurve& gainCurve) {
 
     // Handle the left and right control points.
     if (N >= 3) {
-        // From Formulas 3 and 4 of ST 2094-50 candidate draft 2.
+        // Formula (C.7) and Formula (C.8).
         cp[0].fM   = ((2 * h[0]   + h[1]  ) * s[0]   - h[0]   * s[1]  ) / (h[0]   + h[1]  );
         cp[N-1].fM = ((2 * h[N-2] + h[N-3]) * s[N-2] - h[N-2] * s[N-3]) / (h[N-2] + h[N-3]);
     } else if (N == 2) {
@@ -259,7 +261,7 @@ void PopulateSlopeFromPCHIP(AdaptiveGlobalToneMap::GainCurve& gainCurve) {
 
     // Populate internal control points.
     for (size_t i = 1; i <= N - 2; ++i) {
-        // From Formula 5 of ST 2094-50 candidate draft 2.
+        // Formula (C.9).
         if (s[i-1] * s[i] < 0.f) {
             cp[i].fM = 0.f;
         } else {
@@ -272,23 +274,40 @@ void PopulateSlopeFromPCHIP(AdaptiveGlobalToneMap::GainCurve& gainCurve) {
 
 sk_sp<SkImage>
 MakeGainCurveXYMImage(const AdaptiveGlobalToneMap::HeadroomAdaptiveToneMap& hatm) {
-    SkBitmap curve_xym_bm;
-    curve_xym_bm.allocPixels(SkImageInfo::Make(
-            AdaptiveGlobalToneMap::GainCurve::kMaxNumControlPoints,
-            AdaptiveGlobalToneMap::HeadroomAdaptiveToneMap::kMaxNumAlternateImages,
-            kRGBA_F32_SkColorType, kUnpremul_SkAlphaType));
+    if (hatm.fAlternateImages.empty()) {
+        return nullptr;
+    }
+    size_t maxNumControlPoints = 1;
+    for (const auto& alt : hatm.fAlternateImages) {
+        maxNumControlPoints = std::max(maxNumControlPoints,
+                                       alt.fColorGainFunction.fGainCurve.fControlPoints.size());
+    }
+
+    // Write the X, Y, and M values of the control points into the colors of the rows.
+    SkBitmap bm32;
+    bm32.allocPixels(SkImageInfo::Make(
+            AdaptiveGlobalToneMap::GainCurve::kMaxNumControlPoints, hatm.fAlternateImages.size(),
+            kRGBA_F32_SkColorType, kPremul_SkAlphaType));
     for (size_t a = 0; a < hatm.fAlternateImages.size(); ++a) {
-        auto& cubic = hatm.fAlternateImages[a].fColorGainFunction.fGainCurve;
-        for (size_t c = 0; c < cubic.fControlPoints.size(); ++c) {
-            float* xymX = reinterpret_cast<float*>(curve_xym_bm.getAddr(c, a));
-            xymX[0] = cubic.fControlPoints[c].fX;
-            xymX[1] = cubic.fControlPoints[c].fY;
-            xymX[2] = cubic.fControlPoints[c].fM;
+        const auto& alt = hatm.fAlternateImages[a];
+        const auto& curve = alt.fColorGainFunction.fGainCurve;
+        for (size_t c = 0; c < curve.fControlPoints.size(); ++c) {
+            float* xymX = reinterpret_cast<float*>(bm32.getAddr(c, a));
+            xymX[0] = curve.fControlPoints[c].fX;
+            xymX[1] = curve.fControlPoints[c].fY;
+            xymX[2] = curve.fControlPoints[c].fM;
             xymX[3] = 1.f;
         }
     }
-    curve_xym_bm.setImmutable();
-    return SkImages::RasterFromBitmap(curve_xym_bm);
+
+    // Convert from F32 to F16 for use on the GPU.
+    SkBitmap bm16;
+    bm16.allocPixels(bm32.info().makeColorType(kRGBA_F16_SkColorType));
+    if (!bm32.readPixels(bm16.pixmap())) {
+        return nullptr;
+    }
+    bm16.setImmutable();
+    return SkImages::RasterFromBitmap(bm16);
 }
 
 void PopulateUsingRwtmo(AdaptiveGlobalToneMap::HeadroomAdaptiveToneMap& hatm) {
@@ -299,7 +318,7 @@ void PopulateUsingRwtmo(AdaptiveGlobalToneMap::HeadroomAdaptiveToneMap& hatm) {
         return;
     }
 
-    // Set the two alternate image headrooms using Formula D.1 from ST 2094-50 candidate draft 2.
+    // Set the two alternate image headrooms using Formula (C.1).
     hatm.fAlternateImages.resize(2);
     hatm.fAlternateImages[0].fHdrHeadroom = 0.f;
     hatm.fAlternateImages[1].fHdrHeadroom =
@@ -312,13 +331,12 @@ void PopulateUsingRwtmo(AdaptiveGlobalToneMap::HeadroomAdaptiveToneMap& hatm) {
         // Use maxRGB for applying the curve.
         gain.fComponentMixing.fMax = 1.f;
 
-        // Compute the image of white under the tone mapping from Formula D.2 from ST 2094-50
-        // candidate draft 2.
+        // Compute the image of white under the tone mapping from Formula (C.2).
         const float yWhite =
             (a == 1) ? 1.f
                      : 1.f - 0.5f * std::min(hatm.fBaselineHdrHeadroom / std::log2(1000/203.f), 1.f);
 
-        // Compute the Bezier control points using Formula D.5 from ST 2094-50 candidate draft 2.
+        // Compute the Bezier control points using Formula (C.3).
         const float kappa = 0.65f;
         const float xKnee = 1.f;
         const float yKnee = yWhite;
@@ -327,7 +345,7 @@ void PopulateUsingRwtmo(AdaptiveGlobalToneMap::HeadroomAdaptiveToneMap& hatm) {
         const float xMid = (1.f - kappa) * xKnee + kappa * (xKnee * yMax / yKnee);
         const float yMid = (1.f - kappa) * yKnee + kappa * yMax;
 
-        // Compute the cubic coefficients using Formula D.5 from ST 2094-50 candidate draft 2.
+        // Compute the cubic coefficients using Formula (C.5).
         const float xA = xKnee - 2.f * xMid + xMax;
         const float yA = yKnee - 2.f * yMid + yMax;
         const float xB = 2.f * xMid - 2.f * xKnee;
@@ -338,15 +356,13 @@ void PopulateUsingRwtmo(AdaptiveGlobalToneMap::HeadroomAdaptiveToneMap& hatm) {
         auto& cubic = gain.fGainCurve;
         cubic.fControlPoints.resize(8);
         for (size_t c = 0; c < cubic.fControlPoints.size(); ++c) {
-            // Compute the linear domain curve values using Formula D.4 from ST 2094-50 candidate
-            // draft 2.
+            // Compute the linear domain curve values using Formula (C.4).
             const float t = c / (cubic.fControlPoints.size() - 1.f);
             const float x = xC + t * (xB + t * xA);
             const float y = yC + t * (yB + t * yA);
             const float m = (2.f * yA * t + yB) / (2.f * xA * t + xB);
 
-            // Compute the log domain curve values using Formula D.3 from ST 2094-50 candidate
-            // draft 2.
+            // Compute the log domain curve values using Formula (C.6).
             cubic.fControlPoints[c].fX = x;
             cubic.fControlPoints[c].fY = std::log2(y / x);
             cubic.fControlPoints[c].fM = (x * m - y) / (std::log(2.f) * x * y);
@@ -359,7 +375,7 @@ Weighting ComputeWeighting(const AdaptiveGlobalToneMap::HeadroomAdaptiveToneMap&
     Weighting result;
 
     // Create the list of HDR headrooms including the baseline image and all alternate images, as
-    // described in SMPTE ST 2094-50, clause 5.4.5, Computation of the adaptive tone map.
+    // described Clause 6.2.5 Computation of the headroom-adaptive tone map.
 
     // Let N be the length of the combined list.
     size_t N = 0;
@@ -387,15 +403,15 @@ Weighting ComputeWeighting(const AdaptiveGlobalToneMap::HeadroomAdaptiveToneMap&
 
     // Find the indices for the contributing images.
     if (targetedHdrHeadroom <= H[0]) {
-        // The case of Formula 10 in SMPTE ST 2094-50.
+        // One case of Formula (2), for the left endpoint.
         result.fWeight[0] = 1.f;
         result.fAlternateImageIndex[0] = indices[0];
     } else if (targetedHdrHeadroom >= H[N-1]) {
-        // The case of Formula 11 in SMPTE ST 2094-50.
+        // The other case of Formula (2), for the right endpoint.
         result.fWeight[0] = 1.f;
         result.fAlternateImageIndex[0] = indices[N-1];
     } else {
-        // The case of Formula 12 in SMPTE ST 2094-50.
+        // The case of Formula (3).
         size_t i = 0;
         for (i = 0; i < N - 1; ++i) {
             if (H[i] <= targetedHdrHeadroom && targetedHdrHeadroom <= H[i+1]) {
@@ -429,7 +445,12 @@ Weighting ComputeWeighting(const AdaptiveGlobalToneMap::HeadroomAdaptiveToneMap&
 void ApplyGain(const AdaptiveGlobalToneMap::HeadroomAdaptiveToneMap& hatm,
                SkSpan<SkColor4f> colors,
                float targetedHdrHeadroom) {
+    SkASSERT(Validate(hatm));
+
+    // This function implements Formula (4). It creates special cases for one or both of the weights
+    // being zero.
     const auto weighting = AgtmHelpers::ComputeWeighting(hatm, targetedHdrHeadroom);
+
     if (weighting.fWeight[0] == 0.f) {
         // If no weight is non-zero, then no gain will be applied. Leave the points unchanged.
         return;
@@ -477,43 +498,10 @@ sk_sp<SkColorSpace> GetGainApplicationSpace(
     return SkColorSpace::MakeRGB(SkNamedTransferFn::kLinear, toXYZD50);
 }
 
-}  // namespace AgtmHelpers
-
-float AgtmImpl::getHdrReferenceWhite() const {
-    return fMetadata.fHdrReferenceWhite;
-}
-
-bool AgtmImpl::hasBaselineHdrHeadroom() const {
-    return fMetadata.fHeadroomAdaptiveToneMap.has_value();
-}
-
-float AgtmImpl::getBaselineHdrHeadroom() const {
-    SkASSERT(fMetadata.fHeadroomAdaptiveToneMap.has_value());
-    auto& hatm = fMetadata.fHeadroomAdaptiveToneMap.value();
-    return hatm.fBaselineHdrHeadroom;
-}
-
-bool AgtmImpl::isClamp() const {
-    const auto& hatm = fMetadata.fHeadroomAdaptiveToneMap;
-    if (!hatm.has_value()) {
-        return false;
-    }
-    return hatm->fAlternateImages.size() == 0;
-}
-
-sk_sp<SkColorFilter> AgtmImpl::makeColorFilter(float targetedHdrHeadroom) const {
-    const auto& hatm = fMetadata.fHeadroomAdaptiveToneMap;
-    if (!hatm.has_value()) {
-        return nullptr;
-    }
-    return AgtmHelpers::MakeColorFilter(hatm.value(), targetedHdrHeadroom);
-}
-
-namespace AgtmHelpers {
-
 sk_sp<SkColorFilter> MakeColorFilter(
         const AdaptiveGlobalToneMap::HeadroomAdaptiveToneMap& hatm,
-        float targetedHdrHeadroom) {
+        float targetedHdrHeadroom,
+        float scaleFactor) {
     const auto weighting = ComputeWeighting(hatm, targetedHdrHeadroom);
 
     auto effect = agtm_runtime_effect();
@@ -521,6 +509,7 @@ sk_sp<SkColorFilter> MakeColorFilter(
         return nullptr;
     }
     SkRuntimeShaderBuilder builder(effect);
+    builder.uniform("scale_factor") = scaleFactor;
     for (size_t a = 0; a < 2; ++a) {
         const char* weight_str[2] = {"weight_i", "weight_j"};
         builder.uniform(weight_str[a]) = weighting.fWeight[a];
@@ -570,11 +559,220 @@ sk_sp<SkColorFilter> MakeColorFilter(
     return filter->makeWithWorkingColorSpace(gainApplicationColorSpace);
 }
 
+// Return the maximum luminance from CLLI, MDCV, or a default.
+static float get_max_luminance(const Metadata& metadata) {
+    if (metadata.getContentLightLevelInformation(nullptr)) {
+        ContentLightLevelInformation clli;
+        if (metadata.getContentLightLevelInformation(&clli) && clli.fMaxCLL > 0.f) {
+            return clli.fMaxCLL;
+        }
+    }
+    if (metadata.getMasteringDisplayColorVolume(nullptr)) {
+        MasteringDisplayColorVolume mdcv;
+        if (metadata.getMasteringDisplayColorVolume(&mdcv) &&
+            mdcv.fMaximumDisplayMasteringLuminance > 0.f) {
+            return mdcv.fMaximumDisplayMasteringLuminance;
+        }
+    }
+    return 1000.f;
+}
+
 bool PopulateToneMapAgtmParams(const Metadata& metadata,
                                const SkColorSpace* inputColorSpace,
-                               AdaptiveGlobalToneMap* outAgtm) {
-    // TODO(https://crbug.com/395659818): Add scaling and default tone mapping for HLG and PQ.
-    return metadata.getAdaptiveGlobalToneMap(outAgtm);
+                               AdaptiveGlobalToneMap* outAgtm,
+                               float* outScaleFactor) {
+    // If `inputColorSpace` is HLG or PQ, find the HDR reference white value. When the shader
+    // starts, this is the luminance that will have been mapped to 1.0. We will populate
+    // `outScaleFactor` with a scale such that the AGTM HDR reference white luminance (if specified
+    // will be mapped to 1.0).
+    bool inputIsPqOrHlg = false;
+    float inputPqOrHlgWhite = AdaptiveGlobalToneMap::kDefaultHdrReferenceWhite;
+    if (inputColorSpace) {
+        skcms_TransferFunction trfn;
+        inputColorSpace->transferFn(&trfn);
+        switch (skcms_TransferFunction_getType(&trfn)) {
+            case skcms_TFType_PQ:
+            case skcms_TFType_HLG:
+                inputIsPqOrHlg = true;
+                inputPqOrHlgWhite = trfn.a;
+                break;
+            default:
+                break;
+        }
+    }
+
+    AdaptiveGlobalToneMap agtm;
+    auto& hatm = agtm.fHeadroomAdaptiveToneMap;
+    bool hadAgtmMetadata = metadata.getAdaptiveGlobalToneMap(&agtm);
+
+    // SDR content that does not specify an inverse tone mapping will not have a default tone
+    // mapping added.
+    if (!inputIsPqOrHlg) {
+        if (!hadAgtmMetadata || !hatm.has_value()) {
+            return false;
+        }
+    }
+
+    // If no AGTM was specified, populate the HDR reference white from the input color space.
+    if (!hadAgtmMetadata) {
+        agtm.fHdrReferenceWhite = inputPqOrHlgWhite;
+    }
+
+    // If no tone mapping was specified, then use RWTMO with the baseline HDR headroom computed
+    // from the CLLI and MDCV metadata.
+    if (!hatm.has_value()) {
+        hatm = {{
+            .fBaselineHdrHeadroom = std::log2(
+                std::max(get_max_luminance(metadata) / agtm.fHdrReferenceWhite, 1.f))
+        }};
+        AgtmHelpers::PopulateUsingRwtmo(hatm.value());
+    }
+
+    if (outAgtm) {
+        *outAgtm = agtm;
+    }
+    if (outScaleFactor) {
+        *outScaleFactor = inputIsPqOrHlg ? inputPqOrHlgWhite / agtm.fHdrReferenceWhite : 1.f;
+    }
+    return true;
+}
+
+bool Validate(const AdaptiveGlobalToneMap& agtm) {
+    if (agtm.fHdrReferenceWhite < 0.f || agtm.fHdrReferenceWhite > 10000.f) {
+        SkCodecPrintf("Agtm validation failed: HdrReferenceWhite invalid\n");
+        return false;
+    }
+    if (agtm.fHeadroomAdaptiveToneMap.has_value()) {
+        if (!Validate(agtm.fHeadroomAdaptiveToneMap.value())) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool Validate(const AdaptiveGlobalToneMap::HeadroomAdaptiveToneMap& hatm) {
+    // Enforce the constraints listed in Clause 6.2.2.
+    {
+        // The value of H_baseline shall be in the interval [0, 6].
+        if (hatm.fBaselineHdrHeadroom < kMinHdrHeadroom ||
+            hatm.fBaselineHdrHeadroom > kMaxHdrHeadroom) {
+            SkCodecPrintf("Agtm validation failed: H_baseline invalid\n");
+            return false;
+        }
+        // The value of N_alt shall be in the set {0,1,2,3,4}.
+        if (hatm.fAlternateImages.size() >
+            AdaptiveGlobalToneMap::HeadroomAdaptiveToneMap::kMaxNumAlternateImages) {
+            SkCodecPrintf("Agtm validation failed: NumAlternateImages invalid\n");
+            return false;
+        }
+        // H_alt,i shall not equal H_baseline.
+        for (const auto& alt : hatm.fAlternateImages) {
+            if (alt.fHdrHeadroom == hatm.fBaselineHdrHeadroom) {
+                SkCodecPrintf("Agtm validation failed: Alternate headroom equal to baseline\n");
+                return false;
+            }
+        }
+        // H_{alt,i} shall be strictly less than H_{alt,i+1}
+        for (size_t a = 1; a < hatm.fAlternateImages.size(); ++a) {
+            if (hatm.fAlternateImages[a].fHdrHeadroom <=
+                hatm.fAlternateImages[a - 1].fHdrHeadroom) {
+                SkCodecPrintf("Agtm validation failed: Alternate headrooms not ascending\n");
+                return false;
+            }
+        }
+        // Chromaticity coordinates must be in the unit interval.
+        if (!in_unit_interval(hatm.fGainApplicationSpacePrimaries.fRX) ||
+            !in_unit_interval(hatm.fGainApplicationSpacePrimaries.fRY) ||
+            !in_unit_interval(hatm.fGainApplicationSpacePrimaries.fGX) ||
+            !in_unit_interval(hatm.fGainApplicationSpacePrimaries.fGY) ||
+            !in_unit_interval(hatm.fGainApplicationSpacePrimaries.fBX) ||
+            !in_unit_interval(hatm.fGainApplicationSpacePrimaries.fBY) ||
+            !in_unit_interval(hatm.fGainApplicationSpacePrimaries.fWX) ||
+            !in_unit_interval(hatm.fGainApplicationSpacePrimaries.fWY)) {
+            SkCodecPrintf("Agtm validation failed: chromaticities not in unit interval\n");
+            return false;
+        }
+    }
+
+    // Enforce the constraints listed in Clause 6.2.3 that are required for the metadata to be
+    // encodable. The specification indicates that "implementations may adjust metadata items so
+    // that they satisfy these constraints" for the other constraints.
+    for (const auto& alt : hatm.fAlternateImages) {
+        const auto& curve = alt.fColorGainFunction.fGainCurve;
+        for (const auto& cp : curve.fControlPoints) {
+            if (alt.fHdrHeadroom > hatm.fBaselineHdrHeadroom) {
+                // If H_{alt,i} > H_baseline then GainCurve_i(x) >= 0.
+                if (cp.fY < 0.f) {
+                    SkCodecPrintf("Agtm validation failed: negative Y value in inverse tone map\n");
+                    return false;
+                }
+            } else {
+                // If H_{alt,i} < H_baseline then GainCurve_i(x) <= 0.
+                if (cp.fY > 0.f) {
+                    SkCodecPrintf("Agtm validation failed: positive Y value in tone map\n");
+                    return false;
+                }
+            }
+        }
+    }
+
+    // Enforce the constraints listed in Clause 6.4.2.
+    for (const auto& alt : hatm.fAlternateImages) {
+        const auto& mix = alt.fColorGainFunction.fComponentMixing;
+        // All components shall be in the interval [0, 1].
+        if (!in_unit_interval(mix.fRed) || !in_unit_interval(mix.fGreen) ||
+            !in_unit_interval(mix.fBlue) || !in_unit_interval(mix.fMax) ||
+            !in_unit_interval(mix.fMin) || !in_unit_interval(mix.fComponent)) {
+            SkCodecPrintf("Agtm validation failed: mix coefficients not in unit interval\n");
+            return false;
+        }
+        // The sum of all components shall equal 1. The coefficients are encoded in steps of
+        // 0.00001. Allow the sum to be at most one step away from 1.
+        const float sum = mix.fRed + mix.fGreen + mix.fBlue + mix.fMax + mix.fMin + mix.fComponent;
+        if (sum < 0.99999f || sum > 1.00001f) {
+            SkCodecPrintf("Agtm validation failed: mix coefficients don't sum to 1\n");
+            return false;
+        }
+    }
+
+    // Enforce the constraints listed in Clause 6.5.2.
+    for (const auto& alt : hatm.fAlternateImages) {
+        const auto& curve = alt.fColorGainFunction.fGainCurve;
+        // The value of N_cp must be in the set {1,...,32}.
+        if (curve.fControlPoints.size() < AdaptiveGlobalToneMap::GainCurve::kMinNumControlPoints ||
+            curve.fControlPoints.size() > AdaptiveGlobalToneMap::GainCurve::kMaxNumControlPoints) {
+            SkCodecPrintf("Agtm validation failed: invalid number of control points\n");
+            return false;
+        }
+        for (size_t c = 0; c < curve.fControlPoints.size(); ++c) {
+            // The value of x_i shall be in the interval [0, 64].
+            if (curve.fControlPoints[c].fX < 0.f ||
+                curve.fControlPoints[c].fX > kMaxLinearHdrHeadroom) {
+                SkCodecPrintf("Agtm validation failed: invalid X value\n");
+                return false;
+            }
+            // The value of y_i shall be in the interval [-6, 6].
+            if (curve.fControlPoints[c].fY < -kMaxHdrHeadroom ||
+                curve.fControlPoints[c].fY > kMaxHdrHeadroom) {
+                SkCodecPrintf("Agtm validation failed: invalid Y value\n");
+                return false;
+            }
+            if (c > 0) {
+                // It shall be the case that x_i <= x_{i+1}.
+                if (curve.fControlPoints[c].fX < curve.fControlPoints[c - 1].fX) {
+                    SkCodecPrintf("Agtm validation failed: curve X is not non-decreasing\n");
+                    return false;
+                }
+                // If x_i == x_{i+1} then it shall be the case that y_i == y_{i+1}.
+                if (curve.fControlPoints[c].fX == curve.fControlPoints[c - 1].fX &&
+                    curve.fControlPoints[c].fY != curve.fControlPoints[c - 1].fY) {
+                    SkCodecPrintf("Agtm validation failed: curve has Y discontinuity\n");
+                    return false;
+                }
+            }
+        }
+    }
+    return true;
 }
 
 }  // namespace AgtmHelpers
@@ -596,49 +794,6 @@ SkString AdaptiveGlobalToneMap::toString() const {
         }
     }
     result += "]}";
-    return result;
-}
-
-bool AgtmImpl::parse(const SkData* data) {
-    return fMetadata.parse(data);
-}
-
-sk_sp<SkData> AgtmImpl::serialize() const {
-    return fMetadata.serialize();
-}
-
-SkString AgtmImpl::toString() const {
-    return fMetadata.toString();
-}
-
-// static
-std::unique_ptr<Agtm> Agtm::Make(const SkData* data) {
-    auto result = std::make_unique<AgtmImpl>();
-    if (!result->parse(data)) {
-        return nullptr;
-    }
-    return result;
-}
-
-// static
-std::unique_ptr<Agtm> Agtm::MakeReferenceWhite(float hdrReferenceWhite, float baselineHdrHeadroom) {
-    SkASSERT(baselineHdrHeadroom >= 0.f);
-    auto result = std::make_unique<AgtmImpl>();
-    result->fMetadata.fHdrReferenceWhite = hdrReferenceWhite;
-    auto& hatm = result->fMetadata.fHeadroomAdaptiveToneMap.emplace();
-    hatm.fBaselineHdrHeadroom = baselineHdrHeadroom;
-    AgtmHelpers::PopulateUsingRwtmo(hatm);
-    return result;
-}
-
-// static
-std::unique_ptr<Agtm> Agtm::MakeClamp(float hdrReferenceWhite, float baselineHdrHeadroom) {
-    SkASSERT(baselineHdrHeadroom >= 0.f);
-    auto result = std::make_unique<AgtmImpl>();
-    result->fMetadata.fHdrReferenceWhite = hdrReferenceWhite;
-    auto& hatm = result->fMetadata.fHeadroomAdaptiveToneMap.emplace();
-    hatm.fBaselineHdrHeadroom = baselineHdrHeadroom;
-    hatm.fGainApplicationSpacePrimaries = SkNamedPrimaries::kRec2020;
     return result;
 }
 

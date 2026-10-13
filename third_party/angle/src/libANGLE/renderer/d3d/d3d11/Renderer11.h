@@ -49,7 +49,6 @@ struct Renderer11DeviceCaps
     Renderer11DeviceCaps();
 
     D3D_FEATURE_LEVEL featureLevel;
-    bool supportsDXGI1_2;                         // Support for DXGI 1.2
     bool supportsClearView;                       // Support for ID3D11DeviceContext1::ClearView
     bool supportsConstantBufferOffsets;           // Support for Constant buffer offset
     bool supportsVpRtIndexWriteFromVertexShader;  // VP/RT can be selected in the Vertex Shader
@@ -386,7 +385,6 @@ class Renderer11 : public RendererD3D
     RendererClass getRendererClass() const override;
     StateManager11 *getStateManager() { return &mStateManager; }
 
-    void onSwap();
     void onBufferCreate(const Buffer11 *created);
     void onBufferDelete(const Buffer11 *deleted);
 
@@ -597,8 +595,6 @@ class Renderer11 : public RendererD3D
 
     // Created objects state tracking
     std::set<const Buffer11 *> mAliveBuffers;
-
-    double mLastHistogramUpdateTime;
 
     angle::ComPtr<ID3D12Device> mDevice12;
     angle::ComPtr<ID3D12CommandQueue> mCommandQueue;

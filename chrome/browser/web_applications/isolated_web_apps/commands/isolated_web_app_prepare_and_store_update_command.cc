@@ -13,6 +13,7 @@
 #include <string_view>
 #include <utility>
 
+#include "base/base64.h"
 #include "base/check.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
@@ -170,32 +171,26 @@ void IsolatedWebAppUpdatePrepareAndStoreCommand::ReportVersionValidationFailure(
 
 void IsolatedWebAppUpdatePrepareAndStoreCommand::CheckIfUpdateIsStillApplicable(
     base::OnceClosure next_step_callback) {
-  ASSIGN_OR_RETURN(
-      const WebApp& iwa,
-      GetIsolatedWebAppById(lock_->registrar(), url_info_.app_id()),
-      [&](const std::string& error) { ReportFailure(error); });
+  const WebApp* iwa = lock_->registrar().GetAppById(
+      url_info_.app_id(), WebAppFilter::IsIsolatedApp());
+  if (!iwa) {
+    ReportFailure("App is not installed.");
+    return;
+  }
 
-  const auto& isolation_data = *iwa.isolation_data();
+  const auto& isolation_data = *iwa->isolation_data();
   installed_version_ = isolation_data.version();
 
   GetMutableDebugValue().Set("installed_version",
                              installed_version_.value().GetString());
 
-  switch (LookupRotatedKey(url_info_.web_bundle_id(), GetMutableDebugValue())) {
-    case KeyRotationLookupResult::kNoKeyRotation:
-      break;
-    case KeyRotationLookupResult::kKeyFound: {
-      KeyRotationData data =
-          GetKeyRotationData(url_info_.web_bundle_id(), isolation_data);
-      if (!data.current_installation_has_rk) {
-        same_version_update_allowed_by_key_rotation_ = true;
-      }
-    } break;
-    case KeyRotationLookupResult::kKeyBlocked:
-      ReportFailure(
-          "The web bundle id for this app's bundle has been blocked by the key "
-          "distribution component.");
-      return;
+  if (auto kr_data =
+          GetKeyRotationData(url_info_.web_bundle_id(), isolation_data)) {
+    GetMutableDebugValue().Set("rotated_key",
+                               base::Base64Encode(kr_data->rotated_key));
+    if (!kr_data->current_installation_has_rk) {
+      same_version_update_allowed_by_key_rotation_ = true;
+    }
   }
 
   if (expected_version_) {
@@ -254,7 +249,7 @@ void IsolatedWebAppUpdatePrepareAndStoreCommand::OnCopiedToProfileDirectory(
 void IsolatedWebAppUpdatePrepareAndStoreCommand::CheckTrustAndSignatures(
     base::OnceClosure next_step_callback) {
   command_helper_->CheckTrustAndSignatures(
-      *destination_location_, &profile(),
+      *destination_location_, IwaUpdateOperation{}, &profile(),
       base::BindOnce(&IsolatedWebAppUpdatePrepareAndStoreCommand::
                          OnTrustAndSignaturesChecked,
                      weak_factory_.GetWeakPtr(),
@@ -288,8 +283,9 @@ void IsolatedWebAppUpdatePrepareAndStoreCommand::PrepareInstallInfo(
     base::OnceCallback<void(PrepareInstallInfoJob::InstallInfoOrFailure)>
         next_step_callback) {
   prepare_install_info_job_ = PrepareInstallInfoJob::CreateAndStart(
-      profile(), *destination_location_, expected_version_, *web_contents_,
-      *command_helper_, lock_->web_contents_manager().CreateUrlLoader(),
+      profile(), *destination_location_, IwaUpdateOperation{},
+      expected_version_, *web_contents_, *command_helper_,
+      lock_->web_contents_manager().CreateUrlLoader(),
       std::move(next_step_callback));
 }
 
@@ -391,7 +387,7 @@ IsolatedWebAppUpdatePrepareAndStoreCommandUpdateInfo::operator=(
 base::Value IsolatedWebAppUpdatePrepareAndStoreCommandUpdateInfo::AsDebugValue()
     const {
   return base::Value(
-      base::Value::Dict()
+      base::DictValue()
           .Set("source", source_.ToDebugValue())
           .Set("expected_version", expected_version_.has_value()
                                        ? expected_version_->GetString()

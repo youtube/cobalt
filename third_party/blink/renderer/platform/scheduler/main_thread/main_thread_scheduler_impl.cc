@@ -13,6 +13,7 @@
 #include "base/check_op.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/message_loop/message_pump.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/metrics/histogram.h"
@@ -22,6 +23,7 @@
 #include "base/numerics/safe_conversions.h"
 #include "base/observer_list.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/system/sys_info.h"
 #include "base/task/common/scoped_defer_task_posting.h"
 #include "base/task/common/task_annotator.h"
 #include "base/task/sequenced_task_runner.h"
@@ -32,6 +34,7 @@
 #include "base/trace_event/trace_event.h"
 #include "base/trace_event/traced_value.h"
 #include "build/build_config.h"
+#include "cc/base/features.h"
 #include "components/performance_manager/scenario_api/performance_scenario_observer.h"
 #include "components/performance_manager/scenario_api/performance_scenarios.h"
 #include "components/viz/common/frame_sinks/begin_frame_args.h"
@@ -95,7 +98,89 @@ BASE_FEATURE(kLowerPriorityForCompositorGestures,
 // main thread to run on the bigggest one.
 BASE_FEATURE(kRestrictMainThreadBigCoreAffinity,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+namespace {
+bool ShouldRestrictMainThreadBigCoreAffinity() {
+  // Make sure to not query the feature before checking eligibility, so that the
+  // control group only contains eligible devices, as experiments become active
+  // when features are queried.
+  return base::IsEligibleForBigCoreAffinityChange() &&
+         base::FeatureList::IsEnabled(kRestrictMainThreadBigCoreAffinity);
+}
+}  // namespace
+
+#endif  // BUILDFLAG(IS_ANDROID)
+
+// If set, the PerformanceHelper determines when to boost CPU performance,
+// either via affinity or ADPF hints. It's a slightly different mechanism to
+// RestrictMainThreadBigCoreAffinity, but does much the same thing.
+BASE_FEATURE(kUsePerformanceHelper, base::FEATURE_DISABLED_BY_DEFAULT);
+
+enum class PerformanceHintMode {
+  kNone = 0,
+  kCompositor = 1,
+#if BUILDFLAG(IS_ANDROID)
+  kAffinity = 2,
+  kBoth = 3,
 #endif
+};
+constexpr base::FeatureParam<
+    PerformanceHintMode>::Option kUsePerformanceHelperModeOption[] = {
+    {PerformanceHintMode::kNone, "none"},
+    // IMPORTANT: Must be used in conjunction with
+    // "EnableAdpfEfficiencyMode:mode/adaptive" to take effect on Android.
+    {PerformanceHintMode::kCompositor, "compositor"},
+#if BUILDFLAG(IS_ANDROID)
+    // On devices with at least 3 CPU clusters, only selectively allow the
+    // renderer main thread to run on the biggest one.
+    // IMPORTANT: Must be used in conjunction with
+    // "RestrictBigCoreThreadAffinity" to behave correctly. e.g.
+    // --enable-features=UsePerformanceHelper:mode/affinity,RestrictBigCoreThreadAffinity
+    {PerformanceHintMode::kAffinity, "affinity"},
+    // Combine both strategies (set affinity and the compositor hint together).
+    // IMPORTANT: Must be used with the Adaptive mode and the
+    // "RestrictBigCoreThreadAffinity" feature. e.g.
+    // '--enable-features=EnableAdpfEfficiencyMode:mode/adaptive,UsePerformanceHelper:mode/both,RestrictBigCoreThreadAffinity'
+    {PerformanceHintMode::kBoth, "both"}
+#endif
+};
+
+[[maybe_unused]] const base::FeatureParam<PerformanceHintMode>
+    kUsePerformanceHelperParam{
+        &kUsePerformanceHelper,
+        "helper_mode",
+        PerformanceHintMode::kCompositor,
+        &kUsePerformanceHelperModeOption,
+    };
+
+const base::FeatureParam<base::TimeDelta> kPageLoadBoostParam{
+    &kUsePerformanceHelper, "page_load_boost", base::Seconds(3.0)};
+const base::FeatureParam<base::TimeDelta> kUserInputBoostParam{
+    &kUsePerformanceHelper, "user_input_boost", base::Seconds(0.5)};
+const base::FeatureParam<base::TimeDelta> kScrollBoostParam{
+    &kUsePerformanceHelper, "scroll_boost", base::Seconds(0.2)};
+
+namespace {
+PerformanceHintMode GetPerformanceHelperMode() {
+  // Devices with 3 classes of CPU are eligible to use affinity hints. Devices
+  // with a Google SoC are currently eligible to use ADPF. Establish whether
+  // we're in one of these groups before querying the UsePerformanceHelper
+  // feature, as then we'll be assigned an arm of the experiment. Keep
+  // ineligible devices as the control.
+#if BUILDFLAG(IS_ANDROID)
+  static bool is_google_soc = base::SysInfo::SocManufacturer() == "Google";
+  if (!(base::IsEligibleForBigCoreAffinityChange() || is_google_soc)) {
+    // Control.
+    return PerformanceHintMode::kNone;
+  }
+#endif
+  if (!base::FeatureList::IsEnabled(kUsePerformanceHelper)) {
+    return PerformanceHintMode::kNone;
+  }
+
+  return kUsePerformanceHelperParam.Get();
+}
+}  // namespace
 
 using base::sequence_manager::TaskQueue;
 using base::sequence_manager::TaskTimeObserver;
@@ -188,7 +273,12 @@ perfetto::StaticString RenderingPrioritizationStateToString(
 
 BASE_FEATURE(kBusyLoopOnRendererMain,
              "BusyLoopOnMainThread",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+#if BUILDFLAG(IS_ANDROID)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else   // BUILDFLAG(IS_ANDROID)
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif  // BUILDFLAG(IS_ANDROID)
+);
 BASE_FEATURE_PARAM(base::TimeDelta,
                    kBusyLoopTime,
                    &kBusyLoopOnRendererMain,
@@ -205,7 +295,11 @@ BASE_FEATURE(kLoadingModeFromPerformanceScenario,
 
 void MaybeSetBusyLoop(raw_ptr<base::MessagePump> message_pump,
                       double scale_factor) {
-  if (!message_pump || !base::FeatureList::IsEnabled(kBusyLoopOnRendererMain)) {
+  // Offset the additional power consumption of busy-looping by only enabling
+  // this on devices with 120Hz displays.
+  if (!message_pump ||
+      !(::features::IsEligibleForThrottleMainFrameTo60Hz() &&
+        base::FeatureList::IsEnabled(kBusyLoopOnRendererMain))) {
     return;
   }
 
@@ -413,7 +507,7 @@ MainThreadSchedulerImpl::MainThreadSchedulerImpl(
       ComputePriority(memory_purge_task_queue_.get()));
 
 #if BUILDFLAG(IS_ANDROID)
-  if (base::FeatureList::IsEnabled(kRestrictMainThreadBigCoreAffinity)) {
+  if (ShouldRestrictMainThreadBigCoreAffinity()) {
     // Start with a "boost", that is initially allow the renderer to run
     // everywhere. This is meant to help with initialization. In the worst case,
     // the current use case never changes, and the renderer is always allowed to
@@ -422,7 +516,27 @@ MainThreadSchedulerImpl::MainThreadSchedulerImpl(
     // use a lot of resources.
     main_thread_only().affinity_boost = std::make_unique<ThreadAffinityBoost>();
   }
+  if (GetPerformanceHelperMode() >= PerformanceHintMode::kAffinity) {
+    // Ensure that there aren't two duelling versions of affinity hints.
+    DCHECK(!base::FeatureList::IsEnabled(kRestrictMainThreadBigCoreAffinity))
+        << "feature UsePerformanceHelper:mode/{affinity, both} can't be "
+           "enabled at the same time as RestrictMainThreadBigCoreAffinity";
+  }
+
 #endif
+
+  PerformanceHelper::Params perf_params = {
+      .loading_boost = kPageLoadBoostParam.Get(),
+      .scrolling_boost = kScrollBoostParam.Get(),
+      .input_boost = kUserInputBoostParam.Get(),
+      .callback = GetPerformanceHelperMode() != PerformanceHintMode::kNone
+                      ? base::BindRepeating(
+                            &MainThreadSchedulerImpl::ApplyPerformanceState,
+                            base::Unretained(this))
+                      : base::NullCallback()};
+  performance_helper_.Configure(std::move(perf_params));
+  // Start in high-performance mode.
+  performance_helper_.Add(PerformanceHelper::BoostType::kPageLoad);
 }
 
 MainThreadSchedulerImpl::~MainThreadSchedulerImpl() {
@@ -529,6 +643,11 @@ MainThreadSchedulerImpl::MainThreadOnly::MainThreadOnly(
       pause_timers_for_webview(
           false,
           MakeNamedTrack("Scheduler.PauseTimersForWebview", this),
+          &main_thread_scheduler_impl->tracing_controller_,
+          YesNoStateToString),
+      restrict_cpu_performance(
+          false,
+          MakeNamedTrack("Scheduler.RestrictCPUPerformance", this),
           &main_thread_scheduler_impl->tracing_controller_,
           YesNoStateToString),
       background_status_changed_at(now),
@@ -963,6 +1082,29 @@ void MainThreadSchedulerImpl::WillBeginFrame(const viz::BeginFrameArgs& args) {
   if (helper_.IsShutdown())
     return;
 
+  // Determine e.g. which gesture/loading thing is happening during this frame,
+  // then (perhaps) uncap the CPU's performance for this and a few subsequent
+  // frames. Only takes effect on Android platforms.
+  const base::TimeTicks time_now = base::TimeTicks::LowResolutionNow();
+  switch (main_thread_only().current_use_case) {
+    case UseCase::kEarlyLoading:
+    case UseCase::kLoading:
+      performance_helper_.Add(PerformanceHelper::BoostType::kPageLoad,
+                              time_now);
+      break;
+    case UseCase::kSynchronizedGesture:
+    case UseCase::kMainThreadCustomInputHandling:
+      performance_helper_.Add(PerformanceHelper::BoostType::kScroll, time_now);
+      break;
+    case UseCase::kDiscreteInputResponse:
+      performance_helper_.Add(PerformanceHelper::BoostType::kTapOrTyping,
+                              time_now);
+      break;
+    default:
+  }
+  // Calls ::ApplyPerformanceState if something's changed.
+  performance_helper_.Check(time_now);
+
   EndIdlePeriod();
   main_thread_only().estimated_next_frame_begin =
       args.frame_time + args.interval;
@@ -1002,6 +1144,7 @@ void MainThreadSchedulerImpl::BeginFrameNotExpectedSoon() {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("renderer.scheduler"),
                "MainThreadSchedulerImpl::BeginFrameNotExpectedSoon");
   helper_.CheckOnValidThread();
+  performance_helper_.Check();
   if (helper_.IsShutdown())
     return;
 
@@ -1039,6 +1182,7 @@ void MainThreadSchedulerImpl::BeginMainFrameNotExpectedUntil(
     // TODO(rmcilroy): Consider reducing the idle period based on the runtime of
     // the next pending delayed tasks (as currently done in for long idle times)
     idle_helper_.StartShortIdlePeriod(now, time);
+    performance_helper_.Check(time);
   }
 }
 
@@ -1664,7 +1808,7 @@ void MainThreadSchedulerImpl::UpdatePolicyLocked(UpdateType update_type) {
         desired_thread_type = base::ThreadType::kDefault;
         break;
       default:
-        desired_thread_type = base::ThreadType::kDisplayCritical;
+        desired_thread_type = base::ThreadType::kPresentation;
         break;
     }
 
@@ -1674,7 +1818,7 @@ void MainThreadSchedulerImpl::UpdatePolicyLocked(UpdateType update_type) {
   }
 
 #if BUILDFLAG(IS_ANDROID)
-  if (base::FeatureList::IsEnabled(kRestrictMainThreadBigCoreAffinity)) {
+  if (ShouldRestrictMainThreadBigCoreAffinity()) {
     switch (main_thread_only().current_use_case) {
       case UseCase::kNone:
         if (main_thread_only().affinity_boost) {
@@ -2199,7 +2343,7 @@ void MainThreadSchedulerImpl::DidCommitProvisionalLoad(
   }
 
 #if BUILDFLAG(IS_ANDROID)
-  if (base::FeatureList::IsEnabled(kRestrictMainThreadBigCoreAffinity)) {
+  if (ShouldRestrictMainThreadBigCoreAffinity()) {
     // A new frame has been committed, let the main thread run on the biggest
     // core for the next 500ms. We do it even if we are currently boosting,
     // because we want to make sure that the boost doesn't expire before the
@@ -2208,6 +2352,7 @@ void MainThreadSchedulerImpl::DidCommitProvisionalLoad(
                                      base::Milliseconds(500));
   }
 #endif
+  performance_helper_.Add(PerformanceHelper::BoostType::kPageLoad);
 }
 
 void MainThreadSchedulerImpl::OnMainFramePaint() {
@@ -2748,9 +2893,33 @@ void MainThreadSchedulerImpl::UpdateCompositorTaskQueuePriority() {
   }
 }
 
+void MainThreadSchedulerImpl::ApplyPerformanceState(
+    const bool prefer_efficient_scheduling) {
+  DCHECK(base::FeatureList::IsEnabled(kUsePerformanceHelper));
+  bool should_send_to_compositor = true;
+#if BUILDFLAG(IS_ANDROID)
+  if (GetPerformanceHelperMode() >= PerformanceHintMode::kAffinity) {
+    base::SetCanRunOnBigCore(base::PlatformThread::CurrentId(),
+                             !prefer_efficient_scheduling);
+    should_send_to_compositor =
+        GetPerformanceHelperMode() == PerformanceHintMode::kBoth;
+  }
+#endif
+  // Emit for tracking.
+  main_thread_only().restrict_cpu_performance = prefer_efficient_scheduling;
+  if (should_send_to_compositor) {
+    for (const auto& widget_scheduler : main_thread_only().widget_schedulers) {
+      widget_scheduler->RequestEfficientScheduling(prefer_efficient_scheduling);
+    }
+  }
+}
+
 void MainThreadSchedulerImpl::MaybeUpdatePolicyOnTaskCompleted(
     MainThreadTaskQueue* queue,
     const base::sequence_manager::TaskQueue::TaskTiming& task_timing) {
+  // Re-restrict CPU performance if required.
+  performance_helper_.Check();
+
   bool needs_policy_update = false;
 
   bool should_prioritize_ipc_tasks =

@@ -31,6 +31,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "cc/layers/layer.h"
 #include "cc/paint/paint_canvas.h"
+#include "media/base/media_switches.h"
 #include "media/base/video_frame.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/platform/web_fullscreen_video_status.h"
@@ -135,8 +136,28 @@ bool HTMLVideoElement::HasPendingActivity() const {
 
 Node::InsertionNotificationRequest HTMLVideoElement::InsertedInto(
     ContainerNode& insertion_point) {
-  if (insertion_point.isConnected())
+  if (insertion_point.isConnected()) {
     custom_controls_fullscreen_detector_->Attach();
+
+    // Tag the element as an ad if it is being inserted into the DOM by an ad
+    // script. Once tagged, the element remains tagged for its lifetime.
+    //
+    // We apply a monkey-patch exclusion heuristic to ensure we only tag
+    // videos genuinely originating from ad code, avoiding analytics scripts
+    // that proxy the call from the main content.
+    if (LocalFrame* frame = GetDocument().GetFrame()) {
+      if (AdTracker* ad_tracker = frame->GetAdTracker()) {
+        if (!IsAdRelated() &&
+            ad_tracker->IsAdScriptInStack(
+                AdTracker::StackType::kTopOnly,
+                /*ignore_monkey_patch=*/
+                AdTracker::MonkeyPatchableApi::kNodeAppendChild,
+                /*out_ad_script_ancestry=*/nullptr)) {
+          SetIsAdRelated();
+        }
+      }
+    }
+  }
 
   auto insertion_notification_request =
       HTMLMediaElement::InsertedInto(insertion_point);
@@ -260,8 +281,9 @@ bool HTMLVideoElement::IsURLAttribute(const Attribute& attribute) const {
 
 const AtomicString HTMLVideoElement::ImageSourceURL() const {
   const AtomicString& url = FastGetAttribute(html_names::kPosterAttr);
-  if (!StripLeadingAndTrailingHTMLSpaces(url).empty())
+  if (!StripLeadingAndTrailingHtmlSpaces(url).empty()) {
     return url;
+  }
   return default_poster_url_;
 }
 
@@ -328,7 +350,14 @@ void HTMLVideoElement::SetPersistentStateInternal(bool persistent) {
 }
 
 void HTMLVideoElement::CreateVisibilityTrackerIfNeeded() {
-  if (!RuntimeEnabledFeatures::AutoPictureInPictureVideoHeuristicsEnabled()) {
+  const bool autopip_video_heuristics_enabled =
+      RuntimeEnabledFeatures::AutoPictureInPictureVideoHeuristicsEnabled();
+  const bool encryption_media_occlusion_tracking_enabled =
+      base::FeatureList::IsEnabled(media::kEncryptedMediaOcclusionTracking);
+
+  // Exit if neither feature needs the tracker.
+  if (!autopip_video_heuristics_enabled &&
+      !encryption_media_occlusion_tracking_enabled) {
     return;
   }
 
@@ -336,10 +365,13 @@ void HTMLVideoElement::CreateVisibilityTrackerIfNeeded() {
     return;
   }
 
-  // Callback used by |MediaVideoVisibilityTracker| to report whether |this|
-  // meets/does not meet the visibility threshold (kVisibilityThreshold).
-  auto report_visibility_cb = BindRepeating(&HTMLVideoElement::ReportVisibility,
-                                            WrapWeakPersistent(this));
+  MediaVideoVisibilityTracker::ReportVisibilityCb report_visibility_cb;
+  if (autopip_video_heuristics_enabled) {
+    // Callback used by |MediaVideoVisibilityTracker| to report whether |this|
+    // meets/does not meet the visibility threshold (kVisibilityThreshold).
+    report_visibility_cb = BindRepeating(&HTMLVideoElement::ReportVisibility,
+                                         WrapWeakPersistent(this));
+  }
 
   visibility_tracker_ = MakeGarbageCollected<MediaVideoVisibilityTracker>(
       *this, kVisibilityThreshold, std::move(report_visibility_cb));
@@ -350,6 +382,24 @@ void HTMLVideoElement::ReportVisibility(bool meets_visibility_threshold) {
     for (auto& observer : GetMediaPlayerObserverRemoteSet()) {
       observer->OnVideoVisibilityChanged(meets_visibility_threshold);
     }
+  }
+}
+
+void HTMLVideoElement::OnEncryptedMediaInitData() {
+  if (!base::FeatureList::IsEnabled(media::kEncryptedMediaOcclusionTracking)) {
+    return;
+  }
+
+  CreateVisibilityTrackerIfNeeded();
+  if (visibility_tracker_) {
+    visibility_tracker_->RequestVisibilityRatio(BindOnce(
+        &HTMLVideoElement::OnVisibilityRatioReport, WrapWeakPersistent(this)));
+  }
+}
+
+void HTMLVideoElement::OnVisibilityRatioReport(double ratio) {
+  if (GetWebMediaPlayer()) {
+    GetWebMediaPlayer()->SetVisibilityRatioAtPlaybackStart(ratio);
   }
 }
 
@@ -509,8 +559,9 @@ void HTMLVideoElement::DidExitFullscreen() {
 }
 
 void HTMLVideoElement::DidMoveToNewDocument(Document& old_document) {
-  if (image_loader_)
+  if (image_loader_) {
     image_loader_->ElementDidMoveToNewDocument();
+  }
 
   wake_lock_->ElementDidMoveToNewDocument();
 
@@ -545,7 +596,7 @@ unsigned HTMLVideoElement::webkitDroppedFrameCount() const {
 }
 
 KURL HTMLVideoElement::PosterImageURL() const {
-  String url = StripLeadingAndTrailingHTMLSpaces(ImageSourceURL());
+  StringView url = StripLeadingAndTrailingHtmlSpaces(ImageSourceURL());
   if (url.empty())
     return KURL();
   return GetDocument().CompleteURL(url);

@@ -52,7 +52,7 @@ class ScopedFakeGpuContext {
           DISABLE_IMAGEBITMAP_FROM_VIDEO_USING_GPU);
     }
 
-    InitializeSharedGpuContextRaster(test_context_provider_.get());
+    InitializeSharedGpuContext(test_context_provider_.get());
   }
 
   scoped_refptr<viz::ContextProvider> context_provider() const {
@@ -205,7 +205,8 @@ TEST_P(VideoFrameImageUtilTest, CreateImageFromVideoFrameSoftwareFrame) {
   EXPECT_EQ(image->IsTextureBacked(), expect_accelerated_images());
 }
 
-TEST_P(VideoFrameImageUtilTest, CreateImageFromVideoFrameGpuMemoryBufferFrame) {
+TEST_P(VideoFrameImageUtilTest,
+       CreateImageFromVideoFrameMappableSharedImageFrame) {
   auto cpu_frame = CreateTestFrame(
       kTestSize, gfx::Rect(kTestSize), kTestSize,
       media::VideoFrame::STORAGE_MAPPABLE_SHARED_IMAGE,

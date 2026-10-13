@@ -130,6 +130,57 @@ TEST_F(CacheEncryptionProviderImplTest,
 }
 
 TEST_F(CacheEncryptionProviderImplTest,
+       GetEncryptedCacheEncryptionKey_KeyDecryptionFails) {
+  // Create an encryptor and encrypt a dummy key with it.
+  os_crypt_async::Encryptor::KeyRing encryption_keys;
+  encryption_keys.emplace("test_provider",
+                          os_crypt_async::Encryptor::Key(
+                              std::vector<uint8_t>(32, 1),
+                              os_crypt_async::mojom::Algorithm::kAES256GCM));
+  TestEncryptor encryptor(std::move(encryption_keys), "test_provider",
+                          "test_provider");
+  std::optional<std::vector<uint8_t>> key =
+      encryptor.EncryptString(std::string(32, 2));
+  ASSERT_TRUE(key.has_value());
+
+  std::vector<uint8_t> stored_key;
+  base::RunLoop run_loop;
+  CacheEncryptionProviderImpl provider{
+      &os_crypt_async_, *key,
+      base::BindLambdaForTesting([&](const std::vector<uint8_t>& new_key) {
+        stored_key = new_key;
+        run_loop.Quit();
+      })};
+
+  EXPECT_CALL(os_crypt_async_, GetInstance)
+      .WillOnce([&](base::OnceCallback<void(os_crypt_async::Encryptor)> cb,
+                    os_crypt_async::Encryptor::Option option) {
+        // Create an encryptor that CANNOT decrypt the key.
+        os_crypt_async::Encryptor::KeyRing decryption_keys;
+        decryption_keys.emplace(
+            "test_provider", os_crypt_async::Encryptor::Key(
+                                 std::vector<uint8_t>(32, 99),
+                                 os_crypt_async::mojom::Algorithm::kAES256GCM));
+        std::move(cb).Run(TestEncryptor(std::move(decryption_keys),
+                                        "test_provider", "test_provider"));
+      });
+
+  mojo::Remote<network::mojom::CacheEncryptionProvider> remote(
+      provider.BindNewRemote());
+
+  base::test::TestFuture<const std::vector<uint8_t>&> future;
+  remote->GetEncryptedCacheEncryptionKey(future.GetCallback());
+  std::vector<uint8_t> returned_key = future.Take();
+
+  run_loop.Run();
+
+  // A new key should have been generated and returned.
+  EXPECT_FALSE(returned_key.empty());
+  EXPECT_NE(returned_key, *key);
+  EXPECT_EQ(returned_key, stored_key);
+}
+
+TEST_F(CacheEncryptionProviderImplTest,
        GetEncryptedCacheEncryptionKey_CreateNewKey) {
   std::vector<uint8_t> stored_key;
   base::RunLoop run_loop;
@@ -174,6 +225,73 @@ TEST_F(CacheEncryptionProviderImplTest,
   std::optional<std::string> decrypted = encryptor.DecryptData(returned_key);
   EXPECT_TRUE(decrypted.has_value());
   EXPECT_EQ(decrypted->size(), 32u);
+}
+
+TEST_F(CacheEncryptionProviderImplTest,
+       GetEncryptedCacheEncryptionKey_Reencrypt) {
+  // Create an encryptor with an "old" key and encrypt a dummy key with it.
+  os_crypt_async::Encryptor::KeyRing old_keys;
+  old_keys.emplace("test_provider",
+                   os_crypt_async::Encryptor::Key(
+                       std::vector<uint8_t>(32, 1),
+                       os_crypt_async::mojom::Algorithm::kAES256GCM));
+  TestEncryptor old_encryptor(std::move(old_keys), "test_provider",
+                              "test_provider");
+  std::optional<std::vector<uint8_t>> old_encrypted_key =
+      old_encryptor.EncryptString(std::string(32, 2));
+  ASSERT_TRUE(old_encrypted_key.has_value());
+
+  std::vector<uint8_t> stored_key;
+  base::RunLoop run_loop;
+  CacheEncryptionProviderImpl provider{
+      &os_crypt_async_, *old_encrypted_key,
+      base::BindLambdaForTesting([&](const std::vector<uint8_t>& new_key) {
+        stored_key = new_key;
+        run_loop.Quit();
+      })};
+
+  EXPECT_CALL(os_crypt_async_, GetInstance)
+      .WillOnce([&](base::OnceCallback<void(os_crypt_async::Encryptor)> cb,
+                    os_crypt_async::Encryptor::Option option) {
+        // Create a "new" encryptor. This one can decrypt the old key, but
+        // encryption will be done with a new key.
+        os_crypt_async::Encryptor::KeyRing new_keys;
+        new_keys.emplace("test_provider",
+                         os_crypt_async::Encryptor::Key(
+                             std::vector<uint8_t>(32, 1),
+                             os_crypt_async::mojom::Algorithm::kAES256GCM));
+        new_keys.emplace("new_provider",
+                         os_crypt_async::Encryptor::Key(
+                             std::vector<uint8_t>(32, 3),
+                             os_crypt_async::mojom::Algorithm::kAES256GCM));
+        std::move(cb).Run(
+            TestEncryptor(std::move(new_keys), "new_provider", "new_provider"));
+      });
+
+  mojo::Remote<network::mojom::CacheEncryptionProvider> remote(
+      provider.BindNewRemote());
+
+  base::test::TestFuture<const std::vector<uint8_t>&> future;
+  remote->GetEncryptedCacheEncryptionKey(future.GetCallback());
+  std::vector<uint8_t> returned_key = future.Take();
+  run_loop.Run();
+
+  // The key should have been re-encrypted with the new provider and stored.
+  EXPECT_NE(returned_key, *old_encrypted_key);
+  EXPECT_EQ(returned_key, stored_key);
+
+  // Verify that the new key can be decrypted with the new encryptor.
+  os_crypt_async::Encryptor::KeyRing new_keys;
+  new_keys.emplace("new_provider",
+                   os_crypt_async::Encryptor::Key(
+                       std::vector<uint8_t>(32, 3),
+                       os_crypt_async::mojom::Algorithm::kAES256GCM));
+  TestEncryptor new_encryptor(std::move(new_keys), "new_provider",
+                              "new_provider");
+  std::optional<std::string> decrypted =
+      new_encryptor.DecryptData(returned_key);
+  ASSERT_TRUE(decrypted.has_value());
+  EXPECT_EQ(*decrypted, std::string(32, 2));
 }
 
 }  // namespace enterprise_encryption

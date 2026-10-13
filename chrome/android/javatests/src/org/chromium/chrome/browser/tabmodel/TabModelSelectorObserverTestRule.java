@@ -196,7 +196,7 @@ public class TabModelSelectorObserverTestRule extends ChromeBrowserTestRule {
             super(
                     profile,
                     activityType,
-                    /* isArchivedTabModel= */ false,
+                    TabModelType.STANDARD,
                     null,
                     null,
                     orderController,
@@ -210,11 +210,16 @@ public class TabModelSelectorObserverTestRule extends ChromeBrowserTestRule {
         }
 
         @Override
-        public void initializeNative(int activityType, boolean isArchivedTabModel) {
-            // Skip setting up the TabModelObserverJniBridge by using isArchivedTabModel = true.
+        protected void maybeAssertTabHasWebContents(Tab tab) {
+            // Skip this assertion as it is not needed for these tests.
+        }
+
+        @Override
+        public void initializeNative(int activityType, @TabModelType int tabModelType) {
+            // Skip setting up the TabModelObserverJniBridge by using the archived tab model.
             // Initializing this leads to unexpected observers being added and crashes due to
             // mObserverSet not being initialized. This test should be refactored.
-            super.initializeNative(activityType, /* isArchivedTabModel= */ true);
+            super.initializeNative(activityType, TabModelType.ARCHIVED);
         }
 
         @Override

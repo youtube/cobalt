@@ -16,6 +16,7 @@
 #import "components/keyed_service/core/service_access_type.h"
 #import "components/password_manager/core/browser/ui/saved_passwords_presenter.h"
 #import "components/strings/grit/components_strings.h"
+#import "components/webauthn/ios/passkey_types.h"
 #import "ios/chrome/browser/affiliations/model/ios_chrome_affiliation_service_factory.h"
 #import "ios/chrome/browser/credential_exchange/coordinator/credential_export_coordinator.h"
 #import "ios/chrome/browser/credential_provider/model/features.h"
@@ -51,8 +52,8 @@
 #import "ios/chrome/browser/signin/model/authentication_service_factory.h"
 #import "ios/chrome/browser/signin/model/identity_manager_factory.h"
 #import "ios/chrome/browser/signin/model/system_identity.h"
-#import "ios/chrome/browser/signin/model/trusted_vault_client_backend.h"
-#import "ios/chrome/browser/signin/model/trusted_vault_client_backend_factory.h"
+#import "ios/chrome/browser/signin/model/trusted_vault/trusted_vault_client_backend.h"
+#import "ios/chrome/browser/signin/model/trusted_vault/trusted_vault_client_backend_factory.h"
 #import "ios/chrome/browser/sync/model/sync_service_factory.h"
 #import "ios/chrome/browser/webauthn/model/ios_passkey_model_factory.h"
 #import "ios/chrome/common/ui/elements/branded_navigation_item_title_view.h"
@@ -78,11 +79,6 @@ constexpr const char* kBulkMovePasswordsToAccountConfirmationDialogAccepted =
 // The user action for when the delete all saved data button is clicked.
 constexpr const char* kDeleteAllSavedDataButtonClicked =
     "IOS.PasswordManager.Settings.DeleteAllSavedData.Clicked";
-
-// Represents the code of an error returned when the user dismisses the update
-// GPM Pin flow by clicking the "Cancel" button. This should not be treated as
-// an actual error.
-const NSInteger kErrorUserDismissedUpdateGPMPinFlow = -105;
 
 }  // namespace
 
@@ -129,14 +125,14 @@ const NSInteger kErrorUserDismissedUpdateGPMPinFlow = -105;
 @end
 
 @interface PasswordSettingsCoordinator () <
-    ExportActivityViewControllerDelegate,
     BulkMoveLocalPasswordsToAccountHandler,
+    CredentialExportCoordinatorDelegate,
+    ExportActivityViewControllerDelegate,
+    LocalReauthenticationCoordinatorDelegate,
     PasswordExportHandler,
     PasswordsInOtherAppsCoordinatorDelegate,
     PopoverLabelViewControllerDelegate,
-    LocalReauthenticationCoordinatorDelegate,
     SettingsNavigationControllerDelegate>
-
 @end
 
 @implementation PasswordSettingsCoordinator {
@@ -275,8 +271,7 @@ const NSInteger kErrorUserDismissedUpdateGPMPinFlow = -105;
   _passwordsInOtherAppsCoordinator = nil;
 
   if (@available(iOS 26, *)) {
-    [_credentialExportCoordinator stop];
-    _credentialExportCoordinator = nil;
+    [self stopCredentialExportCoordinator];
   }
 
   _passwordSettingsViewController.presentationDelegate = nil;
@@ -380,6 +375,7 @@ const NSInteger kErrorUserDismissedUpdateGPMPinFlow = -105;
                                    browser:self.browser
                           affiliatedGroups:_savedPasswordsPresenter
                                                ->GetAffiliatedGroups()];
+      _credentialExportCoordinator.delegate = self;
       [_credentialExportCoordinator start];
       return;
     }
@@ -652,6 +648,14 @@ const NSInteger kErrorUserDismissedUpdateGPMPinFlow = -105;
                 IDS_IOS_SETTINGS_EXPORT_PASSWORDS_SET_UP_SCREENLOCK_CONTENT)];
 }
 
+#pragma mark - CredentialExportCoordinatorDelegate
+
+- (void)credentialExportCoordinatorDidFinish:
+    (CredentialExportCoordinator*)coordinator API_AVAILABLE(ios(26.0)) {
+  CHECK_EQ(coordinator, _credentialExportCoordinator);
+  [self stopCredentialExportCoordinator];
+}
+
 #pragma mark - ExportActivityViewControllerDelegate
 
 - (void)resetExport {
@@ -888,7 +892,7 @@ const NSInteger kErrorUserDismissedUpdateGPMPinFlow = -105;
 // user dismissing the flow by clicking "Cancel", presents the error alert.
 // Otherwise, dismisses the UI.
 - (void)updateGPMPinFinishedWithError:(NSError*)error {
-  if (error && error.code != kErrorUserDismissedUpdateGPMPinFlow) {
+  if (error && error.code != webauthn::kErrorUserDismissedGPMPinFlow) {
     [self startUpdateGPMPinErrorCoordinator];
   } else {
     [self dismissUpdateGPMPinViewController];
@@ -937,6 +941,12 @@ const NSInteger kErrorUserDismissedUpdateGPMPinFlow = -105;
           l10n_util::GetNSString(IDS_IOS_SETTINGS_DELETE_ALL_CREDENTIALS)
                   canReusePreviousAuth:NO
                                handler:onReauthFinished];
+}
+
+- (void)stopCredentialExportCoordinator {
+  [_credentialExportCoordinator stop];
+  _credentialExportCoordinator.delegate = nil;
+  _credentialExportCoordinator = nil;
 }
 
 @end

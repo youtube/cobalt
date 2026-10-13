@@ -15,8 +15,8 @@
 #include "base/types/optional_ref.h"
 #include "components/omnibox/browser/autocomplete_provider_client.h"
 #include "components/omnibox/browser/search_suggestion_parser.h"
-#include "third_party/omnibox_proto/aim_tools.pb.h"
 #include "third_party/omnibox_proto/page_vertical.pb.h"
+#include "third_party/omnibox_proto/tool_mode.pb.h"
 
 namespace action_chips {
 
@@ -25,6 +25,26 @@ namespace action_chips {
 class RemoteSuggestionsServiceSimple {
  public:
   virtual ~RemoteSuggestionsServiceSimple();
+
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
+  //
+  // LINT.IfChange(ParseFailureReason)
+  enum class ParseFailureReason {
+    // Zero value. This should not occur in production.
+    kUnknown = 0,
+    // The response from the remote is empty.
+    kResponseEmpty = 1,
+    // The parse phase fails because the response was not a JSON or its format
+    // is not in the expected form.
+    kMalformedJson = 2,
+    // Used after successfully parsing the JSON response.
+    // The parse phase fails because some precondition is not met, an unknown
+    // enum value is contained, etc.
+    kSchemaMismatch = 3,
+    kMaxValue = kSchemaMismatch,
+  };
+  // LINT.ThenChange(//tools/metrics/histograms/enums.xml:ActionChipsParseError)
 
   struct NetworkError;
   struct ParseError;
@@ -67,21 +87,7 @@ class RemoteSuggestionsServiceSimple {
     int http_response_code = 0;
   };
   struct ParseError {
-    enum class ParseErrorType {
-      // Zero value. This should not occur in production.
-      kUnknown,
-      // The response from the remote is empty.
-      kResponseEmpty,
-      // The parse phase fails because the response was not a JSON or its format
-      // is not in the expected form.
-      kMalformedJson,
-      // Used after successfully parsing the JSON response.
-      // The parse phase fails because some precondition is not met, an unknown
-      // enum value is contained, etc.
-      kParseFailure,
-    };
-
-    ParseErrorType parse_error_type = ParseErrorType::kUnknown;
+    ParseFailureReason parse_failure_reason = ParseFailureReason::kUnknown;
   };
 };
 

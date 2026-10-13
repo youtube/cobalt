@@ -28,19 +28,6 @@ TEST_F(JavaScriptFeatureTest, CreateFeatureScript) {
   EXPECT_EQ(document_start_injection_time, feature_script.GetInjectionTime());
   EXPECT_EQ(target_frames_all, feature_script.GetTargetFrames());
   EXPECT_TRUE([feature_script.GetScriptString() containsString:@"__gCrWeb"]);
-
-  auto document_end_injection_time =
-      web::JavaScriptFeature::FeatureScript::InjectionTime::kDocumentEnd;
-  auto target_frames_main =
-      web::JavaScriptFeature::FeatureScript::TargetFrames::kMainFrame;
-  auto feature_script2 =
-      web::JavaScriptFeature::FeatureScript::CreateWithFilename(
-          "common", document_end_injection_time, target_frames_main);
-
-  EXPECT_EQ(document_end_injection_time, feature_script2.GetInjectionTime());
-  EXPECT_EQ(target_frames_main, feature_script2.GetTargetFrames());
-  EXPECT_TRUE(
-      [feature_script2.GetScriptString() containsString:@"__gCrWeb.common"]);
 }
 
 // Tests the creation of FeatureScripts with a script string.
@@ -97,8 +84,9 @@ TEST_F(JavaScriptFeatureTest, ReinjectionBehaviorOnce) {
                                         feature_script.GetScriptString());
 
   // Ensure __gCrWeb was injected.
-  ASSERT_TRUE(web::test::ExecuteJavaScript(
-      web_view, @"try { !!window.__gCrWeb; } catch (err) {false;}"));
+  ASSERT_NSEQ(@(TRUE), web::test::ExecuteJavaScript(
+                           web_view,
+                           @"try { !!window.__gCrWeb; } catch (err) {false;}"));
 
   // Store a value within `window.__gCrWeb`.
   web::test::ExecuteJavaScriptInWebView(web_view,
@@ -152,7 +140,7 @@ TEST_F(JavaScriptFeatureTest, CreateFeatureWithDependentFeature) {
       web::JavaScriptFeature::FeatureScript::TargetFrames::kMainFrame;
   const web::JavaScriptFeature::FeatureScript feature_script =
       web::JavaScriptFeature::FeatureScript::CreateWithFilename(
-          "common", document_end_injection_time, target_frames_main);
+          "gcrweb", document_end_injection_time, target_frames_main);
 
   auto page_content_world = web::ContentWorld::kPageContentWorld;
   web::JavaScriptFeature dependent_feature(page_content_world,

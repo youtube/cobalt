@@ -19,9 +19,9 @@
 #include "base/unguessable_token.h"
 #include "base/version_info/channel.h"
 #include "components/contextual_search/internal/test_composebox_query_controller.h"
-#include "components/contextual_tasks/public/features.h"
 #include "components/lens/contextual_input.h"
 #include "components/lens/lens_bitmap_processing.h"
+#include "components/lens/lens_features.h"
 #include "components/lens/lens_overlay_invocation_source.h"
 #include "components/lens/lens_url_utils.h"
 #include "components/omnibox/composebox/composebox_query.mojom.h"
@@ -41,8 +41,10 @@
 #include "third_party/icu/source/common/unicode/locid.h"
 #include "third_party/icu/source/common/unicode/unistr.h"
 #include "third_party/icu/source/i18n/unicode/timezone.h"
+#include "third_party/lens_server_proto/added_inputs.pb.h"
 #include "third_party/lens_server_proto/aim_communication.pb.h"
 #include "third_party/lens_server_proto/lens_overlay_contextual_inputs.pb.h"
+#include "third_party/lens_server_proto/lens_overlay_lens_file.pb.h"
 #include "third_party/lens_server_proto/lens_overlay_platform.pb.h"
 #include "third_party/lens_server_proto/lens_overlay_server.pb.h"
 #include "third_party/lens_server_proto/lens_overlay_service_deps.pb.h"
@@ -69,8 +71,9 @@ constexpr char kRegion[] = "US";
 constexpr char kTimeZone[] = "America/Los_Angeles";
 constexpr char kRequestIdParameterKey[] = "vsrid";
 constexpr char kVisualSearchInteractionDataParameterKey[] = "vsint";
-constexpr char kVisualInputTypeParameterKey[] = "vit";
+constexpr char kAddedInputsParameterKey[] = "aai";
 constexpr char kLnsSurfaceParameterKey[] = "lns_surface";
+constexpr char kVisualInputTypeQueryParameter[] = "vit";
 constexpr char kTestCellAddress[] = "test_cell_address";
 constexpr char kTestServerAddress[] = "test_server_address";
 constexpr char kAimUdmQueryParameterValue[] = "50";
@@ -114,25 +117,40 @@ class ComposeboxQueryControllerTest
   void CreateController(
       bool send_lns_surface,
       bool suppress_lns_surface_param_if_no_image = true,
-      bool enable_multi_context_input_flow = false,
       bool enable_viewport_images = true,
-      bool use_separate_request_ids_for_multi_context_viewport_images = true,
+      bool use_separate_request_ids_for_viewport_images = false,
       bool enable_cluster_info_ttl = false,
       bool prioritize_suggestions_for_the_first_attached_document = false,
-      bool attach_page_title_and_url_to_suggest_requests = false) {
+      bool attach_page_title_and_url_to_suggest_requests = false,
+      bool enable_send_vit_for_single_context_next_queries = true) {
+    scoped_feature_list_.Reset();
+    std::vector<base::test::FeatureRef> enabled_features;
+    std::vector<base::test::FeatureRef> disabled_features;
+
+    if (use_separate_request_ids_for_viewport_images) {
+      enabled_features.push_back(
+          lens::features::kLensUseSeparateRequestIdForViewportImages);
+    } else {
+      disabled_features.push_back(
+          lens::features::kLensUseSeparateRequestIdForViewportImages);
+    }
+
+    if (enable_send_vit_for_single_context_next_queries) {
+      enabled_features.push_back(
+          lens::features::kLensSendVitForSingleContextNextQueries);
+    } else {
+      disabled_features.push_back(
+          lens::features::kLensSendVitForSingleContextNextQueries);
+    }
+    scoped_feature_list_.InitWithFeatures(enabled_features, disabled_features);
+
     // Create the config params.
     auto config_params =
         std::make_unique<ContextualSearchContextController::ConfigParams>();
     config_params->send_lns_surface = send_lns_surface;
     config_params->suppress_lns_surface_param_if_no_image =
         suppress_lns_surface_param_if_no_image;
-    config_params->enable_multi_context_input_flow =
-        enable_multi_context_input_flow;
     config_params->enable_viewport_images = enable_viewport_images;
-    config_params->use_separate_request_ids_for_multi_context_viewport_images =
-        use_separate_request_ids_for_multi_context_viewport_images;
-    config_params->use_separate_request_ids_for_multi_context_viewport_images =
-        use_separate_request_ids_for_multi_context_viewport_images;
     config_params->prioritize_suggestions_for_the_first_attached_document =
         prioritize_suggestions_for_the_first_attached_document;
     config_params->attach_page_title_and_url_to_suggest_requests =
@@ -448,6 +466,19 @@ class ComposeboxQueryControllerTest
     return proto;
   }
 
+  lens::AddedInputs GetAddedInputsFromUrl(const GURL& url) {
+    std::string added_inputs_param;
+    EXPECT_TRUE(net::GetValueForKeyInQuery(url, kAddedInputsParameterKey,
+                                           &added_inputs_param));
+    std::string serialized_proto;
+    EXPECT_TRUE(base::Base64UrlDecode(
+        added_inputs_param, base::Base64UrlDecodePolicy::DISALLOW_PADDING,
+        &serialized_proto));
+    lens::AddedInputs proto;
+    EXPECT_TRUE(proto.ParseFromString(serialized_proto));
+    return proto;
+  }
+
  protected:
   signin::IdentityTestEnvironment* identity_test_env() {
     return &identity_test_env_;
@@ -488,6 +519,7 @@ class ComposeboxQueryControllerTest
                                   FileUploadStatus,
                                   std::optional<FileUploadErrorType>>
       file_upload_status_future_;
+  base::test::ScopedFeatureList scoped_feature_list_;
 
  private:
   base::test::TaskEnvironment task_environment_{
@@ -705,9 +737,8 @@ TEST_F(ComposeboxQueryControllerTest,
   CreateController(
       /*send_lns_surface=*/false,
       /*suppress_lns_surface_param_if_no_image=*/true,
-      /*enable_multi_context_input_flow=*/false,
       /*enable_viewport_images=*/true,
-      /*use_separate_request_ids_for_multi_context_viewport_images=*/true,
+      /*use_separate_request_ids_for_viewport_images=*/false,
       /*enable_cluster_info_ttl=*/true);
 
   // Act: Start the session.
@@ -749,17 +780,14 @@ TEST_F(ComposeboxQueryControllerTest,
             FileUploadStatus::kUploadExpired);
 }
 
-TEST_F(ComposeboxQueryControllerTest,
-       UploadPdfFileRequestWithContextIdMigrationEnabled_SetsContextId) {
+TEST_F(ComposeboxQueryControllerTest, UploadPdfFileRequest_SetsContextId) {
   CreateController(
       /*send_lns_surface=*/false,
       /*suppress_lns_surface_param_if_no_image=*/true,
-      /*enable_multi_context_input_flow=*/true,
       /*enable_viewport_images=*/true,
-      /*use_separate_request_ids_for_multi_context_viewport_images=*/true,
+      /*use_separate_request_ids_for_viewport_images=*/true,
       /*enable_cluster_info_ttl=*/false,
-      /*prioritize_suggestions_for_the_first_attached_document=*/false,
-      /*enable_context_id_migration=*/true);
+      /*prioritize_suggestions_for_the_first_attached_document=*/false);
   // Act: Start the session.
   controller().InitializeIfNeeded();
 
@@ -861,16 +889,14 @@ TEST_F(ComposeboxQueryControllerTest,
 }
 
 TEST_F(ComposeboxQueryControllerTest,
-       UploadPdfFileRequestWithContextIdMigrationDisabled_IncrementsRequestId) {
+       UploadPdfFileRequest_IncrementsRequestId) {
   CreateController(
       /*send_lns_surface=*/false,
       /*suppress_lns_surface_param_if_no_image=*/true,
-      /*enable_multi_context_input_flow=*/true,
       /*enable_viewport_images=*/true,
-      /*use_separate_request_ids_for_multi_context_viewport_images=*/true,
+      /*use_separate_request_ids_for_viewport_images=*/true,
       /*enable_cluster_info_ttl=*/false,
-      /*prioritize_suggestions_for_the_first_attached_document=*/false,
-      /*enable_context_id_migration=*/false);
+      /*prioritize_suggestions_for_the_first_attached_document=*/false);
   // Act: Start the session.
   controller().InitializeIfNeeded();
 
@@ -913,55 +939,6 @@ TEST_F(ComposeboxQueryControllerTest,
   EXPECT_NE(second_request_id.analytics_id(), first_request_id.analytics_id());
 }
 
-TEST_F(ComposeboxQueryControllerTest,
-       UploadPdfFileRequestWithContextIdMigrationDisabled_SetsContextId) {
-  CreateController(
-      /*send_lns_surface=*/false,
-      /*suppress_lns_surface_param_if_no_image=*/true,
-      /*enable_multi_context_input_flow=*/true,
-      /*enable_viewport_images=*/true,
-      /*use_separate_request_ids_for_multi_context_viewport_images=*/true,
-      /*enable_cluster_info_ttl=*/false,
-      /*prioritize_suggestions_for_the_first_attached_document=*/false,
-      /*enable_context_id_migration=*/false);
-  // Act: Start the session.
-  controller().InitializeIfNeeded();
-
-  // Assert: Validate cluster info request and state changes.
-  WaitForClusterInfo();
-
-  // Act: Start the file upload flow.
-  const base::UnguessableToken file_token = base::UnguessableToken::Create();
-  int64_t context_id = 12345;
-  StartPdfFileUploadFlow(file_token,
-                         /*file_data=*/std::vector<uint8_t>(), context_id);
-
-  // Assert: Validate file upload request and status changes.
-  WaitForFileUpload(file_token, lens::MimeType::kPdf);
-
-  // Check that the vsrid matches that for a pdf upload.
-  EXPECT_EQ(controller()
-                .GetFileInfoForTesting(file_token)
-                ->GetRequestIdForTesting()
-                .sequence_id(),
-            1);
-  EXPECT_EQ(controller()
-                .GetFileInfoForTesting(file_token)
-                ->GetRequestIdForTesting()
-                .image_sequence_id(),
-            1);
-  EXPECT_EQ(controller()
-                .GetFileInfoForTesting(file_token)
-                ->GetRequestIdForTesting()
-                .long_context_id(),
-            1);
-  EXPECT_EQ(controller()
-                .GetFileInfoForTesting(file_token)
-                ->GetRequestIdForTesting()
-                .context_id(),
-            context_id);
-}
-
 TEST_F(ComposeboxQueryControllerTest, UploadEmptyImageFileRequestFailure) {
   // Act: Start the session.
   controller().InitializeIfNeeded();
@@ -984,6 +961,41 @@ TEST_F(ComposeboxQueryControllerTest, UploadEmptyImageFileRequestFailure) {
                     FileUploadErrorType::kImageProcessingError);
 }
 #endif  // !BUILDFLAG(IS_IOS)
+
+TEST_F(ComposeboxQueryControllerTest, UploadPdfFileRequestSuccessWithFileName) {
+  // Act: Start the session.
+  controller().InitializeIfNeeded();
+
+  // Assert: Validate cluster info request and state changes.
+  WaitForClusterInfo();
+
+  // Act: Start the file upload flow.
+  const base::UnguessableToken file_token = base::UnguessableToken::Create();
+  std::unique_ptr<lens::ContextualInputData> input_data =
+      std::make_unique<lens::ContextualInputData>();
+  input_data->primary_content_type = lens::MimeType::kPdf;
+  input_data->context_input = std::vector<lens::ContextualInput>();
+  input_data->context_input->push_back(
+      lens::ContextualInput(std::vector<uint8_t>(), lens::MimeType::kPdf));
+  input_data->file_name = "test_file.pdf";
+
+  controller().StartFileUploadFlow(file_token, std::move(input_data),
+                                   /*image_options=*/std::nullopt);
+
+  // Assert: Validate file upload request and status changes.
+  WaitForFileUpload(file_token, lens::MimeType::kPdf);
+
+  // Assert: Check that the file name is correctly set in the file info.
+  auto* file_info = controller().GetFileInfoForTesting(file_token);
+  ASSERT_TRUE(file_info);
+  EXPECT_EQ(file_info->file_name, "test_file.pdf");
+
+  // Assert: Check that the file name is correctly set in the added inputs.
+  auto added_inputs = controller().CreateAddedInputs({file_token});
+  ASSERT_EQ(added_inputs.added_inputs_size(), 1);
+  EXPECT_EQ(added_inputs.added_inputs(0).lens_file().file_name(),
+            "test_file.pdf");
+}
 
 TEST_F(ComposeboxQueryControllerTest, UploadPdfFileRequestSuccess) {
   // Act: Start the session.
@@ -1026,7 +1038,7 @@ TEST_F(ComposeboxQueryControllerTest, UploadPdfFileRequestSuccess) {
                 .GetFileInfoForTesting(file_token)
                 ->GetRequestIdForTesting()
                 .image_sequence_id(),
-            0);
+            1);
   EXPECT_EQ(controller()
                 .GetFileInfoForTesting(file_token)
                 ->GetRequestIdForTesting()
@@ -1045,7 +1057,7 @@ TEST_F(ComposeboxQueryControllerTest, UploadPdfFileRequestSuccess) {
                 .request_context()
                 .request_id()
                 .image_sequence_id(),
-            0);
+            1);
   EXPECT_EQ(controller()
                 .last_sent_file_upload_request()
                 ->objects_request()
@@ -1073,6 +1085,35 @@ TEST_F(ComposeboxQueryControllerTest, UploadPdfFileRequestSuccess) {
                 .routing_info()
                 .server_address(),
             kTestServerAddress);
+  EXPECT_TRUE(controller().last_sent_file_upload_request()->has_lens_intent());
+}
+
+TEST_F(ComposeboxQueryControllerTest,
+       UploadPdfFileRequestSuccessWithNoLensUsageIntent) {
+  // Act: Start the session.
+  controller().InitializeIfNeeded();
+
+  // Assert: Validate cluster info request and state changes.
+  WaitForClusterInfo();
+
+  // Act: Start the file upload flow.
+  const base::UnguessableToken file_token = base::UnguessableToken::Create();
+  std::unique_ptr<lens::ContextualInputData> input_data =
+      std::make_unique<lens::ContextualInputData>();
+  input_data->primary_content_type = lens::MimeType::kPdf;
+  input_data->context_input = std::vector<lens::ContextualInput>();
+  input_data->context_input->push_back(
+      lens::ContextualInput(std::vector<uint8_t>(), lens::MimeType::kPdf));
+  input_data->has_lens_usage_intent = false;
+
+  controller().StartFileUploadFlow(file_token, std::move(input_data),
+                                   /*image_options=*/std::nullopt);
+
+  // Assert: Validate file upload request and status changes.
+  WaitForFileUpload(file_token, lens::MimeType::kPdf);
+
+  // Validate the file upload request payload.
+  EXPECT_FALSE(controller().last_sent_file_upload_request()->has_lens_intent());
 }
 
 TEST_F(ComposeboxQueryControllerTest, UploadPageContextPdfFileRequestSuccess) {
@@ -1159,7 +1200,7 @@ TEST_F(ComposeboxQueryControllerTest, UploadPageContextPdfFileRequestSuccess) {
                 .GetFileInfoForTesting(file_token)
                 ->GetRequestIdForTesting()
                 .image_sequence_id(),
-            0);
+            1);
   EXPECT_EQ(controller()
                 .GetFileInfoForTesting(file_token)
                 ->GetRequestIdForTesting()
@@ -1178,7 +1219,7 @@ TEST_F(ComposeboxQueryControllerTest, UploadPageContextPdfFileRequestSuccess) {
                 .request_context()
                 .request_id()
                 .image_sequence_id(),
-            0);
+            1);
   EXPECT_EQ(controller()
                 .last_sent_file_upload_request()
                 ->objects_request()
@@ -1209,15 +1250,13 @@ TEST_F(ComposeboxQueryControllerTest, UploadPageContextPdfFileRequestSuccess) {
 }
 
 #if !BUILDFLAG(IS_IOS)
-TEST_F(
-    ComposeboxQueryControllerTest,
-    UploadPageContextPdfFileWithViewportMultiContextSeparateRequestIdsRequestSuccess) {
+TEST_F(ComposeboxQueryControllerTest,
+       UploadPageContextPdfFileWithViewportSeparateRequestIdsRequestSuccess) {
   CreateController(
       /*send_lns_surface=*/false,
       /*suppress_lns_surface_param_if_no_image=*/true,
-      /*enable_multi_context_input_flow=*/true,
       /*enable_viewport_images=*/true,
-      /*use_separate_request_ids_for_multi_context_viewport_images=*/true);
+      /*use_separate_request_ids_for_viewport_images=*/true);
 
   // Act: Start the session.
   controller().InitializeIfNeeded();
@@ -1688,12 +1727,6 @@ TEST_F(ComposeboxQueryControllerTest,
   EXPECT_FALSE(vsrid_value.empty());
   EXPECT_EQ(lens::LensOverlayRequestId::MEDIA_TYPE_WEBPAGE_AND_IMAGE,
             DecodeRequestIdFromVsrid(vsrid_value).media_type());
-
-  // Assert: Visual input type is set to wp for webpage queries.
-  std::string vit_value;
-  EXPECT_TRUE(net::GetValueForKeyInQuery(aim_url, kVisualInputTypeParameterKey,
-                                         &vit_value));
-  EXPECT_EQ(vit_value, "wp");
 }
 
 TEST_F(ComposeboxQueryControllerTest,
@@ -1701,7 +1734,6 @@ TEST_F(ComposeboxQueryControllerTest,
   // Create the controller with viewports disabled.
   CreateController(/*send_lns_surface=*/false,
                    /*suppress_lns_surface_param_if_no_image=*/true,
-                   /*enable_multi_context_input_flow=*/true,
                    /*enable_viewport_images=*/false);
 
   // Act: Start the session.
@@ -2162,11 +2194,6 @@ TEST_F(ComposeboxQueryControllerTest,
   EXPECT_FALSE(net::GetValueForKeyInQuery(aim_url, kRequestIdParameterKey,
                                           &vsrid_value));
 
-  // Assert: Visual input type is NOT added to unimodal text queries.
-  std::string vit_value;
-  EXPECT_FALSE(net::GetValueForKeyInQuery(aim_url, kVisualInputTypeParameterKey,
-                                          &vit_value));
-
   // Assert: Gsession id is NOT added to unimodal text queries.
   std::string gsession_id_value;
   EXPECT_FALSE(net::GetValueForKeyInQuery(aim_url, kSessionIdQueryParameterKey,
@@ -2203,11 +2230,6 @@ TEST_F(ComposeboxQueryControllerTest, QuerySubmitted) {
   std::string vsrid_value;
   EXPECT_FALSE(net::GetValueForKeyInQuery(aim_url, kRequestIdParameterKey,
                                           &vsrid_value));
-
-  // Assert: Visual input type is NOT added to unimodal text queries.
-  std::string vit_value;
-  EXPECT_FALSE(net::GetValueForKeyInQuery(aim_url, kVisualInputTypeParameterKey,
-                                          &vit_value));
 
   // Assert: Gsession id is NOT added to unimodal text queries.
   std::string gsession_id_value;
@@ -2272,12 +2294,6 @@ TEST_F(ComposeboxQueryControllerTest, QuerySubmittedWithUploadedPdf) {
   EXPECT_FALSE(vsrid_value.empty());
   EXPECT_EQ(lens::LensOverlayRequestId::MEDIA_TYPE_PDF,
             DecodeRequestIdFromVsrid(vsrid_value).media_type());
-
-  // Assert: Visual input type is set to pdf for multimodal pdf queries.
-  std::string vit_value;
-  EXPECT_TRUE(net::GetValueForKeyInQuery(aim_url, kVisualInputTypeParameterKey,
-                                         &vit_value));
-  EXPECT_EQ(vit_value, "pdf");
 
   // Assert: Gsession id is added to multimodal pdf queries.
   std::string gsession_id_value;
@@ -2375,7 +2391,7 @@ TEST_F(ComposeboxQueryControllerTest,
   EXPECT_EQ(client_to_aim_request->submit_query().payload().query_text_source(),
             lens::QueryPayload::QUERY_TEXT_SOURCE_KEYBOARD_INPUT);
   const auto& params =
-      client_to_aim_request->submit_query().payload().additional_cgi_params();
+      client_to_aim_request->submit_query().payload().cgi_params();
   EXPECT_EQ(params.size(), 2u);
   EXPECT_EQ(params.at("key1"), "value1");
   EXPECT_EQ(params.at("key2"), "value2");
@@ -2468,12 +2484,6 @@ TEST_F(ComposeboxQueryControllerTest,
   EXPECT_EQ(lens::LensOverlayRequestId::MEDIA_TYPE_PDF,
             DecodeRequestIdFromVsrid(vsrid_value).media_type());
 
-  // Assert: Visual input type is set to pdf for multimodal pdf queries.
-  std::string vit_value;
-  EXPECT_TRUE(net::GetValueForKeyInQuery(
-      search_url, kVisualInputTypeParameterKey, &vit_value));
-  EXPECT_EQ(vit_value, "pdf");
-
   // Assert: Gsession id is added to multimodal pdf queries.
   std::string gsession_id_value;
   EXPECT_TRUE(net::GetValueForKeyInQuery(
@@ -2548,6 +2558,88 @@ TEST_F(ComposeboxQueryControllerTest,
       ComposeboxQueryController::SearchUrlType::kStandard;
   search_url_request_info->query_start_time = kTestQueryStartTime;
   search_url_request_info->lens_overlay_selection_type =
+      lens::LensOverlaySelectionType::MULTIMODAL_SEARCH;
+  search_url_request_info->file_tokens.push_back(file_token);
+
+  search_url_request_info->client_logs = lens::LensOverlayClientLogs();
+
+  // Runloop for when the interaction request is sent.
+  base::RunLoop run_loop;
+  controller().AddEndpointFetcherCreatedCallback(
+      base::BindLambdaForTesting([&]() { run_loop.Quit(); }));
+
+  base::test::TestFuture<GURL> url_future;
+  controller().CreateSearchUrl(std::move(search_url_request_info),
+                               url_future.GetCallback());
+  GURL search_url = url_future.Take();
+
+  // Check that an interaction request was created.
+  run_loop.Run();
+  auto interaction_request = controller().last_sent_interaction_request();
+  ASSERT_TRUE(interaction_request.has_value());
+  EXPECT_TRUE(interaction_request->has_interaction_request());
+
+  // Check that the vsint is populated correctly.
+  auto vsint = GetVsintFromUrl(search_url);
+  EXPECT_EQ(vsint.text_select().selected_texts(), "hello");
+  EXPECT_TRUE(vsint.log_data().is_parent_query());
+  EXPECT_EQ(vsint.interaction_type(),
+            lens::LensOverlayInteractionRequestMetadata::PDF_QUERY);
+
+  // Assert: Lens request id is added to multimodal pdf queries.
+  std::string vsrid_value;
+  EXPECT_TRUE(net::GetValueForKeyInQuery(search_url, kRequestIdParameterKey,
+                                         &vsrid_value));
+  EXPECT_FALSE(vsrid_value.empty());
+  EXPECT_EQ(lens::LensOverlayRequestId::MEDIA_TYPE_PDF,
+            DecodeRequestIdFromVsrid(vsrid_value).media_type());
+
+  // Assert: Gsession id is added to multimodal pdf queries.
+  std::string gsession_id_value;
+  EXPECT_TRUE(net::GetValueForKeyInQuery(
+      search_url, kSessionIdQueryParameterKey, &gsession_id_value));
+  EXPECT_EQ(kTestSearchSessionId, gsession_id_value);
+
+  // Check that the timestamps are attached to the url.
+  std::string qsubts_value;
+  EXPECT_TRUE(net::GetValueForKeyInQuery(
+      search_url, kQuerySubmissionTimeQueryParameter, &qsubts_value));
+
+  std::string cud_value;
+  EXPECT_TRUE(net::GetValueForKeyInQuery(
+      search_url, kClientUploadDurationQueryParameter, &cud_value));
+
+  // Check that the udm value is set to 24 (multimodal search).
+  std::string udm_value_24;
+  EXPECT_TRUE(net::GetValueForKeyInQuery(
+      search_url, kSearchModeQueryParameterKey, &udm_value_24));
+  EXPECT_EQ(udm_value_24, kMultimodalUdmQueryParameterValue);
+}
+
+TEST_F(ComposeboxQueryControllerTest, InteractionQuerySubmittedWithImageCrop) {
+  // Act: Start the session.
+  controller().InitializeIfNeeded();
+
+  // Assert: Validate cluster info request and state changes.
+  WaitForClusterInfo();
+
+  // Act: Start the file upload flow.
+  const base::UnguessableToken file_token = base::UnguessableToken::Create();
+  StartPdfFileUploadFlow(file_token,
+                         /*file_data=*/std::vector<uint8_t>());
+
+  // Assert: Validate file upload request and status changes.
+  WaitForFileUpload(file_token, lens::MimeType::kPdf);
+
+  // Act: Create the destination URL for the query. The destination URL can
+  // only be created after the cluster info is received.
+  std::unique_ptr<CreateSearchUrlRequestInfo> search_url_request_info =
+      std::make_unique<CreateSearchUrlRequestInfo>();
+  search_url_request_info->query_text = "hello";
+  search_url_request_info->search_url_type =
+      ComposeboxQueryController::SearchUrlType::kStandard;
+  search_url_request_info->query_start_time = kTestQueryStartTime;
+  search_url_request_info->lens_overlay_selection_type =
       lens::LensOverlaySelectionType::REGION_SEARCH;
   search_url_request_info->image_crop = lens::ImageCrop();
   search_url_request_info->image_crop->mutable_zoomed_crop()
@@ -2593,14 +2685,8 @@ TEST_F(ComposeboxQueryControllerTest,
   EXPECT_TRUE(net::GetValueForKeyInQuery(search_url, kRequestIdParameterKey,
                                          &vsrid_value));
   EXPECT_FALSE(vsrid_value.empty());
-  EXPECT_EQ(lens::LensOverlayRequestId::MEDIA_TYPE_PDF,
+  EXPECT_EQ(lens::LensOverlayRequestId::MEDIA_TYPE_DEFAULT_IMAGE,
             DecodeRequestIdFromVsrid(vsrid_value).media_type());
-
-  // Assert: Visual input type is set to pdf for multimodal pdf queries.
-  std::string vit_value;
-  EXPECT_TRUE(net::GetValueForKeyInQuery(
-      search_url, kVisualInputTypeParameterKey, &vit_value));
-  EXPECT_EQ(vit_value, "pdf");
 
   // Assert: Gsession id is added to multimodal pdf queries.
   std::string gsession_id_value;
@@ -2622,222 +2708,11 @@ TEST_F(ComposeboxQueryControllerTest,
   EXPECT_TRUE(net::GetValueForKeyInQuery(
       search_url, kSearchModeQueryParameterKey, &udm_value_24));
   EXPECT_EQ(udm_value_24, kMultimodalUdmQueryParameterValue);
-}
 
-TEST_F(ComposeboxQueryControllerTest,
-       InteractionQuerySubmittedWithMultiContextFlow) {
-  // Act: Create controller with multi-context flow enabled.
-  CreateController(/*send_lns_surface=*/false,
-                   /*suppress_lns_surface_param_if_no_image=*/true,
-                   /*enable_multi_context_input_flow=*/true);
-
-  // Act: Start the session.
-  controller().InitializeIfNeeded();
-
-  // Assert: Validate cluster info request and state changes.
-  WaitForClusterInfo();
-
-  // Act: Start the file upload flow.
-  const base::UnguessableToken file_token = base::UnguessableToken::Create();
-  StartPdfFileUploadFlow(file_token,
-                         /*file_data=*/std::vector<uint8_t>());
-
-  // Assert: Validate file upload request and status changes.
-  WaitForFileUpload(file_token, lens::MimeType::kPdf);
-
-  // Act: Create the destination URL for the query.
-  std::unique_ptr<CreateSearchUrlRequestInfo> search_url_request_info =
-      std::make_unique<CreateSearchUrlRequestInfo>();
-  search_url_request_info->query_text = "hello";
-  search_url_request_info->search_url_type =
-      ComposeboxQueryController::SearchUrlType::kStandard;
-  search_url_request_info->query_start_time = kTestQueryStartTime;
-  search_url_request_info->lens_overlay_selection_type =
-      lens::LensOverlaySelectionType::MULTIMODAL_SEARCH;
-  search_url_request_info->file_tokens.push_back(file_token);
-
-  search_url_request_info->client_logs = lens::LensOverlayClientLogs();
-
-  // Runloop for when the interaction request is sent.
-  base::RunLoop run_loop;
-  controller().AddEndpointFetcherCreatedCallback(
-      base::BindLambdaForTesting([&]() { run_loop.Quit(); }));
-
-  base::test::TestFuture<GURL> url_future;
-  controller().CreateSearchUrl(std::move(search_url_request_info),
-                               url_future.GetCallback());
-  GURL search_url = url_future.Take();
-
-  // Check that an interaction request was created.
-  run_loop.Run();
-  auto interaction_request = controller().last_sent_interaction_request();
-  ASSERT_TRUE(interaction_request.has_value());
-  EXPECT_TRUE(interaction_request->has_interaction_request());
-
-  // Check that the vsint is populated correctly.
-  auto vsint = GetVsintFromUrl(search_url);
-  EXPECT_EQ(vsint.text_select().selected_texts(), "hello");
-  EXPECT_TRUE(vsint.log_data().is_parent_query());
-  EXPECT_EQ(vsint.interaction_type(),
-            lens::LensOverlayInteractionRequestMetadata::PDF_QUERY);
-
-  // Assert: Lens request id is added to queries using multi-context flow IF
-  // interaction is present.
-  std::string vsrid_value;
-  EXPECT_TRUE(net::GetValueForKeyInQuery(search_url, kRequestIdParameterKey,
-                                         &vsrid_value));
-  EXPECT_FALSE(vsrid_value.empty());
-  EXPECT_EQ(lens::LensOverlayRequestId::MEDIA_TYPE_PDF,
-            DecodeRequestIdFromVsrid(vsrid_value).media_type());
-
-  // Assert: Visual input type is NOT added for multi-context flow.
+  // Check that the vit parameter is NOT present for image queries.
   std::string vit_value;
   EXPECT_FALSE(net::GetValueForKeyInQuery(
-      search_url, kVisualInputTypeParameterKey, &vit_value));
-
-  // Assert: Gsession id is added to multimodal queries.
-  std::string gsession_id_value;
-  EXPECT_TRUE(net::GetValueForKeyInQuery(
-      search_url, kSessionIdQueryParameterKey, &gsession_id_value));
-  EXPECT_EQ(kTestSearchSessionId, gsession_id_value);
-
-  // Check that the timestamps are attached to the url.
-  std::string qsubts_value;
-  EXPECT_TRUE(net::GetValueForKeyInQuery(
-      search_url, kQuerySubmissionTimeQueryParameter, &qsubts_value));
-
-  std::string cud_value;
-  EXPECT_TRUE(net::GetValueForKeyInQuery(
-      search_url, kClientUploadDurationQueryParameter, &cud_value));
-
-  // Check that the udm value is set to 24 (multimodal search).
-  std::string udm_value_24;
-  EXPECT_TRUE(net::GetValueForKeyInQuery(
-      search_url, kSearchModeQueryParameterKey, &udm_value_24));
-  EXPECT_EQ(udm_value_24, kMultimodalUdmQueryParameterValue);
-
-  // Check that the contextual inputs param contains the request ids.
-  lens::LensOverlayContextualInputs contextual_inputs =
-      GetContextualInputsFromUrl(search_url.spec());
-  EXPECT_EQ(contextual_inputs.inputs_size(), 2);
-  EXPECT_THAT(contextual_inputs.inputs(1).request_id(),
-              EqualsProto(interaction_request->interaction_request()
-                              .request_context()
-                              .request_id()));
-}
-
-TEST_F(ComposeboxQueryControllerTest,
-       InteractionQueryWithImageCropSubmittedWithMultiContextFlow) {
-  // Act: Create controller with multi-context flow enabled.
-  CreateController(/*send_lns_surface=*/false,
-                   /*suppress_lns_surface_param_if_no_image=*/true,
-                   /*enable_multi_context_input_flow=*/true);
-
-  // Act: Start the session.
-  controller().InitializeIfNeeded();
-
-  // Assert: Validate cluster info request and state changes.
-  WaitForClusterInfo();
-
-  // Act: Start the file upload flow.
-  const base::UnguessableToken file_token = base::UnguessableToken::Create();
-  StartPdfFileUploadFlow(file_token,
-                         /*file_data=*/std::vector<uint8_t>());
-
-  // Assert: Validate file upload request and status changes.
-  WaitForFileUpload(file_token, lens::MimeType::kPdf);
-
-  // Act: Create the destination URL for the query.
-  std::unique_ptr<CreateSearchUrlRequestInfo> search_url_request_info =
-      std::make_unique<CreateSearchUrlRequestInfo>();
-  search_url_request_info->query_text = "hello";
-  search_url_request_info->search_url_type =
-      ComposeboxQueryController::SearchUrlType::kStandard;
-  search_url_request_info->query_start_time = kTestQueryStartTime;
-  search_url_request_info->lens_overlay_selection_type =
-      lens::LensOverlaySelectionType::REGION_SEARCH;
-  search_url_request_info->image_crop = lens::ImageCrop();
-  search_url_request_info->image_crop->mutable_zoomed_crop()
-      ->mutable_crop()
-      ->set_coordinate_type(lens::CoordinateType::NORMALIZED);
-  search_url_request_info->image_crop->mutable_zoomed_crop()->set_zoom(1);
-  search_url_request_info->image_crop->mutable_zoomed_crop()->set_parent_height(
-      25);
-  search_url_request_info->file_tokens.push_back(file_token);
-
-  search_url_request_info->client_logs = lens::LensOverlayClientLogs();
-
-  // Runloop for when the interaction request is sent.
-  base::RunLoop run_loop;
-  controller().AddEndpointFetcherCreatedCallback(
-      base::BindLambdaForTesting([&]() { run_loop.Quit(); }));
-
-  base::test::TestFuture<GURL> url_future;
-  controller().CreateSearchUrl(std::move(search_url_request_info),
-                               url_future.GetCallback());
-  GURL search_url = url_future.Take();
-
-  // Check that an interaction request was created.
-  run_loop.Run();
-  auto interaction_request = controller().last_sent_interaction_request();
-  ASSERT_TRUE(interaction_request.has_value());
-  EXPECT_TRUE(interaction_request->has_interaction_request());
-
-  // Check that the vsint is populated correctly.
-  auto vsint = GetVsintFromUrl(search_url);
-  EXPECT_EQ(vsint.text_select().selected_texts(), "hello");
-  EXPECT_TRUE(vsint.log_data().is_parent_query());
-  EXPECT_EQ(vsint.interaction_type(),
-            lens::LensOverlayInteractionRequestMetadata::REGION_SEARCH);
-  EXPECT_TRUE(vsint.has_zoomed_crop());
-  EXPECT_EQ(vsint.zoomed_crop().zoom(), 1);
-  EXPECT_EQ(vsint.zoomed_crop().parent_height(), 25);
-  EXPECT_EQ(vsint.zoomed_crop().crop().coordinate_type(),
-            lens::CoordinateType::NORMALIZED);
-
-  // Assert: Lens request id is added to queries using multi-context flow IF
-  // interaction is present.
-  std::string vsrid_value;
-  EXPECT_TRUE(net::GetValueForKeyInQuery(search_url, kRequestIdParameterKey,
-                                         &vsrid_value));
-  EXPECT_FALSE(vsrid_value.empty());
-  EXPECT_EQ(lens::LensOverlayRequestId::MEDIA_TYPE_DEFAULT_IMAGE,
-            DecodeRequestIdFromVsrid(vsrid_value).media_type());
-
-  // Assert: Visual input type is NOT added for multi-context flow.
-  std::string vit_value;
-  EXPECT_FALSE(net::GetValueForKeyInQuery(
-      search_url, kVisualInputTypeParameterKey, &vit_value));
-
-  // Assert: Gsession id is added to multimodal queries.
-  std::string gsession_id_value;
-  EXPECT_TRUE(net::GetValueForKeyInQuery(
-      search_url, kSessionIdQueryParameterKey, &gsession_id_value));
-  EXPECT_EQ(kTestSearchSessionId, gsession_id_value);
-
-  // Check that the timestamps are attached to the url.
-  std::string qsubts_value;
-  EXPECT_TRUE(net::GetValueForKeyInQuery(
-      search_url, kQuerySubmissionTimeQueryParameter, &qsubts_value));
-
-  std::string cud_value;
-  EXPECT_TRUE(net::GetValueForKeyInQuery(
-      search_url, kClientUploadDurationQueryParameter, &cud_value));
-
-  // Check that the udm value is set to 24 (multimodal search).
-  std::string udm_value_24;
-  EXPECT_TRUE(net::GetValueForKeyInQuery(
-      search_url, kSearchModeQueryParameterKey, &udm_value_24));
-  EXPECT_EQ(udm_value_24, kMultimodalUdmQueryParameterValue);
-
-  // Check that the contextual inputs param contains the request ids.
-  lens::LensOverlayContextualInputs contextual_inputs =
-      GetContextualInputsFromUrl(search_url.spec());
-  EXPECT_EQ(contextual_inputs.inputs_size(), 2);
-  EXPECT_THAT(contextual_inputs.inputs(1).request_id(),
-              EqualsProto(interaction_request->interaction_request()
-                              .request_context()
-                              .request_id()));
+      search_url, kVisualInputTypeQueryParameter, &vit_value));
 }
 
 #if !BUILDFLAG(IS_IOS)
@@ -2891,12 +2766,6 @@ TEST_F(ComposeboxQueryControllerTest, QuerySubmittedWithUploadedImage) {
   EXPECT_EQ(lens::LensOverlayRequestId::MEDIA_TYPE_DEFAULT_IMAGE,
             DecodeRequestIdFromVsrid(vsrid_value).media_type());
 
-  // Assert: Visual input type is set to img for multimodal image queries.
-  std::string vit_value;
-  EXPECT_TRUE(net::GetValueForKeyInQuery(aim_url, kVisualInputTypeParameterKey,
-                                         &vit_value));
-  EXPECT_EQ(vit_value, "img");
-
   // Assert: Gsession id is added to multimodal pdf queries.
   std::string gsession_id_value;
   EXPECT_TRUE(net::GetValueForKeyInQuery(aim_url, kSessionIdQueryParameterKey,
@@ -2911,6 +2780,11 @@ TEST_F(ComposeboxQueryControllerTest, QuerySubmittedWithUploadedImage) {
   std::string cud_value;
   EXPECT_TRUE(net::GetValueForKeyInQuery(
       aim_url, kClientUploadDurationQueryParameter, &cud_value));
+
+  // Check that the vit parameter is NOT present for image queries.
+  std::string vit_value;
+  EXPECT_FALSE(net::GetValueForKeyInQuery(
+      aim_url, kVisualInputTypeQueryParameter, &vit_value));
 }
 #endif  // !BUILDFLAG(IS_IOS)
 
@@ -2928,9 +2802,8 @@ TEST_F(ComposeboxQueryControllerTest,
   CreateController(
       /*send_lns_surface=*/true,
       /*suppress_lns_surface_param_if_no_image=*/true,
-      /*enable_multi_context_input_flow=*/false,
       /*enable_viewport_images=*/true,
-      /*use_separate_request_ids_for_multi_context_viewport_images=*/true,
+      /*use_separate_request_ids_for_viewport_images=*/false,
       /*enable_cluster_info_ttl=*/true);
 
   // Act: Start the session.
@@ -2973,11 +2846,6 @@ TEST_F(ComposeboxQueryControllerTest,
   EXPECT_FALSE(net::GetValueForKeyInQuery(aim_url, kRequestIdParameterKey,
                                           &vsrid_value));
 
-  // Assert: Visual input type is NOT added to unimodal text queries.
-  std::string vit_value;
-  EXPECT_FALSE(net::GetValueForKeyInQuery(aim_url, kVisualInputTypeParameterKey,
-                                          &vit_value));
-
   // Assert: Gsession id is NOT added to unimodal text queries.
   std::string gsession_id_value;
   EXPECT_FALSE(net::GetValueForKeyInQuery(aim_url, kSessionIdQueryParameterKey,
@@ -2988,9 +2856,8 @@ TEST_F(ComposeboxQueryControllerTest, SuggestInputsForFirstDocument) {
   CreateController(
       /* send_lns_surface= */ false,
       /* suppress_lns_surface_param_if_no_image= */ true,
-      /* enable_multi_context_input_flow= */ false,
       /* enable_viewport_images= */ true,
-      /* use_separate_request_ids_for_multi_context_viewport_images= */ true,
+      /* use_separate_request_ids_for_viewport_images= */ false,
       /* enable_cluster_info_ttl= */ false,
       /* prioritize_suggestions_for_the_first_attached_document= */ true);
   StartSession();
@@ -3211,8 +3078,7 @@ TEST_F(ComposeboxQueryControllerTest, QuerySubmittedWithLnsSurfaceAndNoImage) {
 TEST_F(ComposeboxQueryControllerTest,
        MultipleUploadedPdf_HasCorrectRequestIds) {
   CreateController(/*send_lns_surface=*/false,
-                   /*suppress_lns_surface_param_if_no_image=*/true,
-                   /*enable_multi_context_input_flow=*/true);
+                   /*suppress_lns_surface_param_if_no_image=*/true);
 
   // Act: Start the session.
   controller().InitializeIfNeeded();
@@ -3352,11 +3218,6 @@ TEST_F(ComposeboxQueryControllerTest,
   EXPECT_FALSE(net::GetValueForKeyInQuery(aim_url, kRequestIdParameterKey,
                                           &vsrid_value));
 
-  // Assert: Visual input type is NOT set for queries using multi-context flow.
-  std::string vit_value;
-  EXPECT_FALSE(net::GetValueForKeyInQuery(aim_url, kVisualInputTypeParameterKey,
-                                          &vit_value));
-
   // Assert: Gsession id is added to multimodal queries.
   std::string gsession_id_value;
   EXPECT_TRUE(net::GetValueForKeyInQuery(aim_url, kSessionIdQueryParameterKey,
@@ -3490,9 +3351,8 @@ TEST_F(ComposeboxQueryControllerTest, CreateSuggestInputsWithPageTitleAndUrl) {
   CreateController(
       /*send_lns_surface=*/false,
       /*suppress_lns_surface_param_if_no_image=*/true,
-      /*enable_multi_context_input_flow=*/false,
       /*enable_viewport_images=*/true,
-      /*use_separate_request_ids_for_multi_context_viewport_images=*/true,
+      /*use_separate_request_ids_for_viewport_images=*/false,
       /*enable_cluster_info_ttl=*/false,
       /*prioritize_suggestions_for_the_first_attached_document=*/false,
       /*attach_page_title_and_url_to_suggest_requests=*/true);
@@ -3519,6 +3379,9 @@ TEST_F(ComposeboxQueryControllerTest, CreateSuggestInputsWithPageTitleAndUrl) {
   EXPECT_TRUE(suggest_inputs->send_page_title_and_url());
   EXPECT_EQ(suggest_inputs->page_title(), "Page Title");
   EXPECT_EQ(suggest_inputs->page_url(), "https://page.url/");
+
+  // Assert: Visual input type is set for the suggest request.
+  EXPECT_EQ(suggest_inputs->contextual_visual_input_type(), "wp");
 }
 
 TEST_F(ComposeboxQueryControllerTest, QuerySubmittedWithInvocationSource) {
@@ -3554,62 +3417,6 @@ TEST_F(ComposeboxQueryControllerTest, QuerySubmittedWithInvocationSource) {
   std::string source_value;
   EXPECT_TRUE(net::GetValueForKeyInQuery(search_url, "source", &source_value));
   EXPECT_EQ(source_value, "chrome.crn.menu");
-}
-
-TEST_F(ComposeboxQueryControllerTest, ContextualTasksOverrides) {
-  // Arrange: Enable ContextualTasks.
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeatureWithParameters(
-      contextual_tasks::kContextualTasks,
-      {{"ForceContextIdMigration", "true"}});
-
-  // Create controller with flags disabled initially.
-  CreateController(
-      /*send_lns_surface=*/false,
-      /*suppress_lns_surface_param_if_no_image=*/true,
-      /*enable_multi_context_input_flow=*/false,
-      /*enable_viewport_images=*/true,
-      /*use_separate_request_ids_for_multi_context_viewport_images=*/false,
-      /*enable_cluster_info_ttl=*/false,
-      /*prioritize_suggestions_for_the_first_attached_document=*/false);
-
-  // Act: Start the session.
-  controller().InitializeIfNeeded();
-
-  // Assert: Validate cluster info request and state changes.
-  WaitForClusterInfo();
-
-  // Act: Start the file upload flow.
-  const base::UnguessableToken file_token = base::UnguessableToken::Create();
-  int64_t context_id = 12345;
-  StartPdfFileUploadFlow(file_token,
-                         /*file_data=*/std::vector<uint8_t>(), context_id);
-
-  // Assert: Validate file upload request and status changes.
-  WaitForFileUpload(file_token, lens::MimeType::kPdf);
-
-  // Check that the vsrid matches that for a pdf upload using the context_id
-  // migration flow
-  EXPECT_EQ(controller()
-                .GetFileInfoForTesting(file_token)
-                ->GetRequestIdForTesting()
-                .sequence_id(),
-            1);
-  EXPECT_EQ(controller()
-                .GetFileInfoForTesting(file_token)
-                ->GetRequestIdForTesting()
-                .image_sequence_id(),
-            1);
-  EXPECT_EQ(controller()
-                .GetFileInfoForTesting(file_token)
-                ->GetRequestIdForTesting()
-                .long_context_id(),
-            1);
-  EXPECT_EQ(controller()
-                .GetFileInfoForTesting(file_token)
-                ->GetRequestIdForTesting()
-                .context_id(),
-            context_id);
 }
 
 TEST_F(ComposeboxQueryControllerTest, HandleInteractionResponse) {
@@ -3718,5 +3525,402 @@ TEST_F(ComposeboxQueryControllerTest,
   EXPECT_FLOAT_EQ(interaction_data.zoomed_crop().crop().height(), 1.0f);
 }
 #endif  // !BUILDFLAG(IS_IOS)
+
+TEST_F(ComposeboxQueryControllerTest,
+       CreateClientToAimRequest_ForceIncludeInteractionData_HasInteraction) {
+  // Act: Start the session.
+  controller().InitializeIfNeeded();
+  WaitForClusterInfo();
+
+  // Act: Start the file upload flow (PDF).
+  const base::UnguessableToken file_token = base::UnguessableToken::Create();
+  StartPdfFileUploadFlow(file_token,
+                         /*file_data=*/std::vector<uint8_t>());
+  WaitForFileUpload(file_token, lens::MimeType::kPdf);
+
+  // Act: Send interaction request via CreateSearchUrl.
+  std::unique_ptr<CreateSearchUrlRequestInfo> search_url_request_info =
+      std::make_unique<CreateSearchUrlRequestInfo>();
+  search_url_request_info->query_text = "hello";
+  search_url_request_info->file_tokens.push_back(file_token);
+  search_url_request_info->query_start_time = kTestQueryStartTime;
+  search_url_request_info->lens_overlay_selection_type =
+      lens::LensOverlaySelectionType::REGION_SEARCH;
+
+  // Set a specific crop to verify.
+  search_url_request_info->image_crop = lens::ImageCrop();
+  auto* zoomed_crop =
+      search_url_request_info->image_crop->mutable_zoomed_crop();
+  zoomed_crop->set_zoom(2.0);
+  auto* crop = zoomed_crop->mutable_crop();
+  crop->set_center_x(0.25);
+  crop->set_center_y(0.25);
+  crop->set_width(0.5);
+  crop->set_height(0.5);
+  crop->set_coordinate_type(lens::CoordinateType::NORMALIZED);
+
+  // We need to wait for interaction request creation.
+  base::RunLoop run_loop;
+  controller().AddEndpointFetcherCreatedCallback(
+      base::BindLambdaForTesting([&]() { run_loop.Quit(); }));
+
+  base::test::TestFuture<GURL> url_future;
+  controller().CreateSearchUrl(std::move(search_url_request_info),
+                               url_future.GetCallback());
+  // Wait for interaction request to be sent.
+  run_loop.Run();
+  ASSERT_TRUE(url_future.Wait());
+
+  // Now create ClientToAimRequest with force = true.
+  auto create_client_to_aim_request_info =
+      std::make_unique<CreateClientToAimRequestInfo>();
+  create_client_to_aim_request_info->query_text = "test query";
+  create_client_to_aim_request_info->file_tokens = {file_token};
+  create_client_to_aim_request_info
+      ->force_include_latest_interaction_request_data = true;
+
+  auto client_to_aim_message = controller().CreateClientToAimRequest(
+      std::move(create_client_to_aim_request_info));
+
+  // Verify interaction data matches the one sent.
+  ASSERT_EQ(client_to_aim_message.submit_query()
+                .payload()
+                .lens_image_query_data_size(),
+            1);
+  const auto& interaction_data = client_to_aim_message.submit_query()
+                                     .payload()
+                                     .lens_image_query_data(0)
+                                     .visual_search_interaction_data();
+
+  EXPECT_EQ(interaction_data.interaction_type(),
+            lens::LensOverlayInteractionRequestMetadata::REGION_SEARCH);
+  EXPECT_TRUE(interaction_data.has_zoomed_crop());
+  EXPECT_FLOAT_EQ(interaction_data.zoomed_crop().zoom(), 2.0);
+  EXPECT_FLOAT_EQ(interaction_data.zoomed_crop().crop().center_x(), 0.25);
+}
+
+TEST_F(ComposeboxQueryControllerTest,
+       CreateClientToAimRequest_ForceIncludeInteractionData_NoInteraction) {
+  // Act: Start the session.
+  controller().InitializeIfNeeded();
+  WaitForClusterInfo();
+
+  // Act: Start the file upload flow (PDF).
+  const base::UnguessableToken file_token = base::UnguessableToken::Create();
+  StartPdfFileUploadFlow(file_token,
+                         /*file_data=*/std::vector<uint8_t>());
+  WaitForFileUpload(file_token, lens::MimeType::kPdf);
+
+  // Create ClientToAimRequest with force = true, but no interaction request
+  // sent.
+  auto create_client_to_aim_request_info =
+      std::make_unique<CreateClientToAimRequestInfo>();
+  create_client_to_aim_request_info->query_text = "test query";
+  create_client_to_aim_request_info->file_tokens = {file_token};
+  create_client_to_aim_request_info
+      ->force_include_latest_interaction_request_data = true;
+
+  auto client_to_aim_message = controller().CreateClientToAimRequest(
+      std::move(create_client_to_aim_request_info));
+
+  // Verify interaction data is default (PDF_QUERY for PDF, with full region
+  // initialized but potentially overridden or cleared? Default impl sets full
+  // region).
+  ASSERT_EQ(client_to_aim_message.submit_query()
+                .payload()
+                .lens_image_query_data_size(),
+            1);
+  const auto& interaction_data = client_to_aim_message.submit_query()
+                                     .payload()
+                                     .lens_image_query_data(0)
+                                     .visual_search_interaction_data();
+
+  EXPECT_EQ(interaction_data.interaction_type(),
+            lens::LensOverlayInteractionRequestMetadata::PDF_QUERY);
+  // PDFs do not have a zoomed crop by default.
+  EXPECT_FALSE(interaction_data.has_zoomed_crop());
+}
+
+TEST_F(ComposeboxQueryControllerTest, CreateClientToAimRequest_NoInteraction) {
+  // Act: Start the session.
+  controller().InitializeIfNeeded();
+  WaitForClusterInfo();
+
+  // Act: Start the file upload flow (PDF).
+  const base::UnguessableToken file_token = base::UnguessableToken::Create();
+  StartPdfFileUploadFlow(file_token,
+                         /*file_data=*/std::vector<uint8_t>());
+  WaitForFileUpload(file_token, lens::MimeType::kPdf);
+
+  // Create ClientToAimRequest with force = false.
+  auto create_client_to_aim_request_info =
+      std::make_unique<CreateClientToAimRequestInfo>();
+  create_client_to_aim_request_info->query_text = "test query";
+  create_client_to_aim_request_info->file_tokens = {file_token};
+  create_client_to_aim_request_info
+      ->force_include_latest_interaction_request_data = false;
+
+  auto client_to_aim_message = controller().CreateClientToAimRequest(
+      std::move(create_client_to_aim_request_info));
+
+  // Verify interaction data is default.
+  ASSERT_EQ(client_to_aim_message.submit_query()
+                .payload()
+                .lens_image_query_data_size(),
+            1);
+  const auto& interaction_data = client_to_aim_message.submit_query()
+                                     .payload()
+                                     .lens_image_query_data(0)
+                                     .visual_search_interaction_data();
+
+  EXPECT_EQ(interaction_data.interaction_type(),
+            lens::LensOverlayInteractionRequestMetadata::PDF_QUERY);
+  EXPECT_FALSE(interaction_data.has_zoomed_crop());
+}
+
+TEST_F(ComposeboxQueryControllerTest, CreateSearchUrl_IncludesAddedInputs) {
+  // Act: Start the session.
+  controller().InitializeIfNeeded();
+  WaitForClusterInfo();
+
+  // Act: Start the file upload flow (PDF).
+  const base::UnguessableToken file_token = base::UnguessableToken::Create();
+  StartPdfFileUploadFlow(file_token,
+                         /*file_data=*/std::vector<uint8_t>());
+  WaitForFileUpload(file_token, lens::MimeType::kPdf);
+
+  // Act: Create search URL.
+  std::unique_ptr<CreateSearchUrlRequestInfo> search_url_request_info =
+      std::make_unique<CreateSearchUrlRequestInfo>();
+  search_url_request_info->query_text = "hello";
+  search_url_request_info->file_tokens.push_back(file_token);
+  search_url_request_info->query_start_time = kTestQueryStartTime;
+
+  base::test::TestFuture<GURL> url_future;
+  controller().CreateSearchUrl(std::move(search_url_request_info),
+                               url_future.GetCallback());
+  GURL search_url = url_future.Take();
+
+  // Verify AddedInputs param.
+  lens::AddedInputs added_inputs = GetAddedInputsFromUrl(search_url);
+  EXPECT_EQ(added_inputs.added_inputs_size(), 1);
+  EXPECT_TRUE(added_inputs.added_inputs(0).has_lens_file());
+  const auto& lens_file = added_inputs.added_inputs(0).lens_file();
+  EXPECT_EQ(lens_file.sticky_cluster_token(), kTestSearchSessionId);
+  EXPECT_EQ(lens_file.mime_type(), "application/pdf");
+  EXPECT_EQ(lens_file.vsrid(), GetEncodedRequestInfoForToken(file_token));
+}
+
+TEST_F(ComposeboxQueryControllerTest,
+       CreateSearchUrl_StandardSearch_DoesNotIncludeAddedInputs) {
+  // Act: Start the session.
+  controller().InitializeIfNeeded();
+  WaitForClusterInfo();
+
+  // Act: Start the file upload flow (PDF).
+  const base::UnguessableToken file_token = base::UnguessableToken::Create();
+  StartPdfFileUploadFlow(file_token,
+                         /*file_data=*/std::vector<uint8_t>());
+  WaitForFileUpload(file_token, lens::MimeType::kPdf);
+
+  // Act: Create search URL.
+  std::unique_ptr<CreateSearchUrlRequestInfo> search_url_request_info =
+      std::make_unique<CreateSearchUrlRequestInfo>();
+  search_url_request_info->query_text = "hello";
+  search_url_request_info->search_url_type =
+      ComposeboxQueryController::SearchUrlType::kStandard;
+  search_url_request_info->file_tokens.push_back(file_token);
+  search_url_request_info->query_start_time = kTestQueryStartTime;
+
+  base::test::TestFuture<GURL> url_future;
+  controller().CreateSearchUrl(std::move(search_url_request_info),
+                               url_future.GetCallback());
+  GURL search_url = url_future.Take();
+
+  // Verify AddedInputs param is NOT present.
+  std::string added_inputs_param;
+  EXPECT_FALSE(net::GetValueForKeyInQuery(search_url, kAddedInputsParameterKey,
+                                          &added_inputs_param));
+}
+
+TEST_F(ComposeboxQueryControllerTest,
+       CreateClientToAimRequest_IncludesAddedInputs) {
+  // Act: Start the session.
+  controller().InitializeIfNeeded();
+  WaitForClusterInfo();
+
+  // Act: Start the file upload flow (PDF).
+  const base::UnguessableToken file_token = base::UnguessableToken::Create();
+  StartPdfFileUploadFlow(file_token,
+                         /*file_data=*/std::vector<uint8_t>());
+  WaitForFileUpload(file_token, lens::MimeType::kPdf);
+
+  // Create ClientToAimRequest.
+  auto create_client_to_aim_request_info =
+      std::make_unique<CreateClientToAimRequestInfo>();
+  create_client_to_aim_request_info->query_text = "test query";
+  create_client_to_aim_request_info->file_tokens = {file_token};
+
+  auto client_to_aim_message = controller().CreateClientToAimRequest(
+      std::move(create_client_to_aim_request_info));
+
+  // Verify AddedInputs field.
+  const auto& payload = client_to_aim_message.submit_query().payload();
+  EXPECT_TRUE(payload.has_added_inputs());
+  EXPECT_EQ(payload.added_inputs().added_inputs_size(), 1);
+  EXPECT_TRUE(payload.added_inputs().added_inputs(0).has_lens_file());
+  const auto& lens_file = payload.added_inputs().added_inputs(0).lens_file();
+  EXPECT_EQ(lens_file.sticky_cluster_token(), kTestSearchSessionId);
+  EXPECT_EQ(lens_file.mime_type(), "application/pdf");
+  EXPECT_EQ(lens_file.vsrid(), GetEncodedRequestInfoForToken(file_token));
+}
+
+TEST_F(ComposeboxQueryControllerTest, StandardSearch_SendsVitParam) {
+  // Act: Start the session.
+  controller().InitializeIfNeeded();
+
+  // Assert: Validate cluster info request and state changes.
+  WaitForClusterInfo();
+
+  // Act: Start the file upload flow.
+  const base::UnguessableToken file_token = base::UnguessableToken::Create();
+  StartPdfFileUploadFlow(file_token,
+                         /*file_data=*/std::vector<uint8_t>());
+
+  // Assert: Validate file upload request and status changes.
+  WaitForFileUpload(file_token, lens::MimeType::kPdf);
+
+  // Act: Create the destination URL for the query.
+  std::unique_ptr<CreateSearchUrlRequestInfo> search_url_request_info =
+      std::make_unique<CreateSearchUrlRequestInfo>();
+  search_url_request_info->query_text = "hello";
+  search_url_request_info->search_url_type =
+      ComposeboxQueryController::SearchUrlType::kStandard;
+  search_url_request_info->query_start_time = kTestQueryStartTime;
+  search_url_request_info->file_tokens.push_back(file_token);
+  base::test::TestFuture<GURL> url_future;
+  controller().CreateSearchUrl(std::move(search_url_request_info),
+                               url_future.GetCallback());
+  GURL search_url = url_future.Take();
+
+  // Assert: Vit param is present.
+  std::string vit_value;
+  EXPECT_TRUE(net::GetValueForKeyInQuery(
+      search_url, kVisualInputTypeQueryParameter, &vit_value));
+  EXPECT_EQ(vit_value, "pdf");
+}
+
+TEST_F(ComposeboxQueryControllerTest, AimSearch_SendsVitParamIfFlagEnabled) {
+  // Arrange: Enable the flag.
+  CreateController(
+      /*send_lns_surface=*/false,
+      /*suppress_lns_surface_param_if_no_image=*/true,
+      /*enable_viewport_images=*/true,
+      /*use_separate_request_ids_for_viewport_images=*/false,
+      /*enable_cluster_info_ttl=*/false,
+      /*prioritize_suggestions_for_the_first_attached_document=*/false,
+      /*attach_page_title_and_url_to_suggest_requests=*/false,
+      /*enable_send_vit_for_single_context_next_queries=*/true);
+
+  // Act: Start the session.
+  controller().InitializeIfNeeded();
+
+  // Assert: Validate cluster info request and state changes.
+  WaitForClusterInfo();
+
+  // Act: Start the file upload flow.
+  const base::UnguessableToken file_token = base::UnguessableToken::Create();
+  StartPdfFileUploadFlow(file_token,
+                         /*file_data=*/std::vector<uint8_t>());
+
+  // Assert: Validate file upload request and status changes.
+  WaitForFileUpload(file_token, lens::MimeType::kPdf);
+
+  // Act: Create the destination URL for the query.
+  std::unique_ptr<CreateSearchUrlRequestInfo> search_url_request_info =
+      std::make_unique<CreateSearchUrlRequestInfo>();
+  search_url_request_info->query_text = "hello";
+  search_url_request_info->search_url_type =
+      ComposeboxQueryController::SearchUrlType::kAim;
+  search_url_request_info->query_start_time = kTestQueryStartTime;
+  search_url_request_info->file_tokens.push_back(file_token);
+  base::test::TestFuture<GURL> url_future;
+  controller().CreateSearchUrl(std::move(search_url_request_info),
+                               url_future.GetCallback());
+  GURL aim_url = url_future.Take();
+
+  // Assert: Vit param is present.
+  std::string vit_value;
+  EXPECT_TRUE(net::GetValueForKeyInQuery(
+      aim_url, kVisualInputTypeQueryParameter, &vit_value));
+  EXPECT_EQ(vit_value, "pdf");
+}
+
+TEST_F(ComposeboxQueryControllerTest,
+       AimSearch_DoesNotSendVitParamIfFlagDisabled) {
+  // Arrange: Disable the flag.
+  CreateController(
+      /*send_lns_surface=*/false,
+      /*suppress_lns_surface_param_if_no_image=*/true,
+      /*enable_viewport_images=*/true,
+      /*use_separate_request_ids_for_viewport_images=*/false,
+      /*enable_cluster_info_ttl=*/false,
+      /*prioritize_suggestions_for_the_first_attached_document=*/false,
+      /*attach_page_title_and_url_to_suggest_requests=*/false,
+      /*enable_send_vit_for_single_context_next_queries=*/false);
+
+  // Act: Start the session.
+  controller().InitializeIfNeeded();
+
+  // Assert: Validate cluster info request and state changes.
+  WaitForClusterInfo();
+
+  // Act: Start the file upload flow.
+  const base::UnguessableToken file_token = base::UnguessableToken::Create();
+  StartPdfFileUploadFlow(file_token,
+                         /*file_data=*/std::vector<uint8_t>());
+
+  // Assert: Validate file upload request and status changes.
+  WaitForFileUpload(file_token, lens::MimeType::kPdf);
+
+  // Act: Create the destination URL for the query.
+  std::unique_ptr<CreateSearchUrlRequestInfo> search_url_request_info =
+      std::make_unique<CreateSearchUrlRequestInfo>();
+  search_url_request_info->query_text = "hello";
+  search_url_request_info->search_url_type =
+      ComposeboxQueryController::SearchUrlType::kAim;
+  search_url_request_info->query_start_time = kTestQueryStartTime;
+  search_url_request_info->file_tokens.push_back(file_token);
+  base::test::TestFuture<GURL> url_future;
+  controller().CreateSearchUrl(std::move(search_url_request_info),
+                               url_future.GetCallback());
+  GURL aim_url = url_future.Take();
+
+  // Assert: Vit param is NOT present.
+  std::string vit_value;
+  EXPECT_FALSE(net::GetValueForKeyInQuery(
+      aim_url, kVisualInputTypeQueryParameter, &vit_value));
+}
+
+TEST_F(ComposeboxQueryControllerTest, MimeTypeToString) {
+  EXPECT_EQ(ComposeboxQueryController::MimeTypeToString(lens::MimeType::kPdf),
+            "application/pdf");
+  EXPECT_EQ(ComposeboxQueryController::MimeTypeToString(lens::MimeType::kHtml),
+            "text/html");
+  EXPECT_EQ(
+      ComposeboxQueryController::MimeTypeToString(lens::MimeType::kPlainText),
+      "text/plain");
+  EXPECT_EQ(ComposeboxQueryController::MimeTypeToString(lens::MimeType::kImage),
+            "image/jpeg");
+  EXPECT_EQ(ComposeboxQueryController::MimeTypeToString(
+                lens::MimeType::kAnnotatedPageContent),
+            "application/x-protobuf");
+  EXPECT_EQ(
+      ComposeboxQueryController::MimeTypeToString(lens::MimeType::kUnknown),
+      "image/jpeg");
+  EXPECT_EQ(ComposeboxQueryController::MimeTypeToString(
+                static_cast<lens::MimeType>(100)),
+            std::nullopt);
+}
 
 }  // namespace contextual_search

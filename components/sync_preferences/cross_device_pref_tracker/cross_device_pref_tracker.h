@@ -46,6 +46,8 @@ class CrossDevicePrefTracker : public KeyedService {
   // These values are persisted to logs. Entries should not be renumbered and
   // numeric values should never be reused.
   //
+  // GENERATED_JAVA_ENUM_PACKAGE: (
+  // org.chromium.components.sync_preferences.cross_device_pref_tracker)
   // LINT.IfChange(ServiceStatus)
   enum class ServiceStatus {
     // The tracker is fully operational and available for use.
@@ -123,6 +125,8 @@ class CrossDevicePrefTracker : public KeyedService {
 #if BUILDFLAG(IS_ANDROID)
   // Return the Java object that allows access to the CrossDevicePrefTracker.
   virtual base::android::ScopedJavaLocalRef<jobject> GetJavaObject() = 0;
+  // Returns the current status of the service.
+  virtual int GetServiceStatus(JNIEnv* env) const = 0;
   // Java versions of query methods.
   // `pref_name` can be either the tracked pref name or the cross-device pref
   // name.
@@ -131,7 +135,7 @@ class CrossDevicePrefTracker : public KeyedService {
       const base::android::JavaRef<jstring>& pref_name,
       std::optional<int> os_type,
       std::optional<int> form_factor,
-      std::optional<jlong> max_sync_recency_microseconds) const = 0;
+      std::optional<int64_t> max_sync_recency_microseconds) const = 0;
   // `pref_name` can be either the tracked pref name or the cross-device pref
   // name.
   virtual base::android::ScopedJavaLocalRef<jobject> GetMostRecentValue(
@@ -139,7 +143,7 @@ class CrossDevicePrefTracker : public KeyedService {
       const base::android::JavaRef<jstring>& pref_name,
       std::optional<int> os_type,
       std::optional<int> form_factor,
-      std::optional<jlong> max_sync_recency_microseconds) const = 0;
+      std::optional<int64_t> max_sync_recency_microseconds) const = 0;
 #endif  // BUILDFLAG(IS_ANDROID)
 
  protected:

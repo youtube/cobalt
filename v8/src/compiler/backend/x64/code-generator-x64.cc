@@ -1362,6 +1362,10 @@ void CodeGenerator::AssembleDeconstructFrame() {
   __ popq(rbp);
 }
 
+#ifdef V8_DUMPLING
+void CodeGenerator::AssembleDumpFrame() { __ CallBuiltin(Builtin::kDumpFrame); }
+#endif  // V8_DUMPLING
+
 void CodeGenerator::AssemblePrepareTailCall() {
   if (frame_access_state()->has_frame()) {
     __ movq(rbp, MemOperand(rbp, 0));
@@ -1701,8 +1705,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             }
           } else {
             JSDispatchHandle dispatch_handle = function->dispatch_handle();
-            size_t expected =
-                IsolateGroup::current()->js_dispatch_table()->GetParameterCount(
+            uint16_t expected =
+                isolate()->js_dispatch_table().GetParameterCount(
                     dispatch_handle);
             // Defer signature mismatch abort to run-time as optimized
             // unreachable calls can have mismatched signatures.

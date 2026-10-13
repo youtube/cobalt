@@ -57,7 +57,7 @@ class PriceTrackingIconViewBrowserTest : public UiBrowserTest {
 
   void WaitForUserDismissal() override {
     // Consider closing the browser to be dismissal.
-    ui_test_utils::WaitForBrowserToClose();
+    ui_test_utils::BrowserDestroyedObserver().Wait();
   }
 
  protected:
@@ -81,7 +81,7 @@ class PriceTrackingIconViewBrowserTest : public UiBrowserTest {
   }
 
   LocationBarView* GetLocationBarView() {
-    return GetBrowserView()->toolbar()->location_bar();
+    return GetBrowserView()->toolbar()->location_bar_view();
   }
 
   void SimulateServerPriceTrackState(bool is_price_tracked) {

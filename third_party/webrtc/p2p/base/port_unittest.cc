@@ -2924,8 +2924,8 @@ TEST_F(PortTest, TestConnectionPriority) {
   rport->AddCandidateAddress(SocketAddress("10.1.1.100", 1234));
 
   EXPECT_EQ(0x7E001E85U, lport->Candidates()[0].priority());
-  EXPECT_EQ(0x2001EE9U, rport->Candidates()[0].priority());
-  EXPECT_EQ(0x3001EE9U, rport->Candidates()[1].priority());
+  EXPECT_EQ(0x3001EE9U, rport->Candidates()[0].priority());
+  EXPECT_EQ(0x2001EE9U, rport->Candidates()[1].priority());
 
   // RFC 5245
   // pair priority = 2^32*MIN(G,D) + 2*MAX(G,D) + (G>D?1:0)
@@ -2934,22 +2934,22 @@ TEST_F(PortTest, TestConnectionPriority) {
   Connection* lconn =
       lport->CreateConnection(rport->Candidates()[0], Port::ORIGIN_MESSAGE);
 #if defined(WEBRTC_WIN)
-  EXPECT_EQ(0x2001EE9FC003D0BU, lconn->priority());
+  EXPECT_EQ(0x3001EE9FC003D0BU, lconn->priority());
 #else
-  EXPECT_EQ(0x2001EE9FC003D0BLLU, lconn->priority());
+  EXPECT_EQ(0x3001EE9FC003D0BLLU, lconn->priority());
 #endif
 
   lconn = lport->CreateConnection(rport->Candidates()[1], Port::ORIGIN_MESSAGE);
-  EXPECT_EQ(uint64_t{0x3001EE9FC003D0B}, lconn->priority());
+  EXPECT_EQ(uint64_t{0x2001EE9FC003D0B}, lconn->priority());
 
   lport->SetIceRole(ICEROLE_CONTROLLED);
   rport->SetIceRole(ICEROLE_CONTROLLING);
   Connection* rconn =
       rport->CreateConnection(lport->Candidates()[0], Port::ORIGIN_MESSAGE);
 #if defined(WEBRTC_WIN)
-  EXPECT_EQ(0x2001EE9FC003D0AU, rconn->priority());
+  EXPECT_EQ(0x3001EE9FC003D0AU, rconn->priority());
 #else
-  EXPECT_EQ(0x2001EE9FC003D0ALLU, rconn->priority());
+  EXPECT_EQ(0x3001EE9FC003D0ALLU, rconn->priority());
 #endif
 }
 
@@ -2971,7 +2971,7 @@ TEST_F(PortTest, TestConnectionPriorityWithPriorityAdjustment) {
 
   EXPECT_EQ(0x7E001E85U + (kMaxTurnServers << 8),
             lport->Candidates()[0].priority());
-  EXPECT_EQ(0x2001EE9U + (kMaxTurnServers << 8),
+  EXPECT_EQ(0x3001EE9U + (kMaxTurnServers << 8),
             rport->Candidates()[0].priority());
 
   // RFC 5245
@@ -2981,9 +2981,9 @@ TEST_F(PortTest, TestConnectionPriorityWithPriorityAdjustment) {
   Connection* lconn =
       lport->CreateConnection(rport->Candidates()[0], Port::ORIGIN_MESSAGE);
 #if defined(WEBRTC_WIN)
-  EXPECT_EQ(0x2003EE9FC007D0BU, lconn->priority());
+  EXPECT_EQ(0x3003EE9FC007D0BU, lconn->priority());
 #else
-  EXPECT_EQ(0x2003EE9FC007D0BLLU, lconn->priority());
+  EXPECT_EQ(0x3003EE9FC007D0BLLU, lconn->priority());
 #endif
 
   lport->SetIceRole(ICEROLE_CONTROLLED);
@@ -2992,9 +2992,9 @@ TEST_F(PortTest, TestConnectionPriorityWithPriorityAdjustment) {
       rport->CreateConnection(lport->Candidates()[0], Port::ORIGIN_MESSAGE);
   RTC_LOG(LS_ERROR) << "RCONN " << rconn->priority();
 #if defined(WEBRTC_WIN)
-  EXPECT_EQ(0x2003EE9FC007D0AU, rconn->priority());
+  EXPECT_EQ(0x3003EE9FC007D0AU, rconn->priority());
 #else
-  EXPECT_EQ(0x2003EE9FC007D0ALLU, rconn->priority());
+  EXPECT_EQ(0x3003EE9FC007D0ALLU, rconn->priority());
 #endif
 }
 

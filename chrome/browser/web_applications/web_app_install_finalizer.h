@@ -26,6 +26,7 @@
 #include "components/webapps/browser/install_result_code.h"
 #include "components/webapps/browser/installable/installable_metrics.h"
 #include "components/webapps/common/web_app_id.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -43,6 +44,7 @@ namespace web_app {
 
 class IsolatedWebAppStorageLocation;
 class WebApp;
+class FinalizeInstallJob;
 class WebAppProvider;
 
 // An finalizer for the installation process, represents the last step.
@@ -134,25 +136,21 @@ class WebAppInstallFinalizer {
 
   Profile* profile() { return profile_; }
 
-  // Writes external config data to the web_app DB, mapped per source.
-  void WriteExternalConfigMapInfo(
-      WebApp& web_app,
-      WebAppManagement::Type source,
-      bool is_placeholder,
-      GURL install_url,
-      std::vector<std::string> additional_policy_ids);
-
   void SetClockForTesting(base::Clock* clock);
 
+  base::WeakPtr<WebAppInstallFinalizer> GetWeakPtr() {
+    return weak_ptr_factory_.GetWeakPtr();
+  }
+
  private:
+  friend class FinalizeInstallJob;
+
   using CommitCallback = base::OnceCallback<void(bool success)>;
 
-  void UpdateIsolationDataAndResetPendingUpdateInfo(
-      WebApp* web_app,
-      const IsolatedWebAppStorageLocation& location,
-      const IwaVersion& version,
-      const std::optional<GURL>& iwa_update_manifest_url,
-      std::optional<IsolatedWebAppIntegrityBlockData> integrity_block_data);
+  void OnInstallJobFinished(FinalizeInstallJob* job,
+                            InstallFinalizedCallback callback,
+                            const webapps::AppId& app_id,
+                            webapps::InstallResultCode code);
 
   void OnOriginAssociationValidatedForUpdate(
       WebAppInstallInfo web_app_info,
@@ -215,6 +213,8 @@ class WebAppInstallFinalizer {
   const raw_ptr<Profile> profile_;
   raw_ptr<WebAppProvider> provider_ = nullptr;
   raw_ptr<base::Clock> clock_{base::DefaultClock::GetInstance()};
+
+  absl::flat_hash_set<std::unique_ptr<FinalizeInstallJob>> install_jobs_;
 
   bool started_ = false;
 

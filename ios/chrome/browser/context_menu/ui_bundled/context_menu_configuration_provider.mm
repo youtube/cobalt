@@ -24,6 +24,7 @@
 #import "ios/chrome/browser/favicon/model/ios_chrome_favicon_loader_factory.h"
 #import "ios/chrome/browser/incognito_reauth/ui_bundled/incognito_reauth_commands.h"
 #import "ios/chrome/browser/incognito_reauth/ui_bundled/incognito_reauth_scene_agent.h"
+#import "ios/chrome/browser/intelligence/bwg/metrics/gemini_metrics.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_service.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_service_factory.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h"
@@ -311,7 +312,7 @@ NSString* const kAlertAccessibilityIdentifier = @"AlertAccessibilityIdentifier";
 #pragma mark - Properties
 
 - (web::WebState*)webState {
-  if (base::FeatureList::IsEnabled(kEnableLensOverlay) && _baseWebState) {
+  if (_baseWebState) {
     return _baseWebState.get();
   }
   web::WebState* activeWebState =
@@ -530,27 +531,6 @@ NSString* const kAlertAccessibilityIdentifier = @"AlertAccessibilityIdentifier";
 
   __weak __typeof(self) weakSelf = self;
 
-  // Launch the Gemini experience with an image attached.
-  raw_ptr<BwgService> BWGService =
-      BwgServiceFactory::GetForProfile(self.browser->GetProfile());
-  BOOL canShowGeminiElement = IsGeminiImageRemixToolEnabled() && BWGService &&
-                              BWGService->IsBwgAvailableForWebState(webState);
-  if (canShowGeminiElement) {
-    ProceduralBlock geminiElementCallback = ^{
-      [weakSelf openGeminiWithImageURL:imageURL referrer:referrer];
-    };
-    UIMenuElement* geminiElement = [actionFactory
-        actionToOpenImageInGeminiWithBlock:geminiElementCallback];
-
-    // Wrap the Gemini element in an inline menu to create a distinct section.
-    UIMenu* geminiSection = [UIMenu menuWithTitle:@""
-                                            image:nil
-                                       identifier:nil
-                                          options:UIMenuOptionsDisplayInline
-                                         children:@[ geminiElement ]];
-    [imageMenuElements addObject:geminiSection];
-  }
-
   // Image saving.
   NSArray<UIMenuElement*>* imageSavingElements =
       [self imageSavingElementsWithURL:imageURL
@@ -580,7 +560,38 @@ NSString* const kAlertAccessibilityIdentifier = @"AlertAccessibilityIdentifier";
       [self imageSearchingElementsWithURL:imageURL
                                  scenario:scenario
                                  referrer:referrer];
+
+  // Launch the Gemini experience with an image attached.
+  UIMenuElement* geminiElement = nil;
+  raw_ptr<BwgService> BWGService =
+      BwgServiceFactory::GetForProfile(self.browser->GetProfile());
+  BOOL canShowGeminiElement = IsGeminiImageRemixToolEnabled() && BWGService &&
+                              BWGService->IsBwgAvailableForWebState(webState);
+  BOOL geminiAboveSearch = IsGeminiImageRemixToolShowAboveSearchImageEnabled();
+  BOOL geminiBelowSearch = IsGeminiImageRemixToolShowBelowSearchImageEnabled();
+
+  if (canShowGeminiElement && (geminiAboveSearch || geminiBelowSearch)) {
+    RecordImageRemixContextMenuEntryPointShown();
+
+    ProceduralBlock geminiElementCallback = ^{
+      [weakSelf openGeminiWithImageURL:imageURL referrer:referrer];
+    };
+    geminiElement = [actionFactory
+        actionToOpenImageInGeminiWithBlock:geminiElementCallback];
+  }
+
+  // Display the gemini element either above or below the search image
+  // element based on the flags.
+  if (geminiElement && geminiAboveSearch) {
+    [imageMenuElements addObject:geminiElement];
+  }
+
   [imageMenuElements addObjectsFromArray:imageSearchingElements];
+
+  // Ensure we don't show gemini twice if both flags are enabled.
+  if (geminiElement && geminiBelowSearch && !geminiAboveSearch) {
+    [imageMenuElements addObject:geminiElement];
+  }
 
   // Share Image.
   // Shares the URL of the image and not the image itself.
@@ -1105,6 +1116,12 @@ NSString* const kAlertAccessibilityIdentifier = @"AlertAccessibilityIdentifier";
 // Opens the Gemini overlay with an image attached. The sanitized `image` is
 // passed to Gemini.
 - (void)openGeminiWithImage:(UIImage*)image {
+  double aspectRatio = 0.0;
+  if (image.size.width > 0 && image.size.height > 0) {
+    aspectRatio = image.size.width / image.size.height;
+  }
+  RecordImageRemixContextMenuEntryPointTapped(aspectRatio);
+
   id<BWGCommands> handler =
       HandlerForProtocol(_browser->GetCommandDispatcher(), BWGCommands);
   [handler

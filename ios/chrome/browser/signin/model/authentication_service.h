@@ -15,9 +15,12 @@
 #import "base/scoped_observation.h"
 #import "components/keyed_service/core/keyed_service.h"
 #import "components/pref_registry/pref_registry_syncable.h"
+#import "components/signin/ios/browser/account_consistency_service.h"
+#import "components/signin/ios/browser/signin_enabled_datasource.h"
 #import "components/signin/public/base/consent_level.h"
 #import "components/signin/public/base/signin_metrics.h"
 #import "components/signin/public/identity_manager/identity_manager.h"
+#import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/signin/model/chrome_account_manager_service.h"
 
 namespace syncer {
@@ -36,7 +39,8 @@ class PrefService;
 // policies.
 class AuthenticationService : public KeyedService,
                               public signin::IdentityManager::Observer,
-                              public ChromeAccountManagerService::Observer {
+                              public ChromeAccountManagerService::Observer,
+                              public signin::SigninEnabledDataSource {
  public:
   // The service status for AuthenticationService.
   enum class ServiceStatus {
@@ -53,7 +57,8 @@ class AuthenticationService : public KeyedService,
   };
 
   // All passed-in services must not be null, and must outlive this service.
-  AuthenticationService(PrefService* pref_service,
+  AuthenticationService(ProfileIOS* profile,
+                        PrefService* pref_service,
                         ChromeAccountManagerService* account_manager_service,
                         signin::IdentityManager* identity_manager,
                         syncer::SyncService* sync_service);
@@ -146,11 +151,10 @@ class AuthenticationService : public KeyedService,
   // sync the accounts between the IdentityManager and the SSO library.
   void OnApplicationWillEnterForeground();
 
-  // Whether the sign-in is not disabled.
-  bool SigninEnabled() const;
+  bool SigninEnabled() const override;
 
  private:
-  friend class AuthenticationServiceTestBase;
+  friend class AuthenticationServiceTest;
   friend class FakeAuthenticationService;
 
   // LINT.IfChange(IOSProfileInitializationOutcome)
@@ -228,6 +232,7 @@ class AuthenticationService : public KeyedService,
   // Chrome is started after a device restore.
   void HandleForgottenIdentity(id<SystemIdentity> invalid_identity,
                                bool device_restore);
+  void HandleForgottenIdentityCallback(const CoreAccountInfo account_info);
 
   // Checks if the authenticated identity was removed by calling
   // `HandleForgottenIdentity`. Reloads the OAuth2 token service accounts if the
@@ -263,6 +268,9 @@ class AuthenticationService : public KeyedService,
   // Clears the account settings prefs of all removed accounts from device.
   void ClearAccountSettingsPrefsOfRemovedAccounts();
 
+  // Returns whether the
+  bool IsPersonalProfile();
+
   // Returns the active identities for MDM.
   NSArray<id<SystemIdentity>>* ActiveIdentities();
 
@@ -271,6 +279,8 @@ class AuthenticationService : public KeyedService,
   // is null.
   std::unique_ptr<AuthenticationServiceDelegate> delegate_;
 
+  // The profile associated to this service.
+  raw_ptr<ProfileIOS> profile_;
   // Pointer to the KeyedServices used by AuthenticationService.
   raw_ptr<PrefService> pref_service_ = nullptr;
   raw_ptr<ChromeAccountManagerService> account_manager_service_ = nullptr;

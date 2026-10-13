@@ -158,17 +158,15 @@ declare_args() {
 }
 
 declare_args() {
-  # Whether PartitionAlloc dispatch can be replaced with another dispatch with
-  # some more safety checks at runtime or not.  When true, the allocator shim
-  # provides an extended API to swap PartitionAlloc.
-  enable_allocator_shim_partition_alloc_dispatch_with_advanced_checks_support =
-      use_partition_alloc_as_malloc
+  # Whether the allocator shim supports alloc token or not. If true, malloc()
+  # and operator new() families are injected with an alloc token parameter,
+  # which is used to select the partition in PartitionAlloc.
+  # shim_supports_alloc_token = use_partition_alloc_as_malloc
+  shim_supports_alloc_token = false
 }
 
-assert(
-    !enable_allocator_shim_partition_alloc_dispatch_with_advanced_checks_support || use_partition_alloc_as_malloc,
-    "PartitionAlloc with advanced checks requires PartitionAlloc itself.")
-
+assert(!is_component_build || is_linux || !shim_supports_alloc_token,
+       "In the component build, alloc token is only supported on Linux.")
 if (use_allocator_shim && is_win) {
   # It's hard to override CRT's malloc family in every case in the component
   # build, and it's very easy to override it partially and to be inconsistent
@@ -277,6 +275,15 @@ declare_args() {
 
   # Use probe-on-destruct unowned ptr detection with ASAN.
   use_raw_ptr_asan_unowned_impl = false
+}
+
+declare_args() {
+  # Temporary build flag while we have both ASan BRP and ASan BRPv2 in tree,
+  # until we're ready to remove the original implementation.
+  # ASan BRPv2 depends on sanitizer malloc/free hooks. The hooks depend on
+  # weak symbols. So ASan BRPv2 requires posix. Firstly we will implement
+  # it for linux.
+  use_asan_backup_ref_ptr_v2 = false && use_asan_backup_ref_ptr && is_linux
 }
 
 # Use the version of raw_ptr<T> that allows the embedder to implement custom
@@ -398,6 +405,7 @@ if (!use_partition_alloc ||
   enable_backup_ref_ptr_support = false
   use_raw_ptr_backup_ref_impl = false
   use_asan_backup_ref_ptr = false
+  use_asan_backup_ref_ptr_v2 = false
   use_raw_ptr_asan_unowned_impl = false
   use_raw_ptr_hookable_impl = false
   enable_backup_ref_ptr_slow_checks = false
@@ -408,6 +416,7 @@ if (!use_partition_alloc ||
   backup_ref_ptr_extra_oob_checks = false
   enable_backup_ref_ptr_instance_tracer = false
   use_full_mte = false
+  shim_supports_alloc_token = false
 }
 
 # Disable |use_full_mte| if memory tagging is not available. This is for targets that run as part the build process.
@@ -449,6 +458,11 @@ assert(backup_ref_ptr_extra_oob_checks || !backup_ref_ptr_poison_oob_ptr,
            "at all")
 assert(has_64_bit_pointers || !backup_ref_ptr_poison_oob_ptr,
        "Can't enable poisoning for OOB pointers if pointers are only 32-bit")
+
+# AsanBackupRefPtr v2 is an alternative configuration of AsanBackupRefPtr, and
+# relies on the same configuration checks.
+assert(!use_asan_backup_ref_ptr_v2 || use_asan_backup_ref_ptr,
+       "AsanBackupRefPtr v2 prototype requires AsanBackupRefPtr to be enabled.")
 
 # AsanBackupRefPtr and AsanUnownedPtr are mutually exclusive variants of
 # raw_ptr.

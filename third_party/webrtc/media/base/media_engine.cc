@@ -90,7 +90,7 @@ std::vector<RtpExtension> GetDefaultEnabledRtpHeaderExtensions(
 }
 
 RTCError CheckScalabilityModeValues(const RtpParameters& rtp_parameters,
-                                    ArrayView<Codec> send_codecs,
+                                    ArrayView<const Codec> send_codecs,
                                     std::optional<Codec> send_codec) {
   if (send_codecs.empty()) {
     // This is an audio sender or an extra check in the stack where the codec
@@ -161,7 +161,7 @@ RTCError CheckScalabilityModeValues(const RtpParameters& rtp_parameters,
 }
 
 RTCError CheckRtpParametersValues(const RtpParameters& rtp_parameters,
-                                  ArrayView<Codec> send_codecs,
+                                  ArrayView<const Codec> send_codecs,
                                   std::optional<Codec> send_codec,
                                   const FieldTrialsView& field_trials) {
   bool has_scale_resolution_down_to = false;
@@ -280,7 +280,7 @@ RTCError CheckRtpParametersInvalidModificationAndValues(
 RTCError CheckRtpParametersInvalidModificationAndValues(
     const RtpParameters& old_rtp_parameters,
     const RtpParameters& rtp_parameters,
-    ArrayView<Codec> send_codecs,
+    ArrayView<const Codec> send_codecs,
     std::optional<Codec> send_codec,
     const FieldTrialsView& field_trials) {
   if (rtp_parameters.encodings.size() != old_rtp_parameters.encodings.size()) {

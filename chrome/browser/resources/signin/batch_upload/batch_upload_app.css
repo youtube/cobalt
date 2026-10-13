@@ -35,7 +35,7 @@
   font-size: 1.125rem;
   font-weight: 500;
   margin-bottom: 16px;
-  margin-top: 0px;
+  margin-top: 0;
 }
 
 #subtitle {
@@ -94,18 +94,18 @@
 #action-row {
   column-gap: 8px;
   display: flex;
+<if expr="not (is_macosx or is_linux or is_chromeos)">
   justify-content: flex-end;
+</if>
   margin-top: 16px;
   padding-inline-start: var(--batch-upload-dialog-padding);
   padding-inline-end: var(--batch-upload-dialog-padding);
-}
 
 <if expr="is_macosx or is_linux or is_chromeos">
-#action-row {
   flex-flow: row-reverse;
   justify-content: flex-start;
-}
 </if>
+}
 
 .custom-scrollbar::-webkit-scrollbar {
   width: var(--scrollbar-width);

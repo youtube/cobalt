@@ -366,8 +366,9 @@ class Base {
 
     BuiltInNetworkBehaviorConfig networkBehavior;
     networkBehavior.link_capacity = DataRate::KilobitsPerSec(220);
-    networkBehavior.queue_delay_ms =
-        DtlsTransportInternalImpl::kDefaultHandshakeEstimateRttMs;
+    networkBehavior
+        .queue_delay_ms = /* this is one way delay, i.e. divide the rtt by 2 */
+        DtlsTransportInternalImpl::kDefaultHandshakeEstimateRttMs / 2;
     networkBehavior.queue_length_packets = 30;
     networkBehavior.loss_percent = pct_loss;
 
@@ -564,6 +565,10 @@ class Base {
     ep.dtls = std::make_unique<DtlsTransportInternalImpl>(
         ep.env, ep.ice_transport, crypto_options,
         ep.config.max_protocol_version);
+
+    if (ice_lite_agent) {
+      ep.dtls->SetFakeIceLite();
+    }
 
     // Enable(or disable) the dtls_in_stun parameter before
     // DTLS is negotiated.

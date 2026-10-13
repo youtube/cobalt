@@ -60,6 +60,11 @@ AX_BASE_EXPORT bool IsAccessibilityPruneRedundantInlineConnectivityEnabled();
 AX_BASE_EXPORT BASE_DECLARE_FEATURE(kAccessibilityTextFormatting);
 AX_BASE_EXPORT bool IsAccessibilityTextFormattingEnabled();
 
+// Enables handling of occluding views belonging to overlaid "
+// "browser's UI.
+AX_BASE_EXPORT BASE_DECLARE_FEATURE(kAccessibilityHandleOccludingViews);
+AX_BASE_EXPORT bool IsAccessibilityHandleOccludingViewsEnabled();
+
 // Enables text change types for text changed events.
 AX_BASE_EXPORT BASE_DECLARE_FEATURE(kAccessibilityTextChangeTypes);
 AX_BASE_EXPORT bool IsAccessibilityTextChangeTypesEnabled();
@@ -141,12 +146,6 @@ AX_BASE_EXPORT bool IsUseAXPositionForDocumentMarkersEnabled();
 // not put this flag in chrome://flags so we can get the cleanest data possible.
 AX_BASE_EXPORT BASE_DECLARE_FEATURE(kAXRandomizedStressTests);
 AX_BASE_EXPORT bool IsAXRandomizedStressTestsEnabled();
-
-// When enabled, allows the content of <address> tags to be used in
-// calculating their ancestors' accessible names.
-// TODO(crbug.com/443765360): Remove killswitch after stability period.
-AX_BASE_EXPORT BASE_DECLARE_FEATURE(kAXObjectSupportsNameFromAddressContent);
-AX_BASE_EXPORT bool IsAXObjectSupportsNameFromAddressContentEnabled();
 
 // Enable the experimental on-screen AXMode .
 // TODO(accessibility): Only turn on the experimental On-Screen mode for when
@@ -247,10 +246,6 @@ AX_BASE_EXPORT bool IsAccessibilityDisableTouchpadEnabled();
 // Controls whether the flash screen for notifications feature is available.
 AX_BASE_EXPORT BASE_DECLARE_FEATURE(kAccessibilityFlashScreenFeature);
 AX_BASE_EXPORT bool IsAccessibilityFlashScreenFeatureEnabled();
-
-AX_BASE_EXPORT BASE_DECLARE_FEATURE(
-    kAccessibilityManifestV3AccessibilityCommon);
-AX_BASE_EXPORT bool IsAccessibilityManifestV3EnabledForAccessibilityCommon();
 
 AX_BASE_EXPORT BASE_DECLARE_FEATURE(kAccessibilityManifestV3ChromeVox);
 AX_BASE_EXPORT bool IsAccessibilityManifestV3EnabledForChromeVox();

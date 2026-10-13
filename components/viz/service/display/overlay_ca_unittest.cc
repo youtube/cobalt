@@ -205,6 +205,8 @@ class CALayerOverlayTest : public testing::Test {
         .resource_size_in_pixels = primary_plane_size,
         .supports_hdr = false,
         .is_opaque = true,
+        .si_format = SinglePlaneFormat::kRGBA_8888,
+        .color_space = gfx::ColorSpace::CreateSRGB(),
     };
   }
 

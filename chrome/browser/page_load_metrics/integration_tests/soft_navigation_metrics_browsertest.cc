@@ -24,11 +24,12 @@
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/hit_test_region_observer.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
+#include "testing/gmock/include/gmock/gmock.h"
+#include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/performance/largest_contentful_paint_type.h"
 #include "third_party/blink/public/common/switches.h"
 #include "ui/gfx/geometry/point_conversions.h"
-#include "testing/gtest/include/gtest/gtest.h"
-#include "testing/gmock/include/gmock/gmock.h"
 
 using page_load_metrics::PageLoadMetricsTestWaiter;
 using TimingField = page_load_metrics::PageLoadMetricsTestWaiter::TimingField;
@@ -284,7 +285,7 @@ class SoftNavigationTest : public MetricIntegrationTest,
       // If the traceEvent doesn't contain args data, it is not
       // one of pointerdown, pointerup and click.
       if (traceEvent->HasDictArg("data")) {
-        base::Value::Dict data = traceEvent->GetKnownArgAsDict("data");
+        base::DictValue data = traceEvent->GetKnownArgAsDict("data");
 
         // INP only consider the events with interactionID greater than 0.
         std::string* event_name = data.FindString("type");
@@ -302,7 +303,7 @@ class SoftNavigationTest : public MetricIntegrationTest,
     return max_duration;
   }
 
-  double GetCLSFromList(base::Value::List& entry_records_list,
+  double GetCLSFromList(base::ListValue& entry_records_list,
                         bool ignore_has_recent_input = false) {
     // cls is the normalized cls value.
     double cls = 0;
@@ -378,7 +379,7 @@ class SoftNavigationTest : public MetricIntegrationTest,
   }
 
   void VerifySoftNavIdsAndSoftLcpStartTimes(
-      const base::Value::List& soft_nav_lcp_list,
+      const base::ListValue& soft_nav_lcp_list,
       uint32_t expected_soft_nav_count) {
     bool soft_nav_heuristics_enabled = GetParam();
 
@@ -504,7 +505,7 @@ IN_PROC_BROWSER_TEST_P(SoftNavigationTest, ImageLargestContentfulPaint) {
   content::SimulateMouseClickOrTapElementWithId(web_contents(), "next-page");
   waiter->Wait();
 
-  base::Value::List soft_nav_lcp_list;
+  base::ListValue soft_nav_lcp_list;
   if (GetParam()) {
     soft_nav_lcp_list = EvalJs(web_contents()->GetPrimaryMainFrame(),
                                JsSnippetGetSoftLcpStartTimes())
@@ -613,7 +614,7 @@ IN_PROC_BROWSER_TEST_P(SoftNavigationTest, TextLargestContentfulPaint) {
   content::SimulateMouseClickOrTapElementWithId(web_contents(), "next-page");
   waiter->Wait();
 
-  base::Value::List soft_nav_lcp_list;
+  base::ListValue soft_nav_lcp_list;
   if (GetParam()) {
     soft_nav_lcp_list = EvalJs(web_contents()->GetPrimaryMainFrame(),
                                JsSnippetGetSoftLcpStartTimes())
@@ -696,7 +697,7 @@ IN_PROC_BROWSER_TEST_P(SoftNavigationTest, BackButton) {
   ASSERT_TRUE(content::HistoryGoToOffset(web_contents(), -1));
   waiter->Wait();
 
-  base::Value::List soft_nav_lcp_list;
+  base::ListValue soft_nav_lcp_list;
   if (GetParam()) {
     soft_nav_lcp_list = EvalJs(web_contents()->GetPrimaryMainFrame(),
                                JsSnippetGetSoftLcpStartTimes())
@@ -833,7 +834,7 @@ IN_PROC_BROWSER_TEST_P(SoftNavigationTest, DISABLED_LayoutShift) {
 
   // Retrieve web exposed values of the layout shift that happens before any
   // soft navigation happens.
-  base::Value::List entry_records_list =
+  base::ListValue entry_records_list =
       EvalJs(web_contents(), "GetLayoutShift()").TakeValue().TakeList();
 
   // Verify that the entry_records_list has 1 or 2 records. There could be 2

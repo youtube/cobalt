@@ -65,6 +65,8 @@ using ::testing::AtLeast;
 using ::testing::Eq;
 using ::testing::Ge;
 using ::testing::Gt;
+using ::testing::IsTrue;
+using ::testing::Ne;
 using ::testing::SizeIs;
 using ::testing::StrictMock;
 using ::testing::Values;
@@ -538,9 +540,21 @@ TEST_P(PeerConnectionEndToEndTest, DataChannelIdAssignment) {
   scoped_refptr<DataChannelInterface> callee_dc_1(
       callee_->CreateDataChannel("data", init));
 
+  MockDataChannelObserver caller_dc_1_observer(caller_dc_1.get());
+  MockDataChannelObserver callee_dc_1_observer(callee_dc_1.get());
+
   Negotiate();
   WaitForConnection();
 
+  EXPECT_THAT(
+      WaitUntil([&] { return caller_dc_1_observer.IsOpen(); }, IsTrue()),
+      IsRtcOk());
+  EXPECT_THAT(
+      WaitUntil([&] { return callee_dc_1_observer.IsOpen(); }, IsTrue()),
+      IsRtcOk());
+
+  EXPECT_NE(-1, caller_dc_1->id());
+  EXPECT_NE(-1, callee_dc_1->id());
   EXPECT_EQ(1, caller_dc_1->id() % 2);
   EXPECT_EQ(0, callee_dc_1->id() % 2);
 
@@ -549,6 +563,18 @@ TEST_P(PeerConnectionEndToEndTest, DataChannelIdAssignment) {
   scoped_refptr<DataChannelInterface> callee_dc_2(
       callee_->CreateDataChannel("data", init));
 
+  MockDataChannelObserver caller_dc_2_observer(caller_dc_2.get());
+  MockDataChannelObserver callee_dc_2_observer(callee_dc_2.get());
+
+  EXPECT_THAT(
+      WaitUntil([&] { return caller_dc_2_observer.IsOpen(); }, IsTrue()),
+      IsRtcOk());
+  EXPECT_THAT(
+      WaitUntil([&] { return callee_dc_2_observer.IsOpen(); }, IsTrue()),
+      IsRtcOk());
+
+  EXPECT_NE(-1, caller_dc_2->id());
+  EXPECT_NE(-1, callee_dc_2->id());
   EXPECT_EQ(1, caller_dc_2->id() % 2);
   EXPECT_EQ(0, callee_dc_2->id() % 2);
 }

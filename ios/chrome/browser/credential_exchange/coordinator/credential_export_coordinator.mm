@@ -14,6 +14,8 @@
 #import "components/prefs/pref_service.h"
 #import "components/signin/public/identity_manager/account_info.h"
 #import "components/signin/public/identity_manager/identity_manager.h"
+#import "components/strings/grit/components_strings.h"
+#import "components/webauthn/ios/passkey_types.h"
 #import "ios/chrome/browser/credential_exchange/coordinator/credential_export_mediator.h"
 #import "ios/chrome/browser/credential_exchange/ui/credential_export_view_controller.h"
 #import "ios/chrome/browser/credential_exchange/ui/credential_export_view_controller_presentation_delegate.h"
@@ -21,14 +23,13 @@
 #import "ios/chrome/browser/passwords/coordinator/password_export_handler.h"
 #import "ios/chrome/browser/passwords/coordinator/password_utils.h"
 #import "ios/chrome/browser/settings/ui_bundled/password/create_password_manager_title_view.h"
+#import "ios/chrome/browser/shared/coordinator/alert/alert_coordinator.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/signin/model/identity_manager_factory.h"
 #import "ios/chrome/browser/sync/model/sync_service_factory.h"
+#import "ios/chrome/browser/webauthn/coordinator/passkey_welcome_screen_coordinator.h"
 #import "ios/chrome/browser/webauthn/model/ios_passkey_model_factory.h"
-#import "ios/chrome/browser/webauthn/public/passkey_welcome_screen_util.h"
 #import "ios/chrome/common/credential_provider/passkey_keychain_provider_bridge.h"
-#import "ios/chrome/common/credential_provider/ui/passkey_welcome_screen_strings.h"
-#import "ios/chrome/common/credential_provider/ui/passkey_welcome_screen_view_controller.h"
 #import "ios/chrome/common/ui/elements/branded_navigation_item_title_view.h"
 #import "ios/chrome/common/ui/reauthentication/reauthentication_module.h"
 #import "ios/chrome/grit/ios_strings.h"
@@ -37,7 +38,7 @@
 @interface CredentialExportCoordinator () <
     CredentialExportMediatorDelegate,
     PasskeyKeychainProviderBridgeDelegate,
-    PasskeyWelcomeScreenViewControllerDelegate,
+    PasskeyWelcomeScreenCoordinatorDelegate,
     PasswordExportHandler>
 @end
 
@@ -63,6 +64,12 @@
 
   // Alert for "Preparing Passwords" state of CSV export.
   UIAlertController* _preparingPasswordsAlert;
+
+  // Displays passkey GPM PIN flows, if needed.
+  PasskeyWelcomeScreenCoordinator* _passkeyWelcomeScreenCoordinator;
+
+  // Coordinator for displaying alerts in the export flow.
+  AlertCoordinator* _alertCoordinator;
 }
 
 @synthesize baseNavigationController = _baseNavigationController;
@@ -116,34 +123,28 @@
   completion();
 }
 
-- (void)showEnrollmentWelcomeScreen:(ProceduralBlock)enrollBlock {
-  CreateAndPresentPasskeyWelcomeScreen(
-      PasskeyWelcomeScreenPurpose::kEnroll, _baseNavigationController,
-      /*delegate=*/self, enrollBlock, _userEmail);
-}
-
-- (void)showFixDegradedRecoverabilityWelcomeScreen:
-    (ProceduralBlock)fixDegradedRecoverabilityBlock {
-  CreateAndPresentPasskeyWelcomeScreen(
-      PasskeyWelcomeScreenPurpose::kFixDegradedRecoverability,
-      _baseNavigationController, /*delegate=*/self,
-      fixDegradedRecoverabilityBlock, _userEmail);
-}
-
-- (void)showReauthenticationWelcomeScreen:(ProceduralBlock)reauthenticateBlock {
-  CreateAndPresentPasskeyWelcomeScreen(
-      PasskeyWelcomeScreenPurpose::kReauthenticate, _baseNavigationController,
-      /*delegate=*/self, reauthenticateBlock, _userEmail);
+- (void)showWelcomeScreenWithPurpose:
+            (webauthn::PasskeyWelcomeScreenPurpose)purpose
+                          completion:
+                              (webauthn::PasskeyWelcomeScreenAction)completion {
+  _passkeyWelcomeScreenCoordinator = [[PasskeyWelcomeScreenCoordinator alloc]
+      initWithBaseViewController:_viewController
+                         browser:self.browser
+                         purpose:purpose
+                      completion:completion];
+  _passkeyWelcomeScreenCoordinator.delegate = self;
+  [_passkeyWelcomeScreenCoordinator start];
 }
 
 - (void)providerDidCompleteReauthentication {
 }
 
-#pragma mark - PasskeyWelcomeScreenViewControllerDelegate
+#pragma mark - PasskeyWelcomeScreenCoordinatorDelegate
 
-- (void)passkeyWelcomeScreenViewControllerShouldBeDismissed:
-    (PasskeyWelcomeScreenViewController*)passkeyWelcomeScreenViewController {
-  [_baseNavigationController popToViewController:_viewController animated:YES];
+- (void)passkeyWelcomeScreenCoordinatorWantsToBeDismissed:
+    (PasskeyWelcomeScreenCoordinator*)coordinator {
+  CHECK_EQ(_passkeyWelcomeScreenCoordinator, coordinator);
+  [self dismissPasskeyWelcomeScreenWithCompletion:nil];
 }
 
 #pragma mark - CredentialExportMediatorDelegate
@@ -156,7 +157,6 @@
           metrics::prefs::kMetricsReportingEnabled);
   _passkeyKeychainProviderBridge = [[PasskeyKeychainProviderBridge alloc]
         initWithEnableLogging:metricsReportingEnabled
-         navigationController:_baseNavigationController
       navigationItemTitleView:password_manager::CreatePasswordManagerTitleView(
                                   l10n_util::GetNSString(
                                       IDS_IOS_PASSWORD_MANAGER))];
@@ -170,8 +170,10 @@
       fetchTrustedVaultKeysForGaia:account.gaia.ToNSString()
                         credential:nil
                            purpose:webauthn::ReauthenticatePurpose::kDecrypt
-                        completion:^(NSArray<NSData*>* trustedVaultKeys) {
+                        completion:^(NSArray<NSData*>* trustedVaultKeys,
+                                     NSError* error) {
                           [weakSelf onTrustedVaultKeysFetched:trustedVaultKeys
+                                                        error:error
                                                    completion:completion];
                         }];
 }
@@ -232,18 +234,59 @@
                               completion:nil];
 }
 
-// Called when fetching trusted vault keys for passkeys finishes. Dismisses
-// screens that were presented for the fetching (if any). Calls `completion` if
-// any keys were fetched.
+// Called when fetching trusted vault keys for passkeys finishes. If there are
+// no unexpected errors and the keys are present, calls `completion`
 - (void)onTrustedVaultKeysFetched:(NSArray<NSData*>*)trustedVaultKeys
+                            error:(NSError*)error
                        completion:(void (^)(NSArray<NSData*>*))completion {
-  CHECK(completion);
-  [_baseNavigationController popToViewController:_viewController animated:YES];
-  // TODO(crbug.com/444112223): Differentiate between error and user cancelling
-  // the flow, display error for the former.
+  // First, dismiss welcome screens if there are any presented.
+  if (_viewController.presentedViewController) {
+    __weak __typeof(self) weakSelf = self;
+    [self dismissPasskeyWelcomeScreenWithCompletion:^{
+      [weakSelf onTrustedVaultKeysFetched:trustedVaultKeys
+                                    error:error
+                               completion:completion];
+    }];
+    return;
+  }
+
+  // Display an alert if there is a real error (not just user cancellation).
+  if (trustedVaultKeys.count == 0 && error &&
+      error.code != webauthn::kErrorUserDismissedGPMPinFlow) {
+    [self showErrorAlert];
+    return;
+  }
+
   if (trustedVaultKeys.count != 0) {
     completion(trustedVaultKeys);
   }
+}
+
+// Starts the alert coordinator displaying a generic error.
+- (void)showErrorAlert {
+  NSString* title = l10n_util::GetNSString(
+      IDS_IOS_CREDENTIAL_EXCHANGE_EXPORT_GENERIC_ERROR_TITLE);
+  _alertCoordinator = [[AlertCoordinator alloc]
+      initWithBaseViewController:_viewController.presentedViewController
+                         browser:self.browser
+                           title:title
+                         message:nil];
+  __weak id<CredentialExportCoordinatorDelegate> weakDelegate = _delegate;
+  __weak __typeof(self) weakSelf = self;
+  [_alertCoordinator
+      addItemWithTitle:l10n_util::GetNSString(IDS_CLOSE)
+                action:^{
+                  [weakDelegate credentialExportCoordinatorDidFinish:weakSelf];
+                }
+                 style:UIAlertActionStyleCancel];
+  [_alertCoordinator start];
+}
+
+// Dismisses the passkey welcome screen with `completion`.
+- (void)dismissPasskeyWelcomeScreenWithCompletion:(ProceduralBlock)completion {
+  [_passkeyWelcomeScreenCoordinator stopWithCompletion:completion];
+  _passkeyWelcomeScreenCoordinator.delegate = nil;
+  _passkeyWelcomeScreenCoordinator = nil;
 }
 
 @end

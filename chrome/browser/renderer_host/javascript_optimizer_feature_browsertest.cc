@@ -361,8 +361,8 @@ IN_PROC_BROWSER_TEST_F(
 IN_PROC_BROWSER_TEST_F(
     JavascriptOptimizerBrowserTest_OriginKeyedProcessesByDefault,
     ExceptionForSiteDoesNotApplyToSubSite) {
-  if (!content::SiteIsolationPolicy::
-          AreOriginKeyedProcessesEnabledByDefault()) {
+  if (!content::SiteIsolationPolicy::AreOriginKeyedProcessesEnabledByDefault(
+          profile())) {
     GTEST_SKIP()
         << "skipping: OriginKeyedProcessesEnabledByDefault needs to be true";
   }
@@ -421,8 +421,8 @@ IN_PROC_BROWSER_TEST_F(JavascriptOptimizerBrowserTest,
           USER_TRIGGERED));
 
   if (content::AreStrictSiteInstancesEnabled() &&
-      !content::SiteIsolationPolicy::
-          AreOriginKeyedProcessesEnabledByDefault()) {
+      !content::SiteIsolationPolicy::AreOriginKeyedProcessesEnabledByDefault(
+          profile())) {
     // if a.com is isolated already (as is the case with full site isolation)
     // or if DefaultSiteInstanceGroups are enabled, and origin isolation is not
     // used, the navigation to sub.a.com will be made in a SiteInstance with a
@@ -454,7 +454,8 @@ IN_PROC_BROWSER_TEST_F(JavascriptOptimizerBrowserTest,
   ASSERT_TRUE(content::NavigateToURL(
       web_contents(),
       embedded_https_test_server().GetURL("sub.a.com", "/simple.html")));
-  if (content::SiteIsolationPolicy::AreOriginKeyedProcessesEnabledByDefault()) {
+  if (content::SiteIsolationPolicy::AreOriginKeyedProcessesEnabledByDefault(
+          profile())) {
     // Under origin isolation, the rule won't match sub.a.com, so optimizers
     // remain enabled.
     EXPECT_FALSE(AreV8OptimizationsDisabledOnActiveWebContents());
@@ -647,11 +648,15 @@ IN_PROC_BROWSER_TEST_F(
   GURL url = embedded_https_test_server().GetURL("a.com", "/simple.html");
   NavigateChangeV8OptPriorToWindowOpen(web_contents(), url, url);
 
-  std::vector<content::WebContents*> all_web_contents =
-      content::GetAllWebContents();
-  ASSERT_EQ(2u, all_web_contents.size());
-  content::RenderFrameHost* frame0 = all_web_contents[0]->GetPrimaryMainFrame();
-  content::RenderFrameHost* frame1 = all_web_contents[1]->GetPrimaryMainFrame();
+  std::vector<content::WebContents*> matched_tabs;
+  for (content::WebContents* wc : content::GetAllWebContents()) {
+    if (wc->GetLastCommittedURL() == url) {
+      matched_tabs.push_back(wc);
+    }
+  }
+  ASSERT_EQ(2u, matched_tabs.size());
+  content::RenderFrameHost* frame0 = matched_tabs[0]->GetPrimaryMainFrame();
+  content::RenderFrameHost* frame1 = matched_tabs[1]->GetPrimaryMainFrame();
   EXPECT_EQ(frame0->GetProcess(), frame1->GetProcess());
   EXPECT_EQ(frame0->GetSiteInstance(), frame1->GetSiteInstance());
 }
@@ -667,11 +672,16 @@ IN_PROC_BROWSER_TEST_F(
       embedded_https_test_server().GetURL("foo.a.com", "/simple.html");
   NavigateChangeV8OptPriorToWindowOpen(web_contents(), url, same_site_url);
 
-  std::vector<content::WebContents*> all_web_contents =
-      content::GetAllWebContents();
-  ASSERT_EQ(2u, all_web_contents.size());
-  content::RenderFrameHost* frame0 = all_web_contents[0]->GetPrimaryMainFrame();
-  content::RenderFrameHost* frame1 = all_web_contents[1]->GetPrimaryMainFrame();
+  std::vector<content::WebContents*> matched_tabs;
+  for (content::WebContents* wc : content::GetAllWebContents()) {
+    if (wc->GetLastCommittedURL() == url ||
+        wc->GetLastCommittedURL() == same_site_url) {
+      matched_tabs.push_back(wc);
+    }
+  }
+  ASSERT_EQ(2u, matched_tabs.size());
+  content::RenderFrameHost* frame0 = matched_tabs[0]->GetPrimaryMainFrame();
+  content::RenderFrameHost* frame1 = matched_tabs[1]->GetPrimaryMainFrame();
   EXPECT_EQ(frame0->GetProcess(), frame1->GetProcess());
   EXPECT_EQ(frame0->GetSiteInstance(), frame1->GetSiteInstance());
 }
@@ -1021,8 +1031,16 @@ IN_PROC_BROWSER_TEST_F(
                    ->AreV8OptimizationsDisabled());
 }
 
+// TODO(crbug.com/461777786): Flaky on Linux and CrOS.
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#define MAYBE_ExpectOptimizationsEnabledInSpareRenderer \
+  DISABLED_ExpectOptimizationsEnabledInSpareRenderer
+#else
+#define MAYBE_ExpectOptimizationsEnabledInSpareRenderer \
+  ExpectOptimizationsEnabledInSpareRenderer
+#endif
 IN_PROC_BROWSER_TEST_F(JavascriptOptimizerBrowserTest_UseSiteFamiliarity,
-                       ExpectOptimizationsEnabledInSpareRenderer) {
+                       MAYBE_ExpectOptimizationsEnabledInSpareRenderer) {
   // TODO(crbug.com/452689705): Consider creating both: (1) spare renderer
   // processes with v8-optimizer enabled and (2) spare renderer processes with
   // v8-optimizer disabled.
@@ -1357,6 +1375,7 @@ class JavascriptOptimizerBubbleBrowserTest
 class JavascriptOptimizerBubbleBrowserTest_EnterprisePolicy
     : public JavascriptOptimizerBubbleBrowserTest {};
 
+// TODO(crbug.com/462425975): Flaky test disabled
 IN_PROC_BROWSER_TEST_F(JavascriptOptimizerBubbleBrowserTest_EnterprisePolicy,
                        BubbleShowsOnClick) {
   auto* map = HostContentSettingsMapFactory::GetForProfile(profile());
@@ -1378,9 +1397,10 @@ IN_PROC_BROWSER_TEST_F(JavascriptOptimizerBubbleBrowserTest_EnterprisePolicy,
 class JavascriptOptimizerBubbleBrowserTest_NotFromEnterprisePolicy
     : public JavascriptOptimizerBubbleBrowserTest {};
 
+// TODO(crbug.com/462425975): Flaky test disabled
 IN_PROC_BROWSER_TEST_F(
     JavascriptOptimizerBubbleBrowserTest_NotFromEnterprisePolicy,
-    BubbleShowsOnClick) {
+    DISABLED_BubbleShowsOnClick) {
   auto* map = HostContentSettingsMapFactory::GetForProfile(profile());
   map->SetDefaultContentSetting(ContentSettingsType::JAVASCRIPT_OPTIMIZER,
                                 ContentSetting::CONTENT_SETTING_BLOCK);

@@ -95,6 +95,7 @@ chromium-metrics-reviews@google.com.
   <int value="34" label="Tab backgrounded while initializing"/>
   <int value="35" label="Contextual Tasks composebox query submitted"/>
   <int value="36" label="Contextual Tasks composebox context cleared"/>
+  <int value="37" label="Contextual Tasks composebox lens button clicked"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/lens/lens_overlay_dismissal_source.h:LensOverlayDismissalSource) -->
@@ -135,6 +136,7 @@ chromium-metrics-reviews@google.com.
   <int value="16" label="NTP Contextual Compose Flow"/>
   <int value="17" label="Omnibox Contextual Compose Flow"/>
   <int value="18" label="Contextual Tasks composebox"/>
+  <int value="19" label="Cobrowse Toolbar Button"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/lens/lens_overlay_invocation_source.h:LensOverlayInvocationSource) -->

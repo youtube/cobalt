@@ -22,6 +22,7 @@
 #include "chrome/browser/profiles/profile_observer.h"
 #include "chrome/common/actor/action_result.h"
 #include "chrome/common/actor/task_id.h"
+#include "chrome/common/actor_webui.mojom.h"
 #include "chrome/common/buildflags.h"
 #include "components/download/content/public/all_download_item_notifier.h"
 #include "components/keyed_service/core/keyed_service.h"
@@ -39,7 +40,7 @@ namespace ui {
 class ActorUiStateManagerInterface;
 }
 
-class ActorPolicyChecker;
+class EnterprisePolicyUrlChecker;
 class ActorTaskMetadata;
 class ToolRequest;
 
@@ -64,9 +65,6 @@ class ActorKeyedService : public KeyedService,
   void SetActorUiStateManagerForTesting(
       std::unique_ptr<ui::ActorUiStateManagerInterface> ausm);
 
-  // Starts tracking an existing task. Returns the new task ID.
-  TaskId AddActiveTask(std::unique_ptr<ActorTask> task);
-
   const std::map<TaskId, const ActorTask*> GetActiveTasks() const;
 
   std::vector<TaskId> FindTaskIdsInActive(
@@ -76,11 +74,18 @@ class ActorKeyedService : public KeyedService,
   void ResetForTesting();
 
   // Starts a new task with an execution engine and returns the new task's id.
-  // `options`, when provided, contains information used to initialize the
-  // task.
-  TaskId CreateTask();
-  TaskId CreateTaskWithOptions(webui::mojom::TaskOptionsPtr options,
+  // `options`, when provided, contains information used to initialize the task.
+  // The provided `policy_checker` must be non-null and it must outlive the
+  // ActorTask.
+  TaskId CreateTask(const EnterprisePolicyUrlChecker* policy_checker);
+  TaskId CreateTaskWithOptions(const EnterprisePolicyUrlChecker* policy_checker,
+                               webui::mojom::TaskOptionsPtr options,
                                base::WeakPtr<ActorTaskDelegate> delegate);
+  TaskId CreateTaskForTesting(
+      std::unique_ptr<actor::ui::UiEventDispatcher> ui_event_dispatcher,
+      const EnterprisePolicyUrlChecker* policy_checker,
+      webui::mojom::TaskOptionsPtr options,
+      base::WeakPtr<ActorTaskDelegate> delegate);
 
   // Executes the given ToolRequest actions using the execution engine for the
   // given task id.
@@ -106,8 +111,6 @@ class ActorKeyedService : public KeyedService,
 
   // The associated ActorUiStateManager for the associated profile.
   ui::ActorUiStateManagerInterface* GetActorUiStateManager();
-
-  ActorPolicyChecker& GetPolicyChecker();
 
   // Returns true if there is a task that is actively (i.e. not paused) acting
   // in the given `tab`.
@@ -140,11 +143,6 @@ class ActorKeyedService : public KeyedService,
       TaskStateChangedCallback callback);
 
   void NotifyTaskStateChanged(TaskId task_id, ActorTask::State state);
-  void OnActOnWebCapabilityChanged(bool can_act_on_web);
-
-  using ActOnWebCapabilityChangedCallback = base::RepeatingCallback<void(bool)>;
-  base::CallbackListSubscription AddActOnWebCapabilityChangedCallback(
-      ActOnWebCapabilityChangedCallback callback);
 
   // Returns the acting task for web_contents. Returns nullptr if acting task
   // does not exist.
@@ -169,6 +167,12 @@ class ActorKeyedService : public KeyedService,
   base::WeakPtr<ActorKeyedService> GetWeakPtr();
 
  private:
+  TaskId CreateTaskImpl(
+      std::unique_ptr<actor::ui::UiEventDispatcher> ui_event_dispatcher,
+      const EnterprisePolicyUrlChecker* policy_checker,
+      webui::mojom::TaskOptionsPtr options,
+      base::WeakPtr<ActorTaskDelegate> delegate);
+
   // The callback used for ExecutorEngine::Act.
   void OnActionsFinished(
       PerformActionsCallback callback,
@@ -196,13 +200,8 @@ class ActorKeyedService : public KeyedService,
 
   TaskId::Generator next_task_id_;
 
-  std::unique_ptr<ActorPolicyChecker> policy_checker_;
-
   base::RepeatingCallbackList<void(TaskId, ActorTask::State)>
       tab_state_change_callback_list_;
-
-  base::RepeatingCallbackList<ActOnWebCapabilityChangedCallback::RunType>
-      act_on_web_capability_changed_callback_list_;
 
   // Owns this.
   raw_ptr<Profile> profile_;

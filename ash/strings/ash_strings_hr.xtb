@@ -342,7 +342,6 @@
 <translation id="2201071101391734388">Nedavna fotografija <ph name="INDEX" /> od <ph name="TOTAL_COUNT" />.</translation>
 <translation id="2201687081523799384">Sažmi Google zadatke</translation>
 <translation id="2208323208084708176">Način jedinstvene radne površine</translation>
-<translation id="2210311543574621570">Međumemorija će se prikazivati kad pritisnete tipke Ctrl + V i zadržite pritisak. Taj prečac možete isključiti tako da onemogućite oznaku #clipboard-history-longpress u chrome://flags.</translation>
 <translation id="2215920961700443347">Nema interneta. Povežite se s internetom i pokušajte ponovo.</translation>
 <translation id="2222841058024245321">Radna površina 7</translation>
 <translation id="2223384056430485343">Na podijeljenom zaslonu</translation>
@@ -2195,7 +2194,6 @@ Da biste isključili uređaj, ponovno pritisnite i zadržite tipku za uključiva
 <translation id="8241650983304689286">Dodaj karticu u novi podijeljeni prikaz</translation>
 <translation id="8247060538831475781"><ph name="CONNECTION_STATUS" />, jačina signala <ph name="SIGNAL_STRENGTH" />, telefonska baterija <ph name="BATTERY_STATUS" /></translation>
 <translation id="825129991941217170">Prikaži sav sadržaj Google diska</translation>
-<translation id="8257510091797044096">Postavljanje uređaja</translation>
 <translation id="8261506727792406068">Izbriši</translation>
 <translation id="8262312463845990408">Uključi/isključi reprodukciju</translation>
 <translation id="8268302343625273732">Prikaz svih zadataka u Google učionici</translation>

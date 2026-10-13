@@ -6,20 +6,30 @@
 #define CHROME_BROWSER_UI_EXTENSIONS_EXTENSIONS_TOOLBAR_VIEW_MODEL_H_
 
 #include "base/containers/flat_map.h"
+#include "base/scoped_observation.h"
 #include "chrome/browser/ui/extensions/extension_action_delegate.h"
 #include "chrome/browser/ui/extensions/extension_action_view_model.h"
 #include "chrome/browser/ui/extensions/extensions_container.h"
+#include "chrome/browser/ui/tabs/tab_list_interface_observer.h"
 #include "chrome/browser/ui/toolbar/toolbar_action_view_model.h"
 #include "chrome/browser/ui/toolbar/toolbar_actions_model.h"
+#include "content/public/browser/web_contents_observer.h"
+#include "extensions/browser/permissions_manager.h"
 #include "extensions/buildflags/buildflags.h"
 
 static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
+class TabListInterface;
+
 // ViewModel for the ExtensionsToolbarDesktop. This class manages the business
 // logic for the order and state of extension actions in the toolbar. It serves
 // as the single source of truth for the ordering of the list of actions.
-class ExtensionsToolbarViewModel : public ExtensionsContainer,
-                                   public ToolbarActionsModel::Observer {
+class ExtensionsToolbarViewModel
+    : public ExtensionsContainer,
+      public ToolbarActionsModel::Observer,
+      public content::WebContentsObserver,
+      public TabListInterfaceObserver,
+      public extensions::PermissionsManager::Observer {
  public:
   // Delegate used to retrieve platform-specific information.
   class Delegate {
@@ -71,6 +81,19 @@ class ExtensionsToolbarViewModel : public ExtensionsContainer,
 
     // Called when the pinned actions in the model are changed.
     virtual void OnPinnedActionsChanged() = 0;
+
+    // Called when the active WebContents is changed (e.g. tab change or page
+    // navigation).
+    virtual void OnActiveWebContentsChanged() = 0;
+
+    // Called when the extensions that should be displayed in the request
+    // access button to be recomputed.
+    virtual void OnRequestAccessButtonParamsChanged(
+        content::WebContents* web_contents) {}
+
+    // Called when both the extensions button and the request access button
+    // should be updated.
+    virtual void OnToolbarControlStateUpdated() {}
   };
 
   enum class ExtensionsToolbarButtonState {
@@ -81,7 +104,19 @@ class ExtensionsToolbarViewModel : public ExtensionsContainer,
     kDefault,
   };
 
+  // Holds the information for the request access button.
+  struct RequestAccessButtonParams {
+    RequestAccessButtonParams();
+    RequestAccessButtonParams(RequestAccessButtonParams&&);
+    RequestAccessButtonParams& operator=(RequestAccessButtonParams&&);
+    ~RequestAccessButtonParams();
+
+    std::vector<extensions::ExtensionId> extension_ids;
+    std::u16string tooltip_text;
+  };
+
   ExtensionsToolbarViewModel(Delegate* delegate,
+                             BrowserWindowInterface* browser,
                              ToolbarActionsModel* actions_model);
   ExtensionsToolbarViewModel(const ExtensionsToolbarViewModel&) = delete;
   ExtensionsToolbarViewModel& operator=(ExtensionsToolbarViewModel&) = delete;
@@ -92,7 +127,7 @@ class ExtensionsToolbarViewModel : public ExtensionsContainer,
 
   // Returns the view model of the action if it exists, else a nullptr.
   ToolbarActionViewModel* GetActionModelForId(
-      const ToolbarActionsModel::ActionId& action_id);
+      const ToolbarActionsModel::ActionId& action_id) const;
 
   // Move the pinned action `action_id` to `target_index`.
   void MovePinnedAction(const ToolbarActionsModel::ActionId& action_id,
@@ -110,11 +145,18 @@ class ExtensionsToolbarViewModel : public ExtensionsContainer,
   // Returns whether the actions are initialized.
   bool AreActionsInitialized();
 
-  // Returns whether any of `actions` given have access to the `web_contents`.
-  bool AnyActionHasCurrentSiteAccess(content::WebContents* web_contents) const;
-
   // Returns the state of the extensions toolbar button based on 'web_contents'.
   ExtensionsToolbarButtonState GetButtonState(
+      content::WebContents& web_contents) const;
+
+  // Executes the default behavior associated with the action. This should only
+  // be called as a result of a user action.
+  void ExecuteUserAction(const ToolbarActionsModel::ActionId& action_id,
+                         ToolbarActionViewModel::InvocationSource source);
+
+  // Returns RequestAccessButtonParams which contain information to be used in
+  // the button's tooltip.
+  RequestAccessButtonParams GetRequestAccessButtonParams(
       content::WebContents* web_contents) const;
 
   // ExtensionsContainer:
@@ -136,9 +178,42 @@ class ExtensionsToolbarViewModel : public ExtensionsContainer,
       const ToolbarActionsModel::ActionId& action_id) override;
   void OnToolbarPinnedActionsChanged() override;
 
+  // content::WebContentsObserver:
+  void DidFinishNavigation(content::NavigationHandle* handle) override;
+
+  // TabListInterfaceObserver:
+  void OnActiveTabChanged(tabs::TabInterface* tab) override;
+  void OnTabListDestroyed(TabListInterface& tab_list) override;
+
+  // extensions::PermissionsManager::Observer:
+  void OnHostAccessRequestAdded(const extensions::ExtensionId& extension_id,
+                                int tab_id) override;
+  void OnHostAccessRequestUpdated(const extensions::ExtensionId& extension_id,
+                                  int tab_id) override;
+  void OnHostAccessRequestRemoved(const extensions::ExtensionId& extension_id,
+                                  int tab_id) override;
+  void OnHostAccessRequestsCleared(int tab_id) override;
+  void OnHostAccessRequestDismissedByUser(const extensions::ExtensionId& id,
+                                          const url::Origin& origin) override;
+  void OnUserPermissionsSettingsChanged(
+      const extensions::PermissionsManager::UserPermissionsSettings& settings)
+      override;
+  void OnShowAccessRequestsInToolbarChanged(
+      const extensions::ExtensionId& extension_id,
+      bool can_show_requests) override;
+
  private:
+  // Returns whether any of `actions` given have access to the `web_contents`.
+  bool AnyActionHasCurrentSiteAccess(content::WebContents& web_contents) const;
+
   // Creates and appends an action model to `actions_` vector.
   void AppendActionModel(const ToolbarActionsModel::ActionId& action_id);
+
+  // Returns the current web contents.
+  content::WebContents* GetCurrentWebContents() const;
+
+  // The corresponding browser window.
+  const raw_ptr<BrowserWindowInterface> browser_;
 
   // The delegate to retrieve platform-specific information.
   const raw_ptr<Delegate> delegate_;
@@ -146,6 +221,13 @@ class ExtensionsToolbarViewModel : public ExtensionsContainer,
   const raw_ptr<ToolbarActionsModel> actions_model_;
   base::ScopedObservation<ToolbarActionsModel, ToolbarActionsModel::Observer>
       actions_model_observation_{this};
+
+  base::ScopedObservation<TabListInterface, TabListInterfaceObserver>
+      tab_list_observation_{this};
+
+  base::ScopedObservation<extensions::PermissionsManager,
+                          extensions::PermissionsManager::Observer>
+      permissions_manager_observation_{this};
 
   // The observers that handles platform-specific UI.
   base::ObserverList<Observer> observers_;

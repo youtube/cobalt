@@ -124,10 +124,6 @@ BASE_DECLARE_FEATURE(kSegmentationPlatformEphemeralCardRanker);
 BASE_DECLARE_FEATURE(kSegmentationSurveyPage);
 extern const base::FeatureParam<bool> kSegmentationSurveyInternalsPage;
 
-// Feature flag for enabling the Educational tip module in the home modules on
-// chrome android.
-BASE_DECLARE_FEATURE(kEducationalTipModule);
-
 // The maximum number of times the auxiliary search promo card can be visible to
 // the user.
 BASE_DECLARE_FEATURE(kAndroidAppIntegrationModule);
@@ -166,6 +162,9 @@ bool IsDefaultBrowserMagicStackEnabled();
 
 // Feature flag for enabling the tips notifications ranker.
 BASE_DECLARE_FEATURE(kAndroidTipsNotifications);
+
+// Feature flag for enabling the tips notifications ranker V2.
+BASE_DECLARE_FEATURE(kAndroidTipsNotificationsV2);
 
 // The prioritization of tips notifications based on trust and safety.
 extern const base::FeatureParam<bool> kTrustAndSafety;

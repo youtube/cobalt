@@ -46,6 +46,7 @@
 #include "third_party/blink/renderer/core/frame/settings.h"
 #include "third_party/blink/renderer/core/html/forms/form_controller.h"
 #include "third_party/blink/renderer/core/html/forms/form_data.h"
+#include "third_party/blink/renderer/core/html/forms/html_form_element.h"
 #include "third_party/blink/renderer/core/html/forms/text_control_inner_elements.h"
 #include "third_party/blink/renderer/core/html/html_br_element.h"
 #include "third_party/blink/renderer/core/html/parser/html_parser_idioms.h"
@@ -62,6 +63,7 @@
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/instrumentation/tracing/trace_event.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
+#include "third_party/blink/renderer/platform/json/json_values.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/text/platform_locale.h"
 #include "third_party/blink/renderer/platform/wtf/std_lib_extras.h"
@@ -556,6 +558,11 @@ void HTMLTextAreaElement::SetValueCommon(const String& new_value,
   SetNeedsStyleRecalc(
       kSubtreeStyleChange,
       StyleChangeReasonForTracing::Create(style_change_reason::kControlValue));
+  if (LayoutObject* layout_object = GetLayoutObject()) {
+    layout_object
+        ->SetNeedsLayoutAndIntrinsicWidthsRecalcAndFullPaintInvalidation(
+            layout_invalidation_reason::kTextControlChanged);
+  }
   SetNeedsValidityCheck();
   if (selection == TextControlSetValueSelection::kSetSelectionToEnd) {
     // Set the caret to the end of the text value except for initialize.
@@ -804,6 +811,11 @@ bool HTMLTextAreaElement::IsInteractiveContent() const {
   return true;
 }
 
+FocusgroupFlags HTMLTextAreaElement::NativeArrowKeyAxes() const {
+  // Textareas always use arrow keys for caret navigation in both axes.
+  return FocusgroupFlags::kInline | FocusgroupFlags::kBlock;
+}
+
 void HTMLTextAreaElement::CloneNonAttributePropertiesFrom(
     const Element& source,
     NodeCloningData& data) {
@@ -819,6 +831,9 @@ void HTMLTextAreaElement::CloneNonAttributePropertiesFrom(
 String HTMLTextAreaElement::DefaultToolTip() const {
   if (FastHasAttribute(html_names::kNovalidateAttr))
     return String();
+  if (Form() && Form()->NoValidate()) {
+    return String();
+  }
   return validationMessage();
 }
 

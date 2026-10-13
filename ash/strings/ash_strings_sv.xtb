@@ -342,7 +342,6 @@
 <translation id="2201071101391734388">Foto <ph name="INDEX" /> av <ph name="TOTAL_COUNT" /> nya foton.</translation>
 <translation id="2201687081523799384">Komprimera Google Tasks</translation>
 <translation id="2208323208084708176">Enhetligt skrivbordsläge</translation>
-<translation id="2210311543574621570">Urklipp visas när du trycker länge på Ctrl + V. Du kan inaktivera kortkommandot genom att inaktivera flaggan #clipboard-history-longpress i chrome://flags.</translation>
 <translation id="2215920961700443347">Inget internet. Anslut till internet och försök igen.</translation>
 <translation id="2222841058024245321">Skrivbord 7</translation>
 <translation id="2223384056430485343">På delad skärm</translation>
@@ -2195,7 +2194,6 @@ Stäng av enheten genom att hålla av/på-knappen nedtryckt igen.</translation>
 <translation id="8241650983304689286">Lägg till fliken i en ny delad vy</translation>
 <translation id="8247060538831475781"><ph name="CONNECTION_STATUS" />, signalstyrka <ph name="SIGNAL_STRENGTH" />, telefonens batterinivå <ph name="BATTERY_STATUS" /></translation>
 <translation id="825129991941217170">Visa allt Google Drive-innehåll</translation>
-<translation id="8257510091797044096">Konfigurera enheten</translation>
 <translation id="8261506727792406068">Radera</translation>
 <translation id="8262312463845990408">Aktivera och inaktivera uppspelning</translation>
 <translation id="8268302343625273732">Visa alla uppgifter i Google Classroom</translation>

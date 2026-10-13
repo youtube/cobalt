@@ -39,6 +39,7 @@
 #include "third_party/blink/renderer/core/input_type_names.h"
 #include "third_party/blink/renderer/core/keywords.h"
 #include "third_party/blink/renderer/core/page/spatial_navigation.h"
+#include "third_party/blink/renderer/platform/json/json_values.h"
 #include "third_party/blink/renderer/platform/text/platform_locale.h"
 
 namespace blink {
@@ -126,5 +127,6 @@ void CheckboxInputType::RunInputActivationBehavior(
 bool CheckboxInputType::ShouldAppearIndeterminate() const {
   return GetElement().indeterminate();
 }
+
 
 }  // namespace blink

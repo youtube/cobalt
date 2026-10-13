@@ -22,11 +22,11 @@
 #include "chrome/browser/ui/views/frame/browser_root_view.h"
 #include "chrome/browser/ui/views/tabs/fake_base_tab_strip_controller.h"
 #include "chrome/browser/ui/views/tabs/tab.h"
+#include "chrome/browser/ui/views/tabs/tab/tab_icon.h"
 #include "chrome/browser/ui/views/tabs/tab_group_header.h"
 #include "chrome/browser/ui/views/tabs/tab_group_highlight.h"
 #include "chrome/browser/ui/views/tabs/tab_group_underline.h"
 #include "chrome/browser/ui/views/tabs/tab_group_views.h"
-#include "chrome/browser/ui/views/tabs/tab_icon.h"
 #include "chrome/browser/ui/views/tabs/tab_strip_controller.h"
 #include "chrome/browser/ui/views/tabs/tab_strip_observer.h"
 #include "chrome/browser/ui/views/tabs/tab_strip_types.h"
@@ -116,6 +116,7 @@ class TabStripTestBase : public ChromeViewsTestBase {
 
     controller_ = new FakeBaseTabStripController;
     tab_strip_ = new TabStrip(std::unique_ptr<TabStripController>(controller_));
+    tab_strip_->Initialize();
     controller_->set_tab_strip(tab_strip_);
     // Do this to force TabStrip to create the buttons.
     auto tab_strip_parent = std::make_unique<views::View>();
@@ -243,21 +244,17 @@ TEST_P(TabStripTest, AccessibilityEvents) {
   controller_->AddTab(0, TabActive::kInactive);
   controller_->AddTab(1, TabActive::kActive);
   Tab* tab = tab_strip_->tab_at(1);
-  EXPECT_EQ(0, ax_counter.GetCount(ax::mojom::Event::kSelectionAdd));
   EXPECT_EQ(1, ax_counter.GetCount(ax::mojom::Event::kSelection));
   ui::AXNodeData node_data;
   tab->GetViewAccessibility().GetAccessibleNodeData(&node_data);
   EXPECT_TRUE(node_data.GetBoolAttribute(ax::mojom::BoolAttribute::kSelected));
-  EXPECT_EQ(0, ax_counter.GetCount(ax::mojom::Event::kSelectionRemove));
 
   tab = tab_strip_->tab_at(0);
   controller_->RemoveTab(1);
   node_data = ui::AXNodeData();
   tab->GetViewAccessibility().GetAccessibleNodeData(&node_data);
   EXPECT_TRUE(node_data.GetBoolAttribute(ax::mojom::BoolAttribute::kSelected));
-  EXPECT_EQ(0, ax_counter.GetCount(ax::mojom::Event::kSelectionAdd));
   EXPECT_EQ(2, ax_counter.GetCount(ax::mojom::Event::kSelection));
-  EXPECT_EQ(0, ax_counter.GetCount(ax::mojom::Event::kSelectionRemove));
 
   // Before the Widget actcivation changes to true, it must be deactivated
   // first.
@@ -265,18 +262,14 @@ TEST_P(TabStripTest, AccessibilityEvents) {
   node_data = ui::AXNodeData();
   tab->GetViewAccessibility().GetAccessibleNodeData(&node_data);
   EXPECT_TRUE(node_data.GetBoolAttribute(ax::mojom::BoolAttribute::kSelected));
-  EXPECT_EQ(0, ax_counter.GetCount(ax::mojom::Event::kSelectionAdd));
   EXPECT_EQ(2, ax_counter.GetCount(ax::mojom::Event::kSelection));
-  EXPECT_EQ(0, ax_counter.GetCount(ax::mojom::Event::kSelectionRemove));
 
   // When activating widget, refire selection event on tab.
   widget_->OnNativeWidgetActivationChanged(true);
   node_data = ui::AXNodeData();
   tab->GetViewAccessibility().GetAccessibleNodeData(&node_data);
   EXPECT_TRUE(node_data.GetBoolAttribute(ax::mojom::BoolAttribute::kSelected));
-  EXPECT_EQ(0, ax_counter.GetCount(ax::mojom::Event::kSelectionAdd));
   EXPECT_EQ(3, ax_counter.GetCount(ax::mojom::Event::kSelection));
-  EXPECT_EQ(0, ax_counter.GetCount(ax::mojom::Event::kSelectionRemove));
 }
 
 TEST_P(TabStripTest, IsValidModelIndex) {
@@ -411,42 +404,6 @@ TEST_P(TabStripTest, TabCloseButtonVisibility) {
   EXPECT_TRUE(tab3->showing_close_button_);
   EXPECT_FALSE(tab4->showing_close_button_);
 }
-
-#if BUILDFLAG(IS_CHROMEOS)
-TEST_P(TabStripTest, CloseButtonHiddenWhenLockedForOnTask) {
-  controller_->SetLockedForOnTask(true);
-
-  controller_->AddTab(0, TabActive::kInactive);
-  controller_->AddTab(1, TabActive::kActive);
-  controller_->AddTab(2, TabActive::kInactive);
-  ASSERT_EQ(3, tab_strip_->GetTabCount());
-
-  Tab* const tab0 = tab_strip_->tab_at(0);
-  ASSERT_FALSE(tab0->IsActive());
-  EXPECT_FALSE(tab0->showing_close_button_);
-
-  Tab* const tab1 = tab_strip_->tab_at(1);
-  ASSERT_TRUE(tab1->IsActive());
-  EXPECT_FALSE(tab1->showing_close_button_);
-
-  Tab* tab2 = tab_strip_->tab_at(2);
-  ASSERT_FALSE(tab2->IsActive());
-  EXPECT_FALSE(tab2->showing_close_button_);
-
-  // Switch tabs and confirm close button remains hidden for all opened tabs.
-  tab_strip_->SelectTab(tab2, dummy_event_);
-  ASSERT_TRUE(tab2->IsActive());
-  EXPECT_FALSE(tab0->showing_close_button_);
-  EXPECT_FALSE(tab1->showing_close_button_);
-  EXPECT_FALSE(tab2->showing_close_button_);
-
-  // Closing a tab should not alter tab close button visibility either.
-  tab_strip_->CloseTab(tab2, CloseTabSource::kFromMouse);
-  tab2 = nullptr;
-  EXPECT_FALSE(tab0->showing_close_button_);
-  EXPECT_FALSE(tab1->showing_close_button_);
-}
-#endif
 
 // The active tab should always be at least as wide as its minimum width.
 // http://crbug.com/587688

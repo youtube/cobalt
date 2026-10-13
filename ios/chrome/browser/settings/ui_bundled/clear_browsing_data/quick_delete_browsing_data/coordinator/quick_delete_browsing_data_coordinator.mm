@@ -17,6 +17,8 @@
 #import "ios/chrome/browser/settings/ui_bundled/clear_browsing_data/quick_delete_browsing_data/coordinator/quick_delete_browsing_data_delegate.h"
 #import "ios/chrome/browser/settings/ui_bundled/clear_browsing_data/quick_delete_browsing_data/ui/quick_delete_browsing_data_view_controller.h"
 #import "ios/chrome/browser/settings/ui_bundled/clear_browsing_data/quick_delete_browsing_data/ui/quick_delete_browsing_data_view_controller_delegate.h"
+#import "ios/chrome/browser/settings/ui_bundled/clear_browsing_data/quick_delete_other_data/coordinator/quick_delete_other_data_coordinator.h"
+#import "ios/chrome/browser/settings/ui_bundled/clear_browsing_data/quick_delete_other_data/public/quick_delete_other_data_commands.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
@@ -24,6 +26,7 @@
 
 @interface QuickDeleteBrowsingDataCoordinator () <
     QuickDeleteBrowsingDataViewControllerDelegate,
+    QuickDeleteOtherDataCommands,
     SignoutActionSheetCoordinatorDelegate,
     UIAdaptivePresentationControllerDelegate>
 @end
@@ -32,6 +35,8 @@
   QuickDeleteBrowsingDataViewController* _viewController;
   UINavigationController* _navigationController;
   QuickDeleteMediator* _mediator;
+  // The coordinator for the "Quick Delete Other Data" page.
+  QuickDeleteOtherDataCoordinator* _otherDataCoordinator;
   SignoutActionSheetCoordinator* _signoutCoordinator;
   browsing_data::TimePeriod _initialTimeRange;
 }
@@ -94,15 +99,20 @@
 }
 
 - (void)stop {
+  [self stopOtherDataCoordinator];
+
   _signoutCoordinator.delegate = nil;
   [_signoutCoordinator stop];
   _signoutCoordinator = nil;
+
   [_navigationController dismissViewControllerAnimated:YES completion:nil];
   _viewController.delegate = nil;
   _viewController.mutator = nil;
   _viewController = nil;
+
   _navigationController.presentationController.delegate = nil;
   _navigationController = nil;
+
   _mediator.consumer = nil;
   _mediator = nil;
 }
@@ -111,6 +121,14 @@
 
 - (void)dismissBrowsingDataPage {
   [self.delegate stopBrowsingDataPage];
+}
+
+- (void)showOtherDataPage {
+  _otherDataCoordinator = [[QuickDeleteOtherDataCoordinator alloc]
+      initWithBaseNavigationController:_navigationController
+                               browser:self.browser];
+  _otherDataCoordinator.quickDeleteOtherDataHandler = self;
+  [_otherDataCoordinator start];
 }
 
 - (void)signOutAndShowActionSheet {
@@ -144,6 +162,14 @@
   [_signoutCoordinator start];
 }
 
+#pragma mark - QuickDeleteOtherDataCommands
+
+- (void)hideQuickDeleteOtherDataPage {
+  [self stopOtherDataCoordinator];
+  // TODO(crbug.com/476398061) Move voiceover focus to the appropriate row in
+  // QuickDeleteBrowsingDataViewController.
+}
+
 #pragma mark - SignoutActionSheetCoordinatorDelegate
 
 - (void)signoutActionSheetCoordinatorPreventUserInteraction:
@@ -171,6 +197,13 @@
   _signoutCoordinator.delegate = nil;
   [_signoutCoordinator stop];
   _signoutCoordinator = nil;
+}
+
+// Stops the QuickDeleteOtherDataCoordinator.
+- (void)stopOtherDataCoordinator {
+  _otherDataCoordinator.quickDeleteOtherDataHandler = nil;
+  [_otherDataCoordinator stop];
+  _otherDataCoordinator = nil;
 }
 
 @end

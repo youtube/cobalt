@@ -342,7 +342,6 @@
 <translation id="2201071101391734388"><ph name="INDEX" />. недавна слика од <ph name="TOTAL_COUNT" />.</translation>
 <translation id="2201687081523799384">Скупи Google задатке</translation>
 <translation id="2208323208084708176">Режим спојених радних површина</translation>
-<translation id="2210311543574621570">Привремену меморију ћете видети ако притиснете и задржите Ctrl + V. Ту пречицу можете да искључите ако онемогућите ознаку #clipboard-history-longpress у одељку chrome://flags.</translation>
 <translation id="2215920961700443347">Нема интернета. Повежите се на интернет и пробајте поново.</translation>
 <translation id="2222841058024245321">Радна површина 7</translation>
 <translation id="2223384056430485343">На подељеном екрану</translation>
@@ -2197,7 +2196,6 @@
 <translation id="8241650983304689286">Додај картицу у нови подељени приказ</translation>
 <translation id="8247060538831475781"><ph name="CONNECTION_STATUS" />, јачина сигнала <ph name="SIGNAL_STRENGTH" />, батерија телефона <ph name="BATTERY_STATUS" /></translation>
 <translation id="825129991941217170">Прегледајте сав садржај Google диска</translation>
-<translation id="8257510091797044096">Подесите уређај</translation>
 <translation id="8261506727792406068">Избриши</translation>
 <translation id="8262312463845990408">Укључите/искључите репродукцију</translation>
 <translation id="8268302343625273732">Погледајте све задатке у Google учионици</translation>

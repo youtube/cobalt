@@ -11,10 +11,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.robolectric.Shadows.shadowOf;
 
-import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundImageType.CHROME_COLOR;
-import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundImageType.DEFAULT;
-import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundImageType.IMAGE_FROM_DISK;
-import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundImageType.THEME_COLLECTION;
+import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundType.CHROME_COLOR;
+import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundType.DEFAULT;
+import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundType.IMAGE_FROM_DISK;
+import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundType.THEME_COLLECTION;
 
 import android.content.Context;
 import android.graphics.drawable.Drawable;
@@ -86,12 +86,12 @@ public class NtpThemeBottomSheetViewUnitTest {
     }
 
     @Test
-    public void testSetSectionTrailingIconVisibility() {
-        mNtpThemeBottomSheetView.setSectionTrailingIconVisibility(DEFAULT, true);
-        verify(mDefaultSection).setTrailingIconVisibility(eq(true));
+    public void testUpdateSectionTrailingIcon() {
+        mNtpThemeBottomSheetView.updateSectionTrailingIcon(DEFAULT, true);
+        verify(mDefaultSection).updateTrailingIcon(eq(true), eq(DEFAULT));
 
-        mNtpThemeBottomSheetView.setSectionTrailingIconVisibility(IMAGE_FROM_DISK, false);
-        verify(mUploadAnImageSection).setTrailingIconVisibility(eq(false));
+        mNtpThemeBottomSheetView.updateSectionTrailingIcon(IMAGE_FROM_DISK, false);
+        verify(mUploadAnImageSection).updateTrailingIcon(eq(false), eq(IMAGE_FROM_DISK));
     }
 
     @Test

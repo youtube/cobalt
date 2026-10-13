@@ -24,7 +24,6 @@
 #include "ui/webui/resources/cr_components/composebox/composebox.mojom.h"
 
 class Profile;
-class ContextualTasksUI;
 class LensSearchController;
 
 namespace tabs {
@@ -34,6 +33,7 @@ class TabInterface;
 namespace contextual_tasks {
 struct ContextualTaskContext;
 class ContextualTasksService;
+class ContextualTasksUIInterface;
 struct UrlAttachment;
 }  // namespace contextual_tasks
 
@@ -50,7 +50,7 @@ class ContextualTasksComposeboxHandler : public ComposeboxHandler,
  public:
   friend class ContextualTasksComposeboxHandlerTest;
   ContextualTasksComposeboxHandler(
-      ContextualTasksUI* ui_controller,
+      contextual_tasks::ContextualTasksUIInterface* web_ui_interface,
       Profile* profile,
       content::WebContents* web_contents,
       mojo::PendingReceiver<composebox::mojom::PageHandler> pending_handler,
@@ -79,6 +79,10 @@ class ContextualTasksComposeboxHandler : public ComposeboxHandler,
 
   void OnTaskChanged();
 
+  void AddFileContextFromBrowser(
+      searchbox::mojom::SelectedFileInfoPtr file_info,
+      AddFileContextCallback callback);
+
   // ContextualSearchboxHandler:
   void OnFileUploadStatusChanged(
       const base::UnguessableToken& file_token,
@@ -89,6 +93,20 @@ class ContextualTasksComposeboxHandler : public ComposeboxHandler,
 
   void CreateAndSendQueryMessage(const std::string& query);
 
+  // Called to update the suggested tab context chip in the compose box based on
+  // the given candidate tab. The chip will only be shown if the candidate tab
+  // is eligible for suggestion and is not blocklisted by the user.
+  virtual void UpdateSuggestedTabContext(
+      searchbox::mojom::TabInfoPtr candidate_tab_info);
+
+  // Returns true if there is a suggested tab context chip in the compose box.
+  bool has_suggested_tab_context() const { return has_suggested_tab_context_; }
+
+  // Called to clear the blocklist of auto-suggested tabs. This is used when
+  // switching to a new thread.
+  void ResetBlocklistedSuggestions() { blocklisted_suggestions_.clear(); }
+
+  void ClearFiles() override;
   void HandleLensButtonClick() override;
   void OnLensThumbnailCreated(const std::string& thumbnail_data);
   virtual void CloseLensOverlay(
@@ -104,12 +122,9 @@ class ContextualTasksComposeboxHandler : public ComposeboxHandler,
 
  protected:
   virtual contextual_tasks::ContextualTasksService* GetContextualTasksService();
+  virtual std::optional<base::UnguessableToken> GetLensOverlayToken();
 
  private:
-  void OnFileAddedToSession(searchbox::mojom::SelectedFileInfoPtr file_info,
-                            AddFileContextCallback callback,
-                            const base::UnguessableToken& token);
-
   // Called when the context is retrieved from the context service, for
   // determining which tabs need to be re-uploaded before query submission via
   // CreateAndSendQueryMessage.
@@ -119,18 +134,21 @@ class ContextualTasksComposeboxHandler : public ComposeboxHandler,
       std::optional<base::Uuid> original_task_id,
       std::unique_ptr<contextual_tasks::ContextualTaskContext> context);
 
-  // Called when a tab context has been re-uploaded, to continue query
-  // submission.
-  void OnTabContextReuploaded(std::string query,
-                              base::RepeatingClosure barrier_closure,
-                              std::optional<base::Uuid> original_task_id,
-                              bool success);
+  // Called when a tab context reupload has started or canceled, to continue
+  // query submission.
+  void OnTabContextReuploadStarted(base::RepeatingClosure barrier_closure,
+                                   std::optional<base::Uuid> original_task_id,
+                                   bool upload_started);
 
   // Called when all tabs have been re-uploaded, to continue query
-  // submission.
+  // submission. `overlay_token` is the token of the initial objects request for
+  // the Lens overlay / CSB, used in the ClientToAimRequest. It needs to be
+  // passed at this point as by the time this function is called the Lens
+  // overlay might have been closed.
   void ContinueCreateAndSendQueryMessage(
       std::string query,
-      std::optional<base::Uuid> original_task_id);
+      std::optional<base::Uuid> original_task_id,
+      std::optional<base::UnguessableToken> overlay_token);
 
   // Returns the tabs that need to be re-uploaded before query submission based
   // on the tabs present in the context.
@@ -147,7 +165,6 @@ class ContextualTasksComposeboxHandler : public ComposeboxHandler,
   // Called when a tab contextualization has been fetched, to re-upload the
   // tab context.
   void OnTabContextualizationFetched(
-      std::string query,
       std::unique_ptr<contextual_tasks::ContextualTaskContext> context,
       base::RepeatingClosure barrier_closure,
       std::optional<base::Uuid> original_task_id,
@@ -173,7 +190,7 @@ class ContextualTasksComposeboxHandler : public ComposeboxHandler,
   // Returns the context ID for the active tab, if any.
   std::optional<int64_t> GetActiveTabContextId();
 
-  raw_ptr<ContextualTasksUI> web_ui_controller_;
+  raw_ptr<contextual_tasks::ContextualTasksUIInterface> web_ui_interface_;
   // The context controller for the current profile. The profile will outlive
   // this class.
   raw_ptr<contextual_tasks::ContextualTasksService> contextual_tasks_service_;
@@ -182,6 +199,15 @@ class ContextualTasksComposeboxHandler : public ComposeboxHandler,
   // These tabs will be contextualized and added to the context after user
   // submits the query in the composebox.
   std::map<base::UnguessableToken, int32_t> delayed_tabs_;
+
+  // List of auto-suggested tab URLs that have been explicitly dismissed by the
+  // user. Those URLs will not be auto-suggested again for the same task in the
+  // same session, unless the user explicitly adds the tab via "+" button or
+  // switches to a new thread in which case the whole list will be cleared.
+  std::set<GURL> blocklisted_suggestions_;
+
+  // Whether the composebox is currently showing a suggested chip.
+  bool has_suggested_tab_context_ = false;
 
   std::optional<base::UnguessableToken> visual_selection_token_;
   base::WeakPtrFactory<ContextualTasksComposeboxHandler> weak_factory_{this};

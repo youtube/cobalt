@@ -7,8 +7,12 @@
 #import <memory>
 
 #import "base/check_deref.h"
+#import "components/supervised_user/core/browser/device_parental_controls_url_filter.h"
+#import "components/supervised_user/core/browser/kids_chrome_management_url_checker_client.h"
+#import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/supervised_user/model/supervised_user_service_factory.h"
-#import "ios/chrome/browser/supervised_user/model/supervised_user_settings_service_factory.h"
+#import "ios/chrome/browser/supervised_user/model/supervised_user_service_platform_delegate.h"
+#import "ios/chrome/common/channel_info.h"
 
 namespace supervised_user {
 
@@ -36,17 +40,19 @@ SupervisedUserUrlFilteringServiceFactory::
   // all callers are migrated to the SupervisedUserURLFilteringService.
   // TODO(crbug.com/469336110): Remove this dependency after migration.
   DependsOn(SupervisedUserServiceFactory::GetInstance());
-
-  // Gives access to Family Link settings.
-  DependsOn(SupervisedUserSettingsServiceFactory::GetInstance());
 }
 
 std::unique_ptr<KeyedService>
 SupervisedUserUrlFilteringServiceFactory::BuildServiceInstanceFor(
     ProfileIOS* profile) const {
+  SupervisedUserServicePlatformDelegate platform_delegate(profile);
   return std::make_unique<SupervisedUserUrlFilteringService>(
       CHECK_DEREF(SupervisedUserServiceFactory::GetForProfile(profile)),
-      CHECK_DEREF(
-          SupervisedUserSettingsServiceFactory::GetForProfile(profile)));
+      std::make_unique<DeviceParentalControlsUrlFilter>(
+          GetApplicationContext()->GetDeviceParentalControls(),
+          std::make_unique<KidsChromeManagementURLCheckerClient>(
+              GetApplicationContext()->GetSharedURLLoaderFactory(),
+              platform_delegate.GetCountryCode(),
+              platform_delegate.GetChannel())));
 }
 }  // namespace supervised_user

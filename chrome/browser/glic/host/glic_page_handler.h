@@ -87,7 +87,12 @@ class GlicPageHandler : public glic::mojom::PageHandler,
 
   void WebUiStateChanged(glic::mojom::WebUiState new_state) override;
 
-  void GetProfileEnablement(GetProfileEnablementCallback callback) override;
+  void GetInternalsDataPayload(
+      GetInternalsDataPayloadCallback callback) override;
+
+  void SetGuestUrlPresets(const GURL& autopush_url,
+                          const GURL& preprod_url,
+                          const GURL& prod_url) override;
 
   // PanelStateObserver implementation.
   void PanelStateChanged(const glic::mojom::PanelState& panel_state,

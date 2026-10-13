@@ -19,6 +19,7 @@
 #include "base/timer/timer.h"
 #include "base/trace_event/trace_event.h"
 #include "base/types/expected.h"
+#include "base/types/optional_ref.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/load_states.h"
@@ -195,8 +196,14 @@ class HttpStreamPool::AttemptManager
   // Cancels all jobs.
   void CancelJobs(int error, StreamSocketCloseReason cancel_reason);
 
-  // Cancels the QuicAttempt if it exists.
-  void CancelQuicAttempt(int error);
+  // Completes the QuicAttempt with `result` if not completed before.
+  // `overwrite_old_result` will cause the old QUIC attempt result to be
+  // unconditionally overwritten - intended for use when an existing QUIC
+  // session is found, which means any previous failure should be ignored.
+  void CompleteQuicAttempt(
+      int result,
+      base::optional_ref<NetErrorDetails> net_error_details = std::nullopt,
+      bool overwrite_old_result = false);
 
   // Returns the current load state.
   LoadState GetLoadState() const;
@@ -240,9 +247,9 @@ class HttpStreamPool::AttemptManager
   void OnQuicAttemptSlow();
 
   // Retrieves information on the current state of `this` as a base::Value.
-  base::Value::Dict GetInfoAsValue() const;
+  base::DictValue GetInfoAsValue() const;
 
-  base::Value::Dict GetStatesAsNetLogParams() const;
+  base::DictValue GetStatesAsNetLogParams() const;
 
   MultiplexedSessionCreationInitiator
   CalculateMultiplexedSessionCreationInitiator();
@@ -404,10 +411,6 @@ class HttpStreamPool::AttemptManager
   // Calculates the maximum streams counts requested by preconnects.
   size_t CalculateMaxPreconnectCount() const;
 
-  // Calculates the number of TCP based attempts required to satisfy
-  // preconnects.
-  size_t CalculateRequiredTcpBasedAttemptForPreconnect() const;
-
   // Returns the number of TCP based attempt slots that are not considered as
   // slow.
   size_t NonSlowTcpBasedAttemptCount() const;
@@ -435,12 +438,10 @@ class HttpStreamPool::AttemptManager
   // Notifies all preconnects of completion.
   void NotifyPreconnectsComplete(int rv);
 
-  // Called after completion of a connection attempt to decrement stream
-  // counts in preconnect entries. Invokes the callback of an entry when the
-  // entry's stream counts is less than or equal to `active_stream_count`
-  // (i.e., `this` has enough streams).
-  void ProcessPreconnectsAfterAttemptComplete(int rv,
-                                              size_t active_stream_count);
+  // Called after completion of a TCP attempt to advance preconnect progress.
+  // Invokes the callback of an entry when its required number of attempt
+  // completions has been reached.
+  void ProcessPreconnectsAfterTcpAttemptComplete(int rv);
 
   // Notifies a job of preconnect completion.
   void NotifyJobOfPreconnectComplete(PreconnectJobs::iterator job_it, int rv);
@@ -530,7 +531,7 @@ class HttpStreamPool::AttemptManager
   // or not attempted.
   void MaybeMarkQuicBroken();
 
-  base::Value::Dict GetTcpBasedAttemptSlotsAsValue() const;
+  base::DictValue GetTcpBasedAttemptSlotsAsValue() const;
 
   // Returns true when this can complete.
   bool CanComplete() const;

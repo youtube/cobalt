@@ -139,15 +139,19 @@ void SetWorldReadablePermissions(const base::FilePath& path) {
 
 }  // namespace
 
+std::optional<base::FilePath> GetHistoryLogFilePath(UpdaterScope scope) {
+  return GetInstallDirectory(scope).transform([](const base::FilePath& path) {
+    return path.Append(FILE_PATH_LITERAL("updater_history.jsonl"));
+  });
+}
+
 void InitHistoryLogging(UpdaterScope updater_scope) {
   constexpr int kMaxFileSizeBytes = 1024 * 1024;  // 1 MiB.
-  std::optional<base::FilePath> log_dir = GetInstallDirectory(updater_scope);
-  VLOG_IF(1, !log_dir) << "Failed to get history event log file path. "
-                          "History event logging will be disabled.";
-  if (log_dir) {
-    InitHistoryLogging(
-        log_dir->Append(FILE_PATH_LITERAL("updater_history.jsonl")),
-        kMaxFileSizeBytes);
+  std::optional<base::FilePath> log_path = GetHistoryLogFilePath(updater_scope);
+  VLOG_IF(1, !log_path) << "Failed to get history event log file path. "
+                           "History event logging will be disabled.";
+  if (log_path) {
+    InitHistoryLogging(*log_path, kMaxFileSizeBytes);
   }
 }
 
@@ -194,7 +198,7 @@ const std::string& GetProcessToken() {
   return *process_token;
 }
 
-void WriteHistoryEvent(base::Value::Dict event) {
+void WriteHistoryEvent(base::DictValue event) {
   base::AutoLock lock(GetLoggingLock());
   if (!GetLogFile().IsValid()) {
     VLOG(1) << "Failed to write history event: logging not initialized";
@@ -228,11 +232,11 @@ void WriteHistoryEvent(base::Value::Dict event) {
           << (bound ? *bound : "INSTANT") << " event to the history log";
 }
 
-base::Value::Dict HistoryEventError::ToDict() const {
-  base::Value::Dict dict = base::Value::Dict()
-                               .Set("category", category)
-                               .Set("code", code)
-                               .Set("extracode1", extracode1);
+base::DictValue HistoryEventError::ToDict() const {
+  base::DictValue dict = base::DictValue()
+                             .Set("category", category)
+                             .Set("code", code)
+                             .Set("extracode1", extracode1);
   return dict;
 }
 
@@ -246,8 +250,8 @@ InstallStartEvent& InstallStartEvent::SetAppId(const std::string& app_id) {
   return *this;
 }
 
-std::optional<base::Value::Dict> InstallStartEvent::BuildInternal(
-    base::Value::Dict event) const {
+std::optional<base::DictValue> InstallStartEvent::BuildInternal(
+    base::DictValue event) const {
   if (app_id_.empty()) {
     VLOG(1) << "Failed to build InstallStartEvent, app_id is empty";
     return std::nullopt;
@@ -268,8 +272,8 @@ InstallEndEvent& InstallEndEvent::SetVersion(const std::string& version) {
   return *this;
 }
 
-std::optional<base::Value::Dict> InstallEndEvent::BuildInternal(
-    base::Value::Dict event) const {
+std::optional<base::DictValue> InstallEndEvent::BuildInternal(
+    base::DictValue event) const {
   event.Set("eventType", "INSTALL");
   event.Set("bound", "END");
   if (version_) {
@@ -301,8 +305,8 @@ UninstallStartEvent& UninstallStartEvent::SetReason(
   return *this;
 }
 
-std::optional<base::Value::Dict> UninstallStartEvent::BuildInternal(
-    base::Value::Dict event) const {
+std::optional<base::DictValue> UninstallStartEvent::BuildInternal(
+    base::DictValue event) const {
   if (app_id_.empty()) {
     VLOG(1) << "Failed to build UninstallStartEvent, app_id is empty";
     return std::nullopt;
@@ -328,8 +332,8 @@ UninstallEndEvent::UninstallEndEvent(UninstallEndEvent&&) = default;
 UninstallEndEvent& UninstallEndEvent::operator=(UninstallEndEvent&&) = default;
 UninstallEndEvent::~UninstallEndEvent() = default;
 
-std::optional<base::Value::Dict> UninstallEndEvent::BuildInternal(
-    base::Value::Dict event) const {
+std::optional<base::DictValue> UninstallEndEvent::BuildInternal(
+    base::DictValue event) const {
   event.Set("eventType", "UNINSTALL");
   event.Set("bound", "END");
   return event;
@@ -340,8 +344,8 @@ QualifyStartEvent::QualifyStartEvent(QualifyStartEvent&&) = default;
 QualifyStartEvent& QualifyStartEvent::operator=(QualifyStartEvent&&) = default;
 QualifyStartEvent::~QualifyStartEvent() = default;
 
-std::optional<base::Value::Dict> QualifyStartEvent::BuildInternal(
-    base::Value::Dict event) const {
+std::optional<base::DictValue> QualifyStartEvent::BuildInternal(
+    base::DictValue event) const {
   event.Set("eventType", "QUALIFY");
   event.Set("bound", "START");
   return event;
@@ -357,8 +361,8 @@ QualifyEndEvent& QualifyEndEvent::SetQualified(bool qualified) {
   return *this;
 }
 
-std::optional<base::Value::Dict> QualifyEndEvent::BuildInternal(
-    base::Value::Dict event) const {
+std::optional<base::DictValue> QualifyEndEvent::BuildInternal(
+    base::DictValue event) const {
   event.Set("eventType", "QUALIFY");
   event.Set("bound", "END");
   event.Set("qualified", qualified_);
@@ -371,8 +375,8 @@ ActivateStartEvent& ActivateStartEvent::operator=(ActivateStartEvent&&) =
     default;
 ActivateStartEvent::~ActivateStartEvent() = default;
 
-std::optional<base::Value::Dict> ActivateStartEvent::BuildInternal(
-    base::Value::Dict event) const {
+std::optional<base::DictValue> ActivateStartEvent::BuildInternal(
+    base::DictValue event) const {
   event.Set("eventType", "ACTIVATE");
   event.Set("bound", "START");
   return event;
@@ -388,8 +392,8 @@ ActivateEndEvent& ActivateEndEvent::SetActivated(bool activated) {
   return *this;
 }
 
-std::optional<base::Value::Dict> ActivateEndEvent::BuildInternal(
-    base::Value::Dict event) const {
+std::optional<base::DictValue> ActivateEndEvent::BuildInternal(
+    base::DictValue event) const {
   event.Set("eventType", "ACTIVATE");
   event.Set("bound", "END");
   event.Set("activated", activated_);
@@ -432,8 +436,8 @@ PersistedDataEvent& PersistedDataEvent::AddRegisteredApp(
   return *this;
 }
 
-std::optional<base::Value::Dict> PersistedDataEvent::BuildInternal(
-    base::Value::Dict event) const {
+std::optional<base::DictValue> PersistedDataEvent::BuildInternal(
+    base::DictValue event) const {
   event.Set("eventType", "PERSISTED_DATA");
   event.Set("bound", "INSTANT");
   event.Set("eulaRequired", eula_required_);
@@ -444,9 +448,9 @@ std::optional<base::Value::Dict> PersistedDataEvent::BuildInternal(
     event.Set("lastStarted", base::TimeToValue(*last_started_));
   }
   if (!registered_apps_.empty()) {
-    base::Value::List apps;
+    base::ListValue apps;
     for (const auto& app : registered_apps_) {
-      base::Value::Dict app_dict;
+      base::DictValue app_dict;
       app_dict.Set("appId", app.app_id);
       app_dict.Set("version", app.version);
       if (app.cohort) {
@@ -474,8 +478,8 @@ PostRequestStartEvent& PostRequestStartEvent::SetRequest(
   return *this;
 }
 
-std::optional<base::Value::Dict> PostRequestStartEvent::BuildInternal(
-    base::Value::Dict event) const {
+std::optional<base::DictValue> PostRequestStartEvent::BuildInternal(
+    base::DictValue event) const {
   if (request_.empty()) {
     VLOG(1) << "Failed to build PostRequestStartEvent, request is empty";
     return std::nullopt;
@@ -498,8 +502,8 @@ PostRequestEndEvent& PostRequestEndEvent::SetResponse(
   return *this;
 }
 
-std::optional<base::Value::Dict> PostRequestEndEvent::BuildInternal(
-    base::Value::Dict event) const {
+std::optional<base::DictValue> PostRequestEndEvent::BuildInternal(
+    base::DictValue event) const {
   event.Set("eventType", "POST_REQUEST");
   event.Set("bound", "END");
   if (response_) {
@@ -514,8 +518,8 @@ LoadPolicyStartEvent& LoadPolicyStartEvent::operator=(LoadPolicyStartEvent&&) =
     default;
 LoadPolicyStartEvent::~LoadPolicyStartEvent() = default;
 
-std::optional<base::Value::Dict> LoadPolicyStartEvent::BuildInternal(
-    base::Value::Dict event) const {
+std::optional<base::DictValue> LoadPolicyStartEvent::BuildInternal(
+    base::DictValue event) const {
   event.Set("eventType", "LOAD_POLICY");
   event.Set("bound", "START");
   return event;
@@ -528,13 +532,13 @@ LoadPolicyEndEvent& LoadPolicyEndEvent::operator=(LoadPolicyEndEvent&&) =
 LoadPolicyEndEvent::~LoadPolicyEndEvent() = default;
 
 LoadPolicyEndEvent& LoadPolicyEndEvent::SetPolicySet(
-    const base::Value::Dict& policy_set) {
+    const base::DictValue& policy_set) {
   policy_set_ = policy_set.Clone();
   return *this;
 }
 
-std::optional<base::Value::Dict> LoadPolicyEndEvent::BuildInternal(
-    base::Value::Dict event) const {
+std::optional<base::DictValue> LoadPolicyEndEvent::BuildInternal(
+    base::DictValue event) const {
   if (policy_set_.empty()) {
     VLOG(1) << "Failed to build LoadPolicyEvent, policy_set is empty";
     return std::nullopt;
@@ -561,8 +565,8 @@ UpdateStartEvent& UpdateStartEvent::SetPriority(
   return *this;
 }
 
-std::optional<base::Value::Dict> UpdateStartEvent::BuildInternal(
-    base::Value::Dict event) const {
+std::optional<base::DictValue> UpdateStartEvent::BuildInternal(
+    base::DictValue event) const {
   event.Set("eventType", "UPDATE");
   event.Set("bound", "START");
   if (app_id_) {
@@ -594,8 +598,8 @@ UpdateEndEvent& UpdateEndEvent::SetNextVersion(
   return *this;
 }
 
-std::optional<base::Value::Dict> UpdateEndEvent::BuildInternal(
-    base::Value::Dict event) const {
+std::optional<base::DictValue> UpdateEndEvent::BuildInternal(
+    base::DictValue event) const {
   event.Set("eventType", "UPDATE");
   event.Set("bound", "END");
   if (outcome_) {
@@ -668,8 +672,8 @@ UpdaterProcessStartEvent& UpdaterProcessStartEvent::SetParentPid(
   return *this;
 }
 
-std::optional<base::Value::Dict> UpdaterProcessStartEvent::BuildInternal(
-    base::Value::Dict event) const {
+std::optional<base::DictValue> UpdaterProcessStartEvent::BuildInternal(
+    base::DictValue event) const {
   event.Set("eventType", "UPDATER_PROCESS");
   event.Set("bound", "START");
   if (command_line_) {
@@ -714,8 +718,8 @@ UpdaterProcessEndEvent& UpdaterProcessEndEvent::SetExitCode(int exit_code) {
   return *this;
 }
 
-std::optional<base::Value::Dict> UpdaterProcessEndEvent::BuildInternal(
-    base::Value::Dict event) const {
+std::optional<base::DictValue> UpdaterProcessEndEvent::BuildInternal(
+    base::DictValue event) const {
   event.Set("eventType", "UPDATER_PROCESS");
   event.Set("bound", "END");
   if (exit_code_) {
@@ -742,8 +746,8 @@ AppCommandStartEvent& AppCommandStartEvent::SetCommandLine(
   return *this;
 }
 
-std::optional<base::Value::Dict> AppCommandStartEvent::BuildInternal(
-    base::Value::Dict event) const {
+std::optional<base::DictValue> AppCommandStartEvent::BuildInternal(
+    base::DictValue event) const {
   if (app_id_.empty()) {
     VLOG(1) << "Failed to build AppCommandStartEvent, app_id is empty";
     return std::nullopt;
@@ -773,8 +777,8 @@ AppCommandEndEvent& AppCommandEndEvent::SetOutput(const std::string& output) {
   return *this;
 }
 
-std::optional<base::Value::Dict> AppCommandEndEvent::BuildInternal(
-    base::Value::Dict event) const {
+std::optional<base::DictValue> AppCommandEndEvent::BuildInternal(
+    base::DictValue event) const {
   event.Set("eventType", "APP_COMMAND");
   event.Set("bound", "END");
   if (exit_code_) {

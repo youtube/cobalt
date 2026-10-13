@@ -439,20 +439,39 @@ PositionedFloat PositionFloat(UnpositionedFloat* unpositioned_float,
   }
 
   LayoutUnit minimum_space_shortage;
-  if (break_before_token || physical_fragment.GetBreakToken()) {
-    // Broke before or inside the float.
-    if (parent_space.HasKnownFragmentainerBlockSize() &&
-        parent_space.BlockFragmentationType() == kFragmentColumn) {
-      LayoutUnit fragmentainer_block_offset =
-          unpositioned_float->FragmentainerOffsetAtBfc() +
-          float_bfc_offset.block_offset;
-      minimum_space_shortage = CalculateSpaceShortage(
-          parent_space, layout_result, fragmentainer_block_offset,
-          fragmentainer_block_size);
+  LayoutUnit tallest_unbreakable_block_size;
+  if (parent_space.HasBlockFragmentation() &&
+      parent_space.BlockFragmentationType() == kFragmentColumn) {
+    LayoutUnit fragmentainer_block_offset =
+        unpositioned_float->FragmentainerOffsetAtBfc() +
+        float_bfc_offset.block_offset;
+
+    if (parent_space.HasKnownFragmentainerBlockSize()) {
+      if (break_before_token || physical_fragment.GetBreakToken()) {
+        // Broke before or inside the float. Figure out how much more space we
+        // would need to prevent that.
+        minimum_space_shortage = CalculateSpaceShortage(
+            parent_space, layout_result, fragmentainer_block_offset,
+            fragmentainer_block_size);
+      }
+    } else if (ShouldAvoidBreakInside(parent_space, *layout_result)) {
+      // Make sure the columns become at least as tall as the largest piece of
+      // unbreakable content. Keep in mind that margins are an unbreakble part
+      // of a float. Subtract block-start margin from the fragmentainer offset,
+      // so that we don't make room for the the parts that end up before the
+      // fragmentainer start.
+      DCHECK(parent_space.IsInitialColumnBalancingPass());
+      PhysicalBoxStrut margins = physical_fragment.Margins();
+      BoxStrut logical_margins =
+          margins.ConvertToLogical(parent_space.GetWritingDirection());
+      tallest_unbreakable_block_size = CalculateUnbreakableBlockSize(
+          parent_space, *layout_result,
+          fragmentainer_block_offset - logical_margins.block_start);
     }
   }
 
   return PositionedFloat(layout_result, break_before_token, float_bfc_offset,
+                         tallest_unbreakable_block_size,
                          minimum_space_shortage);
 }
 

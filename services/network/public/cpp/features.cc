@@ -246,6 +246,13 @@ BASE_FEATURE_PARAM(bool,
 BASE_FEATURE(kLocalNetworkAccessChecksWebRTC,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Enables the Network Service to use an existing Mojo data pipe producer
+// handle for the response body, instead of creating its own. This is primarily
+// used for ServiceWorkerSyntheticResponse to achieve zero-copy data transfer.
+// crbug.com/352578800 for more details.
+BASE_FEATURE(kURLLoaderUseProvidedResponseBodyStream,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // If true, local network access checks will only apply for loopback addresses.
 BASE_FEATURE_PARAM(bool,
                    kLocalNetworkAccessChecksWebRTCLoopbackOnly,
@@ -373,19 +380,9 @@ BASE_FEATURE_PARAM(bool,
                    /*name=*/"SkipTpcdMitigationsForAdsTopLevelTrial",
                    /*default_value=*/false);
 
-// Avoids copying ResourceRequest when possible.
-BASE_FEATURE(kAvoidResourceRequestCopies, base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Enables Document-Isolation-Policy (DIP).
 // https://github.com/WICG/document-isolation-policy
-BASE_FEATURE(kDocumentIsolationPolicy,
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS) || \
-    BUILDFLAG(IS_LINUX)
-             base::FEATURE_ENABLED_BY_DEFAULT
-#else
-             base::FEATURE_DISABLED_BY_DEFAULT
-#endif
-);
+BASE_FEATURE(kDocumentIsolationPolicy, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kConnectionAllowlists, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -416,20 +413,16 @@ BASE_FEATURE(kAdInterestGroupAPIRestrictedPolicyByDefault,
 // Enables unload handler deprecation via Permissions-Policy.
 // https://crbug.com/1324111
 BASE_FEATURE(kDeprecateUnload, base::FEATURE_DISABLED_BY_DEFAULT);
-// If < 100, each user experiences the deprecation on this % of origins.
-// Which origins varies per user.
+// If < 100, each user experiences the deprecation on this % of origins. Which
+// origins varies by which bucket the user is in. This parameter only takes
+// effect if DeprecateUnloadByBucket is enabled. They are are separated so that
+// the bucketing can be applied too all users in a separate study (more details
+// below).
 BASE_FEATURE_PARAM(int,
                    kDeprecateUnloadPercent,
                    &kDeprecateUnload,
                    "rollout_percent",
                    100);
-// This buckets users, with users in each bucket having a consistent experience
-// of the unload deprecation rollout.
-BASE_FEATURE_PARAM(int,
-                   kDeprecateUnloadBucket,
-                   &kDeprecateUnload,
-                   "rollout_bucket",
-                   0);
 
 // Only used if `kDeprecateUnload` is enabled. The deprecation will only apply
 // if the host is on the allow-list.
@@ -441,6 +434,23 @@ BASE_FEATURE_PARAM(std::string,
                    &kDeprecateUnloadByAllowList,
                    "allowlist",
                    "");
+
+// Only used if `kDeprecateUnload` is enabled. The deprecation will only apply
+// if the host+bucket hash below `kDeprecateUnloadPercent` above.
+// It's attached to a separate flag so that we can have a study with 100 groups,
+// assigning a bucket to every user and leave that as a static assignment, using
+// another study to control what fraction of users experience a specific value
+// of `kDeprecateUnloadPercent`. Doing both in one study greatly complicates the
+// study because we must deal in 100 1% groups.
+BASE_FEATURE(kDeprecateUnloadByBucket, base::FEATURE_DISABLED_BY_DEFAULT);
+// This buckets users, with users in each bucket having a consistent experience
+// of the unload deprecation rollout.
+BASE_FEATURE_PARAM(int,
+                   kDeprecateUnloadBucket,
+                   &kDeprecateUnloadByBucket,
+                   "rollout_bucket",
+                   0);
+
 // When enabled, a `Sec-Fetch-Frame-Top` header will be emitted on
 // outgoing requests.
 BASE_FEATURE(kFrameTopHeader, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -585,17 +595,10 @@ BASE_FEATURE(kCSPScriptSrcHashesInV1,
              "ScriptSrcHashesV1",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kCacheSharingForPervasiveScripts,
+BASE_FEATURE(kCacheSharingForPervasiveResources,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kSendSameSiteLaxForFedCM, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// This is a newline-delimited list of pervasive script URL Patterns.
-BASE_FEATURE_PARAM(std::string,
-                   kPervasiveScriptURLPatterns,
-                   &kCacheSharingForPervasiveScripts,
-                   /*name=*/"url_patterns",
-                   /*default_value=*/"");
 
 BASE_FEATURE(kSharedDictionaryCache, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE_PARAM(size_t,
@@ -626,6 +629,22 @@ BASE_FEATURE(kNetworkServicePerPriorityTaskQueues,
 
 BASE_FEATURE(kUseUnexportableKeyServiceInBrowserProcess,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kServiceWorkerSyntheticResponseHeaderCheck,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(
+    std::string,
+    kServiceWorkerSyntheticResponseIgnoredHeaders,
+    &kServiceWorkerSyntheticResponseHeaderCheck,
+    /*name=*/"ignored_headers",
+    /*default_value=*/"date,alt-svc,p3p,strict-transport-security");
+
+BASE_FEATURE_PARAM(bool,
+                   kServiceWorkerSyntheticResponseReportInconsistentHeader,
+                   &kServiceWorkerSyntheticResponseHeaderCheck,
+                   /*name=*/"report_inconsistent_header",
+                   /*default_value=*/false);
 
 #if BUILDFLAG(IS_COBALT)
 BASE_FEATURE(kCobaltDynamicMojoPipeSizing,

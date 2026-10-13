@@ -48,6 +48,9 @@ namespace tabs {
 
 namespace {
 
+// Represents INVALID_COLOR_ID from TabGroupColorUtils.java.
+constexpr int kInvalidTabGroupColorId = -1;
+
 constexpr int kInvalidTabIndex = -1;
 
 // Converts the `tab_android` to a `unique_ptr<TabInterface>`. Under the hood we
@@ -283,9 +286,8 @@ int TabCollectionTabModelImpl::MoveTabGroupTo(JNIEnv* env,
     tab_indices.push_back(base::checked_cast<int>(i));
   }
 
-  const std::set<tabs::TabCollection::Type> kRetainCollectionTypes =
-      std::set<tabs::TabCollection::Type>(
-          {tabs::TabCollection::Type::SPLIT, tabs::TabCollection::Type::GROUP});
+  static constexpr TabCollection::TypeEnumSet kRetainCollectionTypes{
+      tabs::TabCollection::Type::SPLIT, tabs::TabCollection::Type::GROUP};
 
   tab_strip_collection_->MoveTabsRecursive(
       tab_indices, static_cast<size_t>(to_index),
@@ -316,24 +318,36 @@ void TabCollectionTabModelImpl::UpdateTabGroupVisualData(
 std::u16string TabCollectionTabModelImpl::GetTabGroupTitle(
     JNIEnv* env,
     const base::Token& tab_group_id) {
-  const TabGroupVisualData* visual_data = GetTabGroupVisualDataChecked(
-      TabGroupId::FromRawToken(tab_group_id), /*allow_detached=*/true);
+  auto group_id = TabGroupId::FromRawToken(tab_group_id);
+  if (!HasTabGroup(group_id)) {
+    return std::u16string();
+  }
+  const TabGroupVisualData* visual_data =
+      GetTabGroupVisualDataChecked(group_id, /*allow_detached=*/true);
   return visual_data->title();
 }
 
 int32_t TabCollectionTabModelImpl::GetTabGroupColor(
     JNIEnv* env,
     const base::Token& tab_group_id) {
-  const TabGroupVisualData* visual_data = GetTabGroupVisualDataChecked(
-      TabGroupId::FromRawToken(tab_group_id), /*allow_detached=*/true);
+  auto group_id = TabGroupId::FromRawToken(tab_group_id);
+  if (!HasTabGroup(group_id)) {
+    return kInvalidTabGroupColorId;
+  }
+  const TabGroupVisualData* visual_data =
+      GetTabGroupVisualDataChecked(group_id, /*allow_detached=*/true);
   return static_cast<int32_t>(visual_data->color());
 }
 
 bool TabCollectionTabModelImpl::GetTabGroupCollapsed(
     JNIEnv* env,
     const base::Token& tab_group_id) {
-  const TabGroupVisualData* visual_data = GetTabGroupVisualDataChecked(
-      TabGroupId::FromRawToken(tab_group_id), /*allow_detached=*/true);
+  auto group_id = TabGroupId::FromRawToken(tab_group_id);
+  if (!HasTabGroup(group_id)) {
+    return false;
+  }
+  const TabGroupVisualData* visual_data =
+      GetTabGroupVisualDataChecked(group_id, /*allow_detached=*/true);
   return visual_data->is_collapsed();
 }
 
@@ -587,7 +601,12 @@ TabCollectionTabModelImpl::GetTabGroupVisualDataChecked(
   return visual_data;
 }
 
-static jlong JNI_TabCollectionTabModelImpl_Init(
+bool TabCollectionTabModelImpl::HasTabGroup(const TabGroupId& group_id) const {
+  return tab_strip_collection_->GetTabGroupCollection(group_id) ||
+         tab_strip_collection_->GetDetachedTabGroup(group_id);
+}
+
+static int64_t JNI_TabCollectionTabModelImpl_Init(
     JNIEnv* env,
     const JavaRef<jobject>& j_java_object,
     Profile* profile) {

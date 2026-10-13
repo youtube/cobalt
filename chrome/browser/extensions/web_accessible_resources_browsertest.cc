@@ -580,6 +580,40 @@ IN_PROC_BROWSER_TEST_F(WebAccessibleResourcesBrowserTest, DNRRedirect) {
   EXPECT_EQ("dnr redirect success", result.ExtractString());
 }
 
+// Succeed when DNR redirects a script to a WAR where the redirect URL contains
+// both a query and a ref.
+// Regression test for crbug.com/461824106.
+IN_PROC_BROWSER_TEST_F(WebAccessibleResourcesBrowserTest,
+                       DNRRedirectWithQueryAndRef) {
+  auto file_path = test_data_dir_.AppendASCII(
+      "web_accessible_resources/dnr/redirect_query_and_ref");
+  const Extension* extension = LoadExtension(file_path);
+  ASSERT_TRUE(extension);
+
+  // Navigate to a non-extension page (main frame).
+  content::WebContents* web_contents = GetActiveWebContents();
+  GURL url =
+      embedded_test_server()->GetURL("example.com", "/simple_with_script.html");
+  GURL expected_commit_url = extension->url().Resolve("ok.html?foo=bar#baz");
+
+  // Track the navigation event and allow us to wait for it to complete.
+  content::TestNavigationObserver navigation_observer(web_contents);
+
+  // Start the navigation to the initial URL.
+  ASSERT_TRUE(content::NavigateToURL(web_contents, url, expected_commit_url));
+
+  // Wait for the navigation.
+  navigation_observer.WaitForNavigationFinished();
+
+  // Ensure the navigation was successful and check the final redirected URL.
+  EXPECT_EQ(navigation_observer.last_net_error_code(), net::Error::OK);
+  EXPECT_EQ(expected_commit_url, web_contents->GetLastCommittedURL());
+
+  // Verify that the body content of the main frame changes due to DNR redirect.
+  auto result = EvalJs(web_contents, "document.body.textContent");
+  EXPECT_EQ("ok\n", result.ExtractString());
+}
+
 class WebAccessibleResourcesServiceWorkerBrowserTest
     : public WebAccessibleResourcesBrowserTest {
  public:
@@ -884,6 +918,11 @@ class DynamicOriginBrowserTest : public ExtensionBrowserTest {
     InstallExtension();
   }
 
+  void TearDownOnMainThread() override {
+    extension_ = nullptr;
+    ExtensionBrowserTest::TearDownOnMainThread();
+  }
+
  protected:
   const Extension* GetExtension() { return extension_; }
 
@@ -911,7 +950,7 @@ class DynamicOriginBrowserTest : public ExtensionBrowserTest {
     DCHECK(extension_);
   }
 
-  raw_ptr<const Extension, DanglingUntriaged> extension_ = nullptr;
+  raw_ptr<const Extension> extension_ = nullptr;
   TestExtensionDir dir_;
 };
 

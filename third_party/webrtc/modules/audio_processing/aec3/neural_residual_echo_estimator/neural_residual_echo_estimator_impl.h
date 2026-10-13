@@ -51,6 +51,7 @@ class NeuralResidualEchoEstimatorImpl : public NeuralResidualEchoEstimator {
         FeatureExtractor::ModelOutputEnum output_enum) = 0;
     virtual const audioproc::ReeModelMetadata& GetMetadata() const = 0;
     virtual bool Invoke() = 0;
+    virtual void Reset() = 0;
   };
 
   // Loads a model into a ModelRunner and creates a NeuralResidualEchoEstimator
@@ -80,6 +81,8 @@ class NeuralResidualEchoEstimatorImpl : public NeuralResidualEchoEstimator {
       ArrayView<std::array<float, kFftLengthBy2Plus1>> R2_unbounded) override;
 
   EchoCanceller3Config GetConfiguration(bool multi_channel) const override;
+
+  void Reset() override;
 
  private:
   void DumpInputs(const Block& render,

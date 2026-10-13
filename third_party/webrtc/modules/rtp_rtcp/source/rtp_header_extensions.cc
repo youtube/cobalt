@@ -602,7 +602,7 @@ bool ColorSpaceExtension::Parse(ArrayView<const uint8_t> data,
     color_space->set_hdr_metadata(nullptr);
   } else {
     HdrMetadata hdr_metadata;
-    offset += ParseHdrMetadata(data.subview(offset), &hdr_metadata);
+    offset += ParseHdrMetadata(data.subspan(offset), &hdr_metadata);
     if (!hdr_metadata.Validate())
       return false;
     color_space->set_hdr_metadata(&hdr_metadata);
@@ -626,7 +626,7 @@ bool ColorSpaceExtension::Write(ArrayView<uint8_t> data,
   // Write HDR metadata if it exists.
   if (color_space.hdr_metadata()) {
     offset +=
-        WriteHdrMetadata(data.subview(offset), *color_space.hdr_metadata());
+        WriteHdrMetadata(data.subspan(offset), *color_space.hdr_metadata());
   }
   RTC_DCHECK_EQ(ValueSize(color_space), offset);
   return true;

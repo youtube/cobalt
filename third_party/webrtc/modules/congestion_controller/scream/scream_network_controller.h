@@ -60,7 +60,9 @@ class ScreamNetworkController : public NetworkControllerInterface {
   bool network_available_ = false;
   TimeDelta current_pacing_window_;
   std::optional<ScreamV2> scream_;
-  TargetRateConstraints target_rate_constraints_;
+  DataRate min_target_rate_;
+  DataRate max_target_rate_;
+  DataRate starting_rate_;
   std::optional<DataRate> remote_bitrate_report_;
   StreamsConfig streams_config_;
   DataRate max_seen_total_allocated_bitrate_ = DataRate::Zero();

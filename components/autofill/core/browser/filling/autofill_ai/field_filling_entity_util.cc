@@ -285,31 +285,23 @@ std::u16string GetFillValueForEntity(
   return should_obfuscate ? GetObfuscatedValue(fill_value) : fill_value;
 }
 
-bool ShouldReauthBeforeFilling(
-    const EntityInstance& entity,
-    base::span<const AutofillFieldWithAttributeType> fields,
-    const std::string& app_locale,
-    const PrefService& prefs) {
+bool WillFillSensitiveAttributes(const EntityInstance& entity,
+                                 const FormStructure& form,
+                                 const Section& section,
+                                 std::string_view app_locale) {
   return std::ranges::any_of(
-      fields, [&](const AutofillFieldWithAttributeType& f) {
-        return ShouldFieldBeObfuscated(entity, f, app_locale, prefs);
+      RationalizeAndDetermineAttributeTypes(form.fields(), section,
+                                            entity.type()),
+      [&entity, app_locale](const AutofillFieldWithAttributeType& f) {
+        base::optional_ref<const AttributeInstance> attribute =
+            entity.attribute(f.type);
+        return entity.type() == f.type.entity_type() && attribute &&
+               attribute->type().is_obfuscated() &&
+               !attribute
+                    ->GetInfo(f.field->Type().GetAutofillAiType(entity.type()),
+                              app_locale, f.field->format_string())
+                    .empty();
       });
-}
-
-bool ShouldFieldBeObfuscated(const EntityInstance& entity,
-                             const AutofillFieldWithAttributeType& f,
-                             const std::string& app_locale,
-                             const PrefService& prefs) {
-  base::optional_ref<const AttributeInstance> attribute =
-      entity.attribute(f.type);
-  return prefs::IsAutofillAiReauthBeforeFillingEnabled(&prefs) &&
-         entity.type() == f.type.entity_type() && attribute &&
-         attribute->type().is_obfuscated() &&
-         !attribute
-              ->GetInfo(f.field->Type().GetAutofillAiType(entity.type()),
-                        app_locale, f.field->format_string())
-              .empty() &&
-         base::FeatureList::IsEnabled(features::kAutofillAiReauthRequired);
 }
 
 }  // namespace autofill

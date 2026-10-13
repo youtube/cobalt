@@ -7,7 +7,7 @@
 #import "base/apple/foundation_util.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/net/model/crurl.h"
-#import "ios/chrome/browser/settings/ui_bundled/bwg/coordinator/bwg_settings_mutator.h"
+#import "ios/chrome/browser/settings/ui_bundled/bwg/coordinator/gemini_settings_mutator.h"
 #import "ios/chrome/browser/settings/ui_bundled/bwg/model/gemini_dynamic_settings_item.h"
 #import "ios/chrome/browser/settings/ui_bundled/bwg/model/gemini_settings_action.h"
 #import "ios/chrome/browser/settings/ui_bundled/bwg/model/gemini_settings_action_type.h"
@@ -32,7 +32,7 @@
 
 namespace {
 
-// Section identifiers in the BWG settings table view.
+// Section identifiers in the Gemini settings table view.
 typedef NS_ENUM(NSInteger, SectionIdentifier) {
   SectionIdentifierLocation = kSectionIdentifierEnumZero,
   SectionIdentifierCamera,
@@ -284,7 +284,7 @@ NSString* const kPageContentSharingAction = @"PageContentSharingAction";
   return headerFooterItem;
 }
 
-// Creates the BWG app activity item.
+// Creates the Gemini app activity item.
 - (TableViewDetailTextItem*)BWGAppActivityItem {
   TableViewDetailTextItem* BWGAppActivityItem =
       [[TableViewDetailTextItem alloc] initWithType:ItemTypeAppActivity];
@@ -296,7 +296,7 @@ NSString* const kPageContentSharingAction = @"PageContentSharingAction";
   return BWGAppActivityItem;
 }
 
-// Creates the BWG extensions item.
+// Creates the Gemini extensions item.
 - (TableViewDetailTextItem*)BWGExtensionsItem {
   TableViewDetailTextItem* BWGExtensionsItem =
       [[TableViewDetailTextItem alloc] initWithType:ItemTypeExtensions];
@@ -422,7 +422,7 @@ NSString* const kPageContentSharingAction = @"PageContentSharingAction";
   [self.mutator openNewTabWithURL:URL.gurl];
 }
 
-#pragma mark - BWGSettingsConsumer
+#pragma mark - GeminiSettingsConsumer
 
 - (void)setPreciseLocationEnabled:(BOOL)enabled {
   _preciseLocationEnabled = enabled;

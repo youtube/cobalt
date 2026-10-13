@@ -24,6 +24,7 @@
 #include "src/wasm/object-access.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-opcodes-inl.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -3669,6 +3670,27 @@ class Handlers : public HandlersBase {
               reinterpret_cast<Address>(sp + to)),
           base::ReadUnalignedValue<uint64_t>(
               reinterpret_cast<Address>(sp + to + sizeof(uint64_t))));
+    }
+#endif  // V8_ENABLE_DRUMBRAKE_TRACING
+
+    NextOp();
+  }
+
+  INSTRUCTION_HANDLER_FUNC s2s_PreserveCopySlotRef(
+      const uint8_t* code, uint32_t* sp, WasmInterpreterRuntime* wasm_runtime,
+      int64_t r0, double fp0) {
+    uint32_t from = Read<int32_t>(code);
+    uint32_t to = Read<int32_t>(code);
+    uint32_t preserve = Read<int32_t>(code);
+
+    // Preserve the old value at 'to' into 'preserve'.
+    wasm_runtime->StoreWasmRef(preserve, wasm_runtime->ExtractWasmRef(to));
+    wasm_runtime->StoreWasmRef(to, wasm_runtime->ExtractWasmRef(from));
+
+#ifdef V8_ENABLE_DRUMBRAKE_TRACING
+    if (v8_flags.trace_drumbrake_execution &&
+        v8_flags.trace_drumbrake_execution_verbose) {
+      wasm_runtime->Trace("PRESERVECOPYSLOTREF %d %d %d\n", from, to, preserve);
     }
 #endif  // V8_ENABLE_DRUMBRAKE_TRACING
 
@@ -7480,7 +7502,6 @@ bool WasmBytecodeGenerator::FindSharedSlot(uint32_t stack_index,
                                            uint32_t* new_slot_index) {
   *new_slot_index = UINT_MAX;
   ValueType value_type = slots_[stack_[stack_index]].value_type;
-  if (value_type.is_ref()) return false;
 
   // Only consider stack entries added in the current block.
   // We don't need to consider ancestor blocks because if a block has a
@@ -7671,6 +7692,9 @@ void WasmBytecodeGenerator::CopyToSlot(ValueType value_type,
           break;
         case kRef:
         case kRefNull:
+          DCHECK(!copy_from_reg);
+          EMIT_INSTR_HANDLER(s2s_PreserveCopySlotRef);
+          break;
         default:
           UNREACHABLE();
       }
@@ -7916,28 +7940,95 @@ void WasmBytecodeGenerator::RestoreIfElseParams(uint32_t if_block_index) {
   }
 }
 
-uint32_t WasmBytecodeGenerator::ScanConstInstructions() const {
-  Decoder decoder(wasm_code_->start, wasm_code_->end);
-  uint32_t const_slots_size = 0;
-  pc_t pc = wasm_code_->locals.encoded_size;
-  pc_t limit = wasm_code_->end - wasm_code_->start;
-  while (pc < limit) {
-    uint32_t opcode = wasm_code_->start[pc];
-    if (opcode == kExprI32Const || opcode == kExprF32Const) {
-      const_slots_size += sizeof(uint32_t) / kSlotSize;
-    } else if (opcode == kExprI64Const || opcode == kExprF64Const) {
-      const_slots_size += sizeof(uint64_t) / kSlotSize;
-    } else if (opcode == kSimdPrefix) {
-      auto [opcode_index, opcode_len] =
-          decoder.read_u32v<Decoder::FullValidationTag>(
-              wasm_code_->start + pc + 1, "prefixed opcode index");
-      opcode = (kSimdPrefix << 8) | opcode_index;
-      if (opcode == kExprS128Const || opcode == kExprI8x16Shuffle) {
-        const_slots_size += sizeof(Simd128) / kSlotSize;
+uint32_t WasmBytecodeGenerator::ScanConstInstructions() {
+  // Create a WasmDecoder for proper instruction length decoding.
+  // We use NoValidation since the code has already been validated.
+  AccountingAllocator allocator;
+  Zone zone(&allocator, "const-scan");
+  WasmDetectedFeatures detected;
+  const FunctionSig* sig = wasm_code_->function->sig;
+  WasmDecoder<Decoder::NoValidationTag> decoder(
+      &zone, module_, WasmEnabledFeatures::All(), &detected, sig,
+      false,  // is_shared
+      wasm_code_->start, wasm_code_->end);
+
+  const uint8_t* pc = wasm_code_->start + wasm_code_->locals.encoded_size;
+  const uint8_t* end = wasm_code_->end;
+
+  // Use the cache maps for deduplication. We populate them here during
+  // scanning with UINT_MAX as placeholder slot index. During codegen,
+  // CreateConstSlot will update with the actual slot index. This ensures
+  // we only count unique constants.
+
+  while (pc < end) {
+    WasmOpcode opcode = static_cast<WasmOpcode>(*pc);
+    switch (opcode) {
+      case kExprI32Const: {
+        ImmI32Immediate imm(&decoder, pc + 1, Decoder::kNoValidation);
+        i32_const_cache_.insert({imm.value, UINT_MAX});
+        pc += 1 + imm.length;
+        break;
+      }
+      case kExprI64Const: {
+        ImmI64Immediate imm(&decoder, pc + 1, Decoder::kNoValidation);
+        i64_const_cache_.insert({imm.value, UINT_MAX});
+        pc += 1 + imm.length;
+        break;
+      }
+      case kExprF32Const: {
+        ImmF32Immediate imm(&decoder, pc + 1, Decoder::kNoValidation);
+        f32_const_cache_.insert(
+            {base::bit_cast<uint32_t>(imm.value), UINT_MAX});
+        pc += 1 + imm.length;
+        break;
+      }
+      case kExprF64Const: {
+        ImmF64Immediate imm(&decoder, pc + 1, Decoder::kNoValidation);
+        f64_const_cache_.insert(
+            {base::bit_cast<uint64_t>(imm.value), UINT_MAX});
+        pc += 1 + imm.length;
+        break;
+      }
+      case kSimdPrefix: {
+        // Check for SIMD const instructions
+        auto [simd_opcode, opcode_length] =
+            decoder.read_prefixed_opcode<Decoder::NoValidationTag>(pc);
+        if (simd_opcode == kExprS128Const || simd_opcode == kExprI8x16Shuffle) {
+          Simd128Immediate imm(&decoder, pc + opcode_length,
+                               Decoder::kNoValidation);
+          s128_const_cache_.insert({Simd128(imm.value), UINT_MAX});
+        }
+        pc += WasmDecoder<Decoder::NoValidationTag>::OpcodeLength(&decoder, pc);
+        break;
+      }
+      default: {
+        pc += WasmDecoder<Decoder::NoValidationTag>::OpcodeLength(&decoder, pc);
+        break;
       }
     }
-    pc++;
   }
+
+  // Calculate total slots needed based on unique constants found
+  uint32_t const_slots_size = 0;
+  const_slots_size += static_cast<uint32_t>(i32_const_cache_.size()) *
+                      (sizeof(int32_t) / kSlotSize);
+  const_slots_size += static_cast<uint32_t>(i64_const_cache_.size()) *
+                      (sizeof(int64_t) / kSlotSize);
+  const_slots_size += static_cast<uint32_t>(f32_const_cache_.size()) *
+                      (sizeof(float) / kSlotSize);
+  const_slots_size += static_cast<uint32_t>(f64_const_cache_.size()) *
+                      (sizeof(double) / kSlotSize);
+  const_slots_size += static_cast<uint32_t>(s128_const_cache_.size()) *
+                      (sizeof(Simd128) / kSlotSize);
+
+  // Clear caches. They will be repopulated during codegen with actual slot
+  // indices.
+  i32_const_cache_.clear();
+  i64_const_cache_.clear();
+  f32_const_cache_.clear();
+  f64_const_cache_.clear();
+  s128_const_cache_.clear();
+
   return const_slots_size;
 }
 

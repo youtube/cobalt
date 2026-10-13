@@ -168,11 +168,10 @@ public class FullscreenSigninPromoLauncherTest {
                 .thenReturn(mSigninIntent);
 
         Assert.assertTrue(
-                FullscreenSigninPromoLauncher.launchPromoIfNeeded(
-                        mContext, mProfile, mFullscreenSigninLauncherMock, CURRENT_MAJOR_VERSION));
+                FullscreenSigninPromoLauncher.launchPromoIfForced(
+                        mContext, mProfile, mFullscreenSigninLauncherMock));
 
         verify(mContext).startActivity(mSigninIntent);
-        assertSigninPromoNextShowTimeInRange();
     }
 
     @Test
@@ -188,11 +187,10 @@ public class FullscreenSigninPromoLauncherTest {
                 .thenReturn(mSigninIntent);
 
         Assert.assertTrue(
-                FullscreenSigninPromoLauncher.launchPromoIfNeeded(
-                        mContext, mProfile, mFullscreenSigninLauncherMock, CURRENT_MAJOR_VERSION));
+                FullscreenSigninPromoLauncher.launchPromoIfForced(
+                        mContext, mProfile, mFullscreenSigninLauncherMock));
 
         verify(mContext).startActivity(mSigninIntent);
-        assertSigninPromoNextShowTimeInRange();
     }
 
     @Test
@@ -242,9 +240,6 @@ public class FullscreenSigninPromoLauncherTest {
     @Test
     public void whenNoAccountListStoredShouldReturnTrue() {
         mAccountManagerTestRule.addAccount(TestAccounts.ACCOUNT1);
-        when(mIdentityManagerMock.findExtendedAccountInfoByEmailAddress(
-                        TestAccounts.ACCOUNT1.getEmail()))
-                .thenReturn(TestAccounts.ACCOUNT1);
         when(mFullscreenSigninLauncherMock.createFullscreenSigninIntent(
                         eq(mContext),
                         eq(mProfile),
@@ -269,9 +264,6 @@ public class FullscreenSigninPromoLauncherTest {
     public void whenNoAccountListStoredOnAutoShouldReturnFalse() {
         mAutomotiveContextWrapperTestRule.setIsAutomotive(true);
         mAccountManagerTestRule.addAccount(TestAccounts.ACCOUNT1);
-        when(mIdentityManagerMock.findExtendedAccountInfoByEmailAddress(
-                        TestAccounts.ACCOUNT1.getEmail()))
-                .thenReturn(TestAccounts.ACCOUNT1);
         mPrefManager.setSigninPromoNextShowTime(mTimeInPast);
 
         Assert.assertFalse(
@@ -291,9 +283,6 @@ public class FullscreenSigninPromoLauncherTest {
     @Test
     public void whenHasNewAccountShouldReturnTrue() {
         mAccountManagerTestRule.addAccount(TestAccounts.AADC_ADULT_ACCOUNT);
-        when(mIdentityManagerMock.findExtendedAccountInfoByEmailAddress(
-                        TestAccounts.AADC_ADULT_ACCOUNT.getEmail()))
-                .thenReturn(TestAccounts.AADC_ADULT_ACCOUNT);
         mAccountManagerTestRule.addAccount(TestAccounts.ACCOUNT2);
         when(mFullscreenSigninLauncherMock.createFullscreenSigninIntent(
                         eq(mContext),
@@ -317,9 +306,6 @@ public class FullscreenSigninPromoLauncherTest {
     public void whenHasNewAccountOnAutoShouldReturnFalse() {
         mAutomotiveContextWrapperTestRule.setIsAutomotive(true);
         mAccountManagerTestRule.addAccount(TestAccounts.AADC_ADULT_ACCOUNT);
-        when(mIdentityManagerMock.findExtendedAccountInfoByEmailAddress(
-                        TestAccounts.AADC_ADULT_ACCOUNT.getEmail()))
-                .thenReturn(TestAccounts.AADC_ADULT_ACCOUNT);
         mAccountManagerTestRule.addAccount(TestAccounts.ACCOUNT2);
         mPrefManager.setSigninPromoNextShowTime(mTimeInPast);
         mPrefManager.setSigninPromoLastAccountEmails(Set.of(TestAccounts.ACCOUNT1.getEmail()));

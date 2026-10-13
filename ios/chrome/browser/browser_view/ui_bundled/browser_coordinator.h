@@ -8,6 +8,7 @@
 #include "base/ios/block_types.h"
 #import "ios/chrome/browser/shared/coordinator/chrome_coordinator/chrome_coordinator.h"
 
+@class BrowserLayoutViewController;
 @class BrowserViewController;
 
 // Coordinator for BrowserViewController.
@@ -16,12 +17,12 @@
 // The main view controller.
 @property(nonatomic, strong, readonly) BrowserViewController* viewController;
 
+// The layout view controller managed by this coordinator.
+@property(nonatomic, strong, readonly)
+    BrowserLayoutViewController* browserLayoutViewController;
+
 // Returns whether or not text to speech is playing.
 @property(nonatomic, assign, readonly, getter=isPlayingTTS) BOOL playingTTS;
-
-// Clears any presented state on BVC.
-- (void)clearPresentedStateWithCompletion:(ProceduralBlock)completion
-                           dismissOmnibox:(BOOL)dismissOmnibox;
 
 @end
 

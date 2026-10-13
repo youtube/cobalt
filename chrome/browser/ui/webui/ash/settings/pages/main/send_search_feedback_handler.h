@@ -5,12 +5,12 @@
 #ifndef CHROME_BROWSER_UI_WEBUI_ASH_SETTINGS_PAGES_MAIN_SEND_SEARCH_FEEDBACK_HANDLER_H_
 #define CHROME_BROWSER_UI_WEBUI_ASH_SETTINGS_PAGES_MAIN_SEND_SEARCH_FEEDBACK_HANDLER_H_
 
-#include "chrome/browser/ui/webui/settings/settings_page_ui_handler.h"
+#include "content/public/browser/web_ui_message_handler.h"
 
 namespace ash::settings {
 
 // WebUI message handler for os settings send search feedback.
-class SendSearchFeedbackHandler : public ::settings::SettingsPageUIHandler {
+class SendSearchFeedbackHandler : public content::WebUIMessageHandler {
  public:
   SendSearchFeedbackHandler();
 
@@ -35,7 +35,7 @@ class SendSearchFeedbackHandler : public ::settings::SettingsPageUIHandler {
 
   // Opens the feedback dialog.
   // |args| contains a description template.
-  virtual void HandleOpenFeedbackDialog(const base::Value::List& args);
+  virtual void HandleOpenFeedbackDialog(const base::ListValue& args);
 };
 
 }  // namespace ash::settings

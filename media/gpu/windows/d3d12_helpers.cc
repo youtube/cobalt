@@ -14,6 +14,25 @@
 
 namespace media {
 
+D3D12PictureBuffer::D3D12PictureBuffer(
+    const Microsoft::WRL::ComPtr<ID3D12Resource>& resource,
+    UINT subresource,
+    const D3D12FenceAndValue& fence_and_value)
+    : resource(resource),
+      subresource(subresource),
+      fence_and_value(fence_and_value) {}
+
+D3D12PictureBuffer::~D3D12PictureBuffer() = default;
+
+D3D12PictureBuffer::D3D12PictureBuffer(const D3D12PictureBuffer& other) =
+    default;
+D3D12PictureBuffer::D3D12PictureBuffer(D3D12PictureBuffer&& other) noexcept =
+    default;
+D3D12PictureBuffer& D3D12PictureBuffer::operator=(
+    const D3D12PictureBuffer& other) = default;
+D3D12PictureBuffer& D3D12PictureBuffer::operator=(
+    D3D12PictureBuffer&& other) noexcept = default;
+
 D3D12ReferenceFrameList::D3D12ReferenceFrameList(ComD3D12VideoDecoderHeap heap)
     : heap_(std::move(heap)) {
   std::fill(heaps_.begin(), heaps_.end(), heap_.Get());
@@ -199,5 +218,13 @@ GUID GetD3D12VideoDecodeGUID(VideoCodecProfile profile,
       return {};
   }
 }
+
+D3D11To12Fence::D3D11To12Fence(Microsoft::WRL::ComPtr<ID3D11Fence> d3d11_fence,
+                               Microsoft::WRL::ComPtr<ID3D12Fence> d3d12_fence)
+    : d3d11_fence_(std::move(d3d11_fence)),
+      d3d12_fence_(std::move(d3d12_fence)),
+      fence_value_(0) {}
+
+D3D11To12Fence::~D3D11To12Fence() = default;
 
 }  // namespace media

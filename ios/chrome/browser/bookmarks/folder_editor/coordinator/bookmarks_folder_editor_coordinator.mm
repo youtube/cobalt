@@ -81,6 +81,12 @@
   return self;
 }
 
+- (void)dealloc {
+  CHECK(!_viewController, base::NotFatalUntil::M152);
+}
+
+#pragma mark - Chrome Coordinator
+
 - (void)start {
   [super start];
   // TODO(crbug.com/40251259): Create a mediator.
@@ -151,9 +157,7 @@
   _viewController = nil;
 }
 
-- (void)dealloc {
-  CHECK(!_viewController, base::NotFatalUntil::M152);
-}
+#pragma mark - BookmarksFolderEditorCoordinator
 
 - (BOOL)canDismiss {
   CHECK(_viewController, base::NotFatalUntil::M152);
@@ -168,7 +172,7 @@
                                            (const std::set<
                                                const bookmarks::BookmarkNode*>&)
                                                hiddenNodes {
-  if (_folderChooserCoordinator) {
+  if (_folderChooserCoordinator || _viewController.UIDisabled) {
     // This can occur if the user tap on the button while the previous folder
     // chooser is being dismissed.
     return;
@@ -182,6 +186,7 @@
   _folderChooserCoordinator.allowsNewFolders = NO;
   [_folderChooserCoordinator setSelectedFolder:parent];
   _folderChooserCoordinator.delegate = self;
+  _viewController.UIDisabled = YES;
   [_folderChooserCoordinator start];
 }
 
@@ -270,6 +275,7 @@
   [_folderChooserCoordinator stop];
   _folderChooserCoordinator.delegate = nil;
   _folderChooserCoordinator = nil;
+  _viewController.UIDisabled = NO;
 }
 
 @end

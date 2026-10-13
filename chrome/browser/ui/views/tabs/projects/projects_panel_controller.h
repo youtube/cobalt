@@ -5,15 +5,19 @@
 #ifndef CHROME_BROWSER_UI_VIEWS_TABS_PROJECTS_PROJECTS_PANEL_CONTROLLER_H_
 #define CHROME_BROWSER_UI_VIEWS_TABS_PROJECTS_PROJECTS_PANEL_CONTROLLER_H_
 
+#include <optional>
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
 #include "base/observer_list.h"
+#include "base/scoped_observation.h"
 #include "components/saved_tab_groups/public/tab_group_sync_service.h"
 
 namespace tab_groups {
 class SavedTabGroup;
 }
+
+class BrowserWindowInterface;
 
 // Controller for the projects panel view. Handles fetching, resuming, and
 // activating tab groups and recent chat threads.
@@ -21,9 +25,15 @@ class ProjectsPanelController : tab_groups::TabGroupSyncService::Observer {
  public:
   class Observer : public base::CheckedObserver {
    public:
-    virtual void OnTabGroupAdded(const tab_groups::SavedTabGroup& group) = 0;
-    virtual void OnTabGroupUpdated(const tab_groups::SavedTabGroup& group) = 0;
-    virtual void OnTabGroupRemoved(const base::Uuid& sync_id) = 0;
+    virtual void OnTabGroupsInitialized(
+        const std::vector<tab_groups::SavedTabGroup>& tab_groups) = 0;
+    virtual void OnTabGroupAdded(const tab_groups::SavedTabGroup& group,
+                                 int index) = 0;
+    virtual void OnTabGroupUpdated(const tab_groups::SavedTabGroup& group,
+                                   int old_index,
+                                   std::optional<int> new_index) = 0;
+    virtual void OnTabGroupRemoved(const base::Uuid& sync_id,
+                                   int old_index) = 0;
   };
 
   explicit ProjectsPanelController(
@@ -35,23 +45,36 @@ class ProjectsPanelController : tab_groups::TabGroupSyncService::Observer {
   // Returns all tab groups.
   const std::vector<tab_groups::SavedTabGroup>& GetTabGroups();
 
+  // Opens the tab group.
+  void OpenTabGroup(const base::Uuid& group_guid,
+                    BrowserWindowInterface* browser);
+
   // Add and remove observers.
   void AddObserver(Observer* observer);
   void RemoveObserver(Observer* observer);
 
   // tab_groups::TabGroupSyncService::Observer:
+  void OnInitialized() override;
   void OnTabGroupAdded(const tab_groups::SavedTabGroup& group,
                        tab_groups::TriggerSource source) override;
   void OnTabGroupUpdated(const tab_groups::SavedTabGroup& group,
                          tab_groups::TriggerSource source) override;
   void OnTabGroupRemoved(const base::Uuid& sync_id,
                          tab_groups::TriggerSource source) override;
+  void OnTabGroupLocalIdChanged(
+      const base::Uuid& sync_id,
+      const std::optional<tab_groups::LocalTabGroupID>& local_id) override;
 
  private:
+  void SortTabGroups();
+
   const raw_ptr<tab_groups::TabGroupSyncService> tab_group_sync_service_;
   std::vector<tab_groups::SavedTabGroup> tab_groups_;
 
   base::ObserverList<Observer> observers_;
+  base::ScopedObservation<tab_groups::TabGroupSyncService,
+                          tab_groups::TabGroupSyncService::Observer>
+      tab_group_sync_service_observer_{this};
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_TABS_PROJECTS_PROJECTS_PANEL_CONTROLLER_H_

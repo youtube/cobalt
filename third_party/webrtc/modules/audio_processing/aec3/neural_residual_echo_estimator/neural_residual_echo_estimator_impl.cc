@@ -300,6 +300,16 @@ class TfLiteModelRunner : public NeuralResidualEchoEstimatorImpl::ModelRunner {
 
   ~TfLiteModelRunner() override {}
 
+  void Reset() override {
+    std::fill(model_state_.begin(), model_state_.end(), 0.0f);
+    for (const auto input_enum :
+         {ModelInputEnum::kMic, ModelInputEnum::kLinearAecOutput,
+          ModelInputEnum::kAecRef}) {
+      ArrayView<float> input_tensor = GetInput(input_enum);
+      std::fill(input_tensor.begin(), input_tensor.end(), 0.0f);
+    }
+  }
+
   int StepSize() const override { return step_size_; }
 
   ArrayView<float> GetInput(
@@ -399,8 +409,12 @@ NeuralResidualEchoEstimatorImpl::LoadTfLiteModel(
     return nullptr;
   }
   std::unique_ptr<tflite::Interpreter> interpreter;
-  if (tflite::InterpreterBuilder(*model, op_resolver)(&interpreter) !=
-      kTfLiteOk) {
+  tflite::InterpreterBuilder interpreter_builder(*model, op_resolver);
+  if (interpreter_builder.SetNumThreads(1) != kTfLiteOk) {
+    RTC_LOG(LS_ERROR) << "Error setting interpreter num threads";
+    return nullptr;
+  }
+  if (interpreter_builder(&interpreter) != kTfLiteOk) {
     RTC_LOG(LS_ERROR) << "Error creating interpreter";
     return nullptr;
   }
@@ -461,6 +475,15 @@ NeuralResidualEchoEstimatorImpl::NeuralResidualEchoEstimatorImpl(
     feature_extractor_ = std::make_unique<FrequencyDomainFeatureExtractor>(
         /*step_size=*/model_runner_->StepSize());
   }
+}
+
+void NeuralResidualEchoEstimatorImpl::Reset() {
+  model_runner_->Reset();
+  if (feature_extractor_) {
+    feature_extractor_->Reset();
+  }
+  output_mask_.fill(0.0f);
+  output_mask_unbounded_.fill(0.0f);
 }
 
 void NeuralResidualEchoEstimatorImpl::Estimate(

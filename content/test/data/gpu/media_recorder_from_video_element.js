@@ -36,7 +36,7 @@ function setVideoSize() {
   srcVideo.width = width;
   srcVideo.height = height;
   dstVideo.width = width;
-  srcVideo.height = height;
+  dstVideo.height = height;
 }
 
 function startPlayback() {
@@ -58,8 +58,11 @@ function startPlayback() {
 }
 
 function startRecording() {
+  logOutput('crbug.com/476172416: startRecording() called');
   stream = srcVideo.captureStream(30);
+  logOutput('crbug.com/476172416: Stream captured');
   recorder = new MediaRecorder(stream, { mimeType });
+  logOutput('crbug.com/476172416: MediaRecorder created');
   recorder.onstop = startPlayback;
   recorder.ondataavailable = (e) => {
     logOutput(`Recorder data available. ${e.data.size}`);
@@ -72,7 +75,9 @@ function startRecording() {
   };
 
   // Start recording and ask it to emit encoded data every 100 ms.
+  logOutput('crbug.com/476172416: Starting recorder');
   recorder.start(100);
+  logOutput('crbug.com/476172416: Playing video');
   srcVideo.play();
 
   logOutput('Recording started.');
@@ -92,6 +97,7 @@ function main() {
   dstVideo = document.getElementById('dst-video');
   dstVideo.loop = false;
   dstVideo.muted = true;  // No need to exercise audio paths.
+  logOutput('crbug.com/476172416: Setting video size');
   setVideoSize();
 
   srcVideo.onerror = _ => {
@@ -99,5 +105,13 @@ function main() {
     abort = true;
     sendResult('FAIL');
   };
-  srcVideo.requestVideoFrameCallback(startRecording);
+
+  if (srcVideo.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
+    logOutput('crbug.com/476172416: Starting recording immediately');
+    startRecording();
+  } else {
+    logOutput(
+        'crbug.com/476172416: Starting recording after more data is loaded');
+    srcVideo.oncanplaythrough = startRecording;
+  }
 }

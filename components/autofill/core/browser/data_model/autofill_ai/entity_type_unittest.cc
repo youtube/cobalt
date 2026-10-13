@@ -10,6 +10,7 @@
 #include "components/autofill/core/common/autofill_features.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 
 namespace autofill {
 namespace {
@@ -96,21 +97,9 @@ TEST(AutofillEntityTypeTest, Disabled) {
   EXPECT_TRUE(EntityType(kVehicle).enabled());
 }
 
-// Tests that specifying an "excluded geo-ip" disabled the entity in countries
-// with that geo ip.
-TEST(AutofillEntityTypeTest, Enabled) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndDisableFeature(features::kAutofillAiNationalIdCard);
-  EntityType e = EntityType(EntityTypeName::kNationalIdCard);
-  EXPECT_FALSE(e.enabled());
-  EXPECT_FALSE(e.enabled(GeoIpCountryCode("US")));
-}
-
-// Tests that specifying an "excluded geo-ip" disabled the entity in countries
+// Tests that specifying an "excluded geo-ip" disables the entity in countries
 // with that geo ip.
 TEST(AutofillEntityTypeTest, EnabledWithCountryCode) {
-  base::test::ScopedFeatureList feature_list{
-      features::kAutofillAiNationalIdCard};
   EntityType e = EntityType(EntityTypeName::kNationalIdCard);
   EXPECT_TRUE(e.enabled(GeoIpCountryCode("US")));
   EXPECT_TRUE(e.enabled(GeoIpCountryCode("DE")));
@@ -153,6 +142,20 @@ TEST(AutofillEntityTypeTest, ReadOnly) {
   using enum EntityTypeName;
   EXPECT_FALSE(EntityType(kPassport).read_only());
   EXPECT_TRUE(EntityType(kFlightReservation).read_only());
+}
+
+// Tests that `EntityType` and `AttributeType` can be used in
+// `absl::flat_hash_map`.
+TEST(AutofillEntityTypeTest, CanBeUsedInAbslFlatHashMap) {
+  absl::flat_hash_map<EntityType, int> entity_type_map;
+  auto passport = EntityType(EntityTypeName::kPassport);
+  entity_type_map[passport] = 1;
+  EXPECT_EQ(entity_type_map[passport], 1);
+
+  absl::flat_hash_map<AttributeType, int> attribute_type_map;
+  auto passport_name = AttributeType(AttributeTypeName::kPassportName);
+  attribute_type_map[passport_name] = 2;
+  EXPECT_EQ(attribute_type_map[passport_name], 2);
 }
 
 }  // namespace

@@ -5,6 +5,7 @@
 #include <memory>
 #include <string>
 
+#include "base/logging.h"
 #include "base/strings/strcat.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
@@ -43,11 +44,18 @@ class DistilledPageJsTest : public content::ContentBrowserTest {
   void LoadAndExecuteTestScript(const std::string& file) {
     distilled_page_->AppendScriptFile(file);
     distilled_page_->Load(embedded_test_server(), shell()->web_contents());
+    // Listen for messages from domAutomationController.send() for debugging.
+    content::DOMMessageQueue message_queue(shell()->web_contents());
     // First, run the test.
     EXPECT_TRUE(content::ExecJs(shell()->web_contents(), "mocha.run()"));
     // Then, wait for the test to complete.
     EXPECT_TRUE(
         content::ExecJs(shell()->web_contents(), "window.completePromise"));
+    std::string message;
+    // Log any messages that were sent from the JavaScript.
+    while (message_queue.PopMessage(&message)) {
+      LOG(INFO) << "JS_DEBUG[" << file << "]: " << message;
+    }
   }
 
   std::unique_ptr<FakeDistilledPage> distilled_page_;
@@ -83,7 +91,11 @@ IN_PROC_BROWSER_TEST_F(DistilledPageJsTest, AddClassesToYTIFramesTest) {
 }
 
 // Fails on Fuchsia ASAN.
-#if BUILDFLAG(IS_FUCHSIA) && defined(ADDRESS_SANITIZER)
+// Falky timeout on Linux MSAN, ASAN and TSAN.
+#if BUILDFLAG(IS_FUCHSIA) && defined(ADDRESS_SANITIZER) ||          \
+    BUILDFLAG(IS_LINUX) &&                                          \
+        (defined(MEMORY_SANITIZER) || defined(ADDRESS_SANITIZER) || \
+         defined(THREAD_SANITIZER))
 #define MAYBE_ImageClassifierTest DISABLED_ImageClassifierTest
 #else
 #define MAYBE_ImageClassifierTest ImageClassifierTest

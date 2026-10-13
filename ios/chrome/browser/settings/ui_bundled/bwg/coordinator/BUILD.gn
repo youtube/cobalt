@@ -1,9 +1,9 @@
 source_set("coordinator") {
   sources = [
-    "bwg_settings_coordinator.h",
-    "bwg_settings_coordinator.mm",
-    "bwg_settings_mediator.h",
-    "bwg_settings_mediator.mm",
+    "gemini_settings_coordinator.h",
+    "gemini_settings_coordinator.mm",
+    "gemini_settings_mediator.h",
+    "gemini_settings_mediator.mm",
   ]
   deps = [
     ":protocols",
@@ -25,6 +25,6 @@ source_set("coordinator") {
 }
 
 source_set("protocols") {
-  sources = [ "bwg_settings_mutator.h" ]
+  sources = [ "gemini_settings_mutator.h" ]
   frameworks = [ "UIKit.framework" ]
 }

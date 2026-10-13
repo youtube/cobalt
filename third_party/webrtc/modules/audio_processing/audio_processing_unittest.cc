@@ -17,12 +17,9 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
-#include <iostream>
-#include <limits>
 #include <map>
 #include <memory>
 #include <numeric>
-#include <ostream>
 #include <queue>
 #include <string>
 #include <tuple>
@@ -44,8 +41,6 @@
 #include "api/scoped_refptr.h"
 #include "common_audio/channel_buffer.h"
 #include "common_audio/include/audio_util.h"
-#include "common_audio/resampler/include/push_resampler.h"
-#include "common_audio/resampler/push_sinc_resampler.h"
 #include "modules/audio_processing/aec_dump/aec_dump_factory.h"
 #include "modules/audio_processing/include/mock_audio_processing.h"
 #include "modules/audio_processing/test/protobuf_utils.h"
@@ -132,19 +127,10 @@ void VerifyChannelsAreEqual(const int16_t* stereo, size_t samples_per_channel) {
 void EnableAllAPComponents(AudioProcessing* ap) {
   AudioProcessing::Config apm_config = ap->GetConfig();
   apm_config.echo_canceller.enabled = true;
-#if defined(WEBRTC_AUDIOPROC_FIXED_PROFILE)
-  apm_config.echo_canceller.mobile_mode = true;
-
-  apm_config.gain_controller1.enabled = true;
-  apm_config.gain_controller1.mode =
-      AudioProcessing::Config::GainController1::kAdaptiveDigital;
-#elif defined(WEBRTC_AUDIOPROC_FLOAT_PROFILE)
-  apm_config.echo_canceller.mobile_mode = false;
 
   apm_config.gain_controller1.enabled = true;
   apm_config.gain_controller1.mode =
       AudioProcessing::Config::GainController1::kAdaptiveAnalog;
-#endif
 
   apm_config.noise_suppression.enabled = true;
 
@@ -238,19 +224,6 @@ void ClearTempFiles() {
     remove(kv.second.c_str());
 }
 
-// Only remove "out" files. Keep "ref" files.
-void ClearTempOutFiles() {
-  for (auto it = temp_filenames.begin(); it != temp_filenames.end();) {
-    const std::string& filename = it->first;
-    if (filename.substr(0, 3).compare("out") == 0) {
-      remove(it->second.c_str());
-      temp_filenames.erase(it++);
-    } else {
-      it++;
-    }
-  }
-}
-
 void OpenFileAndReadMessage(absl::string_view filename, MessageLite* msg) {
   FILE* file = fopen(std::string(filename).c_str(), "rb");
   ASSERT_TRUE(file != nullptr);
@@ -292,14 +265,10 @@ bool ReadChunk(FILE* file,
 // Returns the reference file name that matches the current CPU
 // architecture/optimizations.
 std::string GetReferenceFilename() {
-#if defined(WEBRTC_AUDIOPROC_FIXED_PROFILE)
-  return test::ResourcePath("audio_processing/output_data_fixed", "pb");
-#elif defined(WEBRTC_AUDIOPROC_FLOAT_PROFILE)
   if (cpu_info::Supports(cpu_info::ISA::kAVX2)) {
     return test::ResourcePath("audio_processing/output_data_float_avx2", "pb");
   }
   return test::ResourcePath("audio_processing/output_data_float", "pb");
-#endif
 }
 
 // Flag that can temporarily be enabled for local debugging to inspect
@@ -719,7 +688,6 @@ void ApmTest::StreamParametersTest(Format format) {
 
   // Other stream parameters set correctly.
   apm_config.echo_canceller.enabled = true;
-  apm_config.echo_canceller.mobile_mode = false;
   apm_->ApplyConfig(apm_config);
   EXPECT_EQ(AudioProcessing::kNoError, apm_->set_stream_delay_ms(100));
   EXPECT_EQ(apm_->kStreamParameterNotSetError, ProcessStreamChooser(format));
@@ -1409,7 +1377,6 @@ TEST_F(ApmTest, SplittingFilter) {
   // Check the test is valid. We should have distortion from the filter
   // when AEC is enabled (which won't affect the audio).
   apm_config.echo_canceller.enabled = true;
-  apm_config.echo_canceller.mobile_mode = false;
   apm_->ApplyConfig(apm_config);
   frame_.SetProperties(/* samples_per_channel=*/320, /* num_channels=*/2);
   frame_.FillData(1000);
@@ -1703,7 +1670,6 @@ TEST_F(ApmTest, Process) {
         }
       }
     }
-#if defined(WEBRTC_AUDIOPROC_FLOAT_PROFILE)
     // To test the extended filter mode.
     audioproc::Test* test = ref_data.add_test();
     test->set_num_reverse_channels(2);
@@ -1711,7 +1677,6 @@ TEST_F(ApmTest, Process) {
     test->set_num_output_channels(2);
     test->set_sample_rate(AudioProcessing::kSampleRate32kHz);
     test->set_use_aec_extended_filter(true);
-#endif
   }
 
   for (int i = 0; i < ref_data.test_size(); i++) {
@@ -1741,9 +1706,7 @@ TEST_F(ApmTest, Process) {
     int analog_level = 127;
     int analog_level_average = 0;
     int max_output_average = 0;
-#if defined(WEBRTC_AUDIOPROC_FLOAT_PROFILE)
     int stats_index = 0;
-#endif
 
     while (ReadFrame(far_file_, &revframe_) && ReadFrame(near_file_, &frame_)) {
       EXPECT_EQ(
@@ -1782,7 +1745,6 @@ TEST_F(ApmTest, Process) {
       frame_.set_num_channels(static_cast<size_t>(test->num_input_channels()));
       frame_count++;
 
-#if defined(WEBRTC_AUDIOPROC_FLOAT_PROFILE)
       const int kStatsAggregationFrameNum = 100;  // 1 second.
       if (frame_count % kStatsAggregationFrameNum == 0) {
         // Get echo and delay metrics.
@@ -1820,7 +1782,6 @@ TEST_F(ApmTest, Process) {
               residual_echo_likelihood_recent_max);
         }
       }
-#endif  // defined(WEBRTC_AUDIOPROC_FLOAT_PROFILE).
     }
     max_output_average /= frame_count;
     analog_level_average /= frame_count;
@@ -1857,60 +1818,8 @@ TEST_F(ApmTest, Process) {
   }
 }
 
-// Compares the reference and test arrays over a region around the expected
-// delay. Finds the highest SNR in that region and adds the variance and squared
-// error results to the supplied accumulators.
-void UpdateBestSNR(const float* ref,
-                   const float* test,
-                   size_t length,
-                   int expected_delay,
-                   double* variance_acc,
-                   double* sq_error_acc) {
-  RTC_CHECK_LT(expected_delay, length)
-      << "delay greater than signal length, cannot compute SNR";
-  double best_snr = std::numeric_limits<double>::min();
-  double best_variance = 0;
-  double best_sq_error = 0;
-  // Search over a region of nine samples around the expected delay.
-  for (int delay = std::max(expected_delay - 4, 0); delay <= expected_delay + 4;
-       ++delay) {
-    double sq_error = 0;
-    double variance = 0;
-    for (size_t i = 0; i < length - delay; ++i) {
-      double error = test[i + delay] - ref[i];
-      sq_error += error * error;
-      variance += ref[i] * ref[i];
-    }
-
-    if (sq_error == 0) {
-      *variance_acc += variance;
-      return;
-    }
-    double snr = variance / sq_error;
-    if (snr > best_snr) {
-      best_snr = snr;
-      best_variance = variance;
-      best_sq_error = sq_error;
-    }
-  }
-
-  *variance_acc += best_variance;
-  *sq_error_acc += best_sq_error;
-}
-
-// Used to test a multitude of sample rate and channel combinations. It works
-// by first producing a set of reference files (in SetUpTestCase) that are
-// assumed to be correct, as the used parameters are verified by other tests
-// in this collection. Primarily the reference files are all produced at
-// "native" rates which do not involve any resampling.
-
-// Each test pass produces an output file with a particular format. The output
-// is matched against the reference file closest to its internal processing
-// format. If necessary the output is resampled back to its process format.
-// Due to the resampling distortion, we don't expect identical results, but
-// enforce SNR thresholds which vary depending on the format. 0 is a special
-// case SNR which corresponds to inf, or zero error.
-typedef std::tuple<int, int, int, int, double, double> AudioProcessingTestData;
+// Used to test a multitude of sample rate and channel combinations.
+typedef std::tuple<int, int, int, int> AudioProcessingTestData;
 class AudioProcessingTest
     : public ::testing::TestWithParam<AudioProcessingTestData> {
  public:
@@ -1918,37 +1827,11 @@ class AudioProcessingTest
       : input_rate_(std::get<0>(GetParam())),
         output_rate_(std::get<1>(GetParam())),
         reverse_input_rate_(std::get<2>(GetParam())),
-        reverse_output_rate_(std::get<3>(GetParam())),
-        expected_snr_(std::get<4>(GetParam())),
-        expected_reverse_snr_(std::get<5>(GetParam())) {}
+        reverse_output_rate_(std::get<3>(GetParam())) {}
 
   ~AudioProcessingTest() override {}
 
-  static void SetUpTestSuite() {
-    // Create all needed output reference files.
-    const size_t kNumChannels[] = {1, 2};
-    for (int sample_rate_hz : kProcessSampleRates) {
-      for (int num_channels : kNumChannels) {
-        for (int num_reverse_channels : kNumChannels) {
-          // The reference files always have matching input and output channels.
-          ProcessFormat(sample_rate_hz, sample_rate_hz, sample_rate_hz,
-                        sample_rate_hz, num_channels, num_channels,
-                        num_reverse_channels, num_reverse_channels, "ref");
-        }
-      }
-    }
-  }
-
-  void TearDown() override {
-    // Remove "out" files after each test.
-    ClearTempOutFiles();
-  }
-
-  static void TearDownTestSuite() { ClearTempFiles(); }
-
-  // Runs a process pass on files with the given parameters and dumps the output
-  // to a file specified with `output_file_prefix`. Both forward and reverse
-  // output streams are dumped.
+  // Runs a process pass on files with the given parameters.
   static void ProcessFormat(int input_rate,
                             int output_rate,
                             int reverse_input_rate,
@@ -1956,8 +1839,7 @@ class AudioProcessingTest
                             size_t num_input_channels,
                             size_t num_output_channels,
                             size_t num_reverse_input_channels,
-                            size_t num_reverse_output_channels,
-                            absl::string_view output_file_prefix) {
+                            size_t num_reverse_output_channels) {
     AudioProcessing::Config apm_config;
     apm_config.gain_controller1.analog_gain_controller.enabled = false;
     scoped_refptr<AudioProcessing> ap = BuiltinAudioProcessingBuilder()
@@ -1976,24 +1858,8 @@ class AudioProcessingTest
     FILE* far_file =
         fopen(ResourceFilePath("far", reverse_input_rate).c_str(), "rb");
     FILE* near_file = fopen(ResourceFilePath("near", input_rate).c_str(), "rb");
-    FILE* out_file = fopen(
-        OutputFilePath(
-            output_file_prefix, input_rate, output_rate, reverse_input_rate,
-            reverse_output_rate, num_input_channels, num_output_channels,
-            num_reverse_input_channels, num_reverse_output_channels, kForward)
-            .c_str(),
-        "wb");
-    FILE* rev_out_file = fopen(
-        OutputFilePath(
-            output_file_prefix, input_rate, output_rate, reverse_input_rate,
-            reverse_output_rate, num_input_channels, num_output_channels,
-            num_reverse_input_channels, num_reverse_output_channels, kReverse)
-            .c_str(),
-        "wb");
     ASSERT_TRUE(far_file != nullptr);
     ASSERT_TRUE(near_file != nullptr);
-    ASSERT_TRUE(out_file != nullptr);
-    ASSERT_TRUE(rev_out_file != nullptr);
 
     ChannelBuffer<float> fwd_cb(AudioProcessing::GetFrameSize(input_rate),
                                 num_input_channels);
@@ -2026,39 +1892,9 @@ class AudioProcessingTest
       EXPECT_NOERR(ap->ProcessStream(
           fwd_cb.channels(), StreamConfig(input_rate, num_input_channels),
           StreamConfig(output_rate, num_output_channels), out_cb.channels()));
-
-      // Dump forward output to file.
-      RTC_DCHECK_EQ(out_cb.num_bands(), 1u);  // Assumes full frequency band.
-      DeinterleavedView<const float> deinterleaved_src(
-          out_cb.channels(), out_cb.num_frames(), out_cb.num_channels());
-      InterleavedView<float> interleaved_dst(
-          float_data.get(), out_cb.num_frames(), out_cb.num_channels());
-      Interleave(deinterleaved_src, interleaved_dst);
-      size_t out_length = out_cb.num_channels() * out_cb.num_frames();
-
-      ASSERT_EQ(out_length, fwrite(float_data.get(), sizeof(float_data[0]),
-                                   out_length, out_file));
-
-      // Dump reverse output to file.
-      RTC_DCHECK_EQ(rev_out_cb.num_bands(), 1u);
-      deinterleaved_src = DeinterleavedView<const float>(
-          rev_out_cb.channels(), rev_out_cb.num_frames(),
-          rev_out_cb.num_channels());
-      interleaved_dst = InterleavedView<float>(
-          float_data.get(), rev_out_cb.num_frames(), rev_out_cb.num_channels());
-      Interleave(deinterleaved_src, interleaved_dst);
-      size_t rev_out_length =
-          rev_out_cb.num_channels() * rev_out_cb.num_frames();
-
-      ASSERT_EQ(rev_out_length, fwrite(float_data.get(), sizeof(float_data[0]),
-                                       rev_out_length, rev_out_file));
-
-      analog_level = ap->recommended_stream_analog_level();
     }
     fclose(far_file);
     fclose(near_file);
-    fclose(out_file);
-    fclose(rev_out_file);
   }
 
  protected:
@@ -2066,8 +1902,6 @@ class AudioProcessingTest
   int output_rate_;
   int reverse_input_rate_;
   int reverse_output_rate_;
-  double expected_snr_;
-  double expected_reverse_snr_;
 };
 
 TEST_P(AudioProcessingTest, Formats) {
@@ -2108,184 +1942,66 @@ TEST_P(AudioProcessingTest, Formats) {
        cf) {
     ProcessFormat(input_rate_, output_rate_, reverse_input_rate_,
                   reverse_output_rate_, num_input, num_output,
-                  num_reverse_input, num_reverse_output, "out");
-
-    // Verify output for both directions.
-    std::vector<StreamDirection> stream_directions;
-    stream_directions.push_back(kForward);
-    stream_directions.push_back(kReverse);
-    for (StreamDirection file_direction : stream_directions) {
-      const int in_rate = file_direction ? reverse_input_rate_ : input_rate_;
-      const int out_rate = file_direction ? reverse_output_rate_ : output_rate_;
-      const int out_num = file_direction ? num_reverse_output : num_output;
-      const double expected_snr =
-          file_direction ? expected_reverse_snr_ : expected_snr_;
-
-      const int min_ref_rate = std::min(in_rate, out_rate);
-      int ref_rate;
-      if (min_ref_rate > 32000) {
-        ref_rate = 48000;
-      } else if (min_ref_rate > 16000) {
-        ref_rate = 32000;
-      } else {
-        ref_rate = 16000;
-      }
-
-      FILE* out_file = fopen(
-          OutputFilePath("out", input_rate_, output_rate_, reverse_input_rate_,
-                         reverse_output_rate_, num_input, num_output,
-                         num_reverse_input, num_reverse_output, file_direction)
-              .c_str(),
-          "rb");
-      // The reference files always have matching input and output channels.
-      FILE* ref_file =
-          fopen(OutputFilePath("ref", ref_rate, ref_rate, ref_rate, ref_rate,
-                               num_output, num_output, num_reverse_output,
-                               num_reverse_output, file_direction)
-                    .c_str(),
-                "rb");
-      ASSERT_TRUE(out_file != nullptr);
-      ASSERT_TRUE(ref_file != nullptr);
-
-      const size_t ref_samples_per_channel =
-          AudioProcessing::GetFrameSize(ref_rate);
-      const size_t ref_length = ref_samples_per_channel * out_num;
-      const size_t out_samples_per_channel =
-          AudioProcessing::GetFrameSize(out_rate);
-      const size_t out_length = out_samples_per_channel * out_num;
-      // Data from the reference file.
-      std::unique_ptr<float[]> ref_data(new float[ref_length]);
-      // Data from the output file.
-      std::unique_ptr<float[]> out_data(new float[out_length]);
-      // Data from the resampled output, in case the reference and output rates
-      // don't match.
-      std::unique_ptr<float[]> cmp_data(new float[ref_length]);
-
-      PushResampler<float> resampler(out_samples_per_channel,
-                                     ref_samples_per_channel, out_num);
-
-      // Compute the resampling delay of the output relative to the reference,
-      // to find the region over which we should search for the best SNR.
-      float expected_delay_sec = 0;
-      if (in_rate != ref_rate) {
-        // Input resampling delay.
-        expected_delay_sec +=
-            PushSincResampler::AlgorithmicDelaySeconds(in_rate);
-      }
-      if (out_rate != ref_rate) {
-        // Output resampling delay.
-        expected_delay_sec +=
-            PushSincResampler::AlgorithmicDelaySeconds(ref_rate);
-        // Delay of converting the output back to its processing rate for
-        // testing.
-        expected_delay_sec +=
-            PushSincResampler::AlgorithmicDelaySeconds(out_rate);
-      }
-      // The delay is multiplied by the number of channels because
-      // UpdateBestSNR() computes the SNR over interleaved data without taking
-      // channels into account.
-      int expected_delay =
-          std::floor(expected_delay_sec * ref_rate + 0.5f) * out_num;
-
-      double variance = 0;
-      double sq_error = 0;
-      while (fread(out_data.get(), sizeof(out_data[0]), out_length, out_file) &&
-             fread(ref_data.get(), sizeof(ref_data[0]), ref_length, ref_file)) {
-        float* out_ptr = out_data.get();
-        if (out_rate != ref_rate) {
-          // Resample the output back to its internal processing rate if
-          // necessary.
-          InterleavedView<const float> src(out_ptr, out_samples_per_channel,
-                                           out_num);
-          InterleavedView<float> dst(cmp_data.get(), ref_samples_per_channel,
-                                     out_num);
-          resampler.Resample(src, dst);
-          out_ptr = cmp_data.get();
-        }
-
-        // Update the `sq_error` and `variance` accumulators with the highest
-        // SNR of reference vs output.
-        UpdateBestSNR(ref_data.get(), out_ptr, ref_length, expected_delay,
-                      &variance, &sq_error);
-      }
-
-      std::cout << "(" << input_rate_ << ", " << output_rate_ << ", "
-                << reverse_input_rate_ << ", " << reverse_output_rate_ << ", "
-                << num_input << ", " << num_output << ", " << num_reverse_input
-                << ", " << num_reverse_output << ", " << file_direction
-                << "): ";
-      if (sq_error > 0) {
-        double snr = 10 * log10(variance / sq_error);
-        EXPECT_GE(snr, expected_snr);
-        EXPECT_NE(0, expected_snr);
-        std::cout << "SNR=" << snr << " dB" << std::endl;
-      } else {
-        std::cout << "SNR=inf dB" << std::endl;
-      }
-
-      fclose(out_file);
-      fclose(ref_file);
-    }
+                  num_reverse_input, num_reverse_output);
   }
 }
 
-#if defined(WEBRTC_AUDIOPROC_FLOAT_PROFILE)
 INSTANTIATE_TEST_SUITE_P(
     CommonFormats,
     AudioProcessingTest,
     // Internal processing rates and the particularly common sample rate 44100
     // Hz are tested in a grid of combinations (capture in, render in, out).
-    ::testing::Values(std::make_tuple(48000, 48000, 48000, 48000, 0, 0),
-                      std::make_tuple(48000, 48000, 32000, 48000, 40, 30),
-                      std::make_tuple(48000, 48000, 16000, 48000, 40, 20),
-                      std::make_tuple(48000, 44100, 48000, 44100, 20, 20),
-                      std::make_tuple(48000, 44100, 32000, 44100, 20, 15),
-                      std::make_tuple(48000, 44100, 16000, 44100, 20, 15),
-                      std::make_tuple(48000, 32000, 48000, 32000, 30, 35),
-                      std::make_tuple(48000, 32000, 32000, 32000, 30, 0),
-                      std::make_tuple(48000, 32000, 16000, 32000, 30, 20),
-                      std::make_tuple(48000, 16000, 48000, 16000, 25, 20),
-                      std::make_tuple(48000, 16000, 32000, 16000, 25, 20),
-                      std::make_tuple(48000, 16000, 16000, 16000, 25, 0),
+    ::testing::Values(std::make_tuple(48000, 48000, 48000, 48000),
+                      std::make_tuple(48000, 48000, 32000, 48000),
+                      std::make_tuple(48000, 48000, 16000, 48000),
+                      std::make_tuple(48000, 44100, 48000, 44100),
+                      std::make_tuple(48000, 44100, 32000, 44100),
+                      std::make_tuple(48000, 44100, 16000, 44100),
+                      std::make_tuple(48000, 32000, 48000, 32000),
+                      std::make_tuple(48000, 32000, 32000, 32000),
+                      std::make_tuple(48000, 32000, 16000, 32000),
+                      std::make_tuple(48000, 16000, 48000, 16000),
+                      std::make_tuple(48000, 16000, 32000, 16000),
+                      std::make_tuple(48000, 16000, 16000, 16000),
 
-                      std::make_tuple(44100, 48000, 48000, 48000, 30, 0),
-                      std::make_tuple(44100, 48000, 32000, 48000, 30, 30),
-                      std::make_tuple(44100, 48000, 16000, 48000, 30, 20),
-                      std::make_tuple(44100, 44100, 48000, 44100, 20, 20),
-                      std::make_tuple(44100, 44100, 32000, 44100, 20, 15),
-                      std::make_tuple(44100, 44100, 16000, 44100, 20, 15),
-                      std::make_tuple(44100, 32000, 48000, 32000, 30, 35),
-                      std::make_tuple(44100, 32000, 32000, 32000, 30, 0),
-                      std::make_tuple(44100, 32000, 16000, 32000, 30, 20),
-                      std::make_tuple(44100, 16000, 48000, 16000, 25, 20),
-                      std::make_tuple(44100, 16000, 32000, 16000, 25, 20),
-                      std::make_tuple(44100, 16000, 16000, 16000, 25, 0),
+                      std::make_tuple(44100, 48000, 48000, 48000),
+                      std::make_tuple(44100, 48000, 32000, 48000),
+                      std::make_tuple(44100, 48000, 16000, 48000),
+                      std::make_tuple(44100, 44100, 48000, 44100),
+                      std::make_tuple(44100, 44100, 32000, 44100),
+                      std::make_tuple(44100, 44100, 16000, 44100),
+                      std::make_tuple(44100, 32000, 48000, 32000),
+                      std::make_tuple(44100, 32000, 32000, 32000),
+                      std::make_tuple(44100, 32000, 16000, 32000),
+                      std::make_tuple(44100, 16000, 48000, 16000),
+                      std::make_tuple(44100, 16000, 32000, 16000),
+                      std::make_tuple(44100, 16000, 16000, 16000),
 
-                      std::make_tuple(32000, 48000, 48000, 48000, 5, 0),
-                      std::make_tuple(32000, 48000, 32000, 48000, 5, 30),
-                      std::make_tuple(32000, 48000, 16000, 48000, 5, 20),
-                      std::make_tuple(32000, 44100, 48000, 44100, 19, 20),
-                      std::make_tuple(32000, 44100, 32000, 44100, 19, 15),
-                      std::make_tuple(32000, 44100, 16000, 44100, 19, 15),
-                      std::make_tuple(32000, 32000, 48000, 32000, 40, 35),
-                      std::make_tuple(32000, 32000, 32000, 32000, 0, 0),
-                      std::make_tuple(32000, 32000, 16000, 32000, 39, 20),
-                      std::make_tuple(32000, 16000, 48000, 16000, 25, 20),
-                      std::make_tuple(32000, 16000, 32000, 16000, 25, 20),
-                      std::make_tuple(32000, 16000, 16000, 16000, 25, 0),
+                      std::make_tuple(32000, 48000, 48000, 48000),
+                      std::make_tuple(32000, 48000, 32000, 48000),
+                      std::make_tuple(32000, 48000, 16000, 48000),
+                      std::make_tuple(32000, 44100, 48000, 44100),
+                      std::make_tuple(32000, 44100, 32000, 44100),
+                      std::make_tuple(32000, 44100, 16000, 44100),
+                      std::make_tuple(32000, 32000, 48000, 32000),
+                      std::make_tuple(32000, 32000, 32000, 32000),
+                      std::make_tuple(32000, 32000, 16000, 32000),
+                      std::make_tuple(32000, 16000, 48000, 16000),
+                      std::make_tuple(32000, 16000, 32000, 16000),
+                      std::make_tuple(32000, 16000, 16000, 16000),
 
-                      std::make_tuple(16000, 48000, 48000, 48000, 1.7, 0),
-                      std::make_tuple(16000, 48000, 32000, 48000, 1.5, 30),
-                      std::make_tuple(16000, 48000, 16000, 48000, 1.5, 20),
-                      std::make_tuple(16000, 44100, 48000, 44100, 15, 20),
-                      std::make_tuple(16000, 44100, 32000, 44100, 15, 15),
-                      std::make_tuple(16000, 44100, 16000, 44100, 15, 15),
-                      std::make_tuple(16000, 32000, 48000, 32000, 25, 35),
-                      std::make_tuple(16000, 32000, 32000, 32000, 25, 0),
-                      std::make_tuple(16000, 32000, 16000, 32000, 25, 20),
-                      std::make_tuple(16000, 16000, 48000, 16000, 39, 20),
-                      std::make_tuple(16000, 16000, 32000, 16000, 39, 20),
-                      std::make_tuple(16000, 16000, 16000, 16000, 0, 0),
+                      std::make_tuple(16000, 48000, 48000, 48000),
+                      std::make_tuple(16000, 48000, 32000, 48000),
+                      std::make_tuple(16000, 48000, 16000, 48000),
+                      std::make_tuple(16000, 44100, 48000, 44100),
+                      std::make_tuple(16000, 44100, 32000, 44100),
+                      std::make_tuple(16000, 44100, 16000, 44100),
+                      std::make_tuple(16000, 32000, 48000, 32000),
+                      std::make_tuple(16000, 32000, 32000, 32000),
+                      std::make_tuple(16000, 32000, 16000, 32000),
+                      std::make_tuple(16000, 16000, 48000, 16000),
+                      std::make_tuple(16000, 16000, 32000, 16000),
+                      std::make_tuple(16000, 16000, 16000, 16000),
 
                       // Other sample rates are not tested exhaustively, to keep
                       // the test runtime manageable.
@@ -2295,74 +2011,11 @@ INSTANTIATE_TEST_SUITE_P(
                       //  - WebRTC.AudioOutputSampleRate
                       // ApmConfiguration.HandlingOfRateCombinations covers
                       // remaining sample rates.
-                      std::make_tuple(192000, 192000, 48000, 192000, 20, 40),
-                      std::make_tuple(176400, 176400, 48000, 176400, 20, 35),
-                      std::make_tuple(96000, 96000, 48000, 96000, 20, 40),
-                      std::make_tuple(88200, 88200, 48000, 88200, 20, 20),
-                      std::make_tuple(44100, 44100, 48000, 44100, 20, 20)));
-
-#elif defined(WEBRTC_AUDIOPROC_FIXED_PROFILE)
-INSTANTIATE_TEST_SUITE_P(
-    CommonFormats,
-    AudioProcessingTest,
-    ::testing::Values(std::make_tuple(48000, 48000, 48000, 48000, 19, 0),
-                      std::make_tuple(48000, 48000, 32000, 48000, 19, 30),
-                      std::make_tuple(48000, 48000, 16000, 48000, 19, 20),
-                      std::make_tuple(48000, 44100, 48000, 44100, 15, 20),
-                      std::make_tuple(48000, 44100, 32000, 44100, 15, 15),
-                      std::make_tuple(48000, 44100, 16000, 44100, 15, 15),
-                      std::make_tuple(48000, 32000, 48000, 32000, 19, 35),
-                      std::make_tuple(48000, 32000, 32000, 32000, 19, 0),
-                      std::make_tuple(48000, 32000, 16000, 32000, 19, 20),
-                      std::make_tuple(48000, 16000, 48000, 16000, 20, 20),
-                      std::make_tuple(48000, 16000, 32000, 16000, 20, 20),
-                      std::make_tuple(48000, 16000, 16000, 16000, 20, 0),
-
-                      std::make_tuple(44100, 48000, 48000, 48000, 15, 0),
-                      std::make_tuple(44100, 48000, 32000, 48000, 15, 30),
-                      std::make_tuple(44100, 48000, 16000, 48000, 15, 20),
-                      std::make_tuple(44100, 44100, 48000, 44100, 15, 20),
-                      std::make_tuple(44100, 44100, 32000, 44100, 15, 15),
-                      std::make_tuple(44100, 44100, 16000, 44100, 15, 15),
-                      std::make_tuple(44100, 32000, 48000, 32000, 18, 35),
-                      std::make_tuple(44100, 32000, 32000, 32000, 18, 0),
-                      std::make_tuple(44100, 32000, 16000, 32000, 18, 20),
-                      std::make_tuple(44100, 16000, 48000, 16000, 19, 20),
-                      std::make_tuple(44100, 16000, 32000, 16000, 19, 20),
-                      std::make_tuple(44100, 16000, 16000, 16000, 19, 0),
-
-                      std::make_tuple(32000, 48000, 48000, 48000, 8, 0),
-                      std::make_tuple(32000, 48000, 32000, 48000, 8, 30),
-                      std::make_tuple(32000, 48000, 16000, 48000, 8, 20),
-                      std::make_tuple(32000, 44100, 48000, 44100, 20, 20),
-                      std::make_tuple(32000, 44100, 32000, 44100, 20, 15),
-                      std::make_tuple(32000, 44100, 16000, 44100, 20, 15),
-                      std::make_tuple(32000, 32000, 48000, 32000, 27, 35),
-                      std::make_tuple(32000, 32000, 32000, 32000, 0, 0),
-                      std::make_tuple(32000, 32000, 16000, 32000, 30, 20),
-                      std::make_tuple(32000, 16000, 48000, 16000, 20, 20),
-                      std::make_tuple(32000, 16000, 32000, 16000, 20, 20),
-                      std::make_tuple(32000, 16000, 16000, 16000, 20, 0),
-
-                      std::make_tuple(16000, 48000, 48000, 48000, 3, 0),
-                      std::make_tuple(16000, 48000, 32000, 48000, 3, 30),
-                      std::make_tuple(16000, 48000, 16000, 48000, 3, 20),
-                      std::make_tuple(16000, 44100, 48000, 44100, 15, 20),
-                      std::make_tuple(16000, 44100, 32000, 44100, 15, 15),
-                      std::make_tuple(16000, 44100, 16000, 44100, 15, 15),
-                      std::make_tuple(16000, 32000, 48000, 32000, 23, 35),
-                      std::make_tuple(16000, 32000, 32000, 32000, 23, 0),
-                      std::make_tuple(16000, 32000, 16000, 32000, 25, 20),
-                      std::make_tuple(16000, 16000, 48000, 16000, 24, 20),
-                      std::make_tuple(16000, 16000, 32000, 16000, 24, 20),
-                      std::make_tuple(16000, 16000, 16000, 16000, 0, 0),
-
-                      std::make_tuple(192000, 192000, 48000, 192000, 20, 40),
-                      std::make_tuple(176400, 176400, 48000, 176400, 20, 35),
-                      std::make_tuple(96000, 96000, 48000, 96000, 20, 40),
-                      std::make_tuple(88200, 88200, 48000, 88200, 20, 20),
-                      std::make_tuple(44100, 44100, 48000, 44100, 20, 20)));
-#endif
+                      std::make_tuple(192000, 192000, 48000, 192000),
+                      std::make_tuple(176400, 176400, 48000, 176400),
+                      std::make_tuple(96000, 96000, 48000, 96000),
+                      std::make_tuple(88200, 88200, 48000, 88200),
+                      std::make_tuple(44100, 44100, 48000, 44100)));
 
 // Produces a scoped trace debug output.
 std::string ProduceDebugText(int render_input_sample_rate_hz,
@@ -2400,7 +2053,8 @@ std::string ProduceDebugText(int render_input_sample_rate_hz,
 // of sample rates and number of channels works as intended.
 void RunApmRateAndChannelTest(ArrayView<const int> sample_rates_hz,
                               ArrayView<const int> render_channel_counts,
-                              ArrayView<const int> capture_channel_counts) {
+                              ArrayView<const int> capture_channel_counts,
+                              ArrayView<const bool> mono_capture_output) {
   AudioProcessing::Config apm_config;
   apm_config.pipeline.multi_channel_render = true;
   apm_config.pipeline.multi_channel_capture = true;
@@ -2428,59 +2082,64 @@ void RunApmRateAndChannelTest(ArrayView<const int> sample_rates_hz,
         for (auto capture_output_sample_rate_hz : sample_rates_hz) {
           for (size_t render_input_num_channels : render_channel_counts) {
             for (size_t capture_input_num_channels : capture_channel_counts) {
-              size_t render_output_num_channels = render_input_num_channels;
-              size_t capture_output_num_channels = capture_input_num_channels;
-              auto populate_audio_frame = [](int sample_rate_hz,
-                                             size_t num_channels,
-                                             StreamConfig* cfg,
-                                             std::vector<float>* channels_data,
-                                             std::vector<float*>* frame_data) {
-                cfg->set_sample_rate_hz(sample_rate_hz);
-                cfg->set_num_channels(num_channels);
+              for (bool use_mono_capture_output : mono_capture_output) {
+                size_t render_output_num_channels = render_input_num_channels;
+                size_t capture_output_num_channels =
+                    use_mono_capture_output ? 1 : capture_input_num_channels;
+                auto populate_audio_frame =
+                    [](int sample_rate_hz, size_t num_channels,
+                       StreamConfig* cfg, std::vector<float>* channels_data,
+                       std::vector<float*>* frame_data) {
+                      cfg->set_sample_rate_hz(sample_rate_hz);
+                      cfg->set_num_channels(num_channels);
 
-                size_t max_frame_size =
-                    AudioProcessing::GetFrameSize(sample_rate_hz);
-                channels_data->resize(num_channels * max_frame_size);
-                std::fill(channels_data->begin(), channels_data->end(), 0.5f);
-                frame_data->resize(num_channels);
-                for (size_t channel = 0; channel < num_channels; ++channel) {
-                  (*frame_data)[channel] =
-                      &(*channels_data)[channel * max_frame_size];
+                      size_t max_frame_size =
+                          AudioProcessing::GetFrameSize(sample_rate_hz);
+                      channels_data->resize(num_channels * max_frame_size);
+                      std::fill(channels_data->begin(), channels_data->end(),
+                                0.5f);
+                      frame_data->resize(num_channels);
+                      for (size_t channel = 0; channel < num_channels;
+                           ++channel) {
+                        (*frame_data)[channel] =
+                            &(*channels_data)[channel * max_frame_size];
+                      }
+                    };
+
+                populate_audio_frame(
+                    render_input_sample_rate_hz, render_input_num_channels,
+                    &render_input_stream_config, &render_input_frame_channels,
+                    &render_input_frame);
+                populate_audio_frame(
+                    render_output_sample_rate_hz, render_output_num_channels,
+                    &render_output_stream_config, &render_output_frame_channels,
+                    &render_output_frame);
+                populate_audio_frame(
+                    capture_input_sample_rate_hz, capture_input_num_channels,
+                    &capture_input_stream_config, &capture_input_frame_channels,
+                    &capture_input_frame);
+                populate_audio_frame(
+                    capture_output_sample_rate_hz, capture_output_num_channels,
+                    &capture_output_stream_config,
+                    &capture_output_frame_channels, &capture_output_frame);
+
+                for (size_t frame = 0; frame < 2; ++frame) {
+                  SCOPED_TRACE(ProduceDebugText(
+                      render_input_sample_rate_hz, render_output_sample_rate_hz,
+                      capture_input_sample_rate_hz,
+                      capture_output_sample_rate_hz, render_input_num_channels,
+                      render_output_num_channels, render_input_num_channels,
+                      capture_output_num_channels));
+
+                  int result = apm->ProcessReverseStream(
+                      &render_input_frame[0], render_input_stream_config,
+                      render_output_stream_config, &render_output_frame[0]);
+                  EXPECT_EQ(result, AudioProcessing::kNoError);
+                  result = apm->ProcessStream(
+                      &capture_input_frame[0], capture_input_stream_config,
+                      capture_output_stream_config, &capture_output_frame[0]);
+                  EXPECT_EQ(result, AudioProcessing::kNoError);
                 }
-              };
-
-              populate_audio_frame(
-                  render_input_sample_rate_hz, render_input_num_channels,
-                  &render_input_stream_config, &render_input_frame_channels,
-                  &render_input_frame);
-              populate_audio_frame(
-                  render_output_sample_rate_hz, render_output_num_channels,
-                  &render_output_stream_config, &render_output_frame_channels,
-                  &render_output_frame);
-              populate_audio_frame(
-                  capture_input_sample_rate_hz, capture_input_num_channels,
-                  &capture_input_stream_config, &capture_input_frame_channels,
-                  &capture_input_frame);
-              populate_audio_frame(
-                  capture_output_sample_rate_hz, capture_output_num_channels,
-                  &capture_output_stream_config, &capture_output_frame_channels,
-                  &capture_output_frame);
-
-              for (size_t frame = 0; frame < 2; ++frame) {
-                SCOPED_TRACE(ProduceDebugText(
-                    render_input_sample_rate_hz, render_output_sample_rate_hz,
-                    capture_input_sample_rate_hz, capture_output_sample_rate_hz,
-                    render_input_num_channels, render_output_num_channels,
-                    render_input_num_channels, capture_output_num_channels));
-
-                int result = apm->ProcessReverseStream(
-                    &render_input_frame[0], render_input_stream_config,
-                    render_output_stream_config, &render_output_frame[0]);
-                EXPECT_EQ(result, AudioProcessing::kNoError);
-                result = apm->ProcessStream(
-                    &capture_input_frame[0], capture_input_stream_config,
-                    capture_output_stream_config, &capture_output_frame[0]);
-                EXPECT_EQ(result, AudioProcessing::kNoError);
               }
             }
           }
@@ -2718,7 +2377,7 @@ TEST(ApmConfiguration, EchoDetectorInjection) {
                      StreamConfig(48000, 1), frame.data.data());
 }
 
-scoped_refptr<AudioProcessing> CreateApm(bool mobile_aec) {
+scoped_refptr<AudioProcessing> CreateApm() {
   // Enable residual echo detection, for stats.
   scoped_refptr<AudioProcessing> apm =
       BuiltinAudioProcessingBuilder()
@@ -2741,7 +2400,6 @@ scoped_refptr<AudioProcessing> CreateApm(bool mobile_aec) {
   apm_config.gain_controller1.enabled = false;
   apm_config.gain_controller2.enabled = false;
   apm_config.echo_canceller.enabled = true;
-  apm_config.echo_canceller.mobile_mode = mobile_aec;
   apm_config.noise_suppression.enabled = false;
   apm->ApplyConfig(apm_config);
   return apm;
@@ -2755,7 +2413,7 @@ scoped_refptr<AudioProcessing> CreateApm(bool mobile_aec) {
 
 TEST(MAYBE_ApmStatistics, AECEnabledTest) {
   // Set up APM with AEC3 and process some audio.
-  scoped_refptr<AudioProcessing> apm = CreateApm(false);
+  scoped_refptr<AudioProcessing> apm = CreateApm();
   ASSERT_TRUE(apm);
   AudioProcessing::Config apm_config;
   apm_config.echo_canceller.enabled = true;
@@ -2803,54 +2461,6 @@ TEST(MAYBE_ApmStatistics, AECEnabledTest) {
   EXPECT_NE(*stats.echo_return_loss, -100.0);
   ASSERT_TRUE(stats.echo_return_loss_enhancement.has_value());
   EXPECT_NE(*stats.echo_return_loss_enhancement, -100.0);
-}
-
-TEST(MAYBE_ApmStatistics, AECMEnabledTest) {
-  // Set up APM with AECM and process some audio.
-  scoped_refptr<AudioProcessing> apm = CreateApm(true);
-  ASSERT_TRUE(apm);
-
-  // Set up an audioframe.
-  Int16FrameData frame;
-  frame.SetProperties(AudioProcessing::GetFrameSize(
-                          AudioProcessing::NativeRate::kSampleRate32kHz),
-                      /* num_channels=*/1);
-
-  // Fill the audio frame with a sawtooth pattern.
-  int16_t* ptr = frame.data.data();
-  for (size_t i = 0; i < Int16FrameData::kMaxDataSizeSamples; i++) {
-    ptr[i] = 10000 * ((i % 3) - 1);
-  }
-
-  // Do some processing.
-  for (int i = 0; i < 200; i++) {
-    EXPECT_EQ(apm->ProcessReverseStream(
-                  frame.data.data(),
-                  StreamConfig(frame.sample_rate_hz, frame.num_channels()),
-                  StreamConfig(frame.sample_rate_hz, frame.num_channels()),
-                  frame.data.data()),
-              0);
-    EXPECT_EQ(apm->set_stream_delay_ms(0), 0);
-    EXPECT_EQ(apm->ProcessStream(
-                  frame.data.data(),
-                  StreamConfig(frame.sample_rate_hz, frame.num_channels()),
-                  StreamConfig(frame.sample_rate_hz, frame.num_channels()),
-                  frame.data.data()),
-              0);
-  }
-
-  // Test statistics interface.
-  AudioProcessingStats stats = apm->GetStatistics();
-  // We expect only the residual echo detector statistics to be set and have a
-  // sensible value.
-  ASSERT_TRUE(stats.residual_echo_likelihood.has_value());
-  EXPECT_GE(*stats.residual_echo_likelihood, 0.0);
-  EXPECT_LE(*stats.residual_echo_likelihood, 1.0);
-  ASSERT_TRUE(stats.residual_echo_likelihood_recent_max.has_value());
-  EXPECT_GE(*stats.residual_echo_likelihood_recent_max, 0.0);
-  EXPECT_LE(*stats.residual_echo_likelihood_recent_max, 1.0);
-  EXPECT_FALSE(stats.echo_return_loss.has_value());
-  EXPECT_FALSE(stats.echo_return_loss_enhancement.has_value());
 }
 
 TEST(ApmStatistics, DoNotReportVoiceDetectedStat) {
@@ -2931,16 +2541,18 @@ TEST(ApmConfiguration, HandlingOfRateAndChannelCombinations) {
   std::array<int, 3> sample_rates_hz = {16000, 32000, 48000};
   std::array<int, 2> render_channel_counts = {1, 7};
   std::array<int, 2> capture_channel_counts = {1, 7};
+  std::array<bool, 2> mono_capture_output = {true, false};
   RunApmRateAndChannelTest(sample_rates_hz, render_channel_counts,
-                           capture_channel_counts);
+                           capture_channel_counts, mono_capture_output);
 }
 
 TEST(ApmConfiguration, HandlingOfChannelCombinations) {
   std::array<int, 1> sample_rates_hz = {48000};
   std::array<int, 8> render_channel_counts = {1, 2, 3, 4, 5, 6, 7, 8};
   std::array<int, 8> capture_channel_counts = {1, 2, 3, 4, 5, 6, 7, 8};
+  std::array<bool, 2> mono_capture_output = {true, false};
   RunApmRateAndChannelTest(sample_rates_hz, render_channel_counts,
-                           capture_channel_counts);
+                           capture_channel_counts, mono_capture_output);
 }
 
 TEST(ApmConfiguration, HandlingOfRateCombinations) {
@@ -2953,8 +2565,9 @@ TEST(ApmConfiguration, HandlingOfRateCombinations) {
                                         44100, 48000, 88200, 96000};
   std::array<int, 1> render_channel_counts = {2};
   std::array<int, 1> capture_channel_counts = {2};
+  std::array<bool, 2> mono_capture_output = {true, false};
   RunApmRateAndChannelTest(sample_rates_hz, render_channel_counts,
-                           capture_channel_counts);
+                           capture_channel_counts, mono_capture_output);
 }
 
 TEST(ApmConfiguration, SelfAssignment) {

@@ -17,6 +17,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -29,11 +30,11 @@
 #include "api/data_channel_interface.h"
 #include "api/dtls_transport_interface.h"
 #include "api/environment/environment.h"
-#include "api/environment/environment_factory.h"
 #include "api/make_ref_counted.h"
 #include "api/media_stream_interface.h"
 #include "api/media_stream_track.h"
 #include "api/media_types.h"
+#include "api/peer_connection_interface.h"
 #include "api/rtp_parameters.h"
 #include "api/rtp_transceiver_direction.h"
 #include "api/scoped_refptr.h"
@@ -79,7 +80,7 @@
 #include "pc/test/rtc_stats_obtainer.h"
 #include "pc/transport_stats.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/fake_clock.h"
+#include "rtc_base/event.h"
 #include "rtc_base/fake_ssl_identity.h"
 #include "rtc_base/network_constants.h"
 #include "rtc_base/rtc_certificate.h"
@@ -91,9 +92,12 @@
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/time_utils.h"
+#include "system_wrappers/include/clock.h"
+#include "test/create_test_environment.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/run_loop.h"
+#include "test/time_controller/simulated_time_controller.h"
 
 using ::testing::_;
 using ::testing::Return;
@@ -348,9 +352,9 @@ scoped_refptr<MockRtpSenderInternal> CreateMockSender(
   EXPECT_CALL(*sender, ssrc()).WillRepeatedly(Return(ssrc));
   EXPECT_CALL(*sender, media_type()).WillRepeatedly(Return(media_type));
   EXPECT_CALL(*sender, GetParameters()).WillRepeatedly([s = sender.get()]() {
-    return s->GetParametersInternal();
+    return s->GetParametersInternal(false, false);
   });
-  EXPECT_CALL(*sender, GetParametersInternal()).WillRepeatedly([ssrc]() {
+  EXPECT_CALL(*sender, GetParametersInternal(_, _)).WillRepeatedly([ssrc]() {
     RtpParameters params;
     params.encodings.push_back(RtpEncodingParameters());
     params.encodings[0].ssrc = ssrc;
@@ -393,7 +397,7 @@ class RTCStatsCollectorWrapper {
   explicit RTCStatsCollectorWrapper(
       scoped_refptr<FakePeerConnectionForStats> pc,
       const Environment& env)
-      : pc_(pc), stats_collector_(pc_.get(), env) {}
+      : pc_(pc), env_(env), stats_collector_(pc_.get(), env) {}
 
   RTCStatsCollector& stats_collector() { return stats_collector_; }
 
@@ -402,14 +406,14 @@ class RTCStatsCollectorWrapper {
     stats_collector_.GetStatsReport(
         RTCStatsObtainer::Create(&report, [&loop] { loop.Quit(); }));
     loop.Run();
-    int64_t after = TimeUTCMicros();
+    Timestamp after = env_.clock().CurrentTime();
     for (const RTCStats& stats : *report) {
       if (stats.type() == RTCRemoteInboundRtpStreamStats::kType ||
           stats.type() == RTCRemoteOutboundRtpStreamStats::kType) {
         // Ignore remote timestamps.
         continue;
       }
-      EXPECT_LE(stats.timestamp().us(), after);
+      EXPECT_LE(stats.timestamp(), after);
     }
     return report;
   }
@@ -454,9 +458,9 @@ class RTCStatsCollectorWrapper {
       return media_type;
     });
     EXPECT_CALL(*sender, GetParameters()).WillRepeatedly([s = sender.get()]() {
-      return s->GetParametersInternal();
+      return s->GetParametersInternal(false, false);
     });
-    EXPECT_CALL(*sender, GetParametersInternal()).WillRepeatedly([ssrc]() {
+    EXPECT_CALL(*sender, GetParametersInternal(_, _)).WillRepeatedly([ssrc]() {
       RtpParameters params;
       params.encodings.push_back(RtpEncodingParameters());
       params.encodings[0].ssrc = ssrc;
@@ -608,17 +612,28 @@ class RTCStatsCollectorWrapper {
 
  private:
   scoped_refptr<FakePeerConnectionForStats> pc_;
+  const Environment env_;
   RTCStatsCollector stats_collector_;
 };
 
-class RTCStatsCollectorTest : public ::testing::Test {
+class RTCStatsCollectorTestBase : public ::testing::Test {
  public:
-  RTCStatsCollectorTest()
-      : pc_(make_ref_counted<FakePeerConnectionForStats>()),
-        stats_(std::make_unique<RTCStatsCollectorWrapper>(pc_,
-                                                          CreateEnvironment())),
-        data_channel_controller_(std::make_unique<FakeDataChannelController>(
-            pc_->network_thread())) {}
+  RTCStatsCollectorTestBase()
+      : time_controller_(Timestamp::Zero()),
+        env_(CreateTestEnvironment({.time = time_controller_.GetClock()})),
+        pc_(make_ref_counted<FakePeerConnectionForStats>(env_)) {
+    data_channel_controller_ =
+        std::make_unique<FakeDataChannelController>(pc_->network_thread());
+  }
+
+  void SetStatsTimestampWithEnvironmentClock(bool enabled) {
+    PeerConnectionInterface::RTCConfiguration config = pc_->GetConfiguration();
+    config.set_stats_timestamp_with_environment_clock(enabled);
+    pc_->SetConfiguration(config);
+    // RTCStatsCollector reads this flag in the constructor, so we need to
+    // recreate it.
+    stats_ = std::make_unique<RTCStatsCollectorWrapper>(pc_, env_);
+  }
 
   void ExpectReportContainsCertificateInfo(
       const scoped_refptr<const RTCStatsReport>& report,
@@ -798,6 +813,8 @@ class RTCStatsCollectorTest : public ::testing::Test {
       graph.remote_outbound_rtp_id = "ROA4";
       media_info.receivers[0].last_sender_report_utc_timestamp =
           kRemoteOutboundStatsTimestamp;
+      media_info.receivers[0].last_sender_report_timestamp =
+          kRemoteOutboundStatsTimestamp;
       media_info.receivers[0].last_sender_report_remote_utc_timestamp =
           kRemoteOutboundStatsRemoteTimestamp;
       media_info.receivers[0].sender_reports_packets_sent =
@@ -863,14 +880,21 @@ class RTCStatsCollectorTest : public ::testing::Test {
   }
 
  protected:
-  ScopedFakeClock fake_clock_;
+  GlobalSimulatedTimeController time_controller_;
+  Environment env_;
   RunLoop main_thread_;
   scoped_refptr<FakePeerConnectionForStats> pc_;
   std::unique_ptr<RTCStatsCollectorWrapper> stats_;
   std::unique_ptr<FakeDataChannelController> data_channel_controller_;
 };
 
-TEST_F(RTCStatsCollectorTest, SingleCallback) {
+class RTCStatsCollectorTest : public RTCStatsCollectorTestBase,
+                              public ::testing::WithParamInterface<bool> {
+ public:
+  RTCStatsCollectorTest() { SetStatsTimestampWithEnvironmentClock(GetParam()); }
+};
+
+TEST_P(RTCStatsCollectorTest, SingleCallback) {
   scoped_refptr<const RTCStatsReport> result;
   stats_->stats_collector().GetStatsReport(
       RTCStatsObtainer::Create(&result, [&] { main_thread_.Quit(); }));
@@ -878,7 +902,7 @@ TEST_F(RTCStatsCollectorTest, SingleCallback) {
   EXPECT_TRUE(result);
 }
 
-TEST_F(RTCStatsCollectorTest, MultipleCallbacks) {
+TEST_P(RTCStatsCollectorTest, MultipleCallbacks) {
   scoped_refptr<const RTCStatsReport> a, b, c;
   int remaining = 3;
   auto on_complete = [&] {
@@ -900,7 +924,7 @@ TEST_F(RTCStatsCollectorTest, MultipleCallbacks) {
   EXPECT_EQ(b.get(), c.get());
 }
 
-TEST_F(RTCStatsCollectorTest, CachedStatsReports) {
+TEST_P(RTCStatsCollectorTest, CachedStatsReports) {
   // Caching should ensure `a` and `b` are the same report.
   scoped_refptr<const RTCStatsReport> a = stats_->GetStatsReport(main_thread_);
   scoped_refptr<const RTCStatsReport> b = stats_->GetStatsReport(main_thread_);
@@ -910,13 +934,13 @@ TEST_F(RTCStatsCollectorTest, CachedStatsReports) {
   scoped_refptr<const RTCStatsReport> c = stats_->GetStatsReport(main_thread_);
   EXPECT_NE(b.get(), c.get());
   // Invalidate cache by advancing time.
-  fake_clock_.AdvanceTime(TimeDelta::Millis(51));
+  time_controller_.AdvanceTime(TimeDelta::Millis(51));
   scoped_refptr<const RTCStatsReport> d = stats_->GetStatsReport(main_thread_);
   EXPECT_TRUE(d);
   EXPECT_NE(c.get(), d.get());
 }
 
-TEST_F(RTCStatsCollectorTest, MultipleCallbacksWithInvalidatedCacheInBetween) {
+TEST_P(RTCStatsCollectorTest, MultipleCallbacksWithInvalidatedCacheInBetween) {
   scoped_refptr<const RTCStatsReport> a, b, c;
   int remaining = 3;
   auto on_complete = [&] {
@@ -929,7 +953,7 @@ TEST_F(RTCStatsCollectorTest, MultipleCallbacksWithInvalidatedCacheInBetween) {
       RTCStatsObtainer::Create(&b, on_complete));
   // Cache is invalidated after 50 ms.
   main_thread_.Flush();
-  fake_clock_.AdvanceTime(TimeDelta::Millis(51));
+  time_controller_.AdvanceTime(TimeDelta::Millis(51));
   stats_->stats_collector().GetStatsReport(
       RTCStatsObtainer::Create(&c, on_complete));
   main_thread_.Run();
@@ -942,7 +966,7 @@ TEST_F(RTCStatsCollectorTest, MultipleCallbacksWithInvalidatedCacheInBetween) {
   EXPECT_NE(c.get(), b.get());
 }
 
-TEST_F(RTCStatsCollectorTest, ToJsonProducesParseableJson) {
+TEST_P(RTCStatsCollectorTest, ToJsonProducesParseableJson) {
   ExampleStatsGraph graph = SetupExampleStatsGraphForSelectorTests();
   scoped_refptr<const RTCStatsReport> report =
       stats_->GetStatsReport(main_thread_);
@@ -959,7 +983,7 @@ TEST_F(RTCStatsCollectorTest, ToJsonProducesParseableJson) {
   EXPECT_EQ(report->size(), json_value.size());
 }
 
-TEST_F(RTCStatsCollectorTest, CollectRTCCertificateStatsSingle) {
+TEST_P(RTCStatsCollectorTest, CollectRTCCertificateStatsSingle) {
   const char kTransportName[] = "transport";
 
   pc_->AddVoiceChannel("audio", kTransportName);
@@ -984,7 +1008,7 @@ TEST_F(RTCStatsCollectorTest, CollectRTCCertificateStatsSingle) {
 }
 
 // These SSRC collisions are legal.
-TEST_F(RTCStatsCollectorTest, ValidSsrcCollisionDoesNotCrash) {
+TEST_P(RTCStatsCollectorTest, ValidSsrcCollisionDoesNotCrash) {
   // BUNDLE audio/video inbound/outbound. Unique SSRCs needed within the BUNDLE.
   VoiceMediaInfo mid1_info;
   mid1_info.receivers.emplace_back();
@@ -1029,7 +1053,7 @@ TEST_F(RTCStatsCollectorTest, ValidSsrcCollisionDoesNotCrash) {
 // These SSRC collisions are illegal, so it is not clear if this setup can
 // happen even when talking to a malicious endpoint, but simulate illegal SSRC
 // collisions just to make sure we don't crash in even the most extreme cases.
-TEST_F(RTCStatsCollectorTest, InvalidSsrcCollisionDoesNotCrash) {
+TEST_P(RTCStatsCollectorTest, InvalidSsrcCollisionDoesNotCrash) {
   // One SSRC to rule them all.
   VoiceMediaInfo mid1_info;
   mid1_info.receivers.emplace_back();
@@ -1062,7 +1086,7 @@ TEST_F(RTCStatsCollectorTest, InvalidSsrcCollisionDoesNotCrash) {
   // should look. We only care about not crashing.
 }
 
-TEST_F(RTCStatsCollectorTest, CollectRTCCodecStatsOnlyIfReferenced) {
+TEST_P(RTCStatsCollectorTest, CollectRTCCodecStatsOnlyIfReferenced) {
   // Audio
   VoiceMediaInfo voice_media_info;
 
@@ -1212,7 +1236,7 @@ TEST_F(RTCStatsCollectorTest, CollectRTCCodecStatsOnlyIfReferenced) {
   EXPECT_FALSE(report->Get(expected_outbound_video_codec.id()));
 }
 
-TEST_F(RTCStatsCollectorTest, CodecStatsAreCollectedPerTransport) {
+TEST_P(RTCStatsCollectorTest, CodecStatsAreCollectedPerTransport) {
   // PT=10
   RtpCodecParameters outbound_codec_pt10;
   outbound_codec_pt10.payload_type = 10;
@@ -1278,7 +1302,7 @@ TEST_F(RTCStatsCollectorTest, CodecStatsAreCollectedPerTransport) {
   EXPECT_EQ(codec_stats.size(), 4u);
 }
 
-TEST_F(RTCStatsCollectorTest, SamePayloadTypeButDifferentFmtpLines) {
+TEST_P(RTCStatsCollectorTest, SamePayloadTypeButDifferentFmtpLines) {
   // PT=111, useinbandfec=0
   RtpCodecParameters inbound_codec_pt111_nofec;
   inbound_codec_pt111_nofec.payload_type = 111;
@@ -1362,7 +1386,7 @@ TEST_F(RTCStatsCollectorTest, SamePayloadTypeButDifferentFmtpLines) {
   EXPECT_EQ(codec_stats.size(), 3u);
 }
 
-TEST_F(RTCStatsCollectorTest, CollectRTCCertificateStatsMultiple) {
+TEST_P(RTCStatsCollectorTest, CollectRTCCertificateStatsMultiple) {
   const char kAudioTransport[] = "audio";
   const char kVideoTransport[] = "video";
 
@@ -1399,7 +1423,7 @@ TEST_F(RTCStatsCollectorTest, CollectRTCCertificateStatsMultiple) {
   ExpectReportContainsCertificateInfo(report, *video_remote_certinfo);
 }
 
-TEST_F(RTCStatsCollectorTest, CollectRTCCertificateStatsChain) {
+TEST_P(RTCStatsCollectorTest, CollectRTCCertificateStatsChain) {
   const char kTransportName[] = "transport";
 
   pc_->AddVoiceChannel("audio", kTransportName);
@@ -1423,9 +1447,8 @@ TEST_F(RTCStatsCollectorTest, CollectRTCCertificateStatsChain) {
   ExpectReportContainsCertificateInfo(report, *remote_certinfo);
 }
 
-TEST_F(RTCStatsCollectorTest, CertificateStatsCache) {
+TEST_P(RTCStatsCollectorTest, CertificateStatsCache) {
   const char kTransportName[] = "transport";
-  ScopedFakeClock fake_clock;
 
   pc_->AddVoiceChannel("audio", kTransportName);
 
@@ -1455,10 +1478,10 @@ TEST_F(RTCStatsCollectorTest, CertificateStatsCache) {
   ASSERT_TRUE(first_local_cert1);
   ASSERT_TRUE(first_remote_cert0);
   ASSERT_TRUE(first_remote_cert1);
-  EXPECT_EQ(first_local_cert0->timestamp().us(), TimeMicros());
-  EXPECT_EQ(first_local_cert1->timestamp().us(), TimeMicros());
-  EXPECT_EQ(first_remote_cert0->timestamp().us(), TimeMicros());
-  EXPECT_EQ(first_remote_cert1->timestamp().us(), TimeMicros());
+  EXPECT_EQ(first_local_cert0->timestamp(), env_.clock().CurrentTime());
+  EXPECT_EQ(first_local_cert1->timestamp(), env_.clock().CurrentTime());
+  EXPECT_EQ(first_remote_cert0->timestamp(), env_.clock().CurrentTime());
+  EXPECT_EQ(first_remote_cert1->timestamp(), env_.clock().CurrentTime());
 
   // Replace all certificates.
   std::unique_ptr<CertificateInfo> updated_local_certinfo =
@@ -1480,7 +1503,7 @@ TEST_F(RTCStatsCollectorTest, CertificateStatsCache) {
 
   // Advance time to ensure a fresh stats report, but don't clear the
   // certificate stats cache.
-  fake_clock.AdvanceTime(TimeDelta::Seconds(1));
+  time_controller_.AdvanceTime(TimeDelta::Seconds(1));
   scoped_refptr<const RTCStatsReport> second_report =
       stats_->GetStatsReport(main_thread_);
   // We expect to see the same certificates as before due to not clearing the
@@ -1507,10 +1530,10 @@ TEST_F(RTCStatsCollectorTest, CertificateStatsCache) {
   EXPECT_EQ(*second_remote_cert1->fingerprint,
             initial_remote_certinfo->fingerprints[1]);
   // But timestamps are up-to-date, because this is a fresh stats report.
-  EXPECT_EQ(second_local_cert0->timestamp().us(), TimeMicros());
-  EXPECT_EQ(second_local_cert1->timestamp().us(), TimeMicros());
-  EXPECT_EQ(second_remote_cert0->timestamp().us(), TimeMicros());
-  EXPECT_EQ(second_remote_cert1->timestamp().us(), TimeMicros());
+  EXPECT_EQ(second_local_cert0->timestamp(), env_.clock().CurrentTime());
+  EXPECT_EQ(second_local_cert1->timestamp(), env_.clock().CurrentTime());
+  EXPECT_EQ(second_remote_cert0->timestamp(), env_.clock().CurrentTime());
+  EXPECT_EQ(second_remote_cert1->timestamp(), env_.clock().CurrentTime());
   // The updated certificates are not part of the report yet.
   EXPECT_FALSE(GetCertificateStatsFromFingerprint(
       second_report, updated_local_certinfo->fingerprints[0]));
@@ -1541,7 +1564,7 @@ TEST_F(RTCStatsCollectorTest, CertificateStatsCache) {
       third_report, updated_remote_certinfo->fingerprints[1]));
 }
 
-TEST_F(RTCStatsCollectorTest, CollectTwoRTCDataChannelStatsWithPendingId) {
+TEST_P(RTCStatsCollectorTest, CollectTwoRTCDataChannelStatsWithPendingId) {
   // Note: The test assumes data channel IDs are predictable.
   // This is not a safe assumption, but in order to make it work for
   // the test, we reset the ID allocator at test start.
@@ -1571,7 +1594,7 @@ TEST_F(RTCStatsCollectorTest, CollectTwoRTCDataChannelStatsWithPendingId) {
       report->Get(expected_data_channel0.id())->cast_to<RTCDataChannelStats>());
 }
 
-TEST_F(RTCStatsCollectorTest, CollectRTCDataChannelStats) {
+TEST_P(RTCStatsCollectorTest, CollectRTCDataChannelStats) {
   // Note: The test assumes data channel IDs are predictable.
   // This is not a safe assumption, but in order to make it work for
   // the test, we reset the ID allocator at test start.
@@ -1649,7 +1672,7 @@ TEST_F(RTCStatsCollectorTest, CollectRTCDataChannelStats) {
       report->Get(expected_data_channel3.id())->cast_to<RTCDataChannelStats>());
 }
 
-TEST_F(RTCStatsCollectorTest, CollectRTCIceCandidateStats) {
+TEST_P(RTCStatsCollectorTest, CollectRTCIceCandidateStats) {
   // Candidates in the first transport stats.
   std::unique_ptr<Candidate> a_local_host = CreateFakeCandidate(
       "1.2.3.4", 5, "a_local_host's protocol", ADAPTER_TYPE_VPN,
@@ -1899,7 +1922,7 @@ TEST_F(RTCStatsCollectorTest, CollectRTCIceCandidateStats) {
   EXPECT_TRUE(report->Get("Tb0"));
 }
 
-TEST_F(RTCStatsCollectorTest, CollectRTCIceCandidatePairStats) {
+TEST_P(RTCStatsCollectorTest, CollectRTCIceCandidatePairStats) {
   const char kTransportName[] = "transport";
 
   std::unique_ptr<Candidate> local_candidate =
@@ -2079,7 +2102,7 @@ TEST_F(RTCStatsCollectorTest, CollectRTCIceCandidatePairStats) {
                 ->cast_to<RTCRemoteIceCandidateStats>());
 }
 
-TEST_F(RTCStatsCollectorTest, CollectRTCPeerConnectionStats) {
+TEST_P(RTCStatsCollectorTest, CollectRTCPeerConnectionStats) {
   {
     scoped_refptr<const RTCStatsReport> report =
         stats_->GetStatsReport(main_thread_);
@@ -2160,7 +2183,7 @@ TEST_F(RTCStatsCollectorTest, CollectRTCPeerConnectionStats) {
   }
 }
 
-TEST_F(RTCStatsCollectorTest, CollectRTCInboundRtpStreamStats_Audio) {
+TEST_P(RTCStatsCollectorTest, CollectRTCInboundRtpStreamStats_Audio) {
   VoiceMediaInfo voice_media_info;
 
   voice_media_info.receivers.push_back(VoiceReceiverInfo());
@@ -2291,7 +2314,7 @@ TEST_F(RTCStatsCollectorTest, CollectRTCInboundRtpStreamStats_Audio) {
   EXPECT_TRUE(report->Get(*expected_audio.codec_id));
 }
 
-TEST_F(RTCStatsCollectorTest, CollectRTCInboundRtpStreamStats_Audio_PlayoutId) {
+TEST_P(RTCStatsCollectorTest, CollectRTCInboundRtpStreamStats_Audio_PlayoutId) {
   VoiceMediaInfo voice_media_info;
 
   voice_media_info.receivers.push_back(VoiceReceiverInfo());
@@ -2330,7 +2353,7 @@ TEST_F(RTCStatsCollectorTest, CollectRTCInboundRtpStreamStats_Audio_PlayoutId) {
   }
 }
 
-TEST_F(RTCStatsCollectorTest, CollectRTCInboundRtpStreamStats_Video) {
+TEST_P(RTCStatsCollectorTest, CollectRTCInboundRtpStreamStats_Video) {
   VideoMediaInfo video_media_info;
 
   video_media_info.receivers.push_back(VideoReceiverInfo());
@@ -2500,7 +2523,7 @@ TEST_F(RTCStatsCollectorTest, CollectRTCInboundRtpStreamStats_Video) {
   EXPECT_TRUE(report->Get(*expected_video.codec_id));
 }
 
-TEST_F(RTCStatsCollectorTest, CollectRTCAudioPlayoutStats) {
+TEST_P(RTCStatsCollectorTest, CollectRTCAudioPlayoutStats) {
   AudioDeviceModule::Stats audio_device_stats;
   audio_device_stats.synthesized_samples_duration_s = 1;
   audio_device_stats.synthesized_samples_events = 2;
@@ -2531,7 +2554,7 @@ TEST_F(RTCStatsCollectorTest, CollectRTCAudioPlayoutStats) {
             expected_stats);
 }
 
-TEST_F(RTCStatsCollectorTest, CollectGoogTimingFrameInfo) {
+TEST_P(RTCStatsCollectorTest, CollectGoogTimingFrameInfo) {
   VideoMediaInfo video_media_info;
 
   video_media_info.receivers.push_back(VideoReceiverInfo());
@@ -2568,7 +2591,7 @@ TEST_F(RTCStatsCollectorTest, CollectGoogTimingFrameInfo) {
             "1,2,3,4,5,6,7,8,9,10,11,12,13,1,0");
 }
 
-TEST_F(RTCStatsCollectorTest, CollectRTCOutboundRtpStreamStats_Audio) {
+TEST_P(RTCStatsCollectorTest, CollectRTCOutboundRtpStreamStats_Audio) {
   VoiceMediaInfo voice_media_info;
 
   voice_media_info.senders.push_back(VoiceSenderInfo());
@@ -2635,7 +2658,7 @@ TEST_F(RTCStatsCollectorTest, CollectRTCOutboundRtpStreamStats_Audio) {
   EXPECT_TRUE(report->Get(*expected_audio.codec_id));
 }
 
-TEST_F(RTCStatsCollectorTest, CollectRTCOutboundRtpStreamStats_Video) {
+TEST_P(RTCStatsCollectorTest, CollectRTCOutboundRtpStreamStats_Video) {
   VideoMediaInfo video_media_info;
 
   video_media_info.senders.push_back(VideoSenderInfo());
@@ -2789,7 +2812,7 @@ TEST_F(RTCStatsCollectorTest, CollectRTCOutboundRtpStreamStats_Video) {
   EXPECT_TRUE(report->Get(*expected_video.codec_id));
 }
 
-TEST_F(RTCStatsCollectorTest, CollectRTCTransportStats) {
+TEST_P(RTCStatsCollectorTest, CollectRTCTransportStats) {
   const char kTransportName[] = "transport";
 
   pc_->AddVoiceChannel("audio", kTransportName);
@@ -2959,7 +2982,7 @@ TEST_F(RTCStatsCollectorTest, CollectRTCTransportStats) {
       report->Get(expected_rtcp_transport.id())->cast_to<RTCTransportStats>());
 }
 
-TEST_F(RTCStatsCollectorTest, CollectRTCTransportStatsWithCrypto) {
+TEST_P(RTCStatsCollectorTest, CollectRTCTransportStatsWithCrypto) {
   const char kTransportName[] = "transport";
 
   pc_->AddVoiceChannel("audio", kTransportName);
@@ -3037,7 +3060,7 @@ TEST_F(RTCStatsCollectorTest, CollectRTCTransportStatsWithCrypto) {
       report->Get(expected_rtp_transport.id())->cast_to<RTCTransportStats>());
 }
 
-TEST_F(RTCStatsCollectorTest, CollectNoStreamRTCOutboundRtpStreamStats_Audio) {
+TEST_P(RTCStatsCollectorTest, CollectNoStreamRTCOutboundRtpStreamStats_Audio) {
   VoiceMediaInfo voice_media_info;
 
   voice_media_info.senders.push_back(VoiceSenderInfo());
@@ -3097,7 +3120,7 @@ TEST_F(RTCStatsCollectorTest, CollectNoStreamRTCOutboundRtpStreamStats_Audio) {
   EXPECT_TRUE(report->Get(*expected_audio.codec_id));
 }
 
-TEST_F(RTCStatsCollectorTest, RTCAudioSourceStatsCollectedForSenderWithTrack) {
+TEST_P(RTCStatsCollectorTest, RTCAudioSourceStatsCollectedForSenderWithTrack) {
   const uint32_t kSsrc = 4;
   const int kAttachmentId = 42;
 
@@ -3132,7 +3155,7 @@ TEST_F(RTCStatsCollectorTest, RTCAudioSourceStatsCollectedForSenderWithTrack) {
             expected_audio);
 }
 
-TEST_F(RTCStatsCollectorTest, RTCVideoSourceStatsCollectedForSenderWithTrack) {
+TEST_P(RTCStatsCollectorTest, RTCVideoSourceStatsCollectedForSenderWithTrack) {
   const uint32_t kSsrc = 4;
   const int kAttachmentId = 42;
   const int kVideoSourceWidth = 12;
@@ -3184,7 +3207,7 @@ TEST_F(RTCStatsCollectorTest, RTCVideoSourceStatsCollectedForSenderWithTrack) {
 // behavior is to report frame rate even if we have no SSRC.
 // TODO(hbos): When we know the frame rate even if we have no SSRC, update the
 // expectations of this test.
-TEST_F(RTCStatsCollectorTest,
+TEST_P(RTCStatsCollectorTest,
        RTCVideoSourceStatsMissingFrameRateWhenSenderHasNoSsrc) {
   // TODO(https://crbug.com/webrtc/8694): When 0 is no longer a magic value for
   // "none", update this test.
@@ -3222,7 +3245,7 @@ TEST_F(RTCStatsCollectorTest,
 
 // The track not having a source is not expected to be true in practise, but
 // this is true in some tests relying on fakes. This test covers that code path.
-TEST_F(RTCStatsCollectorTest,
+TEST_P(RTCStatsCollectorTest,
        RTCVideoSourceStatsMissingResolutionWhenTrackHasNoSource) {
   const uint32_t kSsrc = 4;
   const int kAttachmentId = 42;
@@ -3254,7 +3277,7 @@ TEST_F(RTCStatsCollectorTest,
   EXPECT_FALSE(video_stats.height.has_value());
 }
 
-TEST_F(RTCStatsCollectorTest,
+TEST_P(RTCStatsCollectorTest,
        RTCAudioSourceStatsNotCollectedForSenderWithoutTrack) {
   const uint32_t kSsrc = 4;
   const int kAttachmentId = 42;
@@ -3278,14 +3301,14 @@ TEST_F(RTCStatsCollectorTest,
   EXPECT_FALSE(report->Get("SA42"));
 }
 
-// Parameterized tests on webrtc::MediaType (audio or video).
+// Parameterized tests on webrtc::MediaType (audio or video) and a boolean
+// indicating if the stats timestamp should use the environment clock.
 class RTCStatsCollectorTestWithParamKind
-    : public RTCStatsCollectorTest,
-      public ::testing::WithParamInterface<MediaType> {
+    : public RTCStatsCollectorTestBase,
+      public ::testing::WithParamInterface<std::tuple<MediaType, bool>> {
  public:
-  RTCStatsCollectorTestWithParamKind() : media_type_(GetParam()) {
-    RTC_DCHECK(media_type_ == MediaType::AUDIO ||
-               media_type_ == MediaType::VIDEO);
+  RTCStatsCollectorTestWithParamKind() : media_type_(std::get<0>(GetParam())) {
+    SetStatsTimestampWithEnvironmentClock(std::get<1>(GetParam()));
   }
 
   std::string MediaTypeCharStr() const {
@@ -3368,7 +3391,11 @@ class RTCStatsCollectorTestWithParamKind
 // RTCCodecStats (codecId, jitter) and without setting up an RTCP transport.
 TEST_P(RTCStatsCollectorTestWithParamKind,
        RTCRemoteInboundRtpStreamStatsCollectedFromReportBlock) {
-  const Timestamp kReportBlockTimestampUtc = Timestamp::Micros(123456789);
+  constexpr TimeDelta kReportBlockTimestampUtcOffset =
+      TimeDelta::Micros(123456789);
+  const Timestamp kReportBlockTimestampUtc =
+      time_controller_.GetClock()->CurrentTime() +
+      kReportBlockTimestampUtcOffset;
   const Timestamp kReportBlockTimestamp = Timestamp::Micros(12345678);
   const uint8_t kFractionLost = 12;
   const TimeDelta kRoundTripTimeSample1 = TimeDelta::Millis(1'234);
@@ -3376,7 +3403,7 @@ TEST_P(RTCStatsCollectorTestWithParamKind,
 
   // The report block's timestamp cannot be from the future, set the fake clock
   // to match.
-  fake_clock_.SetTime(kReportBlockTimestampUtc);
+  time_controller_.AdvanceTime(kReportBlockTimestampUtcOffset);
   uint32_t ssrcs[] = {12, 13};
   std::vector<ReportBlockData> report_block_datas;
   Call::Stats call_stats;
@@ -3407,12 +3434,15 @@ TEST_P(RTCStatsCollectorTestWithParamKind,
                                std::nullopt);
   pc_->SetCallStats(call_stats);
 
+  const Timestamp expected_timestamp = std::get<1>(GetParam())
+                                           ? kReportBlockTimestamp
+                                           : kReportBlockTimestampUtc;
   scoped_refptr<const RTCStatsReport> report =
       stats_->GetStatsReport(main_thread_);
   for (uint32_t ssrc : ssrcs) {
     std::string stream_id = "" + std::to_string(ssrc);
     RTCRemoteInboundRtpStreamStats expected_remote_inbound_rtp(
-        "RI" + MediaTypeCharStr() + stream_id, kReportBlockTimestampUtc);
+        "RI" + MediaTypeCharStr() + stream_id, expected_timestamp);
     expected_remote_inbound_rtp.ssrc = ssrc;
     expected_remote_inbound_rtp.fraction_lost =
         static_cast<double>(kFractionLost) / (1 << 8);
@@ -3437,9 +3467,11 @@ TEST_P(RTCStatsCollectorTestWithParamKind,
     // expected to be missing. These are tested separately.
 
     ASSERT_TRUE(report->Get(expected_remote_inbound_rtp.id()));
-    EXPECT_EQ(report->Get(expected_remote_inbound_rtp.id())
-                  ->cast_to<RTCRemoteInboundRtpStreamStats>(),
-              expected_remote_inbound_rtp);
+    const auto& remote_inbound_rtp =
+        report->Get(expected_remote_inbound_rtp.id())
+            ->cast_to<RTCRemoteInboundRtpStreamStats>();
+    EXPECT_EQ(remote_inbound_rtp, expected_remote_inbound_rtp);
+    EXPECT_EQ(remote_inbound_rtp.timestamp(), expected_timestamp);
     EXPECT_TRUE(report->Get(*expected_remote_inbound_rtp.transport_id));
     ASSERT_TRUE(report->Get(*expected_remote_inbound_rtp.local_id));
     // Lookup works in both directions.
@@ -3452,7 +3484,7 @@ TEST_P(RTCStatsCollectorTestWithParamKind,
 
 TEST_P(RTCStatsCollectorTestWithParamKind,
        RTCRemoteInboundRtpStreamStatsRttMissingBeforeMeasurement) {
-  constexpr Timestamp kReportBlockTimestampUtc = Timestamp::Micros(123456789);
+  const Timestamp kReportBlockTimestampUtc = Timestamp::Micros(123456789);
   const Timestamp kReportBlockTimestamp = Timestamp::Micros(12345678);
 
   rtcp::ReportBlock report_block;
@@ -3483,7 +3515,8 @@ TEST_P(RTCStatsCollectorTestWithParamKind,
        RTCRemoteInboundRtpStreamStatsWithTimestampFromReportBlock) {
   const Timestamp kReportBlockTimestampUtc = Timestamp::Micros(123456789);
   const Timestamp kReportBlockTimestamp = Timestamp::Micros(12345678);
-  fake_clock_.SetTime(kReportBlockTimestampUtc);
+  time_controller_.AdvanceTime(kReportBlockTimestampUtc -
+                               time_controller_.GetClock()->CurrentTime());
 
   rtcp::ReportBlock report_block;
   // The remote-inbound-rtp SSRC and the outbound-rtp SSRC is the same as the
@@ -3497,7 +3530,7 @@ TEST_P(RTCStatsCollectorTestWithParamKind,
                                std::nullopt);
 
   // Advance time, it should be OK to have fresher reports than report blocks.
-  fake_clock_.AdvanceTime(TimeDelta::Micros(1234));
+  time_controller_.AdvanceTime(TimeDelta::Micros(1234));
 
   scoped_refptr<const RTCStatsReport> report =
       stats_->GetStatsReport(main_thread_);
@@ -3511,14 +3544,19 @@ TEST_P(RTCStatsCollectorTestWithParamKind,
   // is of the time that the report block was received.
   EXPECT_EQ(report->timestamp(),
             kReportBlockTimestampUtc + TimeDelta::Micros(1234));
-  EXPECT_EQ(remote_inbound_rtp.timestamp(), kReportBlockTimestampUtc);
+  if (std::get<1>(GetParam())) {
+    EXPECT_EQ(remote_inbound_rtp.timestamp(), kReportBlockTimestamp);
+  } else {
+    EXPECT_EQ(remote_inbound_rtp.timestamp(), kReportBlockTimestampUtc);
+  }
 }
 
 TEST_P(RTCStatsCollectorTestWithParamKind,
        RTCRemoteInboundRtpStreamStatsWithCodecBasedMembers) {
   const Timestamp kReportBlockTimestampUtc = Timestamp::Micros(123456789);
   const Timestamp kReportBlockTimestamp = Timestamp::Micros(12345678);
-  fake_clock_.SetTime(kReportBlockTimestampUtc);
+  time_controller_.AdvanceTime(kReportBlockTimestampUtc -
+                               time_controller_.GetClock()->CurrentTime());
 
   rtcp::ReportBlock report_block;
   // The remote-inbound-rtp SSRC and the outbound-rtp SSRC is the same as the
@@ -3557,7 +3595,8 @@ TEST_P(RTCStatsCollectorTestWithParamKind,
        RTCRemoteInboundRtpStreamStatsWithRtcpTransport) {
   const Timestamp kReportBlockTimestampUtc = Timestamp::Micros(123456789);
   const Timestamp kReportBlockTimestamp = Timestamp::Micros(12345678);
-  fake_clock_.SetTime(kReportBlockTimestampUtc);
+  time_controller_.AdvanceTime(kReportBlockTimestampUtc -
+                               time_controller_.GetClock()->CurrentTime());
 
   rtcp::ReportBlock report_block;
   // The remote-inbound-rtp SSRC and the outbound-rtp SSRC is the same as the
@@ -3592,14 +3631,17 @@ TEST_P(RTCStatsCollectorTestWithParamKind,
   EXPECT_TRUE(report->Get(*remote_inbound_rtp.transport_id));
 }
 
+INSTANTIATE_TEST_SUITE_P(All, RTCStatsCollectorTest, ::testing::Bool());
+
 INSTANTIATE_TEST_SUITE_P(All,
                          RTCStatsCollectorTestWithParamKind,
-                         ::testing::Values(MediaType::AUDIO,    // "/0"
-                                           MediaType::VIDEO));  // "/1"
+                         ::testing::Combine(::testing::Values(MediaType::AUDIO,
+                                                              MediaType::VIDEO),
+                                            ::testing::Bool()));
 
 // Checks that no remote outbound stats are collected if not available in
 // `VoiceMediaInfo`.
-TEST_F(RTCStatsCollectorTest,
+TEST_P(RTCStatsCollectorTest,
        RTCRemoteOutboundRtpAudioStreamStatsNotCollected) {
   ExampleStatsGraph graph =
       SetupExampleStatsVoiceGraph(/*add_remote_outbound_stats=*/false);
@@ -3618,7 +3660,7 @@ TEST_F(RTCStatsCollectorTest,
 
 // Checks that the remote outbound stats are collected when available in
 // `VoiceMediaInfo`.
-TEST_F(RTCStatsCollectorTest, RTCRemoteOutboundRtpAudioStreamStatsCollected) {
+TEST_P(RTCStatsCollectorTest, RTCRemoteOutboundRtpAudioStreamStatsCollected) {
   ExampleStatsGraph graph =
       SetupExampleStatsVoiceGraph(/*add_remote_outbound_stats=*/true);
   ASSERT_TRUE(graph.full_report->Get(graph.remote_outbound_rtp_id));
@@ -3634,7 +3676,7 @@ TEST_F(RTCStatsCollectorTest, RTCRemoteOutboundRtpAudioStreamStatsCollected) {
             kRemoteOutboundStatsReportsCount);
 }
 
-TEST_F(RTCStatsCollectorTest,
+TEST_P(RTCStatsCollectorTest,
        RTCVideoSourceStatsNotCollectedForSenderWithoutTrack) {
   const uint32_t kSsrc = 4;
   const int kAttachmentId = 42;
@@ -3662,7 +3704,7 @@ TEST_F(RTCStatsCollectorTest,
 
 // Test collecting echo return loss stats from the audio processor attached to
 // the track, rather than the voice sender info.
-TEST_F(RTCStatsCollectorTest, CollectEchoReturnLossFromTrackAudioProcessor) {
+TEST_P(RTCStatsCollectorTest, CollectEchoReturnLossFromTrackAudioProcessor) {
   scoped_refptr<MediaStream> local_stream =
       MediaStream::Create("LocalStreamId");
   pc_->mutable_local_streams()->AddStream(local_stream);
@@ -3699,7 +3741,7 @@ TEST_F(RTCStatsCollectorTest, CollectEchoReturnLossFromTrackAudioProcessor) {
             expected_audio);
 }
 
-TEST_F(RTCStatsCollectorTest, GetStatsWithSenderSelector) {
+TEST_P(RTCStatsCollectorTest, GetStatsWithSenderSelector) {
   ExampleStatsGraph graph = SetupExampleStatsGraphForSelectorTests();
   // Expected stats graph when filtered by sender:
   //
@@ -3727,7 +3769,7 @@ TEST_F(RTCStatsCollectorTest, GetStatsWithSenderSelector) {
   EXPECT_TRUE(sender_report->Get(graph.media_source_id));
 }
 
-TEST_F(RTCStatsCollectorTest, GetStatsWithReceiverSelector) {
+TEST_P(RTCStatsCollectorTest, GetStatsWithReceiverSelector) {
   ExampleStatsGraph graph = SetupExampleStatsGraphForSelectorTests();
   // Expected stats graph when filtered by receiver:
   //
@@ -3754,7 +3796,7 @@ TEST_F(RTCStatsCollectorTest, GetStatsWithReceiverSelector) {
   EXPECT_FALSE(receiver_report->Get(graph.media_source_id));
 }
 
-TEST_F(RTCStatsCollectorTest, GetStatsWithNullSenderSelector) {
+TEST_P(RTCStatsCollectorTest, GetStatsWithNullSenderSelector) {
   ExampleStatsGraph graph = SetupExampleStatsGraphForSelectorTests();
   scoped_refptr<const RTCStatsReport> empty_report;
   stats_->stats_collector().GetStatsReport(
@@ -3766,7 +3808,7 @@ TEST_F(RTCStatsCollectorTest, GetStatsWithNullSenderSelector) {
   EXPECT_EQ(empty_report->size(), 0u);
 }
 
-TEST_F(RTCStatsCollectorTest, GetStatsWithNullReceiverSelector) {
+TEST_P(RTCStatsCollectorTest, GetStatsWithNullReceiverSelector) {
   ExampleStatsGraph graph = SetupExampleStatsGraphForSelectorTests();
   scoped_refptr<const RTCStatsReport> empty_report;
   stats_->stats_collector().GetStatsReport(
@@ -3780,7 +3822,7 @@ TEST_F(RTCStatsCollectorTest, GetStatsWithNullReceiverSelector) {
 
 // Before SetLocalDescription() senders don't have an SSRC.
 // To simulate this case we create a mock sender with SSRC=0.
-TEST_F(RTCStatsCollectorTest, RtpIsMissingWhileSsrcIsZero) {
+TEST_P(RTCStatsCollectorTest, RtpIsMissingWhileSsrcIsZero) {
   scoped_refptr<MediaStreamTrackInterface> track = CreateFakeTrack(
       MediaType::AUDIO, "audioTrack", MediaStreamTrackInterface::kLive);
   scoped_refptr<MockRtpSenderInternal> sender =
@@ -3800,7 +3842,7 @@ TEST_F(RTCStatsCollectorTest, RtpIsMissingWhileSsrcIsZero) {
 
 // We may also be in a case where the SSRC has been assigned but no
 // `voice_sender_info` stats exist yet.
-TEST_F(RTCStatsCollectorTest, DoNotCrashIfSsrcIsKnownButInfosAreStillMissing) {
+TEST_P(RTCStatsCollectorTest, DoNotCrashIfSsrcIsKnownButInfosAreStillMissing) {
   scoped_refptr<MediaStreamTrackInterface> track = CreateFakeTrack(
       MediaType::AUDIO, "audioTrack", MediaStreamTrackInterface::kLive);
   scoped_refptr<MockRtpSenderInternal> sender =
@@ -3845,7 +3887,7 @@ class RecursiveCallback : public RTCStatsCollectorCallback {
 
 // Test that nothing bad happens if a callback causes GetStatsReport to be
 // called again recursively. Regression test for crbug.com/webrtc/8973.
-TEST_F(RTCStatsCollectorTest, DoNotCrashWhenGetStatsCalledDuringCallback) {
+TEST_P(RTCStatsCollectorTest, DoNotCrashWhenGetStatsCalledDuringCallback) {
   int remaining = 2;
   auto on_complete = [&] {
     if (--remaining == 0)
@@ -3927,13 +3969,9 @@ class FakeRTCStatsCollector final : public RTCStatsCollector {
     if (!delivered_report_)
       return false;
     EXPECT_EQ(produced_on_signaling_thread_, 1);
-    EXPECT_EQ(produced_on_network_thread_, 1);
-
     EXPECT_TRUE(delivered_report_->Get("SignalingThreadStats"));
-    EXPECT_TRUE(delivered_report_->Get("NetworkThreadStats"));
 
     produced_on_signaling_thread_ = 0;
-    produced_on_network_thread_ = 0;
     delivered_report_ = nullptr;
     return true;
   }
@@ -3941,6 +3979,8 @@ class FakeRTCStatsCollector final : public RTCStatsCollector {
  protected:
   void ProducePartialResultsOnSignalingThreadImpl(
       Timestamp timestamp,
+      const std::vector<RtpTransceiverStatsInfo>& transceiver_stats_infos,
+      const std::optional<AudioDeviceModule::Stats>& audio_device_stats,
       RTCStatsReport* partial_report) override {
     EXPECT_TRUE(signaling_thread_->IsCurrent());
     {
@@ -3952,22 +3992,6 @@ class FakeRTCStatsCollector final : public RTCStatsCollector {
     partial_report->AddStats(std::unique_ptr<const RTCStats>(
         new RTCTestStats("SignalingThreadStats", timestamp)));
   }
-  void ProducePartialResultsOnNetworkThreadImpl(
-      Timestamp timestamp,
-      const std::map<std::string, TransportStats>& transport_stats_by_name,
-      const std::map<std::string, CertificateStatsPair>& transport_cert_stats,
-      const std::vector<RtpTransceiverStatsInfo>& transceiver_stats_infos,
-      RTCStatsReport* partial_report) override {
-    EXPECT_TRUE(network_thread_->IsCurrent());
-    {
-      MutexLock lock(&lock_);
-      EXPECT_FALSE(delivered_report_);
-      ++produced_on_network_thread_;
-    }
-
-    partial_report->AddStats(std::unique_ptr<const RTCStats>(
-        new RTCTestStats("NetworkThreadStats", timestamp)));
-  }
 
  private:
   Thread* const signaling_thread_;
@@ -3978,7 +4002,6 @@ class FakeRTCStatsCollector final : public RTCStatsCollector {
   Mutex lock_;
   scoped_refptr<const RTCStatsReport> delivered_report_;
   int produced_on_signaling_thread_ = 0;
-  int produced_on_network_thread_ = 0;
 };
 
 // Simple test that verifies that GetStatsReport() can be called and async
@@ -3990,8 +4013,8 @@ class FakeRTCStatsCollector final : public RTCStatsCollector {
 // * Issue the `OnStatsDelivered` callback on the signaling thread.
 TEST(RTCStatsCollectorSafetyTest, WaitPendingRequestGetsCallback) {
   RunLoop loop;
-  auto pc = make_ref_counted<FakePeerConnectionForStats>();
-  auto env = CreateEnvironment();
+  auto env = CreateTestEnvironment();
+  auto pc = make_ref_counted<FakePeerConnectionForStats>(env);
   RTCStatsCollectorWrapper wrapper(pc, env);
   auto callback = make_ref_counted<MockStatsCollectorCallback>();
   EXPECT_CALL(*callback, OnStatsDelivered(_)).WillOnce([&] { loop.Quit(); });
@@ -4006,23 +4029,52 @@ TEST(RTCStatsCollectorSafetyTest, WaitPendingRequestGetsCallback) {
 // * Task posted from signaling to network thread.
 // * Task posted from network thread back to signaling
 // * The task for the signaling thread will be dropped, no callback.
-TEST(RTCStatsCollectorSafetyTest, CancelPendingRequestPreventsCallback) {
+TEST(RTCStatsCollectorSafetyTest, CancelPendingRequestReturnsImmediately) {
   RunLoop loop;
-  auto pc = make_ref_counted<FakePeerConnectionForStats>();
-  RTCStatsCollectorWrapper wrapper(pc, CreateEnvironment());
+  std::unique_ptr<Thread> worker_and_network = Thread::Create();
+  worker_and_network->Start();
+
+  auto env = CreateTestEnvironment();
+  auto pc = make_ref_counted<FakePeerConnectionForStats>(
+      env, worker_and_network.get(), worker_and_network.get());
+  RTCStatsCollectorWrapper wrapper(pc, env);
   auto callback = make_ref_counted<MockStatsCollectorCallback>();
+
+  // The callback that should not be called.
   EXPECT_CALL(*callback, OnStatsDelivered(_)).Times(0);
-  // At this point, cancellation has not been made, this posts a task to the
-  // network thread.
+
+  // Let's pause the network/worker threads.
+  Event blocker;
+  worker_and_network->PostTask([&]() { blocker.Wait(Event::kForever); });
+
+  // Issue the GetStats call. At this point, cancellation has not been made,
+  // this posts a task to the worker/network threads which will be blocked by
+  // the above task.
   wrapper.stats_collector().GetStatsReport(callback);
-  // Now cancel any ongoing stats gathering operations. This should have the
-  // effect that the gathering that is ongoing on the network thread, will queue
-  // up a task for the signaling thread, but that task will be dropped.
-  auto network_task =
-      wrapper.stats_collector().CancelPendingRequestAndGetShutdownTask();
-  loop.Flush();
-  // Run the network cleanup task for posterity.
-  std::move(network_task)();
+  std::vector<absl::AnyInvocable<void() &&>> network_tasks;
+  std::vector<absl::AnyInvocable<void() &&>> worker_tasks;
+
+  // Now cancel any ongoing stats gathering operations.
+  // This should cancel the outstanding operations and invoke pending callbacks
+  // immediately.
+  wrapper.stats_collector().CancelPendingRequestAndGetShutdownTasks(
+      network_tasks, worker_tasks);
+
+  // We should have one callback per conceptual thread.
+  EXPECT_EQ(network_tasks.size(), 1u);
+  EXPECT_EQ(worker_tasks.size(), 1u);
+
+  // Resume the network and worker threads.
+  blocker.Set();
+
+  // Run the cleanup tasks.
+  auto quit = loop.QuitClosure();
+  worker_and_network->PostTask([&]() {
+    std::move(network_tasks[0])();
+    std::move(worker_tasks[0])();
+    loop.task_queue()->PostTask([&]() { quit(); });
+  });
+  loop.Run();
 }
 
 // This covers the following steps:
@@ -4032,17 +4084,23 @@ TEST(RTCStatsCollectorSafetyTest, CancelPendingRequestPreventsCallback) {
 // * The task for the network thread will be dropped, no further work done.
 TEST(RTCStatsCollectorSafetyTest, NetworkThreadSafetyPreventsCallback) {
   RunLoop loop;
-  auto pc = make_ref_counted<FakePeerConnectionForStats>();
-  RTCStatsCollectorWrapper wrapper(pc, CreateEnvironment());
+  auto env = CreateTestEnvironment();
+  auto pc = make_ref_counted<FakePeerConnectionForStats>(env);
+  RTCStatsCollectorWrapper wrapper(pc, env);
   auto callback = make_ref_counted<MockStatsCollectorCallback>();
   EXPECT_CALL(*callback, OnStatsDelivered(_)).Times(0);
   // Start by canceling any ongoing tasks. There aren't actually any ongoing
   // tasks, but this gives us the network cleanup task.
-  auto network_task =
-      wrapper.stats_collector().CancelPendingRequestAndGetShutdownTask();
+  std::vector<absl::AnyInvocable<void() &&>> network_tasks;
+  std::vector<absl::AnyInvocable<void() &&>> worker_tasks;
+  wrapper.stats_collector().CancelPendingRequestAndGetShutdownTasks(
+      network_tasks, worker_tasks);
   // Clean up the state on the network thread. This will have the effect of
   // dropping any tasks targeting the network thread.
-  std::move(network_task)();
+  ASSERT_EQ(network_tasks.size(), 1u);
+  ASSERT_EQ(worker_tasks.size(), 1u);
+  std::move(network_tasks[0])();
+  std::move(worker_tasks[0])();
   // Now, attempt to get a stats report. This will try to post a task to the
   // network thread, which will be dropped.
   wrapper.stats_collector().GetStatsReport(callback);
@@ -4050,28 +4108,16 @@ TEST(RTCStatsCollectorSafetyTest, NetworkThreadSafetyPreventsCallback) {
   loop.Flush();
 }
 
-class RTCStatsCollectorTestWithFakeCollector : public ::testing::Test {
- public:
-  RTCStatsCollectorTestWithFakeCollector()
-      : pc_(make_ref_counted<FakePeerConnectionForStats>()) {
-    stats_collector_ =
-        FakeRTCStatsCollector::Create(pc_.get(), CreateEnvironment());
-  }
-
-  void VerifyThreadUsageAndResultsMerging() {
-    stats_collector_->GetStatsReport(stats_collector_->callback());
-    time_controller_.AdvanceTime(TimeDelta::Zero());
-    EXPECT_TRUE(stats_collector_->HasVerifiedResults());
-  }
-
-  RunLoop main_thread_;
-  scoped_refptr<FakePeerConnectionForStats> pc_;
-  std::unique_ptr<FakeRTCStatsCollector> stats_collector_;
-  ScopedFakeClock time_controller_;
-};
-
-TEST_F(RTCStatsCollectorTestWithFakeCollector, ThreadUsageAndResultsMerging) {
-  VerifyThreadUsageAndResultsMerging();
+TEST(RTCStatsCollectorTestWithFakeCollector, ThreadUsageAndResultsMerging) {
+  GlobalSimulatedTimeController time_controller{Timestamp::Seconds(1234)};
+  Environment env = CreateTestEnvironment({.time = &time_controller});
+  scoped_refptr<FakePeerConnectionForStats> pc =
+      make_ref_counted<FakePeerConnectionForStats>(env);
+  std::unique_ptr<FakeRTCStatsCollector> stats_collector =
+      FakeRTCStatsCollector::Create(pc.get(), env);
+  stats_collector->GetStatsReport(stats_collector->callback());
+  time_controller.AdvanceTime(TimeDelta::Zero());
+  EXPECT_TRUE(stats_collector->HasVerifiedResults());
 }
 
 }  // namespace

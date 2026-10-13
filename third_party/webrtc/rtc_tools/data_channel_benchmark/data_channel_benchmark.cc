@@ -122,10 +122,10 @@ class DataChannelServerObserverImpl : public webrtc::DataChannelObserver {
     // Allow the transport buffer to be drained before starting again.
     if (buffer_ && dc_->buffered_amount() <= ok_to_resume_sending_threshold_) {
       total_queued_up_ += buffer_->size();
-      dc_->SendAsync(*buffer_, [this, buffer = buffer_](webrtc::RTCError err) {
-        OnSendAsyncComplete(err, buffer);
+      dc_->SendAsync(*buffer_, [this, buffer = std::move(buffer_)](
+                                   webrtc::RTCError err) mutable {
+        OnSendAsyncComplete(err, std::move(buffer));
       });
-      buffer_ = nullptr;
     }
   }
 
@@ -142,29 +142,37 @@ class DataChannelServerObserverImpl : public webrtc::DataChannelObserver {
   void StartSending() {
     RTC_CHECK(remaining_data_) << "Error: no data to send";
     std::string data(std::min(setup_.packet_size, remaining_data_), '0');
-    webrtc::DataBuffer* data_buffer =
-        new webrtc::DataBuffer(webrtc::CopyOnWriteBuffer(data), true);
+    auto data_buffer = std::make_unique<webrtc::DataBuffer>(
+        webrtc::CopyOnWriteBuffer(data), true);
     total_queued_up_ = data_buffer->size();
-    dc_->SendAsync(*data_buffer,
-                   [this, data_buffer = data_buffer](webrtc::RTCError err) {
-                     OnSendAsyncComplete(err, data_buffer);
-                   });
+    dc_->SendAsync(*data_buffer, [this, data_buffer = std::move(data_buffer)](
+                                     webrtc::RTCError err) mutable {
+      OnSendAsyncComplete(err, std::move(data_buffer));
+    });
   }
 
   const struct SetupMessage& parameters() const { return setup_; }
 
  private:
-  void OnSendAsyncComplete(webrtc::RTCError error, webrtc::DataBuffer* buffer) {
+  void OnSendAsyncComplete(webrtc::RTCError error,
+                           std::unique_ptr<webrtc::DataBuffer> buffer) {
     total_queued_up_ -= buffer->size();
     if (!error.ok()) {
-      RTC_CHECK_EQ(error.type(), webrtc::RTCErrorType::RESOURCE_EXHAUSTED);
+      // If the error is NOT "Buffer Full" (Resource Exhausted),
+      // it means the network failed or client disconnected. We should stop.
+      if (error.type() != webrtc::RTCErrorType::RESOURCE_EXHAUSTED) {
+        RTC_LOG(LS_ERROR) << "Send failed with error: "
+                          << ToString(error.type()) << ". Ending session.";
+        return;
+      }
+
+      // If we are here, it IS Resource Exhausted, so we wait and retry.
       RTC_CHECK(!buffer_);
-      // Buffer saturated. Retry when OnBufferedAmountChange() detects we can.
-      buffer_ = buffer;
+      buffer_ = std::move(buffer);
       return;
     }
-    signaling_thread_->PostTask([this, buffer = buffer,
-                                 remaining_data = remaining_data_]() {
+    signaling_thread_->PostTask([this, buffer = std::move(buffer),
+                                 remaining_data = remaining_data_]() mutable {
       fprintf(stderr, "Progress: %zu / %zu (%zu%%)\n",
               (setup_.transfer_size - remaining_data), setup_.transfer_size,
               (100 - remaining_data * 100 / setup_.transfer_size));
@@ -172,7 +180,6 @@ class DataChannelServerObserverImpl : public webrtc::DataChannelObserver {
       if (!remaining_data) {
         RTC_CHECK(!total_queued_up_);
         // We're done.
-        delete buffer;
         return;
       }
 
@@ -181,8 +188,9 @@ class DataChannelServerObserverImpl : public webrtc::DataChannelObserver {
       }
 
       total_queued_up_ += buffer->size();
-      dc_->SendAsync(*buffer, [this, buffer = buffer](webrtc::RTCError err) {
-        OnSendAsyncComplete(err, buffer);
+      dc_->SendAsync(*buffer, [this, buffer = std::move(buffer)](
+                                  webrtc::RTCError err) mutable {
+        OnSendAsyncComplete(err, std::move(buffer));
       });
     });
   }
@@ -194,7 +202,7 @@ class DataChannelServerObserverImpl : public webrtc::DataChannelObserver {
   size_t remaining_data_ = 0u;
   size_t total_queued_up_ = 0u;
   struct SetupMessage setup_;
-  webrtc::DataBuffer* buffer_ = nullptr;
+  std::unique_ptr<webrtc::DataBuffer> buffer_;
   const uint64_t ok_to_resume_sending_threshold_ =
       webrtc::DataChannelInterface::MaxSendQueueSize() / 2;
 };
@@ -325,6 +333,10 @@ int RunClient() {
                                     absl::GetFlag(FLAGS_force_fieldtrials)));
     auto grpc_client = webrtc::GrpcSignalingClientInterface::Create(
         server_address + ":" + std::to_string(port));
+    if (!grpc_client->Connect()) {
+      fprintf(stderr, "Failed to connect to server\n");
+      return 1;
+    }
     webrtc::PeerConnectionClient client(factory.get(),
                                         grpc_client->signaling_client());
 
@@ -345,13 +357,12 @@ int RunClient() {
 
     // Connect to the server.
     if (!grpc_client->Start()) {
-      fprintf(stderr, "Failed to connect to server\n");
+      fprintf(stderr, "Failed to start the benchmark threads\n");
       return 1;
     }
 
     // Wait for the data channel to be received
     got_data_channel.Wait(webrtc::Event::kForever);
-
     absl::Cleanup unregister_observer(
         [data_channel] { data_channel->UnregisterObserver(); });
 

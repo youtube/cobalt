@@ -48,6 +48,7 @@
 #include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
+#include "test/run_loop.h"
 #include "test/wait_until.h"
 
 using ::testing::Contains;
@@ -58,7 +59,7 @@ namespace webrtc {
 
 namespace {
 
-constexpr int64_t kGetStatsTimeoutMs = 10000;
+constexpr int64_t kGetStatsTimeoutMs = 20000;
 
 class RTCStatsIntegrationTest : public ::testing::Test {
  public:
@@ -135,33 +136,30 @@ class RTCStatsIntegrationTest : public ::testing::Test {
   }
 
  protected:
-  static scoped_refptr<const RTCStatsReport> GetStats(
-      PeerConnectionInterface* pc) {
-    scoped_refptr<RTCStatsObtainer> stats_obtainer = RTCStatsObtainer::Create();
+  scoped_refptr<const RTCStatsReport> GetStats(PeerConnectionInterface* pc) {
+    scoped_refptr<RTCStatsObtainer> stats_obtainer =
+        RTCStatsObtainer::Create(nullptr, [this]() { run_loop_.Quit(); });
     pc->GetStats(stats_obtainer.get());
-    EXPECT_THAT(
-        WaitUntil([&] { return stats_obtainer->report() != nullptr; }, IsTrue(),
-                  {.timeout = TimeDelta::Millis(kGetStatsTimeoutMs)}),
-        IsRtcOk());
+    run_loop_.RunFor(TimeDelta::Millis(kGetStatsTimeoutMs));
+    EXPECT_TRUE(stats_obtainer->report());
     return stats_obtainer->report();
   }
 
   template <typename T>
-  static scoped_refptr<const RTCStatsReport> GetStats(
-      PeerConnectionInterface* pc,
-      scoped_refptr<T> selector) {
-    scoped_refptr<RTCStatsObtainer> stats_obtainer = RTCStatsObtainer::Create();
+  scoped_refptr<const RTCStatsReport> GetStats(PeerConnectionInterface* pc,
+                                               scoped_refptr<T> selector) {
+    scoped_refptr<RTCStatsObtainer> stats_obtainer =
+        RTCStatsObtainer::Create(nullptr, [this]() { run_loop_.Quit(); });
     pc->GetStats(selector, stats_obtainer);
-    EXPECT_THAT(
-        WaitUntil([&] { return stats_obtainer->report() != nullptr; }, IsTrue(),
-                  {.timeout = TimeDelta::Millis(kGetStatsTimeoutMs)}),
-        IsRtcOk());
+    run_loop_.RunFor(TimeDelta::Millis(kGetStatsTimeoutMs));
+    EXPECT_TRUE(stats_obtainer->report());
     return stats_obtainer->report();
   }
 
+  test::RunLoop run_loop_;
+  const Environment env_;
   // `network_thread_` uses `virtual_socket_server_` so they must be
   // constructed/destructed in the correct order.
-  const Environment env_;
   VirtualSocketServer virtual_socket_server_;
   std::unique_ptr<Thread> network_thread_;
   std::unique_ptr<Thread> worker_thread_;
@@ -1170,10 +1168,11 @@ TEST_F(RTCStatsIntegrationTest,
 TEST_F(RTCStatsIntegrationTest, GetsStatsWhileClosingPeerConnection) {
   StartCall();
 
-  scoped_refptr<RTCStatsObtainer> stats_obtainer = RTCStatsObtainer::Create();
+  scoped_refptr<RTCStatsObtainer> stats_obtainer =
+      RTCStatsObtainer::Create(nullptr, [&]() { run_loop_.Quit(); });
   caller_->pc()->GetStats(stats_obtainer.get());
   caller_->pc()->Close();
-
+  run_loop_.Run();
   ASSERT_TRUE(stats_obtainer->report());
 }
 

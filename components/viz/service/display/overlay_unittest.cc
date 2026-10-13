@@ -931,9 +931,9 @@ class OverlayTest : public testing::Test {
         .resource_size_in_pixels = kDisplaySize,
         .supports_hdr = false,
         .is_opaque = true,
-#if BUILDFLAG(IS_OZONE)
         .si_format = SinglePlaneFormat::kRGBA_8888,
         .color_space = gfx::ColorSpace::CreateSRGB(),
+#if BUILDFLAG(IS_OZONE)
         .overlay_testing_mailbox = gpu::Mailbox(),
 #endif
     };
@@ -4837,10 +4837,6 @@ TEST_F(UnderlayTest, DisableOverlayWithRootCopies) {
        i < kDisableOverlayTestVectorSize; i++) {
     expected_overlays[i] = true;
   }
-
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeature(
-      features::kTemporalSkipOverlaysWithRootCopyOutputRequests);
 
   for (size_t i = 0; i < copy_frames.size(); ++i) {
     SCOPED_TRACE(i);

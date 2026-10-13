@@ -46,13 +46,14 @@ import org.mockito.stubbing.Answer;
 import org.chromium.base.Callback;
 import org.chromium.base.DeviceInfo;
 import org.chromium.base.ThreadUtils;
-import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
+import org.chromium.base.supplier.SupplierUtils;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.base.test.util.CloseableOnMainThread;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
+import org.chromium.base.test.util.DisableIf;
 import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.Features.DisableFeatures;
@@ -76,7 +77,6 @@ import org.chromium.chrome.browser.share.ChromeShareExtras;
 import org.chromium.chrome.browser.share.LensUtils;
 import org.chromium.chrome.browser.share.ShareDelegate;
 import org.chromium.chrome.browser.share.ShareDelegate.ShareOrigin;
-import org.chromium.chrome.browser.share.ShareDelegateSupplier;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabContextMenuItemDelegate;
 import org.chromium.chrome.browser.tab.TabCreationState;
@@ -96,6 +96,8 @@ import org.chromium.components.embedder_support.contextmenu.ChipRenderParams;
 import org.chromium.components.embedder_support.contextmenu.ContextMenuParams;
 import org.chromium.components.embedder_support.contextmenu.ContextMenuPopulatorFactory;
 import org.chromium.components.policy.test.annotations.Policies;
+import org.chromium.content_public.browser.ContentFeatureList;
+import org.chromium.content_public.browser.ContentFeatureMap;
 import org.chromium.content_public.browser.test.util.DOMUtils;
 import org.chromium.content_public.browser.test.util.TestTouchUtils;
 import org.chromium.content_public.common.ContentFeatures;
@@ -126,6 +128,7 @@ import java.util.concurrent.atomic.AtomicReference;
     ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE,
     ChromeSwitches.GOOGLE_BASE_URL + "=http://example.com/"
 })
+@DisableFeatures({ContentFeatures.ANDROID_DESKTOP_ZOOM_SCALING})
 @Batch(Batch.PER_CLASS)
 public class ContextMenuTest {
 
@@ -753,6 +756,7 @@ public class ContextMenuTest {
     @Test
     @LargeTest
     @Restriction(DeviceFormFactor.DESKTOP)
+    @DisabledTest(message = "https://crbug.com/445993228")
     @EnableFeatures({ChromeFeatureList.CONTEXT_MENU_EMPTY_SPACE})
     @DisableFeatures({UiAndroidFeatures.ANDROID_WINDOW_OCCLUSION})
     public void testSavePageRightClick() throws TimeoutException {
@@ -920,6 +924,7 @@ public class ContextMenuTest {
                         EphemeralTabCoordinator.isSupported(),
                         expectedItems,
                         new Integer[] {R.id.contextmenu_open_in_ephemeral_tab});
+        expectedItems = maybeAddInspectElementItem(expectedItems);
         assertMenuItemsAreEqual(mMenuCoordinator, expectedItems);
     }
 
@@ -943,6 +948,7 @@ public class ContextMenuTest {
         Integer[] featureItems = {R.id.contextmenu_open_image_in_ephemeral_tab};
         expectedItems =
                 addItemsIf(EphemeralTabCoordinator.isSupported(), expectedItems, featureItems);
+        expectedItems = maybeAddInspectElementItem(expectedItems);
         assertMenuItemsAreEqual(mMenuCoordinator, expectedItems);
     }
 
@@ -964,6 +970,7 @@ public class ContextMenuTest {
         Integer[] featureItems = {R.id.contextmenu_open_image_in_ephemeral_tab};
         expectedItems =
                 addItemsIf(EphemeralTabCoordinator.isSupported(), expectedItems, featureItems);
+        expectedItems = maybeAddInspectElementItem(expectedItems);
         assertMenuItemsAreEqual(mMenuCoordinator, expectedItems);
     }
 
@@ -988,6 +995,7 @@ public class ContextMenuTest {
         Integer[] featureItems = {R.id.contextmenu_open_image_in_ephemeral_tab};
         expectedItems =
                 addItemsIf(EphemeralTabCoordinator.isSupported(), expectedItems, featureItems);
+        expectedItems = maybeAddInspectElementItem(expectedItems);
         assertMenuItemsAreEqual(mMenuCoordinator, expectedItems);
     }
 
@@ -1028,18 +1036,22 @@ public class ContextMenuTest {
                         new Integer[] {R.id.contextmenu_open_in_new_window});
         expectedItems =
                 addItemsIf(EphemeralTabCoordinator.isSupported(), expectedItems, featureItems);
+        expectedItems = maybeAddInspectElementItem(expectedItems);
         assertMenuItemsAreEqual(mMenuCoordinator, expectedItems);
     }
 
     @Test
     @SmallTest
     @Feature({"Browser", "ContextMenu"})
+    // TODO(crbug.com/483149206): Test is flaky on desktop bots.
+    @DisableIf.Device(DeviceFormFactor.DESKTOP)
     public void testContextMenuRetrievesVideoOptions() throws TimeoutException {
         Tab tab = mActivityTestRule.getActivityTab();
         DOMUtils.clickNode(mActivityTestRule.getWebContents(), "videoDOMElement");
         mMenuCoordinator = ContextMenuUtils.openContextMenu(tab, "videoDOMElement");
 
         Integer[] expectedItems = {R.id.contextmenu_save_video};
+        expectedItems = maybeAddInspectElementItem(expectedItems);
         assertMenuItemsAreEqual(mMenuCoordinator, expectedItems);
     }
 
@@ -1065,6 +1077,7 @@ public class ContextMenuTest {
                         EphemeralTabCoordinator.isSupported(),
                         expectedItems,
                         new Integer[] {R.id.contextmenu_open_image_in_ephemeral_tab});
+        expectedItems = maybeAddInspectElementItem(expectedItems);
         String title =
                 getMenuTitleFromItem(mMenuCoordinator, R.id.contextmenu_search_with_google_lens);
         Assert.assertTrue(
@@ -1076,6 +1089,7 @@ public class ContextMenuTest {
     @Test
     @SmallTest
     @Feature({"Browser", "ContextMenu"})
+    @DisableIf.Device(DeviceFormFactor.DESKTOP) // https://crbug.com/481444053
     public void testCopyImage() throws Throwable {
         doAnswer(sCopyIsAllowedByPolicy)
                 .when(mDataProtectionBridgeMock)
@@ -1154,11 +1168,14 @@ public class ContextMenuTest {
     @Test
     @SmallTest
     @Feature({"Browser", "ContextMenu"})
+    @DisableIf.Device(DeviceFormFactor.DESKTOP) // https://crbug.com/481444053
     public void testContextMenuOpenedFromHighlight() {
+        DeviceInput.setSupportsPrecisionPointerForTesting(false);
+        Tab tab = mActivityTestRule.getActivityTab();
+
         when(mItemDelegate.isIncognito()).thenReturn(false);
         when(mItemDelegate.getPageTitle()).thenReturn("");
-
-        Tab tab = mActivityTestRule.getActivityTab();
+        when(mItemDelegate.getWebContents()).thenReturn(tab.getWebContents());
         ContextMenuHelper contextMenuHelper =
                 ContextMenuHelper.createForTesting(0, tab.getWebContents());
         ContextMenuParams params =
@@ -1185,14 +1202,15 @@ public class ContextMenuTest {
         ContextMenuPopulatorFactory populatorFactory =
                 new ChromeContextMenuPopulatorFactory(
                         mItemDelegate,
-                        () -> mShareDelegate,
+                        SupplierUtils.of(mShareDelegate),
                         ChromeContextMenuPopulator.ContextMenuMode.NORMAL,
                         /* customContentActions= */ List.of());
-        Integer[] expectedItems = {
+        Integer[] commonItems = {
             R.id.contextmenu_share_highlight,
             R.id.contextmenu_remove_highlight,
             R.id.contextmenu_learn_more
         };
+        Integer[] expectedItems = maybeAddInspectElementItem(commonItems);
         var shownHistogramWatcher = HistogramWatcher.newSingleRecordWatcher("ContextMenu.Shown", 1);
         var sharedHistogramWatcher =
                 HistogramWatcher.newSingleRecordWatcher(
@@ -1219,15 +1237,8 @@ public class ContextMenuTest {
 
         Tab tab = mActivityTestRule.getActivityTab();
         // Set share delegate before triggering context menu, so the mocked share delegate is used.
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> {
-                    var supplier =
-                            (SettableMonotonicObservableSupplier<ShareDelegate>)
-                                    ShareDelegateSupplier.from(
-                                            mActivityTestRule.getActivity().getWindowAndroid());
-                    Mockito.doReturn(true).when(mShareDelegate).isSharingHubEnabled();
-                    supplier.set(mShareDelegate);
-                });
+        Mockito.doReturn(true).when(mShareDelegate).isSharingHubEnabled();
+        ChromeContextMenuPopulatorFactory.setShareDelegateForTesting(mShareDelegate);
 
         // Allow all thread policies temporarily in main thread to avoid
         // DiskWrite and UnBufferedIo violations during copying under
@@ -1265,14 +1276,8 @@ public class ContextMenuTest {
         Tab tab = mActivityTestRule.getActivityTab();
 
         // Set share delegate before triggering context menu, so the mocked share delegate is used.
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> {
-                    var supplier =
-                            (SettableMonotonicObservableSupplier<ShareDelegate>)
-                                    ShareDelegateSupplier.from(
-                                            mActivityTestRule.getActivity().getWindowAndroid());
-                    supplier.set(mShareDelegate);
-                });
+        ChromeContextMenuPopulatorFactory.setShareDelegateForTesting(mShareDelegate);
+
         ContextMenuUtils.selectContextMenuItem(
                 InstrumentationRegistry.getInstrumentation(),
                 mActivityTestRule.getActivity(),
@@ -1307,16 +1312,9 @@ public class ContextMenuTest {
     public void testSharePageLongPress() throws Exception {
         DeviceInput.setSupportsPrecisionPointerForTesting(true);
         Tab tab = mActivityTestRule.getActivityTab();
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> {
-                    // Set share delegate before triggering context menu, so the mocked share
-                    // delegate is used.
-                    var supplier =
-                            (SettableMonotonicObservableSupplier<ShareDelegate>)
-                                    ShareDelegateSupplier.from(
-                                            mActivityTestRule.getActivity().getWindowAndroid());
-                    supplier.set(mShareDelegate);
-                });
+
+        // Set share delegate before triggering context menu, so the mocked share delegate is used.
+        ChromeContextMenuPopulatorFactory.setShareDelegateForTesting(mShareDelegate);
 
         ContextMenuUtils.selectContextMenuItem(
                 InstrumentationRegistry.getInstrumentation(),
@@ -1354,16 +1352,9 @@ public class ContextMenuTest {
     public void testSharePageRightClick() throws Exception {
         DeviceInput.setSupportsPrecisionPointerForTesting(true);
         Tab tab = mActivityTestRule.getActivityTab();
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> {
-                    // Set share delegate before triggering context menu, so the mocked share
-                    // delegate is used.
-                    var supplier =
-                            (SettableMonotonicObservableSupplier<ShareDelegate>)
-                                    ShareDelegateSupplier.from(
-                                            mActivityTestRule.getActivity().getWindowAndroid());
-                    supplier.set(mShareDelegate);
-                });
+
+        // Set share delegate before triggering context menu, so the mocked share delegate is used.
+        ChromeContextMenuPopulatorFactory.setShareDelegateForTesting(mShareDelegate);
 
         ContextMenuUtils.selectContextMenuItemFromRightClick(
                 InstrumentationRegistry.getInstrumentation(),
@@ -1423,6 +1414,7 @@ public class ContextMenuTest {
     @Test
     @MediumTest
     @Restriction(DeviceFormFactor.DESKTOP)
+    @DisabledTest(message = "https://crbug.com/445993228")
     @EnableFeatures({ChromeFeatureList.CONTEXT_MENU_EMPTY_SPACE})
     @DisableFeatures({UiAndroidFeatures.ANDROID_WINDOW_OCCLUSION})
     public void testPrintPageRightClick() throws Exception {
@@ -1509,6 +1501,18 @@ public class ContextMenuTest {
             for (int i = 0; i < additionalItems.length; i++) variableItems.add(additionalItems[i]);
         }
         return variableItems.toArray(baseItems);
+    }
+
+    private Integer[] maybeAddInspectElementItem(Integer[] baseItems) {
+        return addItemsIf(
+                ThreadUtils.runOnUiThreadBlocking(
+                        () ->
+                                ContentFeatureMap.isEnabled(
+                                                ContentFeatureList.ANDROID_DEV_TOOLS_FRONTEND)
+                                        && DeviceInput.supportsAlphabeticKeyboard()
+                                        && DeviceInput.supportsPrecisionPointer()),
+                baseItems,
+                new Integer[] {R.id.contextmenu_inspect_element});
     }
 
     private void saveMediaFromContextMenu(

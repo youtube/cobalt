@@ -53,7 +53,7 @@ const char kSansSerifJsFontFamily[] = "sans-serif";
 const char kMonospaceJsFontFamily[] = "monospace";
 const char kLexendJsFontFamily[] = "Lexend";
 
-// LINT.ThenChange(//components/dom_distiller/core/javascript/dom_distiller_viewer.js:JSThemesAndFonts)
+// LINT.ThenChange(//components/dom_distiller/core/javascript/dom_distiller_viewer_main.js:JSThemesAndFonts)
 
 // LINT.IfChange
 
@@ -220,7 +220,11 @@ std::string ReplaceHtmlTemplateValues(const mojom::Theme theme,
     csp << "default-src 'none'; ";
     csp << "script-src 'nonce-" << csp_nonce << "'; ";
     // YouTube videos are embedded as an iframe.
-    csp << "frame-src http://www.youtube.com; ";
+    csp << "frame-src https://www.youtube.com "
+           "https://www.youtube-nocookie.com; ";
+
+    // Allow the browser to send a referrer.
+    csp << "referrer strict-origin-when-cross-origin; ";
     csp << "style-src 'unsafe-inline' https://fonts.googleapis.com; ";
     // Allows the fallback font-face from the main stylesheet.
     csp << "font-src https://fonts.gstatic.com; ";
@@ -363,6 +367,10 @@ const std::string GetJavaScript() {
                                          GetMinPinchZoomScale());
   base::ReplaceFirstSubstringAfterOffset(&js, 0, "$MAX_SCALE",
                                          GetMaxPinchZoomScale());
+  // The viewer's UI components are lazily instantiated. This call initializes
+  // them after the script loads. This relies on the script being loaded after
+  // the relevant DOM elements are available.
+  js += "initializeDomDistillerViewer();";
   return js;
 }
 
@@ -403,6 +411,10 @@ std::unique_ptr<ViewerHandle> CreateViewRequest(
 
 const std::string GetDistilledPageThemeJs(mojom::Theme theme) {
   return "useTheme('" + GetJsTheme(theme) + "');";
+}
+
+const std::string GetDistilledPageLinksEnabledJs(bool enabled) {
+  return "setLinksEnabled(" + base::ToString(enabled) + ");";
 }
 
 const std::string GetDistilledPageFontFamilyJs(mojom::FontFamily font_family) {

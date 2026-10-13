@@ -54,6 +54,14 @@ class ReadAnythingAppModel {
   };
   // LINT.ThenChange(//tools/metrics/histograms/metadata/accessibility/enums.xml:ReadAnythingEmptyState)
 
+  // Enum for keeping track of the current distillation method being used by the
+  // ReadAnythingAppController.
+  enum class DistillationMethod {
+    kScreen2x = 0,
+    kReadability = 1,
+    kMaxValue = kReadability,
+  };
+
   struct AXTreeInfo {
     explicit AXTreeInfo(std::unique_ptr<ui::AXTreeManager> manager);
     AXTreeInfo(const AXTreeInfo&) = delete;
@@ -99,7 +107,7 @@ class ReadAnythingAppModel {
   // rather than just a single vector containing all updates from multiple
   // accessibility events. This is so that Unserialize can be called in
   // batches on the group of Updates received from each call to
-  // AccessibilityEventReceived. Otherwise, intermediary updates might
+  // ApplyAccessibilityUpdates. Otherwise, intermediary updates might
   // cause tree inconsistency issues with the final update.
   using PendingUpdates = std::map<ui::AXTreeID, std::vector<Updates>>;
 
@@ -202,6 +210,29 @@ class ReadAnythingAppModel {
   bool images_enabled() const { return images_enabled_; }
   void set_images_enabled(bool images_enabled) {
     images_enabled_ = images_enabled;
+  }
+
+  // Returns the distillation method that produced the content currently
+  // visible in the UI. This is used by the WebUI to correctly interpret
+  // and render the current model data.
+  DistillationMethod current_content_distillation_method() const {
+    return current_content_distillation_method_;
+  }
+  void set_current_content_distillation_method(DistillationMethod method) {
+    current_content_distillation_method_ = method;
+  }
+
+  // Returns the distillation method that will be used for the next content
+  // update. Note: For Readability, distillation occurs in the browser process,
+  // so this represents the source of the next content update we will receive.
+  DistillationMethod next_distillation_method() const {
+    return next_distillation_method_;
+  }
+  void set_next_distillation_method(DistillationMethod method) {
+    next_distillation_method_ = method;
+  }
+  bool is_readability_next_distillation_method() const {
+    return next_distillation_method() == DistillationMethod::kReadability;
   }
 
   read_anything::mojom::LetterSpacing letter_spacing() const {
@@ -350,10 +381,25 @@ class ReadAnythingAppModel {
 
   void ClearPendingUpdates();
 
-  void AccessibilityEventReceived(const ui::AXTreeID& tree_id,
-                                  Updates& updates,
-                                  std::vector<ui::AXEvent>& events,
-                                  bool speech_playing);
+  // Applies accessibility updates to the AXTree with the given tree_id.
+  // Unserializes the updates, processes generated events, and updates the
+  // model's state.
+  void ApplyAccessibilityUpdates(const ui::AXTreeID& tree_id,
+                                 Updates& updates,
+                                 std::vector<ui::AXEvent>& events);
+
+  // Queues accessibility updates to be processed later. This is used when
+  // the controller decides to not process the updates immediately to avoid
+  // interrupting the user experience. The updates are stored in
+  // pending_updates_.
+  void QueueAccessibilityUpdates(const ui::AXTreeID& tree_id,
+                                 Updates& updates,
+                                 std::vector<ui::AXEvent>& events);
+
+  // Ensures that the AXTree with the given tree_id exists in the model's
+  // tree_infos_ map. If the tree does not exist, a new one is created.
+  // Also updates the active tree ID if necessary.
+  void PrepareForAXTreeUpdates(const ui::AXTreeID& tree_id);
 
   void OnAXTreeDestroyed(const ui::AXTreeID& tree_id);
 
@@ -368,6 +414,7 @@ class ReadAnythingAppModel {
 
   void AdjustTextSize(int increment);
   void ResetTextSize();
+  void SetDefaultDistillationMethod();
 
   // PDF handling.
   bool is_pdf() const { return is_pdf_; }
@@ -386,6 +433,25 @@ class ReadAnythingAppModel {
   void AllowChildTreeForActiveTree(bool use_child_tree);
 
   bool SelectionNodesContainedInDistilledContent() const;
+
+  read_anything::mojom::ReadAnythingPresentationState
+  active_presentation_state() const {
+    return active_presentation_state_;
+  }
+  void set_active_presentation_state(
+      read_anything::mojom::ReadAnythingPresentationState
+          active_presentation_state) {
+    active_presentation_state_ = active_presentation_state;
+  }
+
+  read_anything::mojom::ReadAnythingDistillationState distillation_state()
+      const {
+    return distillation_state_;
+  }
+  void set_distillation_state(
+      read_anything::mojom::ReadAnythingDistillationState distillation_state) {
+    distillation_state_ = distillation_state;
+  }
 
  private:
   struct SelectionEndpoint {
@@ -422,6 +488,12 @@ class ReadAnythingAppModel {
   void ProcessGeneratedEvents(const ui::AXEventGenerator& event_generator,
                               size_t prev_tree_size,
                               size_t tree_size);
+
+  void EnsureAXTreeExists(const ui::AXTreeID& tree_id);
+
+  void UpdateActiveTreeIfNeeded(const ui::AXTreeID& tree_id);
+
+  void HandleScreen2xDataCollection(const Updates& updates);
 
   // Runs the data collection for screen2x pipeline, provided in the form of a
   // callback from the ReadAnythingAppController. This should only be called
@@ -555,6 +627,13 @@ class ReadAnythingAppModel {
 
   bool will_hide_ = false;
 
+  // The distillation method that will be used for the next content update.
+  DistillationMethod next_distillation_method_;
+
+  // The distillation method that produced the content currently visible in the
+  // UI.
+  DistillationMethod current_content_distillation_method_;
+
   std::map<ui::AXTreeID, ukm::SourceId> pending_ukm_sources_;
 
   // Possible child tree ids that could be used to distill content if the
@@ -565,6 +644,12 @@ class ReadAnythingAppModel {
   // If reading mode should attempt to use child trees to distill content. This
   // should only be true if the root tree has no distillable content.
   bool may_use_child_for_active_tree_ = false;
+
+  read_anything::mojom::ReadAnythingPresentationState
+      active_presentation_state_ =
+          read_anything::mojom::ReadAnythingPresentationState::kUndefined;
+  read_anything::mojom::ReadAnythingDistillationState distillation_state_ =
+      read_anything::mojom::ReadAnythingDistillationState::kNotAttempted;
 
   // List of observers of model state changes.
   base::ObserverList<ModelObserver, /*check_empty=*/true> observers_;

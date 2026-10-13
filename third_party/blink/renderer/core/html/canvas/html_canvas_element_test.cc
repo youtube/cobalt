@@ -22,7 +22,7 @@
 #include "third_party/blink/renderer/core/paint/paint_layer.h"
 #include "third_party/blink/renderer/core/script/classic_script.h"
 #include "third_party/blink/renderer/core/testing/core_unit_test_helper.h"
-#include "third_party/blink/renderer/platform/graphics/test/gpu_memory_buffer_test_platform.h"
+#include "third_party/blink/renderer/platform/graphics/test/gpu_compositing_test_platform.h"
 #include "third_party/blink/renderer/platform/graphics/test/gpu_test_utils.h"
 #include "third_party/blink/renderer/platform/testing/paint_test_configurations.h"
 
@@ -173,9 +173,8 @@ TEST_P(HTMLCanvasElementTest, CanvasMemoryUsageGpuAccelerated) {
   GetDocument().GetSettings()->SetScriptEnabled(true);
 
   auto raster_context_provider = viz::TestContextProvider::CreateRaster();
-  InitializeSharedGpuContextRaster(raster_context_provider.get());
-  ScopedTestingPlatformSupport<GpuMemoryBufferTestPlatform>
-      accelerated_platform;
+  InitializeSharedGpuContext(raster_context_provider.get());
+  ScopedTestingPlatformSupport<GpuCompositingTestPlatform> accelerated_platform;
   GetDocument().GetSettings()->SetAcceleratedCompositingEnabled(true);
 
   SetBodyInnerHTML("<canvas id='canvas' width='10px' height='10px'></canvas>");
@@ -396,6 +395,39 @@ TEST_P(HTMLCanvasElementTest, IsCanvasOrInCanvasSubtree) {
   EXPECT_TRUE(nested_input->IsInCanvasSubtree());
   EXPECT_TRUE(nested_input_shadow->IsCanvasOrInCanvasSubtree());
   EXPECT_TRUE(nested_input_shadow->IsInCanvasSubtree());
+}
+
+TEST_P(HTMLCanvasElementTest, LayoutsubtreeInvalidation) {
+  SetBodyInnerHTML(R"HTML(<canvas id=canvas></canvas>)HTML");
+  auto* canvas = GetDocument().getElementById(AtomicString("canvas"));
+  UpdateAllLifecyclePhasesForTest();
+  EXPECT_FALSE(canvas->NeedsStyleRecalc());
+
+  // Adding layoutsubtree should cause a style recalc.
+  canvas->setAttribute(html_names::kLayoutsubtreeAttr, AtomicString("true"));
+  EXPECT_TRUE(canvas->NeedsStyleRecalc());
+
+  UpdateAllLifecyclePhasesForTest();
+  EXPECT_FALSE(canvas->NeedsStyleRecalc());
+
+  // Setting layoutsubtree to the same value should not cause a style recalc.
+  canvas->setAttribute(html_names::kLayoutsubtreeAttr, AtomicString("true"));
+  EXPECT_FALSE(canvas->NeedsStyleRecalc());
+
+  // Setting layoutsubtree to any other value should not cause a style recalc.
+  canvas->setAttribute(html_names::kLayoutsubtreeAttr, AtomicString(""));
+  EXPECT_FALSE(canvas->NeedsStyleRecalc());
+
+  // Removing layoutsubtree should cause a style recalc.
+  canvas->removeAttribute(html_names::kLayoutsubtreeAttr);
+  EXPECT_TRUE(canvas->NeedsStyleRecalc());
+
+  UpdateAllLifecyclePhasesForTest();
+  EXPECT_FALSE(canvas->NeedsStyleRecalc());
+
+  // Adding layoutsubtree back should cause a style recalc.
+  canvas->setAttribute(html_names::kLayoutsubtreeAttr, AtomicString(""));
+  EXPECT_TRUE(canvas->NeedsStyleRecalc());
 }
 
 }  // namespace blink

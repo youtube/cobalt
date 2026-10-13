@@ -33,7 +33,8 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.shadows.ShadowLooper;
 
-import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.base.supplier.ObservableSuppliers;
+import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.components.browser_ui.widget.scrim.ScrimManager;
@@ -56,7 +57,7 @@ public class HubLayoutScrimControllerUnitTest {
     private Activity mActivity;
     private View mAnchorView;
     private ScrimManager mScrimManager;
-    private ObservableSupplierImpl<Boolean> mIsIncognitoSupplier;
+    private SettableNonNullObservableSupplier<Boolean> mIsIncognitoSupplier;
     private HubLayoutScrimController mScrimController;
 
     @Before
@@ -74,7 +75,7 @@ public class HubLayoutScrimControllerUnitTest {
 
         mScrimManager = spy(new ScrimManager(mActivity, rootView, ScrimClient.NONE));
 
-        mIsIncognitoSupplier = new ObservableSupplierImpl<>(false);
+        mIsIncognitoSupplier = ObservableSuppliers.createNonNull(false);
 
         mScrimController =
                 new HubLayoutScrimController(
@@ -137,7 +138,7 @@ public class HubLayoutScrimControllerUnitTest {
         assertEquals(mAnchorView, model.get(ScrimProperties.ANCHOR_VIEW));
         assertFalse(model.get(ScrimProperties.SHOW_IN_FRONT_OF_ANCHOR_VIEW));
         assertTrue(model.get(ScrimProperties.AFFECTS_STATUS_BAR));
-        final @ColorInt int scrimColor =
+        final @ColorInt Integer scrimColor =
                 isIncognito
                         ? ContextCompat.getColor(mActivity, R.color.default_bg_color_dark)
                         : SemanticColorUtils.getDefaultBgColor(mActivity);

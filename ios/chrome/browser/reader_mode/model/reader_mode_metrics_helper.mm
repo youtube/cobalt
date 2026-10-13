@@ -80,6 +80,52 @@ ReaderModeAccessPointWithMode GetAccessPointWithMode(
   }
 }
 
+// Returns the translation state between the original and Reading Mode pages.
+ReaderModeTranslationPageEventState GetReaderModeTranslationPageEventState(
+    const ReaderModeTranslationState& original_page,
+    const ReaderModeTranslationState& reader_mode_page) {
+  // The original web page is not translated.
+  if (!original_page.is_page_translated) {
+    if (reader_mode_page.is_page_translated) {
+      return ReaderModeTranslationPageEventState::
+          kSourceUntranslatedReaderModeTranslated;
+    } else {
+      return ReaderModeTranslationPageEventState::
+          kSourceUntranslatedReaderModeUntranslated;
+    }
+  }
+
+  // The original web page was automatically translated.
+  if (original_page.is_automated_translation) {
+    if (reader_mode_page.is_page_translated) {
+      if (reader_mode_page.target_code == original_page.target_code) {
+        return ReaderModeTranslationPageEventState::
+            kSourceAutoTranslatedReaderModeTranslated;
+      } else {
+        return ReaderModeTranslationPageEventState::
+            kSourceAutoTranslatedReaderModeTranslatedWithLanguageChange;
+      }
+    } else {
+      return ReaderModeTranslationPageEventState::
+          kSourceAutoTranslatedReaderModeUntranslated;
+    }
+    // The orignal web page was manually translated.
+  } else {
+    if (reader_mode_page.is_page_translated) {
+      if (reader_mode_page.target_code == original_page.target_code) {
+        return ReaderModeTranslationPageEventState::
+            kSourceManuallyTranslatedReaderModeTranslated;
+      } else {
+        return ReaderModeTranslationPageEventState::
+            kSourceManuallyTranslatedReaderModeTranslatedWithLanguageChange;
+      }
+    } else {
+      return ReaderModeTranslationPageEventState::
+          kSourceManuallyTranslatedReaderModeUntranslated;
+    }
+  }
+}
+
 }  // namespace
 
 ReaderModeMetricsHelper::ReaderModeMetricsHelper(
@@ -163,6 +209,18 @@ void ReaderModeMetricsHelper::RecordReaderDistillerCompleted(
                                 GetDistillerOutcome(access_point, result));
 }
 
+void ReaderModeMetricsHelper::RecordDataLoadTriggered() {
+  data_load_timer_ = std::make_unique<base::ElapsedTimer>();
+}
+
+void ReaderModeMetricsHelper::RecordDataLoadCompleted() {
+  if (data_load_timer_) {
+    base::TimeDelta elapsed = data_load_timer_->Elapsed();
+    base::UmaHistogramTimes(kReaderModeDataLoadLatencyHistogram, elapsed);
+    data_load_timer_.reset();
+  }
+}
+
 void ReaderModeMetricsHelper::RecordReaderShown() {
   last_reader_mode_state_.reset();
   base::UmaHistogramEnumeration(kReaderModeStateHistogram,
@@ -180,6 +238,14 @@ void ReaderModeMetricsHelper::RecordReaderShown() {
   reader_mode_distilled_access_point_.reset();
 
   reading_timer_ = std::make_unique<base::ElapsedTimer>();
+}
+
+void ReaderModeMetricsHelper::RecordTranslationState(
+    const ReaderModeTranslationState& original_page,
+    const ReaderModeTranslationState& reader_mode_page) {
+  ReaderModeTranslationPageEventState state =
+      GetReaderModeTranslationPageEventState(original_page, reader_mode_page);
+  base::UmaHistogramEnumeration(kReaderModeTranslationStateHistogram, state);
 }
 
 void ReaderModeMetricsHelper::Flush(ReaderModeDeactivationReason reason) {
@@ -227,6 +293,12 @@ void ReaderModeMetricsHelper::OnChangeFontScaling(float scaling) {
                                 ReaderModeCustomizationType::kFontScale);
   base::UmaHistogramSparse(kReaderModeFontScaleCustomizationHistogram,
                            std::floor(scaling * 100));
+}
+
+void ReaderModeMetricsHelper::OnChangeLinksEnabled(bool enabled) {
+  base::UmaHistogramEnumeration(kReaderModeCustomizationHistogram,
+                                ReaderModeCustomizationType::kLinksEnabled);
+  base::UmaHistogramBoolean(kReaderModeLinksEnabledHistogram, enabled);
 }
 
 void ReaderModeMetricsHelper::RecordDistillationTime(

@@ -4,17 +4,20 @@
 
 // API between the Chrome browser and the Glic web client.
 //
-// Overall notes:
+// Follow some notes providing more context about the Glic API and guidelines on
+// how the web client code should be constructed around it. Check the internal
+// documentation at http://shortn/_xFTHEnFhDV for more details.
+//
 // - There may be multiple instances of the web client running at a time, all
-//   sharing the same web storage space. Whenever one is started or restarted,
-//   the initialization steps will be repeated.
-// - As in TypeScript all `number`s are 64 bit floating points, we decided to
-//   make all identifier values be of the `string` type (e.g. for a window or a
-//   tab).
+//   sharing the same local web storage space. Whenever one is started or
+//   restarted, the initialization steps will be repeated.
 // - The defined functions and interfaces can be "evolved" to provide more
 //   functionality and data, as needed, but must be kept backwards compatible.
 // - Functions are documented with their known behavior. Exceptions and promise
 //   failures should be documented only if they are expected.
+// - As in TypeScript all `number`s are 64 bit floating points, we decided to
+//   make all identifier values be of the `string` type (e.g. for a window or a
+//   tab).
 // - The browser provided tab and window IDs are based on the browser's
 //   SessionID values, which are not stable between Chrome restarts, and should
 //   not be saved to persisted storage for later reuse. See:
@@ -23,6 +26,8 @@
 //   will be silently made empty if exceeding the 2 MiB length limit imposed by
 //   Mojo's URL implementation. See:
 //   https://crsrc.org/c/url/mojom/url.mojom
+// - Avoid doing exhaustive checks against enums defined by the API, as their
+//   values may evolve over time.
 
 /** Allows the Glic web client to register with the host WebUI. */
 export declare interface GlicHostRegistry {
@@ -40,6 +45,9 @@ export declare interface GlicHostRegistry {
 
 /** Additional context object. */
 export declare interface AdditionalContext {
+  /** Where the additional context came from */
+  source?: AdditionalContextSource;
+
   /** User facing name of the context.  Eg. the filename, or full url */
   name?: string;
 
@@ -805,6 +813,11 @@ export declare interface GlicBrowserHost {
   updateSkill?(request: UpdateSkillRequest): Promise<void>;
 
   /**
+   * Requests that the browser open skill management UI.
+   */
+  showManageSkillsUi?(): void;
+
+  /**
    * Gets a skill by id. The web client should use this method to get the
    * full skill details including the prompt for display or run in the UI.
    * The promise will fail if the skill is not found.
@@ -1127,15 +1140,12 @@ export declare interface GlicBrowserHostMetrics {
   onTurnCompleted?(model: WebClientModel, duration: number): void;
 
   /**
-   * Called when the model is changed. Metrics may be recorded with a separate
-   * scope.
-   */
-  onModelChanged?(model: WebClientModel): void;
-
-  /**
    * Called when we want to record an use counter metric.
    */
   onRecordUseCounter?(action: WebUseCounter): void;
+
+  // Removed fields and methods :
+  onModelChanged?(): never;  // Last seen on Canary 146.0.7639.0
 }
 
 export enum ResponseStopCause {
@@ -2058,6 +2068,7 @@ export declare interface SuggestionContent {
   suggestion: string;
 }
 
+// LINT.IfChange(Skill)
 /** Represents a single skill preview. */
 export declare interface SkillPreview {
   /** A unique identifier for the skill. */
@@ -2068,6 +2079,8 @@ export declare interface SkillPreview {
   icon: string;
   /** The source of the skill. */
   source: SkillSource;
+  /** The description of the skill. */
+  description?: string;
 }
 
 /** Represents a single skill. */
@@ -2076,11 +2089,30 @@ export declare interface Skill {
   preview: SkillPreview;
   /** The underlying LLM prompt for the skill. */
   prompt: string;
+  /**
+   * The id of the source skill this skill is derived from. This is only
+   * present if the SkillSource is DERIVED_FROM_FIRST_PARTY.
+   */
+  sourceSkillId?: string;
 }
+// LINT.ThenChange(//chrome/browser/glic/host/glic.mojom:Skill)
 
 export declare interface CreateSkillRequest {
+  /**
+   * A unique identifier for the skill. This is only available when the user is
+   * trying to remix a 1P skill.
+   */
+  id?: string;
+  /** The user-facing name of the skill. Only available in 1P remix flow. */
+  name?: string;
+  /** The icon for the skill. Only available in 1P remix flow. */
+  icon?: string;
   /** A prompt for the skill, which can be empty. */
   prompt: string;
+  /** The description of the skill. Only available in 1P remix flow. */
+  description?: string;
+  /** The source of the skill. */
+  source?: SkillSource;
 }
 
 export declare interface UpdateSkillRequest {
@@ -2373,6 +2405,11 @@ export enum CreateTaskErrorReason {
   UNKNOWN = 0,
   // The host does not support the actor task system.
   TASK_SYSTEM_UNAVAILABLE = 1,
+  // The host already has an existing task in progress. The client must stop it
+  // before requesting a new task.
+  EXISTING_ACTIVE_TASK = 2,
+  // The user's browser policy or account settings prevent creating actor tasks.
+  BLOCKED_BY_POLICY = 3,
 }
 
 ///////////////////////////////////////////////
@@ -2440,6 +2477,7 @@ export enum Platform {
   WINDOWS = 2,
   LINUX = 3,
   CHROME_OS = 4,
+  ANDROID = 5,
 }
 
 ///////////////////////////////////////////////
@@ -2482,6 +2520,8 @@ export enum SkillSource {
   FIRST_PARTY = 1,
   // Skill created by an end-user.
   USER_CREATED = 2,
+  // Skill derived from a first party skill.
+  DERIVED_FROM_FIRST_PARTY = 3,
 }
 
 ///////////////////////////////////////////////
@@ -2594,6 +2634,8 @@ export enum InvocationSource {
   SHARED_IMAGE = 13,
   // From the handoff button.
   HANDOFF_BUTTON = 14,
+  // From invoking skills.
+  SKILLS = 15,
 }
 
 ///////////////////////////////////////////////
@@ -2625,6 +2667,13 @@ export enum WebUseCounter {
   SUBMIT_PROMPT_WITH_AUTO_MODE = 1,
   TASK_INTERRUPTED_FOR_USER_CONFIRMATION = 2,
   TASK_INTERRUPTED_FOR_USER_CLARIFICATION = 3,
+}
+
+///////////////////////////////////////////////
+// WARNING - GENERATED FROM MOJOM, DO NOT EDIT.
+export enum AdditionalContextSource {
+  SHARE_CONTEXT_MENU = 0,
+  REGION_SELECTION = 1,
 }
 
 ///////////////////////////////////////////////

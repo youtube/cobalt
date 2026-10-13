@@ -89,6 +89,10 @@ export class ModulesElement extends CrLitElement {
     return getCss();
   }
 
+  override render() {
+    return getHtml.bind(this)();
+  }
+
   static override get properties() {
     return {
       modulesShownToUser: {
@@ -129,10 +133,6 @@ export class ModulesElement extends CrLitElement {
   // loading behavior.
   private modulesReloadable_: boolean =
       loadTimeData.getBoolean('modulesReloadable');
-
-  override render() {
-    return getHtml.bind(this)();
-  }
 
   override connectedCallback() {
     super.connectedCallback();
@@ -601,6 +601,12 @@ export class ModulesElement extends CrLitElement {
     if (ctrlKeyPressed && e.key === 'z') {
       this.onUndoButtonClick_();
     }
+  }
+}
+
+declare global {
+  interface HTMLElementTagNameMap {
+    'ntp-modules': ModulesElement;
   }
 }
 

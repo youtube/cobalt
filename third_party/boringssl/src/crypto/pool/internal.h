@@ -19,24 +19,27 @@
 #include "../lhash/internal.h"
 
 
+DECLARE_OPAQUE_STRUCT(crypto_buffer_st, CryptoBuffer)
+
 BSSL_NAMESPACE_BEGIN
 
 DEFINE_LHASH_OF(CRYPTO_BUFFER)
 
-BSSL_NAMESPACE_END
-
-struct crypto_buffer_st {
+class CryptoBuffer : public crypto_buffer_st {
+ public:
   CRYPTO_BUFFER_POOL *pool;
   uint8_t *data;
   size_t len;
-  CRYPTO_refcount_t references;
+  bssl::CRYPTO_refcount_t references;
   int data_is_static;
 };
 
+BSSL_NAMESPACE_END
+
 struct crypto_buffer_pool_st {
   LHASH_OF(CRYPTO_BUFFER) *bufs;
-  CRYPTO_MUTEX lock;
-  const uint64_t hash_key[2];
+  bssl::CRYPTO_MUTEX lock;
+  uint64_t hash_key[2];
 };
 
 #endif  // OPENSSL_HEADER_CRYPTO_POOL_INTERNAL_H

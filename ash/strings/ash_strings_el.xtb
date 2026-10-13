@@ -342,7 +342,6 @@
 <translation id="2201071101391734388">Πρόσφατη φωτογραφία <ph name="INDEX" /> από <ph name="TOTAL_COUNT" />.</translation>
 <translation id="2201687081523799384">Σύμπτυξη του Google Tasks</translation>
 <translation id="2208323208084708176">Ενιαία λειτουργία επιφάνειας εργασίας.</translation>
-<translation id="2210311543574621570">Θα δείτε το πρόχειρο όταν πατήσετε παρατεταμένα τα πλήκτρα Ctrl + V. Μπορείτε να απενεργοποιήσετε αυτή τη συντόμευση απενεργοποιώντας την επισήμανση #clipboard-history-longpress στο chrome://flags.</translation>
 <translation id="2215920961700443347">Δεν υπάρχει σύνδεση στο διαδίκτυο. Συνδεθείτε στο διαδίκτυο και δοκιμάστε ξανά.</translation>
 <translation id="2222841058024245321">Γραφείο 7</translation>
 <translation id="2223384056430485343">Σε παράθυρο διαχωρισμού οθόνης</translation>
@@ -2195,7 +2194,6 @@
 <translation id="8241650983304689286">Προσθήκη καρτέλας σε νέα προβολή διαχωρισμού οθόνης</translation>
 <translation id="8247060538831475781"><ph name="CONNECTION_STATUS" />, Ισχύς σήματος <ph name="SIGNAL_STRENGTH" />, Μπαταρία τηλεφώνου <ph name="BATTERY_STATUS" /></translation>
 <translation id="825129991941217170">Εμφάνιση όλου του περιεχομένου του Google Drive</translation>
-<translation id="8257510091797044096">Ρύθμιση της συσκευής</translation>
 <translation id="8261506727792406068">Διαγραφή</translation>
 <translation id="8262312463845990408">Εναλλαγή αναπαραγωγής</translation>
 <translation id="8268302343625273732">Προβολή όλων των εργασιών στο Google Classroom</translation>

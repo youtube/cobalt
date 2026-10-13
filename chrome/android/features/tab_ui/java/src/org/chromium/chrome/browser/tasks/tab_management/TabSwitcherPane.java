@@ -21,6 +21,7 @@ import org.chromium.base.Token;
 import org.chromium.base.ValueChangedCallback;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
+import org.chromium.base.supplier.NonNullObservableSupplier;
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
@@ -141,7 +142,7 @@ public class TabSwitcherPane extends TabSwitcherPaneBase implements TabSwitcherD
             MonotonicObservableSupplier<CompositorViewHolder> compositorViewHolderSupplier,
             TabGroupCreationUiDelegate tabGroupCreationUiDelegate,
             @Nullable ArchivedTabsAutoDeletePromoManager archivedTabsAutoDeletePromoManager,
-            @Nullable MonotonicObservableSupplier<Boolean> xrSpaceModeObservableSupplier) {
+            NonNullObservableSupplier<Boolean> xrSpaceModeObservableSupplier) {
         super(
                 PaneId.TAB_SWITCHER,
                 context,
@@ -174,15 +175,15 @@ public class TabSwitcherPane extends TabSwitcherPaneBase implements TabSwitcherD
                         }));
 
         profileProviderSupplier.onAvailable(this::onProfileProviderAvailable);
-        getIsVisibleSupplier().addObserver(mVisibilityObserver);
-        getTabSwitcherPaneCoordinatorSupplier().addObserver(mOnPaneCoordinatorChanged);
+        mIsVisibleSupplier.addSyncObserverAndPostIfNonNull(mVisibilityObserver);
+        mTabSwitcherPaneCoordinatorSupplier.addObserver(mOnPaneCoordinatorChanged);
     }
 
     @Override
     public void destroy() {
         // Do this before super.destroy() since the visibility supplier is owned by the base class.
-        getIsVisibleSupplier().removeObserver(mVisibilityObserver);
-        getTabSwitcherPaneCoordinatorSupplier().removeObserver(mOnPaneCoordinatorChanged);
+        mIsVisibleSupplier.removeObserver(mVisibilityObserver);
+        mTabSwitcherPaneCoordinatorSupplier.removeObserver(mOnPaneCoordinatorChanged);
         super.destroy();
         mTabSwitcherPaneDrawableCoordinator.destroy();
         if (mPriceAnnotationsPrefListener != null) {
@@ -230,7 +231,7 @@ public class TabSwitcherPane extends TabSwitcherPaneBase implements TabSwitcherD
         }
 
         boolean isNotVisibleOrSelected =
-                !getIsVisibleSupplier().get() || !filter.getTabModel().isActiveModel();
+                !mIsVisibleSupplier.get() || !filter.getTabModel().isActiveModel();
 
         if (isNotVisibleOrSelected) {
             cancelWaitForTabStateInitializedTimer();
@@ -303,11 +304,10 @@ public class TabSwitcherPane extends TabSwitcherPaneBase implements TabSwitcherD
         mPriceAnnotationsPrefListener =
                 (sharedPrefs, key) -> {
                     if (!PriceTrackingUtilities.TRACK_PRICES_ON_TABS.equals(key)
-                            || !getIsVisibleSupplier().get()) {
+                            || !mIsVisibleSupplier.get()) {
                         return;
                     }
                     TabGroupModelFilter filter = mTabGroupModelFilterSupplier.get();
-                    @Nullable
                     TabSwitcherPaneCoordinator coordinator = getTabSwitcherPaneCoordinator();
                     if (filter.getTabModel().isActiveModel()
                             && filter.isTabModelRestored()
@@ -343,7 +343,7 @@ public class TabSwitcherPane extends TabSwitcherPaneBase implements TabSwitcherD
         if (mTabGroupSyncService == null) return;
         if (mTabGroupSyncService.getAllGroupIds().length == 0) return;
 
-        if (getIsAnimatingSupplier().get()) return;
+        if (mIsAnimatingSupplier.get()) return;
 
         if (mProfileProvider != null) {
             maybeShowVersioningIph(

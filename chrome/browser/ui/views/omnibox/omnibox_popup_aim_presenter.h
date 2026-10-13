@@ -27,6 +27,7 @@ class OmniboxPopupAimPresenter : public OmniboxPopupPresenterBase,
   // OmniboxPopupPresenterBase:
   void Show() override;
   void Hide() override;
+  std::string_view GetPopupMetricPrefix() const override;
 
  protected:
   // OmniboxPopupPresenterBase overrides:

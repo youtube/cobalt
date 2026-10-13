@@ -17,6 +17,7 @@
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-node-type.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -324,7 +325,6 @@ class MaglevReducer {
   std::optional<int32_t> TryGetInt32Constant(ValueNode* value);
   std::optional<uint32_t> TryGetUint32Constant(ValueNode* value);
   std::optional<intptr_t> TryGetIntPtrConstant(ValueNode* value);
-  std::optional<ShiftedInt53> TryGetShiftedInt53Constant(ValueNode* value);
   std::optional<Float64> TryGetFloat64OrHoleyFloat64Constant(
       UseRepresentation use_repr, ValueNode* value,
       TaggedToFloat64ConversionType conversion_type);
@@ -363,12 +363,6 @@ class MaglevReducer {
 
   // This does not emit any conversion.
   ValueNode* TryGetInt32(ValueNode* value);
-
-  // Get a ShiftInt53 representation node whose value is equivalent to the given
-  // node.
-  //
-  // Deopts if the value is not exactly representable as an Int32.
-  ValueNode* GetShiftedInt53(ValueNode* value);
 
   // Get an Int32 representation node whose value is equivalent to the ToInt32
   // truncation of the given node (including a ToNumber call). Only trivial
@@ -502,9 +496,6 @@ class MaglevReducer {
   Int32Constant* GetInt32Constant(int32_t constant) {
     return graph()->GetInt32Constant(constant);
   }
-  ShiftedInt53Constant* GetShiftedInt53Constant(ShiftedInt53 constant) {
-    return graph()->GetShiftedInt53Constant(constant);
-  }
   IntPtrConstant* GetIntPtrConstant(intptr_t constant) {
     return graph()->GetIntPtrConstant(constant);
   }
@@ -571,8 +562,6 @@ class MaglevReducer {
                                                      double cst_right);
   bool TryFoldFloat64CompareOperation(Operation op, double left, double right);
 
-  MaybeReduceResult TryFoldShiftedInt53Add(ValueNode* left, ValueNode* right);
-
   template <Operation kOperation>
   MaybeReduceResult TryFoldFloat64UnaryOperationForToNumber(
       TaggedToFloat64ConversionType conversion_type, ValueNode* value);
@@ -608,7 +597,13 @@ class MaglevReducer {
     return known_node_aspects().EnsureType(broker(), node, type, old);
   }
   NodeType GetType(ValueNode* node) {
-    return known_node_aspects().GetType(broker(), node);
+    NodeType type = known_node_aspects().GetTypeUnchecked(broker(), node);
+    if (v8_flags.maglev_assert_types && type != NodeType::kUnknown)
+        [[unlikely]] {
+      ReduceResult result = AddNewNode<CheckMaglevType>({node}, type);
+      USE(result);
+    }
+    return type;
   }
   NodeInfo* GetOrCreateInfoFor(ValueNode* node) {
     return known_node_aspects().GetOrCreateInfoFor(broker(), node);
@@ -616,10 +611,13 @@ class MaglevReducer {
   // Returns true if we statically know that {lhs} and {rhs} have disjoint
   // types.
   bool HaveDisjointTypes(ValueNode* lhs, ValueNode* rhs) {
-    return known_node_aspects().HaveDisjointTypes(broker(), lhs, rhs);
+    NodeType rhs_type = GetType(rhs);
+    return HasDisjointType(lhs, rhs_type);
   }
+
   bool HasDisjointType(ValueNode* lhs, NodeType rhs_type) {
-    return known_node_aspects().HasDisjointType(broker(), lhs, rhs_type);
+    NodeType lhs_type = GetType(lhs);
+    return IsEmptyNodeType(IntersectType(lhs_type, rhs_type));
   }
 
   Zone* zone() const { return zone_; }

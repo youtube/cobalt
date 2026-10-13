@@ -289,6 +289,7 @@ ExtensionServiceTestBase::~ExtensionServiceTestBase() = default;
 
 void ExtensionServiceTestBase::InitializeExtensionService(
     ExtensionServiceTestBase::ExtensionServiceInitParams params) {
+  CHECK(is_setup_called_);
   const bool is_first_run = params.is_first_run;
   const bool autoupdate_enabled = params.autoupdate_enabled;
   const bool extensions_enabled = params.extensions_enabled;
@@ -341,7 +342,7 @@ void ExtensionServiceTestBase::
 }
 
 size_t ExtensionServiceTestBase::GetPrefKeyCount() {
-  const base::Value::Dict& dict =
+  const base::DictValue& dict =
       profile()->GetPrefs()->GetDict(pref_names::kExtensions);
   return dict.size();
 }
@@ -359,9 +360,9 @@ testing::AssertionResult ExtensionServiceTestBase::ValidateBooleanPref(
                          pref_path.c_str(), base::ToString(expected_val));
 
   PrefService* prefs = profile()->GetPrefs();
-  const base::Value::Dict& dict = prefs->GetDict(pref_names::kExtensions);
+  const base::DictValue& dict = prefs->GetDict(pref_names::kExtensions);
 
-  const base::Value::Dict* pref = dict.FindDict(extension_id);
+  const base::DictValue* pref = dict.FindDict(extension_id);
   if (!pref) {
     return testing::AssertionFailure()
            << "extension pref does not exist " << msg;
@@ -388,8 +389,8 @@ void ExtensionServiceTestBase::ValidateIntegerPref(
       base::NumberToString(expected_val).c_str());
 
   PrefService* prefs = profile()->GetPrefs();
-  const base::Value::Dict& dict = prefs->GetDict(pref_names::kExtensions);
-  const base::Value::Dict* pref = dict.FindDict(extension_id);
+  const base::DictValue& dict = prefs->GetDict(pref_names::kExtensions);
+  const base::DictValue* pref = dict.FindDict(extension_id);
   ASSERT_TRUE(pref) << msg;
   EXPECT_EQ(expected_val, pref->FindIntByDottedPath(pref_path)) << msg;
 }
@@ -402,10 +403,10 @@ void ExtensionServiceTestBase::ValidateStringPref(
                                        extension_id.c_str(), pref_path.c_str(),
                                        expected_val.c_str());
 
-  const base::Value::Dict& dict =
+  const base::DictValue& dict =
       profile()->GetPrefs()->GetDict(pref_names::kExtensions);
   std::string manifest_path = extension_id + ".manifest";
-  const base::Value::Dict* pref = dict.FindDictByDottedPath(manifest_path);
+  const base::DictValue* pref = dict.FindDictByDottedPath(manifest_path);
   ASSERT_TRUE(pref) << msg;
   const std::string* val = pref->FindStringByDottedPath(pref_path);
   ASSERT_TRUE(val) << msg;
@@ -413,6 +414,7 @@ void ExtensionServiceTestBase::ValidateStringPref(
 }
 
 void ExtensionServiceTestBase::SetUp() {
+  is_setup_called_ = true;
   LoadErrorReporter::GetInstance()->ClearErrors();
 
   // Force TabManager/TabLifecycleUnitSource creation.
@@ -443,7 +445,6 @@ void ExtensionServiceTestBase::SetUp() {
 }
 
 void ExtensionServiceTestBase::TearDown() {
-  Shutdown();
   if (profile_) {
     content::StoragePartitionConfig default_storage_partition_config =
         content::StoragePartitionConfig::CreateDefault(profile());
@@ -457,11 +458,7 @@ void ExtensionServiceTestBase::TearDown() {
 #if BUILDFLAG(IS_CHROMEOS)
   kiosk_chrome_app_manager_.reset();
 #endif
-}
-
-void ExtensionServiceTestBase::Shutdown() {
-  registry_ = nullptr;
-  registrar_ = nullptr;
+  DeleteProfile();
 }
 
 void ExtensionServiceTestBase::SetUpTestSuite() {

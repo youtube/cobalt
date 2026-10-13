@@ -63,7 +63,6 @@
 #include "net/dns/dns_util.h"
 #include "net/dns/host_cache.h"
 #include "net/dns/host_resolver_internal_result.h"
-#include "net/dns/opt_record_rdata.h"
 #include "net/dns/public/dns_over_https_config.h"
 #include "net/dns/public/dns_over_https_server_config.h"
 #include "net/dns/public/dns_protocol.h"
@@ -156,9 +155,8 @@ bool IsIPLiteral(const std::string& hostname) {
   return ip.AssignFromIPLiteral(hostname);
 }
 
-base::Value::Dict NetLogStartParams(const std::string& hostname,
-                                    uint16_t qtype) {
-  base::Value::Dict dict;
+base::DictValue NetLogStartParams(const std::string& hostname, uint16_t qtype) {
+  base::DictValue dict;
   dict.Set("hostname", hostname);
   dict.Set("query_type", qtype);
   return dict;
@@ -200,8 +198,8 @@ class DnsAttempt {
   // Returns a Value representing the received response, along with a reference
   // to the NetLog source source of the UDP socket used.  The request must have
   // completed before this is called.
-  base::Value::Dict NetLogResponseParams(NetLogCaptureMode capture_mode) const {
-    base::Value::Dict dict;
+  base::DictValue NetLogResponseParams(NetLogCaptureMode capture_mode) const {
+    base::DictValue dict;
 
     if (GetResponse()) {
       DCHECK(GetResponse()->IsValid());
@@ -1207,20 +1205,24 @@ class DnsOverHttpsProbeRunner : public DnsProbeRunner {
 // round-robin afterwards. Each server is attempted DnsConfig::attempts times.
 class DnsTransactionImpl final : public DnsTransaction {
  public:
-  DnsTransactionImpl(DnsSession* session,
-                     std::string hostname,
-                     uint16_t qtype,
-                     const NetLogWithSource& parent_net_log,
-                     const OptRecordRdata* opt_rdata,
-                     bool secure,
-                     SecureDnsMode secure_dns_mode,
-                     ResolveContext* resolve_context,
-                     bool fast_timeout)
+  DnsTransactionImpl(
+      DnsSession* session,
+      std::string hostname,
+      uint16_t qtype,
+      const NetLogWithSource& parent_net_log,
+      // TODO(crbug.com/396483553): Remove `opt_rdata` and all plumbing between
+      // DnsTransactionImpl and DnsQuery in a follow-up CL now that structured
+      // DNS error (EDE) requests are injected at the DnsQuery layer.
+      const OptRecordRdata* opt_rdata,
+      DnsTransactionFactory::AttemptMode attempt_mode,
+      SecureDnsMode secure_dns_mode,
+      ResolveContext* resolve_context,
+      bool fast_timeout)
       : session_(session),
         hostname_(std::move(hostname)),
         qtype_(qtype),
         opt_rdata_(opt_rdata),
-        secure_(secure),
+        attempt_mode_(attempt_mode),
         secure_dns_mode_(secure_dns_mode),
         fast_timeout_(fast_timeout),
         net_log_(NetLogWithSource::Make(NetLog::Get(),
@@ -1388,14 +1390,17 @@ class DnsTransactionImpl final : public DnsTransaction {
     DCHECK(MoreAttemptsAllowed());
 
     DnsConfig config = session_->config();
-    if (secure_) {
-      DCHECK(!config.doh_config.servers().empty());
-      RecordAttemptUma(DnsAttemptType::kHttp);
-      return MakeHTTPAttempt();
+    switch (attempt_mode_) {
+      case DnsTransactionFactory::AttemptMode::kHttp:
+        DCHECK(!config.doh_config.servers().empty());
+        RecordAttemptUma(DnsAttemptType::kHttp);
+        return MakeHTTPAttempt();
+      case DnsTransactionFactory::AttemptMode::kClassic:
+        DCHECK_GT(config.nameservers.size(), 0u);
+        return MakeClassicDnsAttempt();
+      default:
+        NOTREACHED();
     }
-
-    DCHECK_GT(config.nameservers.size(), 0u);
-    return MakeClassicDnsAttempt();
   }
 
   AttemptResult MakeClassicDnsAttempt() {
@@ -1435,7 +1440,7 @@ class DnsTransactionImpl final : public DnsTransaction {
   // next nameserver.
   AttemptResult MakeUdpAttempt(size_t server_index,
                                std::unique_ptr<DnsQuery> query) {
-    DCHECK(!secure_);
+    DCHECK_EQ(attempt_mode_, DnsTransactionFactory::AttemptMode::kClassic);
     DCHECK(!session_->udp_tracker()->low_entropy());
 
     const DnsConfig& config = session_->config();
@@ -1465,7 +1470,7 @@ class DnsTransactionImpl final : public DnsTransaction {
   }
 
   AttemptResult MakeHTTPAttempt() {
-    DCHECK(secure_);
+    DCHECK_EQ(attempt_mode_, DnsTransactionFactory::AttemptMode::kHttp);
 
     size_t doh_server_index = dns_server_iterator_->GetNextAttemptIndex();
 
@@ -1528,7 +1533,7 @@ class DnsTransactionImpl final : public DnsTransaction {
 
   AttemptResult MakeTcpAttempt(size_t server_index,
                                std::unique_ptr<DnsQuery> query) {
-    DCHECK(!secure_);
+    DCHECK_EQ(attempt_mode_, DnsTransactionFactory::AttemptMode::kClassic);
     const DnsConfig& config = session_->config();
     DCHECK_LT(server_index, config.nameservers.size());
 
@@ -1570,12 +1575,17 @@ class DnsTransactionImpl final : public DnsTransaction {
 
     attempts_.clear();
     had_tcp_retry_ = false;
-    if (secure_) {
-      dns_server_iterator_ = resolve_context_->GetDohIterator(
-          session_->config(), secure_dns_mode_, session_.get());
-    } else {
-      dns_server_iterator_ = resolve_context_->GetClassicDnsIterator(
-          session_->config(), session_.get());
+    switch (attempt_mode_) {
+      case DnsTransactionFactory::AttemptMode::kHttp:
+        dns_server_iterator_ = resolve_context_->GetDohIterator(
+            session_->config(), secure_dns_mode_, session_.get());
+        break;
+      case DnsTransactionFactory::AttemptMode::kClassic:
+        dns_server_iterator_ = resolve_context_->GetClassicDnsIterator(
+            session_->config(), session_.get());
+        break;
+      default:
+        NOTREACHED();
     }
     DCHECK(dns_server_iterator_);
     // Check for available server before starting as DoH servers might be
@@ -1594,7 +1604,8 @@ class DnsTransactionImpl final : public DnsTransaction {
     const DnsAttempt* attempt = attempts_[attempt_number].get();
     if (record_rtt && attempt->GetResponse()) {
       resolve_context_->RecordRtt(
-          attempt->server_index(), secure_ /* is_doh_server */,
+          attempt->server_index(),
+          attempt_mode_ == DnsTransactionFactory::AttemptMode::kHttp /* is_doh_server */,
           base::TimeTicks::Now() - start, rv, session_.get());
     }
     if (callback_.is_null())
@@ -1628,18 +1639,22 @@ class DnsTransactionImpl final : public DnsTransaction {
 
       switch (result.rv) {
         case OK:
-          resolve_context_->RecordServerSuccess(result.attempt->server_index(),
-                                                secure_ /* is_doh_server */,
-                                                session_.get());
+          resolve_context_->RecordServerSuccess(
+              result.attempt->server_index(),
+              attempt_mode_ ==
+                  DnsTransactionFactory::AttemptMode::kHttp /* is_doh_server */,
+              session_.get());
           net_log_.EndEventWithNetErrorCode(
               NetLogEventType::DNS_TRANSACTION_QUERY, result.rv);
           DCHECK(result.attempt);
           DCHECK(result.attempt->GetResponse());
           return result;
         case ERR_NAME_NOT_RESOLVED:
-          resolve_context_->RecordServerSuccess(result.attempt->server_index(),
-                                                secure_ /* is_doh_server */,
-                                                session_.get());
+          resolve_context_->RecordServerSuccess(
+              result.attempt->server_index(),
+              attempt_mode_ ==
+                  DnsTransactionFactory::AttemptMode::kHttp /* is_doh_server */,
+              session_.get());
           net_log_.EndEventWithNetErrorCode(
               NetLogEventType::DNS_TRANSACTION_QUERY, result.rv);
           // Try next suffix. Check that qnames_ isn't already empty first,
@@ -1660,7 +1675,9 @@ class DnsTransactionImpl final : public DnsTransaction {
           if (result.attempt) {
             DCHECK(result.attempt == attempts_.back().get());
             resolve_context_->RecordServerFailure(
-                result.attempt->server_index(), secure_ /* is_doh_server */,
+                result.attempt->server_index(),
+                attempt_mode_ ==
+                    DnsTransactionFactory::AttemptMode::kHttp /* is_doh_server */,
                 result.rv, session_.get());
           }
           if (MoreAttemptsAllowed()) {
@@ -1694,7 +1711,9 @@ class DnsTransactionImpl final : public DnsTransaction {
           if (result.attempt == attempts_.back().get()) {
             timer_.Stop();
             resolve_context_->RecordServerFailure(
-                result.attempt->server_index(), secure_ /* is_doh_server */,
+                result.attempt->server_index(),
+                attempt_mode_ ==
+                    DnsTransactionFactory::AttemptMode::kHttp /* is_doh_server */,
                 result.rv, session_.get());
 
             if (MoreAttemptsAllowed()) {
@@ -1758,11 +1777,16 @@ class DnsTransactionImpl final : public DnsTransaction {
     DCHECK(!callback_.is_null());
 
     base::TimeDelta timeout;
-    if (secure_) {
-      timeout = resolve_context_->SecureTransactionTimeout(secure_dns_mode_,
-                                                           session_.get());
-    } else {
-      timeout = resolve_context_->ClassicTransactionTimeout(session_.get());
+    switch (attempt_mode_) {
+      case DnsTransactionFactory::AttemptMode::kHttp:
+        timeout = resolve_context_->SecureTransactionTimeout(secure_dns_mode_,
+                                                             session_.get());
+        break;
+      case DnsTransactionFactory::AttemptMode::kClassic:
+        timeout = resolve_context_->ClassicTransactionTimeout(session_.get());
+        break;
+      default:
+        NOTREACHED();
     }
     timeout -= time_from_start_->Elapsed();
 
@@ -1779,7 +1803,7 @@ class DnsTransactionImpl final : public DnsTransaction {
   std::string hostname_;
   uint16_t qtype_;
   raw_ptr<const OptRecordRdata, DanglingUntriaged> opt_rdata_;
-  const bool secure_;
+  const DnsTransactionFactory::AttemptMode attempt_mode_;
   const SecureDnsMode secure_dns_mode_;
   // Cleared in DoCallback.
   ResponseCallback callback_;
@@ -1831,13 +1855,16 @@ class DnsTransactionFactoryImpl : public DnsTransactionFactory {
       std::string hostname,
       uint16_t qtype,
       const NetLogWithSource& net_log,
-      bool secure,
+      AttemptMode attempt_mode,
       SecureDnsMode secure_dns_mode,
       ResolveContext* resolve_context,
       bool fast_timeout) override {
     return std::make_unique<DnsTransactionImpl>(
-        session_.get(), std::move(hostname), qtype, net_log, opt_rdata_.get(),
-        secure, secure_dns_mode, resolve_context, fast_timeout);
+        session_.get(), std::move(hostname), qtype, net_log,
+        // No factory-level EDNS option injection; per-transaction options are
+        // passed through other call sites when needed.
+        /*opt_rdata=*/nullptr, attempt_mode, secure_dns_mode, resolve_context,
+        fast_timeout);
   }
 
   std::unique_ptr<DnsProbeRunner> CreateDohProbeRunner(
@@ -1850,23 +1877,12 @@ class DnsTransactionFactoryImpl : public DnsTransactionFactory {
         session_->GetWeakPtr(), resolve_context->GetWeakPtr());
   }
 
-  void AddEDNSOption(std::unique_ptr<OptRecordRdata::Opt> opt) override {
-    DCHECK(opt);
-    if (opt_rdata_ == nullptr)
-      opt_rdata_ = std::make_unique<OptRecordRdata>();
-
-    opt_rdata_->AddOpt(std::move(opt));
-  }
-
   SecureDnsMode GetSecureDnsModeForTest() override {
     return session_->config().secure_dns_mode;
   }
 
-  OptRecordRdata* GetOptRdataForTest() override { return opt_rdata_.get(); }
-
  private:
   scoped_refptr<DnsSession> session_;
-  std::unique_ptr<OptRecordRdata> opt_rdata_;
 };
 
 }  // namespace

@@ -96,9 +96,9 @@ public abstract class TabSwitcherPaneBase extends PaneBase
     protected final UserEducationHelper mUserEducationHelper;
     protected final MonotonicObservableSupplier<EdgeToEdgeController> mEdgeToEdgeSupplier;
     protected final MonotonicObservableSupplier<CompositorViewHolder> mCompositorViewHolderSupplier;
-    private final SettableNonNullObservableSupplier<Boolean> mIsVisibleSupplier =
+    protected final SettableNonNullObservableSupplier<Boolean> mIsVisibleSupplier =
             ObservableSuppliers.createNonNull(false);
-    private final SettableNonNullObservableSupplier<Boolean> mIsAnimatingSupplier =
+    protected final SettableNonNullObservableSupplier<Boolean> mIsAnimatingSupplier =
             ObservableSuppliers.createNonNull(false);
     private final SettableNullableObservableSupplier<View> mOverlayViewSupplier =
             ObservableSuppliers.createNullable();
@@ -111,7 +111,7 @@ public abstract class TabSwitcherPaneBase extends PaneBase
     private final TabSwitcherCustomViewManager mTabSwitcherCustomViewManager =
             new TabSwitcherCustomViewManager();
 
-    private final SettableNullableObservableSupplier<TabSwitcherPaneCoordinator>
+    protected final SettableNullableObservableSupplier<TabSwitcherPaneCoordinator>
             mTabSwitcherPaneCoordinatorSupplier = ObservableSuppliers.createNullable();
 
     private final NonNullObservableSupplier<Boolean> mHandleBackPressChangedSupplier =
@@ -145,7 +145,7 @@ public abstract class TabSwitcherPaneBase extends PaneBase
     private boolean mNativeInitialized;
     private @Nullable PaneHubController mPaneHubController;
     private @Nullable Long mWaitForTabStateInitializedStartTimeMs;
-    private final @Nullable MonotonicObservableSupplier<Boolean> mXrSpaceModeObservableSupplier;
+    private final NonNullObservableSupplier<Boolean> mXrSpaceModeObservableSupplier;
 
     /**
      * @param context The activity context.
@@ -169,12 +169,12 @@ public abstract class TabSwitcherPaneBase extends PaneBase
             MonotonicObservableSupplier<EdgeToEdgeController> edgeToEdgeSupplier,
             MonotonicObservableSupplier<CompositorViewHolder> compositorViewHolderSupplier,
             TabGroupCreationUiDelegate tabGroupCreationUiDelegate,
-            @Nullable MonotonicObservableSupplier<Boolean> xrSpaceModeObservableSupplier) {
+            NonNullObservableSupplier<Boolean> xrSpaceModeObservableSupplier) {
         super(paneId, context, onToolbarAlphaChange);
         mMenuButtonVisible = true;
         mFactory = factory;
         mIsIncognito = isIncognito;
-        mIsVisibleSupplier.addObserver(mVisibilityObserver);
+        mIsVisibleSupplier.addSyncObserverAndPostIfNonNull(mVisibilityObserver);
         mUserEducationHelper = userEducationHelper;
         mEdgeToEdgeSupplier = edgeToEdgeSupplier;
         mCompositorViewHolderSupplier = compositorViewHolderSupplier;
@@ -204,6 +204,13 @@ public abstract class TabSwitcherPaneBase extends PaneBase
                         return false;
                     }
                 };
+
+        mManualSearchBoxAnimationSupplier =
+                mTabSwitcherPaneCoordinatorSupplier.createTransitiveNonNull(
+                        false, TabSwitcherPaneCoordinator::getManualSearchBoxAnimationSupplier);
+        mSearchBoxVisibilityFractionSupplier =
+                mTabSwitcherPaneCoordinatorSupplier.createTransitiveNonNull(
+                        0.0f, TabSwitcherPaneCoordinator::getSearchBoxVisibilityFractionSupplier);
     }
 
     @Override
@@ -218,13 +225,11 @@ public abstract class TabSwitcherPaneBase extends PaneBase
     public void setPaneHubController(@Nullable PaneHubController paneHubController) {
         mPaneHubController = paneHubController;
 
-        boolean showSearch = false;
         if (isFocused()) {
             int screenWidthDp =
                     mRootView.getContext().getResources().getConfiguration().screenWidthDp;
-            showSearch = !HubUtils.isScreenWidthTablet(screenWidthDp);
+            mHubSearchBoxVisibilitySupplier.set(!HubUtils.isScreenWidthTablet(screenWidthDp));
         }
-        mHubSearchBoxVisibilitySupplier.set(showSearch);
     }
 
     @Override
@@ -285,8 +290,7 @@ public abstract class TabSwitcherPaneBase extends PaneBase
     public HubLayoutAnimatorProvider createShowHubLayoutAnimatorProvider(
             HubContainerView hubContainerView) {
         Context context = hubContainerView.getContext();
-        final boolean isFullSpaceModeOnAndroidXr =
-                mXrSpaceModeObservableSupplier != null && mXrSpaceModeObservableSupplier.get();
+        boolean isFullSpaceModeOnAndroidXr = mXrSpaceModeObservableSupplier.get();
 
         assert !DeviceFormFactor.isNonMultiDisplayContextOnTablet(context)
                 || isFullSpaceModeOnAndroidXr;
@@ -335,6 +339,16 @@ public abstract class TabSwitcherPaneBase extends PaneBase
                 backgroundColor,
                 HUB_LAYOUT_SHRINK_EXPAND_DURATION_MS,
                 mOnToolbarAlphaChange);
+    }
+
+    @Override
+    public NonNullObservableSupplier<Boolean> getManualSearchBoxAnimationSupplier() {
+        return mManualSearchBoxAnimationSupplier;
+    }
+
+    @Override
+    public NonNullObservableSupplier<Float> getSearchBoxVisibilityFractionSupplier() {
+        return mSearchBoxVisibilityFractionSupplier;
     }
 
     private @ColorInt int getAnimationBackgroundColor() {
@@ -413,7 +427,8 @@ public abstract class TabSwitcherPaneBase extends PaneBase
                     Rect finalRect;
                     Rect viewportRect = new Rect();
 
-                    CompositorViewHolder viewHolder = mCompositorViewHolderSupplier.get();
+                    CompositorViewHolder viewHolder =
+                            assumeNonNull(mCompositorViewHolderSupplier.get());
                     RectF viewportRectf = new RectF();
                     viewHolder.getVisibleViewport(viewportRectf);
                     viewportRectf.round(viewportRect);
@@ -583,23 +598,6 @@ public abstract class TabSwitcherPaneBase extends PaneBase
         return mFactory.getTabListMode();
     }
 
-    /**
-     * Returns a supplier for whether the pane is visible onscreen. Note this is not the same as
-     * being focused.
-     */
-    protected MonotonicObservableSupplier<Boolean> getIsVisibleSupplier() {
-        return mIsVisibleSupplier;
-    }
-
-    /**
-     * Holds whether there's an ongoing animation with this Pane and outside the hub. Care must be
-     * taken when reading this supplier as animations do not start synchronously with focus changes,
-     * and a Pane may be shown before the enter animation actually starts.
-     */
-    protected MonotonicObservableSupplier<Boolean> getIsAnimatingSupplier() {
-        return mIsAnimatingSupplier;
-    }
-
     /** Returns whether the pane is focused. */
     protected boolean isFocused() {
         return mPaneHubController != null;
@@ -612,15 +610,8 @@ public abstract class TabSwitcherPaneBase extends PaneBase
 
     /** Returns the current {@link TabSwitcherPaneCoordinator} or null if one doesn't exist. */
     @VisibleForTesting(otherwise = VisibleForTesting.PROTECTED)
-    @Nullable
-    TabSwitcherPaneCoordinator getTabSwitcherPaneCoordinator() {
+    @Nullable TabSwitcherPaneCoordinator getTabSwitcherPaneCoordinator() {
         return mTabSwitcherPaneCoordinatorSupplier.get();
-    }
-
-    /** Returns an observable supplier that hold the current coordinator. */
-    protected NullableObservableSupplier<TabSwitcherPaneCoordinator>
-            getTabSwitcherPaneCoordinatorSupplier() {
-        return mTabSwitcherPaneCoordinatorSupplier;
     }
 
     /** Creates a {@link TabSwitcherCoordinator}. */

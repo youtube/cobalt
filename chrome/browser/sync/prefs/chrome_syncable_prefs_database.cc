@@ -42,7 +42,7 @@
 #include "extensions/browser/pref_names.h"  // nogncheck
 #endif
 
-#if BUILDFLAG(ENABLE_GLIC) || BUILDFLAG(ENABLE_GLIC_ANDROID)
+#if BUILDFLAG(ENABLE_GLIC)
 #include "chrome/browser/glic/glic_pref_names.h"
 #endif
 
@@ -436,6 +436,13 @@ enum {
   kPinContextualTaskButton = 100369,
   kAccessibilityReadAnythingOmniboxChipIgnoredCount = 100370,
   kAccessibilityReadAnythingLineFocus = 100371,
+  kProjectsPanelEntrypointEnabled = 100372,
+  kDesktopToiOSTabGroupsPromoLastImpressionTimestamp = 100373,
+  kDesktopToiOSTabGroupsPromoImpressionsCounter = 100374,
+  kDesktopToiOSTabGroupsPromoOptOut = 100375,
+  kDesktopToiOSPriceTrackingPromoLastImpressionTimestamp = 100376,
+  kDesktopToiOSPriceTrackingPromoImpressionsCounter = 100377,
+  kDesktopToiOSPriceTrackingPromoOptOut = 100378,
   // See components/sync_preferences/README.md about adding new entries here.
   // vvvvv IMPORTANT! vvvvv
   // Note to the reviewer: IT IS YOUR RESPONSIBILITY to ensure that new syncable
@@ -634,6 +641,10 @@ constexpr auto kChromeSyncablePrefsAllowlist = base::MakeFixedFlatMap<
       sync_preferences::MergeBehavior::kNone}},
     {prefs::kVerticalTabsEnabled,
      {syncable_prefs_ids::kVerticalTabsEnabled, syncer::PREFERENCES,
+      sync_preferences::PrefSensitivity::kNone,
+      sync_preferences::MergeBehavior::kNone}},
+    {prefs::kProjectsPanelEntrypointEnabled,
+     {syncable_prefs_ids::kProjectsPanelEntrypointEnabled, syncer::PREFERENCES,
       sync_preferences::PrefSensitivity::kNone,
       sync_preferences::MergeBehavior::kNone}},
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -1867,12 +1878,37 @@ constexpr auto kChromeSyncablePrefsAllowlist = base::MakeFixedFlatMap<
      {syncable_prefs_ids::kDesktopToiOSLensPromoOptOut, syncer::PREFERENCES,
       sync_preferences::PrefSensitivity::kNone,
       sync_preferences::MergeBehavior::kNone}},
-#if BUILDFLAG(ENABLE_GLIC) || BUILDFLAG(ENABLE_GLIC_ANDROID)
+    {promos_prefs::kDesktopToiOSTabGroupsPromoLastImpressionTimestamp,
+     {syncable_prefs_ids::kDesktopToiOSTabGroupsPromoLastImpressionTimestamp,
+      syncer::PREFERENCES, sync_preferences::PrefSensitivity::kNone,
+      sync_preferences::MergeBehavior::kNone}},
+    {promos_prefs::kDesktopToiOSTabGroupsPromoImpressionsCounter,
+     {syncable_prefs_ids::kDesktopToiOSTabGroupsPromoImpressionsCounter,
+      syncer::PREFERENCES, sync_preferences::PrefSensitivity::kNone,
+      sync_preferences::MergeBehavior::kNone}},
+    {promos_prefs::kDesktopToiOSTabGroupsPromoOptOut,
+     {syncable_prefs_ids::kDesktopToiOSTabGroupsPromoOptOut,
+      syncer::PREFERENCES, sync_preferences::PrefSensitivity::kNone,
+      sync_preferences::MergeBehavior::kNone}},
+    {promos_prefs::kDesktopToiOSPriceTrackingPromoLastImpressionTimestamp,
+     {syncable_prefs_ids::
+          kDesktopToiOSPriceTrackingPromoLastImpressionTimestamp,
+      syncer::PREFERENCES, sync_preferences::PrefSensitivity::kNone,
+      sync_preferences::MergeBehavior::kNone}},
+    {promos_prefs::kDesktopToiOSPriceTrackingPromoImpressionsCounter,
+     {syncable_prefs_ids::kDesktopToiOSPriceTrackingPromoImpressionsCounter,
+      syncer::PREFERENCES, sync_preferences::PrefSensitivity::kNone,
+      sync_preferences::MergeBehavior::kNone}},
+    {promos_prefs::kDesktopToiOSPriceTrackingPromoOptOut,
+     {syncable_prefs_ids::kDesktopToiOSPriceTrackingPromoOptOut,
+      syncer::PREFERENCES, sync_preferences::PrefSensitivity::kNone,
+      sync_preferences::MergeBehavior::kNone}},
+#if BUILDFLAG(ENABLE_GLIC)
     {glic::prefs::kGlicRolloutEligibility,
      {syncable_prefs_ids::kGlicRolloutEligibility, syncer::PRIORITY_PREFERENCES,
       sync_preferences::PrefSensitivity::kExemptFromUserControlWhileSignedIn,
       sync_preferences::MergeBehavior::kNone}},
-#endif  // BUILDFLAG(ENABLE_GLIC) || BUILDFLAG(ENABLE_GLIC_ANDROID)
+#endif  // BUILDFLAG(ENABLE_GLIC)
     {subscription_eligibility::prefs::kAiSubscriptionTier,
      {syncable_prefs_ids::kSubscriptionEligibilityAiSubscriptionTier,
       syncer::PRIORITY_PREFERENCES,

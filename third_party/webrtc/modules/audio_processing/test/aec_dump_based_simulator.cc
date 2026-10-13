@@ -29,13 +29,11 @@
 #include "common_audio/channel_buffer.h"
 #include "common_audio/wav_file.h"
 #include "modules/audio_processing/debug.pb.h"
-#include "modules/audio_processing/echo_control_mobile_impl.h"
 #include "modules/audio_processing/test/aec_dump_based_simulator.h"
 #include "modules/audio_processing/test/audio_processing_simulator.h"
 #include "modules/audio_processing/test/protobuf_utils.h"
 #include "modules/audio_processing/test/test_utils.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/logging.h"
 #include "rtc_base/numerics/safe_conversions.h"
 
 namespace webrtc {
@@ -382,29 +380,6 @@ void AecDumpBasedSimulator::HandleMessage(const audioproc::Config& msg) {
         std::cout << " aec_enabled: " << (enable ? "true" : "false")
                   << std::endl;
       }
-    }
-
-    if (msg.has_aecm_enabled() || settings_.use_aecm) {
-      bool enable =
-          settings_.use_aecm ? *settings_.use_aecm : msg.aecm_enabled();
-      apm_config.echo_canceller.enabled |= enable;
-      apm_config.echo_canceller.mobile_mode = enable;
-      if (settings_.use_verbose_logging) {
-        std::cout << " aecm_enabled: " << (enable ? "true" : "false")
-                  << std::endl;
-      }
-    }
-
-    if (msg.has_aecm_comfort_noise_enabled() &&
-        msg.aecm_comfort_noise_enabled()) {
-      RTC_LOG(LS_ERROR) << "Ignoring deprecated setting: AECM comfort noise";
-    }
-
-    if (msg.has_aecm_routing_mode() &&
-        static_cast<EchoControlMobileImpl::RoutingMode>(
-            msg.aecm_routing_mode()) != EchoControlMobileImpl::kSpeakerphone) {
-      RTC_LOG(LS_ERROR) << "Ignoring deprecated setting: AECM routing mode: "
-                        << msg.aecm_routing_mode();
     }
 
     if (msg.has_agc_enabled() || settings_.use_agc) {

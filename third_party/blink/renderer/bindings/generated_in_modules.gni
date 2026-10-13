@@ -1086,8 +1086,6 @@ generated_dictionary_sources_in_modules = [
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_registration_options.h",
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_registration_response_js_on.cc",
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_registration_response_js_on.h",
-  "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_related_application.cc",
-  "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_related_application.h",
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_remote_desktop_client_override.cc",
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_remote_desktop_client_override.h",
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_request_device_options.cc",
@@ -2050,6 +2048,8 @@ generated_interface_sources_in_modules = [
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_audio_param.h",
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_audio_param_map.cc",
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_audio_param_map.h",
+  "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_audio_playback_stats.cc",
+  "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_audio_playback_stats.h",
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_audio_playout_stats.cc",
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_audio_playout_stats.h",
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_audio_processing_event.cc",
@@ -3304,6 +3304,10 @@ if (is_cobalt) {
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_base_native_stability_report.h",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_experiment_configuration.cc",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_experiment_configuration.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_storage_verify_test_response.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_storage_verify_test_response.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_storage_write_test_response.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_storage_write_test_response.h",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_hang_report.cc",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_hang_report.h",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_native_crash_report.cc",
@@ -3517,6 +3521,15 @@ generated_union_sources_in_modules = [
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_union_workletanimationeffect_workletgroupeffect.cc",
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_union_workletanimationeffect_workletgroupeffect.h",
 ]
+
+# Installed App (getInstalledRelatedApps) is excluded on iOS because the
+# webapp infrastructure required for this API is not yet implemented.
+if (!is_ios) {
+  generated_dictionary_sources_in_modules += [
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_related_application.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_related_application.h",
+  ]
+}
 
 if (is_cobalt) {
   generated_union_sources_in_modules += [

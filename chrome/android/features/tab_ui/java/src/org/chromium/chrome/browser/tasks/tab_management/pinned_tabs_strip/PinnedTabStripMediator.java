@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.tasks.tab_management.pinned_tabs_strip;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
 import static org.chromium.chrome.browser.tasks.tab_management.TabProperties.ALL_KEYS_TAB_GRID;
 import static org.chromium.chrome.browser.tasks.tab_management.TabProperties.FAVICON_FETCHER;
 import static org.chromium.chrome.browser.tasks.tab_management.TabProperties.GRID_CARD_SIZE;
@@ -63,6 +64,7 @@ import org.chromium.ui.widget.ViewRectProvider;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
 
 /**
  * Mediator for the pinned tabs strip. This class is the business logic controller for the pinned
@@ -80,9 +82,8 @@ public class PinnedTabStripMediator {
     private final PropertyModel mStripPropertyModel;
     private final TabListItemSizeChangedObserver mTabListItemSizeChangedObserver;
     private final TabModelObserver mTabModelObserver;
-    private final MonotonicObservableSupplier<TabBookmarker> mTabBookmarkerSupplier;
-    private final MonotonicObservableSupplier<@Nullable TabGroupModelFilter>
-            mTabGroupModelFilterSupplier;
+    private final Supplier<@Nullable TabBookmarker> mTabBookmarkerSupplier;
+    private final MonotonicObservableSupplier<TabGroupModelFilter> mTabGroupModelFilterSupplier;
     private @Nullable PinnedTabStripItemContextMenuCoordinator mContextMenuCoordinator;
     private final BottomSheetController mBottomSheetController;
     private @Nullable TabGroupListBottomSheetCoordinator mTabGroupListBottomSheetCoordinator;
@@ -91,7 +92,7 @@ public class PinnedTabStripMediator {
     private final @Px int mPinnedTabListItemHeight;
     private final @Px int mPinnedTabsStripRowCoverageHeightPx;
 
-    private final Callback<@Nullable TabGroupModelFilter> mOnTabGroupModelFilterChanged =
+    private final Callback<TabGroupModelFilter> mOnTabGroupModelFilterChanged =
             new ValueChangedCallback<>(this::onTabGroupModelFilterChanged);
     private final TabActionListener mContextClickTabItemEventListener =
             new TabActionListener() {
@@ -131,8 +132,8 @@ public class PinnedTabStripMediator {
             TabListModel tabGridListModel,
             TabListModel pinnedTabsModelList,
             PropertyModel stripPropertyModel,
-            MonotonicObservableSupplier<@Nullable TabGroupModelFilter> tabGroupModelFilterSupplier,
-            MonotonicObservableSupplier<TabBookmarker> tabBookmarkerSupplier,
+            MonotonicObservableSupplier<TabGroupModelFilter> tabGroupModelFilterSupplier,
+            Supplier<@Nullable TabBookmarker> tabBookmarkerSupplier,
             BottomSheetController bottomSheetController,
             ModalDialogManager modalDialogManager,
             @Nullable Runnable onTabGroupCreation) {
@@ -431,7 +432,7 @@ public class PinnedTabStripMediator {
     }
 
     private void onTabGroupModelFilterChanged(
-            @Nullable TabGroupModelFilter newFilter, @Nullable TabGroupModelFilter oldFilter) {
+            TabGroupModelFilter newFilter, @Nullable TabGroupModelFilter oldFilter) {
         if (mTabGroupListBottomSheetCoordinator != null) {
             mTabGroupListBottomSheetCoordinator.destroy();
         }
@@ -441,7 +442,8 @@ public class PinnedTabStripMediator {
         }
         if (newFilter != null) {
             newFilter.addObserver(mTabModelObserver);
-            Profile profile = mTabGroupModelFilterSupplier.get().getTabModel().getProfile();
+            Profile profile =
+                    assumeNonNull(mTabGroupModelFilterSupplier.get()).getTabModel().getProfile();
             if (profile == null) return;
             boolean isIncognito = newFilter.getTabModel().isIncognitoBranded();
 

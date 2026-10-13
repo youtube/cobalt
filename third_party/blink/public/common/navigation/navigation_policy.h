@@ -9,7 +9,6 @@
 
 #include "third_party/blink/public/common/common_export.h"
 #include "third_party/blink/public/common/navigation/resource_intercept_policy.h"
-#include "third_party/blink/public/mojom/navigation/navigation_initiator_activation_and_ad_status.mojom.h"
 
 // A centralized file for base helper methods and policy decisions about
 // navigations.
@@ -40,6 +39,16 @@ enum class NavigationDownloadType {
 
   kMaxValue = kNoGesture
 };
+
+// LINT.IfChange(InputStartPresence)
+enum class InputStartPresence {
+  kNone = 0,
+  kOnlyOld = 1,
+  kOnlyNew = 2,
+  kBoth = 3,
+  kMaxValue = kBoth,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/navigation/enums.xml:InputStartPresence)
 
 // Stores the navigation types that may be of interest to the download-related
 // metrics to be reported at download-discovery time. Also controls how
@@ -86,14 +95,6 @@ struct BLINK_COMMON_EXPORT NavigationDownloadPolicy {
   // a download, the download should be dropped.
   NavigationDownloadTypes disallowed_types;
 };
-
-// Construct a `NavigationInitiatorActivationAndAdStatus` based on the user
-// activation and ad status.
-BLINK_COMMON_EXPORT
-blink::mojom::NavigationInitiatorActivationAndAdStatus
-GetNavigationInitiatorActivationAndAdStatus(bool has_user_activation,
-                                            bool initiator_frame_is_ad,
-                                            bool is_ad_script_in_stack);
 
 }  // namespace blink
 

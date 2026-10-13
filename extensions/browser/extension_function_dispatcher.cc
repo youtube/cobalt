@@ -32,6 +32,7 @@
 #include "content/public/browser/service_worker_context.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
+#include "content/public/common/child_process_id.h"
 #include "content/public/common/result_codes.h"
 #include "content/public/common/url_constants.h"
 #include "extensions/browser/api_activity_monitor.h"
@@ -46,6 +47,7 @@
 #include "extensions/browser/quota_service.h"
 #include "extensions/browser/script_injection_tracker.h"
 #include "extensions/browser/service_worker/service_worker_keepalive.h"
+#include "extensions/browser/service_worker/worker_id.h"
 #include "extensions/common/constants.h"
 #include "extensions/common/extension_api.h"
 #include "extensions/common/extension_features.h"
@@ -65,7 +67,7 @@ namespace {
 // called. May be called from any thread.
 void NotifyApiFunctionCalled(const ExtensionId& extension_id,
                              const std::string& api_name,
-                             const base::Value::List& args,
+                             const base::ListValue& args,
                              content::BrowserContext* browser_context) {
   activity_monitor::OnApiFunctionCalled(browser_context, extension_id, api_name,
                                         args);
@@ -80,7 +82,7 @@ bool IsRequestFromServiceWorker(const mojom::RequestParams& request_params) {
 void ResponseCallbackOnError(ExtensionFunction::ResponseCallback callback,
                              ExtensionFunction::ResponseType type,
                              const std::string& error) {
-  std::move(callback).Run(type, base::Value::List(), error, nullptr);
+  std::move(callback).Run(type, base::ListValue(), error, nullptr);
 }
 
 std::optional<bad_message::BadMessageReason> ValidateRequest(
@@ -180,7 +182,7 @@ void ExtensionFunctionDispatcher::Dispatch(
     debug::ScopedScriptInjectionTrackerFailureCrashKeys tracker_keys(
         frame, params->extension_id);
     bad_message::ReceivedBadMessage(&process, *bad_message_code);
-    std::move(callback).Run(/*kFailed=*/true, base::Value::List(),
+    std::move(callback).Run(/*kFailed=*/true, base::ListValue(),
                             ToString(*bad_message_code), nullptr);
     return;
   }
@@ -190,7 +192,7 @@ void ExtensionFunctionDispatcher::Dispatch(
       std::move(params), &frame, *frame.GetProcess(),
       base::BindOnce(
           [](mojom::LocalFrameHost::RequestCallback callback,
-             ExtensionFunction::ResponseType type, base::Value::List results,
+             ExtensionFunction::ResponseType type, base::ListValue results,
              const std::string& error,
              mojom::ExtraResponseDataPtr response_data) {
             std::move(callback).Run(
@@ -214,7 +216,7 @@ void ExtensionFunctionDispatcher::DispatchForServiceWorker(
   content::RenderProcessHost* rph =
       content::RenderProcessHost::FromID(render_process_id);
   if (!rph) {
-    std::move(callback).Run(/*kFailed=*/true, base::Value::List(), "No RPH",
+    std::move(callback).Run(/*kFailed=*/true, base::ListValue(), "No RPH",
                             nullptr);
     return;
   }
@@ -227,17 +229,18 @@ void ExtensionFunctionDispatcher::DispatchForServiceWorker(
   if (auto bad_message_code = ValidateRequest(*params, nullptr, *rph)) {
     // Kill the renderer if it's an invalid request.
     bad_message::ReceivedBadMessage(render_process_id, *bad_message_code);
-    std::move(callback).Run(/*kFailed=*/true, base::Value::List(),
+    std::move(callback).Run(/*kFailed=*/true, base::ListValue(),
                             ToString(*bad_message_code), nullptr);
     return;
   }
 
-  WorkerId worker_id{params->extension_id, render_process_id,
-                     params->service_worker_version_id,
-                     params->worker_thread_id};
+  WorkerId worker_id{
+      params->extension_id,
+      content::ChildProcessId::FromUnsafeValue(render_process_id),
+      params->service_worker_version_id, params->worker_thread_id};
   // Ignore if the worker has already stopped.
   if (!ProcessManager::Get(browser_context_)->HasServiceWorker(worker_id)) {
-    std::move(callback).Run(/*kFailed=*/true, base::Value::List(), "No SW",
+    std::move(callback).Run(/*kFailed=*/true, base::ListValue(), "No SW",
                             nullptr);
     return;
   }
@@ -246,7 +249,7 @@ void ExtensionFunctionDispatcher::DispatchForServiceWorker(
       std::move(params), nullptr, *rph,
       base::BindOnce(
           [](mojom::ServiceWorkerHost::RequestWorkerCallback callback,
-             ExtensionFunction::ResponseType type, base::Value::List results,
+             ExtensionFunction::ResponseType type, base::ListValue results,
              const std::string& error,
              mojom::ExtraResponseDataPtr response_data) {
             std::move(callback).Run(
@@ -585,7 +588,8 @@ ExtensionFunctionDispatcher::CreateExtensionFunction(
     WorkerId worker_id;
     worker_id.thread_id = params_without_args.worker_thread_id;
     worker_id.version_id = params_without_args.service_worker_version_id;
-    worker_id.render_process_id = requesting_process_id;
+    worker_id.render_process_id =
+        content::ChildProcessId::FromUnsafeValue(requesting_process_id);
     worker_id.extension_id = extension->id();
     function->set_worker_id(std::move(worker_id));
   } else {

@@ -24,10 +24,10 @@
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_manager_ios.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
+#import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/lens_commands.h"
 #import "ios/chrome/browser/shared/public/commands/lens_overlay_commands.h"
-#import "ios/chrome/browser/shared/public/commands/load_query_commands.h"
 #import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/shared/public/commands/toolbar_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
@@ -69,8 +69,6 @@ class LensOverlayCoordinatorTest : public PlatformTest {
     if (ui::GetDeviceFormFactor() != ui::DEVICE_FORM_FACTOR_PHONE) {
       GTEST_SKIP() << "Feature unsupported on iPad";
     }
-
-    feature_list_.InitAndEnableFeature(kEnableLensOverlay);
 
     root_view_controller_ = [[UIViewController alloc] init];
     root_view_controller_.definesPresentationContext = YES;
@@ -128,11 +126,6 @@ class LensOverlayCoordinatorTest : public PlatformTest {
         startDispatchingToTarget:application_handler_
                      forProtocol:@protocol(SceneCommands)];
 
-    load_query_handler_ = OCMProtocolMock(@protocol(LoadQueryCommands));
-    [browser_->GetCommandDispatcher()
-        startDispatchingToTarget:load_query_handler_
-                     forProtocol:@protocol(LoadQueryCommands)];
-
     browser_coordinator_commands_handler_ =
         OCMProtocolMock(@protocol(BrowserCoordinatorCommands));
 
@@ -145,6 +138,12 @@ class LensOverlayCoordinatorTest : public PlatformTest {
     [browser_->GetCommandDispatcher()
         startDispatchingToTarget:toolbar_commands_handler_
                      forProtocol:@protocol(ToolbarCommands)];
+
+    gemini_commands_handler_ = OCMProtocolMock(@protocol(BWGCommands));
+
+    [browser_->GetCommandDispatcher()
+        startDispatchingToTarget:gemini_commands_handler_
+                     forProtocol:@protocol(BWGCommands)];
 
     // Tab helper
     std::unique_ptr<web::FakeWebState> web_state =
@@ -187,7 +186,7 @@ class LensOverlayCoordinatorTest : public PlatformTest {
             GetApplicationContext()->GetSystemIdentityManager());
     fake_system_identity_manager->AddIdentity(identity);
     authentication_service->SignIn(identity,
-                                   signin_metrics::AccessPoint::kUnknown);
+                                   signin_metrics::AccessPoint::kStartPage);
 
     // Wait for the base view controller to be presented.
     base_view_controller_.modalPresentationStyle =
@@ -246,10 +245,10 @@ class LensOverlayCoordinatorTest : public PlatformTest {
   id dispatcher_;
   raw_ptr<LensOverlayTabHelper> tab_helper_;
   id<SceneCommands> application_handler_;
-  id<LoadQueryCommands> load_query_handler_;
   id<LensCommands> lens_commands_handler_;
   id<BrowserCoordinatorCommands> browser_coordinator_commands_handler_;
   id<ToolbarCommands> toolbar_commands_handler_;
+  id<BWGCommands> gemini_commands_handler_;
 
   void DeliverMemoryWarningNotification() {
     [[NSNotificationCenter defaultCenter]

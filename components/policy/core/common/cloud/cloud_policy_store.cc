@@ -5,8 +5,11 @@
 #include "components/policy/core/common/cloud/cloud_policy_store.h"
 
 #include "base/check.h"
+#include "base/logging.h"
 #include "base/observer_list.h"
 #include "components/policy/core/common/cloud/cloud_external_data_manager.h"
+#include "components/policy/core/common/cloud/cloud_policy_util.h"
+#include "components/policy/core/common/policy_logger.h"
 #include "components/policy/proto/device_management_backend.pb.h"
 
 namespace policy {
@@ -14,7 +17,10 @@ namespace policy {
 CloudPolicyStore::Observer::~Observer() = default;
 void CloudPolicyStore::Observer::OnStoreDestruction(CloudPolicyStore* store) {}
 
-CloudPolicyStore::CloudPolicyStore() = default;
+CloudPolicyStore::CloudPolicyStore(const std::string& policy_type)
+    : policy_type_(policy_type) {
+  CHECK(!policy_type.empty());
+}
 
 CloudPolicyStore::~CloudPolicyStore() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -76,7 +82,11 @@ void CloudPolicyStore::UpdateFirstPoliciesLoaded() {
 
 void CloudPolicyStore::SetPolicy(
     std::unique_ptr<enterprise_management::PolicyData> policy_data) {
+  VLOG_POLICY(1, CBCM_ENROLLMENT)
+      << PolicyTypeLogPrefix(policy_type(), std::string())
+      << "CloudPolicyStore::SetPolicy: " << policy_data->policy_type();
   DCHECK(policy_data);
+  DCHECK_EQ(policy_data->policy_type(), policy_type());
   policy_ = std::move(policy_data);
 }
 

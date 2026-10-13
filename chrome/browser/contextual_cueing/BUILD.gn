@@ -50,6 +50,7 @@ source_set("impl") {
     "//components/optimization_guide/content/browser:page_context_eligibility",
     "//components/optimization_guide/core",
     "//components/optimization_guide/proto:optimization_guide_proto",
+    "//components/page_content_annotations/core",
     "//components/pdf/common:constants",
     "//components/prefs",
     "//components/variations/service",
@@ -58,7 +59,7 @@ source_set("impl") {
     "//services/metrics/public/cpp:ukm_builders",
     "//url",
   ]
-  if (enable_glic || enable_glic_android) {
+  if (enable_glic) {
     deps += [
       "//chrome/browser/actor",
       "//chrome/browser/glic",
@@ -113,7 +114,7 @@ source_set("unit_tests") {
     "//testing/gmock",
     "//testing/gtest",
   ]
-  if (enable_glic || enable_glic_android) {
+  if (enable_glic) {
     deps += [
       "//chrome/browser/glic",
       "//chrome/browser/glic/test_support",

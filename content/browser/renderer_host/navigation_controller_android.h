@@ -72,9 +72,10 @@ class CONTENT_EXPORT NavigationControllerAndroid {
       bool has_user_gesture,
       bool should_clear_history_list,
       const base::android::JavaRef<jobject>& j_additional_navigation_params,
-      jlong input_start,
-      jlong navigation_ui_data_ptr,
-      bool is_pdf);
+      int64_t input_start,
+      int64_t navigation_ui_data_ptr,
+      bool is_pdf,
+      bool remove_extra_headers_on_cross_origin_redirect);
   void ClearSslPreferences(JNIEnv* env);
   bool GetUseDesktopUserAgent(JNIEnv* env);
   void SetUseDesktopUserAgent(JNIEnv* env,
@@ -106,7 +107,7 @@ class CONTENT_EXPORT NavigationControllerAndroid {
                          const base::android::JavaRef<jstring>& jkey,
                          const base::android::JavaRef<jstring>& jvalue);
   void CopyStateFrom(JNIEnv* env,
-                     jlong source_navigation_controller_ptr,
+                     int64_t source_navigation_controller_ptr,
                      bool needs_reload);
 
  private:

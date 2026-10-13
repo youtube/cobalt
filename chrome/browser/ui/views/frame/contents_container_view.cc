@@ -105,7 +105,7 @@ ContentsContainerView::ContentsContainerView(BrowserView* browser_view)
 
   if (features::IsImmersiveReadAnythingEnabled()) {
     auto read_anything_immersive_overlay_view =
-        std::make_unique<ReadAnythingImmersiveOverlayView>();
+        std::make_unique<ReadAnythingImmersiveOverlayView>(contents_view_);
     read_anything_immersive_overlay_view_ =
         AddChildView(std::move(read_anything_immersive_overlay_view));
   }
@@ -113,7 +113,8 @@ ContentsContainerView::ContentsContainerView(BrowserView* browser_view)
   contents_scrim_view_ = AddChildView(std::make_unique<ScrimView>());
   contents_scrim_view_->layer()->SetName("ContentsScrimView");
 
-  if (features::kGlicActorUiOverlay.Get()) {
+  if (base::FeatureList::IsEnabled(features::kGlicActorUi) &&
+      features::kGlicActorUiOverlay.Get()) {
     auto actor_overlay_web_view =
         std::make_unique<ActorOverlayWebView>(browser_view->browser());
     actor_overlay_web_view->SetID(VIEW_ID_ACTOR_OVERLAY);
@@ -143,7 +144,15 @@ ContentsContainerView::ContentsContainerView(BrowserView* browser_view)
   view_bounds_observer_.Observe(contents_view_);
 }
 
-ContentsContainerView::~ContentsContainerView() = default;
+ContentsContainerView::~ContentsContainerView() {
+  // read_anything_immersive_overlay_view_ holds a raw_ptr to
+  // contents_view_. We need to make sure we destroy
+  // read_anything_immersive_overlay_view_ first to avoid a dangling pointer.
+  if (read_anything_immersive_overlay_view_) {
+    auto overlay_view = RemoveChildViewT(read_anything_immersive_overlay_view_);
+    read_anything_immersive_overlay_view_ = nullptr;
+  }
+}
 
 std::vector<views::View*> ContentsContainerView::GetAccessiblePanes() {
   std::vector<views::View*> accessible_panes;

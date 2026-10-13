@@ -16,9 +16,10 @@
 #include "components/safe_search_api/fake_url_checker_client.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
 #include "components/supervised_user/core/browser/device_parental_controls_noop_impl.h"
+#include "components/supervised_user/core/browser/device_parental_controls_url_filter.h"
+#include "components/supervised_user/core/browser/family_link_settings_service.h"
 #include "components/supervised_user/core/browser/supervised_user_metrics_service.h"
 #include "components/supervised_user/core/browser/supervised_user_service.h"
-#include "components/supervised_user/core/browser/supervised_user_settings_service.h"
 #include "components/supervised_user/core/browser/supervised_user_synthetic_field_trial_service_delegate.h"
 #include "components/supervised_user/core/browser/supervised_user_url_filtering_service.h"
 #include "components/supervised_user/test_support/supervised_user_url_filter_test_utils.h"
@@ -55,12 +56,12 @@ enum class InitialSupervisionState : int {
 
 // Launches the service from empty settings, typically during context
 // initialization.
-SupervisedUserSettingsService* InitializeSettingsServiceForTesting(
-    SupervisedUserSettingsService* settings_service);
+FamilyLinkSettingsService* InitializeSettingsServiceForTesting(
+    FamilyLinkSettingsService* settings_service);
 
 // Prepares a pref service component for use in test.
 scoped_refptr<TestingPrefStore> CreateTestingPrefStore(
-    SupervisedUserSettingsService* settings_service,
+    FamilyLinkSettingsService* settings_service,
     DeviceParentalControls& device_parental_controls);
 
 // Pref service exposed by this environment has the supervised user pref store
@@ -75,7 +76,7 @@ class SupervisedUserPrefStoreTestEnvironment {
   ~SupervisedUserPrefStoreTestEnvironment();
 
   PrefService* pref_service();
-  SupervisedUserSettingsService* settings_service();
+  FamilyLinkSettingsService* settings_service();
   // That's a simplification: in prod environment the parental controls are
   // global, but in the test environment they are per pref service.
   DeviceParentalControlsTestImpl& device_parental_controls();
@@ -87,7 +88,7 @@ class SupervisedUserPrefStoreTestEnvironment {
   void ConfigureInitialValues(InitialSupervisionState initial_state);
 
  private:
-  SupervisedUserSettingsService settings_service_;
+  FamilyLinkSettingsService settings_service_;
   DeviceParentalControlsTestImpl device_parental_controls_;
 
   std::unique_ptr<sync_preferences::TestingPrefServiceSyncable>
@@ -145,12 +146,15 @@ class SupervisedUserTestEnvironment {
       const SupervisedUserTestEnvironment&) = delete;
   ~SupervisedUserTestEnvironment();
 
-  SupervisedUserURLFilter* url_filter() const;
+  MockUrlCheckerClient& family_link_url_checker_client();
+  MockUrlCheckerClient& device_parental_controls_url_checker_client();
+
+  FamilyLinkUrlFilter* family_link_url_filter() const;
+
   SupervisedUserService* service() const;
   SupervisedUserUrlFilteringService* url_filtering_service() const;
   PrefService* pref_service();
   sync_preferences::TestingPrefServiceSyncable* pref_service_syncable();
-  safe_search_api::FakeURLCheckerClient* url_checker_client();
   DeviceParentalControlsTestImpl& device_parental_controls();
 
   // Simulators of parental controls. Instance methods use services from this
@@ -161,7 +165,7 @@ class SupervisedUserTestEnvironment {
   // and Web" settings.
   void SetWebFilterType(WebFilterType web_filter_type);
   static void SetWebFilterType(WebFilterType web_filter_type,
-                               SupervisedUserSettingsService& service);
+                               FamilyLinkSettingsService& service);
 
   // SetManualFilterForHosts methods simulate the custodian modifying manual
   // hosts overrides.
@@ -169,18 +173,21 @@ class SupervisedUserTestEnvironment {
   void SetManualFilterForHost(std::string_view host, bool allowlist);
   static void SetManualFilterForHost(std::string_view host,
                                      bool allowlist,
-                                     SupervisedUserSettingsService& service);
+                                     FamilyLinkSettingsService& service);
 
   // SetManualFilterForUrl methods simulate the custodian modifying manual urls
   // overrides.
   void SetManualFilterForUrl(std::string_view url, bool allowlist);
   static void SetManualFilterForUrl(std::string_view url,
                                     bool allowlist,
-                                    SupervisedUserSettingsService& service);
+                                    FamilyLinkSettingsService& service);
 
   void Shutdown();
 
  private:
+  MockUrlCheckerClient family_link_url_checker_client_;
+  MockUrlCheckerClient device_parental_controls_url_checker_client_;
+
   SupervisedUserPrefStoreTestEnvironment pref_store_environment_;
 
   signin::IdentityTestEnvironment identity_test_env_;
@@ -191,10 +198,6 @@ class SupervisedUserTestEnvironment {
   std::unique_ptr<SupervisedUserService> service_;
   std::unique_ptr<SupervisedUserUrlFilteringService> url_filtering_service_;
   std::unique_ptr<SupervisedUserMetricsService> metrics_service_;
-
-  // The objects are actually owned by the service_, but are referenced here for
-  // convenience.
-  raw_ptr<safe_search_api::FakeURLCheckerClient> url_checker_client_;
 };
 }  // namespace supervised_user
 

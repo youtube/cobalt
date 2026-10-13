@@ -25,7 +25,6 @@
 #include "net/dns/dns_session.h"
 #include "net/dns/dns_transaction.h"
 #include "net/dns/dns_util.h"
-#include "net/dns/opt_record_rdata.h"
 #include "net/dns/public/dns_over_https_config.h"
 #include "net/dns/public/dns_protocol.h"
 #include "net/dns/public/secure_dns_mode.h"
@@ -275,11 +274,11 @@ class DnsClientImpl : public DnsClient {
     insecure_fallback_failures_ = 0;
   }
 
-  base::Value::Dict GetDnsConfigAsValueForNetLog() const override {
+  base::DictValue GetDnsConfigAsValueForNetLog() const override {
     const DnsConfig* config = GetEffectiveConfig();
     if (config == nullptr)
-      return base::Value::Dict();
-    base::Value::Dict dict = config->ToDict();
+      return base::DictValue();
+    base::DictValue dict = config->ToDict();
     dict.Set("can_use_secure_dns_transactions", CanUseSecureDnsTransactions());
     dict.Set("can_use_insecure_dns_transactions",
              CanUseInsecureDnsTransactions());
@@ -363,10 +362,6 @@ class DnsClientImpl : public DnsClient {
           net_log_);
 
       factory_ = DnsTransactionFactory::CreateFactory(session_.get());
-      if (base::FeatureList::IsEnabled(features::kUseStructuredDnsErrors)) {
-        factory_->AddEDNSOption(
-            OptRecordRdata::EdeOpt::CreateStructuredErrorsRequest());
-      }
     }
   }
 
@@ -391,8 +386,8 @@ class DnsClientImpl : public DnsClient {
 
 // static
 std::unique_ptr<DnsClient> DnsClient::CreateClient(NetLog* net_log) {
-  return std::make_unique<DnsClientImpl>(net_log,
-                                         base::BindRepeating(&base::RandInt));
+  return std::make_unique<DnsClientImpl>(
+      net_log, base::BindRepeating(&base::RandIntInclusive));
 }
 
 // static

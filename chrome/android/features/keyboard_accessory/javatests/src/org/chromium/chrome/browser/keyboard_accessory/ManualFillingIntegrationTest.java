@@ -164,8 +164,7 @@ public class ManualFillingIntegrationTest {
 
     @Test
     @SmallTest
-    @DisableIf.Build(supported_abis_includes = "x86", message = "https://crbug.com/420290639")
-    @DisableIf.Build(supported_abis_includes = "x86_64", message = "https://crbug.com/420290639")
+    @DisabledTest(message = "https://crbug.com/41486132")
     public void testAccessorySheetHiddenWhenRefocusingField() throws TimeoutException {
         AtomicReference<ViewGroup.MarginLayoutParams> accessoryMargins = new AtomicReference<>();
         AtomicReference<View> accessorySheetView = new AtomicReference<>();
@@ -305,6 +304,7 @@ public class ManualFillingIntegrationTest {
     @SmallTest
     @DisableIf.Build(supported_abis_includes = "x86", message = "https://crbug.com/420290639")
     @DisableIf.Build(supported_abis_includes = "x86_64", message = "https://crbug.com/420290639")
+    @DisabledTest(message = "https://crbug.com/420290639")
     public void testResumingTheAppDismissesAllInputMethods() throws TimeoutException {
         mHelper.startAtTestPage(/* isRtl= */ false);
 
@@ -360,6 +360,7 @@ public class ManualFillingIntegrationTest {
     @SmallTest
     @DisableIf.Build(supported_abis_includes = "x86", message = "https://crbug.com/420290639")
     @DisableIf.Build(supported_abis_includes = "x86_64", message = "https://crbug.com/420290639")
+    @DisableIf.Device(DeviceFormFactor.ONLY_TABLET) // See https://crbug.com/480913329.
     public void testPressingBackButtonHidesAccessorySheet() throws TimeoutException {
         mHelper.startAtTestPage(/* isRtl= */ false);
 
@@ -386,7 +387,7 @@ public class ManualFillingIntegrationTest {
 
     @Test
     @SmallTest
-    @DisableIf.Build(supported_abis_includes = "x86", message = "https://crbug.com/472351881")
+    @DisabledTest(message = "https://crbug.com/480163488")
     public void testMovesUpSnackbar() throws TimeoutException {
         final String kSnackbarText = "snackbar";
 

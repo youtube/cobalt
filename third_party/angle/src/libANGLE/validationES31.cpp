@@ -413,47 +413,7 @@ bool ValidateGetBooleani_v(const Context *context,
                            GLuint index,
                            const GLboolean *data)
 {
-    if (!ValidateIndexedStateQuery(context, entryPoint, target, index, nullptr))
-    {
-        return false;
-    }
-
-    return true;
-}
-
-bool ValidateGetBooleani_vRobustANGLE(const Context *context,
-                                      angle::EntryPoint entryPoint,
-                                      GLenum target,
-                                      GLuint index,
-                                      GLsizei bufSize,
-                                      const GLsizei *length,
-                                      const GLboolean *data)
-{
-    if (context->getClientVersion() < ES_3_1)
-    {
-        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
-    if (!ValidateRobustEntryPoint(context, entryPoint, bufSize))
-    {
-        return false;
-    }
-
-    GLsizei numParams = 0;
-
-    if (!ValidateIndexedStateQuery(context, entryPoint, target, index, &numParams))
-    {
-        return false;
-    }
-
-    if (!ValidateRobustBufferSize(context, entryPoint, bufSize, numParams))
-    {
-        return false;
-    }
-
-    SetRobustLengthParam(length, numParams);
-    return true;
+    return ValidateIndexedStateQuery(context, entryPoint, target, index, data, nullptr);
 }
 
 bool ValidateDrawIndirectBase(const Context *context,
@@ -1098,18 +1058,6 @@ bool ValidateGetFramebufferParameteriv(const Context *context,
     return ValidateGetFramebufferParameterivBase(context, entryPoint, target, pname, params);
 }
 
-bool ValidateGetFramebufferParameterivRobustANGLE(const Context *context,
-                                                  angle::EntryPoint entryPoint,
-                                                  GLenum target,
-                                                  GLenum pname,
-                                                  GLsizei bufSize,
-                                                  const GLsizei *length,
-                                                  const GLint *params)
-{
-    UNIMPLEMENTED();
-    return false;
-}
-
 bool ValidateGetProgramResourceIndex(const Context *context,
                                      angle::EntryPoint entryPoint,
                                      ShaderProgramID program,
@@ -1504,7 +1452,7 @@ bool ValidateGetProgramResourceiv(const Context *context,
                                   GLuint index,
                                   GLsizei propCount,
                                   const GLenum *props,
-                                  GLsizei bufSize,
+                                  GLsizei count,
                                   const GLsizei *length,
                                   const GLint *params)
 {
@@ -1525,9 +1473,9 @@ bool ValidateGetProgramResourceiv(const Context *context,
         ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kInvalidPropCount);
         return false;
     }
-    if (bufSize < 0)
+    if (count < 0)
     {
-        ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kNegativeBufSize);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kNegativeCount);
         return false;
     }
     if (!ValidateProgramResourceIndex(programObject, programInterface, index))
@@ -1605,19 +1553,6 @@ bool ValidateGetProgramInterfaceiv(const Context *context,
     }
 
     return true;
-}
-
-bool ValidateGetProgramInterfaceivRobustANGLE(const Context *context,
-                                              angle::EntryPoint entryPoint,
-                                              ShaderProgramID program,
-                                              GLenum programInterface,
-                                              GLenum pname,
-                                              GLsizei bufSize,
-                                              const GLsizei *length,
-                                              const GLint *params)
-{
-    UNIMPLEMENTED();
-    return false;
 }
 
 bool ValidateGenProgramPipelinesBase(const Context *context,

@@ -8,6 +8,7 @@ import static org.chromium.build.NullUtil.assumeNonNull;
 
 import android.content.Context;
 
+import androidx.annotation.ColorInt;
 import androidx.annotation.IntDef;
 import androidx.annotation.VisibleForTesting;
 
@@ -24,8 +25,8 @@ import org.chromium.chrome.browser.sync.SyncServiceFactory;
 import org.chromium.chrome.browser.ui.signin.R;
 import org.chromium.chrome.browser.ui.signin.SigninAndHistorySyncActivityLauncher;
 import org.chromium.chrome.browser.ui.signin.SigninSurveyController;
+import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.components.signin.SigninFeatureMap;
-import org.chromium.components.signin.SigninFeatures;
 import org.chromium.components.signin.base.CoreAccountInfo;
 import org.chromium.components.signin.identitymanager.ConsentLevel;
 import org.chromium.components.signin.identitymanager.IdentityManager;
@@ -167,11 +168,6 @@ public class BookmarkSigninPromoDelegate extends SigninPromoDelegate {
     }
 
     @Override
-    boolean isSeamlessSigninAllowed() {
-        return SigninFeatureMap.isEnabled(SigninFeatures.ENABLE_SEAMLESS_SIGNIN);
-    }
-
-    @Override
     boolean refreshPromoState(@Nullable CoreAccountInfo visibleAccount) {
         @PromoState int newState = computePromoState();
         boolean wasStateChanged = mPromoState != newState;
@@ -240,6 +236,17 @@ public class BookmarkSigninPromoDelegate extends SigninPromoDelegate {
     @SigninSurveyController.SigninSurveyType
     Integer getSurveyTriggerType() {
         return SigninSurveyController.SigninSurveyType.BOOKMARK_PROMO;
+    }
+
+    @Override
+    boolean shouldOverridePrimaryButtonClick() {
+        return !isSeamlessSigninAllowed() || mPromoState != PromoState.SIGNIN;
+    }
+
+    @Override
+    @ColorInt
+    int getAccountPickerBackgroundColor() {
+        return SemanticColorUtils.getColorSurface(mContext);
     }
 
     private @PromoState int computePromoState() {

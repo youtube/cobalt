@@ -1,6 +1,7 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="bs">
+<translation id="1035560095760914532">Postavite Chrome u donje područje da mu pristupite bilo kada</translation>
 <translation id="1076643793026027628">Chrome automatski otvara anonimne linkove YouTubea u anonimnom načinu rada.</translation>
 <translation id="1081114897601629648">Sljedeće lozinke nisu uvezene na Google upravitelj lozinki jer se ne podudaraju sa zahtjevima.</translation>
 <translation id="1086486568852410168">Pretraži putem Google Objektiva</translation>
@@ -86,6 +87,10 @@ Pričekajte nekoliko minuta prije odjave. Ako se sada odjavite, ovi podaci će s
 <translation id="2767464022270041271">Nije sačuvana nijedna lozinka. Google upravitelj lozinki može provjeriti vaše lozinke kada ih sačuvate.</translation>
 <translation id="2788811701191021538">Otvara stranicu s postavkama načina plaćanja u Chromeu.</translation>
 <translation id="2876628302275096482">Saznajte više o tome <ph name="BEGIN_LINK" />kako Chrome štiti privatnost vaših podataka<ph name="END_LINK" /></translation>
+<translation id="288992067439702510">Dosegnuli ste ograničenje Google Chromea od <ph name="LIMIT" /> oznake/a, pa određene oznake još uvijek nisu sačuvane na Google računu.
+
+Nove oznake se ne mogu sačuvati na računu dok ne izbrišete neke. Ako se sada odjavite, nesačuvane oznake će se izbrisati.</translation>
+<translation id="2901621928549457170">U trenu otvorite Chrome kada ste na iPadu</translation>
 <translation id="2922914028977213693">Dodirnite ovdje da iskoristite sve prednosti Chromea na iPadu.</translation>
 <translation id="292371311537977079">Postavke Chromea</translation>
 <translation id="2923827943290349720">Zaključaj anonimne kartice pri zatvaranju Chromea</translation>
@@ -170,6 +175,8 @@ Pričekajte nekoliko minuta prije odjave. Ako se sada odjavite, ovi podaci će s
 <translation id="5119391094379141756">Odaberite Chrome</translation>
 <translation id="5123188916260706415">Pretraživanje glasovnim komandama u Chromeu</translation>
 <translation id="5162467219239570114">Chrome je zastario. Ako ažuriranje nije dostupno u <ph name="BEGIN_LINK" />App Storeu<ph name="END_LINK" />, moguće je da vaš uređaj više ne podržava nove verzije Chromea.</translation>
+<translation id="5172049865623113551">U trenu otvorite Chrome kada ste na iPhoneu</translation>
+<translation id="5179095426828744632">Brže pristupajte Chromeu s donje trake</translation>
 <translation id="5184329579814168207">Otvori u Chromeu</translation>
 <translation id="5190139289262548459">Vaša organizacija, <ph name="DOMAIN" />, upravlja računom na kojem ste prijavljeni i načinom na koji koristite Chrome.</translation>
 <translation id="5209238444239954363">Chrome nije mogao provjeriti ima li ažuriranja. Pokušajte ponovo kasnije.</translation>
@@ -304,7 +311,6 @@ Za više postavki koje koriste podatke radi poboljšanja iskustva u Chromeu idit
 <translation id="7787205077729386167">Otvorite postavke Chromea u iOS-u, a zatim dodirnite "Zadana aplikacija preglednika" i odaberite Chrome.</translation>
 <translation id="778855399387580014">Započni pretraživanje na novoj Chrome kartici.</translation>
 <translation id="7792140019572081272">Chrome štiti vaše osjetljive podatke putem Face ID-a.</translation>
-<translation id="7825648984449922731">Uredite sliku putem Geminija u Chromeu</translation>
 <translation id="7855730255114109580">Google Chrome je ažuriran</translation>
 <translation id="787226752901403048">Prijavite se u Chrome da dijelite grupe kartica, pridružujete im se i sarađujete na idejama</translation>
 <translation id="7897703007638178753">Pogledajte nedavne kartice u Chromeu</translation>

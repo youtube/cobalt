@@ -12,11 +12,14 @@
 #include <cstdint>
 #include <optional>
 #include <string>
-#include <vector>
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_data_reader.h"
+#include "quiche/quic/moqt/moqt_error.h"
+#include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_names.h"
+#include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_stream.h"
@@ -35,27 +38,25 @@ class QUICHE_EXPORT MoqtControlParserVisitor {
   // parser retains ownership of the memory.
   virtual void OnClientSetupMessage(const MoqtClientSetup& message) = 0;
   virtual void OnServerSetupMessage(const MoqtServerSetup& message) = 0;
+  virtual void OnRequestOkMessage(const MoqtRequestOk& message) = 0;
+  virtual void OnRequestErrorMessage(const MoqtRequestError& message) = 0;
   virtual void OnSubscribeMessage(const MoqtSubscribe& message) = 0;
   virtual void OnSubscribeOkMessage(const MoqtSubscribeOk& message) = 0;
-  virtual void OnRequestErrorMessage(const MoqtRequestError& message) = 0;
   virtual void OnUnsubscribeMessage(const MoqtUnsubscribe& message) = 0;
   virtual void OnPublishDoneMessage(const MoqtPublishDone& message) = 0;
   virtual void OnSubscribeUpdateMessage(const MoqtSubscribeUpdate& message) = 0;
   virtual void OnPublishNamespaceMessage(
       const MoqtPublishNamespace& message) = 0;
-  virtual void OnPublishNamespaceOkMessage(
-      const MoqtPublishNamespaceOk& message) = 0;
   virtual void OnPublishNamespaceDoneMessage(
       const MoqtPublishNamespaceDone& message) = 0;
+  virtual void OnNamespaceMessage(const MoqtNamespace& message) = 0;
+  virtual void OnNamespaceDoneMessage(const MoqtNamespaceDone& message) = 0;
   virtual void OnPublishNamespaceCancelMessage(
       const MoqtPublishNamespaceCancel& message) = 0;
   virtual void OnTrackStatusMessage(const MoqtTrackStatus& message) = 0;
-  virtual void OnTrackStatusOkMessage(const MoqtTrackStatusOk& message) = 0;
   virtual void OnGoAwayMessage(const MoqtGoAway& message) = 0;
   virtual void OnSubscribeNamespaceMessage(
       const MoqtSubscribeNamespace& message) = 0;
-  virtual void OnSubscribeNamespaceOkMessage(
-      const MoqtSubscribeNamespaceOk& message) = 0;
   virtual void OnUnsubscribeNamespaceMessage(
       const MoqtUnsubscribeNamespace& message) = 0;
   virtual void OnMaxRequestIdMessage(const MoqtMaxRequestId& message) = 0;
@@ -88,6 +89,20 @@ class MoqtDataParserVisitor {
   virtual void OnParsingError(MoqtError code, absl::string_view reason) = 0;
 };
 
+class QUICHE_EXPORT MoqtMessageTypeParser {
+ public:
+  MoqtMessageTypeParser(quiche::ReadStream* stream) : stream_(*stream) {}
+  ~MoqtMessageTypeParser() = default;
+
+  // Returns false if there was a FIN.
+  bool ReadUntilMessageTypeKnown();
+  std::optional<uint64_t> message_type() const { return message_type_; }
+
+ private:
+  quiche::ReadStream& stream_;
+  std::optional<uint64_t> message_type_;
+};
+
 class QUICHE_EXPORT MoqtControlParser {
  public:
   MoqtControlParser(bool uses_web_transport, quiche::ReadStream* stream,
@@ -97,6 +112,7 @@ class QUICHE_EXPORT MoqtControlParser {
         uses_web_transport_(uses_web_transport) {}
   ~MoqtControlParser() = default;
 
+  void set_message_type(uint64_t message_type) { message_type_ = message_type; }
   void ReadAndDispatchMessages();
 
  private:
@@ -112,27 +128,25 @@ class QUICHE_EXPORT MoqtControlParser {
   // otherwise.
   size_t ProcessClientSetup(quic::QuicDataReader& reader);
   size_t ProcessServerSetup(quic::QuicDataReader& reader);
+  size_t ProcessRequestOk(quic::QuicDataReader& reader);
+  size_t ProcessRequestError(quic::QuicDataReader& reader);
   // Subscribe formats are used for TrackStatus as well, so take the message
   // type as an argument, defaulting to the subscribe version.
   size_t ProcessSubscribe(
       quic::QuicDataReader& reader,
       MoqtMessageType message_type = MoqtMessageType::kSubscribe);
-  size_t ProcessSubscribeOk(
-      quic::QuicDataReader& reader,
-      MoqtMessageType message_type = MoqtMessageType::kSubscribeOk);
-  size_t ProcessRequestError(quic::QuicDataReader& reader);
+  size_t ProcessSubscribeOk(quic::QuicDataReader& reader);
   size_t ProcessUnsubscribe(quic::QuicDataReader& reader);
   size_t ProcessPublishDone(quic::QuicDataReader& reader);
   size_t ProcessSubscribeUpdate(quic::QuicDataReader& reader);
   size_t ProcessPublishNamespace(quic::QuicDataReader& reader);
-  size_t ProcessPublishNamespaceOk(quic::QuicDataReader& reader);
   size_t ProcessPublishNamespaceDone(quic::QuicDataReader& reader);
+  size_t ProcessNamespace(quic::QuicDataReader& reader);
+  size_t ProcessNamespaceDone(quic::QuicDataReader& reader);
   size_t ProcessPublishNamespaceCancel(quic::QuicDataReader& reader);
   size_t ProcessTrackStatus(quic::QuicDataReader& reader);
-  size_t ProcessTrackStatusOk(quic::QuicDataReader& reader);
   size_t ProcessGoAway(quic::QuicDataReader& reader);
   size_t ProcessSubscribeNamespace(quic::QuicDataReader& reader);
-  size_t ProcessSubscribeNamespaceOk(quic::QuicDataReader& reader);
   size_t ProcessUnsubscribeNamespace(quic::QuicDataReader& reader);
   size_t ProcessMaxRequestId(quic::QuicDataReader& reader);
   size_t ProcessFetch(quic::QuicDataReader& reader);
@@ -155,14 +169,17 @@ class QUICHE_EXPORT MoqtControlParser {
   // large. Sets a ParseError if the name is malformed.
   bool ReadFullTrackName(quic::QuicDataReader& reader,
                          FullTrackName& full_track_name);
-  // Translates raw key/value pairs into semantically meaningful formats.
-  // Returns false if the parameters contain a protocol violation.
-  bool KeyValuePairListToMoqtSessionParameters(
-      const KeyValuePairList& parameters, MoqtSessionParameters& out);
-  bool KeyValuePairListToVersionSpecificParameters(
-      const KeyValuePairList& parameters, VersionSpecificParameters& out);
-  bool ParseAuthTokenParameter(absl::string_view field,
-                               std::vector<AuthToken>& out);
+  bool FillAndValidateSetupParameters(const KeyValuePairList& in,
+                                      SetupParameters& out,
+                                      MoqtMessageType message_type);
+  // |reader| points to the beginning of a KeyValuePairList. Returns false if
+  // there is any sort of error. (The function calls ParseError(), so the
+  // caller has no need to do so.)
+  bool FillAndValidateMessageParameters(quic::QuicDataReader& reader,
+                                        MessageParameters& out);
+  bool FillAndValidateVersionSpecificParameters(const KeyValuePairList& in,
+                                                VersionSpecificParameters& out,
+                                                MoqtMessageType message_type);
 
   MoqtControlParserVisitor& visitor_;
   quiche::ReadStream& stream_;
@@ -182,8 +199,11 @@ class QUICHE_EXPORT MoqtControlParser {
 // Parses an MoQT datagram. Returns the payload bytes, or std::nullopt on error.
 // The caller provides the whole datagram in `data`.  The function puts the
 // object metadata in `object_metadata`.
+// If |use_default_priority| returns true, there was no reported
+// publisher_priority and the caller should use the default for the SUBSCRIBE.
 std::optional<absl::string_view> ParseDatagram(absl::string_view data,
-                                               MoqtObject& object_metadata);
+                                               MoqtObject& object_metadata,
+                                               bool& use_default_priority);
 
 // Parser for MoQT unidirectional data stream.
 class QUICHE_EXPORT MoqtDataParser {
@@ -210,6 +230,10 @@ class QUICHE_EXPORT MoqtDataParser {
     return (next_input_ == kStreamType || next_input_ == kTrackAlias)
                ? std::optional<uint64_t>()
                : metadata_.track_alias;
+  }
+
+  void set_default_publisher_priority(MoqtPriority priority) {
+    default_publisher_priority_ = priority;
   }
 
  private:
@@ -270,6 +294,7 @@ class QUICHE_EXPORT MoqtDataParser {
   bool parsing_error_ = false;
   bool contains_end_of_group_ = false;  // True if the stream contains an
                                         // implied END_OF_GROUP object.
+  MoqtPriority default_publisher_priority_;
 
   std::string buffered_message_;
 

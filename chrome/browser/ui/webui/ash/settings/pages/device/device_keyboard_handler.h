@@ -7,14 +7,14 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
-#include "chrome/browser/ui/webui/settings/settings_page_ui_handler.h"
+#include "content/public/browser/web_ui_message_handler.h"
 #include "ui/events/devices/device_data_manager.h"
 #include "ui/events/devices/input_device_event_observer.h"
 
 namespace ash::settings {
 
 // Chrome OS "Keyboard" settings page UI handler.
-class KeyboardHandler : public ::settings::SettingsPageUIHandler,
+class KeyboardHandler : public content::WebUIMessageHandler,
                         public ui::InputDeviceEventObserver {
  public:
   // Name of the message sent to WebUI when the keys that should be shown
@@ -43,7 +43,7 @@ class KeyboardHandler : public ::settings::SettingsPageUIHandler,
 
   ~KeyboardHandler() override;
 
-  // SettingsPageUIHandler implementation.
+  // content::WebUIMessageHandler implementation.
   void RegisterMessages() override;
   void OnJavascriptAllowed() override;
   void OnJavascriptDisallowed() override;
@@ -53,13 +53,13 @@ class KeyboardHandler : public ::settings::SettingsPageUIHandler,
 
  private:
   // Initializes the page with the current keyboard information.
-  void HandleInitialize(const base::Value::List& args);
+  void HandleInitialize(const base::ListValue& args);
 
   // Shows the Ash shortcut customization app.
-  void HandleShowShortcutCustomizationApp(const base::Value::List& args) const;
+  void HandleShowShortcutCustomizationApp(const base::ListValue& args) const;
 
   // Determines what types of keyboards are attached.
-  void HandleKeyboardChange(const base::Value::List& args);
+  void HandleKeyboardChange(const base::ListValue& args);
 
   // Shows or hides the Caps Lock and Diamond key settings based on whether the
   // system status.

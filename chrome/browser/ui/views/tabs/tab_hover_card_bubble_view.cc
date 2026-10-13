@@ -32,7 +32,7 @@
 #include "chrome/browser/ui/views/chrome_typography.h"
 #include "chrome/browser/ui/views/tabs/fade_label_view.h"
 #include "chrome/browser/ui/views/tabs/filename_elider.h"
-#include "chrome/browser/ui/views/tabs/tab.h"
+#include "chrome/browser/ui/views/tabs/hover_card_anchor_target.h"
 #include "chrome/browser/ui/views/tabs/tab_style_views.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/collaboration/public/messaging/message.h"
@@ -161,34 +161,13 @@ class TabHoverCardBubbleView::ThumbnailView
   // Clears the preview image and replaces it with a placeholder image. The old
   // image will be faded out.
   void SetPlaceholderImage() {
-    if (image_type_ == ImageType::kPlaceholder) {
-      return;
-    }
+    SetImageFromIcon(ImageType::kPlaceholder, kGlobeIcon);
+  }
 
-    // Color provider may be null if there is no associated widget. In that case
-    // there is nothing to render, and we can't get default colors to render
-    // with anyway, so bail out.
-    const auto* const color_provider = GetColorProvider();
-    if (!color_provider) {
-      return;
-    }
-
-    StartFadeOut();
-
-    // Check the no-preview color and size to see if it needs to be
-    // regenerated. DPI or theme change can cause a regeneration.
-    const SkColor foreground_color =
-        color_provider->GetColor(kColorTabHoverCardForeground);
-
-    // Set the no-preview placeholder image. All sizes are in DIPs.
-    // gfx::CreateVectorIcon() caches its result so there's no need to store
-    // images here; if a particular size/color combination has already been
-    // requested it will be low-cost to request it again.
-    constexpr gfx::Size kNoPreviewImageSize{64, 64};
-    const gfx::ImageSkia no_preview_image = gfx::CreateVectorIcon(
-        kGlobeIcon, kNoPreviewImageSize.width(), foreground_color);
-    SetImage(target_tab_image_, no_preview_image, ImageType::kPlaceholder);
-    image_type_ = ImageType::kPlaceholder;
+  // Clears the preview image and replaces it with a crashed image. The old
+  // image will be faded out.
+  void SetCrashedImage() {
+    SetImageFromIcon(ImageType::kCrashed, kCrashedTabIcon);
   }
 
   void ClearImage() {
@@ -209,7 +188,44 @@ class TabHoverCardBubbleView::ThumbnailView
   }
 
  private:
-  enum class ImageType { kNone, kNoneButWaiting, kPlaceholder, kThumbnail };
+  enum class ImageType {
+    kNone,
+    kNoneButWaiting,
+    kPlaceholder,
+    kCrashed,
+    kThumbnail
+  };
+
+  void SetImageFromIcon(ImageType type, const gfx::VectorIcon& icon) {
+    if (image_type_ == type) {
+      return;
+    }
+
+    // Color provider may be null if there is no associated widget. In that case
+    // there is nothing to render, and we can't get default colors to render
+    // with anyway, so bail out.
+    const auto* const color_provider = GetColorProvider();
+    if (!color_provider) {
+      return;
+    }
+
+    StartFadeOut();
+
+    // Check the no-preview color and size to see if it needs to be
+    // regenerated. DPI or theme change can cause a regeneration.
+    const SkColor foreground_color =
+        color_provider->GetColor(kColorTabHoverCardForeground);
+
+    // Set the image. All sizes are in DIPs.
+    // gfx::CreateVectorIcon() caches its result so there's no need to store
+    // images here; if a particular size/color combination has already been
+    // requested it will be low-cost to request it again.
+    constexpr int kIconSize = 64;
+    const gfx::ImageSkia image =
+        gfx::CreateVectorIcon(icon, kIconSize, foreground_color);
+    SetImage(target_tab_image_, image, type);
+    image_type_ = type;
+  }
 
   // Creates an image view with the appropriate default properties.
   static std::unique_ptr<views::ImageView> CreateImageView() {
@@ -231,6 +247,7 @@ class TabHoverCardBubbleView::ThumbnailView
             views::CreateSolidBackground(bubble_view_->background_color()));
         break;
       case ImageType::kPlaceholder:
+      case ImageType::kCrashed:
         image_view->SetVerticalAlignment(views::ImageView::Alignment::kCenter);
         image_view->SetImageSize(image.size());
         image_view->SetBackground(views::CreateSolidBackground(
@@ -362,9 +379,10 @@ DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(TabHoverCardBubbleView,
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(TabHoverCardBubbleView,
                                       kHoverCardDomainLabelElementId);
 
-TabHoverCardBubbleView::TabHoverCardBubbleView(Tab* tab,
-                                               const InitParams& params)
-    : BubbleDialogDelegateView(tab,
+TabHoverCardBubbleView::TabHoverCardBubbleView(
+    HoverCardAnchorTarget* anchor_target,
+    const InitParams& params)
+    : BubbleDialogDelegateView(anchor_target->GetAnchorView(),
                                views::BubbleBorder::TOP_LEFT,
                                views::BubbleBorder::STANDARD_SHADOW),
       tab_style_(TabStyle::Get()),
@@ -474,8 +492,13 @@ void TabHoverCardBubbleView::AddedToWidget() {
   // Note that this code has to go after CreateBubble() above, since setting up
   // the placeholder image and background color require a ColorProvider, which
   // is only available once this View has been added to its widget.
-  Tab* tab = static_cast<Tab*>(GetAnchorView());
-  if (thumbnail_view_ && !tab->HasThumbnail() && !tab->IsActive()) {
+
+  HoverCardAnchorTarget* anchor_target =
+      HoverCardAnchorTarget::FromAnchorView(GetAnchorView());
+  bool valid_thumbnail = anchor_target && anchor_target->data().thumbnail &&
+                         anchor_target->data().thumbnail->has_data() &&
+                         anchor_target->IsActive();
+  if (thumbnail_view_ && !valid_thumbnail) {
     thumbnail_view_->SetPlaceholderImage();
   }
 
@@ -519,10 +542,14 @@ TabHoverCardBubbleView::GetCollaborationMessagingData(
   return collaboration_messaging_data;
 }
 
-void TabHoverCardBubbleView::UpdateCardContent(const Tab* tab) {
+void TabHoverCardBubbleView::UpdateCardContent(
+    const HoverCardAnchorTarget* anchor_target) {
   // Preview image is never visible for the active tab.
   if (thumbnail_view_) {
-    if (tab->IsActive() || (tab->IsDiscarded() && !tab->HasThumbnail())) {
+    bool has_thumbnail = anchor_target->data().thumbnail &&
+                         anchor_target->data().thumbnail->has_data();
+    if (anchor_target->IsActive() ||
+        (anchor_target->data().is_tab_discarded && !has_thumbnail)) {
       thumbnail_view_->ClearImage();
     } else {
       thumbnail_view_->SetWaitingForImage();
@@ -530,7 +557,7 @@ void TabHoverCardBubbleView::UpdateCardContent(const Tab* tab) {
   }
 
   std::u16string title;
-  const TabRendererData& tab_data = tab->data();
+  const TabRendererData& tab_data = anchor_target->data();
   GURL domain_url;
   // Use committed URL to determine if no page has yet loaded, since the title
   // can be blank for some web pages.
@@ -640,6 +667,12 @@ void TabHoverCardBubbleView::SetPlaceholderImage() {
   DCHECK(thumbnail_view_)
       << "This method should only be called when preview images are enabled.";
   thumbnail_view_->SetPlaceholderImage();
+}
+
+void TabHoverCardBubbleView::SetCrashedImage() {
+  DCHECK(thumbnail_view_)
+      << "This method should only be called when preview images are enabled.";
+  thumbnail_view_->SetCrashedImage();
 }
 
 std::u16string_view TabHoverCardBubbleView::GetTitleTextForTesting() const {

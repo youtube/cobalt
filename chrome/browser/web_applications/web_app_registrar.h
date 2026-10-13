@@ -57,7 +57,7 @@ class StoragePartitionConfig;
 
 namespace webapps {
 enum class WebappInstallSource;
-}
+}  // namespace webapps
 
 namespace web_app {
 namespace proto {
@@ -94,6 +94,26 @@ using AppsHavingNoTrustedIconsCount =
 using AppsHavingTrustedIconsCount =
     base::StrongAlias<class AppsHavingTrustedIconsCountTag, int>;
 
+struct FindBestAppInScopeOptions {
+  // Sets the `filter` applied to the best match only.
+  explicit FindBestAppInScopeOptions(WebAppFilter filter);
+  ~FindBestAppInScopeOptions();
+
+  // Only apps that pass this filter are considered when ranking apps for scope
+  // control over a URL.
+  WebAppFilter eligibility_filter = WebAppFilter::InstalledInChrome();
+
+  // Options passed to the scope scoring algorithm, used to determine the 'best'
+  // app.
+  WebAppScopeScoreOptions scope_score_options = {};
+
+  // After determining the best app to control a given url, this filter is
+  // checked with the final app. If it does not pass, then std::nullopt is
+  // returned. This is a nice shortcut as most callers also have a specific set
+  // of constraints the app needs to satisfy, like having OS integration, etc.
+  WebAppFilter filter;
+};
+
 // Enabling this will force all apps that are exclusively preinstalled and open
 // in a browser tab to have the default navigation capturing setting be 'on'.
 // This is needed for use-cases where a preinstalled app needs to capture
@@ -121,7 +141,8 @@ class WebAppRegistrar {
 
   bool is_empty() const { return registry_.empty(); }
 
-  const WebApp* GetAppById(const webapps::AppId& app_id) const;
+  const WebApp* GetAppById(const webapps::AppId& app_id,
+                           std::optional<WebAppFilter> = std::nullopt) const;
 
   // TODO(crbug.com/40170773): should be removed when id is introduced to
   // manifest.
@@ -170,6 +191,8 @@ class WebAppRegistrar {
 
   // Returns the AppId of an app that best matches the specified filter.
   // 'Best' is determined by the longest scope that is a prefix of `url`.
+  // Note that this method doesn't consider suggested apps (from migration or
+  // from another device).
   //
   // Example usage:
   //    std::optional<webapps::AppId> app_ip = FindBestAppWithUrlInScope(
@@ -178,6 +201,12 @@ class WebAppRegistrar {
       const GURL& url,
       const WebAppFilter& filter,
       WebAppScopeScoreOptions scope_score_options = {}) const;
+
+  // A more granular overload of the function above: allows the caller to
+  // include suggested apps, for instance.
+  std::optional<webapps::AppId> FindBestAppWithUrlInScope(
+      const GURL& url,
+      const FindBestAppInScopeOptions& options) const;
 
   // Finds all apps that have scopes that are nested within the given
   // `outer_scope`, and match the specified filter.
@@ -473,8 +502,7 @@ class WebAppRegistrar {
   // |isolated_web_app_id|. Both the primary and any <controlledframe>
   // StoragePartitions will be returned.
   std::vector<content::StoragePartitionConfig>
-  GetIsolatedWebAppStoragePartitionConfigs(
-      const webapps::AppId& isolated_web_app_id) const;
+  GetIsolatedWebAppStoragePartitionConfigs(const webapps::AppId& app_id) const;
 
   // Saves a record of the |partition_name| in
   // |isolated_web_app_in_memory_controlled_frame_partitions_|.
@@ -705,7 +733,11 @@ class WebAppRegistrar {
   std::vector<webapps::AppId> GetAppIdsForAppSet(const AppSet& app_set) const;
 
  private:
-  bool IsIsolated(const webapps::AppId& app_id) const;
+  bool AppMatches(const webapps::AppId& app_id,
+                  const WebAppFilter::LeafFilter& filter) const;
+
+  bool IsIsolatedApp(const webapps::AppId& app_id) const;
+  bool IsIsolatedSubApp(const webapps::AppId& app_id) const;
   // Returns if the given app_id is the most recently installed application of
   // the set of other apps with matching scopes, AND no other app has user link
   // capturing explicitly turned on. Note that this doesn't consider the link

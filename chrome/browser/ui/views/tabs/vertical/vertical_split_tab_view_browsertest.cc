@@ -22,46 +22,13 @@
 #include "ui/views/view_utils.h"
 
 class VerticalSplitTabViewTest
-    : public VerticalTabsBrowserTestMixin<InProcessBrowserTest> {
- public:
-  void CreateSplitTab() {
-    // Add pinned split tabs.
-    content::WebContents* contents1 = AppendTab();
-    content::WebContents* contents2 = AppendTab();
-
-    const int index1 = tab_strip_model()->GetIndexOfWebContents(contents1);
-    const int index2 = tab_strip_model()->GetIndexOfWebContents(contents2);
-
-    tab_strip_model()->ActivateTabAt(
-        index1, TabStripUserGestureDetails(
-                    TabStripUserGestureDetails::GestureType::kOther));
-
-    tab_strip_model()->AddToNewSplit(
-        {index2}, {}, split_tabs::SplitTabCreatedSource::kTabContextMenu);
-  }
-
- protected:
-  // Appends a new tab to the end of the tab strip.
-  content::WebContents* AppendTab() {
-    std::unique_ptr<content::WebContents> contents =
-        content::WebContents::Create(
-            content::WebContents::CreateParams(browser()->profile()));
-    content::WebContents* raw_contents = contents.get();
-    tab_strip_model()->AppendWebContents(std::move(contents), true);
-    return raw_contents;
-  }
-};
+    : public VerticalTabsBrowserTestMixin<InProcessBrowserTest> {};
 
 IN_PROC_BROWSER_TEST_F(VerticalSplitTabViewTest, ProposedLayout_Unbounded) {
-  CreateSplitTab();
-  // Create view hierarchy from an arbitrary parent view since we don't
-  // currently support updates from the API.
-  std::unique_ptr<views::View> parent_view = std::make_unique<views::View>();
-  RootTabCollectionNode root_node(
-      browser()->tab_strip_model(),
-      base::BindRepeating<TabCollectionNode::CustomAddChildView>(
-          &views::View::AddChildView, base::Unretained(parent_view.get())));
-  auto split = root_node.children()[1]->get_view_for_testing()->children()[1];
+  AppendSplitTab();
+  auto* split = unpinned_collection_node()
+                    ->GetChildNodeOfType(TabCollectionNode::Type::SPLIT)
+                    ->view();
   EXPECT_TRUE(views::IsViewClass<VerticalSplitTabView>(split));
   VerticalSplitTabView* split_tab_view =
       static_cast<VerticalSplitTabView*>(split);
@@ -86,15 +53,10 @@ IN_PROC_BROWSER_TEST_F(VerticalSplitTabViewTest, ProposedLayout_Unbounded) {
 }
 
 IN_PROC_BROWSER_TEST_F(VerticalSplitTabViewTest, ProposedLayout_LargeBounds) {
-  CreateSplitTab();
-  // Create view hierarchy from an arbitrary parent view since we don't
-  // currently support updates from the API.
-  std::unique_ptr<views::View> parent_view = std::make_unique<views::View>();
-  RootTabCollectionNode root_node(
-      browser()->tab_strip_model(),
-      base::BindRepeating<TabCollectionNode::CustomAddChildView>(
-          &views::View::AddChildView, base::Unretained(parent_view.get())));
-  auto split = root_node.children()[1]->get_view_for_testing()->children()[1];
+  AppendSplitTab();
+  auto* split = unpinned_collection_node()
+                    ->GetChildNodeOfType(TabCollectionNode::Type::SPLIT)
+                    ->view();
   EXPECT_TRUE(views::IsViewClass<VerticalSplitTabView>(split));
   VerticalSplitTabView* split_tab_view =
       static_cast<VerticalSplitTabView*>(split);
@@ -124,15 +86,10 @@ IN_PROC_BROWSER_TEST_F(VerticalSplitTabViewTest, ProposedLayout_LargeBounds) {
 }
 
 IN_PROC_BROWSER_TEST_F(VerticalSplitTabViewTest, ProposedLayout_LimitedBounds) {
-  CreateSplitTab();
-  // Create view hierarchy from an arbitrary parent view since we don't
-  // currently support updates from the API.
-  std::unique_ptr<views::View> parent_view = std::make_unique<views::View>();
-  RootTabCollectionNode root_node(
-      browser()->tab_strip_model(),
-      base::BindRepeating<TabCollectionNode::CustomAddChildView>(
-          &views::View::AddChildView, base::Unretained(parent_view.get())));
-  auto split = root_node.children()[1]->get_view_for_testing()->children()[1];
+  AppendSplitTab();
+  auto* split = unpinned_collection_node()
+                    ->GetChildNodeOfType(TabCollectionNode::Type::SPLIT)
+                    ->view();
   EXPECT_TRUE(views::IsViewClass<VerticalSplitTabView>(split));
   VerticalSplitTabView* split_tab_view =
       static_cast<VerticalSplitTabView*>(split);

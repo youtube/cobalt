@@ -430,7 +430,7 @@ TEST_F(ToolbarActionsModelUnitTest, TestToolbarExtensionTypesEnabledSwitch) {
 
   // Extensions that are installed by default shouldn't be given an icon.
   auto default_installed_manifest =
-      base::Value::Dict()
+      base::DictValue()
           .Set("name", "default installed")
           .Set("description", "A default installed extension")
           .Set("manifest_version", 2)
@@ -681,7 +681,7 @@ TEST_F(ToolbarActionsModelUnitTest, AddUserScriptExtension) {
       extensions::ExtensionBuilder("a")
           .SetLocation(ManifestLocation::kInternal)
           .MergeManifest(
-              base::Value::Dict().Set("converted_from_user_script", true))
+              base::DictValue().Set("converted_from_user_script", true))
           .Build();
 
   // We should start off without any actions.
@@ -1306,4 +1306,39 @@ TEST_F(ToolbarActionsModelUnitTest, InitActionList_NonUserEmitHistograms) {
   ASSERT_NO_FATAL_FAILURE(MaybeSetUpTestUser(
       /*is_guest=*/true));
   RunEmitUserHistogramsTest(/*incremented_histogram_count=*/0);
+}
+
+TEST_F(ToolbarActionsModelUnitTest,
+       UninstallingExtensionByPolicyPreservesPinState) {
+  Init();
+
+  scoped_refptr<const extensions::Extension> extension =
+      extensions::ExtensionBuilder("extension")
+          .SetAction(extensions::ActionInfo::Type::kBrowser)
+          .SetLocation(ManifestLocation::kInternal)
+          .Build();
+
+  // Add and pin an extension.
+  EXPECT_TRUE(AddExtension(extension));
+  toolbar_model()->SetActionVisibility(extension->id(), true);
+  EXPECT_TRUE(toolbar_model()->IsActionPinned(extension->id()));
+
+  extensions::ExtensionPrefs* const prefs =
+      extensions::ExtensionPrefs::Get(profile());
+  EXPECT_THAT(prefs->GetPinnedExtensions(),
+              testing::ElementsAre(extension->id()));
+
+  // Uninstall the extension with UNINSTALL_REASON_INTERNAL_MANAGEMENT.
+  registrar()->UninstallExtension(
+      extension->id(), extensions::UNINSTALL_REASON_INTERNAL_MANAGEMENT,
+      nullptr);
+
+  // The extension should be removed from the model (active toolbar).
+  EXPECT_FALSE(toolbar_model()->HasAction(extension->id()));
+  EXPECT_FALSE(toolbar_model()->IsActionPinned(extension->id()));
+
+  // But not from the prefs, to prevent it from being unpinned on other synced
+  // devices.
+  EXPECT_THAT(prefs->GetPinnedExtensions(),
+              testing::ElementsAre(extension->id()));
 }

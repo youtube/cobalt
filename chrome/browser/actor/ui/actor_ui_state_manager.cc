@@ -64,9 +64,7 @@ const UiTabState& GetWaitingOnUserUiTabState() {
 const UiTabState& GetPausedUiTabState() {
   static const UiTabState kPausedState = {
       .actor_overlay = {.is_active = false, .border_glow_visible = false},
-      .handoff_button = {.is_active = !base::FeatureList::IsEnabled(
-                             features::kGlicHandoffButtonHiddenClientControl),
-                         .controller = kClient},
+      .handoff_button = {.is_active = false, .controller = kClient},
       .tab_indicator = TabIndicatorStatus::kNone,
       .border_glow_visible = false,
   };
@@ -166,13 +164,7 @@ void ActorUiStateManager::OnActorTaskStateChange(
     case ActorTask::State::kFailed:
     case ActorTask::State::kCancelled:
     case ActorTask::State::kFinished:
-      if (base::FeatureList::IsEnabled(
-              features::kGlicActorUiGlobalTaskIndicator)) {
-        LOG(FATAL) << "Stopped states should be processed via StopTask event.";
-      } else {
-        NotifyActorTaskStopped(task_id);
-      }
-      break;
+      LOG(FATAL) << "Stopped states should be processed via StopTask event.";
   }
 
 #if !BUILDFLAG(SKIP_ANDROID_UNMIGRATED_ACTOR_FILES)
@@ -231,6 +223,9 @@ void ActorUiStateManager::OnUiEvent(AsyncUiEvent event,
     base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, base::BindOnce(std::move(callback), MakeOkResult()));
   }
+#else
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(std::move(callback), MakeOkResult()));
 #endif
 }
 
@@ -252,8 +247,6 @@ void ActorUiStateManager::OnUiEvent(SyncUiEvent event) {
             this->OnActorTaskStateChange(e.task_id, e.state);
           },
           [this](const StopTask& e) {
-            if (base::FeatureList::IsEnabled(
-                    features::kGlicActorUiGlobalTaskIndicator)) {
               // Cancelled tasks are intentionally not stored.
               if (e.final_state == ActorTask::State::kCancelled) {
                 NotifyActorTaskStopped(e.task_id);
@@ -276,7 +269,6 @@ void ActorUiStateManager::OnUiEvent(SyncUiEvent event) {
                   base::Seconds(
                       features::kGlicActorUiCompletedTaskExpiryDelaySeconds
                           .Get()));
-            }
           },
           [](const StoppedActingOnTab& e) {
 #if !BUILDFLAG(SKIP_ANDROID_UNMIGRATED_ACTOR_FILES)

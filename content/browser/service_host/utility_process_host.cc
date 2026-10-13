@@ -33,12 +33,12 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/browser/render_process_host.h"
+#include "content/public/browser/sandboxed_process_launcher_delegate.h"
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_descriptor_keys.h"
 #include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/common/process_type.h"
-#include "content/public/common/sandboxed_process_launcher_delegate.h"
 #include "content/public/common/zygote/zygote_buildflags.h"
 #include "device/vr/buildflags/buildflags.h"
 #include "media/base/media_switches.h"
@@ -46,6 +46,7 @@
 #include "sandbox/policy/mojom/sandbox.mojom.h"
 #include "sandbox/policy/sandbox_type.h"
 #include "sandbox/policy/switches.h"
+#include "services/network/public/cpp/ip_address_space_util.h"
 #include "services/network/public/cpp/network_switches.h"
 #include "services/service_manager/public/cpp/interface_provider.h"
 #include "ui/base/ui_base_switches.h"
@@ -444,7 +445,6 @@ bool UtilityProcessHost::StartProcess() {
 #if BUILDFLAG(ENABLE_VR)
       device::switches::kWebXrHandAnonymizationStrategy,
 #endif
-      network::switches::kIpAddressSpaceOverrides,
 #if BUILDFLAG(IS_CHROMEOS)
       switches::kSchedulerBoostUrgent,
 #endif
@@ -460,6 +460,18 @@ bool UtilityProcessHost::StartProcess() {
 
   network_session_configurator::CopyNetworkSwitches(browser_command_line,
                                                     cmd_line.get());
+
+  // |overrides| combines pref/policy + cmdline switch in the browser process.
+  // For renderer and utility (e.g. NetworkService) processes the switch is the
+  // only available source, so below the combined (pref/policy + cmdline)
+  // IP address space overrides are injected into |cmdline| for these other
+  // processes.
+  std::vector<std::string> overrides =
+      network::IPAddressSpaceOverrides::GetInstance().GetCurrentOverrides();
+  if (!overrides.empty()) {
+    cmd_line->AppendSwitchASCII(network::switches::kIpAddressSpaceOverrides,
+                                base::JoinString(overrides, ","));
+  }
 
   if (has_cmd_prefix) {
     // Launch the utility child process with some prefix

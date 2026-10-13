@@ -411,7 +411,8 @@ void ChromePaymentsAutofillClient::CreditCardUploadCompleted(
     }
 
     controller->ShowConfirmationBubbleView(
-        card_saved, std::move(on_confirmation_closed_callback));
+        card_saved, /*is_for_save_and_fill=*/false,
+        std::move(on_confirmation_closed_callback));
   }
 #endif
 }
@@ -1314,7 +1315,7 @@ std::u16string ChromePaymentsAutofillClient::GetAccountHolderName() const {
   }
   AccountInfo primary_account_info = identity_manager->FindExtendedAccountInfo(
       identity_manager->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin));
-  return base::UTF8ToUTF16(primary_account_info.full_name);
+  return base::UTF8ToUTF16(primary_account_info.GetFullName().value_or(""));
 }
 
 void ChromePaymentsAutofillClient::OnRiskDataLoaded(

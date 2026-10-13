@@ -189,7 +189,7 @@ TEST_F(NativeExtensionBindingsSystemUnittest, Events) {
 
   {
     TestJSRunner::AllowErrors allow_errors;
-    base::Value::List value = ListValueFromString("['idle']");
+    base::ListValue value = ListValueFromString("['idle']");
     bindings_system()->DispatchEventInContext("idle.onStateChanged", value,
                                               nullptr, script_context);
   }
@@ -575,7 +575,7 @@ TEST_F(NativeExtensionBindingsSystemUnittest, TestLastError) {
   int first_request_id = last_params().request_id;
   // Respond with an error.
   bindings_system()->HandleResponse(last_params().request_id, false,
-                                    base::Value::List(), "Some API Error");
+                                    base::ListValue(), "Some API Error");
   EXPECT_EQ("\"Some API Error\"",
             GetStringPropertyFromObject(context->Global(), context,
                                         "lastErrorMessage"));
@@ -587,7 +587,7 @@ TEST_F(NativeExtensionBindingsSystemUnittest, TestLastError) {
   EXPECT_NE(first_request_id, last_params().request_id);
 
   bindings_system()->HandleResponse(last_params().request_id, false,
-                                    base::Value::List(), std::string());
+                                    base::ListValue(), std::string());
   EXPECT_EQ("\"Unknown error.\"",
             GetStringPropertyFromObject(context->Global(), context,
                                         "lastErrorMessage"));
@@ -1232,7 +1232,7 @@ TEST_P(SignatureValidationNativeExtensionBindingsSystemUnittest,
 
   // Dispatch an event with an argument that matches the expected schema.
   {
-    auto event_args = base::Value::List().Append("active");
+    auto event_args = base::ListValue().Append("active");
     bindings_system()->DispatchEventInContext("idle.onStateChanged", event_args,
                                               nullptr, script_context);
   }
@@ -1246,7 +1246,7 @@ TEST_P(SignatureValidationNativeExtensionBindingsSystemUnittest,
 
   // Now, dispatch the event with an invalid argument.
   {
-    base::Value::List event_args;
+    base::ListValue event_args;
     event_args.Append("bad enum");
     bindings_system()->DispatchEventInContext("idle.onStateChanged", event_args,
                                               nullptr, script_context);
@@ -1307,13 +1307,13 @@ TEST_P(FeatureAvailabilityNativeExtensionBindingsSystemUnittest,
        CheckRestrictedFeaturesBasedOnContext) {
   scoped_refptr<const Extension> connectable_extension;
   {
-    auto manifest = base::Value::Dict()
+    auto manifest = base::DictValue()
                         .Set("name", "connectable")
                         .Set("manifest_version", 2)
                         .Set("version", "0.1")
                         .Set("description", "test extension");
-    base::Value::Dict connectable;
-    connectable.Set("matches", base::Value::List().Append("*://example.com/*"));
+    base::DictValue connectable;
+    connectable.Set("matches", base::ListValue().Append("*://example.com/*"));
     manifest.Set("externally_connectable", std::move(connectable));
     connectable_extension =
         ExtensionBuilder()
@@ -1421,13 +1421,13 @@ class NativeExtensionBindingsSystemBrowserUnittest
 
 // Tests that updating bindings does not crash if the global "browser" property
 // is defined but is not an object when the
-// `extensions_features::kExtensionBrowserNamespaceAlternative` feature is
-// enabled. Regression test for crbug.com/459049475.
+// `extensions_features::kExtensionBrowserNamespaceAndPolyfillSupport` feature
+// is enabled. Regression test for crbug.com/459049475.
 TEST_F(NativeExtensionBindingsSystemBrowserUnittest,
        TestWindowBrowserCrashNonRestricted) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitAndEnableFeature(
-      extensions_features::kExtensionBrowserNamespaceAlternative);
+      extensions_features::kExtensionBrowserNamespaceAndPolyfillSupport);
 
   scoped_refptr<const Extension> extension =
       ExtensionBuilder("foo").SetManifestVersion(3).Build();
@@ -1446,7 +1446,7 @@ TEST_F(NativeExtensionBindingsSystemBrowserUnittest,
        TestWindowBrowserCrashRestricted) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitWithFeatures(
-      {extensions_features::kExtensionBrowserNamespaceAlternative,
+      {extensions_features::kExtensionBrowserNamespaceAndPolyfillSupport,
        extensions_features::kDebuggerAPIRestrictedToDevMode},
       {});
 

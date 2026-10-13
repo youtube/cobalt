@@ -37,6 +37,7 @@ import org.chromium.base.test.util.ApplicationTestUtils;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
+import org.chromium.base.test.util.DisableIf;
 import org.chromium.base.test.util.DoNotBatch;
 import org.chromium.base.test.util.ImportantFormFactors;
 import org.chromium.base.test.util.MinAndroidSdkLevel;
@@ -121,6 +122,7 @@ public class TabModelMultiWindowTest {
     }
 
     @Test
+    @DisableIf.Device(DeviceFormFactor.DESKTOP) // https://crbug.com/481443908
     @LargeTest
     public void testMoveTabGroupToWindow() {
         ChromeTabbedActivity activity1 = mActivityTestRule.getActivity();
@@ -155,7 +157,8 @@ public class TabModelMultiWindowTest {
                 () -> {
                     var taskTracker = ChromeAndroidTaskTrackerFactory.getInstance();
                     var chromeTask = taskTracker.get(activity.getTaskId());
-                    return chromeTask.getOrCreateNativeBrowserWindowPtr();
+                    var profile = activity.getTabModelSelector().getCurrentModel().getProfile();
+                    return chromeTask.getOrCreateNativeBrowserWindowPtr(profile);
                 });
     }
 

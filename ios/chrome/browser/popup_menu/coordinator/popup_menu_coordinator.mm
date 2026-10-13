@@ -183,10 +183,9 @@ using base::UserMetricsAction;
     [self dismissPopupMenuAnimated:YES];
   }
 
-  id<OmniboxCommands> omniboxCommandsHandler =
-      HandlerForProtocol(self.browser->GetCommandDispatcher(), OmniboxCommands);
-  // Dismiss the omnibox (if open).
-  [omniboxCommandsHandler cancelOmniboxEdit];
+  id<BrowserCoordinatorCommands> browserCoordinatorHandler = HandlerForProtocol(
+      self.browser->GetCommandDispatcher(), BrowserCoordinatorCommands);
+  [browserCoordinatorHandler hideComposebox];
 
   id<BrowserCommands> callableDispatcher =
       HandlerForProtocol(self.browser->GetCommandDispatcher(), BrowserCommands);
@@ -250,7 +249,7 @@ using base::UserMetricsAction;
   mediator.settingsHandler = HandlerForProtocol(dispatcher, SettingsCommands);
   mediator.tabGroupsHandler = HandlerForProtocol(dispatcher, TabGroupsCommands);
   mediator.bookmarksHandler = HandlerForProtocol(dispatcher, BookmarksCommands);
-  if (IsLensOverlayAvailable(profile->GetPrefs())) {
+  if (IsLensOverlayAllowedByPolicy(profile->GetPrefs())) {
     mediator.lensOverlayHandler =
         HandlerForProtocol(dispatcher, LensOverlayCommands);
   }

@@ -93,19 +93,20 @@ uint32_t ClearMatchingInterfaces(
   for (auto& config : device_info.configurations) {
     for (auto& iface : config->interfaces) {
       for (auto& alternate_info : iface->alternates) {
-        if (filter.has_class_code &&
-            alternate_info->class_code != filter.class_code) {
+        if (filter.class_code.has_value() &&
+            alternate_info->class_code != filter.class_code.value()) {
           continue;
         }
-        if (filter.has_subclass_code &&
-            alternate_info->subclass_code != filter.subclass_code) {
+        if (filter.subclass_code.has_value() &&
+            alternate_info->subclass_code != filter.subclass_code.value()) {
           continue;
         }
-        if (filter.has_protocol_code &&
-            alternate_info->protocol_code != filter.protocol_code) {
+        if (filter.protocol_code.has_value() &&
+            alternate_info->protocol_code != filter.protocol_code.value()) {
           continue;
         }
-        if (filter.has_vendor_id && device_info.vendor_id != filter.vendor_id) {
+        if (filter.vendor_id.has_value() &&
+            device_info.vendor_id != filter.vendor_id.value()) {
           continue;
         }
         if (iface->interface_number >= 32) {
@@ -182,16 +183,7 @@ class CrosUsbNotificationDelegate
       LOG(WARNING)
           << "Share USB device with [some guest] notification was clicked";
       if (vm_names_[*button_index] == crostini::kCrostiniDefaultVmName) {
-        // When multi-container is enabled, show the settings page instead of
-        // directly attaching the device to the VM. Otherwise, the device is
-        // attached to the default container in the VM.
-        if (crostini::CrostiniFeatures::Get()->IsMultiContainerAllowed(
-                profile())) {
-          HandleShowSettings(
-              chromeos::settings::mojom::kCrostiniUsbPreferencesSubpagePath);
-        } else {
-          HandleConnectToGuest(crostini::DefaultContainerId());
-        }
+        HandleConnectToGuest(crostini::DefaultContainerId());
       } else {
         HandleConnectToGuest(vm_names_[*button_index]);
       }
@@ -241,7 +233,6 @@ class CrosUsbNotificationDelegate
 device::mojom::UsbDeviceFilterPtr UsbFilterByClassCode(
     UsbClassCode device_class) {
   auto filter = device::mojom::UsbDeviceFilter::New();
-  filter->has_class_code = true;
   filter->class_code = device_class;
   return filter;
 }
@@ -250,16 +241,13 @@ device::mojom::UsbDeviceFilterPtr UsbFilterByClassAndSubclassCode(
     UsbClassCode device_class,
     UsbSubclassCode device_subclass) {
   auto filter = device::mojom::UsbDeviceFilter::New();
-  filter->has_class_code = true;
   filter->class_code = device_class;
-  filter->has_subclass_code = true;
   filter->subclass_code = device_subclass;
   return filter;
 }
 
 device::mojom::UsbDeviceFilterPtr UsbFilterByVendorId(uint16_t vendor_id) {
   auto filter = device::mojom::UsbDeviceFilter::New();
-  filter->has_vendor_id = true;
   filter->vendor_id = vendor_id;
   return filter;
 }
@@ -715,7 +703,7 @@ void CrosUsbDetector::OnDeviceChecked(
   // If device exists in persistent passthrough dict, skip notifications and
   // connect it to the appropriate guest.
   PrefService* prefs = profile()->GetPrefs();
-  const base::Value::Dict& persistent_passthrough_devices =
+  const base::DictValue& persistent_passthrough_devices =
       prefs->GetDict(guest_os::prefs::kGuestOsUSBPersistentPassthroughDevices);
 
   const std::string* device = persistent_passthrough_devices.FindString(
@@ -1127,7 +1115,7 @@ void CrosUsbDetector::OnUsbDeviceAttachFinished(
           guest_os::prefs::kGuestOsUSBPersistentPassthroughEnabled)) {
     ScopedDictPrefUpdate update(
         prefs, guest_os::prefs::kGuestOsUSBPersistentPassthroughDevices);
-    base::Value::Dict& devices = update.Get();
+    base::DictValue& devices = update.Get();
     std::string device_identifier = UsbDeviceIdentifier(device_info);
     LOG(WARNING) << "After successful connection of " << device_identifier
                  << "to " << guest_id.Serialize()

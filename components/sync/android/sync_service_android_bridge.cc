@@ -4,6 +4,7 @@
 
 #include "components/sync/android/sync_service_android_bridge.h"
 
+#include <cstdint>
 #include <map>
 #include <string>
 #include <vector>
@@ -117,7 +118,7 @@ void NativeGetLocalDataDescriptionsCallback(
 void NativeGetAllNodesCallback(
     JNIEnv* env,
     const base::android::ScopedJavaGlobalRef<jobject>& callback,
-    base::Value::List result) {
+    base::ListValue result) {
   std::string json_string;
   if (!base::JSONWriter::Write(result, &json_string)) {
     DVLOG(1) << "Writing as JSON failed. Passing empty string to Java code.";
@@ -180,14 +181,14 @@ void SyncServiceAndroidBridge::OnSyncShutdown(SyncService* sync) {
 
 void SyncServiceAndroidBridge::AcknowledgeBookmarksLimitExceededError(
     JNIEnv* env,
-    jint source) {
+    int32_t source) {
   native_sync_service_->AcknowledgeBookmarksLimitExceededError(
       static_cast<SyncService::BookmarksLimitExceededHelpClickedSource>(
           source));
 }
 
-jint SyncServiceAndroidBridge::GetBookmarksLimit(JNIEnv* env) {
-  return static_cast<jint>(kSyncBookmarksLimitValue.Get());
+int32_t SyncServiceAndroidBridge::GetBookmarksLimit(JNIEnv* env) {
+  return kSyncBookmarksLimitValue.Get();
 }
 
 bool SyncServiceAndroidBridge::IsSyncFeatureEnabled(JNIEnv* env) {
@@ -397,7 +398,7 @@ bool SyncServiceAndroidBridge::SetDecryptionPassphrase(
       ConvertJavaStringToUTF8(env, passphrase));
 }
 
-jlong SyncServiceAndroidBridge::GetExplicitPassphraseTime(JNIEnv* env) {
+int64_t SyncServiceAndroidBridge::GetExplicitPassphraseTime(JNIEnv* env) {
   return native_sync_service_->GetUserSettings()
       ->GetExplicitPassphraseTime()
       .InMillisecondsSinceUnixEpoch();
@@ -453,10 +454,10 @@ void SyncServiceAndroidBridge::TriggerRefresh(JNIEnv* env) {
       DataTypeSet::All());
 }
 
-jlong SyncServiceAndroidBridge::GetLastSyncedTimeForDebugging(JNIEnv* env) {
+int64_t SyncServiceAndroidBridge::GetLastSyncedTimeForDebugging(JNIEnv* env) {
   base::Time last_sync_time =
       native_sync_service_->GetLastSyncedTimeForDebugging();
-  return static_cast<jlong>(
+  return static_cast<int64_t>(
       (last_sync_time - base::Time::UnixEpoch()).InMicroseconds());
 }
 

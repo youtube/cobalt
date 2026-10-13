@@ -27,7 +27,7 @@
 #include "components/autofill/core/browser/suggestions/suggestion_test_helpers.h"
 #include "components/autofill/core/browser/suggestions/suggestion_type.h"
 #include "components/autofill/core/browser/test_utils/autofill_form_test_utils.h"
-#include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
+#include "components/autofill/core/browser/test_utils/entity_data_test_utils.h"
 #include "components/autofill/core/browser/webdata/autofill_ai/entity_table.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/feature_engagement/public/feature_constants.h"
@@ -40,6 +40,9 @@ using enum SuggestionType;
 
 using FieldPrediction =
     AutofillQueryResponse::FormSuggestion::FieldSuggestion::FieldPrediction;
+using test::GetFlightReservationEntityInstanceWithRandomGuid;
+using test::GetPassportEntityInstanceWithRandomGuid;
+using test::MaskEntityInstance;
 using ::testing::Contains;
 using ::testing::ElementsAre;
 using ::testing::Field;
@@ -95,35 +98,27 @@ std::u16string GetDriversLicenseName(const EntityInstance& entity) {
       ->GetCompleteInfo(kAppLocaleUS);
 }
 
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID) || \
-    BUILDFLAG(IS_CHROMEOS)
-std::u16string GetVehicleVIN(const EntityInstance& entity) {
-  return entity.attribute(AttributeType(AttributeTypeName::kVehicleVin))
-      ->GetCompleteInfo(kAppLocaleUS);
-}
-#endif
-
 class AutofillAiSuggestionGeneratorTest : public testing::Test {
  public:
-  AutofillAiSuggestionGeneratorTest() {
-    scoped_feature_list_.InitWithFeatures(
-        /*enabled_features=*/{features::kAutofillAiWithDataSchema,
-                              features::kAutofillAiServerModel,
-                              features::kAutofillAiNationalIdCard,
-                              features::kAutofillAiKnownTravelerNumber,
-                              features::kAutofillAiRedressNumber,
-                              features::kAutofillAiWalletFlightReservation},
-        /*disabled_features=*/{});
+  explicit AutofillAiSuggestionGeneratorTest(
+      std::vector<base::test::FeatureRef> enabled_features,
+      std::vector<base::test::FeatureRef> disabled_features) {
+    scoped_feature_list_.InitWithFeatures(enabled_features, disabled_features);
     autofill_client_.set_entity_data_manager(
         std::make_unique<EntityDataManager>(
             autofill_client_.GetPrefs(), autofill_client_.GetIdentityManager(),
             autofill_client_.GetSyncService(),
             webdata_helper_.autofill_webdata_service(),
             /*history_service=*/nullptr,
-            /*strike_database=*/nullptr));
+            /*strike_database=*/nullptr,
+            /*variation_country_code=*/GeoIpCountryCode("US")));
     autofill_client_.SetUpPrefsAndIdentityForAutofillAi();
     generator_ = std::make_unique<AutofillAiSuggestionGenerator>();
   }
+
+  AutofillAiSuggestionGeneratorTest()
+      : AutofillAiSuggestionGeneratorTest(GetDefaultEnabledFeatures(),
+                                          /*disabled_features=*/{}) {}
 
   // Sets the form to one whose `i`th field has type `field_types[i]`.
   void SetForm(const std::vector<FieldType>& field_types) {
@@ -198,6 +193,13 @@ class AutofillAiSuggestionGeneratorTest : public testing::Test {
   FormStructure& form_structure() { return *form_structure_; }
   AutofillField& field(size_t i = 0) { return *form_structure_->fields()[i]; }
 
+ protected:
+  static std::vector<base::test::FeatureRef> GetDefaultEnabledFeatures() {
+    return {features::kAutofillAiWithDataSchema,
+            features::kAutofillAiServerModel,
+            features::kAutofillAiWalletFlightReservation};
+  }
+
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
   std::unique_ptr<AutofillAiSuggestionGenerator> generator_;
@@ -210,44 +212,22 @@ class AutofillAiSuggestionGeneratorTest : public testing::Test {
   std::optional<FormStructure> form_structure_;
 };
 
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID) || \
-    BUILDFLAG(IS_CHROMEOS)
 // Tests that the suggestions's main text is obfuscated when the triggering
 // field is from an attribute type that should be obfuscated.
 TEST_F(AutofillAiSuggestionGeneratorTest, SuggestionMainTextIsObfuscated) {
-  base::test::ScopedFeatureList feature(features::kAutofillAiReauthRequired);
-  client().GetPrefs()->SetBoolean(
-      prefs::kAutofillAiReauthBeforeViewingSensitiveData, true);
-  EntityInstance vehicle_entity = test::GetVehicleEntityInstanceWithRandomGuid(
-      {.plate = u"123", .number = u"VIN123"});
-  SetEntities({vehicle_entity});
-  SetForm({VEHICLE_VIN});
+  EntityInstance passport_entity = GetPassportEntityInstanceWithRandomGuid(
+      {.number = u"123456", .country = u"Brazil"});
+  SetEntities({passport_entity});
+  SetForm({PASSPORT_NUMBER});
 
   EXPECT_THAT(
       CreateAutofillAiFillingSuggestions(field(0)),
       SuggestionsAre(HasMainText(GetObfuscatedValue(
-          GetVehicleVIN(vehicle_entity), /*visible_suffix_length=*/4))));
+          GetPassportNumber(passport_entity), /*visible_suffix_length=*/4))));
 }
-
-// Tests that the suggestions's main text is NOT obfuscated when the pref is
-// disabled.
-TEST_F(AutofillAiSuggestionGeneratorTest,
-       SuggestionMainTextIsNotObfuscatedWhenPrefIsDisabled) {
-  base::test::ScopedFeatureList feature(features::kAutofillAiReauthRequired);
-  client().GetPrefs()->SetBoolean(
-      prefs::kAutofillAiReauthBeforeViewingSensitiveData, false);
-  EntityInstance vehicle_entity = test::GetVehicleEntityInstanceWithRandomGuid(
-      {.plate = u"123", .number = u"VIN123"});
-  SetEntities({vehicle_entity});
-  SetForm({VEHICLE_VIN});
-
-  EXPECT_THAT(CreateAutofillAiFillingSuggestions(field(0)),
-              SuggestionsAre(HasMainText(GetVehicleVIN(vehicle_entity))));
-}
-#endif
 
 TEST_F(AutofillAiSuggestionGeneratorTest, GeneratesAutofillAiSuggestions) {
-  SetEntities({test::GetPassportEntityInstanceWithRandomGuid()});
+  SetEntities({GetPassportEntityInstanceWithRandomGuid()});
   SetForm({PASSPORT_NUMBER});
 
   base::MockCallback<base::OnceCallback<void(
@@ -374,14 +354,13 @@ TEST_F(AutofillAiSuggestionGeneratorTest, NoSuggestionsIfNoEntities) {
 // Tests that no suggestions are generated when the field has a non-Autofill AI
 // type.
 TEST_F(AutofillAiSuggestionGeneratorTest, NoSuggestionsOnNonAiField) {
-  SetEntities({test::GetPassportEntityInstanceWithRandomGuid()});
+  SetEntities({GetPassportEntityInstanceWithRandomGuid()});
   SetForm({ADDRESS_HOME_ZIP, PASSPORT_NUMBER, PHONE_HOME_WHOLE_NUMBER});
   EXPECT_THAT(CreateAutofillAiFillingSuggestions(field(0)), IsEmpty());
 }
 
 TEST_F(AutofillAiSuggestionGeneratorTest, GetFillingSuggestion_PassportEntity) {
-  EntityInstance passport_entity =
-      test::GetPassportEntityInstanceWithRandomGuid();
+  EntityInstance passport_entity = GetPassportEntityInstanceWithRandomGuid();
   SetEntities({passport_entity});
   SetForm({NAME_FULL, PASSPORT_NUMBER, PHONE_HOME_WHOLE_NUMBER});
 
@@ -411,7 +390,7 @@ TEST_F(AutofillAiSuggestionGeneratorTest, GetFillingSuggestion_PassportEntity) {
 // Tests that the flight icon is shown for flight reservation entities.
 TEST_F(AutofillAiSuggestionGeneratorTest,
        GetFillingSuggestion_FlightReservationEntity_HasFlightIcon) {
-  SetEntities({test::GetFlightReservationEntityInstanceWithRandomGuid()});
+  SetEntities({GetFlightReservationEntityInstanceWithRandomGuid()});
   SetForm({FLIGHT_RESERVATION_FLIGHT_NUMBER, FLIGHT_RESERVATION_TICKET_NUMBER,
            FLIGHT_RESERVATION_CONFIRMATION_CODE});
 
@@ -422,9 +401,9 @@ TEST_F(AutofillAiSuggestionGeneratorTest,
 
 TEST_F(AutofillAiSuggestionGeneratorTest, GetFillingSuggestion_PrefixMatching) {
   EntityInstance passport_prefix_matches =
-      test::GetPassportEntityInstanceWithRandomGuid({.name = u"Jon Doe"});
+      GetPassportEntityInstanceWithRandomGuid({.name = u"Jon Doe"});
   EntityInstance passport_prefix_does_not_match =
-      test::GetPassportEntityInstanceWithRandomGuid({.name = u"Harry Potter"});
+      GetPassportEntityInstanceWithRandomGuid({.name = u"Harry Potter"});
 
   SetEntities({passport_prefix_matches, passport_prefix_does_not_match});
   SetForm({NAME_FULL, PASSPORT_NUMBER, PHONE_HOME_WHOLE_NUMBER});
@@ -442,8 +421,7 @@ TEST_F(AutofillAiSuggestionGeneratorTest, GetFillingSuggestion_PrefixMatching) {
 // filled into the triggering field is obfuscated.
 TEST_F(AutofillAiSuggestionGeneratorTest,
        GetFillingSuggestionNoPrefixMatchingForObfuscatedAttributes) {
-  SetEntities(
-      {test::GetPassportEntityInstanceWithRandomGuid({.number = u"12345"})});
+  SetEntities({GetPassportEntityInstanceWithRandomGuid({.number = u"12345"})});
   SetForm({PASSPORT_NUMBER, PASSPORT_ISSUING_COUNTRY});
   field(0).set_value(u"12");
   EXPECT_THAT(CreateAutofillAiFillingSuggestions(field(0)), Not(IsEmpty()));
@@ -451,8 +429,7 @@ TEST_F(AutofillAiSuggestionGeneratorTest,
 
 TEST_F(AutofillAiSuggestionGeneratorTest,
        GetFillingSuggestion_SkipFieldsThatDoNotMatchTheTriggeringFieldSection) {
-  EntityInstance passport_entity =
-      test::GetPassportEntityInstanceWithRandomGuid();
+  EntityInstance passport_entity = GetPassportEntityInstanceWithRandomGuid();
   SetEntities({passport_entity});
   SetForm({PASSPORT_NUMBER, PASSPORT_EXPIRATION_DATE});
 
@@ -462,8 +439,10 @@ TEST_F(AutofillAiSuggestionGeneratorTest,
 
   std::vector<Suggestion> suggestions =
       CreateAutofillAiFillingSuggestions(field(0));
-  EXPECT_THAT(suggestions,
-              SuggestionsAre(HasMainText(GetPassportNumber(passport_entity))));
+  EXPECT_THAT(
+      suggestions,
+      SuggestionsAre(HasMainText(GetObfuscatedValue(
+          GetPassportNumber(passport_entity), /*visible_suffix_length=*/4))));
   EXPECT_THAT(suggestions,
               SuggestionsAre(HasLabel(u"Passport · Pippi Långstrump")));
 
@@ -490,7 +469,7 @@ TEST_F(AutofillAiSuggestionGeneratorTest,
 // the value to fill into the triggering field are not shown.
 TEST_F(AutofillAiSuggestionGeneratorTest, EmptyMainTextForStructuredAttribute) {
   EntityInstance passport =
-      test::GetPassportEntityInstanceWithRandomGuid({.name = u"Miller"});
+      GetPassportEntityInstanceWithRandomGuid({.name = u"Miller"});
   SetEntities({passport});
 
   base::optional_ref<const AttributeInstance> name =
@@ -507,13 +486,13 @@ TEST_F(AutofillAiSuggestionGeneratorTest, EmptyMainTextForStructuredAttribute) {
 
 TEST_F(AutofillAiSuggestionGeneratorTest,
        GetFillingSuggestion_DedupeSuggestions) {
-  EntityInstance passport1 = test::GetPassportEntityInstanceWithRandomGuid();
-  EntityInstance passport2 = test::GetPassportEntityInstanceWithRandomGuid(
+  EntityInstance passport1 = GetPassportEntityInstanceWithRandomGuid();
+  EntityInstance passport2 = GetPassportEntityInstanceWithRandomGuid(
       {.name = u"Jon Doe", .number = u"927908CYGAS1"});
-  EntityInstance passport3 = test::GetPassportEntityInstanceWithRandomGuid(
-      {.expiry_date = u"2001-12-01"});
+  EntityInstance passport3 =
+      GetPassportEntityInstanceWithRandomGuid({.expiry_date = u"2001-12-01"});
   EntityInstance passport4 =
-      test::GetPassportEntityInstanceWithRandomGuid({.expiry_date = nullptr});
+      GetPassportEntityInstanceWithRandomGuid({.expiry_date = nullptr});
   SetEntities({passport1, passport2, passport3, passport4});
   // Sets the usage such that the entities are frequency ranked as `passport2`,
   // `passport1`.
@@ -534,12 +513,14 @@ TEST_F(AutofillAiSuggestionGeneratorTest,
 // suggestion is shown to the user.
 TEST_F(AutofillAiSuggestionGeneratorTest,
        GetFillingSuggestion_DedupeSuggestions_FavorServerSuggestions) {
-  EntityInstance passport1 = test::GetPassportEntityInstanceWithRandomGuid({});
-  EntityInstance passport2 = test::GetPassportEntityInstanceWithRandomGuid({});
-  EntityInstance passport3 = test::GetPassportEntityInstanceWithRandomGuid(
-      {.record_type = EntityInstance::RecordType::kServerWallet});
-  EntityInstance passport4 = test::GetPassportEntityInstanceWithRandomGuid(
-      {.record_type = EntityInstance::RecordType::kServerWallet});
+  EntityInstance passport1 = GetPassportEntityInstanceWithRandomGuid({});
+  EntityInstance passport2 = GetPassportEntityInstanceWithRandomGuid({});
+  EntityInstance passport3 =
+      MaskEntityInstance(GetPassportEntityInstanceWithRandomGuid(
+          {.record_type = EntityInstance::RecordType::kServerWallet}));
+  EntityInstance passport4 =
+      MaskEntityInstance(GetPassportEntityInstanceWithRandomGuid(
+          {.record_type = EntityInstance::RecordType::kServerWallet}));
   SetEntities({passport1, passport2, passport3, passport4});
   SetForm({NAME_FULL, PASSPORT_NUMBER, PASSPORT_ISSUING_COUNTRY});
 
@@ -566,10 +547,11 @@ TEST_F(AutofillAiSuggestionGeneratorTest,
 TEST_F(
     AutofillAiSuggestionGeneratorTest,
     GetFillingSuggestion_DedupeSuggestions_ServerSuggestionIsSubsetOfLocalSuggestion) {
-  EntityInstance passport1 = test::GetPassportEntityInstanceWithRandomGuid();
-  EntityInstance passport2 = test::GetPassportEntityInstanceWithRandomGuid(
-      {.expiry_date = nullptr,
-       .record_type = EntityInstance::RecordType::kServerWallet});
+  EntityInstance passport1 = GetPassportEntityInstanceWithRandomGuid();
+  EntityInstance passport2 =
+      MaskEntityInstance(GetPassportEntityInstanceWithRandomGuid(
+          {.expiry_date = nullptr,
+           .record_type = EntityInstance::RecordType::kServerWallet}));
   SetEntities({passport1, passport2});
 
   SetForm({NAME_FULL, PASSPORT_NUMBER, PASSPORT_ISSUING_COUNTRY,
@@ -594,11 +576,34 @@ TEST_F(
               SuggestionsAre(HasMainText(GetPassportName(passport1))));
 }
 
+// Test that if a local entity's obfuscated attribute ends in the same suffix as
+// a server's obfuscated attribute, we dedupe the local entity.
+TEST_F(AutofillAiSuggestionGeneratorTest,
+       GetFillingSuggestion_DedupeSuggestions_SameSuffix) {
+  EntityInstance passport1 = GetPassportEntityInstanceWithRandomGuid(
+      {.name = u"Pippi", .number = u"1234567890"});
+  EntityInstance passport2 =
+      MaskEntityInstance(GetPassportEntityInstanceWithRandomGuid(
+          {.name = u"Pippi",
+           .number = u"7890",
+           .record_type = EntityInstance::RecordType::kServerWallet}));
+  SetEntities({passport1, passport2});
+  SetForm({NAME_FULL, PASSPORT_NUMBER});
+
+  std::vector<Suggestion> suggestions =
+      CreateAutofillAiFillingSuggestions(field(0));
+  ASSERT_EQ(suggestions.size(), 3u);
+  const Suggestion::AutofillAiPayload* payload =
+      std::get_if<Suggestion::AutofillAiPayload>(&suggestions[0].payload);
+  ASSERT_TRUE(payload);
+  EXPECT_EQ(payload->guid, passport2.guid());
+}
+
 TEST_F(AutofillAiSuggestionGeneratorTest,
        GetFillingSuggestion_GroupEntitiesOfSameType) {
-  EntityInstance passport1 = test::GetPassportEntityInstanceWithRandomGuid(
+  EntityInstance passport1 = GetPassportEntityInstanceWithRandomGuid(
       {.name = u"Bruno", .use_count = 1});
-  EntityInstance passport2 = test::GetPassportEntityInstanceWithRandomGuid(
+  EntityInstance passport2 = GetPassportEntityInstanceWithRandomGuid(
       {.name = u"Jon Doe", .number = u"927908CYGAS1", .use_count = 10});
   EntityInstance drivers_license1 =
       test::GetDriversLicenseEntityInstanceWithRandomGuid({.use_count = 9});
@@ -620,17 +625,17 @@ TEST_F(AutofillAiSuggestionGeneratorTest,
 
 TEST_F(AutofillAiSuggestionGeneratorTest,
        GetFillingSuggestion_CustomOrderingForFlightReservation) {
-  EntityInstance passport1 = test::GetPassportEntityInstanceWithRandomGuid(
+  EntityInstance passport1 = GetPassportEntityInstanceWithRandomGuid(
       {.name = u"Bruno", .use_count = 16});
-  EntityInstance passport2 = test::GetPassportEntityInstanceWithRandomGuid(
+  EntityInstance passport2 = GetPassportEntityInstanceWithRandomGuid(
       {.name = u"Jon Doe", .number = u"927908CYGAS1", .use_count = 15});
   EntityInstance flight_reservation1 =
-      test::GetFlightReservationEntityInstanceWithRandomGuid(
+      GetFlightReservationEntityInstanceWithRandomGuid(
           {.name = u"Peter",
            .departure_time = base::Time::UnixEpoch(),
            .use_count = 10});
   EntityInstance flight_reservation2 =
-      test::GetFlightReservationEntityInstanceWithRandomGuid(
+      GetFlightReservationEntityInstanceWithRandomGuid(
           {.name = u"Jacob",
            .departure_time = base::Time::UnixEpoch() + base::Days(1),
            .use_count = 12});
@@ -652,7 +657,7 @@ TEST_F(AutofillAiSuggestionGeneratorTest,
 // Tests that an "Undo Autofill" suggestion is appended if the trigger field
 // is autofilled.
 TEST_F(AutofillAiSuggestionGeneratorTest, GetFillingSuggestions_Undo) {
-  SetEntities({test::GetPassportEntityInstanceWithRandomGuid()});
+  SetEntities({GetPassportEntityInstanceWithRandomGuid()});
   SetForm({PASSPORT_NUMBER});
 
   EXPECT_THAT(CreateAutofillAiFillingSuggestions(field(0)),
@@ -666,7 +671,7 @@ TEST_F(AutofillAiSuggestionGeneratorTest, GetFillingSuggestions_Undo) {
 // label so that the final label isn't empty.
 TEST_F(AutofillAiSuggestionGeneratorTest,
        LabelGeneration_SingleEntity_AtLeastOneLabelAdded) {
-  SetEntities({test::GetPassportEntityInstanceWithRandomGuid()});
+  SetEntities({GetPassportEntityInstanceWithRandomGuid()});
   SetForm({PASSPORT_NUMBER, NAME_FULL});
   EXPECT_THAT(CreateAutofillAiFillingSuggestions(field(0)),
               SuggestionsAre(HasLabel(u"Passport · Pippi Långstrump")));
@@ -692,8 +697,8 @@ TEST_F(
 // disambiguating label (passport name), we the latter as a label.
 TEST_F(AutofillAiSuggestionGeneratorTest,
        LabelGeneration_TwoSuggestions_SameMainText_AddTopDifferentiatingLabel) {
-  EntityInstance passport1 = test::GetPassportEntityInstanceWithRandomGuid();
-  EntityInstance passport2 = test::GetPassportEntityInstanceWithRandomGuid(
+  EntityInstance passport1 = GetPassportEntityInstanceWithRandomGuid();
+  EntityInstance passport2 = GetPassportEntityInstanceWithRandomGuid(
       {.name = u"Machado de Assis", .number = u"123"});
   SetEntities({passport1, passport2});
   // Sets the usage such that the entities are frequency ranked as `passport1`,
@@ -714,11 +719,11 @@ TEST_F(AutofillAiSuggestionGeneratorTest,
 TEST_F(
     AutofillAiSuggestionGeneratorTest,
     LabelGeneration_TwoSuggestions_MainTextIsDisambiguating_DifferentMainText_AtLeastOneLabel) {
-  SetEntities({test::GetPassportEntityInstanceWithRandomGuid({.use_count = 0}),
-               test::GetPassportEntityInstanceWithRandomGuid(
-                   {.name = u"Machado de Assis",
-                    .country = u"Brazil",
-                    .use_count = 1})});
+  SetEntities(
+      {GetPassportEntityInstanceWithRandomGuid({.use_count = 0}),
+       GetPassportEntityInstanceWithRandomGuid({.name = u"Machado de Assis",
+                                                .country = u"Brazil",
+                                                .use_count = 1})});
 
   // Note that passport name is the first at the rank of disambiguating texts.
   SetForm({NAME_FULL, PASSPORT_ISSUING_COUNTRY, PASSPORT_NUMBER});
@@ -733,8 +738,8 @@ TEST_F(
     AutofillAiSuggestionGeneratorTest,
     LabelGeneration_TwoSuggestions_MainTextIsDisambiguating_SameMainText_AddDifferentiatingLabel) {
   EntityInstance passport1 =
-      test::GetPassportEntityInstanceWithRandomGuid({.use_count = 1});
-  EntityInstance passport2 = test::GetPassportEntityInstanceWithRandomGuid(
+      GetPassportEntityInstanceWithRandomGuid({.use_count = 1});
+  EntityInstance passport2 = GetPassportEntityInstanceWithRandomGuid(
       {.country = u"Brazil", .use_count = 0});
   SetEntities({passport1, passport2});
   webdata_helper().WaitUntilIdle();
@@ -753,8 +758,8 @@ TEST_F(
     AutofillAiSuggestionGeneratorTest,
     LabelGeneration_TwoSuggestions_MainTextIsNotTopDisambiguatingType_addDifferentiatingLabel) {
   EntityInstance passport1 =
-      test::GetPassportEntityInstanceWithRandomGuid({.use_count = 1});
-  EntityInstance passport2 = test::GetPassportEntityInstanceWithRandomGuid(
+      GetPassportEntityInstanceWithRandomGuid({.use_count = 1});
+  EntityInstance passport2 = GetPassportEntityInstanceWithRandomGuid(
       {.name = u"Machado de Assis", .country = u"Brazil", .use_count = 0});
   SetEntities({passport1, passport2});
   webdata_helper().WaitUntilIdle();
@@ -792,14 +797,14 @@ TEST_F(AutofillAiSuggestionGeneratorTest,
 TEST_F(
     AutofillAiSuggestionGeneratorTest,
     LabelGeneration_ThreeSuggestions_WithMissingValues_AddDifferentiatingLabel) {
-  EntityInstance passport1 = test::GetPassportEntityInstanceWithRandomGuid(
+  EntityInstance passport1 = GetPassportEntityInstanceWithRandomGuid(
       {.country = u"Brazil", .use_count = 2});
   // This passport can only fill the triggering number field and has no country
   // data label to add.
-  EntityInstance passport2 = test::GetPassportEntityInstanceWithRandomGuid(
+  EntityInstance passport2 = GetPassportEntityInstanceWithRandomGuid(
       {.number = u"9876", .country = nullptr, .use_count = 1});
   EntityInstance passport3 =
-      test::GetPassportEntityInstanceWithRandomGuid({.use_count = 0});
+      GetPassportEntityInstanceWithRandomGuid({.use_count = 0});
   SetEntities({passport1, passport2, passport3});
   webdata_helper().WaitUntilIdle();
 
@@ -816,8 +821,8 @@ TEST_F(
 TEST_F(
     AutofillAiSuggestionGeneratorTest,
     LabelGeneration_TwoSuggestions_PassportsWithDifferentExpiryDates_AtLeastOneLabel) {
-  SetEntities({test::GetPassportEntityInstanceWithRandomGuid({.use_count = 0}),
-               test::GetPassportEntityInstanceWithRandomGuid(
+  SetEntities({GetPassportEntityInstanceWithRandomGuid({.use_count = 0}),
+               GetPassportEntityInstanceWithRandomGuid(
                    {.expiry_date = u"2018-12-29", .use_count = 1})});
   SetForm({PASSPORT_NUMBER, PASSPORT_ISSUING_COUNTRY, NAME_FULL,
            PASSPORT_EXPIRATION_DATE});
@@ -840,9 +845,9 @@ TEST_F(AutofillAiSuggestionGeneratorTest,
        LabelGeneration_FlightReservation_DepartureDateDisambiguation) {
   base::Time departure_time;
   ASSERT_TRUE(base::Time::FromUTCString("2025-01-01", &departure_time));
-  SetEntities({test::GetFlightReservationEntityInstanceWithRandomGuid(
+  SetEntities({GetFlightReservationEntityInstanceWithRandomGuid(
                    {.ticket_number = u"123", .departure_time = departure_time}),
-               test::GetFlightReservationEntityInstanceWithRandomGuid(
+               GetFlightReservationEntityInstanceWithRandomGuid(
                    {.ticket_number = u"234",
                     .departure_time = departure_time + base::Days(1)})});
   SetForm({NAME_FULL, FLIGHT_RESERVATION_TICKET_NUMBER});
@@ -862,7 +867,7 @@ TEST_F(AutofillAiSuggestionGeneratorTest,
   ASSERT_TRUE(
       base::Time::FromUTCString("2025-02-16T15:30:15", &departure_time));
   SetEntities(
-      {test::GetFlightReservationEntityInstanceWithRandomGuid({
+      {GetFlightReservationEntityInstanceWithRandomGuid({
            .confirmation_code = u"ABC",
            .name = u"John Doe",
            // The departure time is set to 1 hour before the other
@@ -870,7 +875,7 @@ TEST_F(AutofillAiSuggestionGeneratorTest,
            // as flight reservations suggestions are sorted by departure time.
            .departure_time = departure_time - base::Hours(1),
        }),
-       test::GetFlightReservationEntityInstanceWithRandomGuid({
+       GetFlightReservationEntityInstanceWithRandomGuid({
            .confirmation_code = u"DEF",
            .name = u"Bob Doe",
            .departure_time = departure_time,
@@ -892,7 +897,7 @@ TEST_F(AutofillAiSuggestionGeneratorTest,
   ASSERT_TRUE(
       base::Time::FromUTCString("2025-02-16T15:30:15", &departure_time));
   SetEntities(
-      {test::GetFlightReservationEntityInstanceWithRandomGuid({
+      {GetFlightReservationEntityInstanceWithRandomGuid({
            .flight_number = u"123",
            .ticket_number = u"ABC",
            // The departure time is set to 1 hour before the other
@@ -900,7 +905,7 @@ TEST_F(AutofillAiSuggestionGeneratorTest,
            // as flight reservations suggestions are sorted by departure time.
            .departure_time = departure_time - base::Hours(1),
        }),
-       test::GetFlightReservationEntityInstanceWithRandomGuid({
+       GetFlightReservationEntityInstanceWithRandomGuid({
            .flight_number = u"234",
            .ticket_number = u"DEF",
            .departure_time = departure_time,
@@ -924,6 +929,47 @@ TEST_F(AutofillAiSuggestionGeneratorTest, WalletSuggestionsShowIPH) {
   raw_ptr<const base::Feature> kIphFeature =
       &feature_engagement::kIPHAutofillAiValuablesFeature;
   EXPECT_THAT(suggestions, SuggestionsAre(HasIphFeature(kIphFeature)));
+}
+
+class AutofillAiSuggestionGeneratorSplitManageSuggestionTest
+    : public AutofillAiSuggestionGeneratorTest {
+ public:
+  AutofillAiSuggestionGeneratorSplitManageSuggestionTest()
+      : AutofillAiSuggestionGeneratorTest(GetEnabledFeatures(),
+                                          /*disabled_features=*/{}) {}
+
+ private:
+  static std::vector<base::test::FeatureRef> GetEnabledFeatures() {
+    auto features = GetDefaultEnabledFeatures();
+    features.push_back(
+        autofill::features::kSuggestionManageButtonSplitForEnhancedAutofill);
+    return features;
+  }
+};
+
+TEST_F(AutofillAiSuggestionGeneratorSplitManageSuggestionTest,
+       SuggestionsFooterContainsManageAutofillAiIdentityDocsSuggestion) {
+  SetEntities({GetPassportEntityInstanceWithRandomGuid()});
+  SetForm({PASSPORT_NUMBER});
+  std::vector<Suggestion> suggestions =
+      CreateAutofillAiFillingSuggestions(field(0));
+  EXPECT_THAT(
+      suggestions,
+      ElementsAre(HasType(SuggestionType::kFillAutofillAi),
+                  HasType(SuggestionType::kSeparator),
+                  HasType(SuggestionType::kManageAutofillAiIdentityDocs)));
+}
+
+TEST_F(AutofillAiSuggestionGeneratorSplitManageSuggestionTest,
+       SuggestionsFooterContainsManageAutofillAiTravelSuggestion) {
+  SetEntities({test::GetVehicleEntityInstanceWithRandomGuid()});
+  SetForm({VEHICLE_LICENSE_PLATE});
+  std::vector<Suggestion> suggestions =
+      CreateAutofillAiFillingSuggestions(field(0));
+  EXPECT_THAT(suggestions,
+              ElementsAre(HasType(SuggestionType::kFillAutofillAi),
+                          HasType(SuggestionType::kSeparator),
+                          HasType(SuggestionType::kManageAutofillAiTravel)));
 }
 
 }  // namespace

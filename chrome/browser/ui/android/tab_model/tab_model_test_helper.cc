@@ -39,7 +39,7 @@
 
 TestTabModel::TestTabModel(Profile* profile,
                            chrome::android::ActivityType activity_type)
-    : TabModel(profile, activity_type) {}
+    : TabModel(profile, activity_type, TabModel::TabModelType::kStandard) {}
 
 TestTabModel::~TestTabModel() = default;
 
@@ -162,6 +162,11 @@ void TestTabModel::SetOpenerForTab(tabs::TabHandle target,
   NOTIMPLEMENTED();
 }
 
+tabs::TabInterface* TestTabModel::GetOpenerForTab(tabs::TabHandle target) {
+  NOTIMPLEMENTED();
+  return nullptr;
+}
+
 void TestTabModel::DiscardTab(tabs::TabHandle tab) {
   NOTIMPLEMENTED();
 }
@@ -268,6 +273,16 @@ void TestTabModel::MoveTabGroupToWindow(tab_groups::TabGroupId group_id,
   NOTIMPLEMENTED();
 }
 
+bool TestTabModel::IsThisTabListEditable() {
+  NOTIMPLEMENTED();
+  return true;
+}
+
+bool TestTabModel::IsClosingAllTabs() {
+  NOTIMPLEMENTED();
+  return false;
+}
+
 #if BUILDFLAG(IS_DESKTOP_ANDROID)
 void TestTabModel::AssociateWithBrowserWindow(BrowserWindowInterface* browser) {
   scoped_unowned_user_data_ =
@@ -279,7 +294,7 @@ void TestTabModel::AssociateWithBrowserWindow(BrowserWindowInterface* browser) {
 OwningTestTabModel::OwningTestTabModel(
     Profile* profile,
     chrome::android::ActivityType activity_type)
-    : TabModel(profile, activity_type) {
+    : TabModel(profile, activity_type, TabModel::TabModelType::kStandard) {
   TabModelList::AddTabModel(this);
 }
 
@@ -458,6 +473,12 @@ void OwningTestTabModel::SetOpenerForTab(tabs::TabHandle target,
   NOTIMPLEMENTED();
 }
 
+tabs::TabInterface* OwningTestTabModel::GetOpenerForTab(
+    tabs::TabHandle target) {
+  NOTIMPLEMENTED();
+  return nullptr;
+}
+
 void OwningTestTabModel::DiscardTab(tabs::TabHandle tab) {
   NOTIMPLEMENTED();
 }
@@ -563,6 +584,16 @@ void OwningTestTabModel::MoveTabGroupToWindow(tab_groups::TabGroupId group_id,
                                               SessionID destination_window_id,
                                               int destination_index) {
   NOTIMPLEMENTED();
+}
+
+bool OwningTestTabModel::IsThisTabListEditable() {
+  NOTIMPLEMENTED();
+  return true;
+}
+
+bool OwningTestTabModel::IsClosingAllTabs() {
+  NOTIMPLEMENTED();
+  return false;
 }
 
 TabAndroid* OwningTestTabModel::AddEmptyTab(

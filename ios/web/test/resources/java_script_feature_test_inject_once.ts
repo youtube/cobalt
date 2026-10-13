@@ -8,7 +8,7 @@
  */
 
 import {CrWebApi, gCrWeb} from '//ios/web/public/js_messaging/resources/gcrweb.js';
-import {sendWebKitMessage} from '//ios/web/public/js_messaging/resources/utils.js';
+import {sendWebKitMessage, sendWebKitMessageWithReply} from '//ios/web/public/js_messaging/resources/utils.js';
 
 const errorReceivedCount_: number = 0;
 
@@ -28,16 +28,24 @@ function replyWithPostMessage(messageBody: object) {
   sendWebKitMessage('FakeHandlerName', messageBody);
 }
 
+function replyWithPostMessageAndPostReply(messageBody: object) {
+  sendWebKitMessageWithReply('FakeHandlerName', messageBody).then((reply) => {
+    sendWebKitMessageWithReply('FakeHandlerName', reply);
+  });
+}
+
 const body = document.getElementsByTagName('body')[0];
 if (body) {
   body.appendChild(document.createTextNode('injected_script_loaded'));
 }
 
-const javaScriptFeatureTest = new CrWebApi();
+const javaScriptFeatureTest = new CrWebApi('javaScriptFeatureTest');
 
 javaScriptFeatureTest.addFunction('getErrorCount', getErrorCount);
 javaScriptFeatureTest.addFunction('replaceDivContents', replaceDivContents);
 javaScriptFeatureTest.addFunction('replyWithPostMessage', replyWithPostMessage);
+javaScriptFeatureTest.addFunction(
+    'replyWithPostMessageAndPostReply', replyWithPostMessageAndPostReply);
 javaScriptFeatureTest.addProperty('errorReceivedCount', errorReceivedCount_);
 
-gCrWeb.registerApi('javaScriptFeatureTest', javaScriptFeatureTest);
+gCrWeb.registerApi(javaScriptFeatureTest);

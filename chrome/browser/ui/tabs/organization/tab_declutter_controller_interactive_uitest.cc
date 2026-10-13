@@ -21,6 +21,7 @@
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/tab_search_feature.h"
 #include "chrome/browser/ui/tabs/organization/tab_declutter_controller.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/ui_features.h"
@@ -85,7 +86,8 @@ class FakeTabDeclutterObserver : public TabDeclutterObserver {
 class TabDeclutterControllerBrowserTest : public InProcessBrowserTest {
  public:
   TabDeclutterControllerBrowserTest() {
-    feature_list_.InitWithFeatures({features::kTabstripDeclutter}, {});
+    feature_list_.InitWithFeatures({features::kTabstripDeclutter},
+                                   {features::kGlic});
   }
 
   void SetUpOnMainThread() override {
@@ -123,11 +125,6 @@ class TabDeclutterControllerBrowserTest : public InProcessBrowserTest {
   }
 
   views::View* nudge_container() {
-    if (features::HasTabSearchToolbarButton()) {
-      return BrowserElementsViews::From(browser())->GetView(
-          kTabStripActionContainerElementId);
-    }
-
     return BrowserElementsViews::From(browser())->GetViewAs<TabSearchContainer>(
         kTabSearchContainerElementId);
   }
@@ -301,24 +298,12 @@ IN_PROC_BROWSER_TEST_F(TabDeclutterControllerBrowserTest,
   EXPECT_EQ(initial_nudge_interval,
             tab_declutter_controller()->nudge_timer_interval());
 
-  views::LabelButton* close_button;
-  if (features::HasTabSearchToolbarButton()) {
-    TabStripActionContainer* tab_strip_action_container =
-        BrowserElementsViews::From(browser())
-            ->GetViewAs<TabStripActionContainer>(
-                kTabStripActionContainerElementId);
-    EXPECT_TRUE(
-        tab_strip_action_container->tab_declutter_button()->GetVisible());
-    close_button = tab_strip_action_container->tab_declutter_button()
-                       ->close_button_for_testing();
-  } else {
-    TabSearchContainer* tab_search_container =
-        BrowserElementsViews::From(browser())->GetViewAs<TabSearchContainer>(
-            kTabSearchContainerElementId);
-    EXPECT_TRUE(tab_search_container->tab_declutter_button()->GetVisible());
-    close_button = tab_search_container->tab_declutter_button()
-                       ->close_button_for_testing();
-  }
+  TabSearchContainer* tab_search_container =
+      BrowserElementsViews::From(browser())->GetViewAs<TabSearchContainer>(
+          kTabSearchContainerElementId);
+  EXPECT_TRUE(tab_search_container->tab_declutter_button()->GetVisible());
+  views::LabelButton* close_button =
+      tab_search_container->tab_declutter_button()->close_button_for_testing();
 
   // Click the close button.
   close_button->OnMousePressed(

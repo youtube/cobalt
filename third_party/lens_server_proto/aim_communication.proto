@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-syntax = 'proto3';
+edition = "2024";
 
 option optimize_for = LITE_RUNTIME;
 
@@ -14,6 +14,8 @@ import "aim_query.proto";
 // support a feature for it to WAI. Sent in the handshake request/response so
 // both ends of communication are aware of what features to support.
 enum FeatureCapability {
+  option features.enum_type = CLOSED;
+
   // Default value. The only supported feature is sending a query from the
   // client to AIM.
   DEFAULT = 0;
@@ -26,6 +28,9 @@ enum FeatureCapability {
 
   // AiModeUpdateThreadContextLibrary() method
   THREAD_CONTEXT_LIBRARY = 18;
+
+  // notifyZeroStateRendered() method
+  NOTIFY_ZERO_STATE_RENDERED = 20;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -59,7 +64,7 @@ message CobrowsingDisplayModeParams {
 
 // Message from client to AIM to update the display mode for cobrowsing.
 message SetCobrowsingDisplayMode {
-  CobrowsingDisplayModeParams payload = 1;
+  CobrowsingDisplayModeParams params = 1;
 }
 
 // Payload for the AiModeOpenThreadsView event.
@@ -100,6 +105,7 @@ message AimToClientMessage {
     EnterBasicMode enter_basic_mode = 4;
     ExitBasicMode exit_basic_mode = 5;
     UpdateThreadContextLibrary update_thread_context_library = 7;
+    NotifyZeroStateRendered notify_zero_state_rendered = 8;
   }
 }
 
@@ -114,6 +120,11 @@ message EnterBasicMode {}
 
 // Message AIM sends to clients to exit basic mode.
 message ExitBasicMode {}
+
+// Message AIM sends to clients to notify when zero state is rendered.
+message NotifyZeroStateRendered {
+  bool is_zero_state_rendered = 1;
+}
 
 // Message AIM sends to clients to update the thread context library.
 message UpdateThreadContextLibrary {

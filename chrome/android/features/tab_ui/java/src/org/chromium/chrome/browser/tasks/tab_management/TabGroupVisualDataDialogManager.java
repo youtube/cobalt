@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.tasks.tab_management;
 
+import static org.chromium.build.NullUtil.assertNonNull;
 import static org.chromium.build.NullUtil.assumeNonNull;
 
 import android.content.Context;
@@ -11,6 +12,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
+import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -144,6 +146,20 @@ public class TabGroupVisualDataDialogManager {
         mInitialGroupTitle = TabGroupTitleUtils.getDisplayableTitle(mContext, filter, tabGroupId);
         AppCompatEditText editTextView = mCustomView.findViewById(R.id.title_input_text);
         editTextView.setText(mInitialGroupTitle);
+        editTextView.setAccessibilityDelegate(
+                new View.AccessibilityDelegate() {
+                    @Override
+                    public void onInitializeAccessibilityNodeInfo(
+                            View host, AccessibilityNodeInfo info) {
+                        super.onInitializeAccessibilityNodeInfo(host, info);
+                        String originalText =
+                                info.getText() == null ? "" : info.getText().toString();
+                        info.setText(
+                                mContext.getString(
+                                        R.string.accessibility_tab_group_title_field,
+                                        originalText));
+                    }
+                });
 
         List<Integer> colors = TabGroupColorUtils.getTabGroupColorIdList();
         // TODO(b/330597857): Allow a dynamic incognito setting for the color picker.
@@ -233,7 +249,7 @@ public class TabGroupVisualDataDialogManager {
     }
 
     public @TabGroupColorId int getCurrentColorId() {
-        return mColorPickerCoordinator.getSelectedColorSupplier().get();
+        return assertNonNull(mColorPickerCoordinator.getSelectedColorSupplier().get());
     }
 
     private void setDescriptionText(TabGroupModelFilter filter) {

@@ -16,6 +16,7 @@
 #include "base/memory/ptr_util.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread_restrictions.h"
+#include "base/trace_event/trace_event.h"
 #include "base/unguessable_token.h"
 #include "base/win/scoped_handle.h"
 #include "components/viz/common/resources/shared_image_format_utils.h"
@@ -37,7 +38,6 @@ std::unique_ptr<MappableBufferDXGI> MappableBufferDXGI::CreateFromHandle(
     CopyNativeBufferToShMemCallback copy_native_buffer_to_shmem_callback,
     scoped_refptr<base::UnsafeSharedMemoryPool> pool) {
   DCHECK(handle.dxgi_handle().IsValid());
-  CHECK(viz::HasEquivalentBufferFormat(format));
   return base::WrapUnique(new MappableBufferDXGI(
       size, format, std::move(handle).dxgi_handle(),
       std::move(copy_native_buffer_to_shmem_callback), std::move(pool)));
@@ -94,6 +94,7 @@ base::OnceClosure MappableBufferDXGI::AllocateForTesting(
 }
 
 bool MappableBufferDXGI::Map() {
+  TRACE_EVENT0("gpu", "MappableBufferDXGI::Map");
   base::WaitableEvent event;
   bool mapping_result = false;
   // Note: this can be called from multiple threads at the same time. Some of
@@ -114,6 +115,7 @@ bool MappableBufferDXGI::Map() {
 }
 
 void MappableBufferDXGI::MapAsync(base::OnceCallback<void(bool)> result_cb) {
+  TRACE_EVENT0("gpu", "MappableBufferDXGI::MapAsync");
   std::optional<base::OnceCallback<void(void)>> early_result;
   early_result = DoMapAsync(std::move(result_cb));
   // Can't run the callback inside DoMapAsync because it grabs the lock.
@@ -188,6 +190,7 @@ std::optional<base::OnceCallback<void(void)>> MappableBufferDXGI::DoMapAsync(
 }
 
 void MappableBufferDXGI::CheckAsyncMapResult(bool result) {
+  TRACE_EVENT0("gpu", "MappableBufferDXGI::CheckAsyncMapResult");
   std::vector<base::OnceCallback<void(bool)>> map_callbacks;
   {
     // Must not hold the lock during the callbacks calls.

@@ -38,7 +38,8 @@
 namespace {
 bool g_prewarming_enabled_for_testing_ = true;
 std::optional<Profile*> g_forced_profile_for_launch_;
-std::optional<network::mojom::ConnectionType> g_forced_connection_type_;
+std::optional<net::NetworkChangeNotifier::ConnectionType>
+    g_forced_connection_type_;
 }  // namespace
 
 namespace glic {
@@ -284,8 +285,8 @@ void GlicProfileManager::ShowProfilePicker() {
 
   // TODO(crbug.com/450679848): Profile Picker doesn't make sense on ChromeOS.
 #if !BUILDFLAG(IS_CHROMEOS)
-// TODO(b/470059315): Decide if this makes sense on desktop android.
-#if !BUILDFLAG(IS_ANDROID)  // NEEDS_ANDROID_IMPL
+// Profile picker won't be used on Android.
+#if !BUILDFLAG(IS_ANDROID)
   ProfilePicker::Show(
       ProfilePicker::Params::ForGlicManager(std::move(callback)));
 #endif
@@ -301,7 +302,7 @@ void GlicProfileManager::DidSelectProfile(Profile* profile) {
       GlicKeyedServiceFactory::GetGlicKeyedService(profile);
 
   if (!GlicEnabling::HasConsentedForProfile(profile) &&
-      !base::FeatureList::IsEnabled(features::kGlicTrustFirstOnboarding)) {
+      !GlicEnabling::IsTrustFirstOnboardingEnabledForProfile(profile)) {
 #if !BUILDFLAG(IS_ANDROID)
     // Open a browser and show the FRE in a new tab.
     chrome::ScopedTabbedBrowserDisplayer displayer(profile);
@@ -359,7 +360,7 @@ void GlicProfileManager::ForceProfileForLaunchForTesting(
 
 // static
 void GlicProfileManager::ForceConnectionTypeForTesting(
-    std::optional<network::mojom::ConnectionType> connection_type) {
+    std::optional<net::NetworkChangeNotifier::ConnectionType> connection_type) {
   g_forced_connection_type_ = connection_type;
 }
 
@@ -411,7 +412,8 @@ void GlicProfileManager::CanPreloadForProfile(Profile* profile,
   }
 
   auto on_got_connection_type = [](ShouldPreloadCallback callback,
-                                   network::mojom::ConnectionType type) {
+                                   net::NetworkChangeNotifier::ConnectionType
+                                       type) {
     std::move(callback).Run(
         network::NetworkConnectionTracker::IsConnectionCellular(type)
             ? GlicPrewarmingChecksResult::kCellularConnection
@@ -420,7 +422,7 @@ void GlicProfileManager::CanPreloadForProfile(Profile* profile,
   auto callbacks = base::SplitOnceCallback(std::move(callback));
 
   // Attempt to synchronously query the connection type.
-  network::mojom::ConnectionType connection_type;
+  net::NetworkChangeNotifier::ConnectionType connection_type;
   bool synchronously_got_connection_type = false;
   if (g_forced_connection_type_) {
     synchronously_got_connection_type = true;

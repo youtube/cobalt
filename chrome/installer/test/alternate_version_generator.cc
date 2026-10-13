@@ -398,7 +398,7 @@ bool UpdateVersionIfMatch(const base::FilePath& image_file,
   }
 
   base::win::PEImageAsData image(
-      reinterpret_cast<HMODULE>(image_mapping.data()));
+      reinterpret_cast<HMODULE>(image_mapping.mutable_bytes().data()));
   // PEImage class does not support other-architecture images. Skip over such
   // files.
   if (image.GetNTHeaders()->OptionalHeader.Magic !=
@@ -497,7 +497,7 @@ bool ApplyAlternateVersion(const base::FilePath& work_dir,
     return false;
   }
 
-  // Update the manifest (revise post-XP; see https://crbug.com/581133).
+  // Update the manifest (revise post-XP; see https://crbug.com/41236592).
   base::FilePath current_manifest =
       chrome_bin.Append(ctx.new_version_str)
           .Append(ctx.current_version_str + L".manifest");

@@ -13,6 +13,7 @@
 #include "base/containers/flat_set.h"
 #include "base/containers/to_vector.h"
 #include "base/functional/bind.h"
+#include "base/notreached.h"
 #include "chrome/browser/actor/ui/actor_ui_tab_controller.h"
 #include "chrome/browser/media/webrtc/media_capture_devices_dispatcher.h"
 #include "chrome/browser/media/webrtc/media_stream_capture_indicator.h"
@@ -51,11 +52,13 @@ bool CompareAlerts::operator()(TabAlert first, TabAlert second) const {
            {TabAlert::kSerialConnected, 8},
            {TabAlert::kActorWaitingOnUser, 7},
            {TabAlert::kActorAccessing, 6},
+#if BUILDFLAG(ENABLE_GLIC)
            {TabAlert::kGlicAccessing, 5},
            {TabAlert::kGlicSharing, 4},
-           // NOTE: VR must take priority over the audio alert ones
-           // because most VR content has audio and its usage is implied by the
-           // VR icon.
+#endif  // BUILDFLAG(ENABLE_GLIC)
+        // NOTE: VR must take priority over the audio alert ones
+        // because most VR content has audio and its usage is implied by the
+        // VR icon.
            {TabAlert::kVrPresentingInHeadset, 3},
            {TabAlert::kPipPlaying, 2},
            {TabAlert::kAudioMuting, 1},
@@ -171,23 +174,17 @@ std::u16string TabAlertController::GetTabAlertStateText(
     case TabAlert::kVrPresentingInHeadset:
       return l10n_util::GetStringUTF16(
           IDS_TOOLTIP_TAB_ALERT_STATE_VR_PRESENTING);
-    // TODO(crbug.com/461457730) Create new resources for ACTOR_ACCESSING of
-    // relying on GLIC_ACCESSING resources below.
     case TabAlert::kActorAccessing:
     case TabAlert::kActorWaitingOnUser:
+      return l10n_util::GetStringUTF16(
+          IDS_TOOLTIP_TAB_ALERT_STATE_ACTOR_ACCESSING);
     case TabAlert::kGlicAccessing:
 #if BUILDFLAG(ENABLE_GLIC)
       return l10n_util::GetStringUTF16(
           IDS_TOOLTIP_TAB_ALERT_STATE_GLIC_ACCESSING);
-#else
-      return u"";
-#endif
     case TabAlert::kGlicSharing:
-#if BUILDFLAG(ENABLE_GLIC)
       return l10n_util::GetStringUTF16(
           IDS_TOOLTIP_TAB_ALERT_STATE_GLIC_SHARING);
-#else
-      return u"";
 #endif
   }
   NOTREACHED();
@@ -226,17 +223,12 @@ int TabAlertController::GetAccessibleAlertStringId(const TabAlert alert_state) {
       return IDS_TAB_AX_LABEL_VR_PRESENTING;
     case TabAlert::kActorAccessing:
     case TabAlert::kActorWaitingOnUser:
+      return IDS_TAB_AX_LABEL_ACTOR_ACCESSING;
+#if BUILDFLAG(ENABLE_GLIC)
     case TabAlert::kGlicAccessing:
-#if BUILDFLAG(ENABLE_GLIC)
       return IDS_TAB_AX_LABEL_GLIC_ACCESSING;
-#else
-      NOTREACHED();
-#endif
     case TabAlert::kGlicSharing:
-#if BUILDFLAG(ENABLE_GLIC)
       return IDS_TAB_AX_LABEL_GLIC_SHARING;
-#else
-      NOTREACHED();
 #endif
   }
 }

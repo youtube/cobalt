@@ -49,7 +49,11 @@ namespace {
 const CGFloat kMinVerticalInset = 8.0;
 
 /// The placeholder leading padding.
-const CGFloat kPlaceholderLeadingPadding = 4.0;
+const CGFloat kPlaceholderLeadingPadding = 5.0;
+
+/// The vertical offset added to the text view. This is to align with the
+/// OmniboxTextFieldIOS that OmniboxTextViewIOS replaces.
+const CGFloat kVerticalOffset = 1;
 
 }  // namespace
 
@@ -452,8 +456,6 @@ const CGFloat kPlaceholderLeadingPadding = 4.0;
                           range:NSMakeRange(0, self.attributedText.length)];
   self.attributedText = attributedText;
 
-  // clearsOnInsertion calls selectAll which remove preEditing.
-  self.clearsOnInsertion = YES;
   self.preEditing = YES;
   [self.heightDelegate textViewContentChanged:self];
 }
@@ -464,7 +466,6 @@ const CGFloat kPlaceholderLeadingPadding = 4.0;
     return;
   }
   self.preEditing = NO;
-  self.clearsOnInsertion = NO;
 
   NSMutableDictionary<NSAttributedStringKey, id>* attributes =
       self.typingAttributes.mutableCopy;
@@ -473,8 +474,8 @@ const CGFloat kPlaceholderLeadingPadding = 4.0;
                 forKey:NSBackgroundColorAttributeName];
   self.typingAttributes = attributes;
 
-  // Also apply the attributes to the whole text.
   if (!self.clearingPreEditText) {
+    // Also apply the attributes to the whole text.
     NSMutableAttributedString* attributedText =
         [self.attributedText mutableCopy];
     [attributedText addAttributes:attributes
@@ -529,10 +530,13 @@ const CGFloat kPlaceholderLeadingPadding = 4.0;
 }
 
 - (CGRect)caretRectForPosition:(UITextPosition*)position {
-  // Hide the caret when the text field is showing added text (autocomplete
+  // Hide the caret in pre-edit state or when showing added text (autocomplete
   // and/or additional text).
-  return ([self hasAddedText]) ? CGRectZero
-                               : [super caretRectForPosition:position];
+  if (self.isPreEditing || [self hasAddedText]) {
+    return CGRectZero;
+  }
+
+  return [super caretRectForPosition:position];
 }
 
 - (NSArray<UITextSelectionRect*>*)selectionRectsForRange:(UITextRange*)range {
@@ -1182,7 +1186,7 @@ const CGFloat kPlaceholderLeadingPadding = 4.0;
   CGFloat verticalPadding =
       MAX(kMinVerticalInset * 2.0, (minHeight - lineHeight));
   // Distribute padding.
-  CGFloat topPadding = verticalPadding / 2.0;
+  CGFloat topPadding = verticalPadding / 2.0 + kVerticalOffset;
   CGFloat bottomPadding = verticalPadding - topPadding;
   self.textContainerInset = UIEdgeInsetsMake(topPadding, 0, bottomPadding, 0);
   _placeholderTopConstraint.constant = topPadding;

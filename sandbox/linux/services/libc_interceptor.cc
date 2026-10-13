@@ -203,13 +203,12 @@ void ProxyLocaltimeCallToBrowser(time_t input,
 
   uint8_t reply_buf[512];
   const ssize_t r = base::UnixDomainSocket::SendRecvMsg(
-      g_backchannel_fd, reply_buf, sizeof(reply_buf), nullptr, request);
+      g_backchannel_fd, reply_buf, nullptr, request);
   if (r == -1)
     return;
 
-  base::Pickle reply = base::Pickle::WithUnownedBuffer(
+  base::PickleIterator iter = base::PickleIterator::WithData(
       UNSAFE_TODO(base::span(reply_buf, base::checked_cast<size_t>(r))));
-  base::PickleIterator iter(reply);
   if (!ReadTimeStruct(&iter, output, timezone_out, timezone_out_len)) {
     UNSAFE_TODO(memset(output, 0, sizeof(struct tm)));
   }

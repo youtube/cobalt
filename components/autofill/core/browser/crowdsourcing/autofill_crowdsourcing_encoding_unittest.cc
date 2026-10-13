@@ -2623,11 +2623,7 @@ TEST_F(AutofillCrowdsourcingEncoding, ParseQueryResponse_JoinedTypes) {
   ASSERT_EQ(form.field_count(), 2U);
 
   // Validate the heuristic and server predictions.
-#if BUILDFLAG(IS_IOS)
-  EXPECT_EQ(form.field(0)->heuristic_type(), EMAIL_ADDRESS);
-#else
   EXPECT_EQ(form.field(0)->heuristic_type(), EMAIL_OR_LOYALTY_MEMBERSHIP_ID);
-#endif
   EXPECT_EQ(form.field(0)->server_type(), EMAIL_OR_LOYALTY_MEMBERSHIP_ID);
 
   // Validate that the server prediction wins for email or loyalty cards.
@@ -2668,11 +2664,7 @@ TEST_F(AutofillCrowdsourcingEncoding, ParseQueryResponse_NoJoinedTypes) {
   ASSERT_EQ(form.field_count(), 2U);
 
   // Validate the heuristic and server predictions.
-#if BUILDFLAG(IS_IOS)
-  FieldType heuristic_type = EMAIL_ADDRESS;
-#else
   FieldType heuristic_type = EMAIL_OR_LOYALTY_MEMBERSHIP_ID;
-#endif
   EXPECT_EQ(form.field(0)->heuristic_type(), heuristic_type);
   EXPECT_EQ(form.field(0)->server_type(), EMAIL_ADDRESS);
 
@@ -4019,6 +4011,38 @@ TEST_F(AutofillCrowdsourcingEncoding,
               ElementsAre(ADDRESS_HOME_LINE2));
 }
 
+TEST_F(AutofillCrowdsourcingEncoding, ParseQueryResponse_UpdatesVersion) {
+  FormData form_data;
+  form_data.set_version(FormVersion(2));
+
+  FormStructure& form_structure = SeeAndGetParsedForm(form_data);
+  form_structure.set_last_successfully_queried_version(FormVersion(1));
+
+  AutofillQueryResponse response;
+  test_api(autofill_manager())
+      .OnLoadedServerPredictions(SerializeAndEncode(response),
+                                 test::GetEncodedSignatures({form_structure}),
+                                 {form_data});
+
+  EXPECT_EQ(form_structure.last_successfully_queried_version(), FormVersion(2));
+}
+
+TEST_F(AutofillCrowdsourcingEncoding, ParseQueryResponse_SkipsOldVersion) {
+  FormData form_data;
+  form_data.set_version(FormVersion(1));
+
+  FormStructure& form_structure = SeeAndGetParsedForm(form_data);
+  form_structure.set_last_successfully_queried_version(FormVersion(2));
+
+  AutofillQueryResponse response;
+  test_api(autofill_manager())
+      .OnLoadedServerPredictions(SerializeAndEncode(response),
+                                 test::GetEncodedSignatures({form_structure}),
+                                 {form_data});
+
+  EXPECT_EQ(form_structure.last_successfully_queried_version(), FormVersion(2));
+}
+
 struct ClearSmallAddressFormPredictions_TestCase {
   std::string test_name;
   std::vector<std::vector<FieldPrediction>> received_predictions;
@@ -4218,7 +4242,7 @@ INSTANTIATE_TEST_SUITE_P(
     ClearSmallAddressFormPredictionsTest::ParamInfoToString);
 
 TEST_P(ClearSmallAddressFormPredictionsTest,
-       ProcessServerPredictionsQueryResponse) {
+       ParseServerPredictionsFromQueryResponse) {
   base::test::ScopedFeatureList features{
       features::kAutofillMoveSmallFormLogicToClient};
   const auto& test_case = GetParam();

@@ -175,9 +175,26 @@ import org.chromium.url.Origin;
                     params.getInputStartTimestamp() == 0
                             ? params.getIntentReceivedTimestamp()
                             : params.getInputStartTimestamp();
-            RecordHistogram.recordTimesHistogram(
-                    "Android.Omnibox.InputToNavigationControllerStart",
-                    SystemClock.uptimeMillis() - inputStart);
+            // This UMA metric tracks the time between the user input that triggered an Omnibox
+            // navigation and the start of the navigation in the native code. We filter out
+            // cases where inputStart is 0. This happens for some browser-initiated navigations
+            // (e.g. opening URL in a new tab via WebContentsDelegateAndroid::OpenURLFromTab)
+            // where the timestamp is not propagated to Java.
+            long currentTimestamp = SystemClock.uptimeMillis();
+            if (inputStart > 0) {
+                RecordHistogram.recordTimesHistogram(
+                        "Android.Omnibox.InputToNavigationControllerStart2",
+                        currentTimestamp - inputStart);
+                if (params.getInputStartTimestamp() != 0) {
+                    RecordHistogram.recordTimesHistogram(
+                            "Android.Omnibox.InputToNavigationControllerStart.UserInput",
+                            currentTimestamp - params.getInputStartTimestamp());
+                } else if (params.getIntentReceivedTimestamp() != 0) {
+                    RecordHistogram.recordTimesHistogram(
+                            "Android.Omnibox.InputToNavigationControllerStart.Intent",
+                            currentTimestamp - params.getIntentReceivedTimestamp());
+                }
+            }
             navigationHandle =
                     NavigationControllerImplJni.get()
                             .loadUrl(
@@ -208,7 +225,8 @@ import org.chromium.url.Origin;
                                     params.getNavigationUIDataSupplier() == null
                                             ? 0
                                             : params.getNavigationUIDataSupplier().get(),
-                                    params.getIsPdf());
+                                    params.getIsPdf(),
+                                    params.getRemoveExtraHeadersOnCrossOriginRedirect());
             // Use the navigation handle object to store user data passed in.
             if (navigationHandle != null) {
                 navigationHandle.setUserDataHost(params.takeNavigationHandleUserData());
@@ -454,7 +472,8 @@ import org.chromium.url.Origin;
                 @Nullable AdditionalNavigationParams additionalNavigationParams,
                 long inputStart,
                 long navigationUIDataPtr,
-                boolean isPdf);
+                boolean isPdf,
+                boolean removeExtraHeadersOnCrossOriginRedirect);
 
         void clearHistory(long nativeNavigationControllerAndroid);
 

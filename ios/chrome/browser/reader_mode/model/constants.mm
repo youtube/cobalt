@@ -11,6 +11,9 @@ const char kReaderModeStateHistogram[] = "IOS.ReaderMode.State";
 const char kReaderModeDeactivationReasonHistogram[] =
     "IOS.ReaderMode.DeactivationReason";
 
+const char kReaderModeTranslationStateHistogram[] =
+    "IOS.ReaderMode.TranslationState";
+
 const char kReaderModeHeuristicResultHistogram[] =
     "IOS.ReaderMode.Heuristic.Result";
 
@@ -23,6 +26,9 @@ const char kReaderModeDistillerLatencyHistogram[] =
 const char kReaderModeDistillerResultHistogram[] =
     "IOS.ReaderMode.Distiller.Result";
 
+const char kReaderModeDataLoadLatencyHistogram[] =
+    "IOS.ReaderMode.LoadData.Latency";
+
 const char kReaderModeThemeCustomizationHistogram[] = "IOS.ReaderMode.Theme";
 
 const char kReaderModeFontFamilyCustomizationHistogram[] =
@@ -30,6 +36,8 @@ const char kReaderModeFontFamilyCustomizationHistogram[] =
 
 const char kReaderModeFontScaleCustomizationHistogram[] =
     "IOS.ReaderMode.FontScale";
+
+const char kReaderModeLinksEnabledHistogram[] = "IOS.ReaderMode.LinksEnabled";
 
 const char kReaderModeCustomizationHistogram[] = "IOS.ReaderMode.Customization";
 

@@ -4,15 +4,99 @@
 
 module skills.mojom;
 
+import "components/skills/public/skill.mojom";
+
+// The type of skills dialog to open.
+enum SkillsDialogType {
+  // Add dialog.
+  kAdd,
+  // Edit dialog.
+  kEdit,
+};
+
+// Factory ensures that the Page and PageHandler interfaces are always created
+// together without requiring an initialization call from the WebUI to the
+// handler.
 // Used by the WebUI page for communication.
 interface PageHandlerFactory {
-  // The WebUI page's |BrowserProxy| singleton calls this method when the page
-  // is first initialized.
-  CreatePageHandler(pending_receiver<PageHandler> handler);
+  // The WebUI page's |SkillsPageBrowserProxy| singleton calls this method
+  // when the page is first initialized.
+  CreatePageHandler(pending_remote<SkillsPage> page,
+                    pending_receiver<PageHandler> handler);
+
+  // The dialog WebUI's |SkillsDialogBrowserProxy| singleton calls this method
+  // when the page is first initialized.
+  CreateDialogHandler(pending_receiver<DialogHandler> handler);
 };
 
 // Called from TS side of chrome://skills (Renderer -> Browser)
 interface PageHandler {
-  // TODO(marissashen): Add methods for submitting a skill and closing the
-  // dialog.
+  // Called when the user wants to either add or edit a skill.
+  // `dialog_type` determines whether to open the add or edit dialog.
+  // `skill`:
+  // - If `skill` is passed in add, populates the dialog with passed in
+  //   skill information.
+  //   If 'skill' is null, uses a default template.
+  // - If `skill` is passed in edit, populates the dialog with passed in
+  //   skill information.
+  //   In edit mode, the `skill` should always be passed in.
+  OpenSkillsDialog(SkillsDialogType dialog_type, skills.mojom.Skill? skill);
+
+  // Gets the initial list of user skills.
+  GetInitialUserSkills() => (array<skills.mojom.Skill> skills);
+
+  // Gets the initial list of 1P skills, called whenever the
+  // browse skills page is inserted into the DOM.
+  // `skill_map` is keyed by category name.
+  GetInitial1PSkills() => (map<string, array<skills.mojom.Skill>> skill_map);
+
+  // Called whenever the user navigates to chrome://skills/browse-skills.
+  // Requests a new download of 1P skills from the skills service.
+  Request1PSkills();
+
+  // Called when the user wants to delete a skill.
+  DeleteSkill(string skill_id);
+
+  // Called whenever the user wants to save a 1P skill.
+  // `success` is true if the skill still exists, false if it was deleted.
+  // If fetching the new set of 1P skills fails, `success` will be false.
+  MaybeSave1PSkill(string skill_id) => (bool success);
+};
+
+// Called from C++ side of chrome://skills (Browser -> Renderer)
+interface SkillsPage {
+  // Notifies the UI that a skill has been updated or added.
+  // This may be extended to support multiple skill updates in the future.
+  UpdateSkill(skills.mojom.Skill skill);
+
+  // Notifies the UI that a skill has been deleted.
+  // This may be extended to support multiple skill deletions in the future.
+  RemoveSkill(string skill_id);
+
+  // Notifies the UI that there is an updated map of 1P skills.
+  // `skill_map` is keyed by category name.
+  Update1PMap(map<string, array<Skill>> skill_map);
+};
+
+// Called from TS side of chrome://skills/dialog (Renderer -> Browser)
+// Handler for the add/edit skill dialog.
+interface DialogHandler {
+  // Called when the user clicks the "Save" button in the dialog.
+  SubmitSkill(skills.mojom.Skill skill);
+
+  // Called when the user clicks the "Refine" button in the dialog.
+  RefineSkill(skills.mojom.Skill skill) => (skills.mojom.Skill? refined_skill);
+
+  // Called when the user clicks the "Cancel" button in the dialog.
+  CloseDialog();
+
+  // Trigger the OS picker
+  ShowEmojiPicker();
+
+  // Called when dialog is opened to get the initial skill when
+  // editing/remixing.
+  GetInitialSkill() => (skills.mojom.Skill skill);
+
+  // Gets the signed in user's email.
+  GetSignedInEmail() => (string email);
 };

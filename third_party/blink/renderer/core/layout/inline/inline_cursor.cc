@@ -313,9 +313,13 @@ bool InlineCursorPosition::IsPartOfCulledInlineBox(
   DCHECK(!layout_inline.ShouldCreateBoxFragment());
   DCHECK(*this);
   const LayoutObject* const layout_object = GetLayoutObject();
-  // We use |IsInline()| to exclude floating and out-of-flow objects.
-  if (!layout_object || layout_object->IsAtomicInlineLevel())
+  if (!layout_object) {
     return false;
+  }
+  if (layout_object->IsAtomicInline()) {
+    return false;
+  }
+  // We use |IsInline()| to exclude floating and out-of-flow objects.
   // When |Current()| is block-in-inline, e.g. <span><div>foo</div></span>, it
   // should be part of culled inline box[1].
   // [1]
@@ -341,8 +345,9 @@ bool InlineCursorPosition::IsPartOfCulledInlineBox(
 
 bool InlineCursor::IsLastLineInInlineBlock() const {
   DCHECK(Current().IsLineBox());
-  if (!GetLayoutBlockFlow()->IsAtomicInlineLevel())
+  if (!GetLayoutBlockFlow()->IsInline()) {
     return false;
+  }
   InlineCursor next_sibling(*this);
   for (;;) {
     next_sibling.MoveToNextSkippingChildren();

@@ -95,13 +95,13 @@ class MediaDrmOriginIdManagerTest : public testing::Test {
     origin_id_manager_->PreProvisionIfNecessary();
   }
 
-  std::string DisplayPref(const base::Value::Dict& value) {
+  std::string DisplayPref(const base::DictValue& value) {
     std::optional<std::string> output = base::WriteJson(value);
     EXPECT_TRUE(output);
     return output.value_or(std::string());
   }
 
-  const base::Value::Dict& GetDict(const std::string& path) const {
+  const base::DictValue& GetDict(const std::string& path) const {
     return profile_->GetTestingPrefService()->GetDict(path);
   }
 
@@ -255,7 +255,7 @@ TEST_F(MediaDrmOriginIdManagerTest, PreProvisionFailAtStartup) {
 
   // Trigger a network connection to force pre-provisioning to run again.
   network::TestNetworkConnectionTracker::GetInstance()->SetConnectionType(
-      network::mojom::ConnectionType::CONNECTION_ETHERNET);
+      net::NetworkChangeNotifier::ConnectionType::CONNECTION_ETHERNET);
   task_environment_.RunUntilIdle();
 
   // Pre-provisioning should have run again. Should return the same result as if
@@ -433,7 +433,7 @@ TEST_F(MediaDrmOriginIdManagerTest, NetworkChange) {
   // Provisioning will now "succeed", so trigger a network change to
   // unconnected.
   network::TestNetworkConnectionTracker::GetInstance()->SetConnectionType(
-      network::mojom::ConnectionType::CONNECTION_NONE);
+      net::NetworkChangeNotifier::ConnectionType::CONNECTION_NONE);
   task_environment_.RunUntilIdle();
 
   // Check that |kAvailableOriginIds| is still empty.
@@ -446,7 +446,7 @@ TEST_F(MediaDrmOriginIdManagerTest, NetworkChange) {
 
   // Now trigger a network change to connected.
   network::TestNetworkConnectionTracker::GetInstance()->SetConnectionType(
-      network::mojom::ConnectionType::CONNECTION_ETHERNET);
+      net::NetworkChangeNotifier::ConnectionType::CONNECTION_ETHERNET);
   task_environment_.RunUntilIdle();
 
   // Pre-provisioning should have run and filled up the list.
@@ -483,7 +483,7 @@ TEST_F(MediaDrmOriginIdManagerTest, NetworkChangeFails) {
   // after several failed attempts.
   for (size_t i = 0; i < kConnectionAttempts + 3; ++i) {
     network::TestNetworkConnectionTracker::GetInstance()->SetConnectionType(
-        network::mojom::ConnectionType::CONNECTION_ETHERNET);
+        net::NetworkChangeNotifier::ConnectionType::CONNECTION_ETHERNET);
     task_environment_.RunUntilIdle();
   }
 
@@ -514,7 +514,7 @@ TEST_F(MediaDrmOriginIdManagerTest, InvalidEntry) {
   {
     ScopedDictPrefUpdate update(profile_->GetTestingPrefService(),
                                 kMediaDrmOriginIds);
-    base::Value::List* origin_ids = update->FindList(kAvailableOriginIds);
+    base::ListValue* origin_ids = update->FindList(kAvailableOriginIds);
     EXPECT_FALSE(origin_ids->empty());
     auto first_entry = origin_ids->begin();
     *first_entry = base::Value(true);

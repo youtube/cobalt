@@ -78,15 +78,19 @@ class IOSRealtimeReportingClientTest
 
 // Tests that uploading events succeed using the dictionary mapping the events.
 TEST_P(IOSRealtimeReportingClientTest, TestDeprecatedUmaEventUploadSucceeds) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      policy::kUploadRealtimeReportingEventsUsingProto);
+
   SetCloudPolicyClient(is_profile_reporting());
 
   ReportingSettings settings;
   settings.per_profile = is_profile_reporting();
-  base::Value::Dict event;
+  base::DictValue event;
 
   base::RunLoop run_loop;
   EXPECT_CALL(*client_.get(), UploadSecurityEventReport(_, _, _))
-      .WillOnce([&](bool include_device_info, base::Value::Dict&& report,
+      .WillOnce([&](bool include_device_info, base::DictValue&& report,
                     policy::CloudPolicyClient::ResultCallback callback) {
         upload_callback_ = std::move(callback);
         run_loop.Quit();
@@ -145,15 +149,19 @@ TEST_P(IOSRealtimeReportingClientTest, TestUmaEventUploadSucceeds) {
 
 // Tests that uploading events fails using the dictionary mapping the events.
 TEST_P(IOSRealtimeReportingClientTest, TestDeprecatedUmaEventUploadFails) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      policy::kUploadRealtimeReportingEventsUsingProto);
+
   SetCloudPolicyClient(is_profile_reporting());
 
   ReportingSettings settings;
   settings.per_profile = is_profile_reporting();
-  base::Value::Dict event;
+  base::DictValue event;
 
   base::RunLoop run_loop;
   EXPECT_CALL(*client_.get(), UploadSecurityEventReport(_, _, _))
-      .WillOnce([&](bool include_device_info, base::Value::Dict&& report,
+      .WillOnce([&](bool include_device_info, base::DictValue&& report,
                     policy::CloudPolicyClient::ResultCallback callback) {
         upload_callback_ = std::move(callback);
         run_loop.Quit();

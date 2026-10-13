@@ -171,6 +171,8 @@ class XRSession final : public EventTarget,
 
   bool isSystemKeyboardSupported() const { return false; }
 
+  uint16_t maxRenderLayers() const { return device_config_->max_render_layers; }
+
   XRSpace* viewerSpace() const;
 
   XRAnchorSet* TrackedAnchors() const;
@@ -440,6 +442,8 @@ class XRSession final : public EventTarget,
   // This is an opportunity for the session to dispatch any initial set of
   // events. Called by |XrSystem| after the session query has resolved.
   void DispatchInitialEvents();
+
+  void OnTransferComplete(const Vector<device::LayerId>& layer_ids);
 
  private:
   class XRSessionResizeObserverDelegate;

@@ -69,10 +69,12 @@ class CORE_EXPORT ChromeClientImpl final : public ChromeClient {
   void ChromeDestroyed() override;
   void SetWindowRect(const gfx::Rect&, LocalFrame&) override;
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
-  void Minimize(LocalFrame&, WindowShowStateChangeCallback) override;
-  void Maximize(LocalFrame&, WindowShowStateChangeCallback) override;
-  void Restore(LocalFrame&, WindowShowStateChangeCallback) override;
-  void SetResizable(bool resizable, LocalFrame& frame) override;
+  void Minimize(LocalFrame&, WindowingControlsChangeCallback) override;
+  void Maximize(LocalFrame&, WindowingControlsChangeCallback) override;
+  void Restore(LocalFrame&, WindowingControlsChangeCallback) override;
+  void SetResizable(bool resizable,
+                    LocalFrame& frame,
+                    WindowingControlsChangeCallback) override;
 #endif
   gfx::Rect RootWindowRect(LocalFrame&) override;
   void DidAccessInitialMainDocument() override;
@@ -115,10 +117,6 @@ class CORE_EXPORT ChromeClientImpl final : public ChromeClient {
                              network::mojom::blink::WebSandboxFlags,
                              const SessionStorageNamespaceId&,
                              bool& consumed_user_gesture) override;
-  void Show(LocalFrame& frame,
-            LocalFrame& opener_frame,
-            NavigationPolicy navigation_policy,
-            bool user_gesture) override;
   void SetOverscrollBehavior(LocalFrame& main_frame,
                              const cc::OverscrollBehavior&) override;
   void InjectScrollbarGestureScroll(

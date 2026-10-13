@@ -1946,15 +1946,22 @@ class GapAccumulator {
     // [1] https://www.w3.org/TR/css-gaps-1/#gap-intersection-point
     // TODO(samomekarajr): This is currently O(nlogn) but can be optimized to
     // be O(n) if we find the first range index and increment it as we go.
-    for (wtf_size_t i = 1; i < row_track_count - 1; ++i) {
-      const wtf_size_t range_index = rows.RangeIndexFromGridLine(i);
+    wtf_size_t row_line_index = rows.FirstNonCollapsedLineIndex();
+    if (row_line_index == kNotFound) {
+      return;
+    }
+    // Start from the next line index since gaps are between tracks.
+    ++row_line_index;
+    for (; row_line_index < row_track_count - 1; ++row_line_index) {
+      const wtf_size_t range_index =
+          rows.RangeIndexFromGridLine(row_line_index);
       if (rows.RangeProperties(range_index)
               .HasProperty(TrackSpanProperties::kIsCollapsed)) {
         continue;
       }
 
       LayoutUnit row_midpoint =
-          LayoutUnit(row_tracks[i] - (row_gutter_size_ / 2.0f));
+          LayoutUnit(row_tracks[row_line_index] - (row_gutter_size_ / 2.0f));
       MainGap main_gap = MainGap(row_midpoint);
       main_gaps_.push_back(main_gap);
     }
@@ -1985,14 +1992,21 @@ class GapAccumulator {
     // See: https://www.w3.org/TR/css-gaps-1/#gap-intersection-point
     // TODO(samomekarajr): This is currently O(nlogn) but can be optimized to
     // be O(n) if we find the first range index and increment it as we go.
-    for (wtf_size_t i = 1; i < col_track_count - 1; ++i) {
-      const wtf_size_t range_index = columns.RangeIndexFromGridLine(i);
+    wtf_size_t col_line_index = columns.FirstNonCollapsedLineIndex();
+    if (col_line_index == kNotFound) {
+      return;
+    }
+    // Start from the next line index since gaps are between tracks.
+    ++col_line_index;
+    for (; col_line_index < col_track_count - 1; ++col_line_index) {
+      const wtf_size_t range_index =
+          columns.RangeIndexFromGridLine(col_line_index);
       if (columns.RangeProperties(range_index)
               .HasProperty(TrackSpanProperties::kIsCollapsed)) {
         continue;
       }
       LayoutUnit col_midpoint =
-          LayoutUnit(col_tracks[i] - (col_gutter_size_ / 2.0f));
+          LayoutUnit(col_tracks[col_line_index] - (col_gutter_size_ / 2.0f));
       LogicalOffset cross_gap_offset =
           LogicalOffset(col_midpoint, LayoutUnit());
       CrossGap cross_gap = CrossGap(cross_gap_offset);
@@ -2080,13 +2094,8 @@ class GapAccumulator {
   }
 
   const GapGeometry* FinalizeGapGeometry() {
-    const bool has_main_gaps =
-        !main_gaps_.empty() && row_gutter_size_ > LayoutUnit();
-    const bool has_cross_gaps =
-        !cross_gaps_.empty() && col_gutter_size_ > LayoutUnit();
     // `GapGeometry` requires both row(main) and column(cross) gaps to be valid.
-
-    if (!has_cross_gaps && !has_main_gaps) {
+    if (main_gaps_.empty() && cross_gaps_.empty()) {
       return nullptr;
     }
 
@@ -2097,23 +2106,29 @@ class GapAccumulator {
     gap_geometry->SetBlockGapSize(row_gutter_size_);
 
     // Finalize the `GapSegmentStateRanges` for each gap using the aggregated
-    // cell states collected during `AggregateCellStates`.
-    for (wtf_size_t gap_index = 0; gap_index < main_gaps_.size(); ++gap_index) {
-      main_gaps_aggregator_.FinalizeGapSegmentStateRangesFor(
-          main_gaps_[gap_index], gap_index);
+    // cell states collected during `AggregateCellStates`. Only finalize if there
+    // were any cells for that axis.
+    if (main_gaps_aggregator_.GetCellCount() > 0) {
+      for (wtf_size_t gap_index = 0; gap_index < main_gaps_.size();
+           ++gap_index) {
+        main_gaps_aggregator_.FinalizeGapSegmentStateRangesFor(
+            main_gaps_[gap_index], gap_index);
+      }
     }
 
-    for (wtf_size_t gap_index = 0; gap_index < cross_gaps_.size();
-         ++gap_index) {
-      cross_gaps_aggregator_.FinalizeGapSegmentStateRangesFor(
-          cross_gaps_[gap_index], gap_index);
+    if (cross_gaps_aggregator_.GetCellCount() > 0) {
+      for (wtf_size_t gap_index = 0; gap_index < cross_gaps_.size();
+           ++gap_index) {
+        cross_gaps_aggregator_.FinalizeGapSegmentStateRangesFor(
+            cross_gaps_[gap_index], gap_index);
+      }
     }
 
-    if (row_gutter_size_ > LayoutUnit() && !main_gaps_.empty()) {
+    if (!main_gaps_.empty()) {
       gap_geometry->SetMainGaps(std::move(main_gaps_));
     }
 
-    if (col_gutter_size_ > LayoutUnit() && !cross_gaps_.empty()) {
+    if (!cross_gaps_.empty()) {
       gap_geometry->SetCrossGaps(std::move(cross_gaps_));
     }
 

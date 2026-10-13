@@ -907,7 +907,7 @@ enum CSSSampleId {
     kCornerShape = 842,
     kScrollTargetGroup = 843,
     kRowRuleStyle = 844,
-    kGapRuleOverlap = 845,
+    // kGapRuleOverlap = 845,  // Renamed to kRuleOverlap
     kRowRuleWidth = 846,
     kRowRuleColor = 847,
     kPrintColorAdjust = 848,
@@ -918,8 +918,8 @@ enum CSSSampleId {
     kRuleStyle = 853,
     kCaretShape = 854,
     kRowRule = 855,
-    kTextGrow = 856,
-    kTextShrink = 857,
+    // kTextGrow = 856,
+    // kTextShrink = 857,
     kRule = 858,
     // kOriginTrialTestShorthand = 859,
     kCornerTopShape = 860,
@@ -984,13 +984,25 @@ enum CSSSampleId {
     kRuleEdgeInset = 914,
     kRuleInteriorInset = 915,
     kPageMarginSafety = 916,
-    kTimelineTriggerEntryRangeStart = 917,
-    kTimelineTriggerEntryRangeEnd = 918,
+    // Renamed to TimelineTriggerActivationRange*
+    // kTimelineTriggerEntryRangeStart = 917,
+    // kTimelineTriggerEntryRangeEnd = 918,
     kTimelineTriggerActiveRangeStart = 919,
     kTimelineTriggerActiveRangeEnd = 920,
-    kTimelineTriggerEntryRange = 921,
+    // Renamed to TimelineTriggerActivationRange
+    // kTimelineTriggerEntryRange = 921,
     kTimelineTriggerActiveRange = 922,
     kGridLanesPack = 923,
+    kTextFit = 924,
+    kViewTransitionScope = 925,
+    kRuleVisibilityItems = 926,
+    kFrameSizing = 927,
+    kImageAnimation = 928,
+    kMarginTrim = 929,
+    kTimelineTriggerActivationRangeStart = 930,
+    kTimelineTriggerActivationRangeEnd = 931,
+    kTimelineTriggerActivationRange = 932,
+    kRuleOverlap = 933,
 
     // 1. Add new features above this line (don't change the assigned numbers of
     //    the existing items).
