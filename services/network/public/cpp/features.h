@@ -396,7 +396,6 @@ BASE_DECLARE_FEATURE_PARAM(
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
 BASE_DECLARE_FEATURE(kUseUnexportableKeyServiceInBrowserProcess);
 
-<<<<<<< HEAD
 // When enabled, allows redirects to unsafe schemes (like data:) for fetch()
 // requests with redirect mode "manual". The redirect URL is censored to
 // "data:," for security.
@@ -410,7 +409,7 @@ BASE_DECLARE_FEATURE(kDurableMessages);
 // Global limit for all durable messages
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
 BASE_DECLARE_FEATURE_PARAM(int, kDurableMessagesGlobalBufferSize);
-=======
+
 #if BUILDFLAG(IS_COBALT)
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
 BASE_DECLARE_FEATURE(kCobaltDynamicMojoPipeSizing);
@@ -428,7 +427,6 @@ BASE_DECLARE_FEATURE_PARAM(int, kCobaltDynamicMojoPipeSizingMediaSize);
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
 BASE_DECLARE_FEATURE(kCobaltContentLengthAwareMojoPipeSizing);
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> parent of 812d05034e5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 }  // namespace network::features
 

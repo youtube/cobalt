@@ -646,7 +646,6 @@ BASE_FEATURE_PARAM(bool,
                    /*name=*/"report_inconsistent_header",
                    /*default_value=*/false);
 
-<<<<<<< HEAD
 BASE_FEATURE(kAllowUnsafeRedirectSchemesForManualMode,
              base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kDurableMessages, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -656,7 +655,7 @@ BASE_FEATURE_PARAM(int,
                    &kDurableMessages,
                    /*name=*/"max_global_buffer_size",
                    /*default_value=*/0);
-=======
+
 #if BUILDFLAG(IS_COBALT)
 BASE_FEATURE(kCobaltDynamicMojoPipeSizing,
              "CobaltDynamicMojoPipeSizing",
@@ -683,6 +682,5 @@ BASE_FEATURE(kCobaltContentLengthAwareMojoPipeSizing,
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> parent of 812d05034e5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 }  // namespace network::features
