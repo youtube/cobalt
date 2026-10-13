@@ -57,8 +57,8 @@ class CheckTvosImpactTest(unittest.TestCase):
           encoding='utf-8',
       )
 
-      expanded = check_tvos_impact.expand_gn_files(
-          root, ['cobalt/app/tvos/helper.h'])
+      expanded = check_tvos_impact.expand_gn_files(root,
+                                                   ['cobalt/app/tvos/helper.h'])
       self.assertEqual(
           expanded,
           [
@@ -73,7 +73,9 @@ class CheckTvosImpactTest(unittest.TestCase):
       target_json = root / check_tvos_impact.TEST_TARGETS_JSON_RELPATH
       target_json.parent.mkdir(parents=True)
       target_json.write_text(
-          json.dumps([{'target': 'cobalt:cobalt_unittests'}]),
+          json.dumps([{
+              'target': 'cobalt:cobalt_unittests'
+          }]),
           encoding='utf-8',
       )
       self.assertEqual(
@@ -93,8 +95,8 @@ class CheckTvosImpactTest(unittest.TestCase):
 
   @mock.patch('check_tvos_impact._find_gn_binary', return_value='/usr/bin/gn')
   @mock.patch('subprocess.run')
-  def test_check_tvos_impact_parses_gn_analyze_status(
-      self, mock_run, unused_find_gn):
+  def test_check_tvos_impact_parses_gn_analyze_status(self, mock_run,
+                                                      unused_find_gn):
     with tempfile.TemporaryDirectory() as tmp:
       root = pathlib.Path(tmp)
       out_dir = root / 'out'

@@ -77,9 +77,8 @@ def _normalize_path(path: str) -> str:
 def _write_github_output(github_output: Optional[pathlib.Path], **kwargs: str):
   for key, value in kwargs.items():
     print(f'{key}={value}')
-  output_path = github_output or (
-      pathlib.Path(os.environ['GITHUB_OUTPUT'])
-      if os.environ.get('GITHUB_OUTPUT') else None)
+  output_path = github_output or (pathlib.Path(os.environ['GITHUB_OUTPUT'])
+                                  if os.environ.get('GITHUB_OUTPUT') else None)
   if output_path:
     with output_path.open('a', encoding='utf-8') as f:
       for key, value in kwargs.items():
@@ -177,7 +176,7 @@ def expand_gn_files(src_dir: pathlib.Path, files: Iterable[str]) -> List[str]:
 def _normalize_gn_target(target: str) -> str:
   target = target.strip()
   if not target.startswith('//'):
-    return f'//{target.lstrip("/")}'
+    return f"//{target.lstrip('/')}"
   return target
 
 
@@ -254,9 +253,9 @@ def check_tvos_impact(
     return True
 
   gn_files = expand_gn_files(src_dir, normalized)
-  resolved_test_targets = (
-      [_normalize_gn_target(t) for t in test_targets]
-      if test_targets is not None else load_test_targets(src_dir))
+  resolved_test_targets = ([
+      _normalize_gn_target(t) for t in test_targets
+  ] if test_targets is not None else load_test_targets(src_dir))
   resolved_compile_targets = [
       _normalize_gn_target(t) for t in (compile_targets or ())
   ]
@@ -307,7 +306,7 @@ def check_tvos_impact(
       gn_analyze_cmd.append('--script-executable=tvos_linux_script_wrapper.py')
     print('Running:', ' '.join(gn_analyze_cmd))
     env = os.environ.copy()
-    env['PATH'] = f'{build_dir.resolve()}{os.pathsep}{env.get("PATH", "")}'
+    env['PATH'] = f"{build_dir.resolve()}{os.pathsep}{env.get('PATH', '')}"
     subprocess.run(gn_analyze_cmd, cwd=src_dir, env=env, check=True)
 
     result = json.loads(out_path.read_text(encoding='utf-8'))
@@ -315,7 +314,7 @@ def check_tvos_impact(
 
     if 'error' in result:
       print(
-          f'gn analyze returned an error ({result["error"]}); '
+          f"gn analyze returned an error ({result['error']}); "
           'defaulting to running tvOS build.',
           file=sys.stderr,
       )

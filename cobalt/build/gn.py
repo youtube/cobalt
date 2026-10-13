@@ -140,7 +140,7 @@ def configure_out_directory(out_directory: str, platform: str, build_type: str,
     dst_wrapper = Path(out_directory).resolve() / 'tvos_linux_script_wrapper.py'
     dst_wrapper.write_bytes(src_wrapper.read_bytes())
     dst_wrapper.chmod(0o755)
-    env['PATH'] = f'{dst_wrapper.parent}{os.pathsep}{env.get("PATH", "")}'
+    env['PATH'] = f"{dst_wrapper.parent}{os.pathsep}{env.get('PATH', '')}"
     effective_gn_args.append('--script-executable=tvos_linux_script_wrapper.py')
 
   gn_command = ['gn', 'gen', out_directory] + effective_gn_args
