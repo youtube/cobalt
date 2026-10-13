@@ -71,35 +71,11 @@ void Done(base::OnceCallback<
   base::ThreadPool::PostTaskAndReply(
       FROM_HERE, kTaskTraits,
       base::BindOnce(
-<<<<<<< HEAD
-          [](const base::FilePath& out_file) {
+[](const base::FilePath& out_file) {
             DeleteFileAndEmptyParentDirectory(out_file);
           },
           out_file),
       std::move(done));
-=======
-          std::move(callback),
-#if BUILDFLAG(IS_STARBOARD)
-          [&]() -> base::expected<OperationResult, CategorizedError> {
-            if (success) {
-              OperationResult out_result = in_file_result;
-#if !defined(IN_MEMORY_UPDATES)
-              out_result.response = out_file;
-#endif
-              return out_result;
-            }
-#else
-          [&]() -> base::expected<base::FilePath, CategorizedError> {
-            if (success) {
-              return out_file;
-            }
-            DeleteFileAndEmptyParentDirectory(out_file);
-#endif  // BUILDFLAG(IS_STARBOARD)
-            return base::unexpected<CategorizedError>(
-                {.category = ErrorCategory::kUnpack,
-                 .code = static_cast<int>(UnpackerError::kXzFailed)});
-          }()));
->>>>>>> parent of d0a3797f3aa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 }  // namespace
