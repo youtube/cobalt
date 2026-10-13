@@ -25,6 +25,10 @@
 #include "third_party/blink/renderer/core/frame/dom_window.h"
 #include "third_party/blink/renderer/core/timing/performance_entry.h"
 
+namespace viz {
+struct FrameTimingDetails;
+}  // namespace viz
+
 namespace blink {
 
 // Main-thread data captured when a main frame commits, and attached to the
@@ -38,6 +42,31 @@ struct CORE_EXPORT CobaltMainFrameSnapshot {
   CobaltMainFrameSnapshot(CobaltMainFrameSnapshot&&);
   CobaltMainFrameSnapshot& operator=(CobaltMainFrameSnapshot&&);
   ~CobaltMainFrameSnapshot();
+};
+
+// Splits the viz side of a presented frame into consecutive stages, using the
+// timestamps viz already reports in viz::FrameTimingDetails. When all are
+// non-null, the last four stages sum to CobaltFrameTiming::drawDuration
+// (draw_start -> swap_start). Each value is in milliseconds, or nullopt when a
+// timestamp is unavailable or the stage would be negative.
+struct CORE_EXPORT CobaltFrameDrawBreakdown {
+  // viz received the client CompositorFrame -> viz Display started drawing.
+  std::optional<double> receive_to_draw_duration;
+  // viz Display draw start -> viz posted the draw to the GPU thread
+  // (aggregation and SkiaRenderer CPU work on the viz thread).
+  std::optional<double> viz_draw_duration;
+  // Draw posted -> all GPU-thread dependencies (sync tokens, e.g. raster and
+  // image uploads) were satisfied. nullopt if viz did not report it; the wait
+  // is then included in `gpu_queue_duration`.
+  std::optional<double> gpu_dependency_wait_duration;
+  // Dependencies satisfied -> GPU thread started the draw (queued behind
+  // other GPU-thread tasks).
+  std::optional<double> gpu_queue_duration;
+  // GPU thread started the draw -> swap start (GPU-thread draw work).
+  std::optional<double> gpu_draw_duration;
+
+  static CobaltFrameDrawBreakdown FromFrameTimingDetails(
+      const viz::FrameTimingDetails& details);
 };
 
 // Non-standard, Cobalt-only performance entry ("cobalt-frame") describing one
@@ -65,6 +94,7 @@ class CORE_EXPORT CobaltFrameTiming final : public PerformanceEntry {
                     double frame_prep_duration,
                     double draw_duration,
                     double swap_duration,
+                    const CobaltFrameDrawBreakdown& draw_breakdown,
                     DOMWindow* source);
   ~CobaltFrameTiming() override;
 
@@ -84,6 +114,22 @@ class CORE_EXPORT CobaltFrameTiming final : public PerformanceEntry {
   double drawDuration() const { return draw_duration_; }
   double swapDuration() const { return swap_duration_; }
 
+  std::optional<double> receiveToDrawDuration() const {
+    return draw_breakdown_.receive_to_draw_duration;
+  }
+  std::optional<double> vizDrawDuration() const {
+    return draw_breakdown_.viz_draw_duration;
+  }
+  std::optional<double> gpuDependencyWaitDuration() const {
+    return draw_breakdown_.gpu_dependency_wait_duration;
+  }
+  std::optional<double> gpuQueueDuration() const {
+    return draw_breakdown_.gpu_queue_duration;
+  }
+  std::optional<double> gpuDrawDuration() const {
+    return draw_breakdown_.gpu_draw_duration;
+  }
+
   void Trace(Visitor*) const override;
 
  private:
@@ -99,6 +145,7 @@ class CORE_EXPORT CobaltFrameTiming final : public PerformanceEntry {
   double frame_prep_duration_;
   double draw_duration_;
   double swap_duration_;
+  CobaltFrameDrawBreakdown draw_breakdown_;
 };
 
 }  // namespace blink

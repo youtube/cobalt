@@ -45,6 +45,22 @@ interface CobaltFrameTiming : PerformanceEntry {
     readonly attribute DOMHighResTimeStamp drawDuration;
     readonly attribute DOMHighResTimeStamp swapDuration;
 
+    // --- viz / GPU breakdown (null when viz did not report a timestamp).
+    // receiveToDrawDuration: viz received this CompositorFrame -> viz Display
+    //   draw start. When all are non-null, the remaining four sum to
+    //   drawDuration:
+    // vizDrawDuration: draw start -> draw posted to the GPU thread (viz CPU).
+    // gpuDependencyWaitDuration: posted -> GPU-thread dependencies (raster,
+    //   image uploads) satisfied; null if not reported (then folded into
+    //   gpuQueueDuration).
+    // gpuQueueDuration: ready -> GPU thread started the draw.
+    // gpuDrawDuration: GPU thread started the draw -> swap start.
+    readonly attribute DOMHighResTimeStamp? receiveToDrawDuration;
+    readonly attribute DOMHighResTimeStamp? vizDrawDuration;
+    readonly attribute DOMHighResTimeStamp? gpuDependencyWaitDuration;
+    readonly attribute DOMHighResTimeStamp? gpuQueueDuration;
+    readonly attribute DOMHighResTimeStamp? gpuDrawDuration;
+
     // Blink's bindings do not support [Default] toJSON, and a PerformanceEntry
     // subclass has to be an interface (not a dictionary), so toJSON follows
     // the same pattern as the other PerformanceEntry types.
