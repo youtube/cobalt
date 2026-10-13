@@ -36,6 +36,8 @@ source_set("browser") {
     "h5vcc_settings_impl.h",
     "metrics/cobalt_stability_metrics_helper.cc",
     "metrics/cobalt_stability_metrics_helper.h",
+    "metrics/cobalt_storage_metrics_helper.cc",
+    "metrics/cobalt_storage_metrics_helper.h",
   ]
 
   if (is_androidtv) {

@@ -39,6 +39,7 @@
 #include "cobalt/browser/metrics/cobalt_detailed_metrics_delegate.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/browser/metrics/cobalt_stability_metrics_helper.h"
+#include "cobalt/browser/metrics/cobalt_storage_metrics_helper.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/memory/cobalt_memory_attribution_manager.h"
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
@@ -496,6 +497,7 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
 #endif  // BUILDFLAG(IS_STARBOARD)
 
   StartStorageMigration();
+  ScheduleCobaltStorageMetricsRecording();
 
   return result;
 }
