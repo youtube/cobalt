@@ -10,11 +10,11 @@ UMA measures storage across the fleet, but only as a few numbers per launch: tot
 
 | Question | UMA (fleet) | `storage_monitor.py` (one device) |
 | :--- | :--- | :--- |
-| How big is each directory? | `Cobalt.Storage.UserData.StartupTotalSizeKB` and `Cobalt.Storage.DirCache.StartupTotalSizeKB`: one total each, 30 s after launch. | Section A: start, peak (with time) and final size of every storage type (`Cookies`, `Local Storage`, `DIPS`, `DIR_CACHE:Code Cache`, ...). |
+| How big is each directory? | `Cobalt.Storage.UserData.StartupTotalSizeKB` and `Cobalt.Storage.DirCache.StartupTotalSizeKB`: one total each, 30 s after launch. | Section A: start, peak (with time) and final size of every storage type (`Cookies`, `Local Storage`, `DIPS`, `DIR_CACHE:Code Cache`, ...), including ones outside those two directories (`BrowserStabilityMetrics`, GPU shader caches under `/data/user_de`). |
 | Which files are written, and how often? | Not available. `Cobalt.Storage.ProcessIo.WriteRateKBPerMin` is process-wide. | Section B: per-file write count, size change and lifespan. |
 | Short-lived files and spikes? | Missed between samples. | 1 s polling catches `-journal` / `-wal` spikes, LevelDB compaction files and temp files (`Transient`, `Truncated`). |
 | Block I/O over time? | `Cobalt.Storage.ProcessIo.StartupReadKB` / `StartupWriteKB` (first 30 s) and `WriteRateKBPerMin` (5-minute averages). | The same `/proc/<pid>/io` counters, totaled over the run with the peak KB/s and when it happened, across app restarts. |
-| Checking a change before it ships? | Needs a release and fleet data. | Scripted CUJs on any debuggable build, including Kimono (`--package`). |
+| Checking a change before it ships? | Needs a release and fleet data. | Scripted CUJs on a `userdebug` device or a debuggable APK, including Kimono (`--package`). |
 
 Device-wide counters such as `/proc/diskstats` and `/proc/pressure/io` are not collected: they need root, include every app on the device, and are better captured with a system trace such as Perfetto.
 
