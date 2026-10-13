@@ -14,6 +14,7 @@
 #include "base/compiler_specific.h"
 #include "base/containers/flat_set.h"
 #include "base/memory/raw_ptr.h"
+#include "build/build_config.h"
 #include "media/base/media_export.h"
 #include "media/base/stream_parser.h"
 #include "media/formats/common/offset_byte_queue.h"
@@ -23,6 +24,10 @@
 #if BUILDFLAG(USE_PROPRIETARY_CODECS)
 #include "media/formats/mp4/aac.h"
 #endif
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/formats/common/offset_segmented_byte_queue.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace media::mp4 {
 
@@ -55,6 +60,11 @@ class MEDIA_EXPORT MP4StreamParser : public StreamParser {
   bool GetGenerateTimestampsFlag() const override;
   [[nodiscard]] bool AppendToParseBuffer(
       base::span<const uint8_t> buf) override;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  [[nodiscard]] bool AppendToParseBuffer(
+      base::span<const uint8_t> buf,
+      base::ScopedClosureRunner release_runner) override;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   [[nodiscard]] ParseStatus Parse(int max_pending_bytes_to_inspect) override;
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
  private:
@@ -144,12 +154,19 @@ class MEDIA_EXPORT MP4StreamParser : public StreamParser {
   OffsetByteQueue queue_;
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Created by the first AppendToParseBuffer() call that comes with a release
+  // runner, after which it holds the stream instead of `queue_`, and the
+  // overload without a runner must no longer be called. The "borrow_mode"
+  // param of kCobaltInPlaceMediaSourceParser decides whether the queue borrows
+  // or copies each append.
+  std::unique_ptr<OffsetSegmentedByteQueue> segmented_queue_;
+
   // Scratch buffer to reuse capacity for video frame bitstream conversion.
   // Reusing this is possible on Starboard because the frame data is copied
   // into the media pool rather than moved (which would release/deallocate
   // the vector's backing memory).
   std::vector<uint8_t> scratch_frame_buf_;
-#endif
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // These two parameters are only valid in the |kEmittingSegments| state.
   //
