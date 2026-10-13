@@ -59,9 +59,6 @@ runs:
         out_dir="${out_root}/${PLATFORM}_${CONFIG}"
         mkdir -p "${out_root}"
 
-        mkdir -p "${GITHUB_WORKSPACE}/cobalt/src/chrome"
-        git -c safe.directory="${GITHUB_WORKSPACE}" -C "${GITHUB_WORKSPACE}" show HEAD:chrome/VERSION > "${GITHUB_WORKSPACE}/cobalt/src/chrome/VERSION"
-
         unzip -q -o "${GITHUB_WORKSPACE}/artifacts/${PLATFORM}_${CONFIG}.zip" -d "${out_root}"
 
         # packager.py renames cobalt.stripped -> cobalt inside the release zip.

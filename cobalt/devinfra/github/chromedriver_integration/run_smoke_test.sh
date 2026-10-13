@@ -91,29 +91,13 @@ trap cleanup EXIT
 
 if [[ "${DOWNLOAD_CHROMEDRIVER}" -eq 1 ]]; then
   echo "Downloading official Chromedriver..."
-  if [[ -f "${COBALT_PATH}/chrome/VERSION" ]]; then
-    MAJOR=$(grep 'MAJOR=' "${COBALT_PATH}/chrome/VERSION" | cut -d= -f2)
-    MINOR=$(grep 'MINOR=' "${COBALT_PATH}/chrome/VERSION" | cut -d= -f2)
-    BUILD=$(grep 'BUILD=' "${COBALT_PATH}/chrome/VERSION" | cut -d= -f2)
-    PATCH=$(grep 'PATCH=' "${COBALT_PATH}/chrome/VERSION" | cut -d= -f2)
-    VERSION="${MAJOR}.${MINOR}.${BUILD}.${PATCH}"
-  elif [[ -f "${CHROMEDRIVER_BIN}" ]]; then
-    VERSION=$("${CHROMEDRIVER_BIN}" --version | awk '{print $2}')
-  else
-    echo "Error: Cannot determine version for download."
-    exit 1
-  fi
-  echo "Detected version: ${VERSION}"
-
   mkdir -p "${DOWNLOAD_DIR}"
-  vpython3 "${VPYTHON_ARGS[@]}" "${SKILL_DIR}/download_chromedriver.py" "${VERSION}" --dest "${DOWNLOAD_DIR}"
-
-  CHROMEDRIVER_BIN=$(find "${DOWNLOAD_DIR}" -name "chromedriver" -type f | head -n 1)
-  if [[ -z "${CHROMEDRIVER_BIN}" ]]; then
-    echo "Error: Failed to find downloaded chromedriver."
+  vpython3 "${VPYTHON_ARGS[@]}" "${SKILL_DIR}/download_chromedriver.py" --dest "${DOWNLOAD_DIR}"
+  CHROMEDRIVER_BIN="${DOWNLOAD_DIR}/chromedriver"
+  if [[ ! -f "${CHROMEDRIVER_BIN}" ]]; then
+    echo "Error: Failed to find downloaded chromedriver at ${CHROMEDRIVER_BIN}."
     exit 1
   fi
-  chmod +x "${CHROMEDRIVER_BIN}"
   echo "Using downloaded driver: ${CHROMEDRIVER_BIN}"
 fi
 
