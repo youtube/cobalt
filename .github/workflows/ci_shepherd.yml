@@ -36,7 +36,7 @@ env:
 jobs:
   init-comment:
     runs-on: ubuntu-latest
-    if: (github.event.workflow_run.pull_requests[0].number || inputs.pr_number) != ''
+    if: (github.event.workflow_run.head_sha || github.event.workflow_run.pull_requests[0].number || inputs.pr_number) != ''
     permissions:
       pull-requests: write
     concurrency:
@@ -59,20 +59,29 @@ jobs:
           set -euo pipefail
 
           head_sha="${HEAD_SHA:-}"
-          if [[ -z "${head_sha}" && -n "${PR_NUMBER:-}" ]]; then
-            head_sha=$(gh pr view "${PR_NUMBER}" --repo "${REPO}" --json headRefOid -q .headRefOid)
+          pr_number="${PR_NUMBER:-}"
+          if [[ -z "${pr_number}" && -n "${head_sha}" ]]; then
+            pr_number=$(gh api "repos/${REPO}/commits/${head_sha}/pulls" --jq '.[0].number // ""' 2>/dev/null || true)
+          fi
+          if [[ -z "${head_sha}" && -n "${pr_number}" ]]; then
+            head_sha=$(gh pr view "${pr_number}" --repo "${REPO}" --json headRefOid -q .headRefOid)
           fi
 
-          echo "pr_number=${PR_NUMBER}" >> "${GITHUB_OUTPUT}"
+          echo "pr_number=${pr_number}" >> "${GITHUB_OUTPUT}"
           echo "head_sha=${head_sha}" >> "${GITHUB_OUTPUT}"
 
+          if [[ -z "${pr_number}" ]]; then
+            echo "No PR associated with commit ${head_sha}. Skipping anchor comment."
+            exit 0
+          fi
+
           header="<!-- sticky-pull-request-comment: shepherd-report -->"
-          comment_id=$(gh api --paginate "repos/${REPO}/issues/${PR_NUMBER}/comments" 2>/dev/null \
+          comment_id=$(gh api --paginate "repos/${REPO}/issues/${pr_number}/comments" 2>/dev/null \
             | jq -r --arg h "${header}" '.[]? | select((.body // "") | contains($h)) | .id' | head -n1 || true)
 
           if [[ -z "${comment_id}" ]]; then
             body="${header}"$'\n\n'"| Context | State | Description |"$'\n'"|---|---|---|"$'\n'"| CI / All Pass | ⏳ PENDING | Checks are running |"
-            comment_id=$(gh api -X POST "repos/${REPO}/issues/${PR_NUMBER}/comments" -f body="${body}" --jq '.id')
+            comment_id=$(gh api -X POST "repos/${REPO}/issues/${pr_number}/comments" -f body="${body}" --jq '.id')
           fi
 
           echo "comment_id=${comment_id}" >> "${GITHUB_OUTPUT}"
@@ -102,6 +111,9 @@ jobs:
 
           pr_number="${PR_NUMBER_EVENT:-}"
           head_sha="${HEAD_SHA_EVENT:-}"
+          if [[ -z "${pr_number}" && -n "${head_sha}" ]]; then
+            pr_number=$(gh api "repos/${REPO}/commits/${head_sha}/pulls" --jq '.[0].number // ""' 2>/dev/null || true)
+          fi
           if [[ -z "${head_sha}" && -n "${pr_number}" ]]; then
             head_sha=$(gh pr view "${pr_number}" --repo "${REPO}" --json headRefOid -q .headRefOid)
           fi
