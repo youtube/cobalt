@@ -54,16 +54,11 @@ runs:
       id: detect-cache
       shell: bash
       env:
-        PLATFORM_INPUT: ${{ inputs.platform }}
+        PLATFORM: ${{ inputs.platform }}
       run: |
-        profile="default"
-        [[ "${PLATFORM_INPUT}" == *"android"* || "${PLATFORM_INPUT}" == *"aosp"* ]] && profile="android"
-        [[ "${PLATFORM_INPUT}" == *"evergreen-arm64"* ]] && profile="${profile:+${profile}-}evergreen-arm64"
-        [[ "${PLATFORM_INPUT}" == *"evergreen-arm"* && "${PLATFORM_INPUT}" != *"evergreen-arm64"* ]] && profile="${profile:+${profile}-}evergreen-arm"
-
         cache_hit=false
-        LOWER_DIR="/runner-cache/golden-workspace/${profile}"
-        if [ -w "/runner-cache" ] && [ -d "${LOWER_DIR}" ] && [ -n "$(ls -A "${LOWER_DIR}" 2>/dev/null)" ]; then
+        LOWER_DIR="/runner-cache/golden-workspace/${PLATFORM}"
+        if [ -w "/runner-cache" ] && [ -n "${PLATFORM}" ] && [ -d "${LOWER_DIR}" ] && [ -n "$(ls -A "${LOWER_DIR}" 2>/dev/null)" ]; then
           cache_hit=true
         fi
         echo "cache_hit=${cache_hit}" >> "${GITHUB_OUTPUT}"
@@ -83,29 +78,24 @@ runs:
       id: hydrate-snapshot
       shell: bash
       env:
-        PLATFORM_INPUT: ${{ inputs.platform }}
+        PLATFORM: ${{ inputs.platform }}
       run: |
-        if [ ! -w "/runner-cache" ] || [[ "${PLATFORM_INPUT}" == *"tvos"* ]]; then
+        if [ ! -w "/runner-cache" ] || [ -z "${PLATFORM}" ]; then
           exit 0
         fi
 
-        profile="default"
-        [[ "${PLATFORM_INPUT}" == *"android"* || "${PLATFORM_INPUT}" == *"aosp"* ]] && profile="android"
-        [[ "${PLATFORM_INPUT}" == *"evergreen-arm64"* ]] && profile="${profile:+${profile}-}evergreen-arm64"
-        [[ "${PLATFORM_INPUT}" == *"evergreen-arm"* && "${PLATFORM_INPUT}" != *"evergreen-arm64"* ]] && profile="${profile:+${profile}-}evergreen-arm"
+        LOWER_DIR="/runner-cache/golden-workspace/${PLATFORM}"
 
-        LOWER_DIR="/runner-cache/golden-workspace/${profile}"
-
-        git update-ref -d "refs/golden-workspace/${profile}" 2>/dev/null || true
+        git update-ref -d "refs/golden-workspace/${PLATFORM}" 2>/dev/null || true
         EXPECTED=""
-        if git fetch -q origin "+refs/golden-workspace/${profile}:refs/golden-workspace/${profile}" 2>/dev/null; then
-          EXPECTED=$(git log -1 --format=%s "refs/golden-workspace/${profile}" 2>/dev/null || true)
+        if git fetch -q origin "+refs/golden-workspace/${PLATFORM}:refs/golden-workspace/${PLATFORM}" 2>/dev/null; then
+          EXPECTED=$(git log -1 --format=%s "refs/golden-workspace/${PLATFORM}" 2>/dev/null || true)
         fi
 
         # If cache exists on SSD, verify digest matches latest ref
         if [ -d "${LOWER_DIR}" ]; then
           if [[ -n "${EXPECTED}" && -f "${LOWER_DIR}/.digest" ]] && [ "$(<"${LOWER_DIR}/.digest")" = "${EXPECTED}" ]; then
-            echo "Golden workspace ${profile} is up-to-date on SSD (${EXPECTED:0:12})."
+            echo "Golden workspace for ${PLATFORM} is up-to-date on SSD (${EXPECTED:0:12})."
             exit 0
           fi
           echo "Notice: Golden workspace on SSD is stale or untrusted; re-hydrating..."
@@ -114,7 +104,7 @@ runs:
 
         # Verify digest format before proceeding
         if [[ ! "${EXPECTED}" =~ ^[0-9a-f]{64}$ ]]; then
-          echo "Notice: No valid golden workspace ref found for ${profile}."
+          echo "Notice: No valid golden workspace ref found for ${PLATFORM}."
           exit 0
         fi
 
@@ -123,8 +113,8 @@ runs:
         STAGING_DIR="/runner-cache/staging.${$}"
         trap 'rm -rf "${ARCHIVE}" "${STAGING_DIR}"' EXIT
 
-        echo "Downloading golden workspace for ${profile} (${EXPECTED:0:12})..."
-        if ! gcloud storage cp -q "gs://${BUCKET}/${profile}/${EXPECTED}.tar.zst" "${ARCHIVE}" 2>/dev/null; then
+        echo "Downloading golden workspace for ${PLATFORM} (${EXPECTED:0:12})..."
+        if ! gcloud storage cp -q "gs://${BUCKET}/${PLATFORM}/${EXPECTED}.tar.zst" "${ARCHIVE}" 2>/dev/null; then
           echo "Notice: Golden workspace archive not found on GCS."
           exit 0
         fi
@@ -150,22 +140,17 @@ runs:
         mkdir -p "/runner-cache/golden-workspace"
         rm -rf "${LOWER_DIR}"
         mv "${STAGING_DIR}" "${LOWER_DIR}"
-        echo "Extracted and verified golden workspace for ${profile} to ${LOWER_DIR}"
+        echo "Extracted and verified golden workspace for ${PLATFORM} to ${LOWER_DIR}"
 
     - name: Resolve Active Snapshot Directory
       id: resolve-snapshot
       shell: bash
       env:
-        PLATFORM_INPUT: ${{ inputs.platform }}
+        PLATFORM: ${{ inputs.platform }}
       run: |
-        profile="default"
-        [[ "${PLATFORM_INPUT}" == *"android"* || "${PLATFORM_INPUT}" == *"aosp"* ]] && profile="android"
-        [[ "${PLATFORM_INPUT}" == *"evergreen-arm64"* ]] && profile="${profile:+${profile}-}evergreen-arm64"
-        [[ "${PLATFORM_INPUT}" == *"evergreen-arm"* && "${PLATFORM_INPUT}" != *"evergreen-arm64"* ]] && profile="${profile:+${profile}-}evergreen-arm"
-
         lower_dir=""
-        LOWER_DIR="/runner-cache/golden-workspace/${profile}"
-        if [ -d "${LOWER_DIR}" ]; then
+        LOWER_DIR="/runner-cache/golden-workspace/${PLATFORM}"
+        if [ -n "${PLATFORM}" ] && [ -d "${LOWER_DIR}" ]; then
           lower_dir="${LOWER_DIR}"
         fi
 
