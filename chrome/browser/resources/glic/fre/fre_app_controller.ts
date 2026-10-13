@@ -5,6 +5,8 @@
 import {EventTracker} from '//resources/js/event_tracker.js';
 import {loadTimeData} from '//resources/js/load_time_data.js';
 import {GlicRequestHeaderInjector} from '/shared/glic_request_headers.js';
+import {createWebView, isFullWebView} from '/shared/web_view_type.js';
+import type {WebViewType} from '/shared/web_view_type.js';
 import {assert} from 'chrome://resources/js/assert.js';
 import {getRequiredElement} from 'chrome://resources/js/util.js';
 
@@ -62,9 +64,9 @@ export class FreAppController {
 
   // Created from constructor and never null since the destructor replaces it
   // with an empty <webview>.
-  private webview: chrome.webviewTag.WebView;
+  private webview: WebViewType;
   private webviewEventTracker = new EventTracker();
-  private glicRequestHeaderInjector: GlicRequestHeaderInjector|undefined;
+  private glicRequestHeaderInjector?: GlicRequestHeaderInjector;
   private freHandler: FrePageHandlerRemote;
 
   // When entering loading state, this represents the earliest timestamp at
@@ -416,26 +418,34 @@ export class FreAppController {
     window.resizeTo(e.newWidth, e.newHeight);
   }
 
-  private createWebview(): chrome.webviewTag.WebView {
-    const webview =
-        document.createElement('webview') as chrome.webviewTag.WebView;
+  private createWebview(): WebViewType {
+    const webview = createWebView();
     webview.id = 'freGuestFrame';
     // TODO(crbug.com/408475473): Update the webviewTag definition to be able to
     // define properties rather than using setAttribute.
     webview.setAttribute('partition', this.partitionString);
     webview.setAttribute('autosize', 'true');
     if (this.shouldSizeForDialog) {
+      // Relax the min/max wiidth constraints on the `<webview>`. For
+      // certain device scale factors, when converting back and forth between
+      // DIPs and pixels, we can have rounding errors which can break the auto
+      // resizing FRE dialog. (See b:480783053 for more details)
       webview.setAttribute(
-          'minwidth', loadTimeData.getInteger('freInitialWidth').toString());
+          'minwidth',
+          (loadTimeData.getInteger('freInitialWidth') - 1).toString());
       webview.setAttribute(
-          'maxwidth', loadTimeData.getInteger('freInitialWidth').toString());
+          'maxwidth',
+          (loadTimeData.getInteger('freInitialWidth') + 1).toString());
       webview.setAttribute('minheight', MIN_HEIGHT.toString());
       webview.setAttribute('maxheight', window.screen.availHeight.toString());
     }
-    this.glicRequestHeaderInjector = new GlicRequestHeaderInjector(
-        webview, loadTimeData.getString('chromeVersion'),
-        loadTimeData.getString('chromeChannel'),
-        loadTimeData.getString('glicHeaderRequestTypes'));
+
+    if (isFullWebView(webview)) {
+      this.glicRequestHeaderInjector = new GlicRequestHeaderInjector(
+          webview, loadTimeData.getString('chromeVersion'),
+          loadTimeData.getString('chromeChannel'),
+          loadTimeData.getString('glicHeaderRequestTypes'));
+    }
 
     this.webviewContainer.appendChild(webview);
 
@@ -513,7 +523,7 @@ export class FreAppController {
   destroyWebview(): void {
     this.webviewEventTracker.removeAll();
 
-    if (this.glicRequestHeaderInjector) {
+    if (this.glicRequestHeaderInjector !== undefined) {
       this.glicRequestHeaderInjector.destroy();
       this.glicRequestHeaderInjector = undefined;
     }

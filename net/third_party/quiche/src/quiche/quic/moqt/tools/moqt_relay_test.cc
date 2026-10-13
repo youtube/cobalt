@@ -11,11 +11,13 @@
 #include <string>
 #include <utility>
 
-
+#include "absl/base/casts.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/quic_time.h"
-#include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_error.h"
+#include "quiche/quic/moqt/moqt_key_value_pair.h"
+#include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_relay_publisher.h"
 #include "quiche/quic/moqt/moqt_session.h"
@@ -131,7 +133,7 @@ TEST_F(MoqtRelayTest, PublishNamespace) {
   // relay_ publishes a namespace, so upstream_ will route to relay_.
   relay_.client_session()->PublishNamespace(
       TrackNamespace({"foo"}),
-      [](TrackNamespace, std::optional<MoqtErrorPair>) {},
+      [](TrackNamespace, std::optional<MoqtRequestErrorInfo>) {},
       VersionSpecificParameters());
   upstream_.RunOneEvent();
   // There is now an upstream session for "Foo".
@@ -183,11 +185,11 @@ TEST_F(MoqtRelayTest, SubscribeNamespace) {
   relay_.publisher()->AddNamespaceSubscriber(foo, &relay_probe);
   upstream_.publisher()->AddNamespaceSubscriber(foo, &upstream_probe);
   MoqtSession* upstream_session =
-      static_cast<MoqtSession*>(upstream_.last_server_session);
+      absl::down_cast<MoqtSession*>(upstream_.last_server_session);
   // Downstream publishes a namespace. It's stored in relay_ but upstream_
   // hasn't been notified.
   downstream_.client_session()->PublishNamespace(
-      foobar, [](TrackNamespace, std::optional<MoqtErrorPair>) {},
+      foobar, [](TrackNamespace, std::optional<MoqtRequestErrorInfo>) {},
       VersionSpecificParameters());
   relay_.RunOneEvent();
   upstream_.RunOneEvent();
@@ -196,16 +198,15 @@ TEST_F(MoqtRelayTest, SubscribeNamespace) {
 
   // Upstream subscribes. Now it's notified and forwards it to the probe.
   upstream_session->SubscribeNamespace(
-      foo,
-      [](TrackNamespace, std::optional<RequestErrorCode>, absl::string_view) {},
-      VersionSpecificParameters());
+      foo, [](TrackNamespace, std::optional<MoqtRequestErrorInfo>) {},
+      MessageParameters());
   upstream_.RunOneEvent();
   upstream_.RunOneEvent();
   EXPECT_THAT(upstream_published_namespaces, ElementsAre(foobar));
 
   // Downstream publishes another namespace. Everyone is notified.
   downstream_.client_session()->PublishNamespace(
-      foobaz, [](TrackNamespace, std::optional<MoqtErrorPair>) {},
+      foobaz, [](TrackNamespace, std::optional<MoqtRequestErrorInfo>) {},
       VersionSpecificParameters());
   relay_.RunOneEvent();
   upstream_.RunOneEvent();

@@ -49,6 +49,7 @@
 #include "chrome/browser/web_applications/isolated_web_apps/test/isolated_web_app_builder.h"
 #include "chrome/browser/web_applications/isolated_web_apps/test/isolated_web_app_test_update_server.h"
 #include "chrome/browser/web_applications/isolated_web_apps/test/key_distribution/test_utils.h"
+#include "chrome/browser/web_applications/isolated_web_apps/test/policy_test_utils.h"
 #include "chrome/browser/web_applications/isolated_web_apps/update/isolated_web_app_update_discovery_task.h"
 #include "chrome/browser/web_applications/test/web_app_icon_test_utils.h"
 #include "chrome/browser/web_applications/test/web_app_test_observers.h"
@@ -71,6 +72,9 @@
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/test_launcher.h"
+#include "content/public/test/url_loader_interceptor.h"
+#include "net/base/net_errors.h"
+#include "net/http/http_status_code.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/features.h"
@@ -82,6 +86,9 @@ namespace {
 using base::test::ErrorIs;
 using base::test::HasValue;
 using base::test::ValueIs;
+using ::net::test_server::BasicHttpResponse;
+using ::net::test_server::HttpRequest;
+using ::net::test_server::HttpResponse;
 using ::testing::_;
 using ::testing::Eq;
 using ::testing::HasSubstr;
@@ -328,6 +335,10 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest, Succeeds) {
                                      /*sample=*/false, /*expected_count=*/0);
   histogram_tester.ExpectTotalCount("WebApp.Isolated.UpdateError",
                                     /*expected_count=*/0);
+  histogram_tester.ExpectBucketCount(
+      "WebApp.Isolated.UpdateManifest.HttpResponseOrErrorCode",
+      /*sample=*/net::HTTP_OK,
+      /*expected_count=*/1);
 }
 
 IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest,
@@ -1235,6 +1246,161 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest,
                                     /*expected_count=*/0);
 }
 
+class IsolatedWebAppUpdateManifestBrowserTest
+    : public IsolatedWebAppUpdateManagerBrowserTest {
+ public:
+  void SetUpOnMainThread() override {
+    IsolatedWebAppUpdateManagerBrowserTest::SetUpOnMainThread();
+  }
+
+  void InstallIwaAndSetMockUpdateUrl(const GURL& update_manifest_url) {
+    web_package::SignedWebBundleId web_bundle_id = GetWebBundleId();
+
+    profile()->GetPrefs()->SetList(
+        prefs::kIsolatedWebAppInstallForceList,
+        base::ListValue().Append(
+            iwa_test_update_server_.CreateForceInstallPolicyEntry(
+                web_bundle_id)));
+
+    web_app::WebAppTestInstallObserver(browser()->profile())
+        .BeginListeningAndWait({GetAppId()});
+
+    base::DictValue new_policy_entry =
+        iwa_test_update_server_.CreateForceInstallPolicyEntry(web_bundle_id);
+
+    // Update the update manifest URL key to the new URL.
+    new_policy_entry.Set(web_app::kPolicyUpdateManifestUrlKey,
+                         update_manifest_url.spec());
+
+    // Edit the policy in the PrefService.
+    web_app::test::EditForceInstalledIwaPolicy(
+        profile()->GetPrefs(), web_bundle_id, std::move(new_policy_entry));
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManifestBrowserTest,
+                       ManifestDownloadFailedHttpResponseCode) {
+  base::HistogramTester histogram_tester;
+
+  // Configure embedded_test_server to return 404
+  embedded_test_server()->RegisterRequestHandler(base::BindLambdaForTesting(
+      [&](const HttpRequest& request) -> std::unique_ptr<HttpResponse> {
+        if (request.relative_url == "/update_manifest.json") {
+          auto response = std::make_unique<BasicHttpResponse>();
+          response->set_code(net::HTTP_NOT_FOUND);
+          return response;
+        }
+        return nullptr;
+      }));
+
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  GURL update_manifest_url =
+      embedded_test_server()->GetURL("/update_manifest.json");
+
+  InstallIwaAndSetMockUpdateUrl(update_manifest_url);
+
+  // Use base::test::TestFuture to get the result from the callback.
+  base::test::TestFuture<
+      web_app::IsolatedWebAppUpdateDiscoveryTask::CompletionStatus>
+      future;
+  // Correctly initialize UpdateDiscoveryTaskResultWaiter.
+  web_app::UpdateDiscoveryTaskResultWaiter waiter(provider(), GetAppId(),
+                                                  future.GetCallback());
+
+  EXPECT_THAT(provider().isolated_web_app_update_manager().DiscoverUpdatesNow(),
+              ::testing::Eq(1ul));
+
+  // Wait for the update discovery task to complete via the future.
+  web_app::IsolatedWebAppUpdateDiscoveryTask::CompletionStatus status =
+      future.Get();
+
+  // Check that the task failed as expected.
+  ASSERT_FALSE(status.has_value());
+  EXPECT_EQ(status.error(), web_app::IsolatedWebAppUpdateDiscoveryTask::Error::
+                                kUpdateManifestDownloadFailed);
+
+  histogram_tester.ExpectBucketCount("WebApp.Isolated.UpdateSuccess",
+                                     /*sample=*/true, /*expected_count=*/0);
+  histogram_tester.ExpectBucketCount("WebApp.Isolated.UpdateSuccess",
+                                     /*sample=*/false, /*expected_count=*/1);
+  histogram_tester.ExpectTotalCount("WebApp.Isolated.UpdateError",
+                                    /*expected_count=*/1);
+  histogram_tester.ExpectBucketCount(
+      "WebApp.Isolated.UpdateError",
+      IsolatedWebAppUpdateError::kUpdateManifestDownloadFailed, 1);
+  histogram_tester.ExpectTotalCount(
+      "WebApp.Isolated.UpdateManifest.HttpResponseOrErrorCode",
+      /*expected_count=*/1);
+  histogram_tester.ExpectBucketCount(
+      "WebApp.Isolated.UpdateManifest.HttpResponseOrErrorCode",
+      /*sample=*/net::HTTP_NOT_FOUND,
+      /*expected_count=*/1);
+}
+
+IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManifestBrowserTest,
+                       ManifestDownloadFailedNetworkError) {
+  base::HistogramTester histogram_tester;
+
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  GURL update_manifest_url =
+      embedded_test_server()->GetURL("/update_manifest.json");
+
+  // This captures the request for the manifest and kills it with
+  // ERR_CONNECTION_RESET
+  content::URLLoaderInterceptor interceptor(base::BindLambdaForTesting(
+      [&](content::URLLoaderInterceptor::RequestParams* params) {
+        if (params->url_request.url == update_manifest_url) {
+          network::URLLoaderCompletionStatus status;
+          status.error_code =
+              net::ERR_CONNECTION_RESET;  // Simulate connection drop
+          params->client->OnComplete(status);
+          return true;  // Request handled
+        }
+        return false;  // Pass through other requests
+      }));
+
+  InstallIwaAndSetMockUpdateUrl(update_manifest_url);
+
+  // Use base::test::TestFuture to get the result from the callback.
+  base::test::TestFuture<
+      web_app::IsolatedWebAppUpdateDiscoveryTask::CompletionStatus>
+      future;
+  // Correctly initialize UpdateDiscoveryTaskResultWaiter.
+  web_app::UpdateDiscoveryTaskResultWaiter waiter(provider(), GetAppId(),
+                                                  future.GetCallback());
+
+  EXPECT_THAT(provider().isolated_web_app_update_manager().DiscoverUpdatesNow(),
+              ::testing::Eq(1ul));
+
+  // Wait for the update discovery task to complete via the future.
+  web_app::IsolatedWebAppUpdateDiscoveryTask::CompletionStatus status =
+      future.Get();
+
+  // Check that the task failed as expected.
+  ASSERT_FALSE(status.has_value());
+  EXPECT_EQ(status.error(), web_app::IsolatedWebAppUpdateDiscoveryTask::Error::
+                                kUpdateManifestDownloadFailed);
+
+  histogram_tester.ExpectBucketCount("WebApp.Isolated.UpdateSuccess",
+                                     /*sample=*/true, /*expected_count=*/0);
+  histogram_tester.ExpectBucketCount("WebApp.Isolated.UpdateSuccess",
+                                     /*sample=*/false, /*expected_count=*/1);
+  histogram_tester.ExpectTotalCount("WebApp.Isolated.UpdateError",
+                                    /*expected_count=*/1);
+  histogram_tester.ExpectBucketCount(
+      "WebApp.Isolated.UpdateError",
+      IsolatedWebAppUpdateError::kUpdateManifestDownloadFailed, 1);
+  histogram_tester.ExpectTotalCount(
+      "WebApp.Isolated.UpdateManifest.HttpResponseOrErrorCode",
+      /*expected_count=*/1);
+  histogram_tester.ExpectBucketCount(
+      "WebApp.Isolated.UpdateManifest.HttpResponseOrErrorCode",
+      /*sample=*/net::ERR_CONNECTION_RESET,
+      /*expected_count=*/1);
+}
+
 // TODO(b/402650079) flaky on mac
 #if BUILDFLAG(IS_MAC)
 #define MAYBE_SucceedsWithServiceWorkerWithFetchHandler \
@@ -1277,8 +1443,9 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest,
 
   // Updates will be applied once the app's window is closed.
   Browser* app_browser = GetBrowserFromFrame(app_frame);
+  ui_test_utils::BrowserDestroyedObserver observer(app_browser);
   app_browser->window()->Close();
-  ui_test_utils::WaitForBrowserToClose(app_browser);
+  observer.Wait();
   EXPECT_THAT(provider().ui_manager().GetNumWindowsForApp(GetAppId()), Eq(0ul));
 
   manifest_updated_observer.Wait();
@@ -1591,8 +1758,9 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerWithKeyRotationBrowserTest,
 
     content::TitleWatcher title_watcher(web_contents, u"1.0.0");
     EXPECT_EQ(title_watcher.WaitAndGetTitle(), u"1.0.0");
+    ui_test_utils::BrowserDestroyedObserver observer(app_browser);
     app_browser->window()->Close();
-    ui_test_utils::WaitForBrowserToClose(app_browser);
+    observer.Wait();
   }
 
   // Key rotation should trigger an unsuccessful discovery in the update manager
@@ -1611,8 +1779,9 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerWithKeyRotationBrowserTest,
     EXPECT_THAT(EvalJs(web_contents, "document.body.innerText").ExtractString(),
                 HasSubstr("This application is missing or damaged"));
 
+    ui_test_utils::BrowserDestroyedObserver observer(app_browser);
     app_browser->window()->Close();
-    ui_test_utils::WaitForBrowserToClose(app_browser);
+    observer.Wait();
   }
 
   // Apply a late update.
@@ -1700,8 +1869,9 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerWithKeyRotationBrowserTest,
   }
 
   // Close the browser.
+  ui_test_utils::BrowserDestroyedObserver observer(app_browser);
   app_browser->window()->Close();
-  ui_test_utils::WaitForBrowserToClose(app_browser);
+  observer.Wait();
 
   // Now an attempt to open the app should display the "missing or damaged"
   // page.
@@ -1769,6 +1939,87 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerWithKeyRotationBrowserTest,
           Eq("app-1.0.0"),
           test::IsolationDataIs(
               /*location=*/_, Eq(*IwaVersion::Create("1.0.0")),
+              /*controlled_frame_partitions=*/_,
+              /*pending_update_info=*/Eq(std::nullopt),
+              /*integrity_block_data=*/
+              test::IntegrityBlockDataPublicKeysAre(kKeyPair2.public_key))));
+}
+
+IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerWithKeyRotationBrowserTest,
+                       SoftKeyRotation) {
+  data_provider_->Update(
+      [&](auto& update) { update.AddToManagedAllowlist(web_bundle_id_); });
+  auto app_id =
+      IsolatedWebAppUrlInfo::CreateFromSignedWebBundleId(web_bundle_id_)
+          .app_id();
+
+  // Add a bundle with version 1.0.0 signed by the original key.
+  AddBundleSignedBy(kKeyPair1);
+
+  profile()->GetPrefs()->SetList(
+      prefs::kIsolatedWebAppInstallForceList,
+      base::ListValue().Append(
+          iwa_test_update_server_.CreateForceInstallPolicyEntry(
+              web_bundle_id_)));
+
+  web_app::WebAppTestInstallObserver(browser()->profile())
+      .BeginListeningAndWait({app_id});
+
+  EXPECT_THAT(
+      GetIsolatedWebApp(app_id),
+      test::IwaIs(
+          Eq("app-1.0.0"),
+          test::IsolationDataIs(
+              /*location=*/_, Eq(*IwaVersion::Create("1.0.0")),
+              /*controlled_frame_partitions=*/_,
+              /*pending_update_info=*/Eq(std::nullopt),
+              /*integrity_block_data=*/
+              test::IntegrityBlockDataPublicKeysAre(kKeyPair1.public_key))));
+
+  // Trigger a soft key rotation: Key 2 is the new expected key, Key 1 is still
+  // trusted as a previous key.
+  data_provider_->Update([&](auto& update) {
+    update.AddToKeyRotations(web_bundle_id_, kKeyPair2.public_key.bytes(),
+                             kKeyPair1.public_key.bytes());
+  });
+
+  // The app should still be openable because Key 1 is in the `previous_key`
+  // slot.
+  {
+    auto* app_browser = LaunchWebAppBrowserAndWait(app_id);
+    content::WebContents* web_contents =
+        app_browser->tab_strip_model()->GetActiveWebContents();
+
+    content::TitleWatcher title_watcher(web_contents, u"1.0.0");
+    EXPECT_EQ(title_watcher.WaitAndGetTitle(), u"1.0.0");
+    ui_test_utils::BrowserDestroyedObserver observer(app_browser);
+    app_browser->window()->Close();
+    observer.Wait();
+  }
+
+  // Now add a new bundle signed by Key 2 to the update server.
+  // The update manager should discover it and update the app.
+  WebAppTestManifestUpdatedObserver manifest_updated_observer(
+      &provider().install_manager());
+  manifest_updated_observer.BeginListening({app_id});
+
+  iwa_test_update_server_.AddBundle(
+      IsolatedWebAppBuilder(
+          ManifestBuilder().SetName("app-1.0.1").SetVersion("1.0.1"))
+          .AddHtml("/", R"(<html><head><title>1.0.1</title></head></html>)")
+          .BuildBundle(web_bundle_id_, {kKeyPair2}));
+
+  EXPECT_EQ(provider().isolated_web_app_update_manager().DiscoverUpdatesNow(),
+            1u);
+  manifest_updated_observer.Wait();
+
+  // The app should now be at version 1.0.1 and signed by Key 2.
+  EXPECT_THAT(
+      GetIsolatedWebApp(app_id),
+      test::IwaIs(
+          Eq("app-1.0.1"),
+          test::IsolationDataIs(
+              /*location=*/_, Eq(*IwaVersion::Create("1.0.1")),
               /*controlled_frame_partitions=*/_,
               /*pending_update_info=*/Eq(std::nullopt),
               /*integrity_block_data=*/

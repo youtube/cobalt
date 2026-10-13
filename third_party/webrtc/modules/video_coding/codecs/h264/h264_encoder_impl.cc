@@ -472,6 +472,25 @@ int32_t H264EncoderImpl::Encode(
                         psnr_frame_sampler_.ShouldBeSampled(input_frame);
 #endif
 
+  int num_layers_to_send = 0;
+  std::vector<VideoFrameType> frame_types_to_send(
+      configurations_.size(), VideoFrameType::kVideoFrameDelta);
+  for (size_t i = 0; i < encoders_.size(); ++i) {
+    if (!configurations_[i].sending) {
+      frame_types_to_send[i] = VideoFrameType::kEmptyFrame;
+      continue;
+    }
+
+    const size_t simulcast_idx =
+        static_cast<size_t>(configurations_[i].simulcast_idx);
+    if (frame_types != nullptr && simulcast_idx < frame_types->size()) {
+      frame_types_to_send[i] = (*frame_types)[simulcast_idx];
+    }
+    if (frame_types_to_send[i] != VideoFrameType::kEmptyFrame) {
+      ++num_layers_to_send;
+    }
+  }
+
   // Encode image for each layer.
   for (size_t i = 0; i < encoders_.size(); ++i) {
     // EncodeFrame input.
@@ -515,23 +534,15 @@ int32_t H264EncoderImpl::Encode(
                         configurations_[i].height, libyuv::kFilterBox);
     }
 
-    if (!configurations_[i].sending) {
+    if (frame_types_to_send[i] == VideoFrameType::kEmptyFrame) {
       continue;
     }
-    if (frame_types != nullptr && i < frame_types->size()) {
-      // Skip frame?
-      if ((*frame_types)[i] == VideoFrameType::kEmptyFrame) {
-        continue;
-      }
-    }
+
     // Send a key frame either when this layer is configured to require one
     // or we have explicitly been asked to.
-    const size_t simulcast_idx =
-        static_cast<size_t>(configurations_[i].simulcast_idx);
     bool send_key_frame =
         is_keyframe_needed ||
-        (frame_types && simulcast_idx < frame_types->size() &&
-         (*frame_types)[simulcast_idx] == VideoFrameType::kVideoFrameKey);
+        frame_types_to_send[i] == VideoFrameType::kVideoFrameKey;
     if (send_key_frame) {
       // API doc says ForceIntraFrame(false) does nothing, but calling this
       // function forces a key frame regardless of the `bIDR` argument's value.
@@ -559,33 +570,36 @@ int32_t H264EncoderImpl::Encode(
       return WEBRTC_VIDEO_CODEC_ERROR;
     }
 
-    encoded_images_[i]._encodedWidth = configurations_[i].width;
-    encoded_images_[i]._encodedHeight = configurations_[i].height;
-    encoded_images_[i].SetRtpTimestamp(input_frame.rtp_timestamp());
-    encoded_images_[i].SetColorSpace(input_frame.color_space());
-    encoded_images_[i].set_frame_type(ConvertToVideoFrameType(info.eFrameType));
-    encoded_images_[i].SetSimulcastIndex(configurations_[i].simulcast_idx);
+    EncodedImage& encoded_image = encoded_images_[i];
+
+    encoded_image._encodedWidth = configurations_[i].width;
+    encoded_image._encodedHeight = configurations_[i].height;
+    encoded_image.SetRtpTimestamp(input_frame.rtp_timestamp());
+    encoded_image.SetColorSpace(input_frame.color_space());
+    encoded_image.set_frame_type(ConvertToVideoFrameType(info.eFrameType));
+    encoded_image.SetSimulcastIndex(configurations_[i].simulcast_idx);
+    --num_layers_to_send;
+    encoded_image.set_end_of_temporal_unit(num_layers_to_send == 0);
 
     // Split encoded image up into fragments. This also updates
     // `encoded_image_`.
-    RtpFragmentize(&encoded_images_[i], &info);
+    RtpFragmentize(&encoded_image, &info);
 
     // Encoder can skip frames to save bandwidth in which case
-    // `encoded_images_[i]._length` == 0.
-    if (encoded_images_[i].size() > 0) {
+    // `encoded_image._length` == 0.
+    if (encoded_image.size() > 0) {
       // Parse QP.
-      h264_bitstream_parser_.ParseBitstream(encoded_images_[i]);
-      encoded_images_[i].qp_ =
-          h264_bitstream_parser_.GetLastSliceQp().value_or(-1);
+      h264_bitstream_parser_.ParseBitstream(encoded_image);
+      encoded_image.qp_ = h264_bitstream_parser_.GetLastSliceQp().value_or(-1);
 #ifdef WEBRTC_ENCODER_PSNR_STATS
       if (calculate_psnr) {
-        encoded_images_[i].set_psnr(EncodedImage::Psnr({
+        encoded_image.set_psnr(EncodedImage::Psnr({
             .y = info.sLayerInfo[info.iLayerNum - 1].rPsnr[0],
             .u = info.sLayerInfo[info.iLayerNum - 1].rPsnr[1],
             .v = info.sLayerInfo[info.iLayerNum - 1].rPsnr[2],
         }));
       } else {
-        encoded_images_[i].set_psnr(std::nullopt);
+        encoded_image.set_psnr(std::nullopt);
       }
 #endif
 
@@ -620,7 +634,7 @@ int32_t H264EncoderImpl::Encode(
                 << ", expected " << layer_frames[0].TemporalId() << ".";
             continue;
           }
-          encoded_images_[i].SetTemporalIndex(tid);
+          encoded_image.SetTemporalIndex(tid);
         }
         if (codec_specific.codecSpecific.H264.base_layer_sync) {
           tl0sync_limit_[i] = tid;
@@ -639,10 +653,14 @@ int32_t H264EncoderImpl::Encode(
         }
         codec_specific.scalability_mode = scalability_modes_[i];
       }
-      encoded_image_callback_->OnEncodedImage(encoded_images_[i],
-                                              &codec_specific);
+      encoded_image_callback_->OnEncodedImage(encoded_image, &codec_specific);
+    } else {
+      encoded_image_callback_->OnFrameDropped(
+          encoded_image.RtpTimestamp(), *encoded_image.SimulcastIndex(),
+          *encoded_image.is_end_of_temporal_unit());
     }
   }
+  RTC_DCHECK_EQ(num_layers_to_send, 0);
   return WEBRTC_VIDEO_CODEC_OK;
 }
 

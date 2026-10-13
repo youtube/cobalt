@@ -46,21 +46,25 @@ class SkillsServiceImpl : public SkillsService {
   void Shutdown() override;
 
   // SkillsService implementation.
-  bool IsInitialized() const override;
+  ServiceStatus GetServiceStatus() const override;
   void LoadInitialSkills(
       std::vector<std::unique_ptr<Skill>> initial_skills) override;
   // TODO(crbug.com/475863107) Add strong typing to help caller avoid swapping
   // order of arguments.
-  const Skill* AddSkill(const std::string& name,
+  const Skill* AddSkill(const std::string& source_skill_id,
+                        const std::string& name,
                         const std::string& icon,
                         const std::string& prompt) override;
 
   const Skill* AddOrUpdateSkillFromSync(std::string_view skill_id,
+                                        std::string_view source_skill_id,
                                         std::string_view name,
                                         std::string_view icon,
                                         std::string_view prompt,
+                                        std::string_view description,
                                         base::Time creation_time,
-                                        base::Time last_update_time) override;
+                                        base::Time last_update_time,
+                                        sync_pb::SkillSource source) override;
 
   // TODO(crbug.com/475863107) Add strong typing to help caller avoid swapping
   // order of arguments.
@@ -74,11 +78,14 @@ class SkillsServiceImpl : public SkillsService {
   const Skill* GetSkillById(std::string_view skill_id) const override;
   void FetchDiscoverySkills() override;
   void Handle1pSkillsMap(std::unique_ptr<SkillsMap> skills_map) override;
+  const SkillsMap& Get1PSkills() const override;
   const std::vector<std::unique_ptr<Skill>>& GetSkills() const override;
   void AddObserver(Observer* observer) override;
   void RemoveObserver(Observer* observer) override;
   base::WeakPtr<syncer::DataTypeControllerDelegate> GetControllerDelegate()
       override;
+  void SyncStatusChanged() override;
+  void SetServiceStatusForTesting(ServiceStatus status) override;
 
  private:
   void NotifySkillChanged(std::string_view skill_id,
@@ -97,10 +104,12 @@ class SkillsServiceImpl : public SkillsService {
                        std::string_view name,
                        std::string_view icon,
                        std::string_view prompt,
+                       std::string_view description,
                        base::Time update_time,
                        UpdateSource update_source);
 
-  // Whether the service is initialized.
+  // Whether the service is initialized, i.e. LoadInitialSkills() has been
+  // called.
   bool is_initialized_ = false;
 
   // Sorts the skills by name in alphabetical order.
@@ -108,6 +117,9 @@ class SkillsServiceImpl : public SkillsService {
 
   // The list of skills managed by this service.
   std::vector<std::unique_ptr<Skill>> skills_;
+
+  // The map of loaded 1p discovery skills.
+  SkillsMap first_party_skills_map_;
 
   // The list of observers to be notified on changes.
   base::ObserverList<Observer, /*check_empty=*/true, /*allow_reentrancy=*/false>
@@ -118,6 +130,10 @@ class SkillsServiceImpl : public SkillsService {
 
   // Downloader for 1P skills.
   std::unique_ptr<SkillsDownloader> skills_downloader_;
+
+  // Service status for testing purposes which overrides the actual service
+  // status.
+  std::optional<ServiceStatus> service_status_for_testing_;
 
   // Weak pointer factory for posting tasks.
   base::WeakPtrFactory<SkillsServiceImpl> weak_ptr_factory_{this};

@@ -1243,6 +1243,7 @@ rtc_source_set("array_view") {
   deps = [
     "../rtc_base:checks",
     "../rtc_base:type_traits",
+    "//third_party/abseil-cpp/absl/base:core_headers",
   ]
 }
 

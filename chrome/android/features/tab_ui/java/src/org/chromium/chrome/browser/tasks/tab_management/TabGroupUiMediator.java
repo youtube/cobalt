@@ -103,12 +103,12 @@ public class TabGroupUiMediator implements BackPressHandler {
 
     /** Wraps a child component's token with information from this component. */
     private static class NestedSnapshot {
-        private final Object mChildSnapshot;
+        private final @Nullable Object mChildSnapshot;
         private final @ColorInt int mBackgroundColor;
         private final int mWidthPx;
 
         /* package */ NestedSnapshot(
-                Object childSnapshot, @ColorInt int backgroundColor, int widthPx) {
+                @Nullable Object childSnapshot, @ColorInt int backgroundColor, int widthPx) {
             mChildSnapshot = childSnapshot;
             mBackgroundColor = backgroundColor;
             mWidthPx = widthPx;
@@ -201,7 +201,7 @@ public class TabGroupUiMediator implements BackPressHandler {
         mOnSnapshotTokenChange = onSnapshotTokenChange;
         mChildTokenSupplier = childTokenSupplier;
         mChildTokenSupplier.addObserver(mOnTokenComponentChange);
-        mWidthPxSupplier.addObserver(mOnTokenComponentChange);
+        mWidthPxSupplier.addSyncObserverAndPostIfNonNull(mOnTokenComponentChange);
 
         onThemeColorChanged(mThemeColorProvider.getThemeColor(), false);
         ColorStateList tintList = mThemeColorProvider.getTint();
@@ -342,7 +342,7 @@ public class TabGroupUiMediator implements BackPressHandler {
                 .addTabGroupObserver(mTabGroupModelFilterObserver);
 
         mOmniboxFocusObserver = isFocus -> resetTabStrip();
-        mOmniboxFocusStateSupplier.addObserver(mOmniboxFocusObserver);
+        mOmniboxFocusStateSupplier.addSyncObserverAndPostIfNonNull(mOmniboxFocusObserver);
 
         tabModelSelector.addTabGroupModelFilterObserver(mTabModelObserver);
         mTabModelSelector.getCurrentTabModelSupplier().addObserver(mCurrentTabModelObserver);
@@ -366,7 +366,8 @@ public class TabGroupUiMediator implements BackPressHandler {
                     controller -> {
                         controller
                                 .getHandleBackPressChangedSupplier()
-                                .addObserver(mHandleBackPressChangedSupplier::set);
+                                .addSyncObserverAndPostIfNonNull(
+                                        mHandleBackPressChangedSupplier::set);
                     });
         }
     }

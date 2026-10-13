@@ -3347,7 +3347,7 @@ bool ListStyle::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    CSSParserLocalContext&,
+    CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   const CSSValue* none = nullptr;
   const CSSValue* list_style_position = nullptr;
@@ -3362,24 +3362,21 @@ bool ListStyle::ParseShorthand(
     }
     if (!list_style_position) {
       list_style_position = css_parsing_utils::ParseLonghand(
-          CSSPropertyID::kListStylePosition, CSSPropertyID::kListStyle, context,
-          stream);
+          CSSPropertyID::kListStylePosition, context, local_context, stream);
       if (list_style_position) {
         continue;
       }
     }
     if (!list_style_image) {
       list_style_image = css_parsing_utils::ParseLonghand(
-          CSSPropertyID::kListStyleImage, CSSPropertyID::kListStyle, context,
-          stream);
+          CSSPropertyID::kListStyleImage, context, local_context, stream);
       if (list_style_image) {
         continue;
       }
     }
     if (!list_style_type) {
       list_style_type = css_parsing_utils::ParseLonghand(
-          CSSPropertyID::kListStyleType, CSSPropertyID::kListStyle, context,
-          stream);
+          CSSPropertyID::kListStyleType, context, local_context, stream);
       if (list_style_type) {
         continue;
       }
@@ -3530,10 +3527,10 @@ bool Marker::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    CSSParserLocalContext&,
+    CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   const CSSValue* marker = css_parsing_utils::ParseLonghand(
-      CSSPropertyID::kMarkerStart, CSSPropertyID::kMarker, context, stream);
+      CSSPropertyID::kMarkerStart, context, local_context, stream);
   if (!marker) {
     return false;
   }
@@ -4067,8 +4064,7 @@ bool ParsePositionTryShorthand(const StylePropertyShorthand& shorthand,
   CHECK_EQ(shorthand.length(), 2u);
   CHECK_EQ(shorthand.properties()[0], &GetCSSPropertyPositionTryOrder());
   const CSSValue* order = css_parsing_utils::ParseLonghand(
-      CSSPropertyID::kPositionTryOrder, CSSPropertyID::kPositionTry, context,
-      stream);
+      CSSPropertyID::kPositionTryOrder, context, local_context, stream);
   if (!order) {
     order = GetCSSPropertyPositionTryOrder().InitialValue();
   }
@@ -4078,7 +4074,7 @@ bool ParsePositionTryShorthand(const StylePropertyShorthand& shorthand,
 
   CSSPropertyID fallbacks_id = shorthand.properties()[1]->PropertyID();
   if (const CSSValue* fallbacks = css_parsing_utils::ParseLonghand(
-          fallbacks_id, CSSPropertyID::kPositionTry, context, stream)) {
+          fallbacks_id, context, local_context, stream)) {
     css_parsing_utils::AddProperty(
         fallbacks_id, CSSPropertyID::kPositionTry, *fallbacks, important,
         css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
@@ -4534,8 +4530,9 @@ const CSSValue* TimelineTrigger::CSSValueFromComputedStyleInternal(
 
       const CSSValueList* enter_range =
           SingleAnimationRangeCSSValueFromComputedStyle(
-              style, animation_data->TimelineTriggerEntryRangeStartList().at(i),
-              animation_data->TimelineTriggerEntryRangeEndList().at(i),
+              style,
+              animation_data->TimelineTriggerActivationRangeStartList().at(i),
+              animation_data->TimelineTriggerActivationRangeEndList().at(i),
               default_start, default_end);
       DCHECK(enter_range->length());
       // Skip a value of 'normal' as that is the default for the enter range.
@@ -4613,42 +4610,44 @@ bool TimelineTrigger::ParseShorthand(
   return true;
 }
 
-const CSSValue* TimelineTriggerEntryRange::CSSValueFromComputedStyleInternal(
+const CSSValue*
+TimelineTriggerActivationRange::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject*,
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
   const Vector<std::optional<TimelineOffset>>& trigger_range_start_list =
       style.Animations()
-          ? style.Animations()->TimelineTriggerEntryRangeStartList()
+          ? style.Animations()->TimelineTriggerActivationRangeStartList()
           : Vector<std::optional<TimelineOffset>>{
-                CSSAnimationData::InitialTimelineTriggerEntryRangeStart()};
+                CSSAnimationData::InitialTimelineTriggerActivationRangeStart()};
   const Vector<std::optional<TimelineOffset>>& trigger_range_end_list =
       style.Animations()
-          ? style.Animations()->TimelineTriggerEntryRangeEndList()
+          ? style.Animations()->TimelineTriggerActivationRangeEndList()
           : Vector<std::optional<TimelineOffset>>{
-                CSSAnimationData::InitialTimelineTriggerEntryRangeEnd()};
+                CSSAnimationData::InitialTimelineTriggerActivationRangeEnd()};
 
   return AnimationRangeCSSValueFromComputedStyle(
       style, trigger_range_start_list, trigger_range_end_list);
 }
 
-bool TimelineTriggerEntryRange::ParseShorthand(
+bool TimelineTriggerActivationRange::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
     CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
-  const StylePropertyShorthand shorthand = timelineTriggerEntryRangeShorthand();
+  const StylePropertyShorthand shorthand =
+      timelineTriggerActivationRangeShorthand();
   DCHECK_EQ(2u, shorthand.length());
-  DCHECK_EQ(&GetCSSPropertyTimelineTriggerEntryRangeStart(),
+  DCHECK_EQ(&GetCSSPropertyTimelineTriggerActivationRangeStart(),
             shorthand.properties()[0]);
-  DCHECK_EQ(&GetCSSPropertyTimelineTriggerEntryRangeEnd(),
+  DCHECK_EQ(&GetCSSPropertyTimelineTriggerActivationRangeEnd(),
             shorthand.properties()[1]);
   return ParseAnimationRangeShorthand(
-      shorthand, CSSPropertyID::kTimelineTriggerEntryRangeStart,
-      CSSPropertyID::kTimelineTriggerEntryRangeEnd, important, stream, context,
-      local_context, properties,
+      shorthand, CSSPropertyID::kTimelineTriggerActivationRangeStart,
+      CSSPropertyID::kTimelineTriggerActivationRangeEnd, important, stream,
+      context, local_context, properties,
       /*allow_auto=*/false);
 }
 

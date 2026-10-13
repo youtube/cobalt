@@ -319,8 +319,7 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
 
 #define JAVASCRIPT_STAGED_FEATURES_BASE(V)             \
   V(js_immutable_arraybuffer, "Immutable ArrayBuffer") \
-  V(js_sum_precise, "Math.sumPrecise")                 \
-  V(js_iterator_sequencing, "iterator sequencing")
+  V(js_sum_precise, "Math.sumPrecise")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
@@ -351,7 +350,8 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
   V(js_esm_ns_reexport,                                                      \
     "Support diamond-importing re-expored namespaces "                       \
     "(https://github.com/tc39/ecma262/pull/3715)")                           \
-  V(js_upsert, "upsert")
+  V(js_upsert, "upsert")                                                     \
+  V(js_iterator_sequencing, "iterator sequencing")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
@@ -1184,6 +1184,7 @@ DEFINE_BOOL(enable_lazy_source_positions, V8_LAZY_SOURCE_POSITIONS_BOOL,
             "regenerate when actually required")
 DEFINE_BOOL(stress_lazy_source_positions, false,
             "collect lazy source positions immediately after lazy compile")
+DEFINE_BOOL(stress_lazy, false, "stress lazy compilation")
 DEFINE_STRING(print_bytecode_filter, "*",
               "filter for selecting which functions to print bytecode")
 DEFINE_BOOL(omit_default_ctors, true, "omit calling default ctors in bytecode")
@@ -1541,6 +1542,14 @@ DEFINE_BOOL(turbo_inline_array_builtins, true,
             "inline array builtins in TurboFan code")
 DEFINE_BOOL(use_osr, true, "use on-stack replacement")
 DEFINE_BOOL(maglev_osr, true, "use maglev as on-stack replacement target")
+
+// Threshold to determine if a function is eager or non-eager inlined. Separate
+// cumulative budgets (small vs. large) still apply regardless of the inlining
+// type.
+DEFINE_INT(max_maglev_eager_inlined_bytecode_size, 30,
+           "maximum size of bytecode considered for eager inlining")
+DEFINE_INT(max_turbolev_eager_inlined_bytecode_size, 30,
+           "maximum size of bytecode considered for eager inlining")
 
 // When using maglev as OSR target allow us to tier up further
 DEFINE_WEAK_VALUE_IMPLICATION(maglev_osr, osr_from_maglev, true)
@@ -2554,10 +2563,8 @@ DEFINE_BOOL_READONLY(verify_heap, false,
 DEFINE_BOOL_READONLY(verify_write_barriers, V8_VERIFY_WRITE_BARRIERS_BOOL,
                      "verify skipped write barriers")
 #undef V8_VERIFY_WRITE_BARRIERS_BOOL
-#if V8_OS_DARWIN
 DEFINE_BOOL(safepoint_bump_qos_class, true,
-            "Bump QOS class for running threads to reach safepoint")
-#endif
+            "Bump priority for running threads to reach safepoint")
 DEFINE_BOOL(move_object_start, true, "enable moving of object starts")
 DEFINE_BOOL(memory_reducer, true, "use memory reducer")
 DEFINE_BOOL(memory_reducer_for_small_heaps, true,
@@ -3422,7 +3429,8 @@ DEFINE_BOOL(
 // When fuzzing, always compile functions twice and ensure that the generated
 // bytecode is the same. This can help find bugs such as crbug.com/1394403 as it
 // avoids the need for bytecode aging to kick in to trigger the recomplication.
-DEFINE_WEAK_NEG_IMPLICATION(fuzzing, lazy)
+// We use stress-lazy to still test the preparse / lazy compilation pipeline.
+DEFINE_WEAK_IMPLICATION(fuzzing, stress_lazy)
 DEFINE_WEAK_IMPLICATION(fuzzing, stress_lazy_source_positions)
 
 DEFINE_BOOL(

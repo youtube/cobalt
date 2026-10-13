@@ -14,9 +14,9 @@ import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
 import {BrowserProxyImpl} from '../browser_proxy.js';
 import {localizeScope} from '../event_history.js';
-import type {PolicySet, Scope} from '../event_history.js';
+import type {Scope} from '../event_history.js';
 import {formatDateLong, formatRelativeDate} from '../tools.js';
-import {UpdaterScope} from '../updater_ui.mojom-webui.js';
+import {ShowDirectoryTarget} from '../updater_ui.mojom-webui.js';
 
 import {getCss} from './updater_state_card.css.js';
 import {getHtml} from './updater_state_card.html.js';
@@ -42,7 +42,6 @@ export class UpdaterStateCardElement extends CrLitElement {
       lastChecked: {type: Object},
       lastStarted: {type: Object},
       installPath: {type: String},
-      policies: {type: Object},
     };
   }
 
@@ -52,7 +51,6 @@ export class UpdaterStateCardElement extends CrLitElement {
   accessor lastChecked: Date|null = null;
   accessor lastStarted: Date|null = null;
   accessor installPath: string|undefined = undefined;
-  accessor policies: PolicySet|undefined = undefined;
 
   protected headingLabel: string = '';
   protected formattedLastChecked: string = '';
@@ -98,8 +96,9 @@ export class UpdaterStateCardElement extends CrLitElement {
   }
 
   protected onInstallPathClick() {
-    BrowserProxyImpl.getInstance().handler.showUpdaterDirectory(
-        this.scope === 'SYSTEM' ? UpdaterScope.kSystem : UpdaterScope.kUser);
+    BrowserProxyImpl.getInstance().handler.showDirectory(
+        this.scope === 'SYSTEM' ? ShowDirectoryTarget.kSystemUpdater :
+                                  ShowDirectoryTarget.kUserUpdater);
   }
 }
 

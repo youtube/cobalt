@@ -227,6 +227,38 @@ constexpr TimeTestData kGmtimeCases[] = {
                      .tm_isdst = 0},
      .time_val = 1722468779,
      .expected_gmtoff = 0,
+     .expected_zone = kUtcOrGmt},
+    {.case_name = "MaxTimeValForStructTm",
+     .timezone = "UTC",
+     .expected_tm = {.tm_sec = 59,
+                     .tm_min = 59,
+                     .tm_hour = 23,
+                     .tm_mday = 31,       // 31st day of the month.
+                     .tm_mon = 11,        // December (0-11).
+                     .tm_year = INT_MAX,  // 2147485547 - 1900.
+                     .tm_wday = 3,        // Wednesday.
+                     .tm_yday = 364,      // Day of the year (0-365).
+                     .tm_isdst = 0},
+     // The last second that still fits in tm_year, one before the value
+     // TimeTHighValueOverflow checks.
+     .time_val = 67768036191676799,
+     .expected_gmtoff = 0,
+     .expected_zone = kUtcOrGmt},
+    {.case_name = "MinTimeValForStructTm",
+     .timezone = "UTC",
+     .expected_tm = {.tm_sec = 0,
+                     .tm_min = 0,
+                     .tm_hour = 0,
+                     .tm_mday = 1,        // 1st day of the month.
+                     .tm_mon = 0,         // January (0-11).
+                     .tm_year = INT_MIN,  // -2147481748 - 1900.
+                     .tm_wday = 4,        // Thursday.
+                     .tm_yday = 0,        // Day of the year (0-365).
+                     .tm_isdst = 0},
+     // The first second that still fits in tm_year, one after the value
+     // TimeTLowValueOverflow checks.
+     .time_val = -67768040609740800,
+     .expected_gmtoff = 0,
      .expected_zone = kUtcOrGmt}};
 
 // Data for localtime and localtime_r
@@ -371,11 +403,11 @@ constexpr TimeTestData kGmtimeOverflowCases[] = {
     {.case_name = "TimeTHighValueOverflow",
      .timezone = "UTC",
      .expected_tm = {},
-     // Tue Dec 31 23:59:59  2147483647
-     .time_val = 67767976233521999 + 1,
+     // One second past Wed Dec 31 23:59:59 2147485547, the last time whose
+     // year still fits in tm_year (INT_MAX).
+     .time_val = 67768036191676799 + 1,
      .expected_gmtoff = 0,
-     .expected_zone = "UTC",
-     .hermetic_only = true},
+     .expected_zone = "UTC"},
     {.case_name = "TimeTMinValueOverflow",
      .timezone = "UTC",
      .expected_tm = {},
@@ -385,11 +417,11 @@ constexpr TimeTestData kGmtimeOverflowCases[] = {
     {.case_name = "TimeTLowValueOverflow",
      .timezone = "UTC",
      .expected_tm = {},
-     // Thu Jan  1 00:00:00 -2147481748
-     .time_val = -67768040609712422 - 1,
+     // One second before Thu Jan  1 00:00:00 -2147481748, the first time whose
+     // year still fits in tm_year (INT_MIN).
+     .time_val = -67768040609740800 - 1,
      .expected_gmtoff = 0,
-     .expected_zone = "UTC",
-     .hermetic_only = true}};
+     .expected_zone = "UTC"}};
 
 constexpr TimeTestData kLocaltimeOverflowCases[] = {
     {.case_name = "TimeTMaxValueOverflow",

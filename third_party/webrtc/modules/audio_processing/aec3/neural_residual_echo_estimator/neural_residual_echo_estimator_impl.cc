@@ -409,8 +409,12 @@ NeuralResidualEchoEstimatorImpl::LoadTfLiteModel(
     return nullptr;
   }
   std::unique_ptr<tflite::Interpreter> interpreter;
-  if (tflite::InterpreterBuilder(*model, op_resolver)(&interpreter) !=
-      kTfLiteOk) {
+  tflite::InterpreterBuilder interpreter_builder(*model, op_resolver);
+  if (interpreter_builder.SetNumThreads(1) != kTfLiteOk) {
+    RTC_LOG(LS_ERROR) << "Error setting interpreter num threads";
+    return nullptr;
+  }
+  if (interpreter_builder(&interpreter) != kTfLiteOk) {
     RTC_LOG(LS_ERROR) << "Error creating interpreter";
     return nullptr;
   }

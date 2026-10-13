@@ -315,7 +315,7 @@ export class SettingsSecurityPageV2Element extends
       this.interactions_.add(
           SecurityPageV2Interaction.SAFE_BROWSING_ROW_EXPANDED);
       this.metricsBrowserProxy_.recordAction(
-          'SafeBrowsing.Settings.SafeBrowsingRowClicked');
+          'SafeBrowsing.Settings.SafeBrowsingRowExpanded');
     }
   }
 
@@ -504,9 +504,17 @@ export class SettingsSecurityPageV2Element extends
     Router.getInstance().navigateTo(routes.SECURITY_KEYS);
   }
 
-  private onAdvancedProtectionProgramClick_() {
+  private onAdvancedProtectionProgramClick_(e: Event) {
     OpenWindowProxyImpl.getInstance().openUrl(
         loadTimeData.getString('advancedProtectionURL'));
+    // The Advanced Protection Program link is part of a string that is
+    // contained in a link-row. The default link navigation action will
+    // be ignored to ensure that the click will only be registered for
+    // the link inside the string and not also for the link-row.
+    if ((e.target as HTMLElement).tagName === 'A') {
+      e.preventDefault();
+      return;
+    }
   }
 
   private updateRowsState_() {

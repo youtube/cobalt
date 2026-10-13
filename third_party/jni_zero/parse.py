@@ -48,9 +48,12 @@ class ParsedCalledByNative:
 
 
 @dataclasses.dataclass(order=True)
-class ParsedConstantField(object):
+class ParsedField:
   name: str
-  value: str
+  java_type: java_types.JavaType
+  static: bool
+  final: bool
+  const_value: Optional[str] = None
 
 
 @dataclasses.dataclass
@@ -60,7 +63,7 @@ class ParsedFile:
   proxy_methods: List[ParsedNative]
   non_proxy_methods: List[ParsedNative]
   called_by_natives: List[ParsedCalledByNative]
-  constant_fields: List[ParsedConstantField]
+  fields: List[ParsedField]
   proxy_interface: Optional[java_types.JavaClass] = None
   proxy_visibility: Optional[str] = None
   module_name: Optional[str] = None  # E.g. @NativeMethods("module_name")
@@ -97,16 +100,15 @@ def _remove_comments(contents):
   return _COMMENT_REMOVER_REGEX.sub(replacer, contents)
 
 
-# Remove everything between and including <> except at the end of a string, e.g.
-# @JniType("std::vector<int>")
-# This will also break lines with comparison operators, but we don't care.
-_GENERICS_REGEX = re.compile(r'<[^<>\n]*>(?!>*")')
+# Remove <...> while maintaining "...".
+_GENERICS_REGEX = re.compile(r'("(?:\\.|[^\\"\n])*")|(<[^<>\n]*>)')
 
 
 def _remove_generics(value):
   """Strips Java generics from a string."""
   while True:
-    ret = _GENERICS_REGEX.sub(' ', value)
+    # Replace "..." with itself, and <...> with " ".
+    ret = _GENERICS_REGEX.sub(lambda m: m.group(1) or ' ', value)
     if len(ret) == len(value):
       return ret
     value = ret
@@ -156,21 +158,23 @@ def _parse_java_classes(contents, package_prefix, package_prefix_filter):
 
   return outer_class, sorted(nested_classes), null_marked
 
-
+# Complicated example:
+# @JniType("std::optional<void(*)(const std::vector<bool>&)>") Callback<Boolean> funcType,
+# Eager search for quotes to skip over )s within quotes.
 _ANNOTATION_REGEX = re.compile(
-    r'@(?P<annotation_name>[\w.]+)(?P<annotation_args>\([^)]+\))?\s*')
+    r'@(?P<name>[\w.]+)(?P<args>\((?:\".*?\")*[^)]*\))?\s*')
 # Only supports ("foo")
-_ANNOTATION_ARGS_REGEX = re.compile(
-    r'\(\s*"(?P<annotation_value>[^"]*?)"\s*\)\s*')
+_ANNOTATION_ARGS_REGEX = re.compile(r'\(\s*"(?P<value>[^"]*?)"\s*\)\s*',
+                                    flags=re.DOTALL)
 
 def _parse_annotations(value):
   annotations = {}
   for m in _ANNOTATION_REGEX.finditer(value):
     string_value = ''
-    if match_args := m.group('annotation_args'):
+    if match_args := m.group('args'):
       if match_arg_value := _ANNOTATION_ARGS_REGEX.match(match_args):
-        string_value = match_arg_value.group('annotation_value')
-    annotations[m.group('annotation_name')] = string_value
+        string_value = match_arg_value.group('value')
+    annotations[m.group('name')] = string_value
 
   # Use replace rather than tracking end index to handle:
   # "OuterClass.@Nullable InnerClass"
@@ -458,7 +462,7 @@ def _do_parse(filename, *, package_prefix, package_prefix_filter,
                    proxy_methods=[],
                    non_proxy_methods=non_proxy_methods,
                    called_by_natives=called_by_natives,
-                   constant_fields=[])
+                   fields=[])
 
   if parsed_proxy_natives:
     ret.module_name = parsed_proxy_natives.module_name
@@ -493,8 +497,9 @@ def parse_java_file(filename,
 
 
 _JAVAP_CLASS_REGEX = re.compile(r'\b(?:class|interface) (\S+)')
-_JAVAP_FINAL_FIELD_REGEX = re.compile(
-    r'^\s+public static final \S+ (.*?) = (\d+);', flags=re.MULTILINE)
+_JAVAP_FIELD_REGEX = re.compile(
+    rf'^\s*({_MODIFIER_KEYWORDS}).*? (\S+?)(?: = (.*?))?;\n\s+descriptor: ([^(\s]+)',
+    flags=re.MULTILINE)
 _JAVAP_METHOD_REGEX = re.compile(
     rf'^\s*({_MODIFIER_KEYWORDS}).*?(\S+?)\(.*\n\s+descriptor: (.*)',
     flags=re.MULTILINE)
@@ -508,11 +513,18 @@ def parse_javap(filename, contents):
   java_class = java_types.JavaClass(match.group(1).replace('.', '/'))
   type_resolver = java_types.TypeResolver(java_class)
 
-  constant_fields = []
-  for match in _JAVAP_FINAL_FIELD_REGEX.finditer(contents):
-    name, value = match.groups()
-    constant_fields.append(ParsedConstantField(name=name, value=value))
-  constant_fields.sort()
+  fields = []
+  for match in _JAVAP_FIELD_REGEX.finditer(contents):
+    modifiers, name, value, descriptor = match.groups()
+    if descriptor[0] == 'J' and value:
+      value = value.rstrip('lL')
+    fields.append(
+        ParsedField(name=name,
+                    java_type=java_types.JavaType.from_descriptor(descriptor),
+                    static='static' in modifiers,
+                    final='final' in modifiers,
+                    const_value=value))
+  fields.sort()
 
   called_by_natives = []
   for match in _JAVAP_METHOD_REGEX.finditer(contents):
@@ -532,4 +544,4 @@ def parse_javap(filename, contents):
                     proxy_methods=[],
                     non_proxy_methods=[],
                     called_by_natives=called_by_natives,
-                    constant_fields=constant_fields)
+                    fields=fields)

@@ -65,6 +65,7 @@
 #include "services/metrics/public/cpp/metrics_utils.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/mojom/frame/frame.mojom.h"
 #include "url/gurl.h"
 
@@ -216,7 +217,7 @@ class ResourceLoadingCancellingThrottle
         std::vector<blink::UseCounterFeature>(), resources,
         mojom::FrameRenderDataUpdatePtr(std::in_place),
         mojom::CpuTimingPtr(std::in_place),
-        mojom::InputTimingPtr(std::in_place), std::nullopt,
+        std::vector<mojom::EventTimingPtr>(), std::nullopt,
         mojom::SoftNavigationMetrics::New());
   }
 };

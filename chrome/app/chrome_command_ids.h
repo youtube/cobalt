@@ -306,6 +306,9 @@
 #define IDC_SHOW_COMMENTS_SIDE_PANEL  40297
 #define IDC_RECENT_TABS_SEE_DEVICE_TABS  40298
 #define IDC_SHOW_AI_MODE_OMNIBOX_BUTTON 40299
+#define IDC_CONTENT_CONTEXT_INSPECTELEMENT_WITH_GEMINI 40300
+#define IDC_CONTENT_CONTEXT_INSPECTELEMENT_WITH_DEVTOOLS 40301
+#define IDC_REPORT_UNSAFE_SITE 40302
 
 // Spell-check
 // Insert any additional suggestions before _LAST; these have to be consecutive.
@@ -610,6 +613,7 @@
 #define IDC_OMNIBOX_CONTEXT_CANVAS                            54014
 #define IDC_OMNIBOX_CONTEXT_SET_MODEL_AUTO                    54015
 #define IDC_OMNIBOX_CONTEXT_SET_MODEL_THINKING                54016
+#define IDC_OMNIBOX_CONTEXT_SET_MODEL_REGULAR                 54017
 
 // NOTE: The last valid command value is 57343 (0xDFFF)
 // See http://msdn.microsoft.com/en-us/library/t2zechd4(VS.71).aspx

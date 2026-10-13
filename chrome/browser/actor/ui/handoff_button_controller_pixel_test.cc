@@ -5,7 +5,6 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
-#include "chrome/browser/actor/actor_policy_checker.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/actor_task_metadata.h"
 #include "chrome/browser/actor/actor_test_util.h"
@@ -29,11 +28,7 @@ class ActorUiHandoffButtonControllerPixelTest : public DialogBrowserTest {
  public:
   ActorUiHandoffButtonControllerPixelTest() {
     feature_list_.InitWithFeaturesAndParameters(
-        /*enabled_features=*/{{features::kGlicActor,
-                               {{features::kGlicActorPolicyControlExemption
-                                     .name,
-                                 "true"}}},
-                              {features::kGlicActorUi,
+        /*enabled_features=*/{{features::kGlicActorUi,
                                {{features::kGlicActorUiHandoffButtonName,
                                  "true"}}}},
         /*disabled_features=*/{});
@@ -47,7 +42,8 @@ class ActorUiHandoffButtonControllerPixelTest : public DialogBrowserTest {
   std::string GetNonDialogName() override { return "HandoffButtonWidget"; }
 
   void ShowUi(const std::string& name) override {
-    task_id_ = GetActorKeyedService()->CreateTask();
+    task_id_ =
+        GetActorKeyedService()->CreateTask(actor::NoEnterprisePolicyChecker());
     TestFuture<actor::mojom::ActionResultPtr> future;
     GetActorKeyedService()->GetTask(task_id_)->AddTab(
         browser()->GetActiveTabInterface()->GetHandle(), future.GetCallback());

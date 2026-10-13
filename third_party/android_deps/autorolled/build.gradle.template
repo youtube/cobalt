@@ -26,6 +26,7 @@ dependencies {
     testCompileLatest 'org.robolectric:robolectric:+'
 
     supportsAndroidCompileLatest 'com.google.guava:guava:+'
+    compileLatest 'org.jetbrains.kotlinx:kotlinx-coroutines-guava:+'
 
     // Libraries from Google:
     compileLatest 'com.google.protobuf:protobuf-javalite:+'
@@ -51,9 +52,9 @@ dependencies {
 
     // Play Services & Firebase
     compileLatest 'com.google.android.gms:play-services-auth-api-phone:+'
-    compileLatest 'com.google.android.gms:play-services-auth-base:+'
+    compileLatest 'com.google.android.gms:play-services-auth-base:18.3.0'
     compileLatest 'com.google.android.gms:play-services-auth-blockstore:+'
-    compileLatest 'com.google.android.gms:play-services-auth:+'
+    compileLatest 'com.google.android.gms:play-services-auth:21.4.0'
     compileLatest 'com.google.android.gms:play-services-base:+'
     compileLatest 'com.google.android.gms:play-services-basement:+'
     compileLatest 'com.google.android.gms:play-services-cast-framework:+'

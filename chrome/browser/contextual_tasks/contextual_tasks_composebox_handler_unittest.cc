@@ -116,7 +116,6 @@ class MockContextualTasksUI : public ContextualTasksUI {
               (override));
   MOCK_METHOD(content::WebContents*, GetWebUIWebContents, (), (override));
   MOCK_METHOD(const std::optional<base::Uuid>&, GetTaskId, (), (override));
-  MOCK_METHOD(void, DisableActiveTabContextSuggestion, (), (override));
   MOCK_METHOD(BrowserWindowInterface*, GetBrowser, (), (override));
   MOCK_METHOD(bool, IsLensOverlayShowing, (), (const, override));
 };
@@ -1019,8 +1018,6 @@ TEST_F(ContextualTasksComposeboxHandlerTest,
 
 struct ToolModeTestParam {
   omnibox::ToolMode tool_mode;
-  bool expected_deep_search_selected;
-  bool expected_create_images_selected;
 };
 
 class ContextualTasksComposeboxHandlerToolModeTest
@@ -1036,10 +1033,7 @@ TEST_P(ContextualTasksComposeboxHandlerToolModeTest, SetsToolModeFlags) {
       .WillOnce([&](std::unique_ptr<
                     contextual_search::ContextualSearchContextController::
                         CreateClientToAimRequestInfo> info) {
-        EXPECT_EQ(info->deep_search_selected,
-                  param.expected_deep_search_selected);
-        EXPECT_EQ(info->create_images_selected,
-                  param.expected_create_images_selected);
+        EXPECT_EQ(info->active_tool, param.tool_mode);
         return lens::ClientToAimMessage();
       });
   EXPECT_CALL(*mock_ui_, PostMessageToWebview(testing::_));
@@ -1051,13 +1045,10 @@ INSTANTIATE_TEST_SUITE_P(
     All,
     ContextualTasksComposeboxHandlerToolModeTest,
     ::testing::Values(
-        ToolModeTestParam{omnibox::ToolMode::TOOL_MODE_UNSPECIFIED, false,
-                          false},
-        ToolModeTestParam{omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH, true,
-                          false},
-        ToolModeTestParam{omnibox::ToolMode::TOOL_MODE_IMAGE_GEN, false, true},
-        ToolModeTestParam{omnibox::ToolMode::TOOL_MODE_IMAGE_GEN_UPLOAD, false,
-                          true}));
+        ToolModeTestParam{omnibox::ToolMode::TOOL_MODE_UNSPECIFIED},
+        ToolModeTestParam{omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH},
+        ToolModeTestParam{omnibox::ToolMode::TOOL_MODE_IMAGE_GEN},
+        ToolModeTestParam{omnibox::ToolMode::TOOL_MODE_IMAGE_GEN_UPLOAD}));
 
 TEST_F(ContextualTasksComposeboxHandlerTest, AddTabContext_Delayed) {
   ASSERT_NE(mock_contextual_tasks_service_ptr_, nullptr)
@@ -1346,4 +1337,101 @@ TEST_F(ContextualTasksComposeboxHandlerTest, ClearFiles_Delayed) {
 
   handler_->CreateAndSendQueryMessage(kQuery);
   base::RunLoop().RunUntilIdle();
+}
+
+TEST_F(ContextualTasksComposeboxHandlerTest, UpdateSuggestedTabContext) {
+  MockSearchboxPage mock_searchbox_page;
+  handler_->SetPage(mock_searchbox_page.BindAndGetRemote());
+
+  GURL url("https://example.com");
+  auto tab_info = searchbox::mojom::TabInfo::New();
+  tab_info->url = url;
+  tab_info->title = "Example";
+
+  // 1. Initially, the suggestion should be allowed.
+  EXPECT_CALL(mock_searchbox_page,
+              UpdateAutoSuggestedTabContext(testing::Truly(
+                  [](const searchbox::mojom::TabInfoPtr& received_info) {
+                    return !received_info.is_null();
+                  })))
+      .WillOnce([&](searchbox::mojom::TabInfoPtr received_info) {
+        EXPECT_EQ(received_info->url, url);
+      });
+  handler_->UpdateSuggestedTabContext(tab_info.Clone());
+  mock_searchbox_page.FlushForTesting();
+  EXPECT_TRUE(handler_->has_suggested_tab_context());
+
+  // 2. Blocklist the URL by dismissing an automatic chip.
+  // We need to navigate the active tab to the URL being blocklisted.
+  AddTab(browser(), url);
+  handler_->DeleteContext(base::UnguessableToken::Create(),
+                          /*from_automatic_chip=*/true);
+
+  // 3. Now the suggestion should be filtered out.
+  EXPECT_CALL(mock_searchbox_page,
+              UpdateAutoSuggestedTabContext(testing::Truly(
+                  [](const searchbox::mojom::TabInfoPtr& received_info) {
+                    return received_info.is_null();
+                  })));
+  handler_->UpdateSuggestedTabContext(tab_info.Clone());
+  mock_searchbox_page.FlushForTesting();
+  EXPECT_FALSE(handler_->has_suggested_tab_context());
+
+  // 4. Explicitly adding the tab should remove it from the blocklist.
+  tabs::TabInterface* active_tab =
+      TabListInterface::From(browser())->GetActiveTab();
+  int32_t active_tab_id = active_tab->GetHandle().raw_value();
+  handler_->AddTabContext(active_tab_id, /*delay_upload=*/false,
+                          base::DoNothing());
+
+  // 5. The suggestion should be allowed again.
+  EXPECT_CALL(mock_searchbox_page,
+              UpdateAutoSuggestedTabContext(testing::Truly(
+                  [](const searchbox::mojom::TabInfoPtr& received_info) {
+                    return !received_info.is_null();
+                  })))
+      .WillOnce([&](searchbox::mojom::TabInfoPtr received_info) {
+        EXPECT_EQ(received_info->url, url);
+      });
+  handler_->UpdateSuggestedTabContext(tab_info.Clone());
+  mock_searchbox_page.FlushForTesting();
+  EXPECT_TRUE(handler_->has_suggested_tab_context());
+}
+
+TEST_F(ContextualTasksComposeboxHandlerTest, ResetBlocklistedSuggestions) {
+  MockSearchboxPage mock_searchbox_page;
+  handler_->SetPage(mock_searchbox_page.BindAndGetRemote());
+
+  GURL url("https://example.com");
+  auto tab_info = searchbox::mojom::TabInfo::New();
+  tab_info->url = url;
+
+  // 1. Blocklist the URL.
+  AddTab(browser(), url);
+  handler_->DeleteContext(base::UnguessableToken::Create(),
+                          /*from_automatic_chip=*/true);
+
+  // 2. Verify it's filtered out.
+  EXPECT_CALL(mock_searchbox_page,
+              UpdateAutoSuggestedTabContext(testing::Truly(
+                  [](const searchbox::mojom::TabInfoPtr& received_info) {
+                    return received_info.is_null();
+                  })));
+  handler_->UpdateSuggestedTabContext(tab_info.Clone());
+  mock_searchbox_page.FlushForTesting();
+
+  // 3. Reset the blocklist.
+  handler_->ResetBlocklistedSuggestions();
+
+  // 4. Verify the suggestion is allowed again.
+  EXPECT_CALL(mock_searchbox_page,
+              UpdateAutoSuggestedTabContext(testing::Truly(
+                  [](const searchbox::mojom::TabInfoPtr& received_info) {
+                    return !received_info.is_null();
+                  })))
+      .WillOnce([&](searchbox::mojom::TabInfoPtr received_info) {
+        EXPECT_EQ(received_info->url, url);
+      });
+  handler_->UpdateSuggestedTabContext(tab_info.Clone());
+  mock_searchbox_page.FlushForTesting();
 }

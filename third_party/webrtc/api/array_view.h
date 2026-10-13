@@ -15,8 +15,10 @@
 #include <array>
 #include <cstddef>
 #include <iterator>
+#include <span>
 #include <type_traits>
 
+#include "absl/base/macros.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/type_traits.h"
 
@@ -131,8 +133,8 @@ class ArrayViewBase<T, array_view_internal::kArrayViewVarSize> {
   ArrayViewBase(T* data, size_t size)
       : data_(size == 0 ? nullptr : data), size_(size) {}
 
-  size_t size() const { return size_; }
-  bool empty() const { return size_ == 0; }
+  constexpr size_t size() const { return size_; }
+  constexpr bool empty() const { return size_ == 0; }
   T* data() const { return data_; }
 
  protected:
@@ -285,6 +287,20 @@ class ArrayView final : public array_view_internal::ArrayViewBase<T, Size> {
     return std::make_reverse_iterator(cbegin());
   }
 
+  constexpr ArrayView<T> subspan(size_t offset,
+                                 size_t count = std::dynamic_extent) const {
+    ABSL_HARDENING_ASSERT(offset <= this->size());
+    if (count == std::dynamic_extent) {
+      count = this->size() - offset;
+    } else {
+      ABSL_HARDENING_ASSERT(count <= this->size() - offset);
+    }
+    return ArrayView<T>(this->data() + offset, count);
+  }
+
+  // Prefer to use `subspan` instead of `subview` in new code.
+  // TODO: bugs.webrtc.org/439801349 - make deprecated when all usages in
+  // WebRTC and chromium are migrated to subspan.
   ArrayView<T> subview(size_t offset, size_t size) const {
     return offset < this->size()
                ? ArrayView<T>(this->data() + offset,

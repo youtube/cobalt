@@ -103,7 +103,7 @@ __weak id<CWVSyncControllerDataSource> gSyncDataSource;
 }
 
 - (void)dealloc {
-  _syncService->RemoveObserver(_observer.get());
+  DCHECK(!_syncService) << "-shutDown must be called before -dealloc";
 }
 
 #pragma mark - Public Methods
@@ -148,7 +148,8 @@ __weak id<CWVSyncControllerDataSource> gSyncDataSource;
   CHECK(_identityManager->HasAccountWithRefreshToken(accountId));
 
   _identityManager->GetPrimaryAccountMutator()->SetPrimaryAccount(
-      accountId, signin::ConsentLevel::kSignin);
+      accountId, signin::ConsentLevel::kSignin,
+      signin_metrics::AccessPoint::kIosChromeWebView);
   CHECK_EQ(_identityManager->GetPrimaryAccountId(signin::ConsentLevel::kSignin),
            accountId);
 
@@ -200,6 +201,11 @@ __weak id<CWVSyncControllerDataSource> gSyncDataSource;
   if ([_delegate respondsToSelector:@selector(syncControllerDidUpdateState:)]) {
     [_delegate syncControllerDidUpdateState:self];
   }
+}
+
+- (void)shutDown {
+  _syncService->RemoveObserver(_observer.get());
+  _syncService = nullptr;
 }
 
 @end

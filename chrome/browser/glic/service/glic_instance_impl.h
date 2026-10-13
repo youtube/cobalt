@@ -56,6 +56,8 @@ class EmptyEmbedderDelegate;
 class GlicTabContentsObserver;
 class GlicZeroStateSuggestionsManager;
 
+BASE_DECLARE_FEATURE(kGlicRemoveDaisyChainingWhenFreShowing);
+
 // A GlicInstance owns a single host keeping any state that must exist for the
 // lifetime of the host. When a host is showing, the GlicInstance creates a
 // GlicUiEmbedder to display the webcontents in. An instance (and host) exist
@@ -111,6 +113,7 @@ class GlicInstanceImpl : public GlicInstance,
   GlicInstanceImpl& operator=(const GlicInstanceImpl&) = delete;
 
   Profile* profile() { return profile_; }
+  GlicKeyedService* service() { return service_; }
 
   // Returns whether host's webcontents are focused.
   bool HasFocus();
@@ -119,15 +122,12 @@ class GlicInstanceImpl : public GlicInstance,
   GlicSharingManager& sharing_manager() override;
 
   void NotifyInstanceActivationChanged(bool is_active);
-
   base::Time GetLastActivationTimestamp() const override;
   base::TimeDelta GetTimeSinceLastActive() const override;
-
   bool IsHibernated() const;
-
   void Hibernate();
-
   void CloseInstanceAndShutdown();
+  void BindTabWithoutShowing(tabs::TabInterface* tab, bool pin_on_bind);
 
   // GlicInstance implementation.
   bool IsShowing() const override;
@@ -160,6 +160,7 @@ class GlicInstanceImpl : public GlicInstance,
   // GlicInstance:
   Host& host() override;
   const InstanceId& id() const override;
+  void SetIdForRestoration(InstanceId id);
   std::optional<std::string> conversation_id() const override;
   base::CallbackListSubscription RegisterStateChange(
       StateChangeCallback callback) override;
@@ -231,7 +232,7 @@ class GlicInstanceImpl : public GlicInstance,
   void NotifyPanelStateChanged() override;
   // Opens the floating UI for this instance
   void Detach(tabs::TabInterface& tab) override;
-  void Attach(tabs::TabInterface& tab) override;
+  void Attach(tabs::TabHandle tab) override;
 
   // Host::InstanceInterface:
   mojom::PanelState GetPanelState() override;
@@ -326,15 +327,21 @@ class GlicInstanceImpl : public GlicInstance,
 
   void MaybeActivateForegroundEmbedder();
   void MaybeRemoveBlankInstanceOnClose();
-  EmbedderEntry& BindTab(tabs::TabInterface* tab, GlicPinTrigger pin_trigger);
+  EmbedderEntry& BindTab(tabs::TabInterface* tab,
+                         GlicPinTrigger pin_trigger,
+                         bool pin_on_bind);
   // For any pinned tab not already bound to a conversation bind it to this one.
-  void OnTabPinningStatusChanged(tabs::TabInterface* tab, bool pinned);
+  void OnTabPinningStatusEvent(tabs::TabInterface* tab,
+                               GlicPinningStatusEvent event);
   void NotifyPanelWillOpen(mojom::InvocationSource invocation_source,
                            std::optional<std::string> prompt_suggestion);
 
   void MaybeShowShortcutToastPromo();
 
   void MaybeShowShortcutSnoozePromo();
+
+  // Updates the floating panel can attach state.
+  void UpdateFloatingPanelCanAttach();
 
   using StateChangeCallbackList =
       base::RepeatingCallbackList<void(bool, mojom::CurrentView view)>;

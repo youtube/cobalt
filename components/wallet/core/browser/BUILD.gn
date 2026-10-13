@@ -21,9 +21,17 @@ static_library("browser") {
     "ingestion/walletable_pass_ingestion_utils.h",
     "metrics/wallet_metrics.cc",
     "metrics/wallet_metrics.h",
+    "network/get_unmasked_pass_request.cc",
+    "network/get_unmasked_pass_request.h",
+    "network/upsert_private_pass_request.cc",
+    "network/upsert_private_pass_request.h",
+    "network/upsert_public_pass_request.cc",
+    "network/upsert_public_pass_request.h",
     "network/wallet_http_client.h",
     "network/wallet_http_client_impl.cc",
     "network/wallet_http_client_impl.h",
+    "network/wallet_request.cc",
+    "network/wallet_request.h",
     "strike_databases/walletable_pass_consent_strike_database.h",
     "strike_databases/walletable_pass_save_strike_database_by_host.cc",
     "strike_databases/walletable_pass_save_strike_database_by_host.h",
@@ -45,6 +53,8 @@ static_library("browser") {
     "//services/network/public/cpp",
     "//url",
   ]
+
+  public_deps = [ "//components/wallet/core/browser/proto" ]
 }
 
 source_set("test_support") {
@@ -63,6 +73,9 @@ source_set("unit_tests") {
     "data_models/boarding_pass_unittest.cc",
     "data_models/wallet_pass_unittest.cc",
     "ingestion/walletable_pass_ingestion_utils_unittest.cc",
+    "network/get_unmasked_pass_request_unittest.cc",
+    "network/upsert_private_pass_request_unittest.cc",
+    "network/upsert_public_pass_request_unittest.cc",
     "network/wallet_http_client_impl_unittest.cc",
     "walletable_permission_utils_unittest.cc",
   ]

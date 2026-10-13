@@ -798,6 +798,10 @@ Simulator* Simulator::current(Isolate* isolate) {
 // Sets the register in the architecture state.
 void Simulator::set_register(int reg, intptr_t value) {
   DCHECK((reg >= 0) && (reg < kNumGPRs));
+  if (InstructionTracingEnabled()) {
+    PrintF("%s <- 0x%08" V8PRIxPTR "\n",
+           i::RegisterName(i::Register::from_code(reg)), value);
+  }
   registers_[reg] = value;
 }
 
@@ -1127,7 +1131,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
 #ifdef DEBUG
             TrashCallerSaveRegisters();
 #endif
-            set_register(r0, static_cast<int32_t>(iresult));
+            set_register(r3, static_cast<int32_t>(iresult));
             break;
           }
           default:

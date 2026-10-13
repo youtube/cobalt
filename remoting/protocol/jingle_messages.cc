@@ -16,6 +16,7 @@
 #include "remoting/protocol/content_description.h"
 #include "remoting/protocol/jingle_message_xml_converter.h"
 #include "remoting/protocol/session_plugin.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "third_party/libjingle_xmpp/xmllite/xmlelement.h"
 
 using jingle_xmpp::QName;
@@ -24,11 +25,6 @@ using jingle_xmpp::XmlElement;
 namespace remoting::protocol {
 
 namespace {
-
-const char kEmptyNamespace[] = "";
-const char kJabberNamespace[] = "jabber:client";
-const char kJingleNamespace[] = "urn:xmpp:jingle:1";
-const char kXmlNamespace[] = "http://www.w3.org/XML/1998/namespace";
 
 const NameMapElement<JingleMessage::ActionType> kActionTypes[] = {
     {JingleMessage::ActionType::kSessionInitiate, "session-initiate"},
@@ -50,14 +46,46 @@ std::string JingleMessage::GetActionName(ActionType action) {
   return ValueToName(kActionTypes, action);
 }
 
+// static
+JingleMessage::ActionType JingleMessage::ActionFromPayload(
+    const Payload& payload) {
+  return std::visit(absl::Overload(
+                        [](const std::monostate&) {
+                          return JingleMessage::ActionType::kUnknownAction;
+                        },
+                        [](const SessionInitiate&) {
+                          return JingleMessage::ActionType::kSessionInitiate;
+                        },
+                        [](const SessionAccept&) {
+                          return JingleMessage::ActionType::kSessionAccept;
+                        },
+                        [](const SessionInfo&) {
+                          return JingleMessage::ActionType::kSessionInfo;
+                        },
+                        [](const JingleTransportInfo&) {
+                          return JingleMessage::ActionType::kTransportInfo;
+                        },
+                        [](const SessionTerminate&) {
+                          return JingleMessage::ActionType::kSessionTerminate;
+                        }),
+                    payload);
+}
+
 JingleMessage::JingleMessage() = default;
 
 JingleMessage::JingleMessage(const SignalingAddress& to,
-                             ActionType action,
+                             Payload payload,
                              const std::string& sid)
-    : to(to), action(action), sid(sid) {}
+    : to(to), sid(sid) {
+  SetPayload(std::move(payload));
+}
 
 JingleMessage::~JingleMessage() = default;
+
+void JingleMessage::SetPayload(Payload payload) {
+  payload_ = std::move(payload);
+  action_ = ActionFromPayload(payload_);
+}
 
 bool JingleMessage::ParseXml(const jingle_xmpp::XmlElement* stanza,
                              std::string* error) {
@@ -91,94 +119,7 @@ JingleMessageReply::~JingleMessageReply() = default;
 
 std::unique_ptr<jingle_xmpp::XmlElement> JingleMessageReply::ToXml(
     const jingle_xmpp::XmlElement* request_stanza) const {
-  std::unique_ptr<XmlElement> iq(
-      new XmlElement(QName(kJabberNamespace, "iq"), true));
-
-  iq->SetAttr(QName(kEmptyNamespace, "id"),
-              request_stanza->Attr(QName(kEmptyNamespace, "id")));
-
-  SignalingAddress original_from;
-  original_from =
-      SignalingAddress::Parse(request_stanza, SignalingAddress::FROM);
-  DCHECK(!original_from.empty());
-
-  if (type == REPLY_RESULT) {
-    iq->SetAttr(QName(kEmptyNamespace, "type"), "result");
-    XmlElement* jingle =
-        new XmlElement(QName(kJingleNamespace, "jingle"), true);
-    iq->AddElement(jingle);
-    original_from.SetInMessage(iq.get(), SignalingAddress::TO);
-    return iq;
-  }
-
-  DCHECK_EQ(type, REPLY_ERROR);
-
-  iq->SetAttr(QName(kEmptyNamespace, "type"), "error");
-  original_from.SetInMessage(iq.get(), SignalingAddress::TO);
-
-  for (const jingle_xmpp::XmlElement* child = request_stanza->FirstElement();
-       child != nullptr; child = child->NextElement()) {
-    iq->AddElement(new jingle_xmpp::XmlElement(*child));
-  }
-
-  jingle_xmpp::XmlElement* error =
-      new jingle_xmpp::XmlElement(QName(kJabberNamespace, "error"));
-  iq->AddElement(error);
-
-  std::string type_attr;
-  std::string error_text;
-  QName name;
-  switch (error_type) {
-    case BAD_REQUEST:
-      type_attr = "modify";
-      name = QName(kJabberNamespace, "bad-request");
-      break;
-    case NOT_IMPLEMENTED:
-      type_attr = "cancel";
-      name = QName(kJabberNamespace, "feature-bad-request");
-      break;
-    case INVALID_SID:
-      type_attr = "modify";
-      name = QName(kJabberNamespace, "item-not-found");
-      error_text = "Invalid SID";
-      break;
-    case UNEXPECTED_REQUEST:
-      type_attr = "modify";
-      name = QName(kJabberNamespace, "unexpected-request");
-      break;
-    case UNSUPPORTED_INFO:
-      type_attr = "modify";
-      name = QName(kJabberNamespace, "feature-not-implemented");
-      break;
-    default:
-      NOTREACHED();
-  }
-
-  if (!text.empty()) {
-    error_text = text;
-  }
-
-  error->SetAttr(QName(kEmptyNamespace, "type"), type_attr);
-
-  // If the error name is not in the standard namespace, we have
-  // to first add some error from that namespace.
-  if (name.Namespace() != kJabberNamespace) {
-    error->AddElement(new jingle_xmpp::XmlElement(
-        QName(kJabberNamespace, "undefined-condition")));
-  }
-  error->AddElement(new jingle_xmpp::XmlElement(name));
-
-  if (!error_text.empty()) {
-    // It's okay to always use English here. This text is for
-    // debugging purposes only.
-    jingle_xmpp::XmlElement* text_elem =
-        new jingle_xmpp::XmlElement(QName(kJabberNamespace, "text"));
-    text_elem->SetAttr(QName(kXmlNamespace, "lang"), "en");
-    text_elem->SetBodyText(error_text);
-    error->AddElement(text_elem);
-  }
-
-  return iq;
+  return JingleMessageReplyToXml(*this, request_stanza);
 }
 
 IceTransportInfo::IceTransportInfo() = default;
@@ -198,13 +139,6 @@ JabberId::JabberId(JabberId&&) = default;
 JabberId& JabberId::operator=(const JabberId&) = default;
 JabberId& JabberId::operator=(JabberId&&) = default;
 JabberId::~JabberId() = default;
-
-IceCandidate::IceCandidate() = default;
-IceCandidate::IceCandidate(const IceCandidate&) = default;
-IceCandidate::IceCandidate(IceCandidate&&) = default;
-IceCandidate& IceCandidate::operator=(const IceCandidate&) = default;
-IceCandidate& IceCandidate::operator=(IceCandidate&&) = default;
-IceCandidate::~IceCandidate() = default;
 
 SessionDescription::SessionDescription() = default;
 SessionDescription::SessionDescription(const SessionDescription&) = default;
@@ -229,8 +163,17 @@ IceTransportInfo::NamedCandidate::NamedCandidate() = default;
 
 IceTransportInfo::NamedCandidate::NamedCandidate(
     const std::string& name,
-    const webrtc::Candidate& candidate)
-    : name(name), candidate(candidate) {}
+    const webrtc::Candidate& candidate,
+    std::optional<int> sdp_m_line_index)
+    : name(name), candidate(candidate), sdp_m_line_index(sdp_m_line_index) {}
+
+IceTransportInfo::NamedCandidate::NamedCandidate(const NamedCandidate&) =
+    default;
+IceTransportInfo::NamedCandidate::NamedCandidate(NamedCandidate&&) = default;
+IceTransportInfo::NamedCandidate& IceTransportInfo::NamedCandidate::operator=(
+    const NamedCandidate&) = default;
+IceTransportInfo::NamedCandidate& IceTransportInfo::NamedCandidate::operator=(
+    NamedCandidate&&) = default;
 
 IceTransportInfo::NamedCandidate::~NamedCandidate() = default;
 

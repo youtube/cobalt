@@ -1633,12 +1633,11 @@ class WebAuthnActorBrowserTest : public WebAuthnBrowserTest {
  public:
   WebAuthnActorBrowserTest() {
     scoped_feature_list_.InitWithFeaturesAndParameters(
-        /*enabled_features=*/{{device::kWebAuthnActorCheck, {}},
-                              {password_manager::features::kActorLogin, {}},
-                              {features::kGlicActor,
-                               {{features::kGlicActorPolicyControlExemption
-                                     .name,
-                                 "true"}}}},
+        /*enabled_features=*/
+        {
+            {device::kWebAuthnActorCheck, {}},
+            {password_manager::features::kActorLogin, {}},
+        },
         /*disabled_features=*/{});
   }
 
@@ -1662,7 +1661,8 @@ class WebAuthnActorBrowserTest : public WebAuthnBrowserTest {
 
   void CreateActingTask() {
     auto* actor_service = actor::ActorKeyedService::Get(browser()->profile());
-    actor::TaskId task_id = actor_service->CreateTask();
+    actor::TaskId task_id =
+        actor_service->CreateTask(actor::NoEnterprisePolicyChecker());
 
     // Perform an arbitrary action in a tab to put the task into
     // UnderActorControl state and add the tab to the task.

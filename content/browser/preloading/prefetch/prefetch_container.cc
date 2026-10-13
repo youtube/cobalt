@@ -44,7 +44,6 @@
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/public/browser/client_hints.h"
 #include "content/public/browser/frame_accept_header.h"
-#include "content/public/browser/global_routing_id.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/prefetch_request_status_listener.h"
 #include "content/public/browser/preloading.h"
@@ -582,27 +581,13 @@ PrefetchStatus PrefetchContainer::GetPrefetchStatus() const {
   return prefetch_status_.value();
 }
 
-PrefetchNetworkContext*
-PrefetchContainer::GetOrCreateNetworkContextForCurrentPrefetch() {
-  bool is_isolated_network_context_required =
-      IsIsolatedNetworkContextRequiredForCurrentPrefetch();
-
-  PrefetchNetworkContext* network_context =
-      GetNetworkContext(is_isolated_network_context_required);
-  if (network_context) {
-    return network_context;
-  }
-
-  GlobalRenderFrameHostId referring_render_frame_host_id;
-  if (auto* renderer_initiator_info = request().GetRendererInitiatorInfo()) {
-    referring_render_frame_host_id =
-        renderer_initiator_info->GetRenderFrameHostId();
-  }
-
+PrefetchNetworkContext* PrefetchContainer::CreateNetworkContext(
+    bool is_isolated_network_context_required,
+    mojo::Remote<network::mojom::NetworkContext> isolated_network_context) {
   auto owned_network_context = std::make_unique<PrefetchNetworkContext>(
-      is_isolated_network_context_required, request().prefetch_type(),
-      referring_render_frame_host_id, request().referring_origin());
-  network_context = owned_network_context.get();
+      is_isolated_network_context_required, std::move(isolated_network_context),
+      request());
+  PrefetchNetworkContext* network_context = owned_network_context.get();
   network_contexts_.emplace(is_isolated_network_context_required,
                             std::move(owned_network_context));
 

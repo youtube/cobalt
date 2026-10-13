@@ -11,6 +11,7 @@
 #include "chrome/browser/skills/skills_ui_tab_controller_interface.h"
 #include "chrome/browser/ui/webui/skills/skills_dialog_delegate.h"
 #include "chrome/common/buildflags.h"
+#include "components/skills/public/skill.h"
 #include "components/skills/public/skills_service.h"
 #include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 
@@ -42,7 +43,7 @@ class SkillsUiTabController : public SkillsUiTabControllerInterface,
   DECLARE_USER_DATA(SkillsUiTabController);
 
   // Opens the skills dialog.
-  void ShowDialog(const skills::Skill& skill) override;
+  void ShowDialog(Skill skill) override;
 
   // Invokes the skill with skill_id in sidepanel.
   void InvokeSkill(std::string_view skill_id) override;
@@ -62,6 +63,13 @@ class SkillsUiTabController : public SkillsUiTabControllerInterface,
   const std::string& GetPendingSkillIdForTesting() const {
     return pending_skill_id_;
   }
+
+  const std::optional<skills::Skill>& GetCurrentSkillForTesting() const {
+    return current_skill_;
+  }
+
+  // Returns true if the skills dialog is currently being shown.
+  bool IsShowing() const;
 
  protected:
   // Displays the glic panel.
@@ -99,6 +107,9 @@ class SkillsUiTabController : public SkillsUiTabControllerInterface,
   base::RepeatingTimer glic_panel_ready_timer_;
   base::TimeTicks glic_panel_open_time_;
   std::string pending_skill_id_;
+
+  // Caches the skill for which the dialog is currently shown.
+  std::optional<skills::Skill> current_skill_;
   base::WeakPtrFactory<SkillsUiTabController> weak_ptr_factory_{this};
 };
 

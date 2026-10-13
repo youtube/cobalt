@@ -381,6 +381,8 @@ should be able to be added at any place in this file.
       summary="For FocusHelpBubbleScreenReaderPromo feature."/>
   <variant name="_FollowWhileBrowsing"
       summary="For Follow While-Browsing IPH feature."/>
+  <variant name="_FuseboxAttachment"
+      summary="For engagement with Fusebox attachments."/>
   <variant name="_GenericAlwaysTriggerHelpUiFeature"
       summary="For generic always show help UI feature."/>
   <variant name="_GlicPromo" summary="For Glic feature."/>
@@ -845,6 +847,7 @@ should be able to be added at any place in this file.
 
 <variants name="UserEducation_WhatsNew_Module_Type">
   <variant name="" summary="aggregated"/>
+  <variant name=".archive" summary="What's New archive"/>
   <variant name=".FamilyLink" summary="Family Link"/>
   <variant name=".GANslate" summary="GANslate"/>
   <variant name=".GeminiShortcut" summary="Gemini Shortcut"/>
@@ -4788,6 +4791,48 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="Android.Settings.Opened">
+  <owner>adelm@google.com</owner>
+  <owner>jinsukkim@chromium.org</owner>
+  <description>User opened Settings activity.</description>
+</action>
+
+<action name="Android.Settings.Search.NoMatchFound">
+  <owner>adelm@google.com</owner>
+  <owner>jinsukkim@chromium.org</owner>
+  <description>
+    Settings search found no match to the entered query.
+  </description>
+</action>
+
+<action name="Android.Settings.Search.Performed">
+  <owner>adelm@google.com</owner>
+  <owner>jinsukkim@chromium.org</owner>
+  <description>User entered a new query for search.</description>
+</action>
+
+<action name="Android.Settings.Search.ResultClicked">
+  <owner>adelm@google.com</owner>
+  <owner>jinsukkim@chromium.org</owner>
+  <description>
+    User clicked the search result to open the corresponding entry.
+  </description>
+</action>
+
+<action name="Android.Settings.Search.UiOpened">
+  <owner>adelm@google.com</owner>
+  <owner>jinsukkim@chromium.org</owner>
+  <description>User tapped search bar UI.</description>
+</action>
+
+<action name="Android.Settings.Search.UiOpenedPerSession">
+  <owner>adelm@google.com</owner>
+  <owner>jinsukkim@chromium.org</owner>
+  <description>
+    Same as above, but recorded only once since user opens Settings.
+  </description>
+</action>
+
 <action name="Android.Survey.ShowSurveyInfoBar">
   <obsolete>
     Deprecated 12/2022 as part of survey message launch cleanup.
@@ -5423,6 +5468,12 @@ should be able to be added at any place in this file.
         summary="WebView instance method `showFindDialog`"/>
     <variant name="WebViewInstanceStopLoading"
         summary="WebView instance method `stopLoading`"/>
+    <variant name="WebViewInstanceWebViewChromiumConstructor"
+        summary="WebViewChromium constructor"/>
+    <variant name="WebViewInstanceWebViewChromiumInit"
+        summary="WebViewChromium init"/>
+    <variant name="WebViewInstanceWebViewChromiumInitForReal"
+        summary="WebViewChromium initForReal"/>
     <variant name="WebViewInstanceZoomBy"
         summary="WebView instance method `zoomBy`"/>
     <variant name="WebViewInstanceZoomIn"
@@ -9022,6 +9073,14 @@ should be able to be added at any place in this file.
   <description>Please enter the description of this user action.</description>
 </action>
 
+<action name="CloseTab_Active">
+  <owner>dpenning@google.com</owner>
+  <owner>chrome-desktop-ui-sea@google.com</owner>
+  <description>
+    User clicked the close tab button; the tab was active.
+  </description>
+</action>
+
 <action name="CloseTab_AudioIndicator">
   <owner>miu@chromium.org</owner>
   <description>
@@ -9034,6 +9093,14 @@ should be able to be added at any place in this file.
   <owner>top-chrome-desktop-ui@google.com</owner>
   <description>
     User clicked the close tab button; the tab was the last tab in a split.
+  </description>
+</action>
+
+<action name="CloseTab_Inactive">
+  <owner>dpenning@google.com</owner>
+  <owner>chrome-desktop-ui-sea@google.com</owner>
+  <description>
+    User clicked the close tab button; the tab was inactive.
   </description>
 </action>
 
@@ -10927,6 +10994,8 @@ should be able to be added at any place in this file.
     <variant name=".OpenMyActivity"
         summary="The user opened the My Activity page."/>
     <variant name=".OpenNewThread" summary="The user opened a new thread."/>
+    <variant name=".OpenSourcesMenu"
+        summary="The user opened the sources menu."/>
     <variant name=".OpenThreadHistory"
         summary="The user opened the thread history."/>
     <variant name=".TabFromSourcesMenuClicked"
@@ -12373,6 +12442,14 @@ should be able to be added at any place in this file.
   <owner>chrome-reader-mode-team@google.com</owner>
   <description>
     User changes the front scaling in distilled page preferences.
+  </description>
+</action>
+
+<action name="DomDistiller.Android.LinksEnabledChanged">
+  <owner>wylieb@google.com</owner>
+  <owner>chrome-reader-mode-team@google.com</owner>
+  <description>
+    User changes the links enabled setting in distilled page preferences.
   </description>
 </action>
 
@@ -26799,6 +26876,46 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="MobileGeminiCameraFlowBegan">
+  <owner>joepeplowski@google.com</owner>
+  <owner>bling-alchemy-eng@google.com</owner>
+  <description>The Gemini camera flow began.</description>
+</action>
+
+<action name="MobileGeminiCameraFlowCameraPickerCancelled">
+  <owner>joepeplowski@google.com</owner>
+  <owner>bling-alchemy-eng@google.com</owner>
+  <description>
+    The user cancelled the camera picker in the Gemini camera flow.
+  </description>
+</action>
+
+<action name="MobileGeminiCameraFlowCameraPickerFinishedWithImage">
+  <owner>joepeplowski@google.com</owner>
+  <owner>bling-alchemy-eng@google.com</owner>
+  <description>
+    The user finished using the camera picker in the Gemini camera flow and an
+    image was included in the camera picker's result.
+  </description>
+</action>
+
+<action name="MobileGeminiCameraFlowCameraPickerFinishedWithoutImage">
+  <owner>joepeplowski@google.com</owner>
+  <owner>bling-alchemy-eng@google.com</owner>
+  <description>
+    The user finished using the camera picker in the Gemini camera flow but no
+    image was included in the camera picker's result.
+  </description>
+</action>
+
+<action name="MobileGeminiCameraFlowCameraPickerPresented">
+  <owner>joepeplowski@google.com</owner>
+  <owner>bling-alchemy-eng@google.com</owner>
+  <description>
+    The camera picker was presented in the Gemini camera flow.
+  </description>
+</action>
+
 <action name="MobileGeminiCameraFlowGeminiCameraPermissionAlertAllow">
   <owner>joepeplowski@google.com</owner>
   <owner>bling-alchemy-eng@google.com</owner>
@@ -27014,6 +27131,15 @@ should be able to be added at any place in this file.
   <description>Reported when the BWG FRE was shown. iOS only.</description>
 </action>
 
+<action name="MobileGeminiImageActionButtonTapped">
+  <owner>joepeplowski@google.com</owner>
+  <owner>bling-alchemy-eng@google.com</owner>
+  <description>
+    The user tapped one of the buttons associated with an image that was
+    provided in a response from Gemini.
+  </description>
+</action>
+
 <action name="MobileGeminiImageRemixContextMenuEntryPointShown">
   <owner>joepeplowski@google.com</owner>
   <owner>bling-alchemy-eng@google.com</owner>
@@ -27036,6 +27162,14 @@ should be able to be added at any place in this file.
   <description>
     Recorded when the user taps on the Gemini Image Remix IPH or its anchor to
     trigger the feature.
+  </description>
+</action>
+
+<action name="MobileGeminiInputPlateAttachmentOptionTapped">
+  <owner>joepeplowski@google.com</owner>
+  <owner>bling-alchemy-eng@google.com</owner>
+  <description>
+    The user tapped one of the attachment options in the input plate in Gemini.
   </description>
 </action>
 
@@ -28239,11 +28373,6 @@ should be able to be added at any place in this file.
 <action name="MobileMenuShare">
   <owner>aurimas@chromium.org</owner>
   <description>User pressed 'Share' in the app menu.</description>
-</action>
-
-<action name="MobileMenuShareThisPage">
-  <owner>stkhapugin@chromium.org</owner>
-  <description>User pressed 'Share This Page' in the app menu.</description>
 </action>
 
 <action name="MobileMenuShow">
@@ -38565,6 +38694,15 @@ should be able to be added at any place in this file.
   <description>Please enter the description of this user action.</description>
 </action>
 
+<action name="ReportUnsafeSite">
+  <owner>nwokedi@chromium.org</owner>
+  <owner>chrome-counter-abuse-alerts@google.com</owner>
+  <description>
+    Recorded when a user selects the &quot;Report an unsafe site...&quot; option
+    from the app menu.
+  </description>
+</action>
+
 <action name="ResetProfile">
   <owner>Please list the metric's owners. Add more owner tags as needed.</owner>
   <description>Please enter the description of this user action.</description>
@@ -38889,11 +39027,22 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="SafeBrowsing.Settings.SafeBrowsingRowClicked">
+  <obsolete>Renamed to Settings.SafeBrowsingRowExpanded.</obsolete>
   <owner>yawfrempong@google.com</owner>
   <owner>chrome-safebrowsing-alerts@google.com</owner>
   <description>
     User clicks the safe browsing row expand arrow in the
     chrome://settings/security page.
+  </description>
+</action>
+
+<action name="SafeBrowsing.Settings.SafeBrowsingRowExpanded">
+  <owner>yawfrempong@google.com</owner>
+  <owner>chrome-safebrowsing-alerts@google.com</owner>
+  <description>
+    User clicks the safe browsing row expand arrow in the
+    chrome://settings/security page. This user action is the same as
+    SafeBrowsing.Settings.SafeBrowsingRowClicked but with improved naming.
   </description>
 </action>
 
@@ -41737,6 +41886,160 @@ should be able to be added at any place in this file.
   <owner>sczs@chromium.org</owner>
   <description>
     Reported when user navigates to Voice Search Settings. iOS only.
+  </description>
+</action>
+
+<action name="Settings.YourSavedInfo.CategoryClick.CONTACT_INFO">
+  <owner>jsobiech@google.com</owner>
+  <description>
+    User clicks on the Contact info category link in the Your saved info page.
+  </description>
+</action>
+
+<action name="Settings.YourSavedInfo.CategoryClick.IDENTITY_DOCS">
+  <owner>jsobiech@google.com</owner>
+  <description>
+    User clicks on the Identity docs category link in the Your saved info page.
+  </description>
+</action>
+
+<action name="Settings.YourSavedInfo.CategoryClick.PASSWORD_MANAGER">
+  <owner>jsobiech@google.com</owner>
+  <description>
+    User clicks on the Password Manager category link in the Your saved info
+    page.
+  </description>
+</action>
+
+<action name="Settings.YourSavedInfo.CategoryClick.PAYMENTS">
+  <owner>jsobiech@google.com</owner>
+  <description>
+    User clicks on the Payments category link in the Your saved info page.
+  </description>
+</action>
+
+<action name="Settings.YourSavedInfo.CategoryClick.TRAVEL">
+  <owner>ireneuszszulc@google.com</owner>
+  <owner>chrome-autofill-team@google.com</owner>
+  <description>
+    User clicks on the Travel category link in the Your saved info page.
+  </description>
+</action>
+
+<action name="Settings.YourSavedInfo.ChipClick.ADDRESSES">
+  <owner>jsobiech@google.com</owner>
+  <description>
+    User clicks on the Addresses data chip in the Your saved info page.
+  </description>
+</action>
+
+<action name="Settings.YourSavedInfo.ChipClick.CREDIT_CARDS">
+  <owner>jsobiech@google.com</owner>
+  <description>
+    User clicks on the Credit cards data chip in the Your saved info page.
+  </description>
+</action>
+
+<action name="Settings.YourSavedInfo.ChipClick.DRIVERS_LICENSES">
+  <owner>jsobiech@google.com</owner>
+  <description>
+    User clicks on the Drivers licenses data chip in the Your saved info page.
+  </description>
+</action>
+
+<action name="Settings.YourSavedInfo.ChipClick.FLIGHT_RESERVATIONS">
+  <owner>jsobiech@google.com</owner>
+  <description>
+    User clicks on the Flight reservations data chip in the Your saved info
+    page.
+  </description>
+</action>
+
+<action name="Settings.YourSavedInfo.ChipClick.IBANS">
+  <owner>jsobiech@google.com</owner>
+  <description>
+    User clicks on the IBANs data chip in the Your saved info page.
+  </description>
+</action>
+
+<action name="Settings.YourSavedInfo.ChipClick.LOYALTY_CARDS">
+  <owner>jsobiech@google.com</owner>
+  <description>
+    User clicks on the Loyalty cards data chip in the Your saved info page.
+  </description>
+</action>
+
+<action name="Settings.YourSavedInfo.ChipClick.NATIONAL_ID_CARDS">
+  <owner>jsobiech@google.com</owner>
+  <description>
+    User clicks on the National ID cards data chip in the Your saved info page.
+  </description>
+</action>
+
+<action name="Settings.YourSavedInfo.ChipClick.PASSKEYS">
+  <owner>jsobiech@google.com</owner>
+  <description>
+    User clicks on the Passkeys data chip in the Your saved info page.
+  </description>
+</action>
+
+<action name="Settings.YourSavedInfo.ChipClick.PASSPORTS">
+  <owner>jsobiech@google.com</owner>
+  <description>
+    User clicks on the Passports data chip in the Your saved info page.
+  </description>
+</action>
+
+<action name="Settings.YourSavedInfo.ChipClick.PASSWORDS">
+  <owner>jsobiech@google.com</owner>
+  <description>
+    User clicks on the Passwords data chip in the Your saved info page.
+  </description>
+</action>
+
+<action name="Settings.YourSavedInfo.ChipClick.PAY_OVER_TIME">
+  <owner>jsobiech@google.com</owner>
+  <description>
+    User clicks on the Pay over time data chip in the Your saved info page.
+  </description>
+</action>
+
+<action name="Settings.YourSavedInfo.ChipClick.TRAVEL_INFO">
+  <owner>jsobiech@google.com</owner>
+  <description>
+    User clicks on the Travel info data chip in the Your saved info page.
+  </description>
+</action>
+
+<action name="Settings.YourSavedInfo.ChipClick.VEHICLES">
+  <owner>jsobiech@google.com</owner>
+  <description>
+    User clicks on the Vehicles data chip in the Your saved info page.
+  </description>
+</action>
+
+<action name="Settings.YourSavedInfo.RelatedServiceClick.GOOGLE_ACCOUNT">
+  <owner>jsobiech@google.com</owner>
+  <description>
+    User clicks on the Google Account related service link in the Your saved
+    info page.
+  </description>
+</action>
+
+<action
+    name="Settings.YourSavedInfo.RelatedServiceClick.GOOGLE_PASSWORD_MANAGER">
+  <owner>jsobiech@google.com</owner>
+  <description>
+    User clicks on the Google Password Manager related service link in the Your
+    saved info page.
+  </description>
+</action>
+
+<action name="Settings.YourSavedInfo.RelatedServiceClick.GOOGLE_WALLET">
+  <owner>jsobiech@google.com</owner>
+  <description>
+    User clicks on the Google Wallet related service link in the Your saved info
+    page.
   </description>
 </action>
 

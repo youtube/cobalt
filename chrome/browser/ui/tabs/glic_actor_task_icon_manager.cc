@@ -20,12 +20,8 @@ using TaskState = actor::ActorTask::State;
 using Text = ActorTaskNudgeState::Text;
 
 bool RequiresTaskProcessing(TaskState state) {
-  if (base::FeatureList::IsEnabled(features::kGlicActorUiGlobalTaskIndicator)) {
     return GlicActorTaskIconManager::RequiresAttention(state) ||
            state == TaskState::kFinished || state == TaskState::kFailed;
-  } else {
-    return GlicActorTaskIconManager::RequiresAttention(state);
-  }
 }
 
 }  // namespace
@@ -50,13 +46,11 @@ void GlicActorTaskIconManager::RegisterSubscriptions() {
           base::BindRepeating(
               &GlicActorTaskIconManager::UpdateTaskIconComponents,
               base::Unretained(this))));
-  if (base::FeatureList::IsEnabled(features::kGlicActorUiGlobalTaskIndicator)) {
     callback_subscriptions_.push_back(
         actor_service_->GetActorUiStateManager()->RegisterActorTaskRemoved(
             base::BindRepeating(
                 &GlicActorTaskIconManager::UpdateTaskIconComponents,
                 base::Unretained(this))));
-  }
 }
 
 void GlicActorTaskIconManager::UpdateTaskIconComponents(actor::TaskId task_id) {
@@ -75,18 +69,10 @@ void GlicActorTaskIconManager::OnActorTaskStateUpdate(actor::TaskId task_id) {
 void GlicActorTaskIconManager::Shutdown() {}
 
 void GlicActorTaskIconManager::UpdateTaskNudge() {
-  // TODO(mjenn): Remove this once kGlicActorUiGlobalTaskIndicator is removed.
-  auto paused_or_yielded_actor_tasks =
-      actor_service_->FindTaskIdsInActive([](const ActorTask& task) {
-        return (task.GetState() == TaskState::kPausedByActor ||
-                task.GetState() == TaskState::kWaitingOnUser);
-      });
-
   ActorTaskNudgeState old_state = current_actor_task_nudge_state_;
 
   bool needs_attention = false;
   bool tasks_complete = false;
-  if (base::FeatureList::IsEnabled(features::kGlicActorUiGlobalTaskIndicator)) {
     for (const auto [task_id, requires_processing] :
          actor_task_list_bubble_rows_) {
       // Tasks that are processed will show the default nudge.
@@ -114,20 +100,32 @@ void GlicActorTaskIconManager::UpdateTaskNudge() {
         tasks_complete = true;
       }
     }
-  } else {
-    needs_attention = !paused_or_yielded_actor_tasks.empty() &&
-                      !actor_task_list_bubble_rows_.empty();
-  }
 
   current_actor_task_nudge_state_.text = needs_attention ? Text::kNeedsAttention
                                          : tasks_complete ? Text::kCompleteTasks
                                                           : Text::kDefault;
 
-  // If either the state or number of tasks in the bubble changes, we want to
-  // notify the nudge.
+  // If the state, number of tasks needing processing, or number of inactive
+  // tasks changed we want to notify the nudge. We need to specifically check
+  // when the number of tasks in a given state changes, as the number of tasks
+  // in the bubble will only change when a new task is added or removed, not if
+  // the state changes.
+  size_t num_inactive_tasks = actor::ActorKeyedService::Get(profile_)
+                                  ->GetActorUiStateManager()
+                                  ->GetInactiveTaskCount();
+  bool label_plurality_changed =
+      stored_bubble_row_need_processing_task_count_ !=
+          GetNumActorTasksNeedProcessing() ||
+      stored_bubble_row_inactive_task_count_ != num_inactive_tasks;
+
   if (old_state != current_actor_task_nudge_state_ ||
-      stored_bubble_row_task_count_ != actor_task_list_bubble_rows_.size()) {
+      stored_bubble_row_task_count_ != actor_task_list_bubble_rows_.size() ||
+      (base::FeatureList::IsEnabled(features::kGlicActorUiTaskIconUiFixes) &&
+       label_plurality_changed)) {
     stored_bubble_row_task_count_ = actor_task_list_bubble_rows_.size();
+    stored_bubble_row_need_processing_task_count_ =
+        GetNumActorTasksNeedProcessing();
+    stored_bubble_row_inactive_task_count_ = num_inactive_tasks;
     task_nudge_state_change_callback_list_.Notify(
         current_actor_task_nudge_state_);
   }
@@ -135,14 +133,10 @@ void GlicActorTaskIconManager::UpdateTaskNudge() {
 
 void GlicActorTaskIconManager::ProcessRowInTaskListBubble(
     actor::TaskId task_id) {
-  if (base::FeatureList::IsEnabled(features::kGlicActorUiGlobalTaskIndicator)) {
     if (auto it = actor_task_list_bubble_rows_.find(task_id);
         it != actor_task_list_bubble_rows_.end()) {
       it->second = false;
     }
-  } else {
-    actor_task_list_bubble_rows_.erase(task_id);
-  }
   UpdateTaskNudge();
 }
 
@@ -155,19 +149,10 @@ void GlicActorTaskIconManager::UpdateTaskListBubble(actor::TaskId task_id) {
     // If the task was cancelled, it should also be removed from the bubble.
     actor_task_list_bubble_rows_.erase(task_id);
   } else {
-    const bool icon_v3_enabled =
-        base::FeatureList::IsEnabled(features::kGlicActorUiGlobalTaskIndicator);
     const bool requires_processing = RequiresTaskProcessing(state.value());
 
-    if (icon_v3_enabled) {
       actor_task_list_bubble_rows_[task_id] = requires_processing;
-    }
     if (requires_processing) {
-      if (!icon_v3_enabled) {
-        // Old implementation does not use this field, but it needs to be set to
-        // show the row in the bubble.
-        actor_task_list_bubble_rows_[task_id] = false;
-      }
       // Notify the bubble only if a task now requires processing. This callback
       // will open the task list bubble and make it active, in order to bring it
       // to the user's attention. This is also necessary for when a user

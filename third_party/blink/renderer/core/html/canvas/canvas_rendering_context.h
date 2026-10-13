@@ -105,8 +105,10 @@ class CORE_EXPORT CanvasRenderingContext
   CanvasRenderingContext& operator=(const CanvasRenderingContext&) = delete;
   ~CanvasRenderingContext() override = default;
 
-  // Correspond to CanvasRenderingAPI defined in
-  // tools/metrics/histograms/enums.xml
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused. CanvasRenderingAPI in
+  // tools/metrics/histograms/enums.xml must be updated when making a change to
+  // this enum.
   enum class CanvasRenderingAPI {
     kUnknown = -1,  // Not used by histogram.
     k2D = 0,
@@ -148,6 +150,7 @@ class CORE_EXPORT CanvasRenderingContext
     return host->GetTopExecutionContext();
   }
 
+  void MaybeRecordUKMCanvasAccessibility();
   void RecordUKMCanvasRenderingAPI();
   void RecordUMACanvasRenderingAPI();
 
@@ -277,6 +280,9 @@ class CORE_EXPORT CanvasRenderingContext
   virtual bool Is2DCanvasAccelerated() const { NOTREACHED(); }
 
   virtual void setFontForTesting(const String&) { NOTREACHED(); }
+  virtual void fillTextForTesting(const String& text, double x, double y) {
+    NOTREACHED();
+  }
 
   scoped_refptr<StaticBitmapImage> GetElementImage(
       Element* element,
@@ -353,6 +359,9 @@ class CORE_EXPORT CanvasRenderingContext
   void RenderTaskEnded();
   bool did_draw_in_current_task_ = false;
   bool did_print_in_current_task_ = false;
+  bool accessibility_ukm_recorded_ = false;
+  bool did_process_task_ = false;
+  bool did_draw_text_ = false;
 
   const CanvasRenderingAPI canvas_rendering_type_;
 

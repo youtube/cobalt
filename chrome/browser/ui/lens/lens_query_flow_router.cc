@@ -7,7 +7,7 @@
 #include "base/rand_util.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/contextual_search/contextual_search_service_factory.h"
-#include "chrome/browser/contextual_tasks/contextual_tasks_side_panel_coordinator.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_panel_controller.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service_factory.h"
 #include "chrome/browser/lens/core/mojom/lens.mojom.h"
@@ -28,6 +28,7 @@
 #include "components/lens/lens_url_utils.h"
 #include "components/lens/ref_counted_lens_overlay_client_logs.h"
 #include "components/omnibox/browser/lens_suggest_inputs_utils.h"
+#include "components/omnibox/common/logger.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "net/base/url_util.h"
 #include "third_party/lens_server_proto/lens_overlay_server.pb.h"
@@ -432,6 +433,10 @@ void LensQueryFlowRouter::OpenContextualTasksPanel(GURL url) {
     return;
   }
 
+  // Log the URL the debug omnibox webui page. Do this first so it makes
+  // chronological sense in the logs.
+  OMNIBOX_LOG("lens_results_nav") << url.spec();
+
   // Show the side panel. This will create a new task and associate it with the
   // active tab.
   contextual_tasks::ContextualTasksUiServiceFactory::GetForBrowserContext(
@@ -565,14 +570,13 @@ LensQueryFlowRouter::GetContextualSearchSessionHandle() const {
     return pending_session_handle_.get();
   }
 
-  auto* coordinator =
-      contextual_tasks::ContextualTasksSidePanelCoordinator::From(
-          browser_window_interface());
-  if (!coordinator || !coordinator->IsSidePanelOpenForContextualTask()) {
+  auto* controller = contextual_tasks::ContextualTasksPanelController::From(
+      browser_window_interface());
+  if (!controller || !controller->IsPanelOpenForContextualTask()) {
     return nullptr;
   }
 
-  return coordinator->GetContextualSearchSessionHandleForSidePanel();
+  return controller->GetContextualSearchSessionHandleForPanel();
 }
 
 }  // namespace lens

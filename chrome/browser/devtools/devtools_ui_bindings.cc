@@ -46,6 +46,7 @@
 #include "chrome/browser/devtools/devtools_select_file_dialog.h"
 #include "chrome/browser/devtools/features.h"
 #include "chrome/browser/devtools/url_constants.h"
+#include "chrome/browser/lifetime/application_lifetime.h"
 #include "chrome/browser/policy/profile_policy_connector.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_avatar_icon_util.h"
@@ -1714,22 +1715,20 @@ base::DictValue DevToolsUIBindings::GetSyncInformationForProfile(
       IdentityManagerFactory::GetForProfile(profile);
   AccountInfo extended_info =
       identity_manager->FindExtendedAccountInfo(account_info);
-  gfx::Image account_image;
-  if (extended_info.IsEmpty() || extended_info.account_image.IsEmpty()) {
-    account_image = ui::ResourceBundle::GetSharedInstance().GetImageNamed(
-        profiles::GetPlaceholderAvatarIconResourceID());
-  } else {
-    account_image = extended_info.account_image;
-  }
+  gfx::Image account_image = extended_info.GetAvatarImage().value_or(
+      ui::ResourceBundle::GetSharedInstance().GetImageNamed(
+          profiles::GetPlaceholderAvatarIconResourceID()));
   scoped_refptr<base::RefCountedMemory> png_bytes =
       account_image.As1xPNGBytes();
   if (png_bytes->size() > 0) {
     result.Set("accountImage", base::Base64Encode(*png_bytes));
   }
 
-  if (!extended_info.IsEmpty()) {
-    result.Set("accountFullName", extended_info.full_name);
-    result.Set("accountGivenName", extended_info.given_name);
+  if (extended_info.GetFullName().has_value()) {
+    result.Set("accountFullName", *extended_info.GetFullName());
+  }
+  if (extended_info.GetGivenName().has_value()) {
+    result.Set("accountGivenName", *extended_info.GetGivenName());
   }
 
   return result;
@@ -2325,6 +2324,10 @@ void DevToolsUIBindings::SetChromeFlag(const std::string& flag_name,
   SetChromeFlagInternal(profile_, flag_name, value);
 }
 
+void DevToolsUIBindings::RequestRestart() {
+  chrome::AttemptRestart();
+}
+
 void DevToolsUIBindings::MaybeStartLogging() {
   if (session_id_for_logging_.is_empty()) {
     session_id_for_logging_ = base::UnguessableToken::Create();
@@ -2520,7 +2523,7 @@ void DevToolsUIBindings::FilePathsChanged(
   size_t added_index = 0;
   size_t removed_index = 0;
   // Dispatch limited amount of file paths in a time to avoid
-  // IPC max message size limit. See https://crbug.com/797817.
+  // IPC max message size limit. See https://crbug.com/41362454.
   while (changed_index < changed_paths.size() ||
          added_index < added_paths.size() ||
          removed_index < removed_paths.size()) {

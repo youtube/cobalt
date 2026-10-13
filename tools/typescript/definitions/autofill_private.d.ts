@@ -157,6 +157,7 @@ declare global {
         FLIGHT_RESERVATION_DEPARTURE_AIRPORT,
         FLIGHT_RESERVATION_ARRIVAL_AIRPORT,
         FLIGHT_RESERVATION_DEPARTURE_DATE,
+        ADDRESS_HOME_ZIP_AND_CITY,
       }
 
       export enum AddressRecordType {
@@ -274,6 +275,7 @@ declare global {
         guid: string;
         nickname: string;
         shouldAuthenticateToView?: boolean;
+        storedInWallet?: boolean;
       }
 
       export interface EntityInstanceWithLabels {

@@ -16,7 +16,7 @@ import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.components.metrics.OmniboxEventProtos.OmniboxEventProto.PageClassification;
-import org.chromium.components.omnibox.AimToolsProto.ToolMode;
+import org.chromium.components.omnibox.ToolModeProto.ToolMode;
 
 import java.util.List;
 import java.util.Map;
@@ -99,7 +99,7 @@ public class AutocompleteInputUnitTest {
         assertEquals("", mInput.getUserText());
 
         mInput.setUserText(null);
-        assertEquals(null, mInput.getUserText());
+        assertEquals("", mInput.getUserText());
     }
 
     @Test

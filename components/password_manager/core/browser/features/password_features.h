@@ -72,10 +72,6 @@ BASE_DECLARE_FEATURE(kBiometricTouchToFill);
 // login success/failure.
 BASE_DECLARE_FEATURE(kCheckIfSubmittedFormIdenticalToObserved);
 
-// Checks if the new password field is visible in the viewport before returning
-// the form in the ChangePasswordFormWaiter.
-BASE_DECLARE_FEATURE(kCheckVisibilityInChangePasswordFormWaiter);
-
 // Delete undecryptable passwords from the login database.
 BASE_DECLARE_FEATURE(kClearUndecryptablePasswords);
 
@@ -92,9 +88,9 @@ BASE_DECLARE_FEATURE(kCredentialManagementUnifiedUi);
 // launched.
 BASE_DECLARE_FEATURE(kDebugUiForOtps);
 
-// This feature disables filling on page load for leaked credentials on some
-// sites. Filling on page load interferes with password change feature.
-BASE_DECLARE_FEATURE(kDisableFillingOnPageLoadForLeakedCredentials);
+// When enabled, automated password change won't be offered when the form
+// contains new password field.
+BASE_DECLARE_FEATURE(kDisablePasswordChangeFromNewPasswordFields);
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)  // Desktop
 // Enables the Mojo JavaScript API for the password manager, replacing the
@@ -112,14 +108,6 @@ BASE_DECLARE_FEATURE(kFillChangePasswordFormByTyping);
 // Enables the experiment for the password manager to only fill on account
 // selection, rather than autofilling on page load, with highlighting of fields.
 BASE_DECLARE_FEATURE(kFillOnAccountSelect);
-
-#if BUILDFLAG(IS_ANDROID)
-// Allows filling from a secondary recovery password saved as a backup.
-BASE_DECLARE_FEATURE(kFillRecoveryPassword);
-#endif
-
-// Enables improvements to password change functionality.
-BASE_DECLARE_FEATURE(kImprovedPasswordChangeService);
 
 #if BUILDFLAG(IS_IOS)
 
@@ -185,10 +173,6 @@ BASE_DECLARE_FEATURE(kRestartToGainAccessToKeychain);
 // feature flag) in a user-visible background tab.
 BASE_DECLARE_FEATURE(kRunPasswordChangeInBackgroundTab);
 
-// Shows recovery password for the improved password change flow in the
-// management UI.
-BASE_DECLARE_FEATURE(kShowRecoveryPassword);
-
 // Shows a tab with password change instead of bubble/settings page after
 // successful password change.
 BASE_DECLARE_FEATURE(kShowTabWithPasswordChangeOnSuccess);
@@ -196,13 +180,6 @@ BASE_DECLARE_FEATURE(kShowTabWithPasswordChangeOnSuccess);
 // Displays at least the decryptable and never saved logins in the password
 // manager
 BASE_DECLARE_FEATURE(kSkipUndecryptablePasswords);
-
-// Immediately terminates password change whenever the model detects login
-// failed due to incorrect password.
-BASE_DECLARE_FEATURE(kStopLoginCheckOnFailedLogin);
-
-// Adds throttling logic to password change dialog.
-BASE_DECLARE_FEATURE(kThrottlePasswordChangeDialog);
 
 // Starts passwords resync when undecryptable passwords are detected.
 BASE_DECLARE_FEATURE(kTriggerPasswordResyncWhenUndecryptablePasswordsDetected);
@@ -229,28 +206,6 @@ BASE_DECLARE_FEATURE(kUserInterventionForPasswordChange);
 BASE_DECLARE_FEATURE(kWebAuthnUsePasskeyFromAnotherDeviceInContextMenu);
 
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
-
-inline constexpr base::FeatureParam<std::string>
-    kPasswordChangeSuccessSurveyTriggerId{
-        &kImprovedPasswordChangeService, "PasswordChangeSuccessSurveyTriggerId",
-        /*default_value=*/""};
-inline constexpr base::FeatureParam<std::string>
-    kPasswordChangeErrorSurveyTriggerId{&kImprovedPasswordChangeService,
-                                        "PasswordChangeErrorSurveyTriggerId",
-                                        /*default_value=*/""};
-inline constexpr base::FeatureParam<std::string>
-    kPasswordChangeCanceledSurveyTriggerId{
-        &kImprovedPasswordChangeService,
-        "PasswordChangeCanceledSurveyTriggerId",
-        /*default_value=*/""};
-inline constexpr base::FeatureParam<std::string>
-    kPasswordChangeDelayedSurveyTriggerId{
-        &kImprovedPasswordChangeService, "PasswordChangeDelayedSurveyTriggerId",
-        /*default_value=*/""};
-
-inline constexpr base::FeatureParam<base::TimeDelta>
-    kPasswordChangeThrottleTime{&kThrottlePasswordChangeDialog,
-                                "PasswordChangeThrottleTime", base::Days(14)};
 
 // All features parameters in alphabetical order.
 

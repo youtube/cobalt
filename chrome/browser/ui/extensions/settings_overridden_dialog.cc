@@ -28,10 +28,14 @@ static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
 using DialogResult = SettingsOverriddenDialogController::DialogResult;
 
+DEFINE_ELEMENT_IDENTIFIER_VALUE(kSettingsOverriddenDialogId);
+DEFINE_ELEMENT_IDENTIFIER_VALUE(
+    kSettingsOverriddenDialogPreviousSettingButtonId);
+DEFINE_ELEMENT_IDENTIFIER_VALUE(kSettingsOverriddenDialogNewSettingButtonId);
+DEFINE_ELEMENT_IDENTIFIER_VALUE(kSettingsOverriddenDialogSaveButtonId);
+
 namespace {
 constexpr int kDialogHeaderIconSize = 20;
-
-DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kSaveButtonId);
 
 // Model delegate that notifies the `controller_` when a click event occurs in
 // the settings overridden dialog.
@@ -63,7 +67,9 @@ class SettingsOverriddenDialogDelegate : public ui::DialogModelDelegate {
   void OnRadioSelectionChanged(DialogResult result) {
     selected_setting_ = result;
     auto* model = dialog_model();
-    model->SetButtonEnabled(model->GetButtonByUniqueId(kSaveButtonId), true);
+    model->SetButtonEnabled(
+        model->GetButtonByUniqueId(kSettingsOverriddenDialogSaveButtonId),
+        true);
   }
 
   // Called when the "Save" button on an explicit-choice dialog is clicked, to
@@ -132,7 +138,8 @@ void BuildExplicitChoiceDialog(
     SettingsOverriddenDialogDelegate* dialog_delegate) {
   CHECK(base::FeatureList::IsEnabled(
       extensions_features::kSearchEngineExplicitChoiceDialog));
-  dialog_builder.SetTitle(show_params.dialog_title)
+  dialog_builder.SetElementIdentifier(kSettingsOverriddenDialogId)
+      .SetTitle(show_params.dialog_title)
       .AddParagraph(ui::DialogModelLabel(show_params.message), std::u16string())
       .AddOkButton(
           base::BindOnce(
@@ -140,15 +147,15 @@ void BuildExplicitChoiceDialog(
               base::Unretained(dialog_delegate)),
           ui::DialogModel::Button::Params()
               .SetLabel(l10n_util::GetStringUTF16(IDS_SAVE))
-              .SetEnabled(true)
-              .SetId(kSaveButtonId))
+              .SetEnabled(false)
+              .SetId(kSettingsOverriddenDialogSaveButtonId))
       .SetCloseActionCallback(
           base::BindOnce(&SettingsOverriddenDialogDelegate::OnDialogClosed,
                          base::Unretained(dialog_delegate)))
       .SetDialogDestroyingCallback(
           base::BindOnce(&SettingsOverriddenDialogDelegate::OnDialogDestroyed,
                          base::Unretained(dialog_delegate)))
-      .SetInitiallyFocusedField(kSaveButtonId)
+      .SetInitiallyFocusedField(kSettingsOverriddenDialogSaveButtonId)
       .OverrideShowCloseButton(false);
 
   // Helper to bind the selection callback to a specific result.
@@ -160,8 +167,10 @@ void BuildExplicitChoiceDialog(
 
   extensions::AddExplicitChoiceRadioButtons(
       dialog_builder, show_params.previous_setting.value(),
+      kSettingsOverriddenDialogPreviousSettingButtonId,
       create_selection_callback(DialogResult::kChangeSettingsBack),
       show_params.new_setting.value(),
+      kSettingsOverriddenDialogNewSettingButtonId,
       create_selection_callback(DialogResult::kKeepNewSettings));
 }
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
