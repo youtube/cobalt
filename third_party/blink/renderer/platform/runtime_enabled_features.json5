@@ -3557,6 +3557,26 @@
       status: "stable",
     },
     {
+<<<<<<< HEAD
+=======
+      name: "MediaSessionEnterPictureInPicture",
+      public: true,
+      status: "stable",
+    },
+    // Cobalt: gates exposure of SourceBuffer.changeType(DOMString). Disabled by
+    // default; enabled at runtime through the H5VCC setting
+    // `Media.EnableChangeType`, which force-enables the (token-less) origin
+    // trial on the calling document and flips the global flag for contexts
+    // created afterwards.
+    // TODO(b/571981376): Remove once experiments have run.
+    {
+      name: "MediaSourceChangeType",
+      base_feature: "none",
+      origin_trial_feature_name: "MediaSourceChangeType",
+      public: true,
+    },
+    {
+>>>>>>> 44b2467877c (media: Hide SourceBuffer.changeType() behind H5VCC setting (#13300))
       name: "MediaSourceExperimental",
       status: "experimental",
     },
