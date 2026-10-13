@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<script>
+test(() => {
+  assert_true(PerformanceObserver.supportedEntryTypes.includes('cobalt-frame'),
+              'supportedEntryTypes must include cobalt-frame');
+}, 'cobalt-frame is in PerformanceObserver.supportedEntryTypes');
+
+test(() => {
+  assert_equals(performance.getEntriesByType('cobalt-frame').length, 0,
+                'getEntriesByType("cobalt-frame") should return empty array');
+}, 'cobalt-frame entries are not buffered in getEntriesByType');
+
+test(() => {
+  const obs = new PerformanceObserver(() => {});
+  obs.observe({ type: 'cobalt-frame' });
+  obs.disconnect();
+}, 'PerformanceObserver can observe cobalt-frame type');
+</script>
+</body>
+</html>
