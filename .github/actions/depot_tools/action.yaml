@@ -195,8 +195,7 @@ runs:
         ARCHIVE="/runner-cache/golden-${PLATFORM}.${$}.tar.zst"
         trap 'rm -f "${ARCHIVE}"' EXIT
 
-        tar -cf - src depot_tools .gclient | zstd -T0 -3 -q -o "${ARCHIVE}"
-        DIGEST=$(sha256sum "${ARCHIVE}" | awk '{print $1}')
+        DIGEST=$(tar -cf - src depot_tools .gclient | zstd -T0 -3 -q | tee "${ARCHIVE}" | sha256sum | awk '{print $1}')
 
         gcloud storage cp --no-clobber "${ARCHIVE}" "gs://${BUCKET}/${PLATFORM}/${DIGEST}.tar.zst"
 
