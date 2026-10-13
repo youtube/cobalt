@@ -49,6 +49,7 @@
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/common/content_switches.h"
 #include "gpu/command_buffer/service/gpu_switches.h"
+#include "gpu/config/gpu_finch_features.h"
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "starboard/android/shared/starboard_bridge.h"
 #endif
@@ -89,7 +90,6 @@ std::optional<int> CobaltMainDelegate::BasicStartupComplete() {
 #endif
   base::CommandLine* cl = base::CommandLine::ForCurrentProcess();
   cl->AppendSwitch(switches::kEnableAggressiveDOMStorageFlushing);
-  cl->AppendSwitch(switches::kDisableGpuShaderDiskCache);
   return content::ShellMainDelegate::BasicStartupComplete();
 }
 
@@ -132,6 +132,18 @@ std::optional<int> CobaltMainDelegate::PostEarlyInitialization(
     // Apply field trial testing configuration since content did not.
     browser_client_->CreateFeatureListAndFieldTrials();
   }
+
+  bool keep_gpu_shader_disk_cache_disabled = true;
+#if BUILDFLAG(IS_ANDROID)
+  if (base::FeatureList::IsEnabled(::features::kCobaltGpuShaderDiskCache)) {
+    keep_gpu_shader_disk_cache_disabled = false;
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
+  if (keep_gpu_shader_disk_cache_disabled) {
+    base::CommandLine::ForCurrentProcess()->AppendSwitch(
+        switches::kDisableGpuShaderDiskCache);
+  }
+
   if (!ShouldInitializeMojo(invoked_in)) {
     content::InitializeMojoCore();
   }

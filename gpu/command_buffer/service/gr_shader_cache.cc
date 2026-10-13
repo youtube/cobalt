@@ -46,6 +46,10 @@ GrShaderCache::GrShaderCache(size_t max_cache_size_bytes, Client* client)
     : cache_size_limit_(max_cache_size_bytes),
       store_(Store::NO_AUTO_EVICT),
       client_(client),
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+      defer_disk_writes_(
+          base::FeatureList::IsEnabled(features::kCobaltGpuShaderDiskCache)),
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
       enable_vk_pipeline_cache_(
           base::FeatureList::IsEnabled(features::kEnableVkPipelineCache)) {
   if (base::SingleThreadTaskRunner::HasCurrentDefault()) {
@@ -185,6 +189,13 @@ void GrShaderCache::PurgeMemory(
 
   cache_size_limit_ = gpu::UpdateShaderCacheSizeOnMemoryPressure(
       cache_size_limit_, memory_pressure_level);
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  // Deferred disk writes would be lost with the evicted entries, so write the
+  // pending entries first.
+  if (defer_disk_writes_ && curr_size_bytes_ > cache_size_limit_) {
+    FlushPendingDiskWritesLocked();
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   EnforceLimits(0u);
 
   cache_size_limit_ = original_limit;
@@ -223,6 +234,13 @@ void GrShaderCache::WriteToDisk(const CacheKey& key, CacheData* data) {
   if (!data->pending_disk_write)
     return;
 
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  // Keep the entry pending; FlushPendingDiskWrites() writes it later.
+  if (defer_disk_writes_) {
+    return;
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+
   // Only cache the shader on disk if this client id is permitted.
 #if BUILDFLAG(IS_COBALT)
   // In Cobalt, we bypass this restriction and allow caching unless
@@ -240,6 +258,33 @@ void GrShaderCache::WriteToDisk(const CacheKey& key, CacheData* data) {
   std::string encoded_key = base::Base64Encode(MakeString(key.data.get()));
   client_->StoreShader(encoded_key, MakeString(data->data.get()));
 }
+
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+void GrShaderCache::FlushPendingDiskWrites() {
+  base::AutoLock auto_lock(lock_);
+  FlushPendingDiskWritesLocked();
+}
+
+void GrShaderCache::FlushPendingDiskWritesLocked() {
+  lock_.AssertAcquired();
+  // Without deferral, WriteToDisk() already wrote every entry it was allowed
+  // to. The incognito check mirrors the one in WriteToDisk().
+  if (!defer_disk_writes_ ||
+      base::CommandLine::ForCurrentProcess()->HasSwitch("incognito")) {
+    return;
+  }
+
+  TRACE_EVENT0("gpu", "GrShaderCache::FlushPendingDiskWrites");
+  for (auto& [key, data] : store_) {
+    if (!data.pending_disk_write) {
+      continue;
+    }
+    data.pending_disk_write = false;
+    client_->StoreShader(base::Base64Encode(MakeString(key.data.get())),
+                         MakeString(data.data.get()));
+  }
+}
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 
 void GrShaderCache::EnforceLimits(size_t size_needed) {
   lock_.AssertAcquired();
