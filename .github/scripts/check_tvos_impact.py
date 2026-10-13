@@ -57,6 +57,15 @@ HEADER_EXTENSIONS = frozenset({
     '.def',
 })
 
+SOURCE_EXTENSIONS = frozenset({
+    '.c',
+    '.cc',
+    '.cpp',
+    '.cxx',
+    '.m',
+    '.mm',
+})
+
 
 def _normalize_path(path: str) -> str:
   norm = path.strip().lstrip('/')
@@ -90,49 +99,67 @@ def matches_always_trigger(files: Iterable[str]) -> Optional[str]:
   return None
 
 
-def _is_mentioned_in_dir_gn(file_path: pathlib.Path) -> bool:
-  """Checks if `file_path.name` appears in any .gn/.gni file in its folder."""
-  parent = file_path.parent
-  if not parent.is_dir():
-    return False
-  filename = file_path.name
-  for gn_file in list(parent.glob('*.gn')) + list(parent.glob('*.gni')):
-    try:
-      if filename in gn_file.read_text(encoding='utf-8', errors='ignore'):
-        return True
-    except OSError:
-      continue
-  return False
+def _find_including_sources(
+    src_dir: pathlib.Path,
+    rel_path: str,
+) -> Set[str]:
+  """Finds source files (.cc/.mm/.c) that `#include` or `#import` `rel_path`.
 
+  Before compilation produces `.d` depfiles, `gn analyze` only knows about
+  files explicitly listed in `BUILD.gn` (`sources` / `public` / `inputs`). If a
+  `BUILD.gn` target omits a header from `sources` and a PR modifies only that
+  header, `gn analyze` alone would miss the dependency.
+  """
+  includers: Set[str] = set()
+  filename = pathlib.Path(rel_path).name
+  parent = (src_dir / rel_path).parent
+  if parent.is_dir():
+    for entry in parent.iterdir():
+      if not (entry.is_file() and entry.suffix.lower() in SOURCE_EXTENSIONS):
+        continue
+      try:
+        content = entry.read_text(encoding='utf-8', errors='ignore')
+      except OSError:
+        continue
+      if f'"{filename}"' in content or f'/{filename}"' in content:
+        includers.add(entry.relative_to(src_dir).as_posix())
 
-def _find_nearest_build_gn(src_dir: pathlib.Path,
-                           rel_path: str) -> Optional[str]:
-  """Finds the nearest ancestor BUILD.gn relative to `src_dir`."""
-  curr = (src_dir / rel_path).parent
-  src_dir_resolved = src_dir.resolve()
-  while True:
-    try:
-      curr_resolved = curr.resolve()
-    except OSError:
-      break
-    if (curr_resolved != src_dir_resolved and
-        src_dir_resolved not in curr_resolved.parents):
-      break
-    candidate = curr / 'BUILD.gn'
-    if candidate.is_file():
-      return candidate.relative_to(src_dir).as_posix()
-    if curr_resolved == src_dir_resolved:
-      break
-    curr = curr.parent
-  return None
+  if (src_dir / '.git').exists():
+    proc = subprocess.run(
+        [
+            'git',
+            'grep',
+            '-l',
+            '-F',
+            f'"{rel_path}"',
+            '--',
+            '*.c',
+            '*.cc',
+            '*.cpp',
+            '*.m',
+            '*.mm',
+        ],
+        cwd=src_dir,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if proc.returncode == 0 and proc.stdout:
+      for line in proc.stdout.splitlines():
+        if line.strip():
+          includers.add(_normalize_path(line))
+  return includers
 
 
 def expand_gn_files(src_dir: pathlib.Path, files: Iterable[str]) -> List[str]:
   """Converts repo-relative paths to `//` GN source paths.
 
-  For header files that are not explicitly listed in a same-directory `.gn` or
-  `.gni` file, also includes the nearest ancestor `BUILD.gn` so unlisted headers
-  in tvOS targets are still detected by `gn analyze`.
+  Because `gn analyze` runs on a freshly generated GN build directory without
+  compiler-generated `.d` header dependency files, any header omitted from
+  `BUILD.gn`'s `sources` list is invisible to GN. To prevent false negatives on
+  header-only PRs, we also include the `.cc`/`.mm`/`.c` source files that
+  `#include` or `#import` each modified header so `gn analyze` can check if
+  those translation units are in the tvOS targets' `deps`.
   """
   gn_files: Set[str] = set()
   for raw_path in files:
@@ -142,11 +169,8 @@ def expand_gn_files(src_dir: pathlib.Path, files: Iterable[str]) -> List[str]:
     gn_files.add(f'//{rel_path}')
     suffix = pathlib.Path(rel_path).suffix.lower()
     if suffix in HEADER_EXTENSIONS:
-      abs_path = src_dir / rel_path
-      if not _is_mentioned_in_dir_gn(abs_path):
-        nearest_gn = _find_nearest_build_gn(src_dir, rel_path)
-        if nearest_gn:
-          gn_files.add(f'//{nearest_gn}')
+      for src_file in _find_including_sources(src_dir, rel_path):
+        gn_files.add(f'//{src_file}')
   return sorted(gn_files)
 
 
@@ -191,21 +215,18 @@ def _find_gn_binary(src_dir: pathlib.Path) -> str:
   raise FileNotFoundError('Could not find `gn` binary in PATH or buildtools.')
 
 
-def get_git_changed_files(src_dir: pathlib.Path, base_sha: str) -> List[str]:
-  """Returns modified file paths between `base_sha` and `HEAD` using git."""
-  check_commit = subprocess.run(
-      ['git', 'cat-file', '-e', f'{base_sha}^{{commit}}'],
+def get_pr_changed_files_via_git(
+    src_dir: pathlib.Path,
+    pr_number: str,
+) -> List[str]:
+  """Fetches PR head into FETCH_HEAD and returns changed files against HEAD."""
+  subprocess.run(
+      ['git', 'fetch', '--depth=1', 'origin', f'pull/{pr_number}/head'],
       cwd=src_dir,
-      check=False,
+      check=True,
   )
-  if check_commit.returncode != 0:
-    subprocess.run(
-        ['git', 'fetch', '--depth=1', 'origin', base_sha],
-        cwd=src_dir,
-        check=True,
-    )
   proc = subprocess.run(
-      ['git', 'diff', '--name-only', base_sha, 'HEAD'],
+      ['git', 'diff', '--name-only', 'HEAD', 'FETCH_HEAD'],
       cwd=src_dir,
       capture_output=True,
       text=True,
@@ -282,7 +303,7 @@ def check_tvos_impact(
         str(in_path),
         str(out_path),
     ]
-    if sys.platform != 'darwin':
+    if sys.platform.startswith('linux'):
       gn_analyze_cmd.append('--script-executable=tvos_linux_script_wrapper.py')
     print('Running:', ' '.join(gn_analyze_cmd))
     env = os.environ.copy()
@@ -319,10 +340,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
       help='Optional directory for gn gen output.',
   )
   parser.add_argument(
-      '--base-sha',
+      '--pr-number',
       type=str,
       default=None,
-      help='Base commit SHA to diff against HEAD using git.',
+      help='PR number to diff against HEAD via git fetch pull/<num>/head.',
   )
   parser.add_argument(
       '--files-json',
@@ -363,8 +384,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
       if not isinstance(parsed, list):
         raise ValueError('--files-json must decode to a JSON list of strings.')
       files.extend(str(item) for item in parsed)
-    if args.base_sha:
-      files.extend(get_git_changed_files(src_dir, args.base_sha))
+    if args.pr_number:
+      files.extend(get_pr_changed_files_via_git(src_dir, args.pr_number))
 
     test_targets = (
         load_test_targets(src_dir, args.test_targets_json)

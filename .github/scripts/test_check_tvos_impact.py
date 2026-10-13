@@ -42,30 +42,28 @@ class CheckTvosImpactTest(unittest.TestCase):
             'starboard/android/shared/player.cc',
         ]))
 
-  def test_expand_gn_files_includes_nearest_build_gn_for_unlisted_header(self):
+  def test_expand_gn_files_includes_sources_referencing_header(self):
     with tempfile.TemporaryDirectory() as tmp:
       root = pathlib.Path(tmp)
-      pkg_dir = root / 'starboard/shared/uikit'
-      sub_dir = pkg_dir / 'detail'
-      sub_dir.mkdir(parents=True)
-      (pkg_dir / 'BUILD.gn').write_text(
-          'source_set("uikit") { sources = [ "listed.h" ] }\n',
+      pkg_dir = root / 'cobalt/app/tvos'
+      pkg_dir.mkdir(parents=True)
+      (pkg_dir / 'helper.h').write_text('// header\n', encoding='utf-8')
+      (pkg_dir / 'main.mm').write_text(
+          '#import "cobalt/app/tvos/helper.h"\n',
           encoding='utf-8',
       )
-      (pkg_dir / 'listed.h').write_text('// listed\n', encoding='utf-8')
-      (sub_dir / 'unlisted.h').write_text('// unlisted\n', encoding='utf-8')
+      (pkg_dir / 'other.cc').write_text(
+          '#include "unrelated.h"\n',
+          encoding='utf-8',
+      )
 
-      expanded_listed = check_tvos_impact.expand_gn_files(
-          root, ['starboard/shared/uikit/listed.h'])
-      self.assertEqual(expanded_listed, ['//starboard/shared/uikit/listed.h'])
-
-      expanded_unlisted = check_tvos_impact.expand_gn_files(
-          root, ['starboard/shared/uikit/detail/unlisted.h'])
+      expanded = check_tvos_impact.expand_gn_files(
+          root, ['cobalt/app/tvos/helper.h'])
       self.assertEqual(
-          expanded_unlisted,
+          expanded,
           [
-              '//starboard/shared/uikit/BUILD.gn',
-              '//starboard/shared/uikit/detail/unlisted.h',
+              '//cobalt/app/tvos/helper.h',
+              '//cobalt/app/tvos/main.mm',
           ],
       )
 

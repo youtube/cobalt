@@ -114,7 +114,7 @@ def configure_out_directory(out_directory: str, platform: str, build_type: str,
   dst_args_gn_file = os.path.join(out_directory, 'args.gn')
   src_args_gn_file = os.path.join(platform_path, 'args.gn')
   is_tvos_on_linux = (
-      sys.platform != 'darwin' and platform in _COBALT_TVOS_PLATFORMS)
+      sys.platform.startswith('linux') and platform in _COBALT_TVOS_PLATFORMS)
 
   if os.path.exists(dst_args_gn_file):
     # Copy the stale args.gn into stale_args.gn
