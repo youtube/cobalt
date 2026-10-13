@@ -200,6 +200,10 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     if (!CommandLine.isInitialized()) {
       CommandLine.init(null);
       CommandLineOverrideHelper.getFlagOverrides(getCommandLineArgs());
+      BaseStarboardBridge.setActivityLifecycleCoordinationEnabled(
+          JavaSwitches.shouldApplyExperimentConfigs()
+              && getJavaSwitches()
+                  .containsKey(JavaSwitches.ENABLE_ACTIVITY_LIFECYCLE_COORDINATION));
     }
     mIsCobaltUsingAndroidOverlay =
         CommandLine.getInstance().hasSwitch(COBALT_USING_ANDROID_OVERLAY);
@@ -229,6 +233,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
       if (CommandLine.getInstance().hasSwitch("use-custom-android-fonts-xml")) {
         FontUtil.copyFontsXml(getApplicationContext());
       }
+      AppEventBridge.applyJavaSwitches();
       StarboardBridge starboardBridge = createStarboardBridge(getArgs(), mStartDeepLink);
       ((StarboardBridge.HostApplication) getApplication()).setStarboardBridge(starboardBridge);
       starboardBridge.onActivityCreate(this);
