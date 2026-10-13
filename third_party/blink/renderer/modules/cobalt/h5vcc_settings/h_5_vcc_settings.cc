@@ -19,6 +19,7 @@
 #include "media/base/decoder_buffer.h"
 #include "media/base/demuxer_memory_limit.h"
 #include "media/base/stream_parser.h"
+#include "media/filters/chunk_demuxer.h"
 #include "media/filters/source_buffer_state.h"
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/renderer/bindings/core/v8/idl_types.h"
@@ -167,6 +168,13 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
                                         enable;
                                     return base::ok();
                                   });
+  }
+  if (name == "Media.EnableChangeType") {
+    return ProcessSettingAsEnableOnly(
+        script_state, exception_context, name, *value, [] {
+          ::media::ChunkDemuxer::EnableChangeType();
+          return true;
+        });
   }
   if (name == "Media.ExperimentalMaxPendingBytesPerParse") {
     return ProcessSettingAsPositiveInt(

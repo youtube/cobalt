@@ -30,6 +30,8 @@
 #include "media/filters/stream_parser_factory.h"
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include <atomic>
+
 #include "base/containers/contains.h"
 #include "base/strings/string_split.h"
 #include "media/base/starboard/sbmedia_interface.h"
@@ -65,6 +67,9 @@ std::string ExpectedCodecs(const std::string& content_type,
 }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+// TODO(b/571981376): Remove once experiments have run.
+std::atomic<bool> g_change_type_enabled{false};
+
 // Parse type and codecs from mime type. It will return "video/mp4" and
 // "avc1.42E01E, mp4a.40.2" for "video/mp4; codecs="avc1.42E01E, mp4a.40.2".
 // Note that this function does minimum validation as the media stack will check
@@ -96,6 +101,10 @@ bool ParseMimeType(const std::string& mime_type,
   // It is possible to not having any codecs, and will leave the validation to
   // underlying parsers.
   return true;
+}
+
+bool IsChangeTypeEnabled() {
+  return g_change_type_enabled.load(std::memory_order_relaxed);
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
@@ -1342,8 +1351,20 @@ void ChunkDemuxer::ChangeType(const std::string& id,
 }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+// static
+void ChunkDemuxer::EnableChangeType() {
+  LOG(INFO) << "SourceBuffer.changeType() enabled.";
+  g_change_type_enabled.store(true, std::memory_order_relaxed);
+}
+
 bool ChunkDemuxer::CanChangeType(const std::string& id,
                                  const std::string& target_mime_type) {
+  if (!IsChangeTypeEnabled()) {
+    LOG(INFO) << "changeType() disabled; enable via H5VCC "
+              << "Media.EnableChangeType.";
+    return false;
+  }
+
   std::string current_mime_type;
   {
     base::AutoLock auto_lock(lock_);
