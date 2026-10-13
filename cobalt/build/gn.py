@@ -88,6 +88,9 @@ def write_build_args(build_args_path, platform_args_path, build_type, use_rbe,
     if use_rbe:
       f.write(f'use_remoteexec = true {gen_comment}\n')
       f.write(f'use_siso = true {gen_comment}\n')
+    else:
+      f.write(f'use_remoteexec = false {gen_comment}\n')
+      f.write(f'use_siso = false {gen_comment}\n')
     if use_sccache:
       f.write(f'cc_wrapper = "sccache" {gen_comment}\n')
     f.write(f'build_type = "{build_type}" {gen_comment}\n')
@@ -155,7 +158,7 @@ def parse_args():
       help='Pass this flag to disable the header dependency gn check.')
   parser.add_argument(
       '--no-rbe',
-      default=False,
+      default=True,
       action='store_true',
       help='Pass this flag to disable Remote Build Execution.')
   parser.add_argument(
