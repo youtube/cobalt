@@ -42,11 +42,10 @@ runs:
       id: validate-marker
       shell: bash
       run: |
-        # If golden workspace exists but lacks .runner_cache_ready, it is an
-        # incomplete or corrupted artifact from an interrupted legacy sync.
+        # Purge legacy unpartitioned golden workspace
         if [ -w "/runner-cache" ] && [ -d "/runner-cache/golden-workspace" ]; then
-          if [ ! -f "/runner-cache/golden-workspace/.runner_cache_ready" ]; then
-            echo "Notice: Purging corrupted or incomplete golden workspace (missing .runner_cache_ready)..."
+          if [ -d "/runner-cache/golden-workspace/src" ]; then
+            echo "Notice: Purging legacy unpartitioned golden workspace..."
             rm -rf /runner-cache/golden-workspace
           fi
         fi
@@ -54,9 +53,17 @@ runs:
     - name: Check SSD Cache Hit
       id: detect-cache
       shell: bash
+      env:
+        PLATFORM_INPUT: ${{ inputs.platform }}
       run: |
+        profile="default"
+        [[ "${PLATFORM_INPUT}" == *"android"* || "${PLATFORM_INPUT}" == *"aosp"* ]] && profile="android"
+        [[ "${PLATFORM_INPUT}" == *"evergreen-arm64"* ]] && profile="${profile:+${profile}-}evergreen-arm64"
+        [[ "${PLATFORM_INPUT}" == *"evergreen-arm"* && "${PLATFORM_INPUT}" != *"evergreen-arm64"* ]] && profile="${profile:+${profile}-}evergreen-arm"
+
         cache_hit=false
-        if [ -w "/runner-cache" ] && [ -d "/runner-cache/golden-workspace" ] && [ -n "$(ls -A /runner-cache/golden-workspace 2>/dev/null)" ]; then
+        LOWER_DIR="/runner-cache/golden-workspace/${profile}"
+        if [ -w "/runner-cache" ] && [ -d "${LOWER_DIR}" ] && [ -n "$(ls -A "${LOWER_DIR}" 2>/dev/null)" ]; then
           cache_hit=true
         fi
         echo "cache_hit=${cache_hit}" >> "${GITHUB_OUTPUT}"
@@ -77,40 +84,89 @@ runs:
       shell: bash
       env:
         PLATFORM_INPUT: ${{ inputs.platform }}
-        GITHUB_TOKEN: ${{ github.token }}
       run: |
-        LOWER_DIR="/runner-cache/golden-workspace"
-        if [ ! -w "/runner-cache" ] || [ -d "${LOWER_DIR}" ]; then
+        if [ ! -w "/runner-cache" ] || [[ "${PLATFORM_INPUT}" == *"tvos"* ]]; then
           exit 0
         fi
 
-        GOLDEN_WORKSPACE_BUCKET="${GOLDEN_WORKSPACE_BUCKET:-cobalt-actions-prod-test-artifacts/golden-workspace}"
-        STAGING_DIR="/runner-cache/staging.$$"
-        rm -rf "${STAGING_DIR}"
-        mkdir -p "${STAGING_DIR}"
+        profile="default"
+        [[ "${PLATFORM_INPUT}" == *"android"* || "${PLATFORM_INPUT}" == *"aosp"* ]] && profile="android"
+        [[ "${PLATFORM_INPUT}" == *"evergreen-arm64"* ]] && profile="${profile:+${profile}-}evergreen-arm64"
+        [[ "${PLATFORM_INPUT}" == *"evergreen-arm"* && "${PLATFORM_INPUT}" != *"evergreen-arm64"* ]] && profile="${profile:+${profile}-}evergreen-arm"
 
-        # Downloads the snapshot for this platform's profile and verifies it
-        # against github.com before it may become the lower dir.
-        echo "Fetching and verifying golden workspace snapshot from gs://${GOLDEN_WORKSPACE_BUCKET}..."
-        if GW_GCS_PREFIX="gs://${GOLDEN_WORKSPACE_BUCKET}" GW_FAIL_PREFIX="::warning::" \
-            "${GITHUB_ACTION_PATH}/../../scripts/golden_workspace.sh" hydrate "${STAGING_DIR}" "${PLATFORM_INPUT}"; then
-          # Mark snapshot ready for legacy compatibility
-          touch "${STAGING_DIR}/.runner_cache_ready"
-          rm -rf "${LOWER_DIR}"
-          mv "${STAGING_DIR}" "${LOWER_DIR}"
-          echo "Extracted golden workspace snapshot to ${LOWER_DIR}"
-        else
-          echo "Notice: Golden workspace snapshot not found or failed verification."
-          rm -rf "${STAGING_DIR}"
+        LOWER_DIR="/runner-cache/golden-workspace/${profile}"
+
+        git update-ref -d "refs/golden-workspace/${profile}" 2>/dev/null || true
+        EXPECTED=""
+        if git fetch -q origin "+refs/golden-workspace/${profile}:refs/golden-workspace/${profile}" 2>/dev/null; then
+          EXPECTED=$(git log -1 --format=%s "refs/golden-workspace/${profile}" 2>/dev/null || true)
         fi
+
+        # If cache exists on SSD, verify digest matches latest ref
+        if [ -d "${LOWER_DIR}" ]; then
+          if [[ -n "${EXPECTED}" && -f "${LOWER_DIR}/.digest" ]] && [ "$(<"${LOWER_DIR}/.digest")" = "${EXPECTED}" ]; then
+            echo "Golden workspace ${profile} is up-to-date on SSD (${EXPECTED:0:12})."
+            exit 0
+          fi
+          echo "Notice: Golden workspace on SSD is stale or untrusted; re-hydrating..."
+          rm -rf "${LOWER_DIR}"
+        fi
+
+        # Verify digest format before proceeding
+        if [[ ! "${EXPECTED}" =~ ^[0-9a-f]{64}$ ]]; then
+          echo "Notice: No valid golden workspace ref found for ${profile}."
+          exit 0
+        fi
+
+        BUCKET="${GOLDEN_WORKSPACE_BUCKET:-cobalt-actions-prod-test-artifacts/golden-workspace}"
+        ARCHIVE="/runner-cache/staging.${$}.tar.zst"
+        STAGING_DIR="/runner-cache/staging.${$}"
+        trap 'rm -rf "${ARCHIVE}" "${STAGING_DIR}"' EXIT
+
+        echo "Downloading golden workspace for ${profile} (${EXPECTED:0:12})..."
+        if ! gcloud storage cp -q "gs://${BUCKET}/${profile}/${EXPECTED}.tar.zst" "${ARCHIVE}" 2>/dev/null; then
+          echo "Notice: Golden workspace archive not found on GCS."
+          exit 0
+        fi
+
+        if ! echo "${EXPECTED}  ${ARCHIVE}" | sha256sum -c --strict --quiet 2>/dev/null; then
+          echo "::warning::Golden workspace checksum verification failed!"
+          exit 0
+        fi
+
+        mkdir -p "${STAGING_DIR}"
+        tar --no-same-owner --use-compress-program="zstd -d -T0" -xf "${ARCHIVE}" -C "${STAGING_DIR}"
+
+        # Refresh git stat cache so extracted files match index
+        git -C "${STAGING_DIR}/src" update-index --refresh -q 2>/dev/null || true
+
+        # Seed vpython cache directory on the runner from snapshot
+        mkdir -p /runner-cache/vpython
+        cp -rn "${STAGING_DIR}/vpython/." /runner-cache/vpython/ 2>/dev/null || true
+
+        echo "${EXPECTED}" > "${STAGING_DIR}/.digest"
+        touch "${STAGING_DIR}/.runner_cache_ready"
+
+        mkdir -p "/runner-cache/golden-workspace"
+        rm -rf "${LOWER_DIR}"
+        mv "${STAGING_DIR}" "${LOWER_DIR}"
+        echo "Extracted and verified golden workspace for ${profile} to ${LOWER_DIR}"
 
     - name: Resolve Active Snapshot Directory
       id: resolve-snapshot
       shell: bash
+      env:
+        PLATFORM_INPUT: ${{ inputs.platform }}
       run: |
+        profile="default"
+        [[ "${PLATFORM_INPUT}" == *"android"* || "${PLATFORM_INPUT}" == *"aosp"* ]] && profile="android"
+        [[ "${PLATFORM_INPUT}" == *"evergreen-arm64"* ]] && profile="${profile:+${profile}-}evergreen-arm64"
+        [[ "${PLATFORM_INPUT}" == *"evergreen-arm"* && "${PLATFORM_INPUT}" != *"evergreen-arm64"* ]] && profile="${profile:+${profile}-}evergreen-arm"
+
         lower_dir=""
-        if [ -d "/runner-cache/golden-workspace" ]; then
-          lower_dir="/runner-cache/golden-workspace"
+        LOWER_DIR="/runner-cache/golden-workspace/${profile}"
+        if [ -d "${LOWER_DIR}" ]; then
+          lower_dir="${LOWER_DIR}"
         fi
 
         if [ -n "${lower_dir}" ]; then

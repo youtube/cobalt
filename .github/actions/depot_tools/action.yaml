@@ -125,10 +125,18 @@ runs:
       if: inputs.run_sync == 'true'
       shell: bash
       working-directory: cobalt
+      env:
+        PLATFORM: ${{ matrix.platform }}
       run: |
         set -euo pipefail
         deps_match=false
-        LOWER_DIR="${OVERLAY_LOWER_DIR:-/runner-cache/golden-workspace}"
+
+        profile="default"
+        [[ "${PLATFORM}" == *"android"* || "${PLATFORM}" == *"aosp"* ]] && profile="android"
+        [[ "${PLATFORM}" == *"evergreen-arm64"* ]] && profile="${profile:+${profile}-}evergreen-arm64"
+        [[ "${PLATFORM}" == *"evergreen-arm"* && "${PLATFORM}" != *"evergreen-arm64"* ]] && profile="${profile:+${profile}-}evergreen-arm"
+
+        LOWER_DIR="${OVERLAY_LOWER_DIR:-/runner-cache/golden-workspace/${profile}}"
 
         if cmp -s "${LOWER_DIR}/src/DEPS" src/DEPS && cmp -s "${LOWER_DIR}/.gclient" .gclient; then
           echo "Golden workspace DEPS and .gclient match. Skipping gclient sync."
@@ -177,9 +185,24 @@ runs:
         # Post-submit builds of main publish the freshly synced workspace as the
         # golden workspace snapshot that overlay_workspace hydrates runners from.
         if [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF}" == "refs/heads/main" && "${GITHUB_REPOSITORY}" == "youtube/cobalt" ]]; then
-          GW_GCS_PREFIX="gs://${GOLDEN_WORKSPACE_BUCKET:-cobalt-actions-prod-test-artifacts/golden-workspace}" \
-            "${GITHUB_ACTION_PATH}/../../scripts/golden_workspace.sh" publish "${REF}" "${PWD}" "${PLATFORM}" \
-            || echo "::warning::Golden workspace snapshot was not published."
+          profile="default"
+          [[ "${PLATFORM}" == *"android"* || "${PLATFORM}" == *"aosp"* ]] && profile="android"
+          [[ "${PLATFORM}" == *"evergreen-arm64"* ]] && profile="${profile:+${profile}-}evergreen-arm64"
+          [[ "${PLATFORM}" == *"evergreen-arm"* && "${PLATFORM}" != *"evergreen-arm64"* ]] && profile="${profile:+${profile}-}evergreen-arm"
+
+          if [[ "${PLATFORM}" != *"tvos"* ]]; then
+            BUCKET="${GOLDEN_WORKSPACE_BUCKET:-cobalt-actions-prod-test-artifacts/golden-workspace}"
+            ARCHIVE="/runner-cache/golden-${profile}.${$}.tar.zst"
+            trap 'rm -f "${ARCHIVE}"' EXIT
+
+            tar --exclude='src/out' -cf - src depot_tools .gclient | zstd -T0 -3 -q -o "${ARCHIVE}"
+            DIGEST=$(sha256sum "${ARCHIVE}" | awk '{print $1}')
+
+            gcloud storage cp --no-clobber "${ARCHIVE}" "gs://${BUCKET}/${profile}/${DIGEST}.tar.zst" || true
+            EMPTY_TREE=$(git -C src hash-object -t tree /dev/null -w)
+            COMMIT=$(git -C src -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit-tree -m "${DIGEST}" "${EMPTY_TREE}")
+            git -C src push -f origin "${COMMIT}:refs/golden-workspace/${profile}" || echo "::warning::Failed to update golden workspace ref"
+          fi
         fi
 
     - name: Run gclient runhooks
