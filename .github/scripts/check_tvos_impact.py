@@ -24,7 +24,6 @@ import subprocess
 import sys
 import tempfile
 from typing import Any, Iterable, List, Optional, Sequence, Set
-import urllib.request
 
 PLATFORM = 'tvos-arm64-simulator'
 CONFIG = 'devel'
@@ -192,37 +191,27 @@ def _find_gn_binary(src_dir: pathlib.Path) -> str:
   raise FileNotFoundError('Could not find `gn` binary in PATH or buildtools.')
 
 
-def fetch_pr_changed_files(repo: str, pr_number: str) -> List[str]:
-  """Fetches modified file paths for a PR via the GitHub REST API."""
-  api_base = os.environ.get('GITHUB_API_URL', 'https://api.github.com').rstrip(
-      '/')
-  token = os.environ.get('GH_TOKEN') or os.environ.get('GITHUB_TOKEN')
-  headers = {
-      'Accept': 'application/vnd.github+json',
-      'User-Agent': 'cobalt-check-tvos-impact',
-      'X-GitHub-Api-Version': '2022-11-28',
-  }
-  if token:
-    headers['Authorization'] = f'Bearer {token}'
-
-  files: List[str] = []
-  page = 1
-  while True:
-    url = (
-        f'{api_base}/repos/{repo}/pulls/{pr_number}/files'
-        f'?per_page=100&page={page}')
-    req = urllib.request.Request(url, headers=headers, method='GET')
-    with urllib.request.urlopen(req, timeout=30) as resp:
-      items = json.loads(resp.read().decode('utf-8'))
-    if not isinstance(items, list) or not items:
-      break
-    for item in items:
-      if isinstance(item, dict) and item.get('filename'):
-        files.append(item['filename'])
-    if len(items) < 100:
-      break
-    page += 1
-  return files
+def get_git_changed_files(src_dir: pathlib.Path, base_sha: str) -> List[str]:
+  """Returns modified file paths between `base_sha` and `HEAD` using git."""
+  check_commit = subprocess.run(
+      ['git', 'cat-file', '-e', f'{base_sha}^{{commit}}'],
+      cwd=src_dir,
+      check=False,
+  )
+  if check_commit.returncode != 0:
+    subprocess.run(
+        ['git', 'fetch', '--depth=1', 'origin', base_sha],
+        cwd=src_dir,
+        check=True,
+    )
+  proc = subprocess.run(
+      ['git', 'diff', '--name-only', base_sha, 'HEAD'],
+      cwd=src_dir,
+      capture_output=True,
+      text=True,
+      check=True,
+  )
+  return [line.strip() for line in proc.stdout.splitlines() if line.strip()]
 
 
 def check_tvos_impact(
@@ -330,16 +319,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
       help='Optional directory for gn gen output.',
   )
   parser.add_argument(
-      '--repo',
+      '--base-sha',
       type=str,
       default=None,
-      help='GitHub repository (owner/repo) to fetch PR files from.',
-  )
-  parser.add_argument(
-      '--pr-number',
-      type=str,
-      default=None,
-      help='Pull request number to fetch modified files from.',
+      help='Base commit SHA to diff against HEAD using git.',
   )
   parser.add_argument(
       '--files-json',
@@ -380,8 +363,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
       if not isinstance(parsed, list):
         raise ValueError('--files-json must decode to a JSON list of strings.')
       files.extend(str(item) for item in parsed)
-    if args.repo and args.pr_number:
-      files.extend(fetch_pr_changed_files(args.repo, args.pr_number))
+    if args.base_sha:
+      files.extend(get_git_changed_files(src_dir, args.base_sha))
 
     test_targets = (
         load_test_targets(src_dir, args.test_targets_json)

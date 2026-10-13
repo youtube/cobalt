@@ -74,23 +74,20 @@ jobs:
         uses: ./.github/actions/checkout
         with:
           path: cobalt/src
-          ref: ${{ github.sha }}
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch_depth: 1
           use_cache: true
 
       - name: Check tvOS Build Impact
         id: analyze
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
           TEST_TARGETS: ${{ steps.parse-targets.outputs.test_targets_json }}
         run: |
           export PATH="/runner-cache/golden-workspace/depot_tools:${GITHUB_WORKSPACE}/cobalt/depot_tools:${PATH}"
           python3 "${GITHUB_WORKSPACE}/.github/scripts/check_tvos_impact.py" \
             --src-dir "${GITHUB_WORKSPACE}/cobalt/src" \
-            --repo "${REPO}" \
-            --pr-number "${PR_NUMBER}" \
+            --base-sha "${BASE_SHA}" \
             --test-targets-json "${TEST_TARGETS}" \
             --compile-targets "//cobalt:cobalt" \
             --github-output "${GITHUB_OUTPUT}"
