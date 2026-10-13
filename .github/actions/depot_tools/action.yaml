@@ -157,6 +157,8 @@ runs:
       working-directory: cobalt
       env:
         REF: ${{ github.sha }}
+        PLATFORM: ${{ matrix.platform }}
+        GITHUB_TOKEN: ${{ github.token }}
       run: |
         # Synchronize sub-repositories with minimal disk footprint and network transfer:
         # --shallow / --no-history: fetch only latest commits without full commit history
@@ -171,6 +173,14 @@ runs:
           --force \
           --delete_unversioned_trees \
           --revision "${REF}"
+
+        # Post-submit builds of main publish the freshly synced workspace as the
+        # golden workspace snapshot that overlay_workspace hydrates runners from.
+        if [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF}" == "refs/heads/main" && "${GITHUB_REPOSITORY}" == "youtube/cobalt" ]]; then
+          GW_GCS_PREFIX="gs://${GOLDEN_WORKSPACE_BUCKET:-cobalt-actions-prod-test-artifacts/golden-workspace}" \
+            "${GITHUB_ACTION_PATH}/../../scripts/golden_workspace.sh" publish "${REF}" "${PWD}" "${PLATFORM}" \
+            || echo "::warning::Golden workspace snapshot was not published."
+        fi
 
     - name: Run gclient runhooks
       if: inputs.run_sync == 'true'
