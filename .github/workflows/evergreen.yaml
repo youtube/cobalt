@@ -27,7 +27,6 @@ jobs:
   evergreen-x64:
     uses: ./.github/workflows/main.yaml
     permissions:
-      contents: write
       packages: write
       pull-requests: write
     with:
@@ -39,7 +38,6 @@ jobs:
   evergreen-arm-hardfp-rdk:
     uses: ./.github/workflows/main.yaml
     permissions:
-      contents: write
       packages: write
       pull-requests: write
     with:
@@ -51,7 +49,6 @@ jobs:
   evergreen-arm-softfp:
     uses: ./.github/workflows/main.yaml
     permissions:
-      contents: write
       packages: write
       pull-requests: write
     with:
@@ -63,7 +60,6 @@ jobs:
   evergreen-arm-softfp-aosp:
     uses: ./.github/workflows/main.yaml
     permissions:
-      contents: write
       packages: write
       pull-requests: write
     with:
@@ -75,7 +71,6 @@ jobs:
   evergreen-arm64:
     uses: ./.github/workflows/main.yaml
     permissions:
-      contents: write
       packages: write
       pull-requests: write
     with:
@@ -87,7 +82,6 @@ jobs:
   evergreen-arm64-aosp:
     uses: ./.github/workflows/main.yaml
     permissions:
-      contents: write
       packages: write
       pull-requests: write
     with:

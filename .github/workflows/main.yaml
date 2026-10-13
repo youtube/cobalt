@@ -477,8 +477,7 @@ jobs:
 
   build:
     needs: [initialize, docker-build-image]
-    permissions:
-      contents: write
+    permissions: {}
     runs-on: ${{ fromJSON(needs.initialize.outputs.build_runners) }}
     name: ${{ matrix.name }}_${{ matrix.config }}
     strategy:
@@ -552,6 +551,7 @@ jobs:
         id: setup-depot-tools
         uses: ./.github/actions/depot_tools
         with:
+          platform: ${{ matrix.platform || inputs.platform }}
           use_gcloud: true
 
       - name: Build Cobalt

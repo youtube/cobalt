@@ -312,3 +312,55 @@ jobs:
           header="<!-- sticky-pull-request-comment: shepherd-report -->"
           comment_body="${header}"$'\n'"$(cat shepherd_report.md)"
           gh api -X PATCH "repos/${REPO}/issues/comments/${COMMENT_ID}" -f body="${comment_body}" --silent
+
+  publish-golden-workspace:
+    name: Publish Golden Workspace Refs
+    runs-on: ubuntu-latest
+    if: |
+      (github.event.action || inputs.action) == 'completed' &&
+      (github.event.workflow_run.event == 'push' || github.event_name == 'workflow_dispatch') &&
+      (github.event.workflow_run.head_branch == 'main' || github.ref == 'refs/heads/main' || github.repository == 'youtube/cobalt' || github.repository == 'youtube/cobalt_sandbox')
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Update Golden Workspace Refs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          WORKFLOW_ID: ${{ github.event.workflow_run.id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          mkdir -p digests repo
+          if [[ -n "${WORKFLOW_ID:-}" ]]; then
+            gh run download "${WORKFLOW_ID}" --repo "${REPO}" -p "golden-digest-*" -D digests 2>/dev/null || exit 0
+          fi
+
+          cd repo && git init -q
+          for f in ../digests/*/*; do
+            [ -f "$f" ] || continue
+            platform=$(basename "$f")
+            digest=$(tr -d '[:space:]' < "$f")
+            [[ "$digest" =~ ^[0-9a-f]{64}$ ]] || continue
+
+            parent=()
+            if git fetch -q "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" "refs/golden-workspace/${platform}" 2>/dev/null; then
+              [ "$(git log -1 --format=%s FETCH_HEAD 2>/dev/null)" = "${digest}" ] && continue
+              parent=(-p FETCH_HEAD)
+            fi
+
+            empty_tree=$(git hash-object -t tree /dev/null -w)
+            commit=$(git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit-tree "${parent[@]}" -m "${digest}" "${empty_tree}")
+
+            for attempt in {1..3}; do
+              if git push "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" "${commit}:refs/golden-workspace/${platform}"; then
+                echo "Successfully updated refs/golden-workspace/${platform} -> ${commit} (${digest})"
+                break
+              fi
+              echo "Push failed, retrying (${attempt}/3)..."
+              sleep 2
+            done
+          done
