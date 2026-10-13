@@ -50,26 +50,6 @@ CobaltMainFrameSnapshot& CobaltMainFrameSnapshot::operator=(
     CobaltMainFrameSnapshot&&) = default;
 CobaltMainFrameSnapshot::~CobaltMainFrameSnapshot() = default;
 
-<<<<<<< HEAD
-CobaltFrameTiming::CobaltFrameTiming(double duration,
-                                     DOMHighResTimeStamp start_time,
-                                     uint32_t frame_token,
-                                     DOMHighResTimeStamp presentation_time,
-                                     std::optional<double> animate_duration,
-                                     std::optional<double> style_duration,
-                                     std::optional<double> layout_duration,
-                                     std::optional<double> prepaint_duration,
-                                     std::optional<double> paint_duration,
-                                     double frame_prep_duration,
-                                     double draw_duration,
-                                     double swap_duration,
-                                     DOMWindow* source)
-    : PerformanceEntry(duration,
-                       AtomicString("frame"),
-                       start_time,
-                       source,
-                       /*navigation_id=*/0),
-=======
 // static
 CobaltFrameDrawBreakdown CobaltFrameDrawBreakdown::FromFrameTimingDetails(
     const viz::FrameTimingDetails& details) {
@@ -109,8 +89,11 @@ CobaltFrameTiming::CobaltFrameTiming(
     double swap_duration,
     const CobaltFrameDrawBreakdown& draw_breakdown,
     DOMWindow* source)
-    : PerformanceEntry(duration, AtomicString("frame"), start_time, source),
->>>>>>> c6389c7b81e (cobalt: Split cobalt-frame drawDuration into viz and GPU stages (#13199))
+    : PerformanceEntry(duration,
+                       AtomicString("frame"),
+                       start_time,
+                       source,
+                       /*navigation_id=*/0),
       frame_token_(frame_token),
       presentation_time_(presentation_time),
       animate_duration_(animate_duration),

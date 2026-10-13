@@ -26,7 +26,7 @@
 #include "third_party/blink/renderer/core/timing/performance_entry.h"
 
 namespace viz {
-struct FrameTimingDetails;
+class FrameTimingDetails;
 }  // namespace viz
 
 namespace blink {
