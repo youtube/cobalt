@@ -570,7 +570,7 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
 #endif  // BUILDFLAG(IS_COBALT)
 
   if (!base::FeatureList::IsEnabled(::features::kScrollbarAnimations)) {
->>>>>>> parent of ae53829332e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 2cbfb655d11 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     settings.scrollbar_thinning_duration = base::TimeDelta();
     settings.scrollbar_fade_delay = base::TimeDelta::Max();
     settings.scrollbar_fade_duration = base::TimeDelta();
