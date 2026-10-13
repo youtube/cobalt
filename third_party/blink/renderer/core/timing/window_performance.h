@@ -34,6 +34,7 @@
 #include <optional>
 
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "components/viz/common/frame_sinks/begin_frame_args.h"
 #include "third_party/blink/public/mojom/timing/resource_timing.mojom-blink-forward.h"
 #include "third_party/blink/renderer/core/core_export.h"
@@ -52,6 +53,10 @@
 #include "third_party/blink/renderer/core/timing/responsiveness_metrics.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_vector.h"
 #include "third_party/blink/renderer/platform/wtf/wtf_size_t.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include "third_party/blink/renderer/core/cobalt/performance/cobalt_frame_timing.h"
+#endif
 
 namespace viz {
 class FrameTimingDetails;
@@ -149,7 +154,21 @@ class CORE_EXPORT WindowPerformance final : public Performance,
   void QueueLongAnimationFrameTiming(
       AnimationFrameTimingInfo*,
       std::optional<DOMPaintTimingInfo> paint_timing_info = std::nullopt);
+<<<<<<< HEAD
   void AddFirstPaintTiming(const DOMPaintTimingInfo& paint_timing_info);
+=======
+#if BUILDFLAG(IS_COBALT)
+  bool HasCobaltFrameObserver() const {
+    return HasObserverFor(PerformanceEntry::kCobaltFrame);
+  }
+  void QueueCobaltFrameTiming(
+      uint32_t frame_token,
+      const viz::FrameTimingDetails& details,
+      std::optional<CobaltMainFrameSnapshot> main_snapshot);
+#endif
+  void AddFirstPaintTiming(const DOMPaintTimingInfo& paint_timing_info,
+                           bool is_triggered_by_soft_navigation);
+>>>>>>> c45b49fb782 (cobalt: Add cobalt-frame PerformanceObserver for core UMAs and EGL swap timings (#13249))
 
   void AddFirstContentfulPaintTiming(
       const DOMPaintTimingInfo& paint_timing_info);
@@ -215,6 +234,18 @@ class CORE_EXPORT WindowPerformance final : public Performance,
       ExecutionContext*,
       bool has_multiple_contexts,
       LocalFrame* observer_frame);
+
+#if BUILDFLAG(IS_COBALT)
+  // Builds the cobalt-frame entry for a presented frame and advances
+  // `last_cobalt_swap_end_`. Returns nullptr when detached from a window.
+  CobaltFrameTiming* CreateCobaltFrameTiming(
+      uint32_t frame_token,
+      const viz::FrameTimingDetails& details,
+      std::optional<CobaltMainFrameSnapshot> main_snapshot);
+  // Returns framePrepDuration for `details` (previous swap_end -> this
+  // swap_start, in ms) and advances `last_cobalt_swap_end_`.
+  double UpdateCobaltFramePrep(const viz::FrameTimingDetails& details);
+#endif
 
   void BuildJSONValue(V8ObjectBuilder&) const override;
 
@@ -305,9 +336,15 @@ class CORE_EXPORT WindowPerformance final : public Performance,
   // The event we are currently processing.
   WeakMember<const Event> current_event_;
 
+<<<<<<< HEAD
   // Implements the "assign a new navigation id" algorithm described in
   // https://w3c.github.io/performance-timeline/
   PerformanceTimelineEntryIdGenerator navigation_id_generator_;
+=======
+#if BUILDFLAG(IS_COBALT)
+  base::TimeTicks last_cobalt_swap_end_;
+#endif
+>>>>>>> c45b49fb782 (cobalt: Add cobalt-frame PerformanceObserver for core UMAs and EGL swap timings (#13249))
 };
 
 }  // namespace blink
