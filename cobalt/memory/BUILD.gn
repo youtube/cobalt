@@ -13,10 +13,7 @@
 # limitations under the License.
 
 source_set("memory") {
-  sources = [
-    "cobalt_memory_attribution_manager.cc",
-    "cobalt_memory_attribution_manager.h",
-  ]
+  sources = []
 
   deps = [
     "//base",
@@ -37,7 +34,7 @@ source_set("memory") {
 
 source_set("unit_tests") {
   testonly = true
-  sources = [ "cobalt_memory_attribution_manager_unittest.cc" ]
+  sources = []
 
   deps = [
     ":memory",

@@ -93,13 +93,6 @@ BASE_FEATURE(kCobaltVirtualAddressSpaceMetrics,
 const base::FeatureParam<double> kVirtualAddressSpaceSampleProbabilityParam{
     &kCobaltVirtualAddressSpaceMetrics, "sample_probability", 0.01};
 
-BASE_FEATURE(kCobaltMemoryAttributionManager,
-             "CobaltMemoryAttributionManager",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-const base::FeatureParam<int> kCobaltMemoryAttributionReportIntervalParam{
-    &kCobaltMemoryAttributionManager, "report-interval", 600};
-
 // Enables custom memory buffer size for in-memory updates.
 BASE_FEATURE(kInMemoryUpdatesMemoryBuffer,
              "InMemoryUpdatesMemoryBuffer",

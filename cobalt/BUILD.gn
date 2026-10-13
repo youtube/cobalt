@@ -282,7 +282,6 @@ source_set("common") {
   deps = [
     "//base",
     "//cc/base",
-    "//cobalt/browser:features",
     "//cobalt/browser:switches",
     "//cobalt/browser/h5vcc_accessibility:manager",
     "//cobalt/browser/h5vcc_memory:low_memory_manager",
