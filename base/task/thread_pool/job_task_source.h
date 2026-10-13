@@ -26,10 +26,6 @@
 #include "base/task/thread_pool/task_source_sort_key.h"
 #include "base/threading/scoped_thread_priority.h"
 
-#if BUILDFLAG(IS_COBALT)
-#include "base/memory/cobalt_memory_context.h"
-#endif
-
 namespace base {
 namespace internal {
 
@@ -242,9 +238,6 @@ class BASE_EXPORT JobTaskSource : public TaskSource {
 
   const TimeTicks ready_time_;
   raw_ptr<PooledTaskRunnerDelegate, LeakedDanglingUntriaged> delegate_;
-#if BUILDFLAG(IS_COBALT)
-  const ::base::memory::MemoryContext memory_context_;
-#endif
 };
 
 }  // namespace internal
