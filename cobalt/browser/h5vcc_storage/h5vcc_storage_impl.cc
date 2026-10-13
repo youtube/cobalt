@@ -45,7 +45,6 @@ namespace {
 const char kCrashpadDBName[] = "crashpad_database";
 #endif
 
-#if !BUILDFLAG(IS_ANDROID)
 constexpr char kTestFileName[] = "cache_test_file.json";
 constexpr uint32_t kBufferSizeBytes = 16 * 1024;
 
@@ -103,7 +102,6 @@ bool DeleteDirectoryContents(const base::FilePath& dir) {
   }
   return success;
 }
-#endif  // !BUILDFLAG(IS_ANDROID)
 
 }  // namespace
 
@@ -168,10 +166,6 @@ void H5vccStorageImpl::WriteTest(uint32_t test_size,
   CHECK_GT(test_size, 0U);
   CHECK(!test_string.empty());
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-#if BUILDFLAG(IS_ANDROID)
-  std::move(callback).Run(std::nullopt,
-                          "WriteTest is not supported on Android.");
-#else
   base::ScopedAllowBlockingForTesting allow_blocking;
 
   const base::FilePath cache_path = GetCacheDirectory();
@@ -232,7 +226,6 @@ void H5vccStorageImpl::WriteTest(uint32_t test_size,
   test_file.Flush();
 
   std::move(callback).Run(total_bytes_written, std::nullopt);
-#endif  // !BUILDFLAG(IS_ANDROID)
 }
 
 void H5vccStorageImpl::VerifyTest(uint32_t test_size,
@@ -241,12 +234,6 @@ void H5vccStorageImpl::VerifyTest(uint32_t test_size,
   CHECK_GT(test_size, 0U);
   CHECK(!test_string.empty());
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-#if BUILDFLAG(IS_ANDROID)
-  std::move(callback).Run(std::nullopt,
-                          "VerifyTest is not supported on Android.",
-                          /*verified=*/false);
-#else
-
   base::ScopedAllowBlockingForTesting allow_blocking;
 
   const base::FilePath cache_path = GetCacheDirectory();
@@ -301,7 +288,6 @@ void H5vccStorageImpl::VerifyTest(uint32_t test_size,
   base::DeleteFile(test_file_path);
 
   std::move(callback).Run(total_bytes_read, std::nullopt, /*verified=*/true);
-#endif  // !BUILDFLAG(IS_ANDROID)
 }
 
 }  // namespace h5vcc_storage
