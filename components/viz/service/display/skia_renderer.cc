@@ -3503,13 +3503,6 @@ void SkiaRenderer::CopyDrawnRenderPass(
 }
 
 void SkiaRenderer::DidChangeVisibility() {
-#if BUILDFLAG(IS_ANDROID) && BUILDFLAG(USE_STARBOARD_MEDIA)
-  // Free the delayed primary plane buffers now instead of waiting for the
-  // timer, since the renderer is going invisible.
-  if (!visible_ && destroy_buffers_timer_.IsRunning()) {
-    destroy_buffers_timer_.FireNow();
-  }
-#endif  // BUILDFLAG(IS_ANDROID) && BUILDFLAG(USE_STARBOARD_MEDIA)
   if (visible_)
     output_surface_->EnsureBackbuffer();
   else
