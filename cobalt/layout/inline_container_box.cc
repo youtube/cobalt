@@ -16,6 +16,7 @@
 
 #include <limits>
 
+#include "base/trace_event/trace_event.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/layout/line_box.h"
 #include "cobalt/layout/used_style.h"
@@ -112,6 +113,8 @@ void InlineContainerBox::SetIsSplitOnRight(bool is_split_on_right) {
 
 void InlineContainerBox::UpdateContentSizeAndMargins(
     const LayoutParams& layout_params) {
+  TRACE_EVENT0("cobalt::layout",
+                 "InlineContainerBox::UpdateContentSizeAndMargins");
   // Lay out child boxes as one line without width constraints and white space
   // trimming.
   const render_tree::FontMetrics& font_metrics = used_font_->GetFontMetrics();
@@ -239,6 +242,7 @@ void InlineContainerBox::UpdateContentSizeAndMargins(
 }
 
 void InlineContainerBox::UpdateBorders() {
+  TRACE_EVENT0("cobalt::layout", "InlineContainerBox::UpdateBorders");
   if (IsBorderStyleNoneOrHidden(computed_style()->border_left_style()) &&
       IsBorderStyleNoneOrHidden(computed_style()->border_top_style()) &&
       IsBorderStyleNoneOrHidden(computed_style()->border_right_style()) &&
@@ -258,6 +262,7 @@ void InlineContainerBox::UpdateBorders() {
 }
 
 void InlineContainerBox::UpdatePaddings(const LayoutParams& layout_params) {
+  TRACE_EVENT0("cobalt::layout", "InlineContainerBox::UpdatePaddings");
   // When an inline box is split, margins, borders, and padding
   // have no visual effect where the split occurs. (or at any split, when there
   // are several).

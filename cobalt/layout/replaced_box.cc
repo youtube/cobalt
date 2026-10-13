@@ -366,6 +366,7 @@ void ReplacedBox::RenderAndAnimateContent(
 
 void ReplacedBox::UpdateContentSizeAndMargins(
     const LayoutParams& layout_params) {
+  TRACE_EVENT0("cobalt::layout", "ReplacedBox::UpdateContentSizeAndMargins");
   base::Optional<LayoutUnit> maybe_width = GetUsedWidthIfNotAuto(
       computed_style(), layout_params.containing_block_size, NULL);
   base::Optional<LayoutUnit> maybe_height = GetUsedHeightIfNotAuto(

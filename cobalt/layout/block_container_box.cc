@@ -16,6 +16,7 @@
 
 #include <memory>
 
+#include "base/trace_event/trace_event.h"
 #include "cobalt/layout/formatting_context.h"
 #include "cobalt/layout/used_style.h"
 
@@ -157,6 +158,8 @@ void BlockContainerBox::UpdateContentHeightAndMargins(
 
 void BlockContainerBox::UpdateContentSizeAndMargins(
     const LayoutParams& layout_params) {
+  TRACE_EVENT0("cobalt::layout",
+                 "BlockContainerBox::UpdateContentSizeAndMargins");
   base::Optional<LayoutUnit> maybe_height = GetUsedHeightIfNotAuto(
       computed_style(), layout_params.containing_block_size, NULL);
   bool width_depends_on_containing_block;
