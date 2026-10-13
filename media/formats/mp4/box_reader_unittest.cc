@@ -309,10 +309,9 @@ TEST_F(BoxReaderTest, ReadTopLevelBoxHeaderPartialData) {
   FourCC type;
   size_t box_size = 0;
   // StartTopLevelBox fails because payload is missing
-  EXPECT_EQ(
-      ParseResult::kNeedMoreData,
-      BoxReader::StartTopLevelBox(kMdatHeaderOnly, sizeof(kMdatHeaderOnly),
-                                  &media_log_, &type, &box_size));
+  EXPECT_EQ(ParseResult::kNeedMoreData,
+            BoxReader::StartTopLevelBox(kMdatHeaderOnly, &media_log_, &type,
+                                        &box_size));
 
   // ReadTopLevelBoxHeader succeeds because header itself is complete
   EXPECT_EQ(ParseResult::kOk, BoxReader::ReadTopLevelBoxHeader(
