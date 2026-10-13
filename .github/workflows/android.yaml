@@ -26,6 +26,7 @@ jobs:
   chromium_android-arm64:
     uses: ./.github/workflows/main.yaml
     permissions:
+      contents: write
       packages: write
       pull-requests: write
     with:
@@ -36,6 +37,7 @@ jobs:
   chromium_android-arm:
     uses: ./.github/workflows/main.yaml
     permissions:
+      contents: write
       packages: write
       pull-requests: write
     with:
@@ -46,6 +48,7 @@ jobs:
   chromium_android-x86:
     uses: ./.github/workflows/main.yaml
     permissions:
+      contents: write
       packages: write
       pull-requests: write
     with:
@@ -57,6 +60,7 @@ jobs:
   android-arm64:
     uses: ./.github/workflows/main.yaml
     permissions:
+      contents: write
       packages: write
       pull-requests: write
     with:
@@ -67,6 +71,7 @@ jobs:
   android-arm:
     uses: ./.github/workflows/main.yaml
     permissions:
+      contents: write
       packages: write
       pull-requests: write
     with:
@@ -77,6 +82,7 @@ jobs:
   android-x86:
     uses: ./.github/workflows/main.yaml
     permissions:
+      contents: write
       packages: write
       pull-requests: write
     with:
