@@ -49,6 +49,10 @@
 #include "url/gurl.h"
 #include "url/third_party/mozilla/url_parse.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/metrics/histogram_functions.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 using base::Time;
 
 namespace {
@@ -1726,6 +1730,7 @@ void SQLitePersistentCookieStore::Backend::DoCommit() {
 #if BUILDFLAG(IS_COBALT)
   base::TimeDelta elapsed = commit_timer.Elapsed();
   if (op_count > 0) {
+    base::UmaHistogramTimes("Cobalt.Storage.Cookie.CommitDuration", elapsed);
     UMA_HISTOGRAM_TIMES("Cobalt.Storage.Cookie.CommitDurationPerOperation",
                         elapsed / op_count);
   }
