@@ -5,7 +5,6 @@
 #include "build/build_config.h"
 
 #if BUILDFLAG(IS_ANDROID) && BUILDFLAG(IS_COBALT)
-#include "base/base_switches.h"
 #include "base/test/scoped_command_line.h"
 #endif
 
@@ -58,7 +57,7 @@ class FontFallbackIteratorTest : public FontTestBase {};
 TEST_F(FontFallbackIteratorTest, MissingFontFallbackDoesNotCrash) {
   base::test::ScopedCommandLine scoped_command_line;
   scoped_command_line.GetProcessCommandLine()->AppendSwitch(
-      switches::kUseCustomAndroidFontsXml);
+      "use-custom-android-fonts-xml");
 
   FontDescription font_description;
   font_description.SetGenericFamily(FontDescription::kSerifFamily);
