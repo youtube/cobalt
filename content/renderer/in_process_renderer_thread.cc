@@ -50,7 +50,9 @@ void InProcessRendererThread::Init() {
   // Make sure we aren't somehow reinitialising the inprocess renderer thread on
   // Android. Temporary CHECK() to debug http://crbug.com/514141
   CHECK(!render_process_);
+#endif  // BUILDFLAG(IS_ANDROID)
 
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   // Mirror renderer_main.cc: in multi-process mode CrRendererMain is display
   // critical, but single-process mode never runs that code, so the renderer
   // main thread stayed at default priority behind the compositor/GPU threads.
@@ -62,7 +64,7 @@ void InProcessRendererThread::Init() {
     base::PlatformThread::SetCurrentThreadType(
         base::ThreadType::kPresentation);
   }
-#endif
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   blink::Platform::InitializeBlink();
   std::unique_ptr<blink::scheduler::WebThreadScheduler> main_thread_scheduler =
       blink::scheduler::WebThreadScheduler::CreateMainThreadScheduler();

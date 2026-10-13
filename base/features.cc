@@ -197,6 +197,12 @@ BASE_FEATURE_PARAM(int,
                    &kCobaltMaxMemoryForPrepaint,
                    "max_memory_for_prepaint_percentage",
                    0);
+
+#if BUILDFLAG(IS_ANDROID)
+BASE_FEATURE(kCobaltAndroidDisplayCriticalInProcessRenderer,
+             "CobaltAndroidDisplayCriticalInProcessRenderer",
+             FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_ANDROID)
 #endif  // BUILDFLAG(IS_COBALT)
 
 // Controls caching within BASE_FEATURE_PARAM(). This is feature-controlled
@@ -283,10 +289,6 @@ BASE_FEATURE(kPartialLowEndModeOnMidRangeDevices,
 #endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_ANDROID)
-BASE_FEATURE(kCobaltAndroidDisplayCriticalInProcessRenderer,
-             "CobaltAndroidDisplayCriticalInProcessRenderer",
-             FEATURE_DISABLED_BY_DEFAULT);
-
 // Enable not perceptible binding without cpu priority boosting.
 BASE_FEATURE(kBackgroundNotPerceptibleBinding, FEATURE_ENABLED_BY_DEFAULT);
 
