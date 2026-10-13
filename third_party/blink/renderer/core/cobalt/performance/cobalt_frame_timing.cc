@@ -14,12 +14,22 @@
 
 #include "third_party/blink/renderer/core/cobalt/performance/cobalt_frame_timing.h"
 
+#include "components/viz/common/frame_timing_details.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_object_builder.h"
 #include "third_party/blink/renderer/core/performance_entry_names.h"
 
 namespace blink {
 
 namespace {
+
+// Returns `end - start` in milliseconds, or nullopt if either timestamp is
+// missing or the interval is negative.
+std::optional<double> IntervalMs(base::TimeTicks start, base::TimeTicks end) {
+  if (start.is_null() || end.is_null() || end < start) {
+    return std::nullopt;
+  }
+  return (end - start).InMillisecondsF();
+}
 
 void AddOptionalNumber(V8ObjectBuilder& builder,
                        const char* name,
@@ -40,19 +50,45 @@ CobaltMainFrameSnapshot& CobaltMainFrameSnapshot::operator=(
     CobaltMainFrameSnapshot&&) = default;
 CobaltMainFrameSnapshot::~CobaltMainFrameSnapshot() = default;
 
-CobaltFrameTiming::CobaltFrameTiming(double duration,
-                                     DOMHighResTimeStamp start_time,
-                                     uint32_t frame_token,
-                                     DOMHighResTimeStamp presentation_time,
-                                     std::optional<double> animate_duration,
-                                     std::optional<double> style_duration,
-                                     std::optional<double> layout_duration,
-                                     std::optional<double> prepaint_duration,
-                                     std::optional<double> paint_duration,
-                                     double frame_prep_duration,
-                                     double draw_duration,
-                                     double swap_duration,
-                                     DOMWindow* source)
+// static
+CobaltFrameDrawBreakdown CobaltFrameDrawBreakdown::FromFrameTimingDetails(
+    const viz::FrameTimingDetails& details) {
+  const gfx::SwapTimings& swap = details.swap_timings;
+  CobaltFrameDrawBreakdown breakdown;
+  breakdown.receive_to_draw_duration =
+      IntervalMs(details.received_compositor_frame_timestamp,
+                 details.draw_start_timestamp);
+  breakdown.viz_draw_duration =
+      IntervalMs(details.draw_start_timestamp, swap.viz_scheduled_draw);
+  if (swap.gpu_task_ready.is_null()) {
+    breakdown.gpu_queue_duration =
+        IntervalMs(swap.viz_scheduled_draw, swap.gpu_started_draw);
+  } else {
+    breakdown.gpu_dependency_wait_duration =
+        IntervalMs(swap.viz_scheduled_draw, swap.gpu_task_ready);
+    breakdown.gpu_queue_duration =
+        IntervalMs(swap.gpu_task_ready, swap.gpu_started_draw);
+  }
+  breakdown.gpu_draw_duration =
+      IntervalMs(swap.gpu_started_draw, swap.swap_start);
+  return breakdown;
+}
+
+CobaltFrameTiming::CobaltFrameTiming(
+    double duration,
+    DOMHighResTimeStamp start_time,
+    uint32_t frame_token,
+    DOMHighResTimeStamp presentation_time,
+    std::optional<double> animate_duration,
+    std::optional<double> style_duration,
+    std::optional<double> layout_duration,
+    std::optional<double> prepaint_duration,
+    std::optional<double> paint_duration,
+    double frame_prep_duration,
+    double draw_duration,
+    double swap_duration,
+    const CobaltFrameDrawBreakdown& draw_breakdown,
+    DOMWindow* source)
     : PerformanceEntry(duration, AtomicString("frame"), start_time, source),
       frame_token_(frame_token),
       presentation_time_(presentation_time),
@@ -63,7 +99,8 @@ CobaltFrameTiming::CobaltFrameTiming(double duration,
       paint_duration_(paint_duration),
       frame_prep_duration_(frame_prep_duration),
       draw_duration_(draw_duration),
-      swap_duration_(swap_duration) {}
+      swap_duration_(swap_duration),
+      draw_breakdown_(draw_breakdown) {}
 
 CobaltFrameTiming::~CobaltFrameTiming() = default;
 
@@ -87,6 +124,16 @@ void CobaltFrameTiming::BuildJSONValue(V8ObjectBuilder& builder) const {
   builder.AddNumber("framePrepDuration", frame_prep_duration_);
   builder.AddNumber("drawDuration", draw_duration_);
   builder.AddNumber("swapDuration", swap_duration_);
+  AddOptionalNumber(builder, "receiveToDrawDuration",
+                    draw_breakdown_.receive_to_draw_duration);
+  AddOptionalNumber(builder, "vizDrawDuration",
+                    draw_breakdown_.viz_draw_duration);
+  AddOptionalNumber(builder, "gpuDependencyWaitDuration",
+                    draw_breakdown_.gpu_dependency_wait_duration);
+  AddOptionalNumber(builder, "gpuQueueDuration",
+                    draw_breakdown_.gpu_queue_duration);
+  AddOptionalNumber(builder, "gpuDrawDuration",
+                    draw_breakdown_.gpu_draw_duration);
 }
 
 void CobaltFrameTiming::Trace(Visitor* visitor) const {
