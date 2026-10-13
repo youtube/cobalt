@@ -60,7 +60,7 @@
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 =======
 #if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS)
->>>>>>> parent of d0a3797f3aa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 2cbfb655d11 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "components/services/font/public/mojom/font_service.mojom.h"  // nogncheck
 #include "content/browser/font_service.h"  // nogncheck
 #endif

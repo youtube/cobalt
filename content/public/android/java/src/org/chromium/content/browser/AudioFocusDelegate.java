@@ -178,7 +178,7 @@ public class AudioFocusDelegate implements AudioManager.OnAudioFocusChangeListen
             }
         } else {
             result = am.requestAudioFocus(this, AudioManager.STREAM_MUSIC, mFocusType);
->>>>>>> parent of d0a3797f3aa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 2cbfb655d11 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
         }
 
         RecordHistogram.recordEnumeratedHistogram(

@@ -617,7 +617,7 @@ template("native_with_jni") {
   if ((_needs_cpp_codegen && _use_current_toolchain) ||
 =======
   if ((_needs_cpp_codegen && current_toolchain == android_toolchain) ||
->>>>>>> parent of d0a3797f3aa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 2cbfb655d11 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
       _needs_native_dep) {
     _subdir = rebase_path(target_gen_dir, root_gen_dir)
     _registration_cpp_codegen_output =
@@ -643,7 +643,7 @@ template("native_with_jni") {
   }
 
   if (current_toolchain == android_toolchain) {
->>>>>>> parent of d0a3797f3aa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 2cbfb655d11 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     if (defined(invoker.visibility)) {
       _target_name_for_visibility = target_name
     }
@@ -722,7 +722,7 @@ template("native_with_jni") {
         }
 =======
         deps += [ ":$_jni_registration_target_name($android_toolchain)" ]
->>>>>>> parent of d0a3797f3aa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 2cbfb655d11 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
         if (!defined(sources)) {
           sources = []
         }
