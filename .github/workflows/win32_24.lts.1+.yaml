@@ -1,16 +1,6 @@
 name: win32_24.lts.1+
 
 on:
-  pull_request:
-    types: [ready_for_review, opened, reopened, synchronize, labeled]
-    branches:
-      - '24.lts.1\+'
-  push:
-    branches:
-      - '24.lts.1\+'
-  schedule:
-    # GTM timezone.
-    - cron: '0 4 * * *'
   workflow_dispatch:
     inputs:
       nightly:
