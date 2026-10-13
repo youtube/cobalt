@@ -16,6 +16,7 @@
 #include "media/base/demuxer_memory_limit.h"
 // clang-format on
 
+#include <algorithm>
 #include <atomic>
 #include <optional>
 
@@ -26,6 +27,7 @@
 #include "media/base/media_switches.h"
 #include "media/base/video_codecs.h"
 #include "media/starboard/decoder_buffer_memory_info.h"
+#include "ui/gfx/geometry/size.h"
 
 #if !BUILDFLAG(USE_STARBOARD_MEDIA)
 #error "This file only works with Starboard media."
@@ -64,32 +66,41 @@ int GetBitsPerPixel(const VideoDecoderConfig& video_config) {
   return bits;
 }
 
-// Resolution tiers mirror
-// starboard/shared/starboard/media/media_get_video_buffer_budget.cc.
+std::optional<size_t> GetTierBudgetBytes(
+    const base::Feature& feature,
+    const base::FeatureParam<int>& budget_mb) {
+  if (!base::FeatureList::IsEnabled(feature)) {
+    return std::nullopt;
+  }
+
+  const int mb = budget_mb.Get();
+  CHECK_GT(mb, 0);
+  CHECK_LT(mb, 512);
+  return static_cast<size_t>(mb) * 1024 * 1024;
+}
+
+// Resolution tiers mirror the non-area-based tiers in
+// starboard/android/shared/media_get_video_buffer_budget.cc.
 std::optional<size_t> GetVideoBufferBudgetOverride(
     const VideoDecoderConfig* video_config,
     int bits_per_pixel) {
-  const base::Feature* feature = &kCobaltVideoBufferBudget1080p;
-  const base::FeatureParam<int>* budget_mb = &kCobaltVideoBufferBudget1080pMB;
-
-  const int height = video_config ? video_config->visible_rect().height() : 0;
-  if (height > 2160) {
-    feature = &kCobaltVideoBufferBudgetAbove4k;
-    budget_mb = &kCobaltVideoBufferBudgetAbove4kMB;
-  } else if (height > 1080) {
-    if (bits_per_pixel <= 8) {
-      feature = &kCobaltVideoBufferBudget4kSdr;
-      budget_mb = &kCobaltVideoBufferBudget4kSdrMB;
-    } else {
-      feature = &kCobaltVideoBufferBudget4kHdr;
-      budget_mb = &kCobaltVideoBufferBudget4kHdrMB;
-    }
+  const gfx::Size resolution = video_config
+                                   ? video_config->visible_rect().size()
+                                   : gfx::Size(1920, 1080);
+  if ((resolution.width() <= 1920 && resolution.height() <= 1080) ||
+      resolution.width() == 0 || resolution.height() == 0) {
+    return GetTierBudgetBytes(kCobaltVideoBufferBudget1080p,
+                              kCobaltVideoBufferBudget1080pMB);
   }
-
-  if (!base::FeatureList::IsEnabled(*feature) || budget_mb->Get() <= 0) {
-    return std::nullopt;
+  if (resolution.width() <= 3840 && resolution.height() <= 2160) {
+    return bits_per_pixel <= 8
+               ? GetTierBudgetBytes(kCobaltVideoBufferBudget4kSdr,
+                                    kCobaltVideoBufferBudget4kSdrMB)
+               : GetTierBudgetBytes(kCobaltVideoBufferBudget4kHdr,
+                                    kCobaltVideoBufferBudget4kHdrMB);
   }
-  return static_cast<size_t>(budget_mb->Get()) * 1024 * 1024;
+  return GetTierBudgetBytes(kCobaltVideoBufferBudgetAbove4k,
+                            kCobaltVideoBufferBudgetAbove4kMB);
 }
 
 }  // namespace
@@ -119,13 +130,24 @@ size_t GetDemuxerStreamVideoMemoryLimit(
                                             video_config->visible_rect().size(),
                                             bits_per_pixel);
   }
-  limit = GetVideoBufferBudgetOverride(video_config, bits_per_pixel)
-              .value_or(limit);
+  const std::optional<size_t> override_bytes =
+      GetVideoBufferBudgetOverride(video_config, bits_per_pixel);
+  // The Finch override can only lower the platform budget, never raise it.
+  if (override_bytes) {
+    limit = std::min(limit, *override_bytes);
+  }
 
   std::optional<int> reduction_pct =
       g_video_buffer_size_reduction_percent.load();
   if (!reduction_pct.has_value()) {
     return limit;
+  }
+
+  if (override_bytes) {
+    LOG(WARNING) << "Both a Finch video buffer budget override ("
+                 << *override_bytes << " bytes) and the H5vcc reduction "
+                 << "percent (" << *reduction_pct << "%) are active; applying "
+                 << "the reduction to a budget of " << limit << " bytes.";
   }
 
   // Multiplying limit by uint64_t remaining_pct preserves full precision and
