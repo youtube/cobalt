@@ -37,7 +37,7 @@ std::optional<net::IPAddress> ExtractIPv4From6to4(const net::IPAddress& addr) {
 
 // Queries host IP address and matches against netmask of target ip to determine.
 bool IsIPInLocalNetwork(const std::string& target_ip_str) {
-    if (WTF::EqualIgnoringASCIICase(StringView(target_ip_str.c_str()), "localhost")) {
+    if (EqualIgnoringASCIICase(StringView(target_ip_str.c_str()), "localhost")) {
         return true;
     }
     struct ifaddrs* ifaddr;
@@ -77,7 +77,7 @@ bool IsIPInLocalNetwork(const std::string& target_ip_str) {
 }
 
 bool IsIPInPrivateRange(const std::string& raw_ip_str) {
-  if (WTF::EqualIgnoringASCIICase(StringView(raw_ip_str.c_str()), "localhost")) {
+  if (EqualIgnoringASCIICase(StringView(raw_ip_str.c_str()), "localhost")) {
     return false;
   }
 
