@@ -1,6 +1,5 @@
 {
   "failing_tests": [
-    "SbMediaCanPlayMimeAndKeySystem.MinimumSupport",
     "SbPlayerTest.Audioless",
     "SearchPosetMaximalElementsTests.*",
     "MaximumPlayerConfigurationExplorerTests/*",
