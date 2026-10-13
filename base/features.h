@@ -92,6 +92,16 @@ BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(
 BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltMaxMemoryForPrepaint);
 BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
                                        kCobaltMaxMemoryForPrepaintPercentage);
+
+#if BUILDFLAG(IS_ANDROID)
+// When enabled, sets InProcessRendererThread to kDisplayCritical thread type
+// on Android, matching multi-process Chromium renderer main thread priority.
+// Disabled by default to enable controlled Finch experimentation
+// (--enable-features=CobaltAndroidDisplayCriticalInProcessRenderer).
+// This is strictly turned off / omitted on Starboard/Linux.
+BASE_EXPORT BASE_DECLARE_FEATURE(
+    kCobaltAndroidDisplayCriticalInProcessRenderer);
+#endif  // BUILDFLAG(IS_ANDROID)
 #endif  // BUILDFLAG(IS_COBALT)
 
 BASE_EXPORT BASE_DECLARE_FEATURE(kFeatureParamWithCache);
