@@ -1,6 +1,0 @@
-{
-  "failing_tests": [
-    "CobaltWebContentsObserverTest.NoErrorOnSuccessfulNavigation",
-    "HistogramFetcherTest.FetchHistograms_CalculatesDeltaCorrectly"
-  ]
-}

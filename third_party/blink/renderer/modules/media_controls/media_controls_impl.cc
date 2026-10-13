@@ -201,10 +201,6 @@ bool ShouldShowPictureInPictureButton(HTMLMediaElement& media_element) {
 }
 
 bool ShouldShowCastButton(HTMLMediaElement& media_element) {
-#if BUILDFLAG(IS_COBALT)
-  // Cobalt targets TV specifically and does not support media control.
-  return false;
-#else
   if (media_element.FastHasAttribute(html_names::kDisableremoteplaybackAttr))
     return false;
 
@@ -226,7 +222,6 @@ bool ShouldShowCastButton(HTMLMediaElement& media_element) {
   }
 
   return RemotePlayback::From(media_element).RemotePlaybackAvailable();
-#endif
 }
 
 bool ShouldShowCastOverlayButton(HTMLMediaElement& media_element) {
