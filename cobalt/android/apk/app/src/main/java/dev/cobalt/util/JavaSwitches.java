@@ -66,9 +66,6 @@ public class JavaSwitches {
 
   public static final String ENABLE_LOW_END_DEVICE_MODE_SWITCH = "--enable-low-end-device-mode";
 
-  /** flag to re-enable freeze and resume events */
-  public static final String ENABLE_FREEZE = "EnableFreeze";
-
   public static final String USE_MINOR_MS_FOR_MINOR_GC = "UseMinorMSForMinorGC";
 
   /** flag to tune compositor offscreen interest area size in pixels. */
