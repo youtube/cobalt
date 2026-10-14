@@ -718,9 +718,7 @@ google-cloud-resource-manager==1.18.0 \
 google-cloud-storage==3.13.1 \
     --hash=sha256:98208de6c21e85cecd3eb44551894efff33d98365500e178867d4305854a770a \
     --hash=sha256:a80bf8cac2794808aa61c50c5f769ecbbe2d10331bacd0d69d30e59b14b346b2
-    # via
-    #   -r .github/rebase/requirements.in
-    #   google-cloud-aiplatform
+    # via google-cloud-aiplatform
 google-crc32c==1.8.0 \
     --hash=sha256:014a7e68d623e9a4222d663931febc3033c5c7c9730785727de2a81f87d5bab8 \
     --hash=sha256:01f126a5cfddc378290de52095e2c7052be2ba7656a9f0caf4bcd1bfb1833f8a \
