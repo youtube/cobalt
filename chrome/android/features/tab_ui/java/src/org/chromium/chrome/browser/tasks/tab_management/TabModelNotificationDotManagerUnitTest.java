@@ -11,8 +11,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import static org.chromium.chrome.browser.tabmodel.TabGroupTitleUtils.UNSET_TAB_GROUP_TITLE;
+
 import android.content.Context;
-import android.text.TextUtils;
 
 import androidx.test.core.app.ApplicationProvider;
 
@@ -276,7 +277,7 @@ public class TabModelNotificationDotManagerUnitTest {
 
     @Test
     public void testFallbackTitle() {
-        when(mTabGroupModelFilter.getTabGroupTitle(TAB_GROUP_ID)).thenReturn(null);
+        when(mTabGroupModelFilter.getTabGroupTitle(TAB_GROUP_ID)).thenReturn(UNSET_TAB_GROUP_TITLE);
         initializeBothBackends();
         createDirtyTabMessageForIds(List.of(EXISTING_TAB_ID));
 
@@ -317,7 +318,7 @@ public class TabModelNotificationDotManagerUnitTest {
         TabModelDotInfo tabModelDotInfo =
                 mTabModelNotificationDotManager.getNotificationDotObservableSupplier().get();
         assertFalse(tabModelDotInfo.showDot);
-        assertTrue(TextUtils.isEmpty(tabModelDotInfo.tabGroupTitle));
+        assertEquals(UNSET_TAB_GROUP_TITLE, tabModelDotInfo.tabGroupTitle);
     }
 
     private void verifyShown() {

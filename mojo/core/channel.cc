@@ -41,8 +41,6 @@ namespace mojo::core {
 
 namespace {
 
-std::atomic_bool g_use_trivial_messages{false};
-
 // TODO(crbug.com/40824727): Consider asking the memory allocator for a suitable
 // size.
 constexpr int kGrowthFactor = 2;
@@ -426,7 +424,7 @@ Channel::MessagePtr Channel::Message::CreateIpczMessage(
     std::vector<PlatformHandle> handles,
     Channel::Message::MessageType message_type,
     uint32_t channel_sequence_number) {
-  if (g_use_trivial_messages && handles.size() == 0) {
+  if (handles.size() == 0) {
     auto msg = TrivialMessage::TryConstruct(data, message_type,
                                             channel_sequence_number);
     if (msg) {
@@ -435,11 +433,6 @@ Channel::MessagePtr Channel::Message::CreateIpczMessage(
   }
   return std::make_unique<IpczMessage>(data, std::move(handles), message_type,
                                        channel_sequence_number);
-}
-
-// static
-void Channel::set_use_trivial_messages(bool use_trivial_messages) {
-  g_use_trivial_messages = use_trivial_messages;
 }
 
 // static
@@ -1190,7 +1183,9 @@ Channel::DispatchResult Channel::TryDispatchMessage(
     // on Linux).
     if (Message::IsExperimentalV3(header)) {
       uint32_t sequence_number = Message::ExtractChannelSequenceNumber(header);
-      DCHECK(sequence_number > dispatched_message_count_);
+      if (sequence_number <= dispatched_message_count_) {
+        return DispatchResult::kError;
+      }
       if (sequence_number != dispatched_message_count_ + 1) {
         DelayMessage(sequence_number, buffer.first(num_bytes),
                      std::move(handles), std::move(envelope));

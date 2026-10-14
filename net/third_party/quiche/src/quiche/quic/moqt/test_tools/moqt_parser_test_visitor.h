@@ -34,14 +34,14 @@ class MoqtParserTestVisitor : public MoqtControlParserVisitor,
     if (end_of_message) {
       ++messages_received_;
     }
-    last_message_ = TestMessageBase::MessageStructuredData(object);
+    last_message_.emplace(TestMessageBase::MessageStructuredData(object));
   }
   void OnFin() override { fin_received_ = true; }
   template <typename Message>
   void OnControlMessage(const Message& message) {
     end_of_message_ = true;
     ++messages_received_;
-    last_message_ = TestMessageBase::MessageStructuredData(message);
+    last_message_.emplace(TestMessageBase::MessageStructuredData(message));
   }
   void OnClientSetupMessage(const MoqtClientSetup& message) override {
     OnControlMessage(message);
@@ -49,13 +49,16 @@ class MoqtParserTestVisitor : public MoqtControlParserVisitor,
   void OnServerSetupMessage(const MoqtServerSetup& message) override {
     OnControlMessage(message);
   }
+  void OnRequestOkMessage(const MoqtRequestOk& message) override {
+    OnControlMessage(message);
+  }
+  void OnRequestErrorMessage(const MoqtRequestError& message) override {
+    OnControlMessage(message);
+  }
   void OnSubscribeMessage(const MoqtSubscribe& message) override {
     OnControlMessage(message);
   }
   void OnSubscribeOkMessage(const MoqtSubscribeOk& message) override {
-    OnControlMessage(message);
-  }
-  void OnRequestErrorMessage(const MoqtRequestError& message) override {
     OnControlMessage(message);
   }
   void OnSubscribeUpdateMessage(const MoqtSubscribeUpdate& message) override {
@@ -70,12 +73,14 @@ class MoqtParserTestVisitor : public MoqtControlParserVisitor,
   void OnPublishNamespaceMessage(const MoqtPublishNamespace& message) override {
     OnControlMessage(message);
   }
-  void OnPublishNamespaceOkMessage(
-      const MoqtPublishNamespaceOk& message) override {
-    OnControlMessage(message);
-  }
   void OnPublishNamespaceDoneMessage(
       const MoqtPublishNamespaceDone& message) override {
+    OnControlMessage(message);
+  }
+  void OnNamespaceMessage(const MoqtNamespace& message) override {
+    OnControlMessage(message);
+  }
+  void OnNamespaceDoneMessage(const MoqtNamespaceDone& message) override {
     OnControlMessage(message);
   }
   void OnPublishNamespaceCancelMessage(
@@ -85,18 +90,11 @@ class MoqtParserTestVisitor : public MoqtControlParserVisitor,
   void OnTrackStatusMessage(const MoqtTrackStatus& message) override {
     OnControlMessage(message);
   }
-  void OnTrackStatusOkMessage(const MoqtTrackStatusOk& message) override {
-    OnControlMessage(message);
-  }
   void OnGoAwayMessage(const MoqtGoAway& message) override {
     OnControlMessage(message);
   }
   void OnSubscribeNamespaceMessage(
       const MoqtSubscribeNamespace& message) override {
-    OnControlMessage(message);
-  }
-  void OnSubscribeNamespaceOkMessage(
-      const MoqtSubscribeNamespaceOk& message) override {
     OnControlMessage(message);
   }
   void OnUnsubscribeNamespaceMessage(

@@ -16,13 +16,13 @@
 #include "chrome/browser/ash/app_list/arc/arc_app_list_prefs.h"
 #include "chrome/browser/ash/arc/session/arc_session_manager.h"
 #include "chrome/browser/ash/arc/session/arc_session_manager_observer.h"
-#include "chrome/browser/ui/webui/settings/settings_page_ui_handler.h"
+#include "content/public/browser/web_ui_message_handler.h"
 
 class Profile;
 
 namespace ash::settings {
 
-class AndroidAppsHandler : public ::settings::SettingsPageUIHandler,
+class AndroidAppsHandler : public content::WebUIMessageHandler,
                            public ArcAppListPrefs::Observer,
                            public arc::ArcSessionManagerObserver {
  public:
@@ -34,7 +34,7 @@ class AndroidAppsHandler : public ::settings::SettingsPageUIHandler,
 
   ~AndroidAppsHandler() override;
 
-  // SettingsPageUIHandler
+  // content::WebUIMessageHandler
   void RegisterMessages() override;
   void OnJavascriptAllowed() override;
   void OnJavascriptDisallowed() override;
@@ -50,11 +50,11 @@ class AndroidAppsHandler : public ::settings::SettingsPageUIHandler,
   void OnArcPlayStoreEnabledChanged(bool enabled) override;
 
  private:
-  base::Value::Dict BuildAndroidAppsInfo();
-  void HandleRequestAndroidAppsInfo(const base::Value::List& args);
+  base::DictValue BuildAndroidAppsInfo();
+  void HandleRequestAndroidAppsInfo(const base::ListValue& args);
   void HandleAppChanged(const std::string& app_id);
   void SendAndroidAppsInfo();
-  void ShowAndroidAppsSettings(const base::Value::List& args);
+  void ShowAndroidAppsSettings(const base::ListValue& args);
   int64_t GetDisplayIdForCurrentProfile();
 
   base::ScopedObservation<ArcAppListPrefs, ArcAppListPrefs::Observer>

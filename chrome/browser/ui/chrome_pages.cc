@@ -278,9 +278,6 @@ void ShowSiteSettingsImpl(Browser* browser, Profile* profile, const GURL& url) {
   Navigate(&params);
 }
 
-// TODO(crbug.com/40101962): Add a browsertest that parallels the existing site
-// settings browsertests that open the page info button, and click through to
-// the file system site settings page for a given origin.
 void ShowSiteSettingsFileSystemImpl(Browser* browser,
                                     Profile* profile,
                                     const GURL& url) {
@@ -661,6 +658,10 @@ void ShowIdentityDocs(BrowserWindowInterface* bwi) {
 void ShowTravel(BrowserWindowInterface* bwi) {
   base::RecordAction(UserMetricsAction("Options_ShowTravel"));
   ShowSettingsSubPage(bwi->GetBrowserForMigrationOnly(), kTravelSubPage);
+}
+
+void ShowAutofill(BrowserWindowInterface* bwi) {
+  ShowSettingsSubPage(bwi->GetBrowserForMigrationOnly(), kAutofillSubPage);
 }
 
 void ShowAllSitesSettingsFilteredByRwsOwner(

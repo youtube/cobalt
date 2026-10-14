@@ -315,7 +315,6 @@ class MarkCompactCollector final {
   void ClearFullMapTransitions();
   void TrimDescriptorArray(Tagged<Map> map,
                            Tagged<DescriptorArray> descriptors);
-  void TrimEnumCache(Tagged<Map> map, Tagged<DescriptorArray> descriptors);
   bool CompactTransitionArray(Tagged<Map> map,
                               Tagged<TransitionArray> transitions,
                               Tagged<DescriptorArray> descriptors);
@@ -326,7 +325,7 @@ class MarkCompactCollector final {
   // After all reachable objects have been marked those weak map entries
   // with an unreachable key are removed from all encountered weak maps.
   // The linked list of all encountered weak maps is destroyed.
-  void ClearWeakCollections(JobDelegate* delegate);
+  void ClearWeakCollections();
 
   // Goes through the list of encountered trivial weak references and clears
   // those with dead values. This is performed in a parallel job. In short, a
@@ -342,17 +341,11 @@ class MarkCompactCollector final {
       WeakObjects::WeakObjectWorklist<TObjectAndSlot>::Local& worklist,
       Tagged<HeapObjectReference> cleared_weak_ref);
 
-  // Goes through the list of encountered non-trivial weak references and
-  // filters out those whose values are still alive. This is performed in a
-  // parallel job.
-  void FilterNonTrivialWeakReferences();
-  class FilterNonTrivialWeakRefJobItem;
-
   // Goes through the list of encountered non-trivial weak references with
   // dead values. If the value is a dead map and the parent map transitions to
   // the dead map via weak cell, then this function also clears the map
   // transition.
-  void ClearNonTrivialWeakReferences(JobDelegate* delegate);
+  void ClearNonTrivialWeakReferences();
 
   // Goes through the list of encountered JSWeakRefs and WeakCells and clears
   // those with dead values.
@@ -381,9 +374,6 @@ class MarkCompactCollector final {
   static const int kEphemeronChunkSize = 8 * KB;
 
   int NumberOfParallelEphemeronVisitingTasks(size_t elements);
-
-  void RightTrimDescriptorArray(Tagged<DescriptorArray> array,
-                                int descriptors_to_trim);
 
   void StartSweepNewSpace();
   void SweepLargeSpace(LargeObjectSpace* space);

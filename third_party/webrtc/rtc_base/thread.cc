@@ -495,8 +495,8 @@ void Thread::PostTaskImpl(absl::AnyInvocable<void() &&> task,
   {
     MutexLock lock(&mutex_);
     messages_.push(std::move(task));
+    WakeUpSocketServer();
   }
-  WakeUpSocketServer();
 }
 
 void Thread::PostDelayedTaskImpl(absl::AnyInvocable<void() &&> task,
@@ -524,8 +524,8 @@ void Thread::PostDelayedTaskImpl(absl::AnyInvocable<void() &&> task,
     // will be misordered, and then only briefly.  This is probably ok.
     ++delayed_next_num_;
     RTC_DCHECK_NE(0, delayed_next_num_);
+    WakeUpSocketServer();
   }
-  WakeUpSocketServer();
 }
 
 int Thread::GetDelay() {

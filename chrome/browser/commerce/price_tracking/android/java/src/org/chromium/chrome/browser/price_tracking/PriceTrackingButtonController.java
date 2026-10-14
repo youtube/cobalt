@@ -4,6 +4,9 @@
 
 package org.chromium.chrome.browser.price_tracking;
 
+import static org.chromium.build.NullUtil.assertNonNull;
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.content.Context;
 import android.content.res.Resources;
 import android.view.View;
@@ -13,6 +16,7 @@ import androidx.appcompat.content.res.AppCompatResources;
 import org.chromium.base.Callback;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.NonNullObservableSupplier;
+import org.chromium.base.supplier.NullableObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
@@ -47,7 +51,7 @@ public class PriceTrackingButtonController extends BaseButtonDataProvider {
     private final Supplier<TabBookmarker> mTabBookmarkerSupplier;
     private final BottomSheetController mBottomSheetController;
     private final NonNullObservableSupplier<Boolean> mPriceTrackingCurrentTabStateSupplier;
-    private final MonotonicObservableSupplier<BookmarkModel> mBookmarkModelSupplier;
+    private final NullableObservableSupplier<BookmarkModel> mBookmarkModelSupplier;
     private final MonotonicObservableSupplier<Profile> mProfileSupplier;
     private final BottomSheetObserver mBottomSheetObserver;
     private final Callback<Boolean> mPriceTrackingStateChangedCallback = this::updateButtonIcon;
@@ -64,7 +68,7 @@ public class PriceTrackingButtonController extends BaseButtonDataProvider {
             SnackbarManager snackbarManager,
             Supplier<TabBookmarker> tabBookmarkerSupplier,
             MonotonicObservableSupplier<Profile> profileSupplier,
-            MonotonicObservableSupplier<BookmarkModel> bookmarkModelSupplier,
+            NullableObservableSupplier<BookmarkModel> bookmarkModelSupplier,
             NonNullObservableSupplier<Boolean> priceTrackingCurrentTabStateSupplier) {
         super(
                 tabSupplier,
@@ -136,10 +140,10 @@ public class PriceTrackingButtonController extends BaseButtonDataProvider {
     @Override
     public void onClick(View view) {
         if (mIsCurrentTabPriceTracked) {
-            Profile profile = mProfileSupplier.get();
+            Profile profile = assertNonNull(mProfileSupplier.get());
             PowerBookmarkUtils.setPriceTrackingEnabledWithSnackbars(
-                    mBookmarkModelSupplier.get(),
-                    mBookmarkModelSupplier.get().getUserBookmarkIdForTab(mActiveTabSupplier.get()),
+                    assumeNonNull(mBookmarkModelSupplier.get())
+                            .getUserBookmarkIdForTab(assertNonNull(mActiveTabSupplier.get())),
                     /* enabled= */ false,
                     mSnackbarManager,
                     view.getResources(),

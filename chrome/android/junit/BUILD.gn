@@ -138,6 +138,7 @@ if (is_android) {
       "//chrome/browser/ntp_customization:java",
       "//chrome/browser/omaha/android:java",
       "//chrome/browser/omaha/android:update_proto_java",
+      "//chrome/browser/open_in_app/android:java",
       "//chrome/browser/optimization_guide/android:java",
       "//chrome/browser/page_image_service/android:java",
       "//chrome/browser/page_load_metrics:java",
@@ -440,6 +441,7 @@ if (is_android) {
       "src/org/chromium/chrome/browser/app/metrics/TabbedActivityLaunchCauseMetricsUnitTest.java",
       "src/org/chromium/chrome/browser/app/tab_activity_glue/ActivityTabWebContentsDelegateAndroidUnitTest.java",
       "src/org/chromium/chrome/browser/app/tab_activity_glue/PopupCreatorUnitTest.java",
+      "src/org/chromium/chrome/browser/app/tab_activity_glue/ReparentingTaskUnitTest.java",
       "src/org/chromium/chrome/browser/app/tab_activity_glue/TabReparentingControllerTest.java",
       "src/org/chromium/chrome/browser/app/tabmodel/TabModelOrchestratorUnitTest.java",
       "src/org/chromium/chrome/browser/app/tabmodel/TabbedModeTabModelOrchestratorUnitTest.java",
@@ -828,6 +830,9 @@ if (is_android) {
       "src/org/chromium/chrome/browser/media/AutoPictureInPicturePermissionControllerTest.java",
       "src/org/chromium/chrome/browser/media/FullscreenVideoPictureInPictureControllerUnitTest.java",
       "src/org/chromium/chrome/browser/media/MediaCapturePickerInvokerTest.java",
+      "src/org/chromium/chrome/browser/media/document_picture_in_picture_header/DocumentPictureInPictureHeaderCoordinatorUnitTest.java",
+      "src/org/chromium/chrome/browser/media/document_picture_in_picture_header/DocumentPictureInPictureHeaderMediatorUnitTest.java",
+      "src/org/chromium/chrome/browser/media/document_picture_in_picture_header/DocumentPictureInPictureHeaderViewBinderUnitTest.java",
       "src/org/chromium/chrome/browser/media/ui/MediaNotificationActionsUpdatedTest.java",
       "src/org/chromium/chrome/browser/media/ui/MediaNotificationControllerTest.java",
       "src/org/chromium/chrome/browser/media/ui/MediaNotificationFaviconTest.java",
@@ -868,6 +873,7 @@ if (is_android) {
       "src/org/chromium/chrome/browser/ntp/IncognitoNewTabPageUnitTest.java",
       "src/org/chromium/chrome/browser/ntp/IncognitoNtpMetricsUnitTest.java",
       "src/org/chromium/chrome/browser/ntp/IncognitoNtpOmniboxAutofocusManagerUnitTest.java",
+      "src/org/chromium/chrome/browser/ntp/NewTabPageLocationPolicyManagerUnitTest.java",
       "src/org/chromium/chrome/browser/ntp/NewTabPageUtilUnitTest.java",
       "src/org/chromium/chrome/browser/ntp/RecentTabsPageUnitTest.java",
       "src/org/chromium/chrome/browser/ntp/search/SearchBoxMediatorUnitTest.java",
@@ -876,6 +882,7 @@ if (is_android) {
 
     deps = [
       ":chrome_junit_tests_helper",
+      "//chrome/browser/composeplate/android:java",
       "//third_party/android_deps:com_airbnb_android_lottie_java",
     ]
   }
@@ -1069,7 +1076,6 @@ if (is_android) {
       "src/org/chromium/chrome/browser/signin/SigninAndHistorySyncActivityLauncherImplTest.java",
       "src/org/chromium/chrome/browser/signin/SigninAndHistorySyncBundleHelperTest.java",
       "src/org/chromium/chrome/browser/signin/SigninBridgeTest.java",
-      "src/org/chromium/chrome/browser/signin/SigninManagerImplTest.java",
     ]
 
     deps = [ ":chrome_junit_tests_helper" ]
@@ -1108,7 +1114,14 @@ if (is_android) {
       "chrome_junit_tests_org.chromium.chrome.browser.sync.synced_set_up") {
     sources = [ "src/org/chromium/chrome/browser/sync/synced_set_up/CrossDeviceSettingImporterUnitTest.java" ]
 
-    deps = [ ":chrome_junit_tests_helper" ]
+    deps = [
+      ":chrome_junit_tests_helper",
+      "//chrome/browser/prefs/android:java",
+      "//chrome/browser/sync/synced_set_up/android:java",
+      "//components/sync_preferences/cross_device_pref_tracker/android:java",
+      "//components/sync_preferences/synced_set_up/android:java",
+      "//components/sync_preferences/synced_set_up/android:jni_headers_java",
+    ]
   }
 
   robolectric_library("chrome_junit_tests_org.chromium.chrome.browser.tab") {
@@ -1254,7 +1267,6 @@ if (is_android) {
       "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/pinned_tabs_strip/PinnedTabStripMediatorTest.java",
       "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/pinned_tabs_strip/PinnedTabStripViewBinderTest.java",
       "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/tab_bottom_sheet/TabBottomSheetCoordinatorTest.java",
-      "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/tab_bottom_sheet/TabBottomSheetManagerTest.java",
       "//chrome/android/features/tab_ui/junit/src/org/chromium/chrome/browser/tasks/tab_management/ArchivedTabsCardViewBinderUnitTest.java",
       "//chrome/android/features/tab_ui/junit/src/org/chromium/chrome/browser/tasks/tab_management/ArchivedTabsDialogCoordinatorUnitTest.java",
       "//chrome/android/features/tab_ui/junit/src/org/chromium/chrome/browser/tasks/tab_management/ArchivedTabsMessageServiceUnitTest.java",
@@ -1301,6 +1313,7 @@ if (is_android) {
       "//chrome/android:chrome_java",
       "//chrome/browser/settings:search_java",
       "//chrome/browser/tab_group_suggestion:java",
+      "//chrome/test/android:chrome_java_transit",
     ]
   }
 
@@ -1398,7 +1411,7 @@ if (is_android) {
       "src/org/chromium/chrome/browser/dom_distiller/ReaderModeIphControllerTest.java",
       "src/org/chromium/chrome/browser/dom_distiller/ReaderModeManagerTest.java",
       "src/org/chromium/chrome/browser/dom_distiller/ReaderModeMetricsTest.java",
-      "src/org/chromium/chrome/browser/dom_distiller/ReaderModePrefsViewTest.java",
+      "src/org/chromium/chrome/browser/dom_distiller/ReaderModePrefsViewUnitTest.java",
       "src/org/chromium/chrome/browser/dom_distiller/ReaderModeToolbarButtonControllerTest.java",
       "src/org/chromium/chrome/browser/dom_distiller/TabDistillabilityProviderTest.java",
       "src/org/chromium/chrome/browser/feed/FeedActionDelegateImplTest.java",

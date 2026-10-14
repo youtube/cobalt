@@ -28,11 +28,13 @@
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/omnibox/omnibox_controller.h"
+#include "chrome/browser/ui/omnibox/omnibox_next_features.h"
 #include "chrome/browser/ui/omnibox/omnibox_pedal_implementations.h"
 #include "chrome/browser/ui/webui/cr_components/searchbox/searchbox_handler.h"
 #include "chrome/browser/ui/webui/searchbox/searchbox_test_utils.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "components/contextual_search/contextual_search_types.h"
 #include "components/omnibox/browser/actions/history_clusters_action.h"
 #include "components/omnibox/browser/actions/omnibox_action.h"
 #include "components/omnibox/browser/actions/omnibox_pedal.h"
@@ -77,11 +79,10 @@ class RealboxSearchBrowserTestPage : public searchbox::mojom::Page {
                     bool is_deletable) override {}
   void OnContextualInputStatusChanged(
       const base::UnguessableToken& token,
-      composebox_query::mojom::FileUploadStatus status,
-      std::optional<composebox_query::mojom::FileUploadErrorType> error_type)
+      contextual_search::FileUploadStatus status,
+      std::optional<contextual_search::FileUploadErrorType> error_type)
       override {}
-  void OnInputStateChanged(
-      composebox_query::mojom::InputStatePtr input_state) override {}
+  void OnInputStateChanged(const omnibox::InputState& input_state) override {}
   void OnTabStripChanged() override {}
   void AddFileContext(
       const base::UnguessableToken& token,
@@ -241,7 +242,12 @@ IN_PROC_BROWSER_TEST_F(RealboxSearchPreloadWithoutSearchStatsBrowserTest,
 class RealboxHandlerTest : public InProcessBrowserTest,
                            public testing::WithParamInterface<bool> {
  public:
-  RealboxHandlerTest() = default;
+  RealboxHandlerTest() {
+    scoped_feature_list_.InitWithFeatures(
+        /*enabled_features*/ {omnibox::kWebUIOmniboxPopup,
+                              omnibox::internal::kWebUIOmniboxAimPopup},
+        /*disabled_features*/ {});
+  }
 
   RealboxHandlerTest(const RealboxHandlerTest&) = delete;
   RealboxHandlerTest& operator=(const RealboxHandlerTest&) = delete;
@@ -265,6 +271,8 @@ class RealboxHandlerTest : public InProcessBrowserTest,
   }
 
   void TearDownOnMainThread() override { handler_.reset(); }
+
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 IN_PROC_BROWSER_TEST_F(RealboxHandlerTest, RealboxUpdatesEditModelInput) {
@@ -376,8 +384,11 @@ IN_PROC_BROWSER_TEST_P(RealboxHandlerTest, MatchVectorIcons) {
     match.type = static_cast<AutocompleteMatchType::Type>(type);
     if (match.type == AutocompleteMatchType::STARTER_PACK) {
       // All STARTER_PACK suggestions should have non-empty vector icons.
-      for (int starter_pack_id = template_url_starter_pack_data::kBookmarks;
-           starter_pack_id != template_url_starter_pack_data::kMaxStarterPackId;
+      for (int starter_pack_id = static_cast<int>(
+               template_url_starter_pack_data::StarterPackId::kBookmarks);
+           starter_pack_id !=
+           static_cast<int>(template_url_starter_pack_data::StarterPackId::
+                                kMaxStarterPackId);
            starter_pack_id++) {
         TemplateURLData turl_data;
         turl_data.starter_pack_id = starter_pack_id;
@@ -397,7 +408,8 @@ IN_PROC_BROWSER_TEST_P(RealboxHandlerTest, MatchVectorIcons) {
         // An empty resource name is effectively a blank icon.
         EXPECT_TRUE(svg_name.empty());
       } else if (is_bookmark) {
-        EXPECT_EQ("//resources/images/icon_bookmark.svg", svg_name);
+        EXPECT_EQ("//resources/cr_components/searchbox/icons/bookmark_cr23.svg",
+                  svg_name);
       } else {
         EXPECT_FALSE(svg_name.empty());
       }
@@ -417,7 +429,8 @@ IN_PROC_BROWSER_TEST_P(RealboxHandlerTest, AnswerVectorIcons) {
     const std::string& svg_name =
         handler_->AutocompleteIconToResourceName(vector_icon);
     if (is_bookmark) {
-      EXPECT_EQ("//resources/images/icon_bookmark.svg", svg_name);
+      EXPECT_EQ("//resources/cr_components/searchbox/icons/bookmark_cr23.svg",
+                svg_name);
     } else {
       EXPECT_FALSE(svg_name.empty());
       EXPECT_NE("search.svg", svg_name);

@@ -19,15 +19,15 @@
 
 set -euox pipefail
 
-# Use Xcode 16.3
-sudo xcode-select -s /Applications/Xcode_16.3.app/Contents/Developer
+# Use Xcode 26.2
+sudo xcode-select -s /Applications/Xcode_26.2.app/Contents/Developer
 
 if [[ -z ${ABSEIL_ROOT:-} ]]; then
   ABSEIL_ROOT="$(realpath $(dirname ${0})/..)"
 fi
 
 # If we are running on Kokoro, check for a versioned Bazel binary.
-KOKORO_GFILE_BAZEL_BIN="bazel-8.2.1-darwin-x86_64"
+KOKORO_GFILE_BAZEL_BIN="bazel-9.0.0-darwin-x86_64"
 if [[ ${KOKORO_GFILE_DIR:-} ]] && [[ -f ${KOKORO_GFILE_DIR}/${KOKORO_GFILE_BAZEL_BIN} ]]; then
   BAZEL_BIN="${KOKORO_GFILE_DIR}/${KOKORO_GFILE_BAZEL_BIN}"
   chmod +x ${BAZEL_BIN}
@@ -61,6 +61,7 @@ ${BAZEL_BIN} test ... \
   --enable_bzlmod=true \
   --features=external_include_paths \
   --keep_going \
+  --per_file_copt=external/.*@-w \
   --show_timestamps \
   --test_env="TZDIR=${ABSEIL_ROOT}/absl/time/internal/cctz/testdata/zoneinfo" \
   --test_output=errors \

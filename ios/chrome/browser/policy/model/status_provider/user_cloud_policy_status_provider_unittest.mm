@@ -62,7 +62,8 @@ class UserCloudPolicyStatusProviderTest
   void SetUp() override {
     RegisterLocalStatePrefs(local_state_.registry());
 
-    user_store_ = std::make_unique<policy::MockUserCloudPolicyStore>();
+    user_store_ = std::make_unique<policy::MockUserCloudPolicyStore>(
+        policy::dm_protocol::GetChromeUserPolicyType());
     user_core_ = std::make_unique<policy::CloudPolicyCore>(
         policy::dm_protocol::GetChromeUserPolicyType(), std::string(),
         user_store_.get(), /*extension_install_store=*/nullptr,
@@ -183,8 +184,8 @@ TEST_F(UserCloudPolicyStatusProviderTest, GetStatus_Full) {
   task_environment_.FastForwardBy(time_since_last_success_fetch);
 
   // Set expected status.
-  const base::Value::Dict expected_status =
-      base::Value::Dict()
+  const base::DictValue expected_status =
+      base::DictValue()
           .Set(policy::kClientIdKey, kTestClientId)
           .Set(policy::kDirectoryApiIdKey, kTestDirectoryApiId)
           .Set(policy::kUsernameKey, kTestUsername)
@@ -204,7 +205,7 @@ TEST_F(UserCloudPolicyStatusProviderTest, GetStatus_Full) {
           .Set(policy::kFlexOrgWarningKey, false)
           .Set(policy::kPolicyDescriptionKey, "statusUser");
 
-  base::Value::Dict returned_status = status_provider_->GetStatus();
+  base::DictValue returned_status = status_provider_->GetStatus();
   EXPECT_EQ(expected_status, returned_status);
 }
 
@@ -214,7 +215,7 @@ TEST_F(UserCloudPolicyStatusProviderTest, GetStatus_NoDomainIfNoUsername) {
   // status payload and process the policy data.
   SetMinimalViableUserPolicyData();
 
-  base::Value::Dict returned_status = status_provider_->GetStatus();
+  base::DictValue returned_status = status_provider_->GetStatus();
   EXPECT_FALSE(returned_status.FindString(policy::kDomainKey));
   // Sanity check to make sure that there is the other status information even
   // if the domain isn't set.
@@ -224,7 +225,7 @@ TEST_F(UserCloudPolicyStatusProviderTest, GetStatus_NoDomainIfNoUsername) {
 // Test that the returned status information is empty when there is no active
 // policy data and no flex account.
 TEST_F(UserCloudPolicyStatusProviderTest, GetStatus_NotManaged) {
-  base::Value::Dict returned_status = status_provider_->GetStatus();
+  base::DictValue returned_status = status_provider_->GetStatus();
   EXPECT_TRUE(returned_status.empty());
 }
 
@@ -252,7 +253,7 @@ TEST_F(UserCloudPolicyStatusProviderTest, GetStatus_AffiliationIds_NoMatch) {
   user_client()->SetStatus(policy::DM_STATUS_SUCCESS);
   user_client()->SetDMToken("test-dm-token");
 
-  base::Value::Dict returned_status = status_provider_->GetStatus();
+  base::DictValue returned_status = status_provider_->GetStatus();
   auto affiliation_value = returned_status.FindBool("isAffiliated");
   ASSERT_TRUE(affiliation_value);
   EXPECT_FALSE(*affiliation_value);
@@ -264,7 +265,7 @@ TEST_F(UserCloudPolicyStatusProviderTest, GetStatus_FlexWarning) {
   SetPrimaryAccountAsFlex();
 
   // Test flex status.
-  base::Value::Dict returned_status = status_provider_->GetStatus();
+  base::DictValue returned_status = status_provider_->GetStatus();
   auto flex_warning_value =
       returned_status.FindBool(policy::kFlexOrgWarningKey);
   ASSERT_TRUE(flex_warning_value);

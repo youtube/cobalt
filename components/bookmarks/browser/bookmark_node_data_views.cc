@@ -53,12 +53,12 @@ bool BookmarkNodeData::Read(const ui::OSExchangeData& data) {
     if (std::optional<base::Pickle> drag_data_pickle =
             data.GetPickledData(GetBookmarkFormatType());
         drag_data_pickle.has_value()) {
-      if (!ReadFromPickle(&drag_data_pickle.value())) {
+      if (!ReadFromPickle(base::PickleIterator(*drag_data_pickle))) {
         return false;
       }
     }
-  } else if (std::vector<ui::ClipboardUrlInfo> result = data.GetURLsAndTitles(
-                 ui::FilenameToURLPolicy::CONVERT_FILENAMES);
+  } else if (std::vector<ui::ClipboardUrlInfo> result =
+                 data.GetURLs(ui::FilenameToURLPolicy::CONVERT_FILENAMES);
              !result.empty()) {
     ReadFromTuple(result.front().url, result.front().title);
   }

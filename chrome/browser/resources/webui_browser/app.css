@@ -23,12 +23,12 @@
 }
 
 /* Hide browser frame in tab fullscreen mode */
-:host([fullscreen-mode="tab"]) #topContainer {
+:host([fullscreen-mode='tab']) #topContainer {
   display: none;
 }
 
 /* Make content fill the window in tab fullscreen mode */
-:host([fullscreen-mode="tab"]) #contentRegion {
+:host([fullscreen-mode='tab']) #contentRegion {
   position: fixed;
   top: 0;
   left: 0;
@@ -143,7 +143,7 @@ cr-searchbox[dropdown-is-visible] {
 #locationIcon {
   fill: var(--color-searchbox-foreground);
   stroke: var(--color-searchbox-foreground);
-  stroke-width: 0px;
+  stroke-width: 0;
   stroke-linecap: round;
   shape-rendering: geometricPrecision;
 }

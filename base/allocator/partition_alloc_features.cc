@@ -22,6 +22,10 @@ static constexpr char kPAFeatureEnabledProcessesStr[] = "enabled-processes";
 static constexpr char kBrowserOnlyStr[] = "browser-only";
 static constexpr char kBrowserAndRendererStr[] = "browser-and-renderer";
 static constexpr char kNonRendererStr[] = "non-renderer";
+#if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+static constexpr char kGPUOnlyStr[] = "gpu-only";
+static constexpr char kBrowserAndGPUStr[] = "browser-and-gpu";
+#endif  // PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
 static constexpr char kAllProcessesStr[] = "all-processes";
 
 }  // namespace
@@ -103,6 +107,10 @@ constexpr FeatureParam<PartitionAllocWithAdvancedChecksEnabledProcesses>::Option
          kBrowserAndRendererStr},
         {PartitionAllocWithAdvancedChecksEnabledProcesses::kNonRenderer,
          kNonRendererStr},
+        {PartitionAllocWithAdvancedChecksEnabledProcesses::kGPUOnly,
+         kGPUOnlyStr},
+        {PartitionAllocWithAdvancedChecksEnabledProcesses::kBrowserAndGPU,
+         kBrowserAndGPUStr},
         {PartitionAllocWithAdvancedChecksEnabledProcesses::kAllProcesses,
          kAllProcessesStr}};
 // Note: Do not use the prepared macro as of no need for a local cache.
@@ -125,19 +133,25 @@ BASE_FEATURE(kPartitionAllocSchedulerLoopQuarantineTaskControlledPurge,
              FEATURE_DISABLED_BY_DEFAULT);
 constexpr FeatureParam<
     PartitionAllocSchedulerLoopQuarantineTaskControlledPurgeEnabledProcesses>::Option
-    kPartitionAllocSchedulerLoopQuarantineTaskControlledPurgeEnabledProcessesOptions[] =
-        {{PartitionAllocSchedulerLoopQuarantineTaskControlledPurgeEnabledProcesses::
-              kBrowserOnly,
-          kBrowserOnlyStr},
-         {PartitionAllocSchedulerLoopQuarantineTaskControlledPurgeEnabledProcesses::
-              kBrowserAndRenderer,
-          kBrowserAndRendererStr},
-         {PartitionAllocSchedulerLoopQuarantineTaskControlledPurgeEnabledProcesses::
-              kNonRenderer,
-          kNonRendererStr},
-         {PartitionAllocSchedulerLoopQuarantineTaskControlledPurgeEnabledProcesses::
-              kAllProcesses,
-          kAllProcessesStr}};
+    kPartitionAllocSchedulerLoopQuarantineTaskControlledPurgeEnabledProcessesOptions[] = {
+        {PartitionAllocSchedulerLoopQuarantineTaskControlledPurgeEnabledProcesses::
+             kBrowserOnly,
+         kBrowserOnlyStr},
+        {PartitionAllocSchedulerLoopQuarantineTaskControlledPurgeEnabledProcesses::
+             kBrowserAndRenderer,
+         kBrowserAndRendererStr},
+        {PartitionAllocSchedulerLoopQuarantineTaskControlledPurgeEnabledProcesses::
+             kNonRenderer,
+         kNonRendererStr},
+        {PartitionAllocSchedulerLoopQuarantineTaskControlledPurgeEnabledProcesses::
+             kGPUOnly,
+         kGPUOnlyStr},
+        {PartitionAllocSchedulerLoopQuarantineTaskControlledPurgeEnabledProcesses::
+             kBrowserAndGPU,
+         kBrowserAndGPUStr},
+        {PartitionAllocSchedulerLoopQuarantineTaskControlledPurgeEnabledProcesses::
+             kAllProcesses,
+         kAllProcessesStr}};
 // Note: Do not use the prepared macro as of no need for a local cache.
 constinit const FeatureParam<
     PartitionAllocSchedulerLoopQuarantineTaskControlledPurgeEnabledProcesses>
@@ -174,7 +188,7 @@ BASE_FEATURE_ENUM_PARAM(BackupRefPtrEnabledProcesses,
                         kBackupRefPtrEnabledProcessesParam,
                         &kPartitionAllocBackupRefPtr,
                         kPAFeatureEnabledProcessesStr,
-#if PA_BUILDFLAG(IS_ANDROID)
+#if PA_BUILDFLAG(IS_ANDROID) && !PA_BUILDFLAG(IS_DESKTOP_ANDROID)
                         BackupRefPtrEnabledProcesses::kNonRenderer,
 #else
                         BackupRefPtrEnabledProcesses::kAllProcesses,
@@ -346,7 +360,7 @@ BASE_FEATURE(kPartitionAllocSortActiveSlotSpans, FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_WIN)
 // Whether to retry allocations when commit fails.
-BASE_FEATURE(kPageAllocatorRetryOnCommitFailure, FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kPageAllocatorRetryOnCommitFailure, FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
@@ -415,11 +429,5 @@ BASE_FEATURE_PARAM(int,
                    "spin_count",
                    2048);
 #endif  // BUILDFLAG(IS_ANDROID) && defined(ARCH_CPU_ARM64)
-
-#if BUILDFLAG(IS_COBALT)
-BASE_FEATURE(kPartitionAllocReuseMainPartitionForBuffers,
-             "PartitionAllocReuseMainPartitionForBuffers",
-             FEATURE_DISABLED_BY_DEFAULT);
-#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace base::features

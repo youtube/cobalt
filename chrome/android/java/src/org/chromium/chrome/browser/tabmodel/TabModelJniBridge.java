@@ -24,7 +24,6 @@ import org.chromium.chrome.browser.WarmupManager;
 import org.chromium.chrome.browser.app.tab_activity_glue.ReparentingTask;
 import org.chromium.chrome.browser.flags.ActivityType;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
-import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.NewWindowAppSource;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.PersistedInstanceType;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
@@ -73,14 +72,14 @@ public abstract class TabModelJniBridge implements TabModelInternal {
      * Initializes the native-side counterpart to this class.
      *
      * @param activityType The type of activity this TabModel was created in.
-     * @param isArchivedTabModel Whether this tab model is for archived tabs. When true, excludes
-     *     the model from broadcasting sync updates.
+     * @param tabModelType The type of the TabModel.
      */
     @CallSuper
-    protected void initializeNative(@ActivityType int activityType, boolean isArchivedTabModel) {
+    protected void initializeNative(
+            @ActivityType int activityType, @TabModelType int tabModelType) {
         assert mNativeTabModelJniBridge == 0;
         mNativeTabModelJniBridge =
-                TabModelJniBridgeJni.get().init(this, mProfile, activityType, isArchivedTabModel);
+                TabModelJniBridgeJni.get().init(this, mProfile, activityType, tabModelType);
     }
 
     /** Returns whether the native-side pointer has been initialized. */
@@ -382,7 +381,6 @@ public abstract class TabModelJniBridge implements TabModelInternal {
         Tab tab = warmupManager.takeSpareTab(profile, /* initiallyHidden= */ false, launchType);
         tab.loadUrl(loadParams);
 
-        MultiInstanceManager.onMultiInstanceModeStarted();
         Intent intent =
                 MultiWindowUtils.createNewWindowIntent(
                         parentTab.getContext(),
@@ -489,6 +487,12 @@ public abstract class TabModelJniBridge implements TabModelInternal {
         target.setParentId(opener.getId());
     }
 
+    @CalledByNative
+    private @Nullable @JniType("TabAndroid*") Tab getOpenerForTab(
+            @JniType("TabAndroid*") Tab target) {
+        return getTabById(target.getParentId());
+    }
+
     /**
      * Highlights a given list of tabs and makes one of them the active tab.
      *
@@ -534,7 +538,7 @@ public abstract class TabModelJniBridge implements TabModelInternal {
     protected abstract @JniType("std::vector<base::Token>") List<Token> listTabGroups();
 
     @CalledByNative
-    protected abstract @JniType("std::optional<std::u16string>") @Nullable String getTabGroupTitle(
+    protected abstract @JniType("std::u16string") String getTabGroupTitle(
             @JniType("base::Token") Token tabGroupId);
 
     @CalledByNative
@@ -558,7 +562,7 @@ public abstract class TabModelJniBridge implements TabModelInternal {
     @CalledByNative
     protected abstract void setTabGroupVisualData(
             @JniType("base::Token") Token tabGroupId,
-            @JniType("std::optional<std::u16string>") @Nullable String title,
+            @JniType("std::u16string") String title,
             @TabGroupColorId int colorId,
             boolean isCollapsed,
             boolean animate);
@@ -667,6 +671,10 @@ public abstract class TabModelJniBridge implements TabModelInternal {
                 type, isNewTabIncognitoBranded, isCurrentModelIncognitoBranded);
     }
 
+    @CalledByNative
+    @Override
+    public abstract boolean isClosingAllTabs();
+
     @NativeMethods
     @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
     public interface Natives {
@@ -674,7 +682,7 @@ public abstract class TabModelJniBridge implements TabModelInternal {
                 TabModelJniBridge self,
                 @JniType("Profile*") Profile profile,
                 @ActivityType int activityType,
-                boolean isArchivedTabModel);
+                @TabModelType int tabModelType);
 
         void broadcastSessionRestoreComplete(long nativeTabModelJniBridge);
 

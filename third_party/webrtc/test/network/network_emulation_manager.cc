@@ -82,7 +82,7 @@ NetworkEmulationManagerImpl::NetworkEmulationManagerImpl(
       next_ip4_address_(kMinIPv4Address),
       task_queue_(env_.task_queue_factory().CreateTaskQueue(
           "NetworkEmulation",
-          TaskQueueFactory::Priority::NORMAL)) {}
+          TaskQueueFactory::Priority::kNormal)) {}
 
 // TODO(srte): Ensure that any pending task that must be run for consistency
 // (such as stats collection tasks) are not cancelled when the task queue is

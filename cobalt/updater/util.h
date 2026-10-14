@@ -40,6 +40,8 @@ extern const char kDefaultManifestVersion[];
 
 extern const char kOmahaCobalt27NightlyAppID[];
 
+extern const char kOmahaCobalt27DogfoodAppID[];
+
 extern const char kOmahaCobaltTrunkAppID[];
 
 struct EvergreenLibraryMetadata {

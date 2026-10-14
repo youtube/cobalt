@@ -6,6 +6,7 @@
 
 #include "third_party/blink/public/mojom/input/focus_type.mojom-blink.h"
 #include "third_party/blink/renderer/core/dom/element.h"
+#include "third_party/blink/renderer/core/dom/element_traversal.h"
 #include "third_party/blink/renderer/core/dom/flat_tree_traversal.h"
 #include "third_party/blink/renderer/core/dom/focusgroup_flags.h"
 #include "third_party/blink/renderer/core/events/keyboard_event.h"
@@ -335,17 +336,33 @@ Element* FocusgroupControllerUtils::NextFocusgroupItemInDirection(
       current_item, focus_direction, /*skip_subtree=*/false);
   while (next_element &&
          FlatTreeTraversal::IsDescendantOf(*next_element, *owner)) {
-    // Skip nested focusgroups and opted-out subtrees.
     FocusgroupData next_data = next_element->GetFocusgroupData();
-    if (next_data.behavior == FocusgroupBehavior::kOptOut ||
-        IsActualFocusgroup(next_data)) {
+
+    // Handle opted-out subtrees: skip entirely.
+    if (next_data.behavior == FocusgroupBehavior::kOptOut) {
       next_element =
           traversal_context.NextInDirection(next_element, focus_direction,
                                             /*skip_subtree=*/true);
       continue;
     }
+
+    // Handle nested focusgroups: they can participate as items in the parent
+    // focusgroup if they are keyboard focusable. After checking, we always
+    // skip their subtree since their contents belong to the nested focusgroup.
+    if (IsActualFocusgroup(next_data)) {
+      if (next_element->IsKeyboardFocusableSlow()) {
+        return next_element;
+      }
+      next_element =
+          traversal_context.NextInDirection(next_element, focus_direction,
+                                            /*skip_subtree=*/true);
+      continue;
+    }
+
     if (IsFocusgroupItemWithOwner(next_element, owner)) {
-      return next_element;
+      if (next_element->IsKeyboardFocusableSlow()) {
+        return next_element;
+      }
     }
     next_element =
         traversal_context.NextInDirection(next_element, focus_direction,
@@ -356,7 +373,13 @@ Element* FocusgroupControllerUtils::NextFocusgroupItemInDirection(
 
 Element* FocusgroupControllerUtils::GetFocusgroupOwnerOfItem(
     const Element* element) {
-  if (!element || !element->IsKeyboardFocusableSlow()) {
+  if (!element || !element->IsFocusable()) {
+    return nullptr;
+  }
+
+  // An element with focusgroup="none" is opted out of focusgroup management.
+  // It should not be considered a focusgroup item.
+  if (element->GetFocusgroupData().behavior == FocusgroupBehavior::kOptOut) {
     return nullptr;
   }
 
@@ -373,13 +396,101 @@ bool FocusgroupControllerUtils::IsGridFocusgroupItem(const Element* element) {
   CHECK(element);
   CHECK(RuntimeEnabledFeatures::FocusgroupGridEnabled(
       element->GetExecutionContext()));
-  if (!element->IsKeyboardFocusableSlow()) {
+  if (!element->IsFocusable()) {
     return false;
   }
 
   // TODO(bebeaudr): Add support for manual grids, where the grid focusgroup
   // items aren't necessarily on an table cell layout object.
   return IsA<LayoutTableCell>(element->GetLayoutObject());
+}
+
+bool FocusgroupControllerUtils::IsInArrowKeyHandler(const Element* element) {
+  return GetArrowKeyHandlerRoot(element) != nullptr;
+}
+
+bool FocusgroupControllerUtils::IsInArrowKeyHandler(
+    const Element& element,
+    FocusgroupDirection direction) {
+  if (!RuntimeEnabledFeatures::FocusgroupEnabled(
+          element.GetExecutionContext())) {
+    return false;
+  }
+
+  Element* owner = focusgroup::FindFocusgroupOwner(&element);
+  if (!owner) {
+    return false;
+  }
+
+  FocusgroupData owner_data = owner->GetFocusgroupData();
+  if (!focusgroup::IsActualFocusgroup(owner_data)) {
+    return false;
+  }
+
+  // Determine which axis the navigation direction uses.
+  FocusgroupFlags direction_axis = IsDirectionInline(direction)
+                                       ? FocusgroupFlags::kInline
+                                       : FocusgroupFlags::kBlock;
+
+  // Check if the focusgroup owner enables this axis.
+  FocusgroupFlags flags = owner_data.flags;
+  // If the owner doesn't enable this axis, no conflict is possible.
+  if (!(flags & direction_axis)) {
+    return false;
+  }
+
+  // Walk up to find an arrow key handler that uses the navigation axis.
+  const Element* current = &element;
+  while (current && current != owner) {
+    FocusgroupFlags native_axes = current->NativeArrowKeyAxes();
+    if (native_axes & direction_axis) {
+      return true;
+    }
+    current = FlatTreeTraversal::ParentElement(*current);
+  }
+
+  return false;
+}
+
+const Element* FocusgroupControllerUtils::GetArrowKeyHandlerRoot(
+    const Element* element) {
+  if (!element) {
+    return nullptr;
+  }
+
+  if (!RuntimeEnabledFeatures::FocusgroupEnabled(
+          element->GetExecutionContext())) {
+    return nullptr;
+  }
+
+  Element* owner = focusgroup::FindFocusgroupOwner(element);
+  if (!owner) {
+    return nullptr;
+  }
+
+  FocusgroupData owner_data = owner->GetFocusgroupData();
+  if (!focusgroup::IsActualFocusgroup(owner_data)) {
+    return nullptr;
+  }
+
+  FocusgroupFlags flags = owner_data.flags;
+  const bool has_axis_flags = static_cast<bool>(
+      flags & (FocusgroupFlags::kInline | FocusgroupFlags::kBlock));
+  const FocusgroupFlags enabled_axes =
+      has_axis_flags
+          ? (flags & (FocusgroupFlags::kInline | FocusgroupFlags::kBlock))
+          : (FocusgroupFlags::kInline | FocusgroupFlags::kBlock);
+
+  const Element* current = element;
+  while (current && current != owner) {
+    FocusgroupFlags native_axes = current->NativeArrowKeyAxes();
+    if (native_axes & enabled_axes) {
+      return current;
+    }
+    current = FlatTreeTraversal::ParentElement(*current);
+  }
+
+  return nullptr;
 }
 
 bool FocusgroupControllerUtils::IsEntryElementForFocusgroupSegment(
@@ -433,8 +544,17 @@ FocusgroupControllerUtils::GetEntryElementForFocusgroupSegmentFromFirst(
     if (item_in_segment->IsFocusedElementInDocument()) {
       // If another item in the segment is already focused, return it, as
       // only one focusgroup item per segment can be in the sequential focus
-      // order.
-      return item_in_segment;
+      // order. However, if the focused item is an arrow key handler, don't
+      // return it - the arrow key handler is treated as if it has
+      // focusgroup="none", so the segment's normal entry logic should apply.
+      if (!IsInArrowKeyHandler(item_in_segment)) {
+        return item_in_segment;
+      }
+      // Skip this focused arrow key handler entirely; don't consider it for
+      // entry priority or first item tracking.
+      item_in_segment = NextFocusgroupItemInSegmentInDirection(
+          *item_in_segment, owner, mojom::blink::FocusType::kForward);
+      continue;
     }
 
     if (memory_item && item_in_segment == memory_item) {
@@ -447,8 +567,8 @@ FocusgroupControllerUtils::GetEntryElementForFocusgroupSegmentFromFirst(
       continue;
     }
 
-    // Check for focusgroup-entry-priority attribute.
-    if (!entry_priority_item && HasFocusgroupEntryPriority(*item_in_segment)) {
+    // Check for focusgroupstart attribute.
+    if (!entry_priority_item && IsFocusgroupStart(*item_in_segment)) {
       entry_priority_item = item_in_segment;
     }
 
@@ -533,24 +653,28 @@ Element* FocusgroupControllerUtils::FirstFocusgroupItemWithin(
     return nullptr;
   }
   FocusgroupVisualOrderTraversalContext traversal_context;
-  for (Element* el = traversal_context.Next(owner, /*skip_subtree=*/false);
-       el && FlatTreeTraversal::IsDescendantOf(*el, *owner);
-       el = traversal_context.Next(el, /*skip_subtree=*/false)) {
-    if (el != owner) {
-      FocusgroupData data = el->GetFocusgroupData();
-      if (data.behavior != FocusgroupBehavior::kNoBehavior) {
-        // Skip nested focusgroup subtree entirely.
-        el = traversal_context.Next(el, /*skip_subtree=*/true);
-        if (!el) {
-          break;
-        }
-        el = traversal_context.Previous(el, /*skip_subtree=*/false);
-        continue;
+  Element* el = traversal_context.Next(owner, /*skip_subtree=*/false);
+  while (el && FlatTreeTraversal::IsDescendantOf(*el, *owner)) {
+    bool skip_subtree = false;
+    FocusgroupData data = el->GetFocusgroupData();
+
+    if (data.behavior == FocusgroupBehavior::kOptOut) {
+      // Skip opted-out subtree entirely.
+      skip_subtree = true;
+    } else if (IsActualFocusgroup(data)) {
+      // Nested focusgroup: check if the owner itself is a focusgroup item, but
+      // skip its subtree as its contents belong to the nested focusgroup.
+      if (el->IsKeyboardFocusableSlow()) {
+        return el;
       }
-    }
-    if (IsFocusgroupItemWithOwner(el, owner)) {
+      // Skip nested focusgroup subtree.
+      skip_subtree = true;
+    } else if (IsFocusgroupItemWithOwner(el, owner) &&
+               el->IsKeyboardFocusableSlow()) {
       return el;
     }
+
+    el = traversal_context.Next(el, skip_subtree);
   }
   return nullptr;
 }
@@ -563,23 +687,27 @@ Element* FocusgroupControllerUtils::LastFocusgroupItemWithin(
 
   FocusgroupVisualOrderTraversalContext traversal_context;
   Element* last = nullptr;
-  for (Element* el = traversal_context.Next(owner, /*skip_subtree=*/false);
-       el && FlatTreeTraversal::IsDescendantOf(*el, *owner);
-       el = traversal_context.Next(el, /*skip_subtree=*/false)) {
-    if (el != owner) {
-      FocusgroupData data = el->GetFocusgroupData();
-      if (data.behavior != FocusgroupBehavior::kNoBehavior) {
-        el = traversal_context.Next(el, /*skip_subtree=*/true);
-        if (!el) {
-          break;
-        }
-        el = traversal_context.Previous(el, /*skip_subtree=*/false);
-        continue;
+  Element* el = traversal_context.Next(owner, /*skip_subtree=*/false);
+  while (el && FlatTreeTraversal::IsDescendantOf(*el, *owner)) {
+    bool skip_subtree = false;
+    FocusgroupData data = el->GetFocusgroupData();
+
+    if (data.behavior == FocusgroupBehavior::kOptOut) {
+      // Skip opted-out subtree entirely.
+      skip_subtree = true;
+    } else if (IsActualFocusgroup(data)) {
+      // Nested focusgroup: check if the owner itself is a focusgroup item, but
+      // skip its subtree as its contents belong to the nested focusgroup.
+      if (el->IsKeyboardFocusableSlow()) {
+        last = el;
       }
-    }
-    if (IsFocusgroupItemWithOwner(el, owner)) {
+      skip_subtree = true;
+    } else if (IsFocusgroupItemWithOwner(el, owner) &&
+               el->IsKeyboardFocusableSlow()) {
       last = el;
     }
+
+    el = traversal_context.Next(el, skip_subtree);
   }
   return last;
 }
@@ -727,10 +855,37 @@ const Element* FocusgroupControllerUtils::GetOptedOutSubtreeRoot(
   return nullptr;
 }
 
+bool FocusgroupControllerUtils::IsEffectivelyOptedOut(const Element* element) {
+  return GetEffectiveOptOutRoot(element) != nullptr;
+}
+
+const Element* FocusgroupControllerUtils::GetEffectiveOptOutRoot(
+    const Element* element) {
+  if (!element) {
+    return nullptr;
+  }
+
+  // Check for explicit opt-out first.
+  const Element* opt_out_root = GetOptedOutSubtreeRoot(element);
+  if (opt_out_root) {
+    return opt_out_root;
+  }
+
+  // Check for focused arrow key handler. When an arrow key handler is
+  // focused, it acts as if opted out to allow normal Tab navigation.
+  if (element->IsFocusedElementInDocument()) {
+    const Element* handler_root = GetArrowKeyHandlerRoot(element);
+    if (handler_root) {
+      return handler_root;
+    }
+  }
+
+  return nullptr;
+}
+
 // static
-bool FocusgroupControllerUtils::HasFocusgroupEntryPriority(
-    const Element& element) {
-  return element.FastHasAttribute(html_names::kFocusgroupEntryPriorityAttr);
+bool FocusgroupControllerUtils::IsFocusgroupStart(const Element& element) {
+  return element.FastHasAttribute(html_names::kFocusgroupstartAttr);
 }
 
 }  // namespace blink

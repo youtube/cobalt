@@ -38,6 +38,7 @@ namespace blink {
 
 class AudioContextOptions;
 class AudioTimestamp;
+class AudioPlaybackStats;
 class AudioPlayoutStats;
 class ExceptionState;
 class ExecutionContext;
@@ -182,6 +183,10 @@ class MODULES_EXPORT AudioContext final
       const media::PictureInPictureEventsInfo::AutoPipInfo&
           auto_picture_in_picture_info) override {}
 
+  // BaseAudioContext override to enable UseCounter.
+  // https://webaudio.github.io/web-audio-api/#BaseAudioContext
+  V8AudioContextState state() const override;
+
   // https://webaudio.github.io/web-audio-api/#AudioContext
   double baseLatency() const;
   double outputLatency() const;
@@ -202,7 +207,10 @@ class MODULES_EXPORT AudioContext final
   MediaStreamAudioDestinationNode* createMediaStreamDestination(
       ExceptionState&);
 
-  // https://wicg.github.io/web_audio_playout
+  // https://webaudio.github.io/web-audio-api/#AudioPlaybackStats
+  AudioPlaybackStats* playbackStats();
+
+  //  To be removed at M147.
   AudioPlayoutStats* playoutStats();
 
   // Cannot be called from the audio thread.
@@ -308,6 +316,14 @@ class MODULES_EXPORT AudioContext final
   // Record the current autoplay metrics.
   void RecordAutoplayMetrics();
 
+  // Schedule an async task to transition the context state to "running".
+  void ScheduleInitialTransitionToRunning();
+  void PerformInitialTransitionToRunning();
+
+  // Schedule an async task to transition the context state to "suspended".
+  void ScheduleTransitionToSuspended();
+  void PerformTransitionToSuspended();
+
   // Starts rendering via AudioDestinationNode. This sets the self-referencing
   // pointer to this object.
   void StartRendering() override;
@@ -397,6 +413,7 @@ class MODULES_EXPORT AudioContext final
   // Protected by the graph lock.
   AudioFrameStatsAccumulator audio_frame_stats_;
 
+  Member<AudioPlaybackStats> audio_playback_stats_;
   Member<AudioPlayoutStats> audio_playout_stats_;
 
   // Whether a user gesture is required to start this AudioContext.
@@ -530,6 +547,16 @@ class MODULES_EXPORT AudioContext final
   // Set to true when the DidClose() method is called. Used to detect if the
   // context is destroyed without being properly closed.
   bool is_closed_ = false;
+
+  // Whether the initial task to transition to the "running" state is pending.
+  // Set at construction when the task is scheduled, cleared when it executes.
+  // Also cleared by close(), which makes the already-scheduled task a no-op.
+  bool pending_initial_transition_to_running_ = false;
+
+  // Stores promise resolvers for suspend(). Note that resolvers for resume()
+  // are stored in BaseAudioContext::pending_promises_resolvers_.
+  HeapVector<Member<ScriptPromiseResolver<IDLUndefined>>>
+      pending_suspend_resolvers_;
 
   std::unique_ptr<StatsUpdateRestrictor> stats_update_restrictor_;
 

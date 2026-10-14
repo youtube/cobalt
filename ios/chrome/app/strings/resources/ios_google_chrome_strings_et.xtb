@@ -1,6 +1,7 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="et">
+<translation id="1035560095760914532">Asetage Chrome alumisse piirkonda, et sellele igal ajal juurde pääseda</translation>
 <translation id="1076643793026027628">Chrome avab YouTube'i inkognito lingid automaatselt inkognito režiimis.</translation>
 <translation id="1081114897601629648">Järgmiseid paroole ei imporditud Google’i paroolihaldurisse, kuna need ei vasta nõuetele.</translation>
 <translation id="1086486568852410168">Otsing Google Lensiga</translation>
@@ -86,6 +87,10 @@ Oodake enne väljalogimist paar minutit. Kui logite kohe välja, siis need andme
 <translation id="2767464022270041271">Salvestatud paroole ei ole. Google'i paroolihaldur saab teie paroole kontrollida, kui olete need salvestanud.</translation>
 <translation id="2788811701191021538">Avab Chrome'is makseviisi seadete lehe.</translation>
 <translation id="2876628302275096482">Vaadake lisateavet, <ph name="BEGIN_LINK" />kuidas Chrome teie andmeid privaatsena hoiab<ph name="END_LINK" /></translation>
+<translation id="288992067439702510">Google Chrome’i <ph name="LIMIT" /> järjehoidja limiit on täis, seega pole mõnda järjehoidjat veel teie Google’i kontole salvestatud.
+
+Uusi järjehoidjaid ei saa teie kontole salvestada, enne kui mõned kustutate. Kui logite praegu välja, siis salvestamata järjehoidjad kustutatakse.</translation>
+<translation id="2901621928549457170">Avage Chrome kohe, kui olete oma iPadis</translation>
 <translation id="2922914028977213693">Puudutage siin, et Chrome'i oma iPadis parimal moel kasutada.</translation>
 <translation id="292371311537977079">Chrome'i seaded</translation>
 <translation id="2923827943290349720">Lukusta Chrome'i sulgemisel inkognito vahelehed</translation>
@@ -170,6 +175,8 @@ Oodake enne väljalogimist paar minutit. Kui logite kohe välja, siis need andme
 <translation id="5119391094379141756">Valige Chrome</translation>
 <translation id="5123188916260706415">Chrome'is hääle abil otsimine</translation>
 <translation id="5162467219239570114">Chrome on aegunud. Kui <ph name="BEGIN_LINK" />App Store'is<ph name="END_LINK" /> pole värskendust saadaval, on võimalik, et teie seade ei toeta enam Chrome'i uuemaid versioone.</translation>
+<translation id="5172049865623113551">Avage Chrome kohe, kui olete oma iPhone'is</translation>
+<translation id="5179095426828744632">Avage Chrome kiiremini oma doki kaudu</translation>
 <translation id="5184329579814168207">Ava Chrome'is</translation>
 <translation id="5190139289262548459">Teie organisatsioon <ph name="DOMAIN" /> haldab kontot, millele olete sisse logitud, ja Chrome’i kasutamist.</translation>
 <translation id="5209238444239954363">Chrome ei saanud värskendusi otsida. Proovige hiljem uuesti.</translation>
@@ -304,7 +311,6 @@ Kui soovite näha veel seadeid, mis kasutavad andmeid, et parandada teie Chrome'
 <translation id="7787205077729386167">Avage iOS-is Chrome'i seaded, seejärel puudutage valikut „Vaikebrauserirakendus” ja valige Chrome.</translation>
 <translation id="778855399387580014">Alustage otsingut uuel Chrome'i vahelehel.</translation>
 <translation id="7792140019572081272">Chrome kaitseb teie delikaatseid isikuandmeid näotuvastuse abil.</translation>
-<translation id="7825648984449922731">Pildi muutmine Geminiga Chrome'is</translation>
 <translation id="7855730255114109580">Google Chrome on ajakohane</translation>
 <translation id="787226752901403048">Vahelehegruppide jagamiseks ja nendega liitumiseks ning ideede põhjal koos töötamiseks logige Chrome'i sisse</translation>
 <translation id="7897703007638178753">Kuva Chrome'i hiljutised vahelehed</translation>

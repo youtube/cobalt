@@ -486,11 +486,11 @@ IdentityManager::GetPrimaryAccountInfo(JNIEnv* env,
   if (account_info.IsEmpty()) {
     return nullptr;
   }
-  // TODO(https://crbug.com/471185380): After M146 reaches Stable - change the
+  // TODO(https://crbug.com/471185380): After M148 reaches Stable - change the
   // return type for GetPrimaryAccountInfo to AccountInfo.
   CHECK(!account_tracker_service_->GetAccountInfo(account_info.account_id)
              .IsEmpty(),
-        base::NotFatalUntil::M146);
+        base::NotFatalUntil::M148);
   return ConvertToJavaCoreAccountInfo(env, account_info);
 }
 
@@ -516,26 +516,6 @@ IdentityManager::FindExtendedAccountInfoByEmailAddress(
     return nullptr;
   }
   return ConvertToJavaAccountInfo(env, account_info);
-}
-
-base::android::ScopedJavaLocalRef<jobjectArray>
-IdentityManager::GetAccountsWithRefreshTokens(JNIEnv* env) const {
-  std::vector<CoreAccountInfo> accounts = GetAccountsWithRefreshTokens();
-
-  base::android::ScopedJavaLocalRef<jclass> coreaccountinfo_clazz =
-      base::android::GetClass(
-          env, "org/chromium/components/signin/base/CoreAccountInfo");
-  auto array = base::android::ScopedJavaLocalRef<jobjectArray>::Adopt(
-      env, env->NewObjectArray(accounts.size(), coreaccountinfo_clazz.obj(),
-                               nullptr));
-  base::android::CheckException(env);
-
-  for (size_t i = 0; i < accounts.size(); ++i) {
-    base::android::ScopedJavaLocalRef<jobject> item =
-        ConvertToJavaCoreAccountInfo(env, accounts[i]);
-    env->SetObjectArrayElement(array.obj(), i, item.obj());
-  }
-  return array;
 }
 
 bool IdentityManager::IsClearPrimaryAccountAllowed(JNIEnv* env) const {

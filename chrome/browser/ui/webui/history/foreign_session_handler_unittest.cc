@@ -5,6 +5,7 @@
 #include "chrome/browser/ui/webui/history/foreign_session_handler.h"
 
 #include "base/callback_list.h"
+#include "base/containers/flat_map.h"
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/sync/session_sync_service_factory.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
@@ -23,6 +24,9 @@ class MockOpenTabsUIDelegate : public sync_sessions::OpenTabsUIDelegate {
   MOCK_METHOD1(GetAllForeignSessions,
                bool(std::vector<raw_ptr<const sync_sessions::SyncedSession,
                                         VectorExperimental>>* sessions));
+
+  MOCK_CONST_METHOD0(GetAllForeignSessionLastModifiedTimes,
+                     base::flat_map<std::string, base::Time>());
 
   MOCK_METHOD3(GetForeignTab,
                bool(const std::string& tag,
@@ -161,7 +165,7 @@ TEST_F(ForeignSessionHandlerTest, HandleOpenForeignSessionAllTabs) {
               GetForeignSession("my_session_tag"))
       .Times(testing::AtLeast(1));
 
-  base::Value::List list_args;
+  base::ListValue list_args;
   list_args.Append("my_session_tag");
   handler()->HandleOpenForeignSessionAllTabs(list_args);
 }
@@ -172,7 +176,7 @@ TEST_F(ForeignSessionHandlerTest, HandleOpenForeignSessionTab) {
                             SessionID::FromSerializedValue(456), testing::_))
       .Times(testing::AtLeast(1));
 
-  base::Value::List list_args;
+  base::ListValue list_args;
   list_args.Append("my_session_tag");
   list_args.Append("456");
   list_args.Append(1.0);

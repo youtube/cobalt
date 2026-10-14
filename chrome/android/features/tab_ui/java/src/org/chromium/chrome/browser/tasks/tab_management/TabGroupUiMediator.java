@@ -27,7 +27,7 @@ import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.LazyOneshotSupplier;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.NonNullObservableSupplier;
-import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
@@ -103,12 +103,12 @@ public class TabGroupUiMediator implements BackPressHandler {
 
     /** Wraps a child component's token with information from this component. */
     private static class NestedSnapshot {
-        private final Object mChildSnapshot;
+        private final @Nullable Object mChildSnapshot;
         private final @ColorInt int mBackgroundColor;
         private final int mWidthPx;
 
         /* package */ NestedSnapshot(
-                Object childSnapshot, @ColorInt int backgroundColor, int widthPx) {
+                @Nullable Object childSnapshot, @ColorInt int backgroundColor, int widthPx) {
             mChildSnapshot = childSnapshot;
             mBackgroundColor = backgroundColor;
             mWidthPx = widthPx;
@@ -133,8 +133,8 @@ public class TabGroupUiMediator implements BackPressHandler {
     private final Callback<@Nullable List<GroupMember>> mOnGroupMembersChanged =
             this::onGroupMembersChanged;
     private final Callback mOnTokenComponentChange = this::onTokenComponentChange;
-    private final ObservableSupplierImpl<Integer> mWidthPxSupplier =
-            new ObservableSupplierImpl<>(0);
+    private final SettableNonNullObservableSupplier<Integer> mWidthPxSupplier =
+            ObservableSuppliers.createNonNull(0);
     private final ThemeColorObserver mThemeColorObserver = this::onThemeColorChanged;
     private final TintObserver mTintObserver = this::onTintChanged;
     private final PropertyModel mModel;
@@ -147,7 +147,7 @@ public class TabGroupUiMediator implements BackPressHandler {
             mVisibilityController;
     private final @Nullable LazyOneshotSupplier<DialogController> mTabGridDialogControllerSupplier;
     private final Callback<TabModel> mCurrentTabModelObserver;
-    private final MonotonicObservableSupplier<Boolean> mOmniboxFocusStateSupplier;
+    private final NonNullObservableSupplier<Boolean> mOmniboxFocusStateSupplier;
     private final SettableNonNullObservableSupplier<Boolean> mHandleBackPressChangedSupplier;
     private final ThemeColorProvider mThemeColorProvider;
     private final Callback<Object> mOnSnapshotTokenChange;
@@ -178,12 +178,12 @@ public class TabGroupUiMediator implements BackPressHandler {
             TabCreatorManager tabCreatorManager,
             OneshotSupplier<LayoutStateProvider> layoutStateProviderSupplier,
             @Nullable LazyOneshotSupplier<DialogController> dialogControllerSupplier,
-            MonotonicObservableSupplier<Boolean> omniboxFocusStateSupplier,
+            NonNullObservableSupplier<Boolean> omniboxFocusStateSupplier,
             @Nullable SharedImageTilesCoordinator sharedImageTilesCoordinator,
             SharedImageTilesConfig.@Nullable Builder sharedImageTilesConfigBuilder,
             ThemeColorProvider themeColorProvider,
             Callback<Object> onSnapshotTokenChange,
-            ObservableSupplierImpl<Object> childTokenSupplier) {
+            MonotonicObservableSupplier<Object> childTokenSupplier) {
         mResetHandler = resetHandler;
         mModel = model;
         mTabModelSelector = tabModelSelector;
@@ -201,7 +201,7 @@ public class TabGroupUiMediator implements BackPressHandler {
         mOnSnapshotTokenChange = onSnapshotTokenChange;
         mChildTokenSupplier = childTokenSupplier;
         mChildTokenSupplier.addObserver(mOnTokenComponentChange);
-        mWidthPxSupplier.addObserver(mOnTokenComponentChange);
+        mWidthPxSupplier.addSyncObserverAndPostIfNonNull(mOnTokenComponentChange);
 
         onThemeColorChanged(mThemeColorProvider.getThemeColor(), false);
         ColorStateList tintList = mThemeColorProvider.getTint();
@@ -342,7 +342,7 @@ public class TabGroupUiMediator implements BackPressHandler {
                 .addTabGroupObserver(mTabGroupModelFilterObserver);
 
         mOmniboxFocusObserver = isFocus -> resetTabStrip();
-        mOmniboxFocusStateSupplier.addObserver(mOmniboxFocusObserver);
+        mOmniboxFocusStateSupplier.addSyncObserverAndPostIfNonNull(mOmniboxFocusObserver);
 
         tabModelSelector.addTabGroupModelFilterObserver(mTabModelObserver);
         mTabModelSelector.getCurrentTabModelSupplier().addObserver(mCurrentTabModelObserver);
@@ -366,7 +366,8 @@ public class TabGroupUiMediator implements BackPressHandler {
                     controller -> {
                         controller
                                 .getHandleBackPressChangedSupplier()
-                                .addObserver(mHandleBackPressChangedSupplier::set);
+                                .addSyncObserverAndPostIfNonNull(
+                                        mHandleBackPressChangedSupplier::set);
                     });
         }
     }
@@ -475,15 +476,10 @@ public class TabGroupUiMediator implements BackPressHandler {
         handler.post(() -> mModel.set(INITIAL_SCROLL_INDEX, indexSupplier.get()));
     }
 
-    private boolean isOmniboxFocused() {
-        @Nullable Boolean focused = mOmniboxFocusStateSupplier.get();
-        return Boolean.TRUE.equals(focused);
-    }
-
     private void resetTabStrip() {
         if (!mTabModelSelector.isTabStateInitialized()) return;
 
-        if (mIsShowingHub || isOmniboxFocused()) {
+        if (mIsShowingHub || mOmniboxFocusStateSupplier.get()) {
             hideTabStrip();
             return;
         }
@@ -553,7 +549,7 @@ public class TabGroupUiMediator implements BackPressHandler {
                 new NestedSnapshot(
                         mChildTokenSupplier.get(),
                         mThemeColorProvider.getThemeColor(),
-                        assumeNonNull(mWidthPxSupplier.get()));
+                        mWidthPxSupplier.get());
         mOnSnapshotTokenChange.onResult(token);
     }
 

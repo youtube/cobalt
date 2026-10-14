@@ -15,6 +15,7 @@
 #include "net/base/features.h"
 #include "net/base/ip_address.h"
 #include "net/base/ip_endpoint.h"
+#include "net/base/load_timing_info.h"
 #include "net/base/net_errors.h"
 #include "net/base/network_anonymization_key.h"
 #include "net/dns/host_resolver.h"
@@ -23,6 +24,7 @@
 #include "net/http/http_stream_pool_group.h"
 #include "net/http/http_stream_pool_handle.h"
 #include "net/http/http_stream_pool_test_util.h"
+#include "net/log/net_log_source_type.h"
 #include "net/log/net_log_with_source.h"
 #include "net/socket/next_proto.h"
 #include "net/socket/socket_test_util.h"
@@ -88,8 +90,12 @@ class TestAttemptDelegate final
     CHECK(!attempt_);
     CHECK(!key_.has_value());
     key_ = key_builder_.Build();
+    // Using HTTP_STREAM_POOL_ATTEMPT_MANAGER as the source type here
+    // because it will be the source type in production code.
     attempt_ = std::make_unique<HttpStreamPool::Attempt>(
-        *this, *pool_->stream_attempt_params());
+        *this, *pool_->stream_attempt_params(),
+        NetLogWithSource::Make(
+            NetLog::Get(), NetLogSourceType::HTTP_STREAM_POOL_ATTEMPT_MANAGER));
     attempt_->Start();
   }
 
@@ -108,6 +114,11 @@ class TestAttemptDelegate final
   IPEndPoint GetRemoteIPEndPoint() const {
     CHECK(remote_ip_endpoint_.has_value()) << "Remote IPEndPoint is not set";
     return remote_ip_endpoint_.value();
+  }
+
+  LoadTimingInfo::ConnectTiming GetConnectTiming() const {
+    CHECK(connect_timing_.has_value()) << "Connect timing is not set";
+    return connect_timing_.value();
   }
 
   // Returns the negotiated protocol of the attempt. Must be called after the
@@ -148,10 +159,13 @@ class TestAttemptDelegate final
     return pool_->http_network_session()->GetAlpnProtos();
   }
 
-  void OnStreamSocketReady(HttpStreamPool::Attempt* attempt,
-                           std::unique_ptr<StreamSocket> stream) override {
+  void OnStreamSocketReady(
+      HttpStreamPool::Attempt* attempt,
+      std::unique_ptr<StreamSocket> stream,
+      LoadTimingInfo::ConnectTiming connect_timing) override {
     SetRemoteIPEndPointFromStreamSocket(*stream);
     SetResult(OK);
+    connect_timing_ = connect_timing;
   }
 
   void OnAttemptFailure(HttpStreamPool::Attempt* attempt, int rv) override {
@@ -222,6 +236,7 @@ class TestAttemptDelegate final
 
   std::optional<int> result_;
   std::optional<IPEndPoint> remote_ip_endpoint_;
+  std::optional<LoadTimingInfo::ConnectTiming> connect_timing_;
   std::optional<NextProto> negotiated_protocol_;
   base::OnceClosure wait_result_closure_;
 
@@ -449,6 +464,53 @@ TEST_F(HttpStreamPoolAttemptTest, Http2Ok) {
   ASSERT_EQ(delegate.WaitForResult(), OK);
   EXPECT_EQ(delegate.GetRemoteIPEndPoint(), ipv6_endpoint);
   EXPECT_EQ(delegate.GetNegotiatedProtocol(), NextProto::kProtoHTTP2);
+}
+
+TEST_F(HttpStreamPoolAttemptTest, ConnectTiming) {
+  const IPEndPoint ipv6_endpoint = MakeIPEndPoint("2001:db8::1");
+
+  TestAttemptDelegate delegate = CreateAttemptDelegate();
+  delegate.fake_service_endpoint_request()->add_endpoint(
+      ServiceEndpointBuilder().add_ip_endpoint(ipv6_endpoint).endpoint());
+  delegate.CompleteServiceEndpointRequest(OK);
+
+  SequencedSocketData data;
+  MockConnectCompleter tcp_completer;
+  data.set_connect_data(MockConnect(&tcp_completer));
+  socket_factory()->AddSocketDataProvider(&data);
+  MockConnectCompleter tls_completer;
+  SSLSocketDataProvider ssl_data(&tls_completer);
+  socket_factory()->AddSSLSocketDataProvider(&ssl_data);
+
+  delegate.Start();
+  ASSERT_FALSE(delegate.result().has_value());
+
+  constexpr base::TimeDelta kTcpDelay = base::Milliseconds(10);
+  FastForwardBy(kTcpDelay);
+  tcp_completer.Complete(OK);
+  ASSERT_FALSE(delegate.result().has_value());
+
+  constexpr base::TimeDelta kTlsDelay = base::Milliseconds(20);
+  FastForwardBy(kTlsDelay);
+  tls_completer.Complete(OK);
+  ASSERT_EQ(delegate.WaitForResult(), OK);
+  EXPECT_EQ(delegate.GetRemoteIPEndPoint(), ipv6_endpoint);
+
+  LoadTimingInfo::ConnectTiming connect_timing = delegate.GetConnectTiming();
+  // connectEnd includes TLS handshake. See
+  // https://w3c.github.io/resource-timing/#attribute-descriptions
+  EXPECT_EQ(connect_timing.connect_end - connect_timing.connect_start,
+            kTcpDelay + kTlsDelay);
+  EXPECT_EQ(connect_timing.ssl_end - connect_timing.ssl_start, kTlsDelay);
+
+  // The Attempt doesn't control domain lookup timing.
+  EXPECT_EQ(connect_timing.domain_lookup_start, base::TimeTicks());
+  EXPECT_EQ(connect_timing.domain_lookup_end, base::TimeTicks());
+
+  // Verify the overall ordering of timing events.
+  EXPECT_LE(connect_timing.connect_start, connect_timing.ssl_start);
+  EXPECT_LE(connect_timing.ssl_start, connect_timing.ssl_end);
+  EXPECT_LE(connect_timing.ssl_end, connect_timing.connect_end);
 }
 
 TEST_F(HttpStreamPoolAttemptTest, Ipv4AnsweredBeforeIpv6TcpHandshake) {

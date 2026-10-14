@@ -59,7 +59,7 @@ class V8OptimizerPolicyTest
   }
 
   void SetPolicyValue(PolicyMap* map, const char* key, const char* value) {
-    base::Value::List value_list;
+    base::ListValue value_list;
     if (value) {
       value_list.Append(value);
     }
@@ -174,7 +174,8 @@ IN_PROC_BROWSER_TEST_P(V8OptimizerPolicyTest, V8OptimizerHostnameMatching) {
   NavigateAndExpectPolicyResult("foo.com", true);
 
   NavigateToFreshBrowsingInstance();
-  if (content::SiteIsolationPolicy::AreOriginKeyedProcessesEnabledByDefault()) {
+  if (content::SiteIsolationPolicy::AreOriginKeyedProcessesEnabledByDefault(
+          chrome_test_utils::GetProfile(this))) {
     // Under origin isolation, the origin is passed into
     // AreV8OptimizationsDisabledForSite(), and the origin does not match the
     // site-level policy.

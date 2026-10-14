@@ -5,19 +5,22 @@
 #include "chrome/browser/legion/private_ai_service.h"
 
 #include "base/sequence_checker.h"
-#include "chrome/browser/contextual_cueing/contextual_cueing_features.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/signin/identity_manager_factory.h"
 #include "components/legion/client.h"
 #include "components/legion/features.h"
 #include "components/legion/phosphor/blind_sign_auth_factory.h"
 #include "components/legion/phosphor/token_fetcher_impl.h"
 #include "components/legion/phosphor/token_manager_impl.h"
+#include "components/prefs/pref_service.h"
 #include "components/signin/public/base/consent_level.h"
 #include "components/signin/public/base/oauth_consumer_id.h"
+#include "components/signin/public/identity_manager/access_token_info.h"
 #include "components/signin/public/identity_manager/primary_account_access_token_fetcher.h"
+#include "content/public/browser/network_service_instance.h"
 #include "content/public/browser/storage_partition.h"
-#include "google_apis/gaia/gaia_constants.h"
+#include "services/network/public/cpp/shared_url_loader_factory.h"
+#include "services/network/public/mojom/network_context.mojom.h"
+#include "services/network/public/mojom/network_service.mojom.h"
 
 namespace legion {
 
@@ -47,9 +50,11 @@ PrivateAiService::PrivateAiService(
   token_fetcher_ = token_fetcher.get();
   token_manager_ =
       std::make_unique<phosphor::TokenManagerImpl>(std::move(token_fetcher));
+
   client_ = legion::Client::Create(
-      token_manager_.get(),
-      profile_->GetDefaultStoragePartition()->GetNetworkContext());
+      kLegionUrl.Get(), kLegionApiKey.Get(), kLegionProxyServerUrl.Get(),
+      profile_->GetDefaultStoragePartition()->GetNetworkContext(),
+      token_manager_.get(), content::GetNetworkService());
 }
 
 PrivateAiService::~PrivateAiService() {
@@ -73,6 +78,10 @@ Client* PrivateAiService::GetClient() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   return client_.get();
+}
+
+void PrivateAiService::SetClientForTesting(std::unique_ptr<Client> client) {
+  client_ = std::move(client);
 }
 
 bool PrivateAiService::IsTokenFetchEnabled() {

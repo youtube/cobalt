@@ -43,7 +43,7 @@ const SkBitmap GenerateSquareBitmap(int size, SkColor color) {
 
 class MockExecutionEngine : public ExecutionEngine {
  public:
-  explicit MockExecutionEngine(Profile* profile) : ExecutionEngine(profile) {}
+  explicit MockExecutionEngine(ActorTask& task) : ExecutionEngine(task) {}
   ~MockExecutionEngine() override = default;
 
   MOCK_METHOD(actor_login::ActorLoginService&,
@@ -53,8 +53,18 @@ class MockExecutionEngine : public ExecutionEngine {
   MOCK_METHOD(favicon::FaviconService*, GetFaviconService, (), (override));
 };
 
-using AttemptLoginToolInteractiveUiTestBase =
-    InteractiveBrowserTestMixin<ActorToolsTest>;
+class AttemptLoginToolInteractiveUiTestBase
+    : public InteractiveBrowserTestMixin<ActorToolsTest> {
+ public:
+  AttemptLoginToolInteractiveUiTestBase() {
+    scoped_feature_list_.InitAndEnableFeatureWithParameters(
+        features::kGlicActor,
+        {{features::kGlicActorPolicyControlExemption.name, "true"}});
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
 
 // TODO(crbug.com/441533831): We should migrate the Javascript tests to
 // typescript.
@@ -121,8 +131,6 @@ class AttemptLoginToolInteractiveUiTest
     auto create_task_result = create_task_future.Get();
     ASSERT_TRUE(create_task_result.has_value());
     task_id_ = TaskId(create_task_result.value());
-    actor_task().SetExecutionEngineForTesting(
-        CreateExecutionEngine(InProcessBrowserTest::browser()->profile()));
 
     ON_CALL(mock_execution_engine(), GetActorLoginService())
         .WillByDefault(ReturnRef(mock_login_service_));
@@ -149,9 +157,9 @@ class AttemptLoginToolInteractiveUiTest
         AttemptLoginToolInteractiveUiTestBase>::SetUpCommandLine(command_line);
   }
 
-  std::unique_ptr<ExecutionEngine> CreateExecutionEngine(
-      Profile* profile) override {
-    return std::make_unique<NiceMock<MockExecutionEngine>>(profile);
+  static std::unique_ptr<ExecutionEngine> CreateExecutionEngine(
+      ActorTask& task) {
+    return std::make_unique<NiceMock<MockExecutionEngine>>(task);
   }
 
   MockActorLoginService& mock_login_service() { return mock_login_service_; }
@@ -177,6 +185,9 @@ class AttemptLoginToolInteractiveUiTest
   base::test::ScopedFeatureList scoped_feature_list_;
 
   actor_login::Credential::Id::Generator credential_id_generator_;
+  ScopedExecutionEngineFactory mock_execution_engine_factory_{
+      base::BindRepeating(
+          AttemptLoginToolInteractiveUiTest::CreateExecutionEngine)};
 };
 
 }  // namespace
@@ -291,12 +302,12 @@ IN_PROC_BROWSER_TEST_P(AttemptLoginToolInteractiveUiTest, MAYBE_SmokeTest) {
       url::Origin::Create(url).Serialize();
   const std::string expected_display_origin = "example.com:12345";
   auto expected_request =
-      base::Value::Dict()
+      base::DictValue()
           .Set("taskId", actor_task().id().value())
           .Set("showDialog", true)
           .Set("credentials",
-               base::Value::List()
-                   .Append(base::Value::Dict()
+               base::ListValue()
+                   .Append(base::DictValue()
                                .Set("id", GenerateCredentialId().value())
                                .Set("username", "username1")
                                .Set("sourceSiteOrApp",
@@ -304,7 +315,7 @@ IN_PROC_BROWSER_TEST_P(AttemptLoginToolInteractiveUiTest, MAYBE_SmokeTest) {
                                .Set("requestOrigin", expected_request_origin)
                                .Set("displayOrigin", expected_display_origin)
                                .Set("icon", kExpectedIconDataUrl))
-                   .Append(base::Value::Dict()
+                   .Append(base::DictValue()
                                .Set("id", GenerateCredentialId().value())
                                .Set("username", "username2")
                                .Set("sourceSiteOrApp",

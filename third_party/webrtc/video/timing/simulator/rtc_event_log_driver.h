@@ -27,7 +27,6 @@
 #include "logging/rtc_event_log/events/rtc_event_video_receive_stream_config.h"
 #include "logging/rtc_event_log/rtc_event_log_parser.h"
 #include "logging/rtc_event_log/rtc_event_processor.h"
-#include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "rtc_base/thread_annotations.h"
 #include "test/time_controller/simulated_time_task_queue_controller.h"
 #include "video/timing/simulator/rtp_packet_simulator.h"
@@ -50,7 +49,6 @@ namespace webrtc::video_timing_simulator {
 //  * Handle `LogSegment`s.
 //  * Handle stop events.
 //  * Parse RTT updates from RTCPs.
-//  * Handle RTX.
 class RtcEventLogDriver {
  public:
   // Configuration for the `RtcEventLogDriver` itself.
@@ -65,16 +63,19 @@ class RtcEventLogDriver {
   class StreamInterface {
    public:
     virtual ~StreamInterface() = default;
-    // Insert `rtp_packet` into the stream.
-    virtual void InsertPacket(const RtpPacketReceived& rtp_packet) = 0;
+    // Insert `simulated_packet` into the stream.
+    virtual void InsertSimulatedPacket(
+        const RtpPacketSimulator::SimulatedPacket& simulated_packet) = 0;
     // Notify the stream that no more packets will be inserted.
     virtual void Close() = 0;
   };
 
-  // Factory that creates a stream given the environment and the stream SSRC.
+  // Factory that creates a stream given the environment and the stream SSRCs.
   using StreamInterfaceFactory =
       absl::AnyInvocable<std::unique_ptr<StreamInterface>(const Environment&,
-                                                          uint32_t) const>;
+                                                          /*ssrc=*/uint32_t,
+                                                          /*rtx_ssrc=*/uint32_t)
+                             const>;
 
   // Slack added after final event, in order to catch any straggling frames.
   static constexpr TimeDelta kShutdownAdvanceTimeSlack = TimeDelta::Millis(100);
@@ -124,7 +125,11 @@ class RtcEventLogDriver {
   std::optional<Timestamp> prev_log_timestamp_;
   std::unique_ptr<TaskQueueBase, TaskQueueDeleter> simulator_queue_;
   RtpPacketSimulator packet_simulator_ RTC_GUARDED_BY(simulator_queue_);
+  // Owned streams. Keyed by `ssrc`, so that they can be replaced if needed.
   absl::flat_hash_map<uint32_t, std::unique_ptr<StreamInterface>> streams_
+      RTC_GUARDED_BY(simulator_queue_);
+  // Streams for reception. Keyed by both `ssrc` and `rtx_ssrc`.
+  absl::flat_hash_map<uint32_t, StreamInterface*> receiving_streams_
       RTC_GUARDED_BY(simulator_queue_);
 };
 

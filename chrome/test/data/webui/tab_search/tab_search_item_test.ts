@@ -75,11 +75,23 @@ suite('TabSearchItemTest', () => {
         tabSearchItem.shadowRoot.querySelector('cr-icon-button');
     assertNotEquals(null, tabSearchItemCloseButton);
 
+    const tooltip = tabSearchItem.shadowRoot.querySelector('cr-tooltip');
+    assertNotEquals(null, tooltip);
+
+    // Tooltip should be hidden initially.
+    const innerTooltip = tooltip!.shadowRoot.querySelector('#tooltip');
+    assertNotEquals(null, innerTooltip);
+    assertEquals('none', getComputedStyle(innerTooltip!).display);
+
+    // Test that the tooltip is shown when the close button is focused.
+    tabSearchItemCloseButton!.focus();
+    assertNotEquals('none', getComputedStyle(innerTooltip!).display);
+
     setupTest(new TabData(
         {
           tabId: 0,
           title: 'Example.com site',
-          url: {url: 'https://example.com'},
+          url: 'https://example.com',
           lastActiveTime: {internalValue: BigInt(0)},
           lastActiveElapsedText: '',
         } as RecentlyClosedTab,

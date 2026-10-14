@@ -342,7 +342,6 @@
 <translation id="2201071101391734388">최근 사진 총 <ph name="TOTAL_COUNT" />개 중 <ph name="INDEX" />번째입니다.</translation>
 <translation id="2201687081523799384">Google Tasks 접기</translation>
 <translation id="2208323208084708176">통합 바탕화면 모드</translation>
-<translation id="2210311543574621570">Ctrl + V를 길게 누르면 클립보드가 표시됩니다. chrome://flags에서 #clipboard-history-longpress 플래그를 사용 중지하여 이 바로가기를 사용 중지할 수 있습니다.</translation>
 <translation id="2215920961700443347">인터넷에 연결되어 있지 않습니다. 인터넷에 연결한 후 다시 시도해 주세요.</translation>
 <translation id="2222841058024245321">데스크 7</translation>
 <translation id="2223384056430485343">화면 분할 시</translation>
@@ -2195,7 +2194,6 @@
 <translation id="8241650983304689286">새 분할 보기에 탭 추가</translation>
 <translation id="8247060538831475781"><ph name="CONNECTION_STATUS" />, 신호 강도 <ph name="SIGNAL_STRENGTH" />, 휴대전화 배터리 <ph name="BATTERY_STATUS" /></translation>
 <translation id="825129991941217170">모든 Google Drive 콘텐츠 표시</translation>
-<translation id="8257510091797044096">기기 설정하기</translation>
 <translation id="8261506727792406068">삭제</translation>
 <translation id="8262312463845990408">재생/일시중지 전환</translation>
 <translation id="8268302343625273732">Google 클래스룸의 모든 과제 보기</translation>

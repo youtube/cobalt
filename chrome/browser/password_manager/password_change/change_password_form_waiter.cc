@@ -115,7 +115,8 @@ ChangePasswordFormWaiter::Builder::SetFieldsToIgnore(
 std::unique_ptr<ChangePasswordFormWaiter>
 ChangePasswordFormWaiter::Builder::Build() {
   if (base::FeatureList::IsEnabled(
-          password_manager::features::kDownloadModelForPasswordChange)) {
+          password_manager::features::
+              kProactivelyDownloadModelForPasswordChange)) {
     form_waiter_->WaitForLocalMLModelAvailability();
   } else {
     form_waiter_->Init();
@@ -203,31 +204,17 @@ void ChangePasswordFormWaiter::OnPasswordFormParsed(
     return;
   }
 
-  if (base::FeatureList::IsEnabled(
-          password_manager::features::
-              kCheckVisibilityInChangePasswordFormWaiter)) {
-    if (!form_manager->GetDriver()) {
-      return;
-    }
-
-    auto new_field_id =
-        form_manager->GetParsedObservedForm()->new_password_element_renderer_id;
-    form_manager->GetDriver()->CheckViewAreaVisible(
-        new_field_id,
-        base::BindOnce(
-            &ChangePasswordFormWaiter::OnCheckViewAreaVisibleCallback,
-            weak_ptr_factory_.GetWeakPtr(), new_field_id));
+  if (!form_manager->GetDriver()) {
     return;
   }
 
-  if (ignore_hidden_forms_ &&
-      !FieldFocusable(form_manager->GetParsedObservedForm()
-                          ->new_password_element_renderer_id,
-                      form_manager->GetParsedObservedForm()->form_data)) {
-    return;
-  }
-
-  std::move(callback_).Run(form_manager);
+  auto new_field_id =
+      form_manager->GetParsedObservedForm()->new_password_element_renderer_id;
+  form_manager->GetDriver()->CheckViewAreaVisible(
+      new_field_id,
+      base::BindOnce(&ChangePasswordFormWaiter::OnCheckViewAreaVisibleCallback,
+                     weak_ptr_factory_.GetWeakPtr(), new_field_id));
+  return;
 }
 
 void ChangePasswordFormWaiter::OnCheckViewAreaVisibleCallback(

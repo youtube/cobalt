@@ -454,6 +454,19 @@ void TabRestoreServiceHelper::RemoveEntryById(SessionID id) {
   NotifyEntriesChanged();
 }
 
+void TabRestoreServiceHelper::RemoveLeastRecentlyUsedEntries(
+    int num_to_remove) {
+  if (num_to_remove <= 0 || entries_.empty()) {
+    return;
+  }
+
+  size_t count = std::min(entries_.size(), static_cast<size_t>(num_to_remove));
+  auto start_it = std::prev(entries_.end(), count);
+  entries_.erase(start_it, entries_.end());
+
+  NotifyEntriesChanged();
+}
+
 LiveTabContext* TabRestoreServiceHelper::RestoreTabOrGroupFromWindow(
     Window& window,
     SessionID id,
@@ -654,6 +667,14 @@ std::vector<LiveTab*> TabRestoreServiceHelper::RestoreEntryById(
       UpdateSavedGroupIDsForTabEntries(
           window.tabs, CreateLocalSavedGroupIDMapping(window.tab_groups));
 
+      std::map<base::Uuid, tab_groups::TabGroupVisualData> group_visual_data;
+      for (const auto& pair : window.tab_groups) {
+        if (pair.second->saved_group_id) {
+          group_visual_data[pair.second->saved_group_id.value()] =
+              pair.second->visual_data;
+        }
+      }
+
       // When restoring a window, either the entire window can be restored, or a
       // single tab within it. If the entry's ID matches the one to restore, or
       // the entry corresponds to an application, then the entire window will be
@@ -703,6 +724,14 @@ std::vector<LiveTab*> TabRestoreServiceHelper::RestoreEntryById(
           // entry_iterator may be no longer valid. So call RemoveEntryById here
           // instead of entries_.erase(entry_iterator).
           RemoveEntryById(window.id);
+        }
+      }
+
+      for (const auto& pair : group_visual_data) {
+        std::optional<tab_groups::TabGroupId> group_id =
+            context->GetGroupIdForSavedGroup(pair.first);
+        if (group_id) {
+          context->SetVisualDataForGroup(group_id.value(), pair.second);
         }
       }
 

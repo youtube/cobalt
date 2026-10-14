@@ -165,6 +165,8 @@ source_set("renderer") {
     "native_handler.h",
     "object_backed_native_handler.cc",
     "object_backed_native_handler.h",
+    "polyfill_util.cc",
+    "polyfill_util.h",
     "process_info_native_handler.cc",
     "process_info_native_handler.h",
     "programmatic_script_injector.cc",
@@ -440,7 +442,7 @@ source_set("unit_tests") {
   # in the desktop-android build when the related extensions APIs are enabled.
   if (enable_extensions) {
     sources += [
-      "api/automation/automation_internal_custom_bindings_unittests.cc",
+      "api/automation/automation_internal_custom_bindings_unittest.cc",
       "api/feedback_private_hooks_delegate_unittest.cc",
     ]
   }

@@ -11,25 +11,23 @@
  * #include=cr-shared-style md-select
  * #css_wrapper_metadata_end */
 
- :host {
+:host {
   --cr-dialog-width: 320px;
   --cr-dialog-button-container-padding-horizontal: 24px;
   --content-container-padding: 40px;
   --margin-between-panes: 80px;
   --radio-button-top-padding: 20px;
   --title-bottom-margin: 16px;
-}
 
-:host {
-  --shimless-title-font-family: "Google Sans", Roboto, sans-serif;
+  --shimless-title-font-family: 'Google Sans', Roboto, sans-serif;
   --shimless-instructions-font-family: Roboto, sans-serif;
   --shimless-component-font-family: Roboto, sans-serif;
   --shimless-component-description-font-family: Roboto, sans-serif;
   --shimless-hint-font-family: Roboto, sans-serif;
   --shimless-warning-font-family: Roboto, sans-serif;
-  --shimless-button-label-font-family: "Google Sans", Roboto, sans-serif;
+  --shimless-button-label-font-family: 'Google Sans', Roboto, sans-serif;
   --shimless-input-font-family: Roboto, sans-serif;
-  --shimless-dialog-title-font-family: "Google Sans", sans-serif;
+  --shimless-dialog-title-font-family: 'Google Sans', sans-serif;
   --shimless-dialog-body-font-family: Roboto, sans-serif;
 
   --shimless-title-font-size: 28px;

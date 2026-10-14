@@ -63,6 +63,7 @@
 <translation id="1223498995510244364">總結</translation>
 <translation id="1227113644794103810">閒置分頁</translation>
 <translation id="1231733316453485619">要開啟同步處理功能嗎？</translation>
+<translation id="1238794841176717085">分享此頁面</translation>
 <translation id="1253032109800629289">隱藏「接收價格追蹤通知」</translation>
 <translation id="1254424942107648268">尋找上一個相符的項目</translation>
 <translation id="1258491128795710625">新功能</translation>
@@ -197,6 +198,7 @@
 <translation id="169048873465870056">要移除分頁並刪除群組嗎？</translation>
 <translation id="1698090540708020240">匯入密碼…</translation>
 <translation id="1700629756560807968">已選取 <ph name="NUMBER_OF_SELECTED_BOOKMARKS" /> 個</translation>
+<translation id="1702583479431863204">已取消固定網站</translation>
 <translation id="1709916727352927457">刪除密鑰</translation>
 <translation id="1715515772563243997">如果您信任 <ph name="SITE" />，可使用已儲存的密碼登入。</translation>
 <translation id="1718835860248848330">過去一小時</translation>
@@ -247,6 +249,7 @@
 <translation id="1872096359983322073">閃光燈</translation>
 <translation id="1875733418125333939"><ph name="FILENAME" />。</translation>
 <translation id="1881621406744213161">邀請家庭成員</translation>
+<translation id="188177382966899059">Deep Search</translation>
 <translation id="188237709236611317">智能排序選單列</translation>
 <translation id="1883255238294161206">收合清單</translation>
 <translation id="1888854257756214946">選擇密碼…</translation>
@@ -315,6 +318,7 @@
 <translation id="21133533946938348">固定分頁</translation>
 <translation id="2117650889962717098">切換至無痕模式，確保瀏覽資料保密</translation>
 <translation id="2119636449201577317">開啟方式…</translation>
+<translation id="2119962645034852864">你的帳戶無法使用部分服務</translation>
 <translation id="2120553909046681540">你的機構已關閉私密瀏覽功能。</translation>
 <translation id="2122754583996902531">您的瀏覽器受管理。<ph name="BEGIN_LINK" />瞭解詳情<ph name="END_LINK" /></translation>
 <translation id="21243612977487926">你機構的即時通訊記錄不會用於改善我們的模型。Gemini 顯示的資料未必準確 (包括人物資料)，請加以複查。<ph name="YOUR_PRIVACY_GEMINI" /></translation>
@@ -332,6 +336,7 @@
 <translation id="2184272387334793084">登入帳戶即可在任何裝置上存取自己的密碼及其他設定</translation>
 <translation id="2186206192313702726">Google 智能鏡頭</translation>
 <translation id="2188993354115194873">輕按 [儲存至下載內容]<ph name="BEGIN_BOLD" /><ph name="END_BOLD" /></translation>
+<translation id="2191406283620379491">發生嚴重錯誤，請更新 iOS 版本。</translation>
 <translation id="219283042927675668">群組中的分頁</translation>
 <translation id="2194856509914051091">考慮因素</translation>
 <translation id="2196428379625389579">在網絡上搜尋</translation>
@@ -345,6 +350,7 @@
 <translation id="2225701818156393674">產品已加至你的追蹤產品清單。</translation>
 <translation id="2230173723195178503">已載入網頁</translation>
 <translation id="2236949375853147973">我的活動</translation>
+<translation id="2237869114829007407">取得任何網頁或主題的概覽和重要分析資料</translation>
 <translation id="2240256190924001613">有可用的設定描述檔</translation>
 <translation id="2244080985779413662">此網站想下載檔案並在「錢包」中開啟。</translation>
 <translation id="2245007488813216650">正在翻譯…</translation>
@@ -368,6 +374,7 @@
 <translation id="2306265833370324042">顯示 <ph name="SEARCH_ENGINE_NAME" /> 詳情</translation>
 <translation id="2309265394777270359">關閉分頁</translation>
 <translation id="2311077293164383652">關閉固定分頁</translation>
+<translation id="2313392466694008052">使用 Gemini 編輯圖像</translation>
 <translation id="2316129865977710310">不用了，謝謝</translation>
 <translation id="2320166752086256636">隱藏鍵盤</translation>
 <translation id="2321086116217818302">正在準備密碼…</translation>
@@ -519,6 +526,7 @@
 <translation id="288655811176831528">關閉分頁</translation>
 <translation id="2888631381369839306">價格追蹤通知已開啟</translation>
 <translation id="2893168226686371498">預設瀏覽器</translation>
+<translation id="2893791155497534382">密碼和其他活動可以在相應的管理設定中刪除</translation>
 <translation id="2894757982205307093">在群組中新增分頁</translation>
 <translation id="2902312830803030883">更多操作</translation>
 <translation id="2904788871580817212">開咗嘅分頁有產品減價，由 <ph name="PREVIOUS_PRICE" /> 減到 <ph name="PRICE" />，<ph name="PRODUCT_NAME" />，<ph name="DOMAIN" /></translation>
@@ -578,6 +586,7 @@
 <translation id="3143515551205905069">取消同步處理</translation>
 <translation id="3144126448740580210">完成</translation>
 <translation id="3148052723910099040">一般分頁網格</translation>
+<translation id="3148237711805373460">立即前往</translation>
 <translation id="3157387275655328056">新增至閱讀清單</translation>
 <translation id="315778507796115851">記錄</translation>
 <translation id="31652791196570636">關閉</translation>
@@ -616,6 +625,7 @@
 <translation id="3305294846493618482">更多</translation>
 <translation id="3311748811247479259">關閉</translation>
 <translation id="3312300514034250578">強化安全瀏覽</translation>
+<translation id="3315786055700307152">你追蹤的產品現在 85 折</translation>
 <translation id="3324193307694657476">地址行 2</translation>
 <translation id="3328801116991980348">網站資料</translation>
 <translation id="333229797575847124">如何啟用此功能</translation>
@@ -631,6 +641,7 @@
 <translation id="3378214228000661758">為以下網址建立密鑰：</translation>
 <translation id="3380352560400387991">此網站正在嘗試開啟某個應用程式，系統將會退出無痕模式。</translation>
 <translation id="3385742921291399323">存取已儲存的密碼、分頁、書籤和其他資料。</translation>
+<translation id="3391765987934722383">緊貼降價消息</translation>
 <translation id="3392923070107623576">建立分頁群組以保持條理</translation>
 <translation id="3404232721752787413">儲存在「Google 相片」中</translation>
 <translation id="3406506285180498376">分享網頁…</translation>
@@ -779,6 +790,7 @@
 <translation id="3950820424414687140">登入</translation>
 <translation id="3955740319737378355">完成</translation>
 <translation id="3955822496205734389">你有安全度低的密碼。</translation>
+<translation id="3957016963627617921">Chrome 版 Gemini 讓你事半功倍</translation>
 <translation id="3958312024468322930">將圖示拖曳至主畫面底部的 Dock</translation>
 <translation id="3962326069546168954">儲存</translation>
 <translation id="3967327056943561740">書籤</translation>
@@ -842,6 +854,7 @@
 <translation id="4181841719683918333">語言</translation>
 <translation id="4183350924949589798">想增強安全性嗎？</translation>
 <translation id="4184063163998877398">{count,plural, =1{{count} 個安全度低的密碼}other{{count} 個安全度低的密碼}}</translation>
+<translation id="4196758674971560031">你建立的分頁群組會儲存在分頁群組部分，並會跨裝置更新。</translation>
 <translation id="4197456013861852807">{count,plural, =1{這 {count} 個項目只會儲存至此裝置。如要在其他裝置上使用，請儲存至 Google 帳戶 ({email})。}other{這 {count} 個項目只會儲存至此裝置。如要在其他裝置上使用，請儲存至 Google 帳戶 ({email})。}}</translation>
 <translation id="4207873326995387292">瀏覽器資料</translation>
 <translation id="421070604241073551">如果開啟，資料就會儲存至你的 Google 帳戶。關閉後，資料只會儲存至此裝置。</translation>
@@ -935,6 +948,7 @@
 <translation id="4565377596337484307">隱藏密碼</translation>
 <translation id="4568230126482344545">隱藏「最近開啟的分頁」</translation>
 <translation id="4578835633387306383">開啟…</translation>
+<translation id="4580621046861724270">部分書籤無法儲存</translation>
 <translation id="4580716718466706433">前往「密碼管理工具」</translation>
 <translation id="4585751637295612750">開啟新分頁以加入查詢</translation>
 <translation id="4587589328781138893">網站</translation>
@@ -1018,6 +1032,7 @@
 <translation id="483689884442613745">儲存…</translation>
 <translation id="4840495572919996524">您的書籤、記錄、密碼及其他設定將不會同步至您的 Google 帳戶。</translation>
 <translation id="484280513275854557">系統已將你登出並刪除瀏覽資料</translation>
+<translation id="484462545196658690">自動</translation>
 <translation id="4850886885716139402">檢視</translation>
 <translation id="4854068532375923088">允許「Gemini」使用相機</translation>
 <translation id="4860895144060829044">撥號</translation>
@@ -1162,6 +1177,7 @@
 <translation id="5318298563956633672">您已追蹤此產品。</translation>
 <translation id="5327248766486351172">名稱</translation>
 <translation id="5329451663851195956">如要重新整理分頁，請將頁面往下拉。</translation>
+<translation id="5336910966955551309">按住即可固定常用網站</translation>
 <translation id="5338512273860059533">登入中。</translation>
 <translation id="5343472494710226394">根據個人興趣接收新聞、體育賽事和內容相關通知。</translation>
 <translation id="5352128922772839949">儲存檔案</translation>
@@ -1292,6 +1308,7 @@
 <translation id="5768870767339201169">從上次離開的地方繼續瀏覽</translation>
 <translation id="5779117921996157216">{count,plural, =1{你有 {count} 個密碼被盜用，可能導致安全風險。請立即修正以確保安全。}other{你有 {count} 個密碼被盜用，可能導致安全風險。請立即修正以確保安全。}}</translation>
 <translation id="5791632441210678828">將追蹤緊嘅動態消息排次序嘅掣。</translation>
+<translation id="5799263916847593256">開啟即可查看價格記錄</translation>
 <translation id="5803566855766646066">確定要捨棄這張新的信用卡嗎？</translation>
 <translation id="5804241973901381774">權限</translation>
 <translation id="58081802114142635">你的活動記錄有助改善 Google AI</translation>
@@ -1312,7 +1329,6 @@
 <translation id="5868644772996939262">自動填入密碼與密鑰</translation>
 <translation id="5869522115854928033">已儲存的密碼</translation>
 <translation id="5873179562631407582">按住任何開啟的分頁</translation>
-<translation id="5878899964490256268"><ph name="EMAIL" />。由你的機構管理。</translation>
 <translation id="5887400589839399685">已儲存的付款卡</translation>
 <translation id="5888889603768021126">目前登入身分</translation>
 <translation id="5889333064153755823">刪除瀏覽資料</translation>
@@ -1366,7 +1382,6 @@
 <translation id="607620096698446287">無法上載 <ph name="FILENAME" /> (<ph name="FILESIZE" />)</translation>
 <translation id="6076618233738284461">固定網站</translation>
 <translation id="6077126322656614846">已允許存取攝錄機</translation>
-<translation id="607730456154980869">使用 Chrome 版 Gemini 更快取得答案</translation>
 <translation id="6078236141387574983">重新調整表格高度</translation>
 <translation id="6084848228346514841">選取分頁</translation>
 <translation id="6089212833343035912">Google 密碼管理工具 PIN</translation>
@@ -1499,6 +1514,7 @@
 <translation id="6494931198667773526">結束時間</translation>
 <translation id="6503077044568424649">最常瀏覽</translation>
 <translation id="6503763061813913607">安全檢查通知</translation>
+<translation id="6504541289630702018">輕鬆存取桌面版分頁群組</translation>
 <translation id="6505334220040167806">收埋分頁群組。</translation>
 <translation id="6506996418997555004">分享「<ph name="GROUP_NAME" />」分頁群組</translation>
 <translation id="6507973708545996744">登入後，即可從任何裝置取得自己的閱讀清單。</translation>
@@ -1518,6 +1534,7 @@
 <translation id="6556866813142980365">重做</translation>
 <translation id="6559301491397835130">{count,plural, =1{書籤已儲存至「{title}」。系統只會將這項資料儲存在此裝置。}other{書籤已儲存至「{title}」。系統只會將這些資料儲存在此裝置。}}</translation>
 <translation id="656065428026159829">查看更多</translation>
+<translation id="6565899972286925956">創作任何內容</translation>
 <translation id="6571070086367343653">編輯信用卡</translation>
 <translation id="6574092468346088891">開啟「安全檢查」通知</translation>
 <translation id="6579867704846662339">你可選擇在無痕模式中開啟從其他應用程式收到的網址。</translation>
@@ -1628,11 +1645,13 @@
 <translation id="6930799952781667037">輕按即可變更為此語言。</translation>
 <translation id="693761253105515415">設定密碼</translation>
 <translation id="6945221475159498467">選取</translation>
+<translation id="6946722113367118030">思考</translation>
 <translation id="6950522403736391608">隱藏</translation>
 <translation id="6962809930976936328">向 Gemini 索取分析</translation>
 <translation id="6964300328304469089">目前已選取<ph name="NAME" />，<ph name="EMAIL" />。請選擇帳戶。</translation>
 <translation id="6964760285928603117">從群組中移除</translation>
 <translation id="6965382102122355670">確定</translation>
+<translation id="6967355534157677591">生成圖像 Pro</translation>
 <translation id="6973630695168034713">資料夾</translation>
 <translation id="6979158407327259162">Google 雲端硬碟</translation>
 <translation id="6979737339423435258">所有時間</translation>
@@ -1646,6 +1665,7 @@
 <ph name="BEGIN_LINK" />瞭解詳情<ph name="END_LINK" /></translation>
 <translation id="7005768247344091502">在「設定」中設定為預設…</translation>
 <translation id="7007970306646738803">選擇如何處理此裝置上現有的瀏覽資料，例如分頁、記錄和密碼。</translation>
+<translation id="7012978439516925343">驗證身分以建立密鑰</translation>
 <translation id="7015418667643980944">分割檢視模式</translation>
 <translation id="7016070607649558507">你有 1 個安全度低的密碼。請立即修正以確保安全。</translation>
 <translation id="7016958933495968912">探索功能嘅選項</translation>
@@ -1896,6 +1916,7 @@
 <translation id="7958575506592576831">網頁安全性資料</translation>
 <translation id="7961015016161918242">從來沒有</translation>
 <translation id="7971136598759319605">曾於 1 天前在線</translation>
+<translation id="7972837668077967426">畫布</translation>
 <translation id="7975036700432177008">試用</translation>
 <translation id="797588153137233716">選單 → 記錄 → 刪除瀏覽資料</translation>
 <translation id="7977451675950311423">如果你使用在資料外洩中被盜用的密碼，系統便會向你發出警告。</translation>
@@ -1930,7 +1951,6 @@
 <translation id="8059533439631660104">收起嗰個部分。</translation>
 <translation id="8061584726507121204">記錄</translation>
 <translation id="8064946459644399612">已套用「新分頁」偏好設定</translation>
-<translation id="8069168488983557089">取得要點和分析，以助瞭解任何主題</translation>
 <translation id="8069394452933076548">針對最近未使用的分頁，選擇何時要移至閒置分頁部分。</translation>
 <translation id="8073670137947914548">下載完畢</translation>
 <translation id="8076492880354921740">分頁</translation>
@@ -1969,6 +1989,7 @@
 <translation id="8205564605687841303">取消</translation>
 <translation id="8206354486702514201">這項設定由管理員執行。</translation>
 <translation id="8209050860603202033">開啟圖片</translation>
+<translation id="8209237163365258530">Gemini <ph name="VERSION_NUMBER" /> 模型</translation>
 <translation id="8211030355252954494">你已收到 <ph name="WEBSITE" /> 的新密碼</translation>
 <translation id="8211406090763984747">己建立安全連線</translation>
 <translation id="8214293972734702249">固定咗 <ph name="TAB_TITLE" /></translation>
@@ -2003,6 +2024,7 @@
 <translation id="8319282042900445670">提醒時間已設定為 <ph name="DATE" /><ph name="TIME" /></translation>
 <translation id="8320212361750431956">近期活動</translation>
 <translation id="8325455175867928593">隱藏「按興趣顯示的評論」</translation>
+<translation id="8328777765163860529">全部關閉</translation>
 <translation id="833647236762414178">建立、儲存及管理密碼和密鑰，輕鬆登入網站和應用程式。<ph name="BEGIN_LINK" />瞭解詳情<ph name="END_LINK" /></translation>
 <translation id="8343993175958086504">備份資料即可在任何裝置上使用。</translation>
 <translation id="8348530355586151720">輕按三點選單</translation>
@@ -2025,6 +2047,7 @@
 <translation id="8407831512155324054">你密碼的安全度夠高</translation>
 <translation id="8414030140103493759">拍攝相片或影片</translation>
 <translation id="8414283596511250978">不再忘記密碼</translation>
+<translation id="8415120635186642416">研究任何主題</translation>
 <translation id="842523302461531262">在「設定」中設定為預設…</translation>
 <translation id="8428045167754449968">城市/鄉鎮</translation>
 <translation id="8428213095426709021">設定</translation>
@@ -2124,6 +2147,7 @@
 <translation id="8730621377337864115">完成</translation>
 <translation id="8731268612289859741">安全碼</translation>
 <translation id="87371078663613140">瀏覽選單列中的選項</translation>
+<translation id="8739546376441802490">已釘選網站</translation>
 <translation id="8741627442233023406">{count,plural, =1{查看分頁…}other{查看所有分頁…}}</translation>
 <translation id="8741995161408053644">您的 Google 帳戶在 <ph name="BEGIN_LINK" />history.google.com<ph name="END_LINK" /> 上可能有其他形式的瀏覽記錄。</translation>
 <translation id="874599634440689554">建立連結</translation>
@@ -2143,6 +2167,7 @@
 <translation id="8803639129939845298">安全</translation>
 <translation id="8813277370772331957">稍後提醒我</translation>
 <translation id="8814719628147284151">繼續</translation>
+<translation id="8817524703470045896">追蹤價格，並在任何網站降價時接收通知</translation>
 <translation id="8819155700324279105">為對抗網上威脅增添多一重安全保障</translation>
 <translation id="8820817407110198400">書籤</translation>
 <translation id="8822421075653507124">為確保可安全使用此裝置，機構可能要查看裝置的作業系統、瀏覽器和設定的相關資料，以及裝置上安裝的軟件。</translation>
@@ -2150,6 +2175,7 @@
 <translation id="8829809207373502270">此密鑰已失效。已從 <ph name="WEBSITE" /> 已刪除此密鑰，亦即將從這裡刪除。<ph name="BEGIN_LINK" />關於密鑰<ph name="END_LINK" /></translation>
 <translation id="8831208860914609320">關閉所有閒置分頁</translation>
 <translation id="8837654851594567190">按發佈者排序</translation>
+<translation id="8844136307393039959">你追蹤的產品降價</translation>
 <translation id="8848286253339013170">正在將圖片儲存至 <ph name="USER_EMAIL" /> 的「Google 相片」…</translation>
 <translation id="8849001918648564819">隱藏</translation>
 <translation id="8855242995793521265">不會大幅減慢瀏覽器或裝置運作速度。</translation>
@@ -2193,6 +2219,7 @@
 <translation id="8976382372951310360">說明</translation>
 <translation id="8976414606286374109">信用卡會儲存至您的 Google 帳戶。</translation>
 <translation id="8981454092730389528">Google 活動控制項</translation>
+<translation id="8988107725234939347"><ph name="WEBSITE_TITLE" />，已固定的網站</translation>
 <translation id="8998289560386111590">此功能無法在您的裝置上使用</translation>
 <translation id="9000532564152265066">所有分頁</translation>
 <translation id="9003677638446136377">再次檢查</translation>

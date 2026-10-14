@@ -6,13 +6,14 @@ package org.chromium.chrome.browser.tasks.tab_management;
 
 import static org.chromium.build.NullUtil.assumeNonNull;
 import static org.chromium.chrome.browser.flags.ChromeFeatureList.DATA_SHARING;
+import static org.chromium.chrome.browser.tabmodel.TabGroupTitleUtils.UNSET_TAB_GROUP_TITLE;
+import static org.chromium.chrome.browser.tabmodel.TabGroupTitleUtils.isTitleUnset;
 
 import android.app.Activity;
 import android.content.Context;
 import android.content.res.ColorStateList;
 import android.content.res.Resources;
 import android.text.Editable;
-import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.view.View;
 
@@ -28,7 +29,8 @@ import org.chromium.base.Token;
 import org.chromium.base.ValueChangedCallback;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.LazyOneshotSupplier;
-import org.chromium.base.supplier.MonotonicObservableSupplier;
+import org.chromium.base.supplier.NonNullObservableSupplier;
+import org.chromium.base.supplier.NullableObservableSupplier;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
 import org.chromium.build.annotations.EnsuresNonNull;
@@ -167,7 +169,7 @@ public class TabGridDialogMediator
         boolean isVisible();
 
         /** A supplier that returns if the dialog is currently showing or animating. */
-        MonotonicObservableSupplier<Boolean> getShowingOrAnimationSupplier();
+        NonNullObservableSupplier<Boolean> getShowingOrAnimationSupplier();
 
         /**
          * Adds a message card to the UI.
@@ -228,7 +230,7 @@ public class TabGridDialogMediator
     private final Activity mActivity;
     private final DialogController mDialogController;
     private final PropertyModel mModel;
-    private final MonotonicObservableSupplier<@Nullable TabGroupModelFilter>
+    private final NullableObservableSupplier<TabGroupModelFilter>
             mCurrentTabGroupModelFilterSupplier;
     private final @Nullable TabSwitcherResetHandler mTabSwitcherResetHandler;
     private final Supplier<RecyclerViewPosition> mRecyclerViewPositionSupplier;
@@ -268,8 +270,7 @@ public class TabGridDialogMediator
             Activity activity,
             DialogController dialogController,
             PropertyModel model,
-            MonotonicObservableSupplier<@Nullable TabGroupModelFilter>
-                    currentTabGroupModelFilterSupplier,
+            NullableObservableSupplier<TabGroupModelFilter> currentTabGroupModelFilterSupplier,
             @Nullable TabSwitcherResetHandler tabSwitcherResetHandler,
             Supplier<RecyclerViewPosition> recyclerViewPositionSupplier,
             @Nullable AnimationSourceViewProvider animationSourceViewProvider,
@@ -281,8 +282,8 @@ public class TabGridDialogMediator
             Runnable showColorPickerPopupRunnable,
             @Nullable ModalDialogManager modalDialogManager,
             @Nullable DesktopWindowStateManager desktopWindowStateManager,
-            MonotonicObservableSupplier<TabBookmarker> tabBookmarkerSupplier,
-            Supplier<ShareDelegate> shareDelegateSupplier) {
+            Supplier<@Nullable TabBookmarker> tabBookmarkerSupplier,
+            Supplier<@Nullable ShareDelegate> shareDelegateSupplier) {
         mActivity = activity;
         mDialogController = dialogController;
         mModel = model;
@@ -513,8 +514,7 @@ public class TabGridDialogMediator
         mTabGroupModelFilterObserver =
                 new TabGroupModelFilterObserver() {
                     @Override
-                    public void didChangeTabGroupTitle(
-                            Token tabGroupId, @Nullable String newTitle) {
+                    public void didChangeTabGroupTitle(Token tabGroupId, String newTitle) {
                         if (currentTabGroupIdMatches(tabGroupId)
                                 && !Objects.equals(
                                         mModel.get(TabGridDialogProperties.HEADER_TITLE),
@@ -830,8 +830,10 @@ public class TabGridDialogMediator
         TabGroupModelFilter filter = mCurrentTabGroupModelFilterSupplier.get();
         assumeNonNull(filter);
         String storedTitle =
-                mCurrentTabGroupId != null ? filter.getTabGroupTitle(mCurrentTabGroupId) : null;
-        if (!TextUtils.isEmpty(storedTitle)) {
+                mCurrentTabGroupId != null
+                        ? filter.getTabGroupTitle(mCurrentTabGroupId)
+                        : UNSET_TAB_GROUP_TITLE;
+        if (!isTitleUnset(storedTitle)) {
             mModel.set(
                     TabGridDialogProperties.COLLAPSE_BUTTON_CONTENT_DESCRIPTION,
                     res.getQuantityString(
@@ -1237,10 +1239,10 @@ public class TabGridDialogMediator
         assumeNonNull(mCurrentTabGroupId);
 
         int tabsCount = getTabsInGroup(mCurrentTabGroupId).size();
-        if (mCurrentGroupModifiedTitle.length() == 0
+        if (isTitleUnset(mCurrentGroupModifiedTitle)
                 || TabGroupTitleUtils.isDefaultTitle(
                         mActivity, mCurrentGroupModifiedTitle, tabsCount)) {
-            // When dialog title is empty or was unchanged, delete previously stored title and
+            // When dialog title is unset or was unchanged, delete previously stored title and
             // restore default title.
             filter.deleteTabGroupTitle(mCurrentTabGroupId);
 
@@ -1254,9 +1256,9 @@ public class TabGridDialogMediator
                                     tabsCount,
                                     tabsCount));
             mModel.set(TabGridDialogProperties.HEADER_TITLE, originalTitle);
-            // Setting the tab group title to null ensures the default title isn't saved, but
+            // Setting the tab group title to unset ensures the default title isn't saved, but
             // observers downstream will update to the correct default title.
-            filter.setTabGroupTitle(mCurrentTabGroupId, null);
+            filter.setTabGroupTitle(mCurrentTabGroupId, UNSET_TAB_GROUP_TITLE);
             mCurrentGroupModifiedTitle = null;
             RecordUserAction.record("TabGridDialog.ResetTabGroupName");
             return;

@@ -9,12 +9,15 @@
 
 #include "base/feature_list.h"
 #include "chrome/browser/enterprise/connectors/common.h"
-#include "chrome/browser/file_util_service.h"
 #include "components/enterprise/connectors/core/cloud_content_scanning/binary_upload_request.h"
-#include "components/enterprise/obfuscation/core/download_obfuscator.h"
-#include "components/enterprise/obfuscation/core/utils.h"
 #include "components/file_access/scoped_file_access.h"
 #include "content/public/browser/browser_thread.h"
+
+#if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/file_util_service.h"
+#include "components/enterprise/obfuscation/core/download_obfuscator.h"
+#include "components/enterprise/obfuscation/core/utils.h"
+#endif
 
 namespace safe_browsing {
 
@@ -34,7 +37,8 @@ FileAnalysisRequest::FileAnalysisRequest(
     bool delay_opening_file,
     BinaryUploadRequest::ContentAnalysisCallback callback,
     BinaryUploadRequest::RequestStartCallback start_callback,
-    bool is_obfuscated)
+    bool is_obfuscated,
+    bool force_sync_hash_computation)
     : FileAnalysisRequestBase(analysis_settings,
                               std::move(path),
                               std::move(file_name),
@@ -44,10 +48,12 @@ FileAnalysisRequest::FileAnalysisRequest(
                               base::BindRepeating(&GetBrowserPolicyConnector),
                               content::GetUIThreadTaskRunner({}),
                               std::move(start_callback),
-                              is_obfuscated) {}
+                              is_obfuscated,
+                              force_sync_hash_computation) {}
 
 FileAnalysisRequest::~FileAnalysisRequest() = default;
 
+#if !BUILDFLAG(IS_ANDROID)
 void FileAnalysisRequest::ProcessZipFile(Data data) {
   auto callback =
       base::BindOnce(&FileAnalysisRequest::OnCheckedForEncryption,
@@ -97,5 +103,6 @@ void FileAnalysisRequest::OnCheckedForEncryption(
   CacheResultAndData(result, std::move(data));
   RunCallback();
 }
+#endif
 
 }  // namespace safe_browsing

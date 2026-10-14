@@ -26,6 +26,10 @@ enum class PAFeatureEnabledProcesses {
   kBrowserAndRenderer,
   // Enabled in all processes, except renderer.
   kNonRenderer,
+  // Enabled only in the GPU process.
+  kGPUOnly,
+  // Enabled only in the browser and tne GPU process.
+  kBrowserAndGPU,
   // Enabled only in renderer processes.
   kRendererOnly,
   // Enabled in all child processes, except zygote.
@@ -224,10 +228,6 @@ BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(bool,
 BASE_EXPORT BASE_DECLARE_FEATURE(kPartitionAllocLockTuneSpin);
 BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kPartitionAllocLockSpinCount);
 #endif  // BUILDFLAG(IS_ANDROID) && defined(ARCH_CPU_ARM64)
-
-#if BUILDFLAG(IS_COBALT)
-BASE_EXPORT BASE_DECLARE_FEATURE(kPartitionAllocReuseMainPartitionForBuffers);
-#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace base::features
 

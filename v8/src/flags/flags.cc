@@ -1209,15 +1209,21 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
       CONTRADICTION(jit_fuzzing, max_lazy),
       CONTRADICTION(jitless, maglev_as_top_tier),
       CONTRADICTION(jitless, maglev_future),
-      CONTRADICTION(jitless, turbolev_future),
       CONTRADICTION(jitless, stress_concurrent_inlining),
       CONTRADICTION(jitless, stress_concurrent_inlining_attach_code),
       CONTRADICTION(jitless, stress_maglev),
+      CONTRADICTION(jitless, turbolev_future),
+      CONTRADICTION(jitless, turboshaft_wasm_in_js_inlining),
+      CONTRADICTION(jitless, verify_turboshaft),
+      CONTRADICTION(lite_mode, maglev_as_top_tier),
       CONTRADICTION(lite_mode, maglev_future),
       CONTRADICTION(lite_mode, predictable_gc_schedule),
       CONTRADICTION(lite_mode, stress_concurrent_inlining),
       CONTRADICTION(lite_mode, stress_concurrent_inlining_attach_code),
       CONTRADICTION(lite_mode, stress_maglev),
+      CONTRADICTION(lite_mode, turbolev_future),
+      CONTRADICTION(lite_mode, turboshaft_wasm_in_js_inlining),
+      CONTRADICTION(lite_mode, verify_turboshaft),
       CONTRADICTION(maglev_as_top_tier, stress_concurrent_inlining),
       CONTRADICTION(maglev_as_top_tier, stress_concurrent_inlining_attach_code),
       CONTRADICTION(maglev_as_top_tier, turbolev_future),
@@ -1249,6 +1255,16 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
       RESET_WHEN_CORRECTNESS_FUZZING(turbo_stats),
       RESET_WHEN_CORRECTNESS_FUZZING(turbo_stats_nvp),
       RESET_WHEN_CORRECTNESS_FUZZING(turbo_stats_wasm),
+
+      // Don't use any asserting modes with differential fuzzing as it ignores
+      // crashes anyways and sometimes can't digest the output from these
+      // flags.
+      RESET_WHEN_CORRECTNESS_FUZZING(assert_types),
+      RESET_WHEN_CORRECTNESS_FUZZING(maglev_assert_types),
+      RESET_WHEN_CORRECTNESS_FUZZING(turboshaft_assert_types),
+#if V8_ENABLE_WEBASSEMBLY
+      RESET_WHEN_CORRECTNESS_FUZZING(wasm_assert_types),
+#endif  // V8_ENABLE_WEBASSEMBLY
 
       // https://crbug.com/369974230
       RESET_WHEN_FUZZING(expose_async_hooks),

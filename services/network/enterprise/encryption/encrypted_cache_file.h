@@ -8,24 +8,21 @@
 #include <memory>
 
 #include "base/component_export.h"
+#include "crypto/process_bound_string.h"
 #include "net/disk_cache/cache_file.h"
+#include "net/disk_cache/disk_cache.h"
 #include "services/network/enterprise/encryption/chunked_encryptor.h"
 
 namespace network::enterprise_encryption {
 
 // A decorator implementation of `CacheFile` that adds an encryption layer on
 // top of another `CacheFile` instance.
-// TODO(crbug.com/460509865): Currently a pass-through. Implement actual
-// encryption/decryption logic.
 class COMPONENT_EXPORT(NETWORK_SERVICE) EncryptedCacheFile
     : public disk_cache::CacheFile {
  public:
   EncryptedCacheFile(std::unique_ptr<disk_cache::CacheFile> file,
-                     base::span<const uint8_t, kKeySize> key);
+                     const crypto::ProcessBoundString& primary_key);
 
-  // TODO(crbug.com/474061119): NOT FOR PRODUCTION USE. Remove once key
-  // injection is implemented.
-  explicit EncryptedCacheFile(std::unique_ptr<disk_cache::CacheFile> file);
   ~EncryptedCacheFile() override;
 
   bool IsValid() const override;
@@ -69,7 +66,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) EncryptedCacheFile
   bool EnsurePreviousChunkNotLast(int64_t new_logical_length);
 
   std::unique_ptr<disk_cache::CacheFile> file_;
-  std::array<uint8_t, kKeySize> key_;
+  const crypto::ProcessBoundString key_;
   std::unique_ptr<ChunkedEncryptor> encryptor_;
   bool initialized_ = false;
 };

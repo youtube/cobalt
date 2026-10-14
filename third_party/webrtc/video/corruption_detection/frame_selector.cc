@@ -18,7 +18,6 @@
 #include "api/video/encoded_image.h"
 #include "api/video/video_frame.h"
 #include "api/video/video_frame_buffer.h"
-#include "api/video/video_frame_type.h"
 #include "api/video_codecs/scalability_mode.h"
 #include "api/video_codecs/video_codec.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
@@ -61,7 +60,7 @@ bool FrameSelector::ShouldInstrumentFrame(const VideoFrame& raw_frame,
                                           const EncodedImage& encoded_frame) {
   int layer_id = std::max(encoded_frame.SpatialIndex().value_or(0),
                           encoded_frame.SimulcastIndex().value_or(0));
-  if (encoded_frame._frameType == VideoFrameType::kVideoFrameKey) {
+  if (encoded_frame.IsKey()) {
     // Always insrument keyframes. Clear any state related to this stream.
     if (inter_layer_pred_mode_ != InterLayerPredMode::kOff) {
       // When inter layer prediction is enabled, a keyframe clear all reference

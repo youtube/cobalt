@@ -111,6 +111,64 @@ void main()
     verifyIsNotInTranslation(GL_FRAGMENT_SHADER, "gl_FragData[1]");
 }
 
+// Verifies that GL_NV_viewport_array2 is not requested in the shader if multiview is not enabled.
+TEST_P(GLSLOutputGLSLTest_ES3, NoNVMultiviewExtension)
+{
+    constexpr char kFS[] = R"(#version 300 es
+void main()
+{
+})";
+    compileShader(GL_FRAGMENT_SHADER, kFS);
+    verifyIsNotInTranslation(GL_FRAGMENT_SHADER, "#extension GL_NV_viewport_array2");
+}
+
+// Verifies that GL_NV_viewport_array2 is not requested in the shader if multiview is enabled but
+// the selectViewInNvGLSLVertexShader compile flag is set.
+TEST_P(GLSLOutputGLSLTest_ES3, NoNVMultiviewExtensionIfVertexArray)
+{
+    ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_OVR_multiview"));
+
+    constexpr char kFS[] = R"(#version 300 es
+#extension GL_OVR_multiview : require
+void main()
+{
+})";
+    compileShader(GL_FRAGMENT_SHADER, kFS);
+    if (getEGLWindow()->isFeatureEnabled(Feature::MultiviewViaViewportArray))
+    {
+        verifyIsNotInTranslation(GL_FRAGMENT_SHADER, "#extension GL_NV_viewport_array2");
+    }
+}
+
+// Verifies that GL_OVR_multiview and GL_OVR_multiview2 are not both enabled in the output.
+TEST_P(GLSLOutputGLSLTest_ES3, NoDoubleMultiviewExtension)
+{
+    ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_OVR_multiview"));
+
+    const size_t kExpect =
+        getEGLWindow()->isFeatureEnabled(Feature::MultiviewViaViewportArray) ? 0 : 1;
+
+    {
+        constexpr char kFS[] = R"(#version 300 es
+#extension GL_OVR_multiview : require
+void main()
+{
+})";
+        compileShader(GL_FRAGMENT_SHADER, kFS);
+        verifyCountInTranslation(GL_FRAGMENT_SHADER, "#extension GL_OVR_multiview", kExpect);
+    }
+
+    {
+        constexpr char kFS[] = R"(#version 300 es
+#extension GL_OVR_multiview2 : require
+void main()
+{
+})";
+        compileShader(GL_FRAGMENT_SHADER, kFS);
+        verifyCountInTranslation(GL_FRAGMENT_SHADER, "#extension GL_OVR_multiview", kExpect);
+    }
+}
+
 // Test the initialization of output variables with various qualifiers in a vertex shader.
 TEST_P(WebGL2GLSLOutputGLSLTest, OutputAllQualifiers)
 {
@@ -163,7 +221,15 @@ void main() {
   out1.a += 0.0001;
 })";
     compileShader(GL_VERTEX_SHADER, kVS);
-    verifyIsInTranslation(GL_VERTEX_SHADER, "_uout1 = _uMyS(");
+    if (getEGLWindow()->isFeatureEnabled(Feature::UseIr))
+    {
+        verifyIsInTranslation(GL_VERTEX_SHADER, "_uout1._ua = 0.0");
+        verifyIsInTranslation(GL_VERTEX_SHADER, "_uout1._ub = 0.0");
+    }
+    else
+    {
+        verifyIsInTranslation(GL_VERTEX_SHADER, "_uout1 = _uMyS(");
+    }
 }
 
 // Test the initialization of a varying variable in an ESSL1 vertex shader.
@@ -318,6 +384,139 @@ TEST_P(GLSLOutputGLSLVerifyIRUseTest, Basic)
         verifyIsNotInTranslation(GL_FRAGMENT_SHADER, "return");
     }
 }
+
+class GLSLOutputMSLTest_EnsureLoopForwardProgress : public GLSLOutputTest
+{};
+
+// Test that loopForwardProgress() is not inserted when the for loop is obviously not an infinite
+// loop.
+TEST_P(GLSLOutputMSLTest_EnsureLoopForwardProgress, FiniteBasicFor)
+{
+    constexpr char kFS[] = R"(#version 300 es
+void main() {
+    for (highp int i = 0; i < 100; ++i) { }
+})";
+    compileShader(GL_FRAGMENT_SHADER, kFS);
+    // The AST transformation (EnsureLoopForwardProgress ) expects a |for| loop, but the IR changes
+    // it to |while| before that's run.  So when the IR is used, the test would fail as the
+    // transformaiton is unable to correctly detect finite loops.
+    //
+    // Once the transformation is ported to the IR, the test verification can be enabled.
+    if (!getEGLWindow()->isFeatureEnabled(Feature::UseIr))
+    {
+        verifyIsNotInTranslation(GL_FRAGMENT_SHADER, "loopForwardProgress");
+    }
+}
+
+// Test that loopForwardProgress() is inserted when the for loop is an infinite loop.
+TEST_P(GLSLOutputMSLTest_EnsureLoopForwardProgress, InfiniteFor)
+{
+    constexpr char kFS[] = R"(#version 300 es
+void main() {
+    for (highp int i = 0; i < 100; i++) { i = 0; }
+})";
+    compileShader(GL_FRAGMENT_SHADER, kFS);
+    if (!getEGLWindow()->isFeatureEnabled(Feature::UseIr))
+    {
+        // One occurrence for defining |loopForwardProgress()|, and one call in the loop.
+        verifyCountInTranslation(GL_FRAGMENT_SHADER, "loopForwardProgress", 1 + 1);
+    }
+}
+
+// Test that loopForwardProgress() is inserted when nested for loops are infinite loops.
+TEST_P(GLSLOutputMSLTest_EnsureLoopForwardProgress, InfiniteNestedFor)
+{
+    constexpr char kFS[] = R"(#version 300 es
+void main() {
+    for (highp int i = 0; i < 100; i++)
+    {
+        for (highp int j = 0; j < 100; j++)
+        {
+            j = 0;
+        }
+        i = 0;
+    }
+})";
+    compileShader(GL_FRAGMENT_SHADER, kFS);
+    if (!getEGLWindow()->isFeatureEnabled(Feature::UseIr))
+    {
+        // One occurrence for defining |loopForwardProgress()|, and one call in each loop.
+        verifyCountInTranslation(GL_FRAGMENT_SHADER, "loopForwardProgress", 2 + 1);
+    }
+}
+
+// Test that loopForwardProgress() is not inserted when the for loop is not an infinite loop,
+// testing various tricky loops.
+TEST_P(GLSLOutputMSLTest_EnsureLoopForwardProgress, FiniteFors)
+{
+    const char kShaderPrefix[] = R"(#version 300 es
+precision highp int;
+uniform int a;
+uniform uint b;
+void main() {
+
+)";
+    const char kShaderSuffix[] = "}\n";
+    const char *kTests[]{"int i = 101; for (; i < 10; i++) { }",
+                         "int i = 101; for (; i < 10; i+=1) { }",
+                         "int i = 101; for (; i < 10; i-=1) { }",
+                         "for (int i = 0; i < 10; i++) { }",
+                         "for (int i = 0; i < a; i++) { }",
+                         "for (int i = 0; i < 100000/2; ++i) { }",
+                         "for (uint i = 0u; i < 10u; i++) { }",
+                         "for (uint i = 0u; i < b; i++) { }",
+                         "for (uint i = 0u; i < 100000u/2u; ++i) { }",
+                         "for (uint i = 0u; i < 4294967295u; ++i) { }",
+                         "for (uint i = 10u; i > 1u+3u ; --i) { }",
+                         "const int z = 7; for (int i = 0; i < z; i++) { }",
+                         "for (int i = 0; i < 10; i++) { for (int j = 0; j < 1000; ++j) { }}"};
+
+    for (const char *test : kTests)
+    {
+        std::string shader = (std::stringstream() << kShaderPrefix << test << kShaderSuffix).str();
+        compileShader(GL_FRAGMENT_SHADER, shader.c_str());
+        if (!getEGLWindow()->isFeatureEnabled(Feature::UseIr))
+        {
+            verifyIsNotInTranslation(GL_FRAGMENT_SHADER, "loopForwardProgress");
+        }
+    }
+}
+
+// Test that loopForwardProgress() is inserted when the for loop is an infinite loop,
+// testing various tricky loops.
+TEST_P(GLSLOutputMSLTest_EnsureLoopForwardProgress, InfiniteFors)
+{
+    const char kShaderPrefix[] = R"(#version 300 es
+precision highp int;
+uniform int a;
+uniform uint b;
+void main() {
+
+)";
+    const char kShaderSuffix[] = "}\n";
+    const char *kTests[]{"for (;;) { }",
+                         "for (bool b = true; b; b = false) { }",
+                         "for (int i = 0; i < 10;) { }",
+                         "int i = 101; for (; i < 10; i+=2) { }",
+                         "int i = 101; for (; i < 10; i-=2) { }",
+                         "int z = 7; for (int i = 0; i < z; i++) { }",
+                         "for (int i = 0; i < 10; i++) { i++; }",
+                         "for (int i = 0; i < 10;) { i++; }",
+                         "for (int i = 0; i < a/2; i++) { }",
+                         "for (int i = 0; float(i) < 10e10; ++i) { }",
+                         "for (int i = 0; i < 10; i++) { for (int j = 0; j < 1000; ++i) { }}",
+                         "for (int i = 0; i != 1; i+=2) { }"};
+
+    for (const char *test : kTests)
+    {
+        std::string shader = (std::stringstream() << kShaderPrefix << test << kShaderSuffix).str();
+        compileShader(GL_FRAGMENT_SHADER, shader.c_str());
+        if (!getEGLWindow()->isFeatureEnabled(Feature::UseIr))
+        {
+            verifyIsInTranslation(GL_FRAGMENT_SHADER, "loopForwardProgress");
+        }
+    }
+}
 }  // namespace
 
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(GLSLOutputGLSLTest);
@@ -343,3 +542,7 @@ ANGLE_INSTANTIATE_TEST(GLSLOutputGLSLVerifyIRUseTest,
                        ES2_OPENGLES(),
                        ES2_OPENGL().disable(Feature::UseIr),
                        ES2_OPENGLES().disable(Feature::UseIr));
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(GLSLOutputMSLTest_EnsureLoopForwardProgress);
+ANGLE_INSTANTIATE_TEST(GLSLOutputMSLTest_EnsureLoopForwardProgress,
+                       ES3_METAL().enable(Feature::EnsureLoopForwardProgress));

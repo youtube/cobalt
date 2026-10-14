@@ -19,9 +19,6 @@
 #include "chrome/browser/preloading/scoped_prewarm_feature_list.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/safe_browsing/chrome_enterprise_url_lookup_service_factory.h"
-#if BUILDFLAG(IS_CHROMEOS)
-#include "chrome/browser/ui/ash/test_util.h"
-#endif
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands_mac.h"
 #include "chrome/browser/ui/browser_navigator.h"
@@ -48,6 +45,7 @@
 #include "chrome/browser/ui/views/side_panel/side_panel.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_coordinator.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_util.h"
+#include "chrome/browser/ui/views/tabs/tab_accessibility.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/pref_names.h"
@@ -65,8 +63,8 @@
 #include "components/policy/core/common/policy_types.h"
 #include "components/prefs/pref_service.h"
 #include "components/safe_browsing/core/browser/realtime/fake_url_lookup_service.h"
+#include "components/split_tabs/split_tab_visual_data.h"
 #include "components/tabs/public/split_tab_collection.h"
-#include "components/tabs/public/split_tab_visual_data.h"
 #include "content/public/browser/invalidate_type.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
@@ -93,6 +91,11 @@
 
 #if BUILDFLAG(IS_OZONE)
 #include "ui/ozone/public/ozone_platform.h"
+#endif
+
+#if BUILDFLAG(IS_CHROMEOS)
+#include "chrome/browser/ash/boca/on_task/on_task_locked_controller.h"
+#include "chrome/browser/ui/ash/test_util.h"
 #endif
 
 class BrowserViewTest : public InProcessBrowserTest {
@@ -278,13 +281,15 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTest, CloseWithTabsStartWithActive) {
 
 #if BUILDFLAG(IS_CHROMEOS)
 IN_PROC_BROWSER_TEST_F(BrowserViewTest, OnTaskLockedBrowserView) {
-  browser()->SetLockedForOnTask(true);
+  ash::boca::OnTaskLockedController::From(browser())->set_locked_for_on_task(
+      true);
   EXPECT_FALSE(browser_view()->CanMinimize());
   EXPECT_FALSE(browser_view()->ShouldShowCloseButton());
 }
 
 IN_PROC_BROWSER_TEST_F(BrowserViewTest, OnTaskUnlockedBrowserView) {
-  browser()->SetLockedForOnTask(false);
+  ash::boca::OnTaskLockedController::From(browser())->set_locked_for_on_task(
+      false);
   EXPECT_TRUE(browser_view()->CanMinimize());
   EXPECT_TRUE(browser_view()->ShouldShowCloseButton());
 }
@@ -296,7 +301,7 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTest, DevToolsDockedUpdatesBrowserWindow) {
 #if BUILDFLAG(IS_OZONE)
   // Ozone/wayland doesn't support getting/setting window position in global
   // screen coordinates. So this test is not applicable.
-  if (ui::OzonePlatform::GetPlatformNameForTest() == "wayland") {
+  if (ui::OzonePlatform::RunningOnWaylandForTest()) {
     GTEST_SKIP();
   }
 #endif
@@ -340,7 +345,7 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTest, DevToolsUndockedUpdatesBrowserWindow) {
 #if BUILDFLAG(IS_OZONE)
   // Ozone/wayland doesn't support getting/setting window position in global
   // screen coordinates. So this test is not applicable.
-  if (ui::OzonePlatform::GetPlatformNameForTest() == "wayland") {
+  if (ui::OzonePlatform::RunningOnWaylandForTest()) {
     GTEST_SKIP();
   }
 #endif
@@ -379,8 +384,8 @@ void SetDevToolsWindowSizePrefs(Browser* browser,
                                 int bottom) {
   PrefService* prefs = browser->GetProfile()->GetPrefs();
   ScopedDictPrefUpdate update(prefs, prefs::kAppWindowPlacement);
-  base::Value::Dict& wp_prefs = update.Get();
-  base::Value::Dict dev_tools_defaults;
+  base::DictValue& wp_prefs = update.Get();
+  base::DictValue dev_tools_defaults;
   dev_tools_defaults.Set("left", left);
   dev_tools_defaults.Set("right", right);
   dev_tools_defaults.Set("top", top);
@@ -390,7 +395,7 @@ void SetDevToolsWindowSizePrefs(Browser* browser,
   wp_prefs.Set(DevToolsWindow::kDevToolsApp, std::move(dev_tools_defaults));
 }
 
-const base::Value::Dict& GetDevToolsWindowSizePrefs(Browser* browser) {
+const base::DictValue& GetDevToolsWindowSizePrefs(Browser* browser) {
   PrefService* prefs = browser->GetProfile()->GetPrefs();
   return prefs->GetDict(prefs::kAppWindowPlacement)
       .Find(DevToolsWindow::kDevToolsApp)
@@ -398,7 +403,7 @@ const base::Value::Dict& GetDevToolsWindowSizePrefs(Browser* browser) {
 }
 
 auto HasDimensions(int left, int right, int top, int bottom) {
-  return base::test::DictionaryHasValues(base::Value::Dict()
+  return base::test::DictionaryHasValues(base::DictValue()
                                              .Set("left", left)
                                              .Set("right", right)
                                              .Set("top", top)
@@ -409,7 +414,7 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTest, DevToolsWindowDefaultSize) {
 #if BUILDFLAG(IS_OZONE)
   // Ozone/wayland doesn't support getting/setting window position in global
   // screen coordinates. So this test is not applicable.
-  if (ui::OzonePlatform::GetPlatformNameForTest() == "wayland") {
+  if (ui::OzonePlatform::RunningOnWaylandForTest()) {
     GTEST_SKIP();
   }
 #endif
@@ -424,7 +429,7 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTest, DevToolsWindowKeepsSize) {
 #if BUILDFLAG(IS_OZONE)
   // Ozone/wayland doesn't support getting/setting window position in global
   // screen coordinates. So this test is not applicable.
-  if (ui::OzonePlatform::GetPlatformNameForTest() == "wayland") {
+  if (ui::OzonePlatform::RunningOnWaylandForTest()) {
     GTEST_SKIP();
   }
 #endif
@@ -442,7 +447,7 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTest, DevToolsWindowResetsSize) {
 #if BUILDFLAG(IS_OZONE)
   // Ozone/wayland doesn't support getting/setting window position in global
   // screen coordinates. So this test is not applicable.
-  if (ui::OzonePlatform::GetPlatformNameForTest() == "wayland") {
+  if (ui::OzonePlatform::RunningOnWaylandForTest()) {
     GTEST_SKIP();
   }
 #endif
@@ -807,7 +812,7 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTest,
 }
 
 // TODO(crbug.com/425715421): Re-enable when wayland supports drag and drop
-#if !BUILDFLAG(IS_OZONE_WAYLAND)
+#if !BUILDFLAG(SUPPORTS_OZONE_WAYLAND)
 #define MAYBE_DragNotSupportedInFullscreen DragNotSupportedInFullscreen
 #else
 #define MAYBE_DragNotSupportedInFullscreen DISABLED_DragNotSupportedInFullscreen
@@ -889,13 +894,15 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTest, AccessibleTabLabel) {
                 l10n_util::GetStringFUTF16(
                     IDS_TAB_AX_LABEL_SPLIT_TAB_LEFT_VIEW_FORMAT,
                     browser()->GetTitleForTab(0))),
-            browser_view()->GetAccessibleTabLabel(0));
+            tabs::GetAccessibleTabLabel(
+                browser()->tab_strip_model()->GetTabAtIndex(0), false));
   EXPECT_EQ(l10n_util::GetStringFUTF16(
                 IDS_TAB_AX_LABEL_PINNED_FORMAT,
                 l10n_util::GetStringFUTF16(
                     IDS_TAB_AX_LABEL_SPLIT_TAB_RIGHT_VIEW_FORMAT,
                     browser()->GetTitleForTab(1))),
-            browser_view()->GetAccessibleTabLabel(1));
+            tabs::GetAccessibleTabLabel(
+                browser()->tab_strip_model()->GetTabAtIndex(1), false));
 
   // Create a split.
   chrome::AddTabAt(browser(), GURL(), -1, true);
@@ -907,11 +914,13 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTest, AccessibleTabLabel) {
   EXPECT_EQ(
       l10n_util::GetStringFUTF16(IDS_TAB_AX_LABEL_SPLIT_TAB_LEFT_VIEW_FORMAT,
                                  browser()->GetTitleForTab(2)),
-      browser_view()->GetAccessibleTabLabel(2));
+      tabs::GetAccessibleTabLabel(
+          browser()->tab_strip_model()->GetTabAtIndex(2), false));
   EXPECT_EQ(
       l10n_util::GetStringFUTF16(IDS_TAB_AX_LABEL_SPLIT_TAB_RIGHT_VIEW_FORMAT,
                                  browser()->GetTitleForTab(3)),
-      browser_view()->GetAccessibleTabLabel(3));
+      tabs::GetAccessibleTabLabel(
+          browser()->tab_strip_model()->GetTabAtIndex(3), false));
 
   // Create a grouped split.
   chrome::AddTabAt(browser(), GURL(), -1, true);
@@ -926,13 +935,15 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTest, AccessibleTabLabel) {
                 l10n_util::GetStringFUTF16(
                     IDS_TAB_AX_LABEL_SPLIT_TAB_LEFT_VIEW_FORMAT,
                     browser()->GetTitleForTab(4))),
-            browser_view()->GetAccessibleTabLabel(4));
+            tabs::GetAccessibleTabLabel(
+                browser()->tab_strip_model()->GetTabAtIndex(4), false));
   EXPECT_EQ(l10n_util::GetStringFUTF16(
                 IDS_TAB_AX_LABEL_UNNAMED_GROUP_FORMAT,
                 l10n_util::GetStringFUTF16(
                     IDS_TAB_AX_LABEL_SPLIT_TAB_RIGHT_VIEW_FORMAT,
                     browser()->GetTitleForTab(5))),
-            browser_view()->GetAccessibleTabLabel(5));
+            tabs::GetAccessibleTabLabel(
+                browser()->tab_strip_model()->GetTabAtIndex(5), false));
 }
 
 #if BUILDFLAG(IS_MAC)
@@ -1215,7 +1226,7 @@ class BrowserViewScrimPixelTest : public UiBrowserTest {
   }
 
   void WaitForUserDismissal() override {
-    ui_test_utils::WaitForBrowserToClose();
+    ui_test_utils::BrowserDestroyedObserver().Wait();
   }
 };
 

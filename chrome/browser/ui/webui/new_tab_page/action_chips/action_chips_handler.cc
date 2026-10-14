@@ -12,18 +12,18 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/history/history_service_factory.h"
+#include "chrome/browser/contextual_search/contextual_search_web_contents_helper.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/webui/new_tab_page/action_chips/action_chips.mojom.h"
 #include "chrome/browser/ui/webui/new_tab_page/action_chips/action_chips_generator.h"
+#include "chrome/browser/ui/webui/new_tab_page/action_chips/action_chips_metrics.h"
 #include "chrome/browser/ui/webui/new_tab_page/action_chips/tab_id_generator.h"
+#include "chrome/browser/ui/webui/new_tab_page/new_tab_page_ui.h"
+#include "components/contextual_search/contextual_search_metrics_recorder.h"
+#include "components/contextual_search/contextual_search_service.h"
+#include "components/contextual_search/contextual_search_session_handle.h"
 #include "components/google/core/common/google_util.h"
-#include "components/history/core/browser/history_service.h"
-#include "components/history/core/browser/history_types.h"
-#include "components/history/core/browser/url_row.h"
-#include "components/keyed_service/core/service_access_type.h"
-#include "components/page_content_annotations/core/page_content_annotations_features.h"
 #include "components/search/ntp_features.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "components/tabs/public/tab_interface.h"
@@ -36,6 +36,8 @@
 #include "url/mojom/url.mojom.h"
 
 namespace {
+using ::action_chips::RecordActionChipsRetrievalLatencyMetrics;
+using ::action_chips::RecordImpressionMetrics;
 using ::action_chips::mojom::ActionChip;
 using ::action_chips::mojom::ActionChipPtr;
 using ::action_chips::mojom::ChipType;
@@ -89,19 +91,6 @@ TabInterface* FindMostRecentTab(content::WebUI& web_ui) {
   return most_recent_tab;
 }
 
-// Helper method to record impression metrics for the generated chips.
-void RecordImpressionMetrics(const std::vector<ActionChipPtr>& chips) {
-  for (const auto& chip : chips) {
-    base::UmaHistogramEnumeration("NewTabPage.ActionChips.Shown", chip->type);
-  }
-}
-
-// Helper method to record latency metrics for action chips retrieval.
-void RecordActionChipsRetrievalLatencyMetrics(base::TimeDelta latency) {
-  base::UmaHistogramTimes(
-      "NewTabPage.ActionChips.Handler.ActionChipsRetrievalLatency", latency);
-}
-
 bool IsTabReadyForActionChipsRetrieval(content::WebContents* web_contents,
                                        const TabStripModelChange& change) {
   if (web_contents == nullptr) {
@@ -127,10 +116,7 @@ ActionChipsHandler::ActionChipsHandler(
       page_(std::move(page)),
       profile_(profile),
       web_ui_(web_ui),
-      action_chips_generator_(std::move(action_chips_generator)),
-      history_service_(HistoryServiceFactory::GetForProfile(
-          profile_,
-          ServiceAccessType::IMPLICIT_ACCESS)) {
+      action_chips_generator_(std::move(action_chips_generator)) {
   content::WebContents* web_contents = web_ui_->GetWebContents();
   auto* browser_window_interface =
       webui::GetBrowserWindowInterface(web_contents);
@@ -147,25 +133,15 @@ void ActionChipsHandler::StartActionChipsRetrieval() {
     return;
   }
 
-  TabInterface* tab = FindMostRecentTab(*web_ui_);
+  TabInterface* tab = nullptr;
+  if (contextual_search::ContextualSearchService::IsContextSharingEnabled(
+          profile_->GetPrefs())) {
+    tab = FindMostRecentTab(*web_ui_);
+  }
 
-  // Check sensitivity of tab, if tab available and sensitivity checking
-  // is available.
-  if (ntp_features::kNtpNextClientSensitivityCheckParam.Get() &&
-      tab != nullptr &&
-      page_content_annotations::features::
-          ShouldExecutePageVisibilityModelOnPageContent(
-              g_browser_process->GetApplicationLocale()) &&
-      history_service_) {
-    history::QueryOptions options;
-    options.max_count = 1;
-    auto tab_url = tab->GetContents()->GetLastCommittedURL().spec();
-    history_service_->QueryHistory(
-        base::UTF8ToUTF16(tab_url), options,
-        base::BindOnce(&ActionChipsHandler::OnGetHistoryData,
-                       weak_factory_.GetWeakPtr(), std::move(tab),
-                       std::move(start_time)),
-        &cancelable_task_tracker_);
+  const GURL current_url =
+      tab != nullptr ? tab->GetContents()->GetLastCommittedURL() : GURL();
+  if (ShouldThrottleRetrieval(current_url)) {
     return;
   }
 
@@ -173,6 +149,25 @@ void ActionChipsHandler::StartActionChipsRetrieval() {
       std::move(tab),
       base::BindOnce(&ActionChipsHandler::SendActionChipsToUi,
                      weak_factory_.GetWeakPtr(), std::move(start_time)));
+}
+
+void ActionChipsHandler::ActivateMetricsFunnel(const std::string& funnel_name) {
+  auto* controller = web_ui_->GetController();
+  NewTabPageUI* ntp_ui =
+      controller ? controller->GetAs<NewTabPageUI>() : nullptr;
+  if (!ntp_ui) {
+    return;
+  }
+
+  auto* session_handle = ntp_ui->GetOrCreateContextualSessionHandle();
+  if (!session_handle) {
+    return;
+  }
+
+  auto* metrics_recorder = session_handle->GetMetricsRecorder();
+  if (metrics_recorder) {
+    metrics_recorder->ActivateMetricsFunnel(funnel_name);
+  }
 }
 
 void ActionChipsHandler::SendActionChipsToUi(base::TimeTicks start_time,
@@ -190,6 +185,7 @@ void ActionChipsHandler::SendActionChipsToUi(base::TimeTicks start_time,
 
   RecordActionChipsRetrievalLatencyMetrics(base::TimeTicks::Now() - start_time);
   RecordImpressionMetrics(chips);
+  action_chips::RecordActionChipsAnyShown(!chips.empty());
 
   page_->OnActionChipsChanged(std::move(chips));
 }
@@ -204,16 +200,10 @@ void ActionChipsHandler::OnTabStripModelChanged(
   StartActionChipsRetrieval();
 }
 
-void ActionChipsHandler::OnGetHistoryData(const TabInterface* tab,
-                                          base::TimeTicks start_time,
-                                          history::QueryResults results) {
-  bool is_sensitive =
-      results.empty() ||
-      results[0].content_annotations().model_annotations.visibility_score <=
-          0.70;
-
-  action_chips_generator_->GenerateActionChips(
-      is_sensitive ? nullptr : std::move(tab),
-      base::BindOnce(&ActionChipsHandler::SendActionChipsToUi,
-                     weak_factory_.GetWeakPtr(), std::move(start_time)));
+bool ActionChipsHandler::ShouldThrottleRetrieval(const GURL& current_url) {
+  if (last_processed_url_ == current_url) {
+    return true;
+  }
+  last_processed_url_ = current_url;
+  return false;
 }

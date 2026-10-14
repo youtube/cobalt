@@ -434,7 +434,7 @@ public class MultiInstanceManagerImpl extends MultiInstanceManager
 
         killOtherTask();
         RecordUserAction.record("Android.MergeState.Live");
-        mTabModelOrchestratorSupplier.get().mergeState();
+        assumeNonNull(mTabModelOrchestratorSupplier.get()).mergeState();
     }
 
     @SuppressLint("NewApi")
@@ -455,11 +455,6 @@ public class MultiInstanceManagerImpl extends MultiInstanceManager
 
     @Override
     public void moveTabsToOtherWindow(List<Tab> tabs, @NewWindowAppSource int source) {
-        if (MultiWindowUtils.getInstanceCountWithFallback(PersistedInstanceType.ACTIVE) == 1) {
-            moveTabsToNewWindow(tabs, source);
-            return;
-        }
-
         Intent intent = mMultiWindowModeStateDispatcher.getOpenInOtherWindowIntent();
         if (intent == null) return;
 

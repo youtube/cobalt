@@ -335,7 +335,9 @@ void VideoEncoderWrapper::OnEncodedFrame(
 
   CodecSpecificInfo info(ParseCodecSpecificInfo(frame));
 
-  callback_->OnEncodedImage(frame_copy, &info);
+  if (callback_) {
+    callback_->OnEncodedImage(frame_copy, &info);
+  }
 }
 
 int32_t VideoEncoderWrapper::HandleReturnCode(JNIEnv* jni,
@@ -395,7 +397,7 @@ int VideoEncoderWrapper::ParseQp(ArrayView<const uint8_t> buffer) {
 
 CodecSpecificInfo VideoEncoderWrapper::ParseCodecSpecificInfo(
     const EncodedImage& frame) {
-  const bool key_frame = frame._frameType == VideoFrameType::kVideoFrameKey;
+  const bool key_frame = frame.IsKey();
 
   CodecSpecificInfo info;
   // For stream with scalability, NextFrameConfig should be called before

@@ -626,6 +626,7 @@ try/linux-gcc-rel
 try/linux-headless-shell-rel
 try/linux-js-coverage-rel
 try/linux-libfuzzer-asan-rel
+try/linux-metadata-validator
 try/linux-msan-chained-origins-rel
 try/linux-msan-no-origins-rel
 try/linux-oi-rel
@@ -633,7 +634,6 @@ try/linux-perfetto-rel
 try/linux-presubmit
 try/linux-rel
 try/linux-rel-cft
-try/linux-rel-test-selection
 try/linux-swangle-chromium-try-x64
 try/linux-swangle-chromium-try-x64-exp
 try/linux-swangle-try-tot-swiftshader-x64

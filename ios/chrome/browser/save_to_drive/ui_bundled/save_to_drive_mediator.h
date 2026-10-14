@@ -11,6 +11,7 @@
 
 @protocol AccountPickerCommands;
 @protocol AccountPickerConsumer;
+class AuthenticationService;
 class ChromeAccountManagerService;
 @protocol FileDestinationPickerConsumer;
 @protocol ManageStorageAlertCommands;
@@ -20,6 +21,10 @@ class PrefService;
 
 namespace drive {
 class DriveService;
+}
+
+namespace signin {
+class IdentityManager;
 }
 
 namespace web {
@@ -34,16 +39,18 @@ class DownloadTask;
     destinationPickerConsumer;
 
 // Initialization
-- (instancetype)initWithDownloadTask:(web::DownloadTask*)downloadTask
-                  saveToDriveHandler:(id<SaveToDriveCommands>)saveToDriveHandler
-           manageStorageAlertHandler:
-               (id<ManageStorageAlertCommands>)manageStorageAlertHandler
-                accountPickerHandler:
-                    (id<AccountPickerCommands>)accountPickerHandler
-                         prefService:(PrefService*)prefService
-               accountManagerService:
-                   (ChromeAccountManagerService*)accountManagerService
-                        driveService:(drive::DriveService*)driveService
+- (instancetype)
+         initWithDownloadTask:(web::DownloadTask*)downloadTask
+           saveToDriveHandler:(id<SaveToDriveCommands>)saveToDriveHandler
+    manageStorageAlertHandler:
+        (id<ManageStorageAlertCommands>)manageStorageAlertHandler
+         accountPickerHandler:(id<AccountPickerCommands>)accountPickerHandler
+                  prefService:(PrefService*)prefService
+        authenticationService:(AuthenticationService*)authenticationService
+        accountManagerService:
+            (ChromeAccountManagerService*)accountManagerService
+              identityManager:(signin::IdentityManager*)identityManager
+                 driveService:(drive::DriveService*)driveService
     NS_DESIGNATED_INITIALIZER;
 - (instancetype)init NS_UNAVAILABLE;
 

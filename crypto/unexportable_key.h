@@ -79,6 +79,11 @@ class CRYPTO_EXPORT UnexportableSigningKey {
   // Returns the underlying reference to a Keychain key owned by the current
   // instance.
   virtual SecKeyRef GetSecKeyRef() const = 0;
+#elif BUILDFLAG(IS_WIN)
+  // Will verify whether the key can be used to sign TLS 1.3 payloads as
+  // required by the spec. Specifically, it will verify whether RSA keys
+  // support the RSA-PSS algorithm with the expected salt lengths.
+  virtual bool SupportsTls13() = 0;
 #endif  // BUILDFLAG(IS_APPLE)
 
   // Typesafe downcast to `StatefulUnexportableSigningKey`. Returns nullptr if
@@ -205,8 +210,18 @@ class CRYPTO_EXPORT StatefulUnexportableKeyProvider
   // "com.example.foo", this will delete keys with application tags like
   // "com.example.foo.1", "com.example.foo.1234", etc, assuming the wrapped key
   // matches exactly.
-  virtual std::optional<size_t> DeleteSigningKeysSlowly(
+  virtual std::optional<size_t> DeleteWrappedKeysSlowly(
       base::span<const base::span<const uint8_t>> wrapped_keys) = 0;
+
+  // Deletes all state associated with the provided signing keys. Returns the
+  // number of keys deleted, or nullopt if unsuccessful. This can sometimes
+  // block, and therefore must not be called from the UI thread.
+  //
+  // NOTE: For macOS this will perform prefix matching on
+  // `Config::application_tag`. That is, only matching keys where the
+  // application tag starts with the `Config::application_tag` will be deleted.
+  virtual std::optional<size_t> DeleteSigningKeysSlowly(
+      base::span<const StatefulUnexportableSigningKey* const> signing_keys) = 0;
 
   // `DeleteAllSigningKeysSlowly()` deletes all state associated with all
   // signing keys matching `UnexportableKeyProvider::Config`.

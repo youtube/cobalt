@@ -18,12 +18,12 @@
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
-#include "chrome/browser/actor/actor_policy_checker.h"
+#include "chrome/browser/actor/actor_proto_conversion.h"
 #include "chrome/browser/actor/actor_tab_data.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/actor_test_util.h"
-#include "chrome/browser/actor/browser_action_util.h"
 #include "chrome/browser/glic/host/context/glic_page_context_fetcher.h"
+#include "chrome/browser/glic/host/glic.mojom-shared.h"
 #include "chrome/browser/glic/test_support/interactive_glic_test.h"
 #include "chrome/browser/glic/test_support/interactive_test_util.h"
 #include "chrome/common/actor/action_result.h"
@@ -34,6 +34,7 @@
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/test/browser_test_utils.h"
 #include "net/dns/mock_host_resolver.h"
+#include "testing/gmock/include/gmock/gmock-matchers.h"
 #include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "ui/base/interaction/element_identifier.h"
 
@@ -49,6 +50,9 @@ using apc::ClickAction;
 using ClickType = apc::ClickAction::ClickType;
 using ClickCount = apc::ClickAction::ClickCount;
 using apc::ContentNode;
+using ::content::EvalJs;
+using ::content::EvalJsResult;
+using ::content::JsReplace;
 using ::content::RenderFrameHost;
 using ::content::WebContents;
 using ::tabs::TabHandle;
@@ -79,7 +83,8 @@ GlicActorUiTest::GlicActorUiTest() {
       /*enabled_features=*/
       {// Increase timeout since tests are timing out with ASAN builds.
        {features::kGlic, {{"glic-max-loading-time-ms", "30000"}}},
-       {features::kGlicActor, {}},
+       {features::kGlicActor,
+        {{features::kGlicActorPolicyControlExemption.name, "true"}}},
        {features::kGlicActorToctouValidation, {}},
        {optimization_guide::features::
             kAnnotatedPageContentWithActionableElements,
@@ -94,9 +99,6 @@ void GlicActorUiTest::SetUpOnMainThread() {
   // Add rule for resolving cross origin host names.
   InteractiveGlicTest::SetUpOnMainThread();
   host_resolver()->AddRule("*", "127.0.0.1");
-  actor::ActorKeyedService::Get(browser()->profile())
-      ->GetPolicyChecker()
-      .set_act_on_web_for_testing(true);
 }
 
 const actor::ActorTask* GlicActorUiTest::GetActorTask() {
@@ -201,17 +203,53 @@ MultiStep GlicActorUiTest::ExecuteInGlic(
   }));
 }
 
-MultiStep GlicActorUiTest::CreateTask(actor::TaskId& out_task,
-                                      std::string_view title) {
-  return Steps(Do([this, &out_task, title = std::string(title)]() {
-    content::WebContents* glic_contents = GetGlicContents();
-    const int result =
-        content::EvalJs(
-            glic_contents,
-            content::JsReplace("client.browser.createTask({title: $1})", title))
-            .ExtractInt();
-    out_task = actor::TaskId(result);
-  }));
+MultiStep GlicActorUiTest::CreateTask(
+    actor::TaskId& out_task,
+    std::string_view title,
+    ExpectedCreateTaskResult expected_result) {
+  constexpr std::string kSuccess = "<SUCCESS>";
+  const std::string expected_result_string = std::visit(
+      absl::Overload{
+          [&](std::monostate) { return kSuccess; },
+          [](mojom::CreateTaskErrorReason r) { return base::ToString(r); },
+      },
+      expected_result);
+
+  auto result_buffer = std::make_unique<std::optional<EvalJsResult>>();
+  std::optional<EvalJsResult>* buffer_raw = result_buffer.get();
+
+  return Steps(
+      Do([this, buffer_raw, title = std::string(title)]() {
+        WebContents* glic_contents = GetGlicContents();
+        EvalJsResult result = EvalJs(glic_contents, JsReplace(R"JS(
+                (async () => {
+                  try {
+                    const id = await client.browser.createTask({title: $1});
+                    return id;
+                  } catch (err) {
+                    return -1 * err.reason;
+                  }
+                })();
+              )JS",
+                                                              title));
+        buffer_raw->emplace(result);
+      }),
+      CheckResult(
+          [&, result_in = std::move(result_buffer)]() {
+            EvalJsResult& result = result_in->value();
+            int returned_int = result.ExtractInt();
+            // Error codes are returned in the negative, since task IDs are
+            // positive.
+            if (returned_int < 0) {
+              auto error_code =
+                  static_cast<mojom::CreateTaskErrorReason>(-returned_int);
+              return base::ToString(error_code);
+            } else {
+              out_task = actor::TaskId(result.ExtractInt());
+              return kSuccess;
+            }
+          },
+          expected_result_string));
 }
 
 MultiStep GlicActorUiTest::CreateTabAction(
@@ -370,7 +408,11 @@ MultiStep GlicActorUiTest::RoundTrip(actor::TaskId& task_id) {
 }
 
 MultiStep GlicActorUiTest::StopActorTask() {
-  return Steps(Do([this, &task_id = task_id_]() {
+  return StopActorTask(task_id_);
+}
+
+MultiStep GlicActorUiTest::StopActorTask(actor::TaskId& task_id) {
+  return Steps(Do([this, &task_id]() {
                  content::WebContents* glic_contents = GetGlicContents();
                  std::string script = content::JsReplace(
                      "client.browser.stopActorTask($1);", task_id.value());
@@ -392,7 +434,7 @@ MultiStep GlicActorUiTest::PauseActorTask() {
 }
 
 MultiStep GlicActorUiTest::ResumeActorTask(
-    base::Value::Dict context_options,
+    base::DictValue context_options,
     ExpectedResumeResult expected_result) {
   static constexpr std::string_view kFailureString = "<Failure>";
 
@@ -470,7 +512,7 @@ MultiStep GlicActorUiTest::WaitForActorTaskState(
     mojom::ActorTaskState expected_state) {
   // WaitForActorTaskState doesn't reliably check the stopped state, since the
   // observable may have already been deleted.
-  // Use PrepareForStopStateChange/WaitForActorTaskStateToStopped instead.
+  // Use PrepareForStopStateChange/WaitForActorTaskStateChangeToStopped instead.
   EXPECT_NE(expected_state, mojom::ActorTaskState::kStopped);
 
   return Steps(Do([this, &task_id = task_id_, expected_state]() {
@@ -486,8 +528,18 @@ MultiStep GlicActorUiTest::WaitForActorTaskState(
   }));
 }
 
-MultiStep GlicActorUiTest::PrepareForStopStateChange() {
-  return Steps(Do([this, &task_id = task_id_]() {
+MultiStep GlicActorUiTest::StopActorTaskAndWait(actor::TaskId& task_id) {
+  // clang-format off
+  return Steps(
+    PrepareForStopStateChange(task_id),
+    StopActorTask(task_id),
+    WaitForActorTaskStateChangeToStopped()
+  );
+  // clang-format on
+}
+
+MultiStep GlicActorUiTest::PrepareForStopStateChange(actor::TaskId& task_id) {
+  return Steps(Do([this, &task_id]() {
     content::WebContents* glic_contents = GetGlicContents();
     std::string script = content::JsReplace(
         "window.taskStateObs = "
@@ -539,8 +591,8 @@ GlicActorUiTest::ActionProtoProvider GlicActorUiTest::ArbitraryStringProvider(
   return base::BindLambdaForTesting([str]() { return std::string(str); });
 }
 
-base::Value::Dict GlicActorUiTest::UpdatedContextOptions() {
-  return base::Value::Dict()
+base::DictValue GlicActorUiTest::UpdatedContextOptions() {
+  return base::DictValue()
       .Set("annotatedPageContent", true)
 #if BUILDFLAG(IS_LINUX)
       // TODO(https://crbug.com/40191775): Tests on Linux aren't producing
@@ -643,6 +695,23 @@ MultiStep GlicActorUiTest::CheckIsWebContentsCaptured(ui::ElementIdentifier tab,
         return tab_contents->IsBeingCaptured();
       },
       expected));
+}
+
+MultiStep GlicActorUiTest::CheckActorTaskState(actor::TaskId& task_id,
+                                               actor::ActorTask::State state) {
+  // clang-format off
+  auto steps = Steps(
+    CheckResult(
+      [&]() { return actor_service()->GetTask(task_id); },
+      testing::NotNull()
+    ),
+    CheckResult(
+      [&]() { return actor_service()->GetTask(task_id)->GetState(); },
+      state
+    )
+  );
+  // clang-format on
+  return steps;
 }
 
 MultiStep GlicActorUiTest::WaitForFrameSubmitted(ui::ElementIdentifier tab) {

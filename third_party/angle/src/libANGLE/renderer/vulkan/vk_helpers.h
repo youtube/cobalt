@@ -1812,7 +1812,6 @@ class RenderPassCommandBufferHelper final : public CommandBufferHelperCommon
     void fragmentShadingRateImageRead(ImageHelper *image);
 
     bool usesImage(const ImageHelper &image) const;
-    bool startedAndUsesImageWithBarrier(const ImageHelper &image) const;
 
     angle::Result flushToPrimary(Context *context,
                                  CommandsState *commandsState,
@@ -2111,6 +2110,13 @@ enum class TileMemory
     Prohibited,
 };
 
+enum class ImageFormatReinterpretability
+{
+    None,
+    ColorspaceOverrides,
+    Full,
+};
+
 constexpr VkImageAspectFlagBits IMAGE_ASPECT_DEPTH_STENCIL =
     static_cast<VkImageAspectFlagBits>(VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT);
 
@@ -2177,7 +2183,8 @@ class ImageHelper final : public Resource, public angle::Subject
                                bool hasProtectedContent,
                                TileMemory tileMemoryPreference,
                                YcbcrConversionDesc conversionDesc,
-                               const void *compressionControl);
+                               const void *compressionControl,
+                               ImageFormatReinterpretability formatReinterpretability);
     VkResult initMemory(ErrorContext *context,
                         VkMemoryPropertyFlags flags,
                         VkMemoryPropertyFlags excludedFlags,
@@ -2291,11 +2298,11 @@ class ImageHelper final : public Resource, public angle::Subject
     using ImageListFormats                          = std::array<VkFormat, kImageListFormatCount>;
     static const void *DeriveCreateInfoPNext(
         ErrorContext *context,
-        VkImageUsageFlags usage,
         angle::FormatID actualFormatID,
         const void *pNext,
         VkImageFormatListCreateInfoKHR *imageFormatListInfoStorage,
         ImageListFormats *imageListFormatsStorage,
+        ImageFormatReinterpretability formatReinterpretability,
         VkImageCreateFlags *createFlagsOut);
 
     // Check whether the given format supports the provided flags.
@@ -3406,12 +3413,6 @@ ANGLE_INLINE bool RenderPassCommandBufferHelper::usesImage(const ImageHelper &im
     return image.usedByCommandBuffer(mQueueSerial);
 }
 
-ANGLE_INLINE bool RenderPassCommandBufferHelper::startedAndUsesImageWithBarrier(
-    const ImageHelper &image) const
-{
-    return mRenderPassStarted && image.getBarrierQueueSerial() == mQueueSerial;
-}
-
 // A vector of image views, such as one per level or one per layer.
 using ImageViewVector = std::vector<ImageView>;
 
@@ -3655,8 +3656,8 @@ class ImageViewHelper final : angle::NonCopyable
             updateColorspace(image);
         }
     }
-    void updateSrgbWiteControlMode(const ImageHelper &image,
-                                   gl::SrgbWriteControlMode srgbWriteControl) const
+    void updateSrgbWriteControlMode(const ImageHelper &image,
+                                    gl::SrgbWriteControlMode srgbWriteControl) const
     {
         if (mColorspaceState.srgbWriteControl != srgbWriteControl)
         {

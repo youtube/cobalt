@@ -20,6 +20,7 @@
 #include "base/strings/string_util.h"
 #include "components/omnibox/browser/omnibox_prefs.h"
 #include "components/omnibox/common/omnibox_feature_configs.h"
+#include "components/omnibox/common/omnibox_features.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
 #include "components/search/search.h"
@@ -180,6 +181,67 @@ bool GetResponseFromPrefs(const PrefService* prefs,
     return false;
   }
   return true;
+}
+
+// Determines whether the specified tool mode is permitted based on the
+// allowed tools list within the `SearchboxConfig` rule set.
+bool IsToolAllowed(const omnibox::SearchboxConfig& config,
+                   omnibox::ToolMode tool_mode) {
+  if (config.has_rule_set()) {
+    for (const auto& allowed_tool : config.rule_set().allowed_tools()) {
+      if (allowed_tool == tool_mode) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+// Determines whether the specified input type is permitted based on the
+// allowed input types list within the `SearchboxConfig` rule set.
+bool IsInputTypeAllowed(const omnibox::SearchboxConfig& config,
+                        omnibox::InputType input_type) {
+  if (config.has_rule_set()) {
+    for (const auto& allowed_type : config.rule_set().allowed_input_types()) {
+      if (allowed_type == input_type) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+// Builds a fallback `SearchboxConfig` from the legacy eligibility fields in
+// `response`.
+void BuildFallbackConfig(const omnibox::AimEligibilityResponse& response,
+                         omnibox::SearchboxConfig& fallback_config) {
+  fallback_config.Clear();
+  auto* rule_set = fallback_config.mutable_rule_set();
+
+  if (response.is_deep_search_eligible()) {
+    rule_set->add_allowed_tools(omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH);
+    auto* tool_config = fallback_config.add_tool_configs();
+    tool_config->set_tool(omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH);
+    auto* deep_search_rule = rule_set->add_tool_rules();
+    deep_search_rule->set_tool(omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH);
+    deep_search_rule->set_allow_all_input_types(false);
+  }
+  if (response.is_canvas_eligible()) {
+    rule_set->add_allowed_tools(omnibox::ToolMode::TOOL_MODE_CANVAS);
+  }
+  if (response.is_image_generation_eligible()) {
+    rule_set->add_allowed_tools(omnibox::ToolMode::TOOL_MODE_IMAGE_GEN);
+    rule_set->add_allowed_tools(omnibox::ToolMode::TOOL_MODE_IMAGE_GEN_UPLOAD);
+    auto* tool_config = fallback_config.add_tool_configs();
+    tool_config->set_tool(omnibox::ToolMode::TOOL_MODE_IMAGE_GEN);
+    auto* image_gen_rule = rule_set->add_tool_rules();
+    image_gen_rule->set_tool(omnibox::ToolMode::TOOL_MODE_IMAGE_GEN);
+    image_gen_rule->add_allowed_input_types(
+        omnibox::InputType::INPUT_TYPE_LENS_IMAGE);
+  }
+  if (response.is_pdf_upload_eligible()) {
+    rule_set->add_allowed_input_types(omnibox::InputType::INPUT_TYPE_LENS_FILE);
+  }
 }
 
 }  // namespace
@@ -370,23 +432,53 @@ bool AimEligibilityService::IsAimEligible() const {
 }
 
 bool AimEligibilityService::IsPdfUploadEligible() const {
-  return IsEligibleByServer(most_recent_response_.is_pdf_upload_eligible());
+  bool server_eligible = IsInputTypeAllowed(
+      *GetSearchboxConfig(), omnibox::InputType::INPUT_TYPE_LENS_FILE);
+  return IsEligibleByServer(server_eligible);
 }
 
 bool AimEligibilityService::IsDeepSearchEligible() const {
-  return IsEligibleByServer(most_recent_response_.is_deep_search_eligible());
+  bool server_eligible = IsToolAllowed(
+      *GetSearchboxConfig(), omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH);
+  return IsEligibleByServer(server_eligible);
 }
 
 bool AimEligibilityService::IsCreateImagesEligible() const {
   if (is_off_the_record_) {
     return false;
   }
-  return IsEligibleByServer(
-      most_recent_response_.is_image_generation_eligible());
+  bool server_eligible =
+      IsToolAllowed(*GetSearchboxConfig(),
+                    omnibox::ToolMode::TOOL_MODE_IMAGE_GEN) &&
+      IsToolAllowed(*GetSearchboxConfig(),
+                    omnibox::ToolMode::TOOL_MODE_IMAGE_GEN_UPLOAD);
+  return IsEligibleByServer(server_eligible);
 }
 
 bool AimEligibilityService::IsCanvasEligible() const {
-  return IsEligibleByServer(most_recent_response_.is_canvas_eligible());
+  bool server_eligible =
+      IsToolAllowed(*GetSearchboxConfig(), omnibox::ToolMode::TOOL_MODE_CANVAS);
+  return IsEligibleByServer(server_eligible);
+}
+
+bool AimEligibilityService::HasAimUrlParams(const GURL& url) const {
+  for (const auto& rule : GetMostRecentResponse().aim_detection_url_rule()) {
+    int matched_params = 0;
+    for (const auto& required_param : rule.required_params()) {
+      std::string param_value;
+      if (!net::GetValueForKeyInQuery(url, required_param.key(),
+                                      &param_value) ||
+          param_value != required_param.value()) {
+        break;
+      }
+      matched_params++;
+    }
+    if (matched_params == rule.required_params_size()) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 const omnibox::AimEligibilityResponse&
@@ -401,10 +493,15 @@ AimEligibilityService::GetMostRecentResponseSource() const {
 
 const omnibox::SearchboxConfig* AimEligibilityService::GetSearchboxConfig()
     const {
-  if (most_recent_response_.has_searchbox_config()) {
+  // If the response has `SearchboxConfig` and the PEC API Feature is enabled,
+  // use `SearchboxConfig`.
+  if (most_recent_response_.has_searchbox_config() &&
+      base::FeatureList::IsEnabled(omnibox::kAimUsePecApi)) {
     return &most_recent_response_.searchbox_config();
   }
-  return nullptr;
+
+  BuildFallbackConfig(most_recent_response_, fallback_config_);
+  return &fallback_config_;
 }
 
 void AimEligibilityService::StartServerEligibilityRequestForDebugging() {
@@ -582,6 +679,12 @@ GURL AimEligibilityService::GetRequestUrl(
   replacements.SetPathStr(kRequestPath);
   replacements.SetQueryStr(kRequestQuery);
   GURL url = base_gurl.ReplaceComponents(replacements);
+
+  if (base::FeatureList::IsEnabled(omnibox::kAimUrlInterceptPassthrough) &&
+      !omnibox::kAimUrlInterceptionParams.Get().empty()) {
+    url = net::AppendQueryParameter(url, "url_intercept_params",
+                                    omnibox::kAimUrlInterceptionParams.Get());
+  }
 
   // Get the index of the primary account in the cookie jar.
   std::optional<size_t> session_index =

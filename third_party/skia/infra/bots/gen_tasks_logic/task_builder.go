@@ -233,6 +233,7 @@ func (b *TaskBuilder) asset(assets ...string) {
 func (b *TaskBuilder) usesBazel(hostOSArch string) {
 	archToPkg := map[string]string{
 		"linux_x64":   "bazelisk_linux_amd64",
+		"mac_arm64":   "bazelisk_mac_arm64",
 		"mac_x64":     "bazelisk_mac_amd64",
 		"windows_x64": "bazelisk_win_amd64",
 	}
@@ -253,7 +254,7 @@ func (b *TaskBuilder) usesCCache() {
 // shellsOutToBazel returns true if this task normally uses GN but some step
 // shells out to Bazel to build stuff, e.g. rust code.
 func (b *TaskBuilder) shellsOutToBazel() bool {
-	return b.ExtraConfig("Fontations", "RustPNG")
+	return b.ExtraConfig("Fontations", "RustPNG", "ICU4X")
 }
 
 func (b *TaskBuilder) usesCMake() {
@@ -401,6 +402,22 @@ func (b *TaskBuilder) usesPython() {
 	})
 	b.envPrefixes("VPYTHON_VIRTUALENV_ROOT", "cache/vpython3")
 	b.env("VPYTHON_LOG_TRACE", "1")
+}
+
+func (b *TaskBuilder) usesXCode() {
+	b.cipd(&specs.CipdPackage{
+		Name: "infra/tools/mac_toolchain/${platform}",
+		Path: "mac_toolchain",
+		// When this is updated, also update
+		// https://skia.googlesource.com/skcms.git/+/f1e2b45d18facbae2dece3aca673fe1603077846/infra/bots/gen_tasks.go#56
+		// and
+		// https://skia.googlesource.com/skia.git/+/main/infra/bots/recipe_modules/xcode/api.py#38
+		Version: "git_revision:0cb1e51344de158f72524c384f324465aebbcef2",
+	})
+	b.Spec.Caches = append(b.Spec.Caches, &specs.Cache{
+		Name: "xcode",
+		Path: "cache/Xcode.app",
+	})
 }
 
 func (b *TaskBuilder) usesLUCIAuth() {

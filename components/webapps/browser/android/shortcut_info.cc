@@ -205,15 +205,9 @@ void ShortcutInfo::UpdateFromManifest(const blink::mojom::Manifest& manifest) {
     }
   }
 
-  // Set the theme color based on the manifest value, if any.
-  theme_color = manifest.has_theme_color
-                    ? std::make_optional(manifest.theme_color)
-                    : std::nullopt;
-
-  // Set the background color based on the manifest value, if any.
-  background_color = manifest.has_background_color
-                         ? std::make_optional(manifest.background_color)
-                         : std::nullopt;
+  // Set the theme and background colors based on the manifest values, if any.
+  theme_color = manifest.theme_color;
+  background_color = manifest.background_color;
 
   // Set the icon urls based on the icons in the manifest, if any.
   icon_urls.clear();
@@ -258,23 +252,20 @@ void ShortcutInfo::UpdateFromManifest(const blink::mojom::Manifest& manifest) {
   int ideal_shortcut_icons_size_px =
       WebappsIconUtils::GetIdealShortcutIconSizeInPx();
   for (const auto& manifest_shortcut : shortcut_items) {
-    GURL best_url = blink::ManifestIconSelector::FindBestMatchingSquareIcon(
-        manifest_shortcut.icons, ideal_shortcut_icons_size_px,
-        /* minimum_icon_size_in_px= */ ideal_shortcut_icons_size_px / 2,
-        blink::mojom::ManifestImageResource_Purpose::ANY);
+    blink::ManifestIconSelectorParams shortcut_params;
+    shortcut_params.ideal_icon_size_in_px = ideal_shortcut_icons_size_px;
+    shortcut_params.minimum_icon_size_in_px = ideal_shortcut_icons_size_px / 2;
+    shortcut_params.purpose = blink::mojom::ManifestImageResource_Purpose::ANY;
+    auto shortcut_result = blink::ManifestIconSelector::FindBestMatchingIcon(
+        manifest_shortcut.icons, shortcut_params);
+    GURL best_url = shortcut_result ? shortcut_result->icon_url : GURL();
     best_shortcut_icon_urls.push_back(std::move(best_url));
   }
 
-  // Set the dark theme color based on the manifest value, if any.
-  dark_theme_color = manifest.has_dark_theme_color
-                         ? std::make_optional(manifest.dark_theme_color)
-                         : std::nullopt;
-
-  // Set the dark background color based on the manifest value, if any.
-  dark_background_color =
-      manifest.has_dark_background_color
-          ? std::make_optional(manifest.dark_background_color)
-          : std::nullopt;
+  // Set the dark theme and dark background colors based on the manifest values,
+  // if any.
+  dark_theme_color = manifest.dark_theme_color;
+  dark_background_color = manifest.dark_background_color;
 }
 
 void ShortcutInfo::UpdateBestSplashIcon(
@@ -284,19 +275,25 @@ void ShortcutInfo::UpdateBestSplashIcon(
   minimum_splash_image_size_in_px =
       WebappsIconUtils::GetMinimumSplashImageSizeInPx();
 
-  // Try fetcing maskable icon for splash image first, if can not find a best
-  // match, fallback to ANY icon.
-  splash_image_url = blink::ManifestIconSelector::FindBestMatchingSquareIcon(
-      manifest.icons, ideal_splash_image_size_in_px,
-      minimum_splash_image_size_in_px,
-      blink::mojom::ManifestImageResource_Purpose::MASKABLE);
-  is_splash_image_maskable = true;
-
-  if (!splash_image_url.is_valid()) {
-    splash_image_url = blink::ManifestIconSelector::FindBestMatchingSquareIcon(
-        manifest.icons, ideal_splash_image_size_in_px,
-        minimum_splash_image_size_in_px,
-        blink::mojom::ManifestImageResource_Purpose::ANY);
+  // Try fetching maskable icon for splash image first, if that fails, fallback
+  // to ANY icon.
+  blink::ManifestIconSelectorParams params;
+  params.ideal_icon_size_in_px = ideal_splash_image_size_in_px;
+  params.minimum_icon_size_in_px = minimum_splash_image_size_in_px;
+  params.purpose = blink::mojom::ManifestImageResource_Purpose::MASKABLE;
+  auto result =
+      blink::ManifestIconSelector::FindBestMatchingIcon(manifest.icons, params);
+  if (!result) {
+    params.purpose = blink::mojom::ManifestImageResource_Purpose::ANY;
+    result = blink::ManifestIconSelector::FindBestMatchingIcon(manifest.icons,
+                                                               params);
+  }
+  if (result) {
+    splash_image_url = result->icon_url;
+    is_splash_image_maskable =
+        result->icon_purpose ==
+        blink::mojom::ManifestImageResource_Purpose::MASKABLE;
+  } else {
     is_splash_image_maskable = false;
   }
 }

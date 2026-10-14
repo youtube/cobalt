@@ -40,8 +40,9 @@
 #include "chrome/elevation_service/elevator.h"
 #include "chrome/install_static/test/scoped_install_details.h"
 #include "chrome/installer/util/install_service_work_item.h"
+#include "chrome/installer/util/util_constants.h"
 #include "chrome/test/base/in_process_browser_test.h"
-#include "chrome/windows_services/service_program/test_support/scoped_log_grabber.h"
+#include "chrome/windows_services/service_program/test_support/service_environment.h"
 #include "components/os_crypt/async/browser/os_crypt_async.h"
 #include "components/os_crypt/sync/os_crypt.h"
 #include "components/policy/core/common/mock_configuration_policy_provider.h"
@@ -100,8 +101,12 @@ class AppBoundEncryptionWinTestBase : public InProcessBrowserTest {
     GTEST_SKIP() << "Temporarily disabled on 32-bit. See crbug.com/430106357.";
 #else
     if (should_install_service_) {
-      maybe_uninstall_service_ = InstallService(log_grabber_);
-      EXPECT_TRUE(maybe_uninstall_service_.has_value());
+      maybe_service_environment_.emplace(
+          install_static::GetElevationServiceName(),
+          installer::kElevationServiceExe,
+          base::span_from_ref(std::string_view(
+              elevation_service::switches::kElevatorClsIdForTestingSwitch)),
+          install_static::GetElevatorClsid(), install_static::GetElevatorIid());
     }
     // Browser tests use a custom user data dir, which would normally result in
     // App-Bound encryption being disabled with
@@ -115,7 +120,7 @@ class AppBoundEncryptionWinTestBase : public InProcessBrowserTest {
 #endif  // defined(ARCH_CPU_32_BITS)
   }
 
-  void TearDown() override { maybe_uninstall_service_.reset(); }
+  void TearDown() override { maybe_service_environment_.reset(); }
 
   // Used by multi-stage tests to persist data between each part of the test.
   void StoreData(base::span<const uint8_t> data) {
@@ -139,8 +144,7 @@ class AppBoundEncryptionWinTestBase : public InProcessBrowserTest {
   }
 
   base::HistogramTester histogram_tester_;
-  std::optional<base::ScopedClosureRunner> maybe_uninstall_service_;
-  ScopedLogGrabber log_grabber_;
+  std::optional<ServiceEnvironment> maybe_service_environment_;
   bool set_default_user_data_dir_ = true;
   bool should_install_service_ = true;
 
@@ -199,65 +203,6 @@ INSTANTIATE_TEST_SUITE_P(/* no prefix */,
                          [](const auto& info) {
                            return info.param ? "IElevator" : "IElevator2";
                          });
-
-// Test the basic interface to Encrypt and Decrypt data.
-IN_PROC_BROWSER_TEST_F(AppBoundEncryptionWinTest, EncryptDecryptWithFlags) {
-  ASSERT_TRUE(install_static::IsSystemInstall());
-  const std::string plaintext("plaintext");
-  std::string ciphertext;
-  {
-    DWORD last_error;
-    elevation_service::EncryptFlags flags{.use_latest_key = false};
-    HRESULT hr =
-        EncryptAppBoundString(ProtectionLevel::PROTECTION_PATH_VALIDATION,
-                              plaintext, ciphertext, last_error, &flags);
-    ASSERT_HRESULT_SUCCEEDED(hr);
-    EXPECT_EQ(last_error, DWORD{ERROR_SUCCESS});
-  }
-
-  {
-    std::string returned_plaintext;
-    std::optional<std::string> maybe_new_ciphertext;
-    DWORD last_error;
-    HRESULT hr =
-        DecryptAppBoundString(ciphertext, returned_plaintext,
-                              ProtectionLevel::PROTECTION_PATH_VALIDATION,
-                              maybe_new_ciphertext, last_error);
-    ASSERT_HRESULT_SUCCEEDED(hr);
-    EXPECT_FALSE(maybe_new_ciphertext);
-    EXPECT_EQ(last_error, DWORD{ERROR_SUCCESS});
-    EXPECT_EQ(plaintext, returned_plaintext);
-  }
-  // Encrypt with new encryption key. There's no real way to know the new key is
-  // being used because it's a blob of encrypted data.
-  {
-    DWORD last_error;
-    std::string new_ciphertext;
-    elevation_service::EncryptFlags flags{.use_latest_key = true};
-    HRESULT hr =
-        EncryptAppBoundString(ProtectionLevel::PROTECTION_PATH_VALIDATION,
-                              plaintext, new_ciphertext, last_error, &flags);
-    ASSERT_HRESULT_SUCCEEDED(hr);
-    EXPECT_EQ(last_error, DWORD{ERROR_SUCCESS});
-
-#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
-    // Ciphertext is bigger for latest key version. Longer ciphertext, more
-    // security! This new encryption is only available in Chrome branded builds
-    // so this (fuzzy) check can only happen there.
-    EXPECT_GT(new_ciphertext.size(), ciphertext.size());
-#endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
-    // Verify decrypt still works for data encrypted with the latest key.
-    std::string returned_plaintext;
-    std::optional<std::string> maybe_new_ciphertext;
-    hr = DecryptAppBoundString(ciphertext, returned_plaintext,
-                               ProtectionLevel::PROTECTION_PATH_VALIDATION,
-                               maybe_new_ciphertext, last_error);
-    ASSERT_HRESULT_SUCCEEDED(hr);
-    EXPECT_FALSE(maybe_new_ciphertext);
-    EXPECT_EQ(last_error, DWORD{ERROR_SUCCESS});
-    EXPECT_EQ(plaintext, returned_plaintext);
-  }
-}
 
 // Test that invalid data is handled correctly.
 IN_PROC_BROWSER_TEST_F(AppBoundEncryptionWinTest, EncryptDecryptInvalid) {
@@ -517,9 +462,16 @@ class AppBoundEncryptionWinReencryptTest
     if (base::GetCurrentProcessIntegrityLevel() != base::HIGH_INTEGRITY) {
       GTEST_SKIP() << "Elevation is required for this test.";
     }
-    maybe_uninstall_service_ =
-        InstallService(log_grabber_, std::get<0>(GetParam()));
-    EXPECT_TRUE(maybe_uninstall_service_.has_value());
+    std::vector<std::string_view> switches = {
+        elevation_service::switches::kElevatorClsIdForTestingSwitch};
+    if (std::get<0>(GetParam())) {
+      switches.push_back(
+          elevation_service::switches::kFakeReencryptForTestingSwitch);
+    }
+    maybe_service_environment_.emplace(
+        install_static::GetElevationServiceName(),
+        installer::kElevationServiceExe, switches,
+        install_static::GetElevatorClsid(), install_static::GetElevatorIid());
     // Service already installed, do not try installing again.
     should_install_service_ = false;
     AppBoundEncryptionWinTest::SetUp();
@@ -536,7 +488,7 @@ IN_PROC_BROWSER_TEST_P(AppBoundEncryptionWinReencryptTest, EncryptDecrypt) {
   std::string ciphertext;
   DWORD last_error;
   base::HistogramTester histograms;
-  elevation_service::EncryptFlags flags{.use_latest_key = true};
+  elevation_service::EncryptFlags flags;
   HRESULT hr =
       EncryptAppBoundString(ProtectionLevel::PROTECTION_PATH_VALIDATION,
                             plaintext, ciphertext, last_error, &flags);

@@ -45,7 +45,7 @@ bool MayReturnNullRenderingStyleForPseudoElement(
     PseudoId pseudo_id,
     const ComputedStyle* parent_style) {
   switch (pseudo_id) {
-    // We always create styles for ::column pseduo-elements to collect
+    // We always create styles for ::column pseudo-elements to collect
     // pseudo-element styles even if there are no matched properties.
     // E.g. if we only have ::column::scroll-marker {} rule, we need to create
     // a style for ::column.
@@ -174,7 +174,7 @@ const ComputedStyle* StyleResolverState::CloneStyle() const {
   return style_builder_->CloneStyle();
 }
 
-void StyleResolverState::UpdateLengthConversionData() {
+void StyleResolverState::UpdateLengthConversionData() const {
   css_to_length_conversion_data_ = CSSToLengthConversionData(
       *style_builder_, ParentStyle(), RootElementStyle(),
       GetDocument().GetStyleEngine().GetViewportSize(),
@@ -183,6 +183,14 @@ void StyleResolverState::UpdateLengthConversionData() {
           GetAnchorEvaluator(), StyleBuilder().PositionAnchor(),
           StyleBuilder().PositionAreaOffsets()),
       StyleBuilder().EffectiveZoom(), length_conversion_flags_, &GetElement());
+  if (should_update_line_height_) {
+    css_to_length_conversion_data_.SetLineHeightSize(
+        CSSToLengthConversionData::LineHeightSize(
+            style_builder_->GetFontSizeStyle(),
+            GetDocument().documentElement()->GetComputedStyle()));
+    should_update_line_height_ = false;
+  }
+  css_to_length_conversion_data_dirty_ = false;
   element_style_resources_.UpdateLengthConversionData(
       &css_to_length_conversion_data_);
 }
@@ -233,7 +241,7 @@ void StyleResolverState::SetParentStyle(const ComputedStyle* parent_style) {
   parent_style_ = std::move(parent_style);
   if (style_builder_) {
     // Need to update conversion data for 'lh' units.
-    UpdateLengthConversionData();
+    InvalidateLengthConversionData();
   }
 }
 
@@ -276,7 +284,7 @@ void StyleResolverState::LoadPendingResources() {
   }
 
   element_style_resources_.LoadPendingResources(StyleBuilder(),
-                                                css_to_length_conversion_data_);
+                                                CssToLengthConversionData());
 }
 
 SVGResource* StyleResolverState::GetSVGResource(
@@ -321,7 +329,7 @@ void StyleResolverState::SetWritingMode(WritingMode new_writing_mode) {
     return;
   }
   StyleBuilder().SetWritingMode(new_writing_mode);
-  UpdateLengthConversionData();
+  InvalidateLengthConversionData();
   font_builder_.DidChangeWritingMode();
 }
 
@@ -341,7 +349,7 @@ void StyleResolverState::SetTextSizeAdjust(
   StyleBuilder().SetTextSizeAdjust(new_text_size_adjust);
 
   // text-size-adjust affects font-size during style building.
-  UpdateLengthConversionData();
+  InvalidateLengthConversionData();
   font_builder_.DidChangeTextSizeAdjust();
 }
 
@@ -356,7 +364,7 @@ void StyleResolverState::SetPositionAnchor(
     const StylePositionAnchor& position_anchor) {
   if (StyleBuilder().PositionAnchor() != position_anchor) {
     StyleBuilder().SetPositionAnchor(position_anchor);
-    css_to_length_conversion_data_.SetAnchorData(
+    MutableCssToLengthConversionData().SetAnchorData(
         CSSToLengthConversionData::AnchorData(
             GetAnchorEvaluator(), position_anchor,
             StyleBuilder().PositionAreaOffsets()));
@@ -367,7 +375,7 @@ void StyleResolverState::SetPositionAreaOffsets(
     const std::optional<PositionAreaOffsets>& position_area_offsets) {
   if (StyleBuilder().PositionAreaOffsets() != position_area_offsets) {
     StyleBuilder().SetPositionAreaOffsets(position_area_offsets);
-    css_to_length_conversion_data_.SetAnchorData(
+    MutableCssToLengthConversionData().SetAnchorData(
         CSSToLengthConversionData::AnchorData(GetAnchorEvaluator(),
                                               StyleBuilder().PositionAnchor(),
                                               position_area_offsets));
@@ -441,16 +449,27 @@ CSSValue& StyleResolverState::ResolveGradients(CSSValue& value) const {
 
 void StyleResolverState::UpdateFont() {
   GetFontBuilder().CreateFont(StyleBuilder(), ParentStyle());
-  SetConversionFontSizes(CSSToLengthConversionData::FontSizes(
-      style_builder_->GetFontSizeStyle(), RootElementStyle()));
-  SetConversionZoom(StyleBuilder().EffectiveZoom());
+  if (css_to_length_conversion_data_dirty_) {
+    // Mutating values on css_to_length_conversion_data_ is pointless,
+    // they will be overwritten next time anyone asks for the object anyways.
+  } else {
+    SetConversionFontSizes(CSSToLengthConversionData::FontSizes(
+        style_builder_->GetFontSizeStyle(), RootElementStyle()));
+    SetConversionZoom(StyleBuilder().EffectiveZoom());
+  }
 }
 
 void StyleResolverState::UpdateLineHeight() {
-  css_to_length_conversion_data_.SetLineHeightSize(
-      CSSToLengthConversionData::LineHeightSize(
-          style_builder_->GetFontSizeStyle(),
-          GetDocument().documentElement()->GetComputedStyle()));
+  if (css_to_length_conversion_data_dirty_) {
+    // We need to defer this until we actually have
+    // css_to_length_conversion_data_.
+    should_update_line_height_ = true;
+  } else {
+    MutableCssToLengthConversionData().SetLineHeightSize(
+        CSSToLengthConversionData::LineHeightSize(
+            style_builder_->GetFontSizeStyle(),
+            GetDocument().documentElement()->GetComputedStyle()));
+  }
 }
 
 bool StyleResolverState::CanAffectAnimations() const {

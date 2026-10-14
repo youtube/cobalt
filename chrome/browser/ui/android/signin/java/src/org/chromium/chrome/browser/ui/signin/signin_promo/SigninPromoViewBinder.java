@@ -5,6 +5,7 @@
 package org.chromium.chrome.browser.ui.signin.signin_promo;
 
 import android.content.Context;
+import android.content.res.ColorStateList;
 import android.graphics.drawable.Drawable;
 import android.view.Gravity;
 import android.view.View;
@@ -59,6 +60,15 @@ final class SigninPromoViewBinder {
                     TextView accountTextPrimary = view.findViewById(R.id.account_text_primary);
                     TextView accountTextSecondary = view.findViewById(R.id.account_text_secondary);
                     accountTextPrimary.setText(profileData.getFullName());
+                    String fullName = profileData.getFullName();
+                    // If no displayable name is available, we hide it to make the email address
+                    // vertically centered.
+                    if (fullName != null && !fullName.isEmpty()) {
+                        accountTextPrimary.setText(fullName);
+                        accountTextPrimary.setVisibility(View.VISIBLE);
+                    } else {
+                        accountTextPrimary.setVisibility(View.GONE);
+                    }
                     accountTextSecondary.setText(profileData.getAccountEmail());
                     view.getSignedInPromoProfileImage().setImageDrawable(accountImage);
                 }
@@ -130,6 +140,15 @@ final class SigninPromoViewBinder {
                 } else {
                     showRegularState(seamlessSigninPromoType, view);
                 }
+            }
+        } else if (key == SigninPromoProperties.SELECTED_ACCOUNT_VIEW_BACKGROUND) {
+            if (seamlessSigninPromoType == SigninFeatureMap.SeamlessSigninPromoType.COMPACT) {
+                view.getSelectedAccountView()
+                        .setBackgroundTintList(
+                                ColorStateList.valueOf(
+                                        model.get(
+                                                SigninPromoProperties
+                                                        .SELECTED_ACCOUNT_VIEW_BACKGROUND)));
             }
         } else {
             throw new IllegalArgumentException("Unknown property key: " + key);

@@ -132,9 +132,8 @@ class TaskAnnotatorBacktraceIntegrationTest
     // upcoming VerifyTraceAndPost() will race to read the state saved in the
     // BeforeRunTask() hook preceding the current task.
     AutoLock auto_lock(on_before_run_task_lock_);
-    task_runner->PostTask(
-        FROM_HERE,
-        BindOnce(&WaitableEvent::Wait, Unretained(wait_before_next_task)));
+    task_runner->PostTask(FROM_HERE,
+                          wait_before_next_task->GetWaitCallbackForTesting());
     VerifyTraceAndPost(task_runner, posted_from, next_from_here, expected_trace,
                        expected_ipc_hash, std::move(task));
   }
@@ -448,6 +447,15 @@ TEST(SchedulerLoopQuarantineTaskControlledPurgeTest, PurgeAfterTaskCompletion) {
 #elif !PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC) || \
     !PA_CONFIG(THREAD_CACHE_SUPPORTED)
   GTEST_SKIP() << "This test requires PA-E and ThreadCache.";
+#elif PA_BUILDFLAG(IS_IOS)
+  // TODO(crbug.com/481985017): this test leaves the ThreadCache root in an
+  // invalid state, causing other tests running in the same process to fail
+  // when accessing the ThreadCache.
+  //
+  // Disable the test on platforms that cannot use multiple processes. Once
+  // the test has been fixed to restore the ThreadCache root to a valid state,
+  // then it can be enabled back on all platforms.
+  GTEST_SKIP() << "This test corrupts the ThreadCache roots.";
 #else
 
   EnableSchedulerLoopQuarantineTaskControlledPurge();

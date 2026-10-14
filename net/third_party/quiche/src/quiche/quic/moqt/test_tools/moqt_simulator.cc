@@ -137,9 +137,8 @@ ObjectGenerator::ObjectGenerator(quic::simulator::Simulator* simulator,
                                  float i_to_p_ratio,
                                  quic::QuicBandwidth bitrate)
     : Actor(simulator, actor_name),
-      queue_(std::make_shared<MoqtOutgoingQueue>(
-          track_name, MoqtForwardingPreference::kSubgroup,
-          simulator->GetClock())),
+      queue_(std::make_shared<MoqtOutgoingQueue>(track_name,
+                                                 simulator->GetClock())),
       keyframe_interval_(keyframe_interval),
       time_between_frames_(QuicTimeDelta::FromMicroseconds(1.0e6 / fps)),
       i_to_p_ratio_(i_to_p_ratio),
@@ -196,10 +195,10 @@ std::string ObjectGenerator::FormatBitrateHistory() const {
 
 void ObjectReceiver::OnReply(
     const FullTrackName& full_track_name,
-    std::variant<SubscribeOkData, MoqtErrorPair> response) {
+    std::variant<SubscribeOkData, MoqtRequestErrorInfo> response) {
   QUICHE_CHECK(full_track_name == TrackName());
-  if (std::holds_alternative<MoqtErrorPair>(response)) {
-    MoqtErrorPair error = std::get<MoqtErrorPair>(response);
+  if (std::holds_alternative<MoqtRequestErrorInfo>(response)) {
+    MoqtRequestErrorInfo error = std::get<MoqtRequestErrorInfo>(response);
     QUICHE_CHECK(!error.reason_phrase.empty()) << error.reason_phrase;
   }
 }
@@ -300,7 +299,6 @@ void MoqtSimulator::Run() {
   server_session()->set_support_object_acks(true);
   RunHandshakeOrDie(simulator_, client_endpoint_, server_endpoint_);
 
-  generator_.queue()->SetDeliveryOrder(parameters_.delivery_order);
   client_session()->set_publisher(&publisher_);
   if (parameters_.bitrate_adaptation) {
     client_session()->SetMonitoringInterfaceForTrack(TrackName(), &adjuster_);

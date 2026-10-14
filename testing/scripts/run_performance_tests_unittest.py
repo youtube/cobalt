@@ -187,7 +187,7 @@ class TelemetryCommandGeneratorTest(unittest.TestCase):
     mock_convert.assert_called()
 
   def testCrossbenchTestBenchmarksException(self):
-    fake_args = ['./cp.py', '--isolated-script-test-output=output']
+    fake_args = ['./cb.py', '--isolated-script-test-output=output']
     options = run_performance_tests.parse_arguments(fake_args)
 
     with self.assertRaises(Exception):
@@ -195,7 +195,7 @@ class TelemetryCommandGeneratorTest(unittest.TestCase):
 
   def testCrossbenchTestMultiBenchmarksException(self):
     fake_args = [
-        './cp.py', '--isolated-script-test-output=output',
+        './cb.py', '--isolated-script-test-output=output',
         '--benchmarks=speedometer_3.0,speedometer_2.0'
     ]
     options = run_performance_tests.parse_arguments(fake_args)
@@ -263,8 +263,8 @@ class TelemetryCommandGeneratorTest(unittest.TestCase):
     shard_map = {
         '0': {
             'crossbench': {
-                'my_benchmark': {
-                    'display_name': 'my_display',
+                'my_display': {
+                    'crossbench_name': 'my_benchmark',
                     'arguments': []
                 }
             }
@@ -323,12 +323,12 @@ class TelemetryCommandGeneratorTest(unittest.TestCase):
     shard_map = {
         '0': {
             'crossbench': {
-                'b1': {
-                    'display_name': 'display1',
+                'b1.crossbench': {
+                    'crossbench_name': 'b1',
                     'arguments': []
                 },
-                'b2': {
-                    'display_name': 'display2',
+                'b2.crossbench': {
+                    'crossbench_name': 'b2',
                     'arguments': []
                 }
             }
@@ -340,9 +340,10 @@ class TelemetryCommandGeneratorTest(unittest.TestCase):
         shard_map, options, 'dir', [])
 
     self.assertEqual(return_code, 1)
-    mock_execute_benchmark.assert_has_calls(
-        [mock.call('b1', 'display1', []),
-         mock.call('b2', 'display2', [])])
+    mock_execute_benchmark.assert_has_calls([
+        mock.call('b1', 'b1.crossbench', []),
+        mock.call('b2', 'b2.crossbench', [])
+    ])
 
   def testCrossbenchGetNetworkArgWithNetwork(self):
     fake_args = _create_crossbench_args() + ['--network=foo']
@@ -472,10 +473,23 @@ class TelemetryCommandGeneratorTest(unittest.TestCase):
     # a path from us.
     self.assertFalse([x for x in command_list if x.startswith('--driver-path')])
 
+  def testCrossbenchExtraBrowserArgs(self):
+    fake_args = _create_crossbench_args()
+    fake_args.extend(
+        ('--extra-browser-args=--a --b --c', '--extra-browser-args=--x'))
+    options = run_performance_tests.parse_arguments(fake_args)
+
+    cb_test = run_performance_tests.CrossbenchTest(options, 'dir')
+    command_list = cb_test._generate_command_list(
+        cb_test.options.benchmarks, cb_test.options.passthrough_args, 'dir')
+
+    pos = command_list.index('--')
+    self.assertEqual(command_list[pos + 1:], ['--a', '--b', '--c', '--x'])
+
 
 def _create_crossbench_args(browser='./chrome'):
   return [
-      './cp.py',
+      './cb.py',
       '--isolated-script-test-output=output',
       '--benchmarks=speedometer_3.0',
       '--benchmark-display-name=speedometer3.crossbench',

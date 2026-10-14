@@ -4,40 +4,16 @@
 
 import 'chrome://omnibox-popup.top-chrome/omnibox_popup.js';
 
-import {createAutocompleteMatch, SearchboxBrowserProxy} from 'chrome://omnibox-popup.top-chrome/omnibox_popup.js';
+import {SearchboxBrowserProxy} from 'chrome://omnibox-popup.top-chrome/omnibox_popup.js';
 import type {OmniboxPopupAppElement} from 'chrome://omnibox-popup.top-chrome/omnibox_popup.js';
+import {createAutocompleteResultForTesting, createSearchMatchForTesting} from 'chrome://resources/cr_components/searchbox/searchbox_browser_proxy.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {PageCallbackRouter, PageHandlerRemote} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
-import type {AutocompleteMatch, AutocompleteResult, PageRemote} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
+import type {PageRemote} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import {assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
 import {TestMock} from 'chrome://webui-test/test_mock.js';
 import {eventToPromise, isVisible, microtasksFinished} from 'chrome://webui-test/test_util.js';
-
-function createAutocompleteResult(modifiers: Partial<AutocompleteResult> = {}):
-    AutocompleteResult {
-  const base: AutocompleteResult = {
-    input: '',
-    matches: [],
-    suggestionGroupsMap: {},
-    smartComposeInlineHint: null,
-  };
-
-  return Object.assign(base, modifiers);
-}
-
-function createSearchMatch(modifiers: Partial<AutocompleteMatch> = {}):
-    AutocompleteMatch {
-  return Object.assign(
-      createAutocompleteMatch(), {
-        isSearchType: true,
-        contents: 'hello world',
-        destinationUrl: {url: 'https://www.google.com/search?q=hello+world'},
-        fillIntoEdit: 'hello world',
-        type: 'search-suggest',
-      },
-      modifiers);
-}
 
 type Constructor<T> = new (...args: any[]) => T;
 type Installer<T> = (instance: T) => void;
@@ -63,6 +39,18 @@ class TestSearchboxBrowserProxy extends TestBrowserProxy {
     this.callbackRouter = new PageCallbackRouter();
     this.handler = TestMock.fromClass(PageHandlerRemote);
     this.handler.setResultFor('getRecentTabs', Promise.resolve({tabs: []}));
+    this.handler.setResultFor('getInputState', Promise.resolve({
+      state: {
+        allowed_models: [],
+        allowed_tools: [],
+        allowed_input_types: [],
+        active_model: 0,  // kUnspecified
+        active_tool: 0,   // kUnspecified
+        disabled_models: [],
+        disabled_tools: [],
+        disabled_input_types: [],
+      },
+    }));
     this.page = this.callbackRouter.$.bindNewPipeAndPassRemote();
   }
 
@@ -81,7 +69,7 @@ suite('AppTest', function() {
   let app: OmniboxPopupAppElement;
   let testProxy: TestSearchboxBrowserProxy;
 
-  setup(() => {
+  setup(async () => {
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
 
     testProxy = new TestSearchboxBrowserProxy();
@@ -89,6 +77,8 @@ suite('AppTest', function() {
 
     app = document.createElement('omnibox-popup-app');
     document.body.appendChild(app);
+
+    await microtasksFinished();
   });
 
   test('ContextMenuPrevented', async function() {
@@ -101,10 +91,10 @@ suite('AppTest', function() {
 
   test('OnlyShowsDropdownIfVisibleMatches', async () => {
     // Set autocomplete result with one visible match.
-    const shownResult: AutocompleteResult = createAutocompleteResult({
+    const shownResult = createAutocompleteResultForTesting({
       matches: [
-        createSearchMatch({isHidden: false}),
-        createSearchMatch({isHidden: true}),
+        createSearchMatchForTesting({isHidden: false}),
+        createSearchMatchForTesting({isHidden: true}),
       ],
     });
     testProxy.page.autocompleteResultChanged(shownResult);
@@ -114,10 +104,10 @@ suite('AppTest', function() {
     assertTrue(isVisible(app.getDropdown()));
 
     // Set autocomplete result with no visible matches.
-    const hiddenResult: AutocompleteResult = createAutocompleteResult({
+    const hiddenResult = createAutocompleteResultForTesting({
       matches: [
-        createSearchMatch({isHidden: true}),
-        createSearchMatch({isHidden: true}),
+        createSearchMatchForTesting({isHidden: true}),
+        createSearchMatchForTesting({isHidden: true}),
       ],
     });
     testProxy.page.autocompleteResultChanged(hiddenResult);
@@ -132,8 +122,7 @@ suite('AppTest', function() {
     assertTrue(isVisible(app.getDropdown()));
 
     // Set autocomplete result with no matches.
-    const noResult: AutocompleteResult =
-        createAutocompleteResult({matches: []});
+    const noResult = createAutocompleteResultForTesting({matches: []});
     testProxy.page.autocompleteResultChanged(noResult);
     await microtasksFinished();
 
@@ -214,7 +203,8 @@ suite('AppTest', function() {
       await microtasksFinished();
       const entrypointButton =
           carousel.$.contextEntrypoint.shadowRoot.querySelector<HTMLElement>(
-              '#entrypoint')!;
+              '#entrypoint');
+      assertTrue(!!entrypointButton);
       entrypointButton.focus();
       await microtasksFinished();
       assertTrue(entrypointButton.matches(':focus-within'));
@@ -236,7 +226,7 @@ suite('AppTest', function() {
       const tabInfo = {
         tabId: 1,
         title: 'Tab 1',
-        url: {url: 'https://www.google.com/search?q=foo'},
+        url: 'https://www.google.com/search?q=foo',
         showInPreviousTabChip: true,
       };
       testProxy.handler.setResultFor(
@@ -244,10 +234,14 @@ suite('AppTest', function() {
       localApp.remove();
       localApp = document.createElement('omnibox-popup-app');
       document.body.appendChild(localApp);
-      testProxy.page.autocompleteResultChanged(createAutocompleteResult());
+      testProxy.page.autocompleteResultChanged(
+          createAutocompleteResultForTesting());
       await microtasksFinished();
 
       testProxy.initVisibilityPrefs();
+      await microtasksFinished();
+
+      testProxy.page.onShow();
       await microtasksFinished();
 
       const carousel = localApp.shadowRoot?.querySelector(

@@ -8,6 +8,7 @@
 #include <optional>
 #include <string_view>
 
+#include "base/check.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/trace_event/trace_event.h"
 #include "base/values.h"
@@ -15,10 +16,12 @@
 #include "net/base/features.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/net_errors.h"
+#include "net/cert/x509_util.h"
 #include "net/dns/public/host_resolver_results.h"
 #include "net/socket/client_socket_factory.h"
 #include "net/socket/tcp_stream_attempt.h"
 #include "net/ssl/ssl_cert_request_info.h"
+#include "net/ssl/ssl_info.h"
 
 namespace net {
 
@@ -75,8 +78,8 @@ LoadState TlsStreamAttempt::GetLoadState() const {
   }
 }
 
-base::Value::Dict TlsStreamAttempt::GetInfoAsValue() const {
-  base::Value::Dict dict;
+base::DictValue TlsStreamAttempt::GetInfoAsValue() const {
+  base::DictValue dict;
   dict.Set("next_state", StateToString(next_state_));
   dict.Set("tcp_handshake_completed", tcp_handshake_completed_);
   dict.Set("tls_handshake_started", tls_handshake_started_);
@@ -97,8 +100,8 @@ int TlsStreamAttempt::StartInternal() {
   return DoLoop(OK);
 }
 
-base::Value::Dict TlsStreamAttempt::GetNetLogStartParams() {
-  base::Value::Dict dict;
+base::DictValue TlsStreamAttempt::GetNetLogStartParams() {
+  base::DictValue dict;
   dict.Set("host_port", host_port_pair_.ToString());
   return dict;
 }
@@ -224,7 +227,29 @@ int TlsStreamAttempt::DoTlsAttempt(int rv) {
       *ssl_config_);
 
   TRACE_EVENT_BEGIN("net.stream", "TlsConnect", track());
-  net_log().BeginEvent(NetLogEventType::TLS_STREAM_ATTEMPT_CONNECT);
+  net_log().BeginEvent(NetLogEventType::TLS_STREAM_ATTEMPT_CONNECT, [&] {
+    base::DictValue results;
+    if (retried_for_trust_anchor_ids_) {
+      results.Set(
+          "selected_trust_anchor_ids_for_retry",
+          x509_util::TrustAnchorIDsToString(x509_util::ParseTlsTrustAnchorIDs(
+              *ssl_config_->trust_anchor_ids)));
+    } else {
+      if (trust_anchor_ids_from_dns_) {
+        results.Set("trust_anchor_ids_from_dns",
+                    x509_util::TrustAnchorIDsToString(
+                        delegate_->GetServiceEndpointForTlsHandshake()
+                            ->metadata.trust_anchor_ids));
+      }
+      if (ssl_config_->trust_anchor_ids) {
+        results.Set(
+            "selected_trust_anchor_ids",
+            x509_util::TrustAnchorIDsToString(x509_util::ParseTlsTrustAnchorIDs(
+                *ssl_config_->trust_anchor_ids)));
+      }
+    }
+    return results;
+  });
 
   return ssl_socket_->Connect(
       base::BindOnce(&TlsStreamAttempt::OnIOComplete, base::Unretained(this)));
@@ -232,8 +257,22 @@ int TlsStreamAttempt::DoTlsAttempt(int rv) {
 
 int TlsStreamAttempt::DoTlsAttemptComplete(int rv) {
   MaybeRecordTlsHandshakeEnd(rv);
-  net_log().EndEventWithNetErrorCode(
-      NetLogEventType::TLS_STREAM_ATTEMPT_CONNECT, rv);
+  net_log().EndEvent(NetLogEventType::TLS_STREAM_ATTEMPT_CONNECT, [&] {
+    base::DictValue results;
+    if (rv < 0) {
+      results.Set("net_error", rv);
+    }
+    if (!ssl_socket_) {
+      return results;
+    }
+    std::vector<std::vector<uint8_t>> server_trust_anchor_ids =
+        ssl_socket_->GetServerTrustAnchorIDs();
+    if (!server_trust_anchor_ids.empty()) {
+      results.Set("server_available_trust_anchor_ids",
+                  x509_util::TrustAnchorIDsToString(server_trust_anchor_ids));
+    }
+    return results;
+  });
 
   mutable_connect_timing().ssl_end = base::TimeTicks::Now();
   tls_handshake_timeout_timer_.Stop();
@@ -273,29 +312,31 @@ int TlsStreamAttempt::DoTlsAttemptComplete(int rv) {
     CHECK(ssl_socket_);
 
     std::vector<std::vector<uint8_t>> server_trust_anchor_ids =
-        ssl_socket_->GetServerTrustAnchorIDsForRetry();
+        ssl_socket_->GetServerTrustAnchorIDs();
+    SSLInfo ssl_info;
+    CHECK(ssl_socket_->GetSSLInfo(&ssl_info));
+    CHECK(ssl_info.cert.get());
     // https://tlswg.org/tls-trust-anchor-ids/draft-ietf-tls-trust-anchor-ids.html#name-retry-mechanism:
     // If the EncryptedExtensions had no trust_anchor extension, or no match was
     // found, the client returns the error to the application.
-    if (!server_trust_anchor_ids.empty()) {
-      std::vector<uint8_t> trust_anchor_ids_for_retry =
-          params().ssl_client_context->config().SelectTrustAnchorIDs(
-              server_trust_anchor_ids);
-      if (!trust_anchor_ids_for_retry.empty()) {
-        retried_for_trust_anchor_ids_ = true;
-        ssl_config_->trust_anchor_ids = trust_anchor_ids_for_retry;
+    std::optional<std::vector<uint8_t>> trust_anchor_ids_for_retry =
+        params().ssl_client_context->config().SelectTrustAnchorIDsForRetry(
+            ssl_info.cert.get(), server_trust_anchor_ids,
+            &trust_anchor_retry_used_mtc_fallback_);
+    if (trust_anchor_ids_for_retry.has_value()) {
+      retried_for_trust_anchor_ids_ = true;
+      ssl_config_->trust_anchor_ids = *trust_anchor_ids_for_retry;
 
-        ResetStateForRestart();
-        next_state_ = State::kTcpAttempt;
-        return OK;
-      }
+      ResetStateForRestart();
+      next_state_ = State::kTcpAttempt;
+      return OK;
     }
   }
 
   SSLClientSocket::RecordSSLConnectResult(
       ssl_socket_.get(), rv, is_ech_capable_, ech_enabled, ech_retry_configs_,
       trust_anchor_ids_from_dns_, retried_for_trust_anchor_ids_,
-      connect_timing());
+      trust_anchor_retry_used_mtc_fallback_, connect_timing());
 
   if (rv == OK || IsCertificateError(rv)) {
     CHECK(ssl_socket_);

@@ -46,28 +46,12 @@ void AppWindowController::SetFullscreenMode(bool is_fullscreen,
   // Full screen not supported by app windows.
 }
 
-bool AppWindowController::CanClose(Reason* reason) const {
-  return true;
-}
-
 Browser* AppWindowController::GetBrowser() const {
   return nullptr;
 }
 
-bool AppWindowController::IsDeleteScheduled() const {
-  // App windows don't have the complicated multiphase tear-down.
-  return false;
-}
-
 content::WebContents* AppWindowController::GetActiveTab() const {
   return app_window_->web_contents();
-}
-
-bool AppWindowController::HasEditableTabStrip() const {
-  // There is no visible tab strip in app windows so we return true to
-  // indicate our tab strip animations are not blocking global
-  // operations (see WindowController::HasEditableTabStrip definition).
-  return true;
 }
 
 int AppWindowController::GetTabCount() const {
@@ -85,26 +69,22 @@ bool AppWindowController::IsVisibleToTabsAPIForExtension(
   return extension->id() == app_window_->extension_id();
 }
 
-base::Value::Dict AppWindowController::CreateWindowValueForExtension(
+base::DictValue AppWindowController::CreateWindowValueForExtension(
     const Extension* extension,
     PopulateTabBehavior populate_tab_behavior,
     mojom::ContextType context) const {
-  return base::Value::Dict();
+  return base::DictValue();
 }
 
-base::Value::List AppWindowController::CreateTabList(
+base::ListValue AppWindowController::CreateTabList(
     const Extension* extension,
     mojom::ContextType context) const {
-  return base::Value::List();
+  return base::ListValue();
 }
 
 bool AppWindowController::OpenOptionsPage(const Extension* extension,
                                           const GURL& url,
                                           bool open_in_tab) {
-  return false;
-}
-
-bool AppWindowController::SupportsTabs() {
   return false;
 }
 

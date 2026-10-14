@@ -24,6 +24,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/system/sys_info.h"
 #include "base/task/sequence_manager/sequence_manager.h"
+#include "base/task/thread_pool.h"
 #include "base/threading/hang_watcher.h"
 #include "base/threading/platform_thread.h"
 #include "base/threading/platform_thread_metrics.h"
@@ -32,7 +33,7 @@
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "components/performance_manager/scenario_api/performance_scenario_memory.h"
-#include "content/child/memory_coordinator/child_memory_consumer_registry.h"
+#include "content/child/memory_coordinator/child_memory_coordinator.h"
 #include "content/common/content_constants_internal.h"
 #include "content/common/content_switches_internal.h"
 #include "content/common/features.h"
@@ -51,9 +52,11 @@
 #include "mojo/public/cpp/bindings/mojo_buildflags.h"
 #include "sandbox/policy/switches.h"
 #include "services/tracing/public/cpp/trace_startup.h"
+#include "skia/ext/font_utils.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/public/platform/scheduler/web_thread_scheduler.h"
+#include "third_party/skia/include/core/SkFontMgr.h"
 #include "third_party/webrtc_overrides/init_webrtc.h"  // nogncheck
 #include "ui/base/ui_base_switches.h"
 
@@ -196,6 +199,14 @@ int RendererMain(MainFunctionParams parameters) {
 
   InitializeSkia();
 
+#if !BUILDFLAG(IS_WIN) && !BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_CHROMEOS)
+  // On Linux, Windows, and ChromeOS, the font manager is overridden or
+  // specially handled in RendererBlinkPlatformImpl(). On other platforms,
+  // initialise the default one on a thread pool, to avoid blocking on it later.
+  base::ThreadPool::PostTask(FROM_HERE,
+                             base::BindOnce([] { skia::DefaultFontMgr(); }));
+#endif
+
   // This function allows pausing execution using the --renderer-startup-dialog
   // flag allowing us to attach a debugger.
   // Do not move this function down since that would mean we can't easily debug
@@ -229,8 +240,7 @@ int RendererMain(MainFunctionParams parameters) {
   InitializeWebRtcModuleBeforeSandbox();
 
   RendererMemoryCoordinatorPolicy render_memory_coordinator_policy(
-      static_cast<ChildMemoryConsumerRegistry&>(
-          base::MemoryConsumerRegistry::Get()));
+      ChildMemoryCoordinator::Get());
 
   {
     content::ContentRendererClient* client = GetContentClient()->renderer();
@@ -268,8 +278,7 @@ int RendererMain(MainFunctionParams parameters) {
     // Consider CrRendererMain a display critical thread. While some Javascript
     // running on the main thread might not be, experiments demonstrated that
     // overall this improves user-perceived performance.
-    base::PlatformThread::SetCurrentThreadType(
-        base::ThreadType::kDisplayCritical);
+    base::PlatformThread::SetCurrentThreadType(base::ThreadType::kPresentation);
 
     // Startup tracing creates a tracing thread, which is incompatible on
     // platforms that require single-threaded sandbox initialization. In these

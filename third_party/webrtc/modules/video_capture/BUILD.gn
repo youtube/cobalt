@@ -194,6 +194,7 @@ if (!build_with_chromium || is_linux || is_chromeos) {
         "../../common_video",
         "../../rtc_base:checks",
         "../../rtc_base:gunit_helpers",
+        "../../rtc_base:macromagic",
         "../../rtc_base:timeutils",
         "../../rtc_base/synchronization:mutex",
         "../../system_wrappers",

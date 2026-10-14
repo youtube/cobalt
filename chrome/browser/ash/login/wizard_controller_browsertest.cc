@@ -85,7 +85,7 @@
 #include "chrome/browser/ash/policy/server_backed_state/server_backed_state_keys_broker.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/browser_process_platform_part.h"
-#include "chrome/browser/lifetime/browser_shutdown.h"
+#include "chrome/browser/global_features.h"
 #include "chrome/browser/lifetime/termination_notification.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/ash/login/login_display_host.h"
@@ -94,6 +94,7 @@
 #include "chrome/browser/ui/webui/ash/login/consolidated_consent_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/display_size_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/error_screen_handler.h"
+#include "chrome/browser/ui/webui/ash/login/fjord_fw_update_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/fjord_station_setup_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/fjord_touch_controller_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/gaia_info_screen_handler.h"
@@ -333,8 +334,9 @@ void RunSwitchLanguageTest(const std::string& locale,
   SwitchLanguageTestData data;
   locale_util::SwitchLanguageCallback callback(
       base::BindOnce(&OnLocaleSwitched, base::Unretained(&data)));
-  locale_util::SwitchLanguage(locale, true, false, std::move(callback),
-                              ProfileManager::GetActiveUserProfile());
+  locale_util::SwitchLanguage(
+      g_browser_process->GetFeatures()->application_locale_storage(), locale,
+      true, false, std::move(callback), ProfileManager::GetActiveUserProfile());
 
   // Token writing moves control to BlockingPool and back.
   content::RunAllTasksUntilIdle();
@@ -1251,7 +1253,7 @@ IN_PROC_BROWSER_TEST_F(WizardControllerUnifiedEnrollmentTest, Enrollment) {
 
   EXPECT_CALL(*mock_auto_enrollment_check_screen_, HideImpl());
   EXPECT_CALL(*mock_enrollment_screen_, ShowImpl());
-  base::Value::Dict device_state;
+  base::DictValue device_state;
   device_state.Set(
       policy::kDeviceStateMode,
       base::Value(policy::kDeviceStateRestoreModeReEnrollmentEnforced));
@@ -1275,7 +1277,7 @@ IN_PROC_BROWSER_TEST_F(WizardControllerUnifiedEnrollmentTest, Disabled) {
   EXPECT_CALL(*device_disabled_screen_view_,
               Show(Field(&DeviceDisabledScreenView::Params::message,
                          Eq(kDisabledMessage))));
-  base::Value::Dict device_state;
+  base::DictValue device_state;
   device_state.Set(policy::kDeviceStateMode,
                    base::Value(policy::kDeviceStateModeDisabled));
   device_state.Set(policy::kDeviceStateDisabledMessage,
@@ -1346,7 +1348,7 @@ IN_PROC_BROWSER_TEST_F(WizardControllerUnifiedEnrollmentTest,
 
   fetcher_factory.WaitUntilEnrollmentStateFetcherCreated();
 
-  base::Value::Dict device_state;
+  base::DictValue device_state;
   device_state.Set(policy::kDeviceStateMode,
                    base::Value(policy::kDeviceStateModeDisabled));
   device_state.Set(policy::kDeviceStateDisabledMessage,
@@ -1429,8 +1431,7 @@ class WizardControllerFjordOOBETest
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-IN_PROC_BROWSER_TEST_F(WizardControllerFjordOOBETest,
-                       TouchControllerScreenShowsAndExitsToStationSetup) {
+IN_PROC_BROWSER_TEST_F(WizardControllerFjordOOBETest, FjordOobeScreenFlow) {
   WizardController* const wizard_controller =
       WizardController::default_controller();
   ScopedEnrollmentStateFetcherFactory fetcher_factory(
@@ -1440,7 +1441,7 @@ IN_PROC_BROWSER_TEST_F(WizardControllerFjordOOBETest,
 
   EXPECT_CALL(*mock_auto_enrollment_check_screen_, HideImpl());
   EXPECT_CALL(*mock_enrollment_screen_, ShowImpl());
-  base::Value::Dict device_state;
+  base::DictValue device_state;
   device_state.Set(
       policy::kDeviceStateMode,
       base::Value(policy::kDeviceStateRestoreModeReEnrollmentEnforced));
@@ -1465,7 +1466,7 @@ IN_PROC_BROWSER_TEST_F(WizardControllerFjordOOBETest,
   EXPECT_EQ(FjordOobeStateManager::Get()->GetFjordOobeStateInfo().oobe_state(),
             fjord_oobe_state::proto::FjordOobeStateInfo::
                 FJORD_OOBE_STATE_ENROLLMENT_DONE);
-  CheckCurrentScreen(FjordStationSetupScreenView::kScreenId);
+  CheckCurrentScreen(FjordFwUpdateScreenView::kScreenId);
   EXPECT_TRUE(wizard_controller->ExitFjordTouchControllerScreen());
 }
 
@@ -1480,7 +1481,7 @@ IN_PROC_BROWSER_TEST_F(WizardControllerFjordOOBETest,
 
   EXPECT_CALL(*mock_auto_enrollment_check_screen_, HideImpl());
   EXPECT_CALL(*mock_enrollment_screen_, ShowImpl());
-  base::Value::Dict device_state;
+  base::DictValue device_state;
   device_state.Set(
       policy::kDeviceStateMode,
       base::Value(policy::kDeviceStateRestoreModeReEnrollmentEnforced));
@@ -2325,7 +2326,7 @@ IN_PROC_BROWSER_TEST_F(WizardControllerOobeConfigurationTest,
   OobeScreenWaiter(WelcomeView::kScreenId).Wait();
   WelcomeScreen* screen =
       WizardController::default_controller()->GetScreen<WelcomeScreen>();
-  const base::Value::Dict& configuration = screen->GetConfigurationForTesting();
+  const base::DictValue& configuration = screen->GetConfigurationForTesting();
   EXPECT_FALSE(configuration.empty());
 }
 
@@ -2358,7 +2359,7 @@ class WizardControllerEnrollmentTokenRebootTest
 
   void SetUpLocalState() override {
     // Simulate device having previously gone through state determination.
-    base::Value::Dict device_state;
+    base::DictValue device_state;
     device_state.Set(
         policy::kDeviceStateMode,
         base::Value(policy::kDeviceStateInitialModeTokenEnrollment));
@@ -2375,7 +2376,7 @@ IN_PROC_BROWSER_TEST_F(WizardControllerEnrollmentTokenRebootTest,
   OobeScreenWaiter(WelcomeView::kScreenId).Wait();
   WelcomeScreen* screen =
       WizardController::default_controller()->GetScreen<WelcomeScreen>();
-  const base::Value::Dict& configuration = screen->GetConfigurationForTesting();
+  const base::DictValue& configuration = screen->GetConfigurationForTesting();
   EXPECT_FALSE(configuration.empty());
 }
 

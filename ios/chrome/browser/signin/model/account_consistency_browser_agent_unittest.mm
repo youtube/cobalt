@@ -7,11 +7,10 @@
 #import "base/memory/raw_ptr.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/test/scoped_feature_list.h"
+#import "components/signin/ios/browser/fake_signin_enabled_datasource.h"
 #import "components/test/ios/test_utils.h"
-#import "ios/chrome/browser/lens/model/lens_browser_agent.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/browser/test/test_browser.h"
-#import "ios/chrome/browser/shared/model/profile/features.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_manager_ios.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
@@ -22,7 +21,6 @@
 #import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/shared/public/commands/settings_commands.h"
 #import "ios/chrome/browser/shared/public/commands/show_signin_command.h"
-#import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/signin/model/authentication_service.h"
 #import "ios/chrome/browser/signin/model/authentication_service_factory.h"
 #import "ios/chrome/browser/signin/model/fake_authentication_service_delegate.h"
@@ -37,14 +35,9 @@
 #import "third_party/ocmock/OCMock/OCMock.h"
 #import "third_party/ocmock/gtest_support.h"
 
-class AccountConsistencyBrowserAgentTestBase : public PlatformTest {
+class AccountConsistencyBrowserAgentTest : public PlatformTest {
  public:
-  explicit AccountConsistencyBrowserAgentTestBase(
-      bool separate_profiles_for_managed_accounts_enabled) {
-    features_.InitWithFeatureState(
-        kSeparateProfilesForManagedAccounts,
-        separate_profiles_for_managed_accounts_enabled);
-  }
+  explicit AccountConsistencyBrowserAgentTest() = default;
 
   void SetUp() override {
     TestProfileIOS::Builder builder;
@@ -71,10 +64,10 @@ class AccountConsistencyBrowserAgentTestBase : public PlatformTest {
                      forProtocol:@protocol(BrowserCoordinatorCommands)];
 
     base_view_controller_mock_ = OCMStrictClassMock([UIViewController class]);
-    LensBrowserAgent::CreateForBrowser(browser_.get());
     WebNavigationBrowserAgent::CreateForBrowser(browser_.get());
     AccountConsistencyBrowserAgent::CreateForBrowser(
-        browser_.get(), base_view_controller_mock_);
+        browser_.get(), base_view_controller_mock_,
+        &signin_enabled_data_source_);
     agent_ = AccountConsistencyBrowserAgent::FromBrowser(browser_.get());
 
     WebStateList* web_state_list = browser_.get()->GetWebStateList();
@@ -100,10 +93,9 @@ class AccountConsistencyBrowserAgentTestBase : public PlatformTest {
     system_identity_manager->AddIdentity(fake_identity);
     AuthenticationService* auth_service =
         AuthenticationServiceFactory::GetForProfile(profile_.get());
-    auth_service->SignIn(fake_identity, signin_metrics::AccessPoint::kUnknown);
+    auth_service->SignIn(fake_identity,
+                         signin_metrics::AccessPoint::kStartPage);
   }
-
-  base::test::ScopedFeatureList features_;
 
   const GURL url_ = GURL("https://www.example.com");
   web::WebTaskEnvironment task_environment_;
@@ -113,30 +105,14 @@ class AccountConsistencyBrowserAgentTestBase : public PlatformTest {
   std::unique_ptr<Browser> browser_;
   raw_ptr<AccountConsistencyBrowserAgent> agent_;
   id<SceneCommands> mock_scene_handler_;
+  signin::FakeSigninEnabledDataSource signin_enabled_data_source_;
   id<SettingsCommands> settings_commands_mock_;
   id<BrowserCoordinatorCommands> browser_coordinator_commands_mock_;
   UIViewController* base_view_controller_mock_;
 };
 
-class AccountConsistencyBrowserAgentTest
-    : public AccountConsistencyBrowserAgentTestBase,
-      public testing::WithParamInterface<bool> {
- public:
-  AccountConsistencyBrowserAgentTest()
-      : AccountConsistencyBrowserAgentTestBase(
-            /*separate_profiles_for_managed_accounts_enabled=*/GetParam()) {}
-};
-
-class AccountConsistencyBrowserAgentWithSeparateProfilesTest
-    : public AccountConsistencyBrowserAgentTestBase {
- public:
-  AccountConsistencyBrowserAgentWithSeparateProfilesTest()
-      : AccountConsistencyBrowserAgentTestBase(
-            /*separate_profiles_for_managed_accounts_enabled=*/true) {}
-};
-
 // Tests the command sent by OnGoIncognito() when there is no URL.
-TEST_P(AccountConsistencyBrowserAgentTest, OnGoIncognitoWithNoURL) {
+TEST_F(AccountConsistencyBrowserAgentTest, OnGoIncognitoWithNoURL) {
   __block OpenNewTabCommand* received_command = nil;
   OCMExpect([mock_scene_handler_
       openURLInNewTab:AssignValueToVariable(received_command)]);
@@ -148,7 +124,7 @@ TEST_P(AccountConsistencyBrowserAgentTest, OnGoIncognitoWithNoURL) {
 }
 
 // Tests the command sent by OnGoIncognito() when there is a valid URL.
-TEST_P(AccountConsistencyBrowserAgentTest, OnGoIncognitoWithURL) {
+TEST_F(AccountConsistencyBrowserAgentTest, OnGoIncognitoWithURL) {
   // This URL is not opened.
   __block OpenNewTabCommand* received_command = nil;
   OCMExpect([mock_scene_handler_
@@ -163,7 +139,7 @@ TEST_P(AccountConsistencyBrowserAgentTest, OnGoIncognitoWithURL) {
 // Tests OnAddAccount() to not send ShowSigninCommand if a view controller is
 // presented on top of the base view controller.
 // See http://crbug.com/1399464.
-TEST_P(AccountConsistencyBrowserAgentTest, OnAddAccountWithPresentedView) {
+TEST_F(AccountConsistencyBrowserAgentTest, OnAddAccountWithPresentedView) {
   OCMStub([base_view_controller_mock_ presentedViewController])
       .andReturn([[UIViewController alloc] init]);
   agent_->OnAddAccount(GURL(), "");
@@ -174,7 +150,7 @@ TEST_P(AccountConsistencyBrowserAgentTest, OnAddAccountWithPresentedView) {
 
 // Tests OnAddAccount() to show present a view controller if there is no view
 // presented on top of the base view controller. See http://crbug.com/1399464.
-TEST_P(AccountConsistencyBrowserAgentTest, OnAddAccountWithoutPresentedView) {
+TEST_F(AccountConsistencyBrowserAgentTest, OnAddAccountWithoutPresentedView) {
   OCMStub([base_view_controller_mock_ presentedViewController])
       .andReturn((id)nil);
   signin_metrics::AccessPoint access_point =
@@ -185,12 +161,7 @@ TEST_P(AccountConsistencyBrowserAgentTest, OnAddAccountWithoutPresentedView) {
   agent_->OnAddAccount(GURL(), "test");
 }
 
-TEST_F(AccountConsistencyBrowserAgentWithSeparateProfilesTest,
-       OnAddAccountShowsAccountMenu) {
-  if (!AreSeparateProfilesForManagedAccountsEnabled()) {
-    // This can happen on iOS < 17, where separate profiles are not supported.
-    return;
-  }
+TEST_F(AccountConsistencyBrowserAgentTest, OnAddAccountShowsAccountMenu) {
   SignIn();
   FakeSystemIdentity* fake_identity2 = [FakeSystemIdentity fakeIdentity2];
   FakeSystemIdentityManager* system_identity_manager =
@@ -215,7 +186,7 @@ TEST_F(AccountConsistencyBrowserAgentWithSeparateProfilesTest,
 
 // Tests that calling the `OnRestoreGaiaCookies()` callback invokes the account
 // notification command.
-TEST_P(AccountConsistencyBrowserAgentTest, OnRestorGaiaCookiesCallsCommand) {
+TEST_F(AccountConsistencyBrowserAgentTest, OnRestorGaiaCookiesCallsCommand) {
   OCMExpect(
       [mock_scene_handler_ showSigninAccountNotificationFromViewController:
                                base_view_controller_mock_]);
@@ -227,12 +198,7 @@ TEST_P(AccountConsistencyBrowserAgentTest, OnRestorGaiaCookiesCallsCommand) {
 
 // Tests that OnAddAccount with a email not of a secondary account opens the add
 // account view.
-TEST_F(AccountConsistencyBrowserAgentWithSeparateProfilesTest,
-       OnAddAccountShowsAddAccount) {
-  if (!AreSeparateProfilesForManagedAccountsEnabled()) {
-    // This can happen on iOS < 17, where separate profiles are not supported.
-    return;
-  }
+TEST_F(AccountConsistencyBrowserAgentTest, OnAddAccountShowsAddAccount) {
   SignIn();
   // Register a second profile.
   TestProfileIOS::Builder builder;
@@ -255,7 +221,7 @@ TEST_F(AccountConsistencyBrowserAgentWithSeparateProfilesTest,
 
 // Tests that calling the `OnManageAccounts()` callback invokes the account
 // settings command.
-TEST_P(AccountConsistencyBrowserAgentTest, OnManageAccountsCallsCommand) {
+TEST_F(AccountConsistencyBrowserAgentTest, OnManageAccountsCallsCommand) {
   OCMExpect([settings_commands_mock_
       showAccountsSettingsFromViewController:base_view_controller_mock_
                         skipIfUINotAvailable:YES]);
@@ -267,12 +233,7 @@ TEST_P(AccountConsistencyBrowserAgentTest, OnManageAccountsCallsCommand) {
 
 // Tests that OnAddAccount with a email of a secondary account opens the account
 // menu.
-TEST_F(AccountConsistencyBrowserAgentWithSeparateProfilesTest,
-       OnManageAccountsShowsAccountMenu) {
-  if (!AreSeparateProfilesForManagedAccountsEnabled()) {
-    // This can happen on iOS < 17, where separate profiles are not supported.
-    return;
-  }
+TEST_F(AccountConsistencyBrowserAgentTest, OnManageAccountsShowsAccountMenu) {
   SignIn();
   // Register a second profile.
   TestProfileIOS::Builder builder;
@@ -290,7 +251,7 @@ TEST_F(AccountConsistencyBrowserAgentWithSeparateProfilesTest,
 
 // Tests that calling the `OnShowConsistencyPromo()` callback with the active
 // web state invokes the command to show the signing promo.
-TEST_P(AccountConsistencyBrowserAgentTest,
+TEST_F(AccountConsistencyBrowserAgentTest,
        OnShowConsistencyPromoWithCurrentWebState) {
   // Activate a web state and pass that web state into `OnShowConsistencyPromo`.
   WebStateList* web_state_list = browser_.get()->GetWebStateList();
@@ -308,7 +269,7 @@ TEST_P(AccountConsistencyBrowserAgentTest,
 
 // Tests that calling the `OnShowConsistencyPromo()` callback with a non-active
 // web state does not invoke the command to show the signing promo.
-TEST_P(AccountConsistencyBrowserAgentTest,
+TEST_F(AccountConsistencyBrowserAgentTest,
        OnShowConsistencyPromoWithOtherWebState) {
   // Activate the first web state.
   WebStateList* web_state_list = browser_.get()->GetWebStateList();
@@ -326,11 +287,3 @@ TEST_P(AccountConsistencyBrowserAgentTest,
   // This is ensured by TearDown because mock_scene_handler_ is a strict
   // mock.
 }
-
-INSTANTIATE_TEST_SUITE_P(,
-                         AccountConsistencyBrowserAgentTest,
-                         testing::Bool(),
-                         [](const testing::TestParamInfo<bool>& info) {
-                           return info.param ? "WithSeparateProfiles"
-                                             : "WithoutSeparateProfiles";
-                         });

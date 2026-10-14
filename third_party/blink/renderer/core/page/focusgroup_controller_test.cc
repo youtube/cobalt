@@ -731,6 +731,109 @@ TEST_F(FocusgroupControllerTest, IsFocusgroupItemWithOwner) {
   EXPECT_FALSE(utils::IsFocusgroupItemWithOwner(outer_item2, inner_fg));
 }
 
+// Test that a focusable nested focusgroup participates as an item in its parent
+// focusgroup. Arrow navigation should reach the nested focusgroup element
+// itself, and its contents should be skipped.
+TEST_F(FocusgroupControllerTest, NestedFocusgroupParticipatesAsItem) {
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
+    <div id=outer focusgroup="toolbar">
+      <button id=btn1></button>
+      <button id=btn2></button>
+      <div id=inner focusgroup="toolbar" tabindex=0>
+        <button id=inner_btn1></button>
+        <button id=inner_btn2></button>
+      </div>
+      <button id=btn3></button>
+    </div>
+  )HTML");
+
+  auto* outer = GetElementById("outer");
+  auto* btn1 = GetElementById("btn1");
+  auto* btn2 = GetElementById("btn2");
+  auto* inner = GetElementById("inner");
+  auto* inner_btn1 = GetElementById("inner_btn1");
+  auto* inner_btn2 = GetElementById("inner_btn2");
+  auto* btn3 = GetElementById("btn3");
+
+  ASSERT_TRUE(outer);
+  ASSERT_TRUE(btn1);
+  ASSERT_TRUE(btn2);
+  ASSERT_TRUE(inner);
+  ASSERT_TRUE(inner_btn1);
+  ASSERT_TRUE(inner_btn2);
+  ASSERT_TRUE(btn3);
+
+  // The nested focusgroup (inner) should be the first item if it comes first.
+  EXPECT_EQ(utils::FirstFocusgroupItemWithin(outer), btn1);
+
+  // The nested focusgroup should be the last item if it comes last.
+  EXPECT_EQ(utils::LastFocusgroupItemWithin(outer), btn3);
+
+  // Arrow navigation from btn2 should reach the nested focusgroup element.
+  EXPECT_EQ(utils::NextFocusgroupItemInDirection(
+                outer, btn2, FocusgroupDirection::kForwardInline),
+            inner);
+
+  // Arrow navigation from the nested focusgroup should reach btn3.
+  EXPECT_EQ(utils::NextFocusgroupItemInDirection(
+                outer, inner, FocusgroupDirection::kForwardInline),
+            btn3);
+
+  // Arrow navigation backward from btn3 should reach the nested focusgroup.
+  EXPECT_EQ(utils::NextFocusgroupItemInDirection(
+                outer, btn3, FocusgroupDirection::kBackwardInline),
+            inner);
+
+  // Arrow navigation backward from the nested focusgroup should reach btn2.
+  EXPECT_EQ(utils::NextFocusgroupItemInDirection(
+                outer, inner, FocusgroupDirection::kBackwardInline),
+            btn2);
+
+  // Items inside the nested focusgroup should NOT be reachable via outer.
+  EXPECT_NE(utils::NextFocusgroupItemInDirection(
+                outer, btn2, FocusgroupDirection::kForwardInline),
+            inner_btn1);
+  EXPECT_NE(utils::NextFocusgroupItemInDirection(
+                outer, inner, FocusgroupDirection::kForwardInline),
+            inner_btn2);
+}
+
+// Test that a non-focusable nested focusgroup does NOT participate as an item.
+TEST_F(FocusgroupControllerTest, NonFocusableNestedFocusgroupNotAnItem) {
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
+    <div id=outer focusgroup="toolbar">
+      <button id=btn1></button>
+      <div id=inner focusgroup="toolbar">
+        <button id=inner_btn1></button>
+        <button id=inner_btn2></button>
+      </div>
+      <button id=btn2></button>
+    </div>
+  )HTML");
+
+  auto* outer = GetElementById("outer");
+  auto* btn1 = GetElementById("btn1");
+  auto* inner = GetElementById("inner");
+  auto* btn2 = GetElementById("btn2");
+
+  ASSERT_TRUE(outer);
+  ASSERT_TRUE(btn1);
+  ASSERT_TRUE(inner);
+  ASSERT_TRUE(btn2);
+
+  // Arrow navigation from btn1 should skip the non-focusable nested focusgroup
+  // and go directly to btn2.
+  EXPECT_EQ(utils::NextFocusgroupItemInDirection(
+                outer, btn1, FocusgroupDirection::kForwardInline),
+            btn2);
+
+  // Arrow navigation backward from btn2 should skip the non-focusable nested
+  // focusgroup and go directly to btn1.
+  EXPECT_EQ(utils::NextFocusgroupItemInDirection(
+                outer, btn2, FocusgroupDirection::kBackwardInline),
+            btn1);
+}
+
 TEST_F(FocusgroupControllerTest, CellAtIndexInRowBehaviorOnNoCellFound) {
   GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
     <table id=table focusgroup="grid">
@@ -1179,7 +1282,7 @@ TEST_F(FocusgroupControllerTest, EntryPriorityOverFirstInSegment) {
   GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
     <div id="fg" focusgroup="toolbar">
       <button id="btn1" tabindex="1">Positive 1</button>
-      <button id="priority" focusgroup-entry-priority>Priority</button>
+      <button id="priority" focusgroupstart>Priority</button>
       <button id="pos2" tabindex="2">Positive 2</button>
     </div>
   )HTML");
@@ -1204,8 +1307,8 @@ TEST_F(FocusgroupControllerTest, MultipleEntryPriorityFirstInSegment) {
   GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
     <div id="fg" focusgroup="toolbar">
       <button id="btn1">Button 1</button>
-      <button id="priority1" focusgroup-entry-priority>Priority 1</button>
-      <button id="priority2" focusgroup-entry-priority>Priority 2</button>
+      <button id="priority1" focusgroupstart>Priority 1</button>
+      <button id="priority2" focusgroupstart>Priority 2</button>
       <button id="btn2">Button 2</button>
     </div>
   )HTML");
@@ -1230,7 +1333,7 @@ TEST_F(FocusgroupControllerTest, EntryPriorityMemoryTakesPrecedence) {
   GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
     <div id="fg" focusgroup="toolbar">
       <button id="btn1">Button 1</button>
-      <button id="priority" focusgroup-entry-priority>Priority</button>
+      <button id="priority" focusgroupstart>Priority</button>
       <button id="btn2">Button 2</button>
     </div>
   )HTML");
@@ -1306,7 +1409,7 @@ TEST_F(FocusgroupControllerTest, EntryPriorityWithReadingFlowOrder) {
     <div id="fg" class="flex-container" focusgroup="toolbar">
       <button id="btn1">Button 1</button>
       <button id="btn2">Button 2</button>
-      <button id="priority" focusgroup-entry-priority>Priority</button>
+      <button id="priority" focusgroupstart>Priority</button>
     </div>
   )HTML");
   UpdateAllLifecyclePhasesForTest();
@@ -1342,8 +1445,8 @@ TEST_F(FocusgroupControllerTest, MultipleEntryPriorityWithReadingFlowOrder) {
       #btn1 { order: 2; }
     </style>
     <div id="fg" class="flex-container" focusgroup="toolbar">
-      <button id="priority1" focusgroup-entry-priority>Priority 1</button>
-      <button id="priority2" focusgroup-entry-priority>Priority 2</button>
+      <button id="priority1" focusgroupstart>Priority 1</button>
+      <button id="priority2" focusgroupstart>Priority 2</button>
       <button id="btn1">Button 1</button>
     </div>
   )HTML");
@@ -2096,13 +2199,13 @@ TEST_F(FocusgroupControllerTest, ReadingFlowComplexPartialReordering) {
       /*expect_wrap=*/true);
 }
 
-// Tests for focusgroup-entry-priority attribute helpers.
+// Tests for focusgroupstart attribute helpers.
 
-TEST_F(FocusgroupControllerTest, HasFocusgroupEntryPriorityAttribute) {
+TEST_F(FocusgroupControllerTest, IsFocusgroupStartAttribute) {
   GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
     <div id="fg" focusgroup="toolbar">
       <button id="btn1">Button 1</button>
-      <button id="btn2" focusgroup-entry-priority>Button 2</button>
+      <button id="btn2" focusgroupstart>Button 2</button>
       <button id="btn3">Button 3</button>
     </div>
   )HTML");
@@ -2112,12 +2215,12 @@ TEST_F(FocusgroupControllerTest, HasFocusgroupEntryPriorityAttribute) {
   auto* btn2 = GetElementById("btn2");
   auto* btn3 = GetElementById("btn3");
 
-  EXPECT_FALSE(utils::HasFocusgroupEntryPriority(*btn1));
-  EXPECT_TRUE(utils::HasFocusgroupEntryPriority(*btn2));
-  EXPECT_FALSE(utils::HasFocusgroupEntryPriority(*btn3));
+  EXPECT_FALSE(utils::IsFocusgroupStart(*btn1));
+  EXPECT_TRUE(utils::IsFocusgroupStart(*btn2));
+  EXPECT_FALSE(utils::IsFocusgroupStart(*btn3));
 }
 
-TEST_F(FocusgroupControllerTest, HasFocusgroupEntryPriorityAttributeDynamic) {
+TEST_F(FocusgroupControllerTest, IsFocusgroupStartAttributeDynamic) {
   GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
     <div id="fg" focusgroup="toolbar">
       <button id="btn1">Button 1</button>
@@ -2129,23 +2232,23 @@ TEST_F(FocusgroupControllerTest, HasFocusgroupEntryPriorityAttributeDynamic) {
   auto* btn1 = GetElementById("btn1");
   auto* btn2 = GetElementById("btn2");
 
-  EXPECT_FALSE(utils::HasFocusgroupEntryPriority(*btn1));
-  EXPECT_FALSE(utils::HasFocusgroupEntryPriority(*btn2));
+  EXPECT_FALSE(utils::IsFocusgroupStart(*btn1));
+  EXPECT_FALSE(utils::IsFocusgroupStart(*btn2));
 
   // Add attribute dynamically to btn1.
-  btn1->setAttribute(html_names::kFocusgroupEntryPriorityAttr, g_empty_atom);
+  btn1->setAttribute(html_names::kFocusgroupstartAttr, g_empty_atom);
   UpdateAllLifecyclePhasesForTest();
 
-  EXPECT_TRUE(utils::HasFocusgroupEntryPriority(*btn1));
-  EXPECT_FALSE(utils::HasFocusgroupEntryPriority(*btn2));
+  EXPECT_TRUE(utils::IsFocusgroupStart(*btn1));
+  EXPECT_FALSE(utils::IsFocusgroupStart(*btn2));
 
   // Remove attribute from btn1 and add to btn2.
-  btn1->removeAttribute(html_names::kFocusgroupEntryPriorityAttr);
-  btn2->setAttribute(html_names::kFocusgroupEntryPriorityAttr, g_empty_atom);
+  btn1->removeAttribute(html_names::kFocusgroupstartAttr);
+  btn2->setAttribute(html_names::kFocusgroupstartAttr, g_empty_atom);
   UpdateAllLifecyclePhasesForTest();
 
-  EXPECT_FALSE(utils::HasFocusgroupEntryPriority(*btn1));
-  EXPECT_TRUE(utils::HasFocusgroupEntryPriority(*btn2));
+  EXPECT_FALSE(utils::IsFocusgroupStart(*btn1));
+  EXPECT_TRUE(utils::IsFocusgroupStart(*btn2));
 }
 
 TEST_F(FocusgroupControllerTest, DoesElementContainBarrierWithOptOut) {
@@ -2167,8 +2270,11 @@ TEST_F(FocusgroupControllerTest, DoesElementContainBarrierWithOptOut) {
   EXPECT_TRUE(utils::DoesElementContainBarrier(*fg));
 }
 
-// Exercises the condition where ScopedFocusNavigation::IsNonEntryFocusgroupItem
-// is called with an element that is not focusable.
+// Exercises arrow key handler behavior with select elements.
+// Select elements are arrow key handlers because they consume arrow keys
+// on both axes for option navigation. When an arrow key handler is focused,
+// it is treated as if it has focusgroup="none", so Tab follows normal document
+// order (skipping non-entry focusgroup items).
 TEST_F(FocusgroupControllerTest, FocusgroupWithSelect) {
   GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
     <div focusgroup="toolbar inline">
@@ -2183,19 +2289,68 @@ TEST_F(FocusgroupControllerTest, FocusgroupWithSelect) {
   )HTML");
   UpdateAllLifecyclePhasesForTest();
 
+  auto* btn1 = GetElementById("btn1");
   auto* sel1 = GetElementById("sel1");
+  auto* btn2 = GetElementById("btn2");
   auto* after = GetElementById("after");
+  ASSERT_TRUE(btn1);
   ASSERT_TRUE(sel1);
+  ASSERT_TRUE(btn2);
   ASSERT_TRUE(after);
 
-  // Focus the select and use Tab to exit the focusgroup.
+  // Arrow key can navigate TO the select (entry works).
+  btn1->Focus();
+  ASSERT_EQ(GetDocument().FocusedElement(), btn1);
+  auto* right_event = KeyDownEvent(ui::DomKey::ARROW_RIGHT, btn1);
+  SendEvent(right_event);
+  EXPECT_EQ(GetDocument().FocusedElement(), sel1)
+      << "Arrow right should navigate to select (entry allowed)";
+
+  // Tab from select: arrow key handler is treated as if it has
+  // focusgroup="none". Normal Tab order applies, skipping non-entry items.
+  auto* tab_event = KeyDownEvent(ui::DomKey::TAB, sel1);
+  SendEvent(tab_event);
+  EXPECT_EQ(GetDocument().FocusedElement(), after)
+      << "Tab from arrow key handler should follow normal Tab order";
+}
+
+// Exercises Shift+Tab from an arrow key handler in a separate test
+// to avoid state from previous navigations affecting the result.
+TEST_F(FocusgroupControllerTest, FocusgroupWithSelectShiftTab) {
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
+    <button id=before type="button">Before</button>
+    <div focusgroup="toolbar inline">
+      <button id=btn1 type="button">Bold</button>
+      <select id=sel1>
+        <option>12px</option>
+        <option>14px</option>
+      </select>
+      <button id=btn2 type="button">Italic</button>
+    </div>
+    <button id=after type="button">After</button>
+  )HTML");
+  UpdateAllLifecyclePhasesForTest();
+
+  auto* before = GetElementById("before");
+  auto* btn1 = GetElementById("btn1");
+  auto* sel1 = GetElementById("sel1");
+  ASSERT_TRUE(before);
+  ASSERT_TRUE(btn1);
+  ASSERT_TRUE(sel1);
+
+  // Start from sel1 and Shift+Tab backward.
   sel1->Focus();
+  UpdateAllLifecyclePhasesForTest();
   ASSERT_EQ(GetDocument().FocusedElement(), sel1);
 
-  auto* event = KeyDownEvent(ui::DomKey::TAB, sel1);
-  SendEvent(event);
-  EXPECT_EQ(GetDocument().FocusedElement(), after)
-      << "Tab from select should exit focusgroup to the button after";
+  auto* shift_tab_event =
+      KeyDownEvent(ui::DomKey::TAB, sel1, WebInputEvent::kShiftKey);
+  SendEvent(shift_tab_event);
+  // Shift+Tab from sel1: arrow key handler is treated as if it has
+  // focusgroup="none". Looking backward, btn1 is the entry element so it
+  // should be visited.
+  EXPECT_EQ(GetDocument().FocusedElement(), btn1)
+      << "Shift+Tab from arrow key handler should go to entry element";
 }
 
 }  // namespace blink

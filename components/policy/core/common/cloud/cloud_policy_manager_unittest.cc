@@ -61,9 +61,9 @@ class TestHarness : public PolicyProviderTestHarness {
   void InstallBooleanPolicy(const std::string& policy_name,
                             bool policy_value) override;
   void InstallStringListPolicy(const std::string& policy_name,
-                               const base::Value::List& policy_value) override;
+                               const base::ListValue& policy_value) override;
   void InstallDictionaryPolicy(const std::string& policy_name,
-                               const base::Value::Dict& policy_value) override;
+                               const base::DictValue& policy_value) override;
 
   // Creates harnesses for mandatory and recommended levels, respectively.
   static PolicyProviderTestHarness* CreateMandatory();
@@ -91,12 +91,14 @@ ConfigurationPolicyProvider* TestHarness::CreateProvider(
     SchemaRegistry* registry,
     scoped_refptr<base::SequencedTaskRunner> task_runner) {
   // Create and initialize the store.
-  auto store = std::make_unique<MockCloudPolicyStore>();
+  auto store = std::make_unique<MockCloudPolicyStore>(
+      dm_protocol::GetChromeUserPolicyType());
   store_ = store.get();
   store_->NotifyStoreLoaded();
   std::unique_ptr<MockCloudPolicyStore> extension_install_store;
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-  extension_install_store = std::make_unique<MockCloudPolicyStore>();
+  extension_install_store = std::make_unique<MockCloudPolicyStore>(
+      dm_protocol::kChromeExtensionInstallUserCloudPolicyType);
   extension_install_store_ = extension_install_store.get();
   extension_install_store_->NotifyStoreLoaded();
 #endif
@@ -134,17 +136,15 @@ void TestHarness::InstallBooleanPolicy(const std::string& policy_name,
                           nullptr);
 }
 
-void TestHarness::InstallStringListPolicy(
-    const std::string& policy_name,
-    const base::Value::List& policy_value) {
+void TestHarness::InstallStringListPolicy(const std::string& policy_name,
+                                          const base::ListValue& policy_value) {
   store_->policy_map_.Set(policy_name, policy_level(), policy_scope(),
                           POLICY_SOURCE_CLOUD,
                           base::Value(policy_value.Clone()), nullptr);
 }
 
-void TestHarness::InstallDictionaryPolicy(
-    const std::string& policy_name,
-    const base::Value::Dict& policy_value) {
+void TestHarness::InstallDictionaryPolicy(const std::string& policy_name,
+                                          const base::DictValue& policy_value) {
   store_->policy_map_.Set(policy_name, policy_level(), policy_scope(),
                           POLICY_SOURCE_CLOUD,
                           base::Value(policy_value.Clone()), nullptr);
@@ -189,12 +189,14 @@ class CloudPolicyManagerTest : public testing::Test {
     policy_.payload().mutable_searchsuggestenabled()->set_value(false);
     policy_.Build();
 
-    auto store = std::make_unique<MockCloudPolicyStore>();
+    auto store = std::make_unique<MockCloudPolicyStore>(
+        dm_protocol::GetChromeUserPolicyType());
     store_ = store.get();
     EXPECT_CALL(*store_, Load());
     std::unique_ptr<MockCloudPolicyStore> extension_install_store;
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-    extension_install_store = std::make_unique<MockCloudPolicyStore>();
+    extension_install_store = std::make_unique<MockCloudPolicyStore>(
+        dm_protocol::kChromeExtensionInstallUserCloudPolicyType);
     extension_install_store_ = extension_install_store.get();
     EXPECT_CALL(*extension_install_store_, Load());
 #endif

@@ -5,10 +5,10 @@
 #ifndef IOS_CHROME_BROWSER_TOOLBAR_LEGACY_UI_BUNDLED_BUTTONS_TOOLBAR_BUTTON_ACTIONS_HANDLER_H_
 #define IOS_CHROME_BROWSER_TOOLBAR_LEGACY_UI_BUNDLED_BUTTONS_TOOLBAR_BUTTON_ACTIONS_HANDLER_H_
 
-#import <Foundation/Foundation.h>
+#import <UIKit/UIKit.h>
 
 @protocol ActivityServiceCommands;
-@protocol OmniboxCommands;
+@protocol BrowserCoordinatorCommands;
 @protocol PopupMenuCommands;
 @protocol SceneCommands;
 
@@ -22,7 +22,8 @@ class WebNavigationBrowserAgent;
 @property(nonatomic, weak) id<SceneCommands> sceneHandler;
 @property(nonatomic, weak) id<ActivityServiceCommands> activityHandler;
 @property(nonatomic, weak) id<PopupMenuCommands> menuHandler;
-@property(nonatomic, weak) id<OmniboxCommands> omniboxHandler;
+@property(nonatomic, weak) id<BrowserCoordinatorCommands>
+    browserCoordinatorHandler;
 
 @property(nonatomic, assign) WebNavigationBrowserAgent* navigationAgent;
 @property(nonatomic, assign) TabBasedIPHBrowserAgent* tabBasedIPHAgent;
@@ -46,7 +47,7 @@ class WebNavigationBrowserAgent;
 - (void)toolsMenuAction;
 
 // Action when the share button is tapped.
-- (void)shareAction;
+- (void)shareAction:(UIView*)sender;
 
 // Action when the reload button is tapped.
 - (void)reloadAction;

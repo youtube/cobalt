@@ -61,14 +61,22 @@ class CC_DEBUG_EXPORT DebugColors {
   static SkColor4f EvictedTileCheckerboardColor();
   static SkColor4f InvalidatedTileCheckerboardColor();
 
-  static const int kFadeSteps = 50;
+  static constexpr int kFadeSteps = 50;
   static SkColor4f PaintRectBorderColor(int step);
   static int PaintRectBorderWidth();
   static SkColor4f PaintRectFillColor(int step);
 
-  static SkColor4f LayoutShiftRectBorderColor();
+  static SkColor4f LayoutShiftRectBorderColor(int step);
   static int LayoutShiftRectBorderWidth();
   static SkColor4f LayoutShiftRectFillColor(int step);
+
+  static SkColor4f InteractionContentfulPaintRectBorderColor(int step);
+  static int InteractionContentfulPaintRectBorderWidth();
+  static SkColor4f InteractionContentfulPaintRectFillColor(int step);
+
+  static SkColor4f NavigationContentfulPaintRectBorderColor(int step);
+  static int NavigationContentfulPaintRectBorderWidth();
+  static SkColor4f NavigationContentfulPaintRectFillColor(int step);
 
   static SkColor4f PropertyChangedRectBorderColor();
   static int PropertyChangedRectBorderWidth();

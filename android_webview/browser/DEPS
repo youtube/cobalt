@@ -55,6 +55,7 @@ include_rules = [
   "+components/spellcheck/browser",
   "+components/spellcheck/common",
   "+components/strings",
+  "+components/stylus_handwriting/android/stylus_handwriting_feature_map.h",
   "+components/tracing/common",
   "+components/url_formatter",
   "+components/url_matcher",
@@ -68,6 +69,7 @@ include_rules = [
   "+components/viz/test",
   "+components/webdata/common",
   "+components/webui/flags",
+  "+components/webui/user_actions",
 
   "+content/public/browser",
   "+content/public/test",
@@ -137,7 +139,6 @@ include_rules = [
   "+ui/display",
   "+ui/gfx",
   "+ui/gl",
-  "+ui/events/features.h",
   "+ui/touch_selection/touch_handle.h",
 
   # Temporary until we bundle our own favicon. See

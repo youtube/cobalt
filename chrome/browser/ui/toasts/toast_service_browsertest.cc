@@ -13,6 +13,7 @@
 #include "chrome/browser/ui/toasts/toast_features.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/test/base/in_process_browser_test.h"
+#include "components/autofill/core/common/autofill_features.h"
 #include "components/commerce/core/commerce_feature_list.h"
 #include "components/data_sharing/public/features.h"
 #include "components/plus_addresses/core/common/features.h"
@@ -27,7 +28,8 @@ using ToastIdEnumSet =
 // Toast IDs that have been deprecated and no longer have a registered
 // specification.
 constexpr auto kDeprecatedToastIds =
-    std::to_array<std::underlying_type_t<ToastId>>({/*kLensOverlay=*/4});
+    std::to_array<std::underlying_type_t<ToastId>>(
+        {/*kLensOverlay=*/4, /*kAddedToComparisonTable=*/6});
 
 ToastIdEnumSet GetActiveToastIds() {
   auto result = ToastIdEnumSet::All();
@@ -41,7 +43,8 @@ class ToastServiceBrowserTest : public InProcessBrowserTest {
  public:
   void SetUp() override {
     feature_list_.InitWithFeaturesAndParameters(
-        {{commerce::kProductSpecifications, {}},
+        {{autofill::features::kAutofillAiWalletPrivatePasses, {}},
+         {commerce::kProductSpecifications, {}},
          {plus_addresses::features::kPlusAddressesEnabled, {}},
          {safe_browsing::kEsbAsASyncedSetting, {}},
          {data_sharing::features::kDataSharingFeature, {}},

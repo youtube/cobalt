@@ -342,7 +342,6 @@
 <translation id="2201071101391734388">Акыркы сүрөт (<ph name="TOTAL_COUNT" /> ичинен <ph name="INDEX" />).</translation>
 <translation id="2201687081523799384">Google Tasks'ты жыйыштыруу</translation>
 <translation id="2208323208084708176">Биргелешкен иш тактасы режими</translation>
-<translation id="2210311543574621570">Ctrl + V баскычтарын коё бербей басып турганыңызда алмашуу буферин көрөсүз. chrome://flags дарегиндеги #clipboard-history-longpress желекчесин өчүрүп, бул ыкчам баскычты өчүрө аласыз.</translation>
 <translation id="2215920961700443347">Интернет жок. Интернетке туташып, кайталап көрүңүз.</translation>
 <translation id="2222841058024245321">7-иш такта</translation>
 <translation id="2223384056430485343">Бөлүнгөн экранда</translation>
@@ -2195,7 +2194,6 @@
 <translation id="8241650983304689286">Өтмөктү жаңы бөлүп көрүү режимине кошуу</translation>
 <translation id="8247060538831475781"><ph name="CONNECTION_STATUS" />, Сигналдын күчү <ph name="SIGNAL_STRENGTH" />, Телефондун батареясы <ph name="BATTERY_STATUS" /></translation>
 <translation id="825129991941217170">Google Drive'дагы бардык контентти көрсөтүү</translation>
-<translation id="8257510091797044096">Түзмөгүңүздү тууралап алыңыз</translation>
 <translation id="8261506727792406068">Жок кылуу</translation>
 <translation id="8262312463845990408">Ойнотууну өчүрүү/күйгүзүү</translation>
 <translation id="8268302343625273732">Google Класстагы бардык тапшырмаларды көрүү</translation>

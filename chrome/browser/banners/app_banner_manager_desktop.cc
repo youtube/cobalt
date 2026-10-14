@@ -125,17 +125,12 @@ void AppBannerManagerDesktop::DoNativeAppInstallableCheck(
 }
 
 void AppBannerManagerDesktop::OnWebAppInstallableCheckedNoErrors(
-    const ManifestId& manifest_id) const {}
+    const ManifestId& manifest_id) {}
 
 base::expected<void, InstallableStatusCode>
 AppBannerManagerDesktop::CanRunWebAppInstallableChecks(
     const blink::mojom::Manifest& manifest) {
   return base::ok();
-}
-
-base::WeakPtr<AppBannerManager>
-AppBannerManagerDesktop::GetWeakPtrForThisNavigation() {
-  return weak_factory_.GetWeakPtr();
 }
 
 void AppBannerManagerDesktop::InvalidateWeakPtrsForThisNavigation() {

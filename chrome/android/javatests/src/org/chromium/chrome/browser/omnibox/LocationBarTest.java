@@ -47,7 +47,6 @@ import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
-import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.DoNotBatch;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Restriction;
@@ -67,10 +66,8 @@ import org.chromium.chrome.test.R;
 import org.chromium.chrome.test.transit.ChromeTransitTestRules;
 import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
 import org.chromium.chrome.test.transit.page.WebPageStation;
-import org.chromium.chrome.test.util.ChromeTabUtils;
 import org.chromium.chrome.test.util.OmniboxTestUtils;
 import org.chromium.components.embedder_support.util.UrlConstants;
-import org.chromium.components.omnibox.OmniboxFeatureList;
 import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.components.search_engines.TemplateUrl;
 import org.chromium.components.search_engines.TemplateUrlService;
@@ -268,57 +265,29 @@ public class LocationBarTest {
         startActivityNormally();
         final String query = "testing query";
 
-        ThreadUtils.runOnUiThreadBlocking(
+        ThreadUtils.runOnUiThreadBlocking(() -> mLocationBarMediator.setSearchQuery(query));
+
+        // Query cannot be applied right away because the UrlBar needs to acquire focus first.
+        CriteriaHelper.pollUiThread(
                 () -> {
-                    mLocationBarMediator.setSearchQuery(query);
                     Assert.assertEquals(query, mUrlBar.getTextWithoutAutocomplete());
                     Assert.assertTrue(mLocationBarMediator.isUrlBarFocused());
+                    mKeyboardDelegate.isKeyboardShowing(mUrlBar);
                 });
-
-        CriteriaHelper.pollUiThread(() -> mKeyboardDelegate.isKeyboardShowing(mUrlBar));
     }
 
     @Test
     @MediumTest
-    @DisabledTest(message = "crbug.com/1470145")
     public void testSetSearchQueryFocusesUrlBar_preNative() {
         startActivityWithDeferredNativeInitialization();
         final String query = "testing query";
 
         ThreadUtils.runOnUiThreadBlocking(() -> mLocationBarMediator.setSearchQuery(query));
-
         triggerAndWaitForDeferredNativeInitialization();
         CriteriaHelper.pollUiThread(
                 () -> {
                     Criteria.checkThat(mUrlBar.getTextWithoutAutocomplete(), Matchers.is(query));
                     Criteria.checkThat(mLocationBarMediator.isUrlBarFocused(), Matchers.is(true));
-                });
-    }
-
-    @Test
-    @MediumTest
-    public void testPerformSearchQuery() {
-        startActivityNormally();
-        doReturn(mSearchUrl)
-                .when(mTemplateUrlService)
-                .getUrlForSearchQuery(TEST_QUERY, TEST_PARAMS);
-
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> mLocationBarMediator.performSearchQuery(TEST_QUERY, TEST_PARAMS));
-
-        ChromeTabUtils.waitForTabPageLoaded(mActivityTestRule.getActivityTab(), mSearchUrl);
-    }
-
-    @Test
-    @MediumTest
-    public void testPerformSearchQuery_emptyUrl() {
-        startActivityNormally();
-        doReturn("").when(mTemplateUrlService).getUrlForSearchQuery(TEST_QUERY, TEST_PARAMS);
-
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> {
-                    mLocationBarMediator.performSearchQuery(TEST_QUERY, TEST_PARAMS);
-                    Assert.assertEquals(TEST_QUERY, mUrlBar.getTextWithoutAutocomplete());
                 });
     }
 
@@ -795,18 +764,6 @@ public class LocationBarTest {
 
         mActivityTestRule.loadUrl(getOriginalNativeNtpUrl());
         onView(withId(R.id.location_bar_status_icon)).check(matches(not(isDisplayed())));
-    }
-
-    @Test
-    @SmallTest
-    @Restriction(DeviceFormFactor.PHONE)
-    @DisableFeatures(OmniboxFeatureList.OMNIBOX_MOBILE_PARITY_UPDATE_V2)
-    public void testOmniboxSearchEngineLogo_unfocusedOnSRP_nonGoogleSearchEngine() {
-        setupSearchEngineLogo(NON_GOOGLE_URL);
-        startActivityNormally();
-
-        mActivityTestRule.loadUrl(getOriginalNativeNtpUrl());
-        onView(withId(R.id.location_bar_status_icon)).check(matches(isDisplayed()));
     }
 
     @Test

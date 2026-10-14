@@ -29,6 +29,7 @@
 #include "net/base/net_errors.h"
 #include "net/base/net_export.h"
 #include "net/disk_cache/cache_encryption_delegate.h"
+#include "net/disk_cache/cache_entry_hasher.h"
 #include "net/disk_cache/disk_cache.h"
 #include "net/disk_cache/simple/post_operation_waiter.h"
 #include "net/disk_cache/simple/simple_entry_impl.h"
@@ -73,8 +74,8 @@ class NET_EXPORT_PRIVATE SimpleBackendImpl final : public Backend,
       SimpleFileTracker* file_tracker,
       int64_t max_bytes,
       net::CacheType cache_type,
-      net::NetLog* net_log,
-      net::CacheEncryptionDelegate* cache_encryption_delegate);
+      std::unique_ptr<CacheEntryHasher> entry_hasher,
+      net::NetLog* net_log);
 
   ~SimpleBackendImpl() override;
 
@@ -261,6 +262,7 @@ class NET_EXPORT_PRIVATE SimpleBackendImpl final : public Backend,
   // Calculates and returns a new entry's worker pool priority.
   uint32_t GetNewEntryPriority(net::RequestPriority request_priority);
 
+  std::unique_ptr<CacheEntryHasher> entry_hasher_;
   scoped_refptr<BackendFileOperationsFactory> file_operations_factory_;
 
   // We want this destroyed after every other field.
@@ -292,7 +294,6 @@ class NET_EXPORT_PRIVATE SimpleBackendImpl final : public Backend,
   scoped_refptr<SimplePostOperationWaiterTable> post_open_by_hash_waiting_;
 
   const raw_ptr<net::NetLog> net_log_;
-  const raw_ptr<net::CacheEncryptionDelegate> cache_encryption_delegate_;
   uint32_t entry_count_ = 0;
 
 #if BUILDFLAG(IS_ANDROID)

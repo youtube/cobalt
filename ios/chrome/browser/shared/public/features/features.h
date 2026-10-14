@@ -46,6 +46,16 @@ BASE_DECLARE_FEATURE(kIOSBrowserEditMenuMetrics);
 BASE_DECLARE_FEATURE(kIOSCustomFileUploadMenu);
 
 // Docking Promo experiment variations.
+extern const char kIOSDockingPromoV2VariationParam[];
+extern const char kIOSDockingPromoV2VariationHeader1[];
+extern const char kIOSDockingPromoV2VariationHeader2[];
+extern const char kIOSDockingPromoV2VariationHeader3[];
+
+// Feature flag to enable the Docking Promo V2.
+BASE_DECLARE_FEATURE(kIOSDockingPromoV2);
+
+// Helper function to check if `kIOSDockingPromoV2` is enabled.
+bool IsDockingPromoV2Enabled();
 
 // A parameter representing the experimental arm for when the Docking Promo is
 // displayed: during the FRE, or after the FRE.
@@ -133,10 +143,6 @@ BASE_DECLARE_FEATURE(kEnableLensInNTP);
 
 // Feature flag to enable the Lens "Search copied image" omnibox entrypoint.
 BASE_DECLARE_FEATURE(kEnableLensInOmniboxCopiedImage);
-
-// Feature flag to enable the Lens "Search copied image" omnibox entrypoint.
-BASE_DECLARE_FEATURE(kEnableLensOverlay);
-extern const base::NotFatalUntil kLensOverlayNotFatalUntil;
 
 // Whether to enable loading AIM in the lens result page.
 BASE_DECLARE_FEATURE(kLensLoadAIMInLensResultPage);
@@ -234,37 +240,6 @@ BASE_DECLARE_FEATURE(kContextualPanelForceShowEntrypoint);
 
 bool IsContextualPanelForceShowEntrypointEnabled();
 
-// Feature to enable the contextual panel.
-BASE_DECLARE_FEATURE(kContextualPanel);
-
-bool IsContextualPanelEnabled();
-
-// A parameter representing how many seconds delay before the large Contextual
-// Panel Entrypoint is shown (timer starts after the normal entrypoint is
-// shown).
-extern const base::FeatureParam<int>
-    kLargeContextualPanelEntrypointDelayInSeconds;
-// A parameter representing how many seconds the large Contextual Panel
-// Entrypoint is shown for, which includes disabling fullscreen.
-extern const base::FeatureParam<int>
-    kLargeContextualPanelEntrypointDisplayedInSeconds;
-
-int LargeContextualPanelEntrypointDelayInSeconds();
-int LargeContextualPanelEntrypointDisplayedInSeconds();
-
-// A parameter representing whether the Contextual Panel entrypoint should be
-// highlighted in blue when showing an IPH.
-extern const base::FeatureParam<bool>
-    kContextualPanelEntrypointHighlightDuringIPH;
-
-bool ShouldHighlightContextualPanelEntrypointDuringIPH();
-
-// A parameter representing whether the Contextual Panel entrypoint should show
-// a rich IPH.
-extern const base::FeatureParam<bool> kContextualPanelEntrypointRichIPH;
-
-bool ShouldShowRichContextualPanelEntrypointIPH();
-
 // Feature flag to control the maximum amount of non-modal DB promo impressions
 // server-side. Enabled by default to always have a default impression limit
 // value.
@@ -304,6 +279,9 @@ BASE_DECLARE_FEATURE(kIOSDownloadNoUIUpdateInBackground);
 
 // Feature flag enabling the client folder implementation of Save to Drive.
 BASE_DECLARE_FEATURE(kIOSSaveToDriveClientFolder);
+
+// Feature flag enabling the save to drive feature for signed out users.
+BASE_DECLARE_FEATURE(kIOSSaveToDriveSignedOut);
 
 // Feature flag to enable feed background refresh.
 // Use IsFeedBackgroundRefreshEnabled() instead of this constant directly.
@@ -467,6 +445,9 @@ bool IsContentPushNotificationsSetUpListRegistrationOnly();
 // false otherwise.
 bool IsLiquidGlassEffectEnabled();
 
+// Feature flag to enable Enhanced Autofill.
+BASE_DECLARE_FEATURE(kIOSEnhancedAutofill);
+
 // Feature flag to enable the default input accessory view.
 BASE_DECLARE_FEATURE(kIOSKeyboardAccessoryDefaultView);
 
@@ -480,6 +461,15 @@ bool IsIOSKeyboardAccessoryDefaultViewEnabled();
 // enabled.
 bool IsIOSKeyboardAccessoryTwoBubbleEnabled();
 
+// Name of the parameter for kIOSKeyboardAccessoryTwoBubble to use a keyboard
+// icon.
+inline constexpr char kIOSKeyboardAccessoryTwoBubbleKeyboardIconParamName[] =
+    "use_keyboard_icon";
+
+// Feature param for kIOSKeyboardAccessoryTwoBubble to use a keyboard icon.
+BASE_DECLARE_FEATURE_PARAM(bool,
+                           kIOSKeyboardAccessoryTwoBubbleKeyboardIconParam);
+
 // Kill switch for disabling the navigations when the application is in
 // foreground inactive state after opening an external app.
 BASE_DECLARE_FEATURE(kInactiveNavigationAfterAppLaunchKillSwitch);
@@ -490,10 +480,6 @@ bool IsPinnedTabsEnabled();
 
 // Feature flag for caching the ios module ranker.
 BASE_DECLARE_FEATURE(kSegmentationPlatformIosModuleRankerCaching);
-
-// Flag to not keep a strong reference to the spotlight index, as a tentative
-// memory improvement measure.
-BASE_DECLARE_FEATURE(kSpotlightNeverRetainIndex);
 
 // Feature flag to enable app background refresh.
 // Use IsAppBackgroundRefreshEnabled() instead of this constant directly.
@@ -537,50 +523,6 @@ BASE_DECLARE_FEATURE(kSeparateProfilesForManagedAccountsForceMigration);
 // Feature to control resyncing the omaha ping timer on foregrounding.
 BASE_DECLARE_FEATURE(kOmahaResyncTimerOnForeground);
 
-// Feature flag to use the async version of the chrome startup method.
-BASE_DECLARE_FEATURE(kChromeStartupParametersAsync);
-
-// Feature flag to enable the opening of links from Youtube Incognito in Chrome
-// incognito.
-BASE_DECLARE_FEATURE(kYoutubeIncognito);
-
-// Feature param to specify whether the youtube incognito handling is done
-// without the incognito interstitial.
-extern const char
-    kYoutubeIncognitoErrorHandlingWithoutIncognitoInterstitialParam[];
-
-// A parameter to choose what type of apps allowed for `kYoutubeIncognito`
-// experiment (default to allow listed)
-extern const char kYoutubeIncognitoTargetApps[];
-
-// A parameter value for `kYoutubeIncognitoTargetApps` to only enable the
-// feature for the allow listed apps.
-extern const char kYoutubeIncognitoTargetAppsAllowlisted[];
-
-// A parameter value for `kYoutubeIncognitoTargetApps` to only enable the
-// feature for the first party apps.
-extern const char kYoutubeIncognitoTargetAppsFirstParty[];
-
-// A parameter value for `kYoutubeIncognitoTargetApps` to only enable the
-// feature for all apps.
-extern const char kYoutubeIncognitoTargetAppsAll[];
-
-// Returns whether
-// `kYoutubeIncognitoErrorHandlingWithoutIncognitoInterstitialParam` is enabled.
-bool IsYoutubeIncognitoErrorHandlingWithoutIncognitoInterstitialEnabled();
-
-// Returns whether `kYoutubeIncognitoTargetApps` is
-// `kYoutubeIncognitoTargetAppsAllowlisted`.
-bool IsYoutubeIncognitoTargetAllowListedEnabled();
-
-// Returns whether `kYoutubeIncognitoTargetApps` is
-// `kYoutubeIncognitoTargetAppsFirstParty`.
-bool IsYoutubeIncognitoTargetFirstPartyEnabled();
-
-// Returns whether `kYoutubeIncognitoTargetApps` is
-// `kYoutubeIncognitoTargetAppsAll`.
-bool IsYoutubeIncognitoTargetAllEnabled();
-
 // Feature flag to enable Reactivation Notifications.
 BASE_DECLARE_FEATURE(kIOSReactivationNotifications);
 
@@ -599,6 +541,7 @@ bool IsIOSReactivationNotificationsEnabled();
 extern const char kIOSExpandedSetupListVariationParam[];
 extern const char kIOSExpandedSetupListVariationParamSafariImport[];
 extern const char kIOSExpandedSetupListVariationParamBackgroundCustomization[];
+extern const char kIOSExpandedSetupListVariationParamAllExceptCPE[];
 extern const char kIOSExpandedSetupListVariationParamAll[];
 
 // Feature flag to add new items in the Setup List.
@@ -688,9 +631,6 @@ bool IsRefactorToolbarsSize();
 
 // Feature that disables all IPH messages.
 BASE_DECLARE_FEATURE(kIPHAblation);
-
-// Feature that disables IPH dismissal pan gesture for lens overlay promos.
-BASE_DECLARE_FEATURE(kLensOverlayDisableIPHPanGesture);
 
 // Returns true if IPH ablation is enabled.
 bool IsIPHAblationEnabled();
@@ -845,9 +785,6 @@ bool ShouldShowEditMenuItemsSynchronously();
 BASE_DECLARE_FEATURE(kIOSTipsNotificationsAlternativeStrings);
 bool IsTipsNotificationsAlternativeStringsEnabled();
 
-// Feature flag to allow users to import passwords from Safari.
-BASE_DECLARE_FEATURE(kImportPasswordsFromSafari);
-
 // Name of the parameter that controls tips notifications alternative string
 // version.
 extern const char kTipsNotificationsAlternativeStringVersion[];
@@ -887,12 +824,6 @@ BASE_DECLARE_FEATURE(kMultilineBrowserOmnibox);
 // Returns true if the MultilineBrowserOmnibox feature is enabled.
 bool IsMultilineBrowserOmniboxEnabled();
 
-// Feature flag for settings controls auto open remote tab groups.
-BASE_DECLARE_FEATURE(kIOSAutoOpenRemoteTabGroupsSettings);
-
-// Whether the kIOSAutoOpenRemoteTabGroupsSettings feature is enabled.
-bool IsAutoOpenRemoteTabGroupsSettingsFeatureEnabled();
-
 // Enables the DisableKeyboardAccessory feature.
 BASE_DECLARE_FEATURE(kDisableKeyboardAccessory);
 
@@ -928,6 +859,12 @@ BASE_DECLARE_FEATURE(kTabGroupColorOnSurface);
 
 // Returns true if the TabGroupColorOnSurface feature is enabled.
 bool IsTabGroupColorOnSurfaceEnabled();
+
+// Enables the OmniboxCrashFixKillSwitch feature.
+BASE_DECLARE_FEATURE(kOmniboxCrashFixKillSwitch);
+
+// Returns true if the OmniboxCrashFixKillSwitch feature is enabled.
+bool IsOmniboxCrashFixKillSwitchEnabled();
 
 // Enables the AIMEligibilityServiceStartWithProfile feature.
 BASE_DECLARE_FEATURE(kAIMEligibilityServiceStartWithProfile);
@@ -988,5 +925,28 @@ BASE_DECLARE_FEATURE(kEnableNewStartupFlow);
 
 // Returns true if the EnableNewStartupFlow feature is enabled.
 bool IsEnableNewStartupFlowEnabled();
+
+// Updates EnableNewStartupFlow NSUserDefaults key if the value was changed.
+void SaveEnableNewStartupFlowForNextStart();
+
+// Resets the cached value for IsEnableNewStartupFlowEnabled, needed for tests.
+void ResetEnableNewStartupFlowEnabledForTesting();
+
+// Flags for Share Ablation study.
+BASE_DECLARE_FEATURE(kDisableShareButton);
+BASE_DECLARE_FEATURE(kShareInOmniboxLongPress);
+BASE_DECLARE_FEATURE(kShareInOverflowMenu);
+BASE_DECLARE_FEATURE(kShareInVerbatimMatch);
+
+BASE_DECLARE_FEATURE(kUseSceneViewController);
+
+// Returns true if the UseSceneViewController feature is enabled.
+bool IsUseSceneViewControllerEnabled();
+
+// Enables the DisableComposeboxFromAIMNTP feature.
+BASE_DECLARE_FEATURE(kDisableComposeboxFromAIMNTP);
+
+// Returns true if the DisableComposeboxFromAIMNTP feature is enabled.
+bool IsDisableComposeboxFromAIMNTPEnabled();
 
 #endif  // IOS_CHROME_BROWSER_SHARED_PUBLIC_FEATURES_FEATURES_H_

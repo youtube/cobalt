@@ -23,7 +23,6 @@ import android.content.Context;
 import android.content.res.Configuration;
 import android.view.ContextThemeWrapper;
 import android.view.View;
-import android.widget.ImageView;
 
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -40,7 +39,6 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
 
-import org.chromium.base.Callback;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.chrome.browser.ntp_customization.BottomSheetDelegate;
@@ -71,7 +69,6 @@ public class NtpThemeCollectionsCoordinatorUnitTest {
     @Mock private NtpSingleThemeCollectionCoordinator mNtpSingleThemeCollectionCoordinator;
     @Mock private NtpThemeCollectionManager mNtpThemeCollectionManager;
     @Mock private Runnable mOnDailyUpdateCancelledCallback;
-    @Captor private ArgumentCaptor<Callback<List<BackgroundCollection>>> mCallbackCaptor;
     @Captor private ArgumentCaptor<ComponentCallbacks> mComponentCallbacksCaptor;
 
     private NtpThemeCollectionsCoordinator mCoordinator;
@@ -114,9 +111,6 @@ public class NtpThemeCollectionsCoordinatorUnitTest {
                 mBottomSheetView.findViewById(R.id.theme_collections_recycler_view);
         NtpThemeCollectionsAdapter adapter = (NtpThemeCollectionsAdapter) recyclerView.getAdapter();
         assertEquals(mThemeCollectionsList.size(), adapter.getItemCount());
-
-        verify(mNtpThemeCollectionManager).getSelectedThemeCollectionId();
-        verify(mNtpThemeCollectionManager).getSelectedThemeCollectionImageUrl();
     }
 
     @Test
@@ -128,13 +122,6 @@ public class NtpThemeCollectionsCoordinatorUnitTest {
         backButton.performClick();
 
         verify(mBottomSheetDelegate).showBottomSheet(eq(THEME));
-    }
-
-    @Test
-    public void testLearnMoreButton() {
-        View learnMoreButton = mBottomSheetView.findViewById(R.id.learn_more_button);
-        assertNotNull(learnMoreButton);
-        assertTrue(learnMoreButton.hasOnClickListeners());
     }
 
     @Test
@@ -157,7 +144,6 @@ public class NtpThemeCollectionsCoordinatorUnitTest {
         ComponentCallbacks componentCallbacks = mComponentCallbacksCaptor.getValue();
 
         View backButton = mBottomSheetView.findViewById(R.id.back_button);
-        ImageView learnMoreButton = mBottomSheetView.findViewById(R.id.learn_more_button);
         RecyclerView recyclerView =
                 mBottomSheetView.findViewById(R.id.theme_collections_recycler_view);
         NtpThemeCollectionsAdapter adapter = (NtpThemeCollectionsAdapter) recyclerView.getAdapter();
@@ -167,13 +153,11 @@ public class NtpThemeCollectionsCoordinatorUnitTest {
                 mNtpSingleThemeCollectionCoordinator);
 
         assertTrue(backButton.hasOnClickListeners());
-        assertTrue(learnMoreButton.hasOnClickListeners());
         assertNotNull(mCoordinator.getNtpSingleThemeCollectionCoordinatorForTesting());
 
         mCoordinator.destroy();
 
         assertFalse(backButton.hasOnClickListeners());
-        assertFalse(learnMoreButton.hasOnClickListeners());
         verify(adapterSpy).clearOnClickListeners();
         verify(mNtpSingleThemeCollectionCoordinator).destroy();
         verify(mContextSpy).unregisterComponentCallbacks(eq(componentCallbacks));
@@ -237,8 +221,7 @@ public class NtpThemeCollectionsCoordinatorUnitTest {
                 .updateThemeCollection(
                         eq(TEST_COLLECTION_ID),
                         eq(TEST_COLLECTION_TITLE),
-                        eq(TEST_COLLECTION_HASH),
-                        eq(BottomSheetController.SheetState.FULL));
+                        eq(TEST_COLLECTION_HASH));
         verify(mBottomSheetDelegate, times(2))
                 .showBottomSheet(eq(BottomSheetType.SINGLE_THEME_COLLECTION));
         histogramWatcher.assertExpected();

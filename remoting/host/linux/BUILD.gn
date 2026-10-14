@@ -78,8 +78,18 @@ if (enable_me2me_host) {
     outputs = [ "$root_build_dir/remoting/setup-url-forwarder" ]
   }
 
+  executable("login_session_reporter") {
+    sources = [ "login_session_reporter_entry_point.cc" ]
+
+    deps = [
+      ":login_session_reporter_main_headers",
+      "//remoting/host:remoting_core",
+    ]
+  }
+
   group("remoting_dev_me2me_host") {
     deps = [
+      ":login_session_reporter",
       ":remoting_me2me_host_copy_host_wrapper",
       ":remoting_me2me_host_copy_libremoting_core",
       ":remoting_me2me_host_copy_pipewire_templates",
@@ -128,6 +138,11 @@ source_set("utils") {
   configs += [ "//build/linux:gio_config" ]
 }
 
+source_set("login_session_reporter_main_headers") {
+  sources = [ "login_session_reporter_main.h" ]
+  deps = [ "//remoting/host:host_main_headers" ]
+}
+
 source_set("platform_impls") {
   defines = [ "REMOTING_USE_X11" ]
   sources = [
@@ -147,12 +162,15 @@ source_set("platform_impls") {
     "curtain_mode_wayland.cc",
     "curtain_mode_wayland.h",
     "curtain_mode_x11.cc",
+    "daemon_process_main.cc",
     "desktop_display_info_loader_linux.cc",
     "desktop_display_info_loader_x11.cc",
     "desktop_display_info_loader_x11.h",
     "desktop_resizer_linux.cc",
     "desktop_resizer_x11.cc",
     "desktop_resizer_x11.h",
+    "desktop_session_factory_linux.cc",
+    "desktop_session_factory_linux.h",
     "ei_input_injector.cc",
     "ei_input_injector.h",
     "ei_keyboard_layout_monitor.cc",
@@ -165,6 +183,8 @@ source_set("platform_impls") {
     "fd_string_reader.h",
     "fd_string_writer.cc",
     "fd_string_writer.h",
+    "gdm_remote_display_manager.cc",
+    "gdm_remote_display_manager.h",
     "gnome_action_executor.cc",
     "gnome_action_executor.h",
     "gnome_capture_stream_manager.cc",
@@ -188,6 +208,13 @@ source_set("platform_impls") {
     "keyboard_layout_monitor_linux.cc",
     "keyboard_layout_monitor_utils.cc",
     "keyboard_layout_monitor_utils.h",
+    "linux_process_launcher_delegate.cc",
+    "linux_process_launcher_delegate.h",
+    "login_session_manager.cc",
+    "login_session_manager.h",
+    "login_session_reporter_main.cc",
+    "login_session_reporter_server.cc",
+    "login_session_reporter_server.h",
     "pipewire_capture_stream.cc",
     "pipewire_capture_stream.h",
     "pipewire_desktop_capturer.cc",
@@ -212,6 +239,8 @@ source_set("platform_impls") {
     "portal_remote_desktop_session.h",
     "portal_utils.cc",
     "portal_utils.h",
+    "remote_display_session_manager.cc",
+    "remote_display_session_manager.h",
     "scoped_portal_request.cc",
     "scoped_portal_request.h",
     "scoped_portal_session.cc",
@@ -219,11 +248,14 @@ source_set("platform_impls") {
   ]
   deps = [
     ":gvariant",
+    ":login_session_reporter_main_headers",
     ":utils",
     ":x11",
     ":x11_display_utils",
     "//base",
     "//build/config/linux/gtk",
+    "//components/named_mojo_ipc_server",
+    "//ipc",
     "//remoting/base",
     "//remoting/base:logging",
     "//remoting/host:client_session_control",
@@ -231,10 +263,13 @@ source_set("platform_impls") {
     "//remoting/host:common_headers",
     "//remoting/host:desktop_capturer",
     "//remoting/host:display_layout",
+    "//remoting/host:ipc_constants",
+    "//remoting/host:mojo_caller_security_checker",
     "//remoting/host:platform_interfaces",
     "//remoting/host/base",
     "//remoting/host/input_monitor",
     "//remoting/host/linux/dbus_interfaces:interface_headers",
+    "//remoting/host/mojom",
     "//remoting/proto",
     "//remoting/protocol",
     "//third_party/webrtc_overrides:webrtc_component",
@@ -244,6 +279,7 @@ source_set("platform_impls") {
     "//ui/events/keycodes:xkb",
     "//ui/gfx/x",
   ]
+  libs = [ "systemd" ]
 }
 
 source_set("x11_display_utils") {

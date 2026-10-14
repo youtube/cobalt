@@ -6,14 +6,14 @@
 #define CHROME_BROWSER_UI_WEBUI_ASH_SETTINGS_PAGES_MAIN_OS_SETTINGS_HATS_HANDLER_H_
 
 #include "base/memory/raw_ptr.h"
-#include "chrome/browser/ui/webui/settings/settings_page_ui_handler.h"
+#include "content/public/browser/web_ui_message_handler.h"
 
 class Profile;
 
 namespace ash::settings {
 
 // WebUI message handler for os settings HaTS.
-class OsSettingsHatsHandler : public ::settings::SettingsPageUIHandler {
+class OsSettingsHatsHandler : public content::WebUIMessageHandler {
  public:
   explicit OsSettingsHatsHandler(Profile* profile);
   ~OsSettingsHatsHandler() override = default;
@@ -27,8 +27,8 @@ class OsSettingsHatsHandler : public ::settings::SettingsPageUIHandler {
   void OnJavascriptDisallowed() override;
 
  private:
-  void HandleSettingsUsedSearch(const base::Value::List& args);
-  void HandleSendSettingsHats(const base::Value::List& args);
+  void HandleSettingsUsedSearch(const base::ListValue& args);
+  void HandleSendSettingsHats(const base::ListValue& args);
   raw_ptr<Profile> profile_;
 };
 

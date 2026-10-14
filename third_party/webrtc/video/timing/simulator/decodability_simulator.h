@@ -12,13 +12,17 @@
 #define VIDEO_TIMING_SIMULATOR_DECODABILITY_SIMULATOR_H_
 
 #include <cstdint>
-#include <optional>
 #include <vector>
 
+#include "absl/algorithm/container.h"
+#include "api/array_view.h"
 #include "api/units/data_size.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "logging/rtc_event_log/rtc_event_log_parser.h"
+#include "video/timing/simulator/frame_base.h"
+#include "video/timing/simulator/results_base.h"
+#include "video/timing/simulator/stream_base.h"
 
 namespace webrtc::video_timing_simulator {
 
@@ -26,8 +30,16 @@ namespace webrtc::video_timing_simulator {
 // sequence of metadata about decodable frames that were contained in the log.
 class DecodabilitySimulator {
  public:
+  struct Config {
+    // Whether or not to reset the stream state on newly logged streams with the
+    // same SSRC. This can be useful for simulation, but likely not for data
+    // analysis.
+    bool reuse_streams = false;
+  };
+
   // Metadata about a single decodable frame.
-  struct Frame {
+  struct Frame : public FrameBase<Frame> {
+    // -- Values --
     // Frame information.
     int num_packets = -1;
     DataSize size = DataSize::Zero();
@@ -39,69 +51,60 @@ class DecodabilitySimulator {
     Timestamp assembled_timestamp = Timestamp::PlusInfinity();
     Timestamp decodable_timestamp = Timestamp::PlusInfinity();
 
-    bool operator<(const Frame& other) const {
-      return decodable_timestamp < other.decodable_timestamp;
-    }
+    // -- Populated values --
+    // One-way delay relative some baseline.
+    TimeDelta frame_delay_variation = TimeDelta::PlusInfinity();
 
-    std::optional<int> InterPacketCount(const Frame& prev) const {
-      if (num_packets <= 0 || prev.num_packets <= 0) {
-        return std::nullopt;
-      }
-      return num_packets - prev.num_packets;
-    }
-    std::optional<int64_t> InterFrameSizeBytes(const Frame& prev) const {
-      if (size.IsZero() || prev.size.IsZero()) {
-        return std::nullopt;
-      }
-      return size.bytes() - prev.size.bytes();
-    }
-    TimeDelta InterDepartureTime(const Frame& prev) const {
-      if (unwrapped_rtp_timestamp < 0 || prev.unwrapped_rtp_timestamp < 0) {
-        return TimeDelta::PlusInfinity();
-      }
-      constexpr int64_t kRtpTicksPerMs = 90;
-      int64_t inter_departure_time_ms =
-          (unwrapped_rtp_timestamp - prev.unwrapped_rtp_timestamp) /
-          kRtpTicksPerMs;
-      return TimeDelta::Millis(inter_departure_time_ms);
-    }
-    TimeDelta InterAssemblyTime(const Frame& prev) const {
-      return assembled_timestamp - prev.assembled_timestamp;
-    }
-    TimeDelta InterArrivalTime(const Frame& prev) const {
-      return decodable_timestamp - prev.decodable_timestamp;
+    // -- Value accessors --
+    Timestamp ArrivalTimestampInternal() const { return decodable_timestamp; }
+
+    // -- Per-frame metrics --
+    // Time spent waiting for reference frames to arrive.
+    TimeDelta UndecodableDuration() const {
+      return decodable_timestamp - assembled_timestamp;
     }
   };
 
   // All frames in one stream.
-  struct Stream {
+  struct Stream : public StreamBase<Stream> {
     Timestamp creation_timestamp = Timestamp::PlusInfinity();
     uint32_t ssrc = 0;
     std::vector<Frame> frames;
-
-    bool IsEmpty() const { return frames.empty(); }
-
-    bool operator<(const Stream& other) const {
-      if (creation_timestamp != other.creation_timestamp) {
-        return creation_timestamp < other.creation_timestamp;
-      }
-      return ssrc < other.ssrc;
-    }
   };
 
   // All streams.
-  struct Results {
+  struct Results : public ResultsBase<Results> {
     std::vector<Stream> streams;
   };
 
-  DecodabilitySimulator() = default;
-  ~DecodabilitySimulator() = default;
+  explicit DecodabilitySimulator(Config config);
+  ~DecodabilitySimulator();
 
   DecodabilitySimulator(const DecodabilitySimulator&) = delete;
   DecodabilitySimulator& operator=(const DecodabilitySimulator&) = delete;
 
   Results Simulate(const ParsedRtcEventLog& parsed_log) const;
+
+ private:
+  const Config config_;
 };
+
+// -- Comparators and sorting --
+inline bool DecodableOrder(const DecodabilitySimulator::Frame& a,
+                           const DecodabilitySimulator::Frame& b) {
+  return a.decodable_timestamp < b.decodable_timestamp;
+}
+inline void SortByDecodableOrder(
+    ArrayView<DecodabilitySimulator::Frame> frames) {
+  absl::c_stable_sort(frames, DecodableOrder);
+}
+
+// -- Inter-frame metrics --
+// Difference in decodable time between two frames.
+inline TimeDelta InterDecodableTime(const DecodabilitySimulator::Frame& cur,
+                                    const DecodabilitySimulator::Frame& prev) {
+  return cur.decodable_timestamp - prev.decodable_timestamp;
+}
 
 }  // namespace webrtc::video_timing_simulator
 

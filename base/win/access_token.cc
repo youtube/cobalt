@@ -15,7 +15,9 @@
 #include "base/compiler_specific.h"
 #include "base/containers/span.h"
 #include "base/numerics/checked_math.h"
+#include "base/strings/strcat_win.h"
 #include "base/strings/string_number_conversions_win.h"
+#include "base/strings/string_util_win.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/win/access_control_list.h"
@@ -218,7 +220,7 @@ HANDLE DuplicateToken(HANDLE token,
   return new_token;
 }
 
-std::vector<SID_AND_ATTRIBUTES> ConvertSids(const std::vector<Sid>& sids,
+std::vector<SID_AND_ATTRIBUTES> ConvertSids(base::span<const Sid> sids,
                                             DWORD attributes) {
   std::vector<SID_AND_ATTRIBUTES> ret;
   ret.reserve(sids.size());
@@ -240,7 +242,7 @@ std::optional<LUID> LookupPrivilege(const std::wstring& name) {
 }
 
 std::vector<LUID_AND_ATTRIBUTES> ConvertPrivileges(
-    const std::vector<std::wstring>& privs,
+    base::span<const std::wstring> privs,
     DWORD attributes) {
   std::vector<LUID_AND_ATTRIBUTES> ret;
   ret.reserve(privs.size());
@@ -384,8 +386,33 @@ AccessToken::SecurityAttribute::SecurityAttribute(SecurityAttribute&&) =
     default;
 AccessToken::SecurityAttribute::~SecurityAttribute() = default;
 
+// static
+AccessToken::SecurityAttribute AccessToken::SecurityAttribute::CreateForTesting(
+    std::wstring_view name,
+    bool is_string,
+    ULONG flags,
+    base::span<std::wstring_view> values) {
+  CHECK(!values.empty());
+  return SecurityAttribute(name,
+                           is_string ? TOKEN_SECURITY_ATTRIBUTE_TYPE_STRING
+                                     : TOKEN_SECURITY_ATTRIBUTE_TYPE_UINT64,
+                           flags, {values.begin(), values.end()});
+}
+
 bool AccessToken::SecurityAttribute::is_string() const {
   return type_ == TOKEN_SECURITY_ATTRIBUTE_TYPE_STRING;
+}
+
+std::wstring AccessToken::SecurityAttribute::GetConditionalExpression() const {
+  std::wstring expr = StrCat({L"(", name_, L" == {"});
+  if (is_string()) {
+    // Note, SDDL doesn't support escaping double quotes in value strings.
+    StrAppend(&expr, {L"\"", JoinString(values_, L"\",\""), L"\""});
+  } else {
+    StrAppend(&expr, {JoinString(values_, L",")});
+  }
+  StrAppend(&expr, {L"})"});
+  return expr;
 }
 
 std::optional<AccessToken> AccessToken::FromToken(ScopedHandle&& token) {
@@ -694,9 +721,9 @@ std::optional<AccessToken> AccessToken::DuplicateImpersonation(
 
 std::optional<AccessToken> AccessToken::CreateRestricted(
     DWORD flags,
-    const std::vector<Sid>& sids_to_disable,
-    const std::vector<std::wstring>& privileges_to_delete,
-    const std::vector<Sid>& sids_to_restrict,
+    base::span<const Sid> sids_to_disable,
+    base::span<const std::wstring> privileges_to_delete,
+    base::span<const Sid> sids_to_restrict,
     ACCESS_MASK desired_access) const {
   std::vector<SID_AND_ATTRIBUTES> sids_to_disable_buf =
       ConvertSids(sids_to_disable, 0);
@@ -725,7 +752,7 @@ std::optional<AccessToken> AccessToken::CreateRestricted(
 
 std::optional<AccessToken> AccessToken::CreateAppContainer(
     const Sid& appcontainer_sid,
-    const std::vector<Sid>& capabilities,
+    base::span<const Sid> capabilities,
     ACCESS_MASK desired_access) const {
   static const CreateAppContainerTokenFunction CreateAppContainerToken =
       reinterpret_cast<CreateAppContainerTokenFunction>(::GetProcAddress(
@@ -804,6 +831,8 @@ bool AccessToken::AddSecurityAttribute(std::wstring_view name,
     return false;
   }
 
+  // We don't support attribute values with double quotes.
+  CHECK(!value.contains('"'));
   UNICODE_STRING ustr_value = {};
   if (!ViewToUnicodeString(value, ustr_value)) {
     return false;

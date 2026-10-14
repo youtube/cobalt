@@ -15,9 +15,7 @@
 #include <string>
 #include <vector>
 
-#include "build/chromeos_buildflags.h"
-#include "chromeos/crosapi/mojom/keystore_error.mojom.h"
-#include "chromeos/crosapi/mojom/keystore_service.mojom.h"
+#include "chromeos/ash/components/platform_keys/keystore_types.h"
 #include "extensions/browser/extension_function.h"
 #include "extensions/browser/extension_function_histogram_value.h"
 
@@ -32,7 +30,7 @@ class EnterprisePlatformKeysInternalGenerateKeyFunction
   // Called when the key was generated. If an error occurred, |public_key_der|
   // will be empty.
   void OnGeneratedKey(std::vector<uint8_t> public_key_der,
-                      std::optional<crosapi::mojom::KeystoreError> error);
+                      std::optional<chromeos::KeystoreError> error);
 
   DECLARE_EXTENSION_FUNCTION("enterprise.platformKeysInternal.generateKey",
                              ENTERPRISE_PLATFORMKEYSINTERNAL_GENERATEKEY)
@@ -43,7 +41,7 @@ class EnterprisePlatformKeysGetCertificatesFunction : public ExtensionFunction {
   ~EnterprisePlatformKeysGetCertificatesFunction() override = default;
   ResponseAction Run() override;
 
-  void OnGetCertificates(crosapi::mojom::GetCertificatesResultPtr result);
+  void OnGetCertificates(chromeos::GetCertificatesResult result);
   DECLARE_EXTENSION_FUNCTION("enterprise.platformKeys.getCertificates",
                              ENTERPRISE_PLATFORMKEYS_GETCERTIFICATES)
 };
@@ -54,8 +52,7 @@ class EnterprisePlatformKeysImportCertificateFunction
   ~EnterprisePlatformKeysImportCertificateFunction() override = default;
   ResponseAction Run() override;
 
-  void OnAddCertificate(bool is_error,
-                        crosapi::mojom::KeystoreError error_code);
+  void OnAddCertificate(bool is_error, chromeos::KeystoreError error_code);
   DECLARE_EXTENSION_FUNCTION("enterprise.platformKeys.importCertificate",
                              ENTERPRISE_PLATFORMKEYS_IMPORTCERTIFICATE)
 };
@@ -66,7 +63,7 @@ class EnterprisePlatformKeysRemoveCertificateFunction
   ~EnterprisePlatformKeysRemoveCertificateFunction() override = default;
   ResponseAction Run() override;
 
-  void OnRemoveCertificate(bool is_error, crosapi::mojom::KeystoreError error);
+  void OnRemoveCertificate(bool is_error, chromeos::KeystoreError error);
   DECLARE_EXTENSION_FUNCTION("enterprise.platformKeys.removeCertificate",
                              ENTERPRISE_PLATFORMKEYS_REMOVECERTIFICATE)
 };
@@ -77,7 +74,7 @@ class EnterprisePlatformKeysInternalGetTokensFunction
   ~EnterprisePlatformKeysInternalGetTokensFunction() override = default;
   ResponseAction Run() override;
 
-  void OnGetKeyStores(crosapi::mojom::GetKeyStoresResultPtr result);
+  void OnGetKeyStores(chromeos::GetKeyStoresResult result);
   DECLARE_EXTENSION_FUNCTION("enterprise.platformKeysInternal.getTokens",
                              ENTERPRISE_PLATFORMKEYSINTERNAL_GETTOKENS)
 };
@@ -89,7 +86,7 @@ class EnterprisePlatformKeysChallengeMachineKeyFunction
   ResponseAction Run() override;
 
   void OnChallengeAttestationOnlyKeystore(
-      crosapi::mojom::ChallengeAttestationOnlyKeystoreResultPtr result);
+      chromeos::ChallengeAttestationOnlyKeystoreResult result);
   DECLARE_EXTENSION_FUNCTION("enterprise.platformKeys.challengeMachineKey",
                              ENTERPRISE_PLATFORMKEYS_CHALLENGEMACHINEKEY)
 };
@@ -101,7 +98,7 @@ class EnterprisePlatformKeysChallengeUserKeyFunction
   ResponseAction Run() override;
 
   void OnChallengeAttestationOnlyKeystore(
-      crosapi::mojom::ChallengeAttestationOnlyKeystoreResultPtr result);
+      chromeos::ChallengeAttestationOnlyKeystoreResult result);
   DECLARE_EXTENSION_FUNCTION("enterprise.platformKeys.challengeUserKey",
                              ENTERPRISE_PLATFORMKEYS_CHALLENGEUSERKEY)
 };
@@ -112,7 +109,7 @@ class EnterprisePlatformKeysChallengeKeyFunction : public ExtensionFunction {
   ResponseAction Run() override;
 
   void OnChallengeAttestationOnlyKeystore(
-      crosapi::mojom::ChallengeAttestationOnlyKeystoreResultPtr result);
+      chromeos::ChallengeAttestationOnlyKeystoreResult result);
   DECLARE_EXTENSION_FUNCTION("enterprise.platformKeys.challengeKey",
                              ENTERPRISE_PLATFORMKEYS_CHALLENGEKEY)
 };

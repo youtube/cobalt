@@ -68,7 +68,9 @@ class RTPSenderVideoFrameTransformerDelegate : public TransformedFrameCallback {
       scoped_refptr<FrameTransformerInterface> frame_transformer,
       uint32_t ssrc,
       std::string rid,
-      TaskQueueFactory* send_transport_queue);
+      TaskQueueFactory* send_transport_queue,
+      TaskQueueFactory::Priority transformation_queue_priority =
+          TaskQueueFactory::Priority::kNormal);
 
   void Init();
 

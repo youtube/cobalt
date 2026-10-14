@@ -745,10 +745,10 @@ struct JsLiteralHelper {
   }
 
   static base::Value Convert(const base::Value& value) { return value.Clone(); }
-  static base::Value Convert(const base::Value::List& value) {
+  static base::Value Convert(const base::ListValue& value) {
     return base::Value(value.Clone());
   }
-  static base::Value Convert(const base::Value::Dict& value) {
+  static base::Value Convert(const base::DictValue& value) {
     return base::Value(value.Clone());
   }
 };
@@ -777,7 +777,7 @@ struct JsLiteralHelper<url::Origin> {
 // string literals. |args| can be a mix of different types.
 template <typename... Args>
 base::Value ListValueOf(Args&&... args) {
-  base::Value::List values;
+  base::ListValue values;
   (values.Append(JsLiteralHelper<std::remove_cvref_t<Args>>::Convert(
        std::forward<Args>(args))),
    ...);
@@ -816,8 +816,7 @@ base::Value ListValueOf(Args&&... args) {
 // supported by base::Value. Numbers, lists, and dicts also work.
 template <typename... Args>
 std::string JsReplace(std::string_view script_template, Args&&... args) {
-  base::Value::List values =
-      ListValueOf(std::forward<Args>(args)...).TakeList();
+  base::ListValue values = ListValueOf(std::forward<Args>(args)...).TakeList();
   std::vector<std::string> replacements(values.size());
   for (size_t i = 0; i < values.size(); ++i) {
     CHECK(base::JSONWriter::Write(values[i], &replacements[i]));
@@ -887,8 +886,8 @@ class EvalJsResult {
   [[nodiscard]] int ExtractInt() const;
   [[nodiscard]] bool ExtractBool() const;
   [[nodiscard]] double ExtractDouble() const;
-  [[nodiscard]] const base::Value::List& ExtractList() const LIFETIME_BOUND;
-  [[nodiscard]] const base::Value::Dict& ExtractDict() const LIFETIME_BOUND;
+  [[nodiscard]] const base::ListValue& ExtractList() const LIFETIME_BOUND;
+  [[nodiscard]] const base::DictValue& ExtractDict() const LIFETIME_BOUND;
   [[nodiscard]] const std::string& ExtractError() const LIFETIME_BOUND;
 
   [[nodiscard]] bool is_ok() const {
@@ -899,6 +898,7 @@ class EvalJsResult {
     return is_ok() && value()->is_string();
   }
   [[nodiscard]] bool is_bool() const { return is_ok() && value()->is_bool(); }
+  [[nodiscard]] bool is_int() const { return is_ok() && value()->is_int(); }
   [[nodiscard]] bool is_list() const { return is_ok() && value()->is_list(); }
   [[nodiscard]] bool is_dict() const { return is_ok() && value()->is_dict(); }
 
@@ -1715,6 +1715,27 @@ class InputEventAckWaiter : public RenderWidgetHost::InputEventObserver {
   InputEventAckPredicate predicate_;
   bool event_received_ = false;
   base::OnceClosure quit_closure_;
+};
+
+// Watches for gesture tap events.
+class GestureTapEventObserver : public RenderWidgetHost::InputEventObserver {
+ public:
+  GestureTapEventObserver() = default;
+
+  GestureTapEventObserver(const GestureTapEventObserver&) = delete;
+  GestureTapEventObserver& operator=(const GestureTapEventObserver&) = delete;
+
+  ~GestureTapEventObserver() override = default;
+
+  // RenderWidgetHost::InputEventObserver:
+  void OnInputEvent(const RenderWidgetHost& host,
+                    const blink::WebInputEvent& event,
+                    InputEventSource source) override;
+
+  int num_gesture_tap_seen() const { return num_gesture_tap_seen_; }
+
+ private:
+  int num_gesture_tap_seen_ = 0;
 };
 
 // Sets up a ui::TestClipboard for use in browser tests. On Windows,

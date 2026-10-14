@@ -16,7 +16,7 @@
 #include "components/omnibox/browser/autocomplete_controller.h"
 #include "components/omnibox/browser/autocomplete_input.h"
 #include "content/public/browser/browser_context.h"
-#include "third_party/omnibox_proto/aim_tools.pb.h"
+#include "third_party/omnibox_proto/tool_mode.pb.h"
 
 class AutocompleteResult;
 class ChromeAutocompleteProviderClient;
@@ -81,10 +81,10 @@ class AutocompleteControllerAndroid : public AutocompleteController::Observer,
       const int32_t j_window_open_disposition,
       const base::android::JavaRef<jstring>& j_current_url,
       ::metrics::OmniboxEventProto::PageClassification page_classification,
-      jlong elapsed_time_since_first_modified,
+      int64_t elapsed_time_since_first_modified,
       int32_t completed_length,
       const base::android::JavaRef<jobject>& j_web_contents,
-      jlong omnibox_action_ptr);
+      int64_t omnibox_action_ptr);
   bool OnSuggestionTouchDown(
       JNIEnv* env,
       uintptr_t match_ptr,
@@ -98,11 +98,11 @@ class AutocompleteControllerAndroid : public AutocompleteController::Observer,
   UpdateMatchDestinationURLWithAdditionalSearchboxStats(
       JNIEnv* env,
       uintptr_t match_ptr,
-      jlong elapsed_time_since_input_change);
+      int64_t elapsed_time_since_input_change);
   base::android::ScopedJavaLocalRef<jobject> GetAnswerActionDestinationURL(
       JNIEnv* env,
       uintptr_t match_ptr,
-      jlong elapsed_time_since_input_change,
+      int64_t elapsed_time_since_input_change,
       uintptr_t answer_action_ptr);
   base::android::ScopedJavaLocalRef<jobject> GetMatchingTabForSuggestion(
       JNIEnv* env,
@@ -211,7 +211,7 @@ class AutocompleteControllerAndroid : public AutocompleteController::Observer,
   // destroyed.
   std::unique_ptr<AutocompleteController> autocomplete_controller_;
 
-  // The ComposeBoxQueryController instance related to the same input session.
+  // The ComposeboxQueryController instance related to the same input session.
   // This may and often will be unset.
   base::WeakPtr<ComposeboxQueryControllerBridge>
       composebox_query_controller_bridge_;

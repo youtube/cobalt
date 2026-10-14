@@ -182,8 +182,8 @@ class FeatureListScopedToEachTest : public testing::EmptyTestEventListener {
     // ASAN.
 #if PA_BUILDFLAG(USE_PARTITION_ALLOC) && !defined(ADDRESS_SANITIZER)
     allocator::PartitionAllocSupport::Get()->ReconfigureAfterFeatureListInit(
-        "",
-        /*configure_dangling_pointer_detector=*/true);
+        "", allocator::FeatureListConfiguration{
+                .configure_dangling_pointer_detector = true});
 #endif
   }
 
@@ -574,9 +574,9 @@ void TestSuite::Initialize() {
   // TODO(https://crbug.com/432019338): Remove this once fixed.
   if (::testing::internal::InDeathTestChild()) {
     allocator::PartitionAllocSupport::Get()->ReconfigureAfterFeatureListInit(
-        "",
-        /*configure_dangling_pointer_detector=*/true,
-        /*is_in_death_test_child=*/true);
+        "", allocator::FeatureListConfiguration{
+                .configure_dangling_pointer_detector = true,
+                .is_in_death_test_child = true});
   }
 #endif  // GTEST_HAS_DEATH_TEST
 #endif  // PA_BUILDFLAG(USE_PARTITION_ALLOC) && !defined(ADDRESS_SANITIZER)
@@ -695,12 +695,16 @@ void TestSuite::Initialize() {
 }
 
 void TestSuite::InitializeFromCommandLine(int* argc, char** argv) {
+#if BUILDFLAG(IS_IOS) && BUILDFLAG(IS_COBALT)
+  InitIOSArgs(*argc, argv);
+#endif
+
   // CommandLine::Init() is called earlier from PreInitialize().
   testing::InitGoogleTest(argc, argv);
   testing::InitGoogleMock(argc, argv);
   MaybeInitFuzztest(*argc, argv);
 
-#if BUILDFLAG(IS_IOS)
+#if BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_COBALT)
   InitIOSArgs(*argc, argv);
 #endif
 }

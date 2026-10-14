@@ -1,4 +1,7 @@
 include_rules = [
+  # keep-sorted start
   "+ios/chrome/browser/history/model",
   "+ios/chrome/browser/sessions/model",
+  "+ios/chrome/browser/tabs/model",
+  # keep-sorted end
 ]

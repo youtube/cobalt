@@ -48,6 +48,9 @@
 #include "gpu/vulkan/vulkan_ycbcr_info.h"
 #endif
 
+class SkPixmap;
+class SkYUVAInfo;
+
 namespace gfx {
 struct GpuMemoryBufferHandle;
 }
@@ -58,11 +61,10 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
  public:
   REQUIRE_ADOPTION_FOR_REFCOUNTED_TYPE();
 
-  static constexpr size_t kFrameSizeAlignment = 16;
-  static constexpr size_t kFrameSizePadding = 16;
-
+  // This serves as both the alignment for each plane's address as well as the
+  // alignment for each plane's stride when allocating video frames.
   static constexpr size_t kFrameAddressAlignment =
-      VideoFrameLayout::kBufferAddressAlignment;
+      limits::kFFmpegBufferAddressAlignment;
 
   static constexpr size_t kMaxPlanes = 4;
 
@@ -606,6 +608,16 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
   // plane buffer specified by visible_rect().origin().
   base::span<const uint8_t> GetVisiblePlaneData(size_t plane) const;
   base::span<uint8_t> GetWritableVisiblePlaneData(size_t plane);
+
+  // Return the SkYUVAInfo that can be used to create an SkYUVAPixmaps from
+  // the SkPixmaps returned by GetSkPixmapsForPlanes. On failure, or when
+  // this is a single-plane RGBA-like frame, the returned object's isValid
+  // method will return false.
+  SkYUVAInfo GetVisibleSkYUVAInfo() const;
+
+  // Return SkPixmaps that reference the visible data for this. On failure,
+  // the result will be empty.
+  std::vector<SkPixmap> GetVisiblePlanesSkPixmaps() const;
 
   // Returns the `acquire_sync_token_`
   gpu::SyncToken acquire_sync_token() const;

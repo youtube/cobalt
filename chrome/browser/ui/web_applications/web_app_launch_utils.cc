@@ -18,6 +18,7 @@
 #include "base/functional/bind.h"
 #include "base/json/values_util.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/not_fatal_until.h"
 #include "base/notreached.h"
@@ -32,7 +33,6 @@
 #include "base/values.h"
 #include "build/buildflag.h"
 #include "chrome/browser/app_mode/app_mode_utils.h"
-#include "chrome/browser/apps/app_service/app_launch_params.h"
 #include "chrome/browser/apps/app_service/launch_utils.h"
 #include "chrome/browser/apps/link_capturing/enable_link_capturing_infobar_delegate.h"
 #include "chrome/browser/profiles/profile.h"
@@ -51,6 +51,7 @@
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/intent_picker_tab_helper.h"
+#include "chrome/browser/ui/omnibox/omnibox_tab_helper.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -65,7 +66,9 @@
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom-shared.h"
 #include "chrome/browser/web_applications/navigation_capturing_log.h"
 #include "chrome/browser/web_applications/os_integration/os_integration_manager.h"
+#include "chrome/browser/web_applications/web_app_command_scheduler.h"
 #include "chrome/browser/web_applications/web_app_constants.h"
+#include "chrome/browser/web_applications/web_app_filter.h"
 #include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chrome/browser/web_applications/web_app_install_utils.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
@@ -75,6 +78,7 @@
 #include "chrome/browser/web_applications/web_app_ui_manager.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
 #include "chromeos/constants/chromeos_features.h"
+#include "components/services/app_service/public/cpp/app_launch_params.h"
 #include "components/services/app_service/public/cpp/app_launch_util.h"
 #include "components/site_engagement/content/site_engagement_service.h"
 #include "components/webapps/browser/launch_queue/launch_params.h"
@@ -204,8 +208,8 @@ std::unique_ptr<AppBrowserController> MaybeCreateHostedAppBrowserController(
   return nullptr;
 }
 
-base::Value::Dict ToDebugDict(const apps::AppLaunchParams& params) {
-  base::Value::Dict value;
+base::DictValue ToDebugDict(const apps::AppLaunchParams& params) {
+  base::DictValue value;
   value.Set("app_id", params.app_id);
   value.Set("launch_id", params.launch_id);
   value.Set("container", static_cast<int>(params.container));
@@ -224,7 +228,7 @@ base::Value::Dict ToDebugDict(const apps::AppLaunchParams& params) {
             base::FilePathToValue(params.current_directory));
   value.Set("launch_source", static_cast<int>(params.launch_source));
   value.Set("display_id", base::saturated_cast<int>(params.display_id));
-  base::Value::List files_list;
+  base::ListValue files_list;
   for (const base::FilePath& file : params.launch_files) {
     files_list.Append(base::FilePathToValue(file));
   }
@@ -336,6 +340,13 @@ void ReparentWebContentsIntoBrowserImpl(Browser* source_browser,
 
   std::unique_ptr<content::WebContents> contents_move =
       source_tabstrip->DetachWebContentsAtForInsertion(found_tab_index.value());
+
+  // Clear omnibox state to prevent stale user-typed text from appearing in the
+  // target browser. When reparenting between app windows and browser windows,
+  // the omnibox context changes significantly and old state is inappropriate.
+  // See https://crbug.com/40697091
+  OmniboxTabHelper::ClearOmniboxInputState(web_contents);
+
   TabStripModel* const target_tab_strip_model =
       target_browser->GetTabStripModel();
   int location = target_tab_strip_model->count();
@@ -426,10 +437,19 @@ bool MaybeHandleIntentPickerFocusExistingOrNavigateExisting(
                                               ->launch_handler()
                                               .value_or(LaunchHandler())
                                               .parsed_client_mode();
+
   if (client_mode != LaunchHandler::ClientMode::kFocusExisting &&
       client_mode != LaunchHandler::ClientMode::kNavigateExisting) {
     return false;
   }
+
+  // For IWA navigate existing is the same as focus existing,
+  // because IWA does not support navigation to non isolate-app:// schemes.
+  if (registrar.AppMatches(app_id, WebAppFilter::IsIsolatedApp()) ||
+      registrar.AppMatches(app_id, WebAppFilter::IsIsolatedSubApp())) {
+    client_mode = LaunchHandler::ClientMode::kFocusExisting;
+  }
+
   std::optional<AppBrowserController::BrowserAndTabIndex> existing_app_host =
       AppBrowserController::FindTopLevelBrowsingContextForWebApp(
           *profile, app_id, /*for_app_browser=*/true,
@@ -507,11 +527,12 @@ BrowserWindowInterface* ReparentWebContentsIntoAppBrowser(
     std::move(completion_callback).Run(contents);
     return nullptr;
   }
-
-  if (registrar.IsInstallState(
-          app_id, {proto::InstallState::SUGGESTED_FROM_ANOTHER_DEVICE,
-                   proto::InstallState::INSTALLED_WITHOUT_OS_INTEGRATION,
-                   proto::InstallState::INSTALLED_WITH_OS_INTEGRATION})) {
+  bool is_iwa = registrar.AppMatches(app_id, WebAppFilter::IsIsolatedApp()) ||
+                registrar.AppMatches(app_id, WebAppFilter::IsIsolatedSubApp());
+  // Since iwa will result in a new app open and this web contents closed,
+  // History pruning is not necessary.
+  if (!is_iwa &&
+      registrar.AppMatches(app_id, WebAppFilter::IsAppSurfaceableToUser())) {
     std::optional<GURL> app_scope = registrar.GetAppScope(app_id);
     if (!app_scope) {
       app_scope = registrar.GetAppStartUrl(app_id).GetWithoutFilename();
@@ -545,6 +566,25 @@ BrowserWindowInterface* ReparentWebContentsIntoAppBrowser(
             registrar)) {
       return nullptr;
     }
+  }
+
+  if (is_iwa) {
+    provider->scheduler().LaunchApp(
+        app_id, launch_url,
+        base::BindOnce(
+            [](base::WeakPtr<content::WebContents> old_contents,
+               base::WeakPtr<Browser> browser,
+               base::WeakPtr<content::WebContents> web_contents,
+               apps::LaunchContainer container) {
+              if (old_contents) {
+                old_contents->Close();
+              }
+              return web_contents.get();
+            },
+            contents->GetWeakPtr())
+            .Then(std::move(completion_callback)));
+
+    return nullptr;
   }
 
   if (web_app->launch_handler()
@@ -604,11 +644,8 @@ std::unique_ptr<AppBrowserController> MaybeCreateAppBrowserController(
       GetAppIdFromApplicationName(browser->app_name());
   auto* const provider =
       WebAppProvider::GetForLocalAppsUnchecked(browser->profile());
-  if (provider &&
-      provider->registrar_unsafe().IsInstallState(
-          app_id, {proto::InstallState::SUGGESTED_FROM_ANOTHER_DEVICE,
-                   proto::InstallState::INSTALLED_WITHOUT_OS_INTEGRATION,
-                   proto::InstallState::INSTALLED_WITH_OS_INTEGRATION})) {
+  if (provider && provider->registrar_unsafe().AppMatches(
+                      app_id, WebAppFilter::IsAppSurfaceableToUser())) {
 #if BUILDFLAG(IS_CHROMEOS)
     if (chromeos::IsKioskSession()) {
       controller = CreateWebKioskBrowserController(browser, provider, app_id);
@@ -880,7 +917,7 @@ void LaunchWebApp(apps::AppLaunchParams params,
                   Profile& profile,
                   WithAppResources& lock,
                   LaunchWebAppDebugValueCallback callback) {
-  base::Value::Dict debug_value;
+  base::DictValue debug_value;
   debug_value.Set("launch_params", ToDebugDict(params));
   debug_value.Set("launch_window_setting", static_cast<int>(launch_setting));
 
@@ -897,11 +934,10 @@ void LaunchWebApp(apps::AppLaunchParams params,
   // Do not launch anything if the profile is being deleted.
   if (Browser::GetCreationStatusForProfile(&profile) ==
       Browser::CreationStatus::kOk) {
-    if (lock.registrar().IsInstallState(
-            params.app_id,
-            {proto::InstallState::SUGGESTED_FROM_ANOTHER_DEVICE,
-             proto::InstallState::INSTALLED_WITHOUT_OS_INTEGRATION,
-             proto::InstallState::INSTALLED_WITH_OS_INTEGRATION})) {
+    // TODO(crbug.com/379136842): This is likely too 'permissive' of a check,
+    // and different more restrictive filter should likely be used instead.
+    if (lock.registrar().AppMatches(params.app_id,
+                                    WebAppFilter::IsAppSurfaceableToUser())) {
       container = params.container;
       if (WebAppLaunchProcess::GetOpenApplicationCallbackForTesting()) {
         WebAppLaunchProcess::GetOpenApplicationCallbackForTesting().Run(

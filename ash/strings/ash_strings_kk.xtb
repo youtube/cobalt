@@ -342,7 +342,6 @@
 <translation id="2201071101391734388">Соңғы фото: <ph name="INDEX" />/<ph name="TOTAL_COUNT" />.</translation>
 <translation id="2201687081523799384">Google Tasks интерфейсін жию</translation>
 <translation id="2208323208084708176">Бірыңғай жұмыс үстелі режимі</translation>
-<translation id="2210311543574621570">Ctrl + V тіркесімін басып тұрған кезде буферді көресіз. chrome://flags ішінде #clipboard-history-longpress жалаушасын өшіру арқылы осы пернелер тіркесімін өшіруге болады.</translation>
 <translation id="2215920961700443347">Интернет жоқ. Интернетке қосылып, әрекетті қайталап көріңіз.</translation>
 <translation id="2222841058024245321">7-ші жұмыс үстелі</translation>
 <translation id="2223384056430485343">Бөлінген экранда</translation>
@@ -2195,7 +2194,6 @@
 <translation id="8241650983304689286">Қойындыны жаңа бөлінген көрініске қосу</translation>
 <translation id="8247060538831475781"><ph name="CONNECTION_STATUS" />, сигнал күші: <ph name="SIGNAL_STRENGTH" />, телефонның батарея заряды: <ph name="BATTERY_STATUS" /></translation>
 <translation id="825129991941217170">Google Drive контентін түгел көрсету</translation>
-<translation id="8257510091797044096">Құрылғы параметрлерін реттеу</translation>
 <translation id="8261506727792406068">Жою</translation>
 <translation id="8262312463845990408">Ойнату/кідірту</translation>
 <translation id="8268302343625273732">Google Classroom-дағы барлық тапсырманы көру</translation>

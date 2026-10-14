@@ -38,12 +38,6 @@ class VirtualAddressSpaceBase
 };
 
 /*
- * Helper routine to determine whether one set of page permissions (the lhs) is
- * a subset of another one (the rhs).
- */
-V8_BASE_EXPORT bool IsSubset(PagePermissions lhs, PagePermissions rhs);
-
-/*
  * The virtual address space of the current process. Conceptionally, there
  * should only be one such "root" instance. However, in practice there is no
  * issue with having multiple instances as the actual resources are managed by
@@ -84,8 +78,8 @@ class V8_BASE_EXPORT VirtualAddressSpace : public VirtualAddressSpaceBase {
   std::unique_ptr<v8::VirtualAddressSpace> AllocateSubspace(
       Address hint, size_t size, size_t alignment,
       PagePermissions max_page_permissions,
-      std::optional<MemoryProtectionKeyId> key,
-      std::optional<SharedMemoryHandle> handle) override;
+      std::optional<MemoryProtectionKeyId> key = std::nullopt,
+      std::optional<SharedMemoryHandle> handle = std::nullopt) override;
 
   bool RecommitPages(Address address, size_t size,
                      PagePermissions access) override;
@@ -93,6 +87,9 @@ class V8_BASE_EXPORT VirtualAddressSpace : public VirtualAddressSpaceBase {
   bool DiscardSystemPages(Address address, size_t size) override;
 
   bool DecommitPages(Address address, size_t size) override;
+
+  // It's not possible to assign a name to the root virtual address space.
+  bool SetName(const std::string& name) override { return false; }
 
  private:
   void FreeSubspace(VirtualAddressSubspace* subspace) override;
@@ -146,6 +143,8 @@ class V8_BASE_EXPORT VirtualAddressSubspace : public VirtualAddressSpaceBase {
 
   bool DecommitPages(Address address, size_t size) override;
 
+  bool SetName(const std::string& name) override;
+
  private:
   // The VirtualAddressSpace class creates instances of this class when
   // allocating sub spaces.
@@ -184,6 +183,11 @@ class V8_BASE_EXPORT VirtualAddressSubspace : public VirtualAddressSpaceBase {
   // replace pages in for example FreePages() and DecommitPages(). This way,
   // all memory pages in this space always have this key set.
   std::optional<MemoryProtectionKeyId> pkey_;
+
+  // The name assigned to this virtual address space. Only used if SetName is
+  // called and completes successfully, meaning that the OS supports names for
+  // anonymous memory regions.
+  std::string name_;
 };
 
 }  // namespace base

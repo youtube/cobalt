@@ -23,6 +23,7 @@
 #include "logging/rtc_event_log/events/rtc_event_rtp_packet_incoming.h"
 #include "modules/rtp_rtcp/include/flexfec_receiver.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
+#include "modules/rtp_rtcp/source/rtp_rtcp_impl2.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/strings/string_builder.h"
@@ -33,8 +34,8 @@ std::string FlexfecReceiveStream::Config::ToString() const {
   char buf[1024];
   SimpleStringBuilder ss(buf);
   ss << "{payload_type: " << payload_type;
-  ss << ", remote_ssrc: " << rtp.remote_ssrc;
-  ss << ", local_ssrc: " << rtp.local_ssrc;
+  ss << ", remote_ssrc: " << remote_ssrc;
+  ss << ", local_ssrc: " << local_ssrc;
   ss << ", protected_media_ssrcs: [";
   size_t i = 0;
   for (; i + 1 < protected_media_ssrcs.size(); ++i)
@@ -50,7 +51,7 @@ bool FlexfecReceiveStream::Config::IsCompleteAndEnabled() const {
   if (payload_type < 0)
     return false;
   // Do we have the necessary SSRC information?
-  if (rtp.remote_ssrc == 0)
+  if (remote_ssrc == 0)
     return false;
   // TODO(brandtr): Update this check when we support multistream protection.
   if (protected_media_ssrcs.size() != 1u)
@@ -73,7 +74,7 @@ std::unique_ptr<FlexfecReceiver> MaybeCreateFlexfecReceiver(
   }
   RTC_DCHECK_GE(config.payload_type, 0);
   RTC_DCHECK_LE(config.payload_type, 127);
-  if (config.rtp.remote_ssrc == 0) {
+  if (config.remote_ssrc == 0) {
     RTC_LOG(LS_WARNING)
         << "Invalid FlexFEC SSRC given. "
            "This FlexfecReceiveStream will therefore be useless.";
@@ -96,7 +97,7 @@ std::unique_ptr<FlexfecReceiver> MaybeCreateFlexfecReceiver(
   }
   RTC_DCHECK_EQ(1U, config.protected_media_ssrcs.size());
   return std::unique_ptr<FlexfecReceiver>(new FlexfecReceiver(
-      clock, config.rtp.remote_ssrc, config.protected_media_ssrcs[0],
+      clock, config.remote_ssrc, config.protected_media_ssrcs[0],
       recovered_packet_receiver));
 }
 
@@ -108,26 +109,27 @@ FlexfecReceiveStreamImpl::FlexfecReceiveStreamImpl(
     RecoveredPacketReceiver* recovered_packet_receiver,
     RtcpRttStats* rtt_stats)
     : env_(env),
-      remote_ssrc_(config.rtp.remote_ssrc),
+      remote_ssrc_(config.remote_ssrc),
       payload_type_(config.payload_type),
       receiver_(MaybeCreateFlexfecReceiver(&env.clock(),
                                            config,
                                            recovered_packet_receiver)),
       rtp_receive_statistics_(ReceiveStatistics::Create(&env.clock())),
-      rtp_rtcp_(env,
-                {.audio = false,
-                 .receiver_only = true,
-                 .receive_statistics = rtp_receive_statistics_.get(),
-                 .outgoing_transport = config.rtcp_send_transport,
-                 .rtt_stats = rtt_stats,
-                 .local_media_ssrc = config.rtp.local_ssrc}) {
+      rtp_rtcp_(ModuleRtpRtcpImpl2::CreateReceiveModule(
+          env,
+          {.audio = false,
+           .receiver_only = true,
+           .receive_statistics = rtp_receive_statistics_.get(),
+           .outgoing_transport = config.rtcp_send_transport,
+           .rtt_stats = rtt_stats,
+           .local_media_ssrc = config.local_ssrc})) {
   RTC_LOG(LS_INFO) << "FlexfecReceiveStreamImpl: " << config.ToString();
   RTC_DCHECK_GE(payload_type_, -1);
 
   packet_sequence_checker_.Detach();
 
   // RTCP reporting.
-  rtp_rtcp_.SetRTCPStatus(config.rtcp_mode);
+  rtp_rtcp_->SetRTCPStatus(config.rtcp_mode);
 }
 
 FlexfecReceiveStreamImpl::~FlexfecReceiveStreamImpl() {
@@ -182,10 +184,10 @@ int FlexfecReceiveStreamImpl::payload_type() const {
 
 void FlexfecReceiveStreamImpl::SetLocalSsrc(uint32_t local_ssrc) {
   RTC_DCHECK_RUN_ON(&packet_sequence_checker_);
-  if (local_ssrc == rtp_rtcp_.local_media_ssrc())
+  if (local_ssrc == rtp_rtcp_->local_media_ssrc())
     return;
 
-  rtp_rtcp_.SetLocalSsrc(local_ssrc);
+  rtp_rtcp_->SetLocalSsrc(local_ssrc);
 }
 
 }  // namespace webrtc

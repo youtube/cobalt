@@ -342,7 +342,6 @@
 <translation id="2201071101391734388">Foto terbaru <ph name="INDEX" /> dari <ph name="TOTAL_COUNT" />.</translation>
 <translation id="2201687081523799384">Ciutkan Google Tasks</translation>
 <translation id="2208323208084708176">Mode desktop terpadu</translation>
-<translation id="2210311543574621570">Anda akan melihat papan klip saat menekan lama Ctrl + V. Anda dapat menonaktifkan pintasan ini dengan menonaktifkan tanda #clipboard-history-longpress di chrome://flags.</translation>
 <translation id="2215920961700443347">Tidak ada internet. Hubungkan ke internet dan coba lagi.</translation>
 <translation id="2222841058024245321">Desktop 7</translation>
 <translation id="2223384056430485343">Di layar terpisah</translation>
@@ -2195,7 +2194,6 @@ Untuk mematikan perangkat, tekan lama tombol daya di perangkat lagi.</translatio
 <translation id="8241650983304689286">Tambahkan tab ke tampilan terpisah baru</translation>
 <translation id="8247060538831475781"><ph name="CONNECTION_STATUS" />, Kekuatan Sinyal <ph name="SIGNAL_STRENGTH" />, Baterai Ponsel <ph name="BATTERY_STATUS" /></translation>
 <translation id="825129991941217170">Tampilkan semua konten Google Drive</translation>
-<translation id="8257510091797044096">Siapkan perangkat Anda</translation>
 <translation id="8261506727792406068">Hapus</translation>
 <translation id="8262312463845990408">Putar/Jeda pemutaran</translation>
 <translation id="8268302343625273732">Lihat semua tugas di Google Classroom</translation>
@@ -2223,7 +2221,7 @@ Untuk mematikan perangkat, tekan lama tombol daya di perangkat lagi.</translatio
 <translation id="8374601332003098278">Tekan Enter untuk merekam sebagian layar</translation>
 <translation id="8375916635258623388"><ph name="DEVICE_NAME" /> ini dan ponsel Anda akan terhubung otomatis</translation>
 <translation id="8382715499079447151">Perlindungan tampilan</translation>
-<translation id="8383614331548401927">Rangkuman Sambutan</translation>
+<translation id="8383614331548401927">Selamat Datang Kembali</translation>
 <translation id="838540623579162843">Dapatkan Music Premium</translation>
 <translation id="8388750414311082622">Halaman kerja terakhir tidak dapat dihapus.</translation>
 <translation id="8394567579869570560">Orang tuamu mengunci perangkat ini</translation>

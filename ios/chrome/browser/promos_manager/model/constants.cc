@@ -100,6 +100,10 @@ std::optional<Promo> PromoForName(std::string_view promo) {
     return promos_manager::Promo::DefaultBrowserOffCycle;
   }
 
+  if (promo == "promos_manager::Promo::HomeBackgroundCustomization") {
+    return promos_manager::Promo::HomeBackgroundCustomization;
+  }
+
   return std::nullopt;
 }
 
@@ -149,11 +153,13 @@ std::string_view ShortNameForPromo(Promo promo) {
       return "SafariImportRemindMeLater";
     case promos_manager::Promo::DefaultBrowserOffCycle:
       return "DefaultBrowserOffCycle";
+    case promos_manager::Promo::HomeBackgroundCustomization:
+      return "HomeBackgroundCustomization";
   }
 }
 
 std::optional<promos_manager::Impression> ImpressionFromDict(
-    const base::Value::Dict& dict) {
+    const base::DictValue& dict) {
   const std::string* stored_promo =
       dict.FindString(promos_manager::kImpressionPromoKey);
   std::optional<int> stored_day =

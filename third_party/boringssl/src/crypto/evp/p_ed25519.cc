@@ -20,6 +20,7 @@
 #include <openssl/mem.h>
 
 #include "../internal.h"
+#include "../mem_internal.h"
 #include "internal.h"
 
 using namespace bssl;
@@ -39,19 +40,19 @@ extern const EVP_PKEY_ASN1_METHOD ed25519_asn1_meth;
 
 #define ED25519_PUBLIC_KEY_OFFSET 32
 
-static void ed25519_free(EVP_PKEY *pkey) {
-  OPENSSL_free(pkey->pkey);
+static void ed25519_free(EvpPkey *pkey) {
+  ED25519_KEY *key = reinterpret_cast<ED25519_KEY *>(pkey->pkey);
+  Delete(key);
   pkey->pkey = nullptr;
 }
 
-static int ed25519_set_priv_raw(EVP_PKEY *pkey, const uint8_t *in, size_t len) {
+static int ed25519_set_priv_raw(EvpPkey *pkey, const uint8_t *in, size_t len) {
   if (len != 32) {
     OPENSSL_PUT_ERROR(EVP, EVP_R_DECODE_ERROR);
     return 0;
   }
 
-  ED25519_KEY *key =
-      reinterpret_cast<ED25519_KEY *>(OPENSSL_malloc(sizeof(ED25519_KEY)));
+  ED25519_KEY *key = New<ED25519_KEY>();
   if (key == nullptr) {
     return 0;
   }
@@ -65,14 +66,13 @@ static int ed25519_set_priv_raw(EVP_PKEY *pkey, const uint8_t *in, size_t len) {
   return 1;
 }
 
-static int ed25519_set_pub_raw(EVP_PKEY *pkey, const uint8_t *in, size_t len) {
+static int ed25519_set_pub_raw(EvpPkey *pkey, const uint8_t *in, size_t len) {
   if (len != 32) {
     OPENSSL_PUT_ERROR(EVP, EVP_R_DECODE_ERROR);
     return 0;
   }
 
-  ED25519_KEY *key =
-      reinterpret_cast<ED25519_KEY *>(OPENSSL_malloc(sizeof(ED25519_KEY)));
+  ED25519_KEY *key = New<ED25519_KEY>();
   if (key == nullptr) {
     return 0;
   }
@@ -83,7 +83,7 @@ static int ed25519_set_pub_raw(EVP_PKEY *pkey, const uint8_t *in, size_t len) {
   return 1;
 }
 
-static int ed25519_get_priv_raw(const EVP_PKEY *pkey, uint8_t *out,
+static int ed25519_get_priv_raw(const EvpPkey *pkey, uint8_t *out,
                                 size_t *out_len) {
   const ED25519_KEY *key = reinterpret_cast<const ED25519_KEY *>(pkey->pkey);
   if (!key->has_private) {
@@ -107,7 +107,7 @@ static int ed25519_get_priv_raw(const EVP_PKEY *pkey, uint8_t *out,
   return 1;
 }
 
-static int ed25519_get_pub_raw(const EVP_PKEY *pkey, uint8_t *out,
+static int ed25519_get_pub_raw(const EvpPkey *pkey, uint8_t *out,
                                size_t *out_len) {
   const ED25519_KEY *key = reinterpret_cast<const ED25519_KEY *>(pkey->pkey);
   if (out == nullptr) {
@@ -126,7 +126,7 @@ static int ed25519_get_pub_raw(const EVP_PKEY *pkey, uint8_t *out,
 }
 
 static bssl::evp_decode_result_t ed25519_pub_decode(const EVP_PKEY_ALG *alg,
-                                                    EVP_PKEY *out, CBS *params,
+                                                    EvpPkey *out, CBS *params,
                                                     CBS *key) {
   // See RFC 8410, section 4.
 
@@ -141,7 +141,7 @@ static bssl::evp_decode_result_t ed25519_pub_decode(const EVP_PKEY_ALG *alg,
              : evp_decode_error;
 }
 
-static int ed25519_pub_encode(CBB *out, const EVP_PKEY *pkey) {
+static int ed25519_pub_encode(CBB *out, const EvpPkey *pkey) {
   const ED25519_KEY *key = reinterpret_cast<const ED25519_KEY *>(pkey->pkey);
 
   // See RFC 8410, section 4.
@@ -162,7 +162,7 @@ static int ed25519_pub_encode(CBB *out, const EVP_PKEY *pkey) {
   return 1;
 }
 
-static bool ed25519_pub_equal(const EVP_PKEY *a, const EVP_PKEY *b) {
+static bool ed25519_pub_equal(const EvpPkey *a, const EvpPkey *b) {
   const ED25519_KEY *a_key = reinterpret_cast<const ED25519_KEY *>(a->pkey);
   const ED25519_KEY *b_key = reinterpret_cast<const ED25519_KEY *>(b->pkey);
   return OPENSSL_memcmp(a_key->key + ED25519_PUBLIC_KEY_OFFSET,
@@ -170,7 +170,7 @@ static bool ed25519_pub_equal(const EVP_PKEY *a, const EVP_PKEY *b) {
 }
 
 static bssl::evp_decode_result_t ed25519_priv_decode(const EVP_PKEY_ALG *alg,
-                                                     EVP_PKEY *out, CBS *params,
+                                                     EvpPkey *out, CBS *params,
                                                      CBS *key) {
   // See RFC 8410, section 7.
 
@@ -188,7 +188,7 @@ static bssl::evp_decode_result_t ed25519_priv_decode(const EVP_PKEY_ALG *alg,
              : evp_decode_error;
 }
 
-static int ed25519_priv_encode(CBB *out, const EVP_PKEY *pkey) {
+static int ed25519_priv_encode(CBB *out, const EvpPkey *pkey) {
   const ED25519_KEY *key = reinterpret_cast<const ED25519_KEY *>(pkey->pkey);
   if (!key->has_private) {
     OPENSSL_PUT_ERROR(EVP, EVP_R_NOT_A_PRIVATE_KEY);
@@ -215,9 +215,16 @@ static int ed25519_priv_encode(CBB *out, const EVP_PKEY *pkey) {
   return 1;
 }
 
-static int ed25519_size(const EVP_PKEY *pkey) { return 64; }
+static bool ed25519_pub_present(const EvpPkey *) { return true; }
 
-static int ed25519_bits(const EVP_PKEY *pkey) { return 253; }
+static bool ed25519_priv_present(const EvpPkey *pkey) {
+  const ED25519_KEY *key = reinterpret_cast<const ED25519_KEY *>(pkey->pkey);
+  return key->has_private;
+}
+
+static int ed25519_size(const EvpPkey *pkey) { return 64; }
+
+static int ed25519_bits(const EvpPkey *pkey) { return 253; }
 
 const EVP_PKEY_ASN1_METHOD ed25519_asn1_meth = {
     EVP_PKEY_ED25519,
@@ -227,8 +234,10 @@ const EVP_PKEY_ASN1_METHOD ed25519_asn1_meth = {
     ed25519_pub_decode,
     ed25519_pub_encode,
     ed25519_pub_equal,
+    ed25519_pub_present,
     ed25519_priv_decode,
     ed25519_priv_encode,
+    ed25519_priv_present,
     ed25519_set_priv_raw,
     /*set_priv_seed=*/nullptr,
     ed25519_set_pub_raw,
@@ -247,11 +256,10 @@ const EVP_PKEY_ASN1_METHOD ed25519_asn1_meth = {
 };
 
 // Ed25519 has no parameters to copy.
-static int pkey_ed25519_copy(EVP_PKEY_CTX *dst, EVP_PKEY_CTX *src) { return 1; }
+static int pkey_ed25519_copy(EvpPkeyCtx *dst, EvpPkeyCtx *src) { return 1; }
 
-static int pkey_ed25519_keygen(EVP_PKEY_CTX *ctx, EVP_PKEY *pkey) {
-  ED25519_KEY *key =
-      reinterpret_cast<ED25519_KEY *>(OPENSSL_malloc(sizeof(ED25519_KEY)));
+static int pkey_ed25519_keygen(EvpPkeyCtx *ctx, EvpPkey *pkey) {
+  ED25519_KEY *key = New<ED25519_KEY>();
   if (key == nullptr) {
     return 0;
   }
@@ -264,7 +272,7 @@ static int pkey_ed25519_keygen(EVP_PKEY_CTX *ctx, EVP_PKEY *pkey) {
   return 1;
 }
 
-static int pkey_ed25519_sign_message(EVP_PKEY_CTX *ctx, uint8_t *sig,
+static int pkey_ed25519_sign_message(EvpPkeyCtx *ctx, uint8_t *sig,
                                      size_t *siglen, const uint8_t *tbs,
                                      size_t tbslen) {
   const ED25519_KEY *key =
@@ -292,7 +300,7 @@ static int pkey_ed25519_sign_message(EVP_PKEY_CTX *ctx, uint8_t *sig,
   return 1;
 }
 
-static int pkey_ed25519_verify_message(EVP_PKEY_CTX *ctx, const uint8_t *sig,
+static int pkey_ed25519_verify_message(EvpPkeyCtx *ctx, const uint8_t *sig,
                                        size_t siglen, const uint8_t *tbs,
                                        size_t tbslen) {
   const ED25519_KEY *key =

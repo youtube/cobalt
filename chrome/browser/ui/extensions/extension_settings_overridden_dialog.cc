@@ -13,6 +13,9 @@
 #include "base/time/time.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/extensions/extensions_overrides/simple_overrides.h"
+#include "chrome/browser/ui/hats/hats_service.h"
+#include "chrome/browser/ui/hats/hats_service_factory.h"
+#include "chrome/common/chrome_features.h"
 #include "components/pref_registry/pref_registry_syncable.h"
 #include "extensions/browser/disable_reason.h"
 #include "extensions/browser/extension_prefs.h"
@@ -66,16 +69,13 @@ ExtensionSettingsOverriddenDialog::Params::Params(
     extensions::ExtensionId controlling_extension_id,
     const char* extension_acknowledged_preference_name,
     const char* dialog_result_histogram_name,
-    std::u16string dialog_title,
-    std::u16string dialog_message,
-    const gfx::VectorIcon* icon)
+    ShowParams show_params)
     : controlling_extension_id(std::move(controlling_extension_id)),
       extension_acknowledged_preference_name(
           extension_acknowledged_preference_name),
       dialog_result_histogram_name(dialog_result_histogram_name),
-      dialog_title(std::move(dialog_title)),
-      dialog_message(std::move(dialog_message)),
-      icon(icon) {}
+      content(std::move(show_params)) {}
+
 ExtensionSettingsOverriddenDialog::Params::~Params() = default;
 ExtensionSettingsOverriddenDialog::Params::Params(Params&& params) = default;
 
@@ -145,7 +145,7 @@ ExtensionSettingsOverriddenDialog::GetShowParams() {
 
   DCHECK(extension);
 
-  return {params_.dialog_title, params_.dialog_message, params_.icon};
+  return params_.content;
 }
 
 void ExtensionSettingsOverriddenDialog::OnDialogShown() {
@@ -182,6 +182,14 @@ void ExtensionSettingsOverriddenDialog::HandleDialogResult(
   }
 
   base::UmaHistogramEnumeration(params_.dialog_result_histogram_name, result);
+  if (base::FeatureList::IsEnabled(
+          features::kHappinessTrackingSurveysForDesktopSEHijacking)) {
+    HatsService* hats_service = HatsServiceFactory::GetForProfile(
+        profile_, /*create_if_necessary=*/true);
+    if (hats_service) {
+      hats_service->LaunchDelayedSurvey(kHatsSurveyTriggerSEHijacking, 5000);
+    }
+  }
 }
 
 void ExtensionSettingsOverriddenDialog::DisableControllingExtension() {

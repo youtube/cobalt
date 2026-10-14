@@ -12,6 +12,7 @@
 #include "base/auto_reset.h"
 #include "base/base64.h"
 #include "base/containers/fixed_flat_map.h"
+#include "base/debug/dump_without_crashing.h"
 #include "base/feature_list.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/observer_list.h"
@@ -27,6 +28,7 @@
 #include "chrome/common/pref_names.h"
 #include "components/prefs/pref_service.h"
 #include "components/sync/base/features.h"
+#include "components/sync/base/pref_names.h"
 #include "components/sync/model/sync_change_processor.h"
 #include "components/sync/protocol/entity_data.h"
 #include "components/sync/protocol/entity_specifics.pb.h"
@@ -89,14 +91,14 @@ bool HasNonDefaultBrowserColorScheme(
              ThemeService::BrowserColorScheme::kSystem;
 }
 
-std::optional<base::Value::Dict> NtpBackgroundDictFromSpecifics(
+std::optional<base::DictValue> NtpBackgroundDictFromSpecifics(
     const sync_pb::ThemeSpecifics& theme_specifics) {
   if (!theme_specifics.has_ntp_background()) {
     return std::nullopt;
   }
   const sync_pb::NtpCustomBackground& ntp_background =
       theme_specifics.ntp_background();
-  base::Value::Dict dict;
+  base::DictValue dict;
   if (ntp_background.has_url()) {
     dict.Set(kNtpCustomBackgroundURL, ntp_background.url());
   }
@@ -131,7 +133,7 @@ std::optional<base::Value::Dict> NtpBackgroundDictFromSpecifics(
 }
 
 sync_pb::NtpCustomBackground SpecificsNtpBackgroundFromDict(
-    const base::Value::Dict& dict) {
+    const base::DictValue& dict) {
   sync_pb::NtpCustomBackground ntp_background;
   if (const std::string* value = dict.FindString(kNtpCustomBackgroundURL)) {
     ntp_background.set_url(*value);
@@ -181,6 +183,16 @@ const char ThemeSyncableService::kSyncEntityClientTag[] = "current_theme";
 const char ThemeSyncableService::kSyncEntityTitle[] = "Current Theme";
 
 void MigrateSyncingThemePrefsToNonSyncingIfNeeded(PrefService* prefs) {
+  const bool pref_registered =
+      prefs->FindPreference(prefs::kSyncingThemePrefsMigratedToNonSyncing);
+  base::UmaHistogramBoolean("Theme.ThemePrefMigration.PrefRegistered",
+                            pref_registered);
+  // TODO(crbug.com/476288050): Investigate why the pref can not be registered
+  // at this point.
+  if (!pref_registered) {
+    base::debug::DumpWithoutCrashing(FROM_HERE);
+    return;
+  }
   const bool already_migrated =
       prefs->GetBoolean(prefs::kSyncingThemePrefsMigratedToNonSyncing);
   base::UmaHistogramBoolean("Theme.ThemePrefMigration.AlreadyMigrated",
@@ -390,13 +402,17 @@ ThemeSyncableService::MergeDataAndStartSyncing(
     }
   }
 
-  // No theme specifics found. Commit one according to current theme if
-  // kSeparateLocalAndAccountThemes feature flag is not enabled.
-  std::optional<syncer::ModelError> error =
-      base::FeatureList::IsEnabled(syncer::kSeparateLocalAndAccountThemes)
-          ? std::nullopt
-          : ProcessNewTheme(syncer::SyncChange::ACTION_ADD, current_specifics);
-  NotifyOnSyncStarted(ThemeSyncState::kApplied);
+  // No theme specifics found.
+  std::optional<syncer::ModelError> error;
+  ThemeSyncState startup_state = ThemeSyncState::kFailed;
+  if (!base::FeatureList::IsEnabled(syncer::kSeparateLocalAndAccountThemes)) {
+    // Commit the current theme and set the startup state accordingly.
+    error = ProcessNewTheme(syncer::SyncChange::ACTION_ADD, current_specifics);
+    startup_state = error ? ThemeSyncState::kFailed : ThemeSyncState::kApplied;
+  }
+  // Else, the startup state is failed because the account theme (which is none)
+  // is different from the currently applied theme.
+  NotifyOnSyncStarted(startup_state);
   return error;
 }
 
@@ -637,7 +653,7 @@ ThemeSyncableService::ThemeSyncState ThemeSyncableService::MaybeSetTheme(
 
   PrefService* prefs = profile_->GetPrefs();
   // NTP background can exist along with the other (non-extension) themes.
-  if (std::optional<base::Value::Dict> dict =
+  if (std::optional<base::DictValue> dict =
           NtpBackgroundDictFromSpecifics(new_specs);
       dict && !dict->empty()) {
     DVLOG(1) << "Applying custom NTP background";
@@ -877,6 +893,20 @@ void ThemeSyncableService::NotifyOnSyncStarted(ThemeSyncState startup_state) {
   for (Observer& observer : observer_list_) {
     observer.OnThemeSyncStarted(startup_state);
   }
+
+  if (profile_->GetPrefs()->GetBoolean(
+          syncer::prefs::internal::kMigrateThemeFromLocalToAccount)) {
+    syncer::RecordSyncToSigninMigrationThemeStep(
+        syncer::SyncToSigninMigrationThemeStep::kMigrationStarted);
+    syncer::SyncToSigninMigrationThemeOutcome outcome =
+        DeduplicateLocalThemeIfSameAsAccountTheme();
+    profile_->GetPrefs()->ClearPref(
+        syncer::prefs::internal::kMigrateThemeFromLocalToAccount);
+    syncer::RecordSyncToSigninMigrationThemeStep(
+        syncer::SyncToSigninMigrationThemeStep::
+            kMigrationFinishedAndPrefCleared);
+    syncer::RecordSyncToSigninMigrationThemeOutcome(outcome);
+  }
 }
 
 std::optional<sync_pb::ThemeSpecifics>
@@ -925,4 +955,32 @@ bool ThemeSyncableService::ApplySavedLocalThemeIfExistsAndClear() {
   }
   profile_->GetPrefs()->ClearPref(prefs::kSavedLocalTheme);
   return local_theme_specifics.has_value();
+}
+
+syncer::SyncToSigninMigrationThemeOutcome
+ThemeSyncableService::DeduplicateLocalThemeIfSameAsAccountTheme() {
+  std::optional<ThemeSyncState> startup_state = GetThemeSyncStartState();
+  CHECK(startup_state.has_value());
+  if (*startup_state != ThemeSyncState::kApplied) {
+    // The local theme is the one currently applied. Note that `startup_state`
+    // here should never in practice be `kWaitingForExtensionInstallation`
+    // because the extension should already be installed.
+    return syncer::SyncToSigninMigrationThemeOutcome::kNoAccountTheme;
+  }
+  std::optional<sync_pb::ThemeSpecifics> saved_local_theme_specifics =
+      GetSavedLocalTheme();
+  if (!saved_local_theme_specifics.has_value()) {
+    // No saved local theme, nothing to do.
+    return syncer::SyncToSigninMigrationThemeOutcome::kNoLocalTheme;
+  }
+  if (!AreThemeSpecificsEquivalent(
+          GetThemeSpecificsFromCurrentTheme(),
+          saved_local_theme_specifics.value(),
+          theme_service_->IsSystemThemeDistinctFromDefaultTheme())) {
+    // Local theme is different from account theme, nothing to do.
+    return syncer::SyncToSigninMigrationThemeOutcome::
+        kLocalThemeDifferentFromAccountTheme;
+  }
+  profile_->GetPrefs()->ClearPref(prefs::kSavedLocalTheme);
+  return syncer::SyncToSigninMigrationThemeOutcome::kRemovedLocalTheme;
 }

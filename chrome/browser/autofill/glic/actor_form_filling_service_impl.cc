@@ -37,12 +37,15 @@
 #include "components/autofill/core/browser/logging/log_manager.h"
 #include "components/autofill/core/browser/payments/amount_extraction_manager.h"
 #include "components/autofill/core/browser/suggestions/addresses/address_suggestion_generator.h"
-#include "components/autofill/core/browser/suggestions/payments/payments_suggestion_generator.h"
+#include "components/autofill/core/browser/suggestions/payments/credit_card_suggestion_generator.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
 #include "components/autofill/core/browser/ui/autofill_external_delegate.h"
+#include "components/autofill/core/browser/ui/autofill_resource_utils.h"
 #include "components/autofill/core/common/autofill_internals/logging_scope.h"
+#include "components/autofill/core/common/mojom/autofill_types.mojom-shared.h"
 #include "components/tabs/public/tab_interface.h"
 #include "third_party/abseil-cpp/absl/functional/overload.h"
+#include "ui/base/resource/resource_bundle.h"
 #include "url/origin.h"
 
 namespace autofill {
@@ -129,6 +132,26 @@ std::optional<ActorSuggestionWithFillData> GetActorAddressSuggestion(
                                      std::move(fill_data)};
 }
 
+// Retrieves an icon for a payment suggestion
+std::optional<gfx::Image> GetCreditCardSuggestionIcon(
+    const Suggestion& suggestion) {
+  // TODO(crbug.com/463396455): Credit cards will contain either a gfx::Image in
+  // the `custom_icon` or a generic resource icon id in the `icon` field.
+  // None-the-less, all types of icons should be converted.
+  if (std::holds_alternative<gfx::Image>(suggestion.custom_icon)) {
+    gfx::Image image = std::get<gfx::Image>(suggestion.custom_icon);
+    if (!image.IsEmpty()) {
+      return image;
+    }
+  }
+  if (int icon_resource_id = GetIconResourceID(suggestion.icon)) {
+    return ui::ResourceBundle::GetSharedInstance().GetImageNamed(
+        icon_resource_id);
+  } else {
+    return std::nullopt;
+  }
+}
+
 // Generates an `ActorSuggestion` to fill a credit card or returns
 // `std::nullopt` if it cannot generate a filling payload.
 std::optional<ActorSuggestionWithFillData> GetActorCreditCardSuggestion(
@@ -146,8 +169,6 @@ std::optional<ActorSuggestionWithFillData> GetActorCreditCardSuggestion(
     return std::nullopt;
   }
 
-  // TODO(crbug.com/455788947): Add the network/card art icon to the
-  // ActorSuggestion.
   ActorSuggestion actor_suggestion;
   std::vector<std::u16string> title_components = {suggestion.main_text.value};
   base::Extend(title_components, suggestion.minor_texts,
@@ -158,6 +179,8 @@ std::optional<ActorSuggestionWithFillData> GetActorCreditCardSuggestion(
       (!suggestion.labels.empty() && !suggestion.labels[0].empty())
           ? base::UTF16ToUTF8(suggestion.labels[0][0].value)
           : "";
+  // TODO(crbug.com/475192853): Move icon fetching to a higher layer.
+  actor_suggestion.icon = GetCreditCardSuggestionIcon(suggestion);
   ActorFormFillingServiceImpl::FillData fill_data = {base::ToVector(fields),
                                                      *credit_card};
   return ActorSuggestionWithFillData{std::move(actor_suggestion),
@@ -219,7 +242,7 @@ std::optional<ActorSuggestionWithFillData> GetActorCreditCardSuggestion(
 
   AddressSuggestionGenerator generator(
       /*plus_address_email_override=*/std::nullopt,
-      /*log_manager=*/nullptr);
+      /*log_manager=*/nullptr, mojom::AutofillSuggestionTriggerSource::kGlic);
   auto generate_suggestions =
       [&](std::pair<SuggestionGenerator::SuggestionDataSource,
                     std::vector<SuggestionGenerator::SuggestionData>> data) {
@@ -331,37 +354,47 @@ std::optional<FieldGlobalId> GetSafeCreditCardNumberField(
     }
   }
 
-  CreditCardSuggestionSummary summary;
-  std::pair<SuggestionGenerator::SuggestionDataSource,
-            std::vector<SuggestionGenerator::SuggestionData>>
-      suggestion_data = FetchCreditCardOrCvcFieldSuggestionDataSync(
-          autofill_manager.client(), *autofill_field_for_labels,
-          autofill_field_for_labels->Type().GetCreditCardType(),
-          /*four_digit_combinations_in_dom=*/{},
-          /*autofilled_last_four_digits_in_form_for_filtering=*/{}, summary);
-  std::vector<Suggestion> suggestions =
-      GenerateCreditCardOrCvcFieldSuggestionsSync(
-          autofill_manager.client(), *autofill_field_for_labels,
-          autofill_field_for_labels->Type().GetCreditCardType(),
-          /*should_show_scan_credit_card=*/false, summary,
-          /*is_card_number_field_empty=*/true, {suggestion_data},
-          payments::AmountExtractionStatus());
+  const FormStructure* const form_structure =
+      autofill_manager.FindCachedFormById(
+          autofill_field_for_labels->global_id());
+  const FormData& form = form_structure->ToFormData();
 
-  std::erase_if(suggestions, [](const Suggestion& s) {
-    return s.type != SuggestionType::kCreditCardEntry;
-  });
+  CreditCardSuggestionGenerator generator(
+      /*four_digit_combinations_in_dom=*/{}, payments::AmountExtractionStatus(),
+      /*credit_card_form_event_logger=*/nullptr,
+      AutofillMetrics::PaymentsSigninState::kUnknown,
+      /*exclude_virtual_cards=*/true);
 
   std::vector<ActorSuggestionWithFillData> result;
-  result.reserve(suggestions.size());
   const PaymentsDataManager& paydm = autofill_manager.client()
                                          .GetPersonalDataManager()
                                          .payments_data_manager();
-  for (const Suggestion& s : suggestions) {
-    if (std::optional<ActorSuggestionWithFillData> actor_suggestion =
-            GetActorCreditCardSuggestion(paydm, updated_fields, s)) {
-      result.emplace_back(*std::move(actor_suggestion));
-    }
-  }
+  auto convert_and_save_in_result =
+      [&](std::pair<FillingProduct, std::vector<Suggestion>> response) {
+        result.reserve(response.second.size());
+        for (const Suggestion& s : response.second) {
+          if (s.type != SuggestionType::kCreditCardEntry) {
+            continue;
+          }
+          if (std::optional<ActorSuggestionWithFillData> actor_suggestion =
+                  GetActorCreditCardSuggestion(paydm, fields, s)) {
+            result.emplace_back(*std::move(actor_suggestion));
+          }
+        }
+      };
+
+  auto generate_suggestions =
+      [&](std::pair<SuggestionGenerator::SuggestionDataSource,
+                    std::vector<SuggestionGenerator::SuggestionData>> data) {
+        generator.GenerateSuggestions(
+            form, *autofill_field_for_labels, form_structure,
+            autofill_field_for_labels, autofill_manager.client(),
+            {std::move(data)}, convert_and_save_in_result);
+      };
+  generator.FetchSuggestionData(form, *autofill_field_for_labels,
+                                form_structure, autofill_field_for_labels,
+                                autofill_manager.client(),
+                                generate_suggestions);
   return result;
 }
 

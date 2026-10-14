@@ -60,7 +60,6 @@
 #include "ui/gfx/color_space.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/rect_f.h"
-#include "ui/gfx/ipc/color/gfx_param_traits.h"
 
 #if defined(GPU_CLIENT_DEBUG)
 #define GPU_CLIENT_SINGLE_THREAD_CHECK() SingleThreadChecker checker(this);
@@ -1511,6 +1510,11 @@ void RasterImplementation::WritePixels(const gpu::Mailbox& dest_mailbox,
 void RasterImplementation::WritePixelsYUV(const gpu::Mailbox& dest_mailbox,
                                           const SkYUVAPixmaps& src_yuv_pixmap) {
   TRACE_EVENT0("gpu", "RasterImplementation::WritePixelsYUV");
+  if (!capabilities().texture_rg) {
+    SetGLError(GL_INVALID_OPERATION, "WritePixelsYUV", "unsupported");
+    return;
+  }
+
   const auto& src_yuv_info = src_yuv_pixmap.yuvaInfo();
   const auto& src_yuv_pixmap_info = src_yuv_pixmap.pixmapsInfo();
   const std::array<SkPixmap, SkYUVAInfo::kMaxPlanes>& src_sk_pixmaps =

@@ -14,10 +14,8 @@ import {sendWebKitMessage} from '//ios/web/public/js_messaging/resources/utils.j
  */
 function errorEventHandler(event: ErrorEvent): void {
   sendWebKitMessage('WindowErrorResultHandler', {
-    'filename': event.filename,
     'line_number': event.lineno,
     'message': event.message.toString(),
-    'is_crweb': false,
   });
 }
 

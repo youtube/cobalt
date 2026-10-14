@@ -23,7 +23,6 @@
 #include "chrome/browser/policy/profile_policy_connector.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/webui/ash/account_manager/account_migration_welcome_dialog.h"
-#include "chrome/browser/ui/webui/settings/settings_page_ui_handler.h"
 #include "chrome/browser/ui/webui/signin/ash/inline_login_dialog.h"
 #include "chrome/grit/generated_resources.h"
 #include "chromeos/ash/components/account_manager/account_manager_factory.h"
@@ -31,6 +30,7 @@
 #include "components/signin/public/base/consent_level.h"
 #include "components/signin/public/identity_manager/tribool.h"
 #include "components/user_manager/user.h"
+#include "content/public/browser/web_ui_message_handler.h"
 #include "google_apis/gaia/gaia_auth_util.h"
 #include "google_apis/gaia/gaia_id.h"
 #include "google_apis/gaia/google_service_auth_error.h"
@@ -51,7 +51,7 @@ constexpr char kAccountRemovedToastId[] =
     "settings_account_manager_account_removed";
 
 ::account_manager::AccountKey GetAccountKeyFromJsCallback(
-    const base::Value::Dict& dictionary) {
+    const base::DictValue& dictionary) {
   const std::string* id = dictionary.FindString("id");
   DCHECK(id);
   DCHECK(!id->empty());
@@ -98,9 +98,7 @@ class AccountBuilder {
 
   ~AccountBuilder() = default;
 
-  void PopulateFrom(base::Value::Dict account) {
-    account_ = std::move(account);
-  }
+  void PopulateFrom(base::DictValue account) { account_ = std::move(account); }
 
   bool IsEmpty() const { return account_.empty(); }
 
@@ -160,7 +158,7 @@ class AccountBuilder {
   }
 
   // Should be called only once.
-  base::Value::Dict Build() {
+  base::DictValue Build() {
     // Check that values were set.
     DCHECK(account_.FindString("id"));
     DCHECK(account_.FindString("email"));
@@ -177,7 +175,7 @@ class AccountBuilder {
   }
 
  private:
-  base::Value::Dict account_;
+  base::DictValue account_;
 };
 
 }  // namespace
@@ -230,7 +228,7 @@ void AccountManagerUIHandler::SetProfileForTesting(Profile* profile) {
   profile_ = profile;
 }
 
-void AccountManagerUIHandler::HandleGetAccounts(const base::Value::List& args) {
+void AccountManagerUIHandler::HandleGetAccounts(const base::ListValue& args) {
   AllowJavascript();
 
   CHECK_EQ(args.size(), 1u);
@@ -267,8 +265,8 @@ void AccountManagerUIHandler::FinishHandleGetAccounts(
   user_manager::User* user = ProfileHelper::Get()->GetUserByProfile(profile_);
   DCHECK(user);
 
-  base::Value::Dict gaia_device_account;
-  base::Value::List accounts = GetSecondaryGaiaAccounts(
+  base::DictValue gaia_device_account;
+  base::ListValue accounts = GetSecondaryGaiaAccounts(
       account_dummy_token_list, arc_accounts, user->GetAccountId(),
       profile_->IsChild(), &gaia_device_account);
 
@@ -300,14 +298,14 @@ void AccountManagerUIHandler::FinishHandleGetAccounts(
   ResolveJavascriptCallback(callback_id, accounts);
 }
 
-base::Value::List AccountManagerUIHandler::GetSecondaryGaiaAccounts(
+base::ListValue AccountManagerUIHandler::GetSecondaryGaiaAccounts(
     const std::vector<std::pair<::account_manager::Account, bool>>&
         account_dummy_token_list,
     const base::flat_set<account_manager::Account>& arc_accounts,
     const AccountId device_account_id,
     const bool is_child_user,
-    base::Value::Dict* device_account) {
-  base::Value::List accounts;
+    base::DictValue* device_account) {
+  base::ListValue accounts;
   for (const auto& account_token_pair : account_dummy_token_list) {
     const ::account_manager::Account& stored_account = account_token_pair.first;
     const ::account_manager::AccountKey& account_key = stored_account.key;
@@ -330,18 +328,18 @@ base::Value::List AccountManagerUIHandler::GetSecondaryGaiaAccounts(
     account.SetId(account_key.id())
         .SetAccountType(static_cast<int>(account_key.account_type()))
         .SetIsDeviceAccount(false)
-        .SetFullName(maybe_account_info.full_name)
+        .SetFullName(std::string(maybe_account_info.GetFullName().value_or("")))
         .SetEmail(stored_account.raw_email)
         .SetUnmigrated(!is_child_user && account_token_pair.second)
         .SetIsManaged(maybe_account_info.IsManaged() == signin::Tribool::kTrue)
         .SetIsSignedIn(!identity_manager_
                             ->HasAccountWithRefreshTokenInPersistentErrorState(
-                                maybe_account_info.account_id));
+                                maybe_account_info.GetAccountId()));
     account.SetIsAvailableInArc(arc_accounts.contains(stored_account));
 
-    if (!maybe_account_info.account_image.IsEmpty()) {
-      account.SetPic(
-          webui::GetBitmapDataUrl(maybe_account_info.account_image.AsBitmap()));
+    if (maybe_account_info.GetAvatarImage().has_value()) {
+      account.SetPic(webui::GetBitmapDataUrl(
+          maybe_account_info.GetAvatarImage()->AsBitmap()));
     } else {
       gfx::ImageSkia default_icon =
           *ui::ResourceBundle::GetSharedInstance().GetImageSkiaNamed(
@@ -359,7 +357,7 @@ base::Value::List AccountManagerUIHandler::GetSecondaryGaiaAccounts(
   return accounts;
 }
 
-void AccountManagerUIHandler::HandleAddAccount(const base::Value::List& args) {
+void AccountManagerUIHandler::HandleAddAccount(const base::ListValue& args) {
   AllowJavascript();
   AccountManagerFactory::Get()
       ->GetAccountManagerFacade(profile_->GetPath().value())
@@ -369,7 +367,7 @@ void AccountManagerUIHandler::HandleAddAccount(const base::Value::List& args) {
 }
 
 void AccountManagerUIHandler::HandleReauthenticateAccount(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   AllowJavascript();
 
   CHECK(!args.empty());
@@ -384,7 +382,7 @@ void AccountManagerUIHandler::HandleReauthenticateAccount(
 }
 
 void AccountManagerUIHandler::HandleMigrateAccount(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   AllowJavascript();
 
   CHECK(!args.empty());
@@ -393,12 +391,11 @@ void AccountManagerUIHandler::HandleMigrateAccount(
   AccountMigrationWelcomeDialog::Show(account_email);
 }
 
-void AccountManagerUIHandler::HandleRemoveAccount(
-    const base::Value::List& args) {
+void AccountManagerUIHandler::HandleRemoveAccount(const base::ListValue& args) {
   AllowJavascript();
 
   CHECK(!args.empty());
-  const base::Value::Dict* dictionary = args[0].GetIfDict();
+  const base::DictValue* dictionary = args[0].GetIfDict();
   CHECK(dictionary);
 
   const AccountId device_account_id =

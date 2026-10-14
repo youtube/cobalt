@@ -30,7 +30,7 @@
 #include "chrome/browser/ui/webui_browser/webui_browser_side_panel_ui.h"
 #include "chrome/browser/ui/webui_browser/webui_browser_ui.h"
 #include "chrome/browser/ui/webui_browser/webui_browser_web_contents_delegate.h"
-#include "chrome/browser/ui/webui_browser/webui_location_bar.h"
+#include "chrome/browser/ui/webui_browser/webui_stub_location_bar.h"
 #include "chrome/common/chrome_render_frame.mojom.h"
 #include "chrome/common/webui_url_constants.h"
 #include "components/input/native_web_keyboard_event.h"
@@ -106,7 +106,7 @@ class WebUIBrowserWindow::WidgetDelegate : public views::WidgetDelegate {
 };
 
 WebUIBrowserWindow::WebUIBrowserWindow(Browser* browser) : browser_(browser) {
-  location_bar_ = std::make_unique<WebUILocationBar>(this);
+  location_bar_ = std::make_unique<WebUIStubLocationBar>(this);
   web_contents_delegate_ =
       std::make_unique<WebUIBrowserWebContentsDelegate>(this);
   widget_delegate_ =
@@ -135,6 +135,9 @@ WebUIBrowserWindow::WebUIBrowserWindow(Browser* browser) : browser_(browser) {
   modal_dialog_host_ = std::make_unique<WebUIBrowserModalDialogHost>(this);
   extensions_container_ =
       std::make_unique<WebUIBrowserExtensionsContainer>(*browser_, *this);
+  scoped_extensions_container_user_data_ =
+      std::make_unique<ui::ScopedUnownedUserData<ExtensionsContainer>>(
+          browser_->GetUnownedUserDataHost(), *extensions_container_);
 
   web_view->LoadInitialURL(GURL(chrome::kChromeUIWebuiBrowserURL));
   web_view_ = widget_->SetClientContentsView(std::move(web_view));
@@ -157,6 +160,7 @@ WebUIBrowserWindow::~WebUIBrowserWindow() {
   web_view_ = nullptr;
   // We want to destroy the extensions container before the `widget_` since
   // it wants to de-register itself for focus stuff.
+  scoped_extensions_container_user_data_.reset();
   extensions_container_.reset();
   widget_->RemoveObserver(this);
   widget_.reset();
@@ -735,10 +739,6 @@ void WebUIBrowserWindow::FocusToolbar() {
   NOTIMPLEMENTED_LOG_ONCE();
 }
 
-ExtensionsContainer* WebUIBrowserWindow::GetExtensionsContainer() {
-  return extensions_container_.get();
-}
-
 void WebUIBrowserWindow::ToolbarSizeChanged(bool is_animating) {
   NOTIMPLEMENTED_LOG_ONCE();
 }
@@ -886,12 +886,6 @@ void WebUIBrowserWindow::StartPartialTranslate(
     const std::string& source_language,
     const std::string& target_language,
     const std::u16string& text_selection) {
-  NOTIMPLEMENTED_LOG_ONCE();
-}
-
-void WebUIBrowserWindow::ShowOneClickSigninConfirmation(
-    const std::u16string& email,
-    base::OnceCallback<void(bool)> confirmed_callback) {
   NOTIMPLEMENTED_LOG_ONCE();
 }
 
@@ -1085,10 +1079,6 @@ void WebUIBrowserWindow::ShowIncognitoHistoryDisclaimerDialog() {
 bool WebUIBrowserWindow::IsBorderlessModeEnabled() const {
   NOTIMPLEMENTED_LOG_ONCE();
   return false;
-}
-
-void WebUIBrowserWindow::OnWebApiWindowResizableChanged() {
-  NOTIMPLEMENTED_LOG_ONCE();
 }
 
 bool WebUIBrowserWindow::GetCanResize() {

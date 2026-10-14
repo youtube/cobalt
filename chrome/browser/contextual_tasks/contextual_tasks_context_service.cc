@@ -17,10 +17,6 @@
 #include "chrome/browser/contextual_tasks/contextual_tasks_context_signal_utils.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_tab_visit_tracker.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
-#include "chrome/browser/page_content_annotations/page_content_annotations_web_contents_observer.h"
-#include "chrome/browser/page_content_annotations/page_content_extraction_service.h"
-#include "chrome/browser/page_content_annotations/page_content_extraction_types.h"
-#include "chrome/browser/passage_embeddings/page_embeddings_service.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
@@ -29,9 +25,14 @@
 #include "components/contextual_tasks/public/features.h"
 #include "components/optimization_guide/core/model_quality/model_quality_log_entry.h"
 #include "components/optimization_guide/proto/features/contextual_tasks_context.pb.h"
-#include "components/passage_embeddings/passage_embeddings_types.h"
+#include "components/page_content_annotations/content/page_content_annotations_web_contents_observer.h"
+#include "components/page_content_annotations/content/page_content_extraction_service.h"
+#include "components/page_content_annotations/core/page_content_extraction_types.h"
+#include "components/passage_embeddings/content/page_embeddings_service.h"
+#include "components/passage_embeddings/core/passage_embeddings_types.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/common/url_constants.h"
 #include "url/gurl.h"
 
 namespace contextual_tasks {
@@ -179,7 +180,7 @@ void ContextualTasksContextService::GetRelevantTabsForQuery(
   }
 
   // Force active tab embedding to be processed.
-  page_embeddings_service_->ProcessAllEmbeddings();
+  page_embeddings_service_->ProcessEmbeddingsOnDemand();
 
   AUTO_CONTEXT_LOG("Submitted query to embedder");
   // TODO: crbug.com/452036470 - De-couple embeddings and recency signal
@@ -213,6 +214,9 @@ void ContextualTasksContextService::OnQueryEmbeddingReady(
     std::vector<passage_embeddings::Embedding> embeddings,
     passage_embeddings::Embedder::TaskId task_id,
     passage_embeddings::ComputeEmbeddingsStatus status) {
+  base::UmaHistogramTimes("ContextualTasks.Context.QueryEmbeddingLatency",
+                          tick_clock_->NowTicks() - start_time);
+
   // Query embedding was not successfully generated.
   if (status != passage_embeddings::ComputeEmbeddingsStatus::kSuccess) {
     AUTO_CONTEXT_LOG(
@@ -306,9 +310,16 @@ ContextualTasksContextService::GetAllEligibleTabs() {
           if (!web_contents) {
             continue;
           }
-          if (!web_contents->GetLastCommittedURL().SchemeIsHTTPOrHTTPS()) {
+
+          const GURL url = web_contents->GetLastCommittedURL();
+          const bool is_invalid_url = !url.is_valid() || url.IsAboutBlank();
+          const bool is_internal_page =
+              url.SchemeIs(content::kChromeUIScheme) ||
+              url.SchemeIs(content::kChromeUIUntrustedScheme);
+          if (is_invalid_url || is_internal_page) {
             continue;
           }
+
           if (!ShouldAddTabToSelection(web_contents)) {
             AUTO_CONTEXT_LOG(
                 base::StringPrintf("Removing %s from relevant set as it is not "
@@ -464,14 +475,10 @@ bool ContextualTasksContextService::ShouldAddTabToSelection(
   // Get whether it's eligible for server upload.
   bool is_eligible_for_server_upload = true;
   if (page_content_extraction_service_) {
-    std::optional<page_content_annotations::ExtractedPageContentResult>
-        extracted_page_content_result =
-            page_content_extraction_service_
-                ->GetExtractedPageContentAndEligibilityForPage(
-                    web_contents->GetPrimaryPage());
     is_eligible_for_server_upload =
-        !extracted_page_content_result ||
-        extracted_page_content_result->is_eligible_for_server_upload;
+        page_content_extraction_service_
+            ->GetServerUploadEligibilityForPage(web_contents->GetPrimaryPage())
+            .value_or(true);
   }
 
   return is_eligible_for_server_upload && !is_sensitive;

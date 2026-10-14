@@ -55,6 +55,7 @@ class IdentityManager;
 namespace glic {
 
 class AuthController;
+class GlicActorPolicyChecker;
 class GlicEnabling;
 class GlicFreController;
 class GlicMetrics;
@@ -154,8 +155,8 @@ class GlicKeyedService : public KeyedService,
   GlicEnabling& enabling() { return *enabling_.get(); }
 
   GlicMetrics* metrics() { return metrics_.get(); }
-  GlicFreController& fre_controller();
-  GlicWindowController& window_controller() const;
+  virtual GlicFreController& fre_controller();
+  virtual GlicWindowController& window_controller() const;
 #if !BUILDFLAG(IS_ANDROID)  // Single instance only
   GlicWindowControllerInterface& GetSingleInstanceWindowController() const;
 #endif
@@ -172,9 +173,12 @@ class GlicKeyedService : public KeyedService,
 
   // Virtual for testing.
   virtual bool IsWindowShowing() const;
+  virtual bool IsFreShowing() const;
 
-  // Returns true if `bwi` has a glic panel showing for its active tab.
-  bool IsPanelShowingForBrowser(const BrowserWindowInterface& bwi) const;
+  // Returns true if `bwi` has a glic panel showing for its active tab. Virtual
+  // for testing.
+  virtual bool IsPanelShowingForBrowser(
+      const BrowserWindowInterface& bwi) const;
 
   // Virtual for testing.
   virtual bool IsWindowDetached() const;
@@ -390,6 +394,14 @@ class GlicKeyedService : public KeyedService,
       AutofillSuggestionSelectedCallback callback) override;
 #endif
 
+  using ActOnWebCapabilityChangedCallback = base::RepeatingCallback<void(bool)>;
+  base::CallbackListSubscription AddActOnWebCapabilityChangedCallback(
+      ActOnWebCapabilityChangedCallback callback);
+
+  GlicActorPolicyChecker& actor_policy_checker() {
+    return *actor_policy_checker_;
+  }
+
  private:
   // A helper function to route GetZeroStateSuggestionsForFocusedTabCallback
   // callbacks.
@@ -415,6 +427,12 @@ class GlicKeyedService : public KeyedService,
 
   raw_ptr<Profile> profile_;
 
+  // Never null - GlicActorTaskManager and GlicInstanceCoordinatorImpl hold a
+  // reference to this so it must be destroyed after them.
+  // NEEDS_ANDROID_IMPL: This is temporarily null on Android until
+  // ActorKeyedService stops crashing at runtime.
+  std::unique_ptr<GlicActorPolicyChecker> actor_policy_checker_;
+
   std::unique_ptr<GlicEnabling> enabling_;
   std::unique_ptr<GlicMetrics> metrics_;
   std::unique_ptr<GlicFreController> fre_controller_;
@@ -428,6 +446,7 @@ class GlicKeyedService : public KeyedService,
   std::unique_ptr<AuthController> auth_controller_;
   std::unique_ptr<base::MemoryPressureListenerRegistration>
       memory_pressure_listener_registration_;
+
 #if !BUILDFLAG(IS_ANDROID)  // Single instance only
   // Null in multi-instance mode.
   std::unique_ptr<GlicOcclusionNotifier> occlusion_notifier_;

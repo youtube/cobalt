@@ -133,6 +133,11 @@ static bool IsRtpPacket(ArrayView<const uint8_t> payload) {
   return (payload.size() >= kMinRtpPacketLen && (u[0] & 0xC0) == 0x80);
 }
 
+int ComputeRetransmissionTimeout(int rtt_ms) {
+  return std::max(kMinDtlsHandshakeTimeoutMs,
+                  std::min(kMaxDtlsHandshakeTimeoutMs, 2 * (rtt_ms)));
+}
+
 StreamInterfaceChannel::StreamInterfaceChannel(
     IceTransportInternal* ice_transport)
     : ice_transport_(ice_transport),
@@ -531,6 +536,12 @@ bool DtlsTransportInternalImpl::SetupDtls() {
     // can get put into STUN attributes and still fit into two packets.
     const int kDtlsMtu = 900;
     dtls_->SetMTU(kDtlsMtu);
+  }
+
+  if (fake_ice_lite_) {
+    int rtt_ms = kDefaultHandshakeEstimateRttMs;
+    int initial_timeout_ms = ComputeRetransmissionTimeout(rtt_ms);
+    dtls_->SetInitialRetransmissionTimeout(initial_timeout_ms);
   }
 
   dtls_->SetIdentity(local_certificate_->identity()->Clone());
@@ -1171,11 +1182,6 @@ void DtlsTransportInternalImpl::set_dtls_state(DtlsTransportState state) {
 
 void DtlsTransportInternalImpl::OnDtlsHandshakeError(SSLHandshakeError error) {
   SendDtlsHandshakeError(error);
-}
-
-int ComputeRetransmissionTimeout(int rtt_ms) {
-  return std::max(kMinDtlsHandshakeTimeoutMs,
-                  std::min(kMaxDtlsHandshakeTimeoutMs, 2 * (rtt_ms)));
 }
 
 void DtlsTransportInternalImpl::ConfigureHandshakeTimeout() {

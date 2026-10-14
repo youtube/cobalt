@@ -33,6 +33,7 @@ using ::base::test::ErrorIs;
 using ::base::test::ValueIs;
 using ::testing::ElementsAreArray;
 using ::testing::IsEmpty;
+using ::testing::UnorderedElementsAre;
 using ::testing::UnorderedElementsAreArray;
 
 namespace {
@@ -114,7 +115,7 @@ class FakeUnexportableKeyServiceProxy : public mojom::UnexportableKeyService {
       std::move(callback).Run(std::move(get_all_keys_response_.value()));
       get_all_keys_response_.reset();
     } else {
-      std::move(callback).Run(base::ok(std::vector<UnexportableKeyId>()));
+      std::move(callback).Run(base::ok(std::vector<mojom::NewKeyDataPtr>()));
     }
   }
 
@@ -125,8 +126,7 @@ class FakeUnexportableKeyServiceProxy : public mojom::UnexportableKeyService {
         *std::exchange(delete_keys_response_, std::nullopt));
   }
 
-  void DeleteAllKeys(BackgroundTaskPriority priority,
-                     DeleteAllKeysCallback callback) override {
+  void DeleteAllKeys(DeleteAllKeysCallback callback) override {
     std::move(callback).Run(std::move(delete_all_keys_response_.value()));
     delete_all_keys_response_.reset();
   }
@@ -147,7 +147,8 @@ class FakeUnexportableKeyServiceProxy : public mojom::UnexportableKeyService {
   }
 
   void SetGetAllSigningKeysForGarbageCollectionResponse(
-      base::expected<std::vector<UnexportableKeyId>, ServiceError> response) {
+      base::expected<std::vector<mojom::NewKeyDataPtr>, ServiceError>
+          response) {
     get_all_keys_response_ = std::move(response);
   }
 
@@ -171,7 +172,7 @@ class FakeUnexportableKeyServiceProxy : public mojom::UnexportableKeyService {
       from_wrapped_response_;
   std::optional<base::expected<std::vector<uint8_t>, ServiceError>>
       sign_response_;
-  std::optional<base::expected<std::vector<UnexportableKeyId>, ServiceError>>
+  std::optional<base::expected<std::vector<mojom::NewKeyDataPtr>, ServiceError>>
       get_all_keys_response_;
   std::optional<std::optional<ServiceError>> delete_key_response_;
   std::optional<base::expected<uint64_t, ServiceError>> delete_keys_response_;
@@ -460,8 +461,7 @@ TEST_F(UnexportableKeyServiceProxiedTest, DeleteAllKeysSuccess) {
   fake_service_.SetDeleteAllKeysResponse(base::ok(2));
 
   base::test::TestFuture<ServiceErrorOr<size_t>> delete_all_future;
-  proxied_service_.DeleteAllKeysSlowlyAsync(
-      BackgroundTaskPriority::kUserVisible, delete_all_future.GetCallback());
+  proxied_service_.DeleteAllKeysSlowlyAsync(delete_all_future.GetCallback());
 
   EXPECT_THAT(delete_all_future.Get(), ValueIs(2));
   EXPECT_THAT(proxied_service_.GetSubjectPublicKeyInfo(key_id1),
@@ -477,8 +477,7 @@ TEST_F(UnexportableKeyServiceProxiedTest, DeleteAllKeysErrorFromService) {
   const UnexportableKeyId key_id = GenerateKeyOrDie();
 
   base::test::TestFuture<ServiceErrorOr<size_t>> delete_all_future;
-  proxied_service_.DeleteAllKeysSlowlyAsync(
-      BackgroundTaskPriority::kUserVisible, delete_all_future.GetCallback());
+  proxied_service_.DeleteAllKeysSlowlyAsync(delete_all_future.GetCallback());
 
   EXPECT_THAT(delete_all_future.Get(), ErrorIs(ServiceError::kCryptoApiFailed));
   EXPECT_FALSE(proxied_service_.GetSubjectPublicKeyInfo(key_id).has_value());
@@ -486,23 +485,45 @@ TEST_F(UnexportableKeyServiceProxiedTest, DeleteAllKeysErrorFromService) {
 
 TEST_F(UnexportableKeyServiceProxiedTest,
        GetAllSigningKeysForGarbageCollectionSuccess) {
-  std::vector<UnexportableKeyId> key_ids = {
-      UnexportableKeyId(base::UnguessableToken::Create()),
-      UnexportableKeyId(base::UnguessableToken::Create())};
+  std::vector<mojom::NewKeyDataPtr> key_data_list;
+  UnexportableKeyId key_id1;
+  UnexportableKeyId key_id2;
+
+  auto create_data = [](UnexportableKeyId id) {
+    auto data = mojom::NewKeyData::New();
+    data->key_id = id;
+    data->subject_public_key_info = base::ToVector(kTestSubjectPublicKeyInfo);
+    data->wrapped_key = base::ToVector(kTestWrappedKey);
+    data->algorithm =
+        crypto::SignatureVerifier::SignatureAlgorithm::ECDSA_SHA256;
+    data->key_tag = kTestKeyTag;
+    return data;
+  };
+
+  key_data_list.push_back(create_data(key_id1));
+  key_data_list.push_back(create_data(key_id2));
+
   fake_service_.SetGetAllSigningKeysForGarbageCollectionResponse(
-      base::ok(key_ids));
+      base::ok(std::move(key_data_list)));
 
   base::test::TestFuture<ServiceErrorOr<std::vector<UnexportableKeyId>>> future;
   proxied_service_.GetAllSigningKeysForGarbageCollectionSlowlyAsync(
       BackgroundTaskPriority::kUserVisible, future.GetCallback());
 
-  EXPECT_THAT(future.Get(), ValueIs(UnorderedElementsAreArray(key_ids)));
+  ASSERT_OK_AND_ASSIGN(std::vector<UnexportableKeyId> key_ids, future.Get());
+  EXPECT_THAT(key_ids, UnorderedElementsAre(key_id1, key_id2));
+
+  // Verify cache population
+  EXPECT_THAT(proxied_service_.GetSubjectPublicKeyInfo(key_id1),
+              ValueIs(ElementsAreArray(kTestSubjectPublicKeyInfo)));
+  EXPECT_THAT(proxied_service_.GetSubjectPublicKeyInfo(key_id2),
+              ValueIs(ElementsAreArray(kTestSubjectPublicKeyInfo)));
 }
 
 TEST_F(UnexportableKeyServiceProxiedTest,
        GetAllSigningKeysForGarbageCollectionEmpty) {
   fake_service_.SetGetAllSigningKeysForGarbageCollectionResponse(
-      base::ok(std::vector<UnexportableKeyId>()));
+      base::ok(std::vector<mojom::NewKeyDataPtr>()));
 
   base::test::TestFuture<ServiceErrorOr<std::vector<UnexportableKeyId>>> future;
   proxied_service_.GetAllSigningKeysForGarbageCollectionSlowlyAsync(

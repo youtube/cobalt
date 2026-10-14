@@ -79,6 +79,8 @@ class NET_EXPORT CanonicalCookie : public CookieBase {
     kInvalidPath,
     kInvalidHostPrefix,
     kInvalidSecurePrefix,
+    kInvalidHttpPrefix,
+    kInvalidHostHttpPrefix,
     kEmptyNameWithHiddenPrefix,
     kPartitionedInsecure,
   };
@@ -436,7 +438,6 @@ class NET_EXPORT CanonicalCookie : public CookieBase {
  private:
   FRIEND_TEST_ALL_PREFIXES(CanonicalCookieTest,
                            TestGetAndAdjustPortForTrustworthyUrls);
-  FRIEND_TEST_ALL_PREFIXES(CanonicalCookieTest, TestHasHiddenPrefixName);
 
   // Returns the appropriate port value for the given `source_url` depending on
   // if the url is considered trustworthy or not.
@@ -450,9 +451,6 @@ class NET_EXPORT CanonicalCookie : public CookieBase {
   // indicate that we're treating `source_url` as if it was secure.
   static int GetAndAdjustPortForTrustworthyUrls(const GURL& source_url,
                                                 bool url_is_trustworthy);
-
-  // Checks for values that could be misinterpreted as a cookie name prefix.
-  static bool HasHiddenPrefixName(std::string_view cookie_value);
 
   // Helpers for use in canonicalization checks.
   static CanonicalizationResult Pass();

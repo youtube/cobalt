@@ -62,7 +62,7 @@ AsyncAudioProcessing::AsyncAudioProcessing(
       frame_processor_(frame_processor),
       task_queue_(task_queue_factory.CreateTaskQueue(
           "AsyncAudioProcessing",
-          TaskQueueFactory::Priority::NORMAL)) {
+          TaskQueueFactory::Priority::kNormal)) {
   frame_processor_.SetSink([this](std::unique_ptr<AudioFrame> frame) {
     task_queue_->PostTask([this, frame = std::move(frame)]() mutable {
       on_frame_processed_callback_(std::move(frame));
@@ -79,7 +79,7 @@ AsyncAudioProcessing::AsyncAudioProcessing(
       owned_frame_processor_(std::move(frame_processor)),
       task_queue_(task_queue_factory.CreateTaskQueue(
           "AsyncAudioProcessing",
-          TaskQueueFactory::Priority::NORMAL)) {
+          TaskQueueFactory::Priority::kNormal)) {
   owned_frame_processor_->SetSink([this](std::unique_ptr<AudioFrame> frame) {
     task_queue_->PostTask([this, frame = std::move(frame)]() mutable {
       on_frame_processed_callback_(std::move(frame));

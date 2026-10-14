@@ -1,0 +1,7 @@
+{
+  "ios26-sdk-device": {
+    "additional_compile_targets": [
+      "all"
+    ]
+  }
+}

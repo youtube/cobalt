@@ -104,9 +104,9 @@ const std::map<std::string, AlgorithmInfo> kAllAlgorithms = {
     {"X25519", {EVP_pkey_x25519(), EVP_PKEY_X25519, true}},
     {"Ed25519", {EVP_pkey_ed25519(), EVP_PKEY_ED25519, true}},
     {"DSA", {EVP_pkey_dsa(), EVP_PKEY_DSA, true}},
-    {"ML-DSA-44", {EVP_pkey_ml_dsa_44(), EVP_PKEY_ML_DSA_44, false}},
-    {"ML-DSA-65", {EVP_pkey_ml_dsa_65(), EVP_PKEY_ML_DSA_65, false}},
-    {"ML-DSA-87", {EVP_pkey_ml_dsa_87(), EVP_PKEY_ML_DSA_87, false}},
+    {"ML-DSA-44", {EVP_pkey_ml_dsa_44(), EVP_PKEY_ML_DSA_44, true}},
+    {"ML-DSA-65", {EVP_pkey_ml_dsa_65(), EVP_PKEY_ML_DSA_65, true}},
+    {"ML-DSA-87", {EVP_pkey_ml_dsa_87(), EVP_PKEY_ML_DSA_87, true}},
 };
 
 using KeyMap = std::map<std::string, bssl::UniquePtr<EVP_PKEY>>;
@@ -362,6 +362,12 @@ bool ImportKey(FileTest *t, KeyMap *key_map, KeyRole key_role) {
     SCOPED_TRACE(name);
 
     EXPECT_EQ(alg_info.pkey_id, EVP_PKEY_id(pkey.get()));
+
+    // In almost all cases, a non-empty key must have a public key. The only
+    // exception is a private RSA key with (n, d) params only, which is tested
+    // not here but elsewhere.
+    EXPECT_EQ(EVP_PKEY_has_public(pkey.get()), 1);
+    EXPECT_EQ(EVP_PKEY_has_private(pkey.get()), key_role == KeyRole::kPrivate);
 
     if (t->HasAttribute("Bits")) {
       EXPECT_EQ(EVP_PKEY_bits(pkey.get()),

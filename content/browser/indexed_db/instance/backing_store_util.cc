@@ -7,10 +7,12 @@
 #include "base/containers/to_vector.h"
 #include "base/functional/callback_helpers.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/types/expected_macros.h"
 #include "base/values.h"
 #include "content/browser/indexed_db/indexed_db_value.h"
 #include "content/browser/indexed_db/instance/backing_store.h"
 #include "crypto/hash.h"
+#include "third_party/abseil-cpp/absl/container/node_hash_map.h"
 #include "third_party/blink/public/common/indexeddb/indexeddb_key_path.h"
 #include "third_party/blink/public/common/indexeddb/indexeddb_metadata.h"
 #include "third_party/blink/public/mojom/indexeddb/indexeddb.mojom.h"
@@ -161,7 +163,14 @@ base::DictValue RecordToDictValue(BackingStore::Cursor& cursor,
   for (const IndexedDBExternalObject& object : value.external_objects) {
     base::DictValue object_dict;
     object_dict.Set("type", static_cast<int>(object.object_type()));
-    object_dict.Set("size", ToIntValue(object.size()));
+    if (object.object_type() ==
+        IndexedDBExternalObject::ObjectType::kFileSystemAccessHandle) {
+      object_dict.Set(
+          "fsa_handle",
+          base::BlobStorage(object.serialized_file_system_access_handle()));
+    } else {
+      object_dict.Set("size", ToIntValue(object.size()));
+    }
     external_objects.Append(std::move(object_dict));
   }
   record.Set("external_objects", std::move(external_objects));
@@ -327,6 +336,117 @@ StatusOr<base::DictValue> SnapshotDatabase(BackingStore::Database& db) {
   result.Set("metadata", *std::move(metadata));
   result.Set("contents", *std::move(contents));
   return result;
+}
+
+Status MigrateDatabase(BackingStore::Database& source,
+                       BackingStore::Database& target) {
+  const blink::IndexedDBDatabaseMetadata& metadata = source.GetMetadata();
+
+  // All the writes into `target` occur in a single VersionChange transaction.
+  std::unique_ptr<BackingStore::Transaction> target_txn =
+      target.CreateTransaction(blink::mojom::IDBTransactionDurability::Relaxed,
+                               blink::mojom::IDBTransactionMode::VersionChange);
+  std::vector<PartitionedLock> target_locks;
+  target_locks.emplace_back(PartitionedLockId{.partition = 0, .key = "unused"},
+                            base::DoNothing());
+  // TODO(crbug.com/419264073): handle errors.
+  CHECK(target_txn->Begin(std::move(target_locks)).ok());
+
+  CHECK(target_txn->SetDatabaseVersion(metadata.version).ok());
+
+  // Create all the object stores and indexes.
+  for (const auto& [_, object_store] : metadata.object_stores) {
+    CHECK(target_txn
+              ->CreateObjectStore(object_store.id, object_store.name,
+                                  object_store.key_path,
+                                  object_store.auto_increment)
+              .ok());
+
+    for (const auto& [_, index] : object_store.indexes) {
+      CHECK(target_txn->CreateIndex(object_store.id, index).ok());
+    }
+  }
+
+  // Read and duplicate all the records in all the object stores of `source`.
+  std::unique_ptr<BackingStore::Transaction> source_txn =
+      source.CreateTransaction(blink::mojom::IDBTransactionDurability::Relaxed,
+                               blink::mojom::IDBTransactionMode::ReadOnly);
+  std::vector<PartitionedLock> source_locks;
+  source_locks.emplace_back(PartitionedLockId{.partition = 0, .key = "unused"},
+                            base::DoNothing());
+  CHECK(source_txn->Begin(std::move(source_locks)).ok());
+
+  for (const auto& [_, object_store] : metadata.object_stores) {
+    // Maintain a mapping from primary key to record identifier in the target
+    // database. This is necessary because record identifiers are used to
+    // rebuild the indexes in `target`.
+    // Unlike `flat_hash_map`, `node_hash_map` doesn't require keys be
+    // `CopyConstructible` (i.e. doesn't copy on rehash).
+    absl::node_hash_map<blink::IndexedDBKey, BackingStore::RecordIdentifier>
+        primary_key_to_record_id;
+
+    // Copy all records in the object store and build the map.
+    std::unique_ptr<BackingStore::Cursor> cursor =
+        source_txn
+            ->OpenObjectStoreCursor(object_store.id, /*key_range=*/{},
+                                    blink::mojom::IDBCursorDirection::Next)
+            .value();
+
+    for (bool has_values = !!cursor; has_values;
+         has_values = cursor->Continue().value()) {
+      blink::IndexedDBKey key = cursor->GetKey().Clone();
+      IndexedDBValue value = std::move(cursor->GetValue());
+
+      // Put the record into `target`.
+      ASSIGN_OR_RETURN(
+          BackingStore::RecordIdentifier record_result,
+          target_txn->PutRecord(object_store.id, key, std::move(value)));
+
+      // Store the record identifier in the map.
+      primary_key_to_record_id.emplace(std::move(key),
+                                       std::move(record_result));
+    }
+
+    // Rebuild indexes (pointers from index key to record identifier).
+    for (const auto& [index_id, index] : object_store.indexes) {
+      std::unique_ptr<BackingStore::Cursor> index_cursor =
+          source_txn
+              ->OpenIndexCursor(object_store.id, index_id,
+                                /*key_range=*/{},
+                                blink::mojom::IDBCursorDirection::Next)
+              .value();
+
+      for (bool has_values = !!index_cursor; has_values;
+           has_values = index_cursor->Continue().value()) {
+        blink::IndexedDBKey index_key = index_cursor->GetKey().Clone();
+        const blink::IndexedDBKey& primary_key = index_cursor->GetPrimaryKey();
+
+        // Look up the record identifier for this primary key.
+        auto it = primary_key_to_record_id.find(primary_key.Clone());
+        CHECK(it != primary_key_to_record_id.end());
+
+        CHECK(target_txn
+                  ->PutIndexDataForRecord(object_store.id, index_id, index_key,
+                                          /*record=*/it->second)
+                  .ok());
+      }
+    }
+
+    // Update the key generator current number if the object store has
+    // auto_increment.
+    if (object_store.auto_increment) {
+      int64_t current_number =
+          source_txn->GetKeyGeneratorCurrentNumber(object_store.id).value();
+      CHECK(target_txn
+                ->MaybeUpdateKeyGeneratorCurrentNumber(
+                    object_store.id, current_number, /*was_generated=*/false)
+                .ok());
+    }
+  }
+
+  // Commit the target transaction. We can skip phase one because there are no
+  // async blob writing operations.
+  return target_txn->CommitPhaseTwo();
 }
 
 }  // namespace content::indexed_db

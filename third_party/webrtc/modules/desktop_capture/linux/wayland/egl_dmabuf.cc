@@ -35,6 +35,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
 #include "modules/desktop_capture/desktop_geometry.h"
 #include "rtc_base/checks.h"
@@ -549,7 +550,42 @@ std::vector<uint64_t> EglDrmDevice::QueryDmaBufModifiers(uint32_t format) {
 
   // Support modifier-less buffers
   modifiers.push_back(DRM_FORMAT_MOD_INVALID);
-  return modifiers;
+
+  // Filter out failed modifiers
+  MutexLock lock(&failed_modifiers_lock_);
+  auto it = failed_modifiers_.find(format);
+  if (it == failed_modifiers_.end()) {
+    return modifiers;
+  }
+
+  const auto& failed_set = it->second;
+
+  // Special case: if DRM_FORMAT_MOD_INVALID is in the failed set,
+  // it means all modifiers failed for this format (older PipeWire)
+  if (failed_set.count(DRM_FORMAT_MOD_INVALID) > 0) {
+    return {};
+  }
+
+  std::vector<uint64_t> filtered;
+  for (uint64_t modifier : modifiers) {
+    if (failed_set.count(modifier) == 0) {
+      filtered.push_back(modifier);
+    }
+  }
+
+  return filtered;
+}
+
+void EglDrmDevice::MarkModifierFailed(uint32_t format, uint64_t modifier) {
+  MutexLock lock(&failed_modifiers_lock_);
+  failed_modifiers_[format].insert(modifier);
+}
+
+void EglDrmDevice::MarkModifierFailed(uint64_t modifier) {
+  for (uint32_t format : {SPA_VIDEO_FORMAT_BGRA, SPA_VIDEO_FORMAT_RGBA,
+                          SPA_VIDEO_FORMAT_BGRx, SPA_VIDEO_FORMAT_RGBx}) {
+    MarkModifierFailed(format, modifier);
+  }
 }
 
 RTC_NO_SANITIZE("cfi-icall")
@@ -709,24 +745,33 @@ bool EglDrmDevice::ImageFromDmaBuf(const DesktopSize& size,
   return !error;
 }
 
+std::unique_ptr<EglDmaBuf> EglDmaBuf::CreateDefault() {
+  auto instance = absl::WrapUnique(new EglDmaBuf());
+  if (!instance->Initialize()) {
+    RTC_LOG(LS_WARNING) << "EglDmaBuf initialization failed";
+    return nullptr;
+  }
+  return instance;
+}
+
 RTC_NO_SANITIZE("cfi-icall")
-EglDmaBuf::EglDmaBuf() {
+bool EglDmaBuf::Initialize() {
   if (!LoadEGL()) {
     RTC_LOG(LS_ERROR) << "Unable to load EGL entry functions.";
     CloseLibrary(g_lib_egl);
-    return;
+    return false;
   }
 
   if (!LoadGL()) {
     RTC_LOG(LS_ERROR) << "Failed to load OpenGL entry functions.";
     CloseLibrary(g_lib_gl);
-    return;
+    return false;
   }
 
   std::vector<std::string> client_extensions =
       GetClientExtensions(EGL_NO_DISPLAY, EGL_EXTENSIONS);
   if (client_extensions.empty()) {
-    return;
+    return false;
   }
 
   bool has_platform_base_ext = false;
@@ -749,11 +794,13 @@ EglDmaBuf::EglDmaBuf() {
   if (!has_platform_base_ext || !has_platform_gbm_ext ||
       !has_khr_platform_gbm_ext) {
     RTC_LOG(LS_ERROR) << "One of required EGL extensions is missing";
-    return;
+    return false;
   }
 
   CreatePlatformDevice();
   EnumerateDrmDevices();
+
+  return GetRenderDevice() != nullptr;
 }
 
 // BUG: crbug.com/1290566
@@ -851,6 +898,11 @@ void EglDmaBuf::EnumerateDrmDevices() {
 }
 
 EglDrmDevice* EglDmaBuf::GetRenderDevice() {
+  if (auto it = devices_.find(preferred_render_device_id_);
+      it != devices_.end()) {
+    return it->second.get();
+  }
+
   if (default_platform_device_) {
     return default_platform_device_.get();
   }
@@ -858,7 +910,44 @@ EglDrmDevice* EglDmaBuf::GetRenderDevice() {
   if (!devices_.empty()) {
     return devices_.begin()->second.get();
   }
+
   return nullptr;
+}
+
+EglDrmDevice* EglDmaBuf::GetRenderDevice(dev_t id) {
+  if (auto it = devices_.find(id); it != devices_.end()) {
+    return it->second.get();
+  }
+
+  return nullptr;
+}
+
+bool EglDmaBuf::SetPreferredRenderDevice(dev_t device_id) {
+  if (device_id == DEVICE_ID_INVALID) {
+    RTC_LOG(LS_ERROR) << "Cannot set invalid device ID as render device";
+    return false;
+  }
+
+  auto it = devices_.find(device_id);
+  if (it == devices_.end()) {
+    RTC_LOG(LS_ERROR) << "Device ID " << device_id << " not found";
+    return false;
+  }
+
+  preferred_render_device_id_ = device_id;
+  RTC_LOG(LS_INFO) << "Render device set to device ID: " << major(device_id)
+                   << ":" << minor(device_id);
+
+  return true;
+}
+
+std::vector<dev_t> EglDmaBuf::GetDevices() const {
+  std::vector<dev_t> device_ids;
+  device_ids.reserve(devices_.size());
+  for (const auto& [device_id, device] : devices_) {
+    device_ids.push_back(device_id);
+  }
+  return device_ids;
 }
 
 }  // namespace webrtc

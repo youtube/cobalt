@@ -111,7 +111,7 @@ void ChromeBrowserFieldTrials::RegisterFeatureOverrides(
   // On Linux/Desktop platform variants, such as ozone/wayland, some features
   // might need to be disabled as per OzonePlatform's runtime properties.
   // OzonePlatform selection and initialization, in turn, depend on Chrome flags
-  // processing, namely 'ozone-platform-hint', so do it here.
+  // processing, namely 'ozone-platform', so do it here.
   //
   // TODO(nickdiego): Move it back to
   // ChromeMainDelegate::PostEarlyInitialization.
@@ -130,11 +130,6 @@ void ChromeBrowserFieldTrials::RegisterFeatureOverrides(
   // should be the exception, and not the norm. Instead, you should place the
   // override in the generic IS_ANDROID block below, guarded by an appropriate
   // runtime check.
-
-  // Enables the caret browsing a11y feature - can use arrow keys to navigate
-  // through web pages.
-  // TODO(crbug.com/369139090): Remove when rollout is complete
-  feature_overrides.EnableFeature(features::kAndroidCaretBrowsing);
 
   // Enable the link hover status bar.
   // TODO(crbug.com/404678510): Remove when the feature is stable.
@@ -159,9 +154,6 @@ void ChromeBrowserFieldTrials::RegisterFeatureOverrides(
   // Enable V8 optimizations for high-end Android Desktop devices.
   // TODO(crbug.com/425860368): Remove when the feature is stable.
   feature_overrides.EnableFeature(features::kV8AndroidDesktopHighEndConfig);
-  // TODO(crbug.com/438369690): Remove when we enable DevTools frontend for all
-  // clank users.
-  feature_overrides.EnableFeature(features::kAndroidDevToolsFrontend);
   // TODO(crbug.com/430304112): Remove when rollout is complete to all form
   // factors.
   feature_overrides.EnableFeature(
@@ -205,7 +197,6 @@ void ChromeBrowserFieldTrials::RegisterFeatureOverrides(
   // same flag.
   // TODO(crbug.com/445475304): Remove when tablet rollout is complete.
   feature_overrides.EnableFeature(feed::kAndroidOpenIncognitoAsWindow);
-  feature_overrides.EnableFeature(chrome::android::kTabStripIncognitoMigration);
   // TODO(crbug.com/427242080): Remove when tablet rollout is complete.
   feature_overrides.EnableFeature(
       chrome::android::kAndroidPinnedTabsTabletTabStrip);

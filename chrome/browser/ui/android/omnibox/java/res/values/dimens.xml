@@ -67,7 +67,7 @@ found in the LICENSE file.
         @dimen/search_box_icon_background_height
     </dimen>
     <dimen name="location_bar_action_icon_margin_horizontal">0dp</dimen>
-    <dimen name="location_bar_action_icon_margin_horizontal_desktop">4dp</dimen>
+    <dimen name="location_bar_action_icon_margin_horizontal_desktop">6dp</dimen>
     <dimen name="location_bar_icon_margin_end">4dp</dimen>
     <dimen name="location_bar_lock_icon_width">
         @dimen/min_touch_target_size
@@ -159,7 +159,6 @@ found in the LICENSE file.
     <dimen name="omnibox_suggestion_bg_round_corner_radius">16dp</dimen>
     <dimen name="omnibox_suggestion_side_spacing_smallest">8dp</dimen>
     <dimen name="omnibox_suggestion_dropdown_side_spacing">0dp</dimen>
-    <dimen name="omnibox_suggestion_dropdown_round_corner_radius">0dp</dimen>
     <dimen name="omnibox_min_space_above_window_bottom">0dp</dimen>
     <item name="omnibox_suggestion_bg_hover_overlay_fraction" type="fraction">
         8%
@@ -189,6 +188,7 @@ found in the LICENSE file.
     <dimen name="fusebox_attachment_spinner_size">20dp</dimen>
     <dimen name="fusebox_attachment_visible_height">40dp</dimen>
     <dimen name="fusebox_vertical_space_above_popup">32dp</dimen>
+    <dimen name="fusebox_min_tablet_width">504dp</dimen>
 
     <!-- Search engine logo. -->
     <dimen name="omnibox_search_engine_logo_composed_size">24dp</dimen>

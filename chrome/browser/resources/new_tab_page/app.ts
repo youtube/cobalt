@@ -19,7 +19,6 @@ import {ColorChangeUpdater} from 'chrome://resources/cr_components/color_change_
 import type {ContextualUpload} from 'chrome://resources/cr_components/composebox/common.js';
 import type {ComposeboxElement} from 'chrome://resources/cr_components/composebox/composebox.js';
 import {VoiceSearchAction as ComposeVoiceSearchAction} from 'chrome://resources/cr_components/composebox/composebox.js';
-import {ComposeboxMode} from 'chrome://resources/cr_components/composebox/contextual_entrypoint_and_carousel.js';
 import {HelpBubbleMixinLit} from 'chrome://resources/cr_components/help_bubble/help_bubble_mixin_lit.js';
 import type {SearchboxElement} from 'chrome://resources/cr_components/searchbox/searchbox.js';
 import type {CrToastElement} from 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
@@ -34,6 +33,8 @@ import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {getTrustedScriptURL} from 'chrome://resources/js/static_types.js';
 import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from 'chrome://resources/lit/v3_0/lit.rollup.js';
+import type {InputState} from 'chrome://resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
+import {ModelMode, ToolMode} from 'chrome://resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
 import type {SkColor} from 'chrome://resources/mojo/skia/public/mojom/skcolor.mojom-webui.js';
 
 import {ActionChipsRetrievalState} from './action_chips/action_chips.js';
@@ -94,7 +95,8 @@ export enum NtpElement {
   CUSTOMIZE_DIALOG = 10,  // Obsolete
   WALLPAPER_SEARCH_BUTTON = 11,
   ACTION_CHIPS = 12,
-  MAX_VALUE = ACTION_CHIPS,
+  THREADS_RAIL = 13,
+  MAX_VALUE = THREADS_RAIL,
 }
 
 /**
@@ -317,8 +319,7 @@ export class AppElement extends AppElementBase {
       ntpNextFeaturesEnabled_: {type: Boolean},
       maxTilesBeforeShowMore_: {type: Number},
 
-      searchboxInputFocused_: {type: Boolean},
-      composeboxInputFocused_: {type: Boolean},
+      containerFocused_: {type: Boolean},
       /**
        * Whether the scrim is shown in Realbox Next.
        */
@@ -411,17 +412,19 @@ export class AppElement extends AppElementBase {
       loadTimeData.getBoolean('ntpNextFeaturesEnabled');
   protected accessor maxTilesBeforeShowMore_: number =
       loadTimeData.getInteger('maxTilesBeforeShowMore');
-  protected accessor searchboxInputFocused_: boolean = false;
-  protected accessor composeboxInputFocused_: boolean = false;
+  protected accessor containerFocused_: boolean = false;
   protected accessor showScrim_: boolean = false;
+  private reducedMotionPreferred_: boolean =
+      WindowProxy.getInstance()
+          .matchMedia('(prefers-reduced-motion: reduce)')
+          .matches;
   protected accessor contextMenuGlifAnimationState_: GlifAnimationState =
-      this.ntpNextFeaturesEnabled_ && this.isActionChipsVisible_ ?
+      !this.reducedMotionPreferred_ && this.ntpNextFeaturesEnabled_ &&
+          this.isActionChipsVisible_ ?
       GlifAnimationState.SPINNER_ONLY :
       GlifAnimationState.INELIGIBLE;
   protected accessor undoAutoRemovalCallback_: (() => void)|null = null;
   protected accessor undoAutoRemovalMessage_: string|null = null;
-  protected enableModalComposebox_: boolean =
-      loadTimeData.getBoolean('enableModalComposebox');
   protected ephemeralContextMenuDescriptionEnabled_: boolean =
       loadTimeData.getBoolean('enableEphemeralContextMenuDescription') ?? false;
   protected showContextMenuDescription_: boolean =
@@ -448,7 +451,9 @@ export class AppElement extends AppElementBase {
   private showWebstoreToastListenerId_: number|null = null;
   private pendingComposeboxContextFiles_: ContextualUpload[] = [];
   private pendingComposeboxText_: string = '';
-  private pendingComposeboxMode_: ComposeboxMode = ComposeboxMode.DEFAULT;
+  private pendingComposeboxMode_: ToolMode = ToolMode.kUnspecified;
+  private pendingComposeboxModel_: ModelMode = ModelMode.kUnspecified;
+  private pendingComposeboxInputState_: InputState|null = null;
   private pendingAutoRemovalToasts_:
       Array<{message: string, undo: () => void}> = [];
 
@@ -695,8 +700,8 @@ export class AppElement extends AppElementBase {
 
     if (this.ntpRealboxNextEnabled_ && [
           'showComposebox_',
-          'searchboxInputFocused_',
-          'composeboxInputFocused_',
+          'showLensUploadDialog_',
+          'containerFocused_',
         ].some((prop) => changedPrivateProperties.has(prop))) {
       /**
        * The current requirement is that the scrim should be shown when the
@@ -710,19 +715,17 @@ export class AppElement extends AppElementBase {
        * - Without it:
        *   1. A click outside is made.
        *   2. The focusout event first occurs.
-       *   3. composeboxInputFocused_ is set to false.
+       *   3. containerFocused_ is set to false.
        *   4. The scrim is removed.
        *   5. The click event fires.
-       *   6. Since there is no scrim, the onclick handle of the scrim is not
-       *      called.
        * - With it:
        *   1-3. same as above
        *   4. The scrim is kept since showComposebox_ is still true.
        *   5. The onclick handler of the scrim runs and sets showComposebox_ to
        *      false, and everything works as desired.
        */
-      this.showScrim_ = this.showComposebox_ || this.searchboxInputFocused_ ||
-          this.composeboxInputFocused_;
+      this.showScrim_ = this.showComposebox_ || this.showLensUploadDialog_ ||
+          this.containerFocused_;
     }
   }
 
@@ -758,7 +761,7 @@ export class AppElement extends AppElementBase {
     }
 
     if (changedPrivateProperties.has('showComposebox_') &&
-        this.showComposebox_ && this.enableModalComposebox_) {
+        this.showComposebox_) {
       const composeboxDialog =
           this.shadowRoot.querySelector<HTMLDialogElement>('#composeboxDialog');
       assert(composeboxDialog);
@@ -769,6 +772,11 @@ export class AppElement extends AppElementBase {
         changedPrivateProperties.has('theme_') ||
         changedPrivateProperties.has('showComposebox_')) {
       this.updateOneGoogleBarAppearance_();
+    }
+
+    if (changedPrivateProperties.has('showComposebox_') &&
+        this.showComposebox_ && this.enableThreadsRail_) {
+      recordBoolean('NewTabPage.ThreadsRail.Shown', true);
     }
   }
 
@@ -806,9 +814,7 @@ export class AppElement extends AppElementBase {
   }
 
   private computeBackgroundImageAttributionUrl_(): string {
-    return this.theme_ && this.theme_.backgroundImageAttributionUrl ?
-        this.theme_.backgroundImageAttributionUrl.url :
-        '';
+    return this.theme_ && this.theme_.backgroundImageAttributionUrl || '';
   }
 
   private computeRealboxShown_(): boolean {
@@ -852,20 +858,26 @@ export class AppElement extends AppElementBase {
 
   protected onComposeboxInitialized_(e: CustomEvent<{
     initializeComposeboxState:
-        (text: string, files: ContextualUpload[], mode: ComposeboxMode) => void,
+        (text: string, files: ContextualUpload[], mode: ToolMode,
+         model: number, inputState: InputState|null) => void,
   }>) {
     e.detail.initializeComposeboxState(
         this.pendingComposeboxText_, this.pendingComposeboxContextFiles_,
-        this.pendingComposeboxMode_);
+        this.pendingComposeboxMode_, this.pendingComposeboxModel_,
+        this.pendingComposeboxInputState_);
     this.pendingComposeboxContextFiles_ = [];
     this.pendingComposeboxText_ = '';
-    this.pendingComposeboxMode_ = ComposeboxMode.DEFAULT;
+    this.pendingComposeboxMode_ = ToolMode.kUnspecified;
+    this.pendingComposeboxModel_ = ModelMode.kUnspecified;
+    this.pendingComposeboxInputState_ = null;
   }
 
   protected openComposebox_(e: CustomEvent<{
     searchboxText: string,
     contextFiles: ContextualUpload[],
-    mode: ComposeboxMode,
+    mode: ToolMode,
+    model: ModelMode,
+    inputState: InputState|null,
   }>) {
     if (e.detail.searchboxText) {
       this.pendingComposeboxText_ = e.detail.searchboxText;
@@ -874,6 +886,8 @@ export class AppElement extends AppElementBase {
       this.pendingComposeboxContextFiles_ = e.detail.contextFiles;
     }
     this.pendingComposeboxMode_ = e.detail.mode;
+    this.pendingComposeboxModel_ = e.detail.model;
+    this.pendingComposeboxInputState_ = e.detail.inputState;
     this.toggleComposebox_();
   }
 
@@ -885,6 +899,16 @@ export class AppElement extends AppElementBase {
           WindowProxy.getInstance().now());
       this.wasComposeboxOpened_ = true;
     }
+  }
+
+  protected onScrimClick_() {
+    if (this.showComposebox_ && this.composeboxCloseByClickOutside_) {
+      this.onComposeboxClickOutside_();
+    }
+    if (this.showLensUploadDialog_) {
+      this.onCloseLensSearch_();
+    }
+    this.containerFocused_ = false;
   }
 
   protected onComposeboxClickOutside_() {
@@ -901,12 +925,10 @@ export class AppElement extends AppElementBase {
   }
 
   protected closeComposebox_(e: CustomEvent) {
-    if (this.enableModalComposebox_) {
-      const composeboxDialog =
-          this.shadowRoot.querySelector<HTMLDialogElement>('#composeboxDialog');
-      assert(composeboxDialog);
-      composeboxDialog.close();
-    }
+    const composeboxDialog =
+        this.shadowRoot.querySelector<HTMLDialogElement>('#composeboxDialog');
+    assert(composeboxDialog);
+    composeboxDialog.close();
 
     const composeboxText = e.detail.composeboxText;
 
@@ -1360,6 +1382,9 @@ export class AppElement extends AppElementBase {
         case $$(this, '#modules'):
           recordClick(NtpElement.MODULE);
           return;
+        case $$(this, '#threadsRail'):
+          recordClick(NtpElement.THREADS_RAIL);
+          return;
         default:
           break;
       }
@@ -1398,22 +1423,23 @@ export class AppElement extends AppElementBase {
     return !!this.theme_?.backgroundImage?.attributionUrl;
   }
 
-  protected onInputFocusChanged_(e: CustomEvent<{value: boolean}>) {
-    switch (e.type) {
-      case 'searchbox-input-focus-changed':
-        this.searchboxInputFocused_ = e.detail.value;
-        break;
-      case 'composebox-input-focus-changed':
-        this.composeboxInputFocused_ = e.detail.value;
-        break;
-      default:
-        assertNotReached();
-    }
-  }
-
   protected onRealboxHadSecondarySideChanged_(
       e: CustomEvent<{value: boolean}>) {
     this.realboxHadSecondarySide = e.detail.value;
+  }
+
+  protected onSearchboxContainerFocusIn_() {
+    if (this.ntpRealboxNextEnabled_) {
+      this.containerFocused_ = true;
+    }
+  }
+
+  protected onSearchboxContainerFocusOut_() {
+    if (this.ntpRealboxNextEnabled_) {
+      this.containerFocused_ =
+          this.shadowRoot.getElementById('searchboxContainer')!.matches(
+              ':focus-within');
+    }
   }
 
   protected onModulesShownToUserChanged_(e: CustomEvent<{value: boolean}>) {
@@ -1423,6 +1449,10 @@ export class AppElement extends AppElementBase {
   protected onActionChipsRetrievalStateChanged_(
       e: CustomEvent<{state: ActionChipsRetrievalState}>) {
     const state = e.detail.state;
+    if (this.reducedMotionPreferred_) {
+      // The animation should not be started.
+      return;
+    }
     // Mapping of ActionChipsRetrievalState => GlifAnimationState:
     // REQUESTED => SPINNER_ONLY
     // UPDATED => STARTED (or FINISHED if cr_context_menu_entrypoint sets it)

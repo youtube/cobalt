@@ -16,11 +16,11 @@
 #include "chrome/browser/actor/actor_keyed_service_factory.h"
 #include "chrome/browser/background/glic/glic_launcher_configuration.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/glic/common/local_hotkey_manager.h"
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
-#include "chrome/browser/glic/widget/local_hotkey_manager.h"
 #include "chrome/browser/user_education/user_education_service.h"
 #include "chrome/common/chrome_features.h"
 #include "components/prefs/pref_service.h"
@@ -71,24 +71,18 @@ void GlicHandler::OnJavascriptAllowed() {
           glic::GlicKeyedServiceFactory::GetGlicKeyedService(profile)) {
     // Unretained is safe here since our subscription will expire upon our
     // destruction.
-    glic_enabling_subscription_ =
-        std::make_unique<base::CallbackListSubscription>(
-            service->enabling().RegisterAllowedChanged(base::BindRepeating(
-                &GlicHandler::FireOnGlicDisallowedByAdminChanged,
-                base::Unretained(this))));
-  }
+    glic_enabling_subscription_ = service->enabling().RegisterAllowedChanged(
+        base::BindRepeating(&GlicHandler::FireOnGlicDisallowedByAdminChanged,
+                            base::Unretained(this)));
 
-  if (auto* actor_service =
-          actor::ActorKeyedServiceFactory::GetActorKeyedService(profile)) {
-    web_actuation_subscription_ =
-        actor_service->AddActOnWebCapabilityChangedCallback(
-            base::BindRepeating(&GlicHandler::OnWebActuationCapabilityChanged,
-                                base::Unretained(this)));
+    web_actuation_subscription_ = service->AddActOnWebCapabilityChangedCallback(
+        base::BindRepeating(&GlicHandler::OnWebActuationCapabilityChanged,
+                            base::Unretained(this)));
   }
 }
 
 void GlicHandler::OnJavascriptDisallowed() {
-  glic_enabling_subscription_.reset();
+  glic_enabling_subscription_ = {};
   web_actuation_subscription_ = {};
 }
 
@@ -96,13 +90,12 @@ void GlicHandler::SetWebUIForTesting(content::WebUI* web_ui) {
   set_web_ui(web_ui);
 }
 
-void GlicHandler::HandleSetGlicOsLauncherEnabled(
-    const base::Value::List& args) {
+void GlicHandler::HandleSetGlicOsLauncherEnabled(const base::ListValue& args) {
   UserEducationService::MaybeNotifyNewBadgeFeatureUsed(
       web_ui()->GetWebContents()->GetBrowserContext(), features::kGlic);
 }
 
-void GlicHandler::HandleGetGlicShortcut(const base::Value::List& args) {
+void GlicHandler::HandleGetGlicShortcut(const base::ListValue& args) {
   CHECK_EQ(1U, args.size());
   const base::Value& callback_id = args[0];
 
@@ -113,7 +106,7 @@ void GlicHandler::HandleGetGlicShortcut(const base::Value::List& args) {
                             .GetShortcutText()));
 }
 
-void GlicHandler::HandleSetGlicShortcut(const base::Value::List& args) {
+void GlicHandler::HandleSetGlicShortcut(const base::ListValue& args) {
   CHECK_EQ(2U, args.size());
   const base::Value& callback_id = args[0];
   const std::string accelerator_string = args[1].GetString();
@@ -129,7 +122,7 @@ void GlicHandler::HandleSetGlicShortcut(const base::Value::List& args) {
 }
 
 void GlicHandler::HandleGetGlicFocusToggleShortcut(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   CHECK_EQ(1U, args.size());
   const base::Value& callback_id = args[0];
 
@@ -142,7 +135,7 @@ void GlicHandler::HandleGetGlicFocusToggleShortcut(
 }
 
 void GlicHandler::HandleSetGlicFocusToggleShortcut(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   CHECK_EQ(2U, args.size());
   const base::Value& callback_id = args[0];
   const std::string accelerator_string = args[1].GetString();
@@ -154,7 +147,7 @@ void GlicHandler::HandleSetGlicFocusToggleShortcut(
 }
 
 void GlicHandler::HandleSetShortcutSuspensionState(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   CHECK_EQ(1U, args.size());
   const bool should_suspend = args[0].GetBool();
   auto* const global_accelerator_listener =
@@ -165,8 +158,7 @@ void GlicHandler::HandleSetShortcutSuspensionState(
   }
 }
 
-void GlicHandler::HandleGetGlicDisallowedByAdmin(
-    const base::Value::List& args) {
+void GlicHandler::HandleGetGlicDisallowedByAdmin(const base::ListValue& args) {
   CHECK_EQ(1U, args.size());
   const base::Value& callback_id = args[0];
   AllowJavascript();

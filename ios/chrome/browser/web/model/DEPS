@@ -1,4 +1,5 @@
 include_rules = [
+  # keep-sorted start
   "+components/os_crypt/sync",
   "+ios/chrome/browser/application_context/model",
   "+ios/chrome/browser/autofill/model",
@@ -16,6 +17,8 @@ include_rules = [
   "+ios/chrome/browser/geolocation/model/geolocation_manager.h",
   "+ios/chrome/browser/https_upgrades/model",
   "+ios/chrome/browser/infobars/model",
+  "+ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h",
+  "+ios/chrome/browser/intelligence/features/features.h",
   "+ios/chrome/browser/intelligence/proto_wrappers/page_context_extractor_java_script_feature.h",
   "+ios/chrome/browser/lens/model/lens_browser_agent.h",
   "+ios/chrome/browser/lens_overlay/coordinator/lens_overlay_availability.h",
@@ -48,6 +51,7 @@ include_rules = [
   "+ios/chrome/browser/translate/model",
   "+ios/chrome/browser/url_loading/model",
   "+ios/chrome/browser/web_selection/model",
+  # keep-sorted end
 ]
 
 specific_include_rules = {

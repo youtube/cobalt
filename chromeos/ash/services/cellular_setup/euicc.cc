@@ -32,6 +32,7 @@
 #include "components/qr_code_generator/qr_code_generator.h"
 #include "dbus/object_path.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 
 namespace ash::cellular_setup {
 
@@ -102,7 +103,7 @@ void Euicc::InstallProfileFromActivationCode(
 
   esim_manager_->cellular_esim_installer()->InstallProfileFromActivationCode(
       activation_code, confirmation_code, path_,
-      /*new_shill_properties=*/base::Value::Dict(),
+      /*new_shill_properties=*/base::DictValue(),
       base::BindOnce(&Euicc::OnESimInstallProfileResult,
                      weak_ptr_factory_.GetWeakPtr(), std::move(callback)),
       /*is_initial_install=*/true, install_method);
@@ -273,7 +274,7 @@ ESimProfile* Euicc::UpdateOrCreateESimProfile(
 
 bool Euicc::RemoveUntrackedProfiles(
     const std::vector<CellularESimProfile>& esim_profile_states) {
-  std::set<std::string> new_iccids;
+  absl::flat_hash_set<std::string> new_iccids;
   for (auto esim_profile_state : esim_profile_states) {
     if (esim_profile_state.eid() != properties_->eid) {
       continue;
@@ -283,8 +284,8 @@ bool Euicc::RemoveUntrackedProfiles(
 
   bool removed = false;
   for (auto it = esim_profiles_.begin(); it != esim_profiles_.end();) {
-    ESimProfile* profile = (*it).get();
-    if (new_iccids.find(profile->properties()->iccid) == new_iccids.end()) {
+    ESimProfile* profile = it->get();
+    if (!new_iccids.contains(profile->properties()->iccid)) {
       profile->OnProfileRemove();
       it = esim_profiles_.erase(it);
       removed = true;

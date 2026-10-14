@@ -50,6 +50,10 @@ class CC_EXPORT TileBasedLayerImpl : public LayerImpl {
   void AppendQuads(const AppendQuadsContext& context,
                    viz::CompositorRenderPass* render_pass,
                    AppendQuadsData* append_quads_data) override;
+  gfx::Rect GetEnclosingVisibleRectInTargetSpace() const override {
+    return GetScaledEnclosingVisibleRectInTargetSpace(
+        GetMaximumContentsScaleForUseInAppendQuads());
+  }
 
   void SetSolidColor(std::optional<SkColor4f> color) { solid_color_ = color; }
 
@@ -113,7 +117,7 @@ class CC_EXPORT TileBasedLayerImpl : public LayerImpl {
       const gfx::Vector2d& quad_offset,
       float max_contents_scale) = 0;
 
-  virtual float GetMaximumContentsScaleForUseInAppendQuads() = 0;
+  virtual float GetMaximumContentsScaleForUseInAppendQuads() const = 0;
 
   virtual bool IsDirectlyCompositedImage() const = 0;
 
@@ -273,6 +277,12 @@ void TileBasedLayerImpl<Tiling>::AppendQuads(
                                 visible_geometry_rect, color, width);
     }
   }
+
+  // Clear the set of scales that were used in the previous
+  // AppendQuadsSpecialization() so that subclasses can track the scales used in
+  // *this* invocation in order to determine which scales are now unused and can
+  // be considered for removal.
+  ClearLastAppendQuadsScales();
 
   AppendQuadsSpecialization(context, render_pass, append_quads_data,
                             shared_quad_state, scaled_occlusion, quad_offset,

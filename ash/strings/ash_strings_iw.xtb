@@ -342,7 +342,6 @@
 <translation id="2201071101391734388">תמונה אחרונה: <ph name="INDEX" /> מתוך <ph name="TOTAL_COUNT" />.</translation>
 <translation id="2201687081523799384">‏כיווץ של Google Tasks</translation>
 <translation id="2208323208084708176">מצב שולחן עבודה מאוחד</translation>
-<translation id="2210311543574621570">‏הלוח יוצג בלחיצה ארוכה על Ctrl + V. אם רוצים להשבית את מקש הקיצור הזה, משביתים את התכונה הניסיונית ‎#clipboard-history-longpress בכתובת chrome://flags.</translation>
 <translation id="2215920961700443347">אין אינטרנט. צריך להתחבר לאינטרנט ולנסות שוב.</translation>
 <translation id="2222841058024245321">שולחן עבודה וירטואלי 7</translation>
 <translation id="2223384056430485343">במסך מפוצל</translation>
@@ -2197,7 +2196,6 @@
 <translation id="8241650983304689286">הוספת הכרטיסייה לתצוגה מפוצלת חדשה</translation>
 <translation id="8247060538831475781"><ph name="CONNECTION_STATUS" />, עוצמת האות: <ph name="SIGNAL_STRENGTH" />, סוללת הטלפון <ph name="BATTERY_STATUS" /></translation>
 <translation id="825129991941217170">‏הצגת כל התוכן מ-Google Drive</translation>
-<translation id="8257510091797044096">הגדרת המכשיר שלך</translation>
 <translation id="8261506727792406068">מחיקה</translation>
 <translation id="8262312463845990408">הפעלה או השהיה של הקראת הטקסט</translation>
 <translation id="8268302343625273732">‏הצגת כל המטלות ב-Google Classroom</translation>

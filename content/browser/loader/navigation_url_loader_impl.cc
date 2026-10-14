@@ -307,12 +307,13 @@ std::unique_ptr<network::ResourceRequest> CreateResourceRequest(
   new_request->load_flags = load_flags;
 
   new_request->request_body = request_info.common_params->post_data.get();
-  new_request->has_user_gesture = request_info.common_params->has_user_gesture;
+  new_request->has_user_gesture =
+      request_info.common_params->has_possibly_filtered_user_gesture;
 
   if (ui::PageTransitionIsWebTriggerable(
           ui::PageTransitionFromInt(request_info.common_params->transition))) {
     new_request->trusted_params->has_user_activation =
-        request_info.common_params->has_user_gesture;
+        request_info.common_params->has_possibly_filtered_user_gesture;
   } else {
     new_request->trusted_params->has_user_activation = true;
   }
@@ -2329,17 +2330,7 @@ void NavigationURLLoaderImpl::FollowRedirect(
   }
 
   const GURL previous_url = resource_request_->url;
-  resource_request_->url = redirect_info_.new_url;
-  resource_request_->method = redirect_info_.new_method;
-  resource_request_->site_for_cookies = redirect_info_.new_site_for_cookies;
-
-  // See if navigation network isolation key needs to be updated.
-  resource_request_->trusted_params->isolation_info =
-      resource_request_->trusted_params->isolation_info.CreateForRedirect(
-          url::Origin::Create(resource_request_->url));
-
-  resource_request_->referrer = GURL(redirect_info_.new_referrer);
-  resource_request_->referrer_policy = redirect_info_.new_referrer_policy;
+  resource_request_->UpdateOnRedirect(redirect_info_);
   resource_request_->navigation_redirect_chain.push_back(
       redirect_info_.new_url);
 
@@ -2479,7 +2470,7 @@ NavigationURLLoaderImpl::CreateURLLoaderFactoryWithHeaderClient(
   network::mojom::URLLoaderFactoryParamsPtr params =
       network::mojom::URLLoaderFactoryParams::New();
   params->header_client = std::move(header_client);
-  params->process_id = network::mojom::kBrowserProcessId;
+  params->process_id = network::OriginatingProcess::browser();
   params->is_trusted = true;
   params->is_orb_enabled = false;
   params->disable_web_security =

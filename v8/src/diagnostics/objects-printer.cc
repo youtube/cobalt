@@ -72,6 +72,23 @@ void PrintDouble(std::ostream& os, double val) {
 
 #ifdef OBJECT_PRINT
 
+const char* JSIteratorHelperStateToString(JSIteratorHelperState state) {
+  switch (state) {
+    case JSIteratorHelperState::kSuspendedStart:
+      return "SUSPENDED_START";
+    case JSIteratorHelperState::kSuspendedYield:
+      return "SUSPENDED_YIELD";
+    case JSIteratorHelperState::kExecuting:
+      return "EXECUTING";
+    case JSIteratorHelperState::kCompleted:
+      return "COMPLETED";
+  }
+}
+
+std::ostream& operator<<(std::ostream& os, JSIteratorHelperState state) {
+  return os << JSIteratorHelperStateToString(state);
+}
+
 void Print(Tagged<Object> obj) {
   // Output into debugger's command window if a debugger is attached.
   DbgStdoutStream dbg_os;
@@ -128,7 +145,7 @@ void PrintFunctionCallbackInfo(Address* values, std::ostream& os) {
 void PrintPropertyCallbackInfo(Address* args, std::ostream& os) {
   using PCA = internal::PropertyCallbackArguments;
 
-  static_assert(PCA::kFullArgsLength == 12 || PCA::kFullArgsLength == 13);
+  static_assert(PCA::kFullArgsLength == 11 || PCA::kFullArgsLength == 12);
   bool is_named = args[PCA::kFrameTypeIndex] ==
                   Smi::FromEnum(StackFrame::API_NAMED_ACCESSOR_EXIT).ptr();
 
@@ -136,8 +153,7 @@ void PrintPropertyCallbackInfo(Address* args, std::ostream& os) {
      << "\n - isolate: " << AS_PTR(args[PCA::kIsolateIndex])
      << "\n - return_value: " << AS_OBJ(args[PCA::kReturnValueIndex])
      << "\n - holder: " << AS_OBJ(args[PCA::kHolderIndex])
-     << "\n - callback_info: " << AS_OBJ(args[PCA::kCallbackInfoIndex])
-     << "\n - receiver: " << AS_OBJ(args[PCA::kThisIndex]);
+     << "\n - callback_info: " << AS_OBJ(args[PCA::kCallbackInfoIndex]);
 
   if (is_named) {
     os << "\n - property_name: " << AS_OBJ(args[PCA::kPropertyKeyIndex]);
@@ -1755,15 +1771,15 @@ void FeedbackCell::FeedbackCellPrint(std::ostream& os) {
   os << "\n - value: " << Brief(value());
   os << "\n - interrupt_budget: " << interrupt_budget();
   os << "\n - dispatch_handle: 0x" << std::hex << dispatch_handle() << std::dec;
-  JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
+  JSDispatchTable& jdt = Isolate::Current()->js_dispatch_table();
   if (dispatch_handle() != kNullJSDispatchHandle &&
-      jdt->IsTieringRequested(dispatch_handle())) {
+      jdt.IsTieringRequested(dispatch_handle())) {
     os << "\n - tiering request ";
     if (Tagged<FeedbackVector> fbv;
         TryCast(value(), &fbv) && fbv->tiering_in_progress()) {
       os << "in_progress ";
     }
-    jdt->PrintCurrentTieringRequest(dispatch_handle(), Isolate::Current(), os);
+    jdt.PrintCurrentTieringRequest(dispatch_handle(), Isolate::Current(), os);
   }
 
   os << "\n";
@@ -2290,54 +2306,56 @@ void JSAsyncDisposableStack::JSAsyncDisposableStackPrint(std::ostream& os) {
 void JSIteratorHelper::JSIteratorHelperPrintHeader(std::ostream& os,
                                                    const char* helper_name) {
   JSObjectPrintHeader(os, *this, helper_name);
-  os << "\n - underlying.object: " << Brief(underlying_object());
-  os << "\n - underlying.next: " << Brief(underlying_next());
+  os << "\n - state: " << state();
+}
+
+void JSIteratorHelperSimple::JSIteratorHelperSimplePrintHeader(
+    std::ostream& os, const char* helper_name) {
+  JSIteratorHelperPrintHeader(os, helper_name);
+  os << "\n - underlying.object: " << Brief(underlying_iterator_object());
+  os << "\n - underlying.next: " << Brief(underlying_iterator_next());
 }
 
 void JSIteratorMapHelper::JSIteratorMapHelperPrint(std::ostream& os) {
-  JSIteratorHelperPrintHeader(os, "JSIteratorMapHelper");
+  JSIteratorHelperSimplePrintHeader(os, "JSIteratorMapHelper");
   os << "\n - mapper: " << Brief(mapper());
   os << "\n - counter: " << counter();
   JSObjectPrintBody(os, *this);
 }
 
 void JSIteratorFilterHelper::JSIteratorFilterHelperPrint(std::ostream& os) {
-  JSIteratorHelperPrintHeader(os, "JSIteratorFilterHelper");
+  JSIteratorHelperSimplePrintHeader(os, "JSIteratorFilterHelper");
   os << "\n - predicate: " << Brief(predicate());
   os << "\n - counter: " << counter();
   JSObjectPrintBody(os, *this);
 }
 
 void JSIteratorTakeHelper::JSIteratorTakeHelperPrint(std::ostream& os) {
-  JSIteratorHelperPrintHeader(os, "JSIteratorTakeHelper");
+  JSIteratorHelperSimplePrintHeader(os, "JSIteratorTakeHelper");
   os << "\n - remaining: " << remaining();
-  os << "\n - innerAlive" << innerAlive();
   JSObjectPrintBody(os, *this);
 }
 
 void JSIteratorDropHelper::JSIteratorDropHelperPrint(std::ostream& os) {
-  JSIteratorHelperPrintHeader(os, "JSIteratorDropHelper");
+  JSIteratorHelperSimplePrintHeader(os, "JSIteratorDropHelper");
   os << "\n - remaining: " << remaining();
-  os << "\n - innerAlive" << innerAlive();
   JSObjectPrintBody(os, *this);
 }
 
 void JSIteratorFlatMapHelper::JSIteratorFlatMapHelperPrint(std::ostream& os) {
-  JSIteratorHelperPrintHeader(os, "JSIteratorFlatMapHelper");
+  JSIteratorHelperSimplePrintHeader(os, "JSIteratorFlatMapHelper");
   os << "\n - mapper: " << Brief(mapper());
   os << "\n - counter: " << counter();
-  os << "\n - innerIterator.object" << Brief(innerIterator_object());
-  os << "\n - innerIterator.next" << Brief(innerIterator_next());
-  os << "\n - innerAlive" << innerAlive();
+  os << "\n - inner_iterator.object" << Brief(inner_iterator_object());
+  os << "\n - inner_iterator.next" << Brief(inner_iterator_next());
   JSObjectPrintBody(os, *this);
 }
 
 void JSIteratorConcatHelper::JSIteratorConcatHelperPrint(std::ostream& os) {
-  JSIteratorHelperPrintHeader(os, "JSIteratorConcatHelper");
+  JSIteratorHelperSimplePrintHeader(os, "JSIteratorConcatHelper");
   os << "\n - iterables: " << Brief(iterables()) << " {";
   PrintFixedArrayElements(os, iterables());
   os << "\n - current: " << current();
-  os << "\n - innerAlive: " << innerAlive();
   JSObjectPrintBody(os, *this);
 }
 
@@ -2358,13 +2376,46 @@ void JSArrayBuffer::JSArrayBufferPrint(std::ostream& os) {
   os << "\n - backing_store: " << backing_store();
   os << "\n - byte_length: " << GetByteLength();
   os << "\n - max_byte_length: " << max_byte_length();
-  os << "\n - detach key: " << detach_key();
+  if (has_detach_key()) {
+    os << "\n - detach key: " << Brief(detach_key()->value());
+    os << "\n - views: (many views)";
+  } else {
+    os << "\n - detach key: (undefined)";
+    if (views() == kNoView) {
+      os << "\n - views: (no views)";
+    } else if (views() == kManyViews) {
+      os << "\n - views: (many views)";
+    } else {
+      os << "\n - views: " << Brief(views());
+    }
+  }
   if (is_external()) os << "\n - external";
   if (is_detachable()) os << "\n - detachable";
   if (was_detached()) os << "\n - detached";
   if (is_shared()) os << "\n - shared";
   if (is_resizable_by_js()) os << "\n - resizable_by_js";
   JSObjectPrintBody(os, *this, !was_detached());
+}
+
+void JSDetachedTypedArray::JSDetachedTypedArrayPrint(std::ostream& os) {
+  JSAPIObjectWithEmbedderSlotsPrintHeader(os, *this, "JSDetachedTypedArray");
+  os << "\n - buffer: " << Brief(buffer());
+  os << "\n - byte_offset: " << byte_offset();
+  if (byte_length() != 0) {
+    os << "\n - invalid length";
+  }
+  if (!WasDetached()) {
+    os << "\n - invalid detached state!";
+  }
+  os << "\n - data_ptr: " << DataPtr();
+  Tagged_t base_ptr = static_cast<Tagged_t>(base_pointer().ptr());
+  os << "\n   - base_pointer: "
+     << reinterpret_cast<void*>(static_cast<Address>(base_ptr));
+  if (!IsJSArrayBuffer(buffer())) {
+    os << "\n <invalid buffer>\n";
+    return;
+  }
+  JSObjectPrintBody(os, *this, false);
 }
 
 void JSTypedArray::JSTypedArrayPrint(std::ostream& os) {
@@ -2475,12 +2526,12 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {
     os << "\n - canonical feedback cell dispatch_handle: 0x" << std::hex
        << raw_feedback_cell()->dispatch_handle() << std::dec;
   }
-  if (IsTieringRequestedOrInProgress()) {
+  if (IsTieringRequestedOrInProgress(isolate)) {
     os << "\n - tiering request ";
     if (tiering_in_progress()) {
       os << "in_progress ";
     }
-    IsolateGroup::current()->js_dispatch_table()->PrintCurrentTieringRequest(
+    isolate->js_dispatch_table().PrintCurrentTieringRequest(
         dispatch_handle(), Isolate::Current(), os);
   }
 
@@ -4419,6 +4470,8 @@ void TransitionsAccessor::PrintOneTransition(std::ostream& os, Tagged<Name> key,
        << ")";
   } else if (key == roots.strict_function_transition_symbol()) {
     os << " (transition to strict function)";
+  } else if (key == roots.detached_symbol()) {
+    os << " (transition to detached array buffer view)";
   } else {
     DCHECK(!IsSpecialTransition(roots, key));
     os << "(transition to ";
@@ -4528,6 +4581,8 @@ void TransitionsAccessor::PrintTransitionTree(
           os << "to " << ElementsKindToString(target->elements_kind());
         } else if (key == roots.strict_function_transition_symbol()) {
           os << "to strict function";
+        } else if (key == roots.detached_symbol()) {
+          os << "to detached array buffer view";
         } else {
 #ifdef OBJECT_PRINT
           key->NamePrint(os);
@@ -4710,7 +4765,7 @@ V8_DEBUGGING_EXPORT extern "C" void _v8_internal_Print_Code(void* object) {
 
 V8_DEBUGGING_EXPORT extern "C" void _v8_internal_Print_Dispatch_Handle(
     uint32_t handle) {
-  i::IsolateGroup::current()->js_dispatch_table()->PrintEntry(
+  i::Isolate::Current()->js_dispatch_table().PrintEntry(
       i::JSDispatchHandle(handle));
 }
 

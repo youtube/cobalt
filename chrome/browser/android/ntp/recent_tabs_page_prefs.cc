@@ -19,7 +19,7 @@
 using base::android::ConvertJavaStringToUTF8;
 using base::android::JavaRef;
 
-static jlong JNI_RecentTabsPagePrefs_Init(JNIEnv* env, Profile* profile) {
+static int64_t JNI_RecentTabsPagePrefs_Init(JNIEnv* env, Profile* profile) {
   RecentTabsPagePrefs* recent_tabs_page_prefs =
       new RecentTabsPagePrefs(profile);
   return reinterpret_cast<intptr_t>(recent_tabs_page_prefs);
@@ -67,7 +67,7 @@ void RecentTabsPagePrefs::SetSyncPromoCollapsed(JNIEnv* env,
 
 bool RecentTabsPagePrefs::GetForeignSessionCollapsed(JNIEnv* env,
                                                      std::string& session_tag) {
-  const base::Value::Dict& dict =
+  const base::DictValue& dict =
       profile_->GetPrefs()->GetDict(prefs::kNtpCollapsedForeignSessions);
   return dict.contains(session_tag);
 }

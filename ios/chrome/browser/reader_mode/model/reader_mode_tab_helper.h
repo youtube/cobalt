@@ -163,6 +163,9 @@ class ReaderModeTabHelper : public web::WebStateObserver,
   void ApplyLanguageSettingsFromClient(
       ChromeIOSTranslateClient* translate_client);
 
+  // Removes the blur overlay from the original web state UI.
+  void HideBlurOverlay();
+
   // Script to be used to initialise the scrolling position when the Reader mode
   // content has loaded.
   std::string scroll_anchor_script_;
@@ -181,6 +184,7 @@ class ReaderModeTabHelper : public web::WebStateObserver,
   // time Reader mode is activated and persists until the tab is closed.
   std::unique_ptr<web::WebState> reader_mode_web_state_;
   base::OneShotTimer reader_mode_distillation_timer_;
+  base::OneShotTimer reader_mode_blur_timer_;
 
   raw_ptr<web::WebState> web_state_ = nullptr;
   base::ScopedObservation<web::WebState, web::WebStateObserver>
@@ -189,13 +193,7 @@ class ReaderModeTabHelper : public web::WebStateObserver,
 
   std::unique_ptr<ReaderModeDistillerViewer> distiller_viewer_;
 
-  // The state of translation prior to distilling the source page.
-  struct TranslationState {
-    std::string source_code;
-    std::string target_code;
-    bool is_original_source_translated = false;
-  };
-  TranslationState source_translation_state_;
+  ReaderModeTranslationState source_translation_state_;
 
   // Records metrics for the Reader mode with `web_state_`.
   ReaderModeMetricsHelper metrics_helper_;

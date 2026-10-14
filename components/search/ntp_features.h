@@ -27,7 +27,6 @@ BASE_DECLARE_FEATURE(kCustomizeChromeWallpaperSearchButton);
 BASE_DECLARE_FEATURE(kCustomizeChromeWallpaperSearchInspirationCard);
 BASE_DECLARE_FEATURE(kRealboxCr23Theming);
 BASE_DECLARE_FEATURE(kRealboxMatchOmniboxTheme);
-BASE_DECLARE_FEATURE(kRealboxMatchSearchboxTheme);
 BASE_DECLARE_FEATURE(kRealboxUseGoogleGIcon);
 BASE_DECLARE_FEATURE(kNtpAlphaBackgroundCollections);
 BASE_DECLARE_FEATURE(kNtpBackgroundImageErrorDetection);
@@ -37,7 +36,6 @@ BASE_DECLARE_FEATURE(kNtpCustomizeChromeAutoOpen);
 BASE_DECLARE_FEATURE(kNtpDriveModule);
 BASE_DECLARE_FEATURE(kNtpDriveModuleHistorySyncRequirement);
 BASE_DECLARE_FEATURE(kNtpDriveModuleSegmentation);
-BASE_DECLARE_FEATURE(kNtpDriveModuleShowSixFiles);
 #if !defined(OFFICIAL_BUILD)
 BASE_DECLARE_FEATURE(kNtpDummyModules);
 #endif
@@ -77,7 +75,6 @@ BASE_DECLARE_FEATURE(kNtpTabResumptionModuleTimeLimit);
 BASE_DECLARE_FEATURE(kNtpWallpaperSearchButton);
 BASE_DECLARE_FEATURE(kNtpWallpaperSearchButtonAnimation);
 BASE_DECLARE_FEATURE(kNtpWallpaperSearchButtonAnimationShownThreshold);
-BASE_DECLARE_FEATURE(kNtpMobilePromo);
 BASE_DECLARE_FEATURE(kNtpMicrosoftAuthenticationModule);
 BASE_DECLARE_FEATURE(kNtpNextFeatures);
 BASE_DECLARE_FEATURE(kNtpOneGoogleBarAsyncBarParts);
@@ -178,8 +175,6 @@ extern const char kNtpWallpaperSearchButtonAnimationShownThresholdParam[];
 extern const char kNtpWallpaperSearchButtonHideConditionParam[];
 // Parameter determining the trigger delay of the Wallpaper Search HaTS survey.
 extern const char kWallpaperSearchHatsDelayParam[];
-// Parameter determining the target url to go to from the Ntp Mobile Promo.
-extern const char kNtpMobilePromoTargetUrlParam[];
 
 // Parameter determining the experiment name to pass to the Google Calendar
 // API.
@@ -219,9 +214,6 @@ extern const base::FeatureParam<bool>
     kNtpRealboxCr23ExpandedStateBgMatchesOmnibox;
 // Parameter determining the whether the steady state realbox has a shadow.
 extern const base::FeatureParam<bool> kNtpRealboxCr23SteadyStateShadow;
-// Parameter determining the impression limit for the NTP mobile promo. The
-// promo will not be shown again after the impression limit is reached.
-extern const base::FeatureParam<int> kNtpMobilePromoImpressionLimit;
 // Parameter determining the type of data to render.
 extern const base::FeatureParam<NtpSharepointModuleDataType>
     kNtpSharepointModuleDataParam;
@@ -270,6 +262,11 @@ extern const base::FeatureParam<bool> kNtpNextClientSensitivityCheckParam;
 // and static data is used for steady state chips.
 extern const base::FeatureParam<bool>
     kNtpNextSuggestionsFromNewSearchSuggestionsEndpointParam;
+
+// Parameter determining if a recent tab chip/row should be generated in the
+// steady state in NTP. If false, one is NOT generated in the steady state,
+// while one is still generated in the deep-dive state.
+extern const base::FeatureParam<bool> kNtpNextShowStaticRecentTabChipParam;
 
 // Parameter determining if the Action Chips on the NTP should display the
 // NTP Simplification UI.
@@ -322,8 +319,6 @@ int GetWallpaperSearchButtonAnimationShownThreshold();
 
 // Returns the condition to use to hide the wallpaper search button.
 int GetWallpaperSearchButtonHideCondition();
-
-std::string GetMobilePromoTargetURL();
 
 // Returns the max number of tiles to show before the "show more" button is
 // shown.

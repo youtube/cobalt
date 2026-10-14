@@ -54,6 +54,43 @@ LazyGetClass(JNIEnv* env,
              const char* class_name,
              std::atomic<jclass>* atomic_class_id);
 
+// This class is a wrapper for JNIEnv Get(Static)FieldID.
+class JNI_ZERO_COMPONENT_BUILD_EXPORT FieldID {
+ public:
+  enum Type {
+    TYPE_STATIC,
+    TYPE_INSTANCE,
+  };
+
+  // Returns the field ID for the field with the specified name and signature.
+  // This method triggers a fatal assertion if the field could not be found.
+  template <Type type>
+  static jfieldID Get(JNIEnv* env,
+                      jclass clazz,
+                      const char* field_name,
+                      const char* jni_signature);
+
+  // The caller is responsible to zero-initialize |atomic_field_id|.
+  // It's fine to simultaneously call this on multiple threads referencing the
+  // same |atomic_field_id|.
+  template <Type type>
+  static jfieldID LazyGet(JNIEnv* env,
+                          jclass clazz,
+                          const char* field_name,
+                          const char* jni_signature,
+                          std::atomic<jfieldID>* atomic_field_id);
+};
+
+template <FieldID::Type type>
+inline void InitializeFieldID(JNIEnv* env,
+                              jclass clazz,
+                              const char* field_name,
+                              const char* jni_signature,
+                              std::atomic<jfieldID>* atomic_field_id) {
+  FieldID::LazyGet<type>(env, clazz, field_name, jni_signature,
+                         atomic_field_id);
+}
+
 // Context about the JNI call with exception checked to be stored in stack.
 template <bool checked>
 class JNI_ZERO_COMPONENT_BUILD_EXPORT JniJavaCallContext {
@@ -104,28 +141,19 @@ class JNI_ZERO_COMPONENT_BUILD_EXPORT JniJavaCallContext {
   jmethodID method_id_;
 };
 
-// Check whether a JNI function with the leading JNIEnv* parameter exists.
-// If so, call that JNI function. If not, call the JNI function without the
+// Returns whether |Func| can be called with |Args|. The generated _jni.h files
+// use it to choose between the JNI function overloads with and without the
 // leading JNIEnv* parameter.
 template <typename Func, typename... Args>
-decltype(auto) DispatchJniFunc(Func&& func, JNIEnv* env, Args&&... args) {
-  // Check if calling with env is valid
-#if BUILDFLAG(IS_COBALT)
-#if defined(__cpp_concepts) && __cpp_concepts >= 201907L
-  if constexpr (requires { func(env, std::forward<Args>(args)...); }) {
-#else   // defined(__cpp_concepts) && __cpp_concepts >= 201907L
-  // C++17 has no requires expression. This trait tests the same call.
-  if constexpr (std::is_invocable_v<Func&, JNIEnv*&, Args&&...>) {
-#endif  // defined(__cpp_concepts) && __cpp_concepts >= 201907L
-#else   // BUILDFLAG(IS_COBALT)
-  if constexpr (requires { func(env, std::forward<Args>(args)...); }) {
-#endif  // BUILDFLAG(IS_COBALT)
-    // Case 1: Function accepts (env, args...)
-    return func(env, std::forward<Args>(args)...);
-  } else {
-    // Case 2: Function accepts only (args...)
-    return func(std::forward<Args>(args)...);
-  }
+constexpr bool IsInvocable(Func&& func, Args&&... args) {
+#if BUILDFLAG(IS_COBALT) && \
+    !(defined(__cpp_concepts) && __cpp_concepts >= 201907L)
+  // The C++17 AOSP partner toolchains can't parse a requires expression.
+  // This trait tests the same call.
+  return std::is_invocable_v<Func, Args...>;
+#else
+  return requires { func(std::forward<Args>(args)...); };
+#endif
 }
 
 }  // namespace jni_zero::internal

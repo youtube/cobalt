@@ -98,8 +98,8 @@ std::unique_ptr<FakeEncodedFrame> FakeFrameBuilder::Build() {
     frame->SetId(*frame_id_);
   if (playout_delay_)
     frame->SetPlayoutDelay(*playout_delay_);
-  frame->SetFrameType(references_.empty() ? VideoFrameType::kVideoFrameKey
-                                          : VideoFrameType::kVideoFrameDelta);
+  frame->set_frame_type(references_.empty() ? VideoFrameType::kVideoFrameKey
+                                            : VideoFrameType::kVideoFrameDelta);
   for (int64_t ref : references_) {
     frame->references[frame->num_references] = ref;
     frame->num_references++;

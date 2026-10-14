@@ -17,6 +17,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -111,10 +112,15 @@ bool SortNetworks(const Network* a, const Network* b) {
 uint16_t ComputeNetworkCostByType(int type,
                                   bool is_vpn,
                                   bool use_differentiated_cellular_costs,
-                                  bool add_network_cost_to_vpn) {
-  // TODO(jonaso) : Rollout support for cellular network cost using A/B
-  // experiment to make sure it does not introduce regressions.
+                                  bool add_network_cost_to_vpn,
+                                  NetworkSlice network_slice,
+                                  bool add_network_cost_for_slice) {
   int vpnCost = (is_vpn && add_network_cost_to_vpn) ? kNetworkCostVpn : 0;
+  uint16_t slice_cost =
+      (add_network_cost_for_slice && network_slice != NetworkSlice::NO_SLICE)
+          ? kNetworkCostSlice
+          : 0;
+
   switch (type) {
     case ADAPTER_TYPE_ETHERNET:
     case ADAPTER_TYPE_LOOPBACK:
@@ -122,7 +128,7 @@ uint16_t ComputeNetworkCostByType(int type,
     case ADAPTER_TYPE_WIFI:
       return kNetworkCostLow + vpnCost;
     case ADAPTER_TYPE_CELLULAR:
-      return kNetworkCostCellular + vpnCost;
+      return kNetworkCostCellular + vpnCost + slice_cost;
     case ADAPTER_TYPE_CELLULAR_2G:
       return (use_differentiated_cellular_costs ? kNetworkCostCellular2G
                                                 : kNetworkCostCellular) +
@@ -138,7 +144,7 @@ uint16_t ComputeNetworkCostByType(int type,
     case ADAPTER_TYPE_CELLULAR_5G:
       return (use_differentiated_cellular_costs ? kNetworkCostCellular5G
                                                 : kNetworkCostCellular) +
-             vpnCost;
+             vpnCost + slice_cost;
     case ADAPTER_TYPE_ANY:
       // Candidates gathered from the any-address/wildcard ports, as backups,
       // are given the maximum cost so that if there are other candidates with
@@ -1244,54 +1250,68 @@ uint16_t Network::GetCost(const FieldTrialsView& field_trials) const {
       field_trials.IsEnabled("WebRTC-UseDifferentiatedCellularCosts");
   const bool add_network_cost_to_vpn =
       field_trials.IsEnabled("WebRTC-AddNetworkCostToVpn");
-  return ComputeNetworkCostByType(type, IsVpn(),
-                                  use_differentiated_cellular_costs,
-                                  add_network_cost_to_vpn);
+  const bool add_network_cost_for_slice =
+      field_trials.IsEnabled("WebRTC-UnifiedCommunications");
+  return ComputeNetworkCostByType(
+      type, IsVpn(), use_differentiated_cellular_costs, add_network_cost_to_vpn,
+      network_slice(), add_network_cost_for_slice);
 }
 
 // This is the inverse of ComputeNetworkCostByType().
-std::pair<AdapterType, bool /* vpn */> Network::GuessAdapterFromNetworkCost(
-    int network_cost) {
+std::tuple<AdapterType, bool /* vpn */, NetworkSlice>
+Network::GuessAdapterFromNetworkCost(int network_cost) {
   switch (network_cost) {
     case kNetworkCostMin:
-      return {ADAPTER_TYPE_ETHERNET, false};
+      return {ADAPTER_TYPE_ETHERNET, false, NetworkSlice::NO_SLICE};
     case kNetworkCostMin + kNetworkCostVpn:
-      return {ADAPTER_TYPE_ETHERNET, true};
+      return {ADAPTER_TYPE_ETHERNET, true, NetworkSlice::NO_SLICE};
     case kNetworkCostLow:
-      return {ADAPTER_TYPE_WIFI, false};
+      return {ADAPTER_TYPE_WIFI, false, NetworkSlice::NO_SLICE};
     case kNetworkCostLow + kNetworkCostVpn:
-      return {ADAPTER_TYPE_WIFI, true};
+      return {ADAPTER_TYPE_WIFI, true, NetworkSlice::NO_SLICE};
     case kNetworkCostCellular:
-      return {ADAPTER_TYPE_CELLULAR, false};
+      return {ADAPTER_TYPE_CELLULAR, false, NetworkSlice::NO_SLICE};
     case kNetworkCostCellular + kNetworkCostVpn:
-      return {ADAPTER_TYPE_CELLULAR, true};
+      return {ADAPTER_TYPE_CELLULAR, true, NetworkSlice::NO_SLICE};
+    case kNetworkCostCellularSlice:
+      return {ADAPTER_TYPE_CELLULAR, false,
+              NetworkSlice::UNIFIED_COMMUNICATIONS};
+    case kNetworkCostCellularVpnSlice:
+      return {ADAPTER_TYPE_CELLULAR, true,
+              NetworkSlice::UNIFIED_COMMUNICATIONS};
     case kNetworkCostCellular2G:
-      return {ADAPTER_TYPE_CELLULAR_2G, false};
+      return {ADAPTER_TYPE_CELLULAR_2G, false, NetworkSlice::NO_SLICE};
     case kNetworkCostCellular2G + kNetworkCostVpn:
-      return {ADAPTER_TYPE_CELLULAR_2G, true};
+      return {ADAPTER_TYPE_CELLULAR_2G, true, NetworkSlice::NO_SLICE};
     case kNetworkCostCellular3G:
-      return {ADAPTER_TYPE_CELLULAR_3G, false};
+      return {ADAPTER_TYPE_CELLULAR_3G, false, NetworkSlice::NO_SLICE};
     case kNetworkCostCellular3G + kNetworkCostVpn:
-      return {ADAPTER_TYPE_CELLULAR_3G, true};
+      return {ADAPTER_TYPE_CELLULAR_3G, true, NetworkSlice::NO_SLICE};
     case kNetworkCostCellular4G:
-      return {ADAPTER_TYPE_CELLULAR_4G, false};
+      return {ADAPTER_TYPE_CELLULAR_4G, false, NetworkSlice::NO_SLICE};
     case kNetworkCostCellular4G + kNetworkCostVpn:
-      return {ADAPTER_TYPE_CELLULAR_4G, true};
+      return {ADAPTER_TYPE_CELLULAR_4G, true, NetworkSlice::NO_SLICE};
     case kNetworkCostCellular5G:
-      return {ADAPTER_TYPE_CELLULAR_5G, false};
+      return {ADAPTER_TYPE_CELLULAR_5G, false, NetworkSlice::NO_SLICE};
     case kNetworkCostCellular5G + kNetworkCostVpn:
-      return {ADAPTER_TYPE_CELLULAR_5G, true};
+      return {ADAPTER_TYPE_CELLULAR_5G, true, NetworkSlice::NO_SLICE};
+    case kNetworkCostCellular5GSlice:
+      return {ADAPTER_TYPE_CELLULAR_5G, false,
+              NetworkSlice::UNIFIED_COMMUNICATIONS};
+    case kNetworkCostCellular5GVpnSlice:
+      return {ADAPTER_TYPE_CELLULAR_5G, true,
+              NetworkSlice::UNIFIED_COMMUNICATIONS};
     case kNetworkCostUnknown:
-      return {ADAPTER_TYPE_UNKNOWN, false};
+      return {ADAPTER_TYPE_UNKNOWN, false, NetworkSlice::NO_SLICE};
     case kNetworkCostUnknown + kNetworkCostVpn:
-      return {ADAPTER_TYPE_UNKNOWN, true};
+      return {ADAPTER_TYPE_UNKNOWN, true, NetworkSlice::NO_SLICE};
     case kNetworkCostMax:
-      return {ADAPTER_TYPE_ANY, false};
+      return {ADAPTER_TYPE_ANY, false, NetworkSlice::NO_SLICE};
     case kNetworkCostMax + kNetworkCostVpn:
-      return {ADAPTER_TYPE_ANY, true};
+      return {ADAPTER_TYPE_ANY, true, NetworkSlice::NO_SLICE};
   }
   RTC_LOG(LS_VERBOSE) << "Unknown network cost: " << network_cost;
-  return {ADAPTER_TYPE_UNKNOWN, false};
+  return {ADAPTER_TYPE_UNKNOWN, false, NetworkSlice::NO_SLICE};
 }
 
 std::string Network::ToString() const {

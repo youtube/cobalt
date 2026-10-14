@@ -141,6 +141,9 @@
   'test-run-load-store/*': [SKIP],
   'test-run-machops/*': [SKIP],
   'test-select-combine/*': [SKIP],
+
+  # TODO(https://crbug.com/467830526): Currently too flaky:
+  'test-mark-compact/RegressJoinThreadsOnIsolateDeinit': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################
@@ -337,6 +340,9 @@
   'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
   'test-serialize/StaticRootsPredictableSnapshot': [SKIP],
   'test-serialize/StartupSerializerTwice': [SKIP],
+
+  # https://crbug.com/475386940
+  'test-cpu-profiler/NativeMethodMonomorphicIC': [SKIP],
 }],  # 'system == windows and arch == x64 and mode == debug'
 
 ##############################################################################

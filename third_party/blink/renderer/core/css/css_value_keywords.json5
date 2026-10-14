@@ -787,8 +787,12 @@
     "max-content",
     "fit-content",
 
-    // contain-intrinsic-size
-    "from-element",
+    // frame-sizing
+    // "auto",
+    "content-width",
+    "content-height",
+    "content-block-size",
+    "content-inline-size",
 
     //
     // text-autospace
@@ -1161,6 +1165,7 @@
     "window-controls-overlay",
     "tabbed",
     "picture-in-picture",
+    "unframed",
 
     // (display-state:) media feature
     // normal
@@ -1292,30 +1297,26 @@
     "hanging",
     "mathematical",
 
-    // gap-rule-overlap
+    // rule-overlap
     "row-over-column",
     "column-over-row",
 
     // column-rule-break
-    // auto
     // none
     "intersection",
-    "spanning-item",
+    // normal
 
     // row-rule-break
-    // auto
     // none
     // intersection
-    // spanning-item
+    // normal
 
     // column-rule-visibility-items
-    // none
     // all
     "around",
     "between",
 
     // row-rule-visibility-items
-    // none
     // all
     // around
     // between
@@ -1663,7 +1664,6 @@
     "size",
     "block-size",
     "inline-size",
-    "view-transition",
 
     // @container
     // size
@@ -1828,13 +1828,8 @@
     // @import scope()
     "scope",
 
-    // color-contrast()
-    "color-contrast",
-    "vs",
-    "AA",
-    "AA-large",
-    "AAA",
-    "AAA-large",
+    // contrast-color()
+    "contrast-color",
 
     // initial-letter
     "drop",
@@ -2017,13 +2012,12 @@
     "context-fill",
     "context-stroke",
 
-    // text-grow / text-shrink
+    // text-fit
+    "grow",
+    "shrink",
     "per-line",
+    "per-line-all",
     "consistent",
-    // "scale",
-    "font-size",
-    "scale-inline",
-    "letter-spacing",
 
     // media-progress()
     "media-progress",
@@ -2104,5 +2098,9 @@
 
     // counter-reset
     "reversed",
+
+    // https://drafts.csswg.org/css-conditional-5/#typedef-supports-named-feature-fn
+    "named-feature",
+    "align-content-on-display-block",
   ],
 }

@@ -31,8 +31,8 @@
 #include "services/network/test/test_url_loader_factory.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/omnibox_proto/aim_tools.pb.h"
 #include "third_party/omnibox_proto/page_vertical.pb.h"
+#include "third_party/omnibox_proto/tool_mode.pb.h"
 #include "url/gurl.h"
 #include "url/url_util.h"
 
@@ -467,8 +467,9 @@ TEST(RemoteSuggestionsServiceSimpleTest,
                                                           "invalid json");
   env.run_loop().Run();
 
-  EXPECT_THAT(actual, ErrorIs(VariantWith<ParseError>(FieldsAre(
-                          ParseError::ParseErrorType::kMalformedJson))));
+  EXPECT_THAT(actual, ErrorIs(VariantWith<ParseError>(
+                          FieldsAre(RemoteSuggestionsServiceSimple::
+                                        ParseFailureReason::kMalformedJson))));
 }
 
 TEST(RemoteSuggestionsServiceSimpleTest,
@@ -497,8 +498,9 @@ TEST(RemoteSuggestionsServiceSimpleTest,
                                                           "[]");
   env.run_loop().Run();
 
-  EXPECT_THAT(actual, ErrorIs(VariantWith<ParseError>(FieldsAre(
-                          ParseError::ParseErrorType::kParseFailure))));
+  EXPECT_THAT(actual, ErrorIs(VariantWith<ParseError>(
+                          FieldsAre(RemoteSuggestionsServiceSimple::
+                                        ParseFailureReason::kSchemaMismatch))));
 }
 
 TEST(RemoteSuggestionsServiceSimpleTest,
@@ -744,8 +746,9 @@ TEST(RemoteSuggestionsServiceSimpleTest,
                                                           "invalid json");
   env.run_loop().Run();
 
-  EXPECT_THAT(actual, ErrorIs(VariantWith<ParseError>(FieldsAre(
-                          ParseError::ParseErrorType::kMalformedJson))));
+  EXPECT_THAT(actual, ErrorIs(VariantWith<ParseError>(
+                          FieldsAre(RemoteSuggestionsServiceSimple::
+                                        ParseFailureReason::kMalformedJson))));
 }
 
 TEST(RemoteSuggestionsServiceSimpleTest,
@@ -781,8 +784,9 @@ TEST(RemoteSuggestionsServiceSimpleTest,
                                                           "[]");
   env.run_loop().Run();
 
-  EXPECT_THAT(actual, ErrorIs(VariantWith<ParseError>(FieldsAre(
-                          ParseError::ParseErrorType::kParseFailure))));
+  EXPECT_THAT(actual, ErrorIs(VariantWith<ParseError>(
+                          FieldsAre(RemoteSuggestionsServiceSimple::
+                                        ParseFailureReason::kSchemaMismatch))));
 }
 
 TEST(RemoteSuggestionsServiceSimpleTest,

@@ -37,6 +37,8 @@ class GlicWindowController;
 class WebUIContentsContainer;
 class GlicInstanceMetrics;
 class GlicInstanceMetricsBackwardsCompatibility;
+class EmptyInstanceDelegate;
+class GlicSkillsManager;
 
 // The host owns the WebUI that contains the main glic UI and the web client.
 // TODO(crbug.com/409332639): Better encapsulate details here.
@@ -231,6 +233,8 @@ class Host : public GlicSharingManagerProvider {
   // GlicSharingManagerProvider Implementation.
   GlicSharingManager& sharing_manager() override;
 
+  GlicSkillsManager& skills_manager();
+
   Host::InstanceDelegate& instance_delegate();
 
   GlicInstanceMetrics* instance_metrics() {
@@ -395,6 +399,11 @@ class Host : public GlicSharingManagerProvider {
 
   void NotifyActorTaskListRowClicked(int32_t task_id);
 
+  void NotifySkillToInvokeChanged(mojom::SkillPtr skill);
+
+  void NotifyContextualSkillsChanged(
+      std::vector<mojom::SkillPreviewPtr> contextual_skill_previews);
+
  private:
   friend class HostManager;
 
@@ -458,6 +467,9 @@ class Host : public GlicSharingManagerProvider {
   std::optional<PageHandlerInfo> handler_info_;
 
   raw_ptr<GlicSharingManagerProvider> sharing_manager_provider_;
+
+  // Responsible for skill update logic.
+  std::unique_ptr<GlicSkillsManager> skills_manager_;
 
   // The current view in the primary page handler.
   mojom::CurrentView primary_current_view_ = mojom::CurrentView::kConversation;
@@ -534,6 +546,7 @@ class HostManager {
   raw_ptr<Profile> profile_;
   base::WeakPtr<GlicWindowController> window_controller_;
   std::unique_ptr<EmptyEmbedderDelegate> empty_embedder_delegate_;
+  std::unique_ptr<EmptyInstanceDelegate> instance_delegate_stub_;
   // Hosts for any unclaimed page handlers, which is approximately limited to
   // chrome://glic in tabs. These are only important for developers, and do not
   // need to be fully functional.

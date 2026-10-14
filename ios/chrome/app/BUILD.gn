@@ -76,6 +76,24 @@ source_set("app") {
   frameworks = [ "Foundation.framework" ]
 }
 
+source_set("tasks_handling") {
+  sources = [
+    "task_orchestrator.h",
+    "task_orchestrator.mm",
+    "task_request+testing.h",
+    "task_request.h",
+    "task_request.mm",
+  ]
+
+  deps = [
+    "//base",
+    "//ios/chrome/browser/shared/coordinator/scene:scene_state_header",
+    "//ios/chrome/browser/shared/public/features",
+  ]
+
+  frameworks = [ "Foundation.framework" ]
+}
+
 source_set("app_trampoline") {
   sources = [ "chrome_exe_main.mm" ]
 }
@@ -89,6 +107,7 @@ source_set("unit_tests") {
     "deferred_initialization_runner_unittest.mm",
     "safe_mode_app_state_agent_unittest.mm",
     "tab_opener_unittest.mm",
+    "task_orchestrator_unittest.mm",
     "variations_app_state_agent_unittest.mm",
   ]
   deps = [
@@ -97,6 +116,7 @@ source_set("unit_tests") {
     ":app_metrics_app_state_agent",
     ":change_profile_animator",
     ":safe_mode_app_state_agent",
+    ":tasks_handling",
     ":variations_app_state_agent",
     "//base",
     "//base/test:test_support",

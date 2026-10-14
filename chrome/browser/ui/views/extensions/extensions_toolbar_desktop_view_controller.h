@@ -13,8 +13,7 @@ class Browser;
 class ExtensionsToolbarDesktop;
 
 class ExtensionsToolbarDesktopViewController final
-    : public TabStripModelObserver,
-      public extensions::PermissionsManager::Observer {
+    : public TabStripModelObserver {
  public:
   // Flex behavior precedence for the container's views.
   static constexpr int kFlexOrderExtensionsButton = 1;
@@ -48,9 +47,6 @@ class ExtensionsToolbarDesktopViewController final
   // Maybe displays the In-Product-Help with a specific priority order.
   void MaybeShowIPH();
 
-  // Updates the request access button in the toolbar.
-  void UpdateRequestAccessButton();
-
   // TabStripModelObserver:
   void OnTabStripModelChanged(
       TabStripModel* tab_strip_model,
@@ -60,30 +56,8 @@ class ExtensionsToolbarDesktopViewController final
                       int index,
                       TabChangeType change_type) override;
 
-  // PermissionsManager::Observer:
-  void OnUserPermissionsSettingsChanged(
-      const extensions::PermissionsManager::UserPermissionsSettings& settings)
-      override;
-  void OnShowAccessRequestsInToolbarChanged(
-      const extensions::ExtensionId& extension_id,
-      bool can_show_requests) override;
-  void OnHostAccessRequestAdded(const extensions::ExtensionId& extension_id,
-                                int tab_id) override;
-  void OnHostAccessRequestUpdated(const extensions::ExtensionId& extension_id,
-                                  int tab_id) override;
-  void OnHostAccessRequestRemoved(const extensions::ExtensionId& extension_id,
-                                  int tab_id) override;
-  void OnHostAccessRequestsCleared(int tab_id) override;
-  void OnHostAccessRequestDismissedByUser(
-      const extensions::ExtensionId& extension_id,
-      const url::Origin& origin) override;
-
   const raw_ptr<Browser> browser_;
 
   raw_ptr<ExtensionsToolbarDesktop> extensions_container_;
-
-  base::ScopedObservation<extensions::PermissionsManager,
-                          extensions::PermissionsManager::Observer>
-      permissions_manager_observation_{this};
 };
 #endif  // CHROME_BROWSER_UI_VIEWS_EXTENSIONS_EXTENSIONS_TOOLBAR_DESKTOP_VIEW_CONTROLLER_H_

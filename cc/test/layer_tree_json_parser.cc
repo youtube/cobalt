@@ -6,10 +6,10 @@
 
 #include <stddef.h>
 
+#include <array>
 #include <memory>
 #include <utility>
 
-#include "base/compiler_specific.h"
 #include "base/test/values_test_util.h"
 #include "base/values.h"
 #include "cc/layers/layer.h"
@@ -27,13 +27,13 @@ scoped_refptr<Layer> ParseTreeFromValue(const base::Value& val,
                                         ContentLayerClient* content_client) {
   if (!val.is_dict())
     return nullptr;
-  const base::Value::Dict& dict = val.GetDict();
+  const base::DictValue& dict = val.GetDict();
 
   const std::string* layer_type = dict.FindString("LayerType");
   if (!layer_type)
     return nullptr;
 
-  const base::Value::List* bounds_list = dict.FindList("Bounds");
+  const base::ListValue* bounds_list = dict.FindList("Bounds");
   if (!bounds_list)
     return nullptr;
   if (bounds_list->size() < 2)
@@ -60,7 +60,7 @@ scoped_refptr<Layer> ParseTreeFromValue(const base::Value& val,
   if (*layer_type == "SolidColorLayer") {
     new_layer = SolidColorLayer::Create();
   } else if (*layer_type == "NinePatchLayer") {
-    const base::Value::List* aperture_list = dict.FindList("ImageAperture");
+    const base::ListValue* aperture_list = dict.FindList("ImageAperture");
     if (!aperture_list)
       return nullptr;
     if (aperture_list->size() < 4)
@@ -74,7 +74,7 @@ scoped_refptr<Layer> ParseTreeFromValue(const base::Value& val,
           aperture_width.has_value() && aperture_height.has_value()))
       return nullptr;
 
-    const base::Value::List* image_bounds_list = dict.FindList("ImageBounds");
+    const base::ListValue* image_bounds_list = dict.FindList("ImageBounds");
     if (!image_bounds_list)
       return nullptr;
     if (image_bounds_list->size() < 2)
@@ -85,7 +85,7 @@ scoped_refptr<Layer> ParseTreeFromValue(const base::Value& val,
     if (!(image_width.has_value() && image_height.has_value()))
       return nullptr;
 
-    const base::Value::List* border_list = dict.FindList("Border");
+    const base::ListValue* border_list = dict.FindList("Border");
     if (!border_list)
       return nullptr;
     if (border_list->size() < 4)
@@ -136,7 +136,7 @@ scoped_refptr<Layer> ParseTreeFromValue(const base::Value& val,
   if (contents_opaque.has_value())
     new_layer->SetContentsOpaque(*contents_opaque);
 
-  const base::Value::List* touch_region_list = dict.FindList("TouchRegion");
+  const base::ListValue* touch_region_list = dict.FindList("TouchRegion");
 
   if (touch_region_list) {
     TouchActionRegion touch_action_region;
@@ -157,13 +157,13 @@ scoped_refptr<Layer> ParseTreeFromValue(const base::Value& val,
     new_layer->SetTouchActionRegion(std::move(touch_action_region));
   }
 
-  const base::Value::List* transform_list = dict.FindList("Transform");
+  const base::ListValue* transform_list = dict.FindList("Transform");
   if (!transform_list)
     return nullptr;
   if (transform_list->size() < 16)
     return nullptr;
 
-  float transform[16];
+  std::array<float, 16> transform;
   for (int i = 0; i < 16; ++i) {
     // GetDouble can implicitly convert from either double or int; however, it's
     // not clear if "is_double" is sufficient for this check. Given that int is
@@ -172,12 +172,12 @@ scoped_refptr<Layer> ParseTreeFromValue(const base::Value& val,
       return nullptr;
     }
 
-    UNSAFE_TODO(transform[i]) = (*transform_list)[i].GetDouble();
+    transform[i] = (*transform_list)[i].GetDouble();
   }
 
   new_layer->SetTransform(gfx::Transform::ColMajorF(transform));
 
-  const base::Value::List* child_list = dict.FindList("Children");
+  const base::ListValue* child_list = dict.FindList("Children");
   if (!child_list)
     return nullptr;
   for (const auto& value : *child_list) {

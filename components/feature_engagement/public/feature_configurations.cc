@@ -711,6 +711,24 @@ std::optional<FeatureConfig> GetClientSideFeatureConfig(
 
 #if BUILDFLAG(IS_ANDROID)
 
+  if (kIPHFuseboxAttachmentFeature.name == feature->name) {
+    // A config that allows measurement for user engagement on the fusebox
+    // attachment button by checking:
+    // * Interacted with attachment popup at least 1 time in 90 days.
+
+    FeatureConfig config;
+    config.valid = true;
+    config.availability = Comparator(ANY, 0);
+    config.session_rate = Comparator(ANY, 0);
+    config.trigger =
+        EventConfig("fusebox_attachment_popup_shown", Comparator(ANY, 0), 0, 0);
+    config.used = EventConfig("fusebox_attachment_popup_interacted_with",
+                              Comparator(ANY, 0), 0, 0);
+    config.event_configs.insert(EventConfig(
+        "fusebox_attachment_popup_used", Comparator(GREATER_THAN, 0), 28, 360));
+    return config;
+  }
+
   if (kIPHAccountSettingsHistorySync.name == feature->name) {
     // A config that allows the history sync opt-in toggle IPH to be shown
     // only once when a user who is signed-in but not syncing history and tabs
@@ -2886,8 +2904,11 @@ std::optional<FeatureConfig> GetClientSideFeatureConfig(
     config.availability = Comparator(ANY, 0);
     config.session_rate = Comparator(ANY, 0);
 
-    // This IPH showing does not affect the session count for other IPHs.
-    config.session_rate_impact.type = SessionRateImpact::Type::NONE;
+    // This promo blocks the Gemini Image Remix IPH in the same session.
+    config.session_rate_impact.type = SessionRateImpact::Type::EXPLICIT;
+    config.session_rate_impact.affected_features.emplace();
+    config.session_rate_impact.affected_features->push_back(
+        kIPHiOSGeminiImageRemixFeature.name);
     config.blocked_by.type = BlockedBy::Type::NONE;
     config.blocking.type = Blocking::Type::NONE;
 
@@ -2908,8 +2929,11 @@ std::optional<FeatureConfig> GetClientSideFeatureConfig(
     config.availability = Comparator(ANY, 0);
     config.session_rate = Comparator(ANY, 0);
 
-    // This badge showing does not affect the session count for other IPHs.
-    config.session_rate_impact.type = SessionRateImpact::Type::NONE;
+    // This promo blocks the Gemini Image Remix IPH in the same session.
+    config.session_rate_impact.type = SessionRateImpact::Type::EXPLICIT;
+    config.session_rate_impact.affected_features.emplace();
+    config.session_rate_impact.affected_features->push_back(
+        kIPHiOSGeminiImageRemixFeature.name);
     config.blocked_by.type = BlockedBy::Type::NONE;
     config.blocking.type = Blocking::Type::NONE;
 

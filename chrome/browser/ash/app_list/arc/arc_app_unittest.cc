@@ -73,6 +73,7 @@
 #include "chrome/browser/web_applications/test/fake_web_app_provider.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/test/base/testing_profile.h"
+#include "chromeos/ash/components/login/session/session_termination_manager.h"
 #include "chromeos/ash/experiences/arc/app/arc_app_constants.h"
 #include "chromeos/ash/experiences/arc/arc_features.h"
 #include "chromeos/ash/experiences/arc/arc_prefs.h"
@@ -908,6 +909,7 @@ class ArcAppModelBuilderTest : public extensions::ExtensionServiceTestBase,
   FakeAppListModelUpdater* model_updater() { return model_updater_.get(); }
 
  private:
+  ash::SessionTerminationManager session_termination_manager_;
   ArcAppTest arc_app_test_;
   display::test::TestScreen test_screen_{/*create_dispay=*/true,
                                          /*register_screen=*/true};
@@ -1371,7 +1373,7 @@ class ArcPlayStoreAppTest : public ArcDefaultAppTest {
   void OnBeforeArcTestSetup() override {
     ArcDefaultAppTest::OnBeforeArcTestSetup();
 
-    base::Value::Dict manifest;
+    base::DictValue manifest;
     manifest.Set(extensions::manifest_keys::kName, "Play Store");
     manifest.Set(extensions::manifest_keys::kVersion, "1");
     manifest.Set(extensions::manifest_keys::kManifestVersion, 2);
@@ -2594,7 +2596,7 @@ TEST_P(ArcPlayStoreAppTest,
 
   // Fast App Reinstall is not expected to start when the user finishes
   // selection without the Play Store.
-  base::Value::List package_list;
+  base::ListValue package_list;
   package_list.Append("fake_package_name");
   profile()->GetPrefs()->SetList(arc::prefs::kArcFastAppReinstallPackages,
                                  std::move(package_list));
@@ -2642,7 +2644,7 @@ TEST_P(ArcPlayStoreAppTest,
   EXPECT_FALSE(starter1.started());
   EXPECT_EQ(0, app_instance()->start_fast_app_reinstall_request_count());
 
-  base::Value::List package_list;
+  base::ListValue package_list;
   package_list.Append("fake_package_name");
   profile()->GetPrefs()->SetList(arc::prefs::kArcFastAppReinstallPackages,
                                  std::move(package_list));

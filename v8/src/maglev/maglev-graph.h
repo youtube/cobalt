@@ -30,6 +30,18 @@ class MaglevCallSiteInfoCompare {
 using MaglevCallSiteCandidates =
     ZonePriorityQueue<MaglevCallSiteInfo*, MaglevCallSiteInfoCompare>;
 
+struct MaglevCallerDetails;
+struct InliningTreeDebugInfo : public ZoneObject {
+  compiler::SharedFunctionInfoRef shared;
+  MaglevCallerDetails* details;
+  int budget = 0;
+  int order = 0;
+  ZoneVector<InliningTreeDebugInfo*> children;
+  InliningTreeDebugInfo(Zone* zone, compiler::SharedFunctionInfoRef shared,
+                        MaglevCallerDetails* details)
+      : shared(shared), details(details), children(zone) {}
+};
+
 class Graph final : public ZoneObject {
  public:
   static Graph* New(MaglevCompilationInfo* info) {
@@ -46,7 +58,6 @@ class Graph final : public ZoneObject {
         tagged_index_constants_(zone()),
         int32_constants_(zone()),
         uint32_constants_(zone()),
-        shifted_int53_constants_(zone()),
         intptr_constants_(zone()),
         float64_constants_(zone()),
         holey_float64_constants_(zone()),
@@ -61,6 +72,7 @@ class Graph final : public ZoneObject {
         constants_(zone()),
         trusted_constants_(zone()),
         inlined_functions_(zone()),
+        inlining_tree_debug_info_(nullptr),
         scope_infos_(zone()) {}
 
   BasicBlock* operator[](int i) { return blocks_[i]; }
@@ -135,6 +147,9 @@ class Graph final : public ZoneObject {
     total_peeled_bytecode_size_ += size;
   }
 
+  int total_nodes() const { return total_nodes_; }
+  void increment_total_nodes() { total_nodes_++; }
+
   compiler::ZoneRefMap<compiler::HeapObjectRef, Constant*>& constants() {
     return constants_;
   }
@@ -144,9 +159,6 @@ class Graph final : public ZoneObject {
     return tagged_index_constants_;
   }
   ZoneMap<int32_t, Int32Constant*>& int32() { return int32_constants_; }
-  ZoneMap<ShiftedInt53, ShiftedInt53Constant*>& shifted_int53() {
-    return shifted_int53_constants_;
-  }
   ZoneMap<uint32_t, Uint32Constant*>& uint32() { return uint32_constants_; }
   ZoneMap<intptr_t, IntPtrConstant*>& intptr() { return intptr_constants_; }
   ZoneMap<uint64_t, Float64Constant*>& float64() { return float64_constants_; }
@@ -204,6 +216,12 @@ class Graph final : public ZoneObject {
   inlined_functions() {
     return inlined_functions_;
   }
+  InliningTreeDebugInfo* inlining_tree_debug_info() const {
+    return inlining_tree_debug_info_;
+  }
+  void set_inlining_tree_debug_info(InliningTreeDebugInfo* tree) {
+    inlining_tree_debug_info_ = tree;
+  }
   bool has_recursive_calls() const { return has_recursive_calls_; }
   void set_has_recursive_calls(bool value) { has_recursive_calls_ = value; }
 
@@ -258,10 +276,6 @@ class Graph final : public ZoneObject {
 
   Int32Constant* GetInt32Constant(int32_t constant) {
     return GetOrAddNewConstantNode(int32_constants_, constant);
-  }
-
-  ShiftedInt53Constant* GetShiftedInt53Constant(ShiftedInt53 constant) {
-    return GetOrAddNewConstantNode(shifted_int53_constants_, constant);
   }
 
   IntPtrConstant* GetIntPtrConstant(intptr_t constant) {
@@ -333,7 +347,6 @@ class Graph final : public ZoneObject {
   ZoneMap<int, TaggedIndexConstant*> tagged_index_constants_;
   ZoneMap<int32_t, Int32Constant*> int32_constants_;
   ZoneMap<uint32_t, Uint32Constant*> uint32_constants_;
-  ZoneMap<ShiftedInt53, ShiftedInt53Constant*> shifted_int53_constants_;
   ZoneMap<intptr_t, IntPtrConstant*> intptr_constants_;
   // Use the bits of the float as the key.
   ZoneMap<uint64_t, Float64Constant*> float64_constants_;
@@ -352,11 +365,13 @@ class Graph final : public ZoneObject {
       trusted_constants_;
   ZoneVector<OptimizedCompilationInfo::InlinedFunctionHolder>
       inlined_functions_;
+  InliningTreeDebugInfo* inlining_tree_debug_info_;
 
   bool has_recursive_calls_ = false;
   int total_inlined_bytecode_size_ = 0;
   int total_inlined_bytecode_size_small_ = 0;
   int total_peeled_bytecode_size_ = 0;
+  int total_nodes_ = 0;
   uint32_t object_ids_ = 0;
   bool has_resumable_generator_ = false;
   bool may_have_unreachable_blocks_ = false;

@@ -69,6 +69,7 @@ export class PowerBookmarksContextMenuElement extends PolymerElement {
       priceTracked_: Boolean,
       priceTrackingEligible_: Boolean,
       isInSplitView_: Boolean,
+      incognitoCount_: Number,
     };
   }
 
@@ -80,15 +81,18 @@ export class PowerBookmarksContextMenuElement extends PolymerElement {
   declare private priceTracked_: boolean;
   declare private priceTrackingEligible_: boolean;
   declare private isInSplitView_: boolean;
+  declare private incognitoCount_: number;
 
   showAt(
       target: HTMLElement, bookmarks: BookmarksTreeNode[],
       priceTracked: boolean, priceTrackingEligible: boolean,
-      isInSplitView: boolean, onShown: Function = () => {}) {
+      isInSplitView: boolean, incognitoCount: number,
+      onShown: Function = () => {}) {
     this.bookmarks_ = bookmarks;
     this.priceTracked_ = priceTracked;
     this.priceTrackingEligible_ = priceTrackingEligible;
     this.isInSplitView_ = isInSplitView;
+    this.incognitoCount_ = incognitoCount;
     afterNextRender(this, () => {
       this.$.menu.showAt(target);
       onShown();
@@ -98,11 +102,12 @@ export class PowerBookmarksContextMenuElement extends PolymerElement {
   showAtPosition(
       event: MouseEvent, bookmarks: BookmarksTreeNode[], priceTracked: boolean,
       priceTrackingEligible: boolean, isInSplitView: boolean,
-      onShown: Function = () => {}) {
+      incognitoCount: number, onShown: Function = () => {}) {
     this.bookmarks_ = bookmarks;
     this.priceTracked_ = priceTracked;
     this.priceTrackingEligible_ = priceTrackingEligible;
     this.isInSplitView_ = isInSplitView;
+    this.incognitoCount_ = incognitoCount;
     const menuMargin = 20;
     const doc = document.scrollingElement!;
     const minX = doc.scrollLeft + menuMargin;
@@ -120,6 +125,14 @@ export class PowerBookmarksContextMenuElement extends PolymerElement {
 
   isOpen(): boolean {
     return this.$.menu.open;
+  }
+
+  close() {
+    this.$.menu.close();
+  }
+
+  anyBookmarkMatches(id: string): boolean {
+    return this.bookmarks_.some(bookmark => bookmark.id === id);
   }
 
   private getMenuItemsForBookmarks_(): MenuItem[] {
@@ -155,11 +168,11 @@ export class PowerBookmarksContextMenuElement extends PolymerElement {
         loadTimeData.getBoolean('isIncognitoModeAvailable')) {
       menuItems.push({
         id: MenuItemId.OPEN_INCOGNITO,
-        label: bookmarkCount < 2 ?
+        label: this.incognitoCount_ < 2 ?
             loadTimeData.getString('menuOpenIncognito') :
             loadTimeData.getStringF(
-                'menuOpenIncognitoWithCount', bookmarkCount),
-        disabled: bookmarkCount === 0,
+                'menuOpenIncognitoWithCount', this.incognitoCount_),
+        disabled: this.incognitoCount_ === 0,
       });
     }
 

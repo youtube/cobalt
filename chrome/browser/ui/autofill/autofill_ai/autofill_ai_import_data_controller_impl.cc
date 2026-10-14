@@ -85,32 +85,51 @@ AutofillAiImportDataController* AutofillAiImportDataController::GetOrCreate(
   return AutofillAiImportDataControllerImpl::FromWebContents(web_contents);
 }
 
+// static
+void AutofillAiImportDataController::Hide(content::WebContents& web_contents) {
+  if (auto* controller =
+          AutofillAiImportDataControllerImpl::FromWebContents(&web_contents)) {
+    controller->HideBubble(/*initiated_by_bubble_manager=*/false);
+  }
+}
+
 void AutofillAiImportDataControllerImpl::ShowPrompt(
     EntityInstance new_entity,
     std::optional<EntityInstance> old_entity,
-    AutofillClient::EntityImportPromptResultCallback prompt_closed_callback) {
+    bool close_on_accept,
+    AutofillClient::EntityImportPromptResultCallback prompt_result_callback) {
   // Don't show the bubble if it's already visible.
+  if (bubble_view() || !MaySetUpBubble()) {
+    if (!prompt_result_callback.is_null()) {
+      std::move(prompt_result_callback)
+          .Run(AutofillClient::AutofillAiBubbleResult::kUnknown);
+    }
+    return;
+  }
+
+  was_bubble_shown_ = false;
+  state_ = SaveUpdateState(std::move(new_entity), std::move(old_entity),
+                           close_on_accept, std::move(prompt_result_callback));
+  QueueOrShowBubble();
+}
+
+void AutofillAiImportDataControllerImpl::ShowLocalSaveNotification() {
   if (bubble_view() || !MaySetUpBubble()) {
     return;
   }
 
-  SetupPrompt(std::move(new_entity), std::move(old_entity),
-              std::move(prompt_closed_callback));
+  was_bubble_shown_ = false;
+  state_ = LocalSaveNotificationState();
   QueueOrShowBubble();
 }
 
-void AutofillAiImportDataControllerImpl::SetupPrompt(
-    EntityInstance new_entity,
-    std::optional<EntityInstance> old_entity,
-    AutofillClient::EntityImportPromptResultCallback prompt_closed_callback) {
-  was_bubble_shown_ = false;
-  new_entity_ = std::move(new_entity);
-  old_entity_ = std::move(old_entity);
-  prompt_closed_callback_ = std::move(prompt_closed_callback);
-}
-
 void AutofillAiImportDataControllerImpl::OnSaveButtonClicked() {
-  OnBubbleClosed(AutofillClient::AutofillAiBubbleClosedReason::kAccepted);
+  if (GetSaveUpdateState().close_on_accept) {
+    OnBubbleClosed(AutofillClient::AutofillAiBubbleResult::kAccepted);
+  } else if (!GetSaveUpdateState().prompt_result_callback.is_null()) {
+    std::move(GetSaveUpdateState().prompt_result_callback)
+        .Run(AutofillClient::AutofillAiBubbleResult::kAccepted);
+  }
 }
 
 std::u16string AutofillAiImportDataControllerImpl::GetPrimaryAccountEmail()
@@ -119,27 +138,31 @@ std::u16string AutofillAiImportDataControllerImpl::GetPrimaryAccountEmail()
       Profile::FromBrowserContext(web_contents()->GetBrowserContext()));
 }
 
-std::u16string AutofillAiImportDataControllerImpl::GetDialogPrimaryButtonText()
+std::u16string
+AutofillAiImportDataControllerImpl::GetSaveUpdateDialogPrimaryButtonText()
     const {
   return GetPrimaryButtonText(IsSavePrompt());
 }
 
 bool AutofillAiImportDataControllerImpl::IsSavePrompt() const {
-  return !old_entity_.has_value();
+  return !GetSaveUpdateState().old_entity.has_value();
 }
 
 std::vector<EntityAttributeUpdateDetails>
 AutofillAiImportDataControllerImpl::GetUpdatedAttributesDetails() const {
   return EntityAttributeUpdateDetails::GetUpdatedAttributesDetails(
-      *new_entity_, old_entity_, app_locale_);
+      GetSaveUpdateState().new_entity, GetSaveUpdateState().old_entity,
+      app_locale_);
 }
 
-std::u16string AutofillAiImportDataControllerImpl::GetDialogTitle() const {
-  return GetPromptTitle(new_entity_->type().name(), IsSavePrompt());
+std::u16string AutofillAiImportDataControllerImpl::GetSaveUpdateDialogTitle()
+    const {
+  return GetPromptTitle(GetSaveUpdateState().new_entity.type().name(),
+                        IsSavePrompt());
 }
 
 bool AutofillAiImportDataControllerImpl::IsWalletableEntity() const {
-  return new_entity_->record_type() ==
+  return GetSaveUpdateState().new_entity.record_type() ==
          EntityInstance::RecordType::kServerWallet;
 }
 
@@ -169,23 +192,18 @@ void AutofillAiImportDataControllerImpl::OnVisibilityChanged(
 }
 
 void AutofillAiImportDataControllerImpl::OnBubbleClosed(
-    AutofillClient::AutofillAiBubbleClosedReason close_reason) {
+    AutofillClient::AutofillAiBubbleResult result) {
   ResetBubbleViewAndInformBubbleManager();
   UpdatePageActionIcon();
 
-  if (!bubble_hide_initiated_by_bubble_manager_ &&
-      !prompt_closed_callback_.is_null()) {
-    std::move(prompt_closed_callback_).Run(close_reason);
+  if (!bubble_hide_initiated_by_bubble_manager_) {
+    MaybeRunSaveUpdateCallback(result);
   }
 }
 
 void AutofillAiImportDataControllerImpl::OnBubbleDiscarded() {
-  if (!prompt_closed_callback_.is_null()) {
-    std::move(prompt_closed_callback_)
-        .Run(was_bubble_shown_
-                 ? AutofillClient::AutofillAiBubbleClosedReason::kNotInteracted
-                 : AutofillClient::AutofillAiBubbleClosedReason::kUnknown);
-  }
+  using enum AutofillClient::AutofillAiBubbleResult;
+  MaybeRunSaveUpdateCallback(was_bubble_shown_ ? kNotInteracted : kUnknown);
 }
 
 std::optional<PageActionIconType>
@@ -194,10 +212,22 @@ AutofillAiImportDataControllerImpl::GetPageActionIconType() {
 }
 
 void AutofillAiImportDataControllerImpl::DoShowBubble() {
-  Browser* browser = chrome::FindBrowserWithTab(web_contents());
-  SetBubbleView(*browser->window()
-                     ->GetAutofillBubbleHandler()
-                     ->ShowSaveAutofillAiDataBubble(web_contents(), this));
+  auto get_bubble = [this]() -> AutofillBubbleBase& {
+    Browser* browser = chrome::FindBrowserWithTab(web_contents());
+    if (IsSaveUpdatePrompt()) {
+      return *browser->window()
+          ->GetAutofillBubbleHandler()
+          ->ShowSaveAutofillAiDataBubble(web_contents(), this);
+    }
+    if (IsLocalSaveNotification()) {
+      return *browser->window()
+                  ->GetAutofillBubbleHandler()
+                  ->ShowAutofillAiLocalSaveNotification(web_contents(), this);
+    }
+    NOTREACHED();
+  };
+
+  SetBubbleView(get_bubble());
   CHECK(bubble_view());
 }
 
@@ -215,8 +245,9 @@ AutofillAiImportDataControllerImpl::GetWeakPtr() {
   return weak_ptr_factory_.GetWeakPtr();
 }
 
-int AutofillAiImportDataControllerImpl::GetTitleImagesResourceId() const {
-  switch (new_entity_->type().name()) {
+int AutofillAiImportDataControllerImpl::
+    GetSaveUpdateDialogTitleImagesResourceId() const {
+  switch (GetSaveUpdateState().new_entity.type().name()) {
     case EntityTypeName::kDriversLicense:
       return IDR_AUTOFILL_SAVE_DRIVERS_LICENSE_LOTTIE;
     case EntityTypeName::kKnownTravelerNumber:
@@ -238,8 +269,40 @@ int AutofillAiImportDataControllerImpl::GetTitleImagesResourceId() const {
 
 base::optional_ref<const EntityInstance>
 AutofillAiImportDataControllerImpl::GetAutofillAiData() const {
-  return new_entity_;
+  return GetSaveUpdateState().new_entity;
 }
+
+bool AutofillAiImportDataControllerImpl::CloseOnAccept() const {
+  return GetSaveUpdateState().close_on_accept;
+}
+
+void AutofillAiImportDataControllerImpl::MaybeRunSaveUpdateCallback(
+    AutofillClient::AutofillAiBubbleResult result) {
+  if (IsSaveUpdatePrompt() &&
+      !GetSaveUpdateState().prompt_result_callback.is_null()) {
+    std::move(GetSaveUpdateState().prompt_result_callback).Run(result);
+  }
+}
+
+AutofillAiImportDataControllerImpl::SaveUpdateState::SaveUpdateState(
+    EntityInstance new_entity,
+    std::optional<EntityInstance> old_entity,
+    bool close_on_accept,
+    AutofillClient::EntityImportPromptResultCallback prompt_result_callback)
+    : new_entity(std::move(new_entity)),
+      old_entity(std::move(old_entity)),
+      close_on_accept(close_on_accept),
+      prompt_result_callback(std::move(prompt_result_callback)) {}
+
+AutofillAiImportDataControllerImpl::SaveUpdateState::SaveUpdateState(
+    SaveUpdateState&&) = default;
+
+AutofillAiImportDataControllerImpl::SaveUpdateState&
+AutofillAiImportDataControllerImpl::SaveUpdateState::operator=(
+    SaveUpdateState&&) = default;
+
+AutofillAiImportDataControllerImpl::SaveUpdateState::~SaveUpdateState() =
+    default;
 
 WEB_CONTENTS_USER_DATA_KEY_IMPL(AutofillAiImportDataControllerImpl);
 

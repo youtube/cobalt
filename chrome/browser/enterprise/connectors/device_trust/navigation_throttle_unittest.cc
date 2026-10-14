@@ -88,8 +88,8 @@ class MockDeviceTrustNavigationHandle : public content::MockNavigationHandle {
   bool is_main_frame_ = true;
 };
 
-base::Value::List GetTrustedUrls() {
-  base::Value::List trusted_urls;
+base::ListValue GetTrustedUrls() {
+  base::ListValue trusted_urls;
   trusted_urls.Append(kTrustedUrl);
   trusted_urls.Append("example2.example.com");
   return trusted_urls;
@@ -384,7 +384,8 @@ TEST_F(DeviceTrustNavigationThrottleTest, InvalidURL) {
   EnableDTCPolicy();
   SetShouldCollectConsent();
 
-  GURL invalid_url = GURL("https://www.invalid.com/", url::Parsed(), false);
+  GURL invalid_url =
+      GURL(std::string("https://www.invalid.com/"), url::Parsed(), false);
   content::MockNavigationHandle test_handle(invalid_url, main_frame());
   EXPECT_CALL(test_handle, SetRequestHeader("X-Device-Trust", "VerifiedAccess"))
       .Times(0);

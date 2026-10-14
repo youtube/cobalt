@@ -54,7 +54,7 @@ namespace gpu {
 
 namespace {
 
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_OZONE)
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_OZONE) || BUILDFLAG(IS_ANDROID)
 bool GMBIsNative(gfx::GpuMemoryBufferType gmb_type) {
   return gmb_type != gfx::EMPTY_BUFFER && gmb_type != gfx::SHARED_MEMORY_BUFFER;
 }
@@ -82,7 +82,7 @@ uint32_t ComputeTextureTargetForSharedImage(
     gfx::GpuMemoryBufferType client_gmb_type,
     scoped_refptr<SharedImageInterface> sii) {
   CHECK(sii);
-#if !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_OZONE)
+#if !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_OZONE) && !BUILDFLAG(IS_ANDROID)
   return GL_TEXTURE_2D;
 #elif BUILDFLAG(IS_MAC)
   // Check for IOSurfaces being used. We infer IOSurface based on scanout or
@@ -101,7 +101,7 @@ uint32_t ComputeTextureTargetForSharedImage(
   return uses_native_buffer
              ? sii->GetCapabilities().texture_target_for_io_surfaces
              : GL_TEXTURE_2D;
-#else  // Ozone
+#else  // Ozone or Android
   // Check for external sampling being used.
   if (!metadata.format.PrefersExternalSampler()) {
     return GL_TEXTURE_2D;
@@ -115,7 +115,7 @@ uint32_t ComputeTextureTargetForSharedImage(
 #else
   return GL_TEXTURE_EXTERNAL_OES;
 #endif  // BUILDFLAG(IS_FUCHSIA)
-#endif  // !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_OZONE)
+#endif  // !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_OZONE) && !BUILDFLAG(IS_ANDROID)
 }
 
 }  // namespace
@@ -206,7 +206,6 @@ bool ClientSharedImage::ScopedMapping::Init(MappableBuffer* mappable_buffer,
   return true;
 }
 
-// static
 std::unique_ptr<MappableBuffer>
 ClientSharedImage::CreateMappableBufferFromHandle(
     gfx::GpuMemoryBufferHandle handle,
@@ -214,9 +213,10 @@ ClientSharedImage::CreateMappableBufferFromHandle(
     viz::SharedImageFormat format,
     gfx::BufferUsage usage,
     gpu::SharedImageUsageSet si_usage,
-    MappableBuffer::CopyNativeBufferToShMemCallback
-        copy_native_buffer_to_shmem_callback,
     scoped_refptr<base::UnsafeSharedMemoryPool> pool) {
+  auto copy_native_buffer_to_shmem_callback =
+      base::BindRepeating(&ClientSharedImage::CopyNativeGmbToSharedMemoryAsync,
+                          base::Unretained(this));
   switch (handle.type) {
     case gfx::SHARED_MEMORY_BUFFER:
       return MappableBufferSharedMemory::CreateFromHandle(std::move(handle),
@@ -241,16 +241,34 @@ ClientSharedImage::CreateMappableBufferFromHandle(
     }
 #endif
 #if BUILDFLAG(IS_WIN)
-    case gfx::DXGI_SHARED_HANDLE:
+    case gfx::DXGI_SHARED_HANDLE: {
+      // DXGI handles require GPU roundtrip for mapping, so they will wait
+      // for event to trigger in async callback.
+      // So the copy callback must execute in internal thread otherwise there
+      // will be a deadlock: the waiting thread would be used to process the
+      // callback reply.
+      auto wrapped_callback = base::BindRepeating(
+          &ClientSharedImage::RunOnTaskRunner, base::Unretained(this),
+          copy_native_buffer_to_shmem_callback);
       return MappableBufferDXGI::CreateFromHandle(
-          std::move(handle), size, format,
-          std::move(copy_native_buffer_to_shmem_callback), std::move(pool));
+          std::move(handle), size, format, std::move(wrapped_callback),
+          std::move(pool));
+    }
 #endif
 #if BUILDFLAG(IS_ANDROID)
-    case gfx::ANDROID_HARDWARE_BUFFER:
+    case gfx::ANDROID_HARDWARE_BUFFER: {
+      // ANDROID_HARDWARE_BUFFER handles require GPU roundtrip for mapping, so
+      // they will wait for event to trigger in async callback.
+      // So the copy callback must execute in internal thread otherwise there
+      // will be a deadlock: the waiting thread would be used to process the
+      // callback reply.
+      auto wrapped_callback = base::BindRepeating(
+          &ClientSharedImage::RunOnTaskRunner, base::Unretained(this),
+          copy_native_buffer_to_shmem_callback);
       return MappableBufferAHB::CreateFromHandle(
-          std::move(handle), size, format,
-          std::move(copy_native_buffer_to_shmem_callback), std::move(pool));
+          std::move(handle), size, format, std::move(wrapped_callback),
+          std::move(pool));
+    }
 #endif
     default:
       // TODO(dcheng): Remove default case (https://crbug.com/676224).
@@ -371,10 +389,7 @@ ClientSharedImage::ClientSharedImage(
   if (exported_si.buffer_handle_) {
     mappable_buffer_ = CreateMappableBufferFromHandle(
         std::move(exported_si.buffer_handle_.value()), metadata_.size,
-        metadata_.format, exported_si.buffer_usage_.value(), metadata_.usage,
-        base::BindRepeating(
-            &ClientSharedImage::CopyNativeGmbToSharedMemoryAsync,
-            base::Unretained(this)));
+        metadata_.format, exported_si.buffer_usage_.value(), metadata_.usage);
   }
   CHECK(!mailbox_.IsZero());
   CHECK(sii_holder_);
@@ -394,10 +409,7 @@ ClientSharedImage::ClientSharedImage(ExportedSharedImage exported_si)
   if (exported_si.buffer_handle_) {
     mappable_buffer_ = CreateMappableBufferFromHandle(
         std::move(exported_si.buffer_handle_.value()), metadata_.size,
-        metadata_.format, exported_si.buffer_usage_.value(), metadata_.usage,
-        base::BindRepeating(
-            &ClientSharedImage::CopyNativeGmbToSharedMemoryAsync,
-            base::Unretained(this)));
+        metadata_.format, exported_si.buffer_usage_.value(), metadata_.usage);
   }
   CHECK(!mailbox_.IsZero());
 #if !BUILDFLAG(IS_FUCHSIA)
@@ -422,9 +434,6 @@ ClientSharedImage::ClientSharedImage(
           metadata_.format,
           handle_info.buffer_usage,
           info.meta.usage,
-          base::BindRepeating(
-              &ClientSharedImage::CopyNativeGmbToSharedMemoryAsync,
-              base::Unretained(this)),
           std::move(shared_memory_pool))),
       buffer_usage_(handle_info.buffer_usage),
       sii_holder_(std::move(sii_holder)) {
@@ -488,7 +497,11 @@ std::unique_ptr<ClientSharedImage::ScopedMapping> ClientSharedImage::Map() {
       ScopedMapping::Create(metadata_, mappable_buffer_.get(),
                             /*is_already_mapped=*/false);
   if (!scoped_mapping) {
-    LOG(ERROR) << "Unable to create ScopedMapping";
+    std::ostringstream s;
+    s << " shared_image Info: {"
+      << " format: " << format().ToString() << " usage: " << usage().ToString()
+      << " label: " << debug_label() << " }";
+    LOG(ERROR) << "Unable to create ScopedMapping.  " << s.str();
   }
   return scoped_mapping;
 }
@@ -764,22 +777,6 @@ void ClientSharedImage::CopyNativeGmbToSharedMemoryAsync(
     gfx::GpuMemoryBufferHandle buffer_handle,
     base::UnsafeSharedMemoryRegion memory_region,
     base::OnceCallback<void(bool)> callback) {
-  // Lazily create the |task_runner_|.
-  if (!copy_native_buffer_to_shmem_task_runner_) {
-    copy_native_buffer_to_shmem_task_runner_ =
-        base::ThreadPool::CreateSingleThreadTaskRunner({base::MayBlock()});
-    CHECK(copy_native_buffer_to_shmem_task_runner_);
-  }
-
-  if (!copy_native_buffer_to_shmem_task_runner_->BelongsToCurrentThread()) {
-    copy_native_buffer_to_shmem_task_runner_->PostTask(
-        FROM_HERE,
-        base::BindOnce(&ClientSharedImage::CopyNativeGmbToSharedMemoryAsync,
-                       base::Unretained(this), std::move(buffer_handle),
-                       std::move(memory_region), std::move(callback)));
-    return;
-  }
-
   auto sii = sii_holder_->Get();
   if (!sii) {
     DLOG(WARNING) << "No SharedImageInterface.";
@@ -790,6 +787,30 @@ void ClientSharedImage::CopyNativeGmbToSharedMemoryAsync(
       std::move(buffer_handle), std::move(memory_region),
       mojo::WrapCallbackWithDefaultInvokeIfNotRun(std::move(callback),
                                                   /*result=*/false));
+}
+
+void ClientSharedImage::RunOnTaskRunner(
+    MappableBuffer::CopyNativeBufferToShMemCallback callback,
+    gfx::GpuMemoryBufferHandle buffer_handle,
+    base::UnsafeSharedMemoryRegion memory_region,
+    base::OnceCallback<void(bool)> result_cb) {
+  // Lazily create the |task_runner_|.
+  if (!copy_native_buffer_to_shmem_task_runner_) {
+    copy_native_buffer_to_shmem_task_runner_ =
+        base::ThreadPool::CreateSingleThreadTaskRunner({base::MayBlock()});
+    CHECK(copy_native_buffer_to_shmem_task_runner_);
+  }
+
+  if (!copy_native_buffer_to_shmem_task_runner_->BelongsToCurrentThread()) {
+    copy_native_buffer_to_shmem_task_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(callback, std::move(buffer_handle),
+                       std::move(memory_region), std::move(result_cb)));
+    return;
+  }
+
+  callback.Run(std::move(buffer_handle), std::move(memory_region),
+               std::move(result_cb));
 }
 
 std::unique_ptr<WebGPUTextureScopedAccess>

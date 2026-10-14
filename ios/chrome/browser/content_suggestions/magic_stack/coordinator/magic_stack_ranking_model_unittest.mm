@@ -20,7 +20,9 @@
 #import "components/commerce/core/mock_shopping_service.h"
 #import "components/commerce/core/test_utils.h"
 #import "components/feature_engagement/test/mock_tracker.h"
+#import "components/history/core/browser/history_service.h"
 #import "components/image_fetcher/core/image_data_fetcher.h"
+#import "components/keyed_service/core/service_access_type.h"
 #import "components/ntp_tiles/icon_cacher.h"
 #import "components/ntp_tiles/most_visited_sites.h"
 #import "components/ntp_tiles/pref_names.h"
@@ -62,6 +64,7 @@
 #import "ios/chrome/browser/favicon/model/ios_chrome_large_icon_service_factory.h"
 #import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
 #import "ios/chrome/browser/first_run/model/first_run.h"
+#import "ios/chrome/browser/history/model/history_service_factory.h"
 #import "ios/chrome/browser/ntp/model/set_up_list_prefs.h"
 #import "ios/chrome/browser/ntp/shared/metrics/feed_metrics_constants.h"
 #import "ios/chrome/browser/reading_list/model/reading_list_model_factory.h"
@@ -240,6 +243,8 @@ class MagicStackRankingModelTest : public PlatformTest {
         AuthenticationServiceFactory::GetInstance(),
         AuthenticationServiceFactory::GetFactoryWithDelegate(
             std::make_unique<FakeAuthenticationServiceDelegate>()));
+    builder.AddTestingFactory(ios::HistoryServiceFactory::GetInstance(),
+                              ios::HistoryServiceFactory::GetDefaultFactory());
     builder.AddTestingFactory(SyncServiceFactory::GetInstance(),
                               base::BindRepeating(&CreateMockSyncService));
     builder.AddTestingFactory(
@@ -314,20 +319,26 @@ class MagicStackRankingModelTest : public PlatformTest {
                    bookmarkModel:nil
          pushNotificationService:nil
            authenticationService:nil];
+    history::HistoryService* history_service =
+        ios::HistoryServiceFactory::GetForProfile(
+            GetProfile(), ServiceAccessType::EXPLICIT_ACCESS);
     favicon::LargeIconService* large_icon_service =
         IOSChromeLargeIconServiceFactory::GetForProfile(GetProfile());
     LargeIconCache* cache =
         IOSChromeLargeIconCacheFactory::GetForProfile(GetProfile());
     std::unique_ptr<ntp_tiles::MostVisitedSites> most_visited_sites =
         std::make_unique<ntp_tiles::MostVisitedSites>(
-            &pref_service_, /*identity_manager*/ nullptr,
-            /*supervised_user_service*/ nullptr, /*top_sites*/ nullptr,
-            /*popular_sites*/ nullptr,
-            /*custom_links*/ nullptr,
-            /*managed_custom_links*/ nullptr, /*icon_cacher*/ nullptr,
-            /*is_default_chrome_app_migrated*/ true);
+            &pref_service_, /*identity_manager=*/nullptr,
+            /*supervised_user_service=*/nullptr,
+            /*supervised_user_url_filtering_service=*/nullptr,
+            /*top_sites=*/nullptr,
+            /*popular_sites=*/nullptr,
+            /*custom_links=*/nullptr,
+            /*managed_custom_links=*/nullptr, /*icon_cacher=*/nullptr,
+            /*is_default_chrome_app_migrated=*/true);
     _mostVisitedTilesMediator = [[FakeMostVisitedTilesMediator alloc]
         initWithMostVisitedSite:std::move(most_visited_sites)
+                 historyService:history_service
                     prefService:GetProfile()->GetPrefs()
                largeIconService:large_icon_service
                  largeIconCache:cache

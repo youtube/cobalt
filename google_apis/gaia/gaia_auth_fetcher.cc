@@ -51,7 +51,7 @@ constexpr char kJsonContentType[] = "application/json;charset=UTF-8";
 
 std::unique_ptr<const GaiaAuthConsumer::ClientOAuthResult>
 ExtractOAuth2TokenPairResponse(const std::string& data) {
-  std::optional<base::Value::Dict> dict =
+  std::optional<base::DictValue> dict =
       base::JSONReader::ReadDict(data, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   if (!dict) {
     return nullptr;
@@ -96,7 +96,7 @@ GetTokenRevocationStatusFromResponseData(const std::string& data,
   if (response_code == net::HTTP_INTERNAL_SERVER_ERROR)
     return GaiaAuthConsumer::TokenRevocationStatus::kServerError;
 
-  std::optional<base::Value::Dict> dict =
+  std::optional<base::DictValue> dict =
       base::JSONReader::ReadDict(data, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   if (!dict) {
     return GaiaAuthConsumer::TokenRevocationStatus::kUnknownError;
@@ -114,9 +114,9 @@ GetTokenRevocationStatusFromResponseData(const std::string& data,
   return GaiaAuthConsumer::TokenRevocationStatus::kUnknownError;
 }
 
-base::Value::Dict ParseJSONDict(const std::string& data) {
+base::DictValue ParseJSONDict(const std::string& data) {
   return base::JSONReader::ReadDict(data, base::JSON_PARSE_CHROMIUM_EXTENSIONS)
-      .value_or(base::Value::Dict());
+      .value_or(base::DictValue());
 }
 
 GaiaAuthConsumer::ReAuthProofTokenStatus ErrorMessageToReAuthProofTokenStatus(
@@ -378,26 +378,29 @@ void GaiaAuthFetcher::StartRevokeOAuth2Token(const std::string& auth_token) {
 
 void GaiaAuthFetcher::StartAuthCodeForOAuth2TokenExchange(
     const std::string& auth_code,
-    const std::string& user_agent_full_version_list,
-    const std::string& binding_registration_token) {
+    const std::string& binding_registration_token,
+    const UserAgentHeadersParam& user_agent_headers) {
   StartAuthCodeForOAuth2TokenExchangeWithDeviceId(
-      auth_code, /*device_id=*/std::string(), user_agent_full_version_list,
-      binding_registration_token);
+      auth_code, /*device_id=*/std::string(), binding_registration_token,
+      user_agent_headers);
 }
 
 void GaiaAuthFetcher::StartAuthCodeForOAuth2TokenExchangeWithDeviceId(
     const std::string& auth_code,
     const std::string& device_id,
-    const std::string& user_agent_full_version_list,
-    const std::string& binding_registration_token) {
+    const std::string& binding_registration_token,
+    const UserAgentHeadersParam& user_agent_headers) {
   DCHECK(!fetch_pending_) << "Tried to fetch two things at once!";
 
   VLOG(1) << "Starting OAuth token pair fetch";
 
   net::HttpRequestHeaders headers;
-  if (!user_agent_full_version_list.empty()) {
+  if (!user_agent_headers.full_version_list.empty()) {
     headers.SetHeader("Sec-CH-UA-Full-Version-List",
-                      user_agent_full_version_list);
+                      user_agent_headers.full_version_list);
+  }
+  if (!user_agent_headers.platform.empty()) {
+    headers.SetHeader("Sec-CH-UA-Platform", user_agent_headers.platform);
   }
 
   request_body_ =
@@ -610,7 +613,7 @@ void GaiaAuthFetcher::StartCreateReAuthProofTokenForParent(
     const GaiaId& parent_obfuscated_gaia_id,
     const std::string& parent_credential) {
   // Create the post body.
-  base::Value::Dict post_body_value;
+  base::DictValue post_body_value;
   post_body_value.Set("credentialType", "password");
   post_body_value.Set("credential", parent_credential);
   std::string post_body;
@@ -801,7 +804,7 @@ void GaiaAuthFetcher::OnReAuthApiInfoFetched(const std::string& data,
                                              net::Error net_error,
                                              int response_code) {
   if (net_error == net::OK) {
-    base::Value::Dict response_dict = ParseJSONDict(data);
+    base::DictValue response_dict = ParseJSONDict(data);
 
     if (response_code == net::HTTP_OK) {
       std::string* rapt_token = response_dict.FindString("encodedRapt");

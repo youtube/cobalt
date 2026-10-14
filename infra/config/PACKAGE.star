@@ -30,7 +30,7 @@ pkg.depend(
         ref = "refs/heads/main",
         path = "starlark-libs/chromium-luci",
         # Take revision from https://chromium.googlesource.com/infra/chromium/.
-        revision = "785dd41df763627d696118c5fe0936a199861ab6",
+        revision = "baf9a25908b533878f5f0706161c97e8a954c5d8",
     ),
 )
 

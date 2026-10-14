@@ -70,6 +70,13 @@ String StripLeadingAndTrailingHTMLSpaces(const String& string) {
   });
 }
 
+StringView StripLeadingAndTrailingHtmlSpaces(const StringView& string) {
+  if (string.empty()) {
+    return string.IsNull() ? string : g_empty_atom;
+  }
+  return string.StripWhiteSpace(IsHTMLSpace);
+}
+
 // TODO(iclelland): Consider refactoring this into a general
 // String::Split(predicate) method
 Vector<String> SplitOnASCIIWhitespace(const String& input) {
@@ -164,9 +171,8 @@ double ParseToDoubleForNumberType(const String& string, double fallback_value) {
   if (string.EndsWith('.'))
     return fallback_value;
 
-  bool valid = false;
-  double value = string.ToDouble(&valid);
-  return CheckDoubleValue(value, valid, fallback_value);
+  auto value = StringToDouble(string);
+  return CheckDoubleValue(value.value_or(0), value.has_value(), fallback_value);
 }
 
 template <typename CharacterType>
@@ -411,7 +417,7 @@ TextEncoding EncodingFromMetaAttributes(const HTMLAttributeList& attributes) {
 
   if (mode == MetaAttribute::kCharset ||
       (mode == MetaAttribute::kPragma && got_pragma))
-    return TextEncoding(StripLeadingAndTrailingHTMLSpaces(charset));
+    return TextEncoding(StripLeadingAndTrailingHtmlSpaces(charset));
 
   return TextEncoding();
 }

@@ -45,11 +45,13 @@ PasskeyRequestParams::PasskeyRequestParams(
     device::PublicKeyCredentialRpEntity rp_entity,
     std::vector<uint8_t> challenge,
     device::UserVerificationRequirement user_verification,
+    enum RequestType request_type,
     PasskeyExtensionData extension_data)
     : request_info_(std::move(request_info)),
       rp_entity_(std::move(rp_entity)),
       challenge_(std::move(challenge)),
       user_verification_(user_verification),
+      request_type_(request_type),
       extension_data_(std::move(extension_data)) {}
 
 PasskeyRequestParams::PasskeyRequestParams(PasskeyRequestParams&& other) =
@@ -81,6 +83,10 @@ bool PasskeyRequestParams::ShouldPerformUserVerification(
     bool is_biometric_authentication_enabled) const {
   return GpmWillDoUserVerification(user_verification_,
                                    is_biometric_authentication_enabled);
+}
+
+PasskeyRequestParams::RequestType PasskeyRequestParams::Type() const {
+  return request_type_;
 }
 
 passkey_model_utils::ExtensionInputData

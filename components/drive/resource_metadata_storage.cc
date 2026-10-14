@@ -7,8 +7,6 @@
 #include <stddef.h>
 
 #include <map>
-#include <set>
-#include <unordered_map>
 #include <utility>
 
 #include "base/compiler_specific.h"
@@ -21,6 +19,8 @@
 #include "components/drive/drive.pb.h"
 #include "components/drive/drive_api_util.h"
 #include "components/drive/file_system_core_util.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 #include "third_party/leveldatabase/env_chromium.h"
 #include "third_party/leveldatabase/leveldb_chrome.h"
 #include "third_party/leveldatabase/src/include/leveldb/db.h"
@@ -53,7 +53,7 @@ const base::FilePath::CharType kTrashedResourceMapDBName[] =
     FILE_PATH_LITERAL("resource_metadata_trashed_resource_map.db");
 
 // Meant to be a character which never happen to be in real IDs.
-const char kDBKeyDelimeter = '\0';
+const char kDBKeyDelimiter = '\0';
 
 // String used as a suffix of a key for a cache entry.
 const char kCacheEntryKeySuffix[] = "CACHE";
@@ -64,35 +64,35 @@ const char kIdEntryKeyPrefix[] = "ID";
 // Returns a string to be used as the key for the header.
 std::string GetHeaderDBKey() {
   std::string key;
-  key.push_back(kDBKeyDelimeter);
+  key.push_back(kDBKeyDelimiter);
   key.append("HEADER");
   return key;
 }
 
 // Returns true if |key| is a key for a child entry.
 bool IsChildEntryKey(const leveldb::Slice& key) {
-  return !key.empty() && key[key.size() - 1] == kDBKeyDelimeter;
+  return !key.empty() && key[key.size() - 1] == kDBKeyDelimiter;
 }
 
 // Returns true if |key| is a key for a cache entry.
 bool IsCacheEntryKey(const leveldb::Slice& key) {
-  // A cache entry key should end with |kDBKeyDelimeter + kCacheEntryKeySuffix|.
+  // A cache entry key should end with |kDBKeyDelimiter + kCacheEntryKeySuffix|.
   const leveldb::Slice expected_suffix(kCacheEntryKeySuffix,
                                        std::size(kCacheEntryKeySuffix) - 1);
   if (key.size() < 1 + expected_suffix.size() ||
-      key[key.size() - expected_suffix.size() - 1] != kDBKeyDelimeter)
+      key[key.size() - expected_suffix.size() - 1] != kDBKeyDelimiter) {
     return false;
+  }
 
-  const leveldb::Slice key_substring(
-      UNSAFE_TODO(key.data() + key.size() - expected_suffix.size()),
-      expected_suffix.size());
+  leveldb::Slice key_substring = key;
+  key_substring.remove_prefix(key.size() - expected_suffix.size());
   return key_substring.compare(expected_suffix) == 0;
 }
 
 // Returns ID extracted from a cache entry key.
 std::string GetIdFromCacheEntryKey(const leveldb::Slice& key) {
   DCHECK(IsCacheEntryKey(key));
-  // Drop the suffix |kDBKeyDelimeter + kCacheEntryKeySuffix| from the key.
+  // Drop the suffix |kDBKeyDelimiter + kCacheEntryKeySuffix| from the key.
   const size_t kSuffixLength = std::size(kCacheEntryKeySuffix) - 1;
   const int id_length = key.size() - 1 - kSuffixLength;
   return std::string(key.data(), id_length);
@@ -101,9 +101,9 @@ std::string GetIdFromCacheEntryKey(const leveldb::Slice& key) {
 // Returns a string to be used as a key for a resource-ID-to-local-ID entry.
 std::string GetIdEntryKey(const std::string& resource_id) {
   std::string key;
-  key.push_back(kDBKeyDelimeter);
+  key.push_back(kDBKeyDelimiter);
   key.append(kIdEntryKeyPrefix);
-  key.push_back(kDBKeyDelimeter);
+  key.push_back(kDBKeyDelimiter);
   key.append(resource_id);
   return key;
 }
@@ -111,26 +111,29 @@ std::string GetIdEntryKey(const std::string& resource_id) {
 // Returns true if |key| is a key for a resource-ID-to-local-ID entry.
 bool IsIdEntryKey(const leveldb::Slice& key) {
   // A resource-ID-to-local-ID entry key should start with
-  // |kDBKeyDelimeter + kIdEntryKeyPrefix + kDBKeyDelimeter|.
-  const leveldb::Slice expected_prefix(kIdEntryKeyPrefix,
-                                       std::size(kIdEntryKeyPrefix) - 1);
-  if (key.size() < 2 + expected_prefix.size())
+  // |kDBKeyDelimiter + kIdEntryKeyPrefix + kDBKeyDelimiter|.
+  leveldb::Slice prefix(kIdEntryKeyPrefix, std::size(kIdEntryKeyPrefix) - 1);
+  if (key.size() < 2 + prefix.size()) {
     return false;
-  const leveldb::Slice key_substring(UNSAFE_TODO(key.data() + 1),
-                                     expected_prefix.size());
-  return key[0] == kDBKeyDelimeter &&
-      key_substring.compare(expected_prefix) == 0 &&
-      key[expected_prefix.size() + 1] == kDBKeyDelimeter;
+  }
+
+  leveldb::Slice key_substring = key;
+  key_substring.remove_prefix(1);
+
+  return key[0] == kDBKeyDelimiter && key_substring.starts_with(prefix) &&
+         key[prefix.size() + 1] == kDBKeyDelimiter;
 }
 
 // Returns the resource ID extracted from a resource-ID-to-local-ID entry key.
 std::string GetResourceIdFromIdEntryKey(const leveldb::Slice& key) {
   DCHECK(IsIdEntryKey(key));
-  // Drop the prefix |kDBKeyDelimeter + kIdEntryKeyPrefix + kDBKeyDelimeter|
+  // Drop the prefix |kDBKeyDelimiter + kIdEntryKeyPrefix + kDBKeyDelimiter|
   // from the key.
   const size_t kPrefixLength = std::size(kIdEntryKeyPrefix) - 1;
   const int offset = kPrefixLength + 2;
-  return std::string(UNSAFE_TODO(key.data() + offset), key.size() - offset);
+  leveldb::Slice resource_id = key;
+  resource_id.remove_prefix(offset);
+  return resource_id.ToString();
 }
 
 // Converts leveldb::Status to DBInitStatus.
@@ -229,7 +232,7 @@ bool UpgradeOldDBVersion11(leveldb::DB* resource_map) {
   std::unique_ptr<leveldb::Iterator> it(resource_map->NewIterator(options));
 
   // First, get the set of local IDs associated with cache entries.
-  std::set<std::string> cached_entry_ids;
+  absl::flat_hash_set<std::string> cached_entry_ids;
   for (it->SeekToFirst(); it->Valid(); it->Next()) {
     if (IsCacheEntryKey(it->key()))
       cached_entry_ids.insert(GetIdFromCacheEntryKey(it->key()));
@@ -242,7 +245,7 @@ bool UpgradeOldDBVersion11(leveldb::DB* resource_map) {
   std::map<std::string, std::string> local_id_to_resource_id;
   for (it->SeekToFirst(); it->Valid(); it->Next()) {
     const bool is_used_id = IsIdEntryKey(it->key()) &&
-                            cached_entry_ids.count(it->value().ToString());
+                            cached_entry_ids.contains(it->value().ToString());
     if (is_used_id) {
       local_id_to_resource_id[it->value().ToString()] =
           GetResourceIdFromIdEntryKey(it->key());
@@ -369,7 +372,7 @@ bool UpgradeOldDBVersion12(leveldb::DB* resource_map) {
 bool UpgradeOldDBVersion13(leveldb::DB* resource_map) {
   // Before r272134, UpgradeOldDB() was not deleting unused ID entries.
   // Delete unused ID entries to fix crbug.com/374648.
-  std::set<std::string> used_ids;
+  absl::flat_hash_set<std::string> used_ids;
 
   std::unique_ptr<leveldb::Iterator> it(
       resource_map->NewIterator(leveldb::ReadOptions()));
@@ -386,8 +389,9 @@ bool UpgradeOldDBVersion13(leveldb::DB* resource_map) {
 
   leveldb::WriteBatch batch;
   for (it->SeekToFirst(); it->Valid(); it->Next()) {
-    if (IsIdEntryKey(it->key()) && !used_ids.count(it->value().ToString()))
+    if (IsIdEntryKey(it->key()) && !used_ids.contains(it->value().ToString())) {
       batch.Delete(it->key());
+    }
   }
   if (!it->status().ok())
     return false;
@@ -494,7 +498,7 @@ ResourceMetadataStorage::Iterator::Iterator(
 
   // Skip the header entry.
   // Note: The header entry comes before all other entries because its key
-  // starts with kDBKeyDelimeter. (i.e. '\0')
+  // starts with kDBKeyDelimiter. (i.e. '\0')
   it_->Seek(leveldb::Slice(GetHeaderDBKey()));
 
   Advance();
@@ -1024,9 +1028,9 @@ std::string ResourceMetadataStorage::GetChildEntryKey(
   DCHECK(!child_name.empty());
 
   std::string key = parent_id;
-  key.push_back(kDBKeyDelimeter);
+  key.push_back(kDBKeyDelimiter);
   key.append(child_name);
-  key.push_back(kDBKeyDelimeter);
+  key.push_back(kDBKeyDelimiter);
   return key;
 }
 
@@ -1101,10 +1105,10 @@ bool ResourceMetadataStorage::CheckValidity() {
   }
 
   // First scan. Remember relationships between IDs.
-  typedef std::unordered_map<std::string, std::string> KeyToIdMapping;
+  typedef absl::flat_hash_map<std::string, std::string> KeyToIdMapping;
   KeyToIdMapping local_id_to_resource_id_map;
   KeyToIdMapping child_key_to_local_id_map;
-  std::set<std::string> resource_entries;
+  absl::flat_hash_set<std::string> resource_entries;
   std::string first_resource_entry_key;
   for (it->Next(); it->Valid(); it->Next()) {
     if (IsChildEntryKey(it->key())) {
@@ -1157,9 +1161,7 @@ bool ResourceMetadataStorage::CheckValidity() {
     // If the parent is referenced, then confirm that it exists and check the
     // parent-child relationships.
     if (!entry.parent_local_id().empty()) {
-      const auto parent_mapping_it =
-          resource_entries.find(entry.parent_local_id());
-      if (parent_mapping_it == resource_entries.end()) {
+      if (!resource_entries.contains(entry.parent_local_id())) {
         DLOG(ERROR) << "Parent entry not found.";
         return false;
       }

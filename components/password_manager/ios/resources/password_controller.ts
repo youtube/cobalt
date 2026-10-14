@@ -10,7 +10,7 @@ import {CrWebApi, gCrWeb} from '//ios/web/public/js_messaging/resources/gcrweb.j
 import {isTextField, sendWebKitMessage} from '//ios/web/public/js_messaging/resources/utils.js';
 
 /**
- * @fileoverview Installs Passwords management functions on the gCrWebLegacy object.
+ * @fileoverview Installs Passwords management functions on the gCrWeb object.
  *
  * It scans the DOM, extracting and storing password forms and returns a JSON
  * string representing an array of objects, each of which represents an Password
@@ -420,7 +420,7 @@ function getPasswordFormData(
   return ok ? formData : null;
 }
 
-const passwordsApi = new CrWebApi();
+const passwordsApi = new CrWebApi('passwords');
 
 passwordsApi.addFunction('findPasswordForms', findPasswordForms);
 passwordsApi.addFunction('fillPasswordForm', fillPasswordForm);
@@ -431,4 +431,4 @@ passwordsApi.addFunction('getPasswordFormData', getPasswordFormData);
 passwordsApi.addFunction(
     'getPasswordFormDataAsString', getPasswordFormDataAsString);
 
-gCrWeb.registerApi('passwords', passwordsApi);
+gCrWeb.registerApi(passwordsApi);

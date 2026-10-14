@@ -64,6 +64,7 @@ export function getWordCount(text: string): number {
   return TextSegmenter.getInstance().getWordCount(text);
 }
 
+// TODO(crbug.com/447427066): Move these visibility functions to dom_queries.ts.
 // Returns true if the given rect is mostly within the visible window.
 export function isRectMostlyVisible(rect: DOMRect): boolean {
   if (rect.height <= 0) {
@@ -91,4 +92,10 @@ function isPointVisible(point: number) {
       (point >= 0) &&
       ((point <= window.innerHeight) ||
        (point <= document.documentElement.clientHeight)));
+}
+
+// Returns true if the active distillation method is readability.
+export function isDistilledByReadability(): boolean {
+  return chrome.readingMode.activeDistillationMethod ===
+      chrome.readingMode.distillationTypeReadability;
 }

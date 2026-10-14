@@ -164,7 +164,7 @@ CSSNumericValue* CalcToNumericValue(const CSSMathExpressionNode& root) {
     DCHECK(node.GetRandomValueSharing()->IsFixed());
     CSSNumericValue* min = CalcToNumericValue(*node.Min());
     CSSNumericValue* max = CalcToNumericValue(*node.Max());
-    // TODO(crbug.com/413385732): Use correct random_base_value instead of 0 if
+    // TODO(crbug.com/475807587): Use correct random_base_value instead of 0 if
     // it's not calculated.
     double random_base_value =
         node.GetRandomValueSharing()->GetFixed()->GetValueIfKnown().value_or(0);
@@ -594,7 +594,7 @@ CSSNumericValue* CSSNumericValue::mul(
   if (CSSUnitValue* unit_value = MaybeMultiplyAsUnitValue(values)) {
     return unit_value;
   }
-  return CSSMathProduct::Create(std::move(values));
+  return CSSMathProduct::Create(std::move(values), exception_state);
 }
 
 CSSNumericValue* CSSNumericValue::div(
@@ -615,7 +615,7 @@ CSSNumericValue* CSSNumericValue::div(
   if (CSSUnitValue* unit_value = MaybeMultiplyAsUnitValue(values)) {
     return unit_value;
   }
-  return CSSMathProduct::Create(std::move(values));
+  return CSSMathProduct::Create(std::move(values), exception_state);
 }
 
 CSSNumericValue* CSSNumericValue::min(
@@ -628,7 +628,7 @@ CSSNumericValue* CSSNumericValue::min(
           values, [](double a, double b) { return std::min(a, b); })) {
     return unit_value;
   }
-  return CSSMathMin::Create(std::move(values));
+  return CSSMathMin::Create(std::move(values), exception_state);
 }
 
 CSSNumericValue* CSSNumericValue::max(
@@ -641,7 +641,8 @@ CSSNumericValue* CSSNumericValue::max(
           values, [](double a, double b) { return std::max(a, b); })) {
     return unit_value;
   }
-  return CSSMathMax::Create(std::move(values));
+
+  return CSSMathMax::Create(std::move(values), exception_state);
 }
 
 bool CSSNumericValue::equals(

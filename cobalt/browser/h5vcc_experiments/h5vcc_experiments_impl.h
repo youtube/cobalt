@@ -44,8 +44,7 @@ class H5vccExperimentsImpl
   H5vccExperimentsImpl(const H5vccExperimentsImpl&) = delete;
   H5vccExperimentsImpl& operator=(const H5vccExperimentsImpl&) = delete;
 
-  void SetExperimentState(base::Value::Dict,
-                          SetExperimentStateCallback) override;
+  void SetExperimentState(base::DictValue, SetExperimentStateCallback) override;
   void ResetExperimentState(ResetExperimentStateCallback) override;
   void GetActiveExperimentConfigData(
       GetActiveExperimentConfigDataCallback) override;
@@ -55,7 +54,7 @@ class H5vccExperimentsImpl
   void SetLatestExperimentConfigHashData(
       const std::string& hash_data,
       SetLatestExperimentConfigHashDataCallback) override;
-  void SetFinchParameters(base::Value::Dict settings,
+  void SetFinchParameters(base::DictValue settings,
                           SetFinchParametersCallback) override;
 
  private:

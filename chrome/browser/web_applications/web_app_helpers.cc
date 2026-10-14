@@ -107,7 +107,7 @@ webapps::AppId GenerateAppIdFromManifestId(
 
 webapps::ManifestId GenerateManifestIdFromStartUrlOnly(const GURL& start_url) {
   CHECK(start_url.is_valid()) << start_url.spec();
-  return start_url.GetWithoutRef();
+  return webapps::ManifestId(start_url.GetWithoutRef());
 }
 
 webapps::ManifestId GenerateManifestId(const std::string& manifest_id_path,
@@ -128,7 +128,7 @@ webapps::ManifestId GenerateManifestIdUnsafe(
   // with slash.
   const GURL manifest_id(start_url.DeprecatedGetOriginAsURL().spec() +
                          manifest_id_path);
-  return manifest_id.GetWithoutRef();
+  return webapps::ManifestId(manifest_id.GetWithoutRef());
 }
 
 namespace {
@@ -185,12 +185,14 @@ std::optional<webapps::AppId> FindInstalledAppWithUrlInScope(Profile* profile,
 }
 
 bool IsNonLocallyInstalledAppWithUrlInScope(Profile* profile, const GURL& url) {
-  auto* provider = WebAppProvider::GetForWebApps(profile);
-  return provider ? provider->registrar_unsafe()
-                        .FindBestAppWithUrlInScope(
-                            url, web_app::WebAppFilter::IsSuggestedApp())
-                        .has_value()
-                  : false;
+  if (auto* provider = WebAppProvider::GetForWebApps(profile)) {
+    FindBestAppInScopeOptions options(WebAppFilter::IsSuggestedApp());
+    options.eligibility_filter = WebAppFilter::IsAppSurfaceableToUser();
+    return provider->registrar_unsafe()
+        .FindBestAppWithUrlInScope(url, options)
+        .has_value();
+  }
+  return false;
 }
 
 bool LooksLikePlaceholder(const WebApp& app) {

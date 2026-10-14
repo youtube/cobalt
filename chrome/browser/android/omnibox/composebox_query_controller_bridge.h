@@ -13,14 +13,19 @@
 #include "base/functional/callback_forward.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/profiles/profile.h"
+#include "components/contextual_search/contextual_search_session_handle.h"
+#include "components/contextual_search/input_state_model.h"
 #include "components/contextual_search/internal/composebox_query_controller.h"
 #include "components/lens/proto/server/lens_overlay_response.pb.h"
-#include "components/page_content_annotations/core/page_content_store.h"
 #include "third_party/jni_zero/jni_zero.h"
 
 namespace content {
 class WebContents;
 }  //  namespace content
+
+namespace optimization_guide::proto {
+class PageContext;
+}  // namespace optimization_guide::proto
 
 class Profile;
 class GURL;
@@ -55,6 +60,8 @@ class ComposeboxQueryControllerBridge
   void RemoveAttachment(JNIEnv* env, const std::string& token);
   bool IsPdfUploadEligible(JNIEnv* env);
   bool IsCreateImagesEligible(JNIEnv* env);
+  void SetActiveTool(JNIEnv* env, omnibox::ToolMode tool_mode);
+  void SetActiveModel(JNIEnv* env, omnibox::ModelMode model_mode);
 
   std::unique_ptr<lens::proto::LensOverlaySuggestInputs>
   CreateLensOverlaySuggestInputs() const;
@@ -79,13 +86,21 @@ class ComposeboxQueryControllerBridge
   void OnGetPageContentFromCache(
       JNIEnv* env,
       const base::UnguessableToken& context_token,
-      std::optional<optimization_guide::PageContentResult> page_context);
+      std::optional<optimization_guide::proto::PageContext> page_context);
+  void OnInputStateChanged(const contextual_search::InputState& state);
 
   std::unique_ptr<ComposeboxQueryController::CreateSearchUrlRequestInfo>
   CreateSearchUrlRequestInfoFromUrl(GURL url);
+  contextual_search::ContextualSearchContextController* query_controller()
+      const {
+    return session_handle_->GetController();
+  }
 
   raw_ptr<Profile> profile_;
-  std::unique_ptr<ComposeboxQueryController> query_controller_;
+  std::unique_ptr<contextual_search::ContextualSearchSessionHandle>
+      session_handle_;
+  std::unique_ptr<contextual_search::InputStateModel> input_state_model_;
+  base::CallbackListSubscription input_state_subscription_;
   base::android::ScopedJavaGlobalRef<jobject> java_obj_;
   base::WeakPtrFactory<ComposeboxQueryControllerBridge> weak_ptr_factory_{this};
 };

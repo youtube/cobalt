@@ -27,6 +27,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/notimplemented.h"
+#include "base/rand_util.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/system/sys_info.h"
@@ -384,9 +385,9 @@ void RenderWidgetHostViewAndroid::ScreenStateChangeHandler::
   BeginScreenStateChange();
   pending_screen_state_.is_picture_in_picture = has_persistent_video;
   pending_screen_state_.is_fullscreen = is_fullscreen;
-  // TODO(crbug.com/40872802): We should try to re-establish throttling for
-  // Picture-in-Picture mode. Will need better determination of when we have
-  // completed entering/exiting.
+  // Throttling is disabled for Picture-in-Picture mode because re-enabling it was
+  // found to be complex and performance is acceptable without it. See
+  // crbug.com/40872802 for history.
   pending_screen_state_.any_non_rotation_size_changed = true;
   HandleScreenStateChanges(cc::DeadlinePolicy::UseDefaultDeadline());
 }
@@ -446,10 +447,6 @@ bool RenderWidgetHostViewAndroid::ScreenStateChangeHandler::
   // `physical_backing_size` will be shrunk, though it is not guaranteed to be
   // simply a scale from the fullscreen size. As sometimes inset changes are
   // also applied.
-  //
-  // TODO(crbug.com/40872802): We should try to re-establish throttling for
-  // Picture-in-Picture mode. Will need better determination of when we have
-  // completed entering/exiting.
   if (pending_screen_state_.is_picture_in_picture) {
     if (rwhva_->in_rotation_)
       end_rotation = true;
@@ -1515,6 +1512,13 @@ void RenderWidgetHostViewAndroid::CleanupDraggingCallback() {
 
 bool RenderWidgetHostViewAndroid::OnTouchEvent(
     const ui::MotionEventAndroid& event) {
+  // A lower sampling rate should work, but we want to get accurate data on
+  // pre-release channels as well.
+  if (base::ShouldRecordSubsampledMetric(0.1)) {
+    UMA_HISTOGRAM_ENUMERATION("Android.Input.TouchEvent.Action",
+                              event.GetAction());
+  }
+
   // WARNING: Adding any code above `FilterRedundantDownEvent` check will likely
   // lead to unexpected behavior in touch sequence handling. Do not modify the
   // position of this check without careful consideration.

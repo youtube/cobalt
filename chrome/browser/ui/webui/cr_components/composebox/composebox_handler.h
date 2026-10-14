@@ -45,8 +45,6 @@ class ComposeboxHandler : public composebox::mojom::PageHandler,
 
   // composebox::mojom::PageHandler:
   void FocusChanged(bool focused) override;
-  void SetDeepSearchMode(bool enabled) override;
-  void SetCreateImageMode(bool enabled, bool image_present) override;
 
   void HandleLensButtonClick() override;
   void HandleFileUpload(bool is_image) override;
@@ -83,14 +81,6 @@ class ComposeboxHandler : public composebox::mojom::PageHandler,
                    omnibox::ChromeAimEntryPoint aim_entrypoint,
                    std::map<std::string, std::string> additional_params);
 
-  omnibox::ToolMode GetAimToolMode() const override;
-
-  // Called to update the suggested tab context chip in the compose box.
-  virtual void UpdateSuggestedTabContext(searchbox::mojom::TabInfoPtr tab_info);
-
-  // Returns true if there is a suggested tab context chip in the compose box.
-  bool has_suggested_tab_context() const { return has_suggested_tab_context_; }
-
   // SearchboxHandler:
   std::string AutocompleteIconToResourceName(
       const gfx::VectorIcon& icon) const override;
@@ -107,12 +97,8 @@ class ComposeboxHandler : public composebox::mojom::PageHandler,
       GetSessionHandleCallback get_session_callback);
 
  private:
-  // The tool mode for the composebox, if any. These tool modes are disjoint
-  // and it's only possible for one mode to be set at one time.
-  omnibox::ToolMode aim_tool_mode_ = omnibox::ToolMode::TOOL_MODE_UNSPECIFIED;
   raw_ptr<content::WebContents> web_contents_;
   base::WeakPtr<TopChromeWebUIController::Embedder> embedder_;
-  bool has_suggested_tab_context_ = false;
 
   // These are located at the end of the list of member variables to ensure the
   // WebUI page is disconnected before other members are destroyed.

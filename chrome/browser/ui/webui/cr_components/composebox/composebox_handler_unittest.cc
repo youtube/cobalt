@@ -93,7 +93,6 @@ class ComposeboxHandlerTest : public ContextualSearchboxHandlerTestHarness {
     auto query_controller_config_params = std::make_unique<
         contextual_search::ContextualSearchContextController::ConfigParams>();
     query_controller_config_params->send_lns_surface = false;
-    query_controller_config_params->enable_multi_context_input_flow = false;
     query_controller_config_params->enable_viewport_images = true;
     auto query_controller_ptr = std::make_unique<MockQueryController>(
         /*identity_manager=*/nullptr, url_loader_factory(),
@@ -105,6 +104,10 @@ class ComposeboxHandlerTest : public ContextualSearchboxHandlerTestHarness {
     auto metrics_recorder_ptr =
         std::make_unique<MockContextualSearchMetricsRecorder>();
     metrics_recorder_ = metrics_recorder_ptr.get();
+    ON_CALL(*metrics_recorder_, RecordModesOnSubmission)
+        .WillByDefault(testing::Invoke(
+            metrics_recorder_.get(),
+            &MockContextualSearchMetricsRecorder::RecordModesOnSubmissionBase));
 
     service_ = ContextualSearchServiceFactory::GetForProfile(profile());
     contextual_session_handle_ = service_->CreateSessionForTesting(
@@ -188,111 +191,6 @@ class ComposeboxHandlerTest : public ContextualSearchboxHandlerTestHarness {
   std::unique_ptr<ComposeboxHandler> handler_;
 };
 
-TEST_F(ComposeboxHandlerTest, SetDeepSearchMode) {
-  // Wait until the state changes to kClusterInfoReceived.
-  base::RunLoop run_loop;
-  query_controller().set_on_query_controller_state_changed_callback(
-      base::BindLambdaForTesting(
-          [&](ComposeboxQueryController::QueryControllerState state) {
-            if (state == ComposeboxQueryController::QueryControllerState::
-                             kClusterInfoReceived) {
-              run_loop.Quit();
-            }
-          }));
-
-  // Start the session.
-  EXPECT_CALL(query_controller(), InitializeIfNeeded)
-      .Times(1)
-      .WillOnce(testing::Invoke(&query_controller(),
-                                &MockQueryController::InitializeIfNeededBase));
-  handler().NotifySessionStarted();
-  run_loop.Run();
-
-  // Submitting without setting deep search.
-  std::string dr_param;
-  SubmitQueryAndWaitForNavigation();
-  GURL query_url =
-      web_contents()->GetController().GetLastCommittedEntry()->GetURL();
-  EXPECT_FALSE(net::GetValueForKeyInQuery(query_url, "dr", &dr_param));
-
-  // Submitting with setting deep search.
-  handler().SetDeepSearchMode(true);
-  histogram_tester().ExpectUniqueSample(
-      "ContextualSearch.Tools.DeepSearch.NewTabPage",
-      contextual_search::AimToolState::kEnabled, 1);
-  SubmitQueryAndWaitForNavigation();
-  GURL query_url_dr =
-      web_contents()->GetController().GetLastCommittedEntry()->GetURL();
-  EXPECT_TRUE(net::GetValueForKeyInQuery(query_url_dr, "dr", &dr_param));
-  EXPECT_EQ("1", dr_param);
-
-  // Submitting after disabling deep search.
-  handler().SetDeepSearchMode(false);
-  histogram_tester().ExpectTotalCount(
-      "ContextualSearch.Tools.DeepSearch.NewTabPage", 2);
-  histogram_tester().ExpectBucketCount(
-      "ContextualSearch.Tools.DeepSearch.NewTabPage",
-      contextual_search::AimToolState::kEnabled, 1);
-  histogram_tester().ExpectBucketCount(
-      "ContextualSearch.Tools.DeepSearch.NewTabPage",
-      contextual_search::AimToolState::kDisabled, 1);
-  SubmitQueryAndWaitForNavigation();
-  GURL query_url_disabled_dr =
-      web_contents()->GetController().GetLastCommittedEntry()->GetURL();
-  EXPECT_FALSE(
-      net::GetValueForKeyInQuery(query_url_disabled_dr, "dr", &dr_param));
-}
-
-TEST_F(ComposeboxHandlerTest, SetCreateImageMode) {
-  // Wait until the state changes to kClusterInfoReceived.
-  base::RunLoop run_loop;
-  query_controller().set_on_query_controller_state_changed_callback(
-      base::BindLambdaForTesting(
-          [&](ComposeboxQueryController::QueryControllerState state) {
-            if (state == ComposeboxQueryController::QueryControllerState::
-                             kClusterInfoReceived) {
-              run_loop.Quit();
-            }
-          }));
-
-  // Start the session.
-  EXPECT_CALL(query_controller(), InitializeIfNeeded)
-      .Times(1)
-      .WillOnce(testing::Invoke(&query_controller(),
-                                &MockQueryController::InitializeIfNeededBase));
-  handler().NotifySessionStarted();
-  run_loop.Run();
-
-  // Submitting with create image mode enabled.
-  handler().SetCreateImageMode(true, /*image_present= */ false);
-  histogram_tester().ExpectUniqueSample(
-      "ContextualSearch.Tools.CreateImages.NewTabPage",
-      contextual_search::AimToolState::kEnabled, 1);
-  SubmitQueryAndWaitForNavigation();
-  GURL query_url_create_image =
-      web_contents()->GetController().GetLastCommittedEntry()->GetURL();
-  std::string imgn_param;
-  EXPECT_TRUE(
-      net::GetValueForKeyInQuery(query_url_create_image, "imgn", &imgn_param));
-  EXPECT_EQ("1", imgn_param);
-
-  // Submitting with create image mode disabled.
-  handler().SetCreateImageMode(false, /*image_present= */ false);
-  histogram_tester().ExpectTotalCount(
-      "ContextualSearch.Tools.CreateImages.NewTabPage", 2);
-  histogram_tester().ExpectBucketCount(
-      "ContextualSearch.Tools.CreateImages.NewTabPage",
-      contextual_search::AimToolState::kEnabled, 1);
-  histogram_tester().ExpectBucketCount(
-      "ContextualSearch.Tools.CreateImages.NewTabPage",
-      contextual_search::AimToolState::kDisabled, 1);
-  SubmitQueryAndWaitForNavigation();
-  GURL query_url_disabled_create_image =
-      web_contents()->GetController().GetLastCommittedEntry()->GetURL();
-  EXPECT_FALSE(net::GetValueForKeyInQuery(query_url_disabled_create_image,
-                                          "imgn", &imgn_param));
-}
-
 TEST_F(ComposeboxHandlerTest, DeleteFileAndSubmitQuery) {
   std::string file_type = ".Image";
   std::string file_status = ".NotUploaded";
@@ -326,25 +224,38 @@ TEST_F(ComposeboxHandlerTest, SubmitQueryWithToolMetric) {
   // Submit with no tools enabled.
   SubmitQueryAndWaitForNavigation();
   histogram_tester().ExpectBucketCount(
-      "ContextualSearch.Tools.SubmissionType.NewTabPage",
-      contextual_search::SubmissionType::kDefault, 1);
+      "ContextualSearch.Tools.ModeOnSubmission.NewTabPage",
+      composebox_query::mojom::ToolMode::kUnspecified, 1);
+  histogram_tester().ExpectBucketCount(
+      "ContextualSearch.Models.ModeOnSubmission.NewTabPage",
+      composebox_query::mojom::ModelMode::kUnspecified, 1);
 
-  // Submitting with deep search mode enabled.
-  handler().SetDeepSearchMode(true);
+  // Submitting with deep search and Gemini regular model enabled.
+  handler().SetActiveToolMode(omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH);
+  handler().SetActiveModelMode(omnibox::ModelMode::MODEL_MODE_GEMINI_REGULAR);
   SubmitQueryAndWaitForNavigation();
   histogram_tester().ExpectBucketCount(
-      "ContextualSearch.Tools.SubmissionType.NewTabPage",
-      contextual_search::SubmissionType::kDeepSearch, 1);
+      "ContextualSearch.Tools.ModeOnSubmission.NewTabPage",
+      composebox_query::mojom::ToolMode::kDeepSearch, 1);
+  histogram_tester().ExpectBucketCount(
+      "ContextualSearch.Models.ModeOnSubmission.NewTabPage",
+      composebox_query::mojom::ModelMode::kGeminiRegular, 1);
 
-  // Submitting with create image mode enabled.
-  handler().SetCreateImageMode(true, /*image_present= */ false);
+  // Submitting with create image and Gemini Pro model enabled.
+  handler().SetActiveToolMode(omnibox::ToolMode::TOOL_MODE_IMAGE_GEN);
+  handler().SetActiveModelMode(omnibox::ModelMode::MODEL_MODE_GEMINI_PRO);
   SubmitQueryAndWaitForNavigation();
   histogram_tester().ExpectBucketCount(
-      "ContextualSearch.Tools.SubmissionType.NewTabPage",
-      contextual_search::SubmissionType::kCreateImages, 1);
+      "ContextualSearch.Tools.ModeOnSubmission.NewTabPage",
+      composebox_query::mojom::ToolMode::kImageGen, 1);
+  histogram_tester().ExpectBucketCount(
+      "ContextualSearch.Models.ModeOnSubmission.NewTabPage",
+      composebox_query::mojom::ModelMode::kGeminiPro, 1);
 
   histogram_tester().ExpectTotalCount(
-      "ContextualSearch.Tools.SubmissionType.NewTabPage", 3);
+      "ContextualSearch.Tools.ModeOnSubmission.NewTabPage", 3);
+  histogram_tester().ExpectTotalCount(
+      "ContextualSearch.Models.ModeOnSubmission.NewTabPage", 3);
 }
 
 TEST_F(ComposeboxHandlerTest, ContextMenu_Shows) {

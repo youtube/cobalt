@@ -18,6 +18,10 @@ public class EducationalTipModuleTwoCellProperties {
     public static final WritableObjectPropertyKey<String> MODULE_TITLE =
             new WritableObjectPropertyKey<>();
 
+    /** The OnClickListener for the "See more" text view */
+    public static final WritableObjectPropertyKey<Runnable> SEE_MORE_CLICK_HANDLER =
+            new WritableObjectPropertyKey<>();
+
     // Two-cell layout properties
     public static final WritableObjectPropertyKey<String> ITEM_1_TITLE =
             new WritableObjectPropertyKey<>();
@@ -26,6 +30,8 @@ public class EducationalTipModuleTwoCellProperties {
     public static final WritableObjectPropertyKey<Runnable> ITEM_1_CLICK_HANDLER =
             new WritableObjectPropertyKey<>();
     public static final WritableObjectPropertyKey<String> ITEM_1_DESCRIPTION =
+            new WritableObjectPropertyKey<>();
+    public static final WritableObjectPropertyKey<Boolean> ITEM_1_MARK_COMPLETED =
             new WritableObjectPropertyKey<>();
 
     public static final WritableObjectPropertyKey<String> ITEM_2_TITLE =
@@ -36,16 +42,21 @@ public class EducationalTipModuleTwoCellProperties {
             new WritableObjectPropertyKey<>();
     public static final WritableObjectPropertyKey<String> ITEM_2_DESCRIPTION =
             new WritableObjectPropertyKey<>();
+    public static final WritableObjectPropertyKey<Boolean> ITEM_2_MARK_COMPLETED =
+            new WritableObjectPropertyKey<>();
 
     public static final PropertyKey[] ALL_KEYS = {
         MODULE_TITLE,
+        SEE_MORE_CLICK_HANDLER,
         ITEM_1_TITLE,
         ITEM_1_DESCRIPTION,
         ITEM_1_ICON,
         ITEM_1_CLICK_HANDLER,
+        ITEM_1_MARK_COMPLETED,
         ITEM_2_TITLE,
         ITEM_2_DESCRIPTION,
         ITEM_2_ICON,
-        ITEM_2_CLICK_HANDLER
+        ITEM_2_CLICK_HANDLER,
+        ITEM_2_MARK_COMPLETED
     };
 }

@@ -14,7 +14,7 @@
 #include "third_party/blink/renderer/platform/graphics/static_bitmap_image.h"
 #include "third_party/blink/renderer/platform/graphics/test/fake_gles2_interface.h"
 #include "third_party/blink/renderer/platform/graphics/test/fake_web_graphics_context_3d_provider.h"
-#include "third_party/blink/renderer/platform/graphics/test/gpu_memory_buffer_test_platform.h"
+#include "third_party/blink/renderer/platform/graphics/test/gpu_compositing_test_platform.h"
 #include "third_party/blink/renderer/platform/graphics/test/gpu_test_utils.h"
 #include "third_party/blink/renderer/platform/graphics/test/test_webgraphics_shared_image_interface_provider.h"
 #include "third_party/blink/renderer/platform/testing/task_environment.h"
@@ -65,7 +65,7 @@ TEST(CanvasResourceTest, PrepareTransferableResource_PreservesAlphaType) {
   auto accelerated_compositing_platform = std::make_unique<
       ScopedTestingPlatformSupport<AcceleratedCompositingTestPlatform>>();
   auto test_context_provider = viz::TestContextProvider::CreateRaster();
-  InitializeSharedGpuContextRaster(test_context_provider.get());
+  InitializeSharedGpuContext(test_context_provider.get());
 
   viz::TransferableResource resource;
   CanvasResource::ReleaseCallback release_callback;
@@ -96,7 +96,7 @@ TEST(CanvasResourceTest, PrepareTransferableResource_PreservesAlphaType) {
       &resource, &release_callback, /*needs_verified_synctoken=*/false));
   EXPECT_EQ(resource.GetAlphaType(), kUnpremul_SkAlphaType);
 
-  // InitializeSharedGpuContextRaster() requires SharedGpuContext::Reset()
+  // InitializeSharedGpuContext() requires SharedGpuContext::Reset()
   // at TearDown().
   SharedGpuContext::Reset();
 }

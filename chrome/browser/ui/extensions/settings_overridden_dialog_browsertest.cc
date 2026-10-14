@@ -9,9 +9,9 @@
 #include "base/memory/raw_ptr.h"
 #include "base/path_service.h"
 #include "base/strings/string_util.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
 #include "chrome/browser/extensions/chrome_test_extension_loader.h"
-#include "chrome/browser/extensions/scoped_test_mv2_enabler.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/ui/browser.h"
@@ -31,6 +31,7 @@
 #include "components/vector_icons/vector_icons.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "extensions/common/extension_features.h"
 #include "ui/views/test/widget_test.h"
 #include "ui/views/widget/any_widget_observer.h"
 #include "ui/views/widget/widget.h"
@@ -111,10 +112,11 @@ class SettingsOverriddenDialogBrowserTest : public DialogBrowserTest {
   // Creates, shows, and returns a dialog anchored to the given `browser`. The
   // dialog is owned by the views framework.
   views::Widget* ShowSimpleDialog(bool show_icon, Browser* browser) {
-    SettingsOverriddenDialogController::ShowParams params{
+    SettingsOverriddenDialogController::ShowParams params(
         u"Settings overridden dialog title",
         u"Settings overriden dialog body, which is quite a bit "
-        u"longer than the title alone"};
+        u"longer than the title alone",
+        nullptr);
     if (show_icon) {
       params.icon = &vector_icons::kProductIcon;
     }
@@ -241,9 +243,6 @@ class SettingsOverriddenDialogBrowserTest : public DialogBrowserTest {
 
   std::string test_name_;
   std::optional<DialogResult> dialog_result_;
-
-  // TODO(https://crbug.com/40804030): Remove this when updated to use MV3.
-  extensions::ScopedTestMV2Enabler mv2_enabler_;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -294,6 +293,7 @@ IN_PROC_BROWSER_TEST_F(SettingsOverriddenDialogBrowserTest,
                        InvokeUi_SearchOverriddenDialog_Generic) {
   ShowAndVerifyUi();
 }
+
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
 
 ////////////////////////////////////////////////////////////////////////////////

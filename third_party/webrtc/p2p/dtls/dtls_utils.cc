@@ -89,6 +89,9 @@ void PacketStash::Prune(const absl::flat_hash_set<uint32_t>& hashes) {
   if (pos_ >= removed) {
     pos_ -= removed;
   }
+  if (pos_ >= packets_.size()) {
+    pos_ = packets_.empty() ? 0 : packets_.size() - 1;
+  }
 }
 
 void PacketStash::Prune(uint32_t max_size) {

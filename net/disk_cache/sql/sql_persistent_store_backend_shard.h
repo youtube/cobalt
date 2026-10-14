@@ -14,6 +14,7 @@
 #include "net/base/io_buffer.h"
 #include "net/disk_cache/sql/sql_persistent_store.h"
 #include "net/disk_cache/sql/sql_persistent_store_in_memory_index.h"
+#include "net/disk_cache/sql/sql_read_cache_memory_monitor.h"
 
 namespace base {
 class FilePath;
@@ -33,10 +34,12 @@ class EvictionCandidateAggregator;
 // operations to the `Backend` on a dedicated background task runner.
 class SqlPersistentStore::BackendShard {
  public:
-  BackendShard(ShardId shard_id,
-               const base::FilePath& path,
-               net::CacheType type,
-               scoped_refptr<base::SequencedTaskRunner> background_task_runner);
+  BackendShard(
+      ShardId shard_id,
+      const base::FilePath& path,
+      net::CacheType type,
+      scoped_refptr<SqlReadCacheMemoryMonitor> read_cache_memory_monitor,
+      scoped_refptr<base::SequencedTaskRunner> background_task_runner);
   ~BackendShard();
 
   // Kicks off the asynchronous initialization of the backend.
@@ -64,25 +67,22 @@ class SqlPersistentStore::BackendShard {
   void UpdateEntryLastUsedByKey(const CacheEntryKey& key,
                                 base::Time last_used,
                                 ErrorCallback callback);
-  void UpdateEntryLastUsedByResId(ResId res_id,
-                                  base::Time last_used,
-                                  ErrorCallback callback);
-  void UpdateEntryHeaderAndLastUsed(
+  void WriteEntryDataAndMetadata(
       const CacheEntryKey& key,
-      ResId res_id,
+      std::optional<ResId> res_id,
+      std::optional<int64_t> old_body_end,
+      EntryWriteBuffer buffer,
       base::Time last_used,
       const std::optional<MemoryEntryDataHints>& new_hints,
-      scoped_refptr<net::IOBuffer> buffer,
+      scoped_refptr<net::IOBuffer> head_buffer,
       int64_t header_size_delta,
-      ErrorCallback callback);
+      ResIdOrErrorCallback callback);
   void WriteEntryData(const CacheEntryKey& key,
-                      ResId res_id,
+                      const ResIdOrTime& res_id_or_last_used_time,
                       int64_t old_body_end,
-                      int64_t offset,
-                      scoped_refptr<net::IOBuffer> buffer,
-                      int buf_len,
+                      EntryWriteBuffer buffer,
                       bool truncate,
-                      ErrorCallback callback);
+                      ResIdOrErrorCallback callback);
   void ReadEntryData(const CacheEntryKey& key,
                      ResId res_id,
                      int64_t offset,
@@ -90,7 +90,8 @@ class SqlPersistentStore::BackendShard {
                      int buf_len,
                      int64_t body_end,
                      bool sparse_reading,
-                     SqlPersistentStore::IntOrErrorCallback callback);
+                     SqlPersistentStore::ReadResultOrErrorCallback callback);
+
   void GetEntryAvailableRange(const CacheEntryKey& key,
                               ResId res_id,
                               int64_t offset,
@@ -152,7 +153,9 @@ class SqlPersistentStore::BackendShard {
     kStartEviction = 3,
     kDeleteLiveEntry = 4,
     kDeleteLiveEntriesBetween = 5,
-    kMaxValue = kDeleteLiveEntriesBetween,
+    kWriteEntryDataAndMetadata = 6,
+    kWriteEntryData = 7,
+    kMaxValue = kWriteEntryData,
   };
   // LINT.ThenChange(//tools/metrics/histograms/metadata/net/enums.xml:SqlDiskCacheIndexMismatchLocation)
 
@@ -175,6 +178,14 @@ class SqlPersistentStore::BackendShard {
   // Like `WrapCallback`, but also updates the `store_status_`.
   base::OnceCallback<void(ErrorAndStoreStatus)> WrapCallbackWithStoreStatus(
       ErrorCallback callback);
+
+  base::OnceCallback<void(ResIdOrErrorAndStoreStatus)>
+  WrapCallbackWithStoreStatusAndIndexUpdate(
+      ResIdOrErrorCallback callback,
+      const CacheEntryKey& key,
+      bool is_new_entry,
+      const std::optional<MemoryEntryDataHints>& new_hints,
+      IndexMismatchLocation location);
 
   base::OnceCallback<void(EntryInfoOrErrorAndStoreStatus)>
   WrapEntryInfoOrErrorCallback(EntryInfoOrErrorCallback callback,

@@ -18,6 +18,7 @@
 #include "libANGLE/renderer/ContextImpl.h"
 #include "libANGLE/renderer/renderer_utils.h"
 #include "libANGLE/renderer/vulkan/DisplayVk.h"
+#include "libANGLE/renderer/vulkan/DriverUniforms.h"
 #include "libANGLE/renderer/vulkan/OverlayVk.h"
 #include "libANGLE/renderer/vulkan/PersistentCommandPool.h"
 #include "libANGLE/renderer/vulkan/ShareGroupVk.h"
@@ -707,7 +708,8 @@ class ContextVk : public ContextImpl, public vk::Context, public MultisampleText
     angle::Result onSyncObjectInit(vk::SyncHelper *syncHelper, SyncFenceScope scope);
     // Called when a sync object is waited on while its submission was deferred in onSyncObjectInit.
     // It's a no-op if this context doesn't have a pending submission.  Note that due to
-    // mHasDeferredFlush being set, flushing the render pass leads to a submission automatically.
+    // mHasDeferredRenderPassFlush being set, flushing the render pass leads to a submission
+    // automatically.
     angle::Result flushCommandsAndEndRenderPassIfDeferredSyncInit(RenderPassClosureReason reason);
 
     void addCommandBufferDiagnostics(const std::string &commandBufferDiagnostics);
@@ -895,6 +897,10 @@ class ContextVk : public ContextImpl, public vk::Context, public MultisampleText
     bool isImageWithTileMemoryFinalized(const vk::ImageHelper *image) const;
     void addImageWithTileMemory(vk::ImageHelper *imageToAdd);
     void removeImageWithTileMemory(const vk::ImageHelper *imageToRemove);
+
+    // Restore all graphics state based on current gl::State.
+    void restoreAllGraphicsState();
+    bool hasActiveRenderPassQuery() const { return mActiveRenderPassQueryBitmask.any(); }
 
   private:
     // Dirty bits.
@@ -1203,8 +1209,12 @@ class ContextVk : public ContextImpl, public vk::Context, public MultisampleText
         DirtyBits dirtyBitMask);
     angle::Result handleDirtyGraphicsIndexBuffer(DirtyBits::Iterator *dirtyBitsIterator,
                                                  DirtyBits dirtyBitMask);
+    angle::Result handleDirtyGraphicsDriverUniformsImpl(const vk::PipelineLayout &pipelineLayout);
     angle::Result handleDirtyGraphicsDriverUniforms(DirtyBits::Iterator *dirtyBitsIterator,
                                                     DirtyBits dirtyBitMask);
+    angle::Result handleDirtyGraphicsDriverUniformsWithXFBEmulation(
+        DirtyBits::Iterator *dirtyBitsIterator,
+        DirtyBits dirtyBitMask);
     angle::Result handleDirtyGraphicsShaderResources(DirtyBits::Iterator *dirtyBitsIterator,
                                                      DirtyBits dirtyBitMask);
     angle::Result handleDirtyGraphicsUniformBuffers(DirtyBits::Iterator *dirtyBitsIterator,
@@ -1475,6 +1485,7 @@ class ContextVk : public ContextImpl, public vk::Context, public MultisampleText
     // - Occlusion queries
     // - Transform feedback queries, if not emulated
     gl::QueryTypeMap<QueryVk *> mActiveRenderPassQueries;
+    gl::QueryTypeBitSet mActiveRenderPassQueryBitmask;
 
     // Dirty bits.
     DirtyBits mGraphicsDirtyBits;
@@ -1611,7 +1622,7 @@ class ContextVk : public ContextImpl, public vk::Context, public MultisampleText
 
     // Whether a flush was requested, but is deferred as an optimization to avoid breaking the
     // render pass.
-    bool mHasDeferredFlush;
+    bool mHasDeferredRenderPassFlush;
 
     // Whether this context has produced any commands so far.  While the renderer already skips
     // vkQueueSubmit when there is no command recorded, this variable allows glFlush itself to be
@@ -1679,6 +1690,9 @@ class ContextVk : public ContextImpl, public vk::Context, public MultisampleText
     RangedSerialFactory mOutsideRenderPassSerialFactory;
 
     uint32_t mCommandsPendingSubmissionCount;
+
+    GraphicsDriverUniforms mGraphicsDriverUniforms;
+    XFBEmulationGraphicsDriverUniforms mXFBEmulationDriverUniforms;
 };
 
 ANGLE_INLINE angle::Result ContextVk::endRenderPassIfTransformFeedbackBuffer(
@@ -1712,8 +1726,6 @@ ANGLE_INLINE bool UseLineRaster(const ContextVk *contextVk, gl::PrimitiveMode mo
 {
     return gl::IsLineMode(mode);
 }
-
-uint32_t GetDriverUniformSize(vk::ErrorContext *context, PipelineType pipelineType);
 }  // namespace rx
 
 // Generate a perf warning, and insert an event marker in the command buffer.

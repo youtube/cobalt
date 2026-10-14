@@ -23,6 +23,7 @@
 #include <openssl/mem.h>
 
 #include "../../internal.h"
+#include "../../mem_internal.h"
 #include "internal.h"
 
 
@@ -40,8 +41,7 @@ void bssl::bn_mont_ctx_cleanup(BN_MONT_CTX *mont) {
 }
 
 BN_MONT_CTX *BN_MONT_CTX_new() {
-  BN_MONT_CTX *ret =
-      reinterpret_cast<BN_MONT_CTX *>(OPENSSL_malloc(sizeof(BN_MONT_CTX)));
+  BN_MONT_CTX *ret = New<BN_MONT_CTX>();
   if (ret == nullptr) {
     return nullptr;
   }
@@ -55,7 +55,7 @@ void BN_MONT_CTX_free(BN_MONT_CTX *mont) {
     return;
   }
   bn_mont_ctx_cleanup(mont);
-  OPENSSL_free(mont);
+  Delete(mont);
 }
 
 BN_MONT_CTX *BN_MONT_CTX_copy(BN_MONT_CTX *to, const BN_MONT_CTX *from) {

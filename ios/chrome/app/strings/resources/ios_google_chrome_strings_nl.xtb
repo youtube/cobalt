@@ -1,6 +1,7 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="nl">
+<translation id="1035560095760914532">Plaats Chrome in het onderste gedeelte om er op elk moment toegang toe te hebben</translation>
 <translation id="1076643793026027628">Chrome opent YouTube-incognitolinks automatisch in de incognitomodus.</translation>
 <translation id="1081114897601629648">De volgende wachtwoorden zijn niet geïmporteerd in Google Wachtwoordmanager omdat ze niet voldoen aan de vereisten.</translation>
 <translation id="1086486568852410168">Zoeken met Google Lens</translation>
@@ -86,6 +87,10 @@ Wacht een paar minuten voordat je uitlogt. Als je nu uitlogt, worden deze gegeve
 <translation id="2767464022270041271">Geen opgeslagen wachtwoorden. Google Wachtwoordmanager kan je wachtwoorden checken als je deze opslaat.</translation>
 <translation id="2788811701191021538">Opent de pagina met instellingen voor betaalmethoden in Chrome.</translation>
 <translation id="2876628302275096482">Meer informatie over <ph name="BEGIN_LINK" />hoe Chrome je gegevens privé houdt<ph name="END_LINK" /></translation>
+<translation id="288992067439702510">Je hebt de limiet van <ph name="LIMIT" /> bookmarks van Google Chrome bereikt. Sommige van je bookmarks zijn daarom nog niet opgeslagen in je Google-account.
+
+Je kunt pas nieuwe bookmarks opslaan in je account als je er een paar hebt verwijderd. Als je nu uitlogt, worden niet-opgeslagen bookmarks verwijderd.</translation>
+<translation id="2901621928549457170">Open Chrome meteen als je je iPad gebruikt</translation>
 <translation id="2922914028977213693">Tik hier om het maximale uit Chrome op je iPad te halen.</translation>
 <translation id="292371311537977079">Chrome-instellingen</translation>
 <translation id="2923827943290349720">Incognitotabbladen vergrendelen als je Chrome sluit</translation>
@@ -170,6 +175,8 @@ Wacht een paar minuten voordat je uitlogt. Als je nu uitlogt, worden deze gegeve
 <translation id="5119391094379141756">Selecteer Chrome</translation>
 <translation id="5123188916260706415">Zoeken met je stem in Chrome</translation>
 <translation id="5162467219239570114">Chrome is verouderd. Als er geen update beschikbaar is in de <ph name="BEGIN_LINK" />App Store<ph name="END_LINK" />, ondersteunt je apparaat nieuwe versies van Chrome mogelijk niet.</translation>
+<translation id="5172049865623113551">Open Chrome meteen als je je iPhone gebruikt</translation>
+<translation id="5179095426828744632">Chrome sneller openen via het dock</translation>
 <translation id="5184329579814168207">Openen in Chrome</translation>
 <translation id="5190139289262548459">Je organisatie, <ph name="DOMAIN" />, beheert het account waarop je bent ingelogd en hoe Chrome wordt gebruikt.</translation>
 <translation id="5209238444239954363">Chrome kan niet checken op updates. Probeer het later opnieuw.</translation>
@@ -304,7 +311,6 @@ Ga naar <ph name="BEGIN_LINK" />Google-services<ph name="END_LINK" /> voor meer 
 <translation id="7787205077729386167">Open de Chrome-instellingen in iOS, tik op Standaard browser-app en selecteer Chrome.</translation>
 <translation id="778855399387580014">Start een zoekopdracht op een nieuw Chrome-tabblad.</translation>
 <translation id="7792140019572081272">Chrome beveiligt je gevoelige gegevens met Face ID.</translation>
-<translation id="7825648984449922731">Afbeelding bewerken met Gemini in Chrome</translation>
 <translation id="7855730255114109580">Google Chrome is up-to-date</translation>
 <translation id="787226752901403048">Log in bij Chrome om tabbladgroepen te delen en eraan deel te nemen en samen aan ideeën te werken</translation>
 <translation id="7897703007638178753">Recente Chrome-tabbladen bekijken</translation>

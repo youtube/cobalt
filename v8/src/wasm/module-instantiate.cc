@@ -360,13 +360,13 @@ bool IsDataViewSetterSig(const wasm::CanonicalSig* sig,
 }
 
 const MachineSignature* GetFunctionSigForFastApiImport(
-    Zone* zone, const CFunctionInfo* info) {
+    WasmModuleSignatureStorage* storage, const CFunctionInfo* info) {
   uint32_t arg_count = info->ArgumentCount();
   uint32_t ret_count =
       info->ReturnInfo().GetType() == CTypeInfo::Type::kVoid ? 0 : 1;
   constexpr uint32_t param_offset = 1;
 
-  MachineSignature::Builder sig_builder(zone, ret_count,
+  MachineSignature::Builder sig_builder(storage, ret_count,
                                         arg_count - param_offset);
   if (ret_count) {
     sig_builder.AddReturn(MachineType::TypeForCType(info->ReturnInfo()));
@@ -489,13 +489,13 @@ WellKnownImport CheckForWellKnownImport(
     // would store the same signature to the native module.
     if (!native_module->has_fast_api_signature(func_index)) {
       // We have to use the lock of the NativeModule here because the
-      // `signature_zone` may get accessed by another module instantiation
+      // `signature_storage` may get accessed by another module instantiation
       // concurrently.
       NativeModule::NativeModuleAllocationLockScope lock(native_module);
       native_module->set_fast_api_signature(
           func_index,
           GetFunctionSigForFastApiImport(
-              &native_module->module()->signature_zone,
+              &native_module->module()->signature_storage,
               func_data->GetCSignature(isolate, out_api_function_index)));
     }
 
@@ -2393,8 +2393,14 @@ bool InstanceBuilder::ProcessImportedMemories(
     if (Tagged<JSArrayBuffer> buffer;
         TryCast(memory_object->array_buffer(), &buffer)) {
       DCHECK_EQ(backing_store, buffer->GetBackingStore());
-      DCHECK_EQ(backing_store->byte_length(), buffer->GetByteLength());
       DCHECK_EQ(backing_store->is_shared(), buffer->is_shared());
+      if (backing_store->is_shared()) {
+        // Note: For shared memory, the backing store might have just grown in
+        // another thread.
+        DCHECK_GE(backing_store->byte_length(), buffer->GetByteLength());
+      } else {
+        DCHECK_EQ(backing_store->byte_length(), buffer->GetByteLength());
+      }
     }
 #endif  // DEBUG
     uint32_t imported_cur_pages =
@@ -2868,7 +2874,7 @@ ValueOrError ConsumeElementSegmentEntry(
 }  // namespace
 
 std::optional<MessageTemplate> InitializeElementSegment(
-    Zone* zone, Isolate* isolate,
+    Isolate* isolate,
     DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
     DirectHandle<WasmTrustedInstanceData> shared_trusted_instance_data,
     uint32_t segment_index, PrecreateExternal precreate_external_functions) {
@@ -2915,10 +2921,12 @@ std::optional<MessageTemplate> InitializeElementSegment(
       result->set(static_cast<int>(i), *value);
     }
   } else {
+    Zone temp_zone{isolate->allocator(), "InitializeElementSegment"};
     for (size_t i = 0; i < elem_segment.element_count; ++i) {
-      ValueOrError value = ConsumeElementSegmentEntry(
-          zone, isolate, trusted_instance_data, shared_trusted_instance_data,
-          elem_segment, decoder, kStrictFunctionsAndNull);
+      ValueOrError value =
+          ConsumeElementSegmentEntry(&temp_zone, isolate, trusted_instance_data,
+                                     shared_trusted_instance_data, elem_segment,
+                                     decoder, kStrictFunctionsAndNull);
       if (is_error(value)) return {to_error(value)};
       result->set(static_cast<int>(i), *to_value(value).to_ref());
     }

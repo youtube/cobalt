@@ -20,8 +20,8 @@
 #include "ui/views/metadata/view_factory.h"
 
 class CommandUpdater;
+class InitialWebUIWindowMetricsManager;
 class Profile;
-class WaapUIMetricsRecorder;
 class WaapUIMetricsRecorder;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -38,7 +38,9 @@ class ReloadButton : public ToolbarButton, public ReloadControl {
   METADATA_HEADER(ReloadButton, ToolbarButton)
 
  public:
-  ReloadButton(Profile* profile, CommandUpdater* command_updater);
+  ReloadButton(Profile* profile,
+               CommandUpdater* command_updater,
+               InitialWebUIWindowMetricsManager* window_metrics_manager);
   ReloadButton(const ReloadButton&) = delete;
   ReloadButton& operator=(const ReloadButton&) = delete;
   ~ReloadButton() override;
@@ -71,8 +73,8 @@ class ReloadButton : public ToolbarButton, public ReloadControl {
 
   // ReloadControl overrides:
   void ChangeMode(Mode mode, bool force) override;
-  bool GetMenuEnabled() const override;
-  void SetMenuEnabled(bool is_menu_enabled) override;
+  bool GetDevToolsStatusForTesting() const override;
+  void SetDevToolsStatus(bool is_dev_tools_connected) override;
 
   void ExecuteCommand(int command_id, int event_flags) override;
 
@@ -126,8 +128,8 @@ class ReloadButton : public ToolbarButton, public ReloadControl {
   base::TimeDelta double_click_timer_delay_;
   base::TimeDelta mode_switch_timer_delay_;
 
-  // Indicates if reload menu is enabled.
-  bool is_menu_enabled_ = false;
+  // Indicates if dev tools is connected.
+  bool is_dev_tools_connected_ = false;
 
   // TESTING ONLY
   // True if we should pretend the button is hovered.
@@ -136,12 +138,16 @@ class ReloadButton : public ToolbarButton, public ReloadControl {
   // test code can tell whether we did so (as there may be no |browser_|).
   int testing_reload_count_ = 0;
 
+  // The initial WebUI metrics manager for the window this button is in.
+  // Not owned and might be null.
+  const raw_ptr<InitialWebUIWindowMetricsManager> window_metrics_manager_;
+
   // Must be the last member.
   base::WeakPtrFactory<ReloadButton> weak_ptr_factory_{this};
 };
 
 BEGIN_VIEW_BUILDER(CHROME_VIEWS_EXPORT, ReloadButton, ToolbarButton)
-VIEW_BUILDER_PROPERTY(bool, MenuEnabled)
+VIEW_BUILDER_PROPERTY(bool, DevToolsStatus)
 END_VIEW_BUILDER
 
 DEFINE_VIEW_BUILDER(CHROME_VIEWS_EXPORT, ReloadButton)

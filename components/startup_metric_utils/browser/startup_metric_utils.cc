@@ -37,12 +37,6 @@
 
 namespace {
 
-// The signature of the NtQuerySystemInformation function.
-typedef NTSTATUS(WINAPI* NtQuerySystemInformationPtr)(SYSTEM_INFORMATION_CLASS,
-                                                      PVOID,
-                                                      ULONG,
-                                                      PULONG);
-
 // These values are taken from the
 // Startup.BrowserMessageLoopStartHardFaultCount histogram. The latest
 // revision landed on <5 and >3500 for a good split of warm/cold. In between
@@ -172,14 +166,6 @@ BrowserStartupMetricRecorder& GetBrowser() {
 // be determined.
 std::optional<uint32_t>
 BrowserStartupMetricRecorder::GetHardFaultCountForCurrentProcess() {
-  // Get the function pointer.
-  static const NtQuerySystemInformationPtr query_sys_info =
-      reinterpret_cast<NtQuerySystemInformationPtr>(::GetProcAddress(
-          GetModuleHandle(L"ntdll.dll"), "NtQuerySystemInformation"));
-  if (query_sys_info == nullptr) {
-    return std::nullopt;
-  }
-
   // The output of this system call depends on the number of threads and
   // processes on the entire system, and this can change between calls. Retry
   // a small handful of times growing the buffer along the way.
@@ -192,9 +178,9 @@ BrowserStartupMetricRecorder::GetHardFaultCountForCurrentProcess() {
   int num_buffer_resize = 0;
   for (;;) {
     ULONG return_length = 0;
-    const NTSTATUS status =
-        query_sys_info(SystemProcessInformation, buffer.data(),
-                       static_cast<ULONG>(buffer.size()), &return_length);
+    const NTSTATUS status = ::NtQuerySystemInformation(
+        SystemProcessInformation, buffer.data(),
+        static_cast<ULONG>(buffer.size()), &return_length);
 
     // NtQuerySystemInformation succeeded.
     if (NT_SUCCESS(status)) {
@@ -260,6 +246,7 @@ void BrowserStartupMetricRecorder::ResetSessionForTesting() {
   browser_window_first_paint_ticks_ = base::TimeTicks();
   is_privacy_sandbox_attestations_component_ready_recorded_ = false;
   is_privacy_sandbox_attestations_first_check_recorded_ = false;
+  is_first_run_ = false;
 }
 
 bool BrowserStartupMetricRecorder::WasMainWindowStartupInterrupted() const {
@@ -291,6 +278,7 @@ void BrowserStartupMetricRecorder::RecordBrowserMainMessageLoopStart(
     base::TimeTicks ticks,
     bool is_first_run) {
   DCHECK(!GetCommon().application_start_ticks_.is_null());
+  is_first_run_ = is_first_run;
 
   RecordMessageLoopStartTicks(ticks);
 
@@ -310,7 +298,6 @@ void BrowserStartupMetricRecorder::RecordBrowserMainMessageLoopStart(
         &base::UmaHistogramLongTimes100, "Startup.BrowserMessageLoopStartTime",
         GetCommon().application_start_ticks_, ticks);
   }
-
   GetCommon().AddStartupEventsForTelemetry();
 
   // Record values stored prior to startup temperature evaluation.
@@ -516,6 +503,10 @@ bool BrowserStartupMetricRecorder::ShouldLogStartupHistogram() const {
 
 StartupTemperature BrowserStartupMetricRecorder::GetStartupTemperature() const {
   return g_startup_temperature;
+}
+
+bool BrowserStartupMetricRecorder::IsFirstRun() const {
+  return is_first_run_;
 }
 
 base::TimeTicks

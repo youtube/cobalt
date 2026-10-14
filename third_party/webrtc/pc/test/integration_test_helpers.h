@@ -78,6 +78,7 @@
 #include "pc/test/fake_rtc_certificate_generator.h"
 #include "pc/test/fake_video_track_renderer.h"
 #include "pc/test/mock_peer_connection_observers.h"
+#include "pc/test/rtc_stats_obtainer.h"
 #include "pc/video_track_source.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/crypto_random.h"
@@ -91,6 +92,7 @@
 #include "rtc_base/socket_factory.h"
 #include "rtc_base/socket_server.h"
 #include "rtc_base/ssl_stream_adapter.h"
+#include "rtc_base/system/plan_b_only.h"
 #include "rtc_base/task_queue_for_test.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/virtual_socket_server.h"
@@ -508,9 +510,12 @@ class PeerConnectionIntegrationWrapper : public PeerConnectionObserver,
   scoped_refptr<MockStatsObserver> OldGetStatsForTrack(
       MediaStreamTrackInterface* track) {
     auto observer = make_ref_counted<MockStatsObserver>();
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
     EXPECT_TRUE(peer_connection_->GetStats(
         observer.get(), nullptr,
         PeerConnectionInterface::kStatsOutputLevelStandard));
+#pragma clang diagnostic pop
     EXPECT_THAT(
         WaitUntil([&] { return observer->called(); }, ::testing::IsTrue()),
         IsRtcOk());
@@ -524,6 +529,7 @@ class PeerConnectionIntegrationWrapper : public PeerConnectionObserver,
 
   // Synchronously gets stats and returns them. If it times out, fails the test
   // and returns null.
+  // TODO(tommi) - Remove this method in favor of the one that supports RunLoop.
   scoped_refptr<const RTCStatsReport> NewGetStats() {
     auto callback = make_ref_counted<MockRTCStatsCollectorCallback>();
     peer_connection_->GetStats(callback.get());
@@ -531,6 +537,35 @@ class PeerConnectionIntegrationWrapper : public PeerConnectionObserver,
         WaitUntil([&] { return callback->called(); }, ::testing::IsTrue()),
         IsRtcOk());
     return callback->report();
+  }
+
+  scoped_refptr<const RTCStatsReport> NewGetStats(test::RunLoop& run_loop) {
+    scoped_refptr<const RTCStatsReport> report;
+    auto callback = RTCStatsObtainer::Create(&report, run_loop.QuitClosure());
+    peer_connection_->GetStats(callback.get());
+    run_loop.Run();
+    EXPECT_TRUE(report);
+    return report;
+  }
+
+  std::string DtlsCipher() {
+    auto report = NewGetStats();
+    if (!report)
+      return "";
+    auto stats = report->GetStatsOfType<RTCTransportStats>();
+    if (stats.empty() || !stats[0]->dtls_cipher.has_value())
+      return "";
+    return *stats[0]->dtls_cipher;
+  }
+
+  std::string SrtpCipher() {
+    auto report = NewGetStats();
+    if (!report)
+      return "";
+    auto stats = report->GetStatsOfType<RTCTransportStats>();
+    if (stats.empty() || !stats[0]->srtp_cipher.has_value())
+      return "";
+    return *stats[0]->srtp_cipher;
   }
 
   int rendered_width() {
@@ -577,14 +612,14 @@ class PeerConnectionIntegrationWrapper : public PeerConnectionObserver,
            local_rendered_height();
   }
 
-  size_t number_of_remote_streams() {
+  PLAN_B_ONLY size_t number_of_remote_streams() {
     if (!pc()) {
       return 0;
     }
     return pc()->remote_streams()->count();
   }
 
-  StreamCollectionInterface* remote_streams() const {
+  PLAN_B_ONLY StreamCollectionInterface* remote_streams() const {
     if (!pc()) {
       ADD_FAILURE();
       return nullptr;
@@ -592,7 +627,7 @@ class PeerConnectionIntegrationWrapper : public PeerConnectionObserver,
     return pc()->remote_streams().get();
   }
 
-  StreamCollectionInterface* local_streams() {
+  PLAN_B_ONLY StreamCollectionInterface* local_streams() {
     if (!pc()) {
       ADD_FAILURE();
       return nullptr;
@@ -681,7 +716,15 @@ class PeerConnectionIntegrationWrapper : public PeerConnectionObserver,
   std::unique_ptr<SessionDescriptionInterface> CreateOfferAndWait() {
     auto observer = make_ref_counted<MockCreateSessionDescriptionObserver>();
     pc()->CreateOffer(observer.get(), offer_answer_options_);
-    return WaitForDescriptionFromObserver(observer.get());
+    EXPECT_TRUE(WaitUntil([&] { return observer->called(); }));
+    if (!observer->result()) {
+      return nullptr;
+    }
+    auto description = observer->MoveDescription();
+    if (generated_sdp_munger_) {
+      generated_sdp_munger_(description);
+    }
+    return description;
   }
   bool Rollback() {
     return SetRemoteDescription(CreateRollbackSessionDescription());
@@ -805,8 +848,11 @@ class PeerConnectionIntegrationWrapper : public PeerConnectionObserver,
  private:
   // Constructor used by friend class PeerConnectionIntegrationBaseTest.
   explicit PeerConnectionIntegrationWrapper(const std::string& debug_name,
-                                            Environment env)
-      : debug_name_(debug_name), env_(env) {}
+                                            Environment env,
+                                            test::RunLoop& run_loop)
+      : run_loop_(run_loop), debug_name_(debug_name), env_(env) {}
+
+  test::RunLoop& run_loop() const { return run_loop_; }
 
   bool Init(const PeerConnectionFactory::Options* options,
             const PeerConnectionInterface::RTCConfiguration* config,
@@ -909,11 +955,6 @@ class PeerConnectionIntegrationWrapper : public PeerConnectionObserver,
   std::unique_ptr<SessionDescriptionInterface> CreateAnswer() {
     auto observer = make_ref_counted<MockCreateSessionDescriptionObserver>();
     pc()->CreateAnswer(observer.get(), offer_answer_options_);
-    return WaitForDescriptionFromObserver(observer.get());
-  }
-
-  std::unique_ptr<SessionDescriptionInterface> WaitForDescriptionFromObserver(
-      MockCreateSessionDescriptionObserver* observer) {
     EXPECT_THAT(
         WaitUntil([&] { return observer->called(); }, ::testing::IsTrue()),
         IsRtcOk());
@@ -1154,6 +1195,7 @@ class PeerConnectionIntegrationWrapper : public PeerConnectionObserver,
     return false;
   }
 
+  test::RunLoop& run_loop_;
   std::string debug_name_;
   const Environment env_;
 
@@ -1461,7 +1503,8 @@ class PeerConnectionIntegrationBaseTest : public ::testing::Test {
     env.Set(CreateTestFieldTrialsPtr(field_trials));
 
     std::unique_ptr<PeerConnectionIntegrationWrapper> client(
-        new PeerConnectionIntegrationWrapper(debug_name, env.Create()));
+        new PeerConnectionIntegrationWrapper(debug_name, env.Create(),
+                                             run_loop()));
 
     if (!client->Init(options, &modified_config, std::move(dependencies),
                       fss_.get(), network_thread_.get(), worker_thread_.get(),
@@ -1869,8 +1912,20 @@ class PeerConnectionIntegrationBaseTest : public ::testing::Test {
     ASSERT_THAT(WaitUntil([&] { return DtlsConnected(); }, ::testing::IsTrue()),
                 IsRtcOk());
     EXPECT_THAT(
-        WaitUntil([&] { return caller()->OldGetStats()->SrtpCipher(); },
-                  ::testing::Eq(SrtpCryptoSuiteToName(expected_cipher_suite))),
+        WaitUntil(
+            [&] {
+              auto report = caller()->NewGetStats(run_loop());
+              if (!report) {
+                return std::string();
+              }
+              auto transport_stats =
+                  report->GetStatsOfType<RTCTransportStats>();
+              if (transport_stats.empty()) {
+                return std::string();
+              }
+              return *transport_stats[0]->srtp_cipher;
+            },
+            ::testing::Eq(SrtpCryptoSuiteToName(expected_cipher_suite))),
         IsRtcOk());
   }
 

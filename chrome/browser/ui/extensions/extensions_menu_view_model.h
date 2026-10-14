@@ -48,14 +48,13 @@ class ExtensionsMenuViewModel : public extensions::PermissionsManager::Observer,
   // Observer used to notify platforms about changes to the model.
   class Observer : public base::CheckedObserver {
    public:
-    // Notifies the delegate that the active web contents changed to
-    // `web_contents`, which may have impacted the model's content (e.g host
-    // access requests may have changed).
-    virtual void OnActiveWebContentsChanged(
-        content::WebContents* web_contents) = 0;
+    // Notifies the delegate that the active web contents changed, which may
+    // have impacted the model's content (e.g host access requests may have
+    // changed).
+    virtual void OnPageNavigation() = 0;
 
     // Notifies the delegate that a new host access request was added
-    // with `extension_ind` on `index`.
+    // with `extension_id` on `index`.
     virtual void OnHostAccessRequestAdded(
         const extensions::ExtensionId& extension_id,
         int index) = 0;
@@ -89,7 +88,8 @@ class ExtensionsMenuViewModel : public extensions::PermissionsManager::Observer,
                                  int index) = 0;
 
     // Called when an action is updated in the menu model.
-    virtual void OnActionUpdated() = 0;
+    virtual void OnActionUpdated(
+        const ToolbarActionsModel::ActionId& action_id) = 0;
 
     // Called after all actions are added in the menu model after menu model
     // construction.
@@ -293,6 +293,10 @@ class ExtensionsMenuViewModel : public extensions::PermissionsManager::Observer,
     return host_access_requests_;
   }
 
+  // Returns whether the view model has been populated after action models were
+  // initialized.
+  bool is_populated() { return is_populated_; }
+
   // PermissionsManager::Observer:
   void OnHostAccessRequestAdded(const extensions::ExtensionId& extension_id,
                                 int tab_id) override;
@@ -365,6 +369,10 @@ class ExtensionsMenuViewModel : public extensions::PermissionsManager::Observer,
 
   // The delegate to retrieve platform-specific information.
   raw_ptr<Delegate> delegate_;
+
+  // Whether the view model has been populated after action models were
+  // initialized.
+  bool is_populated_ = false;
 
   // The actions models ordered alphabetically by their action name.
   std::vector<std::unique_ptr<ExtensionActionViewModel>> action_models_;

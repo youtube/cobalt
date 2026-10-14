@@ -26,6 +26,7 @@ import androidx.annotation.Px;
 import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.content.res.AppCompatResources;
 
+import org.chromium.base.Callback;
 import org.chromium.base.ObserverList;
 import org.chromium.base.Promise;
 import org.chromium.base.ThreadUtils;
@@ -33,13 +34,14 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.components.browser_ui.util.AvatarGenerator;
 import org.chromium.components.signin.AccountEmailDisplayHook;
+import org.chromium.components.signin.AccountManagerFacade;
 import org.chromium.components.signin.AccountManagerFacadeProvider;
+import org.chromium.components.signin.AccountsChangeObserver;
 import org.chromium.components.signin.base.AccountInfo;
 import org.chromium.components.signin.base.CoreAccountInfo;
-import org.chromium.components.signin.identitymanager.AccountInfoService;
-import org.chromium.components.signin.identitymanager.AccountInfoServiceProvider;
 import org.chromium.components.signin.identitymanager.IdentityManager;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -50,12 +52,23 @@ import java.util.Objects;
  */
 @MainThread
 @NullMarked
-public class ProfileDataCache implements AccountInfoService.Observer {
+public class ProfileDataCache implements IdentityManager.Observer, AccountsChangeObserver {
     /** Observer to get notifications about changes in profile data. */
     public interface Observer {
+
+        /**
+         * Notifies that the list of accounts has been updated.
+         *
+         * @param accounts The list of accounts.
+         *     <p>TODO(crbug.com/480239119): Remove default implementation.
+         */
+        default void onAccountsUpdated(List<DisplayableProfileData> accounts) {}
+
         /**
          * Notifies that an account's profile data has been updated.
+         *
          * @param accountEmail An account email.
+         *     <p>TODO(crbug.com/480279812): Change the parameter to CoreAccountInfo.
          */
         void onProfileDataUpdated(String accountEmail);
     }
@@ -120,6 +133,8 @@ public class ProfileDataCache implements AccountInfoService.Observer {
     }
 
     private final Context mContext;
+    private final AccountManagerFacade mAccountManagerFacade;
+    private final IdentityManager mIdentityManager;
     private final int mImageSize;
     // The badge for a given account is selected as follows:
     // * If there is a config for that specific account, use that
@@ -129,29 +144,23 @@ public class ProfileDataCache implements AccountInfoService.Observer {
     private final Map<String, BadgeConfig> mPerAccountBadgeConfig = new HashMap<>();
     private final Drawable mPlaceholderImage;
     private final ObserverList<Observer> mObservers = new ObserverList<>();
-    private final Map<String, DisplayableProfileData> mCachedProfileData = new HashMap<>();
+    private final AccountsCache mAccountsCache = new AccountsCache();
 
     @VisibleForTesting
     ProfileDataCache(
             Context context,
+            AccountManagerFacade accountManagerFacade,
             IdentityManager identityManager,
             @Px int imageSize,
             @Nullable BadgeConfig badgeConfig) {
-        // TODO(crbug.com/341948846): Remove AccountInfoService and update
-        // populateCache/populateCacheForAllAccounts to use identityManager to get the list of
-        // accounts
         assert identityManager != null;
         mContext = context;
+        mAccountManagerFacade = accountManagerFacade;
+        mIdentityManager = identityManager;
         mImageSize = imageSize;
         mDefaultBadgeConfig = badgeConfig;
         mPlaceholderImage = getScaledPlaceholderImage(context, imageSize);
-        Promise<AccountInfoService> accountInfoServicePromise =
-                AccountInfoServiceProvider.getPromise();
-        if (accountInfoServicePromise.isFulfilled()) {
-            populateCache(accountInfoServicePromise.getResult());
-        } else {
-            accountInfoServicePromise.then(this::populateCache);
-        }
+        populateCache();
     }
 
     /**
@@ -163,6 +172,7 @@ public class ProfileDataCache implements AccountInfoService.Observer {
             Context context, IdentityManager identityManager) {
         return new ProfileDataCache(
                 context,
+                AccountManagerFacadeProvider.getInstance(),
                 identityManager,
                 context.getResources().getDimensionPixelSize(R.dimen.user_picture_size),
                 /* badgeConfig= */ null);
@@ -180,6 +190,7 @@ public class ProfileDataCache implements AccountInfoService.Observer {
             Context context, IdentityManager identityManager, @DrawableRes int badgeResId) {
         return new ProfileDataCache(
                 context,
+                AccountManagerFacadeProvider.getInstance(),
                 identityManager,
                 context.getResources().getDimensionPixelSize(R.dimen.user_picture_size),
                 createDefaultSizeChildAccountBadgeConfig(context, badgeResId));
@@ -194,6 +205,7 @@ public class ProfileDataCache implements AccountInfoService.Observer {
             Context context, IdentityManager identityManager, @DimenRes int imageSizeRedId) {
         return new ProfileDataCache(
                 context,
+                AccountManagerFacadeProvider.getInstance(),
                 identityManager,
                 context.getResources().getDimensionPixelSize(imageSizeRedId),
                 /* badgeConfig= */ null);
@@ -248,12 +260,26 @@ public class ProfileDataCache implements AccountInfoService.Observer {
     }
 
     /**
+     * Gets the list of cached accounts that are synchronized with the device accounts.
+     *
+     * <p>Accounts data are populated from {@link IdentityManager}. To observe changes to accounts,
+     * implement {@link Observer#onAccountsUpdated}.
+     *
+     * @return A {@link Promise} containing the list of cached {@link DisplayableProfileData}
+     *     accounts.
+     */
+    public Promise<List<DisplayableProfileData>> getAccounts() {
+        return mAccountsCache.getAll();
+    }
+
+    /**
      * @return The {@link DisplayableProfileData} containing the profile data corresponding to the
      *     given account or a {@link DisplayableProfileData} with a placeholder image and null full
      *     and given name.
      */
     public DisplayableProfileData getProfileDataOrDefault(@Nullable String accountEmail) {
-        DisplayableProfileData profileData = mCachedProfileData.get(accountEmail);
+        DisplayableProfileData profileData =
+                accountEmail != null ? mAccountsCache.getByEmail(accountEmail) : null;
         if (profileData == null) {
             assumeNonNull(accountEmail);
             return new DisplayableProfileData(
@@ -281,8 +307,8 @@ public class ProfileDataCache implements AccountInfoService.Observer {
         }
 
         mDefaultBadgeConfig = badgeConfig;
-        mCachedProfileData.clear();
-        AccountInfoServiceProvider.getPromise().then(this::populateCache);
+        mAccountsCache.clear();
+        populateCache();
     }
 
     /**
@@ -303,11 +329,7 @@ public class ProfileDataCache implements AccountInfoService.Observer {
             return;
         }
         mPerAccountBadgeConfig.put(accountEmail, badgeConfig);
-        AccountInfoServiceProvider.getPromise()
-                .then(
-                        accountInfoService -> {
-                            populateCacheForAccount(accountInfoService, accountEmail);
-                        });
+        populateCacheForAccount(accountEmail);
     }
 
     /**
@@ -316,11 +338,8 @@ public class ProfileDataCache implements AccountInfoService.Observer {
     public void addObserver(Observer observer) {
         ThreadUtils.assertOnUiThread();
         if (mObservers.isEmpty()) {
-            AccountInfoServiceProvider.getPromise()
-                    .then(
-                            accountInfoService -> {
-                                accountInfoService.addObserver(this);
-                            });
+            mAccountManagerFacade.addObserver(this);
+            mIdentityManager.addObserver(this);
         }
         mObservers.addObserver(observer);
     }
@@ -332,28 +351,31 @@ public class ProfileDataCache implements AccountInfoService.Observer {
         ThreadUtils.assertOnUiThread();
         mObservers.removeObserver(observer);
         if (mObservers.isEmpty()) {
-            AccountInfoServiceProvider.getPromise()
-                    .then(
-                            accountInfoService -> {
-                                accountInfoService.removeObserver(this);
-                            });
+            mAccountManagerFacade.removeObserver(this);
+            mIdentityManager.removeObserver(this);
         }
     }
 
-    /** Implements {@link AccountInfoService.Observer}. */
     @Override
-    public void onAccountInfoUpdated(@Nullable AccountInfo accountInfo) {
+    public void onCoreAccountInfosChanged() {
+        mAccountsCache.clear();
+        populateCache();
+        mAccountsCache
+                .getAll()
+                .then((Callback<List<DisplayableProfileData>>) this::notifyObservers);
+    }
+
+    /** Implements {@link IdentityManager.Observer}. */
+    @Override
+    public void onExtendedAccountInfoUpdated(@Nullable AccountInfo accountInfo) {
         // We don't update the cache if the account information and ProfileDataCache config mean
         // that we would just be returning the default profile data.
         if (accountInfo != null
                 && (accountInfo.hasDisplayableInfo()
                         || getBadgeConfigForAccount(accountInfo.getEmail()) != null)) {
-            updateCacheAndNotifyObservers(
-                    accountInfo.getEmail(),
-                    accountInfo.getAccountImage(),
-                    accountInfo.getFullName(),
-                    accountInfo.getGivenName(),
-                    accountInfo.canHaveEmailAddressDisplayed());
+            var displayableProfileData = toDisplayableProfileData(accountInfo);
+            mAccountsCache.putAccount(displayableProfileData);
+            notifyObservers(accountInfo.getEmail());
         }
     }
 
@@ -361,61 +383,60 @@ public class ProfileDataCache implements AccountInfoService.Observer {
      * @return Whether the cache contains non-default profile data for the given account.
      */
     public boolean hasProfileDataForTesting(String accountEmail) {
-        return mCachedProfileData.containsKey(accountEmail);
+        return mAccountsCache.getByEmail(accountEmail) != null;
     }
 
-    private void populateCache(AccountInfoService accountInfoService) {
-        var accountsPromise = AccountManagerFacadeProvider.getInstance().getAccounts();
+    private void populateCache() {
+        var accountsPromise = mAccountManagerFacade.getAccounts();
         if (accountsPromise.isFulfilled()) {
-            populateCacheForAllAccounts(accountInfoService, accountsPromise.getResult());
+            populateCacheForAllAccounts(accountsPromise.getResult());
         } else {
-            accountsPromise.then(
-                    accounts -> {
-                        populateCacheForAllAccounts(accountInfoService, accounts);
-                    });
+            accountsPromise.then((Callback<List<AccountInfo>>) this::populateCacheForAllAccounts);
         }
     }
 
-    private void populateCacheForAllAccounts(
-            AccountInfoService accountInfoService, List<AccountInfo> accounts) {
+    private void populateCacheForAllAccounts(List<AccountInfo> accounts) {
+        List<DisplayableProfileData> displayableAccounts = new ArrayList<>();
         for (CoreAccountInfo account : accounts) {
-            populateCacheForAccount(accountInfoService, account.getEmail());
+            var accountInfo = mIdentityManager.findExtendedAccountInfoByAccountId(account.getId());
+            if (accountInfo != null
+                    && (accountInfo.hasDisplayableInfo()
+                            || getBadgeConfigForAccount(accountInfo.getEmail()) != null)) {
+                displayableAccounts.add(toDisplayableProfileData(accountInfo));
+            }
         }
+        mAccountsCache.setAccounts(displayableAccounts);
     }
 
-    // TODO(crbug.com/40274844): Replace accountEmail with CoreAccountId or CoreAccountInfo.
-    private void populateCacheForAccount(
-            AccountInfoService accountInfoService, String accountEmail) {
-        // TODO(crbug.com/341948846): Remove AccountInfoService and simplify this.
-        Promise<@Nullable AccountInfo> accountInfoPromise =
-                accountInfoService.getAccountInfoByEmail(accountEmail);
-        if (accountInfoPromise.isFulfilled()) {
-            onAccountInfoUpdated(accountInfoPromise.getResult());
-        } else {
-            accountInfoPromise.then(this::onAccountInfoUpdated);
-        }
+    /** TODO(crbug.com/476990153): Replace with email parameter with {@link #CoreAccountId}. */
+    @Deprecated
+    private void populateCacheForAccount(String accountEmail) {
+        var accountInfo = mIdentityManager.findExtendedAccountInfoByEmailAddress(accountEmail);
+        onExtendedAccountInfoUpdated(accountInfo);
     }
 
-    private void updateCacheAndNotifyObservers(
-            String email,
-            @Nullable Bitmap avatar,
-            String fullName,
-            String givenName,
-            boolean hasDisplayableEmailAddress) {
+    private DisplayableProfileData toDisplayableProfileData(AccountInfo accountInfo) {
         Drawable croppedAvatar =
-                avatar != null
+                accountInfo.getAccountImage() != null
                         ? AvatarGenerator.makeRoundAvatar(
-                                mContext.getResources(), avatar, mImageSize)
+                                mContext.getResources(), accountInfo.getAccountImage(), mImageSize)
                         : mPlaceholderImage;
-        BadgeConfig badgeConfig = getBadgeConfigForAccount(email);
+        BadgeConfig badgeConfig = getBadgeConfigForAccount(accountInfo.getEmail());
         if (badgeConfig != null) {
             croppedAvatar = overlayBadgeOnUserPicture(badgeConfig, croppedAvatar);
         }
-        mCachedProfileData.put(
-                email,
-                new DisplayableProfileData(
-                        email, croppedAvatar, fullName, givenName, hasDisplayableEmailAddress));
-        notifyObservers(email);
+        return new DisplayableProfileData(
+                accountInfo.getEmail(),
+                croppedAvatar,
+                accountInfo.getFullName(),
+                accountInfo.getGivenName(),
+                accountInfo.canHaveEmailAddressDisplayed());
+    }
+
+    private void notifyObservers(List<DisplayableProfileData> accounts) {
+        for (Observer observer : mObservers) {
+            observer.onAccountsUpdated(accounts);
+        }
     }
 
     private void notifyObservers(String accountEmail) {
@@ -476,5 +497,64 @@ public class ProfileDataCache implements AccountInfoService.Observer {
         return mPerAccountBadgeConfig.get(email) != null
                 ? mPerAccountBadgeConfig.get(email)
                 : mDefaultBadgeConfig;
+    }
+
+    private static final class AccountsCache {
+        private Promise<List<DisplayableProfileData>> mAccounts = new Promise<>();
+
+        private Promise<List<DisplayableProfileData>> getAll() {
+            return mAccounts;
+        }
+
+        private void setAccounts(List<DisplayableProfileData> accounts) {
+            final var accountsPromise = mAccounts;
+            if (accountsPromise.isFulfilled()) {
+                mAccounts = Promise.fulfilled(accounts);
+            } else {
+                accountsPromise.fulfill(accounts);
+            }
+        }
+
+        private void putAccount(DisplayableProfileData account) {
+            final var accountsPromise = mAccounts;
+            if (accountsPromise.isFulfilled()) {
+                var accounts = accountsPromise.getResult();
+                int index = 0;
+                for (var existingAccount : accounts) {
+                    if (existingAccount.getAccountEmail().equals(account.getAccountEmail())) {
+                        break;
+                    }
+                    ++index;
+                }
+                if (index < accounts.size()) {
+                    accounts.set(index, account);
+                } else {
+                    accounts.add(account);
+                }
+                mAccounts = Promise.fulfilled(accounts);
+            } else {
+                var accounts = new ArrayList<DisplayableProfileData>();
+                accounts.add(account);
+                accountsPromise.fulfill(accounts);
+            }
+        }
+
+        private @Nullable DisplayableProfileData getByEmail(String email) {
+            final var accountsPromise = mAccounts;
+            if (accountsPromise.isFulfilled()) {
+                for (var account : accountsPromise.getResult()) {
+                    if (account.getAccountEmail().equals(email)) {
+                        return account;
+                    }
+                }
+            }
+            return null;
+        }
+
+        private void clear() {
+            if (mAccounts.isFulfilled()) {
+                mAccounts = new Promise<>();
+            }
+        }
     }
 }

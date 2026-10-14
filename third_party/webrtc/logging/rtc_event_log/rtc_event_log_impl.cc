@@ -67,7 +67,7 @@ RtcEventLogImpl::RtcEventLogImpl(const Environment& env,
       last_output_ms_(env_.clock().TimeInMilliseconds()),
       task_queue_(env_.task_queue_factory().CreateTaskQueue(
           "rtc_event_log",
-          TaskQueueFactory::Priority::NORMAL)) {}
+          TaskQueueFactory::Priority::kNormal)) {}
 
 RtcEventLogImpl::~RtcEventLogImpl() {
   // If we're logging to the output, this will stop that. Blocking function.

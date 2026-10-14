@@ -740,6 +740,7 @@ android_library("chrome_test_java_org.chromium.chrome.browser.dom_distiller") {
     "src/org/chromium/chrome/browser/dom_distiller/DistillabilityServiceTest.java",
     "src/org/chromium/chrome/browser/dom_distiller/DistilledPagePrefsTest.java",
     "src/org/chromium/chrome/browser/dom_distiller/ReaderModeBottomSheetRenderTest.java",
+    "src/org/chromium/chrome/browser/dom_distiller/ReaderModePrefsRenderTest.java",
     "src/org/chromium/chrome/browser/dom_distiller/ReaderModeTest.java",
   ]
 
@@ -853,6 +854,7 @@ android_library("chrome_test_java_org.chromium.chrome.browser.media") {
 
   sources = [
     "src/org/chromium/chrome/browser/media/AutoPipPermissionDialogViewRenderTest.java",
+    "src/org/chromium/chrome/browser/media/DocumentPictureInPictureActivityTest.java",
     "src/org/chromium/chrome/browser/media/MediaLauncherActivityTest.java",
     "src/org/chromium/chrome/browser/media/MediaViewerUtilsTest.java",
     "src/org/chromium/chrome/browser/media/PictureInPictureActivityBrowserTest.java",
@@ -863,7 +865,10 @@ android_library("chrome_test_java_org.chromium.chrome.browser.media") {
     "src/org/chromium/chrome/browser/media/ui/MediaSessionTest.java",
   ]
 
-  deps = [ ":chrome_test_java_helper" ]
+  deps = [
+    ":chrome_test_java_helper",
+    "//base:flagged_apis_java",
+  ]
 }
 
 android_library("chrome_test_java_org.chromium.chrome.browser.metrics") {
@@ -887,6 +892,7 @@ android_library("chrome_test_java_org.chromium.chrome.browser.notifications") {
     "src/org/chromium/chrome/browser/notifications/NotificationPlatformBridgeIntentTest.java",
     "src/org/chromium/chrome/browser/notifications/NotificationPlatformBridgeTest.java",
     "src/org/chromium/chrome/browser/notifications/TipsNotificationsFeaturePromoTest.java",
+    "src/org/chromium/chrome/browser/notifications/TipsNotificationsOptInPromoTest.java",
     "src/org/chromium/chrome/browser/notifications/channels/SiteChannelsManagerTest.java",
   ]
 
@@ -907,6 +913,7 @@ android_library("chrome_test_java_org.chromium.chrome.browser.ntp") {
     "src/org/chromium/chrome/browser/ntp/NewTabPageCreationTest.java",
     "src/org/chromium/chrome/browser/ntp/NewTabPageLoadTest.java",
     "src/org/chromium/chrome/browser/ntp/NewTabPageNavigationTest.java",
+    "src/org/chromium/chrome/browser/ntp/NewTabPageSigninPromoTest.java",
     "src/org/chromium/chrome/browser/ntp/NewTabPageTest.java",
     "src/org/chromium/chrome/browser/ntp/RecentTabsPageTest.java",
     "src/org/chromium/chrome/browser/ntp/RecentlyClosedBridgeTest.java",
@@ -1095,6 +1102,7 @@ android_library("chrome_test_java_org.chromium.chrome.browser.permissions") {
   resources_package = "org.chromium.chrome.test"
 
   sources = [
+    "src/org/chromium/chrome/browser/permissions/ApproximateGeolocationTest.java",
     "src/org/chromium/chrome/browser/permissions/AutomaticEmbargoTest.java",
     "src/org/chromium/chrome/browser/permissions/EmbeddedPermissionPromptTest.java",
     "src/org/chromium/chrome/browser/permissions/GeolocationTest.java",
@@ -1225,6 +1233,7 @@ android_library("chrome_test_java_org.chromium.chrome.browser.signin") {
     "src/org/chromium/chrome/browser/signin/SigninFirstRunFragmentRenderTest.java",
     "src/org/chromium/chrome/browser/signin/SigninFirstRunFragmentTest.java",
     "src/org/chromium/chrome/browser/signin/SigninHeaderTest.java",
+    "src/org/chromium/chrome/browser/signin/SigninManagerImplTest.java",
     "src/org/chromium/chrome/browser/signin/SigninManagerIntegrationTest.java",
     "src/org/chromium/chrome/browser/signin/SigninSignoutIntegrationTest.java",
     "src/org/chromium/chrome/browser/signin/SigninSurveyControllerTest.java",
@@ -1426,6 +1435,7 @@ android_library("chrome_test_java_org.chromium.chrome.browser.tasks") {
     "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/TabGroupListRenderTest.java",
     "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/TabGroupRowViewRenderTest.java",
     "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/TabSwitcherPanePublicTransitTest.java",
+    "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/tab_bottom_sheet/TabBottomSheetManagerTest.java",
     "//chrome/android/features/tab_ui/javatests/src/org/chromium/chrome/browser/tasks/tab_management/ArchivedTabsCardRenderTest.java",
     "//chrome/android/features/tab_ui/javatests/src/org/chromium/chrome/browser/tasks/tab_management/ArchivedTabsDialogCoordinatorTest.java",
     "//chrome/android/features/tab_ui/javatests/src/org/chromium/chrome/browser/tasks/tab_management/ClosableTabListEditorTest.java",

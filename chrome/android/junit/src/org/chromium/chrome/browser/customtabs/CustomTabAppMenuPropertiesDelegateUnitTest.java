@@ -29,7 +29,8 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
 import org.chromium.base.ContextUtils;
-import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.base.supplier.ObservableSuppliers;
+import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.R;
@@ -86,10 +87,10 @@ public class CustomTabAppMenuPropertiesDelegateUnitTest {
     @Mock private Verifier mVerifier;
 
     private final ActivityTabProvider mActivityTabProvider = new ActivityTabProvider();
-    private final ObservableSupplierImpl<BookmarkModel> mBookmarkModelSupplier =
-            new ObservableSupplierImpl<>();
+    private final SettableMonotonicObservableSupplier<BookmarkModel> mBookmarkModelSupplier =
+            ObservableSuppliers.createMonotonic();
     private final Supplier<ReadAloudController> mReadAloudControllerSupplier =
-            new ObservableSupplierImpl<>();
+            ObservableSuppliers.alwaysNull();
 
     @Before
     public void setUp() {
@@ -152,7 +153,8 @@ public class CustomTabAppMenuPropertiesDelegateUnitTest {
                         /* isStartIconMenu= */ true,
                         mReadAloudControllerSupplier,
                         /* contextualPageActionControllerSupplier */ () -> null,
-                        /* hasClientPackage= */ false);
+                        /* hasClientPackage= */ false,
+                        /* openInAppMenuItemProvider= */ null);
         MVCListAdapter.ModelList modelList = delegate.getMenuItems();
         assertTrue(isMenuItemPresent(modelList, R.id.enable_price_tracking_menu_id));
         assertFalse(isMenuItemPresent(modelList, R.id.disable_price_tracking_menu_id));
@@ -188,7 +190,8 @@ public class CustomTabAppMenuPropertiesDelegateUnitTest {
                         /* isStartIconMenu= */ true,
                         mReadAloudControllerSupplier,
                         () -> cpac,
-                        /* hasClientPackage= */ false);
+                        /* hasClientPackage= */ false,
+                        /* openInAppMenuItemProvider= */ null);
         MVCListAdapter.ModelList modelList = delegate.getMenuItems();
         assertTrue(isMenuItemPresent(modelList, R.id.price_insights_menu_id));
     }
@@ -219,7 +222,8 @@ public class CustomTabAppMenuPropertiesDelegateUnitTest {
                         /* isStartIconMenu= */ true,
                         mReadAloudControllerSupplier,
                         /* contextualPageActionControllerSupplier */ () -> null,
-                        /* hasClientPackage= */ false);
+                        /* hasClientPackage= */ false,
+                        /* openInAppMenuItemProvider= */ null);
         MVCListAdapter.ModelList modelList = delegate.getMenuItems();
 
         assertTrue(isMenuItemPresent(modelList, R.id.find_in_page_id));
@@ -258,7 +262,8 @@ public class CustomTabAppMenuPropertiesDelegateUnitTest {
                         /* isStartIconMenu= */ true,
                         mReadAloudControllerSupplier,
                         /* contextualPageActionControllerSupplier */ () -> null,
-                        /* hasClientPackage= */ false);
+                        /* hasClientPackage= */ false,
+                        /* openInAppMenuItemProvider= */ null);
         MVCListAdapter.ModelList modelList = delegate.getMenuItems();
 
         assertTrue(isMenuItemPresent(modelList, R.id.find_in_page_id));

@@ -55,7 +55,6 @@
 
 static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
-using content::WebContentsObserver;
 using extensions::ActionInfo;
 using extensions::CommandService;
 using extensions::ExtensionActionRunner;
@@ -174,16 +173,12 @@ ExtensionActionViewModel::ExtensionActionViewModel(
       icon_factory_(extension_.get(), extension_action, this),
       extension_registry_(extension_registry) {
   delegate_->AttachToModel(this);
-  WebContentsObserver::Observe(GetCurrentWebContents());
-  tab_list_observation_.Observe(TabListInterface::From(browser_));
-  toolbar_model_observation_.Observe(ToolbarActionsModel::Get(profile_));
   command_service_observation_.Observe(
       extensions::CommandService::Get(profile_));
 }
 
 ExtensionActionViewModel::~ExtensionActionViewModel() {
   DCHECK(!IsShowingPopup());
-  WebContentsObserver::Observe(nullptr);
   delegate_->DetachFromModel();
 }
 
@@ -191,9 +186,10 @@ std::string ExtensionActionViewModel::GetId() const {
   return extension_id_;
 }
 
-base::CallbackListSubscription ExtensionActionViewModel::RegisterUpdateObserver(
+base::CallbackListSubscription
+ExtensionActionViewModel::RegisterIconUpdateObserver(
     base::RepeatingClosure observer) {
-  return observers_.Add(observer);
+  return icon_observers_.Add(observer);
 }
 
 ui::ImageModel ExtensionActionViewModel::GetIcon(
@@ -432,34 +428,6 @@ void ExtensionActionViewModel::UnregisterCommand() {
   delegate_->UnregisterCommand();
 }
 
-void ExtensionActionViewModel::DidFinishNavigation(
-    content::NavigationHandle* handle) {
-  NotifyObservers();
-}
-
-void ExtensionActionViewModel::OnActiveTabChanged(tabs::TabInterface* tab) {
-  WebContentsObserver::Observe(GetCurrentWebContents());
-  NotifyObservers();
-}
-
-void ExtensionActionViewModel::OnToolbarActionAdded(
-    const ToolbarActionsModel::ActionId& action_id) {}
-
-void ExtensionActionViewModel::OnToolbarActionRemoved(
-    const ToolbarActionsModel::ActionId& action_id) {}
-
-void ExtensionActionViewModel::OnToolbarActionUpdated(
-    const ToolbarActionsModel::ActionId& action_id) {
-  if (action_id != extension_->id()) {
-    return;
-  }
-  NotifyObservers();
-}
-
-void ExtensionActionViewModel::OnToolbarModelInitialized() {}
-
-void ExtensionActionViewModel::OnToolbarPinnedActionsChanged() {}
-
 void ExtensionActionViewModel::OnExtensionCommandAdded(
     const std::string& extension_id,
     const std::string& command_name) {
@@ -513,15 +481,15 @@ content::WebContents* ExtensionActionViewModel::GetCurrentWebContents() const {
   return tab->GetContents();
 }
 
-void ExtensionActionViewModel::NotifyObservers() {
+void ExtensionActionViewModel::NotifyIconObservers() {
   if (!TabListInterface::From(browser_)->GetActiveTab()) {
     return;
   }
-  observers_.Notify();
+  icon_observers_.Notify();
 }
 
 void ExtensionActionViewModel::OnIconUpdated() {
-  NotifyObservers();
+  NotifyIconObservers();
 }
 
 extensions::SitePermissionsHelper::SiteInteraction

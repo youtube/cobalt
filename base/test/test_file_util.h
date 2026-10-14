@@ -9,8 +9,9 @@
 
 #include <stddef.h>
 
+#include <memory>
+
 #include "base/files/file_path.h"
-#include "base/memory/raw_ptr.h"
 #include "base/strings/cstring_view.h"
 #include "build/build_config.h"
 
@@ -102,10 +103,12 @@ class FilePermissionRestorer {
   ~FilePermissionRestorer();
 
  private:
+  // Forward definition for a structure to hold the file permissions. Will
+  // be defined separately in the Windows and POSIX source code.
+  struct SavedFilePermissions;
+
   const FilePath path_;
-  raw_ptr<void, DanglingUntriaged>
-      info_;       // The opaque stored permission information.
-  size_t length_;  // The length of the stored permission information.
+  std::unique_ptr<SavedFilePermissions> permissions_;
 };
 
 #if BUILDFLAG(IS_ANDROID)

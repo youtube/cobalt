@@ -996,6 +996,11 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // Walks the JS stack to find the first frame with a valid script id. The
   // inspected frames are the same as for the detailed stack trace.
   int CurrentScriptId();
+  // Walks the JS stack to find the first `frame_data.size()` frames and writes
+  // them into `frame_data` and returns the number of frames written.
+  size_t CurrentScriptIdsAndContexts(
+      v8::MemorySpan<StackTrace::ScriptIdAndContext> frame_data);
+
   MaybeDirectHandle<Script> CurrentReferrerScript();
   bool GetStackTraceLimit(Isolate* isolate, int* result);
 
@@ -2284,6 +2289,18 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return isolate_data_.code_pointer_table_base_address_;
   }
 #endif  // V8_ENABLE_SANDBOX
+
+  JSDispatchTable& js_dispatch_table() {
+    return isolate_data_.js_dispatch_table_;
+  }
+
+  const JSDispatchTable& js_dispatch_table() const {
+    return isolate_data_.js_dispatch_table_;
+  }
+
+  Address js_dispatch_table_base_address() const {
+    return isolate_data_.js_dispatch_table_.base_address();
+  }
 
   Address continuation_preserved_embedder_data_address() {
     return reinterpret_cast<Address>(

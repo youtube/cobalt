@@ -11,6 +11,7 @@
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type_names.h"
 #include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
+#include "components/autofill/core/browser/test_utils/entity_data_test_utils.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -171,28 +172,28 @@ TEST_F(AutofillAiLabelsTest, FlightDepartureDate_IsLocaleDependent) {
 
 TEST_F(AutofillAiLabelsTest, ObfuscateSensitiveTypes) {
   // Note that number is an obfuscated field.
-  EntityInstance vehicle_1 = test::GetVehicleEntityInstance({
-      .name = u"",
-      .plate = u"",
-      .number = u"1234567890",
-      .make = u"",
-      .model = u"",
-      .year = u"",
-      .state = u"",
-  });
-  EntityInstance vehicle_2 = test::GetVehicleEntityInstance({
-      .name = u"",
-      .plate = u"",
-      .number = u"0987654321",
-      .make = u"",
-      .model = u"",
-      .year = u"",
-      .state = u"",
-  });
+  EntityInstance passport_1 =
+      test::GetDriversLicenseEntityInstanceWithRandomGuid({
+          .name = u"",
+          .region = u"",
+          .number = u"1234567890",
+          .expiration_date = u"",
+          .issue_date = u"",
 
-  // Use only_disambiguating_types=false to force usage of vehicle number.
+      });
+  EntityInstance passport_2 =
+      test::GetDriversLicenseEntityInstanceWithRandomGuid({
+          .name = u"",
+          .region = u"",
+          .number = u"0987654321",
+          .expiration_date = u"",
+          .issue_date = u"",
+      });
+
+  // Use only_disambiguating_types=false to force usage of drivers license
+  // number.
   std::vector<std::u16string> labels = GetLabels(
-      {&vehicle_1, &vehicle_2}, /*attribute_type_names_to_ignore=*/{},
+      {&passport_1, &passport_2}, /*attribute_type_names_to_ignore=*/{},
       /*only_disambiguating_types=*/false, /*obfuscate_sensitive_types=*/true);
 
   ASSERT_EQ(labels.size(), 2u);

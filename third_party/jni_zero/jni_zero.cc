@@ -6,6 +6,9 @@
 
 #include <sys/prctl.h>
 
+#include <cassert>
+#include <type_traits>
+
 #include "build/build_config.h"
 #include "third_party/jni_zero/generate_jni/JniInit_jni.h"
 #include "third_party/jni_zero/jni_methods.h"
@@ -21,6 +24,19 @@
 extern const int64_t kJniZeroHashWhole;
 extern const int64_t kJniZeroHashPriority;
 #endif
+
+// Ensure the types we're using (bool, int32_t, etc) are compatible with the
+// types used by jni (jboolean, jint, etc).
+static_assert(sizeof(jboolean) == sizeof(bool));
+static_assert(alignof(jboolean) <= alignof(bool));
+static_assert(std::is_same<jbyte, int8_t>::value);
+static_assert(std::is_same<jchar, uint16_t>::value);
+static_assert(std::is_same<jshort, int16_t>::value);
+static_assert(std::is_same<jint, int32_t>::value);
+static_assert(std::is_same<jlong, int64_t>::value);
+static_assert(std::is_same<jfloat, float>::value);
+static_assert(std::is_same<jdouble, double>::value);
+
 namespace jni_zero {
 namespace {
 // Until we fully migrate base's jni_android, we will maintain a copy of this
@@ -281,6 +297,62 @@ template jmethodID MethodID::LazyGet<MethodID::TYPE_INSTANCE>(
     std::atomic<jmethodID>* atomic_method_id);
 
 namespace internal {
+template <FieldID::Type type>
+jfieldID FieldID::Get(JNIEnv* env,
+                      jclass clazz,
+                      const char* field_name,
+                      const char* jni_signature) {
+  auto get_field_ptr = type == FieldID::TYPE_STATIC ? &JNIEnv::GetStaticFieldID
+                                                    : &JNIEnv::GetFieldID;
+  jfieldID id = (env->*get_field_ptr)(clazz, field_name, jni_signature);
+  if (ClearException(env) || !id) {
+    JNI_ZERO_FLOG("Failed to find class %sfield %s %s",
+                  (type == TYPE_STATIC ? "static " : ""), field_name,
+                  jni_signature);
+  }
+  return id;
+}
+
+template <FieldID::Type type>
+jfieldID FieldID::LazyGet(JNIEnv* env,
+                          jclass clazz,
+                          const char* field_name,
+                          const char* jni_signature,
+                          std::atomic<jfieldID>* atomic_field_id) {
+  const jfieldID value = atomic_field_id->load(std::memory_order_acquire);
+  if (value) {
+    return value;
+  }
+  jfieldID id = FieldID::Get<type>(env, clazz, field_name, jni_signature);
+  atomic_field_id->store(id, std::memory_order_release);
+  return id;
+}
+
+template jfieldID FieldID::Get<FieldID::TYPE_STATIC>(JNIEnv* env,
+                                                     jclass clazz,
+                                                     const char* field_name,
+                                                     const char* jni_signature);
+
+template jfieldID FieldID::Get<FieldID::TYPE_INSTANCE>(
+    JNIEnv* env,
+    jclass clazz,
+    const char* field_name,
+    const char* jni_signature);
+
+template jfieldID FieldID::LazyGet<FieldID::TYPE_STATIC>(
+    JNIEnv* env,
+    jclass clazz,
+    const char* field_name,
+    const char* jni_signature,
+    std::atomic<jfieldID>* atomic_field_id);
+
+template jfieldID FieldID::LazyGet<FieldID::TYPE_INSTANCE>(
+    JNIEnv* env,
+    jclass clazz,
+    const char* field_name,
+    const char* jni_signature,
+    std::atomic<jfieldID>* atomic_field_id);
+
 jclass LazyGetClass(JNIEnv* env,
                     const char* class_name,
                     const char* split_name,

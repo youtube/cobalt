@@ -4,26 +4,22 @@
 
 package org.chromium.chrome.browser.app.tabmodel;
 
-import static org.chromium.chrome.browser.app.tabmodel.ShadowTabStoreValidator.CUSTOM_TAG;
 import static org.chromium.chrome.browser.app.tabmodel.TabPersistentStoreFactory.buildAuthoritativeStore;
-import static org.chromium.chrome.browser.app.tabmodel.TabPersistentStoreFactory.buildShadowStore;
 
 import android.app.Activity;
 
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.build.annotations.NullMarked;
-import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.app.tabwindow.TabWindowManagerSingleton;
 import org.chromium.chrome.browser.crypto.CipherFactory;
 import org.chromium.chrome.browser.flags.ActivityType;
-import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileProvider;
-import org.chromium.chrome.browser.tabmodel.AccumulatingTabCreator;
 import org.chromium.chrome.browser.tabmodel.AsyncTabParamsManager;
 import org.chromium.chrome.browser.tabmodel.NextTabPolicy;
 import org.chromium.chrome.browser.tabmodel.NextTabPolicy.NextTabPolicySupplier;
 import org.chromium.chrome.browser.tabmodel.TabCreatorManager;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorImpl;
+import org.chromium.chrome.browser.tabmodel.TabModelType;
 import org.chromium.chrome.browser.tabmodel.TabPersistencePolicy;
 import org.chromium.chrome.browser.tabmodel.TabPersistentStore;
 import org.chromium.chrome.browser.tabmodel.TabPersistentStoreImpl;
@@ -37,20 +33,8 @@ import org.chromium.chrome.browser.tabwindow.TabWindowManager;
 public class CustomTabsTabModelOrchestrator extends TabModelOrchestrator {
     public CustomTabsTabModelOrchestrator() {}
 
-    private static final String WINDOW_PREFIX = TabPersistentStoreImpl.CLIENT_TAG_CUSTOM + "_";
-    private final AccumulatingTabCreator mRegularShadowTabCreator = new AccumulatingTabCreator();
-    private final AccumulatingTabCreator mIncognitoShadowTabCreator = new AccumulatingTabCreator();
-
-    private @Nullable TabPersistentStore mShadowTabPersistentStore;
-
-    @Override
-    public void destroy() {
-        if (mShadowTabPersistentStore != null) {
-            mShadowTabPersistentStore.destroy();
-        }
-
-        super.destroy();
-    }
+    private static final String CUSTOM_WINDOW_PREFIX =
+            TabPersistentStoreImpl.CLIENT_TAG_CUSTOM + "_";
 
     /** Creates the TabModelSelector and the TabPersistentStore. */
     public void createTabModels(
@@ -74,41 +58,45 @@ public class CustomTabsTabModelOrchestrator extends TabModelOrchestrator {
                         asyncTabParamsManager,
                         false,
                         activityType,
+                        TabModelType.STANDARD,
                         false);
 
-        // Instantiate TabPersistentStore
         TabWindowManager tabWindowManager = TabWindowManagerSingleton.getInstance();
+        tabWindowManager.registerCustomTabsTabModelSelector(
+                activity.getTaskId(), mTabModelSelector);
+
+        // Instantiate TabPersistentStore
         mTabPersistencePolicy = persistencePolicy;
         mTabPersistentStore =
                 buildAuthoritativeStore(
                         TabPersistentStoreImpl.CLIENT_TAG_CUSTOM,
+                        /* migrationManager= */ null,
                         mTabPersistencePolicy,
                         mTabModelSelector,
                         tabCreatorManager,
                         tabWindowManager,
+                        getCustomTabsWindowTag(activity.getTaskId()),
                         cipherFactory,
                         /* recordLegacyTabCountMetrics= */ true);
 
-        profileProviderSupplier.onAvailable(
-                provider -> {
-                    Profile profile = provider.getOriginalProfile();
-                    assert profile != null;
-
-                    String windowTag = WINDOW_PREFIX + activity.getTaskId();
-                    mShadowTabPersistentStore =
-                            buildShadowStore(
-                                    profile,
-                                    mRegularShadowTabCreator,
-                                    mIncognitoShadowTabCreator,
-                                    mTabModelSelector,
-                                    mTabPersistencePolicy,
-                                    mTabPersistentStore,
-                                    windowTag,
-                                    cipherFactory,
-                                    CUSTOM_TAG);
-                });
-
         wireSelectorAndStore();
         markTabModelsInitialized();
+    }
+
+    @Override
+    public void destroy() {
+        assert mTabModelSelector != null;
+        TabWindowManagerSingleton.getInstance()
+                .unregisterCustomTabsTabModelSelector(mTabModelSelector);
+        super.destroy();
+    }
+
+    /**
+     * Get the window tag for a custom tab.
+     *
+     * @param taskId The task ID for the activity the orchestrator is associated with.
+     */
+    public static String getCustomTabsWindowTag(int taskId) {
+        return CUSTOM_WINDOW_PREFIX + taskId;
     }
 }

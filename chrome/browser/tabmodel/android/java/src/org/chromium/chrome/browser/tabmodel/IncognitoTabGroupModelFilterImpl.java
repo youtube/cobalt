@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.tabmodel;
 
+import static org.chromium.chrome.browser.tabmodel.TabGroupTitleUtils.UNSET_TAB_GROUP_TITLE;
+
 import org.chromium.base.Callback;
 import org.chromium.base.ObserverList;
 import org.chromium.base.Token;
@@ -311,19 +313,19 @@ public class IncognitoTabGroupModelFilterImpl implements TabGroupModelFilterInte
     }
 
     @Override
-    public @Nullable String getTabGroupTitle(Token tabGroupId) {
-        if (mCurrentFilter == null) return null;
+    public String getTabGroupTitle(Token tabGroupId) {
+        if (mCurrentFilter == null) return UNSET_TAB_GROUP_TITLE;
         return mCurrentFilter.getTabGroupTitle(tabGroupId);
     }
 
     @Override
-    public @Nullable String getTabGroupTitle(Tab groupedTab) {
-        if (mCurrentFilter == null) return null;
+    public String getTabGroupTitle(Tab groupedTab) {
+        if (mCurrentFilter == null) return UNSET_TAB_GROUP_TITLE;
         return mCurrentFilter.getTabGroupTitle(groupedTab);
     }
 
     @Override
-    public void setTabGroupTitle(Token tabGroupId, @Nullable String title) {
+    public void setTabGroupTitle(Token tabGroupId, String title) {
         if (mCurrentFilter == null) return;
         mCurrentFilter.setTabGroupTitle(tabGroupId, title);
     }

@@ -1166,9 +1166,9 @@ TEST(EchoCanceller3, StereoContentDetectionForMonoSignals) {
 }
 
 TEST(EchoCanceller3, InjectedNeuralResidualEchoEstimatorIsUsed) {
-  class NeuralResidualEchoEstimatorImpl : public NeuralResidualEchoEstimator {
+  class NeuralResidualEchoEstimatorMock : public NeuralResidualEchoEstimator {
    public:
-    NeuralResidualEchoEstimatorImpl() {}
+    NeuralResidualEchoEstimatorMock() {}
 
     void Estimate(const Block& render,
                   ArrayView<const std::array<float, 64>> capture,
@@ -1195,13 +1195,15 @@ TEST(EchoCanceller3, InjectedNeuralResidualEchoEstimatorIsUsed) {
       return EchoCanceller3Config();
     }
 
+    MOCK_METHOD(void, Reset, (), (override));
+
    private:
     bool residual_echo_estimate_requested_ = false;
   };
 
   constexpr int kSampleRateHz = 16000;
   constexpr int kNumChannels = 1;
-  NeuralResidualEchoEstimatorImpl neural_residual_echo_estimator;
+  NeuralResidualEchoEstimatorMock neural_residual_echo_estimator;
   const Environment env = CreateEnvironment();
   EchoCanceller3Config config;
   AudioBuffer buffer(/*input_rate=*/kSampleRateHz,

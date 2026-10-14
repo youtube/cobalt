@@ -19,6 +19,7 @@
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
@@ -57,12 +58,12 @@ namespace {
 static constexpr int kHoursInOneWeek = 24 * 7;
 static constexpr int kHoursInOneYear = 24 * 365;
 
-base::Value::Dict CookieKeyedLoadNetLogParams(
+base::DictValue CookieKeyedLoadNetLogParams(
     const std::string& key,
     net::NetLogCaptureMode capture_mode) {
   if (!net::NetLogCaptureIncludesSensitive(capture_mode))
-    return base::Value::Dict();
-  base::Value::Dict dict;
+    return base::DictValue();
+  base::DictValue dict;
   dict.Set("key", key);
   return dict;
 }
@@ -425,6 +426,8 @@ class SQLitePersistentCookieStore::Backend
   void LoadAndNotifyInBackground(base::optional_ref<const std::string> key,
                                  LoadedCallback loaded_callback);
 
+  void RecordLoadAndNotifyInBackgroundMetrics(base::TimeDelta elapsed);
+
   // Notifies the CookieMonster when loading completes for a specific domain key
   // or for all domain keys. Triggers the callback and passes it all cookies
   // that have been loaded from DB since last IO notification.
@@ -496,6 +499,9 @@ class SQLitePersistentCookieStore::Backend
 
   // Crypto instance, or nullptr if encryption is disabled.
   std::unique_ptr<CookieCryptoDelegate> crypto_;
+
+  // If true, LoadAndNotifyInBackground has not yet been called.
+  bool first_load_and_notify_in_background_ = true;
 
 #if BUILDFLAG(IS_COBALT)
   // Timer for the total load time of the cookie database.
@@ -767,11 +773,13 @@ void SQLitePersistentCookieStore::Backend::LoadAndNotifyInBackground(
               "SQLitePersistentCookieStore::Backend::LoadAndNotifyInBackground",
               perfetto::Flow::FromPointer(this));
   DCHECK(background_task_runner()->RunsTasksInCurrentSequence());
+  base::ElapsedTimer timer;
   bool success = false;
 
   if (InitializeDatabase()) {
     if (!key.has_value()) {
       ChainLoadCookies(std::move(loaded_callback));
+      RecordLoadAndNotifyInBackgroundMetrics(timer.Elapsed());
       return;
     }
 
@@ -785,6 +793,21 @@ void SQLitePersistentCookieStore::Backend::LoadAndNotifyInBackground(
   }
 
   FinishedLoadingCookies(std::move(loaded_callback), success);
+  RecordLoadAndNotifyInBackgroundMetrics(timer.Elapsed());
+}
+
+void SQLitePersistentCookieStore::Backend::
+    RecordLoadAndNotifyInBackgroundMetrics(base::TimeDelta elapsed) {
+  base::UmaHistogramTimes(
+      "Cookie.SQLitePersistentCookieStore.Backend.LoadAndNotifyInBackground2",
+      elapsed);
+  if (first_load_and_notify_in_background_) {
+    base::UmaHistogramTimes(
+        "Cookie.SQLitePersistentCookieStore.Backend."
+        "LoadAndNotifyInBackground.First",
+        elapsed);
+    first_load_and_notify_in_background_ = false;
+  }
 }
 
 void SQLitePersistentCookieStore::Backend::NotifyLoadCompleteInForeground(

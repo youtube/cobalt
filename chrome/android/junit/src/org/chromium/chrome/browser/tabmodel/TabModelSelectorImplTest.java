@@ -37,7 +37,7 @@ import org.robolectric.shadows.ShadowLooper;
 
 import org.chromium.base.Callback;
 import org.chromium.base.Token;
-import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.OneshotSupplierImpl;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.DisableFeatures;
@@ -125,6 +125,7 @@ public class TabModelSelectorImplTest {
                         mAsyncTabParamsManager,
                         /* supportUndo= */ false,
                         NO_RESTORE_TYPE,
+                        TabModelType.STANDARD,
                         /* startIncognito= */ false);
 
         TabRemover regularTabRemover =
@@ -223,7 +224,7 @@ public class TabModelSelectorImplTest {
     public void testCurrentModelTabCountSupplier() {
         mTabModelSelector
                 .getCurrentModelTabCountSupplier()
-                .addObserver(mTabCountSupplierObserverMock);
+                .addSyncObserverAndPostIfNonNull(mTabCountSupplierObserverMock);
         assertEquals(0, mTabModelSelector.getCurrentModelTabCountSupplier().get().intValue());
         ShadowLooper.runUiThreadTasks();
         verify(mTabCountSupplierObserverMock).onResult(0);
@@ -307,7 +308,7 @@ public class TabModelSelectorImplTest {
         WindowAndroid window = mock(WindowAndroid.class);
         WeakReference<Context> weakContext = new WeakReference<>(mContext);
         when(window.getContext()).thenReturn(weakContext);
-        doReturn(new ObservableSupplierImpl<>(false)).when(window).getOcclusionSupplier();
+        doReturn(ObservableSuppliers.alwaysFalse()).when(window).getOcclusionSupplier();
         tab.updateAttachment(window, mTabDelegateFactory);
 
         assertEquals(
@@ -419,6 +420,7 @@ public class TabModelSelectorImplTest {
                         mAsyncTabParamsManager,
                         /* supportUndo= */ false,
                         NO_RESTORE_TYPE,
+                        TabModelType.STANDARD,
                         /* startIncognito= */ false);
         MockTabModel regularTabModel = new MockTabModel(mProfile, null);
         TabGroupModelFilterInternal filter = mock(TabGroupModelFilterInternal.class);
@@ -489,6 +491,7 @@ public class TabModelSelectorImplTest {
                         mAsyncTabParamsManager,
                         /* supportUndo= */ false,
                         NO_RESTORE_TYPE,
+                        TabModelType.STANDARD,
                         /* startIncognito= */ false);
         when(regularModel.isActiveModel()).thenReturn(true);
         mTabModelSelector.initializeForTesting(
@@ -535,6 +538,7 @@ public class TabModelSelectorImplTest {
                         mAsyncTabParamsManager,
                         /* supportUndo= */ false,
                         NO_RESTORE_TYPE,
+                        TabModelType.STANDARD,
                         /* startIncognito= */ false);
         when(regularModel.isActiveModel()).thenReturn(true);
         mTabModelSelector.initializeForTesting(
@@ -560,7 +564,6 @@ public class TabModelSelectorImplTest {
     }
 
     private boolean currentTabModelSupplierHasObservers() {
-        return ((ObservableSupplierImpl<?>) mTabModelSelector.getCurrentTabModelSupplier())
-                .hasObservers();
+        return mTabModelSelector.getCurrentTabModelSupplier().hasObservers();
     }
 }

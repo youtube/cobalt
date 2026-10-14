@@ -342,7 +342,6 @@
 <translation id="2201071101391734388">Photo récente : <ph name="INDEX" /> de <ph name="TOTAL_COUNT" />.</translation>
 <translation id="2201687081523799384">Réduire Google Tâches</translation>
 <translation id="2208323208084708176">Mode Bureau unifié</translation>
-<translation id="2210311543574621570">Vous verrez le presse-papiers lorsque vous maintenez les touches Ctrl + V enfoncées. Vous pouvez désactiver ce raccourci en désactivant l'indicateur #clipboard-history-longpress dans chrome://flags.</translation>
 <translation id="2215920961700443347">Aucune connexion à Internet. Connectez-vous à Internet et réessayez.</translation>
 <translation id="2222841058024245321">Bureau 7</translation>
 <translation id="2223384056430485343">Sur un écran divisé</translation>
@@ -2194,7 +2193,6 @@ Pour éteindre l'appareil, appuyez à nouveau sur le bouton d'alimentation de l'
 <translation id="8241650983304689286">Ajouter un onglet au nouvel affichage partagé</translation>
 <translation id="8247060538831475781"><ph name="CONNECTION_STATUS" />, force du signal : <ph name="SIGNAL_STRENGTH" />, pile du téléphone <ph name="BATTERY_STATUS" /></translation>
 <translation id="825129991941217170">Afficher tout le contenu de Google Disque</translation>
-<translation id="8257510091797044096">Configurer votre appareil</translation>
 <translation id="8261506727792406068">Supprimer</translation>
 <translation id="8262312463845990408">Activer/Désactiver la lecture</translation>
 <translation id="8268302343625273732">Voir tous les devoirs dans Google Classroom</translation>

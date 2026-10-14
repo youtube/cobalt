@@ -38,6 +38,7 @@
 #include "chrome/browser/ui/tabs/tab_group_model.h"
 #include "chrome/browser/ui/tabs/tab_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
@@ -47,6 +48,7 @@
 #include "chrome/browser/ui/views/tabs/tab.h"
 #include "chrome/browser/ui/views/tabs/tab_slot_view.h"
 #include "chrome/browser/ui/views/tabs/window_finder.h"
+#include "chrome/browser/ui/waap/initial_webui_window_metrics_manager.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/ui/web_applications/web_app_launch_utils.h"
 #include "chrome/browser/ui/web_applications/web_app_tabbed_utils.h"
@@ -81,6 +83,7 @@
 
 #if BUILDFLAG(IS_CHROMEOS)
 #include "ash/public/cpp/window_properties.h"  // nogncheck
+#include "chrome/browser/ash/boca/on_task/on_task_locked_controller.h"
 #include "chromeos/ui/base/window_properties.h"
 #include "chromeos/ui/base/window_state_type.h"  // nogncheck
 #endif
@@ -329,7 +332,6 @@ TabDragController::TabDragController()
       source_context_(nullptr),
       attached_context_(nullptr),
       can_release_capture_(true),
-      offset_to_width_ratio_(0),
       old_focused_view_tracker_(std::make_unique<views::ViewTracker>()),
       detach_behavior_(DetachBehavior::kDetachable),
       is_dragging_new_browser_(false),
@@ -427,7 +429,8 @@ TabDragController::Liveness TabDragController::Init(
   Browser* source_browser = BrowserView::GetBrowserViewForNativeWindow(
                                 source_context->GetWidget()->GetNativeWindow())
                                 ->browser();
-  if (source_browser->IsLockedForOnTask()) {
+  if (ash::boca::OnTaskLockedController::From(source_browser)
+          ->is_locked_for_on_task()) {
     ref->detach_behavior_ = DetachBehavior::kNotDetachable;
   }
 #endif  // BUILDFLAG(IS_CHROMEOS)
@@ -442,10 +445,10 @@ TabDragController::Liveness TabDragController::Init(
       std::make_unique<SourceTabStripEmptinessTracker>(
           ref->source_context_->GetTabStripModel(), this);
 
+  const TabStripModel* tab_strip_model =
+      ref->source_context_->GetTabStripModel();
   if (source_view->GetTabSlotViewType() ==
       TabSlotView::ViewType::kTabGroupHeader) {
-    const TabStripModel* tab_strip_model =
-        ref->source_context_->GetTabStripModel();
     const tab_groups::TabGroupId group_id = source_view->group().value();
     const std::optional<tab_groups::TabGroupId> active_group_id =
         tab_strip_model->GetActiveTab()->GetGroup();
@@ -456,13 +459,19 @@ TabDragController::Liveness TabDragController::Init(
          !group_range.is_empty())
             ? tab_strip_model->active_index() - group_range.GetMin()
             : 0;
-    ref->drag_data_.group_drag_data_ = std::make_optional<GroupDragData>(
-        group_id, active_tab_index_within_group);
+    ref->drag_data_.group_header_drag_data_ =
+        std::make_optional<GroupHeaderDragData>(group_id,
+                                                active_tab_index_within_group);
   }
 
   for (TabSlotView* dragging_view : dragging_views) {
     ref->drag_data_.tab_drag_data_.emplace_back(source_context_, dragging_view);
+    if (dragging_view->GetTabSlotViewType() ==
+        TabSlotView::ViewType::kTabGroupHeader) {
+      ref->drag_data_.dragging_groups.insert(*dragging_view->group());
+    }
   }
+
   ref->drag_data_.source_view_index_ =
       std::ranges::find(dragging_views, source_view) - dragging_views.begin();
 
@@ -475,14 +484,15 @@ TabDragController::Liveness TabDragController::Init(
       ref->source_context_->GetWidget()->GetNativeWindow());
 
   if (source_view->width() > 0) {
-    ref->offset_to_width_ratio_ =
+    ref->drag_data_.mouse_offset_to_size_ratios.set_x(
         static_cast<float>(
             source_view->GetMirroredXInView(offset_from_source_view.x())) /
-        source_view->width();
+        source_view->width());
   }
   if (source_view->height() > 0) {
-    ref->offset_to_height_ratio_ =
-        static_cast<float>(offset_from_source_view.y()) / source_view->height();
+    ref->drag_data_.mouse_offset_to_size_ratios.set_y(
+        static_cast<float>(offset_from_source_view.y()) /
+        source_view->height());
   }
   ref->initial_selection_model_ = std::move(initial_selection_model);
 
@@ -914,7 +924,7 @@ TabDragController::Liveness TabDragController::ContinueDragging(
       return Liveness::kDeleted;
     }
     target_context = context;
-    UpdateDragTarget(drop_target);
+    UpdateDragTarget(drop_target, point_in_screen);
     if (current_drag_target_) {
       TabDragContext* delegate_context =
           current_drag_target_->OnTabDragUpdated(*this, point_in_screen);
@@ -946,9 +956,10 @@ TabDragController::Liveness TabDragController::ContinueDragging(
   return Liveness::kAlive;
 }
 
-void TabDragController::UpdateDragTarget(TabDragTarget* new_target) {
+void TabDragController::UpdateDragTarget(TabDragTarget* new_target,
+                                         const gfx::Point& point_in_screen) {
   if (current_drag_target_ && current_drag_target_ != new_target) {
-    current_drag_target_->OnTabDragExited();
+    current_drag_target_->OnTabDragExited(point_in_screen);
   }
   current_drag_target_ = new_target;
   if (current_drag_target_) {
@@ -1387,9 +1398,9 @@ void TabDragController::AttachToNewContext(
   // re-attached.
   MaybeResumeTrackingSavedTabGroup();
 
-  AttachImpl();
-
   attached_context_->OwnDragController(std::move(controller));
+
+  AttachImpl();
 }
 
 void TabDragController::AttachImpl() {
@@ -1723,6 +1734,11 @@ std::vector<TabSlotView*> TabDragController::GetViewsMatchingDraggedContents(
   const TabStripModel* const model = context->GetTabStripModel();
   std::vector<TabSlotView*> views;
   for (const TabDragData& tab_drag_datum : drag_data_.tab_drag_data_) {
+    // TODO(crbug.com/477230662): Ideally, split tabs would also be directly
+    // compatible with `TabDragController`, rather than relying on the tab
+    // selection model to achieve expected behavior. As is, this is incompatible
+    // with the vertical tab strip because the split tabs are contained within
+    // a single dedicated `VerticalSplitTabView`.
     if (tab_drag_datum.view_type == TabSlotView::ViewType::kTab) {
       TabSlotView* tab_view =
           context->GetTabForContents(tab_drag_datum.contents);
@@ -1916,8 +1932,9 @@ void TabDragController::ResetSelection(TabStripModel* model) {
       // b) this was the source view for the drag
       // c) we're in a header drag, and this tab was active before the drag
       if (!has_one_valid_tab || i == drag_data_.source_view_index_ ||
-          (drag_data_.group_drag_data_.has_value() &&
-           (drag_data_.group_drag_data_.value().active_tab_index_within_group +
+          (drag_data_.group_header_drag_data_.has_value() &&
+           (drag_data_.group_header_drag_data_.value()
+                .active_tab_index_within_group +
             1) == static_cast<int>(i))) {
         // Reset the active/lead to the first tab. If the source tab is still
         // valid we'll reset these again later on.
@@ -2187,7 +2204,7 @@ void TabDragController::CompleteDrag() {
     }
   }
 
-  if (drag_data_.group_drag_data_.has_value()) {
+  if (drag_data_.group_header_drag_data_.has_value()) {
     // Manually reset the selection to just the active tab in the group.
     // For multi tab select keep the selection model as the user used it as the
     // original selection.
@@ -2196,8 +2213,8 @@ void TabDragController::CompleteDrag() {
                                : source_context_->GetTabStripModel();
     ui::ListSelectionModel selection;
     // Offset by 1 to account for the group header.
-    const int drag_data_index =
-        1 + drag_data_.group_drag_data_.value().active_tab_index_within_group;
+    const int drag_data_index = 1 + drag_data_.group_header_drag_data_.value()
+                                        .active_tab_index_within_group;
     const int index = model->GetIndexOfWebContents(
         drag_data_.tab_drag_data_[drag_data_index].contents);
 
@@ -2488,6 +2505,13 @@ Browser* TabDragController::CreateBrowserForDrag(TabDragContext* source,
                 /* user_gesture=*/true)
           : from_browser->create_params();
 
+  if (auto* controller =
+          tabs::VerticalTabStripStateController::From(from_browser)) {
+    create_params.vertical_tab_strip_collapsed = controller->IsCollapsed();
+    create_params.vertical_tab_strip_uncollapsed_width =
+        controller->GetUncollapsedWidth();
+  }
+
   // Web app windows have their own initial size independent of the source
   // browser window.
   if (!open_as_web_app) {
@@ -2521,7 +2545,12 @@ Browser* TabDragController::CreateBrowserForDrag(TabDragContext* source,
   // the previous window.
   create_params.user_title = std::string();
 
+  base::TimeTicks now = base::TimeTicks::Now();
   Browser* browser = Browser::Create(create_params);
+  if (auto* manager = InitialWebUIWindowMetricsManager::From(browser)) {
+    manager->SetWindowCreationInfo(
+        waap::NewWindowCreationSource::kDragToNewWindow, now);
+  }
   is_dragging_new_browser_ = true;
   BrowserView::GetBrowserViewForBrowser(browser)
       ->GetWidget()
@@ -2556,10 +2585,10 @@ gfx::Vector2d TabDragController::CalculateWindowDragOffset() {
   const views::View* source_view =
       drag_data_.attached_views()[drag_data_.source_view_index_];
   const gfx::Rect source_tab_bounds = source_view->bounds();
-  const int cursor_x_offset_within_tab =
-      base::ClampRound(source_tab_bounds.width() * offset_to_width_ratio_);
-  const int cursor_y_offset_within_tab =
-      base::ClampRound(source_tab_bounds.height() * offset_to_height_ratio_);
+  const int cursor_x_offset_within_tab = base::ClampRound(
+      source_tab_bounds.width() * drag_data_.mouse_offset_to_size_ratios.x());
+  const int cursor_y_offset_within_tab = base::ClampRound(
+      source_tab_bounds.height() * drag_data_.mouse_offset_to_size_ratios.y());
   gfx::Point desired_cursor_pos_in_widget(
       attached_context_->GetMirroredXInView(source_tab_bounds.x() +
                                             cursor_x_offset_within_tab),
@@ -2736,7 +2765,7 @@ void TabDragController::NotifyEventIfTabAddedToGroup() {
 }
 
 void TabDragController::MaybePauseTrackingSavedTabGroup() {
-  if (!drag_data_.group_drag_data_.has_value()) {
+  if (!drag_data_.group_header_drag_data_.has_value()) {
     return;
   }
 
@@ -2749,7 +2778,8 @@ void TabDragController::MaybePauseTrackingSavedTabGroup() {
       tab_groups::TabGroupSyncServiceFactory::GetForProfile(browser->profile());
 
   if (!tab_group_service ||
-      !tab_group_service->GetGroup(drag_data_.group_drag_data_.value().group)) {
+      !tab_group_service->GetGroup(
+          drag_data_.group_header_drag_data_.value().group)) {
     return;
   }
 
@@ -2757,7 +2787,7 @@ void TabDragController::MaybePauseTrackingSavedTabGroup() {
 }
 
 void TabDragController::MaybeResumeTrackingSavedTabGroup() {
-  if (!drag_data_.group_drag_data_.has_value() || !observation_pauser_) {
+  if (!drag_data_.group_header_drag_data_.has_value() || !observation_pauser_) {
     return;
   }
 
@@ -2813,8 +2843,8 @@ void TabDragController::StartDraggingTabsSession(
 
   dragging_tabs_session_ = std::make_unique<DraggingTabsSession>(
       drag_data_, *attached_context_,
-      *attached_context_->GetPositioningDelegate(), offset_to_width_ratio_,
-      initial_move, start_point_in_screen);
+      *attached_context_->GetPositioningDelegate(), initial_move,
+      start_point_in_screen);
 }
 
 #if defined(USE_AURA)

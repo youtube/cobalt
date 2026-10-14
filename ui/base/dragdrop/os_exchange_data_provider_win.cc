@@ -350,7 +350,7 @@ void OSExchangeDataProviderWin::SetURLs(
   // a JSON data, while the newline-delimited string remains the fallback
   // for text/uri-list and plain text.
   std::string url_title_list;
-  base::Value::List bookmark_entries;
+  base::ListValue bookmark_entries;
   for (const auto& url_info : url_infos) {
     if (!url_title_list.empty()) {
       url_title_list += '\n';
@@ -359,7 +359,7 @@ void OSExchangeDataProviderWin::SetURLs(
     url_title_list += '\n';
     url_title_list += base::UTF16ToUTF8(url_info.title);
 
-    base::Value::Dict entry;
+    base::DictValue entry;
     entry.Set("url", url_info.url.spec());
     entry.Set("title", base::UTF16ToUTF8(url_info.title));
     bookmark_entries.Append(std::move(entry));
@@ -641,7 +641,7 @@ std::optional<std::u16string> OSExchangeDataProviderWin::GetString() const {
   return std::nullopt;
 }
 
-std::vector<ClipboardUrlInfo> OSExchangeDataProviderWin::GetURLsAndTitles(
+std::vector<ClipboardUrlInfo> OSExchangeDataProviderWin::GetURLs(
     FilenameToURLPolicy policy) const {
   std::vector<ClipboardUrlInfo> url_infos;
   if (clipboard_util::GetUrlInfos(
@@ -658,24 +658,6 @@ std::vector<ClipboardUrlInfo> OSExchangeDataProviderWin::GetURLsAndTitles(
     std::u16string title =
         net::GetSuggestedFilename(url, "", "", "", "", std::string());
     url_infos.emplace_back(std::move(url), std::move(title));
-  }
-
-  return url_infos;
-}
-
-std::vector<ClipboardUrlInfo> OSExchangeDataProviderWin::GetURLs(
-    FilenameToURLPolicy policy) const {
-  std::vector<ClipboardUrlInfo> url_infos =
-      GetURLsAndTitles(FilenameToURLPolicy::DO_NOT_CONVERT_FILENAMES);
-
-  if (policy == FilenameToURLPolicy::CONVERT_FILENAMES) {
-    if (std::optional<std::vector<FileInfo>> fileinfos = GetFilenames();
-        fileinfos.has_value()) {
-      for (const auto& fileinfo : fileinfos.value()) {
-        url_infos.emplace_back(net::FilePathToFileURL(fileinfo.path),
-                               fileinfo.display_name.LossyDisplayName());
-      }
-    }
   }
 
   return url_infos;
@@ -1052,12 +1034,22 @@ HRESULT DataObjectImpl::GetData(FORMATETC* format_etc, STGMEDIUM* medium) {
 
       bool wait_for_data = false;
 
-      // In async mode, we do not want to start waiting for the data before
-      // the async operation is started. This is because we want to postpone
-      // until Shell kicks off a background thread to do the work so that
-      // we do not block the UI thread.
-      if (!in_async_mode_ || async_operation_started_)
+      // Determine whether to wait for data generation based on async state.
+      //
+      // ASYNC MODE: Wait only if StartOperation() was called, indicating
+      // the target (Explorer) has created a background thread. This
+      // ensures GetData() runs on the target's background thread, not its UI
+      // thread, preventing UI freezes during long operations (e.g., file
+      // downloads).
+      //
+      // SYNC MODE: Always wait immediately since the entire DoDragDrop()
+      // call blocks both source and target UI threads anyway (no async
+      // support from target).
+      if (in_async_mode_) {
+        wait_for_data = async_operation_started_;
+      } else {
         wait_for_data = true;
+      }
 
       if (!wait_for_data)
         return DV_E_FORMATETC;

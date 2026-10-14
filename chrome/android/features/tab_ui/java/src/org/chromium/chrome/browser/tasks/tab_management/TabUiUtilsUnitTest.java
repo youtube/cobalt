@@ -15,6 +15,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import static org.chromium.chrome.browser.tabmodel.TabGroupTitleUtils.UNSET_TAB_GROUP_TITLE;
 import static org.chromium.components.data_sharing.SharedGroupTestHelper.COLLABORATION_ID1;
 import static org.chromium.components.data_sharing.SharedGroupTestHelper.EMAIL1;
 import static org.chromium.components.data_sharing.SharedGroupTestHelper.EMAIL2;
@@ -424,8 +425,8 @@ public class TabUiUtilsUnitTest {
                 .processLeaveGroupAttempt(any(), any());
         mockIdentity(EMAIL2, GAIA_ID2);
         SavedTabGroup group = createSyncGroup(COLLABORATION_ID1);
-        group.title = null;
-        when(mFilter.getTabGroupTitle(TAB_GROUP_ID)).thenReturn(null);
+        group.title = UNSET_TAB_GROUP_TITLE;
+        when(mFilter.getTabGroupTitle(TAB_GROUP_ID)).thenReturn(UNSET_TAB_GROUP_TITLE);
         createSharedGroup(GROUP_MEMBER1, GROUP_MEMBER2);
         when(mCollaborationService.getCurrentUserRoleForGroup(COLLABORATION_ID1))
                 .thenReturn(MemberRole.MEMBER);
@@ -581,6 +582,11 @@ public class TabUiUtilsUnitTest {
         when(mFilter.tabGroupExists(TAB_GROUP_ID)).thenReturn(false);
         TabUiUtils.updateTabGroupTitle(mFilter, TAB_GROUP_ID, "C");
         verify(mFilter, never()).setTabGroupTitle(TAB_GROUP_ID, "C");
+
+        when(mFilter.tabGroupExists(TAB_GROUP_ID)).thenReturn(true);
+        when(mFilter.getTabGroupTitle(TAB_GROUP_ID)).thenReturn("A");
+        TabUiUtils.updateTabGroupTitle(mFilter, TAB_GROUP_ID, UNSET_TAB_GROUP_TITLE);
+        verify(mFilter).setTabGroupTitle(TAB_GROUP_ID, UNSET_TAB_GROUP_TITLE);
     }
 
     private SavedTabGroup createSyncGroup(String collaborationId) {

@@ -21,6 +21,7 @@
 #include "base/values.h"
 #include "chrome/browser/ash/printing/enterprise/managed_printer_translator.h"
 #include "components/device_event_log/device_event_log.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 
 namespace ash {
 
@@ -31,7 +32,7 @@ constexpr int kMaxRecords = 20000;
 // Represents a task scheduled to process in the Restrictions class.
 struct TaskDataInternal {
   const unsigned task_id;  // unique ID in increasing order
-  std::unordered_map<std::string, chromeos::Printer>
+  absl::flat_hash_map<std::string, chromeos::Printer>
       printers;  // resultant list (output)
   explicit TaskDataInternal(unsigned id) : task_id(id) {}
 };
@@ -70,7 +71,7 @@ std::optional<PrinterCache> ParsePrinters(std::unique_ptr<std::string> data) {
     return std::nullopt;
   }
 
-  const base::Value::List& printer_list = json_blob.GetList();
+  const base::ListValue& printer_list = json_blob.GetList();
   if (printer_list.size() > kMaxRecords) {
     PRINTER_LOG(ERROR) << "Failed to parse printers policy ("
                        << "too many records: " << printer_list.size() << ")";
@@ -330,7 +331,7 @@ class BulkPrintersCalculatorImpl : public BulkPrintersCalculator {
     return (last_processed_task_ == last_received_task_);
   }
 
-  std::unordered_map<std::string, chromeos::Printer> GetPrinters()
+  absl::flat_hash_map<std::string, chromeos::Printer> GetPrinters()
       const override {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     return printers_;
@@ -375,7 +376,7 @@ class BulkPrintersCalculatorImpl : public BulkPrintersCalculator {
   // Id of the last completed task.
   unsigned last_processed_task_ = 0;
   // The computed set of printers.
-  std::unordered_map<std::string, chromeos::Printer> printers_;
+  absl::flat_hash_map<std::string, chromeos::Printer> printers_;
 
   base::ObserverList<BulkPrintersCalculator::Observer>::Unchecked observers_;
 

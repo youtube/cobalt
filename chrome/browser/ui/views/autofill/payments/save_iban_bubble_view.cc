@@ -79,7 +79,7 @@ void SaveIbanBubbleView::Hide() {
 void SaveIbanBubbleView::AddedToWidget() {
   ui::ResourceBundle& bundle = ui::ResourceBundle::GetSharedInstance();
   auto image_view = std::make_unique<views::ImageView>(
-      bundle.GetThemedLottieImageNamed(IDR_AUTOFILL_SAVE_CARD_LOCAL_LOTTIE));
+      bundle.GetThemedLottieImageNamed(IDR_AUTOFILL_SAVE_IBAN_LOTTIE));
   image_view->GetViewAccessibility().SetIsInvisible(true);
 
   GetBubbleFrameView()->SetHeaderView(std::move(image_view));
@@ -87,7 +87,20 @@ void SaveIbanBubbleView::AddedToWidget() {
   if (controller_->IsUploadSave()) {
     GetBubbleFrameView()->SetTitleView(
         std::make_unique<TitleWithIconAfterLabelView>(
-            GetWindowTitle(), TitleWithIconAfterLabelView::Icon::GOOGLE_PAY));
+            GetWindowTitle(),
+            base::FeatureList::IsEnabled(
+                features::kAutofillEnableWalletBranding)
+                ? TitleWithIconAfterLabelView::Icon::GOOGLE_WALLET
+                : TitleWithIconAfterLabelView::Icon::GOOGLE_PAY));
+  } else if (base::FeatureList::IsEnabled(
+                 features::kAutofillEnableWalletBranding)) {
+    // Failed server saves should not show a Google Wallet logo, as the card did
+    // not successfully save there.
+    auto title_view = std::make_unique<views::Label>(
+        GetWindowTitle(), views::style::CONTEXT_DIALOG_TITLE);
+    title_view->SetHorizontalAlignment(gfx::ALIGN_TO_HEAD);
+    title_view->SetMultiLine(true);
+    GetBubbleFrameView()->SetTitleView(std::move(title_view));
   }
 }
 

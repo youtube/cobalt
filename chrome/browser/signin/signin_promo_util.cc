@@ -485,8 +485,8 @@ bool ShouldShowSyncPromo(Profile& profile) {
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-bool ShouldShowExtensionSyncPromo(Profile& profile,
-                                  const extensions::Extension& extension) {
+bool ShouldShowExtensionSignInPromo(Profile& profile,
+                                    const extensions::Extension& extension) {
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
   // Don't show the promo if it does not pass the sync base checks.
   if (!signin::ShouldShowSyncPromo(profile)) {
@@ -505,28 +505,13 @@ bool ShouldShowExtensionSyncPromo(Profile& profile,
       return false;
     }
 
-    // The promo is not shown to users that have explicitly signed in through
-    // the browser (even if extensions are not syncing).
-    if (profile.GetPrefs()->GetBoolean(prefs::kExplicitBrowserSignin)) {
+    if (const signin::IdentityManager* identity_manager =
+            IdentityManagerFactory::GetForProfile(&profile);
+        identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSignin)) {
+      // The promo is not shown to users that have explicitly signed in through
+      // the browser (even if extensions are not syncing).
       return false;
     }
-  }
-
-  return true;
-#else
-  return false;
-#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
-}
-
-bool ShouldShowExtensionSignInPromo(Profile& profile,
-                                    const extensions::Extension& extension) {
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
-  if (!switches::IsExtensionsExplicitBrowserSigninEnabled()) {
-    return false;
-  }
-
-  if (!ShouldShowExtensionSyncPromo(profile, extension)) {
-    return false;
   }
 
   return ShouldShowSignInPromoCommon(profile, SignInPromoType::kExtension);
@@ -779,16 +764,16 @@ void ComputeProfileMenuAvatarButtonPromoInfo(
   std::move(result_callback).Run(ProfileMenuAvatarButtonPromoInfo());
 }
 
-SyncPromoIdentityPillManager::SyncPromoIdentityPillManager(
+AvatarButtonPromoManager::AvatarButtonPromoManager(
     signin::IdentityManager* identity_manager,
     PrefService* pref_service)
-    : SyncPromoIdentityPillManager(
+    : AvatarButtonPromoManager(
           identity_manager,
           pref_service,
           user_education::features::GetNewBadgeShowCount(),
           user_education::features::GetNewBadgeFeatureUsedCount()) {}
 
-SyncPromoIdentityPillManager::SyncPromoIdentityPillManager(
+AvatarButtonPromoManager::AvatarButtonPromoManager(
     signin::IdentityManager* identity_manager,
     PrefService* pref_service,
     int max_shown_count,
@@ -801,14 +786,14 @@ SyncPromoIdentityPillManager::SyncPromoIdentityPillManager(
   identity_manager_scoped_observation_.Observe(identity_manager_);
 }
 
-SyncPromoIdentityPillManager::~SyncPromoIdentityPillManager() = default;
+AvatarButtonPromoManager::~AvatarButtonPromoManager() = default;
 
-bool SyncPromoIdentityPillManager::ShouldShowPromo(
+bool AvatarButtonPromoManager::ShouldShowPromo(
     ProfileMenuAvatarButtonPromoInfo::Type promo_type) {
   const AccountInfo account = GetSignedInAccountInfo();
   if (account.gaia.empty()) {
-    // If there is no account available, the promo should not be shown (the sync
-    // promo should be shown only for signed in users).
+    // If there is no account available, there is nothing to record (the promos
+    // should be shown only for signed in users).
     return false;
   }
   if (!ArePromotionsEnabled()) {
@@ -822,12 +807,12 @@ bool SyncPromoIdentityPillManager::ShouldShowPromo(
          promo_used_count < max_used_count_;
 }
 
-void SyncPromoIdentityPillManager::RecordPromoShown(
+void AvatarButtonPromoManager::RecordPromoShown(
     ProfileMenuAvatarButtonPromoInfo::Type promo_type) {
   const AccountInfo account = GetSignedInAccountInfo();
   if (account.gaia.empty()) {
-    // If there is no account available, there is nothing to record (the sync
-    // promo should be shown only for signed in users).
+    // If there is no account available, there is nothing to record (the promos
+    // should be shown only for signed in users).
     return;
   }
 
@@ -845,12 +830,12 @@ void SyncPromoIdentityPillManager::RecordPromoShown(
   promo_counts.Set(shown_key, new_conut);
 }
 
-void SyncPromoIdentityPillManager::RecordPromoUsed(
+void AvatarButtonPromoManager::RecordPromoUsed(
     ProfileMenuAvatarButtonPromoInfo::Type promo_type) {
   const AccountInfo account = GetSignedInAccountInfo();
   if (account.gaia.empty()) {
-    // If there is no account available, there is nothing to record (the sync
-    // promo should be shown only for signed in users).
+    // If there is no account available, there is nothing to record (the promos
+    // should be shown only for signed in users).
     return;
   }
 
@@ -868,28 +853,28 @@ void SyncPromoIdentityPillManager::RecordPromoUsed(
   promo_counts.Set(used_key, new_conut);
 }
 
-bool SyncPromoIdentityPillManager::ArePromotionsEnabled() const {
+bool AvatarButtonPromoManager::ArePromotionsEnabled() const {
   PrefService* local_state = g_browser_process->local_state();
   return local_state && local_state->GetBoolean(prefs::kPromotionsEnabled);
 }
 
-void SyncPromoIdentityPillManager::OnIdentityManagerShutdown(
+void AvatarButtonPromoManager::OnIdentityManagerShutdown(
     IdentityManager* identity_manager) {
   CHECK_EQ(identity_manager, identity_manager_.get());
   identity_manager_ = nullptr;
   identity_manager_scoped_observation_.Reset();
 
-  // `SyncPromoIdentityPillManager::OnIdentityManagerShutdown()` is called upon
+  // `AvatarButtonPromoManager::OnIdentityManagerShutdown()` is called upon
   // profile destruction, which aligns with the need to clear the prefs. Since
-  // currently there is reliable way to be notified by the pref service shutting
-  // down, we rely on this notification as well.
+  // currently there is no reliable way to be notified by the pref service
+  // shutting down, we rely on this notification as well.
   // The need to clear the prefs here is primarily for unit tests that combines
   // `Browser` + `TestingProfile` (where the `PrefService` is owned by the
   // profile itself).
   signin_prefs_.reset();
 }
 
-AccountInfo SyncPromoIdentityPillManager::GetSignedInAccountInfo() const {
+AccountInfo AvatarButtonPromoManager::GetSignedInAccountInfo() const {
   CHECK(identity_manager_);
   CHECK(identity_manager_->AreRefreshTokensLoaded());
   // Checks for accounts in error as well.

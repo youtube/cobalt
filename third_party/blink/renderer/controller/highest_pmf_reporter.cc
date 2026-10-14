@@ -225,10 +225,17 @@ void HighestPmfReporter::OnMemoryPing(MemoryUsage usage) {
 }
 
 #if BUILDFLAG(IS_COBALT)
+bool HighestPmfReporter::AreInitialMetricsReported() const {
+  return has_been_backgrounded_once_ || report_count_ >= metrics_.size();
+}
+
 // Handles transition into background: cancel in-flight reporting tasks and
 // stop observing memory usage.
 void HighestPmfReporter::OnProcessBackgrounded() {
   DCHECK(IsMainThread());
+  if (!AreInitialMetricsReported()) {
+    return;
+  }
   cancelable_report_task_.Cancel();
   has_been_backgrounded_once_ = true;
   MemoryUsageMonitor::Instance().RemoveObserver(this);
@@ -238,6 +245,9 @@ void HighestPmfReporter::OnProcessBackgrounded() {
 // peak tracking and start a new measuring window for foreground metrics.
 void HighestPmfReporter::OnProcessForegrounded() {
   DCHECK(IsMainThread());
+  if (!AreInitialMetricsReported()) {
+    return;
+  }
 
   cancelable_report_task_.Cancel();
   current_highest_pmf_ = 0.0;

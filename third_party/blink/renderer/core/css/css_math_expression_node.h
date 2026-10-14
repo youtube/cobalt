@@ -301,30 +301,32 @@ class CORE_EXPORT CSSMathExpressionNode
     }
   }
 
-  bool IsNestedCalc() const { return is_nested_calc_; }
-  void SetIsNestedCalc() { is_nested_calc_ = true; }
+  bool IsNestedCalc() const { return value_feature_flags_ & kIsNestedCalc; }
+  void SetIsNestedCalc() { value_feature_flags_ |= kIsNestedCalc; }
 
-  bool HasComparisons() const { return has_comparisons_; }
-  bool HasAnchorFunctions() const { return has_anchor_functions_; }
-  bool IsScopedValue() const { return !needs_tree_scope_population_; }
+  bool HasComparisons() const {
+    return value_feature_flags_ & ValueFeatureFlag::kHasComparisons;
+  }
+  bool HasAnchorFunctions() const {
+    return value_feature_flags_ & ValueFeatureFlag::kHasAnchorFunctions;
+  }
+  bool HasRandomFunctions() const {
+    return value_feature_flags_ & ValueFeatureFlag::kHasRandomFunctions;
+  }
+  bool IsScopedValue() const {
+    return !(value_feature_flags_ &
+             ValueFeatureFlag::kNeedsTreeScopePopulation);
+  }
 
   const CSSMathExpressionNode& EnsureScopedValue(
       const TreeScope* tree_scope) const {
-    if (!needs_tree_scope_population_) {
+    if (IsScopedValue()) {
       return *this;
     }
     return PopulateWithTreeScope(tree_scope);
   }
   virtual const CSSMathExpressionNode& PopulateWithTreeScope(
       const TreeScope*) const = 0;
-
-#if DCHECK_IS_ON()
-  // There's a subtle issue in comparing two percentages, e.g., min(10%, 20%).
-  // It doesn't always resolve into 10%, because the reference value may be
-  // negative. We use this to prevent comparing two percentages without knowing
-  // the sign of the reference value.
-  virtual bool InvolvesPercentageComparisons() const = 0;
-#endif
 
   // Rewrite this function according to the specified TryTacticTransform,
   // e.g. anchor(left) -> anchor(right). If this function is not affected
@@ -341,14 +343,18 @@ class CORE_EXPORT CSSMathExpressionNode
   virtual void Trace(Visitor* visitor) const {}
 
  protected:
-  CSSMathExpressionNode(CalculationResultCategory category,
-                        bool has_comparisons,
-                        bool has_anchor_functions,
-                        bool needs_tree_scope_population)
-      : category_(category),
-        has_comparisons_(has_comparisons),
-        has_anchor_functions_(has_anchor_functions),
-        needs_tree_scope_population_(needs_tree_scope_population) {
+  enum ValueFeatureFlag : uint8_t {
+    kNoValueFeatures = 0,
+    kIsNestedCalc = 1 << 0,
+    kHasComparisons = 1 << 1,
+    kHasAnchorFunctions = 1 << 2,
+    kHasRandomFunctions = 1 << 3,
+    kNeedsTreeScopePopulation = 1 << 4,
+  };
+  using ValueFeatureFlags = uint8_t;
+
+  explicit CSSMathExpressionNode(CalculationResultCategory category)
+      : category_(category) {
     DCHECK_NE(category, kCalcOther);
   }
 
@@ -360,10 +366,7 @@ class CORE_EXPORT CSSMathExpressionNode
   }
 
   CalculationResultCategory category_;
-  bool is_nested_calc_ = false;
-  bool has_comparisons_;
-  bool has_anchor_functions_;
-  bool needs_tree_scope_population_;
+  ValueFeatureFlags value_feature_flags_ : 5 = kNoValueFeatures;
 };
 
 class CORE_EXPORT CSSMathExpressionNumericLiteral final
@@ -419,10 +422,6 @@ class CORE_EXPORT CSSMathExpressionNumericLiteral final
   bool operator==(const CSSMathExpressionNode& other) const final;
   CSSPrimitiveValue::UnitType ResolvedUnitType() const final;
   void Trace(Visitor* visitor) const final;
-
-#if DCHECK_IS_ON()
-  bool InvolvesPercentageComparisons() const final;
-#endif
 
  protected:
   double ComputeDouble(const CSSLengthResolver& length_resolver) const final;
@@ -516,10 +515,6 @@ class CORE_EXPORT CSSMathExpressionIdentifierLiteral final
     CSSMathExpressionNode::Trace(visitor);
   }
 
-#if DCHECK_IS_ON()
-  bool InvolvesPercentageComparisons() const final { return false; }
-#endif
-
  protected:
   double ComputeDouble(const CSSLengthResolver& length_resolver) const final {
     NOTREACHED();
@@ -543,7 +538,7 @@ struct DowncastTraits<CSSMathExpressionIdentifierLiteral> {
 class CORE_EXPORT CSSMathExpressionKeywordLiteral final
     : public CSSMathExpressionNode {
  public:
-  enum class Context { kMediaProgress, kCalcSize, kColorChannel };
+  enum class Context { kMediaProgress, kCalcSize, kColorChannel, kClamp };
 
   static CSSMathExpressionKeywordLiteral* Create(CSSValueID keyword,
                                                  Context context) {
@@ -618,10 +613,6 @@ class CORE_EXPORT CSSMathExpressionKeywordLiteral final
   void Trace(Visitor* visitor) const final {
     CSSMathExpressionNode::Trace(visitor);
   }
-
-#if DCHECK_IS_ON()
-  bool InvolvesPercentageComparisons() const final { return false; }
-#endif
 
  protected:
   double ComputeDouble(const CSSLengthResolver& length_resolver) const final;
@@ -811,10 +802,6 @@ class CORE_EXPORT CSSMathExpressionOperation final
   bool HasInvalidAnchorFunctions(const CSSLengthResolver&) const final;
   void Trace(Visitor* visitor) const final;
 
-#if DCHECK_IS_ON()
-  bool InvolvesPercentageComparisons() const final;
-#endif
-
  protected:
   double ComputeDouble(const CSSLengthResolver& length_resolver) const final;
   std::optional<double> GetValueIfKnown() const final {
@@ -934,10 +921,6 @@ class CORE_EXPORT CSSMathExpressionContainerFeature final
     CSSMathExpressionNode::Trace(visitor);
   }
 
-#if DCHECK_IS_ON()
-  bool InvolvesPercentageComparisons() const final { return false; }
-#endif
-
  protected:
   double ComputeDouble(const CSSLengthResolver& length_resolver) const final;
   std::optional<double> GetValueIfKnown() const final { return std::nullopt; }
@@ -1019,10 +1002,6 @@ class CORE_EXPORT CSSMathExpressionAnchorQuery final
       const TreeScope*) const final;
   void Trace(Visitor* visitor) const final;
 
-#if DCHECK_IS_ON()
-  bool InvolvesPercentageComparisons() const final { return false; }
-#endif
-
   const CSSMathExpressionNode* TransformAnchors(
       LogicalAxis,
       const TryTacticTransform&,
@@ -1057,11 +1036,9 @@ class CORE_EXPORT CSSMathExpressionSiblingFunction final
  public:
   explicit CSSMathExpressionSiblingFunction(
       const cssvalue::CSSScopedKeywordValue* function)
-      : CSSMathExpressionNode(kCalcNumber,
-                              /*has_comparisons=*/false,
-                              /*has_anchor_functions=*/false,
-                              /*needs_tree_scope_population=*/true),
-        function_(function) {}
+      : CSSMathExpressionNode(kCalcNumber), function_(function) {
+    value_feature_flags_ = kNeedsTreeScopePopulation;
+  }
 
   // TODO(crbug.com/40059176): This is not entirely correct, since "math
   // function" should refer to functions defined in [1]. We may need to clean up
@@ -1111,10 +1088,6 @@ class CORE_EXPORT CSSMathExpressionSiblingFunction final
   bool operator==(const CSSMathExpressionNode& other) const final;
   const CSSMathExpressionNode& PopulateWithTreeScope(
       const TreeScope*) const final;
-
-#if DCHECK_IS_ON()
-  bool InvolvesPercentageComparisons() const final { return false; }
-#endif
 
   const CSSMathExpressionNode* TransformAnchors(
       LogicalAxis,
@@ -1250,9 +1223,6 @@ class CORE_EXPORT CSSMathExpressionRandomFunction final
       const TreeScope*) const final {
     NOTREACHED();
   }
-#if DCHECK_IS_ON()
-  bool InvolvesPercentageComparisons() const final;
-#endif
   const CSSMathExpressionNode* TransformAnchors(
       LogicalAxis,
       const TryTacticTransform&,

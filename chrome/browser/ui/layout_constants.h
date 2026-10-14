@@ -183,8 +183,11 @@ enum class LayoutConstant {
   // tabs.
   kVerticalTabCornerRadius,
 
-  // The height of a vertical tab.
+  // The height of an unpinned vertical tab.
   kVerticalTabHeight,
+
+  // The height of a pinned vertical tab.
+  kVerticalTabPinnedHeight,
 
   // The minimum possible width for a vertical tab.
   kVerticalTabMinWidth,
@@ -200,20 +203,36 @@ enum class LayoutConstant {
   // content when in the collapsed state.
   kVerticalTabStripCollapsedPadding,
 
+  // The width of the separator in the vertical tab strip when collapsed.
+  kVerticalTabStripCollapsedSeparatorWidth,
+
   // The icon size of top buttons in the vertical tab strip.
   kVerticalTabStripTopButtonIconSize,
 
-  // The horizontal padding between the two buttons in the bottom container of
-  // the vertical tab strip when it is uncollapsed.
-  kVerticalTabStripBottomButtonPadding,
+  // The padding between the buttons in the top container of the vertical tab
+  // strip. When it is collapsed, this is vertical padding. When it is
+  // uncollapsed and expanded, this is horizontal padding.
+  kVerticalTabStripTopButtonPadding,
 
-  // The vertical padding between the two buttons in the bottom container of
-  // the vertical tab strip when it is collapsed.
-  kVerticalTabStripCollapsedBottomButtonPadding,
+  // The icon size of bottom buttons in the vertical tab strip.
+  kVerticalTabStripBottomButtonIconSize,
+
+  // The vertical or horizontal padding between two buttons (tab groups and tab
+  // search) that have flat edges in the top container of the vertical tab
+  // strip.
+  kVerticalTabStripFlatEdgeButtonPadding,
 
   // The default height of the top container for the vertical tab strip when
   // uncollapsed.
   kVerticalTabStripTopButtonContainerHeight,
+
+  // The default height and width of the new tab button for the vertical tab
+  // strip.
+  kVerticalTabStripNewTabButtonSize,
+
+  // The default height and width of the tab groups and tab search buttons for
+  // the vertical tab strip.
+  kVerticalTabStripTopContainerButtonSize,
 
   // The size of the app menu button in a web app browser window.
   kWebAppMenuButtonSize,
@@ -268,6 +287,14 @@ enum LayoutInset {
   // maximized and the tabstrip is collapsed the toolbar will sit flush with the
   // edge of the screen.
   WEBUI_TAB_STRIP_TOOLBAR_INTERIOR_MARGIN,
+
+  // The insets for the buttons in the bottom container of the vertical tab
+  // strip when it is uncollapsed.
+  VERTICAL_TAB_STRIP_BOTTOM_BUTTON_UNCOLLAPSED,
+
+  // The insets for the buttons in the bottom container of the vertical tab
+  // strip when it is collapsed.
+  VERTICAL_TAB_STRIP_BOTTOM_BUTTON_COLLAPSED,
 };
 
 int GetLayoutConstant(LayoutConstant constant);

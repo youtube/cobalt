@@ -5,7 +5,6 @@
 #include "base/test/run_until.h"
 #include "base/test/test_future.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
-#include "chrome/browser/actor/actor_policy_checker.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/actor_task_metadata.h"
 #include "chrome/browser/actor/resources/grit/actor_browser_resources.h"
@@ -61,8 +60,6 @@ class ActorUiHandoffButtonControllerInteractiveUiTest
             {features::kGlicURLConfig,
              { {features::kGlicGuestURL.name, "about:blank"} }},
 #endif
-            {features::kGlicActor, {}},
-            {features::kGlicHandoffButtonHiddenClientControl, {}},
             {features::kGlicHandoffButtonShowInImmersiveMode, {}},
             {features::kGlicHandoffButtonHideWhenOmniboxPopupOpened, {}},
             {features::kGlicActorUi,
@@ -209,7 +206,7 @@ IN_PROC_BROWSER_TEST_F(ActorUiHandoffButtonControllerInteractiveUiTest,
 #endif  // BUILDFLAG(IS_MAC)
 
 // TODO(crbug.com/465113623) Test flaky on Wayland.
-#if BUILDFLAG(IS_OZONE_WAYLAND)
+#if BUILDFLAG(SUPPORTS_OZONE_WAYLAND)
 #define MAYBE_ButtonHidesWhenOmniboxIsFocused \
   DISABLED_ButtonHidesWhenOmniboxIsFocused
 #else
@@ -248,61 +245,6 @@ IN_PROC_BROWSER_TEST_F(ActorUiHandoffButtonControllerInteractiveUiTest,
 }
 #endif
 
-using ButtonTextObserver =
-    views::test::PollingViewPropertyObserver<std::u16string,
-                                             views::LabelButton>;
-DEFINE_LOCAL_STATE_IDENTIFIER_VALUE(ButtonTextObserver, kButtonTextState);
-
-class ActorUiHandoffButtonVisibleInBothStatesInteractiveUiTest
-    : public ActorUiHandoffButtonControllerInteractiveUiTest {
- public:
-  void SetUp() override {
-    feature_list_.InitWithFeaturesAndParameters(
-        {
-#if BUILDFLAG(ENABLE_GLIC)
-            {features::kGlicURLConfig,
-             { {features::kGlicGuestURL.name, "about:blank"} }},
-            {features::kGlic, {}},
-#endif
-            {features::kGlicActor, {}},
-            {features::kGlicActorUi,
-             {{features::kGlicActorUiHandoffButtonName, "true"}}},
-        },
-        /*disabled_features=*/{
-#if BUILDFLAG(ENABLE_GLIC)
-            features::kGlicDetached,
-#endif
-            features::kGlicHandoffButtonHiddenClientControl,
-        });
-
-    InteractiveBrowserTest::SetUp();
-  }
-};
-
-IN_PROC_BROWSER_TEST_F(ActorUiHandoffButtonVisibleInBothStatesInteractiveUiTest,
-                       ButtonTextChangesOnClick) {
-  StartActingOnTab();
-  RunTestSequence(
-      ClearOmniboxFocus(),
-      InAnyContext(
-          WaitForShow(HandoffButtonController::kHandoffButtonElementId)),
-      // Ensure initial state is correct
-      InAnyContext(CheckViewProperty(
-          HandoffButtonController::kHandoffButtonElementId,
-          &views::LabelButton::GetText,
-          l10n_util::GetStringUTF16(IDS_HANDOFF_TAKE_OVER_TASK_LABEL))),
-      // Start polling the button's text property so WaitForState can see
-      // changes.
-      InAnyContext(PollViewProperty(
-          kButtonTextState, HandoffButtonController::kHandoffButtonElementId,
-          &views::LabelButton::GetText)),
-      InAnyContext(
-          PressButton(HandoffButtonController::kHandoffButtonElementId)),
-      // Verify the text change on the button.
-      WaitForState(kButtonTextState, l10n_util::GetStringUTF16(
-                                         IDS_HANDOFF_GIVE_TASK_BACK_LABEL)));
-}
-
 // State identifier for polling the visible handoff button count
 using VisibleCountObserver = ::ui::test::PollingStateObserver<int>;
 DEFINE_LOCAL_STATE_IDENTIFIER_VALUE(VisibleCountObserver,
@@ -322,15 +264,12 @@ class ActorUiHandoffButtonSplitViewTest
          { {features::kGlicGuestURL.name, "about:blank"} }},
         {features::kGlic, {}},
 #endif
-        {features::kGlicActor, {}},
-        {features::kGlicHandoffButtonHiddenClientControl, {}},
         {features::kGlicActorUi,
          {{features::kGlicActorUiHandoffButtonName, "true"}}}};
   }
 
   void SetUpOnMainThread() override {
     ActorUiInteractiveBrowserTest::SetUpOnMainThread();
-    actor_keyed_service()->GetPolicyChecker().set_act_on_web_for_testing(true);
     // Add a second tab
     ASSERT_TRUE(AddTabAtIndex(1, GURL("about:blank?second"),
                               ::ui::PAGE_TRANSITION_TYPED));
@@ -433,7 +372,7 @@ class ActorUiHandoffButtonSplitViewTest
     tabs::TabInterface* tab = tabs::TabInterface::GetFromContents(wc);
     ASSERT_NE(tab, nullptr);
 
-    task_id = actor_keyed_service()->CreateTask();
+    task_id = actor_keyed_service()->CreateTask(NoEnterprisePolicyChecker());
     TestFuture<actor::mojom::ActionResultPtr> future;
     actor_keyed_service()->GetTask(task_id)->AddTab(tab->GetHandle(),
                                                     future.GetCallback());

@@ -176,11 +176,6 @@ void ExpectBatchUploadConfirmationSnackbar(int count, NSString* email) {
         std::string("--") + switches::kSearchEngineChoiceCountry + "=BE");
   }
 
-  if ([self isRunningTest:@selector(testSwitchAccountFromAccountMenu)] ||
-      [self isRunningTest:@selector(testSignOutFromAccountFromAccountMenu)]) {
-    config.features_enabled.push_back(kSeparateProfilesForManagedAccounts);
-  }
-
   return config;
 }
 
@@ -525,7 +520,7 @@ void ExpectBatchUploadConfirmationSnackbar(int count, NSString* email) {
 // Tests the account settings is reflecting the SyncTypesListDisabled
 // policy.
 - (void)testAccountSettingsWithSyncTypesListDisabled {
-  base::Value::List list;
+  base::ListValue list;
   list.Append("passwords");
   policy_test_utils::SetPolicy(base::Value(std::move(list)),
                                policy::key::kSyncTypesListDisabled);
@@ -547,7 +542,7 @@ void ExpectBatchUploadConfirmationSnackbar(int count, NSString* email) {
 // SyncTypesListDisabled policy when the policy is lifted.
 - (void)testAccountSettingsWithSyncTypesListDisabledLifted {
   // Apply policy.
-  base::Value::List list;
+  base::ListValue list;
   list.Append("passwords");
   policy_test_utils::SetPolicy(base::Value(std::move(list)),
                                policy::key::kSyncTypesListDisabled);
@@ -602,7 +597,7 @@ void ExpectBatchUploadConfirmationSnackbar(int count, NSString* email) {
   [SigninEarlGrey signinWithFakeIdentity:fakeIdentity];
 
   // Apply policy dynamically.
-  base::Value::List list;
+  base::ListValue list;
   list.Append("passwords");
   policy_test_utils::SetPolicy(base::Value(std::move(list)),
                                policy::key::kSyncTypesListDisabled);
@@ -774,7 +769,7 @@ void ExpectBatchUploadConfirmationSnackbar(int count, NSString* email) {
 // Tests the "History and Tabs" toggle manages both types. When both types
 // are disabled by policy their toggle should be off.
 - (void)testAccountSettingsWithHistoryAndTabsDisabledByPolicy {
-  base::Value::List list;
+  base::ListValue list;
   list.Append("typedUrls");
   list.Append("tabs");
   policy_test_utils::SetPolicy(base::Value(std::move(list)),
@@ -798,7 +793,7 @@ void ExpectBatchUploadConfirmationSnackbar(int count, NSString* email) {
 // Tests the "History and Tabs" toggle manages both types. When History
 // is only disabled by policy their toggle should be active.
 - (void)testAccountSettingsWithHistoryDisabledByPolicy {
-  base::Value::List list;
+  base::ListValue list;
   list.Append("typedUrls");
   policy_test_utils::SetPolicy(base::Value(std::move(list)),
                                policy::key::kSyncTypesListDisabled);
@@ -821,7 +816,7 @@ void ExpectBatchUploadConfirmationSnackbar(int count, NSString* email) {
 // Tests the "History and Tabs" toggle manages both types. When Tabs
 // is only disabled by policy their toggle should be active.
 - (void)testAccountSettingsWithTabsDisabledByPolicy {
-  base::Value::List list;
+  base::ListValue list;
   list.Append("tabs");
   policy_test_utils::SetPolicy(base::Value(std::move(list)),
                                policy::key::kSyncTypesListDisabled);
@@ -1539,15 +1534,11 @@ void ExpectBatchUploadConfirmationSnackbar(int count, NSString* email) {
 
 // Tests the custom passphrase is remembered per account, kept across signout,
 // and cleared when account is removed from device.
-// TODO(crbug.com/384646508): This test is flaky on the iPad simulator.
-#if TARGET_OS_SIMULATOR
-#define MAYBE_testRememberCustomPassphraseAfterSignout \
-  FLAKY_testRememberCustomPassphraseAfterSignout
-#else
-#define MAYBE_testRememberCustomPassphraseAfterSignout \
-  testRememberCustomPassphraseAfterSignout
-#endif  // TARGET_OS_SIMULATOR
-- (void)MAYBE_testRememberCustomPassphraseAfterSignout {
+// TODO(crbug.com/384646508): Re-enable after the fix on iOS 17.
+- (void)testRememberCustomPassphraseAfterSignout {
+  if (!@available(iOS 18.0, *)) {
+    EARL_GREY_TEST_SKIPPED(@"Failed on iOS 17");
+  }
   // Enable custom passphrase.
   [ChromeEarlGrey addSyncPassphrase:kPassphrase];
   FakeSystemIdentity* fakeIdentity = [FakeSystemIdentity fakeIdentity1];

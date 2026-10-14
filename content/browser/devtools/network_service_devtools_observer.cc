@@ -73,6 +73,8 @@ void NetworkServiceDevToolsObserver::OnRawRequest(
     const net::CookieAccessResultList& request_cookie_list,
     std::vector<network::mojom::HttpRawHeaderPairPtr> request_headers,
     base::TimeTicks timestamp,
+    std::vector<network::mojom::DeviceBoundSessionWithUsagePtr>
+        device_bound_session_usages,
     network::mojom::ClientSecurityStatePtr security_state,
     network::mojom::OtherPartitionInfoPtr other_partition_info,
     const std::optional<base::UnguessableToken>&
@@ -80,10 +82,11 @@ void NetworkServiceDevToolsObserver::OnRawRequest(
   auto* host = GetDevToolsAgentHost();
   if (!host)
     return;
-  DispatchToAgents(
-      host, &protocol::NetworkHandler::OnRequestWillBeSentExtraInfo,
-      devtools_request_id, request_cookie_list, request_headers, timestamp,
-      security_state, other_partition_info, applied_network_conditions_id);
+  DispatchToAgents(host,
+                   &protocol::NetworkHandler::OnRequestWillBeSentExtraInfo,
+                   devtools_request_id, request_cookie_list, request_headers,
+                   timestamp, device_bound_session_usages, security_state,
+                   other_partition_info, applied_network_conditions_id);
 }
 
 void NetworkServiceDevToolsObserver::OnRawResponse(
@@ -125,7 +128,7 @@ void NetworkServiceDevToolsObserver::OnTrustTokenOperationDone(
                    devtools_request_id, *result);
 }
 
-void NetworkServiceDevToolsObserver::OnPrivateNetworkRequest(
+void NetworkServiceDevToolsObserver::OnLocalNetworkRequest(
     const std::optional<std::string>& devtools_request_id,
     const GURL& url,
     bool is_warning,
@@ -145,7 +148,7 @@ void NetworkServiceDevToolsObserver::OnPrivateNetworkRequest(
                   network::features::kLocalNetworkAccessChecks)
                   ? protocol::Network::CorsErrorEnum::
                         LocalNetworkAccessPermissionDenied
-                  : protocol::Network::CorsErrorEnum::InsecurePrivateNetwork)
+                  : protocol::Network::CorsErrorEnum::InsecureLocalNetwork)
           .SetFailedParameter("")
           .Build();
   std::unique_ptr<protocol::Audits::AffectedRequest> affected_request =
@@ -442,6 +445,27 @@ protocol::String ConvertToDevtoolsEnum(
   }
 }
 
+protocol::String ConvertToDevtoolsEnum(
+    network::mojom::ConnectionAllowlistIssue error) {
+  using network::mojom::ConnectionAllowlistIssue;
+  namespace ConnectionAllowlistErrorEnum =
+      protocol::Audits::ConnectionAllowlistErrorEnum;
+  switch (error) {
+    case ConnectionAllowlistIssue::kInvalidHeader:
+      return ConnectionAllowlistErrorEnum::InvalidHeader;
+    case ConnectionAllowlistIssue::kMoreThanOneList:
+      return ConnectionAllowlistErrorEnum::MoreThanOneList;
+    case ConnectionAllowlistIssue::kItemNotInnerList:
+      return ConnectionAllowlistErrorEnum::ItemNotInnerList;
+    case ConnectionAllowlistIssue::kInvalidAllowlistItemType:
+      return ConnectionAllowlistErrorEnum::InvalidAllowlistItemType;
+    case ConnectionAllowlistIssue::kReportingEndpointNotToken:
+      return ConnectionAllowlistErrorEnum::ReportingEndpointNotToken;
+    case ConnectionAllowlistIssue::kInvalidUrlPattern:
+      return ConnectionAllowlistErrorEnum::InvalidUrlPattern;
+  }
+}
+
 }  // namespace
 
 void NetworkServiceDevToolsObserver::OnSharedDictionaryError(
@@ -538,6 +562,36 @@ void NetworkServiceDevToolsObserver::OnUnencodedDigestError(
               protocol::Audits::InspectorIssueCodeEnum::UnencodedDigestIssue)
           .SetDetails(std::move(details))
           .Build();
+  devtools_instrumentation::ReportBrowserInitiatedIssue(
+      rfhi, std::move(devtools_issue));
+}
+
+void NetworkServiceDevToolsObserver::OnConnectionAllowlistIssue(
+    const std::string& devtool_request_id,
+    const GURL& url,
+    network::mojom::ConnectionAllowlistIssue issue) {
+  RenderFrameHostImpl* rfhi = GetRenderFrameHostImplFrom(frame_tree_node_id_);
+  if (!rfhi) {
+    return;
+  }
+  auto affected_request = protocol::Audits::AffectedRequest::Create()
+                              .SetRequestId(devtool_request_id)
+                              .SetUrl(url.spec())
+                              .Build();
+  auto issue_details =
+      protocol::Audits::ConnectionAllowlistIssueDetails::Create()
+          .SetError(ConvertToDevtoolsEnum(issue))
+          .SetRequest(std::move(affected_request))
+          .Build();
+  auto details =
+      protocol::Audits::InspectorIssueDetails::Create()
+          .SetConnectionAllowlistIssueDetails(std::move(issue_details))
+          .Build();
+  auto devtools_issue = protocol::Audits::InspectorIssue::Create()
+                            .SetCode(protocol::Audits::InspectorIssueCodeEnum::
+                                         ConnectionAllowlistIssue)
+                            .SetDetails(std::move(details))
+                            .Build();
   devtools_instrumentation::ReportBrowserInitiatedIssue(
       rfhi, std::move(devtools_issue));
 }

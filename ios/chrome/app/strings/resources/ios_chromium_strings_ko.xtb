@@ -7,11 +7,13 @@
 <translation id="1091252999271033193">Chromium에서 모바일 사이트를 매번 요청함을 의미합니다</translation>
 <translation id="1115463765356382667">아래의 추천 작업을 완료하여 Chromium을 최대한 활용합니다.</translation>
 <translation id="1185134272377778587">Chromium 정보</translation>
+<translation id="119044033865561140">iPad에서 즉시 Chromium을 여세요</translation>
 <translation id="1211450393895337634">iPad에서 탐색할 준비가 되면 Chromium을 더 빠르게 여세요.</translation>
 <translation id="1229234641991056119">Chromium에서 Safari 비밀번호, 방문 기록, 북마크, 신용카드를 사용하세요</translation>
 <translation id="1257458525759135959">이미지를 저장하려면 '설정'을 탭하여 Chromium에 사진 추가 권한을 부여하세요.</translation>
 <translation id="1260702988262336471">Chromium 메뉴 열기</translation>
 <translation id="12739128458173458">이 탭을 다른 기기로 보내려면 두 기기 모두에서 Chromium에 로그인하세요.</translation>
+<translation id="1279797561821266129">도크에서 Chromium에 더 빠르게 액세스</translation>
 <translation id="1361748954329991663">Chromium이 이전 버전입니다. <ph name="BEGIN_LINK" />앱 스토어<ph name="END_LINK" />에 사용 가능한 업데이트가 없으면 기기에서 더 이상 Chromium의 새 버전을 지원하지 않는 것일 수 있습니다.</translation>
 <translation id="1383876407941801731">검색</translation>
 <translation id="1423007117030725713">새 Chromium 탭에서 검색을 시작합니다.</translation>
@@ -41,6 +43,9 @@
 <translation id="1707458603865303524">언제든지 메시지 또는 기타 앱에서 링크를 탭하여 Chromium을 사용해 보세요.</translation>
 <translation id="1722370509450468186">비밀번호가 계정(<ph name="EMAIL" />)에 저장됩니다.</translation>
 <translation id="1747088204252710672">나에게 딱 맞는 맞춤 피드</translation>
+<translation id="1761196287436320018">Chromium의 북마크 한도인 <ph name="LIMIT" />개에 도달하여 북마크 중 일부가 아직 Google 계정에 저장되지 않았습니다.
+
+일부 북마크를 삭제할 때까지 계정에 새 북마크를 저장할 수 없습니다. 지금 로그아웃하면 저장되지 않은 북마크가 삭제됩니다.</translation>
 <translation id="1811860791247653035">맞춤설정 및 기타 기능을 사용하려면 <ph name="FEATURE_NAME_1" /> 그리고 <ph name="FEATURE_NAME_2" />에 Chromium을 포함하세요.</translation>
 <translation id="1838412507805038478">Chromium이 <ph name="ISSUER" />에서 이 웹사이트의 인증서를 발행했음을 확인했습니다.</translation>
 <translation id="1839447949248872139">기본적으로 Chromium에서 링크 열기</translation>
@@ -129,7 +134,6 @@ Chromium 환경을 개선하는 데 데이터를 사용하는 설정을 더 보�
 <translation id="3728124580182886854">맞춤설정 등의 목적으로 Chromium과 기타 Google 서비스를 연결합니다</translation>
 <translation id="377649297473651452">Chromium 자동 완성 펼쳐 보기</translation>
 <translation id="3780779443901618967">표준 보호 모드보다 더 많은 사이트에서 데이터를 분석하여 위험한 사이트에 관해 경고합니다. Google이 이전에 몰랐던 사이트도 여기에 포함됩니다. Chromium 경고를 건너뛸 수 있습니다.</translation>
-<translation id="3793136096560888222">Chromium의 Gemini로 이미지 수정</translation>
 <translation id="3805899903892079518">Chromium에서 사진 또는 동영상에 액세스할 수 없습니다. 'iOS 설정 &gt; 개인 정보 보호 &gt; 사진'에서 액세스를 허용하세요.</translation>
 <translation id="3816686541346279443">Chromium에서 비밀번호 저장을 제안합니다.</translation>
 <translation id="3827545470516145620">이 기기에 표준 보안 보호 조치가 적용되고 있습니다.</translation>
@@ -174,6 +178,7 @@ Chromium 환경을 개선하는 데 데이터를 사용하는 설정을 더 보�
 <translation id="4790638144988730920">Google 계정의 Chromium 데이터를 계속 사용하세요.</translation>
 <translation id="4828317641996116749">Chromium에서 일부 비밀번호를 확인할 수 없습니다. 나중에 다시 시도해 주세요.</translation>
 <translation id="4856138222358683580">Chromium 작업</translation>
+<translation id="4869706986935301458">iPhone에서 즉시 Chromium을 여세요</translation>
 <translation id="4904452304169763785">Chromium에서 감지한 개인 정보 보호 또는 보안 문제에 대한 알림입니다.</translation>
 <translation id="4908570938463711775">시작하는 데 도움이 되는 Chromium 기본사항 알아보기</translation>
 <translation id="4962295957157529683">열려 있는 다른 Chromium 창에서 진행 중이던 작업을 완료하세요.</translation>
@@ -293,6 +298,7 @@ Chromium 환경을 개선하는 데 데이터를 사용하는 설정을 더 보�
 <translation id="7395825497086981028">비밀번호가 <ph name="EMAIL" />의 비밀번호 관리자에 저장됩니다.</translation>
 <translation id="7434848749522628428">이 패스키는 <ph name="USER_EMAIL" />의 비밀번호 관리자에 저장됩니다.</translation>
 <translation id="7504829997542308412">Chromium을 엽니다.</translation>
+<translation id="7507535968973352823">하단 영역에 Chromium을 배치하여 언제든지 액세스</translation>
 <translation id="7531461704633548377">Chromium에서</translation>
 <translation id="7554983317097061001">Chromium 도움말: Chromium을 도크로 이동</translation>
 <translation id="7576863740961052505">Chromium 설정 관리</translation>

@@ -191,7 +191,9 @@ void AutocompleteControllerAndroid::Start(
     if (AreLensSuggestInputsReady(*inputs)) {
       input_.set_lens_overlay_suggest_inputs(std::move(inputs));
     }
-    input_.set_aim_tool_mode(tool_mode);
+    omnibox::InputState input_state;
+    input_state.active_tool = tool_mode;
+    input_.set_input_state(input_state);
   }
   autocomplete_controller_->Start(input_);
 }
@@ -310,7 +312,9 @@ void AutocompleteControllerAndroid::OnOmniboxFocused(
         tool_mode != omnibox::TOOL_MODE_IMAGE_GEN_UPLOAD) {
       input_.set_lens_overlay_suggest_inputs(std::move(inputs));
     }
-    input_.set_aim_tool_mode(tool_mode);
+    omnibox::InputState input_state;
+    input_state.active_tool = tool_mode;
+    input_.set_input_state(input_state);
   }
 
   autocomplete_controller_->Start(input_);
@@ -345,10 +349,10 @@ void AutocompleteControllerAndroid::OnSuggestionSelected(
     const int32_t j_window_open_disposition,
     const JavaRef<jstring>& j_current_url,
     ::metrics::OmniboxEventProto::PageClassification page_classification,
-    jlong elapsed_time_since_first_modified,
+    int64_t elapsed_time_since_first_modified,
     int32_t completed_length,
     const JavaRef<jobject>& j_web_contents,
-    jlong omnibox_action_ptr) {
+    int64_t omnibox_action_ptr) {
   std::u16string url = ConvertJavaStringToUTF16(env, j_current_url);
   const GURL current_url = GURL(url);
   const base::TimeTicks& now(base::TimeTicks::Now());
@@ -478,7 +482,7 @@ ScopedJavaLocalRef<jobject> AutocompleteControllerAndroid::
     UpdateMatchDestinationURLWithAdditionalSearchboxStats(
         JNIEnv* env,
         uintptr_t match_ptr,
-        jlong elapsed_time_since_input_change) {
+        int64_t elapsed_time_since_input_change) {
   auto* match = reinterpret_cast<AutocompleteMatch*>(match_ptr);
   autocomplete_controller_
       ->UpdateMatchDestinationURLWithAdditionalSearchboxStats(
@@ -560,10 +564,6 @@ void AutocompleteControllerAndroid::CreateNavigationObserver(
     JNIEnv* env,
     uintptr_t navigation_handle_ptr,
     uintptr_t match_ptr) {
-  if (!base::FeatureList::IsEnabled(omnibox::kOmniboxShortcutsAndroid)) {
-    return;
-  }
-
   auto* navigation_handle =
       reinterpret_cast<content::NavigationHandle*>(navigation_handle_ptr);
   const auto& match = *reinterpret_cast<AutocompleteMatch*>(match_ptr);

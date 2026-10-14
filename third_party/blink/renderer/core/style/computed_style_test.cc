@@ -74,6 +74,29 @@ class ComputedStyleTest : public testing::Test {
     return GetDocument().getElementById(AtomicString(id))->ComputedStyleRef();
   }
 
+  enum ExpectedChanges { kNoChanges, kCompositingReasonsChanged };
+
+  template <typename SetFlag, typename GetFlag>
+  void TestAnimationFlag(const SetFlag& set_flag,
+                         const GetFlag& get_flag,
+                         ComputedStyle::Difference expected_difference,
+                         ExpectedChanges expected_changes) {
+    ComputedStyleBuilder builder = CreateComputedStyleBuilder();
+    set_flag(&builder);
+    const ComputedStyle* style = builder.TakeStyle();
+    EXPECT_TRUE(get_flag(style));
+    const ComputedStyle* other = InitialComputedStyle();
+    EXPECT_FALSE(get_flag(other));
+    EXPECT_EQ(expected_difference,
+              ComputedStyle::ComputeDifference(style, other));
+    StyleDifference diff = style->VisualInvalidationDiff(GetDocument(), *other);
+    bool expect_compositing_reasons_changed =
+        expected_changes == kCompositingReasonsChanged;
+    EXPECT_EQ(expect_compositing_reasons_changed, diff.HasDifference());
+    EXPECT_EQ(expect_compositing_reasons_changed,
+              diff.compositing_reasons_changed);
+  }
+
  private:
   test::TaskEnvironment task_environment_;
   std::unique_ptr<DummyPageHolder> dummy_page_holder_;
@@ -229,7 +252,7 @@ TEST_F(ComputedStyleTest,
   const ComputedStyle* other = builder.TakeStyle();
 
   StyleDifference diff = style->VisualInvalidationDiff(GetDocument(), *other);
-  EXPECT_TRUE(diff.TransformChanged());
+  EXPECT_TRUE(diff.transform_changed);
 }
 
 TEST_F(ComputedStyleTest,
@@ -250,8 +273,8 @@ TEST_F(ComputedStyleTest,
   const ComputedStyle* other = builder.TakeStyle();
 
   StyleDifference diff = style->VisualInvalidationDiff(GetDocument(), *other);
-  EXPECT_FALSE(diff.TransformChanged());
-  EXPECT_TRUE(diff.CompositingReasonsChanged());
+  EXPECT_FALSE(diff.transform_changed);
+  EXPECT_TRUE(diff.compositing_reasons_changed);
 }
 
 TEST_F(ComputedStyleTest,
@@ -262,7 +285,7 @@ TEST_F(ComputedStyleTest,
   const ComputedStyle* other = builder.TakeStyle();
 
   StyleDifference diff = style->VisualInvalidationDiff(GetDocument(), *other);
-  EXPECT_TRUE(diff.TransformChanged());
+  EXPECT_TRUE(diff.transform_changed);
 }
 
 TEST_F(ComputedStyleTest,
@@ -273,7 +296,7 @@ TEST_F(ComputedStyleTest,
   const ComputedStyle* other = builder.TakeStyle();
 
   StyleDifference diff = style->VisualInvalidationDiff(GetDocument(), *other);
-  EXPECT_TRUE(diff.TransformChanged());
+  EXPECT_TRUE(diff.transform_changed);
 }
 
 TEST_F(ComputedStyleTest,
@@ -284,7 +307,7 @@ TEST_F(ComputedStyleTest,
   const ComputedStyle* other = builder.TakeStyle();
 
   StyleDifference diff = style->VisualInvalidationDiff(GetDocument(), *other);
-  EXPECT_TRUE(diff.TransformChanged());
+  EXPECT_TRUE(diff.transform_changed);
 }
 
 TEST_F(ComputedStyleTest,
@@ -295,7 +318,7 @@ TEST_F(ComputedStyleTest,
   const ComputedStyle* other = builder.TakeStyle();
 
   StyleDifference diff = style->VisualInvalidationDiff(GetDocument(), *other);
-  EXPECT_TRUE(diff.CompositingReasonsChanged());
+  EXPECT_TRUE(diff.compositing_reasons_changed);
 }
 
 TEST_F(ComputedStyleTest,
@@ -306,7 +329,7 @@ TEST_F(ComputedStyleTest,
   const ComputedStyle* other = builder.TakeStyle();
 
   StyleDifference diff = style->VisualInvalidationDiff(GetDocument(), *other);
-  EXPECT_TRUE(diff.CompositingReasonsChanged());
+  EXPECT_TRUE(diff.compositing_reasons_changed);
 }
 
 TEST_F(ComputedStyleTest,
@@ -317,7 +340,7 @@ TEST_F(ComputedStyleTest,
   const ComputedStyle* other = builder.TakeStyle();
 
   StyleDifference diff = style->VisualInvalidationDiff(GetDocument(), *other);
-  EXPECT_TRUE(diff.CompositingReasonsChanged());
+  EXPECT_TRUE(diff.compositing_reasons_changed);
 }
 
 TEST_F(ComputedStyleTest,
@@ -328,7 +351,7 @@ TEST_F(ComputedStyleTest,
   const ComputedStyle* other = builder.TakeStyle();
 
   StyleDifference diff = style->VisualInvalidationDiff(GetDocument(), *other);
-  EXPECT_TRUE(diff.CompositingReasonsChanged());
+  EXPECT_TRUE(diff.compositing_reasons_changed);
 }
 
 TEST_F(ComputedStyleTest,
@@ -340,7 +363,7 @@ TEST_F(ComputedStyleTest,
   const ComputedStyle* other = builder.TakeStyle();
 
   StyleDifference diff = style->VisualInvalidationDiff(GetDocument(), *other);
-  EXPECT_TRUE(diff.CompositingReasonsChanged());
+  EXPECT_TRUE(diff.compositing_reasons_changed);
 }
 
 TEST_F(ComputedStyleTest,
@@ -355,7 +378,7 @@ TEST_F(ComputedStyleTest,
   const ComputedStyle* other = builder.TakeStyle();
 
   StyleDifference diff = style->VisualInvalidationDiff(GetDocument(), *other);
-  EXPECT_TRUE(diff.CompositingReasonsChanged());
+  EXPECT_TRUE(diff.compositing_reasons_changed);
 }
 
 TEST_F(ComputedStyleTest,
@@ -366,7 +389,7 @@ TEST_F(ComputedStyleTest,
   const ComputedStyle* other = builder.TakeStyle();
 
   StyleDifference diff = style->VisualInvalidationDiff(GetDocument(), *other);
-  EXPECT_TRUE(diff.CompositingReasonsChanged());
+  EXPECT_TRUE(diff.compositing_reasons_changed);
 }
 
 TEST_F(ComputedStyleTest,
@@ -378,7 +401,7 @@ TEST_F(ComputedStyleTest,
   const ComputedStyle* other = builder.TakeStyle();
 
   StyleDifference diff = style->VisualInvalidationDiff(GetDocument(), *other);
-  EXPECT_TRUE(diff.CompositingReasonsChanged());
+  EXPECT_TRUE(diff.compositing_reasons_changed);
 }
 
 TEST_F(ComputedStyleTest, HasOutlineWithCurrentColor) {
@@ -538,54 +561,53 @@ TEST_F(ComputedStyleTest, BorderStyle) {
   EXPECT_FALSE(style->HasBorder());
 }
 
-#define TEST_ANIMATION_FLAG(flag, inherited)                     \
-  do {                                                           \
-    auto builder = CreateComputedStyleBuilder();                 \
-    builder.Set##flag(true);                                     \
-    const auto* style = builder.TakeStyle();                     \
-    EXPECT_TRUE(style->flag());                                  \
-    const auto* other = InitialComputedStyle();                  \
-    EXPECT_FALSE(other->flag());                                 \
-    EXPECT_EQ(ComputedStyle::Difference::inherited,              \
-              ComputedStyle::ComputeDifference(style, other));   \
-    auto diff = style->VisualInvalidationDiff(document, *other); \
-    EXPECT_TRUE(diff.HasDifference());                           \
-    EXPECT_TRUE(diff.CompositingReasonsChanged());               \
-  } while (false)
-
-#define TEST_ANIMATION_FLAG_NO_DIFF(flag)                        \
-  do {                                                           \
-    auto builder = CreateComputedStyleBuilder();                 \
-    builder.Set##flag(true);                                     \
-    const auto* style = builder.TakeStyle();                     \
-    EXPECT_TRUE(style->flag());                                  \
-    const auto* other = InitialComputedStyle();                  \
-    EXPECT_FALSE(other->flag());                                 \
-    EXPECT_EQ(ComputedStyle::Difference::kEqual,                 \
-              ComputedStyle::ComputeDifference(style, other));   \
-    auto diff = style->VisualInvalidationDiff(document, *other); \
-    EXPECT_FALSE(diff.HasDifference());                          \
-    EXPECT_FALSE(diff.CompositingReasonsChanged());              \
-  } while (false)
+// The two first parameters to TestAnimationFlag().
+#define FLAG_PARAMS(flag)                                          \
+  [](ComputedStyleBuilder* builder) { builder->Set##flag(true); }, \
+      [](const ComputedStyle* style) { return style->flag(); }
 
 TEST_F(ComputedStyleTest, AnimationFlags) {
-  Document& document = GetDocument();
-  TEST_ANIMATION_FLAG(HasCurrentTransformAnimation, kNonInherited);
-  TEST_ANIMATION_FLAG(HasCurrentScaleAnimation, kNonInherited);
-  TEST_ANIMATION_FLAG(HasCurrentRotateAnimation, kNonInherited);
-  TEST_ANIMATION_FLAG(HasCurrentTranslateAnimation, kNonInherited);
-  TEST_ANIMATION_FLAG(HasCurrentOpacityAnimation, kNonInherited);
-  TEST_ANIMATION_FLAG(HasCurrentFilterAnimation, kNonInherited);
-  TEST_ANIMATION_FLAG(HasCurrentBackdropFilterAnimation, kNonInherited);
-  TEST_ANIMATION_FLAG(SubtreeWillChangeContents, kInherited);
-  TEST_ANIMATION_FLAG_NO_DIFF(IsRunningTransformAnimationOnCompositor);
-  TEST_ANIMATION_FLAG_NO_DIFF(IsRunningScaleAnimationOnCompositor);
-  TEST_ANIMATION_FLAG_NO_DIFF(IsRunningRotateAnimationOnCompositor);
-  TEST_ANIMATION_FLAG_NO_DIFF(IsRunningTranslateAnimationOnCompositor);
-  TEST_ANIMATION_FLAG_NO_DIFF(IsRunningOpacityAnimationOnCompositor);
-  TEST_ANIMATION_FLAG_NO_DIFF(IsRunningFilterAnimationOnCompositor);
-  TEST_ANIMATION_FLAG_NO_DIFF(IsRunningBackdropFilterAnimationOnCompositor);
+  TestAnimationFlag(FLAG_PARAMS(HasCurrentTransformAnimation),
+                    ComputedStyle::Difference::kNonInherited,
+                    kCompositingReasonsChanged);
+  TestAnimationFlag(FLAG_PARAMS(HasCurrentScaleAnimation),
+                    ComputedStyle::Difference::kNonInherited,
+                    kCompositingReasonsChanged);
+  TestAnimationFlag(FLAG_PARAMS(HasCurrentRotateAnimation),
+                    ComputedStyle::Difference::kNonInherited,
+                    kCompositingReasonsChanged);
+  TestAnimationFlag(FLAG_PARAMS(HasCurrentTranslateAnimation),
+                    ComputedStyle::Difference::kNonInherited,
+                    kCompositingReasonsChanged);
+  TestAnimationFlag(FLAG_PARAMS(HasCurrentOpacityAnimation),
+                    ComputedStyle::Difference::kNonInherited,
+                    kCompositingReasonsChanged);
+  TestAnimationFlag(FLAG_PARAMS(HasCurrentFilterAnimation),
+                    ComputedStyle::Difference::kNonInherited,
+                    kCompositingReasonsChanged);
+  TestAnimationFlag(FLAG_PARAMS(HasCurrentBackdropFilterAnimation),
+                    ComputedStyle::Difference::kNonInherited,
+                    kCompositingReasonsChanged);
+  TestAnimationFlag(FLAG_PARAMS(SubtreeWillChangeContents),
+                    ComputedStyle::Difference::kInherited,
+                    kCompositingReasonsChanged);
+  TestAnimationFlag(FLAG_PARAMS(IsRunningTransformAnimationOnCompositor),
+                    ComputedStyle::Difference::kNonInherited, kNoChanges);
+  TestAnimationFlag(FLAG_PARAMS(IsRunningScaleAnimationOnCompositor),
+                    ComputedStyle::Difference::kNonInherited, kNoChanges);
+  TestAnimationFlag(FLAG_PARAMS(IsRunningRotateAnimationOnCompositor),
+                    ComputedStyle::Difference::kNonInherited, kNoChanges);
+  TestAnimationFlag(FLAG_PARAMS(IsRunningTranslateAnimationOnCompositor),
+                    ComputedStyle::Difference::kNonInherited, kNoChanges);
+  TestAnimationFlag(FLAG_PARAMS(IsRunningOpacityAnimationOnCompositor),
+                    ComputedStyle::Difference::kEqual, kNoChanges);
+  TestAnimationFlag(FLAG_PARAMS(IsRunningFilterAnimationOnCompositor),
+                    ComputedStyle::Difference::kEqual, kNoChanges);
+  TestAnimationFlag(FLAG_PARAMS(IsRunningBackdropFilterAnimationOnCompositor),
+                    ComputedStyle::Difference::kEqual, kNoChanges);
 }
+
+#undef FLAG_PARAMS
 
 TEST_F(ComputedStyleTest, CustomPropertiesEqual_Values) {
   css_test_helpers::RegisterProperty(GetDocument(), "--x", "<length>", "0px",
@@ -1400,11 +1422,11 @@ TEST_F(ComputedStyleTest,
   EXPECT_EQ(TextDecorationLine::kUnderline, style->TextDecorationsInEffect());
 
   StyleDifference diff1 = style->VisualInvalidationDiff(GetDocument(), *clone);
-  EXPECT_FALSE(diff1.NeedsRecomputeVisualOverflow());
+  EXPECT_FALSE(diff1.needs_recompute_visual_overflow);
 
   // Different color, should not invalidate.
   StyleDifference diff2 = style->VisualInvalidationDiff(GetDocument(), *other);
-  EXPECT_FALSE(diff2.NeedsRecomputeVisualOverflow());
+  EXPECT_FALSE(diff2.needs_recompute_visual_overflow);
 }
 
 TEST_F(ComputedStyleTest, TextDecorationNotEqualRequiresRecomputeInkOverflow) {
@@ -1445,27 +1467,27 @@ TEST_F(ComputedStyleTest, TextDecorationNotEqualRequiresRecomputeInkOverflow) {
   // Change decoration style
   StyleDifference diff_decoration_style =
       style->VisualInvalidationDiff(GetDocument(), *wavy);
-  EXPECT_TRUE(diff_decoration_style.NeedsRecomputeVisualOverflow());
+  EXPECT_TRUE(diff_decoration_style.needs_recompute_visual_overflow);
 
   // Change decoration line
   StyleDifference diff_decoration_line =
       style->VisualInvalidationDiff(GetDocument(), *overline);
-  EXPECT_TRUE(diff_decoration_line.NeedsRecomputeVisualOverflow());
+  EXPECT_TRUE(diff_decoration_line.needs_recompute_visual_overflow);
 
   // Change decoration thickness
   StyleDifference diff_decoration_thickness =
       style->VisualInvalidationDiff(GetDocument(), *thickness);
-  EXPECT_TRUE(diff_decoration_thickness.NeedsRecomputeVisualOverflow());
+  EXPECT_TRUE(diff_decoration_thickness.needs_recompute_visual_overflow);
 
   // Change underline offset
   StyleDifference diff_underline_offset =
       style->VisualInvalidationDiff(GetDocument(), *offset);
-  EXPECT_TRUE(diff_underline_offset.NeedsRecomputeVisualOverflow());
+  EXPECT_TRUE(diff_underline_offset.needs_recompute_visual_overflow);
 
   // Change underline position
   StyleDifference diff_underline_position =
       style->VisualInvalidationDiff(GetDocument(), *position);
-  EXPECT_TRUE(diff_underline_position.NeedsRecomputeVisualOverflow());
+  EXPECT_TRUE(diff_underline_position.needs_recompute_visual_overflow);
 }
 
 // Verify that cloned ComputedStyle is independent from source, i.e.
@@ -2396,4 +2418,32 @@ TEST_F(ComputedStyleTest, HasGapRule) {
   EXPECT_FALSE(no_rule.HasColumnRule());
   EXPECT_FALSE(no_rule.HasRowRule());
 }
+
+TEST_F(ComputedStyleTest, SingleAxisScrollContainers) {
+  ScopedSingleAxisScrollContainersForTest enabled(true);
+  EXPECT_FALSE(ComputedStyle::IsOverflowValueScrollable(EOverflow::kVisible));
+  EXPECT_FALSE(ComputedStyle::IsOverflowValueScrollable(EOverflow::kClip));
+  EXPECT_TRUE(ComputedStyle::IsOverflowValueScrollable(EOverflow::kScroll));
+
+  // Horizontal writing mode.
+  ComputedStyleBuilder builder = CreateComputedStyleBuilder();
+  builder.SetOverflowX(EOverflow::kClip);
+  builder.SetOverflowY(EOverflow::kScroll);
+  const auto* horizontal = builder.TakeStyle();
+
+  EXPECT_TRUE(horizontal->IsScrollContainer());
+  EXPECT_FALSE(horizontal->IsOverflowValueScrollableInline());
+  EXPECT_TRUE(horizontal->IsOverflowValueScrollableBlock());
+
+  // Vertical writing mode.
+  builder = CreateComputedStyleBuilder();
+  builder.SetWritingMode(WritingMode::kVerticalRl);
+  builder.SetOverflowX(EOverflow::kClip);
+  builder.SetOverflowY(EOverflow::kScroll);
+  const auto* vertical = builder.TakeStyle();
+
+  EXPECT_TRUE(vertical->IsOverflowValueScrollableInline());
+  EXPECT_FALSE(vertical->IsOverflowValueScrollableBlock());
+}
+
 }  // namespace blink

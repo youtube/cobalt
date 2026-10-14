@@ -61,6 +61,28 @@ BASE_FEATURE(kCobaltInProcessDirectRaster,
 #else   // BUILDFLAG(IS_ANDROID)
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
+
+// When enabled, periodically records decoded image memory metrics
+// (Memory.GPU.DecodedImages and Memory.GPU.DecodedImages.Peak) for
+// ServiceTransferCache.
+BASE_FEATURE(kCobaltDecodedImagesMetrics,
+             "CobaltDecodedImagesMetrics",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kCobaltDecodedImagesMetricsInterval,
+                   &kCobaltDecodedImagesMetrics,
+                   "interval",
+                   base::Minutes(1));
+
+#if BUILDFLAG(IS_ANDROID)
+// When enabled, uses Android SurfaceControl for the display compositor with
+// Starboard media, removes the primary UI plane, and releases VizBufferQueue UI
+// buffers during fullscreen Starboard underlay video playback when the UI fades
+// out.
+BASE_FEATURE(kCobaltRemoveUiPlaneDuringFullscreenVideo,
+             "CobaltRemoveUiPlaneDuringFullscreenVideo",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_ANDROID)
 #endif  // BUILDFLAG(IS_COBALT)
 
 // More aggressive behavior for the shader cache: increase size, and do not
@@ -122,6 +144,12 @@ const base::FeatureParam<std::string>
 // When enabled, gives GpuChannel/Host its own dedicated Mojo pipe instead
 // of associating with an unused IPC::Channel.
 BASE_FEATURE(kRemoveGPULegacyIPC, base::FEATURE_DISABLED_BY_DEFAULT);
+
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
+// Feature flag to control whether SharedImageStub sequence uses high priority
+// on ChromeOS and Linux. Enabled by default.
+BASE_FEATURE(kSharedImageStubHighPriority, base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
 
 // Enable GPU Rasterization by default. This can still be overridden by
 // --enable-gpu-rasterization or --disable-gpu-rasterization.
@@ -186,6 +214,11 @@ BASE_FEATURE(kVulkan,
              base::FEATURE_DISABLED_BY_DEFAULT
 #endif
 );
+
+// Force enable WebGPU interop when enabled. When disabled the webgpu interop
+// mechanism will default to auto detection in 'GetWebGPUOnVulkanViaGLInterop'
+// function.
+BASE_FEATURE(kForceEnableWebGpuInterop, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kEnableDrDc,
 #if BUILDFLAG(IS_ANDROID)
@@ -359,6 +392,10 @@ const base::FeatureParam<bool> kSkiaGraphiteDawnBackendValidation{
 const base::FeatureParam<bool> kSkiaGraphiteDawnBackendDebugLabels{
     &kSkiaGraphite, "dawn_backend_debug_labels", DCHECK_IS_ON()};
 
+// Enables automatic buffer mappings in Dawn's backend.
+const base::FeatureParam<bool> kSkiaGraphiteDawnEnableAutoMap{
+    &kSkiaGraphite, "dawn_enable_auto_map", true};
+
 // Whether to use PersistentCache for Dawn's pipeline cache.
 BASE_FEATURE_PARAM(bool,
                    kSkiaGraphiteDawnUsePersistentCache,
@@ -447,6 +484,12 @@ const base::FeatureParam<int> kGPUBlockListTestGroupId{&kGPUBlockListTestGroup,
 BASE_FEATURE(kGPUDriverBugListTestGroup, base::FEATURE_DISABLED_BY_DEFAULT);
 const base::FeatureParam<int> kGPUDriverBugListTestGroupId{
     &kGPUDriverBugListTestGroup, "test_group", 0};
+
+#if BUILDFLAG(IS_LINUX)
+bool IsForceEnableWebGpuInterop() {
+  return base::FeatureList::IsEnabled(kForceEnableWebGpuInterop);
+}
+#endif
 
 bool IsUsingVulkan() {
 #if BUILDFLAG(IS_ANDROID)
@@ -780,6 +823,22 @@ bool IsAndroidSurfaceControlEnabled() {
 
   if (!gfx::SurfaceControl::IsSupported())
     return false;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Starboard media renders video via VideoSurfaceView underlay rather than
+  // AImageReader. With kCobaltRemoveUiPlaneDuringFullscreenVideo, use
+  // SurfaceControl (GLSurfaceEGLSurfaceControl + VizBufferQueue) on Android
+  // 10-11 (createFromWindow) and Android 14+ (window SurfaceControl from Java);
+  // see ContentViewRenderView::SurfaceChanged() in cobalt/shell/android.
+  const int sdk_int = base::android::android_info::sdk_int();
+  if (((base::android::android_info::SDK_VERSION_Q <= sdk_int &&
+        sdk_int <= base::android::android_info::SDK_VERSION_R) ||
+       gfx::SurfaceControl::SupportsSurfacelessControl()) &&
+      base::FeatureList::IsEnabled(
+          kCobaltRemoveUiPlaneDuringFullscreenVideo)) {
+    return true;
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // SurfaceControl requires at least 3 frames in flight.
   if (LimitAImageReaderMaxSizeToOne())

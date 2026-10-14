@@ -44,6 +44,9 @@ TabStripSceneLayer::TabStripSceneLayer(JNIEnv* env,
       right_fade_(cc::slim::UIResourceLayer::Create()),
       left_padding_layer_(cc::slim::SolidColorLayer::Create()),
       right_padding_layer_(cc::slim::SolidColorLayer::Create()),
+      glic_button_(cc::slim::UIResourceLayer::Create()),
+      glic_button_background_(cc::slim::UIResourceLayer::Create()),
+      glic_button_keyboard_focus_ring_(cc::slim::UIResourceLayer::Create()),
       model_selector_button_(cc::slim::UIResourceLayer::Create()),
       model_selector_button_background_(cc::slim::UIResourceLayer::Create()),
       model_selector_button_keyboard_focus_ring_(
@@ -52,6 +55,8 @@ TabStripSceneLayer::TabStripSceneLayer(JNIEnv* env,
       content_tree_(nullptr) {
   new_tab_button_->SetIsDrawable(true);
   new_tab_button_background_->SetIsDrawable(true);
+  glic_button_->SetIsDrawable(true);
+  glic_button_background_->SetIsDrawable(true);
   model_selector_button_->SetIsDrawable(true);
   model_selector_button_background_->SetIsDrawable(true);
 
@@ -108,11 +113,13 @@ TabStripSceneLayer::TabStripSceneLayer(JNIEnv* env,
     tab_strip_layer_->AddChild(right_fade_);
     tab_strip_layer_->AddChild(right_padding_layer_);
   }
-
+  tab_strip_layer_->AddChild(glic_button_background_);
   tab_strip_layer_->AddChild(model_selector_button_background_);
   tab_strip_layer_->AddChild(new_tab_button_background_);
+  tab_strip_layer_->AddChild(glic_button_);
   tab_strip_layer_->AddChild(model_selector_button_);
   tab_strip_layer_->AddChild(new_tab_button_);
+  tab_strip_layer_->AddChild(glic_button_keyboard_focus_ring_);
   tab_strip_layer_->AddChild(model_selector_button_keyboard_focus_ring_);
   tab_strip_layer_->AddChild(new_tab_button_keyboard_focus_ring_);
 
@@ -198,13 +205,13 @@ void TabStripSceneLayer::UpdateOffsetTag(JNIEnv* env,
 void TabStripSceneLayer::UpdateTabStripLayer(JNIEnv* env,
                                              int32_t width,
                                              int32_t height,
-                                             jfloat y_offset,
+                                             float y_offset,
                                              int32_t background_color,
                                              int32_t scrim_color,
-                                             jfloat scrim_opacity,
-                                             jfloat left_padding,
-                                             jfloat right_padding,
-                                             jfloat top_padding) {
+                                             float scrim_opacity,
+                                             float left_padding,
+                                             float right_padding,
+                                             float top_padding) {
   gfx::RectF content(0, y_offset, width, height);
   layer()->SetPosition(gfx::PointF(0, y_offset));
   background_layer_->SetBounds(gfx::Size(width, height));
@@ -258,14 +265,14 @@ void TabStripSceneLayer::UpdateNewTabButton(
     JNIEnv* env,
     int32_t resource_id,
     int32_t bg_resource_id,
-    jfloat x,
-    jfloat y,
-    jfloat touch_target_offset,
+    float x,
+    float y,
+    float touch_target_offset,
     bool visible,
     bool should_apply_hover_highlight,
     int32_t tint,
     int32_t background_tint,
-    jfloat button_alpha,
+    float button_alpha,
     bool is_keyboard_focused,
     int32_t keyboard_focus_ring_resource_id,
     int32_t keyboard_focus_ring_color) {
@@ -288,17 +295,48 @@ void TabStripSceneLayer::UpdateNewTabButton(
                          is_keyboard_focused, keyboard_focus_ring_drawable);
 }
 
-void TabStripSceneLayer::UpdateModelSelectorButton(
+void TabStripSceneLayer::UpdateGlicButton(
     JNIEnv* env,
     int32_t resource_id,
     int32_t bg_resource_id,
-    jfloat x,
-    jfloat y,
+    float x,
+    float y,
     bool visible,
     bool should_apply_hover_highlight,
     int32_t tint,
     int32_t background_tint,
-    jfloat button_alpha,
+    float button_alpha,
+    bool is_keyboard_focused,
+    int32_t keyboard_focus_ring_resource_id,
+    int32_t keyboard_focus_ring_color) {
+  DCHECK(resource_manager_);
+  ui::Resource* button_resource =
+      resource_manager_->GetStaticResourceWithTint(resource_id, tint);
+  ui::Resource* background_resource =
+      resource_manager_->GetStaticResourceWithTint(bg_resource_id,
+                                                   background_tint, true);
+  ui::Resource* keyboard_focus_ring_drawable =
+      resource_manager_->GetStaticResourceWithTint(
+          keyboard_focus_ring_resource_id, keyboard_focus_ring_color, true);
+
+  UpdateCompositorButton(glic_button_, glic_button_background_, button_resource,
+                         background_resource, x, y, visible,
+                         should_apply_hover_highlight, button_alpha,
+                         glic_button_keyboard_focus_ring_, is_keyboard_focused,
+                         keyboard_focus_ring_drawable);
+}
+
+void TabStripSceneLayer::UpdateModelSelectorButton(
+    JNIEnv* env,
+    int32_t resource_id,
+    int32_t bg_resource_id,
+    float x,
+    float y,
+    bool visible,
+    bool should_apply_hover_highlight,
+    int32_t tint,
+    int32_t background_tint,
+    float button_alpha,
     bool is_keyboard_focused,
     int32_t keyboard_focus_ring_resource_id,
     int32_t keyboard_focus_ring_color) {
@@ -381,9 +419,9 @@ void TabStripSceneLayer::UpdateCompositorButton(
 
 void TabStripSceneLayer::UpdateTabStripLeftFade(JNIEnv* env,
                                                 int32_t resource_id,
-                                                jfloat opacity,
+                                                float opacity,
                                                 int32_t left_fade_color,
-                                                jfloat left_padding) {
+                                                float left_padding) {
   // Hide layer if it's not visible.
   if (opacity == 0.f) {
     left_fade_->SetHideLayerAndSubtree(true);
@@ -419,9 +457,9 @@ void TabStripSceneLayer::UpdateTabStripLeftFade(JNIEnv* env,
 
 void TabStripSceneLayer::UpdateTabStripRightFade(JNIEnv* env,
                                                  int32_t resource_id,
-                                                 jfloat opacity,
+                                                 float opacity,
                                                  int32_t right_fade_color,
-                                                 jfloat right_padding) {
+                                                 float right_padding) {
   // Hide layer if it's not visible.
   if (opacity == 0.f) {
     right_fade_->SetHideLayerAndSubtree(true);
@@ -472,30 +510,33 @@ void TabStripSceneLayer::PutStripTabLayer(
     bool should_show_media_indicator,
     int32_t media_indicator_resource_id,
     int32_t media_indicator_tint,
-    jfloat media_indicator_width,
-    jfloat toolbar_width,
-    jfloat x,
-    jfloat y,
-    jfloat width,
-    jfloat height,
-    jfloat content_offset_y,
-    jfloat divider_offset_x,
-    jfloat bottom_margin,
-    jfloat top_margin,
-    jfloat close_button_padding,
-    jfloat close_button_alpha,
-    jfloat width_to_hide_tab_title,
+    float media_indicator_width,
+    float media_indicator_spacing,
+    float media_indicator_internal_padding,
+    float title_to_media_indicator_spacing,
+    float toolbar_width,
+    float x,
+    float y,
+    float width,
+    float height,
+    float content_offset_y,
+    float divider_offset_x,
+    float bottom_margin,
+    float top_margin,
+    float close_button_padding,
+    float close_button_alpha,
+    float width_to_hide_tab_title,
     bool is_start_divider_visible,
     bool is_end_divider_visible,
     bool is_loading,
-    jfloat spinner_rotation,
-    jfloat opacity,
+    float spinner_rotation,
+    float opacity,
     bool is_keyboard_focused,
     int32_t keyboard_focus_ring_resource_id,
     int32_t keyboard_focus_ring_color,
     int32_t keyboard_focus_ring_offset,
     int32_t stroke_width,
-    jfloat folio_foot_length,
+    float folio_foot_length,
     bool is_pinned) {
   DCHECK(layer_title_cache_);
   scoped_refptr<TabHandleLayer> layer = GetNextTabLayer(layer_title_cache_);
@@ -538,19 +579,28 @@ void TabStripSceneLayer::PutStripTabLayer(
         media_indicator_resource_id, media_indicator_tint);
   }
 
+  float media_indicator_opacity = 1.0f;
+  if (media_indicator_tint == close_tint) {
+    // Match close button opacity (0.7) if tints are the same, as the
+    // media indicator is expected to look like the close button in such cases.
+    media_indicator_opacity = 0.7f;
+  }
+
   layer->SetProperties(
       id, close_button_resource, close_button_hover_resource,
       is_close_keyboard_focused, close_button_keyboard_focus_ring_resource,
       divider_resource, tab_handle_resource, tab_handle_outline_resource,
       foreground, is_pinned, shouldShowTabOutline, close_pressed,
       should_hide_favicon, should_show_media_indicator,
-      media_indicator_drawable, media_indicator_width, toolbar_width, x, y,
-      width, height, content_offset_y, divider_offset_x, bottom_margin,
-      top_margin, close_button_padding, close_button_alpha,
-      is_start_divider_visible, is_end_divider_visible, is_loading,
-      spinner_rotation, opacity, is_keyboard_focused,
-      keyboard_focus_ring_drawable, keyboard_focus_ring_offset, stroke_width,
-      folio_foot_length, width_to_hide_tab_title);
+      media_indicator_drawable, media_indicator_width, media_indicator_spacing,
+      media_indicator_internal_padding, title_to_media_indicator_spacing,
+      media_indicator_opacity, toolbar_width, x, y, width, height,
+      content_offset_y, divider_offset_x, bottom_margin, top_margin,
+      close_button_padding, close_button_alpha, is_start_divider_visible,
+      is_end_divider_visible, is_loading, spinner_rotation, opacity,
+      is_keyboard_focused, keyboard_focus_ring_drawable,
+      keyboard_focus_ring_offset, stroke_width, folio_foot_length,
+      width_to_hide_tab_title);
 }
 
 void TabStripSceneLayer::PutGroupIndicatorLayer(
@@ -563,17 +613,17 @@ void TabStripSceneLayer::PutGroupIndicatorLayer(
     int32_t tint,
     int32_t reorder_background_tint,
     int32_t bubble_tint,
-    jfloat x,
-    jfloat y,
-    jfloat width,
-    jfloat height,
-    jfloat title_start_padding,
-    jfloat title_end_padding,
-    jfloat corner_radius,
-    jfloat bottom_indicator_width,
-    jfloat bottom_indicator_height,
-    jfloat bubble_padding,
-    jfloat bubble_size,
+    float x,
+    float y,
+    float width,
+    float height,
+    float title_start_padding,
+    float title_end_padding,
+    float corner_radius,
+    float bottom_indicator_width,
+    float bottom_indicator_height,
+    float bubble_padding,
+    float bubble_size,
     bool is_keyboard_focused,
     int32_t keyboard_focus_ring_resource_id,
     int32_t keyboard_focus_ring_color,
@@ -654,8 +704,8 @@ SkColor TabStripSceneLayer::GetBackgroundColor() {
   return SceneLayer::GetBackgroundColor();
 }
 
-static jlong JNI_TabStripSceneLayer_Init(JNIEnv* env,
-                                         const JavaRef<jobject>& jobj) {
+static int64_t JNI_TabStripSceneLayer_Init(JNIEnv* env,
+                                           const JavaRef<jobject>& jobj) {
   // This will automatically bind to the Java object and pass ownership there.
   TabStripSceneLayer* scene_layer = new TabStripSceneLayer(env, jobj);
   return reinterpret_cast<intptr_t>(scene_layer);

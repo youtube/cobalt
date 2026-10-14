@@ -19,6 +19,7 @@
 #include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/heap/cppgc/metric-recorder.h"
 #include "src/heap/gc-tracer-inl.h"
+#include "src/heap/heap-controller.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking.h"
@@ -353,16 +354,18 @@ void GCTracer::StartCycle(GarbageCollector collector,
 
   if (collector == GarbageCollector::MARK_COMPACTOR) {
     current_.old_generation_consumed_baseline =
-        heap_->OldGenerationConsumedBytesAtLastGC();
+        heap_->limits()->OldGenerationConsumedBytesAtLastGC();
     current_.old_generation_consumed_current =
         heap_->OldGenerationConsumedBytes();
     current_.old_generation_consumed_limit =
-        heap_->old_generation_allocation_limit();
-    current_.max_old_generation_memory = heap_->max_old_generation_size();
-    current_.global_consumed_baseline = heap_->GlobalConsumedBytesAtLastGC();
+        heap_->limits()->old_generation_allocation_limit();
+    current_.max_old_generation_memory =
+        heap_->limits()->max_old_generation_size();
+    current_.global_consumed_baseline =
+        heap_->limits()->GlobalConsumedBytesAtLastGC();
     current_.global_consumed_current = heap_->GlobalConsumedBytes();
-    current_.global_consumed_limit = heap_->global_allocation_limit();
-    current_.max_global_memory = heap_->max_global_memory_size();
+    current_.global_consumed_limit = heap_->limits()->global_allocation_limit();
+    current_.max_global_memory = heap_->limits()->max_global_memory_size();
     current_.external_memory_bytes = heap_->external_memory();
   }
 
@@ -946,8 +949,9 @@ void GCTracer::PrintNVP() const {
          heap_->memory_allocator()->GetTotalPooledChunksCount())
       .p("new_space_capacity",
          heap_->new_space() ? heap_->new_space()->TotalCapacity() : 0)
-      .p("old_gen_allocation_limit", heap_->old_generation_allocation_limit())
-      .p("global_allocation_limit", heap_->global_allocation_limit())
+      .p("old_gen_allocation_limit",
+         heap_->limits()->old_generation_allocation_limit())
+      .p("global_allocation_limit", heap_->limits()->global_allocation_limit())
       .p("allocation_throughput", AllocationThroughputInBytesPerMillisecond())
       .p("new_space_allocation_throughput",
          NewSpaceAllocationThroughputInBytesPerMillisecond())
@@ -988,8 +992,10 @@ void GCTracer::PrintNVP() const {
                  Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_PROCESS))
           .p("scavenge.parallel",
              current_scope(Scope::SCAVENGER_SCAVENGE_PARALLEL))
-          .p("scavenge.pin_objects",
-             current_scope(Scope::SCAVENGER_SCAVENGE_PIN_OBJECTS))
+          .p("scavenge.pin_objects_conservative",
+             current_scope(Scope::SCAVENGER_SCAVENGE_PIN_OBJECTS_CONSERVATIVE))
+          .p("scavenge.pin_objects_precise",
+             current_scope(Scope::SCAVENGER_SCAVENGE_PIN_OBJECTS_PRECISE))
           .p("scavenge.restore_pinned",
              current_scope(
                  Scope::SCAVENGER_SCAVENGE_RESTORE_AND_QUARANTINE_PINNED))
@@ -1091,8 +1097,6 @@ void GCTracer::PrintNVP() const {
              current_scope(Scope::MC_CLEAR_WEAK_REFERENCES_TRIVIAL))
           .p("clear.weak_references_non_trivial",
              current_scope(Scope::MC_CLEAR_WEAK_REFERENCES_NON_TRIVIAL))
-          .p("clear.weak_references_filter_non_trivial",
-             current_scope(Scope::MC_CLEAR_WEAK_REFERENCES_FILTER_NON_TRIVIAL))
           .p("clear.js_weak_references",
              current_scope(Scope::MC_CLEAR_JS_WEAK_REFERENCES))
           .p("clear.join_filter_job",

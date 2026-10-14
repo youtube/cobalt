@@ -121,6 +121,8 @@
 #include "third_party/blink/renderer/core/editing/ime/input_method_controller.h"
 #include "third_party/blink/renderer/core/editing/markers/document_marker.h"
 #include "third_party/blink/renderer/core/editing/markers/document_marker_controller.h"
+#include "third_party/blink/renderer/core/editing/markers/grammar_marker.h"
+#include "third_party/blink/renderer/core/editing/markers/spelling_marker.h"
 #include "third_party/blink/renderer/core/editing/serializers/create_markup_options.h"
 #include "third_party/blink/renderer/core/editing/serializers/serialization.h"
 #include "third_party/blink/renderer/core/editing/spellcheck/spell_check_requester.h"
@@ -266,15 +268,24 @@ namespace blink {
 namespace {
 
 #if BUILDFLAG(IS_ANDROID)
-std::vector<gfx::Range> ExtractMisspellingRangesFromDocumentMarkerVector(
-    const DocumentMarkerVector& markers) {
-  std::vector<gfx::Range> ranges;
+blink::DocumentMarkerVector ExtractSpellingMarkersFromDocumentMarkerVector(
+    const blink::DocumentMarkerVector& markers) {
+  blink::DocumentMarkerVector spelling_markers;
   for (auto& marker : markers) {
-    if (marker->GetType() == DocumentMarker::MarkerType::kSpelling) {
-      ranges.emplace_back(marker->StartOffset(), marker->EndOffset());
+    if (marker->GetType() == DocumentMarker::MarkerType::kSpelling ||
+        marker->GetType() == DocumentMarker::MarkerType::kGrammar) {
+      spelling_markers.push_back(marker);
+    }
+
+    if (const auto* suggestion_marker =
+            DynamicTo<SuggestionMarker>(marker.Get())) {
+      if (suggestion_marker->IsMisspelling() ||
+          suggestion_marker->IsGrammarError()) {
+        spelling_markers.push_back(marker);
+      }
     }
   }
-  return ranges;
+  return spelling_markers;
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -969,7 +980,11 @@ void LocalFrame::PrintNavigationWarning(const String& message) {
 bool LocalFrame::ShouldClose() {
   // TODO(crbug.com/1407078): This should be fixed to dispatch beforeunload
   // events to both local and remote frames.
-  return loader_.ShouldClose();
+  base::TimeTicks before_unload_dialog_opened_time;
+  base::TimeTicks before_unload_dialog_closed_time;
+  return loader_.ShouldClose(/*is_reload=*/false,
+                             before_unload_dialog_opened_time,
+                             before_unload_dialog_closed_time);
 }
 
 bool LocalFrame::DetachChildren() {
@@ -2052,7 +2067,8 @@ LocalFrame::LocalFrame(
       !IsMainFrame() && ad_tracker_ &&
       ad_tracker_->IsAdScriptInStack(
           AdTracker::StackType::kTopOnly,
-          /*ignore_monkey_patch=*/AdTracker::MonkeyPatchableApi::kNone,
+          /*ignore_monkey_patch=*/
+          AdTracker::MonkeyPatchableApi::kNodeAppendChild,
           &ad_script_ancestry_);
 
   Initialize();
@@ -4264,7 +4280,7 @@ void LocalFrame::NotifyFrameVisibilityChanged(
 
 // TODO(crbug.com/447973489) - Add test coverage for this method
 #if BUILDFLAG(IS_ANDROID)
-void LocalFrame::PerformSpellCheck() {
+void LocalFrame::PerformFullContentSpellCheck() {
   if (!base::FeatureList::IsEnabled(
           blink::features::kAndroidSpellcheckFullApiBlink)) {
     return;
@@ -4278,9 +4294,10 @@ void LocalFrame::PerformSpellCheck() {
 
   const EphemeralRange range(Position(container_node, 0),
                              Position::LastPositionInNode(*container_node));
+
   GetSpellChecker().GetSpellCheckRequester().RequestCheckingFor(
       range,
-      ExtractMisspellingRangesFromDocumentMarkerVector(
+      ExtractSpellingMarkersFromDocumentMarkerVector(
           GetDocument()->Markers().Markers()),
       /*request_num=*/0, /*should_force_refresh=*/false);
 }

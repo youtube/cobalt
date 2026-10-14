@@ -4506,6 +4506,32 @@ void CaptureShareGroupMidExecutionSetup(
     }
 }
 
+// Detects zombie bindings caused by texture ID reuse across shared contexts.
+// Zombie bindings may exist at capture-time but should not be added as part
+// of capture Setup(). See http://issuetracker.google.com/471189378.
+bool IsZombieTextureBinding(const gl::State &state,
+                            gl::TextureType type,
+                            size_t unit,
+                            gl::TextureID textureID)
+{
+    // Texture held by the context's specific hardware sampler slot
+    const gl::Texture *boundTexture = state.getSamplerTexture(static_cast<GLuint>(unit), type);
+
+    if (boundTexture)
+    {
+        uint64_t boundSerial = boundTexture->serial().getValue();
+
+        // Texture from the current Resource Manager state
+        const gl::TextureManager &textureManager = state.getTextureManagerForCapture();
+        const gl::Texture *currentTexture        = textureManager.getTexture(textureID);
+        uint64_t currentSerial                   = currentTexture->serial().getValue();
+
+        // If the ANGLE unique object IDs differ this object has been deleted
+        return (boundSerial != currentSerial);
+    }
+    return false;
+}
+
 void CaptureMidExecutionSetup(const gl::Context *context,
                               std::vector<CallCapture> *setupCalls,
                               StateResetHelper &resetHelper,
@@ -4672,6 +4698,13 @@ void CaptureMidExecutionSetup(const gl::Context *context,
 
             if (apiTextureID != replayTextureID)
             {
+                if (apiTextureID.value &&
+                    IsZombieTextureBinding(apiState, textureType, bindingIndex, apiTextureID))
+                {
+                    INFO() << "Skipping setup of partially deleted/unbound zombie texture.";
+                    continue;
+                }
+
                 if (replayState.getActiveSampler() != bindingIndex)
                 {
                     cap(CaptureActiveTexture(replayState, true,
@@ -7053,11 +7086,12 @@ void FrameCaptureShared::maybeCapturePreCallUpdates(
 
             if (call.params.hasClientArrayData())
             {
-                mClientVertexArrayMap[index] = static_cast<int>(mFrameCalls.size());
+                mClientVertexArrayData[index] =
+                    call.params.getClientArrayPointerParameter().value.voidConstPointerVal;
             }
             else
             {
-                mClientVertexArrayMap[index] = -1;
+                mClientVertexArrayData[index] = nullptr;
             }
             break;
         }
@@ -8117,9 +8151,9 @@ void FrameCaptureShared::captureClientArraySnapshot(const gl::Context *context,
         const gl::VertexAttribute &attrib = vao->getVertexAttribute(attribIndex);
         const gl::VertexBinding &binding  = vao->getVertexBinding(attrib.bindingIndex);
 
-        int callIndex = mClientVertexArrayMap[attribIndex];
+        const void *clientSideAddress = mClientVertexArrayData[attribIndex];
 
-        if (callIndex != -1)
+        if (clientSideAddress)
         {
             size_t count = vertexCount;
 
@@ -8132,16 +8166,12 @@ void FrameCaptureShared::captureClientArraySnapshot(const gl::Context *context,
             // The last capture element doesn't take up the full stride.
             size_t bytesToCapture = (count - 1) * binding.getStride() + attrib.format->pixelBytes;
 
-            CallCapture &call   = mFrameCalls[callIndex];
-            ParamCapture &param = call.params.getClientArrayPointerParameter();
-            ASSERT(param.type == ParamType::TvoidConstPointer);
-
             ParamBuffer updateParamBuffer;
             updateParamBuffer.addValueParam<GLint>("arrayIndex", ParamType::TGLint,
                                                    static_cast<uint32_t>(attribIndex));
 
             ParamCapture updateMemory("pointer", ParamType::TvoidConstPointer);
-            CaptureMemory(param.value.voidConstPointerVal, bytesToCapture, &updateMemory);
+            CaptureMemory(clientSideAddress, bytesToCapture, &updateMemory);
             updateParamBuffer.addParam(std::move(updateMemory));
 
             updateParamBuffer.addValueParam<GLuint64>("size", ParamType::TGLuint64, bytesToCapture);

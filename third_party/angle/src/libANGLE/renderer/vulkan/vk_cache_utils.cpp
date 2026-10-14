@@ -3296,14 +3296,18 @@ const void *GraphicsPipelineDesc::getPipelineSubsetMemory(GraphicsPipelineSubset
                       sizeof(PackedVertexInputAttributes) ==
                   sizeof(GraphicsPipelineDesc));
 
+    // Vertex input dynamic state and vertex input binding stride should not be enabled at the same
+    // time. It is preferable to use vertex input over binding stride.
+    ASSERT(!mVertexInput.inputAssembly.bits.useVertexInputBindingStrideDynamicState ||
+           !mVertexInput.inputAssembly.bits.useVertexInputDynamicState);
     size_t vertexInputReduceSize = 0;
-    if (mVertexInput.inputAssembly.bits.useVertexInputBindingStrideDynamicState)
-    {
-        vertexInputReduceSize = sizeof(PackedVertexInputAttributes::strides);
-    }
-    else if (mVertexInput.inputAssembly.bits.useVertexInputDynamicState)
+    if (mVertexInput.inputAssembly.bits.useVertexInputDynamicState)
     {
         vertexInputReduceSize = sizeof(PackedVertexInputAttributes);
+    }
+    else if (mVertexInput.inputAssembly.bits.useVertexInputBindingStrideDynamicState)
+    {
+        vertexInputReduceSize = sizeof(PackedVertexInputAttributes::strides);
     }
 
     switch (subset)
@@ -4246,6 +4250,17 @@ void GraphicsPipelineDesc::initializePipelineFragmentOutputState(
     }
 }
 
+void GraphicsPipelineDesc::updateVertexInputWithStride(ContextVk *contextVk,
+                                                       GraphicsPipelineTransitionBits *transition,
+                                                       uint32_t attribIndex,
+                                                       GLuint stride)
+{
+    SetBitField(mVertexInput.vertex.strides[attribIndex], stride);
+    transition->set(
+        ANGLE_GET_INDEXED_TRANSITION_BIT(mVertexInput.vertex.strides, attribIndex,
+                                         sizeof(mVertexInput.vertex.strides[0]) * kBitsPerByte));
+}
+
 void GraphicsPipelineDesc::updateVertexInput(ContextVk *contextVk,
                                              GraphicsPipelineTransitionBits *transition,
                                              uint32_t attribIndex,
@@ -4277,10 +4292,7 @@ void GraphicsPipelineDesc::updateVertexInput(ContextVk *contextVk,
 
     if (!contextVk->getFeatures().useVertexInputBindingStrideDynamicState.enabled)
     {
-        SetBitField(mVertexInput.vertex.strides[attribIndex], stride);
-        transition->set(ANGLE_GET_INDEXED_TRANSITION_BIT(
-            mVertexInput.vertex.strides, attribIndex,
-            sizeof(mVertexInput.vertex.strides[0]) * kBitsPerByte));
+        updateVertexInputWithStride(contextVk, transition, attribIndex, stride);
     }
 }
 
@@ -7332,9 +7344,10 @@ void UpdateDescriptorSetsBuilder::updateWriteDescriptorSet(
                 writeSet.pBufferInfo = writeBuffers;
                 break;
             }
-            case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+            // VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE is not possible.
+            // VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER is handled exclusively by
+            // |UpdateFullTexturesDescriptorSet|.
             case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
-            case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
             case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
             {
                 VkDescriptorImageInfo *writeImages =
@@ -7348,7 +7361,6 @@ void UpdateDescriptorSetsBuilder::updateWriteDescriptorSet(
 
                     imageInfo.imageLayout = static_cast<VkImageLayout>(infoDesc.imageLayoutOrRange);
                     imageInfo.imageView   = handles[infoDescIndex + arrayElement].imageView;
-                    imageInfo.sampler     = handles[infoDescIndex + arrayElement].sampler;
                 }
                 writeSet.pImageInfo = writeImages;
                 break;

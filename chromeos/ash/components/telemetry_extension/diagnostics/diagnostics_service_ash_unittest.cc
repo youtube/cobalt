@@ -146,7 +146,7 @@ TEST_F(DiagnosticsServiceAshTest, GetRoutineUpdateSuccess) {
     cros_healthd::FakeCrosHealthd::Get()->SetGetRoutineUpdateResponseForTesting(
         response);
 
-    base::Value::Dict expected_passed_parameters;
+    base::DictValue expected_passed_parameters;
     expected_passed_parameters.Set("id", 123456);
     expected_passed_parameters.Set(
         "command",
@@ -182,7 +182,7 @@ TEST_F(DiagnosticsServiceAshTest, GetRoutineUpdateSuccess) {
 TEST_F(DiagnosticsServiceAshTest, RunAcPowerRoutineSuccess) {
   // Configure FakeCrosHealthd.
   SetSuccessfulRoutineResponse();
-  base::Value::Dict expected_passed_parameters;
+  base::DictValue expected_passed_parameters;
   expected_passed_parameters.Set(
       "expected_status",
       static_cast<int32_t>(
@@ -205,38 +205,10 @@ TEST_F(DiagnosticsServiceAshTest, RunAcPowerRoutineSuccess) {
                   ->DidExpectedDiagnosticsParametersMatch());
 }
 
-TEST_F(DiagnosticsServiceAshTest, RunAudioDriverRoutineSuccess) {
-  // Configure FakeCrosHealthd.
-  SetSuccessfulRoutineResponse();
-
-  base::test::TestFuture<crosapi::mojom::DiagnosticsRunRoutineResponsePtr>
-      future;
-  diagnostics_service()->RunAudioDriverRoutine(future.GetCallback());
-
-  ASSERT_TRUE(future.Wait());
-  const auto& result = future.Get();
-  ValidateResponse(result,
-                   cros_healthd::mojom::DiagnosticRoutineEnum::kAudioDriver);
-}
-
-TEST_F(DiagnosticsServiceAshTest, RunBatteryCapacityRoutineSuccess) {
-  // Configure FakeCrosHealthd.
-  SetSuccessfulRoutineResponse();
-
-  base::test::TestFuture<crosapi::mojom::DiagnosticsRunRoutineResponsePtr>
-      future;
-  diagnostics_service()->RunBatteryCapacityRoutine(future.GetCallback());
-
-  ASSERT_TRUE(future.Wait());
-  const auto& result = future.Get();
-  ValidateResponse(
-      result, cros_healthd::mojom::DiagnosticRoutineEnum::kBatteryCapacity);
-}
-
 TEST_F(DiagnosticsServiceAshTest, RunBatteryChargeRoutineSuccess) {
   // Configure FakeCrosHealthd.
   SetSuccessfulRoutineResponse();
-  base::Value::Dict expected_passed_parameters;
+  base::DictValue expected_passed_parameters;
   expected_passed_parameters.Set("length_seconds", 423);
   expected_passed_parameters.Set("minimum_charge_percent_required", 123);
   cros_healthd::FakeCrosHealthd::Get()
@@ -259,7 +231,7 @@ TEST_F(DiagnosticsServiceAshTest, RunBatteryChargeRoutineSuccess) {
 TEST_F(DiagnosticsServiceAshTest, RunBatteryDischargeRoutineSuccess) {
   // Configure FakeCrosHealthd.
   SetSuccessfulRoutineResponse();
-  base::Value::Dict expected_passed_parameters;
+  base::DictValue expected_passed_parameters;
   expected_passed_parameters.Set("length_seconds", 423);
   expected_passed_parameters.Set("maximum_discharge_percent_allowed", 123);
   cros_healthd::FakeCrosHealthd::Get()
@@ -279,38 +251,10 @@ TEST_F(DiagnosticsServiceAshTest, RunBatteryDischargeRoutineSuccess) {
                   ->DidExpectedDiagnosticsParametersMatch());
 }
 
-TEST_F(DiagnosticsServiceAshTest, RunBatteryHealthRoutineSuccess) {
-  // Configure FakeCrosHealthd.
-  SetSuccessfulRoutineResponse();
-
-  base::test::TestFuture<crosapi::mojom::DiagnosticsRunRoutineResponsePtr>
-      future;
-  diagnostics_service()->RunBatteryHealthRoutine(future.GetCallback());
-
-  ASSERT_TRUE(future.Wait());
-  const auto& result = future.Get();
-  ValidateResponse(result,
-                   cros_healthd::mojom::DiagnosticRoutineEnum::kBatteryHealth);
-}
-
-TEST_F(DiagnosticsServiceAshTest, RunBluetoothDiscoveryRoutine) {
-  // Configure FakeCrosHealthd.
-  SetSuccessfulRoutineResponse();
-
-  base::test::TestFuture<crosapi::mojom::DiagnosticsRunRoutineResponsePtr>
-      future;
-  diagnostics_service()->RunBluetoothDiscoveryRoutine(future.GetCallback());
-
-  ASSERT_TRUE(future.Wait());
-  const auto& result = future.Get();
-  ValidateResponse(
-      result, cros_healthd::mojom::DiagnosticRoutineEnum::kBluetoothDiscovery);
-}
-
 TEST_F(DiagnosticsServiceAshTest, RunBluetoothPairingRoutine) {
   // Configure FakeCrosHealthd.
   SetSuccessfulRoutineResponse();
-  base::Value::Dict expected_passed_parameters;
+  base::DictValue expected_passed_parameters;
   expected_passed_parameters.Set("peripheral_id", "HEALTHD_TEST_ID");
   cros_healthd::FakeCrosHealthd::Get()
       ->SetExpectedLastPassedDiagnosticsParametersForTesting(
@@ -327,24 +271,10 @@ TEST_F(DiagnosticsServiceAshTest, RunBluetoothPairingRoutine) {
       result, cros_healthd::mojom::DiagnosticRoutineEnum::kBluetoothPairing);
 }
 
-TEST_F(DiagnosticsServiceAshTest, RunBluetoothPowerRoutine) {
-  // Configure FakeCrosHealthd.
-  SetSuccessfulRoutineResponse();
-
-  base::test::TestFuture<crosapi::mojom::DiagnosticsRunRoutineResponsePtr>
-      future;
-  diagnostics_service()->RunBluetoothPowerRoutine(future.GetCallback());
-
-  ASSERT_TRUE(future.Wait());
-  const auto& result = future.Get();
-  ValidateResponse(result,
-                   cros_healthd::mojom::DiagnosticRoutineEnum::kBluetoothPower);
-}
-
 TEST_F(DiagnosticsServiceAshTest, RunBluetoothScanningRoutine) {
   // Configure FakeCrosHealthd.
   SetSuccessfulRoutineResponse();
-  base::Value::Dict expected_passed_parameters;
+  base::DictValue expected_passed_parameters;
   expected_passed_parameters.Set("length_seconds", 100);
   cros_healthd::FakeCrosHealthd::Get()
       ->SetExpectedLastPassedDiagnosticsParametersForTesting(
@@ -363,7 +293,7 @@ TEST_F(DiagnosticsServiceAshTest, RunBluetoothScanningRoutine) {
 TEST_F(DiagnosticsServiceAshTest, RunCpuCacheRoutineSuccess) {
   // Configure FakeCrosHealthd.
   SetSuccessfulRoutineResponse();
-  base::Value::Dict expected_passed_parameters;
+  base::DictValue expected_passed_parameters;
   expected_passed_parameters.Set("length_seconds", 100);
   cros_healthd::FakeCrosHealthd::Get()
       ->SetExpectedLastPassedDiagnosticsParametersForTesting(
@@ -384,7 +314,7 @@ TEST_F(DiagnosticsServiceAshTest, RunCpuCacheRoutineSuccess) {
 TEST_F(DiagnosticsServiceAshTest, RunCpuStressRoutineSuccess) {
   // Configure FakeCrosHealthd.
   SetSuccessfulRoutineResponse();
-  base::Value::Dict expected_passed_parameters;
+  base::DictValue expected_passed_parameters;
   expected_passed_parameters.Set("length_seconds", 100);
   cros_healthd::FakeCrosHealthd::Get()
       ->SetExpectedLastPassedDiagnosticsParametersForTesting(
@@ -405,7 +335,7 @@ TEST_F(DiagnosticsServiceAshTest, RunCpuStressRoutineSuccess) {
 TEST_F(DiagnosticsServiceAshTest, RunDiskReadRoutineSuccess) {
   // Configure FakeCrosHealthd.
   SetSuccessfulRoutineResponse();
-  base::Value::Dict expected_passed_parameters;
+  base::DictValue expected_passed_parameters;
   expected_passed_parameters.Set(
       "type",
       static_cast<int32_t>(
@@ -430,76 +360,6 @@ TEST_F(DiagnosticsServiceAshTest, RunDiskReadRoutineSuccess) {
                   ->DidExpectedDiagnosticsParametersMatch());
 }
 
-TEST_F(DiagnosticsServiceAshTest, RunDnsResolutionRoutineSuccess) {
-  // Configure FakeCrosHealthd.
-  SetSuccessfulRoutineResponse();
-
-  base::test::TestFuture<crosapi::mojom::DiagnosticsRunRoutineResponsePtr>
-      future;
-  diagnostics_service()->RunDnsResolutionRoutine(future.GetCallback());
-
-  ASSERT_TRUE(future.Wait());
-  const auto& result = future.Get();
-  ValidateResponse(result,
-                   cros_healthd::mojom::DiagnosticRoutineEnum::kDnsResolution);
-}
-
-TEST_F(DiagnosticsServiceAshTest, RunDnsResolverPresentRoutineSuccess) {
-  // Configure FakeCrosHealthd.
-  SetSuccessfulRoutineResponse();
-
-  base::test::TestFuture<crosapi::mojom::DiagnosticsRunRoutineResponsePtr>
-      future;
-  diagnostics_service()->RunDnsResolverPresentRoutine(future.GetCallback());
-
-  ASSERT_TRUE(future.Wait());
-  const auto& result = future.Get();
-  ValidateResponse(
-      result, cros_healthd::mojom::DiagnosticRoutineEnum::kDnsResolverPresent);
-}
-
-TEST_F(DiagnosticsServiceAshTest, RunEmmcLifetimeRoutineSuccess) {
-  // Configure FakeCrosHealthd.
-  SetSuccessfulRoutineResponse();
-
-  base::test::TestFuture<crosapi::mojom::DiagnosticsRunRoutineResponsePtr>
-      future;
-
-  diagnostics_service()->RunEmmcLifetimeRoutine(future.GetCallback());
-
-  ASSERT_TRUE(future.Wait());
-  const auto& result = future.Get();
-  ValidateResponse(result,
-                   cros_healthd::mojom::DiagnosticRoutineEnum::kEmmcLifetime);
-}
-
-TEST_F(DiagnosticsServiceAshTest, RunFanRoutineSuccess) {
-  // Configure FakeCrosHealthd.
-  SetSuccessfulRoutineResponse();
-
-  base::test::TestFuture<crosapi::mojom::DiagnosticsRunRoutineResponsePtr>
-      future;
-  diagnostics_service()->RunFanRoutine(future.GetCallback());
-
-  ASSERT_TRUE(future.Wait());
-  const auto& result = future.Get();
-  ValidateResponse(result, cros_healthd::mojom::DiagnosticRoutineEnum::kFan);
-}
-
-TEST_F(DiagnosticsServiceAshTest, RunFingerprintAliveRoutineSuccess) {
-  // Configure FakeCrosHealthd.
-  SetSuccessfulRoutineResponse();
-
-  base::test::TestFuture<crosapi::mojom::DiagnosticsRunRoutineResponsePtr>
-      future;
-  diagnostics_service()->RunFingerprintAliveRoutine(future.GetCallback());
-
-  ASSERT_TRUE(future.Wait());
-  const auto& result = future.Get();
-  ValidateResponse(
-      result, cros_healthd::mojom::DiagnosticRoutineEnum::kFingerprintAlive);
-}
-
 TEST_F(DiagnosticsServiceAshTest, RunFloatingPointAccuracyRoutineSuccess) {
   // Configure FakeCrosHealthd.
   SetSuccessfulRoutineResponse();
@@ -516,51 +376,10 @@ TEST_F(DiagnosticsServiceAshTest, RunFloatingPointAccuracyRoutineSuccess) {
       cros_healthd::mojom::DiagnosticRoutineEnum::kFloatingPointAccuracy);
 }
 
-TEST_F(DiagnosticsServiceAshTest, RunGatewayCanBePingedRoutineSuccess) {
-  // Configure FakeCrosHealthd.
-  SetSuccessfulRoutineResponse();
-
-  base::test::TestFuture<crosapi::mojom::DiagnosticsRunRoutineResponsePtr>
-      future;
-  diagnostics_service()->RunGatewayCanBePingedRoutine(future.GetCallback());
-
-  ASSERT_TRUE(future.Wait());
-  const auto& result = future.Get();
-  ValidateResponse(
-      result, cros_healthd::mojom::DiagnosticRoutineEnum::kGatewayCanBePinged);
-}
-
-TEST_F(DiagnosticsServiceAshTest, RunLanConnectivityRoutineSuccess) {
-  // Configure FakeCrosHealthd.
-  SetSuccessfulRoutineResponse();
-
-  base::test::TestFuture<crosapi::mojom::DiagnosticsRunRoutineResponsePtr>
-      future;
-  diagnostics_service()->RunLanConnectivityRoutine(future.GetCallback());
-
-  ASSERT_TRUE(future.Wait());
-  const auto& result = future.Get();
-  ValidateResponse(
-      result, cros_healthd::mojom::DiagnosticRoutineEnum::kLanConnectivity);
-}
-
-TEST_F(DiagnosticsServiceAshTest, RunMemoryRoutineSuccess) {
-  // Configure FakeCrosHealthd.
-  SetSuccessfulRoutineResponse();
-
-  base::test::TestFuture<crosapi::mojom::DiagnosticsRunRoutineResponsePtr>
-      future;
-  diagnostics_service()->RunMemoryRoutine(future.GetCallback());
-
-  ASSERT_TRUE(future.Wait());
-  const auto& result = future.Get();
-  ValidateResponse(result, cros_healthd::mojom::DiagnosticRoutineEnum::kMemory);
-}
-
 TEST_F(DiagnosticsServiceAshTest, RunNvmeSelfTestRoutineSuccess) {
   // Configure FakeCrosHealthd.
   SetSuccessfulRoutineResponse();
-  base::Value::Dict expected_passed_parameters;
+  base::DictValue expected_passed_parameters;
   expected_passed_parameters.Set(
       "nvme_self_test_type",
       static_cast<int32_t>(
@@ -586,7 +405,7 @@ TEST_F(DiagnosticsServiceAshTest, RunNvmeSelfTestRoutineSuccess) {
 TEST_F(DiagnosticsServiceAshTest, RunPrimeSearchRoutineSuccess) {
   // Configure FakeCrosHealthd.
   SetSuccessfulRoutineResponse();
-  base::Value::Dict expected_passed_parameters;
+  base::DictValue expected_passed_parameters;
   expected_passed_parameters.Set("length_seconds", 100);
   cros_healthd::FakeCrosHealthd::Get()
       ->SetExpectedLastPassedDiagnosticsParametersForTesting(
@@ -602,34 +421,6 @@ TEST_F(DiagnosticsServiceAshTest, RunPrimeSearchRoutineSuccess) {
                    cros_healthd::mojom::DiagnosticRoutineEnum::kPrimeSearch);
   EXPECT_TRUE(cros_healthd::FakeCrosHealthd::Get()
                   ->DidExpectedDiagnosticsParametersMatch());
-}
-
-TEST_F(DiagnosticsServiceAshTest, RunSensitiveSensorRoutineSuccess) {
-  // Configure FakeCrosHealthd.
-  SetSuccessfulRoutineResponse();
-
-  base::test::TestFuture<crosapi::mojom::DiagnosticsRunRoutineResponsePtr>
-      future;
-  diagnostics_service()->RunSensitiveSensorRoutine(future.GetCallback());
-
-  ASSERT_TRUE(future.Wait());
-  const auto& result = future.Get();
-  ValidateResponse(
-      result, cros_healthd::mojom::DiagnosticRoutineEnum::kSensitiveSensor);
-}
-
-TEST_F(DiagnosticsServiceAshTest, RunSignalStrengthRoutineSuccess) {
-  // Configure FakeCrosHealthd.
-  SetSuccessfulRoutineResponse();
-
-  base::test::TestFuture<crosapi::mojom::DiagnosticsRunRoutineResponsePtr>
-      future;
-  diagnostics_service()->RunSignalStrengthRoutine(future.GetCallback());
-
-  ASSERT_TRUE(future.Wait());
-  const auto& result = future.Get();
-  ValidateResponse(result,
-                   cros_healthd::mojom::DiagnosticRoutineEnum::kSignalStrength);
 }
 
 TEST_F(DiagnosticsServiceAshTest, RunSmartctlCheckRoutineSuccess) {
@@ -649,7 +440,7 @@ TEST_F(DiagnosticsServiceAshTest, RunSmartctlCheckRoutineSuccess) {
 TEST_F(DiagnosticsServiceAshTest, RunSmartctlCheckRoutineWithParameterSuccess) {
   // Configure FakeCrosHealthd.
   SetSuccessfulRoutineResponse();
-  base::Value::Dict expected_passed_parameters;
+  base::DictValue expected_passed_parameters;
   expected_passed_parameters.Set("percentage_used_threshold", 42);
   cros_healthd::FakeCrosHealthd::Get()
       ->SetExpectedLastPassedDiagnosticsParametersForTesting(
@@ -668,25 +459,11 @@ TEST_F(DiagnosticsServiceAshTest, RunSmartctlCheckRoutineWithParameterSuccess) {
                   ->DidExpectedDiagnosticsParametersMatch());
 }
 
-TEST_F(DiagnosticsServiceAshTest, RunUfsLifetimeRoutineSuccess) {
-  // Configure FakeCrosHealthd.
-  SetSuccessfulRoutineResponse();
-
-  base::test::TestFuture<crosapi::mojom::DiagnosticsRunRoutineResponsePtr>
-      future;
-  diagnostics_service()->RunUfsLifetimeRoutine(future.GetCallback());
-
-  ASSERT_TRUE(future.Wait());
-  const auto& result = future.Get();
-  ValidateResponse(result,
-                   cros_healthd::mojom::DiagnosticRoutineEnum::kUfsLifetime);
-}
-
 TEST_F(DiagnosticsServiceAshTest, RunPowerButtonRoutineSuccess) {
   // Configure FakeCrosHealthd.
   SetSuccessfulRoutineResponse();
   constexpr uint32_t kTimeout = 10;
-  base::Value::Dict expected_passed_parameters;
+  base::DictValue expected_passed_parameters;
   expected_passed_parameters.Set("timeout_seconds",
                                  static_cast<int32_t>(kTimeout));
   cros_healthd::FakeCrosHealthd::Get()

@@ -34,6 +34,7 @@
 #include "third_party/blink/renderer/core/css/css_numeric_literal_value.h"
 #include "third_party/blink/renderer/core/css/css_primitive_value.h"
 #include "third_party/blink/renderer/core/css/css_unparsed_declaration_value.h"
+#include "third_party/blink/renderer/core/css/media_feature_names.h"
 #include "third_party/blink/renderer/core/css/parser/css_parser_context.h"
 #include "third_party/blink/renderer/core/css/parser/css_parser_impl.h"
 #include "third_party/blink/renderer/core/css/parser/css_parser_token.h"
@@ -46,6 +47,7 @@
 #include "third_party/blink/renderer/platform/wtf/decimal.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_buffer.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
+#include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace blink {
 
@@ -58,7 +60,7 @@ static inline bool FeatureWithValidIdent(const String& media_feature,
                                          const CSSParserContext& context) {
   if (media_feature == media_feature_names::kDisplayModeMediaFeature) {
     return ident == CSSValueID::kFullscreen ||
-           ident == CSSValueID::kBorderless ||
+           ident == CSSValueID::kBorderless || ident == CSSValueID::kUnframed ||
            ident == CSSValueID::kStandalone ||
            ident == CSSValueID::kMinimalUi ||
            ident == CSSValueID::kWindowControlsOverlay ||
@@ -515,8 +517,8 @@ std::optional<MediaQueryExpValue> MediaQueryExpValue::Consume(
       << "Under the assumption that custom properties in style() container "
          "queries are currently the only case sensitive features";
 
-  // TODO(crbug.com/413385732): We don't have property name for random in media
-  // query, this should probably be speced.
+  // TODO(crbug.com/475808971): We don't have property name for random in media
+  // query, this should probably be specified.
   CSSParserLocalContext local_context =
       CSSParserLocalContext::CreateWithoutPropertyForMediaQueries();
   if (media_feature == media_feature_names::kFallbackMediaFeature) {

@@ -28,7 +28,7 @@ import org.mockito.stubbing.Answer;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.supplier.MonotonicObservableSupplier;
-import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.browser.compositor.bottombar.contextualsearch.ContextualSearchPanel;
 import org.chromium.chrome.browser.compositor.layouts.Layout.Orientation;
@@ -55,8 +55,6 @@ public class SceneOverlayTest {
 
     @Mock private ViewGroup mContainerView;
 
-    @Mock private MonotonicObservableSupplier<TabContentManager> mTabContentManagerSupplier;
-
     @Mock private TopUiThemeColorProvider mTopUiThemeColorProvider;
 
     // Use different classes so the overlays can be uniquely ordered. Each supported class has an
@@ -71,6 +69,8 @@ public class SceneOverlayTest {
     @Mock private Layout mLayout;
 
     private final DisplayMetrics mDisplayMetrics = new DisplayMetrics();
+    private final MonotonicObservableSupplier<TabContentManager> mTabContentManagerSupplier =
+            ObservableSuppliers.alwaysNull();
     private LayoutManagerImpl mLayoutManager;
 
     @Before
@@ -80,22 +80,22 @@ public class SceneOverlayTest {
         when(mContext.getResources()).thenReturn(mResources);
         when(mResources.getDisplayMetrics()).thenReturn(mDisplayMetrics);
 
-        doReturn(new ObservableSupplierImpl<>())
+        doReturn(ObservableSuppliers.alwaysFalse())
                 .when(mOverlay1)
                 .getHandleBackPressChangedSupplier();
-        doReturn(new ObservableSupplierImpl<>())
+        doReturn(ObservableSuppliers.alwaysFalse())
                 .when(mOverlay2)
                 .getHandleBackPressChangedSupplier();
-        doReturn(new ObservableSupplierImpl<>())
+        doReturn(ObservableSuppliers.alwaysFalse())
                 .when(mOverlay3)
                 .getHandleBackPressChangedSupplier();
-        doReturn(new ObservableSupplierImpl<>())
+        doReturn(ObservableSuppliers.alwaysFalse())
                 .when(mOverlay4)
                 .getHandleBackPressChangedSupplier();
-        doReturn(new ObservableSupplierImpl<>())
+        doReturn(ObservableSuppliers.alwaysFalse())
                 .when(mOverlay5)
                 .getHandleBackPressChangedSupplier();
-        doReturn(new ObservableSupplierImpl<>())
+        doReturn(ObservableSuppliers.alwaysFalse())
                 .when(mOverlay6)
                 .getHandleBackPressChangedSupplier();
 

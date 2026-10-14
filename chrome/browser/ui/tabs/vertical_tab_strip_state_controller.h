@@ -9,13 +9,13 @@
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "chrome/browser/sessions/session_service_base_observer.h"
-#include "chrome/browser/ui/browser_list_observer.h"
+#include "chrome/browser/ui/browser_window/public/browser_collection_observer.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/tabs/vertical_tab_strip_state.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "components/sessions/core/session_id.h"
 #include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 
-class BrowserList;
 class BrowserWindowInterface;
 class PrefService;
 class SessionService;
@@ -27,7 +27,7 @@ class ActionItem;
 namespace tabs {
 
 class VerticalTabStripStateController : public SessionServiceBaseObserver,
-                                        public BrowserListObserver {
+                                        public BrowserCollectionObserver {
  public:
   DECLARE_USER_DATA(VerticalTabStripStateController);
 
@@ -45,6 +45,8 @@ class VerticalTabStripStateController : public SessionServiceBaseObserver,
       const VerticalTabStripStateController&) = delete;
   ~VerticalTabStripStateController() override;
 
+  static const VerticalTabStripStateController* From(
+      const BrowserWindowInterface* browser_window);
   static VerticalTabStripStateController* From(
       BrowserWindowInterface* browser_window);
 
@@ -62,7 +64,11 @@ class VerticalTabStripStateController : public SessionServiceBaseObserver,
 
   using StateChangedCallback =
       base::RepeatingCallback<void(VerticalTabStripStateController*)>;
-  base::CallbackListSubscription RegisterOnStateChanged(
+  base::CallbackListSubscription RegisterOnCollapseChanged(
+      StateChangedCallback callback);
+  base::CallbackListSubscription RegisterOnModeWillChange(
+      StateChangedCallback callback);
+  base::CallbackListSubscription RegisterOnModeChanged(
       StateChangedCallback callback);
 
   static constexpr char kCollapsedKey[] = "vertical_tab_strip_collapsed";
@@ -70,7 +76,9 @@ class VerticalTabStripStateController : public SessionServiceBaseObserver,
       "vertical_tab_strip_uncollapsed_width";
 
  private:
-  void NotifyStateChanged();
+  void NotifyCollapseChanged();
+  void NotifyModeWillChange();
+  void NotifyModeChanged();
 
   // Updates the SessionService with the current state (collapsed status and
   // uncollapsed width) for the associated session ID.
@@ -83,8 +91,8 @@ class VerticalTabStripStateController : public SessionServiceBaseObserver,
   // SessionServiceBase::SessionServiceBaseObserver:
   void OnDestroying(SessionServiceBase* service) override;
 
-  // BrowserListObserver:
-  void OnBrowserAdded(Browser* browser) override;
+  // BrowserCollectionObserver:
+  void OnBrowserCreated(BrowserWindowInterface* browser) override;
 
   const raw_ptr<PrefService> pref_service_;
   PrefChangeRegistrar pref_change_registrar_;
@@ -96,9 +104,13 @@ class VerticalTabStripStateController : public SessionServiceBaseObserver,
   VerticalTabStripState state_;
 
   base::RepeatingCallbackList<void(VerticalTabStripStateController*)>
-      on_state_changed_callback_list_;
-  base::ScopedObservation<BrowserList, BrowserListObserver>
-      browser_list_observation_{this};
+      on_collapse_changed_callback_list_;
+  base::RepeatingCallbackList<void(VerticalTabStripStateController*)>
+      on_mode_will_change_callback_list_;
+  base::RepeatingCallbackList<void(VerticalTabStripStateController*)>
+      on_mode_changed_callback_list_;
+  base::ScopedObservation<GlobalBrowserCollection, BrowserCollectionObserver>
+      browser_collection_observation_{this};
   ui::ScopedUnownedUserData<VerticalTabStripStateController>
       scoped_unowned_user_data_;
 };

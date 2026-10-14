@@ -1,6 +1,7 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="zh-HK">
+<translation id="1035560095760914532">將 Chrome 放在底部區域，方便隨時存取</translation>
 <translation id="1076643793026027628">在無痕模式下，Chrome 會自動開啟 YouTube 無痕連結。</translation>
 <translation id="1081114897601629648">以下密碼不符合要求，因此並未匯入到「Google 密碼管理工具」。</translation>
 <translation id="1086486568852410168">使用「Google 智能鏡頭」搜尋</translation>
@@ -86,6 +87,10 @@
 <translation id="2767464022270041271">沒有已儲存的密碼。當您儲存密碼時，「Google 密碼管理工具」可檢查您的密碼。</translation>
 <translation id="2788811701191021538">使用 Chrome 開啟付款方法設定頁面。</translation>
 <translation id="2876628302275096482">進一步瞭解 <ph name="BEGIN_LINK" />Chrome 如何確保你的資料保密<ph name="END_LINK" /></translation>
+<translation id="288992067439702510">Google Chrome 的書籤數量已達上限 (<ph name="LIMIT" /> 個)，因此部分書籤未能儲存至 Google 帳戶。
+
+你必須刪除部分書籤，才能將新書籤儲存至帳戶。如果你現在登出，未儲存的書籤將會刪除。</translation>
+<translation id="2901621928549457170">在 iPad 上即時開啟 Chrome</translation>
 <translation id="2922914028977213693">輕按這裡以在 iPad 上充分運用 Chrome 的功能。</translation>
 <translation id="292371311537977079">Chrome 設定</translation>
 <translation id="2923827943290349720">關閉 Chrome 時鎖定無痕式分頁</translation>
@@ -170,6 +175,8 @@
 <translation id="5119391094379141756">選取 [Chrome]</translation>
 <translation id="5123188916260706415">在 Chrome 中使用語音搜尋</translation>
 <translation id="5162467219239570114">Chrome 版本過舊。如果<ph name="BEGIN_LINK" />應用程式商店<ph name="END_LINK" />沒有提供任何更新，您的裝置可能已停止支援新版本的 Chrome。</translation>
+<translation id="5172049865623113551">在 iPhone 上即時開啟 Chrome</translation>
+<translation id="5179095426828744632">從 Dock 更快存取 Chrome</translation>
 <translation id="5184329579814168207">在 Chrome 中開啟</translation>
 <translation id="5190139289262548459">你的機構 (<ph name="DOMAIN" />) 會管理你登入的帳戶和使用 Chrome 的方式。</translation>
 <translation id="5209238444239954363">Chrome 無法檢查更新，請稍後再試。</translation>
@@ -304,7 +311,6 @@
 <translation id="7787205077729386167">在 iOS 中開啟 Chrome 設定，輕按 [預設瀏覽器應用程式]，然後選取 [Chrome]。</translation>
 <translation id="778855399387580014">在新的 Chrome 分頁上開始搜尋。</translation>
 <translation id="7792140019572081272">Chrome 會使用 Face ID 保護你的敏感資料安全。</translation>
-<translation id="7825648984449922731">使用 Chrome 版 Gemini 編輯圖片</translation>
 <translation id="7855730255114109580">Google Chrome 已是最新版本</translation>
 <translation id="787226752901403048">登入 Chrome 即可分享和加入分頁群組，集思廣益</translation>
 <translation id="7897703007638178753">查看 Chrome 最近開啟的分頁</translation>

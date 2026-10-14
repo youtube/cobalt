@@ -35,9 +35,10 @@ import org.chromium.base.ThreadUtils;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
-import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.OneShotCallback;
 import org.chromium.base.supplier.OneshotSupplier;
+import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -72,6 +73,7 @@ import org.chromium.chrome.browser.tab.TabFavicon;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tabwindow.TabWindowInfo;
 import org.chromium.chrome.browser.toolbar.VoiceToolbarButtonController;
+import org.chromium.chrome.browser.ui.edge_to_edge.NoOpTopInsetProvider;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager.SnackbarManageable;
 import org.chromium.chrome.browser.ui.native_page.NativePage;
@@ -243,9 +245,10 @@ public class SearchActivity extends AsyncInitializationActivity
     private View mAnchorView;
 
     private SnackbarManager mSnackbarManager;
-    private final ObservableSupplierImpl<Profile> mProfileSupplier = new ObservableSupplierImpl<>();
-    private final ObservableSupplierImpl<TabModelSelector> mTabModelSelectorSupplier =
-            new ObservableSupplierImpl<>();
+    private final SettableMonotonicObservableSupplier<Profile> mProfileSupplier =
+            ObservableSuppliers.createMonotonic();
+    private final SettableMonotonicObservableSupplier<TabModelSelector> mTabModelSelectorSupplier =
+            ObservableSuppliers.createMonotonic();
 
     // SearchBoxDataProvider and LocationBarEmbedderUiOverrides are passed to several child
     // components upon construction. Ensure we don't accidentally introduce disconnection by
@@ -302,7 +305,8 @@ public class SearchActivity extends AsyncInitializationActivity
         var contentView = createContentView();
         setContentView(contentView);
         mStartupMetricsTracker.registerSearchActivityViewObserver(contentView);
-        mSnackbarManager = new SnackbarManager(this, contentView, null);
+        mSnackbarManager =
+                new SnackbarManager(this, contentView, null, null, getModalDialogManager());
 
         // Build the search box.
         mSearchBox = contentView.findViewById(R.id.search_location_bar);
@@ -322,7 +326,7 @@ public class SearchActivity extends AsyncInitializationActivity
                         mSearchBoxDataProvider,
                         null,
                         assertNonNull(getWindowAndroid()),
-                        /* activityTabSupplier= */ () -> null,
+                        /* activityTabSupplier= */ ObservableSuppliers.alwaysNull(),
                         (Supplier<@Nullable ModalDialogManager>) getModalDialogManagerSupplier(),
                         /* shareDelegateSupplier= */ null,
                         /* incognitoStateProvider= */ null,
@@ -373,7 +377,8 @@ public class SearchActivity extends AsyncInitializationActivity
                         null,
                         backPressManager,
                         /* omniboxSuggestionsDropdownScrollListener= */ null,
-                        /* tabModelSelectorSupplier= */ new ObservableSupplierImpl<>(),
+                        /* tabModelSelectorSupplier= */ ObservableSuppliers.createMonotonic(),
+                        /* topInsetProvider= */ new NoOpTopInsetProvider(),
                         new LocationBarEmbedder() {},
                         mLocationBarUiOverrides,
                         findViewById(R.id.control_container),
@@ -385,7 +390,8 @@ public class SearchActivity extends AsyncInitializationActivity
                         TabFavicon::getBitmap,
                         /* multiInstanceManager= */ null,
                         mSnackbarManager,
-                        findViewById(R.id.bottom_container));
+                        findViewById(R.id.bottom_container),
+                        /* omniboxChipManager= */ null);
         mLocationBarCoordinator.setUrlBarFocusable(true);
         mLocationBarCoordinator.setShouldShowMicButtonWhenUnfocused(true);
         assumeNonNull(mLocationBarCoordinator.getOmniboxStub()).addUrlFocusChangeListener(this);
@@ -655,6 +661,7 @@ public class SearchActivity extends AsyncInitializationActivity
             mLocationBarCoordinator.destroy();
             mLocationBarCoordinator = null;
         }
+        mSearchBoxDataProvider.destroy();
         mHandler.removeCallbacksAndMessages(null);
         super.onDestroy();
     }
@@ -868,7 +875,8 @@ public class SearchActivity extends AsyncInitializationActivity
 
     @VisibleForTesting
     void recordNavigationTargetType(GURL url) {
-        var templateSvc = TemplateUrlServiceFactory.getForProfile(mProfileSupplier.get());
+        var templateSvc =
+                TemplateUrlServiceFactory.getForProfile(assertNonNull(mProfileSupplier.get()));
         boolean isSearch =
                 templateSvc != null
                         && templateSvc.isSearchResultsPageFromDefaultSearchProvider(url);

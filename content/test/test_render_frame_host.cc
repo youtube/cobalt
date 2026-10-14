@@ -468,9 +468,10 @@ void TestRenderFrameHost::SendRendererInitiatedNavigationRequest(
           nullptr /* trust_token_params */, std::nullopt /* impression */,
           base::TimeTicks() /* renderer_before_unload_start */,
           base::TimeTicks() /* renderer_before_unload_end */,
-          blink::mojom::NavigationInitiatorActivationAndAdStatus::
-              kDidNotStartWithTransientActivation,
-          false /* is_container_initiated */,
+          base::TimeTicks() /* before_unload_dialog_opened */,
+          base::TimeTicks() /* before_unload_dialog_closed */,
+          false /* started_with_transient_activation */,
+          false /* started_by_ad */, false /* is_container_initiated */,
           net::StorageAccessApiStatus::kNone, false /* has_rel_opener */);
   auto common_params = blink::CreateCommonNavigationParams();
   common_params->url = url;
@@ -480,7 +481,7 @@ void TestRenderFrameHost::SendRendererInitiatedNavigationRequest(
   common_params->transition = ui::PAGE_TRANSITION_LINK;
   common_params->navigation_type =
       blink::mojom::NavigationType::DIFFERENT_DOCUMENT;
-  common_params->has_user_gesture = has_user_gesture;
+  common_params->has_possibly_filtered_user_gesture = has_user_gesture;
   common_params->request_destination =
       network::mojom::RequestDestination::kDocument;
 
@@ -490,7 +491,8 @@ void TestRenderFrameHost::SendRendererInitiatedNavigationRequest(
       navigation_client_remote.InitWithNewEndpointAndPassReceiver());
   BeginNavigation(std::move(common_params), std::move(begin_params),
                   mojo::NullRemote(), std::move(navigation_client_remote),
-                  mojo::NullRemote(), mojo::NullReceiver());
+                  mojo::NullRemote(), mojo::NullReceiver(),
+                  mojo::NullReceiver());
 }
 
 void TestRenderFrameHost::SimulateDidChangeOpener(
@@ -643,7 +645,6 @@ void TestRenderFrameHost::SendCommitNavigation(
         keep_alive_loader_factory,
     mojo::PendingAssociatedRemote<blink::mojom::FetchLaterLoaderFactory>
         fetch_later_loader_factory,
-    const std::optional<network::ParsedPermissionsPolicy>& permissions_policy,
     blink::mojom::PolicyContainerPtr policy_container,
     const blink::DocumentToken& document_token,
     const base::UnguessableToken& devtools_navigation_token) {

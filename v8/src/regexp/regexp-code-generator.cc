@@ -14,6 +14,7 @@
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/objects/fixed-array-inl.h"
+#include "src/regexp/regexp-bytecode-analysis.h"
 #include "src/regexp/regexp-bytecode-iterator-inl.h"
 #include "src/regexp/regexp-bytecodes-inl.h"
 
@@ -39,6 +40,19 @@ RegExpCodeGenerator::Result RegExpCodeGenerator::Assemble(
     DirectHandle<String> source, RegExpFlags flags) {
   USE(isolate_);
   USE(masm_);
+
+  // Bytecode analysis is currently unused. In future work it could form the
+  // basis for compiler optimizations.
+  if (V8_UNLIKELY(v8_flags.regexp_bytecode_analysis)) {
+    RegExpBytecodeAnalysis analysis(isolate_, &zone_, bytecode_);
+    analysis.Analyze();
+    if (v8_flags.trace_regexp_bytecode_analysis) {
+      std::unique_ptr<char[]> pattern_cstring = source->ToCString();
+      RegExpBytecodeDisassemble(bytecode_->begin(), bytecode_->length(),
+                                pattern_cstring.get(), &analysis);
+    }
+  }
+
   PreVisitBytecodes();
   iter_.reset();
   VisitBytecodes();
@@ -457,8 +471,11 @@ VISIT(SkipUntilOneOfMasked3, bc0_cp_offset, bc0_advance_by, bc0_table,
   };
 
   // The nibble table is optionally constructed if we use SIMD.
+  // The fallback version without SIMD for this bytecode emits
+  // SkipUntilBitInTable, which might need the nibble table as well.
   Handle<ByteArray> nibble_table;
-  if (masm_->SkipUntilOneOfMasked3UseSimd(args)) {
+  if (masm_->SkipUntilOneOfMasked3UseSimd(args) ||
+      masm_->SkipUntilBitInTableUseSimd(bc0_advance_by)) {
     static_assert(RegExpMacroAssembler::kTableSize == 128);
     nibble_table = isolate_->factory()->NewByteArray(
         RegExpMacroAssembler::kTableSize / kBitsPerByte, AllocationType::kOld);

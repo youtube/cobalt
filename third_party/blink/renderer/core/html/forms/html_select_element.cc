@@ -77,6 +77,7 @@
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/instrumentation/tracing/trace_event.h"
 #include "third_party/blink/renderer/platform/text/platform_locale.h"
+#include "third_party/blink/renderer/platform/wtf/text/string_to_number.h"
 #include "ui/base/ui_base_features.h"
 
 namespace blink {
@@ -172,9 +173,7 @@ String HTMLSelectElement::DefaultToolTip() const {
   return validationMessage();
 }
 
-void HTMLSelectElement::SelectMultipleOptionsByPopup(
-    const Vector<int>& list_indices) {
-  DCHECK(UsesMenuList());
+void HTMLSelectElement::SelectMultipleOptions(const Vector<int>& list_indices) {
   DCHECK(IsMultiple());
 
   HeapHashSet<Member<HTMLOptionElement>> old_selection;
@@ -1122,7 +1121,7 @@ void HTMLSelectElement::RestoreFormControlState(const FormControlState& state) {
   // The saved state should have at least one value and an index.
   DCHECK_GE(state.ValueSize(), 2u);
   if (!IsMultiple()) {
-    unsigned index = state[1].ToUInt();
+    unsigned index = StringToUint(state[1]).value_or(0);
     HTMLOptionElement* option_element =
         index < items_size ? DynamicTo<HTMLOptionElement>(items[index].Get())
                            : nullptr;
@@ -1138,15 +1137,19 @@ void HTMLSelectElement::RestoreFormControlState(const FormControlState& state) {
         option_element->SetDirty(true);
         last_on_change_option_ = option_element;
       } else {
+        // If we couldn't restore any option, then reset to default selection
+        // instead of leaving this select in a broken state where no option is
+        // selected. See http://crbug.com/41360677
+        ResetToDefaultSelection();
         option_element = nullptr;
       }
     }
-    UpdateAllSelectedcontents(option_element);
+    UpdateAllSelectedcontents(last_on_change_option_);
   } else {
     wtf_size_t start_index = 0;
     for (wtf_size_t i = 0; i < state.ValueSize(); i += 2) {
       const String& value = state[i];
-      const unsigned index = state[i + 1].ToUInt();
+      const unsigned index = StringToUint(state[i + 1]).value_or(0);
       HTMLOptionElement* option_element =
           index < items_size ? DynamicTo<HTMLOptionElement>(items[index].Get())
                              : nullptr;
@@ -1455,6 +1458,12 @@ IndexedPropertySetterResult HTMLSelectElement::AnonymousIndexedSetter(
 
 bool HTMLSelectElement::IsInteractiveContent() const {
   return true;
+}
+
+FocusgroupFlags HTMLSelectElement::NativeArrowKeyAxes() const {
+  // Select elements use arrow keys for option navigation (up/down and
+  // left/right both cycle through options in Chromium).
+  return FocusgroupFlags::kInline | FocusgroupFlags::kBlock;
 }
 
 void HTMLSelectElement::Trace(Visitor* visitor) const {
@@ -1963,34 +1972,36 @@ void HTMLSelectElement::UpdateAllSelectedcontents(
 }
 
 // static
-std::pair<HTMLSelectElement*, HTMLOptGroupElement*>
-HTMLSelectElement::AssociatedSelectAndOptgroup(const Element& element) {
+HTMLSelectElement::SelectOptgroupDatalist
+HTMLSelectElement::AssociatedSelectAndOptgroupAndDatalist(
+    const Element& element) {
   HTMLOptGroupElement* ancestor_optgroup = nullptr;
   for (Node& ancestor : NodeTraversal::AncestorsOf(element)) {
     if (IsA<HTMLOptionElement>(ancestor)) {
       // Elements nested inside of an <option> are not associated with the
       // <select>.
-      return std::make_pair(nullptr, ancestor_optgroup);
+      return {nullptr, ancestor_optgroup, nullptr};
     } else if (auto* new_ancestor_optgroup =
                    DynamicTo<HTMLOptGroupElement>(ancestor)) {
       if (ancestor_optgroup || IsA<HTMLOptGroupElement>(element)) {
         // Doubly-nested <optgroup>s and their descendants are not <select>
         // associated.
-        return std::make_pair(nullptr, ancestor_optgroup);
+        return {nullptr, ancestor_optgroup, nullptr};
       }
       ancestor_optgroup = new_ancestor_optgroup;
     } else if (IsA<HTMLHRElement>(ancestor)) {
       // Descendants of <hr> elements are not <select> associated.
-      return std::make_pair(nullptr, ancestor_optgroup);
-    } else if (RuntimeEnabledFeatures::SelectDisallowDatalistEnabled() &&
-               IsA<HTMLDataListElement>(ancestor)) {
-      // Descendants of <datalist> elements are not <select> associated.
-      return std::make_pair(nullptr, ancestor_optgroup);
+      return {nullptr, ancestor_optgroup, nullptr};
+    } else if (auto* datalist = DynamicTo<HTMLDataListElement>(ancestor)) {
+      if (RuntimeEnabledFeatures::SelectDisallowDatalistEnabled()) {
+        // Descendants of <datalist> elements are not <select> associated.
+        return {nullptr, ancestor_optgroup, datalist};
+      }
     } else if (auto* select = DynamicTo<HTMLSelectElement>(ancestor)) {
-      return std::make_pair(select, ancestor_optgroup);
+      return {select, ancestor_optgroup, nullptr};
     }
   }
-  return std::make_pair(nullptr, ancestor_optgroup);
+  return {nullptr, ancestor_optgroup, nullptr};
 }
 
 FocusableState HTMLSelectElement::SupportsFocus(
@@ -2052,13 +2063,6 @@ bool HTMLSelectElement::ShouldIgnoreDescendantsForOptionTraversals(
   }
   return IsA<HTMLSelectElement>(element) || IsA<HTMLOptionElement>(element) ||
          IsA<HTMLHRElement>(element);
-}
-
-bool HTMLSelectElement::FillWebMCPData(JSONValue& data) {
-  CHECK(RuntimeEnabledFeatures::WebMCPEnabled());
-  String selected_value = GetMCPJSONValue(data);
-  SetValue(selected_value, /*send_events*/ true, WebAutofillState::kNotFilled);
-  return true;
 }
 
 }  // namespace blink

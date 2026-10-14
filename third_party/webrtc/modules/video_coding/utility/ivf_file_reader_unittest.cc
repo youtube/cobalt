@@ -77,7 +77,7 @@ class IvfFileReaderTest : public ::testing::Test {
                       bool use_capture_tims_ms,
                       int spatial_layers_count) {
     std::unique_ptr<IvfFileWriter> file_writer =
-        IvfFileWriter::Wrap(FileWrapper::OpenWriteOnly(file_name_), 0);
+        IvfFileWriter::Wrap(file_name_, /*byte_limit=*/0);
     ASSERT_TRUE(file_writer.get());
     ASSERT_TRUE(WriteDummyTestFrames(file_writer.get(), codec_type, kWidth,
                                      kHeight, kNumFrames, use_capture_tims_ms,

@@ -6,16 +6,19 @@
 #define CHROME_BROWSER_UI_TABS_FEATURES_H_
 
 #include "base/feature_list.h"
+#include "base/metrics/field_trial_params.h"
 
 namespace tabs {
 
 // TODO(crbug.com/346837232): move all flags to this file.
 
-BASE_DECLARE_FEATURE(kDebugUITabStrip);
-
 BASE_DECLARE_FEATURE(kTabGroupHome);
 
 BASE_DECLARE_FEATURE(kVerticalTabs);
+
+BASE_DECLARE_FEATURE(kVerticalTabsPreviewBadge);
+
+BASE_DECLARE_FEATURE(kVerticalTabsNewBadge);
 
 BASE_DECLARE_FEATURE(kTabSelectionByPointer);
 
@@ -23,8 +26,11 @@ BASE_DECLARE_FEATURE(kBackToOpener);
 
 BASE_DECLARE_FEATURE(kProjectsPanel);
 
+extern const base::FeatureParam<bool> kProjectsPanelWithThreads;
+
 bool IsVerticalTabsFeatureEnabled();
 bool IsProjectsPanelFeatureEnabled();
+bool IsThreadsInProjectsPanelEnabled();
 
 }  // namespace tabs
 

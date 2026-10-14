@@ -247,8 +247,8 @@ class CORE_EXPORT CSSAnimations final {
       return deferred_timeline_map_;
     }
 
-    void SetTimelineAttachment(ScrollSnapshotTimeline*, DeferredTimeline*);
-    DeferredTimeline* GetTimelineAttachment(ScrollSnapshotTimeline*);
+    void SetTimelineAttachment(ScrollTimeline*, DeferredTimeline*);
+    DeferredTimeline* GetTimelineAttachment(ScrollTimeline*);
     const TimelineAttachmentMap& GetTimelineAttachments() const {
       return timeline_attachments_;
     }
@@ -339,6 +339,14 @@ class CORE_EXPORT CSSAnimations final {
       const CSSTransitionData::TransitionProperty&,
       wtf_size_t transition_index,
       WritingDirectionMode);
+
+  // Special handling of “transition: all”. May decline, in which case
+  // it returns false and has no effect.
+  static bool CalculateTransitionUpdateForAll(
+      TransitionUpdateState& state,
+      bool with_discrete,
+      wtf_size_t transition_index,
+      WritingDirectionMode writing_direction);
 
   static bool CanCalculateTransitionUpdateForProperty(
       TransitionUpdateState& state,
@@ -435,10 +443,14 @@ class CORE_EXPORT CSSAnimations final {
   // The before-change style is defined as the computed values of all properties
   // on the element as of the previous style change event, except with any
   // styles derived from declarative animations updated to the current time.
+  //
+  // transitioning_property can only be nullptr if there is no animating
+  // ancestor.
+  //
   // https://drafts.csswg.org/css-transitions-1/#before-change-style
   static const ComputedStyle& CalculateBeforeChangeStyle(
       TransitionUpdateState& state,
-      const PropertyHandle& transitioning_property);
+      const PropertyHandle* transitioning_property);
 
   static const ComputedStyle* EnsureAfterChangeStyleIfNecessary(
       TransitionUpdateState& state,
@@ -468,9 +480,12 @@ class CORE_EXPORT CSSAnimations final {
   // if the computed after-change value for 'transitioning-property' may be
   // different from the base style value for that property. Otherwise it just
   // returns the base style.
+  //
+  // transitioning_property can only be nullptr if there is no animating
+  // ancestor.
   static const ComputedStyle& CalculateAfterChangeStyle(
       TransitionUpdateState& state,
-      const PropertyHandle& transitioning_property);
+      const PropertyHandle* transitioning_property);
 
   static TimelineTrigger* ComputeTimelineTrigger(
       const CSSAnimationData* data,

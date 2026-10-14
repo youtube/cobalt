@@ -12,19 +12,29 @@ static_library("browser") {
     "data_models/data_model_utils.cc",
     "data_models/data_model_utils.h",
     "data_models/wallet_barcode.h",
-    "data_models/walletable_pass.cc",
-    "data_models/walletable_pass.h",
+    "data_models/wallet_pass.cc",
+    "data_models/wallet_pass.h",
+    "ingestion/walletable_pass_client.h",
+    "ingestion/walletable_pass_ingestion_controller.cc",
+    "ingestion/walletable_pass_ingestion_controller.h",
+    "ingestion/walletable_pass_ingestion_utils.cc",
+    "ingestion/walletable_pass_ingestion_utils.h",
     "metrics/wallet_metrics.cc",
     "metrics/wallet_metrics.h",
+    "network/get_unmasked_pass_request.cc",
+    "network/get_unmasked_pass_request.h",
+    "network/upsert_private_pass_request.cc",
+    "network/upsert_private_pass_request.h",
+    "network/upsert_public_pass_request.cc",
+    "network/upsert_public_pass_request.h",
     "network/wallet_http_client.h",
     "network/wallet_http_client_impl.cc",
     "network/wallet_http_client_impl.h",
+    "network/wallet_request.cc",
+    "network/wallet_request.h",
     "strike_databases/walletable_pass_consent_strike_database.h",
     "strike_databases/walletable_pass_save_strike_database_by_host.cc",
     "strike_databases/walletable_pass_save_strike_database_by_host.h",
-    "walletable_pass_client.h",
-    "walletable_pass_ingestion_controller.cc",
-    "walletable_pass_ingestion_controller.h",
     "walletable_permission_utils.cc",
     "walletable_permission_utils.h",
   ]
@@ -43,11 +53,13 @@ static_library("browser") {
     "//services/network/public/cpp",
     "//url",
   ]
+
+  public_deps = [ "//components/wallet/core/browser/proto" ]
 }
 
 source_set("test_support") {
   testonly = true
-  sources = [ "walletable_pass_ingestion_controller_test_api.h" ]
+  sources = [ "ingestion/walletable_pass_ingestion_controller_test_api.h" ]
   deps = [
     ":browser",
     "//base",
@@ -59,12 +71,16 @@ source_set("unit_tests") {
   testonly = true
   sources = [
     "data_models/boarding_pass_unittest.cc",
-    "data_models/walletable_pass_unittest.cc",
+    "data_models/wallet_pass_unittest.cc",
+    "ingestion/walletable_pass_ingestion_utils_unittest.cc",
+    "network/get_unmasked_pass_request_unittest.cc",
+    "network/upsert_private_pass_request_unittest.cc",
+    "network/upsert_public_pass_request_unittest.cc",
     "network/wallet_http_client_impl_unittest.cc",
     "walletable_permission_utils_unittest.cc",
   ]
   if (build_with_model_execution) {
-    sources += [ "walletable_pass_ingestion_controller_unittest.cc" ]
+    sources += [ "ingestion/walletable_pass_ingestion_controller_unittest.cc" ]
   }
   deps = [
     ":browser",

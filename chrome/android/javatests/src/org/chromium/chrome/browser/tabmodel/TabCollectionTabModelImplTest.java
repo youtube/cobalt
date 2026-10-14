@@ -17,9 +17,11 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+import static org.chromium.chrome.browser.tabmodel.TabGroupTitleUtils.UNSET_TAB_GROUP_TITLE;
 import static org.chromium.chrome.browser.tasks.tab_management.TabUiTestHelper.clickFirstCardFromTabSwitcher;
 import static org.chromium.ui.test.util.ViewUtils.onViewWaiting;
 
@@ -46,11 +48,11 @@ import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.layouts.LayoutTestUtils;
 import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tab.TabGroupCollectionData;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tab.TabSelectionType;
 import org.chromium.chrome.browser.tab.TabTestUtils;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter.MergeNotificationType;
-import org.chromium.chrome.browser.tabmodel.TabGroupModelFilterObserver.DidRemoveTabGroupReason;
 import org.chromium.chrome.browser.tabmodel.TabModelActionListener.DialogType;
 import org.chromium.chrome.browser.tasks.tab_management.TabUiTestHelper;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
@@ -565,6 +567,7 @@ public class TabCollectionTabModelImplTest {
         assertEquals(tab1, getCurrentTab());
 
         CallbackHelper willCloseAllTabsHelper = new CallbackHelper();
+        CallbackHelper allTabsAreClosingHelper = new CallbackHelper();
         CallbackHelper willCloseTabHelper = new CallbackHelper();
         CallbackHelper didRemoveTabForClosureHelper = new CallbackHelper();
         CallbackHelper onFinishingMultipleTabClosureHelper = new CallbackHelper();
@@ -580,6 +583,11 @@ public class TabCollectionTabModelImplTest {
                     @Override
                     public void willCloseAllTabs(boolean isIncognito) {
                         willCloseAllTabsHelper.notifyCalled();
+                    }
+
+                    @Override
+                    public void allTabsAreClosing() {
+                        allTabsAreClosingHelper.notifyCalled();
                     }
 
                     @Override
@@ -627,6 +635,7 @@ public class TabCollectionTabModelImplTest {
                 });
 
         willCloseAllTabsHelper.waitForOnly();
+        allTabsAreClosingHelper.waitForOnly();
         willCloseTabHelper.waitForCallback(0, 3);
         didRemoveTabForClosureHelper.waitForCallback(0, 3);
         onFinishingMultipleTabClosureHelper.waitForOnly();
@@ -1419,7 +1428,7 @@ public class TabCollectionTabModelImplTest {
                     @Override
                     public void didChangeTabGroupTitle(Token id, String newTitle) {
                         assertEquals(tabGroupId, id);
-                        assertEquals("", newTitle);
+                        assertEquals(UNSET_TAB_GROUP_TITLE, newTitle);
                         titleDeletedHelper.notifyCalled();
                     }
                 };
@@ -1427,7 +1436,8 @@ public class TabCollectionTabModelImplTest {
                 () -> {
                     mCollectionModel.addTabGroupObserver(titleDeleteObserver);
                     mCollectionModel.deleteTabGroupTitle(tabGroupId);
-                    assertEquals("", mCollectionModel.getTabGroupTitle(tabGroupId));
+                    assertEquals(
+                            UNSET_TAB_GROUP_TITLE, mCollectionModel.getTabGroupTitle(tabGroupId));
                     mCollectionModel.removeTabGroupObserver(titleDeleteObserver);
                 });
         titleDeletedHelper.waitForOnly("deleteTabGroupTitle failed");
@@ -1533,8 +1543,6 @@ public class TabCollectionTabModelImplTest {
         final String newTitle = "Visual Data Title";
         final int newColor = TabGroupColorId.RED;
         final boolean newCollapsed = true;
-        // The native bridge (C++) currently passes false for animate, so we test with false here,
-        // but the Java implementation passes the parameter through.
         final boolean newAnimate = false;
 
         CallbackHelper titleCallback = new CallbackHelper();
@@ -1545,14 +1553,16 @@ public class TabCollectionTabModelImplTest {
                 new TabGroupModelFilterObserver() {
                     @Override
                     public void didChangeTabGroupTitle(Token groupTitleId, String groupTitle) {
-                        assertEquals(tabGroupId, groupTitleId);
+                        if (!tabGroupId.equals(groupTitleId)) return;
+
                         assertEquals(newTitle, groupTitle);
                         titleCallback.notifyCalled();
                     }
 
                     @Override
                     public void didChangeTabGroupColor(Token groupColorId, int groupColor) {
-                        assertEquals(tabGroupId, groupColorId);
+                        if (!tabGroupId.equals(groupColorId)) return;
+
                         assertEquals(newColor, groupColor);
                         colorCallback.notifyCalled();
                     }
@@ -1560,7 +1570,8 @@ public class TabCollectionTabModelImplTest {
                     @Override
                     public void didChangeTabGroupCollapsed(
                             Token groupCollapsedId, boolean isCollapsed, boolean animate) {
-                        assertEquals(tabGroupId, groupCollapsedId);
+                        if (!tabGroupId.equals(groupCollapsedId)) return;
+
                         assertEquals(newCollapsed, isCollapsed);
                         assertEquals(newAnimate, animate);
                         collapsedCallback.notifyCalled();
@@ -1569,26 +1580,220 @@ public class TabCollectionTabModelImplTest {
 
         mCollectionModel.addTabGroupObserver(observer);
 
-        // Call the consolidated setter method
+        try {
+            mCollectionModel.setTabGroupVisualData(
+                    tabGroupId, newTitle, newColor, newCollapsed, newAnimate);
+
+            assertEquals(newTitle, TabGroupVisualDataStore.getTabGroupTitle(tabGroupId));
+            assertEquals(newColor, TabGroupVisualDataStore.getTabGroupColor(tabGroupId));
+            assertEquals(newCollapsed, TabGroupVisualDataStore.getTabGroupCollapsed(tabGroupId));
+
+            assertEquals(newTitle, mCollectionModel.getTabGroupTitle(tabGroupId));
+            assertEquals(newColor, mCollectionModel.getTabGroupColor(tabGroupId));
+            assertEquals(newCollapsed, mCollectionModel.getTabGroupCollapsed(tabGroupId));
+
+            assertEquals(1, titleCallback.getCallCount());
+            assertEquals(1, colorCallback.getCallCount());
+            assertEquals(1, collapsedCallback.getCallCount());
+        } finally {
+            mCollectionModel.removeTabGroupObserver(observer);
+        }
+    }
+
+    @Test
+    @MediumTest
+    @UiThreadTest
+    public void testSetTabGroupVisualData_NoOpWhenUnchanged() {
+        Tab tab0 = getTabAt(0);
+        mCollectionModel.createSingleTabGroup(tab0);
+        Token tabGroupId = tab0.getTabGroupId();
+        assertNotNull(tabGroupId);
+
+        final String title = "Initial Title";
+        final int color = TabGroupColorId.BLUE;
+        final boolean collapsed = false;
+
         mCollectionModel.setTabGroupVisualData(
-                tabGroupId, newTitle, newColor, newCollapsed, newAnimate);
+                tabGroupId, title, color, collapsed, /* animate= */ false);
 
-        // Verify SharedPreferences updates
-        assertEquals(newTitle, TabGroupVisualDataStore.getTabGroupTitle(tabGroupId));
-        assertEquals(newColor, TabGroupVisualDataStore.getTabGroupColor(tabGroupId));
-        assertEquals(newCollapsed, TabGroupVisualDataStore.getTabGroupCollapsed(tabGroupId));
+        CallbackHelper callbackHelper = new CallbackHelper();
+        TabGroupModelFilterObserver observer =
+                new TabGroupModelFilterObserver() {
+                    @Override
+                    public void didChangeTabGroupTitle(Token groupTitleId, String groupTitle) {
+                        callbackHelper.notifyCalled();
+                    }
 
-        // Verify model getters (which may verify native state if connected)
-        assertEquals(newTitle, mCollectionModel.getTabGroupTitle(tabGroupId));
-        assertEquals(newColor, mCollectionModel.getTabGroupColor(tabGroupId));
-        assertEquals(newCollapsed, mCollectionModel.getTabGroupCollapsed(tabGroupId));
+                    @Override
+                    public void didChangeTabGroupColor(Token groupColorId, int groupColor) {
+                        callbackHelper.notifyCalled();
+                    }
 
-        // Verify observers were notified
-        assertEquals(1, titleCallback.getCallCount());
-        assertEquals(1, colorCallback.getCallCount());
-        assertEquals(1, collapsedCallback.getCallCount());
+                    @Override
+                    public void didChangeTabGroupCollapsed(
+                            Token groupCollapsedId, boolean isCollapsed, boolean animate) {
+                        callbackHelper.notifyCalled();
+                    }
+                };
+        mCollectionModel.addTabGroupObserver(observer);
 
-        mCollectionModel.removeTabGroupObserver(observer);
+        try {
+            mCollectionModel.setTabGroupVisualData(
+                    tabGroupId, title, color, collapsed, /* animate= */ false);
+            assertEquals(
+                    "Observers should not be called when values are unchanged",
+                    0,
+                    callbackHelper.getCallCount());
+
+            mCollectionModel.setTabGroupTitle(tabGroupId, title);
+            assertEquals(0, callbackHelper.getCallCount());
+
+            mCollectionModel.setTabGroupColor(tabGroupId, color);
+            assertEquals(0, callbackHelper.getCallCount());
+
+            mCollectionModel.setTabGroupCollapsed(tabGroupId, collapsed, /* animate= */ false);
+            assertEquals(0, callbackHelper.getCallCount());
+
+            mCollectionModel.setTabGroupTitle(tabGroupId, "New Title");
+            assertEquals(
+                    "Observer should be called exactly once for the changed title",
+                    1,
+                    callbackHelper.getCallCount());
+        } finally {
+            mCollectionModel.removeTabGroupObserver(observer);
+        }
+    }
+
+    @Test
+    @MediumTest
+    @UiThreadTest
+    public void testSetTabGroupVisualData_FlushesCacheEvenIfUnchanged() {
+        Tab tab0 = getTabAt(0);
+        mCollectionModel.createSingleTabGroup(tab0);
+        Token tabGroupId = tab0.getTabGroupId();
+
+        String staleTitle = "Stale Title";
+        mCollectionModel.setTabGroupTitle(tabGroupId, staleTitle);
+
+        String freshTitle = "Fresh Title";
+        TabGroupCollectionData mockData = mock(TabGroupCollectionData.class);
+        doReturn(tabGroupId).when(mockData).getTabGroupId();
+        doReturn(freshTitle).when(mockData).getTitle();
+        doReturn(TabGroupColorId.GREY).when(mockData).getColor();
+        doReturn(false).when(mockData).isCollapsed();
+
+        TabGroupVisualDataStore.cacheGroups(new TabGroupCollectionData[] {mockData});
+
+        assertEquals(freshTitle, TabGroupVisualDataStore.getTabGroupTitle(tabGroupId));
+
+        mCollectionModel.setTabGroupTitle(tabGroupId, freshTitle);
+
+        TabGroupVisualDataStore.removeCachedGroups(new TabGroupCollectionData[] {mockData});
+
+        assertEquals(
+                "SharedPreferences should be updated to match the cache/input",
+                freshTitle,
+                TabGroupVisualDataStore.getTabGroupTitle(tabGroupId));
+    }
+
+    @Test
+    @MediumTest
+    @UiThreadTest
+    public void testSetTabGroupTitle_Delete() {
+        Tab tab0 = getTabAt(0);
+        mCollectionModel.createSingleTabGroup(tab0);
+        Token tabGroupId = tab0.getTabGroupId();
+        assertNotNull(tabGroupId);
+
+        String title = "My Title";
+        mCollectionModel.setTabGroupTitle(tabGroupId, title);
+        assertEquals(
+                "Native title should be set", title, mCollectionModel.getTabGroupTitle(tabGroupId));
+        assertEquals(
+                "Store title should be set",
+                title,
+                TabGroupVisualDataStore.getTabGroupTitle(tabGroupId));
+
+        mCollectionModel.setTabGroupTitle(tabGroupId, UNSET_TAB_GROUP_TITLE);
+
+        assertEquals(
+                "Native title should be cleared (unset)",
+                UNSET_TAB_GROUP_TITLE,
+                mCollectionModel.getTabGroupTitle(tabGroupId));
+
+        assertEquals(
+                "Store title should be deleted (unset)",
+                UNSET_TAB_GROUP_TITLE,
+                TabGroupVisualDataStore.getTabGroupTitle(tabGroupId));
+    }
+
+    @Test
+    @MediumTest
+    @UiThreadTest
+    public void testSetTabGroupTitle_RevertUpdate() {
+        Tab tab0 = getTabAt(0);
+        mCollectionModel.createSingleTabGroup(tab0);
+        Token tabGroupId = tab0.getTabGroupId();
+        assertNotNull(tabGroupId);
+
+        final String titleA = "Title A";
+        final String titleB = "Title B";
+
+        mCollectionModel.setTabGroupTitle(tabGroupId, titleA);
+        assertEquals(titleA, mCollectionModel.getTabGroupTitle(tabGroupId));
+
+        mCollectionModel.setTabGroupTitle(tabGroupId, titleB);
+        assertEquals(titleB, mCollectionModel.getTabGroupTitle(tabGroupId));
+
+        mCollectionModel.setTabGroupTitle(tabGroupId, titleA);
+
+        assertEquals(
+                "Title should be reverted to A",
+                titleA,
+                mCollectionModel.getTabGroupTitle(tabGroupId));
+    }
+
+    @Test
+    @MediumTest
+    @UiThreadTest
+    public void testSetTabGroupTitle_RevertUpdateWithStaleCache() {
+        Tab tab0 = getTabAt(0);
+        mCollectionModel.createSingleTabGroup(tab0);
+        Token tabGroupId = tab0.getTabGroupId();
+        assertNotNull(tabGroupId);
+
+        final String titleA = "Title A";
+        final String titleB = "Title B";
+
+        mCollectionModel.setTabGroupTitle(tabGroupId, titleA);
+        assertEquals(titleA, mCollectionModel.getTabGroupTitle(tabGroupId));
+
+        TabGroupCollectionData mockData = mock(TabGroupCollectionData.class);
+        doReturn(tabGroupId).when(mockData).getTabGroupId();
+        doReturn(titleA).when(mockData).getTitle();
+        doReturn(TabGroupColorId.GREY).when(mockData).getColor();
+        doReturn(false).when(mockData).isCollapsed();
+
+        TabGroupVisualDataStore.cacheGroups(new TabGroupCollectionData[] {mockData});
+
+        try {
+            mCollectionModel.setTabGroupTitle(tabGroupId, titleB);
+
+            assertEquals(
+                    "Native should be updated to B",
+                    titleB,
+                    mCollectionModel.getTabGroupTitle(tabGroupId));
+
+            mCollectionModel.setTabGroupTitle(tabGroupId, titleA);
+
+            assertEquals(
+                    "Native should be reverted to A",
+                    titleA,
+                    mCollectionModel.getTabGroupTitle(tabGroupId));
+
+        } finally {
+            TabGroupVisualDataStore.removeCachedGroups(new TabGroupCollectionData[] {mockData});
+        }
     }
 
     @Test
@@ -1633,7 +1838,9 @@ public class TabCollectionTabModelImplTest {
                                     .build());
 
                     assertFalse(mCollectionModel.tabGroupExists(groupId));
-                    assertNull(TabGroupVisualDataStore.getTabGroupTitle(groupId));
+                    assertEquals(
+                            UNSET_TAB_GROUP_TITLE,
+                            TabGroupVisualDataStore.getTabGroupTitle(groupId));
                     assertEquals(
                             TabGroupColorUtils.INVALID_COLOR_ID,
                             TabGroupVisualDataStore.getTabGroupColor(groupId));
@@ -3998,36 +4205,130 @@ public class TabCollectionTabModelImplTest {
 
     @Test
     @MediumTest
-    public void testOnTabGroupMovedNotification() throws Exception {
+    public void testOnTabGroupVisualsChangedNotification() throws Exception {
+        Tab tab0 = getTabAt(0);
         Tab tab1 = createTab();
-        Tab tab2 = createTab();
-        // Use tabs 1 and 2 for the tab group. Don't include tab 0 because we're going to move the
-        // group to the left of tab 0, so tab 0 can't be part of the group.
-        List<Tab> tabs = List.of(tab1, tab2);
+        List<Tab> tabs = List.of(tab0, tab1);
 
         AtomicReference<Token> tabGroupId = new AtomicReference<>();
-        CallbackHelper onTabGroupMoved = new CallbackHelper();
+        CallbackHelper onTabGroupVisualsChanged = new CallbackHelper();
         TabModelObserver observer =
                 new TabModelObserver() {
                     @Override
-                    public void onTabGroupMoved(Token movedGroupId, int oldIndex) {
-                        assertFalse(movedGroupId.isZero());
-                        assertEquals(movedGroupId, tabGroupId.get());
-                        assertEquals(1, oldIndex);
-                        onTabGroupMoved.notifyCalled();
+                    public void onTabGroupVisualsChanged(Token groupId) {
+                        assertFalse(groupId.isZero());
+                        assertEquals(groupId, tabGroupId.get());
+                        onTabGroupVisualsChanged.notifyCalled();
+                    }
+                };
+
+        // Create a tab group, then change its title.
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mCollectionModel.addObserver(observer);
+                    tabGroupId.set(mCollectionModel.createTabGroup(tabs));
+                    mCollectionModel.setTabGroupTitle(tabGroupId.get(), "New Title");
+                });
+
+        // The callback is called.
+        onTabGroupVisualsChanged.waitForNext();
+
+        // Set the tab group color.
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> mCollectionModel.setTabGroupColor(tabGroupId.get(), TabGroupColorId.BLUE));
+
+        // The callback is called.
+        onTabGroupVisualsChanged.waitForNext();
+
+        // Set the tab group collapsed state.
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> mCollectionModel.setTabGroupCollapsed(tabGroupId.get(), true));
+
+        // The callback is called.
+        onTabGroupVisualsChanged.waitForNext();
+
+        // Set all the visual data at once.
+        ThreadUtils.runOnUiThreadBlocking(
+                () ->
+                        mCollectionModel.setTabGroupVisualData(
+                                tabGroupId.get(),
+                                "Other Title",
+                                TabGroupColorId.RED,
+                                /* isCollapsed= */ false,
+                                /* animate= */ false));
+
+        // The callback is called.
+        onTabGroupVisualsChanged.waitForNext();
+
+        ThreadUtils.runOnUiThreadBlocking(() -> mCollectionModel.removeObserver(observer));
+    }
+
+    @Test
+    @MediumTest
+    public void testIsClosingAllTabs() throws Exception {
+        Tab tab0 = getTabAt(0);
+        Tab tab1 = createTab();
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    assertFalse(mCollectionModel.isClosingAllTabs());
+                });
+
+        CallbackHelper allTabsAreClosingHelper = new CallbackHelper();
+        TabModelObserver allTabsObserver =
+                new TabModelObserver() {
+                    @Override
+                    public void allTabsAreClosing() {
+                        assertTrue(mCollectionModel.isClosingAllTabs());
+                        allTabsAreClosingHelper.notifyCalled();
+                    }
+                };
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mCollectionModel.addObserver(allTabsObserver);
+                    mCollectionModel.closeTabs(
+                            TabClosureParams.closeAllTabs().allowUndo(false).build());
+                });
+
+        allTabsAreClosingHelper.waitForOnly();
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    assertTrue(mCollectionModel.isClosingAllTabs());
+                    mCollectionModel.removeObserver(allTabsObserver);
+                });
+    }
+
+    @Test
+    @MediumTest
+    public void testIsClosingAllTabsIsFalse() throws Exception {
+        Tab tab0 = getTabAt(0);
+        Tab tab1 = createTab();
+        assertFalse(mCollectionModel.isClosingAllTabs());
+
+        CallbackHelper willCloseTabHelper = new CallbackHelper();
+        TabModelObserver observer =
+                new TabModelObserver() {
+                    @Override
+                    public void willCloseTab(Tab tab, boolean isSingle) {
+                        assertFalse(mCollectionModel.isClosingAllTabs());
+                        willCloseTabHelper.notifyCalled();
                     }
                 };
 
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     mCollectionModel.addObserver(observer);
-                    tabGroupId.set(mCollectionModel.createTabGroup(tabs));
-                    // Move tab group to the left of the 0th tab.
-                    mCollectionModel.moveGroupToIndex(tabGroupId.get(), 0);
+                    mCollectionModel.closeTabs(
+                            TabClosureParams.closeTab(tab0).allowUndo(false).build());
                 });
 
-        onTabGroupMoved.waitForOnly();
+        willCloseTabHelper.waitForOnly();
 
-        ThreadUtils.runOnUiThreadBlocking(() -> mCollectionModel.removeObserver(observer));
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    assertFalse(mCollectionModel.isClosingAllTabs());
+                    mCollectionModel.removeObserver(observer);
+                });
     }
 }

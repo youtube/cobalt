@@ -20,6 +20,7 @@
 #include "components/lens/lens_overlay_request_id_generator.h"
 #include "components/lens/proto/server/lens_overlay_response.pb.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
+#include "third_party/lens_server_proto/added_inputs.pb.h"
 #include "third_party/lens_server_proto/aim_communication.pb.h"
 #include "third_party/lens_server_proto/lens_overlay_cluster_info.pb.h"
 #include "third_party/lens_server_proto/lens_overlay_request_id.pb.h"
@@ -107,6 +108,14 @@ class ComposeboxQueryController
   virtual lens::LensOverlayRequestId GetRequestIdForViewportImage(
       const base::UnguessableToken& file_token);
 
+  // Creates the AddedInputs proto for the given file tokens.
+  lens::AddedInputs CreateAddedInputs(
+      const std::vector<base::UnguessableToken>& file_tokens);
+
+  // Returns the string representation of the mime type, for use in calculating
+  // the AddedInputs proto.
+  static std::optional<std::string> MimeTypeToString(lens::MimeType mime_type);
+
   // Enum for testing to track the state of the query controller.
   enum class QueryControllerState {
     // The initial state, before InitializeIfNeeded() is called.
@@ -165,7 +174,7 @@ class ComposeboxQueryController
 
     // The request ID for the viewport associated with this request, if it is
     // different from the request ID. Set by StartFileUploadFlow() when
-    // use_separate_request_ids_for_multi_context_viewport_images_ is true.
+    // use_separate_request_ids_for_viewport_images_ is true.
     std::unique_ptr<lens::LensOverlayRequestId> viewport_request_id_;
 
     // The headers to attach to the request. Will be set asynchronously after
@@ -301,6 +310,11 @@ class ComposeboxQueryController
 
     // Whether or not the request has been sent.
     bool request_sent_ = false;
+
+    // Whether or not the interaction request details have been attached to
+    // a vsint param in a search query url / postmessage. This should only
+    // occur once per interaction request.
+    bool interaction_details_used_in_vsint_ = false;
   };
 
   // Returns a mutable pointer to allow internal modifications.
@@ -356,6 +370,14 @@ class ComposeboxQueryController
   // index to it.
   void AddPageIndexToImageUploadRequestAndContinue(
       std::optional<size_t> pdf_page_index,
+      RequestBodyProtoCreatedCallback callback,
+      lens::LensOverlayServerRequest request,
+      std::optional<contextual_search::FileUploadErrorType> error_type);
+
+  // Callback that takes the request body proto and adds the
+  // has_lens_usage_intent bool to it.
+  void AddLensUsageIntentToUploadRequestAndContinue(
+      bool has_lens_usage_intent,
       RequestBodyProtoCreatedCallback callback,
       lens::LensOverlayServerRequest request,
       std::optional<contextual_search::FileUploadErrorType> error_type);
@@ -434,8 +456,8 @@ class ComposeboxQueryController
   ConstructVisualSearchInteractionData(
       const FileInfo* file_info,
       const std::optional<std::string>& query_text,
-      std::optional<lens::LensOverlaySelectionType>
-          lens_overlay_selection_type);
+      std::optional<lens::LensOverlaySelectionType> lens_overlay_selection_type,
+      bool force_include_latest_interaction_request_data);
 
   // The last received cluster info.
   std::optional<lens::LensOverlayClusterInfo> cluster_info_ = std::nullopt;
@@ -484,19 +506,15 @@ class ComposeboxQueryController
   // is false.
   bool suppress_lns_surface_param_if_no_image_;
 
-  // Whether or not to use the multiple-input id request generation flow.
-  bool enable_multi_context_input_flow_;
-
   // Whether or not to include viewport images with page context uploads.
   // TODO(crbug.com/448647393): Remove this once the server supports viewport
   // images for multi-context input.
   bool enable_viewport_images_;
 
   // Whether or not to send viewport images with separate request ids from
-  // their associated page context, for the multi-context input flow.
-  // Does nothing if `enable_multi_context_input_flow_` is false or if
-  // `enable_viewport_images_` is false.
-  bool use_separate_request_ids_for_multi_context_viewport_images_;
+  // their associated page context.
+  // Does nothing if `enable_viewport_images_` is false.
+  bool use_separate_request_ids_for_viewport_images_;
 
   // Whether to offer ZPS for the first document attachment, when multiple
   // attachments are available (true), or the only attachment if exactly one

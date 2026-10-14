@@ -10,6 +10,7 @@
 
 #include "base/barrier_callback.h"
 #include "base/feature_list.h"
+#include "base/metrics/histogram_functions.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/extensions/extension_management.h"
@@ -28,12 +29,40 @@
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/pref_names.h"
 #include "extensions/common/extension_urls.h"
+#include "extensions/strings/grit/extensions_strings.h"
+#include "ui/base/l10n/l10n_util.h"
 
 namespace policy {
 
 namespace {
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
+constexpr char kUserCanInstallPolicyFetchTime[] =
+    "ExtensionInstall.UserCanInstall.PolicyFetchTime";
+constexpr char kUserCanInstallPolicyFetchResult[] =
+    "ExtensionInstall.UserCanInstall.PolicyFetchResult";
+constexpr char kExtensionMustRemainDisabledResult[] =
+    "ExtensionInstall.ExtensionMustRemainDisabled.Result";
+constexpr char kExtensionUserMayLoadResult[] =
+    "ExtensionInstall.UserMayLoadExtension.Result";
+constexpr char kExtensionIsExtensionAllowedResult[] =
+    "ExtensionInstall.IsExtensionAllowed.Result";
+
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+enum class IsExtensionAllowedResult {
+  kUnspecified = 0,
+  kExtensionInstallCloudPolicyChecksDisabled = 1,
+  kHasNonDefaultInstallationMode = 2,
+  kPolicyNotReady = 3,
+  kNoPolicyService = 4,
+  kExtensionAllowed = 5,
+  kExtensionBlocked = 6,
+  kNoPolicyForExtension = 7,
+  kNoCloudPolicyManager = 8,
+  kMaxValue = kNoCloudPolicyManager,
+};
+
 bool IsExtensionInstallBlocked(
     const PolicyMap::Entry& entry,
     const ExtensionIdAndVersion& extension_id_and_version) {
@@ -107,19 +136,25 @@ ExtensionInstallPolicyServiceImpl::~ExtensionInstallPolicyServiceImpl() =
 
 void ExtensionInstallPolicyServiceImpl::CanInstallExtension(
     const ExtensionIdAndVersion& extension_id_and_version,
-    base::OnceCallback<void(bool)> callback) {
+    base::OnceCallback<void(bool)> callback) const {
 #if !BUILDFLAG(ENABLE_EXTENSIONS)
   std::move(callback).Run(true);
   return;
 #else
   if (!profile_->GetPrefs()->GetBoolean(
           extensions::pref_names::kExtensionInstallCloudPolicyChecksEnabled)) {
+    base::UmaHistogramEnumeration(
+        kUserCanInstallPolicyFetchResult,
+        IsExtensionAllowedResult::kExtensionInstallCloudPolicyChecksDisabled);
     std::move(callback).Run(true);
     return;
   }
 
   if (HasNonDefaultInstallationMode(profile_,
                                     extension_id_and_version.extension_id)) {
+    base::UmaHistogramEnumeration(
+        kUserCanInstallPolicyFetchResult,
+        IsExtensionAllowedResult::kHasNonDefaultInstallationMode);
     // Installation mode always takes priority over cloud-based blocking. Do
     // not fetch policy.
     std::move(callback).Run(true);
@@ -134,16 +169,23 @@ void ExtensionInstallPolicyServiceImpl::CanInstallExtension(
   size_t callback_count = (user_cloud_policy_manager ? 1 : 0) +
                           (machine_cloud_policy_manager ? 1 : 0);
   if (callback_count == 0) {
+    base::UmaHistogramEnumeration(
+        kUserCanInstallPolicyFetchResult,
+        IsExtensionAllowedResult::kNoCloudPolicyManager);
     std::move(callback).Run(true);
     return;
   }
 
+  base::TimeTicks fetch_time = base::TimeTicks::Now();
   base::RepeatingCallback<void(ExtensionInstallDecision)> barrier_callback =
       base::BarrierCallback<ExtensionInstallDecision>(
           callback_count,
           base::BindOnce(
               [](base::OnceCallback<void(bool)> inner_callback,
+                 base::TimeTicks start_time,
                  const std::vector<ExtensionInstallDecision>& values) {
+                base::UmaHistogramTimes(kUserCanInstallPolicyFetchTime,
+                                        base::TimeTicks::Now() - start_time);
                 bool can_install = true;
                 for (const auto& value : values) {
                   if (value.action ==
@@ -153,9 +195,13 @@ void ExtensionInstallPolicyServiceImpl::CanInstallExtension(
                     break;
                   }
                 }
+                base::UmaHistogramEnumeration(
+                    kUserCanInstallPolicyFetchResult,
+                    can_install ? IsExtensionAllowedResult::kExtensionAllowed
+                                : IsExtensionAllowedResult::kExtensionBlocked);
                 std::move(inner_callback).Run(can_install);
               },
-              std::move(callback)));
+              std::move(callback), std::move(fetch_time)));
 
   if (user_cloud_policy_manager) {
     user_cloud_policy_manager->core()
@@ -177,17 +223,23 @@ void ExtensionInstallPolicyServiceImpl::CanInstallExtension(
 }
 
 std::optional<bool> ExtensionInstallPolicyServiceImpl::IsExtensionAllowed(
-    const ExtensionIdAndVersion& extension_id_and_version) {
+    const ExtensionIdAndVersion& extension_id_and_version) const {
 #if !BUILDFLAG(ENABLE_EXTENSIONS)
   return std::nullopt;
 #else
   if (!profile_->GetPrefs()->GetBoolean(
           extensions::pref_names::kExtensionInstallCloudPolicyChecksEnabled)) {
+    base::UmaHistogramEnumeration(
+        kExtensionIsExtensionAllowedResult,
+        IsExtensionAllowedResult::kExtensionInstallCloudPolicyChecksDisabled);
     return true;
   }
 
   if (HasNonDefaultInstallationMode(profile_,
                                     extension_id_and_version.extension_id)) {
+    base::UmaHistogramEnumeration(
+        kExtensionIsExtensionAllowedResult,
+        IsExtensionAllowedResult::kHasNonDefaultInstallationMode);
     // Installation mode always takes priority over cloud-based blocking.
     return true;
   }
@@ -195,11 +247,15 @@ std::optional<bool> ExtensionInstallPolicyServiceImpl::IsExtensionAllowed(
   auto* policy_service =
       profile_->GetProfilePolicyConnector()->policy_service();
   if (!policy_service) {
+    base::UmaHistogramEnumeration(kExtensionIsExtensionAllowedResult,
+                                  IsExtensionAllowedResult::kNoPolicyService);
     return std::nullopt;
   }
 
   if (!policy_service->IsInitializationComplete(
           policy::POLICY_DOMAIN_EXTENSION_INSTALL)) {
+    base::UmaHistogramEnumeration(kExtensionIsExtensionAllowedResult,
+                                  IsExtensionAllowedResult::kPolicyNotReady);
     return std::nullopt;
   }
 
@@ -210,18 +266,28 @@ std::optional<bool> ExtensionInstallPolicyServiceImpl::IsExtensionAllowed(
   const PolicyMap::Entry* entry =
       extension_install_policy_map.Get(extension_id_and_version.extension_id);
   if (!entry) {
+    base::UmaHistogramEnumeration(
+        kExtensionIsExtensionAllowedResult,
+        IsExtensionAllowedResult::kNoPolicyForExtension);
     return true;
   }
 
   if (IsExtensionInstallBlocked(*entry, extension_id_and_version)) {
+    base::UmaHistogramEnumeration(kExtensionIsExtensionAllowedResult,
+                                  IsExtensionAllowedResult::kExtensionBlocked);
     return false;
   }
 
   for (const auto& conflict : entry->conflicts) {
     if (IsExtensionInstallBlocked(conflict.entry(), extension_id_and_version)) {
+      base::UmaHistogramEnumeration(
+          kExtensionIsExtensionAllowedResult,
+          IsExtensionAllowedResult::kExtensionBlocked);
       return false;
     }
   }
+  base::UmaHistogramEnumeration(kExtensionIsExtensionAllowedResult,
+                                IsExtensionAllowedResult::kExtensionAllowed);
   return true;
 #endif  // !BUILDFLAG(ENABLE_EXTENSIONS)
 }
@@ -265,6 +331,73 @@ void ExtensionInstallPolicyServiceImpl::NotifyExtensionInstallPolicyUpdated() {
   for (auto& observer : observers_) {
     observer.OnExtensionInstallPolicyUpdated();
   }
+}
+
+std::string ExtensionInstallPolicyServiceImpl::GetDebugPolicyProviderName()
+    const {
+#if DCHECK_IS_ON()
+  return "ExtensionInstallPolicyServiceImpl";
+#else
+  base::ImmediateCrash();
+#endif  // DCHECK_IS_ON()
+}
+
+void ExtensionInstallPolicyServiceImpl::UserMayInstall(
+    scoped_refptr<const extensions::Extension> extension,
+    base::OnceCallback<void(extensions::ManagementPolicy::Decision)> callback)
+    const {
+  if (!extension->from_webstore()) {
+    // Always allow non-webstore extensions.
+    std::move(callback).Run({true, std::u16string()});
+    return;
+  }
+  CanInstallExtension(
+      {extension->id(), extension->VersionString()},
+      base::BindOnce(
+          [](base::OnceCallback<void(extensions::ManagementPolicy::Decision)>
+                 callback,
+             bool can_install) {
+            std::move(callback).Run(
+                {can_install,
+                 can_install
+                     ? std::u16string()
+                     : l10n_util::GetStringUTF16(
+                           IDS_EXTENSION_CANT_INSTALL_BLOCKED_BY_RISK_SCORE)});
+          },
+          std::move(callback)));
+}
+
+bool ExtensionInstallPolicyServiceImpl::UserMayLoad(
+    const extensions::Extension* extension,
+    std::u16string* error) const {
+#if !BUILDFLAG(ENABLE_EXTENSIONS)
+  return false;
+#else
+  // TODO(crbug.com/477545526): Refresh policies when new extensions are
+  // installed.
+  bool user_may_load =
+      IsExtensionAllowed({extension->id(), extension->VersionString()})
+          .value_or(true);
+  base::UmaHistogramBoolean(kExtensionUserMayLoadResult, user_may_load);
+  return user_may_load;
+#endif  // !BUILDFLAG(ENABLE_EXTENSIONS)
+}
+
+bool ExtensionInstallPolicyServiceImpl::MustRemainDisabled(
+    const extensions::Extension* extension,
+    extensions::disable_reason::DisableReason* reason) const {
+#if !BUILDFLAG(ENABLE_EXTENSIONS)
+  return false;
+#else
+  // TODO(crbug.com/477545526): Refresh policies when new extensions are
+  // installed.
+  bool must_remain_disabled =
+      !IsExtensionAllowed({extension->id(), extension->VersionString()})
+           .value_or(true);
+  base::UmaHistogramBoolean(kExtensionMustRemainDisabledResult,
+                            must_remain_disabled);
+  return must_remain_disabled;
+#endif  // !BUILDFLAG(ENABLE_EXTENSIONS)
 }
 
 std::set<ExtensionIdAndVersion>

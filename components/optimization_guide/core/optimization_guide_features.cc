@@ -4,6 +4,7 @@
 
 #include "components/optimization_guide/core/optimization_guide_features.h"
 
+#include <algorithm>
 #include <cstring>
 #include <optional>
 
@@ -23,6 +24,7 @@
 #include "base/time/time.h"
 #include "components/optimization_guide/core/feature_registry/mqls_feature_registry.h"
 #include "components/optimization_guide/core/model_execution/feature_keys.h"
+#include "components/optimization_guide/core/model_execution/on_device_features.h"
 #include "components/optimization_guide/core/optimization_guide_constants.h"
 #include "components/optimization_guide/core/optimization_guide_enums.h"
 #include "components/optimization_guide/core/optimization_guide_switches.h"
@@ -94,7 +96,7 @@ BASE_FEATURE(kOptimizationGuideModelExecution,
 // Whether to use the on device model service in optimization guide.
 BASE_FEATURE(kOptimizationGuideOnDeviceModel,
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
-    BUILDFLAG(IS_CHROMEOS)
+    BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
              base::FEATURE_ENABLED_BY_DEFAULT);
 #else
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -146,6 +148,27 @@ const base::FeatureParam<std::string> kPerformanceClassListForImageInput{
 const base::FeatureParam<std::string> kPerformanceClassListForAudioInput{
     &kOnDeviceModelPerformanceParams,
     "compatible_on_device_performance_classes_audio_input", "5,6"};
+
+BASE_FEATURE(kOnDeviceModelBackgroundDownload,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<std::string>
+    kOnDeviceModelBackgroundDownloadAllowedFeatures{
+        &kOnDeviceModelBackgroundDownload, "allowed_features",
+        "PromptApi,WritingAssistanceApi,Summarize"};
+
+bool IsOnDeviceModelBackgroundDownloadEnabledForFeature(
+    mojom::OnDeviceFeature feature) {
+  if (!base::FeatureList::IsEnabled(kOnDeviceModelBackgroundDownload)) {
+    return false;
+  }
+  std::string allowed_features_string =
+      kOnDeviceModelBackgroundDownloadAllowedFeatures.Get();
+  std::vector<std::string_view> allowed_features =
+      base::SplitStringPiece(allowed_features_string, ",",
+                             base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+  return std::ranges::contains(allowed_features, GetVariantName(feature));
+}
 
 BASE_FEATURE(kOptimizationGuideIconView, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -502,6 +525,19 @@ bool IsFreeDiskSpaceTooLowForOnDeviceModelInstall(
              kOptimizationGuideOnDeviceModel,
              "on_device_model_free_space_mb_required_to_retain",
              base::GiB(5).InMiB())) >= free_disk_space_bytes;
+}
+
+base::ByteCount GetDiskSpaceRequiredForBackgroundOnDeviceModelInstall() {
+  return base::MiB(base::GetFieldTrialParamByFeatureAsInt(
+      features::kOnDeviceModelBackgroundDownload,
+      "on_device_model_free_space_mb_required_to_background_install",
+      base::GiB(50).InMiB()));
+}
+
+bool IsFreeDiskSpaceSufficientForBackgroundOnDeviceModelInstall(
+    base::ByteCount free_disk_space_bytes) {
+  return GetDiskSpaceRequiredForBackgroundOnDeviceModelInstall() <=
+         free_disk_space_bytes;
 }
 
 bool GetOnDeviceModelRetractUnsafeContent() {

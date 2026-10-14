@@ -359,10 +359,10 @@ std::unique_ptr<HttpResponse> HandleOAuth2TokenExchangeURL(
   std::unique_ptr<BlockedHttpResponse> http_response =
       std::make_unique<BlockedHttpResponse>(callback);
 
-  base::Value::Dict response = base::Value::Dict()
-                                   .Set("access_token", "access_token")
-                                   .Set("refresh_token", "new_refresh_token")
-                                   .Set("expires_in", 9999);
+  base::DictValue response = base::DictValue()
+                                 .Set("access_token", "access_token")
+                                 .Set("refresh_token", "new_refresh_token")
+                                 .Set("expires_in", 9999);
 
   // If the request contains binding registration token, include successful
   // binding result in the response and verify that the client passed the
@@ -370,12 +370,19 @@ std::unique_ptr<HttpResponse> HandleOAuth2TokenExchangeURL(
   if (request.content.find(kBoundTokenRegistrationJwt) != std::string::npos) {
     response.Set("refresh_token_type", "bound_to_key");
     std::optional<std::string> version_header_value;
+    std::optional<std::string> platform_header_value;
     if (auto it = request.headers.find("Sec-CH-UA-Full-Version-List");
         it != request.headers.end()) {
       version_header_value = it->second;
     }
-    EXPECT_EQ(version_header_value, embedder_support::GetUserAgentMetadata()
-                                        .SerializeBrandFullVersionList());
+    if (auto it = request.headers.find("Sec-CH-UA-Platform");
+        it != request.headers.end()) {
+      platform_header_value = it->second;
+    }
+    auto ua_metadata = embedder_support::GetUserAgentMetadata();
+    EXPECT_EQ(version_header_value,
+              ua_metadata.SerializeBrandFullVersionList());
+    EXPECT_EQ(platform_header_value, "\"" + ua_metadata.platform + "\"");
   }
 
   http_response->set_content(*base::WriteJson(response));
@@ -1559,217 +1566,6 @@ IN_PROC_BROWSER_TEST_F(DiceBrowserTestWithSyncOptinScreen,
       syncer::UserSelectableType::kSavedTabGroups));
 }
 
-class DiceExplicitSigninBrowserTest : public InProcessBrowserTest {
- public:
-  struct AccountStorageStatus {
-    bool autofill_sync_toggle_available = false;
-    syncer::UserSelectableTypeSet user_selectable_type_set;
-  };
-
-  signin::IdentityManager* GetIdentityManager() {
-    return IdentityManagerFactory::GetForProfile(browser()->profile());
-  }
-
-  AccountStorageStatus GetAccountStorageStatus() {
-    syncer::SyncUserSettings* settings =
-        SyncServiceFactory::GetForProfile(browser()->profile())
-            ->GetUserSettings();
-    return {.autofill_sync_toggle_available =
-                autofill::PersonalDataManagerFactory::GetForBrowserContext(
-                    browser()->profile())
-                    ->address_data_manager()
-                    .IsAutofillSyncToggleAvailable(),
-            .user_selectable_type_set = settings->GetSelectedTypes()};
-  }
-
- private:
-  base::test::ScopedFeatureList feature_list_;
-};
-
-// Checks that migration handles Cookie clear on exit and sync toggles.
-// TODO(crbug.com/40066949): This test can be removed after UNO phase 3 launch.
-// This test is valid as long as there are sync users with clear cookie on exit.
-IN_PROC_BROWSER_TEST_F(DiceExplicitSigninBrowserTest,
-                       PRE_MigrationWithSettings) {
-  Profile* profile = browser()->profile();
-
-  // This is a work around to simulate dice users who have not yet migrated to
-  // the UNO model.  prefs::kCookieClearOnExitMigrationNoticeComplete are not
-  // set when UNO is not enabled.
-  profile->GetPrefs()->ClearPref(
-      prefs::kCookieClearOnExitMigrationNoticeComplete);
-  signin::AccountAvailabilityOptionsBuilder builder;
-  signin::MakeAccountAvailable(
-      GetIdentityManager(),
-      builder.AsPrimary(signin::ConsentLevel::kSync)
-          .WithAccessPoint(signin_metrics::AccessPoint::kWebSignin)
-          .Build(kMainGmailEmail));
-  syncer::SyncService* sync_service =
-      SyncServiceFactory::GetForProfile(profile);
-  // TODO(crbug.com/464457988): Mark sync setup as complete by default in the
-  // sign-in helper method.
-  sync_service->GetUserSettings()->SetInitialSyncFeatureSetupComplete(
-      syncer::SyncFirstSetupCompleteSource::BASIC_FLOW);
-  ASSERT_TRUE(sync_service->IsSyncFeatureEnabled());
-
-  ASSERT_FALSE(profile->GetPrefs()->GetBoolean(prefs::kExplicitBrowserSignin));
-
-  // Set cookie clear on exit, and set addresses and password sync to OFF.
-  content_settings::CookieSettings* settings =
-      CookieSettingsFactory::GetForProfile(profile).get();
-  settings->SetDefaultCookieSetting(CONTENT_SETTING_SESSION_ONLY);
-}
-
-IN_PROC_BROWSER_TEST_F(DiceExplicitSigninBrowserTest, MigrationWithSettings) {
-  Profile* profile = browser()->profile();
-  // The user is still signed in implicitly.
-  ASSERT_EQ(signin::GetPrimaryAccountConsentLevel(GetIdentityManager()),
-            signin::ConsentLevel::kSync);
-  ASSERT_TRUE(gaia::AreEmailsSame(
-      GetIdentityManager()
-          ->GetPrimaryAccountInfo(signin::ConsentLevel::kSync)
-          .email,
-      kMainGmailEmail));
-  ASSERT_TRUE(profile->GetPrefs()->GetBoolean(prefs::kExplicitBrowserSignin));
-
-  // Signout, and then signin again explicitly.
-  signin::ClearPrimaryAccount(GetIdentityManager());
-  AccountInfo primary_account_info = signin::MakePrimaryAccountAvailable(
-      GetIdentityManager(), kMainGmailEmail, signin::ConsentLevel::kSignin);
-  EXPECT_TRUE(profile->GetPrefs()->GetBoolean(prefs::kExplicitBrowserSignin));
-
-  // Cookie migration is not done, because there is clear on exit.
-  content_settings::CookieSettings* settings =
-      CookieSettingsFactory::GetForProfile(profile).get();
-  EXPECT_EQ(CONTENT_SETTING_SESSION_ONLY, settings->GetDefaultCookieSetting());
-  EXPECT_FALSE(profile->GetPrefs()->GetBoolean(
-      prefs::kCookieClearOnExitMigrationNoticeComplete));
-
-  // Allow cookies to trigger the migration.
-  settings->SetDefaultCookieSetting(CONTENT_SETTING_ALLOW);
-  EXPECT_TRUE(profile->GetPrefs()->GetBoolean(
-      prefs::kCookieClearOnExitMigrationNoticeComplete));
-}
-
-class DiceExplicitSigninBrowserTestWithForcedDiceMigrationDisabled
-    : public DiceExplicitSigninBrowserTest {
- public:
-  DiceExplicitSigninBrowserTestWithForcedDiceMigrationDisabled() {
-    scoped_feature_list_.InitAndDisableFeature(switches::kForcedDiceMigration);
-  }
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
-};
-
-IN_PROC_BROWSER_TEST_F(
-    DiceExplicitSigninBrowserTestWithForcedDiceMigrationDisabled,
-    PRE_Migration) {
-  signin::AccountAvailabilityOptionsBuilder builder;
-  signin::MakeAccountAvailable(
-      GetIdentityManager(),
-      builder
-          .AsPrimary(signin::ConsentLevel::kSignin)
-          // `kWebSignin` is not explicit before the migration.
-          .WithAccessPoint(signin_metrics::AccessPoint::kWebSignin)
-          .Build(kMainGmailEmail));
-  ASSERT_EQ(signin::GetPrimaryAccountConsentLevel(GetIdentityManager()),
-            signin::ConsentLevel::kSignin);
-
-  ASSERT_FALSE(browser()->profile()->GetPrefs()->GetBoolean(
-      prefs::kExplicitBrowserSignin));
-
-  AccountStorageStatus account_storage_status = GetAccountStorageStatus();
-  EXPECT_FALSE(account_storage_status.autofill_sync_toggle_available);
-  EXPECT_FALSE(account_storage_status.user_selectable_type_set.HasAny(
-      {syncer::UserSelectableType::kAutofill,
-       syncer::UserSelectableType::kPasswords}));
-}
-
-// Checks that a user who signed in with Dice before UNO was enabled does not
-// get the account storage enabled silently. Account storage is enabled after
-// the user signs out and signs in again through an explicit flow.
-IN_PROC_BROWSER_TEST_F(
-    DiceExplicitSigninBrowserTestWithForcedDiceMigrationDisabled,
-    Migration) {
-  Profile* profile = browser()->profile();
-  // The user is still signed in implicitly.
-  ASSERT_EQ(signin::GetPrimaryAccountConsentLevel(GetIdentityManager()),
-            signin::ConsentLevel::kSignin);
-  ASSERT_TRUE(gaia::AreEmailsSame(
-      GetIdentityManager()
-          ->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin)
-          .email,
-      kMainGmailEmail));
-  ASSERT_FALSE(profile->GetPrefs()->GetBoolean(prefs::kExplicitBrowserSignin));
-  // Account storage was not enabled yet.
-  AccountStorageStatus account_storage_status = GetAccountStorageStatus();
-  EXPECT_FALSE(account_storage_status.user_selectable_type_set.HasAny(
-      {syncer::UserSelectableType::kAutofill,
-       syncer::UserSelectableType::kPasswords}));
-
-  // Signout, and then signin again explicitly.
-  signin::ClearPrimaryAccount(GetIdentityManager());
-  AccountInfo primary_account_info = signin::MakePrimaryAccountAvailable(
-      GetIdentityManager(), kMainGmailEmail, signin::ConsentLevel::kSignin);
-  EXPECT_TRUE(profile->GetPrefs()->GetBoolean(prefs::kExplicitBrowserSignin));
-
-  // Account storage is now enabled.
-  account_storage_status = GetAccountStorageStatus();
-  EXPECT_TRUE(account_storage_status.user_selectable_type_set.HasAll(
-      {syncer::UserSelectableType::kAutofill,
-       syncer::UserSelectableType::kPasswords}));
-
-  // Cookie migration is done.
-  EXPECT_TRUE(profile->GetPrefs()->GetBoolean(
-      prefs::kCookieClearOnExitMigrationNoticeComplete));
-}
-
-// Signin implicitlty, Dice Signin.
-IN_PROC_BROWSER_TEST_F(
-    DiceExplicitSigninBrowserTestWithForcedDiceMigrationDisabled,
-    PRE_DiceUserMigratedClearsCookie) {
-  signin::MakeAccountAvailable(
-      GetIdentityManager(),
-      signin::AccountAvailabilityOptionsBuilder()
-          .AsPrimary(signin::ConsentLevel::kSignin)
-          // `kWebSignin` is not explicit before the migration.
-          .WithAccessPoint(signin_metrics::AccessPoint::kWebSignin)
-          .Build(kMainGmailEmail));
-  // Set the SAPISID cookie so that its deletion can be detected later.
-  // Set a max-age so that it's persisted on disk.
-  std::string gaia_cookie = base::StrCat(
-      {GaiaConstants::kGaiaSigninCookieName, "=foo; secure; max-age=1000"});
-  ASSERT_TRUE(content::SetCookie(browser()->profile(),
-                                 GURL("https://google.com/"), gaia_cookie));
-  ASSERT_TRUE(
-      GetIdentityManager()->HasPrimaryAccount(signin::ConsentLevel::kSignin));
-  ASSERT_FALSE(browser()->profile()->GetPrefs()->GetBoolean(
-      prefs::kExplicitBrowserSignin));
-}
-
-// Dice Signin with UNO enabled.
-IN_PROC_BROWSER_TEST_F(
-    DiceExplicitSigninBrowserTestWithForcedDiceMigrationDisabled,
-    DiceUserMigratedClearsCookie) {
-  Profile* profile = browser()->profile();
-  // The user is still signed in implicitly.
-  ASSERT_TRUE(
-      GetIdentityManager()->HasPrimaryAccount(signin::ConsentLevel::kSignin));
-  ASSERT_TRUE(gaia::AreEmailsSame(
-      GetIdentityManager()
-          ->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin)
-          .email,
-      kMainGmailEmail));
-  ASSERT_FALSE(profile->GetPrefs()->GetBoolean(prefs::kExplicitBrowserSignin));
-
-  content::DeleteCookies(profile, network::mojom::CookieDeletionFilter());
-
-  // User should be signed out.
-  EXPECT_FALSE(
-      GetIdentityManager()->HasPrimaryAccount(signin::ConsentLevel::kSignin));
-}
-
 class DiceBrowserTestWithExplicitSignin : public DiceBrowserTest {
  public:
   // Sets the user choice for Chrome Signin on `main_email_`.
@@ -2074,7 +1870,7 @@ IN_PROC_BROWSER_TEST_F(DiceBrowserTestWithChromeSigninIPH,
       GetIdentityManager()->FindExtendedAccountInfo(core_account_info);
 
   // IPH not showing yet, waiting for the name.
-  ASSERT_TRUE(account_info.given_name.empty());
+  ASSERT_FALSE(account_info.GetGivenName().has_value());
   EXPECT_FALSE(
       BrowserUserEducationInterface::From(browser())->IsFeaturePromoActive(
           feature_engagement::
@@ -2156,7 +1952,7 @@ IN_PROC_BROWSER_TEST_F(DiceManageAccountBrowserTest,
   // Ensure that there are not deleted profiles before running this test.
   PrefService* local_state = g_browser_process->local_state();
   DCHECK(local_state);
-  const base::Value::List& deleted_profiles =
+  const base::ListValue& deleted_profiles =
       local_state->GetList(prefs::kProfilesDeleted);
   ASSERT_TRUE(deleted_profiles.empty());
 
@@ -2186,7 +1982,7 @@ IN_PROC_BROWSER_TEST_F(DiceManageAccountBrowserTest,
     run_loop.Run();
   }
 
-  const base::Value::List& deleted_profiles =
+  const base::ListValue& deleted_profiles =
       local_state->GetList(prefs::kProfilesDeleted);
   EXPECT_EQ(1U, deleted_profiles.size());
 

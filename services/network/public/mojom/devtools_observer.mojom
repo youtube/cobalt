@@ -12,6 +12,7 @@ import "services/network/public/mojom/client_security_state.mojom";
 import "services/network/public/mojom/cookie_manager.mojom";
 import "services/network/public/mojom/cookie_partition_key.mojom";
 import "services/network/public/mojom/cors.mojom";
+import "services/network/public/mojom/device_bound_sessions.mojom";
 import "services/network/public/mojom/fetch_api.mojom";
 import "services/network/public/mojom/http_raw_headers.mojom";
 import "services/network/public/mojom/http_request_headers.mojom";
@@ -22,6 +23,7 @@ import "services/network/public/mojom/service_worker_router_info.mojom";
 import "services/network/public/mojom/shared_dictionary_error.mojom";
 import "services/network/public/mojom/sri_message_signature.mojom";
 import "services/network/public/mojom/unencoded_digest.mojom";
+import "services/network/public/mojom/connection_allowlist.mojom";
 import "services/network/public/mojom/trust_tokens.mojom";
 import "services/network/public/mojom/ip_endpoint.mojom";
 import "services/network/public/mojom/url_loader_completion_status.mojom";
@@ -80,13 +82,14 @@ struct OtherPartitionInfo {
 // state.
 interface DevToolsObserver {
   // Called to send raw header information and information about excluded
-  // cookies. Only called when |devtool_request_id| is available to the
-  // URLLoader.
+  // cookies and device bound session usages. Only called when
+  // |devtool_request_id| is available to the URLLoader.
   OnRawRequest(
     string devtool_request_id,
     array<CookieWithAccessResult> cookies_with_access_result,
     array<HttpRawHeaderPair> headers,
     mojo_base.mojom.TimeTicks timestamp,
+    array<DeviceBoundSessionWithUsage> device_bound_session_usages,
     ClientSecurityState? client_security_state,
     OtherPartitionInfo? other_partition_info,
     mojo_base.mojom.UnguessableToken? applied_network_conditions_id);
@@ -109,13 +112,13 @@ interface DevToolsObserver {
     string devtool_request_id,
     array<HttpRawHeaderPair> headers);
 
-  // Called to send information about a private network request that was blocked
+  // Called to send information about a local network request that was blocked
   // (then |is_warning| is false), or will be blocked in the future (then
   // |is_warning| is true). It is possible to share sensitive information with
   // DevTools as this is handled in the browser process. Called even when
   // |devtool_request_id| is not available to the URLLoader to ensure the
   // information can be recorded even when DevTools is closed.
-  OnPrivateNetworkRequest(
+  OnLocalNetworkRequest(
     string? devtool_request_id,
     url.mojom.Url url,
     bool is_warning,
@@ -195,6 +198,12 @@ interface DevToolsObserver {
     string devtool_request_id,
     url.mojom.Url url,
     UnencodedDigestIssue issue);
+
+  // Called when an error occurs when parsing a `Connection-Allowlist` header.
+  OnConnectionAllowlistIssue(
+    string devtool_request_id,
+    url.mojom.Url url,
+    ConnectionAllowlistIssue issue);
 
   // Used by the NetworkService to create a copy of this observer.
   // (e.g. when creating an observer for URLLoader from URLLoaderFactory's

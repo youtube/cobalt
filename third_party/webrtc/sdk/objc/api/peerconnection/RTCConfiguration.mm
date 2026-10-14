@@ -20,6 +20,7 @@
 #include "rtc_base/checks.h"
 #include "rtc_base/rtc_certificate_generator.h"
 #include "rtc_base/ssl_identity.h"
+#include "rtc_base/system/plan_b_only.h"
 
 @implementation RTC_OBJC_TYPE (RTCConfiguration)
 
@@ -534,7 +535,9 @@
     (RTCSdpSemantics)sdpSemantics {
   switch (sdpSemantics) {
     case RTCSdpSemanticsPlanB:
+      RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
       return webrtc::SdpSemantics::kPlanB_DEPRECATED;
+      RTC_ALLOW_PLAN_B_DEPRECATION_END();
     case RTCSdpSemanticsUnifiedPlan:
       return webrtc::SdpSemantics::kUnifiedPlan;
   }
@@ -544,7 +547,9 @@
     (webrtc::SdpSemantics)sdpSemantics {
   switch (sdpSemantics) {
     case webrtc::SdpSemantics::kPlanB_DEPRECATED:
+      RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
       return RTCSdpSemanticsPlanB;
+      RTC_ALLOW_PLAN_B_DEPRECATION_END();
     case webrtc::SdpSemantics::kUnifiedPlan:
       return RTCSdpSemanticsUnifiedPlan;
   }

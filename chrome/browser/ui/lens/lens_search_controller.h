@@ -90,7 +90,8 @@ class LensSearchController {
   // of `invocation_source` will be recorded in the relevant metrics. Virtual
   // for testing.
   virtual void OpenLensOverlay(
-      lens::LensOverlayInvocationSource invocation_source);
+      lens::LensOverlayInvocationSource invocation_source,
+      bool should_show_csb = true);
 
   // Sets a region to search after the overlay loads, then calls ShowUI().
   // All units are in device pixels. region_bitmap contains the high definition
@@ -267,6 +268,9 @@ class LensSearchController {
   // Returns the current invocation source.
   virtual std::optional<lens::LensOverlayInvocationSource> invocation_source();
 
+  // Returns whether the contextual search box should be shown on overlay open.
+  bool should_show_csb() { return should_show_csb_; }
+
   lens::LensPermissionBubbleController*
   get_lens_permission_bubble_controller_for_testing() {
     return lens_permission_bubble_controller_.get();
@@ -281,10 +285,7 @@ class LensSearchController {
   virtual std::unique_ptr<LensOverlayController> CreateLensOverlayController(
       tabs::TabInterface* tab,
       LensSearchController* lens_search_controller,
-      variations::VariationsClient* variations_client,
-      signin::IdentityManager* identity_manager,
       PrefService* pref_service,
-      syncer::SyncService* sync_service,
       ThemeService* theme_service);
 
   // Override these methods to stub out network requests for testing.
@@ -397,6 +398,11 @@ class LensSearchController {
       lens::LensOverlayInvocationSource invocation_source,
       base::RepeatingClosure permission_granted_callback);
 
+  // Returns true if the session should be routed to the contextual tasks side
+  // panel.
+  bool ShouldEnableContextualTasksRouting(
+      lens::LensOverlayInvocationSource invocation_source);
+
   // Callback used by the query controller to notify the search controller of
   // the response to the initial image upload request.
   void HandleStartQueryResponse(
@@ -463,6 +469,9 @@ class LensSearchController {
 
   // Whether the handshake with the Lens backend is complete.
   bool is_handshake_complete_ = false;
+
+  // Whether the Contextual Search Box should be shown when the overlay opens.
+  bool should_show_csb_ = true;
 
   // The invocation source of the current Lens session.
   std::optional<lens::LensOverlayInvocationSource> invocation_source_;

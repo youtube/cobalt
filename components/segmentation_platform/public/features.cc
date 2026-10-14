@@ -167,8 +167,6 @@ BASE_FEATURE(kSegmentationSurveyPage,
 constexpr base::FeatureParam<bool> kSegmentationSurveyInternalsPage{
     &kSegmentationSurveyPage, "survey_internals_page", /*default_value=*/true};
 
-BASE_FEATURE(kEducationalTipModule, base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kAndroidAppIntegrationModule, base::FEATURE_ENABLED_BY_DEFAULT);
 
 constexpr base::FeatureParam<bool> kMaxAuxiliarySearchForceShow{
@@ -242,5 +240,7 @@ constexpr base::FeatureParam<int> kStartTimeMinutes{&kAndroidTipsNotifications,
 constexpr base::FeatureParam<int> kWindowTimeMinutes{&kAndroidTipsNotifications,
                                                      "window_time_minutes",
                                                      /*default_value=*/120};
+
+BASE_FEATURE(kAndroidTipsNotificationsV2, base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace segmentation_platform::features

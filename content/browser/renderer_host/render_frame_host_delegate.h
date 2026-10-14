@@ -368,6 +368,9 @@ class CONTENT_EXPORT RenderFrameHostDelegate {
 
   // Request to restore window.
   virtual void Restore() {}
+
+  // Request to set resizable.
+  virtual void SetResizable(bool) {}
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 
 #if BUILDFLAG(IS_ANDROID)
@@ -721,12 +724,6 @@ class CONTENT_EXPORT RenderFrameHostDelegate {
   // If a timer for an unresponsive renderer fires, whether it should be
   // ignored.
   virtual bool ShouldIgnoreUnresponsiveRenderer();
-
-  // Returns the base permissions policy that should be applied to the Isolated
-  // Web App running in the given RenderFrameHostImpl. If std::nullopt is
-  // returned the default non-isolated permissions policy will be applied.
-  virtual std::optional<network::ParsedPermissionsPolicy>
-  GetPermissionsPolicyForIsolatedWebApp(RenderFrameHostImpl* source);
 
   // Updates the draggable regions defined by the app-region CSS property.
   virtual void DraggableRegionsChanged(

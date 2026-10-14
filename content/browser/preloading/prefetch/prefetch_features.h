@@ -63,13 +63,6 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(kPrefetchStateContaminationMitigation);
 CONTENT_EXPORT extern const base::FeatureParam<bool>
     kPrefetchStateContaminationSwapsBrowsingContextGroup;
 
-// Fix for prefetching a URL controlled by a ServiceWorker without fetch
-// handler. Currently this stops prefetching for such cases
-// (https://crbug.com/379076354).
-// Even when `kPrefetchServiceWorker` is enabled, this is still effective for
-// SW-ineligible prefetches.
-CONTENT_EXPORT BASE_DECLARE_FEATURE(kPrefetchServiceWorkerNoFetchHandlerFix);
-
 // Enabling this will apply net::RequestPriority::MEDIUM for prefetch
 // requests triggered by embedders. See crbug.com/353628437 to track this issue.
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kPrefetchNetworkPriorityForEmbedders);
@@ -127,6 +120,10 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(kPrefetchAsyncCancelOnCookiesChange);
 // Kill switch for fixing header modifications upon redirects.
 // TODO(crbug.com/467177773): Remove it after confirming stability.
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kPrefetchFixHeaderUpdatesOnRedirect);
+
+// Allow starting prefetch request from off the main thread. Please see
+// crbug.com/452389538 for more details.
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kPrefetchOffTheMainThread);
 
 }  // namespace features
 

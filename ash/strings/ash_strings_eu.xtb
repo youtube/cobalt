@@ -342,7 +342,6 @@
 <translation id="2201071101391734388">Azkenaldiko <ph name="TOTAL_COUNT" /> argazkietatik <ph name="INDEX" />garrena.</translation>
 <translation id="2201687081523799384">Tolestu Google Zereginak</translation>
 <translation id="2208323208084708176">Mahaigain bateratuko modua</translation>
-<translation id="2210311543574621570">Ktrl + V sakatuta edukitzen baduzu, arbela ikusiko duzu. Lasterbide hori desaktibatzeko, desgaitu #clipboard-history-longpress eginbide esperimentala chrome://flags atalean.</translation>
 <translation id="2215920961700443347">Ez dago Interneteko konexiorik. Konektatu Internetera eta saiatu berriro.</translation>
 <translation id="2222841058024245321">7. lan-eremua</translation>
 <translation id="2223384056430485343">Pantaila zatituan</translation>
@@ -2196,7 +2195,6 @@ Itzaltzeko, eduki sakatuta berriro gailuaren etengailua.</translation>
 <translation id="8241650983304689286">Gehitu fitxa ikuspegi zatitu berrian</translation>
 <translation id="8247060538831475781"><ph name="CONNECTION_STATUS" />. Seinalearen indarra: <ph name="SIGNAL_STRENGTH" />. Telefonoaren bateria: <ph name="BATTERY_STATUS" />.</translation>
 <translation id="825129991941217170">Erakutsi Google Drive-ko eduki guztia</translation>
-<translation id="8257510091797044096">Konfiguratu gailua</translation>
 <translation id="8261506727792406068">Ezabatu</translation>
 <translation id="8262312463845990408">Erreproduzitu/Pausatu</translation>
 <translation id="8268302343625273732">Ikusi lan guztiak Google Classroom-en</translation>

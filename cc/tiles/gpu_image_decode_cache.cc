@@ -24,6 +24,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/no_destructor.h"
 #include "base/notreached.h"
 #include "base/numerics/safe_math.h"
 #include "base/strings/stringprintf.h"
@@ -1350,6 +1351,7 @@ void GpuImageDecodeCache::ClearCache() {
     it = RemoveFromPersistentCache(it);
   DCHECK(persistent_cache_.empty());
   paint_image_entries_.clear();
+  content_id_to_frame_keys_.clear();
 
   TryFlushPendingWork();
 }
@@ -1376,11 +1378,14 @@ void GpuImageDecodeCache::AddToPersistentCache(const DrawImage& draw_image,
 
   WillAddCacheEntry(draw_image);
   persistent_cache_memory_size_ += data->GetTotalSize();
-  persistent_cache_.Put(draw_image.frame_key(), std::move(data));
+  const auto& frame_key = draw_image.frame_key();
+  content_id_to_frame_keys_[frame_key.content_id()].insert(frame_key);
+  persistent_cache_.Put(frame_key, std::move(data));
 }
 
 template <typename Iterator>
 Iterator GpuImageDecodeCache::RemoveFromPersistentCache(Iterator it) {
+  const auto& frame_key = it->first;
   if (it->second->decode.ref_count != 0 || it->second->upload.ref_count != 0) {
     // Orphan the image and erase it from the |persisent_cache_|. This ensures
     // that the image will be deleted once all refs are removed.
@@ -1408,6 +1413,14 @@ Iterator GpuImageDecodeCache::RemoveFromPersistentCache(Iterator it) {
     paint_image_entries_.erase(entries_it);
 
   persistent_cache_memory_size_ -= it->second->GetTotalSize();
+
+  auto content_id_it = content_id_to_frame_keys_.find(frame_key.content_id());
+  if (content_id_it != content_id_to_frame_keys_.end()) {
+    content_id_it->second.erase(frame_key);
+    if (content_id_it->second.empty()) {
+      content_id_to_frame_keys_.erase(content_id_it);
+    }
+  }
   return persistent_cache_.Erase(it);
 }
 
@@ -1835,8 +1848,14 @@ void GpuImageDecodeCache::UnrefImageInternal(const DrawImage& draw_image,
 
 // Called any time an image or decode ref count changes. Takes care of any
 // necessary memory budget book-keeping and cleanup.
+#if BUILDFLAG(IS_COBALT)
+void GpuImageDecodeCache::OwnershipChanged(const DrawImage& draw_image,
+                                           ImageData* image_data,
+                                           bool keep_empty_images) {
+#else
 void GpuImageDecodeCache::OwnershipChanged(const DrawImage& draw_image,
                                            ImageData* image_data) {
+#endif  // BUILDFLAG(IS_COBALT)
   bool has_any_refs =
       image_data->upload.ref_count > 0 || image_data->decode.ref_count > 0;
   // If we have no image refs on an image, we should unbudget it.
@@ -1848,18 +1867,25 @@ void GpuImageDecodeCache::OwnershipChanged(const DrawImage& draw_image,
     image_data->is_budgeted = false;
   }
 
-  // Don't keep around completely empty images. This can happen if an image's
-  // decode/upload tasks were both cancelled before completing.
-  const bool has_cpu_data = image_data->decode.HasData() ||
-                            (image_data->is_bitmap_backed &&
-                             image_data->decode.image(0, AuxImage::kDefault));
-  bool is_empty = !has_any_refs && !image_data->HasUploadedData() &&
-                  !has_cpu_data && !image_data->is_orphaned;
-  if (is_empty || draw_image.paint_image().no_cache()) {
-    auto found_persistent = persistent_cache_.Peek(draw_image.frame_key());
-    if (found_persistent != persistent_cache_.end())
-      RemoveFromPersistentCache(found_persistent);
+#if BUILDFLAG(IS_COBALT)
+  if (!keep_empty_images) {
+#endif  // BUILDFLAG(IS_COBALT)
+    // Don't keep around completely empty images. This can happen if an image's
+    // decode/upload tasks were both cancelled before completing.
+    const bool has_cpu_data = image_data->decode.HasData() ||
+                              (image_data->is_bitmap_backed &&
+                               image_data->decode.image(0, AuxImage::kDefault));
+    bool is_empty = !has_any_refs && !image_data->HasUploadedData() &&
+                    !has_cpu_data && !image_data->is_orphaned;
+    if (is_empty || draw_image.paint_image().no_cache()) {
+      auto found_persistent = persistent_cache_.Peek(draw_image.frame_key());
+      if (found_persistent != persistent_cache_.end()) {
+        RemoveFromPersistentCache(found_persistent);
+      }
+    }
+#if BUILDFLAG(IS_COBALT)
   }
+#endif  // BUILDFLAG(IS_COBALT)
 
   // Don't keep discardable cpu memory for GPU backed images. The cache hit rate
   // of the cpu fallback (in case we don't find this image in gpu memory) is
@@ -1919,88 +1945,9 @@ void GpuImageDecodeCache::OwnershipChanged(const DrawImage& draw_image,
 
 #if BUILDFLAG(IS_COBALT)
 void GpuImageDecodeCache::OwnershipChanged(ImageData* image_data) {
-  bool has_any_refs =
-      image_data->upload.ref_count > 0 || image_data->decode.ref_count > 0;
-
-  // If we have no image refs on an image, we should unbudget it.
-  if (!has_any_refs && image_data->is_budgeted) {
-    DCHECK_GE(working_set_bytes_, image_data->GetTotalSize());
-    DCHECK_GE(working_set_items_, 1u);
-    working_set_bytes_ -= image_data->GetTotalSize();
-    working_set_items_ -= 1;
-    image_data->is_budgeted = false;
-  }
-
-  // GpuImageDecodeCache::OwnershipChanged(ImageData*) is identical to the
-  // chromium version, but with the draw_image parameter removed and the code
-  // below is commented out.
-  // // Don't keep around completely empty images. This can happen if an image's
-  // // decode/upload tasks were both cancelled before completing.
-  // const bool has_cpu_data = image_data->decode.HasData() ||
-  //                           (image_data->is_bitmap_backed &&
-  //                            image_data->decode.image(0, AuxImage::kDefault));
-  // bool is_empty = !has_any_refs && !image_data->HasUploadedData() &&
-  //                 !has_cpu_data && !image_data->is_orphaned;
-  // if (is_empty || draw_image.paint_image().no_cache()) {
-  //   auto found_persistent = persistent_cache_.Peek(draw_image.frame_key());
-  //   if (found_persistent != persistent_cache_.end())
-  //     RemoveFromPersistentCache(found_persistent);
-  // }
-
-  // Don't keep discardable cpu memory for GPU backed images. The cache hit rate
-  // of the cpu fallback (in case we don't find this image in gpu memory) is
-  // too low to cache this data.
-  if (image_data->decode.ref_count == 0 &&
-      image_data->HasUploadedData()) {
-    image_data->decode.ResetData();
-    image_data->speculative_decode_usage_stats_.reset();
-  }
-
-  // If we have no refs on an uploaded image, it should be unlocked. Do this
-  // before any attempts to delete the image.
-  if (image_data->upload.ref_count == 0 && image_data->upload.is_locked()) {
-    UnlockImage(image_data);
-  }
-
-  // Don't keep around orphaned images.
-  if (image_data->is_orphaned && !has_any_refs) {
-    DeleteImage(image_data);
-  }
-
-  // If we have image that could be budgeted, but isn't, budget it now.
-  if (has_any_refs && !image_data->is_budgeted &&
-      CanFitInWorkingSet(image_data->GetTotalSize())) {
-    working_set_bytes_ += image_data->GetTotalSize();
-    working_set_items_ += 1;
-    image_data->is_budgeted = true;
-  }
-
-  // We should unlock the decoded image memory for the image in two cases:
-  // 1) The image is no longer being used (no decode or upload refs).
-  // 2) This is a non-CPU image that has already been uploaded and we have
-  //    no remaining decode refs.
-  bool should_unlock_decode = !has_any_refs || (image_data->HasUploadedData() &&
-                                                !image_data->decode.ref_count);
-
-  if (should_unlock_decode && image_data->decode.is_locked()) {
-    if (image_data->is_bitmap_backed) {
-      DCHECK(!image_data->decode.HasData());
-      image_data->decode.ResetBitmapImage();
-    } else {
-      DCHECK(image_data->decode.HasData());
-      image_data->decode.Unlock();
-    }
-  }
-
-  // EnsureCapacity to make sure we are under our cache limits.
-  EnsureCapacity(0);
-
-#if DCHECK_IS_ON()
-  // Sanity check the above logic.
-  if (!image_data->HasUploadedData()) {
-    DCHECK(!image_data->is_budgeted || has_any_refs);
-  }
-#endif
+  // `draw_image` is not used in this code path.
+  static const base::NoDestructor<DrawImage> empty_draw_image;
+  OwnershipChanged(*empty_draw_image, image_data, /*keep_empty_images=*/true);
 }
 #endif  // BUILDFLAG(IS_COBALT)
 
@@ -2573,11 +2520,17 @@ void GpuImageDecodeCache::WillAddCacheEntry(const DrawImage& draw_image) {
       std::max(cached_content_ids[0], cached_content_ids[1]);
   DCHECK_NE(content_id_to_remove, content_id_to_keep);
 
-  for (auto it = persistent_cache_.begin(); it != persistent_cache_.end();) {
-    if (it->first.content_id() != content_id_to_remove) {
-      ++it;
-    } else {
-      it = RemoveFromPersistentCache(it);
+  auto it = content_id_to_frame_keys_.find(content_id_to_remove);
+  if (it != content_id_to_frame_keys_.end()) {
+    // Create a copy of the keys to avoid iterator invalidation issues while
+    // calling RemoveFromPersistentCache.
+    auto keys_to_remove = it->second;
+    content_id_to_frame_keys_.erase(it);
+    for (const auto& key : keys_to_remove) {
+      auto persistent_it = persistent_cache_.Peek(key);
+      if (persistent_it != persistent_cache_.end()) {
+        RemoveFromPersistentCache(persistent_it);
+      }
     }
   }
 

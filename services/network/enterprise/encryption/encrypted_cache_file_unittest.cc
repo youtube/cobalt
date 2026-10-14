@@ -4,10 +4,14 @@
 
 #include "services/network/enterprise/encryption/encrypted_cache_file.h"
 
+#include <optional>
+
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/rand_util.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "net/disk_cache/basic_cache_file.h"
+#include "net/disk_cache/cache_encryption_delegate.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -15,37 +19,49 @@ namespace network::enterprise_encryption {
 
 class EncryptedCacheFileTest : public testing::Test {
  public:
-  void SetUp() override { ASSERT_TRUE(temp_dir_.CreateUniqueTempDir()); }
+  EncryptedCacheFileTest() = default;
+  void SetUp() override {
+    ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
+    base::RandBytes(key_);  // `key_` is initialized here.
+    process_bound_key_.emplace(std::string(key_.begin(), key_.end()));
+  }
+
+  void SetWrongProcessBoundKey() {
+    std::array<uint8_t, 32> wrong_key = key_;
+    wrong_key[0] ^= 0xFF;
+    process_bound_key_.emplace(std::string(wrong_key.begin(), wrong_key.end()));
+  }
 
   base::FilePath GetTestFilePath() {
     return temp_dir_.GetPath().AppendASCII("test_file");
   }
 
-  std::unique_ptr<EncryptedCacheFile> CreateEncryptedFile(
-      base::span<const uint8_t, kKeySize> key) {
+  std::unique_ptr<EncryptedCacheFile> CreateEncryptedFile() {
     base::File file(GetTestFilePath(), base::File::FLAG_OPEN_ALWAYS |
                                            base::File::FLAG_READ |
                                            base::File::FLAG_WRITE);
     return std::make_unique<EncryptedCacheFile>(
-        std::make_unique<disk_cache::BasicCacheFile>(std::move(file)), key);
+        std::make_unique<disk_cache::BasicCacheFile>(std::move(file)),
+        *process_bound_key_);
   }
 
-  std::unique_ptr<EncryptedCacheFile> OpenEncryptedFile(
-      base::span<const uint8_t, kKeySize> key) {
+  std::unique_ptr<EncryptedCacheFile> OpenEncryptedFile() {
     base::File file(GetTestFilePath(), base::File::FLAG_OPEN |
                                            base::File::FLAG_READ |
                                            base::File::FLAG_WRITE);
     return std::make_unique<EncryptedCacheFile>(
-        std::make_unique<disk_cache::BasicCacheFile>(std::move(file)), key);
+        std::make_unique<disk_cache::BasicCacheFile>(std::move(file)),
+        *process_bound_key_);
   }
 
  protected:
   base::ScopedTempDir temp_dir_;
   std::array<uint8_t, 32> key_;
+  std::optional<crypto::ProcessBoundString> process_bound_key_;
 };
 
 TEST_F(EncryptedCacheFileTest, ConstructorAndMetadata) {
-  auto encrypted_file = CreateEncryptedFile(key_);
+  auto encrypted_file = CreateEncryptedFile();
   EXPECT_TRUE(encrypted_file->IsValid());
   EXPECT_EQ(0, encrypted_file->GetLength());
 }
@@ -56,7 +72,8 @@ TEST_F(EncryptedCacheFileTest, EncryptionWithDefaultKey) {
                                          base::File::FLAG_READ |
                                          base::File::FLAG_WRITE);
   auto encrypted_file = std::make_unique<EncryptedCacheFile>(
-      std::make_unique<disk_cache::BasicCacheFile>(std::move(file)));
+      std::make_unique<disk_cache::BasicCacheFile>(std::move(file)),
+      *process_bound_key_);
 
   EXPECT_TRUE(encrypted_file->IsValid());
 
@@ -72,8 +89,8 @@ TEST_F(EncryptedCacheFileTest, EncryptionWithDefaultKey) {
   // Verify underlying encrypted file size.
   base::File check_file(GetTestFilePath(),
                         base::File::FLAG_OPEN | base::File::FLAG_READ);
-  int64_t expected_size =
-      kHeaderSize + data.size() + 16;  // 16 bytes auth tag for 1 chunk.
+  int64_t expected_size = kHeaderSize + data.size() +
+                          kAuthTagSize;  // 16 bytes auth tag for 1 chunk.
   EXPECT_EQ(expected_size, check_file.GetLength());
 
   // Verify raw content is NOT plaintext.
@@ -83,18 +100,28 @@ TEST_F(EncryptedCacheFileTest, EncryptionWithDefaultKey) {
 }
 
 TEST_F(EncryptedCacheFileTest, SimpleReadWrite) {
-  auto encrypted_file = CreateEncryptedFile(key_);
+  base::HistogramTester histogram_tester;
+  auto encrypted_file = CreateEncryptedFile();
 
   std::string data = "Testing data!";
   auto write_res = encrypted_file->Write(0, base::as_byte_span(data));
   ASSERT_TRUE(write_res.has_value());
   EXPECT_EQ(data.size(), write_res.value());
 
+  // Init happens on first IO (Write).
+  histogram_tester.ExpectBucketCount("Enterprise.EncryptedCache.Open.Result",
+                                     EncryptionError::kSuccess, 1);
+  histogram_tester.ExpectBucketCount("Enterprise.EncryptedCache.Write.Result",
+                                     EncryptionError::kSuccess, 1);
+
   std::vector<uint8_t> buffer(data.size());
   auto read_res = encrypted_file->Read(0, base::span(buffer));
   ASSERT_TRUE(read_res.has_value());
   EXPECT_EQ(data.size(), read_res.value());
   EXPECT_EQ(data, std::string(buffer.begin(), buffer.end()));
+
+  histogram_tester.ExpectBucketCount("Enterprise.EncryptedCache.Read.Result",
+                                     EncryptionError::kSuccess, 1);
 
   // Test reading past EOF but within the same chunk.
   auto past_eof_res = encrypted_file->Read(100, base::span(buffer));
@@ -103,7 +130,7 @@ TEST_F(EncryptedCacheFileTest, SimpleReadWrite) {
 }
 
 TEST_F(EncryptedCacheFileTest, PartialRead) {
-  auto encrypted_file = CreateEncryptedFile(key_);
+  auto encrypted_file = CreateEncryptedFile();
   std::string data = "0123456789";
   EXPECT_TRUE(encrypted_file->Write(0, base::as_byte_span(data)).has_value());
 
@@ -118,39 +145,53 @@ TEST_F(EncryptedCacheFileTest, PartialRead) {
 TEST_F(EncryptedCacheFileTest, Persistence) {
   // Write data to file encrypted.
   {
-    auto encrypted_file = CreateEncryptedFile(key_);
+    auto encrypted_file = CreateEncryptedFile();
     std::string data = "Persistent Data";
     EXPECT_TRUE(encrypted_file->Write(0, base::as_byte_span(data)).has_value());
   }
 
   // Re-open and verify that it reads back correctly.
   {
-    auto encrypted_file = OpenEncryptedFile(key_);
+    base::HistogramTester histogram_tester;
+    auto encrypted_file = OpenEncryptedFile();
     std::string expected_data = "Persistent Data";
     std::vector<uint8_t> buffer(expected_data.size());
     auto read_res = encrypted_file->Read(0, base::span(buffer));
     ASSERT_TRUE(read_res.has_value());
     EXPECT_EQ(expected_data, std::string(buffer.begin(), buffer.end()));
+
+    // Open success (header parsed).
+    histogram_tester.ExpectBucketCount("Enterprise.EncryptedCache.Open.Result",
+                                       EncryptionError::kSuccess, 1);
   }
 
   // Re-opening with the wrong key should fail.
   {
-    std::array<uint8_t, 32> wrong_key = key_;
-    wrong_key[0] ^= 0xFF;
-    auto encrypted_file = OpenEncryptedFile(wrong_key);
+    base::HistogramTester histogram_tester;
+    SetWrongProcessBoundKey();
+    auto encrypted_file = OpenEncryptedFile();
 
     std::vector<uint8_t> read_buf(15);
     auto read_res = encrypted_file->Read(0, base::span(read_buf));
 
     EXPECT_FALSE(read_res.has_value()) << "Should fail with wrong key";
+
+    // Open success.
+    histogram_tester.ExpectBucketCount("Enterprise.EncryptedCache.Open.Result",
+                                       EncryptionError::kSuccess, 1);
+    histogram_tester.ExpectBucketCount("Enterprise.EncryptedCache.Open.Result",
+                                       EncryptionError::kInvalidKey, 0);
+    // Read failure (decryption failed).
+    histogram_tester.ExpectBucketCount("Enterprise.EncryptedCache.Read.Result",
+                                       EncryptionError::kDecryptionFailed, 1);
   }
 }
 
 TEST_F(EncryptedCacheFileTest, OverwriteMiddleOfChunk) {
-  auto encrypted_file = CreateEncryptedFile(key_);
+  auto encrypted_file = CreateEncryptedFile();
 
   // Fill chunk 0 with 'A'.
-  std::vector<uint8_t> data(4096, 'A');
+  std::vector<uint8_t> data(kChunkDataSize, 'A');
   EXPECT_TRUE(encrypted_file->Write(0, base::span(data)).has_value());
 
   // Overwrite middle with 'B'.
@@ -159,7 +200,7 @@ TEST_F(EncryptedCacheFileTest, OverwriteMiddleOfChunk) {
       encrypted_file->Write(100, base::as_byte_span(update)).has_value());
 
   // Verify read.
-  std::vector<uint8_t> buffer(4096);
+  std::vector<uint8_t> buffer(kChunkDataSize);
   EXPECT_TRUE(encrypted_file->Read(0, base::span(buffer)).has_value());
 
   std::vector<uint8_t> expected = data;
@@ -171,13 +212,13 @@ TEST_F(EncryptedCacheFileTest, OverwriteMiddleOfChunk) {
 }
 
 TEST_F(EncryptedCacheFileTest, CrossChunkWrite) {
-  auto encrypted_file = CreateEncryptedFile(key_);
+  auto encrypted_file = CreateEncryptedFile();
 
   // Data that straddles the 4096-byte boundary.
   // Start at 4090, write 20 bytes.
   // Chunk 0: 4090-4095 (6 bytes).
   // Chunk 1: 4096-4109 (14 bytes).
-  int64_t offset = 4090;
+  int64_t offset = kChunkDataSize - 6;
   std::string data = "01234567890123456789";
 
   EXPECT_TRUE(
@@ -193,7 +234,7 @@ TEST_F(EncryptedCacheFileTest, CrossChunkWrite) {
 }
 
 TEST_F(EncryptedCacheFileTest, LargeSequentialWrite) {
-  auto encrypted_file = CreateEncryptedFile(key_);
+  auto encrypted_file = CreateEncryptedFile();
 
   // Write 10KB of data, spanning 3 chunks.
   size_t data_size = 10 * 1024;
@@ -211,7 +252,7 @@ TEST_F(EncryptedCacheFileTest, LargeSequentialWrite) {
 }
 
 TEST_F(EncryptedCacheFileTest, WriteExtendsFileHandlingPreviousChunk) {
-  auto encrypted_file = CreateEncryptedFile(key_);
+  auto encrypted_file = CreateEncryptedFile();
 
   // Write Chunk 0 (small).
   std::string data0 = "Chunk 0 Data";
@@ -221,22 +262,23 @@ TEST_F(EncryptedCacheFileTest, WriteExtendsFileHandlingPreviousChunk) {
   // This leaves a gap in Chunk 0 (from 12 to 4096) that must be zero-padded
   // and re-encrypted as "not last".
   std::string data1 = "Chunk 1 Data";
-  EXPECT_TRUE(
-      encrypted_file->Write(4096, base::as_byte_span(data1)).has_value());
+  EXPECT_TRUE(encrypted_file->Write(kChunkDataSize, base::as_byte_span(data1))
+                  .has_value());
 
   // Verify read of chunk 0.
   // Should allow reading past the original data0 up to 4096 (zeros).
-  std::vector<uint8_t> buf0(4096);
+  std::vector<uint8_t> buf0(kChunkDataSize);
   EXPECT_TRUE(encrypted_file->Read(0, base::span(buf0)).has_value());
   EXPECT_EQ(data0, std::string(buf0.begin(), buf0.begin() + data0.size()));
   // Verify padding is zeros.
-  for (size_t i = data0.size(); i < 4096; ++i) {
+  for (size_t i = data0.size(); i < kChunkDataSize; ++i) {
     EXPECT_EQ(0, buf0[i]) << "Byte at " << i << " should be 0";
   }
 
   // Verify read of chunk 1.
   std::vector<uint8_t> buf1(data1.size());
-  EXPECT_TRUE(encrypted_file->Read(4096, base::span(buf1)).has_value());
+  EXPECT_TRUE(
+      encrypted_file->Read(kChunkDataSize, base::span(buf1)).has_value());
   EXPECT_EQ(data1, std::string(buf1.begin(), buf1.end()));
 }
 
@@ -244,7 +286,7 @@ TEST_F(EncryptedCacheFileTest, DeepCorruptionTest) {
   // Write some data to file.
   std::string data = "Integrity data check!";
   {
-    auto encrypted_file = CreateEncryptedFile(key_);
+    auto encrypted_file = CreateEncryptedFile();
     EXPECT_TRUE(encrypted_file->Write(0, base::as_byte_span(data)).has_value());
   }
 
@@ -260,11 +302,14 @@ TEST_F(EncryptedCacheFileTest, DeepCorruptionTest) {
   }
 
   {
+    base::HistogramTester histogram_tester;
     // Read should fail.
-    auto encrypted_file = OpenEncryptedFile(key_);
+    auto encrypted_file = OpenEncryptedFile();
     std::vector<uint8_t> buf(data.size());
     auto res = encrypted_file->Read(0, base::span(buf));
     EXPECT_FALSE(res.has_value());
+    histogram_tester.ExpectBucketCount("Enterprise.EncryptedCache.Open.Result",
+                                       EncryptionError::kInvalidHeader, 1);
   }
 
   // Restore file for next check.
@@ -272,7 +317,7 @@ TEST_F(EncryptedCacheFileTest, DeepCorruptionTest) {
     base::DeleteFile(GetTestFilePath());
   }
   {
-    auto encrypted_file = CreateEncryptedFile(key_);
+    auto encrypted_file = CreateEncryptedFile();
     EXPECT_TRUE(encrypted_file->Write(0, base::as_byte_span(data)).has_value());
   }
 
@@ -290,15 +335,21 @@ TEST_F(EncryptedCacheFileTest, DeepCorruptionTest) {
 
   // Read should fail.
   {
-    auto encrypted_file = OpenEncryptedFile(key_);
+    base::HistogramTester histogram_tester;
+    auto encrypted_file = OpenEncryptedFile();
     std::vector<uint8_t> buf(data.size());
     auto res = encrypted_file->Read(0, base::span(buf));
     EXPECT_FALSE(res.has_value());
+
+    histogram_tester.ExpectBucketCount("Enterprise.EncryptedCache.Open.Result",
+                                       EncryptionError::kSuccess, 1);
+    histogram_tester.ExpectBucketCount("Enterprise.EncryptedCache.Read.Result",
+                                       EncryptionError::kDecryptionFailed, 1);
   }
 }
 
 TEST_F(EncryptedCacheFileTest, Truncate) {
-  auto encrypted_file = CreateEncryptedFile(key_);
+  auto encrypted_file = CreateEncryptedFile();
   std::string data = "HelloForTruncation";
   EXPECT_TRUE(encrypted_file->Write(0, base::as_byte_span(data)).has_value());
   EXPECT_EQ(static_cast<int64_t>(data.size()), encrypted_file->GetLength());
@@ -320,8 +371,66 @@ TEST_F(EncryptedCacheFileTest, Truncate) {
   EXPECT_EQ("Hello", std::string(buffer.begin(), buffer.end()));
 }
 
+TEST_F(EncryptedCacheFileTest, OpenSmallFile) {
+  // Create a file smaller than header size.
+  std::vector<uint8_t> small_data(kHeaderSize - 1, 0xCC);
+  {
+    base::File file(GetTestFilePath(),
+                    base::File::FLAG_CREATE_ALWAYS | base::File::FLAG_WRITE);
+    file.Write(0, base::as_byte_span(small_data));
+  }
+
+  {
+    base::HistogramTester histogram_tester;
+    auto encrypted_file = OpenEncryptedFile();
+    std::vector<uint8_t> buf(10);
+    // Read should fail during initialization.
+    auto res = encrypted_file->Read(0, base::span(buf));
+    EXPECT_FALSE(res.has_value());
+
+    histogram_tester.ExpectBucketCount("Enterprise.EncryptedCache.Open.Result",
+                                       EncryptionError::kInvalidHeader, 1);
+  }
+}
+
+TEST_F(EncryptedCacheFileTest, TruncateLargeFile) {
+  auto encrypted_file = CreateEncryptedFile();
+  // Write 3 chunks of data.
+  size_t chunk_size = kChunkDataSize;
+  size_t data_size = 3 * chunk_size;
+  std::vector<uint8_t> data(data_size);
+  base::RandBytes(data);
+  EXPECT_TRUE(encrypted_file->Write(0, base::span(data)).has_value());
+  EXPECT_EQ(static_cast<int64_t>(data_size), encrypted_file->GetLength());
+
+  // Truncate to 1.5 chunks.
+  size_t new_len = static_cast<size_t>(1.5 * chunk_size);
+  EXPECT_TRUE(encrypted_file->SetLength(new_len));
+  EXPECT_EQ(static_cast<int64_t>(new_len), encrypted_file->GetLength());
+
+  // Verify can read remaining data
+  std::vector<uint8_t> buffer(new_len);
+  auto read_res = encrypted_file->Read(0, base::span(buffer));
+  ASSERT_TRUE(read_res.has_value());
+
+  // Verify content matches original data prefix
+  EXPECT_EQ(base::span(data).first(new_len), base::span(buffer));
+
+  // Verify we can extend it back and it's zero padded.
+  EXPECT_TRUE(encrypted_file->SetLength(data_size));
+  std::vector<uint8_t> padded_buffer(data_size);
+  read_res = encrypted_file->Read(0, base::span(padded_buffer));
+  ASSERT_TRUE(read_res.has_value());
+
+  // Check prefix and padding.
+  EXPECT_EQ(base::span(data).first(new_len),
+            base::span(padded_buffer).first(new_len));
+  auto padding = base::span(padded_buffer).subspan(new_len);
+  EXPECT_THAT(padding, testing::Each(0));
+}
+
 TEST_F(EncryptedCacheFileTest, SetLengthExtension) {
-  auto encrypted_file = CreateEncryptedFile(key_);
+  auto encrypted_file = CreateEncryptedFile();
   std::string data = "Hello, Extension Test!";
   EXPECT_TRUE(encrypted_file->Write(0, base::as_byte_span(data)).has_value());
 
@@ -350,7 +459,7 @@ TEST_F(EncryptedCacheFileTest, SetLengthExtension) {
   EXPECT_EQ(new_len, info.size);
 
   // Close and re-open to ensure everything is flushed/persistent.
-  encrypted_file = OpenEncryptedFile(key_);
+  encrypted_file = OpenEncryptedFile();
   EXPECT_EQ(new_len, encrypted_file->GetLength());
 
   // Verify original data is still there.
@@ -384,7 +493,7 @@ TEST_F(EncryptedCacheFileTest, SetLengthExtension) {
 }
 
 TEST_F(EncryptedCacheFileTest, SparseWrites) {
-  auto encrypted_file = CreateEncryptedFile(key_);
+  auto encrypted_file = CreateEncryptedFile();
 
   // Write at offset `kChunkDataSize` (Skip chunk 0 completely)
   std::string data = "Chunk1Data";

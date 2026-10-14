@@ -17,6 +17,8 @@
 #include "base/i18n/rtl.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/trace_event/trace_event.h"
+#include "base/trace_event/typed_macros.h"
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/app/vector_icons/vector_icons.h"
@@ -188,6 +190,7 @@
 #include "ui/views/controls/focus_ring.h"
 #include "ui/views/controls/highlight_path_generator.h"
 #include "ui/views/controls/label.h"
+#include "ui/views/interaction/element_tracker_views.h"
 #include "ui/views/property_effects.h"
 #include "ui/views/style/typography.h"
 #include "ui/views/style/typography_provider.h"
@@ -302,12 +305,13 @@ void LocationBarView::Init() {
 
     permission_dashboard_controller_ =
         std::make_unique<PermissionDashboardController>(
-            this, permission_dashboard_view_);
+            this, this, permission_dashboard_view_);
   } else {
     chip_controller_ = std::make_unique<ChipController>(
-        this, AddChildViewAt(std::make_unique<PermissionChipView>(
-                                 PermissionChipView::PressedCallback()),
-                             0));
+        this, this,
+        AddChildViewAt(std::make_unique<PermissionChipView>(
+                           PermissionChipView::PressedCallback()),
+                       0));
   }
 
   const auto& typography_provider = views::TypographyProvider::Get();
@@ -495,10 +499,6 @@ void LocationBarView::Init() {
     // first so that they appear on the left side of the icon container.
     // TODO(crbug.com/40835681): Improve the ordering heuristics for page action
     // icons and determine a way to handle simultaneous icon animations.
-    if (base::FeatureList::IsEnabled(commerce::kProductSpecifications)) {
-      params.types_enabled.push_back(
-          PageActionIconType::kProductSpecifications);
-    }
     params.types_enabled.push_back(PageActionIconType::kDiscounts);
     params.types_enabled.push_back(PageActionIconType::kPriceInsights);
     params.types_enabled.push_back(PageActionIconType::kPriceTracking);
@@ -1153,6 +1153,7 @@ bool LocationBarView::HasSecurityStateChanged() {
 }
 
 void LocationBarView::Update(WebContents* contents) {
+  TRACE_EVENT("omnibox", "LocationBarView::Update");
   if (contents) {
     page_action_icon_controller_->UpdateWebContents(contents);
   }
@@ -1228,8 +1229,28 @@ LocationBarView::GetChipAnchor() {
   return std::nullopt;
 }
 
+ui::TrackedElement* LocationBarView::GetAnchorOrNull() {
+  return views::ElementTrackerViews::GetInstance()->GetElementForView(this);
+}
+
+Browser* LocationBarView::GetBrowser() {
+  return browser();
+}
+
 bool LocationBarView::IsVisible() const {
   return GetVisible();
+}
+
+bool LocationBarView::IsDrawn() const {
+  return View::IsDrawn();
+}
+
+bool LocationBarView::IsTopLevelFullscreen() const {
+  return GetWidget()->GetTopLevelWidget()->IsFullscreen();
+}
+
+void LocationBarView::InvalidateLayout() {
+  View::InvalidateLayout();
 }
 
 gfx::Rect LocationBarView::Bounds() const {
@@ -1555,6 +1576,7 @@ void LocationBarView::RefreshBackground() {
 }
 
 bool LocationBarView::RefreshContentSettingViews() {
+  TRACE_EVENT("omnibox", "LocationBarView::RefreshContentSettingViews");
   if (web_app::AppBrowserController::IsWebApp(browser_)) {
     // For web apps, the location bar is normally hidden and icons appear in
     // the window frame instead.
@@ -1574,7 +1596,7 @@ bool LocationBarView::RefreshContentSettingViews() {
         base::FeatureList::IsEnabled(
             content_settings::features::kLeftHandSideActivityIndicators)) {
       visibility_changed |= permission_dashboard_controller()->Update(
-          v->content_setting_image_model(), v->delegate());
+          v->content_setting_image_model());
     } else {
       v->Update();
       if (was_visible != v->GetVisible()) {
@@ -1616,6 +1638,10 @@ void LocationBarView::RefreshAiModePageActionIconView() {
 
 void LocationBarView::RefreshPageActionContainerViewAndIconsVisibility(
     bool should_hide_page_actions) {
+  TRACE_EVENT(
+      "omnibox",
+      "LocationBarView::RefreshPageActionContainerViewAndIconsVisibility",
+      "should_hide_page_actions", should_hide_page_actions);
   page_actions::PageActionController* page_action_controller =
       GetPageActionController();
   page_action_container_->SetController(page_action_controller);
@@ -1942,6 +1968,7 @@ void LocationBarView::OnChildViewRemoved(View* observed_view, View* child) {
 }
 
 void LocationBarView::OnChanged() {
+  TRACE_EVENT("omnibox", "LocationBarView::OnChanged");
   // Ensure that background colors get updated on tab-switch.
   RefreshBackground();
   location_icon_view_->Update(

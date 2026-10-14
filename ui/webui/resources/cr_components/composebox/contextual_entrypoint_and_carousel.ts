@@ -4,6 +4,7 @@
 
 import './composebox_tool_chip.js';
 import './context_menu_entrypoint.js';
+import './contextual_entrypoint_button.js';
 import './composebox_lens_search.js';
 import './file_carousel.js';
 import './file_thumbnail.js';
@@ -15,36 +16,32 @@ import {ComposeboxContextAddedMethod} from '//resources/cr_components/search/con
 import type {CrIconButtonElement} from '//resources/cr_elements/cr_icon_button/cr_icon_button.js';
 import {I18nMixinLit} from '//resources/cr_elements/i18n_mixin_lit.js';
 import {assert} from '//resources/js/assert.js';
+import {EventTracker} from '//resources/js/event_tracker.js';
 import {loadTimeData} from '//resources/js/load_time_data.js';
 import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import type {FileAttachment, SearchContext, TabAttachment, TabInfo} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import {ToolMode} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
+import type {InputState} from '//resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
 import type {UnguessableToken} from '//resources/mojo/mojo/public/mojom/base/unguessable_token.mojom-webui.js';
 import type {Url} from '//resources/mojo/url/mojom/url.mojom-webui.js';
 
 import type {ComposeboxFile, ContextualUpload} from './common.js';
-import {recordContextAdditionMethod, TabUploadOrigin} from './common.js';
-import {FileUploadErrorType, FileUploadStatus} from './composebox_query.mojom-webui.js';
+import {recordBoolean, recordContextAdditionMethod, recordEnumerationValue, recordUserAction, TabUploadOrigin} from './common.js';
+import {FileUploadErrorType, FileUploadStatus, InputType, ToolMode as ComposeboxToolMode} from './composebox_query.mojom-webui.js';
 import {type ContextMenuEntrypointElement, GlifAnimationState} from './context_menu_entrypoint.js';
 import {getCss} from './contextual_entrypoint_and_carousel.css.js';
 import {getHtml} from './contextual_entrypoint_and_carousel.html.js';
+import type {ContextualEntrypointButtonElement} from './contextual_entrypoint_button.js';
 import type {ComposeboxFileCarouselElement} from './file_carousel.js';
 import type {RecentTabChipElement} from './recent_tab_chip.js';
-
-// LINT.IfChange(ComposeboxMode)
-export enum ComposeboxMode {
-  DEFAULT = '',
-  DEEP_SEARCH = 'deep-search',
-  CREATE_IMAGE = 'create-image',
-}
-// LINT.ThenChange(chromium/components/omnibox/browser/searchbox.mojom:ComposeboxMode)
 
 export interface ContextualEntrypointAndCarouselElement {
   $: {
     fileInput: HTMLInputElement,
     fileUploadButton: CrIconButtonElement,
-    contextEntrypoint: ContextMenuEntrypointElement,
+    contextEntrypoint: ContextMenuEntrypointElement|
+    ContextualEntrypointButtonElement,
     carousel: ComposeboxFileCarouselElement,
     imageInput: HTMLInputElement,
     imageUploadButton: CrIconButtonElement,
@@ -112,31 +109,34 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
       showLensSearchChip: {reflect: true, type: Boolean},
       searchboxLayoutMode: {type: String},
       tabSuggestions: {type: Array},
+      showMenuOnClick: {type: Boolean},
       entrypointName: {type: String},
       showVoiceSearch: {
         reflect: true,
         type: Boolean,
       },
+      inputState: {type: Object},
       contextMenuGlifAnimationState: {type: String, reflect: true},
       // Determines if the entrypoint button should be hidden. This applies
       // specifically to Omnibox Searchbox in compact mode, as opposed to the
       // AIM composebox where the entrypoint is always visible.
       hideEntrypointButton: {type: Boolean},
       inComposebox: {type: Boolean},
+      showModelPicker: {type: Boolean},
+      fileUploadsComplete: {
+        type: Boolean,
+        reflect: true,
+      },
 
       // =========================================================================
       // Protected properties
       // =========================================================================
-      attachmentFileTypes_: {type: String},
+      attachmentFileTypes_: {type: Array},
       contextMenuEnabled_: {type: Boolean},
       files_: {type: Object},
       pendingFiles_: {type: Object},
       addedTabsIds_: {type: Object},
-      imageFileTypes_: {type: String},
-      inputsDisabled_: {
-        reflect: true,
-        type: Boolean,
-      },
+      imageFileTypes_: {type: Array},
       composeboxShowPdfUpload_: {
         reflect: true,
         type: Boolean,
@@ -147,14 +147,7 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
         type: Boolean,
       },
       showRecentTabChip: {type: Boolean},
-      inDeepSearchMode_: {
-        reflect: true,
-        type: Boolean,
-      },
-      inCreateImageMode_: {
-        reflect: true,
-        type: Boolean,
-      },
+      activeTool_: {type: Number},
       recentTabForChip_: {type: Object},
       carouselOnTop_: {type: Boolean},
       submitButtonShown: {type: Boolean},
@@ -162,33 +155,41 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
         type: Boolean,
         reflect: true,
       },
+      uploadButtonDisabled_: {
+        type: Boolean,
+        reflect: true,
+      },
     };
   }
 
+  accessor fileUploadsComplete: boolean = true;
   accessor showDropdown: boolean = false;
   accessor showLensSearchChip: boolean = false;
   accessor searchboxLayoutMode: string = '';
+  accessor showMenuOnClick: boolean = true;
   accessor entrypointName: string = '';
   accessor tabSuggestions: TabInfo[] = [];
   accessor carouselOnTop_: boolean = false;
   accessor showVoiceSearch: boolean = false;
   accessor showRecentTabChip: boolean = false;
+  accessor inputState: InputState|null = null;
   accessor contextMenuGlifAnimationState: GlifAnimationState =
       GlifAnimationState.INELIGIBLE;
   accessor inComposebox: boolean = false;
+  accessor showModelPicker: boolean = false;
   accessor isOmniboxInCompactMode_: boolean = false;
 
-  protected accessor attachmentFileTypes_: string =
-      loadTimeData.getString('composeboxAttachmentFileTypes');
+  protected accessor attachmentFileTypes_: string[] =
+      loadTimeData.getString('composeboxAttachmentFileTypes').split(',');
   protected accessor contextMenuEnabled_: boolean =
       loadTimeData.getBoolean('composeboxShowContextMenu');
   protected accessor files_: Map<UnguessableToken, ComposeboxFile> = new Map();
   protected accessor addedTabsIds_: Map<number, UnguessableToken> = new Map();
   protected accessor pendingFiles_: Map<UnguessableToken, FileUploadStatus> =
       new Map();
-  protected accessor imageFileTypes_: string =
-      loadTimeData.getString('composeboxImageFileTypes');
-  protected accessor inputsDisabled_: boolean = false;
+  protected accessor imageFileTypes_: string[] =
+      loadTimeData.getString('composeboxImageFileTypes').split(',');
+  protected accessor uploadButtonDisabled_: boolean = false;
   protected accessor composeboxShowPdfUpload_: boolean =
       loadTimeData.getBoolean('composeboxShowPdfUpload');
   protected contextMenuDescriptionEnabled_: boolean =
@@ -196,11 +197,30 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
   protected accessor showContextMenuDescription_: boolean =
       this.contextMenuDescriptionEnabled_;
   protected accessor showFileCarousel_: boolean = false;
-  protected accessor inDeepSearchMode_: boolean = false;
-  protected accessor inCreateImageMode_: boolean = false;
+  protected accessor activeTool_: ComposeboxToolMode =
+      ComposeboxToolMode.kUnspecified;
   protected accessor recentTabForChip_: TabInfo|null = null;
   protected accessor submitButtonShown: boolean = false;
   protected accessor hideEntrypointButton: boolean = false;
+
+  computeUploadButtonDisabled(): boolean {
+    // If only 1 image is uploaded and the create image tool is enabled, we
+    // don't want to disable the context menu entrypoint because the user
+    // should still be able to use the tool within the context menu.
+    const isCreateImageToolAvailableWithImages = this.createImageModeEnabled_ &&
+        this.hasImageFiles() && this.files_.size === 1;
+    // Only return true if:
+    //   1. The max number of files is reached, and the create image tool button
+    //      is not available.
+    //   2. The user has an image uploaded and is in create image mode.
+    //   3. The user is in deep search mode.
+    return (this.activeTool_ === ComposeboxToolMode.kDeepSearch) ||
+        (this.files_.size >= this.maxFileCount_ &&
+         !isCreateImageToolAvailableWithImages) ||
+        (this.hasImageFiles() &&
+         this.activeTool_ === ComposeboxToolMode.kImageGen) ||
+        !this.fileUploadsComplete;
+  }
 
   hasAutomaticActiveTabChipToken(): boolean {
     return this.automaticActiveTabChipToken_ !== null;
@@ -222,7 +242,7 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
   }
 
   protected get inToolMode_(): boolean {
-    return this.inDeepSearchMode_ || this.inCreateImageMode_;
+    return this.activeTool_ !== ComposeboxToolMode.kUnspecified;
   }
 
   private shouldShowContextualSearchChips_(): boolean {
@@ -232,8 +252,12 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
   }
 
   protected get shouldShowRecentTabChip_(): boolean {
+    const isBrowserTabAllowed = !this.showModelPicker ||
+        (!!this.inputState &&
+         this.inputState.allowedInputTypes.includes(InputType.kBrowserTab));
     return this.shouldShowContextualSearchChips_() &&
-        !!this.recentTabForChip_ && this.showRecentTabChip;
+        !!this.recentTabForChip_ && this.showRecentTabChip &&
+        isBrowserTabAllowed;
   }
 
   protected get shouldShowLensSearchChip_(): boolean {
@@ -257,7 +281,7 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
 
   protected get toolChipsVisible_(): boolean {
     return this.shouldShowRecentTabChip_ || this.shouldShowLensSearchChip_ ||
-        this.inDeepSearchMode_ || this.inCreateImageMode_;
+        this.inToolMode_;
   }
 
   protected get shouldShowToolChipsForCompactMode_(): boolean {
@@ -271,7 +295,8 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
   protected get shouldShowDivider_(): boolean {
     // TODO(b/476175193): Remove `entrypointName` condition.
     if (this.entrypointName === 'Omnibox' &&
-        this.searchboxLayoutMode === 'TallBottomContext') {
+        this.searchboxLayoutMode === 'TallBottomContext' &&
+        !this.showFileCarousel_) {
       return false;
     }
 
@@ -291,6 +316,14 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
         this.hideEntrypointButton;
   }
 
+  protected shouldShowDescription_(): boolean {
+    return this.showContextMenuDescription_ && !this.shouldShowRecentTabChip_ &&
+        !this.shouldShowLensSearchChip_;
+  }
+
+  // TODO(b/481755889): Move property declarations above methods and remove
+  // getters.
+  private eventTracker_: EventTracker = new EventTracker();
   private maxFileCount_: number =
       loadTimeData.getInteger('composeboxFileMaxCount');
   private maxFileSize_: number =
@@ -301,27 +334,33 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
       loadTimeData.getString('composeboxSource');
   private automaticActiveTabChipToken_: UnguessableToken|null = null;
 
+  override connectedCallback() {
+    super.connectedCallback();
+    this.eventTracker_.add(
+        window.matchMedia('(width <= 264px)'), 'change',
+        (e: MediaQueryListEvent) => {
+          this.showContextMenuDescription_ = !e.matches;
+        });
+  }
+
+  override disconnectedCallback() {
+    super.disconnectedCallback();
+    this.eventTracker_.removeAll();
+  }
+
   override willUpdate(changedProperties: PropertyValues<this>) {
     super.willUpdate(changedProperties);
 
     const changedPrivateProperties =
         changedProperties as Map<PropertyKey, unknown>;
+    if (changedPrivateProperties.has('fileUploadsComplete')) {
+      this.uploadButtonDisabled_ = this.computeUploadButtonDisabled();
+    }
     if (changedPrivateProperties.has('files_') ||
-        changedPrivateProperties.has(`inCreateImageMode_`)) {
-      // If only 1 image is uploaded and the create image tool is enabled, we
-      // don't want to disable the context menu entrypoint because the user
-      // should still be able to use the tool within the context menu.
-      const isCreateImageToolAvailableWithImages =
-          this.createImageModeEnabled_ && this.hasImageFiles() &&
-          this.files_.size === 1;
-      // `inputsDisabled_` decides whether or not the context menu entrypoint is
-      // shown to the user. Only set `inputsDisabled_` to true if
-      // 1. The max number of files is reached, and the create image tool button
-      //    is not available.
-      // 2. The user has an image uploaded and is in create image mode.
-      this.inputsDisabled_ = (this.files_.size >= this.maxFileCount_ &&
-                              !isCreateImageToolAvailableWithImages) ||
-          (this.hasImageFiles() && this.inCreateImageMode_);
+        changedPrivateProperties.has(`activeTool_`)) {
+      // `uploadButtonDisabled_` decides whether or not the context menu
+      // entrypoint is shown to the user.
+      this.uploadButtonDisabled_ = this.computeUploadButtonDisabled();
       this.showFileCarousel_ = this.files_.size > 0;
       this.fire('on-context-files-changed', {files: this.files_.size});
     }
@@ -358,6 +397,12 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
     this.$.contextEntrypoint.blur();
   }
 
+  closeMenu() {
+    if (this.contextMenuEnabled_) {
+      this.$.contextEntrypoint.closeMenu();
+    }
+  }
+
   setContextFiles(files: ContextualUpload[]) {
     for (const file of files) {
       if ('tabId' in file) {
@@ -384,16 +429,9 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
     }
   }
 
-  setInitialMode(mode: ComposeboxMode) {
-    switch (mode) {
-      case ComposeboxMode.DEEP_SEARCH:
-        this.onDeepSearchClick_();
-        break;
-      case ComposeboxMode.CREATE_IMAGE:
-        this.onCreateImageClick_();
-        break;
-      default:
-        break;
+  setInitialMode(mode: ComposeboxToolMode) {
+    if (mode !== ComposeboxToolMode.kUnspecified) {
+      this.handleToolClick_(mode);
     }
   }
 
@@ -407,6 +445,7 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
             FileUploadStatus.kValidationFailed,
             FileUploadStatus.kUploadFailed,
             FileUploadStatus.kUploadExpired,
+            FileUploadStatus.kUploadReplaced,
           ].includes(status)) {
         this.files_.delete(token);
         if (file.tabId) {
@@ -458,19 +497,19 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
   }
 
   resetModes() {
-    if (this.inDeepSearchMode_) {
-      this.inDeepSearchMode_ = false;
-      this.inputsDisabled_ = false;
-      this.fire(
-          'set-deep-search-mode', {inDeepSearchMode: this.inDeepSearchMode_});
+    const previousTool = this.activeTool_;
+    this.activeTool_ = ComposeboxToolMode.kUnspecified;
+    this.uploadButtonDisabled_ = false;
+
+    if (previousTool !== ComposeboxToolMode.kUnspecified) {
       this.showContextMenuDescription_ = this.contextMenuDescriptionEnabled_;
-    } else if (this.inCreateImageMode_) {
-      this.inCreateImageMode_ = false;
-      this.fire('set-create-image-mode', {
-        inCreateImageMode: this.inCreateImageMode_,
-        imagePresent: this.hasImageFiles(),
+    }
+
+    if (previousTool !== ComposeboxToolMode.kUnspecified) {
+      this.fire('set-tool-mode', {
+        tool: previousTool,
+        enabled: false,
       });
-      this.showContextMenuDescription_ = this.contextMenuDescriptionEnabled_;
     }
   }
 
@@ -581,10 +620,13 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
 
     switch (context.toolMode) {
       case ToolMode.kDeepSearch:
-        this.setInitialMode(ComposeboxMode.DEEP_SEARCH);
+        this.setInitialMode(ComposeboxToolMode.kDeepSearch);
         break;
       case ToolMode.kCreateImage:
-        this.setInitialMode(ComposeboxMode.CREATE_IMAGE);
+        this.setInitialMode(ComposeboxToolMode.kImageGen);
+        break;
+      case ToolMode.kCanvas:
+        this.setInitialMode(ComposeboxToolMode.kCanvas);
         break;
       default:
     }
@@ -627,15 +669,10 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
         e.detail.uuid === this.automaticActiveTabChipToken_ &&
         (e.detail.fromUserAction === true);
     if (fromAutoSuggestedChip) {
-      // In rare cases chrome.metricsPrivate is not available. See
-      // crbug.com/40162029.
-      if (chrome.metricsPrivate) {
-        const metricName =
-            'ContextualSearch.UserAction.DeleteAutoSuggestedTab.' +
-            this.composeboxSource_;
-        chrome.metricsPrivate.recordUserAction(metricName);
-        chrome.metricsPrivate.recordBoolean(metricName, true);
-      }
+      const metricName = 'ContextualSearch.UserAction.DeleteAutoSuggestedTab.' +
+          this.composeboxSource_;
+      recordUserAction(metricName);
+      recordBoolean(metricName, true);
       this.automaticActiveTabChipToken_ = null;
     }
 
@@ -683,11 +720,8 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
     });
   }
 
-  private isFileAllowed_(file: File, acceptedFileTypes: string): boolean {
-    // TODO(crbug.com/466876679):refractor isFileAllowed_ to use pre-split
-    // string arrays
+  private isFileAllowed_(file: File, allowedTypes: string[]): boolean {
     const fileType = file.type.toLowerCase();
-    const allowedTypes = acceptedFileTypes.split(',');
     return allowedTypes.some(type => {
       if (type.endsWith('/*')) {
         const prefix = type.slice(0, -1);
@@ -810,31 +844,44 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
     }
   }
 
-  protected onDeepSearchClick_() {
-    if (this.entrypointName !== 'Realbox') {
-      if (this.contextMenuDescriptionEnabled_) {
-        this.showContextMenuDescription_ = !this.showContextMenuDescription_;
-      }
-      this.inputsDisabled_ = !this.inputsDisabled_;
-      this.inDeepSearchMode_ = !this.inDeepSearchMode_;
-    }
-    this.fire(
-        'set-deep-search-mode', {inDeepSearchMode: this.inDeepSearchMode_});
+  protected onToolClick_(e: CustomEvent<{toolMode: ComposeboxToolMode}>) {
+    this.handleToolClick_(e.detail.toolMode);
   }
 
-  protected onCreateImageClick_() {
+  protected handleDeepSearchClick_() {
+    this.handleToolClick_(ComposeboxToolMode.kDeepSearch);
+  }
+
+  protected handleImageGenClick_() {
+    this.handleToolClick_(ComposeboxToolMode.kImageGen);
+  }
+
+  protected handleCanvasClick_() {
+    this.handleToolClick_(ComposeboxToolMode.kCanvas);
+  }
+
+  protected handleToolClick_(tool: ComposeboxToolMode) {
     if (this.entrypointName !== 'Realbox') {
       if (this.contextMenuDescriptionEnabled_) {
-        this.showContextMenuDescription_ = !this.showContextMenuDescription_;
+        if (this.activeTool_ === tool) {
+          this.showContextMenuDescription_ = true;
+        } else {
+          this.showContextMenuDescription_ =
+              tool === ComposeboxToolMode.kUnspecified;
+        }
       }
-      this.inCreateImageMode_ = !this.inCreateImageMode_;
-      if (this.hasImageFiles()) {
-        this.inputsDisabled_ = !this.inputsDisabled_;
+
+      if (this.activeTool_ === tool) {
+        this.activeTool_ = ComposeboxToolMode.kUnspecified;
+      } else {
+        this.activeTool_ = tool;
       }
     }
-    this.fire('set-create-image-mode', {
-      inCreateImageMode: this.inCreateImageMode_,
-      imagePresent: this.hasImageFiles(),
+
+    const isActive = this.activeTool_ === tool;
+    this.fire('set-tool-mode', {
+      tool: tool,
+      enabled: isActive,
     });
   }
 
@@ -844,11 +891,7 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
 
   private recordFileValidationMetric_(
       enumValue: ComposeboxFileValidationError) {
-    // In rare cases chrome.metricsPrivate is not available.
-    if (!chrome.metricsPrivate) {
-      return;
-    }
-    chrome.metricsPrivate.recordEnumerationValue(
+    recordEnumerationValue(
         'ContextualSearch.File.WebUI.UploadAttemptFailure.' +
             this.composeboxSource_,
         enumValue, ComposeboxFileValidationError.MAX_VALUE + 1);

@@ -13,6 +13,7 @@
 #include "base/containers/span.h"
 #include "base/types/expected.h"
 #include "crypto/aead.h"
+#include "crypto/process_bound_string.h"
 
 namespace network::enterprise_encryption {
 
@@ -49,28 +50,29 @@ inline constexpr size_t kChunkDataSize = 4096u;
 inline constexpr size_t kEncryptedChunkSize = kChunkDataSize + kAuthTagSize;
 
 struct COMPONENT_EXPORT(NETWORK_SERVICE) EncryptionContext {
-  EncryptionContext() = default;
-  ~EncryptionContext() = default;
   EncryptionContext(const EncryptionContext&) = delete;
   EncryptionContext& operator=(const EncryptionContext&) = delete;
-  EncryptionContext(EncryptionContext&&) = default;
-  EncryptionContext& operator=(EncryptionContext&&) = default;
+  EncryptionContext(EncryptionContext&&);
+  EncryptionContext& operator=(EncryptionContext&&);
+  ~EncryptionContext();
   EncryptionContext(base::span<const uint8_t, kKeySize> key,
                     base::span<const uint8_t, kNoncePrefixSize> nonce_prefix);
 
-  std::array<uint8_t, kKeySize> derived_key;
+  crypto::ProcessBoundString derived_key;
   std::array<uint8_t, kNoncePrefixSize> nonce_prefix;
 };
 
 // Error types for encryption/decryption operations. Don't remove or reorder
 // existing values.
-// TODO(crbug.com/460509865): Persist values to UMA.
+// LINT.IfChange(EnterpriseDiskCacheError)
 enum class EncryptionError {
-  kInvalidKey = 0,        // Key is invalid/empty.
-  kInvalidHeader = 1,     // Header is malformed or size mismatch.
-  kDecryptionFailed = 2,  // AEAD Open failed (tag mismatch) or data too short.
+  kSuccess = 0,
+  kInvalidKey = 1,        // Key is invalid/empty.
+  kInvalidHeader = 2,     // Header is malformed or size mismatch.
+  kDecryptionFailed = 3,  // AEAD Open failed (tag mismatch) or data too short.
   kMaxValue = kDecryptionFailed,
 };
+// LINT.ThenChange(//tools/metrics/histograms/metadata/enterprise/enums.xml:EnterpriseDiskCacheError)
 
 // Creates a new header (containing random salt/nonce prefix) and derives the
 // key. Returns the header bytes and the derived encryption context on success.
@@ -113,7 +115,6 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) ChunkedEncryptor {
                                               bool is_last_chunk) const;
 
  private:
-  std::array<uint8_t, kKeySize> derived_key_;
   std::array<uint8_t, kNoncePrefixSize> nonce_prefix_;
   crypto::Aead aead_;
 };

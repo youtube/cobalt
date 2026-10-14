@@ -41,14 +41,20 @@ export class ProductViewerAppElement extends CrLitElement {
       CommerceInternalsApiProxy.getInstance();
 
   protected async loadProduct_() {
-    const productInfo = (await this.commerceInternalsApi_.getProductInfoForUrl({
-                          url: this.$.productUrl.value,
-                        })).info;
+    const productInfo = (await this.commerceInternalsApi_.getProductInfoForUrl(
+                             this.$.productUrl.value))
+                            .info;
     if (!productInfo) {
       return;
     }
 
     this.product_ = productInfo;
+  }
+}
+
+declare global {
+  interface HTMLElementTagNameMap {
+    'product-viewer-app': ProductViewerAppElement;
   }
 }
 

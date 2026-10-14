@@ -627,11 +627,11 @@ std::vector<base::Value> SearchAggregatorProvider::CreateMockSearchEngines()
   return engines;
 }
 
-base::Value::Dict SearchAggregatorProvider::CreateMockSearchAggregator(
+base::DictValue SearchAggregatorProvider::CreateMockSearchAggregator(
     bool featured_by_policy) const {
   CHECK(AreMockEnginesValid());
 
-  base::Value::Dict result;
+  base::DictValue result;
   result.Set("short_name", name);
   result.Set("keyword", featured_by_policy ? '@' + shortcut : shortcut);
   result.Set("url", search_url);
@@ -798,15 +798,15 @@ BASE_FEATURE(ComposeboxSuggestionLimit::kComposeboxSuggestionLimit,
 ComposeboxSuggestionLimit::ComposeboxSuggestionLimit() {
   enabled = base::FeatureList::IsEnabled(kComposeboxSuggestionLimit);
   max_suggestions = base::FeatureParam<size_t>(&kComposeboxSuggestionLimit,
-                                               "ComposeboxMaxSuggestions", 5)
+                                               "ComposeboxMaxSuggestions", 8)
                         .Get();
   max_aim_suggestions =
       base::FeatureParam<size_t>(&kComposeboxSuggestionLimit,
-                                 "ComposeboxMaxAimSuggestions", 5)
+                                 "ComposeboxMaxAimSuggestions", 8)
           .Get();
   max_contextual_suggestions =
       base::FeatureParam<size_t>(&kComposeboxSuggestionLimit,
-                                 "ComposeboxMaxContextualSuggestions", 5)
+                                 "ComposeboxMaxContextualSuggestions", 8)
           .Get();
 }
 

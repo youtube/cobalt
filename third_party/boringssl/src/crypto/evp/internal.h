@@ -22,7 +22,11 @@
 #include <openssl/span.h>
 
 #include "../internal.h"
+#include "../mem_internal.h"
 
+
+DECLARE_OPAQUE_STRUCT(evp_pkey_st, EvpPkey)
+DECLARE_OPAQUE_STRUCT(evp_pkey_ctx_st, EvpPkeyCtx)
 
 BSSL_NAMESPACE_BEGIN
 
@@ -65,14 +69,18 @@ struct evp_pkey_asn1_method_st {
   // byte checked and removed. Although X.509 uses BIT STRINGs to represent
   // SubjectPublicKeyInfo, every key type defined encodes the key as a byte
   // string with the same conversion to BIT STRING.
-  evp_decode_result_t (*pub_decode)(const EVP_PKEY_ALG *alg, EVP_PKEY *out,
+  evp_decode_result_t (*pub_decode)(const EVP_PKEY_ALG *alg, EvpPkey *out,
                                     CBS *params, CBS *key);
 
   // pub_encode encodes |key| as a SubjectPublicKeyInfo and appends the result
   // to |out|. It returns one on success and zero on error.
-  int (*pub_encode)(CBB *out, const EVP_PKEY *key);
+  int (*pub_encode)(CBB *out, const EvpPkey *key);
 
-  bool (*pub_equal)(const EVP_PKEY *a, const EVP_PKEY *b);
+  bool (*pub_equal)(const EvpPkey *a, const EvpPkey *b);
+
+  // pub_present returns true iff the |pk| has a public key. (If so, validity
+  // is not guaranteed and should be checked separately.)
+  bool (*pub_present)(const EvpPkey *pk);
 
   // priv_decode decodes |params| and |key| as a PrivateKeyInfo and writes the
   // result into |out|.  It returns |evp_decode_ok| on success, and
@@ -83,19 +91,23 @@ struct evp_pkey_asn1_method_st {
   //
   // |params| is the AlgorithmIdentifier after the OBJECT IDENTIFIER type field,
   // and |key| is the contents of the OCTET STRING privateKey field.
-  evp_decode_result_t (*priv_decode)(const EVP_PKEY_ALG *alg, EVP_PKEY *out,
+  evp_decode_result_t (*priv_decode)(const EVP_PKEY_ALG *alg, EvpPkey *out,
                                      CBS *params, CBS *key);
 
   // priv_encode encodes |key| as a PrivateKeyInfo and appends the result to
   // |out|. It returns one on success and zero on error.
-  int (*priv_encode)(CBB *out, const EVP_PKEY *key);
+  int (*priv_encode)(CBB *out, const EvpPkey *key);
 
-  int (*set_priv_raw)(EVP_PKEY *pkey, const uint8_t *in, size_t len);
-  int (*set_priv_seed)(EVP_PKEY *pkey, const uint8_t *in, size_t len);
-  int (*set_pub_raw)(EVP_PKEY *pkey, const uint8_t *in, size_t len);
-  int (*get_priv_raw)(const EVP_PKEY *pkey, uint8_t *out, size_t *out_len);
-  int (*get_priv_seed)(const EVP_PKEY *pkey, uint8_t *out, size_t *out_len);
-  int (*get_pub_raw)(const EVP_PKEY *pkey, uint8_t *out, size_t *out_len);
+  // priv_present returns true iff the |pk| has a private key. (If so, validity
+  // is not guaranteed and should be checked separately.)
+  bool (*priv_present)(const EvpPkey *pk);
+
+  int (*set_priv_raw)(EvpPkey *pkey, const uint8_t *in, size_t len);
+  int (*set_priv_seed)(EvpPkey *pkey, const uint8_t *in, size_t len);
+  int (*set_pub_raw)(EvpPkey *pkey, const uint8_t *in, size_t len);
+  int (*get_priv_raw)(const EvpPkey *pkey, uint8_t *out, size_t *out_len);
+  int (*get_priv_seed)(const EvpPkey *pkey, uint8_t *out, size_t *out_len);
+  int (*get_pub_raw)(const EvpPkey *pkey, uint8_t *out, size_t *out_len);
 
   // TODO(davidben): Can these be merged with the functions above? OpenSSL does
   // not implement |EVP_PKEY_get_raw_public_key|, etc., for |EVP_PKEY_EC|, but
@@ -105,27 +117,28 @@ struct evp_pkey_asn1_method_st {
   //
   // One nuisance is the notion of "raw" is slightly ambiguous for EC keys. Is
   // it a DER ECPrivateKey or just the scalar?
-  int (*set1_tls_encodedpoint)(EVP_PKEY *pkey, const uint8_t *in, size_t len);
-  size_t (*get1_tls_encodedpoint)(const EVP_PKEY *pkey, uint8_t **out_ptr);
+  int (*set1_tls_encodedpoint)(EvpPkey *pkey, const uint8_t *in, size_t len);
+  size_t (*get1_tls_encodedpoint)(const EvpPkey *pkey, uint8_t **out_ptr);
 
   // pkey_opaque returns 1 if the |pk| is opaque. Opaque keys are backed by
   // custom implementations which do not expose key material and parameters.
-  int (*pkey_opaque)(const EVP_PKEY *pk);
+  int (*pkey_opaque)(const EvpPkey *pk);
 
-  int (*pkey_size)(const EVP_PKEY *pk);
-  int (*pkey_bits)(const EVP_PKEY *pk);
+  int (*pkey_size)(const EvpPkey *pk);
+  int (*pkey_bits)(const EvpPkey *pk);
 
-  int (*param_missing)(const EVP_PKEY *pk);
-  int (*param_copy)(EVP_PKEY *to, const EVP_PKEY *from);
-  bool (*param_equal)(const EVP_PKEY *a, const EVP_PKEY *b);
+  int (*param_missing)(const EvpPkey *pk);
+  int (*param_copy)(EvpPkey *to, const EvpPkey *from);
+  bool (*param_equal)(const EvpPkey *a, const EvpPkey *b);
 
-  void (*pkey_free)(EVP_PKEY *pkey);
+  void (*pkey_free)(EvpPkey *pkey);
 } /* EVP_PKEY_ASN1_METHOD */;
 
-BSSL_NAMESPACE_END
+class EvpPkey : public evp_pkey_st {
+ public:
+  ~EvpPkey();
 
-struct evp_pkey_st {
-  CRYPTO_refcount_t references;
+  bssl::CRYPTO_refcount_t references;
 
   // pkey contains a pointer to a structure dependent on |ameth|.
   void *pkey;
@@ -135,7 +148,10 @@ struct evp_pkey_st {
   const bssl::EVP_PKEY_ASN1_METHOD *ameth;
 } /* EVP_PKEY */;
 
-BSSL_NAMESPACE_BEGIN
+// |UniquePtr|s to EvpPkey are actually intrusive |shared_ptr|s!
+// TODO(crbug.com/481633975): find a better way for handling this.
+BORINGSSL_MAKE_DELETER(EvpPkey, EVP_PKEY_free)
+BORINGSSL_MAKE_UP_REF(EvpPkey, EVP_PKEY_up_ref)
 
 #define EVP_PKEY_OP_UNDEFINED 0
 #define EVP_PKEY_OP_KEYGEN (1 << 2)
@@ -206,17 +222,18 @@ OPENSSL_EXPORT int EVP_PKEY_CTX_ctrl(EVP_PKEY_CTX *ctx, int keytype, int optype,
 #define EVP_PKEY_CTRL_HKDF_INFO (EVP_PKEY_ALG_CTRL + 18)
 #define EVP_PKEY_CTRL_DH_PAD (EVP_PKEY_ALG_CTRL + 19)
 
-BSSL_NAMESPACE_END
+class EvpPkeyCtx : public evp_pkey_ctx_st {
+ public:
+  static constexpr bool kAllowUniquePtr = true;
 
-struct evp_pkey_ctx_st {
-  ~evp_pkey_ctx_st();
+  ~EvpPkeyCtx();
 
   // Method associated with this operation
   const bssl::EVP_PKEY_CTX_METHOD *pmeth = nullptr;
   // Key: may be nullptr
-  bssl::UniquePtr<EVP_PKEY> pkey;
+  bssl::UniquePtr<EvpPkey> pkey;
   // Peer key for key agreement, may be nullptr
-  bssl::UniquePtr<EVP_PKEY> peerkey;
+  bssl::UniquePtr<EvpPkey> peerkey;
   // operation contains one of the |EVP_PKEY_OP_*| values.
   int operation = EVP_PKEY_OP_UNDEFINED;
   // Algorithm specific data.
@@ -224,45 +241,43 @@ struct evp_pkey_ctx_st {
   // creation, this should instead be a base class, with the algorithm-specific
   // data on the subclass, coming from the same allocation.
   void *data = nullptr;
-} /* EVP_PKEY_CTX */;
-
-BSSL_NAMESPACE_BEGIN
+};
 
 struct evp_pkey_ctx_method_st {
   int pkey_id;
 
-  int (*init)(EVP_PKEY_CTX *ctx);
-  int (*copy)(EVP_PKEY_CTX *dst, EVP_PKEY_CTX *src);
-  void (*cleanup)(EVP_PKEY_CTX *ctx);
+  int (*init)(EvpPkeyCtx *ctx);
+  int (*copy)(EvpPkeyCtx *dst, EvpPkeyCtx *src);
+  void (*cleanup)(EvpPkeyCtx *ctx);
 
-  int (*keygen)(EVP_PKEY_CTX *ctx, EVP_PKEY *pkey);
+  int (*keygen)(EvpPkeyCtx *ctx, EvpPkey *pkey);
 
-  int (*sign)(EVP_PKEY_CTX *ctx, uint8_t *sig, size_t *siglen,
-              const uint8_t *tbs, size_t tbslen);
+  int (*sign)(EvpPkeyCtx *ctx, uint8_t *sig, size_t *siglen, const uint8_t *tbs,
+              size_t tbslen);
 
-  int (*sign_message)(EVP_PKEY_CTX *ctx, uint8_t *sig, size_t *siglen,
+  int (*sign_message)(EvpPkeyCtx *ctx, uint8_t *sig, size_t *siglen,
                       const uint8_t *tbs, size_t tbslen);
 
-  int (*verify)(EVP_PKEY_CTX *ctx, const uint8_t *sig, size_t siglen,
+  int (*verify)(EvpPkeyCtx *ctx, const uint8_t *sig, size_t siglen,
                 const uint8_t *tbs, size_t tbslen);
 
-  int (*verify_message)(EVP_PKEY_CTX *ctx, const uint8_t *sig, size_t siglen,
+  int (*verify_message)(EvpPkeyCtx *ctx, const uint8_t *sig, size_t siglen,
                         const uint8_t *tbs, size_t tbslen);
 
-  int (*verify_recover)(EVP_PKEY_CTX *ctx, uint8_t *out, size_t *out_len,
+  int (*verify_recover)(EvpPkeyCtx *ctx, uint8_t *out, size_t *out_len,
                         const uint8_t *sig, size_t sig_len);
 
-  int (*encrypt)(EVP_PKEY_CTX *ctx, uint8_t *out, size_t *outlen,
+  int (*encrypt)(EvpPkeyCtx *ctx, uint8_t *out, size_t *outlen,
                  const uint8_t *in, size_t inlen);
 
-  int (*decrypt)(EVP_PKEY_CTX *ctx, uint8_t *out, size_t *outlen,
+  int (*decrypt)(EvpPkeyCtx *ctx, uint8_t *out, size_t *outlen,
                  const uint8_t *in, size_t inlen);
 
-  int (*derive)(EVP_PKEY_CTX *ctx, uint8_t *key, size_t *keylen);
+  int (*derive)(EvpPkeyCtx *ctx, uint8_t *key, size_t *keylen);
 
-  int (*paramgen)(EVP_PKEY_CTX *ctx, EVP_PKEY *pkey);
+  int (*paramgen)(EvpPkeyCtx *ctx, EvpPkey *pkey);
 
-  int (*ctrl)(EVP_PKEY_CTX *ctx, int type, int p1, void *p2);
+  int (*ctrl)(EvpPkeyCtx *ctx, int type, int p1, void *p2);
 } /* EVP_PKEY_CTX_METHOD */;
 
 extern const EVP_PKEY_CTX_METHOD rsa_pkey_meth;
@@ -276,7 +291,7 @@ extern const EVP_PKEY_CTX_METHOD dh_pkey_meth;
 // evp_pkey_set0 sets |pkey|'s method to |method| and data to |pkey_data|,
 // freeing any key that may previously have been configured. This function takes
 // ownership of |pkey_data|, which must be of the type expected by |method|.
-void evp_pkey_set0(EVP_PKEY *pkey, const EVP_PKEY_ASN1_METHOD *method,
+void evp_pkey_set0(EvpPkey *pkey, const EVP_PKEY_ASN1_METHOD *method,
                    void *pkey_data);
 
 inline auto GetDefaultEVPAlgorithms() {
@@ -290,6 +305,9 @@ inline auto GetDefaultEVPAlgorithms() {
       EVP_pkey_ed25519(),
       EVP_pkey_rsa(),
       EVP_pkey_x25519(),
+      EVP_pkey_ml_dsa_44(),
+      EVP_pkey_ml_dsa_65(),
+      EVP_pkey_ml_dsa_87(),
       // TODO(crbug.com/438761503): Remove DSA from this set, after callers that
       // need DSA pass in |EVP_pkey_dsa| explicitly.
       EVP_pkey_dsa(),

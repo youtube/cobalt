@@ -23,7 +23,7 @@
 #include "components/autofill/core/browser/form_structure.h"
 #include "components/autofill/core/browser/foundations/test_autofill_client.h"
 #include "components/autofill/core/browser/proto/server.pb.h"
-#include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
+#include "components/autofill/core/browser/test_utils/entity_data_test_utils.h"
 #include "components/autofill/core/browser/webdata/autofill_ai/entity_table.h"
 #include "components/autofill/core/browser/webdata/autofill_webdata_service_test_helper.h"
 #include "components/autofill/core/common/autofill_features.h"
@@ -155,7 +155,8 @@ class AutofillAiImportUtilsTest : public testing::Test {
             autofill_client().GetSyncService(),
             webdata_helper_.autofill_webdata_service(),
             /*history_service=*/nullptr,
-            /*strike_database=*/nullptr));
+            /*strike_database=*/nullptr,
+            /*variation_country_code=*/GeoIpCountryCode("US")));
     autofill_client().SetUpPrefsAndIdentityForAutofillAi();
     autofill_client().GetSyncService()->GetUserSettings()->SetSelectedType(
         syncer::UserSelectableType::kPayments, true);
@@ -389,9 +390,6 @@ TEST_F(AutofillAiImportUtilsTest, DoNotImportOverloadedFields) {
 // Tests that national id cards are imported unless there the country code
 // belongs to India.
 TEST_F(AutofillAiImportUtilsTest, DoNotImportNationalIdCardInIndia) {
-  base::test::ScopedFeatureList feature_list{
-      features::kAutofillAiNationalIdCard};
-
   std::vector<std::unique_ptr<AutofillField>> fields;
   fields.push_back(
       CreateInput(FormControlType::kInputText, NATIONAL_ID_CARD_NUMBER, "123"));

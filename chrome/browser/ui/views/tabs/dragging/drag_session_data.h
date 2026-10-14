@@ -13,6 +13,7 @@
 #include "chrome/browser/ui/views/tabs/tab_slot_view.h"
 #include "components/tab_groups/tab_group_id.h"
 #include "components/tab_groups/tab_group_visual_data.h"
+#include "ui/gfx/geometry/vector2d_f.h"
 
 namespace content {
 class WebContents;
@@ -22,7 +23,7 @@ class TabSlotView;
 class TabDragContext;
 
 // Stores the data associated with a group header that is being dragged.
-struct GroupDragData final {
+struct GroupHeaderDragData final {
   // The group that is being dragged.
   tab_groups::TabGroupId group;
 
@@ -31,7 +32,8 @@ struct GroupDragData final {
   // should fall back on activating the first tab during/after the drag.
   int active_tab_index_within_group;
 
-  GroupDragData(tab_groups::TabGroupId group, int active_tab_index_within_group)
+  GroupHeaderDragData(tab_groups::TabGroupId group,
+                      int active_tab_index_within_group)
       : group(group),
         active_tab_index_within_group(active_tab_index_within_group) {}
 };
@@ -84,15 +86,23 @@ struct DragSessionData final {
   // Data related to the dragged tab group, if any. This is only set if the
   // drag originated from a group header, indicating that the entire group is
   // being dragged together.
-  std::optional<GroupDragData> group_drag_data_ = std::nullopt;
+  std::optional<GroupHeaderDragData> group_header_drag_data_ = std::nullopt;
+
+  // Groups that are being dragged, including header-only drags (in which case
+  // the size of this will be one) or by selecting all tabs in a group.
+  std::set<tab_groups::TabGroupId> dragging_groups;
 
   // Index of the source view in `tab_drag_data_`. This is the view that the
   // user started dragging.
   size_t source_view_index_ = std::numeric_limits<size_t>::max();
 
-  std::optional<tab_groups::TabGroupId> group() const {
-    return group_drag_data_.has_value()
-               ? std::make_optional(group_drag_data_.value().group)
+  // The offset of the mouse relative to the source dragged view's width and
+  // height.
+  gfx::Vector2dF mouse_offset_to_size_ratios;
+
+  std::optional<tab_groups::TabGroupId> group_header_id() const {
+    return group_header_drag_data_.has_value()
+               ? std::make_optional(group_header_drag_data_.value().group)
                : std::nullopt;
   }
 
@@ -123,7 +133,9 @@ struct DragSessionData final {
   std::vector<TabSlotView*> attached_views() const {
     std::vector<TabSlotView*> attached_views;
     for (const TabDragData& tab_data : tab_drag_data_) {
-      attached_views.push_back(tab_data.attached_view);
+      if (tab_data.attached_view) {
+        attached_views.push_back(tab_data.attached_view);
+      }
     }
     return attached_views;
   }

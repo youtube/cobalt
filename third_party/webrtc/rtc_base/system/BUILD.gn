@@ -58,6 +58,10 @@ rtc_source_set("unused") {
   sources = [ "unused.h" ]
 }
 
+rtc_source_set("plan_b_only") {
+  sources = [ "plan_b_only.h" ]
+}
+
 rtc_source_set("assume") {
   sources = [ "assume.h" ]
 }

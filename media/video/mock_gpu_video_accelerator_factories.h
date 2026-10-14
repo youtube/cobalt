@@ -64,7 +64,7 @@ class MockGpuVideoAcceleratorFactories : public GpuVideoAcceleratorFactories {
   MOCK_METHOD1(SetRenderingColorSpace, void(const gfx::ColorSpace&));
   MOCK_CONST_METHOD0(GetRenderingColorSpace, const gfx::ColorSpace&());
 
-  bool ShouldUseGpuMemoryBuffersForVideoFrames(
+  bool ShouldUseMappableSharedImagesForVideoFrames(
       bool for_media_stream) const override;
   OutputFormat VideoFrameOutputFormat(VideoPixelFormat pixel_format) override {
     return video_frame_output_format_;
@@ -76,16 +76,6 @@ class MockGpuVideoAcceleratorFactories : public GpuVideoAcceleratorFactories {
     video_frame_output_format_ = video_frame_output_format;
   }
 
-  void SetFailToAllocateGpuMemoryBufferForTesting(bool fail) {
-    fail_to_allocate_gpu_memory_buffer_ = fail;
-  }
-
-  void SetFailToMapGpuMemoryBufferForTesting(bool fail) {
-    fail_to_map_gpu_memory_buffer_ = fail;
-  }
-
-  void SetGpuMemoryBuffersInUseByMacOSWindowServer(bool in_use);
-
   // Allocate & return a read-only shared memory region
   base::UnsafeSharedMemoryRegion CreateSharedMemoryRegion(size_t size) override;
 
@@ -95,10 +85,6 @@ class MockGpuVideoAcceleratorFactories : public GpuVideoAcceleratorFactories {
  private:
   base::Lock lock_;
   OutputFormat video_frame_output_format_ = OutputFormat::YV12;
-
-  bool fail_to_allocate_gpu_memory_buffer_ = false;
-
-  bool fail_to_map_gpu_memory_buffer_ = false;
 
   raw_ptr<gpu::SharedImageInterface> sii_;
 };

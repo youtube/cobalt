@@ -369,10 +369,10 @@ bool IsGeminiRefactoredFREEnabled() {
   return base::FeatureList::IsEnabled(kGeminiRefactoredFRE);
 }
 
-BASE_FEATURE(kWebPageReportedImagesSheet, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kGeminiUpdatedEligibility, base::FEATURE_DISABLED_BY_DEFAULT);
 
-bool IsWebPageReportedImagesSheetEnabled() {
-  return base::FeatureList::IsEnabled(kWebPageReportedImagesSheet);
+bool IsGeminiUpdatedEligibilityEnabled() {
+  return base::FeatureList::IsEnabled(kGeminiUpdatedEligibility);
 }
 
 BASE_FEATURE(kGeminiImageRemixTool, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -389,6 +389,26 @@ bool IsGeminiImageRemixToolShowFRERowEnabled() {
   }
   return base::GetFieldTrialParamByFeatureAsBool(
       kGeminiImageRemixTool, kGeminiImageRemixToolShowFRERow, false);
+}
+
+const char kGeminiImageRemixToolShowAboveSearchImage[] = "ShowAboveSearchImage";
+
+bool IsGeminiImageRemixToolShowAboveSearchImageEnabled() {
+  if (!IsGeminiImageRemixToolEnabled()) {
+    return false;
+  }
+  return base::GetFieldTrialParamByFeatureAsBool(
+      kGeminiImageRemixTool, kGeminiImageRemixToolShowAboveSearchImage, true);
+}
+
+const char kGeminiImageRemixToolShowBelowSearchImage[] = "ShowBelowSearchImage";
+
+bool IsGeminiImageRemixToolShowBelowSearchImageEnabled() {
+  if (!IsGeminiImageRemixToolEnabled()) {
+    return false;
+  }
+  return base::GetFieldTrialParamByFeatureAsBool(
+      kGeminiImageRemixTool, kGeminiImageRemixToolShowBelowSearchImage, false);
 }
 
 BASE_FEATURE(kGeminiEligibilityAblation, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -412,6 +432,24 @@ BASE_FEATURE(kGeminiCopresence, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsGeminiCopresenceEnabled() {
   return base::FeatureList::IsEnabled(kGeminiCopresence);
+}
+
+const char kGeminiCopresenceResponseReadyInterval[] =
+    "GeminiCopresenceResponseReadyInterval";
+
+// The response ready interval default.
+constexpr double kGeminiCopresenceResponseReadyIntervalDefault = 7.0;
+
+double GetGeminiCopresenceResponseReadyInterval() {
+  return base::GetFieldTrialParamByFeatureAsDouble(
+      kGeminiCopresence, kGeminiCopresenceResponseReadyInterval,
+      kGeminiCopresenceResponseReadyIntervalDefault);
+}
+BASE_FEATURE(kGeminiResponseViewDynamicResizing,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsGeminiResponseViewDynamicResizingEnabled() {
+  return base::FeatureList::IsEnabled(kGeminiResponseViewDynamicResizing);
 }
 
 BASE_FEATURE(kGeminiDynamicSettings, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -453,4 +491,38 @@ bool IsToolDisabled(optimization_guide::proto::Action::ActionCase tool) {
   }
 
   return false;
+}
+
+BASE_FEATURE(kModelBasedPageClassification, base::FEATURE_DISABLED_BY_DEFAULT);
+
+const char kModelBasedPageClassificationExecutionRateParam[] = "execution_rate";
+
+bool IsModelBasedPageClassificationEnabled() {
+  // Check strict eligibility similar to other AI features.
+  // Launched in en-US. Checks for the country (US) and locale (en-US).
+  variations::VariationsService* variations_service =
+      GetApplicationContext()->GetVariationsService();
+  bool is_launched_country =
+      variations_service &&
+      base::ToLowerASCII(variations_service->GetStoredPermanentCountry()) ==
+          "us";
+
+  ApplicationLocaleStorage* locale_storage =
+      GetApplicationContext()->GetApplicationLocaleStorage();
+  bool is_launched_locale =
+      locale_storage && base::ToLowerASCII(locale_storage->Get()) == "en-us";
+
+  if (!is_launched_country || !is_launched_locale) {
+    return false;
+  }
+
+  return base::FeatureList::IsEnabled(kModelBasedPageClassification);
+}
+
+int GetModelBasedPageClassificationExecutionRate() {
+  // Finch parameter for execution rate, we will want to keep it low so it runs
+  // on a random small percentage of page loads.
+  return base::GetFieldTrialParamByFeatureAsInt(
+      kModelBasedPageClassification,
+      kModelBasedPageClassificationExecutionRateParam, 0);
 }

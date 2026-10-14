@@ -31,6 +31,14 @@
 
 using namespace bssl;
 
+#if defined(BORINGSSL_FIPS)
+
+DEFINE_STATIC_ONCE(g_mldsa_keygen_self_test_once)
+DEFINE_STATIC_ONCE(g_mldsa_sign_self_test_once)
+DEFINE_STATIC_ONCE(g_mldsa_verify_self_test_once)
+
+#endif
+
 namespace mldsa {
 namespace {
 
@@ -2239,8 +2247,6 @@ int check_key(const private_key<K, L> *priv) {
 
 #if defined(BORINGSSL_FIPS)
 
-DEFINE_STATIC_ONCE(g_mldsa_keygen_self_test_once)
-
 void ensure_keygen_self_test() {
   CRYPTO_once(g_mldsa_keygen_self_test_once_bss_get(), []() {
     if (!keygen_self_test()) {
@@ -2249,8 +2255,6 @@ void ensure_keygen_self_test() {
   });
 }
 
-DEFINE_STATIC_ONCE(g_mldsa_sign_self_test_once)
-
 void ensure_sign_self_test() {
   CRYPTO_once(g_mldsa_sign_self_test_once_bss_get(), []() {
     if (!sign_self_test()) {
@@ -2258,8 +2262,6 @@ void ensure_sign_self_test() {
     }
   });
 }
-
-DEFINE_STATIC_ONCE(g_mldsa_verify_self_test_once)
 
 void ensure_verify_self_test() {
   CRYPTO_once(g_mldsa_verify_self_test_once_bss_get(), []() {
@@ -3000,7 +3002,7 @@ int bssl::BCM_mldsa44_public_keys_equal(const MLDSA44_public_key *a,
                         sizeof(a_pub->public_key_hash)) == 0;
 }
 
-int boringssl_self_test_mldsa() {
+int bssl::boringssl_self_test_mldsa() {
   return mldsa::fips::keygen_self_test() && mldsa::fips::sign_self_test() &&
          mldsa::fips::verify_self_test();
 }

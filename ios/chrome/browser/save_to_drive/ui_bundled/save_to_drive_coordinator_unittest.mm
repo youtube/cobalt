@@ -6,6 +6,7 @@
 
 #import "base/apple/foundation_util.h"
 #import "components/signin/public/base/signin_metrics.h"
+#import "components/signin/public/identity_manager/identity_test_utils.h"
 #import "components/test/ios/test_utils.h"
 #import "ios/chrome/browser/account_picker/ui_bundled/account_picker_configuration.h"
 #import "ios/chrome/browser/account_picker/ui_bundled/account_picker_coordinator.h"
@@ -26,10 +27,17 @@
 #import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/shared/public/commands/settings_commands.h"
 #import "ios/chrome/browser/shared/public/commands/show_signin_command.h"
+#import "ios/chrome/browser/signin/model/authentication_service.h"
+#import "ios/chrome/browser/signin/model/authentication_service_delegate.h"
+#import "ios/chrome/browser/signin/model/authentication_service_factory.h"
 #import "ios/chrome/browser/signin/model/chrome_account_manager_service_factory.h"
+#import "ios/chrome/browser/signin/model/fake_authentication_service_delegate.h"
 #import "ios/chrome/browser/signin/model/fake_system_identity.h"
+#import "ios/chrome/browser/signin/model/identity_manager_factory.h"
+#import "ios/chrome/browser/signin/model/identity_test_environment_browser_state_adaptor.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/chrome/test/fakes/fake_ui_view_controller.h"
+#import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
 #import "ios/web/public/test/fakes/fake_download_task.h"
 #import "ios/web/public/test/fakes/fake_web_state.h"
 #import "ios/web/public/test/web_task_environment.h"
@@ -53,7 +61,22 @@ class SaveToDriveCoordinatorTest : public PlatformTest {
   void SetUp() final {
     PlatformTest::SetUp();
     TestProfileIOS::Builder builder;
+    builder.AddTestingFactory(
+        AuthenticationServiceFactory::GetInstance(),
+        AuthenticationServiceFactory::GetFactoryWithDelegate(
+            std::make_unique<FakeAuthenticationServiceDelegate>()));
+    builder.AddTestingFactory(
+        IdentityManagerFactory::GetInstance(),
+        base::BindRepeating(IdentityTestEnvironmentBrowserStateAdaptor::
+                                BuildIdentityManagerForTests));
+    builder.AddTestingFactory(
+        AuthenticationServiceFactory::GetInstance(),
+        AuthenticationServiceFactory::GetFactoryWithDelegate(
+            std::make_unique<FakeAuthenticationServiceDelegate>()));
     profile_ = std::move(builder).Build();
+    signin::MakePrimaryAccountAvailable(
+        IdentityManagerFactory::GetForProfile(profile_.get()), "test@gmail.com",
+        signin::ConsentLevel::kSignin);
     drive_service_ = drive::DriveServiceFactory::GetForProfile(profile_.get());
     account_manager_service_ =
         ChromeAccountManagerServiceFactory::GetForProfile(profile_.get());
@@ -99,7 +122,11 @@ class SaveToDriveCoordinatorTest : public PlatformTest {
                 manageStorageAlertHandler:[OCMArg any]
                      accountPickerHandler:[OCMArg any]
                               prefService:pref_service_
+                    authenticationService:ios::OCM::AnyPointer<
+                                              AuthenticationService>()
                     accountManagerService:account_manager_service_
+                          identityManager:ios::OCM::AnyPointer<
+                                              signin::IdentityManager>()
                              driveService:drive_service_])
         .andReturn(mock_save_to_drive_mediator_);
   }
@@ -131,6 +158,8 @@ class SaveToDriveCoordinatorTest : public PlatformTest {
   std::unique_ptr<TestProfileIOS> profile_;
   std::unique_ptr<TestBrowser> browser_;
   UIViewController* base_view_controller_;
+  // ScopedTestingLocalState needed for the authentication service.
+  IOSChromeScopedTestingLocalState scoped_testing_local_state_;
   std::unique_ptr<web::FakeDownloadTask> download_task_;
   raw_ptr<drive::DriveService> drive_service_;
   raw_ptr<PrefService> pref_service_;
@@ -164,7 +193,11 @@ TEST_F(SaveToDriveCoordinatorTest, StartsAndDisconnectsMediator) {
                 manageStorageAlertHandler:manage_storage_commands
                      accountPickerHandler:account_picker_commands
                               prefService:pref_service_
+                    authenticationService:ios::OCM::AnyPointer<
+                                              AuthenticationService>()
                     accountManagerService:account_manager_service_
+                          identityManager:IdentityManagerFactory::GetForProfile(
+                                              profile_.get())
                              driveService:drive_service_])
       .andReturn(mock_save_to_drive_mediator_);
   [coordinator start];

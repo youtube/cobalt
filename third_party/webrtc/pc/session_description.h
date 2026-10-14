@@ -116,8 +116,23 @@ class MediaContentDescription {
   // This is a transport-wide property, but is signalled in SDP
   // at the m-line level; its mux category is IDENTICAL-PER-PT,
   // and only wildcard is allowed. RFC 8888 section 6.
+  // In an answer, only one of rtcp_fb_ack_transport_cc() and rtcp_fb_ack_ccfb()
+  // can be true.
   bool rtcp_fb_ack_ccfb() const { return rtcp_fb_ack_ccfb_; }
   void set_rtcp_fb_ack_ccfb(bool enable) { rtcp_fb_ack_ccfb_ = enable; }
+
+  // Support of Transport-wide congestion control feedback.
+  // https://datatracker.ietf.org/doc/html/draft-holmer-rmcat-transport-wide-cc-extensions-01
+  // In an answer, only one of rtcp_fb_ack_transport_cc() and rtcp_fb_ack_ccfb()
+  // can be true.
+  bool rtcp_fb_ack_transport_cc() const {
+    for (const auto& codec : codecs_) {
+      if (codec.feedback_params.Has(FeedbackParam(kRtcpFbParamTransportCc))) {
+        return true;
+      }
+    }
+    return false;
+  }
 
   // Returns the preferred RTCP ack type used for congestion control for this
   // media content or `std::nullopt` if no supported type exists.
@@ -125,10 +140,8 @@ class MediaContentDescription {
     if (rtcp_fb_ack_ccfb_) {
       return RtcpFeedbackType::CCFB;
     }
-    for (const auto& codec : codecs_) {
-      if (codec.feedback_params.Has(FeedbackParam(kRtcpFbParamTransportCc))) {
-        return RtcpFeedbackType::TRANSPORT_CC;
-      }
+    if (rtcp_fb_ack_transport_cc()) {
+      return RtcpFeedbackType::TRANSPORT_CC;
     }
     return std::nullopt;
   }

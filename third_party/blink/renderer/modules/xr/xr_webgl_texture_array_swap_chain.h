@@ -19,7 +19,8 @@ namespace blink {
 class XRWebGLTextureArraySwapChain final : public XRWebGLSwapChain {
  public:
   XRWebGLTextureArraySwapChain(XRWebGLSwapChain* wrapped_swap_chain,
-                               uint32_t layers);
+                               uint32_t layers,
+                               bool clear_on_access);
   ~XRWebGLTextureArraySwapChain() override;
 
   WebGLUnownedTexture* ProduceTexture() override;
@@ -29,7 +30,7 @@ class XRWebGLTextureArraySwapChain final : public XRWebGLSwapChain {
 
   void SetLayer(XRCompositionLayer* layer) override;
 
-  scoped_refptr<StaticBitmapImage> TransferToStaticBitmapImage() override;
+  std::unique_ptr<SharedImageHolder> TransferToSharedImageHolder() override;
 
   void Trace(Visitor* visitor) const override;
 

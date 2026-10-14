@@ -24,6 +24,8 @@
 #include "third_party/lens_server_proto/lens_overlay_service_deps.pb.h"
 #include "third_party/lens_server_proto/lens_overlay_visual_search_interaction_data.pb.h"
 #include "third_party/omnibox_proto/chrome_aim_entry_point.pb.h"
+#include "third_party/omnibox_proto/model_mode.pb.h"
+#include "third_party/omnibox_proto/tool_mode.pb.h"
 
 namespace base {
 class Time;
@@ -49,6 +51,8 @@ class ContextualSearchContextController {
   // Struct containing configuration params for the context controller.
   // Note: When the ContextualTasks feature is enabled, some of these parameters
   // are overridden by the ComposeboxQueryController.
+  // TODO(crbug.com/479289674): Clean up other params from this struct, if
+  // the params should be made constant across all contextual surfaces.
   struct ConfigParams {
    public:
     // Whether to send the `lns_surface` parameter in search URLs.
@@ -57,15 +61,8 @@ class ContextualSearchContextController {
     // parameter if there is no image upload. Does nothing if `send_lns_surface`
     // is false.
     bool suppress_lns_surface_param_if_no_image = true;
-    // Whether to enable the multi-context input flow.
-    bool enable_multi_context_input_flow = false;
     // Whether to enable viewport images.
     bool enable_viewport_images = false;
-    // Whether or not to send viewport images with separate request ids from
-    // their associated page context, for the multi-context input flow.
-    // Does nothing if `enable_multi_context_input_flow` is false or if
-    // `enable_viewport_images` is false.
-    bool use_separate_request_ids_for_multi_context_viewport_images = true;
     // Whether to offer ZPS for the first document attachment, when multiple
     // attachments are available (true), or the only attachment if exactly one
     // attachment is available (false).
@@ -118,6 +115,10 @@ class ContextualSearchContextController {
     // The tokens of the contextual inputs to attach to the search url.
     std::vector<base::UnguessableToken> file_tokens;
 
+    // The currently active model.
+    omnibox::ModelMode active_model =
+        omnibox::ModelMode::MODEL_MODE_UNSPECIFIED;
+
     // Additional params to attach to the search url.
     std::map<std::string, std::string> additional_params;
 
@@ -162,11 +163,15 @@ class ContextualSearchContextController {
     lens::QueryPayload::QueryTextSource query_text_source =
         lens::QueryPayload::QUERY_TEXT_SOURCE_UNSPECIFIED;
 
-    // Whether deep search is selected.
-    bool deep_search_selected = false;
+    // Whether to force include the latest interaction request data in the AIM
+    // query payload.
+    bool force_include_latest_interaction_request_data = false;
+    // The currently active tool.
+    omnibox::ToolMode active_tool = omnibox::ToolMode::TOOL_MODE_UNSPECIFIED;
 
-    // Whether create images is selected.
-    bool create_images_selected = false;
+    // The currently active model.
+    omnibox::ModelMode active_model =
+        omnibox::ModelMode::MODEL_MODE_UNSPECIFIED;
 
     // Additional CGI params to append to the search request URL.
     std::map<std::string, std::string> additional_cgi_params;

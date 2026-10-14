@@ -296,7 +296,7 @@ void AppBannerManagerAndroid::DoNativeAppInstallableCheck(
 }
 
 void AppBannerManagerAndroid::OnWebAppInstallableCheckedNoErrors(
-    const ManifestId& manifest_id) const {
+    const ManifestId& manifest_id) {
   delegate_->OnInstallableCheckedNoErrors(manifest_id);
 }
 
@@ -676,11 +676,6 @@ void AppBannerManagerAndroid::OnMlInstallPrediction(
     base::PassKey<MLInstallabilityPromoter>,
     std::string result_label) {
   // TODO(crbug.com/40269982): Implement.
-}
-
-base::WeakPtr<AppBannerManager>
-AppBannerManagerAndroid::GetWeakPtrForThisNavigation() {
-  return weak_factory_.GetWeakPtr();
 }
 
 base::WeakPtr<AppBannerManagerAndroid>

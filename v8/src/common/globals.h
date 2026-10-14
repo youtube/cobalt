@@ -14,6 +14,7 @@
 #include "include/cppgc/macros.h"
 #include "include/v8-internal.h"
 #include "src/base/atomic-utils.h"
+#include "src/base/bit-field.h"
 #include "src/base/build_config.h"
 #include "src/base/enum-set.h"
 #include "src/base/flags.h"
@@ -571,6 +572,14 @@ using AtomicTagged_t = base::AtomicWord;
 
 #endif  // V8_COMPRESS_POINTERS
 
+// The name used for virtual address space reservations backing the pointer
+// tables. This name is mostly useful for debugging/inspecting and should be
+// visible in e.g. /proc/$pid/maps if the system supports setting names on
+// virtual memory ranges (PR_SET_VMA_ANON_NAME on Linux).
+// TODO(saelo): It might be nicer to have one name per table type, e.g.
+// v8-external-pointer-table, v8-trusted-pointer-table, etc.
+static const char* kPointerTableAddressSpaceName = "v8-pointer-table";
+
 //
 // JavaScript Dispatch Table
 //
@@ -916,6 +925,14 @@ constexpr int kUninitializedEmbeddedFeedback = 0;
 
 // The bytecode operand index for embedded feedback.
 constexpr int kEmbeddedFeedbackOperandIndex = 1;
+
+// These constants are internal duplicates for v8::Intercepted enum values.
+constexpr uint8_t kInterceptedNo = 1;
+constexpr uint8_t kInterceptedYes = 0;
+constexpr size_t kInterceptedSize = 4;
+// Invalid pointer value used for passing the "not intercepted" result from
+// CallNamedInterceptorXXXX/CallIndexedInterceptorXXX builtins to caller.
+constexpr uint32_t kNotInterceptedSentinel = kHeapObjectTag;
 
 // This constant is used as an undefined value when passing source positions.
 constexpr int kNoSourcePosition = -1;
@@ -1859,22 +1876,30 @@ enum class ThreadKind { kMain, kBackground };
 // platform headers and libraries
 union IeeeDoubleLittleEndianArchType {
   double d;
-  struct {
-    unsigned int man_low : 32;
-    unsigned int man_high : 20;
-    unsigned int exp : 11;
-    unsigned int sign : 1;
-  } bits;
+  uint64_t bits;
+  using ManLowField = base::BitField<uint32_t, 0, 32, uint64_t>;
+  using ManHighField = ManLowField::Next<uint32_t, 20>;
+  using ExpField = ManHighField::Next<uint32_t, 11>;
+  using SignField = ExpField::Next<uint32_t, 1>;
+
+  uint32_t man_low() const { return ManLowField::decode(bits); }
+  uint32_t man_high() const { return ManHighField::decode(bits); }
+  uint32_t exp() const { return ExpField::decode(bits); }
+  uint32_t sign() const { return SignField::decode(bits); }
 };
 
 union IeeeDoubleBigEndianArchType {
   double d;
-  struct {
-    unsigned int sign : 1;
-    unsigned int exp : 11;
-    unsigned int man_high : 20;
-    unsigned int man_low : 32;
-  } bits;
+  uint64_t bits;
+  using ManLowField = base::BitField<uint32_t, 0, 32, uint64_t>;
+  using ManHighField = ManLowField::Next<uint32_t, 20>;
+  using ExpField = ManHighField::Next<uint32_t, 11>;
+  using SignField = ExpField::Next<uint32_t, 1>;
+
+  uint32_t man_low() const { return ManLowField::decode(bits); }
+  uint32_t man_high() const { return ManHighField::decode(bits); }
+  uint32_t exp() const { return ExpField::decode(bits); }
+  uint32_t sign() const { return SignField::decode(bits); }
 };
 
 #if V8_TARGET_LITTLE_ENDIAN
@@ -2460,19 +2485,17 @@ class CompareOperationFeedback {
 };
 
 class TypeOfFeedback {
-  enum {
-    kNumberFlag = 1,
-    kFunctionFlag = 1 << 1,
-    kStringFlag = 1 << 2,
-  };
 
  public:
   enum Result {
     kNone = 0,
-    kNumber = kNumberFlag,
-    kFunction = kFunctionFlag,
-    kString = kStringFlag,
-    kAny = kNumberFlag | kFunctionFlag | kStringFlag,
+    kSmi = 1,
+    kHeapNumber = 1 << 1,
+    kFunction = 1 << 2,
+    kString = 1 << 3,
+
+    kNumber = kHeapNumber | kSmi,
+    kAny = kSmi | kHeapNumber | kFunction | kString,
   };
 };
 
@@ -2941,8 +2964,29 @@ enum class StringTransitionStrategy {
 
 class WasmCodePointer {
  public:
+  static constexpr uint32_t kWasmCodePointerTableEntrySize =
+      kSystemPointerSize + (V8_ENABLE_SANDBOX_BOOL ? kUInt64Size : 0);
+#ifdef V8_TARGET_ARCH_64_BIT
+  static constexpr uint32_t kIndexSpaceSize =
+      kCodePointerTableReservationSize / kWasmCodePointerTableEntrySize;
+#else   // V8_TARGET_ARCH_64_BIT
+  static constexpr uint32_t kIndexSpaceSize =
+      (kMaxUInt32 / kWasmCodePointerTableEntrySize) + 1;
+#endif  // V8_TARGET_ARCH_64_BIT
+
   WasmCodePointer() = default;
-  explicit constexpr WasmCodePointer(uint32_t value) : value_(value) {}
+  explicit constexpr WasmCodePointer(uint32_t value) : value_(value) {
+    // Most `WasmCodePointer`s are stored in trusted space (in
+    // `WasmInternalFunction` and `WasmDispatchTable`). A few rare pointers are
+    // stored in untrusted space, like feedback data. We need to be careful
+    // there to either validate the pointer before use or otherwise making sure
+    // that a manipulated code pointer does not cause a sandbox escape.
+    // This DCHECK does not protect against anything but catches such cases
+    // earlier.
+    // Calls via WasmCodePointer to already mask the value to avoid OOB reads.
+    DCHECK(value == static_cast<uint32_t>(-1)  // the "invalid" handle
+           || value < kIndexSpaceSize);
+  }
 
   uint32_t value() const { return value_; }
 

@@ -440,7 +440,7 @@ void VideoProcessor::FrameEncoded(const EncodedImage& encoded_image,
       bitrate_allocation.GetTemporalLayerSum(stream_idx, temporal_idx) / 1000;
   frame_stat->target_framerate_fps = target_rate.input_fps;
   frame_stat->length_bytes = encoded_image.size();
-  frame_stat->frame_type = encoded_image._frameType;
+  frame_stat->frame_type = encoded_image.frame_type();
   frame_stat->temporal_idx = temporal_idx;
   frame_stat->max_nalu_size_bytes = GetMaxNaluSizeBytes(encoded_image, config_);
   frame_stat->qp = encoded_image.qp_;
@@ -695,7 +695,7 @@ const EncodedImage* VideoProcessor::BuildAndStoreSuperframe(
   EncodedImage copied_image = encoded_image;
   copied_image.SetEncodedData(buffer);
   if (base_image.size())
-    copied_image._frameType = base_image._frameType;
+    copied_image.set_frame_type(base_image.frame_type());
 
   // Replace previous EncodedImage for this spatial layer.
   merged_encoded_frames_.at(spatial_idx) = std::move(copied_image);

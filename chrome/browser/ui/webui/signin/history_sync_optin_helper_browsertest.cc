@@ -108,7 +108,11 @@ class HistorySyncOptinHelperTestObserver
 class HistorySyncOptinHelperBrowserTest : public SigninBrowserTestBase {
  public:
   HistorySyncOptinHelperBrowserTest()
-      : SigninBrowserTestBase(/*use_main_profile=*/true) {}
+      : SigninBrowserTestBase(/*use_main_profile=*/true) {
+    scoped_features_.InitWithFeatures(
+        /*enabled_features=*/{syncer::kReplaceSyncPromosWithSignInPromos},
+        /*disabled_features=*/{});
+  }
 
   AccountInfo MakeAccountInfoAvailableAndSignIn() {
     AccountInfo account_info =
@@ -175,8 +179,7 @@ class HistorySyncOptinHelperBrowserTest : public SigninBrowserTestBase {
         base::BindRepeating(&BuildMockProfileManagementDisclaimerService));
   }
 
-  base::test::ScopedFeatureList scoped_features_{
-      syncer::kReplaceSyncPromosWithSignInPromos};
+  base::test::ScopedFeatureList scoped_features_;
 };
 
 class HistorySyncOptinHelperLaunchContextParamBrowserTest
@@ -252,18 +255,17 @@ IN_PROC_BROWSER_TEST_P(
   switch (GetParam()) {
     case HistorySyncOptinHelper::LaunchContext::kInBrowser:
       EXPECT_CALL(*service, EnsureManagedProfileForAccount)
-          .WillOnce(
-              [&](const CoreAccountId&, signin_metrics::AccessPoint,
-                  base::OnceCallback<void(Profile*, bool)> callback) {
-                // Mark management as accepted.
-                enterprise_util::SetUserAcceptedAccountManagement(GetProfile(),
-                                                                  true);
-                // The callback is executed asynchronously, to better reflect
-                // the production implementation.
-                base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-                    FROM_HERE,
-                    base::BindOnce(std::move(callback), GetProfile(), true));
-              });
+          .WillOnce([&](const CoreAccountId&, signin_metrics::AccessPoint,
+                        base::OnceCallback<void(Profile*, bool)> callback) {
+            // Mark management as accepted.
+            enterprise_util::SetUserAcceptedAccountManagement(GetProfile(),
+                                                              true);
+            // The callback is executed asynchronously, to better reflect
+            // the production implementation.
+            base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+                FROM_HERE,
+                base::BindOnce(std::move(callback), GetProfile(), true));
+          });
       break;
     case HistorySyncOptinHelper::LaunchContext::kInProfilePicker:
       EXPECT_CALL(delegate, ShowAccountManagementScreen)
@@ -397,8 +399,13 @@ IN_PROC_BROWSER_TEST_P(
   UpdateAccountManagementInfo(account_info, /*is_managed=*/true);
 }
 
-IN_PROC_BROWSER_TEST_P(HistorySyncOptinHelperLaunchContextParamBrowserTest,
-                       WaitsForSyncServiceBeforeTriggeringHistorySyncScreen) {
+IN_PROC_BROWSER_TEST_P(
+    HistorySyncOptinHelperLaunchContextParamBrowserTest,
+    WaitsForSyncServiceStartupBeforeTriggeringHistorySyncScreen) {
+  if (!base::FeatureList::IsEnabled(syncer::kEnableAwaitSyncServiceStartup)) {
+    GTEST_SKIP() << "EnableAwaitSyncServiceStartup must be enable to wait the "
+                    "sync engine status";
+  }
   GetTestSyncService()->GetUserSettings()->SetSelectedTypes(
       /*sync_everything=*/false, syncer::UserSelectableTypeSet());
 
@@ -457,6 +464,84 @@ IN_PROC_BROWSER_TEST_P(HistorySyncOptinHelperLaunchContextParamBrowserTest,
                                      /*expected_count=*/0);
   histogram_tester_.ExpectTotalCount("Signin.HistorySyncOptIn.Declined",
                                      /*expected_count=*/0);
+}
+
+IN_PROC_BROWSER_TEST_P(
+    HistorySyncOptinHelperLaunchContextParamBrowserTest,
+    WaitsForSyncServiceStartupThenSkipsHistorySyncScreenIfSyncDisabledByPolicy) {
+  if (!base::FeatureList::IsEnabled(syncer::kEnableAwaitSyncServiceStartup)) {
+    GTEST_SKIP() << "EnableAwaitSyncServiceStartup must be enable to wait the "
+                    "sync engine status";
+  }
+  GetTestSyncService()->GetUserSettings()->SetSelectedTypes(
+      /*sync_everything=*/false, syncer::UserSelectableTypeSet());
+
+  // Set the sync service in pending state.
+  GetTestSyncService()->SetMaxTransportState(
+      syncer::SyncService::TransportState::INITIALIZING);
+
+  AccountInfo account_info = MakeAccountInfoAvailableAndSignIn();
+  UpdateAccountManagementInfo(account_info, false);
+  MockHistorySyncOptinHelperDelegate delegate;
+
+  auto history_sync_optin_helper = HistorySyncOptinHelper::Create(
+      identity_test_env()->identity_manager(), GetProfile(), account_info,
+      &delegate, GetParam(), signin_metrics::AccessPoint::kSettings);
+
+  // The helper is waiting for the sync service to start before attempting
+  // to show the history sync optin screen.
+  EXPECT_CALL(delegate, ShowHistorySyncOptinScreen).Times(0);
+  EXPECT_CALL(delegate, FinishFlowWithoutHistorySyncOptin).Times(0);
+  history_sync_optin_helper->StartHistorySyncOptinFlow();
+  testing::Mock::VerifyAndClearExpectations(&delegate);
+
+  EXPECT_CALL(delegate, ShowHistorySyncOptinScreen).Times(0);
+  EXPECT_CALL(delegate, FinishFlowWithoutHistorySyncOptin).Times(1);
+  // Only after the sync engine starts transitions from the
+  // TransportState::INITIALIZING into a TransportState::DISABLED state, the
+  // history sync flow resumes and skips the screen as the syncing is disabled.
+  GetTestSyncService()->SetAllowedByEnterprisePolicy(false);
+  GetTestSyncService()->FireStateChanged();
+  ASSERT_EQ(syncer::SyncService::TransportState::DISABLED,
+            GetTestSyncService()->GetTransportState());
+  ASSERT_TRUE(GetTestSyncService()->HasDisableReason(
+      syncer::SyncService::DISABLE_REASON_ENTERPRISE_POLICY));
+}
+
+IN_PROC_BROWSER_TEST_P(
+    HistorySyncOptinHelperLaunchContextParamBrowserTest,
+    WaitsForSyncServiceStartupThenShowsHistorySyncScreenIfWaitingTimesout) {
+  if (!base::FeatureList::IsEnabled(syncer::kEnableAwaitSyncServiceStartup)) {
+    GTEST_SKIP() << "EnableAwaitSyncServiceStartup must be enable to wait the "
+                    "sync engine status";
+  }
+  GetTestSyncService()->GetUserSettings()->SetSelectedTypes(
+      /*sync_everything=*/false, syncer::UserSelectableTypeSet());
+
+  // Set the sync service in pending state.
+  GetTestSyncService()->SetMaxTransportState(
+      syncer::SyncService::TransportState::INITIALIZING);
+
+  AccountInfo account_info = MakeAccountInfoAvailableAndSignIn();
+  UpdateAccountManagementInfo(account_info, false);
+  MockHistorySyncOptinHelperDelegate delegate;
+
+  auto history_sync_optin_helper = HistorySyncOptinHelper::Create(
+      identity_test_env()->identity_manager(), GetProfile(), account_info,
+      &delegate, GetParam(), signin_metrics::AccessPoint::kSettings);
+
+  // The helper is waiting for the sync service to start before attempting
+  // to show the history sync optin screen.
+  EXPECT_CALL(delegate, ShowHistorySyncOptinScreen).Times(0);
+  EXPECT_CALL(delegate, FinishFlowWithoutHistorySyncOptin).Times(0);
+  history_sync_optin_helper->StartHistorySyncOptinFlow();
+  testing::Mock::VerifyAndClearExpectations(&delegate);
+
+  // At sync startup observer's timeout the flow is resumed and shows the
+  // history sync screen.
+  EXPECT_CALL(delegate, ShowHistorySyncOptinScreen).Times(1);
+  history_sync_optin_helper->GetSyncServiceStartupStateObserverForTesting()
+      ->MockTimeoutReachedForTesting();
 }
 
 IN_PROC_BROWSER_TEST_P(HistorySyncOptinHelperLaunchContextParamBrowserTest,
@@ -527,11 +612,11 @@ IN_PROC_BROWSER_TEST_F(HistorySyncOptinHelperBrowserTest,
       /*sync_everything=*/false, syncer::UserSelectableTypeSet());
 
   // Simulate the promo being shown twice.
-  signin::SyncPromoIdentityPillManager pill_manager(
+  signin::AvatarButtonPromoManager avatar_promo_manager(
       identity_manager(), browser()->profile()->GetPrefs());
-  pill_manager.RecordPromoShown(
+  avatar_promo_manager.RecordPromoShown(
       signin::ProfileMenuAvatarButtonPromoInfo::Type::kHistorySyncPromo);
-  pill_manager.RecordPromoShown(
+  avatar_promo_manager.RecordPromoShown(
       signin::ProfileMenuAvatarButtonPromoInfo::Type::kHistorySyncPromo);
 
   MockHistorySyncOptinHelperDelegate delegate;

@@ -64,7 +64,7 @@ RtpFrameObject::RtpFrameObject(
   _payloadType = payload_type;
   SetRtpTimestamp(rtp_timestamp);
   ntp_time_ms_ = ntp_time_ms;
-  _frameType = rtp_video_header_.frame_type;
+  set_frame_type(rtp_video_header_.frame_type);
 
   // Setting frame's playout delays to the same values
   // as of the first packet's.

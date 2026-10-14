@@ -23,6 +23,7 @@ export class TestBookmarksApiProxy extends TestBrowserProxy implements
   constructor() {
     super([
       'getActiveUrl',
+      'getIncognitoAvailableCount',
       'isActiveTabInSplit',
       'bookmarkCurrentTabInFolder',
       'openBookmark',
@@ -62,6 +63,11 @@ export class TestBookmarksApiProxy extends TestBrowserProxy implements
   getActiveUrl() {
     this.methodCalled('getActiveUrl');
     return Promise.resolve('http://www.test.com');
+  }
+
+  getIncognitoAvailableCount(ids: string[]) {
+    this.methodCalled('getIncognitoAvailableCount', ids);
+    return Promise.resolve({incognitoCount: 1});
   }
 
   isActiveTabInSplit() {

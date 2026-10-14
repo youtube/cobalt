@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 import {PageCallbackRouter} from 'chrome://contextual-tasks/contextual_tasks.mojom-webui.js';
-import type {PageHandlerInterface, PageInterface, PageRemote, Tab} from 'chrome://contextual-tasks/contextual_tasks.mojom-webui.js';
+import type {ContextInfo, PageHandlerInterface, PageInterface, PageRemote} from 'chrome://contextual-tasks/contextual_tasks.mojom-webui.js';
 import type {BrowserProxy} from 'chrome://contextual-tasks/contextual_tasks_browser_proxy.js';
 import type {PostMessageHandler} from 'chrome://contextual-tasks/post_message_handler.js';
 import type {PageHandler as ComposeboxPageHandler, PageHandlerFactory as ComposeboxPageHandlerFactory} from 'chrome://resources/cr_components/composebox/composebox.mojom-webui.js';
@@ -31,6 +31,7 @@ class MockPage extends TestBrowserProxy implements PageInterface {
       'setOAuthToken',
       'setTaskDetails',
       'setThreadTitle',
+      'showOauthErrorDialog',
     ]);
   }
 
@@ -47,7 +48,7 @@ class MockPage extends TestBrowserProxy implements PageInterface {
   }
 
 
-  onContextUpdated(message: Tab[]) {
+  onContextUpdated(message: ContextInfo[]) {
     this.methodCalled('onContextUpdated', message);
   }
 
@@ -100,6 +101,10 @@ class MockPage extends TestBrowserProxy implements PageInterface {
   hideErrorPage() {
     this.methodCalled('hideErrorPage');
   }
+
+  showOauthErrorDialog() {
+    this.methodCalled('showOauthErrorDialog');
+  }
 }
 
 /**
@@ -114,39 +119,48 @@ class TestContextualTasksPageHandler extends TestBrowserProxy implements
 
   constructor(url: string, page: MockPage) {
     super([
+      'setThreadUrl',
       'closeSidePanel',
       'getCommonSearchParams',
       'getRecentTabs',
       'getSearchUrl',
       'getThreadUrl',
       'getUrlForTask',
+      'isAiPage',
       'isShownInTab',
       'isZeroState',
       'moveTaskUiToNewTab',
       'onboardingTooltipDismissed',
+      'onFileClickedFromSourcesMenu',
+      'onImageClickedFromSourcesMenu',
       'onTabClickedFromSourcesMenu',
       'onWebviewMessage',
       'openHelpUi',
       'openMyActivityUi',
       'openOnboardingHelpUi',
+      'openUrl',
       'setTaskId',
       'setThreadTitle',
       'showThreadHistory',
       'submitQuery',
     ]);
 
-    this.url_ = {url};
+    this.url_ = url;
     this.page_ = page;
+  }
+
+  setThreadUrl(url: string) {
+    this.url_ = url;
   }
 
   getThreadUrl() {
     this.methodCalled('getThreadUrl');
-    return Promise.resolve({url: this.url_});
+    return Promise.resolve({url: this.url_ as unknown as Url});
   }
 
   getUrlForTask(uuid: Uuid) {
     this.methodCalled('getUrlForTask', uuid);
-    return Promise.resolve({url: this.url_});
+    return Promise.resolve({url: this.url_ as unknown as Url});
   }
 
   setTaskId(uuid: Uuid) {
@@ -179,6 +193,11 @@ class TestContextualTasksPageHandler extends TestBrowserProxy implements
     return Promise.resolve({isZeroState: false});
   }
 
+  isAiPage(url: Url) {
+    this.methodCalled('isAiPage', url);
+    return Promise.resolve({isAiPage: false});
+  }
+
   openMyActivityUi() {
     this.methodCalled('openMyActivityUi');
   }
@@ -189,6 +208,10 @@ class TestContextualTasksPageHandler extends TestBrowserProxy implements
 
   openOnboardingHelpUi() {
     this.methodCalled('openOnboardingHelpUi');
+  }
+
+  openUrl() {
+    this.methodCalled('openUrl');
   }
 
   onboardingTooltipDismissed() {
@@ -224,6 +247,14 @@ class TestContextualTasksPageHandler extends TestBrowserProxy implements
 
   onTabClickedFromSourcesMenu(tabId: number, url: Url) {
     this.methodCalled('onTabClickedFromSourcesMenu', tabId, url);
+  }
+
+  onFileClickedFromSourcesMenu(url: Url) {
+    this.methodCalled('onFileClickedFromSourcesMenu', url);
+  }
+
+  onImageClickedFromSourcesMenu(url: Url) {
+    this.methodCalled('onImageClickedFromSourcesMenu', url);
   }
 
   getSearchUrl(query: string) {

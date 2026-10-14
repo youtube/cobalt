@@ -4,6 +4,8 @@
 
 #include "chrome/browser/signin/header_modification_delegate_impl.h"
 
+#include <algorithm>
+
 #include "base/notreached.h"
 #include "build/build_config.h"
 #include "chrome/browser/content_settings/cookie_settings_factory.h"
@@ -11,6 +13,7 @@
 #include "chrome/browser/signin/account_consistency_mode_manager.h"
 #include "chrome/browser/signin/chrome_signin_helper.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
+#include "chrome/browser/signin/signin_util.h"
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "components/policy/core/common/policy_pref_names.h"
 #include "components/prefs/pref_service.h"
@@ -78,6 +81,9 @@ void ProcessBoundSessionResponseHeaders(
   bound_session_cookie_refresh_service->MaybeTerminateSession(
       response_adapter->GetUrl(), headers);
 
+  std::vector<net::SchemefulSite> restricted_sites =
+      signin_util::GetDeviceBoundSessionRestrictedSites();
+
   // If an equivalent standard DBSC session is going to be triggered by the same
   // response, ignore the session registration.
   base::flat_set<GURL> ignored_registration_endpoints;
@@ -88,13 +94,19 @@ void ProcessBoundSessionResponseHeaders(
     GURL normalized_url = url.SchemeIsWSOrWSS()
                               ? net::ChangeWebSocketSchemeToHttpScheme(url)
                               : url;
+    // We don't need any restricted sites here because this code only
+    // runs on google.com, which is always restricted.
     std::vector<net::device_bound_sessions::RegistrationFetcherParam>
         standard_registrations =
             net::device_bound_sessions::RegistrationFetcherParam::CreateIfValid(
-                normalized_url, headers);
-    for (const auto& standard_registration : standard_registrations) {
-      ignored_registration_endpoints.insert(
-          standard_registration.registration_endpoint());
+                normalized_url, headers, restricted_sites);
+    if (standard_registrations.size() > 0 &&
+        base::FeatureList::IsEnabled(
+            net::features::kDeviceBoundSessionsForRestrictedSites)) {
+      for (const auto& standard_registration : standard_registrations) {
+        ignored_registration_endpoints.insert(
+            standard_registration.registration_endpoint());
+      }
     }
   }
 

@@ -23,8 +23,10 @@
 #include "api/video/encoded_frame.h"
 #include "call/video_receive_stream.h"
 #include "modules/rtp_rtcp/include/receive_statistics.h"
+#include "modules/video_coding/nack_requester.h"
 #include "rtc_base/thread_annotations.h"
 #include "video/rtp_video_stream_receiver2.h"
+#include "video/timing/simulator/receiver.h"
 
 namespace webrtc::video_timing_simulator {
 
@@ -51,9 +53,10 @@ class DecodedFrameIdCallback {
 };
 
 // The `Assembler` takes a sequence of `RtpPacketReceived`s belonging to the
-// same stream and produces a sequence of assembled `EncodedFrame`s. The work is
-// delegated to the `RtpVideoStreamReceiver2`.
-class Assembler : public DecodedFrameIdCallback,
+// same video stream and produces a sequence of assembled `EncodedFrame`s. The
+// work is delegated to the `RtpVideoStreamReceiver2`.
+class Assembler : public ReceivedRtpPacketCallback,
+                  public DecodedFrameIdCallback,
                   public Transport,
                   public RtpVideoStreamReceiver2::OnCompleteFrameCallback {
  public:
@@ -66,10 +69,11 @@ class Assembler : public DecodedFrameIdCallback,
   Assembler(const Assembler&) = delete;
   Assembler& operator=(const Assembler&) = delete;
 
+  // Implements `ReceivedRtpPacketCallback`.
   // Inserts `rtp_packet` into `RtpVideoStreamReceiver2` and calls
   // `assembled_frame_cb` if the insertion resulted in one or more
   // `EncodedFrame`s.
-  void InsertPacket(const RtpPacketReceived& rtp_packet);
+  void OnReceivedRtpPacket(const RtpPacketReceived& rtp_packet) override;
 
   // Implements `DecodedFrameIdCallback`.
   // Lets the `RtpVideoStreamReceiver2` know that `frame_id` has been "decoded",
@@ -95,9 +99,10 @@ class Assembler : public DecodedFrameIdCallback,
   const Environment env_;
 
   // Worker objects.
-  const VideoReceiveStreamInterface::Config video_receive_stream_config_
-      RTC_GUARDED_BY(sequence_checker_);
+  const VideoReceiveStreamInterface::Config video_receive_stream_config_;
   std::unique_ptr<ReceiveStatistics> rtp_receive_statistics_
+      RTC_GUARDED_BY(sequence_checker_);
+  NackPeriodicProcessor nack_periodic_processor_
       RTC_GUARDED_BY(sequence_checker_);
   absl::flat_hash_set<uint8_t> registered_payload_types_
       RTC_GUARDED_BY(sequence_checker_);

@@ -48,6 +48,7 @@
 #include "third_party/blink/renderer/core/page/page.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/wtf/text/strcat.h"
+#include "third_party/blink/renderer/platform/wtf/text/string_to_number.h"
 
 namespace blink {
 
@@ -103,16 +104,16 @@ void HTMLFrameElementBase::ParseAttribute(
     } else {
       const AtomicString& src_value = FastGetAttribute(html_names::kSrcAttr);
       if (!src_value.IsNull()) {
-        SetLocation(StripLeadingAndTrailingHTMLSpaces(src_value));
+        SetLocation(StripLeadingAndTrailingHtmlSpaces(src_value));
       } else if (!params.old_value.IsNull()) {
         // We're resetting kSrcdocAttr, but kSrcAttr has no value, so load
         // about:blank. https://crbug.com/1233143
-        SetLocation(BlankURL());
+        SetLocation(BlankURL().GetString());
       }
     }
   } else if (name == html_names::kSrcAttr &&
              !FastHasAttribute(html_names::kSrcdocAttr)) {
-    SetLocation(StripLeadingAndTrailingHTMLSpaces(value));
+    SetLocation(StripLeadingAndTrailingHtmlSpaces(value));
   } else if (name == html_names::kIdAttr) {
     // Important to call through to base for the id attribute so the hasID bit
     // gets set.
@@ -121,9 +122,9 @@ void HTMLFrameElementBase::ParseAttribute(
   } else if (name == html_names::kNameAttr) {
     frame_name_ = value;
   } else if (name == html_names::kMarginwidthAttr) {
-    SetMarginWidth(value.ToInt());
+    SetMarginWidth(StringToInt(value).value_or(0));
   } else if (name == html_names::kMarginheightAttr) {
-    SetMarginHeight(value.ToInt());
+    SetMarginHeight(StringToInt(value).value_or(0));
   } else if (name == html_names::kScrollingAttr) {
     // https://html.spec.whatwg.org/multipage/rendering.html#the-page:
     // If [the scrolling] attribute's value is an ASCII
@@ -150,7 +151,7 @@ void HTMLFrameElementBase::ParseAttribute(
 }
 
 scoped_refptr<const SecurityOrigin>
-HTMLFrameElementBase::GetOriginForPermissionsPolicy() const {
+HTMLFrameElementBase::MakeOriginForPermissionsPolicy() const {
   // Sandboxed frames have a unique origin.
   if ((GetFramePolicy().sandbox_flags &
        network::mojom::blink::WebSandboxFlags::kOrigin) !=
@@ -204,7 +205,7 @@ void HTMLFrameElementBase::AttachLayoutTree(AttachContext& context) {
     SetEmbeddedContentView(ContentFrame()->View());
 }
 
-void HTMLFrameElementBase::SetLocation(const String& str) {
+void HTMLFrameElementBase::SetLocation(const StringView& str) {
   url_ = AtomicString(str);
 
   if (isConnected())

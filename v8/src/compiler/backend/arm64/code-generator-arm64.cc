@@ -1035,9 +1035,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             }
           } else {
             JSDispatchHandle dispatch_handle = function->dispatch_handle();
-            size_t expected =
-                IsolateGroup::current()->js_dispatch_table()->GetParameterCount(
-                    dispatch_handle);
+            size_t expected = isolate()->js_dispatch_table().GetParameterCount(
+                dispatch_handle);
             // Defer signature mismatch abort to run-time as optimized
             // unreachable calls can have mismatched signatures.
             if (num_arguments >= expected) {
@@ -3292,50 +3291,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
-    case kArm64I32x4DotI16x8S: {
-      UseScratchRegisterScope scope(masm());
-      VRegister lhs = i.InputSimd128Register(0);
-      VRegister rhs = i.InputSimd128Register(1);
-      VRegister tmp1 = scope.AcquireV(kFormat4S);
-      VRegister tmp2 = scope.AcquireV(kFormat4S);
-      __ Smull(tmp1, lhs.V4H(), rhs.V4H());
-      __ Smull2(tmp2, lhs.V8H(), rhs.V8H());
-      __ Addp(i.OutputSimd128Register().V4S(), tmp1, tmp2);
-      break;
-    }
-    case kArm64I16x8DotI8x16S: {
-      UseScratchRegisterScope scope(masm());
-      VRegister lhs = i.InputSimd128Register(0);
-      VRegister rhs = i.InputSimd128Register(1);
-      VRegister tmp1 = scope.AcquireV(kFormat8H);
-      VRegister tmp2 = scope.AcquireV(kFormat8H);
-      __ Smull(tmp1, lhs.V8B(), rhs.V8B());
-      __ Smull2(tmp2, lhs.V16B(), rhs.V16B());
-      __ Addp(i.OutputSimd128Register().V8H(), tmp1, tmp2);
-      break;
-    }
     case kArm64I32x4DotI8x16AddS: {
-      if (CpuFeatures::IsSupported(DOTPROD)) {
-        CpuFeatureScope scope(masm(), DOTPROD);
+      DCHECK(CpuFeatures::IsSupported(DOTPROD));
+      CpuFeatureScope scope(masm(), DOTPROD);
 
-        DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(2));
-        __ Sdot(i.InputSimd128Register(2).V4S(),
-                i.InputSimd128Register(0).V16B(),
-                i.InputSimd128Register(1).V16B());
-
-      } else {
-        UseScratchRegisterScope scope(masm());
-        VRegister lhs = i.InputSimd128Register(0);
-        VRegister rhs = i.InputSimd128Register(1);
-        VRegister tmp1 = scope.AcquireV(kFormat8H);
-        VRegister tmp2 = scope.AcquireV(kFormat8H);
-        __ Smull(tmp1, lhs.V8B(), rhs.V8B());
-        __ Smull2(tmp2, lhs.V16B(), rhs.V16B());
-        __ Addp(tmp1, tmp1, tmp2);
-        __ Saddlp(tmp1.V4S(), tmp1);
-        __ Add(i.OutputSimd128Register().V4S(), tmp1.V4S(),
-               i.InputSimd128Register(2).V4S());
-      }
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(2));
+      __ Sdot(i.OutputSimd128Register().V4S(), i.InputSimd128Register(0).V16B(),
+              i.InputSimd128Register(1).V16B());
       break;
     }
     case kArm64IExtractLaneU: {
@@ -3713,42 +3675,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       VectorFormat f = VectorFormatFillQ(LaneSizeField::decode(opcode));
       int laneidx = i.InputInt8(1);
       __ st1(i.InputSimd128Register(0).Format(f), laneidx, i.MemoryOperand(2));
-      break;
-    }
-    case kArm64S128Load8x8S: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
-      __ Ldr(i.OutputSimd128Register().V8B(), i.MemoryOperand(0));
-      __ Sxtl(i.OutputSimd128Register().V8H(), i.OutputSimd128Register().V8B());
-      break;
-    }
-    case kArm64S128Load8x8U: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
-      __ Ldr(i.OutputSimd128Register().V8B(), i.MemoryOperand(0));
-      __ Uxtl(i.OutputSimd128Register().V8H(), i.OutputSimd128Register().V8B());
-      break;
-    }
-    case kArm64S128Load16x4S: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
-      __ Ldr(i.OutputSimd128Register().V4H(), i.MemoryOperand(0));
-      __ Sxtl(i.OutputSimd128Register().V4S(), i.OutputSimd128Register().V4H());
-      break;
-    }
-    case kArm64S128Load16x4U: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
-      __ Ldr(i.OutputSimd128Register().V4H(), i.MemoryOperand(0));
-      __ Uxtl(i.OutputSimd128Register().V4S(), i.OutputSimd128Register().V4H());
-      break;
-    }
-    case kArm64S128Load32x2S: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
-      __ Ldr(i.OutputSimd128Register().V2S(), i.MemoryOperand(0));
-      __ Sxtl(i.OutputSimd128Register().V2D(), i.OutputSimd128Register().V2S());
-      break;
-    }
-    case kArm64S128Load32x2U: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
-      __ Ldr(i.OutputSimd128Register().V2S(), i.MemoryOperand(0));
-      __ Uxtl(i.OutputSimd128Register().V2D(), i.OutputSimd128Register().V2S());
       break;
     }
     case kArm64S128LoadPairDeinterleave: {

@@ -9,18 +9,17 @@
 #include "chrome/browser/sync/test/integration/web_apps/web_apps_sync_test_base.h"
 #include "chrome/browser/ui/views/web_apps/web_app_integration_test_driver.h"
 
-namespace base {
-class CommandLine;
-}
-
 namespace web_app::integration_tests {
 
 class TwoClientWebAppsIntegrationTestBase
     : public ::web_app::WebAppsSyncTestBase,
-      public WebAppIntegrationTestDriver::TestDelegate {
+      public WebAppIntegrationTestDriver::TestDelegate,
+      public testing::WithParamInterface<SyncTest::SetupSyncMode> {
  public:
   TwoClientWebAppsIntegrationTestBase();
   ~TwoClientWebAppsIntegrationTestBase() override;
+
+  SyncTest::SetupSyncMode GetSetupSyncMode() const override;
 
   // WebAppIntegrationTestDriver::TestDelegate:
   Browser* CreateBrowser(Profile* profile) override;
@@ -43,12 +42,12 @@ class TwoClientWebAppsIntegrationTestBase
   // BrowserTestBase:
   void SetUpOnMainThread() override;
   void TearDownOnMainThread() override;
-  void SetUpCommandLine(base::CommandLine* command_line) override;
 
 #if BUILDFLAG(IS_CHROMEOS)
   base::AutoReset<bool> multi_user_window_manager_resetter_;
 #endif  // BUIDLFLAG(IS_CHROMEOS)
 
+  base::test::ScopedFeatureList feature_overrides_;
   WebAppIntegrationTestDriver helper_;
 };
 

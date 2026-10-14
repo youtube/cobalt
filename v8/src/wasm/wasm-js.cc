@@ -1367,7 +1367,7 @@ std::optional<uint64_t> AddressValueToU64(ErrorThrower* thrower,
   }
   // The enum value is coming from inside the sandbox and while the switch is
   // exhaustive, it's not guaranteed that value is one of the declared values.
-  SBXCHECK(false);
+  UNREACHABLE();
 }
 
 // {AddressValueToU64} plus additional bounds checks.
@@ -2891,7 +2891,8 @@ void WebAssemblyMemoryToFixedLengthBufferImpl(
   EXTRACT_THIS(receiver, WasmMemoryObject);
 
   i::DirectHandle<i::JSArrayBuffer> buffer =
-      i::WasmMemoryObject::ToFixedLengthBuffer(i_isolate, receiver);
+      i::WasmMemoryObject::ChangeArrayBufferResizability(
+          i_isolate, receiver, i::ResizableFlag::kNotResizable);
   info.GetReturnValue().Set(Utils::ToLocal(buffer));
 }
 
@@ -2909,7 +2910,8 @@ void WebAssemblyMemoryToResizableBufferImpl(
   }
 
   i::DirectHandle<i::JSArrayBuffer> buffer =
-      i::WasmMemoryObject::ToResizableBuffer(i_isolate, receiver);
+      i::WasmMemoryObject::ChangeArrayBufferResizability(
+          i_isolate, receiver, i::ResizableFlag::kResizable);
   info.GetReturnValue().Set(Utils::ToLocal(buffer));
 }
 

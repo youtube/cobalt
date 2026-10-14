@@ -7,6 +7,7 @@
 #include <memory>
 #include <optional>
 
+#include "base/containers/fixed_flat_set.h"
 #include "base/containers/to_vector.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/feature_list.h"
@@ -210,10 +211,10 @@ class BookmarkModelDropObserver : public BookmarkMergedSurfaceServiceObserver {
 };
 
 int IsInvalidDragOrDropCommand(int command_id) {
-  std::unordered_set<int> invalid_command_ids = {
-      IDC_SHOW_BOOKMARK_SIDE_PANEL, IDC_BOOKMARK_BAR_OPEN_ALL,
-      IDC_BOOKMARK_BAR_OPEN_ALL_NEW_TAB_GROUP};
-  return invalid_command_ids.contains(command_id);
+  static constexpr auto kInvalidCommandIds = base::MakeFixedFlatSet<int>(
+      {IDC_SHOW_BOOKMARK_SIDE_PANEL, IDC_BOOKMARK_BAR_OPEN_ALL,
+       IDC_BOOKMARK_BAR_OPEN_ALL_NEW_TAB_GROUP});
+  return kInvalidCommandIds.contains(command_id);
 }
 
 DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kOpenAllCommandSeperator);
@@ -905,6 +906,21 @@ void BookmarkMenuDelegate::DidRemoveBookmarks() {
 
   std::vector<raw_ref<MenuItemView>> updated_menus =
       GetAndUpdateStaleMenuArtifacts();
+
+  // Update "open all" commands. Only the root menu (menu_) can have these
+  // commands since they're only added to direct children of the bookmark bar.
+  if (menu_ &&
+      base::FeatureList::IsEnabled(features::kTabGroupMenuImprovements)) {
+    const auto iter = menu_id_to_node_map_.find(menu_->GetCommand());
+    if (iter != menu_id_to_node_map_.end()) {
+      if (const BookmarkParentFolder* folder =
+              iter->second.GetIfBookmarkFolder()) {
+        UpdateOpenAllCommands(menu_, *folder);
+        updated_menus.emplace_back(*menu_);
+      }
+    }
+  }
+
   for (raw_ref<MenuItemView> updated_menu : updated_menus) {
     updated_menu->ChildrenChanged();
   }

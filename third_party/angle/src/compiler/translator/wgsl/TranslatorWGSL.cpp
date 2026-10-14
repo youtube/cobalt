@@ -2655,6 +2655,45 @@ void OutputWGSLTraverser::emitType(const TType &type)
     return RunAtTheEndOfShader(compiler, root, assignment, symbolTable);
 }
 
+// This operation performs the viewport depth translation needed by WGPU. GL uses a
+// clip space z range of -1 to +1 where as WGPU uses 0 to 1. The translation becomes
+// this expression
+//
+//     z_wgpu = 0.5 * (w_gl + z_gl)
+//
+// where z_wgpu is the depth output of a WGPU vertex shader and z_gl is the same for GL.
+bool AppendVertexShaderDepthCorrectionToMain(TCompiler *compiler,
+                                             TIntermBlock *root,
+                                             const DriverUniform *driverUniforms)
+{
+    const TVariable *position  = BuiltInVariable::gl_Position();
+    TIntermSymbol *positionRef = new TIntermSymbol(position);
+
+    TVector<uint32_t> swizzleOffsetZ = {2};
+    TIntermSwizzle *positionZ        = new TIntermSwizzle(positionRef, swizzleOffsetZ);
+
+    TIntermConstantUnion *oneHalf = CreateFloatNode(0.5f, EbpMedium);
+
+    TVector<uint32_t> swizzleOffsetW = {3};
+    TIntermSwizzle *positionW        = new TIntermSwizzle(positionRef->deepCopy(), swizzleOffsetW);
+
+    // Create the expression "(gl_Position.z + gl_Position.w) * 0.5".
+    TIntermBinary *zPlusW = new TIntermBinary(EOpAdd, positionZ->deepCopy(), positionW->deepCopy());
+    TIntermBinary *halfZPlusW = new TIntermBinary(EOpMul, zPlusW, oneHalf->deepCopy());
+
+    // Create the assignment "gl_Position.z = (gl_Position.z + gl_Position.w) * 0.5"
+    TIntermTyped *positionZLHS = positionZ->deepCopy();
+    TIntermBinary *assignment  = new TIntermBinary(TOperator::EOpAssign, positionZLHS, halfZPlusW);
+
+    // Apply depth correction if needed
+    TIntermBlock *block = new TIntermBlock;
+    block->appendStatement(assignment);
+    TIntermIfElse *ifCall = new TIntermIfElse(driverUniforms->getTransformDepth(), block, nullptr);
+
+    // Append the assignment as a statement at the end of the shader.
+    return RunAtTheEndOfShader(compiler, root, ifCall, &compiler->getSymbolTable());
+}
+
 }  // namespace
 
 TranslatorWGSL::TranslatorWGSL(sh::GLenum type, ShShaderSpec spec, ShShaderOutput output)
@@ -2662,6 +2701,7 @@ TranslatorWGSL::TranslatorWGSL(sh::GLenum type, ShShaderSpec spec, ShShaderOutpu
 {}
 
 bool TranslatorWGSL::preTranslateTreeModifications(TIntermBlock *root,
+                                                   const ShCompileOptions &compileOptions,
                                                    const TVariable **defaultUniformBlockOut)
 {
     if (!PullExpressionsIntoFunctions(this, root))
@@ -2709,6 +2749,11 @@ bool TranslatorWGSL::preTranslateTreeModifications(TIntermBlock *root,
         {
             return false;
         }
+
+        if (!AppendVertexShaderDepthCorrectionToMain(this, root, &driverUniforms))
+        {
+            return false;
+        }
     }
 
     // Samplers are legal as function parameters, but samplers within structs or arrays are not
@@ -2722,13 +2767,47 @@ bool TranslatorWGSL::preTranslateTreeModifications(TIntermBlock *root,
     //
     // This  dramatically simplifies future transformations w.r.t to samplers in structs, array of
     //   arrays of opaque types, atomic counters etc.
-    UnsupportedFunctionArgsBitSet args{UnsupportedFunctionArgs::StructContainingSamplers,
-                                       UnsupportedFunctionArgs::ArrayOfArrayOfSamplerOrImage,
-                                       UnsupportedFunctionArgs::AtomicCounter,
-                                       UnsupportedFunctionArgs::Image};
-    if (!MonomorphizeUnsupportedFunctions(this, root, &getSymbolTable(), args))
+    if (!compileOptions.useIR)
     {
-        return false;
+        UnsupportedFunctionArgsBitSet args{UnsupportedFunctionArgs::StructContainingSamplers,
+                                           UnsupportedFunctionArgs::ArrayOfArrayOfSamplerOrImage,
+                                           UnsupportedFunctionArgs::AtomicCounter,
+                                           UnsupportedFunctionArgs::Image};
+        if (!MonomorphizeUnsupportedFunctions(this, root, &getSymbolTable(), args))
+        {
+            return false;
+        }
+    }
+    else
+    {
+        // GatherDefaultUniforms below is relying on the sorting of functions and declarations that
+        // was otherwise done in MonomorphizeUnsupportedFunctions.  This can be removed once more is
+        // ported to IR and no transformation above is inserting a function in the middle of
+        // declarations.
+        TIntermSequence *original = root->getSequence();
+
+        TIntermSequence replacement;
+        TIntermSequence functionDefs;
+
+        // Accumulate non-function-definition declarations in |replacement| and function definitions
+        // in |functionDefs|.
+        for (TIntermNode *node : *original)
+        {
+            if (node->getAsFunctionDefinition() || node->getAsFunctionPrototypeNode())
+            {
+                functionDefs.push_back(node);
+            }
+            else
+            {
+                replacement.push_back(node);
+            }
+        }
+
+        // Append function definitions to |replacement|.
+        replacement.insert(replacement.end(), functionDefs.begin(), functionDefs.end());
+
+        // Replace root's sequence with |replacement|.
+        root->replaceAllChildren(std::move(replacement));
     }
 
     if (aggregateTypesUsedForUniforms > 0)
@@ -2805,7 +2884,7 @@ bool TranslatorWGSL::translate(TIntermBlock *root,
 
     const TVariable *defaultUniformBlock = nullptr;
 
-    if (!preTranslateTreeModifications(root, &defaultUniformBlock))
+    if (!preTranslateTreeModifications(root, compileOptions, &defaultUniformBlock))
     {
         return false;
     }

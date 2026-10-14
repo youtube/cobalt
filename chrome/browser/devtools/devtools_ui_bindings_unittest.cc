@@ -5,6 +5,7 @@
 #include "chrome/browser/devtools/devtools_ui_bindings.h"
 
 #include "base/base64.h"
+#include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
@@ -13,8 +14,10 @@
 #include "chrome/browser/devtools/devtools_dispatch_http_request_params.h"
 #include "chrome/browser/devtools/devtools_http_service_handler.h"
 #include "chrome/browser/devtools/devtools_http_service_registry.h"
+#include "chrome/browser/devtools/features.h"
 #include "chrome/browser/signin/identity_test_environment_profile_adaptor.h"
 #include "chrome/browser/sync/sync_service_factory.h"
+#include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/signin/public/base/signin_switches.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
@@ -167,7 +170,7 @@ class DevToolsUIBindingsSyncInfoTest : public testing::Test {
 TEST_F(DevToolsUIBindingsSyncInfoTest, SyncDisabled) {
   sync_service_->SetSignedOut();
 
-  base::Value::Dict info =
+  base::DictValue info =
       DevToolsUIBindings::GetSyncInformationForProfile(&profile_);
 
   EXPECT_EQ(
@@ -180,7 +183,7 @@ TEST_F(DevToolsUIBindingsSyncInfoTest, PreferencesNotSynced) {
       /*sync_everything=*/false,
       /*types=*/{syncer::UserSelectableType::kBookmarks});
 
-  base::Value::Dict info =
+  base::DictValue info =
       DevToolsUIBindings::GetSyncInformationForProfile(&profile_);
 
   EXPECT_THAT(info.FindBool("isSyncActive"), testing::Optional(true));
@@ -194,7 +197,7 @@ TEST_F(DevToolsUIBindingsSyncInfoTest, ImageAlwaysProvided) {
 
   EXPECT_TRUE(account_info.account_image.IsEmpty());
 
-  base::Value::Dict info =
+  base::DictValue info =
       DevToolsUIBindings::GetSyncInformationForProfile(&profile_);
 
   EXPECT_EQ(*info.FindString("accountEmail"), "sync@devtools.dev");
@@ -333,7 +336,7 @@ class DevToolsUIBindingsDispatchHttpRequestTest : public testing::Test {
 
 TEST_F(DevToolsUIBindingsDispatchHttpRequestTest,
        DispatchHttpRequestUnknownService) {
-  base::Value::Dict result;
+  base::DictValue result;
   DevToolsDispatchHttpRequestParams params;
   params.service = "unknownService";
   params.path = "/path";
@@ -348,7 +351,7 @@ TEST_F(DevToolsUIBindingsDispatchHttpRequestTest,
 
 TEST_F(DevToolsUIBindingsDispatchHttpRequestTest,
        DispatchHttpRequestDisallowedPath) {
-  base::Value::Dict result;
+  base::DictValue result;
   base::RunLoop run_loop;
   DevToolsDispatchHttpRequestParams params;
   params.service = "mockService";
@@ -368,7 +371,7 @@ TEST_F(DevToolsUIBindingsDispatchHttpRequestTest,
   ExpectCanMakeRequest(false);
 
   base::RunLoop run_loop;
-  base::Value::Dict result;
+  base::DictValue result;
   DevToolsDispatchHttpRequestParams params;
   params.service = "mockService";
   params.path = "/getFoo";
@@ -389,7 +392,7 @@ TEST_F(DevToolsUIBindingsDispatchHttpRequestTest,
   identity_test_env_adaptor()->identity_test_env()->MakePrimaryAccountAvailable(
       "test@google.com", signin::ConsentLevel::kSignin);
   base::RunLoop run_loop;
-  base::Value::Dict result;
+  base::DictValue result;
   DevToolsDispatchHttpRequestParams params;
   params.service = "mockService";
   params.path = "/getFoo";
@@ -418,7 +421,7 @@ TEST_F(DevToolsUIBindingsDispatchHttpRequestTest,
       "test@google.com", signin::ConsentLevel::kSignin);
 
   base::RunLoop run_loop;
-  base::Value::Dict result;
+  base::DictValue result;
   DevToolsDispatchHttpRequestParams params;
   params.service = "mockService";
   params.path = "/getFoo";
@@ -450,7 +453,7 @@ TEST_F(DevToolsUIBindingsDispatchHttpRequestTest,
       "test@google.com", signin::ConsentLevel::kSignin);
 
   base::RunLoop run_loop;
-  base::Value::Dict result;
+  base::DictValue result;
   DevToolsDispatchHttpRequestParams params;
   params.service = "mockService";
   params.path = "/postBar";
@@ -483,7 +486,7 @@ TEST_F(DevToolsUIBindingsDispatchHttpRequestTest,
       "test@google.com", signin::ConsentLevel::kSignin);
 
   base::RunLoop run_loop;
-  base::Value::Dict result;
+  base::DictValue result;
   DevToolsDispatchHttpRequestParams params;
   params.service = "mockService";
   params.path = "/postBar";
@@ -513,7 +516,7 @@ TEST_F(DevToolsUIBindingsDispatchHttpRequestTest, DispatchHttpRequestWithBody) {
       "test@google.com", signin::ConsentLevel::kSignin);
 
   base::RunLoop run_loop;
-  base::Value::Dict result;
+  base::DictValue result;
   DevToolsDispatchHttpRequestParams params;
   params.service = "mockService";
   params.path = "/postBar";
@@ -548,7 +551,7 @@ TEST_F(DevToolsUIBindingsDispatchHttpRequestTest,
       "test@google.com", signin::ConsentLevel::kSignin);
 
   base::RunLoop run_loop;
-  base::Value::Dict result;
+  base::DictValue result;
   DevToolsDispatchHttpRequestParams params;
   params.service = "mockService";
   params.path = "/getFoo";
@@ -576,7 +579,7 @@ TEST_F(DevToolsUIBindingsDispatchHttpRequestTest,
       "test@google.com", signin::ConsentLevel::kSignin);
 
   base::RunLoop run_loop;
-  base::Value::Dict result;
+  base::DictValue result;
   DevToolsDispatchHttpRequestParams params;
   params.service = "mockService";
   params.path = "/getFoo";
@@ -741,4 +744,96 @@ TEST_F(DevToolsUIBindingsDispatchHttpRequestStreamingTest,
           "test_token", base::Time::Max());
 
   run_loop.Run();
+}
+
+class DevToolsUIBindingsHostConfigTest : public testing::Test {
+ public:
+  void SetUp() override { profile_ = std::make_unique<TestingProfile>(); }
+
+  void TearDown() override { profile_.reset(); }
+
+ protected:
+  content::BrowserTaskEnvironment task_environment_;
+  std::unique_ptr<TestingProfile> profile_;
+};
+
+TEST_F(DevToolsUIBindingsHostConfigTest, GetHostConfigBasic) {
+  base::DictValue result =
+      DevToolsUIBindings::GetHostConfigDictionary(profile_.get());
+
+  // Check some basic keys that should always be present.
+  EXPECT_TRUE(result.FindDict("aidaAvailability"));
+  EXPECT_TRUE(result.FindDict("devToolsConsoleInsights"));
+}
+
+TEST_F(DevToolsUIBindingsHostConfigTest, GetHostConfigWithFeatures) {
+  // Verify initial state of features.
+  base::DictValue initial_config =
+      DevToolsUIBindings::GetHostConfigDictionary(profile_.get());
+
+  const base::DictValue* initial_durable_messages =
+      initial_config.FindDict("devToolsEnableDurableMessages");
+  ASSERT_FALSE(initial_durable_messages);
+
+  const base::DictValue* initial_protocol_monitor =
+      initial_config.FindDict("devToolsProtocolMonitor");
+  ASSERT_TRUE(initial_protocol_monitor);
+  EXPECT_FALSE(initial_protocol_monitor->FindBool("enabled").value_or(true));
+
+  const base::DictValue* initial_freestyler =
+      initial_config.FindDict("devToolsFreestyler");
+  ASSERT_TRUE(initial_freestyler);
+  EXPECT_TRUE(initial_freestyler->FindBool("enabled").value_or(false));
+
+  // Enable features.
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures(
+      {::features::kDevToolsEnableDurableMessages,
+       ::features::kDevToolsProtocolMonitor, ::features::kDevToolsFreestyler},
+      {});
+
+  // Verify state of features after enabling them.
+  base::DictValue result =
+      DevToolsUIBindings::GetHostConfigDictionary(profile_.get());
+
+  const base::DictValue* durable_messages =
+      result.FindDict("devToolsEnableDurableMessages");
+  ASSERT_TRUE(durable_messages);
+  EXPECT_TRUE(durable_messages->FindBool("enabled").value_or(false));
+
+  const base::DictValue* protocol_monitor =
+      result.FindDict("devToolsProtocolMonitor");
+  ASSERT_TRUE(protocol_monitor);
+  EXPECT_TRUE(protocol_monitor->FindBool("enabled").value_or(false));
+
+  const base::DictValue* freestyler = result.FindDict("devToolsFreestyler");
+  ASSERT_TRUE(freestyler);
+  EXPECT_TRUE(freestyler->FindBool("enabled").value_or(false));
+}
+
+TEST_F(DevToolsUIBindingsHostConfigTest, SetChromeFlag) {
+  base::DictValue initial_config =
+      DevToolsUIBindings::GetHostConfigDictionary(profile_.get());
+  const base::DictValue* protocol_monitor =
+      initial_config.FindDict("devToolsProtocolMonitor");
+  ASSERT_TRUE(protocol_monitor);
+  EXPECT_FALSE(protocol_monitor->FindBool("enabled").value_or(true));
+
+  DevToolsUIBindings::SetChromeFlagInternal(profile_.get(),
+                                            "devtools-protocol-monitor", true);
+  base::DictValue new_config =
+      DevToolsUIBindings::GetHostConfigDictionary(profile_.get());
+  const base::DictValue* new_protocol_monitor =
+      new_config.FindDict("devToolsProtocolMonitor");
+  ASSERT_TRUE(new_protocol_monitor);
+  EXPECT_TRUE(new_protocol_monitor->FindBool("enabled").value_or(false));
+
+  DevToolsUIBindings::SetChromeFlagInternal(profile_.get(),
+                                            "devtools-protocol-monitor", false);
+  base::DictValue final_config =
+      DevToolsUIBindings::GetHostConfigDictionary(profile_.get());
+  const base::DictValue* final_protocol_monitor =
+      final_config.FindDict("devToolsProtocolMonitor");
+  ASSERT_TRUE(final_protocol_monitor);
+  EXPECT_FALSE(final_protocol_monitor->FindBool("enabled").value_or(true));
 }

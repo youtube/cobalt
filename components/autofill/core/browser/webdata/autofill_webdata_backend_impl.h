@@ -49,8 +49,9 @@ class Iban;
 // The function declarations below are grouped by the calling sequence.
 // Every member function should DCHECK the calling sequence.
 //
-// Destruction proceeds in two phases:
+// Destruction proceeds in three phases:
 // - ShutdownOnUISequence() on the UI sequence.
+// - Destroy the sync bridges on the DB sequence (see ShutdownOnUISequence()).
 // - Destructor on the DB sequence.
 //
 // This class is final because user-data ownees may call virtual functions of
@@ -179,6 +180,10 @@ class AutofillWebDataBackendImpl final
 
   // Retrieves LoyaltyCards from the database.
   std::unique_ptr<WDTypedResult> GetLoyaltyCards(WebDatabase* db);
+
+  // Updates the ValuableMetadata for a valuable.
+  WebDatabase::State UpdateValuableMetadata(const ValuableMetadata& metadata,
+                                            WebDatabase* db);
 
   // Returns the number of values such that all for autofill entries with that
   // value, the interval between creation date and last usage is entirely

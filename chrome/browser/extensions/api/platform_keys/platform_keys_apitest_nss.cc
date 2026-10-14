@@ -140,9 +140,9 @@ class PlatformKeysTest : public PlatformKeysTestBase {
 
     // Set up the test policy that gives |extension_| the permission to access
     // corporate keys.
-    base::Value::Dict key_permissions_policy;
+    base::DictValue key_permissions_policy;
     {
-      base::Value::Dict cert1_key_permission;
+      base::DictValue cert1_key_permission;
       cert1_key_permission.Set("allowCorporateKeyUsage", true);
       key_permissions_policy.Set(kExtensionId, std::move(cert1_key_permission));
     }
@@ -216,7 +216,7 @@ class PlatformKeysTest : public PlatformKeysTestBase {
           extension_key_permissions_service,
       base::OnceClosure done_callback,
       bool is_error,
-      crosapi::mojom::KeystoreError error) {
+      chromeos::KeystoreError error) {
     ASSERT_FALSE(is_error) << static_cast<int>(error);
     std::move(done_callback).Run();
   }

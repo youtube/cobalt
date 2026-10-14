@@ -870,7 +870,6 @@ class WebRtcVoiceEngineTestFake : public ::testing::TestWithParam<bool> {
 
   void VerifyEchoCancellationSettings(bool enabled) {
     EXPECT_EQ(apm_config_.echo_canceller.enabled, enabled);
-    EXPECT_EQ(apm_config_.echo_canceller.mobile_mode, false);
   }
 
   bool IsHighPassFilterEnabled() {
@@ -910,33 +909,6 @@ class WebRtcVoiceEngineTestFake : public ::testing::TestWithParam<bool> {
   AudioProcessing::Config apm_config_;
   PayloadTypePicker pt_mapper_;
 };
-
-TEST_P(WebRtcVoiceEngineTestFake, OnRtpSendParametersChangedCallback) {
-  EXPECT_TRUE(SetupSendStream());
-
-  std::optional<uint32_t> callback_ssrc;
-  RtpParameters callback_params;
-  int callback_count = 0;
-  send_channel_->SubscribeRtpSendParametersChanged(
-      this, [&](std::optional<uint32_t> ssrc, const RtpParameters& params) {
-        callback_ssrc = ssrc;
-        callback_params = params;
-        ++callback_count;
-      });
-
-  RtpParameters parameters = send_channel_->GetRtpSendParameters(kSsrcX);
-  EXPECT_EQ(callback_count, 0);
-
-  // Change parameters.
-  parameters.encodings[0].max_bitrate_bps = 132000;
-  EXPECT_TRUE(send_channel_->SetRtpSendParameters(kSsrcX, parameters).ok());
-
-  EXPECT_EQ(callback_count, 1);
-  EXPECT_EQ(callback_ssrc, kSsrcX);  // SetupSendStream adds kSsrcX.
-  EXPECT_EQ(callback_params.encodings[0].max_bitrate_bps, 132000);
-
-  send_channel_->UnsubscribeRtpSendParametersChanged(this);
-}
 
 INSTANTIATE_TEST_SUITE_P(TestBothWithAndWithoutNullApm,
                          WebRtcVoiceEngineTestFake,

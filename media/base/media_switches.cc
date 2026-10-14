@@ -15,6 +15,7 @@
 #include "build/build_config.h"
 #include "build/chromecast_buildflags.h"
 #include "components/system_media_controls/linux/buildflags/buildflags.h"
+#include "gpu/config/gpu_driver_bug_workarounds.h"
 #include "gpu/config/gpu_finch_features.h"
 #include "media/media_buildflags.h"
 #include "ui/gl/gl_features.h"
@@ -323,6 +324,12 @@ const char kEnablePrimaryNodeAccessForVkmsTesting[] =
 const char kHardwareVideoDecodeFrameRate[] = "hardware-video-decode-framerate";
 #endif  // BUILDFLAG(USE_V4L2_CODEC)
 
+#if BUILDFLAG(USE_VAAPI)
+// Allows explicitly picking a device path to find the device for VA-API video
+// decoding and encoding.
+const char kHardwareVideoDevicePath[] = "hardware-video-device-path";
+#endif  // BUILDFLAG(USE_VAAPI)
+
 }  // namespace switches
 
 namespace media {
@@ -370,6 +377,10 @@ BASE_FEATURE(kVideoPipForceTrustedForMediaPlaybackForTesting,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // !BUILDFLAG(IS_ANDROID)
 
+// Enables tracking the occlusion of encrypted video elements.
+BASE_FEATURE(kEncryptedMediaOcclusionTracking,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables user control over muting tab audio from the tab strip.
 BASE_FEATURE(kEnableTabMuting, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -399,6 +410,12 @@ BASE_FEATURE(kResumeBackgroundVideo,
 #endif
 );
 
+#if BUILDFLAG(IS_WIN)
+// Enables application audio capture for getDisplayMedia (gDM) window capture in
+// Windows.
+BASE_FEATURE(kApplicationAudioCaptureWin, base::FEATURE_ENABLED_BY_DEFAULT);
+#endif
+
 #if BUILDFLAG(IS_MAC)
 // Enables system audio loopback capture using the macOS CoreAudio tap API for
 // Cast.
@@ -413,6 +430,11 @@ BASE_FEATURE(kMacCatapLoopbackAudioForScreenShare,
 // flag will only use the built-in picker on MacOS 15 Sequoia and later where it
 // is required to avoid recurring permission dialogs.
 BASE_FEATURE(kUseSCContentSharingPicker, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables application audio capture for getDisplayMedia (gDM) window capture in
+// macOS.
+BASE_FEATURE(kApplicationAudioCaptureMac, base::FEATURE_DISABLED_BY_DEFAULT);
+
 #endif  // BUILDFLAG(IS_MAC)
 
 #if BUILDFLAG(IS_LINUX)
@@ -537,15 +559,23 @@ const base::FeatureParam<bool> kEnforceSystemEchoCancellationAllowNsInTandem{
 #endif
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-// When enabled, Cobalt uses |kAudioWriteDuration{Local/Remote}| as
-// audio write duration during SbPlayer prerolling.
-// For example, '--enable-features=CobaltAudioWriteDuration:AudioWriteDurationLocal/1s'.
-// TODO: b/433993748 - Disable CobaltAudioWriteDuration and make kAudioWriteDurationLocal to base::Microseconds(kSbPlayerWriteDurationLocal).
+// When enabled, Cobalt uses |kAudioWriteDuration{Local/Remote}| as the audio
+// write duration for SbPlayer.
+// For example, '--enable-features=CobaltAudioWriteDuration' uses
+// |kSbPlayerWriteDurationLocal| (0.5s) for local, or
+// '--enable-features=CobaltAudioWriteDuration:AudioWriteDurationLocal/2s' to
+// set a custom value.
+// When disabled, Cobalt uses the values set in
+// CobaltContentRendererClient::GetStarboardRendererFactoryTraits(), i.e., 1s
+// for local (intentionally different from |kSbPlayerWriteDurationLocal| to
+// align with Cobalt C25) and |kSbPlayerWriteDurationRemote| for remote.
+// See b/433993748.
 BASE_FEATURE(kCobaltAudioWriteDuration,
              "CobaltAudioWriteDuration",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+             base::FEATURE_DISABLED_BY_DEFAULT);
 const base::FeatureParam<base::TimeDelta> kAudioWriteDurationLocal{
-    &kCobaltAudioWriteDuration, "AudioWriteDurationLocal", base::Milliseconds(1000)};
+    &kCobaltAudioWriteDuration, "AudioWriteDurationLocal",
+    base::Microseconds(kSbPlayerWriteDurationLocal)};
 const base::FeatureParam<base::TimeDelta> kAudioWriteDurationRemote{
     &kCobaltAudioWriteDuration, "AudioWriteDurationRemote", base::Microseconds(kSbPlayerWriteDurationRemote)};
 #if BUILDFLAG(IS_ANDROID)
@@ -576,6 +606,14 @@ BASE_FEATURE(kCobaltDisableDecoderBufferAllocator,
 BASE_FEATURE(kCobaltInPlaceMediaSourceParser,
              "CobaltInPlaceMediaSourceParser",
              base::FEATURE_DISABLED_BY_DEFAULT);
+// Whether kCobaltInPlaceMediaSourceParser borrows or copies appended data.
+// When false, the stream parser is instead meant to copy each append into
+// memory that it owns, and then parse it in place.
+BASE_FEATURE_PARAM(bool,
+                   kCobaltInPlaceMediaSourceParserBorrowMode,
+                   &kCobaltInPlaceMediaSourceParser,
+                   "borrow_mode",
+                   false);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -596,7 +634,6 @@ BASE_FEATURE(kCrOSDspBasedNsDeactivatedGroups,
 BASE_FEATURE(kCrOSDspBasedAgcDeactivatedGroups,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kCrOSDspBasedAecAllowed, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kCrOSDspBasedNsAllowed, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kCrOSDspBasedAgcAllowed, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -812,6 +849,11 @@ BASE_FEATURE(kVideoBlitColorAccuracy,
 // A video encoder is allowed to drop a frame in cast mirroring.
 BASE_FEATURE(kCastVideoEncoderFrameDrop, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Enables optimizations to flush() and configure() in the WebCodecs' audio and
+// video decoder implementations. Kill-switch to be removed after M145 stable.
+BASE_FEATURE(kWebCodecsDecoderFlushOptimizations,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 // A video encoder is allowed to drop a frame in WebCodecs.
 BASE_FEATURE(kWebCodecsVideoEncoderFrameDrop,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -944,7 +986,7 @@ const base::FeatureParam<bool> kHardwareSecureDecryptionForceSupportClearLead{
 // Same as `kHardwareSecureDecryption` above, but only enable experimental
 // sub key systems. Which sub key system is experimental is key system specific.
 BASE_FEATURE(kHardwareSecureDecryptionExperiment,
-             base::FEATURE_ENABLED_BY_DEFAULT);
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Allows automatically disabling hardware secure Content Decryption Module
 // (CDM) after failures or crashes to fallback to software secure CDMs. If this
@@ -1315,7 +1357,7 @@ BASE_FEATURE(kUseOutOfProcessVideoDecoding,
 // Use shared image interface to transport video frame resources.
 // TODO(crbug.com/457296322): Enable after fixing issue where SharedImages are
 // missing from the SharedImageManager.
-BASE_FEATURE(kUseSharedImageInOOPVDProcess, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kUseSharedImageInOOPVDProcess, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(ALLOW_OOP_VIDEO_DECODER)
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
@@ -1444,10 +1486,6 @@ BASE_FEATURE(kAudioFocusDuckFlash,
              base::FEATURE_DISABLED_BY_DEFAULT
 #endif
 );
-
-// Enables an optimization where audio input stream read confirmations are
-// written to shared memory instead of being sent through socket messages.
-BASE_FEATURE(kAudioInputConfirmReadsViaShmem, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables the internal Media Session logic without enabling the Media Session
 // service.
@@ -1597,8 +1635,19 @@ BASE_FEATURE(kPauseMutedBackgroundAudio, base::FEATURE_ENABLED_BY_DEFAULT);
 // Controls headless Live Caption experiment, which is likely unstable.
 BASE_FEATURE(kHeadlessLiveCaption, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// If enabled, Glic will start captioning as soon as a profile is loaded.
+BASE_FEATURE(kHeadlessCaptionEarlyStart, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Allows per-site special processing for media links.
 BASE_FEATURE(kMediaLinkHelpers, base::FEATURE_ENABLED_BY_DEFAULT);
+
+#if BUILDFLAG(IS_ANDROID)
+bool IsAndroidZeroCopyVideoCaptureEnabled(
+    const gpu::GpuDriverBugWorkarounds& gpu_workarounds) {
+  return !gpu_workarounds.disable_android_zero_copy_video_capture &&
+         base::FeatureList::IsEnabled(media::kAndroidZeroCopyVideoCapture);
+}
+#endif
 
 bool IsChromeWideEchoCancellationEnabled() {
 #if BUILDFLAG(CHROME_WIDE_ECHO_CANCELLATION)
@@ -1661,6 +1710,20 @@ bool IsSystemLoopbackCaptureSupported() {
 #else
   return false;
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(USE_CRAS)
+}
+
+bool IsApplicationLoopbackCaptureSupported() {
+#if BUILDFLAG(IS_WIN)
+  return base::FeatureList::IsEnabled(kApplicationAudioCaptureWin) &&
+         IsWindowsProcessLoopbackCaptureSupported();
+#elif BUILDFLAG(IS_MAC)
+  return base::FeatureList::IsEnabled(kApplicationAudioCaptureMac) &&
+         base::FeatureList::IsEnabled(
+             media::kMacCatapLoopbackAudioForScreenShare) &&
+         media::IsMacCatapSystemLoopbackCaptureSupported();
+#else
+  return false;
+#endif
 }
 
 bool IsSystemLoopbackAsAecReferenceEnabled() {

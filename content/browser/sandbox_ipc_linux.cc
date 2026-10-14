@@ -97,8 +97,7 @@ void SandboxIPCHandler::HandleRequestFromChild(int fd) {
   // error for a maximum length message.
   uint8_t buf[kMaxSandboxIPCMessagePayloadSize + 128];
 
-  const ssize_t len =
-      base::UnixDomainSocket::RecvMsg(fd, buf, sizeof(buf), &fds);
+  const ssize_t len = base::UnixDomainSocket::RecvMsg(fd, buf, &fds);
   if (len == -1) {
     // TODO: should send an error reply, or the sender might block forever.
     if (errno == EMSGSIZE) {
@@ -113,9 +112,8 @@ void SandboxIPCHandler::HandleRequestFromChild(int fd) {
   if (fds.empty())
     return;
 
-  base::Pickle pickle = base::Pickle::WithUnownedBuffer(
+  base::PickleIterator iter = base::PickleIterator::WithData(
       base::span(buf).first(base::checked_cast<size_t>(len)));
-  base::PickleIterator iter(pickle);
 
   int kind;
   if (!iter.ReadInt(&kind))

@@ -275,7 +275,8 @@ class MockAutofillClient : public autofill::TestAutofillClient {
               UpdateAutofillSuggestions,
               (const std::vector<Suggestion>&,
                FillingProduct,
-               autofill::AutofillSuggestionTriggerSource),
+               autofill::AutofillSuggestionTriggerSource,
+               autofill::AutofillSuggestionsIgnoreFocusLoss),
               (override));
   MOCK_METHOD(void,
               HideAutofillSuggestions,
@@ -411,14 +412,12 @@ class PasswordAutofillManagerTest : public testing::Test {
     features_.Reset();
     if (move_to_context_menu) {
       features_.InitWithFeatures(
-          {features::kPasswordManualFallbackAvailable,
-           features::kAutofillReintroduceHybridPasskeyDropdownItem,
+          {features::kAutofillReintroduceHybridPasskeyDropdownItem,
            features::kWebAuthnUsePasskeyFromAnotherDeviceInContextMenu},
           {});
     } else {
       features_.InitWithFeatures(
-          {features::kPasswordManualFallbackAvailable,
-           features::kAutofillReintroduceHybridPasskeyDropdownItem},
+          {features::kAutofillReintroduceHybridPasskeyDropdownItem},
           {features::kWebAuthnUsePasskeyFromAnotherDeviceInContextMenu});
     }
 #endif

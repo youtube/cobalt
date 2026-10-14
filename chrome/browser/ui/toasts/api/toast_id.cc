@@ -5,10 +5,11 @@
 #include "chrome/browser/ui/toasts/api/toast_id.h"
 
 #include <string>
+#include <string_view>
 
 #include "base/notreached.h"
 
-std::string GetToastName(ToastId toast_id) {
+std::string_view GetToastName(ToastId toast_id) {
   switch (toast_id) {
     case ToastId::kLinkCopied:
       return "LinkCopied";
@@ -20,8 +21,6 @@ std::string GetToastName(ToastId toast_id) {
       return "AddedToReadingList";
     case ToastId::kNonMilestoneUpdate:
       return "NonMilestoneUpdate";
-    case ToastId::kAddedToComparisonTable:
-      return "AddedToComparisonTable";
     case ToastId::kClearBrowsingData:
       return "ClearBrowsingData";
     case ToastId::kPlusAddressOverride:
@@ -32,6 +31,10 @@ std::string GetToastName(ToastId toast_id) {
       return "SyncEsbOnWithoutActionButton";
     case ToastId::kSyncEsbOff:
       return "SyncEsbOff";
+    case ToastId::kSkillSaved:
+      return "SkillSaved";
+    case ToastId::kSkillDeleted:
+      return "SkillDeleted";
     case ToastId::kTabGroupSyncTabRemoved:
       return "TabGroupSyncTabRemoved";
     case ToastId::kTabGroupSyncUserJoined:
@@ -56,6 +59,8 @@ std::string GetToastName(ToastId toast_id) {
       return "CopiedToClipboard";
     case ToastId::kEnhancedBundledSecuritySettings:
       return "EnhancedBundledSecuritySettings";
+    case ToastId::kSavedAutofillAiEntityToWallet:
+      return "SavedAutofillAiEntityToWallet";
   }
 
   NOTREACHED();

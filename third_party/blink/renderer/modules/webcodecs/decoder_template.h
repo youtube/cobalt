@@ -195,6 +195,7 @@ class MODULES_EXPORT DecoderTemplate
   void OnDecodeDone(uint32_t id, media::DecoderStatus);
   void OnFlushDone(media::DecoderStatus);
   void OnResetDone();
+  void OnResetForFlushDone();
   void OnOutput(uint32_t reset_generation, scoped_refptr<MediaOutputType>);
 
   // Helper function making it easier to check |state_|.
@@ -252,6 +253,7 @@ class MODULES_EXPORT DecoderTemplate
   // initialization.
   bool low_delay_ = false;
   std::unique_ptr<MediaConfigType> active_config_;
+  std::optional<HardwarePreference> active_preference_;
 
   // TODO(sandersd): Store the last config, flush, and reset so that
   // duplicates can be elided.

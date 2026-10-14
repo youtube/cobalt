@@ -4,6 +4,7 @@
 
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui.h"
 
+#include "base/test/scoped_feature_list.h"
 #include "base/uuid.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service.h"
 #include "chrome/browser/ui/browser_window/test/mock_browser_window_interface.h"
@@ -11,6 +12,7 @@
 #include "chrome/test/base/testing_profile.h"
 #include "components/contextual_tasks/public/contextual_task.h"
 #include "components/contextual_tasks/public/contextual_tasks_service.h"
+#include "components/contextual_tasks/public/features.h"
 #include "components/contextual_tasks/public/mock_contextual_tasks_service.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "content/public/test/mock_navigation_handle.h"
@@ -80,6 +82,8 @@ class MockTaskInfoDelegate : public TaskInfoDelegate {
 
   MOCK_METHOD(void, OnZeroStateChange, (bool is_zero_state), (override));
 
+  MOCK_METHOD(void, PrepareForTaskChange, (), (override));
+
   MOCK_METHOD(void, OnTaskChanged, (), (override));
 
  private:
@@ -105,7 +109,10 @@ class MockContextualTasksUiService : public ContextualTasksUiService {
   MockContextualTasksUiService(
       Profile* profile,
       contextual_tasks::ContextualTasksService* contextual_tasks_service)
-      : ContextualTasksUiService(profile, contextual_tasks_service, nullptr) {}
+      : ContextualTasksUiService(profile,
+                                 contextual_tasks_service,
+                                 nullptr,
+                                 nullptr) {}
   ~MockContextualTasksUiService() override = default;
 
   MOCK_METHOD(void,
@@ -116,6 +123,11 @@ class MockContextualTasksUiService : public ContextualTasksUiService {
                bool is_shown_in_tab),
               (override));
   MOCK_METHOD(GURL, GetDefaultAiPageUrl, (), (override));
+  MOCK_METHOD(GURL,
+              GetDefaultAiPageUrlForTask,
+              (const base::Uuid& task_id),
+              (override));
+  MOCK_METHOD(bool, IsAiUrl, (const GURL& url), (override));
 };
 
 }  // namespace
@@ -129,6 +141,7 @@ class ContextualTasksUiTest : public ChromeRenderViewHostTestHarness {
     service_for_nav_ =
         std::make_unique<testing::NiceMock<MockContextualTasksUiService>>(
             profile_.get(), contextual_tasks_service_.get());
+    ON_CALL(*service_for_nav_, IsAiUrl(_)).WillByDefault(Return(true));
 
     profile_ = std::make_unique<TestingProfile>();
     embedded_web_contents_ = content::WebContentsTester::CreateTestWebContents(
@@ -223,6 +236,7 @@ TEST_F(ContextualTasksUiTest,
   EXPECT_CALL(*contextual_tasks_service_,
               UpdateThreadForTask(task_id2, _, thread_id2, _, _))
       .Times(1);
+  EXPECT_CALL(delegate, PrepareForTaskChange()).Times(1);
   EXPECT_CALL(*service_for_nav_, OnTaskChanged(_, _, _, false)).Times(1);
 
   ContextualTask task(task_id2);
@@ -336,6 +350,7 @@ TEST_F(ContextualTasksUiTest, TaskCreated_ThreadIdChanged) {
       *contextual_tasks_service_,
       UpdateThreadForTask(task_id, _, thread_id.value(), _, Optional(query)))
       .Times(1);
+  EXPECT_CALL(delegate, PrepareForTaskChange()).Times(1);
   EXPECT_CALL(*service_for_nav_, OnTaskChanged(_, _, task_id, false)).Times(1);
 
   std::unique_ptr<content::MockNavigationHandle> nav_handle =
@@ -380,6 +395,7 @@ TEST_F(ContextualTasksUiTest, TaskCreated_ThreadIdChanged_ShownInTab) {
       UpdateThreadForTask(task_id, _, thread_id.value(), _, Optional(query)))
       .Times(1);
   // Verify is_shown_in_tab is true.
+  EXPECT_CALL(delegate, PrepareForTaskChange()).Times(1);
   EXPECT_CALL(*service_for_nav_, OnTaskChanged(_, _, task_id, true)).Times(1);
 
   std::unique_ptr<content::MockNavigationHandle> nav_handle =
@@ -422,6 +438,7 @@ TEST_F(ContextualTasksUiTest, TaskChanged_ThreadIdChanged_HasExistingTask) {
               UpdateThreadForTask(task_id, _, thread_id, _,
                                   Optional(std::string("koalas"))))
       .Times(1);
+  EXPECT_CALL(delegate, PrepareForTaskChange()).Times(1);
   EXPECT_CALL(*service_for_nav_, OnTaskChanged(_, _, _, _)).Times(1);
 
   std::unique_ptr<content::MockNavigationHandle> nav_handle =
@@ -446,8 +463,9 @@ TEST_F(ContextualTasksUiTest, TaskCreated_ZeroState) {
 
   base::Uuid task_id = base::Uuid::ParseCaseInsensitive(kUuid);
   ContextualTask task(task_id);
-  EXPECT_CALL(*contextual_tasks_service_, CreateTask()).WillOnce(Return(task));
   // OnTaskChanged should be called with the created UUID.
+  EXPECT_CALL(delegate, PrepareForTaskChange()).Times(1);
+  EXPECT_CALL(*contextual_tasks_service_, CreateTask()).WillOnce(Return(task));
   EXPECT_CALL(*service_for_nav_, OnTaskChanged(_, _, task_id, _)).Times(1);
 
   std::unique_ptr<content::MockNavigationHandle> nav_handle =
@@ -601,6 +619,13 @@ TEST_F(ContextualTasksUiTest, DidFinishNavigation_ZeroState) {
        false},  // Whitespace
   };
 
+  ON_CALL(*service_for_nav_, IsAiUrl(GURL("https://google.com")))
+      .WillByDefault(Return(false));
+  ON_CALL(*service_for_nav_, IsAiUrl(GURL("https://google.com?q=test")))
+      .WillByDefault(Return(false));
+  ON_CALL(*service_for_nav_, IsAiUrl(GURL("https://google.com/search")))
+      .WillByDefault(Return(false));
+
   for (const auto& test_case : test_cases) {
     testing::NiceMock<MockTaskInfoDelegate> delegate;
     SetupMockDelegate(&delegate, std::nullopt, std::nullopt, std::nullopt);
@@ -623,6 +648,7 @@ TEST_F(ContextualTasksUiTest, DidFinishNavigation_ZeroState) {
       ContextualTask task(task_id);
       EXPECT_CALL(*contextual_tasks_service_, CreateTask())
           .WillOnce(Return(task));
+      EXPECT_CALL(delegate, PrepareForTaskChange()).Times(1);
     }
 
     std::unique_ptr<content::MockNavigationHandle> nav_handle =
@@ -647,6 +673,7 @@ TEST_F(ContextualTasksUiTest, DidFinishNavigation_FiresOnReload) {
   ContextualTask task(task_id);
 
   EXPECT_CALL(delegate, OnZeroStateChange(true)).Times(2);
+  EXPECT_CALL(delegate, PrepareForTaskChange()).Times(1);
   EXPECT_CALL(*contextual_tasks_service_, CreateTask())
       .Times(1)
       .WillRepeatedly(Return(task));
@@ -722,6 +749,56 @@ TEST_F(ContextualTasksUiTest, Transition_QueryToZeroToQuery) {
   auto handle_query2 = CreateMockNavigationHandle(query_url);
   handle_query2->set_has_committed(true);
   observer->DidFinishNavigation(handle_query2.get());
+}
+
+TEST_F(ContextualTasksUiTest, OnZeroStateChange_FeatureEnabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      contextual_tasks::kEnableNotifyZeroStateRenderedCapability);
+
+  testing::NiceMock<MockTaskInfoDelegate> delegate;
+  SetupMockDelegate(&delegate, std::nullopt, std::nullopt, std::nullopt);
+  auto observer = std::make_unique<ContextualTasksUI::FrameNavObserver>(
+      embedded_web_contents_.get(), service_for_nav_.get(),
+      contextual_tasks_service_.get(), &delegate);
+
+  GURL zero_state_url("https://www.google.com/search?udm=50");
+
+  // Case 1: Same document navigation.
+  // Expect OnZeroStateChange to NOT be called.
+  // Expect task creation to happen because IsSameDocument condition in the task creation block allows it.
+  {
+    EXPECT_CALL(delegate, OnZeroStateChange(_)).Times(0);
+
+    base::Uuid task_id = base::Uuid::ParseCaseInsensitive(kUuid);
+    ContextualTask task(task_id);
+    EXPECT_CALL(*contextual_tasks_service_, CreateTask())
+        .WillOnce(Return(task));
+    EXPECT_CALL(delegate, PrepareForTaskChange()).Times(1);
+    EXPECT_CALL(*service_for_nav_, OnTaskChanged(_, _, task_id, _)).Times(1);
+
+    auto handle = CreateMockNavigationHandle(zero_state_url);
+    handle->set_has_committed(true);
+    handle->set_is_same_document(true);
+    observer->DidFinishNavigation(handle.get());
+  }
+
+  // Case 2: Cross document navigation.
+  // Expect OnZeroStateChange to BE called.
+  // Expect task creation to be SKIPPED because !IsSameDocument is false.
+  {
+    EXPECT_CALL(delegate, OnZeroStateChange(true)).Times(1);
+
+    EXPECT_CALL(*contextual_tasks_service_, CreateTask()).Times(0);
+    EXPECT_CALL(delegate, PrepareForTaskChange()).Times(0);
+
+    // Using a different URL to trigger logic (URL change check).
+    GURL zero_state_url_2("https://www.google.com/search?udm=50&other=1");
+    auto handle = CreateMockNavigationHandle(zero_state_url_2);
+    handle->set_has_committed(true);
+    handle->set_is_same_document(false);
+    observer->DidFinishNavigation(handle.get());
+  }
 }
 
 }  // namespace contextual_tasks

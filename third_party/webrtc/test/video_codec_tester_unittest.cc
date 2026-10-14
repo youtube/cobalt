@@ -138,9 +138,9 @@ class TestVideoEncoder : public MockVideoEncoder {
       EncodedImage encoded_frame;
       encoded_frame._encodedWidth = frame.width;
       encoded_frame._encodedHeight = frame.height;
-      encoded_frame.SetFrameType(frame.keyframe
-                                     ? VideoFrameType::kVideoFrameKey
-                                     : VideoFrameType::kVideoFrameDelta);
+      encoded_frame.set_frame_type(frame.keyframe
+                                       ? VideoFrameType::kVideoFrameKey
+                                       : VideoFrameType::kVideoFrameDelta);
       encoded_frame.SetRtpTimestamp(input_frame.rtp_timestamp());
       encoded_frame.SetSpatialIndex(frame.layer_id.spatial_idx);
       encoded_frame.SetTemporalIndex(frame.layer_id.temporal_idx);

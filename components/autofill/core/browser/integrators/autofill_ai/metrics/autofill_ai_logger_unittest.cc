@@ -33,7 +33,7 @@
 #include "components/autofill/core/browser/strike_databases/payments/test_strike_database.h"
 #include "components/autofill/core/browser/suggestions/suggestion_type.h"
 #include "components/autofill/core/browser/test_utils/autofill_form_test_utils.h"
-#include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
+#include "components/autofill/core/browser/test_utils/entity_data_test_utils.h"
 #include "components/autofill/core/browser/webdata/autofill_ai/entity_table.h"
 #include "components/autofill/core/browser/webdata/autofill_webdata_service_test_helper.h"
 #include "components/autofill/core/common/autofill_features.h"
@@ -84,9 +84,6 @@ class BaseAutofillAiTest : public testing::Test {
   BaseAutofillAiTest() {
     scoped_feature_list_.InitWithFeatures(
         /*enabled_features=*/{features::kAutofillAiWithDataSchema,
-                              features::kAutofillAiNationalIdCard,
-                              features::kAutofillAiKnownTravelerNumber,
-                              features::kAutofillAiRedressNumber,
                               features::kAutofillAiWalletFlightReservation},
         /*disabled_features=*/{});
     autofill_client().set_entity_data_manager(
@@ -96,7 +93,8 @@ class BaseAutofillAiTest : public testing::Test {
             autofill_client().GetSyncService(),
             webdata_helper_.autofill_webdata_service(),
             /*history_service=*/nullptr,
-            /*strike_database=*/nullptr));
+            /*strike_database=*/nullptr,
+            /*variation_country_code=*/GeoIpCountryCode("US")));
     RecreateManager();
     autofill_client().SetUpPrefsAndIdentityForAutofillAi();
   }
@@ -232,28 +230,33 @@ class BaseAutofillAiTest : public testing::Test {
 
   EntityInstance CreateEntity(EntityType type,
                               EntityInstance::RecordType record_type) {
-    switch (type.name()) {
-      case EntityTypeName::kPassport:
-        return test::GetPassportEntityInstance({.record_type = record_type});
-      case EntityTypeName::kDriversLicense:
-        return test::GetDriversLicenseEntityInstance(
-            {.record_type = record_type});
-      case EntityTypeName::kKnownTravelerNumber:
-        return test::GetKnownTravelerNumberInstance(
-            {.record_type = record_type});
-      case EntityTypeName::kRedressNumber:
-        return test::GetRedressNumberEntityInstance(
-            {.record_type = record_type});
-      case EntityTypeName::kVehicle:
-        return test::GetVehicleEntityInstance({.record_type = record_type});
-      case EntityTypeName::kNationalIdCard:
-        return test::GetNationalIdCardEntityInstance(
-            {.record_type = record_type});
-      case EntityTypeName::kFlightReservation:
-        return test::GetFlightReservationEntityInstance(
-            {.record_type = record_type});
-    }
-    NOTREACHED();
+    const EntityInstance entity = [&] {
+      switch (type.name()) {
+        case EntityTypeName::kPassport:
+          return test::GetPassportEntityInstance({.record_type = record_type});
+        case EntityTypeName::kDriversLicense:
+          return test::GetDriversLicenseEntityInstance(
+              {.record_type = record_type});
+        case EntityTypeName::kKnownTravelerNumber:
+          return test::GetKnownTravelerNumberInstance(
+              {.record_type = record_type});
+        case EntityTypeName::kRedressNumber:
+          return test::GetRedressNumberEntityInstance(
+              {.record_type = record_type});
+        case EntityTypeName::kVehicle:
+          return test::GetVehicleEntityInstance({.record_type = record_type});
+        case EntityTypeName::kNationalIdCard:
+          return test::GetNationalIdCardEntityInstance(
+              {.record_type = record_type});
+        case EntityTypeName::kFlightReservation:
+          return test::GetFlightReservationEntityInstance(
+              {.record_type = record_type});
+      }
+      NOTREACHED();
+    }();
+    return IsMaskedStorageSupported(type, record_type)
+               ? test::MaskEntityInstance(entity)
+               : entity;
   }
 
   MockAutofillClient& autofill_client() { return autofill_client_; }
@@ -749,7 +752,7 @@ class AutofillAiPromptMetricsTest
       public testing::WithParamInterface<
           std::tuple<EntityType,
                      AutofillClient::AutofillAiImportPromptType,
-                     AutofillClient::AutofillAiBubbleClosedReason,
+                     AutofillClient::AutofillAiBubbleResult,
                      EntityInstance::RecordType>> {
  public:
   AutofillAiPromptMetricsTest() = default;
@@ -758,7 +761,7 @@ class AutofillAiPromptMetricsTest
   AutofillClient::AutofillAiImportPromptType prompt_type() {
     return std::get<1>(GetParam());
   }
-  AutofillClient::AutofillAiBubbleClosedReason close_reason() {
+  AutofillClient::AutofillAiBubbleResult result() {
     return std::get<2>(GetParam());
   }
   EntityInstance::RecordType record_type() { return std::get<3>(GetParam()); }
@@ -776,14 +779,14 @@ INSTANTIATE_TEST_SUITE_P(
         testing::ValuesIn(
             DenseSet<AutofillClient::AutofillAiImportPromptType>::all()),
         testing::ValuesIn(
-            DenseSet<AutofillClient::AutofillAiBubbleClosedReason>::all()),
+            DenseSet<AutofillClient::AutofillAiBubbleResult>::all()),
         testing::ValuesIn(DenseSet<EntityInstance::RecordType>::all())));
 
 TEST_P(AutofillAiPromptMetricsTest, PromptMetrics) {
   constexpr std::string_view kPromptHistogramMask = "Autofill.Ai.%s.%s%s";
   base::HistogramTester histogram_tester;
   test_api(manager()).logger().OnImportPromptResult(
-      CreateForm(), prompt_type(), entity_type(), record_type(), close_reason(),
+      CreateForm(), prompt_type(), entity_type(), record_type(), result(),
       /*ukm_source_id=*/0);
 
   const std::string_view prompt_type_str =
@@ -796,15 +799,15 @@ TEST_P(AutofillAiPromptMetricsTest, PromptMetrics) {
   histogram_tester.ExpectUniqueSample(
       base::StringPrintf(kPromptHistogramMask, prompt_type_str, entity_type_str,
                          record_type_str),
-      close_reason(), 1);
+      result(), 1);
   histogram_tester.ExpectUniqueSample(
       base::StringPrintf(kPromptHistogramMask, prompt_type_str, entity_type_str,
                          ""),
-      close_reason(), 1);
+      result(), 1);
   histogram_tester.ExpectUniqueSample(
       base::StringPrintf(kPromptHistogramMask, prompt_type_str, "AllEntities",
                          ""),
-      close_reason(), 1);
+      result(), 1);
 }
 
 class AutofillAiMqlsMetricsTest : public BaseAutofillAiTest {
@@ -966,7 +969,7 @@ TEST_F(AutofillAiMqlsMetricsTest, UserPrompts) {
   test_api(manager()).logger().OnImportPromptResult(
       form->ToFormData(), AutofillClient::AutofillAiImportPromptType::kUpdate,
       EntityType(EntityTypeName::kPassport), EntityInstance::RecordType::kLocal,
-      AutofillClient::AutofillAiBubbleClosedReason::kAccepted,
+      AutofillClient::AutofillAiBubbleResult::kAccepted,
       /*ukm_source_id=*/{});
   ASSERT_EQ(mqls_logs().size(), 1u);
 

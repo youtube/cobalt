@@ -590,7 +590,8 @@ TEST(CanonicalCookieTest, CreateWithInvalidDomain) {
       &status);
   EXPECT_EQ(nullptr, cookie.get());
   EXPECT_TRUE(status.HasExactlyExclusionReasonsForTesting(
-      {CookieInclusionStatus::ExclusionReason::EXCLUDE_INVALID_DOMAIN}));
+      {CookieInclusionStatus::ExclusionReason::EXCLUDE_DOMAIN_MISMATCH,
+       CookieInclusionStatus::ExclusionReason::EXCLUDE_INVALID_DOMAIN}));
 }
 
 // Creating a cookie for an eTLD is possible, but it must match the hostname and
@@ -2955,6 +2956,7 @@ TEST(CanonicalCookieTest, MultipleExclusionReasons) {
   ASSERT_FALSE(cookie2);
   EXPECT_TRUE(create_status.HasExactlyExclusionReasonsForTesting(
       {CookieInclusionStatus::ExclusionReason::EXCLUDE_INVALID_PREFIX,
+       CookieInclusionStatus::ExclusionReason::EXCLUDE_DOMAIN_MISMATCH,
        CookieInclusionStatus::ExclusionReason::EXCLUDE_INVALID_DOMAIN}));
 
   // Test IsSetPermittedInContext()
@@ -3179,6 +3181,60 @@ TEST(CanonicalCookieTest, HostCookiePrefix) {
   // While tricky, this isn't considered hidden and is fine.
   EXPECT_TRUE(CanonicalCookie::CreateForTesting(
       https_url, "A=__Host-A=B; Path=/; Secure;", creation_time, server_time));
+}
+
+TEST(CanonicalCookieTest, HiddenHttpCookiePrefix) {
+  // Test that hidden __Http- prefixes in cookie values are rejected.
+  // This prevents an attacker from setting an empty-name cookie with a value
+  // like "__Http-session=token" which would later be sent as
+  // "Cookie: __Http-session=token", bypassing the __Http- prefix protections.
+  GURL https_url("https://www.example.test");
+  base::Time creation_time = base::Time::Now();
+  std::optional<base::Time> server_time = std::nullopt;
+  CookieInclusionStatus status;
+
+  // Hidden __Http- prefixes should be rejected.
+  EXPECT_FALSE(CanonicalCookie::Create(
+      https_url, "=__Http-session=writer; Secure; HttpOnly;", creation_time,
+      server_time, /*cookie_partition_key=*/std::nullopt,
+      CookieSourceType::kUnknown, &status));
+  EXPECT_TRUE(status.HasExactlyExclusionReasonsForTesting(
+      {CookieInclusionStatus::ExclusionReason::EXCLUDE_INVALID_PREFIX}));
+
+  EXPECT_FALSE(CanonicalCookie::Create(
+      https_url, "=__Http-A; Secure; HttpOnly;", creation_time, server_time,
+      /*cookie_partition_key=*/std::nullopt, CookieSourceType::kUnknown,
+      &status));
+  EXPECT_TRUE(status.HasExactlyExclusionReasonsForTesting(
+      {CookieInclusionStatus::ExclusionReason::EXCLUDE_INVALID_PREFIX}));
+
+  // While tricky, this isn't considered hidden and is fine.
+  EXPECT_TRUE(CanonicalCookie::CreateForTesting(
+      https_url, "A=__Http-A=B; Secure; HttpOnly;", creation_time,
+      server_time));
+}
+
+TEST(CanonicalCookieTest, HiddenHostHttpCookiePrefix) {
+  // Test that hidden __Host-Http- prefixes in cookie values are rejected.
+  GURL https_url("https://www.example.test");
+  base::Time creation_time = base::Time::Now();
+  std::optional<base::Time> server_time = std::nullopt;
+  CookieInclusionStatus status;
+
+  // Hidden __Host-Http- prefixes should be rejected.
+  // Note: __Host- is always checked regardless of the feature flag, but
+  // __Host-Http- specific behavior is feature-gated.
+  EXPECT_FALSE(CanonicalCookie::Create(
+      https_url, "=__Host-Http-session=writer; Path=/; Secure; HttpOnly;",
+      creation_time, server_time, /*cookie_partition_key=*/std::nullopt,
+      CookieSourceType::kUnknown, &status));
+  EXPECT_TRUE(status.HasExactlyExclusionReasonsForTesting(
+      {CookieInclusionStatus::ExclusionReason::EXCLUDE_INVALID_PREFIX}));
+
+  // While tricky, this isn't considered hidden and is fine.
+  EXPECT_TRUE(CanonicalCookie::CreateForTesting(
+      https_url, "A=__Host-Http-A=B; Path=/; Secure; HttpOnly;", creation_time,
+      server_time));
 }
 
 TEST(CanonicalCookieTest, CanCreateSecureCookiesFromAnyScheme) {
@@ -3569,6 +3625,71 @@ TEST(CanonicalCookieTest, IsCanonical) {
                 ->IsCanonical(),
             CanonicalCookie::CanonicalizationFailure::kInvalidSecurePrefix);
 
+  // __Http- prefix cookie with Secure and HttpOnly is valid.
+  EXPECT_TRUE(CanonicalCookie::CreateUnsafeCookieForTesting(
+                  "__Http-A", "B", "x.y", "/", base::Time(), base::Time(),
+                  base::Time(), base::Time(), /*secure=*/true,
+                  /*httponly=*/true, CookieSameSite::NO_RESTRICTION,
+                  COOKIE_PRIORITY_LOW)
+                  ->IsCanonical());
+
+  // __Http- prefix cookie without Secure is invalid.
+  EXPECT_EQ(CanonicalCookie::CreateUnsafeCookieForTesting(
+                "__Http-A", "B", "x.y", "/", base::Time(), base::Time(),
+                base::Time(), base::Time(), /*secure=*/false, /*httponly=*/true,
+                CookieSameSite::NO_RESTRICTION, COOKIE_PRIORITY_LOW)
+                ->IsCanonical(),
+            CanonicalCookie::CanonicalizationFailure::kInvalidHttpPrefix);
+
+  // __Http- prefix cookie without HttpOnly is invalid.
+  EXPECT_EQ(CanonicalCookie::CreateUnsafeCookieForTesting(
+                "__Http-A", "B", "x.y", "/", base::Time(), base::Time(),
+                base::Time(), base::Time(), /*secure=*/true, /*httponly=*/false,
+                CookieSameSite::NO_RESTRICTION, COOKIE_PRIORITY_LOW)
+                ->IsCanonical(),
+            CanonicalCookie::CanonicalizationFailure::kInvalidHttpPrefix);
+
+  // __Host-Http- prefix cookie with Secure, HttpOnly, Path=/, no Domain is
+  // valid.
+  EXPECT_TRUE(CanonicalCookie::CreateUnsafeCookieForTesting(
+                  "__Host-Http-A", "B", "x.y", "/", base::Time(), base::Time(),
+                  base::Time(), base::Time(), /*secure=*/true,
+                  /*httponly=*/true, CookieSameSite::NO_RESTRICTION,
+                  COOKIE_PRIORITY_LOW)
+                  ->IsCanonical());
+
+  // __Host-Http- prefix cookie without Secure is invalid.
+  EXPECT_EQ(CanonicalCookie::CreateUnsafeCookieForTesting(
+                "__Host-Http-A", "B", "x.y", "/", base::Time(), base::Time(),
+                base::Time(), base::Time(), /*secure=*/false, /*httponly=*/true,
+                CookieSameSite::NO_RESTRICTION, COOKIE_PRIORITY_LOW)
+                ->IsCanonical(),
+            CanonicalCookie::CanonicalizationFailure::kInvalidHostHttpPrefix);
+
+  // __Host-Http- prefix cookie without HttpOnly is invalid.
+  EXPECT_EQ(CanonicalCookie::CreateUnsafeCookieForTesting(
+                "__Host-Http-A", "B", "x.y", "/", base::Time(), base::Time(),
+                base::Time(), base::Time(), /*secure=*/true, /*httponly=*/false,
+                CookieSameSite::NO_RESTRICTION, COOKIE_PRIORITY_LOW)
+                ->IsCanonical(),
+            CanonicalCookie::CanonicalizationFailure::kInvalidHostHttpPrefix);
+
+  // __Host-Http- prefix cookie with wrong Path is invalid.
+  EXPECT_EQ(CanonicalCookie::CreateUnsafeCookieForTesting(
+                "__Host-Http-A", "B", "x.y", "/foo", base::Time(), base::Time(),
+                base::Time(), base::Time(), /*secure=*/true, /*httponly=*/true,
+                CookieSameSite::NO_RESTRICTION, COOKIE_PRIORITY_LOW)
+                ->IsCanonical(),
+            CanonicalCookie::CanonicalizationFailure::kInvalidHostHttpPrefix);
+
+  // __Host-Http- prefix cookie with Domain prefix is invalid.
+  EXPECT_EQ(CanonicalCookie::CreateUnsafeCookieForTesting(
+                "__Host-Http-A", "B", ".x.y", "/", base::Time(), base::Time(),
+                base::Time(), base::Time(), /*secure=*/true, /*httponly=*/true,
+                CookieSameSite::NO_RESTRICTION, COOKIE_PRIORITY_LOW)
+                ->IsCanonical(),
+            CanonicalCookie::CanonicalizationFailure::kInvalidHostHttpPrefix);
+
   // Partitioned attribute used correctly (__Host- prefix).
   EXPECT_TRUE(CanonicalCookie::CreateUnsafeCookieForTesting(
                   "__Host-A", "B", "x.y", "/", base::Time(), base::Time(),
@@ -3690,34 +3811,38 @@ TEST(CanonicalCookieTest, TestPrefixHistograms) {
   EXPECT_FALSE(CanonicalCookie::CreateForTesting(https_url, "__Host-A=B;",
                                                  creation_time, server_time));
 
-  histograms.ExpectBucketCount(kCookiePrefixHistogram, COOKIE_PREFIX_HOST, 1);
+  histograms.ExpectBucketCount(kCookiePrefixHistogram, CookiePrefix::kHost, 1);
 
   EXPECT_TRUE(CanonicalCookie::CreateForTesting(
       https_url, "__Host-A=B; Path=/; Secure", creation_time, server_time));
-  histograms.ExpectBucketCount(kCookiePrefixHistogram, COOKIE_PREFIX_HOST, 2);
+  histograms.ExpectBucketCount(kCookiePrefixHistogram, CookiePrefix::kHost, 2);
   EXPECT_TRUE(CanonicalCookie::CreateForTesting(
       https_url, "__HostA=B; Path=/; Secure", creation_time, server_time));
-  histograms.ExpectBucketCount(kCookiePrefixHistogram, COOKIE_PREFIX_HOST, 2);
+  histograms.ExpectBucketCount(kCookiePrefixHistogram, CookiePrefix::kHost, 2);
 
   EXPECT_FALSE(CanonicalCookie::CreateForTesting(https_url, "__Secure-A=B;",
                                                  creation_time, server_time));
 
-  histograms.ExpectBucketCount(kCookiePrefixHistogram, COOKIE_PREFIX_SECURE, 1);
+  histograms.ExpectBucketCount(kCookiePrefixHistogram, CookiePrefix::kSecure,
+                               1);
   EXPECT_TRUE(CanonicalCookie::CreateForTesting(
       https_url, "__Secure-A=B; Path=/; Secure", creation_time, server_time));
-  histograms.ExpectBucketCount(kCookiePrefixHistogram, COOKIE_PREFIX_SECURE, 2);
+  histograms.ExpectBucketCount(kCookiePrefixHistogram, CookiePrefix::kSecure,
+                               2);
   EXPECT_TRUE(CanonicalCookie::CreateForTesting(
       https_url, "__SecureA=B; Path=/; Secure", creation_time, server_time));
-  histograms.ExpectBucketCount(kCookiePrefixHistogram, COOKIE_PREFIX_SECURE, 2);
+  histograms.ExpectBucketCount(kCookiePrefixHistogram, CookiePrefix::kSecure,
+                               2);
 
   // Prefix case variants will also increment the histogram.
   EXPECT_TRUE(CanonicalCookie::CreateForTesting(
       https_url, "__SECURE-A=B; Path=/; Secure", creation_time, server_time));
-  histograms.ExpectBucketCount(kCookiePrefixHistogram, COOKIE_PREFIX_SECURE, 3);
+  histograms.ExpectBucketCount(kCookiePrefixHistogram, CookiePrefix::kSecure,
+                               3);
 
   EXPECT_TRUE(CanonicalCookie::CreateForTesting(
       https_url, "__HOST-A=B; Path=/; Secure", creation_time, server_time));
-  histograms.ExpectBucketCount(kCookiePrefixHistogram, COOKIE_PREFIX_HOST, 3);
+  histograms.ExpectBucketCount(kCookiePrefixHistogram, CookiePrefix::kHost, 3);
 }
 
 TEST(CanonicalCookieTest, TestHasNonASCIIHistograms) {
@@ -4106,14 +4231,25 @@ TEST(CanonicalCookieTest, CreateSanitizedCookie_Logic) {
       false /*httponly*/, CookieSameSite::NO_RESTRICTION,
       COOKIE_PRIORITY_DEFAULT, std::nullopt /*partition_key*/, &status));
   EXPECT_TRUE(status.HasExactlyExclusionReasonsForTesting(
-      {CookieInclusionStatus::ExclusionReason::EXCLUDE_INVALID_DOMAIN}));
+      {CookieInclusionStatus::ExclusionReason::EXCLUDE_DOMAIN_MISMATCH,
+       CookieInclusionStatus::ExclusionReason::EXCLUDE_INVALID_DOMAIN}));
+  // Test that empty domain with valid path succeeds (creates a host cookie).
+  // This demonstrates that the invalid path test below fails solely due to
+  // the path, not the domain.
+  EXPECT_TRUE(CanonicalCookie::CreateSanitizedCookie(
+      GURL("http://www.foo.com/foo"), "A", "B", std::string(), "/foo",
+      base::Time(), base::Time(), base::Time(), false /*secure*/,
+      false /*httponly*/, CookieSameSite::NO_RESTRICTION,
+      COOKIE_PRIORITY_DEFAULT, std::nullopt /*partition_key*/, &status));
+  EXPECT_TRUE(status.IsInclude());
+  // Test invalid path (missing leading slash).
   EXPECT_FALSE(CanonicalCookie::CreateSanitizedCookie(
       GURL("http://www.foo.com/foo"), "A", "B", std::string(), "foo",
       base::Time(), base::Time(), base::Time(), false /*secure*/,
       false /*httponly*/, CookieSameSite::NO_RESTRICTION,
       COOKIE_PRIORITY_DEFAULT, std::nullopt /*partition_key*/, &status));
   EXPECT_TRUE(status.HasExactlyExclusionReasonsForTesting(
-      {CookieInclusionStatus::ExclusionReason::EXCLUDE_FAILURE_TO_STORE}));
+      {CookieInclusionStatus::ExclusionReason::EXCLUDE_INVALID_PATH}));
   EXPECT_FALSE(CanonicalCookie::CreateSanitizedCookie(
       GURL("http://www.foo.com"), "A", "B", std::string(), "/foo ",
       base::Time(), base::Time(), base::Time(), /*secure=*/false,
@@ -4209,7 +4345,8 @@ TEST(CanonicalCookieTest, CreateSanitizedCookie_Logic) {
       CookieSameSite::NO_RESTRICTION, COOKIE_PRIORITY_DEFAULT,
       std::nullopt /*partition_key*/, &status));
   EXPECT_TRUE(status.HasExactlyExclusionReasonsForTesting(
-      {CookieInclusionStatus::ExclusionReason::EXCLUDE_INVALID_DOMAIN}));
+      {CookieInclusionStatus::ExclusionReason::EXCLUDE_DOMAIN_MISMATCH,
+       CookieInclusionStatus::ExclusionReason::EXCLUDE_INVALID_DOMAIN}));
 
   // Path with unusual characters escaped.
   cc = CanonicalCookie::CreateSanitizedCookie(
@@ -5015,6 +5152,41 @@ TEST(CanonicalCookieTest, FromStorage) {
       CookieSameSite::NO_RESTRICTION, COOKIE_PRIORITY_DEFAULT,
       /*partition_key=*/std::nullopt, CookieSourceScheme::kSecure, 80,
       CookieSourceType::kUnknown, CanonicalCookieFromStorageCallSite::kTests));
+
+  // __Http- prefix cookies are valid with Secure and HttpOnly.
+  EXPECT_TRUE(CanonicalCookie::FromStorage(
+      "__Http-A", "B", "www.foo.com", "/bar", two_hours_ago, one_hour_from_now,
+      one_hour_ago, one_hour_ago, /*secure=*/true, /*httponly=*/true,
+      CookieSameSite::NO_RESTRICTION, COOKIE_PRIORITY_DEFAULT,
+      /*partition_key=*/std::nullopt, CookieSourceScheme::kSecure, 443,
+      CookieSourceType::kUnknown, CanonicalCookieFromStorageCallSite::kTests));
+
+  // __Http- prefix cookies are invalid without HttpOnly.
+  EXPECT_FALSE(CanonicalCookie::FromStorage(
+      "__Http-A", "B", "www.foo.com", "/bar", two_hours_ago, one_hour_from_now,
+      one_hour_ago, one_hour_ago, /*secure=*/true, /*httponly=*/false,
+      CookieSameSite::NO_RESTRICTION, COOKIE_PRIORITY_DEFAULT,
+      /*partition_key=*/std::nullopt, CookieSourceScheme::kSecure, 443,
+      CookieSourceType::kUnknown, CanonicalCookieFromStorageCallSite::kTests));
+
+  // __Host-Http- prefix cookies are valid with Secure, HttpOnly, Path=/, no
+  // Domain.
+  EXPECT_TRUE(CanonicalCookie::FromStorage(
+      "__Host-Http-A", "B", "www.foo.com", "/", two_hours_ago,
+      one_hour_from_now, one_hour_ago, one_hour_ago, /*secure=*/true,
+      /*httponly=*/true, CookieSameSite::NO_RESTRICTION,
+      COOKIE_PRIORITY_DEFAULT,
+      /*partition_key=*/std::nullopt, CookieSourceScheme::kSecure, 443,
+      CookieSourceType::kUnknown, CanonicalCookieFromStorageCallSite::kTests));
+
+  // __Host-Http- prefix cookies are invalid without HttpOnly.
+  EXPECT_FALSE(CanonicalCookie::FromStorage(
+      "__Host-Http-A", "B", "www.foo.com", "/", two_hours_ago,
+      one_hour_from_now, one_hour_ago, one_hour_ago, /*secure=*/true,
+      /*httponly=*/false, CookieSameSite::NO_RESTRICTION,
+      COOKIE_PRIORITY_DEFAULT, /*partition_key=*/std::nullopt,
+      CookieSourceScheme::kSecure, 443, CookieSourceType::kUnknown,
+      CanonicalCookieFromStorageCallSite::kTests));
 
   // If the port information gets corrupted out of the valid range
   // FromStorage() should result in a PORT_INVALID.
@@ -6045,63 +6217,6 @@ TEST(CanonicalCookieTest, TestGetAndAdjustPortForTrustworthyUrls) {
   EXPECT_EQ(
       CanonicalCookie::GetAndAdjustPortForTrustworthyUrls(insecure_file, true),
       url::PORT_UNSPECIFIED);
-}
-
-TEST(CanonicalCookieTest, TestHasHiddenPrefixName) {
-  const struct {
-    const char* value;
-    bool result;
-  } kTestCases[] = {
-      {"", false},
-      {"  ", false},
-      {"foobar=", false},
-      {"foo=bar", false},
-      {" \t ", false},
-      {"\t", false},
-      {"__Secure=-", false},
-      {"__Secure=-abc", false},
-      {"__Secur=e-abc", false},
-      {"__Secureabc", false},
-      {"__Host=-", false},
-      {"__Host=-abc", false},
-      {"__Hos=t-abc", false},
-      {"_Host", false},
-      {"a__Host-abc=123", false},
-      {"a__Secure-abc=123", false},
-      {"__Secure-abc", true},
-      {"__Host-abc", true},
-      {"   __Secure-abc", true},
-      {"\t__Host-", true},
-      {"__Host-=", true},
-      {"__Host-=123", true},
-      {"__host-=123", true},
-      {"__HOST-=123", true},
-      {"__HoSt-=123", true},
-      {"__Host-abc=", true},
-      {"__Host-abc=123", true},
-      {" __Host-abc=123", true},
-      {"    __Host-abc=", true},
-      {"\t\t\t\t\t__Host-abc=123", true},
-      {"\t __Host-abc=", true},
-      {"__Secure-=", true},
-      {"__Secure-=123", true},
-      {"__secure-=123", true},
-      {"__SECURE-=123", true},
-      {"__SeCuRe-=123", true},
-      {"__Secure-abc=", true},
-      {"__Secure-abc=123", true},
-      {" __Secure-abc=123", true},
-      {"    __Secure-abc=", true},
-      {"\t\t\t\t\t__Secure-abc=123", true},
-      {"\t __Secure-abc=", true},
-      {"__Secure-abc=123=d=4=fg=", true},
-  };
-
-  for (auto test_case : kTestCases) {
-    EXPECT_EQ(CanonicalCookie::HasHiddenPrefixName(test_case.value),
-              test_case.result)
-        << test_case.value << " failed check";
-  }
 }
 
 TEST(CanonicalCookieTest, TestDoubleUnderscorePrefixHistogram) {

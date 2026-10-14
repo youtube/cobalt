@@ -4,6 +4,8 @@
 
 #import "ios/chrome/browser/composebox/coordinator/composebox_input_plate_mediator.h"
 
+#import <unordered_set>
+
 #import "base/no_destructor.h"
 #import "base/run_loop.h"
 #import "base/test/scoped_feature_list.h"
@@ -24,6 +26,7 @@
 #import "components/version_info/channel.h"
 #import "ios/chrome/browser/composebox/coordinator/composebox_mode_holder.h"
 #import "ios/chrome/browser/composebox/public/composebox_input_plate_controls.h"
+#import "ios/chrome/browser/composebox/public/composebox_model_option.h"
 #import "ios/chrome/browser/composebox/public/features.h"
 #import "ios/chrome/browser/composebox/ui/composebox_input_plate_consumer.h"
 #import "ios/chrome/browser/lens/ui_bundled/lens_availability.h"
@@ -62,6 +65,12 @@
 }
 - (void)setImageGenerationEnabled:(BOOL)enabled {
 }
+- (void)setCanvasEnabled:(BOOL)enabled {
+}
+- (void)setDeepSearchEnabled:(BOOL)enabled {
+}
+- (void)allowModelPicker:(BOOL)allowed {
+}
 - (void)setCompact:(BOOL)compact {
 }
 - (void)setCurrentTabFavicon:(UIImage*)favicon {
@@ -78,6 +87,8 @@
 }
 - (void)hideCreateImageActions:(BOOL)hidden {
 }
+- (void)disableCanvasActions:(BOOL)disabled {
+}
 - (void)disableCreateImageActions:(BOOL)disabled {
 }
 - (void)hideCameraActions:(BOOL)hidden {
@@ -88,7 +99,16 @@
 }
 - (void)disableGalleryActions:(BOOL)disabled {
 }
+- (void)setAllowedModels:
+    (std::unordered_set<ComposeboxModelOption>)allowedModels {
+}
+- (void)hideCanvasActions:(BOOL)hidden {
+}
+- (void)hideDeepSearchActions:(BOOL)hidden {
+}
 - (void)setRemainingAttachmentCapacity:(NSUInteger)capacity {
+}
+- (void)setModelOption:(ComposeboxModelOption)modelOption {
 }
 - (void)updateVisibleControls:(ComposeboxInputPlateControls)visibleControls {
   _visibleControls = visibleControls;

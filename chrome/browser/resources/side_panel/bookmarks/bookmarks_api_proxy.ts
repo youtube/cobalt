@@ -33,6 +33,7 @@ export interface BookmarksApiProxy {
   editBookmarks(
       ids: string[], newTitle: string|undefined, newUrl: string|undefined,
       newParentId: string|undefined): void;
+  getIncognitoAvailableCount(ids: string[]): Promise<{incognitoCount: number}>;
   undo(): void;
   renameBookmark(id: string, title: string): void;
   openBookmark(
@@ -161,6 +162,10 @@ export class BookmarksApiProxyImpl implements BookmarksApiProxy {
       }
       return undefined;
     });
+  }
+
+  getIncognitoAvailableCount(ids: string[]) {
+    return this.handler.getIncognitoAvailableCount(ids);
   }
 
   // TODO(crbug.com/406794014): Use the extensions API for this once

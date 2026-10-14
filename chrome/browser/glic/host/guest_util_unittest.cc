@@ -129,15 +129,16 @@ TEST_P(GuestUtilMultiInstanceTest,
 }
 
 TEST_P(GuestUtilMultiInstanceTest, GetGlicGuestURLs) {
+  TestingProfile* profile = CreateTestingProfile();
   if (IsMultiInstanceEnabled()) {
     EXPECT_EQ(GURL("https://www.example.com/glic?mode=mi&hl=en"),
               GetGuestURL());
-    EXPECT_TRUE(net::GetValueForKeyInQuery(GetFreURL(CreateTestingProfile()),
-                                           "mode", nullptr));
+    EXPECT_TRUE(
+        net::GetValueForKeyInQuery(GetFreURL(profile), "mode", nullptr));
   } else {
     EXPECT_EQ(GURL("https://www.example.org/glic?hl=en"), GetGuestURL());
-    EXPECT_FALSE(net::GetValueForKeyInQuery(GetFreURL(CreateTestingProfile()),
-                                            "mode", nullptr));
+    EXPECT_FALSE(
+        net::GetValueForKeyInQuery(GetFreURL(profile), "mode", nullptr));
   }
 }
 

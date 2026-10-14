@@ -7,6 +7,7 @@
 
 #include <memory>
 #include <optional>
+#include <string_view>
 
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/webui/searchbox/webui_omnibox_handler.h"
@@ -54,6 +55,8 @@ class OmniboxPopupPresenterBase {
   // Returns the currently "active" Popup content, whichever one is visible or
   // going to be visible within the popup.
   OmniboxPopupWebUIBaseContent* GetWebUIContent() const;
+
+  virtual std::string_view GetPopupMetricPrefix() const = 0;
 
  protected:
   // The container for the WebUI WebView.

@@ -931,7 +931,7 @@ BUILDERS = {
         ],
         'platform': 'linux',
         'dimension': {
-            'gpu': '10de:2184-580.95.05',
+            'gpu': '10de:2184',
             'os': 'Ubuntu-22.04',
             'pool': 'chrome.tests.perf',
             'synthetic_product_name': 'Precision 3930 Rack (Dell Inc.)'
@@ -1585,6 +1585,10 @@ GTEST_BENCHMARKS = {
     BenchmarkMetadata(
         'jrprice@google.com, dsinclair@chromium.org', 'Dawn>Tint',
         'https://dawn.googlesource.com/dawn/+/HEAD/docs/tint/benchmark.md'),
+    'web_tests_cuj':
+    # TODO(b/435031130): Update info after finishing implementation.
+    BenchmarkMetadata('zhanliang@google.com',
+                      documentation_url='TODO(b/435031130)'),
 }
 
 RESOURCE_SIZES_METADATA = BenchmarkMetadata(

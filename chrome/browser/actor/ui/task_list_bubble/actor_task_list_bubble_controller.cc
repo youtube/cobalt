@@ -58,8 +58,7 @@ void ActorTaskListBubbleController::ShowBubble(views::View* anchor_view) {
           browser_->GetProfile())
           ->actor_task_list_bubble_rows();
   // Do not show bubble if there are no rows to show.
-  if (base::FeatureList::IsEnabled(features::kGlicActorUiGlobalTaskIndicator) &&
-      task_id_to_state.empty()) {
+  if (task_id_to_state.empty()) {
     return;
   }
   bubble_widget_ = ActorTaskListBubble::ShowBubble(
@@ -96,7 +95,7 @@ void ActorTaskListBubbleController::OnStateUpdateImpl() {
             kTabStripActionContainerElementId);
     if (tab_strip_action_container &&
         tab_strip_action_container->GetIsShowingGlicActorTaskIconNudge()) {
-      ShowBubble(tab_strip_action_container->glic_actor_button_container());
+      ShowBubble(tab_strip_action_container->glic_actor_task_icon());
     }
   }
 }

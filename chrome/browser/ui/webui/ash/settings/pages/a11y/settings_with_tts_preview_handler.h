@@ -7,8 +7,8 @@
 
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
-#include "chrome/browser/ui/webui/settings/settings_page_ui_handler.h"
 #include "content/public/browser/tts_controller.h"
+#include "content/public/browser/web_ui_message_handler.h"
 
 namespace content {
 class TtsController;
@@ -17,7 +17,7 @@ class TtsController;
 namespace ash::settings {
 
 // Parent Chrome OS TTS-related settings page handler.
-class SettingsWithTtsPreviewHandler : public ::settings::SettingsPageUIHandler,
+class SettingsWithTtsPreviewHandler : public content::WebUIMessageHandler,
                                       public content::VoicesChangedDelegate {
  public:
   SettingsWithTtsPreviewHandler();
@@ -30,10 +30,10 @@ class SettingsWithTtsPreviewHandler : public ::settings::SettingsPageUIHandler,
 
   void FireTtsPreviewEvent();
 
-  void HandleGetAllTtsVoiceData(const base::Value::List& args);
-  void HandlePreviewTtsVoice(const base::Value::List& args);
+  void HandleGetAllTtsVoiceData(const base::ListValue& args);
+  void HandlePreviewTtsVoice(const base::ListValue& args);
 
-  // SettingsPageUIHandler implementation.
+  // content::WebUIMessageHandler implementation.
   void RegisterMessages() override;
   void OnJavascriptAllowed() override;
   void OnJavascriptDisallowed() override;
@@ -41,7 +41,7 @@ class SettingsWithTtsPreviewHandler : public ::settings::SettingsPageUIHandler,
   virtual GURL GetSourceURL() const = 0;
 
  private:
-  void RefreshTtsVoices(const base::Value::List& args);
+  void RefreshTtsVoices(const base::ListValue& args);
 
   base::ScopedObservation<content::TtsController,
                           content::VoicesChangedDelegate>

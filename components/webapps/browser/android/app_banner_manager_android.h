@@ -163,7 +163,7 @@ class AppBannerManagerAndroid
                                    const blink::mojom::Manifest& manifest,
                                    NativeCheckCallback callback) override;
   void OnWebAppInstallableCheckedNoErrors(
-      const ManifestId& manifest_id) const override;
+      const ManifestId& manifest_id) override;
   base::expected<void, InstallableStatusCode> CanRunWebAppInstallableChecks(
       const blink::mojom::Manifest& manifest) override;
   bool IsSupportedNonWebAppPlatform(
@@ -173,7 +173,6 @@ class AppBannerManagerAndroid
   void MaybeShowAmbientBadge(const InstallBannerConfig& config) override;
   void ShowBannerUi(WebappInstallSource install_source,
                     const InstallBannerConfig& config) override;
-  base::WeakPtr<AppBannerManager> GetWeakPtrForThisNavigation() override;
   void InvalidateWeakPtrsForThisNavigation() override;
   void ResetCurrentPageData() override;
   void InstallableWebAppStatusUpdate() override;

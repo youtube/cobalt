@@ -14,6 +14,10 @@
   display: flex;
   flex-direction: column;
   height: 100%;
+  --immersive-menu-font: 'Google Sans Text', 'Google Sans', system-ui, sans-serif;
+  --immersive-menu-font-size: 13px;
+  --immersive-menu-line-height: 20px;
+  --immersive-menu-font-weight: 400;
 }
 
 :host #appFlexParent {
@@ -34,7 +38,7 @@
      it is a line. */
   box-shadow: var(--line-focus-shadow);
   /* Clip path ensures the box shadow doesn't go beyond the content window. */
-  clip-path: inset(var(--line-focus-clip-top) 0px var(--line-focus-clip-bottom) 0px round 12px);
+  clip-path: inset(var(--line-focus-clip-top) 0 var(--line-focus-clip-bottom) 0 round 12px);
   pointer-events: none;
 }
 
@@ -53,6 +57,17 @@
   display: block;
 }
 
+/* Provides a fading effect to containerScroller after scrolling. */
+.sp-scroller.fade {
+  --scrollbar-margin: calc(var(--sp-card-block-padding) * 2);
+  --text-top-margin: calc((var(--letter-spacing) + var(--font-size)) / 2);
+
+  /* Fade out the text at the top of the scroller. */
+  mask-image: linear-gradient(to bottom, transparent, black var(--text-top-margin)),
+  /* Prevent fading from extending to the scrollbar. */
+  linear-gradient(to left, black var(--scrollbar-margin),transparent var(--scrollbar-margin));
+}
+
 #toolbar-container {
   width: 100%;
 }
@@ -65,13 +80,17 @@
   width: 100%;
 }
 
+#appFlexParent.immersive {
+  background-color: var(--background-color);
+}
+
 #appFlexParent #containerParent {
   background: var(--background-color);
   display: flex;
   flex-grow:1;
   height: 100%;
   margin-bottom: var(--sp-card-block-padding);
-  min-height:0px;
+  min-height: 0;
   min-width: var(--container-min-width);
   padding-top: 2px;
   padding-left: var(--sp-card-block-padding);
@@ -130,6 +149,8 @@
   max-width: var(--max-width);
   overflow-wrap: break-word;
   padding-left: 20px;
+  padding-top: var(--line-focus-padding);
+  padding-bottom: var(--line-focus-padding);
   width: 100%; /* Wrap text to width even with horizontal scroll bar */
 }
 
@@ -181,7 +202,7 @@
 #docs-load-more-button {
   background: var(--color-sys-tonal-container);
   margin: 0 auto;
-  border-width: 0px;
+  border-width: 0;
   width: 10em;
   max-width: 100%;
   height: 3em;
@@ -189,4 +210,27 @@
   color: var(--cr-primary-text-color);
   display: flex;
   justify-content: center;
+}
+
+img.distilled-inline-img {
+  display: inline;
+  vertical-align: middle;
+  width: auto;
+}
+
+img.distilled-full-width-img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.settings-overlay {
+  width: 100vw;
+  height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  background-color: transparent;
+  z-index: 9998;
+  display: none;
 }

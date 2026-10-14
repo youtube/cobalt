@@ -16,7 +16,7 @@
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/autofill/core/browser/foundations/autofill_client.h"
-#include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
+#include "components/autofill/core/browser/test_utils/entity_data_test_utils.h"
 #include "components/signin/public/base/consent_level.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
 #include "components/strings/grit/components_strings.h"
@@ -194,9 +194,8 @@ TEST_F(AutofillAiSaveUpdateEntityFlowManagerTest, ShowsMessage_MessageIngored) {
                            prompt_closed_callback().Get());
 
   // Simulate the user ignoring the message which dismisses it.
-  EXPECT_CALL(
-      prompt_closed_callback(),
-      Run(AutofillClient::AutofillAiBubbleClosedReason::kNotInteracted));
+  EXPECT_CALL(prompt_closed_callback(),
+              Run(AutofillClient::AutofillAiBubbleResult::kNotInteracted));
   message_model->OnDismissed(messages::DismissReason::TIMER);
 }
 
@@ -210,7 +209,42 @@ TEST_F(AutofillAiSaveUpdateEntityFlowManagerTest, ShowsMessage_MessageClosed) {
 
   // Simulate the swipe on the message that closes it.
   EXPECT_CALL(prompt_closed_callback(),
-              Run(AutofillClient::AutofillAiBubbleClosedReason::kClosed));
+              Run(AutofillClient::AutofillAiBubbleResult::kClosed));
+  message_model->OnDismissed(messages::DismissReason::GESTURE);
+}
+
+TEST_F(AutofillAiSaveUpdateEntityFlowManagerTest,
+       StartSecondFlowBeforePreviousIsFinished) {
+  std::unique_ptr<AutofillMessageModel> message_model;
+  // The message should be shown only once because the second flow is started
+  // before the previous one is aborted.
+  EXPECT_CALL(message_controller(), Show(_));
+  flow_manager().OfferSave(new_entity(), /*old_entity=*/std::nullopt,
+                           prompt_closed_callback().Get());
+  flow_manager().OfferSave(new_entity(), /*old_entity=*/std::nullopt,
+                           prompt_closed_callback().Get());
+}
+
+TEST_F(AutofillAiSaveUpdateEntityFlowManagerTest,
+       StartSecondFlowAfterPreviousIsFinished) {
+  std::unique_ptr<AutofillMessageModel> message_model;
+  // The message should be shown twice because the second flow is started after
+  // the previous one is aborted by the user.
+  EXPECT_CALL(message_controller(), Show(_))
+      .Times(2)
+      .WillRepeatedly(SaveArgByMove<0>(&message_model));
+  EXPECT_CALL(prompt_closed_callback(),
+              Run(AutofillClient::AutofillAiBubbleResult::kClosed))
+      .Times(2);
+
+  flow_manager().OfferSave(new_entity(), /*old_entity=*/std::nullopt,
+                           prompt_closed_callback().Get());
+  // Dismiss the message first time.
+  message_model->OnDismissed(messages::DismissReason::GESTURE);
+
+  flow_manager().OfferSave(new_entity(), /*old_entity=*/std::nullopt,
+                           prompt_closed_callback().Get());
+  // Dismiss the message second time.
   message_model->OnDismissed(messages::DismissReason::GESTURE);
 }
 

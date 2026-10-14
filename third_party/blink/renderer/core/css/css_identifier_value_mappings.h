@@ -1650,8 +1650,6 @@ inline Containment CSSIdentifierValue::ConvertTo() const {
       return kContainsSize;
     case CSSValueID::kInlineSize:
       return kContainsInlineSize;
-    case CSSValueID::kViewTransition:
-      return kContainsViewTransition;
     default:
       break;
   }
@@ -1675,6 +1673,28 @@ inline EContainerType CSSIdentifierValue::ConvertTo() const {
       break;
   }
   NOTREACHED();
+}
+
+template <>
+inline EMarginTrim CSSIdentifierValue::ConvertTo() const {
+  switch (GetValueID()) {
+    case CSSValueID::kNone:
+      return kMarginTrimNone;
+    case CSSValueID::kBlock:
+      return kMarginTrimBlock;
+    case CSSValueID::kInline:
+      return kMarginTrimInline;
+    case CSSValueID::kBlockStart:
+      return kMarginTrimBlockStart;
+    case CSSValueID::kInlineStart:
+      return kMarginTrimInlineStart;
+    case CSSValueID::kBlockEnd:
+      return kMarginTrimBlockEnd;
+    case CSSValueID::kInlineEnd:
+      return kMarginTrimInlineEnd;
+    default:
+      NOTREACHED();
+  }
 }
 
 template <>

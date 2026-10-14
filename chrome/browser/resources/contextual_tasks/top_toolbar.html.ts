@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import '/strings.m.js';
+
 import {html} from '//resources/lit/v3_0/lit.rollup.js';
 
 import type {TopToolbarElement} from './top_toolbar.js';
@@ -24,27 +26,48 @@ export function getHtml(this: TopToolbarElement) {
     ${this.title}
   </div>
   <div class="top-toolbar-action-buttons">
+    <cr-icon-button id="newThreadButton"
+        @click="${this.onNewThreadClick_}"
+        iron-icon="contextual_tasks:edit_square"
+        class="no-overlap" title="$i18n{newThreadTooltip}"
+        aria-label="i18n{newThreadTooltip}">
+    </cr-icon-button>
+    <cr-icon-button id="threadHistoryButton"
+        @click="${this.onThreadHistoryClick_}"
+        iron-icon="contextual_tasks:notes_spark"
+        class="no-overlap" title="$i18n{threadHistoryTooltip}"
+        aria-label="i18n{threadHistoryTooltip}">
+    </cr-icon-button>
     <contextual-tasks-favicon-group id="sources"
-        .urls="${this.attachedTabs.map(t => t.url.url)}"
-        title="Sources" @click="${this.onSourcesClick_}"
+        .contextInfos="${this.contextInfos}"
+        title="$i18n{contextTooltip}"
+        aria-label="i18n{contextTooltip}"
+        @click="${this.onSourcesClick_}"
         ?hidden="${!this.shouldShowSourcesMenuButton_()}">
     </contextual-tasks-favicon-group>
-    <cr-icon-button @click="${this.onNewThreadClick_}"
-        iron-icon="contextual_tasks:edit_square"
-        title="New Thread">
-    </cr-icon-button>
-    <cr-icon-button @click="${this.onThreadHistoryClick_}"
-        iron-icon="contextual_tasks:schedule_auto" title="Thread History">
-    </cr-icon-button>
-    <cr-icon-button id="more" iron-icon="cr:more-vert"
-        title="More" @click="${this.onMoreClick_}">
-    </cr-icon-button>
-    <cr-icon-button @click="${this.onCloseButtonClick_}" iron-icon="cr:close"
-        title="Close">
+    ${this.isExpandButtonEnabled ? html`
+      <cr-icon-button id="more"
+        iron-icon="contextual_tasks:open_in_full_tab"
+        class="no-overlap" title="$i18n{openInNewTab}"
+        aria-label="i18n{openInNewTab}"
+        @click="${this.onOpenInNewTabClick_}">
+      </cr-icon-button>
+    ` :html`
+      <cr-icon-button id="more" iron-icon="cr:more-vert"
+        class="no-overlap" title="$i18n{moreOptionsTooltip}"
+        aria-label="i18n{moreOptionsTooltip}"
+        @click="${this.onMoreClick_}">
+      </cr-icon-button>
+    `}
+    <cr-icon-button id="closeButton"
+        @click="${this.onCloseButtonClick_}"
+        iron-icon="cr:close"
+        title="$i18n{closeTooltip}"
+        aria-label="i18n{closeTooltip}">
     </cr-icon-button>
   </div>
   <cr-lazy-render-lit id="sourcesMenu" .template="${() => html`
-    <contextual-tasks-sources-menu .attachedTabs="${this.attachedTabs}">
+    <contextual-tasks-sources-menu .contextInfos="${this.contextInfos}">
     </contextual-tasks-sources-menu>`}">
   </cr-lazy-render-lit>
   <cr-lazy-render-lit id="menu" .template="${() => html`

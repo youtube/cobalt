@@ -10,7 +10,6 @@ import static org.chromium.build.NullUtil.assumeNonNull;
 import android.app.Activity;
 import android.util.DisplayMetrics;
 import android.util.TypedValue;
-import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
@@ -31,8 +30,9 @@ import org.chromium.base.Callback;
 import org.chromium.base.Log;
 import org.chromium.base.ObserverList;
 import org.chromium.base.ThreadUtils;
-import org.chromium.base.supplier.MonotonicObservableSupplier;
-import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.base.supplier.NonNullObservableSupplier;
+import org.chromium.base.supplier.ObservableSuppliers;
+import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
 import org.chromium.build.annotations.EnsuresNonNullIf;
@@ -51,6 +51,7 @@ import org.chromium.chrome.browser.share.ChromeShareExtras;
 import org.chromium.chrome.browser.share.ShareDelegate;
 import org.chromium.chrome.browser.ui.messages.snackbar.Snackbar;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
+import org.chromium.chrome.browser.util.BrowserUiUtils;
 import org.chromium.chrome.browser.xsurface.HybridListRenderer;
 import org.chromium.chrome.browser.xsurface.ListLayoutHelper;
 import org.chromium.chrome.browser.xsurface.LoggingParameters;
@@ -124,16 +125,7 @@ public class FeedStream implements Stream {
                                                     mRecyclerView, options.actionSourceView())
                                             != null;
                     if (isFromFeedContent) {
-                        boolean isCtrlOn = (mLastMetaState & KeyEvent.META_CTRL_ON) != 0;
-                        boolean isShiftOn = (mLastMetaState & KeyEvent.META_SHIFT_ON) != 0;
-                        if (isCtrlOn) {
-                            disposition =
-                                    isShiftOn
-                                            ? WindowOpenDisposition.NEW_FOREGROUND_TAB
-                                            : WindowOpenDisposition.NEW_BACKGROUND_TAB;
-                        } else if (isShiftOn) {
-                            disposition = WindowOpenDisposition.NEW_WINDOW;
-                        }
+                        disposition = BrowserUiUtils.getDispositionFromMetaState(mLastMetaState);
                     }
                     mLastMetaState = 0;
                     openSuggestionUrl(url, disposition, /* inGroup= */ false, options);
@@ -402,12 +394,10 @@ public class FeedStream implements Stream {
     class InProgressWorkTracker {
         private int mNextWorkId;
         private final HashSet<Integer> mActiveWork = new HashSet<>();
-        private final ObservableSupplierImpl<Boolean> mWorkPending = new ObservableSupplierImpl<>();
+        private final SettableNonNullObservableSupplier<Boolean> mWorkPending =
+                ObservableSuppliers.createNonNull(false);
 
-        InProgressWorkTracker() {
-            // ObservableSupplierImpl holds null by default.
-            mWorkPending.set(false);
-        }
+        InProgressWorkTracker() {}
 
         /**
          * Record that background work has begun, returns a runnable to be called when work is
@@ -422,9 +412,7 @@ public class FeedStream implements Stream {
 
         /** postTask to call runnable after all in-progress work is complete. */
         void postTaskAfterWorkComplete(Runnable runnable) {
-            Boolean workPendingValue = mWorkPending.get();
-            assert workPendingValue != null;
-            if (!workPendingValue) {
+            if (!mWorkPending.get()) {
                 PostTask.postTask(TaskTraits.UI_DEFAULT, runnable);
             } else {
                 new DoneWatcher(runnable);
@@ -437,7 +425,7 @@ public class FeedStream implements Stream {
 
             DoneWatcher(Runnable runnable) {
                 mDelegate = runnable;
-                mWorkPending.addObserver(this);
+                mWorkPending.addSyncObserverAndPostIfNonNull(this);
             }
 
             @Override
@@ -733,7 +721,7 @@ public class FeedStream implements Stream {
             SnackbarManager snackbarManager,
             BottomSheetController bottomSheetController,
             WindowAndroid windowAndroid,
-            Supplier<ShareDelegate> shareDelegateSupplier,
+            Supplier<@Nullable ShareDelegate> shareDelegateSupplier,
             int streamKind,
             FeedActionDelegate actionDelegate,
             FeedContentFirstLoadWatcher feedContentFirstLoadWatcher,
@@ -1045,7 +1033,7 @@ public class FeedStream implements Stream {
     }
 
     @Override
-    public MonotonicObservableSupplier<Boolean> hasUnreadContent() {
+    public NonNullObservableSupplier<Boolean> hasUnreadContent() {
         return mUnreadContentObserver != null
                 ? mUnreadContentObserver.mHasUnreadContent
                 : Stream.super.hasUnreadContent();
@@ -1515,27 +1503,24 @@ public class FeedStream implements Stream {
     /**
      * Provides a wrapper around sharing methods.
      *
-     * Makes it easier to test.
+     * <p>Makes it easier to test.
      */
     @VisibleForTesting
     static class ShareHelperWrapper {
         private final WindowAndroid mWindowAndroid;
-        private final Supplier<ShareDelegate> mShareDelegateSupplier;
+        private final Supplier<@Nullable ShareDelegate> mShareDelegateSupplier;
 
         public ShareHelperWrapper(
-                WindowAndroid windowAndroid, Supplier<ShareDelegate> shareDelegateSupplier) {
+                WindowAndroid windowAndroid,
+                Supplier<@Nullable ShareDelegate> shareDelegateSupplier) {
             mWindowAndroid = windowAndroid;
             mShareDelegateSupplier = shareDelegateSupplier;
         }
 
-        /**
-         * Shares a url and title from Chrome to another app.
-         * Brings up the share sheet.
-         */
+        /** Shares a url and title from Chrome to another app. Brings up the share sheet. */
         public void share(String url, String title) {
             ShareParams params = new ShareParams.Builder(mWindowAndroid, title, url).build();
-            mShareDelegateSupplier
-                    .get()
+            assumeNonNull(mShareDelegateSupplier.get())
                     .share(
                             params,
                             new ChromeShareExtras.Builder().build(),
@@ -1553,11 +1538,11 @@ public class FeedStream implements Stream {
 
     @VisibleForTesting
     static class UnreadContentObserver extends FeedServiceBridge.UnreadContentObserver {
-        ObservableSupplierImpl<Boolean> mHasUnreadContent = new ObservableSupplierImpl<>();
+        SettableNonNullObservableSupplier<Boolean> mHasUnreadContent =
+                ObservableSuppliers.createNonNull(false);
 
         UnreadContentObserver(boolean isWebFeed) {
             super(isWebFeed);
-            mHasUnreadContent.set(false);
         }
 
         @Override

@@ -13,10 +13,12 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
-#include <limits>
+#include <optional>
 
+#include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
 #include "rtc_base/random.h"
-#include "rtc_base/time_utils.h"
+#include "system_wrappers/include/clock.h"
 #include "test/gtest.h"
 
 namespace webrtc {
@@ -52,55 +54,60 @@ class TimestampAlignerForTest : public TimestampAligner {
 void TestTimestampFilter(double rel_freq_error) {
   TimestampAlignerForTest timestamp_aligner_for_test;
   TimestampAligner timestamp_aligner;
-  const int64_t kEpoch = 10000;
-  const int64_t kJitterUs = 5000;
-  const int64_t kIntervalUs = 33333;  // 30 FPS
+
+  constexpr Timestamp kSystemStart = Timestamp::Micros(123456);
+  SimulatedClock clock(kSystemStart);
+
+  const Timestamp kEpoch = Timestamp::Micros(10000);
+  const TimeDelta kJitter = TimeDelta::Micros(5000);
+  const TimeDelta kInterval = TimeDelta::Micros(33333);  // 30 FPS
   const int kWindowSize = 100;
   const int kNumFrames = 3 * kWindowSize;
 
-  int64_t interval_error_us = kIntervalUs * rel_freq_error;
-  int64_t system_start_us = TimeMicros();
+  TimeDelta interval_error = kInterval * rel_freq_error;
   Random random(17);
 
-  int64_t prev_translated_time_us = system_start_us;
+  Timestamp prev_translated_time = kSystemStart;
 
   for (int i = 0; i < kNumFrames; i++) {
     // Camera time subject to drift.
-    int64_t camera_time_us = kEpoch + i * (kIntervalUs + interval_error_us);
-    int64_t system_time_us = system_start_us + i * kIntervalUs;
+    Timestamp camera_time = kEpoch + i * (kInterval + interval_error);
+    Timestamp system_time = kSystemStart + i * kInterval;
     // And system time readings are subject to jitter.
-    int64_t system_measured_us = system_time_us + random.Rand(kJitterUs);
+    Timestamp system_measured =
+        system_time + TimeDelta::Micros(random.Rand(kJitter.us()));
 
     int64_t offset_us = timestamp_aligner_for_test.UpdateOffset(
-        camera_time_us, system_measured_us);
+        camera_time.us(), system_measured.us());
 
-    int64_t filtered_time_us = camera_time_us + offset_us;
-    int64_t translated_time_us = timestamp_aligner_for_test.ClipTimestamp(
-        filtered_time_us, system_measured_us);
+    Timestamp filtered_time = camera_time + TimeDelta::Micros(offset_us);
+    Timestamp translated_time =
+        Timestamp::Micros(timestamp_aligner_for_test.ClipTimestamp(
+            filtered_time.us(), system_measured.us()));
 
     // Check that we get identical result from the all-in-one helper method.
-    ASSERT_EQ(translated_time_us, timestamp_aligner.TranslateTimestamp(
-                                      camera_time_us, system_measured_us));
+    ASSERT_EQ(translated_time.us(),
+              timestamp_aligner.TranslateTimestamp(camera_time.us(),
+                                                   system_measured.us()));
 
-    EXPECT_LE(translated_time_us, system_measured_us);
-    EXPECT_GE(translated_time_us,
-              prev_translated_time_us + kNumMicrosecsPerMillisec);
+    EXPECT_LE(translated_time, system_measured);
+    EXPECT_GE(translated_time, prev_translated_time + TimeDelta::Millis(1));
 
     // The relative frequency error contributes to the expected error
     // by a factor which is the difference between the current time
     // and the average of earlier sample times.
-    int64_t expected_error_us =
-        kJitterUs / 2 +
-        rel_freq_error * kIntervalUs * MeanTimeDifference(i, kWindowSize);
+    TimeDelta expected_error =
+        kJitter / 2 +
+        rel_freq_error * kInterval * MeanTimeDifference(i, kWindowSize);
 
-    int64_t bias_us = filtered_time_us - translated_time_us;
-    EXPECT_GE(bias_us, 0);
+    TimeDelta bias = filtered_time - translated_time;
+    EXPECT_GE(bias, TimeDelta::Zero());
 
     if (i == 0) {
-      EXPECT_EQ(translated_time_us, system_measured_us);
+      EXPECT_EQ(translated_time, system_measured);
     } else {
-      EXPECT_NEAR(filtered_time_us, system_time_us + expected_error_us,
-                  2.0 * kJitterUs / sqrt(std::max(i, kWindowSize)));
+      EXPECT_NEAR(filtered_time.us(), (system_time + expected_error).us(),
+                  2.0 * kJitter.us() / sqrt(std::max(i, kWindowSize)));
     }
     // If the camera clock runs too fast (rel_freq_error > 0.0), The
     // bias is expected to roughly cancel the expected error from the
@@ -108,11 +115,11 @@ void TestTimestampFilter(double rel_freq_error) {
     // measurement noise. The tolerances here were selected after some
     // trial and error.
     if (i < 10 || rel_freq_error <= 0.0) {
-      EXPECT_LE(bias_us, 3000);
+      EXPECT_LE(bias, TimeDelta::Micros(3000));
     } else {
-      EXPECT_NEAR(bias_us, expected_error_us, 1500);
+      EXPECT_NEAR(bias.us(), expected_error.us(), 1500);
     }
-    prev_translated_time_us = translated_time_us;
+    prev_translated_time = translated_time;
   }
 }
 
@@ -152,36 +159,40 @@ TEST(TimestampAlignerTest, ClipToMonotonous) {
   // {0, c1, c1 + c2}, we exhibit non-monotonous behaviour if and only
   // if c1 > s1 + 2 s2 + 4 c2.
   const int kNumSamples = 3;
-  const int64_t kCaptureTimeUs[kNumSamples] = {0, 80000, 90001};
-  const int64_t kSystemTimeUs[kNumSamples] = {0, 10000, 20000};
-  const int64_t expected_offset_us[kNumSamples] = {0, -35000, -46667};
+  const Timestamp kCaptureTime[kNumSamples] = {
+      Timestamp::Micros(0), Timestamp::Micros(80000), Timestamp::Micros(90001)};
+  const Timestamp kSystemTime[kNumSamples] = {
+      Timestamp::Micros(0), Timestamp::Micros(10000), Timestamp::Micros(20000)};
+  const TimeDelta expected_offset[kNumSamples] = {TimeDelta::Micros(0),
+                                                  TimeDelta::Micros(-35000),
+                                                  TimeDelta::Micros(-46667)};
 
   // Non-monotonic translated timestamps can happen when only for
   // translated timestamps in the future. Which is tolerated if
   // `timestamp_aligner.clip_bias_us` is large enough. Instead of
   // changing that private member for this test, just add the bias to
   // `kSystemTimeUs` when calling ClipTimestamp.
-  const int64_t kClipBiasUs = 100000;
+  const TimeDelta kClipBias = TimeDelta::Micros(100000);
 
   bool did_clip = false;
-  int64_t prev_timestamp_us = std::numeric_limits<int64_t>::min();
+  std::optional<Timestamp> prev_timestamp;
   for (int i = 0; i < kNumSamples; i++) {
-    int64_t offset_us =
-        timestamp_aligner.UpdateOffset(kCaptureTimeUs[i], kSystemTimeUs[i]);
-    EXPECT_EQ(offset_us, expected_offset_us[i]);
+    TimeDelta offset = TimeDelta::Micros(timestamp_aligner.UpdateOffset(
+        kCaptureTime[i].us(), kSystemTime[i].us()));
+    EXPECT_EQ(offset, expected_offset[i]);
 
-    int64_t translated_timestamp_us = kCaptureTimeUs[i] + offset_us;
-    int64_t clip_timestamp_us = timestamp_aligner.ClipTimestamp(
-        translated_timestamp_us, kSystemTimeUs[i] + kClipBiasUs);
-    if (translated_timestamp_us <= prev_timestamp_us) {
+    Timestamp translated_timestamp = kCaptureTime[i] + offset;
+    Timestamp clip_timestamp =
+        Timestamp::Micros(timestamp_aligner.ClipTimestamp(
+            translated_timestamp.us(), (kSystemTime[i] + kClipBias).us()));
+    if (prev_timestamp && translated_timestamp <= *prev_timestamp) {
       did_clip = true;
-      EXPECT_EQ(clip_timestamp_us,
-                prev_timestamp_us + kNumMicrosecsPerMillisec);
+      EXPECT_EQ(clip_timestamp, *prev_timestamp + TimeDelta::Millis(1));
     } else {
       // No change from clipping.
-      EXPECT_EQ(clip_timestamp_us, translated_timestamp_us);
+      EXPECT_EQ(clip_timestamp, translated_timestamp);
     }
-    prev_timestamp_us = clip_timestamp_us;
+    prev_timestamp = clip_timestamp;
   }
   EXPECT_TRUE(did_clip);
 }
@@ -190,17 +201,23 @@ TEST(TimestampAlignerTest, TranslateTimestampWithoutStateUpdate) {
   TimestampAligner timestamp_aligner;
 
   constexpr int kNumSamples = 4;
-  constexpr int64_t kCaptureTimeUs[kNumSamples] = {0, 80000, 90001, 100000};
-  constexpr int64_t kSystemTimeUs[kNumSamples] = {0, 10000, 20000, 30000};
-  constexpr int64_t kQueryCaptureTimeOffsetUs[kNumSamples] = {0, 123, -321,
-                                                              345};
+  constexpr Timestamp kCaptureTime[kNumSamples] = {
+      Timestamp::Micros(0), Timestamp::Micros(80000), Timestamp::Micros(90001),
+      Timestamp::Micros(100000)};
+  constexpr Timestamp kSystemTime[kNumSamples] = {
+      Timestamp::Micros(0), Timestamp::Micros(10000), Timestamp::Micros(20000),
+      Timestamp::Micros(30000)};
+  constexpr TimeDelta kQueryCaptureTimeOffset[kNumSamples] = {
+      TimeDelta::Micros(0), TimeDelta::Micros(123), TimeDelta::Micros(-321),
+      TimeDelta::Micros(345)};
 
   for (int i = 0; i < kNumSamples; i++) {
-    int64_t reference_timestamp = timestamp_aligner.TranslateTimestamp(
-        kCaptureTimeUs[i], kSystemTimeUs[i]);
-    EXPECT_EQ(reference_timestamp - kQueryCaptureTimeOffsetUs[i],
+    Timestamp reference_timestamp =
+        Timestamp::Micros(timestamp_aligner.TranslateTimestamp(
+            kCaptureTime[i].us(), kSystemTime[i].us()));
+    EXPECT_EQ((reference_timestamp - kQueryCaptureTimeOffset[i]).us(),
               timestamp_aligner.TranslateTimestamp(
-                  kCaptureTimeUs[i] - kQueryCaptureTimeOffsetUs[i]));
+                  (kCaptureTime[i] - kQueryCaptureTimeOffset[i]).us()));
   }
 }
 

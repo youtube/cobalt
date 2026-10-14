@@ -20,6 +20,8 @@
 #include "content/browser/child_process_security_policy_impl.h"
 #include "content/browser/file_system/browser_file_system_helper.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/render_process_host.h"
+#include "content/public/common/child_process_id.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "storage/browser/blob/blob_data_builder.h"
@@ -54,7 +56,11 @@ namespace content {
 
 namespace {
 
-void RevokeFilePermission(int child_id, const base::FilePath& path) {
+void RevokeFilePermission(ChildProcessId child_id, const base::FilePath& path) {
+  // This call happens on the IO thread, where there is no guarantee that the
+  // corresponding SecurityState is still modifiable, because the
+  // RenderProcessHost may be gone. In that case, the call will silently have no
+  // effect.
   ChildProcessSecurityPolicyImpl::GetInstance()->RevokeAllPermissionsForFile(
       child_id, path);
 }
@@ -175,13 +181,14 @@ struct FileSystemManagerImpl::ReadDirectorySyncCallbackEntry {
 };
 
 FileSystemManagerImpl::FileSystemManagerImpl(
-    int process_id,
+    ChildProcessSecurityPolicyImpl::Handle security_policy_handle,
     scoped_refptr<storage::FileSystemContext> file_system_context,
     scoped_refptr<ChromeBlobStorageContext> blob_storage_context)
-    : process_id_(process_id),
-      context_(std::move(file_system_context)),
-      blob_storage_context_(std::move(blob_storage_context)) {
+    : context_(std::move(file_system_context)),
+      blob_storage_context_(std::move(blob_storage_context)),
+      security_policy_handle_(std::move(security_policy_handle)) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  CHECK(!security_policy_handle_.child_id().is_null());
   DCHECK(context_);
   DCHECK(blob_storage_context_);
   receivers_.set_disconnect_handler(base::BindRepeating(
@@ -211,12 +218,16 @@ void FileSystemManagerImpl::Open(const url::Origin& origin,
                                  OpenCallback callback) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
 
+  // Run the access check on the UI thread using a duplicated
+  // ChildProcessSecurityPolicy::Handle, ensuring the SecurityState exists when
+  // the task runs even if this instance and its Handle are gone at the time.
   GetUIThreadTaskRunner({})->PostTaskAndReplyWithResult(
       FROM_HERE,
       base::BindOnce(
-          &ChildProcessSecurityPolicyImpl::CanAccessDataForOrigin,
-          base::Unretained(ChildProcessSecurityPolicyImpl::GetInstance()),
-          process_id_, origin),
+          &ChildProcessSecurityPolicyImpl::Handle::CanAccessDataForOrigin,
+          std::make_unique<ChildProcessSecurityPolicyImpl::Handle>(
+              security_policy_handle_.Duplicate()),
+          origin),
       base::BindOnce(&FileSystemManagerImpl::ContinueOpen,
                      weak_factory_.GetWeakPtr(), origin, file_system_type,
                      receivers_.GetBadMessageCallback(), std::move(callback),
@@ -257,12 +268,16 @@ void FileSystemManagerImpl::ResolveURL(const GURL& filesystem_url,
     return;
   }
 
+  // Run the access check on the UI thread using a duplicated
+  // ChildProcessSecurityPolicy::Handle, ensuring the SecurityState exists when
+  // the task runs even if this instance and its Handle are gone at the time.
   GetUIThreadTaskRunner({})->PostTaskAndReplyWithResult(
       FROM_HERE,
       base::BindOnce(
-          &ChildProcessSecurityPolicyImpl::CanReadFileSystemFile,
-          base::Unretained(ChildProcessSecurityPolicyImpl::GetInstance()),
-          process_id_, url),
+          &ChildProcessSecurityPolicyImpl::Handle::CanReadFileSystemFile,
+          std::make_unique<ChildProcessSecurityPolicyImpl::Handle>(
+              security_policy_handle_.Duplicate()),
+          url),
       base::BindOnce(&FileSystemManagerImpl::ContinueResolveURL,
                      weak_factory_.GetWeakPtr(), url, std::move(callback)));
 }
@@ -299,12 +314,16 @@ void FileSystemManagerImpl::Move(const GURL& src_path,
     std::move(callback).Run(opt_error.value());
     return;
   }
+  // Run the access check on the UI thread using a duplicated
+  // ChildProcessSecurityPolicy::Handle, ensuring the SecurityState exists when
+  // the task runs even if this instance and its Handle are gone at the time.
   GetUIThreadTaskRunner({})->PostTaskAndReplyWithResult(
       FROM_HERE,
       base::BindOnce(
-          &ChildProcessSecurityPolicyImpl::CanMoveFileSystemFile,
-          base::Unretained(ChildProcessSecurityPolicyImpl::GetInstance()),
-          process_id_, src_url, dest_url),
+          &ChildProcessSecurityPolicyImpl::Handle::CanMoveFileSystemFile,
+          std::make_unique<ChildProcessSecurityPolicyImpl::Handle>(
+              security_policy_handle_.Duplicate()),
+          src_url, dest_url),
       base::BindOnce(&FileSystemManagerImpl::ContinueMove,
                      weak_factory_.GetWeakPtr(), src_url, dest_url,
                      std::move(callback)));
@@ -352,12 +371,16 @@ void FileSystemManagerImpl::Copy(const GURL& src_path,
     return;
   }
 
+  // Run the access check on the UI thread using a duplicated
+  // ChildProcessSecurityPolicy::Handle, ensuring the SecurityState exists when
+  // the task runs even if this instance and its Handle are gone at the time.
   GetUIThreadTaskRunner({})->PostTaskAndReplyWithResult(
       FROM_HERE,
       base::BindOnce(
-          &ChildProcessSecurityPolicyImpl::CanCopyFileSystemFile,
-          base::Unretained(ChildProcessSecurityPolicyImpl::GetInstance()),
-          process_id_, src_url, dest_url),
+          &ChildProcessSecurityPolicyImpl::Handle::CanCopyFileSystemFile,
+          std::make_unique<ChildProcessSecurityPolicyImpl::Handle>(
+              security_policy_handle_.Duplicate()),
+          src_url, dest_url),
       base::BindOnce(&FileSystemManagerImpl::ContinueCopy,
                      weak_factory_.GetWeakPtr(), src_url, dest_url,
                      std::move(callback)));
@@ -400,12 +423,16 @@ void FileSystemManagerImpl::Remove(const GURL& path,
     return;
   }
 
+  // Run the access check on the UI thread using a duplicated
+  // ChildProcessSecurityPolicy::Handle, ensuring the SecurityState exists when
+  // the task runs even if this instance and its Handle are gone at the time.
   GetUIThreadTaskRunner({})->PostTaskAndReplyWithResult(
       FROM_HERE,
       base::BindOnce(
-          &ChildProcessSecurityPolicyImpl::CanDeleteFileSystemFile,
-          base::Unretained(ChildProcessSecurityPolicyImpl::GetInstance()),
-          process_id_, url),
+          &ChildProcessSecurityPolicyImpl::Handle::CanDeleteFileSystemFile,
+          std::make_unique<ChildProcessSecurityPolicyImpl::Handle>(
+              security_policy_handle_.Duplicate()),
+          url),
       base::BindOnce(&FileSystemManagerImpl::ContinueRemove,
                      weak_factory_.GetWeakPtr(), url, recursive,
                      std::move(callback)));
@@ -444,12 +471,16 @@ void FileSystemManagerImpl::ReadMetadata(const GURL& path,
     return;
   }
 
+  // Run the access check on the UI thread using a duplicated
+  // ChildProcessSecurityPolicy::Handle, ensuring the SecurityState exists when
+  // the task runs even if this instance and its Handle are gone at the time.
   GetUIThreadTaskRunner({})->PostTaskAndReplyWithResult(
       FROM_HERE,
       base::BindOnce(
-          &ChildProcessSecurityPolicyImpl::CanReadFileSystemFile,
-          base::Unretained(ChildProcessSecurityPolicyImpl::GetInstance()),
-          process_id_, url),
+          &ChildProcessSecurityPolicyImpl::Handle::CanReadFileSystemFile,
+          std::make_unique<ChildProcessSecurityPolicyImpl::Handle>(
+              security_policy_handle_.Duplicate()),
+          url),
       base::BindOnce(&FileSystemManagerImpl::ContinueReadMetadata,
                      weak_factory_.GetWeakPtr(), url, std::move(callback)));
 }
@@ -496,12 +527,16 @@ void FileSystemManagerImpl::Create(const GURL& path,
     return;
   }
 
+  // Run the access check on the UI thread using a duplicated
+  // ChildProcessSecurityPolicy::Handle, ensuring the SecurityState exists when
+  // the task runs even if this instance and its Handle are gone at the time.
   GetUIThreadTaskRunner({})->PostTaskAndReplyWithResult(
       FROM_HERE,
       base::BindOnce(
-          &ChildProcessSecurityPolicyImpl::CanCreateFileSystemFile,
-          base::Unretained(ChildProcessSecurityPolicyImpl::GetInstance()),
-          process_id_, url),
+          &ChildProcessSecurityPolicyImpl::Handle::CanCreateFileSystemFile,
+          std::make_unique<ChildProcessSecurityPolicyImpl::Handle>(
+              security_policy_handle_.Duplicate()),
+          url),
       base::BindOnce(&FileSystemManagerImpl::ContinueCreate,
                      weak_factory_.GetWeakPtr(), url, exclusive, is_directory,
                      recursive, std::move(callback)));
@@ -550,12 +585,16 @@ void FileSystemManagerImpl::Exists(const GURL& path,
     return;
   }
 
+  // Run the access check on the UI thread using a duplicated
+  // ChildProcessSecurityPolicy::Handle, ensuring the SecurityState exists when
+  // the task runs even if this instance and its Handle are gone at the time.
   GetUIThreadTaskRunner({})->PostTaskAndReplyWithResult(
       FROM_HERE,
       base::BindOnce(
-          &ChildProcessSecurityPolicyImpl::CanReadFileSystemFile,
-          base::Unretained(ChildProcessSecurityPolicyImpl::GetInstance()),
-          process_id_, url),
+          &ChildProcessSecurityPolicyImpl::Handle::CanReadFileSystemFile,
+          std::make_unique<ChildProcessSecurityPolicyImpl::Handle>(
+              security_policy_handle_.Duplicate()),
+          url),
       base::BindOnce(&FileSystemManagerImpl::ContinueExists,
                      weak_factory_.GetWeakPtr(), url, is_directory,
                      std::move(callback)));
@@ -604,12 +643,16 @@ void FileSystemManagerImpl::ReadDirectory(
     return;
   }
 
+  // Run the access check on the UI thread using a duplicated
+  // ChildProcessSecurityPolicy::Handle, ensuring the SecurityState exists when
+  // the task runs even if this instance and its Handle are gone at the time.
   GetUIThreadTaskRunner({})->PostTaskAndReplyWithResult(
       FROM_HERE,
       base::BindOnce(
-          &ChildProcessSecurityPolicyImpl::CanReadFileSystemFile,
-          base::Unretained(ChildProcessSecurityPolicyImpl::GetInstance()),
-          process_id_, url),
+          &ChildProcessSecurityPolicyImpl::Handle::CanReadFileSystemFile,
+          std::make_unique<ChildProcessSecurityPolicyImpl::Handle>(
+              security_policy_handle_.Duplicate()),
+          url),
       base::BindOnce(&FileSystemManagerImpl::ContinueReadDirectory,
                      weak_factory_.GetWeakPtr(), url, std::move(listener)));
 }
@@ -650,12 +693,16 @@ void FileSystemManagerImpl::ReadDirectorySync(
                             opt_error.value());
     return;
   }
+  // Run the access check on the UI thread using a duplicated
+  // ChildProcessSecurityPolicy::Handle, ensuring the SecurityState exists when
+  // the task runs even if this instance and its Handle are gone at the time.
   GetUIThreadTaskRunner({})->PostTaskAndReplyWithResult(
       FROM_HERE,
       base::BindOnce(
-          &ChildProcessSecurityPolicyImpl::CanReadFileSystemFile,
-          base::Unretained(ChildProcessSecurityPolicyImpl::GetInstance()),
-          process_id_, url),
+          &ChildProcessSecurityPolicyImpl::Handle::CanReadFileSystemFile,
+          std::make_unique<ChildProcessSecurityPolicyImpl::Handle>(
+              security_policy_handle_.Duplicate()),
+          url),
       base::BindOnce(&FileSystemManagerImpl::ContinueReadDirectorySync,
                      weak_factory_.GetWeakPtr(), url, std::move(callback)));
 }
@@ -704,12 +751,16 @@ void FileSystemManagerImpl::Write(
     listener->ErrorOccurred(opt_error.value());
     return;
   }
+  // Run the access check on the UI thread using a duplicated
+  // ChildProcessSecurityPolicy::Handle, ensuring the SecurityState exists when
+  // the task runs even if this instance and its Handle are gone at the time.
   GetUIThreadTaskRunner({})->PostTaskAndReplyWithResult(
       FROM_HERE,
       base::BindOnce(
-          &ChildProcessSecurityPolicyImpl::CanWriteFileSystemFile,
-          base::Unretained(ChildProcessSecurityPolicyImpl::GetInstance()),
-          process_id_, url),
+          &ChildProcessSecurityPolicyImpl::Handle::CanWriteFileSystemFile,
+          std::make_unique<ChildProcessSecurityPolicyImpl::Handle>(
+              security_policy_handle_.Duplicate()),
+          url),
       base::BindOnce(
           &FileSystemManagerImpl::ResolveBlobForWrite,
           weak_factory_.GetWeakPtr(), std::move(blob),
@@ -777,12 +828,16 @@ void FileSystemManagerImpl::WriteSync(
     std::move(callback).Run(0, opt_error.value());
     return;
   }
+  // Run the access check on the UI thread using a duplicated
+  // ChildProcessSecurityPolicy::Handle, ensuring the SecurityState exists when
+  // the task runs even if this instance and its Handle are gone at the time.
   GetUIThreadTaskRunner({})->PostTaskAndReplyWithResult(
       FROM_HERE,
       base::BindOnce(
-          &ChildProcessSecurityPolicyImpl::CanWriteFileSystemFile,
-          base::Unretained(ChildProcessSecurityPolicyImpl::GetInstance()),
-          process_id_, url),
+          &ChildProcessSecurityPolicyImpl::Handle::CanWriteFileSystemFile,
+          std::make_unique<ChildProcessSecurityPolicyImpl::Handle>(
+              security_policy_handle_.Duplicate()),
+          url),
       base::BindOnce(&FileSystemManagerImpl::ResolveBlobForWrite,
                      weak_factory_.GetWeakPtr(), std::move(blob),
                      base::BindOnce(&FileSystemManagerImpl::ContinueWriteSync,
@@ -830,12 +885,16 @@ void FileSystemManagerImpl::Truncate(
     std::move(callback).Run(opt_error.value());
     return;
   }
+  // Run the access check on the UI thread using a duplicated
+  // ChildProcessSecurityPolicy::Handle, ensuring the SecurityState exists when
+  // the task runs even if this instance and its Handle are gone at the time.
   GetUIThreadTaskRunner({})->PostTaskAndReplyWithResult(
       FROM_HERE,
       base::BindOnce(
-          &ChildProcessSecurityPolicyImpl::CanWriteFileSystemFile,
-          base::Unretained(ChildProcessSecurityPolicyImpl::GetInstance()),
-          process_id_, url),
+          &ChildProcessSecurityPolicyImpl::Handle::CanWriteFileSystemFile,
+          std::make_unique<ChildProcessSecurityPolicyImpl::Handle>(
+              security_policy_handle_.Duplicate()),
+          url),
       base::BindOnce(&FileSystemManagerImpl::ContinueTruncate,
                      weak_factory_.GetWeakPtr(), url, length,
                      std::move(op_receiver), std::move(callback)));
@@ -883,12 +942,16 @@ void FileSystemManagerImpl::TruncateSync(const GURL& file_path,
     return;
   }
 
+  // Run the access check on the UI thread using a duplicated
+  // ChildProcessSecurityPolicy::Handle, ensuring the SecurityState exists when
+  // the task runs even if this instance and its Handle are gone at the time.
   GetUIThreadTaskRunner({})->PostTaskAndReplyWithResult(
       FROM_HERE,
       base::BindOnce(
-          &ChildProcessSecurityPolicyImpl::CanWriteFileSystemFile,
-          base::Unretained(ChildProcessSecurityPolicyImpl::GetInstance()),
-          process_id_, url),
+          &ChildProcessSecurityPolicyImpl::Handle::CanWriteFileSystemFile,
+          std::make_unique<ChildProcessSecurityPolicyImpl::Handle>(
+              security_policy_handle_.Duplicate()),
+          url),
       base::BindOnce(&FileSystemManagerImpl::ContinueTruncateSync,
                      weak_factory_.GetWeakPtr(), url, length,
                      std::move(callback)));
@@ -936,12 +999,16 @@ void FileSystemManagerImpl::CreateSnapshotFile(
                             opt_error.value(), mojo::NullRemote());
     return;
   }
+  // Run the access check on the UI thread using a duplicated
+  // ChildProcessSecurityPolicy::Handle, ensuring the SecurityState exists when
+  // the task runs even if this instance and its Handle are gone at the time.
   GetUIThreadTaskRunner({})->PostTaskAndReplyWithResult(
       FROM_HERE,
       base::BindOnce(
-          &ChildProcessSecurityPolicyImpl::CanReadFileSystemFile,
-          base::Unretained(ChildProcessSecurityPolicyImpl::GetInstance()),
-          process_id_, url),
+          &ChildProcessSecurityPolicyImpl::Handle::CanReadFileSystemFile,
+          std::make_unique<ChildProcessSecurityPolicyImpl::Handle>(
+              security_policy_handle_.Duplicate()),
+          url),
       base::BindOnce(&FileSystemManagerImpl::ContinueCreateSnapshotFile,
                      weak_factory_.GetWeakPtr(), url, std::move(callback)));
 }
@@ -987,11 +1054,16 @@ void FileSystemManagerImpl::GetPlatformPath(const GURL& path,
                                             GetPlatformPathCallback callback) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
   base::FilePath platform_path;
+  // The access check for `path` runs on the UI thread using a duplicated
+  // ChildProcessSecurityPolicy::Handle, ensuring the SecurityState exists when
+  // the task runs even if `security_policy_handle_` has been deleted.
   context_->default_file_task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(&FileSystemManagerImpl::GetPlatformPathOnFileThread, path,
-                     process_id_, context_, GetWeakPtr(),
-                     receivers_.current_context(), std::move(callback)));
+                     std::make_unique<ChildProcessSecurityPolicyImpl::Handle>(
+                         security_policy_handle_.Duplicate()),
+                     context_, GetWeakPtr(), receivers_.current_context(),
+                     std::move(callback)));
 }
 
 void FileSystemManagerImpl::RegisterBlob(
@@ -1003,12 +1075,16 @@ void FileSystemManagerImpl::RegisterBlob(
   storage::FileSystemURL crack_url =
       context_->CrackURL(url, receivers_.current_context());
 
+  // Run the access check on the UI thread using a duplicated
+  // ChildProcessSecurityPolicy::Handle, ensuring the SecurityState exists when
+  // the task runs even if this instance and its Handle are gone at the time.
   GetUIThreadTaskRunner({})->PostTaskAndReplyWithResult(
       FROM_HERE,
       base::BindOnce(
-          &ChildProcessSecurityPolicyImpl::CanReadFileSystemFile,
-          base::Unretained(ChildProcessSecurityPolicyImpl::GetInstance()),
-          process_id_, crack_url),
+          &ChildProcessSecurityPolicyImpl::Handle::CanReadFileSystemFile,
+          std::make_unique<ChildProcessSecurityPolicyImpl::Handle>(
+              security_policy_handle_.Duplicate()),
+          crack_url),
       base::BindOnce(&FileSystemManagerImpl::ContinueRegisterBlob,
                      weak_factory_.GetWeakPtr(), content_type, url, length,
                      expected_modification_time, std::move(callback),
@@ -1208,16 +1284,18 @@ void FileSystemManagerImpl::DidCreateSnapshot(
     return;
   }
 
-  // Post a task to use ChildProcessSecurityPolicy to check and grant file read
-  // permission on the UI thread, since access to these functions on the IO
-  // thread should be avoided.
+  // Check and grant file read permission on the UI thread using a duplicated
+  // ChildProcessSecurityPolicy::Handle, ensuring the SecurityState exists when
+  // the task runs even if this instance and its Handle are gone at the time.
+  // Access to these functions on the IO thread should be avoided.
   GetUIThreadTaskRunner({})->PostTaskAndReplyWithResult(
       FROM_HERE,
       base::BindOnce(
-          [](ChildProcessSecurityPolicyImpl* security_policy, int process_id,
+          [](std::unique_ptr<ChildProcessSecurityPolicyImpl::Handle>
+                 security_policy_handle,
              const base::FilePath& platform_path) {
             bool can_read_file =
-                security_policy->CanReadFile(process_id, platform_path);
+                security_policy_handle->CanReadFile(platform_path);
             if (!can_read_file) {
               // Give per-file read permission to the snapshot file if it hasn't
               // it yet. In order for the renderer to be able to read the file
@@ -1225,14 +1303,20 @@ void FileSystemManagerImpl::DidCreateSnapshot(
               // for the file's platform path. By now, it has already been
               // verified that the renderer has sufficient permissions to read
               // the file, so giving per-file permission here must be safe.
-              security_policy->GrantReadFile(process_id, platform_path);
+              // Note that SecurityState mutations are only allowed if the
+              // RenderProcessHost still exists, so check that it exists at the
+              // time the task runs on the UI thread.
+              ChildProcessId child_id = security_policy_handle->child_id();
+              if (RenderProcessHost::FromID(child_id)) {
+                ChildProcessSecurityPolicyImpl::GetInstance()->GrantReadFile(
+                    child_id, platform_path);
+              }
             }
             return can_read_file;
           },
-          // ChildProcessSecurityPolicyImpl::GetInstance() is a singleton so
-          // refcounting is unnecessary.
-          base::Unretained(ChildProcessSecurityPolicyImpl::GetInstance()),
-          process_id_, platform_path),
+          std::make_unique<ChildProcessSecurityPolicyImpl::Handle>(
+              security_policy_handle_.Duplicate()),
+          platform_path),
       base::BindOnce(&FileSystemManagerImpl::ContinueDidCreateSnapshot,
                      weak_factory_.GetWeakPtr(), std::move(callback), url,
                      result, info, platform_path));
@@ -1258,8 +1342,8 @@ void FileSystemManagerImpl::ContinueDidCreateSnapshot(
           storage::ShareableFileReference::DONT_DELETE_ON_FINAL_RELEASE,
           context_->default_file_task_runner());
     }
-    file_ref->AddFinalReleaseCallback(
-        base::BindOnce(&RevokeFilePermission, process_id_));
+    file_ref->AddFinalReleaseCallback(base::BindOnce(
+        &RevokeFilePermission, security_policy_handle_.child_id()));
   }
 
   if (file_ref.get()) {
@@ -1289,7 +1373,8 @@ void FileSystemManagerImpl::DidGetPlatformPath(
 // static
 void FileSystemManagerImpl::GetPlatformPathOnFileThread(
     const GURL& path,
-    int process_id,
+    std::unique_ptr<ChildProcessSecurityPolicyImpl::Handle>
+        security_policy_handle,
     scoped_refptr<storage::FileSystemContext> context,
     base::WeakPtr<FileSystemManagerImpl> file_system_manager,
     const blink::StorageKey& storage_key,
@@ -1298,7 +1383,7 @@ void FileSystemManagerImpl::GetPlatformPathOnFileThread(
 
   // Bind `context` to the callback to ensure it stays alive.
   DoGetPlatformPath(
-      context, process_id, path, storage_key,
+      context, std::move(security_policy_handle), path, storage_key,
       base::BindOnce(
           [](base::WeakPtr<FileSystemManagerImpl> file_system_manager,
              scoped_refptr<storage::FileSystemContext> context,

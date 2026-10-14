@@ -54,6 +54,7 @@ bool XRCompositionLayer::forceMonoPresentation() const {
 
 void XRCompositionLayer::setForceMonoPresentation(bool value) {
   force_mono_presentation_ = value;
+  SetModified(true);
 }
 
 float XRCompositionLayer::opacity() const {
@@ -110,11 +111,6 @@ void XRCompositionLayer::OnFrameEnd() {
   XRFrameProvider* frame_provider = session()->xr()->frameProvider();
   frame_provider->SubmitLayer(layer_id(), drawing_context_,
                               drawing_context_->TextureWasQueried());
-
-  // Reset needs redraw state because texture was requested and submitted.
-  if (drawing_context_->TextureWasQueried()) {
-    SetNeedsRedraw(false);
-  }
 }
 
 XrLayerClient* XRCompositionLayer::LayerClient() {
@@ -142,6 +138,7 @@ XRCompositionLayer::CreateLayerData() const {
   layer_data->mutable_data = device::mojom::blink::XRLayerMutableData::New();
   layer_data->mutable_data->blend_texture_source_alpha =
       blendTextureSourceAlpha();
+  layer_data->mutable_data->force_mono_presentation = forceMonoPresentation();
   layer_data->mutable_data->opacity = opacity();
   layer_data->mutable_data->native_origin_information = NativeOrigin();
 

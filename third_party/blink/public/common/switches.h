@@ -48,6 +48,7 @@ BLINK_COMMON_EXPORT extern const char kDisableBlobUrlPartitioning[];
 BLINK_COMMON_EXPORT extern const char kCSSCustomStateDeprecatedSyntaxEnabled[];
 BLINK_COMMON_EXPORT extern const char kMinHeightForGpuRasterTile[];
 BLINK_COMMON_EXPORT extern const char kNetworkQuietTimeout[];
+BLINK_COMMON_EXPORT extern const char kShowContentfulPaintRects[];
 BLINK_COMMON_EXPORT extern const char kShowLayoutShiftRegions[];
 BLINK_COMMON_EXPORT extern const char kShowPaintRects[];
 BLINK_COMMON_EXPORT extern const char kTouchTextSelectionStrategy[];
@@ -56,6 +57,7 @@ BLINK_COMMON_EXPORT extern const char kTouchTextSelectionStrategy_Direction[];
 BLINK_COMMON_EXPORT extern const char kDisableStandardizedBrowserZoom[];
 BLINK_COMMON_EXPORT extern const char kWebAudioBypassOutputBufferingOptOut[];
 BLINK_COMMON_EXPORT extern const char kDisableReduceAcceptLanguage[];
+BLINK_COMMON_EXPORT extern const char kXSLTEnabledPolicy[];
 }  // namespace switches
 }  // namespace blink
 

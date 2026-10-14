@@ -56,6 +56,10 @@
 #include "ui/base/mojom/window_show_state.mojom.h"
 #include "ui/base/window_open_disposition.h"
 
+#if BUILDFLAG(ENABLE_GLIC)
+#include "chrome/browser/glic/glic_tab_restore_helper.h"
+#endif
+
 using content::NavigationController;
 using content::SessionStorageNamespace;
 using content::WebContents;
@@ -154,7 +158,14 @@ sessions::LiveTab* BrowserLiveTabContext::GetActiveLiveTab() const {
 
 std::map<std::string, std::string> BrowserLiveTabContext::GetExtraDataForTab(
     int index) const {
-  return std::map<std::string, std::string>();
+  std::map<std::string, std::string> extra_data;
+
+#if BUILDFLAG(ENABLE_GLIC)
+  glic::PopulateGlicExtraData(tab_strip_model_->GetWebContentsAt(index),
+                              &extra_data);
+#endif
+
+  return extra_data;
 }
 
 std::map<std::string, std::string>
@@ -200,6 +211,18 @@ BrowserLiveTabContext::GetSavedTabGroupIdForGroup(
 
   return saved_group ? std::make_optional(saved_group->saved_guid())
                      : std::nullopt;
+}
+
+const std::optional<tab_groups::TabGroupId>
+BrowserLiveTabContext::GetGroupIdForSavedGroup(const base::Uuid& saved) const {
+  tab_groups::TabGroupSyncService* tab_group_service =
+      tab_groups::TabGroupSyncServiceFactory::GetForProfile(&profile_.get());
+  CHECK(tab_group_service);
+
+  const std::optional<tab_groups::SavedTabGroup> saved_group =
+      tab_group_service->GetGroup(saved);
+
+  return saved_group ? saved_group->local_group_id() : std::nullopt;
 }
 
 bool BrowserLiveTabContext::IsTabPinned(int index) const {
@@ -288,8 +311,10 @@ sessions::LiveTab* BrowserLiveTabContext::AddRestoredTab(
       Browser* source_browser =
           tab_groups::SavedTabGroupUtils::GetBrowserWithTabGroupId(
               group_id.value());
-      tab_groups::SavedTabGroupUtils::FocusFirstTabOrWindowInOpenGroup(
-          group_id.value());
+      if (original_session_type == sessions::tab_restore::Type::GROUP) {
+        tab_groups::SavedTabGroupUtils::FocusFirstTabOrWindowInOpenGroup(
+            group_id.value());
+      }
 
       // Move the group into `browser` if it is open in a different browser.
       if (source_browser != browser) {

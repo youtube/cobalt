@@ -231,7 +231,7 @@ WebWindowFeatures GetWindowFeaturesFromString(const String& feature_string,
         // attributionsrc values are encoded in order to support embedded
         // special characters, such as '='.
         window_features.attribution_srcs->emplace_back(DecodeURLEscapeSequences(
-            original_case_value_string.ToString(), DecodeURLMode::kUTF8));
+            original_case_value_string, DecodeURLMode::kUTF8));
       }
     }
   }
@@ -395,12 +395,6 @@ Frame* CreateNewWindow(LocalFrame& opener_frame,
   page->SetWindowFeatures(features);
 
   frame.View()->SetCanHaveScrollbars(!features.is_popup);
-
-  if (!base::FeatureList::IsEnabled(features::kCombineNewWindowIPCs)) {
-    page->GetChromeClient().Show(frame, opener_frame,
-                                 request.GetNavigationPolicy(),
-                                 consumed_user_gesture);
-  }
 
   // GetWebView() may return nullptr in tests
   if (auto* web_view = page->GetChromeClient().GetWebView()) {

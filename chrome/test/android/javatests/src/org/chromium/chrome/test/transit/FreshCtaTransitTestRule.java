@@ -14,19 +14,16 @@ import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 
 import org.chromium.base.ApplicationStatus;
-import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.transit.TrafficControl;
 import org.chromium.base.test.transit.TripBuilder;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
-import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
 import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
 import org.chromium.chrome.test.transit.ntp.RegularNewTabPageStation;
 import org.chromium.chrome.test.transit.page.CtaPageStation;
 import org.chromium.chrome.test.transit.page.WebPageStation;
 
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -63,11 +60,11 @@ public class FreshCtaTransitTestRule extends BaseCtaTransitTestRule implements T
                             statement.evaluate();
                         } finally {
                             try {
+                                // crbug.com/460433346: Skip this clean up to avoid issues in some
+                                // tests, mostly post tasks running after instance and tab state
+                                // clean up on destroyed Activities.
                                 if (!mSkipInstanceAndTabStateCleanup) {
-                                    // TODO(crbug.com/460433346): Call closeAllWindows().
-                                    // This clean up causes issues in some tests, mostly post tasks
-                                    // running after instance and tab state clean up on destroyed
-                                    // Activities.
+                                    closeAllWindowsAndDeleteInstanceAndTabState();
                                 }
                             } finally {
                                 TrafficControl.hopOffPublicTransit();
@@ -83,18 +80,7 @@ public class FreshCtaTransitTestRule extends BaseCtaTransitTestRule implements T
     public void closeAllWindowsAndDeleteInstanceAndTabState() {
         List<Activity> allActivities = ApplicationStatus.getRunningActivities();
         for (Activity activity : allActivities) {
-            if (activity instanceof ChromeTabbedActivity cta) {
-                ThreadUtils.runOnUiThreadBlocking(
-                        () -> {
-                            MultiInstanceManager mim = cta.getMultiInstanceMangerForTesting();
-                            mim.closeWindows(
-                                    Collections.singletonList(cta.getWindowIdForTesting()),
-                                    MultiInstanceManager.CloseWindowAppSource.OTHER);
-                        });
-                // closeWindow() already called finishAndRemoveTask().
-            } else {
-                activity.finishAndRemoveTask();
-            }
+            finishActivityWithCleanup(activity);
         }
     }
 

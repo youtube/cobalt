@@ -102,10 +102,6 @@ void MaybeDismissNotification() {
     config.features_disabled.push_back(kIOSReactivationNotifications);
   }
 
-  if ([self isRunningTest:@selector(testNotificationMIM)]) {
-    config.features_enabled.push_back(kSeparateProfilesForManagedAccounts);
-  }
-
   config.features_disabled.push_back(kIOSOneTimeDefaultBrowserNotification);
 
   return config;
@@ -429,9 +425,9 @@ void MaybeDismissNotification() {
       waitForUIElementToAppearWithMatcher:
           grey_accessibilityID(@"kCredentialProviderPromoAccessibilityId")];
   // Close the promo.
-  id<GREYMatcher> noThanksButton =
-      chrome_test_util::ButtonStackSecondaryButton();
-  [ChromeEarlGrey waitForAndTapButton:noThanksButton];
+  [[EarlGrey
+      selectElementWithMatcher:chrome_test_util::NavigationBarDoneButton()]
+      performAction:grey_tap()];
 }
 
 @end

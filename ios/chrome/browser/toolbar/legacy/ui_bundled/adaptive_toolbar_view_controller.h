@@ -16,8 +16,8 @@
 @class AdaptiveToolbarViewController;
 @protocol AdaptiveToolbarViewControllerDelegate;
 @protocol BrowserCommands;
+@protocol BrowserCoordinatorCommands;
 @class LayoutGuideCenter;
-@protocol OmniboxCommands;
 @protocol PopupMenuCommands;
 @class LegacyToolbarButton;
 @class LegacyToolbarButtonFactory;
@@ -45,11 +45,11 @@
 // View controller for the location bar containing the omnibox. Nil when the
 // toolbar doesn't have the omnibox.
 @property(nonatomic, weak) UIViewController* locationBarViewController;
-// Omnibox commands handler for the ViewController.
-@property(nonatomic, weak) id<OmniboxCommands> omniboxCommandsHandler;
+// BrowserCoordinator commands handler for the ViewController.
+@property(nonatomic, weak) id<BrowserCoordinatorCommands>
+    browserCoordinatorHandler;
 // Popup menu commands handler for the ViewController.
 @property(nonatomic, weak) id<PopupMenuCommands> popupMenuCommandsHandler;
-
 // Provider for the context menus.
 @property(nonatomic, weak) id<AdaptiveToolbarMenusProvider> menuProvider;
 // Delegate for events in `AdaptiveToolbarViewController`.
@@ -84,6 +84,8 @@
 - (void)IPHHighlightTabGridButton:(BOOL)highlight;
 // Sets the height of the location bar. Used when the omnibox is multiline.
 - (void)setLocationBarHeight:(CGFloat)height;
+// Used for any additional clean up on shutdown.
+- (void)disconnect;
 
 @end
 

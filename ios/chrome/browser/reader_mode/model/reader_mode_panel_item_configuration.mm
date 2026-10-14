@@ -11,6 +11,7 @@
 #import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_service.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_service_factory.h"
+#import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/reader_mode/model/constants.h"
 #import "ios/chrome/browser/reader_mode/model/reader_mode_tab_helper.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
@@ -72,7 +73,10 @@ void ReaderModePanelItemConfiguration::DidTransitionToSmallEntrypoint() {
     engagement_tracker_->Dismissed(
         feature_engagement::kIPHiOSReaderModeLargeOmniboxEntrypointFeature);
   }
-  Invalidate();
+  if (IsProfileEligibleForGemini() ||
+      IsProactiveSuggestionsFrameworkEnabled()) {
+    Invalidate();
+  }
 }
 
 #pragma mark - ReaderModeTabHelper::Observer
@@ -92,7 +96,10 @@ void ReaderModePanelItemConfiguration::ReaderModeWebStateWillBecomeUnavailable(
     ReaderModeTabHelper* tab_helper,
     web::WebState* web_state,
     ReaderModeDeactivationReason reason) {
-  Invalidate();
+  if (IsProfileEligibleForGemini() ||
+      IsProactiveSuggestionsFrameworkEnabled()) {
+    Invalidate();
+  }
 }
 
 void ReaderModePanelItemConfiguration::ReaderModeDistillationFailed(
@@ -125,7 +132,7 @@ void ReaderModePanelItemConfiguration::Invalidate() {
   }
 }
 
-bool ReaderModePanelItemConfiguration::IsProfileEligibleForBwg() {
+bool ReaderModePanelItemConfiguration::IsProfileEligibleForGemini() {
   web::WebState* web_state = web_state_observation_.GetSource();
   if (!web_state || web_state->IsBeingDestroyed()) {
     return false;
@@ -133,7 +140,7 @@ bool ReaderModePanelItemConfiguration::IsProfileEligibleForBwg() {
   ProfileIOS* profile =
       ProfileIOS::FromBrowserState(web_state->GetBrowserState());
   BwgService* bwg_service = BwgServiceFactory::GetForProfile(profile);
-  return bwg_service && bwg_service->IsProfileEligibleForBwg();
+  return bwg_service && bwg_service->IsProfileEligibleForGemini();
 }
 
 bool ReaderModePanelItemConfiguration::CanShowLargeEntrypointMessage() {

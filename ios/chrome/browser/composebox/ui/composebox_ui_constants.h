@@ -9,6 +9,10 @@
 
 /// The minimum height of the omnibox.
 extern const CGFloat kOmniboxMinHeight;
+/// The  margin  for the input plate container with its parent view.
+extern const CGFloat kInputPlateMargin;
+/// The corner radius for the input plate container.
+extern const CGFloat kInputPlateCornerRadius;
 
 // Accessibility identifier for the composebox.
 extern NSString* const kComposeboxAccessibilityIdentifier;
@@ -51,5 +55,13 @@ extern NSString* const
 // Accessibility identifier for the empty state view in the tab picker.
 extern NSString* const
     kComposeboxTabPickerEmptyStateViewAccessibilityIdentifier;
+
+// Accessibility identifier for the carousel in the composebox.
+extern NSString* const kComposeboxCarouselAccessibilityIdentifier;
+// Accessibility identifier for an item in the carousel.
+extern NSString* const kComposeboxCarouselItemAccessibilityIdentifier;
+// Accessibility identifier for the close button of an item in the carousel.
+extern NSString* const
+    kComposeboxInputItemCellCloseButtonAccessibilityIdentifier;
 
 #endif  // IOS_CHROME_BROWSER_COMPOSEBOX_UI_COMPOSEBOX_UI_CONSTANTS_H_

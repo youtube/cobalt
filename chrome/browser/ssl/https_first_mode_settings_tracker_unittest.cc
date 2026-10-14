@@ -645,10 +645,10 @@ CreateHttpsFirstModeServiceAndWaitForTypicallySecureUserPrefInitialized(
   base::Time now = clock->Now();
   HttpsFirstModeService* hfm_service =
       HttpsFirstModeServiceFactory::GetForProfile(profile);
-  base::Value::Dict expected_pref =
-      base::Value::Dict()
+  base::DictValue expected_pref =
+      base::DictValue()
           .Set("heuristic_start_timestamp", base::TimeToValue(now))
-          .Set("fallback_events", base::Value::List());
+          .Set("fallback_events", base::ListValue());
   WaitForPrefValue(profile->GetPrefs(), prefs::kHttpsUpgradeFallbacks,
                    base::Value(std::move(expected_pref)));
   return hfm_service;
@@ -699,7 +699,7 @@ TEST_F(HttpsFirstModeSettingsTrackerTest, TypicallySecureUser_NewProfile) {
 // before creating the service.
 TEST_F(HttpsFirstModeSettingsTrackerTest, TypicallySecureUser_OldVersion) {
   // Write an empty pref without the "start_heuristic_timestamp" key.
-  base::Value::Dict new_base_pref;
+  base::DictValue new_base_pref;
   profile()->GetPrefs()->SetDict(prefs::kHttpsUpgradeFallbacks,
                                  std::move(new_base_pref));
   base::SimpleTestClock clock;
@@ -1226,4 +1226,36 @@ TEST_F(HttpsFirstModeSettingsTrackerTest, StartupBalancedModeAutoEnabled) {
   histograms.ExpectUniqueSample(
       "Security.HttpsFirstMode.SettingEnabledAtStartup2",
       HttpsFirstModeSetting::kEnabledBalanced, 1);
+}
+
+// Tests that Advanced Protection status changes do not affect the synced
+// preference, but do correctly update the current setting.
+// Regression test for crbug.com/480099712.
+TEST_F(HttpsFirstModeSettingsTrackerTest, AdvancedProtectionStatusChange) {
+  feature_list()->InitAndEnableFeature(
+      features::kHttpsFirstModeForAdvancedProtectionUsers);
+
+  HttpsFirstModeService* service =
+      HttpsFirstModeServiceFactory::GetForProfile(profile());
+  ASSERT_TRUE(service);
+
+  safe_browsing::AdvancedProtectionStatusManager* aps_manager =
+      safe_browsing::AdvancedProtectionStatusManagerFactory::GetForProfile(
+          profile());
+  ASSERT_TRUE(aps_manager);
+
+  // Initially, the Strict HFM pref is disabled.
+  EXPECT_FALSE(profile()->GetPrefs()->GetBoolean(prefs::kHttpsOnlyModeEnabled));
+  EXPECT_EQ(service->GetCurrentSetting(), HttpsFirstModeSetting::kDisabled);
+
+  // Enable Advanced Protection. This should not change the pref, but
+  // GetCurrentSetting should now return kEnabledFull.
+  aps_manager->SetAdvancedProtectionStatusForTesting(true);
+  EXPECT_FALSE(profile()->GetPrefs()->GetBoolean(prefs::kHttpsOnlyModeEnabled));
+  EXPECT_EQ(service->GetCurrentSetting(), HttpsFirstModeSetting::kEnabledFull);
+
+  // Disable Advanced Protection. GetCurrentSetting should return to kDisabled.
+  aps_manager->SetAdvancedProtectionStatusForTesting(false);
+  EXPECT_FALSE(profile()->GetPrefs()->GetBoolean(prefs::kHttpsOnlyModeEnabled));
+  EXPECT_EQ(service->GetCurrentSetting(), HttpsFirstModeSetting::kDisabled);
 }

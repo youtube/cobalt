@@ -13,6 +13,7 @@
 #include "chrome/browser/ui/android/tab_model/tab_model.h"
 #include "chrome/browser/ui/android/tab_model/tab_model_jni_bridge.h"
 #include "chrome/browser/ui/android/tab_model/tab_model_observer.h"
+#include "chrome/browser/ui/tabs/tab_removed_reason.h"
 #include "components/tab_groups/tab_group_id.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
@@ -54,6 +55,17 @@ void TabModelObserverJniBridge::WillCloseTab(JNIEnv* env, TabAndroid* tab) {
   CHECK(tab);
   for (auto& observer : model_observers_) {
     observer.WillCloseTab(tab);
+  }
+}
+
+void TabModelObserverJniBridge::DidRemoveTabForClosure(JNIEnv* env,
+                                                       TabAndroid* tab) {
+  CHECK(tab);
+  for (auto& observer : model_observers_) {
+    observer.DidRemoveTabForClosure(tab);
+  }
+  for (auto& observer : interface_observers_) {
+    observer.OnTabRemoved(tab, TabRemovedReason::kDeleted);
   }
 }
 
@@ -127,6 +139,9 @@ void TabModelObserverJniBridge::TabClosureUndone(JNIEnv* env, TabAndroid* tab) {
   for (auto& observer : model_observers_) {
     observer.TabClosureUndone(tab);
   }
+  for (auto& observer : interface_observers_) {
+    observer.OnTabAdded(tab, tab_model_->GetIndexOfTab(tab->GetHandle()));
+  }
 }
 
 void TabModelObserverJniBridge::OnTabCloseUndone(
@@ -134,6 +149,11 @@ void TabModelObserverJniBridge::OnTabCloseUndone(
     const std::vector<TabAndroid*>& tabs) {
   for (auto& observer : model_observers_) {
     observer.OnTabCloseUndone(tabs);
+  }
+  for (auto& observer : interface_observers_) {
+    for (TabAndroid* tab : tabs) {
+      observer.OnTabAdded(tab, tab_model_->GetIndexOfTab(tab->GetHandle()));
+    }
   }
 }
 
@@ -151,13 +171,22 @@ void TabModelObserverJniBridge::AllTabsClosureCommitted(JNIEnv* env) {
   }
 }
 
+void TabModelObserverJniBridge::AllTabsAreClosing(JNIEnv* env) {
+  for (auto& observer : model_observers_) {
+    observer.AllTabsAreClosing();
+  }
+  for (auto& observer : interface_observers_) {
+    observer.OnAllTabsAreClosing(*tab_model_);
+  }
+}
+
 void TabModelObserverJniBridge::TabRemoved(JNIEnv* env, TabAndroid* tab) {
   CHECK(tab);
   for (auto& observer : model_observers_) {
     observer.TabRemoved(tab);
   }
   for (auto& observer : interface_observers_) {
-    observer.OnTabRemoved(tab);
+    observer.OnTabRemoved(tab, TabRemovedReason::kInsertedIntoOtherTabStrip);
   }
 }
 
@@ -186,6 +215,15 @@ void TabModelObserverJniBridge::OnTabGroupMoved(JNIEnv* env,
   CHECK(!tab_group_id.is_empty());
   for (auto& observer : model_observers_) {
     observer.OnTabGroupMoved(tab_group_id, old_index);
+  }
+}
+
+void TabModelObserverJniBridge::OnTabGroupVisualsChanged(JNIEnv* env,
+                                                         base::Token group_id) {
+  auto tab_group_id = tab_groups::TabGroupId::FromRawToken(group_id);
+  CHECK(!tab_group_id.is_empty());
+  for (auto& observer : model_observers_) {
+    observer.OnTabGroupVisualsChanged(tab_group_id);
   }
 }
 

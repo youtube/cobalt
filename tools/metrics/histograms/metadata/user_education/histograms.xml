@@ -57,6 +57,12 @@ chromium-metrics-reviews@google.com.
       summary="Promotion for Organize Tabs in the app menu."/>
   <variant name="TabstripDeclutter"
       summary="Promotion for Close Unused Tabs in the app menu."/>
+  <variant name="VerticalTabsNewBadge"
+      summary="Promotion for toggling to the vertical tab strip in the system
+               context menu."/>
+  <variant name="VerticalTabsPreviewBadge"
+      summary="Promotion for toggling to the vertical tab strip in the system
+               context menu."/>
 </variants>
 
 <!-- LINT.IfChange(NtpPromoActions) -->
@@ -96,6 +102,8 @@ chromium-metrics-reviews@google.com.
 </variants>
 
 <variants name="WhatsNewModule">
+  <variant name="archive"
+      summary="the permanent module for What's New archive"/>
   <variant name="FamilyLink" summary="the module for Family Link"/>
   <variant name="GANslate" summary="the module for GANslate"/>
   <variant name="GeminiShortcut" summary="the module for Gemini Shortcut"/>
@@ -287,7 +295,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UserEducation.MessageNotShown.TimeInQueue" units="ms"
-    expires_after="2026-05-31">
+    expires_after="2026-08-02">
   <owner>dfried@chromium.org</owner>
   <owner>frizzle-team@google.com</owner>
   <summary>
@@ -464,7 +472,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UserEducation.Session.MonthlyActiveDays" units="count"
-    expires_after="2026-05-24">
+    expires_after="2026-07-26">
   <owner>dfried@chromium.org</owner>
   <owner>frizzle-team@google.com</owner>
   <summary>
@@ -476,7 +484,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UserEducation.Session.RecentActiveDays" units="count"
-    expires_after="2026-05-24">
+    expires_after="2026-07-26">
   <owner>dfried@chromium.org</owner>
   <owner>frizzle-team@google.com</owner>
   <summary>
@@ -488,7 +496,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UserEducation.Session.RecentActiveWeeks" units="count"
-    expires_after="2026-05-24">
+    expires_after="2026-07-26">
   <owner>dfried@chromium.org</owner>
   <owner>frizzle-team@google.com</owner>
   <summary>
@@ -674,6 +682,20 @@ chromium-metrics-reviews@google.com.
   <summary>
     Records the total amount of time the user spent on the What's New page
     before navigating away.
+  </summary>
+</histogram>
+
+<!-- expires-never: this provides usage information about a specific edition of
+     the "What's New" page. However, since the content on the page changes every
+     edition, this histogram cannot be allowed to expire. -->
+
+<histogram name="UserEducation.WhatsNew.TimeOnPageHeartbeat"
+    enum="BooleanYesNo" expires_after="never">
+  <owner>mickeyburks@chromium.org</owner>
+  <owner>frizzle-team@google.com</owner>
+  <summary>
+    Records whether the TimeOnPage metric came from the new heartbeat mechanism
+    or the legacy system.
   </summary>
 </histogram>
 

@@ -157,7 +157,7 @@ TEST_P(SimulatedRealTimeControllerConformanceTest,
   std::unique_ptr<TimeController> time_controller =
       CreateTimeController(GetParam());
   auto task_queue = time_controller->GetTaskQueueFactory()->CreateTaskQueue(
-      "task_queue", TaskQueueFactory::Priority::NORMAL);
+      "task_queue", TaskQueueFactory::Priority::kNormal);
 
   // Tasks on thread have to be executed in order in which they were
   // posted/invoked.

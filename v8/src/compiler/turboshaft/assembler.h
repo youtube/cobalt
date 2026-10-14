@@ -53,6 +53,7 @@
 #include "src/execution/isolate.h"
 #include "src/flags/flags.h"
 #include "src/logging/runtime-call-stats.h"
+#include "src/maglev/maglev-node-type.h"
 #include "src/objects/dictionary.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/fixed-array.h"
@@ -2916,7 +2917,8 @@ class AssemblerOpInterface : public Next {
 
   // Load a trusted (indirect) pointer. Returns Smi or ExposedTrustedObject.
   V<Object> LoadTrustedPointer(V<HeapObject> base, OptionalV<Word32> index,
-                               LoadOp::Kind kind, IndirectPointerTag tag,
+                               LoadOp::Kind kind,
+                               IndirectPointerTagRange tag_range,
                                int offset = 0) {
 #if V8_ENABLE_SANDBOX
     static_assert(COMPRESS_POINTERS_BOOL);
@@ -2926,8 +2928,8 @@ class AssemblerOpInterface : public Next {
         Load(LoadRootRegister(), LoadOp::Kind::RawAligned().Immutable(),
              MemoryRepresentation::UintPtr(),
              IsolateData::trusted_pointer_table_offset() +
-                 Internals::kTrustedPointerTableBasePointerOffset);
-    return LoadTrustedPointer(table, handle, kind.is_immutable, tag);
+                 Internals::kExternalEntityTableBasePointerOffset);
+    return LoadTrustedPointer(table, handle, kind.is_immutable, tag_range);
 #else
     return Load(base, index, kind, MemoryRepresentation::TaggedPointer(),
                 offset);
@@ -2936,16 +2938,19 @@ class AssemblerOpInterface : public Next {
 
 #if V8_ENABLE_SANDBOX
   V<Object> LoadTrustedPointer(V<WordPtr> table, V<Word32> handle,
-                               bool is_immutable, IndirectPointerTag tag) {
+                               bool is_immutable,
+                               IndirectPointerTagRange tag_range) {
     return ReduceIfReachableLoadTrustedPointer(table, handle, is_immutable,
-                                               tag);
+                                               tag_range);
   }
 #endif
 
   // Load a trusted (indirect) pointer. Returns Smi or ExposedTrustedObject.
   V<Object> LoadTrustedPointer(V<HeapObject> base, LoadOp::Kind kind,
-                               IndirectPointerTag tag, int offset = 0) {
-    return LoadTrustedPointer(base, OpIndex::Invalid(), kind, tag, offset);
+                               IndirectPointerTagRange tag_range,
+                               int offset = 0) {
+    return LoadTrustedPointer(base, OpIndex::Invalid(), kind, tag_range,
+                              offset);
   }
 
   V<WordPtr> LoadExternalPointerFromObject(V<Object> object, int offset,
@@ -4233,6 +4238,11 @@ class AssemblerOpInterface : public Next {
                                                   successful);
   }
 
+  void CheckMaglevType(V<Object> input, maglev::NodeType type) {
+    CHECK(v8_flags.maglev_assert_types);
+    ReduceIfReachableCheckMaglevType(input, type);
+  }
+
   // This is currently only usable during graph building on the main thread.
   void Dcheck(V<Word32> condition, const char* message, const char* file,
               int line, SourceLocation loc = SourceLocation::CurrentIfDebug()) {
@@ -5179,7 +5189,7 @@ class AssemblerOpInterface : public Next {
                                             from_lane);
   }
 
-  OpIndex Simd128LaneMemory(V<WordPtr> base, V<WordPtr> index, V<WordPtr> value,
+  OpIndex Simd128LaneMemory(V<WordPtr> base, V<WordPtr> index, V<Simd128> value,
                             Simd128LaneMemoryOp::Mode mode,
                             Simd128LaneMemoryOp::Kind kind,
                             Simd128LaneMemoryOp::LaneKind lane_kind,
@@ -5202,14 +5212,12 @@ class AssemblerOpInterface : public Next {
     return ReduceIfReachableSimd128Shuffle(left, right, kind, shuffle);
   }
 
-#if V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
   V<Simd256> Simd128LoadPairDeinterleave(
       V<WordPtr> base, V<WordPtr> index, LoadOp::Kind load_kind,
       Simd128LoadPairDeinterleaveOp::Kind kind) {
     return ReduceIfReachableSimd128LoadPairDeinterleave(base, index, load_kind,
                                                         kind);
   }
-#endif  // V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
 
   // SIMD256
 #if V8_ENABLE_WASM_SIMD256_REVEC

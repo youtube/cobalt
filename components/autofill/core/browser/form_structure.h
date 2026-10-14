@@ -273,10 +273,11 @@ class FormStructure {
   // Returns a FormData containing the data this form structure knows about.
   FormData ToFormData() const;
 
-  // Returns the possible form types. `suppress_if_ac_unrecognized` determines
-  // whether fields with unrecognized autocomplete attribute have suppressed
-  // suggestions.
-  DenseSet<FormType> GetFormTypes(bool suppress_if_ac_unrecognized) const;
+  // Returns the possible form types. Detailed documentation for
+  // `ac_unrecognized_behavior` can be found at
+  // `AutocompleteUnrecognizedBehavior`.
+  DenseSet<FormType> GetFormTypes(
+      AutocompleteUnrecognizedBehavior ac_unrecognized_behavior) const;
 
   mojom::SubmissionSource submission_source() const {
     return submission_source_;
@@ -288,6 +289,14 @@ class FormStructure {
   FormGlobalId global_id() const { return {host_frame_, renderer_id_}; }
 
   FormVersion version() const { return version_; }
+
+  FormVersion last_successfully_queried_version() const {
+    return last_successfully_queried_version_;
+  }
+
+  void set_last_successfully_queried_version(FormVersion version) {
+    last_successfully_queried_version_ = version;
+  }
 
   // The signatures of forms recently submitted on the same origin within a
   // small period of time.
@@ -406,6 +415,10 @@ class FormStructure {
   // A monotonically increasing counter that indicates the generation of the
   // form.
   FormVersion version_;
+
+  // The last FormVersion for which ServerPredictions::ApplyTo() ran
+  // successfully.
+  FormVersion last_successfully_queried_version_;
 
   // An identifier of the form that is unique among the forms from the same
   // frame.

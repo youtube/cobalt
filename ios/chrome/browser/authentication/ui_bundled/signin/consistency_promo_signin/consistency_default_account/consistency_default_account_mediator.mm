@@ -21,7 +21,7 @@
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_utils.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
-#import "ios/chrome/browser/signin/model/avatar_provider.h"
+#import "ios/chrome/browser/signin/model/avatar/avatar_provider.h"
 #import "ios/chrome/browser/signin/model/chrome_account_manager_service.h"
 #import "ios/chrome/browser/signin/model/system_identity.h"
 #import "ios/chrome/grit/ios_branded_strings.h"
@@ -158,6 +158,8 @@ NSString* GetPromoLabelString(
     case signin_metrics::AccessPoint::kNtpFeaturePromo:
     case signin_metrics::AccessPoint::kEnterpriseDialogAfterSigninInterception:
     case signin_metrics::AccessPoint::kCredentialExchangeImport:
+    case signin_metrics::AccessPoint::kSetSyncConsentFromSyncInternals:
+    case signin_metrics::AccessPoint::kIosChromeWebView:
       // Nothing prevents instantiating ConsistencyDefaultAccountViewController
       // with an arbitrary entry point, API-wise. In doubt, no label is a good,
       // generic default that fits all entry points.
@@ -346,7 +348,7 @@ NSString* GetPromoLabelString(
 
 - (void)onAccountsOnDeviceChanged {
   if (_accountManagerService &&
-      !_accountManagerService->IsValidIdentity(self.selectedIdentity)) {
+      !_accountManagerService->IsValidIdentity(self.selectedIdentity.gaiaId)) {
     // The currently selected identity is not valid anymore. Let’s select the
     // default identity instead.
     [self selectDefaultIdentity];

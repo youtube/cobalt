@@ -404,11 +404,6 @@ const char kEnableSpatialNavigation[]       = "enable-spatial-navigation";
 const char kEnableStrictMixedContentChecking[] =
     "enable-strict-mixed-content-checking";
 
-// Blocks insecure usage of a number of powerful features (device orientation,
-// for example) that we haven't yet deprecated for the web at large.
-const char kEnableStrictPowerfulFeatureRestrictions[] =
-    "enable-strict-powerful-feature-restrictions";
-
 // When specified along with a value in the range (0,1] will --enable-tracing
 // for (roughly) that percentage of tests being run. This is done in a stable
 // manner such that the same tests are chosen each run, and under the assumption
@@ -586,6 +581,10 @@ const char kProcessType[]                   = "type";
 // okay to log information about this user's auction to help with debugging.
 const char kProtectedAudiencesConsentedDebugToken[] =
     "protected-audiences-consented-debug-token";
+
+// Handle to shared memory containing the pseudonymization salt, passed to
+// child processes at launch. See https://crbug.com/40850085.
+const char kPseudonymizationSaltHandle[] = "pseudonymization-salt-handle";
 
 // Enables or disables pull-to-refresh gesture in response to vertical
 // overscroll.

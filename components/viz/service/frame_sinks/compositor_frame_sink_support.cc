@@ -44,6 +44,7 @@
 #include "components/viz/service/frame_sinks/frame_sink_bundle_impl.h"
 #include "components/viz/service/frame_sinks/frame_sink_manager_impl.h"
 #include "components/viz/service/layers/layer_context_impl.h"
+#include "components/viz/service/performance_hint/hint_session.h"
 #include "components/viz/service/surfaces/surface.h"
 #include "components/viz/service/surfaces/surface_reference.h"
 #include "components/viz/service/transitions/surface_animation_manager.h"
@@ -65,6 +66,10 @@ bool HasElapsedCadenceInterval(
 
 namespace viz {
 namespace {
+
+// The maximum amount of time to wait for a new interactive frame before
+// assuming that interaction has ended.
+constexpr base::TimeDelta kInteractionTimeout = base::Milliseconds(250);
 
 bool RecordShouldSendBeginFrame(const std::string& reason, bool should_send) {
   TRACE_EVENT2("viz", "SendBeginFrameDecision", "reason", reason, "should_send",
@@ -264,36 +269,26 @@ void CompositorFrameSinkSupport::SetBundle(const FrameSinkBundleId& bundle_id) {
   UpdateNeedsBeginFramesInternal();
 }
 
-void CompositorFrameSinkSupport::SetLastKnownVsync(
-    base::TimeDelta vsync_interval) {
-  if (last_known_vsync_interval_ == vsync_interval) {
-    return;
-  }
-  last_known_vsync_interval_ = vsync_interval;
-  ThrottleBeginFrame(begin_frame_interval_, /*simple_cadence_only=*/true);
+base::TimeDelta CompositorFrameSinkSupport::begin_frame_interval() const {
+  return throttler_.begin_frame_interval();
 }
 
-bool CompositorFrameSinkSupport::ThrottleBeginFrame(base::TimeDelta interval,
-                                                    bool simple_cadence_only) {
-  if (!interval.is_positive()) {
-    // Remove any existing throttling
-    begin_frame_interval_ = base::TimeDelta();
-    return true;
+void CompositorFrameSinkSupport::SetThrottleInterval(base::TimeDelta interval) {
+  throttler_.SetThrottleInterval(interval);
+}
+
+void CompositorFrameSinkSupport::SetAllowThrottling(bool allowed) {
+  throttler_.SetAllowThrottling(allowed);
+}
+
+void CompositorFrameSinkSupport::SetIsHandlingInteraction(
+    bool is_handling_interaction) {
+  if (is_handling_interaction_ != is_handling_interaction) {
+    is_handling_interaction_ = is_handling_interaction;
   }
 
-  if (!last_known_vsync_interval_.is_positive() || !simple_cadence_only) {
-    // No known vsync interval or forcing throttle interval.
-    begin_frame_interval_ = interval;
-    return true;
-  }
-
-  if (media::VideoCadenceEstimator::HasSimpleCadence(
-          last_known_vsync_interval_, interval, kMaxTimeUntilNextGlitch)) {
-    begin_frame_interval_ = interval;
-    return true;
-  } else {
-    begin_frame_interval_ = base::TimeDelta();
-    return false;
+  if (is_handling_interaction_) {
+    last_interaction_time_ = base::TimeTicks::Now();
   }
 }
 
@@ -598,6 +593,7 @@ void CompositorFrameSinkSupport::EvictLastActiveSurface() {
 
 void CompositorFrameSinkSupport::SetNeedsBeginFrame(bool needs_begin_frame) {
   client_needs_begin_frame_ = needs_begin_frame;
+  SetIsHandlingInteraction(false);
   UpdateNeedsBeginFramesInternal();
 }
 
@@ -677,6 +673,13 @@ void CompositorFrameSinkSupport::DidNotProduceFrame(const BeginFrameAck& ack) {
   // Override the has_damage flag (ignoring invalid data from clients).
   BeginFrameAck modified_ack(ack);
   modified_ack.has_damage = false;
+
+  // We only check for a timeout if we are currently handling an interaction.
+  if (is_handling_interaction_ &&
+      (last_interaction_time_ - last_begin_frame_args_.frame_time) >=
+          kInteractionTimeout) {
+    SetIsHandlingInteraction(false);
+  }
 
   // If the client doesn't produce a frame, we assume it's no longer interactive
   // for scheduling.
@@ -760,6 +763,13 @@ SubmitResult CompositorFrameSinkSupport::MaybeSubmitCompositorFrame(
           now_time, frame.metadata.trees_in_viz_timing_details,
           surface_manager_));
 
+#if BUILDFLAG(IS_ANDROID)
+  // If the renderer thread has requested a temporary boost for
+  // interaction, we ask ADPF to temporarily lift CPU capacity restrictions.
+  frame_sink_manager_->SetPreferEfficientScheduling(
+      frame.metadata.prefer_efficient_scheduling);
+#endif
+
   // Override the has_damage flag (ignoring invalid data from clients).
   frame.metadata.begin_frame_ack.has_damage = true;
   DCHECK(frame.metadata.begin_frame_ack.frame_id.IsSequenceValid());
@@ -820,9 +830,12 @@ SubmitResult CompositorFrameSinkSupport::MaybeSubmitCompositorFrame(
                              frame.metadata.begin_frame_ack.frame_id.source_id);
         last_known_frame_interval_ = preferred_frame_interval;
         // Only throttle simple cadences.
-        ThrottleBeginFrame(preferred_frame_interval,
-                           /*simple_cadence_only=*/true);
+        throttler_.SetCadenceThrottleInterval(preferred_frame_interval);
       }
+    } else if (last_known_frame_interval_ > BeginFrameArgs::MinInterval()) {
+      // Reset simple cadence throttling if no video is detected
+      last_known_frame_interval_ = BeginFrameArgs::MinInterval();
+      throttler_.SetCadenceThrottleInterval(base::TimeDelta());
     }
   }
 
@@ -986,6 +999,11 @@ SubmitResult CompositorFrameSinkSupport::MaybeSubmitCompositorFrame(
   // called before that.
   frame_sink_manager()->SubmitHitTestRegionList(
       last_created_surface_id_, frame_index, std::move(hit_test_region_list));
+  // Update the interaction state at the end of this method to ensure it only
+  // reflects valid frames that were successfully accepted. This prevents
+  // invalid frames (e.g. those with a size mismatch) from affecting the global
+  // interaction state.
+  SetIsHandlingInteraction(frame.metadata.is_handling_interaction);
 
   Surface::QueueFrameResult result = current_surface->QueueFrame(
       std::move(frame), frame_index, std::move(frame_rejected_callback));
@@ -1072,9 +1090,9 @@ void CompositorFrameSinkSupport::DidPresentCompositorFrame(
   // Override with the throttled interval if one has been set. Otherwise,
   // consumers will assume that the default vsync interval was the target and
   // that the frames are presented too late when in fact, this is intentional.
-  if (begin_frame_interval_.is_positive() &&
+  if (begin_frame_interval().is_positive() &&
       details.presentation_feedback.interval.is_positive()) {
-    details.presentation_feedback.interval = begin_frame_interval_;
+    details.presentation_feedback.interval = begin_frame_interval();
   }
 
   details.start_update_display_tree =
@@ -1168,17 +1186,17 @@ void CompositorFrameSinkSupport::OnBeginFrame(const BeginFrameArgs& args) {
 
   BeginFrameArgs adjusted_args = args;
   adjusted_args.dispatch_time = base::TimeTicks::Now();
-  if (begin_frame_interval_.is_positive()) {
-    adjusted_args.interval = begin_frame_interval_;
+  if (begin_frame_interval().is_positive()) {
+    adjusted_args.interval = begin_frame_interval();
     // Deadline is not necessarily frame_time + interval. For example, it may
     // incorporate an estimate for the frame's draw/swap time, so it's
     // desirable to preserve any offset from the next scheduled frame.
     base::TimeDelta offset_from_next_scheduled_frame =
         args.deadline - (args.frame_time + args.interval);
-    adjusted_args.deadline = args.frame_time + begin_frame_interval_ +
+    adjusted_args.deadline = args.frame_time + begin_frame_interval() +
                              offset_from_next_scheduled_frame;
   }
-  SetLastKnownVsync(args.interval);
+  throttler_.SetLastKnownVsync(args.interval, args.unthrottled_interval);
   const bool should_send_begin_frame =
       ShouldSendBeginFrame(args.frame_id, adjusted_args.frame_time,
                            args.interval) &&
@@ -1462,7 +1480,7 @@ bool CompositorFrameSinkSupport::ShouldSendBeginFrame(
   }
 
   // We should throttle OnBeginFrame() if it has been less than
-  // |begin_frame_interval_| since the last one was sent because clients have
+  // begin_frame_interval() since the last one was sent if clients have
   // requested to update at such rate.
   const bool should_throttle_as_requested =
       ShouldThrottleBeginFrameAsRequested(frame_time, vsync_interval);
@@ -1571,7 +1589,7 @@ void CompositorFrameSinkSupport::CheckPendingSurfaces() {
 bool CompositorFrameSinkSupport::ShouldThrottleBeginFrameAsRequested(
     base::TimeTicks frame_time,
     base::TimeDelta vsync_interval) {
-  if (!begin_frame_interval_.is_positive() || !vsync_interval.is_positive()) {
+  if (!begin_frame_interval().is_positive() || !vsync_interval.is_positive()) {
     return false;
   }
 
@@ -1579,7 +1597,7 @@ bool CompositorFrameSinkSupport::ShouldThrottleBeginFrameAsRequested(
   // need to know if the current frame has elapsed a full cadence interval to
   // know its time to render.
   base::TimeDelta time_since_last_frame = frame_time - last_frame_time_;
-  return !HasElapsedCadenceInterval(vsync_interval, begin_frame_interval_,
+  return !HasElapsedCadenceInterval(vsync_interval, begin_frame_interval(),
                                     time_since_last_frame);
 }
 

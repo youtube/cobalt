@@ -115,7 +115,10 @@ void XRFrameProvider::OnSessionStarted(
         BindOnce(&XRFrameProvider::OnProviderConnectionError,
                  WrapWeakPersistent(this), WrapWeakPersistent(session)));
 
-    frame_transport_->RegisterFrameRenderedCallback(BindRepeating(
+    frame_transport_->RegisterFrameTransferredCallback(blink::BindRepeating(
+        &XRFrameProvider::OnTransferComplete, WrapWeakPersistent(this)));
+
+    frame_transport_->RegisterFrameRenderedCallback(blink::BindRepeating(
         &XRFrameProvider::OnRenderComplete, WrapWeakPersistent(this)));
 
     if (session_ptr->layer_manager) {
@@ -706,21 +709,15 @@ void XRFrameProvider::SubmitLayer(device::LayerId layer_id,
         << "WebGPU layers only support shared buffer submission modes";
   }
 
-  scoped_refptr<StaticBitmapImage> image_ref =
-      client->TransferToStaticBitmapImage();
+  std::unique_ptr<SharedImageHolder> image_ref =
+      client->TransferToSharedImageHolder();
 
   if (!image_ref) {
     return;
   }
 
-  // Hardware-accelerated rendering should always be texture backed. Ensure this
-  // is the case, don't attempt to render if using an unexpected drawing path.
-  if (!image_ref->IsTextureBacked()) {
-    NOTREACHED() << "WebXR requires hardware-accelerated rendering to texture";
-  }
-
   any_layer_changed_ = true;
-  current_frame_images_.push_back(image_ref);
+  current_frame_images_.push_back(std::move(image_ref));
   layer_ids_.push_back(layer_id);
 }
 
@@ -928,6 +925,14 @@ void XRFrameProvider::SendFrameData() {
   if (xr_->GetWebXrInternalsRendererListener()) {
     xr_->GetWebXrInternalsRendererListener()->OnFrameData(
         std::move(xr_frame_stat));
+  }
+}
+
+void XRFrameProvider::OnTransferComplete(
+    bool succeeded,
+    const Vector<device::LayerId>& layer_ids) {
+  if (succeeded && immersive_session_) {
+    immersive_session_->OnTransferComplete(layer_ids);
   }
 }
 

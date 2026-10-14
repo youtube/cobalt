@@ -39,7 +39,7 @@ static const size_t kSizeTWithoutLower4Bits = (size_t) -16;
 #define GHASH_CHUNK (3 * 1024)
 
 #if defined(GHASH_ASM_X86_64) || defined(GHASH_ASM_X86)
-static inline void gcm_reduce_1bit(u128 *V) {
+static void gcm_reduce_1bit(u128 *V) {
   if (sizeof(crypto_word_t) == 8) {
     uint64_t T = UINT64_C(0xe100000000000000) & (0 - (V->hi & 1));
     V->hi = (V->lo << 63) | (V->hi >> 1);
@@ -152,6 +152,10 @@ static size_t hw_gcm_encrypt(const uint8_t *in, uint8_t *out, size_t len,
   if (!len_blocks) {
     return 0;
   }
+  if (impl == gcm_arm64_aes_eor3) {
+    aes_gcm_enc_kernel_eor3(in, len_blocks * 8, out, Xi, ivec, key, Htable);
+    return len_blocks;
+  }
   aes_gcm_enc_kernel(in, len_blocks * 8, out, Xi, ivec, key, Htable);
   return len_blocks;
 }
@@ -163,6 +167,10 @@ static size_t hw_gcm_decrypt(const uint8_t *in, uint8_t *out, size_t len,
   const size_t len_blocks = len & kSizeTWithoutLower4Bits;
   if (!len_blocks) {
     return 0;
+  }
+  if (impl == gcm_arm64_aes_eor3) {
+    aes_gcm_dec_kernel_eor3(in, len_blocks * 8, out, Xi, ivec, key, Htable);
+    return len_blocks;
   }
   aes_gcm_dec_kernel(in, len_blocks * 8, out, Xi, ivec, key, Htable);
   return len_blocks;
@@ -278,7 +286,10 @@ void bssl::CRYPTO_gcm128_init_aes_key(GCM128_KEY *gcm_key, const uint8_t *key,
     gcm_key->impl = gcm_x86_aesni;
   }
 #elif defined(OPENSSL_AARCH64)
-  if (gcm_pmull_capable() && is_hwaes) {
+  // SHA3 and EOR3 belong to the same ISA extension.
+  if (gcm_sha3_capable() && is_hwaes) {
+    gcm_key->impl = gcm_arm64_aes_eor3;
+  } else if (gcm_pmull_capable() && is_hwaes) {
     gcm_key->impl = gcm_arm64_aes;
   }
 #endif
@@ -424,7 +435,6 @@ int bssl::CRYPTO_gcm128_encrypt(const GCM128_KEY *key, GCM128_CONTEXT *ctx,
   }
 
 #if defined(HW_GCM)
-  // Check |len| to work around a C language bug. See https://crbug.com/1019588.
   if (key->impl != gcm_separate && len > 0) {
     // |hw_gcm_encrypt| may not process all the input given to it. It may
     // not process *any* of its input if it is deemed too small.
@@ -513,7 +523,6 @@ int bssl::CRYPTO_gcm128_decrypt(const GCM128_KEY *key, GCM128_CONTEXT *ctx,
   }
 
 #if defined(HW_GCM)
-  // Check |len| to work around a C language bug. See https://crbug.com/1019588.
   if (key->impl != gcm_separate && len > 0) {
     // |hw_gcm_decrypt| may not process all the input given to it. It may
     // not process *any* of its input if it is deemed too small.

@@ -189,7 +189,7 @@ void AccessCodeCastIntegrationBrowserTest::SetUpOnMainThread() {
   content::SetNetworkConnectionTrackerForTesting(
       network_connection_tracker_.get());
   network::TestNetworkConnectionTracker::GetInstance()->SetConnectionType(
-      network::mojom::ConnectionType::CONNECTION_WIFI);
+      net::NetworkChangeNotifier::ConnectionType::CONNECTION_WIFI);
   url_loader_interceptor_ =
       std::make_unique<content::URLLoaderInterceptor>(base::BindRepeating(
           &AccessCodeCastIntegrationBrowserTest::InterceptRequest,
@@ -346,7 +346,7 @@ int AccessCodeCastIntegrationBrowserTest::WaitForAddSinkErrorCode(
 
 bool AccessCodeCastIntegrationBrowserTest::HasSinkInDevicesDict(
     const MediaSink::Id& sink_id) {
-  base::test::TestFuture<base::Value::Dict> media_sink;
+  base::test::TestFuture<base::DictValue> media_sink;
   GetPrefUpdater()->GetMediaSinkInternalValueBySinkId(sink_id,
                                                       media_sink.GetCallback());
 

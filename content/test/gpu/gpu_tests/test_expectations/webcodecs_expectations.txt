@@ -157,7 +157,7 @@ crbug.com/348632352 [ win qualcomm-0x41333430 ] WebCodecs_EncodingRateControl_hv
 
 # Known issues with hvc1 variants with hvc1 + camera + prefers-software to reproduce
 crbug.com/371802469 [ mac intel ] WebCodecs_Encode_camera_hvc1.1.6.L123.00_prefer-software [ Failure ]
-crbug.com/371802469 [ graphite-disabled intel no-asan sequoia ] WebCodecs_FrameSizeChange_hvc1.1.6.L123.00_camera [ Failure ]
+crbug.com/371802469 [ angle-opengl graphite-disabled intel no-asan sequoia ] WebCodecs_FrameSizeChange_hvc1.1.6.L123.00_camera [ Failure ]
 crbug.com/371802469 [ intel sonoma ] WebCodecs_FrameSizeChange_hvc1.1.6.L123.00_camera [ Failure ]
 # Same with prefer-hardware
 crbug.com/371802469 [ amd-0x7340 angle-opengl asan graphite-disabled mac ] WebCodecs_Encode_camera_hvc1.1.6.L123.00_prefer-hardware [ Failure ]
@@ -269,7 +269,7 @@ crbug.com/459560016 [ android android-brya ] WebCodecs_SVC_vp09.00.10.08_prefer-
 # Flaky failures that started when upgrading to Mac 15.4
 crbug.com/416294710 [ sequoia intel-0x3e9b ] WebCodecs_*hvc*prefer-hardware* [ Failure ]
 crbug.com/416294710 [ sequoia intel-0x3e9b ] WebCodecs_ContentHint_hvc1.1.6.L123.00_detail [ Failure ]
-crbug.com/416294710 [ angle-metal intel-0x3e9b sequoia ] WebCodecs_ContentHint_hvc1.1.6.L123.00_motion [ Failure ]
+crbug.com/416294710 [ angle-metal graphite-disabled intel-0x3e9b sequoia ] WebCodecs_ContentHint_hvc1.1.6.L123.00_motion [ Failure ]
 crbug.com/416294710 [ sequoia intel-0x3e9b ] WebCodecs_ContentHint_hvc1.1.6.L123.00_text [ Failure ]
 
 # Mac Intel SharedImage Synchronization Flakes
@@ -335,8 +335,6 @@ crbug.com/452841787 [ win11 qualcomm-0x36334330 ] WebCodecs_FrameSizeChange_av01
 
 # vaInitialize fails on chromeos-board-amd64-generic VMs
 crbug.com/465527389 [ chromeos chromeos-board-amd64-generic ] WebCodecs_copyTo_offscreen [ Failure ]
-crbug.com/465527389 [ chromeos chromeos-board-amd64-generic ] WebCodecs_EncodeDecode_capture_vp8_prefer-software [ Failure ]
-crbug.com/465527389 [ chromeos chromeos-board-amd64-generic ] WebCodecs_EncodeDecode_capture_avc1.42001E_prefer-software [ Failure ]
 
 # Flakily times out on M2 devices.
 crbug.com/473593123 [ mac apple-angle-metal-renderer:-apple-m2 ] WebCodecs_Encode_camera_hvc1.1.6.L123.00_prefer-software [ Failure ]

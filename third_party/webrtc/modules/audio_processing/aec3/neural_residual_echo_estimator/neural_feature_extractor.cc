@@ -75,11 +75,17 @@ TimeDomainFeatureExtractor::TimeDomainFeatureExtractor(int step_size)
 
 TimeDomainFeatureExtractor::~TimeDomainFeatureExtractor() = default;
 
+void TimeDomainFeatureExtractor::Reset() {
+  for (auto& buffer : input_buffer_) {
+    buffer.clear();
+  }
+}
+
 bool TimeDomainFeatureExtractor::ReadyForInference() const {
   for (const auto model_input_enum : kRequiredModelInputs) {
     const std::vector<float>& input_buffer =
         input_buffer_[static_cast<size_t>(model_input_enum)];
-    if (input_buffer.size() != step_size_) {
+    if (input_buffer.size() < step_size_) {
       return false;
     }
   }
@@ -134,6 +140,22 @@ FrequencyDomainFeatureExtractor::FrequencyDomainFeatureExtractor(int step_size)
   }
 }
 
+void FrequencyDomainFeatureExtractor::Reset() {
+  std::memset(spectrum_, 0, sizeof(float) * frame_size_);
+  for (auto& buffers : input_buffer_) {
+    for (auto& buffer : buffers) {
+      buffer.clear();
+    }
+  }
+  for (auto& states : pffft_states_) {
+    for (auto& state : states) {
+      if (state) {
+        std::memset(state->data(), 0, sizeof(float) * frame_size_);
+      }
+    }
+  }
+}
+
 FrequencyDomainFeatureExtractor::~FrequencyDomainFeatureExtractor() {
   pffft_destroy_setup(pffft_setup_);
   pffft_aligned_free(work_);
@@ -144,7 +166,7 @@ bool FrequencyDomainFeatureExtractor::ReadyForInference() const {
   for (const auto model_input_enum : kRequiredModelInputs) {
     const std::vector<std::vector<float>>& input_buffer =
         input_buffer_[static_cast<size_t>(model_input_enum)];
-    if (input_buffer.empty() || input_buffer[0].size() != step_size_) {
+    if (input_buffer.empty() || input_buffer[0].size() < step_size_) {
       return false;
     }
   }

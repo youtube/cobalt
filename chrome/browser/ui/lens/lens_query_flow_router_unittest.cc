@@ -120,9 +120,6 @@ class TestLensQueryFlowRouter : public LensQueryFlowRouter {
     raw_mock_session_handle_ = pending_mock_session_handle_.get();
     ON_CALL(*pending_mock_session_handle_, GetController())
         .WillByDefault(Return(mock_context_controller));
-    ON_CALL(*pending_mock_session_handle_, AddTabContext(_, _))
-        .WillByDefault(
-            base::test::RunOnceCallback<1>(base::UnguessableToken::Create()));
     pending_mock_session_handle_->CheckSearchContentSharingSettings(
         profile->GetPrefs());
     viewport_screenshot_.allocN32Pixels(10, 10);
@@ -145,6 +142,19 @@ class TestLensQueryFlowRouter : public LensQueryFlowRouter {
 
   void ClearMockSessionHandle() { raw_mock_session_handle_ = nullptr; }
 
+  void SetSidePanelSessionHandle(
+      contextual_search::ContextualSearchSessionHandle* handle) {
+    side_panel_session_handle_ = handle;
+  }
+
+  contextual_search::ContextualSearchSessionHandle*
+  GetContextualSearchSessionHandle() const override {
+    if (side_panel_session_handle_) {
+      return side_panel_session_handle_;
+    }
+    return LensQueryFlowRouter::GetContextualSearchSessionHandle();
+  }
+
  private:
   SkBitmap viewport_screenshot_;
   std::unique_ptr<contextual_search::MockContextualSearchSessionHandle>
@@ -155,6 +165,8 @@ class TestLensQueryFlowRouter : public LensQueryFlowRouter {
   // test will seg fault.
   raw_ptr<contextual_search::MockContextualSearchSessionHandle>
       raw_mock_session_handle_;
+  raw_ptr<contextual_search::ContextualSearchSessionHandle>
+      side_panel_session_handle_ = nullptr;
 };
 
 class MockTabContextualizationController
@@ -175,13 +187,7 @@ class MockLensOverlayController : public LensOverlayController {
   MockLensOverlayController(tabs::TabInterface* tab,
                             LensSearchController* search_controller,
                             Profile* profile)
-      : LensOverlayController(tab,
-                              search_controller,
-                              nullptr,
-                              nullptr,
-                              profile->GetPrefs(),
-                              nullptr,
-                              nullptr) {}
+      : LensOverlayController(tab, search_controller, profile->GetPrefs()) {}
   ~MockLensOverlayController() override = default;
 
   MOCK_METHOD(void, NotifyResultsPanelOpened, (), (override));
@@ -197,7 +203,7 @@ class MockContextualTasksUiService
     : public contextual_tasks::ContextualTasksUiService {
  public:
   explicit MockContextualTasksUiService(Profile* profile)
-      : ContextualTasksUiService(profile, nullptr, nullptr) {}
+      : ContextualTasksUiService(profile, nullptr, nullptr, nullptr) {}
   ~MockContextualTasksUiService() override = default;
 
   MOCK_METHOD(void,
@@ -210,6 +216,15 @@ class MockContextualTasksUiService
               (override));
 
   MOCK_METHOD(GURL, GetDefaultAiPageUrl, (), (override));
+  MOCK_METHOD(GURL,
+              GetDefaultAiPageUrlForTask,
+              (const base::Uuid& task_id),
+              (override));
+  MOCK_METHOD(void,
+              SetInitialEntryPointForTask,
+              (const base::Uuid& task_id,
+               omnibox::ChromeAimEntryPoint entry_point),
+              (override));
 };
 
 class MockLensOverlayGen204Controller : public LensOverlayGen204Controller {
@@ -663,9 +678,9 @@ TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,
   // Assert: Create expectation to call CreateSearchUrl. We also expect a call
   // to open the side panel, but that is harder to mock, so we omit it for now.
   EXPECT_CALL(*router.mock_session_handle(), NotifySessionStarted());
-  EXPECT_CALL(*router.mock_session_handle(), AddTabContext(_, _))
-      .WillOnce(base::test::RunOnceCallback<1>(file_token));
-  // StartTabContextUploadFlow is called as part of OnFinishedAddingTabContext.
+  EXPECT_CALL(*router.mock_session_handle(), CreateContextToken())
+      .WillOnce(Return(file_token));
+  // StartTabContextUploadFlow is called as part of UploadContextualInputData.
   EXPECT_CALL(*router.mock_session_handle(),
               StartTabContextUploadFlow(_, _, _));
   EXPECT_CALL(
@@ -709,8 +724,8 @@ TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,
   // Initialize session handle and token via StartQueryFlow.
   base::UnguessableToken file_token = base::UnguessableToken::Create();
   EXPECT_CALL(*router.mock_session_handle(), NotifySessionStarted());
-  EXPECT_CALL(*router.mock_session_handle(), AddTabContext(_, _))
-      .WillOnce(base::test::RunOnceCallback<1>(file_token));
+  EXPECT_CALL(*router.mock_session_handle(), CreateContextToken())
+      .WillOnce(Return(file_token));
   EXPECT_CALL(*router.mock_session_handle(),
               StartTabContextUploadFlow(_, _, _));
 
@@ -759,7 +774,7 @@ TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,
           GURL("https://www.google.com/search?q=test")));
 
   // Assert: Ensure these are NOT called again.
-  EXPECT_CALL(*router.mock_session_handle(), AddTabContext(_, _)).Times(0);
+  EXPECT_CALL(*router.mock_session_handle(), CreateContextToken()).Times(0);
   EXPECT_CALL(*router.mock_session_handle(), StartTabContextUploadFlow(_, _, _))
       .Times(0);
   EXPECT_CALL(*mock_tab_contextualization_controller_, GetPageContext(_))
@@ -820,9 +835,9 @@ TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,
 
   // Assert: Create expectation to call CreateSearchUrl.
   EXPECT_CALL(*router.mock_session_handle(), NotifySessionStarted());
-  EXPECT_CALL(*router.mock_session_handle(), AddTabContext(_, _))
-      .WillOnce(base::test::RunOnceCallback<1>(file_token));
-  // StartTabContextUploadFlow is called as part of OnFinishedAddingTabContext.
+  EXPECT_CALL(*router.mock_session_handle(), CreateContextToken())
+      .WillOnce(Return(file_token));
+  // StartTabContextUploadFlow is called as part of UploadContextualInputData.
   EXPECT_CALL(*router.mock_session_handle(),
               StartTabContextUploadFlow(_, _, _));
   EXPECT_CALL(
@@ -866,10 +881,10 @@ TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,
   // Initialize session handle and token.
   base::UnguessableToken file_token = base::UnguessableToken::Create();
   EXPECT_CALL(*router.mock_session_handle(), NotifySessionStarted());
+  EXPECT_CALL(*router.mock_session_handle(), CreateContextToken())
+      .WillOnce(Return(file_token));
   EXPECT_CALL(*router.mock_session_handle(),
               StartTabContextUploadFlow(_, _, _));
-  EXPECT_CALL(*router.mock_session_handle(), AddTabContext(_, _))
-      .WillOnce(base::test::RunOnceCallback<1>(file_token));
 
   GURL example_url("https://example.com");
   router.StartQueryFlow(router.GetViewportScreenshot(), example_url, "Title",
@@ -910,10 +925,10 @@ TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,
   // Initialize session handle and token.
   base::UnguessableToken file_token = base::UnguessableToken::Create();
   EXPECT_CALL(*router.mock_session_handle(), NotifySessionStarted());
+  EXPECT_CALL(*router.mock_session_handle(), CreateContextToken())
+      .WillOnce(Return(file_token));
   EXPECT_CALL(*router.mock_session_handle(),
               StartTabContextUploadFlow(_, _, _));
-  EXPECT_CALL(*router.mock_session_handle(), AddTabContext(_, _))
-      .WillOnce(base::test::RunOnceCallback<1>(file_token));
 
   GURL example_url("https://example.com");
   router.StartQueryFlow(router.GetViewportScreenshot(), example_url, "Title",
@@ -977,9 +992,9 @@ TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,
 
   // Assert: Create expectation to call CreateSearchUrl.
   EXPECT_CALL(*router.mock_session_handle(), NotifySessionStarted());
-  EXPECT_CALL(*router.mock_session_handle(), AddTabContext(_, _))
-      .WillOnce(base::test::RunOnceCallback<1>(file_token));
-  // StartTabContextUploadFlow is called as part of OnFinishedAddingTabContext.
+  EXPECT_CALL(*router.mock_session_handle(), CreateContextToken())
+      .WillOnce(Return(file_token));
+  // StartTabContextUploadFlow is called as part of UploadContextualInputData.
   EXPECT_CALL(*router.mock_session_handle(),
               StartTabContextUploadFlow(_, _, _));
   EXPECT_CALL(
@@ -1049,9 +1064,9 @@ TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,
   // Assert: Create expectation to call CreateSearchUrl. We also expect a call
   // to open the side panel, but that is harder to mock, so we omit it for now.
   EXPECT_CALL(*router.mock_session_handle(), NotifySessionStarted());
-  EXPECT_CALL(*router.mock_session_handle(), AddTabContext(_, _))
-      .WillOnce(base::test::RunOnceCallback<1>(file_token));
-  // StartTabContextUploadFlow is called as part of OnFinishedAddingTabContext.
+  EXPECT_CALL(*router.mock_session_handle(), CreateContextToken())
+      .WillOnce(Return(file_token));
+  // StartTabContextUploadFlow is called as part of UploadContextualInputData.
   EXPECT_CALL(*router.mock_session_handle(),
               StartTabContextUploadFlow(_, _, _));
   EXPECT_CALL(
@@ -1175,11 +1190,10 @@ TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,
   base::UnguessableToken file_token = base::UnguessableToken::Create();
 
   EXPECT_CALL(*router.mock_session_handle(), NotifySessionStarted());
+  EXPECT_CALL(*router.mock_session_handle(), CreateContextToken())
+      .WillOnce(Return(file_token));
   EXPECT_CALL(*router.mock_session_handle(),
               StartTabContextUploadFlow(_, _, _));
-  EXPECT_CALL(*router.mock_session_handle(), AddTabContext(_, _))
-      .WillOnce(base::test::RunOnceCallback<1>(file_token));
-
   // Act: Start query flow to set the token.
   router.StartQueryFlow(router.GetViewportScreenshot(), example_url, page_title,
                         {}, {}, primary_content_type, std::nullopt,
@@ -1233,13 +1247,11 @@ TEST_F(
   lens::MimeType primary_content_type = lens::MimeType::kAnnotatedPageContent;
   float ui_scale_factor = 1.0f;
   base::TimeTicks invocation_time = base::TimeTicks::Now();
-  base::UnguessableToken file_token = base::UnguessableToken::Create();
 
   EXPECT_CALL(*router.mock_session_handle(), NotifySessionStarted());
+  EXPECT_CALL(*router.mock_session_handle(), CreateContextToken());
   EXPECT_CALL(*router.mock_session_handle(),
               StartTabContextUploadFlow(_, _, _));
-  EXPECT_CALL(*router.mock_session_handle(), AddTabContext(_, _))
-      .WillOnce(base::test::RunOnceCallback<1>(file_token));
 
   // Act: Start query flow to set the token.
   router.StartQueryFlow(router.GetViewportScreenshot(), example_url, page_title,
@@ -1275,6 +1287,70 @@ TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,
 
   // Act: Call the method.
   router.HandleInteractionResponse(std::nullopt, interaction_response);
+}
+
+TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,
+       StartQueryFlow_AddsObserver_WhenNoSessionHandle) {
+  // Arrange
+  EXPECT_CALL(*mock_lens_search_controller_,
+              lens_search_contextualization_controller())
+      .WillOnce(Return(contextualization_controller_.get()));
+  TestLensQueryFlowRouter router(mock_lens_search_controller_.get(),
+                                 mock_context_controller_.get(),
+                                 profile_.get());
+
+  GURL example_url("https://example.com");
+  std::string page_title = "Title";
+  lens::MimeType primary_content_type = lens::MimeType::kAnnotatedPageContent;
+  float ui_scale_factor = 1.0f;
+  base::TimeTicks invocation_time = base::TimeTicks::Now();
+
+  // Assert: Expect AddObserver to be called on the controller.
+  EXPECT_CALL(*mock_context_controller_, AddObserver(&router));
+  EXPECT_CALL(*router.mock_session_handle(), NotifySessionStarted());
+  EXPECT_CALL(*router.mock_session_handle(),
+              StartTabContextUploadFlow(_, _, _));
+
+  // Act
+  router.StartQueryFlow(router.GetViewportScreenshot(), example_url, page_title,
+                        {}, {}, primary_content_type, std::nullopt,
+                        ui_scale_factor, invocation_time);
+}
+
+TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,
+       StartQueryFlow_DoesNotAddObserver_WhenSessionHandleExists) {
+  // Arrange
+  // Simulate an existing session handle from the side panel.
+  auto side_panel_session_handle =
+      std::make_unique<contextual_search::MockContextualSearchSessionHandle>();
+
+  EXPECT_CALL(*mock_lens_search_controller_,
+              lens_search_contextualization_controller())
+      .WillOnce(Return(contextualization_controller_.get()));
+  TestLensQueryFlowRouter router(mock_lens_search_controller_.get(),
+                                 mock_context_controller_.get(),
+                                 profile_.get());
+
+  router.SetSidePanelSessionHandle(side_panel_session_handle.get());
+
+  GURL example_url("https://example.com");
+  std::string page_title = "Title";
+  lens::MimeType primary_content_type = lens::MimeType::kAnnotatedPageContent;
+  float ui_scale_factor = 1.0f;
+  base::TimeTicks invocation_time = base::TimeTicks::Now();
+
+  // Assert: Expect AddObserver NOT to be called on the controller.
+  EXPECT_CALL(*mock_context_controller_, AddObserver(&router)).Times(0);
+
+  // Expect StartTabContextUploadFlow on the SIDE PANEL handle.
+  EXPECT_CALL(*side_panel_session_handle, CreateContextToken())
+      .WillOnce(Return(base::UnguessableToken::Create()));
+  EXPECT_CALL(*side_panel_session_handle, StartTabContextUploadFlow(_, _, _));
+
+  // Act
+  router.StartQueryFlow(router.GetViewportScreenshot(), example_url, page_title,
+                        {}, {}, primary_content_type, std::nullopt,
+                        ui_scale_factor, invocation_time);
 }
 
 class

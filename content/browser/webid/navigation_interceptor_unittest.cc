@@ -39,11 +39,7 @@ class InterceptorMockNavigationHandle : public MockNavigationHandle {
   explicit InterceptorMockNavigationHandle(WebContents* web_contents)
       : MockNavigationHandle(web_contents) {}
 
-  blink::mojom::NavigationInitiatorActivationAndAdStatus
-  GetNavigationInitiatorActivationAndAdStatus() override {
-    return blink::mojom::NavigationInitiatorActivationAndAdStatus::
-        kStartedWithTransientActivationFromNonAd;
-  }
+  bool StartedWithTransientActivation() override { return true; }
 };
 
 class MockFederatedAuthRequest : public RequestService {
@@ -69,6 +65,7 @@ class MockFederatedAuthRequest : public RequestService {
   MOCK_METHOD(void,
               ResolveTokenRequest,
               (const std::optional<std::string>& account_id,
+               const std::optional<GURL>& redirect_to,
                base::Value token,
                ResolveTokenRequestCallback callback),
               (override));
@@ -634,7 +631,7 @@ TEST_F(NavigationInterceptorTest,
 
 TEST_F(NavigationInterceptorTest, ResponseBuilderBuildsResponse) {
   NavigationInterceptor::ResponseBuilder builder;
-  base::Value::Dict response_dict;
+  base::DictValue response_dict;
   response_dict.Set("redirect_to", "https://example.com/redirect");
   base::Value response(std::move(response_dict));
 
@@ -657,7 +654,7 @@ TEST_F(NavigationInterceptorTest, ResponseBuilderFailsWithNoRedirectUrl) {
 
 TEST_F(NavigationInterceptorTest, ResponseBuilderFailsWithInvalidRedirectUrl) {
   NavigationInterceptor::ResponseBuilder builder;
-  base::Value::Dict response_dict;
+  base::DictValue response_dict;
   response_dict.Set("redirect_to", "not a valid url");
   base::Value response(std::move(response_dict));
 
@@ -668,7 +665,7 @@ TEST_F(NavigationInterceptorTest, ResponseBuilderFailsWithInvalidRedirectUrl) {
 
 TEST_F(NavigationInterceptorTest, ResponseBuilderFailsWithInternalUrls) {
   NavigationInterceptor::ResponseBuilder builder;
-  base::Value::Dict response_dict;
+  base::DictValue response_dict;
   response_dict.Set("redirect_to", "chrome://settings");
   base::Value response(std::move(response_dict));
 
@@ -679,11 +676,11 @@ TEST_F(NavigationInterceptorTest, ResponseBuilderFailsWithInternalUrls) {
 
 TEST_F(NavigationInterceptorTest, ResponseBuilderBuildsPostResponse) {
   NavigationInterceptor::ResponseBuilder builder;
-  base::Value::Dict redirect_dict;
+  base::DictValue redirect_dict;
   redirect_dict.Set("url", "https://example.com/redirect");
   redirect_dict.Set("method", "POST");
   redirect_dict.Set("body", "key=value");
-  base::Value::Dict response_dict;
+  base::DictValue response_dict;
   response_dict.Set("redirect_to", std::move(redirect_dict));
   base::Value response(std::move(response_dict));
 
@@ -704,10 +701,10 @@ TEST_F(NavigationInterceptorTest, ResponseBuilderBuildsPostResponse) {
 TEST_F(NavigationInterceptorTest,
        ResponseBuilderFailsWithPostResponseMissingUrl) {
   NavigationInterceptor::ResponseBuilder builder;
-  base::Value::Dict redirect_dict;
+  base::DictValue redirect_dict;
   redirect_dict.Set("method", "POST");
   redirect_dict.Set("body", "key=value");
-  base::Value::Dict response_dict;
+  base::DictValue response_dict;
   response_dict.Set("redirect_to", std::move(redirect_dict));
   base::Value response(std::move(response_dict));
 
@@ -719,10 +716,10 @@ TEST_F(NavigationInterceptorTest,
 TEST_F(NavigationInterceptorTest,
        ResponseBuilderSucceedsWithPostResponseMissingMethod) {
   NavigationInterceptor::ResponseBuilder builder;
-  base::Value::Dict redirect_dict;
+  base::DictValue redirect_dict;
   redirect_dict.Set("url", "https://example.com/redirect");
   redirect_dict.Set("body", "key=value");
-  base::Value::Dict response_dict;
+  base::DictValue response_dict;
   response_dict.Set("redirect_to", std::move(redirect_dict));
   base::Value response(std::move(response_dict));
 
@@ -736,10 +733,10 @@ TEST_F(NavigationInterceptorTest,
 TEST_F(NavigationInterceptorTest,
        ResponseBuilderSucceedsWithPostResponseMissingBody) {
   NavigationInterceptor::ResponseBuilder builder;
-  base::Value::Dict redirect_dict;
+  base::DictValue redirect_dict;
   redirect_dict.Set("url", "https://example.com/redirect");
   redirect_dict.Set("method", "POST");
-  base::Value::Dict response_dict;
+  base::DictValue response_dict;
   response_dict.Set("redirect_to", std::move(redirect_dict));
   base::Value response(std::move(response_dict));
 

@@ -28,6 +28,7 @@ import org.chromium.chrome.browser.tab.TabStateStorageService;
 import org.chromium.chrome.browser.tab.TabStateStorageServiceFactory;
 import org.chromium.chrome.browser.tabmodel.IncognitoTabModel;
 import org.chromium.chrome.browser.tabmodel.IncognitoTabModelObserver;
+import org.chromium.chrome.browser.tabmodel.PersistentStoreMigrationManager;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilterObserver;
 import org.chromium.chrome.browser.tabmodel.TabGroupVisualDataStore;
@@ -101,8 +102,9 @@ public class ModelTrackingOrchestrator {
     }
 
     private final String mWindowTag;
+    private final PersistentStoreMigrationManager mMigrationManager;
     private final TabModelSelector mTabModelSelector;
-    private final Map<Token, CollectionSaveForwarder> mGroupForwarderMap = new HashMap<>();
+    private final Map<Token, Boolean> mGroupIncognitoStatus = new HashMap<>();
     private final IncognitoTabModelObserver mIncognitoTabModelObserver =
             new IncognitoTabModelObserver() {
                 @Override
@@ -118,11 +120,18 @@ public class ModelTrackingOrchestrator {
 
     private @Nullable StorageCollectionSynchronizer mIncognitoSynchronizer;
     private @Nullable StorageCollectionSynchronizer mRegularSynchronizer;
+    private @Nullable CollectionSaveForwarder mRegularWindowForwarder;
+    private @Nullable CollectionSaveForwarder mIncognitoWindowForwarder;
     private boolean mLoadIncognitoTabsOnStart;
 
     private final SynchronizerManager mRegularSynchronizerManager =
             new RegularSynchronizerManager();
     private final @Nullable SynchronizerManager mIncognitoSynchronizerManager;
+
+    private final Callback<@Nullable Tab> mRegularActiveTabObserver =
+            this::onRegularActiveTabChange;
+    private final Callback<@Nullable Tab> mIncognitoActiveTabObserver =
+            this::onIncognitoActiveTabChange;
 
     private final TabGroupModelFilterObserver mVisualDataUpdateObserver =
             new TabGroupModelFilterObserver() {
@@ -130,22 +139,14 @@ public class ModelTrackingOrchestrator {
                 public void didCreateNewGroup(Tab destinationTab, TabGroupModelFilter filter) {
                     Token groupId = destinationTab.getTabGroupId();
                     assert groupId != null;
-
-                    TabStripCollection collection = filter.getTabModel().getTabStripCollection();
-                    if (collection == null) return;
-
-                    CollectionSaveForwarder forwarder =
-                            CollectionSaveForwarder.createForTabGroup(
-                                    destinationTab.getProfile(), groupId, collection);
-                    mGroupForwarderMap.put(groupId, forwarder);
+                    mGroupIncognitoStatus.put(groupId, filter.getTabModel().isOffTheRecord());
                 }
 
                 @Override
                 public void didRemoveTabGroup(
                         int oldRootId, @Nullable Token oldTabGroupId, int removalReason) {
                     if (oldTabGroupId == null) return;
-                    CollectionSaveForwarder forwarder = mGroupForwarderMap.remove(oldTabGroupId);
-                    if (forwarder != null) forwarder.destroy();
+                    mGroupIncognitoStatus.remove(oldTabGroupId);
                 }
 
                 @Override
@@ -168,12 +169,17 @@ public class ModelTrackingOrchestrator {
 
     /**
      * @param windowTag The window tag to use for the window.
+     * @param migrationManager The migration manager for the window.
      * @param tabModelSelector The {@link TabModelSelector} to observe changes for.
      * @param hasCipherFactory Whether a cipher factory was provided for OTR data.
      */
     public ModelTrackingOrchestrator(
-            String windowTag, TabModelSelector tabModelSelector, boolean hasCipherFactory) {
+            String windowTag,
+            PersistentStoreMigrationManager migrationManager,
+            TabModelSelector tabModelSelector,
+            boolean hasCipherFactory) {
         mWindowTag = windowTag;
+        mMigrationManager = migrationManager;
         mTabModelSelector = tabModelSelector;
 
         if (hasCipherFactory) {
@@ -251,9 +257,7 @@ public class ModelTrackingOrchestrator {
             itm.removeIncognitoObserver(mIncognitoTabModelObserver);
         }
 
-        for (CollectionSaveForwarder forwarder : mGroupForwarderMap.values()) {
-            forwarder.destroy();
-        }
+        mGroupIncognitoStatus.clear();
 
         for (boolean incognito : new boolean[] {false, true}) {
             TabGroupModelFilter filter = getFilter(incognito);
@@ -264,6 +268,25 @@ public class ModelTrackingOrchestrator {
 
         mRegularSynchronizerManager.reset();
         if (mIncognitoSynchronizerManager != null) mIncognitoSynchronizerManager.reset();
+    }
+
+    /** Saves the tab through an associated synchronizer. */
+    public void saveTab(Tab tab) {
+        StorageCollectionSynchronizer synchronizer =
+                tab.isOffTheRecord() ? mIncognitoSynchronizer : mRegularSynchronizer;
+        if (synchronizer == null) return;
+        synchronizer.saveTab(tab);
+    }
+
+    /**
+     * Whether the synchronizer for the given model is present.
+     *
+     * @param incognito Whether the synchronizer is for an incognito model.
+     */
+    public boolean isSynchronizerPresent(boolean incognito) {
+        StorageCollectionSynchronizer synchronizer =
+                incognito ? mIncognitoSynchronizer : mRegularSynchronizer;
+        return synchronizer != null;
     }
 
     private StorageCollectionSynchronizer getSynchronizer(
@@ -318,28 +341,47 @@ public class ModelTrackingOrchestrator {
         try (ScopedStorageBatch ignored = createBatch(profile)) {
             var profileAndCollection = getProfileAndCollection(mTabModelSelector, incognito);
             getSynchronizer(profileAndCollection, incognito).fullSave();
+            mMigrationManager.onShadowStoreCaughtUp();
         }
-        initCollectionTracking(incognito);
-        initVisualDataTracking(incognito);
+
+        initializeTrackingSuite(incognito);
     }
 
     private void saveTabGroupPayload(Token tabGroupId) {
-        CollectionSaveForwarder forwarder = mGroupForwarderMap.get(tabGroupId);
-        if (forwarder == null) return;
-        forwarder.savePayload();
+        Boolean isIncognito = mGroupIncognitoStatus.get(tabGroupId);
+        if (isIncognito == null) return;
+
+        StorageCollectionSynchronizer synchronizer =
+                isIncognito ? mIncognitoSynchronizer : mRegularSynchronizer;
+
+        if (synchronizer != null) {
+            synchronizer.saveTabGroupPayload(tabGroupId);
+        }
+    }
+
+    private void initActiveTabTracking(boolean incognito) {
+        var profileAndCollection = getProfileAndCollection(mTabModelSelector, incognito);
+        if (incognito) {
+            mIncognitoWindowForwarder =
+                    CollectionSaveForwarder.createForTabStripCollection(
+                            profileAndCollection.profile, profileAndCollection.collection);
+        } else {
+            mRegularWindowForwarder =
+                    CollectionSaveForwarder.createForTabStripCollection(
+                            profileAndCollection.profile, profileAndCollection.collection);
+        }
+        Callback<@Nullable Tab> obs =
+                incognito ? mIncognitoActiveTabObserver : mRegularActiveTabObserver;
+        mTabModelSelector.getModel(incognito).getCurrentTabSupplier().addObserver(obs);
     }
 
     private void initVisualDataTracking(boolean incognito) {
-        var profileAndCollection = getProfileAndCollection(mTabModelSelector, incognito);
         TabGroupModelFilter filter = getFilter(incognito);
         assert filter != null;
 
         // Add forwarders for untracked groups.
         for (Token groupId : filter.getAllTabGroupIds()) {
-            CollectionSaveForwarder forwarder =
-                    CollectionSaveForwarder.createForTabGroup(
-                            profileAndCollection.profile, groupId, profileAndCollection.collection);
-            mGroupForwarderMap.put(groupId, forwarder);
+            mGroupIncognitoStatus.put(groupId, incognito);
         }
 
         filter.addTabGroupObserver(mVisualDataUpdateObserver);
@@ -370,6 +412,39 @@ public class ModelTrackingOrchestrator {
         return new ProfileAndCollection(profile, tabStripCollection);
     }
 
+    private void initializeTrackingSuite(boolean incognito) {
+        initVisualDataTracking(incognito);
+        initActiveTabTracking(incognito);
+        initCollectionTracking(incognito);
+    }
+
+    private void onIncognitoActiveTabChange(@Nullable Tab ignored) {
+        if (mIncognitoWindowForwarder == null) return;
+        mIncognitoWindowForwarder.savePayload();
+    }
+
+    private void onRegularActiveTabChange(@Nullable Tab ignored) {
+        if (mRegularWindowForwarder == null) return;
+        mRegularWindowForwarder.savePayload();
+    }
+
+    private void cleanActiveTabTracking(boolean incognito) {
+        TabModel model = mTabModelSelector.getModel(incognito);
+        if (incognito) {
+            if (mIncognitoWindowForwarder != null) {
+                model.getCurrentTabSupplier().removeObserver(mIncognitoActiveTabObserver);
+                mIncognitoWindowForwarder.destroy();
+                mIncognitoWindowForwarder = null;
+            }
+        } else {
+            if (mRegularWindowForwarder != null) {
+                model.getCurrentTabSupplier().removeObserver(mRegularActiveTabObserver);
+                mRegularWindowForwarder.destroy();
+                mRegularWindowForwarder = null;
+            }
+        }
+    }
+
     private static class ProfileAndCollection {
         public final Profile profile;
         public final TabStripCollection collection;
@@ -391,6 +466,7 @@ public class ModelTrackingOrchestrator {
                 mState = SynchronizerState.RESTORING;
                 initRestoreOrchestrator(data, /* incognito= */ false);
                 initVisualDataTracking(/* incognito= */ false);
+                initActiveTabTracking(/* incognito= */ false);
             }
         }
 
@@ -414,6 +490,7 @@ public class ModelTrackingOrchestrator {
                 mRegularSynchronizer = null;
             }
             mState = SynchronizerState.START;
+            cleanActiveTabTracking(/* incognito= */ false);
         }
     }
 
@@ -443,18 +520,15 @@ public class ModelTrackingOrchestrator {
                     mState = SynchronizerState.RESTORING;
                     assumeNonNull(mInitRestoreOrchestratorCallback).run();
                     initVisualDataTracking(/* incognito= */ true);
+                    initActiveTabTracking(/* incognito= */ true);
                     mInitRestoreOrchestratorCallback = null;
                 } else if (mState == SynchronizerState.START) {
                     mState = SynchronizerState.TRACKING;
-                    initVisualDataTracking(/* incognito= */ true);
-                    initCollectionTracking(/* incognito= */ true);
+                    initializeTrackingSuite(/* incognito= */ true);
                 }
-            } else {
-                if (mState == SynchronizerState.START && !mLoadIncognitoTabsOnStart) {
-                    mState = SynchronizerState.TRACKING;
-                    initVisualDataTracking(/* incognito= */ true);
-                    initCollectionTracking(/* incognito= */ true);
-                }
+            } else if (mState == SynchronizerState.START && !mLoadIncognitoTabsOnStart) {
+                mState = SynchronizerState.TRACKING;
+                initializeTrackingSuite(/* incognito= */ true);
             }
         }
 
@@ -465,11 +539,9 @@ public class ModelTrackingOrchestrator {
                     mState = SynchronizerState.TRACKING;
                     initCollectionTracking(/* incognito= */ true);
                 }
-            } else {
-                if (mState == SynchronizerState.START && mLoadIncognitoTabsOnStart) {
-                    fullSaveAndInitTracking(/* incognito= */ true);
-                    mState = SynchronizerState.TRACKING;
-                }
+            } else if (mState == SynchronizerState.START && mLoadIncognitoTabsOnStart) {
+                fullSaveAndInitTracking(/* incognito= */ true);
+                mState = SynchronizerState.TRACKING;
             }
             mLoadIncognitoTabsOnStart = false;
         }
@@ -484,6 +556,8 @@ public class ModelTrackingOrchestrator {
             mState = SynchronizerState.START;
             mLoadIncognitoTabsOnStart = false;
             mInitRestoreOrchestratorCallback = null;
+
+            cleanActiveTabTracking(/* incognito= */ true);
         }
     }
 }

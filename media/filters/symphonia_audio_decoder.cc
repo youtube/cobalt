@@ -25,6 +25,7 @@
 #include "media/base/audio_bus.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/audio_discard_helper.h"
+#include "media/base/channel_layout.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/decoder_status.h"
 #include "media/base/limits.h"
@@ -138,16 +139,12 @@ void SymphoniaAudioDecoder::Initialize(const AudioDecoderConfig& config,
 
   InitCB bound_init_cb = BindCallbackIfNeeded(std::move(init_cb));
   if (config.is_encrypted()) {
-    MEDIA_LOG(ERROR, media_log_)
-        << "SymphoniaAudioDecoder does not currently support encrypted content";
     std::move(bound_init_cb)
         .Run(DecoderStatus::Codes::kUnsupportedEncryptionMode);
     return;
   }
 
   if (!IsCodecSupported(config.codec())) {
-    MEDIA_LOG(ERROR, media_log_)
-        << "Unsupported codec: " << GetCodecName(config.codec());
     std::move(bound_init_cb)
         .Run(DecoderStatus(DecoderStatus::Codes::kUnsupportedCodec)
                  .WithData("codec", config.codec()));
@@ -157,8 +154,6 @@ void SymphoniaAudioDecoder::Initialize(const AudioDecoderConfig& config,
   // Symphonia does not currently support any of the specific audio codec
   // profiles.
   if (config.profile() != AudioCodecProfile::kUnknown) {
-    MEDIA_LOG(ERROR, media_log_)
-        << "Unsupported profile: " << GetProfileName(config.profile());
     std::move(bound_init_cb)
         .Run(DecoderStatus(DecoderStatus::Codes::kUnsupportedProfile)
                  .WithData("profile", config.profile()));
@@ -324,9 +319,16 @@ scoped_refptr<AudioBuffer> SymphoniaAudioDecoder::ToMediaAudioBuffer(
   // TODO(crbug.com/40074653): long term we want a WrapOrCopy implementation,
   // since we own the Symphonia audio buffer.
   const uint8_t* data = symphonia_buffer.data.data();
+
+  const bool count_changed = symphonia_buffer.channel_count !=
+                             static_cast<uint32_t>(config_.channels());
+  const auto layout = count_changed
+                          ? ChannelMaskToLayout(symphonia_buffer.channel_mask)
+                          : config_.channel_layout();
+
   return AudioBuffer::CopyFrom(
-      ToSampleFormat(symphonia_buffer.sample_format), config_.channel_layout(),
-      config_.channels(), config_.samples_per_second(),
+      ToSampleFormat(symphonia_buffer.sample_format), layout,
+      symphonia_buffer.channel_count, symphonia_buffer.sample_rate,
       symphonia_buffer.num_frames, &data, timestamp, pool_);
 }
 

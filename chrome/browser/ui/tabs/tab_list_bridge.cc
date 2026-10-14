@@ -172,6 +172,12 @@ void TabListBridge::SetOpenerForTab(tabs::TabHandle target,
   tab_strip_->SetOpenerOfWebContentsAt(target_index, opener_contents);
 }
 
+tabs::TabInterface* TabListBridge::GetOpenerForTab(tabs::TabHandle target) {
+  const int target_index = GetIndexOfTab(target);
+  CHECK_NE(target_index, TabStripModel::kNoTab);
+  return tab_strip_->GetOpenerOfTabAt(target_index);
+}
+
 void TabListBridge::DiscardTab(tabs::TabHandle tab) {
   content::WebContents* contents = tab.Get()->GetContents();
   if (contents) {
@@ -218,8 +224,7 @@ void TabListBridge::HighlightTabs(tabs::TabHandle tab_to_activate,
   CHECK(tabs.contains(tab_to_activate))
       << "Tab to activate is not included in tabs to highlight.";
 
-  tabs::TabStripModelSelectionState selection_state =
-      tab_strip_->selection_model();
+  tabs::TabStripModelSelectionState selection_state(&(*tab_strip_));
 
   for (const auto& tab_handle : tabs) {
     auto index = tab_strip_->GetIndexOfTab(tab_handle.Get());
@@ -350,11 +355,8 @@ void TabListBridge::SetTabGroupVisualData(
   if (!tab_strip_->group_model()) {
     return;
   }
-  TabGroup* tab_group = tab_strip_->group_model()->GetTabGroup(group_id);
-  if (!tab_group) {
-    return;
-  }
-  tab_group->SetVisualData(visual_data);
+  // Use ChangeTabGroupsVisuals() to ensure observers are notified.
+  tab_strip_->ChangeTabGroupVisuals(group_id, visual_data);
 }
 
 std::optional<tab_groups::TabGroupId> TabListBridge::AddTabsToGroup(
@@ -560,8 +562,9 @@ void TabListBridge::OnTabStripModelChanged(
     case TabStripModelChange::kRemoved:
       for (const auto& removed_tab : change.GetRemove()->contents) {
         tabs::TabInterface* tab = removed_tab.tab.get();
+        TabRemovedReason reason = removed_tab.remove_reason;
         for (auto& observer : observers_) {
-          observer.OnTabRemoved(tab);
+          observer.OnTabRemoved(tab, reason);
         }
       }
       break;
@@ -587,10 +590,48 @@ void TabListBridge::OnTabStripModelChanged(
   }
 }
 
+bool TabListBridge::IsThisTabListEditable() {
+  TabStripModelDelegate* delegate = tab_strip_->delegate();
+  return delegate->IsTabStripEditable();
+}
+
+bool TabListBridge::IsClosingAllTabs() {
+  return tab_strip_->closing_all();
+}
+
+void TabListBridge::WillCloseAllTabs(TabStripModel* model) {
+  for (auto& observer : observers_) {
+    observer.OnAllTabsAreClosing(*this);
+  }
+}
+
 // static
 // From //chrome/browser/ui/tabs/tab_list_interface.h
 TabListInterface* TabListInterface::From(
     BrowserWindowInterface* browser_window_interface) {
   return ui::ScopedUnownedUserData<TabListBridge>::Get(
       browser_window_interface->GetUnownedUserDataHost());
+}
+
+// static
+// From //chrome/browser/ui/tabs/tab_list_interface.h
+bool TabListInterface::CanEditTabList(Profile& profile) {
+  std::vector<BrowserWindowInterface*> all_browsers =
+      GetAllBrowserWindowInterfaces();
+  for (auto* browser : all_browsers) {
+    if (browser->GetProfile() != &profile) {
+      continue;
+    }
+
+    TabListInterface* tab_list = From(browser);
+    if (!tab_list) {
+      continue;
+    }
+
+    if (!tab_list->IsThisTabListEditable()) {
+      return false;
+    }
+  }
+
+  return true;
 }

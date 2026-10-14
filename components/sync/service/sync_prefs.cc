@@ -176,6 +176,8 @@ void SyncPrefs::RegisterProfilePrefs(PrefRegistrySimple* registry) {
       prefs::internal::kMigrateReadingListFromLocalToAccount, false);
   registry->RegisterBooleanPref(
       prefs::internal::kMigrateExtensionsFromLocalToAccount, false);
+  registry->RegisterBooleanPref(
+      prefs::internal::kMigrateThemeFromLocalToAccount, false);
 
   // The passphrase type, determined upon the first engine initialization.
   registry->RegisterIntegerPref(
@@ -237,17 +239,6 @@ bool SyncPrefs::IsInitialSyncFeatureSetupComplete() const {
   return pref_service_->GetBoolean(
       prefs::internal::kSyncInitialSyncFeatureSetupComplete);
 #endif  // BUILDFLAG(IS_CHROMEOS)
-}
-
-bool SyncPrefs::IsExplicitBrowserSignin() const {
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS) || BUILDFLAG(IS_CHROMEOS)
-  // On mobile and ChromeOS all sign-ins are considered explicit.
-  return true;
-#else
-  // On desktop `prefs::kExplicitBrowserSignin` determines whether the sign-in
-  // is explicit or implicit.
-  return pref_service_->GetBoolean(::prefs::kExplicitBrowserSignin);
-#endif
 }
 
 #if !BUILDFLAG(IS_CHROMEOS)
@@ -837,7 +828,7 @@ bool SyncPrefs::MaybeMigratePrefsForSyncToSigninPart1(
       CHECK(!gaia_id.empty());
       ScopedDictPrefUpdate update_selected_types_dict(
           pref_service_, prefs::internal::kSelectedTypesPerAccount);
-      base::Value::Dict* account_settings =
+      base::DictValue* account_settings =
           update_selected_types_dict->EnsureDict(
               signin::GaiaIdHash::FromGaiaId(gaia_id).ToBase64());
 
@@ -990,22 +981,25 @@ void SyncPrefs::MigrateGlobalDataTypePrefsToAccount(PrefService* pref_service,
 
   ScopedDictPrefUpdate update_selected_types_dict(
       pref_service, prefs::internal::kSelectedTypesPerAccount);
-  base::Value::Dict* account_settings = update_selected_types_dict->EnsureDict(
+  base::DictValue* account_settings = update_selected_types_dict->EnsureDict(
       signin::GaiaIdHash::FromGaiaId(gaia_id).ToBase64());
 
   // The values of the "global" data type prefs get copied to the
   // account-specific ones.
   bool everything_enabled =
       pref_service->GetBoolean(prefs::internal::kSyncKeepEverythingSynced);
-  // History and Tabs should remain enabled only if they were both enabled
-  // previously, so they're specially tracked here.
-  bool history_and_tabs_enabled = false;
+  // Most of the per-account prefs default to "true", so nothing needs to be
+  // done for those. The exceptions are History, Tabs and Saved Tab Groups,
+  // which need to be enabled explicitly, and should remain enabled only if they
+  // were enabled previously, so they're specially tracked here.
+  bool history_enabled = everything_enabled;
+  bool tabs_enabled = everything_enabled;
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+  // Saved Tab Groups user toggle is only used on desktop.
+  bool saved_tab_groups_enabled = everything_enabled;
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
   if (everything_enabled) {
-    // Most of the per-account prefs default to "true", so nothing needs to be
-    // done for those. The exceptions are History and Tabs, which need to be
-    // enabled explicitly.
-    history_and_tabs_enabled = true;
-    // Additionally, on desktop, Passwords is considered disabled by default and
+    // On desktop, Passwords is considered disabled by default and
     // so also needs to be enabled explicitly.
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
     // TODO(b/314773312): Remove this when Uno is enabled.
@@ -1021,17 +1015,32 @@ void SyncPrefs::MigrateGlobalDataTypePrefsToAccount(PrefService* pref_service,
       // Copy value from global to per-account pref.
       account_settings->Set(pref_name, pref_service->GetBoolean(pref_name));
     }
-    // Special case: History and Tabs remain enabled only if they were both
-    // enabled previously.
-    history_and_tabs_enabled =
-        pref_service->GetBoolean(
-            GetPrefNameForType(UserSelectableType::kHistory)) &&
+    history_enabled = pref_service->GetBoolean(
+        GetPrefNameForType(UserSelectableType::kHistory));
+    tabs_enabled =
         pref_service->GetBoolean(GetPrefNameForType(UserSelectableType::kTabs));
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+    saved_tab_groups_enabled = pref_service->GetBoolean(
+        GetPrefNameForType(UserSelectableType::kSavedTabGroups));
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
   }
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+  // On mobile, History and Tabs remain enabled only if they were both
+  // enabled previously.
   account_settings->Set(GetPrefNameForType(UserSelectableType::kHistory),
-                        history_and_tabs_enabled);
+                        history_enabled && tabs_enabled);
   account_settings->Set(GetPrefNameForType(UserSelectableType::kTabs),
-                        history_and_tabs_enabled);
+                        history_enabled && tabs_enabled);
+#else
+  // On desktop, History, Tabs and Saved Tab Groups carry over their individual
+  // values.
+  account_settings->Set(GetPrefNameForType(UserSelectableType::kHistory),
+                        history_enabled);
+  account_settings->Set(GetPrefNameForType(UserSelectableType::kTabs),
+                        tabs_enabled);
+  account_settings->Set(GetPrefNameForType(UserSelectableType::kSavedTabGroups),
+                        saved_tab_groups_enabled);
+#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
 
   // Another special case: For custom passphrase users, "Addresses and more"
   // gets disabled by default. The reason is that for syncing custom passphrase
@@ -1104,12 +1113,6 @@ void SyncPrefs::MarkPartialSyncToSigninMigrationFullyDone() {
 bool SyncPrefs::IsTypeSelectedByDefaultInTransportMode(
     UserSelectableType type,
     const GaiaId& gaia_id) const {
-  // If sign-in is implicit (legacy desktop Dice state), only payments is on by
-  // default.
-  if (!IsExplicitBrowserSignin()) {
-    return type == UserSelectableType::kPayments;
-  }
-
   switch (type) {
     case UserSelectableType::kPayments:
     case UserSelectableType::kPasswords:
@@ -1135,9 +1138,13 @@ bool SyncPrefs::IsTypeSelectedByDefaultInTransportMode(
              pref_service_->GetBoolean(
                  ::prefs::kPrefsThemesSearchEnginesAccountStorageEnabled);
     case UserSelectableType::kExtensions:
-      // Before kReplaceSyncPromosWithSignInPromos, Extensions require a
-      // specific explicit sign in.
-      return base::FeatureList::IsEnabled(kReplaceSyncPromosWithSignInPromos) ||
+      // Extensions require a specific explicit sign in if
+      // `kExplicitSigninForExtensions` is enabled (relevant for desktop only).
+      // If it is not, but `kReplaceSyncPromosWithSignInPromos` is, then
+      // extensions are on by default.
+      return (base::FeatureList::IsEnabled(
+                  kReplaceSyncPromosWithSignInPromos) &&
+              !syncer::kExplicitSigninForExtensions.Get()) ||
              SigninPrefs(*pref_service_)
                  .GetExtensionsExplicitBrowserSignin(gaia_id);
     case UserSelectableType::kApps:

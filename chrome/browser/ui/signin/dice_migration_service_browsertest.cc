@@ -111,15 +111,13 @@ class DiceMigrationServiceBrowserTest : public InProcessBrowserTest {
   bool IsImplicitlySignedIn() {
     return GetIdentityManager()->HasPrimaryAccount(
                signin::ConsentLevel::kSignin) &&
-           signin::IsImplicitBrowserSigninOrExplicitDisabled(
-               GetIdentityManager(), GetPrefs());
+           !GetPrefs()->GetBoolean(prefs::kExplicitBrowserSignin);
   }
 
   bool IsExplicitlySignedIn() {
     return GetIdentityManager()->HasPrimaryAccount(
                signin::ConsentLevel::kSignin) &&
-           !signin::IsImplicitBrowserSigninOrExplicitDisabled(
-               GetIdentityManager(), GetPrefs());
+           GetPrefs()->GetBoolean(prefs::kExplicitBrowserSignin);
   }
 
   void FireDialogTriggerTimer() {
@@ -212,8 +210,6 @@ IN_PROC_BROWSER_TEST_F(DiceMigrationServiceBrowserTest, ExplicitlySignedIn) {
   // The user is explicitly signed in.
   ASSERT_TRUE(
       GetIdentityManager()->HasPrimaryAccount(signin::ConsentLevel::kSignin));
-  ASSERT_FALSE(signin::IsImplicitBrowserSigninOrExplicitDisabled(
-      GetIdentityManager(), GetPrefs()));
 
   EXPECT_FALSE(
       GetDiceMigrationService()->GetDialogTriggerTimerForTesting().IsRunning());
@@ -271,49 +267,6 @@ DICE_MIGRATION_TEST_F(DiceMigrationServiceBrowserTest,
   histogram_tester_.ExpectUniqueSample(
       kDialogNotShownReasonHistogram,
       DiceMigrationService::DialogNotShownReason::kNotEligible, 1);
-}
-
-DICE_MIGRATION_TEST_F(DiceMigrationServiceBrowserTest, MigrateUser) {
-  constexpr syncer::UserSelectableTypeSet new_selected_types = {
-      syncer::UserSelectableType::kPreferences,
-      syncer::UserSelectableType::kThemes,
-      syncer::UserSelectableType::kPasswords,
-      syncer::UserSelectableType::kAutofill,
-  };
-
-  // The user is implicitly signed in.
-  ASSERT_TRUE(IsImplicitlySignedIn());
-
-  // These types are only enabled upon explicitly signing in.
-  ASSERT_FALSE(GetSyncService()->GetUserSettings()->GetSelectedTypes().HasAny(
-      new_selected_types));
-
-  // Show migration bubble.
-  FireDialogTriggerTimer();
-
-  views::Widget* dialog_widget =
-      GetDiceMigrationService()->GetDialogWidgetForTesting();
-  ASSERT_TRUE(dialog_widget);
-
-  views::test::WidgetDestroyedWaiter waiter(dialog_widget);
-  // Simulate clicking on accept button.
-  dialog_widget->CloseWithReason(
-      views::Widget::ClosedReason::kAcceptButtonClicked);
-  waiter.Wait();
-
-  EXPECT_TRUE(GetPrefs()->GetBoolean(kDiceMigrationMigrated));
-  // The explicit sign-in pref is set, this marks the user as explicitly
-  // signed in.
-  EXPECT_TRUE(GetPrefs()->GetBoolean(prefs::kExplicitBrowserSignin));
-  EXPECT_FALSE(IsImplicitlySignedIn());
-  EXPECT_TRUE(IsExplicitlySignedIn());
-
-  // This should set the relevant user selected types.
-  EXPECT_TRUE(GetSyncService()->GetUserSettings()->GetSelectedTypes().HasAll(
-      new_selected_types))
-      << GetSyncService()->GetUserSettings()->GetSelectedTypes();
-
-  histogram_tester_.ExpectUniqueSample(kUserMigratedHistogram, true, 1);
 }
 
 DICE_MIGRATION_TEST_F(DiceMigrationServiceBrowserTest,
@@ -608,74 +561,6 @@ DICE_MIGRATION_TEST_F(DiceMigrationServiceBrowserTest,
   EXPECT_TRUE(GetDiceMigrationService()->GetDialogWidgetForTesting());
 }
 
-DICE_MIGRATION_TEST_F(DiceMigrationServiceBrowserTest,
-                      StopTimerUponPersistentAuthError) {
-  // The timer has started.
-  ASSERT_TRUE(
-      GetDiceMigrationService()->GetDialogTriggerTimerForTesting().IsRunning());
-
-  // Simulate a persistent auth error.
-  signin::SetInvalidRefreshTokenForPrimaryAccount(GetIdentityManager());
-
-  // The timer is stopped.
-  EXPECT_FALSE(
-      GetDiceMigrationService()->GetDialogTriggerTimerForTesting().IsRunning());
-  ASSERT_FALSE(GetDiceMigrationService()->GetDialogWidgetForTesting());
-
-  histogram_tester_.ExpectUniqueSample(
-      kDialogNotShownReasonHistogram,
-      DiceMigrationService::DialogNotShownReason::kPrimaryAccountCleared, 1);
-}
-
-DICE_MIGRATION_TEST_F(DiceMigrationServiceBrowserTest,
-                      CloseDialogUponPersistentAuthError) {
-  // Show the migration bubble.
-  FireDialogTriggerTimer();
-
-  views::Widget* dialog_widget =
-      GetDiceMigrationService()->GetDialogWidgetForTesting();
-  ASSERT_TRUE(dialog_widget);
-
-  views::test::WidgetDestroyedWaiter waiter(dialog_widget);
-  // Simulate a persistent auth error. This should cause the implicitly
-  // signed-in account to be removed, thereby becoming similar to the case of
-  // the user signing out.
-  signin::SetInvalidRefreshTokenForPrimaryAccount(GetIdentityManager());
-  waiter.Wait();
-
-  ASSERT_FALSE(GetDiceMigrationService()->GetDialogWidgetForTesting());
-  histogram_tester_.ExpectUniqueSample(
-      kDialogCloseReasonHistogram,
-      DiceMigrationService::DialogCloseReason::kPrimaryAccountCleared, 1);
-}
-
-// This can happen due to race condition between the timer firing and the dialog
-// being closed.
-DICE_MIGRATION_TEST_F(DiceMigrationServiceBrowserTest,
-                      AcceptDialogAfterPersistentAuthError) {
-  // Show the migration bubble.
-  FireDialogTriggerTimer();
-
-  ASSERT_TRUE(GetDiceMigrationService()->GetDialogWidgetForTesting());
-
-  // Simulate a persistent auth error.
-  signin::SetInvalidRefreshTokenForPrimaryAccount(GetIdentityManager());
-
-  // The dialog is not destroyed yet due to the race condition.
-  views::Widget* dialog_widget =
-      GetDiceMigrationService()->GetDialogWidgetForTesting();
-  ASSERT_TRUE(dialog_widget);
-
-  views::test::WidgetDestroyedWaiter waiter(dialog_widget);
-  // Simulate clicking on accept button.
-  dialog_widget->CloseWithReason(
-      views::Widget::ClosedReason::kAcceptButtonClicked);
-  waiter.Wait();
-
-  // No migration is performed.
-  EXPECT_FALSE(GetPrefs()->GetBoolean(prefs::kExplicitBrowserSignin));
-}
-
 DICE_MIGRATION_TEST_F(DiceMigrationServiceBrowserTest, StopTimerUponSignout) {
   ASSERT_TRUE(
       GetDiceMigrationService()->GetDialogTriggerTimerForTesting().IsRunning());
@@ -760,7 +645,7 @@ DICE_MIGRATION_TEST_F(DiceMigrationServiceBrowserTest,
       GetIdentityManager()
           ->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin)
           .account_id,
-      signin::ConsentLevel::kSync);
+      signin::ConsentLevel::kSync, signin_metrics::AccessPoint::kStartPage);
 
   // The timer is stopped.
   EXPECT_FALSE(
@@ -787,7 +672,7 @@ DICE_MIGRATION_TEST_F(DiceMigrationServiceBrowserTest,
       GetIdentityManager()
           ->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin)
           .account_id,
-      signin::ConsentLevel::kSync);
+      signin::ConsentLevel::kSync, signin_metrics::AccessPoint::kStartPage);
   waiter.Wait();
 
   ASSERT_FALSE(GetDiceMigrationService()->GetDialogWidgetForTesting());
@@ -849,111 +734,6 @@ DICE_MIGRATION_TEST_F(DiceMigrationServiceBrowserTest,
   histogram_tester_.ExpectUniqueSample(
       kDialogCloseReasonHistogram,
       DiceMigrationService::DialogCloseReason::kUnspecified, 1);
-}
-
-class DiceMigrationServiceSyncTest : public SyncTest {
- public:
-  DiceMigrationServiceSyncTest() : SyncTest(SINGLE_CLIENT) {
-    scoped_feature_list_.InitWithFeatures(
-        /*enabled_features=*/{switches::kOfferMigrationToDiceUsers},
-        /*disabled_features=*/{switches::kForcedDiceMigration});
-  }
-
-  signin::IdentityManager* GetIdentityManager() {
-    return IdentityManagerFactory::GetForProfile(GetProfile(0));
-  }
-
-  DiceMigrationService* GetDiceMigrationService() {
-    DiceMigrationService* service =
-        DiceMigrationServiceFactory::GetForProfileIfExists(GetProfile(0));
-    EXPECT_TRUE(service);
-    return service;
-  }
-
-  void TriggerDialog() {
-    // This should allow account managed status to be known.
-    signin::WaitForRefreshTokensLoaded(GetIdentityManager());
-    // The account managed status is known.
-    signin::AccountManagedStatusFinder account_managed_status_finder(
-        GetIdentityManager(),
-        GetIdentityManager()->GetPrimaryAccountInfo(
-            signin::ConsentLevel::kSignin),
-        base::DoNothing());
-    ASSERT_EQ(account_managed_status_finder.GetOutcome(),
-              signin::AccountManagedStatusFinderOutcome::kConsumerGmail);
-
-    base::OneShotTimer& timer =
-        GetDiceMigrationService()->GetDialogTriggerTimerForTesting();
-    ASSERT_TRUE(timer.IsRunning());
-    timer.FireNow();
-  }
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
-};
-
-IN_PROC_BROWSER_TEST_F(DiceMigrationServiceSyncTest, PRE_MigrateUser) {
-  ASSERT_TRUE(SetupClients());
-
-  // Implicitly sign in.
-  AccountInfo account_info = signin::MakeAccountAvailable(
-      GetIdentityManager(),
-      signin::AccountAvailabilityOptionsBuilder()
-          .AsPrimary(signin::ConsentLevel::kSignin)
-          .WithAccessPoint(signin_metrics::AccessPoint::kWebSignin)
-          .Build(kTestEmail));
-}
-
-IN_PROC_BROWSER_TEST_F(DiceMigrationServiceSyncTest, MigrateUser) {
-  constexpr syncer::UserSelectableTypeSet new_selected_types = {
-      syncer::UserSelectableType::kPreferences,
-      syncer::UserSelectableType::kThemes,
-      syncer::UserSelectableType::kPasswords,
-      syncer::UserSelectableType::kAutofill,
-  };
-
-  ASSERT_TRUE(SetupClients());
-
-  // The user is implicitly signed in.
-  ASSERT_TRUE(
-      GetIdentityManager()->HasPrimaryAccount(signin::ConsentLevel::kSignin));
-  ASSERT_FALSE(preferences_helper::GetPrefs(0)->GetBoolean(
-      prefs::kExplicitBrowserSignin));
-
-  // These types are only enabled upon explicitly signing in.
-  ASSERT_FALSE(GetSyncService(0)->GetUserSettings()->GetSelectedTypes().HasAny(
-      new_selected_types));
-  ASSERT_FALSE(GetSyncService(0)->GetActiveDataTypes().HasAny({
-      syncer::PREFERENCES,
-      syncer::THEMES,
-      syncer::PASSWORDS,
-      syncer::CONTACT_INFO,
-  }));
-
-  // Show migration bubble.
-  TriggerDialog();
-
-  views::Widget* dialog_widget =
-      GetDiceMigrationService()->GetDialogWidgetForTesting();
-  ASSERT_TRUE(dialog_widget);
-  // Simulate clicking on accept button.
-  dialog_widget->CloseWithReason(
-      views::Widget::ClosedReason::kAcceptButtonClicked);
-
-  EXPECT_TRUE(PrefValueChecker(preferences_helper::GetPrefs(0),
-                               prefs::kExplicitBrowserSignin, base::Value(true))
-                  .Wait());
-  ASSERT_TRUE(GetClient(0)->AwaitSyncTransportActive());
-
-  // This should set the relevant user selected types.
-  EXPECT_TRUE(GetSyncService(0)->GetUserSettings()->GetSelectedTypes().HasAll(
-      new_selected_types))
-      << GetSyncService(0)->GetUserSettings()->GetSelectedTypes();
-
-  EXPECT_TRUE(GetSyncService(0)->GetActiveDataTypes().HasAll(
-      {syncer::PREFERENCES, syncer::THEMES, syncer::PASSWORDS,
-       syncer::CONTACT_INFO}))
-      << GetSyncService(0)->GetActiveDataTypes();
 }
 
 class DiceMigrationServiceBrowserTestWithParameterizedDialogShownCount
@@ -1155,247 +935,10 @@ DICE_MIGRATION_TEST_F(
   ASSERT_TRUE(value->is_dict());
   EXPECT_EQ(
       value->GetDict(),
-      base::Value::Dict()
+      base::DictValue()
           .SetByDottedPath(prefs::kExplicitBrowserSignin, false)
           .SetByDottedPath(
               prefs::kPrefsThemesSearchEnginesAccountStorageEnabled, false));
-}
-
-class DiceMigrationServiceRestoreFromBackupBrowserTestFlagEnabled
-    : public DiceMigrationServiceBrowserTest {
- public:
-  DiceMigrationServiceRestoreFromBackupBrowserTestFlagEnabled() {
-    // Only enable the rollback feature in the main test to allow testing the
-    // rollback flow.
-    scoped_feature_list_.InitWithFeatureState(switches::kRollbackDiceMigration,
-                                              !content::IsPreTest());
-  }
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
-};
-
-IN_PROC_BROWSER_TEST_F(
-    DiceMigrationServiceRestoreFromBackupBrowserTestFlagEnabled,
-    PRE_PRE_Restore) {
-  ImplicitlySignIn(kTestEmail);
-}
-
-IN_PROC_BROWSER_TEST_F(
-    DiceMigrationServiceRestoreFromBackupBrowserTestFlagEnabled,
-    PRE_Restore) {
-  // The user is implicitly signed in.
-  ASSERT_TRUE(IsImplicitlySignedIn());
-
-  // Pre-migration prefs.
-  ASSERT_FALSE(GetPrefs()->GetBoolean(prefs::kExplicitBrowserSignin));
-  ASSERT_FALSE(GetPrefs()->GetBoolean(
-      prefs::kPrefsThemesSearchEnginesAccountStorageEnabled));
-
-  // Only payments is selected for implicitly signed-in users, till the
-  // kReplaceSyncPromosWithSignInPromos flag is enabled.
-  if (!base::FeatureList::IsEnabled(
-          syncer::kReplaceSyncPromosWithSignInPromos)) {
-    ASSERT_EQ(
-        GetSyncService()->GetUserSettings()->GetSelectedTypes(),
-        syncer::UserSelectableTypeSet({syncer::UserSelectableType::kPayments}));
-  }
-
-  ASSERT_TRUE(
-      GetDiceMigrationService()->GetDialogTriggerTimerForTesting().IsRunning());
-  FireDialogTriggerTimer();
-
-  // The dialog is shown.
-  views::Widget* dialog_widget =
-      GetDiceMigrationService()->GetDialogWidgetForTesting();
-  ASSERT_TRUE(dialog_widget);
-
-  views::test::WidgetDestroyedWaiter waiter(dialog_widget);
-  // Simulate clicking on accept button.
-  dialog_widget->CloseWithReason(
-      views::Widget::ClosedReason::kAcceptButtonClicked);
-  waiter.Wait();
-
-  ASSERT_TRUE(GetPrefs()->GetBoolean(kDiceMigrationMigrated));
-  histogram_tester_.ExpectUniqueSample(kUserMigratedHistogram, true, 1);
-
-  // The explicit sign-in pref is set, this marks the user as explicitly
-  // signed in.
-  ASSERT_TRUE(GetPrefs()->GetBoolean(prefs::kExplicitBrowserSignin));
-  ASSERT_TRUE(GetPrefs()->GetBoolean(
-      prefs::kPrefsThemesSearchEnginesAccountStorageEnabled));
-  ASSERT_TRUE(IsExplicitlySignedIn());
-  histogram_tester_.ExpectUniqueSample(kUserMigratedHistogram, true, 1);
-
-  // This should enable additional user selected types.
-  ASSERT_TRUE(GetSyncService()->GetUserSettings()->GetSelectedTypes().HasAll({
-      syncer::UserSelectableType::kPayments,
-      syncer::UserSelectableType::kPreferences,
-      syncer::UserSelectableType::kThemes,
-      syncer::UserSelectableType::kPasswords,
-      syncer::UserSelectableType::kAutofill,
-  }));
-
-  // The prefs are saved for backup.
-  const base::Value* value = GetPrefs()->GetUserPrefValue(kDiceMigrationBackup);
-  ASSERT_TRUE(value);
-  ASSERT_TRUE(value->is_dict());
-  ASSERT_EQ(
-      value->GetDict(),
-      base::Value::Dict()
-          .SetByDottedPath(prefs::kExplicitBrowserSignin, false)
-          .SetByDottedPath(
-              prefs::kPrefsThemesSearchEnginesAccountStorageEnabled, false));
-
-  EXPECT_FALSE(GetPrefs()->GetBoolean(kDiceMigrationRestoredFromBackup));
-}
-
-IN_PROC_BROWSER_TEST_F(
-    DiceMigrationServiceRestoreFromBackupBrowserTestFlagEnabled,
-    Restore) {
-  histogram_tester_.ExpectUniqueSample(kRestoredFromBackupHistogram, true, 1);
-
-  // The user is implicitly signed in.
-  EXPECT_TRUE(IsImplicitlySignedIn());
-
-  // Prefs restored from backup.
-  EXPECT_FALSE(GetPrefs()->GetBoolean(prefs::kExplicitBrowserSignin));
-  EXPECT_FALSE(GetPrefs()->GetBoolean(
-      prefs::kPrefsThemesSearchEnginesAccountStorageEnabled));
-
-  // Only payments is selected for implicitly signed-in users. None of the other
-  // user selectable types are selected, unless the
-  // kReplaceSyncPromosWithSignInPromos flag is enabled.
-  if (!base::FeatureList::IsEnabled(
-          syncer::kReplaceSyncPromosWithSignInPromos)) {
-    EXPECT_EQ(
-        GetSyncService()->GetUserSettings()->GetSelectedTypes(),
-        syncer::UserSelectableTypeSet({syncer::UserSelectableType::kPayments}));
-  }
-
-  // The timer is not running, the dialog is not shown.
-  EXPECT_FALSE(
-      GetDiceMigrationService()->GetDialogTriggerTimerForTesting().IsRunning());
-  EXPECT_FALSE(GetDiceMigrationService()->GetDialogWidgetForTesting());
-
-  // Restoration pref is set.
-  EXPECT_TRUE(GetPrefs()->GetBoolean(kDiceMigrationRestoredFromBackup));
-  // The migration pref is reset.
-  EXPECT_FALSE(GetPrefs()->GetBoolean(kDiceMigrationMigrated));
-  // The dialog shown count is reset.
-  EXPECT_EQ(0, GetPrefs()->GetInteger(kDiceMigrationDialogShownCount));
-  // The dialog last shown time is not cleared.
-  EXPECT_FALSE(
-      GetPrefs()->GetTime(kDiceMigrationDialogLastShownTime).is_null());
-}
-
-IN_PROC_BROWSER_TEST_F(
-    DiceMigrationServiceRestoreFromBackupBrowserTestFlagEnabled,
-    PRE_PRE_RestoreFailed) {
-  ImplicitlySignIn(kTestEmail);
-}
-
-IN_PROC_BROWSER_TEST_F(
-    DiceMigrationServiceRestoreFromBackupBrowserTestFlagEnabled,
-    PRE_RestoreFailed) {
-  // The user is implicitly signed in.
-  ASSERT_TRUE(IsImplicitlySignedIn());
-
-  // Pre-migration prefs.
-  ASSERT_FALSE(GetPrefs()->GetBoolean(prefs::kExplicitBrowserSignin));
-  ASSERT_FALSE(GetPrefs()->GetBoolean(
-      prefs::kPrefsThemesSearchEnginesAccountStorageEnabled));
-
-  // Only payments is selected for implicitly signed-in users, unless
-  // kReplaceSyncPromosWithSignInPromos flag is enabled.
-  if (!base::FeatureList::IsEnabled(
-          syncer::kReplaceSyncPromosWithSignInPromos)) {
-    ASSERT_EQ(
-        GetSyncService()->GetUserSettings()->GetSelectedTypes(),
-        syncer::UserSelectableTypeSet({syncer::UserSelectableType::kPayments}));
-  }
-
-  ASSERT_TRUE(
-      GetDiceMigrationService()->GetDialogTriggerTimerForTesting().IsRunning());
-  FireDialogTriggerTimer();
-
-  // The dialog is shown.
-  views::Widget* dialog_widget =
-      GetDiceMigrationService()->GetDialogWidgetForTesting();
-  ASSERT_TRUE(dialog_widget);
-
-  views::test::WidgetDestroyedWaiter waiter(dialog_widget);
-  // Simulate clicking on accept button.
-  dialog_widget->CloseWithReason(
-      views::Widget::ClosedReason::kAcceptButtonClicked);
-  waiter.Wait();
-
-  ASSERT_TRUE(GetPrefs()->GetBoolean(kDiceMigrationMigrated));
-  histogram_tester_.ExpectUniqueSample(kUserMigratedHistogram, true, 1);
-
-  // The explicit sign-in pref is set, this marks the user as explicitly
-  // signed in.
-  ASSERT_TRUE(GetPrefs()->GetBoolean(prefs::kExplicitBrowserSignin));
-  ASSERT_TRUE(GetPrefs()->GetBoolean(
-      prefs::kPrefsThemesSearchEnginesAccountStorageEnabled));
-  ASSERT_TRUE(IsExplicitlySignedIn());
-  histogram_tester_.ExpectUniqueSample(kUserMigratedHistogram, true, 1);
-
-  // This should enable additional user selected types.
-  ASSERT_TRUE(GetSyncService()->GetUserSettings()->GetSelectedTypes().HasAll({
-      syncer::UserSelectableType::kPayments,
-      syncer::UserSelectableType::kPreferences,
-      syncer::UserSelectableType::kThemes,
-      syncer::UserSelectableType::kPasswords,
-      syncer::UserSelectableType::kAutofill,
-  }));
-
-  // The prefs are saved for backup.
-  const base::Value* value = GetPrefs()->GetUserPrefValue(kDiceMigrationBackup);
-  ASSERT_TRUE(value);
-  ASSERT_TRUE(value->is_dict());
-  ASSERT_EQ(
-      value->GetDict(),
-      base::Value::Dict()
-          .SetByDottedPath(prefs::kExplicitBrowserSignin, false)
-          .SetByDottedPath(
-              prefs::kPrefsThemesSearchEnginesAccountStorageEnabled, false));
-
-  // Simulate backup pref missing.
-  GetPrefs()->ClearPref(kDiceMigrationBackup);
-}
-
-IN_PROC_BROWSER_TEST_F(
-    DiceMigrationServiceRestoreFromBackupBrowserTestFlagEnabled,
-    RestoreFailed) {
-  histogram_tester_.ExpectUniqueSample(kRestoredFromBackupHistogram, false, 1);
-
-  // The user is implicitly signed in.
-  EXPECT_TRUE(IsExplicitlySignedIn());
-
-  // Prefs are not restored from backup.
-  EXPECT_TRUE(GetPrefs()->GetBoolean(prefs::kExplicitBrowserSignin));
-  EXPECT_TRUE(GetPrefs()->GetBoolean(
-      prefs::kPrefsThemesSearchEnginesAccountStorageEnabled));
-
-  // The user selected types are unchanged.
-  EXPECT_TRUE(GetSyncService()->GetUserSettings()->GetSelectedTypes().HasAll({
-      syncer::UserSelectableType::kPayments,
-      syncer::UserSelectableType::kPreferences,
-      syncer::UserSelectableType::kThemes,
-      syncer::UserSelectableType::kPasswords,
-      syncer::UserSelectableType::kAutofill,
-  }));
-
-  // The timer is not running, the dialog is not shown.
-  ASSERT_FALSE(
-      GetDiceMigrationService()->GetDialogTriggerTimerForTesting().IsRunning());
-  ASSERT_FALSE(GetDiceMigrationService()->GetDialogWidgetForTesting());
-
-  // Restoration pref is not set.
-  EXPECT_FALSE(GetPrefs()->GetBoolean(kDiceMigrationRestoredFromBackup));
-  // The migration pref is not reset.
-  EXPECT_TRUE(GetPrefs()->GetBoolean(kDiceMigrationMigrated));
 }
 
 class DiceMigrationServiceRestoreFromBackupBrowserTestReMigration

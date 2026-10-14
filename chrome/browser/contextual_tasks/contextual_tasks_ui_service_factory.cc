@@ -4,6 +4,7 @@
 
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service_factory.h"
 
+#include "chrome/browser/autocomplete/aim_eligibility_service_factory.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_service_factory.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service.h"
 #include "chrome/browser/profiles/profile.h"
@@ -44,6 +45,8 @@ ContextualTasksUiServiceFactory::ContextualTasksUiServiceFactory()
               .WithGuest(ProfileSelection::kOwnInstance)
               .Build()) {
   DependsOn(ContextualTasksServiceFactory::GetInstance());
+  DependsOn(IdentityManagerFactory::GetInstance());
+  DependsOn(AimEligibilityServiceFactory::GetInstance());
 }
 
 std::unique_ptr<KeyedService>
@@ -56,7 +59,8 @@ ContextualTasksUiServiceFactory::BuildServiceInstanceForBrowserContext(
   Profile* profile = Profile::FromBrowserContext(context);
   return std::make_unique<ContextualTasksUiService>(
       profile, ContextualTasksServiceFactory::GetForProfile(profile),
-      IdentityManagerFactory::GetForProfile(profile));
+      IdentityManagerFactory::GetForProfile(profile),
+      AimEligibilityServiceFactory::GetForProfile(profile));
 }
 
 void ContextualTasksUiServiceFactory::RegisterProfilePrefs(

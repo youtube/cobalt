@@ -81,7 +81,7 @@ void SavePasswordProgressLogger::LogHTMLForm(
     SavePasswordProgressLogger::StringID label,
     const std::string& name_or_id,
     const GURL& action) {
-  base::Value::Dict log;
+  base::DictValue log;
   log.Set(GetStringFromID(STRING_NAME_OR_ID), ScrubElementID(name_or_id));
   log.Set(GetStringFromID(STRING_ACTION), ScrubURL(action));
   LogValue(label, base::Value(std::move(log)));
@@ -520,6 +520,9 @@ std::string SavePasswordProgressLogger::GetStringFromID(
       return "Automated password change: state changed";
     case STRING_AUTOMATED_PASSWORD_CHANGE_SUBMISSION_VERIFIED:
       return "Automated password change: submission verified";
+    case STRING_AUTOMATED_PASSWORD_CHANGE_USER_INTERVENTION_AFTER_SUBMISSION:
+      return "Automated password change: user intervention needed after "
+             "submission";
     case STRING_AUTOMATED_PASSWORD_CHANGE_CROSS_ORIGIN_NAVIGATION:
       return "Automated password change: cross-origin navigation detected";
     case STRING_AUTOMATED_PASSWORD_CHANGE_PAGE_CONTENT_RECEIVED:
@@ -544,8 +547,6 @@ std::string SavePasswordProgressLogger::GetStringFromID(
       return "Automated password change: Saving disabled";
     case STRING_PASSWORD_CHANGE_DISABLED_BY_POLICY:
       return "Automated password change: Disabled by policy";
-    case STRING_PASSWORD_CHANGE_FEATURE_ENABLED:
-      return "Automated password change: Feature enabled";
     case STRING_PASSWORD_CHANGE_UNSUPPORTED_LANGUAGE:
       return "Automated password change: Unsupported language";
     case STRING_PASSWORD_CHANGE_UNSUPPORTED_COUNTRY:
@@ -554,6 +555,8 @@ std::string SavePasswordProgressLogger::GetStringFromID(
       return "Automated password change: URL available";
     case STRING_PASSWORD_CHANGE_USER_IS_NOT_ACTIVE:
       return "Automated password change: User is not active";
+    case STRING_PASSWORD_CHANGE_SIGNUP_FORM:
+      return "Automated password change: Signup form";
     case STRING_LOGIN_STATE_CHECK_STARTED:
       return "Login state check: has started";
     case STRING_LOGIN_STATE_CHECK_REQUEST_SENT:

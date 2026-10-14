@@ -1283,6 +1283,8 @@ ContextResult WebGPUDecoderImpl::Initialize(
     gl::GLContextAttribs attribs;
     attribs.client_major_es_version = 3;
     attribs.client_minor_es_version = 1;
+    // ES 3.1 is required for compute.
+    attribs.allow_es_version_fallback = false;
     gl_context_ = new gl::GLContextEGL(nullptr);
     gl_context_->Initialize(gl_surface.get(), attribs);
     DCHECK(gl_context_->default_surface());
@@ -1717,10 +1719,8 @@ wgpu::Adapter WebGPUDecoderImpl::CreatePreferredAdapter(
   HRESULT hr = d3d11_device.As(&dxgi_device);
   CHECK_EQ(hr, S_OK);
   Microsoft::WRL::ComPtr<IDXGIAdapter> dxgi_adapter;
-  if (!SUCCEEDED(dxgi_device->GetAdapter(&dxgi_adapter))) {
-    LOG(ERROR) << "Failed to get IDXGIAdapter from ANGLE.";
-    return nullptr;
-  }
+  hr = dxgi_device->GetAdapter(&dxgi_adapter);
+  CHECK_EQ(hr, S_OK);
 
   DXGI_ADAPTER_DESC adapter_desc;
   if (!SUCCEEDED(dxgi_adapter->GetDesc(&adapter_desc))) {

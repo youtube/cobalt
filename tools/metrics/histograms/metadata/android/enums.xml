@@ -710,6 +710,13 @@ chromium-metrics-reviews@google.com.
   <int value="169" label="WebSettingsCompat.removeWebNavigationListener"/>
   <int value="170" label="Profile.addQuicHints"/>
   <int value="171" label="Page.getUrl"/>
+  <int value="172" label="JsReplyProxy.executeJavaScript"/>
+  <int value="173" label="Navigation.getWebResourceError"/>
+  <int value="174" label="WebViewCompat.addJavaScriptOnEvent"/>
+  <int value="175" label="WebViewCompat.removeJavaScriptOnEvent"/>
+  <int value="176" label="WebViewCompat.addWebMessageListener (with world)"/>
+  <int value="177" label="WebViewCompat.removeWebMessageListener (with world)"/>
+  <int value="178" label="WebViewCompat.getJavaScriptWorld"/>
 <!-- LINT.ThenChange(/android_webview/support_library/java/src/org/chromium/support_lib_glue/SupportLibWebViewChromiumFactory.java:ApiCall) -->
 
 </enum>
@@ -786,6 +793,11 @@ chromium-metrics-reviews@google.com.
   <int value="32" label="Safety Hub fetch task"/>
   <int value="33" label="Auxiliary search donate task"/>
   <int value="34" label="Chrome signals reporting task"/>
+  <int value="35" label="UMA upload task"/>
+  <int value="36" label="UKM upload task"/>
+  <int value="37" label="DWA upload task"/>
+  <int value="38" label="PUMA upload task"/>
+  <int value="39" label="Structured Metrics upload task"/>
 </enum>
 
 <enum name="BackPressConsumer">
@@ -1251,6 +1263,22 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="yes"/>
 </enum>
 
+<enum name="LockRetryResult">
+  <int value="0" label="Succeeded the first time"/>
+  <int value="1"
+      label="Succeeded with one retry, no OverlappingFileLockException"/>
+  <int value="2"
+      label="Succeeded with one retry, saw OverlappingFileLockException"/>
+  <int value="3"
+      label="Succeeded with 2-3 retries, no OverlappingFileLockException"/>
+  <int value="4"
+      label="Succeeded with 2-3 retries, saw OverlappingFileLockException"/>
+  <int value="5"
+      label="Succeeded with 4+ retries, no OverlappingFileLockException"/>
+  <int value="6"
+      label="Succeeded with 4+ retries, saw OverlappingFileLockException"/>
+</enum>
+
 <enum name="MainFrameIntentLaunch">
   <int value="0" label="Not from external app, to intent scheme"/>
   <int value="1" label="Not from external app, to custom scheme"/>
@@ -1436,6 +1464,8 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="potential NTP impression - no open tab"/>
 </enum>
 
+<!-- LINT.IfChange(OmniboxFocusReason) -->
+
 <enum name="OmniboxFocusReason">
   <int value="0" label="Omnibox tapped."/>
   <int value="1" label="Omnibox long-pressed (obsolete)."/>
@@ -1458,6 +1488,8 @@ chromium-metrics-reviews@google.com.
   <int value="18" label="Location bar state restoration on tab change"/>
   <int value="19" label="NTP AI Mode button."/>
 </enum>
+
+<!-- LINT.ThenChange(//components/omnibox/browser/android/java/src/org/chromium/components/omnibox/OmniboxFocusReason.java:OmniboxFocusReason) -->
 
 <!-- LINT.IfChange(OmniboxJumpStartState) -->
 
@@ -1635,6 +1667,7 @@ chromium-metrics-reviews@google.com.
   <int value="4" label="TABBED_ROOT_UI_COORDINATOR"/>
   <int value="5" label="HISTORY_ACTIVITY"/>
   <int value="6" label="SETTINGS_ACTIVITY"/>
+  <int value="7" label="BOOKMARK_ACTIVITY"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/browser_ui/widget/android/java/src/org/chromium/components/browser_ui/widget/scrim/ScrimManager.java:ScrimClient) -->
@@ -2366,6 +2399,9 @@ chromium-metrics-reviews@google.com.
   <int value="232" label="GeolocationPermissions.clearAll"/>
   <int value="233" label="GeolocationPermissions.getAllowed"/>
   <int value="234" label="GeolocationPermissions.getOrigins"/>
+  <int value="235" label="WebViewChromium constructor"/>
+  <int value="236" label="WebViewChromium init"/>
+  <int value="237" label="WebViewChromium initForReal"/>
 <!-- LINT.ThenChange(/android_webview/glue/java/src/com/android/webview/chromium/WebViewChromium.java:ApiCall) -->
 
 </enum>
@@ -2634,6 +2670,16 @@ chromium-metrics-reviews@google.com.
   <int value="7" label="Text dark, night mode on"/>
   <int value="8" label="Text dark, night mode off"/>
 </enum>
+
+<!-- LINT.IfChange(WebViewRendererKeepAliveEvent) -->
+
+<enum name="WebViewRendererKeepAliveEvent">
+  <int value="0" label="Reused"/>
+  <int value="1" label="Timed out"/>
+  <int value="2" label="Pending reuse"/>
+</enum>
+
+<!-- LINT.ThenChange(//android_webview/browser/aw_render_process_keep_alive.cc:RendererKeepAliveEvent) -->
 
 <!-- LINT.IfChange(WebViewSendIntentState) -->
 

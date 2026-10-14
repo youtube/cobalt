@@ -11,7 +11,7 @@
 #include "chrome/browser/ui/views/frame/browser_widget.h"
 #include "chrome/browser/ui/views/frame/custom_corners_background.h"
 #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
-#include "chrome/browser/ui/views/frame/top_container_background.h"
+#include "chrome/browser/ui/views/frame/themed_background.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/color/color_id.h"
@@ -52,17 +52,36 @@ bool TopContainerView::IsPositionInWindowCaption(
     const gfx::Point& test_point) const {
   const ToolbarView* const toolbar = browser_view_->toolbar();
   for (auto& child : children()) {
-    if (child->bounds().Contains(test_point)) {
+    if (child->GetVisible() && child->bounds().Contains(test_point)) {
       if (child == toolbar) {
         const auto in_toolbar =
             views::View::ConvertPointToTarget(this, toolbar, test_point);
-        if (in_toolbar.y() < toolbar->location_bar()->y()) {
+        if (toolbar->IsPositionInWindowCaption(in_toolbar)) {
           return true;
         }
       }
       return false;
     }
   }
+
+#if BUILDFLAG(IS_CHROMEOS)
+  // On ChromeOS, the order of frame hit-testing is different, so if the area
+  // with the caption buttons is not excluded here, it will override the actual
+  // caption buttons with "frame", which in turn will prevent the buttons from
+  // being used.
+  const auto params =
+      browser_view_->browser_widget()->GetFrameView()->GetBrowserLayoutParams();
+  const gfx::Point in_browser =
+      views::View::ConvertPointToTarget(this, browser_view_, test_point);
+  const gfx::Rect caption_rect(
+      browser_view_->width() - params.trailing_exclusion.content.width(), 0,
+      params.trailing_exclusion.content.width(),
+      params.trailing_exclusion.content.height());
+  if (caption_rect.Contains(in_browser)) {
+    return false;
+  }
+#endif
+
   return true;
 }
 

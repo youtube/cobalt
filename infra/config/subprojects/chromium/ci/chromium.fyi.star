@@ -1098,6 +1098,12 @@ ci.builder(
 
 fyi_ios_builder(
     name = "ios-wpt-fyi-rel",
+    description_html = "This builder runs upstream web platform tests for {}.".format(
+        linkify(
+            "https://chromium.googlesource.com/chromium/src/+/HEAD/docs/testing/web_platform_tests.md#wpt_fyi-integration",
+            "reporting results to wpt.fyi",
+        ),
+    ),
     schedule = "with 5h interval",
     triggered_by = [],
     builder_spec = builder_config.builder_spec(
@@ -1144,6 +1150,7 @@ fyi_ios_builder(
     console_view_entry = consoles.console_view_entry(
         category = "mac",
     ),
+    contact_team_email = "chrome-product-engprod@google.com",
 )
 
 ci.builder(
@@ -1181,38 +1188,12 @@ ci.builder(
     ),
     targets = targets.bundle(
         targets = [
-            "chromium_mac_gtests_no_nacl",
-            "chromium_mac_osxbeta_rel_isolated_scripts",
+            "mac26_x86_tests",
         ],
         mixins = [
             "limited_capacity_bot",
             "mac_beta_x64",
         ],
-        per_test_modifications = {
-            "browser_tests": targets.mixin(
-                swarming = targets.swarming(
-                    shards = 35,
-                ),
-            ),
-            # TODO(crbug.com/40794640): dyld was rebuilt for macOS 12, which
-            # breaks the tests. Run this experimentally on all the macOS bots
-            # >= 12 and remove this exception once fixed.
-            "crashpad_tests": targets.mixin(
-                experiment_percentage = 100,
-            ),
-            # TODO (crbug.com/1278617) Re-enable once fixed
-            "interactive_ui_tests": targets.mixin(
-                experiment_percentage = 100,
-                swarming = targets.swarming(
-                    shards = 7,
-                ),
-            ),
-            "unit_tests": targets.mixin(
-                swarming = targets.swarming(
-                    shards = 2,
-                ),
-            ),
-        },
     ),
     builderless = False,
     cores = None,
@@ -1401,11 +1382,6 @@ ci.builder(
             "blink_wpt_tests": targets.mixin(
                 swarming = targets.swarming(
                     shards = 6,
-                ),
-            ),
-            "browser_tests": targets.mixin(
-                swarming = targets.swarming(
-                    shards = 15,
                 ),
             ),
             "browser_tests_no_field_trial": targets.remove(
@@ -1869,7 +1845,7 @@ fyi_ios_builder(
 )
 
 fyi_ios_builder(
-    name = "ios18-sdk-device",
+    name = "ios26-sdk-device",
     description_html = (
         "Validates that Chromium on iOS compiles for device using the latest iOS SDK." +
         "Particularly useful during WWDC season when new beta SDKs are being frequently" +
@@ -1909,12 +1885,12 @@ fyi_ios_builder(
     cpu = cpu.ARM64,
     console_view_entry = [
         consoles.console_view_entry(
-            category = "iOS|iOS18",
+            category = "iOS|iOS26",
             short_name = "dev",
         ),
     ],
     contact_team_email = "bling-engprod@google.com",
-    xcode = xcode.x16betabots,
+    xcode = xcode.x26betabots,
 )
 
 fyi_ios_builder(
@@ -2531,4 +2507,400 @@ ci.builder(
         short_name = "nosb",
     ),
     contact_team_email = "chrome-counter-abuse-core@google.com",
+)
+
+consoles.console_view(
+    name = "treesinviz",
+    title = "Trees in Viz",
+    ordering = {
+        None: [
+            "win",
+            "mac",
+            "chromeos",
+            "linux",
+            "android",
+        ],
+    },
+)
+
+fyi_mac_builder(
+    name = "mac-treesinviz-enabled-rel",
+    description_html = "This builder runs a set of test suites with the TreesInViz feature enabled.",
+    builder_spec = builder_config.builder_spec(
+        gclient_config = builder_config.gclient_config(
+            config = "chromium",
+        ),
+        chromium_config = builder_config.chromium_config(
+            config = "chromium",
+            apply_configs = ["mb"],
+            build_config = builder_config.build_config.RELEASE,
+            target_bits = 64,
+            target_platform = builder_config.target_platform.MAC,
+        ),
+    ),
+    builder_config_settings = builder_config.ci_settings(
+        retry_failed_shards = True,
+        retry_invalid_shards = True,
+    ),
+    gn_args = gn_args.config(
+        configs = [
+            "gpu_tests",
+            "release_builder",
+            "remoteexec",
+            "mac",
+            "x64",
+            "minimal_symbols",
+        ],
+    ),
+    targets = targets.bundle(
+        targets = ["trees_in_viz_enabled_tests"],
+        mixins = [
+            "mac_15_x64",
+            "retry_only_failed_tests",
+        ],
+        per_test_modifications = {
+            "blink_web_tests": targets.mixin(
+                swarming = targets.swarming(
+                    dimensions = {
+                        "gpu": None,
+                    },
+                    shards = 12,
+                ),
+            ),
+            "browser_tests": targets.mixin(
+                swarming = targets.swarming(
+                    # crbug.com/1361887
+                    shards = 20,
+                ),
+            ),
+            "content_browsertests": targets.mixin(
+                # Only retry the individual failed tests instead of rerunning
+                # entire shards.
+                # crbug.com/1475852
+                swarming = targets.swarming(
+                    shards = 12,
+                ),
+            ),
+        },
+    ),
+    builderless = True,
+    cores = None,
+    console_view_entry = [
+        consoles.console_view_entry(
+            category = "treesinviz",
+            short_name = "mac",
+        ),
+        consoles.console_view_entry(
+            console_view = "treesinviz",
+            category = "treesinviz",
+            short_name = "mac",
+        ),
+    ],
+    contact_team_email = "chrome-gpu-team@google.com",
+)
+
+ci.builder(
+    name = "win-treesinviz-enabled-rel",
+    description_html = "This builder runs a set of test suites with the TreesInViz feature enabled.",
+    builder_spec = builder_config.builder_spec(
+        gclient_config = builder_config.gclient_config(
+            config = "chromium",
+        ),
+        chromium_config = builder_config.chromium_config(
+            config = "chromium",
+            apply_configs = ["mb"],
+            build_config = builder_config.build_config.RELEASE,
+            target_bits = 64,
+            target_platform = builder_config.target_platform.WIN,
+        ),
+    ),
+    builder_config_settings = builder_config.ci_settings(
+        retry_failed_shards = True,
+        retry_invalid_shards = True,
+    ),
+    gn_args = gn_args.config(
+        configs = [
+            "gpu_tests",
+            "release_builder",
+            "remoteexec",
+            "minimal_symbols",
+            "win",
+            "x64",
+        ],
+    ),
+    targets = targets.bundle(
+        targets = ["trees_in_viz_enabled_tests"],
+        mixins = [
+            "x86-64",
+            "win10",
+            "retry_only_failed_tests",
+        ],
+        per_test_modifications = {
+            "blink_web_tests": targets.mixin(
+                swarming = targets.swarming(
+                    # blink_web_tests has issues when mixing different CPUs.
+                    # see https://crbug.com/1458859
+                    # As of 2024 Q4, all e2 machines in chromium.tests use
+                    # x86-64-Broadwell_GCE. But, the situation may change when
+                    # GCE replaces the hardwares. If that happens, it needs to
+                    # be updated to run on the most popular CPU platform.
+                    dimensions = {
+                        "cpu": "x86-64-Broadwell_GCE",
+                    },
+                    shards = 12,
+                ),
+            ),
+            "browser_tests": targets.mixin(
+                # Only retry the individual failed tests instead of rerunning
+                # entire shards.
+                # crbug.com/1473501
+                swarming = targets.swarming(
+                    # This is for slow test execution that often becomes a
+                    # critical path of swarming jobs. crbug.com/868114
+                    shards = 55,
+                ),
+            ),
+            "content_browsertests": targets.mixin(
+                swarming = targets.swarming(
+                    shards = 8,
+                ),
+            ),
+        },
+    ),
+    os = os.WINDOWS_DEFAULT,
+    console_view_entry = [
+        consoles.console_view_entry(
+            category = "treesinviz",
+            short_name = "win",
+        ),
+        consoles.console_view_entry(
+            console_view = "treesinviz",
+            category = "treesinviz",
+            short_name = "win",
+        ),
+    ],
+    contact_team_email = "chrome-gpu-team@google.com",
+)
+
+ci.builder(
+    name = "linux-chromeos-treesinviz-enabled-rel",
+    description_html = "This builder runs a set of test suites with the TreesInViz feature enabled.",
+    builder_spec = builder_config.builder_spec(
+        gclient_config = builder_config.gclient_config(
+            config = "chromium",
+            apply_configs = ["chromeos"],
+        ),
+        chromium_config = builder_config.chromium_config(
+            config = "chromium",
+            apply_configs = ["mb"],
+            build_config = builder_config.build_config.RELEASE,
+            target_arch = builder_config.target_arch.INTEL,
+            target_bits = 64,
+            target_platform = builder_config.target_platform.CHROMEOS,
+        ),
+    ),
+    builder_config_settings = builder_config.ci_settings(
+        retry_failed_shards = True,
+        retry_invalid_shards = True,
+    ),
+    gn_args = gn_args.config(
+        configs = [
+            "chromeos_with_codecs",
+            "release_builder",
+            "remoteexec",
+            "use_cups",
+            "x64",
+        ],
+    ),
+    targets = targets.bundle(
+        targets = ["trees_in_viz_enabled_tests_chromeos"],
+        mixins = [
+            "x86-64",
+            "linux-jammy",
+            "retry_only_failed_tests",
+        ],
+        per_test_modifications = {
+            "browser_tests": targets.mixin(
+                swarming = targets.swarming(
+                    dimensions = {
+                        "kvm": "1",
+                    },
+                    shards = 60,
+                ),
+            ),
+            "content_browsertests": targets.mixin(
+                swarming = targets.swarming(
+                    shards = 6,
+                ),
+            ),
+        },
+    ),
+    os = os.LINUX_DEFAULT,
+    console_view_entry = [
+        consoles.console_view_entry(
+            category = "treesinviz",
+            short_name = "lcr",
+        ),
+        consoles.console_view_entry(
+            console_view = "treesinviz",
+            category = "treesinviz",
+            short_name = "lcr",
+        ),
+    ],
+    contact_team_email = "chrome-gpu-team@google.com",
+)
+
+ci.builder(
+    name = "android-x64-treesinviz-enabled-rel",
+    description_html = "This builder runs a set of test suites with the TreesInViz feature enabled.",
+    builder_spec = builder_config.builder_spec(
+        gclient_config = builder_config.gclient_config(
+            config = "chromium",
+            apply_configs = ["android"],
+        ),
+        chromium_config = builder_config.chromium_config(
+            config = "main_builder",
+            apply_configs = ["mb"],
+            build_config = builder_config.build_config.RELEASE,
+            target_arch = builder_config.target_arch.INTEL,
+            target_bits = 64,
+            target_platform = builder_config.target_platform.ANDROID,
+        ),
+        android_config = builder_config.android_config(
+            config = "base_config",
+        ),
+    ),
+    builder_config_settings = builder_config.ci_settings(
+        retry_failed_shards = True,
+        retry_invalid_shards = True,
+    ),
+    gn_args = gn_args.config(
+        configs = [
+            "android_builder",
+            "release_builder",
+            "remoteexec",
+            "minimal_symbols",
+            "x64",
+            "strip_debug_info",
+            "android_fastbuild",
+        ],
+    ),
+    targets = targets.bundle(
+        targets = ["trees_in_viz_enabled_tests_android"],
+        mixins = [
+            "15-x64-emulator",
+            "emulator-8-cores",
+            "has_native_resultdb_integration",
+            "linux-jammy",
+            "x86-64",
+            "retry_only_failed_tests",
+        ],
+        per_test_modifications = {
+            "android_browsertests": targets.mixin(
+                args = [
+                    # https://crbug.com/361042311
+                    "--gtest_filter=-All/SharedStorageChromeBrowserTest.CrossOriginWorklet_SelectURL_Success/*",
+                ],
+                swarming = targets.swarming(
+                    shards = 12,
+                ),
+            ),
+            "content_browsertests": targets.mixin(
+                args = [
+                    "--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_15.content_browsertests.filter",
+                ],
+                swarming = targets.swarming(
+                    shards = 40,
+                ),
+            ),
+        },
+    ),
+    targets_settings = targets.settings(
+        os_type = targets.os_type.ANDROID,
+    ),
+    builderless = True,
+    console_view_entry = [
+        consoles.console_view_entry(
+            category = "treesinviz",
+            short_name = "and",
+        ),
+        consoles.console_view_entry(
+            console_view = "treesinviz",
+            category = "treesinviz",
+            short_name = "and",
+        ),
+    ],
+    contact_team_email = "chrome-gpu-team@google.com",
+    execution_timeout = 4 * time.hour,
+)
+
+ci.builder(
+    name = "linux-treesinviz-disabled-rel",
+    description_html = "This builder runs a set of test suites with the TreesInViz feature disabled.",
+    builder_spec = builder_config.builder_spec(
+        gclient_config = builder_config.gclient_config(
+            config = "chromium",
+        ),
+        chromium_config = builder_config.chromium_config(
+            config = "chromium",
+            apply_configs = ["mb"],
+            build_config = builder_config.build_config.RELEASE,
+            target_bits = 64,
+            target_platform = builder_config.target_platform.LINUX,
+        ),
+    ),
+    builder_config_settings = builder_config.ci_settings(
+        retry_failed_shards = True,
+        retry_invalid_shards = True,
+    ),
+    gn_args = gn_args.config(
+        configs = [
+            "gpu_tests",
+            "release_builder",
+            "remoteexec",
+            "devtools_do_typecheck",
+            "linux",
+            "x64",
+        ],
+    ),
+    targets = targets.bundle(
+        targets = ["trees_in_viz_disabled_tests"],
+        mixins = [
+            "linux-jammy",
+            "retry_only_failed_tests",
+        ],
+        per_test_modifications = {
+            "blink_web_tests": targets.mixin(
+                args = [
+                    "--additional-env-var=LLVM_PROFILE_FILE=${ISOLATED_OUTDIR}/profraw/default-%2m.profraw",
+                ],
+                swarming = targets.swarming(
+                    shards = 8,
+                ),
+            ),
+            "browser_tests": targets.mixin(
+                swarming = targets.swarming(
+                    shards = 20,
+                ),
+            ),
+            "content_browsertests": targets.mixin(
+                swarming = targets.swarming(
+                    shards = 8,
+                ),
+            ),
+        },
+    ),
+    os = os.LINUX_DEFAULT,
+    console_view_entry = [
+        consoles.console_view_entry(
+            category = "treesinviz",
+            short_name = "lnx",
+        ),
+        consoles.console_view_entry(
+            console_view = "treesinviz",
+            category = "treesinviz",
+            short_name = "lnx",
+        ),
+    ],
+    contact_team_email = "chrome-gpu-team@google.com",
 )

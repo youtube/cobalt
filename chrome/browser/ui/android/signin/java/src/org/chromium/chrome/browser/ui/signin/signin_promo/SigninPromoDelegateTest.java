@@ -32,6 +32,7 @@ import org.mockito.junit.MockitoRule;
 import org.mockito.quality.Strictness;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
@@ -148,15 +149,15 @@ public class SigninPromoDelegateTest {
 
         assertTrue(mDelegate.canShowPromo());
         assertEquals(
-                mDelegate.getTitle(),
-                mContext.getString(R.string.signin_account_picker_bottom_sheet_title));
+                mContext.getString(R.string.signin_account_picker_bottom_sheet_title),
+                mDelegate.getTitle());
         assertEquals(
-                mDelegate.getDescription(profileData.getAccountEmail()),
                 mContext.getString(
-                        R.string.signin_promo_description_ntp_group1, "testemail@gmail.com"));
+                        R.string.signin_promo_description_ntp_group1, "testemail@gmail.com"),
+                mDelegate.getDescription(profileData.getAccountEmail()));
         assertEquals(
-                mDelegate.getTextForPrimaryButton(profileData),
-                mContext.getString(R.string.sync_promo_continue_as, "TestName"));
+                mContext.getString(R.string.sync_promo_continue_as, "TestName"),
+                mDelegate.getTextForPrimaryButton(profileData));
     }
 
     @Test
@@ -222,14 +223,32 @@ public class SigninPromoDelegateTest {
 
         assertTrue(mDelegate.canShowPromo());
         assertEquals(
-                mDelegate.getTitle(),
-                mContext.getString(R.string.signin_account_picker_bottom_sheet_title));
+                mContext.getString(R.string.signin_account_picker_bottom_sheet_title),
+                mDelegate.getTitle());
         assertEquals(
-                mDelegate.getDescription(null),
-                mContext.getString(R.string.custom_tabs_signed_out_message_subtitle));
+                mContext.getString(R.string.custom_tabs_signed_out_message_subtitle),
+                mDelegate.getDescription(null));
         assertEquals(
-                mDelegate.getTextForPrimaryButton(null),
-                mContext.getString(R.string.custom_tabs_signed_out_message_title));
+                mContext.getString(R.string.sync_promo_continue),
+                mDelegate.getTextForPrimaryButton(null));
+    }
+
+    @Test
+    @DisableFeatures(SigninFeatures.ENABLE_SEAMLESS_SIGNIN)
+    public void testNtpPromoShown_noAccountsOnDevice_noSeamless() {
+        doReturn(true).when(mSigninManager).isSigninAllowed();
+        setupDelegate(SigninAccessPoint.NTP_FEED_TOP_PROMO, /* visibleAccount= */ null);
+
+        assertTrue(mDelegate.canShowPromo());
+        assertEquals(
+                mContext.getString(R.string.signin_promo_title_ntp_feed_top_promo),
+                mDelegate.getTitle());
+        assertEquals(
+                mContext.getString(R.string.signin_promo_description_ntp_feed_top_promo),
+                mDelegate.getDescription(null));
+        assertEquals(
+                mContext.getString(R.string.signin_promo_signin),
+                mDelegate.getTextForPrimaryButton(null));
     }
 
     @Test
@@ -295,16 +314,16 @@ public class SigninPromoDelegateTest {
 
         assertTrue(mDelegate.canShowPromo());
         assertEquals(
-                mDelegate.getTitle(), mContext.getString(R.string.signin_promo_title_bookmarks));
+                mContext.getString(R.string.signin_promo_title_bookmarks), mDelegate.getTitle());
         assertEquals(
-                mDelegate.getDescription(/* accountEmail= */ TestAccounts.ACCOUNT1.getEmail()),
                 mContext.getString(
                         R.string.signin_promo_description_bookmarks_group3,
-                        TestAccounts.ACCOUNT1.getEmail()));
+                        TestAccounts.ACCOUNT1.getEmail()),
+                mDelegate.getDescription(/* accountEmail= */ TestAccounts.ACCOUNT1.getEmail()));
         assertEquals(
-                mDelegate.getTextForPrimaryButton(/* profileData= */ profileData),
                 mContext.getString(
-                        R.string.signin_promo_sign_in_as, TestAccounts.ACCOUNT1.getGivenName()));
+                        R.string.signin_promo_sign_in_as, TestAccounts.ACCOUNT1.getGivenName()),
+                mDelegate.getTextForPrimaryButton(/* profileData= */ profileData));
     }
 
     @Test
@@ -502,17 +521,17 @@ public class SigninPromoDelegateTest {
 
         assertTrue(mDelegate.canShowPromo());
         assertEquals(
-                mDelegate.getTitle(),
-                mContext.getString(R.string.signin_history_sync_promo_title_recent_tabs));
+                mContext.getString(R.string.signin_history_sync_promo_title_recent_tabs),
+                mDelegate.getTitle());
         assertEquals(
-                mDelegate.getDescription(/* accountEmail= */ TestAccounts.ACCOUNT1.getEmail()),
                 mContext.getString(
                         R.string.signin_promo_description_recent_tabs_group3,
-                        TestAccounts.ACCOUNT1.getEmail()));
+                        TestAccounts.ACCOUNT1.getEmail()),
+                mDelegate.getDescription(/* accountEmail= */ TestAccounts.ACCOUNT1.getEmail()));
         assertEquals(
-                mDelegate.getTextForPrimaryButton(/* profileData= */ profileData),
                 mContext.getString(
-                        R.string.signin_promo_sign_in_as, TestAccounts.ACCOUNT1.getGivenName()));
+                        R.string.signin_promo_sign_in_as, TestAccounts.ACCOUNT1.getGivenName()),
+                mDelegate.getTextForPrimaryButton(/* profileData= */ profileData));
     }
 
     @Test
@@ -583,6 +602,76 @@ public class SigninPromoDelegateTest {
         assertEquals(
                 WithAccountSigninMode.CHOOSE_ACCOUNT_BOTTOM_SHEET, config.withAccountSigninMode);
         assertTrue(config.shouldShowSigninSnackbar);
+    }
+
+    @Test
+    public void testResetNtpSyncPromoLimitsIfHiddenForTooLong_resetsLimits() {
+        // Last promo shown time set so that the elapsed time is more than
+        // NTP_SYNC_PROMO_RESET_AFTER_DAYS.
+        long promoShownTime =
+                System.currentTimeMillis()
+                        - (NtpSigninPromoDelegate.NTP_SYNC_PROMO_RESET_AFTER_DAYS + 1)
+                                * DateUtils.DAY_IN_MILLIS;
+        ChromeSharedPreferences.getInstance()
+                .writeLong(ChromePreferenceKeys.SIGNIN_PROMO_NTP_LAST_SHOWN_TIME, promoShownTime);
+        ChromeSharedPreferences.getInstance()
+                .writeLong(ChromePreferenceKeys.SIGNIN_PROMO_NTP_FIRST_SHOWN_TIME, promoShownTime);
+        String ntpPromoShowCountPreferenceName =
+                ChromePreferenceKeys.SYNC_PROMO_SHOW_COUNT.createKey(
+                        SigninPreferencesManager.SigninPromoAccessPointId.NTP);
+        int promoShowCount = NtpSigninPromoDelegate.MAX_IMPRESSIONS_NTP - 1;
+        ChromeSharedPreferences.getInstance()
+                .writeInt(ntpPromoShowCountPreferenceName, promoShowCount);
+
+        NtpSigninPromoDelegate.resetNtpSyncPromoLimitsIfHiddenForTooLong();
+
+        assertEquals(
+                0, ChromeSharedPreferences.getInstance().readInt(ntpPromoShowCountPreferenceName));
+        assertEquals(
+                0,
+                ChromeSharedPreferences.getInstance()
+                        .readLong(ChromePreferenceKeys.SIGNIN_PROMO_NTP_FIRST_SHOWN_TIME));
+        assertEquals(
+                0,
+                ChromeSharedPreferences.getInstance()
+                        .readLong(ChromePreferenceKeys.SIGNIN_PROMO_NTP_LAST_SHOWN_TIME));
+    }
+
+    @Test
+    public void testResetNtpSyncPromoLimitsIfHiddenForTooLong_doesNotResetLimits() {
+        // Last promo shown time set so that the elapsed time is less than
+        // NTP_SYNC_PROMO_RESET_AFTER_DAYS.
+        long promoShownTime =
+                System.currentTimeMillis()
+                        - (NtpSigninPromoDelegate.NTP_SYNC_PROMO_RESET_AFTER_DAYS - 1)
+                                * DateUtils.DAY_IN_MILLIS;
+        ChromeSharedPreferences.getInstance()
+                .writeLong(ChromePreferenceKeys.SIGNIN_PROMO_NTP_LAST_SHOWN_TIME, promoShownTime);
+        ChromeSharedPreferences.getInstance()
+                .writeLong(ChromePreferenceKeys.SIGNIN_PROMO_NTP_FIRST_SHOWN_TIME, promoShownTime);
+        String ntpPromoShowCountPreferenceName =
+                ChromePreferenceKeys.SYNC_PROMO_SHOW_COUNT.createKey(
+                        SigninPreferencesManager.SigninPromoAccessPointId.NTP);
+        int promoShowCount = NtpSigninPromoDelegate.MAX_IMPRESSIONS_NTP - 1;
+        ChromeSharedPreferences.getInstance()
+                .writeInt(ntpPromoShowCountPreferenceName, promoShowCount);
+
+        NtpSigninPromoDelegate.resetNtpSyncPromoLimitsIfHiddenForTooLong();
+
+        assertEquals(
+                promoShowCount,
+                ChromeSharedPreferences.getInstance()
+                        .readInt(
+                                ChromePreferenceKeys.SYNC_PROMO_SHOW_COUNT.createKey(
+                                        SigninPreferencesManager.SigninPromoAccessPointId.NTP)));
+        assertEquals(
+                promoShownTime,
+                ChromeSharedPreferences.getInstance()
+                        .readLong(ChromePreferenceKeys.SIGNIN_PROMO_NTP_FIRST_SHOWN_TIME));
+        assertEquals(
+                promoShownTime,
+                ChromeSharedPreferences.getInstance()
+                        .readLong(ChromePreferenceKeys.SIGNIN_PROMO_NTP_LAST_SHOWN_TIME));
     }
 
     private void setupDelegate(

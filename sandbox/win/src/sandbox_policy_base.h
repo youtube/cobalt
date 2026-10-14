@@ -82,6 +82,7 @@ class ConfigBase final : public TargetConfig {
   void SetFilterEnvironment(bool filter) override;
   bool GetEnvironmentFiltered() override;
   void SetZeroAppShim() override;
+  void SetSecurityAttributeName(std::wstring_view name) override;
 
  private:
   // Can call Freeze() and is_csrss_connected().
@@ -132,6 +133,12 @@ class ConfigBase final : public TargetConfig {
   Desktop desktop() { return desktop_; }
   const HandleCloserConfig& handle_closer() { return handle_closer_; }
   bool zero_appshim() { return zero_appshim_; }
+  const std::vector<base::win::ScopedHandle>& shared_handles() {
+    return shared_handles_;
+  }
+  std::optional<std::wstring> security_attribute_name() {
+    return security_attribute_name_;
+  }
 
   TokenLevel lockdown_level_;
   TokenLevel initial_level_;
@@ -159,6 +166,11 @@ class ConfigBase final : public TargetConfig {
   std::vector<std::wstring> blocklisted_dlls_;
   // AppContainer to be applied to the target process.
   std::unique_ptr<AppContainerBase> app_container_;
+  // List of handles to be shared with a new process to complete the config.
+  std::vector<base::win::ScopedHandle> shared_handles_;
+  // The name of the Security Attribute to use in the default DACL of the
+  // target process.
+  std::optional<std::wstring> security_attribute_name_;
 };
 
 struct TargetTokens {

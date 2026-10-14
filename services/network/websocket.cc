@@ -43,10 +43,10 @@
 #include "net/websockets/websocket_frame.h"  // for WebSocketFrameHeader::OpCode
 #include "net/websockets/websocket_handshake_request_info.h"
 #include "net/websockets/websocket_handshake_response_info.h"
-#include "services/network/private_network_access_checker.h"
+#include "services/network/local_network_access_checker.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/cpp/ip_address_space_util.h"
-#include "services/network/public/cpp/private_network_access_check_result.h"
+#include "services/network/public/cpp/local_network_access_check_result.h"
 #include "services/network/public/mojom/url_loader_network_service_observer.mojom.h"
 #include "services/network/throttling/throttling_controller.h"
 #include "services/network/throttling/throttling_network_interceptor.h"
@@ -211,7 +211,7 @@ int WebSocket::WebSocketEventHandler::OnURLRequestConnected(
     net::CompletionOnceCallback callback) {
   // Grab Metrics first, then do actual LNA checks.
   if (impl_->url_loader_network_observer_) {
-    impl_->url_loader_network_observer_->OnWebSocketConnectedToPrivateNetwork(
+    impl_->url_loader_network_observer_->OnWebSocketConnectedToLocalNetwork(
         request->url(), TransportInfoToIPAddressSpace(info));
   }
 
@@ -225,26 +225,28 @@ int WebSocket::WebSocketEventHandler::OnURLRequestConnected(
   // required_ip_address_space is always kUnknown as websockets API doesn't have
   // a targetAddressSpace parameter like fetch() does to bypass mixed content
   // checks.
-  PrivateNetworkAccessChecker checker(
-      request->url(),
-      request->initiator(),
+  LocalNetworkAccessChecker checker(
+      request->url(), request->initiator(),
       /*required_ip_address_space=*/network::mojom::IPAddressSpace::kUnknown,
       impl_->client_security_state_.get(), impl_->options_);
 
-  PrivateNetworkAccessCheckResult check_result = checker.Check(info);
+  LocalNetworkAccessCheckResult check_result = checker.Check(info);
   std::optional<mojom::CorsError> cors_error =
-      PrivateNetworkAccessCheckResultToCorsError(check_result);
+      LocalNetworkAccessCheckResultToCorsError(check_result);
   if (!cors_error.has_value()) {
     return net::OK;
   }
 
   if (impl_->url_loader_network_observer_ &&
-      check_result == PrivateNetworkAccessCheckResult::kLNAPermissionRequired) {
+      check_result == LocalNetworkAccessCheckResult::kLNAPermissionRequired) {
     impl_->url_loader_network_observer_->OnLocalNetworkAccessPermissionRequired(
         MapTransportTypeToMojomTransportType(info.type),
         *checker.ResponseAddressSpace(),
         base::BindOnce(
             [](base::WeakPtr<WebSocket> weak_self,
+               const net::NetLogWithSource& net_log,
+               const mojom::TransportType transport_type,
+               const mojom::IPAddressSpace address_space,
                net::CompletionOnceCallback callback,
                mojom::LocalNetworkAccessResult result) {
               if (!weak_self) {
@@ -254,6 +256,19 @@ int WebSocket::WebSocketEventHandler::OnURLRequestConnected(
                 // `WebSocket`.
                 return;
               }
+
+              net_log.AddEvent(
+                  net::NetLogEventType::
+                      LOCAL_NETWORK_ACCESS_PERMISSION_REQUESTED,
+                  [&] {
+                    return base::DictValue()
+                        .Set("address_space",
+                             IPAddressSpaceToStringPiece(address_space))
+                        .Set("transport_type",
+                             TransportTypeToStringPiece(transport_type))
+                        .Set("result",
+                             LocalNetworkAccessResultToStringPiece(result));
+                  });
               // Note: The WebSocket handshake request is made with cache mode
               // "no-store", so they are never cached and this code doesn't
               // need to handle a kRetryDueToCache result. See
@@ -263,7 +278,11 @@ int WebSocket::WebSocketEventHandler::OnURLRequestConnected(
                       ? net::OK
                       : net::ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS);
             },
-            impl_->weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
+            impl_->weak_ptr_factory_.GetWeakPtr(), request->net_log(),
+            MapTransportTypeToMojomTransportType(info.type),
+            *checker.ResponseAddressSpace(), std::move(callback)
+
+                ));
     return net::ERR_IO_PENDING;
   }
 

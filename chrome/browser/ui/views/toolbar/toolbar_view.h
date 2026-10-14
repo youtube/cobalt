@@ -83,6 +83,7 @@ class ToolbarView : public views::AccessiblePaneView,
                 // bar, used for popups.
     kCustomTab  // Custom tab bar, used in PWAs when a location
                 // needs to be displayed.
+                // TODO(crbug.com/474406675): Rename to WebApp or TabbedPWA.
   };
 
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kToolbarElementId);
@@ -135,6 +136,12 @@ class ToolbarView : public views::AccessiblePaneView,
   // Shows a bookmark bubble and anchors it appropriately.
   void ShowBookmarkBubble(const GURL& url, bool already_bookmarked);
 
+  // Used to test whether `test_point` should be treated as part of the caption
+  // bar, which means it can be used to drag the window or open the window
+  // context menu. Should only be called when the toolbar is in the caption
+  // area.
+  bool IsPositionInWindowCaption(const gfx::Point& test_point) const;
+
   // Accessors.
   Browser* browser() const { return browser_; }
   views::Button* GetChromeLabsButton() const;
@@ -144,7 +151,8 @@ class ToolbarView : public views::AccessiblePaneView,
   ToolbarButton* forward_button() const { return forward_; }
   ExtensionsToolbarButton* GetExtensionsButton() const;
   ReloadButton* reload_button() const { return reload_; }
-  LocationBarView* location_bar() const { return location_bar_view_; }
+  LocationBarView* location_bar_view() const { return location_bar_view_; }
+  LocationBar* location_bar() const { return location_bar_; }
   CustomTabBarView* custom_tab_bar() { return custom_tab_bar_; }
   BatterySaverButton* battery_saver_button() const {
     return battery_saver_button_;

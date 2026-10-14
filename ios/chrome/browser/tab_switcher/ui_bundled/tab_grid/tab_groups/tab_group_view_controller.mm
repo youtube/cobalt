@@ -20,6 +20,7 @@
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/elements/extended_touch_target_button.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
+#import "ios/chrome/browser/shared/ui/util/color_palette/tab_group_color_palette.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/grid_constants.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/tab_group_grid_view_controller.h"
@@ -54,6 +55,7 @@ constexpr CGFloat kBottomToolbarMargin = 8;
 constexpr CGFloat kButtonSpacing = 10;
 constexpr CGFloat kCloseImageSize = 12.5;
 constexpr CGFloat kMenuImageSize = 16;
+constexpr CGFloat kButtonAlpha = 0.6;
 
 // Animation.
 constexpr CGFloat kTranslationCompletion = 0;
@@ -120,7 +122,7 @@ UIButton* TopToolbarButton(NSString* symbol_name,
   UIView* _topToolbarBackground;
   // The stack view containing the buttons of the top toolbar.
   UIStackView* _topToolbarButtonsStackView;
-  // The the tab group menu button.
+  // The tab group menu button.
   UIButton* _menuButton;
   // Tab Groups handler.
   __weak id<TabGroupsCommands> _handler;
@@ -166,6 +168,8 @@ UIButton* TopToolbarButton(NSString* symbol_name,
   UIPanGestureRecognizer* _swipeDownGestureRecognizer;
   // Face pile provider.
   id<FacePileProviding> _facePileProvider;
+  // The color palette for the tab group view.
+  TabGroupColorPalette* _tabGroupColorPalette;
 }
 
 #pragma mark - Public
@@ -439,7 +443,12 @@ UIButton* TopToolbarButton(NSString* symbol_name,
 - (void)setGroupColor:(UIColor*)color {
   _groupColor = color;
   _gridViewController.groupColor = color;
-  [_coloredDotView setBackgroundColor:_groupColor];
+}
+
+- (void)setTabGroupColorPalette:(TabGroupColorPalette*)tabGroupColorPalette {
+  _tabGroupColorPalette = tabGroupColorPalette;
+  // Forward it to the TabGroupGridViewController.
+  _gridViewController.tabGroupColorPalette = _tabGroupColorPalette;
 }
 
 - (void)setShareAvailable:(BOOL)shareAvailable {
@@ -514,6 +523,10 @@ UIButton* TopToolbarButton(NSString* symbol_name,
   button.accessibilityIdentifier = kTabGroupOverflowMenuButtonIdentifier;
   button.accessibilityLabel = l10n_util::GetNSString(
       IDS_IOS_TAB_GROUP_THREE_DOT_MENU_BUTTON_ACCESSIBILITY_LABEL);
+  if (IsTabGroupColorOnSurfaceEnabled()) {
+    button.backgroundColor = [_tabGroupColorPalette.commonColor
+        colorWithAlphaComponent:kButtonAlpha];
+  }
   return button;
 }
 
@@ -529,6 +542,10 @@ UIButton* TopToolbarButton(NSString* symbol_name,
                 primaryAction:[UIAction actionWithHandler:^(UIAction* action) {
                   [weakSelf didTapFacePileButton];
                 }]];
+  if (IsTabGroupColorOnSurfaceEnabled()) {
+    container.backgroundColor = [_tabGroupColorPalette.commonColor
+        colorWithAlphaComponent:kButtonAlpha];
+  }
   container.accessibilityIdentifier = kTabGroupFacePileButtonIdentifier;
   [self updateFacePileContainer:container withFacePile:_facePileView];
   return container;
@@ -557,6 +574,10 @@ UIButton* TopToolbarButton(NSString* symbol_name,
       TopToolbarButton(kXMarkSymbol, closeAction, kCloseImageSize);
   closeButton.accessibilityLabel = l10n_util::GetNSString(IDS_CLOSE);
   closeButton.accessibilityIdentifier = kTabGroupCloseButtonIdentifier;
+  if (IsTabGroupColorOnSurfaceEnabled()) {
+    closeButton.backgroundColor = [_tabGroupColorPalette.commonColor
+        colorWithAlphaComponent:kButtonAlpha];
+  }
 
   [stackView addArrangedSubview:closeButton];
 
@@ -619,7 +640,11 @@ UIButton* TopToolbarButton(NSString* symbol_name,
   UIView* dotView = [[UIView alloc] initWithFrame:CGRectZero];
   dotView.translatesAutoresizingMaskIntoConstraints = NO;
   dotView.layer.cornerRadius = kDotSize / 2;
-  dotView.backgroundColor = _groupColor;
+  if (IsTabGroupColorOnSurfaceEnabled()) {
+    dotView.backgroundColor = _tabGroupColorPalette.commonColor;
+  } else {
+    dotView.backgroundColor = _groupColor;
+  }
 
   [NSLayoutConstraint activateConstraints:@[
     [dotView.heightAnchor constraintEqualToConstant:kDotSize],
@@ -692,6 +717,10 @@ UIButton* TopToolbarButton(NSString* symbol_name,
       _incognito ? TabGridPageIncognitoTabs : TabGridPageRegularTabs;
   bottomToolbar.mode = TabGridMode::kNormal;
   bottomToolbar.isInTabGroupView = YES;
+  if (IsTabGroupColorOnSurfaceEnabled()) {
+    [_bottomToolbar
+        updateNewTabButtonBackgroundColor:_tabGroupColorPalette.commonColor];
+  }
 
   [_container addSubview:bottomToolbar];
 

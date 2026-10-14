@@ -15,6 +15,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_CRASH_LOG_CRASH_LOG_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_CRASH_LOG_CRASH_LOG_H_
 
+#include "base/compiler_specific.h"
 #include "cobalt/browser/crash_annotator/public/mojom/crash_annotator.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
@@ -46,7 +47,7 @@ class MODULES_EXPORT CrashLog final : public ScriptWrappable,
                                       const String& key,
                                       const String& value,
                                       ExceptionState&);
-  void triggerCrash();
+  NOINLINE NOT_TAIL_CALLED void triggerCrash();
 
   void Trace(Visitor*) const override;
 

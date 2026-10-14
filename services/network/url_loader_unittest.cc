@@ -108,6 +108,7 @@
 #include "services/network/file_opener_for_upload.h"
 #include "services/network/multiple_durable_message_writer_impl.h"
 #include "services/network/observer_wrapper.h"
+#include "services/network/pervasive_resources/shared_resource_checker.h"
 #include "services/network/public/cpp/cors/origin_access_list.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/cpp/ip_address_space_util.h"
@@ -127,7 +128,6 @@
 #include "services/network/public/mojom/url_loader_network_service_observer.mojom-shared.h"
 #include "services/network/resource_scheduler/resource_scheduler_client.h"
 #include "services/network/shared_dictionary/shared_dictionary_access_checker.h"
-#include "services/network/shared_resource_checker.h"
 #include "services/network/shared_storage/shared_storage_header_utils.h"
 #include "services/network/shared_storage/shared_storage_request_helper.h"
 #include "services/network/shared_storage/shared_storage_test_url_loader_network_observer.h"
@@ -631,15 +631,15 @@ class FakeTransportInfoInterceptor : public net::URLRequestInterceptor {
 mojom::ClientSecurityStatePtr NewSecurityState() {
   auto result = mojom::ClientSecurityState::New();
   result->is_web_secure_context = false;
-  result->private_network_request_policy =
-      mojom::PrivateNetworkRequestPolicy::kBlock;
+  result->local_network_access_request_policy =
+      mojom::LocalNetworkAccessRequestPolicy::kBlock;
   result->ip_address_space = mojom::IPAddressSpace::kUnknown;
   return result;
 }
 
-CorsErrorStatus InsecurePrivateNetworkCorsErrorStatus(
+CorsErrorStatus InsecureLocalNetworkCorsErrorStatus(
     mojom::IPAddressSpace resource_address_space) {
-  return CorsErrorStatus(mojom::CorsError::kInsecurePrivateNetwork,
+  return CorsErrorStatus(mojom::CorsError::kInsecureLocalNetwork,
                          resource_address_space);
 }
 
@@ -703,6 +703,15 @@ struct URLLoaderOptions {
     used = true;
     shared_resource_checker =
         std::make_unique<SharedResourceChecker>(cookie_settings);
+
+    mojo::ScopedDataPipeProducerHandle provided_response_body_stream;
+    if (request.trusted_params &&
+        request.trusted_params->response_body_stream) {
+      provided_response_body_stream =
+          std::move(const_cast<ResourceRequest&>(request)
+                        .trusted_params->response_body_stream->pipe);
+    }
+
     return std::make_unique<URLLoader>(
         context, std::move(delete_callback), std::move(url_loader_receiver),
         options, request, std::move(url_loader_client),
@@ -717,7 +726,8 @@ struct URLLoaderOptions {
         ObserverWrapper(std::move(devtools_observer)),
         ObserverWrapper(std::move(device_bound_session_observer)),
         std::move(accept_ch_frame_observer), shared_storage_writable_eligible,
-        *shared_resource_checker, std::move(durable_message_writer));
+        *shared_resource_checker, std::move(durable_message_writer),
+        std::move(provided_response_body_stream));
   }
 
   int32_t options = mojom::kURLLoadOptionNone;
@@ -999,7 +1009,8 @@ class URLLoaderTest : public testing::Test {
   }
 
   void SetUpContext(const GURL& url, bool is_trusted) {
-    context().mutable_factory_params().process_id = mojom::kBrowserProcessId;
+    context().mutable_factory_params().process_id =
+        OriginatingProcess::browser();
     context().mutable_factory_params().is_orb_enabled = orb_enabled_;
     context().mutable_factory_params().client_security_state.Swap(
         &factory_client_security_state_);
@@ -1256,7 +1267,7 @@ class URLLoaderTest : public testing::Test {
 
   void RunUntilIdle() { task_environment_.RunUntilIdle(); }
 
-  static constexpr int kProcessId = 4;
+  static const OriginatingProcess kProcessId;
   static constexpr int kRouteId = 8;
 
   // |OnServerReceivedRequest| allows subclasses to register additional logic to
@@ -1351,8 +1362,54 @@ class URLLoaderMockSocketTest : public URLLoaderTest {
   net::MockClientSocketFactory socket_factory_;
 };
 
-constexpr int URLLoaderTest::kProcessId;
+const OriginatingProcess URLLoaderTest::kProcessId =
+    OriginatingProcess::renderer(RendererProcess(4));
 constexpr int URLLoaderTest::kRouteId;
+
+TEST_F(URLLoaderTest, ProvidedResponseBodyStream) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      features::kURLLoaderUseProvidedResponseBodyStream);
+
+  GURL url = test_server()->GetURL("/hello.html");
+  ResourceRequest request = CreateResourceRequest("GET", url);
+
+  mojo::ScopedDataPipeProducerHandle producer;
+  mojo::ScopedDataPipeConsumerHandle consumer;
+  ASSERT_EQ(MOJO_RESULT_OK, mojo::CreateDataPipe(nullptr, producer, consumer));
+
+  request.trusted_params->response_body_stream =
+      base::MakeRefCounted<network::SharedDataPipeProducerHandle>(
+          std::move(producer));
+
+  base::RunLoop delete_run_loop;
+  mojo::Remote<mojom::URLLoader> loader;
+  std::unique_ptr<URLLoader> url_loader;
+  context().mutable_factory_params().process_id = OriginatingProcess::browser();
+  context().mutable_factory_params().is_orb_enabled = false;
+
+  url_loader = URLLoaderOptions().MakeURLLoader(
+      context(), DeleteLoaderCallback(&delete_run_loop, &url_loader),
+      loader.BindNewPipeAndPassReceiver(), request, client()->CreateRemote());
+
+  // Wait until the load completes.
+  client()->RunUntilComplete();
+  EXPECT_EQ(net::OK, client()->completion_status().error_code);
+
+  // When a response body stream is provided, the client should not receive one.
+  EXPECT_FALSE(client()->response_body().is_valid());
+
+  // Data should be written to our consumer handle.
+  std::string body;
+  EXPECT_TRUE(mojo::BlockingCopyToString(std::move(consumer), &body));
+
+  base::FilePath file_path = GetTestFilePath("hello.html");
+  std::string expected_body;
+  ASSERT_TRUE(base::ReadFileToString(file_path, &expected_body));
+  EXPECT_EQ(expected_body, body);
+
+  delete_run_loop.Run();
+}
 
 TEST_F(URLLoaderTest, Basic) {
   LoadAndCompareFile("simple_page.html");
@@ -1394,8 +1451,8 @@ TEST_F(URLLoaderTest, SSLSentOnlyWhenRequested) {
 TEST_F(URLLoaderTest, PotentiallyTrustworthySameOriginIsOk) {
   mojom::ClientSecurityStatePtr client_security_state = NewSecurityState();
   client_security_state->ip_address_space = mojom::IPAddressSpace::kPublic;
-  client_security_state->private_network_request_policy =
-      mojom::PrivateNetworkRequestPolicy::kPermissionBlock;
+  client_security_state->local_network_access_request_policy =
+      mojom::LocalNetworkAccessRequestPolicy::kPermissionBlock;
   set_factory_client_security_state(std::move(client_security_state));
 
   GURL url = test_server()->GetURL("/empty.html");
@@ -1419,8 +1476,8 @@ TEST_F(URLLoaderTest, InconsistentIPAddressSpaceIsBlocked) {
   auto client_security_state = NewSecurityState();
   client_security_state->ip_address_space = mojom::IPAddressSpace::kPublic;
   client_security_state->is_web_secure_context = true;
-  client_security_state->private_network_request_policy =
-      mojom::PrivateNetworkRequestPolicy::kPermissionBlock;
+  client_security_state->local_network_access_request_policy =
+      mojom::LocalNetworkAccessRequestPolicy::kPermissionBlock;
   set_factory_client_security_state(std::move(client_security_state));
 
   ResultObserver connected_callback_result_observer;
@@ -1447,7 +1504,7 @@ TEST_F(URLLoaderTest, InconsistentIPAddressSpaceIsBlocked) {
   EXPECT_THAT(
       client()->completion_status().cors_error_status,
       Optional(CorsErrorStatus(
-          mojom::CorsError::kInvalidPrivateNetworkAccess,
+          mojom::CorsError::kInvalidLocalNetworkAccess,
           /*resource_address_space=*/mojom::IPAddressSpace::kLoopback,
           /*inconsistent_address_space=*/mojom::IPAddressSpace::kPublic)));
 
@@ -1478,7 +1535,7 @@ TEST_F(URLLoaderTest, SecureUnknownToLoopbackBlock) {
   EXPECT_EQ(net::ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS,
             LoadRequest(request));
   EXPECT_THAT(client()->completion_status().cors_error_status,
-              Optional(InsecurePrivateNetworkCorsErrorStatus(
+              Optional(InsecureLocalNetworkCorsErrorStatus(
                   mojom::IPAddressSpace::kLoopback)));
 }
 
@@ -1486,8 +1543,8 @@ TEST_F(URLLoaderTest, SecureUnknownToLoopbackWarn) {
   auto client_security_state = NewSecurityState();
   client_security_state->is_web_secure_context = true;
   client_security_state->ip_address_space = mojom::IPAddressSpace::kUnknown;
-  client_security_state->private_network_request_policy =
-      mojom::PrivateNetworkRequestPolicy::kWarn;
+  client_security_state->local_network_access_request_policy =
+      mojom::LocalNetworkAccessRequestPolicy::kWarn;
   set_factory_client_security_state(std::move(client_security_state));
 
   ResourceRequest request = CreateCrossOriginResourceRequest();
@@ -1499,8 +1556,8 @@ TEST_F(URLLoaderTest, SecureUnknownToLoopbackAllow) {
   auto client_security_state = NewSecurityState();
   client_security_state->is_web_secure_context = true;
   client_security_state->ip_address_space = mojom::IPAddressSpace::kUnknown;
-  client_security_state->private_network_request_policy =
-      mojom::PrivateNetworkRequestPolicy::kAllow;
+  client_security_state->local_network_access_request_policy =
+      mojom::LocalNetworkAccessRequestPolicy::kAllow;
   set_factory_client_security_state(std::move(client_security_state));
 
   ResourceRequest request = CreateCrossOriginResourceRequest();
@@ -1518,15 +1575,15 @@ TEST_F(URLLoaderTest, NonSecureUnknownToLoopbackBlock) {
   EXPECT_EQ(net::ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS,
             LoadRequest(request));
   EXPECT_THAT(client()->completion_status().cors_error_status,
-              Optional(InsecurePrivateNetworkCorsErrorStatus(
+              Optional(InsecureLocalNetworkCorsErrorStatus(
                   mojom::IPAddressSpace::kLoopback)));
 }
 
 TEST_F(URLLoaderTest, NonSecureUnknownToLoopbackWarn) {
   auto client_security_state = NewSecurityState();
   client_security_state->ip_address_space = mojom::IPAddressSpace::kUnknown;
-  client_security_state->private_network_request_policy =
-      mojom::PrivateNetworkRequestPolicy::kWarn;
+  client_security_state->local_network_access_request_policy =
+      mojom::LocalNetworkAccessRequestPolicy::kWarn;
   set_factory_client_security_state(std::move(client_security_state));
 
   ResourceRequest request = CreateCrossOriginResourceRequest();
@@ -1537,8 +1594,8 @@ TEST_F(URLLoaderTest, NonSecureUnknownToLoopbackWarn) {
 TEST_F(URLLoaderTest, NonSecureUnknownToLoopbackAllow) {
   auto client_security_state = NewSecurityState();
   client_security_state->ip_address_space = mojom::IPAddressSpace::kUnknown;
-  client_security_state->private_network_request_policy =
-      mojom::PrivateNetworkRequestPolicy::kAllow;
+  client_security_state->local_network_access_request_policy =
+      mojom::LocalNetworkAccessRequestPolicy::kAllow;
   set_factory_client_security_state(std::move(client_security_state));
 
   ResourceRequest request = CreateCrossOriginResourceRequest();
@@ -1558,7 +1615,7 @@ TEST_F(URLLoaderTest, SecurePublicToLoopbackBlock) {
   EXPECT_EQ(net::ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS,
             LoadRequest(request));
   EXPECT_THAT(client()->completion_status().cors_error_status,
-              Optional(InsecurePrivateNetworkCorsErrorStatus(
+              Optional(InsecureLocalNetworkCorsErrorStatus(
                   mojom::IPAddressSpace::kLoopback)));
 }
 
@@ -1566,8 +1623,8 @@ TEST_F(URLLoaderTest, SecurePublicToLoopbackWarn) {
   auto client_security_state = NewSecurityState();
   client_security_state->is_web_secure_context = true;
   client_security_state->ip_address_space = mojom::IPAddressSpace::kPublic;
-  client_security_state->private_network_request_policy =
-      mojom::PrivateNetworkRequestPolicy::kWarn;
+  client_security_state->local_network_access_request_policy =
+      mojom::LocalNetworkAccessRequestPolicy::kWarn;
   set_factory_client_security_state(std::move(client_security_state));
 
   ResourceRequest request = CreateCrossOriginResourceRequest();
@@ -1579,8 +1636,8 @@ TEST_F(URLLoaderTest, SecurePublicToLoopbackAllow) {
   auto client_security_state = NewSecurityState();
   client_security_state->is_web_secure_context = true;
   client_security_state->ip_address_space = mojom::IPAddressSpace::kPublic;
-  client_security_state->private_network_request_policy =
-      mojom::PrivateNetworkRequestPolicy::kAllow;
+  client_security_state->local_network_access_request_policy =
+      mojom::LocalNetworkAccessRequestPolicy::kAllow;
   set_factory_client_security_state(std::move(client_security_state));
 
   ResourceRequest request = CreateCrossOriginResourceRequest();
@@ -1598,15 +1655,15 @@ TEST_F(URLLoaderTest, NonSecurePublicToLoopbackBlock) {
   EXPECT_EQ(net::ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS,
             LoadRequest(request));
   EXPECT_THAT(client()->completion_status().cors_error_status,
-              Optional(InsecurePrivateNetworkCorsErrorStatus(
+              Optional(InsecureLocalNetworkCorsErrorStatus(
                   mojom::IPAddressSpace::kLoopback)));
 }
 
 TEST_F(URLLoaderTest, NonSecurePublicToLoopbackWarn) {
   auto client_security_state = NewSecurityState();
   client_security_state->ip_address_space = mojom::IPAddressSpace::kPublic;
-  client_security_state->private_network_request_policy =
-      mojom::PrivateNetworkRequestPolicy::kWarn;
+  client_security_state->local_network_access_request_policy =
+      mojom::LocalNetworkAccessRequestPolicy::kWarn;
   set_factory_client_security_state(std::move(client_security_state));
 
   ResourceRequest request = CreateCrossOriginResourceRequest();
@@ -1617,8 +1674,8 @@ TEST_F(URLLoaderTest, NonSecurePublicToLoopbackWarn) {
 TEST_F(URLLoaderTest, NonSecurePublicToLoopbackAllow) {
   auto client_security_state = NewSecurityState();
   client_security_state->ip_address_space = mojom::IPAddressSpace::kPublic;
-  client_security_state->private_network_request_policy =
-      mojom::PrivateNetworkRequestPolicy::kAllow;
+  client_security_state->local_network_access_request_policy =
+      mojom::LocalNetworkAccessRequestPolicy::kAllow;
   set_factory_client_security_state(std::move(client_security_state));
 
   ResourceRequest request = CreateCrossOriginResourceRequest();
@@ -1648,8 +1705,8 @@ TEST_F(URLLoaderTest, SecureLocalToLoopbackWarn) {
   auto client_security_state = NewSecurityState();
   client_security_state->is_web_secure_context = true;
   client_security_state->ip_address_space = mojom::IPAddressSpace::kLocal;
-  client_security_state->private_network_request_policy =
-      mojom::PrivateNetworkRequestPolicy::kWarn;
+  client_security_state->local_network_access_request_policy =
+      mojom::LocalNetworkAccessRequestPolicy::kWarn;
   set_factory_client_security_state(std::move(client_security_state));
 
   ResourceRequest request = CreateCrossOriginResourceRequest();
@@ -1661,8 +1718,8 @@ TEST_F(URLLoaderTest, SecureLocalToLoopbackAllow) {
   auto client_security_state = NewSecurityState();
   client_security_state->is_web_secure_context = true;
   client_security_state->ip_address_space = mojom::IPAddressSpace::kLocal;
-  client_security_state->private_network_request_policy =
-      mojom::PrivateNetworkRequestPolicy::kAllow;
+  client_security_state->local_network_access_request_policy =
+      mojom::LocalNetworkAccessRequestPolicy::kAllow;
   set_factory_client_security_state(std::move(client_security_state));
 
   ResourceRequest request = CreateCrossOriginResourceRequest();
@@ -1689,8 +1746,8 @@ TEST_F(URLLoaderTest, NonSecureLocalToLoopbackDefault) {
 TEST_F(URLLoaderTest, NonSecureLocalToLoopbackWarn) {
   auto client_security_state = NewSecurityState();
   client_security_state->ip_address_space = mojom::IPAddressSpace::kLocal;
-  client_security_state->private_network_request_policy =
-      mojom::PrivateNetworkRequestPolicy::kWarn;
+  client_security_state->local_network_access_request_policy =
+      mojom::LocalNetworkAccessRequestPolicy::kWarn;
   set_factory_client_security_state(std::move(client_security_state));
 
   ResourceRequest request = CreateCrossOriginResourceRequest();
@@ -1701,8 +1758,8 @@ TEST_F(URLLoaderTest, NonSecureLocalToLoopbackWarn) {
 TEST_F(URLLoaderTest, NonSecureLocalToLoopbackAllow) {
   auto client_security_state = NewSecurityState();
   client_security_state->ip_address_space = mojom::IPAddressSpace::kLocal;
-  client_security_state->private_network_request_policy =
-      mojom::PrivateNetworkRequestPolicy::kAllow;
+  client_security_state->local_network_access_request_policy =
+      mojom::LocalNetworkAccessRequestPolicy::kAllow;
   set_factory_client_security_state(std::move(client_security_state));
 
   ResourceRequest request = CreateCrossOriginResourceRequest();
@@ -1725,8 +1782,8 @@ TEST_F(URLLoaderTest, SecureLoopbackToLoopbackWarn) {
   auto client_security_state = NewSecurityState();
   client_security_state->is_web_secure_context = true;
   client_security_state->ip_address_space = mojom::IPAddressSpace::kLoopback;
-  client_security_state->private_network_request_policy =
-      mojom::PrivateNetworkRequestPolicy::kWarn;
+  client_security_state->local_network_access_request_policy =
+      mojom::LocalNetworkAccessRequestPolicy::kWarn;
   set_factory_client_security_state(std::move(client_security_state));
 
   ResourceRequest request = CreateCrossOriginResourceRequest();
@@ -1738,8 +1795,8 @@ TEST_F(URLLoaderTest, SecureLoopbackToLoopbackAllow) {
   auto client_security_state = NewSecurityState();
   client_security_state->is_web_secure_context = true;
   client_security_state->ip_address_space = mojom::IPAddressSpace::kLoopback;
-  client_security_state->private_network_request_policy =
-      mojom::PrivateNetworkRequestPolicy::kAllow;
+  client_security_state->local_network_access_request_policy =
+      mojom::LocalNetworkAccessRequestPolicy::kAllow;
   set_factory_client_security_state(std::move(client_security_state));
 
   ResourceRequest request = CreateCrossOriginResourceRequest();
@@ -1760,8 +1817,8 @@ TEST_F(URLLoaderTest, NonSecureLoopbackToLoopbackBlock) {
 TEST_F(URLLoaderTest, NonSecureLoopbackToLoopbackWarn) {
   auto client_security_state = NewSecurityState();
   client_security_state->ip_address_space = mojom::IPAddressSpace::kLoopback;
-  client_security_state->private_network_request_policy =
-      mojom::PrivateNetworkRequestPolicy::kWarn;
+  client_security_state->local_network_access_request_policy =
+      mojom::LocalNetworkAccessRequestPolicy::kWarn;
   set_factory_client_security_state(std::move(client_security_state));
 
   ResourceRequest request = CreateCrossOriginResourceRequest();
@@ -1772,8 +1829,8 @@ TEST_F(URLLoaderTest, NonSecureLoopbackToLoopbackWarn) {
 TEST_F(URLLoaderTest, NonSecureLoopbackToLoopbackAllow) {
   auto client_security_state = NewSecurityState();
   client_security_state->ip_address_space = mojom::IPAddressSpace::kLoopback;
-  client_security_state->private_network_request_policy =
-      mojom::PrivateNetworkRequestPolicy::kAllow;
+  client_security_state->local_network_access_request_policy =
+      mojom::LocalNetworkAccessRequestPolicy::kAllow;
   set_factory_client_security_state(std::move(client_security_state));
 
   ResourceRequest request = CreateCrossOriginResourceRequest();
@@ -1781,7 +1838,7 @@ TEST_F(URLLoaderTest, NonSecureLoopbackToLoopbackAllow) {
   EXPECT_EQ(net::OK, LoadRequest(request));
 }
 
-TEST_F(URLLoaderTest, AddsNetLogEntryForPrivateNetworkAccessCheckSuccess) {
+TEST_F(URLLoaderTest, AddsNetLogEntryForLocalNetworkAccessCheckSuccess) {
   auto client_security_state = NewSecurityState();
   client_security_state->ip_address_space = mojom::IPAddressSpace::kLoopback;
   set_factory_client_security_state(std::move(client_security_state));
@@ -1793,11 +1850,11 @@ TEST_F(URLLoaderTest, AddsNetLogEntryForPrivateNetworkAccessCheckSuccess) {
   std::ignore = LoadRequest(request);
 
   std::vector<net::NetLogEntry> entries = net_log_observer.GetEntriesWithType(
-      net::NetLogEventType::PRIVATE_NETWORK_ACCESS_CHECK);
+      net::NetLogEventType::LOCAL_NETWORK_ACCESS_CHECK);
 
   ASSERT_THAT(entries, SizeIs(1));
 
-  const base::Value::Dict& params = entries[0].params;
+  const base::DictValue& params = entries[0].params;
 
   EXPECT_THAT(params.FindString("client_address_space"),
               Pointee(Eq("loopback")));
@@ -1809,11 +1866,11 @@ TEST_F(URLLoaderTest, AddsNetLogEntryForPrivateNetworkAccessCheckSuccess) {
               Pointee(Eq("allowed-no-less-public")));
 }
 
-TEST_F(URLLoaderTest, AddsNetLogEntryForPrivateNetworkAccessCheckFailure) {
+TEST_F(URLLoaderTest, AddsNetLogEntryForLocalNetworkAccessCheckFailure) {
   auto client_security_state = NewSecurityState();
   client_security_state->ip_address_space = mojom::IPAddressSpace::kPublic;
-  client_security_state->private_network_request_policy =
-      mojom::PrivateNetworkRequestPolicy::kPermissionBlock;
+  client_security_state->local_network_access_request_policy =
+      mojom::LocalNetworkAccessRequestPolicy::kPermissionBlock;
   set_factory_client_security_state(std::move(client_security_state));
 
   net::RecordingNetLogObserver net_log_observer;
@@ -1823,11 +1880,11 @@ TEST_F(URLLoaderTest, AddsNetLogEntryForPrivateNetworkAccessCheckFailure) {
   std::ignore = LoadRequest(request);
 
   std::vector<net::NetLogEntry> entries = net_log_observer.GetEntriesWithType(
-      net::NetLogEventType::PRIVATE_NETWORK_ACCESS_CHECK);
+      net::NetLogEventType::LOCAL_NETWORK_ACCESS_CHECK);
 
   ASSERT_THAT(entries, SizeIs(1));
 
-  const base::Value::Dict params = std::move(entries[0].params);
+  const base::DictValue params = std::move(entries[0].params);
 
   EXPECT_THAT(params.FindString("client_address_space"), Pointee(Eq("public")));
 
@@ -1838,11 +1895,11 @@ TEST_F(URLLoaderTest, AddsNetLogEntryForPrivateNetworkAccessCheckFailure) {
               Pointee(Eq("lna-permission-required")));
 }
 
-TEST_F(URLLoaderTest, AddsNetLogEntryForPrivateNetworkAccessCheckSameOrigin) {
+TEST_F(URLLoaderTest, AddsNetLogEntryForLocalNetworkAccessCheckSameOrigin) {
   mojom::ClientSecurityStatePtr client_security_state = NewSecurityState();
   client_security_state->ip_address_space = mojom::IPAddressSpace::kPublic;
-  client_security_state->private_network_request_policy =
-      mojom::PrivateNetworkRequestPolicy::kPermissionBlock;
+  client_security_state->local_network_access_request_policy =
+      mojom::LocalNetworkAccessRequestPolicy::kPermissionBlock;
   set_factory_client_security_state(std::move(client_security_state));
 
   net::RecordingNetLogObserver net_log_observer;
@@ -1854,11 +1911,11 @@ TEST_F(URLLoaderTest, AddsNetLogEntryForPrivateNetworkAccessCheckSameOrigin) {
   EXPECT_EQ(net::OK, LoadRequest(request));
 
   std::vector<net::NetLogEntry> entries = net_log_observer.GetEntriesWithType(
-      net::NetLogEventType::PRIVATE_NETWORK_ACCESS_CHECK);
+      net::NetLogEventType::LOCAL_NETWORK_ACCESS_CHECK);
 
   ASSERT_THAT(entries, SizeIs(1));
 
-  const base::Value::Dict& params = entries[0].params;
+  const base::DictValue& params = entries[0].params;
 
   EXPECT_THAT(params.FindString("client_address_space"), Pointee(Eq("public")));
 
@@ -1891,14 +1948,16 @@ TEST_F(URLLoaderTest, SecurePublicToLoopbackPermissionDenied) {
       features::kLocalNetworkAccessChecks);
   auto client_security_state = NewSecurityState();
   client_security_state->ip_address_space = mojom::IPAddressSpace::kPublic;
-  client_security_state->private_network_request_policy =
-      mojom::PrivateNetworkRequestPolicy::kPermissionBlock;
+  client_security_state->local_network_access_request_policy =
+      mojom::LocalNetworkAccessRequestPolicy::kPermissionBlock;
   set_factory_client_security_state(std::move(client_security_state));
 
   // Simulate that the permission request was denied.
   TestLNAPermissionURLLoaderNetworkObserver observer(
       mojom::LocalNetworkAccessResult::kDenied);
   set_network_observer_for_next_request(&observer);
+
+  net::RecordingNetLogObserver net_log_observer;
 
   ResourceRequest request = CreateCrossOriginResourceRequest();
 
@@ -1908,6 +1967,29 @@ TEST_F(URLLoaderTest, SecurePublicToLoopbackPermissionDenied) {
               Optional(CorsErrorStatus(
                   mojom::CorsError::kLocalNetworkAccessPermissionDenied,
                   mojom::IPAddressSpace::kLoopback)));
+
+  std::vector<net::NetLogEntry> entries = net_log_observer.GetEntriesWithType(
+      net::NetLogEventType::LOCAL_NETWORK_ACCESS_PERMISSION_REQUESTED);
+  ASSERT_THAT(entries, SizeIs(2));
+  {
+    const base::DictValue& params = entries[0].params;
+
+    EXPECT_THAT(params.FindString("address_space"), Pointee(Eq("loopback")));
+
+    EXPECT_THAT(params.FindString("transport_type"), Pointee(Eq("direct")));
+
+    EXPECT_THAT(params.FindString("result"), Pointee(Eq("denied")));
+  }
+
+  {
+    const base::DictValue& params = entries[1].params;
+
+    EXPECT_THAT(params.FindString("address_space"), Pointee(Eq("loopback")));
+
+    EXPECT_THAT(params.FindString("transport_type"), Pointee(Eq("direct")));
+
+    EXPECT_THAT(params.FindString("result"), Pointee(Eq("denied")));
+  }
 }
 
 TEST_F(URLLoaderTest, SecurePublicToLoopbackPermissionGranted) {
@@ -1915,14 +1997,16 @@ TEST_F(URLLoaderTest, SecurePublicToLoopbackPermissionGranted) {
       features::kLocalNetworkAccessChecks);
   auto client_security_state = NewSecurityState();
   client_security_state->ip_address_space = mojom::IPAddressSpace::kPublic;
-  client_security_state->private_network_request_policy =
-      mojom::PrivateNetworkRequestPolicy::kPermissionBlock;
+  client_security_state->local_network_access_request_policy =
+      mojom::LocalNetworkAccessRequestPolicy::kPermissionBlock;
   set_factory_client_security_state(std::move(client_security_state));
 
   // Simulate that the permission request was granted.
   TestLNAPermissionURLLoaderNetworkObserver observer(
       mojom::LocalNetworkAccessResult::kGranted);
   set_network_observer_for_next_request(&observer);
+
+  net::RecordingNetLogObserver net_log_observer;
 
   ResourceRequest request = CreateCrossOriginResourceRequest();
 
@@ -1931,6 +2015,29 @@ TEST_F(URLLoaderTest, SecurePublicToLoopbackPermissionGranted) {
               Optional(CorsErrorStatus(
                   mojom::CorsError::kLocalNetworkAccessPermissionDenied,
                   mojom::IPAddressSpace::kLoopback)));
+
+  std::vector<net::NetLogEntry> entries = net_log_observer.GetEntriesWithType(
+      net::NetLogEventType::LOCAL_NETWORK_ACCESS_PERMISSION_REQUESTED);
+  ASSERT_THAT(entries, SizeIs(2));
+  {
+    const base::DictValue& params = entries[0].params;
+
+    EXPECT_THAT(params.FindString("address_space"), Pointee(Eq("loopback")));
+
+    EXPECT_THAT(params.FindString("transport_type"), Pointee(Eq("direct")));
+
+    EXPECT_THAT(params.FindString("result"), Pointee(Eq("granted")));
+  }
+
+  {
+    const base::DictValue& params = entries[1].params;
+
+    EXPECT_THAT(params.FindString("address_space"), Pointee(Eq("loopback")));
+
+    EXPECT_THAT(params.FindString("transport_type"), Pointee(Eq("direct")));
+
+    EXPECT_THAT(params.FindString("result"), Pointee(Eq("granted")));
+  }
 }
 
 TEST_F(URLLoaderTest, SecureLocalToLoopbackLNAPermissionNotRequired) {
@@ -1942,8 +2049,8 @@ TEST_F(URLLoaderTest, SecureLocalToLoopbackLNAPermissionNotRequired) {
 
   auto client_security_state = NewSecurityState();
   client_security_state->ip_address_space = mojom::IPAddressSpace::kLocal;
-  client_security_state->private_network_request_policy =
-      mojom::PrivateNetworkRequestPolicy::kPermissionBlock;
+  client_security_state->local_network_access_request_policy =
+      mojom::LocalNetworkAccessRequestPolicy::kPermissionBlock;
   set_factory_client_security_state(std::move(client_security_state));
 
   // Simulate that the permission request was denied.
@@ -1963,8 +2070,8 @@ TEST_F(URLLoaderTest, SecureLoopbackToLoopbackPermission) {
       features::kLocalNetworkAccessChecks);
   auto client_security_state = NewSecurityState();
   client_security_state->ip_address_space = mojom::IPAddressSpace::kLoopback;
-  client_security_state->private_network_request_policy =
-      mojom::PrivateNetworkRequestPolicy::kPermissionBlock;
+  client_security_state->local_network_access_request_policy =
+      mojom::LocalNetworkAccessRequestPolicy::kPermissionBlock;
   set_factory_client_security_state(std::move(client_security_state));
 
   ResourceRequest request = CreateCrossOriginResourceRequest();
@@ -1975,8 +2082,8 @@ TEST_F(URLLoaderTest, SecureLoopbackToLoopbackPermission) {
 TEST_F(URLLoaderTest, SecurePublicToLoopbackPermissionWarn) {
   auto client_security_state = NewSecurityState();
   client_security_state->ip_address_space = mojom::IPAddressSpace::kPublic;
-  client_security_state->private_network_request_policy =
-      mojom::PrivateNetworkRequestPolicy::kPermissionWarn;
+  client_security_state->local_network_access_request_policy =
+      mojom::LocalNetworkAccessRequestPolicy::kPermissionWarn;
   set_factory_client_security_state(std::move(client_security_state));
 
   ResourceRequest request = CreateCrossOriginResourceRequest();
@@ -1987,8 +2094,8 @@ TEST_F(URLLoaderTest, SecurePublicToLoopbackPermissionWarn) {
 TEST_F(URLLoaderTest, SecureLocalToLoopbackPermissionWarn) {
   auto client_security_state = NewSecurityState();
   client_security_state->ip_address_space = mojom::IPAddressSpace::kLocal;
-  client_security_state->private_network_request_policy =
-      mojom::PrivateNetworkRequestPolicy::kPermissionWarn;
+  client_security_state->local_network_access_request_policy =
+      mojom::LocalNetworkAccessRequestPolicy::kPermissionWarn;
   set_factory_client_security_state(std::move(client_security_state));
 
   ResourceRequest request = CreateCrossOriginResourceRequest();
@@ -2008,8 +2115,8 @@ TEST_F(URLLoaderTest, LocalNetworkAccessRequestWarning) {
 
   auto client_security_state = NewSecurityState();
   client_security_state->is_web_secure_context = false;
-  client_security_state->private_network_request_policy =
-      mojom::PrivateNetworkRequestPolicy::kPermissionWarn;
+  client_security_state->local_network_access_request_policy =
+      mojom::LocalNetworkAccessRequestPolicy::kPermissionWarn;
   client_security_state->ip_address_space = mojom::IPAddressSpace::kPublic;
   set_factory_client_security_state(std::move(client_security_state));
 
@@ -2018,13 +2125,13 @@ TEST_F(URLLoaderTest, LocalNetworkAccessRequestWarning) {
 
   EXPECT_EQ(net::OK, LoadRequest(request));
 
-  devtools_observer.WaitUntilPrivateNetworkRequest();
-  ASSERT_TRUE(devtools_observer.private_network_request_params());
-  auto& params = *devtools_observer.private_network_request_params();
+  devtools_observer.WaitUntilLocalNetworkRequest();
+  ASSERT_TRUE(devtools_observer.local_network_request_params());
+  auto& params = *devtools_observer.local_network_request_params();
   ASSERT_TRUE(params.client_security_state);
   auto& state = params.client_security_state;
-  EXPECT_EQ(state->private_network_request_policy,
-            mojom::PrivateNetworkRequestPolicy::kPermissionWarn);
+  EXPECT_EQ(state->local_network_access_request_policy,
+            mojom::LocalNetworkAccessRequestPolicy::kPermissionWarn);
   EXPECT_EQ(state->is_web_secure_context, false);
   EXPECT_EQ(state->ip_address_space, mojom::IPAddressSpace::kPublic);
   EXPECT_EQ(params.resource_address_space, mojom::IPAddressSpace::kLoopback);
@@ -2135,7 +2242,7 @@ TEST_P(URLLoaderFakeTransportInfoTest, LocalNetworkRequestLoadsCorrectly) {
       // private network access policy because we'll retry fetching from the
       // network.
       EXPECT_THAT(client()->completion_status().cors_error_status,
-                  Optional(InsecurePrivateNetworkCorsErrorStatus(
+                  Optional(InsecureLocalNetworkCorsErrorStatus(
                       params.endpoint_address_space)));
     }
     return;
@@ -2149,14 +2256,14 @@ TEST_P(URLLoaderFakeTransportInfoTest, LocalNetworkRequestLoadsCorrectly) {
             ResponseAddressSpace(params));
 }
 
-// Test the case where a PrivateNetworkRequestPolicy is set on the request via
-// TrustedParams, rather than on the factory. the value should still be
+// Test the case where a LocalNetworkAccessRequestPolicy is set on the request
+// via TrustedParams, rather than on the factory. the value should still be
 // respected.
-TEST_F(URLLoaderTest, PrivateNetworkRequestPolicyOnRequest) {
+TEST_F(URLLoaderTest, LocalNetworkAccessRequestPolicyOnRequest) {
   auto client_security_state = NewSecurityState();
   client_security_state->ip_address_space = mojom::IPAddressSpace::kPublic;
-  client_security_state->private_network_request_policy =
-      mojom::PrivateNetworkRequestPolicy::kBlock;
+  client_security_state->local_network_access_request_policy =
+      mojom::LocalNetworkAccessRequestPolicy::kBlock;
 
   ResourceRequest request = CreateCrossOriginResourceRequest();
   request.trusted_params.emplace();
@@ -2165,28 +2272,27 @@ TEST_F(URLLoaderTest, PrivateNetworkRequestPolicyOnRequest) {
 
   EXPECT_EQ(net::ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS,
             LoadRequest(request));
-  EXPECT_THAT(
-      client()->completion_status().cors_error_status,
-      Optional(CorsErrorStatus(mojom::CorsError::kInsecurePrivateNetwork,
-                               mojom::IPAddressSpace::kLoopback)));
+  EXPECT_THAT(client()->completion_status().cors_error_status,
+              Optional(CorsErrorStatus(mojom::CorsError::kInsecureLocalNetwork,
+                                       mojom::IPAddressSpace::kLoopback)));
 }
 
-// Test the case where a PrivateNetworkRequestPolicy is set on the request via
-// TrustedParams, and on the URLLoaderFactory via URLLoaderFactoryParams. The
-// value set on the request should be preferred.
-TEST_F(URLLoaderTest, PrivateNetworkRequestPolicyOnRequestAndFactory) {
+// Test the case where a LocalNetworkAccessRequestPolicy is set on the request
+// via TrustedParams, and on the URLLoaderFactory via URLLoaderFactoryParams.
+// The value set on the request should be preferred.
+TEST_F(URLLoaderTest, LocalNetworkAccessRequestPolicyOnRequestAndFactory) {
   auto client_security_state = NewSecurityState();
   // The value set on the factory should not block the request. `kAllow` will
   // actually DCHECK(), so this test may DCHECK instead on regression, instead
   // of LoadRequest() succeeding.
-  client_security_state->private_network_request_policy =
-      mojom::PrivateNetworkRequestPolicy::kAllow;
+  client_security_state->local_network_access_request_policy =
+      mojom::LocalNetworkAccessRequestPolicy::kAllow;
   set_factory_client_security_state(client_security_state->Clone());
 
   // The value set on the request should block the request.
   client_security_state->ip_address_space = mojom::IPAddressSpace::kPublic;
-  client_security_state->private_network_request_policy =
-      mojom::PrivateNetworkRequestPolicy::kBlock;
+  client_security_state->local_network_access_request_policy =
+      mojom::LocalNetworkAccessRequestPolicy::kBlock;
 
   ResourceRequest request = CreateCrossOriginResourceRequest();
   request.trusted_params.emplace();
@@ -2197,10 +2303,9 @@ TEST_F(URLLoaderTest, PrivateNetworkRequestPolicyOnRequestAndFactory) {
   // the factory value.
   EXPECT_EQ(net::ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS,
             LoadRequest(request));
-  EXPECT_THAT(
-      client()->completion_status().cors_error_status,
-      Optional(CorsErrorStatus(mojom::CorsError::kInsecurePrivateNetwork,
-                               mojom::IPAddressSpace::kLoopback)));
+  EXPECT_THAT(client()->completion_status().cors_error_status,
+              Optional(CorsErrorStatus(mojom::CorsError::kInsecureLocalNetwork,
+                                       mojom::IPAddressSpace::kLoopback)));
 }
 
 // Lists all combinations we want to test in URLLoaderFakeTransportInfoTest.
@@ -2897,7 +3002,7 @@ TEST_F(URLLoaderTest, DestroyOnURLLoaderPipeClosed) {
   base::RunLoop delete_run_loop;
   mojo::PendingRemote<mojom::URLLoader> loader;
   std::unique_ptr<URLLoader> url_loader;
-  context().mutable_factory_params().process_id = mojom::kBrowserProcessId;
+  context().mutable_factory_params().process_id = OriginatingProcess::browser();
   context().mutable_factory_params().is_orb_enabled = false;
   url_loader = URLLoaderOptions().MakeURLLoader(
       context(), DeleteLoaderCallback(&delete_run_loop, &url_loader),
@@ -2945,7 +3050,7 @@ TEST_F(URLLoaderTest, CloseResponseBodyConsumerBeforeProducer) {
   base::RunLoop delete_run_loop;
   mojo::PendingRemote<mojom::URLLoader> loader;
   std::unique_ptr<URLLoader> url_loader;
-  context().mutable_factory_params().process_id = mojom::kBrowserProcessId;
+  context().mutable_factory_params().process_id = OriginatingProcess::browser();
   context().mutable_factory_params().is_orb_enabled = false;
   url_loader = URLLoaderOptions().MakeURLLoader(
       context(), DeleteLoaderCallback(&delete_run_loop, &url_loader),
@@ -3173,7 +3278,7 @@ TEST_F(URLLoaderTest, UploadFileCanceled) {
 
   base::RunLoop delete_run_loop;
   mojo::Remote<mojom::URLLoader> loader;
-  context().mutable_factory_params().process_id = mojom::kBrowserProcessId;
+  context().mutable_factory_params().process_id = OriginatingProcess::browser();
   context().mutable_factory_params().is_orb_enabled = false;
   auto network_context_client =
       std::make_unique<CallbackSavingNetworkContextClient>();
@@ -3301,7 +3406,7 @@ TEST_F(URLLoaderTest, UploadChunkedDataPipe) {
   base::RunLoop delete_run_loop;
   mojo::Remote<mojom::URLLoader> loader;
   std::unique_ptr<URLLoader> url_loader;
-  context().mutable_factory_params().process_id = mojom::kBrowserProcessId;
+  context().mutable_factory_params().process_id = OriginatingProcess::browser();
   context().mutable_factory_params().is_orb_enabled = false;
   url_loader = URLLoaderOptions().MakeURLLoader(
       context(), DeleteLoaderCallback(&delete_run_loop, &url_loader),
@@ -3334,7 +3439,7 @@ TEST_F(URLLoaderTest, UploadChunkedDataPipeOverHTTP2) {
   base::RunLoop delete_run_loop;
   mojo::Remote<mojom::URLLoader> loader;
   std::unique_ptr<URLLoader> url_loader;
-  context().mutable_factory_params().process_id = mojom::kBrowserProcessId;
+  context().mutable_factory_params().process_id = OriginatingProcess::browser();
   context().mutable_factory_params().is_orb_enabled = false;
   url_loader = URLLoaderOptions().MakeURLLoader(
       context(), DeleteLoaderCallback(&delete_run_loop, &url_loader),
@@ -3384,7 +3489,7 @@ TEST_F(URLLoaderTest, UploadChunkedDataPipeReadOnceStream) {
   base::RunLoop delete_run_loop;
   mojo::Remote<mojom::URLLoader> loader;
   std::unique_ptr<URLLoader> url_loader;
-  context().mutable_factory_params().process_id = mojom::kBrowserProcessId;
+  context().mutable_factory_params().process_id = OriginatingProcess::browser();
   context().mutable_factory_params().is_orb_enabled = false;
   url_loader = URLLoaderOptions().MakeURLLoader(
       context(), DeleteLoaderCallback(&delete_run_loop, &url_loader),
@@ -3477,7 +3582,7 @@ TEST_F(URLLoaderTest, SSLInfoOnRedirectWithCertificateError) {
 
   base::RunLoop delete_run_loop;
   mojo::Remote<mojom::URLLoader> loader;
-  context().mutable_factory_params().process_id = mojom::kBrowserProcessId;
+  context().mutable_factory_params().process_id = OriginatingProcess::browser();
   context().mutable_factory_params().is_orb_enabled = false;
   auto network_context_client = std::make_unique<TestNetworkContextClient>();
   context().set_network_context_client(network_context_client.get());
@@ -3511,7 +3616,7 @@ TEST_F(URLLoaderTest, RedirectModifiedHeaders) {
   base::RunLoop delete_run_loop;
   mojo::Remote<mojom::URLLoader> loader;
   std::unique_ptr<URLLoader> url_loader;
-  context().mutable_factory_params().process_id = mojom::kBrowserProcessId;
+  context().mutable_factory_params().process_id = OriginatingProcess::browser();
   context().mutable_factory_params().is_orb_enabled = false;
   url_loader = URLLoaderOptions().MakeURLLoader(
       context(), DeleteLoaderCallback(&delete_run_loop, &url_loader),
@@ -3558,7 +3663,8 @@ TEST_F(URLLoaderTest, RedirectFailsOnModifyUnsafeHeader) {
     base::RunLoop delete_run_loop;
     mojo::Remote<mojom::URLLoader> loader;
     std::unique_ptr<URLLoader> url_loader;
-    context().mutable_factory_params().process_id = mojom::kBrowserProcessId;
+    context().mutable_factory_params().process_id =
+        OriginatingProcess::browser();
     context().mutable_factory_params().is_orb_enabled = false;
     url_loader = URLLoaderOptions().MakeURLLoader(
         context(), DeleteLoaderCallback(&delete_run_loop, &url_loader),
@@ -3588,7 +3694,7 @@ TEST_F(URLLoaderTest, RedirectRemoveHeader) {
   base::RunLoop delete_run_loop;
   mojo::Remote<mojom::URLLoader> loader;
   std::unique_ptr<URLLoader> url_loader;
-  context().mutable_factory_params().process_id = mojom::kBrowserProcessId;
+  context().mutable_factory_params().process_id = OriginatingProcess::browser();
   context().mutable_factory_params().is_orb_enabled = false;
   url_loader = URLLoaderOptions().MakeURLLoader(
       context(), DeleteLoaderCallback(&delete_run_loop, &url_loader),
@@ -3624,7 +3730,7 @@ TEST_F(URLLoaderTest, RedirectRemoveHeaderAndAddItBack) {
   base::RunLoop delete_run_loop;
   mojo::Remote<mojom::URLLoader> loader;
   std::unique_ptr<URLLoader> url_loader;
-  context().mutable_factory_params().process_id = mojom::kBrowserProcessId;
+  context().mutable_factory_params().process_id = OriginatingProcess::browser();
   context().mutable_factory_params().is_orb_enabled = false;
   url_loader = URLLoaderOptions().MakeURLLoader(
       context(), DeleteLoaderCallback(&delete_run_loop, &url_loader),
@@ -3665,7 +3771,7 @@ TEST_F(URLLoaderTest, UpgradeAddsSecHeaders) {
   base::RunLoop delete_run_loop;
   mojo::Remote<mojom::URLLoader> loader;
   std::unique_ptr<URLLoader> url_loader;
-  context().mutable_factory_params().process_id = mojom::kBrowserProcessId;
+  context().mutable_factory_params().process_id = OriginatingProcess::browser();
   url_loader = URLLoaderOptions().MakeURLLoader(
       context(), DeleteLoaderCallback(&delete_run_loop, &url_loader),
       loader.BindNewPipeAndPassReceiver(), request, client()->CreateRemote());
@@ -3709,7 +3815,7 @@ TEST_F(URLLoaderTest, DowngradeRemovesSecHeaders) {
   base::RunLoop delete_run_loop;
   mojo::Remote<mojom::URLLoader> loader;
   std::unique_ptr<URLLoader> url_loader;
-  context().mutable_factory_params().process_id = mojom::kBrowserProcessId;
+  context().mutable_factory_params().process_id = OriginatingProcess::browser();
   url_loader = URLLoaderOptions().MakeURLLoader(
       context(), DeleteLoaderCallback(&delete_run_loop, &url_loader),
       loader.BindNewPipeAndPassReceiver(), request, client()->CreateRemote());
@@ -3762,7 +3868,7 @@ TEST_F(URLLoaderTest, RedirectChainRemovesAndAddsSecHeaders) {
   base::RunLoop delete_run_loop;
   mojo::Remote<mojom::URLLoader> loader;
   std::unique_ptr<URLLoader> url_loader;
-  context().mutable_factory_params().process_id = mojom::kBrowserProcessId;
+  context().mutable_factory_params().process_id = OriginatingProcess::browser();
   url_loader = URLLoaderOptions().MakeURLLoader(
       context(), DeleteLoaderCallback(&delete_run_loop, &url_loader),
       loader.BindNewPipeAndPassReceiver(), request, client()->CreateRemote());
@@ -3821,7 +3927,7 @@ TEST_F(URLLoaderTest, RedirectSecHeadersUser) {
   base::RunLoop delete_run_loop;
   mojo::PendingRemote<mojom::URLLoader> loader;
   std::unique_ptr<URLLoader> url_loader;
-  context().mutable_factory_params().process_id = mojom::kBrowserProcessId;
+  context().mutable_factory_params().process_id = OriginatingProcess::browser();
   url_loader = URLLoaderOptions().MakeURLLoader(
       context(), DeleteLoaderCallback(&delete_run_loop, &url_loader),
       loader.InitWithNewPipeAndPassReceiver(), request,
@@ -3847,7 +3953,7 @@ TEST_F(URLLoaderTest, RedirectDirectlyModifiedSecHeadersUser) {
   base::RunLoop delete_run_loop;
   mojo::PendingRemote<mojom::URLLoader> loader;
   std::unique_ptr<URLLoader> url_loader;
-  context().mutable_factory_params().process_id = mojom::kBrowserProcessId;
+  context().mutable_factory_params().process_id = OriginatingProcess::browser();
   url_loader = URLLoaderOptions().MakeURLLoader(
       context(), DeleteLoaderCallback(&delete_run_loop, &url_loader),
       loader.InitWithNewPipeAndPassReceiver(), request,
@@ -3989,7 +4095,7 @@ TEST_F(URLLoaderTest, ReadPipeClosedWhileReadTaskPosted) {
   base::RunLoop delete_run_loop;
   mojo::PendingRemote<mojom::URLLoader> loader;
   std::unique_ptr<URLLoader> url_loader;
-  context().mutable_factory_params().process_id = mojom::kBrowserProcessId;
+  context().mutable_factory_params().process_id = OriginatingProcess::browser();
   context().mutable_factory_params().is_orb_enabled = false;
   url_loader = URLLoaderOptions().MakeURLLoader(
       context(), DeleteLoaderCallback(&delete_run_loop, &url_loader),
@@ -4661,7 +4767,7 @@ TEST_F(URLLoaderTest, FollowRedirectTwice) {
   base::RunLoop delete_run_loop;
   mojo::PendingRemote<mojom::URLLoader> loader;
   std::unique_ptr<URLLoader> url_loader;
-  context().mutable_factory_params().process_id = mojom::kBrowserProcessId;
+  context().mutable_factory_params().process_id = OriginatingProcess::browser();
   context().mutable_factory_params().is_orb_enabled = false;
   url_loader = URLLoaderOptions().MakeURLLoader(
       context(), DeleteLoaderCallback(&delete_run_loop, &url_loader),
@@ -5154,7 +5260,7 @@ TEST_F(StorageAccessHeaderURLLoaderTest,
   base::RunLoop delete_run_loop;
   mojo::PendingRemote<mojom::URLLoader> loader;
   std::unique_ptr<URLLoader> url_loader;
-  context().mutable_factory_params().process_id = mojom::kBrowserProcessId;
+  context().mutable_factory_params().process_id = OriginatingProcess::browser();
   url_loader = URLLoaderOptions().MakeURLLoader(
       context(), DeleteLoaderCallback(&delete_run_loop, &url_loader),
       loader.InitWithNewPipeAndPassReceiver(), request,
@@ -5175,7 +5281,7 @@ TEST_F(StorageAccessHeaderURLLoaderTest, LoadNoStatus) {
 
   mojo::PendingRemote<mojom::URLLoader> loader;
   std::unique_ptr<URLLoader> url_loader;
-  context().mutable_factory_params().process_id = mojom::kBrowserProcessId;
+  context().mutable_factory_params().process_id = OriginatingProcess::browser();
   url_loader = URLLoaderOptions().MakeURLLoader(
       context(), DeleteLoaderCallback(&delete_run_loop, &url_loader),
       loader.InitWithNewPipeAndPassReceiver(), request,
@@ -5201,7 +5307,7 @@ TEST_F(StorageAccessHeaderURLLoaderTest, LoadStatusNone) {
 
   mojo::PendingRemote<mojom::URLLoader> loader;
   std::unique_ptr<URLLoader> url_loader;
-  context().mutable_factory_params().process_id = mojom::kBrowserProcessId;
+  context().mutable_factory_params().process_id = OriginatingProcess::browser();
   url_loader = URLLoaderOptions().MakeURLLoader(
       context(), DeleteLoaderCallback(&delete_run_loop, &url_loader),
       loader.InitWithNewPipeAndPassReceiver(), request,
@@ -5228,7 +5334,7 @@ TEST_F(StorageAccessHeaderURLLoaderTest, LoadStatusInactive) {
 
   mojo::PendingRemote<mojom::URLLoader> loader;
   std::unique_ptr<URLLoader> url_loader;
-  context().mutable_factory_params().process_id = mojom::kBrowserProcessId;
+  context().mutable_factory_params().process_id = OriginatingProcess::browser();
   url_loader = URLLoaderOptions().MakeURLLoader(
       context(), DeleteLoaderCallback(&delete_run_loop, &url_loader),
       loader.InitWithNewPipeAndPassReceiver(), request,
@@ -5251,7 +5357,7 @@ TEST_F(StorageAccessHeaderURLLoaderTest, LoadStatusActive) {
 
   mojo::PendingRemote<mojom::URLLoader> loader;
   std::unique_ptr<URLLoader> url_loader;
-  context().mutable_factory_params().process_id = mojom::kBrowserProcessId;
+  context().mutable_factory_params().process_id = OriginatingProcess::browser();
   url_loader = URLLoaderOptions().MakeURLLoader(
       context(), DeleteLoaderCallback(&delete_run_loop, &url_loader),
       loader.InitWithNewPipeAndPassReceiver(), request,
@@ -5278,7 +5384,7 @@ TEST_F(StorageAccessHeaderURLLoaderTest, Load_StatusActive_IgnoredParam) {
 
   mojo::PendingRemote<mojom::URLLoader> loader;
   std::unique_ptr<URLLoader> url_loader;
-  context().mutable_factory_params().process_id = mojom::kBrowserProcessId;
+  context().mutable_factory_params().process_id = OriginatingProcess::browser();
   url_loader = URLLoaderOptions().MakeURLLoader(
       context(), DeleteLoaderCallback(&delete_run_loop, &url_loader),
       loader.InitWithNewPipeAndPassReceiver(), request,
@@ -5303,7 +5409,7 @@ TEST_F(StorageAccessHeaderURLLoaderTest, Load_StatusActive_IncorrectType) {
 
   mojo::PendingRemote<mojom::URLLoader> loader;
   std::unique_ptr<URLLoader> url_loader;
-  context().mutable_factory_params().process_id = mojom::kBrowserProcessId;
+  context().mutable_factory_params().process_id = OriginatingProcess::browser();
   url_loader = URLLoaderOptions().MakeURLLoader(
       context(), DeleteLoaderCallback(&delete_run_loop, &url_loader),
       loader.InitWithNewPipeAndPassReceiver(), request,
@@ -5325,7 +5431,7 @@ TEST_F(StorageAccessHeaderURLLoaderTest, RedirectWithLoad) {
 
   mojo::PendingRemote<mojom::URLLoader> loader;
   std::unique_ptr<URLLoader> url_loader;
-  context().mutable_factory_params().process_id = mojom::kBrowserProcessId;
+  context().mutable_factory_params().process_id = OriginatingProcess::browser();
   url_loader = URLLoaderOptions().MakeURLLoader(
       context(), DeleteLoaderCallback(&delete_run_loop, &url_loader),
       loader.InitWithNewPipeAndPassReceiver(), request,
@@ -5368,7 +5474,7 @@ TEST_F(StorageAccessHeaderURLLoaderTest,
 
   mojo::PendingRemote<mojom::URLLoader> loader;
   std::unique_ptr<URLLoader> url_loader;
-  context().mutable_factory_params().process_id = mojom::kBrowserProcessId;
+  context().mutable_factory_params().process_id = OriginatingProcess::browser();
   url_loader = URLLoaderOptions().MakeURLLoader(
       context(), DeleteLoaderCallback(&delete_run_loop, &url_loader),
       loader.InitWithNewPipeAndPassReceiver(), request,
@@ -5412,7 +5518,7 @@ TEST_F(StorageAccessHeaderURLLoaderTest,
 
   mojo::PendingRemote<mojom::URLLoader> loader;
   std::unique_ptr<URLLoader> url_loader;
-  context().mutable_factory_params().process_id = mojom::kBrowserProcessId;
+  context().mutable_factory_params().process_id = OriginatingProcess::browser();
   url_loader = URLLoaderOptions().MakeURLLoader(
       context(), DeleteLoaderCallback(&delete_run_loop, &url_loader),
       loader.InitWithNewPipeAndPassReceiver(), request,
@@ -6891,7 +6997,7 @@ TEST_P(URLLoaderSyncOrAsyncTrustTokenOperationTest,
   base::RunLoop delete_run_loop;
   mojo::PendingRemote<mojom::URLLoader> loader_remote;
   std::unique_ptr<URLLoader> url_loader;
-  context().mutable_factory_params().process_id = mojom::kBrowserProcessId;
+  context().mutable_factory_params().process_id = OriginatingProcess::browser();
   MockTrustTokenDevToolsObserver devtools_observer;
 
   URLLoaderOptions url_loader_options;
@@ -6954,7 +7060,7 @@ TEST_P(URLLoaderSyncOrAsyncTrustTokenOperationTest,
   base::RunLoop delete_run_loop;
   mojo::PendingRemote<mojom::URLLoader> loader_remote;
   std::unique_ptr<URLLoader> url_loader;
-  context().mutable_factory_params().process_id = mojom::kBrowserProcessId;
+  context().mutable_factory_params().process_id = OriginatingProcess::browser();
   MockTrustTokenDevToolsObserver devtools_observer;
 
   URLLoaderOptions url_loader_options;
@@ -7002,7 +7108,7 @@ TEST_P(URLLoaderSyncOrAsyncTrustTokenOperationTest,
   base::RunLoop delete_run_loop;
   mojo::PendingRemote<mojom::URLLoader> loader_remote;
   std::unique_ptr<URLLoader> url_loader;
-  context().mutable_factory_params().process_id = mojom::kBrowserProcessId;
+  context().mutable_factory_params().process_id = OriginatingProcess::browser();
   MockTrustTokenDevToolsObserver devtools_observer;
 
   URLLoaderOptions url_loader_options;
@@ -7053,7 +7159,7 @@ TEST_P(URLLoaderSyncOrAsyncTrustTokenOperationTest,
   base::RunLoop delete_run_loop;
   mojo::PendingRemote<mojom::URLLoader> loader_remote;
   std::unique_ptr<URLLoader> url_loader;
-  context().mutable_factory_params().process_id = mojom::kBrowserProcessId;
+  context().mutable_factory_params().process_id = OriginatingProcess::browser();
   MockTrustTokenDevToolsObserver devtools_observer;
 
   URLLoaderOptions url_loader_options;
@@ -7100,7 +7206,7 @@ TEST_P(URLLoaderSyncOrAsyncTrustTokenOperationTest,
   base::RunLoop delete_run_loop;
   mojo::PendingRemote<mojom::URLLoader> loader_remote;
   std::unique_ptr<URLLoader> url_loader;
-  context().mutable_factory_params().process_id = mojom::kBrowserProcessId;
+  context().mutable_factory_params().process_id = OriginatingProcess::browser();
   MockTrustTokenDevToolsObserver devtools_observer;
 
   URLLoaderOptions url_loader_options;
@@ -7144,7 +7250,7 @@ TEST_P(URLLoaderSyncOrAsyncTrustTokenOperationTest,
   base::RunLoop delete_run_loop;
   mojo::PendingRemote<mojom::URLLoader> loader_remote;
   std::unique_ptr<URLLoader> url_loader;
-  context().mutable_factory_params().process_id = mojom::kBrowserProcessId;
+  context().mutable_factory_params().process_id = OriginatingProcess::browser();
   MockTrustTokenDevToolsObserver devtools_observer;
 
   URLLoaderOptions url_loader_options;
@@ -7187,8 +7293,8 @@ TEST_F(URLLoaderTest, OnRawRequestClientSecurityStateFactory) {
 
   auto client_security_state = mojom::ClientSecurityState::New();
   client_security_state->is_web_secure_context = false;
-  client_security_state->private_network_request_policy =
-      mojom::PrivateNetworkRequestPolicy::kAllow;
+  client_security_state->local_network_access_request_policy =
+      mojom::LocalNetworkAccessRequestPolicy::kAllow;
   client_security_state->ip_address_space = mojom::IPAddressSpace::kPublic;
   context().mutable_factory_params().client_security_state =
       std::move(client_security_state);
@@ -7212,9 +7318,9 @@ TEST_F(URLLoaderTest, OnRawRequestClientSecurityStateFactory) {
 
   devtools_observer.WaitUntilRawRequest(0);
   ASSERT_TRUE(devtools_observer.client_security_state());
-  EXPECT_EQ(
-      devtools_observer.client_security_state()->private_network_request_policy,
-      mojom::PrivateNetworkRequestPolicy::kAllow);
+  EXPECT_EQ(devtools_observer.client_security_state()
+                ->local_network_access_request_policy,
+            mojom::LocalNetworkAccessRequestPolicy::kAllow);
   EXPECT_EQ(devtools_observer.client_security_state()->is_web_secure_context,
             false);
   EXPECT_EQ(devtools_observer.client_security_state()->ip_address_space,
@@ -7228,8 +7334,8 @@ TEST_F(URLLoaderTest, OnRawRequestClientSecurityStateRequest) {
   request.devtools_request_id = "fake-id";
   auto client_security_state = mojom::ClientSecurityState::New();
   client_security_state->is_web_secure_context = false;
-  client_security_state->private_network_request_policy =
-      mojom::PrivateNetworkRequestPolicy::kAllow;
+  client_security_state->local_network_access_request_policy =
+      mojom::LocalNetworkAccessRequestPolicy::kAllow;
   client_security_state->ip_address_space = mojom::IPAddressSpace::kPublic;
   request.trusted_params->client_security_state =
       std::move(client_security_state);
@@ -7251,9 +7357,9 @@ TEST_F(URLLoaderTest, OnRawRequestClientSecurityStateRequest) {
 
   devtools_observer.WaitUntilRawRequest(0);
   ASSERT_TRUE(devtools_observer.client_security_state());
-  EXPECT_EQ(
-      devtools_observer.client_security_state()->private_network_request_policy,
-      mojom::PrivateNetworkRequestPolicy::kAllow);
+  EXPECT_EQ(devtools_observer.client_security_state()
+                ->local_network_access_request_policy,
+            mojom::LocalNetworkAccessRequestPolicy::kAllow);
   EXPECT_EQ(devtools_observer.client_security_state()->is_web_secure_context,
             false);
   EXPECT_EQ(devtools_observer.client_security_state()->ip_address_space,
@@ -7444,8 +7550,8 @@ TEST_F(URLLoaderMockSocketTest, CorpClosesSocket) {
   auto client_security_state = NewSecurityState();
   client_security_state->cross_origin_embedder_policy.value =
       mojom::CrossOriginEmbedderPolicyValue::kRequireCorp;
-  client_security_state->private_network_request_policy =
-      mojom::PrivateNetworkRequestPolicy::kAllow;
+  client_security_state->local_network_access_request_policy =
+      mojom::LocalNetworkAccessRequestPolicy::kAllow;
   set_factory_client_security_state(std::move(client_security_state));
 
   const net::MockRead kReads[] = {
@@ -7482,8 +7588,8 @@ class URLLoaderMockSocketAuctionOnlyTest
 TEST_P(URLLoaderMockSocketAuctionOnlyTest,
        FetchAuctionOnlySignalsFromRendererClosesSocket) {
   auto client_security_state = NewSecurityState();
-  client_security_state->private_network_request_policy =
-      mojom::PrivateNetworkRequestPolicy::kAllow;
+  client_security_state->local_network_access_request_policy =
+      mojom::LocalNetworkAccessRequestPolicy::kAllow;
   set_factory_client_security_state(std::move(client_security_state));
 
   const std::string first_read = base::StringPrintf(
@@ -7520,8 +7626,8 @@ TEST_P(URLLoaderMockSocketAuctionOnlyTest,
 TEST_P(URLLoaderMockSocketAuctionOnlyTest,
        FetchAuctionOnlySignalsFromBrowserProcessSucceeds) {
   auto client_security_state = NewSecurityState();
-  client_security_state->private_network_request_policy =
-      mojom::PrivateNetworkRequestPolicy::kAllow;
+  client_security_state->local_network_access_request_policy =
+      mojom::LocalNetworkAccessRequestPolicy::kAllow;
   set_factory_client_security_state(std::move(client_security_state));
 
   const std::string first_read = base::StringPrintf(
@@ -7562,10 +7668,11 @@ INSTANTIATE_TEST_SUITE_P(
         "X-FLEDGE-Auction-Only: true\r\n",
         "Ad-Auction-Only: true\r\nX-FLEDGE-Auction-Only: true\r\n"));
 
-TEST_F(URLLoaderMockSocketTest, PrivateNetworkRequestPolicyDoesNotCloseSocket) {
+TEST_F(URLLoaderMockSocketTest,
+       LocalNetworkAccessRequestPolicyDoesNotCloseSocket) {
   auto client_security_state = NewSecurityState();
-  client_security_state->private_network_request_policy =
-      mojom::PrivateNetworkRequestPolicy::kBlock;
+  client_security_state->local_network_access_request_policy =
+      mojom::LocalNetworkAccessRequestPolicy::kBlock;
   set_factory_client_security_state(std::move(client_security_state));
 
   // No data should be read or written. Trying to do so will assert.
@@ -8059,7 +8166,7 @@ TEST_F(URLLoaderTest, NoAdditionalDnsAliases) {
 }
 
 TEST_F(URLLoaderTest,
-       PrivateNetworkRequestPolicyReportsOnPrivateNetworkRequestWarn) {
+       LocalNetworkRequestPolicyReportsOnLocalNetworkRequestWarn) {
   url::Origin initiator =
       url::Origin::Create(GURL("http://other-origin.test/"));
 
@@ -8071,8 +8178,8 @@ TEST_F(URLLoaderTest,
 
   auto client_security_state = NewSecurityState();
   client_security_state->is_web_secure_context = false;
-  client_security_state->private_network_request_policy =
-      mojom::PrivateNetworkRequestPolicy::kWarn;
+  client_security_state->local_network_access_request_policy =
+      mojom::LocalNetworkAccessRequestPolicy::kWarn;
   client_security_state->ip_address_space = mojom::IPAddressSpace::kPublic;
   set_factory_client_security_state(std::move(client_security_state));
 
@@ -8081,13 +8188,13 @@ TEST_F(URLLoaderTest,
 
   EXPECT_EQ(net::OK, LoadRequest(request));
 
-  devtools_observer.WaitUntilPrivateNetworkRequest();
-  ASSERT_TRUE(devtools_observer.private_network_request_params());
-  auto& params = *devtools_observer.private_network_request_params();
+  devtools_observer.WaitUntilLocalNetworkRequest();
+  ASSERT_TRUE(devtools_observer.local_network_request_params());
+  auto& params = *devtools_observer.local_network_request_params();
   ASSERT_TRUE(params.client_security_state);
   auto& state = params.client_security_state;
-  EXPECT_EQ(state->private_network_request_policy,
-            mojom::PrivateNetworkRequestPolicy::kWarn);
+  EXPECT_EQ(state->local_network_access_request_policy,
+            mojom::LocalNetworkAccessRequestPolicy::kWarn);
   EXPECT_EQ(state->is_web_secure_context, false);
   EXPECT_EQ(state->ip_address_space, mojom::IPAddressSpace::kPublic);
   EXPECT_EQ(params.resource_address_space, mojom::IPAddressSpace::kLoopback);
@@ -8097,7 +8204,7 @@ TEST_F(URLLoaderTest,
 }
 
 TEST_F(URLLoaderTest,
-       PrivateNetworkRequestPolicyReportsOnPrivateNetworkRequestBlock) {
+       LocalNetworkRequestPolicyReportsOnLocalNetworkRequestBlock) {
   url::Origin initiator =
       url::Origin::Create(GURL("http://other-origin.test/"));
 
@@ -8109,8 +8216,8 @@ TEST_F(URLLoaderTest,
 
   auto client_security_state = NewSecurityState();
   client_security_state->is_web_secure_context = false;
-  client_security_state->private_network_request_policy =
-      mojom::PrivateNetworkRequestPolicy::kBlock;
+  client_security_state->local_network_access_request_policy =
+      mojom::LocalNetworkAccessRequestPolicy::kBlock;
   client_security_state->ip_address_space = mojom::IPAddressSpace::kPublic;
   set_factory_client_security_state(std::move(client_security_state));
 
@@ -8120,13 +8227,13 @@ TEST_F(URLLoaderTest,
   EXPECT_EQ(net::ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS,
             LoadRequest(request));
 
-  devtools_observer.WaitUntilPrivateNetworkRequest();
-  ASSERT_TRUE(devtools_observer.private_network_request_params());
-  auto& params = *devtools_observer.private_network_request_params();
+  devtools_observer.WaitUntilLocalNetworkRequest();
+  ASSERT_TRUE(devtools_observer.local_network_request_params());
+  auto& params = *devtools_observer.local_network_request_params();
   ASSERT_TRUE(params.client_security_state);
   auto& state = params.client_security_state;
-  EXPECT_EQ(state->private_network_request_policy,
-            mojom::PrivateNetworkRequestPolicy::kBlock);
+  EXPECT_EQ(state->local_network_access_request_policy,
+            mojom::LocalNetworkAccessRequestPolicy::kBlock);
   EXPECT_EQ(state->is_web_secure_context, false);
   EXPECT_EQ(state->ip_address_space, mojom::IPAddressSpace::kPublic);
   EXPECT_EQ(params.resource_address_space, mojom::IPAddressSpace::kLoopback);
@@ -8136,7 +8243,7 @@ TEST_F(URLLoaderTest,
 }
 
 TEST_F(URLLoaderTest,
-       PrivateNetworkRequestPolicyReportsOnPrivateNetworkRequestAllow) {
+       LocalNetworkRequestPolicyReportsOnLocalNetworkRequestAllow) {
   url::Origin initiator =
       url::Origin::Create(GURL("http://other-origin.test/"));
 
@@ -8148,8 +8255,8 @@ TEST_F(URLLoaderTest,
 
   auto client_security_state = NewSecurityState();
   client_security_state->is_web_secure_context = false;
-  client_security_state->private_network_request_policy =
-      mojom::PrivateNetworkRequestPolicy::kAllow;
+  client_security_state->local_network_access_request_policy =
+      mojom::LocalNetworkAccessRequestPolicy::kAllow;
   client_security_state->ip_address_space = mojom::IPAddressSpace::kPublic;
   set_factory_client_security_state(std::move(client_security_state));
 
@@ -8158,9 +8265,9 @@ TEST_F(URLLoaderTest,
 
   EXPECT_EQ(net::OK, LoadRequest(request));
 
-  // Check that OnPrivateNetworkRequest wasn't triggered.
+  // Check that OnLocalNetworkRequest wasn't triggered.
   devtools_observer.WaitUntilRawResponse(0);
-  EXPECT_FALSE(devtools_observer.private_network_request_params());
+  EXPECT_FALSE(devtools_observer.local_network_request_params());
 }
 
 // An empty ACCEPT_CH frame should skip the client call.
@@ -8249,8 +8356,8 @@ TEST_F(URLLoaderFakeTransportInfoTest, LocalNetworkAccessAndAcceptCHFrame) {
       features::kLocalNetworkAccessChecks);
   auto client_security_state = NewSecurityState();
   client_security_state->ip_address_space = mojom::IPAddressSpace::kPublic;
-  client_security_state->private_network_request_policy =
-      mojom::PrivateNetworkRequestPolicy::kPermissionBlock;
+  client_security_state->local_network_access_request_policy =
+      mojom::LocalNetworkAccessRequestPolicy::kPermissionBlock;
   set_factory_client_security_state(std::move(client_security_state));
 
   // Simulate that the permission request was granted.
@@ -8344,7 +8451,7 @@ TEST_F(URLLoaderTest, SetLoadTimingInternalInfoForTrustedLoaders) {
   base::RunLoop delete_run_loop;
   mojo::PendingRemote<mojom::URLLoader> loader;
   std::unique_ptr<URLLoader> url_loader;
-  context().mutable_factory_params().process_id = mojom::kBrowserProcessId;
+  context().mutable_factory_params().process_id = OriginatingProcess::browser();
   url_loader = URLLoaderOptions().MakeURLLoader(
       context(), DeleteLoaderCallback(&delete_run_loop, &url_loader),
       loader.InitWithNewPipeAndPassReceiver(), request,
@@ -8364,7 +8471,7 @@ TEST_F(URLLoaderTest, DoNotSetLoadTimingInternalInfoForUntrustedLoaders) {
   base::RunLoop delete_run_loop;
   mojo::PendingRemote<mojom::URLLoader> loader;
   std::unique_ptr<URLLoader> url_loader;
-  context().mutable_factory_params().process_id = mojom::kBrowserProcessId;
+  context().mutable_factory_params().process_id = OriginatingProcess::browser();
   url_loader = URLLoaderOptions().MakeURLLoader(
       context(), DeleteLoaderCallback(&delete_run_loop, &url_loader),
       loader.InitWithNewPipeAndPassReceiver(), request,
@@ -8448,8 +8555,8 @@ TEST_F(URLLoaderFakeTransportInfoTest,
       features::kLocalNetworkAccessChecks);
   auto client_security_state = NewSecurityState();
   client_security_state->ip_address_space = mojom::IPAddressSpace::kPublic;
-  client_security_state->private_network_request_policy =
-      mojom::PrivateNetworkRequestPolicy::kPermissionBlock;
+  client_security_state->local_network_access_request_policy =
+      mojom::LocalNetworkAccessRequestPolicy::kPermissionBlock;
   set_factory_client_security_state(std::move(client_security_state));
 
   // Simulate a cached resource and that the permission request would ask.
@@ -8483,8 +8590,8 @@ TEST_F(URLLoaderFakeTransportInfoTest,
       features::kLocalNetworkAccessChecks);
   auto client_security_state = NewSecurityState();
   client_security_state->ip_address_space = mojom::IPAddressSpace::kPublic;
-  client_security_state->private_network_request_policy =
-      mojom::PrivateNetworkRequestPolicy::kPermissionBlock;
+  client_security_state->local_network_access_request_policy =
+      mojom::LocalNetworkAccessRequestPolicy::kPermissionBlock;
   set_factory_client_security_state(std::move(client_security_state));
 
   // Simulate a direct network request and that the permission request would be

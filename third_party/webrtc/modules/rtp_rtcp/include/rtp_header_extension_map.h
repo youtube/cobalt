@@ -11,8 +11,8 @@
 #ifndef MODULES_RTP_RTCP_INCLUDE_RTP_HEADER_EXTENSION_MAP_H_
 #define MODULES_RTP_RTCP_INCLUDE_RTP_HEADER_EXTENSION_MAP_H_
 
-#include <stdint.h>
-
+#include <array>
+#include <cstdint>
 
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"
@@ -65,7 +65,7 @@ class RtpHeaderExtensionMap {
  private:
   bool Register(int id, RTPExtensionType type, absl::string_view uri);
 
-  uint8_t ids_[kRtpExtensionNumberOfExtensions];
+  std::array<uint8_t, kRtpExtensionNumberOfExtensions> ids_;
   bool extmap_allow_mixed_;
 };
 

@@ -276,6 +276,7 @@ class DtlsTransportInternalImpl : public DtlsTransportInternal {
   // Two methods for testing.
   bool IsDtlsPiggybackSupportedByPeer();
   bool WasDtlsCompletedByPiggybacking();
+  void SetFakeIceLite() { fake_ice_lite_ = true; }
 
  private:
   void ConnectToIceTransport();
@@ -367,6 +368,9 @@ class DtlsTransportInternalImpl : public DtlsTransportInternal {
   // DtlsTransportInternalImpl has a "hack" to periodically retransmit.
   bool pending_periodic_retransmit_dtls_packet_ = false;
   ScopedTaskSafetyDetached safety_flag_;
+
+  // We reuse this class also in tests that pretend to be ice-lite.
+  bool fake_ice_lite_ = false;
 };
 
 }  // namespace webrtc

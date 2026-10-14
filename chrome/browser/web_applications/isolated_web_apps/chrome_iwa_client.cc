@@ -57,35 +57,23 @@ GetIwaSourceWithTrustCheck(base::WeakPtr<Profile> profile,
   }
   WebAppRegistrar& registrar =
       WebAppProvider::GetForWebApps(profile.get())->registrar_unsafe();
-  const WebApp* iwa = registrar.GetAppById(iwa_id);
-  if (!iwa || !iwa->isolation_data()) {
+  const WebApp* iwa =
+      registrar.GetAppById(iwa_id, WebAppFilter::IsIsolatedApp());
+  if (!iwa) {
     return base::unexpected(SourceRequestError{
         .net_error = net::ERR_FAILED,
         .error_description = base::StringPrintf(
             "There's no matching Isolated Web App installed.")});
   }
-  if (iwa->isolation_data()->location().dev_mode() &&
-      !IsIwaDevModeEnabled(profile.get())) {
-    return base::unexpected(SourceRequestError{
-        .net_error = net::ERR_FAILED,
-        .error_description =
-            "Isolated Web App Developer Mode is not enabled or "
-            "blocked by policy."});
-  }
-  auto source = IwaSourceWithMode::FromStorageLocation(
+  RETURN_IF_ERROR(IsolatedWebAppTrustChecker::IsResourceLoadingAllowed(
+                      *profile, web_bundle_id, *iwa)
+                      .transform_error([](const std::string& error) {
+                        return SourceRequestError{
+                            .net_error = net::ERR_INVALID_WEB_BUNDLE,
+                            .error_description = error};
+                      }));
+  return IwaSourceWithMode::FromStorageLocation(
       profile->GetPath(), iwa->isolation_data()->location());
-  if (std::holds_alternative<IwaSourceBundleWithMode>(source.variant())) {
-    // TODO(crbug.com/474076928): Split up IsTrusted() so that
-    // holds_alternative check is not needed.
-    RETURN_IF_ERROR(IsolatedWebAppTrustChecker::IsTrusted(
-                        *profile, web_bundle_id, source.dev_mode())
-                        .transform_error([](const std::string& error) {
-                          return SourceRequestError{
-                              .net_error = net::ERR_INVALID_WEB_BUNDLE,
-                              .error_description = error};
-                        }));
-  }
-  return source;
 }
 
 void GetIwaSourceForRequestImpl(
@@ -123,20 +111,14 @@ void GetIwaSourceForRequestImpl(
     if (const auto* inspection_context =
             NonInstalledBundleInspectionContext::FromWebContents(
                 web_contents)) {
-      if (std::holds_alternative<IwaSourceBundleWithMode>(
-              inspection_context->source().variant())) {
-        // TODO(crbug.com/474076928): Split up IsTrusted() so that
-        // holds_alternative check is not needed.
-        RETURN_IF_ERROR(
-            IsolatedWebAppTrustChecker::IsTrusted(
-                *profile, web_bundle_id,
-                inspection_context->source().dev_mode()),
-            [&](const std::string& error) {
-              std::move(callback).Run(base::unexpected(
-                  SourceRequestError{.net_error = net::ERR_INVALID_WEB_BUNDLE,
-                                     .error_description = error}));
-            });
-      }
+      RETURN_IF_ERROR(
+          IsolatedWebAppTrustChecker::IsResourceLoadingAllowed(
+              *profile, web_bundle_id, *inspection_context),
+          [&](const std::string& error) {
+            std::move(callback).Run(base::unexpected(
+                SourceRequestError{.net_error = net::ERR_INVALID_WEB_BUNDLE,
+                                   .error_description = error}));
+          });
       if (request.url.GetPath() == kInstallPagePath) {
         std::move(callback).Run(
             GeneratedResponse{.response_body = kInstallPageContent});
@@ -152,9 +134,10 @@ void GetIwaSourceForRequestImpl(
           .app_id();
   auto* provider = WebAppProvider::GetForWebApps(profile.get());
 
-  if (provider->iwa_update_manager().IsUpdateBeingApplied(iwa_id)) {
+  if (provider->isolated_web_app_update_manager().IsUpdateBeingApplied(
+          iwa_id)) {
     // TODO(crbug.com/432676258): How likely is this case?
-    provider->iwa_update_manager().PrioritizeUpdateAndWait(
+    provider->isolated_web_app_update_manager().PrioritizeUpdateAndWait(
         iwa_id,
         // We ignore whether or not the update was applied successfully - if
         // it succeeds, we send the request to the updated version. If it

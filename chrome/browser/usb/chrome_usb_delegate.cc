@@ -12,8 +12,8 @@
 #include "base/observer_list_types.h"
 #include "base/scoped_observation.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser_dialogs.h"
 #include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/dialogs/browser_dialogs.h"
 #include "chrome/browser/usb/usb_blocklist.h"
 #include "chrome/browser/usb/usb_chooser_context.h"
 #include "chrome/browser/usb/usb_chooser_context_factory.h"
@@ -207,7 +207,7 @@ void ChromeUsbDelegate::AdjustProtectedInterfaceClasses(
   // as badge readers)
   static constexpr auto kHidPrivilegedExtensionIds =
       base::MakeFixedFlatSet<std::string_view>({
-          // Imprivata Extensions, see crbug.com/1065112 and crbug.com/995294.
+          // Imprivata Extensions, see crbug.com/1065112 and crbug.com/40640984.
           "baobpecgllpajfeojepgedjdlnlfffde",
           "bnfoibgpjolimhppjmligmcgklpboloj",
           "cdgickkdpbekbnalbmpgochbninibkko",

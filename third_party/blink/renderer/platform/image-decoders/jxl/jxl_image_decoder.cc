@@ -4,9 +4,12 @@
 
 #include "third_party/blink/renderer/platform/image-decoders/jxl/jxl_image_decoder.h"
 
+#include "base/check_op.h"
 #include "base/containers/span.h"
 #include "base/time/time.h"
 #include "third_party/blink/renderer/platform/image-decoders/fast_shared_buffer_reader.h"
+#include "third_party/blink/renderer/platform/image-decoders/image_frame.h"
+#include "third_party/blink/renderer/platform/wtf/cross_thread_functional.h"
 #include "third_party/skia/include/core/SkColorSpace.h"
 #include "third_party/skia/include/core/SkTypes.h"
 
@@ -83,38 +86,24 @@ wtf_size_t JXLImageDecoder::DecodeFrameCount() {
     return 1;
   }
 
-  // Frame discovery strategy:
-  // - When all data is received: discover ALL frames. The animation system
-  //   needs complete frame metadata (durations, timestamps) for proper
-  //   playback.
-  // - During incremental loading: peek-ahead discovery (decode up to 2 frames
-  //   per call) to avoid blocking while data streams in.
-  if (IsAllDataReceived()) {
-    // Discover all frames when all data is available.
-    while (!all_frames_discovered_ && !Failed()) {
-      Decode(num_decoded_frames_, /*only_size=*/false);
+  // If we have received all the data, we must produce the correct
+  // frame count. Thus, we always decode all the data we have.
+  // TODO(veluca): for long animations, this will currently decode
+  // the entire file, using a large amount of memory and CPU time.
+  // Avoid doing that once jxl-rs supports seeking and/or frame
+  // skipping.
+  while (decoder_state_ != DecoderState::kDone) {
+    size_t offset_pre = input_offset_;
+    size_t decoded_frames_pre = num_decoded_frames_;
+    Decode(num_decoded_frames_, /*only_size=*/false);
+    // Exit the loop if the image is corrupted or we didn't make any progress.
+    if (Failed() || (offset_pre == input_offset_ &&
+                     num_decoded_frames_ == decoded_frames_pre)) {
+      break;
     }
-  } else {
-    // Peek-ahead discovery during incremental loading.
-    for (int i = 0; i < 2 && !all_frames_discovered_ && !Failed(); i++) {
-      Decode(num_decoded_frames_, /*only_size=*/false);
-    }
   }
 
-  // Return discovered count, +1 if more frames might exist during streaming.
-  wtf_size_t count = all_frames_discovered_ ? num_discovered_frames_
-                                            : num_discovered_frames_ + 1;
-
-  // Ensure we report at least 1 frame for animations.
-  if (count == 0 && have_basic_info_) {
-    count = 1;
-  }
-
-  if (frame_buffer_cache_.size() < count) {
-    frame_buffer_cache_.resize(count);
-  }
-
-  return count;
+  return frame_buffer_cache_.size();
 }
 
 void JXLImageDecoder::InitializeNewFrame(wtf_size_t index) {
@@ -126,11 +115,14 @@ void JXLImageDecoder::InitializeNewFrame(wtf_size_t index) {
     buffer.SetPixelFormat(ImageFrame::PixelFormat::kRGBA_F16);
   }
 
+  buffer.SetPremultiplyAlpha(premultiply_alpha_);
   buffer.SetHasAlpha(basic_info_.has_alpha);
   buffer.SetOriginalFrameRect(gfx::Rect(Size()));
   buffer.SetRequiredPreviousFrameIndex(kNotFound);
 
-  if (index < frame_info_.size() && frame_info_[index].received) {
+  // Set duration/timestamp if the frame header has been parsed.
+  // This is available before the frame is fully decoded.
+  if (index < frame_info_.size()) {
     const FrameInfo& info = frame_info_[index];
     buffer.SetDuration(info.duration);
     buffer.SetTimestamp(info.timestamp);
@@ -171,8 +163,6 @@ void JXLImageDecoder::Decode(wtf_size_t index, bool only_size) {
       (*decoder_)->rewind();
       decoder_state_ = DecoderState::kInitial;
       num_decoded_frames_ = 0;
-      num_discovered_frames_ = 0;
-      all_frames_discovered_ = false;
       input_offset_ = 0;
       // Keep basic_info_ and have_basic_info_ since the stream hasn't changed.
     }
@@ -182,28 +172,6 @@ void JXLImageDecoder::Decode(wtf_size_t index, bool only_size) {
   // premultiplication natively (faster and handles alpha_associated correctly).
   if (!decoder_.has_value()) {
     decoder_ = jxl_rs_decoder_create(kMaxDecodedPixels, premultiply_alpha_);
-  }
-
-  // Initialize frame buffer early for progressive decoding if we have metadata.
-  // This ensures ImageDecoderWrapper sees a non-empty frame and caches our
-  // decoder between calls. Must be done before the decode loop since we may
-  // be resuming from a previous partial decode.
-  if (!only_size && have_basic_info_ && index < 1) {
-    wtf_size_t frame_index = 0;
-    if (frame_buffer_cache_.size() <= frame_index) {
-      frame_buffer_cache_.resize(frame_index + 1);
-    }
-    ImageFrame& frame = frame_buffer_cache_[frame_index];
-    if (frame.GetStatus() == ImageFrame::kFrameEmpty) {
-      frame.SetPremultiplyAlpha(premultiply_alpha_);
-      InitializeNewFrame(frame_index);
-      if (!InitFrameBuffer(frame_index)) {
-        SetFailed();
-        return;
-      }
-      frame.SetHasAlpha(basic_info_.has_alpha);
-      frame.SetStatus(ImageFrame::kFramePartial);
-    }
   }
 
   // Process until we get what we need.
@@ -293,6 +261,16 @@ void JXLImageDecoder::Decode(wtf_size_t index, bool only_size) {
           }
         }
 
+        // Record bpp information only for 8-bit, color, still images without
+        // alpha.
+        if (!have_basic_info_ && basic_info_.bits_per_sample == 8 &&
+            !basic_info_.is_grayscale && !basic_info_.have_animation &&
+            !basic_info_.has_alpha) {
+          static constexpr char kType[] = "Jxl";
+          update_bpp_histogram_callback_ =
+              CrossThreadBindOnce(&UpdateBppHistogram<kType>);
+        }
+
         have_basic_info_ = true;
         decoder_state_ = DecoderState::kHaveBasicInfo;
 
@@ -312,15 +290,6 @@ void JXLImageDecoder::Decode(wtf_size_t index, bool only_size) {
         }
         if (result.status == JxlRsStatus::NeedMoreInput) {
           input_offset_ += result.bytes_consumed;
-          if (all_input) {
-            // No more frame headers available - we've discovered all frames.
-            all_frames_discovered_ = true;
-          }
-          // Signal partial progress to prevent decoder from being destroyed
-          if (index < frame_buffer_cache_.size()) {
-            ImageFrame& frame = frame_buffer_cache_[index];
-            frame.SetPixelsChanged(true);
-          }
           return;
         }
 
@@ -328,14 +297,12 @@ void JXLImageDecoder::Decode(wtf_size_t index, bool only_size) {
 
         // Successfully parsed a frame header - increment discovered count.
         JxlRsFrameHeader header = (*decoder_)->get_frame_header();
-        num_discovered_frames_++;
 
         if (basic_info_.have_animation) {
           wtf_size_t frame_idx = num_decoded_frames_;
           FrameInfo info;
           info.duration = base::Milliseconds(header.duration_ms);
           info.timestamp = base::TimeDelta();
-          info.received = false;
 
           if (frame_idx > 0 && frame_idx - 1 < frame_info_.size()) {
             const FrameInfo& prev = frame_info_[frame_idx - 1];
@@ -345,6 +312,7 @@ void JXLImageDecoder::Decode(wtf_size_t index, bool only_size) {
           if (frame_idx < frame_info_.size()) {
             frame_info_[frame_idx] = info;
           } else {
+            CHECK_EQ(frame_idx, frame_info_.size());
             frame_info_.push_back(info);
           }
         }
@@ -363,13 +331,21 @@ void JXLImageDecoder::Decode(wtf_size_t index, bool only_size) {
 
         ImageFrame& frame = frame_buffer_cache_[frame_index];
         if (frame.GetStatus() == ImageFrame::kFrameEmpty) {
-          frame.SetPremultiplyAlpha(premultiply_alpha_);
+          // We call InitializeNewFrame manually here because JXLImageDecoder,
+          // unlike other image decoder classes, handles the frame buffer cache
+          // in the decode loop. This happens because decoding the frame count
+          // also fully renders the frames - when we switch to lightweight
+          // decoding for frame count + decoding individual frames via seeking,
+          // we will likely be able to remove this call.
+          //
+          // IMPORTANT: InitializeNewFrame() must run before InitFrameBuffer(),
+          // so the base class allocates the correct backing store (e.g.
+          // RGBA_F16 for high bit depth + half float).
           InitializeNewFrame(frame_index);
-        }
-
-        if (!InitFrameBuffer(frame_index)) {
-          SetFailed();
-          return;
+          if (!InitFrameBuffer(frame_index)) {
+            SetFailed();
+            return;
+          }
         }
 
         frame.SetHasAlpha(basic_info_.has_alpha);
@@ -405,6 +381,11 @@ void JXLImageDecoder::Decode(wtf_size_t index, bool only_size) {
           input_offset_ += result.bytes_consumed;
 
           // Signal that pixels may have changed for progressive rendering.
+          // TODO(veluca): set the frame status to kFramePartial if and only
+          // if jxl-rs signals that some data has been painted (jxl-rs
+          // does not yet expose this functionality, nor does it do
+          // progressive rendering properly).
+          frame.SetStatus(ImageFrame::kFramePartial);
           frame.SetPixelsChanged(true);
           if (all_input) {
             SetFailed();
@@ -417,21 +398,24 @@ void JXLImageDecoder::Decode(wtf_size_t index, bool only_size) {
         frame.SetStatus(ImageFrame::kFrameComplete);
 
         if (frame_index < frame_info_.size()) {
-          FrameInfo& info = frame_info_[frame_index];
-          info.received = true;
+          const FrameInfo& info = frame_info_[frame_index];
           frame.SetDuration(info.duration);
           frame.SetTimestamp(info.timestamp);
         }
 
         num_decoded_frames_++;
 
-        // Check if there are more frames after this one.
-        if (!(*decoder_)->has_more_frames()) {
-          all_frames_discovered_ = true;
+        // Record bpp histogram for still images when fully decoded.
+        if (IsAllDataReceived() && update_bpp_histogram_callback_) {
+          std::move(update_bpp_histogram_callback_).Run(Size(), data_->size());
         }
 
-        // Go back to waiting for next frame header.
-        decoder_state_ = DecoderState::kHaveBasicInfo;
+        if ((*decoder_)->has_more_frames()) {
+          // Go back to waiting for next frame header.
+          decoder_state_ = DecoderState::kHaveBasicInfo;
+        } else {
+          decoder_state_ = DecoderState::kDone;
+        }
 
         // Check if we've decoded the requested frame.
         if (frame_index >= index) {
@@ -439,6 +423,8 @@ void JXLImageDecoder::Decode(wtf_size_t index, bool only_size) {
         }
         break;
       }
+      case DecoderState::kDone:
+        break;
     }
   }
 }
@@ -466,11 +452,9 @@ std::optional<base::TimeDelta> JXLImageDecoder::FrameTimestampAtIndex(
 }
 
 base::TimeDelta JXLImageDecoder::FrameDurationAtIndex(wtf_size_t index) const {
-  // Use frame_info_ which is populated at header parsing time.
-  // If the frame hasn't been discovered yet, trigger decoding to get its info.
-  if (index >= frame_info_.size() && !all_frames_discovered_ && !Failed()) {
-    const_cast<JXLImageDecoder*>(this)->Decode(index, /*only_size=*/false);
-  }
+  // Durations are available in frame_info_ for all discovered frames.
+  // Frame discovery happens in DecodeFrameCount() which is called by
+  // FrameCount() whenever new data arrives.
   if (index < frame_info_.size()) {
     return frame_info_[index].duration;
   }
@@ -491,8 +475,9 @@ int JXLImageDecoder::RepetitionCount() const {
 wtf_size_t JXLImageDecoder::ClearCacheExceptFrame(
     wtf_size_t clear_except_frame) {
   if (basic_info_.have_animation) {
-    // JXL animations can reference prior frames; jxl-rs does not yet expose
-    // per-frame dependencies, so keep all frames for correctness.
+    // TODO(veluca): jxl-rs does not (yet) support seeking to specific frames.
+    // For now, deal with this by disallowing clearing the cache.
+
     return 0;
   }
 

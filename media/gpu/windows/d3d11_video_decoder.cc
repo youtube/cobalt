@@ -896,8 +896,6 @@ bool D3D11VideoDecoder::OutputResult(const CodecPicture* picture,
   if (visible_rect.IsEmpty())
     visible_rect = config_.visible_rect();
 
-  // TODO(crbug.com/41389060): Use aspect ratio from decoder (SPS) if
-  // the config's aspect ratio isn't valid.
   gfx::Size natural_size = config_.aspect_ratio().GetNaturalSize(visible_rect);
 
   base::TimeDelta timestamp = picture_buffer->timestamp_;
@@ -1066,8 +1064,7 @@ void D3D11VideoDecoder::LogDecoderAdapterLUID() {
 
   ComDXGIAdapter dxgi_adapter;
   hr = dxgi_device->GetAdapter(&dxgi_adapter);
-  if (FAILED(hr))
-    return;
+  CHECK_EQ(hr, S_OK);
 
   DXGI_ADAPTER_DESC adapter_desc{};
   hr = dxgi_adapter->GetDesc(&adapter_desc);

@@ -31,7 +31,7 @@
         var(--oobe-adaptive-dialog-content-padding);
 
       /* Fonts vars */
-      --oobe-header-font-family: "Google Sans", Roboto, sans-serif;
+      --oobe-header-font-family: 'Google Sans', Roboto, sans-serif;
 
       --oobe-radio-card-label-font-size: 18px;
       --oobe-modal-dialog-header-font-size: 15px;
@@ -47,6 +47,7 @@
       --oobe-radio-card-label-line-height: 24px;
       /* Fonts vars end */
     }
+
     html.jelly-enabled {
       --oobe-adaptive-dialog-header-top-padding: 0px;
     }

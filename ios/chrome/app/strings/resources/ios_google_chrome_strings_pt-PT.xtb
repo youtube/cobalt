@@ -1,6 +1,7 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="pt-PT">
+<translation id="1035560095760914532">Coloque o Chrome na área inferior para aceder ao mesmo em qualquer altura</translation>
 <translation id="1076643793026027628">O Chrome abre automaticamente links de Navegação anónima do YouTube na Navegação anónima.</translation>
 <translation id="1081114897601629648">As seguintes palavras-passe não foram importadas para o Gestor de Palavras-passe da Google porque não correspondem aos requisitos.</translation>
 <translation id="1086486568852410168">Pesquisar com o Google Lens</translation>
@@ -86,6 +87,10 @@ Experimente aguardar alguns minutos antes de terminar sessão. Se terminar sess�
 <translation id="2767464022270041271">Não existem palavras-passe guardadas. O Gestor de Palavras-passe da Google pode verificar as suas palavras-passe quando as guardar.</translation>
 <translation id="2788811701191021538">Abre a página de definição dos métodos de pagamento no Chrome.</translation>
 <translation id="2876628302275096482">Saiba <ph name="BEGIN_LINK" />como o Chrome mantém os seus dados privados<ph name="END_LINK" /></translation>
+<translation id="288992067439702510">Atingiu o limite de <ph name="LIMIT" /> marcadores do Google Chrome, por isso, alguns dos seus marcadores ainda não foram guardados na sua Conta Google.
+
+Não é possível guardar novos marcadores na sua conta até eliminar alguns. Se terminar sessão agora, os marcadores não guardados são eliminados.</translation>
+<translation id="2901621928549457170">Abra o Chrome instantaneamente quando estiver no seu iPad</translation>
 <translation id="2922914028977213693">Toque aqui para tirar o máximo partido do Chrome no seu iPad.</translation>
 <translation id="292371311537977079">Definições do Chrome</translation>
 <translation id="2923827943290349720">Bloquear os separadores de navegação anónima quando fecha o Chrome</translation>
@@ -170,6 +175,8 @@ Experimente aguardar alguns minutos antes de terminar sessão. Se terminar sess�
 <translation id="5119391094379141756">Selecione o Chrome</translation>
 <translation id="5123188916260706415">Pesquise com a voz no Chrome</translation>
 <translation id="5162467219239570114">O Chrome está desatualizado. Se não estiverem disponíveis atualizações na <ph name="BEGIN_LINK" />App Store<ph name="END_LINK" />, é possível que o seu dispositivo já não suporte novas versões do Chrome.</translation>
+<translation id="5172049865623113551">Abra o Chrome instantaneamente quando estiver no seu iPhone</translation>
+<translation id="5179095426828744632">Aceda ao Chrome mais rapidamente a partir da dock</translation>
 <translation id="5184329579814168207">Abrir no Chrome</translation>
 <translation id="5190139289262548459">A sua organização, <ph name="DOMAIN" />, gere a conta na qual tem sessão iniciada e como o Chrome é usado.</translation>
 <translation id="5209238444239954363">O Chrome não conseguiu verificar se existem atualizações. Tente mais tarde.</translation>
@@ -304,7 +311,6 @@ Para ver mais definições que usam dados para melhorar a sua experiência do Ch
 <translation id="7787205077729386167">Abra as definições do Chrome no iOS, toque em "App de navegador predefinida" e selecione o Chrome.</translation>
 <translation id="778855399387580014">Inicie uma pesquisa no novo separador do Chrome.</translation>
 <translation id="7792140019572081272">O Chrome mantém os seus dados confidenciais seguros com o Face ID.</translation>
-<translation id="7825648984449922731">Editar imagem com o Gemini no Chrome</translation>
 <translation id="7855730255114109580">O Google Chrome está atualizado</translation>
 <translation id="787226752901403048">Inicie sessão no Chrome para partilhar e aderir a grupos de separadores, e desenvolver ideias em conjunto</translation>
 <translation id="7897703007638178753">Veja os separadores recentes do Chrome</translation>

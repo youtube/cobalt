@@ -46,6 +46,7 @@
 #include "chrome/browser/ui/views/profiles/profile_picker_glic_flow_controller.h"
 #include "chrome/browser/ui/views/profiles/profile_picker_sign_in_toolbar.h"
 #include "chrome/browser/ui/webui/signin/profile_picker_ui.h"
+#include "chrome/browser/ui/webui/signin/signin_ui_error.h"
 #include "chrome/browser/ui/webui/signin/signin_url_utils.h"
 #include "chrome/browser/user_education/user_education_service_factory.h"
 #include "chrome/common/pref_names.h"
@@ -103,11 +104,10 @@ constexpr int kSupportedAcceleratorCommands[] = {
 
 class ProfilePickerWidget : public views::Widget {
  public:
-  explicit ProfilePickerWidget(ProfilePickerView* profile_picker_view)
-      : profile_picker_view_(profile_picker_view) {
+  explicit ProfilePickerWidget(ProfilePickerView* profile_picker_view) {
     views::Widget::InitParams params(
         views::Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET);
-    params.delegate = profile_picker_view_;
+    params.delegate = profile_picker_view;
 #if BUILDFLAG(IS_LINUX)
     params.wm_class_name = shell_integration_linux::GetProgramClassName();
     params.wm_class_class = shell_integration_linux::GetProgramClassClass();
@@ -116,9 +116,6 @@ class ProfilePickerWidget : public views::Widget {
     Init(std::move(params));
   }
   ~ProfilePickerWidget() override = default;
-
- private:
-  const raw_ptr<ProfilePickerView, DanglingUntriaged> profile_picker_view_;
 };
 
 // Returns whether the current flow is part of the classic profile picker flow.
@@ -925,19 +922,17 @@ void ProfilePickerView::UpdateAccessibleNameForRootView(views::WebView*) {
   }
 }
 
-void ProfilePickerView::ShowForceSigninErrorDialog(
-    const ForceSigninUIError& error,
+void ProfilePickerView::ShowSigninErrorDialog(
+    const std::variant<ForceSigninUIError, SigninUIError>& error,
     bool switch_step_success) {
   if (!switch_step_success) {
     return;
   }
-
-  CHECK(signin_util::IsForceSigninEnabled());
   ProfilePickerUI* web_ui = web_view_->GetWebContents()
                                 ->GetWebUI()
                                 ->GetController()
                                 ->GetAs<ProfilePickerUI>();
-  web_ui->ShowForceSigninErrorDialog(error);
+  web_ui->ShowSigninErrorDialog(error);
 }
 
 BEGIN_METADATA(ProfilePickerView)

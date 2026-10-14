@@ -4,14 +4,12 @@
 
 import {PageHandlerFactory, PageHandlerRemote} from './browser.mojom-webui.js';
 import {loadTimeData} from '//resources/js/load_time_data.js';
-import {Url as MojoUrl} from '//resources/mojo/url/mojom/url.mojom-webui.js';
 
 import '/strings.m.js';
 
 interface WebshellServices {
   allowWebviewElementRegistration(callback: ()=>void): void;
-  attachIframeGuest(guestContentsId: number,
-                    contentWindow: Window | null): void
+  attachIframeGuest(guestContentsId: string, contentWindow: Window|null): void
 }
 
 declare var webshell: WebshellServices;
@@ -40,7 +38,7 @@ class BrowserProxy {
 
 class WebviewElement extends HTMLElement {
   public iframeElement: HTMLIFrameElement;
-  private guestContentsId: number;
+  private guestContentsId: string;
 
   constructor() {
     super();
@@ -50,14 +48,14 @@ class WebviewElement extends HTMLElement {
     this.iframeElement.style.padding = "0";
     this.iframeElement.style.flex = '1';
     this.appendChild(this.iframeElement);
-    this.guestContentsId = loadTimeData.getInteger('guest-contents-id');
+    this.guestContentsId = loadTimeData.getString('guest-contents-id');
     console.log('guest-contents-id', this.guestContentsId);
     const iframeContentWindow = this.iframeElement.contentWindow;
     webshell.attachIframeGuest(this.guestContentsId,
                                iframeContentWindow);
   }
 
-  navigate(src: MojoUrl) {
+  navigate(src: string) {
     BrowserProxy.getInstance().navigate(this.guestContentsId, src);
   }
 
@@ -83,7 +81,7 @@ function navigateToAddressBarUrl() {
       // validation error when sending this call to the browser. Successful
       // construction indicates a valid URL.
       const src = new URL(addressBar.value);
-      const mojoSrc: MojoUrl = {url: src.toString()};
+      const mojoSrc = src.toString();
       webview.navigate(mojoSrc);
     } catch (error) {
       console.error(error);

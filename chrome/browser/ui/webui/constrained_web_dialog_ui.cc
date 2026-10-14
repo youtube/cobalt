@@ -32,7 +32,7 @@ using content::WebUIMessageHandler;
 
 ConstrainedWebDialogUIConfig::ConstrainedWebDialogUIConfig()
     : DefaultWebUIConfig(content::kChromeUIScheme,
-                         chrome::kChromeUIConstrainedHTMLTestURL) {}
+                         chrome::kChromeUIConstrainedHTMLTestHost) {}
 
 namespace {
 
@@ -93,8 +93,7 @@ void ConstrainedWebDialogUI::WebUIRenderFrameCreated(
   dialog_delegate->OnDialogShown(web_ui());
 }
 
-void ConstrainedWebDialogUI::OnDialogCloseMessage(
-    const base::Value::List& args) {
+void ConstrainedWebDialogUI::OnDialogCloseMessage(const base::ListValue& args) {
   ConstrainedWebDialogDelegate* delegate = GetConstrainedDelegate();
   if (!delegate) {
     return;

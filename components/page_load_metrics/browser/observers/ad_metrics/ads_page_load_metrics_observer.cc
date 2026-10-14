@@ -47,6 +47,7 @@
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/common/child_process_id_util.h"
 #include "content/public/common/url_constants.h"
 #include "net/base/net_errors.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
@@ -148,19 +149,10 @@ void RecordPageLoadInitiatorForAdTaggingUkm(
   ukm::builders::PageLoadInitiatorForAdTagging builder(
       navigation_handle->GetRenderFrameHost()->GetPageUkmSourceId());
 
-  bool renderer_initiated = navigation_handle->IsRendererInitiated();
-  bool renderer_initiated_with_user_activation =
-      (navigation_handle->GetNavigationInitiatorActivationAndAdStatus() !=
-       blink::mojom::NavigationInitiatorActivationAndAdStatus::
-           kDidNotStartWithTransientActivation);
-  bool renderer_initiated_with_user_activation_from_ad =
-      (navigation_handle->GetNavigationInitiatorActivationAndAdStatus() ==
-       blink::mojom::NavigationInitiatorActivationAndAdStatus::
-           kStartedWithTransientActivationFromAd);
-
-  builder.SetFromUser(!renderer_initiated ||
-                      renderer_initiated_with_user_activation);
-  builder.SetFromAdClick(renderer_initiated_with_user_activation_from_ad);
+  builder.SetFromUser(!navigation_handle->IsRendererInitiated() ||
+                      navigation_handle->StartedWithTransientActivation());
+  builder.SetFromAdClick(navigation_handle->StartedWithTransientActivation() &&
+                         navigation_handle->StartedByAd());
 
   builder.Record(ukm_recorder->Get());
 }
@@ -260,8 +252,9 @@ AdsPageLoadMetricsObserver::HeavyAdThresholdNoiseProvider::
 base::ByteCount AdsPageLoadMetricsObserver::HeavyAdThresholdNoiseProvider::
     GetNetworkThresholdNoiseForFrame() const {
   return base::ByteCount(
-      use_noise_ ? base::RandInt(0, kMaxNetworkThresholdNoiseBytes.InBytes())
-                 : 0);
+      use_noise_
+          ? base::RandIntInclusive(0, kMaxNetworkThresholdNoiseBytes.InBytes())
+          : 0);
 }
 
 AdsPageLoadMetricsObserver::AdsPageLoadMetricsObserver(
@@ -336,13 +329,9 @@ PageLoadMetricsObserver::ObservePolicy AdsPageLoadMetricsObserver::OnCommit(
 
   RecordPageLoadInitiatorForAdTaggingUkm(navigation_handle);
 
-  // When NavigationInitiatorActivationAndAdStatus is
-  // kStartedWithTransientActivationFromAd, the navigation activated from a user
-  // ad click gesture.
-  if (history_service_ &&
-      navigation_handle->GetNavigationInitiatorActivationAndAdStatus() ==
-          blink::mojom::NavigationInitiatorActivationAndAdStatus::
-              kStartedWithTransientActivationFromAd) {
+  // The navigation activated from a user ad click gesture.
+  if (history_service_ && navigation_handle->StartedWithTransientActivation() &&
+      navigation_handle->StartedByAd()) {
     // Check the frequency of the navigation URL in history.
     QueryAdUrlFrequencyInHistory(
         history_service_.get(), navigation_handle->GetURL(),
@@ -838,7 +827,8 @@ base::ByteCount AdsPageLoadMetricsObserver::GetUnaccountedAdBytes(
   if (!resource->reported_as_ad_resource) {
     return base::ByteCount(0);
   }
-  content::GlobalRequestID global_request_id(process_id, resource->request_id);
+  content::GlobalRequestID global_request_id(
+      content::ToOriginatingProcessUnsafe(process_id), resource->request_id);
 
   // Resource just started loading.
   if (!GetDelegate().GetResourceTracker().HasPreviousUpdateForResource(

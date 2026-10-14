@@ -171,12 +171,9 @@ void IdentityLaunchWebAuthFlowFunction::StartAuthFlow(
       abort_on_load_for_non_interactive, timeout_for_non_interactive,
       popup_bounds);
 
-  // TODO(crbug.com/434156398): Add support for the infobar on desktop Android.
-#if BUILDFLAG(ENABLE_EXTENSIONS)
   // An extension might call `launchWebAuthFlow()` with any URL. Add an infobar
   // to attribute displayed URL to the extension.
   auth_flow_->SetShouldShowInfoBar(extension()->name());
-#endif
 
   auth_flow_->Start();
 }
@@ -215,7 +212,7 @@ void IdentityLaunchWebAuthFlowFunction::InitFinalRedirectURLDomainsForTest(
 
 void IdentityLaunchWebAuthFlowFunction::InitFinalRedirectURLDomains(
     const std::string& extension_id,
-    const base::Value::List* redirect_urls) {
+    const base::ListValue* redirect_urls) {
   if (!final_url_domains_.empty()) {
     return;
   }

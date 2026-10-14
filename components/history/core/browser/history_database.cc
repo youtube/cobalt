@@ -278,7 +278,7 @@ void HistoryDatabase::ComputeDatabaseMetrics(
 
   // Compute the advanced metrics even less often, pending timing data showing
   // that's not necessary.
-  if (base::RandInt(1, 3) == 3) {
+  if (base::RandIntInclusive(1, 3) == 3) {
     // Collect all URLs visited within the last month.
     base::Time one_month_ago = base::Time::Now() - base::Days(30);
     sql::Statement url_sql(db_.GetUniqueStatement(
@@ -387,14 +387,13 @@ DomainsVisitedResult HistoryDatabase::GetUniqueDomainsVisited(
   return result;
 }
 
-std::pair<int, int> HistoryDatabase::CountUniqueDomainsVisited(
+int HistoryDatabase::CountUniqueDomainsVisited(
     base::Time begin_time,
     base::Time end_time,
     VisitQuery404sPolicy policy_for_404_visits) {
   DomainsVisitedResult result =
       GetUniqueDomainsVisited(begin_time, end_time, policy_for_404_visits);
-  return {result.locally_visited_domains.size(),
-          result.all_visited_domains.size()};
+  return result.locally_visited_domains.size();
 }
 
 void HistoryDatabase::BeginExclusiveMode() {

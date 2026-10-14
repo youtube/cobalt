@@ -153,7 +153,7 @@ class ChromeRenderProcessHostTest : public extensions::ExtensionBrowserTest {
   // in a process of that type, even if that means creating a new process.
   void TestProcessOverflow() {
     int tab_count = 1;
-    int host_count = 1;
+    int host_count = RenderProcessHostCount();
     WebContents* tab1 = nullptr;
     WebContents* tab2 = nullptr;
     content::RenderProcessHost* rph1 = nullptr;
@@ -286,7 +286,7 @@ IN_PROC_BROWSER_TEST_F(ChromeRenderProcessHostTest, ProcessPerTab) {
   parsed_command_line.AppendSwitch(switches::kProcessPerTab);
 
   int tab_count = 1;
-  int host_count = 1;
+  int host_count = RenderProcessHostCount();
 
   content::RenderFrameDeletedObserver before_webui_obs(
       content::ConvertToRenderFrameHost(
@@ -503,7 +503,7 @@ IN_PROC_BROWSER_TEST_F(ChromeRenderProcessHostTest,
   parsed_command_line.AppendSwitch(switches::kProcessPerTab);
 
   int tab_count = 1;
-  int host_count = 1;
+  int host_count = RenderProcessHostCount();
 
   GURL page1("data:text/html,hello world1");
   ui_test_utils::TabAddedWaiter add_tab(browser());
@@ -544,7 +544,7 @@ IN_PROC_BROWSER_TEST_F(ChromeRenderProcessHostTest,
 IN_PROC_BROWSER_TEST_F(ChromeRenderProcessHostTest,
                        DevToolsOnSelfInOwnProcess) {
   int tab_count = 1;
-  int host_count = 1;
+  int host_count = RenderProcessHostCount();
 
   GURL page1("data:text/html,hello world1");
   ui_test_utils::TabAddedWaiter add_tab1(browser());
@@ -584,14 +584,17 @@ IN_PROC_BROWSER_TEST_F(ChromeRenderProcessHostTest,
 // closing the passed in TabStripModel. This is used in the following test case.
 class WindowDestroyer : public content::WebContentsObserver {
  public:
-  WindowDestroyer(content::WebContents* web_contents, TabStripModel* model)
-      : content::WebContentsObserver(web_contents), tab_strip_model_(model) {}
+  WindowDestroyer(BrowserWindowInterface* browser,
+                  content::WebContents* web_contents)
+      : content::WebContentsObserver(web_contents),
+        tab_strip_model_(browser->GetTabStripModel()),
+        observer_(browser) {}
 
   WindowDestroyer(const WindowDestroyer&) = delete;
   WindowDestroyer& operator=(const WindowDestroyer&) = delete;
 
   // Wait for the browser window to be destroyed.
-  void Wait() { ui_test_utils::WaitForBrowserToClose(); }
+  void Wait() { observer_.Wait(); }
 
   void PrimaryMainFrameRenderProcessGone(
       base::TerminationStatus status) override {
@@ -600,6 +603,7 @@ class WindowDestroyer : public content::WebContentsObserver {
 
  private:
   raw_ptr<TabStripModel> tab_strip_model_;
+  ui_test_utils::BrowserDestroyedObserver observer_;
 };
 
 // Test to ensure that while iterating through all listeners in
@@ -627,7 +631,7 @@ IN_PROC_BROWSER_TEST_F(ChromeRenderProcessHostTest,
             wc2->GetPrimaryMainFrame()->GetProcess());
 
   // Create an object that will close the window on a process crash.
-  WindowDestroyer destroyer(wc1, browser()->tab_strip_model());
+  WindowDestroyer destroyer(browser(), wc1);
 
   // Kill the renderer process, simulating a crash. This should the ProcessDied
   // method to be called. Alternatively, RenderProcessHost::OnChannelError can

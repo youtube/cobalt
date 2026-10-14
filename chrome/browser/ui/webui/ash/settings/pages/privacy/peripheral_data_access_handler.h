@@ -7,13 +7,13 @@
 
 #include "base/callback_list.h"
 #include "base/memory/weak_ptr.h"
-#include "chrome/browser/ui/webui/settings/settings_page_ui_handler.h"
+#include "content/public/browser/web_ui_message_handler.h"
 
 class Profile;
 
 namespace ash::settings {
 
-class PeripheralDataAccessHandler : public ::settings::SettingsPageUIHandler {
+class PeripheralDataAccessHandler : public content::WebUIMessageHandler {
  public:
   static bool GetPrefState();
 
@@ -24,17 +24,17 @@ class PeripheralDataAccessHandler : public ::settings::SettingsPageUIHandler {
   PeripheralDataAccessHandler& operator=(const PeripheralDataAccessHandler&) =
       delete;
 
-  // SettingsPageUIHandler:
+  // content::WebUIMessageHandler:
   void RegisterMessages() override;
   void OnJavascriptAllowed() override;
   void OnJavascriptDisallowed() override;
 
  private:
   // Handles checking if thunderbolt is supported in this device.
-  void HandleThunderboltSupported(const base::Value::List& args);
+  void HandleThunderboltSupported(const base::ListValue& args);
 
   // Handles returning the policy state.
-  void HandleGetPolicyState(const base::Value::List& args);
+  void HandleGetPolicyState(const base::ListValue& args);
 
   // Observer for the CrosSetting.
   void OnPeripheralDataAccessProtectionChanged();

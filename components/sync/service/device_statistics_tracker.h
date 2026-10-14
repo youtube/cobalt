@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "base/containers/flat_map.h"
+#include "base/containers/flat_set.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/types/expected.h"
@@ -22,8 +23,9 @@ namespace signin {
 class IdentityManager;
 }  // namespace signin
 
-class PrefRegistrySimple;
-class PrefService;
+namespace sync_pb {
+class SyncEntity;
+}  // namespace sync_pb
 
 namespace syncer {
 
@@ -31,16 +33,13 @@ class DeviceStatisticsRequest;
 
 // This class sends a DeviceStatisticsRequest for every account on the device,
 // and once they all complete, records metrics about this.
-// DeviceStatisticsRequests are sent, and metrics are recorded, at most once per
-// day (achieved via timestamp persisted in a pref).
 class DeviceStatisticsTracker {
  public:
   using RequestFactory = base::RepeatingCallback<std::unique_ptr<
       DeviceStatisticsRequest>(const CoreAccountInfo&, const GURL&)>;
 
-  // `pref_service` and `identity_manager` must not be null.
-  DeviceStatisticsTracker(PrefService* pref_service,
-                          signin::IdentityManager* identity_manager,
+  // `identity_manager` must not be null.
+  DeviceStatisticsTracker(signin::IdentityManager* identity_manager,
                           const GURL& sync_server_url,
                           RequestFactory request_factory,
                           std::vector<std::string> current_device_cache_guids);
@@ -52,8 +51,6 @@ class DeviceStatisticsTracker {
   // Must only be called after refresh tokens have been loaded (so that the list
   // of accounts can actually be queried).
   void Start(base::OnceClosure callback);
-
-  static void RegisterProfilePrefs(PrefRegistrySimple* registry);
 
   // Metrics enums are public for testing.
 
@@ -90,6 +87,25 @@ class DeviceStatisticsTracker {
   };
   // LINT.ThenChange(//tools/metrics/histograms/metadata/sync/enums.xml:SyncDeviceStatisticsOutcome)
 
+  // LINT.IfChange(SyncDeviceStatisticsMultiDeviceReadiness)
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
+  enum class MultiDeviceReadiness {
+    // There is no primary account on the current device.
+    kSignedOut = 0,
+    // There is a primary account on the current device, but no other devices.
+    kSingleDevice = 1,
+    // There are other devices, but there is no history opt-in across this
+    // device and others (i.e. this device doesn't have history, and/or no
+    // other devices do).
+    kMultiDeviceWithoutHistory = 2,
+    // There are other devices, and both this device plus at least one other
+    // device have history opt-in.
+    kMultiDeviceWithHistory = 3,
+    kMaxValue = kMultiDeviceWithHistory
+  };
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/sync/enums.xml:SyncDeviceStatisticsMultiDeviceReadiness)
+
   // LINT.IfChange(SyncDeviceStatisticsPlatform)
   // These values are persisted to logs. Entries should not be renumbered and
   // numeric values should never be reused.
@@ -104,26 +120,67 @@ class DeviceStatisticsTracker {
   };
   // LINT.ThenChange(//tools/metrics/histograms/metadata/sync/enums.xml:SyncDeviceStatisticsPlatform)
 
+  // LINT.IfChange(SyncDeviceStatisticsHistoryOptInSummary)
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
+  enum class HistoryOptInSummary {
+    kThisDeviceYesOtherDevicesNA = 0,
+    kThisDeviceNoOtherDevicesNA = 1,
+    kThisDeviceYesOtherDevicesYes = 2,
+    kThisDeviceYesOtherDevicesNo = 3,
+    kThisDeviceNoOtherDevicesYes = 4,
+    kThisDeviceNoOtherDevicesNo = 5,
+    kMaxValue = kThisDeviceNoOtherDevicesNo
+  };
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/sync/enums.xml:SyncDeviceStatisticsHistoryOptInSummary)
+
  private:
+  struct DeviceData {
+    DeviceData(Platform platform, bool history_opt_in)
+        : platform(platform), history_opt_in(history_opt_in) {}
+    ~DeviceData() = default;
+
+    const Platform platform;
+    const bool history_opt_in;
+  };
+
   void RequestDoneForGaiaId(const GaiaId& gaia);
   void AllRequestsDone();
 
   void RecordOverallOutcome() const;
+  // Records `MultiDeviceReadiness` for the primary account (including for the
+  // case when there is no primary account).
+  void RecordPrimaryAccountMultiDeviceReadiness(
+      size_t other_devices,
+      size_t other_devices_with_history_opt_in) const;
 
   RequestsCompletedSuccess GetOverallSuccess() const;
   AccountsHaveOtherDevicesSummary GetOverallOutcome() const;
+  MultiDeviceReadiness GetPrimaryAccountMultiDeviceReadiness(
+      size_t other_devices,
+      size_t other_devices_with_history_opt_in) const;
+  HistoryOptInSummary GetHistoryOptInSummary(
+      size_t other_devices,
+      size_t other_devices_with_history_opt_in) const;
 
-  const raw_ptr<PrefService> pref_service_;
+  std::vector<DeviceData> DeduplicateEntities(
+      const std::vector<sync_pb::SyncEntity>& entities,
+      const base::flat_set<std::string>& current_device_cache_guids);
+
   const raw_ptr<signin::IdentityManager> identity_manager_;
 
   const GURL sync_server_url_;
 
   const RequestFactory request_factory_;
 
-  const std::vector<std::string> current_device_cache_guids_;
+  const base::flat_set<std::string> current_device_cache_guids_;
 
-  // Cached on construction, to later verify it hasn't changed.
+  // Cached on construction, to later verify it hasn't changed. May be empty.
   const CoreAccountInfo primary_account_;
+
+  // Whether the primary account is opted in to history (on this device).
+  // Populated when the corresponding request completes.
+  bool primary_account_history_opt_in_ = false;
 
   base::OnceClosure callback_;
 
@@ -136,7 +193,7 @@ class DeviceStatisticsTracker {
   // Results. This will have exactly one entry for every request that completed,
   // successfully or not. On success, the value is the list of all valid other
   // devices (which may be empty).
-  base::flat_map<GaiaId, base::expected<std::vector<Platform>, RequestFailed>>
+  base::flat_map<GaiaId, base::expected<std::vector<DeviceData>, RequestFailed>>
       other_devices_by_gaia_;
 };
 

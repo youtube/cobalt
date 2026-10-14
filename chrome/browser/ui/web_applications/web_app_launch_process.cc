@@ -9,7 +9,6 @@
 #include "base/memory/values_equivalent.h"
 #include "base/metrics/histogram_functions.h"
 #include "build/build_config.h"
-#include "chrome/browser/apps/app_service/app_launch_params.h"
 #include "chrome/browser/apps/app_service/launch_utils.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
@@ -25,6 +24,7 @@
 #include "chrome/browser/web_applications/web_app.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
 #include "chrome/browser/web_applications/web_app_tab_helper.h"
+#include "components/services/app_service/public/cpp/app_launch_params.h"
 #include "components/services/app_service/public/cpp/app_launch_util.h"
 #include "components/services/app_service/public/cpp/intent.h"
 #include "components/services/app_service/public/cpp/intent_util.h"
@@ -379,7 +379,16 @@ WebAppLaunchProcess::NavigateResult WebAppLaunchProcess::MaybeNavigateBrowser(
   TabStripModel* const tab_strip = browser->GetFeatures().tab_strip_model();
   if (tab_strip->empty() ||
       navigation_disposition != WindowOpenDisposition::CURRENT_TAB) {
-    NavigateParams nav_params(browser->GetBrowserForMigrationOnly(), launch_url,
+    // Expected use-case for navigation capturing in Isolated Web Apps,
+    // launch_url will be queued in window.launchQueue.
+    const GURL& url_to_navigate =
+        AppBrowserController::IsIsolatedWebApp(browser) &&
+                launch_url.SchemeIsHTTPOrHTTPS()
+            ? AppBrowserController::From(browser)->GetAppStartUrl()
+            : launch_url;
+
+    NavigateParams nav_params(browser->GetBrowserForMigrationOnly(),
+                              url_to_navigate,
                               ui::PAGE_TRANSITION_AUTO_BOOKMARK);
     nav_params.disposition = navigation_disposition;
     return {.web_contents = NavigateWebAppUsingParams(nav_params),

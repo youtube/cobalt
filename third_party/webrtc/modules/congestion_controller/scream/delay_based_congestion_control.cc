@@ -51,9 +51,11 @@ void DelayBasedCongestionControl::OnTransportPacketsFeedback(
   }
   // `arrival_time_offset` is null if TWCC is used. We assume feedback was sent
   // when the last sent packet was received.
-  TimeDelta rtt_sample =
+  TimeDelta rtt_sample = std::max(
       msg.feedback_time - received_packets.back().sent_packet.send_time -
-      received_packets.back().arrival_time_offset.value_or(TimeDelta::Zero());
+          received_packets.back().arrival_time_offset.value_or(
+              TimeDelta::Zero()),
+      TimeDelta::Zero());
   UpdateSmoothedRtt(rtt_sample);
 
   TimeDelta min_queue_delay = min_one_way_delay - min_base_delay();
@@ -88,14 +90,18 @@ void DelayBasedCongestionControl::UpdateQueueDelayAverage(
         params_.queue_delay_avg_g.Get() * current_qdelay +
         (1.0 - params_.queue_delay_avg_g.Get()) * queue_delay_avg_;
   }
+
   queue_delay_dev_norm_ =
+      (1.0 - params_.queue_delay_dev_avg_g.Get()) * queue_delay_dev_norm_ +
       params_.queue_delay_dev_avg_g.Get() *
-          (current_qdelay - queue_delay_avg_) / params_.virtual_rtt.Get() +
-      (1.0 - params_.queue_delay_dev_avg_g.Get()) * queue_delay_dev_norm_;
-  RTC_DCHECK(queue_delay_dev_norm_ >= 0.0);
+          std::clamp((current_qdelay -
+                      params_.queue_delay_dev_normalization.Get() / 4) /
+                         params_.queue_delay_dev_normalization.Get(),
+                     0.0, 0.2);
 }
 
 void DelayBasedCongestionControl::UpdateSmoothedRtt(TimeDelta rtt_sample) {
+  RTC_DCHECK(rtt_sample >= TimeDelta::Zero());
   if (last_smoothed_rtt_.IsZero()) {
     last_smoothed_rtt_ = rtt_sample;
   } else {
@@ -120,11 +126,6 @@ void DelayBasedCongestionControl::ResetQueueDelay() {
   queue_delay_dev_norm_ = 0.0;
 }
 
-bool DelayBasedCongestionControl::IsQueueDelayDetected() const {
-  return queue_delay_avg_.IsFinite() &&
-         queue_delay_avg_ > params_.queue_delay_first_reaction.Get();
-}
-
 DataSize DelayBasedCongestionControl::UpdateReferenceWindow(
     DataSize ref_window,
     double ref_window_mss_ratio) const {
@@ -144,10 +145,10 @@ DataSize DelayBasedCongestionControl::UpdateReferenceWindow(
 }
 
 double DelayBasedCongestionControl::l4s_alpha_v() const {
-  const TimeDelta range = params_.queue_delay_max_reaction.Get() -
-                          params_.queue_delay_first_reaction.Get();
+  // 4.2.2.1
   double l4s_alpha_v =
-      (queue_delay_avg_ - params_.queue_delay_first_reaction.Get()) / range;
+      (queue_delay_avg_ - params_.queue_delay_target.Get() / 2) /
+      (params_.queue_delay_target.Get() / 2);
   return std::clamp(l4s_alpha_v, 0.0, 1.0);
 }
 

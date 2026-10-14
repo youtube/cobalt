@@ -16,6 +16,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
+#include "chrome/browser/ui/read_anything/read_anything_immersive_overlay_view.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/contents_container_view.h"
@@ -30,7 +31,7 @@
 #include "chrome/browser/ui/views/frame/multi_contents_view_drop_target_controller.h"
 #include "chrome/browser/ui/views/frame/multi_contents_view_mini_toolbar.h"
 #include "chrome/browser/ui/views/frame/scrim_view.h"
-#include "chrome/browser/ui/views/frame/top_container_background.h"
+#include "chrome/browser/ui/views/frame/themed_background.h"
 #include "chrome/browser/ui/views/new_tab_footer/footer_web_view.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/common/pref_names.h"
@@ -114,31 +115,44 @@ MultiContentsView::MultiContentsView(
       AddChildView(std::make_unique<CustomFloatingCorner>(
           *browser_view_, CustomFloatingCorner::CornerOrientation::kTopLeading,
           views::ShapeContextTokens::kContentSeparatorRadius,
-          CustomFloatingCorner::TopContainerTheme(),
+          CustomFloatingCorner::ToolbarTheme(),
           kColorToolbarContentAreaSeparator));
   contents_separators_.corner_separator->SetProperty(
       views::kElementIdentifierKey, kContentsSeparatorTopCornerElementId);
 
   for (auto* contents_container_view : contents_container_views_) {
-    web_contents_focused_subscriptions_.push_back(
-        contents_container_view->contents_view()->AddWebContentsFocusedCallback(
-            base::BindRepeating(&MultiContentsView::OnWebContentsFocused,
-                                base::Unretained(this))));
+    auto& view_map = container_focusable_map_[contents_container_view];
 
-    if (contents_container_view->new_tab_footer_view()) {
+    auto* contents_view = contents_container_view->contents_view();
+    view_map[contents_view->GetClassName()] = contents_view;
+
+    web_contents_focused_subscriptions_.push_back(
+        contents_view->AddWebContentsFocusedCallback(base::BindRepeating(
+            &MultiContentsView::OnWebContentsFocused, base::Unretained(this))));
+
+    if (auto* footer = contents_container_view->new_tab_footer_view()) {
+      view_map[footer->GetClassName()] = footer;
       ntp_footer_focused_subscriptions_.push_back(
-          contents_container_view->new_tab_footer_view()
-              ->AddWebContentsFocusedCallback(
-                  base::BindRepeating(&MultiContentsView::OnNtpFooterFocused,
-                                      base::Unretained(this))));
+          footer->AddWebContentsFocusedCallback(base::BindRepeating(
+              &MultiContentsView::OnNtpFooterFocused, base::Unretained(this))));
     }
 
-    if (contents_container_view->actor_overlay_web_view()) {
+    if (auto* actor_overlay =
+            contents_container_view->actor_overlay_web_view()) {
+      view_map[actor_overlay->GetClassName()] = actor_overlay;
       actor_overlay_focused_subscriptions_.push_back(
-          contents_container_view->actor_overlay_web_view()
-              ->AddWebContentsFocusedCallback(
-                  base::BindRepeating(&MultiContentsView::OnActorOverlayFocused,
-                                      base::Unretained(this))));
+          actor_overlay->AddWebContentsFocusedCallback(
+              base::BindRepeating(&MultiContentsView::OnActorOverlayFocused,
+                                  base::Unretained(this))));
+    }
+
+    if (auto* read_anything_overlay =
+            contents_container_view->read_anything_immersive_overlay_view()) {
+      view_map[read_anything_overlay->GetClassName()] = read_anything_overlay;
+      read_anything_overlay_focused_subscriptions_.push_back(
+          read_anything_overlay->AddWebViewFocusedCallback(base::BindRepeating(
+              &MultiContentsView::OnReadAnythingOverlayFocused,
+              base::Unretained(this), contents_container_view)));
     }
   }
 
@@ -154,6 +168,9 @@ MultiContentsView::MultiContentsView(
 }
 
 MultiContentsView::~MultiContentsView() {
+  // Clear the map before `RemoveAllChildViews()` to avoid having dangling
+  // pointers.
+  container_focusable_map_.clear();
   if (drop_target_controller_) {
     drop_target_controller_.reset();
   }
@@ -197,6 +214,17 @@ ContentsContainerView* MultiContentsView::GetContentsContainerViewFor(
       return container_view;
     }
   }
+  return nullptr;
+}
+
+const MultiContentsView::FocusableViewMap*
+MultiContentsView::GetFocusableViewsMapFor(
+    const ContentsContainerView* container) const {
+  auto it = container_focusable_map_.find(container);
+  if (it != container_focusable_map_.end()) {
+    return &it->second;
+  }
+
   return nullptr;
 }
 
@@ -396,6 +424,16 @@ void MultiContentsView::OnNtpFooterFocused(views::WebView* web_view) {
         return delegate_->WebContentsFocused(
             GetInactiveContentsView()->web_contents());
       }
+    }
+  }
+}
+
+void MultiContentsView::OnReadAnythingOverlayFocused(
+    ContentsContainerView* container,
+    views::WebView* web_view) {
+  if (IsInSplitView() && GetWidget()->IsVisible()) {
+    if (GetInactiveContentsContainerView() == container) {
+      delegate_->WebContentsFocused(container->contents_view()->web_contents());
     }
   }
 }

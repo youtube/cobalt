@@ -127,17 +127,17 @@
     {
         "name": "collection",
         "group": "androidx.collection",
-        "version": "1.6.0-SNAPSHOT"
+        "version": "1.7.0-SNAPSHOT"
     },
     {
         "name": "collection-jvm",
         "group": "androidx.collection",
-        "version": "1.6.0-SNAPSHOT"
+        "version": "1.7.0-SNAPSHOT"
     },
     {
         "name": "collection-ktx",
         "group": "androidx.collection",
-        "version": "1.6.0-SNAPSHOT"
+        "version": "1.7.0-SNAPSHOT"
     },
     {
         "name": "animation",
@@ -1100,6 +1100,16 @@
         "version": "1.0.1"
     },
     {
+        "name": "tracing-wire",
+        "group": "androidx.tracing",
+        "version": "2.0.0-SNAPSHOT"
+    },
+    {
+        "name": "tracing-wire-android",
+        "group": "androidx.tracing",
+        "version": "2.0.0-SNAPSHOT"
+    },
+    {
         "name": "transition",
         "group": "androidx.transition",
         "version": "1.7.0"
@@ -1177,27 +1187,47 @@
     {
         "name": "arcore",
         "group": "androidx.xr.arcore",
-        "version": "1.0.0-alpha05"
+        "version": "1.0.0-alpha07"
+    },
+    {
+        "name": "arcore-openxr",
+        "group": "androidx.xr.arcore",
+        "version": "1.0.0-alpha07"
+    },
+    {
+        "name": "arcore-runtime",
+        "group": "androidx.xr.arcore",
+        "version": "1.0.0-alpha07"
     },
     {
         "name": "runtime",
         "group": "androidx.xr.runtime",
-        "version": "1.0.0-alpha05"
+        "version": "1.0.0-alpha07"
     },
     {
         "name": "runtime-manifest",
         "group": "androidx.xr.runtime",
-        "version": "1.0.0-alpha05"
-    },
-    {
-        "name": "runtime-openxr",
-        "group": "androidx.xr.runtime",
-        "version": "1.0.0-alpha05"
+        "version": "1.0.0-alpha07"
     },
     {
         "name": "scenecore",
         "group": "androidx.xr.scenecore",
-        "version": "1.0.0-alpha05"
+        "version": "1.0.0-alpha08"
+    },
+    {
+        "name": "scenecore-runtime",
+        "group": "androidx.xr.scenecore",
+        "version": "1.0.0-alpha08"
+    },
+    {
+        "name": "scenecore-spatial-core",
+        "group": "androidx.xr.scenecore",
+        "version": "1.0.0-alpha08"
+    },
+    {
+        "name": "scenecore-spatial-rendering",
+        "group": "androidx.xr.scenecore",
+        "version": "1.0.0-alpha08"
     },
     {
         "name": "accessibility-test-framework",
@@ -1252,7 +1282,7 @@
     {
         "name": "googleid",
         "group": "com.google.android.libraries.identity.googleid",
-        "version": "1.1.0"
+        "version": "1.2.0"
     },
     {
         "name": "material",
@@ -1262,7 +1292,7 @@
     {
         "name": "impress",
         "group": "com.google.ar",
-        "version": "0.0.4"
+        "version": "0.0.7"
     },
     {
         "name": "auto-service-annotations",
@@ -1287,7 +1317,7 @@
     {
         "name": "guava",
         "group": "com.google.guava",
-        "version": "31.1-android"
+        "version": "32.0.1-android"
     },
     {
         "name": "listenablefuture",
@@ -1297,7 +1327,7 @@
     {
         "name": "j2objc-annotations",
         "group": "com.google.j2objc",
-        "version": "1.3"
+        "version": "2.8"
     },
     {
         "name": "protobuf-lite",
@@ -1357,7 +1387,7 @@
     {
         "name": "checker-qual",
         "group": "org.checkerframework",
-        "version": "2.5.5"
+        "version": "3.33.0"
     },
     {
         "name": "hamcrest",
@@ -1397,7 +1427,7 @@
     {
         "name": "kotlin-stdlib-jdk8",
         "group": "org.jetbrains.kotlin",
-        "version": "1.8.0"
+        "version": "1.8.20"
     },
     {
         "name": "atomicfu",
@@ -1412,7 +1442,7 @@
     {
         "name": "kotlinx-coroutines-android",
         "group": "org.jetbrains.kotlinx",
-        "version": "1.9.0"
+        "version": "1.7.3"
     },
     {
         "name": "kotlinx-coroutines-bom",
@@ -1427,7 +1457,7 @@
     {
         "name": "kotlinx-coroutines-core-jvm",
         "group": "org.jetbrains.kotlinx",
-        "version": "1.8.1"
+        "version": "1.9.0"
     },
     {
         "name": "kotlinx-coroutines-test",

@@ -502,6 +502,9 @@ const char inspector_style_invalidator_invalidate_event::
 const char inspector_style_invalidator_invalidate_event::
     kInvalidationSetInvalidatesTreeCounting[] =
         "Invalidation set invalidates tree-counting";
+const char inspector_style_invalidator_invalidate_event::
+    kInvalidationSetMatchedCustomPseudoName[] =
+        "Invalidation set matched custom pseudo element name";
 
 namespace inspector_style_invalidator_invalidate_event {
 void FillCommonPart(perfetto::TracedDictionary& dict,
@@ -562,6 +565,9 @@ void inspector_style_invalidator_invalidate_event::SelectorPart(
     feature_type = InvalidationSetToSelectorMap::SelectorFeatureType::kId;
   } else if (reason == kInvalidationSetMatchedTagName) {
     feature_type = InvalidationSetToSelectorMap::SelectorFeatureType::kTagName;
+  } else if (reason == kInvalidationSetMatchedCustomPseudoName) {
+    feature_type =
+        InvalidationSetToSelectorMap::SelectorFeatureType::kCustomPseudoName;
   } else if (reason == kInvalidationSetMatchedAttribute) {
     feature_type =
         InvalidationSetToSelectorMap::SelectorFeatureType::kAttribute;
@@ -1321,6 +1327,7 @@ void inspector_function_call_event::Data(
     ExecutionContext* context,
     const v8::Local<v8::Function>& function) {
   auto dict = std::move(trace_context).WriteDictionary();
+
   if (LocalFrame* frame = FrameForExecutionContext(context))
     dict.Add("frame", IdentifiersFactory::FrameId(frame));
 
@@ -1348,6 +1355,7 @@ void inspector_function_call_event::Data(
   dict.Add("columnNumber", location->ColumnNumber());
   uint64_t sample_trace_id = InspectorTraceEvents::GetNextSampleTraceId();
   dict.Add("sampleTraceId", sample_trace_id);
+  v8::CpuProfiler::CollectSample(context->GetIsolate(), sample_trace_id);
 }
 
 void inspector_paint_image_event::Data(perfetto::TracedValue context,

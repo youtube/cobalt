@@ -315,6 +315,9 @@ void ResidualEchoEstimator::Reset() {
   echo_reverb_.Reset();
   X2_noise_floor_counter_.fill(config_.echo_model.noise_floor_hold);
   X2_noise_floor_.fill(config_.echo_model.min_noise_floor_power);
+  if (neural_residual_echo_estimator_) {
+    neural_residual_echo_estimator_->Reset();
+  }
 }
 
 void ResidualEchoEstimator::UpdateRenderNoisePower(

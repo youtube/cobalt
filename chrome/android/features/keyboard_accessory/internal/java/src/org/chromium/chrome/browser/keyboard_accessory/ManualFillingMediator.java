@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.keyboard_accessory;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
 import static org.chromium.chrome.browser.keyboard_accessory.ManualFillingProperties.FIELD_BOUNDS;
 import static org.chromium.chrome.browser.keyboard_accessory.ManualFillingProperties.IS_CREDENTIAL_FIELD_OR_HAS_AUTOFILL_SUGGESTIONS;
 import static org.chromium.chrome.browser.keyboard_accessory.ManualFillingProperties.IS_FULLSCREEN;
@@ -34,8 +35,8 @@ import org.chromium.base.Callback;
 import org.chromium.base.TraceEvent;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.NonNullObservableSupplier;
-import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.supplier.ObservableSuppliers;
+import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.app.ChromeActivity;
@@ -115,8 +116,8 @@ class ManualFillingMediator
     private final PropertyModel mModel = ManualFillingProperties.createFillingModel();
     private WindowAndroid mWindowAndroid;
     private NonNullObservableSupplier<ViewportInsets> mApplicationViewportInsetTracker;
-    private final ObservableSupplierImpl<Integer> mBottomInsetSupplier =
-            new ObservableSupplierImpl<>();
+    private final SettableNonNullObservableSupplier<Integer> mBottomInsetSupplier =
+            ObservableSuppliers.createNonNull(0);
     private final ManualFillingStateCache mStateCache = new ManualFillingStateCache();
     private final HashSet<Tab> mObservedTabs = new HashSet<>();
     private KeyboardAccessoryCoordinator mKeyboardAccessory;
@@ -133,10 +134,10 @@ class ManualFillingMediator
     private final SettableNonNullObservableSupplier<Boolean> mBackPressChangedSupplier =
             ObservableSuppliers.createNonNull(false);
 
-    private final ObservableSupplierImpl<KeyboardAccessoryVisualStateProvider>
-            mKeyboardAccessoryVisualStateSupplier = new ObservableSupplierImpl<>();
-    private final ObservableSupplierImpl<AccessorySheetVisualStateProvider>
-            mAccessorySheetVisualStateSupplier = new ObservableSupplierImpl<>();
+    private final SettableMonotonicObservableSupplier<KeyboardAccessoryVisualStateProvider>
+            mKeyboardAccessoryVisualStateSupplier = ObservableSuppliers.createMonotonic();
+    private final SettableMonotonicObservableSupplier<AccessorySheetVisualStateProvider>
+            mAccessorySheetVisualStateSupplier = ObservableSuppliers.createMonotonic();
     private @Nullable BrowserControlsManager mControlsManager;
 
     private final TabObserver mTabObserver =
@@ -199,11 +200,6 @@ class ManualFillingMediator
                 }
             };
 
-    /** Default constructor */
-    ManualFillingMediator() {
-        mBottomInsetSupplier.set(0);
-    }
-
     void initialize(
             KeyboardAccessoryCoordinator keyboardAccessory,
             AccessorySheetCoordinator accessorySheet,
@@ -235,7 +231,7 @@ class ManualFillingMediator
         mAccessorySheet.setHeight(getIdealSheetHeight());
         mApplicationViewportInsetTracker =
                 mWindowAndroid.getApplicationBottomInsetTracker().getSupplier();
-        mApplicationViewportInsetTracker.addObserver(mViewportInsetsObserver);
+        mApplicationViewportInsetTracker.addSyncObserverAndPostIfNonNull(mViewportInsetsObserver);
         mActivity.findViewById(android.R.id.content).addOnLayoutChangeListener(this);
         mBackPressManager = backPressManager;
         mBackPressChangedSupplier.set(shouldHideOnBackPress());
@@ -279,7 +275,7 @@ class ManualFillingMediator
                                 || is(FLOATING_SHEET)));
     }
 
-    MonotonicObservableSupplier<Integer> getBottomInsetSupplier() {
+    NonNullObservableSupplier<Integer> getBottomInsetSupplier() {
         return mBottomInsetSupplier;
     }
 
@@ -536,7 +532,14 @@ class ManualFillingMediator
             // KEYBOARD_EXTENSION_STATE.
             return;
         } else if (property == FIELD_BOUNDS) {
-            // Do nothing. FIELD_BOUNDS is used when keyboard accessory style is modified.
+            // For password fields, the accessory is shown before the FIELD_BOUNDS property is set.
+            // Re-triggering the style and space update here ensures that FIELD_BOUNDS are used to
+            // adjust the screen position once they become available. Ideally, this call should not
+            // be necessary.
+            if (ChromeFeatureList.isEnabled(
+                    ChromeFeatureList.AUTOFILL_ANDROID_KEYBOARD_ACCESSORY_DYNAMIC_POSITIONING)) {
+                updateStyleAndControlSpaceForState(mModel.get(KEYBOARD_EXTENSION_STATE));
+            }
             return;
         }
         throw new IllegalArgumentException("Unhandled property: " + property);
@@ -679,9 +682,7 @@ class ManualFillingMediator
             mAccessorySheet.hide();
             // The compositor should relayout the view when the sheet is hidden. This is necessary
             // to trigger events that rely on the relayout (like toggling the overview button):
-            Supplier<CompositorViewHolder> compositorViewHolderSupplier =
-                    mActivity.getCompositorViewHolderSupplier();
-            var compositorViewHolder = compositorViewHolderSupplier.get();
+            var compositorViewHolder = mActivity.getCompositorViewHolderSupplier().get();
             if (compositorViewHolder != null) {
                 // The CompositorViewHolder is null when the activity is in the process of being
                 // destroyed which also renders relayouting pointless.
@@ -835,7 +836,7 @@ class ManualFillingMediator
 
     private @NotchPosition int getNotchPositionForDynamicPositioning() {
         CompositorViewHolder compositorViewHolder =
-                mActivity.getCompositorViewHolderSupplier().get();
+                assumeNonNull(mActivity.getCompositorViewHolderSupplier().get());
         RectF viewport = new RectF();
         compositorViewHolder.getVisibleViewport(viewport);
 
@@ -856,13 +857,31 @@ class ManualFillingMediator
     private @Px int getHorizontalOffset() {
         if (ChromeFeatureList.isEnabled(
                 ChromeFeatureList.AUTOFILL_ANDROID_KEYBOARD_ACCESSORY_DYNAMIC_POSITIONING)) {
-            return Math.round(
-                    mModel.get(FIELD_BOUNDS).left * mWindowAndroid.getDisplay().getDipScale());
+            @Px
+            int leftBound =
+                    Math.round(
+                            mModel.get(FIELD_BOUNDS).left
+                                    * mWindowAndroid.getDisplay().getDipScale());
+            @Px
+            int offset =
+                    mActivity
+                            .getResources()
+                            .getDimensionPixelSize(
+                                    R.dimen
+                                            .keyboard_accessory_bar_dynamic_positioning_horizontal_margin);
+            return leftBound + offset;
         }
         return 0;
     }
 
     private @Px int getMaxWidth() {
+        if (ChromeFeatureList.isEnabled(
+                ChromeFeatureList.AUTOFILL_ANDROID_KEYBOARD_ACCESSORY_DYNAMIC_POSITIONING)) {
+            return mActivity
+                    .getResources()
+                    .getDimensionPixelSize(
+                            R.dimen.keyboard_accessory_bar_dynamic_positioning_max_width);
+        }
         int screenWidthDp = mActivity.getResources().getConfiguration().screenWidthDp;
         @Px int screenWidth = DisplayUtil.dpToPx(mWindowAndroid.getDisplay(), screenWidthDp);
         return (int) (MAXIMUM_BAR_WIDTH_PERCENTAGE * screenWidth);
@@ -1049,10 +1068,6 @@ class ManualFillingMediator
 
         int minimumVerticalSpacePx = Math.round(density * MINIMAL_AVAILABLE_VERTICAL_SPACE);
 
-        // TODO(crbug.com/40285164): google-java-format did not introduce '{}'s as expected in the
-        // if
-        // construct below (see crbug.com/1505284 for failure). Investigate why and fix it or file a
-        // corresponding bug.
         if (visibleViewportHeightPx >= minimumVerticalSpacePx) {
             return; // Sheet height needs no adjustment!
         }

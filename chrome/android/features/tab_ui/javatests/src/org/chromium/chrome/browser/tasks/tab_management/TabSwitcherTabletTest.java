@@ -92,8 +92,7 @@ import java.util.concurrent.TimeoutException;
     ChromeFeatureList.ANDROID_SURFACE_COLOR_UPDATE,
     ChromeFeatureList.GRID_TAB_SWITCHER_SURFACE_COLOR_UPDATE,
     ChromeFeatureList.GRID_TAB_SWITCHER_UPDATE,
-    ChromeFeatureList.ANDROID_THEME_MODULE,
-    ChromeFeatureList.TAB_STRIP_INCOGNITO_MIGRATION
+    ChromeFeatureList.ANDROID_THEME_MODULE
 })
 @Batch(Batch.PER_CLASS)
 public class TabSwitcherTabletTest {
@@ -189,7 +188,7 @@ public class TabSwitcherTabletTest {
 
     @Test
     @MediumTest
-    @DisableIf.Build(sdk_equals = Build.VERSION_CODES.S_V2, message = "crbug.com/40901097")
+    @DisabledTest(message = "Flaky, crbug.com/40901097")
     public void testTabSwitcherScrim() {
         prepareTabs(1, 1);
         ChromeTabbedActivity cta = mActivityTestRule.getActivity();

@@ -10,7 +10,10 @@
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/browser_window/test/mock_browser_window_interface.h"
+#include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
+#include "chrome/browser/ui/views/tabs/shared/tab_strip_combo_button.h"
+#include "chrome/browser/ui/views/tabs/shared/tab_strip_flat_edge_button.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/test/views/chrome_views_test_base.h"
@@ -35,6 +38,8 @@ class VerticalTabStripTopContainerTest : public ChromeViewsTestBase {
     SessionID test_session_id = SessionID::FromSerializedValue(kSessionIDValue);
     EXPECT_CALL(mock_browser_window_interface_, GetUnownedUserDataHost)
         .WillRepeatedly(testing::ReturnRef(unowned_user_data_host_));
+    pref_service_.registry()->RegisterBooleanPref(prefs::kVerticalTabsEnabled,
+                                                  true);
     controller_ = std::make_unique<tabs::VerticalTabStripStateController>(
         &mock_browser_window_interface_, &pref_service_,
         /*root_action_item=*/nullptr,
@@ -57,7 +62,8 @@ class VerticalTabStripTopContainerTest : public ChromeViewsTestBase {
     widget_ = CreateTestWidget(views::Widget::InitParams::CLIENT_OWNS_WIDGET);
     top_container_ =
         widget_->SetContentsView(std::make_unique<VerticalTabStripTopContainer>(
-            controller_.get(), action_item_.get()));
+            controller_.get(), action_item_.get(),
+            &mock_browser_window_interface_));
     widget_->Show();
   }
 
@@ -71,8 +77,8 @@ class VerticalTabStripTopContainerTest : public ChromeViewsTestBase {
  protected:
   VerticalTabStripTopContainer* top_container() { return top_container_; }
 
-  views::LabelButton* tab_search_button() {
-    return top_container_->GetTabSearchButton();
+  TabStripComboButton* combo_button() {
+    return top_container_->GetComboButton();
   }
 
   views::LabelButton* collapse_button() {
@@ -98,71 +104,72 @@ class VerticalTabStripTopContainerTest : public ChromeViewsTestBase {
 };
 
 TEST_F(VerticalTabStripTopContainerTest, LayoutWithoutExclusionZone) {
-  top_container()->SetExclusionWidthForLayout(0);
-  top_container()->SetToolbarHeightForLayout(0);
+  top_container()->SetCaptionButtonWidthForLayout(1);
+  top_container()->SetToolbarHeightForLayout(1);
   LayoutView();
 
   const gfx::Rect container_bounds = top_container()->bounds();
-  const gfx::Rect search_bounds = tab_search_button()->bounds();
+  const gfx::Rect combo_bounds = combo_button()->bounds();
   const gfx::Rect collapse_bounds = collapse_button()->bounds();
 
-  // The tab search button should be right aligned to the container and
+  // The combo button should be right aligned to the container and
   // vertically centered. Due to rounding, there is an off-by-one error
   // with the vertical centering of the button.
-  EXPECT_EQ(search_bounds.top_right().x(), container_bounds.top_right().x());
-  EXPECT_NEAR(search_bounds.right_center().y(),
+  EXPECT_EQ(combo_bounds.top_right().x(), container_bounds.top_right().x());
+  EXPECT_NEAR(combo_bounds.right_center().y(),
               container_bounds.right_center().y(), 1);
 
-  // The collapse button should be to the left of the tab search button.
-  EXPECT_LT(collapse_bounds.CenterPoint().x(), search_bounds.CenterPoint().x());
-  EXPECT_EQ(collapse_bounds.CenterPoint().y(), search_bounds.CenterPoint().y());
+  // The collapse button should be to the left of the combo button.
+  EXPECT_LT(collapse_bounds.CenterPoint().x(), combo_bounds.CenterPoint().x());
+  EXPECT_EQ(collapse_bounds.CenterPoint().y(), combo_bounds.CenterPoint().y());
 }
 
 TEST_F(VerticalTabStripTopContainerTest, LayoutWithFullWidthExclusionZone) {
-  top_container()->SetExclusionWidthForLayout(0);
-  top_container()->SetToolbarHeightForLayout(0);
+  top_container()->SetCaptionButtonWidthForLayout(1);
+  top_container()->SetToolbarHeightForLayout(1);
   LayoutView();
 
-  const gfx::Rect initial_search_bounds = tab_search_button()->bounds();
-  const gfx::Rect initial_collapse_bounds = collapse_button()->bounds();
+  const gfx::Rect initial_combo_bounds = combo_button()->bounds();
 
-  top_container()->SetExclusionWidthForLayout(kTopContainerWidth);
+  top_container()->SetCaptionButtonWidthForLayout(kTopContainerWidth);
   constexpr int kExclusionHeight = 50;
   top_container()->SetToolbarHeightForLayout(kExclusionHeight);
   LayoutView();
 
-  const gfx::Rect search_bounds = tab_search_button()->bounds();
+  const gfx::Rect combo_bounds = combo_button()->bounds();
   const gfx::Rect collapse_bounds = collapse_button()->bounds();
 
-  // Both buttons are shifted down
-  EXPECT_EQ(search_bounds.top_right().x(),
-            initial_search_bounds.top_right().x());
-  EXPECT_EQ(search_bounds.right_center().y(),
-            initial_search_bounds.right_center().y() + kExclusionHeight);
+  // Both buttons are shifted down to match the height of the bookmarks bar.
+  const int expected_y_center =
+      kExclusionHeight +
+      (GetLayoutConstant(LayoutConstant::kBookmarkBarHeight) -
+       GetLayoutConstant(LayoutConstant::kBookmarkBarButtonImageLabelPadding)) /
+          2;
 
-  EXPECT_EQ(collapse_bounds.top_right().x(),
-            initial_collapse_bounds.top_right().x());
-  EXPECT_EQ(collapse_bounds.right_center().y(),
-            initial_collapse_bounds.right_center().y() + kExclusionHeight);
+  EXPECT_EQ(combo_bounds.top_right().x(), initial_combo_bounds.top_right().x());
+  EXPECT_EQ(combo_bounds.right_center().y(), expected_y_center);
+
+  EXPECT_EQ(collapse_bounds.x(), 0);
+  EXPECT_EQ(collapse_bounds.right_center().y(), expected_y_center);
 }
 
 TEST_F(VerticalTabStripTopContainerTest, LayoutWithPartialWidthExclusionZone) {
-  top_container()->SetExclusionWidthForLayout(50);
+  top_container()->SetCaptionButtonWidthForLayout(50);
   top_container()->SetToolbarHeightForLayout(50);
   LayoutView();
 
   const gfx::Rect container_bounds = top_container()->bounds();
-  const gfx::Rect search_bounds = tab_search_button()->bounds();
+  const gfx::Rect combo_bounds = combo_button()->bounds();
   const gfx::Rect collapse_bounds = collapse_button()->bounds();
 
-  // The tab search button should be right aligned to the container and
+  // The combo button should be right aligned to the container and
   // vertically centered. Due to rounding, there is an off-by-one error
   // with the vertical centering of the button.
-  EXPECT_EQ(search_bounds.top_right().x(), container_bounds.top_right().x());
-  EXPECT_NEAR(search_bounds.right_center().y(),
+  EXPECT_EQ(combo_bounds.top_right().x(), container_bounds.top_right().x());
+  EXPECT_NEAR(combo_bounds.right_center().y(),
               container_bounds.right_center().y(), 1);
 
-  // The collapse button should be to the left of the tab search button.
-  EXPECT_LT(collapse_bounds.CenterPoint().x(), search_bounds.CenterPoint().x());
-  EXPECT_EQ(collapse_bounds.CenterPoint().y(), search_bounds.CenterPoint().y());
+  // The collapse button should be to the left of the combo button.
+  EXPECT_LT(collapse_bounds.CenterPoint().x(), combo_bounds.CenterPoint().x());
+  EXPECT_EQ(collapse_bounds.CenterPoint().y(), combo_bounds.CenterPoint().y());
 }

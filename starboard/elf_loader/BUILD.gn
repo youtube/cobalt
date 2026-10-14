@@ -90,10 +90,13 @@ if (current_toolchain == starboard_toolchain) {
       "//starboard:starboard_group",
     ]
 
+    data_deps =
+        [ "//starboard/content/ssl:copy_ssl_certificates($default_toolchain)" ]
+
     if (is_android) {
       deps += [ "//starboard/android/shared:test_support" ]
     } else {
-      data_deps = [ "//starboard/content/fonts:copy_font_data" ]
+      data_deps += [ "//starboard/content/fonts:copy_font_data" ]
     }
 
     if (is_starboard && use_crashpad) {

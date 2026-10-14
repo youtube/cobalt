@@ -136,6 +136,7 @@ using ukm::builders::Media_EME_CdmMetrics;
 using ukm::builders::Media_EME_CreateMediaKeys;
 using ukm::builders::Media_EME_RequestMediaKeySystemAccess;
 using ukm::builders::Media_EME_Usage;
+using ukm::builders::Media_WebMediaPlayerState;
 
 // Base class for encrypted media tests.
 class EncryptedMediaTestBase : public MediaBrowserTest {
@@ -560,6 +561,83 @@ class ECKEncryptedMediaReportMetricsTest : public EncryptedMediaTestBase,
     command_line->AppendSwitchASCII(
         switches::kOverrideEnabledCdmInterfaceVersion,
         base::NumberToString(GetCdmInterfaceVersion()));
+  }
+
+  std::unique_ptr<ukm::TestAutoSetUkmRecorder> ukm_recorder_;
+};
+
+class EncryptedMediaVisibilityRatioReportTest : public EncryptedMediaTestBase {
+ public:
+  void SetUpOnMainThread() override {
+    EncryptedMediaTestBase::SetUpOnMainThread();
+    ukm_recorder_ = std::make_unique<ukm::TestAutoSetUkmRecorder>();
+  }
+
+ protected:
+  enum class Expectation {
+    kZero,
+    kGreaterThanZero,
+    kPartial,
+  };
+
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    EncryptedMediaTestBase::SetUpCommandLine(command_line);
+    SetUpCommandLineForKeySystem(
+        media::kExternalClearKeyKeySystem, command_line,
+        {{media::kEncryptedMediaOcclusionTracking, {}}});
+  }
+
+  void TestVisibility(const std::pair<std::string, std::string>& param,
+                      Expectation expectation) {
+    base::StringPairs query_params;
+    query_params.emplace_back("mediaFile", "bear-320x240-av_enc-av.webm");
+    query_params.emplace_back("mediaType",
+                              "video/webm; codecs=\"vorbis, vp8\"");
+    query_params.emplace_back("keySystem", media::kExternalClearKeyKeySystem);
+    query_params.emplace_back("useMSE", "1");
+    query_params.emplace_back("playCount", "1");
+
+    if (!param.first.empty()) {
+      query_params.push_back(param);
+    }
+
+    RunEncryptedMediaTestPage(kDefaultEmePlayer,
+                              media::kExternalClearKeyKeySystem, query_params,
+                              media::kEndedTitle);
+
+    base::RunLoop run_loop;
+    ukm_recorder_->SetOnAddEntryCallback(Media_WebMediaPlayerState::kEntryName,
+                                         run_loop.QuitClosure());
+
+    browser()->tab_strip_model()->CloseWebContentsAt(
+        0, TabCloseTypes::CLOSE_USER_GESTURE);
+    run_loop.Run();
+
+    auto wmps_entries = ukm_recorder_->GetEntries(
+        Media_WebMediaPlayerState::kEntryName,
+        {Media_WebMediaPlayerState::kIsEMEName,
+         Media_WebMediaPlayerState::kVisibilityRatioAtPlaybackStartName});
+
+    ASSERT_EQ(1u, wmps_entries.size());
+
+    const auto& metrics = wmps_entries[0].metrics;
+    auto is_eme_it = metrics.find(Media_WebMediaPlayerState::kIsEMEName);
+
+    ASSERT_NE(is_eme_it, metrics.end());
+    EXPECT_EQ(is_eme_it->second, 1);
+
+    auto playback_start_it = metrics.find(
+        Media_WebMediaPlayerState::kVisibilityRatioAtPlaybackStartName);
+    ASSERT_NE(playback_start_it, metrics.end());
+
+    if (expectation == Expectation::kZero) {
+      EXPECT_EQ(playback_start_it->second, 0);
+    } else if (expectation == Expectation::kGreaterThanZero) {
+      EXPECT_GT(playback_start_it->second, 0);
+    } else if (expectation == Expectation::kPartial) {
+      EXPECT_GT(playback_start_it->second, 0);
+      EXPECT_LT(playback_start_it->second, 100);
+    }
   }
 
   std::unique_ptr<ukm::TestAutoSetUkmRecorder> ukm_recorder_;
@@ -1791,9 +1869,9 @@ IN_PROC_BROWSER_TEST_F(MediaFoundationEncryptedMediaTest,
   // Enable 127.0.0.1 as an exception.
   prefs->SetDict(
       kProtectedContentIdExceptionPrefPath,
-      base::Value::Dict().Set(
+      base::DictValue().Set(
           "http://127.0.0.1,*",
-          base::Value::Dict().Set("setting", kAllowProtectedContentId)));
+          base::DictValue().Set("setting", kAllowProtectedContentId)));
 
   RunEncryptedMediaTest(kDefaultEmePlayer, "bear-640x360-v_frag-cbcs.mp4",
                         media::kMediaFoundationClearKeyKeySystem, SrcType::MSE,
@@ -1816,9 +1894,9 @@ IN_PROC_BROWSER_TEST_F(MediaFoundationEncryptedMediaTest,
   // Disable 127.0.0.1 as an exception.
   prefs->SetDict(
       kProtectedContentIdExceptionPrefPath,
-      base::Value::Dict().Set(
+      base::DictValue().Set(
           "http://127.0.0.1,*",
-          base::Value::Dict().Set("setting", kDisallowProtectedContentId)));
+          base::DictValue().Set("setting", kDisallowProtectedContentId)));
 
   RunEncryptedMediaTest(kDefaultEmePlayer, "bear-640x360-v_frag-cbcs.mp4",
                         media::kMediaFoundationClearKeyKeySystem, SrcType::MSE,
@@ -1891,3 +1969,28 @@ IN_PROC_BROWSER_TEST_F(
 #endif  // BUILDFLAG(ENABLE_PLATFORM_ENCRYPTED_DOLBY_VISION)
 
 #endif  // BUILDFLAG(IS_WIN) && BUILDFLAG(USE_PROPRIETARY_CODECS)
+
+IN_PROC_BROWSER_TEST_F(EncryptedMediaVisibilityRatioReportTest,
+                       VisibilityRatio) {
+  TestVisibility({}, Expectation::kGreaterThanZero);
+}
+
+IN_PROC_BROWSER_TEST_F(EncryptedMediaVisibilityRatioReportTest,
+                       VisibilityRatio_Hidden) {
+  TestVisibility({"hidden", "true"}, Expectation::kZero);
+}
+
+IN_PROC_BROWSER_TEST_F(EncryptedMediaVisibilityRatioReportTest,
+                       VisibilityRatio_Occluded) {
+  TestVisibility({"occluded", "true"}, Expectation::kZero);
+}
+
+IN_PROC_BROWSER_TEST_F(EncryptedMediaVisibilityRatioReportTest,
+                       VisibilityRatio_PartiallyOccluded) {
+  TestVisibility({"partial_occlusion", "true"}, Expectation::kPartial);
+}
+
+IN_PROC_BROWSER_TEST_F(EncryptedMediaVisibilityRatioReportTest,
+                       VisibilityRatio_OpacityZero) {
+  TestVisibility({"opacity", "0"}, Expectation::kZero);
+}

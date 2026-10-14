@@ -241,7 +241,10 @@ class BrowserActivityObserver : public BrowserCollectionObserver {
     ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
         [&browser_hidden](BrowserWindowInterface* browser_window_interface) {
           if (!browser_window_interface->GetWindow()->IsMinimized() &&
-#if !BUILDFLAG(IS_ANDROID)  // NEEDS_ANDROID_IMPL
+#if !BUILDFLAG(IS_ANDROID)
+              // BrowserActiveState is only used for metrics.
+              // `IsVisibleOnScreen()` is not available on Android, and we're
+              // not bothering to add it.
               browser_window_interface->capabilities()->IsVisibleOnScreen() &&
 #endif
               browser_window_interface->GetWindow()->IsVisible()) {
@@ -569,10 +572,6 @@ void GlicMetrics::OnTurnCompleted(mojom::WebClientModel model,
                                 duration);
 }
 
-void GlicMetrics::OnModelChanged(mojom::WebClientModel model) {
-  current_model_ = model;
-}
-
 void GlicMetrics::OnRecordUseCounter(uint16_t counter) {
   static_assert(1000u > static_cast<uint32_t>(mojom::WebUseCounter::kMaxValue));
   // Since the front end can contain a newer version than what chrome is
@@ -584,8 +583,7 @@ void GlicMetrics::OnRecordUseCounter(uint16_t counter) {
 
 void GlicMetrics::OnGlicWindowStartedOpening(bool attached,
                                              mojom::InvocationSource source) {
-  if (base::FeatureList::IsEnabled(features::kGlicTrustFirstOnboarding) &&
-      !enabling_->HasConsentedForProfile(profile_)) {
+  if (GlicEnabling::IsTrustFirstOnboardingEnabledForProfile(profile_)) {
     OnTrustFirstOnboardingShown();
   }
 
@@ -914,10 +912,12 @@ void GlicMetrics::OnImpressionTimerFired() {
   }
   base::UmaHistogramEnumeration("Glic.EntryPoint.Status", impression);
 
+#if !BUILDFLAG(IS_ANDROID)
   ui::Accelerator saved_hotkey =
       glic::GlicLauncherConfiguration::GetGlobalHotkey();
   base::UmaHistogramBoolean("Glic.OsEntrypoint.Settings.ShortcutStatus",
                             saved_hotkey != ui::Accelerator());
+#endif
 }
 
 void GlicMetrics::OnGlicWindowSizeTimerFired() {

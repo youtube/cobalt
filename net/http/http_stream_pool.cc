@@ -113,8 +113,8 @@ struct StreamCounts {
 
   auto operator<=>(const StreamCounts&) const = default;
 
-  base::Value::Dict ToValue() const {
-    base::Value::Dict dict;
+  base::DictValue ToValue() const {
+    base::DictValue dict;
     dict.Set("handed_out", static_cast<int>(handed_out));
     dict.Set("idle", static_cast<int>(idle));
     dict.Set("connecting", static_cast<int>(connecting));
@@ -153,6 +153,21 @@ HttpStreamPool::GetTcpBasedAttemptDelayBehavior() {
 // static
 bool HttpStreamPool::VerboseNetLog() {
   return kVerboseNetLog.Get();
+}
+
+// static
+bool HttpStreamPool::IsQuicErrorBrokenable(int net_error) {
+  switch (net_error) {
+    case OK:
+    case ERR_DNS_NO_MATCHING_SUPPORTED_ALPN:
+    case ERR_NETWORK_CHANGED:
+    case ERR_INTERNET_DISCONNECTED:
+    case ERR_ABORTED:
+      return false;
+
+    default:
+      return true;
+  }
 }
 
 HttpStreamPool::HttpStreamPool(HttpNetworkSession* http_network_session,
@@ -471,10 +486,10 @@ void HttpStreamPool::SetDelegateForTesting(
   delegate_for_testing_ = std::move(delegate);
 }
 
-base::Value::Dict HttpStreamPool::GetInfoAsValue() const {
+base::DictValue HttpStreamPool::GetInfoAsValue() const {
   // Using "socket" instead of "stream" for compatibility with ClientSocketPool.
   // These fields are used by some tests.
-  base::Value::Dict dict;
+  base::DictValue dict;
   dict.Set("handed_out_socket_count",
            static_cast<int>(total_handed_out_stream_count_));
   dict.Set("connecting_socket_count",
@@ -484,7 +499,7 @@ base::Value::Dict HttpStreamPool::GetInfoAsValue() const {
   dict.Set("max_sockets_per_group",
            static_cast<int>(max_stream_sockets_per_group_));
 
-  base::Value::Dict group_dicts;
+  base::DictValue group_dicts;
   for (const auto& [key, group] : groups_) {
     group_dicts.Set(key.ToString(), group.GetInfoAsValue());
   }
@@ -492,7 +507,7 @@ base::Value::Dict HttpStreamPool::GetInfoAsValue() const {
     dict.Set("groups", std::move(group_dicts));
   }
 
-  base::Value::List job_controller_list;
+  base::ListValue job_controller_list;
   for (const auto& job_controller : job_controllers_) {
     job_controller_list.Append(job_controller->GetInfoAsValue());
   }
@@ -602,7 +617,7 @@ void HttpStreamPool::CheckConsistency() {
         << "Total stream counts are not zero: " << pool_total_counts;
   } else {
     StreamCounts groups_total_counts;
-    base::Value::Dict groups;
+    base::DictValue groups;
     for (const auto& [key, group] : groups_) {
       groups_total_counts.handed_out += group.HandedOutStreamSocketCount();
       groups_total_counts.idle += group.IdleStreamSocketCount();
@@ -619,7 +634,7 @@ void HttpStreamPool::CheckConsistency() {
         ok ? NetLogEventType::HTTP_STREAM_POOL_CONSISTENCY_CHECK_OK
            : NetLogEventType::HTTP_STREAM_POOL_CONSISTENCY_CHECK_FAIL;
     net_log_.AddEvent(event_type, [&] {
-      base::Value::Dict dict;
+      base::DictValue dict;
       dict.Set("pool_total_counts", pool_total_counts.ToValue());
       dict.Set("groups_total_counts", groups_total_counts.ToValue());
       dict.Set("groups", std::move(groups));

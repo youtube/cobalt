@@ -107,7 +107,7 @@ class IwaKeyDistributionInfoProvider : public ChromeIwaRuntimeDataProvider {
   bool IsManagedInstallPermitted(std::string_view web_bundle_id) const override;
   bool IsManagedUpdatePermitted(std::string_view web_bundle_id) const override;
   base::Value AsDebugValue() const;
-  void WriteDebugMetadata(base::Value::Dict& log) const override;
+  void WriteDebugMetadata(base::DictValue& log) const override;
   std::optional<base::Version> GetVersion() const;
 
   // When set to true both above functions always return true
@@ -123,10 +123,9 @@ class IwaKeyDistributionInfoProvider : public ChromeIwaRuntimeDataProvider {
   // Sets a custom key rotation outside of the component updater flow and
   // triggers an `OnComponentUpdateSuccess()` event. The usage of this function
   // is intentionally limited to chrome://web-app-internals.
-  void RotateKeyForDevMode(
-      base::PassKey<IwaInternalsHandler>,
-      const std::string& web_bundle_id,
-      const std::optional<std::vector<uint8_t>>& rotated_key);
+  void RotateKeyForDevMode(base::PassKey<IwaInternalsHandler>,
+                           const std::string& web_bundle_id,
+                           const std::vector<uint8_t>& rotated_key);
 
   std::optional<bool> IsPreloadedForTesting() const;
   void SetComponentDataForTesting(base::Version component_version,

@@ -73,9 +73,9 @@ Color CSSColorMixValue::Mix(const Color& color1,
 }
 
 bool CSSColorMixValue::Equals(const CSSColorMixValue& other) const {
-  return color1_ == other.color1_ && color2_ == other.color2_ &&
-         percentage1_ == other.percentage1_ &&
-         percentage2_ == other.percentage2_ &&
+  return *color1_ == *other.color1_ && *color2_ == *other.color2_ &&
+         base::ValuesEquivalent(percentage1_, other.percentage1_) &&
+         base::ValuesEquivalent(percentage2_, other.percentage2_) &&
          color_interpolation_space_ == other.color_interpolation_space_ &&
          hue_interpolation_method_ == other.hue_interpolation_method_;
 }
@@ -152,6 +152,13 @@ String CSSColorMixValue::CustomCSSText() const {
   }
   result.Append(')');
   return result.ReleaseString();
+}
+
+bool CSSColorMixValue::HasRandomFunctions() const {
+  return (color1_ && color1_->HasRandomFunctions()) ||
+         (color2_ && color2_->HasRandomFunctions()) ||
+         (percentage1_ && percentage1_->HasRandomFunctions()) ||
+         (percentage2_ && percentage2_->HasRandomFunctions());
 }
 
 void CSSColorMixValue::TraceAfterDispatch(blink::Visitor* visitor) const {

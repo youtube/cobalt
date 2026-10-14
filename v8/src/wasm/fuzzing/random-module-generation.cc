@@ -2313,7 +2313,7 @@ class BodyGen {
     return true;  // It always produces the desired result type.
   }
 
-  bool ref_cast_desc(HeapType type, DataRange* data, Nullability nullable) {
+  bool ref_cast_desc_eq(HeapType type, DataRange* data, Nullability nullable) {
     if (!builder_->builder()
              ->GetType_Unsafe(type.ref_index())
              .has_descriptor()) {
@@ -2327,8 +2327,8 @@ class BodyGen {
             false, RefTypeKind::kStruct)
             .AsExact(type.exactness());
     GenerateRef(desc_type, data, kNonNullable);
-    builder_->EmitWithPrefix(nullable ? kExprRefCastDescNull
-                                      : kExprRefCastDesc);
+    builder_->EmitWithPrefix(nullable ? kExprRefCastDescEqNull
+                                      : kExprRefCastDescEq);
     builder_->EmitHeapType(type);
     return true;
   }
@@ -2534,8 +2534,8 @@ class BodyGen {
                                              RefTypeKind::kStruct)
                                  .AsExact(target_type.exactness());
         GenerateRef(desc_type, data, kNonNullable);
-        if (opcode == kExprBrOnCast) opcode = kExprBrOnCastDesc;
-        if (opcode == kExprBrOnCastFail) opcode = kExprBrOnCastDescFail;
+        if (opcode == kExprBrOnCast) opcode = kExprBrOnCastDescEq;
+        if (opcode == kExprBrOnCastFail) opcode = kExprBrOnCastDescEqFail;
       }
     }
     builder_->EmitWithPrefix(opcode);
@@ -3863,7 +3863,7 @@ class BodyGen {
                     &BodyGen::struct_atomic_rmw_xchg_ref,     //
                     &BodyGen::struct_atomic_rmw_cmpxchg_ref,  //
                     &BodyGen::ref_cast,                       //
-                    &BodyGen::ref_cast_desc,                  //
+                    &BodyGen::ref_cast_desc_eq,               //
                     &BodyGen::ref_get_desc,                   //
                     &BodyGen::ref_as_non_null,                //
                     // Note: More expensive operations (in terms of generated
@@ -4490,8 +4490,8 @@ class ModuleGen {
       } while (false);
 
       // TODO(42204563): Add support for shared structs.
-      StructType::Builder struct_builder(zone_, num_fields, is_descriptor,
-                                         false);
+      StructType::Builder<Zone> struct_builder(zone_, num_fields, is_descriptor,
+                                               false);
 
       // Add all fields from super type.
       uint32_t field_index = 0;
@@ -4704,8 +4704,13 @@ class ModuleGen {
     static constexpr base::Vector<const char> kTextEncoder =
         base::StaticCharVector("wasm:text-encoder");
 
+    // The signatures of compile-time imports must be defined in singleton
+    // recgroups, so we can't allow them to get deduplicated against existing
+    // signatures that might be in nontrivial recgroups.
+    static constexpr bool kForceNewSig = true;
 #define STRINGFUNC(name, sig, group) \
-  strings.name = builder_->AddImport(base::CStrVector(#name), &sig, group)
+  strings.name =                     \
+      builder_->AddImport(base::CStrVector(#name), &sig, group, kForceNewSig)
 
     STRINGFUNC(cast, kSig_e_r, kJsString);
     STRINGFUNC(test, kSig_i_r, kJsString);
@@ -5340,7 +5345,7 @@ base::Vector<uint8_t> GenerateWasmModuleForInitExpressions(
     }
     // TODO(403372470): Add support for custom descriptors.
     // TODO(42204563): Add support for shared structs.
-    StructType::Builder struct_builder(zone, num_fields, false, false);
+    StructType::Builder<Zone> struct_builder(zone, num_fields, false, false);
 
     // Add all fields from super type.
     uint32_t field_index = 0;

@@ -14,9 +14,11 @@
 #include "base/notimplemented.h"
 #include "base/strings/string_split.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/types/expected.h"
 #include "chrome/browser/actor/actor_features.h"
 #include "chrome/browser/actor/actor_util.h"
 #include "chrome/browser/actor/aggregated_journal.h"
+#include "chrome/browser/actor/enterprise_policy_url_checker.h"
 #include "chrome/browser/actor/origin_checker.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/lookalikes/lookalike_url_service.h"
@@ -135,7 +137,7 @@ void MayActOnUrlInternal(const GURL& url,
                          bool allow_insecure_http,
                          Profile* profile,
                          base::optional_ref<const OriginChecker> origin_checker,
-                         EnterprisePolicyCallback enterprise_policy_eval_url,
+                         const EnterprisePolicyUrlChecker& policy_checker,
                          std::unique_ptr<DecisionWrapper> decision_wrapper) {
   if ((net::IsLocalhost(url) && url.SchemeIsHTTPOrHTTPS()) ||
       url.IsAboutBlank()) {
@@ -219,7 +221,7 @@ void MayActOnUrlInternal(const GURL& url,
   }
 
   const EnterprisePolicyBlockReason enterprise_reason =
-      enterprise_policy_eval_url(url);
+      policy_checker.Evaluate(url);
   switch (enterprise_reason) {
     case EnterprisePolicyBlockReason::kNotBlocked:
       break;
@@ -257,7 +259,8 @@ void MayActOnUrlInternal(const GURL& url,
   // will be included in the `origin_checker`. If `url`'s origin has not been
   // confirmed by the user, we apply the optimization guide check.
   if (IsNavigationGatingEnabled() &&
-      (!origin_checker || origin_checker->IsSensitiveUrlConfirmed(url))) {
+      (!origin_checker ||
+       origin_checker->IsNavigationConfirmedByUser(url::Origin::Create(url)))) {
     decision_wrapper->Accept();
     return;
   }
@@ -304,7 +307,7 @@ void MayActOnTab(const tabs::TabInterface& tab,
                  AggregatedJournal& journal,
                  TaskId task_id,
                  const OriginChecker& origin_checker,
-                 EnterprisePolicyCallback enterprise_policy_eval_url,
+                 const EnterprisePolicyUrlChecker& policy_checker,
                  DecisionCallbackWithReason callback) {
   content::WebContents& web_contents = *tab.GetContents();
 
@@ -336,7 +339,7 @@ void MayActOnTab(const tabs::TabInterface& tab,
   MayActOnUrlInternal(
       url, /*allow_insecure_http=*/false,
       Profile::FromBrowserContext(web_contents.GetBrowserContext()),
-      origin_checker, enterprise_policy_eval_url, std::move(decision_wrapper));
+      origin_checker, policy_checker, std::move(decision_wrapper));
 }
 
 void MayActOnUrl(const GURL& url,
@@ -344,18 +347,19 @@ void MayActOnUrl(const GURL& url,
                  Profile* profile,
                  AggregatedJournal& journal,
                  TaskId task_id,
-                 EnterprisePolicyCallback enterprise_policy_eval_url,
+                 const EnterprisePolicyUrlChecker& policy_checker,
                  DecisionCallbackWithReason callback) {
   std::unique_ptr<DecisionWrapper> decision_wrapper =
       std::make_unique<DecisionWrapper>(journal, url, task_id, "MayActOnUrl",
                                         std::move(callback));
   MayActOnUrlInternal(url, allow_insecure_http, profile, std::nullopt,
-                      enterprise_policy_eval_url, std::move(decision_wrapper));
+                      policy_checker, std::move(decision_wrapper));
 }
 
-bool MaybeCheckOptimizationGuideForSensitiveUrl(const GURL& url,
-                                                Profile* profile,
-                                                DecisionCallback callback) {
+base::expected<void, DecisionCallback>
+MaybeCheckOptimizationGuideForSensitiveUrl(const GURL& url,
+                                           Profile* profile,
+                                           DecisionCallback callback) {
   // Check that the optimization guide component has loaded. It could be
   // missing, for example, if the user has very recently installed chrome and
   // the component updater has not yet run. We don't want to reject every URL,
@@ -365,13 +369,13 @@ bool MaybeCheckOptimizationGuideForSensitiveUrl(const GURL& url,
            GetInstance()
                ->hints_component_info()
                .has_value()) {
-    return false;
+    return base::unexpected(std::move(callback));
   }
 
   auto* optimization_guide_decider =
       OptimizationGuideKeyedServiceFactory::GetForProfile(profile);
   if (!optimization_guide_decider) {
-    return false;
+    return base::unexpected(std::move(callback));
   }
 
   optimization_guide_decider->CanApplyOptimization(
@@ -380,7 +384,7 @@ bool MaybeCheckOptimizationGuideForSensitiveUrl(const GURL& url,
                         const optimization_guide::OptimizationMetadata&) {
         return ShouldContinueFromOptimizationGuideDecision(decision);
       }).Then(std::move(callback)));
-  return true;
+  return base::ok();
 }
 
 }  // namespace actor

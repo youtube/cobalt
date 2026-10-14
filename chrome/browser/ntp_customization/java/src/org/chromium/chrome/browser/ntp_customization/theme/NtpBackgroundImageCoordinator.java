@@ -5,8 +5,8 @@
 package org.chromium.chrome.browser.ntp_customization.theme;
 
 import static org.chromium.build.NullUtil.assertNonNull;
-import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundImageType.IMAGE_FROM_DISK;
-import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundImageType.THEME_COLLECTION;
+import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundType.IMAGE_FROM_DISK;
+import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundType.THEME_COLLECTION;
 import static org.chromium.chrome.browser.ntp_customization.theme.upload_image.CropImageUtils.getCurrentWindowDimensions;
 
 import android.app.Activity;
@@ -22,7 +22,7 @@ import androidx.annotation.ColorInt;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundImageType;
+import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundType;
 import org.chromium.chrome.browser.ntp_customization.R;
 import org.chromium.chrome.browser.ntp_customization.theme.upload_image.BackgroundImageInfo;
 import org.chromium.chrome.browser.ntp_customization.theme.upload_image.CropImageUtils;
@@ -40,12 +40,9 @@ import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
 @NullMarked
 public class NtpBackgroundImageCoordinator {
     private final Context mContext;
-    private final UiConfig mUiConfig;
-    private final DisplayStyleObserver mDisplayStyleObserver;
     private final PropertyModel mPropertyModel;
 
     private int mBackgroundImageType;
-    private boolean mIsObservingDisplayChange;
     private @Nullable Bitmap mOriginalBitmap;
     // Immutable source of truth loaded from disk. Serves as the reference point for
     // deriving transformations when window dimensions change.
@@ -53,6 +50,8 @@ public class NtpBackgroundImageCoordinator {
     // Mutable runtime cache. Stores matrices validated for the current window dimensions
     // to avoid redundant invocation of validateMatrix().
     private @Nullable BackgroundImageInfo mCachedBackgroundImageInfo;
+    private @Nullable UiConfig mUiConfig;
+    private @Nullable DisplayStyleObserver mDisplayStyleObserver;
 
     /**
      * @param context The application context.
@@ -64,7 +63,6 @@ public class NtpBackgroundImageCoordinator {
             Context context, ViewGroup rootView, UiConfig uiConfig, @ColorInt int backgroundColor) {
         mContext = context;
         mUiConfig = uiConfig;
-        mDisplayStyleObserver = (newDisplayStyle) -> setImageBackgroundWithMatrices();
 
         FrameLayout backgroundImageLayout =
                 (FrameLayout)
@@ -91,7 +89,7 @@ public class NtpBackgroundImageCoordinator {
     public void setBackground(
             Bitmap originalBitmap,
             @Nullable BackgroundImageInfo backgroundImageInfo,
-            @NtpBackgroundImageType int backgroundType) {
+            @NtpBackgroundType int backgroundType) {
         mOriginalBitmap = originalBitmap;
         mBackgroundImageType = backgroundType;
         mBackgroundImageInfo = backgroundImageInfo;
@@ -113,7 +111,13 @@ public class NtpBackgroundImageCoordinator {
      * registered observers.
      */
     public void destroy() {
-        maybeRemoveDisplayStyleObserver();
+        if (mUiConfig != null && mDisplayStyleObserver != null) {
+            mUiConfig.removeObserver(mDisplayStyleObserver);
+        }
+        mDisplayStyleObserver = null;
+        mUiConfig = null;
+        mCachedBackgroundImageInfo = null;
+        mBackgroundImageInfo = null;
     }
 
     /**
@@ -124,12 +128,13 @@ public class NtpBackgroundImageCoordinator {
      * #setImageBackgroundWithMatrices()} to ensure the new background is applied immediately.
      */
     private void maybeAddDisplayStyleObserver() {
-        if (mIsObservingDisplayChange) {
+        if (mDisplayStyleObserver != null) {
             setImageBackgroundWithMatrices();
             return;
         }
 
-        mIsObservingDisplayChange = true;
+        mDisplayStyleObserver = (newDisplayStyle) -> setImageBackgroundWithMatrices();
+        assertNonNull(mUiConfig);
         mUiConfig.addObserver(mDisplayStyleObserver);
     }
 
@@ -138,10 +143,11 @@ public class NtpBackgroundImageCoordinator {
      * mIsObservingDisplayChange.
      */
     private void maybeRemoveDisplayStyleObserver() {
-        if (!mIsObservingDisplayChange) return;
+        if (mDisplayStyleObserver == null) return;
 
-        mIsObservingDisplayChange = false;
+        assertNonNull(mUiConfig);
         mUiConfig.removeObserver(mDisplayStyleObserver);
+        mDisplayStyleObserver = null;
     }
 
     private void setImageBackgroundWithMatrices() {

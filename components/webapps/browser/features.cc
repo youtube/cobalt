@@ -14,12 +14,7 @@ namespace features {
 BASE_FEATURE(kWebApkInstallFailureNotification,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kAndroidWebAppMenuButton, base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kAndroidTWAOriginDisplay, base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kAndroidWebAppHeaderForStandaloneMode,
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kAndroidAutoMintedTWA, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -49,5 +44,9 @@ extern const base::FeatureParam<int> kMaxDaysForMLPromotionGuardrailStorage(
 // long, UI-thread Binder call. Enabling this flag makes the web app
 // installation check on Clank async.
 BASE_FEATURE(kCheckWebAppExistenceAsync, base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kLaunchQueueStopSendingOnReload,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 }  // namespace features
 }  // namespace webapps

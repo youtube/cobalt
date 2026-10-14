@@ -14,6 +14,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+#include "chrome/browser/ui/tabs/tab_list_interface.h"
 #include "chrome/common/webui_url_constants.h"
 #include "content/public/browser/web_contents.h"
 #include "url/gurl.h"
@@ -36,7 +37,7 @@ bool IsTabValidForSharing(content::WebContents* web_contents) {
        GURL(chrome::kChromeUINewTabPageThirdPartyURL),
        GURL(chrome::kChromeUINewTabPageURL), GURL(chrome::kChromeUINewTabURL),
 #if !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_ANDROID)
-       // NEEDS_ANDROID_IMPL: This isn't yet available on android desktop.
+       // NEEDS_ANDROID_IMPL: what's new page
        // "What's New" does not exist in the form of a tab on ChromeOS.
        GURL(chrome::kChromeUIWhatsNewURL)
 #endif
@@ -118,7 +119,7 @@ void GlicActiveTabForProfileTracker::UpdateActiveTab() {
   BrowserWindowInterface* const browser =
       GetLastActiveBrowserWindowInterfaceWithAnyProfile();
   if (IsBrowserActiveForProfile(browser)) {
-    active_tab = GetActiveTabInterface(browser);
+    active_tab = TabListInterface::From(browser)->GetActiveTab();
   }
 
   if (last_notified_tab_.WasInvalidated() ||

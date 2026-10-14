@@ -13,7 +13,6 @@
 #include "base/strings/strcat.h"
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
-#include "chrome/browser/page_content_annotations/page_content_extraction_service.h"
 #include "chrome/browser/page_content_annotations/page_content_extraction_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window.h"
@@ -23,6 +22,7 @@
 #include "components/omnibox/common/omnibox_feature_configs.h"
 #include "components/omnibox/common/omnibox_focus_state.h"
 #include "components/optimization_guide/proto/features/common_quality_data.pb.h"
+#include "components/page_content_annotations/content/page_content_extraction_service.h"
 #include "content/public/browser/page.h"
 #include "content/public/browser/render_frame_host.h"
 #include "services/service_manager/public/cpp/interface_provider.h"
@@ -70,6 +70,13 @@ PaywallSignal ToPaywallSignal(std::optional<bool> paywall_signal) {
 }  // namespace
 
 OmniboxTabHelper::~OmniboxTabHelper() = default;
+
+// static
+void OmniboxTabHelper::ClearOmniboxInputState(
+    content::WebContents* web_contents) {
+  web_contents->SetUserData(kOmniboxStateKey, nullptr);
+}
+
 OmniboxTabHelper::OmniboxTabHelper(content::WebContents* contents,
                                    Profile* profile)
     : content::WebContentsUserData<OmniboxTabHelper>(*contents),

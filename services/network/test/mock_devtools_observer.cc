@@ -8,6 +8,7 @@
 #include "base/unguessable_token.h"
 #include "net/cookies/canonical_cookie.h"
 #include "services/network/public/mojom/client_security_state.mojom.h"
+#include "services/network/public/mojom/device_bound_sessions.mojom.h"
 #include "services/network/public/mojom/http_raw_headers.mojom.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -28,6 +29,8 @@ void MockDevToolsObserver::OnRawRequest(
     const net::CookieAccessResultList& cookies_with_access_result,
     std::vector<network::mojom::HttpRawHeaderPairPtr> headers,
     const base::TimeTicks timestamp,
+    std::vector<network::mojom::DeviceBoundSessionWithUsagePtr>
+        device_bound_session_usages,
     network::mojom::ClientSecurityStatePtr client_security_state,
     network::mojom::OtherPartitionInfoPtr site_has_cookie_in_other_partition,
     const std::optional<base::UnguessableToken>&
@@ -79,16 +82,16 @@ void MockDevToolsObserver::OnRawResponse(
   }
 }
 
-void MockDevToolsObserver::OnPrivateNetworkRequest(
+void MockDevToolsObserver::OnLocalNetworkRequest(
     const std::optional<std::string>& devtools_request_id,
     const GURL& url,
     bool is_warning,
     network::mojom::IPAddressSpace resource_address_space,
     network::mojom::ClientSecurityStatePtr client_security_state) {
-  params_of_private_network_request_.emplace(devtools_request_id, url,
-                                             is_warning, resource_address_space,
-                                             std::move(client_security_state));
-  wait_for_private_network_request_.Quit();
+  params_of_local_network_request_.emplace(devtools_request_id, url, is_warning,
+                                           resource_address_space,
+                                           std::move(client_security_state));
+  wait_for_local_network_request_.Quit();
 }
 
 void MockDevToolsObserver::OnCorsPreflightRequest(
@@ -158,8 +161,8 @@ void MockDevToolsObserver::WaitUntilRawRequest(size_t goal) {
   EXPECT_EQ(goal, raw_request_cookies_.size());
 }
 
-void MockDevToolsObserver::WaitUntilPrivateNetworkRequest() {
-  wait_for_private_network_request_.Run();
+void MockDevToolsObserver::WaitUntilLocalNetworkRequest() {
+  wait_for_local_network_request_.Run();
 }
 
 void MockDevToolsObserver::WaitUntilCorsError() {
@@ -170,22 +173,21 @@ void MockDevToolsObserver::WaitUntilEarlyHints() {
   wait_for_early_hints_.Run();
 }
 
-MockDevToolsObserver::OnPrivateNetworkRequestParams::
-    OnPrivateNetworkRequestParams(
-        const std::optional<std::string>& devtools_request_id,
-        const GURL& url,
-        bool is_warning,
-        network::mojom::IPAddressSpace resource_address_space,
-        network::mojom::ClientSecurityStatePtr client_security_state)
+MockDevToolsObserver::OnLocalNetworkRequestParams::OnLocalNetworkRequestParams(
+    const std::optional<std::string>& devtools_request_id,
+    const GURL& url,
+    bool is_warning,
+    network::mojom::IPAddressSpace resource_address_space,
+    network::mojom::ClientSecurityStatePtr client_security_state)
     : devtools_request_id(devtools_request_id),
       url(url),
       is_warning(is_warning),
       resource_address_space(resource_address_space),
       client_security_state(std::move(client_security_state)) {}
-MockDevToolsObserver::OnPrivateNetworkRequestParams::
-    OnPrivateNetworkRequestParams(OnPrivateNetworkRequestParams&&) = default;
-MockDevToolsObserver::OnPrivateNetworkRequestParams::
-    ~OnPrivateNetworkRequestParams() = default;
+MockDevToolsObserver::OnLocalNetworkRequestParams::OnLocalNetworkRequestParams(
+    OnLocalNetworkRequestParams&&) = default;
+MockDevToolsObserver::OnLocalNetworkRequestParams::
+    ~OnLocalNetworkRequestParams() = default;
 
 MockDevToolsObserver::OnCorsErrorParams::OnCorsErrorParams() = default;
 MockDevToolsObserver::OnCorsErrorParams::OnCorsErrorParams(

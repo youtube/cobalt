@@ -26,8 +26,13 @@ SqlPersistentStore::BackendShard::BackendShard(
     ShardId shard_id,
     const base::FilePath& path,
     net::CacheType type,
+    scoped_refptr<SqlReadCacheMemoryMonitor> read_cache_memory_monitor,
     scoped_refptr<base::SequencedTaskRunner> background_task_runner)
-    : backend_(background_task_runner, shard_id, path, type) {}
+    : backend_(background_task_runner,
+               shard_id,
+               path,
+               type,
+               std::move(read_cache_memory_monitor)) {}
 
 SqlPersistentStore::BackendShard::~BackendShard() = default;
 
@@ -192,42 +197,41 @@ void SqlPersistentStore::BackendShard::UpdateEntryLastUsedByKey(
       .Then(WrapCallback(std::move(callback)));
 }
 
-void SqlPersistentStore::BackendShard::UpdateEntryLastUsedByResId(
-    ResId res_id,
-    base::Time last_used,
-    ErrorCallback callback) {
-  backend_.AsyncCall(&SqlPersistentStore::Backend::UpdateEntryLastUsedByResId)
-      .WithArgs(res_id, last_used, base::TimeTicks::Now())
-      .Then(WrapCallback(std::move(callback)));
-}
-
-void SqlPersistentStore::BackendShard::UpdateEntryHeaderAndLastUsed(
+void SqlPersistentStore::BackendShard::WriteEntryDataAndMetadata(
     const CacheEntryKey& key,
-    ResId res_id,
+    std::optional<ResId> res_id,
+    std::optional<int64_t> old_body_end,
+    EntryWriteBuffer buffer,
     base::Time last_used,
     const std::optional<MemoryEntryDataHints>& new_hints,
-    scoped_refptr<net::IOBuffer> buffer,
+    scoped_refptr<net::IOBuffer> head_buffer,
     int64_t header_size_delta,
-    ErrorCallback callback) {
-  backend_.AsyncCall(&SqlPersistentStore::Backend::UpdateEntryHeaderAndLastUsed)
-      .WithArgs(key, res_id, last_used, new_hints, std::move(buffer),
-                header_size_delta, base::TimeTicks::Now())
-      .Then(WrapCallbackWithStoreStatus(std::move(callback)));
+    ResIdOrErrorCallback callback) {
+  backend_.AsyncCall(&SqlPersistentStore::Backend::WriteEntryDataAndMetadata)
+      .WithArgs(key, res_id, old_body_end, std::move(buffer), last_used,
+                new_hints, std::move(head_buffer), header_size_delta,
+                base::TimeTicks::Now())
+      .Then(WrapCallbackWithStoreStatusAndIndexUpdate(
+          std::move(callback), key,
+          /*is_new_entry=*/!res_id.has_value(), new_hints,
+          IndexMismatchLocation::kWriteEntryDataAndMetadata));
 }
 
 void SqlPersistentStore::BackendShard::WriteEntryData(
     const CacheEntryKey& key,
-    ResId res_id,
+    const ResIdOrTime& res_id_or_last_used_time,
     int64_t old_body_end,
-    int64_t offset,
-    scoped_refptr<net::IOBuffer> buffer,
-    int buf_len,
+    EntryWriteBuffer buffer,
     bool truncate,
-    ErrorCallback callback) {
+    ResIdOrErrorCallback callback) {
   backend_.AsyncCall(&SqlPersistentStore::Backend::WriteEntryData)
-      .WithArgs(key, res_id, old_body_end, offset, std::move(buffer), buf_len,
+      .WithArgs(key, res_id_or_last_used_time, old_body_end, std::move(buffer),
                 truncate, base::TimeTicks::Now())
-      .Then(WrapCallbackWithStoreStatus(std::move(callback)));
+      .Then(WrapCallbackWithStoreStatusAndIndexUpdate(
+          std::move(callback), key,
+          /*is_new_entry=*/
+          std::holds_alternative<base::Time>(res_id_or_last_used_time),
+          /*new_hints=*/std::nullopt, IndexMismatchLocation::kWriteEntryData));
 }
 
 void SqlPersistentStore::BackendShard::ReadEntryData(
@@ -238,7 +242,7 @@ void SqlPersistentStore::BackendShard::ReadEntryData(
     int buf_len,
     int64_t body_end,
     bool sparse_reading,
-    SqlPersistentStore::IntOrErrorCallback callback) {
+    SqlPersistentStore::ReadResultOrErrorCallback callback) {
   backend_.AsyncCall(&SqlPersistentStore::Backend::ReadEntryData)
       .WithArgs(key, res_id, offset, std::move(buffer), buf_len, body_end,
                 sparse_reading, base::TimeTicks::Now())
@@ -414,6 +418,38 @@ SqlPersistentStore::BackendShard::WrapCallbackWithStoreStatus(
         }
       },
       weak_factory_.GetWeakPtr(), std::move(callback));
+}
+
+base::OnceCallback<void(SqlPersistentStore::ResIdOrErrorAndStoreStatus)>
+SqlPersistentStore::BackendShard::WrapCallbackWithStoreStatusAndIndexUpdate(
+    ResIdOrErrorCallback callback,
+    const CacheEntryKey& key,
+    bool is_new_entry,
+    const std::optional<MemoryEntryDataHints>& new_hints,
+    IndexMismatchLocation location) {
+  return base::BindOnce(
+      [](base::WeakPtr<BackendShard> weak_ptr, ResIdOrErrorCallback callback,
+         CacheEntryKey::Hash key_hash, bool is_new_entry,
+         const std::optional<MemoryEntryDataHints>& new_hints,
+         IndexMismatchLocation location, ResIdOrErrorAndStoreStatus result) {
+        if (weak_ptr) {
+          weak_ptr->store_status_ = result.store_status;
+          if (result.result.has_value() && weak_ptr->index_) {
+            if (is_new_entry) {
+              if (!weak_ptr->index_->Insert(key_hash, *result.result)) {
+                weak_ptr->RecordIndexMismatch(location);
+              }
+            }
+            if (new_hints) {
+              weak_ptr->index_->SetEntryDataHints(*result.result, *new_hints);
+            }
+          }
+          // We should not run the callback when `this` was deleted.
+          std::move(callback).Run(std::move(result.result));
+        }
+      },
+      weak_factory_.GetWeakPtr(), std::move(callback), key.hash(), is_new_entry,
+      new_hints, location);
 }
 
 base::OnceCallback<void(SqlPersistentStore::EntryInfoOrErrorAndStoreStatus)>

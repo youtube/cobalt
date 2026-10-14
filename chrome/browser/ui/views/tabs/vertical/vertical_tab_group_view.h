@@ -7,6 +7,7 @@
 
 #include "base/callback_list.h"
 #include "base/memory/raw_ptr.h"
+#include "chrome/browser/ui/tabs/tab_group_attention_indicator.h"
 #include "chrome/browser/ui/views/tabs/tab_strip_types.h"
 #include "chrome/browser/ui/views/tabs/vertical/tab_collection_animating_layout_manager.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_dragged_tabs_container.h"
@@ -20,10 +21,13 @@ class TabCollectionNode;
 class VerticalTabDragHandler;
 class VerticalTabGroupHeaderView;
 
-// Container for a tab group in the vertical tabstrip.
+// The view class for vertical tab group container. It manages layout
+// of the group header, underline and all the tabs within the group. It also
+// handles serves as the drag target for tab dragging.
 class VerticalTabGroupView
     : public views::View,
       public views::LayoutDelegate,
+      public TabGroupAttentionIndicator::Observer,
       public VerticalTabGroupHeaderView::Delegate,
       public VerticalDraggedTabsContainer,
       public TabCollectionAnimatingLayoutManager::Delegate {
@@ -42,10 +46,17 @@ class VerticalTabGroupView
   views::ProposedLayout CalculateProposedLayout(
       const views::SizeBounds& size_bounds) const override;
 
+  // TabGroupAttentionIndicator::Observer:
+  void OnAttentionStateChanged() override;
+
   // VerticalTabGroupHeaderView::Delegate:
   void ToggleCollapsedState(ToggleTabGroupCollapsedStateOrigin origin) override;
   views::Widget* ShowGroupEditorBubble(
       bool stop_context_menu_propagation) override;
+  std::u16string GetGroupContentString() const override;
+  void InitHeaderDrag(const ui::MouseEvent& event) override;
+  bool ContinueHeaderDrag(const ui::MouseEvent& event) override;
+  void CancelHeaderDrag() override;
 
   // TabCollectionAnimatingLayoutManager::Delegate:
   bool IsViewDragging(const views::View& child_view) const override;
@@ -53,10 +64,10 @@ class VerticalTabGroupView
 
   bool IsCollapsed() const;
 
-  // Handler when a tab that is not in the group is dragged over this.
-  void OnTabDragOver();
+  const TabCollectionNode* collection_node() const { return collection_node_; }
 
-  VerticalTabGroupHeaderView* group_header_for_testing() {
+  VerticalTabGroupHeaderView* group_header() { return group_header_; }
+  const VerticalTabGroupHeaderView* group_header() const {
     return group_header_;
   }
 
@@ -64,13 +75,16 @@ class VerticalTabGroupView
   // VerticalDraggedTabsContainer:
   VerticalTabDragHandler& GetDragHandler() override;
   const VerticalTabDragHandler& GetDragHandler() const override;
+  bool IsTabStripCollapsed() const override;
   views::ScrollView* GetScrollViewForContainer() const override;
   void UpdateLayoutForDrag() override;
-  void HandleTabDragInContainer(const gfx::Point point_in_container) override;
+  void HandleTabDragInContainer(const gfx::Rect& dragged_tab_bounds) override;
+  void OnTabDragExited(const gfx::Point& point_in_screen) override;
 
   void ResetCollectionNode();
   void OnDataChanged();
   void UpdateChildVisibilityForCollapseState(bool collapsed);
+  bool GetIsShared();
 
   raw_ptr<TabCollectionNode> collection_node_ = nullptr;
 
@@ -82,6 +96,10 @@ class VerticalTabGroupView
   const raw_ptr<views::View> group_line_ = nullptr;
 
   const raw_ref<TabCollectionAnimatingLayoutManager> layout_manager_;
+
+  base::ScopedObservation<TabGroupAttentionIndicator,
+                          TabGroupAttentionIndicator::Observer>
+      attention_indicator_observation_{this};
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_TABS_VERTICAL_VERTICAL_TAB_GROUP_VIEW_H_

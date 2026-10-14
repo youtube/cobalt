@@ -12,6 +12,22 @@ namespace webauthn {
 
 namespace {
 
+// Message event.
+constexpr char kEvent[] = "event";
+
+// Message event types.
+constexpr char kHandleGetRequest[] = "handleGetRequest";
+constexpr char kHandleCreateRequest[] = "handleCreateRequest";
+constexpr char kLogGetRequest[] = "logGetRequest";
+constexpr char kLogCreateRequest[] = "logCreateRequest";
+constexpr char kLogGetResolved[] = "logGetResolved";
+constexpr char kLogCreateResolved[] = "logCreateResolved";
+
+// Parameters for logging events.
+constexpr char kCredentialId[] = "credentialId";
+constexpr char kRpId[] = "rpId";
+constexpr char kIsGpm[] = "isGpm";
+
 // Request ID associated with deferred promises.
 constexpr char kRequestId[] = "requestId";
 
@@ -32,6 +48,7 @@ constexpr char kAllowCredentials[] = "allowCredentials";
 // Members of the "request" dictionary.
 constexpr char kChallenge[] = "challenge";
 constexpr char kUserVerification[] = "userVerification";
+constexpr char kIsConditional[] = "isConditional";
 
 // Common members of the "rpEntity" and "userEntity" dictionaries.
 constexpr char kId[] = "id";
@@ -114,7 +131,7 @@ ValidateBase64URLString(const std::string* str,
 // Builds a PublicKeyCredentialUserEntity object from the parameters contained
 // in the provided dictionary.
 base::expected<device::PublicKeyCredentialUserEntity, PasskeysParsingError>
-BuildUserEntity(const base::Value::Dict& dict) {
+BuildUserEntity(const base::DictValue& dict) {
   auto decoded_id = ValidateBase64URLString(
       dict.FindString(kId), PasskeysParsingError::kMissingUserId,
       PasskeysParsingError::kEmptyUserId,
@@ -141,7 +158,7 @@ BuildUserEntity(const base::Value::Dict& dict) {
 // Builds a PublicKeyCredentialRpEntity object from the parameters contained in
 // the provided dictionary.
 base::expected<device::PublicKeyCredentialRpEntity, PasskeysParsingError>
-BuildRpEntity(const base::Value::Dict& dict) {
+BuildRpEntity(const base::DictValue& dict) {
   auto id_str =
       ValidateString(dict.FindString(kId), PasskeysParsingError::kMissingRpId,
                      PasskeysParsingError::kEmptyRpId);
@@ -173,17 +190,29 @@ device::UserVerificationRequirement ToUserVerificationRequirement(
       .value_or(device::UserVerificationRequirement::kPreferred);
 }
 
+// Converts the provided booleans to a PasskeyRequestParams::RequestType enum.
+PasskeyRequestParams::RequestType ToRequestType(bool is_conditional,
+                                                bool for_create_request) {
+  if (!is_conditional) {
+    return PasskeyRequestParams::RequestType::kModal;
+  }
+
+  return for_create_request
+             ? PasskeyRequestParams::RequestType::kConditionalCreate
+             : PasskeyRequestParams::RequestType::kConditionalGet;
+}
+
 // Reads a list of PublicKeyCredentialDescriptor from the provided list.
 base::expected<std::vector<device::PublicKeyCredentialDescriptor>,
                PasskeysParsingError>
-ReadCredentials(const base::Value::List* serialized_descriptors) {
+ReadCredentials(const base::ListValue* serialized_descriptors) {
   std::vector<device::PublicKeyCredentialDescriptor> credential_descriptors;
   if (!serialized_descriptors) {
     return credential_descriptors;
   }
 
   for (const auto& serialized_descriptor : *serialized_descriptors) {
-    const base::Value::Dict& dict = serialized_descriptor.GetDict();
+    const base::DictValue& dict = serialized_descriptor.GetDict();
 
     const std::string* type = dict.FindString(kType);
     if (!type) {
@@ -207,7 +236,7 @@ ReadCredentials(const base::Value::List* serialized_descriptors) {
         device::CredentialType::kPublicKey, std::move(*decoded_id));
 
     // Read transport protocols.
-    const base::Value::List* transports = dict.FindList(kTransports);
+    const base::ListValue* transports = dict.FindList(kTransports);
     if (transports) {
       for (const auto& transport : *transports) {
         std::optional<device::FidoTransportProtocol> fidoTransportProtocol =
@@ -226,7 +255,7 @@ ReadCredentials(const base::Value::List* serialized_descriptors) {
 
 // Builds a PRFInputData object from a dictionary.
 base::expected<passkey_model_utils::PRFInputData, PasskeysParsingError>
-BuildPRFInputData(const base::Value::Dict& dict) {
+BuildPRFInputData(const base::DictValue& dict) {
   // Get base 64 encoded strings.
   const std::string* first64 = dict.FindString(device::kExtensionPRFFirst);
   const std::string* second64 = dict.FindString(device::kExtensionPRFSecond);
@@ -263,17 +292,17 @@ BuildPRFInputData(const base::Value::Dict& dict) {
 
 // Reads all extension data from the extensions dictionary.
 base::expected<PasskeyExtensionData, PasskeysParsingError> BuildExtensionData(
-    const base::Value::Dict& extensions,
+    const base::DictValue& extensions,
     const std::optional<std::vector<device::PublicKeyCredentialDescriptor>>&
         allow_credentials,
     bool for_create_request) {
-  const base::Value::Dict* prf = extensions.FindDict(device::kExtensionPRF);
+  const base::DictValue* prf = extensions.FindDict(device::kExtensionPRF);
   PasskeyExtensionData extension_data;
   if (!prf) {
     return extension_data;
   }
 
-  const base::Value::Dict* prf_eval = prf->FindDict(device::kExtensionPRFEval);
+  const base::DictValue* prf_eval = prf->FindDict(device::kExtensionPRFEval);
   if (prf_eval) {
     auto prf_input_data = BuildPRFInputData(*prf_eval);
     if (!prf_input_data.has_value()) {
@@ -282,7 +311,7 @@ base::expected<PasskeyExtensionData, PasskeysParsingError> BuildExtensionData(
     extension_data.prf_eval = std::move(*prf_input_data);
   }
 
-  const base::Value::Dict* eval_by_credential =
+  const base::DictValue* eval_by_credential =
       prf->FindDict(device::kExtensionPRFEvalByCredential);
   if (eval_by_credential) {
     if (for_create_request) {
@@ -331,11 +360,11 @@ base::expected<PasskeyExtensionData, PasskeysParsingError> BuildExtensionData(
 // provided dictionary.
 base::expected<PasskeyRequestParams, PasskeysParsingError> BuildRequestParams(
     IOSPasskeyClient::RequestInfo request_info,
-    const base::Value::Dict& dict,
+    const base::DictValue& dict,
     const std::optional<std::vector<device::PublicKeyCredentialDescriptor>>&
         allow_credentials,
     bool for_create_request) {
-  const base::Value::Dict* request_dict = dict.FindDict(kRequest);
+  const base::DictValue* request_dict = dict.FindDict(kRequest);
   if (!request_dict) {
     return base::unexpected(PasskeysParsingError::kMissingRequest);
   }
@@ -349,7 +378,12 @@ base::expected<PasskeyRequestParams, PasskeysParsingError> BuildRequestParams(
     return base::unexpected(challenge.error());
   }
 
-  const base::Value::Dict* rp_entity_dict = dict.FindDict(kRpEntity);
+  std::optional<bool> isConditional = request_dict->FindBool(kIsConditional);
+  if (!isConditional.has_value()) {
+    return base::unexpected(PasskeysParsingError::kMissingConditional);
+  }
+
+  const base::DictValue* rp_entity_dict = dict.FindDict(kRpEntity);
   if (!rp_entity_dict) {
     return base::unexpected(PasskeysParsingError::kMissingRpEntity);
   }
@@ -359,7 +393,7 @@ base::expected<PasskeyRequestParams, PasskeysParsingError> BuildRequestParams(
     return base::unexpected(rp_entity.error());
   }
 
-  const base::Value::Dict* extensions = dict.FindDict(kExtensions);
+  const base::DictValue* extensions = dict.FindDict(kExtensions);
   if (!extensions) {
     return base::unexpected(PasskeysParsingError::kMissingExtensions);
   }
@@ -374,13 +408,14 @@ base::expected<PasskeyRequestParams, PasskeysParsingError> BuildRequestParams(
                               std::move(*challenge),
                               ToUserVerificationRequirement(
                                   request_dict->FindString(kUserVerification)),
+                              ToRequestType(*isConditional, for_create_request),
                               std::move(*extension_data));
 }
 
 }  // namespace
 
 base::expected<IOSPasskeyClient::RequestInfo, PasskeysParsingError>
-BuildRequestInfo(const base::Value::Dict& dict) {
+BuildRequestInfo(const base::DictValue& dict) {
   auto frame_id = ValidateString(dict.FindString(kFrameId),
                                  PasskeysParsingError::kMissingFrameId,
                                  PasskeysParsingError::kEmptyFrameId);
@@ -400,7 +435,7 @@ BuildRequestInfo(const base::Value::Dict& dict) {
 
 base::expected<AssertionRequestParams, PasskeysParsingError>
 BuildAssertionRequestParams(IOSPasskeyClient::RequestInfo request_info,
-                            const base::Value::Dict& dict) {
+                            const base::DictValue& dict) {
   auto credentials = ReadCredentials(dict.FindList(kAllowCredentials));
   if (!credentials.has_value()) {
     return base::unexpected(credentials.error());
@@ -419,7 +454,7 @@ BuildAssertionRequestParams(IOSPasskeyClient::RequestInfo request_info,
 
 base::expected<RegistrationRequestParams, PasskeysParsingError>
 BuildRegistrationRequestParams(IOSPasskeyClient::RequestInfo request_info,
-                               const base::Value::Dict& dict) {
+                               const base::DictValue& dict) {
   auto credentials = ReadCredentials(dict.FindList(kExcludeCredentials));
   if (!credentials.has_value()) {
     return base::unexpected(credentials.error());
@@ -431,7 +466,7 @@ BuildRegistrationRequestParams(IOSPasskeyClient::RequestInfo request_info,
     return base::unexpected(request_params.error());
   }
 
-  const base::Value::Dict* user_entity_dict = dict.FindDict(kUserEntity);
+  const base::DictValue* user_entity_dict = dict.FindDict(kUserEntity);
   if (!user_entity_dict) {
     return base::unexpected(PasskeysParsingError::kMissingUserEntity);
   }
@@ -446,9 +481,9 @@ BuildRegistrationRequestParams(IOSPasskeyClient::RequestInfo request_info,
                                    std::move(*credentials));
 }
 
-base::Value::Dict ToAuthenticationExtensionsClientOutputsJSON(
+base::DictValue ToAuthenticationExtensionsClientOutputsJSON(
     passkey_model_utils::ExtensionOutputData extension_output_data) {
-  base::Value::Dict extensions_dict;
+  base::DictValue extensions_dict;
 
   if (!extension_output_data.prf_result.empty()) {
     static constexpr size_t kPRFOutputSize = 32u;
@@ -456,7 +491,7 @@ base::Value::Dict ToAuthenticationExtensionsClientOutputsJSON(
 
     // PRF extension dictionary.
     // Contains `enabled` value and `results` dictionary.
-    base::Value::Dict prf_dict;
+    base::DictValue prf_dict;
 
     // PRF extension's `enabled` value.
     prf_dict.Set(device::kExtensionPRFEnabled, true);
@@ -464,7 +499,7 @@ base::Value::Dict ToAuthenticationExtensionsClientOutputsJSON(
     // PRF extension's `result` dictionary.
     // Contains `first` value as a base 64 encoded string.
     // May contain `second` value as a base 64 encoded string.
-    base::Value::Dict prf_results_dict;
+    base::DictValue prf_results_dict;
     if (output_size == kPRFOutputSize) {
       prf_results_dict.Set(device::kExtensionPRFFirst,
                            Base64UrlEncode(extension_output_data.prf_result));
@@ -485,6 +520,52 @@ base::Value::Dict ToAuthenticationExtensionsClientOutputsJSON(
   }
 
   return extensions_dict;
+}
+
+std::optional<PasskeyScriptEvent> ParsePasskeyScriptEvent(
+    const base::DictValue& dict,
+    IsGpmPasskeyFunc is_gpm_passkey_func) {
+  const std::string* event_string = dict.FindString(kEvent);
+  if (!event_string || event_string->empty()) {
+    return std::nullopt;
+  }
+
+  if (*event_string == kHandleGetRequest) {
+    return PasskeyScriptEvent::kHandleGetRequest;
+  }
+  if (*event_string == kHandleCreateRequest) {
+    return PasskeyScriptEvent::kHandleCreateRequest;
+  }
+  if (*event_string == kLogGetRequest) {
+    return PasskeyScriptEvent::kLogGetRequest;
+  }
+  if (*event_string == kLogCreateRequest) {
+    return PasskeyScriptEvent::kLogCreateRequest;
+  }
+
+  if (*event_string == kLogGetResolved) {
+    const std::string* credential_id = dict.FindString(kCredentialId);
+    const std::string* rp_id = dict.FindString(kRpId);
+    if (!credential_id || credential_id->empty() || !rp_id || rp_id->empty()) {
+      return std::nullopt;
+    }
+    // Checks whether a passkey matching the provided rp ID and credential ID is
+    // present in the currently logged in user's GPM passkeys.
+    bool is_gpm = is_gpm_passkey_func(*rp_id, *credential_id);
+    return is_gpm ? PasskeyScriptEvent::kLogGetResolvedGpm
+                  : PasskeyScriptEvent::kLogGetResolvedNonGpm;
+  }
+
+  if (*event_string == kLogCreateResolved) {
+    std::optional<bool> is_gpm = dict.FindBool(kIsGpm);
+    if (!is_gpm.has_value()) {
+      return std::nullopt;
+    }
+    return *is_gpm ? PasskeyScriptEvent::kLogCreateResolvedGpm
+                   : PasskeyScriptEvent::kLogCreateResolvedNonGpm;
+  }
+
+  return std::nullopt;
 }
 
 }  // namespace webauthn

@@ -134,7 +134,7 @@
 <translation id="1414919006379339073">Fechar a janela atual</translation>
 <translation id="1415846719612499304">Mostrar lista de redes. <ph name="STATE_TEXT" />.</translation>
 <translation id="1419738280318246476">Desbloqueie o dispositivo para executar a ação de notificação</translation>
-<translation id="1420408895951708260">Alternar Modo noturno. <ph name="STATE_TEXT" /></translation>
+<translation id="1420408895951708260">ativar/desativar modo noturno. <ph name="STATE_TEXT" /></translation>
 <translation id="1421166164855200062">Grupo sugerido</translation>
 <translation id="1426410128494586442">Sim</translation>
 <translation id="1435537621343861112">Não foi possível iniciar o ditado. Seu microfone está desativado.</translation>
@@ -217,7 +217,7 @@
 <translation id="1703117532528082099">Janela ativa fixada à esquerda.</translation>
 <translation id="1708345662127501511">Espaço de trabalho: <ph name="DESK_NAME" /></translation>
 <translation id="1709762881904163296">Configurações de rede</translation>
-<translation id="1719094688023114093">O recurso Legenda instantânea está ativado.</translation>
+<translation id="1719094688023114093">O recurso de legenda instantânea está ativado.</translation>
 <translation id="1720011244392820496">Ativar o Sincronizar Wi-Fi</translation>
 <translation id="1720230731642245863">O ponto de acesso está desativado</translation>
 <translation id="1731815243805539470">Mudar para o usuário anterior</translation>
@@ -259,7 +259,7 @@
 <translation id="1830308660060964064">O <ph name="ITEM_TITLE" /> foi liberado</translation>
 <translation id="1831565490995294689">Selecione para abrir: <ph name="APP_TO_OPEN" />.</translation>
 <translation id="1838011306813517425">Configurações de Foco</translation>
-<translation id="1838895407229022812">O Modo noturno está desativado.</translation>
+<translation id="1838895407229022812">O modo noturno está desativado.</translation>
 <translation id="1840920496749066704">°C</translation>
 <translation id="1854180393107901205">Parar transmissão</translation>
 <translation id="1862077610023398675">Ocultar controles</translation>
@@ -342,7 +342,6 @@
 <translation id="2201071101391734388">Foto recente <ph name="INDEX" /> de <ph name="TOTAL_COUNT" />.</translation>
 <translation id="2201687081523799384">Fechar o Google Tarefas</translation>
 <translation id="2208323208084708176">Modo de área de trabalho unificada.</translation>
-<translation id="2210311543574621570">A área de transferência será mostrada quando você pressionar e segurar Ctrl + V. Para remover esse atalho, desative a flag #clipboard-history-longpress em chrome://flags.</translation>
 <translation id="2215920961700443347">Sem Internet. Conecte-se à Internet e tente de novo.</translation>
 <translation id="2222841058024245321">Espaço de trabalho 7</translation>
 <translation id="2223384056430485343">Em uma tela dividida</translation>
@@ -1414,7 +1413,7 @@ Nenhum dispositivo conectado.</translation>
 <translation id="5682642926269496722">O Google Assistente não está disponível para a conta de usuário atual.</translation>
 <translation id="5682844616152977671"><ph name="RELATIVE_DATE" /> <ph name="TIME" /></translation>
 <translation id="5689233503102158537">alt + backspace</translation>
-<translation id="5689633613396158040">O Modo noturno facilita a visualização da sua tela ou a leitura com pouca luz. Toque para mudar o horário de ativação do Modo noturno ou desative-o completamente.</translation>
+<translation id="5689633613396158040">O modo noturno facilita a visualização da sua tela ou a leitura com pouca luz. Toque para mudar o horário de ativação do modo noturno ou desative-o completamente.</translation>
 <translation id="5691772641933328258">Impressão digital não reconhecida</translation>
 <translation id="5693255400847650006">Microfone em uso</translation>
 <translation id="5699366815052349604">Atribuir a janela ativa a todos os espaços de trabalho</translation>
@@ -1430,14 +1429,14 @@ Nenhum dispositivo conectado.</translation>
 <translation id="573413375004481890">Este dispositivo não é compatível com essa quantidade de telas. Por isso, uma delas foi desconectada</translation>
 <translation id="574392208103952083">Médio</translation>
 <translation id="5744083938413354016">Arrastar com toque</translation>
-<translation id="5745612484876805746">O Modo noturno será ativado automaticamente ao pôr do sol</translation>
+<translation id="5745612484876805746">O modo noturno será ativado automaticamente ao pôr do sol</translation>
 <translation id="5750765938512549687">Bluetooth desativado</translation>
 <translation id="5758114525425072423">Iniciar o Foco. Timer definido para <ph name="FOCUS_DURATION" />.</translation>
 <translation id="5759522586053040964">Saiba como outras pessoas vão ouvir sua voz. Para interromper, clique no ícone de teste ou feche o painel de videochamada.</translation>
 <translation id="5760866832697883462">Conecte seu dispositivo <ph name="NAME" /></translation>
 <translation id="5762420912707163638">Ativar ou desativar o marcador. <ph name="STATE_TEXT" /> Use o trackpad, a tela touchscreen ou a stylus para desenhar na tela.</translation>
 <translation id="576341972084747908">Fazendo o download do arquivo perigoso <ph name="FILENAME" /></translation>
-<translation id="576453121877257266">O Modo noturno está ativado.</translation>
+<translation id="576453121877257266">O modo noturno está ativado.</translation>
 <translation id="5764569119212455782">Mudar para o último idioma selecionado</translation>
 <translation id="5767730327234918501">O administrador desativou o ponto de acesso.</translation>
 <translation id="5769373120130404283">Tela de privacidade</translation>
@@ -1711,7 +1710,7 @@ Nova instalação</translation>
 <translation id="6627638273713273709">Pesquisar+Shift+K</translation>
 <translation id="662830937908749204">Mover o foco para o próximo painel</translation>
 <translation id="6637729079642709226">Alterar horário</translation>
-<translation id="6641720045729354415">Alternar Legenda instantânea. <ph name="STATE_TEXT" /></translation>
+<translation id="6641720045729354415">Ativar ou desativar legenda instantânea. <ph name="STATE_TEXT" /></translation>
 <translation id="6643169293433369663">Desfazer ordem de classificação por nome</translation>
 <translation id="664793810957802384">Itens no grupo sugerido</translation>
 <translation id="6649641931981131786">Ajuste a câmera que você fique no centro da tela.</translation>
@@ -1889,7 +1888,7 @@ Nova instalação</translation>
 <translation id="7278787617901301220"><ph name="LAUNCHER_KEY_NAME" /> + backspace</translation>
 <translation id="7285232777292757180">Use a ferramenta de captura de tela nas Configurações Rápidas para fazer capturas de tela</translation>
 <translation id="7301826272005790482">Dispensar sugestões de janela</translation>
-<translation id="7302889331339392448">O recurso Legenda instantânea está desativado.</translation>
+<translation id="7302889331339392448">O recurso de legenda instantânea está desativado.</translation>
 <translation id="7305884605064981971">EDGE</translation>
 <translation id="7311244614769792472">Nenhum resultado encontrado</translation>
 <translation id="7312210124139670355">O administrador está redefinindo o eSIM. Pode levar alguns minutos..</translation>
@@ -2195,7 +2194,6 @@ Para desligar o dispositivo, toque no botão liga/desliga novamente e pressione.
 <translation id="8241650983304689286">Adicionar guia à nova visualização dividida</translation>
 <translation id="8247060538831475781"><ph name="CONNECTION_STATUS" />, intensidade do sinal em <ph name="SIGNAL_STRENGTH" />, bateria do smartphone em <ph name="BATTERY_STATUS" /></translation>
 <translation id="825129991941217170">Mostrar todo o conteúdo do Google Drive</translation>
-<translation id="8257510091797044096">Configurar o dispositivo</translation>
 <translation id="8261506727792406068">Excluir</translation>
 <translation id="8262312463845990408">Pausar/continuar a reprodução</translation>
 <translation id="8268302343625273732">Mostrar todas as atividades no Google Sala de Aula</translation>

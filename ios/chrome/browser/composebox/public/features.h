@@ -34,14 +34,26 @@ BASE_DECLARE_FEATURE(kComposeboxCloseButtonTopAlign);
 // Whether to align the close button to the top edge for top composebox.
 bool AlignComposeboxCloseButtonToInputPlateTop();
 
+// Whether to show the extra controls in the composebox.
+bool ShowComposeboxAdditionalAdvancedTools();
+
+// Whether to show the deep search advanced tool.
+bool ShowDeepSearchTool();
+
 // Whether to enable compact mode.
 bool IsComposeboxCompactModeEnabled();
 
 // Whether to force the composebox on top.
 bool IsComposeboxForceTopEnabled();
 
+// Used to enable the extra advanced controls in the composebox.
+BASE_DECLARE_FEATURE(kComposeboxAdditionalAdvancedTools);
+
 // Used to enable the compact "one line" mode in the composebox.
 BASE_DECLARE_FEATURE(kComposeboxCompactMode);
+
+// Used to enable deep search in the composebox.
+BASE_DECLARE_FEATURE(kComposeboxDeepSearch);
 
 // Used to force top input plate in the composebox.
 BASE_DECLARE_FEATURE(kComposeboxForceTop);

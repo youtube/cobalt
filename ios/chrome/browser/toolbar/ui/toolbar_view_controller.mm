@@ -24,6 +24,15 @@
 #import "ios/chrome/browser/toolbar/ui/toolbar_mutator.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
 
+namespace {
+
+// TODO(crbug.com/472279443): Use real design.
+constexpr CGFloat kLocationBarHeight = 40;
+
+constexpr CGFloat kStackViewSpacing = 9;
+
+}  // namespace
+
 @implementation ToolbarViewController {
   ToolbarButton* _backButton;
   ToolbarButton* _forwardButton;
@@ -32,9 +41,10 @@
   ToolbarButton* _shareButton;
   ToolbarButton* _tabGridButton;
   ToolbarButton* _toolsMenuButton;
-  UIButton* _omniboxButton;
   UIStackView* _stackView;
   BOOL _visible;
+
+  UIView* _locationBarContainer;
 }
 
 - (void)viewDidLoad {
@@ -44,7 +54,7 @@
   self.view.backgroundColor = UIColor.greenColor;
   self.view.accessibilityIdentifier = kToolbarViewIdentifier;
 
-  [self createButtons];
+  [self createView];
   [self setUpHierarchy];
 
   [self updateToolbarVisibility];
@@ -60,6 +70,45 @@
   return height;
 }
 
+- (void)setLocationBarViewController:
+    (UIViewController*)locationBarViewController {
+  if (_locationBarViewController == locationBarViewController) {
+    return;
+  }
+  [self loadViewIfNeeded];
+
+  if (_locationBarViewController &&
+      [_locationBarViewController.view isDescendantOfView:self.view]) {
+    [_locationBarViewController willMoveToParentViewController:nil];
+    [_locationBarViewController.view removeFromSuperview];
+    [_locationBarViewController removeFromParentViewController];
+  }
+
+  _locationBarViewController = locationBarViewController;
+
+  UIView* locationBarView = locationBarViewController.view;
+  locationBarView.translatesAutoresizingMaskIntoConstraints = NO;
+  [locationBarView setContentHuggingPriority:UILayoutPriorityDefaultLow
+                                     forAxis:UILayoutConstraintAxisHorizontal];
+
+  [self addChildViewController:_locationBarViewController];
+  [_locationBarContainer addSubview:locationBarView];
+  [NSLayoutConstraint activateConstraints:@[
+    [locationBarView.centerXAnchor
+        constraintEqualToAnchor:_locationBarContainer.centerXAnchor],
+    [locationBarView.leadingAnchor
+        constraintGreaterThanOrEqualToAnchor:_locationBarContainer
+                                                 .leadingAnchor],
+    [locationBarView.trailingAnchor
+        constraintLessThanOrEqualToAnchor:_locationBarContainer.trailingAnchor],
+    [locationBarView.topAnchor
+        constraintEqualToAnchor:_locationBarContainer.topAnchor],
+    [locationBarView.bottomAnchor
+        constraintEqualToAnchor:_locationBarContainer.bottomAnchor],
+  ]];
+  [_locationBarViewController didMoveToParentViewController:self];
+}
+
 #pragma mark - ToolbarConsumer
 
 - (void)setCanGoBack:(BOOL)canGoBack {
@@ -71,16 +120,12 @@
 }
 
 - (void)setIsLoading:(BOOL)isLoading {
-  _reloadButton.hidden = isLoading;
-  _stopButton.hidden = !isLoading;
+  _reloadButton.forceHidden = isLoading;
+  _stopButton.forceHidden = !isLoading;
 }
 
 - (void)setShareEnabled:(BOOL)enabled {
   _shareButton.enabled = enabled;
-}
-
-- (void)setLocationBarText:(NSString*)text {
-  [_omniboxButton setTitle:text forState:UIControlStateNormal];
 }
 
 - (void)setVisible:(BOOL)visible {
@@ -127,6 +172,19 @@
                                         curve:curve];
 }
 
+- (void)setLocationBarHidden:(BOOL)hidden {
+  _locationBarContainer.hidden = hidden;
+}
+
+- (UIView*)locationBarContainerCopy {
+  UIView* locationBarContainerCopy = [self createLocationBarContainer];
+  locationBarContainerCopy.translatesAutoresizingMaskIntoConstraints = YES;
+  locationBarContainerCopy.frame =
+      [_locationBarContainer convertRect:_locationBarContainer.bounds
+                                  toView:nil];
+  return locationBarContainerCopy;
+}
+
 #pragma mark - Private
 
 // Returns whether the a accessory view position should be used.
@@ -162,8 +220,29 @@
       .size.height;
 }
 
-// Creates the buttons.
-- (void)createButtons {
+// Returns a new location bar container.
+- (UIView*)createLocationBarContainer {
+  // TODO(crbug.com/472279443): Use real design.
+  UIView* locationBarContainer = [[UIView alloc] init];
+  locationBarContainer.translatesAutoresizingMaskIntoConstraints = NO;
+  [locationBarContainer
+      setContentCompressionResistancePriority:UILayoutPriorityDefaultLow
+                                      forAxis:UILayoutConstraintAxisHorizontal];
+  [locationBarContainer
+      setContentHuggingPriority:UILayoutPriorityDefaultLow
+                        forAxis:UILayoutConstraintAxisHorizontal];
+  [locationBarContainer.heightAnchor
+      constraintEqualToConstant:kLocationBarHeight]
+      .active = YES;
+  locationBarContainer.backgroundColor = UIColor.redColor;
+
+  return locationBarContainer;
+}
+
+// Creates the views.
+- (void)createView {
+  _locationBarContainer = [self createLocationBarContainer];
+
   if (!self.buttonFactory) {
     return;
   }
@@ -185,7 +264,7 @@
         forControlEvents:UIControlEventTouchUpInside];
   _shareButton = [self.buttonFactory makeShareButton];
   [_shareButton addTarget:self
-                   action:@selector(shareButtonTapped)
+                   action:@selector(shareButtonTapped:)
          forControlEvents:UIControlEventTouchUpInside];
   _tabGridButton = [self.buttonFactory makeTabGridButton];
   [_tabGridButton addTarget:self
@@ -198,25 +277,24 @@
   [_toolsMenuButton addTarget:self
                        action:@selector(toolsMenuButtonTapped)
              forControlEvents:UIControlEventTouchUpInside];
-  _omniboxButton = [self.buttonFactory makeOmniboxButton];
-  [_omniboxButton addTarget:self
-                     action:@selector(omniboxTapped)
-           forControlEvents:UIControlEventTouchUpInside];
 }
 
 // Sets up the hierarchy of the buttons.
 - (void)setUpHierarchy {
   _stackView = [[UIStackView alloc] initWithArrangedSubviews:@[
-    _backButton, _forwardButton, _reloadButton, _stopButton, _omniboxButton,
-    _shareButton, _tabGridButton, _toolsMenuButton
+    _backButton, _forwardButton, _reloadButton, _stopButton,
+    _locationBarContainer, _shareButton, _tabGridButton, _toolsMenuButton
   ]];
   _stackView.translatesAutoresizingMaskIntoConstraints = NO;
   _stackView.axis = UILayoutConstraintAxisHorizontal;
-  _stackView.distribution = UIStackViewDistributionEqualSpacing;
+  _stackView.distribution = UIStackViewDistributionFill;
   _stackView.alignment = UIStackViewAlignmentCenter;
+  _stackView.spacing = kStackViewSpacing;
 
   [self.view addSubview:_stackView];
-  AddSameConstraints(self.view.safeAreaLayoutGuide, _stackView);
+  AddSameConstraintsWithInsets(
+      _stackView, self.view.safeAreaLayoutGuide,
+      NSDirectionalEdgeInsetsMake(0, kStackViewSpacing, 0, kStackViewSpacing));
 
   [self updateButtonVisibility];
   [self
@@ -255,8 +333,8 @@
 }
 
 // Handles share button tap.
-- (void)shareButtonTapped {
-  [self.activityServiceHandler showShareSheet];
+- (void)shareButtonTapped:(UIView*)sender {
+  [self.activityServiceHandler showShareSheetFromShareButton:sender];
 }
 
 // Handles tools menu button tap.
@@ -266,9 +344,7 @@
 
 // Handles omnibox tap.
 - (void)omniboxTapped {
-  [self.browserCoordinatorHandler
-      showComposeboxFromEntrypoint:ComposeboxEntrypoint::kOther
-                         withQuery:nil];
+  [self.browserCoordinatorHandler showComposebox];
 }
 
 // Handles tab grid button touch down.

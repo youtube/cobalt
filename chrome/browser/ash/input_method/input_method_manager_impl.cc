@@ -35,7 +35,6 @@
 #include "chrome/browser/ash/input_method/input_method_persistence.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/browser_process_platform_part_ash.h"
-#include "chrome/browser/lifetime/termination_notification.h"
 #include "chrome/browser/ui/ash/input_method/assistive_delegate.h"
 #include "chrome/browser/ui/ash/input_method/input_method_menu_item.h"
 #include "chrome/browser/ui/ash/input_method/input_method_menu_manager.h"
@@ -46,6 +45,7 @@
 #include "components/application_locale_storage/application_locale_storage.h"
 #include "components/prefs/pref_service.h"
 #include "components/user_manager/user_manager.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 #include "third_party/icu/source/common/unicode/uloc.h"
 #include "third_party/icu/source/i18n/unicode/coll.h"
 #include "ui/base/ime/ash/component_extension_ime_manager.h"
@@ -373,7 +373,7 @@ void InputMethodManagerImpl::StateImpl::FinalizeInputMethodsEnabling(
 }
 
 void InputMethodManagerImpl::StateImpl::DisableNonLockScreenLayouts() {
-  std::set<std::string> added_ids;
+  absl::flat_hash_set<std::string> added_ids;
 
   const std::vector<std::string>& hardware_keyboard_ids =
       manager_->util_.GetHardwareLoginInputMethodIds();
@@ -384,7 +384,7 @@ void InputMethodManagerImpl::StateImpl::DisableNonLockScreenLayouts() {
     // extension ones. We need to keep all IMEs to support inputting on inline
     // reply on a notification if notifications on lock screen is enabled.
     if (!manager_->IsLoginKeyboard(input_method_id) ||
-        added_ids.count(input_method_id)) {
+        added_ids.contains(input_method_id)) {
       continue;
     }
     new_enabled_input_method_ids.push_back(input_method_id);
@@ -395,11 +395,10 @@ void InputMethodManagerImpl::StateImpl::DisableNonLockScreenLayouts() {
   // |enabled_input_method_ids_| so that the user can always use the hardware
   // keyboard on the screen locker.
   for (const auto& hardware_keyboard_id : hardware_keyboard_ids) {
-    if (added_ids.count(hardware_keyboard_id)) {
+    if (!added_ids.insert(hardware_keyboard_id).second) {
       continue;
     }
     new_enabled_input_method_ids.push_back(hardware_keyboard_id);
-    added_ids.insert(hardware_keyboard_id);
   }
 
   enabled_input_method_ids_.swap(new_enabled_input_method_ids);
@@ -1093,9 +1092,8 @@ InputMethodManagerImpl::InputMethodManagerImpl(
 
   // We should not use ALL_BROWSERS_CLOSING here since logout might be cancelled
   // by JavaScript after ALL_BROWSERS_CLOSING is sent (crosbug.com/11055).
-  on_app_terminating_subscription_ =
-      browser_shutdown::AddAppTerminatingCallback(base::BindOnce(
-          &InputMethodManagerImpl::OnAppTerminating, base::Unretained(this)));
+  session_termination_observation_.Observe(
+      ash::SessionTerminationManager::Get());
 }
 
 InputMethodManagerImpl::~InputMethodManagerImpl() {
@@ -1342,6 +1340,8 @@ void InputMethodManagerImpl::SetCandidateWindowControllerForTesting(
 }
 
 void InputMethodManagerImpl::OnAppTerminating() {
+  session_termination_observation_.Reset();
+
   if (candidate_window_controller_.get()) {
     candidate_window_controller_.reset();
   }

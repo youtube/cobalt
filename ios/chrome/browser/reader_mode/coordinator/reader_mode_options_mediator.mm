@@ -23,9 +23,8 @@
   self = [super init];
   if (self) {
     _distilledPagePrefs = distilledPagePrefs;
-    _prefsObserverBridge =
-        std::make_unique<DistilledPagePrefsObserverBridge>(self);
-    _distilledPagePrefs->AddObserver(_prefsObserverBridge.get());
+    _prefsObserverBridge = std::make_unique<DistilledPagePrefsObserverBridge>(
+        self, _distilledPagePrefs);
   }
   return self;
 }
@@ -35,7 +34,9 @@
   if (_consumer) {
     // Initialize consumer with current state of `_distilledPagePrefs`.
     [self.consumer setSelectedFontFamily:_distilledPagePrefs->GetFontFamily()];
-    [self.consumer setSelectedTheme:_distilledPagePrefs->GetTheme()];
+    [self.consumer
+        setSelectedTheme:_distilledPagePrefs->GetTheme()
+              fromSource:_distilledPagePrefs->GetThemeSettingsUpdateSource()];
     [self.consumer
         setDecreaseFontSizeButtonEnabled:CanDecreaseReaderModeFontSize(
                                              _distilledPagePrefs)];
@@ -60,7 +61,23 @@
 }
 
 - (void)setTheme:(dom_distiller::mojom::Theme)theme {
-  _distilledPagePrefs->SetUserPrefTheme(theme);
+  dom_distiller::ThemeSettingsUpdateSource currentSource =
+      _distilledPagePrefs->GetThemeSettingsUpdateSource();
+
+  switch (currentSource) {
+    case dom_distiller::ThemeSettingsUpdateSource::kSystem: {
+      _distilledPagePrefs->SetUserPrefTheme(theme);
+      break;
+    }
+    case dom_distiller::ThemeSettingsUpdateSource::kUserPreference: {
+      if (_distilledPagePrefs->GetTheme() == theme) {
+        _distilledPagePrefs->ClearUserPrefTheme();
+      } else {
+        _distilledPagePrefs->SetUserPrefTheme(theme);
+      }
+      break;
+    }
+  }
 }
 
 - (void)hideReaderMode {
@@ -70,9 +87,6 @@
 #pragma mark - Public
 
 - (void)disconnect {
-  if (_distilledPagePrefs) {
-    _distilledPagePrefs->RemoveObserver(_prefsObserverBridge.get());
-  }
   _prefsObserverBridge.reset();
   _distilledPagePrefs = nullptr;
 }
@@ -83,8 +97,9 @@
   [self.consumer setSelectedFontFamily:font];
 }
 
-- (void)onChangeTheme:(dom_distiller::mojom::Theme)theme {
-  [self.consumer setSelectedTheme:theme];
+- (void)onChangeTheme:(dom_distiller::mojom::Theme)theme
+           withSource:(dom_distiller::ThemeSettingsUpdateSource)source {
+  [self.consumer setSelectedTheme:theme fromSource:source];
 }
 
 - (void)onChangeFontScaling:(float)scaling {

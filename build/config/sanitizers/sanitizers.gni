@@ -85,7 +85,7 @@ declare_args() {
   use_afl = false
 
   # Compile for fuzzing with Fuzzilli.
-  use_fuzzilli = false
+  use_chromium_fuzzilli = false
 
   # Compile for fuzzing with an external engine (e.g., Grammarinator).
   use_external_fuzzing_engine = false
@@ -111,6 +111,11 @@ declare_args() {
   # A sanitizer coverage allowlist, specifying exactly which
   # files or symbol names should be instrumented, rather than all of them.
   sanitizer_coverage_allowlist = ""
+
+  # A sanitizer coverage ignorelist, specifying which files or symbol names
+  # should be excluded from coverage instrumentation (mostly for performance
+  # reasons).
+  sanitizer_coverage_ignorelist = ""
 
   # When enabled, only relevant sanitizer defines are set, but compilation
   # happens with no extra flags. This is useful when in component build
@@ -148,7 +153,7 @@ declare_args() {
 # of checking "use_libfuzzer || use_afl" because often developers forget to
 # check for "use_afl", and "use_centipede" is new.
 use_fuzzing_engine = use_libfuzzer || use_afl || use_centipede ||
-                     use_external_fuzzing_engine || use_fuzzilli
+                     use_external_fuzzing_engine || use_chromium_fuzzilli
 
 # Whether any UBSan subset is enabled.
 # TODO(crbug.com/40248746): Unify these under a single UBSan option.
@@ -167,7 +172,7 @@ declare_args() {
   # TODO(crbug.com/40286621): enable on component builds
   enable_fuzztest_fuzz =
       !(use_libfuzzer || use_afl || use_centipede ||
-        use_external_fuzzing_engine || use_fuzzilli) &&
+        use_external_fuzzing_engine || use_chromium_fuzzilli) &&
       (is_asan || is_hwasan || is_lsan || is_tsan || is_msan || is_ubsan_any) &&
       !is_component_build && is_linux && build_with_chromium
 
@@ -256,7 +261,7 @@ use_fuzzing_engine_with_lpm = use_libfuzzer || use_centipede
 # Whether the fuzzing engine supports fuzzers which supply their own
 # "main" function.
 fuzzing_engine_supports_custom_main =
-    use_libfuzzer || use_centipede || use_fuzzilli
+    use_libfuzzer || use_centipede || use_chromium_fuzzilli
 
 # Args that are in turn dependent on other args must be in a separate
 # declare_args block. User overrides are only applied at the end of a
@@ -367,38 +372,78 @@ assert(
         "Chromium mac_clang_x64 toolchain on iOS distribution. Please set " +
         "the argument value to false.")
 
+declare_args() {
+  # Skip instrumentation of standard library types and containers, and absl.
+  # This is currently an experiment to evaluate performance improvements, see
+  # https://crbug.com/476343968.
+  sanitizer_coverage_skip_stdlib_and_absl = false
+}
+
+if (use_sanitizer_coverage && sanitizer_coverage_skip_stdlib_and_absl &&
+    sanitizer_coverage_ignorelist == "") {
+  sanitizer_coverage_ignorelist =
+      "//build/config/sanitizers/ignorelist_stdlib_and_absl.txt"
+}
+
 assert(
     sanitizer_coverage_allowlist == "" || use_sanitizer_coverage,
     "Can't specify a sanitizer coverage allowlist without using sanitizer coverage.")
 
+assert(
+    sanitizer_coverage_ignorelist == "" || use_sanitizer_coverage,
+    "Can't specify a sanitizer coverage ignorelist without using sanitizer coverage.")
+
 # Use these lists of configs to disable instrumenting code that is part of a
 # fuzzer, but which isn't being targeted (such as libprotobuf-mutator, *.pb.cc
 # and libprotobuf when they are built as part of a proto fuzzer). Adding or
-# removing these lists does not have any effect if use_libfuzzer or use_afl are
-# not passed as arguments to gn.
+# removing these lists does not have any effect if use_fuzzing_engine is false.
 not_fuzzed_remove_configs = []
-not_fuzzed_remove_nonasan_configs = []
+not_fuzzed_add_configs = []
+
+# It is usually OK to compile only certain parts of a binary with ASan. Usually,
+# but not always :)
+# The `needs_asan` variant can be used in such cases: it disables coverage and
+# instrumentation to the extent possible, but leaves ASan enabled.
+not_fuzzed_needs_asan_add_configs = []
 
 if (use_fuzzing_engine) {
-  # Removing coverage should always just work.
-  not_fuzzed_remove_configs += [ "//build/config/coverage:default_coverage" ]
-  not_fuzzed_remove_nonasan_configs +=
-      [ "//build/config/coverage:default_coverage" ]
+  # Remove coverage and sanitizer flags for "not fuzzed" targets.
+  # Some might be added back via the "not_fuzzed*_add_configs" lists.
+  not_fuzzed_remove_configs += [
+    "//build/config/coverage:default_coverage",
+    "//build/config/sanitizers:default_sanitizer_flags",
+  ]
 
-  if (!is_msan) {
-    # Allow sanitizer instrumentation to be removed if we are not using MSan
-    # since binaries cannot be partially instrumented with MSan.
-    not_fuzzed_remove_configs +=
-        [ "//build/config/sanitizers:default_sanitizer_flags" ]
+  # Always add the `not_fuzzed` config for "not fuzzed" targets, and explicitly
+  # add sanitizer ldflags which are needed to link even partially-sanitized
+  # binaries. Depending on asan / msan the ldflags might already be included
+  # via the default_sanitizer_flags_but_coverage config, but it's fine to add
+  # it explicitly here.
+  not_fuzzed_add_configs += [
+    "//build/config/sanitizers:not_fuzzed",
+    "//build/config/sanitizers:default_sanitizer_ldflags",
+  ]
 
-    # Certain parts of binaries must be instrumented with ASan if the rest of
-    # the binary is. For these, only remove non-ASan sanitizer instrumentation.
-    if (!is_asan) {
-      not_fuzzed_remove_nonasan_configs +=
-          [ "//build/config/sanitizers:default_sanitizer_flags" ]
+  # If we are using MSan: Add back sanitizer instrumentation except for coverage
+  # since binaries cannot be partially instrumented with MSan.
+  if (is_msan) {
+    not_fuzzed_add_configs +=
+        [ "//build/config/sanitizers:default_sanitizer_flags_but_coverage" ]
+  }
 
-      assert(not_fuzzed_remove_nonasan_configs == not_fuzzed_remove_configs)
-    }
+  not_fuzzed_needs_asan_add_configs = not_fuzzed_add_configs
+
+  # For selected targets which need ASan instrumentation, do also add back
+  # sanitizer flags except for coverage.
+  if (is_asan && !is_msan) {
+    not_fuzzed_needs_asan_add_configs +=
+        [ "//build/config/sanitizers:default_sanitizer_flags_but_coverage" ]
+  }
+
+  if (is_asan && !is_msan) {
+    assert(not_fuzzed_add_configs != not_fuzzed_needs_asan_add_configs)
+  } else {
+    assert(not_fuzzed_add_configs == not_fuzzed_needs_asan_add_configs)
   }
 }
 

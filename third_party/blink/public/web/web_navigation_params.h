@@ -14,6 +14,7 @@
 #include "base/time/time.h"
 #include "base/unguessable_token.h"
 #include "base/uuid.h"
+#include "mojo/public/cpp/bindings/receiver.h"
 #include "net/storage_access_api/status.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
 #include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
@@ -214,6 +215,22 @@ struct BLINK_EXPORT WebNavigationInfo {
   // src. Only container-initiated navigation report resource timing to the
   // parent.
   bool is_container_initiated = false;
+
+  // Used by the navigation API to indicate that a deferred commit should be
+  // resumed.
+  mojo::PendingReceiver<mojom::NavigationResumeDeferredCommitListener>
+      resume_defer_commit_listener;
+};
+
+// This is a container for yet-unparsed permissions policies from the manifest
+// of an Isolated Web App. It is passed within the `WebNavigationParams` to the
+// renderer for parsing, interpretation and merging with permissions policy
+// headers.
+// The only reason why it's not declared within WebNavigationParams is to allow
+// forward declaration.
+struct BLINK_EXPORT IsolatedAppPermissionPolicyEntry {
+  WebString feature;
+  std::vector<WebString> allowed_origins;
 };
 
 // This structure holds all information provided by the embedder that is
@@ -483,7 +500,11 @@ struct BLINK_EXPORT WebNavigationParams {
   // take precedence over any permissions policy constructed in blink. This is
   // useful for isolated applications, which use a different base permissions
   // policy than blink, which uses a fully permissive policy as its base.
-  std::optional<network::ParsedPermissionsPolicy> permissions_policy_override;
+  // The raw string values are parsed from the JSON manifest, but individual
+  // entries themselves are not parsed and validated (in particular, this might
+  // contain malformed/invalid entries).
+  std::optional<std::vector<IsolatedAppPermissionPolicyEntry>>
+      isolated_app_policy;
 
   // These are used to construct a subset of the back/forward list for the
   // window.navigation API. They only have the attributes that are needed for

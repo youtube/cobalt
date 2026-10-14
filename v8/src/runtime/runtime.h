@@ -118,6 +118,12 @@ constexpr bool CanTriggerGC(T... properties) {
   F(WeakCollectionSet, 4, 1)                 \
   F(OrderedHashMapGrow, 2, 1)
 
+#ifdef V8_DUMPLING
+#define FOR_EACH_INTRINSIC_COMPILER_DUMPLING(F, I) F(PrintDumpedFrame, 1, 1)
+#else
+#define FOR_EACH_INTRINSIC_COMPILER_DUMPLING(F, I)
+#endif  // V8_DUMPLING
+
 #define FOR_EACH_INTRINSIC_COMPILER_GENERIC(F, I) \
   F(CompileOptimizedOSR, 0, 1)                    \
   F(CompileOptimizedOSRFromMaglev, 1, 1)          \
@@ -145,8 +151,9 @@ constexpr bool CanTriggerGC(T... properties) {
   F(StartTurbofanOptimizeJob, 1, 1)      \
   F(MarkLazyDeoptimized, 2, 1)
 
-#define FOR_EACH_INTRINSIC_COMPILER(F, I)   \
-  FOR_EACH_INTRINSIC_COMPILER_GENERIC(F, I) \
+#define FOR_EACH_INTRINSIC_COMPILER(F, I)    \
+  FOR_EACH_INTRINSIC_COMPILER_GENERIC(F, I)  \
+  FOR_EACH_INTRINSIC_COMPILER_DUMPLING(F, I) \
   FOR_EACH_INTRINSIC_TIERING(F, I)
 
 #define FOR_EACH_INTRINSIC_DATE(F, I) F(DateCurrentTime, 0, 1)
@@ -169,6 +176,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(GetGeneratorScopeDetails, 2, 1)             \
   F(HandleDebuggerStatement, 0, 1)              \
   F(IsBreakOnException, 1, 1)                   \
+  F(IterableForEach, 2, 1)                      \
   F(LiveEditPatchScript, 2, 1)                  \
   F(ProfileCreateSnapshotDataBlob, 0, 1)        \
   F(ScheduleBreak, 0, 1)                        \
@@ -741,6 +749,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(WasmAllocateSuspender, 0, 1)                                 \
   F(WasmAllocateContinuation, 2, 1)                              \
   F(WasmAllocateEmptyContinuation, 0, 1)                         \
+  F(WasmAllocateBoundContinuation, 2, 1)                         \
   F(ClearWasmSuspenderResumeField, 1, 1)                         \
   F(WasmCastToSpecialPrimitiveArray, 2, 1)                       \
   F(WasmStringNewSegmentWtf8, 5, 1)                              \
@@ -838,10 +847,11 @@ constexpr bool CanTriggerGC(T... properties) {
   F(LoadIC_Miss, 4, 1)                       \
   F(LoadIC_Miss_FromBaseline, 4, 1)          \
   F(PatchLoadICUninitializedBaseline, 4, 1)  \
+  F(GetStringLengthAndUpdateFeedback, 3, 1)  \
   F(LoadNoFeedbackIC_Miss, 4, 1)             \
   F(LoadWithReceiverIC_Miss, 5, 1)           \
   F(LoadWithReceiverNoFeedbackIC_Miss, 3, 1) \
-  F(LoadPropertyWithInterceptor, 6, 1)       \
+  F(LoadPropertyPastInterceptor, 6, 1)       \
   F(StoreCallbackProperty, 5, 1)             \
   F(StoreGlobalIC_Miss, 4, 1)                \
   F(StoreGlobalICNoFeedback_Miss, 2, 1)      \
@@ -849,7 +859,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(StoreIC_Miss, 5, 1)                      \
   F(DefineNamedOwnIC_Miss, 5, 1)             \
   F(StoreInArrayLiteralIC_Slow, 5, 1)        \
-  F(StorePropertyWithInterceptor, 4, 1)      \
+  F(StorePropertyPastInterceptor, 4, 1)      \
   F(CloneObjectIC_Slow, 2, 1)                \
   F(CloneObjectIC_Miss, 4, 1)                \
   F(KeyedHasIC_Miss, 4, 1)                   \

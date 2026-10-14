@@ -851,7 +851,8 @@ void PasswordAutofillAgent::UpdatePasswordStateForTextChange(
 
 void PasswordAutofillAgent::TrackAutofilledElement(
     const WebFormControlElement& element) {
-  autofill_agent_->TrackAutofilledElement(element);
+  autofill_agent_->TrackAutofilledElement(
+      form_util::GetFieldRendererId(element));
 }
 
 void PasswordAutofillAgent::FillPasswordSuggestion(
@@ -907,11 +908,13 @@ bool PasswordAutofillAgent::FillUsernameAndPasswordElements(
     const std::u16string& password,
     AutofillSuggestionTriggerSource suggestion_source) {
   ClearPreviewedForm();
-  WebFormControlElement focused_element = last_queried_element();
   // TODO(crbug.com/341995827): Remove dependency on `focused_element`. Username
   // filling condition could be made similar to the password one and selection
   // range setting could be skipped.
-  CHECK(focused_element);
+  WebFormControlElement focused_element = last_queried_element();
+  if (!focused_element) {
+    return false;
+  }
   // Call OnFieldAutofilled before WebInputElement::SetAutofillState which may
   // cause frame closing.
   if (password_element && password_generation_agent_) {
@@ -1124,11 +1127,13 @@ void PasswordAutofillAgent::PreviewUsernameAndPasswordElements(
     blink::WebInputElement password_element,
     const std::u16string& username,
     const std::u16string& password) {
-  WebFormControlElement focused_element = last_queried_element();
   // TODO(crbug.com/341995827): Remove dependency on `focused_element` when
   // similar dependency is removed from
   // `PasswordAutofillAgent::FillUsernameAndPasswordElements`.
-  CHECK(focused_element);
+  WebFormControlElement focused_element = last_queried_element();
+  if (!focused_element) {
+    return;
+  }
   if (IsUsernameAmendable(username_element,
                           password_element == focused_element)) {
     DoPreviewField(username_element, username, /*is_password=*/false);
@@ -1631,8 +1636,7 @@ void PasswordAutofillAgent::ApplyFillDataOnParsingCompletion(
     return;
   }
   FillCredentialsAutomatically(username_element, password_element, form_data,
-                               logger.get(),
-                               form_data.notify_browser_of_successful_filling);
+                               logger.get());
 }
 
 void PasswordAutofillAgent::SetLoggingState(bool active) {
@@ -1910,15 +1914,10 @@ void PasswordAutofillAgent::CleanupOnDocumentShutdown() {
   all_autofilled_elements_.clear();
   field_renderer_id_to_submit_ = FieldRendererId();
   suggestion_banned_fields_.clear();
+  times_received_fill_data_.clear();
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
   page_passwords_analyser_.Reset();
 #endif
-
-  for (const auto& [_, times_received_data] : times_received_fill_data_) {
-    base::UmaHistogramCounts100("PasswordManager.TimesReceivedFillDataForForm",
-                                times_received_data);
-  }
-  times_received_fill_data_.clear();
 }
 
 void PasswordAutofillAgent::InformBrowserAboutUserInput(
@@ -1947,8 +1946,7 @@ bool PasswordAutofillAgent::FillCredentialsAutomatically(
     WebInputElement username_element,
     WebInputElement password_element,
     const PasswordFormFillData& fill_data,
-    RendererSavePasswordProgressLogger* logger,
-    bool notify_browser_of_successful_filling) {
+    RendererSavePasswordProgressLogger* logger) {
   LogMessage(logger, Logger::STRING_FILL_USERNAME_AND_PASSWORD_METHOD);
 
   bool is_single_username_fill = !password_element;
@@ -2057,13 +2055,6 @@ bool PasswordAutofillAgent::FillCredentialsAutomatically(
       logger->LogElementName(Logger::STRING_PASSWORD_FILLED, password_element);
   }
 
-  if (notify_browser_of_successful_filling) {
-    TrackAutofilledElement(main_element);
-    // TODO(crbug.com/395080478): Rename InformBrowserAboutUserInput.
-    InformBrowserAboutUserInput(main_element.GetOwningFormForAutofill(),
-                                main_element, /*form_cache=*/{});
-  }
-
   LogFirstFillingResult(fill_data, FillingResult::kSuccess);
   return true;
 }
@@ -2096,8 +2087,11 @@ void PasswordAutofillAgent::FireHostSubmitEvent(
 }
 
 void PasswordAutofillAgent::OnFormSubmitted(const FormData& submitted_form) {
-  WebFormElement form_element =
+  const WebFormElement form_element =
       GetFormByRendererId(submitted_form.renderer_id());
+  if (!form_element) {
+    return;
+  }
   std::unique_ptr<RendererSavePasswordProgressLogger> logger;
   if (logging_state_active_) {
     logger = std::make_unique<RendererSavePasswordProgressLogger>(

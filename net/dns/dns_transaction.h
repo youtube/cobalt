@@ -18,7 +18,6 @@
 #include "net/base/request_priority.h"
 #include "net/dns/opt_record_rdata.h"
 #include "net/dns/public/secure_dns_mode.h"
-#include "net/dns/record_rdata.h"
 
 namespace net {
 
@@ -89,6 +88,14 @@ class DnsProbeRunner {
 // the factory is still alive.
 class NET_EXPORT_PRIVATE DnsTransactionFactory {
  public:
+
+  // Defines the underlying implementation used to implement a single DNS
+  // exchange.
+  enum class AttemptMode {
+    kClassic,  // Plaintext DNS (either over TCP or UDP)
+    kHttp,  // DNS-over-HTTPS (DoH)
+  };
+
   DnsTransactionFactory();
   virtual ~DnsTransactionFactory();
 
@@ -99,8 +106,8 @@ class NET_EXPORT_PRIVATE DnsTransactionFactory {
   //
   // The |net_log| is used as the parent log.
   //
-  // |secure| specifies whether DNS lookups should be performed using DNS-over-
-  // HTTPS (DoH) or using plaintext DNS.
+  // |attempt_mode| specifies whether DNS lookups should be performed using
+  // DNS-over-HTTPS (DoH) or using classic DNS.
   //
   // When |fast_timeout| is true, the transaction will timeout quickly after
   // making its DNS attempts, without necessarily waiting long enough to allow
@@ -112,7 +119,7 @@ class NET_EXPORT_PRIVATE DnsTransactionFactory {
       std::string hostname,
       uint16_t qtype,
       const NetLogWithSource& net_log,
-      bool secure,
+      AttemptMode attempt_mode,
       SecureDnsMode secure_dns_mode,
       ResolveContext* resolve_context,
       bool fast_timeout) = 0;
@@ -121,11 +128,6 @@ class NET_EXPORT_PRIVATE DnsTransactionFactory {
   // resolvers.
   [[nodiscard]] virtual std::unique_ptr<DnsProbeRunner> CreateDohProbeRunner(
       ResolveContext* resolve_context) = 0;
-
-  // The given EDNS0 option will be included in all DNS queries performed by
-  // transactions from this factory.
-  virtual void AddEDNSOption(std::unique_ptr<OptRecordRdata::Opt> opt) = 0;
-  virtual OptRecordRdata* GetOptRdataForTest() = 0;
 
   // Returns the default SecureDnsMode in the config.
   virtual SecureDnsMode GetSecureDnsModeForTest() = 0;

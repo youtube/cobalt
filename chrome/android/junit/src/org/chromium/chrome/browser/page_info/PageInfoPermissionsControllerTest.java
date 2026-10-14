@@ -8,6 +8,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.content.Context;
+import android.view.View;
+
+import androidx.annotation.Nullable;
 
 import org.junit.After;
 import org.junit.Before;
@@ -20,11 +23,14 @@ import org.robolectric.RobolectricTestRunner;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.test.BaseRobolectricTestRule;
+import org.chromium.base.test.util.HistogramWatcher;
+import org.chromium.components.browser_ui.site_settings.BaseSiteSettingsFragment;
 import org.chromium.components.content_settings.ContentSetting;
 import org.chromium.components.content_settings.ContentSettingsType;
 import org.chromium.components.page_info.PageInfoControllerDelegate;
 import org.chromium.components.page_info.PageInfoMainController;
 import org.chromium.components.page_info.PageInfoPermissionsController;
+import org.chromium.components.page_info.PageInfoPermissionsController.PermissionObject;
 import org.chromium.components.page_info.PageInfoRowView;
 import org.chromium.components.permissions.AndroidPermissionRequester;
 import org.chromium.components.permissions.PermissionUtil;
@@ -32,6 +38,8 @@ import org.chromium.components.permissions.PermissionUtilJni;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.url.GURL;
+
+import java.util.Arrays;
 
 /** Tests for PageInfoPermissionsController. */
 @RunWith(RobolectricTestRunner.class)
@@ -77,6 +85,19 @@ public class PageInfoPermissionsControllerTest {
                         mRequestDelegateCaptured = delegate;
                         return mRequestAndroidPermissionsResult;
                     }
+
+                    @Override
+                    protected boolean canCreateSubpageFragment() {
+                        return true;
+                    }
+
+                    @Override
+                    protected @Nullable View addSubpageFragment(BaseSiteSettingsFragment fragment) {
+                        return null;
+                    }
+
+                    @Override
+                    protected void removeSubpageFragment() {}
                 };
     }
 
@@ -88,26 +109,32 @@ public class PageInfoPermissionsControllerTest {
     @Test
     public void testOnNotificationSubscribeClicked_RequestsPermission_Granted() {
         mRequestAndroidPermissionsResult = true;
+        HistogramWatcher histogramWatcher =
+                HistogramWatcher.newSingleRecordWatcher(
+                        "Permissions.ClapperLoud.PageInfo.OsPromptResolved", true);
 
         mController.onNotificationSubscribeClicked();
 
         mRequestDelegateCaptured.onAndroidPermissionAccepted();
 
         verify(mPermissionUtilJni)
-                .resolvePermissionRequest(
-                        mWebContents, ContentSettingsType.NOTIFICATIONS, ContentSetting.ALLOW);
+                .resolveNotificationsPermissionRequest(mWebContents, ContentSetting.ALLOW);
+        histogramWatcher.assertExpected();
     }
 
     @Test
     public void testOnNotificationSubscribeClicked_RequestsPermission_OS_Level_Canceled() {
         mRequestAndroidPermissionsResult = true;
+        HistogramWatcher histogramWatcher =
+                HistogramWatcher.newSingleRecordWatcher(
+                        "Permissions.ClapperLoud.PageInfo.OsPromptResolved", false);
 
         mController.onNotificationSubscribeClicked();
 
         mRequestDelegateCaptured.onAndroidPermissionCanceled();
 
-        verify(mPermissionUtilJni)
-                .dismissPermissionRequest(mWebContents, ContentSettingsType.NOTIFICATIONS);
+        verify(mPermissionUtilJni).dismissNotificationsPermissionRequest(mWebContents);
+        histogramWatcher.assertExpected();
     }
 
     @Test
@@ -117,8 +144,7 @@ public class PageInfoPermissionsControllerTest {
         mController.onNotificationSubscribeClicked();
 
         verify(mPermissionUtilJni)
-                .resolvePermissionRequest(
-                        mWebContents, ContentSettingsType.NOTIFICATIONS, ContentSetting.ALLOW);
+                .resolveNotificationsPermissionRequest(mWebContents, ContentSetting.ALLOW);
     }
 
     @Test
@@ -128,7 +154,42 @@ public class PageInfoPermissionsControllerTest {
         mController.onNotificationSubscribeClicked();
 
         verify(mPermissionUtilJni)
-                .resolvePermissionRequest(
-                        mWebContents, ContentSettingsType.NOTIFICATIONS, ContentSetting.ALLOW);
+                .resolveNotificationsPermissionRequest(mWebContents, ContentSetting.ALLOW);
+    }
+
+    @Test
+    public void testOnSubpageRemoved_RequestsPermission_Denied() throws Exception {
+        PermissionObject permission =
+                new PermissionObject(
+                        ContentSettingsType.NOTIFICATIONS,
+                        "Notifications",
+                        "notifications",
+                        /* allowed= */ false,
+                        /* warningTextResource= */ 0,
+                        /* requested= */ true);
+        mController.setPermissions(Arrays.asList(permission));
+
+        mController.onSubpageRemoved();
+
+        verify(mPermissionUtilJni)
+                .resolveNotificationsPermissionRequest(mWebContents, ContentSetting.BLOCK);
+    }
+
+    @Test
+    public void testOnPermissionsReset_RequestsPermission_Revoked() {
+        PermissionObject permission =
+                new PermissionObject(
+                        ContentSettingsType.NOTIFICATIONS,
+                        "Notifications",
+                        "notifications",
+                        /* allowed= */ false,
+                        /* warningTextResource= */ 0,
+                        /* requested= */ true);
+        mController.setPermissions(Arrays.asList(permission));
+
+        mController.onPermissionsReset();
+
+        verify(mPermissionUtilJni)
+                .resolveNotificationsPermissionRequest(mWebContents, ContentSetting.DEFAULT);
     }
 }

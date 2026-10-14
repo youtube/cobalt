@@ -38,7 +38,7 @@
 #include "content/browser/child_process_security_policy_impl.h"
 #include "content/browser/storage_partition_impl.h"
 #include "content/browser/renderer_host/back_forward_cache_can_store_document_result.h"
-#include "content/browser/renderer_host/private_network_access_util.h"
+#include "content/browser/renderer_host/local_network_access_util.h"
 #include "content/browser/service_worker/payment_handler_support.h"
 #include "content/browser/service_worker/service_worker_client.h"
 #include "content/browser/service_worker/service_worker_consts.h"
@@ -55,6 +55,7 @@
 #include "content/browser/service_worker/service_worker_usb_delegate_observer.h"
 #endif
 #include "content/common/content_navigation_policy.h"
+#include "content/common/features.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/browser/page_navigator.h"
@@ -76,6 +77,9 @@
 
 namespace content {
 namespace {
+
+// Timeout for the payment handler connection.
+constexpr base::TimeDelta kPaymentHandlerTimeout = base::Minutes(20);
 
 // Timeout for an installed worker to start.
 constexpr base::TimeDelta kStartInstalledWorkerTimeout = base::Seconds(60);
@@ -160,26 +164,6 @@ void OnOpenWindowFinished(
     error_msg.emplace("Something went wrong while trying to open the window.");
   }
   std::move(callback).Run(success, std::move(client_info), error_msg);
-}
-
-void DidShowPaymentHandlerWindow(
-    const GURL& url,
-    const blink::StorageKey& key,
-    const base::WeakPtr<ServiceWorkerContextCore>& context,
-    blink::mojom::ServiceWorkerHost::OpenPaymentHandlerWindowCallback callback,
-    bool success,
-    int render_process_id,
-    int render_frame_id) {
-  if (success) {
-    service_worker_client_utils::DidNavigate(
-        context, url, key,
-        base::BindOnce(&OnOpenWindowFinished, std::move(callback)),
-        GlobalRenderFrameHostId(render_process_id, render_frame_id));
-  } else {
-    OnOpenWindowFinished(std::move(callback),
-                         blink::ServiceWorkerStatusCode::kErrorFailed,
-                         nullptr /* client_info */);
-  }
 }
 
 void DidNavigateClient(
@@ -1772,11 +1756,64 @@ void ServiceWorkerVersion::OpenPaymentHandlerWindow(
 
   PaymentHandlerSupport::ShowPaymentHandlerWindow(
       url, context_.get(),
-      base::BindOnce(&DidShowPaymentHandlerWindow, url, key_, context_),
+      base::BindOnce(&ServiceWorkerVersion::DidShowPaymentHandlerWindow,
+                     weak_factory_.GetWeakPtr(), url, key_, context_),
       base::BindOnce(
           &ServiceWorkerVersion::OpenWindow, weak_factory_.GetWeakPtr(), url,
           service_worker_client_utils::WindowType::PAYMENT_HANDLER_WINDOW),
       std::move(callback));
+}
+
+void ServiceWorkerVersion::DidShowPaymentHandlerWindow(
+    const GURL& url,
+    const blink::StorageKey& key,
+    const base::WeakPtr<ServiceWorkerContextCore>& context,
+    blink::mojom::ServiceWorkerHost::OpenPaymentHandlerWindowCallback callback,
+    bool success,
+    int render_process_id,
+    int render_frame_id) {
+  if (success) {
+    payment_handler_connected_ = true;
+    // Start the timeout timer for the payment handler connection.
+    payment_handler_timeout_timer_.Start(
+        FROM_HERE, kPaymentHandlerTimeout,
+        base::BindOnce(&ServiceWorkerVersion::OnPaymentHandlerTimeout,
+                       weak_factory_.GetWeakPtr()));
+    service_worker_client_utils::DidNavigate(
+        context, url, key,
+        base::BindOnce(&OnOpenWindowFinished, std::move(callback)),
+        GlobalRenderFrameHostId(render_process_id, render_frame_id));
+  } else {
+    OnOpenWindowFinished(std::move(callback),
+                         blink::ServiceWorkerStatusCode::kErrorFailed,
+                         nullptr /* client_info */);
+  }
+}
+
+void ServiceWorkerVersion::OnPaymentHandlerDisconnect() {
+  if (!payment_handler_connected_) {
+    return;
+  }
+  DisconnectPaymentHandler(/*is_timeout=*/false);
+}
+
+void ServiceWorkerVersion::OnPaymentHandlerTimeout() {
+  if (!payment_handler_connected_) {
+    return;
+  }
+  DisconnectPaymentHandler(/*is_timeout=*/true);
+}
+
+void ServiceWorkerVersion::DisconnectPaymentHandler(bool is_timeout) {
+  // Stop the timeout timer if it's running.
+  if (payment_handler_timeout_timer_.IsRunning()) {
+    payment_handler_timeout_timer_.Stop();
+  }
+
+  payment_handler_connected_ = false;
+  // Record UMA indicating whether the disconnect was due to a timeout.
+  base::UmaHistogramBoolean("ServiceWorker.PaymentHandler.DisconnectTimeout",
+                            is_timeout);
 }
 
 void ServiceWorkerVersion::PostMessageToClient(
@@ -2173,11 +2210,12 @@ ServiceWorkerVersion::BuildClientSecurityState() const {
 
   const PolicyContainerPolicies& policies = policy_container_host_->policies();
 
-  network::mojom::PrivateNetworkRequestPolicy private_network_request_policy =
-      DerivePrivateNetworkRequestPolicy(
-          policies.ip_address_space, policies.is_web_secure_context,
-          policies.allow_non_secure_local_network_access,
-          PrivateNetworkRequestContext::kWorker);
+  network::mojom::LocalNetworkAccessRequestPolicy
+      local_network_access_request_policy =
+          DeriveLocalNetworkAccessRequestPolicy(
+              policies.ip_address_space, policies.is_web_secure_context,
+              policies.allow_non_secure_local_network_access,
+              LocalNetworkAccessRequestContext::kWorker);
 
   // Check for policy overrides on LNA. For service workers, we apply
   // policy overrides based on the storage key's origin (which should be the
@@ -2192,11 +2230,12 @@ ServiceWorkerVersion::BuildClientSecurityState() const {
     if (browser_context) {
       ContentBrowserClient* client = GetContentClient()->browser();
       url::Origin origin = key_.origin();
-      ContentBrowserClient::PrivateNetworkRequestPolicyOverride
-          policy_override = client->ShouldOverridePrivateNetworkRequestPolicy(
-              browser_context, origin);
-      private_network_request_policy = OverrideLocalNetworkAccessPolicy(
-          private_network_request_policy, policy_override);
+      ContentBrowserClient::LocalNetworkAccessRequestPolicyOverride
+          policy_override =
+              client->ShouldOverrideLocalNetworkAccessRequestPolicy(
+                  browser_context, origin);
+      local_network_access_request_policy = OverrideLocalNetworkAccessPolicy(
+          local_network_access_request_policy, policy_override);
     }
   }
 
@@ -2204,7 +2243,7 @@ ServiceWorkerVersion::BuildClientSecurityState() const {
   // DeriveClientSecurityState
   return network::mojom::ClientSecurityState::New(
       policies.cross_origin_embedder_policy, policies.is_web_secure_context,
-      policies.ip_address_space, private_network_request_policy,
+      policies.ip_address_space, local_network_access_request_policy,
       policies.document_isolation_policy);
 }
 
@@ -2491,10 +2530,10 @@ void ServiceWorkerVersion::StartWorkerInternal() {
         policy_container_host_->ip_address_space();
     client_security_state_->is_web_secure_context =
         policy_container_host_->policies().is_web_secure_context;
-    client_security_state_->private_network_request_policy =
-        DerivePrivateNetworkRequestPolicy(
+    client_security_state_->local_network_access_request_policy =
+        DeriveLocalNetworkAccessRequestPolicy(
             policy_container_host_->policies(),
-            PrivateNetworkRequestContext::kWorker);
+            LocalNetworkAccessRequestContext::kWorker);
   }
 
   embedded_worker_->Start(std::move(params),
@@ -2550,6 +2589,13 @@ void ServiceWorkerVersion::OnTimeoutTimer() {
       << static_cast<int>(running_status());
 
   if (!context_) {
+    return;
+  }
+
+  // Suppress timeout while a Payment Handler window is open.
+  if (base::FeatureList::IsEnabled(
+          features::kServiceWorkerSuppressTimeoutWhenPaymentWindowOpen) &&
+      payment_handler_connected_) {
     return;
   }
 

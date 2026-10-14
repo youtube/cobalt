@@ -1,6 +1,7 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="ja">
+<translation id="1035560095760914532">Chrome を下部に配置して、いつでもアクセス</translation>
 <translation id="1076643793026027628">YouTube のシークレット リンクが Chrome のシークレット モードで自動的に開きます。</translation>
 <translation id="1081114897601629648">次のパスワードは要件を満たしていないため、Google パスワード マネージャーにインポートされませんでした。</translation>
 <translation id="1086486568852410168">Google レンズで検索</translation>
@@ -86,6 +87,10 @@
 <translation id="2767464022270041271">保存されているパスワードがありません。パスワードを保存すると、Google パスワード マネージャーで確認できるようになります。</translation>
 <translation id="2788811701191021538">Chrome でお支払い方法の設定ページを開きます。</translation>
 <translation id="2876628302275096482"><ph name="BEGIN_LINK" />Chrome でユーザーデータのプライバシーを保護する方法<ph name="END_LINK" />についての詳細</translation>
+<translation id="288992067439702510">Google Chrome のブックマーク数の上限（<ph name="LIMIT" /> 個）に達したため、Google アカウントにまだ保存されていないブックマークがあります。
+
+新しいブックマークをアカウントに保存するには、既存のブックマークを削除してください。今すぐログアウトすると、保存されていないブックマークは削除されます。</translation>
+<translation id="2901621928549457170">iPad で Chrome をすぐに開くことができます</translation>
 <translation id="2922914028977213693">iPad で Chrome を最大限に活用するには、ここをタップしてください。</translation>
 <translation id="292371311537977079">Chrome の設定</translation>
 <translation id="2923827943290349720">Chrome を終了するときにシークレット タブをロックする</translation>
@@ -170,6 +175,8 @@
 <translation id="5119391094379141756">[Chrome] を選択します</translation>
 <translation id="5123188916260706415">Chrome で音声検索する</translation>
 <translation id="5162467219239570114">Chrome は古いバージョンです。<ph name="BEGIN_LINK" />アプリストア<ph name="END_LINK" />に利用可能なアップデートがない場合は、デバイスで新しいバージョンの Chrome がサポートされなくなった可能性があります。</translation>
+<translation id="5172049865623113551">iPhone で Chrome をすぐに開くことができます</translation>
+<translation id="5179095426828744632">Dock から Chrome にすばやくアクセス</translation>
 <translation id="5184329579814168207">Chromeで開く</translation>
 <translation id="5190139289262548459">組織（<ph name="DOMAIN" />）が、ログインしているアカウントと Chrome の使用方法を管理しています。</translation>
 <translation id="5209238444239954363">Chrome でアップデートを確認できませんでした。しばらくしてからもう一度お試しください。</translation>
@@ -304,7 +311,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="7787205077729386167">iOS で Chrome の設定を開き、[デフォルトのブラウザアプリ] をタップして [Chrome] を選択します。</translation>
 <translation id="778855399387580014">新しい Chrome タブで検索を開始します。</translation>
 <translation id="7792140019572081272">Chrome では、Face ID を使用してセンシティブ データを保護します。</translation>
-<translation id="7825648984449922731">Gemini in Chrome で画像を編集</translation>
 <translation id="7855730255114109580">Google Chrome は最新版です</translation>
 <translation id="787226752901403048">Chrome にログインして、タブグループの共有や参加、アイデアの出し合いなどを行うことができます</translation>
 <translation id="7897703007638178753">Chrome で最近使ったタブを表示</translation>

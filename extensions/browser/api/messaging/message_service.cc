@@ -53,6 +53,7 @@
 #include "extensions/browser/pref_names.h"
 #include "extensions/browser/process_manager.h"
 #include "extensions/browser/process_manager_factory.h"
+#include "extensions/browser/service_worker/worker_id.h"
 #include "extensions/common/api/messaging/messaging_endpoint.h"
 #include "extensions/common/api/messaging/port_context.h"
 #include "extensions/common/extension.h"
@@ -161,7 +162,7 @@ constexpr const char* kDefaultSWExtendedLifetimeList[] = {
 std::vector<url::Origin> GetServiceWorkerExtendedLifetimeOrigins(
     content::BrowserContext* browser_context) {
   std::vector<url::Origin> origins;
-  const base::Value::List& extended_lifetime_urls =
+  const base::ListValue& extended_lifetime_urls =
       ExtensionPrefs::Get(browser_context)
           ->pref_service()
           ->GetList(
@@ -224,7 +225,7 @@ struct MessageService::MessageChannel {
 
 struct MessageService::OpenChannelParams {
   ChannelEndpoint source;
-  std::optional<base::Value::Dict> source_tab;
+  std::optional<base::DictValue> source_tab;
   ExtensionApiFrameIdMap::FrameData source_frame;
   std::unique_ptr<MessagePort> receiver;
   PortId receiver_port_id;
@@ -240,7 +241,7 @@ struct MessageService::OpenChannelParams {
 
   // Takes ownership of receiver.
   OpenChannelParams(const ChannelEndpoint& source,
-                    std::optional<base::Value::Dict> source_tab,
+                    std::optional<base::DictValue> source_tab,
                     const ExtensionApiFrameIdMap::FrameData& source_frame,
                     MessagePort* receiver,
                     const PortId& receiver_port_id,
@@ -267,7 +268,7 @@ struct MessageService::OpenChannelParams {
                           include_guest_process_info,
                           /*open_channel_tracking_ids=*/{}) {}
   OpenChannelParams(const ChannelEndpoint& source,
-                    std::optional<base::Value::Dict> source_tab,
+                    std::optional<base::DictValue> source_tab,
                     const ExtensionApiFrameIdMap::FrameData& source_frame,
                     MessagePort* receiver,
                     const PortId& receiver_port_id,
@@ -385,10 +386,11 @@ class MessageServiceFactory
         absl::Overload{
             [&](const WorkerId& worker) {
               return ChannelEndpoint(
-                  context, worker.render_process_id,
-                  PortContext::ForWorker(worker.thread_id, worker.version_id,
-                                         worker.render_process_id,
-                                         worker.extension_id));
+                  context, worker.render_process_id.GetUnsafeValue(),
+                  PortContext::ForWorker(
+                      worker.thread_id, worker.version_id,
+                      worker.render_process_id.GetUnsafeValue(),
+                      worker.extension_id));
             },
             [&](const content::RenderFrameHost* render_frame_host) {
               return ChannelEndpoint(
@@ -569,7 +571,7 @@ void MessageService::OpenChannelToExtension(
   bool include_guest_process_info = false;
 
   // Get information about the opener's tab, if applicable.
-  std::optional<base::Value::Dict> source_tab =
+  std::optional<base::DictValue> source_tab =
       messaging_delegate_->MaybeGetTabInfo(source_contents);
 
   std::optional<url::Origin> source_origin;

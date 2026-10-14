@@ -194,7 +194,7 @@ class NavigationEarlyHintsTest : public DevToolsProtocolTest {
   }
 
   std::string WaitForHintedScriptDevtoolsRequestId() {
-    base::Value::Dict result;
+    base::DictValue result;
     while (true) {
       result = WaitForNotification("Network.requestWillBeSent", true);
       const base::Value* request_url = result.FindByDottedPath("request.url");
@@ -205,16 +205,16 @@ class NavigationEarlyHintsTest : public DevToolsProtocolTest {
     }
   }
 
-  base::Value::Dict WaitForDevtoolsEarlyHints() {
-    base::Value::Dict result;
+  base::DictValue WaitForDevtoolsEarlyHints() {
+    base::DictValue result;
     while (true) {
       result = WaitForNotification("Network.responseReceivedEarlyHints", true);
       return result;
     }
   }
 
-  base::Value::Dict WaitForResponseReceived(const std::string& request_id) {
-    base::Value::Dict result;
+  base::DictValue WaitForResponseReceived(const std::string& request_id) {
+    base::DictValue result;
     while (true) {
       result = WaitForNotification("Network.responseReceived", true);
       const std::string* received_id = result.FindString("requestId");
@@ -842,8 +842,8 @@ IN_PROC_BROWSER_TEST_F(NavigationEarlyHintsTest, DevtoolsEventsForEarlyHint) {
   std::string hinted_id = WaitForHintedScriptDevtoolsRequestId();
 
   {
-    base::Value::Dict early_hints_event = WaitForDevtoolsEarlyHints();
-    base::Value::Dict* early_hints_headers =
+    base::DictValue early_hints_event = WaitForDevtoolsEarlyHints();
+    base::DictValue* early_hints_headers =
         early_hints_event.FindDict("headers");
     ASSERT_TRUE(early_hints_headers);
     HeaderField link_header = CreatePreloadLinkForScript();
@@ -852,7 +852,7 @@ IN_PROC_BROWSER_TEST_F(NavigationEarlyHintsTest, DevtoolsEventsForEarlyHint) {
   }
 
   {
-    base::Value::Dict result = WaitForResponseReceived(hinted_id);
+    base::DictValue result = WaitForResponseReceived(hinted_id);
     base::Value* from_early_hints_value =
         result.FindByDottedPath("response.fromEarlyHints");
     ASSERT_TRUE(from_early_hints_value);
@@ -869,8 +869,8 @@ class NavigationEarlyHintsAddressSpaceTest : public NavigationEarlyHintsTest {
   void SetUpCommandLine(base::CommandLine* command_line) override {
     NavigationEarlyHintsTest::SetUpCommandLine(command_line);
 
-    private_server_.AddDefaultHandlers(GetTestDataFilePath());
-    ASSERT_TRUE(private_server_.Start());
+    local_server_.AddDefaultHandlers(GetTestDataFilePath());
+    ASSERT_TRUE(local_server_.Start());
 
     // Treat the main test server as public for IPAddressSpace tests.
     command_line->AppendSwitchASCII(
@@ -879,24 +879,22 @@ class NavigationEarlyHintsAddressSpaceTest : public NavigationEarlyHintsTest {
                            net::QuicSimpleTestServer::GetPort()));
   }
 
-  net::test_server::EmbeddedTestServer& private_server() {
-    return private_server_;
-  }
+  net::test_server::EmbeddedTestServer& local_server() { return local_server_; }
 
  private:
-  // For tests that trigger private network requests.
-  net::EmbeddedTestServer private_server_;
+  // For tests that trigger local network requests.
+  net::EmbeddedTestServer local_server_;
 };
 
 // Tests that Early Hints preload is blocked when hints comes from the public
-// network but a hinted resource is located in a private network.
+// network but a hinted resource is located in a local network.
 IN_PROC_BROWSER_TEST_F(NavigationEarlyHintsAddressSpaceTest,
-                       PublicToPrivateRequestBlocked) {
-  const GURL kPrivateResourceUrl = private_server().GetURL("/blank.jpg");
+                       PublicToLocalRequestBlocked) {
+  const GURL kLocalResourceUrl = local_server().GetURL("/blank.jpg");
   ResponseEntry page_entry(kEmptyPagePath, net::HTTP_OK);
-  HeaderField link_header = HeaderField(
-      "link", base::StringPrintf("<%s>; rel=preload; as=image",
-                                 kPrivateResourceUrl.spec().c_str()));
+  HeaderField link_header =
+      HeaderField("link", base::StringPrintf("<%s>; rel=preload; as=image",
+                                             kLocalResourceUrl.spec().c_str()));
   page_entry.AddEarlyHints({std::move(link_header)});
   RegisterResponse(page_entry);
 
@@ -907,14 +905,14 @@ IN_PROC_BROWSER_TEST_F(NavigationEarlyHintsAddressSpaceTest,
   PreloadedResources preloads = WaitForPreloadedResources();
   EXPECT_EQ(preloads.size(), 1UL);
 
-  auto it = preloads.find(kPrivateResourceUrl);
+  auto it = preloads.find(kLocalResourceUrl);
   ASSERT_TRUE(it != preloads.end());
   ASSERT_FALSE(it->second.was_canceled);
   ASSERT_TRUE(it->second.error_code.has_value());
   EXPECT_EQ(it->second.error_code.value(),
             net::ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS);
   EXPECT_EQ(it->second.cors_error_status->cors_error,
-            network::mojom::CorsError::kInsecurePrivateNetwork);
+            network::mojom::CorsError::kInsecureLocalNetwork);
 }
 
 class NavigationEarlyHintsPrerenderTest : public NavigationEarlyHintsTest {

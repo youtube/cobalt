@@ -65,10 +65,11 @@ public final class InstanceInfo {
     public final long lastAccessedTime;
 
     /**
-     * Whether this instance is marked for permanent deletion. This is relevant only for a
-     * non-active instance.
+     * The timestamp (in ms) reflecting the last time the instance was closed. The timestamp is
+     * recorded when the instance is closed by the user, by the app or by the system. Closure here
+     * is assumed to be reversible.
      */
-    public final boolean markedForDeletion;
+    public final long closureTime;
 
     public InstanceInfo(
             int instanceId,
@@ -81,7 +82,7 @@ public final class InstanceInfo {
             int incognitoTabCount,
             boolean isIncognitoSelected,
             long lastAccessedTime,
-            boolean markedForDeletion) {
+            long closureTime) {
         this.instanceId = instanceId;
         this.taskId = taskId;
         this.type = type;
@@ -92,12 +93,11 @@ public final class InstanceInfo {
         this.incognitoTabCount = incognitoTabCount;
         this.isIncognitoSelected = isIncognitoSelected;
         this.lastAccessedTime = lastAccessedTime;
-        this.markedForDeletion = markedForDeletion;
+        this.closureTime = closureTime;
     }
 
     @Override
     public String toString() {
-        // TODO (crbug.com/414676281): Add lastAccessedTime as "time ago" string.
         return String.format(
                 Locale.ENGLISH,
                 "(%d,%3d) incognito: %s ntab:%d itab:%d (%s,%s)",

@@ -342,7 +342,6 @@
 <translation id="2201071101391734388">Foto reciente <ph name="INDEX" /> de <ph name="TOTAL_COUNT" />.</translation>
 <translation id="2201687081523799384">Contraer Google Tasks</translation>
 <translation id="2208323208084708176">Modo Escritorio unificado</translation>
-<translation id="2210311543574621570">Para ver el portapapeles, mantén pulsadas las teclas Ctrl + V. Puedes desactivar esta combinación de teclas inhabilitando la marca #clipboard-history-longpress en chrome://flags.</translation>
 <translation id="2215920961700443347">No hay conexión a Internet. Conéctate a Internet y vuelve a intentarlo.</translation>
 <translation id="2222841058024245321">Escritorio 7</translation>
 <translation id="2223384056430485343">En una pantalla dividida</translation>
@@ -2196,7 +2195,6 @@ Para apagarlo, mantén pulsado de nuevo el botón de encendido del dispositivo.<
 <translation id="8241650983304689286">Añadir pestaña a la nueva vista dividida</translation>
 <translation id="8247060538831475781"><ph name="CONNECTION_STATUS" />, intensidad de la señal: <ph name="SIGNAL_STRENGTH" />, batería del teléfono: <ph name="BATTERY_STATUS" /></translation>
 <translation id="825129991941217170">Mostrar todo el contenido de Google Drive</translation>
-<translation id="8257510091797044096">Configurar tu dispositivo</translation>
 <translation id="8261506727792406068">Eliminar</translation>
 <translation id="8262312463845990408">Reproducir/Pausar</translation>
 <translation id="8268302343625273732">Ver todas las tareas en Google Classroom</translation>

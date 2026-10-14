@@ -69,6 +69,9 @@ const CGFloat kNTPTabGridPageControlCornerRadius = 13.0f;
 }
 
 - (void)stop {
+  // Dismissing the presenter could trigger the dismiss callback, so break the
+  // connection to the delegate to avoid infinite loops.
+  _delegate = nil;
   [_presenter dismiss];
   _presenter = nil;
 }
@@ -162,8 +165,19 @@ const CGFloat kNTPTabGridPageControlCornerRadius = 13.0f;
 // YES if the bubble arrow should point down (e.g. the NTP step is pointing down
 // to the bottom toolbar).
 - (BOOL)shouldPointArrowDown {
-  return IsSplitToolbarMode(self.baseViewController) &&
-         _step == GuidedTourStep::kNTP;
+  if (_step == GuidedTourStep::kNTP) {
+    return IsSplitToolbarMode(self.baseViewController);
+  }
+  if (_step == GuidedTourStep::kTabGridLongPress) {
+    UIView* anchorView = [self anchorView];
+    CGRect anchorFrameInBaseViewController =
+        [anchorView convertRect:[anchorView bounds]
+                         toView:self.baseViewController.view];
+    // Point arrow down if anchor view is on the bottom half of the screen.
+    return CGRectGetMidY(anchorFrameInBaseViewController) >
+           CGRectGetMidY(self.baseViewController.view.bounds);
+  }
+  return NO;
 }
 
 // Returns the bubble alignment for each step.

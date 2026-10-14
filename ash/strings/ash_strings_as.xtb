@@ -342,7 +342,6 @@
 <translation id="2201071101391734388">শেহতীয়া ফট’ <ph name="TOTAL_COUNT" /> খনৰ ভিতৰত <ph name="INDEX" /> খন।</translation>
 <translation id="2201687081523799384">Google Tasks সংকোচন কৰক</translation>
 <translation id="2208323208084708176">সমন্বিত ডেস্কটপ ম'ড</translation>
-<translation id="2210311543574621570">আপুনি Ctrl + Vত টিপি হেঁচি ৰাখিলে ক্লিপব’ৰ্ডটো দেখা পাব। আপুনি chrome://flagsত #clipboard-history-longpress ফ্লেগ অক্ষম কৰি এই শ্বৰ্টকাটটো অফ কৰিব পাৰে।</translation>
 <translation id="2215920961700443347">ইণ্টাৰনেট সংযোগ নাই। ইণ্টাৰনেটৰ লগত সংযোগ কৰক আৰু পুনৰ চেষ্টা কৰক।</translation>
 <translation id="2222841058024245321">ডেস্ক ৭</translation>
 <translation id="2223384056430485343">এখন বিভাজিত স্ক্ৰীনত</translation>
@@ -2195,7 +2194,6 @@
 <translation id="8241650983304689286">নতুন বিভাজিত ভিউত টেব যোগ দিয়ক</translation>
 <translation id="8247060538831475781"><ph name="CONNECTION_STATUS" />, ছিগনেলৰ ক্ষমতা <ph name="SIGNAL_STRENGTH" />, ফ’নৰ বেটাৰী <ph name="BATTERY_STATUS" /></translation>
 <translation id="825129991941217170">Google Driveৰ আটাইবোৰ সমল দেখুৱাওক</translation>
-<translation id="8257510091797044096">আপোনাৰ ডিভাইচটো ছেট আপ কৰক</translation>
 <translation id="8261506727792406068">মচক</translation>
 <translation id="8262312463845990408">প্লে’বেক ট’গল কৰক</translation>
 <translation id="8268302343625273732">Google Classroomত আটাইবোৰ এছাইনমেণ্ট চাওক</translation>

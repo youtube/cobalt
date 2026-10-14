@@ -35,9 +35,8 @@ constexpr char kExtensionVersion[] = "1.0.0.0";
 base::Value GetPolicyValueForAction(
     const std::string& extension_version,
     enterprise_management::ExtensionInstallPolicy::Action action) {
-return base::Value(base::Value::Dict().Set(
-           extension_version,
-           base::Value::Dict().Set("action", action)));
+  return base::Value(base::DictValue().Set(
+      extension_version, base::DictValue().Set("action", action)));
 }
 
 class MockExtensionInstallPolicyServiceObserver
@@ -91,12 +90,14 @@ class ExtensionInstallPolicyServiceTest : public testing::Test {
   // Build a test version CloudPolicyManager for testing profiles.
   std::unique_ptr<UserCloudPolicyManager> BuildUserCloudPolicyManager() {
     auto mock_user_cloud_policy_store =
-        std::make_unique<MockUserCloudPolicyStore>();
+        std::make_unique<MockUserCloudPolicyStore>(
+            dm_protocol::GetChromeUserPolicyType());
     std::unique_ptr<MockUserCloudPolicyStore>
         mock_user_cloud_policy_extension_install_store;
 #if BUILDFLAG(ENABLE_EXTENSIONS)
     mock_user_cloud_policy_extension_install_store =
-        std::make_unique<MockUserCloudPolicyStore>();
+        std::make_unique<MockUserCloudPolicyStore>(
+            dm_protocol::kChromeExtensionInstallUserCloudPolicyType);
 #endif
 
     return std::make_unique<UserCloudPolicyManager>(

@@ -13,6 +13,7 @@
 #include <utility>
 
 #include "base/containers/to_vector.h"
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/user_metrics.h"
@@ -44,6 +45,7 @@
 #include "components/autofill/core/browser/data_model/payments/iban.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/foundations/browser_autofill_manager.h"
+#include "components/autofill/core/browser/integrators/autofill_ai/management_utils.h"
 #include "components/autofill/core/browser/metrics/address_save_metrics.h"
 #include "components/autofill/core/browser/metrics/payments/mandatory_reauth_metrics.h"
 #include "components/autofill/core/browser/payments/credit_card_access_manager.h"
@@ -117,9 +119,9 @@ constexpr char kFieldNameKey[] = "fieldName";
 constexpr char kFieldRequired[] = "isRequired";
 
 // Serializes the AddressUiComponent a map from string to base::Value().
-base::Value::Dict AddressUiComponentAsValueMap(
+base::DictValue AddressUiComponentAsValueMap(
     const autofill::AutofillAddressUIComponent& address_ui_component) {
-  base::Value::Dict info;
+  base::DictValue info;
   info.Set(kFieldNameKey, address_ui_component.name);
   info.Set(kFieldTypeKey, FieldTypeToStringView(address_ui_component.field));
   info.Set(kFieldLengthKey,
@@ -168,8 +170,9 @@ autofill::BrowserAutofillManager* GetBrowserAutofillManager(
   autofill::ContentAutofillDriver* autofill_driver =
       autofill::ContentAutofillDriver::GetForRenderFrameHost(
           web_contents->GetPrimaryMainFrame());
-  if (!autofill_driver)
+  if (!autofill_driver) {
     return nullptr;
+  }
   // This cast is safe, since `AutofillManager` is always a
   // `BrowserAutofillManager` apart from on WebView.
   return static_cast<autofill::BrowserAutofillManager*>(
@@ -188,6 +191,17 @@ autofill::AutofillProfile CreateNewAutofillProfile(
           ? autofill::AddressCountryCode(std::string(*country_code))
           : autofill::i18n_model_definition::kLegacyHierarchyCountryCode;
   return autofill::AutofillProfile(record_type, address_country_code);
+}
+
+// Returns true if the `entity_type` supports wallet storage.
+bool IsEligibleForWalletStorage(autofill::AutofillClient* client,
+                                autofill::EntityType entity_type) {
+  return client &&
+         autofill::MayPerformAutofillAiAction(
+             *client, autofill::AutofillAiAction::kImportToWallet,
+             entity_type) &&
+         base::FeatureList::IsEnabled(
+             autofill::features::kAutofillEnableSaveToWalletFromSettings);
 }
 
 }  // namespace
@@ -255,8 +269,9 @@ ExtensionFunction::ResponseAction AutofillPrivateSaveAddressFunction::Run() {
   const autofill::AutofillProfile* existing_profile = nullptr;
   if (use_existing_profile) {
     existing_profile = adm->GetProfileByGUID(guid);
-    if (!existing_profile)
+    if (!existing_profile) {
       return RespondNow(Error(kErrorDataUnavailable));
+    }
   }
   std::optional<std::string_view> country_code;
   if (auto it = std::find_if(
@@ -363,15 +378,15 @@ AutofillPrivateGetAddressComponentsFunction::Run() {
       /*include_literals=*/false, &lines, &language_code);
   // Convert std::vector<std::vector<::i18n::addressinput::AddressUiComponent>>
   // to AddressComponents
-  base::Value::Dict address_components;
-  base::Value::List rows;
+  base::DictValue address_components;
+  base::ListValue rows;
 
   for (auto& line : lines) {
-    base::Value::List row_values;
+    base::ListValue row_values;
     for (const autofill::AutofillAddressUIComponent& component : line) {
       row_values.Append(AddressUiComponentAsValueMap(component));
     }
-    base::Value::Dict row;
+    base::DictValue row;
     row.Set("row", std::move(row_values));
     rows.Append(std::move(row));
   }
@@ -418,8 +433,9 @@ ExtensionFunction::ResponseAction AutofillPrivateSaveCreditCardFunction::Run() {
   const autofill::CreditCard* existing_card = nullptr;
   if (use_existing_card) {
     existing_card = paydm->GetCreditCardByGUID(guid);
-    if (!existing_card)
+    if (!existing_card) {
       return RespondNow(Error(kErrorDataUnavailable));
+    }
   }
   autofill::CreditCard credit_card =
       existing_card ? *existing_card
@@ -457,8 +473,9 @@ ExtensionFunction::ResponseAction AutofillPrivateSaveCreditCardFunction::Run() {
 
   if (use_existing_card) {
     // Only updates when the card info changes.
-    if (existing_card && existing_card->Compare(credit_card) == 0)
+    if (existing_card && existing_card->Compare(credit_card) == 0) {
       return RespondNow(NoArguments());
+    }
 
     if (existing_card->cvc().empty()) {
       if (credit_card.cvc().empty()) {
@@ -736,8 +753,9 @@ AutofillPrivateRemoveVirtualCardFunction::Run() {
 
   const autofill::CreditCard* card =
       paydm->GetCreditCardByServerId(parameters->card_id);
-  if (!card)
+  if (!card) {
     return RespondNow(Error(kErrorDataUnavailable));
+  }
 
   autofill::BrowserAutofillManager* autofill_manager =
       GetBrowserAutofillManager(GetSenderWebContents());
@@ -984,10 +1002,22 @@ AutofillPrivateAddOrUpdateEntityInstanceFunction::Run() {
 
   const autofill_private::EntityInstance& private_api_entity_instance =
       parameters->entity_instance;
+  std::optional<autofill::EntityTypeName> entity_type_name =
+      autofill::ToSafeEntityTypeName(
+          private_api_entity_instance.type.type_name);
+
+  if (!entity_type_name.has_value()) {
+    return RespondNow(Error(kErrorAutofillAiTypeNameOutOfBounds));
+  }
+
+  const bool is_eligible_for_wallet_storage = IsEligibleForWalletStorage(
+      autofill_client(), autofill::EntityType(*entity_type_name));
+
   std::optional<EntityInstance> entity_instance =
       autofill_ai_util::PrivateApiEntityInstanceToEntityInstance(
           private_api_entity_instance,
-          g_browser_process->GetApplicationLocale());
+          g_browser_process->GetApplicationLocale(),
+          is_eligible_for_wallet_storage);
   if (!entity_instance.has_value()) {
     return RespondNow(Error(kErrorAutofillAiInvalidData));
   }
@@ -1001,6 +1031,11 @@ AutofillPrivateAddOrUpdateEntityInstanceFunction::Run() {
     return RespondNow(Error(kErrorAutofillAiUnavailable));
   }
   entity_data_manager->AddOrUpdateEntityInstance(entity_instance.value());
+
+  if (private_api_entity_instance.stored_in_wallet.value_or(false) &&
+      !is_eligible_for_wallet_storage && autofill_client()) {
+    autofill_client()->ShowAutofillAiLocalSaveNotification();
+  }
   return RespondNow(NoArguments());
 }
 
@@ -1041,9 +1076,7 @@ AutofillPrivateLoadEntityInstancesFunction::Run() {
   }
   const bool obfuscate_sensitive_types =
       autofill::prefs::IsAutofillAiReauthBeforeFillingEnabled(
-          autofill_client()->GetPrefs()) &&
-      base::FeatureList::IsEnabled(
-          autofill::features::kAutofillAiReauthRequired);
+          autofill_client()->GetPrefs());
   std::vector<autofill_private::EntityInstanceWithLabels> result =
       autofill_ai_util::EntityInstancesToPrivateApiEntityInstancesWithLabels(
           entity_data_manager->GetEntityInstances(), obfuscate_sensitive_types,
@@ -1054,6 +1087,12 @@ AutofillPrivateLoadEntityInstancesFunction::Run() {
 
 ////////////////////////////////////////////////////////////////////////////////
 // AutofillPrivateGetEntityInstanceByGuidFunction
+
+AutofillPrivateGetEntityInstanceByGuidFunction::
+    AutofillPrivateGetEntityInstanceByGuidFunction() = default;
+
+AutofillPrivateGetEntityInstanceByGuidFunction::
+    ~AutofillPrivateGetEntityInstanceByGuidFunction() = default;
 
 ExtensionFunction::ResponseAction
 AutofillPrivateGetEntityInstanceByGuidFunction::Run() {
@@ -1075,10 +1114,60 @@ AutofillPrivateGetEntityInstanceByGuidFunction::Run() {
   if (!entity_instance.has_value()) {
     return RespondNow(Error(kErrorAutofillAiEntityInstanceNotFound));
   }
-  return RespondNow(ArgumentList(
-      api::autofill_private::GetEntityInstanceByGuid::Results::Create(
-          autofill_ai_util::EntityInstanceToPrivateApiEntityInstance(
-              entity_instance.value(), autofill_client()->GetAppLocale()))));
+
+  authenticator_.reset();
+  if (base::FeatureList::IsEnabled(
+          autofill::features::kAutofillAiReauthRequired)) {
+    authenticator_ = autofill_client()->GetDeviceAuthenticator(
+        /*histogram=*/"Autofill.Ai.Reauth.ViewEntity");
+  }
+
+  const bool should_authenticate_to_view =
+      autofill::prefs::IsAutofillAiReauthBeforeFillingEnabled(
+          autofill_client()->GetPrefs()) &&
+      authenticator_ &&
+      authenticator_->CanAuthenticateWithBiometricOrScreenLock() &&
+      std::ranges::any_of(
+          entity_instance->attributes(),
+          [](const autofill::AttributeInstance& attribute_instance) {
+            return attribute_instance.type().is_obfuscated() &&
+                   !attribute_instance.GetCompleteRawInfo().empty();
+          });
+
+  if (!should_authenticate_to_view) {
+    return RespondNow(ArgumentList(
+        api::autofill_private::GetEntityInstanceByGuid::Results::Create(
+            autofill_ai_util::EntityInstanceToPrivateApiEntityInstance(
+                entity_instance.value(), autofill_client()->GetAppLocale(),
+                IsEligibleForWalletStorage(autofill_client(),
+                                           entity_instance.value().type())))));
+  }
+
+  std::u16string message;
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
+  message = l10n_util::GetStringUTF16(IDS_AUTOFILL_AI_VIEWING_REAUTH);
+#endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
+  authenticator_->AuthenticateWithMessage(
+      message,
+      base::BindOnce(
+          &AutofillPrivateGetEntityInstanceByGuidFunction::OnReauthCompleted,
+          base::RetainedRef(this), entity_instance.value()));
+  return RespondLater();
+}
+
+void AutofillPrivateGetEntityInstanceByGuidFunction::OnReauthCompleted(
+    const autofill::EntityInstance& entity_instance,
+    bool auth_succeeded) {
+  if (auth_succeeded) {
+    Respond(ArgumentList(
+        api::autofill_private::GetEntityInstanceByGuid::Results::Create(
+            autofill_ai_util::EntityInstanceToPrivateApiEntityInstance(
+                entity_instance, autofill_client()->GetAppLocale(),
+                IsEligibleForWalletStorage(autofill_client(),
+                                           entity_instance.type())))));
+    return;
+  }
+  Respond(NoArguments());
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1090,18 +1179,11 @@ AutofillPrivateGetWritableEntityTypesFunction::Run() {
 
   std::vector<autofill_private::EntityType> result;
   result.reserve(all_types.size());
-  for (EntityType entity_type : all_types) {
-    if (!entity_type.enabled(
-            autofill_client()->GetVariationConfigCountryCode())) {
-      continue;
-    }
-    if (entity_type.read_only()) {
-      continue;
-    }
-    // TODO(crbug.com/454892936): Provide the correct value for
-    // `supports_wallet_storage`.
+  for (EntityType entity_type : autofill::GetWritableEntityTypes(
+           autofill_client()->GetVariationConfigCountryCode())) {
     result.push_back(autofill_ai_util::EntityTypeToPrivateApiEntityType(
-        entity_type, /*supports_wallet_storage=*/false));
+        entity_type,
+        IsEligibleForWalletStorage(autofill_client(), entity_type)));
   }
 
   return RespondNow(ArgumentList(
@@ -1125,22 +1207,35 @@ AutofillPrivateGetAllAttributeTypesForEntityTypeNameFunction::Run() {
   }
 
   EntityType entity_type(entity_type_name.value());
-  std::vector<autofill_private::AttributeType> result = base::ToVector(
-      entity_type.attributes(),
-      [](const autofill::AttributeType& attribute_type) {
-        autofill_private::AttributeType private_api_attribute_type;
-        private_api_attribute_type.type_name =
-            std::to_underlying(attribute_type.name());
-        private_api_attribute_type.type_name_as_string =
-            base::UTF16ToUTF8(attribute_type.GetNameForI18n());
-        private_api_attribute_type.data_type = autofill_ai_util::
-            AttributeTypeDataTypeToPrivateApiAttributeTypeDataType(
-                attribute_type.data_type());
-        return private_api_attribute_type;
-      });
+  std::vector<autofill_private::AttributeType> result =
+      base::ToVector(entity_type.attributes(),
+                     autofill_ai_util::AttributeTypeToPrivateApiAttributeType);
   return RespondNow(ArgumentList(
       autofill_private::GetAllAttributeTypesForEntityTypeName::Results::Create(
           result)));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// AutofillPrivateGetRequiredAttributeTypesForEntityTypeNameFunction
+
+ExtensionFunction::ResponseAction
+AutofillPrivateGetRequiredAttributeTypesForEntityTypeNameFunction::Run() {
+  const auto params = api::autofill_private::
+      GetRequiredAttributeTypesForEntityTypeName::Params::Create(args());
+  EXTENSION_FUNCTION_VALIDATE(params);
+
+  std::optional<autofill::EntityTypeName> entity_type_name =
+      autofill::ToSafeEntityTypeName(params->entity_type_name);
+
+  if (!entity_type_name.has_value()) {
+    return RespondNow(Error(kErrorAutofillAiTypeNameOutOfBounds));
+  }
+
+  autofill::EntityType entity_type(entity_type_name.value());
+  return RespondNow(ArgumentList(
+      api::autofill_private::GetRequiredAttributeTypesForEntityTypeName::
+          Results::Create(
+              autofill_ai_util::GetRequiredAttributesForType(entity_type))));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1218,9 +1313,7 @@ AutofillPrivateAuthenticateUserBeforeViewingEntityDataFunction::
 ExtensionFunction::ResponseAction
 AutofillPrivateAuthenticateUserBeforeViewingEntityDataFunction::Run() {
   if (!autofill::prefs::IsAutofillAiReauthBeforeFillingEnabled(
-          autofill_client()->GetPrefs()) ||
-      !base::FeatureList::IsEnabled(
-          autofill::features::kAutofillAiReauthRequired)) {
+          autofill_client()->GetPrefs())) {
     return RespondNow(WithArguments(true));
   }
 
@@ -1235,8 +1328,12 @@ AutofillPrivateAuthenticateUserBeforeViewingEntityDataFunction::Run() {
     return RespondNow(WithArguments(true));
   }
 
+  std::u16string message;
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
+  message = l10n_util::GetStringUTF16(IDS_AUTOFILL_AI_VIEWING_REAUTH);
+#endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
   authenticator_->AuthenticateWithMessage(
-      l10n_util::GetStringUTF16(IDS_AUTOFILL_AI_VIEWING_REAUTH),
+      message,
       base::BindOnce(
           &AutofillPrivateAuthenticateUserBeforeViewingEntityDataFunction::
               OnReauthCompleted,
@@ -1249,6 +1346,58 @@ void AutofillPrivateAuthenticateUserBeforeViewingEntityDataFunction::
   authenticator_.reset();
 
   Respond(WithArguments(auth_succeeded));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// AutofillPrivateToggleAutofillAiReauthRequirementFunction
+
+AutofillPrivateToggleAutofillAiReauthRequirementFunction::
+    AutofillPrivateToggleAutofillAiReauthRequirementFunction() = default;
+
+AutofillPrivateToggleAutofillAiReauthRequirementFunction::
+    ~AutofillPrivateToggleAutofillAiReauthRequirementFunction() = default;
+
+ExtensionFunction::ResponseAction
+AutofillPrivateToggleAutofillAiReauthRequirementFunction::Run() {
+  if (!base::FeatureList::IsEnabled(
+          autofill::features::kAutofillAiReauthRequired)) {
+    return RespondNow(NoArguments());
+  }
+
+  autofill::ContentAutofillClient* client = autofill_client();
+  if (!client) {
+    return RespondNow(Error(kErrorDataUnavailable));
+  }
+
+  authenticator_ = client->GetDeviceAuthenticator();
+  if (!authenticator_ ||
+      !authenticator_->CanAuthenticateWithBiometricOrScreenLock()) {
+    return RespondNow(NoArguments());
+  }
+
+  std::u16string message;
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
+  message =
+      l10n_util::GetStringUTF16(IDS_AUTOFILL_AI_UPDATE_REAUTH_REQUIREMENT);
+#endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
+  authenticator_->AuthenticateWithMessage(
+      message,
+      base::BindOnce(&AutofillPrivateToggleAutofillAiReauthRequirementFunction::
+                         OnReauthCompleted,
+                     this));
+  return RespondLater();
+}
+
+void AutofillPrivateToggleAutofillAiReauthRequirementFunction::
+    OnReauthCompleted(bool auth_succeeded) {
+  if (auth_succeeded) {
+    const bool new_val =
+        !autofill::prefs::IsAutofillAiReauthBeforeFillingEnabled(
+            autofill_client()->GetPrefs());
+    autofill::prefs::SetAutofillAiReauthBeforeFillingEnabled(
+        autofill_client()->GetPrefs(), new_val);
+  }
+  Respond(NoArguments());
 }
 
 }  // namespace extensions

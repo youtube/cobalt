@@ -22,7 +22,8 @@
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/signin/signin_util.h"
-#include "chrome/browser/ui/browser_list.h"
+#include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/managed_ui.h"
 #include "chrome/browser/ui/signin/signin_view_controller.h"
 #include "chrome/browser/ui/ui_features.h"
@@ -138,13 +139,16 @@ ManagedUserProfileNoticeHandler::ManagedUserProfileNoticeHandler(
       (type_ !=
            ManagedUserProfileNoticeUI::ScreenType::kEnterpriseAccountCreation ||
        type_ == ManagedUserProfileNoticeUI::ScreenType::kProfilePicker));
-  BrowserList::AddObserver(this);
+  if (browser_) {
+    browser_did_close_subscription_ = browser_->RegisterBrowserDidClose(
+        base::BindRepeating(&ManagedUserProfileNoticeHandler::OnBrowserDidClose,
+                            base::Unretained(this)));
+  }
 }
 
 ManagedUserProfileNoticeHandler::~ManagedUserProfileNoticeHandler() {
-  BrowserList::RemoveObserver(this);
   if (!canceling_) {
-    HandleCancel(base::Value::List());
+    HandleCancel(base::ListValue());
   }
 }
 
@@ -189,10 +193,10 @@ void ManagedUserProfileNoticeHandler::OnProfileIsManagedChanged(
   UpdateProfileInfo(profile_path);
 }
 
-void ManagedUserProfileNoticeHandler::OnBrowserRemoved(Browser* browser) {
-  if (browser_ == browser) {
-    browser_ = nullptr;
-  }
+void ManagedUserProfileNoticeHandler::OnBrowserDidClose(
+    BrowserWindowInterface* browser) {
+  CHECK_EQ(browser_, browser);
+  browser_ = nullptr;
 }
 
 void ManagedUserProfileNoticeHandler::OnExtendedAccountInfoUpdated(
@@ -220,7 +224,7 @@ void ManagedUserProfileNoticeHandler::OnJavascriptDisallowed() {
 }
 
 void ManagedUserProfileNoticeHandler::HandleInitialized(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   CHECK_EQ(1u, args.size());
   AllowJavascript();
   const base::Value& callback_id = args[0];
@@ -228,7 +232,7 @@ void ManagedUserProfileNoticeHandler::HandleInitialized(
 }
 
 void ManagedUserProfileNoticeHandler::HandleInitializedWithSize(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   AllowJavascript();
 
   if (browser_) {
@@ -237,7 +241,7 @@ void ManagedUserProfileNoticeHandler::HandleInitializedWithSize(
 }
 
 void ManagedUserProfileNoticeHandler::HandleProceed(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   CHECK_EQ(2u, args.size());
   AllowJavascript();
   bool use_existing_profile = args[1].GetIfBool().value_or(false);
@@ -315,7 +319,7 @@ void ManagedUserProfileNoticeHandler::HandleProceed(
 }
 
 void ManagedUserProfileNoticeHandler::HandleCancel(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   canceling_ = true;
   if (IsJavascriptAllowed()) {
     DisallowJavascript();
@@ -406,8 +410,8 @@ std::string ManagedUserProfileNoticeHandler::GetManagedAccountTitleWithEmail(
 #endif  //  !BUILDFLAG(IS_CHROMEOS)
 }
 
-base::Value::Dict ManagedUserProfileNoticeHandler::GetProfileInfoValue() {
-  base::Value::Dict dict;
+base::DictValue ManagedUserProfileNoticeHandler::GetProfileInfoValue() {
+  base::DictValue dict;
   dict.Set("pictureUrl", GetPictureUrl());
 
   std::string title =
@@ -466,11 +470,13 @@ base::Value::Dict ManagedUserProfileNoticeHandler::GetProfileInfoValue() {
           IdentityManagerFactory::GetForProfile(Profile::FromWebUI(web_ui()))
               ->FindExtendedAccountInfoByAccountId(account_id_);
       CHECK(!account_info.IsEmpty());
-      dict.Set("continueAs", l10n_util::GetStringFUTF8(
-                                 IDS_PROFILES_DICE_WEB_ONLY_SIGNIN_BUTTON,
-                                 base::UTF8ToUTF16(account_info.given_name)));
+      dict.Set(
+          "continueAs",
+          l10n_util::GetStringFUTF8(
+              IDS_PROFILES_DICE_WEB_ONLY_SIGNIN_BUTTON,
+              base::UTF8ToUTF16(account_info.GetGivenName().value_or(""))));
       dict.Set("email", base::UTF16ToUTF8(email_));
-      dict.Set("accountName", account_info.full_name);
+      dict.Set("accountName", account_info.GetFullName().value_or(""));
 
 #if !BUILDFLAG(IS_CHROMEOS)
       // We apply the checkLinkDataCheckboxByDefault to true value only if the
@@ -516,10 +522,9 @@ std::string ManagedUserProfileNoticeHandler::GetPictureUrl() {
         IdentityManagerFactory::GetForProfile(Profile::FromWebUI(web_ui()))
             ->FindExtendedAccountInfoByAccountId(account_id_);
     DCHECK(!account_info.IsEmpty());
-    icon = account_info.account_image.IsEmpty()
-               ? ui::ResourceBundle::GetSharedInstance().GetImageNamed(
-                     profiles::GetPlaceholderAvatarIconResourceID())
-               : account_info.account_image;
+    icon = account_info.GetAvatarImage().value_or(
+        ui::ResourceBundle::GetSharedInstance().GetImageNamed(
+            profiles::GetPlaceholderAvatarIconResourceID()));
   } else if (type_ == ManagedUserProfileNoticeUI::ScreenType::kEnterpriseOIDC) {
     icon = ui::ResourceBundle::GetSharedInstance().GetImageNamed(
         profiles::GetPlaceholderAvatarIconResourceID());

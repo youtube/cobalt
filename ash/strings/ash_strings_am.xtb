@@ -342,7 +342,6 @@
 <translation id="2201071101391734388">የቅርብ ጊዜ ፎቶ <ph name="INDEX" /> ከ<ph name="TOTAL_COUNT" />።</translation>
 <translation id="2201687081523799384">Google ተግባሮችን ሰብስብ</translation>
 <translation id="2208323208084708176">የተዋሃደ የዴስክቶፕ ሁነታ</translation>
-<translation id="2210311543574621570">Ctrl + Vን ተጭነው ሲይዙ የቅንጥብ ሰሌዳውን ያያሉ። በchrome://flags ውስጥ የ#clipboard-history-longpress ጠቁምን በማሰናከል ይህን አቋራጭ ማጥፋት ይችላሉ።</translation>
 <translation id="2215920961700443347">ምንም በይነመረብ የለም። ከበይነመረቡ ጋር ይገናኙና እንደገና ይሞክሩ።</translation>
 <translation id="2222841058024245321">ዴስክ 7</translation>
 <translation id="2223384056430485343">በተከፈለ ማያ ገጽ ውስጥ</translation>
@@ -2196,7 +2195,6 @@
 <translation id="8241650983304689286">በአዲስ የተከፋፈለ ዕይታ ላይ ትር ያክሉ</translation>
 <translation id="8247060538831475781"><ph name="CONNECTION_STATUS" />፣ የሲግናል ጥንካሬ <ph name="SIGNAL_STRENGTH" />፣ የስልክ ባትሪ <ph name="BATTERY_STATUS" /></translation>
 <translation id="825129991941217170">ሁሉንም የGoogle Drive ይዘት አሳይ</translation>
-<translation id="8257510091797044096">መሣሪያዎን ያዋቅሩ</translation>
 <translation id="8261506727792406068">ሰርዝ</translation>
 <translation id="8262312463845990408">መልሶ ማጫወትን ይቀያይሩ</translation>
 <translation id="8268302343625273732">በGoogle የትምህርት ክፍል ውስጥ ሁሉንም የክፍል ሥራዎች ይመልከቱ</translation>

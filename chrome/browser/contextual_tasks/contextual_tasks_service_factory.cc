@@ -28,11 +28,11 @@
 #include "content/public/browser/browser_context.h"
 
 #if !BUILDFLAG(IS_ANDROID)
-#include "chrome/browser/contextual_tasks/contextual_tasks_side_panel_coordinator.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_panel_controller.h"
 #include "chrome/browser/contextual_tasks/tab_strip_context_decorator.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"  // nogncheck crbug.com/40147906
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"  // nogncheck crbug.com/40147906
-#include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/tabs/tab_list_interface.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/url_constants.h"
 #endif
@@ -51,22 +51,23 @@ size_t GetNumberOfActiveTasks(Profile* profile) {
         }
 
         // Check how many tasks are cached in the side panel.
-        if (auto* coordinator =
-                ContextualTasksSidePanelCoordinator::From(browser)) {
-          number_of_active_tasks += coordinator->GetNumberOfActiveTasks();
+        if (auto* controller = ContextualTasksPanelController::From(browser)) {
+          number_of_active_tasks += controller->GetNumberOfActiveTasks();
         }
 
         // Check how many tasks are open in a full tab.
-        TabStripModel* tab_strip_model = browser->GetTabStripModel();
-        if (tab_strip_model) {
-          for (int i = 0; i < tab_strip_model->count(); ++i) {
-            if (auto* web_contents = tab_strip_model->GetWebContentsAt(i)) {
-              if (web_contents->GetLastCommittedURL().scheme() ==
-                      content::kChromeUIScheme &&
-                  web_contents->GetLastCommittedURL().host() ==
-                      chrome::kChromeUIContextualTasksHost) {
-                number_of_active_tasks++;
-              }
+        TabListInterface* tab_list = TabListInterface::From(browser);
+        if (tab_list) {
+          for (int i = 0; i < tab_list->GetTabCount(); ++i) {
+            tabs::TabInterface* tab = tab_list->GetTab(i);
+            content::WebContents* web_contents =
+                tab ? tab->GetContents() : nullptr;
+            if (web_contents &&
+                web_contents->GetLastCommittedURL().scheme() ==
+                    content::kChromeUIScheme &&
+                web_contents->GetLastCommittedURL().host() ==
+                    chrome::kChromeUIContextualTasksHost) {
+              number_of_active_tasks++;
             }
           }
         }

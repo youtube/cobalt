@@ -390,11 +390,13 @@ DirectHandle<PrototypeInfo> Factory::NewPrototypeInfo() {
 }
 
 DirectHandle<PrototypeSharedClosureInfo> Factory::NewPrototypeSharedClosureInfo(
+    DirectHandle<ObjectBoilerplateDescription> object_boilerplate_description,
     DirectHandle<Context> context,
     DirectHandle<ClosureFeedbackCellArray> feedback_array) {
   auto result = NewStructInternal<PrototypeSharedClosureInfo>(
       PROTOTYPE_SHARED_CLOSURE_INFO_TYPE, AllocationType::kOld);
   DisallowGarbageCollection no_gc;
+  result->set_boilerplate_description(*object_boilerplate_description);
   result->set_context(*context);
   result->set_closure_feedback_cell_array(*feedback_array);
   return direct_handle(result, isolate());
@@ -432,13 +434,7 @@ DirectHandle<Tuple2> Factory::NewTuple2(DirectHandle<Object> value1,
 }
 
 DirectHandle<Hole> Factory::NewHole() {
-#if V8_CAN_UNMAP_HOLES_BOOL
   UNREACHABLE();
-#else
-  DirectHandle<Hole> hole(
-      Cast<Hole>(New(hole_map(), AllocationType::kReadOnly)), isolate());
-  return hole;
-#endif
 }
 
 DirectHandle<PropertyArray> Factory::NewPropertyArray(
@@ -2169,10 +2165,8 @@ DirectHandle<Object> Factory::NewWasmArrayFromElementSegment(
 
   // If the element segment has not been initialized yet, lazily initialize it
   // now.
-  AccountingAllocator allocator;
-  Zone zone(&allocator, ZONE_NAME);
   std::optional<MessageTemplate> opt_error = wasm::InitializeElementSegment(
-      &zone, isolate(), trusted_instance_data, shared_trusted_instance_data,
+      isolate(), trusted_instance_data, shared_trusted_instance_data,
       segment_index);
   if (opt_error.has_value()) {
     return direct_handle(Smi::FromEnum(opt_error.value()), isolate());
@@ -2583,32 +2577,44 @@ Handle<JSObject> Factory::CopyJSObject(DirectHandle<JSObject> source) {
   return CopyJSObjectWithAllocationSite(source, DirectHandle<AllocationSite>());
 }
 
+namespace {
+
+// We can only clone regexps, normal objects, api objects, errors or arrays.
+// Copying anything else will break invariants.
+constexpr bool IsCloneable(InstanceType instance_type) {
+  if (InstanceTypeChecker::IsJSApiObject(instance_type)) {
+    return true;
+  }
+  switch (instance_type) {
+    case JS_OBJECT_TYPE:
+    case JS_ARRAY_TYPE:
+    case JS_REG_EXP_TYPE:
+    case JS_ERROR_TYPE:
+    case JS_SPECIAL_API_OBJECT_TYPE:
+#if V8_ENABLE_WEBASSEMBLY
+    case WASM_GLOBAL_OBJECT_TYPE:
+    case WASM_INSTANCE_OBJECT_TYPE:
+    case WASM_MEMORY_OBJECT_TYPE:
+    case WASM_MODULE_OBJECT_TYPE:
+    case WASM_TABLE_OBJECT_TYPE:
+#endif  // V8_ENABLE_WEBASSEMBLY
+      return true;
+    default:
+      return false;
+  }
+}
+
+}  // namespace
+
 Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
     DirectHandle<JSObject> source, DirectHandle<AllocationSite> site) {
-  DirectHandle<Map> map(source->map(), isolate());
+  Tagged<Map> raw_map = source->map();
+  const InstanceType instance_type = raw_map->instance_type();
+  CHECK(IsCloneable(instance_type));
+  DCHECK_IMPLIES(!site.is_null(), AllocationSite::CanTrack(instance_type));
 
-  // We can only clone regexps, normal objects, api objects, errors or arrays.
-  // Copying anything else will break invariants.
-  InstanceType instance_type = map->instance_type();
-  bool is_clonable_js_type =
-      instance_type == JS_REG_EXP_TYPE || instance_type == JS_OBJECT_TYPE ||
-      instance_type == JS_ERROR_TYPE || instance_type == JS_ARRAY_TYPE ||
-      instance_type == JS_SPECIAL_API_OBJECT_TYPE ||
-      InstanceTypeChecker::IsJSApiObject(instance_type);
-  bool is_clonable_wasm_type = false;
-#if V8_ENABLE_WEBASSEMBLY
-  is_clonable_wasm_type = instance_type == WASM_GLOBAL_OBJECT_TYPE ||
-                          instance_type == WASM_INSTANCE_OBJECT_TYPE ||
-                          instance_type == WASM_MEMORY_OBJECT_TYPE ||
-                          instance_type == WASM_MODULE_OBJECT_TYPE ||
-                          instance_type == WASM_TABLE_OBJECT_TYPE;
-#endif  // V8_ENABLE_WEBASSEMBLY
-  CHECK(is_clonable_js_type || is_clonable_wasm_type);
-
-  DCHECK(site.is_null() || AllocationSite::CanTrack(instance_type));
-
-  int object_size = map->instance_size();
-  int aligned_object_size = ALIGN_TO_ALLOCATION_ALIGNMENT(object_size);
+  const int object_size = raw_map->instance_size();
+  const int aligned_object_size = ALIGN_TO_ALLOCATION_ALIGNMENT(object_size);
   int adjusted_object_size = aligned_object_size;
   if (!site.is_null()) {
     DCHECK(V8_ALLOCATION_SITE_TRACKING_BOOL);
@@ -2626,7 +2632,7 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
       SafeHeapObjectSize(static_cast<uint32_t>(object_size)).value());
   Handle<JSObject> clone(Cast<JSObject>(raw_clone), isolate());
 
-  if (v8_flags.enable_unconditional_write_barriers) {
+  if constexpr (v8_flags.enable_unconditional_write_barriers.value()) {
     // By default, we shouldn't need to update the write barrier here, as the
     // clone will be allocated in new space.
     const ObjectSlot start(raw_clone.address());
@@ -3782,6 +3788,7 @@ Handle<JSArrayBufferView> Factory::NewJSArrayBufferView(
   raw->set_byte_offset(byte_offset);
   raw->set_byte_length(byte_length);
   raw->set_bit_field(0);
+  buffer->AttachView(*array_buffer_view);
   // TODO(v8) remove once embedder data slots are always zero-initialized.
   InitEmbedderFields(raw, Smi::zero());
   DCHECK_EQ(raw->GetEmbedderFieldCount(),
@@ -4960,8 +4967,8 @@ Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(
       DCHECK_NE(feedback_cell->dispatch_handle(), kNullJSDispatchHandle);
 
       JSDispatchHandle dispatch_handle = feedback_cell->dispatch_handle();
-      JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
-      Tagged<Code> old_code = jdt->GetCode(dispatch_handle);
+      JSDispatchTable& jdt = isolate_->js_dispatch_table();
+      Tagged<Code> old_code = jdt.GetCode(dispatch_handle);
 
       // A write barrier is needed when settings code, because the update can
       // race with marking which could leave the dispatch slot unmarked.
@@ -4975,7 +4982,7 @@ Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(
       // needed and maybe find some alternative to initialize it correctly
       // from the beginning.
       if (old_code->is_builtin()) {
-        jdt->SetCodeNoWriteBarrier(dispatch_handle, *code);
+        jdt.SetCodeNoWriteBarrier(dispatch_handle, *code);
         function->set_dispatch_handle(dispatch_handle, mode_if_setting_code);
       } else {
         // On a transition of a feedback cell from one closure to many, make
@@ -4983,7 +4990,7 @@ Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(
         // specialized, and if it was, eagerly re-optimize.
         if (cell_transition == FeedbackCell::kOneToMany &&
             old_code->is_context_specialized()) {
-          jdt->SetCodeNoWriteBarrier(dispatch_handle, *code);
+          jdt.SetCodeNoWriteBarrier(dispatch_handle, *code);
           function->set_dispatch_handle(dispatch_handle, mode_if_setting_code);
           DCHECK(old_code->kind() == CodeKind::MAGLEV ||
                  old_code->kind() == CodeKind::TURBOFAN_JS);

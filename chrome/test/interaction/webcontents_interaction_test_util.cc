@@ -293,7 +293,7 @@ void ExecuteJsLocal(const content::ToRenderFrameHost& execution_target,
 std::string DeepQueryToJSON(
     const WebContentsInteractionTestUtil::DeepQuery& where) {
   // Safely convert the selector list in `where` to a JSON/JS list.
-  base::Value::List selector_list;
+  base::ListValue selector_list;
   for (const auto& selector : where) {
     selector_list.Append(selector);
   }
@@ -1124,7 +1124,7 @@ void TabWebContentsInteractionTestUtil::OnTabStripModelChanged(
       // We won't handle deleted reason here, since we already capture
       // WebContentsDestroyed().
       if (removed_tab.remove_reason ==
-          TabStripModelChange::RemoveReason::kInsertedIntoOtherTabStrip) {
+          TabRemovedReason::kInsertedIntoOtherTabStrip) {
         DiscardCurrentElement();
         Observe(nullptr);
       }

@@ -23,6 +23,9 @@ class View;
 
 class VerticalTabStripController;
 
+// The individual collection node of the view model. The root
+// node also inherits from this class. It provides extensibility hooks for the
+// views to use to implement things like animations.
 class TabCollectionNode {
  public:
   // Keep the same as TabCollection::Type with a tab.
@@ -53,12 +56,23 @@ class TabCollectionNode {
   // as a child of this.
   std::unique_ptr<views::View> Initialize();
 
+  // Deinitializes all the child nodes in a recursive manner.
+  void Deinitialize();
+
   // Gets the collection under this subtree that has the associated handle.
   // Returns nullptr if no such node exists.
   TabCollectionNode* GetNodeForHandle(
       const tabs::TabCollectionNodeHandle& handle);
+  const TabCollectionNode* GetNodeForHandle(
+      const tabs::TabCollectionNodeHandle& handle) const;
   TabCollectionNode* GetParentNodeForHandle(
       const tabs::TabCollectionNodeHandle& handle);
+  const TabCollectionNode* GetParentNodeForHandle(
+      const tabs::TabCollectionNodeHandle& handle) const;
+
+  // Gets the first direct child of this node that has the associated type.
+  // Returns nullptr if no such node exists.
+  TabCollectionNode* GetChildNodeOfType(const Type type);
 
   // Creates a new child and adds it at model_index. If |perform_initialization|
   // is true, then the entire subtree of the node data will be constructed as
@@ -70,7 +84,8 @@ class TabCollectionNode {
 
   // Removes the child and removes and destroys the view.
   void RemoveChild(base::PassKey<TabCollectionNode> pass_key,
-                   const tabs::TabCollectionNodeHandle& handle);
+                   const tabs::TabCollectionNodeHandle& handle,
+                   bool perform_deinitialization);
 
   // Moves the node to the new index within the same parent. Also updates the
   // z-order of the moved child to the highest to ensure it shows over other
@@ -120,7 +135,6 @@ class TabCollectionNode {
 
   void NotifyDataChanged();
 
-  views::View* get_view_for_testing() { return node_view_; }
   void SetController(VerticalTabStripController* controller);
   VerticalTabStripController* GetController() { return tab_strip_controller_; }
 

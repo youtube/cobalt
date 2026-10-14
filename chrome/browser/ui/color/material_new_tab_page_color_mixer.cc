@@ -53,6 +53,100 @@ void AddMaterialNewTabPageColorMixer(ui::ColorProvider* provider,
       ui::kColorSysStateHoverOnSubtle};
   mixer[kColorNewTabPageButtonForeground] = {ui::kColorSysOnTonalContainer};
 
+
+  mixer[kColorNewTabPageControlBackgroundHovered] = {
+      ui::kColorSysStateHoverOnSubtle};
+  mixer[kColorNewTabPageFocusRing] = {ui::kColorSysStateFocusRing};
+  mixer[kColorNewTabPageLink] = {ui::kColorSysPrimary};
+  mixer[kColorNewTabPageLogo] = {ui::kColorSysPrimary};
+
+  if (base::FeatureList::IsEnabled(ntp_features::kNtpNextFeatures)) {
+    mixer[kColorNewTabPageMostVisitedTileBackground] = {
+        ui::kColorSysBaseContainer};
+  } else {
+    mixer[kColorNewTabPageMostVisitedTileBackground] = {
+        ui::kColorSysSurfaceVariant};
+  }
+  mixer[kColorNewTabPageMostVisitedForeground] = {ui::kColorSysOnSurfaceSubtle};
+
+  mixer[kColorNewTabPageHistoryClustersModuleItemBackground] = {
+      ui::kColorSysBaseContainerElevated};
+
+  // Action chips colors.
+  mixer[kColorNewTabPageActionChipBackground] = {ui::kColorSysBaseContainer};
+  mixer[kColorNewTabPageActionChipBackgroundHover] = {
+      ui::kColorSysStateRippleNeutralOnSubtle};
+
+  mixer[kColorNewTabPageActionChipTextTitle] = {ui::kColorSysOnSurface};
+  mixer[kColorNewTabPageActionChipTextBody] = {ui::kColorSysOnSurfaceSubtle};
+  mixer[kColorNewTabPageActionChipDeepSearchIcon] = {
+      ui::kColorSysOnSurfaceSubtle};
+
+  // Threads rail colors.
+  mixer[kColorNewTabPageThreadsRailBackground] = {ui::kColorSysSurface2};
+  mixer[kColorNewTabPageThreadsRailIconButton] = {ui::kColorSysOnSurfaceSubtle};
+
+  mixer[kColorNewTabPageModuleBackground] = {ui::kColorSysBaseContainer};
+  mixer[kColorNewTabPageModuleIconBackground] = {ui::kColorSysNeutralContainer};
+  // Styling for Doodle Share Button.
+  mixer[kColorNewTabPageDoodleShareButtonBackground] = {
+      ui::kColorSysNeutralContainer};
+  mixer[kColorNewTabPageDoodleShareButtonIcon] = {ui::kColorSysOnSurface};
+
+  mixer[kColorNewTabPageModuleItemBackground] = {
+      ui::kColorSysBaseContainerElevated};
+  mixer[kColorNewTabPageModuleItemBackgroundHovered] = {
+      ui::kColorSysStateHoverBrightBlendProtection};
+
+  mixer[kColorNewTabPageModuleElementDivider] = {ui::kColorSysDivider};
+  mixer[kColorNewTabPageModuleContextMenuDivider] = {ui::kColorSysDivider};
+
+  mixer[kColorNewTabPageModuleCalendarEventTimeStatusBackground] = {
+      ui::kColorSysNeutralContainer};
+  mixer[kColorNewTabPageModuleCalendarAttachmentScrollbarThumb] = {
+      ui::kColorSysTonalOutline};
+  mixer[kColorNewTabPageModuleCalendarDividerColor] = {ui::kColorSysDivider};
+
+  // Tab group colors.
+  mixer[kColorNewTabPageModuleTabGroupsGrey] = {kColorTabGroupBookmarkBarGrey};
+  mixer[kColorNewTabPageModuleTabGroupsBlue] = {kColorTabGroupBookmarkBarBlue};
+  mixer[kColorNewTabPageModuleTabGroupsRed] = {kColorTabGroupBookmarkBarRed};
+  mixer[kColorNewTabPageModuleTabGroupsYellow] = {
+      kColorTabGroupBookmarkBarYellow};
+  mixer[kColorNewTabPageModuleTabGroupsGreen] = {
+      kColorTabGroupBookmarkBarGreen};
+  mixer[kColorNewTabPageModuleTabGroupsPink] = {kColorTabGroupBookmarkBarPink};
+  mixer[kColorNewTabPageModuleTabGroupsPurple] = {
+      kColorTabGroupBookmarkBarPurple};
+  mixer[kColorNewTabPageModuleTabGroupsCyan] = {kColorTabGroupBookmarkBarCyan};
+  mixer[kColorNewTabPageModuleTabGroupsOrange] = {
+      kColorTabGroupBookmarkBarOrange};
+
+  mixer[kColorNewTabPageModuleTabGroupsDotGrey] = {
+      kColorTabGroupTabStripFrameActiveGrey};
+  mixer[kColorNewTabPageModuleTabGroupsDotBlue] = {
+      kColorTabGroupTabStripFrameActiveBlue};
+  mixer[kColorNewTabPageModuleTabGroupsDotRed] = {
+      kColorTabGroupTabStripFrameActiveRed};
+  mixer[kColorNewTabPageModuleTabGroupsDotYellow] = {
+      kColorTabGroupTabStripFrameActiveYellow};
+  mixer[kColorNewTabPageModuleTabGroupsDotGreen] = {
+      kColorTabGroupTabStripFrameActiveGreen};
+  mixer[kColorNewTabPageModuleTabGroupsDotPink] = {
+      kColorTabGroupTabStripFrameActivePink};
+  mixer[kColorNewTabPageModuleTabGroupsDotPurple] = {
+      kColorTabGroupTabStripFrameActivePurple};
+  mixer[kColorNewTabPageModuleTabGroupsDotOrange] = {
+      kColorTabGroupTabStripFrameActiveOrange};
+
+  mixer[kColorNewTabPagePromoBackground] = {ui::kColorSysBase};
+  mixer[kColorNewTabPagePrimaryForeground] = {ui::kColorSysOnSurface};
+  mixer[kColorNewTabPageSecondaryForeground] = {ui::kColorSysOnSurfaceSubtle};
+
+  // Realbox is at this time always themed light, so we use custom color values
+  // defined instead of using GM3 color variables.
+  mixer[kColorNewTabPageCommonInputPlaceholder] = {SkColorSetARGB(0x60, 0x1F, 0x1F, 0x1F)};
+  mixer[kColorNewTabPageRealboxNextIconHover] = {kColorSysStateHoverOnSubtle_Light};
   mixer[kColorComposeboxBackground] = {SK_ColorWHITE};
   mixer[kColorComposeboxFileChipSpinner] = {kColorSysPrimary_Light};
   mixer[kColorComposeboxFont] = {
@@ -123,96 +217,6 @@ void AddMaterialNewTabPageColorMixer(ui::ColorProvider* provider,
   mixer[kColorComposeboxContextEntrypointHoverBackground] = {
       SkColorSetARGB(0x0F, 0x1F, 0x1F, 0x1F)};
   mixer[kColorComposeboxLink] = {gfx::kGoogleBlue700};
-
-  mixer[kColorNewTabPageControlBackgroundHovered] = {
-      ui::kColorSysStateHoverOnSubtle};
-  mixer[kColorNewTabPageFocusRing] = {ui::kColorSysStateFocusRing};
-  mixer[kColorNewTabPageLink] = {ui::kColorSysPrimary};
-  mixer[kColorNewTabPageLogo] = {ui::kColorSysPrimary};
-
-  if (base::FeatureList::IsEnabled(ntp_features::kNtpNextFeatures)) {
-    mixer[kColorNewTabPageMostVisitedTileBackground] = {
-        ui::kColorSysBaseContainer};
-  } else {
-    mixer[kColorNewTabPageMostVisitedTileBackground] = {
-        ui::kColorSysSurfaceVariant};
-  }
-  mixer[kColorNewTabPageMostVisitedForeground] = {ui::kColorSysOnSurfaceSubtle};
-
-  mixer[kColorNewTabPageHistoryClustersModuleItemBackground] = {
-      ui::kColorSysBaseContainerElevated};
-
-  // Action chips colors.
-  mixer[kColorNewTabPageActionChipBackground] = {ui::kColorSysBaseContainer};
-  mixer[kColorNewTabPageActionChipBackgroundHover] = {
-      ui::kColorSysStateRippleNeutralOnSubtle};
-
-  mixer[kColorNewTabPageActionChipTextTitle] = {ui::kColorSysOnSurface};
-  mixer[kColorNewTabPageActionChipTextBody] = {ui::kColorSysOnSurfaceSubtle};
-  mixer[kColorNewTabPageActionChipDeepSearchIcon] = {
-      ui::kColorSysOnSurfaceSubtle};
-
-  // Threads rail colors.
-  mixer[kColorNewTabPageThreadsRailBackground] = {ui::kColorSysBaseContainer};
-
-  mixer[kColorNewTabPageModuleBackground] = {ui::kColorSysBaseContainer};
-  mixer[kColorNewTabPageModuleIconBackground] = {ui::kColorSysNeutralContainer};
-  // Styling for Doodle Share Button.
-  mixer[kColorNewTabPageDoodleShareButtonBackground] = {
-      ui::kColorSysNeutralContainer};
-  mixer[kColorNewTabPageDoodleShareButtonIcon] = {ui::kColorSysOnSurface};
-
-  mixer[kColorNewTabPageModuleItemBackground] = {
-      ui::kColorSysBaseContainerElevated};
-  mixer[kColorNewTabPageModuleItemBackgroundHovered] = {
-      ui::kColorSysStateHoverBrightBlendProtection};
-
-  mixer[kColorNewTabPageModuleElementDivider] = {ui::kColorSysDivider};
-  mixer[kColorNewTabPageModuleContextMenuDivider] = {ui::kColorSysDivider};
-
-  mixer[kColorNewTabPageModuleCalendarEventTimeStatusBackground] = {
-      ui::kColorSysNeutralContainer};
-  mixer[kColorNewTabPageModuleCalendarAttachmentScrollbarThumb] = {
-      ui::kColorSysTonalOutline};
-  mixer[kColorNewTabPageModuleCalendarDividerColor] = {ui::kColorSysDivider};
-
-  // Tab group colors.
-  mixer[kColorNewTabPageModuleTabGroupsGrey] = {kColorTabGroupBookmarkBarGrey};
-  mixer[kColorNewTabPageModuleTabGroupsBlue] = {kColorTabGroupBookmarkBarBlue};
-  mixer[kColorNewTabPageModuleTabGroupsRed] = {kColorTabGroupBookmarkBarRed};
-  mixer[kColorNewTabPageModuleTabGroupsYellow] = {
-      kColorTabGroupBookmarkBarYellow};
-  mixer[kColorNewTabPageModuleTabGroupsGreen] = {
-      kColorTabGroupBookmarkBarGreen};
-  mixer[kColorNewTabPageModuleTabGroupsPink] = {kColorTabGroupBookmarkBarPink};
-  mixer[kColorNewTabPageModuleTabGroupsPurple] = {
-      kColorTabGroupBookmarkBarPurple};
-  mixer[kColorNewTabPageModuleTabGroupsCyan] = {kColorTabGroupBookmarkBarCyan};
-  mixer[kColorNewTabPageModuleTabGroupsOrange] = {
-      kColorTabGroupBookmarkBarOrange};
-
-  mixer[kColorNewTabPageModuleTabGroupsDotGrey] = {
-      kColorTabGroupTabStripFrameActiveGrey};
-  mixer[kColorNewTabPageModuleTabGroupsDotBlue] = {
-      kColorTabGroupTabStripFrameActiveBlue};
-  mixer[kColorNewTabPageModuleTabGroupsDotRed] = {
-      kColorTabGroupTabStripFrameActiveRed};
-  mixer[kColorNewTabPageModuleTabGroupsDotYellow] = {
-      kColorTabGroupTabStripFrameActiveYellow};
-  mixer[kColorNewTabPageModuleTabGroupsDotGreen] = {
-      kColorTabGroupTabStripFrameActiveGreen};
-  mixer[kColorNewTabPageModuleTabGroupsDotPink] = {
-      kColorTabGroupTabStripFrameActivePink};
-  mixer[kColorNewTabPageModuleTabGroupsDotPurple] = {
-      kColorTabGroupTabStripFrameActivePurple};
-  mixer[kColorNewTabPageModuleTabGroupsDotOrange] = {
-      kColorTabGroupTabStripFrameActiveOrange};
-
-  mixer[kColorNewTabPagePromoBackground] = {ui::kColorSysBase};
-  mixer[kColorNewTabPagePrimaryForeground] = {ui::kColorSysOnSurface};
-  mixer[kColorNewTabPageCommonInputPlaceholder] = {SkColorSetARGB(0x60, 0x1F, 0x1F, 0x1F)};
-  mixer[kColorNewTabPageRealboxNextIconHover] = {kColorSysStateHoverOnSubtle_Light};
-  mixer[kColorNewTabPageSecondaryForeground] = {ui::kColorSysOnSurfaceSubtle};
 
   mixer[kColorNewTabPageWallpaperSearchButtonBackground] = {
       ui::kColorSysPrimary};

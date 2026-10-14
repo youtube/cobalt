@@ -179,6 +179,18 @@ BASE_DECLARE_FEATURE(kLensOverlayOptimizationFilter);
 COMPONENT_EXPORT(LENS_FEATURES)
 BASE_DECLARE_FEATURE(kLensOverlayNonBlockingPrivacyNotice);
 
+// Enables using separate request ids for page contents vs page viewport
+// uploads.
+// TODO(crbug.com/479292553): Make this flag apply to the legacy CSB flow.
+COMPONENT_EXPORT(LENS_FEATURES)
+BASE_DECLARE_FEATURE(kLensUseSeparateRequestIdForViewportImages);
+
+// Enables sending the vit parameter for single context next queries.
+// TODO(crbug.com/472319362): Remove this flag once vit is not needed on the
+// server for AIM queries.
+COMPONENT_EXPORT(LENS_FEATURES)
+BASE_DECLARE_FEATURE(kLensSendVitForSingleContextNextQueries);
+
 // The base URL for Lens.
 COMPONENT_EXPORT(LENS_FEATURES)
 extern const base::FeatureParam<std::string> kHomepageURLForLens;
@@ -988,6 +1000,16 @@ bool IsLensOverlayEduActionChipDisabledByGlic();
 // The number of times the EDU action chip can be shown.
 COMPONENT_EXPORT(LENS_FEATURES)
 int GetLensOverlayEduActionChipMaxShownCount();
+
+// Time required between shows of the EDU action chip. If zero, do not cap.
+COMPONENT_EXPORT(LENS_FEATURES)
+base::TimeDelta GetLensOverlayEduActionChipShowInterval();
+
+// Debounce interval during which function calls are regarded as being part of
+// one showing of the EDU action chip. Needed because a single potential show
+// event can create multiple repeated calls in a short time interval.
+COMPONENT_EXPORT(LENS_FEATURES)
+base::TimeDelta GetLensOverlayEduActionChipShowDebounceInterval();
 
 // Whether to enable keyboard selection in the Lens overlay.
 COMPONENT_EXPORT(LENS_FEATURES)

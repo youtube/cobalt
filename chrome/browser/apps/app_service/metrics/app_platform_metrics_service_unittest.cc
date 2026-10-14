@@ -24,7 +24,6 @@
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
 #include "base/unguessable_token.h"
-#include "chrome/browser/apps/app_service/app_launch_params.h"
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
 #include "chrome/browser/apps/app_service/metrics/app_platform_metrics.h"
@@ -43,6 +42,7 @@
 #include "chrome/test/base/chrome_ash_test_base.h"
 #include "chrome/test/base/test_browser_window_aura.h"
 #include "chrome/test/base/testing_profile.h"
+#include "chromeos/ash/components/login/session/session_termination_manager.h"
 #include "chromeos/components/mgs/managed_guest_session_test_utils.h"
 #include "chromeos/dbus/power/fake_power_manager_client.h"
 #include "chromeos/dbus/power_manager/idle.pb.h"
@@ -57,6 +57,7 @@
 #include "components/metrics/structured/test/test_structured_metrics_provider.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
+#include "components/services/app_service/public/cpp/app_launch_params.h"
 #include "components/services/app_service/public/cpp/app_launch_util.h"
 #include "components/services/app_service/public/cpp/app_types.h"
 #include "components/services/app_service/public/cpp/instance.h"
@@ -486,7 +487,7 @@ class AppPlatformMetricsServiceTest : public AppPlatformMetricsServiceTestBase {
 
   void VerifyAppRunningDuration(const base::TimeDelta time_delta,
                                 AppTypeName app_type_name) {
-    const base::Value::Dict& dict =
+    const base::DictValue& dict =
         GetPrefService()->GetDict(kAppRunningDuration);
     std::string key = GetAppTypeHistogramName(app_type_name);
 
@@ -540,8 +541,7 @@ class AppPlatformMetricsServiceTest : public AppPlatformMetricsServiceTestBase {
   }
 
   void VerifyAppActivatedCount(int expected_count, AppTypeName app_type_name) {
-    const base::Value::Dict& dict =
-        GetPrefService()->GetDict(kAppActivatedCount);
+    const base::DictValue& dict = GetPrefService()->GetDict(kAppActivatedCount);
     std::string key = GetAppTypeHistogramName(app_type_name);
 
     std::optional<int> activated_count = dict.FindIntByDottedPath(key);
@@ -760,6 +760,7 @@ class AppPlatformMetricsServiceTest : public AppPlatformMetricsServiceTestBase {
   }
 
  private:
+  ash::SessionTerminationManager session_termination_manager_;
   std::unique_ptr<TestBrowserWindowAura> browser_window1_;
   std::unique_ptr<TestBrowserWindowAura> browser_window2_;
   aura::test::TestWindowDelegate delegate1_;

@@ -646,7 +646,7 @@ class ValueTypeBase {
     // The input value of the switch is untrusted, so even if it's exhaustive,
     // it can skip all cases and end up here, triggering UB since there's no
     // return.
-    SBXCHECK(false);
+    UNREACHABLE();
   }
 
   constexpr ValueKind kind() const {
@@ -1204,6 +1204,10 @@ class CanonicalSig : public Signature<CanonicalValueType> {
   CanonicalSig(size_t return_count, size_t parameter_count,
                const CanonicalValueType* reps)
       : Signature<CanonicalValueType>(return_count, parameter_count, reps) {}
+
+  // For predefined signatures, where we know what we're doing.
+  CanonicalSig(size_t return_count, size_t parameter_count,
+               const CanonicalValueType* reps, CanonicalTypeIndex index);
 
   class Builder : public SignatureBuilder<CanonicalSig, CanonicalValueType> {
    public:

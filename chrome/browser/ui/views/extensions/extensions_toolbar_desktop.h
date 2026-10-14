@@ -25,6 +25,7 @@
 #include "extensions/common/extension.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/models/image_model.h"
+#include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 #include "ui/compositor/layer_tree_owner.h"
 #include "ui/views/widget/widget_observer.h"
 
@@ -103,14 +104,6 @@ class ExtensionsToolbarDesktop : public ToolbarIconContainerView,
   // visibility, reordering views if necessary.
   void UpdatePinnedActions();
 
-  // Updates `extensions_button_` icon given `web_contents`.
-  void UpdateExtensionsButton(content::WebContents* web_contents);
-
-  // Updates the `request_access_button_` given user `site_setting` for the
-  // current `web_contents`.
-  void UpdateRequestAccessButton(
-      extensions::PermissionsManager::UserSiteSetting site_setting,
-      content::WebContents* web_contents);
 
   // Updates the container visibility and animation as needed.
   void UpdateContainerVisibility();
@@ -240,6 +233,10 @@ class ExtensionsToolbarDesktop : public ToolbarIconContainerView,
   void OnActionRemoved(const ToolbarActionsModel::ActionId& action_id) override;
   void OnActionUpdated(const ToolbarActionsModel::ActionId& action_id) override;
   void OnPinnedActionsChanged() override;
+  void OnActiveWebContentsChanged() override;
+  void OnRequestAccessButtonParamsChanged(
+      content::WebContents* web_contents) override;
+  void OnToolbarControlStateUpdated() override;
 
  private:
   friend class ToolbarActionHoverCardBubbleViewUITest;
@@ -325,6 +322,12 @@ class ExtensionsToolbarDesktop : public ToolbarIconContainerView,
   // left side of the browser the flipped vector icon is used.
   void UpdateCloseSidePanelButtonIcon();
 
+  // Updates `extensions_button_` icon given `web_contents`.
+  void UpdateExtensionsButton(content::WebContents& web_contents);
+
+  // Updates the `request_access_button_` given the current `web_contents`.
+  void UpdateRequestAccessButton(content::WebContents& web_contents);
+
   const raw_ptr<Browser> browser_;
   const raw_ptr<ToolbarActionsModel> model_;
 
@@ -336,6 +339,11 @@ class ExtensionsToolbarDesktop : public ToolbarIconContainerView,
 
   // The view model for this container.
   std::unique_ptr<ExtensionsToolbarViewModel> toolbar_view_model_;
+
+  // Registers ExtensionsToolbarViewModel as the ExtensionsContainer for the
+  // browser window.
+  ui::ScopedUnownedUserData<ExtensionsContainer>
+      scoped_toolbar_view_model_user_data_;
 
   // Coordinator to show and hide the ExtensionsMenuView.
   const std::unique_ptr<ExtensionsMenuCoordinator> extensions_menu_coordinator_;

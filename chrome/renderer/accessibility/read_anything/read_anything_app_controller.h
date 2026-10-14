@@ -50,6 +50,7 @@ class AXTreeDistiller;
 class DependencyParserModel;
 class ReadAnythingAppControllerTest;
 class ReadAnythingAppControllerScreen2xDataCollectionModeTest;
+class ReadAnythingAppControllerReadabilityTest;
 
 ///////////////////////////////////////////////////////////////////////////////
 // ReadAnythingAppController
@@ -113,6 +114,13 @@ class ReadAnythingAppController
   void OnTreeAdded(ui::AXTree* tree) override;
   void OnTreeRemoved(ui::AXTree* tree) override;
 
+  // Returns whether the processing of accessibility updates should be paused.
+  bool IsUpdateProcessingPaused() const;
+
+  // If the update-processing system is not paused, applies pending updates and
+  // triggers necessary actions. If paused, does nothing.
+  void ProcessPendingUpdatesIfAllowed();
+
   // read_anything::mojom::UntrustedPage:
   void AccessibilityEventReceived(
       const ui::AXTreeID& tree_id,
@@ -127,6 +135,8 @@ class ReadAnythingAppController
   void OnActiveAXTreeIDChanged(const ui::AXTreeID& tree_id,
                                ukm::SourceId ukm_source_id,
                                bool is_pdf) override;
+  void SetDistillationState(
+      read_anything::mojom::ReadAnythingDistillationState state);
   void OnAXTreeDestroyed(const ui::AXTreeID& tree_id) override;
   void OnImageDataDownloaded(const ui::AXTreeID& tree_id,
                              ui::AXNodeID node_id,
@@ -140,8 +150,8 @@ class ReadAnythingAppController
       bool images_enabled,
       read_anything::mojom::Colors color,
       double speech_rate,
-      base::Value::Dict voices,
-      base::Value::List languages_enabled_in_pref,
+      base::DictValue voices,
+      base::ListValue languages_enabled_in_pref,
       read_anything::mojom::HighlightGranularity granularity,
       read_anything::mojom::LineFocus line_focus) override;
   void SetLanguageCode(const std::string& code) override;
@@ -157,6 +167,8 @@ class ReadAnythingAppController
   void OnTabMuteStateChange(bool muted) override;
   void UpdateContent(const std::string& title,
                      const std::string& content) override;
+  void OnReadabilityDistillationStateChanged(
+      read_anything::mojom::ReadAnythingDistillationState new_state) override;
 
 #if BUILDFLAG(IS_CHROMEOS)
   void OnDeviceLocked() override;
@@ -243,6 +255,8 @@ class ReadAnythingAppController
   int MaxLineWidth() const;
   int InSidePanelPresentationState() const;
   int InImmersiveOverlayPresentationState() const;
+  int DistillationTypeScreen2x() const;
+  int DistillationTypeReadability() const;
   std::string GetStoredVoice() const;
   std::vector<std::string> GetLanguagesEnabledInPref() const;
   std::vector<ui::AXNodeID> GetChildren(ui::AXNodeID ax_node_id) const;
@@ -319,6 +333,9 @@ class ReadAnythingAppController
   void TogglePresentation();
   void TogglePinState();
   void OnPinStatusReceived(bool pin_state) override;
+
+  // Returns the current active distillation method state as an integer.
+  int GetDistillationMethod() const;
 
   // The language code that should be used to determine which voices are
   // supported for speech.
@@ -399,6 +416,7 @@ class ReadAnythingAppController
  private:
   friend ReadAnythingAppControllerTest;
   friend ReadAnythingAppControllerScreen2xDataCollectionModeTest;
+  friend ReadAnythingAppControllerReadabilityTest;
   // The fallback language code if GetLanguageCodeForSpeech has an error.
   // However, this may be the same value as GetLanguageCodeForSpeech.
   const std::string& GetDefaultLanguageCodeForSpeech() const;
@@ -406,6 +424,13 @@ class ReadAnythingAppController
   void Distill(bool for_training_data = false);
   void DrawSelection();
   void DrawEmptyState();
+
+  // Helper function that restarts the distillation logging timer and triggers a
+  // new distillation if the tree is ready.
+  void DistillNewTree();
+
+  // Returns the default distillation method state based on feature flags.
+  ReadAnythingAppModel::DistillationMethod GetDefaultDistillationMethod() const;
 
   void ExecuteJavaScript(const std::string& script);
 
@@ -418,7 +443,7 @@ class ReadAnythingAppController
 
   // Helper for forwarding various updates to the webui based on the latest
   // processed accessibility events.
-  void SendEventUpdates();
+  void ProcessModelUpdates();
 
   // Helper for forwarding reading mode hide events to the webui so we can
   // perform cleaning operations on it.

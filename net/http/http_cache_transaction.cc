@@ -1269,7 +1269,7 @@ int HttpCache::Transaction::DoOpenOrCreateEntryComplete(int result) {
   // OK, otherwise the cache will end up with an active entry without any
   // transaction attached.
   net_log_.EndEvent(NetLogEventType::HTTP_CACHE_OPEN_OR_CREATE_ENTRY, [&] {
-    base::Value::Dict params;
+    base::DictValue params;
     if (result == OK) {
       params.Set("result", new_entry_->opened() ? "opened" : "created");
     } else {
@@ -3524,7 +3524,7 @@ int HttpCache::Transaction::WriteResponseInfoToEntry(
     if (ComputeUnusablePerCachingHeaders()) {
       in_memory_data |= HINT_UNUSABLE_PER_CACHING_HEADERS;
     }
-    if (request_->is_main_frame_navigation) {
+    if (request_->is_main_frame_navigation || request_->is_shared_resource) {
       in_memory_data |= HINT_HIGH_PRIORITY;
     }
     entry_->GetEntry()->SetEntryInMemoryData(in_memory_data);
@@ -4109,6 +4109,11 @@ bool HttpCache::Transaction::UpdateAndReportCacheability(
     }
     return true;
   }
+  // Do not cache pervasive responses that are not public.
+  if (request_->is_shared_resource &&
+      !headers.HasHeaderValue("cache-control", "public")) {
+    return true;
+  }
 
 #if BUILDFLAG(IS_COBALT)
   std::string mime_type;
@@ -4288,7 +4293,7 @@ HttpCache::Transaction::LookupRequestInNoVarySearchCache() {
   NoVarySearchCache::LookupResult result = std::move(maybe_result).value();
   net_log_.BeginEvent(
       NetLogEventType::HTTP_CACHE_USING_NO_VARY_SEARCH_CACHE_URL, [&] {
-        return base::Value::Dict()
+        return base::DictValue()
             .Set("request_url", request_->url.spec())
             .Set("cached_url", result.original_url.spec());
       });
@@ -4314,7 +4319,7 @@ int HttpCache::Transaction::RestartWithoutNoVarySearchCache(
   no_vary_search_use_result_ = restart_reason;
   net_log_.EndEvent(
       NetLogEventType::HTTP_CACHE_USING_NO_VARY_SEARCH_CACHE_URL, [&] {
-        return base::Value::Dict().Set(
+        return base::DictValue().Set(
             "restart_reason", NoVarySearchUseResultToString(restart_reason));
       });
   if (entry_action == RestartCacheEntryAction::kErase) {

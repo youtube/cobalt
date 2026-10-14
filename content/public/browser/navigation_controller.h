@@ -28,7 +28,6 @@
 #include "third_party/blink/public/common/navigation/impression.h"
 #include "third_party/blink/public/common/navigation/navigation_policy.h"
 #include "third_party/blink/public/common/tokens/tokens.h"
-#include "third_party/blink/public/mojom/navigation/navigation_initiator_activation_and_ad_status.mojom.h"
 #include "third_party/blink/public/mojom/navigation/was_activated_option.mojom.h"
 #include "ui/base/page_transition_types.h"
 #include "url/gurl.h"
@@ -314,11 +313,10 @@ class NavigationController {
     // Download policy to be applied if this navigation turns into a download.
     blink::NavigationDownloadPolicy download_policy;
 
-    // Common begin navigation status.
-    blink::mojom::NavigationInitiatorActivationAndAdStatus
-        initiator_activation_and_ad_status =
-            blink::mojom::NavigationInitiatorActivationAndAdStatus::
-                kDidNotStartWithTransientActivation;
+    // Whether this navigation was started by an ad (i.e., an ad script was in
+    // the JavaScript stack at the time of the navigation, or the frame is an ad
+    // frame, as determined by Ad Tagging).
+    bool started_by_ad = false;
 
     // Indicates that this navigation is for PDF content in a renderer.
     bool is_pdf = false;
@@ -336,6 +334,10 @@ class NavigationController {
     // True if the initiator explicitly asked for opener relationships to be
     // preserved, via rel="opener".
     bool has_rel_opener = false;
+
+    // If true, any extra headers provided will be removed on a cross-origin
+    // redirect.
+    bool remove_extra_headers_on_cross_origin_redirect = false;
 
     // True if the navigation should not be upgraded to HTTPS. This should only
     // be set in very specific circumstances like navigations to captive portal

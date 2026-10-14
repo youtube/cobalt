@@ -30,7 +30,6 @@
 #include "base/test/test_future.h"
 #include "base/threading/thread_restrictions.h"
 #include "build/branding_buildflags.h"
-#include "chrome/browser/apps/app_service/app_launch_params.h"
 #include "chrome/browser/apps/app_service/app_registry_cache_waiter.h"
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
@@ -95,6 +94,7 @@
 #include "chromeos/ash/components/file_manager/app_id.h"
 #include "chromeos/constants/chromeos_features.h"
 #include "components/services/app_service/public/cpp/app_instance_waiter.h"
+#include "components/services/app_service/public/cpp/app_launch_params.h"
 #include "components/services/app_service/public/cpp/app_types.h"
 #include "content/public/browser/network_service_instance.h"
 #include "content/public/test/browser_test.h"
@@ -1821,9 +1821,10 @@ class OneDriveTest : public TestAccountBrowserTest,
   void SetNetworkConnected(const bool connected) {
     content::SetNetworkConnectionTrackerForTesting(nullptr);
     content::SetNetworkConnectionTrackerForTesting(connection_tracker_.get());
-    using enum network::mojom::ConnectionType;
-    connection_tracker_->SetConnectionType(connected ? CONNECTION_WIFI
-                                                     : CONNECTION_NONE);
+    using ConnectionType = net::NetworkChangeNotifier::ConnectionType;
+    connection_tracker_->SetConnectionType(
+        connected ? ConnectionType::CONNECTION_WIFI
+                  : ConnectionType::CONNECTION_NONE);
     SetDriveConnectionStatusForTesting(connected
                                            ? ConnectionStatus::kConnected
                                            : ConnectionStatus::kNoNetwork);

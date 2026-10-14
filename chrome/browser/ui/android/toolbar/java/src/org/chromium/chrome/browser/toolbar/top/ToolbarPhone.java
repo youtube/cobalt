@@ -49,7 +49,6 @@ import android.view.ViewStub;
 import androidx.annotation.ColorInt;
 import androidx.annotation.DrawableRes;
 import androidx.annotation.IntDef;
-import androidx.annotation.NonNull;
 import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.content.res.AppCompatResources;
 import androidx.core.content.ContextCompat;
@@ -102,7 +101,6 @@ import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.components.browser_ui.widget.animation.CancelAwareAnimatorListener;
 import org.chromium.components.embedder_support.util.UrlUtilities;
 import org.chromium.components.feature_engagement.Tracker;
-import org.chromium.components.omnibox.AutocompleteRequestType;
 import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.ui.base.LocalizationUtils;
 import org.chromium.ui.base.ViewUtils;
@@ -449,9 +447,8 @@ public class ToolbarPhone extends ToolbarLayout
     @Initializer
     public void setLocationBarCoordinator(LocationBarCoordinator locationBarCoordinator) {
         mLocationBar = locationBarCoordinator;
-        mLocationBar
-                .getAutocompleteRequestTypeSupplier()
-                .addObserver((type) -> updateBackgroundHairline(urlHasFocus(), type));
+        mLocationBar.setOnSpecializedFuseboxModeActivatedListener(
+                isSpecializedMode -> updateBackgroundHairline(urlHasFocus(), isSpecializedMode));
         Resources res = getResources();
         mLocationBarBackgroundVerticalInset =
                 res.getDimensionPixelSize(R.dimen.location_bar_vertical_margin);
@@ -500,17 +497,14 @@ public class ToolbarPhone extends ToolbarLayout
         }
     }
 
-    private void updateBackgroundHairline(boolean urlHasFocus, @AutocompleteRequestType int type) {
+    private void updateBackgroundHairline(boolean urlHasFocus, boolean shouldShowRainbowOutline) {
         if (!urlHasFocus) {
             mLocationBarBackground.setHairlineBehavior(HairlineBehavior.NONE);
             return;
         }
 
         mLocationBarBackground.setHairlineBehavior(
-                type == AutocompleteRequestType.AI_MODE
-                                || type == AutocompleteRequestType.IMAGE_GENERATION
-                        ? HairlineBehavior.RAINBOW
-                        : HairlineBehavior.NONE);
+                shouldShowRainbowOutline ? HairlineBehavior.RAINBOW : HairlineBehavior.NONE);
     }
 
     @Override
@@ -1078,6 +1072,16 @@ public class ToolbarPhone extends ToolbarLayout
         ntpDelegate.getSearchBoxBounds(mNtpSearchBoxBounds, mNtpSearchBoxTranslation);
         float translationY = mNtpSearchBoxBounds.top - mLocationBar.getPhoneCoordinator().getTop();
 
+        // When edge-to-edge on top is enabled on NTP, the NTP search box bounds calculation
+        // includes mSearchBoxBoundsVerticalInset which accounts for the difference between the
+        // search box height and the toolbar height. However, this inset causes a mismatch when the
+        // search box snaps to the toolbar position. We need to subtract the full inset to align
+        // properly.
+        int searchBoxInset = ntpDelegate.getSearchBoxBoundsVerticalInset();
+        if (mTopPaddingForEdgeToEdgeNtp > 0 && searchBoxInset > 0) {
+            translationY -= searchBoxInset;
+        }
+
         // When Bottom Toolbar v2 is enabled, toolbar is at bottom, and URL has focus, we set the
         // top padding to 0 in updateLayoutParamsForMultiline(). This causes the location bar's
         // getTop() to decrease by the padding amount, which makes translationY larger than it
@@ -1274,7 +1278,7 @@ public class ToolbarPhone extends ToolbarLayout
             // (mDisableLocationBarRelayout), so the location bar's left margin and
             // mUnfocusedLocationBarLayoutLeft have not been updated to take into account the
             // appearance of the optional icon. The views to left of the location bar will
-            // be wider than mUnfocusedlocationBarLayoutLeft in RTL, so adjust the translation by
+            // be wider than mUnfocusedLocationBarLayoutLeft in RTL, so adjust the translation by
             // that amount.
             // When hiding the button, we force a relayout without the optional toolbar button
             // (mLayoutLocationBarWithoutExtraButton). mUnfocusedLocationBarLayoutLeft reflects
@@ -2398,8 +2402,11 @@ public class ToolbarPhone extends ToolbarLayout
         // toolbar buttons are also hidden immediately) or restore it when omnibox focus is lost.
         // If the animation refactor is enabled, this will instead be handled by the refactored
         // flow's transitions.
+        // If fusebox is enabled, do not hide the optional button because it causes button alignment
+        // issues.
         if (animatingSuggestionsListOnNtp()
-                && !ChromeFeatureList.sToolbarPhoneAnimationRefactor.isEnabled()) {
+                && !ChromeFeatureList.sToolbarPhoneAnimationRefactor.isEnabled()
+                && !OmniboxFeatures.sOmniboxMultimodalInput.isEnabled()) {
             ButtonData copy = mButtonData;
             updateOptionalButton(hasFocus ? null : mButtonData);
             mButtonData = copy;
@@ -2522,7 +2529,7 @@ public class ToolbarPhone extends ToolbarLayout
         @Nullable
         @Override
         public Animator createAnimator(
-                @NonNull ViewGroup sceneRoot,
+                ViewGroup sceneRoot,
                 @Nullable TransitionValues startValues,
                 @Nullable TransitionValues endValues) {
             if (startValues == null || endValues == null) return null;
@@ -3047,12 +3054,21 @@ public class ToolbarPhone extends ToolbarLayout
         // (When Bottom Toolbar v2 is enabled and URL has focus).
         int effectiveTopPadding = getEffectiveTopPaddingForEdgeToEdge();
 
-        ViewGroup.MarginLayoutParams marginLayoutParams =
-                (ViewGroup.MarginLayoutParams) getLayoutParams();
-        marginLayoutParams.height =
-                getResources().getDimensionPixelSize(R.dimen.toolbar_height_no_shadow)
-                        + effectiveTopPadding;
+        var layoutParams = getLayoutParams();
 
+        // During screen rotation, onToEdgeChange() is called and may reset the toolbar height.
+        // When URL has focus, the toolbar should use WRAP_CONTENT to support multiline omnibox,
+        // instead of being reset to a fixed height.
+        if (urlHasFocus()
+                && (OmniboxFeatures.allowMultilineEditField()
+                        || ChromeFeatureList.sAndroidBottomToolbarV2.isEnabled())) {
+            layoutParams.height = LayoutParams.WRAP_CONTENT;
+        } else {
+            layoutParams.height =
+                    getResources().getDimensionPixelSize(R.dimen.toolbar_height_no_shadow)
+                            + effectiveTopPadding;
+        }
+        setLayoutParams(layoutParams);
         setPaddingRelative(
                 getPaddingStart(), effectiveTopPadding, getPaddingEnd(), getPaddingBottom());
     }

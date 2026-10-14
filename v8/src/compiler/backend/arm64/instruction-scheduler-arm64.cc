@@ -245,8 +245,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64I32x4Mul:
     case kArm64I32x4UConvertF32x4:
     case kArm64I32x4BitMask:
-    case kArm64I32x4DotI16x8S:
-    case kArm64I16x8DotI8x16S:
     case kArm64I32x4DotI8x16AddS:
     case kArm64IAddv:
     case kArm64IAddp:
@@ -349,12 +347,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
 #if V8_ENABLE_WEBASSEMBLY
     case kArm64LoadSplat:
     case kArm64LoadLane:
-    case kArm64S128Load8x8S:
-    case kArm64S128Load8x8U:
-    case kArm64S128Load16x4S:
-    case kArm64S128Load16x4U:
-    case kArm64S128Load32x2S:
-    case kArm64S128Load32x2U:
     case kArm64S128LoadPairDeinterleave:
 #endif  // V8_ENABLE_WEBASSEMBLY
       return kIsLoadOperation;

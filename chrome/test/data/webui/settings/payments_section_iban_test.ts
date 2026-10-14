@@ -46,6 +46,7 @@ suite('PaymentsSectionIban', function() {
     loadTimeData.overrideValues({
       migrationEnabled: true,
       showIbansSettings: true,
+      autofillEnableWalletBranding: true,
     });
   });
 
@@ -133,37 +134,7 @@ suite('PaymentsSectionIban', function() {
     assertEquals(2, getIbanListItems().length);
   });
 
-  test(
-      'verifyIbanSummarySublabelWithNickname_newFopDisplayFlagOff',
-      async function() {
-        loadTimeData.overrideValues({
-          enableNewFopDisplay: false,
-        });
-        const iban =
-            createIbanEntry('BA393385804800211234', 'My doctor\'s IBAN');
-
-        const section = await createPaymentsSection(
-            /*creditCards=*/[], [iban], /*payOverTimeIssuers=*/[],
-            /*prefValues=*/ {});
-
-        assertEquals(1, getIbanListItems().length);
-
-        const ibanItemLabel = getIbanRowShadowRoot(section.$.paymentsList)
-                                  .querySelector<HTMLElement>('#label');
-        const ibanItemSubLabel = getIbanRowShadowRoot(section.$.paymentsList)
-                                     .querySelector<HTMLElement>('#subLabel');
-
-        assertTrue(!!ibanItemLabel);
-        assertTrue(!!ibanItemSubLabel);
-        assertEquals(
-            'BA39 **** **** **** 1234', ibanItemLabel.textContent.trim());
-        assertEquals('My doctor\'s IBAN', ibanItemSubLabel.textContent.trim());
-      });
-
   test('verifyIbanSummarySublabelWithNickname', async function() {
-    loadTimeData.overrideValues({
-      enableNewFopDisplay: true,
-    });
     const iban = createIbanEntry('BA393385804800211234', 'My doctor\'s IBAN');
 
     const section = await createPaymentsSection(
@@ -434,5 +405,43 @@ suite('PaymentsSectionIban', function() {
     const outlinkButton =
         rowShadowRoot.querySelector('cr-icon-button.icon-external');
     assertTrue(!!outlinkButton);
+  });
+
+  test('verifyIbanGooglePayOutlinkText', async function() {
+    loadTimeData.overrideValues({
+      autofillEnableWalletBranding: false,
+    });
+
+    const iban = createIbanEntry();
+    iban.metadata!.isLocal = false;
+    const section = await createPaymentsSection(
+        /*creditCards=*/[], [iban], /*payOverTimeIssuers=*/[],
+        /*prefValues=*/ {});
+    assertEquals(1, getIbanListItems().length);
+    const rowShadowRoot = getIbanRowShadowRoot(section.$.paymentsList);
+    const outlinkButton = rowShadowRoot.querySelector<HTMLElement>(
+        'cr-icon-button.icon-external');
+    assertTrue(!!outlinkButton);
+
+    assertEquals('Your payment methods in Google Pay', outlinkButton.title);
+  });
+
+  test('verifyIbanGoogleWalletOutlinkText', async function() {
+    loadTimeData.overrideValues({
+      autofillEnableWalletBranding: true,
+    });
+
+    const iban = createIbanEntry();
+    iban.metadata!.isLocal = false;
+    const section = await createPaymentsSection(
+        /*creditCards=*/[], [iban], /*payOverTimeIssuers=*/[],
+        /*prefValues=*/ {});
+    assertEquals(1, getIbanListItems().length);
+    const rowShadowRoot = getIbanRowShadowRoot(section.$.paymentsList);
+    const outlinkButton =rowShadowRoot.querySelector<HTMLElement>(
+        'cr-icon-button.icon-external');
+    assertTrue(!!outlinkButton);
+
+    assertEquals('Your payment methods in Google Wallet', outlinkButton.title);
   });
 });

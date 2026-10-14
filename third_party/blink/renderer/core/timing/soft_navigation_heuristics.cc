@@ -14,14 +14,18 @@
 #include "base/numerics/safe_conversions.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_core.h"
+#include "third_party/blink/renderer/core/dom/element.h"
 #include "third_party/blink/renderer/core/dom/events/event.h"
 #include "third_party/blink/renderer/core/dom/node.h"
+#include "third_party/blink/renderer/core/dom/qualified_name.h"
 #include "third_party/blink/renderer/core/event_type_names.h"
 #include "third_party/blink/renderer/core/frame/local_frame_client.h"
 #include "third_party/blink/renderer/core/frame/local_frame_view.h"
 #include "third_party/blink/renderer/core/html/media/html_video_element.h"
+#include "third_party/blink/renderer/core/html_names.h"
 #include "third_party/blink/renderer/core/inspector/console_message.h"
 #include "third_party/blink/renderer/core/layout/layout_view.h"
+#include "third_party/blink/renderer/core/page/page.h"
 #include "third_party/blink/renderer/core/paint/timing/paint_timing_detector.h"
 #include "third_party/blink/renderer/core/timing/dom_window_performance.h"
 #include "third_party/blink/renderer/core/timing/interaction_effects_monitor.h"
@@ -210,11 +214,20 @@ SoftNavigationHeuristics::SoftNavigationHeuristics(LocalDOMWindow* window)
 
 SoftNavigationHeuristics* SoftNavigationHeuristics::CreateIfNeeded(
     LocalDOMWindow* window) {
-  CHECK(window);
   if (!base::FeatureList::IsEnabled(features::kSoftNavigationDetection)) {
     return nullptr;
   }
+  // We expect the window to be valid and the frame to be attached.
+  CHECK(window && window->GetFrame() && window->GetFrame()->GetPage());
+
+  // Soft navigations in iframes are not supported.
   if (!window->GetFrame()->IsOutermostMainFrame()) {
+    return nullptr;
+  }
+  // Filter out non-ordinary pages, e.g. devtools overlays and internal pages
+  // used for SVG image rendering. Soft navigations are only intended to be
+  // measured on web developer-authored pages.
+  if (!window->GetFrame()->GetPage()->IsOrdinary()) {
     return nullptr;
   }
   if (Document* document = window->document()) {
@@ -338,6 +351,14 @@ bool SoftNavigationHeuristics::ModifiedDOM(Node* node) {
 
   MaybeCommitNavigationOrEmitSoftNavigationEntry(context);
   return true;
+}
+
+void SoftNavigationHeuristics::ModifiedAttribute(
+    Element* element,
+    const QualifiedName& attribute) {
+  DCHECK(attribute == html_names::kClassAttr ||
+         (attribute == html_names::kStyleAttr && element->IsStyledElement()));
+  ModifiedNode(element);
 }
 
 // TODO(crbug.com/424448145): re-architect how we pick our FCP point, when we

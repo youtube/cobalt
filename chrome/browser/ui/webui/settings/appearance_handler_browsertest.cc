@@ -9,8 +9,8 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/chrome_pages.h"
+#include "chrome/browser/ui/tab_search_feature.h"
 #include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model.h"
-#include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_entry_key.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_ui.h"
 #include "chrome/common/pref_names.h"
@@ -39,7 +39,7 @@ class AppearanceHandlerTest : public InProcessBrowserTest {
 
 IN_PROC_BROWSER_TEST_F(AppearanceHandlerTest,
                        OpenCustomizeChromeToolbarSection) {
-  base::Value::List args;
+  base::ListValue args;
   browser()
       ->tab_strip_model()
       ->GetActiveWebContents()
@@ -69,7 +69,7 @@ IN_PROC_BROWSER_TEST_F(AppearanceHandlerTest, ResetPinnedToolbarActions) {
     EXPECT_EQ(2u, actions_model->PinnedActionIds().size());
   }
 
-  base::Value::List args;
+  base::ListValue args;
   browser()
       ->tab_strip_model()
       ->GetActiveWebContents()

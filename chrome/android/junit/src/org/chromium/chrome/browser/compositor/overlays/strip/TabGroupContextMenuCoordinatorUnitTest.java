@@ -151,7 +151,7 @@ public class TabGroupContextMenuCoordinatorUnitTest {
                     NUM_INCOGNITO_TABS,
                     /* isIncognitoSelected= */ false,
                     LAST_ACCESSED_TIME,
-                    /* markedForDeletion= */ false);
+                    /* closureTime= */ 0);
 
     private static final InstanceInfo INSTANCE_INFO_2 =
             new InstanceInfo(
@@ -165,7 +165,7 @@ public class TabGroupContextMenuCoordinatorUnitTest {
                     NUM_INCOGNITO_TABS,
                     /* isIncognitoSelected= */ false,
                     LAST_ACCESSED_TIME,
-                    /* markedForDeletion= */ false);
+                    /* closureTime= */ 0);
 
     // Other dependencies
     @Mock private Profile mProfile;
@@ -979,7 +979,7 @@ public class TabGroupContextMenuCoordinatorUnitTest {
                         NUM_INCOGNITO_TABS,
                         /* isIncognitoSelected= */ false,
                         LAST_ACCESSED_TIME,
-                        /* markedForDeletion= */ false);
+                        /* closureTime= */ 0);
 
         setUpTabGroupModelFilter();
         MultiWindowUtils.setInstanceCountForTesting(2);

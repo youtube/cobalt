@@ -886,7 +886,8 @@ MockClientSocketFactory::CreateDatagramClientSocket(
   SocketDataProvider* data_provider = mock_data_.GetNext();
   auto socket = std::make_unique<MockUDPClientSocket>(data_provider, net_log);
   if (bind_type == DatagramSocket::RANDOM_BIND)
-    socket->set_source_port(static_cast<uint16_t>(base::RandInt(1025, 65535)));
+    socket->set_source_port(
+        static_cast<uint16_t>(base::RandIntInclusive(1025, 65535)));
   udp_client_socket_ports_.push_back(socket->source_port());
   return std::move(socket);
 }
@@ -1610,8 +1611,8 @@ std::vector<uint8_t> MockSSLClientSocket::GetECHRetryConfigs() {
 }
 
 std::vector<std::vector<uint8_t>>
-MockSSLClientSocket::GetServerTrustAnchorIDsForRetry() {
-  return data_->server_trust_anchor_ids_for_retry;
+MockSSLClientSocket::GetServerTrustAnchorIDs() {
+  return data_->server_trust_anchor_ids;
 }
 
 void MockSSLClientSocket::RunCallbackAsync(CompletionOnceCallback callback,

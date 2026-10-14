@@ -93,9 +93,6 @@ EXCLUDED_TESTS_WINDOWS = [
 
     # Temporarily disabled due to https://crbug.com/400524229
     os.path.join('tests', 'ui', 'process', 'win-command-child-path.rs'),
-
-    # Temporarily disabled due to https://crbug.com/436652831
-    os.path.join('tests', 'ui', 'asm', 'x86_64', 'may_unwind.rs'),
 ]
 EXCLUDED_TESTS_MAC = [
 ]
@@ -558,7 +555,7 @@ def MakeVersionStamp(rust_hash, rust_force_head_revision,
 
 
 def GetLatestRustCommit():
-    """Get the latest commit hash in the LLVM monorepo."""
+    """Get the latest commit hash in the Rust repo."""
     url = (
         'https://chromium.googlesource.com/external/' +
         'github.com/rust-lang/rust/+/refs/heads/main?format=JSON'  # nocheck
@@ -667,6 +664,12 @@ def GitApplyCherryPicks():
     # https://github.com/rust-lang/rust/pull/151072 lands and we roll past it.
     GitCherryPick(RUST_SRC_DIR, '5435e8188ce1bf0912b3a98a54e316e391d3ca27',
                   'https://github.com/rust-lang/rust.git')
+
+    # TODO(crbug.com/477565811): Remove once the outline atomics situation is
+    # resolved. This cherry-picks
+    # https://github.com/zmodem/rust/commit/b01caa5309eb7d47bbd2a0b4ae63f7d065be1963
+    GitCherryPick(RUST_SRC_DIR, 'b01caa5309eb7d47bbd2a0b4ae63f7d065be1963',
+                  'https://github.com/zmodem/rust.git', 'zmodem')
 
     print('Finished applying cherry-picks.')
 
@@ -972,10 +975,9 @@ def main():
                 sys.executable,
                 os.path.join(THIS_DIR, 'build_crubit.py')
             ]
-            # TODO: crbug.com/40226863 - Remove `fail_hard=False` once we can
-            # depend on the OSS Crubit build staying green with latest Rust and
-            # Clang.
-            TeeCmd(build_cmd, log, fail_hard=False)
+            if args.rust_force_head_revision:
+                build_cmd.append("--crubit-force-head-revision")
+            TeeCmd(build_cmd, log)
 
         if args.gnrt_stdlib:
             print('Building gnrt...')

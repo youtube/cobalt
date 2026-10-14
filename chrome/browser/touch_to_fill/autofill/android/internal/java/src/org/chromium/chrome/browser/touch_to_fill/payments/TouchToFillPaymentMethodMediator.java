@@ -1001,7 +1001,6 @@ class TouchToFillPaymentMethodMediator {
     // TODO(crbug.com/461545861): Split logic by screen (e.g. BNPL_ISSUER_SELECTION_SCREEN) instead
     // of the type of payment method set (e.g. mIbans).
     public void onDismissed(@StateChangeReason int reason) {
-        // TODO(b/332193789): Add IBAN-related metrics.
         if (!mModel.get(VISIBLE)) return; // Dismiss only if not dismissed yet.
         mModel.set(VISIBLE, false);
         boolean dismissedByUser =
@@ -1619,13 +1618,24 @@ class TouchToFillPaymentMethodMediator {
     }
 
     private @StringRes int getTosIconContentDescriptionId() {
+        // The "Google Pay" part of the text from the accessibility strings should be removed when
+        // AUTOFILL_ENABLE_WALLET_BRANDING is enabled since the ToS icon would not include GPay
+        // branding anymore.
+        boolean useWalletBranding =
+                ChromeFeatureList.isEnabled(AutofillFeatures.AUTOFILL_ENABLE_WALLET_BRANDING);
         switch (mBnplIssuerIdWithTosShown) {
             case "affirm":
-                return R.string.autofill_google_pay_and_affirm_logo_accessible_name;
+                return useWalletBranding
+                        ? R.string.autofill_bnpl_affirm
+                        : R.string.autofill_google_pay_and_affirm_logo_accessible_name;
             case "klarna":
-                return R.string.autofill_google_pay_and_klarna_logo_accessible_name;
+                return useWalletBranding
+                        ? R.string.autofill_bnpl_klarna
+                        : R.string.autofill_google_pay_and_klarna_logo_accessible_name;
             case "zip":
-                return R.string.autofill_google_pay_and_zip_logo_accessible_name;
+                return useWalletBranding
+                        ? R.string.autofill_bnpl_zip
+                        : R.string.autofill_google_pay_and_zip_logo_accessible_name;
             default:
                 return R.string.autofill_google_pay_logo_accessible_name;
         }

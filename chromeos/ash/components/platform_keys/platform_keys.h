@@ -15,7 +15,7 @@
 #include "base/component_export.h"
 #include "base/functional/callback.h"
 #include "base/values.h"
-#include "chromeos/crosapi/mojom/keystore_error.mojom.h"
+#include "chromeos/ash/components/platform_keys/keystore_types.h"
 #include "net/cert/x509_certificate.h"
 
 namespace chromeos::platform_keys {
@@ -83,18 +83,18 @@ std::string StatusToString(Status status);
 // Convert platform_keys::Status into a KeystoreError. Status::kSuccess should
 // not be passed in the function.
 COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_PLATFORM_KEYS)
-crosapi::mojom::KeystoreError StatusToKeystoreError(Status status);
+KeystoreError StatusToKeystoreError(Status status);
 
 // Creates platform_keys::Status into a KeystoreError. Keystore specific errors
 // are not supported and should be processed separately.
 COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_PLATFORM_KEYS)
-Status StatusFromKeystoreError(crosapi::mojom::KeystoreError error);
+Status StatusFromKeystoreError(KeystoreError error);
 
 // Converts KeystoreError code into an error message.
 // Note: Do not change already existing error-to-string translations, since
 // extensions may hardcode specific messages.
 COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_PLATFORM_KEYS)
-std::string KeystoreErrorToString(crosapi::mojom::KeystoreError error);
+std::string KeystoreErrorToString(KeystoreError error);
 
 // Returns the DER encoding of the X.509 Subject Public Key Info of the public
 // key in |certificate|.
@@ -119,7 +119,7 @@ struct COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_PLATFORM_KEYS)
 
   Status status = Status::kSuccess;
   std::vector<uint8_t> public_key;  // Only set if status == kSuccess
-  base::Value::Dict algorithm;      // Only set if status == kSuccess
+  base::DictValue algorithm;        // Only set if status == kSuccess
 };
 
 // This is a convenient wrapper around GetPublicKey which also builds a
@@ -165,7 +165,7 @@ net::X509Certificate::PublicKeyType GetKeyTypeForAlgorithm(
 // Returns std::nullopt if the key is of an unsupported type (so not RSA or
 // EC).
 COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_PLATFORM_KEYS)
-std::optional<base::Value::Dict> BuildWebCryptoAlgorithmDictionary(
+std::optional<base::DictValue> BuildWebCryptoAlgorithmDictionary(
     const PublicKeyInfo& key_info);
 
 // Builds a partial WebCrypto Algorithm object from the parameters available in
@@ -174,7 +174,7 @@ std::optional<base::Value::Dict> BuildWebCryptoAlgorithmDictionary(
 // enforced the public exponent 65537.
 COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_PLATFORM_KEYS)
 void BuildWebCryptoRSAAlgorithmDictionary(const PublicKeyInfo& key_info,
-                                          base::Value::Dict* algorithm);
+                                          base::DictValue* algorithm);
 
 // Builds a partial WebCrypto Algorithm object from the parameters available in
 // |key_info|, which must be the info of an EC key. For more information about
@@ -182,7 +182,7 @@ void BuildWebCryptoRSAAlgorithmDictionary(const PublicKeyInfo& key_info,
 // https://www.w3.org/TR/WebCryptoAPI/#EcKeyAlgorithm-dictionary
 COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_PLATFORM_KEYS)
 void BuildWebCryptoEcdsaAlgorithmDictionary(const PublicKeyInfo& key_info,
-                                            base::Value::Dict* algorithm);
+                                            base::DictValue* algorithm);
 
 // Obtains information about the public key in |certificate|.
 // If |certificate| contains an RSA key, sets |key_size_bits| to the modulus

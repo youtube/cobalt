@@ -1409,7 +1409,7 @@ void UpdateServiceImplImpl::RunInstallerImpl(
       [](base::Value* install_settings_deserialized_raw,
          std::string_view setting_key) -> std::string {
     if (install_settings_deserialized_raw) {
-      const base::Value::Dict* install_settings_dict =
+      const base::DictValue* install_settings_dict =
           install_settings_deserialized_raw->GetIfDict();
       if (install_settings_dict) {
         const std::string* install_setting_value =
@@ -1596,38 +1596,6 @@ void UpdateServiceImplImpl::GetUpdaterState(
                                  persisted_data->GetLastStarted()));
               },
               config_->GetUpdaterPersistedData(), std::move(callback)));
-}
-
-void UpdateServiceImplImpl::GetUpdaterPolicies(
-    base::OnceCallback<void(const base::flat_map<std::string, PolicyValue>&)>
-        callback) {
-  VLOG(1) << __func__;
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-  main_task_runner_->PostTask(
-      FROM_HERE,
-      base::BindOnce(
-          std::move(callback),
-          config_->GetPolicyService()
-              ->GetUpdaterPolicies<
-                  base::flat_map<std::string, UpdateService::PolicyValue>>()));
-}
-
-void UpdateServiceImplImpl::GetAppPolicies(
-    base::OnceCallback<
-        void(const base::flat_map<std::string,
-                                  base::flat_map<std::string, PolicyValue>>&)>
-        callback) {
-  VLOG(1) << __func__;
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-  main_task_runner_->PostTask(
-      FROM_HERE,
-      base::BindOnce(
-          std::move(callback),
-          config_->GetPolicyService()
-              ->GetAppPolicies<
-                  base::flat_map<std::string, UpdateService::PolicyValue>>()));
 }
 
 void UpdateServiceImplImpl::GetPoliciesJson(

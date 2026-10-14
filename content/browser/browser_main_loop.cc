@@ -72,6 +72,7 @@
 #include "content/browser/browser_thread_impl.h"
 #include "content/browser/child_process_security_policy_impl.h"
 #include "content/browser/compositor/viz_process_transport_factory.h"
+#include "content/browser/cpu_performance/cpu_performance.h"
 #include "content/browser/download/save_file_manager.h"
 #include "content/browser/field_trial_synchronizer.h"
 #include "content/browser/first_party_sets/first_party_set_parser.h"
@@ -574,8 +575,7 @@ int BrowserMainLoop::EarlyInitialization() {
   // SetCurrentThreadType relies on CurrentUIThread on some platforms. The
   // MessagePumpForUI needs to be bound to the main thread by this point.
   DCHECK(base::CurrentUIThread::IsSet());
-  base::PlatformThread::SetCurrentThreadType(
-      base::ThreadType::kDisplayCritical);
+  base::PlatformThread::SetCurrentThreadType(base::ThreadType::kPresentation);
 
 #if BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || \
     BUILDFLAG(IS_ANDROID)
@@ -720,7 +720,6 @@ void BrowserMainLoop::PostCreateMainMessageLoop() {
     base::DiscardableMemoryAllocator::SetInstance(
         discardable_memory::DiscardableSharedMemoryManager::Get());
   }
-
 
   {
     // The process-wide accessibility state must be created before we complete
@@ -1504,6 +1503,12 @@ void BrowserMainLoop::PostCreateThreadsImpl() {
 #if defined(ENABLE_IPC_FUZZER)
   SetFileUrlPathAliasForIpcFuzzer();
 #endif
+
+  {
+    TRACE_EVENT0("startup",
+                 "BrowserMainLoop::PostCreateThreads:InitCpuPerformance");
+    content::cpu_performance::Initialize();
+  }
 }
 
 bool BrowserMainLoop::UsingInProcessGpu() const {

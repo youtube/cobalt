@@ -543,7 +543,7 @@ class TestConnection : public QuicConnection {
 
  private:
   TestPacketWriter* writer() {
-    return static_cast<TestPacketWriter*>(QuicConnection::writer());
+    return absl::down_cast<TestPacketWriter*>(QuicConnection::writer());
   }
 
   SimpleDataProducer producer_;
@@ -10850,7 +10850,7 @@ TEST_P(QuicConnectionTest, ClientReceivesRetrySourceConnectionIdWithoutRetry) {
   EXPECT_CALL(visitor_, OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
       .Times(1);
   connection_.SetFromConfig(received_config);
-  EXPECT_FALSE(connection_.connected());
+  ASSERT_FALSE(connection_.connected());
   TestConnectionCloseQuicErrorCode(IETF_QUIC_PROTOCOL_VIOLATION);
 }
 
@@ -11616,6 +11616,19 @@ TEST_P(QuicConnectionTest, TestingLiveness) {
   EXPECT_TRUE(connection_.MaybeTestLiveness());
   // Verify idle deadline does not change.
   EXPECT_EQ(deadline, QuicConnectionPeer::GetIdleNetworkDeadline(&connection_));
+  EXPECT_TRUE(connection_.connected());
+
+  // Advance time past the idle timeout.
+  if (GetQuicReloadableFlag(quic_close_on_idle_timeout)) {
+    EXPECT_CALL(visitor_,
+                OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF));
+  }
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(2));
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
+  EXPECT_FALSE(connection_.MaybeTestLiveness());
+  // The connection will be closed if the flag is enabled.
+  EXPECT_EQ(connection_.connected(),
+            !GetQuicReloadableFlag(quic_close_on_idle_timeout));
 }
 
 TEST_P(QuicConnectionTest, DisableLivenessTesting) {
@@ -15389,18 +15402,9 @@ TEST_P(QuicConnectionTest,
   QuicRetireConnectionIdFrame frame;
   frame.sequence_number = 0u;
 
-  if (!connection_.connection_id().IsEmpty()) {
-    EXPECT_CALL(connection_id_generator_, GenerateNextConnectionId(cid0))
-        .WillOnce(Return(TestConnectionId(456)));
-    EXPECT_CALL(connection_id_generator_,
-                GenerateNextConnectionId(TestConnectionId(456)))
-        .WillOnce(Return(TestConnectionId(789)));
-  }
-  EXPECT_CALL(visitor_, MaybeReserveConnectionId(_))
-      .Times(2)
-      .WillRepeatedly(Return(true));
-  EXPECT_CALL(visitor_, SendNewConnectionId(_)).Times(2);
-  EXPECT_TRUE(connection_.OnRetireConnectionIdFrame(frame));
+  EXPECT_CALL(visitor_, BeforeConnectionCloseSent());
+  EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
+  EXPECT_FALSE(connection_.OnRetireConnectionIdFrame(frame));
 }
 
 TEST_P(QuicConnectionTest, ServerRetireSelfIssuedConnectionId) {

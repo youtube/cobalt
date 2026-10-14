@@ -117,16 +117,16 @@ TEST(SessionBindingUtilsTest,
   base::Value actual_payload =
       Base64UrlEncodedJsonToValue(header_and_payload[1]);
 
-  base::Value::Dict expected_header =
-      base::Value::Dict().Set("alg", "ES256").Set("typ", "jwt");
-  base::Value::Dict expected_payload =
-      base::Value::Dict()
+  base::DictValue expected_header =
+      base::DictValue().Set("alg", "ES256").Set("typ", "jwt");
+  base::DictValue expected_payload =
+      base::DictValue()
           .Set("sub", "test_client_id")
           .Set("aud", "https://accounts.google.com/RegisterKey")
           // Base64UrlEncode(SHA256("test_auth_code"));
           .Set("jti", "TQurqawiFBU95_obuobFjt-aOhaU14_YdtMTCEjyTkM")
           .Set("iat", 17280000)
-          .Set("key", base::Value::Dict()
+          .Set("key", base::DictValue()
                           .Set("kty",
                                "accounts.google.com/.well-known/kty/"
                                "SubjectPublicKeyInfo")
@@ -134,6 +134,27 @@ TEST(SessionBindingUtilsTest,
 
   EXPECT_EQ(actual_header, expected_header);
   EXPECT_EQ(actual_payload, expected_payload);
+}
+
+TEST(SessionBindingUtilsTest,
+     CreateKeyRegistrationHeaderAndPayloadForTokenBindingStripsUrl) {
+  std::optional<std::string> result =
+      CreateKeyRegistrationHeaderAndPayloadForTokenBinding(
+          "test_client_id", "test_auth_code",
+          GURL("https://accounts.google.com/RegisterKey?a=b#c"),
+          crypto::SignatureVerifier::SignatureAlgorithm::ECDSA_SHA256,
+          std::vector<uint8_t>({1, 2, 3}),
+          base::Time::UnixEpoch() + base::Days(200) + base::Milliseconds(123));
+  ASSERT_TRUE(result.has_value());
+
+  std::vector<std::string_view> header_and_payload = base::SplitStringPiece(
+      *result, ".", base::KEEP_WHITESPACE, base::SPLIT_WANT_ALL);
+  ASSERT_EQ(header_and_payload.size(), 2U);
+  base::Value actual_payload =
+      Base64UrlEncodedJsonToValue(header_and_payload[1]);
+
+  EXPECT_EQ(*actual_payload.GetDict().FindString("aud"),
+            "https://accounts.google.com/RegisterKey");
 }
 
 TEST(SessionBindingUtilsTest,
@@ -154,14 +175,14 @@ TEST(SessionBindingUtilsTest,
   base::Value actual_payload =
       Base64UrlEncodedJsonToValue(header_and_payload[1]);
 
-  base::Value::Dict expected_header =
-      base::Value::Dict().Set("alg", "RS256").Set("typ", "jwt");
-  base::Value::Dict expected_payload =
-      base::Value::Dict()
+  base::DictValue expected_header =
+      base::DictValue().Set("alg", "RS256").Set("typ", "jwt");
+  base::DictValue expected_payload =
+      base::DictValue()
           .Set("aud", "https://accounts.google.com/RegisterKey")
           .Set("jti", "test_challenge")
           .Set("iat", 17280000)
-          .Set("key", base::Value::Dict()
+          .Set("key", base::DictValue()
                           .Set("kty",
                                "accounts.google.com/.well-known/kty/"
                                "SubjectPublicKeyInfo")
@@ -169,6 +190,27 @@ TEST(SessionBindingUtilsTest,
 
   EXPECT_EQ(actual_header, expected_header);
   EXPECT_EQ(actual_payload, expected_payload);
+}
+
+TEST(SessionBindingUtilsTest,
+     CreateKeyRegistrationHeaderAndPayloadForSessionBindingStripsUrl) {
+  std::optional<std::string> result =
+      CreateKeyRegistrationHeaderAndPayloadForSessionBinding(
+          "test_challenge",
+          GURL("https://accounts.google.com/RegisterKey?a=b#c"),
+          crypto::SignatureVerifier::SignatureAlgorithm::RSA_PKCS1_SHA256,
+          std::vector<uint8_t>({1, 2, 3}),
+          base::Time::UnixEpoch() + base::Days(200) + base::Milliseconds(123));
+  ASSERT_TRUE(result.has_value());
+
+  std::vector<std::string_view> header_and_payload = base::SplitStringPiece(
+      *result, ".", base::KEEP_WHITESPACE, base::SPLIT_WANT_ALL);
+  ASSERT_EQ(header_and_payload.size(), 2U);
+  base::Value actual_payload =
+      Base64UrlEncodedJsonToValue(header_and_payload[1]);
+
+  EXPECT_EQ(*actual_payload.GetDict().FindString("aud"),
+            "https://accounts.google.com/RegisterKey");
 }
 
 class SessionBindingUtilsEphemeralKeyParamTest
@@ -199,13 +241,13 @@ TEST_P(SessionBindingUtilsEphemeralKeyParamTest,
   base::Value actual_payload =
       Base64UrlEncodedJsonToValue(header_and_payload[1]);
 
-  base::Value::Dict expected_header =
-      base::Value::Dict()
+  base::DictValue expected_header =
+      base::DictValue()
           .Set("alg", "ES256")
           .Set("typ", "jwt")
           .Set("schema", "DEVICE_BOUND_SESSION_CREDENTIALS_ASSERTION");
-  base::Value::Dict expected_payload =
-      base::Value::Dict()
+  base::DictValue expected_payload =
+      base::DictValue()
           .Set("sub", "test_client_id")
           .Set("aud", "https://accounts.google.com/VerifyKey")
           .Set("jti", "test_challenge")
@@ -215,7 +257,7 @@ TEST_P(SessionBindingUtilsEphemeralKeyParamTest,
   if (UseEphemeralKey()) {
     expected_payload.Set(
         "ephemeral_key",
-        base::Value::Dict()
+        base::DictValue()
             .Set(
                 "kty",
                 "type.googleapis.com/google.crypto.tink.EciesAeadHkdfPublicKey")
@@ -225,6 +267,24 @@ TEST_P(SessionBindingUtilsEphemeralKeyParamTest,
 
   EXPECT_EQ(actual_header, expected_header);
   EXPECT_EQ(actual_payload, expected_payload);
+}
+
+TEST(SessionBindingUtilsTest, CreateKeyAssertionHeaderAndPayloadStripsUrl) {
+  std::optional<std::string> result = CreateKeyAssertionHeaderAndPayload(
+      crypto::SignatureVerifier::SignatureAlgorithm::ECDSA_SHA256,
+      std::vector<uint8_t>({1, 2, 3}), "test_client_id", "test_challenge",
+      GURL("https://accounts.google.com/VerifyKey?a=b#c"), "test_namespace",
+      /*ephemeral_public_key=*/std::string_view());
+  ASSERT_TRUE(result.has_value());
+
+  std::vector<std::string_view> header_and_payload = base::SplitStringPiece(
+      *result, ".", base::KEEP_WHITESPACE, base::SPLIT_WANT_ALL);
+  ASSERT_EQ(header_and_payload.size(), 2U);
+  base::Value actual_payload =
+      Base64UrlEncodedJsonToValue(header_and_payload[1]);
+
+  EXPECT_EQ(*actual_payload.GetDict().FindString("aud"),
+            "https://accounts.google.com/VerifyKey");
 }
 
 INSTANTIATE_TEST_SUITE_P(,

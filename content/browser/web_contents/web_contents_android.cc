@@ -66,7 +66,6 @@ using base::android::ConvertJavaStringToUTF8;
 using base::android::ConvertUTF16ToJavaString;
 using base::android::ConvertUTF8ToJavaString;
 using base::android::JavaRef;
-using base::android::RunRunnableAndroid;
 using base::android::ScopedJavaGlobalRef;
 using base::android::ScopedJavaLocalRef;
 using base::android::ToJavaArrayOfStringArray;
@@ -207,7 +206,7 @@ WebContents* WebContents::FromJavaWebContents(
 // static
 static void JNI_WebContentsImpl_DestroyWebContents(
     JNIEnv* env,
-    jlong jweb_contents_android_ptr) {
+    int64_t jweb_contents_android_ptr) {
   WebContentsAndroid* web_contents_android =
       reinterpret_cast<WebContentsAndroid*>(jweb_contents_android_ptr);
   if (!web_contents_android)
@@ -223,7 +222,7 @@ static void JNI_WebContentsImpl_DestroyWebContents(
 // static
 static ScopedJavaLocalRef<jobject> JNI_WebContentsImpl_FromNativePtr(
     JNIEnv* env,
-    jlong web_contents_ptr) {
+    int64_t web_contents_ptr) {
   WebContentsAndroid* web_contents_android =
       reinterpret_cast<WebContentsAndroid*>(web_contents_ptr);
 
@@ -696,7 +695,7 @@ int32_t WebContentsAndroid::GetThemeColor(JNIEnv* env) {
   return web_contents_->GetThemeColor().value_or(SK_ColorTRANSPARENT);
 }
 
-jfloat WebContentsAndroid::GetLoadProgress(JNIEnv* env) {
+float WebContentsAndroid::GetLoadProgress(JNIEnv* env) {
   return web_contents_->GetLoadProgress();
 }
 
@@ -720,36 +719,31 @@ void WebContentsAndroid::RequestSmartClipExtract(
 void WebContentsAndroid::AXTreeSnapshotCallback(
     const JavaRef<jobject>& view_structure_root,
     const JavaRef<jobject>& view_structure_builder,
-    const JavaRef<jobject>& callback,
+    base::OnceClosure&& callback,
     ui::AXTreeUpdate& result) {
-  JNIEnv* env = base::android::AttachCurrentThread();
-  if (result.nodes.empty()) {
-    RunRunnableAndroid(callback);
-    return;
+  if (!result.nodes.empty()) {
+    JNIEnv* env = base::android::AttachCurrentThread();
+    std::unique_ptr<ui::AssistantTree> assistant_tree =
+        ui::CreateAssistantTree(result);
+    CreateJavaAXSnapshot(env, assistant_tree.get(),
+                         assistant_tree->nodes.front().get(),
+                         view_structure_root, view_structure_builder, true);
+    AddTreeLevelDataToViewStructure(env, view_structure_root,
+                                    view_structure_builder, result);
   }
-  std::unique_ptr<ui::AssistantTree> assistant_tree =
-      ui::CreateAssistantTree(result);
-  CreateJavaAXSnapshot(env, assistant_tree.get(),
-                       assistant_tree->nodes.front().get(), view_structure_root,
-                       view_structure_builder, true);
-  AddTreeLevelDataToViewStructure(env, view_structure_root,
-                                  view_structure_builder, result);
-  RunRunnableAndroid(callback);
+  std::move(callback).Run();
 }
 
 void WebContentsAndroid::RequestAccessibilitySnapshot(
     JNIEnv* env,
     const JavaRef<jobject>& view_structure_root,
     const JavaRef<jobject>& view_structure_builder,
-    const JavaRef<jobject>& callback) {
+    base::OnceClosure&& callback) {
   // Secure the Java objects in scoped objects and give ownership of them to the
   // base::OnceCallback below.
-  ScopedJavaGlobalRef<jobject> j_callback;
-  j_callback.Reset(env, callback);
-  ScopedJavaGlobalRef<jobject> j_view_structure_root;
-  j_view_structure_root.Reset(env, view_structure_root);
-  ScopedJavaGlobalRef<jobject> j_view_structure_builder;
-  j_view_structure_builder.Reset(env, view_structure_builder);
+  ScopedJavaGlobalRef<jobject> j_view_structure_root(env, view_structure_root);
+  ScopedJavaGlobalRef<jobject> j_view_structure_builder(env,
+                                                        view_structure_builder);
 
   // Set a timeout of 2.0 seconds to compute the snapshot of the
   // accessibility tree because Google Assistant ignores results that
@@ -760,7 +754,7 @@ void WebContentsAndroid::RequestAccessibilitySnapshot(
           base::BindOnce(
               &WebContentsAndroid::AXTreeSnapshotCallback,
               weak_factory_.GetWeakPtr(), std::move(j_view_structure_root),
-              std::move(j_view_structure_builder), std::move(j_callback)),
+              std::move(j_view_structure_builder), std::move(callback)),
           ui::AXMode(ui::kAXModeComplete.flags() | ui::AXMode::kHTML |
                      ui::AXMode::kHTMLMetadata),
           /* max_nodes= */ 5000,
@@ -773,12 +767,8 @@ ScopedJavaLocalRef<jstring> WebContentsAndroid::GetEncoding(JNIEnv* env) const {
                                                 web_contents_->GetEncoding());
 }
 
-void WebContentsAndroid::Discard(
-    JNIEnv* env,
-    const base::android::JavaRef<jobject>& on_discarded) {
-  web_contents_->Discard(base::BindOnce(
-      &base::android::RunRunnableAndroid,
-      base::android::ScopedJavaGlobalRef<jobject>(on_discarded)));
+void WebContentsAndroid::Discard(base::OnceClosure&& on_discarded) {
+  web_contents_->Discard(std::move(on_discarded));
 }
 
 void WebContentsAndroid::SetOverscrollRefreshHandler(

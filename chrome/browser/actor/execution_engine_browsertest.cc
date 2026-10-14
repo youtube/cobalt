@@ -22,7 +22,6 @@
 #include "base/test/test_future.h"
 #include "chrome/browser/actor/actor_features.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
-#include "chrome/browser/actor/actor_policy_checker.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/actor_test_util.h"
 #include "chrome/browser/actor/tools/click_tool_request.h"
@@ -134,9 +133,12 @@ class ExecutionEngineBrowserTest : public InProcessBrowserTest {
       : prerender_helper_(
             base::BindRepeating(&ExecutionEngineBrowserTest::web_contents,
                                 base::Unretained(this))) {
-    scoped_feature_list_.InitWithFeatures(
-        /*enabled_features=*/{features::kGlic, features::kGlicActor,
-                              kGlicExternalProtocolActionResultCode},
+    scoped_feature_list_.InitWithFeaturesAndParameters(
+        /*enabled_features=*/{{features::kGlic, {}},
+                              {kGlicExternalProtocolActionResultCode, {}},
+                              {kGlicCrossOriginNavigationGating,
+                               {{"confirm_navigation_to_new_origins",
+                                 "false"}}}},
         /*disabled_features=*/{features::kGlicWarming});
   }
   ExecutionEngineBrowserTest(const ExecutionEngineBrowserTest&) = delete;
@@ -160,9 +162,7 @@ class ExecutionEngineBrowserTest : public InProcessBrowserTest {
     }
     ASSERT_TRUE(embedded_https_test_server().Start());
 
-    actor_keyed_service()->GetPolicyChecker().set_act_on_web_for_testing(true);
-
-    StartNewTask();
+    task_id_ = actor_keyed_service()->CreateTask(NoEnterprisePolicyChecker());
 
     // Optimization guide uses this histogram to signal initialization in tests.
     optimization_guide::RetryForHistogramUntilCountReached(
@@ -183,19 +183,6 @@ class ExecutionEngineBrowserTest : public InProcessBrowserTest {
   virtual bool UseCertTestNames() const { return false; }
 
  protected:
-  void StartNewTask() {
-    auto execution_engine =
-        std::make_unique<ExecutionEngine>(browser()->profile());
-    ExecutionEngine* raw_execution_engine = execution_engine.get();
-    auto event_dispatcher = ui::NewUiEventDispatcher(
-        actor_keyed_service()->GetActorUiStateManager());
-    auto task = std::make_unique<ActorTask>(
-        GetProfile(), std::move(execution_engine), std::move(event_dispatcher),
-        /*options=*/nullptr);
-    raw_execution_engine->SetOwner(task.get());
-    task_id_ = actor_keyed_service()->AddActiveTask(std::move(task));
-  }
-
   tabs::TabInterface* active_tab() {
     return browser()->tab_strip_model()->GetActiveTab();
   }

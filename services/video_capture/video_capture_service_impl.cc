@@ -12,8 +12,8 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "build/build_config.h"
+#include "gpu/config/gpu_driver_bug_workarounds.h"
 #include "gpu/ipc/client/client_shared_image_interface.h"
-#include "media/capture/video/fake_video_capture_device_factory.h"
 #include "media/capture/video/video_capture_buffer_pool.h"
 #include "media/capture/video/video_capture_buffer_tracker.h"
 #include "media/capture/video/video_capture_system_impl.h"
@@ -149,6 +149,20 @@ class VideoCaptureServiceImpl::VizGpuContextProvider
     media::VideoCaptureGpuChannelHost::GetInstance().OnContextLost();
   }
 
+  gpu::GpuDriverBugWorkarounds GetGpuDriverBugWorkarounds() {
+    if (!viz_gpu_) {
+      return gpu::GpuDriverBugWorkarounds();
+    }
+    scoped_refptr<gpu::GpuChannelHost> gpu_channel_host =
+        viz_gpu_->GetGpuChannel();
+    if (!gpu_channel_host) {
+      return gpu::GpuDriverBugWorkarounds();
+    }
+    return gpu::GpuDriverBugWorkarounds(
+        gpu_channel_host->gpu_feature_info()
+            .enabled_gpu_driver_bug_workarounds);
+  }
+
  private:
   void StartContextProviderIfNeeded() {
     DCHECK_EQ(context_provider_, nullptr);
@@ -240,10 +254,6 @@ VideoCaptureServiceImpl::VideoCaptureServiceImpl(
 }
 
 VideoCaptureServiceImpl::~VideoCaptureServiceImpl() {
-#if BUILDFLAG(IS_CHROMEOS)
-  factory_receivers_ash_.Clear();
-  device_factory_ash_adapter_.reset();
-#endif  // BUILDFLAG(IS_CHROMEOS)
   device_factory_.reset();
 
   if (gpu_dependencies_context_) {
@@ -267,13 +277,6 @@ void VideoCaptureServiceImpl::ConnectToCameraAppDeviceBridge(
   LazyInitializeDeviceFactory();
   media::CameraAppDeviceBridgeImpl::GetInstance()->BindReceiver(
       std::move(receiver));
-}
-
-void VideoCaptureServiceImpl::BindVideoCaptureDeviceFactory(
-    mojo::PendingReceiver<crosapi::mojom::VideoCaptureDeviceFactory> receiver) {
-  LazyInitializeDeviceFactory();
-  factory_receivers_ash_.Add(device_factory_ash_adapter_.get(),
-                             std::move(receiver));
 }
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
@@ -321,8 +324,18 @@ void VideoCaptureServiceImpl::LazyInitializeDeviceFactory() {
   std::unique_ptr<media::VideoCaptureDeviceFactory> media_device_factory =
       nullptr;
 #else   // BUILDFLAG(IS_COBALT)
+  gpu::GpuDriverBugWorkarounds* gpu_workarounds_ptr = nullptr;
+#if BUILDFLAG(ENABLE_GPU_CHANNEL_MEDIA_CAPTURE)
+  gpu::GpuDriverBugWorkarounds gpu_workarounds;
+  if (viz_gpu_context_provider_) {
+    gpu_workarounds = viz_gpu_context_provider_->GetGpuDriverBugWorkarounds();
+  }
+  gpu_workarounds_ptr = &gpu_workarounds;
+#endif
+
   std::unique_ptr<media::VideoCaptureDeviceFactory> media_device_factory =
-      media::CreateVideoCaptureDeviceFactory(ui_task_runner_);
+      media::CreateVideoCaptureDeviceFactory(ui_task_runner_,
+                                             gpu_workarounds_ptr);
 #endif  // BUILDFLAG(IS_COBALT)
 
   auto video_capture_system = std::make_unique<media::VideoCaptureSystemImpl>(
@@ -336,9 +349,6 @@ void VideoCaptureServiceImpl::LazyInitializeDeviceFactory() {
               &GpuDependenciesContext::CreateJpegDecodeAccelerator,
               gpu_dependencies_context_->GetWeakPtr()),
           gpu_dependencies_context_->GetTaskRunner()));
-  device_factory_ash_adapter_ =
-      std::make_unique<crosapi::VideoCaptureDeviceFactoryAsh>(
-          device_factory_.get());
 #else
   device_factory_ = std::make_unique<VirtualDeviceEnabledDeviceFactory>(
       std::make_unique<DeviceFactoryImpl>(std::move(video_capture_system)));

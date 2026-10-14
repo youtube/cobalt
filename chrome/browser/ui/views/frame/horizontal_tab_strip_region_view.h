@@ -6,10 +6,12 @@
 #define CHROME_BROWSER_UI_VIEWS_FRAME_HORIZONTAL_TAB_STRIP_REGION_VIEW_H_
 
 #include "base/memory/raw_ptr.h"
+#include "build/buildflag.h"
 #include "chrome/browser/ui/tabs/tab_renderer_data.h"
 #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
 #include "chrome/browser/ui/views/tabs/tab_search_container.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
+#include "chrome/common/buildflags.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/pointer/touch_ui_controller.h"
 #include "ui/views/accessible_pane_view.h"
@@ -17,15 +19,17 @@
 class BrowserView;
 
 namespace views {
+class ActionViewController;
 class Button;
+class LabelButton;
 }
 class NewTabButton;
 class TabStripActionContainer;
 class TabSearchButton;
 class TabStrip;
 class TabStripScrollContainer;
-class ProductSpecificationsButton;
 class TabSearchPositionMetricsLogger;
+class TabStripControlButton;
 
 // Container for the tabstrip and the other views sharing space with it -
 // with the exception of the caption buttons.
@@ -93,21 +97,28 @@ class HorizontalTabStripRegionView final : public TabStripRegionView {
 
   TabStrip* tab_strip() { return tab_strip_; }
 
+#if BUILDFLAG(ENABLE_GLIC)
+  views::LabelButton* GetGlicButton();
+#endif  // BUILDFLAG(ENABLE_GLIC)
+
   // TabStripRegionView:
+  void InitializeTabStrip() override;
+  void ResetTabStrip() override;
   gfx::Size GetMinimumSize() const override;
   gfx::Size CalculatePreferredSize(
       const views::SizeBounds& available_size) const override;
   bool IsTabStripEditable() const override;
-  void DisableTabStripEditingForTesting() const override;
+  void DisableTabStripEditingForTesting() override;
   bool IsTabStripCloseable() const override;
-  bool IsAnimating() const override;
-  void StopAnimating() override;
   void UpdateLoadingAnimations(const base::TimeDelta& elapsed_time) override;
   std::optional<int> GetFocusedTabIndex() const override;
   const TabRendererData& GetTabRendererData(int tab_index) override;
   views::View* GetTabAnchorViewAt(int tab_index) override;
   views::View* GetTabGroupAnchorView(
       const tab_groups::TabGroupId& group) override;
+  void OnTabGroupFocusChanged(
+      std::optional<tab_groups::TabGroupId> new_focused_group_id,
+      std::optional<tab_groups::TabGroupId> old_focused_group_id) override;
   TabDragContext* GetDragContext() override;
   std::optional<BrowserRootView::DropIndex> GetDropIndex(
       const ui::DropTargetEvent& event) override;
@@ -134,6 +145,8 @@ class HorizontalTabStripRegionView final : public TabStripRegionView {
   // on `offset`. This should only used for views that show before tab strip.
   void AdjustViewBoundsRect(View* view, int offset);
 
+  bool tab_strip_set_ = false;
+
   raw_ptr<const Profile> profile_ = nullptr;
   raw_ptr<TabStripActionContainer> tab_strip_action_container_ = nullptr;
   raw_ptr<views::View> tab_strip_container_ = nullptr;
@@ -142,7 +155,7 @@ class HorizontalTabStripRegionView final : public TabStripRegionView {
   raw_ptr<TabStripScrollContainer> tab_strip_scroll_container_ = nullptr;
   raw_ptr<views::Button> new_tab_button_ = nullptr;
   raw_ptr<TabSearchContainer> tab_search_container_ = nullptr;
-  raw_ptr<ProductSpecificationsButton> product_specifications_button_ = nullptr;
+  raw_ptr<TabStripControlButton> unfocus_button_ = nullptr;
 
   // On some platforms for Chrome Refresh, the TabSearchButton should be
   // laid out before the TabStrip. Storing this configuration prevents
@@ -151,6 +164,8 @@ class HorizontalTabStripRegionView final : public TabStripRegionView {
 
   std::unique_ptr<TabSearchPositionMetricsLogger>
       tab_search_position_metrics_logger_;
+
+  std::unique_ptr<views::ActionViewController> action_view_controller_;
 
   const base::CallbackListSubscription subscription_ =
       ui::TouchUiController::Get()->RegisterCallback(base::BindRepeating(

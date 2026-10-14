@@ -185,9 +185,11 @@ bool SiteIsolationPolicy::IsIsolationForOAuthSitesEnabled() {
 }
 
 // static
-bool SiteIsolationPolicy::IsOriginIsolationForJsOptExceptionsEnabled() {
+bool SiteIsolationPolicy::IsOriginIsolationForJsOptExceptionsEnabled(
+    content::BrowserContext* browser_context) {
   if (content::SiteIsolationPolicy::IsStrictOriginIsolationEnabled() ||
-      content::SiteIsolationPolicy::AreOriginKeyedProcessesEnabledByDefault()) {
+      content::SiteIsolationPolicy::AreOriginKeyedProcessesEnabledByDefault(
+          browser_context)) {
     // Origin isolation for JavaScript optimizer exceptions isn't needed if
     // origin isolation is enabled for everything because an origin gets passed
     // into AreV8OptimizationsDisabledForSite() and the return value will match
@@ -269,7 +271,7 @@ void SiteIsolationPolicy::PersistUserTriggeredIsolatedOrigin(
   ScopedListPrefUpdate update(
       user_prefs::UserPrefs::Get(context),
       site_isolation::prefs::kUserTriggeredIsolatedOrigins);
-  base::Value::List& list = update.Get();
+  base::ListValue& list = update.Get();
   std::string value(origin.Serialize());
   if (!list.contains(value)) {
     list.Append(value);
@@ -286,7 +288,7 @@ void SiteIsolationPolicy::PersistWebTriggeredIsolatedOrigin(
   ScopedDictPrefUpdate update(
       user_prefs::UserPrefs::Get(context),
       site_isolation::prefs::kWebTriggeredIsolatedOrigins);
-  base::Value::Dict& dict = update.Get();
+  base::DictValue& dict = update.Get();
 
   // Add the origin.  If it already exists, this will just update the
   // timestamp.
@@ -366,7 +368,7 @@ void SiteIsolationPolicy::ApplyPersistedIsolatedOrigins(
     if (!expired_entries.empty()) {
       ScopedDictPrefUpdate update(pref_service,
                                   prefs::kWebTriggeredIsolatedOrigins);
-      base::Value::Dict& updated_dict = update.Get();
+      base::DictValue& updated_dict = update.Get();
       for (const auto& entry : expired_entries) {
         updated_dict.Remove(entry);
       }

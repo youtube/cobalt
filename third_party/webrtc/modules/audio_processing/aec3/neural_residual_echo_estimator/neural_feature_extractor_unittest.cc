@@ -290,6 +290,19 @@ TEST_P(FrequencyDomainFeatureExtractorTest, BasicTest) {
   }
 }
 
+TEST_P(FrequencyDomainFeatureExtractorTest, ResetsState) {
+  const int num_channels = this->GetParam();
+  std::array<float, kBlockSize> block{};
+  FrequencyDomainFeatureExtractor extractor(kStepSize);
+  EXPECT_FALSE(extractor.ReadyForInference());
+  for (int i = 0; i < kStepSize; i += kBlockSize) {
+    this->UpdateBlock(extractor, block, num_channels);
+  }
+  EXPECT_TRUE(extractor.ReadyForInference());
+  extractor.Reset();
+  EXPECT_FALSE(extractor.ReadyForInference());
+}
+
 INSTANTIATE_TEST_SUITE_P(NumChannels,
                          FrequencyDomainFeatureExtractorTest,
                          ::testing::Values(1, 2));
@@ -327,6 +340,22 @@ TEST(TimeDomainFeatureExtractorTest, BasicTest) {
       EXPECT_FLOAT_EQ(model_input[i], i * kScaling);
     }
   }
+  EXPECT_FALSE(extractor.ReadyForInference());
+}
+
+TEST(TimeDomainFeatureExtractorTest, ResetsState) {
+  TimeDomainFeatureExtractor extractor(kStepSize);
+  const std::array<float, kBlockSize> block{};
+  const std::array<const ArrayView<const float, kBlockSize>, 1> all_blocks = {
+      block};
+  EXPECT_FALSE(extractor.ReadyForInference());
+  for (size_t i = 0; i < kStepSize / kBlockSize; ++i) {
+    for (auto input_type : kExpectedInputs) {
+      extractor.UpdateBuffers(all_blocks, input_type);
+    }
+  }
+  EXPECT_TRUE(extractor.ReadyForInference());
+  extractor.Reset();
   EXPECT_FALSE(extractor.ReadyForInference());
 }
 

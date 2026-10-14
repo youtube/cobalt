@@ -26,6 +26,7 @@
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/media_resources.h"
 #include "components/prefs/pref_service.h"
+#include "components/upload_list/text_log_upload_list.h"
 #include "components/upload_list/upload_list.h"
 #include "components/version_info/version_info.h"
 #include "components/webrtc_logging/browser/text_log_list.h"
@@ -102,13 +103,13 @@ class WebRtcLogsDOMHandler final : public WebUIMessageHandler {
   using WebRtcEventLogManager = webrtc_event_logging::WebRtcEventLogManager;
 
   // Asynchronously fetches the list of upload WebRTC logs. Called from JS.
-  void HandleRequestWebRtcLogs(const base::Value::List& args);
+  void HandleRequestWebRtcLogs(const base::ListValue& args);
 
   // Asynchronously load WebRTC text logs.
-  void LoadWebRtcTextLogs(const std::string& callback_id);
+  void LoadAllWebRtcTextLogs(std::string callback_id);
 
   // Callback for when WebRTC text logs have been asynchronously loaded.
-  void OnWebRtcTextLogsLoaded(const std::string& callback_id);
+  void OnAllWebRtcTextLogsLoaded(std::string callback_id);
 
   // Asynchronously load WebRTC event logs.
   void LoadWebRtcEventLogs(const std::string& callback_id);
@@ -122,8 +123,8 @@ class WebRtcLogsDOMHandler final : public WebUIMessageHandler {
   void UpdateUI(const std::string& callback_id);
 
   // Update the text/event logs part of the forementioned page.
-  base::Value::List UpdateUIWithTextLogs() const;
-  base::Value::List UpdateUIWithEventLogs() const;
+  base::ListValue UpdateUIWithTextLogs() const;
+  base::ListValue UpdateUIWithEventLogs() const;
 
   // Convert a history entry about a captured WebRTC event log into a
   // Value of the type expected by updateWebRtcLogsList().
@@ -140,8 +141,10 @@ class WebRtcLogsDOMHandler final : public WebUIMessageHandler {
 
   bool SanityCheckOnUploadInfo(const UploadList::UploadInfo& info) const;
 
+  void LoadWebRtcTextLog(size_t index, std::string callback_id);
+
   // The directories where the (text/event) logs are stored.
-  const base::FilePath text_log_dir_;
+  const std::vector<base::FilePath> text_log_dirs_;
   const base::FilePath event_log_dir_;
 
   // Identifies to WebRtcEventLogManager the profile with which |this| is
@@ -153,7 +156,7 @@ class WebRtcLogsDOMHandler final : public WebUIMessageHandler {
   const WebRtcEventLogManager::BrowserContextId original_browser_context_id_;
 
   // Loads, parses and stores the list of uploaded text WebRTC logs.
-  scoped_refptr<UploadList> text_log_upload_list_;
+  std::vector<scoped_refptr<UploadList>> text_log_upload_lists_;
 
   // List of WebRTC logs captured and possibly uploaded to Crash.
   std::vector<UploadList::UploadInfo> event_logs_;
@@ -163,21 +166,24 @@ class WebRtcLogsDOMHandler final : public WebUIMessageHandler {
 };
 
 WebRtcLogsDOMHandler::WebRtcLogsDOMHandler(Profile* profile)
-    : text_log_dir_(
+    : text_log_dirs_(
           webrtc_logging::TextLogList::
-              GetWebRtcLogDirectoryForBrowserContextPath(profile->GetPath())),
+              GetWebRtcLogDirectoriesForBrowserContextPath(profile->GetPath())),
       event_log_dir_(
           WebRtcEventLogManager::GetRemoteBoundWebRtcEventLogsDir(profile)),
       original_browser_context_id_(webrtc_event_logging::GetBrowserContextId(
-          profile->GetOriginalProfile())),
-      text_log_upload_list_(
-          webrtc_logging::TextLogList::CreateWebRtcLogList(profile)) {
+          profile->GetOriginalProfile())) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  for (const auto& log_dir : text_log_dirs_) {
+    text_log_upload_lists_.push_back(new TextLogUploadList(log_dir));
+  }
 }
 
 WebRtcLogsDOMHandler::~WebRtcLogsDOMHandler() {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-  text_log_upload_list_->CancelLoadCallback();
+  for (auto& upload_list : text_log_upload_lists_) {
+    upload_list->CancelLoadCallback();
+  }
 }
 
 void WebRtcLogsDOMHandler::RegisterMessages() {
@@ -190,26 +196,37 @@ void WebRtcLogsDOMHandler::RegisterMessages() {
 }
 
 void WebRtcLogsDOMHandler::HandleRequestWebRtcLogs(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   std::string callback_id = args[0].GetString();
   AllowJavascript();
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-  LoadWebRtcTextLogs(callback_id);
+  LoadAllWebRtcTextLogs(std::move(callback_id));
 }
 
 void WebRtcLogsDOMHandler::OnJavascriptDisallowed() {
   weak_ptr_factory_.InvalidateWeakPtrs();
 }
 
-void WebRtcLogsDOMHandler::LoadWebRtcTextLogs(const std::string& callback_id) {
+void WebRtcLogsDOMHandler::LoadAllWebRtcTextLogs(std::string callback_id) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-  text_log_upload_list_->Load(
-      base::BindOnce(&WebRtcLogsDOMHandler::OnWebRtcTextLogsLoaded,
-                     weak_ptr_factory_.GetWeakPtr(), callback_id));
+  CHECK_GE(text_log_upload_lists_.size(), 1u);
+  LoadWebRtcTextLog(0, std::move(callback_id));
 }
 
-void WebRtcLogsDOMHandler::OnWebRtcTextLogsLoaded(
-    const std::string& callback_id) {
+void WebRtcLogsDOMHandler::LoadWebRtcTextLog(size_t index,
+                                             std::string callback_id) {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  text_log_upload_lists_[index]->Load(
+      index < text_log_upload_lists_.size() - 1
+          ? base::BindOnce(&WebRtcLogsDOMHandler::LoadWebRtcTextLog,
+                           weak_ptr_factory_.GetWeakPtr(), index + 1,
+                           std::move(callback_id))
+          : base::BindOnce(&WebRtcLogsDOMHandler::OnAllWebRtcTextLogsLoaded,
+                           weak_ptr_factory_.GetWeakPtr(),
+                           std::move(callback_id)));
+}
+
+void WebRtcLogsDOMHandler::OnAllWebRtcTextLogsLoaded(std::string callback_id) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   LoadWebRtcEventLogs(callback_id);  // Text logs loaded; on to the event logs.
 }
@@ -242,81 +259,84 @@ void WebRtcLogsDOMHandler::OnWebRtcEventLogsLoaded(
 void WebRtcLogsDOMHandler::UpdateUI(const std::string& callback_id) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
-  base::Value::Dict result;
+  base::DictValue result;
   result.Set("textLogs", UpdateUIWithTextLogs());
   result.Set("eventLogs", UpdateUIWithEventLogs());
   result.Set("version", version_info::GetVersionNumber());
   ResolveJavascriptCallback(base::Value(callback_id), result);
 }
 
-base::Value::List WebRtcLogsDOMHandler::UpdateUIWithTextLogs() const {
+base::ListValue WebRtcLogsDOMHandler::UpdateUIWithTextLogs() const {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
-  base::Value::List result;
-  const std::vector<const UploadList::UploadInfo*> uploads =
-      text_log_upload_list_->GetUploads(50);
+  base::ListValue result;
+  for (size_t i = 0; i < text_log_upload_lists_.size(); ++i) {
+    const std::vector<const UploadList::UploadInfo*> uploads =
+        text_log_upload_lists_[i]->GetUploads(50);
 
-  for (const auto* upload : uploads) {
-    base::Value::Dict upload_value;
-    upload_value.Set("id", upload->upload_id);
+    for (const auto* upload : uploads) {
+      base::DictValue upload_value;
+      upload_value.Set("id", upload->upload_id);
 
-    std::u16string value_w;
-    if (!upload->upload_time.is_null()) {
-      value_w = base::TimeFormatFriendlyDateAndTime(upload->upload_time);
-    }
-    upload_value.Set("upload_time", value_w);
+      std::u16string value_w;
+      if (!upload->upload_time.is_null()) {
+        value_w = base::TimeFormatFriendlyDateAndTime(upload->upload_time);
+      }
+      upload_value.Set("upload_time", value_w);
 
-    std::string value;
-    if (!upload->local_id.empty()) {
-      value = text_log_dir_.AppendASCII(upload->local_id)
-                  .AddExtension(FILE_PATH_LITERAL(".gz"))
-                  .AsUTF8Unsafe();
-    }
-    upload_value.Set("local_file", value);
+      std::string value;
+      if (!upload->local_id.empty()) {
+        value = text_log_dirs_[i]
+                    .AppendASCII(upload->local_id)
+                    .AddExtension(FILE_PATH_LITERAL(".gz"))
+                    .AsUTF8Unsafe();
+      }
+      upload_value.Set("local_file", value);
 
-    // In october 2015, capture time was added to the log list, previously the
-    // local ID was used as capture time. The local ID has however changed so
-    // that it might not be a time. We fall back on the local ID if it traslates
-    // to a time within reasonable bounds, otherwise we fall back on the upload
-    // time.
-    // TODO(grunell): Use |capture_time| only.
-    if (!upload->capture_time.is_null()) {
-      value_w = base::TimeFormatFriendlyDateAndTime(upload->capture_time);
-    } else {
-      // Fall back on local ID as time. We need to check that it's within
-      // resonable bounds, since the ID may not represent time. Check between
-      // 2012 when the feature was introduced and now.
-      double seconds_since_epoch;
-      if (base::StringToDouble(upload->local_id, &seconds_since_epoch)) {
-        base::Time capture_time =
-            base::Time::FromSecondsSinceUnixEpoch(seconds_since_epoch);
-        static constexpr base::Time::Exploded kLowerLimit = {
-            .year = 2012, .month = 1, .day_of_month = 1};
-        base::Time out_time;
-        bool conversion_success =
-            base::Time::FromUTCExploded(kLowerLimit, &out_time);
-        DCHECK(conversion_success);
-        if (capture_time > out_time && capture_time < base::Time::Now()) {
-          value_w = base::TimeFormatFriendlyDateAndTime(capture_time);
+      // In october 2015, capture time was added to the log list, previously the
+      // local ID was used as capture time. The local ID has however changed so
+      // that it might not be a time. We fall back on the local ID if it
+      // translates to a time within reasonable bounds, otherwise we fall back
+      // on the upload time.
+      // TODO(grunell): Use |capture_time| only.
+      if (!upload->capture_time.is_null()) {
+        value_w = base::TimeFormatFriendlyDateAndTime(upload->capture_time);
+      } else {
+        // Fall back on local ID as time. We need to check that it's within
+        // reasonable bounds, since the ID may not represent time. Check between
+        // 2012 when the feature was introduced and now.
+        double seconds_since_epoch;
+        if (base::StringToDouble(upload->local_id, &seconds_since_epoch)) {
+          base::Time capture_time =
+              base::Time::FromSecondsSinceUnixEpoch(seconds_since_epoch);
+          static constexpr base::Time::Exploded kLowerLimit = {
+              .year = 2012, .month = 1, .day_of_month = 1};
+          base::Time out_time;
+          bool conversion_success =
+              base::Time::FromUTCExploded(kLowerLimit, &out_time);
+          DCHECK(conversion_success);
+          if (capture_time > out_time && capture_time < base::Time::Now()) {
+            value_w = base::TimeFormatFriendlyDateAndTime(capture_time);
+          }
         }
       }
-    }
-    // If we haven't set |value_w| above, we fall back on the upload time, which
-    // was already in the variable. In case it's empty set the string to
-    // inform that the time is unknown.
-    if (value_w.empty()) {
-      value_w = std::u16string(u"(unknown time)");
-    }
-    upload_value.Set("capture_time", value_w);
+      // If we haven't set |value_w| above, we fall back on the upload time,
+      // which was already in the variable. In case it's empty set the string to
+      // inform that the time is unknown.
+      if (value_w.empty()) {
+        value_w = std::u16string(u"(unknown time)");
+      }
+      upload_value.Set("capture_time", value_w);
 
-    result.Append(std::move(upload_value));
+      result.Append(std::move(upload_value));
+    }
   }
   return result;
 }
 
-base::Value::List WebRtcLogsDOMHandler::UpdateUIWithEventLogs() const {
+base::ListValue WebRtcLogsDOMHandler::UpdateUIWithEventLogs() const {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-  base::Value::List result;
+  base::ListValue result;
   for (const auto& log : event_logs_) {
     result.Append(EventLogUploadInfoToValue(log));
   }
@@ -353,7 +373,7 @@ base::Value WebRtcLogsDOMHandler::FromPendingLog(
     return base::Value();
   }
 
-  base::Value::Dict log;
+  base::DictValue log;
   log.Set("state", "pending");
   log.Set("capture_time",
           base::TimeFormatFriendlyDateAndTime(info.capture_time));
@@ -371,7 +391,7 @@ base::Value WebRtcLogsDOMHandler::FromActivelyUploadedLog(
     return base::Value();
   }
 
-  base::Value::Dict log;
+  base::DictValue log;
   log.Set("state", "actively_uploaded");
   log.Set("capture_time",
           base::TimeFormatFriendlyDateAndTime(info.capture_time));
@@ -389,7 +409,7 @@ base::Value WebRtcLogsDOMHandler::FromNotUploadedLog(
     return base::Value();
   }
 
-  base::Value::Dict log;
+  base::DictValue log;
   log.Set("state", "not_uploaded");
   log.Set("capture_time",
           base::TimeFormatFriendlyDateAndTime(info.capture_time));
@@ -411,7 +431,7 @@ base::Value WebRtcLogsDOMHandler::FromUploadUnsuccessfulLog(
     return base::Value();
   }
 
-  base::Value::Dict log;
+  base::DictValue log;
   log.Set("state", "upload_unsuccessful");
   log.Set("capture_time",
           base::TimeFormatFriendlyDateAndTime(info.capture_time));
@@ -434,7 +454,7 @@ base::Value WebRtcLogsDOMHandler::FromUploadSuccessfulLog(
     return base::Value();
   }
 
-  base::Value::Dict log;
+  base::DictValue log;
   log.Set("state", "upload_successful");
   log.Set("capture_time",
           base::TimeFormatFriendlyDateAndTime(info.capture_time));

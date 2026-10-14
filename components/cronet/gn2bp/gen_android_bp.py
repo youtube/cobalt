@@ -2108,7 +2108,14 @@ class ProtocJavaSanitizer(BaseActionSanitizer):
     self._set_value_arg('--protoc', '$(location %s)' % self._protoc)
     self._update_value_arg('--proto-path', self._sanitize_proto_path)
     self._set_value_arg('--srcjar', '$(out)')
-    self._update_arg_at(-1, self._sanitize_filepath_with_location_tag)
+    for i, arg in enumerate(self.target.args):
+      if arg == '--import-dir':
+        self.target.args[
+            i +
+            1] = f"{tree_path}/{self.target.args[i+1].removeprefix('../../')}"
+      elif arg.startswith('../../') and arg.removeprefix(
+          '../../') in self.get_srcs():
+        self.target.args[i] = self._sanitize_filepath_with_location_tag(arg)
 
   def _sanitize_inputs(self):
     super()._sanitize_inputs()
@@ -2667,6 +2674,14 @@ def _is_cflag_allowed(cflag):
       '-DUNSAFE_BUFFERS_BUILD',
       '-Wunsafe-buffer-usage',
       '-Wno-error=unsafe-buffer-usage',
+      # Causes Soong to fail with:
+      #   "Bad flag: `-gsplit-dwarf`, soong cannot track dependencies to split dwarf debuginfo"
+      # See https://crbug.com/481594099
+      '-gsplit-dwarf',
+      # Causes the build to fail with:
+      #   clang++-real: error: unknown argument: '-fsanitize-ignore-for-ubsan-feature=array-bounds'
+      # See https://crbug.com/481594099
+      '-fsanitize-ignore-for-ubsan-feature=array-bounds',
   ])
 
 def _get_cflags(cflags, defines):

@@ -12,8 +12,10 @@
 #define MODULES_VIDEO_CODING_UTILITY_ENCODER_SPEED_CONTROLLER_IMPL_H_
 
 #include <memory>
+#include <optional>
 
 #include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
 #include "api/video_codecs/encoder_speed_controller.h"
 namespace webrtc {
 
@@ -40,8 +42,11 @@ class EncoderSpeedControllerImpl : public webrtc::EncoderSpeedController {
   // thereafter be configured with requested settings.
   EncodeSettings GetEncodeSettings(FrameEncodingInfo frame_info) override;
 
-  // Should be called after each frame has completed encoding.
-  void OnEncodedFrame(EncodeResults results) override;
+  // Should be called after each frame has completed encoding. If a baseline
+  // comparison speed was set in the `EncodeSettings`, the `baseline_results`
+  // parameter should be set with the results corresponding to those settings.
+  void OnEncodedFrame(EncodeResults results,
+                      std::optional<EncodeResults> baseline_results) override;
 
   const Config& config() const { return config_; }
 
@@ -50,7 +55,9 @@ class EncoderSpeedControllerImpl : public webrtc::EncoderSpeedController {
                              TimeDelta start_frame_interval);
 
   bool ShouldIncreaseSpeed() const;
-  bool ShouldDecreaseSpeed() const;
+  bool ShouldDecreaseSpeedDisregardingPsnr() const;
+  bool PsnrProbeRequiredForNextSlowerSpeed() const;
+  bool ShouldRecheckPsnrGain(Timestamp current_time) const;
 
   void ResetStats();
   void IncreaseSpeed();
@@ -66,6 +73,20 @@ class EncoderSpeedControllerImpl : public webrtc::EncoderSpeedController {
   double slow_filtered_encode_time_ms_;
   double fast_filtered_encode_time_ms_;
   double filtered_qp_;
+
+  // Timestamp of last request for a PSNR measurement, either due to periodic
+  // sampling or requested for speed index change. Negative infinity if not set.
+  Timestamp last_psnr_probe_;
+
+  // Timestamp and speed level index of the last PSNR probing request for the
+  // current layer. Note that we only track comparative PSNR gain checks here
+  // (i.e. an alternate speed was given), single frame PSNR sampling does not
+  // affect this value.
+  struct PsnrGainCheck {
+    int speed_level;
+    Timestamp timestamp;
+  };
+  std::optional<PsnrGainCheck> last_psnr_gain_check_;
 };
 
 }  // namespace webrtc

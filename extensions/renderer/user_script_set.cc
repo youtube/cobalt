@@ -20,6 +20,7 @@
 #include "content/public/renderer/render_frame.h"
 #include "content/public/renderer/render_thread.h"
 #include "extensions/common/extension.h"
+#include "extensions/common/extension_features.h"
 #include "extensions/common/extensions_client.h"
 #include "extensions/common/mojom/host_id.mojom.h"
 #include "extensions/renderer/extension_injection_host.h"
@@ -57,6 +58,16 @@ GURL GetDocumentUrlForFrame(blink::WebLocalFrame* frame) {
   return data_source_url;
 }
 
+blink::WebString GetWebStringFromScriptContent(std::string_view script_content,
+                                               bool emulate_greasemonkey) {
+  if (emulate_greasemonkey) {
+    std::string content_with_wrapper =
+        base::StrCat({kUserScriptHead, script_content, kUserScriptTail});
+    return blink::WebString::FromUTF8(content_with_wrapper);
+  }
+  return blink::WebString::FromUTF8(script_content);
+}
+
 }  // namespace
 
 UserScriptSet::UserScriptSet(mojom::HostID host_id)
@@ -91,6 +102,55 @@ void UserScriptSet::GetInjections(
   }
 }
 
+void UserScriptSet::InsertStreamersForInjectionsAtDocumentStart(
+    const GURL& document_url,
+    blink::WebLocalFrame* web_frame,
+    std::map<GURL, std::optional<blink::ExtensionScriptStreamer>>&
+        script_streamers,
+    uint64_t& streamed_scripts_count,
+    uint64_t& injected_scripts_count) const {
+  CHECK(base::FeatureList::IsEnabled(
+      extensions_features::kExtensionsBackgroundCompilation));
+  for (const auto& script : scripts_) {
+    if (script->run_location() != mojom::RunLocation::kDocumentStart ||
+        !script->MatchesDocument(document_url,
+                                 !web_frame->IsOutermostMainFrame())) {
+      continue;
+    }
+    for (const auto& content : script->js_scripts()) {
+      ++injected_scripts_count;
+      // TODO(https://crbug.com/436274244): Investigate if we can get rid
+      // of these copies and pass the string views directly to the streamer.
+      blink::WebString content_string = GetWebStringFromScriptContent(
+          content->GetContent(), script->emulate_greasemonkey());
+
+      const GURL& url = content->url();
+      size_t content_size = content_string.length();
+
+      // Don't stream scripts that are too small or too large.
+      // Note that a max size of 0 means "no maximum".
+      if ((content_size <
+           extensions_features::kMinScriptSizeForBackgroundCompilation.Get()) ||
+          (extensions_features::kMaxScriptSizeForBackgroundCompilation.Get() >
+               0 &&
+           content_size >
+               extensions_features::kMaxScriptSizeForBackgroundCompilation
+                   .Get())) {
+        continue;
+      }
+
+      ++streamed_scripts_count;
+
+      std::optional<blink::ExtensionScriptStreamer> streamer =
+          blink::ExtensionScriptStreamer::PostStreamingTaskToBackgroundThread(
+              web_frame, content_string, url.spec(), injected_scripts_count,
+              extensions_features::kBackgroundCompilationTimeout.Get());
+      auto [it, inserted] = script_streamers.emplace(url, std::move(streamer));
+      CHECK(inserted);
+    }
+  }
+}
+
 bool UserScriptSet::UpdateUserScripts(
     base::ReadOnlySharedMemoryRegion shared_memory) {
   bool only_inject_incognito =
@@ -117,8 +177,7 @@ bool UserScriptSet::UpdateUserScripts(
   if (!memory.size())
     return false;
 
-  base::Pickle pickle = base::Pickle::WithUnownedBuffer(memory);
-  base::PickleIterator iter(pickle);
+  base::PickleIterator iter = base::PickleIterator::WithData(memory);
   base::debug::Alias(&pickle_size);
   CHECK(iter.ReadUInt32(&num_scripts));
 
@@ -132,7 +191,7 @@ bool UserScriptSet::UpdateUserScripts(
   scripts_.reserve(num_scripts);
   for (uint32_t i = 0; i < num_scripts; ++i) {
     std::unique_ptr<UserScript> script(new UserScript());
-    script->Unpickle(pickle, &iter);
+    script->Unpickle(&iter);
 
     // Note that this is a pointer into shared memory. We don't own it. It
     // gets cleared up when the last renderer or browser process drops their
@@ -253,17 +312,8 @@ blink::WebString UserScriptSet::GetJsSource(const UserScript::Content& file,
     return iter->second;
 
   std::string_view script_content = file.GetContent();
-  blink::WebString source;
-  if (emulate_greasemonkey) {
-    // We add this dumb function wrapper for user scripts to emulate what
-    // Greasemonkey does. |script_content| becomes:
-    // concat(kUserScriptHead, script_content, kUserScriptTail).
-    std::string content =
-        base::StrCat({kUserScriptHead, script_content, kUserScriptTail});
-    source = blink::WebString::FromUTF8(content);
-  } else {
-    source = blink::WebString::FromUTF8(script_content);
-  }
+  blink::WebString source =
+      GetWebStringFromScriptContent(script_content, emulate_greasemonkey);
   script_sources_[url] = source;
   return source;
 }

@@ -26,8 +26,7 @@ using HttpInterstitialState =
     security_interstitials::https_only_mode::HttpInterstitialState;
 
 bool IsHostnameInHttpAllowlist(const GURL& url, PrefService* prefs) {
-  const base::Value::List& allowed_hosts =
-      prefs->GetList(prefs::kHttpAllowlist);
+  const base::ListValue& allowed_hosts = prefs->GetList(prefs::kHttpAllowlist);
 
   // Though this is not technically a Content Setting, ContentSettingsPattern
   // aligns better than URLMatcher with the rules from
@@ -52,7 +51,7 @@ void AllowHttpForHostnamesForTesting(const std::vector<std::string>& hostnames,
                                      PrefService* prefs) {
   DCHECK(prefs->GetList(prefs::kHttpAllowlist).empty());
 
-  base::Value::List allowed_hosts;
+  base::ListValue allowed_hosts;
   for (const std::string& hostname : hostnames) {
     allowed_hosts.Append(hostname);
   }
@@ -60,7 +59,7 @@ void AllowHttpForHostnamesForTesting(const std::vector<std::string>& hostnames,
 }
 
 void ClearHttpAllowlistForHostnamesForTesting(PrefService* prefs) {
-  base::Value::List empty_list;
+  base::ListValue empty_list;
   prefs->SetList(prefs::kHttpAllowlist, std::move(empty_list));
 }
 
@@ -186,7 +185,8 @@ bool IsStrictInterstitialEnabled(const HttpInterstitialState& state) {
 bool ShouldExemptNonUniqueHostnames(const HttpInterstitialState& state) {
   // If strict mode is enabled by the pref, warn the user before any HTTP that
   // goes over the network. Any other mode ignores non-unique hostnames.
-  return !state.enabled_by_pref;
+  // Advanced Protection users are also treated as "strict".
+  return !state.enabled_by_pref && !state.enabled_by_advanced_protection;
 }
 
 bool ShouldExcludeUrlFromInterstitial(const HttpInterstitialState& state,

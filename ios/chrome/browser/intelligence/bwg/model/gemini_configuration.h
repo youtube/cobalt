@@ -15,9 +15,9 @@ class AuthenticationService;
 @protocol SingleSignOnService;
 
 namespace ios::provider {
-enum class BWGLocationPermissionState;
+enum class GeminiLocationPermissionState;
 enum class BWGPageContextState;
-enum class BWGPageContextComputationState;
+enum class GeminiPageContextComputationState;
 enum class BWGPageContextAttachmentState;
 }  // namespace ios::provider
 
@@ -43,12 +43,18 @@ class PageContext;
     std::unique_ptr<optimization_guide::proto::PageContext>
         uniquePageContext;
 
-// The state of the BWG location permission.
+// The state of the Gemini location permission.
 @property(nonatomic, assign)
-    ios::provider::BWGLocationPermissionState BWGLocationPermissionState;
+    ios::provider::GeminiLocationPermissionState geminiLocationPermissionState;
+
+// The state of the Gemini PageContext computation.
+@property(nonatomic, assign) ios::provider::GeminiPageContextComputationState
+    geminiPageContextComputationState;
 
 // The state of the BWG PageContext computation.
-@property(nonatomic, assign) ios::provider::BWGPageContextComputationState
+// TODO(crbug.com/467341090): Remove this property once all callers have
+// migrated.
+@property(nonatomic, assign) ios::provider::GeminiPageContextComputationState
     BWGPageContextComputationState;
 
 // The state of the BWG PageContext attachment.
@@ -91,6 +97,16 @@ class PageContext;
 
 // Whether to show the Gemini image remix in-product help in the Floaty.
 @property(nonatomic, assign) BOOL imageRemixIPHShouldShow;
+
+// Whether to use the response ready interval to show the response ready
+// notification in the floaty.
+@property(nonatomic) double responseReadyInterval;
+
+// Whether to use the dynamic size for the response view in the floaty.
+@property(nonatomic) BOOL responseViewDynamicSizeEnabled;
+
+// The initial bottom offset of the floaty.
+@property(nonatomic) CGFloat initialBottomOffset;
 
 @end
 

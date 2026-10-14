@@ -104,7 +104,7 @@ class AgcManagerDirect final {
 
   // If available, returns the latest digital compression gain that has been
   // chosen.
-  std::optional<int> GetDigitalComressionGain();
+  std::optional<int> GetDigitalCompressionGain();
 
   // Returns true if clipping prediction is enabled.
   bool clipping_predictor_enabled() const { return !!clipping_predictor_; }

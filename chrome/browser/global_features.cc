@@ -14,12 +14,15 @@
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/local_network_access/ip_address_space_overrides_prefs_observer.h"
 #include "chrome/browser/media/audio_process_ml_model_forwarder.h"
 #include "chrome/browser/optimization_guide/model_execution/optimization_guide_global_state.h"
 #include "chrome/browser/permissions/system/platform_handle.h"
 #include "chrome/browser/safe_browsing/application_advanced_protection_status_detector.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/common/chrome_features.h"
 #include "components/application_locale_storage/application_locale_storage.h"
+#include "components/on_device_translation/buildflags/buildflags.h"
 #include "components/safe_browsing/core/common/features.h"
 #include "media/base/media_switches.h"
 #include "net/net_buildflags.h"
@@ -30,7 +33,7 @@
 #include "chrome/browser/background/glic/glic_background_mode_manager.h"  // nogncheck
 #endif
 
-#if BUILDFLAG(ENABLE_GLIC) || BUILDFLAG(ENABLE_GLIC_ANDROID)
+#if BUILDFLAG(ENABLE_GLIC)
 #include "chrome/browser/glic/glic_profile_manager.h"               // nogncheck
 #include "chrome/browser/glic/host/glic_synthetic_trial_manager.h"  // nogncheck
 #include "chrome/browser/glic/public/glic_enabling.h"               // nogncheck
@@ -40,6 +43,7 @@
 // This causes a gn error on Android builds, because gn does not understand
 // buildflags, so we include it only on platforms where it is used.
 #include "chrome/browser/default_browser/default_browser_manager.h"
+#include "chrome/browser/ui/startup/default_browser_prompt/default_browser_prompt_manager.h"
 #include "chrome/browser/ui/webui/whats_new/whats_new_registrar.h"
 #include "components/user_education/common/user_education_features.h"  // nogncheck
 #endif
@@ -53,7 +57,7 @@
 
 #if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/startup/startup_launch_manager.h"
-#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+#include "chrome/browser/ui/startup/profile_launch_observer.h"
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
@@ -62,6 +66,10 @@
 #include "components/unexportable_keys/features.h"
 #include "components/unexportable_keys/unexportable_key_service_impl.h"
 #endif  // BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
+
+#if BUILDFLAG(ENABLE_ON_DEVICE_TRANSLATION)
+#include "chrome/browser/on_device_translation/installer_impl.h"
+#endif  // BUILDFLAG(ENABLE_ON_DEVICE_TRANSLATION)
 
 namespace {
 
@@ -106,7 +114,7 @@ void GlobalFeatures::PostBrowserProcessInit() {
 
   PostBrowserProcessInitCore();
 
-#if BUILDFLAG(ENABLE_GLIC) || BUILDFLAG(ENABLE_GLIC_ANDROID)
+#if BUILDFLAG(ENABLE_GLIC)
   if (glic::GlicEnabling::IsEnabledByFlags()) {
     glic_profile_manager_ = std::make_unique<glic::GlicProfileManager>();
 #if !BUILDFLAG(IS_ANDROID)
@@ -130,12 +138,22 @@ void GlobalFeatures::PostBrowserProcessInit() {
         g_browser_process->profile_manager());
   }
 #endif  // BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
+
+  ip_address_space_overrides_prefs_observer_ = std::make_unique<
+      local_network_access::IPAddressSpaceOverridesPrefsObserver>(
+      g_browser_process->local_state());
+#if BUILDFLAG(ENABLE_ON_DEVICE_TRANSLATION)
+  on_device_translation_installer_ = std::make_unique<
+      on_device_translation::OnDeviceTranslationInstallerImpl>();
+#endif  // BUILDFLAG(ENABLE_ON_DEVICE_TRANSLATION)
+
+#if !BUILDFLAG(IS_ANDROID)
+  profile_launch_observer_ = std::make_unique<ProfileLaunchObserver>();
+#endif  // !BUILDFLAG(IS_ANDROID)
 }
 
 void GlobalFeatures::PreBrowserProcessInitCore() {
-#if !BUILDFLAG(IS_ANDROID)
   global_browser_collection_ = std::make_unique<GlobalBrowserCollection>();
-#endif  // !BUILDFLAG(IS_ANDROID)
 }
 
 void GlobalFeatures::PostBrowserProcessInitCore() {
@@ -188,13 +206,17 @@ void GlobalFeatures::PostBrowserProcessInitCore() {
 }
 
 void GlobalFeatures::PostMainMessageLoopRun() {
+#if !BUILDFLAG(IS_ANDROID)
+  profile_launch_observer_.reset();
+#endif  // !BUILDFLAG(IS_ANDROID)
+
 #if BUILDFLAG(ENABLE_GLIC) && !BUILDFLAG(IS_ANDROID)
   if (glic_background_mode_manager_) {
     glic_background_mode_manager_->Shutdown();
     glic_background_mode_manager_.reset();
   }
 #endif
-#if BUILDFLAG(ENABLE_GLIC) || BUILDFLAG(ENABLE_GLIC_ANDROID)
+#if BUILDFLAG(ENABLE_GLIC)
   if (glic_profile_manager_) {
     glic_profile_manager_->Shutdown();
     glic_profile_manager_.reset();
@@ -205,12 +227,21 @@ void GlobalFeatures::PostMainMessageLoopRun() {
   optimization_guide_global_feature_.reset();
 
   application_advanced_protection_status_detector_.reset();
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+  DefaultBrowserPromptManager::GetInstance()->CloseAllPrompts(
+      DefaultBrowserPromptManager::CloseReason::kDismiss);
+#endif
 }
 
 void GlobalFeatures::PostDestroyThreads() {
 #if !BUILDFLAG(IS_ANDROID)
-  global_browser_collection_.reset();
+  // Startup launch manager should be destroyed before GlobalBrowserCollection
+  // since its infobar manager observes GlobalBrowserCollection.
+  startup_launch_manager_.reset();
 #endif  // !BUILDFLAG(IS_ANDROID)
+
+  global_browser_collection_.reset();
 }
 
 std::unique_ptr<system_permission_settings::PlatformHandle>

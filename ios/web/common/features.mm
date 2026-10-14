@@ -49,6 +49,13 @@ BASE_FEATURE(kSmoothScrollingDefault,
 #endif
 );
 
+BASE_FEATURE(kSmoothScrollingUseDelegate, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool ShouldUseBroadcasterForSmoothScrolling() {
+  return base::FeatureList::IsEnabled(kSmoothScrollingDefault) &&
+         !base::FeatureList::IsEnabled(kSmoothScrollingUseDelegate);
+}
+
 BASE_FEATURE(kFullscreenScrollThreshold, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // This feature will always be disabled and will only be enabled by tests.
@@ -62,8 +69,6 @@ BASE_FEATURE(kDisableRaccoon, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kUserAgentBugFixVersion, base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kLogJavaScriptErrors, base::FEATURE_DISABLED_BY_DEFAULT);
-
 BASE_FEATURE(kWebKitHandlesMarketplaceKitLinks,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -73,9 +78,6 @@ BASE_FEATURE(kRestoreWKWebViewEditMenuHandler,
 BASE_FEATURE(kLogCrWebJavaScriptErrors, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kAssertOnJavaScriptErrors, base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kCreateTabHelperOnlyForRealizedWebStates,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool IsFullscreenScrollThresholdEnabled() {
   return !base::FeatureList::IsEnabled(kSmoothScrollingDefault) &&
@@ -90,10 +92,15 @@ bool IsWebInspectorSupportEnabled() {
 }
 
 bool CreateTabHelperOnlyForRealizedWebStates() {
-  return base::FeatureList::IsEnabled(kCreateTabHelperOnlyForRealizedWebStates);
+  return true;
 }
 
 BASE_FEATURE(kUpdateSSLStatusOnNavigationItemLazyCreation,
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kEnableBEContextMenuConfiguration,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kIOSDownloadSanitizeFilename, base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace web::features

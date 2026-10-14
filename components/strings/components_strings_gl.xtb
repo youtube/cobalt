@@ -64,7 +64,6 @@
 <translation id="1099928364755383720">pantalla superposta automática</translation>
 <translation id="1100782917270858593">Botón para retomar o percorrido. Para retomar o percorrido e ver a actividade relevante do teu historial de Chrome, preme Introducir</translation>
 <translation id="1101672080107056897">Acción incorrecta</translation>
-<translation id="1101902632743388185">As túas táboas de comparación</translation>
 <translation id="1104409666019087579">Algúns campos obrigatorios están en branco. Cúbreos antes de gardar o formulario.</translation>
 <translation id="1104860668737945357">Botón para xestionar os contrasinais. Actívao para ver e xestionar os teus contrasinais na configuración de Chrome</translation>
 <translation id="1108464073729874771">A3x4</translation>
@@ -101,7 +100,6 @@
 <translation id="1165174597379888365">Visítase unha páxina</translation>
 <translation id="1165813024716836071">{COUNT,plural, =0{Ningún}=1{De 1 sitio (seguirás tendo a sesión iniciada na túa Conta de Google)}other{De # sitios (seguirás tendo a sesión iniciada na túa Conta de Google)}}</translation>
 <translation id="1167877250265821930">Non se puido descargar: <ph name="LANGUAGE" /></translation>
-<translation id="1173894706177603556">Cambiar o nome</translation>
 <translation id="1174644974616730562">Sobre chinés n.º 1</translation>
 <translation id="1174723505405632867">Queres permitir que <ph name="EMBEDDED_URL" /> utilice as cookies e os datos dos sitios en <ph name="TOP_LEVEL_URL" />?
 
@@ -186,6 +184,7 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="1289129165308566697">Consulta o teu historial noutros dispositivos</translation>
 <translation id="1292571435393770077">Bandexa 16</translation>
 <translation id="1292701964462482250">"Hai software no teu ordenador que está evitando que Chrome se conecte de forma segura á web" (só para ordenadores con Windows)</translation>
+<translation id="1293154089865862473">O contido da páxina de tramitación da compra compártese con Google para poder ofrecer estas opcións. Para ocultalas na función de autocompletar, vai a <ph name="IDS_AUTOFILL_CARD_BNPL_SELECT_PROVIDER_FOOTNOTE_HIDE_OPTION_PAYMENT_SETTINGS_LINK_TEXT" />.</translation>
 <translation id="1293556467332435079">Ficheiros</translation>
 <translation id="1293797321964802402">Sobre 9 x 11 polgadas</translation>
 <translation id="129553762522093515">Pechado recentemente</translation>
@@ -201,7 +200,6 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="1308113895091915999">Oferta dispoñible</translation>
 <translation id="1309375166585231290">Os teus pais aínda non deron permiso</translation>
 <translation id="1310677614877521969">Aloxamento web</translation>
-<translation id="1310938305420497484">Primeiro, abre algunha pestana e visita algún sitio</translation>
 <translation id="1314311879718644478">Goza de contido de realidade aumentada</translation>
 <translation id="1314509827145471431">Encadernación na parte dereita</translation>
 <translation id="1314784609072437689">omisión do teclado</translation>
@@ -265,6 +263,7 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="1408787208417187241">Tres grampas na parte superior</translation>
 <translation id="1410365862999780287">As demais persoas que usen este dispositivo non verán a túa actividade, polo que podes navegar de forma máis privada. Isto non afectará ao modo no que os sitios web que visites e os servizos que uses (por exemplo, Google) recompilan os datos. Non obstante, gardaranse as descargas, os marcadores e os elementos da lista de lectura.</translation>
 <translation id="1410941016594047814">Sobre de invitación</translation>
+<translation id="1413235258620101697">O CVC desta tarxeta encriptarase e gardarase en Google Wallet para que a tramitación das compras sexa máis rápida</translation>
 <translation id="1413809658975081374">Erro de privacidade</translation>
 <translation id="1414134146594747368">Preescolar</translation>
 <translation id="1419305130220238697">Botón para xestionar as descargas en Chrome. Actívao para xestionar os ficheiros que descargases en Chrome</translation>
@@ -277,6 +276,7 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="142559998533702194">Produciuse un erro na carga</translation>
 <translation id="1426410128494586442">Si</translation>
 <translation id="1427192966110103169">Piscinas, saunas e spa para o fogar</translation>
+<translation id="142740183218637661">O navegador Chrome está intentando mostrar información confidencial</translation>
 <translation id="1428146450423315676">Amontoador 7</translation>
 <translation id="142858679511221695">Usuario da nube</translation>
 <translation id="1429080515485835353">Filme autoadhesivo</translation>
@@ -286,6 +286,7 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="1433225466058025572">Proba a mover os ficheiros de novo</translation>
 <translation id="1433478348197382180">Modo de lectura</translation>
 <translation id="1436185428532214179">Pode pedirche permiso para editar ficheiros e cartafoles do teu dispositivo</translation>
+<translation id="1442054921249164535">Outros datos</translation>
 <translation id="1442386063175183758">Dobrez en ventá na parte dereita</translation>
 <translation id="1442987760062738829">Perforación</translation>
 <translation id="1445896388055045436">Mostra os beneficios e as recompensas das tarxetas dispoñibles ao tramitar a compra. Vantaxes suxeitas ás condicións do emisor.</translation>
@@ -369,9 +370,9 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="1581080074034554886">CVC</translation>
 <translation id="1583429793053364125">Produciuse un erro ao mostrar esta páxina web.</translation>
 <translation id="1584492003828271317">A medida que navegues pola Web, os anuncios que vexas personalizaranse en función desta opción de configuración, da opción Anuncios suxeridos do sitio, da configuración de cookies e de se o sitio que esteas visitando personaliza os anuncios</translation>
+<translation id="1585306568496579337">A extensión <ph name="EXTENSION_NAME" /> quere abrir ligazóns de <ph name="PROTOCOL" /> a través de <ph name="HANDLER_HOSTNAME" /></translation>
 <translation id="1586541204584340881">As extensións que teñas instaladas</translation>
 <translation id="1588438908519853928">Normal</translation>
-<translation id="159103247796286390">Cambiar nome da táboa</translation>
 <translation id="1592005682883173041">Acceso aos datos locais</translation>
 <translation id="159274626729231974">Festivais de cine</translation>
 <translation id="1593359183944365958">270 graos</translation>
@@ -417,6 +418,7 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="1652862280638399816">Para poder usar o xestor de contrasinais con MacOS Keychain, reinicia Chromium e dálle acceso a Keychain. Despois do reinicio volverán abrirse as pestanas.</translation>
 <translation id="1652887625750064647">Mellor resultado da IA</translation>
 <translation id="1653465303147789530">Paga con <ph name="PAYMENT_METHOD" /> sen cambiar de aplicación</translation>
+<translation id="1655159794885649984">Non se pode arrastrar contido neste sitio</translation>
 <translation id="1656024727720460136">Chrome simplificou esta páxina para que sexa máis fácil de ler. Chrome recuperou a páxina orixinal a través dunha conexión segura.</translation>
 <translation id="1656489000284462475">Recollida</translation>
 <translation id="1658111267661135323">Televisión e vídeo</translation>
@@ -425,7 +427,7 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="1662980953334786797">Mesma orde</translation>
 <translation id="1663943134801823270">As tarxetas e enderezos proceden de Chrome. Podes xestionalos en <ph name="BEGIN_LINK" />Configuración<ph name="END_LINK" />.</translation>
 <translation id="1664389769577564606">Fotopolímero flexográfico</translation>
-<translation id="166624440456221306">Eliminar táboa de comparación</translation>
+<translation id="1667730174533834274">verificar a túa identidade antes de cambiar a configuración</translation>
 <translation id="1668071460721346172">Recibir un correo electrónico</translation>
 <translation id="1674504678466460478">De <ph name="SOURCE_LANGUAGE" /> a <ph name="TARGET_LANGUAGE" /></translation>
 <translation id="1682696192498422849">Co bordo curto primeiro</translation>
@@ -473,7 +475,6 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="1741474054575634405">Xestiona as tarxetas de fidelidade...</translation>
 <translation id="1741613555002899862">Debe especificarse e ser unha cadea válida cando DnsOverHttpsMode é <ph name="SECURE_DNS_MODE_SECURE" />.</translation>
 <translation id="1743393865165844832">Roupa de cama</translation>
-<translation id="1743892871127720056">Título da táboa de comparación, editar texto</translation>
 <translation id="1745399796851657441"><ph name="BEGIN_BOLD" />Como usamos estes datos?<ph name="END_BOLD" /> Chrome detecta temas de interese mentres navegas. As etiquetas dos temas están predefinidas e inclúen categorías como Arte e entretemento, Compras ou Deportes. Máis tarde, os sitios que visites poderán solicitarlle información a Chrome sobre algúns dos teus temas (non así o teu historial de navegación) para personalizar os anuncios que se che mostren.</translation>
 <translation id="1746113442205726301">Desprazamento da imaxe no eixe Y</translation>
 <translation id="1746531169546376413">0 graos</translation>
@@ -495,7 +496,6 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="1778646502362731194">JIS B0</translation>
 <translation id="1785118555253503473">Queres instalar aplicacións web?</translation>
 <translation id="1791044335740781449">Cargando ficheiro en Google Drive</translation>
-<translation id="1791415068765905273">Mostrar todas as táboas de comparación</translation>
 <translation id="1791820510173628507"><ph name="MANAGE_GOOGLE_ACCOUNT_FOCUSED_FRIENDLY_MATCH_TEXT" />. Preme Tabulador e, a continuación, Introducir para xestionar a información, a privacidade e a seguranza na túa Conta de Google</translation>
 <translation id="1793631236004319016">Utilizouse por última vez hai <ph name="NUM_HOURS_MINUTES_SECONDS" /></translation>
 <translation id="1798447301915465742"><ph name="MULTIPLE_ACTIONS_FOCUSED_FRIENDLY_MATCH_TEXT" />. Hai varias accións dispoñibles; para desprazarte por elas, preme Tab</translation>
@@ -744,7 +744,6 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="2188375229972301266">Varias perforacións na parte inferior</translation>
 <translation id="218940509700321686">Valores separados por comas</translation>
 <translation id="2191980191135734720">Desbloquea a pantalla no seguinte paso, normalmente coa túa impresión dixital. Tamén podes <ph name="LINK_TEXT" />.</translation>
-<translation id="2194856509914051091">Cuestións que se deben ter en conta</translation>
 <translation id="2198183835992354675">Número de viaxeiro coñecido</translation>
 <translation id="2198215508485017216">Produciuse un erro inesperado. <ph name="BEGIN_LINK" />Máis información sobre as cargas de Drive<ph name="END_LINK" /></translation>
 <translation id="2200678913752027654">Botón Non me gusta. Preme Introducir para abrir un formulario e enviar comentarios detallados sobre o motivo polo que non che gusta esta suxestión</translation>
@@ -762,7 +761,6 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="2215539479425228550">Escalada e montañismo</translation>
 <translation id="2215727959747642672">Modificación de ficheiros</translation>
 <translation id="2215963164070968490">Cans</translation>
-<translation id="2219376942605837404">Engadir pestana á táboa comparativa</translation>
 <translation id="2219658597883514593">Reiniciar titorial</translation>
 <translation id="2219735899272417925">É necesario restablecer o dispositivo</translation>
 <translation id="2221227930294879156">Eventos de alimentación</translation>
@@ -873,7 +871,6 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="2371084566192454134">Pestanas e grupos de pestanas</translation>
 <translation id="237379235388498999">Gardouse o vídeo en OneDrive</translation>
 <translation id="2374629208601905275">De acordo cunha lei da túa rexión, Chrome pídeche que escollas un buscador predeterminado. Estes buscadores son populares na túa zona e móstranse en orde aleatoria.</translation>
-<translation id="2376455483361831781">Nova táboa</translation>
 <translation id="2377241607395428273">Software de animación e gráficos</translation>
 <translation id="2378084239755710604">Tarxeta de gardado pechada.</translation>
 <translation id="237978325638124213">Perfumes e fragrancias</translation>
@@ -939,6 +936,7 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="24699311393038040">Papel (revestido)</translation>
 <translation id="2471632709106952369">Táboas de comparación</translation>
 <translation id="2473810985261856484">Servizos legais</translation>
+<translation id="2477607419416067650">Outros datos de Google</translation>
 <translation id="2479148705183875116">Ir a Configuración</translation>
 <translation id="2479410451996844060">URL de busca non válido.</translation>
 <translation id="2480300195898055381">Na túa Conta de Google (<ph name="USER_EMAIL" />)</translation>
@@ -993,6 +991,7 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="2552246211866555379">Hagaki</translation>
 <translation id="2552295903035773204">Usar bloqueo de pantalla a partir de agora para confirmar as tarxetas</translation>
 <translation id="2552532158894206888">tecla dereita</translation>
+<translation id="2553352788023127673">O historial de busca e os contrasinais poden eliminarse na súa configuración de xestión</translation>
 <translation id="2553853292994445426">Comproba a configuración do DNS seguro. Poden producirse erros ao conectar co DNS seguro que configurases.</translation>
 <translation id="255497580849974774">Conecta o dispositivo a un cargador durante a actualización.</translation>
 <translation id="2556876185419854533">&amp;Desfacer modificación</translation>
@@ -1124,6 +1123,7 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="2782088940970074970">Alugueiro de coches</translation>
 <translation id="278436560439594386">Electrodomésticos</translation>
 <translation id="2784474685437057136">B5 Extra</translation>
+<translation id="2784540996156451674">O contido da páxina de tramitación da compra compártese con Google para poder ofrecer estas opcións.</translation>
 <translation id="2784949926578158345">Restableceuse a conexión.</translation>
 <translation id="2786008859124691917">Bicicletas e accesorios</translation>
 <translation id="2792012897584536778">Os administradores deste dispositivo configuraron certificados de seguranza que poden permitirlles ver o contido dos sitios web que visitas.</translation>
@@ -1216,13 +1216,11 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="2954624054936281172">Táboa cos métodos de pago gardados</translation>
 <translation id="295526156371527179">Advertencia: Esta política non se combinou como un dicionario do xeito especificado na política porque non é un dicionario.</translation>
 <translation id="2955913368246107853">Pecha a barra de busca</translation>
-<translation id="2956070106555335453">Resumo</translation>
 <translation id="2958544468932521864">Crícket</translation>
 <translation id="2959274854674276289">Cociña vexetariana</translation>
 <translation id="2961809451460302960">Seguros de vida</translation>
 <translation id="2962073860865348475">12 × 18 in</translation>
 <translation id="2965779286557330949">Só uns segundiños máis...</translation>
-<translation id="2967082089043584472">Engadiuse a <ph name="SET" /></translation>
 <translation id="2967098518029543669">gárdao na túa Conta de Google</translation>
 <translation id="297173220375858963">Autoedición</translation>
 <translation id="2972581237482394796">&amp;Refacer</translation>
@@ -1231,7 +1229,6 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="2977665033722899841"><ph name="ROW_NAME" />: opción actualmente seleccionada. <ph name="ROW_CONTENT" /></translation>
 <translation id="2978824962390592855">Ópera</translation>
 <translation id="2979424420072875974">Recursos para escritores</translation>
-<translation id="2979639724566107830">Abre o marcador nunha ventá nova</translation>
 <translation id="2980742331521553164">O CVC desta tarxeta encriptarase e gardarase na túa Conta de Google para que a tramitación das compras sexa máis rápida</translation>
 <translation id="2983311431122838216">Preguntar co modo IA na Busca de Google</translation>
 <translation id="2983666748527428214">Abrir pestana do modo de incógnito</translation>
@@ -1280,13 +1277,13 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="3052868890529250114">Adoitas conectarte a este sitio web de maneira segura, pero desta vez Chrome non puido usar unha conexión segura. É posible que un atacante estea tentando espiar ou modificar a túa conexión de rede. <ph name="BEGIN_LEARN_MORE_LINK" />Máis información sobre esta advertencia<ph name="END_LEARN_MORE_LINK" /></translation>
 <translation id="3052964831964880138">Baixada de prezo de <ph name="PRICE_DROP" /> no seguinte produto: <ph name="PRODUCT_NAME" /></translation>
 <translation id="3056660797732519147">Pantalla de erro de pago aprazado. Teclado oculto.</translation>
+<translation id="3057844102210575426">Xestionar información de viaxes</translation>
 <translation id="3061707000357573562">Servizo de parche</translation>
 <translation id="3062655045399308513">Eliminar datos de navegación…</translation>
 <translation id="3063453392496098461">Produciuse un erro na instalación dos servizos en segundo plano de VPN.</translation>
 <translation id="306573536155379004">Comezou a partida.</translation>
 <translation id="3067505415088964188">Prezo baixo</translation>
 <translation id="3068118691172921711">A carga de ficheiros en <ph name="CLOUD_PROVIDER" /> comezará dentro dun minuto</translation>
-<translation id="3074671422612537810">{ITEMS,plural, =1{{ITEMS} artigo}other{{ITEMS} artigos}}</translation>
 <translation id="3076865167425975822">Sistemas operativos</translation>
 <translation id="3080254622891793721">Libro gráfico</translation>
 <translation id="3082007635241601060">Permite que Google use os teus carros para atopar descontos personalizados cando haxa algún dispoñible</translation>
@@ -1304,7 +1301,6 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="3099619114405539473">Usar as cámaras dispoñibles (<ph name="CAMERAS_COUNT" />)</translation>
 <translation id="3102312643185441063">Aforros</translation>
 <translation id="3103188521861412364">Accións e bonos</translation>
-<translation id="3103535543639438037">Compara produtos similares en paralelo</translation>
 <translation id="3105172416063519923">Código de identificación do recurso:</translation>
 <translation id="3107591622054137333"><ph name="BEGIN_LINK" />Comprobar a configuración do DNS seguro<ph name="END_LINK" /></translation>
 <translation id="3108943290502734357">Bandexa central</translation>
@@ -1409,7 +1405,6 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="3248329428895535435">Non mostrar neste sitio</translation>
 <translation id="3249102948665905108">Completouse a carga do ficheiro en <ph name="CLOUD_PROVIDER" /> con erros</translation>
 <translation id="3252772880526154546">Arquitectura</translation>
-<translation id="3253225298092156258">Non dispoñible</translation>
 <translation id="3254301855501243548">18 x 22 polgadas</translation>
 <translation id="3255926992597692024">Chromium está tentando modificar a configuración para completar os métodos de pago.</translation>
 <translation id="3259648571731540213"><ph name="CREATE_GOOGLE_CALENDAR_EVENT_FOCUSED_FRIENDLY_MATCH_TEXT" />. Preme Tabulador e, a continuación, Introducir para crear rapidamente un novo evento en Google Calendar</translation>
@@ -1495,8 +1490,8 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="3402261774528610252">A conexión coa que se cargou este sitio utilizou TLS 1.0 ou TLS 1.1, as cales son versións obsoletas que se desactivarán no futuro. Cando se desactiven, evitarase que os usuarios carguen este sitio. O servidor debería activar TLS 1.2 ou unha versión superior.</translation>
 <translation id="3405664148539009465">Personalizar tipos de letra</translation>
 <translation id="3407789382767355356">inicio de sesión de terceiros</translation>
-<translation id="340924996148642843">A función de comparación non está dispoñible neste momento</translation>
 <translation id="3409896703495473338">Xestionar configuración de seguranza</translation>
+<translation id="3410151451624226773">Xestiona estes elementos no xestor de contrasinais de Google</translation>
 <translation id="3411091017011773343">Cargar dentro de <ph name="HOURS" /> h</translation>
 <translation id="341134412449102894">A túa información está gardada en <ph name="IDS_AUTOFILL_GOOGLE_WALLET_TITLE" /> (<ph name="ACCOUNT" />)</translation>
 <translation id="3413466783792948876">Se estás usando unha rede pública, á opción máis segura é que entres neste sitio noutro momento. As redes de confianza, como a wifi da casa ou do traballo, supoñen menos riscos.</translation>
@@ -1588,6 +1583,7 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="3549904448933807997">Información dos navegadores e perfís (incluídos os persoais e de traballo)</translation>
 <translation id="3552155506104542239">Advertencia: Esta política está en conflito con <ph name="POLICY_NAME" />, polo que non terá ningún efecto nas aplicacións para Android. Polo resto, funciona do xeito previsto.</translation>
 <translation id="3552297013052089404">Tipo de letra sen serifas</translation>
+<translation id="3558335486599406178">O IBAN gardouse en Google Wallet</translation>
 <translation id="3558573058928565255">Hora do día</translation>
 <translation id="3559897352860026926">Pídelle á persoa administradora da túa conta que verifique as opcións de configuración de <ph name="CLOUD_PROVIDER" />.</translation>
 <translation id="3560824484345057728">Ver sitios relacionados</translation>
@@ -1600,7 +1596,6 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="3567901620846335314">100 x 150 mm</translation>
 <translation id="3568886473829759308">Acceder ao sitio web para consultar a información, os recursos ou os servizos que fornece a empresa.</translation>
 <translation id="3570079787344939099">Desprazamento e zoom</translation>
-<translation id="357244642999988503">Quitar columna</translation>
 <translation id="3574305903863751447"><ph name="CITY" />, <ph name="STATE" /> <ph name="COUNTRY" /></translation>
 <translation id="3574520980813687946">Engadir información nova ao enderezo</translation>
 <translation id="3575121482199441727">Permitir para este sitio</translation>
@@ -1622,7 +1617,6 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="3587738293690942763">Medio</translation>
 <translation id="3589519427766620380">Pregúntalle a Google Lens acerca desta páxina</translation>
 <translation id="3596918995172292499">Estado da matrícula</translation>
-<translation id="3600106876108433070">Máis información sobre as táboas de comparación</translation>
 <translation id="3600246354004376029"><ph name="TITLE" />, <ph name="DOMAIN" />, <ph name="TIME" /></translation>
 <translation id="3600492954573979888">Botón para xestionar a configuración de privacidade de Google. Actívao para acceder á configuración de privacidade da túa Conta de Google</translation>
 <translation id="3603507503523709">O administrador bloqueou a aplicación</translation>
@@ -1637,6 +1631,7 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="3615309852743236517">Manicuras e pedicuras</translation>
 <translation id="3620034424637552643">É a que se adoita usar para as indicacións ou as entregas, entre outras cousas</translation>
 <translation id="3620239073311576716">Uniformes e roupa de traballo</translation>
+<translation id="3620865353340165509">Este IBAN non se puido gardar en Google Wallet. En lugar diso, gardouse en Chrome neste dispositivo. Chrome preguntarache de novo a próxima vez que o uses.</translation>
 <translation id="3621401353678567613">Para recibir alertas se baixan os prezos dos produtos dos que fas un seguimento, activa as notificacións na configuración.</translation>
 <translation id="362276910939193118">Mostrar historial completo</translation>
 <translation id="3623041590998910684">Para usar a cámara, concédelle acceso a Chrome en <ph name="LINK" />.</translation>
@@ -1668,6 +1663,7 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="365641980390710834">Roupa informal</translation>
 <translation id="3658742229777143148">Revisión</translation>
 <translation id="3659521826520353662">Que sitios web definidos pola persoa administradora se visitan e cando: <ph name="ALLOWLISTED_WEBSITES" /></translation>
+<translation id="3662040827609932717">Este IBAN gardouse en Google Wallet para que poidas usalo nos servizos de Google.</translation>
 <translation id="3664479564786885722">Busca máis opcións de compra noutras tendas nas que se venda este produto.</translation>
 <translation id="3664782872746246217">Palabras clave:</translation>
 <translation id="3665806835792525231"><ph name="BEGIN_LINK1" />Máis información<ph name="LINK_END1" /></translation>
@@ -1722,6 +1718,7 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="3727309136762649052">Espazo do nome</translation>
 <translation id="3727850735097852673">Para poder usar o xestor de contrasinais de Google con Keychain de macOS, reinicia Chrome e dálle acceso a Keychain. Despois do reinicio volverán abrirse as pestanas.</translation>
 <translation id="3728173127485570463">O navegador Chrome xa non necesitará a túa impresión dixital para autocompletar os contrasinais</translation>
+<translation id="3736564442532774454">O navegador Chrome está tentando completar a túa información confidencial en <ph name="APP_NAME" />.</translation>
 <translation id="3738166223076830879">O teu administrador xestiona o teu navegador.</translation>
 <translation id="3739842843727261045">Coa opción Gústame indicas que che gustan estes resultados</translation>
 <translation id="3740447166056383374">Cómpre revisar os ficheiros antes de copialos</translation>
@@ -1817,7 +1814,6 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="388632593194507180">Detectouse a supervisión</translation>
 <translation id="3886948180919384617">Amontoador 3</translation>
 <translation id="3890664840433101773">Engadir correo electrónico</translation>
-<translation id="3891414008432200754">Prezo</translation>
 <translation id="3897092660631435901">Menú</translation>
 <translation id="3901925938762663762">A tarxeta caducou</translation>
 <translation id="390391808978419508">Esgotouse o tempo de espera para a apertura</translation>
@@ -1875,7 +1871,6 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="399179161741278232">Importados</translation>
 <translation id="3992684624889376114">Acerca desta páxina</translation>
 <translation id="3995639283717357522">Aplicar políticas</translation>
-<translation id="3996683183117168945">Cita <ph name="CURRENT_CITATION" /> de <ph name="MAX_CITATIONS" />, <ph name="PRODUCT_NAME" />, <ph name="URL" />. <ph name="PAGE_TITLE" />. <ph name="PAGE_PREVIEW" />.</translation>
 <translation id="399754345297554962">Probas estandarizadas e de admisión</translation>
 <translation id="3999173941208168054">Películas de terror</translation>
 <translation id="4000598935132966791">Máis información sobre as restricións de acceso a sitios nos navegadores xestionados</translation>
@@ -1918,6 +1913,7 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="4061573458783426621">Non se puido gardar o escaneamento en OneDrive</translation>
 <translation id="4063063121357725926">Permite que Google te axude a atopar descontos para os teus carros</translation>
 <translation id="406358100705415968">Equipos de protección no traballo</translation>
+<translation id="4065429683324339709">Google Chrome quere verificar a túa identidade antes de que cambies a configuración</translation>
 <translation id="4065659219963895623">Restaurantes</translation>
 <translation id="4067774859633143413">Para saír da pantalla completa e ver a descarga, mantén premido |<ph name="ACCELERATOR" />|</translation>
 <translation id="4067947977115446013">Engade un enderezo válido</translation>
@@ -1933,7 +1929,6 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="4082393374666368382">Configuración - Xestión</translation>
 <translation id="4084219288110917128">Sobre C1</translation>
 <translation id="4085326869263783566">Axúdame a escribir. Preme Tabulador e Introducir para abrir a función</translation>
-<translation id="4085769736382018559">Compara produtos</translation>
 <translation id="4085778582400064057">Azul 2</translation>
 <translation id="4085859451613666999">A tarxeta está gardada na túa Conta de Google, polo que podes autocompletar a súa información para futuras compras</translation>
 <translation id="4088981014127559358">Desprazamento do lado 1 da imaxe no eixe Y</translation>
@@ -1986,7 +1981,6 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="4153446078232988116"><ph name="SITE" /> non admite unha conexión segura con HTTPS</translation>
 <translation id="4153858337812834972">Pestanas máis recentes</translation>
 <translation id="4154277373259957087">Chrome agora verificará a túa identidade antes de completar os métodos de pago. Podes actualizar esta opción en calquera momento en <ph name="IDS_AUTOFILL_MANDATORY_REAUTH_CONFIRMATION_SETTINGS_LINK" />.</translation>
-<translation id="415440494507469262">Engadir pestana á táboa comparativa</translation>
 <translation id="4159784952369912983">Púrpura</translation>
 <translation id="4165422751765527461">Abrir un artigo do Centro de axuda nunha nova pestana</translation>
 <translation id="4165986682804962316">Configuración do sitio</translation>
@@ -2014,6 +2008,7 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="4203769790323223880">O acceso á cámara non está permitido</translation>
 <translation id="4203896806696719780"><ph name="BEGIN_LINK" />Comprobar a configuración do firewall e do antivirus<ph name="END_LINK" /></translation>
 <translation id="4207195957038009075">Google Drive</translation>
+<translation id="4208390505124702064">Buscar en <ph name="SITE_NAME" /></translation>
 <translation id="4209092469652827314">Grande</translation>
 <translation id="4210602799576081649">O código de verificación está caducado. Solicita un novo</translation>
 <translation id="421066178035138955">Utilizar datos e dispositivos de realidade virtual</translation>
@@ -2070,6 +2065,7 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="4270541775497538019">Amontoador 6</translation>
 <translation id="4271311252511481365">{NUM_REVIEWS,plural, =0{Ver 0 recensións. A valoración media é de <ph name="STARS" /> estrelas.}=1{Ver 1 recensión. A valoración media é de <ph name="STARS" /> estrela.}other{Ver as # recensións. A valoración media é de <ph name="STARS" /> estrelas.}}</translation>
 <translation id="4271652479722040953">Cando se engaden extensións a Chrome, envíanse datos relevantes sobre elas a terceiros para a súa análise. É posible que a persoa administradora poida velos. Os devanditos datos inclúen información sobre as extensións, como o nome, a hora de instalación, a fonte da instalación e a actividade asociada a elas (por exemplo, cambiar de pestana, contactar con sitios web ou acceder ás cookies), e recompílanse tanto para as extensións instaladas desde Chrome Web Store como para as que non pertenzan á tenda.</translation>
+<translation id="4275788652681621337">Pechar o panel lateral</translation>
 <translation id="4275830172053184480">Reinicia o dispositivo</translation>
 <translation id="4276974990916607331">Non, grazas</translation>
 <translation id="4277028893293644418">Restablecer contrasinal</translation>
@@ -2127,7 +2123,6 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="4340810192899866471">Importar desde JSON</translation>
 <translation id="4340982228985273705">Non se detectou que unha empresa xestione este ordenador, polo que a política só pode instalar automaticamente extensións aloxadas en Chrome Webstore. O URL de actualización de Chrome Webstore é <ph name="CWS_UPDATE_URL" />.</translation>
 <translation id="4342742994656318294">Parques temáticos</translation>
-<translation id="4344072791302852930">Engadir unha pestana</translation>
 <translation id="4348834659292907206">A conexión a <ph name="SITE" /> non é segura</translation>
 <translation id="4349365535725594680">Non se pode compartir contido confidencial</translation>
 <translation id="4349810866125026513">Cargar igualmente</translation>
@@ -2158,23 +2153,24 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="4406883609789734330">Subtítulos instantáneos</translation>
 <translation id="4406896451731180161">Resultados da busca</translation>
 <translation id="4407758156081352648">Para manter a seguranza, a túa organización non permite que se reutilicen contrasinais en Chrome. Os contrasinais de Chrome están encriptados para protexer a privacidade do usuario.</translation>
+<translation id="4409271659088619928">O teu motor de busca é <ph name="DSE" />. En caso aplicable, consulta as súas instrucións para eliminar o historial de busca.</translation>
 <translation id="4409556632583862731">Novo fío de mensaxes</translation>
 <translation id="4412074349188076601">Esta configuración está marcada como instalable, pero como non hai ningunha imaxe dispoñible para esta arquitectura, non se pode instalar.</translation>
 <translation id="4412377069090572315">O que di a xente</translation>
 <translation id="4414515549596849729">cookies e datos dos sitios</translation>
 <translation id="4415156962929755728">Plástico (brillo intenso)</translation>
 <translation id="4415426530740016218">Enderezo de recollida</translation>
+<translation id="4419287616181386201">Os contrasinais poden eliminarse na configuración de xestión correspondente</translation>
 <translation id="4424024547088906515">Este servidor non puido demostrar que é <ph name="DOMAIN" /> porque Chrome non confía no seu certificado de seguranza. É posible que isto se deba a un erro de configuración ou a que un atacante interceptase a túa conexión.</translation>
 <translation id="4425750422187370446">Roupa deportiva</translation>
 <translation id="443121186588148776">Porto en serie</translation>
 <translation id="4432688616882109544"><ph name="HOST_NAME" /> non aceptou o teu certificado de inicio de sesión ou ben este non se proporcionou.</translation>
 <translation id="4432792777822557199">As páxinas en <ph name="SOURCE_LANGUAGE" /> traduciranse ao <ph name="TARGET_LANGUAGE" /> a partir de agora</translation>
-<translation id="4433642172056592619">Ignorouse porque o usuario non está vinculado á xestión de dispositivos ou porque o dispositivo non está xestionado.</translation>
+<translation id="4433642172056592619">Ignorouse porque o usuario non está afiliado á xestión de dispositivos ou porque o dispositivo non está xestionado.</translation>
 <translation id="4434017585895599560">Alugueiro residencial</translation>
 <translation id="4434045419905280838">Ventás emerxentes e redireccións</translation>
 <translation id="443673843213245140">O uso dun proxy está desactivado, pero especifícase unha configuración de proxy explícita.</translation>
 <translation id="4438821706955556403">Prezo habitual</translation>
-<translation id="444116852243722675">Abrir todos os URL (<ph name="ITEMS" />)</translation>
 <translation id="4441832193888514600">Ignorada porque a política só se pode configurar como unha política de usuario da nube.</translation>
 <translation id="4445133368066241428">Temas populares</translation>
 <translation id="4445694043187340808"><ph name="STARTER_PACK_TABS_FOCUSED_FRIENDLY_MATCH_TEXT" />, preme Introducir para facer buscas nas pestanas</translation>
@@ -2205,7 +2201,6 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="4497010149473852018">Lista de tarxetas de fidelidade dispoñibles que se completarán cun toque. Teclado oculto.</translation>
 <translation id="4500587658229086076">contido inseguro</translation>
 <translation id="4504850595255879616"><ph name="ENGINE" /> persoas</translation>
-<translation id="450602096898954067">Para mellorar esta función, pode que os datos os vexan membros do equipo de revisión</translation>
 <translation id="4506176782989081258">Erro de validación: <ph name="VALIDATION_ERROR" /></translation>
 <translation id="4506599922270137252">Poñerte en contacto coa persoa que administra o sistema</translation>
 <translation id="450710068430902550">Compartindo co administrador</translation>
@@ -2227,20 +2222,19 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="4528888973346221791">Información do perfil de traballo (por exemplo, o nome de usuario)</translation>
 <translation id="4530347922939905757">Mensaxe de texto</translation>
 <translation id="4531477351494678589">Número de tarxeta virtual:</translation>
+<translation id="4534145890176164066">Chromium entenderá mellor o contido dos formularios e poderá completalos automaticamente máis rápido</translation>
 <translation id="4535523368173457420">Estes buscadores son populares na túa zona e móstranse en orde aleatoria</translation>
 <translation id="4535602490975885745">Non se puido gardar a foto en OneDrive</translation>
 <translation id="4539931187424170595">{NUM_YEARS,plural, =1{Creouse hai 1 ano}other{Creouse hai {NUM_YEARS} anos}}</translation>
 <translation id="4541810033354695636">realidade aumentada</translation>
 <translation id="4542971377163063093">Bandexa 6</translation>
 <translation id="4543072026714825470">Para pagar máis rápido a próxima vez, garda a tarxeta e o enderezo de facturación na túa Conta de Google</translation>
-<translation id="454441086898495030">Engadir a <ph name="SET" />?</translation>
 <translation id="4546730006268514143">Esgotouse o tempo de espera para a transferencia</translation>
 <translation id="4548974025982531828">{NUM_DAYS,plural, =1{Creouse hai 1 día}other{Creouse hai {NUM_DAYS} días}}</translation>
 <translation id="455113658016510503">A9</translation>
 <translation id="4556069465387849460">Estás usando o bloqueo de pantalla para completar contrasinais</translation>
 <translation id="4557573143631562971">Seguros do fogar</translation>
 <translation id="4558551763791394412">Proba a desactivar as extensións.</translation>
-<translation id="4562155266774382038">Ignorar suxestión</translation>
 <translation id="4566017918361049074">Aire libre</translation>
 <translation id="4569155249847375786">Verificada</translation>
 <translation id="4570008401337135432">Aliñamento do texto</translation>
@@ -2345,7 +2339,6 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="4744603770635761495">Ruta executable</translation>
 <translation id="4744816391336495134">Podes usar a impresión dixital para verificar a túa identidade cando uses un contrasinal gardado</translation>
 <translation id="4749011317274908093">Pasaches ao modo de incógnito</translation>
-<translation id="4750394297954878236">Suxestións</translation>
 <translation id="4750671009706599284">este teléfono</translation>
 <translation id="4750917950439032686">A túa información (por exemplo, os contrasinais ou os números da tarxeta de crédito) mantense en privado cando se envía a este sitio.</translation>
 <translation id="4751249061288707459">Última actualización do consentimento:</translation>
@@ -2401,7 +2394,6 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="4825496307559726072"><ph name="CREATE_GOOGLE_SHEET_FOCUSED_FRIENDLY_MATCH_TEXT" />. Preme Tabulador e, a continuación, Introducir para crear rapidamente unha nova folla de cálculo de Google</translation>
 <translation id="4826588772550366629">cámara e micrófono</translation>
 <translation id="4827283332383516812">Eliminar a tarxeta</translation>
-<translation id="4830443836091007686">Elementos seleccionados: <ph name="ITEMS" /></translation>
 <translation id="4831993743164297314">Papel de filmadora</translation>
 <translation id="4832388034239846146">Para compartir grupos de pestanas, actualiza Chrome</translation>
 <translation id="483241715238664915">Activar advertencias</translation>
@@ -2438,6 +2430,7 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="4882314601499260499">Non se aplicou ningunha política de usuario. Para engadir políticas de usuario, a túa organización debe <ph name="LINK_BEGIN" />verificar o dominio<ph name="LINK_END" />.</translation>
 <translation id="4885030148564729407">Lúas de mel e escapadas románticas</translation>
 <translation id="4885256590493466218">Paga con <ph name="CARD_DETAIL" /> ao procesar a compra</translation>
+<translation id="4886565443854420066">O navegador Chrome quere verificar a túa identidade antes de que cambies a configuración</translation>
 <translation id="4887406273302438710">Protexe os contrasinais con Windows Hello</translation>
 <translation id="4891425819480327855"><ph name="CLEAR_BROWSING_DATA_FOCUSED_FRIENDLY_MATCH_TEXT" />. Preme Tabulador e, a continuación, Introducir para eliminar o historial de navegación, as cookies, a memoria caché e outros datos desde a configuración de Chrome</translation>
 <translation id="4892518386797173871">Traseira</translation>
@@ -2460,7 +2453,6 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="4918221908152712722">Instala a aplicación <ph name="APP_NAME" /> (non require descarga)</translation>
 <translation id="4920457992177678649">Alugueiro vacacional e de curta estancia</translation>
 <translation id="4920710383559189047">Funda</translation>
-<translation id="4920921410507315601">Táboas de comparación</translation>
 <translation id="4922104989726031751">Para poder usar o xestor de contrasinais co teu sistema operativo, reinicia Chromium e permite o acceso ao xestor de contrasinais do teu ordenador. Despois do reinicio volverán abrirse as pestanas.</translation>
 <translation id="4923459931733593730">Pago</translation>
 <translation id="4926049483395192435">Debe especificarse.</translation>
@@ -2482,6 +2474,7 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="4950898438188848926">Botón de cambio de pestana, preme Intro para cambiar á pestana aberta, <ph name="TAB_SWITCH_FOCUSED_FRIENDLY_MATCH_TEXT" /></translation>
 <translation id="495170559598752135">Accións</translation>
 <translation id="4953689047182316270">Responder a eventos de accesibilidade</translation>
+<translation id="4954891067389874142">Garda a tarxeta para pagar máis rápido. Os seus detalles encríptanse en Google Wallet.</translation>
 <translation id="4957080528849277028">Botón para ver o historial de Chrome. Actívao para consultar e xestionar o historial de navegación na configuración de Chrome</translation>
 <translation id="4957781475307065660">{DOMAIN_COUNT,plural, =1{e 1 sitio máis}other{e # sitios máis}}</translation>
 <translation id="4958444002117714549">Ampliar lista</translation>
@@ -2529,7 +2522,6 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="5026466266082155886"><ph name="STARTER_PACK_HISTORY_FOCUSED_FRIENDLY_MATCH_TEXT" />, preme Introducir para facer buscas no historial</translation>
 <translation id="5030338702439866405">Emitido por</translation>
 <translation id="503069730517007720">Precísase un certificado raíz para <ph name="SOFTWARE_NAME" />, pero non está instalado. O teu administrador de TI debe comprobar as instrucións de configuración de <ph name="SOFTWARE_NAME" /> para solucionar este problema. <ph name="FURTHER_EXPLANATION" /></translation>
-<translation id="5034930251282078640">Queres engadila á comparación?</translation>
 <translation id="503498442187459473">O host <ph name="HOST" /> quere utilizar a túa cámara e o micrófono</translation>
 <translation id="5035135400558156732">Xardinaxe</translation>
 <translation id="503574301575803523">SRA3</translation>
@@ -2561,7 +2553,6 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="5087580092889165836">Engadir tarxeta</translation>
 <translation id="5088142053160410913">Mensaxe para o operador</translation>
 <translation id="5089810972385038852">Estado</translation>
-<translation id="5090647584136241764">Engade pestanas con produtos similares para comparar facilmente os detalles que máis che interesen</translation>
 <translation id="5093232627742069661">Dobrez en Z</translation>
 <translation id="5093417502834168387">Tes problemas para iniciar sesión? Proba con outro método</translation>
 <translation id="5094747076828555589">Este servidor non puido demostrar que é <ph name="DOMAIN" /> porque Chromium non confía no seu certificado de seguranza. É posible que isto se deba a un erro de configuración ou a que un atacante interceptase a túa conexión.</translation>
@@ -2569,6 +2560,7 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="5097468150760963273">27 × 39 in</translation>
 <translation id="5097501891273180634">A2</translation>
 <translation id="5102512728737175215">Preme Tabulador e, a continuación, Introducir para facer preguntas co modo IA</translation>
+<translation id="5105442806410269908">Xestionar outros datos de Google</translation>
 <translation id="510644072453496781">Cartón (final)</translation>
 <translation id="5106648964679263509">Completouse a tarxeta virtual de <ph name="BNPL_ISSUER_NAME" /></translation>
 <translation id="5108567515277121477">Tarxeta de fidelidade</translation>
@@ -2637,6 +2629,7 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="5209670883520018268">Bandexa 20</translation>
 <translation id="5212364581680288382">Motociclismo</translation>
 <translation id="5214542134842513912">Selecciona as categorías amplas de temas que se poden usar para axudar a personalizar os anuncios. Se desactivas unha, bloquearanse os temas relacionados.</translation>
+<translation id="52163492208010719">Xestionar documentos de identidade</translation>
 <translation id="521659676233207110">Bandexa 13</translation>
 <translation id="5216942107514965959">Visitouse hoxe por última vez</translation>
 <translation id="5217759126664161410">O formato de protocolo non é válido.</translation>
@@ -2700,7 +2693,6 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="5307166000025436103">Válido</translation>
 <translation id="5308380583665731573">Conectar</translation>
 <translation id="5308689395849655368">Os informes de erros están desactivados.</translation>
-<translation id="5309562313526658209">Iniciar a navegación</translation>
 <translation id="5314967030527622926">Creador de folletos</translation>
 <translation id="5316812925700871227">Xirar á esquerda</translation>
 <translation id="5317780077021120954">Gardar</translation>
@@ -2708,6 +2700,7 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="531996107159483074"><ph name="BEGIN_BOLD" />O teu buscador predeterminado permíteche procurar información na Web e potencia as funcións de Chromium<ph name="END_BOLD" />, como a busca desde a barra de enderezos e a partir de imaxes de páxinas web. Pode que algunha función non estea dispoñible se o buscador non a admite.</translation>
 <translation id="5323043727018853753">O contido inserido está permitido</translation>
 <translation id="5323105697514565458"><ph name="FRIENDLY_MATCH_TEXT" />, <ph name="MATCH_POSITION" /> de <ph name="NUM_MATCHES" /></translation>
+<translation id="5323501626199324454">Xestionar na túa Conta de Google</translation>
 <translation id="5327248766486351172">Nome</translation>
 <translation id="5329858041417644019">O teu navegador non está xestionado</translation>
 <translation id="5331585574693522196">Establecer como predeterminado</translation>
@@ -2721,6 +2714,7 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="5344522958567249764">Xestionar privacidade nos anuncios</translation>
 <translation id="5344579389779391559">Esta páxina pode tentar aplicar cargos</translation>
 <translation id="5345249337934847112">Papel (revestido, alta gramaxe)</translation>
+<translation id="5346059693449184483">En que pensas?</translation>
 <translation id="5348330584842140856">Este ficheiro non se moveu porque xa non existe</translation>
 <translation id="5349543692327946794">Etiquetas (inxección de tinta)</translation>
 <translation id="5351548097010183514">Materiais de construción e subministracións</translation>
@@ -2751,6 +2745,7 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="5394069166371280357">Series para a familia</translation>
 <translation id="5396631636586785122">Grampa no bordo dereito</translation>
 <translation id="5397794290049113714">Ti</translation>
+<translation id="5398461103557553443">Para que a próxima vez se autocomplete este IBAN, gárdao en Google Wallet</translation>
 <translation id="5398772614898833570">Bloqueáronse os anuncios</translation>
 <translation id="5400836586163650660">Gris</translation>
 <translation id="5401344472773249513">Noticias de famosos e lecer</translation>
@@ -2778,6 +2773,7 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
             <ph name="LIST_ITEM" />As cookies e os datos dos sitios
             <ph name="LIST_ITEM" />A información que puxeses en formularios
           <ph name="END_LIST" /></translation>
+<translation id="5434803328547504573">Para tramitar as compras máis rápido, garda este CVC en Google Wallet (<ph name="ACCOUNT_EMAIL" />)</translation>
 <translation id="5436307623797390637">Aplicacións instaladas no dispositivo</translation>
 <translation id="5443468954631487277">Orde inversa cara arriba</translation>
 <translation id="5447235695608032700">Permitir que <ph name="SITE" /> use a información que gardase sobre ti</translation>
@@ -2876,6 +2872,7 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="5578606540385219379">Provedores de servizos</translation>
 <translation id="5580958916614886209">Comproba o mes de caducidade e téntao de novo</translation>
 <translation id="5583442610070676234">Máis accións aplicables á táboa de comparación <ph name="COMPARE_SET_NAME" /></translation>
+<translation id="55841966151154662">Este IBAN non se puido gardar en Google Wallet. En lugar diso, gardouse en Chrome neste dispositivo.</translation>
 <translation id="558420943003240152">Xestionar contrasinais e claves de acceso…</translation>
 <translation id="5586446728396275693">Non hai enderezos gardados</translation>
 <translation id="5586831831248371458">Busca <ph name="KEYWORD_SUFFIX" /></translation>
@@ -2896,7 +2893,6 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="561165882404867731">Traducir esta páxina co Tradutor de Google</translation>
 <translation id="5612720917913232150">O URL <ph name="URL" /> quere utilizar a localización do teu ordenador</translation>
 <translation id="5614520971155863709">Xogos de cartas</translation>
-<translation id="5617785978844309968">Mostrar todas as táboas de comparación</translation>
 <translation id="5617949217645503996"><ph name="HOST_NAME" /> redireccionoute demasiadas veces.</translation>
 <translation id="5619721953841297650">Opción de configuración predeterminada</translation>
 <translation id="5624120631404540903">Xestionar contrasinais</translation>
@@ -2908,6 +2904,7 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="563324245173044180">Bloqueouse contido enganoso.</translation>
 <translation id="563371367637259496">Móbil</translation>
 <translation id="5635478143789726479">Termos e condicións do vendedor</translation>
+<translation id="5640474731385449758">A extensión <ph name="EXTENSION_NAME" /> quere abrir ligazóns de <ph name="PROTOCOL" /> en <ph name="ORIGIN" /> a través de <ph name="HANDLER_HOSTNAME" /></translation>
 <translation id="5642362243427711530"><ph name="FIRST_STRING" />. <ph name="SECOND_STRING" /></translation>
 <translation id="5642411781689336699">Compoñentes e equipos de música</translation>
 <translation id="5644090287519800334">Desprazamento do lado 1 da imaxe no eixe X</translation>
@@ -2965,7 +2962,6 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="5730040223043577876">Chrome recoméndache que restablezas o contrasinal se o reutilizaches noutros sitios.</translation>
 <translation id="5732392974455271431">Os teus pais poden desbloquealo por ti</translation>
 <translation id="573555826359077410">Botón para crear un formulario. Actívao para crear rapidamente un formulario de Google</translation>
-<translation id="5737022235680044108">A túa organización bloqueou o acceso a <ph name="HOST_NAME" /> no modo de incógnito.</translation>
 <translation id="5738385766833540397">Xestiona como recibes as alertas de baixada de prezos para os produtos dos que fas un seguimento</translation>
 <translation id="5739619009927381786">Desbloquea a pantalla no seguinte paso, normalmente coa túa impresión dixital. Tamén podes <ph name="BEGIN_LINK" />usar outro método para realizar a verificación<ph name="END_LINK" />.</translation>
 <translation id="573974402615125334">Para compartir grupos de pestanas, unirte a eles e colaborar, sincroniza o teu historial e as pestanas</translation>
@@ -3020,6 +3016,7 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="5843987376989109187">Este idioma aínda non está dispoñible.
     <ph name="BEGIN_LINK" />Máis información<ph name="END_LINK" /></translation>
 <translation id="5847181246682413476">Subministracións eléctricas</translation>
+<translation id="5848445080378515710">Unha vez que revises o pedido, debes iniciar sesión ou crear unha conta de <ph name="BNPL_ISSUER_NAME" />. Esta conta vincularase automaticamente a Google Wallet.</translation>
 <translation id="584902713199270089">Citas e anuncios persoais</translation>
 <translation id="5851548754964597211">Lista de pestanas</translation>
 <translation id="5851868085455377790">Emisor</translation>
@@ -3042,13 +3039,13 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="5880050725127890683">Vai á comprobación de seguranza de Chrome</translation>
 <translation id="5880385758720707152">Autocompleta o enderezo particular e o do traballo desde a túa Conta de Google</translation>
 <translation id="5884465125445718607">Sobre chinés n.º 6</translation>
-<translation id="5886961930368713749">Envía comentarios sobre a función Comparar</translation>
 <translation id="5887400589839399685">Gardouse a tarxeta</translation>
 <translation id="5887687176710214216">Visitouse onte por última vez</translation>
 <translation id="5889251770650310375">Para obter o historial dos teus outros dispositivos, verifica a túa identidade e sincroniza o historial e as pestanas. Podes deter a sincronización cando queiras na configuración. Google pode personalizar a Busca e outros servizos en función do teu historial.</translation>
 <translation id="5890248301649767931">Queres gardar o número Redress?</translation>
 <translation id="5895138241574237353">Reiniciar</translation>
 <translation id="5895187275912066135">Emitido o</translation>
+<translation id="5895694128043506580">Google Chrome está intentando mostrar información confidencial</translation>
 <translation id="5898767305816764989">Botón Gústame. Preme Introducir para enviar comentarios e indicar que che gusta o seguinte: <ph name="THUMBS_UP_SUGGESTION_BUTTON_FOCUSED_FRIENDLY_MATCH_TEXT" /></translation>
 <translation id="5901630391730855834">Amarelo</translation>
 <translation id="5903264686717710770">Título:</translation>
@@ -3075,7 +3072,6 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="5930147475897662863">Activa esta opción de configuración para poder usar Axúdame a escribir</translation>
 <translation id="593102073240001326">Guías, bricolaxe e contido de especialistas</translation>
 <translation id="5932224571077948991">O sitio mostra anuncios enganosos ou intrusivos</translation>
-<translation id="5933597524153120073">Abrir todos os URL (<ph name="ITEMS" />) nunha nova ventá</translation>
 <translation id="5937560539988385583">Traduciuse a páxina</translation>
 <translation id="5938153366081463283">Engadir tarxeta virtual</translation>
 <translation id="5938793338444039872">Troy</translation>
@@ -3111,9 +3107,7 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="5997247540087773573">O contrasinal que acabas de utilizar viuse implicado nunha violación da seguranza dos datos. Para protexer as túas contas, o xestor de contrasinais de Google recomenda que o cambies de inmediato e que comprobes os contrasinais gardados.</translation>
 <translation id="6000528814684428358">Rock duro e progresivo</translation>
 <translation id="6000758707621254961"><ph name="RESULT_COUNT" /> resultados para "<ph name="SEARCH_TEXT" />"</translation>
-<translation id="6001839398155993679">Vamos aló</translation>
 <translation id="6002122790816966947">Os teus dispositivos</translation>
-<translation id="6002968396561884726">Viuse recentemente</translation>
 <translation id="6005188329423473970">Completouse a instalación dos servizos en segundo plano de VPN. Se non ves aplicacións de VPN, pecha a sesión e volve iniciala.</translation>
 <translation id="6005659677094197001">Continuo</translation>
 <translation id="6005765687956866568">Borrouse do formulario a información completada automaticamente</translation>
@@ -3174,6 +3168,7 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="6085149458302186532">Etiquetas (de cores)</translation>
 <translation id="6087312102907839798">Buscas relacionadas</translation>
 <translation id="6089505343295765444">As pestanas que elimines do teu historial de Chrome seguirán mostrándose nas táboas de comparación</translation>
+<translation id="6091115085465716987">Logotipo de Google Wallet</translation>
 <translation id="6091691259076781835">Para tramitar as compras máis rápido, garda este CVC no teu dispositivo</translation>
 <translation id="6093599771645355227">Amarelo 1</translation>
 <translation id="6093795393556121384">Verificouse a túa tarxeta</translation>
@@ -3189,7 +3184,6 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="6107012941649240045">Emitido para</translation>
 <translation id="6107864469867367783"><ph name="USER_DISPLAY_NAME" /> cambiou o nome do grupo</translation>
 <translation id="6107924765192360631">Comeza cunhas cantas palabras ou cun primeiro borrador para obter suxestións de escritura.</translation>
-<translation id="6108508372809181847">Comparar <ph name="TABLE_NAME" /></translation>
 <translation id="6108580855199168381">Detalles do certificado</translation>
 <translation id="6108702513636120202">O teu buscador en Chromium</translation>
 <translation id="6108849843016142864">Réptiles e anfibios</translation>
@@ -3266,7 +3260,6 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="6228836011612806720">Recensións sobre a tenda. A valoración media é de <ph name="STARS" /> estrelas.</translation>
 <translation id="6229196330202833460">Reprodución en tempo real de películas e programas de televisión</translation>
 <translation id="6234122620015464377">Recorte despois de cada documento</translation>
-<translation id="6234310016144827337">Comproba a túa conexión e téntao de novo</translation>
 <translation id="6236290670123303279">Xestionar configuración</translation>
 <translation id="623825323736974198">Xestiona os sitios que sempre permanecerán activos e dos que non se liberará memoria</translation>
 <translation id="6240447795304464094">Logotipo de Google Pay</translation>
@@ -3382,7 +3375,6 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="6401136357288658127">Esta política quedou obsoleta. Debes utilizar a política <ph name="NEW_POLICY" />.</translation>
 <translation id="6402537308870515461">Cómpre revisar os ficheiros antes de movelos</translation>
 <translation id="6403167778944553">Dormitorio e baño</translation>
-<translation id="6403434564317313607">Os títulos das pestanas e os URL das páxinas que engadas á táboa enviaranse a Google, gardaranse na túa conta (<ph name="EMAIL" />) e poderán someterse a un proceso de revisión humana para mellorar esta función.</translation>
 <translation id="6404511346730675251">Editar marcador</translation>
 <translation id="6405181733356710802">Queres ir á aplicación <ph name="APP_NAME" />?</translation>
 <translation id="6410264514553301377">Introduce a data de caducidade e o código CVC da tarxeta <ph name="CREDIT_CARD" /></translation>
@@ -3472,7 +3464,6 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="6532101170117367231">Gardar en Google Drive</translation>
 <translation id="6535903140035956341">ficheiros da cámara e descargas</translation>
 <translation id="6536221421038631327">Se quitas unha subscrición a Passpoint do teu dispositivo (<ph name="DEVICE_TYPE" />), quitaranse tamén as redes asociadas. Ponte en contacto con <ph name="FRIENDLY_NAME" /> para facer cambios no teu plan de subscrición. <ph name="LEARN_MORE" /></translation>
-<translation id="653801826293432362">Para que se mostren as táboas de comparación, activa a sincronización</translation>
 <translation id="6539092367496845964">Produciuse un erro. Téntao de novo máis tarde.</translation>
 <translation id="6540488083026747005">Permitiches o uso de cookies de terceiros neste sitio</translation>
 <translation id="6545864417968258051">Busca de dispositivos Bluetooth</translation>
@@ -3490,6 +3481,7 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="6569060085658103619">Estás vendo unha páxina de extensións</translation>
 <translation id="6571992525120410251">Pregúntalle a <ph name="ENGINE_NAME" /> o que queiras</translation>
 <translation id="6573200754375280815">Dúas perforacións na parte dereita</translation>
+<translation id="6573973523249076555">Google Chrome está intentando completar a túa información confidencial en <ph name="APP_NAME" />.</translation>
 <translation id="6575408526598156416">Gardar na conta</translation>
 <translation id="6577792494180292262">Capital risco</translation>
 <translation id="6578434528542148658">O código da extensión non é válido.</translation>
@@ -3522,6 +3514,7 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="6635900375070654124">un dispositivo de autenticación</translation>
 <translation id="6641852376826221947">Confirma a túa compra</translation>
 <translation id="6643016212128521049">Borrar</translation>
+<translation id="6644868143085860957">Esta tarxeta non se puido gardar en Google Wallet. En lugar diso, gardouse en Chrome neste dispositivo.</translation>
 <translation id="6645291930348198241">Acceder ás cookies e aos datos dos sitios.</translation>
 <translation id="6645478838938543427">Enviaranse as alertas de baixada de prezo a<ph name="EMAIL_ADDRESS" /></translation>
 <translation id="6648459603387803038">O teu administrador pode cambiar a configuración do navegador de forma remota. A actividade deste dispositivo tamén se pode xestionar fóra de Chrome.</translation>
@@ -3591,7 +3584,6 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="6734506549556896534">Xogos de simulación</translation>
 <translation id="6737708609449480586">Produtos de pastelaría</translation>
 <translation id="6738516213925468394">Os teus datos encriptáronse coa túa <ph name="BEGIN_LINK" />frase de acceso de sincronización<ph name="END_LINK" /> o <ph name="TIME" />. Introdúcea para comezar a sincronización.</translation>
-<translation id="6739943577740687354">Esta función utiliza IA e non acertará sempre</translation>
 <translation id="6740851646645036700">Por agora alcanzaches o límite máximo de axuda para escribir. Téntao de novo máis tarde.</translation>
 <translation id="674375294223700098">Erro de certificado de servidor descoñecido.</translation>
 <translation id="6743841972744298686">Configuración de sincronización</translation>
@@ -3612,6 +3604,7 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="6779290995699117286">Quen che administra a conta pode acceder ao perfil, ao navegador e á información do dispositivo. Pode ver o seguinte:</translation>
 <translation id="6779348349813025131">O xestor de contrasinais de Google necesita permiso para acceder a MacOS Keychain</translation>
 <translation id="6780449997190414928">Adoitas conectarte a este sitio de maneira segura, pero desta vez Chrome non puido usar unha conexión segura. É posible que un atacante estea tentando espiar ou modificar a túa conexión de rede. <ph name="LEARN_MORE" /></translation>
+<translation id="6783857615096909676">Permitir sempre que <ph name="HANDLER_HOSTNAME" /> abra as ligazóns de <ph name="PROTOCOL" /></translation>
 <translation id="6785990323398321538">Podes cambiar o buscador en calquera momento na configuración de Chrome.</translation>
 <translation id="6786145470008421571">Sobre 6 x 9 polgadas</translation>
 <translation id="6786747875388722282">Extensións</translation>
@@ -3651,7 +3644,6 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="6844998850832008753">O seguimento das mans está permitido neste momento</translation>
 <translation id="6849023911358004088">Botón para xestionar a configuración de seguranza. Actívao para xestionar Navegación segura e outras opcións na configuración de Chrome</translation>
 <translation id="6850286078059909152">Cor do texto</translation>
-<translation id="685163597635765693">A túa organización bloqueou as ligazóns de <ph name="HOST_NAME" /> no modo de incógnito.</translation>
 <translation id="6852204201400771460">Queres volver cargar a aplicación?</translation>
 <translation id="6854691830678097752">Para tramitar as compras máis rápido, garda este CVC na túa conta (<ph name="ACCOUNT_EMAIL" />)</translation>
 <translation id="6857776781123259569">Xestiona os contrasinais…</translation>
@@ -3684,7 +3676,6 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="6897140037006041989">Axente de usuario</translation>
 <translation id="6898699227549475383">Organización (O)</translation>
 <translation id="6900702165119149418">Pechouse a sesión</translation>
-<translation id="6903907808598579934">Activar sincronización</translation>
 <translation id="6907458757809079309">Actividade física</translation>
 <translation id="691024665142758461">Descargar varios ficheiros</translation>
 <translation id="691046363691324218">Número Redress</translation>
@@ -3787,15 +3778,14 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="7057567173736333354">Describe a imaxe</translation>
 <translation id="7058163556978339998"><ph name="BROWSER" /> verificou que <ph name="ISSUER" /> emitiu o certificado deste sitio web.</translation>
 <translation id="7058774143982824355">Servizo de análise de ficheiros CSV de contrasinais</translation>
+<translation id="7062344833049251424">Para pagar máis rápido a próxima vez, garda a tarxeta e o enderezo de facturación en Google Wallet</translation>
 <translation id="706295145388601875">Engadir e xestionar enderezos na configuración de Chrome</translation>
 <translation id="7063157783216323487">Verde 2</translation>
 <translation id="7064443976734085921">Coches compactos</translation>
 <translation id="7064851114919012435">Información de contacto</translation>
 <translation id="7067633076996245366">Soul e R&amp;B</translation>
-<translation id="706960991003274248">As táboas de comparación gardaranse na túa conta (<ph name="EMAIL" />)</translation>
 <translation id="7070144569727915108">configuración do sistema</translation>
 <translation id="70705239631109039">A túa conexión non é completamente segura</translation>
-<translation id="7071122206197538392">Nova táboa comparativa</translation>
 <translation id="7075452647191940183">A solicitude é demasiado grande</translation>
 <translation id="7075896597860500885">Non se recomenda copiar contido deste sitio</translation>
 <translation id="7078665357168027058">RA3</translation>
@@ -3856,6 +3846,7 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="7162277662076933695">Lector de tarxetas intelixentes</translation>
 <translation id="7163295244162773898">{0,plural, =1{Queres copiar o ficheiro confidencial?}other{Queres copiar os ficheiros confidenciais?}}</translation>
 <translation id="7168625890036931112">A restrición <ph name="DATA_CONTROLS_RESTRICTION" /> non se admite nesta plataforma</translation>
+<translation id="7170930892977483182">Eliminaranse todos os códigos de seguranza que teñas gardados no dispositivo e en Google Wallet</translation>
 <translation id="717330890047184534">Código de identificación de GAIA:</translation>
 <translation id="7173338713290252554">Historial de prezos na web</translation>
 <translation id="7174545416324379297">Valores combinados</translation>
@@ -3892,7 +3883,6 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="7226892411756387078">Texto sen formato</translation>
 <translation id="7227293336683593977">Historial de prezos</translation>
 <translation id="7228306718910595403">Estado de cualificación da UE</translation>
-<translation id="7232352818707016189">Máis accións para a táboa de comparación</translation>
 <translation id="7233592378249864828">Folla de confirmación da impresión</translation>
 <translation id="7234112195906418665">Viaxes e transporte</translation>
 <translation id="7234585564776614047">Autocompletar con outro servizo</translation>
@@ -3911,6 +3901,7 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="7251437084390964440">A configuración da rede non cumpre co estándar ONC. É posible que non se importen partes da configuración.
 Detalles adicionais:
 <ph name="DEBUG_INFO" /></translation>
+<translation id="7252424535852086046">Para borrar esta información, vai á súa configuración de xestión</translation>
 <translation id="7255540419660272073">Botón Non me gusta. Preme Introducir para abrir un formulario e enviar comentarios detallados sobre o motivo polo que non che gusta o seguinte: <ph name="THUMBS_DOWN_SUGGESTION_BUTTON_FOCUSED_FRIENDLY_MATCH_TEXT" /></translation>
 <translation id="7256634549594854023">Bandexa traseira</translation>
 <translation id="7257453341537973799">Planificación e recursos profesionais</translation>
@@ -4009,6 +4000,7 @@ Detalles adicionais:
 <translation id="7408613996403626141">Xoguetes</translation>
 <translation id="7410852728357935715">Emitir nun dispositivo</translation>
 <translation id="741204030948306876">Si, acepto</translation>
+<translation id="7412081313067625215">A tarxeta gardouse en Google Wallet, polo que podes autocompletar a súa información para futuras compras</translation>
 <translation id="7416351320495623771">Xestionar contrasinais…</translation>
 <translation id="7416898721136759658">Bolsas de estudo, prácticas e axudas financeiras</translation>
 <translation id="741772962178517671">Affirm</translation>
@@ -4038,6 +4030,7 @@ Detalles adicionais:
 <translation id="7450577240311017924">Botón para xestionar a sincronización. Actívao para xestionar na configuración de Chrome a información que se sincroniza</translation>
 <translation id="7451311239929941790"><ph name="BEGIN_LINK" />Máis información<ph name="END_LINK" /> sobre este problema.</translation>
 <translation id="745208957946308667">Xogo do dinosaurio. Preme espazo para xogar</translation>
+<translation id="7453032093368223821">Xestionar outros datos</translation>
 <translation id="7453849010505253492">Este servidor non puido demostrar que é <ph name="DOMAIN" /> porque utiliza un certificado de seguranza no que Chrome ou a configuración do sistema para a encriptación de tráfico web non confían. Isto pode deberse a un erro de configuración ou a que un atacante interceptase a túa conexión. <ph name="BEGIN_VIEW_CERTIFICATE_LINK" />Ver o certificado<ph name="END_VIEW_CERTIFICATE_LINK" /></translation>
 <translation id="7454377933424667109">Conta na nube</translation>
 <translation id="7455133967321480974">Utilizar valor predeterminado global (Bloquear)</translation>
@@ -4057,6 +4050,7 @@ Detalles adicionais:
 <translation id="7473891865547856676">Non, grazas</translation>
 <translation id="7481312909269577407">Adiante</translation>
 <translation id="7481603210197454575">Sobre italiano</translation>
+<translation id="7482823403440483089">Función de autocompletar mellorada</translation>
 <translation id="7483482939016730822">Material escolar e equipamento para a aula</translation>
 <translation id="7483863401933039889"><ph name="CHROME_TIP" />, preme Tabulador e, a continuación, Introducir para pechar o consello de Chrome.</translation>
 <translation id="7485085230273446323">Empresas e industrias</translation>
@@ -4142,6 +4136,7 @@ Detalles adicionais:
 <translation id="759889825892636187">Actualmente <ph name="HOST_NAME" /> non pode procesar esta solicitude.</translation>
 <translation id="7599089013883397081">Esgotouse o tempo de espera para a descarga</translation>
 <translation id="7602868996817972616">Pregúntalle a Google sobre esta páxina</translation>
+<translation id="7606123685356405076">Modelos de Gemini 3</translation>
 <translation id="7610193165460212391">O valor está fóra do rango de <ph name="VALUE" />.</translation>
 <translation id="761261689936461781">Groso</translation>
 <translation id="7613889955535752492">Caducidade: <ph name="EXPIRATION_MONTH" />/<ph name="EXPIRATION_YEAR" /></translation>
@@ -4180,7 +4175,6 @@ Detalles adicionais:
 <translation id="7659327900411729175">Sobre Kaku-8</translation>
 <translation id="766014026101194726">{0,plural, =1{A política do administrador bloqueou a carga deste ficheiro}other{A política do administrador bloqueou a carga de # ficheiros}}</translation>
 <translation id="7660456820368115565">Xogos multixogador masivos</translation>
-<translation id="7661591871037163355">A táboa de comparación está chea. Quita algunhas columnas para engadir outras.</translation>
 <translation id="7662298039739062396">Opción de configuración controlada por unha extensión</translation>
 <translation id="7662911501613893058"><ph name="USER_DISPLAY_NAME" /> saíu do grupo</translation>
 <translation id="7663736086183791259">Certificado <ph name="CERTIFICATE_VALIDITY" /></translation>
@@ -4250,6 +4244,7 @@ Detalles adicionais:
 <translation id="7754587126786572336">As aplicacións e pestanas de Chrome pecharanse cando se inicie a actualización</translation>
 <translation id="7755287808199759310">O teu pai ou nai non o pode desbloquear por ti</translation>
 <translation id="7755624218968747854">Rolo principal</translation>
+<translation id="7756441544371887150">Autocompleta esta tarxeta para as compras que fagas en Chrome cando estea gardada en Google Wallet</translation>
 <translation id="7758069387465995638">É posible que o software do firewall ou do antivirus bloquease a conexión.</translation>
 <translation id="7759147511335618829">Controlar/Reprogramar disp. MIDI</translation>
 <translation id="7759809451544302770">Opcionais</translation>
@@ -4295,7 +4290,6 @@ Detalles adicionais:
 <translation id="7840103971441592723">Comezou a captura de pantalla</translation>
 <translation id="784137052867620416">Estatísticas de compras</translation>
 <translation id="7841633276323004751">Métodos de pago que se poden seleccionar para proceder co pagamento. Teclado oculto.</translation>
-<translation id="7842611866969435396">Vamos aló</translation>
 <translation id="784404208867107517">Historial agrupado</translation>
 <translation id="7844689747373518809">{COUNT,plural, =0{Ningunha}=1{1 aplicación (<ph name="EXAMPLE_APP_1" />)}=2{2 aplicacións (<ph name="EXAMPLE_APP_1" /> e <ph name="EXAMPLE_APP_2" />)}other{# aplicacións (<ph name="EXAMPLE_APP_1" />, <ph name="EXAMPLE_APP_2" /> e <ph name="AND_MORE" />)}}</translation>
 <translation id="7846161022626028328">Produciuse un erro. Téntao de novo.</translation>
@@ -4305,6 +4299,7 @@ Detalles adicionais:
 <translation id="7855695075675558090"><ph name="TOTAL_LABEL" />: <ph name="FORMATTED_TOTAL_AMOUNT" /> <ph name="CURRENCY_CODE" /></translation>
 <translation id="7860345425589240791">Introduce a nova data de vencemento e o CVC do <ph name="SIDE_OF_CARD" /></translation>
 <translation id="7862185352068345852">Queres saír do sitio?</translation>
+<translation id="7862306158978555061">mostrar información confidencial</translation>
 <translation id="7865448901209910068">A mellor velocidade</translation>
 <translation id="7865482168955081228">A pantalla de erro de pago aprazado está pechada.</translation>
 <translation id="7870281855125116701">Desconto atopado</translation>
@@ -4372,7 +4367,6 @@ Detalles adicionais:
 <translation id="7967636097426665267">Equipos de comunicación</translation>
 <translation id="79682505114836835">O valor "<ph name="VALUE" />" é unha cor hexadecimal non válida.</translation>
 <translation id="7968982339740310781">Ver detalles</translation>
-<translation id="7975858430722947486">Engadiuse á comparación</translation>
 <translation id="7976053965094442846">Emisores de pago aprazado dispoñibles para pagar a prazos. Teclado oculto.</translation>
 <translation id="7976214039405368314">Hai demasiadas solicitudes</translation>
 <translation id="7977538094055660992">Dispositivo de saída</translation>
@@ -4410,7 +4404,6 @@ Detalles adicionais:
 <translation id="8030729864112325446">Formación profesional e continuada</translation>
 <translation id="8032546467100845887">Transparencia</translation>
 <translation id="8035152190676905274">Bolígrafo</translation>
-<translation id="8035264638816032066">Os títulos das pestanas e os URL das páxinas que engadas á táboa enviaranse a Google</translation>
 <translation id="8037117624646282037">Quen utilizou recentemente o dispositivo?</translation>
 <translation id="803771048473350947">Ficheiro</translation>
 <translation id="8038182528865038593">Vermello 2</translation>
@@ -4515,6 +4508,7 @@ Detalles adicionais:
 <translation id="8216640997712497593">14 x 18 polgadas</translation>
 <translation id="8218327578424803826">Localización asignada:</translation>
 <translation id="8220602974062798186">Queres bloquear <ph name="TOPIC" /> e os temas relacionados?</translation>
+<translation id="8223142476690844338">Ola, <ph name="USER_NAME" />! En que pensas?</translation>
 <translation id="8226408512771130794"><ph name="KEYWORD_SHORTCUT" />, preguntar a <ph name="KEYWORD_SUFFIX" /></translation>
 <translation id="8228419419708659934">Vista de dúas páxinas</translation>
 <translation id="822925450938886901">Para obter máis información e consultar as políticas aplicables, abre chrome://management no teu navegador.</translation>
@@ -4577,7 +4571,6 @@ Detalles adicionais:
 <translation id="8298115750975731693">É posible que a rede wifi que utilizas (<ph name="WIFI_NAME" />) requira o acceso a <ph name="BEGIN_BOLD" /><ph name="LOGIN_URL" /><ph name="END_BOLD" />.</translation>
 <translation id="8298399736867690281">A tarxeta está gardada só no dispositivo</translation>
 <translation id="8301894345671534559">Introducir código</translation>
-<translation id="8304912090860925649">Nova táboa comparativa</translation>
 <translation id="830498451218851433">Dobrez á metade</translation>
 <translation id="8308653357438598313">Emisión de vídeo en directo</translation>
 <translation id="8311895354659782580">Listaxes de bens inmobles</translation>
@@ -4690,6 +4683,7 @@ Detalles adicionais:
 <translation id="8488350697529856933">Aplícase a</translation>
 <translation id="8490137692873530638">Amontoador 10</translation>
 <translation id="8493948351860045254">Liberar espazo</translation>
+<translation id="8498870489552322848">completar a túa información confidencial en <ph name="APP_NAME" /></translation>
 <translation id="8498891568109133222"><ph name="HOST_NAME" /> tardou demasiado en responder.</translation>
 <translation id="8502023382441452707">Aniversarios e santos</translation>
 <translation id="8503559462189395349">Contrasinais de Chrome</translation>
@@ -4789,7 +4783,6 @@ Detalles adicionais:
 <translation id="8672535691554698269">Redes informáticas</translation>
 <translation id="8675446170353411473">Estanse cargando os ficheiros en <ph name="CLOUD_PROVIDER" /></translation>
 <translation id="8676424191133491403">Sen retardo</translation>
-<translation id="8679727228072670864">{COUNT,plural, =1{Eliminouse {COUNT} táboa}other{Elimináronse {COUNT} táboas}}</translation>
 <translation id="8680536109547170164"><ph name="QUERY" />, resposta: <ph name="ANSWER" /></translation>
 <translation id="8681531050781943054">A páxina web de <ph name="PAGE" /> non se puido cargar porque:</translation>
 <translation id="8682297334444610648">Xogo do dinosaurio. Toca para xogar</translation>
@@ -4800,7 +4793,6 @@ Detalles adicionais:
 <translation id="8688672835843460752">Dispoñible</translation>
 <translation id="868922510921656628">Páxinas por xogo</translation>
 <translation id="8694684557210599098">Engadir un vehículo</translation>
-<translation id="8695996513186494922">Queres comparar as táboas?</translation>
 <translation id="8698428283892912525">Chrome inclúe funcións de seguranza para protexerte cando navegas, como, por exemplo, Navegación segura de Google, que <ph name="BEGIN_LINK" />detectou hai pouco software daniño<ph name="END_LINK" /> no sitio ao que tentaches acceder.</translation>
 <translation id="869891660844655955">Data de vencemento</translation>
 <translation id="8699041776323235191">Dispositivo HID</translation>
@@ -4877,7 +4869,6 @@ Detalles adicionais:
 <translation id="8811470563853401328">Queres gardar o enderezo na conta?</translation>
 <translation id="8811725516933141693">Escribe @gemini para chatear con Gemini</translation>
 <translation id="8813277370772331957">Lembrarmo máis tarde</translation>
-<translation id="8814547618907885931">Ver todas as táboas de comparación</translation>
 <translation id="8814707942599948500">Sobre C8</translation>
 <translation id="8816395686387277279"><ph name="UPDATE_CHROME_FOCUSED_FRIENDLY_MATCH_TEXT" />. Preme Tab e, a continuación, Intro para actualizar Chrome desde a configuración do navegador</translation>
 <translation id="8819855907485254989">Gardar o billete de transporte en Wallet</translation>
@@ -4893,6 +4884,7 @@ Detalles adicionais:
 <translation id="883848425547221593">Outros marcadores</translation>
 <translation id="8842351563145134519">Lista de métodos de pago dispoñibles que se completarán ao tocalos aberta a altura media.</translation>
 <translation id="884264119367021077">Enderezo de envío</translation>
+<translation id="8843516219908676469">Chrome entenderá mellor o contido dos formularios e poderá completalos automaticamente máis rápido</translation>
 <translation id="8849032795302265570">Xestiona facilmente como o persoal navega pola Web</translation>
 <translation id="8849231003559822746">130 x 180 mm</translation>
 <translation id="884923133447025588">Non se atopou ningún mecanismo de revogación.</translation>
@@ -5075,7 +5067,6 @@ Detalles adicionais:
 <translation id="9144951720726881238">Data de vencemento:</translation>
 <translation id="9145910032514306808"><ph name="BEGIN_LINK" />Inicia sesión<ph name="END_LINK" /> 
     de novo e despois volve a esta pestana se queres obter axuda para escribir</translation>
-<translation id="9145936855791010051">Comparar</translation>
 <translation id="9148507642005240123">&amp;Desfacer modificación</translation>
 <translation id="9148599396704355100">Prezo baixo</translation>
 <translation id="9150025764986957246">Poderás poñer cousas como:</translation>
@@ -5146,7 +5137,6 @@ Detalles adicionais:
 <translation id="940524522703752213">A carga de ficheiros en <ph name="CLOUD_PROVIDER" /> comezará dentro de <ph name="MINUTES" /> minutos</translation>
 <translation id="944578681290094302">Mostra que recompensas e beneficios ofrecen as túas tarxetas ao tramitar as compras. <ph name="CARD_BENEFIT_HELP_LINK_BEGIN" />Máis información sobre os beneficios das tarxetas<ph name="CARD_BENEFIT_HELP_LINK_END" /></translation>
 <translation id="945673208656386843">Autocompleta esta tarxeta para as compras que fagas en Chromium cando estea gardada neste dispositivo</translation>
-<translation id="94613679163347541">Queres comparar <ph name="CATEGORY" />?</translation>
 <translation id="947370374845726940"><ph name="CREATE_GOOGLE_SITE_FOCUSED_FRIENDLY_MATCH_TEXT" />. Preme Tabulador e, a continuación, Introducir para crear rapidamente un sitio novo en Google Sites</translation>
 <translation id="949026252328034572">Uníronse <ph name="MEMBER_COUNT" /> membros ao grupo de pestanas "<ph name="GROUP_NAME" />"</translation>
 <translation id="949314938206378263">Pediches permiso para visitar este sitio. O teu pai ou nai pode responder en Family Link.</translation>
@@ -5170,6 +5160,7 @@ Detalles adicionais:
 <translation id="975560348586398090">{COUNT,plural, =0{Ningún}=1{1 elemento}other{# elementos}}</translation>
 <translation id="976522784004777030">5 x 8 polgadas</translation>
 <translation id="977502174772294970">Vodas</translation>
+<translation id="978750072783101994">Autocompleta esta tarxeta para as compras que fagas en Chromium cando estea gardada en Google Wallet</translation>
 <translation id="979107176848483472">O teu navegador e o teu perfil están xestionados por <ph name="DOMAIN" /></translation>
 <translation id="979189555234810423">Exposicións e convencións</translation>
 <translation id="979503328401807348">Máis anuncios útiles</translation>

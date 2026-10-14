@@ -31,7 +31,7 @@
 #include "content/browser/devtools/devtools_instrumentation.h"
 #include "content/browser/loader/navigation_url_loader_impl.h"
 #include "content/browser/loader/url_loader_factory_utils.h"
-#include "content/browser/renderer_host/private_network_access_util.h"
+#include "content/browser/renderer_host/local_network_access_util.h"
 #include "content/browser/service_worker/service_worker_client.h"
 #include "content/browser/service_worker/service_worker_container_host.h"
 #include "content/browser/service_worker/service_worker_context_core.h"
@@ -1097,6 +1097,17 @@ ServiceWorkerContextWrapper::GetRemoteAssociatedInterfaces(
   // checking it first.
   auto& version = *context()->GetLiveVersion(service_worker_version_id);
   return *version.associated_interface_provider();
+}
+
+void ServiceWorkerContextWrapper::AddMessageToConsole(
+    int64_t service_worker_version_id,
+    blink::mojom::ConsoleMessageLevel level,
+    const std::string& message) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  auto* version = GetLiveServiceWorker(service_worker_version_id);
+  if (version) {
+    version->AddMessageToConsole(level, message);
+  }
 }
 
 std::optional<ServiceWorkerRunningInfo>

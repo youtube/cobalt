@@ -14,6 +14,7 @@
 #include "components/prefs/scoped_user_pref_update.h"
 #include "device/bluetooth//bluetooth_adapter.h"
 #include "device/bluetooth/bluetooth_device.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 
 namespace {
 
@@ -82,7 +83,7 @@ bool SavedDeviceRegistry::DeleteAccountKey(
     return false;
   }
 
-  const base::Value::Dict& saved_devices =
+  const base::DictValue& saved_devices =
       pref_service->GetDict(kFastPairSavedDevicesPref);
   std::string encoded_key = base::Base64Encode(account_key);
   for (const auto it : saved_devices) {
@@ -144,7 +145,7 @@ bool SavedDeviceRegistry::IsAccountKeySavedToRegistry(
     RemoveDevicesIfRemovedFromDifferentUser(pref_service);
   }
 
-  const base::Value::Dict& saved_devices =
+  const base::DictValue& saved_devices =
       pref_service->GetDict(kFastPairSavedDevicesPref);
   std::string encoded_key = base::Base64Encode(account_key);
   for (const auto it : saved_devices) {
@@ -163,7 +164,7 @@ void SavedDeviceRegistry::RemoveDevicesIfRemovedFromDifferentUser(
 
   // Set of currently paired devices, stored by Bluetooth address, used to
   // cross reference the registry for any devices that need to be removed.
-  std::set<std::string> paired_devices;
+  absl::flat_hash_set<std::string> paired_devices;
   for (device::BluetoothDevice* device : adapter_->GetDevices()) {
     if (device->IsPaired()) {
       paired_devices.insert(device->GetAddress());
@@ -173,7 +174,7 @@ void SavedDeviceRegistry::RemoveDevicesIfRemovedFromDifferentUser(
   // Iterate over the list of devices in the registry, and if there are any in
   // the registry that are no longer paired to the adapter (determined by mac
   // address), remove them from the registry.
-  const base::Value::Dict& saved_devices =
+  const base::DictValue& saved_devices =
       pref_service->GetDict(kFastPairSavedDevicesPref);
   for (const auto it : saved_devices) {
     const std::string& mac_address = it.first;

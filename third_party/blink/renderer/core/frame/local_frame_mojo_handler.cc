@@ -7,10 +7,12 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/time/time.h"
+#include "base/unguessable_token.h"
 #include "build/build_config.h"
 #include "cc/input/browser_controls_offset_tag_modifications.h"
 #include "services/network/public/cpp/url_loader_completion_status.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
+#include "third_party/abseil-cpp/absl/cleanup/cleanup.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
 #include "third_party/blink/public/common/chrome_debug_urls.h"
 #include "third_party/blink/public/common/features.h"
@@ -138,7 +140,7 @@ v8::MaybeLocal<v8::Value> GetProperty(v8::Local<v8::Context> context,
 v8::MaybeLocal<v8::Value> CallMethodOnFrame(LocalFrame* local_frame,
                                             const String& object_name,
                                             const String& method_name,
-                                            base::Value::List arguments,
+                                            base::ListValue arguments,
                                             WebV8ValueConverter* converter) {
   v8::Local<v8::Context> context = MainWorldScriptContext(local_frame);
 
@@ -688,17 +690,21 @@ void LocalFrameMojoHandler::RenderFallbackContent() {
 void LocalFrameMojoHandler::BeforeUnload(bool is_reload,
                                          BeforeUnloadCallback callback) {
   base::TimeTicks before_unload_start_time = base::TimeTicks::Now();
-
+  base::TimeTicks before_unload_dialog_opened_time;
+  base::TimeTicks before_unload_dialog_closed_time;
   // This will execute the BeforeUnload event in this frame and all of its
   // local descendant frames, including children of remote frames.  The browser
   // process will send separate IPCs to dispatch beforeunload in any
   // out-of-process child frames.
-  bool proceed = frame_->Loader().ShouldClose(is_reload);
+  bool proceed =
+      frame_->Loader().ShouldClose(is_reload, before_unload_dialog_opened_time,
+                                   before_unload_dialog_closed_time);
 
   DCHECK(!callback.is_null());
   base::TimeTicks before_unload_end_time = base::TimeTicks::Now();
-  std::move(callback).Run(proceed, before_unload_start_time,
-                          before_unload_end_time);
+  std::move(callback).Run(
+      proceed, before_unload_start_time, before_unload_end_time,
+      before_unload_dialog_opened_time, before_unload_dialog_closed_time);
 }
 
 void LocalFrameMojoHandler::MediaPlayerActionAt(
@@ -827,7 +833,7 @@ void LocalFrameMojoHandler::PostMessageEvent(
 void LocalFrameMojoHandler::JavaScriptMethodExecuteRequest(
     const String& object_name,
     const String& method_name,
-    base::Value::List arguments,
+    base::ListValue arguments,
     bool wants_result,
     JavaScriptMethodExecuteRequestCallback callback) {
   TRACE_EVENT_INSTANT0("test_tracing", "JavaScriptMethodExecuteRequest",
@@ -989,16 +995,27 @@ void LocalFrameMojoHandler::JavaScriptExecuteRequestInIsolatedWorld(
 }
 
 #if BUILDFLAG(IS_MAC)
-void LocalFrameMojoHandler::GetCharacterIndexAtPoint(const gfx::Point& point) {
+void LocalFrameMojoHandler::GetCharacterIndexAtPoint(
+    const base::UnguessableToken& request_token,
+    const gfx::Point& point) {
   text_input_host_->GotCharacterIndexAtPoint(
-      frame_->GetCharacterIndexAtPoint(point));
+      request_token, frame_->GetCharacterIndexAtPoint(point));
 }
 
-void LocalFrameMojoHandler::GetFirstRectForRange(const gfx::Range& range) {
+void LocalFrameMojoHandler::GetFirstRectForRange(
+    const base::UnguessableToken& request_token,
+    const gfx::Range& range) {
   gfx::Rect rect;
+  // Always send a reply before returning, with an empty rect on error, to
+  // prevent the browser process from waiting until the end of its timeout.
+  absl::Cleanup send_reply = [&] {
+    text_input_host_->GotFirstRectForRange(request_token, rect);
+  };
+
   WebLocalFrameClient* client = WebLocalFrameImpl::FromFrame(frame_)->Client();
-  if (!client)
+  if (!client) {
     return;
+  }
 
   WebPluginContainerImpl* plugin_container = frame_->GetWebPluginContainer();
   if (plugin_container) {
@@ -1014,8 +1031,6 @@ void LocalFrameMojoHandler::GetFirstRectForRange(const gfx::Range& range) {
         base::checked_cast<uint32_t>(start),
         base::checked_cast<uint32_t>(range.length()), rect);
   }
-
-  text_input_host_->GotFirstRectForRange(rect);
 }
 
 void LocalFrameMojoHandler::GetStringForRange(
@@ -1493,8 +1508,8 @@ void LocalFrameMojoHandler::UpdatePrerenderURL(
 }
 
 #if BUILDFLAG(IS_ANDROID)
-void LocalFrameMojoHandler::PerformSpellCheck() {
-  frame_->PerformSpellCheck();
+void LocalFrameMojoHandler::PerformFullContentSpellCheck() {
+  frame_->PerformFullContentSpellCheck();
 }
 #endif
 

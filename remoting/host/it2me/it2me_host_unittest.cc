@@ -270,6 +270,8 @@ class It2MeHostTest : public testing::Test, public It2MeHost::Observer {
 
   static base::Value MakeList(std::initializer_list<std::string_view> values);
 
+  const ChromotingHost* GetHost() const { return it2me_host_->host_.get(); }
+
   ChromotingHost* GetHost() { return it2me_host_->host_.get(); }
 
   const SessionPolicies& get_local_session_policies() const {
@@ -305,7 +307,7 @@ class It2MeHostTest : public testing::Test, public It2MeHost::Observer {
   raw_ptr<FakeIt2MeDialogFactory, AcrossTasksDanglingUntriaged>
       dialog_factory_ = nullptr;
 
-  std::optional<base::Value::Dict> policies_;
+  std::optional<base::DictValue> policies_;
 
   scoped_refptr<It2MeHost> it2me_host_;
 
@@ -542,7 +544,7 @@ void It2MeHostTest::SimulateEffectiveSessionPoliciesReceived() {
 
 base::Value It2MeHostTest::MakeList(
     std::initializer_list<std::string_view> values) {
-  base::Value::List result;
+  base::ListValue result;
   for (const auto& value : values) {
     result.Append(value);
   }
@@ -1123,6 +1125,25 @@ TEST_F(It2MeHostTest, EnableFileTransferDefaultsToFalse) {
   StartHost(/*enterprise_params=*/std::nullopt);
 
   EXPECT_FALSE(*get_local_session_policies().allow_file_transfer);
+}
+
+TEST_F(It2MeHostTest, AudioPlaybackIsLocalOnlyForNonEnterpriseSessions) {
+  StartHost(/*enterprise_params=*/std::nullopt);
+
+  EXPECT_EQ(
+      GetHost()->desktop_environment_options_for_tests().audio_playback_mode(),
+      AudioPlaybackMode::kLocalOnly);
+}
+
+TEST_F(It2MeHostTest, ConnectRespectsAudioPlaybackParameter) {
+  ChromeOsEnterpriseParams params(
+      GetDefaultEnterpriseParamsForEnterpriseAdmin());
+  params.audio_playback = ChromeOsEnterpriseAudioPlayback::kRemoteOnly;
+  StartHost(std::move(params));
+
+  EXPECT_EQ(
+      GetHost()->desktop_environment_options_for_tests().audio_playback_mode(),
+      AudioPlaybackMode::kRemoteOnly);
 }
 
 TEST_F(It2MeHostTest,

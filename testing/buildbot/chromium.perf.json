@@ -41,7 +41,7 @@
           "realm": "chromeos:chrome",
           "server": "https://chromeos-swarming.appspot.com",
           "service_account": "chromeos-tester@chops-service-accounts.iam.gserviceaccount.com",
-          "shards": 7
+          "shards": 4
         },
         "test": "performance_test_suite_android_trichrome_chrome_google_64_32_bundle",
         "trigger_script": {
@@ -1236,7 +1236,7 @@
         "swarming": {
           "can_use_on_swarming_builders": true,
           "dimensions": {
-            "gpu": "10de:2184-580.95.05",
+            "gpu": "10de:2184",
             "os": "Ubuntu-22.04",
             "pool": "chrome.tests.perf",
             "synthetic_product_name": "Precision 3930 Rack (Dell Inc.)"

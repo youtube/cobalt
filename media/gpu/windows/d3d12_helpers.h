@@ -13,6 +13,7 @@
 #include "media/base/video_codecs.h"
 #include "media/gpu/h264_dpb.h"
 #include "media/gpu/media_gpu_export.h"
+#include "media/gpu/windows/d3d12_fence.h"
 #include "media/gpu/windows/d3d_com_defs.h"
 #include "media/parsers/h265_parser.h"
 #include "media/parsers/vp9_parser.h"
@@ -28,6 +29,29 @@ struct D3D12HeapProperties {
 };
 
 class D3D11PictureBuffer;
+
+using D3D11FenceAndValue =
+    std::pair<Microsoft::WRL::ComPtr<ID3D11Fence>, uint64_t>;
+using D3D12FenceAndValue =
+    std::pair<Microsoft::WRL::ComPtr<ID3D12Fence>, uint64_t>;
+
+struct MEDIA_GPU_EXPORT D3D12PictureBuffer {
+  D3D12PictureBuffer(
+      const Microsoft::WRL::ComPtr<ID3D12Resource>& resource = nullptr,
+      UINT subresource = 0,
+      const D3D12FenceAndValue& fence_and_value = {});
+  ~D3D12PictureBuffer();
+
+  D3D12PictureBuffer(const D3D12PictureBuffer& other);
+  D3D12PictureBuffer(D3D12PictureBuffer&& other) noexcept;
+  D3D12PictureBuffer& operator=(const D3D12PictureBuffer& other);
+  D3D12PictureBuffer& operator=(D3D12PictureBuffer&& other) noexcept;
+
+  Microsoft::WRL::ComPtr<ID3D12Resource> resource;
+  UINT subresource = 0;
+  // Fence and value indicating when the resource is ready for read.
+  D3D12FenceAndValue fence_and_value;
+};
 
 // Manages reference frame buffers, for reference frame descriptors to index on.
 class MEDIA_GPU_EXPORT D3D12ReferenceFrameList {
@@ -134,6 +158,29 @@ MEDIA_GPU_EXPORT GUID
 GetD3D12VideoDecodeGUID(VideoCodecProfile profile,
                         uint8_t bitdepth,
                         VideoChromaSampling chroma_sampling);
+
+// Helpers for synchronizing same underlying resource between D3D11 and D3D12.
+class MEDIA_GPU_EXPORT D3D11To12Fence {
+ public:
+  explicit D3D11To12Fence(Microsoft::WRL::ComPtr<ID3D11Fence> d3d11_fence,
+                          Microsoft::WRL::ComPtr<ID3D12Fence> d3d12_fence);
+  D3D11To12Fence() = delete;
+  D3D11To12Fence(const D3D11To12Fence&) = delete;
+  ~D3D11To12Fence();
+
+  D3D11FenceAndValue GetD3D11FenceAndIncrementValue() {
+    return std::make_pair(d3d11_fence_, ++fence_value_);
+  }
+
+  Microsoft::WRL::ComPtr<ID3D12Fence> GetD3D12Fence() const {
+    return d3d12_fence_;
+  }
+
+ private:
+  Microsoft::WRL::ComPtr<ID3D11Fence> d3d11_fence_;
+  Microsoft::WRL::ComPtr<ID3D12Fence> d3d12_fence_;
+  uint64_t fence_value_ = 0;
+};
 
 }  // namespace media
 

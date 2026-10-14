@@ -289,6 +289,11 @@ IN_PROC_BROWSER_TEST_P(ReadAnythingMochaParameterizedTest,
                    "mocha.run()");
 }
 
+IN_PROC_BROWSER_TEST_P(ReadAnythingMochaParameterizedTest, DomQueries) {
+  RunSidePanelTest("side_panel/read_anything/dom_queries_test.js",
+                   "mocha.run()");
+}
+
 INSTANTIATE_TEST_SUITE_P(
     ReadAnythingMochaParameterized,
     ReadAnythingMochaParameterizedTest,
@@ -355,4 +360,25 @@ IN_PROC_BROWSER_TEST_F(ImmersiveReadAnythingMochaTest, SettingsMenu) {
 IN_PROC_BROWSER_TEST_F(ImmersiveReadAnythingMochaTest, ToolbarSettingsMenu) {
   RunSidePanelTest("side_panel/read_anything/toolbar_settings_menu_test.js",
                    "mocha.run()");
+}
+
+class ImmersiveReadAnythingWithReadabilityMochaTest
+    : public ReadAnythingMochaBrowserTest {
+ protected:
+  ImmersiveReadAnythingWithReadabilityMochaTest() {
+    scoped_feature_list_.InitWithFeatures(
+        {features::kImmersiveReadAnything,
+         features::kReadAnythingWithReadability},
+        {});
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(ImmersiveReadAnythingWithReadabilityMochaTest,
+                       ReadabilityImageClassifier) {
+  RunSidePanelTest(
+      "side_panel/read_anything/readability_image_classifier_test.js",
+      "mocha.run()");
 }

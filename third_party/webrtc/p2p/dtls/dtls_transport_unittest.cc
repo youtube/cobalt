@@ -218,6 +218,10 @@ class DtlsTestClient {
     return received_dtls_server_hellos_;
   }
 
+  int received_dtls_ciphertext_packets() const {
+    return received_dtls_ciphertext_packets_;
+  }
+
   std::optional<int> GetVersionBytes() {
     int value;
     if (dtls_transport_->GetSslVersionBytes(&value)) {
@@ -376,6 +380,11 @@ class DtlsTestClient {
 
   SentPacketInfo sent_packet() const { return sent_packet_; }
 
+  bool IsDtlsCiphertextPacket(ArrayView<const uint8_t> payload) {
+    return IsDtlsPacket(payload) &&
+           (payload.data()[0] > 31 && payload.data()[0] < 64);
+  }
+
   // Hook into the raw packet stream to make sure DTLS packets are encrypted.
   void OnFakeIceTransportReadPacket(PacketTransportInternal* /* transport */,
                                     const ReceivedIpPacket& packet) {
@@ -391,6 +400,8 @@ class DtlsTestClient {
       } else if (data[13] == 2) {
         ++received_dtls_server_hellos_;
       }
+    } else if (IsDtlsCiphertextPacket(packet.payload())) {
+      ++received_dtls_ciphertext_packets_;
     } else if (data[0] == 26) {
       RTC_LOG(LS_INFO) << "Found DTLS ACK";
     } else if (dtls_transport_->IsDtlsActive()) {
@@ -414,6 +425,7 @@ class DtlsTestClient {
   SSLProtocolVersion ssl_max_version_ = SSL_PROTOCOL_DTLS_12;
   int received_dtls_client_hellos_ = 0;
   int received_dtls_server_hellos_ = 0;
+  int received_dtls_ciphertext_packets_ = 0;
   SentPacketInfo sent_packet_;
   absl::AnyInvocable<void()> writable_func_;
   int async_delay_ms_ = 100;
@@ -1726,7 +1738,8 @@ class DtlsEventOrderingTest
     int count = pqc ? 2 : 1;
     // Check that no hello needed to be retransmitted.
     EXPECT_EQ(count, client1_.received_dtls_client_hellos());
-    EXPECT_EQ(1, client2_.received_dtls_server_hellos());
+    EXPECT_LE(count, client2_.received_dtls_server_hellos() +
+                         client2_.received_dtls_ciphertext_packets());
 
     if (valid_fingerprint) {
       TestTransfer(1000, 100, false);

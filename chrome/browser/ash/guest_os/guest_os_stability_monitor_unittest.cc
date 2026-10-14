@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "base/barrier_closure.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/run_loop.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -14,6 +15,8 @@
 #include "chrome/browser/ash/crostini/crostini_simple_types.h"
 #include "chrome/browser/ash/crostini/crostini_test_helper.h"
 #include "chrome/browser/ash/crostini/crostini_util.h"
+#include "chrome/browser/browser_process_platform_part.h"
+#include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chromeos/ash/components/dbus/chunneld/chunneld_client.h"
 #include "chromeos/ash/components/dbus/chunneld/fake_chunneld_client.h"
@@ -21,9 +24,14 @@
 #include "chromeos/ash/components/dbus/cicerone/fake_cicerone_client.h"
 #include "chromeos/ash/components/dbus/concierge/concierge_client.h"
 #include "chromeos/ash/components/dbus/concierge/fake_concierge_client.h"
+#include "chromeos/ash/components/dbus/debug_daemon/debug_daemon_client.h"
 #include "chromeos/ash/components/dbus/seneschal/fake_seneschal_client.h"
 #include "chromeos/ash/components/dbus/seneschal/seneschal_client.h"
+#include "components/component_updater/mock_component_updater_service.h"
 #include "content/public/test/browser_task_environment.h"
+#include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
+#include "services/network/test/test_url_loader_factory.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace guest_os {
@@ -34,12 +42,33 @@ class GuestOsStabilityMonitorTest : public testing::Test {
     ash::ChunneldClient::InitializeFake();
     ash::CiceroneClient::InitializeFake();
     ash::ConciergeClient::InitializeFake();
+    ash::DebugDaemonClient::InitializeFake();
     ash::SeneschalClient::InitializeFake();
+
+    TestingBrowserProcess::GetGlobal()->SetComponentUpdater(
+        std::make_unique<testing::NiceMock<
+            component_updater::MockComponentUpdateService>>());
+    TestingBrowserProcess::GetGlobal()->SetSharedURLLoaderFactory(
+        test_url_loader_factory_.GetSafeWeakWrapper());
+    TestingBrowserProcess::GetGlobal()
+        ->platform_part()
+        ->InitializeComponentManager();
+    TestingBrowserProcess::GetGlobal()
+        ->platform_part()
+        ->InitializeSchedulerConfigurationManager();
 
     // CrostiniManager will create a GuestOsStabilityMonitor for us.
     profile_ = std::make_unique<TestingProfile>();
-    crostini_manager_ =
-        std::make_unique<crostini::CrostiniManager>(profile_.get());
+    crostini_manager_ = std::make_unique<crostini::CrostiniManager>(
+        TestingBrowserProcess::GetGlobal()->component_updater(),
+        TestingBrowserProcess::GetGlobal()->shared_url_loader_factory(),
+        TestingBrowserProcess::GetGlobal()
+            ->platform_part()
+            ->component_manager_ash(),
+        TestingBrowserProcess::GetGlobal()
+            ->platform_part()
+            ->scheduler_configuration_manager(),
+        profile_.get());
     crostini::CrostiniTestHelper::EnableCrostini(profile_.get());
 
     // When CrostiniStabilityMonitor is initialized, it waits for the DBus
@@ -56,7 +85,18 @@ class GuestOsStabilityMonitorTest : public testing::Test {
     crostini::CrostiniTestHelper::DisableCrostini(profile_.get());
     crostini_manager_.reset();
     profile_.reset();
+
+    TestingBrowserProcess::GetGlobal()
+        ->platform_part()
+        ->ShutdownSchedulerConfigurationManager();
+    TestingBrowserProcess::GetGlobal()
+        ->platform_part()
+        ->ShutdownComponentManager();
+    TestingBrowserProcess::GetGlobal()->SetSharedURLLoaderFactory(nullptr);
+    TestingBrowserProcess::GetGlobal()->SetComponentUpdater(nullptr);
+
     ash::SeneschalClient::Shutdown();
+    ash::DebugDaemonClient::Shutdown();
     ash::ConciergeClient::Shutdown();
     ash::CiceroneClient::Shutdown();
     ash::ChunneldClient::Shutdown();
@@ -85,6 +125,7 @@ class GuestOsStabilityMonitorTest : public testing::Test {
  protected:
   // CrostiniManager requires a full browser task environment to run.
   content::BrowserTaskEnvironment task_env_;
+  network::TestURLLoaderFactory test_url_loader_factory_;
   std::unique_ptr<TestingProfile> profile_;
   std::unique_ptr<crostini::CrostiniManager> crostini_manager_;
   base::HistogramTester histogram_tester_;

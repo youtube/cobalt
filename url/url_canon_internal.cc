@@ -41,7 +41,10 @@ size_t FindInitialQuerySafeString(std::string_view source) {
   for (i = 0; i < base::bits::AlignDown(source.length(), kChunkSize);
        i += kChunkSize) {
     char b __attribute__((vector_size(16)));
-    UNSAFE_TODO(memcpy(&b, source.data() + i, sizeof(b)));
+    // SAFETY: The size of `b` is sizeof(b), of course. `source.data() + i` has
+    // sizeof(b), which is 16, because the loop condition with
+    // base::bits::AlignDown() ensures it.
+    UNSAFE_BUFFERS(memcpy(&b, source.data() + i, sizeof(b)));
 
     // Compare each element with the ranges for CHAR_QUERY
     // (see kSharedCharTypeTable), vectorized so that it creates
@@ -334,26 +337,5 @@ bool SetupUtf16OverrideComponents(const Replacements<char16_t>& repl,
 
   return success;
 }
-
-#ifndef WIN32
-
-int _itoa_s(int value, char* buffer, size_t size_in_chars, int radix) {
-  const char* format_str;
-  if (radix == 10)
-    format_str = "%d";
-  else if (radix == 16)
-    format_str = "%x";
-  else
-    return EINVAL;
-
-  int written = UNSAFE_TODO(snprintf(buffer, size_in_chars, format_str, value));
-  if (static_cast<size_t>(written) >= size_in_chars) {
-    // Output was truncated, or written was negative.
-    return EINVAL;
-  }
-  return 0;
-}
-
-#endif  // !WIN32
 
 }  // namespace url

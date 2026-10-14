@@ -9,6 +9,8 @@ import static org.chromium.build.NullUtil.assertNonNull;
 import org.chromium.base.Callback;
 import org.chromium.base.ThreadUtils;
 import org.chromium.build.BuildConfig;
+import org.chromium.build.annotations.Contract;
+import org.chromium.build.annotations.NonNull;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 
@@ -17,6 +19,9 @@ import java.util.function.Supplier;
 /** Utilities for interactions with Suppliers. */
 @NullMarked
 public class SupplierUtils {
+    @SuppressWarnings("NullAway") // Might be fixed by https://github.com/uber/NullAway/issues/1455
+    private static final Supplier<?> NULL_SUPPLIER = () -> null;
+
     private SupplierUtils() {}
 
     private static class Barrier {
@@ -95,5 +100,31 @@ public class SupplierUtils {
             return () -> assertNonNull(supplier.get());
         }
         return (Supplier<T>) supplier;
+    }
+
+    @Contract("!null -> !null")
+    public static <T extends @Nullable Object> @Nullable T getOrNull(@Nullable Supplier<T> sup) {
+        return sup == null ? null : sup.get();
+    }
+
+    public static <T extends @Nullable Object> @NonNull T getOr(
+            @Nullable Supplier<T> sup, T value) {
+        T ret = sup == null ? null : sup.get();
+        return ret == null ? value : ret;
+    }
+
+    public static <T extends @Nullable Boolean> boolean getOr(
+            @Nullable Supplier<T> sup, boolean value) {
+        Boolean ret = sup == null ? null : sup.get();
+        return ret == null ? value : ret;
+    }
+
+    public static <T extends @Nullable Object> Supplier<T> of(T value) {
+        return value == null ? ofNull() : () -> value;
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <T extends @Nullable Object> Supplier<T> ofNull() {
+        return (Supplier<T>) NULL_SUPPLIER;
     }
 }

@@ -93,6 +93,11 @@ class FirstRunCoordinatorMetricsHelper final {
   return self;
 }
 
+- (void)dealloc {
+  CHECK(!_navigationController, base::NotFatalUntil::M155);
+  CHECK(!_childCoordinator, base::NotFatalUntil::M155);
+}
+
 - (void)start {
   [self presentScreen:[self.screenProvider nextScreenType]];
   void (^completion)(void) = ^{
@@ -163,6 +168,12 @@ class FirstRunCoordinatorMetricsHelper final {
     WriteFirstRunSentinel();
     [self.delegate didFinishFirstRun];
 
+    if (self.browser == nullptr) {
+      // Speculative fix for some of the crashes in crbug.com/474279386. There
+      // is most likely an underlying issue somewhere in the cleanup logic, but
+      // null checking here should at least prevent some crashes.
+      return;
+    }
     if (IsBestOfAppLensAnimatedPromoEnabled()) {
       // Present the Lens entrypoint IPH.
       [HandlerForProtocol(self.browser->GetCommandDispatcher(),

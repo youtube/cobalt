@@ -30,6 +30,7 @@ BASE_DECLARE_FEATURE(kDynamicMaxAutocomplete);
 
 // Local history zero-prefix (aka zero-suggest) and prefix suggestions.
 BASE_DECLARE_FEATURE(kFocusTriggersWebAndSRPZeroSuggest);
+BASE_DECLARE_FEATURE(kOnClobberSuggestIOS);
 BASE_DECLARE_FEATURE(kHideSuggestionGroupHeaders);
 BASE_DECLARE_FEATURE(kLocalHistoryZeroSuggestBeyondNTP);
 BASE_DECLARE_FEATURE(kZeroSuggestPrefetchDebouncing);
@@ -114,10 +115,6 @@ BASE_DECLARE_FEATURE(kNumWebZpsMostVisitedUrls);
 BASE_DECLARE_FEATURE(kNumSrpZpsRecentSearches);
 BASE_DECLARE_FEATURE(kNumSrpZpsRelatedSearches);
 
-
-// `ShortcutsProvider` features.
-BASE_DECLARE_FEATURE(kOmniboxShortcutsAndroid);
-
 // Enterprise search aggregators features.
 BASE_DECLARE_FEATURE(kEnableSearchAggregatorPolicy);
 BASE_DECLARE_FEATURE(kUseAgentspace25Logo);
@@ -134,9 +131,26 @@ BASE_DECLARE_FEATURE(kMultilineEditField);
 
 // Whether the composebox should use the new `chrome-compose` client.
 BASE_DECLARE_FEATURE(kComposeboxUsesChromeComposeClient);
+inline constexpr base::FeatureParam<std::string> kComposeboxClientOverride{
+    &kComposeboxUsesChromeComposeClient, "composebox_client_name_override",
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+    "chrome-mobile-aim"
+#else
+    "chrome-compose"
+#endif
+};
 
 // Controls whether or not contextual composebox should display suggestions.
 BASE_DECLARE_FEATURE(kComposeboxAttachmentsTypedState);
+
+// A flag that allows params from experiment configs to be passed through to
+// the AIM eligibility service to control aspects of URL interception.
+BASE_DECLARE_FEATURE(kAimUrlInterceptPassthrough);
+inline constexpr base::FeatureParam<std::string> kAimUrlInterceptionParams{
+    &kAimUrlInterceptPassthrough, "aim_url_interception_params", ""};
+
+// Enable debug logs that can be read from an internals page.
+BASE_DECLARE_FEATURE(kOmniboxDebugLogs);
 
 #if BUILDFLAG(IS_ANDROID)
 BASE_DECLARE_FEATURE(kDiagnostics);
@@ -148,6 +162,12 @@ BASE_DECLARE_FEATURE(kAndroidHubSearchTabGroups);
 BASE_DECLARE_FEATURE(kOmniboxImprovementForLFF);
 #endif  // BUILDFLAG(IS_ANDROID)
 // Note: no new flags beyond this point.
+
+namespace flag_descriptions {
+extern const char kOmniboxDebugLogsName[];
+extern const char kOmniboxDebugLogsDescription[];
+}  // namespace flag_descriptions
+
 }  // namespace omnibox
 
 #endif  // COMPONENTS_OMNIBOX_COMMON_OMNIBOX_FEATURES_H_

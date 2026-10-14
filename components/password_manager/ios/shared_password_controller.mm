@@ -17,6 +17,7 @@
 #import "base/check_op.h"
 #import "base/containers/to_vector.h"
 #import "base/debug/crash_logging.h"
+#import "base/debug/dump_without_crashing.h"
 #import "base/feature_list.h"
 #import "base/functional/bind.h"
 #import "base/memory/raw_ptr.h"
@@ -489,7 +490,8 @@ autofill::LocalFrameToken GetLocalFrameToken(web::WebFrame* frame) {
 - (void)onFieldTypesDetermined:(AutofillManager&)manager
                        forForm:(FormGlobalId)formId
                     fromSource:
-                        (AutofillManager::Observer::FieldTypeSource)source {
+                        (AutofillManager::Observer::FieldTypeSource)source
+          smallFormsWereParsed:(bool)small_forms_were_parsed {
   const autofill::FormStructure* form_structure =
       manager.FindCachedFormById(formId);
   if (!form_structure) {
@@ -724,6 +726,29 @@ autofill::LocalFrameToken GetLocalFrameToken(web::WebFrame* frame) {
           password_manager::metrics_util::PasswordDropdownSelectedOption::
               kGenerate,
           [self IsOffTheRecord]);
+      return;
+    }
+    case autofill::SuggestionType::kWebauthnCredential: {
+      WebAuthnCredentialsDelegate* webAuthnCredentialsDelegate =
+          [self retrieveWebAuthnCredentialsDelegateForFrame:frame];
+      CHECK(webAuthnCredentialsDelegate);
+
+      // Get the encoded credential ID. Fall back to an empty ID if one wasn't
+      // added to the suggestion, which will result in deferring the passkey
+      // selection to the renderer.
+      const std::string encodedCredentialID =
+          std::holds_alternative<autofill::Suggestion::Guid>(suggestion.payload)
+              ? std::get<autofill::Suggestion::Guid>(suggestion.payload).value()
+              : std::string();
+
+      // An empty `encodedCredentialID` shouldn't cause a crash as there's a
+      // deferring mechanism in place, but it is unexpected.
+      if (encodedCredentialID.empty()) {
+        base::debug::DumpWithoutCrashing();
+      }
+
+      webAuthnCredentialsDelegate->SelectPasskey(encodedCredentialID,
+                                                 base::DoNothing());
       return;
     }
     default: {
@@ -1229,8 +1254,9 @@ autofill::LocalFrameToken GetLocalFrameToken(web::WebFrame* frame) {
   }
 }
 
-// Retrieves passkey suggestions for the provided `frame`.
-- (NSArray<FormSuggestion*>*)retrievePasskeySuggestionsForFrame:
+// Retrieves the WebAuthnCredentialsDelegate from the PasswordManagerClient
+// for the given `frame`.
+- (WebAuthnCredentialsDelegate*)retrieveWebAuthnCredentialsDelegateForFrame:
     (web::WebFrame*)frame {
   PasswordManagerClient* passwordManagerClient =
       self.delegate.passwordManagerClient;
@@ -1240,8 +1266,14 @@ autofill::LocalFrameToken GetLocalFrameToken(web::WebFrame* frame) {
       [_driverHelper PasswordManagerDriver:frame];
   CHECK(driver);
 
+  return passwordManagerClient->GetWebAuthnCredentialsDelegateForDriver(driver);
+}
+
+// Retrieves passkey suggestions for the provided `frame`.
+- (NSArray<FormSuggestion*>*)retrievePasskeySuggestionsForFrame:
+    (web::WebFrame*)frame {
   WebAuthnCredentialsDelegate* webAuthnCredentialsDelegate =
-      passwordManagerClient->GetWebAuthnCredentialsDelegateForDriver(driver);
+      [self retrieveWebAuthnCredentialsDelegateForFrame:frame];
   if (!webAuthnCredentialsDelegate) {
     // No WebAuthnCredentialsDelegate means that passkeys are not supported.
     return @[];

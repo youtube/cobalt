@@ -418,12 +418,6 @@ export declare type HostRequestTypes = ValidateRequestMap<{
     },
     backgroundAllowed: true,
   },
-  glicBrowserOnModelChanged: {
-    request: {
-      model: number,
-    },
-    backgroundAllowed: true,
-  },
   glicBrowserOnRecordUseCounter: {
     request: {
       counter: number,
@@ -503,6 +497,9 @@ export declare type HostRequestTypes = ValidateRequestMap<{
     response: {
       modalOpened: boolean,
     },
+  },
+  glicBrowserShowManageSkillsUi: {
+    backgroundAllowed: true,
   },
   glicBrowserGetSkill: {
     request: {
@@ -731,10 +728,21 @@ export declare type WebClientRequestTypes = ValidateRequestMap<{
       skillPreview: SkillPreview,
     },
   },
+  glicWebClientNotifyContextualSkillPreviewsChanged: {
+    request: {
+      contextualSkillPreviews: SkillPreview[],
+    },
+  },
   glicWebClientNotifySkillToInvokeChanged: {
     request: {
       skill: Skill,
     },
+  },
+  glicWebClientNotifySkillDeleted: {
+    request: {
+      skillId: string,
+    },
+    backgroundAllowed: true,
   },
   glicWebClientPinCandidatesChanged: {
     request: {
@@ -892,7 +900,7 @@ export const HOST_REQUEST_TYPES: HostRequestEnumNamesType&{MAX_VALUE: number} =
         OnResponseStopped: 41,
         OnSessionTerminated: 42,
         OnTurnCompleted: 43,
-        OnModelChanged: 44,
+        // Do not reuse deleted request ID: 44,
         ScrollTo: 45,
         SetSyntheticExperimentState: 46,
         OpenOsPermissionSettingsMenu: 47,
@@ -934,6 +942,7 @@ export const HOST_REQUEST_TYPES: HostRequestEnumNamesType&{MAX_VALUE: number} =
         UpdateSkill: 83,
         GetSkill: 84,
         CancelActions: 85,
+        ShowManageSkillsUi: 86,
       };
       return {...result, MAX_VALUE: Math.max(...Object.values(result))};
     })();

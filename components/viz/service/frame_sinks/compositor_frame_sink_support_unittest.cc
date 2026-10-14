@@ -1888,8 +1888,8 @@ TEST_P(CompositorFrameSinkSupportTest, ThrottleUnresponsiveClient) {
   support->SetNeedsBeginFrame(false);
 }
 
-// Verifies that when CompositorFrameSinkSupport has its
-// |begin_frame_interval_| set, any BeginFrame would be sent only after this
+// Verifies that when CompositorFrameSinkSupport has set the throttler's
+// begin_frame_interval(), any BeginFrame would be sent only after this
 // interval has passed from the time when the last BeginFrame was sent.
 TEST_P(CompositorFrameSinkSupportTest, BeginFrameInterval) {
   FakeExternalBeginFrameSource begin_frame_source(0.f, false);
@@ -1901,31 +1901,39 @@ TEST_P(CompositorFrameSinkSupportTest, BeginFrameInterval) {
   SurfaceId id(kAnotherArbitraryFrameSinkId, local_surface_id_);
   support->SetBeginFrameSource(&begin_frame_source);
   support->SetNeedsBeginFrame(true);
-  support->SetLastKnownVsync(BeginFrameArgs::DefaultInterval());
+  support->GetThrottlerForTesting().SetLastKnownVsync(
+      BeginFrameArgs::DefaultInterval(), BeginFrameArgs::DefaultInterval());
 
-  // Check that non perfect cadence throttle does not apply
+  // Check that non perfect cadence throttle does not apply throttling.
   int non_perfect_cadence_fps = BeginFrameArgs::DefaultInterval().ToHz() / 2.5;
   base::TimeDelta non_perfect_throttled_interval =
       base::Seconds(1) / non_perfect_cadence_fps;
-  bool did_throttle = support->ThrottleBeginFrame(
-      non_perfect_throttled_interval, /*perfect_cadence*/ true);
-  EXPECT_FALSE(did_throttle);
+  support->GetThrottlerForTesting().SetCadenceThrottleInterval(
+      non_perfect_throttled_interval);
+  EXPECT_EQ(support->GetThrottlerForTesting().begin_frame_interval(),
+            base::TimeDelta());
 
   // We only throttle multiples of the refresh rate.
   constexpr int fps = BeginFrameArgs::DefaultInterval().ToHz() / 2;
   constexpr base::TimeDelta throttled_interval = base::Seconds(1) / fps;
 
-  // When no last known vsync exists, perfect cadence cannot be computed, just
-  // apply the throttle.
-  support->SetLastKnownVsync(base::TimeDelta());
-  did_throttle =
-      support->ThrottleBeginFrame(throttled_interval, /*perfect_cadence*/ true);
-  EXPECT_TRUE(did_throttle);
+  // When vsync cadence is not known perfect cadence cannot be computed so we
+  // always apply the throttle interval.
+  support->GetThrottlerForTesting().SetLastKnownVsync(base::TimeDelta(),
+                                                      base::TimeDelta());
+  support->GetThrottlerForTesting().SetCadenceThrottleInterval(
+      throttled_interval);
+  EXPECT_EQ(support->GetThrottlerForTesting().begin_frame_interval(),
+            throttled_interval);
 
-  support->SetLastKnownVsync(BeginFrameArgs::DefaultInterval());
-  did_throttle =
-      support->ThrottleBeginFrame(throttled_interval, /*perfect_cadence*/ true);
-  EXPECT_TRUE(did_throttle);
+  // When the last known vsync is known the same throttling signal
+  // applies.
+  support->GetThrottlerForTesting().SetLastKnownVsync(
+      BeginFrameArgs::DefaultInterval(), BeginFrameArgs::DefaultInterval());
+  support->GetThrottlerForTesting().SetCadenceThrottleInterval(
+      throttled_interval);
+  EXPECT_EQ(support->GetThrottlerForTesting().begin_frame_interval(),
+            throttled_interval);
 
   constexpr base::TimeDelta interval = BeginFrameArgs::DefaultInterval();
   const int num_expected_skipped_frames =
@@ -2000,7 +2008,7 @@ TEST_P(CompositorFrameSinkSupportTest, HandlesSmallErrorInBeginFrameTimes) {
   support->SetNeedsBeginFrame(true);
   constexpr base::TimeDelta kNativeInterval = BeginFrameArgs::DefaultInterval();
   constexpr base::TimeDelta kThrottledInterval = kNativeInterval * 2;
-  support->ThrottleBeginFrame(kThrottledInterval);
+  support->SetThrottleInterval(kThrottledInterval);
   constexpr base::TimeDelta kEpsilon = base::Microseconds(2);
 
   base::TimeTicks frame_time;
@@ -2057,12 +2065,72 @@ TEST_P(CompositorFrameSinkSupportTest, HandlesSmallErrorInBeginFrameTimes) {
   support->SetNeedsBeginFrame(false);
 }
 
+TEST_P(CompositorFrameSinkSupportTest, BeginFrameIntervalAccess) {
+  // Default is zero (unthrottled).
+  EXPECT_EQ(support_->GetThrottlerForTesting().begin_frame_interval(),
+            base::TimeDelta());
+
+  support_->SetThrottleInterval(base::Milliseconds(32));
+  EXPECT_EQ(support_->GetThrottlerForTesting().begin_frame_interval(),
+            base::Milliseconds(32));
+}
+
+// Check that the interaction timeout will trigger if no interactive frame has
+// been sent for a while.
+TEST_P(CompositorFrameSinkSupportTest, BeginFrameHandlingInteractionTimeout) {
+  base::TimeTicks frame_time = base::TimeTicks::Now();
+  // Issue a BeginFrame.
+  BeginFrameArgs args =
+      CreateBeginFrameArgsForTesting(BEGINFRAME_FROM_HERE, 0, 1, frame_time);
+  begin_frame_source_.TestOnBeginFrame(args);
+  // Interaction is not known until a CompositorFrame has been sent.
+  EXPECT_FALSE(support_->is_handling_interaction());
+  EXPECT_EQ(support_->last_interaction_time(), base::TimeTicks());
+
+  // Submitting a compositor frame detects that an interaction has started.
+  BeginFrameAck ack(args, true);
+  support_->SubmitCompositorFrame(local_surface_id_,
+                                  MakeDefaultInteractiveCompositorFrame());
+  EXPECT_TRUE(support_->is_handling_interaction());
+  EXPECT_NE(support_->last_interaction_time(), base::TimeTicks());
+  base::TimeTicks last_interaction_time = support_->last_interaction_time();
+
+  // Issue another BeginFrame after kInteractionTimeout milliseconds.
+  args = CreateBeginFrameArgsForTesting(BEGINFRAME_FROM_HERE, 0, 2,
+                                        frame_time + base::Milliseconds(250));
+  begin_frame_source_.TestOnBeginFrame(args);
+
+  // This time, a frame is not produced and we detect the interaction timed out.
+  BeginFrameAck ack2(0, 2, false);
+  support_->DidNotProduceFrame(ack2);
+  EXPECT_FALSE(support_->is_handling_interaction());
+  EXPECT_EQ(support_->last_interaction_time(), last_interaction_time);
+}
+
+// Check that the interaction timeout will trigger if no interactive frame has
+// been sent for a while.
+TEST_P(CompositorFrameSinkSupportTest, BeginFrameNotNeededUnsetsInteraction) {
+  // Issue a BeginFrame.
+  BeginFrameArgs args =
+      CreateBeginFrameArgsForTesting(BEGINFRAME_FROM_HERE, 0, 1);
+  begin_frame_source_.TestOnBeginFrame(args);
+
+  // Submitting a compositor frame detects that an interaction has started.
+  support_->SubmitCompositorFrame(local_surface_id_,
+                                  MakeDefaultInteractiveCompositorFrame());
+  EXPECT_TRUE(support_->is_handling_interaction());
+
+  // Setting NeedsBeginFrame(false) unsets the interaction bit.
+  support_->SetNeedsBeginFrame(false);
+  EXPECT_FALSE(support_->is_handling_interaction());
+}
+
 TEST_P(CompositorFrameSinkSupportTest,
        UsesThrottledIntervalInPresentationFeedback) {
   static constexpr base::TimeDelta kThrottledFrameInterval = base::Hertz(5);
   // Request BeginFrames.
   support_->SetNeedsBeginFrame(true);
-  support_->ThrottleBeginFrame(kThrottledFrameInterval);
+  support_->SetThrottleInterval(kThrottledFrameInterval);
   ASSERT_THAT(BeginFrameArgs::DefaultInterval(), Ne(kThrottledFrameInterval));
 
   base::TimeTicks frame_time = base::TimeTicks::Now();
@@ -2420,7 +2488,7 @@ TEST_P(CompositorFrameSinkSupportTest,
   static constexpr base::TimeDelta kThrottledFrameInterval = base::Hertz(5);
   // Request BeginFrames.
   support_->SetNeedsBeginFrame(true);
-  support_->ThrottleBeginFrame(kThrottledFrameInterval);
+  support_->SetThrottleInterval(kThrottledFrameInterval);
   ASSERT_THAT(BeginFrameArgs::DefaultInterval(), Ne(kThrottledFrameInterval));
 
   base::TimeTicks frame_time = base::TimeTicks::Now();
@@ -2556,4 +2624,99 @@ INSTANTIATE_TEST_SUITE_P(
           std::get<1>(info.param) ? "NoCompositorFrameAck"
                                   : "CompositorFrameAck");
     });
+
+class VideoCadenceThrottlingTest : public CompositorFrameSinkSupportTestBase {
+ public:
+  VideoCadenceThrottlingTest() {
+    scoped_feature_list_.InitAndEnableFeature(
+        features::kOnBeginFrameThrottleVideo);
+  }
+
+ protected:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+TEST_F(VideoCadenceThrottlingTest, CadenceThrottlingResumes) {
+  support_->GetThrottlerForTesting().SetLastKnownVsync(
+      BeginFrameArgs::DefaultInterval(), BeginFrameArgs::DefaultInterval());
+
+  // Submit a frame with video content.
+  constexpr base::TimeDelta kVideoInterval =
+      BeginFrameArgs::DefaultInterval() * 2;
+  support_->MaybeSubmitCompositorFrame(
+      local_surface_id_,
+      CompositorFrameBuilder()
+          .AddDefaultRenderPass()
+          .AddContentFrameIntervalInfo(
+              {.type = ContentFrameIntervalType::kVideo,
+               .frame_interval = kVideoInterval})
+          .Build(),
+      std::nullopt, 0);
+
+  // Verify throttled.
+  EXPECT_TRUE(support_->GetThrottlerForTesting().throttling_allowed());
+  EXPECT_EQ(support_->GetThrottlerForTesting().begin_frame_interval(),
+            kVideoInterval);
+
+  // Submit a frame without video content.
+  support_->MaybeSubmitCompositorFrame(
+      local_surface_id_,
+      CompositorFrameBuilder().AddDefaultRenderPass().Build(), std::nullopt, 0);
+
+  // Verify unthrottled.
+  EXPECT_TRUE(support_->GetThrottlerForTesting().throttling_allowed());
+  EXPECT_EQ(support_->GetThrottlerForTesting().begin_frame_interval(),
+            base::TimeDelta());
+
+  // Submit a frame with same video content again.
+  support_->MaybeSubmitCompositorFrame(
+      local_surface_id_,
+      CompositorFrameBuilder()
+          .AddDefaultRenderPass()
+          .AddContentFrameIntervalInfo(
+              {.type = ContentFrameIntervalType::kVideo,
+               .frame_interval = kVideoInterval})
+          .Build(),
+      std::nullopt, 0);
+
+  // Verify throttled again.
+  EXPECT_TRUE(support_->GetThrottlerForTesting().throttling_allowed());
+  EXPECT_EQ(support_->GetThrottlerForTesting().begin_frame_interval(),
+            kVideoInterval);
+}
+
+TEST_F(VideoCadenceThrottlingTest, CaptureOverridesCadenceThrottling) {
+  support_->GetThrottlerForTesting().SetLastKnownVsync(
+      BeginFrameArgs::DefaultInterval(), BeginFrameArgs::DefaultInterval());
+
+  // Start capture.
+  support_->OnClientCaptureStarted();
+
+  // Submit a frame with video content.
+  constexpr base::TimeDelta kVideoInterval =
+      BeginFrameArgs::DefaultInterval() * 2;
+  support_->MaybeSubmitCompositorFrame(
+      local_surface_id_,
+      CompositorFrameBuilder()
+          .AddDefaultRenderPass()
+          .AddContentFrameIntervalInfo(
+              {.type = ContentFrameIntervalType::kVideo,
+               .frame_interval = kVideoInterval})
+          .Build(),
+      std::nullopt, 0);
+
+  // Verify NOT throttled because of capture.
+  EXPECT_FALSE(support_->GetThrottlerForTesting().throttling_allowed());
+  EXPECT_EQ(support_->GetThrottlerForTesting().begin_frame_interval(),
+            base::TimeDelta());
+
+  // Stop capture.
+  support_->OnClientCaptureStopped();
+
+  // Verify throttled now.
+  EXPECT_TRUE(support_->GetThrottlerForTesting().throttling_allowed());
+  EXPECT_EQ(support_->GetThrottlerForTesting().begin_frame_interval(),
+            kVideoInterval);
+}
+
 }  // namespace viz

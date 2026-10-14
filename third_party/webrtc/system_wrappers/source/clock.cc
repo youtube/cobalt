@@ -13,6 +13,7 @@
 #include <atomic>
 #include <cstdint>
 
+#include "absl/base/nullability.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "rtc_base/checks.h"
@@ -62,7 +63,7 @@ class RealTimeClock : public Clock {
   }
 };
 
-Clock* Clock::GetRealTimeClock() {
+Clock* absl_nonnull Clock::GetRealTimeClock() {
   static Clock* const clock = new RealTimeClock();
   return clock;
 }

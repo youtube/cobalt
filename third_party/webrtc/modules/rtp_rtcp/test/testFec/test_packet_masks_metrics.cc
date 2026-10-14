@@ -433,7 +433,8 @@ class FecPacketMaskMetricsTest : public ::testing::Test {
         }
       }  // Done with loop over total number of packets.
       RTC_DCHECK_LE(num_media_packets_lost, num_media_packets);
-      RTC_DCHECK_LE(num_packets_lost, tot_num_packets && num_packets_lost > 0);
+      RTC_DCHECK_GE(num_packets_lost, 0);
+      RTC_DCHECK_LE(num_packets_lost, tot_num_packets);
       double residual_loss = 0.0;
       // Only need to compute residual loss (number of recovered packets) for
       // configurations that have at least one media packet lost.

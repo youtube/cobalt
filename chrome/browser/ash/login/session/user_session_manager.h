@@ -61,7 +61,6 @@ class AuthenticatorBuilder;
 class LegacyTokenHandleFetcher;
 class EolNotification;
 class InputEventsBlocker;
-class U2FNotification;
 class TokenHandleService;
 
 namespace test {
@@ -324,9 +323,6 @@ class UserSessionManager
     return token_handle_backfill_tried_for_testing_;
   }
 
-  // Shows U2F notification if necessary.
-  void MaybeShowU2FNotification();
-
   // Shows Help App release notes notification, if a notification for the help
   // app has not yet been shown in the current milestone.
   void MaybeShowHelpAppReleaseNotesNotification(Profile* profile);
@@ -361,7 +357,8 @@ class UserSessionManager
       OAuth2LoginManager::SessionRestoreState state) override;
 
   // network::NetworkConnectionTracker::NetworkConnectionObserver overrides:
-  void OnConnectionChanged(network::mojom::ConnectionType type) override;
+  void OnConnectionChanged(
+      net::NetworkChangeNotifier::ConnectionType type) override;
 
   // UserSessionManagerDelegate overrides:
   // Used when restoring user sessions after crash.
@@ -622,8 +619,6 @@ class UserSessionManager
   std::unique_ptr<XdrManager> xdr_manager_;
 
   std::unique_ptr<ChildPolicyObserver> child_policy_observer_;
-
-  std::unique_ptr<U2FNotification> u2f_notification_;
 
   std::unique_ptr<HelpAppNotificationController>
       help_app_notification_controller_;

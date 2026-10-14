@@ -33,6 +33,53 @@ enum class EntryPoint {
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/ios/enums.xml:IOSGeminiEntryPoint)
 
+// The different update sources for the Gemini floaty.
+// Logged as IOSGeminiFloatyUpdateSource enum for the
+// IOS.Gemini.Floaty.HiddenFromSource and IOS.Gemini.Floaty.ShownFromSource
+// histogram.
+// LINT.IfChange(FloatyUpdateSource)
+enum class FloatyUpdateSource {
+  Unknown = 0,
+  ViewTransition = 1,
+  WebNavigation = 2,
+  TabGrid = 3,
+  ContextMenu = 4,
+  WebContextMenu = 5,
+  ForcedFromFullscreen = 6,
+  Overlay = 7,
+  IneligibleSite = 8,
+  ForcedFromQueryResponse = 9,
+  kMaxValue = ForcedFromQueryResponse,
+};
+// LINT.ThenChange(/tools/metrics/histograms/metadata/ios/enums.xml:IOSGeminiFloatyUpdateSource)
+
+// The action button type for an image in Gemini.
+// Logged as IOSGeminiImageActionButtonType enum for the
+// IOS.Gemini.ImageActionButton.Tapped histogram.
+// LINT.IfChange(ImageActionButtonType)
+enum class ImageActionButtonType {
+  kUnknown = 0,
+  kCopy = 1,
+  kDownload = 2,
+  kShare = 3,
+  kMaxValue = kShare,
+};
+// LINT.ThenChange(/tools/metrics/histograms/metadata/ios/enums.xml:IOSGeminiImageActionButtonType)
+
+// The input plate view attachment option for Gemini queries.
+// Logged as IOSGeminiInputPlateAttachmentOption enum for the
+// IOS.Gemini.InputPlateAttachmentOption.Tapped histogram.
+// LINT.IfChange(InputPlateAttachmentOption)
+enum class InputPlateAttachmentOption {
+  kUnknown = 0,
+  kCamera = 1,
+  kGallery = 2,
+  kCreateImageDeselected = 3,
+  kCreateImageSelected = 4,
+  kMaxValue = kCreateImageSelected,
+};
+// LINT.ThenChange(/tools/metrics/histograms/metadata/ios/enums.xml:IOSGeminiInputPlateAttachmentOption)
+
 }  // namespace gemini
 
 // BWG UI sheet detent identifier.

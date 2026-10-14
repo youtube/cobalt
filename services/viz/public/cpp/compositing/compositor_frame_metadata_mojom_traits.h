@@ -129,14 +129,9 @@ struct StructTraits<viz::mojom::CompositorFrameMetadataDataView,
     return metadata.min_page_scale_factor;
   }
 
-  static bool top_controls_visible_height_set(
+  static std::optional<float> top_controls_visible_height(
       const viz::CompositorFrameMetadata& metadata) {
-    return metadata.top_controls_visible_height.has_value();
-  }
-
-  static float top_controls_visible_height(
-      const viz::CompositorFrameMetadata& metadata) {
-    return metadata.top_controls_visible_height.value_or(0.f);
+    return metadata.top_controls_visible_height;
   }
 
   static gfx::OverlayTransform display_transform_hint(
@@ -147,6 +142,11 @@ struct StructTraits<viz::mojom::CompositorFrameMetadataDataView,
   static bool is_mobile_optimized(
       const viz::CompositorFrameMetadata& metadata) {
     return metadata.is_mobile_optimized;
+  }
+
+  static bool prefer_efficient_scheduling(
+      const viz::CompositorFrameMetadata& metadata) {
+    return metadata.prefer_efficient_scheduling;
   }
 
   static const std::unique_ptr<gfx::DelegatedInkMetadata>&

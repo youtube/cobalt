@@ -10,6 +10,7 @@
 #include "base/types/strong_alias.h"
 #include "chrome/browser/ui/views/frame/custom_corners.h"
 #include "third_party/skia/include/core/SkPath.h"
+#include "ui/color/color_id.h"
 #include "ui/color/color_variant.h"
 #include "ui/views/background.h"
 #include "ui/views/view.h"
@@ -52,10 +53,24 @@ class CustomCornersBackground : public views::Background, public CustomCorners {
     bool operator==(const Corners&) const = default;
   };
 
+  // Specifies whether outline strokes should be drawn.
+  struct Outline {
+    ui::ColorId color = ui::kColorSeparator;
+    bool top = false;
+    bool leading = false;
+    bool bottom = false;
+    bool trailing = false;
+
+    bool has_strokes() const { return top || leading || bottom || trailing; }
+
+    bool operator==(const Outline&) const = default;
+  };
+
   CustomCornersBackground(views::View& view,
                           BrowserView& browser_view,
                           ColorChoice primary_color,
-                          ColorChoice corner_color);
+                          ColorChoice corner_color,
+                          std::optional<int> default_radius = std::nullopt);
   ~CustomCornersBackground() override;
 
   // Sets whether the background should be painted.
@@ -71,6 +86,9 @@ class CustomCornersBackground : public views::Background, public CustomCorners {
   // Sets the corners to use.
   void SetCorners(const Corners& corners);
 
+  // Sets the outline strokes to use.
+  void SetOutline(const Outline& outline);
+
   // Returns an appropriate window corner for the current platform.
   // Specify `upper` to switch between upper (true) and lower (false) corners,
   // as they may be different on some platforms.
@@ -84,14 +102,24 @@ class CustomCornersBackground : public views::Background, public CustomCorners {
   const views::View& GetView() const override;
   void OnBrowserPaintAsActiveChanged() override;
 
+  int default_radius() const { return default_radius_; }
+
  private:
   // Hide this as it should not be used directly.
   using Background::SetColor;
 
+  // Possibly mirrors corners for RtL.
+  Corners GetMirroredCorners() const;
+
+  // Possibly mirrors outline for RtL.
+  Outline GetMirroredOutline() const;
+
   bool visible_ = true;
   ColorChoice primary_color_;
   ColorChoice corner_color_;
+  int default_radius_;
   Corners corners_;
+  Outline outline_;
   const raw_ref<views::View> view_;
 };
 

@@ -50,11 +50,12 @@ class BrowserControllerImpl : public BrowserController,
                                 webapps::AppId app_id,
                                 BrowserType browser_type,
                                 const CreateParams& params) override;
-  BrowserDelegate* CreateCustomTab(
-      const AccountId& account_id,
-      std::unique_ptr<content::WebContents> contents) override;
   void CreateAutofillClientForWebContents(
       content::WebContents* web_contents) override;
+  void MayCloseAllBrowsers() override;
+  void MayCloseAllBrowsersAndQuit() override;
+  bool IsTryingToQuit() override;
+  bool HasShutdownStarted() override;
 
   void AddObserver(Observer* observer) override;
   void RemoveObserver(Observer* observer) override;

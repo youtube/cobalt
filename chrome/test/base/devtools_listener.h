@@ -61,6 +61,11 @@ class DevToolsListener : public content::DevToolsAgentHostClient {
   void StoreScripts(content::DevToolsAgentHost* host,
                     const base::FilePath& store);
 
+  // Retrieves scripts that are in the coverage info but were not collected via
+  // the `Debugger.scriptParsed` event.
+  void RetrieveMissingScripts(content::DevToolsAgentHost* host,
+                              const base::ListValue* coverage_entries);
+
   // Sends CDP commands to host.
   void SendCommandMessage(content::DevToolsAgentHost* host,
                           const std::string& command);
@@ -79,28 +84,18 @@ class DevToolsListener : public content::DevToolsAgentHostClient {
   // Called if host was shut down (closed).
   void AgentHostClosed(content::DevToolsAgentHost* host) override;
 
-  // Repeatedly verify all the script IDs from the coverage entries are
-  // available and call `finished_callback` on completion (either retries
-  // exhausted or all scripts are available).
-  void VerifyAllScriptsAreParsedRepeatedly(
-      const base::Value::List* coverage_entries,
-      base::OnceClosure done_callback,
-      int retries);
-
-  std::vector<base::Value::Dict> scripts_;
-  base::Value::Dict script_coverage_;
+  std::vector<base::DictValue> scripts_;
+  base::DictValue script_coverage_;
   std::map<std::string, std::string> script_hash_map_;
   std::map<std::string, std::string> script_id_map_;
 
   base::OnceClosure value_closure_;
-  base::Value::Dict value_;
+  base::DictValue value_;
   int value_id_ = 0;
 
   const std::string uuid_;
   bool navigated_ = false;
   bool attached_ = true;
-
-  bool all_scripts_parsed_ = false;
 
   base::WeakPtrFactory<DevToolsListener> weak_ptr_factory_{this};
 };

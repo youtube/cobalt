@@ -20,7 +20,7 @@
 class PrefValueMap;
 
 namespace supervised_user {
-class SupervisedUserSettingsService;
+class FamilyLinkSettingsService;
 
 // Writes default values to `pref_values` as used within the
 // SupervisedUserPrefStore. In this context "default" doesn't indicate the
@@ -31,35 +31,34 @@ void SetSupervisedUserPrefStoreDefaults(PrefValueMap& pref_values);
 }  // namespace supervised_user
 
 // A PrefStore that gets its values from supervised user settings via the
-// SupervisedUserSettingsService passed in at construction.
+// FamilyLinkSettingsService passed in at construction.
 class SupervisedUserPrefStore : public PrefStore {
  public:
   // Construct a pref store that needs to be manually initialized with Init().
-  // Used on iOS since the iOS SupervisedUserSettingsService depends on the
+  // Used on iOS since the iOS FamilyLinkSettingsService depends on the
   // creation of the pref service and of this pref store.
   SupervisedUserPrefStore();
 
   // Construct the pref store with the settings service and device parental
   // controls available.
   SupervisedUserPrefStore(
-      supervised_user::SupervisedUserSettingsService*
-          supervised_user_settings_service,
+      supervised_user::FamilyLinkSettingsService* family_link_settings_service,
       supervised_user::DeviceParentalControls& device_parental_controls);
 
   // Subscribe to the settings service.
-  void Init(supervised_user::SupervisedUserSettingsService*
-                supervised_user_settings_service,
-            supervised_user::DeviceParentalControls& device_parental_controls);
+  void Init(
+      supervised_user::FamilyLinkSettingsService* family_link_settings_service,
+      supervised_user::DeviceParentalControls& device_parental_controls);
 
   // PrefStore overrides:
   bool GetValue(std::string_view key, const base::Value** value) const override;
-  base::Value::Dict GetValues() const override;
+  base::DictValue GetValues() const override;
   void AddObserver(PrefStore::Observer* observer) override;
   void RemoveObserver(PrefStore::Observer* observer) override;
   bool HasObservers() const override;
   bool IsInitializationComplete() const override;
 
-  void OnNewSettingsAvailable(const base::Value::Dict& settings);
+  void OnNewSettingsAvailable(const base::DictValue& settings);
 
  private:
   // Local representation of last received the device parental controls state.
@@ -86,7 +85,7 @@ class SupervisedUserPrefStore : public PrefStore {
   // which must own a valid pointer.
   void NotifyObserversAboutChanges(std::unique_ptr<PrefValueMap> diff_base);
 
-  base::CallbackListSubscription user_settings_subscription_;
+  base::CallbackListSubscription family_link_settings_subscription_;
 
   base::CallbackListSubscription device_parental_controls_subscription_;
 
@@ -94,13 +93,13 @@ class SupervisedUserPrefStore : public PrefStore {
 
   std::unique_ptr<PrefValueMap> prefs_;
 
-  base::WeakPtr<const supervised_user::SupervisedUserSettingsService>
-      settings_service_;
+  base::WeakPtr<const supervised_user::FamilyLinkSettingsService>
+      family_link_settings_service_;
 
   base::ObserverList<PrefStore::Observer, true> observers_;
 
   // Last received family link settings.
-  std::optional<base::Value::Dict> family_link_settings_;
+  std::optional<base::DictValue> family_link_settings_;
 
   // Last received device parental controls settings. Default value is
   // semantically equivalent to no value.

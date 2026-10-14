@@ -74,7 +74,7 @@ BASE_FEATURE(kExpiredFlagTestFeature,
 const flags_ui::FeatureEntry::FeatureParam kTestVariationOther2[] = {
     {"Param1", "Value"}};
 const flags_ui::FeatureEntry::FeatureVariation kTestVariations2[] = {
-    {"Description", kTestVariationOther2, 1, nullptr}};
+    {"Description", kTestVariationOther2, nullptr}};
 
 std::vector<LabInfo> TestLabInfo() {
   std::vector<LabInfo> test_feature_info;
@@ -566,7 +566,7 @@ TEST_F(ChromeLabsViewControllerTest, DISABLED_ShowFeedbackPage) {
 // This test checks that experiments that are removed from the model will be
 // removed from the PrefService when updating new badge prefs.
 TEST_F(ChromeLabsViewControllerTest, CleanUpNewBadgePrefsTest) {
-  const base::Value::Dict& new_badge_prefs =
+  const base::DictValue& new_badge_prefs =
 #if BUILDFLAG(IS_CHROMEOS)
       browser_view()->browser()->profile()->GetPrefs()->GetDict(
           chrome_labs_prefs::kChromeLabsNewBadgeDictAshChrome);

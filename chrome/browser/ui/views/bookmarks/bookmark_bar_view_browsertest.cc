@@ -557,6 +557,7 @@ constexpr int kPrerenderFailedDuringPrefetch = 86;
 // Following definitions are equal to content::PrefetchStatus.
 constexpr int kPrefetchFailedNon2XX = 12;
 constexpr int kPrefetchResponseUsed = 42;
+constexpr int kPrefetchFailedInvalidRedirect = 43;
 
 constexpr int kPreloadingTriggeringOutcomeSuccess = 5;
 
@@ -936,6 +937,37 @@ IN_PROC_BROWSER_TEST_F(
       "Prerender.Experimental.PrefetchAheadOfPrerenderFailed.PrefetchStatus."
       "Embedder_BookmarkBar",
       kPrefetchFailedNon2XX, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Prerender.Experimental.PrerenderHostFinalStatus.Embedder_BookmarkBar",
+      kPrerenderFailedDuringPrefetch, 1);
+}
+
+// Test a scenario which prefetch fails when a search related url in the
+// redirect chain.
+// TODO(crbug.com/479511794): disabled due to flakiness.
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
+#define MAYBE_PrefetchingRedirectToSearchSite \
+  DISABLED_PrefetchingRedirectToSearchSite
+#else
+#define MAYBE_PrefetchingRedirectToSearchSite PrefetchingRedirectToSearchSite
+#endif
+IN_PROC_BROWSER_TEST_F(
+    PreloadBookmarkBarPrefetchEnabledPrerenderEnabledNavigationTest,
+    MAYBE_PrefetchingRedirectToSearchSite) {
+  StartServers();
+  base::HistogramTester histogram_tester;
+  // Navigate to an non-empty tab
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), https_test_server()->GetURL("/empty.html")));
+
+  GURL preload_url = https_test_server()->GetURL(
+      "/server-redirect?https://www.google.co.jp/search?q=123");
+  CreateBookmarkButton(preload_url);
+  TriggerPrefetchByMouseHoverOnBookmark(preload_url);
+  TriggerPrerenderAndNavigateToBookmarkByMousePressed(preload_url, false);
+
+  histogram_tester.ExpectUniqueSample("Preloading.Prefetch.PrefetchStatus",
+                                      kPrefetchFailedInvalidRedirect, 1);
   histogram_tester.ExpectUniqueSample(
       "Prerender.Experimental.PrerenderHostFinalStatus.Embedder_BookmarkBar",
       kPrerenderFailedDuringPrefetch, 1);

@@ -56,7 +56,7 @@ BASE_FEATURE_PARAM(bool,
                    kGlicConfirmNavigationToNewOrigins,
                    &kGlicCrossOriginNavigationGating,
                    "confirm_navigation_to_new_origins",
-                   false);
+                   true);
 BASE_FEATURE_PARAM(bool,
                    kGlicPromptUserForNavigationToNewOrigins,
                    &kGlicCrossOriginNavigationGating,
@@ -143,5 +143,8 @@ BASE_FEATURE(kActorRestartObservationDelayControllerOnNavigate,
 
 BASE_FEATURE(kActorSendBrowserSignalForAction,
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kGlicActorLoadAndExtractContentTool,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace actor

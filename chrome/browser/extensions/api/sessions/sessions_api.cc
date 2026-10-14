@@ -51,15 +51,21 @@
 #include "ui/base/mojom/window_show_state.mojom.h"
 
 #if BUILDFLAG(IS_ANDROID)
+#include "base/android/jni_callback.h"
+#include "base/functional/callback.h"
+#include "chrome/browser/android/tab_android.h"
 #include "chrome/browser/ui/android/tab_model/android_live_tab_context.h"
+#include "chrome/browser/ui/android/tab_model/tab_model.h"
+#include "chrome/browser/ui/android/tab_model/tab_model_list.h"
+#include "components/tabs/public/tab_interface.h"
+#else
+#include "chrome/browser/ui/browser_live_tab_context.h"
 #endif
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-#include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_finder.h"
-#include "chrome/browser/ui/browser_live_tab_context.h"
-#include "chrome/browser/ui/tabs/tab_strip_model.h"
-#endif
+#if BUILDFLAG(IS_ANDROID)
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "chrome/android/chrome_jni_headers/RecentlyClosedEntriesManager_jni.h"
+#endif  // BUILDFLAG(IS_ANDROID)
 
 static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
@@ -83,11 +89,6 @@ const char kRestoreInIncognitoError[] =
     "Can not restore sessions in incognito mode.";
 const char kNoLiveTabContextError[] = "Unable to determine live tab context.";
 const char kNoActiveTabError[] = "No active tab.";
-
-#if !BUILDFLAG(ENABLE_EXTENSIONS)
-const char kWindowRestoreNotSupportedError[] =
-    "Window restore is not supported on this platform.";
-#endif
 
 // Comparator function for use with std::sort that will sort sessions by
 // descending modified_time (i.e., most recent first).
@@ -213,6 +214,12 @@ BrowserWindowInterface* FindBrowserWindowInterfaceWithProfile(
 
 }  // namespace
 
+SessionsGetRecentlyClosedFunction::SessionsGetRecentlyClosedFunction() =
+    default;
+
+SessionsGetRecentlyClosedFunction::~SessionsGetRecentlyClosedFunction() =
+    default;
+
 api::tabs::Tab SessionsGetRecentlyClosedFunction::CreateTabModel(
     const sessions::tab_restore::Tab& tab,
     bool active) {
@@ -278,7 +285,6 @@ ExtensionFunction::ResponseAction SessionsGetRecentlyClosedFunction::Run() {
   EXTENSION_FUNCTION_VALIDATE(
       max_results >= 0 && max_results <= api::sessions::MAX_SESSION_RESULTS);
 
-  std::vector<api::sessions::Session> result;
   sessions::TabRestoreService* tab_restore_service =
       TabRestoreServiceFactory::GetForProfile(
           Profile::FromBrowserContext(browser_context()));
@@ -288,7 +294,8 @@ ExtensionFunction::ResponseAction SessionsGetRecentlyClosedFunction::Run() {
   if (!tab_restore_service) {
     DCHECK(browser_context()->IsOffTheRecord())
         << "sessions::TabRestoreService expected for normal profiles";
-    return RespondNow(ArgumentList(GetRecentlyClosed::Results::Create(result)));
+    return RespondNow(
+        ArgumentList(GetRecentlyClosed::Results::Create(result_)));
   }
 
   // List of entries. They are ordered from most to least recent.
@@ -302,22 +309,98 @@ ExtensionFunction::ResponseAction SessionsGetRecentlyClosedFunction::Run() {
       auto& group = static_cast<const sessions::tab_restore::Group&>(*entry);
       for (const auto& tab : group.tabs) {
         if (counter++ < max_results) {
-          result.push_back(CreateSessionModel(*tab));
+          result_.push_back(CreateSessionModel(*tab));
         } else {
           break;
         }
       }
     } else {
       if (counter++ < max_results) {
-        result.push_back(CreateSessionModel(*entry));
+        result_.push_back(CreateSessionModel(*entry));
       } else {
         break;
       }
     }
   }
 
-  return RespondNow(ArgumentList(GetRecentlyClosed::Results::Create(result)));
+#if BUILDFLAG(IS_ANDROID)
+  // On Android stores window information on the Java side, so call through JNI
+  // to fetch any recently closed window. Window state may not be persisted at
+  // the time of the call, so pass a callback that will be invoked when window
+  // state is available. The callback is invoked with null on error and when
+  // there is no window available.
+  JNIEnv* env = base::android::AttachCurrentThread();
+  base::OnceCallback<void(const base::android::JavaRef<jobject>&)> j_callback =
+      base::BindOnce(
+          &SessionsGetRecentlyClosedFunction::OnGetRecentlyClosedWindow, this);
+  Java_RecentlyClosedEntriesManager_getRecentlyClosedWindow(
+      env, base::android::ToJniCallback(env, std::move(j_callback)));
+  if (did_respond()) {
+    // The callback may be invoked immediately for errors, in which case
+    // we have already responded.
+    return AlreadyResponded();
+  } else {
+    // Otherwise we will respond in OnGetRecentlyClosedWindow().
+    return RespondLater();
+  }
+#else
+  // On Win/Mac/Linux the TabRestoreService has window information, so we can
+  // respond immediately.
+  return RespondNow(ArgumentList(GetRecentlyClosed::Results::Create(result_)));
+#endif  // BUILDFLAG(IS_ANDROID)
 }
+
+#if BUILDFLAG(IS_ANDROID)
+void SessionsGetRecentlyClosedFunction::OnGetRecentlyClosedWindow(
+    const base::android::JavaRef<jobject>& j_tab_model) {
+  if (j_tab_model.is_null()) {
+    // No tab model, so no valid window to add.
+    Respond(ArgumentList(GetRecentlyClosed::Results::Create(result_)));
+    return;
+  }
+
+  // Look up the C++ side TabModel.
+  TabModel* model = TabModelList::FindNativeTabModelForJavaObject(j_tab_model);
+  if (!model) {
+    Respond(ArgumentList(GetRecentlyClosed::Results::Create(result_)));
+    return;
+  }
+
+  // Extract the URL for the closed windows.
+  std::vector<api::tabs::Tab> api_tabs;
+  for (int i = 0; i < model->GetTabCount(); ++i) {
+    TabAndroid* tab = model->GetTabAt(i);
+    CHECK(tab);
+    // NOTE: The tabs may not have WebContents, since the window is closed.
+    // TODO(crbug.com/405219627): Extract more metadata from the tab and return
+    // it to the API caller.
+    api::tabs::Tab api_tab;
+    api_tab.index = i;
+    GURL url = tab->GetURL();
+    api_tab.url = url.spec();
+
+    // Scrub any sensitive information from the tab before adding to the list.
+    ExtensionTabUtil::ScrubTabBehavior scrub_tab_behavior =
+        ExtensionTabUtil::GetScrubTabBehavior(extension(),
+                                              source_context_type(), url);
+    ExtensionTabUtil::ScrubTabForExtension(extension(), nullptr, &api_tab,
+                                           scrub_tab_behavior);
+    api_tabs.push_back(std::move(api_tab));
+  }
+
+  // Populate the window and session objects.
+  api::windows::Window window;
+  window.tabs = std::move(api_tabs);
+  api::sessions::Session session;
+  session.window = std::move(window);
+
+  // Add the session to the result.
+  result_.push_back(std::move(session));
+
+  // Respond to the API caller.
+  Respond(ArgumentList(GetRecentlyClosed::Results::Create(result_)));
+}
+#endif  // BUILDFLAG(IS_ANDROID)
 
 api::tabs::Tab SessionsGetDevicesFunction::CreateTabModel(
     const std::string& session_tag,
@@ -394,9 +477,6 @@ SessionsGetDevicesFunction::CreateWindowModel(
       type = api::windows::WindowType::kDevtools;
       break;
     case sessions::SessionWindow::TYPE_APP_POPUP:
-#if BUILDFLAG(IS_CHROMEOS)
-    case sessions::SessionWindow::TYPE_CUSTOM_TAB:
-#endif
       NOTREACHED();
   }
 
@@ -528,7 +608,7 @@ SessionsRestoreFunction::GetRestoredWindowResult(int window_id) {
                                                &window_controller, &error)) {
     return Error(error);
   }
-  base::Value::Dict window_value =
+  base::DictValue window_value =
       window_controller->CreateWindowValueForExtension(
           extension(), WindowController::kPopulateTabs, source_context_type());
   std::optional<api::windows::Window> window =
@@ -620,7 +700,8 @@ ExtensionFunction::ResponseValue SessionsRestoreFunction::RestoreLocalSession(
   return GetRestoredTabResult(&first_tab->GetWebContents());
 }
 
-ExtensionFunction::ResponseValue SessionsRestoreFunction::RestoreForeignSession(
+ExtensionFunction::ResponseAction
+SessionsRestoreFunction::RestoreForeignSession(
     const SessionId& session_id,
     BrowserWindowInterface* browser) {
   Profile* profile = Profile::FromBrowserContext(browser_context());
@@ -632,7 +713,7 @@ ExtensionFunction::ResponseValue SessionsRestoreFunction::RestoreForeignSession(
       service->GetOpenTabsUIDelegate();
   // If the user has disabled tab sync, GetOpenTabsUIDelegate() returns null.
   if (!open_tabs) {
-    return Error(kSessionSyncError);
+    return RespondNow(Error(kSessionSyncError));
   }
 
   const sessions::SessionTab* tab = nullptr;
@@ -641,20 +722,20 @@ ExtensionFunction::ResponseValue SessionsRestoreFunction::RestoreForeignSession(
                                &tab)) {
     content::WebContents* contents = GetActiveWebContents(browser);
     if (!contents) {
-      return Error(kNoActiveTabError);
+      return RespondNow(Error(kNoActiveTabError));
     }
 
     content::WebContents* tab_contents =
         SessionRestore::RestoreForeignSessionTab(
             contents, *tab, WindowOpenDisposition::NEW_FOREGROUND_TAB);
-    return GetRestoredTabResult(tab_contents);
+    return RespondNow(GetRestoredTabResult(tab_contents));
   }
 
   // Restoring a full window.
   std::vector<const sessions::SessionWindow*> windows =
       open_tabs->GetForeignSession(session_id.session_tag());
   if (windows.empty()) {
-    return Error(kInvalidSessionIdError, session_id.ToString());
+    return RespondNow(Error(kInvalidSessionIdError, session_id.ToString()));
   }
 
   std::vector<const sessions::SessionWindow*>::const_iterator window =
@@ -664,21 +745,29 @@ ExtensionFunction::ResponseValue SessionsRestoreFunction::RestoreForeignSession(
     ++window;
   }
   if (window == windows.end()) {
-    return Error(kInvalidSessionIdError, session_id.ToString());
+    return RespondNow(Error(kInvalidSessionIdError, session_id.ToString()));
   }
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
   // Only restore one window at a time.
-  std::vector<BrowserWindowInterface*> browsers =
-      SessionRestore::RestoreForeignSessionWindows(profile, window, window + 1);
+  SessionRestore::RestoreForeignSessionWindows(
+      profile, window, window + 1,
+      base::BindOnce(&SessionsRestoreFunction::OnRestoreForeignSessionWindows,
+                     this));
+  // Window restore is asynchronous on Android but synchronous on Win/Mac/Linux.
+  // On Win/Mac/Linux we may have already called the callback and responded. On
+  // Android we need to respond later.
+  if (did_respond()) {
+    return AlreadyResponded();
+  } else {
+    return RespondLater();
+  }
+}
+
+void SessionsRestoreFunction::OnRestoreForeignSessionWindows(
+    std::vector<BrowserWindowInterface*> browsers) {
   // Will always create one browser because we only restore one window per call.
   DCHECK_EQ(1u, browsers.size());
-  return GetRestoredWindowResult(ExtensionTabUtil::GetWindowId(browsers[0]));
-#else
-  // TODO(crbug.com/405219627): Support window restore on desktop Android.
-  NOTIMPLEMENTED();
-  return Error(kWindowRestoreNotSupportedError);
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
+  Respond(GetRestoredWindowResult(ExtensionTabUtil::GetWindowId(browsers[0])));
 }
 
 ExtensionFunction::ResponseAction SessionsRestoreFunction::Run() {
@@ -709,9 +798,13 @@ ExtensionFunction::ResponseAction SessionsRestoreFunction::Run() {
     return RespondNow(Error(kInvalidSessionIdError, *params->session_id));
   }
 
-  return RespondNow(session_id->IsForeign()
-                        ? RestoreForeignSession(*session_id, browser)
-                        : RestoreLocalSession(*session_id, browser));
+  if (!session_id->IsForeign()) {
+    return RespondNow(RestoreLocalSession(*session_id, browser));
+  }
+
+  // Foreign window restore is sometimes asynchronous, so it may return
+  // RespondLater().
+  return RestoreForeignSession(*session_id, browser);
 }
 
 SessionsEventRouter::SessionsEventRouter(Profile* profile)
@@ -735,7 +828,7 @@ void SessionsEventRouter::TabRestoreServiceChanged(
     sessions::TabRestoreService* service) {
   EventRouter::Get(profile_)->BroadcastEvent(std::make_unique<Event>(
       events::SESSIONS_ON_CHANGED, api::sessions::OnChanged::kEventName,
-      base::Value::List()));
+      base::ListValue()));
 }
 
 void SessionsEventRouter::TabRestoreServiceDestroyed(

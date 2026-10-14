@@ -290,8 +290,8 @@ void StreamResetHandler::HandleResponse(const ParameterDescriptor& descriptor) {
             << webrtc::StrJoin(current_request_->streams(), ",",
                                [](webrtc::StringBuilder& sb,
                                   StreamID stream_id) { sb << *stream_id; });
-        // Force this request to be sent again, but with new req_seq_nbr.
-        current_request_->PrepareRetransmission();
+        // Force this request to be sent again, but with the same req_seq_nbr.
+        current_request_->set_deferred(true);
         reconfig_timer_->set_duration(ctx_->current_rto());
         reconfig_timer_->Start();
         break;
@@ -363,11 +363,17 @@ void StreamResetHandler::ResetStreams(
 
 TimeDelta StreamResetHandler::OnReconfigTimerExpiry() {
   if (current_request_->has_been_sent()) {
-    // There is an outstanding request, which timed out while waiting for a
-    // response.
-    if (!ctx_->IncrementTxErrorCounter("RECONFIG timeout")) {
-      // Timed out. The connection will close after processing the timers.
-      return TimeDelta::Zero();
+    if (current_request_->is_deferred()) {
+      // The request was deferred (received "In Progress"). This is not a
+      // timeout, but just time to retry.
+      current_request_->set_deferred(false);
+    } else {
+      // There is an outstanding request, which timed out while waiting for a
+      // response.
+      if (!ctx_->IncrementTxErrorCounter("RECONFIG timeout")) {
+        // Timed out. The connection will close after processing the timers.
+        return TimeDelta::Zero();
+      }
     }
   } else {
     // There is no outstanding request, but there is a prepared one. This means

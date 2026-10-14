@@ -5,6 +5,7 @@
 #include "chrome/browser/ui/toolbar/app_menu_model.h"
 
 #include <algorithm>
+#include <optional>
 #include <vector>
 
 #include "base/command_line.h"
@@ -15,11 +16,13 @@
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
+#include "chrome/browser/browser_features.h"
 #include "chrome/browser/defaults.h"
 #include "chrome/browser/password_manager/password_manager_test_util.h"
 #include "chrome/browser/prefs/browser_prefs.h"
 #include "chrome/browser/sharing_hub/sharing_hub_features.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
+#include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/global_error/global_error.h"
 #include "chrome/browser/ui/global_error/global_error_service.h"
@@ -49,6 +52,7 @@
 #include "components/signin/public/base/consent_level.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
 #include "components/sync/base/features.h"
+#include "components/sync/test/test_sync_service.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -57,6 +61,7 @@
 
 #if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/policy/system_features_disable_list_policy_handler.h"
+#include "chromeos/constants/chromeos_features.h"
 #include "components/policy/core/common/policy_pref_names.h"
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
@@ -573,6 +578,86 @@ TEST_F(AppMenuModelTest, ProfileSyncOnTest) {
   EXPECT_TRUE(profile_menu->IsEnabledAt(sync_settings_index));
 }
 
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+bool DoesHelpMenuHaveCommand(const AppMenuModel& model, int command_id) {
+  const size_t help_menu_index =
+      model.GetIndexOfCommandId(IDC_HELP_MENU).value();
+  ui::SimpleMenuModel* help_menu = static_cast<ui::SimpleMenuModel*>(
+      model.GetSubmenuModelAt(help_menu_index));
+  return help_menu->GetIndexOfCommandId(command_id).has_value();
+}
+
+TEST_F(AppMenuModelTest, Feedback_UserFeedbackAllowedPolicy) {
+  browser()->profile()->GetPrefs()->SetBoolean(prefs::kUserFeedbackAllowed,
+                                               true);
+  {
+    AppMenuModel model(this, browser());
+    model.Init();
+    EXPECT_TRUE(DoesHelpMenuHaveCommand(model, IDC_FEEDBACK));
+  }
+
+  browser()->profile()->GetPrefs()->SetBoolean(prefs::kUserFeedbackAllowed,
+                                               false);
+  {
+    AppMenuModel model(this, browser());
+    model.Init();
+    EXPECT_FALSE(DoesHelpMenuHaveCommand(model, IDC_FEEDBACK));
+  }
+}
+
+class AppMenuReportUnsafeSiteTest : public base::test::WithFeatureOverride,
+                                    public AppMenuModelTest {
+ public:
+  AppMenuReportUnsafeSiteTest()
+      : WithFeatureOverride(features::kReportUnsafeSite) {}
+  ~AppMenuReportUnsafeSiteTest() override = default;
+};
+
+TEST_P(AppMenuReportUnsafeSiteTest,
+       ReportUnsafeSite_UserFeedbackAllowedPolicy) {
+  browser()->profile()->GetPrefs()->SetBoolean(prefs::kUserFeedbackAllowed,
+                                               true);
+  {
+    AppMenuModel model(this, browser());
+    model.Init();
+    EXPECT_EQ(IsParamFeatureEnabled(),
+              DoesHelpMenuHaveCommand(model, IDC_REPORT_UNSAFE_SITE));
+  }
+
+  browser()->profile()->GetPrefs()->SetBoolean(prefs::kUserFeedbackAllowed,
+                                               false);
+  {
+    AppMenuModel model(this, browser());
+    model.Init();
+    EXPECT_FALSE(DoesHelpMenuHaveCommand(model, IDC_REPORT_UNSAFE_SITE));
+  }
+}
+
+TEST_P(AppMenuReportUnsafeSiteTest, ReportUnsafeSite_SafeBrowsingDisabled) {
+  browser()->profile()->GetPrefs()->SetBoolean(prefs::kUserFeedbackAllowed,
+                                               true);
+  browser()->profile()->GetPrefs()->SetBoolean(prefs::kSafeBrowsingEnabled,
+                                               true);
+  {
+    AppMenuModel model(this, browser());
+    model.Init();
+    EXPECT_EQ(IsParamFeatureEnabled(),
+              DoesHelpMenuHaveCommand(model, IDC_REPORT_UNSAFE_SITE));
+  }
+
+  browser()->profile()->GetPrefs()->SetBoolean(prefs::kSafeBrowsingEnabled,
+                                               false);
+  {
+    AppMenuModel model(this, browser());
+    model.Init();
+    EXPECT_FALSE(DoesHelpMenuHaveCommand(model, IDC_REPORT_UNSAFE_SITE));
+  }
+}
+
+INSTANTIATE_FEATURE_OVERRIDE_TEST_SUITE(AppMenuReportUnsafeSiteTest);
+
+#endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
+
 class AppMenuModelSigninPromoTest : public base::test::WithFeatureOverride,
                                     public AppMenuModelTest {
  public:
@@ -613,6 +698,78 @@ TEST_P(AppMenuModelSigninPromoTest, SignedOut) {
 }
 
 INSTANTIATE_FEATURE_OVERRIDE_TEST_SUITE(AppMenuModelSigninPromoTest);
+
+TEST_F(AppMenuModelTest,
+       ProfileSyncBookmarkLimitExceededErrorHiddenTest_Syncing) {
+  // Set up the bookmark limit exceeded error.
+  syncer::TestSyncService* test_sync_service =
+      static_cast<syncer::TestSyncService*>(
+          SyncServiceFactory::GetInstance()->SetTestingFactoryAndUse(
+              browser()->profile(),
+              base::BindRepeating([](content::BrowserContext* context)
+                                      -> std::unique_ptr<KeyedService> {
+                return std::make_unique<syncer::TestSyncService>();
+              })));
+  test_sync_service->SetBookmarksLimitExceeded(true);
+
+  signin::IdentityManager* identity_manager =
+      IdentityManagerFactory::GetForProfile(browser()->profile());
+  signin::MakePrimaryAccountAvailable(identity_manager, "user@example.com",
+                                      signin::ConsentLevel::kSync);
+
+  AppMenuModel model(this, browser());
+  model.Init();
+  const size_t profile_menu_index =
+      model.GetIndexOfCommandId(IDC_PROFILE_MENU_IN_APP_MENU).value();
+  ui::SimpleMenuModel* profile_menu = static_cast<ui::SimpleMenuModel*>(
+      model.GetSubmenuModelAt(profile_menu_index));
+
+  // Verify that IDC_SHOW_SYNC_SETTINGS is NOT present because we returned true
+  // early.
+  EXPECT_FALSE(
+      profile_menu->GetIndexOfCommandId(IDC_SHOW_SYNC_SETTINGS).has_value());
+  // Verify that the "Learn more" button (which would have command_id 0) is NOT
+  // present.
+  EXPECT_FALSE(profile_menu->GetIndexOfCommandId(0).has_value());
+}
+
+TEST_F(AppMenuModelTest,
+       ProfileSyncBookmarkLimitExceededErrorHiddenTest_SignedInNonSyncing) {
+  feature_list_.Reset();
+  feature_list_.InitAndEnableFeature(
+      syncer::kReplaceSyncPromosWithSignInPromos);
+
+  // Set up the bookmark limit exceeded error.
+  syncer::TestSyncService* test_sync_service =
+      static_cast<syncer::TestSyncService*>(
+          SyncServiceFactory::GetInstance()->SetTestingFactoryAndUse(
+              browser()->profile(),
+              base::BindRepeating([](content::BrowserContext* context)
+                                      -> std::unique_ptr<KeyedService> {
+                return std::make_unique<syncer::TestSyncService>();
+              })));
+  test_sync_service->SetBookmarksLimitExceeded(true);
+
+  signin::IdentityManager* identity_manager =
+      IdentityManagerFactory::GetForProfile(browser()->profile());
+  signin::MakePrimaryAccountAvailable(identity_manager, "user@example.com",
+                                      signin::ConsentLevel::kSignin);
+
+  AppMenuModel model(this, browser());
+  model.Init();
+  const size_t profile_menu_index =
+      model.GetIndexOfCommandId(IDC_PROFILE_MENU_IN_APP_MENU).value();
+  ui::SimpleMenuModel* profile_menu = static_cast<ui::SimpleMenuModel*>(
+      model.GetSubmenuModelAt(profile_menu_index));
+
+  // Verify that IDC_SHOW_SYNC_SETTINGS is NOT present because we returned true
+  // early.
+  EXPECT_FALSE(
+      profile_menu->GetIndexOfCommandId(IDC_SHOW_SYNC_SETTINGS).has_value());
+  // Verify that the "Learn more" button (which would have command_id 0) is NOT
+  // present.
+  EXPECT_FALSE(profile_menu->GetIndexOfCommandId(0).has_value());
+}
 
 #endif  // !BUILDFLAG(IS_CHROMEOS)
 
@@ -707,11 +864,48 @@ TEST_F(TestAppMenuModelSafetyHubTest, SafetyHubMenuNotification) {
   EXPECT_FALSE(new_model.GetLabelAt(menu_index).empty());
 }
 
-TEST_F(AppMenuModelTest, TabSearchItem) {
+#if BUILDFLAG(ENABLE_GLIC)
+class TabSearchMenuModelTest : public AppMenuModelTest {
+ public:
+  TabSearchMenuModelTest() = default;
+  ~TabSearchMenuModelTest() override = default;
+
+  void SetUp() override {
+    // The kFeatureManagementGlic flag is needed at startup for a cached
+    // ChromeOS check. The rest of the flags are set at runtime to avoid needing
+    // to initialize the rest of Glic.
+    scoped_feature_list_.InitWithFeatures(
+        {
+#if BUILDFLAG(IS_CHROMEOS)
+            chromeos::features::kFeatureManagementGlic
+#endif  // BUILDFLAG(IS_CHROMEOS)
+        },
+        /*disabled_features=*/{});
+    AppMenuModelTest::SetUp();
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+TEST_F(TabSearchMenuModelTest, TabSearchItem) {
+  base::test::ScopedFeatureList scoped_feature_list_;
+  scoped_feature_list_.InitWithFeatures(
+      /*enabled_features=*/{features::kGlic, features::kGlicRollout,
+#if BUILDFLAG(IS_CHROMEOS)
+                            chromeos::features::kFeatureManagementGlic
+#endif  // BUILDFLAG(IS_CHROMEOS)
+      },
+      /*disabled_features=*/{features::kGlicLocaleFiltering,
+                             features::kGlicCountryFiltering});
+
   AppMenuModel model(this, browser());
   model.Init();
   ToolsMenuModel toolModel(&model, browser());
-  size_t tab_search_index =
-      toolModel.GetIndexOfCommandId(IDC_TAB_SEARCH).value();
-  EXPECT_TRUE(toolModel.IsEnabledAt(tab_search_index));
+  std::optional<size_t> tab_search_index =
+      toolModel.GetIndexOfCommandId(IDC_TAB_SEARCH);
+  EXPECT_TRUE(tab_search_index.has_value());
+  EXPECT_TRUE(toolModel.IsEnabledAt(tab_search_index.value()));
 }
+
+#endif

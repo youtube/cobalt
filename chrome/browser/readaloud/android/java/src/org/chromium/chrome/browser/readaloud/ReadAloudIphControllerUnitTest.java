@@ -29,8 +29,9 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
 
-import org.chromium.base.supplier.MonotonicObservableSupplier;
-import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.base.supplier.NonNullObservableSupplier;
+import org.chromium.base.supplier.ObservableSuppliers;
+import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
@@ -60,27 +61,29 @@ public class ReadAloudIphControllerUnitTest {
     @Mock Context mContext;
     @Mock Resources mResources;
     @Captor ArgumentCaptor<IphCommand> mIphCommandCaptor;
-    @Mock private MonotonicObservableSupplier<Tab> mMockTabProvider;
     @Mock ReadAloudController mReadAloudController;
-    ObservableSupplierImpl<ReadAloudController> mReadAloudControllerSupplier;
-    private MockTab mTab;
     @Mock private Profile mProfile;
     private static final GURL sTestGURL = JUnitTestGURLs.EXAMPLE_URL;
+
+    private final SettableMonotonicObservableSupplier<Tab> mMockTabProvider =
+            ObservableSuppliers.createMonotonic();
+    private NonNullObservableSupplier<ReadAloudController> mReadAloudControllerSupplier;
+    private MockTab mTab;
 
     ReadAloudIphController mController;
 
     @Before
     public void setUp() {
+        mTab = new MockTab(1, mProfile);
+        mTab.setGurlOverrideForTesting(sTestGURL);
+        mMockTabProvider.set(mTab);
+
         doReturn(mResources).when(mContext).getResources();
         doReturn(mContext).when(mToolbarMenuButton).getContext();
 
         doReturn(false).when(mProfile).isOffTheRecord();
-        mTab = new MockTab(1, mProfile);
-        mTab.setGurlOverrideForTesting(sTestGURL);
-        doReturn(mTab).when(mMockTabProvider).get();
 
-        mReadAloudControllerSupplier = new ObservableSupplierImpl<>();
-        mReadAloudControllerSupplier.set(mReadAloudController);
+        mReadAloudControllerSupplier = ObservableSuppliers.createNonNull(mReadAloudController);
         doReturn(PlaybackMode.CLASSIC).when(mReadAloudController).getModeToPlay(mTab);
 
         mController =
@@ -144,8 +147,16 @@ public class ReadAloudIphControllerUnitTest {
         verify(mUserEducationHelper, never()).requestShowIph(mIphCommandCaptor.capture());
 
         // null tab
-        doReturn(null).when(mMockTabProvider).get();
-        mController.maybeShowReadAloudAppMenuIph();
+        ReadAloudIphController controllerWithNullTab =
+                new ReadAloudIphController(
+                        mActivity,
+                        mToolbarMenuButton,
+                        mAppMenuHandler,
+                        mUserEducationHelper,
+                        ObservableSuppliers.alwaysNull(),
+                        mReadAloudControllerSupplier,
+                        /* showAppMenuTextBubble= */ true);
+        controllerWithNullTab.maybeShowReadAloudAppMenuIph();
         verify(mUserEducationHelper, never()).requestShowIph(mIphCommandCaptor.capture());
     }
 

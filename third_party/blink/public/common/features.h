@@ -101,6 +101,10 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kAndroidSpellcheckNativeUi);
 // If enabled, provides API support for custom spell check menus that are
 // rendered by Android applications.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kAndroidSpellcheckFullApiBlink);
+
+// If enabled, the platform in the User-Agent metadata for Android desktop will
+// be "Android" instead of "Linux".
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kAndroidDesktopUAPlatform);
 #endif
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
@@ -228,9 +232,10 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
     kCacheStorageCodeCacheHintHeaderName);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCanvas2DHibernation);
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCanvas2DHibernationDefer);
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCanvas2DHibernationNoSmallCanvas);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
     kCanvas2DHibernationReleaseTransferMemory);
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCanvas2DHibernationNoSmallCanvas);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCaptureJSExecutionLocation);
 
@@ -263,7 +268,17 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
                                                kMaxDiskDataAllocatorCapacityMB);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kLessAggressiveParkableString);
 
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCombineNewWindowIPCs);
+// Controls whether blink main thread rendering updates are forced while
+// compositor-thread animations are running, for the purpose of keeeping
+// IntersectionObserver and anchor positioning correctly up to date.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCompositedAnimationsForceMainFrames);
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    bool,
+    kForceMainFramesForIntersectionObserver);
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    bool,
+    kForceMainFramesForAnchorTransform);
+
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kConsumeCodeCacheOffThread);
 
 #if BUILDFLAG(IS_COBALT)
@@ -677,6 +692,10 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kForceHighPerformanceGPUForWebGL);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kForceOffTextAutosizing);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kFrameMetadataObserver);
+
+// If enabled, shared workers will be frozen when all their clients are in the
+// back/forward cache.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kFreezeSharedWorker);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
     kFrequencyCappingForLargeStickyAdDetection);
@@ -1405,6 +1424,8 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kDedicatedWorkerAblationStudyEnabled);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
                                                kDedicatedWorkerStartDelayInMs);
 
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kUpdatedDeviceMemoryLimitsFor2026);
+
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kUseAncestorRenderFrameForWorker);
 
 // Whether first-party to third-party different-bucket same-origin post messages
@@ -1585,11 +1606,6 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kReducedReferrerGranularity);
 
-// Refactor CompositorThreadEventQueue to separate event queuing and coalescing.
-// When disabled, CompositorThreadEventQueue coalesces input events in
-// CompositorThreadEventQueue::Queue itself.
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kRefactorCompositorThreadEventQueue);
-
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
     kReleaseResourceDecodedDataOnMemoryPressure);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
@@ -1626,29 +1642,11 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kResamplingInputEvents);
 // feature param.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kResamplingScrollEvents);
 
-// This experiment evaluates various restrictions on the application of
-// spelling/grammar highlights to prevent user dictionary leaks.
-// For more see:
+// This bypasses restrictions on selection sources and allows the spelling and
+// grammar checks to proceed for testing purposes.
 // https://explainers-by-googlers.github.io/user-dictionary-leaks/
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kRestrictSpellingAndGrammarHighlights);
-
-// If true, this disables spelling/grammar highlights performed on script
-// edit (requiring user input to invoke).
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
-    bool,
-    kRestrictSpellingAndGrammarHighlightsChangedContents);
-
-// If true, this disables spelling/grammar highlights performed on script
-// enablement (requiring contents or selection change).
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
-    bool,
-    kRestrictSpellingAndGrammarHighlightsChangedEnablement);
-
-// If true, this disables spelling/grammar highlights performed on script
-// focus (requiring user gesture to invoke).
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
-    bool,
-    kRestrictSpellingAndGrammarHighlightsChangedSelection);
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
+    kUnrestrictSpellingAndGrammarForTesting);
 
 // Aggregated flag for the restriction on HTTP Link headers on subresource
 // responses. See crbug.com/417529151 for details.
@@ -1762,6 +1760,10 @@ BLINK_COMMON_EXPORT extern const base::FeatureParam<bool>
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kServiceWorkerSyntheticResponse);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    bool,
+    kServiceWorkerSyntheticResponseUseCacheStorageParam);
+
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
     std::string,
     kServiceWorkerSyntheticResponseAllowedUrl);
 
@@ -1769,13 +1771,19 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
     std::string,
     kServiceWorkerSyntheticResponseDeniedUrlParams);
 
+enum class ServiceWorkerSyntheticResponseProcessingMode {
+  kDefault,
+  kBackgroundThread,
+  kNetworkService,
+};
+
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
-    std::string,
-    kServiceWorkerSyntheticResponseIgnoredHeaders);
+    ServiceWorkerSyntheticResponseProcessingMode,
+    kServiceWorkerSyntheticResponseOffMainThread);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
     bool,
-    kServiceWorkerSyntheticResponseReportInconsistentHeader);
+    kServiceWorkerSyntheticResponseSkipUnnecessaryBuffering);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
     bool,
@@ -1879,6 +1887,13 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
 // Feature flag for driving encoding with the Metronome by VSyncs.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kVSyncEncoding);
 
+// Server-side kill switch for applying the local VisualViewport transform
+// (page scale + visual viewport location) when mapping visual rects into
+// viewport space in LayoutView's slow path (ancestor == nullptr). This keeps
+// results consistent with the GeometryMapper viewport fast path.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
+    kVisualRectMappingApplyLocalVisualViewportTransform);
+
 // Feature flag for controlling whether Web Bluetooth gatt.disconnect() can be
 // used to cancel an ongoing gatt.connect() and have it rejected with an ABORT
 // error. This makes the behavior match
@@ -1894,6 +1909,10 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kWebRtcUseCaptureBeginTimestamp);
 // capture timestamps. This is disabled by default.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kWebRtcAudioSinkUseTimestampAligner);
 
+// Enables the use of specific thread types (kPresentation for video,
+// kInteractive for audio processing) for media tasks.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kWebRtcUseMediaThreadTypes);
+
 // This feature enables using Post-Quantum Crypto(PQC) for DTLS to improve
 // WebRTC's security.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kWebRtcPqcForDtls);
@@ -1901,6 +1920,8 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kWebRtcPqcForDtls);
 // TODO(crbug.com/466441366): Stop accepting 'borderless'.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kWebAppBorderless);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kWebAppEnableScopeExtensionsBySite);
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
+    kWebAppEnableScopeExtensionsForIsolatedWebApps);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kWebAppManifestLocalization);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kWebAppManifestLockScreen);
 
@@ -1919,7 +1940,6 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kWebUSBTransferSizeLimit);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kWebviewAccelerateSmallCanvases);
 
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kWorkerThreadSequentialShutdown);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kWorkerThreadRespectTermRequest);
 
 // Kill switch for https://crbug.com/415810136.

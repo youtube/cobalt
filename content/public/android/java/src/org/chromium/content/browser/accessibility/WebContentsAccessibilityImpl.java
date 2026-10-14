@@ -233,6 +233,7 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
     // This array maps a given virtualViewId to an |AccessibilityNodeInfoCompat| for that view. We
     // use this to update a node quickly rather than building from one scratch each time.
     private final SparseArray<AccessibilityNodeInfoCompat> mNodeInfoCache = new SparseArray<>();
+    private final SparseArray<Rect> mOccludingRects = new SparseArray<>();
 
     // This handles the dispatching of accessibility events. It acts as an intermediary where we can
     // apply throttling rules, delay event construction, etc.
@@ -351,6 +352,11 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
                             @Override
                             public AccessibilityCoordinates getAccessibilityCoordinates() {
                                 return mDelegate.getAccessibilityCoordinates();
+                            }
+
+                            @Override
+                            public SparseArray<Rect> getOccludingRects() {
+                                return mOccludingRects;
                             }
                         });
 
@@ -561,6 +567,15 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
                 + " initialized.";
         return WebContentsAccessibilityImplJni.get()
                 .getChildIdsForTesting(mNativeObj, virtualViewId);
+    }
+
+    public int getParentIdForTesting(int virtualViewId) {
+        if (!isNativeInitialized()) return View.NO_ID;
+        assert isRootManagerConnected()
+                : "Accessibility root manager should be connected when the native object is"
+                        + " initialized.";
+        return WebContentsAccessibilityImplJni.get()
+                .getParentIdForTesting(mNativeObj, virtualViewId); // IN-TEST
     }
 
     public int @Nullable [] getLabeledByNodeIdsForTesting(int virtualViewId) {
@@ -975,7 +990,7 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
         mAccessibilityEnabledOverride = true;
         String returnString =
                 AccessibilityNodeInfoUtils.toString(
-                        createAccessibilityNodeInfo(virtualViewId), true);
+                        this, createAccessibilityNodeInfo(virtualViewId), true);
         mAccessibilityEnabledOverride = false;
         return returnString;
     }
@@ -1176,6 +1191,16 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
                 : "Two clients are both trying to obscure web contents accessibility. These are "
                         + "duplicate requests, or prone to error.";
         mIsObscuredByAnotherView = isObscured;
+        sendAccessibilityEvent(View.NO_ID, AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED);
+    }
+
+    @Override
+    public void setOccludingRect(@Nullable Rect rect, int viewId) {
+        if (rect != null) {
+            mOccludingRects.put(viewId, rect);
+        } else {
+            mOccludingRects.remove(viewId);
+        }
         sendAccessibilityEvent(View.NO_ID, AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED);
     }
 
@@ -1480,7 +1505,13 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
             if (delegate == null || !delegate.isActionSetExtendedSelectionSupported()) {
                 return false;
             }
-            if (arguments == null) return false;
+            // TODO(crbug.com/443078007): Add tests for this case and below.
+            if (arguments == null) {
+                // Per API specification, clear selection if no argument is provided.
+                WebContentsAccessibilityImplJni.get()
+                        .clearExtendedSelection(mNativeObj, virtualViewId);
+                return true;
+            }
 
             // Since `delegate.isActionSetExtendedSelectionSupported()` is true, extended
             // selection should be readable and hence a null value for start node means
@@ -1678,6 +1709,14 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
                 mCursorIndex =
                         WebContentsAccessibilityImplJni.get()
                                 .getEditableTextSelectionEnd(mNativeObj, mAccessibilityFocusId);
+            }
+        } else {
+            // `mSelectionStart gets "unassigned" when focus changes and should be initialized for
+            // the first user swipe. For a non-editable node, put selection start on the beginning
+            // of the node. Note that `mCursorIndex` is already set to the end of the node text
+            // when accessibility focus is updated.
+            if (mSelectionStart == -1) {
+                mSelectionStart = 0;
             }
         }
     }
@@ -2647,6 +2686,9 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
         int[] getChildIdsForTesting(long nativeWebContentsAccessibilityAndroid, int virtualViewId);
 
         int[] getLabeledByNodeIdsForTesting( // IN-TEST
+                long nativeWebContentsAccessibilityAndroid, int virtualViewId);
+
+        int getParentIdForTesting( // IN-TEST
                 long nativeWebContentsAccessibilityAndroid, int virtualViewId);
 
         int getTextLength(long nativeWebContentsAccessibilityAndroid, int id);

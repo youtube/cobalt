@@ -46,7 +46,7 @@ chrome/browser/ash/ownership
 chrome/browser/ash/scanning
 chrome/browser/ash/settings
 chrome/browser/ash/system_web_apps
-chrome/browser/autofill/android/junit/src/org/chromium/chrome/browser/autofill/editors
+chrome/browser/autofill/android/junit/src/org/chromium/chrome/browser/autofill/editors/address
 chrome/browser/chromeos/extensions/telemetry
 chrome/browser/download
 chrome/browser/extensions/commands
@@ -64,6 +64,7 @@ chrome/browser/resources/chromeos/network_ui/third_party
 chrome/browser/resources/settings/site_settings
 chrome/browser/speech/extension_api
 chrome/browser/support_tool/ash
+chrome/browser/ui
 chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox
 chrome/browser/ui/views/search_engines
 chrome/browser/ui/views/side_panel
@@ -122,7 +123,6 @@ components/cbor
 components/certificate_transparency
 components/cronet/gn2bp/templates
 components/domain_reliability
-components/enterprise/connectors/core
 components/enterprise/obfuscation/core
 components/gcm_driver
 components/infobars/android/java/src/org/chromium/components/infobars
@@ -254,7 +254,6 @@ sandbox/linux/suid/client
 sandbox/policy/linux
 services/device/serial
 services/network
-services/network/enterprise/encryption
 services/network/public/cpp
 services/network/public/cpp/permissions_policy
 services/network/public/mojom
@@ -332,6 +331,7 @@ third_party/blink/public/mojom/storage_key
 third_party/blink/renderer/bindings
 third_party/blink/renderer/bindings/core/v8
 third_party/blink/renderer/core
+third_party/blink/renderer/core/animation
 third_party/blink/renderer/core/editing/ime
 third_party/blink/renderer/core/frame
 third_party/blink/renderer/core/html
@@ -515,6 +515,7 @@ third_party/hyphenation-patterns/src/am
 third_party/inspector_protocol
 third_party/jsoncpp
 third_party/libdisplay-info
+third_party/libdmg-hfsplus/patches
 third_party/libdmg-hfsplus/src/dmg
 third_party/libdmg-hfsplus/src/docs
 third_party/libdmg-hfsplus/src/test/attribution_reference
@@ -624,6 +625,7 @@ third_party/pyjson5/src
 third_party/pylint/pylint
 third_party/rapidhash
 third_party/rust/chromium_crates_io/supply-chain
+third_party/rust/chromium_crates_io/vendor/android_system_properties-v0_1
 third_party/rust/chromium_crates_io/vendor/anstyle-v1
 third_party/rust/chromium_crates_io/vendor/antlr4rust-v0_5
 third_party/rust/chromium_crates_io/vendor/antlr4rust-v0_5/src
@@ -664,6 +666,7 @@ third_party/rust/chromium_crates_io/vendor/hashbrown-v0_15/src
 third_party/rust/chromium_crates_io/vendor/hashbrown-v0_16
 third_party/rust/chromium_crates_io/vendor/hashbrown-v0_16/src
 third_party/rust/chromium_crates_io/vendor/hex-v0_4
+third_party/rust/chromium_crates_io/vendor/iana-time-zone-v0_1/.github/workflows
 third_party/rust/chromium_crates_io/vendor/icu_locale-v2/src/fallback
 third_party/rust/chromium_crates_io/vendor/icu_normalizer-v2/benches/data
 third_party/rust/chromium_crates_io/vendor/image-v0_25
@@ -672,7 +675,7 @@ third_party/rust/chromium_crates_io/vendor/itertools-v0_11/.github/workflows
 third_party/rust/chromium_crates_io/vendor/itoa-v1
 third_party/rust/chromium_crates_io/vendor/itoa-v1/.github/workflows
 third_party/rust/chromium_crates_io/vendor/itoa-v1/src
-third_party/rust/chromium_crates_io/vendor/jxl-v0_2/src/util
+third_party/rust/chromium_crates_io/vendor/jxl-v0_3/src/util
 third_party/rust/chromium_crates_io/vendor/libc-v0_2
 third_party/rust/chromium_crates_io/vendor/libc-v0_2/src/new/glibc
 third_party/rust/chromium_crates_io/vendor/libc-v0_2/src/new/glibc/posix
@@ -722,6 +725,9 @@ third_party/rust/chromium_crates_io/vendor/regex-automata-v0_4/tests/hybrid
 third_party/rust/chromium_crates_io/vendor/regex-automata-v0_4/tests/meta
 third_party/rust/chromium_crates_io/vendor/regex-automata-v0_4/tests/nfa/thompson/backtrack
 third_party/rust/chromium_crates_io/vendor/regex-syntax-v0_8
+third_party/rust/chromium_crates_io/vendor/rustversion-v1
+third_party/rust/chromium_crates_io/vendor/rustversion-v1/.github/workflows
+third_party/rust/chromium_crates_io/vendor/rustversion-v1/src
 third_party/rust/chromium_crates_io/vendor/ryu-v1
 third_party/rust/chromium_crates_io/vendor/ryu-v1/.github/workflows
 third_party/rust/chromium_crates_io/vendor/ryu-v1/src

@@ -49,12 +49,14 @@ source_set("configs") {
     "//chrome/browser/ui",
     "//chrome/browser/ui/webui/about",
     "//chrome/browser/ui/webui/accessibility",
+    "//chrome/browser/ui/webui/actor_internals",
     "//chrome/browser/ui/webui/autofill_and_password_manager_internals",
     "//chrome/browser/ui/webui/internal_debug_pages_disabled",
     "//chrome/browser/ui/webui/regional_capabilities_internals",
     "//components/compose:buildflags",
     "//components/lens:buildflags",
     "//components/security_interstitials/content:security_interstitial_page",
+    "//components/webui/user_actions",
     "//content/public/browser",
     "//extensions/buildflags",
     "//printing/buildflags",
@@ -62,13 +64,16 @@ source_set("configs") {
     "//third_party/abseil-cpp:absl",
   ]
 
+  if (is_win || is_chromeos) {
+    deps += [ "//chrome/browser/ui/webui/signin:inline_login" ]
+  }
+
   if (!is_android) {
     deps += [
       "//chrome/browser/actor/ui",
       "//chrome/browser/actor/ui:actor_overlay",
       "//chrome/browser/contextual_tasks:ui",
       "//chrome/browser/ui/webui/access_code_cast",
-      "//chrome/browser/ui/webui/actor_internals",
       "//chrome/browser/ui/webui/app_service_internals",
       "//chrome/browser/ui/webui/autofill_ml_internals",
       "//chrome/browser/ui/webui/color_pipeline_internals",
@@ -81,7 +86,10 @@ source_set("configs") {
     ]
 
     if (!is_chromeos) {
-      deps += [ "//chrome/browser/ui/webui/app_home" ]
+      deps += [
+        "//chrome/browser/ui/webui/app_home",
+        "//chrome/browser/ui/webui/default_browser:default_browser_modal",
+      ]
     }
   } else {
     #is_android
@@ -127,7 +135,7 @@ source_set("configs") {
     deps += [ "//chrome/browser/ui/webui/signin/signout_confirmation" ]
   }
 
-  if (enable_glic || enable_glic_android) {
+  if (enable_glic) {
     deps += [ "//chrome/browser/glic" ]
   }
 
@@ -146,6 +154,8 @@ source_set("webui") {
     "constrained_web_dialog_ui.h",
     "current_channel_logo.cc",
     "current_channel_logo.h",
+    "devtools/greendev_floaty_ui.cc",
+    "devtools/greendev_floaty_ui.h",
   ]
 
   sources += get_target_outputs(":webui_hosts")

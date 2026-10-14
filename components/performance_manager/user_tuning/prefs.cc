@@ -47,6 +47,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
       kTabDiscardingExceptionsWithTime,
       user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
   registry->RegisterListPref(kManagedTabDiscardingExceptions);
+  registry->RegisterBooleanPref(kForceForegroundPriorityForAllTabs, false);
 }
 
 MemorySaverModeState GetCurrentMemorySaverModeState(PrefService* pref_service) {
@@ -159,17 +160,17 @@ void MigrateMultiStateMemorySaverModePref(PrefService* pref_service) {
 
 bool IsSiteInTabDiscardExceptionsList(PrefService* pref_service,
                                       const std::string& site) {
-  const base::Value::Dict& discard_exceptions_map =
+  const base::DictValue& discard_exceptions_map =
       pref_service->GetDict(kTabDiscardingExceptionsWithTime);
   return discard_exceptions_map.contains(site);
 }
 
 void AddSiteToTabDiscardExceptionsList(PrefService* pref_service,
                                        const std::string& site) {
-  const base::Value::Dict& discard_exceptions_original =
+  const base::DictValue& discard_exceptions_original =
       pref_service->GetDict(kTabDiscardingExceptionsWithTime);
   if (!discard_exceptions_original.contains(site)) {
-    base::Value::Dict discard_exceptions_map =
+    base::DictValue discard_exceptions_map =
         discard_exceptions_original.Clone();
     discard_exceptions_map.Set(site, base::TimeToValue(base::Time::Now()));
     pref_service->SetDict(kTabDiscardingExceptionsWithTime,
@@ -183,7 +184,7 @@ std::vector<std::string> GetTabDiscardExceptionsBetween(
     base::Time period_end) {
   std::vector<std::string> discard_exceptions;
 
-  const base::Value::Dict& discard_exceptions_map =
+  const base::DictValue& discard_exceptions_map =
       pref_service->GetDict(performance_manager::user_tuning::prefs::
                                 kTabDiscardingExceptionsWithTime);
   for (const std::pair<const std::string&, const base::Value&> it :
@@ -200,7 +201,7 @@ std::vector<std::string> GetTabDiscardExceptionsBetween(
 void ClearTabDiscardExceptions(PrefService* pref_service,
                                base::Time delete_begin,
                                base::Time delete_end) {
-  const base::Value::Dict& discard_exceptions_map =
+  const base::DictValue& discard_exceptions_map =
       pref_service->GetDict(kTabDiscardingExceptionsWithTime);
 
   std::vector<std::pair<std::string, base::Value>> saved_exceptions;
@@ -215,8 +216,8 @@ void ClearTabDiscardExceptions(PrefService* pref_service,
   }
   pref_service->SetDict(
       kTabDiscardingExceptionsWithTime,
-      base::Value::Dict(std::make_move_iterator(saved_exceptions.begin()),
-                        std::make_move_iterator(saved_exceptions.end())));
+      base::DictValue(std::make_move_iterator(saved_exceptions.begin()),
+                      std::make_move_iterator(saved_exceptions.end())));
 }
 
 }  // namespace performance_manager::user_tuning::prefs

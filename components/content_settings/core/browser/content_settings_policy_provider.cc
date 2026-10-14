@@ -167,8 +167,10 @@ constexpr PrefsForManagedContentSettingsMapEntry
          ContentSettingsType::CONTROLLED_FRAME, CONTENT_SETTING_BLOCK},
         // LocalNetworkAccess:
         // * Block takes precedence over Allow
-        // * Policies apply to all 3 LNA permissions while we migrate to
-        //   split permissions (see crbug.com/465491626).
+        // * LocalNetworkAccessAllowed/Blocked apply to all 3 LNA permissions
+        // * More specific permission (LocalNetworkAllowed/Blocked and
+        //   LoopbackNetworkAllowed/Blocked) take precedence over the more
+        //   general LocalNetworkAccessAllowed/Blocked policies
         {prefs::kManagedLocalNetworkAccessAllowedForUrls,
          ContentSettingsType::LOCAL_NETWORK_ACCESS, CONTENT_SETTING_ALLOW},
         {prefs::kManagedLocalNetworkAccessBlockedForUrls,
@@ -181,6 +183,15 @@ constexpr PrefsForManagedContentSettingsMapEntry
          ContentSettingsType::LOOPBACK_NETWORK, CONTENT_SETTING_ALLOW},
         {prefs::kManagedLocalNetworkAccessBlockedForUrls,
          ContentSettingsType::LOOPBACK_NETWORK, CONTENT_SETTING_BLOCK},
+        {prefs::kManagedLocalNetworkAllowedForUrls,
+         ContentSettingsType::LOCAL_NETWORK, CONTENT_SETTING_ALLOW},
+        {prefs::kManagedLocalNetworkBlockedForUrls,
+         ContentSettingsType::LOCAL_NETWORK, CONTENT_SETTING_BLOCK},
+        {prefs::kManagedLoopbackNetworkAllowedForUrls,
+         ContentSettingsType::LOOPBACK_NETWORK, CONTENT_SETTING_ALLOW},
+        {prefs::kManagedLoopbackNetworkBlockedForUrls,
+         ContentSettingsType::LOOPBACK_NETWORK, CONTENT_SETTING_BLOCK},
+
         {prefs::kManagedIdleDetectionAllowedForUrls,
          ContentSettingsType::IDLE_DETECTION, CONTENT_SETTING_ALLOW},
         {prefs::kManagedIdleDetectionBlockedForUrls,
@@ -219,6 +230,10 @@ constexpr const char* kManagedPrefs[] = {
     prefs::kManagedLegacyCookieScopeForDomains,
     prefs::kManagedLocalNetworkAccessAllowedForUrls,
     prefs::kManagedLocalNetworkAccessBlockedForUrls,
+    prefs::kManagedLocalNetworkAllowedForUrls,
+    prefs::kManagedLocalNetworkBlockedForUrls,
+    prefs::kManagedLoopbackNetworkAllowedForUrls,
+    prefs::kManagedLoopbackNetworkBlockedForUrls,
     prefs::kManagedNotificationsAllowedForUrls,
     prefs::kManagedNotificationsBlockedForUrls,
     prefs::kManagedPopupsAllowedForUrls,
@@ -486,7 +501,7 @@ void PolicyProvider::GetContentSettingsFromPreferences() {
       NOTREACHED() << "Could not read patterns from " << entry.pref_name;
     }
 
-    const base::Value::List& pattern_str_list = pref->GetValue()->GetList();
+    const base::ListValue& pattern_str_list = pref->GetValue()->GetList();
     for (size_t i = 0; i < pattern_str_list.size(); ++i) {
       if (!pattern_str_list[i].is_string()) {
         NOTREACHED() << "Could not read content settings pattern #" << i
@@ -587,15 +602,14 @@ void PolicyProvider::GetAutoSelectCertificateSettingsFromPreferences() {
   //      }
   //   }
   // }
-  std::unordered_map<std::string, base::Value::Dict> filters_map;
+  std::unordered_map<std::string, base::DictValue> filters_map;
   for (const auto& pattern_filter_str : pref->GetValue()->GetList()) {
     if (!pattern_filter_str.is_string()) {
       NOTREACHED();
     }
 
-    std::optional<base::Value::Dict> pattern_filter =
-        base::JSONReader::ReadDict(pattern_filter_str.GetString(),
-                                   base::JSON_ALLOW_TRAILING_COMMAS);
+    std::optional<base::DictValue> pattern_filter = base::JSONReader::ReadDict(
+        pattern_filter_str.GetString(), base::JSON_ALLOW_TRAILING_COMMAS);
     if (!pattern_filter) {
       VLOG(1) << "Ignoring invalid certificate auto select setting. Reason:"
               << " Invalid JSON object: " << pattern_filter_str.GetString();
@@ -614,7 +628,7 @@ void PolicyProvider::GetAutoSelectCertificateSettingsFromPreferences() {
     // This adds a `pattern_str` entry to `filters_map` if not already present,
     // and gets a pointer to its `filters` list, inserting an entry into the
     // dictionary if needed.
-    base::Value::List* filter_list =
+    base::ListValue* filter_list =
         filters_map[pattern_str].EnsureList("filters");
 
     // Don't pass removed values from `pattern_filter`, because base::Values
@@ -624,7 +638,7 @@ void PolicyProvider::GetAutoSelectCertificateSettingsFromPreferences() {
 
   for (const auto& it : filters_map) {
     const std::string& pattern_str = it.first;
-    const base::Value::Dict& setting = it.second;
+    const base::DictValue& setting = it.second;
 
     ContentSettingsPattern pattern =
         ContentSettingsPattern::FromString(pattern_str);

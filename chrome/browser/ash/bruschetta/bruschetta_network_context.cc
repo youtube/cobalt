@@ -14,7 +14,6 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/unguessable_token.h"
-#include "chrome/browser/browser_process.h"
 #include "chrome/browser/enterprise/util/managed_browser_utils.h"
 #include "chrome/browser/extensions/cws_info_service.h"
 #include "chrome/browser/net/profile_network_context_service.h"
@@ -100,7 +99,8 @@ BruschettaNetworkContext::GetURLLoaderFactory() {
     url_loader_observers_.Clear();
     network::mojom::URLLoaderFactoryParamsPtr url_loader_factory_params =
         network::mojom::URLLoaderFactoryParams::New();
-    url_loader_factory_params->process_id = network::mojom::kBrowserProcessId;
+    url_loader_factory_params->process_id =
+        network::OriginatingProcess::browser();
     url_loader_factory_params->is_orb_enabled = false;
     url_loader_factory_params->is_trusted = true;
     url_loader_observers_.Add(
@@ -123,7 +123,7 @@ void BruschettaNetworkContext::EnsureNetworkContextExists() {
 
 void BruschettaNetworkContext::CreateNetworkContext() {
   network::mojom::NetworkContextParamsPtr network_context_params =
-      g_browser_process->system_network_context_manager()
+      SystemNetworkContextManager::GetInstance()
           ->CreateDefaultNetworkContextParams();
   network_context_params->http_cache_enabled = false;
 
@@ -279,11 +279,11 @@ void BruschettaNetworkContext::Clone(
   url_loader_observers_.Add(this, std::move(observer));
 }
 
-void BruschettaNetworkContext::OnWebSocketConnectedToPrivateNetwork(
+void BruschettaNetworkContext::OnWebSocketConnectedToLocalNetwork(
     const GURL& request_url,
     network::mojom::IPAddressSpace ip_address_space) {}
 
-void BruschettaNetworkContext::OnUrlLoaderConnectedToPrivateNetwork(
+void BruschettaNetworkContext::OnUrlLoaderConnectedToLocalNetwork(
     const GURL& request_url,
     network::mojom::IPAddressSpace response_address_space,
     network::mojom::IPAddressSpace client_address_space,

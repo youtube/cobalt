@@ -38,10 +38,9 @@ import org.robolectric.annotation.LooperMode;
 import org.robolectric.annotation.LooperMode.Mode;
 import org.robolectric.shadows.ShadowSystemClock;
 
-import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.base.supplier.ObservableSuppliers;
+import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
-import org.chromium.base.test.util.Features;
-import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.chrome.browser.IntentHandler;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.lifecycle.InflationObserver;
@@ -53,7 +52,6 @@ import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
 import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactoryJni;
 import org.chromium.chrome.browser.tabmodel.TabPersistentStore.ActiveTabState;
-import org.chromium.components.omnibox.OmniboxFeatureList;
 import org.chromium.components.search_engines.TemplateUrlService;
 
 import java.util.List;
@@ -77,7 +75,8 @@ public class AppLaunchDrawBlockerUnitTest {
     @Mock private Supplier<Boolean> mShouldIgnoreIntentSupplier;
     @Mock private Supplier<Boolean> mIsTabletSupplier;
 
-    private final ObservableSupplierImpl<Profile> mProfileSupplier = new ObservableSupplierImpl<>();
+    private final SettableMonotonicObservableSupplier<Profile> mProfileSupplier =
+            ObservableSuppliers.createMonotonic();
 
     @Mock
     private IncognitoRestoreAppLaunchDrawBlockerFactory
@@ -246,22 +245,6 @@ public class AppLaunchDrawBlockerUnitTest {
     }
 
     @Test
-    @DisableFeatures(OmniboxFeatureList.OMNIBOX_MOBILE_PARITY_UPDATE_V2)
-    public void testLastTabEmpty_phone_noSearchEngineLogo_noIntent_ParityV2Disabled() {
-        ChromeSharedPreferences.getInstance()
-                .writeInt(
-                        ChromePreferenceKeys.APP_LAUNCH_LAST_KNOWN_ACTIVE_TAB_STATE,
-                        ActiveTabState.EMPTY);
-        setSearchEngineHasLogo(false);
-
-        mInflationObserver.onPostInflationStartup();
-        verify(mViewTreeObserver, never())
-                .addOnPreDrawListener(mOnPreDrawListenerArgumentCaptor.capture());
-        mAppLaunchDrawBlocker.onActiveTabAvailable();
-    }
-
-    @Test
-    @Features.EnableFeatures(OmniboxFeatureList.OMNIBOX_MOBILE_PARITY_UPDATE_V2)
     public void testLastTabEmpty_phone_noSearchEngineLogo_noIntent() {
         ChromeSharedPreferences.getInstance()
                 .writeInt(

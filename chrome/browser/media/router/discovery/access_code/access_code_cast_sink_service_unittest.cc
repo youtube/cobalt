@@ -92,7 +92,7 @@ class AccessCodeCastSinkServiceTest : public testing::Test {
     content::SetNetworkConnectionTrackerForTesting(
         network::TestNetworkConnectionTracker::GetInstance());
     network::TestNetworkConnectionTracker::GetInstance()->SetConnectionType(
-        network::mojom::ConnectionType::CONNECTION_WIFI);
+        net::NetworkChangeNotifier::ConnectionType::CONNECTION_WIFI);
 
     GetTestingPrefs()->SetManagedPref(::prefs::kEnableMediaRouter,
                                       std::make_unique<base::Value>(true));
@@ -133,20 +133,20 @@ class AccessCodeCastSinkServiceTest : public testing::Test {
   }
 
   bool IsDevicesDictEmpty() {
-    base::test::TestFuture<base::Value::Dict> devices_dict;
+    base::test::TestFuture<base::DictValue> devices_dict;
     pref_updater()->GetDevicesDict(devices_dict.GetCallback());
     return devices_dict.Get().empty();
   }
 
   bool IsDeviceAddedTimeDictEmpty() {
-    base::test::TestFuture<base::Value::Dict> devices_added_time_dict;
+    base::test::TestFuture<base::DictValue> devices_added_time_dict;
     pref_updater()->GetDeviceAddedTimeDict(
         devices_added_time_dict.GetCallback());
     return devices_added_time_dict.Get().empty();
   }
 
   MediaSinkInternal GetMediaSinkInternalFromPref(const MediaSink::Id& sink_id) {
-    base::test::TestFuture<base::Value::Dict> devices_dict;
+    base::test::TestFuture<base::DictValue> devices_dict;
     pref_updater()->GetDevicesDict(devices_dict.GetCallback());
     auto* sink_dict = devices_dict.Get().FindDict(sink_id);
     EXPECT_TRUE(sink_dict);
@@ -172,7 +172,8 @@ class AccessCodeCastSinkServiceTest : public testing::Test {
     return current_session_expiration_timers().find(sink_id)->second.get();
   }
 
-  void ChangeConnectionType(network::mojom::ConnectionType connection_type) {
+  void ChangeConnectionType(
+      net::NetworkChangeNotifier::ConnectionType connection_type) {
     discovery_network_monitor_->OnConnectionChanged(connection_type);
     task_environment_.RunUntilIdle();
   }
@@ -547,7 +548,8 @@ TEST_F(AccessCodeCastSinkServiceTest, TestChangeNetworksExpiration) {
 
   // Connect to a new network with different sinks.
   fake_network_info_ = fake_wifi_info_;
-  ChangeConnectionType(network::mojom::ConnectionType::CONNECTION_WIFI);
+  ChangeConnectionType(
+      net::NetworkChangeNotifier::ConnectionType::CONNECTION_WIFI);
 
   task_environment_.FastForwardBy(kNetworkChangeDelay);
 
@@ -600,7 +602,8 @@ TEST_F(AccessCodeCastSinkServiceTest, TestChangeNetworksNoExpiration) {
   }
   // Connect to a new network with different sinks.
   fake_network_info_ = fake_wifi_info_;
-  ChangeConnectionType(network::mojom::ConnectionType::CONNECTION_WIFI);
+  ChangeConnectionType(
+      net::NetworkChangeNotifier::ConnectionType::CONNECTION_WIFI);
   task_environment_.FastForwardBy(kNetworkChangeDelay);
   task_environment_.AdvanceClock(base::Seconds(75));
 
@@ -723,7 +726,8 @@ TEST_F(AccessCodeCastSinkServiceTest, TestResetExpirationTimersNetworkChange) {
     SetExpirationTimerAndExpectTimerRunning(sink);
   }
   fake_network_info_ = fake_wifi_info_;
-  ChangeConnectionType(network::mojom::ConnectionType::CONNECTION_WIFI);
+  ChangeConnectionType(
+      net::NetworkChangeNotifier::ConnectionType::CONNECTION_WIFI);
   task_environment_.FastForwardBy(kNetworkChangeDelay);
 
   task_environment_.AdvanceClock(base::Seconds(100));
@@ -815,7 +819,8 @@ TEST_F(AccessCodeCastSinkServiceTest, TestChangeNetworkWithRouteActive) {
       .Times(0);
 
   fake_network_info_ = fake_wifi_info_;
-  ChangeConnectionType(network::mojom::ConnectionType::CONNECTION_WIFI);
+  ChangeConnectionType(
+      net::NetworkChangeNotifier::ConnectionType::CONNECTION_WIFI);
   task_environment_.FastForwardBy(kNetworkChangeDelay);
 
   // The sink should NOT now be removed from the media router since it was not
@@ -862,7 +867,8 @@ TEST_F(AccessCodeCastSinkServiceTest,
   task_environment_.AdvanceClock(base::Seconds(300));
 
   fake_network_info_ = fake_wifi_info_;
-  ChangeConnectionType(network::mojom::ConnectionType::CONNECTION_WIFI);
+  ChangeConnectionType(
+      net::NetworkChangeNotifier::ConnectionType::CONNECTION_WIFI);
   task_environment_.FastForwardBy(kNetworkChangeDelay);
 
   // The sink should now be removed from the media router.
@@ -998,7 +1004,7 @@ TEST_F(AccessCodeCastSinkServiceTest, TestOfflineDiscoverSink) {
   MockAddSinkResultCallback mock_callback;
 
   network::TestNetworkConnectionTracker::GetInstance()->SetConnectionType(
-      network::mojom::ConnectionType::CONNECTION_NONE);
+      net::NetworkChangeNotifier::ConnectionType::CONNECTION_NONE);
   EXPECT_CALL(mock_callback,
               Run(AddSinkResultCode::SERVICE_NOT_PRESENT, Eq(std::nullopt)));
 
@@ -1043,7 +1049,7 @@ TEST_F(AccessCodeCastSinkServiceTest, RefreshStoredDeviceInfo) {
 
   // Now we expect that the name for the sink with the id of existing_sink_1
   // should have changed.
-  base::test::TestFuture<base::Value::Dict> devices_dict;
+  base::test::TestFuture<base::DictValue> devices_dict;
   pref_updater()->GetDevicesDict(devices_dict.GetCallback());
   auto* sink_1_dict = devices_dict.Get().FindDict(existing_sink_1.id());
   auto* sink_2_dict = devices_dict.Get().FindDict(existing_sink_2.id());
@@ -1299,9 +1305,8 @@ TEST_F(AccessCodeCastSinkServiceTest, RestartExpirationTimerDoesntResetTimer) {
 
   MockAccessCodeCastPrefUpdater* mock_pref_updater =
       static_cast<MockAccessCodeCastPrefUpdater*>(pref_updater());
-  base::Value::Dict devices_dict_copy =
-      mock_pref_updater->devices_dict().Clone();
-  base::Value::Dict device_added_time_dict_copy =
+  base::DictValue devices_dict_copy = mock_pref_updater->devices_dict().Clone();
+  base::DictValue device_added_time_dict_copy =
       mock_pref_updater->device_added_time_dict().Clone();
 
   // Shutdown the access code cast sink service.
@@ -1356,7 +1361,7 @@ TEST_F(AccessCodeCastSinkServiceTest, AddRouteCallsHandleMediaRoute) {
 
 TEST_F(AccessCodeCastSinkServiceTest, InitializePrefUpdater) {
   auto cast_sink = CreateCastSink(1);
-  base::Value::Dict devices_dict;
+  base::DictValue devices_dict;
   devices_dict.Set(cast_sink.id(),
                    CreateValueDictFromMediaSinkInternal(cast_sink));
   GetTestingPrefs()->SetDict(prefs::kAccessCodeCastDevices,

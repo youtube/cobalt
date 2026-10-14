@@ -54,6 +54,7 @@
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/webui/metrics_reporter/metrics_reporter.h"
 #include "chrome/browser/ui/webui/tab_search/tab_search_prefs.h"
+#include "chrome/browser/ui/webui/top_chrome/webui_contents_preload_manager.h"
 #include "chrome/browser/ui/webui/util/image_util.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "chrome/browser/user_education/tutorial_identifiers.h"
@@ -69,6 +70,7 @@
 #include "components/tabs/public/tab_interface.h"
 #include "components/user_education/common/tutorial/tutorial_identifier.h"
 #include "components/user_education/common/tutorial/tutorial_service.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 #include "ui/base/base_window.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/l10n/time_format.h"
@@ -358,7 +360,7 @@ void TabSearchPageHandler::AcceptTabOrganization(
     return;
   }
 
-  std::unordered_set<int> tabs_tab_ids;
+  absl::flat_hash_set<int> tabs_tab_ids;
   for (tab_search::mojom::TabPtr& tab : tabs) {
     tabs_tab_ids.emplace(tab->tab_id);
   }
@@ -971,7 +973,7 @@ void TabSearchPageHandler::TriggerFeedback(int32_t session_id) {
           optimization_guide::proto::LogAiDataRequest::kTabOrganization)) {
     return;
   }
-  base::Value::Dict feedback_metadata;
+  base::DictValue feedback_metadata;
   feedback_metadata.Set("log_id", feedback_id);
   chrome::ShowFeedbackPage(
       browser_, feedback::kFeedbackSourceAI,
@@ -980,7 +982,7 @@ void TabSearchPageHandler::TriggerFeedback(int32_t session_id) {
       l10n_util::GetStringUTF8(IDS_TAB_ORGANIZATION_FEEDBACK_PLACEHOLDER),
       /*category_tag=*/"tab_organization",
       /*extra_diagnostics=*/std::string(),
-      /*autofill_metadata=*/base::Value::Dict(), std::move(feedback_metadata));
+      /*autofill_metadata=*/base::DictValue(), std::move(feedback_metadata));
 }
 
 void TabSearchPageHandler::TriggerSignIn() {
@@ -1421,8 +1423,8 @@ tab_search::mojom::TabPtr TabSearchPageHandler::GetTab(
   tab_data->pinned = tab->IsPinned();
   tab_data->split = tab->IsSplit();
 
-  TabRendererData tab_renderer_data =
-      TabRendererData::FromTabInModel(tab_strip_model, index);
+  const TabRendererData tab_renderer_data =
+      TabRendererData::FromTabInterface(tab);
   tab_data->title = base::UTF16ToUTF8(tab_renderer_data.title);
   const auto& last_committed_url = tab_renderer_data.last_committed_url;
   // A visible URL is used when the a new tab is still loading.
@@ -1524,7 +1526,10 @@ void TabSearchPageHandler::OnTabStripModelChanged(
     TabStripModel* tab_strip_model,
     const TabStripModelChange& change,
     const TabStripSelectionChange& selection) {
+  const auto* preload_state =
+      WebUIContentsPreloadState::FromWebContents(web_ui_->GetWebContents());
   if (!IsWebContentsVisible() ||
+      (preload_state && preload_state->pending_request) ||
       browser_tab_strip_tracker_.is_processing_initial_browsers()) {
     return;
   }

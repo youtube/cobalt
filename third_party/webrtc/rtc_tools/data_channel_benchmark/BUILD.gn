@@ -25,6 +25,7 @@ rtc_library("grpc_signaling") {
     ":signaling_grpc_proto",
     ":signaling_interface",
     "../../api:jsep",
+    "../../api:sequence_checker",
     "../../rtc_base:checks",
     "../../rtc_base:logging",
     "../../rtc_base:threading",

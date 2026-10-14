@@ -57,7 +57,6 @@
 #include "chrome/browser/ash/profiles/signin_profile_handler.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/browser_process_platform_part.h"
-#include "chrome/browser/lifetime/browser_shutdown.h"
 #include "chrome/browser/net/nss_temp_certs_cache_chromeos.h"
 #include "chrome/browser/net/system_network_context_manager.h"
 #include "chrome/browser/policy/networking/device_network_configuration_updater_ash.h"
@@ -151,7 +150,7 @@ bool HasLeadingOrTrailingWhitespaces(const std::string& str) {
 }
 
 std::optional<SyncTrustedVaultKeys> GetSyncTrustedVaultKeysForUserContext(
-    const base::Value::Dict& js_object,
+    const base::DictValue& js_object,
     const GaiaId& gaia_id) {
   SyncTrustedVaultKeys parsed_keys = SyncTrustedVaultKeys::FromJs(js_object);
   if (parsed_keys.gaia_id() != gaia_id) {
@@ -221,7 +220,7 @@ std::string GetChromeType() {
   }
 }
 
-void UpdateAuthParams(base::Value::Dict& params) {
+void UpdateAuthParams(base::DictValue& params) {
   CrosSettings* cros_settings = CrosSettings::Get();
   bool allow_new_user = true;
   cros_settings->GetBoolean(kAccountsPrefAllowNewUser, &allow_new_user);
@@ -252,11 +251,11 @@ chromeos::PinDialogManager* GetLoginScreenPinDialogManager() {
   return certificate_provider_service->pin_dialog_manager();
 }
 
-base::Value::Dict MakeSecurityTokenPinDialogParameters(
+base::DictValue MakeSecurityTokenPinDialogParameters(
     bool enable_user_input,
     chromeos::security_token_pin::ErrorLabel error_label,
     int attempts_left) {
-  base::Value::Dict params;
+  base::DictValue params;
 
   params.Set("enableUserInput", enable_user_input);
   params.Set("hasError",
@@ -445,7 +444,7 @@ void GaiaScreenHandler::LoadGaiaWithPartitionAndVersionAndConsent(
     const std::string& partition_name,
     const std::string* platform_version,
     const bool* collect_stats_consent) {
-  base::Value::Dict params;
+  base::DictValue params;
 
   params.Set("gaiaId", context.gaia_id.ToString());
   params.Set("readOnlyEmail", true);
@@ -773,12 +772,12 @@ void GaiaScreenHandler::HandleCompleteAuthenticationEvent(
     const std::string& gaia_id,
     const std::string& email,
     const std::string& password_value,
-    const base::Value::List& scraped_saml_passwords_value,
+    const base::ListValue& scraped_saml_passwords_value,
     bool using_saml,
-    const base::Value::List& services_list,
+    const base::ListValue& services_list,
     bool services_provided,
-    const base::Value::Dict& password_attributes,
-    const base::Value::Dict& sync_trusted_vault_keys) {
+    const base::DictValue& password_attributes,
+    const base::DictValue& sync_trusted_vault_keys) {
   absl::Cleanup run_callback_on_return = [this] {
     auth_flow_auto_reload_manager_.Terminate();
   };
@@ -1035,7 +1034,7 @@ void GaiaScreenHandler::HandleSamlChallengeMachineKey(
 
 void GaiaScreenHandler::HandleSamlChallengeMachineKeyResult(
     base::Value callback_id,
-    base::Value::Dict result) {
+    base::DictValue result) {
   ResolveJavascriptCallback(callback_id, result);
 }
 
@@ -1110,7 +1109,7 @@ void GaiaScreenHandler::HandleSecurityTokenPinEntered(
 }
 
 void GaiaScreenHandler::HandleOnFatalError(int error_code,
-                                           const base::Value::Dict& params) {
+                                           const base::DictValue& params) {
   if (!LoginDisplayHost::default_host()) {
     return;
   }
@@ -1266,7 +1265,7 @@ void GaiaScreenHandler::Show() {
   // Start listening for HTTP login requests.
   enable_system_httpauth_ = HttpAuthDialog::Enable();
 
-  base::Value::Dict data;
+  base::DictValue data;
   if (LoginDisplayHost::default_host()) {
     data.Set("hasUserPods", LoginDisplayHost::default_host()->HasUserPods());
   }

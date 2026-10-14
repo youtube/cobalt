@@ -20,7 +20,6 @@
 #include "api/field_trials_view.h"
 #include "api/video/encoded_image.h"
 #include "api/video/video_codec_type.h"
-#include "api/video/video_frame_type.h"
 #include "api/video_codecs/video_decoder.h"
 #include "modules/video_coding/include/video_error_codes.h"
 #include "rtc_base/checks.h"
@@ -197,7 +196,7 @@ int32_t VideoDecoderSoftwareFallbackWrapper::Decode(
           hw_consequtive_generic_errors_ = 0;
           return ret;
         }
-        if (input_image._frameType == VideoFrameType::kVideoFrameKey) {
+        if (input_image.IsKey()) {
           // Only count errors on key-frames, since generic errors can happen
           // with hw decoder due to many arbitrary reasons.
           // However, requesting a key-frame is supposed to fix the issue.

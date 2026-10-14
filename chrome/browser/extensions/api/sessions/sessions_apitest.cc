@@ -16,22 +16,26 @@
 #include "base/path_service.h"
 #include "base/strings/pattern.h"
 #include "base/strings/stringprintf.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
-#include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/extensions/api/sessions/sessions_api.h"
 #include "chrome/browser/extensions/api/tabs/tabs_api.h"
+#include "chrome/browser/extensions/browser_extension_window_controller.h"
 #include "chrome/browser/extensions/extension_apitest.h"
 #include "chrome/browser/extensions/extension_browsertest.h"
 #include "chrome/browser/extensions/extension_tab_util.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/sessions/tab_restore_service_factory.h"
 #include "chrome/browser/sync/session_sync_service_factory.h"
-#include "chrome/browser/ui/browser_dialogs.h"
+#include "chrome/browser/ui/browser_window/public/browser_collection_observer.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+#include "chrome/browser/ui/dialogs/browser_dialogs.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
+#include "chrome/browser/ui/tabs/tab_list_interface.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -54,15 +58,16 @@
 #include "extensions/buildflags/buildflags.h"
 #include "extensions/common/extension_builder.h"
 #include "google_apis/gaia/gaia_id.h"
+#include "ui/base/base_window.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
 #include "ash/constants/ash_switches.h"
 #endif
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-#include "chrome/test/base/test_browser_window.h"
-#include "chrome/test/base/ui_test_utils.h"
-#endif
+#if BUILDFLAG(IS_ANDROID)
+#include "base/test/scoped_feature_list.h"
+#include "chrome/browser/flags/android/chrome_feature_list.h"
+#endif  // BUILDFLAG(IS_ANDROID)
 
 static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
@@ -79,6 +84,47 @@ constexpr std::array kSessionTags = {"tag0", "tag1", "tag2", "tag3", "tag4"};
 constexpr auto kTabIDs = std::to_array<SessionID::id_type>({5, 10, 13, 17});
 constexpr int kActiveTabIndex = 2;
 constexpr int kActiveTabId = kTabIDs[kActiveTabIndex];
+
+// Observes the global list of BrowserWindowInterfaces and waits for a specified
+// browser to close.
+class BrowserCloseWaiter : public BrowserCollectionObserver {
+ public:
+  explicit BrowserCloseWaiter(BrowserWindowInterface* browser)
+      : browser_(browser) {
+    observation_.Observe(GlobalBrowserCollection::GetInstance());
+  }
+
+  BrowserCloseWaiter(const BrowserCloseWaiter&) = delete;
+  BrowserCloseWaiter& operator=(const BrowserCloseWaiter&) = delete;
+
+  ~BrowserCloseWaiter() override = default;
+
+  void Wait() {
+    if (closed_) {
+      return;
+    }
+    run_loop_.Run();
+  }
+
+ protected:
+  // BrowserCollectionObserver:
+  void OnBrowserClosed(BrowserWindowInterface* browser) override {
+    if (browser == browser_) {
+      browser_ = nullptr;
+      closed_ = true;
+      if (run_loop_.running()) {
+        run_loop_.Quit();
+      }
+    }
+  }
+
+ private:
+  raw_ptr<BrowserWindowInterface> browser_;
+  base::ScopedObservation<GlobalBrowserCollection, BrowserCollectionObserver>
+      observation_{this};
+  bool closed_ = false;
+  base::RunLoop run_loop_;
+};
 
 void BuildSessionSpecifics(const std::string& tag,
                            sync_pb::SessionSpecifics* meta) {
@@ -121,16 +167,16 @@ void BuildTabSpecifics(const std::string& tag,
   navigation->set_page_transition(sync_pb::SyncEnums_PageTransition_TYPED);
 }
 
-testing::AssertionResult CheckSessionModels(const base::Value::List& devices,
+testing::AssertionResult CheckSessionModels(const base::ListValue& devices,
                                             size_t num_sessions) {
   EXPECT_EQ(5u, devices.size());
   for (size_t i = 0; i < devices.size(); ++i) {
     const base::Value& device_value = devices[i];
     EXPECT_TRUE(device_value.is_dict());
-    const base::Value::Dict device = utils::ToDict(device_value);
+    const base::DictValue device = utils::ToDict(device_value);
     EXPECT_EQ(kSessionTags[i], api_test_utils::GetString(device, "info"));
     EXPECT_EQ(kSessionTags[i], api_test_utils::GetString(device, "deviceName"));
-    const base::Value::List sessions =
+    const base::ListValue sessions =
         api_test_utils::GetList(device, "sessions");
     EXPECT_EQ(num_sessions, sessions.size());
     // Because this test is hurried, really there are only ever 0 or 1
@@ -138,13 +184,13 @@ testing::AssertionResult CheckSessionModels(const base::Value::List& devices,
     if (num_sessions == 0) {
       continue;
     }
-    const base::Value::Dict session = utils::ToDict(sessions[0]);
-    const base::Value::Dict window = api_test_utils::GetDict(session, "window");
+    const base::DictValue session = utils::ToDict(sessions[0]);
+    const base::DictValue window = api_test_utils::GetDict(session, "window");
     // Only the tabs are interesting.
-    const base::Value::List tabs = api_test_utils::GetList(window, "tabs");
+    const base::ListValue tabs = api_test_utils::GetList(window, "tabs");
     EXPECT_EQ(std::size(kTabIDs), tabs.size());
     for (size_t j = 0; j < tabs.size(); ++j) {
-      const base::Value::Dict tab = utils::ToDict(tabs[j]);
+      const base::DictValue tab = utils::ToDict(tabs[j]);
       EXPECT_FALSE(tab.contains("id"));  // sessions API does not give tab IDs
       EXPECT_EQ(static_cast<int>(j), api_test_utils::GetInteger(tab, "index"));
       EXPECT_EQ(0, api_test_utils::GetInteger(tab, "windowId"));
@@ -192,6 +238,11 @@ class ExtensionSessionsTest : public ExtensionBrowserTest {
     fn->set_has_callback(has_callback);
     return fn;
   }
+
+#if BUILDFLAG(IS_ANDROID)
+  base::test::ScopedFeatureList feature_list_{
+      chrome::android::kRecentlyClosedTabsAndWindows};
+#endif  // BUILDFLAG(IS_ANDROID)
 
   scoped_refptr<const Extension> extension_;
 };
@@ -282,7 +333,7 @@ void ExtensionSessionsTest::CreateSessionModels() {
 
 IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest, GetDevices) {
   CreateSessionModels();
-  base::Value::List result =
+  base::ListValue result =
       utils::ToList(utils::RunFunctionAndReturnSingleResult(
           CreateFunction<SessionsGetDevicesFunction>(true).get(),
           "[{\"maxResults\": 0}]", GetProfile()));
@@ -291,7 +342,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest, GetDevices) {
 
 IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest, GetDevicesMaxResults) {
   CreateSessionModels();
-  base::Value::List result =
+  base::ListValue result =
       utils::ToList(utils::RunFunctionAndReturnSingleResult(
           CreateFunction<SessionsGetDevicesFunction>(true).get(), "[]",
           GetProfile()));
@@ -299,34 +350,28 @@ IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest, GetDevicesMaxResults) {
 }
 
 IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest, GetDevicesListEmpty) {
-  base::Value::List devices(
-      utils::ToList(utils::RunFunctionAndReturnSingleResult(
-          CreateFunction<SessionsGetDevicesFunction>(true).get(), "[]",
-          GetProfile())));
+  base::ListValue devices(utils::ToList(utils::RunFunctionAndReturnSingleResult(
+      CreateFunction<SessionsGetDevicesFunction>(true).get(), "[]",
+      GetProfile())));
 
   EXPECT_TRUE(devices.empty());
 }
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-// TODO(crbug.com/405219627): Support window restore on desktop Android. Also,
-// this test depends on the tabs (window) API.
 IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest, RestoreForeignSessionWindow) {
   CreateSessionModels();
 
-  const base::Value::Dict restored_window_session =
+  const base::DictValue restored_window_session =
       utils::ToDict(utils::RunFunctionAndReturnSingleResult(
           CreateFunction<SessionsRestoreFunction>(true).get(), "[\"tag3.3\"]",
           GetProfile(), api_test_utils::FunctionMode::kIncognito));
 
-  base::Value::List windows(
-      utils::ToList(utils::RunFunctionAndReturnSingleResult(
-          CreateFunction<WindowsGetAllFunction>(true).get(), "[]",
-          GetProfile())));
+  base::ListValue windows(utils::ToList(utils::RunFunctionAndReturnSingleResult(
+      CreateFunction<WindowsGetAllFunction>(true).get(), "[]", GetProfile())));
 
   EXPECT_EQ(2u, windows.size());
-  const base::Value::Dict restored_window =
+  const base::DictValue restored_window =
       api_test_utils::GetDict(restored_window_session, "window");
-  base::Value::Dict window;
+  base::DictValue window;
   int restored_id = api_test_utils::GetInteger(restored_window, "id");
   for (base::Value& window_value : windows) {
     window = utils::ToDict(std::move(window_value));
@@ -336,7 +381,6 @@ IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest, RestoreForeignSessionWindow) {
   }
   EXPECT_EQ(restored_id, api_test_utils::GetInteger(window, "id"));
 }
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest, RestoreForeignSessionInvalidId) {
   CreateSessionModels();
@@ -359,28 +403,102 @@ IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest, RestoreInIncognito) {
       << error;
 }
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-// TODO(crbug.com/405219627): Port to desktop Android when Android has support
-// for HasEditableTabstrip. See BrowserExtensionWindowController.
 IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest, RestoreNonEditableTabstrip) {
   CreateSessionModels();
 
-  // Set up a browser with a non-editable tabstrip, simulating one in the midst
-  // of a tab dragging session.
-  Browser* non_editable_browser =
-      Browser::Create(Browser::CreateParams(GetProfile(), true));
-  non_editable_browser->window()->DisableTabStripEditingForTesting();
+  // Disable tab strip editing, simulating a browser window in the midst of a
+  // tab dragging session.
+  base::AutoReset<bool> disable_tab_list_editing =
+      ExtensionTabUtil::DisableTabListEditingForTesting();
 
-  EXPECT_TRUE(base::MatchPattern(
-      utils::RunFunctionAndReturnError(
-          CreateFunction<SessionsRestoreFunction>(true).get(), "[\"1\"]",
-          non_editable_browser->profile()),
-      ExtensionTabUtil::kTabStripNotEditableError));
+  std::string error = utils::RunFunctionAndReturnError(
+      CreateFunction<SessionsRestoreFunction>(true).get(), "[\"1\"]",
+      GetProfile());
+  EXPECT_TRUE(
+      base::MatchPattern(error, ExtensionTabUtil::kTabStripNotEditableError))
+      << error;
 }
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
+
+// Tests chrome.sessions.getRecentlyClosed() for windows. Opens a second browser
+// window with two tabs, closes it, then calls the extension API function and
+// verifies one window with two tabs was recently closed.
+// TODO(crbug.com/482432028): This test is currently disabled by filter file on
+// some Android hardware bots. See bug for details.
+IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest, GetRecentlyClosedWindow) {
+  // Open a second window.
+  BrowserWindowInterface* browser2 =
+      CreateBrowserWindowWithType(BrowserWindowInterface::TYPE_NORMAL);
+
+  // Ensure 2 tabs are created.
+  auto* tab_list2 = TabListInterface::From(browser2);
+  ASSERT_TRUE(tab_list2);
+  // Platforms like Win/Mac/Linux create browsers with no tabs, whereas Android
+  // creates browsers with a single tab.
+  if (tab_list2->GetTabCount() == 0) {
+    tab_list2->OpenTab(GURL("about:blank"), /*index=*/-1);
+  }
+  tab_list2->OpenTab(GURL("about:blank"), /*index=*/-1);
+  ASSERT_EQ(2, tab_list2->GetTabCount());
+
+  // Navigate each tab, otherwise window close does not persist them in the tab
+  // restore service. Use different URLs.
+  content::WebContents* contents0 = tab_list2->GetTab(0)->GetContents();
+  ASSERT_TRUE(NavigateToURL(contents0, GURL("chrome://version/")));
+  content::WebContents* contents1 = tab_list2->GetTab(1)->GetContents();
+  ASSERT_TRUE(NavigateToURL(contents1, GURL("chrome://credits/")));
+
+  // Close the second window and wait for it to close.
+  BrowserCloseWaiter waiter(browser2);
+  browser2->GetWindow()->Close();
+  waiter.Wait();
+
+  // Ensure posted tasks from window close have run.
+  base::RunLoop().RunUntilIdle();
+
+  // NOTE: At this point persistent tab state may not yet be initialized on
+  // Android. SessionsGetRecentlyClosedFunction copes with this by using a
+  // Java-side callback that is not invoked until the window data is available.
+  // Sleeping here or spinning the message loop would work around the issue,
+  // but is the wrong solution.
+
+  // chrome.sessions.getRecentlyClosed() should return 1 entry.
+  std::optional<base::Value> result = utils::RunFunctionAndReturnSingleResult(
+      CreateFunction<SessionsGetRecentlyClosedFunction>(true).get(), "[]",
+      GetProfile());
+  ASSERT_TRUE(result);
+  ASSERT_TRUE(result->is_list());
+  EXPECT_EQ(1u, result->GetList().size());
+
+  // The entry should be a session dict.
+  const base::DictValue* session_dict = result->GetList()[0].GetIfDict();
+  ASSERT_TRUE(session_dict);
+
+  // The session contains a window dict.
+  const base::DictValue* window_dict = session_dict->FindDict("window");
+  ASSERT_TRUE(window_dict) << "Window information is missing from the session.";
+
+  // The window has a list of 2 tabs.
+  const base::ListValue* tabs = window_dict->FindList("tabs");
+  ASSERT_TRUE(tabs) << "Tabs information missing from the window dict.";
+  EXPECT_EQ(2u, tabs->size());
+
+  // The first URL is chrome://version/.
+  const base::DictValue* tab0 = (*tabs)[0].GetIfDict();
+  ASSERT_TRUE(tab0);
+  const std::string* url0 = tab0->FindString("url");
+  ASSERT_TRUE(url0);
+  EXPECT_EQ("chrome://version/", *url0);
+
+  // The seconnd URL is chrome://credits/.
+  const base::DictValue* tab1 = (*tabs)[1].GetIfDict();
+  ASSERT_TRUE(tab1);
+  const std::string* url1 = tab1->FindString("url");
+  ASSERT_TRUE(url1);
+  EXPECT_EQ("chrome://credits/", *url1);
+}
 
 IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest, GetRecentlyClosedIncognito) {
-  base::Value::List sessions(
+  base::ListValue sessions(
       utils::ToList(utils::RunFunctionAndReturnSingleResult(
           CreateFunction<SessionsGetRecentlyClosedFunction>(true).get(), "[]",
           CreateIncognitoBrowserWindow()->GetProfile())));
@@ -399,17 +517,20 @@ IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest, GetRecentlyClosedMaxResults) {
   // Open 3 more tabs, closing each one after it is opened.
   const size_t kTabCount = 3;
   for (size_t i = 0; i < kTabCount; ++i) {
-    // Open a new tab. This method automatically waits for load stop. Use URL
-    // about:blank because data URLs on Android result in multiple historical
-    // tabs for unclear reasons.
+    // Open a new tab. This method automatically waits for load stop.
     NavigateToURLInNewTab(GURL("about:blank"));
     // Close the tab we just opened (at index 1).
     int tab_index = 1;
     content::WebContents* tab = GetWebContentsAt(tab_index);
+    // On Android, historical tabs are automatically created when a tab is
+    // closed via the HistoricalTabSaver; there is no need to manually create
+    // them like on desktop.
+#if !BUILDFLAG(IS_ANDROID)
     // Our cross-platform utility function to close a tab doesn't allow
     // requesting the creation of a historical tab, so do it manually.
     service->CreateHistoricalTab(
         sessions::ContentLiveTab::GetOrCreateForWebContents(tab), tab_index);
+#endif  // !BUILDFLAG(IS_ANDROID)
     // Close the tab (and wait for its destruction internally).
     CloseTabForWebContents(tab);
   }
@@ -454,33 +575,33 @@ IN_PROC_BROWSER_TEST_F(ExtensionApiTest, DISABLED_SessionsApis) {
 IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest, CheckActiveTabStatus) {
   CreateSessionModels();
 
-  const base::Value::List result =
+  const base::ListValue result =
       utils::ToList(utils::RunFunctionAndReturnSingleResult(
           CreateFunction<SessionsGetDevicesFunction>(true).get(), "[]",
           GetProfile()));
 
   ASSERT_FALSE(result.empty()) << "No devices found.";
 
-  const base::Value::Dict* device_dict = result[0].GetIfDict();
+  const base::DictValue* device_dict = result[0].GetIfDict();
   ASSERT_TRUE(device_dict) << "Failed to retrieve device information.";
 
-  const base::Value::List* sessions = device_dict->FindList("sessions");
+  const base::ListValue* sessions = device_dict->FindList("sessions");
   ASSERT_TRUE(sessions) << "No sessions found in the device.";
   ASSERT_FALSE(sessions->empty()) << "No session data found in the device.";
 
-  const base::Value::Dict* session_dict = (*sessions)[0].GetIfDict();
+  const base::DictValue* session_dict = (*sessions)[0].GetIfDict();
   ASSERT_TRUE(session_dict) << "Failed to retrieve session information.";
 
-  const base::Value::Dict* window_dict = session_dict->FindDict("window");
+  const base::DictValue* window_dict = session_dict->FindDict("window");
   ASSERT_TRUE(window_dict) << "Window information is missing from the session.";
 
-  const base::Value::List* tabs = window_dict->FindList("tabs");
+  const base::ListValue* tabs = window_dict->FindList("tabs");
   ASSERT_TRUE(tabs) << "No tabs found in the session window.";
   ASSERT_FALSE(tabs->empty()) << "Tabs list is empty.";
 
-  const base::Value::Dict* active_tab = nullptr;
+  const base::DictValue* active_tab = nullptr;
   for (const auto& tab_value : *tabs) {
-    const base::Value::Dict* tab_dict = tab_value.GetIfDict();
+    const base::DictValue* tab_dict = tab_value.GetIfDict();
     ASSERT_TRUE(tab_dict) << "Failed to retrieve tab information.";
 
     // Extract the sessionId as a string

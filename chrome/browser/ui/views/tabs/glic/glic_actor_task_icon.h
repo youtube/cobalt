@@ -38,9 +38,6 @@ class GlicActorTaskIcon : public TabStripNudgeButton {
   // Sets the task icon back to its default colors.
   void SetDefaultColors();
 
-  // Sets the task icon to its highlighted state.
-  void HighlightTaskIcon();
-
   // Sets the task icon's color to its pressed state color if `is_pressed` is
   // true, or to its default color otherwise.
   void SetPressedColor(bool is_pressed);
@@ -62,6 +59,12 @@ class GlicActorTaskIcon : public TabStripNudgeButton {
 
   void SetAnimationMode(AnimationMode mode);
   AnimationMode GetAnimationMode() const { return animation_mode_; }
+
+  // GetBoundsInScreen() gives a rect with some padding that extends beyond the
+  // visible edges of the button. This function returns a rect without that
+  // padding in order to anchor the ActorTaskListBubble on the edge of the
+  // button.
+  gfx::Rect GetAnchorBoundsInScreen() const override;
 
  private:
   void OnBrowserWindowDidBecomeActive(BrowserWindowInterface* bwi);

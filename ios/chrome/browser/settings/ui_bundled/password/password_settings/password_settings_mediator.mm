@@ -28,7 +28,7 @@
 #import "ios/chrome/browser/settings/ui_bundled/password/saved_passwords_presenter_observer.h"
 #import "ios/chrome/browser/settings/ui_bundled/utils/password_auto_fill_status_manager.h"
 #import "ios/chrome/browser/signin/model/system_identity.h"
-#import "ios/chrome/browser/signin/model/trusted_vault_client_backend.h"
+#import "ios/chrome/browser/signin/model/trusted_vault/trusted_vault_client_backend.h"
 #import "ios/chrome/browser/sync/model/sync_observer_bridge.h"
 #import "ios/chrome/common/credential_provider/passkey_model_observer_bridge.h"
 #import "ios/chrome/common/ui/reauthentication/reauthentication_protocol.h"
@@ -499,7 +499,7 @@ bool IsCredentialLocalPassword(const CredentialUIEntry& credential) {
 // Computes the amount of local passwords and passes that on to the consumer.
 - (void)updateShowBulkMovePasswordsToAccount {
   [self.consumer setCanBulkMove:password_manager::features_util::
-                                    IsAccountStorageEnabled(_syncService)
+                                    IsAccountStorageActive(_syncService)
             localPasswordsCount:[self computeLocalPasswordsCount]];
 }
 

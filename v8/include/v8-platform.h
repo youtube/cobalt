@@ -801,12 +801,40 @@ class ThreadIsolatedAllocator {
  * Possible permissions for memory pages.
  */
 enum class PagePermissions {
-  kNoAccess,
-  kRead,
-  kReadWrite,
-  kReadWriteExecute,
-  kReadExecute,
+  kNoAccess = 0,
+  kRead = 1,
+  kWrite = 2,
+  kExecute = 4,
+  kReadWrite = kRead | kWrite,
+  kReadExecute = kRead | kExecute,
+  kWriteExecute = kWrite | kExecute,
+  kReadWriteExecute = kRead | kWrite | kExecute,
 };
+
+inline constexpr PagePermissions operator|(PagePermissions lhs,
+                                           PagePermissions rhs) {
+  return static_cast<PagePermissions>(static_cast<int>(lhs) |
+                                      static_cast<int>(rhs));
+}
+
+inline constexpr PagePermissions operator&(PagePermissions lhs,
+                                           PagePermissions rhs) {
+  return static_cast<PagePermissions>(static_cast<int>(lhs) &
+                                      static_cast<int>(rhs));
+}
+
+inline PagePermissions& operator|=(PagePermissions& lhs, PagePermissions rhs) {
+  lhs = lhs | rhs;
+  return lhs;
+}
+
+/**
+ * Helper routine to determine whether one set of page permissions (the lhs) is
+ * a subset of another one (the rhs).
+ */
+inline constexpr bool IsSubset(PagePermissions lhs, PagePermissions rhs) {
+  return (lhs & rhs) == lhs;
+}
 
 /**
  * Class to manage a virtual memory address space.
@@ -1152,6 +1180,22 @@ class VirtualAddressSpace {
    */
   virtual V8_WARN_UNUSED_RESULT bool DecommitPages(Address address,
                                                    size_t size) = 0;
+
+  /**
+   * Sets a name for the address space.
+   *
+   * This is mostly useful for debugging tools. If supported by the system, the
+   * name will for example show up in /proc/$pid/maps next to the virtual
+   * address reservation:
+   *
+   *     2ae700000000-2ae700010000 r--p 00000000 00:00 0  [anon:foo-bar]
+   *
+   * \param name The name of the address space. The name must only contain
+   * alphanumeric characters or dashes.
+   *
+   * \returns true on success, false otherwise.
+   */
+  virtual bool SetName(const std::string& name) { return false; }
 
  private:
   const size_t page_size_;

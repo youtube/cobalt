@@ -14,7 +14,9 @@
 class TabCollectionNode;
 class GlowHoverController;
 
-// Container for the vertical tabstrip's split tabs.
+// The view class for vertical split tab container. It manages layout
+// of the tabs within the split. It also ensures hover states are synchronized
+// with tab views within the split.
 class VerticalSplitTabView : public views::View, public views::LayoutDelegate {
   METADATA_HEADER(VerticalSplitTabView, views::View)
 
@@ -31,6 +33,7 @@ class VerticalSplitTabView : public views::View, public views::LayoutDelegate {
   void OnMouseEntered(const ui::MouseEvent& event) override;
   void OnMouseExited(const ui::MouseEvent& event) override;
   void OnMouseMoved(const ui::MouseEvent& event) override;
+  void OnPaint(gfx::Canvas* canvas) override;
 
   // LayoutDelegate:
   views::ProposedLayout CalculateProposedLayout(
@@ -42,18 +45,25 @@ class VerticalSplitTabView : public views::View, public views::LayoutDelegate {
     return hover_controller_.get();
   }
 
+  const TabCollectionNode* collection_node() const { return collection_node_; }
+
  private:
   void ResetCollectionNode();
   void OnDataChanged();
   void UpdateBorder();
   void UpdateHovered(bool hovered);
 
+  // Handles removing a `child_view` from `this` for reparenting to other
+  // TabCollectionNode views. Records relevant metadata used for animating move
+  // operations.
+  std::unique_ptr<views::View> RemoveChildViewForReparenting(
+      views::View* child_view);
+
   raw_ptr<TabCollectionNode> collection_node_ = nullptr;
   bool hovered_ = false;
   bool pinned_ = false;
   std::unique_ptr<GlowHoverController> hover_controller_;
 
-  base::CallbackListSubscription data_changed_subscription_;
   base::CallbackListSubscription node_destroyed_subscription_;
   base::CallbackListSubscription paint_as_active_subscription_;
 };

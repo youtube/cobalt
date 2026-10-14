@@ -17,19 +17,13 @@
 #import "ios/chrome/browser/intelligence/proto_wrappers/page_context_wrapper.h"
 #import "ios/chrome/browser/optimization_guide/mojom/zero_state_suggestions_service.mojom.h"
 #import "ios/web/public/favicon/favicon_url.h"
-#import "ios/web/public/js_image_transcoder/java_script_image_transcoder.h"
 #import "ios/web/public/web_state_observer.h"
 #import "ios/web/public/web_state_user_data.h"
 
 @protocol BWGCommands;
 @protocol HelpCommands;
 @protocol LocationBarBadgeCommands;
-@protocol SnackbarCommands;
 @class GeminiPageContext;
-
-namespace base {
-class Value;
-}  // namespace base
 
 // Tab helper controlling the BWG feature and its current state for a given tab.
 class BwgTabHelper : public web::WebStateObserver,
@@ -91,9 +85,6 @@ class BwgTabHelper : public web::WebStateObserver,
 
   // Set help commands handler, for showing in-product help UI.
   void SetHelpCommandsHandler(id<HelpCommands> handler);
-
-  // Set the snackbar commands handler for presenting snackbars.
-  void SetSnackbarCommandsHandler(id<SnackbarCommands> handler);
 
   // Set the location bar badge commands handler.
   void SetLocationBarBadgeCommandsHandler(id<LocationBarBadgeCommands> handler);
@@ -162,19 +153,30 @@ class BwgTabHelper : public web::WebStateObserver,
   // Clears the zero-state suggestions and resets the service.
   void ClearZeroStateSuggestions();
 
+  // Notifies observers of the web state that the page context changed.
+  void NotifyPageContextUpdated(web::WebState* web_state);
+
   // Populates the page context fields if the wrapper exists.
   void PopulatePageContextFields();
 
+  // Computes the actual Gemini eligibility based on the response from
+  // `OnGeminiEligibilityDecision`.
+  bool ComputeGeminiEligibility(
+      optimization_guide::OptimizationGuideDecision decision,
+      const optimization_guide::OptimizationMetadata& metadata);
+
   // Callback for the OptimizationGuide with the result of whether the
   // zero-state suggestions should be shown for the current URL.
-  void OnCanApplyZeroStateSuggestionsDecision(
-      const GURL& url,
+  // Shows IPH for image remix if the user has enabled metadata requests (MSBB).
+  void OnGeminiEligibilityDecision(
+      const GURL& url_without_ref,
+      bool user_enabled_request_metadata,
       optimization_guide::OptimizationGuideDecision decision,
       const optimization_guide::OptimizationMetadata& metadata);
 
   // Callback for the OptimizationGuide with the result to the on-demand call.
-  void OnCanApplyZeroStateSuggestionsOnDemandDecision(
-      const GURL& url,
+  void OnGeminiEligibilityOnDemandDecision(
+      const GURL& url_without_ref,
       const base::flat_map<
           optimization_guide::proto::OptimizationType,
           optimization_guide::OptimizationGuideDecisionWithMetadata>&
@@ -233,9 +235,6 @@ class BwgTabHelper : public web::WebStateObserver,
   // Commands handler for help commands.
   __weak id<HelpCommands> help_commands_handler_ = nullptr;
 
-  // Commands handler for snackbars.
-  __weak id<SnackbarCommands> snackbar_commands_handler_ = nullptr;
-
   // Commands handler for location bar badge.
   __weak id<LocationBarBadgeCommands> location_bar_badge_commands_handler_ =
       nullptr;
@@ -261,22 +260,6 @@ class BwgTabHelper : public web::WebStateObserver,
 
   // Whether to prevent contextual panel entry point.
   bool prevent_contextual_panel_entry_point_ = false;
-
-  // TODO(crbug.com/456782848): Cleanup when no longer needed/wanted.
-  // Experimental. Injects JS to extract the URL of an `og:image`, fetches its
-  // bytes, transcodes it to PNG safely and finally presents a snackbar with a
-  // button that presents a sheet on the current WebState, along with its
-  // resolution. Most of this work is async, so this is implemented as a chain
-  // of callbacks.
-  void PrepareWebPageReportedImagesSnackbar();
-  void OnImageExtractedFromWebState(const base::Value* value, NSError* error);
-  void OnImageFetched(NSData* data);
-  void OnImageTranscoded(NSData* png_data, NSError* error);
-
-  // TODO(crbug.com/456782848): Cleanup when no longer needed/wanted.
-  // Experimental. The image transcoder web JS feature to convert images to PNG
-  // safely.
-  std::unique_ptr<web::JavaScriptImageTranscoder> image_transcoder_;
 
   // The zero-state suggestions data and service for the current page.
   std::unique_ptr<ZeroStateSuggestions> zero_state_suggestions_;

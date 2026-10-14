@@ -69,7 +69,7 @@ class FlexfecReceiveStreamImpl : public FlexfecReceiveStream {
 
   void SetRtcpMode(RtcpMode mode) override {
     RTC_DCHECK_RUN_ON(&packet_sequence_checker_);
-    rtp_rtcp_.SetRTCPStatus(mode);
+    rtp_rtcp_->SetRTCPStatus(mode);
   }
 
   const ReceiveStatistics* GetStats() const override {
@@ -91,7 +91,7 @@ class FlexfecReceiveStreamImpl : public FlexfecReceiveStream {
 
   // RTCP reporting.
   const std::unique_ptr<ReceiveStatistics> rtp_receive_statistics_;
-  ModuleRtpRtcpImpl2 rtp_rtcp_;
+  const std::unique_ptr<ModuleRtpRtcpImpl2> rtp_rtcp_;
 
   std::unique_ptr<RtpStreamReceiverInterface> rtp_stream_receiver_
       RTC_GUARDED_BY(packet_sequence_checker_);

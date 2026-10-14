@@ -60,6 +60,7 @@ quiche_core_hdrs = [
     "common/quiche_socket_address.h",
     "common/quiche_status_utils.h",
     "common/quiche_stream.h",
+    "common/quiche_string_tuple.h",
     "common/quiche_text_utils.h",
     "common/quiche_weak_ptr.h",
     "common/simple_buffer_allocator.h",
@@ -189,7 +190,6 @@ quiche_core_hdrs = [
     "quic/core/crypto/chacha20_poly1305_tls_encrypter.h",
     "quic/core/crypto/chacha_base_decrypter.h",
     "quic/core/crypto/chacha_base_encrypter.h",
-    "quic/core/crypto/channel_id.h",
     "quic/core/crypto/client_proof_source.h",
     "quic/core/crypto/crypto_framer.h",
     "quic/core/crypto/crypto_handshake.h",
@@ -550,7 +550,6 @@ quiche_core_srcs = [
     "quic/core/crypto/chacha20_poly1305_tls_encrypter.cc",
     "quic/core/crypto/chacha_base_decrypter.cc",
     "quic/core/crypto/chacha_base_encrypter.cc",
-    "quic/core/crypto/channel_id.cc",
     "quic/core/crypto/client_proof_source.cc",
     "quic/core/crypto/crypto_framer.cc",
     "quic/core/crypto/crypto_handshake.cc",
@@ -855,6 +854,7 @@ quiche_test_support_hdrs = [
     "quic/test_tools/quic_connection_id_manager_peer.h",
     "quic/test_tools/quic_connection_peer.h",
     "quic/test_tools/quic_crypto_server_config_peer.h",
+    "quic/test_tools/quic_crypto_stream_peer.h",
     "quic/test_tools/quic_dispatcher_peer.h",
     "quic/test_tools/quic_flow_controller_peer.h",
     "quic/test_tools/quic_framer_peer.h",
@@ -952,6 +952,7 @@ quiche_test_support_srcs = [
     "quic/test_tools/quic_config_peer.cc",
     "quic/test_tools/quic_connection_peer.cc",
     "quic/test_tools/quic_crypto_server_config_peer.cc",
+    "quic/test_tools/quic_crypto_stream_peer.cc",
     "quic/test_tools/quic_dispatcher_peer.cc",
     "quic/test_tools/quic_flow_controller_peer.cc",
     "quic/test_tools/quic_framer_peer.cc",
@@ -1016,6 +1017,12 @@ balsa_srcs = [
     "balsa/header_properties.cc",
     "balsa/simple_buffer.cc",
     "balsa/standard_header_map.cc",
+]
+masque_private_tokens_hdrs = [
+    "quic/masque/private_tokens.h",
+]
+masque_private_tokens_srcs = [
+    "quic/masque/private_tokens.cc",
 ]
 masque_support_hdrs = [
     "quic/masque/masque_client.h",
@@ -1108,7 +1115,6 @@ io_test_support_srcs = [
 quiche_tests_hdrs = [
 ]
 quiche_tests_srcs = [
-    "balsa/balsa_frame_fuzz_test.cc",
     "balsa/balsa_frame_test.cc",
     "balsa/balsa_headers_sequence_test.cc",
     "balsa/balsa_headers_test.cc",
@@ -1149,6 +1155,7 @@ quiche_tests_srcs = [
     "common/quiche_simple_arena_test.cc",
     "common/quiche_socket_address_test.cc",
     "common/quiche_status_utils_test.cc",
+    "common/quiche_string_tuple_test.cc",
     "common/quiche_text_utils_test.cc",
     "common/quiche_weak_ptr_test.cc",
     "common/simple_buffer_allocator_test.cc",
@@ -1225,12 +1232,13 @@ quiche_tests_srcs = [
     "http2/test_tools/http2_frame_builder_test.cc",
     "http2/test_tools/http2_random_test.cc",
     "http2/test_tools/random_decoder_test_base_test.cc",
-    "oblivious_http/buffers/oblivious_http_integration_test.cc",
+    "oblivious_http/buffers/oblivious_http_buffers_integration_test.cc",
     "oblivious_http/buffers/oblivious_http_request_test.cc",
     "oblivious_http/buffers/oblivious_http_response_test.cc",
     "oblivious_http/common/oblivious_http_header_key_config_test.cc",
     "oblivious_http/oblivious_http_client_test.cc",
     "oblivious_http/oblivious_http_gateway_test.cc",
+    "oblivious_http/oblivious_http_integration_test.cc",
     "quic/core/congestion_control/bandwidth_sampler_test.cc",
     "quic/core/congestion_control/bbr2_simulator_test.cc",
     "quic/core/congestion_control/bbr_sender_test.cc",
@@ -1258,7 +1266,6 @@ quiche_tests_srcs = [
     "quic/core/crypto/chacha20_poly1305_encrypter_test.cc",
     "quic/core/crypto/chacha20_poly1305_tls_decrypter_test.cc",
     "quic/core/crypto/chacha20_poly1305_tls_encrypter_test.cc",
-    "quic/core/crypto/channel_id_test.cc",
     "quic/core/crypto/client_proof_source_test.cc",
     "quic/core/crypto/crypto_framer_test.cc",
     "quic/core/crypto/crypto_handshake_message_test.cc",
@@ -1445,6 +1452,7 @@ cli_tools_srcs = [
     "quic/masque/masque_server_bin.cc",
     "quic/masque/masque_tcp_client_bin.cc",
     "quic/masque/masque_tcp_server_bin.cc",
+    "quic/masque/private_tokens_bin.cc",
     "quic/moqt/tools/chat_client_bin.cc",
     "quic/moqt/tools/moqt_ingestion_server_bin.cc",
     "quic/moqt/tools/moqt_relay_bin.cc",
@@ -1569,12 +1577,16 @@ load_balancer_srcs = [
     "quic/load_balancer/load_balancer_server_id_test.cc",
 ]
 moqt_hdrs = [
+    "quic/moqt/moqt_bidi_stream.h",
     "quic/moqt/moqt_bitrate_adjuster.h",
+    "quic/moqt/moqt_error.h",
     "quic/moqt/moqt_fetch_task.h",
     "quic/moqt/moqt_framer.h",
+    "quic/moqt/moqt_key_value_pair.h",
     "quic/moqt/moqt_known_track_publisher.h",
     "quic/moqt/moqt_messages.h",
     "quic/moqt/moqt_names.h",
+    "quic/moqt/moqt_namespace_stream.h",
     "quic/moqt/moqt_object.h",
     "quic/moqt/moqt_outgoing_queue.h",
     "quic/moqt/moqt_outstanding_objects.h",
@@ -1601,10 +1613,13 @@ moqt_hdrs = [
 ]
 moqt_srcs = [
     "quic/moqt/moqt_bitrate_adjuster.cc",
+    "quic/moqt/moqt_error.cc",
     "quic/moqt/moqt_framer.cc",
+    "quic/moqt/moqt_key_value_pair.cc",
     "quic/moqt/moqt_known_track_publisher.cc",
     "quic/moqt/moqt_messages.cc",
     "quic/moqt/moqt_names.cc",
+    "quic/moqt/moqt_namespace_stream.cc",
     "quic/moqt/moqt_object.cc",
     "quic/moqt/moqt_outgoing_queue.cc",
     "quic/moqt/moqt_outstanding_objects.cc",
@@ -1627,11 +1642,14 @@ moqt_srcs = [
 moqt_test_hdrs = [
 ]
 moqt_test_srcs = [
+    "quic/moqt/moqt_bidi_stream_test.cc",
     "quic/moqt/moqt_bitrate_adjuster_test.cc",
     "quic/moqt/moqt_framer_test.cc",
     "quic/moqt/moqt_integration_test.cc",
+    "quic/moqt/moqt_key_value_pair_test.cc",
     "quic/moqt/moqt_messages_test.cc",
     "quic/moqt/moqt_names_test.cc",
+    "quic/moqt/moqt_namespace_stream_test.cc",
     "quic/moqt/moqt_outgoing_queue_test.cc",
     "quic/moqt/moqt_outstanding_objects_test.cc",
     "quic/moqt/moqt_parser_fuzz_test.cc",

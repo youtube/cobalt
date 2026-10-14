@@ -7,8 +7,8 @@
 
 #include <optional>
 #include <ostream>
+#include <vector>
 
-#include "base/memory/raw_ptr.h"
 #include "components/supervised_user/core/common/supervised_user_constants.h"
 
 class HostContentSettingsMap;
@@ -64,6 +64,15 @@ class SupervisedUserLogRecord {
       const PrefService& pref_service,
       const HostContentSettingsMap& content_settings_map,
       SupervisedUserUrlFilteringService* url_filtering_service,
+      const DeviceParentalControls& device_parental_controls);
+
+  // Given a list of records that map to the supervision state of primary
+  // accounts on the user's device, emits metrics that reflect the supervision
+  // status of the user. On top of that, device-based supervision might emit an
+  // extra record.
+  // Returns true if one or more histograms were emitted.
+  static bool EmitHistograms(
+      const std::vector<SupervisedUserLogRecord>& records,
       const DeviceParentalControls& device_parental_controls);
 
   // Returns the supervision status of the primary account.

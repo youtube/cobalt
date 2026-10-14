@@ -342,7 +342,6 @@
 <translation id="2201071101391734388">Recent photo <ph name="INDEX" /> of <ph name="TOTAL_COUNT" />.</translation>
 <translation id="2201687081523799384">Collapse Google Tasks</translation>
 <translation id="2208323208084708176">Unified desktop mode</translation>
-<translation id="2210311543574621570">You'll see the clipboard when you press and hold Ctrl + V. You can turn off this shortcut by disabling the #clipboard-history-longpress flag in chrome://flags.</translation>
 <translation id="2215920961700443347">No Internet. Connect to the Internet and try again.</translation>
 <translation id="2222841058024245321">Desk 7</translation>
 <translation id="2223384056430485343">In a split screen</translation>
@@ -2195,7 +2194,6 @@ To shut down the device, press and hold the power button on the device again.</t
 <translation id="8241650983304689286">Add tab to new split view</translation>
 <translation id="8247060538831475781"><ph name="CONNECTION_STATUS" />, signal strength <ph name="SIGNAL_STRENGTH" />, phone battery <ph name="BATTERY_STATUS" /></translation>
 <translation id="825129991941217170">Show all Google Drive content</translation>
-<translation id="8257510091797044096">Set up your device</translation>
 <translation id="8261506727792406068">Delete</translation>
 <translation id="8262312463845990408">Toggle -playback</translation>
 <translation id="8268302343625273732">See all assignments in Google Classroom</translation>

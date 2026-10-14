@@ -11,24 +11,35 @@ export function getHtml(this: SourcesMenuElement) {
   return html`<!--_html_template_start_-->
     <cr-action-menu id="menu">
       <div class="header">$i18n{sourcesMenuTitle}</div>
-
-      ${this.shouldShowHeaders_() ? html`
-        <div class="header">$i18n{sourcesMenuTabsHeader}</div>
-      ` : ''}
-      ${this.attachedTabs.map((item, index) => html`
-        <button class="dropdown-item" @click="${this.onTabClick_}"
-            data-index="${index}">
-          <div class="icon-container">
-            <div class="tab-favicon"
-              style="background-image:${this.faviconUrl_(item)}">
-            </div>
-          </div>
-          <div class="tab-info">
-            <div class="tab-title">${item.title}</div>
-            <div class="tab-url">${this.getHostname_(item.url.url)}</div>
-          </div>
-        </button>
-      `)}
+      ${this.contextInfos.map((item, index) => {
+        if (item.tab) {
+          return html`
+            <cr-url-list-item class="dropdown-item" data-index="${index}"
+                @click="${this.onTabClick_}"
+                .description="${this.getHostname_(item.tab.url)}"
+                .url="${item.tab.url}" .title="${item.tab.title}">
+            </cr-url-list-item>
+          `;
+        } else if (item.file) {
+          return html`
+            <cr-url-list-item class="dropdown-item" data-index="${index}"
+                @click="${this.onFileClick_}"
+                .url="${item.file.url}" .title="${item.file.title}">
+              <cr-icon slot="customIcon" icon="thumbnail:pdf" class="file-icon">
+              </cr-icon>
+            </cr-url-list-item>
+          `;
+        } else if (item.image) {
+          return html`
+            <cr-url-list-item class="dropdown-item" data-index="${index}"
+              @click="${this.onImageClick_}"
+              .imageUrls="${[item.image.url]}" .title="${item.image.title}">
+            </cr-url-list-item>
+          `;
+        } else {
+          return '';
+        }
+      })}
     </cr-action-menu>
   <!--_html_template_end_-->`;
   // clang-format on

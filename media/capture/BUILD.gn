@@ -165,6 +165,7 @@ component("capture_lib") {
   deps = [
     "//base",
     "//base:i18n",
+    "//gpu/config",
     "//media",
     "//media/capture/mojom:image_capture",
     "//media/capture/mojom:image_capture_types",
@@ -465,6 +466,14 @@ source_set("test_support") {
       "video/linux/fake_v4l2_impl.cc",
       "video/linux/fake_v4l2_impl.h",
     ]
+  }
+
+  if (is_mac) {
+    sources += [
+      "video/mac/test/screen_capture_kit_test_helper.h",
+      "video/mac/test/screen_capture_kit_test_helper.mm",
+    ]
+    weak_frameworks = [ "ScreenCaptureKit.framework" ]
   }
 
   if (is_chromeos) {

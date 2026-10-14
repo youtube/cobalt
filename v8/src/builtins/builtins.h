@@ -629,6 +629,10 @@ class Builtins {
   static void Generate_CallApiCallbackImpl(MacroAssembler* masm,
                                            CallApiCallbackMode mode);
 
+  static void Generate_CallApiAccessorImpl(MacroAssembler* masm,
+                                           bool for_interceptor,
+                                           bool for_setter);
+
 #define DECLARE_ASM(Name, ...) \
   static void Generate_##Name(MacroAssembler* masm);
 #define DECLARE_TF(Name, ...) \

@@ -8,16 +8,16 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/webui/settings/settings_page_ui_handler.h"
 #include "components/metrics/metrics_service.h"
 #include "components/user_manager/user_manager.h"
+#include "content/public/browser/web_ui_message_handler.h"
 
 namespace ash::settings {
 
 class TestMetricsConsentHandler;
 
 // Handler for fetching and updating metrics consent.
-class MetricsConsentHandler : public ::settings::SettingsPageUIHandler {
+class MetricsConsentHandler : public content::WebUIMessageHandler {
  public:
   // Message names sent to WebUI for handling metric consent.
   static const char kGetMetricsConsentState[];
@@ -32,7 +32,7 @@ class MetricsConsentHandler : public ::settings::SettingsPageUIHandler {
 
   ~MetricsConsentHandler() override;
 
-  // SettingsPageUIHandler:
+  // content::WebUIMessageHandler:
   void RegisterMessages() override;
   void OnJavascriptAllowed() override;
   void OnJavascriptDisallowed() override;
@@ -41,12 +41,12 @@ class MetricsConsentHandler : public ::settings::SettingsPageUIHandler {
   friend class TestMetricsConsentHandler;
 
   // Handles updating metrics consent for the user.
-  void HandleUpdateMetricsConsent(const base::Value::List& args);
+  void HandleUpdateMetricsConsent(const base::ListValue& args);
 
   // Handles fetching metrics consent state. The callback will return two
   // values: a string pref name and a boolean indicating whether the current
   // user may change that pref.
-  void HandleGetMetricsConsentState(const base::Value::List& args);
+  void HandleGetMetricsConsentState(const base::ListValue& args);
 
   // Returns true if user with |profile_| has permissions to change the metrics
   // consent pref.

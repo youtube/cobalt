@@ -21,11 +21,25 @@ BASE_DECLARE_FEATURE(kEnterpriseIframeDlpRulesSupport);
 // Controls whether resumable upload is enabled on consumer scans.
 BASE_DECLARE_FEATURE(kEnableResumableUploadOnConsumerScan);
 
+// Controls whether hash of resumable uploads is uploaded in the final call for
+// large files.
+BASE_DECLARE_FEATURE(kContentHashInFileUploadFinalCall);
+
 // Controls the new upload, download, and print size limit for content analysis.
 BASE_DECLARE_FEATURE(kEnableNewUploadSizeLimit);
 
 // Controls the maximum file size for content analysis in MB.
 BASE_DECLARE_FEATURE_PARAM(size_t, kMaxContentAnalysisFileSizeMB);
+
+// The default maximum number of concurrent active requests. This is used to
+// limit the number of requests that are actively being uploaded. This is set to
+// default of 15 because it was determined to be a good value through
+// experiments. See http://crbug.com/329293309.
+inline constexpr int kDefaultMaxParallelActiveRequests = 15;
+
+// Controls enabling and count of concurrent upload limit for content analysis.
+BASE_DECLARE_FEATURE(kEnableNewUploadCountLimit);
+BASE_DECLARE_FEATURE_PARAM(size_t, kParallelContentAnalysisRequestCountMax);
 
 // Controls whether encrypted file upload is enabled.
 BASE_DECLARE_FEATURE(kEnableEncryptedFileUpload);

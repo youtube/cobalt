@@ -9,7 +9,9 @@
 #include <optional>
 
 #include "absl/strings/string_view.h"
+#include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_buffer_allocator.h"
 
@@ -38,9 +40,12 @@ class QUICHE_EXPORT MoqtFramer {
       std::optional<uint64_t> previous_object_in_stream);
   // Serializes both OBJECT and OBJECT_STATUS datagrams.
   quiche::QuicheBuffer SerializeObjectDatagram(const MoqtObject& message,
-                                               absl::string_view payload);
+                                               absl::string_view payload,
+                                               MoqtPriority default_priority);
   quiche::QuicheBuffer SerializeClientSetup(const MoqtClientSetup& message);
   quiche::QuicheBuffer SerializeServerSetup(const MoqtServerSetup& message);
+  quiche::QuicheBuffer SerializeRequestOk(const MoqtRequestOk& message);
+  quiche::QuicheBuffer SerializeRequestError(const MoqtRequestError& message);
   // Returns an empty buffer if there is an illegal combination of locations.
   quiche::QuicheBuffer SerializeSubscribe(
       const MoqtSubscribe& message,
@@ -48,26 +53,22 @@ class QUICHE_EXPORT MoqtFramer {
   quiche::QuicheBuffer SerializeSubscribeOk(
       const MoqtSubscribeOk& message,
       MoqtMessageType message_type = MoqtMessageType::kSubscribeOk);
-  quiche::QuicheBuffer SerializeRequestError(const MoqtRequestError& message);
   quiche::QuicheBuffer SerializeUnsubscribe(const MoqtUnsubscribe& message);
   quiche::QuicheBuffer SerializePublishDone(const MoqtPublishDone& message);
   quiche::QuicheBuffer SerializeSubscribeUpdate(
       const MoqtSubscribeUpdate& message);
   quiche::QuicheBuffer SerializePublishNamespace(
       const MoqtPublishNamespace& message);
-  quiche::QuicheBuffer SerializePublishNamespaceOk(
-      const MoqtPublishNamespaceOk& message);
   quiche::QuicheBuffer SerializePublishNamespaceDone(
       const MoqtPublishNamespaceDone& message);
+  quiche::QuicheBuffer SerializeNamespace(const MoqtNamespace& message);
+  quiche::QuicheBuffer SerializeNamespaceDone(const MoqtNamespaceDone& message);
   quiche::QuicheBuffer SerializePublishNamespaceCancel(
       const MoqtPublishNamespaceCancel& message);
   quiche::QuicheBuffer SerializeTrackStatus(const MoqtTrackStatus& message);
-  quiche::QuicheBuffer SerializeTrackStatusOk(const MoqtTrackStatusOk& message);
   quiche::QuicheBuffer SerializeGoAway(const MoqtGoAway& message);
   quiche::QuicheBuffer SerializeSubscribeNamespace(
       const MoqtSubscribeNamespace& message);
-  quiche::QuicheBuffer SerializeSubscribeNamespaceOk(
-      const MoqtSubscribeNamespaceOk& message);
   quiche::QuicheBuffer SerializeUnsubscribeNamespace(
       const MoqtUnsubscribeNamespace& message);
   quiche::QuicheBuffer SerializeMaxRequestId(const MoqtMaxRequestId& message);
@@ -80,11 +81,20 @@ class QUICHE_EXPORT MoqtFramer {
   quiche::QuicheBuffer SerializePublishOk(const MoqtPublishOk& message);
   quiche::QuicheBuffer SerializeObjectAck(const MoqtObjectAck& message);
 
+  bool using_webtrans() const { return using_webtrans_; }
+
  private:
+  // Returns true if the parameters are valid for the message type.
+  bool FillAndValidateSetupParameters(MoqtMessageType message_type,
+                                      const SetupParameters& parameters,
+                                      KeyValuePairList& out);
+  bool FillAndValidateVersionSpecificParameters(
+      MoqtMessageType message_type, const VersionSpecificParameters& parameters,
+      KeyValuePairList& out);
   // Returns true if the metadata is internally consistent.
   static bool ValidateObjectMetadata(const MoqtObject& object,
                                      bool is_datagram);
-  bool using_webtrans_;
+  const bool using_webtrans_;
 };
 
 }  // namespace moqt

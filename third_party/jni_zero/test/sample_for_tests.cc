@@ -29,6 +29,15 @@ static_assert(IsObjectContainer<std::vector<std::string*>>);
 using jni_zero::AttachCurrentThread;
 using jni_zero::JavaRef;
 using jni_zero::ScopedJavaLocalRef;
+using FuncType = void (*)(const std::vector<bool>&);
+
+namespace jni_zero {
+
+template <>
+FuncType FromJniType<FuncType>(JNIEnv* env, const JavaRef<jobject>& j_object) {
+  return nullptr;
+}
+}  // namespace jni_zero
 
 namespace jni_zero::tests {
 
@@ -48,9 +57,9 @@ void CPPClass::Destroy(JNIEnv* env,
   delete this;
 }
 
-int32_t CPPClass::Method(JNIEnv* env,
-                         const JavaRef<jobject>& caller,
-                         std::vector<std::string>& strArray) {
+jint CPPClass::Method(JNIEnv* env,
+                      const JavaRef<jobject>& caller,
+                      std::vector<std::string>& strArray) {
   return 0;
 }
 
@@ -87,7 +96,7 @@ static jlong JNI_SampleForTests_Init(
     JNIEnv* env,
     const JavaRef<jobject>& caller,
     const JavaRef<jstring>& param,
-    jni_zero::ByteArrayView& bytes,
+    jni_zero::ByteArrayView&& bytes,
     CPPClass* converted_type,
     std::vector<jni_zero::ScopedJavaLocalRef<jobject>>& non_converted_array) {
   return static_cast<jlong>(bytes.size());
@@ -199,8 +208,8 @@ JNI_SampleForAnnotationProcessor_SendSamplesToNative(
   return jni_zero::tests::JNI_SampleForTests_GetNonPODDatatype(env, strs);
 }
 
-static bool JNI_SampleForAnnotationProcessor_HasPhalange(JNIEnv* env) {
-  return true;
+static jboolean JNI_SampleForAnnotationProcessor_HasPhalange(JNIEnv* env) {
+  return jboolean(true);
 }
 
 static std::vector<int> JNI_SampleForAnnotationProcessor_TestAllPrimitives(
@@ -219,7 +228,7 @@ static std::vector<int> JNI_SampleForAnnotationProcessor_TestAllPrimitives(
     const JavaRef<jdoubleArray>& doubles,
     jfloat zfloat,
     const JavaRef<jfloatArray>& floats,
-    bool zbool,
+    jboolean zbool,
     const JavaRef<jbooleanArray>& bools) {
   return {};
 }
@@ -235,10 +244,11 @@ static void JNI_SampleForAnnotationProcessor_TestSpecialTypes(
     std::string& convertedString,
     std::vector<std::string>& convertedStrings,
     std::optional<std::string>& optionalString,
+    std::optional<FuncType> optionalFunc,
     const JavaRef<jobject>& tStruct,
     const JavaRef<jobjectArray>& structs,
     const JavaRef<jobject>& obj,
-    jni_zero::tests::CPPClass& convertedObj,
+    const jni_zero::tests::CPPClass& convertedObj,
     const JavaRef<jobjectArray>& objs,
     const JavaRef<jobject>& nestedInterface,
     const JavaRef<jobject>& view,
@@ -290,8 +300,8 @@ JNI_SampleForAnnotationProcessor_ReturnConvertedAppObjects(JNIEnv* env) {
   return {};
 }
 
-static std::vector<int32_t>
-JNI_SampleForAnnotationProcessor_ReturnConvertedInts(JNIEnv* env) {
+static std::vector<jint> JNI_SampleForAnnotationProcessor_ReturnConvertedInts(
+    JNIEnv* env) {
   return {};
 }
 

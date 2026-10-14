@@ -37,9 +37,12 @@
 
 AccountConsistencyBrowserAgent::AccountConsistencyBrowserAgent(
     Browser* browser,
-    UIViewController* base_view_controller)
-    : BrowserUserData(browser), base_view_controller_(base_view_controller) {
-  StartObserving(browser, Policy::kOnlyRealized);
+    UIViewController* base_view_controller,
+    signin::SigninEnabledDataSource* signin_enabled_data_source)
+    : BrowserUserData(browser),
+      base_view_controller_(base_view_controller),
+      signin_enabled_data_source_(signin_enabled_data_source) {
+  StartObserving(browser);
   application_handler_ =
       HandlerForProtocol(browser_->GetCommandDispatcher(), SceneCommands);
   settings_handler_ =
@@ -60,9 +63,9 @@ void AccountConsistencyBrowserAgent::StopSigninCoordinator(
 
 void AccountConsistencyBrowserAgent::OnWebStateInserted(
     web::WebState* web_state) {
+  ProfileIOS* profile = browser_->GetProfile();
   if (AccountConsistencyService* accountConsistencyService =
-          ios::AccountConsistencyServiceFactory::GetForProfile(
-              browser_->GetProfile())) {
+          ios::AccountConsistencyServiceFactory::GetForProfile(profile)) {
     accountConsistencyService->SetWebStateHandler(web_state, this);
   }
 }
@@ -146,15 +149,24 @@ void AccountConsistencyBrowserAgent::OnAddAccount(
     return;
   }
 
-  ProfileIOS* profile = browser_->GetProfile()->GetOriginalProfile();
+  if (prefilled_email.empty()) {
+    OnAddUnkwownAccount(url);
+  } else {
+    OnAddPrefilledAccount(url, prefilled_email);
+  }
+}
+
+void AccountConsistencyBrowserAgent::OnAddPrefilledAccount(
+    const GURL& url,
+    const std::string& prefilled_email) {
+  CHECK(!prefilled_email.empty());
   BOOL email_in_identity_on_device =
       signin::GetAccountInfoOnDeviceWithEmail(
-          IdentityManagerFactory::GetForProfile(profile), prefilled_email) !=
-      std::nullopt;
-  if (email_in_identity_on_device && CanShowAccountMenu()) {
-    // The user must select the correct account to follow.
-    ShowAccountMenu(url);
-  } else {
+          IdentityManagerFactory::GetForProfile(browser_->GetProfile()),
+          prefilled_email) != std::nullopt;
+  if (!email_in_identity_on_device) {
+    // No account with this email is on the device. Let’s ask the user to add
+    // the account.
     id<BrowserCoordinatorCommands> browser_coordinator_handler =
         HandlerForProtocol(browser_->GetCommandDispatcher(),
                            BrowserCoordinatorCommands);
@@ -163,6 +175,38 @@ void AccountConsistencyBrowserAgent::OnAddAccount(
     [browser_coordinator_handler
         showAddAccountWithAccessPoint:access_point
                        prefilledEmail:base::SysUTF8ToNSString(prefilled_email)];
+    return;
+  }
+  if (CanShowAccountMenu()) {
+    // The user is signed-in, so they must select the account in the account
+    // menu.
+    ShowAccountMenu(url);
+  } else {
+    // The user is signed-out and the account is on the device, so they must
+    // select the account in the account consistency view.
+    [application_handler_
+        showWebSigninPromoFromViewController:base_view_controller_
+                                         URL:url];
+  }
+}
+
+void AccountConsistencyBrowserAgent::OnAddUnkwownAccount(const GURL& url) {
+  size_t num_profiles = GetApplicationContext()
+                            ->GetProfileManager()
+                            ->GetProfileAttributesStorage()
+                            ->GetNumberOfProfiles();
+  // If there are any profiles beside the current one, it's likely the user
+  // wanted to switch to another profile rather than add/manage accounts.
+  if (num_profiles > 1 && CanShowAccountMenu()) {
+    ShowAccountMenu(url);
+  } else {
+    id<BrowserCoordinatorCommands> browser_coordinator_handler =
+        HandlerForProtocol(browser_->GetCommandDispatcher(),
+                           BrowserCoordinatorCommands);
+    signin_metrics::AccessPoint access_point =
+        signin_metrics::AccessPoint::kAccountConsistencyService;
+    [browser_coordinator_handler showAddAccountWithAccessPoint:access_point
+                                                prefilledEmail:nil];
   }
 }
 
@@ -186,6 +230,10 @@ void AccountConsistencyBrowserAgent::OnGoIncognito(const GURL& url) {
       inBackground:NO
           appendTo:OpenPosition::kLastTab];
   [application_handler_ openURLInNewTab:command];
+}
+
+bool AccountConsistencyBrowserAgent::SigninEnabled() const {
+  return signin_enabled_data_source_->SigninEnabled();
 }
 
 bool AccountConsistencyBrowserAgent::CanShowAccountMenu() const {

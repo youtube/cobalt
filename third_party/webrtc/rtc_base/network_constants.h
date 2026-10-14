@@ -32,6 +32,24 @@ constexpr uint16_t kNetworkCostMin = 0;
 // everything else being equal.
 constexpr uint16_t kNetworkCostVpn = 1;
 
+// TODO: bugs.webrtc.org/466507512 - network slices are not currently
+// differentiated so as to reduce the possibility of collisions amongst network
+// costs. Differentiation may require a more extensible approach.
+
+// Add -2 to the network cost when using network slicing so that e.g. premium 5G
+// slice is preferred over regular 5G, everything else being equal.
+constexpr uint16_t kNetworkCostSlice = -2;
+
+// Aliases for correct wrap-around with network slice cost.
+constexpr uint16_t kNetworkCostCellular5GSlice =  // 248
+    kNetworkCostCellular5G + kNetworkCostSlice;
+constexpr uint16_t kNetworkCostCellular5GVpnSlice =  // 249
+    kNetworkCostCellular5G + kNetworkCostVpn + kNetworkCostSlice;
+constexpr uint16_t kNetworkCostCellularSlice =  // 898
+    kNetworkCostCellular + kNetworkCostSlice;
+constexpr uint16_t kNetworkCostCellularVpnSlice =  // 899
+    kNetworkCostCellular + kNetworkCostVpn + kNetworkCostSlice;
+
 // alias
 constexpr uint16_t kNetworkCostHigh = kNetworkCostCellular;
 

@@ -25,6 +25,14 @@
 namespace v8::internal::compiler::turboshaft {
 
 #if V8_ENABLE_WEBASSEMBLY
+#define SIMD_TERNOP_LIST(V) FOREACH_SIMD_128_TERNARY_OPCODE(V)
+#else
+#define SIMD_TERNOP_LIST(V)
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+#define TERNOP_LIST(V) SIMD_TERNOP_LIST(V)
+
+#if V8_ENABLE_WEBASSEMBLY
 #define SIMD_BINOP_LIST(V)          \
   FOREACH_SIMD_128_BINARY_OPCODE(V) \
   FOREACH_SIMD_128_SHIFT_OPCODE(V)
@@ -128,6 +136,7 @@ namespace v8::internal::compiler::turboshaft {
 
 #define DECL(Op) k##Op,
 
+enum class TSTernop { TERNOP_LIST(DECL) };
 enum class TSBinop { BINOP_LIST(DECL) };
 enum class TSUnop { UNOP_LIST(DECL) };
 
@@ -207,16 +216,14 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
       Init();
     }
 
-    Stream Build(CpuFeature feature) {
-      return Build(InstructionSelector::Features(feature));
-    }
+    Stream Build(CpuFeature feature) { return Build(CpuFeatureSet{feature}); }
     Stream Build(CpuFeature feature1, CpuFeature feature2) {
-      return Build(InstructionSelector::Features(feature1, feature2));
+      return Build(CpuFeatureSet{feature1, feature2});
     }
     Stream Build(StreamBuilderMode mode = kTargetInstructions) {
-      return Build(InstructionSelector::Features(), mode);
+      return Build(CpuFeatureSet(), mode);
     }
-    Stream Build(InstructionSelector::Features features,
+    Stream Build(CpuFeatureSet features,
                  StreamBuilderMode mode = kTargetInstructions,
                  InstructionSelector::SourcePositionMode source_position_mode =
                      InstructionSelector::kAllSourcePositions);
@@ -299,6 +306,18 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
 #undef CASE
       }
     }
+
+#if V8_ENABLE_WEBASSEMBLY
+    OpIndex Emit(TSTernop op, OpIndex first, OpIndex second, OpIndex third) {
+      switch (op) {
+#define CASE(Op)        \
+  case TSTernop::k##Op: \
+    return Op(first, second, third);
+        TERNOP_LIST(CASE)
+#undef CASE
+      }
+    }
+#endif
 
     template <typename T>
     V<T> Emit(TSBinop op, OpIndex left, OpIndex right) {
@@ -425,6 +444,14 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
     FOREACH_SIMD_128_SPLAT_OPCODE(DECL_SPLAT)
 #undef DECL_SPLAT
 
+#define DECL_SIMD128_TERNOP(Name)                                          \
+  V<Simd128> Name(V<Simd128> first, V<Simd128> second, V<Simd128> third) { \
+    return Simd128Ternary(first, second, third,                            \
+                          Simd128TernaryOp::Kind::k##Name);                \
+  }
+    FOREACH_SIMD_128_TERNARY_OPCODE(DECL_SIMD128_TERNOP)
+#undef DECL_SIMD128_TERNOP
+
 #define DECL_SIMD128_BINOP(Name)                                     \
   V<Simd128> Name(V<Simd128> left, V<Simd128> right) {               \
     return Simd128Binop(left, right, Simd128BinopOp::Kind::k##Name); \
@@ -450,6 +477,7 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
     DECL_SIMD128_EXTRACT_LANE(I16x8, U, Word32)
     DECL_SIMD128_EXTRACT_LANE(I32x4, , Word32)
     DECL_SIMD128_EXTRACT_LANE(I64x2, , Word64)
+    DECL_SIMD128_EXTRACT_LANE(F16x8, , Float32)
     DECL_SIMD128_EXTRACT_LANE(F32x4, , Float32)
     DECL_SIMD128_EXTRACT_LANE(F64x2, , Float64)
 #undef DECL_SIMD128_EXTRACT_LANE

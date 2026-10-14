@@ -131,7 +131,6 @@ class CORE_EXPORT BlockNode : public LayoutInputNode {
       InlineNode* first_child_out = nullptr) const;
 
   bool IsInlineLevel() const;
-  bool IsAtomicInlineLevel() const;
   bool IsInTopOrViewTransitionLayer() const;
 
   // Returns the aspect ratio of a replaced element.
@@ -162,14 +161,18 @@ class CORE_EXPORT BlockNode : public LayoutInputNode {
   //
   // https://quirks.spec.whatwg.org/#the-body-element-fills-the-html-element-quirk
   bool IsQuirkyAndFillsViewport() const {
-    if (!GetDocument().InQuirksMode())
+    if (!GetDocument().InQuirksMode()) {
       return false;
-    if (IsOutOfFlowPositioned())
+    }
+    if (IsOutOfFlowPositioned()) {
       return false;
-    if (IsFloating())
+    }
+    if (IsFloating()) {
       return false;
-    if (IsAtomicInlineLevel())
+    }
+    if (IsInlineLevel()) {
       return false;
+    }
     return (IsDocumentElement() || IsBody());
   }
 

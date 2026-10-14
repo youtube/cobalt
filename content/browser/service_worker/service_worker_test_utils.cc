@@ -106,7 +106,6 @@ class FakeNavigationClient : public mojom::NavigationClient {
       const blink::DocumentToken& document_token,
       const base::UnguessableToken& devtools_navigation_token,
       const base::Uuid& base_auction_nonce,
-      const std::optional<network::ParsedPermissionsPolicy>& permissions_policy,
       blink::mojom::PolicyContainerPtr policy_container,
       mojo::PendingRemote<blink::mojom::CodeCacheHost> code_cache_host,
       mojo::PendingRemote<blink::mojom::CodeCacheHost>
@@ -296,7 +295,6 @@ CommittedServiceWorkerClient::CommittedServiceWorkerClient(
       /*document_token=*/blink::DocumentToken(),
       /*devtools_navigation_token=*/base::UnguessableToken::Create(),
       /*base_auction_nonce=*/base::Uuid::GenerateRandomV4(),
-      std::vector<network::ParsedPermissionsPolicyDeclaration>(),
       CreateStubPolicyContainer(), /*code_cache_host=*/mojo::NullRemote(),
       /*code_cache_host_for_background=*/mojo::NullRemote(),
       /*cookie_manager_info=*/nullptr,
@@ -788,14 +786,14 @@ ServiceWorkerUpdateCheckTestUtils::CreatePausedCacheWriter(
   worker_test_helper->context()
       ->registry()
       .GetRemoteStorageControl()
-      ->CreateResourceReader(old_resource_id,
+      ->CreateResourceReader(old_resource_id, /*sha256_checksum=*/std::nullopt,
                              compare_reader.BindNewPipeAndPassReceiver());
 
   mojo::Remote<storage::mojom::ServiceWorkerResourceReader> copy_reader;
   worker_test_helper->context()
       ->registry()
       .GetRemoteStorageControl()
-      ->CreateResourceReader(old_resource_id,
+      ->CreateResourceReader(old_resource_id, /*sha256_checksum=*/std::nullopt,
                              copy_reader.BindNewPipeAndPassReceiver());
 
   mojo::Remote<storage::mojom::ServiceWorkerResourceWriter> writer;
@@ -919,7 +917,7 @@ bool ServiceWorkerUpdateCheckTestUtils::VerifyStoredResponse(
     return false;
 
   mojo::Remote<storage::mojom::ServiceWorkerResourceReader> reader;
-  storage->CreateResourceReader(resource_id,
+  storage->CreateResourceReader(resource_id, /*sha256_checksum=*/std::nullopt,
                                 reader.BindNewPipeAndPassReceiver());
 
   // Verify the response status.

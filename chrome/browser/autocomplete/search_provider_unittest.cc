@@ -4059,6 +4059,55 @@ TEST_F(SearchProviderTest, CopyAnswerToVerbatim) {
   EXPECT_TRUE(provider_->matches()[0].answer_template);
 }
 
+TEST_F(SearchProviderTest, VerbatimAimSuggestion) {
+  // With an AIM tool mode, the verbatim match should have the sparkle icon.
+  {
+    AutocompleteInput input(u"query",
+                            metrics::OmniboxEventProto::NTP_COMPOSEBOX,
+                            ChromeAutocompleteSchemeClassifier(profile_.get()));
+    omnibox::InputState input_state;
+    input_state.active_tool = omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH;
+    input.set_input_state(input_state);
+    QueryForInput(input);
+
+    AutocompleteMatch verbatim_match;
+    EXPECT_TRUE(FindMatchWithContents(u"query", &verbatim_match));
+    ASSERT_TRUE(verbatim_match.suggest_template.has_value());
+    EXPECT_EQ(verbatim_match.suggest_template->type_icon(),
+              omnibox::SuggestTemplateInfo_IconType_SEARCH_LOOP_WITH_SPARKLE);
+  }
+
+  ClearAllResults();
+  {
+    AutocompleteInput input(u"query",
+                            metrics::OmniboxEventProto::NTP_COMPOSEBOX,
+                            ChromeAutocompleteSchemeClassifier(profile_.get()));
+    omnibox::InputState input_state;
+    input_state.active_tool = omnibox::ToolMode::TOOL_MODE_CANVAS;
+    input.set_input_state(input_state);
+    QueryForInput(input);
+
+    AutocompleteMatch verbatim_match;
+    EXPECT_TRUE(FindMatchWithContents(u"query", &verbatim_match));
+    ASSERT_TRUE(verbatim_match.suggest_template.has_value());
+    EXPECT_EQ(verbatim_match.suggest_template->type_icon(),
+              omnibox::SuggestTemplateInfo_IconType_SEARCH_LOOP_WITH_SPARKLE);
+  }
+
+  // Without an AIM tool mode, the verbatim match should not have the sparkle
+  // icon.
+  ClearAllResults();
+  {
+    AutocompleteInput input(u"query", metrics::OmniboxEventProto::OTHER,
+                            ChromeAutocompleteSchemeClassifier(profile_.get()));
+    QueryForInput(input);
+
+    AutocompleteMatch verbatim_match;
+    EXPECT_TRUE(FindMatchWithContents(u"query", &verbatim_match));
+    EXPECT_FALSE(verbatim_match.suggest_template.has_value());
+  }
+}
+
 TEST_F(SearchProviderTest, DoesNotProvideOnFocus) {
   AutocompleteInput input(u"f", metrics::OmniboxEventProto::OTHER,
                           ChromeAutocompleteSchemeClassifier(profile_.get()));
@@ -4174,26 +4223,17 @@ TEST_F(SearchProviderRequestTest, LensContextualSearchboxSuggestRequest) {
       "https://www.google.com/suggest?q=foo&client=chrome-contextual"));
 }
 
-TEST_F(SearchProviderRequestTest, SendRequestWithAimToolMode) {
+TEST_F(SearchProviderRequestTest, NoRequestWithAimToolMode) {
   // Start a query.
   AutocompleteInput input(u"foo", metrics::OmniboxEventProto::NTP_COMPOSEBOX,
                           ChromeAutocompleteSchemeClassifier(profile_.get()));
-  input.set_aim_tool_mode(omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH);
+  omnibox::InputState input_state;
+  input_state.active_tool = omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH;
+  input.set_input_state(input_state);
   input.set_current_url(GURL("https://www.example.com"));
-  provider_->Start(input, false);
+  QueryForInput(input);
 
-  // Make sure the default provider's suggest endpoint was queried with the
-  // expected client and Lens Suggest signals.
-  EXPECT_FALSE(provider_->done());
-  EXPECT_EQ(1, test_url_loader_factory_.NumPending());
-  EXPECT_TRUE(base::EndsWith(
-      test_url_loader_factory_.GetPendingRequest(0)->request.url.spec(),
-      "azm=1", base::CompareCase::SENSITIVE));
-
-  test_url_loader_factory_.AddResponse(
-      test_url_loader_factory_.GetPendingRequest(0)->request.url.spec(),
-      R"(["",[],[],[],{}])");
-  RunTillProviderDone();
+  EXPECT_EQ(0, test_url_loader_factory_.NumPending());
 }
 
 TEST_F(SearchProviderRequestTest, LensContextualSearchboxNoSuggestRequest) {

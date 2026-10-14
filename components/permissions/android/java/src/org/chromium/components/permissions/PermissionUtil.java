@@ -12,6 +12,7 @@ import android.os.Build;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.NativeMethods;
 
+import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.components.content_settings.ContentSetting;
 import org.chromium.components.content_settings.ContentSettingsType;
@@ -268,42 +269,109 @@ public class PermissionUtil {
     }
 
     /**
-     * Grants a permission if it is requested.
+     * Handles the "Allow" action from a permission prompt (e.g. Message UI). Requests Android
+     * permission if needed, then resolves the site permission.
      *
-     * This method is called when the user clicks on the "Subscribe" button in the notifications
-     * permission row in PageInfo.
+     * @param window The WindowAndroid.
+     * @param webContents The WebContents.
+     * @param contentSettingsType The ContentSettingsType.
      */
-    public static void resolvePermissionRequest(
+    @CalledByNative
+    public static void handlePermissionPromptAllow(
+            WindowAndroid window,
             WebContents webContents,
-            @ContentSettingsType.EnumType int contentSettingsType,
-            @ContentSetting int contentSetting) {
-        PermissionUtilJni.get()
-                .resolvePermissionRequest(webContents, contentSettingsType, contentSetting);
+            @ContentSettingsType.EnumType int contentSettingsType) {
+        requestAndResolveNotificationsPermissionRequest(
+                window,
+                webContents,
+                () -> {
+                    boolean granted = window.hasPermission(Manifest.permission.POST_NOTIFICATIONS);
+                    PermissionDialogController.showLoudClapperDialogResultIcon(
+                            window, granted ? ContentSetting.ALLOW : ContentSetting.BLOCK);
+                });
     }
 
     /**
-     * Dismisses a permission request.
+     * If necessary, requests a Android OS level notification permission and resolves the pending
+     * request based on the result.
      *
-     * This method is called when the user clicks on the "Subscribe" button in the notifications
+     * <p>This is used by the Clapper Loud code in the "Subscribe" button (PageInfo). If the Android
+     * permission was not granted on OS level, this method will asynchronously request the OS level
+     * permission using a dialog and run the callback when the user has made a decision. In case the
+     * OS level permission was already granted before, it accepts the notifications permission.
+     *
+     * @param window The WindowAndroid.
+     * @param webContents The WebContents.
+     * @param onResolved Callback runnable executed when the OS level permission is resolved
+     *     (granted or denied).
+     */
+    public static void requestAndResolveNotificationsPermissionRequest(
+            WindowAndroid window, WebContents webContents, Runnable onResolved) {
+        // Either returns directly in case the OS level notifications permission was already
+        // granted or asks for it asynchronously before granting/denying the request.
+        boolean requestSent =
+                AndroidPermissionRequester.requestAndroidPermissions(
+                        window,
+                        new int[] {ContentSettingsType.NOTIFICATIONS},
+                        new AndroidPermissionRequester.RequestDelegate() {
+                            @Override
+                            public void onAndroidPermissionAccepted() {
+                                RecordHistogram.recordBooleanHistogram(
+                                        "Permissions.ClapperLoud.PageInfo.OsPromptResolved", true);
+                                PermissionUtilJni.get()
+                                        .resolveNotificationsPermissionRequest(
+                                                webContents, ContentSetting.ALLOW);
+                                onResolved.run();
+                            }
+
+                            @Override
+                            public void onAndroidPermissionCanceled() {
+                                RecordHistogram.recordBooleanHistogram(
+                                        "Permissions.ClapperLoud.PageInfo.OsPromptResolved", false);
+                                PermissionUtilJni.get()
+                                        .dismissNotificationsPermissionRequest(webContents);
+                                onResolved.run();
+                            }
+                        });
+        // The OS level permission for notifications was already granted; therefore, the
+        // permission request can be allowed.
+        if (!requestSent) {
+            PermissionUtilJni.get()
+                    .resolveNotificationsPermissionRequest(webContents, ContentSetting.ALLOW);
+            onResolved.run();
+        }
+    }
+
+    /**
+     * Grants a notifications permission if it is requested.
+     *
+     * <p>This method is called when the user clicks on the "Subscribe" button in the notifications
+     * permission row in PageInfo.
+     */
+    public static void resolveNotificationsPermissionRequest(
+            WebContents webContents, @ContentSetting int contentSetting) {
+        PermissionUtilJni.get().resolveNotificationsPermissionRequest(webContents, contentSetting);
+    }
+
+    /**
+     * Dismisses a notifications permission request.
+     *
+     * <p>This method is called when the user clicks on the "Subscribe" button in the notifications
      * permission row in PageInfo but did not grant the Android OS level permission prompt. Despite
      * the user granted the site-level permission, we still need to dismiss the permission request
      * as Chrome doesn't have the Android OS level permission and hence the permission request is no
      * longer valid.
      */
-    public static void dismissPermissionRequest(
-            WebContents webContents, @ContentSettingsType.EnumType int contentSettingsType) {
-        PermissionUtilJni.get().dismissPermissionRequest(webContents, contentSettingsType);
+    public static void dismissNotificationsPermissionRequest(WebContents webContents) {
+        PermissionUtilJni.get().dismissNotificationsPermissionRequest(webContents);
     }
 
     @NativeMethods
     public interface Natives {
-        void resolvePermissionRequest(
-                WebContents webContents,
-                @ContentSettingsType.EnumType int contentSettingsType,
-                @ContentSetting int contentSetting);
+        void resolveNotificationsPermissionRequest(
+                WebContents webContents, @ContentSetting int contentSetting);
 
-        void dismissPermissionRequest(
-                WebContents webContents, @ContentSettingsType.EnumType int contentSettingsType);
+        void dismissNotificationsPermissionRequest(WebContents webContents);
 
         void notifyQuietIconDismissed(WebContents webContents);
     }

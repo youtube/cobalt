@@ -375,7 +375,9 @@ void LogMessage::OutputToDebug(const LogLineRef& log_line) {
 #if defined(WEBRTC_WIN)
   // Always log to the debugger.
   // Perhaps stderr should be controlled by a preference, as on Mac?
+#if RTC_DLOG_IS_ON
   OutputDebugStringA(msg_str.c_str());
+#endif
   if (log_to_stderr) {
     // This handles dynamically allocated consoles, too.
     if (HANDLE error_handle = ::GetStdHandle(STD_ERROR_HANDLE)) {

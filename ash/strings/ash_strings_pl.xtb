@@ -342,7 +342,6 @@
 <translation id="2201071101391734388">Najnowsze zdjęcie <ph name="INDEX" /> z <ph name="TOTAL_COUNT" />.</translation>
 <translation id="2201687081523799384">Zwiń Listę zadań Google</translation>
 <translation id="2208323208084708176">Tryb ujednoliconego pulpitu</translation>
-<translation id="2210311543574621570">Po naciśnięciu i przytrzymaniu klawiszy Ctrl + V wyświetli się schowek. Możesz wyłączyć ten skrót, wyłączając flagę #clipboard-history-longpress na chrome://flags.</translation>
 <translation id="2215920961700443347">Brak internetu. Połącz się z internetem i spróbuj ponownie.</translation>
 <translation id="2222841058024245321">Biurko 7</translation>
 <translation id="2223384056430485343">Na podzielonym ekranie</translation>
@@ -2194,7 +2193,6 @@ Aby wyłączyć urządzenie, ponownie naciśnij i przytrzymaj na nim przycisk z
 <translation id="8241650983304689286">Dodaj kartę do nowego widoku dzielonego</translation>
 <translation id="8247060538831475781"><ph name="CONNECTION_STATUS" />, siła sygnału: <ph name="SIGNAL_STRENGTH" />, bateria telefonu: <ph name="BATTERY_STATUS" /></translation>
 <translation id="825129991941217170">Pokaż całą zawartość Dysku Google</translation>
-<translation id="8257510091797044096">Skonfiguruj urządzenie</translation>
 <translation id="8261506727792406068">Usuń</translation>
 <translation id="8262312463845990408">Włącz lub wyłącz odtwarzanie</translation>
 <translation id="8268302343625273732">Zobacz wszystkie projekty w Google Classroom</translation>

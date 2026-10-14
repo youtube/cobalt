@@ -360,13 +360,13 @@ class PageLoadMetricsObserverInterface {
   // OnInputTimingUpdate is triggered when an updated InputTiming is available
   // at the subframe level. This method may be called multiple times over the
   // course of the page load.
-  virtual void OnInputTimingUpdate(
+  virtual void OnEventTimingUpdate(
       content::RenderFrameHost* subframe_rfh,
-      const mojom::InputTiming& input_timing_delta) = 0;
+      const std::vector<mojom::EventTimingPtr>& event_timings) = 0;
 
-  // OnPageInputTimingUpdate is triggered when an updated InputTiming is
+  // OnPageEventTimingUpdate is triggered when an updated InputTiming is
   // available at the page level.
-  virtual void OnPageInputTimingUpdate(uint64_t num_interactions) = 0;
+  virtual void OnPageEventTimingUpdate(uint64_t num_interactions) = 0;
 
   // OnPageRenderDataChanged is triggered when an updated PageRenderData is
   // available at the page level. This method may be called multiple times over
@@ -498,9 +498,8 @@ class PageLoadMetricsObserverInterface {
   // and the subframe has changed, e.g. the subframe is initially added; the
   // subframe's position is updated explicitly or inherently (e.g. sticky
   // position while the page is being scrolled).
-  //
-  // TODO(crbug.com/40117157): Expose intersections to observers via shared
-  // delegate.
+  // Exposing intersections via a shared delegate was considered but not pursued
+  // due to lack of a use case. See crbug.com/40117157 for context.
   virtual void OnMainFrameIntersectionRectChanged(
       content::RenderFrameHost* rfh,
       const gfx::Rect& main_frame_intersection_rect) = 0;

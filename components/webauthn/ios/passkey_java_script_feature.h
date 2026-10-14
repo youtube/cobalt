@@ -7,6 +7,7 @@
 
 #import "base/no_destructor.h"
 #import "components/webauthn/core/browser/passkey_model_utils.h"
+#import "components/webauthn/ios/passkey_request_params.h"
 #import "ios/web/public/js_messaging/java_script_feature.h"
 
 namespace webauthn {
@@ -65,8 +66,14 @@ class PasskeyJavaScriptFeature : public web::JavaScriptFeature {
   // needed.
   static PasskeyJavaScriptFeature* GetInstance();
 
+  // Rejects the current attestation or registration request.
+  void RejectPasskeyRequest(web::WebFrame* web_frame,
+                            std::string_view request_id);
+
   // Yields the current attestation or registration request back to the OS.
-  void DeferToRenderer(web::WebFrame* web_frame, std::string_view request_id);
+  void DeferToRenderer(web::WebFrame* web_frame,
+                       std::string_view request_id,
+                       PasskeyRequestParams::RequestType request_type);
 
   // Resolves the attestation request with a valid passkey.
   void ResolveAttestationRequest(web::WebFrame* web_frame,

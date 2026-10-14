@@ -262,7 +262,7 @@ void PeerConnectionE2EQualityTest::Run(RunParams run_params) {
   // Create a `task_queue_`.
   task_queue_ = std::make_unique<TaskQueueForTest>(
       time_controller_.GetTaskQueueFactory()->CreateTaskQueue(
-          "pc_e2e_quality_test", TaskQueueFactory::Priority::NORMAL));
+          "pc_e2e_quality_test", TaskQueueFactory::Priority::kNormal));
 
   // Create call participants: Alice and Bob.
   // Audio streams are intercepted in AudioDeviceModule, so if it is required to

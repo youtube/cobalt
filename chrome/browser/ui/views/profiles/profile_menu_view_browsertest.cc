@@ -239,7 +239,7 @@ const char kPasswordManagerPWAUrl[] = "chrome://password-manager/?source=pwa";
 
 std::unique_ptr<web_app::WebAppInstallInfo> CreatePasswordManagerWebAppInfo() {
   auto web_app_info = std::make_unique<web_app::WebAppInstallInfo>(
-      webapps::ManifestId(kPasswordManagerId), GURL(kPasswordManagerPWAUrl));
+      webapps::ManifestId(GURL(kPasswordManagerId)), GURL(kPasswordManagerPWAUrl));
   web_app_info->title = u"Password Manager";
   return web_app_info;
 }
@@ -1302,7 +1302,7 @@ class ProfileMenuViewBookmarksLimitExceededTest
   }
 
   void SimulateBookmarksLimitExceededError() {
-    bookmark_sync_service_->SetBookmarksLimitForTesting(0);
+    bookmark_sync_service_->SetLocalBookmarksLimitForTesting(0);
 
     // Add a bookmark to trigger the check.
     bookmarks::BookmarkModel* model =
@@ -1350,7 +1350,7 @@ IN_PROC_BROWSER_TEST_P(ProfileMenuViewBookmarksLimitExceededTest,
   EXPECT_EQ(GetBrowser(0)->tab_strip_model()->count(), tab_count + 1);
   EXPECT_EQ(
       GetBrowser(0)->tab_strip_model()->GetActiveWebContents()->GetVisibleURL(),
-      GURL("https://support.google.com/chrome/answer/165139"));
+      GURL(kBookmarksLimitExceededHelpCenter));
 
   // Check that the error is cleared.
   EXPECT_NE(GetSyncService(0)->GetUserActionableError(),

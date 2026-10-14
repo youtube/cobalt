@@ -4,11 +4,17 @@
 
 #include "chrome/browser/guest_view/web_view/context_menu_content_type_web_view.h"
 
+#include <optional>
+
 #include "base/command_line.h"
+#include "base/version_info/channel.h"
 #include "build/build_config.h"
 #include "chrome/common/channel_info.h"
 #include "chrome/common/chrome_switches.h"
+#include "chrome/common/webui_url_constants.h"
 #include "components/version_info/version_info.h"
+#include "content/public/browser/render_frame_host.h"
+#include "content/public/common/url_constants.h"
 #include "extensions/browser/guest_view/web_view/web_view_guest.h"
 #include "extensions/browser/process_manager.h"
 #include "extensions/common/extension.h"
@@ -16,6 +22,23 @@
 
 using extensions::Extension;
 using extensions::ProcessManager;
+
+namespace {
+bool IsContextualTaskWebUIHost(
+    base::WeakPtr<extensions::WebViewGuest> web_view_guest) {
+  if (!web_view_guest || !web_view_guest->owner_rfh()) {
+    return false;
+  }
+  const GURL& url =
+      web_view_guest->owner_rfh()->GetMainFrame()->GetLastCommittedURL();
+  return url.scheme() == content::kChromeUIScheme &&
+         url.host() == chrome::kChromeUIContextualTasksHost;
+}
+}  // namespace
+
+// static
+std::optional<version_info::Channel>
+    ContextMenuContentTypeWebView::channel_override_ = std::nullopt;
 
 ContextMenuContentTypeWebView::ContextMenuContentTypeWebView(
     const base::WeakPtr<extensions::WebViewGuest> web_view_guest,
@@ -39,20 +62,34 @@ bool ContextMenuContentTypeWebView::SupportsGroup(int group) {
   switch (group) {
     case ITEM_GROUP_PAGE:
     case ITEM_GROUP_FRAME:
-    case ITEM_GROUP_LINK:
     case ITEM_GROUP_SEARCHWEBFORIMAGE:
     case ITEM_GROUP_SEARCH_PROVIDER:
     case ITEM_GROUP_PRINT:
     case ITEM_GROUP_ALL_EXTENSION:
     case ITEM_GROUP_PRINT_PREVIEW:
       return false;
+    case ITEM_GROUP_LINK: {
+      // Enable links context menu items for contextual tasks WebUI page, which
+      // has a webview embedding an external URL.
+      // TODO(crbug.com/470110425): Support more menu items for contextual tasks
+      // webview if needed.
+      if (IsContextualTaskWebUIHost(web_view_guest_)) {
+        return ContextMenuContentType::SupportsGroup(group);
+      }
+      return false;
+    }
     case ITEM_GROUP_CURRENT_EXTENSION:
       // Show contextMenus API items.
       return true;
     case ITEM_GROUP_DEVELOPER:
       {
+      // Contextual Tasks is embedding an external URL, and as such needs
+      // to be allowed to use the developer tools for the embedded page.
+      if (IsContextualTaskWebUIHost(web_view_guest_)) {
+        return ContextMenuContentType::SupportsGroup(group);
+      }
       const extensions::Extension* embedder_extension = GetExtension();
-      if (chrome::GetChannel() >= version_info::Channel::DEV) {
+      if (GetChannel() >= version_info::Channel::DEV) {
         // Hide dev tools items in guests inside WebUI if we are not running
         // canary or tott.
         // Note that this check might not be sufficient to hide dev tools
@@ -82,4 +119,18 @@ bool ContextMenuContentTypeWebView::SupportsGroup(int group) {
     default:
       return ContextMenuContentType::SupportsGroup(group);
   }
+}
+
+// static
+void ContextMenuContentTypeWebView::SetChannelForTesting(  // IN-TEST
+    std::optional<version_info::Channel> channel) {
+  channel_override_ = channel;
+}
+
+// static
+version_info::Channel ContextMenuContentTypeWebView::GetChannel() {
+  if (channel_override_.has_value()) {
+    return *channel_override_;
+  }
+  return chrome::GetChannel();
 }

@@ -1,0 +1,84 @@
+// Copyright 2018 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#import "ios/chrome/browser/main/ui/browser_layout_view_controller.h"
+
+#import <ostream>
+
+#import "base/check_op.h"
+#import "ios/chrome/browser/shared/public/features/features.h"
+#import "ios/chrome/browser/shared/ui/util/layout_guide_names.h"
+#import "ios/chrome/browser/shared/ui/util/named_guide.h"
+#import "ios/chrome/common/ui/colors/semantic_color_names.h"
+
+@interface BrowserLayoutViewController ()
+
+// Background behind toolbar and webview during animation to avoid seeing
+// partial color streaks from background with different color between the
+// different moving parts.
+@property(nonatomic, strong) UIView* solidBackground;
+
+@end
+
+@implementation BrowserLayoutViewController
+
+#pragma mark - Public
+
+- (UIViewController*)currentBVC {
+  return [self.childViewControllers firstObject];
+}
+
+- (void)setCurrentBVC:(UIViewController*)bvc {
+  DCHECK(bvc);
+  if (self.currentBVC == bvc) {
+    return;
+  }
+
+  // Remove the current bvc, if any.
+  if (self.currentBVC) {
+    [self.currentBVC willMoveToParentViewController:nil];
+    [self.currentBVC.view removeFromSuperview];
+    [self.currentBVC removeFromParentViewController];
+  }
+
+  DCHECK_EQ(nil, self.currentBVC);
+
+  // Add the new active view controller.
+  [self addChildViewController:bvc];
+  // If the BVC's view has a transform, then its frame isn't accurate.
+  // Instead, remove the transform, set the frame, then reapply the transform.
+  CGAffineTransform oldTransform = bvc.view.transform;
+  bvc.view.transform = CGAffineTransformIdentity;
+  bvc.view.frame = self.view.bounds;
+  bvc.view.transform = oldTransform;
+  [self.view addSubview:bvc.view];
+  [bvc didMoveToParentViewController:self];
+
+  // This will fail if there's another child view controller added before `bvc`.
+  // If this happens during startup, it may be the BVC adding the launch screen
+  // as a child VC of this VC (BVC's parent).
+  // TODO:(crbug.com/472278494): This fires frequently in stable.
+  DCHECK(self.currentBVC == bvc);
+}
+
+- (UIViewController*)childViewControllerForStatusBarHidden {
+  return self.currentBVC;
+}
+
+- (UIViewController*)childViewControllerForStatusBarStyle {
+  return self.currentBVC;
+}
+
+- (BOOL)shouldAutorotate {
+  return self.currentBVC ? [self.currentBVC shouldAutorotate]
+                         : [super shouldAutorotate];
+}
+
+#pragma mark - TabGridTransitionContextProvider
+
+- (NamedGuide*)contentAreaGuide {
+  return [NamedGuide guideWithName:kContentAreaGuide view:self.currentBVC.view];
+}
+
+@end

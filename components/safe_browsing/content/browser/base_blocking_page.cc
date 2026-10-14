@@ -131,7 +131,7 @@ void BaseBlockingPage::CommandReceived(const std::string& page_cmd) {
 }
 
 void BaseBlockingPage::PopulateInterstitialStrings(
-    base::Value::Dict& load_time_data) {
+    base::DictValue& load_time_data) {
   sb_error_ui_->PopulateStringsForHtml(load_time_data);
 }
 
@@ -146,7 +146,7 @@ BaseBlockingPage::UnsafeResourceMap* BaseBlockingPage::GetUnsafeResourcesMap() {
 }
 
 // static
-std::string BaseBlockingPage::GetMetricPrefix(
+std::string_view BaseBlockingPage::GetMetricPrefix(
     const UnsafeResourceList& unsafe_resources,
     BaseSafeBrowsingErrorUI::SBInterstitialReason interstitial_reason) {
   switch (interstitial_reason) {

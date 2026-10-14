@@ -6,7 +6,7 @@ import './aim_app.js';
 import './app.js';
 import './full_app.js';
 
-export {createAutocompleteMatch, SearchboxBrowserProxy} from '//resources/cr_components/searchbox/searchbox_browser_proxy.js';
+export {SearchboxBrowserProxy} from '//resources/cr_components/searchbox/searchbox_browser_proxy.js';
 export {OmniboxAimAppElement} from './aim_app.js';
 export {BrowserProxy} from './aim_browser_proxy.js';
 export {OmniboxPopupAppElement} from './app.js';

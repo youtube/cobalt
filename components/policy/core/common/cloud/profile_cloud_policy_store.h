@@ -33,6 +33,7 @@ class POLICY_EXPORT ProfileCloudPolicyStore : public DesktopCloudPolicyStore {
   ProfileCloudPolicyStore(
       const base::FilePath& policy_path,
       const base::FilePath& key_path,
+      const std::string& policy_type,
       scoped_refptr<base::SequencedTaskRunner> background_task_runner,
       bool is_dasherless = false);
 
@@ -57,6 +58,12 @@ class POLICY_EXPORT ProfileCloudPolicyStore : public DesktopCloudPolicyStore {
       std::unique_ptr<enterprise_management::PolicyFetchResponse> policy,
       CloudPolicyValidatorBase::ValidateTimestampOption option) override;
 
+  // override UserCloudPolicyStoreBase
+  std::unique_ptr<ExtensionInstallCloudPolicyValidator>
+  CreateExtensionInstallValidator(
+      std::unique_ptr<enterprise_management::PolicyFetchResponse> policy,
+      CloudPolicyValidatorBase::ValidateTimestampOption option) override;
+
  private:
   // override DesktopCloudPolicyStore
   void Validate(
@@ -64,6 +71,20 @@ class POLICY_EXPORT ProfileCloudPolicyStore : public DesktopCloudPolicyStore {
       std::unique_ptr<enterprise_management::PolicySigningKey> key,
       bool validate_in_background,
       UserCloudPolicyValidator::CompletionCallback callback) override;
+
+  void ValidateExtensionInstallPolicy(
+      std::unique_ptr<enterprise_management::PolicyFetchResponse> policy,
+      std::unique_ptr<enterprise_management::PolicySigningKey> key,
+      bool validate_in_background,
+      ExtensionInstallCloudPolicyValidator::CompletionCallback callback)
+      override;
+
+  template <typename PayloadProto>
+  void ValidateImpl(
+      std::unique_ptr<CloudPolicyValidator<PayloadProto>> validator,
+      std::unique_ptr<enterprise_management::PolicySigningKey> cached_key,
+      bool validate_in_background,
+      typename CloudPolicyValidator<PayloadProto>::CompletionCallback callback);
 
   bool is_dasherless_;
 };

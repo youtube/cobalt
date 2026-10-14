@@ -39,18 +39,14 @@ const guestFrame = document.createElement('iframe');
 guestFrame.src = `${GUEST_ORIGIN}${location.pathname}${location.search}`;
 document.body.appendChild(guestFrame);
 
-// Cached result of whether Launcher Search is enabled.
-const isLauncherSearchEnabled =
-    helpApp.handler.isLauncherSearchEnabled().then(result => result.enabled);
-
 /** Converts a string or object to url. */
 function toUrl(url: string|object): Url {
   // TODO(b/279132899): Figure out why `url` is an empty object when it should
   // have been an empty string.
   if (url === '' || typeof (url) !== 'string') {
-    return {url: ''};
+    return '';
   }
-  return {url};
+  return url;
 }
 
 const TITLE_ID = 'title';
@@ -225,10 +221,6 @@ guestMessagePipe.registerHandler(Message.CLOSE_BACKGROUND_PAGE, async () => {
 guestMessagePipe.registerHandler(
   Message.UPDATE_LAUNCHER_SEARCH_INDEX,
   async (message: LauncherSearchableItem[]) => {
-      if (!(await isLauncherSearchEnabled)) {
-        return;
-      }
-
       const dataToSend: SearchConcept[] =
           message.map(searchableItem => ({
                         id: truncate(searchableItem.id),

@@ -14,6 +14,14 @@
 
 namespace features {
 
+#if BUILDFLAG(IS_COBALT)
+// When enabled, allows the compositor scheduler to send the next
+// BeginMainFrame before the previous commit has activated on the impl tree
+// (equivalent to --enable-main-frame-before-activation), pipelining main-thread
+// frame production with pending tree rasterization and activation.
+CC_BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltMainFrameBeforeActivation);
+#endif  // BUILDFLAG(IS_COBALT)
+
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kComputeRasterTranslateForExternalScale);
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kSynchronizedScrolling);
 
@@ -159,9 +167,11 @@ CC_BASE_EXPORT BASE_DECLARE_FEATURE(kThrottleMainFrameTo60Hz);
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kThrottleMainFrameTo60HzWebView);
 #endif
 
-// When main frame production is throttled, whether the throttling should be
-// paused for some duration after an urgent main frame request is processed.
-CC_BASE_EXPORT BASE_DECLARE_FEATURE(kBoostFrameRateForUrgentMainFrame);
+// When enabled, clients can request a high framerate, which disables
+// throttling. This is intended to be used when the client knows that the
+// current use case likely warrants higher framerates. Examples include gaming
+// and VR experiences.
+CC_BASE_EXPORT BASE_DECLARE_FEATURE(kHighFramerateRequestFromClient);
 
 // We only want to test the feature value if the client satisfies an eligibility
 // criteria, as testing the value enters the client into an experimental group,
@@ -276,21 +286,18 @@ CC_BASE_EXPORT extern const base::FeatureParam<std::string>
 CC_BASE_EXPORT extern const char kEmitForAllScrolls[];
 CC_BASE_EXPORT extern const char kEmitForDamagingScrolls[];
 
+// When disabled, the scroll jank V4 metric orders scroll starts, updates and
+// ends within a single frame based on their
+// `EventMetrics::DispatchStage::kGenerated` timestamps. When enabled, it orders
+// them based on their
+// `EventMetrics::DispatchStage::kArrivedInRendererCompositor` timestamps
+// instead.
+CC_BASE_EXPORT BASE_DECLARE_FEATURE(
+    kOrderScrollJankV4EventMetricsByArrivedInRendererCompositor);
+
 // When enabled, AsyncLayerTreeFrameSink will generate its own BeginFrameArgs
 // when auto_needs_begin_frame_ is enabled.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kManualBeginFrame);
-
-// Controls when `LayerTreeHostImpl::DidNotProduceFrame()` drops saved event
-// metrics.
-//
-// When disabled, `LayerTreeHostImpl::DidNotProduceFrame()` ALWAYS drops saved
-// event metrics (regardless of the reason why the frame wasn't produced).
-//
-// When enabled, `LayerTreeHostImpl::DidNotProduceFrame()` only drops saved
-// event metrics if the frame wasn't produced due to NO DAMAGE. In all other
-// cases, it preserves the saved event metrics.
-CC_BASE_EXPORT BASE_DECLARE_FEATURE(
-    kDropMetricsFromNonProducedFramesOnlyIfTheyHadNoDamage);
 
 // When enabled, GpuImageDecodeCache will release its lock during the expensive
 // transfer cache entry serialization and upload steps, as well as during
@@ -314,13 +321,17 @@ CC_BASE_EXPORT BASE_DECLARE_FEATURE(kBrowserControlsSmoothScroll);
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(
     kBrowserControlsHeightChangeCancelAnimations);
 
+// When enabled uses derived state machine for Headless mode.
+CC_BASE_EXPORT BASE_DECLARE_FEATURE(kHeadlessSchedulerStateMachine);
+
 #if BUILDFLAG(IS_COBALT)
-// When enabled, allows the compositor scheduler to send the next
-// BeginMainFrame before the previous commit has activated on the impl tree
-// (equivalent to --enable-main-frame-before-activation), pipelining main-thread
-// frame production with pending tree rasterization and activation.
-CC_BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltMainFrameBeforeActivation);
-#endif  // BUILDFLAG(IS_COBALT)
+// Enables periodic emission of tile texture memory metrics (Memory.GPU.TileMemory and Memory.GPU.TileMemory.Peak).
+CC_BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltTileMemoryMetrics);
+
+// Interval between tile memory metric emissions (default: 1 minute).
+CC_BASE_EXPORT extern const base::FeatureParam<base::TimeDelta>
+    kCobaltTileMemoryMetricsInterval;
+#endif
 
 }  // namespace features
 

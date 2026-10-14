@@ -1,6 +1,7 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="ko">
+<translation id="1035560095760914532">하단 영역에 Chrome을 배치하여 언제든지 액세스</translation>
 <translation id="1076643793026027628">Chrome에서 시크릿 모드로 YouTube 시크릿 모드 링크를 자동으로 엽니다</translation>
 <translation id="1081114897601629648">다음 비밀번호는 요건을 충족하지 않아 Google 비밀번호 관리자로 가져오지 않았습니다.</translation>
 <translation id="1086486568852410168">Google 렌즈로 검색</translation>
@@ -86,6 +87,10 @@
 <translation id="2767464022270041271">저장된 비밀번호가 없습니다. 비밀번호를 저장하면 Google 비밀번호 관리자에서 확인할 수 있습니다.</translation>
 <translation id="2788811701191021538">Chrome에서 결제 수단 설정 페이지를 엽니다.</translation>
 <translation id="2876628302275096482"><ph name="BEGIN_LINK" />Chrome에서 데이터를 비공개로 유지하는 방법<ph name="END_LINK" /> 자세히 알아보기</translation>
+<translation id="288992067439702510">Chrome의 북마크 한도인 <ph name="LIMIT" />개에 도달하여 북마크 중 일부가 아직 Google 계정에 저장되지 않았습니다.
+
+일부 북마크를 삭제할 때까지 계정에 새 북마크를 저장할 수 없습니다. 지금 로그아웃하면 저장되지 않은 북마크가 삭제됩니다.</translation>
+<translation id="2901621928549457170">iPad에서 즉시 Chrome을 여세요</translation>
 <translation id="2922914028977213693">여기를 탭하여 iPad에서 Chrome을 최대한 활용하세요.</translation>
 <translation id="292371311537977079">Chrome 설정</translation>
 <translation id="2923827943290349720">Chrome 종료 시 시크릿 탭 잠금</translation>
@@ -170,6 +175,8 @@
 <translation id="5119391094379141756">Chrome을 선택합니다.</translation>
 <translation id="5123188916260706415">Chrome에서 음성으로 검색하기</translation>
 <translation id="5162467219239570114">Chrome이 이전 버전입니다. <ph name="BEGIN_LINK" />앱 스토어<ph name="END_LINK" />에 사용 가능한 업데이트가 없으면 기기에서 더 이상 Chrome의 새 버전을 지원하지 않는 것일 수 있습니다.</translation>
+<translation id="5172049865623113551">iPhone에서 즉시 Chrome을 여세요</translation>
+<translation id="5179095426828744632">도크에서 Chrome에 더 빠르게 액세스</translation>
 <translation id="5184329579814168207">Chrome에서 열기</translation>
 <translation id="5190139289262548459">내가 로그인한 계정 및 Chrome이 사용되는 방식은 <ph name="DOMAIN" /> 조직에서 관리합니다</translation>
 <translation id="5209238444239954363">Chrome에서 업데이트를 확인할 수 없습니다. 나중에 다시 시도해 주세요.</translation>
@@ -304,7 +311,6 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="7787205077729386167">iOS에서 Chrome Settings(Chrome 설정)를 열고 'Default Browser App(기본 브라우저 앱)'을 탭한 다음 Chrome을 선택합니다</translation>
 <translation id="778855399387580014">새 Chrome 탭에서 검색을 시작합니다.</translation>
 <translation id="7792140019572081272">Chrome은 Face ID를 통해 사용자의 민감한 정보를 안전하게 보호합니다.</translation>
-<translation id="7825648984449922731">Chrome의 Gemini로 이미지 수정</translation>
 <translation id="7855730255114109580">Chrome이 최신 버전입니다.</translation>
 <translation id="787226752901403048">Chrome에 로그인하여 탭 그룹을 공유하고, 탭 그룹에 참여하며, 아이디어를 함께 작업하세요.</translation>
 <translation id="7897703007638178753">Chrome 최근 탭 보기</translation>

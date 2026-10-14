@@ -1775,27 +1775,6 @@ angle::Result ContextMtl::getIncompleteTexture(const gl::Context *context,
     return mIncompleteTextures.getIncompleteTexture(context, type, format, nullptr, textureOut);
 }
 
-void ContextMtl::endRenderEncoding(mtl::RenderCommandEncoder *encoder)
-{
-    // End any pending visibility query in the render pass
-    if (mOcclusionQuery)
-    {
-        disableActiveOcclusionQueryInRenderPass();
-    }
-
-    if (mBlitEncoder.valid())
-    {
-        mBlitEncoder.endEncoding();
-    }
-
-    mOcclusionQueryPool.prepareRenderPassVisibilityPoolBuffer(this);
-
-    encoder->endEncoding();
-
-    // Resolve visibility results
-    mOcclusionQueryPool.resolveVisibilityResults(this);
-}
-
 void ContextMtl::endBlitAndComputeEncoding()
 {
     if (mBlitEncoder.valid())
@@ -1822,13 +1801,20 @@ void ContextMtl::endEncoding(bool forceSaveRenderPassContent)
             mRenderEncoder.setStoreAction(MTLStoreActionStore);
         }
 
-        endRenderEncoding(&mRenderEncoder);
-    }
-    // End blit encoder after render encoder, as endRenderEncoding() might create a
-    // blit encoder to resolve the visibility results.
-    if (mBlitEncoder.valid())
-    {
-        mBlitEncoder.endEncoding();
+        disableActiveOcclusionQueryInRenderPass();
+
+        mOcclusionQueryPool.prepareRenderPassVisibilityPoolBuffer(this);
+
+        mRenderEncoder.endEncoding();
+
+        mOcclusionQueryPool.resolveVisibilityResults(this);
+
+        // End blit encoder after render encoder, as occlusion query pool might create a
+        // blit encoder to resolve the visibility results.
+        if (mBlitEncoder.valid())
+        {
+            mBlitEncoder.endEncoding();
+        }
     }
 }
 
@@ -1922,7 +1908,7 @@ mtl::RenderCommandEncoder *ContextMtl::getRenderPassCommandEncoder(const mtl::Re
     }
 
     endEncoding(false);
-
+    flushCommandBufferIfNeeded();
     ensureCommandBufferReady();
     ++mRenderPassesSinceFlush;
 
@@ -2018,7 +2004,7 @@ mtl::BlitCommandEncoder *ContextMtl::getBlitCommandEncoder()
         return &mBlitEncoder;
     }
 
-    endEncoding(true);
+    flushCommandBufferIfNeeded();
     ensureCommandBufferReady();
 
     return &mBlitEncoder.restart();
@@ -2049,7 +2035,7 @@ mtl::ComputeCommandEncoder *ContextMtl::getComputeCommandEncoder()
         return &mComputeEncoder;
     }
 
-    endEncoding(true);
+    flushCommandBufferIfNeeded();
     ensureCommandBufferReady();
 
     return &mComputeEncoder.restart();
@@ -2075,8 +2061,6 @@ mtl::ComputeCommandEncoder *ContextMtl::getIndexPreprocessingCommandEncoder()
 
 void ContextMtl::ensureCommandBufferReady()
 {
-    flushCommandBufferIfNeeded();
-
     if (!mCmdBuffer.ready())
     {
         mCmdBuffer.restart();

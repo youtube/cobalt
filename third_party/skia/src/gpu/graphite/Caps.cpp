@@ -99,6 +99,33 @@ static inline SkColorType color_type_fallback(SkColorType ct) {
     }
 }
 
+const Caps::ColorTypeInfo* Caps::getColorTypeInfo(SkColorType ct, const TextureInfo& info) const {
+    if (!info.isValid()) {
+        return nullptr;
+    }
+
+    for (const ColorTypeInfo& colorInfo : this->getColorTypeInfos(info)) {
+        if (colorInfo.fColorType == ct) {
+            return &colorInfo;
+        }
+    }
+    return nullptr;
+}
+
+SkColorType Caps::getDefaultColorType(const TextureInfo& info) const {
+    if (!info.isValid()) {
+        return kUnknown_SkColorType;
+    }
+
+    const bool isRenderable = this->isRenderable(info);
+    for (const ColorTypeInfo& colorInfo : this->getColorTypeInfos(info)) {
+        if (!isRenderable || (colorInfo.fFlags & ColorTypeInfo::kRenderable_Flag)) {
+            return colorInfo.fColorType;
+        }
+    }
+    return kUnknown_SkColorType;
+}
+
 SkColorType Caps::getRenderableColorType(SkColorType ct) const {
     do {
         auto texInfo = this->getDefaultSampledTextureInfo(ct,
@@ -158,6 +185,24 @@ skgpu::Swizzle Caps::getWriteSwizzle(SkColorType ct, const TextureInfo& info) co
     }
 
     return colorTypeInfo->fWriteSwizzle;
+}
+
+std::pair<SkColorType, bool /*isRGBFormat*/> Caps::supportedTransferColorType(
+        SkColorType colorType,
+        const TextureInfo& textureInfo) const {
+    // NOTE: Compressed textures can't be read back, and external format textures can't be read or
+    // written to. However, this is not checked here. Instead that is expected to be handled by
+    // supports[Read|Write]Pixels().
+    const ColorTypeInfo* colorInfo = this->getColorTypeInfo(colorType, textureInfo);
+    if (colorInfo) {
+        const TextureFormat format = TextureInfoPriv::ViewFormat(textureInfo);
+        const bool rgbRequiresIntervention =
+                TextureFormatChannelMask(format) == kRGB_SkColorChannelFlags &&
+                colorInfo->fTransferColorType != kRGB_565_SkColorType;
+        return {colorInfo->fTransferColorType, rgbRequiresIntervention};
+    } else {
+        return {kUnknown_SkColorType, false};
+    }
 }
 
 DstReadStrategy Caps::getDstReadStrategy() const {

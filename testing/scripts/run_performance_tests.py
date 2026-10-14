@@ -805,7 +805,8 @@ class CrossbenchTest(object):
                         help='Specify location of a Finch variations seed file')
     parser.add_argument(
         '--extra-browser-args',
-        dest='extra_browser_args_as_string',
+        action='extend',
+        nargs=1,
         help='Additional arguments to pass to the browser when it starts')
     self.cb_options, self.options.passthrough_args = parser.parse_known_args(
         self.options.passthrough_args)
@@ -950,9 +951,10 @@ class CrossbenchTest(object):
 
   def _generate_command_list(self, benchmark, benchmark_args, working_dir):
     extra_browser_args = []
-    if self.cb_options.extra_browser_args_as_string:
-      extra_browser_args = ['--'] + shlex.split(
-          self.cb_options.extra_browser_args_as_string, posix=(not IsWindows()))
+    if self.cb_options.extra_browser_args:
+      extra_browser_args = ['--']
+      for arg in self.cb_options.extra_browser_args:
+        extra_browser_args.extend(shlex.split(arg, posix=(not IsWindows())))
     if self.cb_options.variations_test_seed_path:
       # Chrome is picky about how the path is specified. Must resolve it first.
       resolved_path = self.cb_options.variations_test_seed_path.resolve()
@@ -1492,8 +1494,8 @@ def _run_benchmarks_on_shardmap(shard_map, options, isolated_out_dir,
     # Overwriting the "run_benchmark" with the Crossbench tool.
     options.executable = str(CROSSBENCH_TOOL)
     original_passthrough_args = options.passthrough_args.copy()
-    for benchmark, benchmark_config in benchmarks.items():
-      display_name = benchmark_config.get('display_name', benchmark)
+    for display_name, benchmark_config in benchmarks.items():
+      benchmark = benchmark_config.get('crossbench_name', display_name)
       if benchmark_args := benchmark_config.get('arguments', []):
         options.passthrough_args.extend(benchmark_args)
       options.benchmarks = benchmark

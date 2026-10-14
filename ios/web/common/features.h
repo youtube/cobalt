@@ -55,6 +55,14 @@ BASE_DECLARE_FEATURE(kEnableWebInspector);
 // viewport adjustment experiment is selected via command line switches.
 BASE_DECLARE_FEATURE(kSmoothScrollingDefault);
 
+// When enabled, the SmoothScrollingDefault experiment uses the regular
+// UIScrollViewDelegate instead of KVO and broadcasting.
+BASE_DECLARE_FEATURE(kSmoothScrollingUseDelegate);
+
+// Returns true if the broadcaster should be used for the smooth scrolling
+// experiment.
+bool ShouldUseBroadcasterForSmoothScrolling();
+
 // Feature flag to enable a scroll threshold before entering or exiting
 // fullscreen.
 BASE_DECLARE_FEATURE(kFullscreenScrollThreshold);
@@ -74,9 +82,6 @@ BASE_DECLARE_FEATURE(kDisableRaccoon);
 // Feature flag adds bugfix numbers to the iOS User-Agent header for Chrome
 BASE_DECLARE_FEATURE(kUserAgentBugFixVersion);
 
-// Enables logging JavaScript errors.
-BASE_DECLARE_FEATURE(kLogJavaScriptErrors);
-
 // Feature flag to let WebKit handle MarketplaceKit links. This is intended to
 // be used as a kill switch.
 BASE_DECLARE_FEATURE(kWebKitHandlesMarketplaceKitLinks);
@@ -89,9 +94,6 @@ BASE_DECLARE_FEATURE(kLogCrWebJavaScriptErrors);
 
 // When enabled, JavaScript errors will crash the application.
 BASE_DECLARE_FEATURE(kAssertOnJavaScriptErrors);
-
-// Feature controlling when to create TabHelpers.
-BASE_DECLARE_FEATURE(kCreateTabHelperOnlyForRealizedWebStates);
 
 // A flag parameter to set the number of pixels to use as the threshold.
 inline constexpr char kFullscreenScrollThresholdAmount[] =
@@ -112,6 +114,13 @@ bool CreateTabHelperOnlyForRealizedWebStates();
 // When enabled, trigger an update of the SSL status on navigation item
 // lazy creation. This is intended to be used as a kill switch.
 BASE_DECLARE_FEATURE(kUpdateSSLStatusOnNavigationItemLazyCreation);
+
+// Feature flag to enable BEContextMenuConfiguration.
+BASE_DECLARE_FEATURE(kEnableBEContextMenuConfiguration);
+
+// Feature flag to enable a fix for a crash in
+// DownloadTaskImpl::GenerateFileName.
+BASE_DECLARE_FEATURE(kIOSDownloadSanitizeFilename);
 
 }  // namespace web::features
 

@@ -472,7 +472,7 @@ public class UiUtilsUnitTest {
                 incognitoTabCount,
                 isIncognito,
                 /* lastAccessedTime= */ 0,
-                /* markedForDeletion= */ false);
+                /* closureTime= */ 0);
     }
 
     private InstanceInfo mockInstance(
@@ -492,7 +492,7 @@ public class UiUtilsUnitTest {
                 incognitoTabCount,
                 isIncognito,
                 /* lastAccessedTime= */ 0,
-                /* markedForDeletion= */ false);
+                /* closureTime= */ 0);
     }
 
     private InstanceInfo mockInstance(int type) {
@@ -507,7 +507,7 @@ public class UiUtilsUnitTest {
                 /* incognitoTabCount= */ 1,
                 /* isIncognitoSelected= */ true,
                 /* lastAccessedTime= */ 0,
-                /* markedForDeletion= */ false);
+                /* closureTime= */ 0);
     }
 
     private InstanceInfo mockInstanceBeforeLoadingTab(int type) {
@@ -522,6 +522,6 @@ public class UiUtilsUnitTest {
                 /* incognitoTabCount= */ 0,
                 /* isIncognitoSelected= */ false,
                 /* lastAccessedTime= */ 0,
-                /* markedForDeletion= */ false);
+                /* closureTime= */ 0);
     }
 }

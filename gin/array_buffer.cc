@@ -13,17 +13,10 @@
 #include "base/no_destructor.h"
 #include "build/build_config.h"
 #include "gin/per_isolate_data.h"
-#include "partition_alloc/buildflags.h"
 #include "partition_alloc/page_allocator.h"
 #include "partition_alloc/partition_alloc.h"
 #include "partition_alloc/partition_root.h"
 #include "v8/include/v8-initialization.h"
-
-#if BUILDFLAG(IS_COBALT) && PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
-#include "base/allocator/partition_alloc_features.h"
-#include "base/feature_list.h"
-#include "partition_alloc/shim/allocator_shim_default_dispatch_to_partition_alloc.h"
-#endif
 
 #if BUILDFLAG(IS_POSIX)
 #include <sys/mman.h>
@@ -85,13 +78,6 @@ ArrayBufferAllocator* ArrayBufferAllocator::SharedInstance() {
 
 // static
 void ArrayBufferAllocator::InitializePartition() {
-#if BUILDFLAG(IS_COBALT) && PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
-  if (base::FeatureList::IsEnabled(
-          base::features::kPartitionAllocReuseMainPartitionForBuffers)) {
-    partition_ = allocator_shim::internal::PartitionAllocMalloc::Allocator();
-    return;
-  }
-#endif
   partition_alloc::PartitionOptions opts;
   opts.backup_ref_ptr = partition_alloc::PartitionOptions::kDisabled;
   opts.use_configurable_pool = partition_alloc::PartitionOptions::kAllowed;
@@ -105,21 +91,37 @@ void ArrayBufferAllocator::InitializePartition() {
 // ArrayBuffer ----------------------------------------------------------------
 ArrayBuffer::ArrayBuffer() = default;
 
-ArrayBuffer::ArrayBuffer(v8::Isolate* isolate, v8::Local<v8::ArrayBuffer> array)
+ArrayBuffer::ArrayBuffer(v8::Local<v8::ArrayBuffer> array)
     : backing_store_(array->GetBackingStore()) {}
 
 ArrayBuffer::~ArrayBuffer() = default;
 
 ArrayBuffer& ArrayBuffer::operator=(const ArrayBuffer& other) = default;
 
+base::span<uint8_t> ArrayBuffer::span() {
+  if (!backing_store_) {
+    return {};
+  }
+
+  // SAFETY: Provided by `BackingStore`.
+  return UNSAFE_BUFFERS(
+      base::span<uint8_t>(static_cast<uint8_t*>(backing_store_->Data()),
+                          backing_store_->ByteLength()));
+}
+
+base::span<const uint8_t> ArrayBuffer::span() const {
+  return const_cast<ArrayBuffer*>(this)->span();
+}
+
 // Converter<ArrayBuffer> -----------------------------------------------------
 
-bool Converter<ArrayBuffer>::FromV8(v8::Isolate* isolate,
+bool Converter<ArrayBuffer>::FromV8(v8::Isolate* /*isolate*/,
                                     v8::Local<v8::Value> val,
                                     ArrayBuffer* out) {
-  if (!val->IsArrayBuffer())
+  if (!val->IsArrayBuffer()) {
     return false;
-  *out = ArrayBuffer(isolate, v8::Local<v8::ArrayBuffer>::Cast(val));
+  }
+  *out = ArrayBuffer(v8::Local<v8::ArrayBuffer>::Cast(val));
   return true;
 }
 
@@ -130,26 +132,33 @@ ArrayBufferView::ArrayBufferView()
       num_bytes_(0) {
 }
 
-ArrayBufferView::ArrayBufferView(v8::Isolate* isolate,
-                                 v8::Local<v8::ArrayBufferView> view)
-    : array_buffer_(isolate, view->Buffer()),
+ArrayBufferView::ArrayBufferView(v8::Local<v8::ArrayBufferView> view)
+    : array_buffer_(view->Buffer()),
       offset_(view->ByteOffset()),
-      num_bytes_(view->ByteLength()) {
-}
+      num_bytes_(view->ByteLength()) {}
 
 ArrayBufferView::~ArrayBufferView() = default;
 
 ArrayBufferView& ArrayBufferView::operator=(const ArrayBufferView& other) =
     default;
 
+base::span<uint8_t> ArrayBufferView::span() {
+  return array_buffer_.span().subspan(offset_, num_bytes_);
+}
+
+base::span<const uint8_t> ArrayBufferView::span() const {
+  return const_cast<ArrayBufferView*>(this)->span();
+}
+
 // Converter<ArrayBufferView> -------------------------------------------------
 
-bool Converter<ArrayBufferView>::FromV8(v8::Isolate* isolate,
+bool Converter<ArrayBufferView>::FromV8(v8::Isolate* /*isolate*/,
                                         v8::Local<v8::Value> val,
                                         ArrayBufferView* out) {
-  if (!val->IsArrayBufferView())
+  if (!val->IsArrayBufferView()) {
     return false;
-  *out = ArrayBufferView(isolate, v8::Local<v8::ArrayBufferView>::Cast(val));
+  }
+  *out = ArrayBufferView(v8::Local<v8::ArrayBufferView>::Cast(val));
   return true;
 }
 

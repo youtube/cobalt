@@ -54,6 +54,18 @@
 // The background color of the image generation button.
 - (UIColor*)imageGenerationButtonBackgroundColor;
 
+// The color of the text in the canvas button.
+- (UIColor*)canvasButtonTextColor;
+
+// The background color of the canvas button.
+- (UIColor*)canvasButtonBackgroundColor;
+
+// The color of the text in the deep search button.
+- (UIColor*)deepSearchButtonTextColor;
+
+// The background color of the deep search button.
+- (UIColor*)deepSearchButtonBackgroundColor;
+
 // The foreground color for the send button.
 - (UIColor*)sendButtonForegroundColorHighlighted:(BOOL)highlighted;
 

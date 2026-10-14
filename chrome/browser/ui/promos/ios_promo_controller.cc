@@ -37,6 +37,10 @@ const base::Feature& FeatureForIOSPromoType(PromoType promo_type) {
       return feature_engagement::kIPHiOSEnhancedBrowsingDesktopFeature;
     case PromoType::kLens:
       return feature_engagement::kIPHiOSLensPromoDesktopFeature;
+    case PromoType::kTabGroups:
+      return feature_engagement::kIPHiOSTabGroupsDesktopFeature;
+    case PromoType::kPriceTracking:
+      return feature_engagement::kIPHiOSPriceTrackingDesktopFeature;
   }
 }
 
@@ -112,6 +116,12 @@ bool IOSPromoController::ShouldShowPromo(PromoType promo_type) {
       break;
     case PromoType::kLens:
       feature_type = MobilePromoOnDesktopPromoType::kLensPromo;
+      break;
+    case PromoType::kTabGroups:
+      feature_type = MobilePromoOnDesktopPromoType::kTabGroups;
+      break;
+    case PromoType::kPriceTracking:
+      feature_type = MobilePromoOnDesktopPromoType::kPriceTracking;
       break;
     case PromoType::kAddress:
     case PromoType::kPayment:

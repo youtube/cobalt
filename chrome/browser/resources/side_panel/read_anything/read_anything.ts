@@ -19,6 +19,7 @@ export type {LineFocusListener} from './content/line_focus_controller.js';
 export {ESTIMATED_WORDS_PER_MS, MIN_MS_TO_READ, NodeStore} from './content/node_store.js';
 export type {SettingsPrefs} from './content/read_anything_types.js';
 export {DEFAULT_SETTINGS, LineFocusMovement, LineFocusStyle, LineFocusType, SettingsOption, ToolbarEvent} from './content/read_anything_types.js';
+export {ReadabilityImageClassifier} from './content/readability_image_classifier.js';
 export {SelectionController} from './content/selection_controller.js';
 export type {ColorMenuElement} from './menus/color_menu.js';
 export type {FontMenuElement} from './menus/font_menu.js';
@@ -61,6 +62,7 @@ export type {VoiceSelectionMenuElement} from './read_aloud/voice_selection_menu.
 export type {WordBoundaryState} from './read_aloud/word_boundaries.js';
 export {WordBoundaries} from './read_aloud/word_boundaries.js';
 export {getWordCount, isRectMostlyVisible, isRectVisible, LOG_EMPTY_DELAY_MS, MOSTLY_VISIBLE_PERCENT, playFromSelectionTimeout, spinnerDebounceTimeout} from './shared/common.js';
+export {getTextNodeOffsets} from './shared/dom_queries.js';
 export {getNewIndex, isActivationKey, isArrow, isBackwardArrow, isForwardArrow, isHorizontalArrow, isVerticalArrow} from './shared/keyboard_util.js';
 export type {MetricsBrowserProxy} from './shared/metrics_browser_proxy.js';
 export {MetricsBrowserProxyImpl, ReadAloudSettingsChange, ReadAnythingNewPage, ReadAnythingSettingsChange, ReadAnythingSpeechError, ReadAnythingVoiceType} from './shared/metrics_browser_proxy.js';

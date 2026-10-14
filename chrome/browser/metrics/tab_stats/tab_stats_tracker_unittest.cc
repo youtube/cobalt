@@ -18,13 +18,18 @@
 #include "base/strings/strcat.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/power_monitor_test.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/tabs/features.h"
+#include "chrome/browser/ui/tabs/split_tab_metrics.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "components/metrics/daily_event.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/testing_pref_service.h"
+#include "components/sync_preferences/testing_pref_service_syncable.h"
 #include "content/public/browser/media_player_id.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
@@ -43,6 +48,7 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/tabs/tab_strip_prefs.h"
 #include "chrome/test/base/test_browser_window.h"
 #endif
 
@@ -169,6 +175,13 @@ class TabStripModifier {
         index, TabCloseTypes::CLOSE_USER_GESTURE);
   }
 
+#if !BUILDFLAG(IS_ANDROID)
+  void AddToNewSplit(int index) {
+    browser_->tab_strip_model()->AddToNewSplit(
+        {index}, {}, split_tabs::SplitTabCreatedSource::kTabContextMenu);
+  }
+#endif
+
  private:
   raw_ptr<const TabStripInterface> tab_strip_;
   raw_ptr<Browser> browser_;
@@ -215,6 +228,24 @@ class TestTabStatsTracker : public TabStatsTracker {
     }
     return tab_stats_data_store()->tab_stats().total_tab_count;
   }
+
+#if !BUILDFLAG(IS_ANDROID)
+  void CreateSplitTab(size_t split_count,
+                      ChromeRenderViewHostTestHarness* test_harness,
+                      TabStripModifier* tab_strip_modifier) {
+    EXPECT_TRUE(test_harness);
+    for (size_t i = 0; i < split_count; ++i) {
+      int index = tab_strip_modifier->tab_strip().GetTabCount();
+      std::unique_ptr<content::WebContents> tab1 =
+          test_harness->CreateTestWebContents();
+      tab_strip_modifier->InsertWebContentsAt(index, std::move(tab1));
+      std::unique_ptr<content::WebContents> tab2 =
+          test_harness->CreateTestWebContents();
+      tab_strip_modifier->InsertWebContentsAt(index + 1, std::move(tab2));
+      tab_strip_modifier->AddToNewSplit(index);
+    }
+  }
+#endif
 
   size_t AddWindows(size_t window_count) {
     for (size_t i = 0; i < window_count; ++i)
@@ -317,6 +348,7 @@ class TabStatsTrackerTest : public ChromeRenderViewHostTestHarness {
     tab_strip_modifier_ = std::make_unique<TabStripModifier>(
         tab_strip_interface_.get(), test_tab_model_.get());
 #else
+    scoped_feature_.InitWithFeatures({tabs::kVerticalTabs}, {});
     browser_ = CreateBrowserWithTestWindowForParams(
         Browser::CreateParams(profile(), true));
     tab_strip_interface_ = std::make_unique<TabStripInterface>(browser_.get());
@@ -409,6 +441,8 @@ class TabStatsTrackerTest : public ChromeRenderViewHostTestHarness {
   base::HistogramTester histogram_tester_;
 
   TestingPrefServiceSimple pref_service_;
+
+  base::test::ScopedFeatureList scoped_feature_;
 
 #if BUILDFLAG(IS_ANDROID)
   std::unique_ptr<OwningTestTabModel> test_tab_model_;
@@ -795,6 +829,11 @@ TEST_F(TabStatsTrackerTest, DailyDiscards) {
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 TEST_F(TabStatsTrackerTest, HeartbeatMetrics) {
+#if !BUILDFLAG(IS_ANDROID)
+  size_t expected_split_tab_count = 2;
+  tab_stats_tracker_->CreateSplitTab(expected_split_tab_count / 2, this,
+                                     tab_strip_modifier_.get());
+#endif
   size_t expected_tab_count =
       tab_stats_tracker_->AddTabs(12, this, tab_strip_modifier_.get());
   size_t expected_window_count = tab_stats_tracker_->AddWindows(5);
@@ -803,6 +842,17 @@ TEST_F(TabStatsTrackerTest, HeartbeatMetrics) {
 
   ExpectBucketedSample(UmaStatsReportingDelegate::kTabCountHistogramName,
                        expected_tab_count, 1);
+#if !BUILDFLAG(IS_ANDROID)
+  ExpectBucketedSample(
+      base::StrCat(
+          {UmaStatsReportingDelegate::kTabCountHistogramName, ".SplitTabs"}),
+      expected_split_tab_count, 1);
+
+  ExpectBucketedSample(
+      base::StrCat({UmaStatsReportingDelegate::kTabCountHistogramName,
+                    ".HorizontalTabStrip"}),
+      expected_tab_count, 1);
+#endif
   ExpectBucketedSample(UmaStatsReportingDelegate::kWindowCountHistogramName,
                        expected_window_count, 1);
 
@@ -815,6 +865,22 @@ TEST_F(TabStatsTrackerTest, HeartbeatMetrics) {
   ExpectBucketedSample(UmaStatsReportingDelegate::kWindowCountHistogramName,
                        expected_window_count, 1);
 }
+
+#if !BUILDFLAG(IS_ANDROID)
+TEST_F(TabStatsTrackerTest, HeartbeatMetricsWithVerticalTabs) {
+  profile()->GetPrefs()->SetBoolean(prefs::kVerticalTabsEnabled, true);
+
+  size_t expected_tab_count =
+      tab_stats_tracker_->AddTabs(12, this, tab_strip_modifier_.get());
+
+  tab_stats_tracker_->OnHeartbeatEvent();
+
+  ExpectBucketedSample(
+      base::StrCat({UmaStatsReportingDelegate::kTabCountHistogramName,
+                    ".VerticalTabStrip"}),
+      expected_tab_count, 1);
+}
+#endif
 
 TEST_F(TabStatsTrackerTest, VideoPlayingInTab) {
   content::WebContentsTester* const contents_tester =

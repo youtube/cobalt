@@ -755,7 +755,6 @@ void GenerateCaps(const FunctionsGL *functions,
                   gl::Extensions *extensions,
                   gl::Limitations *limitations,
                   gl::Version *maxSupportedESVersion,
-                  MultiviewImplementationTypeGL *multiviewImplementationType,
                   ShPixelLocalStorageOptions *plsOptions)
 {
     // Start by assuming ES3.1 support and work down
@@ -1605,8 +1604,7 @@ void GenerateCaps(const FunctionsGL *functions,
     // TODO(crbug.com/776222): support Android and Apple devices.
     extensions->videoTextureWEBGL = !IsAndroid() && !IsApple();
 
-    if (functions->hasGLExtension("GL_ARB_shader_viewport_layer_array") ||
-        functions->hasGLExtension("GL_NV_viewport_array2"))
+    if (features.multiviewViaViewportArray.enabled)
     {
         extensions->multiviewOVR  = true;
         extensions->multiview2OVR = true;
@@ -1615,7 +1613,6 @@ void GenerateCaps(const FunctionsGL *functions,
         // GL_MAX_VIEWPORTS is guaranteed to be at least 16.
         const int maxViewports       = QuerySingleGLInt(functions, GL_MAX_VIEWPORTS);
         caps->maxViews               = static_cast<GLuint>(std::min(maxLayers, maxViewports));
-        *multiviewImplementationType = MultiviewImplementationTypeGL::NV_VIEWPORT_ARRAY2;
     }
 
     extensions->fboRenderMipmapOES = functions->isAtLeastGL(gl::Version(3, 0)) ||
@@ -1744,6 +1741,8 @@ void GenerateCaps(const FunctionsGL *functions,
         extensions->shaderPixelLocalStorageCoherentANGLE = true;
         plsOptions->type             = ShPixelLocalStorageType::FramebufferFetch;
         plsOptions->fragmentSyncType = ShFragmentSynchronizationType::Automatic;
+        plsOptions->supportsNoncoherent =
+            features.supportsShaderFramebufferFetchNonCoherentEXT.enabled;
     }
     else
     {
@@ -1800,17 +1799,20 @@ void GenerateCaps(const FunctionsGL *functions,
         }
         else if (features.supportsShaderFramebufferFetchNonCoherentEXT.enabled)
         {
+            ASSERT(plsOptions->fragmentSyncType == ShFragmentSynchronizationType::NotSupported);
             extensions->shaderPixelLocalStorageANGLE = true;
             plsOptions->type                         = ShPixelLocalStorageType::FramebufferFetch;
         }
         else if (hasFragmentShaderImageLoadStore)
         {
+            ASSERT(plsOptions->fragmentSyncType == ShFragmentSynchronizationType::NotSupported);
             extensions->shaderPixelLocalStorageANGLE = true;
             plsOptions->type                         = ShPixelLocalStorageType::ImageLoadStore;
             // OpenGL ES only allows read/write access to "r32*" images.
             plsOptions->supportsNativeRGBA8ImageFormats =
                 functions->standard != StandardGL::STANDARD_GL_ES;
         }
+        plsOptions->supportsNoncoherent = true;
     }
 
     // EXT_shader_framebuffer_fetch.
@@ -2296,14 +2298,14 @@ void InitializeFeatures(const FunctionsGL *functions, angle::FeaturesGL *feature
     bool isGetSystemInfoSuccess =
         GetSystemInfoVendorIDAndDeviceID(functions, &systemInfo, &vendor, &device);
 
-    bool isAMD      = IsAMD(vendor);
-    bool isApple    = IsAppleGPU(vendor);
-    bool isIntel    = IsIntel(vendor);
-    bool isNvidia   = IsNvidia(vendor);
-    bool isQualcomm = IsQualcomm(vendor);
-    bool isVMWare   = IsVMWare(vendor);
-    bool hasAMD     = systemInfo.hasAMDGPU();
-    bool isMali     = IsARM(vendor);
+    bool isAMD           = IsAMD(vendor);
+    bool isApple         = IsAppleGPU(vendor);
+    bool isIntel         = IsIntel(vendor);
+    bool isNvidia        = IsNvidia(vendor);
+    bool isQualcomm      = IsQualcomm(vendor);
+    bool isVMWare        = IsVMWare(vendor);
+    bool hasAMD          = systemInfo.hasAMDGPU();
+    bool isMali          = IsARM(vendor);
     bool isHuaweiMaleoon = IsHuaweiMaleoon(functions);
 
     std::array<int, 3> mesaVersion = {0, 0, 0};
@@ -2563,12 +2565,12 @@ void InitializeFeatures(const FunctionsGL *functions, angle::FeaturesGL *feature
 
     ANGLE_FEATURE_CONDITION(features, promotePackedFormatsTo8BitPerChannel, IsApple() && hasAMD);
 
-    // crbug.com/1171371
+    // http://crbug.com/40166134
     // If output variable gl_FragColor is written by fragment shader, it may cause context lost with
     // Adreno 42x and 3xx.
     ANGLE_FEATURE_CONDITION(features, initFragmentOutputVariables, IsAdreno42xOr3xx(functions));
 
-    // http://crbug.com/1144207
+    // http://crbug.com/40155422
     // The Mac bot with Intel Iris GPU seems unaffected by this bug. Exclude the Haswell family for
     // now.
     ANGLE_FEATURE_CONDITION(features, shiftInstancedArrayDataWithOffset,
@@ -2588,7 +2590,14 @@ void InitializeFeatures(const FunctionsGL *functions, angle::FeaturesGL *feature
     // http://crbug.com/1187513
     // Imagination drivers are buggy with context switching. It needs to unbind fbo before context
     // switching to workadround the driver issues.
+#if defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
+    // Tegra devices require unbinding FBO before context switching to
+    // prevent display degradation (b/490474392).
+    ANGLE_FEATURE_CONDITION(features, unbindFBOBeforeSwitchingContext,
+                            IsPowerVR(vendor) || (IsAndroid() && isNvidia));
+#else  // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
     ANGLE_FEATURE_CONDITION(features, unbindFBOBeforeSwitchingContext, IsPowerVR(vendor));
+#endif // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
 
     // http://crbug.com/1181068 and http://crbug.com/783979
     ANGLE_FEATURE_CONDITION(features, flushOnFramebufferChange,
@@ -2665,6 +2674,10 @@ void InitializeFeatures(const FunctionsGL *functions, angle::FeaturesGL *feature
     ANGLE_FEATURE_CONDITION(features, supportsFragmentShaderInterlockARB,
                             functions->isAtLeastGL(gl::Version(4, 5)) &&
                                 functions->hasGLExtension("GL_ARB_fragment_shader_interlock"));
+
+    ANGLE_FEATURE_CONDITION(features, multiviewViaViewportArray,
+                            functions->hasGLExtension("GL_ARB_shader_viewport_layer_array") ||
+                                functions->hasGLExtension("GL_NV_viewport_array2"));
 
     // EXT_shader_framebuffer_fetch
     ANGLE_FEATURE_CONDITION(features, supportsShaderFramebufferFetchEXT,
@@ -2748,6 +2761,10 @@ void InitializeFeatures(const FunctionsGL *functions, angle::FeaturesGL *feature
     // Mali 400 series drivers fail linking shaders when passthrough shaders are enabled. Likely due
     // to not querying correct information from varyings and uniforms.
     ANGLE_FEATURE_CONDITION(features, disablePassthroughShaders, IsAdreno4xx(functions));
+
+    // IMG GL drivers crash in glClearTexImage on various format/type combinations such as packed
+    // types, LUMA and depth stencil.
+    ANGLE_FEATURE_CONDITION(features, disableClearTexImageForRobustInit, IsPowerVR(vendor));
 }
 
 void InitializeFrontendFeatures(const FunctionsGL *functions, angle::FrontendFeatures *features)

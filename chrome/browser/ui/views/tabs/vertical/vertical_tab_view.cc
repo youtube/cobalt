@@ -4,9 +4,13 @@
 
 #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_view.h"
 
+#include <optional>
 #include <string>
 
 #include "base/functional/callback_helpers.h"
+#include "base/metrics/histogram_functions.h"
+#include "base/metrics/user_metrics.h"
+#include "base/metrics/user_metrics_action.h"
 #include "base/notimplemented.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/themes/theme_properties.h"
@@ -14,25 +18,31 @@
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/layout_constants.h"
+#include "chrome/browser/ui/tab_contents/core_tab_helper.h"
+#include "chrome/browser/ui/tabs/alert/tab_alert.h"
 #include "chrome/browser/ui/tabs/alert/tab_alert_controller.h"
 #include "chrome/browser/ui/tabs/tab_muted_utils.h"
 #include "chrome/browser/ui/tabs/tab_renderer_data.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/tab_style.h"
 #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
-#include "chrome/browser/ui/views/tabs/alert_indicator_button.h"
-#include "chrome/browser/ui/views/tabs/glow_hover_controller.h"
-#include "chrome/browser/ui/views/tabs/tab_close_button.h"
-#include "chrome/browser/ui/views/tabs/tab_icon.h"
+#include "chrome/browser/ui/views/tabs/tab/alert_indicator_button.h"
+#include "chrome/browser/ui/views/tabs/tab/glow_hover_controller.h"
+#include "chrome/browser/ui/views/tabs/tab/tab_close_button.h"
+#include "chrome/browser/ui/views/tabs/tab/tab_icon.h"
+#include "chrome/browser/ui/views/tabs/tab_accessibility.h"
 #include "chrome/browser/ui/views/tabs/vertical/tab_collection_node.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_split_tab_view.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_drag_handler.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_controller.h"
+#include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_view.h"
 #include "chrome/common/buildflags.h"
+#include "chrome/grit/generated_resources.h"
 #include "components/tabs/public/tab_interface.h"
 #include "third_party/skia/include/core/SkPathBuilder.h"
 #include "third_party/skia/include/core/SkRRect.h"
 #include "ui/accessibility/ax_enums.mojom-shared.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/theme_provider.h"
 #include "ui/gfx/favicon_size.h"
@@ -64,7 +74,21 @@ constexpr int kIconDesignWidth = 16;
 constexpr int kTitleMinWidth = 10;
 constexpr int kHorizontalInset = 7;
 constexpr int kDefaultPadding = 4;
-constexpr int kFocusRingInset = 4;
+constexpr int kFocusRingInset = 0.0f;
+
+class VerticalTabHighlightPathGenerator : public views::HighlightPathGenerator {
+ public:
+  explicit VerticalTabHighlightPathGenerator(VerticalTabView* tab_view)
+      : tab_view_(tab_view) {}
+
+  // views::HighlightPathGenerator:
+  SkPath GetHighlightPath(const views::View* view) override {
+    return tab_view_->GetPath();
+  }
+
+ private:
+  raw_ptr<VerticalTabView> tab_view_;
+};
 
 class VerticalTabTitle : public views::Label {
   METADATA_HEADER(VerticalTabTitle, views::Label)
@@ -156,6 +180,7 @@ VerticalTabView::VerticalTabView(TabCollectionNode* collection_node)
                      /*align_leading=*/true,
                      /*expand=*/true)};
 
+  SetProperty(views::kElementIdentifierKey, kTabElementId);
   SetLayoutManager(std::make_unique<views::DelegatingLayoutManager>(this));
   SetEventTargeter(std::make_unique<views::ViewTargeter>(this));
 
@@ -163,19 +188,25 @@ VerticalTabView::VerticalTabView(TabCollectionNode* collection_node)
   // hover.
   SetNotifyEnterExitOnChild(true);
 
-  // TODO(crbug.com/476156783): Change to ACCESSIBLE_ONLY.
-  SetFocusBehavior(FocusBehavior::ALWAYS);
+  // Add accessibility and focus ring
+  SetFocusBehavior(FocusBehavior::ACCESSIBLE_ONLY);
   views::FocusRing::Install(this);
+  auto* focus_ring = views::FocusRing::Get(this);
+  focus_ring->SetHaloInset(kFocusRingInset);
+  focus_ring->SetOutsetFocusRingDisabled(true);
 
   views::HighlightPathGenerator::Install(
-      this, std::make_unique<views::RoundRectHighlightPathGenerator>(
-                gfx::Insets(kFocusRingInset),
-                GetLayoutConstant(LayoutConstant::kVerticalTabCornerRadius)));
+      this, std::make_unique<VerticalTabHighlightPathGenerator>(this));
 
   GetViewAccessibility().SetRole(ax::mojom::Role::kTab);
   GetViewAccessibility().SetName(
       std::string(), ax::mojom::NameFrom::kAttributeExplicitlyEmpty);
 
+  ax_name_changed_subscription_ =
+      GetViewAccessibility().AddStringAttributeChangedCallback(
+          ax::mojom::StringAttribute::kName,
+          base::BindRepeating(&VerticalTabView::OnAXNameChanged,
+                              base::Unretained(this)));
   node_destroyed_subscription_ =
       collection_node_->RegisterWillDestroyCallback(base::BindOnce(
           &VerticalTabView::ResetCollectionNode, base::Unretained(this)));
@@ -211,17 +242,35 @@ void VerticalTabView::UpdateHovered(bool hovered) {
   }
 
   UpdateColors();
-  UpdateCloseButtonVisibility();
+  InvalidateLayout();
 }
 
-void VerticalTabView::OnTabDragOver() {
-  auto* controller = collection_node_->GetController();
-  CHECK(controller);
-  controller->GetDragHandler().DraggedTabsOverNode(*collection_node_);
+std::optional<SkColor> VerticalTabView::GetBackgroundColor() {
+  if (active_ || IsHoverAnimationActive() ||
+      GetThemeProvider()->GetDisplayProperty(
+          ThemeProperties::SHOULD_FILL_BACKGROUND_TAB_COLOR)) {
+    return tab_style_->GetCurrentTabBackgroundColor(
+        GetSelectionState(), IsHoverAnimationActive(), GetHoverAnimationValue(),
+        IsFrameActive(), GetColorProvider());
+  }
+  return std::nullopt;
+}
+
+SkPath VerticalTabView::GetPath() const {
+  const SkScalar corner_radius = SkIntToScalar(
+      GetLayoutConstant(LayoutConstant::kVerticalTabCornerRadius) +
+      (split_ ? GetInsets().height() : 0));
+  return SkPath::RRect(SkRRect::MakeRectXY(gfx::RectToSkRect(GetLocalBounds()),
+                                           corner_radius, corner_radius));
+}
+
+void VerticalTabView::Layout(PassKey) {
+  LayoutSuperclass<views::View>(this);
+  alert_indicator_->UpdateAlertIndicatorAnimation();
 }
 
 bool VerticalTabView::OnKeyPressed(const ui::KeyEvent& event) {
-  if (event.key_code() == ui::VKEY_RETURN && selected_) {
+  if (event.key_code() == ui::VKEY_RETURN && !selected_) {
     collection_node_->GetController()->SelectTab(GetTabInterface(),
                                                  GetGestureDetail(event));
     return true;
@@ -230,7 +279,7 @@ bool VerticalTabView::OnKeyPressed(const ui::KeyEvent& event) {
 }
 
 bool VerticalTabView::OnKeyReleased(const ui::KeyEvent& event) {
-  if (event.key_code() == ui::VKEY_SPACE && selected_) {
+  if (event.key_code() == ui::VKEY_SPACE && !selected_) {
     collection_node_->GetController()->SelectTab(GetTabInterface(),
                                                  GetGestureDetail(event));
     return true;
@@ -241,6 +290,7 @@ bool VerticalTabView::OnKeyReleased(const ui::KeyEvent& event) {
 bool VerticalTabView::OnMousePressed(const ui::MouseEvent& event) {
   auto* controller = collection_node_->GetController();
   shift_pressed_on_mouse_down_ = event.IsShiftDown();
+  RecordMousePressedInTab();
 
   if (event.IsOnlyLeftMouseButton() ||
       (event.IsOnlyRightMouseButton() && event.flags() & ui::EF_FROM_TOUCH)) {
@@ -255,6 +305,7 @@ bool VerticalTabView::OnMousePressed(const ui::MouseEvent& event) {
       }
     } else if (!selected_) {
       controller->SelectTab(GetTabInterface(), GetGestureDetail(event));
+      base::RecordAction(base::UserMetricsAction("SwitchTab_Click"));
     }
     // Potentially start the drag for the mouse press.
     // Follow-up mouse-movement events will update the drag controller and
@@ -322,19 +373,36 @@ bool VerticalTabView::OnMouseDragged(const ui::MouseEvent& event) {
   return controller->GetDragHandler().ContinueDrag(*this, event);
 }
 
+void VerticalTabView::OnGestureEvent(ui::GestureEvent* event) {
+  auto* controller = collection_node_->GetController();
+  CHECK(controller);
+
+  switch (event->type()) {
+    case ui::EventType::kGestureTapDown: {
+      // TAP_DOWN is only dispatched for the first touch point.
+      CHECK_EQ(1, event->details().touch_points());
+
+      if (!selected_) {
+        controller->SelectTab(GetTabInterface(), GetGestureDetail(*event));
+      }
+
+      event->SetHandled();
+      break;
+    }
+
+    default:
+      break;
+  }
+}
+
 void VerticalTabView::OnPaint(gfx::Canvas* canvas) {
-  // TODO(crbug.com/465540287): Handle the theme's custom images for the toolbar
-  // area/frame background. Also consider using views::Background to draw the
-  // background if that is compatible with how we handle custom images, so that
-  // we no longer have to override OnPaint.
-  if (active_ || IsHoverAnimationActive() ||
-      GetThemeProvider()->GetDisplayProperty(
-          ThemeProperties::SHOULD_FILL_BACKGROUND_TAB_COLOR)) {
+  std::optional<SkColor> background_color = GetBackgroundColor();
+  // Split pinned tabs have a merged background that is rendered in
+  // `VerticalSplitTabView`.
+  if (background_color.has_value() && !(pinned_ && split_)) {
     cc::PaintFlags flags;
     flags.setAntiAlias(true);
-    flags.setColor(tab_style_->GetCurrentTabBackgroundColor(
-        GetSelectionState(), IsHoverAnimationActive(), GetHoverAnimationValue(),
-        IsFrameActive(), GetColorProvider()));
+    flags.setColor(background_color.value());
     canvas->DrawRect(GetContentsBounds(), flags);
   }
 
@@ -347,6 +415,10 @@ void VerticalTabView::AddedToWidget() {
           &VerticalTabView::UpdateColors, base::Unretained(this)));
 
   OnDataChanged();
+
+  // Recompute accessible name when the structure changes.
+  UpdateAccessibleName();
+
   // Recompute the hovered state as mouse events are not processed if a view
   // removed from the widget and added.
   if (!split_) {
@@ -359,7 +431,26 @@ void VerticalTabView::RemovedFromWidget() {
   UpdateHovered(false);
 }
 
+void VerticalTabView::OnFocus() {
+  views::View::OnFocus();
+
+  if (collection_node_ && collection_node_->GetController()) {
+    collection_node_->GetController()->TabKeyboardFocusChangedTo(
+        GetTabInterface());
+  }
+}
+
+void VerticalTabView::OnBlur() {
+  views::View::OnBlur();
+
+  if (collection_node_ && collection_node_->GetController()) {
+    collection_node_->GetController()->TabKeyboardFocusChangedTo(nullptr);
+  }
+}
+
 void VerticalTabView::OnBoundsChanged(const gfx::Rect& previous_bounds) {
+  collapsed_ = width() < VerticalTabStripRegionView::kCollapsedWidth;
+
   SetClipPath(GetPath());
 }
 
@@ -394,11 +485,48 @@ gfx::Rect VerticalTabView::GetChildBounds(const gfx::Rect& container,
   return gfx::Rect(x, y, actual_width, preferred_size.height());
 }
 
+absl::flat_hash_map<views::View*, bool>
+VerticalTabView::CalculateChildVisibilities() const {
+  absl::flat_hash_map<views::View*, bool> child_visibility_map;
+
+  child_visibility_map[title_] = !pinned_;
+
+  child_visibility_map[alert_indicator_] =
+      alert_indicator_->showing_alert_state().has_value();
+#if BUILDFLAG(ENABLE_GLIC)
+  if (glic_tab_underline_view_ && (alert_indicator_->showing_alert_state() ==
+                                       tabs::TabAlert::kGlicAccessing ||
+                                   alert_indicator_->showing_alert_state() ==
+                                       tabs::TabAlert::kGlicSharing)) {
+    child_visibility_map[alert_indicator_] = false;
+  }
+#endif
+
+  child_visibility_map[icon_] =
+      !pinned_ || !child_visibility_map[alert_indicator_];
+
+  if (pinned_) {
+    child_visibility_map[close_button_] = false;
+  } else if (active_) {
+    child_visibility_map[close_button_] = true;
+  } else if (collapsed_) {
+    child_visibility_map[close_button_] = false;
+  } else {
+    child_visibility_map[close_button_] = hovered_;
+  }
+
+  return child_visibility_map;
+}
+
 views::ProposedLayout VerticalTabView::CalculateProposedLayout(
     const views::SizeBounds& size_bounds) const {
+  auto child_visibility_map = CalculateChildVisibilities();
+
   const int width = size_bounds.width().value_or(
       VerticalTabStripRegionView::kUncollapsedMaxWidth);
-  const int height = GetLayoutConstant(LayoutConstant::kVerticalTabHeight);
+  const int height =
+      GetLayoutConstant(pinned_ ? LayoutConstant::kVerticalTabPinnedHeight
+                                : LayoutConstant::kVerticalTabHeight);
 
   views::ProposedLayout layouts;
   layouts.host_size = gfx::Size(width, height);
@@ -406,8 +534,7 @@ views::ProposedLayout VerticalTabView::CalculateProposedLayout(
   gfx::Rect bounds_remaining = gfx::Rect(0, 0, width, height);
   bounds_remaining.Inset(gfx::Insets::VH(0, kHorizontalInset));
 
-  const bool is_centered =
-      width < VerticalTabStripRegionView::kCollapsedWidth || pinned_;
+  const bool is_centered = collapsed_ || pinned_;
 
   int placed_children = 0;
   for (const auto& child : tab_children_configs_) {
@@ -416,9 +543,9 @@ views::ProposedLayout VerticalTabView::CalculateProposedLayout(
             ? (placed_children == 0)
             : (child.min_width + child.padding < bounds_remaining.width() ||
                placed_children < 2);
-    if (child.view->GetVisible() && can_render_child) {
+    if (child_visibility_map[child.view] && can_render_child) {
       layouts.child_layouts.emplace_back(
-          child.view.get(), child.view->GetVisible(),
+          child.view.get(), child_visibility_map[child.view],
           GetChildBounds(bounds_remaining, child, is_centered));
 
       if (!is_centered) {
@@ -431,7 +558,7 @@ views::ProposedLayout VerticalTabView::CalculateProposedLayout(
       placed_children += 1;
     } else {
       layouts.child_layouts.emplace_back(
-          child.view.get(), child.view->GetVisible(),
+          child.view.get(), child_visibility_map[child.view],
           gfx::Rect(bounds_remaining.x(), bounds_remaining.y(), 0, 0));
     }
   }
@@ -453,7 +580,7 @@ bool VerticalTabView::ShouldEnableMuteToggle(int required_width) {
 void VerticalTabView::ToggleTabAudioMute() {
   content::WebContents* const contents = GetTabInterface()->GetContents();
   bool mute = !contents->IsAudioMuted();
-  // TODO(crbug.com/468033457): Log tab audio muted metric.
+  base::UmaHistogramBoolean("Media.Audio.TabAudioMuted", mute);
   SetTabAudioMuted(contents, mute, TabMutedReason::kAudioIndicator,
                    /*extension_id=*/std::string());
 }
@@ -470,7 +597,6 @@ bool VerticalTabView::IsApparentlyActive() const {
 
 void VerticalTabView::AlertStateChanged() {
   // TODO(crbug.com/457525548): Update hover card.
-  UpdateAlertIndicatorVisibility();
   InvalidateLayout();
 }
 
@@ -490,8 +616,26 @@ void VerticalTabView::ResetCollectionNode() {
   collection_node_ = nullptr;
 }
 
+void VerticalTabView::UpdateAccessibleName() {
+  std::u16string name =
+      tabs::GetAccessibleTabLabel(GetTabInterface(), /*is_for_tab=*/true);
+  if (!name.empty()) {
+    GetViewAccessibility().SetName(name);
+  } else {
+    GetViewAccessibility().SetName(
+        std::string(), ax::mojom::NameFrom::kAttributeExplicitlyEmpty);
+  }
+}
+
+void VerticalTabView::OnAXNameChanged(ax::mojom::StringAttribute attribute,
+                                      const std::optional<std::string>& name) {
+  if (GetWidget() && active_) {
+    GetWidget()->UpdateAccessibleNameForRootView();
+  }
+}
+
 void VerticalTabView::OnDataChanged() {
-  const tabs::TabInterface* tab = GetTabInterface();
+  tabs::TabInterface* tab = const_cast<tabs::TabInterface*>(GetTabInterface());
   CHECK(tab);
 
   const TabStripModel* tab_strip_model =
@@ -500,10 +644,33 @@ void VerticalTabView::OnDataChanged() {
   CHECK(index != TabStripModel::kNoTab);
 
   active_ = tab_strip_model->IsTabInForeground(index);
-  selected_ = tab->IsSelected();
   split_ = tab->IsSplit();
   pinned_ = tab->IsPinned();
-  tab_data_ = TabRendererData::FromTabInModel(tab_strip_model, index);
+
+  SetSelection(tab->IsSelected());
+  UpdateTabData(tab);
+
+  UpdateColors();
+  InvalidateLayout();
+}
+
+void VerticalTabView::SetSelection(bool selected) {
+  if (selected_ == selected) {
+    return;
+  }
+
+  selected_ = selected;
+  GetViewAccessibility().SetIsSelected(selected_);
+}
+
+void VerticalTabView::UpdateTabData(tabs::TabInterface* tab) {
+  TabRendererData new_data = TabRendererData::FromTabInterface(tab);
+  TabRendererData old_data = std::move(tab_data_);
+  tab_data_ = std::move(new_data);
+
+  if (tabs::ShouldUpdateAccessibleName(old_data, tab_data_)) {
+    UpdateAccessibleName();
+  }
 
   icon_->SetData(tab_data_);
   icon_->SetActiveState(tab->IsActivated());
@@ -512,17 +679,23 @@ void VerticalTabView::OnDataChanged() {
   icon_->SetAttention(TabIcon::AttentionType::kTabWantsAttentionStatus,
                       tab_data_.needs_attention);
 
-  title_->SetText(tab_data_.title);
-  title_->SetVisible(!pinned_);
+  UpdateTitle();
 
   alert_indicator_->TransitionToAlertState(
       tabs::TabAlertController::GetAlertStateToShow(tab_data_.alert_state));
+  alert_indicator_->UpdateEnabledForMuteToggle();
+}
 
-  UpdateAlertIndicatorVisibility();
-  UpdateCloseButtonVisibility();
-
-  UpdateColors();
-  InvalidateLayout();
+void VerticalTabView::UpdateTitle() {
+  std::u16string title = tab_data_.title;
+  if (title.empty() && !tab_data_.should_render_empty_title) {
+    title = icon_->GetShowingLoadingAnimation()
+                ? l10n_util::GetStringUTF16(IDS_TAB_LOADING_TITLE)
+                : CoreTabHelper::GetDefaultTitle();
+  } else {
+    title = Browser::FormatTitleForDisplay(title);
+  }
+  title_->SetText(title);
 }
 
 void VerticalTabView::UpdateBorder() {
@@ -541,27 +714,6 @@ void VerticalTabView::UpdateBorder() {
   } else if (GetBorder()) {
     SetBorder(nullptr);
   }
-}
-
-void VerticalTabView::UpdateAlertIndicatorVisibility() {
-  alert_indicator_->UpdateAlertIndicatorAnimation();
-  bool alert_indicator_visible =
-      alert_indicator_->showing_alert_state().has_value();
-
-#if BUILDFLAG(ENABLE_GLIC)
-  if (glic_tab_underline_view_ && (alert_indicator_->showing_alert_state() ==
-                                       tabs::TabAlert::kGlicAccessing ||
-                                   alert_indicator_->showing_alert_state() ==
-                                       tabs::TabAlert::kGlicSharing)) {
-    alert_indicator_visible = false;
-  }
-#endif
-  alert_indicator_->SetVisible(alert_indicator_visible);
-  icon_->SetVisible(!pinned_ || !alert_indicator_visible);
-}
-
-void VerticalTabView::UpdateCloseButtonVisibility() {
-  close_button_->SetVisible((active_ || hovered_) && !pinned_);
 }
 
 void VerticalTabView::UpdateColors() {
@@ -588,10 +740,55 @@ void VerticalTabView::UpdateContrastRatioValues() {
 }
 
 void VerticalTabView::CloseButtonPressed(const ui::Event& event) {
-  // TODO(crbug.com/467735166): Log tab closing UMAs.
+  if (active_) {
+    base::RecordAction(base::UserMetricsAction("CloseTab_Active"));
+  } else {
+    base::RecordAction(base::UserMetricsAction("CloseTab_Inactive"));
+  }
+
+  CHECK(alert_indicator_);
+  if (!alert_indicator_->GetVisible()) {
+    base::RecordAction(base::UserMetricsAction("CloseTab_NoAlertIndicator"));
+  } else if (auto alert_state = tabs::TabAlertController::GetAlertStateToShow(
+                 tab_data_.alert_state);
+             alert_state.has_value()) {
+    if (alert_state.value() == tabs::TabAlert::kAudioPlaying) {
+      base::RecordAction(base::UserMetricsAction("CloseTab_AudioIndicator"));
+    } else if (alert_state.value() == tabs::TabAlert::kAudioRecording ||
+               alert_state.value() == tabs::TabAlert::kVideoRecording ||
+               alert_state.value() == tabs::TabAlert::kMediaRecording) {
+      base::RecordAction(
+          base::UserMetricsAction("CloseTab_RecordingIndicator"));
+    }
+  }
+
+  if (split_) {
+    auto* split_view = views::AsViewClass<VerticalSplitTabView>(parent());
+    base::RecordAction(base::UserMetricsAction(this == split_view->children()[0]
+                                                   ? "CloseTab_StartTabInSplit"
+                                                   : "CloseTab_EndTabInSplit"));
+  }
+
+  // Hide the interactive close button while the tab is animating out.
+  if (close_button_) {
+    close_button_->SetVisible(false);
+  }
+
   if (collection_node_) {
     collection_node_->GetController()->CloseTab(GetTabInterface());
   }
+}
+
+void VerticalTabView::RecordMousePressedInTab() {
+  views::View* parent_view = parent();
+  while (parent_view &&
+         !views::IsViewClass<VerticalTabStripView>(parent_view)) {
+    parent_view = parent_view->parent();
+  }
+
+  auto* tab_strip_view = views::AsViewClass<VerticalTabStripView>(parent_view);
+  CHECK(tab_strip_view);
+  tab_strip_view->RecordMousePressedInTab();
 }
 
 bool VerticalTabView::IsHoverAnimationActive() const {
@@ -605,6 +802,7 @@ bool VerticalTabView::IsHoverAnimationActive() const {
 
   return hovered_ || (hover_controller_ && hover_controller_->ShouldDraw());
 }
+
 double VerticalTabView::GetHoverAnimationValue() const {
   if (split_) {
     if (auto* split_view = views::AsViewClass<VerticalSplitTabView>(parent())) {
@@ -629,14 +827,6 @@ float VerticalTabView::GetHoverOpacity() const {
                  0.0f, 1.0f);
   return gfx::Tween::FloatValueBetween(t * t, hover_opacity_min_,
                                        hover_opacity_max_);
-}
-
-SkPath VerticalTabView::GetPath() const {
-  const SkScalar corner_radius = SkIntToScalar(
-      GetLayoutConstant(LayoutConstant::kVerticalTabCornerRadius) +
-      (split_ ? GetInsets().height() : 0));
-  return SkPath::RRect(SkRRect::MakeRectXY(gfx::RectToSkRect(GetLocalBounds()),
-                                           corner_radius, corner_radius));
 }
 
 bool VerticalTabView::IsFrameActive() const {

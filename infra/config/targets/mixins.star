@@ -971,6 +971,18 @@ targets.mixin(
 )
 
 targets.mixin(
+    name = "gpu_linux_gce_stable",
+    swarming = targets.swarming(
+        dimensions = {
+            "cpu": "x86-64",
+            "gpu": "none",
+            "os": "Ubuntu-22.04",
+            "pool": "chromium.tests.gpu",
+        },
+    ),
+)
+
+targets.mixin(
     name = "gpu_nvidia_shield_tv_stable",
     swarming = targets.swarming(
         dimensions = {
@@ -1085,6 +1097,18 @@ targets.mixin(
             "device_os": "UP1A.231005.007",
             "device_os_type": "user",
             "os": "Android",
+            "pool": "chromium.tests.gpu",
+        },
+    ),
+)
+
+targets.mixin(
+    name = "gpu_win_gce_stable",
+    swarming = targets.swarming(
+        dimensions = {
+            "cpu": "x86-64",
+            "gpu": "none",
+            "os": "Windows-10-19045",
             "pool": "chromium.tests.gpu",
         },
     ),
@@ -1291,18 +1315,6 @@ targets.mixin(
     args = [
         "--restart",
     ],
-)
-
-targets.mixin(
-    name = "ios_runtime_cache_17_5",
-    swarming = targets.swarming(
-        named_caches = [
-            swarming.cache(
-                name = "runtime_ios_17_5",
-                path = "Runtime-ios-17.5",
-            ),
-        ],
-    ),
 )
 
 targets.mixin(
@@ -1776,7 +1788,7 @@ targets.mixin(
             "cpu": "arm64",
             "gpu": "apple:m1",
             "mac_model": "Macmini9,1",
-            "os": "Mac-14.5|Mac-15.7",
+            "os": "Mac-15.7",
             "pool": "chromium.tests",
             "display_attached": "1",
         },
@@ -1843,7 +1855,7 @@ targets.mixin(
     swarming = targets.swarming(
         dimensions = {
             "cpu": "x86-64",
-            "os": "Mac-15",
+            "os": "Mac-26",
         },
     ),
 )
@@ -2434,6 +2446,8 @@ targets.mixin(
     ),
 )
 
+# TODO(crbug.com/479147014): Remove this mixin once all uses have switched to
+# gpu_win_gce_stable.
 targets.mixin(
     name = "win10_gce_gpu_pool",
     swarming = targets.swarming(

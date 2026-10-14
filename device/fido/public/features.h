@@ -102,10 +102,6 @@ BASE_DECLARE_FEATURE(kWebAuthnSkipHybridConfigIfSystemSupported);
 COMPONENT_EXPORT(FIDO_PUBLIC)
 BASE_DECLARE_FEATURE(kDigitalCredentialsHybridLinking);
 
-// Enable passkey upgrade requests in Google Password Manager.
-COMPONENT_EXPORT(FIDO_PUBLIC)
-BASE_DECLARE_FEATURE(kWebAuthnPasskeyUpgrade);
-
 // Checks attestation from the enclave service.
 COMPONENT_EXPORT(FIDO_PUBLIC)
 BASE_DECLARE_FEATURE(kWebAuthnEnclaveAttestation);
@@ -188,6 +184,10 @@ BASE_DECLARE_FEATURE(kWebAuthnEnableRefreshingStateOfGpmEnclaveController);
 // Support CTAP2.2 hmac-secret-mc extension in make credential request.
 COMPONENT_EXPORT(FIDO_PUBLIC)
 BASE_DECLARE_FEATURE(kWebAuthnHmacSecretMcExtension);
+
+// Enables support for FedCM requests through the Authenticator interface.
+COMPONENT_EXPORT(FIDO_PUBLIC)
+BASE_DECLARE_FEATURE(kFedCmInAuthenticator);
 
 }  // namespace device
 

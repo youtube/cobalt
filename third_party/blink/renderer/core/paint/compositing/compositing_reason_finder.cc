@@ -12,6 +12,7 @@
 #include "third_party/blink/renderer/core/frame/settings.h"
 #include "third_party/blink/renderer/core/frame/visual_viewport.h"
 #include "third_party/blink/renderer/core/fullscreen/fullscreen.h"
+#include "third_party/blink/renderer/core/html/canvas/html_canvas_element.h"
 #include "third_party/blink/renderer/core/html/html_body_element.h"
 #include "third_party/blink/renderer/core/layout/layout_embedded_content.h"
 #include "third_party/blink/renderer/core/layout/layout_view.h"
@@ -91,6 +92,15 @@ CompositingReasons CompositingReasonsForWillChange(const ComputedStyle& style) {
   }
   if (style.HasWillChangeMixBlendModeHint()) {
     reasons |= CompositingReason::kWillChangeMixBlendMode;
+  }
+  // Even though 'mask' generally implies mask-image, will-change treats them
+  // separately, so we need to check them both to get accurate backdrop filter
+  // reasons.
+  if (style.HasWillChangeMaskHint()) {
+    reasons |= CompositingReason::kWillChangeMask;
+  }
+  if (style.HasWillChangeMaskImageHint()) {
+    reasons |= CompositingReason::kWillChangeMaskImage;
   }
 
   // kWillChangeOther is needed only when none of the explicit kWillChange*
@@ -330,17 +340,29 @@ bool IsEligibleForElementCapture(const LayoutObject& object) {
 CompositingReasons CompositingReasonFinder::DirectReasonsForPaintProperties(
     const LayoutObject& object,
     const LayoutObject* container_for_fixed_position) {
-  if (object.GetDocument().Printing())
-    return CompositingReason::kNone;
-
-  // Elements under canvas can only be rendered with `drawElementImage` and do
-  // not support compositing.
-  if (RuntimeEnabledFeatures::CanvasDrawElementEnabled() &&
-      IsA<Element>(object.GetNode()) &&
-      To<Element>(object.GetNode())->IsInCanvasSubtree()) {
+  if (object.GetDocument().Printing()) {
     return CompositingReason::kNone;
   }
-  auto reasons = CompositingReasonsFor3DSceneLeaf(object);
+
+  CompositingReasons reasons = CompositingReason::kNone;
+
+  auto* element = DynamicTo<Element>(object.GetNode());
+  if (element && RuntimeEnabledFeatures::CanvasDrawElementEnabled()) {
+    if (element->IsInCanvasSubtree()) [[unlikely]] {
+      auto* canvas_parent =
+          DynamicTo<HTMLCanvasElement>(element->parentElement());
+      if (canvas_parent && canvas_parent->layoutSubtree() &&
+          !canvas_parent->IsInCanvasSubtree()) {
+        reasons |= CompositingReason::kCanvasChild;
+      } else {
+        // Disable compositing for elements in canvas subtrees other than the
+        // direct children of the outermost canvas element.
+        return CompositingReason::kNone;
+      }
+    }
+  }
+
+  reasons |= CompositingReasonsFor3DSceneLeaf(object);
 
   if (object.CanHaveAdditionalCompositingReasons())
     reasons |= object.AdditionalCompositingReasons();
@@ -405,7 +427,6 @@ CompositingReasons CompositingReasonFinder::DirectReasonsForPaintProperties(
         }
       });
 
-  auto* element = DynamicTo<Element>(object.GetNode());
   if (element && element->GetRestrictionTargetId()) {
     const bool is_eligible = IsEligibleForElementCapture(object);
     element->SetIsEligibleForElementCapture(is_eligible);

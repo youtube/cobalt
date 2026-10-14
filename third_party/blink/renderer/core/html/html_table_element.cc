@@ -50,6 +50,7 @@
 #include "third_party/blink/renderer/platform/weborigin/referrer.h"
 #include "third_party/blink/renderer/platform/wtf/std_lib_extras.h"
 #include "third_party/blink/renderer/platform/wtf/text/strcat.h"
+#include "third_party/blink/renderer/platform/wtf/text/string_to_number.h"
 
 namespace blink {
 
@@ -454,7 +455,7 @@ void HTMLTableElement::ParseAttribute(
     if (!params.new_value.empty()) {
       padding_ =
           std::max(0, std::min((int32_t)std::numeric_limits<uint16_t>::max(),
-                               params.new_value.ToInt()));
+                               StringToInt(params.new_value).value_or(0)));
     } else {
       padding_ = 1;
     }
@@ -485,7 +486,9 @@ HTMLTableElement::AdditionalPresentationAttributeStyle() {
   if (frame_attr_)
     return nullptr;
 
-  if (!border_attr_ && !border_color_attr_) {
+  if (!border_attr_ &&
+      (!border_color_attr_ ||
+       RuntimeEnabledFeatures::TableBorderColorNoImplicitBorderEnabled())) {
     // Setting the border to 'hidden' allows it to win over any border
     // set on the table's cells during border-conflict resolution.
     if (rules_attr_ != kUnsetRules) {

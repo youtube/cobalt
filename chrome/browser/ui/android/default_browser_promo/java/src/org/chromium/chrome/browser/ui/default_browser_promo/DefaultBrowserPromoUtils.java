@@ -10,8 +10,15 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.role.RoleManager;
 import android.content.Context;
+import android.content.Intent;
+import android.provider.Settings;
 
+import androidx.annotation.IntDef;
+import androidx.annotation.VisibleForTesting;
+
+import org.chromium.base.Callback;
 import org.chromium.base.CommandLine;
+import org.chromium.base.IntentUtils;
 import org.chromium.base.ObserverList;
 import org.chromium.base.ResettersForTesting;
 import org.chromium.base.TimeUtils;
@@ -24,12 +31,16 @@ import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.util.DefaultBrowserInfo;
+import org.chromium.chrome.browser.util.DefaultBrowserInfo.DefaultBrowserState;
 import org.chromium.components.feature_engagement.FeatureConstants;
 import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.components.messages.MessageDispatcher;
 import org.chromium.components.messages.MessageDispatcherProvider;
 import org.chromium.ui.base.WindowAndroid;
 
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.time.Duration;
 
 /** A utility class providing information regarding states of default browser. */
@@ -52,6 +63,13 @@ public class DefaultBrowserPromoUtils {
 
     private final ObserverList<DefaultBrowserPromoTriggerStateListener>
             mDefaultBrowserPromoTriggerStateListeners;
+
+    @IntDef({DefaultBrowserPromoEntryPoint.APP_MENU, DefaultBrowserPromoEntryPoint.SETTINGS})
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface DefaultBrowserPromoEntryPoint {
+        int APP_MENU = 0;
+        int SETTINGS = 1;
+    }
 
     DefaultBrowserPromoUtils(
             DefaultBrowserPromoImpressionCounter impressionCounter,
@@ -93,7 +111,11 @@ public class DefaultBrowserPromoUtils {
         tracker.notifyEvent("role_manager_default_browser_promos_shown");
         DefaultBrowserPromoManager manager =
                 new DefaultBrowserPromoManager(
-                        activity, windowAndroid, mImpressionCounter, mStateProvider);
+                        activity,
+                        windowAndroid,
+                        mImpressionCounter,
+                        mStateProvider,
+                        /* source= */ null);
         manager.promoByRoleManager();
         return true;
     }
@@ -225,6 +247,82 @@ public class DefaultBrowserPromoUtils {
         boolean isRoleAvailable = roleManager.isRoleAvailable(RoleManager.ROLE_BROWSER);
         boolean isRoleHeld = roleManager.isRoleHeld(RoleManager.ROLE_BROWSER);
         return isRoleAvailable && !isRoleHeld;
+    }
+
+    /**
+     * @return True if: 1. sDefaultBrowserPromoEntryPoint is enabled. 2. Chrome is not the default
+     *     browser. Used by surfaces such as the app menu, in which the menu item doesn't persist.
+     */
+    public boolean shouldShowAppMenuItemEntryPoint() {
+        return ChromeFeatureList.sDefaultBrowserPromoEntryPoint.isEnabled()
+                && mStateProvider.shouldShowPromo();
+    }
+
+    private void openSystemDefaultAppsSettings(Context context) {
+        Intent intent = new Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        IntentUtils.safeStartActivity(context, intent);
+    }
+
+    /**
+     * Shared logic for handling the click on the menu items (default promo entry points) in
+     * Settings & App Menu. Note that the Role Manager dialog is shown if eligible; otherwise falls
+     * back to the Android System Settings default apps page.
+     *
+     * @param activity The current activity.
+     * @param windowAndroid The WindowAndroid (required for Role Manager).
+     * @param source The source of the click, one of {@link DefaultBrowserPromoEntryPoint}.
+     */
+    public void onMenuItemClick(
+            Activity activity,
+            @Nullable WindowAndroid windowAndroid,
+            @DefaultBrowserPromoEntryPoint int source) {
+
+        fetchDefaultBrowserInfo(
+                info -> {
+                    if (info == null) {
+                        // Fallback: show the default apps page in Android settings.
+                        openSystemDefaultAppsSettings(activity);
+                        return;
+                    }
+
+                    // Record the volume/engagement.
+                    @DefaultBrowserState int currentState = info.defaultBrowserState;
+                    DefaultBrowserPromoMetrics.recordEntrypointClick(source, currentState);
+
+                    // Show the role manager if:
+                    // a) Role manager hasn't been shown before AND
+                    // b) If the device supports setting a default browser via role API AND
+                    // c) Chrome is currently not a default browser
+                    boolean roleManagerShownBefore = mImpressionCounter.getPromoCount() > 0;
+
+                    if (!roleManagerShownBefore
+                            && isRoleAvailableButNotHeld(activity)
+                            && windowAndroid != null) {
+
+                        mImpressionCounter.onPromoShown();
+                        DefaultBrowserPromoManager manager =
+                                new DefaultBrowserPromoManager(
+                                        activity,
+                                        windowAndroid,
+                                        mImpressionCounter,
+                                        mStateProvider,
+                                        source);
+                        manager.promoByRoleManager();
+                    } else {
+                        // Fallback: show the default apps page in Android settings.
+                        openSystemDefaultAppsSettings(activity);
+                    }
+                });
+    }
+
+    @VisibleForTesting
+    protected void fetchDefaultBrowserInfo(
+            Callback<DefaultBrowserInfo.@Nullable DefaultInfo> callback) {
+        // Force clear the old cached value and generate a fresh DefaultInfoTask.
+        DefaultBrowserInfo.resetDefaultInfoTask();
+        // Fetch the fresh info asynchronously.
+        DefaultBrowserInfo.getDefaultBrowserInfo(callback);
     }
 
     public static void setInstanceForTesting(DefaultBrowserPromoUtils testInstance) {

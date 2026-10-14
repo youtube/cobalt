@@ -652,6 +652,9 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(
       return WriteJSSet(Cast<JSSet>(receiver));
     case JS_ARRAY_BUFFER_TYPE:
       return WriteJSArrayBuffer(Cast<JSArrayBuffer>(receiver));
+    case JS_DETACHED_TYPED_ARRAY_TYPE:
+      return ThrowDataCloneError(
+          MessageTemplate::kDataCloneErrorDetachedArrayBuffer);
     case JS_TYPED_ARRAY_TYPE:
     case JS_DATA_VIEW_TYPE:
     case JS_RAB_GSAB_DATA_VIEW_TYPE:
@@ -1008,6 +1011,9 @@ Maybe<bool> ValueSerializer::WriteJSArrayBuffer(
     // See comment for WasmMemoryObject::FixUpResizableArrayBuffer for details.
     auto backing_store = array_buffer->GetBackingStore();
     if (backing_store && backing_store->is_wasm_memory()) {
+      DCHECK_EQ(
+          backing_store->is_resizable_by_js(),
+          !backing_store->is_shared() && array_buffer->is_resizable_by_js());
       if (array_buffer->is_resizable_by_js()) {
         Handle<Object> memory =
             Object::GetProperty(

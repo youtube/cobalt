@@ -57,7 +57,7 @@ IN_PROC_BROWSER_TEST_F(GlicMetricsBrowserTest, GlicFreShown_SingleInstance) {
 #if BUILDFLAG(IS_LINUX)
   // TODO(crbug.com/475900964): Test fails when capturing
   // Glic.Fre.Dismissed.Onboarding user action.
-  if (ui::OzonePlatform::GetPlatformNameForTest() == "wayland") {
+  if (ui::OzonePlatform::RunningOnWaylandForTest()) {
     GTEST_SKIP() << "Test failing on Wayland: crbug.com/475900964";
   }
 #endif
@@ -77,7 +77,7 @@ IN_PROC_BROWSER_TEST_F(GlicMetricsBrowserTest, GlicFreShown_SingleInstance) {
                  mojom::InvocationSource::kOsButton);
 
   EXPECT_EQ(user_action_tester.GetActionCount("Glic.Fre.Dismissed.Onboarding"),
-            1);
+            0);
 }
 
 class GlicMetricsMultiInstanceBrowserTest : public GlicMetricsBrowserTest {

@@ -24,13 +24,10 @@
 #include "base/types/pass_key.h"
 #include "chrome/browser/ai/ai_context_bound_object.h"
 #include "chrome/browser/ai/ai_context_bound_object_set.h"
-#include "chrome/browser/ai/ai_crx_component.h"
 #include "chrome/browser/ai/ai_language_model.h"
-#include "chrome/browser/ai/ai_never_load_component.h"
 #include "chrome/browser/ai/ai_proofreader.h"
 #include "chrome/browser/ai/ai_rewriter.h"
 #include "chrome/browser/ai/ai_summarizer.h"
-#include "chrome/browser/ai/ai_utils.h"
 #include "chrome/browser/ai/ai_writer.h"
 #include "chrome/browser/ai/features.h"
 #include "chrome/browser/component_updater/optimization_guide_on_device_model_installer.h"
@@ -38,6 +35,7 @@
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/language/core/common/locale_util.h"
+#include "components/on_device_ai/ai_utils.h"
 #include "components/optimization_guide/core/delivery/model_util.h"
 #include "components/optimization_guide/core/model_execution/feature_keys.h"
 #include "components/optimization_guide/core/model_execution/on_device_capability.h"
@@ -54,6 +52,7 @@
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/remote_set.h"
 #include "services/on_device_model/public/cpp/capabilities.h"
+#include "services/on_device_model/public/mojom/download_observer.mojom.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 #include "third_party/blink/public/common/features_generated.h"
 #include "third_party/blink/public/mojom/ai/ai_common.mojom.h"
@@ -62,7 +61,6 @@
 #include "third_party/blink/public/mojom/ai/ai_proofreader.mojom.h"
 #include "third_party/blink/public/mojom/ai/ai_rewriter.mojom.h"
 #include "third_party/blink/public/mojom/ai/ai_writer.mojom.h"
-#include "third_party/blink/public/mojom/ai/model_download_progress_observer.mojom.h"
 #include "third_party/blink/public/mojom/ai/model_streaming_responder.mojom.h"
 #include "third_party/blink/public/mojom/devtools/console_message.mojom-shared.h"
 
@@ -333,12 +331,9 @@ bool CheckAndFixOutputLanguage(
 
 }  // namespace
 
-AIManager::AIManager(
-    content::BrowserContext* browser_context,
-    component_updater::ComponentUpdateService* component_update_service,
-    content::RenderFrameHost* rfh)
-    : component_update_service_(*component_update_service),
-      context_bound_object_set_(GetPriorityFromVisibility(rfh)),
+AIManager::AIManager(content::BrowserContext* browser_context,
+                     content::RenderFrameHost* rfh)
+    : context_bound_object_set_(GetPriorityFromVisibility(rfh)),
       browser_context_(browser_context),
       rfh_(rfh ? rfh->GetWeakDocumentPtr() : content::WeakDocumentPtr()) {
   if (rfh && rfh->GetRenderWidgetHost()) {
@@ -407,7 +402,7 @@ void AIManager::CreateLanguageModel(
                             AILanguageModel::GetSupportedLanguageBaseCodes())) {
     mojo::Remote<blink::mojom::AIManagerCreateLanguageModelClient>
         client_remote(std::move(client));
-    AIUtils::SendClientRemoteError(
+    on_device_ai::SendClientRemoteError(
         client_remote,
         blink::mojom::AIManagerCreateClientError::kUnsupportedLanguage);
     return;
@@ -416,7 +411,7 @@ void AIManager::CreateLanguageModel(
   if (!model_broker_client_) {
     mojo::Remote<blink::mojom::AIManagerCreateLanguageModelClient>
         client_remote(std::move(client));
-    AIUtils::SendClientRemoteError(
+    on_device_ai::SendClientRemoteError(
         client_remote,
         blink::mojom::AIManagerCreateClientError::kUnableToCreateSession);
     return;
@@ -436,7 +431,7 @@ void AIManager::CreateLanguageModelInternal(
   if (!model_client) {
     mojo::Remote<blink::mojom::AIManagerCreateLanguageModelClient>
         client_remote(std::move(client));
-    AIUtils::SendClientRemoteError(
+    on_device_ai::SendClientRemoteError(
         client_remote,
         blink::mojom::AIManagerCreateClientError::kUnableToCreateSession);
     return;
@@ -471,7 +466,7 @@ void AIManager::CreateLanguageModelInternal(
         !service->GetOnDeviceCapabilities().HasAll(params->capabilities)) {
       mojo::Remote<blink::mojom::AIManagerCreateLanguageModelClient>
           client_remote(std::move(client));
-      AIUtils::SendClientRemoteError(
+      on_device_ai::SendClientRemoteError(
           client_remote,
           blink::mojom::AIManagerCreateClientError::kUnableToCreateSession);
       return;
@@ -522,7 +517,7 @@ void AIManager::CreateSummarizer(
                             AISummarizer::GetSupportedLanguageBaseCodes())) {
     mojo::Remote<blink::mojom::AIManagerCreateSummarizerClient> client_remote(
         std::move(client));
-    AIUtils::SendClientRemoteError(
+    on_device_ai::SendClientRemoteError(
         client_remote,
         blink::mojom::AIManagerCreateClientError::kUnsupportedLanguage);
     return;
@@ -531,7 +526,7 @@ void AIManager::CreateSummarizer(
   if (!model_broker_client_) {
     mojo::Remote<blink::mojom::AIManagerCreateSummarizerClient> client_remote(
         std::move(client));
-    AIUtils::SendClientRemoteError(
+    on_device_ai::SendClientRemoteError(
         client_remote,
         blink::mojom::AIManagerCreateClientError::kUnableToCreateSession);
     return;
@@ -544,13 +539,13 @@ void AIManager::CreateSummarizer(
     request.set_context(options->shared_context.value());
     initial_request = optimization_guide::MultimodalMessage(request);
   }
-  auto callback = base::BindOnce(
-      &AIManager::OnSessionCreated<
-          AISummarizer, blink::mojom::AISummarizer,
-          blink::mojom::AIManagerCreateSummarizerClient,
-          blink::mojom::AISummarizerCreateOptionsPtr>,
-      weak_factory_.GetWeakPtr(), std::ref(context_bound_object_set_),
-      std::move(options), std::move(initial_request), std::move(client));
+  auto callback =
+      base::BindOnce(&AIManager::OnSessionCreated<
+                         AISummarizer, blink::mojom::AISummarizer,
+                         blink::mojom::AIManagerCreateSummarizerClient,
+                         blink::mojom::AISummarizerCreateOptionsPtr>,
+                     weak_factory_.GetWeakPtr(), std::move(options),
+                     std::move(initial_request), std::move(client));
   tried_init_.insert(optimization_guide::mojom::OnDeviceFeature::kSummarize);
   model_broker_client_->CreateSession(
       optimization_guide::mojom::OnDeviceFeature::kSummarize,
@@ -582,7 +577,7 @@ void AIManager::CreateProofreader(
   if (!CheckAndFixLanguages(options, "Proofreader", supported)) {
     mojo::Remote<blink::mojom::AIManagerCreateProofreaderClient> client_remote(
         std::move(client));
-    AIUtils::SendClientRemoteError(
+    on_device_ai::SendClientRemoteError(
         client_remote,
         blink::mojom::AIManagerCreateClientError::kUnsupportedLanguage);
     return;
@@ -591,7 +586,7 @@ void AIManager::CreateProofreader(
   if (!model_broker_client_) {
     mojo::Remote<blink::mojom::AIManagerCreateProofreaderClient> client_remote(
         std::move(client));
-    AIUtils::SendClientRemoteError(
+    on_device_ai::SendClientRemoteError(
         client_remote,
         blink::mojom::AIManagerCreateClientError::kUnableToCreateSession);
     return;
@@ -602,8 +597,7 @@ void AIManager::CreateProofreader(
                          AIProofreader, blink::mojom::AIProofreader,
                          blink::mojom::AIManagerCreateProofreaderClient,
                          blink::mojom::AIProofreaderCreateOptionsPtr>,
-                     weak_factory_.GetWeakPtr(),
-                     std::ref(context_bound_object_set_), std::move(options),
+                     weak_factory_.GetWeakPtr(), std::move(options),
                      /*initial_request=*/std::nullopt, std::move(client));
   tried_init_.insert(
       optimization_guide::mojom::OnDeviceFeature::kProofreaderApi);
@@ -688,7 +682,7 @@ void AIManager::CreateWriter(
                             AIWriter::GetSupportedLanguageBaseCodes())) {
     mojo::Remote<blink::mojom::AIManagerCreateWriterClient> client_remote(
         std::move(client));
-    AIUtils::SendClientRemoteError(
+    on_device_ai::SendClientRemoteError(
         client_remote,
         blink::mojom::AIManagerCreateClientError::kUnsupportedLanguage);
     return;
@@ -697,7 +691,7 @@ void AIManager::CreateWriter(
   if (!model_broker_client_) {
     mojo::Remote<blink::mojom::AIManagerCreateWriterClient> client_remote(
         std::move(client));
-    AIUtils::SendClientRemoteError(
+    on_device_ai::SendClientRemoteError(
         client_remote,
         blink::mojom::AIManagerCreateClientError::kUnableToCreateSession);
     return;
@@ -714,8 +708,8 @@ void AIManager::CreateWriter(
       &AIManager::OnSessionCreated<AIWriter, blink::mojom::AIWriter,
                                    blink::mojom::AIManagerCreateWriterClient,
                                    blink::mojom::AIWriterCreateOptionsPtr>,
-      weak_factory_.GetWeakPtr(), std::ref(context_bound_object_set_),
-      std::move(options), std::move(initial_request), std::move(client));
+      weak_factory_.GetWeakPtr(), std::move(options),
+      std::move(initial_request), std::move(client));
   tried_init_.insert(
       optimization_guide::mojom::OnDeviceFeature::kWritingAssistanceApi);
   model_broker_client_->CreateSession(
@@ -749,7 +743,7 @@ void AIManager::CreateRewriter(
                             AIRewriter::GetSupportedLanguageBaseCodes())) {
     mojo::Remote<blink::mojom::AIManagerCreateRewriterClient> client_remote(
         std::move(client));
-    AIUtils::SendClientRemoteError(
+    on_device_ai::SendClientRemoteError(
         client_remote,
         blink::mojom::AIManagerCreateClientError::kUnsupportedLanguage);
     return;
@@ -758,7 +752,7 @@ void AIManager::CreateRewriter(
   if (!model_broker_client_) {
     mojo::Remote<blink::mojom::AIManagerCreateRewriterClient> client_remote(
         std::move(client));
-    AIUtils::SendClientRemoteError(
+    on_device_ai::SendClientRemoteError(
         client_remote,
         blink::mojom::AIManagerCreateClientError::kUnableToCreateSession);
     return;
@@ -775,8 +769,8 @@ void AIManager::CreateRewriter(
       &AIManager::OnSessionCreated<AIRewriter, blink::mojom::AIRewriter,
                                    blink::mojom::AIManagerCreateRewriterClient,
                                    blink::mojom::AIRewriterCreateOptionsPtr>,
-      weak_factory_.GetWeakPtr(), std::ref(context_bound_object_set_),
-      std::move(options), std::move(initial_request), std::move(client));
+      weak_factory_.GetWeakPtr(), std::move(options),
+      std::move(initial_request), std::move(client));
   tried_init_.insert(
       optimization_guide::mojom::OnDeviceFeature::kWritingAssistanceApi);
   model_broker_client_->CreateSession(
@@ -855,7 +849,6 @@ template <typename ContextBoundObjectType,
           typename ClientRemoteInterface,
           typename CreateOptionsPtrType>
 void AIManager::OnSessionCreated(
-    AIContextBoundObjectSet& context_bound_object_set,
     CreateOptionsPtrType options,
     std::optional<optimization_guide::MultimodalMessage> initial_request,
     mojo::PendingRemote<ClientRemoteInterface> client,
@@ -863,7 +856,7 @@ void AIManager::OnSessionCreated(
   mojo::Remote<ClientRemoteInterface> client_remote(std::move(client));
 
   if (!session) {
-    AIUtils::AIUtils::SendClientRemoteError(
+    on_device_ai::SendClientRemoteError(
         client_remote,
         blink::mojom::AIManagerCreateClientError::kUnableToCreateSession);
     return;
@@ -876,45 +869,49 @@ void AIManager::OnSessionCreated(
     session->GetExecutionInputSizeInTokens(
         initial_request.value().read(),
         base::BindOnce(
-            [](AIContextBoundObjectSet& context_bound_object_set,
-               CreateOptionsPtrType options,
-               mojo::Remote<ClientRemoteInterface> client_remote,
-               std::unique_ptr<optimization_guide::OnDeviceSession> session,
-               std::optional<uint32_t> result) {
-              if (!result.has_value()) {
-                AIUtils::SendClientRemoteError(
-                    client_remote, blink::mojom::AIManagerCreateClientError::
-                                       kUnableToCalculateTokenSize);
-                return;
-              }
-              uint32_t quota =
-                  blink::mojom::kWritingAssistanceMaxInputTokenSize;
-              if (result.value() > quota) {
-                AIUtils::SendClientRemoteError(
-                    client_remote,
-                    blink::mojom::AIManagerCreateClientError::
-                        kInitialInputTooLarge,
-                    blink::mojom::QuotaErrorInfo::New(result.value(), quota));
-                return;
-              }
-              mojo::PendingRemote<ContextBoundObjectReceiverInterface>
-                  pending_remote;
-              context_bound_object_set.AddContextBoundObject(
-                  std::make_unique<ContextBoundObjectType>(
-                      context_bound_object_set, std::move(session),
-                      std::move(options),
-                      pending_remote.InitWithNewPipeAndPassReceiver()));
-              client_remote->OnResult(std::move(pending_remote));
-            },
-            std::ref(context_bound_object_set), std::move(options),
+            &AIManager::OnGotExecutionInputSizeInTokens<
+                ContextBoundObjectType, ContextBoundObjectReceiverInterface,
+                ClientRemoteInterface, CreateOptionsPtrType>,
+            weak_factory_.GetWeakPtr(), std::move(options),
             std::move(client_remote), std::move(session)));
     return;
   }
 
   mojo::PendingRemote<ContextBoundObjectReceiverInterface> pending_remote;
-  context_bound_object_set.AddContextBoundObject(
+  context_bound_object_set_.AddContextBoundObject(
       std::make_unique<ContextBoundObjectType>(
-          context_bound_object_set, std::move(session), std::move(options),
+          context_bound_object_set_, std::move(session), std::move(options),
+          pending_remote.InitWithNewPipeAndPassReceiver()));
+  client_remote->OnResult(std::move(pending_remote));
+}
+
+template <typename ContextBoundObjectType,
+          typename ContextBoundObjectReceiverInterface,
+          typename ClientRemoteInterface,
+          typename CreateOptionsPtrType>
+void AIManager::OnGotExecutionInputSizeInTokens(
+    CreateOptionsPtrType options,
+    mojo::Remote<ClientRemoteInterface> client_remote,
+    std::unique_ptr<optimization_guide::OnDeviceSession> session,
+    std::optional<uint32_t> result) {
+  if (!result.has_value()) {
+    on_device_ai::SendClientRemoteError(
+        client_remote,
+        blink::mojom::AIManagerCreateClientError::kUnableToCalculateTokenSize);
+    return;
+  }
+  uint32_t quota = blink::mojom::kWritingAssistanceMaxInputTokenSize;
+  if (result.value() > quota) {
+    on_device_ai::SendClientRemoteError(
+        client_remote,
+        blink::mojom::AIManagerCreateClientError::kInitialInputTooLarge,
+        blink::mojom::QuotaErrorInfo::New(result.value(), quota));
+    return;
+  }
+  mojo::PendingRemote<ContextBoundObjectReceiverInterface> pending_remote;
+  context_bound_object_set_.AddContextBoundObject(
+      std::make_unique<ContextBoundObjectType>(
+          context_bound_object_set_, std::move(session), std::move(options),
           pending_remote.InitWithNewPipeAndPassReceiver()));
   client_remote->OnResult(std::move(pending_remote));
 }
@@ -985,24 +982,12 @@ void AIManager::OnModelPathValidationComplete(const base::FilePath& model_path,
 }
 
 void AIManager::AddModelDownloadProgressObserver(
-    mojo::PendingRemote<blink ::mojom::ModelDownloadProgressObserver>
+    mojo::PendingRemote<on_device_model::mojom::DownloadObserver>
         observer_remote) {
-  auto components = on_device_ai::AICrxComponent::FromComponentIds(
-      &component_update_service_.get(),
-      {component_updater::OptimizationGuideOnDeviceModelInstallerPolicy::
-           GetOnDeviceModelExtensionId()});
-
-  // Have some portion of the loading bar occupied until the renderer sends the
-  // 100% download progress on creation. This is to indicate that there is still
-  // work going on between when the model is downloaded and the actual API
-  // instance is created.
-  if (base::FeatureList::IsEnabled(features::kAIModelUnloadableProgress)) {
-    components.insert(std::make_unique<on_device_ai::AINeverLoadComponent>(
-        features::kAIModelUnloadableProgressBytes.Get()));
+  if (model_broker_client_) {
+    model_broker_client_->AddModelDownloadProgressObserver(
+        std::move(observer_remote));
   }
-
-  model_download_progress_manager_.AddObserver(std::move(observer_remote),
-                                               std::move(components));
 }
 
 void AIManager::RenderWidgetHostVisibilityChanged(

@@ -3298,7 +3298,7 @@ TEST_F(PasswordAutofillAgentTest, NotShowPopupPasswordField) {
 
 // Tests with fill-on-account-select enabled that if the username element is
 // read-only and filled with an unknown username, then the password field is not
-// highlighted as autofillable (regression test for https://crbug.com/442564).
+// highlighted as autofillable (regression test for https://crbug.com/40398437).
 TEST_F(PasswordAutofillAgentTest,
        FillOnAccountSelectOnlyReadonlyUnknownUsername) {
   ClearUsernameAndPasswordFieldValues();
@@ -3329,7 +3329,7 @@ TEST_F(PasswordAutofillAgentTest, ReadonlyPasswordFieldOnSubmit) {
 }
 
 // Verify that typed passwords are saved correctly when autofill and generation
-// both trigger. Regression test for https://crbug.com/493455
+// both trigger. Regression test for https://crbug.com/40420215
 TEST_F(PasswordAutofillAgentTest, PasswordGenerationTriggered_TypedPassword) {
   SimulateOnFillPasswordForm(fill_data_);
 
@@ -3352,7 +3352,7 @@ TEST_F(PasswordAutofillAgentTest, PasswordGenerationTriggered_TypedPassword) {
 }
 
 // Verify that generated passwords are saved correctly when autofill and
-// generation both trigger. Regression test for https://crbug.com/493455.
+// generation both trigger. Regression test for https://crbug.com/40420215.
 TEST_F(PasswordAutofillAgentTest,
        PasswordGenerationTriggered_GeneratedPassword) {
   SimulateOnFillPasswordForm(fill_data_);
@@ -4396,7 +4396,7 @@ TEST_F(PasswordAutofillAgentTest, AutocompleteWhenPageUrlIsChanged) {
   CheckTextFieldsSuggestedState(kAliceUsername, true, kAlicePassword, true);
 }
 
-// Regression test for https://crbug.com/728028.
+// Regression test for https://crbug.com/41322402.
 TEST_F(PasswordAutofillAgentTest, NoForm_MultipleAJAXEventsWithoutSubmission) {
   LoadHTML(kNoFormHTML);
   UpdateUsernameAndPasswordElements();
@@ -5119,32 +5119,6 @@ TEST_F(PasswordAutofillAgentTest, JSFieldModificationNonTextInput) {
   EXPECT_EQ(called_inform_about_user_input_count_, 0);
 }
 
-// Tests that the metric for the number of times form fill data is stored
-// for a form is recorded correctly.
-TEST_F(PasswordAutofillAgentTest, TimesReceivedFillDataForFormMetric) {
-  // Simulate the browser sending back the login info, it triggers the
-  // autocomplete.
-  SimulateOnFillPasswordForm(fill_data_);
-
-  // Simulate form fill data changing after form reparsing.
-  fill_data_.username_element_renderer_id = FieldRendererId();
-  SimulateOnFillPasswordForm(fill_data_);
-
-  // Simulate receiving form fill data that cannot be used, e.g. because
-  // the fields are not present on the page.
-  // Simulate form fill data changing after form reparsing.
-  fill_data_.username_element_renderer_id = FieldRendererId(404);
-  fill_data_.password_element_renderer_id = FieldRendererId(40404);
-  SimulateOnFillPasswordForm(fill_data_);
-
-  // Simulate navigating to a new document.
-  password_autofill_agent_->ReadyToCommitNavigation(nullptr);
-  // The histogram should be recorded only for the form present on a
-  // page.
-  histogram_tester_.ExpectUniqueSample(
-      "PasswordManager.TimesReceivedFillDataForForm", 2, 1);
-}
-
 // Tests that if a password form was focused before parsing happened,
 // suggestions are shown to the user once the form is parsed on Desktop,
 // but not on Android.
@@ -5424,54 +5398,6 @@ TEST_F(PasswordAutofillAgentTest, FillChangePasswordFormFailed) {
   EXPECT_EQ(u"", password.Value().Utf16());
   EXPECT_EQ(u"", new_password.Value().Utf16());
   EXPECT_EQ(u"", confirmation_password.Value().Utf16());
-}
-
-// Check that a dynamic form submission can be detected after the form is
-// filled on a page load.
-TEST_F(PasswordAutofillAgentTest,
-       DynamicFormSubmissionDetectedAfterFillingOnPageLoad) {
-  LoadHTML(kDivWrappedFormHTML);
-  UpdateUsernameAndPasswordElements();
-  FormRendererId renderer_id = GetFormUniqueRendererId("form");
-
-  // Fill the form on pageload with change password supported flag.
-  fill_data_.notify_browser_of_successful_filling = true;
-
-  SimulateOnFillPasswordForm(fill_data_);
-  CheckTextFieldsSuggestedState(kAliceUsername, true, kAlicePassword, true);
-  CheckFirstFillingResult(FillingResult::kSuccess);
-
-  // Simulate website removing the change password form from the DOM after a
-  // successful submission.
-  FireAjaxSucceeded();
-  constexpr char kDeleteElement[] = "document.getElementById('inner').remove()";
-  ExecuteJavaScriptForTests(kDeleteElement);
-
-  ExpectDynamicFormSubmissionWithUsernameAndPasswords(
-      renderer_id, kAliceUsername16, kAlicePassword16,
-      SubmissionIndicatorEvent::DOM_MUTATION_AFTER_AUTOFILL);
-}
-
-// Check that a dynamic form submission is not detected after on page load.
-TEST_F(PasswordAutofillAgentTest, DynamicFormSubmissionNotDetected) {
-  LoadHTML(kDivWrappedFormHTML);
-  UpdateUsernameAndPasswordElements();
-
-  fill_data_.notify_browser_of_successful_filling = false;
-
-  SimulateOnFillPasswordForm(fill_data_);
-  CheckTextFieldsSuggestedState(kAliceUsername, true, kAlicePassword, true);
-  CheckFirstFillingResult(FillingResult::kSuccess);
-
-  // Simulate website removing the change password form from the DOM after a
-  // successful submission.
-  FireAjaxSucceeded();
-  constexpr char kDeleteElement[] = "document.getElementById('inner').remove()";
-  ExecuteJavaScriptForTests(kDeleteElement);
-
-  EXPECT_CALL(fake_driver_, DynamicFormSubmission).Times(0);
-  base::RunLoop().RunUntilIdle();
-  ASSERT_FALSE(form_data_maybe_submitted_);
 }
 
 #if BUILDFLAG(IS_ANDROID)

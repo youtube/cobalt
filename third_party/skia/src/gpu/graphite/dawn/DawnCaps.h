@@ -50,6 +50,7 @@ public:
     TextureInfo getDefaultStorageTextureInfo(SkColorType) const override;
     SkISize getDepthAttachmentDimensions(const TextureInfo&,
                                          const SkISize colorAttachmentDimensions) const override;
+
     UniqueKey makeGraphicsPipelineKey(const GraphicsPipelineDesc&,
                                       const RenderPassDesc&) const override;
     bool extractGraphicsDescs(const UniqueKey&,
@@ -89,18 +90,10 @@ public:
     bool isTexturableIgnoreSampleCount(const TextureInfo& info) const;
 
 private:
-    const ColorTypeInfo* getColorTypeInfo(SkColorType, const TextureInfo&) const override;
+    SkSpan<const ColorTypeInfo> getColorTypeInfos(const TextureInfo&) const override;
     bool onIsTexturable(const TextureInfo&) const override;
     bool supportsWritePixels(const TextureInfo&) const override;
     bool supportsReadPixels(const TextureInfo&) const override;
-    std::pair<SkColorType, bool /*isRGBFormat*/> supportedWritePixelsColorType(
-            SkColorType dstColorType,
-            const TextureInfo& dstTextureInfo,
-            SkColorType srcColorType) const override;
-    std::pair<SkColorType, bool /*isRGBFormat*/> supportedReadPixelsColorType(
-            SkColorType srcColorType,
-            const TextureInfo& srcTextureInfo,
-            SkColorType dstColorType) const override;
 
     void initCaps(const DawnBackendContext&, const ContextOptions&);
     void initShaderCaps(const wgpu::Device&);

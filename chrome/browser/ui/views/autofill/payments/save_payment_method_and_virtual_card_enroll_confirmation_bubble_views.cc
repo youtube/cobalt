@@ -6,12 +6,14 @@
 
 #include <utility>
 
+#include "base/feature_list.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/ui/views/accessibility/theme_tracking_non_accessible_image_view.h"
 #include "chrome/browser/ui/views/autofill/payments/dialog_view_ids.h"
 #include "chrome/browser/ui/views/autofill/payments/payments_view_util.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/grit/browser_resources.h"
+#include "components/autofill/core/common/autofill_payments_features.h"
 #include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/base/ui_base_types.h"
@@ -63,9 +65,28 @@ void SavePaymentMethodAndVirtualCardEnrollConfirmationBubbleViews::
                                      .set_bottom(0)));
     GetBubbleFrameView()->SetHeaderView(std::move(image));
   }
-  GetBubbleFrameView()->SetTitleView(
-      std::make_unique<TitleWithIconAfterLabelView>(
-          GetWindowTitle(), TitleWithIconAfterLabelView::Icon::GOOGLE_PAY));
+
+  bool is_wallet_branding_enabled =
+      base::FeatureList::IsEnabled(features::kAutofillEnableWalletBranding);
+  bool should_show_logo = ui_params_.is_success
+                              ? ui_params_.should_display_wallet_logo
+                              : !is_wallet_branding_enabled;
+  if (should_show_logo) {
+    GetBubbleFrameView()->SetTitleView(
+        std::make_unique<TitleWithIconAfterLabelView>(
+            GetWindowTitle(),
+            is_wallet_branding_enabled
+                ? TitleWithIconAfterLabelView::Icon::GOOGLE_WALLET
+                : TitleWithIconAfterLabelView::Icon::GOOGLE_PAY));
+  } else {
+    // The Google Wallet logo should not be shown for failed upload saves or for
+    // successful upload saves specifically made via the Save and Fill feature.
+    auto title_view = std::make_unique<views::Label>(
+        GetWindowTitle(), views::style::CONTEXT_DIALOG_TITLE);
+    title_view->SetHorizontalAlignment(gfx::ALIGN_TO_HEAD);
+    title_view->SetMultiLine(true);
+    GetBubbleFrameView()->SetTitleView(std::move(title_view));
+  }
 }
 
 std::u16string

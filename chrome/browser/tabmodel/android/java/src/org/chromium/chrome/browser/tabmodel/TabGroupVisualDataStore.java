@@ -5,15 +5,15 @@
 package org.chromium.chrome.browser.tabmodel;
 
 import static org.chromium.base.ThreadUtils.assertOnUiThread;
+import static org.chromium.chrome.browser.tabmodel.TabGroupTitleUtils.UNSET_TAB_GROUP_TITLE;
+import static org.chromium.chrome.browser.tabmodel.TabGroupTitleUtils.isTitleUnset;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.text.TextUtils;
 
 import org.chromium.base.ContextUtils;
 import org.chromium.base.Token;
 import org.chromium.build.annotations.NullMarked;
-import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabGroupCollectionData;
 import org.chromium.components.tab_groups.TabGroupColorId;
@@ -83,9 +83,9 @@ public class TabGroupVisualDataStore {
      * @param tabRootId The tab root ID which is used as reference to store group title.
      * @param title The tab group title to store.
      */
-    /* package */ static void storeTabGroupTitle(int tabRootId, @Nullable String title) {
+    /* package */ static void storeTabGroupTitle(int tabRootId, String title) {
         assert tabRootId != Tab.INVALID_TAB_ID;
-        if (TextUtils.isEmpty(title)) {
+        if (isTitleUnset(title)) {
             deleteTabGroupTitle(tabRootId);
         } else {
             getTitleSharedPreferences().edit().putString(String.valueOf(tabRootId), title).apply();
@@ -110,13 +110,15 @@ public class TabGroupVisualDataStore {
      * TabGroupModelFilter}.
      *
      * @param tabRootId The tab root ID whose related tab group title will be fetched.
-     * @return The stored title of the target tab group, default value is null.
+     * @return The stored title of the target tab group, default value is {@link
+     *     TabGroupTitleUtils#UNSET_TAB_GROUP_TITLE}.
      */
-    /* package */ static @Nullable String getTabGroupTitle(int tabRootId) {
+    /* package */ static String getTabGroupTitle(int tabRootId) {
         assert tabRootId != Tab.INVALID_TAB_ID;
         // TODO(crbug.com/40895368): Consider checking if this looks like the default plural string
-        // and deleting and returning null if any users have saved tab group titles.
-        return getTitleSharedPreferences().getString(String.valueOf(tabRootId), null);
+        // and deleting and returning an unset string if any users have saved tab group titles.
+        return getTitleSharedPreferences()
+                .getString(String.valueOf(tabRootId), UNSET_TAB_GROUP_TITLE);
     }
 
     private static SharedPreferences getTitleSharedPreferences() {
@@ -153,6 +155,22 @@ public class TabGroupVisualDataStore {
     /* package */ static void storeTabGroupColor(int tabRootId, int color) {
         assert tabRootId != Tab.INVALID_TAB_ID;
         getColorSharedPreferences().edit().putInt(String.valueOf(tabRootId), color).apply();
+    }
+
+    /**
+     * This method checks if visual data for the specified tab group is currently present in the
+     * in-memory cache, populated during tab restore.
+     *
+     * <p>This is used to determine if a storage update is required to flush potentially dirty
+     * cached data to SharedPreferences, even if the incoming value matches the cached value.
+     *
+     * <p>Package protected as all access should route through the {@link TabGroupModelFilter}.
+     *
+     * @param tabGroupId The token identifier for the tab group.
+     * @return True if the tab group data is currently cached, false otherwise.
+     */
+    /* package */ static boolean isTabGroupCachedForRestore(Token tabGroupId) {
+        return sGroupsCache.containsKey(tabGroupId);
     }
 
     /**
@@ -238,8 +256,9 @@ public class TabGroupVisualDataStore {
      * @param tabGroupId The tab group ID which is used as reference to store group title.
      * @param title The tab group title to store.
      */
-    /* package */ static void storeTabGroupTitle(Token tabGroupId, @Nullable String title) {
-        if (TextUtils.isEmpty(title)) {
+    /* package */ static void storeTabGroupTitle(Token tabGroupId, String title) {
+        flushCachedData(tabGroupId);
+        if (isTitleUnset(title)) {
             deleteTabGroupTitle(tabGroupId);
         } else {
             getTokenTitleSharedPreferences().edit().putString(tabGroupId.toString(), title).apply();
@@ -252,6 +271,7 @@ public class TabGroupVisualDataStore {
      * @param tabGroupId The tab group ID whose related tab group title will be deleted.
      */
     /* package */ static void deleteTabGroupTitle(Token tabGroupId) {
+        flushCachedData(tabGroupId);
         getTokenTitleSharedPreferences().edit().remove(tabGroupId.toString()).apply();
     }
 
@@ -259,15 +279,17 @@ public class TabGroupVisualDataStore {
      * This method fetches a tab group title with the related tab group ID.
      *
      * @param tabGroupId The tab group ID whose related tab group title will be fetched.
-     * @return The stored title of the target tab group, default value is null. If the group is
-     *     present in the cache, data will be read from there first.
+     * @return The stored title of the target tab group, default value is {@link
+     *     TabGroupTitleUtils#UNSET_TAB_GROUP_TITLE}. If the group is present in the cache, data
+     *     will be read from there first.
      */
-    /* package */ static @Nullable String getTabGroupTitle(Token tabGroupId) {
+    /* package */ static String getTabGroupTitle(Token tabGroupId) {
         if (sGroupsCache.containsKey(tabGroupId)) {
             TabGroupCollectionData groupCollectionData = sGroupsCache.get(tabGroupId);
             return groupCollectionData.getTitle();
         }
-        return getTokenTitleSharedPreferences().getString(tabGroupId.toString(), null);
+        return getTokenTitleSharedPreferences()
+                .getString(tabGroupId.toString(), UNSET_TAB_GROUP_TITLE);
     }
 
     private static SharedPreferences getTokenTitleSharedPreferences() {
@@ -282,6 +304,7 @@ public class TabGroupVisualDataStore {
      * @param color The tab group color {@link TabGroupColorId} to store.
      */
     /* package */ static void storeTabGroupColor(Token tabGroupId, int color) {
+        flushCachedData(tabGroupId);
         getTokenColorSharedPreferences().edit().putInt(tabGroupId.toString(), color).apply();
     }
 
@@ -291,6 +314,7 @@ public class TabGroupVisualDataStore {
      * @param tabGroupId The tab group ID whose related tab group color will be deleted.
      */
     /* package */ static void deleteTabGroupColor(Token tabGroupId) {
+        flushCachedData(tabGroupId);
         getTokenColorSharedPreferences().edit().remove(tabGroupId.toString()).apply();
     }
 
@@ -321,6 +345,7 @@ public class TabGroupVisualDataStore {
      * @param isCollapsed If the tab group is collapsed or expanded.
      */
     /* package */ static void storeTabGroupCollapsed(Token tabGroupId, boolean isCollapsed) {
+        flushCachedData(tabGroupId);
         if (isCollapsed) {
             getTokenCollapsedSharedPreferences()
                     .edit()
@@ -337,6 +362,7 @@ public class TabGroupVisualDataStore {
      * @param tabGroupId The tab group ID whose related tab group collapsed state will be deleted.
      */
     /* package */ static void deleteTabGroupCollapsed(Token tabGroupId) {
+        flushCachedData(tabGroupId);
         getTokenCollapsedSharedPreferences().edit().remove(tabGroupId.toString()).apply();
     }
 
@@ -406,7 +432,7 @@ public class TabGroupVisualDataStore {
      */
     /* package */ static void migrateToTokenKeyedStorage(int rootId, Token tabGroupId) {
         String title = getTabGroupTitle(rootId);
-        if (title != null) {
+        if (!isTitleUnset(title)) {
             storeTabGroupTitle(tabGroupId, title);
             deleteTabGroupTitle(rootId);
         }
@@ -433,7 +459,7 @@ public class TabGroupVisualDataStore {
      */
     /* package */ static void migrateFromTokenKeyedStorage(Token tabGroupId, int rootId) {
         String title = getTabGroupTitle(tabGroupId);
-        if (title != null) {
+        if (!isTitleUnset(title)) {
             storeTabGroupTitle(rootId, title);
             deleteTabGroupTitle(tabGroupId);
         }
@@ -449,5 +475,46 @@ public class TabGroupVisualDataStore {
             storeTabGroupCollapsed(rootId, true);
             deleteTabGroupCollapsed(tabGroupId);
         }
+    }
+
+    /**
+     * Removes the group data from the memory cache and ensures all its properties are persisted to
+     * SharedPreferences. This prevents data loss for properties not currently being updated when
+     * the cache entry is invalidated.
+     *
+     * @param tabGroupId The token identifier for the tab group.
+     */
+    private static void flushCachedData(Token tabGroupId) {
+        TabGroupCollectionData data = sGroupsCache.remove(tabGroupId);
+        if (data == null) return;
+
+        String tabGroupIdString = tabGroupId.toString();
+
+        SharedPreferences.Editor titleEditor = getTokenTitleSharedPreferences().edit();
+        String title = data.getTitle();
+        if (isTitleUnset(title)) {
+            titleEditor.remove(tabGroupIdString);
+        } else {
+            titleEditor.putString(tabGroupIdString, title);
+        }
+        titleEditor.apply();
+
+        SharedPreferences.Editor colorEditor = getTokenColorSharedPreferences().edit();
+        @TabGroupColorId int color = data.getColor();
+        if (color == TabGroupColorUtils.INVALID_COLOR_ID) {
+            colorEditor.remove(tabGroupIdString);
+        } else {
+            colorEditor.putInt(tabGroupIdString, color);
+        }
+        colorEditor.apply();
+
+        SharedPreferences.Editor collapsedEditor = getTokenCollapsedSharedPreferences().edit();
+        boolean isCollapsed = data.isCollapsed();
+        if (isCollapsed) {
+            collapsedEditor.putBoolean(tabGroupIdString, true);
+        } else {
+            collapsedEditor.remove(tabGroupIdString);
+        }
+        collapsedEditor.apply();
     }
 }

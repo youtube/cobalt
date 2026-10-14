@@ -47,10 +47,10 @@
 #include "net/test/embedded_test_server/request_handler_util.h"
 
 #if BUILDFLAG(ENABLE_PLATFORM_APPS)
-#include "chrome/browser/apps/app_service/app_launch_params.h"
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
 #include "chrome/browser/apps/app_service/browser_app_launcher.h"
+#include "components/services/app_service/public/cpp/app_launch_params.h"
 #include "components/services/app_service/public/cpp/app_launch_util.h"
 #endif
 
@@ -83,7 +83,7 @@ void ExtensionApiTest::SetUpOnMainThread() {
 #endif
 
   DCHECK(!test_config_.get()) << "Previous test did not clear config state.";
-  test_config_ = std::make_unique<base::Value::Dict>();
+  test_config_ = std::make_unique<base::DictValue>();
   test_config_->Set(kTestDataDirectory,
                     net::FilePathToFileURL(test_data_dir_).spec());
 

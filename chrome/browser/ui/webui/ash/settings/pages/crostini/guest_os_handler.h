@@ -11,13 +11,13 @@
 #include "chrome/browser/ash/plugin_vm/plugin_vm_manager.h"
 #include "chrome/browser/ash/plugin_vm/plugin_vm_manager_factory.h"
 #include "chrome/browser/ash/usb/cros_usb_detector.h"
-#include "chrome/browser/ui/webui/settings/settings_page_ui_handler.h"
+#include "content/public/browser/web_ui_message_handler.h"
 
 class Profile;
 
 namespace ash::settings {
 
-class GuestOsHandler : public ::settings::SettingsPageUIHandler,
+class GuestOsHandler : public content::WebUIMessageHandler,
                        public CrosUsbDeviceObserver {
  public:
   explicit GuestOsHandler(Profile* profile);
@@ -25,7 +25,7 @@ class GuestOsHandler : public ::settings::SettingsPageUIHandler,
   GuestOsHandler& operator=(const GuestOsHandler&) = delete;
   ~GuestOsHandler() override;
 
-  // SettingsPageUIHandler
+  // content::WebUIMessageHandler
   void RegisterMessages() override;
   void OnJavascriptAllowed() override;
   void OnJavascriptDisallowed() override;
@@ -37,14 +37,14 @@ class GuestOsHandler : public ::settings::SettingsPageUIHandler,
   // Callback for the "getSharedPathsDisplayText" message.  Converts actual
   // paths in chromeos to values suitable to display to users.
   // E.g. /home/chronos/u-<hash>/Downloads/foo => "Downloads > foo".
-  void HandleGetGuestOsSharedPathsDisplayText(const base::Value::List& args);
+  void HandleGetGuestOsSharedPathsDisplayText(const base::ListValue& args);
   // Remove a specified path from being shared.
-  void HandleRemoveGuestOsSharedPath(const base::Value::List& args);
+  void HandleRemoveGuestOsSharedPath(const base::ListValue& args);
   // Called when the shared USB devices page is ready.
   void HandleNotifyGuestOsSharedUsbDevicesPageReady(
-      const base::Value::List& args);
+      const base::ListValue& args);
   // Set the share state of a USB device.
-  void HandleSetGuestOsUsbDeviceShared(const base::Value::List& args);
+  void HandleSetGuestOsUsbDeviceShared(const base::ListValue& args);
 
   void OnGuestOsSharedPathRemoved(const std::string& callback_id,
                                   const std::string& path,

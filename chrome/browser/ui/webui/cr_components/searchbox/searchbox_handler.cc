@@ -34,6 +34,7 @@
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/bookmarks/browser/bookmark_model.h"
+#include "components/omnibox/browser/aim_eligibility_service_features.h"
 #include "components/omnibox/browser/autocomplete_match.h"
 #include "components/omnibox/browser/autocomplete_result.h"
 #include "components/omnibox/browser/omnibox_client.h"
@@ -138,6 +139,8 @@ const char* kIncognitoIconResourceName =
     "//resources/cr_components/searchbox/icons/incognito.svg";
 const char* kJourneysIconResourceName =
     "//resources/cr_components/searchbox/icons/journeys.svg";
+const char* kNotesSparkIconResourceName =
+    "//resources/cr_components/searchbox/icons/notes_spark.svg";
 const char* kPageIconResourceName =
     "//resources/cr_components/searchbox/icons/page.svg";
 const char* kPedalsIconResourceName = "//theme/current-channel-logo";
@@ -383,6 +386,9 @@ void SearchboxHandler::SetupWebUIDataSource(content::WebUIDataSource* source,
        IDS_CONTEXTUAL_TASKS_CONTEXT_MENU_MOST_RECENT_TABS},
       {"composeboxContextMenuGeminiModels",
        IDS_CONTEXTUAL_TASKS_CONTEXT_MENU_GEMINI_MODELS},
+      {"canvas", IDS_NTP_COMPOSE_CANVAS},
+      {"geminiModelAuto", IDS_NTP_COMPOSE_AUTO_MODEL},
+      {"geminiModelThinking", IDS_NTP_COMPOSE_THINKING_3_PRO},
   };
   source->AddLocalizedStrings(kStrings);
   source->AddString("searchboxComposePlaceholder",
@@ -395,10 +401,6 @@ void SearchboxHandler::SetupWebUIDataSource(content::WebUIDataSource* source,
                                  u"https://myactivity.google.com/"
                                  u"activitycontrols?settings=search&utm_source="
                                  u"aim&utm_campaign=aim_str"));
-
-  source->AddBoolean(
-      "searchboxMatchSearchboxTheme",
-      base::FeatureList::IsEnabled(ntp_features::kRealboxMatchSearchboxTheme));
 
   DefineChromeRefreshRealboxIcons();
   source->AddString(
@@ -434,6 +436,10 @@ void SearchboxHandler::SetupWebUIDataSource(content::WebUIDataSource* source,
       profile->GetPrefs()->GetInteger(
           prefs::kNtpComposeButtonShownCountPrefName) <
           composebox_config.entry_point().num_page_load_animations());
+  source->AddBoolean("contextualMenuUsePecApi",
+                     base::FeatureList::IsEnabled(omnibox::kAimUsePecApi));
+  source->AddBoolean("ShowContextMenuHeaders",
+                     ntp_composebox::kShowContextMenuHeaders.Get());
 }
 
 std::string SearchboxHandler::AutocompleteIconToResourceName(
@@ -493,6 +499,8 @@ std::string SearchboxHandler::AutocompleteIconToResourceName(
     return kJourneysIconResourceName;
   } else if (icon.name == omnibox::kJourneysIcon.name) {
     return kJourneysIconResourceName;
+  } else if (icon.name == omnibox::kNotesSparkIcon.name) {
+    return kNotesSparkIconResourceName;
   } else if (icon.name == omnibox::kPageChromeRefreshIcon.name) {
     return kPageIconResourceName;
   } else if (icon.name == omnibox::kProductChromeRefreshIcon.name) {
@@ -827,8 +835,8 @@ void SearchboxHandler::AddFileContextFromBrowser(
 
 void SearchboxHandler::OnContextualInputStatusChanged(
     base::UnguessableToken token,
-    composebox_query::mojom::FileUploadStatus status,
-    std::optional<composebox_query::mojom::FileUploadErrorType> error_type) {
+    contextual_search::FileUploadStatus status,
+    std::optional<contextual_search::FileUploadErrorType> error_type) {
   if (page_ && IsRemoteBound()) {
     page_->OnContextualInputStatusChanged(token, status, error_type);
   }
@@ -886,7 +894,8 @@ void SearchboxHandler::QueryAutocomplete(const std::u16string& input,
           controller_->client()->GetLensOverlaySuggestInputs()) {
     // Don't set lens params if in "Create Image" mode. This prevents the
     // contextual client from being used in this tool mode.
-    if (GetAimToolMode() != omnibox::ToolMode::TOOL_MODE_IMAGE_GEN_UPLOAD) {
+    if (GetInputState().active_tool !=
+        omnibox::ToolMode::TOOL_MODE_IMAGE_GEN_UPLOAD) {
       autocomplete_input.set_lens_overlay_suggest_inputs(*suggest_inputs);
     }
   }
@@ -900,7 +909,7 @@ void SearchboxHandler::QueryAutocomplete(const std::u16string& input,
     }
   }
 
-  autocomplete_input.set_aim_tool_mode(GetAimToolMode());
+  autocomplete_input.set_input_state(GetInputState());
 
   edit_model()->SetAutocompleteInput(autocomplete_input);
   omnibox_controller()->StartAutocomplete(autocomplete_input);
@@ -1068,6 +1077,10 @@ void SearchboxHandler::GetRecentTabs(GetRecentTabsCallback callback) {
   std::move(callback).Run({});
 }
 
+void SearchboxHandler::GetInputState(GetInputStateCallback callback) {
+  std::move(callback).Run({});
+}
+
 void SearchboxHandler::OnResultChanged(AutocompleteController* controller,
                                        bool default_match_changed) {
   page_->AutocompleteResultChanged(CreateAutocompleteResult(
@@ -1125,8 +1138,8 @@ const AutocompleteMatch* SearchboxHandler::GetMatchWithUrl(
   return &match;
 }
 
-omnibox::ToolMode SearchboxHandler::GetAimToolMode() const {
-  return omnibox::ToolMode::TOOL_MODE_UNSPECIFIED;
+omnibox::InputState SearchboxHandler::GetInputState() const {
+  return omnibox::InputState();
 }
 
 OmniboxController* SearchboxHandler::omnibox_controller() const {

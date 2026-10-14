@@ -72,7 +72,6 @@ enum class TabAlert;
 //    DraggedTab, focusing on tasks that require reshuffling other tabs
 //    in response to dragged tabs.
 class TabStrip : public views::View,
-                 public views::ViewObserver,
                  public views::WidgetObserver,
                  public TabContainerController,
                  public TabSlotController,
@@ -84,6 +83,12 @@ class TabStrip : public views::View,
   TabStrip(const TabStrip&) = delete;
   TabStrip& operator=(const TabStrip&) = delete;
   ~TabStrip() override;
+
+  // Initializes the `tab_container_` so tabs can be added to it.
+  void Initialize();
+
+  // Resets the tab strip by removing the tabs in `tab_container_` .
+  void Reset();
 
   void SetAvailableWidthCallback(
       base::RepeatingCallback<int()> available_width_callback);
@@ -180,7 +185,8 @@ class TabStrip : public views::View,
   void OnGroupClosed(const tab_groups::TabGroupId& group);
 
   void OnTabGroupFocusChanged(
-      std::optional<tab_groups::TabGroupId> new_focused_group);
+      std::optional<tab_groups::TabGroupId> new_focused_group,
+      std::optional<tab_groups::TabGroupId> old_focused_group);
 
   // Updates the tab slot view split state and animates to bounds.
   void OnSplitCreated(const std::vector<int>& split_indices,
@@ -275,10 +281,9 @@ class TabStrip : public views::View,
   void ShowContextMenuForTab(Tab* tab,
                              const gfx::Point& p,
                              ui::mojom::MenuSourceType source_type) override;
+  void TabKeyboardFocusChangedTo(const tabs::TabInterface* tab) override;
   bool IsActiveTab(const TabSlotView* tab) const override;
   bool IsTabSelected(const TabSlotView* tab) const override;
-  bool IsTabPinned(const TabSlotView* tab) const override;
-  bool IsTabFirst(const TabSlotView* tab) const override;
   bool IsFocusInTabs() const override;
   bool ShouldCompactLeadingEdge() const override;
 
@@ -301,8 +306,6 @@ class TabStrip : public views::View,
   bool CanPaintThrobberToLayer() const override;
   SkColor GetTabSeparatorColor() const override;
   std::u16string GetAccessibleTabName(const Tab* tab) const override;
-  std::optional<int> GetCustomBackgroundId(
-      BrowserFrameActiveState active_state) const override;
   float GetHoverOpacityForTab(float range_parameter) const override;
   float GetHoverOpacityForRadialHighlight() const override;
   std::u16string GetGroupTitle(
@@ -317,10 +320,6 @@ class TabStrip : public views::View,
   void ShiftGroupRight(const tab_groups::TabGroupId& group) override;
   Browser* GetBrowser() override;
   BrowserWindowInterface* GetBrowserWindowInterface() override;
-  bool IsFrameCondensed() const override;
-#if BUILDFLAG(IS_CHROMEOS)
-  bool IsLockedForOnTask() override;
-#endif
 
   // views::View:
   views::SizeBounds GetAvailableSize(const View* child) const override;
@@ -407,10 +406,6 @@ class TabStrip : public views::View,
   // ui::EventHandler:
   void OnGestureEvent(ui::GestureEvent* event) override;
 
-  // views::ViewObserver:
-  void OnViewFocused(views::View* observed_view) override;
-  void OnViewBlurred(views::View* observed_view) override;
-
   // views::WidgetObserver:
   void OnWidgetActivationChanged(views::Widget* widget, bool active) override;
 
@@ -431,7 +426,7 @@ class TabStrip : public views::View,
   raw_ref<TabDragContextImpl, AcrossTasksDanglingUntriaged> drag_context_;
 
   // The View parent for the tabs and the various group views.
-  raw_ref<TabContainer, AcrossTasksDanglingUntriaged> tab_container_;
+  raw_ptr<TabContainer, AcrossTasksDanglingUntriaged> tab_container_;
 
   // Location of the mouse at the time of the last move.
   gfx::Point last_mouse_move_location_;
@@ -445,19 +440,6 @@ class TabStrip : public views::View,
   // Used to track if the time from mouse entered to tab switch has been
   // reported.
   bool has_reported_time_mouse_entered_to_switch_ = false;
-
-  // Used to track if the tab dragging metrics have been reported.
-  bool has_reported_tab_drag_metrics_ = false;
-
-  // Used to track the time of last tab dragging.
-  std::optional<base::TimeTicks> last_tab_drag_time_;
-
-  // Used to count the number of tab dragging in the last 30 minutes and 5
-  // minutes.
-  int tab_drag_count_30min_ = 0;
-  int tab_drag_count_5min_ = 0;
-  std::unique_ptr<base::RepeatingTimer> tab_drag_count_timer_30min_;
-  std::unique_ptr<base::RepeatingTimer> tab_drag_count_timer_5min_;
 
   const raw_ptr<const TabStyle> style_;
 

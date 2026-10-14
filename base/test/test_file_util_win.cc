@@ -6,90 +6,20 @@
 
 #include <windows.h>
 
-#include <aclapi.h>
-#include <sddl.h>
-#include <stddef.h>
-#include <wchar.h>
-
 #include <memory>
 
 #include "base/check.h"
-#include "base/check_op.h"
-#include "base/compiler_specific.h"
-#include "base/containers/heap_array.h"
 #include "base/containers/span.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/memory/ptr_util.h"
 #include "base/strings/cstring_view.h"
-#include "base/strings/string_split.h"
-#include "base/strings/string_util.h"
 #include "base/threading/platform_thread.h"
+#include "base/win/access_token.h"
 #include "base/win/scoped_handle.h"
-#include "base/win/scoped_localalloc.h"
-#include "base/win/shlwapi.h"
+#include "base/win/security_descriptor.h"
 
 namespace base {
-
-namespace {
-
-struct PermissionInfo {
-  PSECURITY_DESCRIPTOR security_descriptor;
-  ACL dacl;
-};
-
-// Gets a blob indicating the permission information for |path|.
-// |length| is the length of the blob.  Zero on failure.
-// Returns the blob pointer, or NULL on failure.
-void* GetPermissionInfo(const FilePath& path, size_t* length) {
-  DCHECK(length);
-  *length = 0;
-  PACL dacl = nullptr;
-  PSECURITY_DESCRIPTOR security_descriptor;
-  if (GetNamedSecurityInfo(path.value().c_str(), SE_FILE_OBJECT,
-                           DACL_SECURITY_INFORMATION, nullptr, nullptr, &dacl,
-                           nullptr, &security_descriptor) != ERROR_SUCCESS) {
-    return nullptr;
-  }
-  DCHECK(dacl);
-
-  *length = sizeof(PSECURITY_DESCRIPTOR) + dacl->AclSize;
-  PermissionInfo* info = reinterpret_cast<PermissionInfo*>(new char[*length]);
-  info->security_descriptor = security_descriptor;
-  UNSAFE_TODO(memcpy(&info->dacl, dacl, dacl->AclSize));
-
-  return info;
-}
-
-// Restores the permission information for |path|, given the blob retrieved
-// using |GetPermissionInfo()|.
-// |info| is the pointer to the blob.
-// |length| is the length of the blob.
-// Either |info| or |length| may be NULL/0, in which case nothing happens.
-bool RestorePermissionInfo(const FilePath& path, void* info, size_t length) {
-  if (!info || !length) {
-    return false;
-  }
-
-  PermissionInfo* perm = reinterpret_cast<PermissionInfo*>(info);
-
-  DWORD rc = SetNamedSecurityInfo(const_cast<wchar_t*>(path.value().c_str()),
-                                  SE_FILE_OBJECT, DACL_SECURITY_INFORMATION,
-                                  nullptr, nullptr, &perm->dacl, nullptr);
-  LocalFree(perm->security_descriptor);
-
-  char* char_array = reinterpret_cast<char*>(info);
-  delete[] char_array;
-
-  return rc == ERROR_SUCCESS;
-}
-
-base::HeapArray<wchar_t> ToCStr(wcstring_view str) {
-  return base::HeapArray<wchar_t>::CopiedFrom(
-      span_with_nul_from_cstring_view(str));
-}
-
-}  // namespace
 
 bool DieFileDie(const FilePath& file, bool recurse) {
   // It turns out that to not induce flakiness a long timeout is needed.
@@ -130,8 +60,8 @@ bool EvictFileFromSystemCache(const FilePath& file) {
     file_value.insert(0, L"\\\\?\\");
   }
   win::ScopedHandle file_handle(
-      CreateFile(file_value.c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr,
-                 OPEN_EXISTING, FILE_FLAG_NO_BUFFERING, nullptr));
+      ::CreateFile(file_value.c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr,
+                   OPEN_EXISTING, FILE_FLAG_NO_BUFFERING, nullptr));
   if (!file_handle.is_valid()) {
     return false;
   }
@@ -148,38 +78,18 @@ bool EvictFileFromSystemCache(const FilePath& file) {
   return true;
 }
 
-// Deny |permission| on the file |path|, for the current user.
+// Deny `permission` on the file `path`, for the current user.
 bool DenyFilePermission(const FilePath& path, DWORD permission) {
-  PACL old_dacl;
-  PSECURITY_DESCRIPTOR security_descriptor;
-
-  base::HeapArray<TCHAR> path_ptr = ToCStr(path.value());
-  if (GetNamedSecurityInfo(
-          path_ptr.data(), SE_FILE_OBJECT, DACL_SECURITY_INFORMATION, nullptr,
-          nullptr, &old_dacl, nullptr, &security_descriptor) != ERROR_SUCCESS) {
+  auto sd = win::SecurityDescriptor::FromFile(path, DACL_SECURITY_INFORMATION);
+  auto token = win::AccessToken::FromCurrentProcess();
+  if (!sd || !token) {
     return false;
   }
-
-  base::HeapArray<TCHAR> current_user = ToCStr(L"CURRENT_USER");
-  EXPLICIT_ACCESS new_access = {permission,
-                                DENY_ACCESS,
-                                0,
-                                {nullptr, NO_MULTIPLE_TRUSTEE, TRUSTEE_IS_NAME,
-                                 TRUSTEE_IS_USER, current_user.data()}};
-
-  PACL new_dacl;
-  if (SetEntriesInAcl(1, &new_access, old_dacl, &new_dacl) != ERROR_SUCCESS) {
-    LocalFree(security_descriptor);
+  if (!sd->SetDaclEntry(token->User(), win::SecurityAccessMode::kDeny,
+                        permission, /*inheritance=*/0)) {
     return false;
   }
-
-  DWORD rc = SetNamedSecurityInfo(path_ptr.data(), SE_FILE_OBJECT,
-                                  DACL_SECURITY_INFORMATION, nullptr, nullptr,
-                                  new_dacl, nullptr);
-  LocalFree(security_descriptor);
-  LocalFree(new_dacl);
-
-  return rc == ERROR_SUCCESS;
+  return sd->WriteToFile(path, DACL_SECURITY_INFORMATION);
 }
 
 bool MakeFileUnreadable(const FilePath& path) {
@@ -190,45 +100,45 @@ bool MakeFileUnwritable(const FilePath& path) {
   return DenyFilePermission(path, GENERIC_WRITE);
 }
 
+struct FilePermissionRestorer::SavedFilePermissions {
+  explicit SavedFilePermissions(win::SecurityDescriptor sd)
+      : sd_(std::move(sd)) {}
+  win::SecurityDescriptor sd_;
+};
+
 FilePermissionRestorer::FilePermissionRestorer(const FilePath& path)
-    : path_(path), info_(nullptr), length_(0) {
-  info_ = GetPermissionInfo(path_, &length_);
-  DCHECK(info_);
-  DCHECK_NE(0u, length_);
+    : path_(path) {
+  auto sd = win::SecurityDescriptor::FromFile(path, DACL_SECURITY_INFORMATION);
+  CHECK(sd);
+  permissions_ = std::make_unique<SavedFilePermissions>(std::move(*sd));
 }
 
 FilePermissionRestorer::~FilePermissionRestorer() {
-  const bool success = RestorePermissionInfo(path_, info_, length_);
-  CHECK(success);
+  CHECK(permissions_);
+  CHECK(permissions_->sd_.WriteToFile(path_, DACL_SECURITY_INFORMATION));
 }
 
 std::wstring GetFileDacl(const FilePath& path) {
-  PSECURITY_DESCRIPTOR sd;
-  if (::GetNamedSecurityInfo(path.value().c_str(), SE_FILE_OBJECT,
-                             DACL_SECURITY_INFORMATION, nullptr, nullptr,
-                             nullptr, nullptr, &sd) != ERROR_SUCCESS) {
-    return std::wstring();
+  auto sd = win::SecurityDescriptor::FromFile(path, DACL_SECURITY_INFORMATION);
+  if (!sd) {
+    return {};
   }
-  auto sd_ptr = win::TakeLocalAlloc(sd);
-  LPWSTR sddl;
-  if (!::ConvertSecurityDescriptorToStringSecurityDescriptor(
-          sd_ptr.get(), SDDL_REVISION_1, DACL_SECURITY_INFORMATION, &sddl,
-          nullptr)) {
-    return std::wstring();
+  auto sddl = sd->ToSddl(DACL_SECURITY_INFORMATION);
+  if (!sddl) {
+    return {};
   }
-  return win::TakeLocalAlloc(sddl).get();
+  return *sddl;
 }
 
 bool CreateWithDacl(const FilePath& path, wcstring_view sddl, bool directory) {
-  PSECURITY_DESCRIPTOR sd;
-  if (!::ConvertStringSecurityDescriptorToSecurityDescriptor(
-          sddl.c_str(), SDDL_REVISION_1, &sd, nullptr)) {
+  auto sd = win::SecurityDescriptor::FromSddl(sddl);
+  if (!sd) {
     return false;
   }
-  auto sd_ptr = win::TakeLocalAlloc(sd);
+  SECURITY_DESCRIPTOR sd_abs = sd->ToAbsolute();
   SECURITY_ATTRIBUTES security_attr = {};
   security_attr.nLength = sizeof(security_attr);
-  security_attr.lpSecurityDescriptor = sd_ptr.get();
+  security_attr.lpSecurityDescriptor = &sd_abs;
   if (directory) {
     return !!::CreateDirectory(path.value().c_str(), &security_attr);
   }

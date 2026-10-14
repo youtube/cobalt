@@ -196,16 +196,19 @@ public class BookmarkBarUtils {
      *
      * @param context The context in which compatibility should be assessed.
      * @param profile The profile for which the user UserPref should be assessed.
+     * @param isXrFullSpaceMode Supplier for whether the device is in XR full space mode.
      * @return Whether the Bookmark Bar is currently visible.
      */
-    public static boolean isBookmarkBarVisible(Context context, @Nullable Profile profile) {
+    public static boolean isBookmarkBarVisible(
+            Context context, @Nullable Profile profile, boolean isXrFullSpaceMode) {
         if (sBookmarkBarVisibleForTesting != null) {
             return sBookmarkBarVisibleForTesting;
         }
 
-        if (!isActivityStateBookmarkBarCompatible(context)) {
+        if (isXrFullSpaceMode || !isActivityStateBookmarkBarCompatible(context)) {
             return false;
         }
+
         // On Desktop, we sync with the UserPrefs.
         // On tablets we use the device preference logic (policy (pref service)  > local pref
         // (shared pref) > FeatureParam).
@@ -423,8 +426,9 @@ public class BookmarkBarUtils {
                 BOOKMARK_BAR_CLICK, clickType, BookmarkBarClickType.NUM_ENTRIES);
     }
 
-    public static void recordStartUpMetrics(Context context, @Nullable Profile profile) {
-        boolean isCurrentlyVisible = isBookmarkBarVisible(context, profile);
+    public static void recordStartUpMetrics(
+            Context context, @Nullable Profile profile, boolean isXrFullSpaceMode) {
+        boolean isCurrentlyVisible = isBookmarkBarVisible(context, profile, isXrFullSpaceMode);
 
         // Record if the Bookmark Bar is visible, but not in cases of a forced feature param.
         if (DeviceInfo.isDesktop() || hasUserSetDevicePrefShowBookmarksBar()) {

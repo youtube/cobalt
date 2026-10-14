@@ -4,13 +4,13 @@
 
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_view_state_change_handler.h"
 
-#import "ios/chrome/browser/intelligence/bwg/model/bwg_browser_agent.h"
+#import "ios/chrome/browser/intelligence/bwg/model/gemini_browser_agent.h"
 
 @implementation GeminiViewStateChangeHandler {
-  base::WeakPtr<BwgBrowserAgent> _agent;
+  base::WeakPtr<GeminiBrowserAgent> _agent;
 }
 
-- (instancetype)initWithBrowserAgent:(base::WeakPtr<BwgBrowserAgent>)agent {
+- (instancetype)initWithBrowserAgent:(base::WeakPtr<GeminiBrowserAgent>)agent {
   if ((self = [super init])) {
     _agent = agent;
   }
@@ -22,6 +22,17 @@
 - (void)didSwitchToViewState:(ios::provider::GeminiViewState)viewState {
   if (_agent && viewState == ios::provider::GeminiViewState::kExpanded) {
     _agent->OnGeminiViewStateExpanded();
+  }
+  _agent->SetLastShownViewState(viewState);
+}
+
+- (void)switchToViewState:(ios::provider::GeminiViewState)viewState {
+  if (!_agent) {
+    return;
+  }
+
+  if (viewState == ios::provider::GeminiViewState::kCollapsed) {
+    _agent->CollapseFloatyIfInvoked();
   }
 }
 

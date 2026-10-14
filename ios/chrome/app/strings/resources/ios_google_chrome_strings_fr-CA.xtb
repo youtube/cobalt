@@ -1,6 +1,7 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="fr-CA">
+<translation id="1035560095760914532">Placez Chrome dans la zone inférieure pour y accéder à tout moment</translation>
 <translation id="1076643793026027628">Chrome ouvre automatiquement les liens de la Navigation privée YouTube en mode Navigation privée.</translation>
 <translation id="1081114897601629648">Les mots de passe suivants n'ont pas été importés dans le gestionnaire de mots de passe Google parce qu'ils ne répondent pas aux exigences.</translation>
 <translation id="1086486568852410168">Rechercher avec Lentille Google</translation>
@@ -86,6 +87,10 @@ Essayez d'attendre quelques minutes avant de vous déconnecter. Si vous vous dé
 <translation id="2767464022270041271">Aucun mot de passe enregistré. Le gestionnaire de mots de passe de Google peut vérifier vos mots de passe lorsque vous les enregistrez.</translation>
 <translation id="2788811701191021538">Ouvre la page de paramètres des modes de paiement dans Chrome.</translation>
 <translation id="2876628302275096482">En savoir plus sur la <ph name="BEGIN_LINK" />manière dont Chrome préserve la confidentialité de vos données<ph name="END_LINK" /></translation>
+<translation id="288992067439702510">Vous avez atteint la limite de <ph name="LIMIT" /> favoris de Google Chrome. Certains de vos favoris n'ont donc pas encore été enregistrés dans votre compte Google.
+
+Vous ne pourrez pas enregistrer de nouveaux favoris dans votre compte tant que vous n'en aurez pas supprimé certains. Si vous vous déconnectez maintenant, les favoris non enregistrés seront supprimés.</translation>
+<translation id="2901621928549457170">Ouvrez Chrome instantanément lorsque vous êtes sur votre iPad</translation>
 <translation id="2922914028977213693">Touchez ici pour tirer le meilleur parti de Chrome sur votre iPad.</translation>
 <translation id="292371311537977079">Paramètres de Chrome</translation>
 <translation id="2923827943290349720">Verrouiller les onglets de navigation privée lorsque vous fermez Chrome</translation>
@@ -170,6 +175,8 @@ Essayez d'attendre quelques minutes avant de vous déconnecter. Si vous vous dé
 <translation id="5119391094379141756">Sélectionnez Chrome</translation>
 <translation id="5123188916260706415">Effectuer une recherche vocale dans Chrome</translation>
 <translation id="5162467219239570114">Google Chrome n'est plus à jour. Si aucune mise à jour n'est offerte dans l'<ph name="BEGIN_LINK" />App Store<ph name="END_LINK" />, il est possible que votre appareil ne prenne plus en charge les nouvelles versions de Chrome.</translation>
+<translation id="5172049865623113551">Ouvrez Chrome instantanément lorsque vous êtes sur votre iPhone</translation>
+<translation id="5179095426828744632">Accédez plus rapidement à Chrome à partir de votre Dock</translation>
 <translation id="5184329579814168207">Ouvrir dans Chrome</translation>
 <translation id="5190139289262548459">Votre organisation, <ph name="DOMAIN" />, gère le compte auquel vous êtes connecté et la façon dont Chrome est utilisé.</translation>
 <translation id="5209238444239954363">Chrome n'a pas pu vérifier s'il y a des mises à jour. Réessayez plus tard.</translation>
@@ -304,7 +311,6 @@ Afin d'accéder à plus de paramètres utilisant des données pour améliorer vo
 <translation id="7787205077729386167">Ouvrez les paramètres Chrome dans iOS, puis touchez « Appli de navigation par défaut » et sélectionnez Chrome.</translation>
 <translation id="778855399387580014">Lancez une recherche dans un nouvel onglet Chrome.</translation>
 <translation id="7792140019572081272">Chrome protège vos données confidentielles avec Face ID.</translation>
-<translation id="7825648984449922731">Modifiez une image avec Gemini dans Chrome</translation>
 <translation id="7855730255114109580">Google Chrome est à jour</translation>
 <translation id="787226752901403048">Connectez-vous à Chrome pour partager et rejoindre des groupes d'onglets et travailler ensemble sur des idées</translation>
 <translation id="7897703007638178753">Voir les onglets récents de Chrome</translation>

@@ -704,6 +704,9 @@ String StylePropertySerializer::SerializeShorthand(
           ruleInsetShorthand());
     case CSSPropertyID::kRuleStyle:
       return GetShorthandValueForBidirectionalGapRules(ruleStyleShorthand());
+    case CSSPropertyID::kRuleVisibilityItems:
+      return GetShorthandValueForBidirectionalGapRules(
+          ruleVisibilityItemsShorthand());
     case CSSPropertyID::kRuleWidth:
       return GetShorthandValueForBidirectionalGapRules(ruleWidthShorthand());
     case CSSPropertyID::kTextBox:
@@ -714,8 +717,8 @@ String StylePropertySerializer::SerializeShorthand(
       return TextSpacingValue();
     case CSSPropertyID::kTimelineTrigger:
       return GetLayeredShorthandValue(timelineTriggerShorthand());
-    case CSSPropertyID::kTimelineTriggerEntryRange:
-      return TimelineTriggerRangeShorthandValue();
+    case CSSPropertyID::kTimelineTriggerActivationRange:
+      return TimelineTriggerActivationRangeShorthandValue();
     case CSSPropertyID::kTimelineTriggerActiveRange:
       return TimelineTriggerExitRangeShorthandValue();
     case CSSPropertyID::kWebkitTextStroke:
@@ -1158,19 +1161,20 @@ String StylePropertySerializer::AnimationRangeShorthandValue() const {
   return list->CssText();
 }
 
-String StylePropertySerializer::TimelineTriggerRangeShorthandValue() const {
-  CHECK_EQ(timelineTriggerEntryRangeShorthand().length(), 2u);
-  CHECK_EQ(timelineTriggerEntryRangeShorthand().properties()[0],
-           &GetCSSPropertyTimelineTriggerEntryRangeStart());
-  CHECK_EQ(timelineTriggerEntryRangeShorthand().properties()[1],
-           &GetCSSPropertyTimelineTriggerEntryRangeEnd());
+String StylePropertySerializer::TimelineTriggerActivationRangeShorthandValue()
+    const {
+  CHECK_EQ(timelineTriggerActivationRangeShorthand().length(), 2u);
+  CHECK_EQ(timelineTriggerActivationRangeShorthand().properties()[0],
+           &GetCSSPropertyTimelineTriggerActivationRangeStart());
+  CHECK_EQ(timelineTriggerActivationRangeShorthand().properties()[1],
+           &GetCSSPropertyTimelineTriggerActivationRangeEnd());
 
   const CSSValueList& start_list =
       To<CSSValueList>(*property_set_.GetPropertyCSSValue(
-          GetCSSPropertyTimelineTriggerEntryRangeStart()));
+          GetCSSPropertyTimelineTriggerActivationRangeStart()));
   const CSSValueList& end_list =
       To<CSSValueList>(*property_set_.GetPropertyCSSValue(
-          GetCSSPropertyTimelineTriggerEntryRangeEnd()));
+          GetCSSPropertyTimelineTriggerActivationRangeEnd()));
   if (start_list.length() != end_list.length()) {
     return "";
   }
@@ -1955,7 +1959,7 @@ String StylePropertySerializer::GetLayeredShorthandValue(
             omit_value = true;
           }
         } else if (property->IDEquals(
-                       CSSPropertyID::kTimelineTriggerEntryRangeStart)) {
+                       CSSPropertyID::kTimelineTriggerActivationRangeStart)) {
           if (const auto* start_identifier =
                   DynamicTo<CSSIdentifierValue>(value)) {
             // Only 'normal' is stored as an identifier, other values are lists.
@@ -1964,13 +1968,13 @@ String StylePropertySerializer::GetLayeredShorthandValue(
             omit_value = true;
           }
         } else if (property->IDEquals(
-                       CSSPropertyID::kTimelineTriggerEntryRangeEnd)) {
+                       CSSPropertyID::kTimelineTriggerActivationRangeEnd)) {
           if (const auto* end_identifier =
                   DynamicTo<CSSIdentifierValue>(value)) {
             DCHECK(end_identifier->GetValueID() == CSSValueID::kNormal);
             omit_value = true;
           } else {
-            // Get timeline-trigger-entry-range-start.
+            // Get timeline-trigger-activation-range-start.
             // The form "name X name 100%" must contract to "name X".
             //
             // https://github.com/w3c/csswg-drafts/issues/8438
@@ -2833,24 +2837,25 @@ String StylePropertySerializer::GetShorthandValueForGridLanes(
   const auto* template_area_values =
       property_set_.GetPropertyCSSValue(*shorthand.properties()[0]);
   DCHECK(template_area_values);
-  // Note: `shorthand.properties()[1]` is intentionally not used here because it
-  // always refers to `grid-template-columns`.
-  // Instead, we use `GetCSSPropertyGridTemplateColumns()` or
-  // `GetCSSPropertyGridTemplateRows()` depending on the `grid-lanes` direction,
-  // since `grid-template-rows` is not listed in the `grid-lanes` shorthand
-  // property.
   const auto* grid_lanes_direction_values =
-      property_set_.GetPropertyCSSValue(*shorthand.properties()[2]);
+      property_set_.GetPropertyCSSValue(*shorthand.properties()[3]);
   DCHECK(grid_lanes_direction_values);
-  const auto* grid_lanes_template_tracks_values =
-      CSSOMUtils::IsGridLanesNormalDirectionValue(
+
+  // Retrieve the appropriate template tracks based on the
+  // `grid-lanes-direction`. For normal or column directions, we use
+  // `grid-template-columns` (at index 1). For row direction, we use
+  // `grid-template-rows` (at index 2).
+  const CSSValue* grid_lanes_template_tracks_values = nullptr;
+  if (CSSOMUtils::IsGridLanesNormalDirectionValue(
           grid_lanes_direction_values) ||
-              CSSOMUtils::IsGridLanesColumnDirectionValue(
-                  grid_lanes_direction_values)
-          ? property_set_.GetPropertyCSSValue(
-                GetCSSPropertyGridTemplateColumns())
-          : property_set_.GetPropertyCSSValue(GetCSSPropertyGridTemplateRows());
-  DCHECK(grid_lanes_template_tracks_values);
+      CSSOMUtils::IsGridLanesColumnDirectionValue(
+          grid_lanes_direction_values)) {
+    grid_lanes_template_tracks_values =
+        property_set_.GetPropertyCSSValue(*shorthand.properties()[1]);
+  } else {
+    grid_lanes_template_tracks_values =
+        property_set_.GetPropertyCSSValue(*shorthand.properties()[2]);
+  }
 
   const CSSValueList* grid_lanes_list =
       CSSOMUtils::ComputedValueForGridLanesShorthand(

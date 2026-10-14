@@ -75,12 +75,14 @@ config("dependants_extra_warnings") {
       "-Widiomatic-parentheses",
       "-Wimplicit-fallthrough",
       "-Winconsistent-missing-destructor-override",
+      "-Winvalid-constexpr",
       "-Winvalid-offsetof",
       "-Wmissing-field-initializers",
       "-Wnon-c-typedef-for-linkage",
       "-Wpessimizing-move",
       "-Wrange-loop-analysis",
       "-Wredundant-move",
+      "-Wreturn-type",
       "-Wshadow-field",
       "-Wstrict-prototypes",
       "-Wsuggest-destructor-override",
@@ -140,7 +142,6 @@ pa_buildflag_header("buildflags") {
     "CAN_UNWIND_WITH_FRAME_POINTERS=$can_unwind_with_frame_pointers",
     "DCHECKS_ARE_ON=$partition_alloc_dchecks_are_on",
     "DCHECK_IS_CONFIGURABLE=$dcheck_is_configurable",
-    "ENABLE_ALLOCATOR_SHIM_PARTITION_ALLOC_DISPATCH_WITH_ADVANCED_CHECKS_SUPPORT=$enable_allocator_shim_partition_alloc_dispatch_with_advanced_checks_support",
     "ENABLE_BACKUP_REF_PTR_FEATURE_FLAG=$enable_backup_ref_ptr_feature_flag",
     "ENABLE_BACKUP_REF_PTR_INSTANCE_TRACER=$enable_backup_ref_ptr_instance_tracer",
     "ENABLE_BACKUP_REF_PTR_SLOW_CHECKS=$enable_backup_ref_ptr_slow_checks",
@@ -164,6 +165,7 @@ pa_buildflag_header("buildflags") {
     "HAS_64_BIT_POINTERS=$has_64_bit_pointers",
     "HAS_MEMORY_TAGGING=$has_memory_tagging",
     "IS_ANDROID=$is_android",
+    "IS_DESKTOP_ANDROID=$is_desktop_android",
     "IS_CASTOS=$is_castos",
     "IS_CAST_ANDROID=$is_cast_android",
     "IS_CHROMEOS=$is_chromeos",
@@ -180,6 +182,7 @@ pa_buildflag_header("buildflags") {
     "STACK_SCAN_SUPPORTED=$stack_scan_supported",
     "USE_ALLOCATOR_SHIM=$use_allocator_shim",
     "USE_ASAN_BACKUP_REF_PTR=$use_asan_backup_ref_ptr",
+    "USE_ASAN_BACKUP_REF_PTR_V2=$use_asan_backup_ref_ptr_v2",
     "USE_FULL_MTE=$use_full_mte",
     "USE_LARGE_EMPTY_SLOT_SPAN_RING=$use_large_empty_slot_span_ring",
     "USE_PARTITION_ALLOC=$use_partition_alloc",
@@ -188,6 +191,7 @@ pa_buildflag_header("buildflags") {
     "USE_RAW_PTR_ASAN_UNOWNED_IMPL=$use_raw_ptr_asan_unowned_impl",
     "USE_RAW_PTR_BACKUP_REF_IMPL=$use_raw_ptr_backup_ref_impl",
     "USE_RAW_PTR_HOOKABLE_IMPL=$use_raw_ptr_hookable_impl",
+    "SHIM_SUPPORTS_ALLOC_TOKEN=$shim_supports_alloc_token",
   ]
 }
 
@@ -834,6 +838,24 @@ if (is_clang_or_gcc) {
     deps = []
     all_dependent_configs = []
     public_configs = [ ":public_includes" ]
+    if (shim_supports_alloc_token) {
+      if (is_component_build) {
+        # Currently, partition_alloc_everywhere is disabled on component builds
+        # except for Linux. Therefore, we support alloc token on component build
+        # only for Linux.
+        # TODO(crbug.com/477186304): Support alloc token on all platforms in
+        # component build if partition_alloc_everywhere is enabled.
+        if (is_linux) {
+          # We are using public_configs instead of all_dependent_configs here
+          # because the linker does not resolve symbols in indirect dependencies
+          # of dynamic libraries within a component build.
+          # TODO(crbug.com/477186304): Consider using all_dependent_configs.
+          public_configs += [ "//build/config/sanitizers:alloc_token" ]
+        }
+      } else {
+        all_dependent_configs += [ "//build/config/sanitizers:alloc_token" ]
+      }
+    }
     configs += [
       ":allocator_shim_implementation",
       ":wexit_time_destructors",
@@ -865,13 +887,10 @@ if (is_clang_or_gcc) {
       shim_headers +=
           [ "shim/allocator_shim_default_dispatch_to_partition_alloc.h" ]
     }
-    if (enable_allocator_shim_partition_alloc_dispatch_with_advanced_checks_support) {
-      shim_sources += [ "shim/allocator_shim_default_dispatch_to_partition_alloc_with_advanced_checks.cc" ]
-      shim_headers += [ "shim/allocator_shim_default_dispatch_to_partition_alloc_with_advanced_checks.h" ]
-    }
     if (is_android) {
       shim_headers += [
         "shim/allocator_shim_override_cpp_symbols.h",
+        "shim/allocator_shim_alloc_token_symbols.h",
         "shim/allocator_shim_override_linker_wrapped_symbols.h",
       ]
       shim_sources -= [ "shim/allocator_shim.cc" ]
@@ -887,6 +906,7 @@ if (is_clang_or_gcc) {
         "shim/early_zone_registration_utils_apple.h",
         "shim/allocator_interception_apple.h",
         "shim/malloc_zone_functions_apple.h",
+        "shim/allocator_shim_alloc_token_symbols_apple.h",
       ]
       shim_sources -= [ "shim/allocator_shim.cc" ]
       shim_sources += [
@@ -909,6 +929,7 @@ if (is_clang_or_gcc) {
         "shim/allocator_shim_override_cpp_symbols.h",
         "shim/allocator_shim_override_glibc_weak_symbols.h",
         "shim/allocator_shim_override_libc_symbols.h",
+        "shim/allocator_shim_alloc_token_symbols.h",
       ]
     }
     if (is_win) {

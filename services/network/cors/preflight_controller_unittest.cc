@@ -31,6 +31,7 @@
 #include "services/network/network_service.h"
 #include "services/network/public/cpp/cors/cors.h"
 #include "services/network/public/cpp/features.h"
+#include "services/network/public/mojom/device_bound_sessions.mojom.h"
 #include "services/network/public/mojom/devtools_observer.mojom.h"
 #include "services/network/public/mojom/http_raw_headers.mojom.h"
 #include "services/network/public/mojom/network_context.mojom.h"
@@ -353,6 +354,8 @@ class MockDevToolsObserver : public mojom::DevToolsObserver {
       const net::CookieAccessResultList& cookies_with_access_result,
       std::vector<network::mojom::HttpRawHeaderPairPtr> headers,
       const base::TimeTicks timestamp,
+      std::vector<network::mojom::DeviceBoundSessionWithUsagePtr>
+          device_bound_session_usages,
       network::mojom::ClientSecurityStatePtr client_security_state,
       network::mojom::OtherPartitionInfoPtr other_partition_info,
       const std::optional<base::UnguessableToken>&
@@ -413,6 +416,11 @@ class MockDevToolsObserver : public mojom::DevToolsObserver {
       const GURL& url,
       network::mojom::UnencodedDigestIssue issue) override {}
 
+  void OnConnectionAllowlistIssue(
+      const std::string& devtool_request_id,
+      const GURL& url,
+      network::mojom::ConnectionAllowlistIssue issue) override {}
+
   void OnCorsError(const std::optional<std::string>& devtool_request_id,
                    const std::optional<::url::Origin>& initiator_origin,
                    mojom::ClientSecurityStatePtr client_security_state,
@@ -426,7 +434,7 @@ class MockDevToolsObserver : public mojom::DevToolsObserver {
   void Clone(mojo::PendingReceiver<DevToolsObserver> observer) override {
     receivers_.Add(this, std::move(observer));
   }
-  void OnPrivateNetworkRequest(
+  void OnLocalNetworkRequest(
       const std::optional<std::string>& devtool_request_id,
       const GURL& url,
       bool is_warning,
@@ -471,7 +479,7 @@ class PreflightControllerTest : public testing::Test {
 
     network::mojom::URLLoaderFactoryParamsPtr params =
         network::mojom::URLLoaderFactoryParams::New();
-    params->process_id = mojom::kBrowserProcessId;
+    params->process_id = OriginatingProcess::browser();
     // We use network::CorsURLLoaderFactory for "internal" URLLoaderFactory
     // used by the PreflightController. Hence here we disable CORS as otherwise
     // the URLLoader would create a CORS-preflight for the preflight request.

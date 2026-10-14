@@ -96,8 +96,7 @@ RouteEndpoint CreateRouteEndpointFromCandidate(bool local,
                                                bool uses_turn) {
   auto adapter_type = candidate.network_type();
   if (!local && adapter_type == ADAPTER_TYPE_UNKNOWN) {
-    bool vpn;
-    std::tie(adapter_type, vpn) =
+    std::tie(adapter_type, std::ignore, std::ignore) =
         Network::GuessAdapterFromNetworkCost(candidate.network_cost());
   }
 

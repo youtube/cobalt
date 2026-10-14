@@ -308,9 +308,9 @@ void DirectRenderer::DrawFrame(
                     gfx::ContentColorUsage::kHDR,
             .is_opaque = !render_passes_in_draw_order->back()
                               ->has_transparent_background,
-#if BUILDFLAG(IS_OZONE)
             .si_format = frame_si_format,
             .color_space = frame_color_space,
+#if BUILDFLAG(IS_OZONE)
             .overlay_testing_mailbox =
                 output_surface_->capabilities().renderer_allocates_images
                     ? GetPrimaryPlaneOverlayTestingMailbox()

@@ -12,9 +12,12 @@
 #include "extra_include.h"
 
 // Example signatures (to be implemented by #including file).
-// static jboolean JNI_TinySample_Bar(JNIEnv* env, jint a, const jni_zero::JavaRef<jobject>& b);
+// * JNIEnv* parameters are optional.
+// * Types do not have to be exact; they must accept rvalues of the examples.
 //
-// static void JNI_TinySample_Foo(JNIEnv* env, const jni_zero::JavaRef<jobject>& a, jint b);
+// static bool JNI_TinySample_Bar(JNIEnv* env, int32_t a, const jni_zero::JavaRef<jobject>& b);
+//
+// static void JNI_TinySample_Foo(JNIEnv* env, const jni_zero::JavaRef<jobject>& a, int32_t b);
 //
 
 // Java to native functions
@@ -24,39 +27,53 @@
 #define DEFINE_JNI_FOR_TinySample_SEE_JNI_ZERO_README()                                            \
   namespace {                                                                                      \
                                                                                                    \
-  JNI_ZERO_BOUNDARY_EXPORT jboolean Java_org_jni_1zero_GEN_1JNI_org_1jni_11zero_1TinySample_1bar(  \
+  JNI_ZERO_BOUNDARY_EXPORT bool Java_org_jni_1zero_GEN_1JNI_org_1jni_11zero_1TinySample_1bar(      \
       JNIEnv* env,                                                                                 \
       jclass jcaller,                                                                              \
-      jint a,                                                                                      \
+      int32_t a,                                                                                   \
       jobject b) {                                                                                 \
-    /* Use a wrapper function to allow compiler to pick an overloaded version of JNI function */   \
-    auto _jni_func_wrapper = [&](auto&&... args) ->                                                \
-    decltype(JNI_TinySample_Bar(std::forward<decltype(args)>(args)...)) {                          \
-      return JNI_TinySample_Bar(std::forward<decltype(args)>(args)...);                            \
+    jni_zero::JavaRef<jobject> b_ref = jni_zero::JavaRef<jobject>::CreateLeaky(env, b);            \
+    /* Lambda required to make "if constexpr" work properly. */                                    \
+    auto dependent_context = [&](auto) {                                                           \
+      /* Lambda required to disambiguate overloads. */                                             \
+      auto func_wrapper = [&](auto&&... args) ->                                                   \
+      decltype(JNI_TinySample_Bar(std::forward<decltype(args)>(args)...)) {                        \
+        return JNI_TinySample_Bar(std::forward<decltype(args)>(args)...);                          \
+      };                                                                                           \
+      if constexpr (requires { func_wrapper(env, a, b_ref); }) {                                   \
+        return func_wrapper(env, a, b_ref);                                                        \
+      } else if constexpr (requires { func_wrapper(a, b_ref); }) {                                 \
+        return func_wrapper(a, b_ref);                                                             \
+      } else {                                                                                     \
+        static_assert(false, "JNI_TinySample_Bar() is missing or has incorrect signature.\nIt should accept an optional JNIEnv* parameter as well as rvalues of the given types: (int32_t, const jni_zero::JavaRef<jobject>&)\nSee TinySample_jni.h for an example."); \
+      }                                                                                            \
     };                                                                                             \
-    auto _ret = jni_zero::internal::DispatchJniFunc(                                               \
-        _jni_func_wrapper,                                                                         \
-        env,                                                                                       \
-        a,                                                                                         \
-        jni_zero::JavaRef<jobject>::CreateLeaky(env, b));                                          \
-    return _ret;                                                                                   \
+    auto return_value = dependent_context(0);                                                      \
+    return return_value;                                                                           \
   }                                                                                                \
                                                                                                    \
   JNI_ZERO_BOUNDARY_EXPORT void Java_org_jni_1zero_GEN_1JNI_org_1jni_11zero_1TinySample_1foo(      \
       JNIEnv* env,                                                                                 \
       jclass jcaller,                                                                              \
       jobject a,                                                                                   \
-      jint b) {                                                                                    \
-    /* Use a wrapper function to allow compiler to pick an overloaded version of JNI function */   \
-    auto _jni_func_wrapper = [&](auto&&... args) ->                                                \
-    decltype(JNI_TinySample_Foo(std::forward<decltype(args)>(args)...)) {                          \
-      return JNI_TinySample_Foo(std::forward<decltype(args)>(args)...);                            \
+      int32_t b) {                                                                                 \
+    jni_zero::JavaRef<jobject> a_ref = jni_zero::JavaRef<jobject>::CreateLeaky(env, a);            \
+    /* Lambda required to make "if constexpr" work properly. */                                    \
+    auto dependent_context = [&](auto) {                                                           \
+      /* Lambda required to disambiguate overloads. */                                             \
+      auto func_wrapper = [&](auto&&... args) ->                                                   \
+      decltype(JNI_TinySample_Foo(std::forward<decltype(args)>(args)...)) {                        \
+        return JNI_TinySample_Foo(std::forward<decltype(args)>(args)...);                          \
+      };                                                                                           \
+      if constexpr (requires { func_wrapper(env, a_ref, b); }) {                                   \
+        return func_wrapper(env, a_ref, b);                                                        \
+      } else if constexpr (requires { func_wrapper(a_ref, b); }) {                                 \
+        return func_wrapper(a_ref, b);                                                             \
+      } else {                                                                                     \
+        static_assert(false, "JNI_TinySample_Foo() is missing or has incorrect signature.\nIt should accept an optional JNIEnv* parameter as well as rvalues of the given types: (const jni_zero::JavaRef<jobject>&, int32_t)\nSee TinySample_jni.h for an example."); \
+      }                                                                                            \
     };                                                                                             \
-    jni_zero::internal::DispatchJniFunc(                                                           \
-        _jni_func_wrapper,                                                                         \
-        env,                                                                                       \
-        jni_zero::JavaRef<jobject>::CreateLeaky(env, a),                                           \
-        b);                                                                                        \
+    dependent_context(0);                                                                          \
   }                                                                                                \
                                                                                                    \
                                                                                                    \

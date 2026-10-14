@@ -19,7 +19,8 @@ namespace content {
 // static
 scoped_refptr<BackgroundSyncNetworkObserverAndroid::Observer>
 BackgroundSyncNetworkObserverAndroid::Observer::Create(
-    base::RepeatingCallback<void(network::mojom::ConnectionType)> callback) {
+    base::RepeatingCallback<void(net::NetworkChangeNotifier::ConnectionType)>
+        callback) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   scoped_refptr<BackgroundSyncNetworkObserverAndroid::Observer> observer(
       new BackgroundSyncNetworkObserverAndroid::Observer(callback));
@@ -34,25 +35,26 @@ void BackgroundSyncNetworkObserverAndroid::Observer::Init() {
   // scoped to the lifetime of this object.
   JNIEnv* env = base::android::AttachCurrentThread();
   j_observer_ = Java_BackgroundSyncNetworkObserver_createObserver(
-      env, reinterpret_cast<jlong>(this));
+      env, reinterpret_cast<int64_t>(this));
 }
 
 BackgroundSyncNetworkObserverAndroid::Observer::~Observer() {
   JNIEnv* env = base::android::AttachCurrentThread();
   Java_BackgroundSyncNetworkObserver_removeObserver(
-      env, j_observer_, reinterpret_cast<jlong>(this));
+      env, j_observer_, reinterpret_cast<int64_t>(this));
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 }
 
 void BackgroundSyncNetworkObserverAndroid::Observer::
     NotifyConnectionTypeChanged(JNIEnv* env, int32_t new_connection_type) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  callback_.Run(
-      static_cast<network::mojom::ConnectionType>(new_connection_type));
+  callback_.Run(static_cast<net::NetworkChangeNotifier::ConnectionType>(
+      new_connection_type));
 }
 
 BackgroundSyncNetworkObserverAndroid::Observer::Observer(
-    base::RepeatingCallback<void(network::mojom::ConnectionType)> callback)
+    base::RepeatingCallback<void(net::NetworkChangeNotifier::ConnectionType)>
+        callback)
     : callback_(std::move(callback)) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 }

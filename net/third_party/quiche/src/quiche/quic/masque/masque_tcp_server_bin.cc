@@ -406,11 +406,10 @@ class MasqueTcpServer : public QuicSocketEventListener,
 
   explicit MasqueTcpServer(SSL_CTX* client_ssl_ctx,
                            bool disable_certificate_verification,
-                           int address_family_for_lookup)
+                           const MasqueConnectionPool::DnsConfig& dns_config)
       : event_loop_(GetDefaultEventLoop()->Create(QuicDefaultClock::Get())),
         connection_pool_(event_loop_.get(), client_ssl_ctx,
-                         disable_certificate_verification,
-                         address_family_for_lookup, this) {}
+                         disable_certificate_verification, dns_config, this) {}
 
   MasqueTcpServer(const MasqueTcpServer&) = delete;
   MasqueTcpServer(MasqueTcpServer&&) = delete;
@@ -464,6 +463,7 @@ class MasqueTcpServer : public QuicSocketEventListener,
 
     SSL_CTX_set_min_proto_version(ctx_.get(), TLS1_2_VERSION);
     SSL_CTX_set_max_proto_version(ctx_.get(), TLS1_3_VERSION);
+    SSL_CTX_set_mode(ctx_.get(), SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
 
     return true;
   }
@@ -536,7 +536,8 @@ class MasqueTcpServer : public QuicSocketEventListener,
 
   // From MasqueH2Connection::Visitor.
   void OnConnectionReady(MasqueH2Connection* /*connection*/) override {}
-  void OnConnectionFinished(MasqueH2Connection* connection) override {
+  void OnConnectionFinished(MasqueH2Connection* connection,
+                            absl::Status /*error*/) override {
     connections_.erase(
         std::remove_if(connections_.begin(), connections_.end(),
                        [connection](const auto& socket_connection) {
@@ -910,23 +911,16 @@ int RunMasqueTcpServer(int argc, char* argv[]) {
                       << client_ssl_ctx.status();
     return 1;
   }
-  const int address_family =
-      quiche::GetQuicheCommandLineFlag(FLAGS_address_family);
-  int address_family_for_lookup;
-  if (address_family == 0) {
-    address_family_for_lookup = AF_UNSPEC;
-  } else if (address_family == 4) {
-    address_family_for_lookup = AF_INET;
-  } else if (address_family == 6) {
-    address_family_for_lookup = AF_INET6;
-  } else {
-    QUICHE_LOG(ERROR) << "Invalid address_family " << address_family;
+  MasqueConnectionPool::DnsConfig dns_config;
+  absl::Status address_family_status = dns_config.SetAddressFamily(
+      quiche::GetQuicheCommandLineFlag(FLAGS_address_family));
+  if (!address_family_status.ok()) {
+    QUICHE_LOG(ERROR) << address_family_status;
     return 1;
   }
 
   MasqueTcpServer server(client_ssl_ctx->get(),
-                         disable_certificate_verification,
-                         address_family_for_lookup);
+                         disable_certificate_verification, dns_config);
 
   if (!server.SetupGateway(gateway_path, masque_ohttp_gateway.get())) {
     QUICHE_LOG(ERROR) << "Invalid gateway configuration";

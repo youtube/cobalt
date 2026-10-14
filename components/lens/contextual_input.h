@@ -45,6 +45,8 @@ struct ContextualInputData {
   std::optional<GURL> page_url;
   // If the context is a webpage or pdf, this is the title of it.
   std::optional<std::string> page_title;
+  // If the context is a file, this is the file name.
+  std::optional<std::string> file_name;
   // If the context is a pdf, this is the current viewed page.
   std::optional<uint32_t> pdf_current_page;
   // TODO(crbug.com/462520491): Set the tab handle from the contextual
@@ -62,6 +64,10 @@ struct ContextualInputData {
   // Followup uploads for an existing document should re-use the same context
   // id.
   std::optional<int64_t> context_id;
+  // Whether or not the contextual input data is for a context upload with
+  // strong user Lens usage intent. This is usually true, but can be false for
+  // the LensOverlay zero-state initial context upload.
+  bool has_lens_usage_intent = true;
 };
 
 }  // namespace lens

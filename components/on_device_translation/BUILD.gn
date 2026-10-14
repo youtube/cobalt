@@ -6,24 +6,56 @@ import("//components/on_device_translation/buildflags/features.gni")
 
 assert(enable_on_device_translation)
 
-source_set("on_device_translation") {
+source_set("features") {
   sources = [
     "constants.cc",
     "constants.h",
     "features.cc",
     "features.h",
+  ]
+  deps = [
+    "//base",
+    "//crypto",
+    "//third_party/blink/public/common:headers",
+  ]
+}
+
+source_set("on_device_translation") {
+  sources = [
+    "component_manager.cc",
+    "component_manager.h",
+    "file_operation_proxy_impl.cc",
+    "file_operation_proxy_impl.h",
+    "installer.cc",
+    "installer.h",
     "metrics.cc",
     "metrics.h",
+    "service_controller.cc",
+    "service_controller.h",
+    "service_controller_manager.cc",
+    "service_controller_manager.h",
+    "translation_manager_util.cc",
+    "translation_manager_util.h",
     "translator.cc",
     "translator.h",
   ]
   public_deps = [
-    "//base",
-    "//components/on_device_translation/public/mojom",
-    "//mojo/public/cpp/bindings",
-    "//third_party/blink/public/common",
+    ":features",
+    ":public",
+    "//components/prefs",
+    "//content/public/browser",
   ]
-  deps = [ ":public" ]
+  deps = [
+    "//base",
+    "//components/component_updater",
+    "//components/language/core/browser",
+    "//components/on_device_translation/public/mojom",
+    "//components/user_prefs",
+    "//mojo/public/cpp/bindings",
+    "//mojo/public/cpp/system",
+    "//third_party/blink/public/common",
+    "//third_party/blink/public/common:headers",
+  ]
 }
 
 source_set("public") {
@@ -44,15 +76,39 @@ source_set("public") {
 source_set("unit_tests") {
   testonly = true
   sources = [
+    "component_manager_unittest.cc",
     "features_unittest.cc",
+    "file_operation_proxy_impl_unittest.cc",
     "metrics_unittest.cc",
     "public/language_pack_unittest.cc",
+    "translation_manager_util_unittest.cc",
   ]
   deps = [
     ":on_device_translation",
     ":public",
+    ":test_support",
+    "//base",
     "//base/test:test_support",
+    "//components/component_updater",
+    "//components/on_device_translation/public/mojom",
+    "//components/on_device_translation/service:test_support",
+    "//mojo/public/cpp/bindings",
+    "//mojo/public/cpp/system",
     "//testing/gmock",
     "//testing/gtest",
+  ]
+}
+
+static_library("test_support") {
+  testonly = true
+  sources = [
+    "test/fake_installer.cc",
+    "test/fake_installer.h",
+  ]
+  deps = [
+    ":on_device_translation",
+    ":public",
+    "//base",
+    "//base/test:test_support",
   ]
 }

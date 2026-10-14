@@ -23,6 +23,7 @@
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
 #include "chrome/browser/ash/browser_delegate/browser_controller.h"
+#include "chrome/browser/profiles/keep_alive/profile_keep_alive_types.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
@@ -33,6 +34,7 @@
 #include "chrome/browser/ui/web_applications/web_app_launch_utils.h"
 #include "chrome/browser/ui/web_applications/web_app_tabbed_utils.h"
 #include "chrome/browser/web_applications/locks/app_lock.h"
+#include "chrome/browser/web_applications/model/display_override.h"
 #include "chrome/browser/web_applications/proto/web_app.pb.h"
 #include "chrome/browser/web_applications/ui_manager/update_dialog_types.h"
 #include "chrome/browser/web_applications/url_pattern_with_regex_matcher.h"
@@ -49,6 +51,7 @@
 #include "chrome/browser/web_applications/web_app_tab_helper.h"
 #include "chrome/browser/web_applications/web_app_ui_manager.h"
 #include "chrome/grit/generated_resources.h"
+#include "components/keep_alive_registry/keep_alive_types.h"
 #include "components/password_manager/core/common/password_manager_features.h"
 #include "components/services/app_service/public/cpp/app_registry_cache.h"
 #include "components/services/app_service/public/cpp/app_types.h"
@@ -58,6 +61,7 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_features.h"
 #include "third_party/blink/public/common/features.h"
+#include "third_party/blink/public/common/safe_url_pattern.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/gfx/favicon_size.h"
 #include "ui/gfx/image/image.h"
@@ -191,7 +195,7 @@ void WebAppBrowserController::ToggleWindowControlsOverlayEnabled(
       AppLockDescription(app_id()),
       base::BindOnce(
           [](const webapps::AppId& app_id, bool wco_enabled, AppLock& lock,
-             base::Value::Dict& debug_value) {
+             base::DictValue& debug_value) {
             lock.sync_bridge().SetAppWindowControlsOverlayEnabled(app_id,
                                                                   wco_enabled);
           },
@@ -210,11 +214,20 @@ bool WebAppBrowserController::UrlMatchesBorderlessPattern(
   if (app == nullptr) {
     return false;
   }
-  return app->borderless_url_patterns().empty() ||
-         std::ranges::any_of(app->borderless_url_patterns(),
-                             [&url](const blink::SafeUrlPattern& p) {
-                               return UrlPatternWithRegexMatcher(p).Match(url);
-                             });
+
+  auto it = std::ranges::find_if(
+      app->display_mode_override(), [](const DisplayOverride& item) {
+        return item.display_mode() == DisplayMode::kBorderless;
+      });
+  if (it == app->display_mode_override().end()) {
+    return false;
+  }
+
+  return it->url_patterns().empty() ||
+         std::ranges::any_of(
+             it->url_patterns(), [&url](const blink::SafeUrlPattern& pattern) {
+               return UrlPatternWithRegexMatcher(pattern).Match(url);
+             });
 }
 
 bool WebAppBrowserController::AppUsesTabbed() const {
@@ -226,7 +239,8 @@ bool WebAppBrowserController::AppUsesTabbed() const {
 
 bool WebAppBrowserController::IsIsolatedWebApp() const {
   return is_isolated_web_app_for_testing_ ||
-         registrar().AppMatches(app_id(), WebAppFilter::IsIsolatedApp());
+         registrar().AppMatches(app_id(), WebAppFilter::IsIsolatedApp() |
+                                              WebAppFilter::IsIsolatedSubApp());
 }
 
 void WebAppBrowserController::SetIsolatedWebAppTrueForTesting() {
@@ -324,7 +338,7 @@ void WebAppBrowserController::ToggleAlwaysShowToolbarInFullscreen() {
       AppLockDescription(app_id()),
       base::BindOnce(
           [](const webapps::AppId& app_id, AppLock& lock,
-             base::Value::Dict& debug_value) {
+             base::DictValue& debug_value) {
             lock.sync_bridge().SetAlwaysShowToolbarInFullscreen(
                 app_id,
                 !lock.registrar().AlwaysShowToolbarInFullscreen(app_id));
@@ -663,10 +677,10 @@ void WebAppBrowserController::Uninstall(
 }
 
 bool WebAppBrowserController::IsInstalled() const {
-  return registrar().IsInstallState(
-      app_id(), {proto::InstallState::SUGGESTED_FROM_ANOTHER_DEVICE,
-                 proto::InstallState::INSTALLED_WITHOUT_OS_INTEGRATION,
-                 proto::InstallState::INSTALLED_WITH_OS_INTEGRATION});
+  // TODO(crbug.com/379136842): This is likely too 'permissive' of a check, and
+  // different more restrictive filter should likely be used instead.
+  return registrar().AppMatches(app_id(),
+                                WebAppFilter::IsAppSurfaceableToUser());
 }
 
 void WebAppBrowserController::SetIconLoadCallbackForTesting(
@@ -787,14 +801,50 @@ void WebAppBrowserController::OnMetadataObtainedTriggerUpdateDialog(
     return;
   }
 
-  // TODO(crbug.com/436868803): Pipe calling of the final update command to this
-  // function.
   web_app::ShowWebAppReviewUpdateDialog(
       app_id(), *identity_update, browser(), start_time,
-      base::BindOnce([](WebAppIdentityUpdateResult result) {
-        base::UmaHistogramEnumeration("WebApp.PredictableUpdateDialog.Result",
-                                      result);
-      }));
+      base::BindOnce(&WebAppBrowserController::OnUpdateDialogResult,
+                     weak_ptr_factory_.GetWeakPtr()));
+}
+
+void WebAppBrowserController::OnUpdateDialogResult(
+    WebAppIdentityUpdateResult result) const {
+  CHECK(!browser()->profile()->IsOffTheRecord());
+  base::UmaHistogramEnumeration("WebApp.PredictableUpdateDialog.Result",
+                                result);
+  auto* web_app_provider = WebAppProvider::GetForWebApps(browser()->profile());
+  CHECK(web_app_provider);
+
+  switch (result) {
+    case WebAppIdentityUpdateResult::kAccept: {
+      auto profile_keep_alive = ScopedProfileKeepAlive::TryAcquire(
+          browser()->profile(), ProfileKeepAliveOrigin::kWebAppUpdate);
+      if (!profile_keep_alive) {
+        // Profile is scheduled for destruction, abort.
+        return;
+      }
+      auto keep_alive = std::make_unique<ScopedKeepAlive>(
+          KeepAliveOrigin::APP_MANIFEST_UPDATE,
+          KeepAliveRestartOption::DISABLED);
+      web_app_provider->scheduler().ScheduleApplyPendingManifestUpdate(
+          app_id(), std::move(keep_alive), std::move(profile_keep_alive),
+          base::DoNothing());
+      return;
+    }
+    case WebAppIdentityUpdateResult::kIgnore:
+      web_app_provider->scheduler().MarkAppPendingUpdateAsIgnored(
+          app_id(), base::DoNothing());
+      return;
+    case WebAppIdentityUpdateResult::kUninstallApp:
+      web_app_provider->ui_manager().PresentUserUninstallDialog(
+          app_id(), webapps::WebappUninstallSource::kAppMenu,
+          browser()->window(), base::DoNothing());
+      return;
+    case WebAppIdentityUpdateResult::kAppUninstalledDuringDialog:
+    case WebAppIdentityUpdateResult::kUnexpectedError:
+      return;
+  }
+  NOTREACHED();
 }
 
 std::optional<SkColor>

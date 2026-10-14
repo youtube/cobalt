@@ -9,12 +9,13 @@
 #include "base/memory/weak_ptr.h"
 #include "base/notimplemented.h"
 #include "base/time/time.h"
+#include "chrome/browser/glic/common/application_hotkey_delegate.h"
+#include "chrome/browser/glic/common/glic_panel_hotkey_delegate.h"
 #include "chrome/browser/glic/glic_profile_manager.h"
+#include "chrome/browser/glic/public/features.h"
 #include "chrome/browser/glic/service/glic_instance_helper.h"
 #include "chrome/browser/glic/service/metrics/glic_instance_metrics.h"
-#include "chrome/browser/glic/widget/application_hotkey_delegate.h"
 #include "chrome/browser/glic/widget/glic_inactive_floating_ui.h"
-#include "chrome/browser/glic/widget/glic_panel_hotkey_delegate.h"
 #include "chrome/browser/glic/widget/glic_view.h"
 #include "chrome/browser/glic/widget/glic_widget.h"
 #include "chrome/browser/glic/widget/glic_window_animator.h"
@@ -58,10 +59,12 @@ GlicFloatingUi::GlicFloatingUi(Profile* profile,
       delegate_(delegate),
       instance_metrics_(instance_metrics),
       source_tab_(source_tab) {
-  if (auto* helper = GlicInstanceHelper::From(source_tab_.Get())) {
-    source_tab_destruction_subscription_ =
-        helper->SubscribeToDestruction(base::BindRepeating(
-            &GlicFloatingUi::OnSourceTabDestroyed, base::Unretained(this)));
+  if (!base::FeatureList::IsEnabled(features::kGlicOrphanedReattachment)) {
+    if (auto* helper = GlicInstanceHelper::From(source_tab_.Get())) {
+      source_tab_destruction_subscription_ =
+          helper->SubscribeToDestruction(base::BindRepeating(
+              &GlicFloatingUi::OnSourceTabDestroyed, base::Unretained(this)));
+    }
   }
   application_hotkey_manager_ =
       MakeApplicationHotkeyManager(weak_ptr_factory_.GetWeakPtr());
@@ -75,6 +78,10 @@ GlicFloatingUi::GlicFloatingUi(Profile* profile,
 }
 
 GlicFloatingUi::~GlicFloatingUi() {
+  if (IsShowing()) {
+    modal_dialog_host_observers_.Notify(
+        &web_modal::ModalDialogHostObserver::OnHostDestroying);
+  }
   GlicProfileManager::GetInstance()->SetCurrentDetachedGlic(nullptr);
   ClearWebContentsDelegate();
   PictureInPictureOcclusionTracker* tracker =
@@ -119,6 +126,7 @@ void GlicFloatingUi::CreateAndSetupWidget(gfx::Rect initial_bounds) {
   auto glic_view =
       std::make_unique<GlicView>(profile_, initial_bounds.size(),
                                  glic_panel_hotkey_manager_->GetWeakPtr());
+  glic_view->SetWebContents(delegate_->host().webui_contents());
   glic_delegate_ =
       GlicWidget::CreateWidgetDelegate(std::move(glic_view), user_resizable_);
   glic_widget_ = GlicWidget::Create(glic_delegate_.get(), profile_,
@@ -261,11 +269,9 @@ void GlicFloatingUi::Attach() {
   if (!base::FeatureList::IsEnabled(kGlicFloatingUiReattachment)) {
     return;
   }
-  if (!source_tab_.Get()) {
-    return;
-  }
+
   // NOTE: `this` will be destroyed after this call.
-  delegate_->Attach(*source_tab_.Get());
+  delegate_->Attach(source_tab_);
 }
 
 void GlicFloatingUi::Detach() {
@@ -286,7 +292,6 @@ void GlicFloatingUi::Show(const ShowOptions& options) {
   instance_metrics_->OnShowInFloaty(options);
   GlicProfileManager::GetInstance()->SetCurrentDetachedGlic(profile_);
   GetGlicWidget()->Show();
-  GetGlicView()->SetWebContents(delegate_->host().webui_contents());
   GetGlicView()->UpdateBackgroundColor();
   application_hotkey_manager_->InitializeAccelerators();
   glic_panel_hotkey_manager_->InitializeAccelerators();

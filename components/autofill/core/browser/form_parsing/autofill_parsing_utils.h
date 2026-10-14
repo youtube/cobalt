@@ -65,7 +65,11 @@ enum class RegexFeature : uint8_t {
   kAutofillDisallowMoreHyphenLikeLabels = 6,
   kAutofillFixStateCountryMisclassification = 7,
   kAutofillFixCivilStateMisclassificationForESPT = 8,
-  kMaxValue = kAutofillFixCivilStateMisclassificationForESPT,
+  kAutofillAddressImproveBuildingNumberRegex = 9,
+  kAutofillNewRegexForPhoneCountryCode = 10,
+  kAutofillSupportCombinedZipAndCityFR = 11,
+  kAutofillImprovePhoneFieldParser = 12,
+  kMaxValue = kAutofillImprovePhoneFieldParser,
 };
 
 // Returns a `DenseSet` containing all `RegexFeature`s whose corresponding

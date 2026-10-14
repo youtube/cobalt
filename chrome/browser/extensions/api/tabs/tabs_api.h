@@ -59,10 +59,6 @@ namespace tabs {
 class TabInterface;
 }
 
-namespace ui {
-class ListSelectionModel;
-}
-
 namespace user_prefs {
 class PrefRegistrySyncable;
 }
@@ -162,20 +158,6 @@ ui::mojom::WindowShowState ConvertToWindowShowState(
 // Returns whether the given `bounds` intersect with at least 50% of all the
 // displays.
 bool WindowBoundsIntersectDisplays(const gfx::Rect& bounds);
-
-// Moves the given tab to the `target_browser`. On success, returns the
-// new index of the tab in the target tabstrip. On failure, returns -1.
-// Assumes that the caller has already checked whether the target window is
-// different from the source.
-// `allow_other_window_types` indicates whether moving tabs to windows with
-// types other than BrowserWindowInterface::TYPE_NORMAL is supported; this is
-// allowed in certain cases (like moving a tab to a popup).
-int MoveTabToWindow(ExtensionFunction* function,
-                    int tab_id,
-                    BrowserWindowInterface* target_browser,
-                    int new_index,
-                    bool allow_other_window_types,
-                    std::string* error);
 
 }  // namespace tabs_internal
 
@@ -304,12 +286,12 @@ class TabsQueryFunction : public ExtensionFunction {
   ~TabsQueryFunction() override = default;
 
   // Builds the list of tab objects to return.
-  base::Value::List BuildTabList(BrowserWindowInterface* current_browser,
-                                 BrowserWindowInterface* last_active_browser,
-                                 const URLPatternSet& url_patterns,
-                                 const std::string& window_type,
-                                 int window_id,
-                                 int tab_index);
+  base::ListValue BuildTabList(BrowserWindowInterface* current_browser,
+                               BrowserWindowInterface* last_active_browser,
+                               const URLPatternSet& url_patterns,
+                               const std::string& window_type,
+                               int window_id,
+                               int tab_index);
 
   bool MatchesWindow(BrowserWindowInterface* candidate_browser,
                      BrowserWindowInterface* current_browser,
@@ -360,11 +342,6 @@ class TabsDuplicateFunction : public ExtensionFunction {
 class TabsHighlightFunction : public ExtensionFunction {
   ~TabsHighlightFunction() override = default;
   ResponseAction Run() override;
-  bool HighlightTab(TabStripModel* tabstrip,
-                    ui::ListSelectionModel* selection,
-                    std::optional<size_t>* active_index,
-                    int index,
-                    std::string* error);
   DECLARE_EXTENSION_FUNCTION("tabs.highlight", TABS_HIGHLIGHT)
 };
 class TabsUpdateFunction : public ExtensionFunction {
@@ -412,7 +389,7 @@ class TabsMoveFunction : public ExtensionFunction {
   ResponseAction Run() override;
   bool MoveTab(int tab_id,
                int* new_index,
-               base::Value::List& tab_values,
+               base::ListValue& tab_values,
                const std::optional<int>& window_id,
                std::string* error);
   DECLARE_EXTENSION_FUNCTION("tabs.move", TABS_MOVE)

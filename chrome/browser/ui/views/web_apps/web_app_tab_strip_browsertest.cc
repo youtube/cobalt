@@ -29,7 +29,8 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/location_bar/custom_tab_bar_view.h"
-#include "chrome/browser/ui/views/tabs/tab_icon.h"
+#include "chrome/browser/ui/views/tabs/tab/tab_icon.h"
+#include "chrome/browser/ui/views/tabs/tab_accessibility.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
 #include "chrome/browser/ui/views/tabs/tab_strip_controller.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
@@ -70,6 +71,7 @@
 
 #if BUILDFLAG(IS_CHROMEOS)
 #include "ash/wm/window_pin_util.h"
+#include "chrome/browser/ash/boca/on_task/on_task_locked_controller.h"
 #endif
 
 using content::OpenURLParams;
@@ -1328,21 +1330,24 @@ IN_PROC_BROWSER_TEST_P(WebAppTabStripBrowserTest, PageTitle) {
   EXPECT_EQ(tab_strip->GetWebContentsAt(0)->GetVisibleURL(), start_url);
   EXPECT_EQ(tab_strip->active_index(), 0);
 
-  BrowserView* browser_view =
-      BrowserView::GetBrowserViewForBrowser(app_browser);
-
   // The tab title starts with the tab name, followed by whether it is pinned
   // but may also have more things after that.
-  EXPECT_TRUE(base::StartsWith(browser_view->GetAccessibleTabLabel(0),
-                               u"Tab Strip Customizations - Pinned"));
+  EXPECT_TRUE(
+      base::StartsWith(tabs::GetAccessibleTabLabel(tab_strip->GetTabAtIndex(0),
+                                                   /*is_for_tab=*/false),
+                       u"Tab Strip Customizations - Pinned"));
 
   chrome::NewTab(app_browser);
   content::WaitForLoadStop(tab_strip->GetActiveWebContents());
 
-  EXPECT_TRUE(base::StartsWith(browser_view->GetAccessibleTabLabel(0),
-                               u"Tab Strip Customizations - Pinned"));
-  EXPECT_TRUE(base::StartsWith(browser_view->GetAccessibleTabLabel(1),
-                               u"Favicon only"));
+  EXPECT_TRUE(
+      base::StartsWith(tabs::GetAccessibleTabLabel(tab_strip->GetTabAtIndex(0),
+                                                   /*is_for_tab=*/false),
+                       u"Tab Strip Customizations - Pinned"));
+  EXPECT_TRUE(
+      base::StartsWith(tabs::GetAccessibleTabLabel(tab_strip->GetTabAtIndex(1),
+                                                   /*is_for_tab=*/false),
+                       u"Favicon only"));
 }
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -1358,7 +1363,8 @@ IN_PROC_BROWSER_TEST_P(WebAppTabStripForOnTaskBrowserTest,
       embedded_test_server()->GetURL("/web_apps/tab_strip_customizations.html");
   const webapps::AppId app_id = InstallTestWebApp(start_url);
   Browser* const app_browser = FindWebAppBrowser(browser()->profile(), app_id);
-  app_browser->SetLockedForOnTask(true);
+  ash::boca::OnTaskLockedController::From(app_browser)
+      ->set_locked_for_on_task(true);
 
   const TabStripModel* const tab_strip_model = app_browser->tab_strip_model();
   ASSERT_TRUE(registrar().IsTabbedWindowModeEnabled(app_id));
@@ -1398,7 +1404,8 @@ IN_PROC_BROWSER_TEST_P(WebAppTabStripForOnTaskBrowserTest,
       embedded_test_server()->GetURL("/web_apps/tab_strip_customizations.html");
   const webapps::AppId app_id = InstallTestWebApp(start_url);
   Browser* const app_browser = FindWebAppBrowser(browser()->profile(), app_id);
-  app_browser->SetLockedForOnTask(false);
+  ash::boca::OnTaskLockedController::From(app_browser)
+      ->set_locked_for_on_task(false);
 
   const TabStripModel* const tab_strip_model = app_browser->tab_strip_model();
   ASSERT_TRUE(registrar().IsTabbedWindowModeEnabled(app_id));

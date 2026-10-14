@@ -49,7 +49,7 @@ class TestApp extends CrLitElement {
   private accessor maxHeight_: number = SAMPLE_AVAIL_HEIGHT;
 }
 
-customElements.define('test-app', TestApp);
+customElements.define(TestApp.is, TestApp);
 
 suite('SelectableLazyListTest', () => {
   let selectableList: SelectableLazyListElement;
@@ -78,8 +78,7 @@ suite('SelectableLazyListTest', () => {
 
   function sampleTabItems(siteNames: string[]): TabData[] {
     return generateSampleTabsFromSiteNames(siteNames).map(tab => {
-      return new TabData(
-          tab, TabItemType.OPEN_TAB, new URL(tab.url.url).hostname);
+      return new TabData(tab, TabItemType.OPEN_TAB, new URL(tab.url).hostname);
     });
   }
 

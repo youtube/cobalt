@@ -133,6 +133,7 @@ class AwMetricsServiceClient
   static AwMetricsServiceClient* GetInstance();
   static void SetInstance(
       std::unique_ptr<AwMetricsServiceClient> aw_metrics_service_client);
+  static void ClearInstanceForTesting();
 
   static void RegisterMetricsPrefs(PrefRegistrySimple* registry);
   static base::FilePath GetNoBackupFilesDir();
@@ -180,6 +181,7 @@ class AwMetricsServiceClient
       metrics::MetricsLogUploader::MetricServiceType service_type,
       const metrics::MetricsLogUploader::UploadCallback& on_upload_complete)
       override;
+  bool IsJobSchedulerSupported() const override;
   base::TimeDelta GetStandardUploadInterval() override;
   bool ShouldStartUpFast() const override;
 

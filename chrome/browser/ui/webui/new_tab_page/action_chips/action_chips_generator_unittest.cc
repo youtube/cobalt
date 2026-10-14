@@ -18,12 +18,14 @@
 #include "base/run_loop.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
 #include "chrome/browser/optimization_guide/mock_optimization_guide_keyed_service.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/ui/tabs/tab_model.h"
 #include "chrome/browser/ui/webui/new_tab_page/action_chips/action_chips.mojom.h"
+#include "chrome/browser/ui/webui/new_tab_page/action_chips/action_chips_metrics.h"
 #include "chrome/browser/ui/webui/new_tab_page/action_chips/action_chips_mojo_test_utils.h"
 #include "chrome/browser/ui/webui/new_tab_page/action_chips/fake_tab_id_generator.h"
 #include "chrome/browser/ui/webui/new_tab_page/action_chips/remote_suggestions_service_simple.h"
@@ -44,10 +46,12 @@
 #include "net/base/net_errors.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/omnibox_proto/aim_tools.pb.h"
 #include "third_party/omnibox_proto/groups.pb.h"
+#include "third_party/omnibox_proto/tool_mode.pb.h"
 #include "url/gurl.h"
+
 namespace {
+using ::action_chips::ActionChipsRequestStatus;
 using ::action_chips::RemoteSuggestionsServiceSimple;
 using ::action_chips::mojom::ActionChip;
 using ::action_chips::mojom::ActionChipPtr;
@@ -773,14 +777,10 @@ TEST(ActionChipGeneratorTest, DeepDiveWithNewEndpoint) {
                              {}, recent_tab_title, recent_tab_subtitle,
                              recent_tab_suggestion),
             CreateSuggestion(omnibox::GROUP_AI_MODE_CONTEXTUAL_SEARCH_ACTION,
-                             {omnibox::SUBTYPE_AI_TOOL_ACTION,
-                              omnibox::SUBTYPE_CONTEXTUAL_SEARCH},
-                             deep_dive_title_1, deep_dive_subtitle_1,
+                             {}, deep_dive_title_1, deep_dive_subtitle_1,
                              deep_dive_suggestion_1),
             CreateSuggestion(omnibox::GROUP_AI_MODE_CONTEXTUAL_SEARCH_ACTION,
-                             {omnibox::SUBTYPE_AI_TOOL_ACTION,
-                              omnibox::SUBTYPE_CONTEXTUAL_SEARCH},
-                             deep_dive_title_2, deep_dive_subtitle_2,
+                             {}, deep_dive_title_2, deep_dive_subtitle_2,
                              deep_dive_suggestion_2)});
         return nullptr;
       }));
@@ -820,6 +820,7 @@ TEST(ActionChipGeneratorTest, DeepDiveWithNewEndpoint) {
 
 TEST(ActionChipGeneratorTest, SteadyStateWithNewEndpoint) {
   EnvironmentFixture env;
+  base::HistogramTester histogram_tester;
   const GURL page_url("https://www.google.com/");
   const std::u16string page_title(u"Google");
   TabFixture tab_fixture(page_url, page_title);
@@ -891,6 +892,10 @@ TEST(ActionChipGeneratorTest, SteadyStateWithNewEndpoint) {
 
   EXPECT_THAT(actual, ElementsAre(Eq(std::cref(chip0)), Eq(std::cref(chip1)),
                                   Eq(std::cref(chip2))));
+  histogram_tester.ExpectUniqueSample("NewTabPage.ActionChips.RequestStatus",
+                                      ActionChipsRequestStatus::kSuccess, 1);
+  histogram_tester.ExpectUniqueSample("NewTabPage.ActionChips.SuggestionCount",
+                                      3, 1);
 }
 
 TEST(ActionChipGeneratorTest, SteadyStateWithNewEndpointAndNoTab) {
@@ -953,6 +958,7 @@ TEST(ActionChipGeneratorTest, SteadyStateWithNewEndpointAndNoTab) {
 
 TEST(ActionChipGeneratorTest, NewEndpointFailureFallsBackToStaticChips) {
   EnvironmentFixture env;
+  base::HistogramTester histogram_tester;
   const GURL page_url("https://www.google.com/");
   const std::u16string page_title(u"Google");
   TabFixture tab_fixture(page_url, page_title);
@@ -990,22 +996,50 @@ TEST(ActionChipGeneratorTest, NewEndpointFailureFallsBackToStaticChips) {
               ElementsAre(Eq(std::cref(most_recent_tab_chip)),
                           Eq(std::cref(GetStaticDeepSearchChip())),
                           Eq(std::cref(GetStaticImageGenerationChip()))));
+
+  histogram_tester.ExpectUniqueSample("NewTabPage.ActionChips.RequestStatus",
+                                      ActionChipsRequestStatus::kNetworkError,
+                                      1);
+  histogram_tester.ExpectUniqueSample(
+      "NewTabPage.ActionChips.RequestStatus.NetworkError",
+      std::abs(net::ERR_TIMED_OUT), 1);
 }
 
-TEST(ActionChipGeneratorTest, NewEndpointOptOutReturnsStaticChips) {
+TEST(ActionChipGeneratorTest, NewEndpointOptOutReturnsEndpointChips) {
   EnvironmentFixture env;
   const GURL page_url("https://www.google.com/");
   const std::u16string page_title(u"Google");
   TabFixture tab_fixture(page_url, page_title);
   GeneratorFixture generator_fixture;
 
+  const std::string deep_search_title = "Research a topic";
+  const std::string deep_search_subtitle = "Subtitle for deep search";
+  const std::string deep_search_suggestion = "Interior design courses";
+  const std::string image_gen_title = "Create image";
+  const std::string image_gen_subtitle = "Subtitle for image gen";
+  const std::string image_gen_suggestion = "Show me a city skyline";
+
   EXPECT_CALL(generator_fixture.fake_client(),
               IsPersonalizedUrlDataCollectionActive())
       .WillOnce(Return(false));
 
-  // Should NOT call remote service.
-  EXPECT_CALL(generator_fixture.mock_service(), GetActionChipSuggestions)
-      .Times(0);
+  // Should call remote service with nullopt title and URL.
+  EXPECT_CALL(generator_fixture.mock_service(),
+              GetActionChipSuggestions(Eq(std::nullopt), Eq(std::nullopt), _,
+                                       Eq(std::nullopt), _))
+      .WillOnce(WithArg<4>(
+          [&](base::OnceCallback<void(RemoteSuggestionsServiceSimple::
+                                          ActionChipSuggestionsResult&&)>
+                  callback) {
+            std::move(callback).Run(SearchSuggestionParser::SuggestResults{
+                CreateSuggestion(omnibox::GROUP_AI_MODE_DEEP_SEARCH_ACTION, {},
+                                 deep_search_title, deep_search_subtitle,
+                                 base::UTF8ToUTF16(deep_search_suggestion)),
+                CreateSuggestion(omnibox::GROUP_AI_MODE_CREATE_IMAGE_ACTION, {},
+                                 image_gen_title, image_gen_subtitle,
+                                 base::UTF8ToUTF16(image_gen_suggestion))});
+            return nullptr;
+          }));
 
   base::test::ScopedFeatureList list;
   list.InitAndEnableFeatureWithParameters(
@@ -1021,17 +1055,64 @@ TEST(ActionChipGeneratorTest, NewEndpointOptOutReturnsStaticChips) {
                                         actual);
   run_loop.Run();
 
-  // Expect static chips.
-  ActionChipPtr most_recent_tab_chip =
-      CreateStaticRecentTabChip(CreateTabInfo(&tab_fixture.mock_tab()));
+  // Expect endpoint chips.
+  ActionChipPtr chip0 =
+      ActionChip::New(deep_search_title, deep_search_subtitle,
+                      deep_search_suggestion, ChipType::kDeepSearch, nullptr);
+  ActionChipPtr chip1 =
+      ActionChip::New(image_gen_title, image_gen_subtitle, image_gen_suggestion,
+                      ChipType::kImage, nullptr);
+  EXPECT_THAT(actual, ElementsAre(Eq(std::cref(chip0)), Eq(std::cref(chip1))));
+}
+
+TEST(ActionChipGeneratorTest, NewEndpointOptOutFallsBackToStaticOnFailure) {
+  EnvironmentFixture env;
+  const GURL page_url("https://www.google.com/");
+  const std::u16string page_title(u"Google");
+  TabFixture tab_fixture(page_url, page_title);
+  GeneratorFixture generator_fixture;
+
+  EXPECT_CALL(generator_fixture.fake_client(),
+              IsPersonalizedUrlDataCollectionActive())
+      .WillOnce(Return(false));
+
+  // Should call remote service with nullopt title and URL, and fail.
+  EXPECT_CALL(generator_fixture.mock_service(),
+              GetActionChipSuggestions(Eq(std::nullopt), Eq(std::nullopt), _,
+                                       Eq(std::nullopt), _))
+      .WillOnce(WithArg<4>(
+          [](base::OnceCallback<void(
+                 RemoteSuggestionsServiceSimple::ActionChipSuggestionsResult&&)>
+                 callback) {
+            std::move(callback).Run(
+                base::unexpected(RemoteSuggestionsServiceSimple::NetworkError{
+                    .net_error = net::ERR_TIMED_OUT}));
+            return nullptr;
+          }));
+
+  base::test::ScopedFeatureList list;
+  list.InitAndEnableFeatureWithParameters(
+      ntp_features::kNtpNextFeatures,
+      {{ntp_features::kNtpNextShowStaticTextParam.name, "false"},
+       {ntp_features::kNtpNextSuggestionsFromNewSearchSuggestionsEndpointParam
+            .name,
+        "true"}});
+
+  base::RunLoop run_loop;
+  std::vector<ActionChipPtr> actual;
+  generator_fixture.GenerateActionChips(&tab_fixture.mock_tab(), run_loop,
+                                        actual);
+  run_loop.Run();
+
+  // Expect static chips (without recent tab chip because opted out).
   EXPECT_THAT(actual,
-              ElementsAre(Eq(std::cref(most_recent_tab_chip)),
-                          Eq(std::cref(GetStaticDeepSearchChip())),
+              ElementsAre(Eq(std::cref(GetStaticDeepSearchChip())),
                           Eq(std::cref(GetStaticImageGenerationChip()))));
 }
 
 TEST(ActionChipGeneratorTest, NewEndpointEmptyResponseReturnsEmptyChips) {
   EnvironmentFixture env;
+  base::HistogramTester histogram_tester;
   const GURL page_url("https://www.google.com/");
   const std::u16string page_title(u"Google");
   TabFixture tab_fixture(page_url, page_title);
@@ -1062,6 +1143,59 @@ TEST(ActionChipGeneratorTest, NewEndpointEmptyResponseReturnsEmptyChips) {
   run_loop.Run();
 
   EXPECT_TRUE(actual.empty());
+  histogram_tester.ExpectUniqueSample("NewTabPage.ActionChips.RequestStatus",
+                                      ActionChipsRequestStatus::kSuccess, 1);
+  histogram_tester.ExpectUniqueSample("NewTabPage.ActionChips.SuggestionCount",
+                                      0, 1);
+}
+
+TEST(ActionChipGeneratorTest, NewEndpointParseErrorFallsBackToStaticChips) {
+  EnvironmentFixture env;
+  base::HistogramTester histogram_tester;
+  const GURL page_url("https://www.google.com/");
+  const std::u16string page_title(u"Google");
+  TabFixture tab_fixture(page_url, page_title);
+  GeneratorFixture generator_fixture;
+
+  EXPECT_CALL(generator_fixture.mock_service(),
+              GetActionChipSuggestions(Eq(page_title), Eq(page_url), _, _, _))
+      .WillOnce(WithArg<4>(
+          [](base::OnceCallback<void(
+                 RemoteSuggestionsServiceSimple::ActionChipSuggestionsResult&&)>
+                 callback) {
+            std::move(callback).Run(
+                base::unexpected(RemoteSuggestionsServiceSimple::ParseError{
+                    .parse_failure_reason = RemoteSuggestionsServiceSimple::
+                        ParseFailureReason::kMalformedJson}));
+            return nullptr;
+          }));
+
+  base::test::ScopedFeatureList list;
+  list.InitAndEnableFeatureWithParameters(
+      ntp_features::kNtpNextFeatures,
+      {{ntp_features::kNtpNextShowStaticTextParam.name, "false"},
+       {ntp_features::kNtpNextSuggestionsFromNewSearchSuggestionsEndpointParam
+            .name,
+        "true"}});
+
+  base::RunLoop run_loop;
+  std::vector<ActionChipPtr> actual;
+  generator_fixture.GenerateActionChips(&tab_fixture.mock_tab(), run_loop,
+                                        actual);
+  run_loop.Run();
+
+  ActionChipPtr most_recent_tab_chip =
+      CreateStaticRecentTabChip(CreateTabInfo(&tab_fixture.mock_tab()));
+  EXPECT_THAT(actual,
+              ElementsAre(Eq(std::cref(most_recent_tab_chip)),
+                          Eq(std::cref(GetStaticDeepSearchChip())),
+                          Eq(std::cref(GetStaticImageGenerationChip()))));
+
+  histogram_tester.ExpectUniqueSample("NewTabPage.ActionChips.RequestStatus",
+                                      ActionChipsRequestStatus::kParseError, 1);
+  histogram_tester.ExpectUniqueSample(
+      "NewTabPage.ActionChips.RequestStatus.ParseError",
+      RemoteSuggestionsServiceSimple::ParseFailureReason::kMalformedJson, 1);
 }
 
 TEST(ActionChipGeneratorTest, NewEndpointPartialEligibilityPassesCorrectTools) {
@@ -1222,6 +1356,31 @@ TEST(ActionChipGeneratorTest,
   EXPECT_THAT(actual,
               ElementsAre(Eq(std::cref(expected_recent_tab_chip)),
                           Eq(std::cref(GetStaticDeepSearchChip())),
+                          Eq(std::cref(GetStaticImageGenerationChip()))));
+}
+
+TEST(ActionChipGeneratorTest,
+     NoRecentTabChipWhenNtpNextShowStaticRecentTabChipParamIsFalse) {
+  EnvironmentFixture env;
+  const GURL page_url("https://www.google.com/");
+  const std::u16string page_title(u"Some Title");
+  TabFixture tab_fixture(page_url, page_title);
+  GeneratorFixture generator_fixture;
+
+  base::test::ScopedFeatureList list;
+  list.InitAndEnableFeatureWithParameters(
+      ntp_features::kNtpNextFeatures,
+      {{ntp_features::kNtpNextShowStaticTextParam.name, "true"},
+       {ntp_features::kNtpNextShowStaticRecentTabChipParam.name, "false"}});
+
+  base::RunLoop run_loop;
+  std::vector<ActionChipPtr> actual;
+  generator_fixture.GenerateActionChips(&tab_fixture.mock_tab(), run_loop,
+                                        actual);
+  run_loop.Run();
+
+  EXPECT_THAT(actual,
+              ElementsAre(Eq(std::cref(GetStaticDeepSearchChip())),
                           Eq(std::cref(GetStaticImageGenerationChip()))));
 }
 

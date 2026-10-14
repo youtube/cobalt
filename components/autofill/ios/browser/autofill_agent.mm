@@ -86,6 +86,7 @@
 #import "ios/web/public/web_state.h"
 #import "ios/web/public/web_state_observer_bridge.h"
 #import "services/metrics/public/cpp/ukm_builders.h"
+#import "third_party/abseil-cpp/absl/functional/overload.h"
 #import "ui/base/l10n/l10n_util_mac.h"
 #import "ui/base/resource/resource_bundle.h"
 #import "ui/gfx/geometry/rect.h"
@@ -105,6 +106,8 @@ using autofill::FormGlobalId;
 using autofill::FormHandlersJavaScriptFeature;
 using autofill::FormRendererId;
 using autofill::Section;
+using autofill::Suggestion;
+using autofill::SuggestionType;
 using autofill::FieldPropertiesFlags::kAutofilledOnUserTrigger;
 using base::NumberToString;
 using base::SysNSStringToUTF16;
@@ -123,7 +126,7 @@ using FieldToFormLookupMap = std::map<FieldRendererId, FormRendererId>;
 // Contains the data for doing filling.
 struct AutofillData {
   std::string frameID;
-  base::Value::Dict payload;
+  base::DictValue payload;
   FieldToFormLookupMap fieldToFormLookupMap;
   autofill::mojom::FormActionType actionType;
 };
@@ -137,10 +140,48 @@ constexpr base::TimeDelta kA11yAnnouncementQueueDelay = base::Seconds(1);
 // appropriately.
 constexpr CGFloat kSuggestionIconWidth = 32;
 
+// Gets the icon that will be used for the specified suggestion.
+SuggestionIconType GetSuggestionIconType(const Suggestion& suggestion,
+                                         BOOL hasValue) {
+  // TODO(crbug.com/40266549): Remove kClear when undo is fully enabled.
+  if ((suggestion.icon == Suggestion::Icon::kClear ||
+       suggestion.icon == Suggestion::Icon::kUndo) &&
+      base::FeatureList::IsEnabled(kAutofillUndoIos)) {
+    return SuggestionIconType::kUndoAutofill;
+  } else if (suggestion.icon == Suggestion::Icon::kHome && hasValue &&
+             base::FeatureList::IsEnabled(
+                 autofill::features::kAutofillEnableSupportForHomeAndWork)) {
+    return SuggestionIconType::kAccountHome;
+  } else if (suggestion.icon == Suggestion::Icon::kWork && hasValue &&
+             base::FeatureList::IsEnabled(
+                 autofill::features::kAutofillEnableSupportForHomeAndWork)) {
+    return SuggestionIconType::kAccountWork;
+  }
+  return SuggestionIconType::kNone;
+}
+
 bool ContainsFocusableField(const FormData& form, FieldRendererId field_id) {
   auto it =
       std::ranges::find(form.fields(), field_id, &FormFieldData::renderer_id);
   return it != form.fields().end() && it->is_focusable();
+}
+
+// Returns whether the FormSuggestion's payload contains a non empty guid.
+bool HasGuid(const Suggestion::Payload& payload) {
+  return std::visit(
+      absl::Overload{
+          // Duplicated logic for these two types
+          [](const Suggestion::AutofillProfilePayload& p) {
+            return !p.guid.value().empty();
+          },
+          [](const Suggestion::AutofillAiPayload& p) {
+            return !p.guid.value().empty();
+          },
+
+          [](const Suggestion::Guid& p) { return !p.value().empty(); },
+          [](const auto&) { return false; }  // Catch-all
+      },
+      payload);
 }
 
 }  // namespace
@@ -367,31 +408,27 @@ bool ContainsFocusableField(const FormData& form, FieldRendererId field_id) {
         });
   }
 
-  if (suggestion.type == autofill::SuggestionType::kAddressEntry ||
-      suggestion.type == autofill::SuggestionType::kCreditCardEntry ||
-      suggestion.type == autofill::SuggestionType::kVirtualCreditCardEntry ||
-      suggestion.type ==
-          autofill::SuggestionType::kAddressFieldByFieldFilling) {
+  if (suggestion.type == SuggestionType::kAddressEntry ||
+      suggestion.type == SuggestionType::kCreditCardEntry ||
+      suggestion.type == SuggestionType::kVirtualCreditCardEntry ||
+      suggestion.type == SuggestionType::kAddressFieldByFieldFilling ||
+      suggestion.type == SuggestionType::kFillAutofillAi ||
+      (base::FeatureList::IsEnabled(kAutofillUndoIos) &&
+       suggestion.type == SuggestionType::kUndoOrClear)) {
+    CHECK(suggestion.type != SuggestionType::kFillAutofillAi ||
+          base::FeatureList::IsEnabled(
+              autofill::features::kAutofillAiCreateEntityDataManager));
+
     _pendingAutocompleteFieldID = fieldRendererID;
     if (_suggestionDelegate) {
-      autofill::Suggestion autofill_suggestion(suggestion.type);
+      Suggestion autofill_suggestion(suggestion.type);
       autofill_suggestion.main_text.value =
           SysNSStringToUTF16(suggestion.value);
       autofill_suggestion.field_by_field_filling_type_used =
           suggestion.fieldByFieldFillingTypeUsed;
-      const std::string guid =
-          std::holds_alternative<autofill::Suggestion::AutofillProfilePayload>(
-              suggestion.payload)
-              ? std::get<autofill::Suggestion::AutofillProfilePayload>(
-                    suggestion.payload)
-                    .guid.value()
-              : std::get<autofill::Suggestion::Guid>(suggestion.payload)
-                    .value();
-      if (guid.empty()) {
-        autofill_suggestion.payload = autofill::Suggestion::Payload();
-      } else {
-        autofill_suggestion.payload = suggestion.payload;
-      }
+      autofill_suggestion.payload = HasGuid(suggestion.payload)
+                                        ? suggestion.payload
+                                        : Suggestion::Payload();
 
       _suggestionDelegate->DidAcceptSuggestion(autofill_suggestion,
                                                {static_cast<int>(index), 0});
@@ -412,8 +449,8 @@ bool ContainsFocusableField(const FormData& form, FieldRendererId field_id) {
     return;
   }
 
-  if (suggestion.type == autofill::SuggestionType::kAutocompleteEntry ||
-      suggestion.type == autofill::SuggestionType::kFillExistingPlusAddress) {
+  if (suggestion.type == SuggestionType::kAutocompleteEntry ||
+      suggestion.type == SuggestionType::kFillExistingPlusAddress) {
     // FormSuggestion is a simple, single value that can be filled out now.
     [self fillField:SysNSStringToUTF8(fieldIdentifier)
         fieldRendererID:fieldRendererID
@@ -421,7 +458,7 @@ bool ContainsFocusableField(const FormData& form, FieldRendererId field_id) {
                formName:SysNSStringToUTF8(formName)
                   value:SysNSStringToUTF16(suggestion.value)
                 inFrame:frame];
-  } else if (suggestion.type == autofill::SuggestionType::kUndoOrClear) {
+  } else if (suggestion.type == SuggestionType::kUndoOrClear) {
     const auto callback = [](__weak AutofillAgent* agent,
                              base::WeakPtr<web::WebFrame> frame,
                              FormRendererId formId,
@@ -467,24 +504,20 @@ bool ContainsFocusableField(const FormData& form, FieldRendererId field_id) {
            section:(const Section&)section
            inFrame:(web::WebFrame*)frame
     withActionType:(autofill::mojom::FormActionType)actionType {
-  base::Value::Dict fieldsData;
+  base::DictValue fieldsData;
   FieldToFormLookupMap fieldToFormLookupMap;
 
   for (const auto& field : fields) {
-    // Skip empty fields and those that are not autofilled.
-    if (field.value.empty() || !field.is_autofilled) {
-      continue;
-    }
-
-    base::Value::Dict fieldData;
+    base::DictValue fieldData;
     fieldData.Set("value", field.value);
     fieldData.Set("section", section.ToString());
     fieldData.Set("hostFormId", static_cast<int>(*field.host_form_id));
+    fieldData.Set("isAutofilled", field.is_autofilled);
     fieldsData.Set(NumberToString(*field.renderer_id), std::move(fieldData));
 
     fieldToFormLookupMap[field.renderer_id] = field.host_form_id;
   }
-  auto payload = base::Value::Dict().Set("fields", std::move(fieldsData));
+  auto payload = base::DictValue().Set("fields", std::move(fieldsData));
   AutofillData autofillData = {
       .frameID = frame ? frame->GetFrameId() : "",
       .payload = std::move(payload),
@@ -506,7 +539,7 @@ bool ContainsFocusableField(const FormData& form, FieldRendererId field_id) {
 - (void)fillSpecificFormField:(const FieldRendererId&)field
                     withValue:(const std::u16string)value
                       inFrame:(web::WebFrame*)frame {
-  base::Value::Dict data;
+  base::DictValue data;
   data.Set("renderer_id", static_cast<int>(field.value()));
   data.Set("value", value);
 
@@ -546,9 +579,9 @@ bool ContainsFocusableField(const FormData& form, FieldRendererId field_id) {
   CHECK(base::FeatureList::IsEnabled(
       autofill::features::debug::kAutofillShowTypePredictions));
 
-  base::Value::Dict predictionData;
+  base::DictValue predictionData;
   for (const auto& form : forms) {
-    base::Value::Dict fieldData;
+    base::DictValue fieldData;
     for (const auto [field, field_prediction] :
          base::zip(form.data.fields(), form.fields)) {
       fieldData.Set(NumberToString(field.renderer_id().value()),
@@ -563,11 +596,17 @@ bool ContainsFocusableField(const FormData& form, FieldRendererId field_id) {
 
 #pragma mark - AutofillClientIOSBridge
 
-- (void)showAutofillPopup:
-            (const std::vector<autofill::Suggestion>&)popup_suggestions
+- (void)showAutofillPopup:(const std::vector<Suggestion>&)popup_suggestions
        suggestionDelegate:
            (const base::WeakPtr<autofill::AutofillSuggestionDelegate>&)
                delegate {
+  if (popup_suggestions.empty() &&
+      base::FeatureList::IsEnabled(
+          autofill::features::
+              kAutofillAndroidKeyboardAccessoryDynamicPositioning)) {
+    [self hideAutofillPopup];
+  }
+
   // Convert the suggestions into an NSArray for the keyboard.
   NSMutableArray<FormSuggestion*>* suggestions = [[NSMutableArray alloc] init];
   for (auto popup_suggestion : popup_suggestions) {
@@ -585,16 +624,13 @@ bool ContainsFocusableField(const FormData& form, FieldRendererId field_id) {
     NSString* displayDescription = nil;
     UIImage* icon = nil;
 
-    if (popup_suggestion.type == autofill::SuggestionType::kAutocompleteEntry ||
-        popup_suggestion.type == autofill::SuggestionType::kAddressEntry ||
-        popup_suggestion.type == autofill::SuggestionType::kCreditCardEntry ||
-        popup_suggestion.type ==
-            autofill::SuggestionType::kVirtualCreditCardEntry ||
-        popup_suggestion.type ==
-            autofill::SuggestionType::kAddressFieldByFieldFilling) {
+    if (popup_suggestion.type == SuggestionType::kAutocompleteEntry ||
+        popup_suggestion.type == SuggestionType::kAddressEntry ||
+        popup_suggestion.type == SuggestionType::kCreditCardEntry ||
+        popup_suggestion.type == SuggestionType::kVirtualCreditCardEntry ||
+        popup_suggestion.type == SuggestionType::kAddressFieldByFieldFilling) {
       // Filter out any key/value suggestions if the user hasn't typed yet.
-      if (popup_suggestion.type ==
-              autofill::SuggestionType::kAutocompleteEntry &&
+      if (popup_suggestion.type == SuggestionType::kAutocompleteEntry &&
           _typedValue.length == 0) {
         continue;
       }
@@ -623,15 +659,18 @@ bool ContainsFocusableField(const FormData& form, FieldRendererId field_id) {
                           autofill::FillingProduct::kCreditCard) {
         icon = [self createIcon:popup_suggestion];
       }
-    } else if (popup_suggestion.type ==
-               autofill::SuggestionType::kUndoOrClear) {
+    } else if (popup_suggestion.type == SuggestionType::kUndoOrClear &&
+               !base::FeatureList::IsEnabled(kAutofillUndoIos)) {
       // Show the "clear form" button.
-      // TODO(crbug.com/40266549): Replace Clear Form with Undo once this
-      // changes
       value = SysUTF16ToNSString(popup_suggestion.main_text.value);
     } else if (popup_suggestion.type ==
-               autofill::SuggestionType::kFillExistingPlusAddress) {
-      // Show any plus_address suggestions.
+                   SuggestionType::kFillExistingPlusAddress ||
+               popup_suggestion.type == SuggestionType::kFillAutofillAi) {
+      CHECK(popup_suggestion.type != SuggestionType::kFillAutofillAi ||
+            base::FeatureList::IsEnabled(
+                autofill::features::kAutofillAiCreateEntityDataManager));
+
+      // Show any plus_address or autofill AI suggestions.
       value = SysUTF16ToNSString(popup_suggestion.main_text.value);
       if (!popup_suggestion.labels.empty() &&
           !popup_suggestion.labels.front().empty()) {
@@ -640,7 +679,11 @@ bool ContainsFocusableField(const FormData& form, FieldRendererId field_id) {
       }
     }
 
-    if (!value) {
+    SuggestionIconType suggestionIconType =
+        GetSuggestionIconType(popup_suggestion, value.length > 0);
+
+    // Skip if there is no text or icon to show.
+    if (!value && !icon && suggestionIconType == SuggestionIconType::kNone) {
       continue;
     }
 
@@ -653,17 +696,6 @@ bool ContainsFocusableField(const FormData& form, FieldRendererId field_id) {
         (popup_suggestion.field_by_field_filling_type_used
              ? *popup_suggestion.field_by_field_filling_type_used
              : autofill::FieldType::EMPTY_TYPE);
-
-    SuggestionIconType suggestionIconType = SuggestionIconType::kNone;
-    if (base::FeatureList::IsEnabled(
-            autofill::features::kAutofillEnableSupportForHomeAndWork)) {
-      suggestionIconType =
-          (popup_suggestion.icon == autofill::Suggestion::Icon::kHome)
-              ? SuggestionIconType::kAccountHome
-          : (popup_suggestion.icon == autofill::Suggestion::Icon::kWork)
-              ? SuggestionIconType::kAccountWork
-              : SuggestionIconType::kNone;
-    }
     FormSuggestion* suggestion = [FormSuggestion
                 suggestionWithValue:value
                          minorValue:minorValue
@@ -699,7 +731,7 @@ bool ContainsFocusableField(const FormData& form, FieldRendererId field_id) {
     }
 
     // Put "clear form" entry at the front of the suggestions.
-    if (popup_suggestion.type == autofill::SuggestionType::kUndoOrClear) {
+    if (popup_suggestion.type == SuggestionType::kUndoOrClear) {
       [suggestions insertObject:suggestion atIndex:0];
     } else {
       [suggestions addObject:suggestion];
@@ -947,7 +979,7 @@ bool ContainsFocusableField(const FormData& form, FieldRendererId field_id) {
            formName:(const std::string&)formName
               value:(const std::u16string)value
             inFrame:(web::WebFrame*)frame {
-  base::Value::Dict data;
+  base::DictValue data;
   data.Set("renderer_id", static_cast<int>(fieldRendererID.value()));
   data.Set("identifier", fieldIdentifier);
   data.Set("form", formName);
@@ -1172,7 +1204,7 @@ bool ContainsFocusableField(const FormData& form, FieldRendererId field_id) {
 }
 
 // Helper method to create icons for payment cards.
-- (UIImage*)createIcon:(autofill::Suggestion)popup_suggestion {
+- (UIImage*)createIcon:(Suggestion)popup_suggestion {
   // If available, the custom icon for the card is preferred over the
   // generic network icon. The network icon may also be missing, in
   // which case we do not set an icon at all.
@@ -1193,7 +1225,7 @@ bool ContainsFocusableField(const FormData& form, FieldRendererId field_id) {
                            orientation:icon.imageOrientation];
     }
     return icon;
-  } else if (popup_suggestion.icon != autofill::Suggestion::Icon::kNoIcon) {
+  } else if (popup_suggestion.icon != Suggestion::Icon::kNoIcon) {
     const int resourceID =
         autofill::CreditCard::IconResourceId(popup_suggestion.icon);
     return ui::ResourceBundle::GetSharedInstance()
@@ -1238,17 +1270,16 @@ bool ContainsFocusableField(const FormData& form, FieldRendererId field_id) {
 
 // Invokes the form extraction script in |frame| and loads the output into the
 // format expected by the BrowserAutofillManager.
-// If |filtered| is NO, all forms are extracted.
-// If |filtered| is YES,
-//   - if |formName| is non-empty, only a form of that name is extracted.
-//   - if |formName| is empty, unowned fields are extracted.
-// Only forms with at least |requiredFieldsCount| fields are extracted.
-// Calls |completionHandler| with a success BOOL of YES and the form data that
+// If `formNameFilter` is `std::nullopt`, all forms are extracted.
+// Otherwise,
+//   - if `*formNameFilter` is non-empty, only forms of that name are extracted.
+//   - if `*formNameFilter` is empty, unowned fields are extracted.
+// Only forms with at least `requiredFieldsCount` fields are extracted.
+// Calls `completionHandler` with a success BOOL of YES and the form data that
 // was extracted.
-// Calls |completionHandler| with NO if the forms could not be extracted.
+// Calls `completionHandler` with NO if the forms could not be extracted.
 // |completionHandler| cannot be nil.
-- (void)fetchFormsFiltered:(BOOL)filtered
-                  withName:(const std::u16string&)formName
+- (void)fetchFormsFiltered:(std::optional<std::u16string>)formNameFilter
                    inFrame:(web::WebFrame*)frame
          completionHandler:(FormFetchCompletion)completionHandler {
   DCHECK(completionHandler);
@@ -1257,6 +1288,7 @@ bool ContainsFocusableField(const FormData& form, FieldRendererId field_id) {
   GURL pageURL = _webState->GetLastCommittedURL();
   url::Origin frameOrigin =
       frame ? frame->GetSecurityOrigin() : url::Origin::Create(pageURL);
+  GURL frameURL = frame ? frame->GetUrl() : pageURL;
 
   if (auto* driver = autofill::AutofillDriverIOS::FromWebStateAndWebFrame(
           _webState, frame)) {
@@ -1265,20 +1297,19 @@ bool ContainsFocusableField(const FormData& form, FieldRendererId field_id) {
 
   const scoped_refptr<FieldDataManager> fieldDataManager =
       FieldDataManagerFactoryIOS::GetRetainable(frame);
-  const auto callback = [](FormFetchCompletion completion, BOOL filtered,
-                           const std::u16string& formName, const GURL& pageURL,
-                           const url::Origin& frameOrigin,
-                           scoped_refptr<FieldDataManager> fieldDataManager,
-                           const std::string& frame_id, NSString* formJSON) {
-    std::optional<std::vector<FormData>> formData =
-        autofill::ExtractFormsData(formJSON, filtered, formName, pageURL,
-                                   frameOrigin, *fieldDataManager, frame_id);
-    std::move(completion).Run(std::move(formData));
-  };
+  auto extractForms = base::BindOnce(
+      [](std::optional<std::u16string> formNameFilter, const GURL& pageURL,
+         const url::Origin& frameOrigin, const GURL& frameURL,
+         scoped_refptr<FieldDataManager> fieldDataManager,
+         const std::string& frame_id, NSString* formJSON) {
+        return autofill::ExtractFormsData(formJSON, formNameFilter, pageURL,
+                                          frameOrigin, frameURL,
+                                          *fieldDataManager, frame_id);
+      },
+      std::move(formNameFilter), pageURL, frameOrigin, frameURL,
+      fieldDataManager, frame->GetFrameId());
   AutofillJavaScriptFeature::GetInstance()->FetchForms(
-      frame, base::BindOnce(callback, std::move(completionHandler), filtered,
-                            formName, pageURL, frameOrigin, fieldDataManager,
-                            frame->GetFrameId()));
+      frame, std::move(extractForms).Then(std::move(completionHandler)));
 }
 
 - (void)onSuggestionsReady:(NSArray<FormSuggestion*>*)suggestions

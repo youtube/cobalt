@@ -10,9 +10,9 @@
 
 namespace password_manager::features {
 #if !BUILDFLAG(IS_IOS)  // Desktop
-BASE_FEATURE(kActorActiveDisablesFillingOnPageLoad,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kActorLogin, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kActorLoginFederatedLoginSupport,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kActorLoginFieldVisibilityCheck, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kActorLoginGetCredentialsNoLoginForm,
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -40,10 +40,6 @@ BASE_FEATURE(kAutoApproveSharedPasswordUpdatesFromSameSender,
 BASE_FEATURE(kAutofillPasswordUserPerceptionSurvey,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Enabled by default in M138. Remove in or after M141.
-BASE_FEATURE(kWebAuthnUsePasskeyFromAnotherDeviceInContextMenu,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kAutofillReintroduceHybridPasskeyDropdownItem,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
@@ -51,9 +47,6 @@ BASE_FEATURE(kAutofillReintroduceHybridPasskeyDropdownItem,
 BASE_FEATURE(kBiometricTouchToFill, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kCheckIfSubmittedFormIdenticalToObserved,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kCheckVisibilityInChangePasswordFormWaiter,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kClearUndecryptablePasswords,
@@ -74,13 +67,18 @@ BASE_FEATURE(kClearUndecryptablePasswordsOnSync,
 #endif
 );
 
+#if !BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_ANDROID)  // Desktop
+BASE_FEATURE(kCredentialManagementUnifiedUi, base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // !BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_ANDROID)
+
 BASE_FEATURE(kDebugUiForOtps, base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kDownloadModelForPasswordChange,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kDisableFillingOnPageLoadForLeakedCredentials,
+BASE_FEATURE(kDisablePasswordChangeFromNewPasswordFields,
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)  // Desktop
+BASE_FEATURE(kEnablePasswordManagerMojoApi, base::FEATURE_ENABLED_BY_DEFAULT);
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 
 BASE_FEATURE(kFetchChangePasswordUrlForPasswordChange,
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
@@ -98,13 +96,10 @@ BASE_FEATURE(kFillOnAccountSelect,
              "fill-on-account-select",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-#if BUILDFLAG(IS_ANDROID)
-BASE_FEATURE(kFillRecoveryPassword, base::FEATURE_ENABLED_BY_DEFAULT);
-#endif
-
 #if BUILDFLAG(IS_IOS)
 BASE_FEATURE(kIosCleanupHangingPasswordFormExtractionRequests,
              base::FEATURE_ENABLED_BY_DEFAULT);
+
 const base::FeatureParam<int> kIosPasswordFormExtractionRequestsTimeoutMs = {
     &kIosCleanupHangingPasswordFormExtractionRequests,
     /*name=*/"period-ms", /*default_value=*/250};
@@ -112,9 +107,9 @@ const base::FeatureParam<int> kIosPasswordFormExtractionRequestsTimeoutMs = {
 BASE_FEATURE(kIOSProactivePasswordGenerationBottomSheet,
              "kIOSProactivePasswordGenerationBottomSheet",
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kIOSFillRecoveryPassword, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // IS_IOS
+
+BASE_FEATURE(kMarkAllCredentialsAsLeaked, base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kOtpPhishGuard, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -122,21 +117,25 @@ BASE_FEATURE(kOtpPhishGuard, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kPasswordDateLastFilled, base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kPasswordFormGroupedAffiliations,
+BASE_FEATURE(kPasswordFormClientsideClassifier,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kPasswordFormClientsideClassifier,
+BASE_FEATURE(kPasswordFormGroupedAffiliations,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)  // Desktop
 BASE_FEATURE(kPasswordGenerationChunking,
              "PasswordGenerationChunkPassword",
              base::FEATURE_DISABLED_BY_DEFAULT);
-BASE_FEATURE(kPasswordManualFallbackAvailable,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 
 BASE_FEATURE(kPasswordManagerLogToTerminal, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kProactivelyDownloadModelForPasswordChange,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kReduceRequirementsForPasswordChange,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 BASE_FEATURE(kRestartToGainAccessToKeychain,
@@ -147,12 +146,11 @@ BASE_FEATURE(kRestartToGainAccessToKeychain,
 #endif
 #endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
-BASE_FEATURE(kShowRecoveryPassword, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kRunPasswordChangeInBackgroundTab,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kShowTabWithPasswordChangeOnSuccess,
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kThrottlePasswordChangeDialog, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kSkipUndecryptablePasswords,
 #if BUILDFLAG(IS_WIN)
@@ -162,26 +160,21 @@ BASE_FEATURE(kSkipUndecryptablePasswords,
 #endif
 );
 
-BASE_FEATURE(kStopLoginCheckOnFailedLogin, base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kTriggerPasswordResyncWhenUndecryptablePasswordsDetected,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kMarkAllCredentialsAsLeaked, base::FEATURE_DISABLED_BY_DEFAULT);
-
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)  // Desktop
-BASE_FEATURE(kEnablePasswordManagerMojoApi, base::FEATURE_ENABLED_BY_DEFAULT);
-#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
-
-BASE_FEATURE(kImprovedPasswordChangeService, base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kRunPasswordChangeInBackgroundTab,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kReduceRequirementsForPasswordChange,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 BASE_FEATURE(kUseActionablesForImprovedPasswordChange,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kUserInterventionForPasswordChange,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)  // Desktop
+
+// Enabled by default in M138. Remove in or after M141.
+BASE_FEATURE(kWebAuthnUsePasskeyFromAnotherDeviceInContextMenu,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 
 }  // namespace password_manager::features

@@ -4,7 +4,9 @@
 
 #include "components/policy/core/common/cloud/cloud_policy_util.h"
 
+#include "base/strings/strcat.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/version_info/version_info.h"
 #include "build/build_config.h"
 #include "components/policy/core/common/cloud/cloud_policy_constants.h"
 #include "components/policy/proto/device_management_backend.pb.h"
@@ -83,6 +85,12 @@
 namespace policy {
 
 namespace em = enterprise_management;
+
+namespace {
+
+const int kMinimumVersionForExtensionInstallPolicy = 146;
+
+}  // namespace
 
 std::string GetMachineName() {
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_FUCHSIA)
@@ -275,6 +283,44 @@ void GetBrowserDeviceIdentifierAsync(
 
 bool IsMachineLevelUserCloudPolicyType(const std::string& type) {
   return type == dm_protocol::kChromeMachineLevelUserCloudPolicyType;
+}
+
+bool IsExtensionInstallPolicySupportedOnThisVersion() {
+  return version_info::GetMajorVersionNumberAsInt() >=
+         kMinimumVersionForExtensionInstallPolicy;
+}
+
+bool IsExtensionInstallPolicyType(const std::string& policy_type) {
+  return policy_type ==
+             dm_protocol::kChromeExtensionInstallUserCloudPolicyType ||
+         policy_type ==
+             dm_protocol::kChromeExtensionInstallMachineLevelCloudPolicyType;
+}
+
+bool IsChromePolicyType(const std::string& policy_type) {
+  return policy_type == dm_protocol::GetChromeUserPolicyType() ||
+         policy_type == dm_protocol::kChromeMachineLevelUserCloudPolicyType;
+}
+
+bool IsMachineLevelPolicyType(const std::string& policy_type) {
+  return policy_type == dm_protocol::kChromeMachineLevelUserCloudPolicyType ||
+         policy_type ==
+             dm_protocol::kChromeExtensionInstallMachineLevelCloudPolicyType;
+}
+
+bool IsUserLevelPolicyType(const std::string& policy_type) {
+  return policy_type == dm_protocol::GetChromeUserPolicyType() ||
+         policy_type == dm_protocol::kChromeExtensionInstallUserCloudPolicyType;
+}
+
+std::string PolicyTypeLogPrefix(std::string_view policy_type,
+                                std::string_view settings_entity_id) {
+  if (settings_entity_id.empty()) {
+    return base::StrCat({"[policy_type=", policy_type, "] "});
+  }
+
+  return base::StrCat({"[policy_type=", policy_type,
+                       "settings_entity_id=", settings_entity_id, "] "});
 }
 
 }  // namespace policy

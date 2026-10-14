@@ -34,6 +34,7 @@
 #import "components/autofill/core/browser/payments/otp_unmask_result.h"
 #import "components/autofill/core/browser/payments/payments_autofill_client.h"
 #import "components/autofill/core/browser/payments/payments_network_interface.h"
+#import "components/autofill/core/browser/payments/save_and_fill_manager_impl.h"
 #import "components/autofill/core/browser/payments/virtual_card_enroll_metrics_logger.h"
 #import "components/autofill/core/browser/payments/virtual_card_enrollment_manager.h"
 #import "components/autofill/core/browser/ui/payments/autofill_progress_dialog_controller.h"
@@ -88,7 +89,13 @@ IOSChromePaymentsAutofillClient::IOSChromePaymentsAutofillClient(
               &client->GetPersonalDataManager().payments_data_manager(),
               web_state->GetBrowserState()->IsOffTheRecord())),
       pref_service_(pref_service),
-      web_state_(web_state) {}
+      web_state_(web_state) {
+  if (base::FeatureList::IsEnabled(
+          autofill::features::kAutofillEnableBottomSheetScanCardAndFill)) {
+    save_and_fill_manager_ =
+        std::make_unique<payments::SaveAndFillManagerImpl>(&client_.get());
+  }
+}
 
 IOSChromePaymentsAutofillClient::~IOSChromePaymentsAutofillClient() = default;
 
@@ -597,7 +604,7 @@ IOSChromePaymentsAutofillClient::GetOrCreatePaymentsMandatoryReauthManager() {
 
 payments::SaveAndFillManager*
 IOSChromePaymentsAutofillClient::GetSaveAndFillManager() {
-  return nullptr;
+  return save_and_fill_manager_.get();
 }
 
 void IOSChromePaymentsAutofillClient::ShowCreditCardLocalSaveAndFillDialog(
@@ -647,20 +654,14 @@ void IOSChromePaymentsAutofillClient::ShowSaveCreditCard(
       save_card_delegate->GetSaveCreditCardOptions().card_save_type ==
       CardSaveType::kCvcSaveOnly;
 
-  if (save_card_delegate->is_for_upload()
-          ? base::FeatureList::IsEnabled(features::kAutofillSaveCardBottomSheet)
-          : base::FeatureList::IsEnabled(
-                features::kAutofillLocalSaveCardBottomSheet)) {
-    if (!is_cvc_save_only) {
-      // Logs the decision to not show the bottomsheet for users with flag
-      // enabled.
-      autofill_metrics::LogSaveCreditCardPromptResultIOS(
-          autofill::autofill_metrics::SaveCreditCardPromptResultIOS::kNotShown,
-          save_card_delegate->is_for_upload(),
-          save_card_delegate->GetSaveCreditCardOptions(),
-          autofill::autofill_metrics::SaveCreditCardPromptOverlayType::
-              kBottomSheet);
-    }
+  if (!is_cvc_save_only) {
+    // Logs the decision to not show the bottomsheet.
+    autofill_metrics::LogSaveCreditCardPromptResultIOS(
+        autofill::autofill_metrics::SaveCreditCardPromptResultIOS::kNotShown,
+        save_card_delegate->is_for_upload(),
+        save_card_delegate->GetSaveCreditCardOptions(),
+        autofill::autofill_metrics::SaveCreditCardPromptOverlayType::
+            kBottomSheet);
   }
   InfobarType infobar_type = is_cvc_save_only
                                  ? InfobarType::kInfobarTypeSaveCvc

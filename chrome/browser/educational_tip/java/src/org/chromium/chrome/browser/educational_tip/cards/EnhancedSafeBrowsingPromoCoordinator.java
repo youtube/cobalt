@@ -10,12 +10,16 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.educational_tip.EducationTipModuleActionDelegate;
 import org.chromium.chrome.browser.educational_tip.EducationalTipCardProvider;
 import org.chromium.chrome.browser.educational_tip.R;
+import org.chromium.chrome.browser.magic_stack.ModuleDelegate.ModuleType;
 import org.chromium.chrome.browser.safe_browsing.settings.SafeBrowsingSettingsFragment;
 import org.chromium.chrome.browser.settings.SettingsNavigationFactory;
+import org.chromium.chrome.browser.setup_list.SetupListCompletable;
+import org.chromium.chrome.browser.setup_list.SetupListModuleUtils;
 
 /** Coordinator for the enhanced safe browsing promo card. */
 @NullMarked
-public class EnhancedSafeBrowsingPromoCoordinator implements EducationalTipCardProvider {
+public class EnhancedSafeBrowsingPromoCoordinator
+        implements EducationalTipCardProvider, SetupListCompletable {
     private final Runnable mOnModuleClickedCallback;
     private final EducationTipModuleActionDelegate mActionDelegate;
 
@@ -61,5 +65,15 @@ public class EnhancedSafeBrowsingPromoCoordinator implements EducationalTipCardP
         SettingsNavigationFactory.createSettingsNavigation()
                 .startSettings(mActionDelegate.getContext(), SafeBrowsingSettingsFragment.class);
         mOnModuleClickedCallback.run();
+    }
+
+    @Override
+    public boolean isComplete() {
+        return SetupListModuleUtils.isModuleCompleted(ModuleType.ENHANCED_SAFE_BROWSING_PROMO);
+    }
+
+    @Override
+    public @DrawableRes int getCardImageCompletedResId() {
+        return R.drawable.setup_list_completed_background_wavy_circle;
     }
 }

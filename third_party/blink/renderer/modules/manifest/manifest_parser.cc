@@ -102,7 +102,7 @@ bool VerifyFiles(const Vector<mojom::blink::ManifestFileFilterPtr>& files) {
 // Determines whether |url| is within scope of |scope|.
 bool URLIsWithinScope(const KURL& url, const KURL& scope) {
   return SecurityOrigin::AreSameOrigin(url, scope) &&
-         url.GetPath().ToString().StartsWith(scope.GetPath());
+         url.GetPath().starts_with(scope.GetPath());
 }
 
 bool IsHostValidForScopeExtension(String host) {
@@ -275,9 +275,7 @@ String ResolveRelativePathnamePattern(const KURL& base_url, String pathname) {
     if (slash_index != kNotFound) {
       // Extract the base_url path up to and including the last slash. Append
       // the relative pathname to it.
-      base_path.Truncate(slash_index + 1);
-      base_path = StrCat({base_path, pathname});
-      return base_path;
+      return StrCat({StringView(base_path, 0, slash_index + 1), pathname});
     }
   }
   return pathname;
@@ -424,12 +422,6 @@ bool ManifestParser::Parse() {
     }
   }
 
-  if (base::FeatureList::IsEnabled(blink::features::kWebAppBorderless) ||
-      base::FeatureList::IsEnabled(blink::features::kUnframedIwa)) {
-    manifest_->borderless_url_patterns =
-        ParseUrlPatterns(root_object.get(), "borderless_url_patterns");
-  }
-
   manifest_->orientation = ParseOrientation(root_object.get());
   manifest_->icons = ParseIcons(root_object.get());
   if (!manifest_->icons.empty()) {
@@ -463,8 +455,10 @@ bool ManifestParser::Parse() {
                       WebFeature::kWebAppManifestProtocolHandlers);
   }
 
-  if (!(execution_context_ && execution_context_->IsIsolatedContext())) {
-    // TODO(crbug.com/383094092): Scope Extensions for IWAs are not defined yet.
+  bool is_iwa = execution_context_ && execution_context_->IsIsolatedContext();
+  if (!is_iwa ||
+      base::FeatureList::IsEnabled(
+          blink::features::kWebAppEnableScopeExtensionsForIsolatedWebApps)) {
     manifest_->scope_extensions = ParseScopeExtensions(root_object.get());
     if (!manifest_->scope_extensions.empty()) {
       UseCounter::Count(execution_context_,
@@ -497,19 +491,14 @@ bool ManifestParser::Parse() {
     manifest_->migrate_to = ParseMigrateTo(root_object.get());
   }
 
-  std::optional<RGBA32> theme_color = ParseThemeColor(root_object.get());
-  manifest_->has_theme_color = theme_color.has_value();
-  if (manifest_->has_theme_color) {
-    manifest_->theme_color = *theme_color;
+  manifest_->theme_color = ParseThemeColor(root_object.get());
+  if (manifest_->theme_color.has_value()) {
     UseCounter::Count(execution_context_,
                       WebFeature::kWebAppManifestThemeColor);
   }
 
-  std::optional<RGBA32> background_color =
-      ParseBackgroundColor(root_object.get());
-  manifest_->has_background_color = background_color.has_value();
-  if (manifest_->has_background_color) {
-    manifest_->background_color = *background_color;
+  manifest_->background_color = ParseBackgroundColor(root_object.get());
+  if (manifest_->background_color.has_value()) {
     UseCounter::Count(execution_context_,
                       WebFeature::kWebAppManifestBackgroundColor);
   }
@@ -749,7 +738,14 @@ KURL ManifestParser::ParseURL(const JSONObject* object,
     return KURL();
   }
 
-  KURL resolved = KURL(base_url, *url_str);
+  // When the manifest is embedded via a data: URL, relative URLs cannot be
+  // resolved against it (data URLs have opaque origins). In this case, fall
+  // back to using the document URL as the base for resolution. This matches
+  // the intent that relative URLs in an embedded manifest should work relative
+  // to the document that embeds it.
+  const KURL& effective_base_url =
+      base_url.ProtocolIsData() ? document_url_ : base_url;
+  KURL resolved = KURL(effective_base_url, *url_str);
   if (!resolved.IsValid()) {
     AddErrorInfo(StrCat({"property '", key, "' ignored, URL is invalid."}));
     return KURL();
@@ -1088,9 +1084,8 @@ ManifestParser::ParseIconPurpose(const JSONObject* icon) {
     return purposes;
   }
 
-  Vector<String> keywords;
-  purpose_str.value().Split(/*separator=*/" ", /*allow_empty_entries=*/false,
-                            keywords);
+  Vector<StringView> keywords =
+      StringView(purpose_str.value()).SplitSkippingEmpty(' ');
 
   // "any" is the default if there are no other keywords.
   if (keywords.empty()) {
@@ -1099,7 +1094,7 @@ ManifestParser::ParseIconPurpose(const JSONObject* icon) {
   }
 
   bool unrecognised_purpose = false;
-  for (auto& keyword : keywords) {
+  for (auto keyword : keywords) {
     keyword = keyword.StripWhiteSpace();
     if (keyword.empty()) {
       continue;
@@ -2404,7 +2399,7 @@ ManifestParser::ParseIsolatedAppPermissions(const JSONObject* object) {
       "Error with permissions_policy manifest field: ");
   network::ParsedPermissionsPolicy parsed_policy =
       PermissionsPolicyParser::ParsePolicyFromNode(
-          policy, SecurityOrigin::Create(manifest_url_), logger,
+          policy, *SecurityOrigin::Create(manifest_url_), logger,
           execution_context_);
 
   Vector<network::ParsedPermissionsPolicyDeclaration> out;

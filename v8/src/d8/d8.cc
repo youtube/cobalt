@@ -4708,6 +4708,31 @@ MaybeLocal<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
         context->GetExtrasBindingObject()->Get(context, name).ToLocalChecked();
     context->Global()->Set(context, name, console).FromJust();
   }
+#ifdef V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT
+  if (options.memory_corruption_via_watchpoints) {
+    // The global "Sandbox" object is installed in src/sandbox/testing.cc via
+    // `SandboxTesting::InstallMemoryCorruptionApi`. We add another method to
+    // it with a callback implemented in hardware-watchpoints.cc.
+    Local<Object> sandbox_object =
+        context->Global()
+            ->Get(context,
+                  String::NewFromUtf8Literal(isolate, "Sandbox",
+                                             NewStringType::kInternalized))
+            .ToLocalChecked()
+            .As<Object>();
+    Local<FunctionTemplate> templ = FunctionTemplate::New(
+        isolate, SetHardwareWatchpointCallback, {}, {}, 0,
+        ConstructorBehavior::kThrow, SideEffectType::kHasSideEffect);
+    Local<Function> function = templ->GetFunction(context).ToLocalChecked();
+    CHECK(sandbox_object
+              ->Set(context,
+                    String::NewFromUtf8Literal(isolate,
+                                               "markForCorruptionOnAccess",
+                                               NewStringType::kInternalized),
+                    function)
+              .FromMaybe(false));
+  }
+#endif  // V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT
 
   return handle_scope.Escape(context);
 }
@@ -4944,6 +4969,12 @@ void Shell::WriteLcovData(v8::Isolate* isolate, const char* file) {
 }
 
 void Shell::OnExit(v8::Isolate* isolate, bool dispose) {
+#ifdef V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT
+  if (v8::Shell::options.memory_corruption_via_watchpoints) {
+    ResetAllHardwareWatchpoints();
+  }
+#endif  // V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT
+
   platform::NotifyIsolateShutdown(g_default_platform, isolate);
 
   if (Worker* worker = Worker::GetCurrentWorker()) {
@@ -5499,14 +5530,6 @@ bool SourceGroup::Execute(Isolate* isolate) {
         String::NewFromUtf8(isolate, "fuzzcode.js", NewStringType::kNormal)
             .ToLocalChecked();
 
-#ifdef V8_DUMPLING
-    v8::internal::Isolate* internal_isolate =
-        reinterpret_cast<v8::internal::Isolate*>(isolate);
-    if (internal_isolate->dumpling_manager()->IsDumpingEnabled()) {
-      internal_isolate->dumpling_manager()->PrepareForNextREPRLCycle();
-    }
-#endif  // V8_DUMPLING
-
     size_t script_size;
     CHECK_EQ(read(REPRL_CRFD, &script_size, 8), 8);
     char* buffer = new char[script_size + 1];
@@ -5729,8 +5752,6 @@ bool Worker::StartWorkerThread(Isolate* requester,
 }
 
 void Worker::WorkerThread::Run() {
-  v8::SandboxHardwareSupport::PrepareCurrentThreadForHardwareSandboxing();
-
   // Prevent a lifetime cycle from Worker -> WorkerThread -> Worker.
   // We must clear the worker_ field of the thread, but we keep the
   // worker alive via a stack root until the thread finishes execution
@@ -6307,7 +6328,20 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (FlagWithArgMatches("--perf-ack-fd", &flag_value, argc, argv,
                                   &i)) {
       options.perf_ack_fd = atoi(flag_value);
-#endif
+#endif  // V8_OS_LINUX
+#ifdef V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT
+    } else if (bool enable_tracing = FlagMatches(
+                   "--trace-memory-corruption-via-watchpoints", &argv[i]);
+               enable_tracing ||
+               FlagMatches("--memory-corruption-via-watchpoints", &argv[i])) {
+      // The tracing flag also implies enabling the API.
+      options.memory_corruption_via_watchpoints = true;
+      options.trace_memory_corruption_via_watchpoints = enable_tracing;
+      // Imply --expose-memory-corruption-api.
+      i::v8_flags.expose_memory_corruption_api = true;
+      // Disable compaction to get stable addresses.
+      i::v8_flags.compact = false;
+#endif  // V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT
     } else if (FlagMatches("--disable-in-process-stack-traces", &argv[i])) {
       options.disable_in_process_stack_traces = true;
 #ifdef V8_OS_POSIX
@@ -7079,7 +7113,16 @@ void ConfigurePartitionAllocIfEnabled() {
 int Shell::Main(int argc, char* argv[]) {
   ConfigurePartitionAllocIfEnabled();
   v8::base::EnsureConsoleOutput();
-  if (!SetOptions(argc, argv)) return 1;
+  if (!v8::Shell::SetOptions(argc, argv)) return 1;
+
+#ifdef V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT
+  if (v8::Shell::options.memory_corruption_via_watchpoints) {
+    bool enable_tracing =
+        v8::Shell::options.trace_memory_corruption_via_watchpoints;
+    SetupForHardwareWatchpoints(enable_tracing);
+  }
+#endif  // V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT
+
   if (!i::v8_flags.fuzzing) d8_install_sigterm_handler();
 
   base::FlushDenormalsScope denormals_scope(options.flush_denormals);
@@ -7279,10 +7322,6 @@ int Shell::Main(int argc, char* argv[]) {
 
 #ifdef V8_FUZZILLI
 
-#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
-  sanitizer_cov_prepare_for_hardware_sandbox();
-#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
-
   if (options.fuzzilli_enable_builtins_coverage) {
     cov_init_builtins_edges(static_cast<uint32_t>(
         i::BasicBlockProfiler::Get()
@@ -7318,6 +7357,15 @@ int Shell::Main(int argc, char* argv[]) {
         }
       }
 #endif  // V8_FUZZILLI
+#ifdef V8_DUMPLING
+      v8::internal::Isolate* internal_isolate =
+          reinterpret_cast<v8::internal::Isolate*>(isolate);
+      // TODO(mdanylo): ideally this should be a part of fd-based protocol
+      // between Fuzzilli and V8.
+      if (internal_isolate->dumpling_manager()->IsDumpingEnabled()) {
+        internal_isolate->dumpling_manager()->PrepareForNextREPRLCycle();
+      }
+#endif  // V8_DUMPLING
 
       result = 0;
 
@@ -7426,6 +7474,15 @@ int Shell::Main(int argc, char* argv[]) {
         profile->Delete();
         cpu_profiler->Dispose();
       }
+
+#ifdef V8_DUMPLING
+      // Need to make sure that dump file is fully readable by Fuzzilli.
+      // TODO(mdanylo): ideally this should be a part of fd-based protocol
+      // between Fuzzilli and V8.
+      if (internal_isolate->dumpling_manager()->IsDumpingEnabled()) {
+        internal_isolate->dumpling_manager()->FinishCurrentREPRLCycle();
+      }
+#endif  // V8_DUMPLING
 
 #ifdef V8_FUZZILLI
       // Send result to parent (fuzzilli) and reset edge guards.

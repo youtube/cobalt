@@ -12,7 +12,9 @@
 #include "base/compiler_specific.h"
 #include "base/containers/span.h"
 #include "base/memory/raw_ptr.h"
+#include "base/test/gtest_util.h"
 #include "base/threading/platform_thread.h"
+#include "base/threading/thread_restrictions.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -256,6 +258,47 @@ TEST(WaitableEventTest, ZeroTimeout) {
   start_time = TimeTicks::Now();
   EXPECT_TRUE(ev.TimedWait(TimeDelta()));
   EXPECT_LT(TimeTicks::Now() - start_time, Milliseconds(1));
+}
+
+// Tests that TimedWait() doesn't instantiate a ScopedBlockingCall if the
+// WaitableEvent is already signaled.
+TEST(WaitableEventTest, TimedWaitDoesNotBlockIfAlreadySignaled) {
+  WaitableEvent event(WaitableEvent::ResetPolicy::AUTOMATIC,
+                      WaitableEvent::InitialState::SIGNALED);
+
+  TimeDelta short_delay = Milliseconds(10);
+  TimeTicks start_time = TimeTicks::Now();
+  EXPECT_TRUE(event.TimedWait(short_delay));
+  TimeDelta actual_delay = TimeTicks::Now() - start_time;
+  // TimedWait() should return almost immediately.
+  EXPECT_LE(actual_delay, short_delay / 2);
+}
+
+// Verifies the suggestion that AssertBaseSyncPrimitivesAllowed() is called even
+// if the event is already signaled and the wait skipped.
+// EXPECT_DCHECK_DEATH() not available in iOS.
+#if BUILDFLAG(IS_IOS)
+#define MAYBE_TimedWaitRespectsRestrictionsEvenIfSignaled \
+  DISABLED_TimedWaitRespectsRestrictionsEvenIfSignaled
+#else
+#define MAYBE_TimedWaitRespectsRestrictionsEvenIfSignaled \
+  TimedWaitRespectsRestrictionsEvenIfSignaled
+#endif
+TEST(WaitableEventTest, MAYBE_TimedWaitRespectsRestrictionsEvenIfSignaled) {
+  WaitableEvent event(WaitableEvent::ResetPolicy::AUTOMATIC,
+                      WaitableEvent::InitialState::SIGNALED);
+#if BUILDFLAG(IS_COBALT)
+  // Cobalt runs tests with --single-process-tests, so disallowing sync
+  // primitives on the main thread would leak into the following tests. Only
+  // disallow them inside the death test child.
+  EXPECT_DCHECK_DEATH({
+    DisallowBaseSyncPrimitives();
+    event.TimedWait(Milliseconds(10));
+  });
+#else
+  DisallowBaseSyncPrimitives();
+  EXPECT_DCHECK_DEATH({ event.TimedWait(Milliseconds(10)); });
+#endif  // BUILDFLAG(IS_COBALT)
 }
 
 // Same as ZeroTimeout for negative timeouts.

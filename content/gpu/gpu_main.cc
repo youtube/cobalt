@@ -344,8 +344,7 @@ int GpuMain(MainFunctionParams parameters) {
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 #endif // !BUILDFLAG(IS_STARBOARD)
 
-  base::PlatformThread::SetCurrentThreadType(
-      base::ThreadType::kDisplayCritical);
+  base::PlatformThread::SetCurrentThreadType(base::ThreadType::kPresentation);
 
   auto gpu_init = std::make_unique<gpu::GpuInit>();
   ContentSandboxHelper sandbox_helper;
@@ -418,7 +417,7 @@ int GpuMain(MainFunctionParams parameters) {
 
   GetContentClient()->SetGpuInfo(gpu_init->gpu_info());
 
-  base::ThreadType io_thread_type = base::ThreadType::kDisplayCritical;
+  base::ThreadType io_thread_type = base::ThreadType::kPresentation;
   // ChildProcess will start the ThreadPoolInstance now that the sandbox is
   // initialized.
   ChildProcess gpu_process(io_thread_type);
@@ -431,7 +430,7 @@ int GpuMain(MainFunctionParams parameters) {
   base::RunLoop run_loop;
   GpuChildThread* child_thread =
       new GpuChildThread(run_loop.QuitClosure(), std::move(gpu_init));
-  child_thread->Init(start_time, main_thread_task_executor->sequence_manager());
+  child_thread->Init(start_time);
 
   gpu_process.set_main_thread(child_thread);
 

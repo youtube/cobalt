@@ -706,8 +706,6 @@ class Browser : public TabStripModelObserver,
       const input::NativeWebKeyboardEvent& event) override;
   bool HandleKeyboardEvent(content::WebContents* source,
                            const input::NativeWebKeyboardEvent& event) override;
-  bool PreHandleGestureEvent(content::WebContents* source,
-                             const blink::WebGestureEvent& event) override;
   bool CanDragEnter(content::WebContents* source,
                     const content::DropData& data,
                     blink::DragOperationsMask operations_allowed) override;
@@ -752,9 +750,6 @@ class Browser : public TabStripModelObserver,
   bool is_type_app() const { return type_ == TYPE_APP; }
   bool is_type_app_popup() const { return type_ == TYPE_APP_POPUP; }
   bool is_type_devtools() const { return type_ == TYPE_DEVTOOLS; }
-#if BUILDFLAG(IS_CHROMEOS)
-  bool is_type_custom_tab() const { return type_ == TYPE_CUSTOM_TAB; }
-#endif
   bool is_type_picture_in_picture() const {
     return type_ == TYPE_PICTURE_IN_PICTURE;
   }
@@ -784,6 +779,7 @@ class Browser : public TabStripModelObserver,
   // BrowserWindowInterface overrides:
   Profile* GetProfile() override;
   const Profile* GetProfile() const override;
+  bool IsDeleteScheduled() const override;
   void OpenGURL(const GURL& gurl, WindowOpenDisposition disposition) override;
   content::WebContents* OpenURL(
       const content::OpenURLParams& params,
@@ -844,11 +840,6 @@ class Browser : public TabStripModelObserver,
   // requesting the browser close via BrowserWindow::Close(), which happens
   // async and allows graceful teardown of the tab strip and associated data.
   void SynchronouslyDestroyBrowser();
-
-#if BUILDFLAG(IS_CHROMEOS)
-  bool IsLockedForOnTask();
-  void SetLockedForOnTask(bool locked);
-#endif
 
 #if BUILDFLAG(IS_OZONE)
   const std::optional<ui::PlatformSessionWindowData>& platform_session_data()
@@ -974,7 +965,6 @@ class Browser : public TabStripModelObserver,
   void EnumerateDirectory(content::WebContents* web_contents,
                           scoped_refptr<content::FileSelectListener> listener,
                           const base::FilePath& path) override;
-  void OnWebApiWindowResizableChanged() override;
   bool GetCanResize() override;
 #if !BUILDFLAG(IS_ANDROID)
   bool CanUseWindowingControls(
@@ -982,6 +972,7 @@ class Browser : public TabStripModelObserver,
   void MinimizeFromWebAPI() override;
   void MaximizeFromWebAPI() override;
   void RestoreFromWebAPI() override;
+  void SetResizableFromWebAPI(bool resizable) override;
 #endif
   ui::mojom::WindowShowState GetWindowShowState() const override;
   bool CanEnterFullscreenModeForTab(
@@ -1083,6 +1074,7 @@ class Browser : public TabStripModelObserver,
   void OnActiveTabChanged(content::WebContents* old_contents,
                           content::WebContents* new_contents,
                           int index,
+                          bool tab_removed_for_deletion,
                           int reason);
   void OnTabMoved(int from_index, int to_index);
   void OnTabReplacedAt(content::WebContents* old_contents,
@@ -1196,11 +1188,6 @@ class Browser : public TabStripModelObserver,
   // See comment on SupportsWindowFeatureImpl for info on `check_can_support`.
   bool AppBrowserSupportsWindowFeature(WindowFeature feature,
                                        bool check_can_support) const;
-
-#if BUILDFLAG(IS_CHROMEOS)
-  // See comment on SupportsWindowFeatureImpl for info on `check_can_support`.
-  bool CustomTabBrowserSupportsWindowFeature(WindowFeature feature) const;
-#endif
 
   // See comment on SupportsWindowFeatureImpl for info on `check_can_support`.
   bool PictureInPictureBrowserSupportsWindowFeature(
@@ -1361,14 +1348,6 @@ class Browser : public TabStripModelObserver,
 
   // If true, immediately updates the UI when scheduled.
   bool update_ui_immediately_for_testing_ = false;
-
-#if BUILDFLAG(IS_CHROMEOS)
-  // OnTask is a ChromeOS feature that is not related to web browsers, but
-  // happens to be implemented using code in //chrome/browser. The feature,
-  // when enabled, disables certain functionality that a web browser would
-  // never typically disable.
-  bool on_task_locked_ = false;
-#endif
 
   const base::ElapsedTimer creation_timer_;
 

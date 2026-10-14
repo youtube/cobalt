@@ -15,13 +15,16 @@
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/actor_keyed_service_factory.h"
 #include "chrome/browser/actor/actor_metrics.h"
+#include "chrome/browser/actor/actor_proto_conversion.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/actor_task_metadata.h"
-#include "chrome/browser/actor/browser_action_util.h"
 #include "chrome/browser/actor/execution_engine.h"
 #include "chrome/browser/actor/tools/tool_request.h"
 #include "chrome/browser/actor/ui/actor_ui_state_manager_interface.h"
+#include "chrome/browser/glic/actor/glic_actor_policy_checker.h"
 #include "chrome/browser/glic/host/context/glic_tab_data.h"
+#include "chrome/browser/glic/public/glic_keyed_service.h"
+#include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/common/actor.mojom.h"
@@ -71,12 +74,22 @@ tabs::TabInterface* GetCrashedTab(actor::ActorTask& task) {
 }
 }  // namespace
 
-GlicActorTaskManager::GlicActorTaskManager(Profile* profile)
+GlicActorTaskManager::GlicActorTaskManager(
+    Profile* profile,
+    actor::ActorKeyedService* actor_keyed_service,
+    GlicActorPolicyChecker& actor_policy_checker)
     : profile_(profile),
-      actor_keyed_service_(
-          actor::ActorKeyedServiceFactory::GetActorKeyedService(profile)) {
+      actor_keyed_service_(actor_keyed_service),
+      actor_policy_checker_(actor_policy_checker) {
   CHECK(profile_);
   CHECK(actor_keyed_service_);
+
+  // Unretained is safe because the subscription cancels the callback when this
+  // is destroyed.
+  can_act_on_web_changed_subscription_ =
+      actor_policy_checker.AddActOnWebCapabilityChangedCallback(
+          base::BindRepeating(&GlicActorTaskManager::CanActOnWebChanged,
+                              base::Unretained(this)));
 }
 
 GlicActorTaskManager::~GlicActorTaskManager() = default;
@@ -91,10 +104,39 @@ void GlicActorTaskManager::CreateTask(
     return;
   }
 
-  CancelTask();
+  if (!current_task_id_.is_null()) {
+    std::move(callback).Run(
+        base::unexpected(mojom::CreateTaskErrorReason::kExistingActiveTask));
+    return;
+  }
 
+  if (!actor_policy_checker_->CanActOnWeb()) {
+    // TODO(bokan): This was moved here to preserve behavior; the failure case
+    // was only counting policy blocks which are a Glic-only concept. However,
+    // the UMA histogram is in Actor which implies it records all sources of
+    // actor tasks. This histogram should probably be migrated to be Glic
+    // namespaced.
+    actor::RecordActorTaskCreated(/*success=*/false);
+    actor_keyed_service_->GetJournal().Log(
+        GURL(), actor::TaskId(), "GlicActorTaskManager::CreateTask",
+        actor::JournalDetailsBuilder()
+            .AddError("Actuation capability disabled")
+            .Build());
+    std::move(callback).Run(
+        base::unexpected(mojom::CreateTaskErrorReason::kBlockedByPolicy));
+    return;
+  }
+
+  actor::RecordActorTaskCreated(true);
   current_task_id_ = actor_keyed_service_->CreateTaskWithOptions(
-      std::move(options), std::move(delegate));
+      &actor_policy_checker_.get(), std::move(options), std::move(delegate));
+  CHECK(!current_task_id_.is_null());
+
+  actor_task_state_changed_subscription_ =
+      actor_keyed_service_->AddTaskStateChangedCallback(base::BindRepeating(
+          &GlicActorTaskManager::NotifyActorTaskStateChanged,
+          base::Unretained(this)));
+
   std::move(callback).Run(current_task_id_.value());
 }
 
@@ -114,11 +156,9 @@ void GlicActorTaskManager::PerformActionsFinished(
           .Add("result_code", base::ToString(result_code))
           .Build());
 
-  // Task has disappeared, clear the current task id.
   // TODO(b/470985724): Reply at the time the task is stopped/canceled instead
   // of here.
   if (!task) {
-    ResetTaskState();
     optimization_guide::proto::ActionsResult response =
         actor::BuildErrorActionsResult(
             actor::mojom::ActionResultCode::kTaskWentAway, std::nullopt);
@@ -338,21 +378,6 @@ void GlicActorTaskManager::CancelActions(
 void GlicActorTaskManager::StopActorTask(
     actor::TaskId task_id,
     mojom::ActorTaskStopReason stop_reason) {
-  if (current_task_id_ == task_id) {
-    ResetTaskState();
-  }
-
-  actor::ActorTask* task = actor_keyed_service_->GetTask(task_id);
-  if (!task || task->IsCompleted()) {
-    actor_keyed_service_->GetJournal().Log(
-        GURL::EmptyGURL(), task_id, "Failed to stop task",
-        actor::JournalDetailsBuilder()
-            .AddError(task ? "Task already stopped" : "No such task")
-            .Add("id", task_id.value())
-            .Build());
-    return;
-  }
-
   actor::ActorTask::StoppedReason reason;
   switch (stop_reason) {
     case glic::mojom::ActorTaskStopReason::kTaskComplete:
@@ -372,7 +397,7 @@ void GlicActorTaskManager::StopActorTask(
       break;
   }
 
-  actor_keyed_service_->StopTask(task->id(), reason);
+  StopTaskImpl(task_id, reason);
 }
 
 void GlicActorTaskManager::MaybeShowDeactivationToastUi() {
@@ -382,10 +407,12 @@ void GlicActorTaskManager::MaybeShowDeactivationToastUi() {
     return;
   }
 
+#if !BUILDFLAG(IS_ANDROID)
   BrowserWindowInterface* const last_active_bwi =
       GetLastActiveBrowserWindowInterfaceWithAnyProfile();
   actor_keyed_service_->GetActorUiStateManager()->MaybeShowToast(
       last_active_bwi);
+#endif
 }
 
 void GlicActorTaskManager::PauseActorTask(
@@ -436,12 +463,11 @@ void GlicActorTaskManager::ResumeActorTask(
 
   actor::mojom::ActionResultCode resume_response_code =
       actor::mojom::ActionResultCode::kOk;
-  if (actor::ExecutionEngine* execution_engine = task->GetExecutionEngine()) {
-    resume_response_code = execution_engine->user_take_over_result().value_or(
-        actor::mojom::ActionResultCode::kOk);
-    // Reset the takeover result
-    execution_engine->set_user_take_over_result(std::nullopt);
-  }
+  actor::ExecutionEngine& execution_engine = task->GetExecutionEngine();
+  resume_response_code = execution_engine.user_take_over_result().value_or(
+      actor::mojom::ActionResultCode::kOk);
+  // Reset the takeover result
+  execution_engine.set_user_take_over_result(std::nullopt);
 
   // TODO(crbug.com/420669167): GetLastActedTabs should only ever have 1 tab in
   // it for now but once we support multi-tab we'll need to grab observations
@@ -556,8 +582,7 @@ void GlicActorTaskManager::UninterruptActorTask(actor::TaskId task_id) {
     return;
   }
   actor::ActorTask::State next_state = actor::ActorTask::State::kReflecting;
-  if (task->GetExecutionEngine() &&
-      task->GetExecutionEngine()->HasActionSequence()) {
+  if (task->GetExecutionEngine().HasActionSequence()) {
     next_state = actor::ActorTask::State::kActing;
   }
   task->Uninterrupt(next_state);
@@ -615,15 +640,49 @@ void GlicActorTaskManager::ReloadObserverDone(
 
 void GlicActorTaskManager::CancelTask() {
   if (current_task_id_) {
-    StopActorTask(current_task_id_,
-                  glic::mojom::ActorTaskStopReason::kStoppedByUser);
+    StopTaskImpl(current_task_id_,
+                 actor::ActorTask::StoppedReason::kStoppedByUser);
   }
 }
 
-void GlicActorTaskManager::ResetTaskState() {
-  current_task_id_ = actor::TaskId();
-  attempted_reload_after_crash_ = false;
-  reload_observer_.reset();
+void GlicActorTaskManager::CanActOnWebChanged(bool can_act_on_web) {
+  if (!can_act_on_web && current_task_id_) {
+    StopTaskImpl(current_task_id_,
+                 actor::ActorTask::StoppedReason::kChromeFailure);
+  }
+}
+
+void GlicActorTaskManager::NotifyActorTaskStateChanged(
+    actor::TaskId task_id,
+    actor::ActorTask::State task_state) {
+  CHECK(!task_id.is_null());
+  if (current_task_id_ != task_id) {
+    return;
+  }
+
+  if (actor::ActorTask::IsCompletedState(task_state)) {
+    current_task_id_ = actor::TaskId();
+    attempted_reload_after_crash_ = false;
+    reload_observer_.reset();
+    actor_task_state_changed_subscription_.reset();
+  }
+}
+
+void GlicActorTaskManager::StopTaskImpl(
+    actor::TaskId task_id,
+    actor::ActorTask::StoppedReason reason) {
+  actor::ActorTask* task = actor_keyed_service_->GetTask(task_id);
+  if (!task || task->IsCompleted()) {
+    actor_keyed_service_->GetJournal().Log(
+        GURL::EmptyGURL(), task_id, "Failed to stop task",
+        actor::JournalDetailsBuilder()
+            .AddError(task ? "Task already stopped" : "No such task")
+            .Add("id", task_id.value())
+            .Build());
+    return;
+  }
+
+  actor_keyed_service_->StopTask(task->id(), reason);
 }
 
 base::WeakPtr<GlicActorTaskManager> GlicActorTaskManager::GetWeakPtr() {

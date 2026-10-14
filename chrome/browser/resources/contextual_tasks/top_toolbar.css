@@ -21,13 +21,14 @@
   display: flex;
   height: 20px;
   padding: 7px 12px;
-  margin: 6px 4px 0px 4px;
+  margin: 6px 4px 0 4px;
 }
 
 .top-toolbar-title {
   overflow: hidden;
   align-items: center;
-  font-size: 16px;
+  font-size: 14px;
+  font-weight: 500;
   flex: 1;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -61,13 +62,29 @@
   flex-direction: row;
 }
 
+.top-toolbar-action-buttons > :not(:first-child) {
+  /**
+  * cr-icon is 20px and cr-icon-button is 32px
+  * Add another 4px to visually make the margin 16px.
+  */
+  margin-inline-start: 4px;
+}
+
+.top-toolbar-action-buttons > contextual-tasks-favicon-group {
+  /* Add horizontal padding to match cr-icon-button. */
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
 .dropdown-item {
   display: flex;
   align-items: center;
+  color: var(--toolbar-text-color);
 }
 
 cr-action-menu {
   --cr-menu-border-radius: 16px;
+  --cr-menu-background-color: var(--toolbar-menu-background-color);
 }
 
 cr-action-menu > button {
@@ -81,21 +98,12 @@ button > cr-icon {
 }
 
 cr-icon-button {
-  --cr-icon-button-margin-start: 12px;
   --cr-icon-button-icon-size: 20px;
   --cr-icon-button-fill-color: var(--toolbar-button-icon-color);
 }
 
 cr-icon-button[hidden] {
   display: none;
-}
-
-cr-action-menu {
-  --cr-menu-background-color: var(--toolbar-menu-background-color);
-}
-
-.dropdown-item {
-  color: var(--toolbar-text-color);
 }
 
 .dropdown-item cr-icon {

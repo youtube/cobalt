@@ -52,6 +52,9 @@
 - (void)showWelcomeBackPromo {
 }
 
+- (void)showHomeBackgroundCustomizationPromo {
+}
+
 @end
 
 class DefaultBrowserOffCyclePromoDisplayHandlerTest : public PlatformTest {
@@ -64,7 +67,7 @@ TEST_F(DefaultBrowserOffCyclePromoDisplayHandlerTest, TestConfig) {
       [[DefaultBrowserOffCyclePromoDisplayHandler alloc] init];
   PromoConfig config = [handler config];
   EXPECT_EQ(promos_manager::Promo::DefaultBrowserOffCycle, config.identifier);
-  EXPECT_EQ(&feature_engagement::kIPHiOSDefaultBrowserOffCyclePromoFeature,
+  EXPECT_EQ(feature_engagement::kIPHiOSDefaultBrowserOffCyclePromoFeature,
             config.feature_engagement_feature);
 }
 

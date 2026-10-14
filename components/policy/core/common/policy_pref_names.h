@@ -200,6 +200,9 @@ inline constexpr char
 inline constexpr char kLocalTestPoliciesForNextStartup[] =
     "local_test_policies_for_next_startup";
 
+// A boolean pref that controls XSLT.
+inline constexpr char kXSLTEnabled[] = "policy.xslt_enabled";
+
 // Enables the deprecated :--foo syntax of CSS custom state. The :--foo syntax
 // was deprecated and replaced by :state(foo).
 inline constexpr char kCSSCustomStateDeprecatedSyntaxEnabled[] =
@@ -248,6 +251,12 @@ inline constexpr char kIncognitoModeUrlBlocklist[] =
 // Allows access to the listed host patterns for incognito mode.
 inline constexpr char kIncognitoModeUrlAllowlist[] =
     "policy.incognito_mode_url_allowlist";
+
+// A boolean pref indicating whether to default allow Local Network
+// Access permissions policy features.
+// If false, explicit permission delegation is required.
+inline constexpr char kLocalNetworkAccessPermissionsPolicyDefaultEnabled[] =
+    "policy.local_network_access_permissions_policy_default_enabled";
 
 }  // namespace policy_prefs
 }  // namespace policy

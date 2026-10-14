@@ -130,7 +130,7 @@ suite('General', () => {
     PageImageServiceBrowserProxy.setInstance(
         new PageImageServiceBrowserProxy(imageServiceHandler));
     imageServiceHandler.setResultFor('getPageImageUrl', Promise.resolve({
-      result: {imageUrl: {url: 'https://example.com/image.png'}},
+      result: {imageUrl: 'https://example.com/image.png'},
     }));
 
     loadTimeData.overrideValues({
@@ -693,6 +693,32 @@ suite('General', () => {
           getBookmarks(powerBookmarksList).length);
     });
 
+    test('ContextMenuClosesOnBookmarkDeletion', async () => {
+      const bookmark = getBookmarkWithId(powerBookmarksList, '3')!;
+      const contextMenu = powerBookmarksList.$.contextMenu;
+
+      // Open the context menu for bookmark '3'.
+      contextMenu.showAtPosition(
+          new MouseEvent('click'), [bookmark], false, false, false, 1);
+
+      await waitAfterNextRender(contextMenu);
+      assertTrue(contextMenu.isOpen());
+
+      // Delete bookmark '4'.
+      bookmarksApi.callbackRouterRemote.onBookmarkNodesRemoved(['4']);
+      await flushTasks();
+
+      // Context menu should still be open.
+      assertTrue(contextMenu.isOpen());
+
+      // Delete bookmark '3'.
+      bookmarksApi.callbackRouterRemote.onBookmarkNodesRemoved(['3']);
+      await flushTasks();
+
+      // Context menu should be closed.
+      assertFalse(contextMenu.isOpen());
+    });
+
     test('SetsCompactDescription', () => {
       const folder = getBookmarkWithId(powerBookmarksList, '5');
       assertTrue(!!folder);
@@ -918,7 +944,7 @@ suite('General', () => {
 
       // Open the context menu.
       contextMenu.showAtPosition(
-          new MouseEvent('click'), [bookmark], false, false, false);
+          new MouseEvent('click'), [bookmark], false, false, false, 1);
       await waitAfterNextRender(contextMenu);
 
       // Get the edit option in the menu.
@@ -952,7 +978,7 @@ suite('General', () => {
 
       // Open the context menu.
       contextMenu.showAtPosition(
-          new MouseEvent('click'), bookmarks, false, false, false);
+          new MouseEvent('click'), bookmarks, false, false, false, 1);
       await waitAfterNextRender(contextMenu);
 
       // Get the move option in the menu.
@@ -1045,8 +1071,8 @@ suite('General', () => {
           title: 'Product Baz',
           clusterTitle: 'Product Cluster Baz',
           domain: 'baz.com',
-          imageUrl: {url: 'https://baz.com/image'},
-          productUrl: {url: 'https://baz.com/product'},
+          imageUrl: 'https://baz.com/image',
+          productUrl: 'https://baz.com/product',
           currentPrice: '$56',
           previousPrice: '$78',
           clusterId: BigInt(12345),

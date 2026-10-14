@@ -26,7 +26,7 @@ class FakeIwaRuntimeDataProviderBase : public ChromeIwaRuntimeDataProvider {
   base::CallbackListSubscription OnRuntimeDataChanged(
       base::RepeatingClosure callback) override;
   base::OneShotEvent& OnBestEffortRuntimeDataReady() override;
-  void WriteDebugMetadata(base::Value::Dict& log) const override;
+  void WriteDebugMetadata(base::DictValue& log) const override;
 
  protected:
   void DispatchRuntimeDataUpdate();
@@ -65,7 +65,9 @@ class FakeIwaRuntimeDataProvider : public FakeIwaRuntimeDataProviderBase {
 
     ScopedIwaRuntimeDataUpdate& AddToKeyRotations(
         const web_package::SignedWebBundleId& web_bundle_id,
-        base::span<const uint8_t> key_bytes);
+        base::span<const uint8_t> key_bytes,
+        std::optional<base::span<const uint8_t>> previous_key_bytes =
+            std::nullopt);
     ScopedIwaRuntimeDataUpdate& SetKeyRotations(KeyRotations key_rotations);
 
     ScopedIwaRuntimeDataUpdate& AddToSpecialPermissions(

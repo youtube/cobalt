@@ -13,8 +13,6 @@
 #include <utility>
 
 #include "absl/functional/any_invocable.h"
-#include "api/scoped_refptr.h"
-#include "api/task_queue/pending_task_safety_flag.h"
 #include "api/task_queue/task_queue_base.h"
 #include "api/units/time_delta.h"
 #include "rtc_base/socket.h"
@@ -86,7 +84,6 @@ class RunLoop {
     CurrentTaskQueueSetter tq_setter_;
   };
 
-  scoped_refptr<PendingTaskSafetyFlag> run_for_flag_ = nullptr;
   FakeSocketServer socket_server_;
   WorkerThread worker_thread_{&socket_server_};
   WeakPtrFactory<RunLoop> weak_factory_;

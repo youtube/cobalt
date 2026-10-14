@@ -31,14 +31,16 @@ public class ManifestMetadataUtilTest {
      */
     private static final String METRICS_OPT_OUT_METADATA_NAME =
             "android.webkit.WebView.MetricsOptOut";
-    private static final String CONTEXT_EXPERIMENT_VALUE_METADATA_NAME =
-            "android.webkit.WebView.UseWebViewResourceContext";
     private static final String SAFE_BROWSING_OPT_IN_METADATA_NAME =
             "android.webkit.WebView.EnableSafeBrowsing";
     private static final String METADATA_HOLDER_SERVICE_NAME =
             "android.webkit.MetaDataHolderService";
     private static final String MULTI_PROFILE_NAME_TAG_KEY_METADATA_NAME =
             "android.webkit.WebView.MultiProfileNameTagKey";
+    private static final String FORCE_SYNC_BROWSER_STARTUP_METADATA_NAME =
+            "android.webkit.WebView.ForceSyncBrowserStartup";
+    private static final String ENABLE_CONTENT_RESTRICTION_METADATA_NAME =
+            "android.webkit.WebView.EnableContentRestriction";
 
     private ManifestMetadataMockApplicationContext mContext;
     private ComponentName mMetadataServiceName;
@@ -72,38 +74,6 @@ public class ManifestMetadataUtilTest {
     public void testMetricsCollectionDefault() throws Exception {
         Bundle appMetadata = ManifestMetadataUtil.getAppMetadata(mContext);
         Assert.assertFalse(ManifestMetadataUtil.isAppOptedOutFromMetricsCollection(appMetadata));
-    }
-
-    @Test
-    @SmallTest
-    @Feature({"AndroidWebView", "Manifest"})
-    public void testContextExperimentOptIn() throws Exception {
-        var bundle = new Bundle();
-        bundle.putBoolean(CONTEXT_EXPERIMENT_VALUE_METADATA_NAME, true);
-        mContext.putServiceMetadata(mContext.getPackageName(), bundle);
-
-        Bundle appMetadata = ManifestMetadataUtil.getAppMetadata(mContext);
-        Assert.assertTrue(ManifestMetadataUtil.shouldEnableContextExperiment(appMetadata));
-    }
-
-    @Test
-    @SmallTest
-    @Feature({"AndroidWebView", "Manifest"})
-    public void testContextExperimentOptOut() throws Exception {
-        var bundle = new Bundle();
-        bundle.putBoolean(CONTEXT_EXPERIMENT_VALUE_METADATA_NAME, false);
-        mContext.putServiceMetadata(mContext.getPackageName(), bundle);
-
-        Bundle appMetadata = ManifestMetadataUtil.getAppMetadata(mContext);
-        Assert.assertFalse(ManifestMetadataUtil.shouldEnableContextExperiment(appMetadata));
-    }
-
-    @Test
-    @SmallTest
-    @Feature({"AndroidWebView", "Manifest"})
-    public void testContextExperimentDefault() throws Exception {
-        Bundle appMetadata = ManifestMetadataUtil.getAppMetadata(mContext);
-        Assert.assertNull(ManifestMetadataUtil.shouldEnableContextExperiment(appMetadata));
     }
 
     @Test
@@ -159,10 +129,64 @@ public class ManifestMetadataUtilTest {
     @Test
     @SmallTest
     @Feature({"AndroidWebView", "Manifest"})
+    public void testEnableContentRestrictionOptIn() throws Exception {
+        var bundle = new Bundle();
+        bundle.putBoolean(ENABLE_CONTENT_RESTRICTION_METADATA_NAME, true);
+        mContext.putServiceMetadata(mMetadataServiceName, bundle);
+
+        Bundle holderServiceMetadata =
+                ManifestMetadataUtil.getMetadataHolderServiceMetadata(mContext);
+        Boolean contentRestrictionEnabled =
+                ManifestMetadataUtil.getContentRestrictionAppOptInPreference(holderServiceMetadata);
+        Assert.assertNotNull(contentRestrictionEnabled);
+        Assert.assertTrue(contentRestrictionEnabled);
+    }
+
+    @Test
+    @SmallTest
+    @Feature({"AndroidWebView", "Manifest"})
     public void testNullMultiProfileProfileNameTagDefault() throws Exception {
         Bundle holderServiceMetadata =
                 ManifestMetadataUtil.getMetadataHolderServiceMetadata(mContext);
         Assert.assertNull(
                 ManifestMetadataUtil.getAppMultiProfileProfileNameTagKey(holderServiceMetadata));
+    }
+
+    @Test
+    @SmallTest
+    @Feature({"AndroidWebView", "Manifest"})
+    public void testForceSynchronousStartupDefault() throws Exception {
+        Bundle holderServiceMetadata =
+                ManifestMetadataUtil.getMetadataHolderServiceMetadata(mContext);
+        Assert.assertFalse(
+                ManifestMetadataUtil.shouldForceSyncBrowserStartup(holderServiceMetadata));
+    }
+
+    @Test
+    @SmallTest
+    @Feature({"AndroidWebView", "Manifest"})
+    public void testForceSynchronousStartupOptIn() throws Exception {
+        var bundle = new Bundle();
+        bundle.putBoolean(FORCE_SYNC_BROWSER_STARTUP_METADATA_NAME, true);
+        mContext.putServiceMetadata(mMetadataServiceName, bundle);
+
+        Bundle holderServiceMetadata =
+                ManifestMetadataUtil.getMetadataHolderServiceMetadata(mContext);
+        var preference = ManifestMetadataUtil.shouldForceSyncBrowserStartup(holderServiceMetadata);
+        Assert.assertTrue(preference);
+    }
+
+    @Test
+    @SmallTest
+    @Feature({"AndroidWebView", "Manifest"})
+    public void testForceSynchronousStartupOptOut() throws Exception {
+        var bundle = new Bundle();
+        bundle.putBoolean(FORCE_SYNC_BROWSER_STARTUP_METADATA_NAME, false);
+        mContext.putServiceMetadata(mMetadataServiceName, bundle);
+
+        Bundle holderServiceMetadata =
+                ManifestMetadataUtil.getMetadataHolderServiceMetadata(mContext);
+        var preference = ManifestMetadataUtil.shouldForceSyncBrowserStartup(holderServiceMetadata);
+        Assert.assertFalse(preference);
     }
 }

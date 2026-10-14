@@ -209,7 +209,7 @@ class TestPrefetchService final : public PrefetchService {
   void PrefetchUrl(
       base::WeakPtr<PrefetchContainer> prefetch_container) override;
   void OnPrefetchCompletedOrFailed(
-      PrefetchContainer& prefetch_container,
+      const PrefetchContainer& prefetch_container,
       const network::URLLoaderCompletionStatus& completion_status,
       const std::optional<int>& response_code) override;
   void EvictPrefetch(size_t index);
@@ -301,6 +301,10 @@ class PrefetchingMetricsTestBase : public RenderViewHostTestHarness {
   void ExpectCorrectUkmLogs(
       ExpectCorrectUkmLogsArgs args,
       GURL navigate_url = GURL("http://Not.Accurate.Trigger.Url/"));
+
+  // The cookie manager used in non-test code, i.e. in
+  // `PrefetchContainer::RegisterCookieListener()`.
+  network::mojom::CookieManager* cookie_manager();
 
  private:
   std::unique_ptr<ukm::TestAutoSetUkmRecorder> test_ukm_recorder_;

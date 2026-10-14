@@ -86,10 +86,7 @@ config("skia_public") {
 config("skia_private") {
   visibility = [ "./*" ]
 
-  defines = [
-    "SK_GAMMA_APPLY_TO_A8",
-    "SK_DISABLE_LEGACY_NONCONST_SERIAL_PROCS",
-  ]
+  defines = [ "SK_GAMMA_APPLY_TO_A8" ]
   if (skia_use_fixed_gamma_text) {
     defines += [
       "SK_GAMMA_EXPONENT=1.4",
@@ -106,9 +103,6 @@ config("skia_private") {
   lib_dirs = []
   if (skia_use_gl && skia_use_angle) {
     defines += [ "SK_ANGLE" ]
-  }
-  if (skia_use_vma) {
-    defines += [ "SK_USE_VMA" ]
   }
   if (skia_enable_winuwp) {
     defines += [ "SK_WINUWP" ]
@@ -1155,6 +1149,7 @@ optional("graphite") {
   libs = []
   frameworks = []
   public_defines = []
+  public_configs = []
 
   enabled = skia_enable_graphite
   deps = [
@@ -1292,6 +1287,9 @@ optional("png_decode_libpng") {
     "//third_party/libpng",
   ]
   sources = [ "src/codec/SkIcoCodec.cpp" ] + skia_codec_libpng_srcs
+
+  # Export this so fiddles could decode png using libpng
+  public = skia_codec_libpng_public
 }
 
 optional("png_encode_common") {
@@ -1910,8 +1908,8 @@ skia_component("skia") {
 
   if (is_win) {
     sources += skia_ports_windows_sources + [
-                 "src/ports/SkDebug_win.cpp",
                  "src/ports/SkImageGeneratorWIC.cpp",
+                 "src/ports/SkLog_win.cpp",
                ]
     libs += [
       "Ole32.lib",
@@ -1938,7 +1936,7 @@ skia_component("skia") {
     if (defined(ndk) && ndk != "") {
       deps += [ "//third_party/cpu-features" ]
     }
-    sources += [ "src/ports/SkDebug_android.cpp" ]
+    sources += [ "src/ports/SkLog_android.cpp" ]
     libs += [
       "EGL",
       "GLESv2",
@@ -1947,7 +1945,7 @@ skia_component("skia") {
   }
 
   if (is_linux || is_wasm) {
-    sources += [ "src/ports/SkDebug_stdio.cpp" ]
+    sources += [ "src/ports/SkLog_stdio.cpp" ]
     if (skia_use_egl) {
       libs += [ "GLESv2" ]
     }
@@ -1956,8 +1954,8 @@ skia_component("skia") {
   if (is_mac) {
     public += [ "include/ports/SkCFObject.h" ]
     sources += [
-      "src/ports/SkDebug_stdio.cpp",
       "src/ports/SkImageGeneratorCG.cpp",
+      "src/ports/SkLog_stdio.cpp",
     ]
     frameworks = [
       "ApplicationServices.framework",
@@ -1968,8 +1966,8 @@ skia_component("skia") {
   if (is_ios) {
     public += [ "include/ports/SkCFObject.h" ]
     sources += [
-      "src/ports/SkDebug_stdio.cpp",
       "src/ports/SkImageGeneratorCG.cpp",
+      "src/ports/SkLog_stdio.cpp",
     ]
     frameworks = [
       "CoreFoundation.framework",

@@ -439,7 +439,7 @@ inline constexpr char kNetworkEasterEggHighScore[] =
 // if prediction of network actions is allowed, depending on network type.
 // Actions include DNS prefetching, TCP and SSL preconnection, prerendering
 // of web pages, and resource prefetching.
-// TODO(bnc): Implement this preference as per crbug.com/334602.
+// TODO(bnc): Implement this preference as per crbug.com/40347636.
 inline constexpr char kNetworkPredictionOptions[] =
     "net.network_prediction_options";
 
@@ -1808,7 +1808,7 @@ inline constexpr char kMigratedToSiteNotificationChannels[] =
     "notifications.migrated_to_channels";
 
 // Boolean pref indicating whether blocked site notification channels underwent
-// a one-time reset yet for https://crbug.com/835232.
+// a one-time reset yet for https://crbug.com/41384604.
 // TODO(crbug.com/40573963): Remove this after a few releases (M69?).
 inline constexpr char kClearedBlockedSiteNotificationChannels[] =
     "notifications.cleared_blocked_channels";
@@ -1857,6 +1857,10 @@ inline constexpr char kWebRTCIPHandlingUrl[] = "webrtc.ip_handling_url";
 // post-quantum key agreement for WebRTC.
 inline constexpr char kWebRTCPostQuantumKeyAgreement[] =
     "webrtc.post_quantum_key_agreement";
+// Define the WebRTCDiagnosticLogCollectionAllowedForOrigins policy that
+// controls enabling diagnostic log collection for WebRTC.
+inline constexpr char kWebRTCDiagnosticLogCollectionAllowedForOrigins[] =
+    "webrtc.diagnostic_log_collection_allowed_for_origins";
 // Define range of UDP ports allowed to be used by WebRTC PeerConnections.
 inline constexpr char kWebRTCUDPPortRange[] = "webrtc.udp_port_range";
 // Whether WebRTC event log collection by Google domains is allowed.
@@ -1934,6 +1938,11 @@ inline constexpr char kSuppressDifferentOriginSubframeJSDialogs[] =
 inline constexpr char kUserAgentReduction[] = "user_agent_reduction";
 
 #if !BUILDFLAG(IS_ANDROID)
+// Boolean determining whether the projects panel entrypoint is displayed in the
+// tab strip.
+inline constexpr char kProjectsPanelEntrypointEnabled[] =
+    "projects_panel.entrypoint_enabled";
+
 // Boolean determining the side the side panel will be appear on (left / right).
 // True when the side panel is aligned to the right.
 inline constexpr char kSidePanelHorizontalAlignment[] =
@@ -2084,7 +2093,7 @@ inline constexpr char kProfilesOrder[] = "profile.profiles_order";
 
 // A list of profile paths that should be deleted on shutdown. The deletion does
 // not happen if the browser crashes, so we remove the profile on next start.
-inline constexpr char kProfilesDeleted[] = "profiles.profiles_deleted";
+inline constexpr char kProfilesDeleted[] = "profiles.profile_basenames_deleted";
 
 // On Chrome OS, total number of non-Chrome user process crashes
 // since the last report.
@@ -3344,6 +3353,20 @@ inline constexpr char kUiAutomationProviderEnabled[] =
 
 inline constexpr char kForegroundLaunchOnLogin[] =
     "launch_on_login.foreground.enabled";
+
+// Boolean representing whether the infobar has been accepted by the user.
+inline constexpr char kStartupLaunchInfobarAccepted[] =
+    "launch_on_login.infobar_accepted";
+
+// base::Time containing time at which the startup launch infobar was last
+// dismissed by the user.
+inline constexpr char kStartupLaunchInfobarLastDeclinedTime[] =
+    "launch_on_login.infobar_last_declined_time";
+
+// Int representing the number of times the user has dismissed the startup
+// launch infobar.
+inline constexpr char kStartupLaunchInfobarDeclinedCount[] =
+    "launch_on_login.infobar_declined_count";
 #endif
 
 // A boolean pref which determines whether the QR Code generator feature is
@@ -3613,20 +3636,6 @@ inline constexpr char kLatestVersionWhenClickedUpdateMenuItem[] =
 inline constexpr char kCommerceMerchantViewerMessagesShownTime[] =
     "commerce_merchant_viewer_messages_shown_time";
 #endif
-
-// A dictionary which stores whether location access is enabled for the current
-// default search engine. Deprecated for kDSEPermissionsSetting.
-inline constexpr char kDSEGeolocationSettingDeprecated[] =
-    "dse_geolocation_setting";
-
-// A dictionary which stores the geolocation and notifications content settings
-// for the default search engine before it became the default search engine so
-// that they can be restored if the DSE is ever changed.
-inline constexpr char kDSEPermissionsSettings[] = "dse_permissions_settings";
-
-// A boolean indicating whether the DSE was previously disabled by enterprise
-// policy.
-inline constexpr char kDSEWasDisabledByPolicy[] = "dse_was_disabled_by_policy";
 
 // A dictionary of manifest URLs of Web Share Targets to a dictionary containing
 // attributes of its share_target field found in its manifest. Each key in the
@@ -4297,6 +4306,12 @@ inline constexpr char kClearWindowNameForNewBrowsingContextGroup[] =
 // temporarily opted out of.
 inline constexpr char kManagedLocalNetworkAccessRestrictionsTemporaryOptOut[] =
     "managed_local_network_access_restrictions_temporary_opt_out";
+
+// List of IP Address space overrides, in the same format as the
+// --ip-address-space-overrides command line flag. See
+// services/network/public/cpp/network_switches.cc for the format.
+inline constexpr char kManagedLocalNetworkAccessIpAddressSpaceOverrides[] =
+    "managed_local_network_access_ip_address_space_overrides";
 
 // Boolean that specifies whether SpeculationRules prefetch can be sent to
 // ServiceWorker-controlled URLs.

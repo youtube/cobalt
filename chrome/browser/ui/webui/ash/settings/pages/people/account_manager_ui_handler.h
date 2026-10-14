@@ -12,19 +12,19 @@
 #include "base/scoped_observation.h"
 #include "base/values.h"
 #include "chrome/browser/ash/account_manager/account_apps_availability.h"
-#include "chrome/browser/ui/webui/settings/settings_page_ui_handler.h"
 #include "components/account_id/account_id.h"
 #include "components/account_manager_core/account.h"
 #include "components/account_manager_core/account_manager_facade.h"
 #include "components/account_manager_core/chromeos/account_manager.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
+#include "content/public/browser/web_ui_message_handler.h"
 
 class Profile;
 
 namespace ash::settings {
 
 class AccountManagerUIHandler
-    : public ::settings::SettingsPageUIHandler,
+    : public content::WebUIMessageHandler,
       public account_manager::AccountManagerFacade::Observer,
       public signin::IdentityManager::Observer,
       public AccountAppsAvailability::Observer {
@@ -79,19 +79,19 @@ class AccountManagerUIHandler
   void SetProfileForTesting(Profile* profile);
 
   // WebUI "getAccounts" message callback.
-  void HandleGetAccounts(const base::Value::List& args);
+  void HandleGetAccounts(const base::ListValue& args);
 
   // WebUI "addAccount" message callback.
-  void HandleAddAccount(const base::Value::List& args);
+  void HandleAddAccount(const base::ListValue& args);
 
   // WebUI "reauthenticateAccount" message callback.
-  void HandleReauthenticateAccount(const base::Value::List& args);
+  void HandleReauthenticateAccount(const base::ListValue& args);
 
   // WebUI "migrateAccount" message callback.
-  void HandleMigrateAccount(const base::Value::List& args);
+  void HandleMigrateAccount(const base::ListValue& args);
 
   // WebUI "removeAccount" message callback.
-  void HandleRemoveAccount(const base::Value::List& args);
+  void HandleRemoveAccount(const base::ListValue& args);
 
   // |account_manager::AccountManager::CheckDummyGaiaTokenForAllAccounts|
   // callback.
@@ -112,13 +112,13 @@ class AccountManagerUIHandler
   // If user (device account) is child - |is_child_user| should be set to true,
   // in this case "unmigrated" property will be always false for secondary
   // accounts.
-  base::Value::List GetSecondaryGaiaAccounts(
+  base::ListValue GetSecondaryGaiaAccounts(
       const std::vector<std::pair<::account_manager::Account, bool>>&
           account_dummy_token_list,
       const base::flat_set<account_manager::Account>& arc_accounts,
       const AccountId device_account_id,
       const bool is_child_user,
-      base::Value::Dict* device_account);
+      base::DictValue* device_account);
 
   // Refreshes the UI.
   void RefreshUI();

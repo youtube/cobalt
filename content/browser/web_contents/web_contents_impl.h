@@ -558,6 +558,7 @@ class CONTENT_EXPORT WebContentsImpl
   int GetMinimumZoomPercent() override;
   int GetMaximumZoomPercent() override;
   void SetPageScale(float page_scale_factor) override;
+  void SetIgnoreZoomGestures(bool ignore) override;
   gfx::Size GetPreferredSize() override;
   bool GotResponseToPointerLockRequest(
       blink::mojom::PointerLockResult result) override;
@@ -788,6 +789,7 @@ class CONTENT_EXPORT WebContentsImpl
   void Maximize() override;
   void Minimize() override;
   void Restore() override;
+  void SetResizable(bool resizable) override;
 #endif
 #if BUILDFLAG(IS_ANDROID)
   void UpdateUserGestureCarryoverInfo() override;
@@ -846,9 +848,6 @@ class CONTENT_EXPORT WebContentsImpl
                              blink::mojom::StorageTypeAccessed storage_type,
                              bool blocked) override;
   void OnVibrate(RenderFrameHostImpl*) override;
-
-  std::optional<network::ParsedPermissionsPolicy>
-  GetPermissionsPolicyForIsolatedWebApp(RenderFrameHostImpl* source) override;
 
   // Called when WebAudio starts or stops playing audible audio in an
   // AudioContext.
@@ -1000,7 +999,7 @@ class CONTENT_EXPORT WebContentsImpl
   bool ShouldIgnoreUnresponsiveRenderer() override;
   bool IsGuest() override;
   std::optional<SkColor> GetBaseBackgroundColor() override;
-  std::unique_ptr<PrefetchHandle> StartPrefetch(
+  [[nodiscard]] std::unique_ptr<PrefetchHandle> StartPrefetch(
       const GURL& prefetch_url,
       bool use_prefetch_proxy,
       const std::string& embedder_histogram_suffix,
@@ -1247,7 +1246,6 @@ class CONTENT_EXPORT WebContentsImpl
   bool IsPageInPreviewMode() const override;
   void CancelPreviewByMojoBinderPolicy(
       const std::string& interface_name) override;
-  void OnWebApiWindowResizableChanged() override;
 
   // blink::mojom::ColorChooserFactory ---------------------------------------
   void OnColorChooserFactoryReceiver(
@@ -2484,6 +2482,9 @@ class CONTENT_EXPORT WebContentsImpl
 
   // Whether overscroll should be unconditionally disabled.
   bool force_disable_overscroll_content_;
+
+  // Whether zoom gestures (pinch, double-tap) should be ignored.
+  bool ignore_zoom_gestures_ = false;
 
   // Whether the last JavaScript dialog shown was suppressed. Used for testing.
   bool last_dialog_suppressed_;

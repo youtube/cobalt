@@ -6,7 +6,9 @@
 
 #include "base/check.h"
 #include "base/compiler_specific.h"
+#include "base/functional/bind.h"
 #include "base/threading/scoped_blocking_call.h"
+#include "base/threading/thread_restrictions.h"
 #include "base/trace_event/trace_event.h"
 #include "base/tracing_buildflags.h"
 
@@ -41,12 +43,12 @@ void WaitableEvent::Signal() {
   SignalImpl();
 }
 
-void WaitableEvent::Wait() {
-  const bool result = TimedWait(TimeDelta::Max());
+void WaitableEvent::Wait(const Location& location) {
+  const bool result = TimedWait(TimeDelta::Max(), location);
   DCHECK(result) << "TimedWait() should never fail with infinite timeout";
 }
 
-bool WaitableEvent::TimedWait(TimeDelta wait_delta) {
+bool WaitableEvent::TimedWait(TimeDelta wait_delta, const Location& location) {
   if (wait_delta <= TimeDelta()) {
     return IsSignaled();
   }
@@ -55,8 +57,18 @@ bool WaitableEvent::TimedWait(TimeDelta wait_delta) {
   // non-blocking WaitableEvents.
   std::optional<internal::ScopedBlockingCallWithBaseSyncPrimitives>
       scoped_blocking_call;
+
   if (!only_used_while_idle_) {
-    scoped_blocking_call.emplace(FROM_HERE, BlockingType::MAY_BLOCK);
+    // Assert before checking if the event is signaled.
+    internal::AssertBaseSyncPrimitivesAllowed();
+    if (IsSignaled()) {
+      // If it is signaled already, there is no need to actually instantiate the
+      // scoped blocking call and wait.
+      return true;
+    }
+    // Since we know the event is not signaled, we use WILL_BLOCK instead of
+    // MAY_BLOCK.
+    scoped_blocking_call.emplace(location, BlockingType::WILL_BLOCK);
   }
 
   const bool result = TimedWaitImpl(wait_delta);
@@ -83,6 +95,10 @@ size_t WaitableEvent::WaitMany(base::span<WaitableEvent*> events) {
                         perfetto::TerminatingFlow::FromPointer(signaled_event));
   }
   return signaled_id;
+}
+
+OnceClosure WaitableEvent::GetWaitCallbackForTesting() {
+  return BindOnce(&WaitableEvent::Wait, Unretained(this), FROM_HERE);
 }
 
 }  // namespace base

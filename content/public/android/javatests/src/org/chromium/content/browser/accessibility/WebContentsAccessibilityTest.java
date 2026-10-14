@@ -184,6 +184,7 @@ public class WebContentsAccessibilityTest {
     private static final String CACHING_ERROR = "AccessibilityNodeInfo cache has stale data";
     private static final String NODE_EXTRAS_UNCLIPPED_ERROR =
             "AccessibilityNodeInfo object should have unclipped bounds in extras bundle";
+    private static final String TEXT_TRAVERSAL_ERROR = "Expected to receive a traversal event";
     private static final String TEXT_SELECTION_AND_TRAVERSAL_ERROR =
             "Expected to receive both a traversal and selection text event";
     private static final String BOUNDING_BOX_ERROR =
@@ -356,6 +357,32 @@ public class WebContentsAccessibilityTest {
                             && mTestData.hasReceivedSelectionEvent();
                 },
                 TEXT_SELECTION_AND_TRAVERSAL_ERROR);
+    }
+
+    /**
+     * Helper method for sending text related events and confirming that the associated traversal
+     * event have been dispatched before continuing with test.
+     *
+     * @param viewId int virtualViewId of the text field
+     * @param action AccessibilityActionCompat action to perform
+     * @param args Bundle optional arguments
+     * @throws ExecutionException Error
+     */
+    private void performTextActionOnUiThreadAndWaitForTraversalEvent(
+            int viewId, AccessibilityNodeInfoCompat.AccessibilityActionCompat action, Bundle args)
+            throws ExecutionException {
+        // Reset values for traversal event.
+        mTestData.setReceivedTraversalEvent(false);
+
+        // Perform our text action.
+        mActivityTestRule.performActionOnUiThread(viewId, action.getId(), args);
+
+        // Poll until the event has been confirmed as received.
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    return mTestData.hasReceivedTraversalEvent();
+                },
+                TEXT_TRAVERSAL_ERROR);
     }
 
     private void printAccessibilityNodeInfoTree() {
@@ -1296,6 +1323,75 @@ public class WebContentsAccessibilityTest {
             Assert.assertEquals(0, mTestData.getSelectionFromIndex());
             Assert.assertEquals(i - 1, mTestData.getSelectionToIndex());
         }
+    }
+
+    /**
+     * Ensure traverse events are properly indexed when navigating a non-editable node by character.
+     */
+    @Test
+    @LargeTest
+    public void testEvent_NonEditableNode_CharacterGranularity() throws Throwable {
+        setupTestWithHTML("<p id='id1'>Text1</p>");
+
+        // Find the text node.
+        int nodeVirtualViewId = waitForNodeMatching(sViewIdResourceNameMatcher, "id1");
+        mNodeInfo = createAccessibilityNodeInfo(nodeVirtualViewId);
+        Assert.assertNotEquals(mNodeInfo, null);
+
+        focusNode(nodeVirtualViewId);
+
+        // Set granularity to CHARACTER.
+        Bundle args = new Bundle();
+        args.putInt(ACTION_ARGUMENT_MOVEMENT_GRANULARITY_INT, MOVEMENT_GRANULARITY_CHARACTER);
+
+        for (int selection = 0; selection < 2; selection++) {
+            // Movement with granularity on non-editable nodes does not update selection, hene
+            // the argument should have no effect on the result.
+            args.putBoolean(ACTION_ARGUMENT_EXTEND_SELECTION_BOOLEAN, selection != 0);
+            for (int i = 0; i < 5; i++) {
+                performTextActionOnUiThreadAndWaitForTraversalEvent(
+                        nodeVirtualViewId, ACTION_NEXT_AT_MOVEMENT_GRANULARITY, args);
+
+                Assert.assertEquals(i, mTestData.getTraverseFromIndex());
+                Assert.assertEquals(i + 1, mTestData.getTraverseToIndex());
+            }
+
+            for (int i = 5; i > 0; i--) {
+                performTextActionOnUiThreadAndWaitForTraversalEvent(
+                        nodeVirtualViewId, ACTION_PREVIOUS_AT_MOVEMENT_GRANULARITY, args);
+
+                Assert.assertEquals(i - 1, mTestData.getTraverseFromIndex());
+                Assert.assertEquals(i, mTestData.getTraverseToIndex());
+            }
+        }
+    }
+
+    /**
+     * Ensure traverse events are properly indexed when navigating backward on a non-editable node
+     * by character.
+     */
+    @Test
+    @LargeTest
+    public void testEvent_SelectionOFF_NonEditableNode_CharacterGranularity_BackwardInitilization()
+            throws Throwable {
+        setupTestWithHTML("<p id='id1'>Text1</p>");
+
+        // Find the text node.
+        int nodeVirtualViewId = waitForNodeMatching(sViewIdResourceNameMatcher, "id1");
+        mNodeInfo = createAccessibilityNodeInfo(nodeVirtualViewId);
+        Assert.assertNotEquals(mNodeInfo, null);
+
+        focusNode(nodeVirtualViewId);
+
+        // Set granularity to CHARACTER.
+        Bundle args = new Bundle();
+        args.putInt(ACTION_ARGUMENT_MOVEMENT_GRANULARITY_INT, MOVEMENT_GRANULARITY_CHARACTER);
+        args.putBoolean(ACTION_ARGUMENT_EXTEND_SELECTION_BOOLEAN, false);
+
+        performTextActionOnUiThreadAndWaitForTraversalEvent(
+                nodeVirtualViewId, ACTION_PREVIOUS_AT_MOVEMENT_GRANULARITY, args);
+        Assert.assertEquals(4, mTestData.getTraverseFromIndex());
+        Assert.assertEquals(5, mTestData.getTraverseToIndex());
     }
 
     /**
@@ -2350,6 +2446,114 @@ public class WebContentsAccessibilityTest {
         Assert.assertTrue(
                 OFFSCREEN_BUNDLE_EXTRA_ERROR,
                 mNodeInfo3.getExtras().getBoolean(EXTRAS_KEY_OFFSCREEN));
+    }
+
+    /** Test that occluded views are not visible to accessibility. */
+    @Test
+    @SmallTest
+    @EnableFeatures(AccessibilityFeatures.ACCESSIBILITY_HANDLE_OCCLUDING_VIEWS)
+    public void testOcclusion() throws Throwable {
+        setupTestWithHTML(
+                "<button id='button1' style='position:absolute; left:10px; top:10px; "
+                        + "width:100px; height:50px;'>Button 1</button>"
+                        + "<button id='button2' style='position:absolute; left:10px; top:70px; "
+                        + "width:100px; height:50px;'>Button 2</button>");
+
+        // Find the buttons.
+        int button1VvId = waitForNodeMatching(sViewIdResourceNameMatcher, "button1");
+        int button2VvId = waitForNodeMatching(sViewIdResourceNameMatcher, "button2");
+
+        AccessibilityNodeInfoCompat button1NodeInfo = createAccessibilityNodeInfo(button1VvId);
+        AccessibilityNodeInfoCompat button2NodeInfo = createAccessibilityNodeInfo(button2VvId);
+
+        Assert.assertNotNull(NODE_TIMEOUT_ERROR, button1NodeInfo);
+        Assert.assertNotNull(NODE_TIMEOUT_ERROR, button2NodeInfo);
+
+        // Both buttons should be visible initially.
+        Assert.assertTrue(VISIBLE_TO_USER_ERROR, button1NodeInfo.isVisibleToUser());
+        Assert.assertTrue(VISIBLE_TO_USER_ERROR, button2NodeInfo.isVisibleToUser());
+
+        // Get bounds for button 1 to occlude it.
+        Rect button1Bounds = new Rect();
+        button1NodeInfo.getBoundsInScreen(button1Bounds);
+
+        int occluderViewId = 1;
+
+        // Occlude button 1.
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mActivityTestRule.mWcax.setOccludingRect(button1Bounds, occluderViewId);
+                });
+
+        // Button 1 should now be invisible, button 2 should still be visible.
+        button1NodeInfo = createAccessibilityNodeInfo(button1VvId);
+        button2NodeInfo = createAccessibilityNodeInfo(button2VvId);
+        Assert.assertFalse(VISIBLE_TO_USER_ERROR, button1NodeInfo.isVisibleToUser());
+        Assert.assertTrue(VISIBLE_TO_USER_ERROR, button2NodeInfo.isVisibleToUser());
+
+        // Remove occlusion.
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mActivityTestRule.mWcax.setOccludingRect(null, occluderViewId);
+                });
+
+        // Button 1 should be visible again.
+        button1NodeInfo = createAccessibilityNodeInfo(button1VvId);
+        Assert.assertTrue(VISIBLE_TO_USER_ERROR, button1NodeInfo.isVisibleToUser());
+    }
+
+    /** Test that partially occluded views are handled correctly by accessibility. */
+    @Test
+    @SmallTest
+    @EnableFeatures(AccessibilityFeatures.ACCESSIBILITY_HANDLE_OCCLUDING_VIEWS)
+    public void testPartialOcclusion() throws Throwable {
+        setupTestWithHTML(
+                "<button id='button1' style='position:absolute; left:10px; top:10px; "
+                        + "width:100px; height:50px;'>Button 1</button>");
+
+        int button1VvId = waitForNodeMatching(sViewIdResourceNameMatcher, "button1");
+        AccessibilityNodeInfoCompat button1NodeInfo = createAccessibilityNodeInfo(button1VvId);
+        Assert.assertNotNull(NODE_TIMEOUT_ERROR, button1NodeInfo);
+
+        // Button should be visible initially.
+        Assert.assertTrue(VISIBLE_TO_USER_ERROR, button1NodeInfo.isVisibleToUser());
+
+        // Get bounds for button 1 to occlude it.
+        Rect button1Bounds = new Rect();
+        button1NodeInfo.getBoundsInScreen(button1Bounds);
+
+        // Occlude 50% of the button.
+        Rect partialOcclusionRect = new Rect(button1Bounds);
+        partialOcclusionRect.right = partialOcclusionRect.left + (partialOcclusionRect.width() / 2);
+
+        int minorOccluderViewId = 1;
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mActivityTestRule.mWcax.setOccludingRect(
+                            partialOcclusionRect, minorOccluderViewId);
+                });
+
+        // Button 1 should not be visible despite partial occlusion.
+        button1NodeInfo = createAccessibilityNodeInfo(button1VvId);
+        Assert.assertFalse(VISIBLE_TO_USER_ERROR, button1NodeInfo.isVisibleToUser());
+
+        // Now occlude 80% of the button.
+        Rect largeOcclusionRect = new Rect(button1Bounds);
+        largeOcclusionRect.right =
+                largeOcclusionRect.left + (int) (largeOcclusionRect.width() * 0.8);
+
+        int majorOccluderViewId = 1;
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    // First remove the old rect, then add the new one.
+                    mActivityTestRule.mWcax.setOccludingRect(null, minorOccluderViewId);
+                    mActivityTestRule.mWcax.setOccludingRect(
+                            largeOcclusionRect, majorOccluderViewId);
+                });
+
+        // Button 1 should still be invisible.
+        button1NodeInfo = createAccessibilityNodeInfo(button1VvId);
+        Assert.assertFalse(VISIBLE_TO_USER_ERROR, button1NodeInfo.isVisibleToUser());
     }
 
     // ------------------ Tests of performAction method ------------------ //

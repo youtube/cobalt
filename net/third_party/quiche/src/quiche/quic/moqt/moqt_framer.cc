@@ -4,6 +4,7 @@
 
 #include "quiche/quic/moqt/moqt_framer.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -11,13 +12,14 @@
 #include <string>
 #include <utility>
 #include <variant>
-#include <vector>
 
+#include "absl/functional/overload.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_time.h"
-#include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/moqt/moqt_error.h"
+#include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
@@ -78,37 +80,47 @@ class WireKeyStringPair {
 
 class WireKeyValuePairList {
  public:
-  explicit WireKeyValuePairList(const KeyValuePairList& list) : list_(list) {}
+  explicit WireKeyValuePairList(const KeyValuePairList& list,
+                                bool length_prefix = true)
+      : list_(list), length_prefix_(length_prefix) {}
 
   size_t GetLengthOnWire() {
-    size_t total = WireVarInt62(list_.size()).GetLengthOnWire();
+    size_t total =
+        length_prefix_ ? WireVarInt62(list_.size()).GetLengthOnWire() : 0;
     uint64_t last_key = 0;
-    list_.ForEach(
-        [&](uint64_t key, uint64_t value) {
-          total += WireKeyVarIntPair(key - last_key, value).GetLengthOnWire();
-          last_key = key;
-          return true;
-        },
-        [&](uint64_t key, absl::string_view value) {
-          total += WireKeyStringPair(key - last_key, value).GetLengthOnWire();
-          last_key = key;
-          return true;
-        });
+    list_.ForEach([&](uint64_t key,
+                      std::variant<uint64_t, absl::string_view> value) {
+      total += std::visit(
+          absl::Overload{
+              [&](uint64_t val) {
+                return WireKeyVarIntPair(key - last_key, val).GetLengthOnWire();
+              },
+              [&](absl::string_view val) {
+                return WireKeyStringPair(key - last_key, val).GetLengthOnWire();
+              }},
+          value);
+      last_key = key;
+      return true;
+    });
     return total;
   }
   absl::Status SerializeIntoWriter(quiche::QuicheDataWriter& writer) {
-    WireVarInt62(list_.size()).SerializeIntoWriter(writer);
+    if (length_prefix_) {
+      WireVarInt62(list_.size()).SerializeIntoWriter(writer);
+    }
     uint64_t last_key = 0;
     list_.ForEach(
-        [&](uint64_t key, uint64_t value) {
-          absl::Status status = WireKeyVarIntPair(key - last_key, value)
-                                    .SerializeIntoWriter(writer);
-          last_key = key;
-          return quiche::IsWriterStatusOk(status);
-        },
-        [&](uint64_t key, absl::string_view value) {
-          absl::Status status = WireKeyStringPair(key - last_key, value)
-                                    .SerializeIntoWriter(writer);
+        [&](uint64_t key, std::variant<uint64_t, absl::string_view> value) {
+          absl::Status status = std::visit(
+              absl::Overload{[&](uint64_t val) {
+                               return WireKeyVarIntPair(key - last_key, val)
+                                   .SerializeIntoWriter(writer);
+                             },
+                             [&](absl::string_view val) {
+                               return WireKeyStringPair(key - last_key, val)
+                                   .SerializeIntoWriter(writer);
+                             }},
+              value);
           last_key = key;
           return quiche::IsWriterStatusOk(status);
         });
@@ -117,6 +129,7 @@ class WireKeyValuePairList {
 
  private:
   const KeyValuePairList& list_;
+  const bool length_prefix_;
 };
 
 class WireTrackNamespace {
@@ -221,61 +234,140 @@ uint64_t SignedVarintSerializedForm(int64_t value) {
   return value << 1;
 }
 
-void SessionParametersToKeyValuePairList(
-    const MoqtSessionParameters& parameters, KeyValuePairList& out) {
-  if (!parameters.using_webtrans &&
-      parameters.perspective == quic::Perspective::IS_CLIENT) {
-    out.insert(SetupParameter::kPath, parameters.path);
-    out.insert(SetupParameter::kAuthority, parameters.authority);
-  }
-  out.insert(SetupParameter::kMoqtImplementation,
-             parameters.moqt_implementation);
-  if (parameters.max_request_id > 0) {
-    out.insert(SetupParameter::kMaxRequestId, parameters.max_request_id);
-  }
-  if (parameters.max_auth_token_cache_size > 0) {
-    out.insert(SetupParameter::kMaxAuthTokenCacheSize,
-               parameters.max_auth_token_cache_size);
-  }
-  if (parameters.support_object_acks) {
-    out.insert(SetupParameter::kSupportObjectAcks, 1ULL);
+quiche::QuicheBuffer SerializeAuthToken(const AuthToken& token) {
+  return Serialize(WireVarInt62(token.alias_type),
+                   WireOptional<WireVarInt62>(token.alias),
+                   WireOptional<WireVarInt62>(token.type),
+                   WireOptional<WireBytes>(token.value));
+}
+
+quiche::QuicheBuffer SerializeSubscriptionFilter(
+    const SubscriptionFilter& filter) {
+  switch (filter.type()) {
+    case MoqtFilterType::kNextGroupStart:
+      return Serialize(WireVarInt62(filter.type()));
+    case MoqtFilterType::kLargestObject:
+      return Serialize(WireVarInt62(filter.type()));
+    case MoqtFilterType::kAbsoluteStart:
+      return Serialize(
+          WireVarInt62(filter.type()),
+          WireKeyVarIntPair(filter.start().group, filter.start().object));
+    case MoqtFilterType::kAbsoluteRange:
+      return Serialize(
+          WireVarInt62(filter.type()),
+          WireKeyVarIntPair(filter.start().group, filter.start().object),
+          WireVarInt62(filter.end_group()));
   }
 }
 
-void VersionSpecificParametersToKeyValuePairList(
-    const VersionSpecificParameters& parameters, KeyValuePairList& out) {
-  out.clear();
-  for (const auto& it : parameters.authorization_token) {
-    if (it.type > AuthTokenType::kMaxAuthTokenType) {
-      QUICHE_BUG(moqt_invalid_auth_token_type)
-          << "Invalid Auth Token Type: " << static_cast<uint64_t>(it.type);
-      continue;
-    }
-    // Just support USE_VALUE for now.
-    quiche::QuicheBuffer parameter_value =
-        Serialize(WireVarInt62(AuthTokenAliasType::kUseValue),
-                  WireVarInt62(it.type), WireBytes(it.token));
-    out.insert(VersionSpecificParameter::kAuthorizationToken,
-               parameter_value.AsStringView());
-  }
-  if (!parameters.delivery_timeout.IsInfinite()) {
-    out.insert(
-        VersionSpecificParameter::kDeliveryTimeout,
-        static_cast<uint64_t>(parameters.delivery_timeout.ToMilliseconds()));
-  }
-  if (!parameters.max_cache_duration.IsInfinite()) {
-    out.insert(
-        VersionSpecificParameter::kMaxCacheDuration,
-        static_cast<uint64_t>(parameters.max_cache_duration.ToMilliseconds()));
-  }
-  if (parameters.oack_window_size.has_value()) {
-    out.insert(
-        VersionSpecificParameter::kOackWindowSize,
-        static_cast<uint64_t>(parameters.oack_window_size->ToMicroseconds()));
-  }
+quiche::QuicheBuffer SerializeLocation(const Location& location) {
+  return Serialize(WireKeyVarIntPair(location.group, location.object));
 }
 
 }  // namespace
+
+KeyValuePairList SetupParameters::ToKeyValuePairList() const {
+  KeyValuePairList out;
+  if (max_request_id.has_value()) {
+    out.insert(static_cast<uint64_t>(SetupParameter::kMaxRequestId),
+               *max_request_id);
+  }
+  if (max_auth_token_cache_size.has_value()) {
+    out.insert(static_cast<uint64_t>(SetupParameter::kMaxAuthTokenCacheSize),
+               *max_auth_token_cache_size);
+  }
+  if (path.has_value()) {
+    out.insert(static_cast<uint64_t>(SetupParameter::kPath), *path);
+  }
+  for (const AuthToken& token : authorization_tokens) {
+    out.insert(static_cast<uint64_t>(SetupParameter::kAuthorizationToken),
+               SerializeAuthToken(token).AsStringView());
+  }
+  if (authority.has_value()) {
+    out.insert(static_cast<uint64_t>(SetupParameter::kAuthority), *authority);
+  }
+  if (moqt_implementation.has_value()) {
+    out.insert(static_cast<uint64_t>(SetupParameter::kMoqtImplementation),
+               *moqt_implementation);
+  }
+  if (support_object_acks.has_value()) {
+    out.insert(static_cast<uint64_t>(SetupParameter::kSupportObjectAcks),
+               *support_object_acks ? 1ULL : 0ULL);
+  }
+  return out;
+}
+
+KeyValuePairList MessageParameters::ToKeyValuePairList() const {
+  KeyValuePairList list;
+  if (delivery_timeout.has_value()) {
+    // Value cannot be zero.
+    int64_t milliseconds = std::max(delivery_timeout->ToMilliseconds(), 1L);
+    list.insert(static_cast<uint64_t>(MessageParameter::kDeliveryTimeout),
+                static_cast<uint64_t>(milliseconds));
+  }
+  for (const AuthToken& token : authorization_tokens) {
+    list.insert(static_cast<uint64_t>(MessageParameter::kAuthorizationToken),
+                SerializeAuthToken(token).AsStringView());
+  }
+  if (expires.has_value()) {
+    list.insert(static_cast<uint64_t>(MessageParameter::kExpires),
+                static_cast<uint64_t>(expires->ToMilliseconds()));
+  }
+  if (largest_object.has_value()) {
+    list.insert(static_cast<uint64_t>(MessageParameter::kLargestObject),
+                SerializeLocation(*largest_object).AsStringView());
+  }
+  if (forward_has_value()) {
+    list.insert(static_cast<uint64_t>(MessageParameter::kForward),
+                forward() ? 1ULL : 0ULL);
+  }
+  if (subscriber_priority.has_value()) {
+    list.insert(static_cast<uint64_t>(MessageParameter::kSubscriberPriority),
+                *subscriber_priority);
+  }
+  if (subscription_filter.has_value()) {
+    list.insert(
+        static_cast<uint64_t>(MessageParameter::kSubscriptionFilter),
+        SerializeSubscriptionFilter(*subscription_filter).AsStringView());
+  }
+  if (group_order.has_value()) {
+    list.insert(static_cast<uint64_t>(MessageParameter::kGroupOrder),
+                static_cast<uint64_t>(*group_order));
+  }
+  if (new_group_request.has_value()) {
+    list.insert(static_cast<uint64_t>(MessageParameter::kNewGroupRequest),
+                *new_group_request);
+  }
+  if (oack_window_size.has_value()) {
+    list.insert(static_cast<uint64_t>(MessageParameter::kOackWindowSize),
+                static_cast<uint64_t>(oack_window_size->ToMicroseconds()));
+  }
+  return list;
+}
+
+KeyValuePairList VersionSpecificParameters::ToKeyValuePairList() const {
+  KeyValuePairList out;
+  if (delivery_timeout != quic::QuicTimeDelta::Infinite()) {
+    out.insert(
+        static_cast<uint64_t>(VersionSpecificParameter::kDeliveryTimeout),
+        static_cast<uint64_t>(delivery_timeout.ToMilliseconds()));
+  }
+  for (const AuthToken& token : authorization_tokens) {
+    out.insert(
+        static_cast<uint64_t>(VersionSpecificParameter::kAuthorizationToken),
+        SerializeAuthToken(token).AsStringView());
+  }
+  if (max_cache_duration != quic::QuicTimeDelta::Infinite()) {
+    out.insert(
+        static_cast<uint64_t>(VersionSpecificParameter::kMaxCacheDuration),
+        static_cast<uint64_t>(max_cache_duration.ToMilliseconds()));
+  }
+  if (oack_window_size.has_value()) {
+    out.insert(static_cast<uint64_t>(VersionSpecificParameter::kOackWindowSize),
+               static_cast<uint64_t>(oack_window_size->ToMicroseconds()));
+  }
+  return out;
+}
 
 quiche::QuicheBuffer MoqtFramer::SerializeObjectHeader(
     const MoqtObject& message, MoqtDataStreamType message_type,
@@ -332,8 +424,9 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectHeader(
           ? std::optional<uint64_t>(message.subgroup_id)
           : std::nullopt;
   std::optional<uint8_t> publisher_priority =
-      is_first_in_stream ? std::optional<uint8_t>(message.publisher_priority)
-                         : std::nullopt;
+      (is_first_in_stream && !message_type.HasDefaultPriority())
+          ? std::optional<uint8_t>(message.publisher_priority)
+          : std::nullopt;
   std::optional<absl::string_view> extension_headers =
       (message_type.AreExtensionHeadersPresent())
           ? std::optional<absl::string_view>(message.extension_headers)
@@ -350,7 +443,8 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectHeader(
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeObjectDatagram(
-    const MoqtObject& message, absl::string_view payload) {
+    const MoqtObject& message, absl::string_view payload,
+    MoqtPriority default_priority) {
   if (!ValidateObjectMetadata(message, /*is_datagram=*/true)) {
     QUICHE_BUG(QUICHE_BUG_serialize_object_datagram_01)
         << "Object metadata is invalid";
@@ -364,10 +458,14 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectDatagram(
   MoqtDatagramType datagram_type(
       !payload.empty(), !message.extension_headers.empty(),
       message.object_status == MoqtObjectStatus::kEndOfGroup,
-      message.object_id == 0);
+      message.publisher_priority == default_priority, message.object_id == 0);
   std::optional<uint64_t> object_id =
       datagram_type.has_object_id() ? std::optional<uint64_t>(message.object_id)
                                     : std::nullopt;
+  std::optional<uint8_t> publisher_priority =
+      datagram_type.has_default_priority()
+          ? std::nullopt
+          : std::optional<uint8_t>(message.publisher_priority);
   std::optional<absl::string_view> extensions =
       datagram_type.has_extension()
           ? std::optional<absl::string_view>(message.extension_headers)
@@ -382,7 +480,7 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectDatagram(
   return Serialize(
       WireVarInt62(datagram_type.value()), WireVarInt62(message.track_alias),
       WireVarInt62(message.group_id), WireOptional<WireVarInt62>(object_id),
-      WireUint8(message.publisher_priority),
+      WireOptional<WireUint8>(publisher_priority),
       WireOptional<WireStringWithVarInt62Length>(extensions),
       WireOptional<WireVarInt62>(object_status),
       WireOptional<WireBytes>(raw_payload));
@@ -391,12 +489,8 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectDatagram(
 quiche::QuicheBuffer MoqtFramer::SerializeClientSetup(
     const MoqtClientSetup& message) {
   KeyValuePairList parameters;
-  SessionParametersToKeyValuePairList(message.parameters, parameters);
-  if (ValidateSetupParameters(parameters, using_webtrans_,
-                              quic::Perspective::IS_SERVER) !=
-      MoqtError::kNoError) {
-    QUICHE_BUG(QUICHE_BUG_invalid_parameters)
-        << "Serializing invalid MoQT parameters";
+  if (!FillAndValidateSetupParameters(MoqtMessageType::kClientSetup,
+                                      message.parameters, parameters)) {
     return quiche::QuicheBuffer();
   }
   return SerializeControlMessage(
@@ -407,92 +501,41 @@ quiche::QuicheBuffer MoqtFramer::SerializeClientSetup(
 quiche::QuicheBuffer MoqtFramer::SerializeServerSetup(
     const MoqtServerSetup& message) {
   KeyValuePairList parameters;
-  SessionParametersToKeyValuePairList(message.parameters, parameters);
-  if (ValidateSetupParameters(parameters, using_webtrans_,
-                              quic::Perspective::IS_CLIENT) !=
-      MoqtError::kNoError) {
-    QUICHE_BUG(QUICHE_BUG_invalid_parameters)
-        << "Serializing invalid MoQT parameters";
+  if (!FillAndValidateSetupParameters(MoqtMessageType::kServerSetup,
+                                      message.parameters, parameters)) {
     return quiche::QuicheBuffer();
   }
   return SerializeControlMessage(MoqtMessageType::kServerSetup,
                                  WireKeyValuePairList(parameters));
 }
 
+quiche::QuicheBuffer MoqtFramer::SerializeRequestOk(
+    const MoqtRequestOk& message) {
+  return SerializeControlMessage(
+      MoqtMessageType::kRequestOk, WireVarInt62(message.request_id),
+      WireKeyValuePairList(message.parameters.ToKeyValuePairList()));
+}
+
 quiche::QuicheBuffer MoqtFramer::SerializeSubscribe(
     const MoqtSubscribe& message, MoqtMessageType message_type) {
-  KeyValuePairList parameters;
-  VersionSpecificParametersToKeyValuePairList(message.parameters, parameters);
-  if (!ValidateVersionSpecificParameters(parameters,
-                                         MoqtMessageType::kSubscribe)) {
-    QUICHE_BUG(QUICHE_BUG_invalid_parameters)
-        << "Serializing invalid MoQT parameters";
-    return quiche::QuicheBuffer();
-  }
-  std::optional<uint64_t> start_group, start_object, end_group;
-  switch (message.filter_type) {
-    case MoqtFilterType::kNextGroupStart:
-    case MoqtFilterType::kLatestObject:
-      break;
-    case MoqtFilterType::kAbsoluteRange:
-      if (!message.end_group.has_value() || !message.start.has_value() ||
-          *message.end_group < message.start->group) {
-        QUICHE_BUG(MoqtFramer_invalid_end_group) << "Invalid object range";
-        return quiche::QuicheBuffer();
-      }
-      end_group = *message.end_group;
-      [[fallthrough]];
-    case MoqtFilterType::kAbsoluteStart:
-      if (!message.start.has_value()) {
-        QUICHE_BUG(MoqtFramer_invalid_start) << "Filter requires start";
-        return quiche::QuicheBuffer();
-      }
-      start_group = message.start->group;
-      start_object = message.start->object;
-      break;
-    default:
-      QUICHE_BUG(MoqtFramer_end_group_missing) << "Subscribe framing error.";
-      return quiche::QuicheBuffer();
-  }
   return SerializeControlMessage(
       message_type, WireVarInt62(message.request_id),
       WireFullTrackName(message.full_track_name),
-      WireUint8(message.subscriber_priority),
-      WireDeliveryOrder(message.group_order), WireBoolean(message.forward),
-      WireVarInt62(message.filter_type),
-      WireOptional<WireVarInt62>(start_group),
-      WireOptional<WireVarInt62>(start_object),
-      WireOptional<WireVarInt62>(end_group), WireKeyValuePairList(parameters));
+      WireKeyValuePairList(message.parameters.ToKeyValuePairList()));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeSubscribeOk(
     const MoqtSubscribeOk& message, MoqtMessageType message_type) {
-  KeyValuePairList parameters;
-  VersionSpecificParametersToKeyValuePairList(message.parameters, parameters);
-  if (!ValidateVersionSpecificParameters(parameters,
-                                         MoqtMessageType::kSubscribeOk)) {
-    QUICHE_BUG(QUICHE_BUG_invalid_parameters)
-        << "Serializing invalid MoQT parameters";
+  if (!message.extensions.Validate()) {
+    QUICHE_BUG(QUICHE_BUG_serialize_subscribe_ok_01)
+        << "Subscribe OK extensions are ill-formed";
     return quiche::QuicheBuffer();
   }
-  if (message.largest_location.has_value()) {
-    return SerializeControlMessage(
-        message_type, WireVarInt62(message.request_id),
-        WireVarInt62(message.track_alias),
-        WireVarInt62(message.expires.IsInfinite()
-                         ? 0
-                         : message.expires.ToMilliseconds()),
-        WireDeliveryOrder(message.group_order), WireUint8(1),
-        WireVarInt62(message.largest_location->group),
-        WireVarInt62(message.largest_location->object),
-        WireKeyValuePairList(parameters));
-  }
-  return SerializeControlMessage(message_type, WireVarInt62(message.request_id),
-                                 WireVarInt62(message.track_alias),
-                                 WireVarInt62(message.expires.ToMilliseconds()),
-                                 WireDeliveryOrder(message.group_order),
-                                 WireUint8(0),
-                                 WireKeyValuePairList(parameters));
+  return SerializeControlMessage(
+      message_type, WireVarInt62(message.request_id),
+      WireVarInt62(message.track_alias),
+      WireKeyValuePairList(message.parameters.ToKeyValuePairList()),
+      WireKeyValuePairList(message.extensions, false));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeRequestError(
@@ -500,6 +543,9 @@ quiche::QuicheBuffer MoqtFramer::SerializeRequestError(
   return SerializeControlMessage(
       MoqtMessageType::kRequestError, WireVarInt62(message.request_id),
       WireVarInt62(message.error_code),
+      WireVarInt62(message.retry_interval.has_value()
+                       ? message.retry_interval->ToMilliseconds() + 1
+                       : 0),
       WireStringWithVarInt62Length(message.reason_phrase));
 }
 
@@ -520,13 +566,10 @@ quiche::QuicheBuffer MoqtFramer::SerializePublishDone(
 quiche::QuicheBuffer MoqtFramer::SerializeSubscribeUpdate(
     const MoqtSubscribeUpdate& message) {
   KeyValuePairList parameters;
-  VersionSpecificParametersToKeyValuePairList(message.parameters, parameters);
-  if (!ValidateVersionSpecificParameters(parameters,
-                                         MoqtMessageType::kSubscribeUpdate)) {
-    QUICHE_BUG(QUICHE_BUG_invalid_parameters)
-        << "Serializing invalid MoQT parameters";
+  if (!FillAndValidateVersionSpecificParameters(
+          MoqtMessageType::kSubscribeUpdate, message.parameters, parameters)) {
     return quiche::QuicheBuffer();
-  }
+  };
   uint64_t end_group =
       message.end_group.has_value() ? *message.end_group + 1 : 0;
   return SerializeControlMessage(
@@ -539,29 +582,34 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribeUpdate(
 quiche::QuicheBuffer MoqtFramer::SerializePublishNamespace(
     const MoqtPublishNamespace& message) {
   KeyValuePairList parameters;
-  VersionSpecificParametersToKeyValuePairList(message.parameters, parameters);
-  if (!ValidateVersionSpecificParameters(parameters,
-                                         MoqtMessageType::kPublishNamespace)) {
-    QUICHE_BUG(QUICHE_BUG_invalid_parameters)
-        << "Serializing invalid MoQT parameters";
+  if (!FillAndValidateVersionSpecificParameters(
+          MoqtMessageType::kPublishNamespace, message.parameters, parameters)) {
     return quiche::QuicheBuffer();
-  }
+  };
   return SerializeControlMessage(MoqtMessageType::kPublishNamespace,
                                  WireVarInt62(message.request_id),
                                  WireTrackNamespace(message.track_namespace),
                                  WireKeyValuePairList(parameters));
 }
 
-quiche::QuicheBuffer MoqtFramer::SerializePublishNamespaceOk(
-    const MoqtPublishNamespaceOk& message) {
-  return SerializeControlMessage(MoqtMessageType::kPublishNamespaceOk,
-                                 WireVarInt62(message.request_id));
-}
-
 quiche::QuicheBuffer MoqtFramer::SerializePublishNamespaceDone(
     const MoqtPublishNamespaceDone& message) {
   return SerializeControlMessage(MoqtMessageType::kPublishNamespaceDone,
                                  WireTrackNamespace(message.track_namespace));
+}
+
+quiche::QuicheBuffer MoqtFramer::SerializeNamespace(
+    const MoqtNamespace& message) {
+  return SerializeControlMessage(
+      MoqtMessageType::kNamespace,
+      WireTrackNamespace(message.track_namespace_suffix));
+}
+
+quiche::QuicheBuffer MoqtFramer::SerializeNamespaceDone(
+    const MoqtNamespaceDone& message) {
+  return SerializeControlMessage(
+      MoqtMessageType::kNamespaceDone,
+      WireTrackNamespace(message.track_namespace_suffix));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializePublishNamespaceCancel(
@@ -578,10 +626,6 @@ quiche::QuicheBuffer MoqtFramer::SerializeTrackStatus(
   return SerializeSubscribe(message, MoqtMessageType::kTrackStatus);
 }
 
-quiche::QuicheBuffer MoqtFramer::SerializeTrackStatusOk(
-    const MoqtTrackStatusOk& message) {
-  return SerializeSubscribeOk(message, MoqtMessageType::kTrackStatusOk);
-}
 
 quiche::QuicheBuffer MoqtFramer::SerializeGoAway(const MoqtGoAway& message) {
   return SerializeControlMessage(
@@ -591,24 +635,11 @@ quiche::QuicheBuffer MoqtFramer::SerializeGoAway(const MoqtGoAway& message) {
 
 quiche::QuicheBuffer MoqtFramer::SerializeSubscribeNamespace(
     const MoqtSubscribeNamespace& message) {
-  KeyValuePairList parameters;
-  VersionSpecificParametersToKeyValuePairList(message.parameters, parameters);
-  if (!ValidateVersionSpecificParameters(
-          parameters, MoqtMessageType::kSubscribeNamespace)) {
-    QUICHE_BUG(QUICHE_BUG_invalid_parameters)
-        << "Serializing invalid MoQT parameters";
-    return quiche::QuicheBuffer();
-  }
-  return SerializeControlMessage(MoqtMessageType::kSubscribeNamespace,
-                                 WireVarInt62(message.request_id),
-                                 WireTrackNamespace(message.track_namespace),
-                                 WireKeyValuePairList(parameters));
-}
-
-quiche::QuicheBuffer MoqtFramer::SerializeSubscribeNamespaceOk(
-    const MoqtSubscribeNamespaceOk& message) {
-  return SerializeControlMessage(MoqtMessageType::kSubscribeNamespaceOk,
-                                 WireVarInt62(message.request_id));
+  return SerializeControlMessage(
+      MoqtMessageType::kSubscribeNamespace, WireVarInt62(message.request_id),
+      WireTrackNamespace(message.track_namespace_prefix),
+      WireVarInt62(message.subscribe_options),
+      WireKeyValuePairList(message.parameters.ToKeyValuePairList()));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeUnsubscribeNamespace(
@@ -633,12 +664,10 @@ quiche::QuicheBuffer MoqtFramer::SerializeFetch(const MoqtFetch& message) {
     }
   }
   KeyValuePairList parameters;
-  VersionSpecificParametersToKeyValuePairList(message.parameters, parameters);
-  if (!ValidateVersionSpecificParameters(parameters, MoqtMessageType::kFetch)) {
-    QUICHE_BUG(QUICHE_BUG_invalid_parameters)
-        << "Serializing invalid MoQT parameters";
+  if (!FillAndValidateVersionSpecificParameters(
+          MoqtMessageType::kFetch, message.parameters, parameters)) {
     return quiche::QuicheBuffer();
-  }
+  };
   if (std::holds_alternative<StandaloneFetch>(message.fetch)) {
     const StandaloneFetch& standalone_fetch =
         std::get<StandaloneFetch>(message.fetch);
@@ -678,13 +707,10 @@ quiche::QuicheBuffer MoqtFramer::SerializeFetch(const MoqtFetch& message) {
 
 quiche::QuicheBuffer MoqtFramer::SerializeFetchOk(const MoqtFetchOk& message) {
   KeyValuePairList parameters;
-  VersionSpecificParametersToKeyValuePairList(message.parameters, parameters);
-  if (!ValidateVersionSpecificParameters(parameters,
-                                         MoqtMessageType::kFetchOk)) {
-    QUICHE_BUG(QUICHE_BUG_invalid_parameters)
-        << "Serializing invalid MoQT parameters";
+  if (!FillAndValidateVersionSpecificParameters(
+          MoqtMessageType::kFetchOk, message.parameters, parameters)) {
     return quiche::QuicheBuffer();
-  }
+  };
   return SerializeControlMessage(
       MoqtMessageType::kFetchOk, WireVarInt62(message.request_id),
       WireDeliveryOrder(message.group_order), WireBoolean(message.end_of_track),
@@ -709,13 +735,10 @@ quiche::QuicheBuffer MoqtFramer::SerializeRequestsBlocked(
 
 quiche::QuicheBuffer MoqtFramer::SerializePublish(const MoqtPublish& message) {
   KeyValuePairList parameters;
-  VersionSpecificParametersToKeyValuePairList(message.parameters, parameters);
-  if (!ValidateVersionSpecificParameters(parameters,
-                                         MoqtMessageType::kPublish)) {
-    QUICHE_BUG(QUICHE_BUG_invalid_parameters)
-        << "Serializing invalid MoQT parameters";
+  if (!FillAndValidateVersionSpecificParameters(
+          MoqtMessageType::kPublish, message.parameters, parameters)) {
     return quiche::QuicheBuffer();
-  }
+  };
   std::optional<uint64_t> group, object;
   if (message.largest_location.has_value()) {
     group = message.largest_location->group;
@@ -733,17 +756,14 @@ quiche::QuicheBuffer MoqtFramer::SerializePublish(const MoqtPublish& message) {
 quiche::QuicheBuffer MoqtFramer::SerializePublishOk(
     const MoqtPublishOk& message) {
   KeyValuePairList parameters;
-  VersionSpecificParametersToKeyValuePairList(message.parameters, parameters);
-  if (!ValidateVersionSpecificParameters(parameters,
-                                         MoqtMessageType::kPublishOk)) {
-    QUICHE_BUG(QUICHE_BUG_invalid_parameters)
-        << "Serializing invalid MoQT parameters";
+  if (!FillAndValidateVersionSpecificParameters(
+          MoqtMessageType::kPublishOk, message.parameters, parameters)) {
     return quiche::QuicheBuffer();
-  }
+  };
   std::optional<uint64_t> start_group, start_object, end_group;
   switch (message.filter_type) {
     case MoqtFilterType::kNextGroupStart:
-    case MoqtFilterType::kLatestObject:
+    case MoqtFilterType::kLargestObject:
       break;
     case MoqtFilterType::kAbsoluteStart:
     case MoqtFilterType::kAbsoluteRange:
@@ -790,6 +810,32 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectAck(
       WireVarInt62(message.group_id), WireVarInt62(message.object_id),
       WireVarInt62(SignedVarintSerializedForm(
           message.delta_from_deadline.ToMicroseconds())));
+}
+
+bool MoqtFramer::FillAndValidateSetupParameters(
+    MoqtMessageType message_type, const SetupParameters& parameters,
+    KeyValuePairList& out) {
+  if (SetupParametersAllowedByMessage(parameters, message_type,
+                                      using_webtrans_) != MoqtError::kNoError) {
+    QUICHE_BUG(QUICHE_BUG_invalid_setup_parameters)
+        << "Invalid setup parameters for "
+        << MoqtMessageTypeToString(message_type);
+    return false;
+  }
+  out = parameters.ToKeyValuePairList();
+  return true;
+}
+
+bool MoqtFramer::FillAndValidateVersionSpecificParameters(
+    MoqtMessageType message_type, const VersionSpecificParameters& parameters,
+    KeyValuePairList& out) {
+  if (!VersionSpecificParametersAllowedByMessage(parameters, message_type)) {
+    QUICHE_BUG(QUICHE_BUG_invalid_parameters)
+        << "Invalid parameters for " << MoqtMessageTypeToString(message_type);
+    return false;
+  }
+  out = parameters.ToKeyValuePairList();
+  return true;
 }
 
 // static

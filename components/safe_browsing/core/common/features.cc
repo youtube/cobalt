@@ -41,11 +41,11 @@ BASE_FEATURE(kAddWarningShownTSToClientSafeBrowsingReport,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kAutoRevokeSuspiciousNotification,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 constexpr base::FeatureParam<int>
     kAutoRevokeSuspiciousNotificationLookBackPeriod{
         &kAutoRevokeSuspiciousNotification, "LookBackPeriod",
-        /*default_value=*/1};
+        /*default_value=*/7};
 constexpr base::FeatureParam<double>
     kAutoRevokeSuspiciousNotificationEngagementScoreCutOff{
         &kAutoRevokeSuspiciousNotification, "MaxEngagementScore",
@@ -53,9 +53,12 @@ constexpr base::FeatureParam<double>
 constexpr base::FeatureParam<int>
     kAutoRevokeSuspiciousNotificationMinNotificationCount{
         &kAutoRevokeSuspiciousNotification, "MinNotificationCount",
-        /*default_value=*/2};
+        /*default_value=*/9};
 
 BASE_FEATURE(kBundledSecuritySettings, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kBundledSecuritySettingsSecureDnsV2,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kClientSideDetectionClipboardCopyApi,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -74,6 +77,19 @@ constexpr base::FeatureParam<int> kCsdClipboardCopyApiMinLength{
 const base::FeatureParam<bool> kCSDClipboardCopyApiProcessPayload{
     &kClientSideDetectionClipboardCopyApi, "ProcessPayload",
     /*default_value=*/false};
+const base::FeatureParam<std::string> kCsdClipboardCopyApiLoaders{
+    &kClientSideDetectionClipboardCopyApi, "Loaders",
+    /*default_value=*/"curl,wget,invoke-webrequest,iwr"};
+const base::FeatureParam<std::string> kCsdClipboardCopyApiRunners{
+    &kClientSideDetectionClipboardCopyApi, "Runners",
+    /*default_value=*/
+    "bash,cmd,conhost,iex,invoke-expression,zsh"};
+const base::FeatureParam<std::string> kCsdClipboardCopyApiRemoteRunners{
+    &kClientSideDetectionClipboardCopyApi, "RemoteRunners",
+    /*default_value=*/"mshta"};
+const base::FeatureParam<std::string> kCsdClipboardCopyApiDecoders{
+    &kClientSideDetectionClipboardCopyApi, "Decoders",
+    /*default_value=*/"base32,base64"};
 
 BASE_FEATURE(kClientSideDetectionCreditCardForm,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -113,6 +129,11 @@ BASE_FEATURE(kClientSideDetectionKillswitch, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kClientSideDetectionLlamaForcedTriggerInfoForScamDetection,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+#if BUILDFLAG(IS_ANDROID)
+BASE_FEATURE(kClientSideDetectionOnDeviceModelLazyDownloadAndroid,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
+
 BASE_FEATURE(kClientSideDetectionRedirectChainKillswitch,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -125,7 +146,7 @@ BASE_FEATURE(kClientSideDetectionSamplePing, base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kClientSideDetectionSendIntelligentScanInfoAndroid,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
 BASE_FEATURE(kClientSideDetectionSendLlamaForcedTriggerInfo,
@@ -145,14 +166,11 @@ BASE_FEATURE(kClientSideDetectionShowLlamaScamVerdictWarning,
 
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kClientSideDetectionShowScamVerdictWarningAndroid,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
 BASE_FEATURE(kClientSideDetectionSkipErrorPage,
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kClientSideDetectionVibrationApi,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kConditionalImageResize, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -202,10 +220,12 @@ BASE_FEATURE(kEnterpriseFileSystemAccessDeepScan,
 BASE_FEATURE(kEnterprisePasswordReuseUiRefresh,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kEnterpriseRealTimeUrlCheckNewUrl,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kEsbAsASyncedSetting, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kExtendedReportingRemovePrefDependency,
-             "ExtendedReportingRemovePrefDependency",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kExtensionTelemetryConfiguration,
@@ -226,6 +246,14 @@ constexpr base::FeatureParam<int>
 BASE_FEATURE(kExternalAppRedirectTelemetry,
              "SafeBrowsingExternalAppRedirectTelemetry",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kGeminiAntiscamProtectionForMetricsCollection,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+constexpr base::FeatureParam<double>
+    kGeminiAntiscamProtectionMinScamScoreLogPageContent{
+        &kGeminiAntiscamProtectionForMetricsCollection,
+        "GeminiAntiscamProtectionMinScamScoreLogPageContent",
+        /*default_value=*/0.5};
 
 BASE_FEATURE(kGlobalCacheListForGatingNotificationProtections,
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -367,6 +395,9 @@ constexpr base::FeatureParam<bool>
         "ShowWarningsForSuspiciousNotificationsShouldSwapButtons",
         /*default_value=*/false};
 
+BASE_FEATURE(kSkipImageClassificationScoringForNonPageLoadTriggers,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kSuspiciousSiteTriggerQuotaFeature,
              "SafeBrowsingSuspiciousSiteTriggerQuota",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -383,7 +414,7 @@ BASE_FEATURE(kVisualFeaturesSizes, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Returns the list of the experimental features that are enabled or disabled,
 // as part of currently running Safe Browsing experiments.
-base::Value::List GetFeatureStatusList() {
+base::ListValue GetFeatureStatusList() {
   // List of Safe Browsing feature that should be listed on
   // chrome://safe-browsing. Features should be listed in alphabetical order.
   const base::Feature* kExperimentalFeatures[] = {
@@ -416,7 +447,7 @@ base::Value::List GetFeatureStatusList() {
       // keep-sorted end
   };
 
-  base::Value::List param_list;
+  base::ListValue param_list;
   for (const base::Feature* feature : kExperimentalFeatures) {
     param_list.Append(feature->name);
     if (base::FeatureList::IsEnabled(*feature)) {

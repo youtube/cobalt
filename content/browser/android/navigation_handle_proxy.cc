@@ -30,7 +30,7 @@ NavigationHandleProxy::NavigationHandleProxy(
   JNIEnv* env = AttachCurrentThread();
 
   java_navigation_handle_ = Java_NavigationHandle_Constructor(
-      env, reinterpret_cast<jlong>(cpp_navigation_handle),
+      env, reinterpret_cast<int64_t>(cpp_navigation_handle),
       url::GURLAndroid::FromNativeGURL(env, cpp_navigation_handle_->GetURL()),
       cpp_navigation_handle_->IsRendererInitiated(),
       cpp_navigation_handle_->GetReloadType() != content::ReloadType::NONE,
@@ -112,6 +112,8 @@ void NavigationHandleProxy::DidFinish() {
       cpp_navigation_handle_->IsDownload(), is_valid_search_form_url,
       cpp_navigation_handle_->GetPageTransition(),
       cpp_navigation_handle_->GetNetErrorCode(),
+      base::android::ConvertUTF8ToJavaString(
+          env, net::ErrorToString(cpp_navigation_handle_->GetNetErrorCode())),
       // TODO(shaktisahu): Change default status to -1 after fixing
       // crbug/690041.
       cpp_navigation_handle_->GetResponseHeaders()

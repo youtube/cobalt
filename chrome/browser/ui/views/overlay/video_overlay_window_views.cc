@@ -64,6 +64,7 @@
 #include "ui/gfx/favicon_size.h"
 #include "ui/gfx/geometry/resize_utils.h"
 #include "ui/gfx/geometry/skia_conversions.h"
+#include "ui/gfx/text_constants.h"
 #include "ui/views/controls/image_view.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/widget/widget_delegate.h"
@@ -653,13 +654,22 @@ void VideoOverlayWindowViews::OnKeyEvent(ui::KeyEvent* event) {
   }
 #endif  // BUILDFLAG(IS_WIN)
 
-  // If there is no focus affordance on the buttons and play/pause button is
-  // visible, only handle space key for TogglePlayPause().
+  // If there's no focused control, then we handle certain keys as if they went
+  // to the relevant control.
   views::View* focused_view = GetFocusManager()->GetFocusedView();
-  if (!focused_view && event->type() == ui::EventType::kKeyPressed &&
-      event->key_code() == ui::VKEY_SPACE && show_play_pause_button_) {
-    TogglePlayPause();
-    event->SetHandled();
+  if (!focused_view && event->type() == ui::EventType::kKeyPressed) {
+    if (event->key_code() == ui::VKEY_SPACE && show_play_pause_button_) {
+      TogglePlayPause();
+      event->SetHandled();
+    } else if (event->key_code() == ui::VKEY_LEFT &&
+               replay_10_seconds_button_->IsDrawn()) {
+      Replay10Seconds();
+      event->SetHandled();
+    } else if (event->key_code() == ui::VKEY_RIGHT &&
+               forward_10_seconds_button_->IsDrawn()) {
+      Forward10Seconds();
+      event->SetHandled();
+    }
   }
 
   MaybeUpdateMeetsUserInteraction(*event);
@@ -1107,9 +1117,9 @@ void VideoOverlayWindowViews::SetUpViews() {
   auto favicon_view = std::make_unique<views::ImageView>();
   favicon_view->SetSize(kFaviconSize);
 
-  auto origin = std::make_unique<views::Label>(std::u16string(),
-                                               views::style::CONTEXT_LABEL,
-                                               views::style::STYLE_BODY_4);
+  auto origin = std::make_unique<views::Label>(
+      std::u16string(), views::style::CONTEXT_LABEL, views::style::STYLE_BODY_4,
+      gfx::DirectionalityMode::DIRECTIONALITY_AS_URL);
   origin->SetEnabledColor(ui::kColorSysOnSurface);
   origin->SetBackgroundColor(SK_ColorTRANSPARENT);
   origin->SetHorizontalAlignment(gfx::ALIGN_LEFT);

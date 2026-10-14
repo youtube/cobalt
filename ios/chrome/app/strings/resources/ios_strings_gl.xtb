@@ -63,6 +63,7 @@
 <translation id="1223498995510244364">Resumir</translation>
 <translation id="1227113644794103810">Pestanas inactivas</translation>
 <translation id="1231733316453485619">Queres activar a sincronización?</translation>
+<translation id="1238794841176717085">Compartir páxina</translation>
 <translation id="1253032109800629289">Ocultar Obter notificacións de seguimento de prezos</translation>
 <translation id="1254424942107648268">Buscar anterior</translation>
 <translation id="1258491128795710625">Novidades</translation>
@@ -197,6 +198,7 @@
 <translation id="169048873465870056">Queres quitar a pestana e eliminar o grupo?</translation>
 <translation id="1698090540708020240">Importar contrasinais…</translation>
 <translation id="1700629756560807968"><ph name="NUMBER_OF_SELECTED_BOOKMARKS" /> seleccionados</translation>
+<translation id="1702583479431863204">Deixouse de fixar o sitio</translation>
 <translation id="1709916727352927457">Eliminar a clave de acceso</translation>
 <translation id="1715515772563243997">Se confías en <ph name="SITE" />, podes usar un contrasinal gardado para iniciar sesión.</translation>
 <translation id="1718835860248848330">Última hora</translation>
@@ -247,6 +249,7 @@
 <translation id="1872096359983322073">Lanterna</translation>
 <translation id="1875733418125333939"><ph name="FILENAME" />.</translation>
 <translation id="1881621406744213161">Invita membros da familia</translation>
+<translation id="188177382966899059">Busca profunda</translation>
 <translation id="188237709236611317">Barra de menú con orde intelixente</translation>
 <translation id="1883255238294161206">Contraer lista</translation>
 <translation id="1888854257756214946">Seleccionar un contrasinal…</translation>
@@ -315,6 +318,7 @@
 <translation id="21133533946938348">Ancorar pestana</translation>
 <translation id="2117650889962717098">Cambia ao modo de incógnito para manter a túa navegación privada</translation>
 <translation id="2119636449201577317">Abrir en…</translation>
+<translation id="2119962645034852864">Algúns servizos non están dispoñibles para a túa conta</translation>
 <translation id="2120553909046681540">A túa organización desactivou a navegación privada.</translation>
 <translation id="2122754583996902531">O teu navegador está xestionado. <ph name="BEGIN_LINK" />Máis información<ph name="END_LINK" /></translation>
 <translation id="21243612977487926">Os chats da túa organización non se usan para mellorar os nosos modelos. Gemini pode mostrar información inexacta, mesmo sobre persoas, polo que é recomendable que a verifiques. <ph name="YOUR_PRIVACY_GEMINI" /></translation>
@@ -332,6 +336,7 @@
 <translation id="2184272387334793084">Inicia sesión para poder acceder aos teus contrasinais e moito máis en todos os teus dispositivos</translation>
 <translation id="2186206192313702726">Google Lens</translation>
 <translation id="2188993354115194873">Toca <ph name="BEGIN_BOLD" />Save to Downloads<ph name="END_BOLD" /> (Gardar en Descargas)</translation>
+<translation id="2191406283620379491">Produciuse un erro grave. Actualiza á versión de iOS.</translation>
 <translation id="219283042927675668">Pestanas no grupo</translation>
 <translation id="2194856509914051091">Cuestións que se deben ter en conta</translation>
 <translation id="2196428379625389579">Busca na Web</translation>
@@ -345,6 +350,7 @@
 <translation id="2225701818156393674">Engadiuse o artigo á lista de produtos seguidos.</translation>
 <translation id="2230173723195178503">Cargouse a páxina web</translation>
 <translation id="2236949375853147973">A miña actividade</translation>
+<translation id="2237869114829007407">Obtén un resumo e estatísticas clave de calquera páxina ou tema</translation>
 <translation id="2240256190924001613">Hai un perfil de configuración dispoñible</translation>
 <translation id="2244080985779413662">Este sitio web quere descargar un ficheiro e abrilo no teu Wallet.</translation>
 <translation id="2245007488813216650">Traducindo…</translation>
@@ -368,6 +374,7 @@
 <translation id="2306265833370324042">Mostrar os detalles de <ph name="SEARCH_ENGINE_NAME" /></translation>
 <translation id="2309265394777270359">Pechar pestana</translation>
 <translation id="2311077293164383652">Pechar pestana fixada</translation>
+<translation id="2313392466694008052">Editar imaxe con Gemini</translation>
 <translation id="2316129865977710310">Non, grazas</translation>
 <translation id="2320166752086256636">Ocultar teclado</translation>
 <translation id="2321086116217818302">Preparando contrasinais…</translation>
@@ -519,6 +526,7 @@
 <translation id="288655811176831528">Pechar pestana</translation>
 <translation id="2888631381369839306">Activáronse as notificacións de seguimento de prezos</translation>
 <translation id="2893168226686371498">Navegador predeterminado</translation>
+<translation id="2893791155497534382">Os contrasinais e outra actividade poden eliminarse na configuración de xestión correspondente</translation>
 <translation id="2894757982205307093">Nova pestana no grupo</translation>
 <translation id="2902312830803030883">Máis accións</translation>
 <translation id="2904788871580817212">Baixada de prezo na pestana aberta, de <ph name="PREVIOUS_PRICE" /> a <ph name="PRICE" />, <ph name="PRODUCT_NAME" />, <ph name="DOMAIN" /></translation>
@@ -578,6 +586,7 @@
 <translation id="3143515551205905069">Cancelar sincronización</translation>
 <translation id="3144126448740580210">LISTO</translation>
 <translation id="3148052723910099040">Grade de pestanas normal</translation>
+<translation id="3148237711805373460">Acceder</translation>
 <translation id="3157387275655328056">Engadir á lista de lectura</translation>
 <translation id="315778507796115851">Historial</translation>
 <translation id="31652791196570636">Pechar</translation>
@@ -616,6 +625,7 @@
 <translation id="3305294846493618482">máis</translation>
 <translation id="3311748811247479259">Non</translation>
 <translation id="3312300514034250578">Goza dunha navegación segura mellorada</translation>
+<translation id="3315786055700307152">O artigo que queres agora ten un 15 % de desconto</translation>
 <translation id="3324193307694657476">Enderezo 2</translation>
 <translation id="3328801116991980348">Información do sitio</translation>
 <translation id="333229797575847124">Como activar esta función</translation>
@@ -631,6 +641,7 @@
 <translation id="3378214228000661758">Crea unha clave de acceso para</translation>
 <translation id="3380352560400387991">Este sitio está tentando abrir unha aplicación. Con esta acción, sairás do modo de incógnito.</translation>
 <translation id="3385742921291399323">Accede aos contrasinais, as pestanas e os marcadores que teñas gardados, entre outras cousas.</translation>
+<translation id="3391765987934722383">Mantente ao tanto de todas as baixadas de prezo</translation>
 <translation id="3392923070107623576">Organízate creando grupos de pestanas</translation>
 <translation id="3404232721752787413">Gardar en Google Fotos</translation>
 <translation id="3406506285180498376">Compartir páxina…</translation>
@@ -779,6 +790,7 @@
 <translation id="3950820424414687140">Iniciar sesión</translation>
 <translation id="3955740319737378355">Feito</translation>
 <translation id="3955822496205734389">Tes contrasinais pouco seguros.</translation>
+<translation id="3957016963627617921">Atinxe moito máis con Gemini en Chrome</translation>
 <translation id="3958312024468322930">Arrastra a icona á barra de aplicacións que está na parte inferior da pantalla de inicio</translation>
 <translation id="3962326069546168954">Gardar</translation>
 <translation id="3967327056943561740">Marcadores</translation>
@@ -842,6 +854,7 @@
 <translation id="4181841719683918333">Idiomas</translation>
 <translation id="4183350924949589798">Queres aumentar a seguranza?</translation>
 <translation id="4184063163998877398">{count,plural, =1{{count} contrasinal pouco seguro}other{{count} contrasinais pouco seguros}}</translation>
+<translation id="4196758674971560031">Os grupos de pestanas que creaches gardáronse na sección de grupos de pestanas e actualizaranse en todos os teus dispositivos.</translation>
 <translation id="4197456013861852807">{count,plural, =1{Hai {count} elemento gardado só neste dispositivo. Para usalo noutros aparellos, gárdao na túa Conta de Google ({email}).}other{Hai {count} elementos gardados só neste dispositivo. Para usalos noutros aparellos, gárdaos na túa Conta de Google ({email}).}}</translation>
 <translation id="4207873326995387292">Información do navegador</translation>
 <translation id="421070604241073551">Cando a opción está activada, os datos gárdanse na túa Conta de Google. Cando está desactivada, os datos gárdanse só no dispositivo.</translation>
@@ -873,6 +886,7 @@
 <translation id="4302061870579014542">Definir posición</translation>
 <translation id="4304713468139749426">Xestor de contrasinais</translation>
 <translation id="4309403553630140242">Toca dúas veces para obter máis información</translation>
+<translation id="4310738531374808763">Personaliza a páxina de inicio</translation>
 <translation id="4320848494125124980">Recentes</translation>
 <translation id="4322394346347055525">Pechar outras pestanas</translation>
 <translation id="4324735664183300693">Activar notificacións</translation>
@@ -934,6 +948,7 @@
 <translation id="4565377596337484307">Ocultar contrasinal</translation>
 <translation id="4568230126482344545">Ocultar Pestanas recentes</translation>
 <translation id="4578835633387306383">Activar…</translation>
+<translation id="4580621046861724270">Algúns marcadores non se gardaron</translation>
 <translation id="4580716718466706433">Vai ao xestor de contrasinais</translation>
 <translation id="4585751637295612750">Abre unha pestana nova para engadila á túa pregunta</translation>
 <translation id="4587589328781138893">Sitios</translation>
@@ -1017,6 +1032,7 @@
 <translation id="483689884442613745">Gardar…</translation>
 <translation id="4840495572919996524">Os marcadores, o historial, os contrasinais e outros datos deixarán de sincronizarse coa túa Conta de Google.</translation>
 <translation id="484280513275854557">Pechouse a túa sesión e elimináronse os datos de navegación</translation>
+<translation id="484462545196658690">Automático</translation>
 <translation id="4850886885716139402">Vista</translation>
 <translation id="4854068532375923088">Permite que Gemini use a túa cámara</translation>
 <translation id="4860895144060829044">Chamar</translation>
@@ -1161,6 +1177,7 @@
 <translation id="5318298563956633672">Xa estás facendo un seguimento deste produto.</translation>
 <translation id="5327248766486351172">Nome</translation>
 <translation id="5329451663851195956">Podes arrastrar cara abaixo para actualizar a pestana.</translation>
+<translation id="5336910966955551309">Mantén premido o atallo para fixar os teus sitios favoritos</translation>
 <translation id="5338512273860059533">Inicio de sesión en curso.</translation>
 <translation id="5343472494710226394">Noticias, deportes e contido baseado nos teus intereses.</translation>
 <translation id="5352128922772839949">Gardar o ficheiro</translation>
@@ -1291,6 +1308,7 @@ Handoff tamén debe estar activado na sección Xeral da configuración e os teus
 <translation id="5768870767339201169">Continúa onde o deixaches</translation>
 <translation id="5779117921996157216">{count,plural, =1{Tes {count} contrasinal vulnerado que podería poñer en perigo a túa seguranza. Cámbiao xa para non correr riscos.}other{Tes {count} contrasinais vulnerados que poderían poñer en perigo a túa seguranza. Cámbiaos xa para non correr riscos.}}</translation>
 <translation id="5791632441210678828">Botón Ordenar do feed Seguindo.</translation>
+<translation id="5799263916847593256">Acceder para ver o historial de prezos</translation>
 <translation id="5803566855766646066">Seguro que queres descartar esta tarxeta nova?</translation>
 <translation id="5804241973901381774">Permisos</translation>
 <translation id="58081802114142635">A túa actividade mellora coa IA de Google</translation>
@@ -1311,7 +1329,6 @@ Handoff tamén debe estar activado na sección Xeral da configuración e os teus
 <translation id="5868644772996939262">Autocompletar os contrasinais e claves de acceso</translation>
 <translation id="5869522115854928033">Contrasinais gardados</translation>
 <translation id="5873179562631407582">Mantén premidas as pestanas abertas</translation>
-<translation id="5878899964490256268"><ph name="EMAIL" />. Xestionada pola túa organización.</translation>
 <translation id="5887400589839399685">Gardouse a tarxeta</translation>
 <translation id="5888889603768021126">Iniciouse sesión con</translation>
 <translation id="5889333064153755823">Eliminar datos navegación</translation>
@@ -1365,7 +1382,6 @@ Handoff tamén debe estar activado na sección Xeral da configuración e os teus
 <translation id="607620096698446287"><ph name="FILENAME" /> (<ph name="FILESIZE" />) non se puido cargar</translation>
 <translation id="6076618233738284461">Fixar sitio</translation>
 <translation id="6077126322656614846">Permítese o acceso á cámara</translation>
-<translation id="607730456154980869">Consigue respostas máis rápido con Gemini en Chrome</translation>
 <translation id="6078236141387574983">Reaxusta a altura da folla</translation>
 <translation id="6084848228346514841">Seleccionar pestanas</translation>
 <translation id="6089212833343035912">PIN do xestor de contrasinais de Google</translation>
@@ -1498,6 +1514,7 @@ Handoff tamén debe estar activado na sección Xeral da configuración e os teus
 <translation id="6494931198667773526">Finaliza</translation>
 <translation id="6503077044568424649">Máis visitados</translation>
 <translation id="6503763061813913607">Notificacións de Comprobación de seguranza</translation>
+<translation id="6504541289630702018">Accede facilmente aos grupos de pestanas do escritorio</translation>
 <translation id="6505334220040167806">Contraer o grupo de pestanas.</translation>
 <translation id="6506996418997555004">Compartir o grupo de pestanas "<ph name="GROUP_NAME" />"</translation>
 <translation id="6507973708545996744">Inicia a sesión para consultar a túa lista de lectura en todos os teus dispositivos.</translation>
@@ -1517,6 +1534,7 @@ Handoff tamén debe estar activado na sección Xeral da configuración e os teus
 <translation id="6556866813142980365">Refacer</translation>
 <translation id="6559301491397835130">{count,plural, =1{Gardouse o marcador en {title}. Está gardado só neste dispositivo.}other{Gardáronse os marcadores en {title}. Están gardados só neste dispositivo.}}</translation>
 <translation id="656065428026159829">Ver máis</translation>
+<translation id="6565899972286925956">Crea o que queiras</translation>
 <translation id="6571070086367343653">Editar tarxeta de crédito</translation>
 <translation id="6574092468346088891">Activar notificacións de Comprobación de seguranza</translation>
 <translation id="6579867704846662339">Podes decidir abrir os URL entrantes desde outras aplicacións no modo de incógnito.</translation>
@@ -1627,11 +1645,13 @@ Handoff tamén debe estar activado na sección Xeral da configuración e os teus
 <translation id="6930799952781667037">Toca para cambiar a este idioma.</translation>
 <translation id="693761253105515415">Define un contrasinal</translation>
 <translation id="6945221475159498467">Seleccionar</translation>
+<translation id="6946722113367118030">Pensar</translation>
 <translation id="6950522403736391608">Ocultos</translation>
 <translation id="6962809930976936328">Obtén información útil con Gemini</translation>
 <translation id="6964300328304469089">Selección actual: <ph name="NAME" />, <ph name="EMAIL" /> Escolle unha conta.</translation>
 <translation id="6964760285928603117">Quitar do grupo</translation>
 <translation id="6965382102122355670">Aceptar</translation>
+<translation id="6967355534157677591">Crear imaxe Pro</translation>
 <translation id="6973630695168034713">Cartafoles</translation>
 <translation id="6979158407327259162">Google Drive</translation>
 <translation id="6979737339423435258">Desde sempre</translation>
@@ -1645,6 +1665,7 @@ Handoff tamén debe estar activado na sección Xeral da configuración e os teus
 <ph name="BEGIN_LINK" />Máis información<ph name="END_LINK" /></translation>
 <translation id="7005768247344091502">Definir como opción predeterminada na configuración…</translation>
 <translation id="7007970306646738803">Escolle que queres facer cos datos de navegación deste dispositivo, como as pestanas, o historial e os contrasinais.</translation>
+<translation id="7012978439516925343">Verifica a túa identidade para crear unha clave de acceso</translation>
 <translation id="7015418667643980944">Vista dividida</translation>
 <translation id="7016070607649558507">Tes un contrasinal pouco seguro. Cámbiao xa para non correr riscos.</translation>
 <translation id="7016958933495968912">Opcións de Discover</translation>
@@ -1711,6 +1732,7 @@ Handoff tamén debe estar activado na sección Xeral da configuración e os teus
 <translation id="7328162502911382168">(<ph name="COUNT" />)</translation>
 <translation id="7336264872878993241"><ph name="PERCENT" /> por cento descargado</translation>
 <translation id="7345061034321640811">Non se permite a importación</translation>
+<translation id="7347998088283246662">Importa os contrasinais, o historial, os marcadores e moito máis</translation>
 <translation id="7352651011704765696">Produciuse un erro</translation>
 <translation id="7364796246159120393">Seleccionar ficheiro</translation>
 <translation id="736564850024123010">Cambia a posición da barra de enderezos para desfrutar dunha experiencia personalizada.</translation>
@@ -1894,6 +1916,7 @@ Handoff tamén debe estar activado na sección Xeral da configuración e os teus
 <translation id="7958575506592576831">Información de seguranza da páxina</translation>
 <translation id="7961015016161918242">Nunca</translation>
 <translation id="7971136598759319605">Dispositivo activo hai 1 día</translation>
+<translation id="7972837668077967426">Lenzo</translation>
 <translation id="7975036700432177008">Probar</translation>
 <translation id="797588153137233716">Menú → Historial → Eliminar datos de navegación</translation>
 <translation id="7977451675950311423">Avísate cando usas un contrasinal vulnerado nunha violación da seguranza dos datos.</translation>
@@ -1928,7 +1951,6 @@ Handoff tamén debe estar activado na sección Xeral da configuración e os teus
 <translation id="8059533439631660104">Contrae a sección.</translation>
 <translation id="8061584726507121204">Historial</translation>
 <translation id="8064946459644399612">Aplicáronse as preferencias da páxina Nova pestana</translation>
-<translation id="8069168488983557089">Obtén puntos claves e estatísticas que che axudarán a entender calquera tema</translation>
 <translation id="8069394452933076548">Selecciona cando queres que as pestanas que non se usasen recentemente se movan á sección de pestanas inactivas.</translation>
 <translation id="8073670137947914548">A descarga finalizou</translation>
 <translation id="8076492880354921740">Pestanas</translation>
@@ -1967,6 +1989,7 @@ Handoff tamén debe estar activado na sección Xeral da configuración e os teus
 <translation id="8205564605687841303">Cancelar</translation>
 <translation id="8206354486702514201">O administrador aplica esta configuración.</translation>
 <translation id="8209050860603202033">Abrir imaxe</translation>
+<translation id="8209237163365258530">Modelos <ph name="VERSION_NUMBER" /> de Gemini</translation>
 <translation id="8211030355252954494">Recibiches contrasinais para <ph name="WEBSITE" /></translation>
 <translation id="8211406090763984747">A conexión é segura</translation>
 <translation id="8214293972734702249">Ficheiros fixados, <ph name="TAB_TITLE" /></translation>
@@ -2001,6 +2024,7 @@ Handoff tamén debe estar activado na sección Xeral da configuración e os teus
 <translation id="8319282042900445670">Estableceuse o recordatorio para a seguinte data: <ph name="DATE" />, <ph name="TIME" /></translation>
 <translation id="8320212361750431956">Actividade recente</translation>
 <translation id="8325455175867928593">Ocultar Recensións en función dos teus intereses</translation>
+<translation id="8328777765163860529">Pechar todo</translation>
 <translation id="833647236762414178">Crea, garda e xestiona os teus contrasinais e claves de acceso para poder iniciar sesión facilmente nos sitios e nas aplicacións. <ph name="BEGIN_LINK" />Máis información<ph name="END_LINK" /></translation>
 <translation id="8343993175958086504">Fai unha copia de seguranza dos teus datos e úsaos en calquera dispositivo.</translation>
 <translation id="8348530355586151720">Toca o menú de tres puntos</translation>
@@ -2023,6 +2047,7 @@ Handoff tamén debe estar activado na sección Xeral da configuración e os teus
 <translation id="8407831512155324054">Os contrasinais son seguros</translation>
 <translation id="8414030140103493759">Tirar foto ou gravar vídeo</translation>
 <translation id="8414283596511250978">Non esquezas nunca os teus contrasinais</translation>
+<translation id="8415120635186642416">Pescuda calquera cousa</translation>
 <translation id="842523302461531262">Definir como opción predeterminada na configuración…</translation>
 <translation id="8428045167754449968">Cidade/localidade</translation>
 <translation id="8428213095426709021">Configuración</translation>
@@ -2122,6 +2147,7 @@ Handoff tamén debe estar activado na sección Xeral da configuración e os teus
 <translation id="8730621377337864115">Feito</translation>
 <translation id="8731268612289859741">Código de seguranza</translation>
 <translation id="87371078663613140">Explora as opcións da barra de menú</translation>
+<translation id="8739546376441802490">Xa existe o sitio fixado</translation>
 <translation id="8741627442233023406">{count,plural, =1{Revisar a pestana…}other{Revisar todas as pestanas…}}</translation>
 <translation id="8741995161408053644">É posible que a túa conta de Google teña outras formas do historial de navegación en <ph name="BEGIN_LINK" />history.google.com<ph name="END_LINK" />.</translation>
 <translation id="874599634440689554">Crear ligazón</translation>
@@ -2141,6 +2167,7 @@ Handoff tamén debe estar activado na sección Xeral da configuración e os teus
 <translation id="8803639129939845298">Seguro</translation>
 <translation id="8813277370772331957">Lembrarmo máis tarde</translation>
 <translation id="8814719628147284151">Continuar</translation>
+<translation id="8817524703470045896">Fai un seguimento dos prezos e recibe alertas cando baixen en calquera sitio</translation>
 <translation id="8819155700324279105">Engade unha capa máis de protección contra as ameazas en liña</translation>
 <translation id="8820817407110198400">Marcadores</translation>
 <translation id="8822421075653507124">Para garantir que este dispositivo se use de maneira segura, é posible que a túa organización necesite consultar a información sobre o seu sistema operativo, o navegador e a configuración, así como o software instalado no aparello.</translation>
@@ -2148,6 +2175,7 @@ Handoff tamén debe estar activado na sección Xeral da configuración e os teus
 <translation id="8829809207373502270">Esta clave de acceso xa non funciona. Eliminouse de <ph name="WEBSITE" /> e dentro de pouco tamén se eliminará desta sección. <ph name="BEGIN_LINK" />Claves de acceso<ph name="END_LINK" /></translation>
 <translation id="8831208860914609320">Pechar todas as pestanas inactivas</translation>
 <translation id="8837654851594567190">Ordenar por editor</translation>
+<translation id="8844136307393039959">Baixada de prezo do produto seguido</translation>
 <translation id="8848286253339013170">Gardando imaxe de <ph name="USER_EMAIL" /> en Google Fotos…</translation>
 <translation id="8849001918648564819">Oculto</translation>
 <translation id="8855242995793521265">Non retarda de forma significativa o teu navegador nin o teu dispositivo.</translation>
@@ -2191,6 +2219,7 @@ Handoff tamén debe estar activado na sección Xeral da configuración e os teus
 <translation id="8976382372951310360">Axuda</translation>
 <translation id="8976414606286374109">As tarxetas gárdanse na túa Conta de Google.</translation>
 <translation id="8981454092730389528">Controis de actividade de Google</translation>
+<translation id="8988107725234939347"><ph name="WEBSITE_TITLE" />, sitio fixado</translation>
 <translation id="8998289560386111590">Non está dispoñible no teu dispositivo</translation>
 <translation id="9000532564152265066">Todas as pestanas</translation>
 <translation id="9003677638446136377">Comprobar de novo</translation>
@@ -2236,6 +2265,7 @@ Handoff tamén debe estar activado na sección Xeral da configuración e os teus
 <translation id="914781932147356857">Marcar todo…</translation>
 <translation id="9148126808321036104">Iniciar sesión de novo</translation>
 <translation id="9149866541089851383">Editar...</translation>
+<translation id="9152637745605628097">Escolle entre temas e cores, ou carga unha imaxe</translation>
 <translation id="9159628751968616911">Enviar a páxina web</translation>
 <translation id="9162432979321511934">Activa a opción Autofill Passwords (Autocompletar contrasinais)</translation>
 <translation id="9165320910061267720">Para recibir notificacións de alertas sobre baixadas de prezos, tes que activalas na configuración de iOS.</translation>

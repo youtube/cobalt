@@ -1,6 +1,7 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="cy">
+<translation id="1035560095760914532">Rhoi Chrome yn yr ardal waelod i gael mynediad ato unrhyw bryd</translation>
 <translation id="1076643793026027628">Mae Chrome yn agor dolenni Anhysbys YouTube yn y modd Anhysbys yn awtomatig.</translation>
 <translation id="1081114897601629648">Ni chafodd y cyfrineiriau canlynol eu mewnforio i Reolwr Cyfrineiriau Google, oherwydd nad ydynt yn cyfateb i'r gofynion.</translation>
 <translation id="1086486568852410168">Chwilio â Google Lens</translation>
@@ -86,6 +87,10 @@ Arhoswch ychydig funudau cyn allgofnodi. Os byddwch yn allgofnodi nawr, bydd y d
 <translation id="2767464022270041271">Nid oes unrhyw gyfrineiriau sydd wedi'u cadw. Gall Rheolwr Cyfrineiriau Google wirio'ch cyfrineiriau pan fyddwch yn eu cadw.</translation>
 <translation id="2788811701191021538">Yn agor y dudalen gosodiad dulliau talu yn Chrome.</translation>
 <translation id="2876628302275096482">Dysgu rhagor am <ph name="BEGIN_LINK" />sut mae Chrome yn cadw eich data yn breifat<ph name="END_LINK" /></translation>
+<translation id="288992067439702510">Rydych wedi cyrraedd terfyn Google Chrome o <ph name="LIMIT" /> nod tudalen, felly nid yw rhai o'ch nodau tudalen wedi'u cadw yn eich Cyfrif Google eto.
+
+Ni ellir cadw nodau tudalen newydd yn eich cyfrif nes i chi ddileu rhai. Os byddwch yn allgofnodi nawr, bydd nodau tudalen sydd heb eu cadw yn cael eu dileu.</translation>
+<translation id="2901621928549457170">Agor Chrome ar unwaith pan fyddwch ar eich iPad</translation>
 <translation id="2922914028977213693">Tapiwch yma i gael y gorau o Chrome ar eich iPad.</translation>
 <translation id="292371311537977079">Gosodiadau Chrome</translation>
 <translation id="2923827943290349720">Cloi tabiau Anhysbys wrth gau Chrome</translation>
@@ -170,6 +175,8 @@ Arhoswch ychydig funudau cyn allgofnodi. Os byddwch yn allgofnodi nawr, bydd y d
 <translation id="5119391094379141756">Dewiswch Chrome</translation>
 <translation id="5123188916260706415">Chwilio â llais yn Chrome.</translation>
 <translation id="5162467219239570114">Mae Chrome yn hen. Os nad oes diweddariad ar gael yn <ph name="BEGIN_LINK" />App Store<ph name="END_LINK" />, mae'n bosib nad yw'ch dyfais yn cefnogi fersiynau newydd o Chrome mwyach.</translation>
+<translation id="5172049865623113551">Agor Chrome ar unwaith pan fyddwch ar eich iPhone</translation>
+<translation id="5179095426828744632">Cael mynediad at Chrome yn gyflymach o'ch doc</translation>
 <translation id="5184329579814168207">Agor yn Chrome</translation>
 <translation id="5190139289262548459">Mae eich sefydliad, <ph name="DOMAIN" />, yn rheoli'r cyfrif rydych wedi mewngofnodi iddo a sut mae Chrome yn cael ei ddefnyddio.</translation>
 <translation id="5209238444239954363">Ni allai Chrome wirio am ddiweddariadau. Rhowch gynnig arall arni'n nes ymlaen.</translation>
@@ -304,7 +311,6 @@ Am ragor o osodiadau sy'n defnyddio data i wella'ch profiad Chrome, ewch i <ph n
 <translation id="7787205077729386167">Agorwch y gosodiadau Chrome yn iOS yna tapiwch 'Default Browser App' a dewiswch Chrome.</translation>
 <translation id="778855399387580014">Dechrau chwiliad mewn tab Chrome newydd.</translation>
 <translation id="7792140019572081272">Mae Chrome yn cadw'ch data sensitif yn ddiogel gyda Face ID.</translation>
-<translation id="7825648984449922731">Golygu llun gyda Gemini yn Chrome</translation>
 <translation id="7855730255114109580">Mae Google Chrome yn gyfoes</translation>
 <translation id="787226752901403048">Mewngofnodwch i Chrome i rannu ac ymuno â grwpiau tabiau, a chydweithio ar syniadau</translation>
 <translation id="7897703007638178753">Gweld Tabiau Diweddar Chrome</translation>

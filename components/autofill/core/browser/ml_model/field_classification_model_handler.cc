@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "base/barrier_callback.h"
+#include "base/containers/extend.h"
 #include "base/containers/span.h"
 #include "base/containers/to_vector.h"
 #include "base/functional/bind.h"
@@ -407,6 +408,8 @@ void FieldClassificationModelHandler::OnModelUpdated(
   }
   state.encoder = FieldClassificationModelEncoder(
       state.metadata.input_token(), state.metadata.encoding_parameters());
+  // Avoid duplication with the ModelEncoder.
+  state.metadata.clear_input_token();
   supported_types_.clear();
   for (int type : state.metadata.output_type()) {
     supported_types_.insert(ToSafeFieldType(FieldType(type), NO_SERVER_DATA));
@@ -515,8 +518,7 @@ FieldClassificationModelHandler::CalculateModelInputHash(
   flattened_data.reserve(flattened_data_size);
   for (const std::vector<FieldClassificationModelEncoder::TokenId>&
            field_tokens : input) {
-    flattened_data.insert(flattened_data.end(), field_tokens.begin(),
-                          field_tokens.end());
+    base::Extend(flattened_data, field_tokens);
   }
 
   return ModelInputHash(base::FastHash(base::as_byte_span(flattened_data)));
@@ -524,24 +526,22 @@ FieldClassificationModelHandler::CalculateModelInputHash(
 
 std::string FieldClassificationModelHandler::TokenIdToString(
     FieldClassificationModelEncoder::TokenId token_id) const {
-  const int token = static_cast<int>(token_id.value());
-  if (token == 0) {
+  if (token_id.value() == 0) {
     // Padding token, always encoded as 0.
     return "";
-  } else if (token == 1) {
+  }
+  if (token_id.value() == 1) {
     // Unknown, out-of-vocabulary token, always encoded as 1.
     return "[UNK]";
-  } else if (token == state_->metadata.input_token_size() + 2) {
-    // Special "classification" token used by the model, encoded as
-    // `vocabulary_size` (where the vocab size includes the two special tokens,
-    // hence the +2).
-    return "[CLS]";
-  } else if (token < 2 || token >= state_->metadata.input_token_size() + 2) {
-    return "[INVALID]";
-  } else {
-    // Indexing starts at 2 because of the special tokens.
-    return state_->metadata.input_token(token_id.value() - 2);
   }
+  if (token_id == state_->encoder.GetClsToken()) {
+    return "[CLS]";
+  }
+  std::string token = state_->encoder.FindTokenById(token_id);
+  if (!token.empty()) {
+    return token;
+  }
+  return "[INVALID]";
 }
 
 }  // namespace autofill

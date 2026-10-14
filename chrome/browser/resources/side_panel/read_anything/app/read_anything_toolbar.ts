@@ -148,6 +148,10 @@ export class ReadAnythingToolbarElement extends ReadAnythingToolbarElementBase {
       moreOptionsButtons_: {type: Array},
       pageLanguage: {type: String},
       presentationState: {type: Number},
+      isImmersiveMode: {type: Boolean},
+      isReadAnythingPinned: {type: Boolean},
+      isImmersiveEnabled_: {type: Boolean},
+      isReadAloudEnabled_: {type: Boolean},
     };
   }
 
@@ -166,14 +170,16 @@ export class ReadAnythingToolbarElement extends ReadAnythingToolbarElementBase {
   // certain toolbar buttons like the play / pause button should be disabled.
   // This is set from the parent element via one way data binding.
   accessor isReadAloudPlayable: boolean = false;
+  accessor isReadAnythingPinned: boolean = false;
   accessor localeToDisplayName: {[lang: string]: string} = {};
   accessor previewVoicePlaying: SpeechSynthesisVoice|null = null;
   accessor settingsPrefs: SettingsPrefs = DEFAULT_SETTINGS;
   accessor selectedVoice: SpeechSynthesisVoice|undefined;
   accessor pageLanguage: string = '';
+  accessor isImmersiveMode: boolean = false;
   protected accessor hideSpinner_: boolean = true;
-  protected isReadAloudEnabled_: boolean = true;
-  protected isImmersiveEnabled_: boolean = false;
+  protected accessor isReadAloudEnabled_: boolean = true;
+  protected accessor isImmersiveEnabled_: boolean = false;
   // Overflow buttons on the toolbar that open a menu of options.
   protected accessor moreOptionsButtons_: MenuButton[] = [];
   protected accessor speechRate_: number = 1;
@@ -409,6 +415,10 @@ export class ReadAnythingToolbarElement extends ReadAnythingToolbarElementBase {
         loadTimeData.getStringF(
             'voiceSpeedOptionTitle', this.speechRate_.toLocaleString()) :
         this.speechRate_.toLocaleString();
+  }
+
+  protected onCloseClick_() {
+    chrome.readingMode.close();
   }
 
   // Loading the fonts stylesheet can take a while, especially with slow
@@ -837,9 +847,11 @@ export class ReadAnythingToolbarElement extends ReadAnythingToolbarElementBase {
     // itself and go directly to the children. We still need this button in the
     // list of focusable elements because it can become focused by tabbing while
     // the menu is open and we want the arrow key behavior to continue smoothly.
+    // This is skipped in immersive mode because the more options button opens
+    // the main settings menu instead of the overflow menu.
     const elementToFocus = focusableElements[newIndex];
     assert(elementToFocus);
-    if (elementToFocus.id === 'more' ||
+    if ((elementToFocus.id === 'more' && !this.isImmersiveEnabled_) ||
         elementToFocus.classList.contains(moreOptionsClass.slice(1))) {
       const moreOptionsRendered = this.$.moreOptionsMenu.getIfExists();
       // If the more options menu has not been rendered yet, render it and wait
@@ -921,7 +933,9 @@ export class ReadAnythingToolbarElement extends ReadAnythingToolbarElementBase {
     } else {
       elementToFocus.tabIndex = 0;
       // Close the overflow menu if the next button is not in the menu.
-      this.$.moreOptionsMenu.getIfExists()?.close();
+      if (!this.isImmersiveEnabled_) {
+        this.$.moreOptionsMenu.getIfExists()?.close();
+      }
     }
 
     // Wait for the next animation frame for the overflow menu to show or hide.
@@ -945,6 +959,36 @@ export class ReadAnythingToolbarElement extends ReadAnythingToolbarElementBase {
 
   protected getVoiceSpeedLabel_(): string {
     return loadTimeData.getStringF('voiceSpeedWithRateLabel', this.speechRate_);
+  }
+
+  protected shouldShowToolbarAudioControls_(): boolean {
+    return this.isReadAloudEnabled_ || this.isImmersiveEnabled_;
+  }
+
+  protected getAudioState_(): string {
+    if (this.isImmersiveEnabled_) {
+      return 'immersive-enabled';
+    }
+    if (this.isSpeechActive) {
+      return 'active';
+    }
+    return 'inactive';
+  }
+
+  protected getToolbarContainerClass_(): string {
+    return this.isImmersiveEnabled_ ? 'immersive-toolbar-container' :
+                                      'toolbar-container';
+  }
+
+  protected getGranularityContainerClass_(): string {
+    return this.isSpeechActive || this.isImmersiveEnabled_ ?
+        'granularity-container-when-active-true' :
+        'granularity-container-when-active-false';
+  }
+
+  protected shouldDisableGranularityNavButtons_(): boolean {
+    return !this.isReadAloudPlayable ||
+        (this.isImmersiveEnabled_ && !this.isSpeechActive);
   }
 }
 

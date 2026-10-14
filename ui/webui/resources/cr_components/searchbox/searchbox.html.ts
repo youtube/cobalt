@@ -37,15 +37,17 @@ export function getHtml(this: SearchboxElement) {
         @add-tab-context="${this.addTabContext_}"
         @add-file-context="${this.addFileContext_}"
         @on-file-validation-error="${this.onFileValidationError_}"
-        @set-deep-search-mode="${this.setDeepSearchMode_}"
-        @set-create-image-mode="${this.setCreateImageMode_}"
-        @open-voice-search="${this.onVoiceSearchClick_}"
+        @set-tool-mode="${this.onSetToolMode_}"
+        @model-click="${this.onModelClick_}"
         @get-tab-preview="${this.getTabPreview_}"
         @context-menu-container-click="${this.onContextMenuContainerClick_}"
+        @context-menu-entrypoint-click="${this.onContextMenuEntrypointClick_}"
         @context-menu-closed="${this.onContextMenuClosed_}"
+        @context-menu-opened="${this.onContextMenuOpened_}"
         ?show-dropdown="${this.dropdownIsVisible}"
         ?show-recent-tab-chip="${this.computeShowRecentTabChip_()}"
-        ?show-voice-search="${this.shouldShowVoiceSearch_}"
+        .inputState="${this.inputState_}"
+        ?show-model-picker="${this.showModelPicker_}"
         searchbox-layout-mode="${this.searchboxLayoutMode}"
         context-menu-glif-animation-state="${this.contextMenuGlifAnimationState}">
       ${!compactLayout ? dropdown : nothing}
@@ -131,12 +133,14 @@ export function getHtml(this: SearchboxElement) {
   ${this.ntpRealboxNextEnabled ?
     html`
       <ntp-error-scrim id="errorScrim"
-          ?compact-mode="${this.searchboxLayoutMode === 'Compact'}">
+          ?compact-mode="${this.searchboxLayoutMode === 'Compact'}"
+          .errorMessage="${this.errorMessage_}"
+          @dismiss-error-scrim="${this.onErrorScrimDismissed_}">
       </ntp-error-scrim>
       <search-animated-glow animation-state="${this.animationState}" part="animated-glow">
       </search-animated-glow>
       ${compactLayout ? html`
-        <div id="inputInnerContainer">
+        <div id="inputInnerContainer" ?inert="${this.errorMessage_}">
           <div class="contextualEntrypointContainer contextualEntrypointContainerCompact">
             ${contextualEntrypoint}
           </div>
@@ -145,9 +149,9 @@ export function getHtml(this: SearchboxElement) {
           ${lensSearchButton}
           ${composeButton}
         </div>
-        <div class="dropdownContainer">
+        <div class="dropdownContainer" ?inert="${this.errorMessage_}">
           ${dropdown}
-          ${this.recentTabForChip_ && this.dropdownIsVisible && this.isInputEmpty() ? html`
+          ${this.shouldShowRecentTabChipInDropdown_() ? html`
           <div id="recentTabChipContainer">
             <composebox-recent-tab-chip
                 .recentTab="${this.recentTabForChip_}"
@@ -157,11 +161,11 @@ export function getHtml(this: SearchboxElement) {
           ` : nothing}
         </div>
       ` : html`
-        <div id="inputInnerContainer">
+        <div id="inputInnerContainer" ?inert="${this.errorMessage_}">
           ${inputContent}
           ${composeButton}
         </div>
-        <div id="inputInnerBottomContainer">
+        <div id="inputInnerBottomContainer" ?inert="${this.errorMessage_}">
           <div class="contextualEntrypointContainer">
             ${contextualEntrypoint}
           </div>

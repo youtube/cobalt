@@ -50,6 +50,7 @@
 #import "components/translate/core/browser/translate_download_manager.h"
 #import "components/ukm/ukm_service.h"
 #import "components/update_client/configurator.h"
+#import "components/update_client/net/network_chromium.h"
 #import "components/update_client/update_query_params.h"
 #import "components/variations/service/variations_service.h"
 #import "components/version_info/channel.h"
@@ -75,7 +76,7 @@
 #import "ios/chrome/browser/shared/model/profile/incognito_session_tracker.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/signin/model/account_profile_mapper.h"
-#import "ios/chrome/browser/signin/model/avatar_provider.h"
+#import "ios/chrome/browser/signin/model/avatar/avatar_provider.h"
 #import "ios/chrome/browser/update_client/model/ios_chrome_update_query_params_delegate.h"
 #import "ios/chrome/common/channel_info.h"
 #import "ios/components/security_interstitials/safe_browsing/safe_browsing_service_impl.h"
@@ -445,7 +446,15 @@ activity_reporter::ActivityReporter*
 ApplicationContextImpl::GetActivityReporter() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!activity_reporter_) {
-    activity_reporter_ = activity_reporter::CreateActivityReporter();
+    activity_reporter_ = activity_reporter::CreateActivityReporter(
+        base::BindRepeating(
+            [](PrefService* pref_service) { return pref_service; },
+            GetLocalState()),
+        base::MakeRefCounted<update_client::NetworkFetcherChromiumFactory>(
+            GetSharedURLLoaderFactory(),
+            // Never send cookies for activity reports.
+            base::BindRepeating([](const GURL& url) { return false; })),
+        base::BindRepeating(&GetChannel), base::DoNothing(), true);
   }
   return activity_reporter_.get();
 }

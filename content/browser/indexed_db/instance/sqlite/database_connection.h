@@ -8,6 +8,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <set>
 #include <string>
 #include <string_view>
 
@@ -78,6 +79,17 @@ class CONTENT_EXPORT DatabaseConnection {
   const IndexedDBDataLossInfo& data_loss_info() const {
     return data_loss_info_;
   }
+  std::list<std::pair<base::FilePath, base::FilePath>>&
+  legacy_blob_files_to_move() {
+    return legacy_blob_files_to_move_;
+  }
+
+  // Prepares the connection for destruction by moving out the `sql::Database`.
+  // Returns a closure that performs cleanup (close, vacuum, recovery, etc.).
+  // Callers are free to run the closure synchronously or on a background
+  // thread as appropriate. Some "optional" cleanup steps are skipped if the
+  // backing store is `force_closing`.
+  base::OnceClosure DestroySoon(bool force_closing) &&;
 
   // Gets the version of the database that is actually committed. This can be
   // different from the version in `metadata_` during a version change
@@ -91,8 +103,9 @@ class CONTENT_EXPORT DatabaseConnection {
   // corresponding to active blobs, but no object stores, records, etc.
   bool IsZygotic() const;
 
-  // Get the size of the database opened in-memory.
-  uint64_t GetInMemorySize() const;
+  // Get the size of the database, calculated as the number of pages in use
+  // (i.e., excluding free pages) multiplied by the page size.
+  uint64_t GetSize() const;
 
   std::unique_ptr<BackingStoreDatabaseImpl> CreateDatabaseWrapper();
 
@@ -217,7 +230,8 @@ class CONTENT_EXPORT DatabaseConnection {
   // Called when the IDB database associated with this connection is deleted.
   // This should drop all data with the exception of active blobs, which may
   // keep `this` alive.
-  void DeleteIdbDatabase(base::PassKey<BackingStoreDatabaseImpl>);
+  void DeleteIdbDatabase(base::PassKey<BackingStoreDatabaseImpl>,
+                         std::vector<PartitionedLock> locks);
 
   // These are exposed for cursors to access `Statement` resources associated
   // with `db_`.
@@ -260,6 +274,14 @@ class CONTENT_EXPORT DatabaseConnection {
   friend class BackingStoreSqliteTest;
   FRIEND_TEST_ALL_PREFIXES(DatabaseConnectionTest, TooNew);
 
+  static void CloseDatabase(
+      std::unique_ptr<sql::Database> db,
+      const base::FilePath& db_path,
+      const base::FilePath& legacy_blob_directory,
+      bool should_delete,
+      bool should_attempt_recovery,
+      std::optional<std::set<int64_t>> known_legacy_blob_ids);
+
   DatabaseConnection(base::FilePath path, BackingStoreImpl& backing_store);
 
   bool in_memory() const { return path_.empty(); }
@@ -297,7 +319,9 @@ class CONTENT_EXPORT DatabaseConnection {
 
   // Called when a blob that was opened for reading stops being "active", i.e.
   // when `ActiveBlobStreamer` in `active_blobs_` no longer has connections.
-  void OnBlobBecameInactive(int64_t blob_number);
+  // In the case of legacy blobs that are standalone files, the second argument
+  // will be true.
+  void OnBlobBecameInactive(int64_t blob_number, bool is_legacy_blob);
 
   // This method adds a row to the `blob_references` table. The row corresponds
   // to an active blob, i.e. the `record_row_id` will be null. These updates are
@@ -350,7 +374,10 @@ class CONTENT_EXPORT DatabaseConnection {
     kUtf16StringUnreadable = 16,
     kDecompressionFailure = 17,
 
-    kMaxValue = kDecompressionFailure,
+    // Other errors.
+    kLegacyBlobFileDeletionFailed = 18,
+
+    kMaxValue = kLegacyBlobFileDeletionFailed,
   };
   // LINT.ThenChange(//tools/metrics/histograms/metadata/storage/enums.xml:IndexedDbSqliteSpecificEvent)
 
@@ -370,6 +397,15 @@ class CONTENT_EXPORT DatabaseConnection {
 
   // Makes sure the given IDs exist in `metadata_`.
   void ValidateInputs(int64_t object_store_id, int64_t index_id);
+
+  // Creates a snapshot of the current legacy blob files stored in the database.
+  std::set<int64_t> SnapshotLegacyBlobFiles();
+
+  // Gets the absolute file path for the directory containing legacy blob files.
+  base::FilePath GetLegacyBlobDirectory() const;
+
+  // Gets the absolute file path for the blob with `blob_id`.
+  base::FilePath GetBlobFilePath(int64_t blob_id) const;
 
   // The expected path for `db_`, or empty for in-memory DBs.
   const base::FilePath path_;
@@ -439,7 +475,7 @@ class CONTENT_EXPORT DatabaseConnection {
   // A blob is active when there's a live reference in some client. Every active
   // blob has a corresponding entry in this map. These blobs must keep `this`
   // alive since they're backed by the SQLite database.
-  std::map<int64_t, std::unique_ptr<ActiveBlobStreamer>> active_blobs_;
+  std::map<int64_t, std::unique_ptr<BlobEndpoint>> active_blobs_;
 
   // Used to track when rolling back a transaction necessitates updating
   // `blob_references`. Transaction rollback will affect `blob_references`
@@ -447,6 +483,23 @@ class CONTENT_EXPORT DatabaseConnection {
   // table to stay in sync with `active_blobs_` regardless of whether the
   // transaction is ultimately committed or rolled back.
   bool sync_active_blobs_after_transaction_ = false;
+
+  // A snapshot of the set of legacy blobs that are stored as standalone files
+  // on disk. This is used to track which standalone files need to be deleted
+  // from disk. This is lazily initialized the first time a r/w txn is created.
+  // After that point, it's updated on the completion of each r/w txn and each
+  // time a blob file is deleted from disk as a result of becoming inactive.
+  // Note that this set should never grow because new blobs are always written
+  // directly to the DB.
+  std::optional<std::set<int64_t>> legacy_blob_files_;
+
+  // Only used during migration. This holds the paths to legacy blob files that
+  // must be moved IFF the database portion of the migration succeeds. The first
+  // element of the pair is the source path, and the second is the target path.
+  // The act of moving the files is executed by
+  // `BackingStoreImpl::MigrateFrom()`.
+  std::list<std::pair<base::FilePath, base::FilePath>>
+      legacy_blob_files_to_move_;
 
   // True once `DeleteIdbDatabase` has been called, or if a fatal error occurred
   // that we can't recover from.

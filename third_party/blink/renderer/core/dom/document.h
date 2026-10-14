@@ -909,9 +909,12 @@ class CORE_EXPORT Document : public ContainerNode,
   // |did_allow_navigation| is set to reflect the choice made by the user via
   // the modal dialog. The value is meaningless if |auto_cancel|
   // is true, in which case it will always be set to false.
-  bool DispatchBeforeUnloadEvent(ChromeClient* chrome_client,
-                                 bool is_reload,
-                                 bool& did_allow_navigation);
+  bool DispatchBeforeUnloadEvent(
+      ChromeClient* chrome_client,
+      bool is_reload,
+      bool& did_allow_navigation,
+      base::TimeTicks& out_before_unload_dialog_opened_time,
+      base::TimeTicks& out_before_unload_dialog_closed_time);
 
   // Dispatches "pagehide", "visibilitychange" and "unload" events, if not
   // dispatched already. Fills `unload_timing_info` if present.
@@ -1012,7 +1015,7 @@ class CORE_EXPORT Document : public ContainerNode,
   // Depending on base URL value it is possible that parent document
   // base URL will be used instead. Uses CompleteURLWithOverride internally.
   KURL CompleteURL(
-      const String&,
+      const StringView&,
       const CompleteURLPreloadStatus preload_status = kIsNotPreload) const;
   // Creates URL based on passed relative url and passed base URL override.
   KURL CompleteURLWithOverride(
@@ -1366,12 +1369,16 @@ class CORE_EXPORT Document : public ContainerNode,
 
   // The following implements the rule from HTML 4 for what valid names are.
   // To get this right for all the XML cases, we probably have to improve this
-  // or move it and make it sensitive to the type of document.
+  // or move it and make it sensitive to the type of document. This was removed
+  // from the spec in https://github.com/whatwg/dom/pull/1079 but is still
+  // used in a few places.
+  // TODO(crbug.com/481177613): Remove this method.
   static bool IsValidName(const StringView&);
 
-  // https://github.com/whatwg/dom/pull/1079
-  static bool IsValidAttributeLocalNameNewSpec(const StringView&);
-  static bool IsValidElementLocalNameNewSpec(const StringView&);
+  // https://dom.spec.whatwg.org/#valid-attribute-local-name
+  static bool IsValidAttributeLocalName(const StringView&);
+  // https://dom.spec.whatwg.org/#valid-element-local-name
+  static bool IsValidElementLocalName(const StringView&);
 
   // The following breaks a qualified name into a prefix and a local name.
   // It also does a validity check, and returns false if the qualified name
@@ -2273,6 +2280,14 @@ class CORE_EXPORT Document : public ContainerNode,
   // nullptr.
   CustomElementRegistry* EffectiveGlobalCustomElementRegistry() const;
 
+  void SetScopedCustomElementRegistryUsed() {
+    DCHECK(RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled());
+    scoped_custom_element_registry_used_ = true;
+  }
+  bool ScopedCustomElementRegistryUsed() const {
+    return scoped_custom_element_registry_used_;
+  }
+
   ViewTransitionSupplement* GetViewTransitionsIfExists() const {
     return view_transitions_;
   }
@@ -2974,6 +2989,11 @@ class CORE_EXPORT Document : public ContainerNode,
   // resource, they would have incremented the delay count during the layout
   // tree update and further blocked the load event.
   bool delay_load_event_until_layout_tree_update_ = false;
+
+  // Flag indicating if any scoped custom element registry was created/used
+  // in the document. We're able to skip some expensive operations if
+  // scoped registry was never exercised in the given document.
+  bool scoped_custom_element_registry_used_ = false;
 
   HeapTaskRunnerTimer<Document> load_event_delay_timer_;
   HeapTaskRunnerTimer<Document> plugin_loading_timer_;

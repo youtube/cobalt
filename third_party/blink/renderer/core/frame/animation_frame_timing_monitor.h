@@ -22,6 +22,11 @@ class TimeTicks;
 
 namespace blink {
 
+// When enabled, long-animation-frame events will always include the sourceURL,
+// regardless of protocol. This is useful during development when using `file:`
+// URLs or custom protocols defined by embedders.
+CORE_EXPORT BASE_DECLARE_FEATURE(kAlwaysLogLOAFURL);
+
 class LocalFrame;
 
 // Monitors long-animation-frame timing (LoAF).
@@ -170,6 +175,7 @@ class CORE_EXPORT AnimationFrameTimingMonitor final
   base::TimeTicks current_task_start_;
   base::TimeDelta total_blocking_time_excluding_longest_task_;
   base::TimeDelta longest_task_duration_;
+  base::TimeDelta render_style_duration_;
   bool did_pause_ = false;
   bool did_see_ui_events_ = false;
   WeakMember<LocalFrame> frame_handling_input_;

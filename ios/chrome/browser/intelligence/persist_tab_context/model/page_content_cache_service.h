@@ -5,13 +5,14 @@
 #ifndef IOS_CHROME_BROWSER_INTELLIGENCE_PERSIST_TAB_CONTEXT_MODEL_PAGE_CONTENT_CACHE_SERVICE_H_
 #define IOS_CHROME_BROWSER_INTELLIGENCE_PERSIST_TAB_CONTEXT_MODEL_PAGE_CONTENT_CACHE_SERVICE_H_
 
+#include <set>
+
 #include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
 #include "base/supports_user_data.h"
 #include "base/time/time.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/optimization_guide/proto/features/common_quality_data.pb.h"
-#include "components/page_content_annotations/core/page_content_store.h"
 
 class GURL;
 
@@ -32,7 +33,7 @@ class PageContentCache;
 class PageContentCacheService : public KeyedService {
  public:
   using GetPageContentCallback = base::OnceCallback<void(
-      std::optional<optimization_guide::PageContentResult>)>;
+      std::optional<optimization_guide::proto::PageContext>)>;
 
   PageContentCacheService(os_crypt_async::OSCryptAsync* os_crypt_async,
                           const base::FilePath& storage_path,
@@ -58,6 +59,10 @@ class PageContentCacheService : public KeyedService {
 
   // Retrieves all tab IDs for tabs that have page contents cached.
   void GetAllTabIds(base::OnceCallback<void(std::vector<int64_t>)> callback);
+
+  // Checks the cache for stale entries for removal and records metrics.
+  void RunCleanUpTasksWithActiveTabs(
+      const std::set<int64_t>& all_active_tab_ids);
 
   // Returns true if the internal cache has been fully initialized.
   bool IsCacheInitialized() const;

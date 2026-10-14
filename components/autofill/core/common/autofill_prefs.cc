@@ -264,7 +264,8 @@ void SetAutofillAiSyncedOptInStatus(PrefService* prefs, bool enabled) {
 bool IsAutofillAiReauthBeforeFillingEnabled(const PrefService* prefs) {
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID) || \
     BUILDFLAG(IS_CHROMEOS)
-  return prefs->GetBoolean(kAutofillAiReauthBeforeViewingSensitiveData);
+  return prefs->GetBoolean(kAutofillAiReauthBeforeViewingSensitiveData) &&
+         base::FeatureList::IsEnabled(features::kAutofillAiReauthRequired);
 #else
   return false;
 #endif
@@ -396,7 +397,7 @@ void SetPaymentCardBenefits(PrefService* prefs, bool value) {
 }
 
 void ClearSyncTransportOptIns(PrefService* prefs) {
-  prefs->SetDict(kAutofillSyncTransportOptIn, base::Value::Dict());
+  prefs->SetDict(kAutofillSyncTransportOptIn, base::DictValue());
 }
 
 void SetFacilitatedPaymentsEwallet(PrefService* prefs, bool value) {

@@ -4,16 +4,15 @@
 
 #include "components/wallet/core/browser/network/wallet_http_client_impl.h"
 
-#include "base/json/json_reader.h"
 #include "base/test/bind.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
 #include "base/time/time.h"
-#include "base/uuid.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
 #include "components/version_info/version_info.h"
-#include "components/wallet/core/browser/data_models/walletable_pass.h"
+#include "components/wallet/core/browser/proto/api_v1.pb.h"
+#include "components/wallet/core/browser/proto/pass.pb.h"
 #include "components/wallet/core/common/wallet_features.h"
 #include "google_apis/gaia/google_service_auth_error.h"
 #include "net/base/net_errors.h"
@@ -31,9 +30,8 @@ namespace {
 
 constexpr char kAccessToken[] = "test access token";
 
-using SavePassCallback = base::test::TestFuture<
-    base::expected<WalletHttpClient::SavePassResult,
-                   WalletHttpClient::WalletRequestError>>;
+using UpsertPublicPassCallback = base::test::TestFuture<
+    const base::expected<std::string, WalletHttpClient::WalletRequestError>&>;
 
 class WalletHttpClientImplTest : public testing::Test {
  public:
@@ -42,9 +40,11 @@ class WalletHttpClientImplTest : public testing::Test {
   ~WalletHttpClientImplTest() override = default;
 
   void SetUp() override {
-    scoped_feature_list_.InitAndEnableFeatureWithParameters(
-        kWalletablePassDetection,
-        {{"walletable_pass_save_url", "https://test-wallet.com/"}});
+    scoped_feature_list_.InitWithFeaturesAndParameters(
+        {{kWalletApiPrivatePassesEnabled,
+          {{"wallet_pass_save_url", "https://test-wallet.com/"}}},
+         {kWalletablePassDetection, {}}},
+        {});
     identity_test_env_.MakePrimaryAccountAvailable(
         "test@example.com", signin::ConsentLevel::kSignin);
     client_ = std::make_unique<WalletHttpClientImpl>(
@@ -56,7 +56,7 @@ class WalletHttpClientImplTest : public testing::Test {
   void TearDown() override { client_.reset(); }
 
   GURL GetUpsertPassUrl() {
-    return GURL(kWalletablePassSaveUrl.Get()).Resolve("v1/passes:upsert");
+    return GURL(kWalletSaveUrl.Get()).Resolve("v1/passes:upsert");
   }
 
   WalletHttpClientImpl* client() { return client_.get(); }
@@ -77,12 +77,13 @@ class WalletHttpClientImplTest : public testing::Test {
   std::unique_ptr<WalletHttpClientImpl> client_;
 };
 
-// Tests that SavePass successfully triggers a network request and invokes the
-// callback with a success result when the server responds with success.
-TEST_F(WalletHttpClientImplTest, SavePass_Success) {
-  WalletablePass pass;
-  SavePassCallback save_pass_callback;
-  client()->SavePass(pass, save_pass_callback.GetCallback());
+// Tests that UpsertPublicPass successfully triggers a network request and
+// invokes the callback with a success result when the server responds with
+// success.
+TEST_F(WalletHttpClientImplTest, UpsertPublicPass_Success) {
+  Pass pass;
+  UpsertPublicPassCallback upsert_pass_callback;
+  client()->UpsertPublicPass(pass, upsert_pass_callback.GetCallback());
 
   // Access token is fetched successfully.
   identity_test_env()->WaitForAccessTokenRequestIfNecessaryAndRespondWithToken(
@@ -98,38 +99,41 @@ TEST_F(WalletHttpClientImplTest, SavePass_Success) {
   EXPECT_EQ(auth_header.value_or(std::string()),
             base::StrCat({"Bearer ", kAccessToken}));
 
-  test_url_loader_factory()->AddResponse(expected_url.spec(), "{}");
+  api::UpsertPassResponse response;
+  response.set_pass_id("pass-id");
+  test_url_loader_factory()->AddResponse(expected_url.spec(),
+                                         response.SerializeAsString());
 
-  ASSERT_TRUE(save_pass_callback.Wait());
+  ASSERT_TRUE(upsert_pass_callback.Wait());
+  EXPECT_TRUE(upsert_pass_callback.Get().has_value());
+  EXPECT_EQ(upsert_pass_callback.Get().value(), "pass-id");
 }
 
-// Tests that SavePass correctly handles server errors by invoking the callback
-// with a failure result.
-TEST_F(WalletHttpClientImplTest, SavePass_TokenFetchError) {
-  LoyaltyCard loyalty_card;
-  loyalty_card.plan_name = "Program Name";
-  loyalty_card.issuer_name = "Issuer Name";
-  loyalty_card.member_id = "Member ID";
+// Tests that UpsertPublicPass correctly handles server errors by invoking the
+// callback with a failure result.
+TEST_F(WalletHttpClientImplTest, UpsertPublicPass_TokenFetchError) {
+  Pass pass;
+  Pass_LoyaltyCard* loyalty_card = pass.mutable_loyalty_card();
+  loyalty_card->set_program_name("Program Name");
+  loyalty_card->set_merchant_name("Issuer Name");
+  loyalty_card->set_loyalty_number("Member ID");
 
-  WalletablePass pass;
-  pass.pass_data = loyalty_card;
-
-  SavePassCallback save_pass_callback;
-  client()->SavePass(pass, save_pass_callback.GetCallback());
+  UpsertPublicPassCallback upsert_pass_callback;
+  client()->UpsertPublicPass(pass, upsert_pass_callback.GetCallback());
 
   // Access token fetch fails.
   identity_test_env()->WaitForAccessTokenRequestIfNecessaryAndRespondWithError(
       GoogleServiceAuthError(GoogleServiceAuthError::CONNECTION_FAILED));
 
-  ASSERT_TRUE(save_pass_callback.Wait());
-  EXPECT_EQ(save_pass_callback.Get().error(),
+  ASSERT_TRUE(upsert_pass_callback.Wait());
+  EXPECT_EQ(upsert_pass_callback.Get().error(),
             WalletHttpClient::WalletRequestError::kAccessTokenFetchFailed);
 }
 
-TEST_F(WalletHttpClientImplTest, SavePass_Failure) {
-  WalletablePass pass;
-  SavePassCallback save_pass_callback;
-  client()->SavePass(pass, save_pass_callback.GetCallback());
+TEST_F(WalletHttpClientImplTest, UpsertPublicPass_Failure) {
+  Pass pass;
+  UpsertPublicPassCallback upsert_pass_callback;
+  client()->UpsertPublicPass(pass, upsert_pass_callback.GetCallback());
 
   // Access token is fetched successfully.
   identity_test_env()->WaitForAccessTokenRequestIfNecessaryAndRespondWithToken(
@@ -141,29 +145,25 @@ TEST_F(WalletHttpClientImplTest, SavePass_Failure) {
       expected_url, network::mojom::URLResponseHead::New(), "",
       network::URLLoaderCompletionStatus(net::ERR_FAILED));
 
-  ASSERT_TRUE(save_pass_callback.Wait());
-  EXPECT_EQ(save_pass_callback.Get().error(),
+  ASSERT_TRUE(upsert_pass_callback.Wait());
+  EXPECT_EQ(upsert_pass_callback.Get().error(),
             WalletHttpClient::WalletRequestError::kGenericError);
 }
 
-// Tests that multiple SavePass requests can be in-flight simultaneously and all
-// callbacks are invoked correctly upon completion.
-TEST_F(WalletHttpClientImplTest, SavePass_ConcurrentRequests) {
-  WalletablePass pass1;
-  LoyaltyCard loyalty_card1;
-  loyalty_card1.plan_name = "p1";
-  pass1.pass_data = loyalty_card1;
+// Tests that multiple UpsertPublicPass requests can be in-flight simultaneously
+// and all callbacks are invoked correctly upon completion.
+TEST_F(WalletHttpClientImplTest, UpsertPublicPass_ConcurrentRequests) {
+  Pass pass1;
+  pass1.mutable_loyalty_card()->set_program_name("p1");
 
-  WalletablePass pass2;
-  LoyaltyCard loyalty_card2;
-  loyalty_card2.plan_name = "p2";
-  pass2.pass_data = loyalty_card2;
+  Pass pass2;
+  pass2.mutable_loyalty_card()->set_program_name("p2");
 
-  SavePassCallback save_pass_callback1;
-  SavePassCallback save_pass_callback2;
+  UpsertPublicPassCallback upsert_pass_callback1;
+  UpsertPublicPassCallback upsert_pass_callback2;
 
-  client()->SavePass(pass1, save_pass_callback1.GetCallback());
-  client()->SavePass(pass2, save_pass_callback2.GetCallback());
+  client()->UpsertPublicPass(pass1, upsert_pass_callback1.GetCallback());
+  client()->UpsertPublicPass(pass2, upsert_pass_callback2.GetCallback());
 
   // Access token is fetched successfully.
   identity_test_env()->WaitForAccessTokenRequestIfNecessaryAndRespondWithToken(
@@ -173,28 +173,29 @@ TEST_F(WalletHttpClientImplTest, SavePass_ConcurrentRequests) {
 
   // Complete both requests.
   GURL expected_url = GetUpsertPassUrl();
+  api::UpsertPassResponse response;
+  response.set_pass_id("pass-id");
   test_url_loader_factory()->SimulateResponseForPendingRequest(
-      expected_url.spec(), "{}");
+      expected_url.spec(), response.SerializeAsString());
   test_url_loader_factory()->SimulateResponseForPendingRequest(
-      expected_url.spec(), "{}");
+      expected_url.spec(), response.SerializeAsString());
 
-  ASSERT_TRUE(save_pass_callback1.Wait());
-  ASSERT_TRUE(save_pass_callback2.Wait());
+  ASSERT_TRUE(upsert_pass_callback1.Wait());
+  ASSERT_TRUE(upsert_pass_callback2.Wait());
 }
 
-// Tests that SavePass for a LoyaltyCard builds the correct JSON request body
-// structure.
-TEST_F(WalletHttpClientImplTest, SavePass_LoyaltyCard_RequestStructure) {
-  LoyaltyCard loyalty_card;
-  loyalty_card.plan_name = "p1";
-  loyalty_card.issuer_name = "i1";
-  loyalty_card.member_id = "m1";
+// Tests that UpsertPublicPass for a LoyaltyCard builds the correct proto
+// request body structure.
+TEST_F(WalletHttpClientImplTest,
+       UpsertPublicPass_LoyaltyCard_RequestStructure) {
+  Pass pass;
+  auto* loyalty_card = pass.mutable_loyalty_card();
+  loyalty_card->set_program_name("p1");
+  loyalty_card->set_merchant_name("i1");
+  loyalty_card->set_loyalty_number("m1");
 
-  WalletablePass pass;
-  pass.pass_data = loyalty_card;
-
-  SavePassCallback save_pass_callback;
-  client()->SavePass(pass, save_pass_callback.GetCallback());
+  UpsertPublicPassCallback upsert_pass_callback;
+  client()->UpsertPublicPass(pass, upsert_pass_callback.GetCallback());
 
   // Access token is fetched successfully.
   identity_test_env()->WaitForAccessTokenRequestIfNecessaryAndRespondWithToken(
@@ -207,40 +208,22 @@ TEST_F(WalletHttpClientImplTest, SavePass_LoyaltyCard_RequestStructure) {
   EXPECT_EQ(pending_request->request.url, expected_url);
 
   std::string request_body = network::GetUploadData(pending_request->request);
-  std::optional<base::Value> root =
-      base::JSONReader::Read(request_body, base::JSON_PARSE_RFC);
-  ASSERT_TRUE(root.has_value());
-  ASSERT_TRUE(root->is_dict());
-
-  const base::Value::Dict& dict = root->GetDict();
+  api::UpsertPassRequest request_proto;
+  ASSERT_TRUE(request_proto.ParseFromString(request_body));
 
   // Verify pass
-  const base::Value::Dict* pass_dict = dict.FindDict("pass");
-  ASSERT_TRUE(pass_dict);
-
-  // Verify external_id
-  const base::Value::Dict* external_id = pass_dict->FindDict("external_id");
-  ASSERT_TRUE(external_id);
-  EXPECT_EQ(external_id->FindInt("namespace"), 1);
-  const std::string* uuid_str = external_id->FindString("external_id");
-  ASSERT_TRUE(uuid_str);
-  EXPECT_TRUE(base::Uuid::ParseLowercase(*uuid_str).is_valid());
+  ASSERT_TRUE(request_proto.has_pass());
+  const Pass& pass_proto = request_proto.pass();
 
   // Verify loyalty_card
-  const base::Value::Dict* loyalty_card_dict =
-      pass_dict->FindDict("loyalty_card");
-  ASSERT_TRUE(loyalty_card_dict);
-  EXPECT_EQ(*loyalty_card_dict->FindString("merchant_name"), "i1");
-  EXPECT_EQ(*loyalty_card_dict->FindString("loyalty_number"), "m1");
-  EXPECT_EQ(*loyalty_card_dict->FindString("program_name"), "p1");
+  ASSERT_TRUE(pass_proto.has_loyalty_card());
+  EXPECT_EQ(pass_proto.loyalty_card().merchant_name(), "i1");
+  EXPECT_EQ(pass_proto.loyalty_card().loyalty_number(), "m1");
+  EXPECT_EQ(pass_proto.loyalty_card().program_name(), "p1");
 
   // Verify client_info
-  const base::Value::Dict* client_info = dict.FindDict("client_info");
-  ASSERT_TRUE(client_info);
-  const base::Value::Dict* chrome_client_info =
-      client_info->FindDict("chrome_client_info");
-  ASSERT_TRUE(chrome_client_info);
-  EXPECT_EQ(*chrome_client_info->FindString("version"),
+  ASSERT_TRUE(request_proto.has_client_info());
+  EXPECT_EQ(request_proto.client_info().chrome_client_info().version(),
             version_info::GetVersionNumber());
 }
 

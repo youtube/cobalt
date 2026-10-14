@@ -61,7 +61,7 @@
 <translation id="1190609913194133056">Trung tâm thông báo</translation>
 <translation id="1195412055398077112">quét quá mức</translation>
 <translation id="1195667586424773550">Kéo liên kết vào thanh địa chỉ của thẻ</translation>
-<translation id="119944043368869598">Xóa tất cả</translation>
+<translation id="119944043368869598">Xoá tất cả</translation>
 <translation id="1199716647557067911">Bạn có chắc chắn muốn tắt tính năng Tiếp cận bằng công tắc không?</translation>
 <translation id="1201402288615127009">Tiếp theo</translation>
 <translation id="1210557957257435379">ghi màn hình</translation>
@@ -342,7 +342,6 @@
 <translation id="2201071101391734388">Ảnh gần đây <ph name="INDEX" /> trong tổng số <ph name="TOTAL_COUNT" />.</translation>
 <translation id="2201687081523799384">Thu gọn Google Tasks</translation>
 <translation id="2208323208084708176">Chế độ màn hình đồng nhất</translation>
-<translation id="2210311543574621570">Bạn sẽ thấy bảng nhớ tạm khi nhấn và giữ Ctrl + V. Bạn có thể tắt lối tắt này bằng cách vô hiệu hoá cờ #clipboard-history-longpress trong chrome://flags.</translation>
 <translation id="2215920961700443347">Không có Internet. Vui lòng kết nối Internet rồi thử lại.</translation>
 <translation id="2222841058024245321">Không gian làm việc 7</translation>
 <translation id="2223384056430485343">Ở chế độ chia đôi màn hình</translation>
@@ -1397,7 +1396,7 @@ Chưa kết nối thiết bị nào.</translation>
 <translation id="5620979661744857819">Nếu bạn bật, <ph name="APP_NAME" /> và tất cả ứng dụng cũng như trang web có quyền truy cập máy ảnh và micrô sẽ có thể sử dụng máy ảnh và micrô. Bạn có thể cần làm mới trang web hoặc khởi động lại ứng dụng.</translation>
 <translation id="5625955975703555628">LTE+</translation>
 <translation id="5627392655516693966">Chưa xác minh được mật khẩu của bạn. Hãy thử lại.</translation>
-<translation id="5632485077360054581">Chỉ cho tôi cách làm</translation>
+<translation id="5632485077360054581">Xem cách làm</translation>
 <translation id="5648021990716966815">Giắc cắm micrô</translation>
 <translation id="5652575806481723716">Có thông báo từ <ph name="FOCUSED_APP_NAME" />.</translation>
 <translation id="5662075790140998213">Không gian làm việc 10</translation>
@@ -2195,7 +2194,6 @@ Mới cài đặt</translation>
 <translation id="8241650983304689286">Thêm thẻ vào chế độ xem phân tách mới</translation>
 <translation id="8247060538831475781"><ph name="CONNECTION_STATUS" />, Cường độ tín hiệu <ph name="SIGNAL_STRENGTH" />, Pin điện thoại <ph name="BATTERY_STATUS" /></translation>
 <translation id="825129991941217170">Hiện tất cả nội dung trên Google Drive</translation>
-<translation id="8257510091797044096">Thiết lập thiết bị của bạn</translation>
 <translation id="8261506727792406068">Xoá</translation>
 <translation id="8262312463845990408">Phát hoặc dừng phát</translation>
 <translation id="8268302343625273732">Xem tất cả bài tập trong Google Lớp học</translation>

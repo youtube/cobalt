@@ -46,7 +46,6 @@
 #include "cc/metrics/begin_main_frame_metrics.h"
 #include "cc/metrics/events_metrics_manager.h"
 #include "cc/metrics/frame_sequence_tracker.h"
-#include "cc/paint/canvas_draw_element_ids.h"
 #include "cc/paint/node_id.h"
 #include "cc/resources/ui_resource_request.h"
 #include "cc/trees/browser_controls_params.h"
@@ -112,6 +111,15 @@ class CC_EXPORT ScopedPauseRendering {
  public:
   explicit ScopedPauseRendering(LayerTreeHost* host);
   ~ScopedPauseRendering();
+
+ private:
+  base::WeakPtr<LayerTreeHost> host_;
+};
+
+class CC_EXPORT ScopedRequestHighFramerate {
+ public:
+  explicit ScopedRequestHighFramerate(LayerTreeHost* host);
+  ~ScopedRequestHighFramerate();
 
  private:
   base::WeakPtr<LayerTreeHost> host_;
@@ -370,7 +378,11 @@ class CC_EXPORT LayerTreeHost : public MutatorHostClient {
                              PaintHoldingReason reason,
                              std::optional<PaintHoldingCommitTrigger> trigger);
 
+  // Several clients may call this independently. In this case, there is
+  // internal reference counting so that the the state is only exited when the
+  // last client removes its request.
   void SetShouldThrottleFrameRate(bool flag);
+  std::unique_ptr<ScopedRequestHighFramerate> RequestHighFramerate();
 
   // Returns whether there are any outstanding ScopedDeferMainFrameUpdate,
   // though commits may be deferred also when the local_surface_id_from_parent()
@@ -429,11 +441,11 @@ class CC_EXPORT LayerTreeHost : public MutatorHostClient {
 
   // Returns the id of the benchmark on success, 0 otherwise.
   int ScheduleMicroBenchmark(const std::string& benchmark_name,
-                             base::Value::Dict settings,
+                             base::DictValue settings,
                              MicroBenchmark::DoneCallback callback);
 
   // Returns true if the message was successfully delivered and handled.
-  bool SendMessageToMicroBenchmark(int id, base::Value::Dict message);
+  bool SendMessageToMicroBenchmark(int id, base::DictValue message);
 
   // When the main thread informs the compositor thread that it is ready to
   // commit, generally it would remain blocked until the main thread state is
@@ -671,6 +683,13 @@ class CC_EXPORT LayerTreeHost : public MutatorHostClient {
     pending_commit_state()->force_send_metadata_request = true;
   }
 
+  // Requests a cap on CPU performance during idle periods. Forwarded
+  // to ADPF on Android, no-op on other platforms.
+  void RequestEfficientScheduling(bool prefer_efficient_scheduling) {
+    pending_commit_state()->prefer_efficient_scheduling =
+        prefer_efficient_scheduling;
+  }
+
   // Returns the state of |force_send_metadata_request_| and resets the
   // variable to false.
   bool TakeForceSendMetadataRequest();
@@ -755,14 +774,6 @@ class CC_EXPORT LayerTreeHost : public MutatorHostClient {
 
   void RegisterElement(ElementId element_id, Layer* layer);
   void UnregisterElement(ElementId element_id, const Layer* layer);
-
-  void SetCanvasDrawElementIds(
-      AllCanvasDrawElementIds all_canvas_draw_element_ids) {
-    all_canvas_draw_element_ids_ = std::move(all_canvas_draw_element_ids);
-  }
-  const AllCanvasDrawElementIds& all_canvas_draw_element_ids() const {
-    return all_canvas_draw_element_ids_;
-  }
 
   void SetElementIdsForTesting();
   void BuildPropertyTreesForTesting();
@@ -1025,6 +1036,7 @@ class CC_EXPORT LayerTreeHost : public MutatorHostClient {
   friend class ScopedDeferMainFrameUpdate;
   friend class ScopedPauseRendering;
   friend class ScopedKeepSurfaceAlive;
+  friend class ScopedRequestHighFramerate;
 
   // This is the number of consecutive frames in which we want the content to be
   // free of slow-paths before toggling the flag.
@@ -1062,6 +1074,8 @@ class CC_EXPORT LayerTreeHost : public MutatorHostClient {
       const gfx::Vector2dF& delta,
       ScrollSourceType type,
       const std::optional<TargetSnapAreaElementIds>&);
+
+  void SetRequestHighFramerate(bool flag);
 
   const CompositorMode compositor_mode_;
 
@@ -1126,9 +1140,6 @@ class CC_EXPORT LayerTreeHost : public MutatorHostClient {
   // This is for layer tree mode only.
   std::unordered_map<ElementId, raw_ptr<Layer, CtnExperimental>, ElementIdHash>
       element_layers_map_;
-
-  // Ids of elements which can be drawn using html-in-canvas.
-  AllCanvasDrawElementIds all_canvas_draw_element_ids_;
 
   bool in_paint_layer_contents_ = false;
 

@@ -384,8 +384,9 @@ IN_PROC_BROWSER_TEST_F(TabRestoreTest, DISABLED_BasicRestoreFromClosedWindow) {
   EXPECT_EQ(2u, chrome::GetTotalBrowserCount());
 
   // Close the final tab in the first browser.
+  ui_test_utils::BrowserDestroyedObserver observer(browser());
   CloseTab(0);
-  ui_test_utils::WaitForBrowserToClose();
+  observer.Wait();
 
   // Tab should be in a new window.
   ui_test_utils::BrowserCreatedObserver browser_created_observer;
@@ -490,8 +491,9 @@ IN_PROC_BROWSER_TEST_F(TabRestoreTest, RestoreIntoSameWindow) {
     CloseTab(0);
 
   // Close the last tab, closing the browser.
+  ui_test_utils::BrowserDestroyedObserver observer(browser());
   CloseTab(0);
-  ui_test_utils::WaitForBrowserToClose();
+  observer.Wait();
   EXPECT_EQ(1u, chrome::GetTotalBrowserCount());
 
   // Restore the last-closed tab into a new window.
@@ -1226,6 +1228,12 @@ IN_PROC_BROWSER_TEST_F(TabRestoreTest, RestoreWindow) {
 IN_PROC_BROWSER_TEST_F(TabRestoreTest, RestoreWindow_ActiveTabIndex) {
   AddFileSchemeTabs(browser(), 4);
 
+  tab_groups::TabGroupId group =
+      browser()->tab_strip_model()->AddToNewGroup({3});
+  tab_groups::TabGroupVisualData group_data(u"Bar",
+                                            tab_groups::TabGroupColorId::kBlue);
+  browser()->GetTabStripModel()->ChangeTabGroupVisuals(group, group_data);
+
   // Create a second browser.
   ui_test_utils::NavigateToURLWithDisposition(
       browser(), GURL(chrome::kChromeUINewTabURL),
@@ -1803,7 +1811,7 @@ IN_PROC_BROWSER_TEST_F(TabRestoreTest, RestoreWindowWithGroupedTabs) {
   tab_groups::TabGroupId group2 =
       browser()->tab_strip_model()->AddToNewGroup({tab_count - 1});
   tab_groups::TabGroupVisualData group2_data(
-      u"Bar", tab_groups::TabGroupColorId::kBlue);
+      u"Bar", tab_groups::TabGroupColorId::kBlue, true);
   browser()->GetTabStripModel()->ChangeTabGroupVisuals(group2, group2_data);
 
   CloseBrowserSynchronously(browser());

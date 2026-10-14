@@ -16,13 +16,14 @@
 #import "components/bookmarks/test/bookmark_test_helpers.h"
 #import "ios/chrome/browser/bookmarks/model/bookmark_model_factory.h"
 #import "ios/chrome/browser/incognito_reauth/ui_bundled/incognito_reauth_scene_agent.h"
-#import "ios/chrome/browser/main/ui_bundled/bvc_container_view_controller.h"
+#import "ios/chrome/browser/main/ui/browser_layout_view_controller.h"
 #import "ios/chrome/browser/popup_menu/coordinator/popup_menu_coordinator.h"
 #import "ios/chrome/browser/saved_tab_groups/model/tab_group_sync_service_factory.h"
 #import "ios/chrome/browser/sessions/model/ios_chrome_tab_restore_service_factory.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state.h"
 #import "ios/chrome/browser/shared/model/browser/test/test_browser.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
+#import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/quick_delete_commands.h"
 #import "ios/chrome/browser/shared/public/commands/scene_commands.h"
@@ -74,6 +75,11 @@
   self.didEndCalled = YES;
 }
 
+@end
+
+// Category to allow access for testing.
+@interface TabGridCoordinator (Testing)
+@property(nonatomic, readonly) UIViewController* viewController;
 @end
 
 namespace {
@@ -128,6 +134,11 @@ class TabGridCoordinatorTest : public BlockCleanupTest {
     [dispatcher startDispatchingToTarget:mock_application_handler
                              forProtocol:@protocol(SceneCommands)];
 
+    // Set up GeminiCommands mock.
+    id mock_gemini_handler = OCMProtocolMock(@protocol(BWGCommands));
+    [dispatcher startDispatchingToTarget:mock_gemini_handler
+                             forProtocol:@protocol(BWGCommands)];
+
     // Set up QuickDeleteCommands mock.
     id mock_quick_delete_handler_ =
         OCMStrictProtocolMock(@protocol(QuickDeleteCommands));
@@ -168,6 +179,11 @@ class TabGridCoordinatorTest : public BlockCleanupTest {
 
     incognito_tab_view_controller_ = [[UIViewController alloc] init];
     incognito_tab_view_controller_.view.frame = CGRectMake(40, 40, 10, 10);
+
+    layout_view_controller_ = [[BrowserLayoutViewController alloc] init];
+    incognito_layout_view_controller_ =
+        [[BrowserLayoutViewController alloc] init];
+    incognito_layout_view_controller_.incognito = YES;
   }
 
   void TearDown() override {
@@ -178,9 +194,7 @@ class TabGridCoordinatorTest : public BlockCleanupTest {
     [coordinator_ stop];
   }
 
-  UIViewController* GetBaseViewController() {
-    return coordinator_.baseViewController;
-  }
+  UIViewController* GetViewController() { return coordinator_.viewController; }
 
  protected:
   web::WebTaskEnvironment task_environment_;
@@ -211,6 +225,8 @@ class TabGridCoordinatorTest : public BlockCleanupTest {
   // available for use in tests.
   UIViewController* normal_tab_view_controller_;
   UIViewController* incognito_tab_view_controller_;
+  BrowserLayoutViewController* layout_view_controller_;
+  BrowserLayoutViewController* incognito_layout_view_controller_;
 
   // Used to test logging the time spent in tab grid.
   base::HistogramTester histogram_tester_;
@@ -220,53 +236,58 @@ class TabGridCoordinatorTest : public BlockCleanupTest {
 // Tests that the tab grid view controller is the initial active view
 // controller.
 TEST_F(TabGridCoordinatorTest, InitialActiveViewController) {
-  EXPECT_EQ(GetBaseViewController(), coordinator_.activeViewController);
+  EXPECT_EQ(GetViewController(), coordinator_.activeViewController);
 }
 
-// Tests that it is possible to set a TabViewController without first setting a
-// TabSwitcher.
-TEST_F(TabGridCoordinatorTest, TabViewControllerBeforeTabSwitcher) {
-  [coordinator_ showTabViewController:normal_tab_view_controller_
-                            incognito:NO
-                           completion:nil];
+// Tests that it is possible to set a BrowserLayoutViewController without first
+// setting a TabSwitcher.
+TEST_F(TabGridCoordinatorTest, BrowserLayoutViewControllerBeforeTabSwitcher) {
+  layout_view_controller_.currentBVC = normal_tab_view_controller_;
+  [coordinator_ showBrowserLayoutViewController:layout_view_controller_
+                                      incognito:NO
+                                     completion:nil];
   EXPECT_EQ(normal_tab_view_controller_, coordinator_.activeViewController);
 
   // Now setting a TabSwitcher will make the switcher active.
   [coordinator_ showTabGridPage:TabGridPageIncognitoTabs];
   bool tab_switcher_active = base::test::ios::WaitUntilConditionOrTimeout(
       base::test::ios::kWaitForUIElementTimeout, ^bool {
-        return GetBaseViewController() == coordinator_.activeViewController;
+        return GetViewController() == coordinator_.activeViewController;
       });
   EXPECT_TRUE(tab_switcher_active);
 }
 
-// Tests that it is possible to set a TabViewController after setting a
-// TabSwitcher.
-TEST_F(TabGridCoordinatorTest, TabViewControllerAfterTabSwitcher) {
+// Tests that it is possible to set a BrowserLayoutViewController after setting
+// a TabSwitcher.
+TEST_F(TabGridCoordinatorTest, BrowserLayoutViewControllerAfterTabSwitcher) {
   [coordinator_ showTabGridPage:TabGridPageIncognitoTabs];
-  EXPECT_EQ(GetBaseViewController(), coordinator_.activeViewController);
+  EXPECT_EQ(GetViewController(), coordinator_.activeViewController);
 
-  [coordinator_ showTabViewController:normal_tab_view_controller_
-                            incognito:YES
-                           completion:nil];
+  layout_view_controller_.currentBVC = normal_tab_view_controller_;
+  [coordinator_ showBrowserLayoutViewController:layout_view_controller_
+                                      incognito:NO
+                                     completion:nil];
   EXPECT_EQ(normal_tab_view_controller_, coordinator_.activeViewController);
 
   [coordinator_ showTabGridPage:TabGridPageIncognitoTabs];
   bool tab_switcher_active = base::test::ios::WaitUntilConditionOrTimeout(
       base::test::ios::kWaitForUIElementTimeout, ^bool {
-        return GetBaseViewController() == coordinator_.activeViewController;
+        return GetViewController() == coordinator_.activeViewController;
       });
   EXPECT_TRUE(tab_switcher_active);
 }
 
-// Tests swapping between two TabViewControllers.
-TEST_F(TabGridCoordinatorTest, SwapTabViewControllers) {
-  [coordinator_ showTabViewController:normal_tab_view_controller_
-                            incognito:NO
-                           completion:nil];
+// Tests swapping between two BrowserLayoutViewControllers.
+TEST_F(TabGridCoordinatorTest, SwapBrowserLayoutViewControllers) {
+  layout_view_controller_.currentBVC = normal_tab_view_controller_;
+  [coordinator_ showBrowserLayoutViewController:layout_view_controller_
+                                      incognito:NO
+                                     completion:nil];
   EXPECT_EQ(normal_tab_view_controller_, coordinator_.activeViewController);
 
-  [coordinator_ showTabViewController:incognito_tab_view_controller_
+  incognito_layout_view_controller_.currentBVC = incognito_tab_view_controller_;
+  [coordinator_
+      showBrowserLayoutViewController:incognito_layout_view_controller_
                             incognito:YES
                            completion:nil];
   EXPECT_EQ(incognito_tab_view_controller_, coordinator_.activeViewController);
@@ -275,22 +296,24 @@ TEST_F(TabGridCoordinatorTest, SwapTabViewControllers) {
 // Tests calling showTabSwitcher twice in a row with the same VC.
 TEST_F(TabGridCoordinatorTest, ShowTabSwitcherTwice) {
   [coordinator_ showTabGridPage:TabGridPageIncognitoTabs];
-  EXPECT_EQ(GetBaseViewController(), coordinator_.activeViewController);
+  EXPECT_EQ(GetViewController(), coordinator_.activeViewController);
 
   [coordinator_ showTabGridPage:TabGridPageIncognitoTabs];
-  EXPECT_EQ(GetBaseViewController(), coordinator_.activeViewController);
+  EXPECT_EQ(GetViewController(), coordinator_.activeViewController);
 }
 
-// Tests calling showTabViewController twice in a row with the same VC.
-TEST_F(TabGridCoordinatorTest, ShowTabViewControllerTwice) {
-  [coordinator_ showTabViewController:normal_tab_view_controller_
-                            incognito:NO
-                           completion:nil];
+// Tests calling showBrowserLayoutViewController twice in a row with the same
+// VC.
+TEST_F(TabGridCoordinatorTest, ShowBrowserLayoutViewControllerTwice) {
+  layout_view_controller_.currentBVC = normal_tab_view_controller_;
+  [coordinator_ showBrowserLayoutViewController:layout_view_controller_
+                                      incognito:NO
+                                     completion:nil];
   EXPECT_EQ(normal_tab_view_controller_, coordinator_.activeViewController);
 
-  [coordinator_ showTabViewController:normal_tab_view_controller_
-                            incognito:NO
-                           completion:nil];
+  [coordinator_ showBrowserLayoutViewController:layout_view_controller_
+                                      incognito:NO
+                                     completion:nil];
   EXPECT_EQ(normal_tab_view_controller_, coordinator_.activeViewController);
 }
 
@@ -300,15 +323,16 @@ TEST_F(TabGridCoordinatorTest, CompletionHandlers) {
   // Setup: show the switcher.
   [coordinator_ showTabGridPage:TabGridPageIncognitoTabs];
 
-  // Tests that the completion handler is called when showing a tab view
-  // controller. Tests that the delegate 'didEnd' method is also called.
+  // Tests that the completion handler is called when showing a browser layout
+  // view controller. Tests that the delegate 'didEnd' method is also called.
   delegate_.didEndCalled = NO;
   __block BOOL completion_handler_was_called = NO;
-  [coordinator_ showTabViewController:normal_tab_view_controller_
-                            incognito:NO
-                           completion:^{
-                             completion_handler_was_called = YES;
-                           }];
+  layout_view_controller_.currentBVC = normal_tab_view_controller_;
+  [coordinator_ showBrowserLayoutViewController:layout_view_controller_
+                                      incognito:NO
+                                     completion:^{
+                                       completion_handler_was_called = YES;
+                                     }];
   ASSERT_TRUE(base::test::ios::WaitUntilConditionOrTimeout(
       TestTimeouts::action_timeout(), ^bool() {
         return completion_handler_was_called;
@@ -316,10 +340,13 @@ TEST_F(TabGridCoordinatorTest, CompletionHandlers) {
   ASSERT_TRUE(completion_handler_was_called);
   EXPECT_TRUE(delegate_.didEndCalled);
 
-  // Tests that the completion handler is called when replacing an existing tab
-  // view controller. Tests that the delegate 'didEnd' method is *not* called.
+  // Tests that the completion handler is called when replacing an existing
+  // browser layout view controller. Tests that the delegate 'didEnd' method is
+  // *not* called.
   delegate_.didEndCalled = NO;
-  [coordinator_ showTabViewController:incognito_tab_view_controller_
+  incognito_layout_view_controller_.currentBVC = incognito_tab_view_controller_;
+  [coordinator_
+      showBrowserLayoutViewController:incognito_layout_view_controller_
                             incognito:YES
                            completion:^{
                              completion_handler_was_called = YES;
@@ -335,8 +362,7 @@ TEST_F(TabGridCoordinatorTest, CompletionHandlers) {
 // Tests that the tab grid coordinator sizes its view controller to the window.
 TEST_F(TabGridCoordinatorTest, SizeTabGridCoordinatorViewController) {
   CGRect rect = [UIScreen mainScreen].bounds;
-  EXPECT_TRUE(
-      CGRectEqualToRect(rect, coordinator_.baseViewController.view.frame));
+  EXPECT_TRUE(CGRectEqualToRect(rect, GetViewController().view.frame));
 }
 
 // Tests that the time spent in the tab grid is correctly logged.
@@ -346,9 +372,10 @@ TEST_F(TabGridCoordinatorTest, TimeSpentInTabGrid) {
   [coordinator_ showTabGridPage:TabGridPageIncognitoTabs];
   histogram_tester_.ExpectTotalCount("IOS.TabSwitcher.TimeSpent", 0);
   scoped_clock_.Advance(base::Seconds(20));
-  [coordinator_ showTabViewController:normal_tab_view_controller_
-                            incognito:YES
-                           completion:nil];
+  layout_view_controller_.currentBVC = normal_tab_view_controller_;
+  [coordinator_ showBrowserLayoutViewController:layout_view_controller_
+                                      incognito:NO
+                                     completion:nil];
   histogram_tester_.ExpectUniqueTimeSample("IOS.TabSwitcher.TimeSpent",
                                            base::Seconds(20), 1);
   histogram_tester_.ExpectTotalCount("IOS.TabSwitcher.TimeSpent", 1);
@@ -360,9 +387,10 @@ TEST_F(TabGridCoordinatorTest, tabGridActive) {
   // tabGridActive is false until the first appearance.
   EXPECT_FALSE(coordinator_.tabGridActive);
 
-  [coordinator_ showTabViewController:normal_tab_view_controller_
-                            incognito:YES
-                           completion:nil];
+  layout_view_controller_.currentBVC = normal_tab_view_controller_;
+  [coordinator_ showBrowserLayoutViewController:layout_view_controller_
+                                      incognito:NO
+                                     completion:nil];
   EXPECT_FALSE(coordinator_.tabGridActive);
 
   [coordinator_ showTabGridPage:TabGridPageIncognitoTabs];

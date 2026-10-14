@@ -39,13 +39,16 @@
 #include "media/base/media_channel.h"
 #include "media/base/media_config.h"
 #include "media/engine/fake_webrtc_call.h"
+#include "p2p/dtls/fake_dtls_transport.h"
 #include "pc/codec_vendor.h"
 #include "pc/connection_context.h"
+#include "pc/dtls_transport.h"
 #include "pc/rtp_parameters_conversion.h"
 #include "pc/rtp_receiver.h"
 #include "pc/rtp_receiver_proxy.h"
 #include "pc/rtp_sender.h"
 #include "pc/rtp_sender_proxy.h"
+#include "pc/rtp_transport.h"
 #include "pc/rtp_transport_internal.h"
 #include "pc/session_description.h"
 #include "pc/test/enable_fake_media.h"
@@ -175,6 +178,50 @@ TEST_F(RtpTransceiverTest, CanUnsetChannelOnStoppedTransceiver) {
   // Set the channel to `nullptr`.
   transceiver->ClearChannel();
   EXPECT_FALSE(transceiver->HasChannel());
+}
+
+TEST_F(RtpTransceiverTest, TransportNameIsUpdated) {
+  const std::string content_name("my_mid");
+  auto transceiver = make_ref_counted<RtpTransceiver>(
+      env(), MediaType::AUDIO, context(), codec_lookup_helper(), nullptr);
+  EXPECT_FALSE(transceiver->transport_name().has_value());
+
+  auto fake_dtls = std::make_unique<FakeDtlsTransport>("test_transport", false);
+  auto rtp_transport = std::make_unique<RtpTransport>(/*rtcp_mux_enabled=*/true,
+                                                      env().field_trials());
+  rtp_transport->SetRtpPacketTransport(fake_dtls.get());
+
+  transceiver->set_mid(content_name);
+  auto channel = std::make_unique<NiceMock<MockChannelInterface>>();
+  EXPECT_CALL(*channel, media_type()).WillRepeatedly(Return(MediaType::AUDIO));
+  EXPECT_CALL(*channel, mid()).WillRepeatedly(ReturnRef(content_name));
+  EXPECT_CALL(*channel, SetFirstPacketReceivedCallback(_))
+      .WillRepeatedly(Return());
+  EXPECT_CALL(*channel, SetRtpTransport(_)).WillRepeatedly(Return(true));
+
+  auto result = transceiver->SetChannel(
+      std::move(channel), [&](const std::string& mid) -> RtpTransportInternal* {
+        return rtp_transport.get();
+      });
+  ASSERT_TRUE(result.ok());
+
+  EXPECT_TRUE(transceiver->HasChannel());
+  EXPECT_EQ(transceiver->transport_name(), "test_transport");
+
+  auto dtls_transport = make_ref_counted<DtlsTransport>(fake_dtls.get());
+  transceiver->SetTransport(dtls_transport, "updated_transport");
+  EXPECT_EQ(transceiver->transport_name(), "updated_transport");
+
+  // Setting null transport should clear the name.
+  transceiver->SetTransport(nullptr, std::nullopt);
+  EXPECT_EQ(transceiver->transport_name(), std::nullopt);
+  EXPECT_TRUE(transceiver->HasChannel());
+
+  // Clearing the channel should reset the transport name to nullopt.
+  transceiver->SetTransport(dtls_transport, "yadt");
+  EXPECT_EQ(transceiver->transport_name(), "yadt");
+  transceiver->ClearChannel();
+  EXPECT_FALSE(transceiver->transport_name().has_value());
 }
 
 class RtpTransceiverUnifiedPlanTest : public RtpTransceiverTest {
@@ -898,7 +945,7 @@ TEST_F(RtpTransceiverTestForHeaderExtensions,
   RtpParameters simulcast_parameters;
   simulcast_parameters.encodings.resize(2);
   auto simulcast_sender = MockSender(MediaType::VIDEO);
-  EXPECT_CALL(*simulcast_sender, GetParametersInternal())
+  EXPECT_CALL(*simulcast_sender, GetParametersInternal(_, _))
       .WillRepeatedly(Return(simulcast_parameters));
   auto simulcast_transceiver = make_ref_counted<RtpTransceiver>(
       env(),
@@ -926,7 +973,7 @@ TEST_F(RtpTransceiverTestForHeaderExtensions,
   svc_parameters.encodings[0].scalability_mode = "L3T3";
 
   auto svc_sender = MockSender(MediaType::VIDEO);
-  EXPECT_CALL(*svc_sender, GetParametersInternal())
+  EXPECT_CALL(*svc_sender, GetParametersInternal(_, _))
       .WillRepeatedly(Return(svc_parameters));
   auto svc_transceiver = make_ref_counted<RtpTransceiver>(
       env(),

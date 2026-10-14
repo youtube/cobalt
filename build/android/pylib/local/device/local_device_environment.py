@@ -123,7 +123,8 @@ class LocalDeviceEnvironment(environment.Environment):
     self._skia_gold_consider_unsupported = False
     if hasattr(args, 'skia_gold_consider_unsupported'):
       self._skia_gold_consider_unsupported = args.skia_gold_consider_unsupported
-    self._use_persistent_shell = args.use_persistent_shell
+
+    self._use_persistent_shell = not args.disable_persistent_shell
 
     use_local_devil_tools = False
     if hasattr(args, 'use_local_devil_tools'):
@@ -215,7 +216,7 @@ class LocalDeviceEnvironment(environment.Environment):
 
       # There is a change in soft keyboard behavior since Android 16.
       # See https://crbug.com/443782461 for more details.
-      if d.build_version_sdk >= version_codes.BAKLAVA:
+      if d.build_version_sdk >= version_codes.BAKLAVA and d.HasRoot():
         with d.GboardPreferences() as gboard_prefs:
           # Disable the stylus.
           gboard_prefs.SetBoolean('enable_scribe', False)

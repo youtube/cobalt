@@ -61,17 +61,17 @@ std::string Base64UrlEncode(base::span<const uint8_t> data) {
   return output;
 }
 
-base::Value::Dict CreatePublicKeyInfo(base::span<const uint8_t> pubkey) {
-  return base::Value::Dict()
+base::DictValue CreatePublicKeyInfo(base::span<const uint8_t> pubkey) {
+  return base::DictValue()
       .Set("kty",
            "accounts.google.com/.well-known/kty/"
            "SubjectPublicKeyInfo")
       .Set("SubjectPublicKeyInfo", Base64UrlEncode(pubkey));
 }
 
-base::Value::Dict CreateHybridPublicKeyInfo(
+base::DictValue CreateHybridPublicKeyInfo(
     std::string_view ephemeral_public_key) {
-  return base::Value::Dict()
+  return base::DictValue()
       .Set("kty",
            "type.googleapis.com/google.crypto.tink.EciesAeadHkdfPublicKey")
       .Set("TinkKeysetPublicKeyInfo", Base64UrlEncode(ephemeral_public_key));
@@ -80,8 +80,8 @@ base::Value::Dict CreateHybridPublicKeyInfo(
 std::optional<std::string> CreateHeaderAndPayloadWithCustomPayload(
     crypto::SignatureVerifier::SignatureAlgorithm algorithm,
     std::string_view schema,
-    const base::Value::Dict& payload) {
-  auto header = base::Value::Dict()
+    const base::DictValue& payload) {
+  auto header = base::DictValue()
                     .Set("alg", SignatureAlgorithmToString(algorithm))
                     .Set("typ", "jwt");
   if (!schema.empty()) {
@@ -104,6 +104,13 @@ std::optional<std::string> CreateHeaderAndPayloadWithCustomPayload(
 
   return base::StrCat({Base64UrlEncode(*header_serialized), ".",
                        Base64UrlEncode(*payload_serialized)});
+}
+
+GURL RemoveQueryAndFragment(const GURL& original) {
+  GURL::Replacements replacements;
+  replacements.ClearRef();
+  replacements.ClearQuery();
+  return original.ReplaceComponents(replacements);
 }
 
 }  // namespace
@@ -144,9 +151,9 @@ std::optional<std::string> CreateKeyRegistrationHeaderAndPayloadForTokenBinding(
     base::span<const uint8_t> pubkey,
     base::Time timestamp) {
   auto payload =
-      base::Value::Dict()
+      base::DictValue()
           .Set("sub", client_id)
-          .Set("aud", registration_url.spec())
+          .Set("aud", RemoveQueryAndFragment(registration_url).spec())
           .Set("jti", Base64UrlEncode(crypto::SHA256HashString(auth_code)))
           // Write out int64_t variable as a double.
           // Note: this may discard some precision, but for `base::Value`
@@ -166,8 +173,8 @@ CreateKeyRegistrationHeaderAndPayloadForSessionBinding(
     base::span<const uint8_t> pubkey,
     base::Time timestamp) {
   auto payload =
-      base::Value::Dict()
-          .Set("aud", registration_url.spec())
+      base::DictValue()
+          .Set("aud", RemoveQueryAndFragment(registration_url).spec())
           .Set("jti", challenge)
           // Write out int64_t variable as a double.
           // Note: this may discard some precision, but for `base::Value`
@@ -187,9 +194,9 @@ std::optional<std::string> CreateKeyAssertionHeaderAndPayload(
     const GURL& destination_url,
     std::string_view name_space,
     std::string_view ephemeral_public_key) {
-  auto payload = base::Value::Dict()
+  auto payload = base::DictValue()
                      .Set("sub", client_id)
-                     .Set("aud", destination_url.spec())
+                     .Set("aud", RemoveQueryAndFragment(destination_url).spec())
                      .Set("jti", challenge)
                      .Set("iss", Base64UrlEncode(crypto::SHA256Hash(pubkey)))
                      .Set("namespace", name_space);

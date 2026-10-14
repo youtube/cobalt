@@ -75,7 +75,18 @@ class MemoryPool final {
   using Epoch = PooledPage::Epoch;
 
  public:
-  MemoryPool();
+  // Config struct used to initialize MemoryPool. We save the flags in it and
+  // don't use v8_flags directly to avoid races (especially for tests using
+  // FlagScope).
+  struct Config final {
+    bool single_threaded = false;
+    bool share_memory_on_teardown = true;
+    bool trace_gc_nvp = false;
+    size_t max_large_page_pool_size = 32;
+    size_t timeout_in_sec = 8;
+  };
+
+  explicit MemoryPool(Config);
   ~MemoryPool();
 
   MemoryPool(const MemoryPool&) = delete;
@@ -98,10 +109,14 @@ class MemoryPool final {
   std::optional<PooledPage::Result> RemoveLarge(Isolate* isolate,
                                                 size_t chunk_size);
 
-  // Adds a zone reservation to the pool.
+  // Adds a zone reservation to the pool. A zone reservation doesn't need to
+  // be necessarily associated with an `isolate` (i.e. `isolate` may be
+  // nullptr).
   void AddZoneReservation(Isolate* isolate, VirtualMemory zone_reservation);
 
   // Tries to get a zone reservation from the pool. See Remove() for details.
+  // A zone reservation doesn't need to be necessarily associated with an
+  // `isolate` (i.e. `isolate` may be nullptr).
   std::optional<VirtualMemory> RemoveZoneReservation(Isolate* isolate);
 
   // Used to release the local page pool for this isolate on isolate teardown.
@@ -133,6 +148,7 @@ class MemoryPool final {
 
   // Cancels the background releasing task.
   V8_EXPORT_PRIVATE void CancelAndWaitForTaskToFinishForTesting();
+  V8_EXPORT_PRIVATE void ReenableTaskForTesting();
 
  private:
   class ReleasePooledChunksTask;
@@ -145,6 +161,8 @@ class MemoryPool final {
   template <typename PoolEntry>
   class PoolImpl final {
    public:
+    explicit PoolImpl(MemoryPool::Config config) : config_(config) {}
+
     ~PoolImpl() {
       DCHECK(local_pools_.empty());
       DCHECK(shared_pool_.empty());
@@ -165,6 +183,7 @@ class MemoryPool final {
     size_t SharedSize() const;
 
    private:
+    const MemoryPool::Config config_;
     absl::flat_hash_map<Isolate*, std::vector<PoolEntry>> local_pools_;
     std::vector<PoolEntry> shared_pool_;
     mutable base::Mutex mutex_;
@@ -172,6 +191,8 @@ class MemoryPool final {
 
   class LargePagePoolImpl final {
    public:
+    explicit LargePagePoolImpl(MemoryPool::Config config) : config_(config) {}
+
     ~LargePagePoolImpl() { DCHECK(pages_.empty()); }
 
     bool Add(std::vector<LargePage*>& pages, Epoch epoch);
@@ -184,6 +205,7 @@ class MemoryPool final {
     size_t ComputeTotalSize() const;
 
    private:
+    const MemoryPool::Config config_;
     base::Mutex mutex_;
     std::vector<PooledPage> pages_;
     size_t total_size_ = 0;
@@ -212,6 +234,9 @@ class MemoryPool final {
 
   void PostDelayedReleaseTask(Isolate* isolate, base::TimeDelta delay);
   void PostDelayedReleaseTaskIfNeeded(Isolate* isolate);
+
+  const Config config_;
+  std::atomic<bool> task_disabled_ = false;
 
   PoolImpl<PooledPage> page_pool_;
   PoolImpl<PooledVirtualMemory> zone_pool_;

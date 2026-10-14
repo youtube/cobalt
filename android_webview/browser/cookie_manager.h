@@ -119,7 +119,7 @@ class CookieManager {
   void SetCookie(JNIEnv* env,
                  const base::android::JavaRef<jstring>& url,
                  std::string& value,
-                 const base::android::JavaRef<jobject>& java_callback);
+                 base::OnceCallback<void(bool)> callback);
   void SetCookieSync(JNIEnv* env,
                      const base::android::JavaRef<jstring>& url,
                      std::string& value);
@@ -131,11 +131,9 @@ class CookieManager {
       JNIEnv* env,
       const base::android::JavaRef<jstring>& url);
 
-  void RemoveAllCookies(JNIEnv* env,
-                        const base::android::JavaRef<jobject>& java_callback);
-  void RemoveSessionCookies(
-      JNIEnv* env,
-      const base::android::JavaRef<jobject>& java_callback);
+  void RemoveAllCookies(JNIEnv* env, base::OnceCallback<void(bool)> callback);
+  void RemoveSessionCookies(JNIEnv* env,
+                            base::OnceCallback<void(bool)> callback);
   void RemoveAllCookiesSync(JNIEnv* env);
   void RemoveSessionCookiesSync(JNIEnv* env);
   void RemoveExpiredCookies(JNIEnv* env);
@@ -169,7 +167,7 @@ class CookieManager {
   // Gets the Network Service CookieManager if it's been passed via
   // |SetMojoCookieManager|. Otherwise (if Network Service is disabled or
   // content layer has not yet initialized the NetworkContext), this returns
-  // nullptr (and |GetCookieStore| should be used installed). This must only be
+  // nullptr (and |GetCookieStore| should be used instead). This must only be
   // called on the CookieStore TaskRunner.
   network::mojom::CookieManager* GetMojoCookieManager();
 

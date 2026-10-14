@@ -650,6 +650,18 @@ struct FeaturesGL : FeatureSetBase
         &members,
     };
 
+    FeatureInfo disableClearTexImageForRobustInit = {
+        "disableClearTexImageForRobustInit",
+        FeatureCategory::OpenGLWorkarounds,
+        &members,
+    };
+
+    FeatureInfo multiviewViaViewportArray = {
+        "multiviewViaViewportArray",
+        FeatureCategory::OpenGLFeatures,
+        &members,
+    };
+
 };
 
 inline FeaturesGL::FeaturesGL()  = default;

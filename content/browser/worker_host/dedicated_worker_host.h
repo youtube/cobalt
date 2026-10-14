@@ -14,6 +14,7 @@
 #include "build/build_config.h"
 #include "content/browser/browser_interface_broker_impl.h"
 #include "content/browser/buckets/bucket_context.h"
+#include "content/browser/locks/lock_manager.h"
 #include "content/browser/renderer_host/code_cache_host_impl.h"
 #include "content/browser/security/dip/document_isolation_policy_reporter.h"
 #include "content/common/content_export.h"
@@ -85,6 +86,7 @@ class CONTENT_EXPORT DedicatedWorkerHost final
     : public blink::mojom::DedicatedWorkerHost,
       public blink::mojom::BackForwardCacheControllerHost,
       public RenderProcessHostObserver,
+      public LockManager<storage::BucketId>::Observer,
       public BucketContext,
       public base::SupportsUserData {
  public:
@@ -167,6 +169,8 @@ class CONTENT_EXPORT DedicatedWorkerHost final
       mojo::PendingReceiver<blink::mojom::BlobURLStore> receiver);
   void CreateBucketManagerHost(
       mojo::PendingReceiver<blink::mojom::BucketManagerHost> receiver);
+  void CreateLockManager(
+      mojo::PendingReceiver<blink::mojom::LockManager> receiver);
   void GetFileSystemAccessManager(
       mojo::PendingReceiver<blink::mojom::FileSystemAccessManager> receiver);
 
@@ -284,11 +288,16 @@ class CONTENT_EXPORT DedicatedWorkerHost final
   void InProcessRendererExiting(RenderProcessHost* host) override;
   void RenderProcessHostDestroyed(RenderProcessHost* host) override;
 
+  // LockObserver
+  void OnLockContention() override;
+
   // Called from `WorkerScriptFetcher`. Continues starting the dedicated worker
   // in the renderer process.
   void DidStartScriptLoad(std::optional<WorkerScriptFetcherResult> result);
 
   void ScriptLoadStartFailed(const network::URLLoaderCompletionStatus& status);
+
+  StoragePartitionImpl* GetStoragePartitionImpl();
 
   // Sets up the observer of network service crash.
   void ObserveNetworkServiceCrash(StoragePartitionImpl* storage_partition_impl);

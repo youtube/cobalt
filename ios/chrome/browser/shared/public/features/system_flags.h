@@ -182,6 +182,12 @@ bool ShouldForceDisableComposeboxAIM();
 // Returns true if Composebox Create Images eligibility should be disabled.
 bool ShouldForceDisableComposeboxCreateImages();
 
+// Returns true if Canvas eligibility should be disabled.
+bool ShouldForceDisableComposeboxCanvas();
+
+// Returns true if Deep Search eligibility should be disabled.
+bool ShouldForceDisableComposeboxDeepSearch();
+
 // Returns true if Composebox Pdf Upload eligibility should be disabled.
 bool ShouldForceDisableComposeboxPdfUpload();
 
