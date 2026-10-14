@@ -34,58 +34,6 @@ env:
   DEFAULT_MAX_DEFLAKE_ATTEMPTS: 3
 
 jobs:
-  init-comment:
-    runs-on: ubuntu-latest
-    if: (github.event.workflow_run.head_sha || github.event.workflow_run.pull_requests[0].number || inputs.pr_number) != ''
-    permissions:
-      pull-requests: write
-    concurrency:
-      group: ci-shepherd-anchor @ ${{ github.event.workflow_run.head_sha || inputs.pr_number }}
-      cancel-in-progress: false
-    outputs:
-      pr_number: ${{ steps.anchor.outputs.pr_number }}
-      comment_id: ${{ steps.anchor.outputs.comment_id }}
-      head_sha: ${{ steps.anchor.outputs.head_sha }}
-    steps:
-      - name: Create or Find Anchor Comment
-        id: anchor
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
-          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
-          PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number || inputs.pr_number }}
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          head_sha="${HEAD_SHA:-}"
-          pr_number="${PR_NUMBER:-}"
-          if [[ -z "${pr_number}" && -n "${head_sha}" ]]; then
-            pr_number=$(gh api "repos/${REPO}/commits/${head_sha}/pulls" --jq '.[0].number // ""' 2>/dev/null || true)
-          fi
-          if [[ -z "${head_sha}" && -n "${pr_number}" ]]; then
-            head_sha=$(gh pr view "${pr_number}" --repo "${REPO}" --json headRefOid -q .headRefOid)
-          fi
-
-          echo "pr_number=${pr_number}" >> "${GITHUB_OUTPUT}"
-          echo "head_sha=${head_sha}" >> "${GITHUB_OUTPUT}"
-
-          if [[ -z "${pr_number}" ]]; then
-            echo "No PR associated with commit ${head_sha}. Skipping anchor comment."
-            exit 0
-          fi
-
-          header="<!-- sticky-pull-request-comment: shepherd-report -->"
-          comment_id=$(gh api --paginate "repos/${REPO}/issues/${pr_number}/comments" 2>/dev/null \
-            | jq -r --arg h "${header}" '.[]? | select((.body // "") | contains($h)) | .id' | head -n1 || true)
-
-          if [[ -z "${comment_id}" ]]; then
-            body="${header}"$'\n\n'"| Context | State | Description |"$'\n'"|---|---|---|"$'\n'"| CI / All Pass | ⏳ PENDING | Checks are running |"
-            comment_id=$(gh api -X POST "repos/${REPO}/issues/${pr_number}/comments" -f body="${body}" --jq '.id')
-          fi
-
-          echo "comment_id=${comment_id}" >> "${GITHUB_OUTPUT}"
-
   status-and-deflake:
     runs-on: ubuntu-latest
     permissions:
@@ -105,22 +53,42 @@ jobs:
           REPO: ${{ github.repository }}
           HEAD_SHA_EVENT: ${{ github.event.workflow_run.head_sha }}
           PR_NUMBER_EVENT: ${{ github.event.workflow_run.pull_requests[0].number || inputs.pr_number }}
+          TRIGGER_EVENT: ${{ github.event.workflow_run.event || 'workflow_dispatch' }}
+          HEAD_REPO_OWNER: ${{ github.event.workflow_run.head_repository.owner.login }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
         shell: bash
         run: |
           set -euo pipefail
 
           pr_number="${PR_NUMBER_EVENT:-}"
           head_sha="${HEAD_SHA_EVENT:-}"
-          if [[ -z "${pr_number}" && -n "${head_sha}" ]]; then
-            pr_number=$(gh api "repos/${REPO}/commits/${head_sha}/pulls" --jq '.[0].number // ""' 2>/dev/null || true)
+
+          # Post-submit runs (push to main/release branches) must never be
+          # attributed to an already merged PR, so skip PR resolution there.
+          if [[ "${TRIGGER_EVENT}" == "push" ]]; then
+            pr_number=""
+          elif [[ -z "${pr_number}" && -n "${head_sha}" ]]; then
+            # workflow_run.pull_requests is empty for fork PRs, and the
+            # commits/<sha>/pulls endpoint only knows about commits that exist
+            # in this repository. Resolve fork PRs via their head ref instead.
+            if [[ -n "${HEAD_REPO_OWNER:-}" && -n "${HEAD_BRANCH:-}" ]]; then
+              pr_number=$(gh api -X GET "repos/${REPO}/pulls" \
+                  -f head="${HEAD_REPO_OWNER}:${HEAD_BRANCH}" -f state=open -f per_page=100 \
+                | jq -r --arg sha "${head_sha}" '[.[] | select(.head.sha == $sha)][0].number // ""')
+            fi
+            if [[ -z "${pr_number}" ]]; then
+              pr_number=$(gh api "repos/${REPO}/commits/${head_sha}/pulls" \
+                | jq -r '[.[] | select(.state == "open")][0].number // ""')
+            fi
+            if [[ -z "${pr_number}" ]]; then
+              pr_number=$(gh pr list --repo "${REPO}" --search "${head_sha}" --state open --json number --jq '.[0].number // ""')
+            fi
           fi
           if [[ -z "${head_sha}" && -n "${pr_number}" ]]; then
             head_sha=$(gh pr view "${pr_number}" --repo "${REPO}" --json headRefOid -q .headRefOid)
           fi
-          if [[ -z "${pr_number}" ]]; then
-            pr_number=$(gh pr list --repo "${REPO}" --search "${head_sha}" --state all --json number --jq '.[0].number // ""')
-          fi
 
+          echo "Resolved head_sha=${head_sha} pr_number=${pr_number:-<none>}"
           echo "head_sha=${head_sha}" >> "${GITHUB_OUTPUT}"
           echo "pr_number=${pr_number}" >> "${GITHUB_OUTPUT}"
 
@@ -247,7 +215,7 @@ jobs:
             -f context="CI / ${WORKFLOW_NAME}"
 
           # 1. Query current commit statuses
-          status_json=$(gh api "repos/${REPO}/commits/${HEAD_SHA}/status" 2>/dev/null || echo "{}")
+          status_json=$(gh api "repos/${REPO}/commits/${HEAD_SHA}/status?per_page=100")
 
           # 2. Inspect CI checks to check for failures or full completion
           has_failures=$(echo "${status_json}" | jq -r '
@@ -272,27 +240,35 @@ jobs:
             overall_desc="Checks are running"
           fi
 
-          if [[ -n "${overall_state:-}" && "${overall_state}" != "pending" ]]; then
-            gh api "repos/${REPO}/statuses/${HEAD_SHA}" \
-              -f state="${overall_state}" \
-              -f description="${overall_desc}" \
-              -f context="CI / All Pass"
-          fi
+          # Always publish the overall state, including "pending", so that a
+          # deflake retry resets a previous failure verdict.
+          gh api "repos/${REPO}/statuses/${HEAD_SHA}" \
+            -f state="${overall_state}" \
+            -f description="${overall_desc}" \
+            -f context="CI / All Pass"
 
   comment-pr:
     runs-on: ubuntu-latest
-    needs: [init-comment, status-and-deflake]
-    if: always() && needs.init-comment.outputs.comment_id != '' && !cancelled()
+    needs: [status-and-deflake]
+    # Run even when status-and-deflake failed so the comment reflects the
+    # current statuses, but only when the run belongs to an open PR.
+    if: ${{ !cancelled() && needs.status-and-deflake.outputs.pr_number != '' && needs.status-and-deflake.outputs.head_sha != '' }}
     permissions:
       statuses: read
       pull-requests: write
+    # Serialize comment updates per head SHA. This job only enters the queue
+    # after its own status update has been published, so the last job to run
+    # always observes the complete set of statuses.
+    concurrency:
+      group: ci-shepherd-comment @ ${{ needs.status-and-deflake.outputs.head_sha }}
+      cancel-in-progress: false
     steps:
       - name: Update PR Comment
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
-          HEAD_SHA: ${{ needs.init-comment.outputs.head_sha || needs.status-and-deflake.outputs.head_sha }}
-          COMMENT_ID: ${{ needs.init-comment.outputs.comment_id }}
+          HEAD_SHA: ${{ needs.status-and-deflake.outputs.head_sha }}
+          PR_NUMBER: ${{ needs.status-and-deflake.outputs.pr_number }}
         shell: bash
         run: |
           set -euo pipefail
@@ -302,16 +278,28 @@ jobs:
             echo "|---|---|---|"
           } > shepherd_report.md
 
-          status_json=$(gh api "repos/${REPO}/commits/${HEAD_SHA}/status" 2>/dev/null || echo "{}")
+          status_json=$(gh api "repos/${REPO}/commits/${HEAD_SHA}/status?per_page=100")
           echo "${status_json}" | jq -r '
             {success: "✅ PASS", pending: "⏳ PENDING"} as $icons |
             .statuses // [] | sort_by(.context)[] | select(.context | startswith("CI /")?) |
-            "| [\(.context)](\(.target_url // "")) | \($icons[.state] // "❌ FAIL") | \(.description // "") |"
+            (if (.target_url // "") != "" then "[\(.context)](\(.target_url))" else .context end) as $ctx |
+            "| \($ctx) | \($icons[.state] // "❌ FAIL") | \(.description // "") |"
           ' >> shepherd_report.md
 
           header="<!-- sticky-pull-request-comment: shepherd-report -->"
           comment_body="${header}"$'\n'"$(cat shepherd_report.md)"
-          gh api -X PATCH "repos/${REPO}/issues/comments/${COMMENT_ID}" -f body="${comment_body}" --silent
+
+          # Find the sticky comment (created by pull_request.yml on PR open) or
+          # create it if missing. Let API errors fail the job instead of
+          # silently posting duplicate comments.
+          comment_id=$(gh api --paginate --slurp "repos/${REPO}/issues/${PR_NUMBER}/comments" \
+            | jq -r --arg h "${header}" '[.[][]? | select((.body // "") | contains($h)) | .id][0] // empty')
+
+          if [[ -n "${comment_id}" ]]; then
+            gh api -X PATCH "repos/${REPO}/issues/comments/${comment_id}" -f body="${comment_body}" --silent
+          else
+            gh api -X POST "repos/${REPO}/issues/${PR_NUMBER}/comments" -f body="${comment_body}" --silent
+          fi
 
   publish-golden-workspace:
     name: Publish Golden Workspace Refs
