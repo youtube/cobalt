@@ -174,6 +174,7 @@ void CobaltVideoOverlayWindow::SetHangUpButtonVisibility(bool is_visible) {}
 void CobaltVideoOverlayWindow::SetNextSlideButtonVisibility(bool is_visible) {}
 void CobaltVideoOverlayWindow::SetPreviousSlideButtonVisibility(
     bool is_visible) {}
+void CobaltVideoOverlayWindow::SetPlaybackControlsVisibility(bool is_visible) {}
 
 void CobaltVideoOverlayWindow::SetMediaPosition(
     const media_session::MediaPosition& position) {}
