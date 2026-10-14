@@ -27,6 +27,7 @@ from conflicts import ConflictResolver
 from gclient_sync import GClientSyncResolver
 from gn_gen import GNGenResolver
 from engine_client import ReasoningEngineClient
+from patching import NEEDS_HUMAN_PREFIX
 from token_usage import TokenUsage
 
 log = logging.getLogger(__name__)
@@ -90,6 +91,16 @@ def write_rebase_report(
 - **Changes by Phase**: {phase_breakdown}
 """
 
+  needs_human = [
+      c.error[len(NEEDS_HUMAN_PREFIX):]
+      for c in session_changes or []
+      if c.error and c.error.startswith(NEEDS_HUMAN_PREFIX)
+  ]
+  human_section = ""
+  if needs_human:
+    human_section = ("\n## Needs Human Decision\n" +
+                     "".join(f"- {r}\n" for r in needs_human))
+
   usage_section = ""
   if token_usage is not None:
     usage_section = ("\n## 4. Token Usage\n" +
@@ -106,7 +117,7 @@ def write_rebase_report(
 - **Workhorse Model**: `{model}`
 - **Expert Model**: `{expert_model}`
 - **Total Execution Time**: `{elapsed_seconds:.1f}s`
-
+{human_section}
 ## 2. Rebase Pipeline Stages
 | Phase | Stage | Description | Status |
 | :--- | :--- | :--- | :--- |
@@ -361,6 +372,13 @@ def run_pipeline(args: argparse.Namespace) -> int:
     except OSError as e:
       log.info("  - Warning: Failed to write change history: %s", e)
 
+  def failure_status(phase: str) -> str:
+    stopped = any(
+        c.error and c.error.startswith(NEEDS_HUMAN_PREFIX)
+        for c in shared_session_changes)
+    label = "NEEDS HUMAN" if stopped else "FAILED"
+    return f"{label} ({phase})"
+
   def write_report(status_str: str) -> str:
     dump_change_history()
     return write_rebase_report(
@@ -388,7 +406,7 @@ def run_pipeline(args: argparse.Namespace) -> int:
     conflict_ok = conflict_resolver.run_resolution_loop()
     if not conflict_ok:
       log.warning("[FAIL] Phase 1 Conflict Resolution failed.")
-      write_report("FAILED (Phase 1: Conflict Resolution)")
+      write_report(failure_status("Phase 1: Conflict Resolution"))
       return 1
     log.info("[OK] Phase 1 Completed Successfully.")
     # Checkpoint Phase 1 resolutions into a clean commit so HEAD is valid
@@ -431,7 +449,7 @@ def run_pipeline(args: argparse.Namespace) -> int:
     sync_ok = sync_resolver.run_resolution_loop()
     if not sync_ok:
       log.warning("[FAIL] Phase 2 Toolchain Sync failed.")
-      write_report("FAILED (Phase 2: gclient sync)")
+      write_report(failure_status("Phase 2: gclient sync"))
       return 1
     log.info("[OK] Phase 2 Completed Successfully.")
 
@@ -445,7 +463,7 @@ def run_pipeline(args: argparse.Namespace) -> int:
     gn_ok = gn_resolver.run_resolution_loop()
     if not gn_ok:
       log.warning("[FAIL] Phase 3 GN Generation & Header Verification failed.")
-      write_report("FAILED (Phase 3: GN Generation)")
+      write_report(failure_status("Phase 3: GN Generation"))
       return 1
     log.info("[OK] Phase 3 Completed Successfully.")
 
@@ -460,7 +478,7 @@ def run_pipeline(args: argparse.Namespace) -> int:
     build_ok = autoninja_resolver.run_resolution_loop()
     if not build_ok:
       log.warning("[FAIL] Phase 4 Compiler Feedback Loop failed.")
-      write_report("FAILED (Phase 4: Compiler Loop)")
+      write_report(failure_status("Phase 4: Compiler Loop"))
       return 1
     log.info("[OK] Phase 4 Completed Successfully.")
 

@@ -23,11 +23,12 @@ from base_resolver import (
 )
 from diagnostics import Diagnostic
 from patching import (
+    NEEDS_HUMAN_PREFIX,
     apply_parsed_patch,
     apply_search_replace,
+    exec_script_changes,
     parse_patch,
     patch_file_changes,
-    patch_rejections,
 )
 from repo_guards import (
     _COBALT_GIT_HISTORY_CACHE,
@@ -38,7 +39,7 @@ from repo_guards import (
     patch_target_rejection,
     resolve_repo_file_path,
 )
-from run_rebase_pipeline import get_chromium_milestone
+from run_rebase_pipeline import get_chromium_milestone, write_rebase_report
 from tools import (
     execute_local_tool,
     extract_line_anchored_tool_commands,
@@ -2522,51 +2523,147 @@ class AtomicPatchTest(unittest.TestCase):
 
 
 class ExecScriptGuardTest(unittest.TestCase):
-  """GN patches may not add, change or remove exec_script() calls."""
+  """Any change to an exec_script() call stops the pipeline for a human."""
+
+  _GN = ('x = exec_script("a.py",\n'
+         '                [ "--safe" ],\n'
+         '                "value")  # uses ")" in a comment\n'
+         "deps = []\n")
 
   def setUp(self):
     self._tmp = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
     self.repo = self._tmp.name
-    with open(os.path.join(self.repo, "BUILD.gn"), "w", encoding="utf-8") as f:
-      f.write('x = exec_script("a.py", [], "value")\ndeps = []\n')
+    self.gn = os.path.join(self.repo, "BUILD.gn")
+    with open(self.gn, "w", encoding="utf-8") as f:
+      f.write(self._GN)
 
   def tearDown(self):
     self._tmp.cleanup()
 
-  def _rejections(self, patch):
-    return patch_rejections(parse_patch(patch, self.repo), self.repo)
+  def _changes(self, patch):
+    return exec_script_changes(parse_patch(patch, self.repo), self.repo)
 
-  def test_rejects_added_exec_script(self):
-    patch = ("FILE: BUILD.gn\n<<<<<<< SEARCH\ndeps = []\n=======\n"
-             'deps = []\ny = exec_script("evil.py", [], "value")\n'
-             ">>>>>>> REPLACE\n")
-    self.assertIn("exec_script()", self._rejections(patch)[0])
-
-  def test_allows_unchanged_exec_script_context(self):
-    patch = ("FILE: BUILD.gn\n<<<<<<< SEARCH\n"
-             'x = exec_script("a.py", [], "value")\ndeps = []\n=======\n'
-             'x = exec_script("a.py", [], "value")\ndeps = [ ":b" ]\n'
-             ">>>>>>> REPLACE\n")
-    self.assertEqual(self._rejections(patch), [])
-
-  def test_rejects_changed_exec_script_in_unified_diff(self):
-    patch = ("--- a/BUILD.gn\n+++ b/BUILD.gn\n@@ -1,2 +1,2 @@\n"
-             '-x = exec_script("a.py", [], "value")\n'
-             '+x = exec_script("b.py", [], "value")\n deps = []\n')
-    self.assertIn("exec_script()", self._rejections(patch)[0])
-
-  def test_rejects_change_inside_multiline_call(self):
-    with open(os.path.join(self.repo, "BUILD.gn"), "w", encoding="utf-8") as f:
-      f.write('x = exec_script("a.py",\n'
-              '                [ "--safe" ],\n'
-              '                "value")  # uses ")" in a comment\n'
-              "deps = []\n")
+  def test_change_inside_multiline_call_is_detected(self):
     patch = ('FILE: BUILD.gn\n<<<<<<< SEARCH\n                [ "--safe" ],\n'
              '=======\n                [ "--evil" ],\n>>>>>>> REPLACE\n')
-    self.assertIn("exec_script()", self._rejections(patch)[0])
+    self.assertEqual(self._changes(patch), ["BUILD.gn"])
+
+  def test_added_call_in_unified_diff_is_detected(self):
+    patch = ("--- a/BUILD.gn\n+++ b/BUILD.gn\n@@ -4 +4,2 @@\n deps = []\n"
+             '+y = exec_script("b.py", [], "value")\n')
+    self.assertEqual(self._changes(patch), ["BUILD.gn"])
+
+  def test_edit_elsewhere_in_file_is_allowed(self):
     patch = ("FILE: BUILD.gn\n<<<<<<< SEARCH\ndeps = []\n=======\n"
              'deps = [ ":b" ]\n>>>>>>> REPLACE\n')
-    self.assertEqual(self._rejections(patch), [])
+    self.assertEqual(self._changes(patch), [])
+
+  def test_resolution_loop_stops_and_records_reason(self):
+    patch = ('FILE: BUILD.gn\n<<<<<<< SEARCH\n                [ "--safe" ],\n'
+             '=======\n                [ "--evil" ],\n>>>>>>> REPLACE\n')
+
+    class _Resolver(BaseResolver):
+      """Build always fails; the model always proposes the exec change."""
+
+      @property
+      def name(self):
+        return "gn"
+
+      def run_command(self, iteration):
+        del iteration
+        return False, "", ""
+
+      def extract_diagnostics(self, build_output, siso_output):
+        del build_output, siso_output
+        return [Diagnostic(error_message="gn error")]
+
+      def resolve_diagnostic(self, diagnostic, **kwargs):
+        del diagnostic, kwargs
+        return patch, "flash", "BUILD.gn"
+
+    resolver = _Resolver(self.repo, max_iterations=5)
+    self.assertFalse(resolver.run_resolution_loop())
+    self.assertTrue(resolver.needs_human())
+    self.assertEqual(len(resolver.session_changes), 1)
+    self.assertTrue(
+        resolver.session_changes[0].error.startswith(NEEDS_HUMAN_PREFIX))
+    with open(self.gn, encoding="utf-8") as f:
+      self.assertEqual(f.read(), self._GN)
+
+  _CONFLICT = ('x = exec_script("a.py",\n'
+               "<<<<<<< HEAD\n"
+               '                [ "--old" ],\n'
+               "=======\n"
+               '                [ "--new" ],\n'
+               ">>>>>>> upstream\n"
+               '                "value")\n')
+
+  def _resolve_conflict(self, replacement=None):
+    """Runs Phase 1 on the GN conflict; mock mode takes the upstream side."""
+    with open(self.gn, "w", encoding="utf-8") as f:
+      f.write(self._CONFLICT)
+    engine = None
+    if replacement is not None:
+      engine = mock.MagicMock()
+      engine.generate_expert_guidance.return_value = {"guidance": ""}
+      engine.resolve_conflict.return_value = {"replacement": replacement}
+    changes = []
+    ok = resolve_file_conflicts(
+        file_path=self.gn,
+        repo_path=self.repo,
+        git_context="",
+        engine=engine,
+        session_changes=changes,
+        mock_mode=replacement is None)
+    with open(self.gn, encoding="utf-8") as f:
+      return ok, changes, f.read()
+
+  def test_phase1_allows_upstream_side_of_exec_script_conflict(self):
+    ok, _, content = self._resolve_conflict()
+    self.assertTrue(ok)
+    self.assertIn('[ "--new" ]', content)
+
+  def test_phase1_allows_cobalt_side_of_exec_script_conflict(self):
+    ok, _, content = self._resolve_conflict('                [ "--old" ],')
+    self.assertTrue(ok)
+    self.assertIn('[ "--old" ]', content)
+
+  def test_phase1_allows_both_sides_without_markers(self):
+    ok, _, content = self._resolve_conflict(
+        '                [ "--old" ],\n                [ "--new" ],')
+    self.assertTrue(ok)
+    self.assertNotIn("<<<<<<<", content)
+
+  def test_phase1_stops_on_model_written_exec_script(self):
+    ok, changes, content = self._resolve_conflict(
+        '                [ "--evil" ],')
+    self.assertFalse(ok)
+    self.assertTrue(changes[-1].error.startswith(NEEDS_HUMAN_PREFIX))
+    self.assertEqual(content, self._CONFLICT)
+
+  def test_report_lists_needs_human_reasons(self):
+    record = AgentChangeRecord(
+        phase="gn",
+        iteration=1,
+        target_file="BUILD.gn",
+        error=NEEDS_HUMAN_PREFIX + "the fix changes exec_script() in BUILD.gn",
+        applied_cleanly=False)
+    path = write_rebase_report(
+        self.repo,
+        "android-arm",
+        "devel",
+        target="cobalt",
+        model="flash",
+        expert_model="expert",
+        status="NEEDS HUMAN (Phase 3: GN Generation)",
+        elapsed_seconds=1.0,
+        repo_path=self.repo,
+        session_changes=[record])
+    with open(path, encoding="utf-8") as f:
+      report = f.read()
+    self.assertIn(
+        "## Needs Human Decision\n- the fix changes exec_script() "
+        "in BUILD.gn\n", report)
 
 
 class ResolverInitTest(unittest.TestCase):

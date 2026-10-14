@@ -17,7 +17,8 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 import warnings
 
 from diagnostics import Diagnostic
-from patching import (apply_parsed_patch, parse_patch, patch_file_changes,
+from patching import (NEEDS_HUMAN_PREFIX, apply_parsed_patch,
+                      exec_script_changes, parse_patch, patch_file_changes,
                       patch_rejections)
 from tools import execute_local_tool, extract_tool_commands
 
@@ -411,10 +412,25 @@ class BaseResolver(abc.ABC):
         log.warning("[%s] [FAIL] Model returned empty patch.", self.name)
         continue
       self._apply_and_record(patch, model_used, rel_target, state)
+      if self.needs_human():
+        log.warning(
+            "[%s] [STOP] A fix needs a human decision; see the "
+            "summary report.", self.name)
+        return False
 
     log.warning("[%s] [FAIL] Exhausted maximum iterations (%s).", self.name,
                 self.max_iterations)
     return False
+
+  def needs_human(self) -> bool:
+    """True once any phase recorded a change that only a human may make.
+
+    session_changes is shared by all phases, so a stop requested by a
+    nested loop (e.g. GN regeneration after a Phase 4 patch) is seen here.
+    """
+    return any(
+        c.error and c.error.startswith(NEEDS_HUMAN_PREFIX)
+        for c in self.session_changes)
 
   def _rel_path(self, path: str) -> str:
     """Repo-relative form of a diagnostic path ("" stays "")."""
@@ -633,10 +649,18 @@ class BaseResolver(abc.ABC):
              rel_target)
     parsed = parse_patch(patch, self.repo_path, default_file=rel_target)
     rejections = patch_rejections(parsed, self.repo_path)
-    modified_files = ([] if rejections else apply_parsed_patch(
+    exec_files = ([] if rejections else exec_script_changes(
+        parsed, self.repo_path))
+    modified_files = ([] if rejections or exec_files else apply_parsed_patch(
         parsed, self.repo_path))
     if not modified_files:
-      if rejections:
+      if exec_files:
+        files = ", ".join(exec_files)
+        error = (f"{NEEDS_HUMAN_PREFIX}the fix changes exec_script() in "
+                 f"{files}; gn gen would run it at once, so "
+                 "this is an environment/build configuration change for a "
+                 "human, not a compile fix")
+      elif rejections:
         error = "rejected: " + "; ".join(rejections)
       elif not parsed.blocks:
         error = "response had no SEARCH/REPLACE block or applicable diff"

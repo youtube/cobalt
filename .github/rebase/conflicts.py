@@ -17,6 +17,7 @@ import warnings
 
 from base_resolver import AgentChangeRecord, BaseResolver
 from diagnostics import Diagnostic
+from patching import (NEEDS_HUMAN_PREFIX, exec_script_calls, exec_script_spans)
 from repo_guards import is_unmodified_third_party
 from tools import (
     execute_local_tool,
@@ -333,6 +334,36 @@ def clean_output(text: str) -> str:
   return text.rstrip()
 
 
+def _exec_script_resolution_problem(content: str, block: ConflictBlock,
+                                    resolved_code: str, rel_path: str) -> str:
+  """Why a resolution of a GN conflict needs a human ("" if it is fine).
+
+  gn gen runs exec_script() commands, so a conflict that overlaps an
+  exec_script() call may only be resolved with code Chromium or Cobalt
+  already reviewed: either side alone, or both sides (in either order) with
+  the markers removed. Any other exec_script() result was written by the
+  model.
+  """
+  if not rel_path.endswith((".gn", ".gni")):
+    return ""
+  start = content.index(block.raw_block)
+  end = start + len(block.raw_block)
+  if not any(a < end and start < b for a, b in exec_script_spans(content)):
+    return ""
+
+  def calls(code: str) -> List[str]:
+    return exec_script_calls(content.replace(block.raw_block, code, 1))
+
+  ours, theirs = block.ours_content, block.theirs_content
+  reviewed = (ours, theirs, ours + theirs, theirs + ours)
+  if calls(resolved_code) in [calls(code) for code in reviewed]:
+    return ""
+  return (f"{NEEDS_HUMAN_PREFIX}conflict block #{block.index} in {rel_path} "
+          "overlaps an exec_script() call and the resolution is not one side "
+          "or both sides of the conflict; gn gen would run it, so resolve it "
+          "by hand")
+
+
 def resolve_file_conflicts(
     file_path: str,
     repo_path: str,
@@ -508,6 +539,27 @@ def resolve_file_conflicts(
     if (block.raw_block.endswith("\n") and resolved_code and
         not resolved_code.endswith("\n")):
       resolved_code += "\n"
+    reason = _exec_script_resolution_problem(content, block, resolved_code,
+                                             rel_path)
+    if reason:
+      log.warning("  [STOP] %s", reason)
+      if session_changes is not None:
+        session_changes.append(
+            AgentChangeRecord(
+                phase="resolve_conflicts",
+                iteration=block.index,
+                target_file=rel_path,
+                file_changes={
+                    rel_path: (f"Conflict Block #{block.index}:\n"
+                               f"{block.raw_block}\n\nProposed Resolution:\n"
+                               f"{resolved_code}")
+                },
+                error=reason,
+                applied_cleanly=False,
+            ))
+      if escalations is not None:
+        escalations.append(EscalationItem(rel_path, block.index, reason))
+      return False
     content = content.replace(block.raw_block, resolved_code, 1)
     if session_changes is not None:
       session_changes.append(

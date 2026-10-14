@@ -255,6 +255,9 @@ def parse_patch(patch_text: str,
 
 _EXEC_SCRIPT_RE = re.compile(r"\bexec_script\s*\(")
 
+# Prefix of a change-record error that stops the pipeline for a human.
+NEEDS_HUMAN_PREFIX = "NEEDS HUMAN: "
+
 
 def _blank_gn_comments(content: str) -> str:
   """GN source with # comments replaced by spaces (offsets unchanged)."""
@@ -319,21 +322,6 @@ def exec_script_calls(content: str) -> List[str]:
       " ".join(code[a:b].split()) for a, b in exec_script_spans(content))
 
 
-def _exec_script_rejection(rel_file: str, old: str, new: str) -> str:
-  """Rejects GN edits that add, change or remove exec_script() calls.
-
-  gn gen runs exec_script() commands, so a model-written call would run
-  arbitrary code on the runner. Edits elsewhere in the file are allowed.
-  """
-  if not rel_file.endswith((".gn", ".gni")):
-    return ""
-  if exec_script_calls(old) == exec_script_calls(new):
-    return ""
-  return (f"patch for {rel_file} adds, changes or removes an exec_script() "
-          "call, which gn gen would run; fix the build without touching "
-          "exec_script()")
-
-
 def _block_rejection(b: PatchBlock, repo_path: str) -> str:
   """Why this block must not be applied ("" if it may be)."""
   if b.kind == "SEARCH":
@@ -350,8 +338,8 @@ def _planned_contents(parsed: ParsedPatch,
                       repo_path: str) -> Optional[Dict[str, Tuple[str, str]]]:
   """{absolute path: (old, new content)} that the patch would produce.
 
-  Computed in memory, without writing, so guards can inspect the result and
-  apply can write every file or none. None if any edit does not apply.
+  Computed in memory, without writing, so callers can inspect the result
+  and apply can write every file or none. None if any edit does not apply.
   """
   if not parsed.blocks:
     rel_file = _unified_diff_target(parsed.text)
@@ -379,24 +367,33 @@ def _planned_contents(parsed: ParsedPatch,
 def patch_rejections(parsed: ParsedPatch, repo_path: str) -> List[str]:
   """Distinct guard rejection reasons for a parsed patch (empty if allowed).
 
-  Checks each block (or the target of a unified diff), then the
-  exec_script() calls of every GN file the patch would change.
+  Covers both formats: each block, or the target file of a unified diff.
   """
-  if parsed.blocks:
-    reasons = [_block_rejection(b, repo_path) for b in parsed.blocks]
-  else:
+  if not parsed.blocks:
     rel_file = _unified_diff_target(parsed.text)
-    reasons = [
-        patch_target_rejection(
-            resolve_repo_file_path(rel_file, repo_path), rel_file, repo_path)
-    ] if rel_file else []
-  if not any(reasons):
-    plan = _planned_contents(parsed, repo_path) or {}
-    reasons = [
-        _exec_script_rejection(os.path.relpath(path, repo_path), old, new)
-        for path, (old, new) in plan.items()
-    ]
+    if not rel_file:
+      return []
+    reason = patch_target_rejection(
+        resolve_repo_file_path(rel_file, repo_path), rel_file, repo_path)
+    return [reason] if reason else []
+  reasons = (_block_rejection(b, repo_path) for b in parsed.blocks)
   return list(dict.fromkeys(r for r in reasons if r))
+
+
+def exec_script_changes(parsed: ParsedPatch, repo_path: str) -> List[str]:
+  """GN files (repo-relative) whose exec_script() calls the patch changes.
+
+  gn gen runs exec_script() commands as soon as the file is written, so
+  any added, changed or removed call (including an edit to one argument
+  line of a multi-line call) needs a human decision instead of a patch.
+  """
+  plan = _planned_contents(parsed, repo_path) or {}
+  return [
+      os.path.relpath(path, repo_path)
+      for path, (old, new) in plan.items()
+      if path.endswith((
+          ".gn", ".gni")) and exec_script_calls(old) != exec_script_calls(new)
+  ]
 
 
 def apply_parsed_patch(parsed: ParsedPatch, repo_path: str) -> List[str]:

@@ -117,6 +117,9 @@ When upstream changes deprecate APIs or remove interfaces:
 3. **Syntactic & Functional Verification**:
    * **DEPS**: Verify with `ast.parse()` and run `gclient sync --nohooks --no-history`.
    * **Source Files**: Run `autoninja -C out/Default cobalt:cobalt` to verify compilation.
+   * **`exec_script()` in GN files**: `gn gen` runs these commands immediately, so never write your own `exec_script()` code.
+     * **Merge conflicts**: if a conflict overlaps an `exec_script()` call, resolve it by taking the Cobalt side, the Chromium side, or both sides exactly as written. Do not edit the call or its arguments; any other result stops the pipeline for a human.
+     * **Build fixes (sync, GN, compile)**: do not add, change or remove an `exec_script()` call or any of its arguments; such a patch stops the pipeline for a human. Fix the build another way (sources, deps, defines, Cobalt code); only if no other fix exists, say so instead of editing the call.
 
 4. **Privacy Sandbox Pruning & Lifecycle Policy (`b/505811196` — `enable_privacy_sandbox_apis = !is_cobalt`)**:
    * **Core Goal**: Cobalt is a single-domain application that does **not** use Chromium's Privacy Sandbox features (Shared Storage, Ad Auction / Protected Audience / Interest Group, Attribution Reporting, Private Aggregation, Aggregation Service, Browsing Topics, Fenced Frames, Private State Tokens / Trust Tokens, IP Protection / Masked Domain List / Probabilistic Reveal Tokens, FedCM / WebID, Storage Access API). In `cobalt/build/configs/cobalt.gni`, `enable_privacy_sandbox_apis = !is_cobalt` (`false` on Cobalt), stripping these components to save ~1.9MB+ of binary size.

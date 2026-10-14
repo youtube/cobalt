@@ -248,6 +248,13 @@ Resolvers communicate dynamically without hardcoded coupling via callbacks confi
   configs (`cobalt/build/configs/`, `args.gn`), and unmodified third-party
   sources. The rejection reason is stored in the change record, so the
   model sees why its patch was not applied on the next attempt.
+- **`exec_script()` stop** (`patching.exec_script_changes`): `gn gen` runs
+  `exec_script()` commands immediately, so the model never writes its own.
+  In Phase 1 a conflict overlapping a call may only be resolved with the
+  Cobalt side, the Chromium side, or both sides as written. In Phases 2-4
+  any patch that changes a call is not applied. Either case records a
+  `NEEDS HUMAN` reason, stops the pipeline and lists the reason under
+  "Needs Human Decision" in the summary report.
 
 ---
 
