@@ -185,12 +185,18 @@ jobs:
           export PATH="${RUNNER_TEMP}/depot_tools:${PATH}"
           "${RUNNER_TEMP}/depot_tools/build_telemetry" opt-out || true
 
-          # Initialize .gclient solution config matching .github/actions/depot_tools/action.yaml
+          # Same .gclient as .github/actions/depot_tools/action.yaml, except
+          # --unmanaged: that action pins src with `gclient sync --revision`,
+          # while the agent syncs without it. A managed src would then be
+          # rebased onto origin, and `gclient sync --reset` would discard the
+          # agent's uncommitted fixes; unmanaged, gclient syncs the DEPS
+          # dependencies but never touches src.
           cd "${GITHUB_WORKSPACE}"
           rm -f .gclient
           echo "Configuring .gclient solution for Cobalt..."
           "${RUNNER_TEMP}/depot_tools/gclient" config \
             --name=src \
+            --unmanaged \
             --custom-var="rbe_instance=\"projects/cobalt-actions-prod/instances/default_instance\"" \
             --custom-var="reapi_backend_config_path=\"cobalt.star\"" \
             "${{ github.server_url }}/${{ github.repository }}"

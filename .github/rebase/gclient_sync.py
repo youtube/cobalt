@@ -45,12 +45,12 @@ SYNC_ERROR_KEYWORDS = (
     "fatal:",
 )
 
-# Default robust flags for CI and local automated sync
+# Default robust flags for CI and local automated sync (-D is
+# --delete_unversioned_trees).
 DEFAULT_SYNC_FLAGS = [
     "-D",
     "--no-history",
     "--shallow",
-    "--delete_unversioned_trees",
 ]
 
 
@@ -105,8 +105,9 @@ class GClientSyncResolver(BaseResolver):
                                 ".sisoenv")
     if os.path.exists(sisoenv_path):
       return
-    rbe_inst = os.environ.get(
-        "RBE_instance",
+    # The workflow sets RBE_INSTANCE; RBE_instance is the older spelling.
+    rbe_inst = (
+        os.environ.get("RBE_INSTANCE") or os.environ.get("RBE_instance") or
         "projects/cobalt-actions-prod/instances/default_instance")
     cfg_script = os.path.join(self.repo_path, "build", "config", "siso",
                               "configure_siso.py")
