@@ -84,14 +84,23 @@ jobs:
           fetch-depth: 100
           token: ${{ env.GITHUB_TOKEN }}
 
+      # Run the agent from this workflow's own (trusted) checkout. The next
+      # steps switch src/ to the target PR or commit, whose .github/rebase may
+      # differ or not exist; that code must not run with these credentials.
+      - name: Copy Trusted Rebase Agent
+        run: |
+          rm -rf "${RUNNER_TEMP}/rebase"
+          cp -r src/.github/rebase "${RUNNER_TEMP}/rebase"
+
       - name: GoB Authentication
         uses: ./src/.github/actions/gob_auth
         with:
           use_gcloud: 'true'
 
       - name: Set GCP Project
+        env:
+          GCP_PROJECT: ${{ vars.GCP_PROJECT }}
         run: |
-          GCP_PROJECT="${{ vars.GCP_PROJECT }}"
           if [[ -z "${GCP_PROJECT}" ]]; then
             GCP_PROJECT=$(gcloud config get-value project)
           fi
@@ -100,12 +109,27 @@ jobs:
       - name: Setup Working Branch
         id: branch_setup
         working-directory: src
+        env:
+          PR_NUM: ${{ inputs.pr_number }}
+          COMMIT_SHA: ${{ inputs.commit_sha }}
+          AI_PREFIX: ${{ inputs.ai_branch_prefix }}
         run: |
           set -x
 
-          PR_NUM="${{ inputs.pr_number }}"
-          COMMIT_SHA="${{ inputs.commit_sha }}"
-          AI_PREFIX="${{ inputs.ai_branch_prefix }}"
+          # Inputs reach the shell only through env and are validated here.
+          if [[ -n "${PR_NUM}" && ! "${PR_NUM}" =~ ^[0-9]+$ ]]; then
+            echo "::error::pr_number must be digits only."
+            exit 1
+          fi
+          if [[ -n "${COMMIT_SHA}" && ! "${COMMIT_SHA}" =~ ^[0-9a-fA-F]{7,40}$ ]]; then
+            echo "::error::commit_sha must be a 7-40 character hex SHA."
+            exit 1
+          fi
+          if [[ ! "${AI_PREFIX}" =~ ^[A-Za-z0-9._/-]*$ ]] ||
+             ! git check-ref-format --branch "${AI_PREFIX}0" > /dev/null; then
+            echo "::error::ai_branch_prefix is not a valid branch name prefix."
+            exit 1
+          fi
 
           # 1. Checkout starting target: PR (with optional commit SHA) or direct commit SHA
           if [[ -n "${PR_NUM}" ]]; then
@@ -174,11 +198,10 @@ jobs:
           "${RUNNER_TEMP}/depot_tools/gclient" validate || true
 
       - name: Set Up Python Dependencies
-        working-directory: src
         run: |
           set -x
           python3 --version
-          python3 -m pip install --user --no-cache-dir --break-system-packages --require-hashes -r .github/rebase/requirements.txt
+          python3 -m pip install --user --no-cache-dir --break-system-packages --require-hashes -r "${RUNNER_TEMP}/rebase/requirements.txt"
 
       - name: Run AI Rebase Agent
         id: run_ai
@@ -190,7 +213,7 @@ jobs:
           EXPERT_MODEL: ${{ inputs.expert_model || 'gemini-3.8-flash' }}
         run: |
           set +e
-          python3 .github/rebase/run_rebase_pipeline.py \
+          python3 "${RUNNER_TEMP}/rebase/run_rebase_pipeline.py" \
             --repo-path . \
             --model "${MODEL}" \
             --expert-model "${EXPERT_MODEL}" \
