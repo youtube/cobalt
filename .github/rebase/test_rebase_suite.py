@@ -1139,6 +1139,7 @@ target("foo") {{}}
         investigation_history="",
         expert_guidance="",
         use_expert=False,
+        **_TEST_MODELS,
     )
 
   def test_reasoning_engine_client_local_in_process(self):
@@ -1173,6 +1174,7 @@ target("foo") {{}}
         investigation_history="",
         expert_guidance="",
         use_expert=False,
+        **_TEST_MODELS,
     )
 
   def test_token_usage_flows_from_engine_to_client(self):
@@ -1198,6 +1200,23 @@ target("foo") {{}}
     self.assertEqual(client.token_usage.by_model[model].prompt_tokens, 2000)
     self.assertEqual(client.token_usage.by_model[model].completion_tokens, 500)
     self.assertEqual(client.token_usage.total_tokens, 2500)
+
+  def test_client_models_override_engine_models(self):
+    """--model/--expert-model reach an engine deployed with other models."""
+    engine = CobaltReasoningEngine(
+        project_id="test-proj",
+        flash_model="deployed-flash",
+        expert_model="deployed-expert")
+    engine._generate_content_with_retry = mock.MagicMock(  # pylint: disable=protected-access
+        return_value=mock.MagicMock(text="patch"))
+    client = ReasoningEngineClient(**_TEST_MODELS, project_id="p", local=True)
+    client._local_engine = engine  # pylint: disable=protected-access
+
+    res = client.heal_compiler_error(target="cobalt", diagnostics="error")
+    self.assertEqual(res["model_used"], _TEST_MODELS["flash_model"])
+    res = client.heal_compiler_error(
+        target="cobalt", diagnostics="error", use_expert=True)
+    self.assertEqual(res["model_used"], _TEST_MODELS["expert_model"])
 
   def test_engine_kwargs_safety_and_tolerance(self):
     """Guards kwargs safety when client sends unexpected arguments."""

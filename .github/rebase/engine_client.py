@@ -146,7 +146,13 @@ class ReasoningEngineClient:
 
     Token usage reported by the engine is added to self.token_usage and
     removed from the returned result.
+
+    This client's models are sent with every query, so --model and
+    --expert-model also apply to a hosted engine, which otherwise uses the
+    models it was deployed with.
     """
+    kwargs["flash_model"] = kwargs.get("flash_model") or self.flash_model
+    kwargs["expert_model"] = kwargs.get("expert_model") or self.expert_model
     res = self._query(action, **kwargs)
     if isinstance(res, dict):
       for call in res.pop("usage", None) or []:

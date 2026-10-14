@@ -583,11 +583,12 @@ class CobaltReasoningEngine:
       expert_guidance: str = "",
       use_expert: bool = False,
       expert_model: Optional[str] = None,
+      flash_model: Optional[str] = None,
       **kwargs,
   ) -> Dict[str, Any]:
     """Resolves source/DEPS merge conflicts on Vertex AI."""
-    chosen_model = (expert_model or
-                    self.expert_model) if use_expert else self.flash_model
+    chosen_model = ((expert_model or self.expert_model) if use_expert else
+                    (flash_model or self.flash_model))
     rebase_skill = self._get_skill("cobalt_rebase")
     conflict_skill = self._get_skill("conflict_resolution")
 
@@ -650,11 +651,12 @@ class CobaltReasoningEngine:
       expert_guidance: str = "",
       use_expert: bool = False,
       expert_model: Optional[str] = None,
+      flash_model: Optional[str] = None,
       **kwargs,
   ) -> Dict[str, Any]:
     """Diagnoses and fixes GN generation errors on Vertex AI."""
-    chosen_model = (expert_model or
-                    self.expert_model) if use_expert else self.flash_model
+    chosen_model = ((expert_model or self.expert_model) if use_expert else
+                    (flash_model or self.flash_model))
     rebase_skill = self._get_skill("cobalt_rebase")
     gn_skill = self._get_skill("gn_healing")
 
@@ -731,6 +733,7 @@ class CobaltReasoningEngine:
       expert_guidance: str = "",
       use_expert: bool = False,
       expert_model: Optional[str] = None,
+      flash_model: Optional[str] = None,
       **kwargs,
   ) -> Dict[str, Any]:
     """Diagnoses and repairs C++/Java compilation errors on Vertex AI."""
@@ -738,8 +741,8 @@ class CobaltReasoningEngine:
     eff_diag = diagnostics or error_trace
     eff_ctx = source_contexts or file_context
 
-    chosen_model = (expert_model or
-                    self.expert_model) if use_expert else self.flash_model
+    chosen_model = ((expert_model or self.expert_model) if use_expert else
+                    (flash_model or self.flash_model))
     rebase_skill = self._get_skill("cobalt_rebase")
     compiler_skill = self._get_skill("compiler_healing")
     patterns_skill = self._get_skill("cobalt_rebase_patterns")
