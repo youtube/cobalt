@@ -1130,12 +1130,14 @@ void SkiaRenderer::FinishDrawingFrame() {
       // Delay freeing the primary plane buffers so that brief pauses between
       // Closed Captions (CC) dialogue lines do not repeatedly free and
       // re-allocate the 3 UI AHardwareBuffers.
-      constexpr base::TimeDelta kDestroyBuffersDelay = base::Seconds(5);
+      const base::TimeDelta destroy_buffers_delay =
+          std::max(base::TimeDelta(),
+                   features::kCobaltRemoveUiPlaneDestroyBuffersDelay.Get());
       if (!destroy_buffers_timer_.IsRunning() &&
           render_pass_backings_.contains(
               current_frame()->root_render_pass->id)) {
         destroy_buffers_timer_.Start(
-            FROM_HERE, kDestroyBuffersDelay,
+            FROM_HERE, destroy_buffers_delay,
             base::BindOnce(&SkiaRenderer::DestroyPrimaryPlaneBuffers,
                            base::Unretained(this)));
       }
