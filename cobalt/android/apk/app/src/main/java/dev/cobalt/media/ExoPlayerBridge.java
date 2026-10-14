@@ -285,6 +285,10 @@ public class ExoPlayerBridge {
   /** Releases the ExoPlayer and its resources. */
   @CalledByNative
   public void release() {
+    if (mIsReleased) {
+      Log.w(TAG, "release() called more than once; ignoring.");
+      return;
+    }
     mIsReleased = true;
     synchronized (mPositionLock) {
       mIsProgressing = false;
