@@ -182,6 +182,17 @@ class CustomMimeTypeBrowserTest : public content::ContentBrowserTest {
   }
 
  protected:
+  // Exposes SourceBuffer.changeType(), which is hidden by default, through the
+  // same H5VCC setting the web app uses.
+  // TODO(b/571981376): Remove once experiments have run.
+  bool EnableChangeType() {
+    return content::EvalJs(
+               shell()->web_contents(),
+               "h5vcc.settings.set('Media.EnableChangeType', 1)"
+               ".then(() => 'changeType' in SourceBuffer.prototype)")
+        .ExtractBool();
+  }
+
   TestSbMedia test_media_;
 };
 
@@ -333,6 +344,7 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
                        SourceBufferChangeType_ForwardsRawCustomAttributes) {
+  ASSERT_TRUE(EnableChangeType());
   test_media_.SetSupportType(kSbMediaSupportTypeProbably);
 
   const char kInitialMime[] =
@@ -374,6 +386,7 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
 IN_PROC_BROWSER_TEST_F(
     CustomMimeTypeBrowserTest,
     SourceBufferChangeType_NotSupportedThrowsNotSupportedError) {
+  ASSERT_TRUE(EnableChangeType());
   const char kInitialMime[] = "video/mp4; codecs=\"avc1.4d401f\"";
   const char kUnsupportedMime[] =
       "video/webm; codecs=\"vp9\"; width=7680; height=4320; "
@@ -415,6 +428,7 @@ IN_PROC_BROWSER_TEST_F(
 IN_PROC_BROWSER_TEST_F(
     CustomMimeTypeBrowserTest,
     SourceBufferChangeType_CodecTransitionRejectedThrowsNotSupportedError) {
+  ASSERT_TRUE(EnableChangeType());
   test_media_.SetSupportType(kSbMediaSupportTypeProbably);
   test_media_.SetCanChangeType(false);
 
