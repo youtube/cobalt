@@ -199,4 +199,49 @@ SB_COMPILE_ASSERT(sizeof(wchar_t) == SB_SIZE_OF_INT,
 #endif // SB_IS(WCHAR_T_UTF16)
 #endif  // SB_IS(ARCH_X86)
 
+// Test for stat size
+#if SB_IS(ARCH_ARM64) || SB_IS(ARCH_X64)
+SB_COMPILE_ASSERT(offsetof(musl_stat, st_mode) == sizeof(int64_t)*3, SB_ARCH64_st_mode_offset_wrong_for_stat);
+SB_COMPILE_ASSERT(offsetof(musl_stat, st_atim) == (sizeof(int64_t)*7 + sizeof(unsigned)*4), SB_ARCH64_st_atim_offset_wrong_for_stat);
+//   int64_t /*dev_t*/ st_dev;
+//   int64_t /*ino_t*/ st_ino;
+//   int64_t /*nlink_t*/ st_nlink;
+
+//   unsigned /*mode_t*/ st_mode;
+//   unsigned /*uid_t*/ st_uid;
+//   unsigned /*gid_t*/ st_gid;
+//   unsigned /*unsigned int*/ __pad0;
+//   int64_t /*dev_t*/ st_rdev;
+//   int64_t /*off_t*/ st_size;
+//   int64_t /*blksize_t*/ st_blksize;
+//   int64_t /*blkcnt_t*/ st_blocks;
+
+//   struct musl_timespec /*struct timespec*/ st_atim;
+//   struct musl_timespec /*struct timespec*/ st_mtim;
+//   struct musl_timespec /*struct timespec*/ st_ctim;
+//   int64_t unused[3];
+#else
+SB_COMPILE_ASSERT(offsetof(musl_stat, st_mode) == (sizeof(uint64_t)+sizeof(uint32_t) + sizeof(int32_t)), SB_st_mode_offset_wrong_for_stat);
+SB_COMPILE_ASSERT(offsetof(musl_stat, st_atim) == (sizeof(uint32_t)*9 + sizeof(int64_t)*5), SB_st_atim_offset_wrong_for_stat);
+
+//   uint64_t /*dev_t*/ st_dev;
+//   uint32_t /*int*/ _st_dev_padding;
+//   int32_t /*long*/ _st_ino_truncated;
+
+//   uint32_t /*mode_t*/ st_mode;
+//   uint32_t /*nlink_t*/ st_nlink;
+//   uint32_t /*uid_t*/ st_uid;
+//   uint32_t /*gid_t*/ st_gid;
+//   uint64_t /*dev_t*/ st_rdev;
+//   uint32_t /*int*/ __st_rdev_padding;
+//   int64_t /*off_t*/ st_size;
+//   int32_t /*blksize_t*/ st_blksize;
+//   int64_t /*blkcnt_t*/ st_blocks;
+//   int32_t _unused[6];
+//   uint64_t /*ino_t*/ st_ino;
+//   struct musl_timespec /*struct timespec*/ st_atim;
+//   struct musl_timespec /*struct timespec*/ st_mtim;
+//   struct musl_timespec /*struct timespec*/ st_ctim;
+#endif
+
 #endif  // SB_IS(MODULAR)
