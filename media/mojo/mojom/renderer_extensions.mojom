@@ -94,6 +94,10 @@ interface StarboardRendererClientExtension {
   OnBufferedTimeRangesChange(mojo_base.mojom.TimeDelta start,
                              mojo_base.mojom.TimeDelta length);
 
+  [EnableIf=is_ios]
+  OnUrlPlayerMetadata(mojo_base.mojom.TimeDelta duration,
+                      gfx.mojom.Size natural_size);
+
   [EnableIf=is_android]
   // Request OverlayInfo from StarboardRendererClient.
   RequestOverlayInfo(bool restart_for_transitions);

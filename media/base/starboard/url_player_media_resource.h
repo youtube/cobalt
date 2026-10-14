@@ -21,6 +21,7 @@
 #include "base/time/time.h"
 #include "media/base/demuxer.h"
 #include "media/base/eme_constants.h"
+#include "ui/gfx/geometry/size.h"
 #include "url/gurl.h"
 
 namespace media {
@@ -36,6 +37,9 @@ namespace media {
 class UrlPlayerMediaResource {
  public:
   virtual GURL GetMediaUrl() const = 0;
+
+  virtual void OnPlatformMetadata(base::TimeDelta duration,
+                                  const gfx::Size& natural_size) = 0;
 
   virtual void OnPlatformDurationChange(base::TimeDelta duration) = 0;
   virtual void OnPlatformBufferedRangesChange(base::TimeDelta start,

@@ -155,6 +155,8 @@ class StarboardRendererWrapper
   void OnDurationChange(base::TimeDelta duration);
   void OnBufferedTimeRangesChange(base::TimeDelta start,
                                   base::TimeDelta length);
+  void OnUrlPlayerMetadata(base::TimeDelta duration,
+                           const gfx::Size& natural_size);
 #endif  // BUILDFLAG(IS_IOS_TVOS)
   void OnSubscribeToVideoGeometryChange(MediaResource* media_resource,
                                         RendererClient* client);
