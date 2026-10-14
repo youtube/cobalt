@@ -23,7 +23,8 @@ sys.modules.setdefault('grpc', mock.MagicMock())
 sys.modules.setdefault('on_device_tests_gateway_pb2', mock.MagicMock())
 sys.modules.setdefault('on_device_tests_gateway_pb2_grpc', mock.MagicMock())
 
-from cobalt.tools import on_device_tests_gateway_client  # pylint: disable=wrong-import-position
+# pylint: disable=wrong-import-position
+from cobalt.tools import on_device_tests_gateway_client
 # pylint: disable=protected-access
 
 

@@ -16,35 +16,29 @@
 
 import collections
 import json
+import re
 import sys
 import xml.etree.ElementTree as ET
 
-# Characters disallowed by XML 1.0 (excluding valid whitespace \t, \n, \r):
-# Disallowed: 0x00-0x08, 0x0B, 0x0C, 0x0E-0x1F, 0x7F-0x84, 0x86-0x9F
-_DISALLOWED_CODEPOINTS = (
-    set(range(0x00, 0x09))
-    | {0x0B, 0x0C}
-    | set(range(0x0E, 0x20))
-    | set(range(0x7F, 0x85))
-    | set(range(0x86, 0xA0)))
-_XML_CLEAN_TABLE = dict.fromkeys(_DISALLOWED_CODEPOINTS, None)
+_XML_DISALLOWED_RE = re.compile(
+    r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x84\x86-\x9f\ud800-\udfff\ufffe\uffff]')
 
 
 def _sanitize_xml_string(s):
   if not s:
     return ''
-  return str(s).translate(_XML_CLEAN_TABLE)
+  return _XML_DISALLOWED_RE.sub('', str(s))
 
 
 def _normalize_status(raw_status):
   status_str = str(raw_status).upper()
-  if 'FAIL' in status_str:
-    return 'FAILURE'
-  if any(code in status_str for code in ('CRASH', 'TIMEOUT', 'ERROR')):
-    return 'ERROR'
+  if any(s in status_str for s in ('PASS', 'SUCCESS', 'OK')):
+    return 'SUCCESS'
   if 'SKIP' in status_str:
     return 'SKIPPED'
-  return 'SUCCESS'
+  if 'FAIL' in status_str:
+    return 'FAILURE'
+  return 'ERROR'
 
 
 def _parse_entry_duration(test):
@@ -80,7 +74,7 @@ def _extract_cases(data):
   suites = collections.defaultdict(list)
 
   if isinstance(data, dict) and 'per_iteration_data' in data:
-    for iteration in data.get('per_iteration_data', []):
+    for iteration in data.get('per_iteration_data') or []:
       for test_key, results in iteration.items():
         for res in results:
           if not isinstance(res, dict):
@@ -96,7 +90,7 @@ def _extract_cases(data):
             elapsed_time = 0.0
           suites[classname].append({
               'name': method.split('[')[0],
-              'status': _normalize_status(res.get('status', 'SUCCESS')),
+              'status': _normalize_status(res.get('status', 'ERROR')),
               'time': elapsed_time,
               'output': res.get('output_snippet', '')
           })
@@ -114,8 +108,8 @@ def _extract_cases(data):
         t.get('class_name') or t.get('suite_name') or t.get('test_suite') or
         t.get('test_category') or 'VegaTest')
     suites[classname].append({
-        'name': name,
-        'status': _normalize_status(t.get('result', t.get('status', 'PASSED'))),
+        'name': str(name),
+        'status': _normalize_status(t.get('result', t.get('status', 'ERROR'))),
         'time': _parse_entry_duration(t),
         'output': _parse_entry_output(t)
     })
@@ -139,8 +133,8 @@ def _add_testcase(parent, case, suite_name):
       parent,
       'testcase',
       {
-          'name': case['name'],
-          'classname': suite_name,
+          'name': _sanitize_xml_string(case['name']),
+          'classname': _sanitize_xml_string(suite_name),
           'time': f"{case['time']:.3f}",
       },
   )
@@ -170,7 +164,7 @@ def convert(json_path, xml_path):
 
   for suite_name, cases in suites.items():
     suite_el = ET.SubElement(testsuites, 'testsuite', {
-        'name': suite_name,
+        'name': _sanitize_xml_string(suite_name),
         **_compute_stats(cases)
     })
     for case in cases:
@@ -178,12 +172,12 @@ def convert(json_path, xml_path):
 
   tree = ET.ElementTree(testsuites)
   if hasattr(ET, 'indent'):
-    ET.indent(tree, space='  ', level=0)
+    ET.indent(tree, space='  ')
   tree.write(xml_path, encoding='utf-8', xml_declaration=True)
 
 
 if __name__ == '__main__':
-  if len(sys.argv) < 3:
-    print('Usage: convert_json_to_junit_xml.py <input_json> <output_xml>')
+  if len(sys.argv) != 3:
+    print('Usage: convert_json_to_junit_xml.py <input.json> <output.xml>')
     sys.exit(1)
   convert(sys.argv[1], sys.argv[2])

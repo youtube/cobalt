@@ -297,6 +297,7 @@ class RunCoverageTest(unittest.TestCase):
 
     # Mock the content of test_targets.json for android-arm
     mock_arm_json_content = ('[{"target": "android_arm_target1"}, '
+                             '{"target": "android_arm_ignored_target", "build": false}, '
                              '{"target": "android_arm_target2"}]')
     # Mock the content of test_targets.json for android-arm64
     mock_arm64_json_content = ('[{"target": "android_arm64_target1"}, '

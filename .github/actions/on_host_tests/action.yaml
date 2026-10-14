@@ -48,7 +48,6 @@ runs:
       id: prepare-test-filters
       uses: ./.github/actions/prepare_test_filters
       with:
-        test_results_key: ${{ inputs.test_results_key }}
         platform: ${{ matrix.platform }}
         retry_all: ${{ inputs.retry_all }}
     - name: Prepare Test Execution

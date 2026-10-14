@@ -169,10 +169,6 @@ runs:
         # --nohooks: defer hooks so they run as an explicit, separately timed workflow step
         # --force / --delete_unversioned_trees: clean up untracked or mismatched trees left by prior builds
         # --revision: pin checkout to the exact triggering commit SHA
-        sed -i 's|rpc://[^ '\''"]*|'"${REPOSITORY}"'|g' .gclient || true
-        if [ -d src/.git ]; then
-          git -C src remote set-url origin "${REPOSITORY}" 2>/dev/null || true
-        fi
         gclient sync \
           --verbose \
           --shallow \

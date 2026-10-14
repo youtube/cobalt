@@ -1,9 +1,6 @@
 name: Prepare Test Filters
 description: Downloads previous test results and prepares the filter directory.
 inputs:
-  test_results_key:
-    description: "Artifact key used to store test results."
-    required: true
   platform:
     description: "The platform being tested."
     required: true

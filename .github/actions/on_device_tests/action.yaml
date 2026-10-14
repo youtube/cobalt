@@ -32,10 +32,6 @@ inputs:
     description: "GCS path to Cobalt artifact/directory."
     required: false
     default: ""
-  result_files:
-    description: "Comma- or space-separated list of result files to check, or empty to auto-detect."
-    required: false
-    default: ""
   retry_all:
     description: "Whether to retry all tests instead of analyzing previous results."
     required: false
@@ -48,7 +44,6 @@ runs:
       id: prepare-test-filters
       uses: ./.github/actions/prepare_test_filters
       with:
-        test_results_key: ${{ inputs.test_results_key }}
         platform: ${{ matrix.platform }}
         retry_all: ${{ inputs.retry_all }}
     - name: Install Requirements
@@ -98,7 +93,7 @@ runs:
         FILTER_DIR: ${{ steps.prepare-test-filters.outputs.filter_dir }}
         PYTHONPATH: "${GITHUB_WORKSPACE}:${PYTHONPATH:-}"
       run: |
-        set -x
+        set -euxo pipefail
 
         artifact_name="${ARTIFACT_NAME}"
 
@@ -108,29 +103,29 @@ runs:
         fi
 
         python3 -u cobalt/tools/on_device_tests_gateway_client.py \
-          --token ${GITHUB_TOKEN} \
+          --token "${GITHUB_TOKEN}" \
           trigger \
-          --test_type ${TEST_TYPE} \
+          --test_type "${TEST_TYPE}" \
           ${TEST_DEVICE_FAMILY:+--device_family "${TEST_DEVICE_FAMILY}"} \
           --targets "${TEST_TARGETS_JSON}" \
           --filter_json_dir "${FILTER_DIR}" \
           --label chrobalt_on_device_test \
-          --label github_${GITHUB_PR_NUMBER:-postsubmit} \
-          --label builder-${PLATFORM} \
-          --label builder_url-${GITHUB_RUN_URL} \
-          --label ${TEST_TYPE} \
+          --label "github_${GITHUB_PR_NUMBER:-postsubmit}" \
+          --label "builder-${PLATFORM}" \
+          --label "builder_url-${GITHUB_RUN_URL}" \
+          --label "${TEST_TYPE}" \
           --label github \
-          --label ${GITHUB_EVENT_NAME} \
-          --label ${GITHUB_WORKFLOW} \
-          --label actor-${GITHUB_ACTOR} \
-          --label actor_id-${GITHUB_ACTOR_ID} \
-          --label triggering_actor-${GITHUB_TRIGGERING_ACTOR} \
-          --label sha-${GITHUB_SHA} \
-          --label repository-${GITHUB_REPO} \
-          --label author-${GITHUB_PR_HEAD_USER_LOGIN:-${GITHUB_COMMIT_AUTHOR_USERNAME}} \
-          --label author_id-${GITHUB_PR_HEAD_USER_ID:-${GITHUB_COMMIT_AUTHOR_EMAIL}} \
-          --label branch:${GITHUB_REF_NAME} \
-          --label target_branch:${GITHUB_BASE_REF} \
+          --label "${GITHUB_EVENT_NAME}" \
+          --label "${GITHUB_WORKFLOW}" \
+          --label "actor-${GITHUB_ACTOR}" \
+          --label "actor_id-${GITHUB_ACTOR_ID}" \
+          --label "triggering_actor-${GITHUB_TRIGGERING_ACTOR}" \
+          --label "sha-${GITHUB_SHA}" \
+          --label "repository-${GITHUB_REPO}" \
+          --label "author-${GITHUB_PR_HEAD_USER_LOGIN:-${GITHUB_COMMIT_AUTHOR_USERNAME}}" \
+          --label "author_id-${GITHUB_PR_HEAD_USER_ID:-${GITHUB_COMMIT_AUTHOR_EMAIL}}" \
+          --label "branch:${GITHUB_REF_NAME}" \
+          --label "target_branch:${GITHUB_BASE_REF}" \
           --dimensions "${TEST_DIMENSIONS}" \
           ${cobalt_path:+--cobalt_path "${cobalt_path}"} \
           ${artifact_name:+--artifact_name "${artifact_name}"} \
@@ -150,7 +145,6 @@ runs:
         PLATFORM: ${{ matrix.platform }}
         GCS_RESULTS_PATH: ${{ inputs.gcs_results_path }}
         FILTER_DIR: ${{ steps.prepare-test-filters.outputs.filter_dir }}
-        RESULT_FILES: ${{ inputs.result_files }}
         TEST_TYPE: ${{ inputs.test_type }}
       run: |
         set -uxe
@@ -184,16 +178,16 @@ runs:
             wpt_reports=("${test_output}/${PLATFORM}"/**/results.json)
             if [ -f "${wpt_reports[0]:-}" ]; then
               wpt_target_report="$(dirname "${wpt_reports[0]}")/${test_target}_report.json"
-              mv "${wpt_reports[0]}" "${wpt_target_report}"
+              cp "${wpt_reports[0]}" "${wpt_target_report}"
               json_reports=("${wpt_target_report}")
             fi
           fi
           if [ -f "${json_reports[0]:-}" ]; then
-            converted_xml="${test_output}/${PLATFORM}/${test_target}_testoutput.xml"
+            converted_xml="${test_output}/${PLATFORM}/1/${test_target}_testoutput.xml"
             mkdir -p "$(dirname "${converted_xml}")"
             python3 "${GITHUB_WORKSPACE}/.github/scripts/convert_json_to_junit_xml.py" \
               "${json_reports[0]}" \
-              "${converted_xml}"
+              "${converted_xml}" || true
           fi
 
           # Look for XML result files.
@@ -201,11 +195,14 @@ runs:
 
           # If no XML result was found, try to generate one from the logs.
           if [[ "${#xml_files[@]}" -eq 0 ]]; then
-            log_paths=("${test_output}/${PLATFORM}"/**/"${test_target}"_log.txt "${test_output}/${PLATFORM}"/**/"${test_target}"*cobalt.log)
-            target_out_xml="${test_output}/${PLATFORM}/${test_target}_testoutput.xml"
+            log_paths=(
+              "${test_output}/${PLATFORM}"/**/"${test_target}"_log.txt
+              "${test_output}/${PLATFORM}"/**/"${test_target}"*cobalt.log
+            )
+            target_out_xml="${test_output}/${PLATFORM}/1/${test_target}_testoutput.xml"
             mkdir -p "$(dirname "${target_out_xml}")"
             if [ -f "${log_paths[0]:-}" ]; then
-              python3 "${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py" "${log_paths[0]}" "${target_out_xml}"
+              python3 "${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py" "${log_paths[0]}" "${target_out_xml}" || true
               if [ -f "${target_out_xml}" ]; then
                 xml_files=("${target_out_xml}")
               fi

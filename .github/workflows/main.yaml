@@ -585,7 +585,7 @@ jobs:
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}/${{ github.run_attempt }}
           test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
-          test_device_family: '${{ needs.initialize.outputs.test_device_family}}'
+          test_device_family: '${{ needs.initialize.outputs.test_device_family }}'
           retry_all: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
 
   e2e-test:
@@ -633,9 +633,9 @@ jobs:
           test_targets_json: ${{ steps.parse-e2e-targets.outputs.test_targets_json }}
           artifact_name: ${{ needs.initialize.outputs.test_artifact_name }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
-          gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}/${{ github.run_attempt }}
+          gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/e2e/${{ github.run_id }}/${{ github.run_attempt }}
           test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
-          test_device_family: '${{ needs.initialize.outputs.test_device_family}}'
+          test_device_family: '${{ needs.initialize.outputs.test_device_family }}'
           retry_all: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
 
   yts-test:
@@ -683,9 +683,9 @@ jobs:
           test_targets_json: ${{ steps.parse-yts-targets.outputs.test_targets_json }}
           artifact_name: ${{ needs.initialize.outputs.test_artifact_name }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
-          gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}/${{ github.run_attempt }}
+          gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/yts/${{ github.run_id }}/${{ github.run_attempt }}
           test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
-          test_device_family: '${{ needs.initialize.outputs.test_device_family}}'
+          test_device_family: '${{ needs.initialize.outputs.test_device_family }}'
           retry_all: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
 
   yts-playback-test:
@@ -727,9 +727,9 @@ jobs:
           test_targets_json: ${{ steps.parse-yts-playback-targets.outputs.test_targets_json }}
           artifact_name: ${{ needs.initialize.outputs.test_artifact_name }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
-          gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}/${{ github.run_attempt }}
+          gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/yts_playback/${{ github.run_id }}/${{ github.run_attempt }}
           test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
-          test_device_family: '${{ needs.initialize.outputs.test_device_family}}'
+          test_device_family: '${{ needs.initialize.outputs.test_device_family }}'
           retry_all: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
 
   browser-test-on-host:
@@ -807,9 +807,9 @@ jobs:
           test_targets_json: ${{ steps.parse-yts-wpt-targets.outputs.test_targets_json }}
           artifact_name: ${{ needs.initialize.outputs.test_artifact_name }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
-          gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}/${{ github.run_attempt }}
+          gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/yts_wpt/${{ github.run_id }}/${{ github.run_attempt }}
           test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
-          test_device_family: '${{ needs.initialize.outputs.test_device_family}}'
+          test_device_family: '${{ needs.initialize.outputs.test_device_family }}'
           retry_all: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
 
   yts-finch-test:
@@ -855,9 +855,9 @@ jobs:
           test_targets_json: ${{ steps.parse-yts-finch-targets.outputs.test_targets_json }}
           artifact_name: ${{ needs.initialize.outputs.test_artifact_name }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
-          gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}/${{ github.run_attempt }}
+          gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/yts_finch/${{ github.run_id }}/${{ github.run_attempt }}
           test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
-          test_device_family: '${{ needs.initialize.outputs.test_device_family}}'
+          test_device_family: '${{ needs.initialize.outputs.test_device_family }}'
           retry_all: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
 
   on-host-test:
@@ -1024,7 +1024,6 @@ jobs:
         id: prepare-test-filters
         uses: ./.github/actions/prepare_test_filters
         with:
-          test_results_key: ${{ env.TEST_RESULTS_KEY }}
           platform: ${{ matrix.platform }}
           retry_all: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
       - name: Extract Test Target Name
@@ -1063,7 +1062,7 @@ jobs:
         with:
           target_name: ${{ matrix.test_info.target }}
           results_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*.xml
-          log_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt
+          log_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt results/**/${{ steps.extract-target-name.outputs.test_target }}*cobalt.log
           datadog_api_key: ${{ secrets.datadog_api_key }}
           num_gtest_shards: ${{ matrix.test_info.test_type == 'gtest' && needs.initialize.outputs.num_gtest_shards || 1 }}
       - name: ${{ matrix.test_info.target }} Device Logs
@@ -1073,27 +1072,15 @@ jobs:
         with:
           log_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*logcat.txt
           symbolize: 'false'
-      - name: ${{ matrix.test_info.target }} Cobalt Logs
-        if: always() && steps.filter.outputs.skipped != 'true'
-        continue-on-error: true
-        uses: ./.github/actions/print_logs
-        with:
-          log_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*cobalt.log
-          symbolize: 'false'
       - name: ${{ matrix.test_info.target }} Test Logs
         if: always() && steps.filter.outputs.skipped != 'true'
-        continue-on-error: true
         uses: ./.github/actions/print_logs
         with:
-          log_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt
+          log_glob: |
+            results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt
+            results/**/${{ steps.extract-target-name.outputs.test_target }}*cobalt.log
+            results/**/${{ steps.extract-target-name.outputs.test_target }}*symbolized_crash.txt
           results_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*.xml
-          symbolize: 'false'
-      - name: ${{ matrix.test_info.target }} Crash Logs
-        if: always() && steps.filter.outputs.skipped != 'true'
-        continue-on-error: true
-        uses: ./.github/actions/print_logs
-        with:
-          log_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*symbolized_crash.txt
           symbolize: 'false'
       - name: Generate Retry Filter
         if: always() && steps.filter.outputs.skipped != 'true'
