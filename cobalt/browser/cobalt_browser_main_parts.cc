@@ -39,6 +39,7 @@
 #include "cobalt/browser/metrics/cobalt_detailed_metrics_delegate.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/browser/metrics/cobalt_stability_metrics_helper.h"
+#include "cobalt/browser/metrics/cobalt_storage_metrics_helper.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/memory/cobalt_memory_attribution_manager.h"
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
@@ -444,15 +445,20 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   client->SetUserAgentCrashAnnotation();
 #endif  // !BUILDFLAG(IS_ANDROIDTV)
 
-#if BUILDFLAG(USE_EVERGREEN)
+#if BUILDFLAG(USE_EVERGREEN) || BUILDFLAG(IS_ANDROIDTV)
   auto* native_stability_manager =
       h5vcc_native_stability::NativeStabilityManager::GetInstance();
 
+#if BUILDFLAG(USE_EVERGREEN)
+  // Only 3P (Evergreen) platforms currently provide native stability tracking
+  // for crashes.
+  //
   // TODO: b/528362453 - Consider moving this to an earlier startup stage (e.g.
   // PreEarlyInitialization) to ensure early startup crashes are also tagged.
   native_stability_manager->ArmCrashUuidAnnotation();
-  native_stability_manager->PruneStorage();
 #endif  // BUILDFLAG(USE_EVERGREEN)
+  native_stability_manager->PruneStorage();
+#endif  // BUILDFLAG(USE_EVERGREEN) || BUILDFLAG(IS_ANDROIDTV)
 
   int result = ShellBrowserMainParts::PreMainMessageLoopRun();
 
@@ -496,6 +502,7 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
 #endif  // BUILDFLAG(IS_STARBOARD)
 
   StartStorageMigration();
+  ScheduleCobaltStorageMetricsRecording();
 
   return result;
 }

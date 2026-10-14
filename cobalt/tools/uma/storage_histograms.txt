@@ -1,0 +1,87 @@
+# Cobalt storage and disk I/O UMA histograms.
+#
+# Usage from the repository root:
+#   vpython3 cobalt/tools/uma/pull_uma_histogram_set_via_cdp.py \
+#     --histogram-file cobalt/tools/uma/storage_histograms.txt
+#
+# Lines starting with '#' are ignored. Histograms are grouped by the question
+# they answer. Error-path histograms (section 5) only appear after an error.
+# Histograms that are superseded, misleading or never recorded are listed at
+# the end as comments, so they are not queried.
+
+# --- 1. Latency on critical paths: startup, commits, lifecycle flushes ---
+# Cookie database open and load at startup, and how long requests waited on it.
+Cobalt.Storage.Cookie.LoadDuration
+Cookie.TimeBlockedOnLoad
+# Wall time of one SQLite cookie commit and one LevelDB localStorage commit.
+Cobalt.Storage.Cookie.CommitDuration
+Cobalt.Storage.LocalStorage.CommitDuration
+# Flush on onPause (waits for cookies only) and on h5vcc.system.exit().
+Cobalt.Storage.OnPause.FlushDuration
+Cobalt.Storage.Exit.CookieFlushDuration
+# HTTP cache: hits served from disk, lookup before a network request, and
+# backend file open/write time.
+HttpCache.AccessToDone2.Used
+HttpCache.BeforeSend
+SimpleCache.Http.DiskOpenLatency
+SimpleCache.Http.DiskWriteLatency
+
+# --- 2. Cache effectiveness ---
+HttpCache.Pattern
+V8.CompileScript.CacheBehaviour
+SimpleCache.Code.DiskOpenLatency
+SimpleCache.Code.DiskWriteLatency
+
+# --- 3. Flash wear and write batching ---
+Cobalt.Storage.ProcessIo.StartupReadKB
+Cobalt.Storage.ProcessIo.StartupWriteKB
+Cobalt.Storage.ProcessIo.WriteRateKBPerMin
+# Batch size and delay per commit (validates commit batching changes).
+Cobalt.Storage.Cookie.PendingOperationsAtCommit
+DOMStorage.CommitSizeBytesAggregated
+DOMStorage.CommitMeasuredDelay
+
+# --- 4. Disk footprint vs. partner quota (USER_DATA 1 MB, DIR_CACHE 24 MB) ---
+Cobalt.Storage.UserData.StartupTotalSizeKB
+Cobalt.Storage.DirCache.StartupTotalSizeKB
+# HTTP cache (largest part of DIR_CACHE) size and cap, and code cache size,
+# read when each cache's index loads.
+SimpleCache.Http.CacheSizeOnInit
+SimpleCache.Http.MaxCacheSizeOnInit
+SimpleCache.Code.CacheSizeOnInit
+
+# --- 5. Data integrity: database errors (sign-out risk) ---
+# Recorded only when a database open, read or commit fails.
+Cobalt.LocalStorage.DatabaseOpenError
+Cobalt.LocalStorage.DatabaseReadError
+Cobalt.LocalStorage.DatabaseCommitError
+Cobalt.LocalStorage.DatabaseVersionMismatch
+LocalStorage.DatabaseOpen
+LevelDBEnv.SyncResult
+Cookie.LoadProblem
+Cookie.CommitProblem
+
+# --- 6. Cobalt 25 to 27 storage migration ---
+Cobalt.StorageMigration.Outcome
+Cobalt.StorageMigration.Duration
+Cobalt.StorageMigration.ReadResult
+Cobalt.StorageMigration.CookieInjectionResult
+Cobalt.StorageMigration.LocalStorageInjectionResult
+Cobalt.StorageMigration.SentinelWriteResult
+
+# --- Not needed (comments only, not queried) ---
+# Cobalt.Storage.Cookie.CommitDurationPerOperation
+#   Divides commit time by batch size. Use Cobalt.Storage.Cookie.CommitDuration.
+# Cobalt.Storage.Exit.LocalStorageFlushSchedulingDuration
+#   Times posting the flush, not the disk write.
+# HttpCache.AccessToDone2
+#   Includes network download time. Use AccessToDone2.Used and BeforeSend.
+# Cookie.CookieJarSize
+#   In-memory cookie jar size. Disk footprint is UserData.StartupTotalSizeKB.
+# Cobalt.LocalStorage.DatabaseResetReason
+#   Registered in histograms.xml but never recorded in code.
+# Cobalt.StorageMigration.FastPathDuration, CookiesCount, LocalStorageCount
+#   The fast path takes ~0 ms, and the counts don't drive decisions.
+# Cobalt.Storage.UserData.OrphanedCacheCleanedKB, Cobalt.Storage.DIPS.WalSizeKB
+#   Proposed one-time cleanup metrics, not built. UserData.StartupTotalSizeKB
+#   and ProcessIo.WriteRateKBPerMin show the effect of both cleanups.
