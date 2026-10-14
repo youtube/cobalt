@@ -529,3 +529,28 @@ bool OverlayProcessorOzone::ShouldCreatePrimaryPlane() const {
 }
 ```
 - Only extend the guard when you can state the shared constraint in the comment. If you cannot, do not guess: add `// TODO(cobalt-rebase): [HUMAN_REVIEW_REQUIRED]` next to the Cast branch asking whether Cobalt needs the same behavior.
+
+---
+
+### Adapting Cobalt Code to an Upstream Rename: Keep Its Original Meaning
+
+When a build error comes from Cobalt code that still uses an upstream symbol that was renamed or turned into an array/map (for example `g_thread_cache_root` -> `g_thread_cache_roots[]`), port the Cobalt code to the new name **with exactly the same meaning it had before**. Do not pick a different element, index or overload just because it compiles. Look up which element corresponds to the old single value (`TOOL_GREP` the new declaration and its index constants) before editing.
+
+**Real Example (`partition_alloc/thread_cache.cc`, M146.7644)**: `ThreadCache::IsInitialized()` used to check the single default-root thread cache.
+```cpp
+// [BAD] AI (Phase 4 fix of the stale symbol): compiles, but checks the
+//       quarantine root, so the Cobalt guard in
+//       scheduler_loop_quarantine_support.h now tests the wrong cache.
+bool ThreadCache::IsInitialized() {
+  return PA_UNSAFE_TODO(
+             g_thread_cache_roots[internal::kThreadCacheQuarantineIndex])
+             .load(std::memory_order_acquire) != nullptr;
+}
+
+// [GOOD] Human: same meaning as before (default root only).
+bool ThreadCache::IsInitialized() {
+  return PA_UNSAFE_TODO(
+             g_thread_cache_roots[internal::kDefaultRootThreadCacheIndex])
+             .load(std::memory_order_acquire) != nullptr;
+}
+```
