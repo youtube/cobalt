@@ -186,9 +186,12 @@ void AutofillAiImportDataControllerImpl::OnVisibilityChanged(
   AutofillBubbleControllerBase::OnVisibilityChanged(visibility);
   if (visibility == content::Visibility::VISIBLE &&
       reopen_bubble_when_web_contents_becomes_visible_) {
-    reopen_bubble_when_web_contents_becomes_visible_ = false;
     QueueOrShowBubble();
   }
+}
+
+bool AutofillAiImportDataControllerImpl::ShouldReshowOnTabVisible() const {
+  return reopen_bubble_when_web_contents_becomes_visible_;
 }
 
 void AutofillAiImportDataControllerImpl::OnBubbleClosed(
@@ -199,6 +202,12 @@ void AutofillAiImportDataControllerImpl::OnBubbleClosed(
   if (!bubble_hide_initiated_by_bubble_manager_) {
     MaybeRunSaveUpdateCallback(result);
   }
+}
+
+bool AutofillAiImportDataControllerImpl::CanBeReshown() const {
+  // We reshow the prompt only if it is a save/update prompt that has not run
+  // yet. The other cases offer too little benefit to the user.
+  return IsSaveUpdatePrompt() && GetSaveUpdateState().prompt_result_callback;
 }
 
 void AutofillAiImportDataControllerImpl::OnBubbleDiscarded() {
@@ -227,6 +236,7 @@ void AutofillAiImportDataControllerImpl::DoShowBubble() {
     NOTREACHED();
   };
 
+  reopen_bubble_when_web_contents_becomes_visible_ = false;
   SetBubbleView(get_bubble());
   CHECK(bubble_view());
 }

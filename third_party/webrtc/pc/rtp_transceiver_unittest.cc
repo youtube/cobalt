@@ -271,7 +271,10 @@ TEST_F(RtpTransceiverUnifiedPlanTest, StopSetsDirection) {
   transceiver->StopStandard();
   EXPECT_EQ(RtpTransceiverDirection::kStopped, transceiver->direction());
   EXPECT_FALSE(transceiver->current_direction());
-  transceiver->StopTransceiverProcedure();
+  auto stop_task = transceiver->GetStopTransceiverProcedure();
+  if (stop_task) {
+    std::move(stop_task)();
+  }
   EXPECT_TRUE(transceiver->current_direction());
   EXPECT_EQ(RtpTransceiverDirection::kStopped, transceiver->direction());
   EXPECT_EQ(RtpTransceiverDirection::kStopped,

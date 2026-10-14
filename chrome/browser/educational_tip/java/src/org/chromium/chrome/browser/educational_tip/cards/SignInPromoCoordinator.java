@@ -3,25 +3,27 @@
 // found in the LICENSE file.
 package org.chromium.chrome.browser.educational_tip.cards;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import androidx.annotation.DrawableRes;
 
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.educational_tip.EducationTipModuleActionDelegate;
 import org.chromium.chrome.browser.educational_tip.EducationalTipCardProvider;
 import org.chromium.chrome.browser.educational_tip.R;
 import org.chromium.chrome.browser.magic_stack.ModuleDelegate.ModuleType;
-import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.setup_list.SetupListCompletable;
 import org.chromium.chrome.browser.setup_list.SetupListModuleUtils;
-import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
-import org.chromium.components.signin.identitymanager.ConsentLevel;
-import org.chromium.components.signin.identitymanager.IdentityManager;
+import org.chromium.chrome.browser.ui.signin.BottomSheetSigninAndHistorySyncCoordinator;
+import org.chromium.components.signin.metrics.SigninAccessPoint;
 
 /** Coordinator for the sign in promo card. */
 @NullMarked
 public class SignInPromoCoordinator implements EducationalTipCardProvider, SetupListCompletable {
     private final Runnable mOnModuleClickedCallback;
     private final EducationTipModuleActionDelegate mActionDelegate;
+    private @Nullable BottomSheetSigninAndHistorySyncCoordinator mSignInCoordinator;
 
     /**
      * @param onModuleClickedCallback The callback to be called when the module is clicked.
@@ -31,6 +33,10 @@ public class SignInPromoCoordinator implements EducationalTipCardProvider, Setup
             Runnable onModuleClickedCallback, EducationTipModuleActionDelegate actionDelegate) {
         mOnModuleClickedCallback = onModuleClickedCallback;
         mActionDelegate = actionDelegate;
+        mSignInCoordinator =
+                mActionDelegate.createBottomSheetSigninAndHistorySyncCoordinator(
+                        new BottomSheetSigninAndHistorySyncCoordinator.Delegate() {},
+                        SigninAccessPoint.SET_UP_LIST);
     }
 
     // EducationalTipCardProvider implementation.
@@ -60,28 +66,21 @@ public class SignInPromoCoordinator implements EducationalTipCardProvider, Setup
 
     @Override
     public void onCardClicked() {
-        // TODO(crbug.com/469425754): Launch Sign in flow
+        mActionDelegate.startSignInFlow(assumeNonNull(mSignInCoordinator));
         mOnModuleClickedCallback.run();
     }
 
     @Override
-    public boolean isComplete() {
-        if (SetupListModuleUtils.isModuleCompleted(ModuleType.SIGN_IN_PROMO)) {
-            return true;
+    public void destroy() {
+        if (mSignInCoordinator != null) {
+            mSignInCoordinator.destroy();
+            mSignInCoordinator = null;
         }
+    }
 
-        // Check current sign-in status
-        Profile profile = mActionDelegate.getProfileSupplier().get();
-        if (profile != null) {
-            IdentityManager identityManager =
-                    IdentityServicesProvider.get().getIdentityManager(profile);
-            if (identityManager != null && identityManager.hasPrimaryAccount(ConsentLevel.SIGNIN)) {
-                // User is signed in, mark as complete
-                SetupListModuleUtils.setModuleCompleted(ModuleType.SIGN_IN_PROMO);
-                return true;
-            }
-        }
-        return false;
+    @Override
+    public boolean isComplete() {
+        return SetupListModuleUtils.isModuleCompleted(ModuleType.SIGN_IN_PROMO);
     }
 
     @Override

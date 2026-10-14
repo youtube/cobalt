@@ -363,7 +363,7 @@ bool BrowserContext::ShutdownStarted() {
   return impl()->ShutdownStarted();
 }
 
-const std::string& BrowserContext::UniqueId() {
+const std::string& BrowserContext::UniqueId() const {
   return impl()->UniqueId();
 }
 

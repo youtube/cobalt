@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "absl/algorithm/container.h"
+#include "absl/base/nullability.h"
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"
@@ -608,9 +609,9 @@ absl::AnyInvocable<void() &&> RtpTransceiver::GetDeleteChannelWorkerTask(
     return nullptr;
   }
 
-  std::vector<absl::AnyInvocable<void() &&>> stop;
+  std::vector<absl::AnyInvocable<void() &&>> stop_sender_actions;
   if (stop_senders) {
-    stop = DetachAndGetStopTasksForSenders(senders_);
+    stop_sender_actions = DetachAndGetStopTasksForSenders(senders_);
   }
 
   transport_name_ = std::nullopt;
@@ -618,9 +619,10 @@ absl::AnyInvocable<void() &&> RtpTransceiver::GetDeleteChannelWorkerTask(
   // Ensure that channel_ is not reachable via the transceiver, but is deleted
   // only after clearing the references in senders_ and receivers_.
   return [this, channel = std::move(channel_), senders = senders_,
-          receivers = receivers_, stop = std::move(stop)]() mutable {
+          receivers = receivers_,
+          stop_sender_actions = std::move(stop_sender_actions)]() mutable {
     RTC_DCHECK_RUN_ON(context()->worker_thread());
-    for (auto& task : stop) {
+    for (auto& task : stop_sender_actions) {
       std::move(task)();
     }
     ClearMediaChannelReferences();
@@ -917,14 +919,15 @@ void RtpTransceiver::set_receptive(bool receptive) {
   }
 }
 
-void RtpTransceiver::StopSendingAndReceiving() {
+absl_nonnull absl::AnyInvocable<void() &&>
+RtpTransceiver::GetStopSendingAndReceiving() {
   RTC_DCHECK_RUN_ON(thread_);
   RTC_DCHECK(!stopped_);
   RTC_DCHECK(!stopping_);
   // 1. Let sender be transceiver.[[Sender]].
   // 2. Let receiver be transceiver.[[Receiver]].
 
-  RTC_LOG_THREAD_BLOCK_COUNT();
+  RTC_DCHECK_DISALLOW_THREAD_BLOCKING_CALLS();
 
   // Signal to receiver sources that we're stopping.
   for (const auto& receiver : receivers_) {
@@ -936,25 +939,23 @@ void RtpTransceiver::StopSendingAndReceiving() {
   // worker thread to avoid each sender doing that within `Stop()`.
   // Senders will have already cleared send when the media channel was set to
   // nullptr.
-  std::vector<absl::AnyInvocable<void() &&>> stop =
+  std::vector<absl::AnyInvocable<void() &&>> stop_sender_actions =
       DetachAndGetStopTasksForSenders(senders_);
-
-  // 3. Send an RTCP BYE for each RTP stream that was being sent by sender, as
-  // specified in [RFC3550].
-  context()->worker_thread()->BlockingCall([&]() {
-    RTC_DCHECK_RUN_ON(context()->worker_thread());
-    for (auto& task : stop) {
-      std::move(task)();
-    }
-    ClearMediaChannelReferences();
-  });
-
-  RTC_DCHECK_BLOCK_COUNT_NO_MORE_THAN(1);
 
   stopping_ = true;
   direction_ = RtpTransceiverDirection::kInactive;
 
-  RTC_DCHECK_BLOCK_COUNT_NO_MORE_THAN(1);
+  // 3. Send an RTCP BYE for each RTP stream that was being sent by sender, as
+  // specified in [RFC3550].
+
+  return
+      [this, stop_sender_actions = std::move(stop_sender_actions)]() mutable {
+        RTC_DCHECK_RUN_ON(context()->worker_thread());
+        for (auto& task : stop_sender_actions) {
+          std::move(task)();
+        }
+        ClearMediaChannelReferences();
+      };
 }
 
 RTCError RtpTransceiver::StopStandard() {
@@ -980,7 +981,9 @@ RTCError RtpTransceiver::StopStandard() {
 
   // 5. Stop sending and receiving given transceiver, and update the
   // negotiation-needed flag for connection.
-  StopSendingAndReceiving();
+  auto stop_task = GetStopSendingAndReceiving();
+  context_->worker_thread()->BlockingCall(
+      [&]() mutable { std::move(stop_task)(); });
   on_negotiation_needed_();
 
   return RTCError::OK();
@@ -988,16 +991,24 @@ RTCError RtpTransceiver::StopStandard() {
 
 void RtpTransceiver::StopInternal() {
   RTC_DCHECK_RUN_ON(thread_);
-  StopTransceiverProcedure();
+  auto stop_task = GetStopTransceiverProcedure();
+  if (stop_task) {
+    context_->worker_thread()->BlockingCall(
+        [stop_task = std::move(stop_task)]() mutable {
+          std::move(stop_task)();
+        });
+  }
 }
 
-void RtpTransceiver::StopTransceiverProcedure() {
+absl_nullable absl::AnyInvocable<void() &&>
+RtpTransceiver::GetStopTransceiverProcedure() {
   RTC_DCHECK_RUN_ON(thread_);
   // As specified in the "Stop the RTCRtpTransceiver" procedure
   // 1. If transceiver.[[Stopping]] is false, stop sending and receiving given
   // transceiver.
+  absl::AnyInvocable<void() &&> stop_task;
   if (!stopping_)
-    StopSendingAndReceiving();
+    stop_task = GetStopSendingAndReceiving();
 
   // 2. Set transceiver.[[Stopped]] to true.
   stopped_ = true;
@@ -1007,6 +1018,8 @@ void RtpTransceiver::StopTransceiverProcedure() {
 
   // 4. Set transceiver.[[CurrentDirection]] to null.
   current_direction_ = std::nullopt;
+
+  return stop_task;
 }
 
 RTCError RtpTransceiver::SetCodecPreferences(

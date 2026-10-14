@@ -687,8 +687,15 @@ void LocationBarView::SelectAll() {
   omnibox_view_->SelectAll(true);
 }
 
-void LocationBarView::FocusLocation(bool is_user_initiated) {
+void LocationBarView::FocusLocation(bool is_user_initiated,
+                                    bool clear_focus_if_failed) {
   omnibox_view_->SetFocus(is_user_initiated);
+  if (clear_focus_if_failed && !omnibox_view_->HasFocus()) {
+    // If none of location bar got focus, then clear focus.
+    views::FocusManager* focus_manager = GetFocusManager();
+    DCHECK(focus_manager);
+    focus_manager->ClearFocus();
+  }
 }
 
 void LocationBarView::Revert() {
@@ -1199,6 +1206,16 @@ void LocationBarView::ResetTabState(WebContents* contents) {
   omnibox_view_->ResetTabState(contents);
 }
 
+bool LocationBarView::ShouldCloseOmniboxPopup(ui::MouseEvent* event) {
+  if (event->type() != ui::EventType::kMousePressed) {
+    return false;
+  }
+
+  auto* const view = static_cast<views::View*>(event->target());
+  CHECK(view);
+  return !Contains(view);
+}
+
 ChipController* LocationBarView::GetChipController() {
   if (base::FeatureList::IsEnabled(
           content_settings::features::kLeftHandSideActivityIndicators)) {
@@ -1683,13 +1700,18 @@ void LocationBarView::OnPageInfoBubbleClosed(
     return;
   }
 
-  FocusLocation(false);
+  FocusLocation(/*is_user_initiated=*/false, /*clear_focus_if_failed=*/false);
 }
 
 void LocationBarView::FocusSearch() {
   // This is called by keyboard accelerator, so it's user-initiated.
   omnibox_view_->SetFocus(/*is_user_initiated=*/true);
   omnibox_view_->EnterKeywordModeForDefaultSearchProvider();
+}
+
+void LocationBarView::UpdateFocusBehavior(bool toolbar_visible) {
+  omnibox_view()->SetFocusBehavior(toolbar_visible ? FocusBehavior::ALWAYS
+                                                   : FocusBehavior::NEVER);
 }
 
 void LocationBarView::UpdateContentSettingsIcons() {
@@ -2061,14 +2083,14 @@ bool LocationBarView::IsEditingOrEmpty() const {
   return omnibox_view_ && omnibox_view_->IsEditingOrEmpty();
 }
 
-void LocationBarView::OnLocationIconPressed(const ui::MouseEvent& event) {
+bool LocationBarView::OpenContextMenu() {
   if (browser_ &&
       GetOmniboxController()->edit_model()->ShouldShowAddContextButton()) {
     if (!omnibox_popup_aim_presenter_ ||
         !omnibox_popup_aim_presenter_->GetWebUIContent() ||
         !omnibox_popup_aim_presenter_->GetWebUIContent()
              ->GetWrappedWebContents()) {
-      return;
+      return false;
     }
 
     omnibox_context_menu_ = std::make_unique<OmniboxContextMenu>(
@@ -2078,6 +2100,26 @@ void LocationBarView::OnLocationIconPressed(const ui::MouseEvent& event) {
     gfx::Point point(0, location_icon_view_->height());
     views::View::ConvertPointToScreen(location_icon_view_, &point);
     run_omnibox_context_menu_callback_.Run(omnibox_context_menu_.get(), point);
+    return true;
+  }
+  return false;
+}
+
+void LocationBarView::OnLocationIconGestureEvent(ui::GestureEvent* event) {
+  switch (event->type()) {
+    case ui::EventType::kGestureTap:
+    case ui::EventType::kGestureLongPress:
+    case ui::EventType::kGestureLongTap:
+    case ui::EventType::kGestureTwoFingerTap:
+      OpenContextMenu();
+      break;
+    default:
+      break;
+  }
+}
+
+void LocationBarView::OnLocationIconPressed(const ui::MouseEvent& event) {
+  if (!OpenContextMenu()) {
     return;
   }
 

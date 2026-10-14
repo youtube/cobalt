@@ -379,9 +379,9 @@ rtc_library("payload_type_picker") {
 rtc_source_set("payload_type") {
   sources = [ "payload_type.h" ]
   deps = [
+    "../api:payload_type",
     "../api:rtc_error",
     "../media:codec",
-    "../rtc_base:strong_alias",
     "//third_party/abseil-cpp/absl/strings:string_view",
   ]
 }

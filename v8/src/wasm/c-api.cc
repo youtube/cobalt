@@ -1128,7 +1128,7 @@ own<Instance> GetInstance(StoreImpl* store,
                           i::DirectHandle<i::WasmInstanceObject> instance);
 
 own<Frame> CreateFrameFromInternal(i::DirectHandle<i::FixedArray> frames,
-                                   int index, i::Isolate* isolate,
+                                   uint32_t index, i::Isolate* isolate,
                                    StoreImpl* store) {
   PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate);
   i::DirectHandle<i::CallSiteInfo> frame(
@@ -1153,7 +1153,7 @@ own<Frame> Trap::origin() const {
 
   i::DirectHandle<i::FixedArray> frames =
       isolate->GetSimpleStackTrace(impl(this)->v8_object());
-  if (frames->length() == 0) {
+  if (frames->ulength().value() == 0) {
     return own<Frame>();
   }
   return CreateFrameFromInternal(frames, 0, isolate, impl(this)->store());
@@ -1167,10 +1167,10 @@ ownvec<Frame> Trap::trace() const {
 
   i::DirectHandle<i::FixedArray> frames =
       isolate->GetSimpleStackTrace(impl(this)->v8_object());
-  int num_frames = frames->length();
+  uint32_t num_frames = frames->ulength().value();
   // {num_frames} can be 0; the code below can handle that case.
   ownvec<Frame> result = ownvec<Frame>::make_uninitialized(num_frames);
-  for (int i = 0; i < num_frames; i++) {
+  for (uint32_t i = 0; i < num_frames; i++) {
     result[i] =
         CreateFrameFromInternal(frames, i, isolate, impl(this)->store());
   }
@@ -1726,6 +1726,7 @@ void PushArgs(const i::wasm::CanonicalSig* sig, const vec<Val>& args,
       case i::wasm::kI8:
       case i::wasm::kI16:
       case i::wasm::kF16:
+      case i::wasm::kWaitQueue:
       case i::wasm::kVoid:
       case i::wasm::kTop:
       case i::wasm::kBottom:
@@ -1767,6 +1768,7 @@ void PopArgs(const i::wasm::CanonicalSig* sig, vec<Val>& results,
       case i::wasm::kI8:
       case i::wasm::kI16:
       case i::wasm::kF16:
+      case i::wasm::kWaitQueue:
       case i::wasm::kVoid:
       case i::wasm::kTop:
       case i::wasm::kBottom:
@@ -2068,6 +2070,7 @@ WASM_EXPORT auto Global::get() const -> Val {
     case i::wasm::kI8:
     case i::wasm::kI16:
     case i::wasm::kF16:
+    case i::wasm::kWaitQueue:
     case i::wasm::kVoid:
     case i::wasm::kTop:
     case i::wasm::kBottom:

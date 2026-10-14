@@ -50,7 +50,6 @@ std::vector<MoqtFramerTestParams> GetMoqtFramerTestParams() {
       MoqtMessageType::kTrackStatus,
       MoqtMessageType::kGoAway,
       MoqtMessageType::kSubscribeNamespace,
-      MoqtMessageType::kUnsubscribeNamespace,
       MoqtMessageType::kMaxRequestId,
       MoqtMessageType::kFetch,
       MoqtMessageType::kFetchCancel,
@@ -175,10 +174,6 @@ class MoqtFramerTest
       case moqt::MoqtMessageType::kSubscribeNamespace: {
         auto data = std::get<MoqtSubscribeNamespace>(structured_data);
         return framer_.SerializeSubscribeNamespace(data);
-      }
-      case moqt::MoqtMessageType::kUnsubscribeNamespace: {
-        auto data = std::get<MoqtUnsubscribeNamespace>(structured_data);
-        return framer_.SerializeUnsubscribeNamespace(data);
       }
       case moqt::MoqtMessageType::kMaxRequestId: {
         auto data = std::get<MoqtMaxRequestId>(structured_data);
@@ -471,38 +466,6 @@ TEST_F(MoqtFramerSimpleTest, FetchOkWholeGroup) {
   quiche::QuicheBuffer buffer = framer_.SerializeFetchOk(fetch_ok);
   // Check that object ID is zero.
   EXPECT_EQ(static_cast<uint8_t>(buffer.AsSpan()[7]), 0);
-}
-
-TEST_F(MoqtFramerSimpleTest, SubscribeUpdateEndGroupOnly) {
-  MoqtSubscribeUpdate subscribe_update = {
-      /*subscribe_id=*/3,
-      /*start=*/Location(4, 3),
-      /*end_group=*/4,
-      /*subscriber_priority=*/0xaa,
-      /*forward=*/true,
-      VersionSpecificParameters(),
-  };
-  quiche::QuicheBuffer buffer;
-  buffer = framer_.SerializeSubscribeUpdate(subscribe_update);
-  EXPECT_GT(buffer.size(), 0);
-  const uint8_t* end_group = BufferAtOffset(buffer, 6);
-  EXPECT_EQ(*end_group, 5);
-}
-
-TEST_F(MoqtFramerSimpleTest, SubscribeUpdateIncrementsEnd) {
-  MoqtSubscribeUpdate subscribe_update = {
-      /*subscribe_id=*/3,
-      /*start=*/Location(4, 3),
-      /*end_group=*/4,
-      /*subscriber_priority=*/0xaa,
-      /*forward=*/true,
-      VersionSpecificParameters(),
-  };
-  quiche::QuicheBuffer buffer;
-  buffer = framer_.SerializeSubscribeUpdate(subscribe_update);
-  EXPECT_GT(buffer.size(), 0);
-  const uint8_t* end_group = BufferAtOffset(buffer, 6);
-  EXPECT_EQ(*end_group, 5);
 }
 
 TEST_F(MoqtFramerSimpleTest, RelativeJoiningFetch) {

@@ -111,13 +111,6 @@ class Vector {
     return std::make_reverse_iterator(begin());
   }
 
-  // Returns a clone of this vector with a new backing store.
-  Vector<T> Clone() const {
-    T* result = new T[length_];
-    for (size_t i = 0; i < length_; i++) result[i] = start_[i];
-    return Vector<T>(result, length_);
-  }
-
   void Truncate(size_t length) {
     DCHECK(length <= length_);
     length_ = length;
@@ -185,16 +178,6 @@ template <typename T>
 V8_INLINE size_t hash_value(base::Vector<T> v) {
   return hash_range(v.begin(), v.end());
 }
-
-template <typename T>
-class V8_NODISCARD ScopedVector : public Vector<T> {
- public:
-  explicit ScopedVector(size_t length) : Vector<T>(new T[length], length) {}
-  ~ScopedVector() { delete[] this->begin(); }
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ScopedVector);
-};
 
 template <typename T>
 class OwnedVector {

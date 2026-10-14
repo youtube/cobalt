@@ -223,7 +223,7 @@ ClassScope::ClassScope(IsolateT* isolate, Zone* zone,
     DCHECK_EQ(scope_info->ContextLocalInitFlag(index),
               InitializationFlag::kNeedsInitialization);
     DCHECK_EQ(scope_info->ContextLocalMaybeAssignedFlag(index),
-              MaybeAssignedFlag::kMaybeAssigned);
+              MaybeAssignedFlag::kNotAssigned);
     Variable* var = DeclareClassVariable(
         ast_value_factory,
         ast_value_factory->GetString(name,
@@ -2799,7 +2799,7 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* parse_info,
 
   Tagged<WeakFixedArray> infos = script->infos();
   std::unordered_map<int, Handle<ScopeInfo>> scope_infos_to_reuse;
-  if (v8_flags.reuse_scope_infos && infos->length() != 0) {
+  if (v8_flags.reuse_scope_infos && infos->ulength().value() != 0) {
     Tagged<SharedFunctionInfo> parse_info_sfi =
         *parse_info->literal()->shared_function_info();
     Tagged<ScopeInfo> outer = parse_info_sfi->HasOuterScopeInfo()
@@ -3238,7 +3238,7 @@ Variable* ClassScope::DeclareClassVariable(AstValueFactory* ast_value_factory,
       Declare(zone(), name->IsEmpty() ? ast_value_factory->dot_string() : name,
               VariableMode::kConst, NORMAL_VARIABLE,
               InitializationFlag::kNeedsInitialization,
-              MaybeAssignedFlag::kMaybeAssigned, &was_added);
+              MaybeAssignedFlag::kNotAssigned, &was_added);
   DCHECK(was_added);
   class_variable_->set_initializer_position(class_token_pos);
   return class_variable_;

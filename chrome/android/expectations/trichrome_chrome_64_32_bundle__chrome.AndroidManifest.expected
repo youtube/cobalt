@@ -308,7 +308,7 @@
     </activity>  # DIFF-ANCHOR: 060360d2
     <activity  # DIFF-ANCHOR: 43bdc48f
         android:name="org.chromium.chrome.browser.media.DocumentPictureInPictureActivity"
-        android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation"
+        android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|density|uiMode"
         android:excludeFromRecents="true"
         android:exported="false"
         android:noHistory="true"
@@ -955,7 +955,7 @@
     <service  # DIFF-ANCHOR: ac8469ff
         android:name="org.chromium.chrome.browser.media.MediaCaptureNotificationService"
         android:exported="false"
-        android:foregroundServiceType="mediaProjection|mediaPlayback">
+        android:foregroundServiceType="camera|microphone|mediaProjection|mediaPlayback">
     </service>  # DIFF-ANCHOR: ac8469ff
     <service  # DIFF-ANCHOR: 7ef9e4e5
         android:name="org.chromium.chrome.browser.media.ui.ChromeMediaNotificationControllerServices$CastListenerService"

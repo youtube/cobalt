@@ -45,6 +45,19 @@ void CreateAudioEncoderNumChannelsGraph(const ParsedRtcEventLog& parsed_log,
                                         const AnalyzerConfig& config,
                                         Plot* plot);
 
+void CreatePlayoutGraph(const ParsedRtcEventLog& parsed_log,
+                        const AnalyzerConfig& config,
+                        Plot* plot);
+
+void CreateNetEqSetMinimumDelay(const ParsedRtcEventLog& parsed_log,
+                                const AnalyzerConfig& config,
+                                Plot* plot);
+
+void CreateAudioLevelGraph(const ParsedRtcEventLog& parsed_log,
+                           const AnalyzerConfig& config,
+                           PacketDirection direction,
+                           Plot* plot);
+
 using NetEqStatsGetterMap =
     std::map<uint32_t, std::unique_ptr<test::NetEqStatsGetter>>;
 NetEqStatsGetterMap SimulateNetEq(const ParsedRtcEventLog& parsed_log,

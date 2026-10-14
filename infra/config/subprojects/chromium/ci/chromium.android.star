@@ -866,11 +866,15 @@ ci.builder(
             "chrome_public_test_apk": targets.mixin(
                 args = [
                     "--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_12l.chrome_public_test_apk.filter",
+                    # Don't enable render tests on non-CQ builders
+                    "--skia-gold-consider-unsupported",
                 ],
             ),
             "chrome_public_unit_test_apk": targets.mixin(
                 args = [
                     "--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_12l.chrome_public_unit_test_apk.filter",
+                    # Don't enable render tests on non-CQ builders
+                    "--skia-gold-consider-unsupported",
                 ],
             ),
             "content_browsertests": targets.remove(
@@ -891,6 +895,8 @@ ci.builder(
             "content_shell_test_apk": targets.mixin(
                 args = [
                     "--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_12l.content_shell_test_apk.filter",
+                    # Don't enable render tests on non-CQ builders
+                    "--skia-gold-consider-unsupported",
                 ],
             ),
             "crashpad_tests": targets.mixin(
@@ -915,6 +921,10 @@ ci.builder(
                 ],
             ),
             "webview_instrumentation_test_apk_multiple_process_mode": targets.mixin(
+                args = [
+                    # Don't enable render tests on non-CQ builders
+                    "--skia-gold-consider-unsupported",
+                ],
                 swarming = targets.swarming(
                     shards = 9,
                 ),
@@ -974,6 +984,14 @@ ci.builder(
             "chrome_public_test_apk": targets.mixin(
                 args = [
                     "--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_12l_landscape.chrome_public_test_apk.filter",
+                    # Don't enable render tests on non-CQ builders
+                    "--skia-gold-consider-unsupported",
+                ],
+            ),
+            "chrome_public_unit_test_apk": targets.mixin(
+                args = [
+                    # Don't enable render tests on non-CQ builders
+                    "--skia-gold-consider-unsupported",
                 ],
             ),
         },
@@ -1111,6 +1129,7 @@ ci.builder(
 
 ci.builder(
     name = "android-bfcache-rel",
+    description_html = "Tests the back/forward-cache feature on chromium",
     builder_spec = builder_config.builder_spec(
         gclient_config = builder_config.gclient_config(
             config = "chromium",
@@ -1121,7 +1140,7 @@ ci.builder(
             apply_configs = ["mb"],
             build_config = builder_config.build_config.RELEASE,
             target_arch = builder_config.target_arch.INTEL,
-            target_bits = 32,
+            target_bits = 64,
             target_platform = builder_config.target_platform.ANDROID,
         ),
         android_config = builder_config.android_config(
@@ -1134,9 +1153,10 @@ ci.builder(
             "release_builder",
             "remoteexec",
             "minimal_symbols",
-            "x86",
+            "x64",
             "strip_debug_info",
             "android_fastbuild",
+            "webview_trichrome",
             "webview_shell",
         ],
     ),
@@ -1146,24 +1166,28 @@ ci.builder(
         ],
         mixins = [
             "has_native_resultdb_integration",
-            "pie-x86-emulator",
+            "15-x64-emulator",
             "emulator-8-cores",
             "linux-jammy",
             "x86-64",
         ],
         per_test_modifications = {
             "bf_cache_content_browsertests": targets.mixin(
+                args = [
+                    "--test-launcher-filter-file=../../testing/buildbot/filters/android.bf_cache_content_browsertests.filter",
+                ],
                 swarming = targets.swarming(
                     shards = 30,
                 ),
             ),
             "bf_cache_android_browsertests": targets.mixin(
                 swarming = targets.swarming(
-                    shards = 4,
+                    shards = 8,
                 ),
             ),
         },
     ),
+    # TODO(https://crbug.com/482433957): Re-enable gardener when green.
     gardener_rotations = args.ignore_default(None),
     console_view_entry = consoles.console_view_entry(
         category = "bfcache",

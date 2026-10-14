@@ -1324,6 +1324,9 @@ std::string Network::ToString() const {
   if (IsVpn()) {
     ss << "/" << AdapterTypeToString(underlying_type_for_vpn_);
   }
+  if (network_slice() != NetworkSlice::NO_SLICE) {
+    ss << "/" << NetworkSliceToString(network_slice());
+  }
   ss << ":id=" << id_ << "]";
   return ss.Release();
 }

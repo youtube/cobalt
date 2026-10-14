@@ -17,9 +17,10 @@
 #include <string>
 
 #include "absl/strings/string_view.h"
+#include "api/units/timestamp.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/platform_thread.h"
-#include "rtc_base/time_utils.h"
+#include "system_wrappers/include/clock.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 
@@ -309,6 +310,8 @@ TEST(LogTest, CheckTagAddedToStringInDefaultOnLogMessageAndroid) {
 
 // Test the time required to write 1000 80-character logs to a string.
 TEST(LogTest, Perf) {
+  // This test should probably be turned into a benchmark.
+  Clock& clock = *Clock::GetRealTimeClock();
   std::string str;
   LogSinkImpl stream(&str);
   LogMessage::AddLogToStream(&stream, LS_VERBOSE);
@@ -325,19 +328,17 @@ TEST(LogTest, Perf) {
   str.reserve(120000);
   static const int kRepetitions = 1000;
 
-  int64_t start = TimeMillis(), finish;
+  Timestamp start = clock.CurrentTime();
   for (int i = 0; i < kRepetitions; ++i) {
     LogMessageForTesting(__FILE__, __LINE__, LS_VERBOSE).stream() << message;
   }
-  finish = TimeMillis();
+  Timestamp finish = clock.CurrentTime();
 
   LogMessage::RemoveLogToStream(&stream);
 
   EXPECT_EQ(str.size(), (message.size() + logging_overhead) * kRepetitions);
-  RTC_LOG(LS_INFO) << "Total log time: " << TimeDiff(finish, start)
-                   << " ms "
-                      " total bytes logged: "
-                   << str.size();
+  RTC_LOG(LS_INFO) << "Total log time: " << (finish - start)
+                   << " total bytes logged: " << str.size();
 }
 
 TEST(LogTest, EnumsAreSupported) {

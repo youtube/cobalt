@@ -15,6 +15,7 @@
 #include <limits>
 #include <vector>
 
+#include "api/array_view.h"
 #include "api/field_trials.h"
 #include "media/base/fake_rtp.h"
 #include "pc/test/srtp_test_util.h"
@@ -213,35 +214,50 @@ TEST_F(SrtpSessionTest, TestReplay) {
                              kEncryptedHeaderExtensionIds));
 
   // Initial sequence number.
-  SetBE16(rtp_packet_.MutableData<uint8_t>() + 2, seqnum_big);
+  SetBE16(
+      ArrayView<uint8_t>(rtp_packet_.MutableData<uint8_t>(), rtp_packet_.size())
+          .subspan(2, 2),
+      seqnum_big);
   EXPECT_TRUE(s1_.ProtectRtp(rtp_packet_));
   rtp_packet_.SetData(kPcmuFrame, sizeof(kPcmuFrame));
 
   // Replay within the 1024 window should succeed.
-  SetBE16(rtp_packet_.MutableData<uint8_t>() + 2,
-          seqnum_big - replay_window + 1);
+  SetBE16(
+      ArrayView<uint8_t>(rtp_packet_.MutableData<uint8_t>(), rtp_packet_.size())
+          .subspan(2, 2),
+      seqnum_big - replay_window + 1);
   EXPECT_TRUE(s1_.ProtectRtp(rtp_packet_));
   rtp_packet_.SetData(kPcmuFrame, sizeof(kPcmuFrame));
 
   // Replay out side of the 1024 window should fail.
-  SetBE16(rtp_packet_.MutableData<uint8_t>() + 2,
-          seqnum_big - replay_window - 1);
+  SetBE16(
+      ArrayView<uint8_t>(rtp_packet_.MutableData<uint8_t>(), rtp_packet_.size())
+          .subspan(2, 2),
+      seqnum_big - replay_window - 1);
   EXPECT_FALSE(s1_.ProtectRtp(rtp_packet_));
   rtp_packet_.SetData(kPcmuFrame, sizeof(kPcmuFrame));
 
   // Increment sequence number to a small number.
-  SetBE16(rtp_packet_.MutableData<uint8_t>() + 2, seqnum_small);
+  SetBE16(
+      ArrayView<uint8_t>(rtp_packet_.MutableData<uint8_t>(), rtp_packet_.size())
+          .subspan(2, 2),
+      seqnum_small);
   EXPECT_TRUE(s1_.ProtectRtp(rtp_packet_));
 
   // Replay around 0 but out side of the 1024 window should fail.
-  SetBE16(rtp_packet_.MutableData<uint8_t>() + 2,
-          kMaxSeqnum + seqnum_small - replay_window - 1);
+  SetBE16(
+      ArrayView<uint8_t>(rtp_packet_.MutableData<uint8_t>(), rtp_packet_.size())
+          .subspan(2, 2),
+      kMaxSeqnum + seqnum_small - replay_window - 1);
   EXPECT_FALSE(s1_.ProtectRtp(rtp_packet_));
   rtp_packet_.SetData(kPcmuFrame, sizeof(kPcmuFrame));
 
   // Replay around 0 but within the 1024 window should succeed.
   for (uint16_t seqnum = 65000; seqnum < 65003; ++seqnum) {
-    SetBE16(rtp_packet_.MutableData<uint8_t>() + 2, seqnum);
+    SetBE16(ArrayView<uint8_t>(rtp_packet_.MutableData<uint8_t>(),
+                               rtp_packet_.size())
+                .subspan(2, 2),
+            seqnum);
     EXPECT_TRUE(s1_.ProtectRtp(rtp_packet_));
     rtp_packet_.SetData(kPcmuFrame, sizeof(kPcmuFrame));
   }
@@ -251,7 +267,10 @@ TEST_F(SrtpSessionTest, TestReplay) {
   // without the fix, the loop above would keep incrementing local sequence
   // number in libsrtp, eventually the new sequence number would go out side
   // of the window.
-  SetBE16(rtp_packet_.MutableData<uint8_t>() + 2, seqnum_small + 1);
+  SetBE16(
+      ArrayView<uint8_t>(rtp_packet_.MutableData<uint8_t>(), rtp_packet_.size())
+          .subspan(2, 2),
+      seqnum_small + 1);
   EXPECT_TRUE(s1_.ProtectRtp(rtp_packet_));
 }
 

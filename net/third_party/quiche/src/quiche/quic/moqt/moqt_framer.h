@@ -55,8 +55,7 @@ class QUICHE_EXPORT MoqtFramer {
       MoqtMessageType message_type = MoqtMessageType::kSubscribeOk);
   quiche::QuicheBuffer SerializeUnsubscribe(const MoqtUnsubscribe& message);
   quiche::QuicheBuffer SerializePublishDone(const MoqtPublishDone& message);
-  quiche::QuicheBuffer SerializeSubscribeUpdate(
-      const MoqtSubscribeUpdate& message);
+  quiche::QuicheBuffer SerializeRequestUpdate(const MoqtRequestUpdate& message);
   quiche::QuicheBuffer SerializePublishNamespace(
       const MoqtPublishNamespace& message);
   quiche::QuicheBuffer SerializePublishNamespaceDone(
@@ -69,8 +68,6 @@ class QUICHE_EXPORT MoqtFramer {
   quiche::QuicheBuffer SerializeGoAway(const MoqtGoAway& message);
   quiche::QuicheBuffer SerializeSubscribeNamespace(
       const MoqtSubscribeNamespace& message);
-  quiche::QuicheBuffer SerializeUnsubscribeNamespace(
-      const MoqtUnsubscribeNamespace& message);
   quiche::QuicheBuffer SerializeMaxRequestId(const MoqtMaxRequestId& message);
   quiche::QuicheBuffer SerializeFetch(const MoqtFetch& message);
   quiche::QuicheBuffer SerializeFetchCancel(const MoqtFetchCancel& message);

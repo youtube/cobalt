@@ -416,14 +416,13 @@ bool ValidateDrawInstancedANGLE(const Context *context, angle::EntryPoint entryP
 
 bool ValidateGetUniformBase(const Context *context,
                             angle::EntryPoint entryPoint,
-                            ShaderProgramID program,
-                            UniformLocation location);
+                            ShaderProgramID programPacked,
+                            UniformLocation locationPacked);
 bool ValidateSizedGetUniform(const Context *context,
                              angle::EntryPoint entryPoint,
-                             ShaderProgramID program,
-                             UniformLocation location,
-                             GLsizei bufSize,
-                             GLsizei *length);
+                             ShaderProgramID programPacked,
+                             UniformLocation locationPacked,
+                             GLsizei bufSize);
 
 bool ValidateDiscardFramebufferBase(const Context *context,
                                     angle::EntryPoint entryPoint,
@@ -458,10 +457,9 @@ bool ValidateDrawBuffersBase(const Context *context,
 
 bool ValidateGetBufferPointervBase(const Context *context,
                                    angle::EntryPoint entryPoint,
-                                   BufferBinding target,
+                                   BufferBinding targetPacked,
                                    GLenum pname,
-                                   GLsizei *length,
-                                   void *const *params);
+                                   GLsizei *outNumParams);
 bool ValidateUnmapBufferBase(const Context *context,
                              angle::EntryPoint entryPoint,
                              BufferBinding target);
@@ -506,9 +504,9 @@ bool ValidateGetFramebufferParameterivBase(const Context *context,
 
 bool ValidateGetBufferParameterBase(const Context *context,
                                     angle::EntryPoint entryPoint,
-                                    BufferBinding target,
-                                    GLenum pname,
-                                    GLsizei *numParams);
+                                    BufferBinding targetPacked,
+                                    BufferParam pnamePacked,
+                                    GLsizei *outNumParams);
 
 bool ValidateGetProgramivBase(const Context *context,
                               angle::EntryPoint entryPoint,

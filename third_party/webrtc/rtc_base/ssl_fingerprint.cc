@@ -43,7 +43,7 @@ std::unique_ptr<SSLFingerprint> SSLFingerprint::CreateUnique(
 std::unique_ptr<SSLFingerprint> SSLFingerprint::Create(
     absl::string_view algorithm,
     const SSLCertificate& cert) {
-  Buffer digest(0, MessageDigest::kMaxSize);
+  Buffer digest = Buffer::CreateWithCapacity(MessageDigest::kMaxSize);
   bool ret = cert.ComputeDigest(algorithm, digest);
   if (!ret) {
     return nullptr;

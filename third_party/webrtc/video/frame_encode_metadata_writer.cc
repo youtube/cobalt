@@ -136,9 +136,13 @@ void FrameEncodeMetadataWriter::OnEncodeStarted(const VideoFrame& frame) {
                  "warnings will be throttled.";
         }
       }
-      frame_drop_callback_->OnDroppedFrame(
-          EncodedImageCallback::DropReason::kDroppedByEncoder);
+
+      uint32_t dropped_rtp_timestamp =
+          timing_frames_info_[si].frames.front().rtp_timestamp;
       timing_frames_info_[si].frames.pop_front();
+      frame_drop_callback_->OnFrameDropped(
+          dropped_rtp_timestamp, si,
+          !IsFrameWithRtpTimestampPending(dropped_rtp_timestamp));
     }
     timing_frames_info_[si].frames.emplace_back(metadata);
   }
@@ -200,6 +204,45 @@ void FrameEncodeMetadataWriter::FillMetadataAndTimingInfo(
   } else {
     encoded_image->timing_.flags = VideoSendTiming::kInvalid;
   }
+
+  // Cancel timing frames for older layers.
+  if (encoded_image->is_end_of_temporal_unit().value_or(false)) {
+    DropOldOrEqualFrames(encoded_image->RtpTimestamp(), simulcast_svc_idx);
+  }
+}
+
+void FrameEncodeMetadataWriter::OnFrameDropped(uint32_t rtp_timestamp,
+                                               int spatial_id,
+                                               bool is_end_of_temporal_unit) {
+  MutexLock lock(&lock_);
+  RTC_DCHECK_LT(spatial_id, static_cast<int>(timing_frames_info_.size()));
+  bool found_timestamp = false;
+  while (!timing_frames_info_[spatial_id].frames.empty()) {
+    if (timing_frames_info_[spatial_id].frames.front().rtp_timestamp ==
+        rtp_timestamp) {
+      found_timestamp = true;
+      break;
+    } else if (IsNewerTimestamp(rtp_timestamp, timing_frames_info_[spatial_id]
+                                                   .frames.front()
+                                                   .rtp_timestamp)) {
+      uint32_t dropped_timestamp =
+          timing_frames_info_[spatial_id].frames.front().rtp_timestamp;
+      timing_frames_info_[spatial_id].frames.pop_front();
+      frame_drop_callback_->OnFrameDropped(
+          dropped_timestamp, spatial_id,
+          !IsFrameWithRtpTimestampPending(dropped_timestamp));
+      continue;
+    }
+    break;
+  }
+  if (found_timestamp) {
+    if (is_end_of_temporal_unit) {
+      DropOldOrEqualFrames(rtp_timestamp, spatial_id);
+    }
+    timing_frames_info_[spatial_id].frames.pop_front();
+    frame_drop_callback_->OnFrameDropped(rtp_timestamp, spatial_id,
+                                         is_end_of_temporal_unit);
+  }
 }
 
 void FrameEncodeMetadataWriter::UpdateBitstream(
@@ -245,9 +288,11 @@ FrameEncodeMetadataWriter::ExtractEncodeStartTimeAndFillMetadata(
     while (!metadata_list->empty() &&
            IsNewerTimestamp(encoded_image->RtpTimestamp(),
                             metadata_list->front().rtp_timestamp)) {
-      frame_drop_callback_->OnDroppedFrame(
-          EncodedImageCallback::DropReason::kDroppedByEncoder);
+      uint32_t dropped_timestamp = metadata_list->front().rtp_timestamp;
       metadata_list->pop_front();
+      frame_drop_callback_->OnFrameDropped(
+          dropped_timestamp, simulcast_svc_idx,
+          !IsFrameWithRtpTimestampPending(dropped_timestamp));
     }
 
     encoded_image->content_type_ =
@@ -284,6 +329,41 @@ FrameEncodeMetadataWriter::ExtractEncodeStartTimeAndFillMetadata(
     }
   }
   return result;
+}
+
+void FrameEncodeMetadataWriter::DropOldOrEqualFrames(uint32_t rtp_timestamp,
+                                                     int spatial_id_to_skip) {
+  for (size_t si = 0; si < num_spatial_layers_; ++si) {
+    if (spatial_id_to_skip == static_cast<int>(si)) {
+      continue;
+    }
+    auto metadata_list = &timing_frames_info_[si].frames;
+    while (!metadata_list->empty() &&
+           (metadata_list->front().rtp_timestamp == rtp_timestamp ||
+            IsNewerTimestamp(rtp_timestamp,
+                             metadata_list->front().rtp_timestamp))) {
+      uint32_t dropped_timestamp = metadata_list->front().rtp_timestamp;
+      metadata_list->pop_front();
+      frame_drop_callback_->OnFrameDropped(
+          dropped_timestamp, si,
+          !IsFrameWithRtpTimestampPending(dropped_timestamp));
+    }
+  }
+}
+
+bool FrameEncodeMetadataWriter::IsFrameWithRtpTimestampPending(
+    uint32_t rtp_timestamp) {
+  for (size_t si = 0; si < num_spatial_layers_; ++si) {
+    for (const FrameMetadata& metadata : timing_frames_info_[si].frames) {
+      if (metadata.rtp_timestamp == rtp_timestamp) {
+        return true;
+      }
+      if (IsNewerTimestamp(metadata.rtp_timestamp, rtp_timestamp)) {
+        break;
+      }
+    }
+  }
+  return false;
 }
 
 }  // namespace webrtc

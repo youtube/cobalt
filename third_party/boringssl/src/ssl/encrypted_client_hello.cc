@@ -28,6 +28,7 @@
 #include <openssl/hpke.h>
 #include <openssl/rand.h>
 
+#include "../crypto/bytestring/internal.h"
 #include "../crypto/internal.h"
 #include "internal.h"
 
@@ -255,8 +256,7 @@ bool ssl_decode_client_hello_inner(
     return false;
   }
 
-  if (!is_valid_client_hello_inner(ssl, out_alert,
-                                   Span(CBB_data(&body), CBB_len(&body)))) {
+  if (!is_valid_client_hello_inner(ssl, out_alert, CBBAsSpan(&body))) {
     return false;
   }
 
@@ -793,7 +793,6 @@ bool ssl_encrypt_client_hello(SSL_HANDSHAKE *hs, Span<const uint8_t> enc) {
   // draft-ietf-tls-esni-13, sections 5.1 and 6.1.
   ScopedCBB cbb, encoded_cbb;
   CBB body;
-  bool needs_psk_binder;
   Array<uint8_t> hello_inner;
   if (!ssl->method->init_message(ssl, cbb.get(), &body, SSL3_MT_CLIENT_HELLO) ||
       !CBB_init(encoded_cbb.get(), 256) ||
@@ -804,27 +803,10 @@ bool ssl_encrypt_client_hello(SSL_HANDSHAKE *hs, Span<const uint8_t> enc) {
                                                  ssl_client_hello_inner,
                                                  /*empty_session_id=*/true) ||
       !ssl_add_clienthello_tlsext(hs, &body, encoded_cbb.get(),
-                                  &needs_psk_binder, ssl_client_hello_inner,
-                                  CBB_len(&body)) ||
+                                  ssl_client_hello_inner) ||
       !ssl->method->finish_message(ssl, cbb.get(), &hello_inner)) {
     OPENSSL_PUT_ERROR(SSL, ERR_R_INTERNAL_ERROR);
     return false;
-  }
-
-  if (needs_psk_binder) {
-    size_t binder_len;
-    if (!tls13_write_psk_binder(hs, hs->inner_transcript, Span(hello_inner),
-                                &binder_len)) {
-      return false;
-    }
-    // Also update the EncodedClientHelloInner.
-    auto encoded_binder =
-        Span(const_cast<uint8_t *>(CBB_data(encoded_cbb.get())),
-             CBB_len(encoded_cbb.get()))
-            .last(binder_len);
-    auto hello_inner_binder = Span(hello_inner).last(binder_len);
-    OPENSSL_memcpy(encoded_binder.data(), hello_inner_binder.data(),
-                   binder_len);
   }
 
   ssl_do_msg_callback(ssl, /*is_write=*/1, SSL3_RT_CLIENT_HELLO_INNER,
@@ -883,15 +865,10 @@ bool ssl_encrypt_client_hello(SSL_HANDSHAKE *hs, Span<const uint8_t> enc) {
                                                  ssl_client_hello_outer,
                                                  /*empty_session_id=*/false) ||
       !ssl_add_clienthello_tlsext(hs, aad.get(), /*out_encoded=*/nullptr,
-                                  &needs_psk_binder, ssl_client_hello_outer,
-                                  CBB_len(aad.get()))) {
+                                  ssl_client_hello_outer)) {
     OPENSSL_PUT_ERROR(SSL, ERR_R_INTERNAL_ERROR);
     return false;
   }
-
-  // ClientHelloOuter may not require a PSK binder. Otherwise, we have a
-  // circular dependency.
-  assert(!needs_psk_binder);
 
   // Replace the payload in |hs->ech_client_outer| with the encrypted value.
   auto payload_span = Span(hs->ech_client_outer).last(payload_len);

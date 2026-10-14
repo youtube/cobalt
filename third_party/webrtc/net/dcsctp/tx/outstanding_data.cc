@@ -143,6 +143,9 @@ OutstandingData::AckInfo OutstandingData::HandleSack(
     UnwrappedTSN cumulative_tsn_ack,
     webrtc::ArrayView<const SackChunk::GapAckBlock> gap_ack_blocks,
     bool is_in_fast_recovery) {
+  bool cumulative_tsn_ack_advanced =
+      cumulative_tsn_ack > last_cumulative_tsn_ack_;
+
   OutstandingData::AckInfo ack_info(cumulative_tsn_ack);
   // Erase all items up to cumulative_tsn_ack.
   RemoveAcked(cumulative_tsn_ack, ack_info);
@@ -152,7 +155,7 @@ OutstandingData::AckInfo OutstandingData::HandleSack(
 
   // NACK and possibly mark for retransmit chunks that weren't acked.
   NackBetweenAckBlocks(cumulative_tsn_ack, gap_ack_blocks, is_in_fast_recovery,
-                       ack_info);
+                       cumulative_tsn_ack_advanced, ack_info);
 
   RTC_DCHECK(IsConsistent());
   return ack_info;
@@ -225,6 +228,7 @@ void OutstandingData::NackBetweenAckBlocks(
     UnwrappedTSN cumulative_tsn_ack,
     webrtc::ArrayView<const SackChunk::GapAckBlock> gap_ack_blocks,
     bool is_in_fast_recovery,
+    bool cumulative_tsn_acked_advanced,
     OutstandingData::AckInfo& ack_info) {
   // Mark everything between the blocks as NACKED/TO_BE_RETRANSMITTED.
   // https://tools.ietf.org/html/rfc4960#section-7.2.4
@@ -237,7 +241,7 @@ void OutstandingData::NackBetweenAckBlocks(
   // in-flight and between gaps should be nacked. This means that SCTP relies on
   // the T3-RTX-timer to re-send packets otherwise.
   UnwrappedTSN max_tsn_to_nack = ack_info.highest_tsn_acked;
-  if (is_in_fast_recovery && cumulative_tsn_ack > last_cumulative_tsn_ack_) {
+  if (is_in_fast_recovery && cumulative_tsn_acked_advanced) {
     // https://tools.ietf.org/html/rfc4960#section-7.2.4
     // "If an endpoint is in Fast Recovery and a SACK arrives that advances
     // the Cumulative TSN Ack Point, the miss indications are incremented for

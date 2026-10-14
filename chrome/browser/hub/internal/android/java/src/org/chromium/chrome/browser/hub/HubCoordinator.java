@@ -202,7 +202,7 @@ public class HubCoordinator implements PaneHubController, BackPressHandler, OnPa
 
         mHubLayoutController
                 .getPreviousLayoutTypeSupplier()
-                .addObserver(castCallback(mBackPressStateChangeCallback));
+                .addSyncObserverAndPostIfNonNull(castCallback(mBackPressStateChangeCallback));
 
         updateHandleBackPressSupplier();
 
@@ -211,7 +211,8 @@ public class HubCoordinator implements PaneHubController, BackPressHandler, OnPa
 
     @SuppressWarnings("NullAway")
     private void setCurrentTabSupplierObserver() {
-        mCurrentTabSupplier.addObserver(castCallback(mBackPressStateChangeCallback));
+        mCurrentTabSupplier.addSyncObserverAndPostIfNonNull(
+                castCallback(mBackPressStateChangeCallback));
     }
 
     /** Removes the hub from the layout tree and cleans up resources. */

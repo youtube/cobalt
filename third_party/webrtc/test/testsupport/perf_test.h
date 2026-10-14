@@ -93,7 +93,7 @@ void PrintResult(absl::string_view measurement,
 
 // Returns a string-encoded proto as described in
 // tracing/tracing/proto/histogram.proto in
-// https://github.com/catapult-project/catapult/blob/master/.
+// https://chromium.googlesource.com/catapult/+/refs/heads/main.
 // If you want to print the proto in human readable format, use
 // tracing/bin/proto2json from third_party/catapult in your WebRTC checkout.
 std::string GetPerfResults();

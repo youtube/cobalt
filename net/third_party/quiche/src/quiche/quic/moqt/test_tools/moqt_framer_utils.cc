@@ -49,8 +49,8 @@ struct FramingVisitor {
   quiche::QuicheBuffer operator()(const MoqtPublishDone& message) {
     return framer.SerializePublishDone(message);
   }
-  quiche::QuicheBuffer operator()(const MoqtSubscribeUpdate& message) {
-    return framer.SerializeSubscribeUpdate(message);
+  quiche::QuicheBuffer operator()(const MoqtRequestUpdate& message) {
+    return framer.SerializeRequestUpdate(message);
   }
   quiche::QuicheBuffer operator()(const MoqtPublishNamespace& message) {
     return framer.SerializePublishNamespace(message);
@@ -75,9 +75,6 @@ struct FramingVisitor {
   }
   quiche::QuicheBuffer operator()(const MoqtSubscribeNamespace& message) {
     return framer.SerializeSubscribeNamespace(message);
-  }
-  quiche::QuicheBuffer operator()(const MoqtUnsubscribeNamespace& message) {
-    return framer.SerializeUnsubscribeNamespace(message);
   }
   quiche::QuicheBuffer operator()(const MoqtMaxRequestId& message) {
     return framer.SerializeMaxRequestId(message);
@@ -137,7 +134,7 @@ class GenericMessageParseVisitor : public MoqtControlParserVisitor {
   void OnPublishDoneMessage(const MoqtPublishDone& message) {
     frames_.push_back(message);
   }
-  void OnSubscribeUpdateMessage(const MoqtSubscribeUpdate& message) {
+  void OnRequestUpdateMessage(const MoqtRequestUpdate& message) {
     frames_.push_back(message);
   }
   void OnPublishNamespaceMessage(const MoqtPublishNamespace& message) {
@@ -163,9 +160,6 @@ class GenericMessageParseVisitor : public MoqtControlParserVisitor {
     frames_.push_back(message);
   }
   void OnSubscribeNamespaceMessage(const MoqtSubscribeNamespace& message) {
-    frames_.push_back(message);
-  }
-  void OnUnsubscribeNamespaceMessage(const MoqtUnsubscribeNamespace& message) {
     frames_.push_back(message);
   }
   void OnMaxRequestIdMessage(const MoqtMaxRequestId& message) {

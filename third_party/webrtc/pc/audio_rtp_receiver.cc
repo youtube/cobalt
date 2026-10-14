@@ -17,6 +17,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
 #include "api/crypto/frame_decryptor_interface.h"
 #include "api/dtls_transport_interface.h"
@@ -200,18 +201,20 @@ void AudioRtpReceiver::Stop() {
   track_->internal()->set_ended();
 }
 
-void AudioRtpReceiver::RestartMediaChannel(std::optional<uint32_t> ssrc) {
+absl::AnyInvocable<void() &&>
+AudioRtpReceiver::GetRestartFunctionForMediaChannel(
+    std::optional<uint32_t> ssrc) {
   RTC_DCHECK_RUN_ON(&signaling_thread_checker_);
   bool enabled = track_->internal()->enabled();
   MediaSourceInterface::SourceState state = source_->state();
-  worker_thread_->BlockingCall([&]() {
-    RTC_DCHECK_RUN_ON(worker_thread_);
-    RestartMediaChannel_w(std::move(ssrc), enabled, state);
-  });
   source_->SetState(MediaSourceInterface::kLive);
+  return [this, ssrc = std::move(ssrc), enabled, state]() mutable {
+    RTC_DCHECK_RUN_ON(worker_thread_);
+    GetRestartFunctionForMediaChannel_w(std::move(ssrc), enabled, state);
+  };
 }
 
-void AudioRtpReceiver::RestartMediaChannel_w(
+void AudioRtpReceiver::GetRestartFunctionForMediaChannel_w(
     std::optional<uint32_t> ssrc,
     bool track_enabled,
     MediaSourceInterface::SourceState state) {
@@ -240,14 +243,16 @@ void AudioRtpReceiver::RestartMediaChannel_w(
   Reconfigure(track_enabled);
 }
 
-void AudioRtpReceiver::SetupMediaChannel(uint32_t ssrc) {
+absl::AnyInvocable<void() &&> AudioRtpReceiver::GetSetupForMediaChannel(
+    uint32_t ssrc) {
   RTC_DCHECK_RUN_ON(&signaling_thread_checker_);
-  RestartMediaChannel(ssrc);
+  return GetRestartFunctionForMediaChannel(ssrc);
 }
 
-void AudioRtpReceiver::SetupUnsignaledMediaChannel() {
+absl::AnyInvocable<void() &&>
+AudioRtpReceiver::GetSetupForUnsignaledMediaChannel() {
   RTC_DCHECK_RUN_ON(&signaling_thread_checker_);
-  RestartMediaChannel(std::nullopt);
+  return GetRestartFunctionForMediaChannel(std::nullopt);
 }
 
 std::optional<uint32_t> AudioRtpReceiver::ssrc() const {

@@ -471,11 +471,11 @@ PLAN_B_ONLY void RtpTransmissionManager::CreateAudioReceiverPlanB(
   auto audio_receiver = make_ref_counted<AudioRtpReceiver>(
       worker_thread(), remote_sender_info.sender_id, streams, false,
       voice_media_receive_channel());
-  if (remote_sender_info.sender_id == kDefaultAudioSenderId) {
-    audio_receiver->SetupUnsignaledMediaChannel();
-  } else {
-    audio_receiver->SetupMediaChannel(remote_sender_info.first_ssrc);
-  }
+  auto task = (remote_sender_info.sender_id == kDefaultAudioSenderId)
+                  ? audio_receiver->GetSetupForUnsignaledMediaChannel()
+                  : audio_receiver->GetSetupForMediaChannel(
+                        remote_sender_info.first_ssrc);
+  worker_thread()->BlockingCall([&]() mutable { std::move(task)(); });
 
   auto receiver = RtpReceiverProxyWithInternal<RtpReceiverInternal>::Create(
       signaling_thread(), worker_thread(), std::move(audio_receiver));
@@ -497,11 +497,12 @@ PLAN_B_ONLY void RtpTransmissionManager::CreateVideoReceiverPlanB(
   auto video_receiver = make_ref_counted<VideoRtpReceiver>(
       worker_thread(), remote_sender_info.sender_id, streams);
 
-  video_receiver->SetupMediaChannel(
+  auto task = video_receiver->GetSetupForMediaChannel(
       remote_sender_info.sender_id == kDefaultVideoSenderId
           ? std::nullopt
           : std::optional<uint32_t>(remote_sender_info.first_ssrc),
       video_media_receive_channel());
+  worker_thread()->BlockingCall([&]() mutable { std::move(task)(); });
 
   auto receiver = RtpReceiverProxyWithInternal<RtpReceiverInternal>::Create(
       signaling_thread(), worker_thread(), std::move(video_receiver));

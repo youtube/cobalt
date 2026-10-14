@@ -789,7 +789,7 @@ bool TurnPort::HandleIncomingPacket(AsyncPacketSocket* socket,
   // Check the message type, to see if is a Channel Data message.
   // The message will either be channel data, a TURN data indication, or
   // a response to a previous request.
-  uint16_t msg_type = GetBE16(packet.payload().data());
+  uint16_t msg_type = GetBE16(packet.payload());
   if (IsTurnChannelData(msg_type)) {
     HandleChannelData(msg_type, packet);
     return true;
@@ -1118,8 +1118,9 @@ void TurnPort::HandleChannelData(uint16_t channel_id,
   //   +-------------------------------+
 
   // Extract header fields from the message.
-  uint16_t len = GetBE16(packet.payload().data() + 2);
-  if (len > packet.payload().size() - TURN_CHANNEL_HEADER_SIZE) {
+  ArrayView<const uint8_t> payload = packet.payload();
+  uint16_t len = GetBE16(payload.subspan(2, 2));
+  if (len > payload.size() - TURN_CHANNEL_HEADER_SIZE) {
     RTC_LOG(LS_WARNING) << ToString()
                         << ": Received TURN channel data message with "
                            "incorrect length, len: "
@@ -1137,7 +1138,7 @@ void TurnPort::HandleChannelData(uint16_t channel_id,
     return;
   }
   ReceivedIpPacket unwrapped_packet = ReceivedIpPacket(
-      packet.payload().subview(TURN_CHANNEL_HEADER_SIZE, len), entry->address(),
+      payload.subspan(TURN_CHANNEL_HEADER_SIZE, len), entry->address(),
       packet.arrival_time(), packet.ecn(), packet.decryption_info());
   DispatchPacket(unwrapped_packet, PROTO_UDP);
 }

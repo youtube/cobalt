@@ -214,7 +214,7 @@ void EventEncoder::EncodeField(const FieldParameters& params,
   // Compute delta parameters
   ArrayView<const uint64_t> all_values(values);
   uint64_t base = values[0];
-  ArrayView<const uint64_t> remaining_values(all_values.subview(1));
+  ArrayView<const uint64_t> remaining_values = all_values.subspan(1);
 
   FixedLengthEncodingParametersV3 delta_params =
       FixedLengthEncodingParametersV3::CalculateParameters(

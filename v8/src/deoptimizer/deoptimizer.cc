@@ -7,6 +7,7 @@
 #include <optional>
 
 #include "src/base/memory.h"
+#include "src/base/numerics/safe_conversions.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/register-configuration.h"
 #include "src/codegen/reloc-info.h"
@@ -352,8 +353,9 @@ class ActivationsFinder : public ThreadVisitor {
                 isolate, code, it.frame()->pc());
             trampoline_pc = safepoint.trampoline_pc();
           } else {
-            SafepointEntry safepoint = SafepointTable::FindEntry(
-                isolate, code, it.frame()->maybe_unauthenticated_pc());
+            Address pc = it.frame()->maybe_unauthenticated_pc();
+            SafepointTable table(isolate, pc, code);
+            SafepointEntry& safepoint = table.FindEntry_NoStackSlots(pc);
             trampoline_pc = safepoint.trampoline_pc();
           }
           // TODO(saelo): currently we have to use full pointer comparison as
@@ -423,8 +425,9 @@ void Deoptimizer::DeoptimizeMarkedCode(Isolate* isolate) {
             MaglevSafepointTable::FindEntry(isolate, code, it.frame()->pc());
         safe_if_deopt_triggered = safepoint.has_deoptimization_index();
       } else {
-        SafepointEntry safepoint = SafepointTable::FindEntry(
-            isolate, code, it.frame()->maybe_unauthenticated_pc());
+        Address pc = it.frame()->maybe_unauthenticated_pc();
+        SafepointTable table(isolate, pc, code);
+        SafepointEntry& safepoint = table.FindEntry_NoStackSlots(pc);
         safe_if_deopt_triggered = safepoint.has_deoptimization_index();
       }
 
@@ -1357,7 +1360,7 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
   DeoptTranslationIterator state_iterator(off_heap_translations,
                                           deopt_entry.translation_index);
   wasm::NativeModule* native_module = code->native_module();
-  int parameter_count = static_cast<int>(
+  uint32_t parameter_count = base::checked_cast<uint32_t>(
       native_module->module()->functions[code->index()].sig->parameter_count());
   DeoptimizationLiteralProvider literals(
       deopt_view.BuildDeoptimizationLiteralArray());
@@ -1520,6 +1523,7 @@ void Deoptimizer::VirtualMaterializeAndPrint() {
       &(translated_state_.frames()[output_count_ - 1]);
   DCHECK_EQ(trans_frame->kind(), TranslatedFrame::kUnoptimizedFunction);
   FrameDescription* frame_to_print = output_[output_count_ - 1];
+  absl::flat_hash_map<Address, TranslatedValue*> non_materialized_objects;
   {
     // Materialize objects and put their addresses into FrameDescription
     // instead of touching real stack.
@@ -1534,19 +1538,33 @@ void Deoptimizer::VirtualMaterializeAndPrint() {
         frame_to_print->SetFrameSlot(offset, value);
       }
     };
-    // TODO(mdanylo): implement printing without materialization.
     for (auto& materialization : values_to_materialize_) {
-      update_frame_slot(materialization.output_slot_address_, 0xdeadbeef);
+      Address top = frame_to_print->GetTop();
+      int offset = static_cast<int>(materialization.output_slot_address_ - top);
+      non_materialized_objects[offset] = &*materialization.value_;
     }
 
     for (auto& fbv_mat : feedback_vector_to_materialize_) {
+      // TODO(dumpling): Figure out what to do with feedback vectors. Do we
+      // print them?
       update_frame_slot(fbv_mat.output_slot_address_, 0xdeadbeef);
     }
   }
 
-  DumplingFrameDescriptionFrame frame_view(frame_to_print, isolate());
+  DumplingFrameDescriptionFrame frame_view(
+      frame_to_print, std::move(non_materialized_objects), isolate());
 
-  Tagged<JSFunction> function = frame_view.function();
+  ObjectOrNonMaterializedObject function_variant = frame_view.function();
+
+  // TODO(marja): stop skipping frames with non-materialzed funcs.
+  if (!std::holds_alternative<Tagged<Object>>(function_variant)) {
+    DeleteFrameDescriptions();
+    return;
+  }
+
+  Tagged<JSFunction> function =
+      Cast<JSFunction>(std::get<Tagged<Object>>(function_variant));
+
   int bytecode_offset = trans_frame->bytecode_offset().ToInt();
 
   DCHECK(compiled_code_->is_maglevved() || compiled_code_->is_turbofanned());
@@ -1815,7 +1833,13 @@ void Deoptimizer::DoComputeOutputFrames() {
         function_->SetInterruptBudget(isolate_, BudgetModification::kReset,
                                       CodeKind::INTERPRETED_FUNCTION);
         function_->feedback_vector()->set_was_once_deoptimized();
+
+        isolate()->counters()->deopts()->Increment();
+      } else {
+        isolate()->counters()->utility_deopts()->Increment();
       }
+    } else {
+      isolate()->counters()->deopts()->Increment();
     }
   }
 
@@ -1823,7 +1847,6 @@ void Deoptimizer::DoComputeOutputFrames() {
   if (verbose_tracing_enabled()) {
     TraceDeoptEnd(timer.Elapsed().InMillisecondsF());
   }
-  isolate()->counters()->deopts()->Increment();
 
   // The following invariant is fairly tricky to guarantee, since the size of
   // an optimized frame and its deoptimized counterparts usually differs. We
@@ -2973,16 +2996,16 @@ void Deoptimizer::DoComputeBuiltinContinuation(
       config->num_allocatable_general_registers();
   for (int i = 0; i < allocatable_register_count; ++i) {
     int code = config->GetAllocatableGeneralCode(i);
-    base::ScopedVector<char> str(128);
+    auto str = base::OwnedVector<char>::NewForOverwrite(128);
     if (verbose_tracing_enabled()) {
       if (BuiltinContinuationModeIsJavaScript(mode) &&
           code == kJavaScriptCallArgCountRegister.code()) {
         SNPrintF(
-            str,
+            str.as_vector(),
             "tagged argument count %s (will be untagged by continuation)\n",
             RegisterName(Register::from_code(code)));
       } else {
-        SNPrintF(str, "builtin register argument %s\n",
+        SNPrintF(str.as_vector(), "builtin register argument %s\n",
                  RegisterName(Register::from_code(code)));
       }
     }

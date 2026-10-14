@@ -25,6 +25,8 @@
 #include <openssl/err.h>
 #include <openssl/span.h>
 
+#include "internal.h"
+
 
 BSSL_NAMESPACE_BEGIN
 
@@ -82,14 +84,38 @@ void Delete(T *t) {
   }
 }
 
+namespace internal {
+
 // All types with kAllowUniquePtr set may be used with UniquePtr. Other types
 // may be C structs which require a |BORINGSSL_MAKE_DELETER| registration.
-namespace internal {
 template <typename T>
 struct DeleterImpl<T, std::enable_if_t<T::kAllowUniquePtr>> {
   static void Free(T *t) { Delete(t); }
 };
+
+// All types with kAllowRefCountedUniquePtr may be used with UniquePtr, which
+// then will behave like std::shared_ptr.
+template <typename T>
+struct DeleterImpl<T, std::enable_if_t<T::kAllowRefCountedUniquePtr>> {
+  static void Free(T *t) { t->DecRefInternal(); }
+};
+
 }  // namespace internal
+
+// All types with kAllowRefCountedUniquePtr types also automatically get an
+// UpRef function. Other types may be C structs which require a
+// |BORINGSSL_MAKE_UP_REF| registration.
+template <typename T, typename = std::enable_if_t<T::kAllowRefCountedUniquePtr>>
+inline UniquePtr<T> UpRef(T *v) {
+  if (v != nullptr) {
+    v->UpRefInternal();
+  }
+  return UniquePtr<T>(v);
+}
+template <typename T, typename = std::enable_if_t<T::kAllowRefCountedUniquePtr>>
+inline UniquePtr<T> UpRef(const UniquePtr<T> &ptr) {
+  return UpRef(ptr.get());
+}
 
 // MakeUnique behaves like |std::make_unique| but returns nullptr on allocation
 // error.
@@ -97,6 +123,51 @@ template <typename T, typename... Args>
 UniquePtr<T> MakeUnique(Args &&...args) {
   return UniquePtr<T>(New<T>(std::forward<Args>(args)...));
 }
+
+
+// RefCounted is a common base for ref-counted types. This is an instance of the
+// C++ curiously-recurring template pattern, so a type Foo must subclass
+// RefCounted<Foo>. It additionally must friend RefCounted<Foo> to allow calling
+// the destructor.
+template <typename Derived>
+class RefCounted {
+ public:
+  static constexpr bool kAllowRefCountedUniquePtr = true;
+
+  RefCounted(const RefCounted &) = delete;
+  RefCounted &operator=(const RefCounted &) = delete;
+
+  // These methods are intentionally named differently from `bssl::UpRef` to
+  // avoid a collision. Only the implementations of `FOO_up_ref` and `FOO_free`
+  // should call these.
+  void UpRefInternal() { CRYPTO_refcount_inc(&references_); }
+  void DecRefInternal() {
+    if (CRYPTO_refcount_dec_and_test_zero(&references_)) {
+      Derived *d = static_cast<Derived *>(this);
+      d->~Derived();
+      OPENSSL_free(d);
+    }
+  }
+
+ protected:
+  // Ensure that only `Derived`, which must inherit from `RefCounted<Derived>`,
+  // can call the constructor. This catches bugs where someone inherited from
+  // the wrong base.
+  class CheckSubClass {
+   private:
+    friend Derived;
+    CheckSubClass() = default;
+  };
+  RefCounted(CheckSubClass) {
+    static_assert(std::is_base_of_v<RefCounted, Derived>,
+                  "Derived must subclass RefCounted<Derived>");
+  }
+
+  ~RefCounted() { BSSL_CHECK(references_.load() == 0); }
+
+ private:
+  CRYPTO_refcount_t references_ = 1;
+};
 
 
 // Containers.

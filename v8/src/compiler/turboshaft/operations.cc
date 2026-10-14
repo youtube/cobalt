@@ -1735,6 +1735,7 @@ const RegisterRepresentation& RepresentationFor(wasm::ValueType type) {
     case wasm::kI8:
     case wasm::kI16:
     case wasm::kI32:
+    case wasm::kWaitQueue:
       return kWord32;
     case wasm::kI64:
       return kWord64;
@@ -2420,6 +2421,17 @@ IsSmiDecision DecideObjectIsSmi(const Graph& graph, V<Object> idx, int depth) {
           return IsSmiDecision::kUnknown;
       }
       UNREACHABLE();
+    }
+    case Opcode::kTaggedBitcast: {
+      switch (op.Cast<TaggedBitcastOp>().kind) {
+        case TaggedBitcastOp::Kind::kSmi:
+          return IsSmiDecision::kTrue;
+        case TaggedBitcastOp::Kind::kHeapObject:
+          return IsSmiDecision::kFalse;
+        case TaggedBitcastOp::Kind::kTagAndSmiBits:
+        case TaggedBitcastOp::Kind::kAny:
+          return IsSmiDecision::kUnknown;
+      }
     }
     case Opcode::kLoad: {
       switch (op.Cast<LoadOp>().loaded_rep) {

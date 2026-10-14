@@ -101,7 +101,7 @@ void FullyConnectedLayer::ComputeOutput(ArrayView<const float> input) {
   for (int o = 0; o < output_size_; ++o) {
     output_[o] = activation_function_(
         bias_[o] + vector_math_.DotProduct(
-                       input, weights.subview(o * input_size_, input_size_)));
+                       input, weights.subspan(o * input_size_, input_size_)));
   }
 }
 

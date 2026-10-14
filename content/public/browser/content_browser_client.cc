@@ -1997,6 +1997,7 @@ std::vector<std::unique_ptr<KeepAliveRequestTracker>>
 ContentBrowserClient::MaybeCreateKeepAliveRequestTracker(
     const network::ResourceRequest& request,
     std::optional<ukm::SourceId> ukm_source_id,
+    content::BrowserContext* browser_context,
     KeepAliveRequestTracker::IsContextDetachedCallback
         is_context_detached_callback) {
   return {};
@@ -2051,6 +2052,15 @@ bool ContentBrowserClient::ShouldAllowPrefetchRedirection(
     const std::string& embedder_histogram_suffix) {
   return true;
 }
+
+void ContentBrowserClient::ModifyRequestHeadersForPrefetch(
+    const GURL& url,
+    std::vector<std::string>& removed_headers,
+    net::HttpRequestHeaders& modified_headers,
+    net::HttpRequestHeaders& modified_cors_exempt_headers) {}
+
+void ContentBrowserClient::UpdateCorsExemptHeaderForPrefetch(
+    network::mojom::NetworkContextParams* params) {}
 
 bool ContentBrowserClient::OriginSupportsConcreteCrossOriginIsolation(
     const url::Origin& origin) {

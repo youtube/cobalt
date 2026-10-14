@@ -135,13 +135,11 @@ BASE_EXPORT BASE_DECLARE_FEATURE(kPartialLowEndModeOnMidRangeDevices);
 BASE_EXPORT BASE_DECLARE_FEATURE(
     kCobaltAndroidDisplayCriticalInProcessRenderer);
 BASE_EXPORT BASE_DECLARE_FEATURE(kBackgroundNotPerceptibleBinding);
-BASE_EXPORT BASE_DECLARE_FEATURE(kEffectiveBindingState);
 BASE_EXPORT BASE_DECLARE_FEATURE(
     kPostPowerMonitorBroadcastReceiverInitToBackground);
 BASE_EXPORT BASE_DECLARE_FEATURE(kPostGetMyMemoryStateToBackground);
 BASE_EXPORT BASE_DECLARE_FEATURE(kRebindingChildServiceConnectionController);
 BASE_EXPORT BASE_DECLARE_FEATURE(kRebindServiceBatchApi);
-BASE_EXPORT BASE_DECLARE_FEATURE(kUseIsUnboundCheck);
 BASE_EXPORT BASE_DECLARE_FEATURE(kUseSharedRebindServiceConnection);
 
 BASE_EXPORT BASE_DECLARE_FEATURE(kBackgroundThreadPoolFieldTrial);
@@ -155,6 +153,10 @@ BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(bool, kLibraryPrefetcherMadviseFallback);
 #endif
 
 BASE_EXPORT BASE_DECLARE_FEATURE(kUseTerminationStatusMemoryExhaustion);
+
+#if BUILDFLAG(IS_WIN)
+BASE_EXPORT BASE_DECLARE_FEATURE(kUserBlockingAboveNormalPriority);
+#endif
 
 // Whether the ReducePPMs feature is enabled. Unlike
 // `FeatureList::IsEnabled(base::features::kReducePPMs)`, this can be called

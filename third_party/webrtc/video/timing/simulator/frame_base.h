@@ -18,6 +18,7 @@
 #include "absl/algorithm/container.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
+#include "rtc_base/checks.h"
 
 namespace webrtc::video_timing_simulator {
 
@@ -35,9 +36,7 @@ struct FrameBase {
   // the derived class.
   Timestamp DepartureTimestamp(Timestamp offset = Timestamp::Zero()) const {
     int64_t unwrapped_rtp_timestamp = self().unwrapped_rtp_timestamp;
-    if (unwrapped_rtp_timestamp < 0) {
-      return Timestamp::PlusInfinity();
-    }
+    RTC_DCHECK_GE(unwrapped_rtp_timestamp, 0);
     constexpr int64_t kMicrosPerMillis = 1'000;
     constexpr int64_t kRtpVideoTicksPerMillis = 90;
     // Convert from RTP ticks to microseconds using integer division with

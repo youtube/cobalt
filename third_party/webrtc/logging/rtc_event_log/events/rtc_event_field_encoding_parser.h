@@ -212,9 +212,9 @@ PopulateRtcEventTimestamp(const ArrayView<uint64_t>& values,
 template <typename E>
 ArrayView<E> ExtendLoggedBatch(std::vector<E>& output, size_t new_elements) {
   size_t old_size = output.size();
-  output.insert(output.end(), old_size + new_elements, E());
+  output.resize(old_size + new_elements);
   ArrayView<E> output_batch = output;
-  output_batch.subview(old_size);
+  output_batch = output_batch.subspan(old_size);
   RTC_DCHECK_EQ(output_batch.size(), new_elements);
   return output_batch;
 }

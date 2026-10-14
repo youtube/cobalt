@@ -12,10 +12,13 @@
 #include "base/functional/callback.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/task/thread_pool.h"
 #include "base/types/expected.h"
 #include "base/values.h"
 #include "components/update_client/op_zucchini.h"
+#include "components/update_client/pipeline_util.h"
 #include "components/update_client/protocol_definition.h"
+#include "components/update_client/task_traits.h"
 #include "components/update_client/unzipper.h"
 #include "components/update_client/update_client.h"
 #include "components/update_client/update_client_errors.h"
@@ -42,36 +45,45 @@ void Done(base::OnceCallback<
           base::RepeatingCallback<void(base::DictValue)> event_adder,
           const base::FilePath& out_file,
           bool success) {
-  base::DictValue event;
-  event.Set("eventtype", protocol_request::kEventXz);
-  event.Set("eventresult",
-            static_cast<int>(success ? protocol_request::kEventResultSuccess
-                                     : protocol_request::kEventResultError));
-  event_adder.Run(std::move(event));
-  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE,
-      base::BindOnce(
-          std::move(callback),
 #if BUILDFLAG(IS_STARBOARD)
-          [&]() -> base::expected<OperationResult, CategorizedError> {
-            if (success) {
-              OperationResult out_result = in_file_result;
+  using Result = base::expected<OperationResult, CategorizedError>;
+  OperationResult out_result = in_file_result;
 #if !defined(IN_MEMORY_UPDATES)
-              out_result.response = out_file;
+  out_result.response = out_file;
 #endif
-              return out_result;
-            }
 #else
-          [&]() -> base::expected<base::FilePath, CategorizedError> {
-            if (success) {
-              return out_file;
-            }
-            DeleteFileAndEmptyParentDirectory(out_file);
+  using Result = base::expected<base::FilePath, CategorizedError>;
+  const base::FilePath& out_result = out_file;
 #endif  // BUILDFLAG(IS_STARBOARD)
-            return base::unexpected<CategorizedError>(
-                {.category = ErrorCategory::kUnpack,
-                 .code = static_cast<int>(UnpackerError::kXzFailed)});
-          }()));
+  const auto result =
+      success ? Result(out_result)
+              : base::unexpected<CategorizedError>(
+                    {.category = ErrorCategory::kUnpack,
+                     .code = static_cast<int>(UnpackerError::kXzFailed)});
+
+  base::OnceClosure done = base::BindOnce(
+      [](const Result& result, base::OnceCallback<void(Result)> callback,
+         base::RepeatingCallback<void(base::DictValue)> event_adder) {
+        event_adder.Run(
+            MakeSimpleOperationEvent(result, protocol_request::kEventXz));
+        base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+            FROM_HERE, base::BindOnce(std::move(callback), result));
+      },
+      result, std::move(callback), event_adder);
+
+  if (result.has_value()) {
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(FROM_HERE,
+                                                             std::move(done));
+    return;
+  }
+  base::ThreadPool::PostTaskAndReply(
+      FROM_HERE, kTaskTraits,
+      base::BindOnce(
+          [](const base::FilePath& out_file) {
+            DeleteFileAndEmptyParentDirectory(out_file);
+          },
+          out_file),
+      std::move(done));
 }
 
 }  // namespace

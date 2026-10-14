@@ -11,6 +11,15 @@
   "-c",
   "import os; import sys; script = os.path.join(os.environ['JJ_WORKSPACE_ROOT'], sys.argv[1]); os.execv(script, [script, *sys.argv[2:]])"
 ]
+
+# Note that this will still output a URL even if it has never been uploaded.
+"gerrit-url" = [
+  "log",
+  "--no-graph",
+  "-T",
+  '"https://chromium-review.googlesource.com/q/" ++ if(trailers.contains_key("Change-Id"), trailers.filter(|t| t.key() == "Change-Id").map(|t| t.value()), "I" ++ change_id.normal_hex() ++ "6a6a6964") ++ "\n"'
+]
+
 # cr-* aliases are the equivalent of "porcelain" commands and should not
 # be overridden.
 # All cr-foo commands will have a corresponding foo command that you can
@@ -23,6 +32,14 @@
 
 "cr-bug" = ["relative-script", "tools/jj/bug.py"]
 "bug" = ["cr-bug"]
+
+# jj workspace add doesn't work because of .gclient.
+"cr-new-chromium-workspace" = ["relative-script", "tools/jj/new_workspace.py"]
+"new-chromium-workspace" = ["cr-new-chromium-workspace"]
+
+# This makes the UX much nicer.
+[workspace]
+auto-update-stale = true
 
 [revset-aliases]
 "trunk()" = "main@origin"
@@ -76,6 +93,13 @@ patterns = [
 [fix.tools.py-format]
 command = ["tools/jj/formatters/python.py", "$path"]
 patterns = ["glob:'**/*.py'"]
+
+[fix.tools.md-format]
+command = ["third_party/depot_tools/markdown_format.py", "--from-stdin", "--assume-filename=$path"]
+patterns = [
+    "glob:'agents/**/*.md'",
+    "glob:'.gemini/**/*.md'",
+]
 
 [fix.tools.mojom-format]
 command = ["vpython3", "mojo/public/tools/mojom/mojom_format.py"]

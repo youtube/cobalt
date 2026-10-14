@@ -2601,11 +2601,15 @@ struct PhiOp : OperationT<PhiOp> {
   }
 
   explicit PhiOp(base::Vector<const OpIndex> inputs, RegisterRepresentation rep)
-      : Base(inputs), rep(rep) {
+      : Base(CheckPhiInputCount(inputs)), rep(rep) {}
+
+  static base::Vector<const OpIndex> CheckPhiInputCount(
+      base::Vector<const OpIndex> inputs) {
     // We add an additional CHECK specifically for Phi, to prevent Wasm from
     // passing too many inputs, e.g. as part of a br_table operation.
     CHECK_LE(inputs.size(),
-             std::numeric_limits<decltype(this->input_count)>::max());
+             std::numeric_limits<decltype(PhiOp::input_count)>::max());
+    return inputs;
   }
 
   // Helpers to access loop phis forward/backedge. These should only be used for
@@ -7453,7 +7457,7 @@ struct StructGetOp : FixedArityOperationT<1, StructGetOp> {
   // the concept is so similar: have an object, load a value from it.
   static constexpr int kDescFieldIndex = -1;
 
-  bool is_signed;  // `false` only for unsigned packed type accesses.
+  bool is_signed;  // `false` only for unsigned i8/i16 accesses.
   CheckForNull null_check;
   const wasm::StructType* type;
   wasm::ModuleTypeIndex type_index;
@@ -7496,7 +7500,9 @@ struct StructGetOp : FixedArityOperationT<1, StructGetOp> {
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     if (is_get_desc()) {
-      return base::VectorOf({RegisterRepresentation::Tagged()});
+      static constexpr RegisterRepresentation kTagged[] = {
+          RegisterRepresentation::Tagged()};
+      return base::VectorOf(kTagged);
     }
     return base::VectorOf(&RepresentationFor(type->field(field_index)), 1);
   }

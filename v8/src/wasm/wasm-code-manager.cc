@@ -788,6 +788,13 @@ size_t ReservationSizeForWasmCode(size_t needed_size,
 size_t ReservationSizeForWrappers(size_t needed_size,
                                   size_t total_reserved_so_far) {
   needed_size = RoundUp<kCodeAlignment>(needed_size);
+
+#if defined(V8_OS_WIN64)
+  // On Win64, we need to reserve some pages at the beginning of an executable
+  // space. See {AddCodeSpace}.
+  needed_size += Heap::GetCodeRangeReservedAreaSize();
+#endif  // V8_OS_WIN64
+
   // Reserve the maximum of
   //   a) needed size
   //   c) 1/4 of current total reservation size (to grow exponentially)
@@ -1102,7 +1109,7 @@ WasmCode* NativeModule::AddCodeForTesting(DirectHandle<Code> code,
       base::OwnedCopyOf(code->relocation_start(), relocation_size);
   DirectHandle<TrustedByteArray> source_pos_table(code->source_position_table(),
                                                   Isolate::Current());
-  int source_pos_len = source_pos_table->length();
+  uint32_t source_pos_len = source_pos_table->ulength().value();
   base::OwnedVector<uint8_t> source_pos =
       base::OwnedCopyOf(source_pos_table->begin(), source_pos_len);
 
@@ -2912,6 +2919,10 @@ NamesProvider* NativeModule::GetNamesProvider() {
 size_t NativeModule::EstimateCurrentMemoryConsumption() const {
   UPDATE_WHEN_CLASS_CHANGES(NativeModule, 552);
   size_t result = sizeof(NativeModule);
+  // The `WasmModule::signature_storage` is protected by the
+  // `NativeModule::allocation_mutex_`.
+  // Store it in an optional to release the mutex early, see below.
+  std::optional<base::RecursiveMutexGuard> lock(&allocation_mutex_);
   result += module_->EstimateCurrentMemoryConsumption();
 
   std::shared_ptr<base::OwnedVector<const uint8_t>> wire_bytes =
@@ -2936,31 +2947,20 @@ size_t NativeModule::EstimateCurrentMemoryConsumption() const {
   // For fast api call targets.
   result += module_->num_imported_functions *
             (sizeof(std::atomic<Address>) + sizeof(CFunctionInfo*));
-  // We cannot hold the `allocation_mutex_` while calling
-  // `debug_info_->EstimateCurrentMemoryConsumption`, as we would run into a
-  // lock-order-inversion when acquiring the `mutex_`. The reverse order happens
-  // when calling `WasmScript::SetBreakPointForFunction`.
-  DebugInfo* debug_info;
-  {
-    base::RecursiveMutexGuard lock(&allocation_mutex_);
-    result += ContentSize(owned_code_);
-    for (auto& [address, unique_code_ptr] : owned_code_) {
-      result += unique_code_ptr->EstimateCurrentMemoryConsumption();
-    }
-    result += ContentSize(new_owned_code_);
-    for (std::unique_ptr<WasmCode>& code : new_owned_code_) {
-      result += code->EstimateCurrentMemoryConsumption();
-    }
-    // For {code_table_}.
-    result += module_->num_declared_functions * sizeof(void*);
-    result += ContentSize(code_space_data_);
-    debug_info = debug_info_.get();
-    if (names_provider_) {
-      result += names_provider_->EstimateCurrentMemoryConsumption();
-    }
+  result += ContentSize(owned_code_);
+  for (auto& [address, unique_code_ptr] : owned_code_) {
+    result += unique_code_ptr->EstimateCurrentMemoryConsumption();
   }
-  if (debug_info) {
-    result += debug_info->EstimateCurrentMemoryConsumption();
+  result += ContentSize(new_owned_code_);
+  for (std::unique_ptr<WasmCode>& code : new_owned_code_) {
+    result += code->EstimateCurrentMemoryConsumption();
+  }
+  // For {code_table_}.
+  result += module_->num_declared_functions * sizeof(void*);
+  result += ContentSize(code_space_data_);
+  DebugInfo* debug_info = debug_info_.get();
+  if (names_provider_) {
+    result += names_provider_->EstimateCurrentMemoryConsumption();
   }
 
   result += counter_updates_.EstimateCurrentMemoryConsumption() -
@@ -2970,6 +2970,15 @@ size_t NativeModule::EstimateCurrentMemoryConsumption() const {
   for (const std::shared_ptr<WasmWrapperHandle>& wrapper :
        stack_entry_wrappers_) {
     result += wrapper->code()->EstimateCurrentMemoryConsumption();
+  }
+
+  // We cannot hold the `allocation_mutex_` while calling
+  // `debug_info_->EstimateCurrentMemoryConsumption`, as we would run into a
+  // lock-order-inversion when acquiring the `mutex_`. The reverse order happens
+  // when calling `WasmScript::SetBreakPointForFunction`.
+  lock.reset();
+  if (debug_info) {
+    result += debug_info->EstimateCurrentMemoryConsumption();
   }
 
   if (v8_flags.trace_wasm_offheap_memory) {
@@ -3049,7 +3058,7 @@ WasmCode* WasmCodeManager::LookupCode(Isolate* isolate, Address pc) const {
   }
 }
 
-std::pair<WasmCode*, SafepointEntry> WasmCodeManager::LookupCodeAndSafepoint(
+std::pair<WasmCode*, SafepointEntry&> WasmCodeManager::LookupCodeAndSafepoint(
     Isolate* isolate, Address pc) {
   auto* entry = isolate->wasm_code_look_up_cache()->GetCacheEntry(pc);
   WasmCode* code = entry->code;
@@ -3068,14 +3077,17 @@ std::pair<WasmCode*, SafepointEntry> WasmCodeManager::LookupCodeAndSafepoint(
     return !is_protected_instruction || code->for_debugging();
   };
   if (!entry->safepoint_entry.is_initialized() && expect_safepoint()) {
-    entry->safepoint_entry = SafepointTable{code}.TryFindEntry(pc);
-    CHECK(entry->safepoint_entry.is_initialized());
+    SafepointTable table{code};
+    entry->safepoint_entry.CopyFrom(table.FindEntry(pc));
+#if DEBUG
   } else if (expect_safepoint()) {
-    DCHECK_EQ(entry->safepoint_entry, SafepointTable{code}.TryFindEntry(pc));
+    SafepointTable table{code};
+    DCHECK_EQ(entry->safepoint_entry, table.FindEntry(pc));
   } else {
     DCHECK(!entry->safepoint_entry.is_initialized());
+#endif  // DEBUG
   }
-  return std::make_pair(code, entry->safepoint_entry);
+  return {code, entry->safepoint_entry};
 }
 
 void WasmCodeManager::FlushCodeLookupCache(Isolate* isolate) {
@@ -3117,8 +3129,9 @@ WasmCode* WasmCodeRefScope::AddRefIfNotDying(WasmCode* code) {
 }
 
 void WasmCodeLookupCache::Flush() {
-  for (int i = 0; i < kWasmCodeLookupCacheSize; i++)
-    cache_[i].pc.store(kNullAddress, std::memory_order_release);
+  for (CacheEntry& entry : cache_) {
+    entry.pc.store(kNullAddress, std::memory_order_release);
+  }
 }
 
 WasmCodeLookupCache::CacheEntry* WasmCodeLookupCache::GetCacheEntry(

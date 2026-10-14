@@ -1239,7 +1239,7 @@ bool OpenSSLStreamAdapter::VerifyPeerCertificate() {
     return false;
   }
 
-  Buffer computed_digest(0, EVP_MAX_MD_SIZE);
+  Buffer computed_digest = Buffer::CreateWithCapacity(EVP_MAX_MD_SIZE);
   if (!peer_cert_chain_->Get(0).ComputeDigest(
           peer_certificate_digest_algorithm_, computed_digest)) {
     RTC_LOG(LS_WARNING) << "Failed to compute peer cert digest.";

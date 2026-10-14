@@ -152,7 +152,8 @@ struct AccountInfo : public CoreAccountInfo {
   // Returns access point used to add the account, which is also updated on
   // reauth. The access point is not updated when signing in to Chrome, only
   // when the token is updated or refreshed.
-  signin_metrics::AccessPoint GetLastAuthenticationAccessPoint() const;
+  std::optional<signin_metrics::AccessPoint> GetLastAuthenticationAccessPoint()
+      const;
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
   // Returns the account capabilities.
@@ -212,19 +213,13 @@ struct AccountInfo : public CoreAccountInfo {
   // soon, do not use them directly.
   // TODO(crbug.com/458409080): move all struct members to the private section.
 
-  // Mandatory fields for `IsValid()` to return true:
-  // Deprecated: Use GetFullName() instead.
-  std::string full_name;
-  // Deprecated: Use GetGivenName() instead.
-  std::string given_name;
 
   // Deprecated: Use GetAvatarImage() instead.
   gfx::Image account_image;
 
   // Deprecated: Use GetLastAuthenticationAccessPoint() instead.
   // The value is set consistently only on DICE platforms.
-  signin_metrics::AccessPoint access_point =
-      signin_metrics::AccessPoint::kUnknown;
+  std::optional<signin_metrics::AccessPoint> access_point;
 
   // Deprecated: Use GetAccountCapabilities() instead.
   AccountCapabilities capabilities;
@@ -234,8 +229,12 @@ struct AccountInfo : public CoreAccountInfo {
  private:
   friend class Builder;
 
+  // Mandatory fields for `IsValid()` to return true:
+  std::string full_name_;
+  std::string given_name_;
   std::string hosted_domain_;
   std::string picture_url_;
+
   std::string last_downloaded_image_url_with_size_;
   signin::Tribool is_child_account_ = signin::Tribool::kUnknown;
 };

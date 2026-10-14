@@ -212,6 +212,10 @@ constexpr uint8_t kRtcpPacket[] = {
   0x00, 0x03, 0x73, 0x50,
 };
 
+const ArrayView<const uint8_t> kZeroLenView(kStunMessageWithZeroLength);
+const ArrayView<const uint8_t> kExcessLenView(kStunMessageWithExcessLength);
+const ArrayView<const uint8_t> kSmallLenView(kStunMessageWithSmallLength);
+
 
 // RFC5769 Test Vectors
 // Software name (request):  "STUN test client" (without quotes)
@@ -1197,15 +1201,15 @@ TEST_F(StunTest, ValidateMessageIntegrity) {
   // Again, but with the lengths matching what is claimed in the headers.
   EXPECT_FALSE(StunMessage::ValidateMessageIntegrityForTesting(
       reinterpret_cast<const char*>(kStunMessageWithZeroLength),
-      kStunHeaderSize + GetBE16(&kStunMessageWithZeroLength[2]),
+      kStunHeaderSize + GetBE16(kZeroLenView.subspan(2, 2)),
       kRfc5769SampleMsgPassword));
   EXPECT_FALSE(StunMessage::ValidateMessageIntegrityForTesting(
       reinterpret_cast<const char*>(kStunMessageWithExcessLength),
-      kStunHeaderSize + GetBE16(&kStunMessageWithExcessLength[2]),
+      kStunHeaderSize + GetBE16(kExcessLenView.subspan(2, 2)),
       kRfc5769SampleMsgPassword));
   EXPECT_FALSE(StunMessage::ValidateMessageIntegrityForTesting(
       reinterpret_cast<const char*>(kStunMessageWithSmallLength),
-      kStunHeaderSize + GetBE16(&kStunMessageWithSmallLength[2]),
+      kStunHeaderSize + GetBE16(kSmallLenView.subspan(2, 2)),
       kRfc5769SampleMsgPassword));
 
   // Check that a too-short HMAC doesn't cause buffer overflow.
@@ -1288,15 +1292,15 @@ TEST_F(StunTest, ValidateMessageIntegrity32) {
   // Again, but with the lengths matching what is claimed in the headers.
   EXPECT_FALSE(StunMessage::ValidateMessageIntegrity32ForTesting(
       reinterpret_cast<const char*>(kStunMessageWithZeroLength),
-      kStunHeaderSize + GetBE16(&kStunMessageWithZeroLength[2]),
+      kStunHeaderSize + GetBE16(kZeroLenView.subspan(2, 2)),
       kRfc5769SampleMsgPassword));
   EXPECT_FALSE(StunMessage::ValidateMessageIntegrity32ForTesting(
       reinterpret_cast<const char*>(kStunMessageWithExcessLength),
-      kStunHeaderSize + GetBE16(&kStunMessageWithExcessLength[2]),
+      kStunHeaderSize + GetBE16(kExcessLenView.subspan(2, 2)),
       kRfc5769SampleMsgPassword));
   EXPECT_FALSE(StunMessage::ValidateMessageIntegrity32ForTesting(
       reinterpret_cast<const char*>(kStunMessageWithSmallLength),
-      kStunHeaderSize + GetBE16(&kStunMessageWithSmallLength[2]),
+      kStunHeaderSize + GetBE16(kSmallLenView.subspan(2, 2)),
       kRfc5769SampleMsgPassword));
 
   // Check that a too-short HMAC doesn't cause buffer overflow.

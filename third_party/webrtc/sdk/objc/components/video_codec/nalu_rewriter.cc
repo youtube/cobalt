@@ -275,7 +275,7 @@ bool AnnexBBufferReader::ReadNalu(ArrayView<const uint8_t>& out_nalu) {
     return false;
   }
   out_nalu =
-      buffer_.subview(offset_->payload_start_offset, offset_->payload_size);
+      buffer_.subspan(offset_->payload_start_offset, offset_->payload_size);
   ++offset_;
   return true;
 }
@@ -312,10 +312,10 @@ bool AvccBufferWriter::WriteNalu(ArrayView<const uint8_t> data) {
   // Write length header, which needs to be big endian.
   uint32_t big_endian_length = CFSwapInt32HostToBig(data.size());
   memcpy(buffer_.data(), &big_endian_length, sizeof(big_endian_length));
-  buffer_ = buffer_.subview(sizeof(big_endian_length));
+  buffer_ = buffer_.subspan(sizeof(big_endian_length));
   // Write data.
   memcpy(buffer_.data(), data.data(), data.size());
-  buffer_ = buffer_.subview(data.size());
+  buffer_ = buffer_.subspan(data.size());
   return true;
 }
 

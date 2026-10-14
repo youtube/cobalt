@@ -1312,17 +1312,17 @@ temporal_rs::PartialTime GetPartialTimeFromRust(RustObject& rust_object) {
 // These can eventually be replaced with methods upstream
 temporal_rs::PartialTime GetPartialTime(
     DirectHandle<JSTemporalPlainTime> plain_time) {
-  auto rust_object = plain_time->time()->raw();
+  auto rust_object = plain_time->wrapped_rust();
   return GetPartialTimeFromRust(rust_object);
 }
 temporal_rs::PartialTime GetPartialTime(
     DirectHandle<JSTemporalPlainDateTime> date_time) {
-  auto rust_object = date_time->date_time()->raw();
+  auto rust_object = date_time->wrapped_rust();
   return GetPartialTimeFromRust(rust_object);
 }
 temporal_rs::PartialTime GetPartialTime(
     DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
-  auto rust_object = zoned_date_time->zoned_date_time()->raw();
+  auto rust_object = zoned_date_time->wrapped_rust();
   return GetPartialTimeFromRust(rust_object);
 }
 
@@ -1340,23 +1340,23 @@ temporal_rs::PartialDate GetPartialDateFromRust(RustObject& rust_object) {
 }
 temporal_rs::PartialDate GetPartialDate(
     DirectHandle<JSTemporalPlainDate> plain_date) {
-  auto rust_object = plain_date->date()->raw();
+  auto rust_object = plain_date->wrapped_rust();
   return GetPartialDateFromRust(rust_object);
 }
 temporal_rs::PartialDate GetPartialDate(
     DirectHandle<JSTemporalPlainDateTime> date_time) {
-  auto rust_object = date_time->date_time()->raw();
+  auto rust_object = date_time->wrapped_rust();
   return GetPartialDateFromRust(rust_object);
 }
 temporal_rs::PartialDate GetPartialDate(
     DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
-  auto rust_object = zoned_date_time->zoned_date_time()->raw();
+  auto rust_object = zoned_date_time->wrapped_rust();
   return GetPartialDateFromRust(rust_object);
 }
 
 temporal_rs::PartialDateTime GetPartialDateTime(
     DirectHandle<JSTemporalPlainDate> plain_date) {
-  auto rust_object = plain_date->date()->raw();
+  auto rust_object = plain_date->wrapped_rust();
   return temporal_rs::PartialDateTime{
       .date = GetPartialDateFromRust(rust_object),
       .time = kNullPartialTime,
@@ -1364,7 +1364,7 @@ temporal_rs::PartialDateTime GetPartialDateTime(
 }
 temporal_rs::PartialDateTime GetPartialDateTime(
     DirectHandle<JSTemporalPlainDateTime> date_time) {
-  auto rust_object = date_time->date_time()->raw();
+  auto rust_object = date_time->wrapped_rust();
   return temporal_rs::PartialDateTime{
       .date = GetPartialDateFromRust(rust_object),
       .time = GetPartialTimeFromRust(rust_object),
@@ -1372,7 +1372,7 @@ temporal_rs::PartialDateTime GetPartialDateTime(
 }
 temporal_rs::PartialDateTime GetPartialDateTime(
     DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
-  auto rust_object = zoned_date_time->zoned_date_time()->raw();
+  auto rust_object = zoned_date_time->wrapped_rust();
   return temporal_rs::PartialDateTime{
       .date = GetPartialDateFromRust(rust_object),
       .time = GetPartialTimeFromRust(rust_object),
@@ -1469,10 +1469,8 @@ Maybe<temporal_rs::TimeZone> ToTemporalTimeZoneIdentifier(
   // internal slot, then
   if (IsJSTemporalZonedDateTime(*tz_like)) {
     // i. Return temporalTimeZoneLike.[[TimeZone]].
-    return Just(Cast<JSTemporalZonedDateTime>(tz_like)
-                    ->zoned_date_time()
-                    ->raw()
-                    ->timezone());
+    return Just(
+        Cast<JSTemporalZonedDateTime>(tz_like)->wrapped_rust()->timezone());
   }
   // 2. If temporalTimeZoneLike is not a String, throw a TypeError exception.
   if (!IsString(*tz_like)) {
@@ -2261,7 +2259,7 @@ Maybe<std::unique_ptr<temporal_rs::Duration>> ToTemporalDurationRust(
   if (IsJSTemporalDuration(*item)) {
     auto duration = Cast<JSTemporalDuration>(item);
     // i. Return !CreateTemporalInstant(item.[[EpochNanoseconds]]).
-    return Just(duration->duration()->raw()->clone());
+    return Just(duration->wrapped_rust()->clone());
   }
 
   // 2. If item is not an Object, then
@@ -2344,11 +2342,11 @@ MaybeDirectHandle<JSTemporalInstant> ToTemporalInstant(
     auto instant = Cast<JSTemporalInstant>(item);
     // i. Return !CreateTemporalInstant(item.[[EpochNanoseconds]]).
     return ConstructRustWrappingType<JSTemporalInstant>(
-        isolate, instant->instant()->raw()->clone());
+        isolate, instant->wrapped_rust()->clone());
     // ... or  [[InitializedTemporalZonedDateTime]] internal slot
   } else if (IsJSTemporalZonedDateTime(*item)) {
     auto zdt = Cast<JSTemporalZonedDateTime>(item);
-    auto ns = zdt->zoned_date_time()->raw()->epoch_nanoseconds();
+    auto ns = zdt->wrapped_rust()->epoch_nanoseconds();
     // i. Return !CreateTemporalInstant(item.[[EpochNanoseconds]]).
     return ConstructRustWrappingType<JSTemporalInstant>(
         isolate, temporal_rs::Instant::try_new(ns));
@@ -2423,7 +2421,7 @@ MaybeDirectHandle<JSTemporalPlainTime> ToTemporalTime(
 
       // iii. Return !CreateTemporalTime(item.[[Time]]).
       return ConstructRustWrappingType<JSTemporalPlainTime>(
-          isolate, cast->time()->raw()->clone());
+          isolate, cast->wrapped_rust()->clone());
       // b. If item has an [[InitializedTemporalDateTime]] internal slot, then
     } else if (InstanceTypeChecker::IsJSTemporalPlainDateTime(instance_type)) {
       // iii. Return ! CreateTemporalTime(item.[[ISODateTime]].[[Time]]).
@@ -2506,12 +2504,12 @@ MaybeDirectHandle<JSTemporalPlainTime> ToTemporalTime(
 // handles the midnight-setting
 //
 // https://tc39.es/proposal-temporal/#sec-temporal-totimerecordormidnight
-Maybe<const temporal_rs::PlainTime*> ToTimeRecordOrMidnight(
+Maybe<std::shared_ptr<const temporal_rs::PlainTime>> ToTimeRecordOrMidnight(
     Isolate* isolate, DirectHandle<Object> item,
     DirectHandle<JSTemporalPlainTime>& output_time, const char* method_name) {
   // 1. If item is undefined, return MidnightTimeRecord().
   if (IsUndefined(*item)) {
-    return Just(static_cast<const temporal_rs::PlainTime*>(nullptr));
+    return Just(std::shared_ptr<const temporal_rs::PlainTime>(nullptr));
   }
 
   // 2. Let plainTime be ? ToTemporalTime(item).
@@ -2519,8 +2517,9 @@ Maybe<const temporal_rs::PlainTime*> ToTimeRecordOrMidnight(
                              ToTemporalTime(isolate, item, {}, method_name));
 
   // 3. Return plainTime.[[Time]].
-  return Just(
-      static_cast<const temporal_rs::PlainTime*>(output_time->time()->raw()));
+  std::shared_ptr<const temporal_rs::PlainTime> empty =
+      output_time->wrapped_rust();
+  return Just(std::move(empty));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal-totemporaldate
@@ -2548,7 +2547,7 @@ MaybeDirectHandle<JSTemporalPlainDate> ToTemporalDate(
       READ_AND_DISCARD_OVERFLOW(options_obj);
       // iii. Return !CreateTemporalDate(item.[[Date]], item.[[Calendar]]).
       return ConstructRustWrappingType<JSTemporalPlainDate>(
-          isolate, cast->date()->raw()->clone());
+          isolate, cast->wrapped_rust()->clone());
       // b. If item has an [[InitializedTemporalZonedDateTime]] internal slot,
       // then
     } else if (InstanceTypeChecker::IsJSTemporalZonedDateTime(instance_type)) {
@@ -2663,7 +2662,7 @@ MaybeDirectHandle<JSTemporalPlainDateTime> ToTemporalDateTime(
       READ_AND_DISCARD_OVERFLOW(options_obj);
       // iii. Return !CreateTemporalDate(item.[[Date]], item.[[Calendar]]).
       return ConstructRustWrappingType<JSTemporalPlainDateTime>(
-          isolate, cast->date_time()->raw()->clone());
+          isolate, cast->wrapped_rust()->clone());
       // b. If item has an [[InitializedTemporalZonedDateTime]] internal slot,
       // then
     } else if (InstanceTypeChecker::IsJSTemporalZonedDateTime(instance_type)) {
@@ -2783,7 +2782,7 @@ MaybeDirectHandle<JSTemporalPlainYearMonth> ToTemporalYearMonth(
       // iii. Return ! CreateTemporalYearMonth(item.[[ISODate]],
       // item.[[Calendar]]).
       return ConstructRustWrappingType<JSTemporalPlainYearMonth>(
-          isolate, cast->year_month()->raw()->clone());
+          isolate, cast->wrapped_rust()->clone());
     } else {
       // b. Let calendar be ?GetTemporalCalendarIdentifierWithISODefault(item).
       DirectHandle<JSReceiver> item_recvr = Cast<JSReceiver>(item);
@@ -2942,7 +2941,7 @@ MaybeDirectHandle<JSTemporalZonedDateTime> ToTemporalZonedDateTime(
       // vi. Return !CreateTemporalZonedDateTime(item.[[EpochNanoseconds]],
       // item.[[TimeZone]], item.[[Calendar]]).
       return ConstructRustWrappingType<JSTemporalZonedDateTime>(
-          isolate, cast->zoned_date_time()->raw()->clone());
+          isolate, cast->wrapped_rust()->clone());
 
     } else {
       // b. Let calendar be ?GetTemporalCalendarIdentifierWithISODefault(item).
@@ -3059,7 +3058,7 @@ MaybeDirectHandle<JSTemporalPlainMonthDay> ToTemporalMonthDay(
       // iii. Return ! CreateTemporalMonthDay(item.[[ISODate]],
       // item.[[Calendar]]).
       return ConstructRustWrappingType<JSTemporalPlainMonthDay>(
-          isolate, cast->month_day()->raw()->clone());
+          isolate, cast->wrapped_rust()->clone());
     } else {
       // b. Let calendar be ?GetTemporalCalendarIdentifierWithISODefault(item).
       DirectHandle<JSReceiver> item_recvr = Cast<JSReceiver>(item);
@@ -3184,61 +3183,28 @@ ToTemporalGeneric<JSTemporalZonedDateTime>(
 // times)
 class RelativeTo {
  public:
-  RelativeTo()
-      : date_(std::nullopt),
-        zoned_(std::nullopt),
-        date_ptr_(nullptr),
-        zoned_ptr_(nullptr) {}
+  RelativeTo() = default;
 
-  // These methods are not constructors so that they can be explicitly invoked,
-  // to avoid e.g. passing in an owned type as a pointer.
-  static RelativeTo Owned(std::unique_ptr<temporal_rs::PlainDate>&& val) {
-    RelativeTo ret;
-    ret.date_ = std::move(val);
-    ret.date_ptr_ = ret.date_.value().get();
-    return ret;
-  }
-  static RelativeTo Owned(std::unique_ptr<temporal_rs::ZonedDateTime>&& val) {
-    RelativeTo ret;
-    ret.zoned_ = std::move(val);
-    ret.zoned_ptr_ = ret.zoned_.value().get();
-    return ret;
+  explicit RelativeTo(std::shared_ptr<const temporal_rs::PlainDate> val)
+      : date_(std::move(val)), zoned_(nullptr) {}
+  explicit RelativeTo(std::shared_ptr<const temporal_rs::ZonedDateTime> val)
+      : date_(nullptr), zoned_(std::move(val)) {}
+
+  explicit RelativeTo(temporal_rs::OwnedRelativeTo&& owned) {
+    date_ = std::move(owned.date);
+    zoned_ = std::move(owned.zoned);
   }
 
-  static RelativeTo Owned(temporal_rs::OwnedRelativeTo&& owned) {
-    if (owned.date) {
-      return Owned(std::move(owned.date));
-    } else if (owned.zoned) {
-      return Owned(std::move(owned.zoned));
-    }
-
-    return RelativeTo();
-  }
-
-  static RelativeTo Borrowed(temporal_rs::PlainDate const* val) {
-    RelativeTo ret;
-    ret.date_ptr_ = val;
-    return ret;
-  }
-
-  static RelativeTo Borrowed(temporal_rs::ZonedDateTime const* val) {
-    RelativeTo ret;
-    ret.zoned_ptr_ = val;
-    return ret;
-  }
   temporal_rs::RelativeTo ToRust() const {
     return temporal_rs::RelativeTo{
-        .date = date_ptr_,
-        .zoned = zoned_ptr_,
+        .date = date_.get(),
+        .zoned = zoned_.get(),
     };
   }
 
  private:
-  std::optional<std::unique_ptr<temporal_rs::PlainDate>> date_;
-  std::optional<std::unique_ptr<temporal_rs::ZonedDateTime>> zoned_;
-
-  temporal_rs::PlainDate const* date_ptr_;
-  temporal_rs::ZonedDateTime const* zoned_ptr_;
+  std::shared_ptr<const temporal_rs::PlainDate> date_;
+  std::shared_ptr<const temporal_rs::ZonedDateTime> zoned_;
 };
 
 // https://tc39.es/proposal-temporal/#sec-temporal-gettemporalrelativetooption
@@ -3292,16 +3258,15 @@ Maybe<RelativeTo> GetTemporalRelativeToOptionHandleUndefined(
     if (InstanceTypeChecker::IsJSTemporalZonedDateTime(instance_type)) {
       // i. Return the Record { [[PlainRelativeTo]]: undefined,
       // [[ZonedRelativeTo]]: value }.
-      return Just(RelativeTo::Borrowed(
-          Cast<JSTemporalZonedDateTime>(value)->zoned_date_time()->raw()));
+      return Just(
+          RelativeTo(Cast<JSTemporalZonedDateTime>(value)->wrapped_rust()));
     }
 
     // b. If value has an [[InitializedTemporalDate]] internal slot, then
     if (InstanceTypeChecker::IsJSTemporalPlainDate(instance_type)) {
       // i. Return the Record { [[PlainRelativeTo]]: value, [[ZonedRelativeTo]]:
       // undefined }.
-      return Just(RelativeTo::Borrowed(
-          Cast<JSTemporalPlainDate>(value)->date()->raw()));
+      return Just(RelativeTo(Cast<JSTemporalPlainDate>(value)->wrapped_rust()));
     }
 
     // c. If value has an [[InitializedTemporalDateTime]] internal slot, then
@@ -3318,7 +3283,7 @@ Maybe<RelativeTo> GetTemporalRelativeToOptionHandleUndefined(
                                          date_record, std::nullopt)));
       // ii. Return the Record { [[PlainRelativeTo]]: plainDate,
       // [[ZonedRelativeTo]]: undefined }.
-      return Just(RelativeTo::Owned(std::move(plain_date)));
+      return Just(RelativeTo(std::move(plain_date)));
     }
     // d. Let calendar be ? GetTemporalCalendarIdentifierWithISODefault(value).
     temporal_rs::AnyCalendarKind kind = temporal_rs::AnyCalendarKind::Iso;
@@ -3367,7 +3332,7 @@ Maybe<RelativeTo> GetTemporalRelativeToOptionHandleUndefined(
 
       // b. Return the Record { [[PlainRelativeTo]]: plainDate,
       // [[ZonedRelativeTo]]: undefined }.
-      return Just(RelativeTo::Owned(std::move(plain_relative_to)));
+      return Just(RelativeTo(std::move(plain_relative_to)));
     }
     // 8. If offsetBehaviour is option, then
     // a. Let offsetNs be ! ParseDateTimeUTCOffset(offsetString).
@@ -3392,7 +3357,7 @@ Maybe<RelativeTo> GetTemporalRelativeToOptionHandleUndefined(
                 TimeZoneProvider())));
     // 12. Return the Record { [[PlainRelativeTo]]: undefined,
     // [[ZonedRelativeTo]]: zonedRelativeTo }.
-    return Just(RelativeTo::Owned(std::move(zoned_relative_to)));
+    return Just(RelativeTo(std::move(zoned_relative_to)));
 
     // 6. Else,
   } else {
@@ -3428,7 +3393,7 @@ Maybe<RelativeTo> GetTemporalRelativeToOptionHandleUndefined(
 
     // 12. Return the Record { [[PlainRelativeTo]]: undefined,
     // [[ZonedRelativeTo]]: zonedRelativeTo }.
-    return Just(RelativeTo::Owned(std::move(relative_to)));
+    return Just(RelativeTo(std::move(relative_to)));
   }
 }
 
@@ -3549,7 +3514,7 @@ MaybeDirectHandle<JSType> AddDurationToGeneric(
 
   // Remaining steps handled in Rust.
   auto added = (temporal_js_type->wrapped_rust().get()->*operation)(
-      *other_duration->duration()->raw(), overflow, provider...);
+      *other_duration->wrapped_rust(), overflow, provider...);
 
   return ConstructRustWrappingType<JSType>(isolate, std::move(added));
 }
@@ -3702,9 +3667,9 @@ V8_WARN_UNUSED_RESULT Maybe<temporal_rs::TimeZone> ToRustTimeZone(
 // Partial implementation:
 //
 // https://tc39.es/proposal-temporal/#sec-temporal-handledatetimetemporaldatetime
-Maybe<int64_t> GetEpochMillisecondsForDateTime(Isolate* isolate,
-                                               temporal_rs::PlainDateTime& date,
-                                               std::string_view time_zone) {
+Maybe<int64_t> GetEpochMillisecondsForDateTime(
+    Isolate* isolate, const temporal_rs::PlainDateTime& date,
+    std::string_view time_zone) {
   temporal_rs::TimeZone tz;
   MOVE_RETURN_ON_EXCEPTION(isolate, tz, ToRustTimeZone(isolate, time_zone));
 
@@ -3726,8 +3691,8 @@ Maybe<int64_t> GetEpochMillisecondsForDateTime(Isolate* isolate,
 // https://tc39.es/proposal-temporal/#sec-temporal-handledatetimetemporalmonthday
 // https://tc39.es/proposal-temporal/#sec-temporal-handledatetimetemporalyearmonth
 Maybe<int64_t> GetEpochMillisecondsForDate(
-    Isolate* isolate, temporal_rs::PlainDate& date, std::string_view time_zone,
-    temporal_rs::PlainTime* time = nullptr) {
+    Isolate* isolate, const temporal_rs::PlainDate& date,
+    std::string_view time_zone, const temporal_rs::PlainTime* time = nullptr) {
   temporal_rs::TimeZone tz;
   MOVE_RETURN_ON_EXCEPTION(isolate, tz, ToRustTimeZone(isolate, time_zone));
 
@@ -3877,10 +3842,9 @@ MaybeDirectHandle<Smi> JSTemporalDuration::Compare(
   int8_t comparison = 0;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, comparison,
-      ExtractRustResult(isolate,
-                        one->duration()->raw()->compare_with_provider(
-                            *two->duration()->raw(), relative_to.ToRust(),
-                            TimeZoneProvider())));
+      ExtractRustResult(isolate, one->wrapped_rust()->compare_with_provider(
+                                     *two->wrapped_rust(), relative_to.ToRust(),
+                                     TimeZoneProvider())));
 
   return direct_handle(Smi::FromInt(comparison), isolate);
 }
@@ -3996,7 +3960,7 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::Round(
                                               .rounding_mode = rounding_mode,
                                               .increment = rounding_increment};
 
-  auto rounded = duration->duration()->raw()->round_with_provider(
+  auto rounded = duration->wrapped_rust()->round_with_provider(
       options, relative_to.ToRust(), TimeZoneProvider());
   return ConstructRustWrappingType<JSTemporalDuration>(isolate,
                                                        std::move(rounded));
@@ -4076,10 +4040,9 @@ MaybeDirectHandle<Number> JSTemporalDuration::Total(
   double ret;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, ret,
-      ExtractRustResult(
-          isolate,
-          duration->duration()->raw()->total_with_provider(
-              unit.value(), relative_to.ToRust(), TimeZoneProvider())));
+      ExtractRustResult(isolate, duration->wrapped_rust()->total_with_provider(
+                                     unit.value(), relative_to.ToRust(),
+                                     TimeZoneProvider())));
 
   return factory->NewNumber(ret);
 }
@@ -4093,37 +4056,37 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::With(
                              temporal::ToTemporalPartialDurationRecord(
                                  isolate, temporal_duration_like));
   if (!partial.years.has_value()) {
-    partial.years = duration->duration()->raw()->years();
+    partial.years = duration->wrapped_rust()->years();
   }
   if (!partial.months.has_value()) {
-    partial.months = duration->duration()->raw()->months();
+    partial.months = duration->wrapped_rust()->months();
   }
   if (!partial.months.has_value()) {
-    partial.months = duration->duration()->raw()->months();
+    partial.months = duration->wrapped_rust()->months();
   }
   if (!partial.weeks.has_value()) {
-    partial.weeks = duration->duration()->raw()->weeks();
+    partial.weeks = duration->wrapped_rust()->weeks();
   }
   if (!partial.days.has_value()) {
-    partial.days = duration->duration()->raw()->days();
+    partial.days = duration->wrapped_rust()->days();
   }
   if (!partial.hours.has_value()) {
-    partial.hours = duration->duration()->raw()->hours();
+    partial.hours = duration->wrapped_rust()->hours();
   }
   if (!partial.minutes.has_value()) {
-    partial.minutes = duration->duration()->raw()->minutes();
+    partial.minutes = duration->wrapped_rust()->minutes();
   }
   if (!partial.seconds.has_value()) {
-    partial.seconds = duration->duration()->raw()->seconds();
+    partial.seconds = duration->wrapped_rust()->seconds();
   }
   if (!partial.milliseconds.has_value()) {
-    partial.milliseconds = duration->duration()->raw()->milliseconds();
+    partial.milliseconds = duration->wrapped_rust()->milliseconds();
   }
   if (!partial.microseconds.has_value()) {
-    partial.microseconds = duration->duration()->raw()->microseconds();
+    partial.microseconds = duration->wrapped_rust()->microseconds();
   }
   if (!partial.nanoseconds.has_value()) {
-    partial.nanoseconds = duration->duration()->raw()->nanoseconds();
+    partial.nanoseconds = duration->wrapped_rust()->nanoseconds();
   }
   return ConstructRustWrappingType<JSTemporalDuration>(
       isolate, temporal_rs::Duration::from_partial_duration(partial));
@@ -4132,14 +4095,14 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::With(
 // https://tc39.es/proposal-temporal/#sec-get-temporal.duration.prototype.sign
 MaybeDirectHandle<Smi> JSTemporalDuration::Sign(
     Isolate* isolate, DirectHandle<JSTemporalDuration> duration) {
-  auto sign = duration->duration()->raw()->sign();
+  auto sign = duration->wrapped_rust()->sign();
   return direct_handle(Smi::FromInt((temporal_rs::Sign::Value)sign), isolate);
 }
 
 // https://tc39.es/proposal-temporal/#sec-get-temporal.duration.prototype.blank
 MaybeDirectHandle<Oddball> JSTemporalDuration::Blank(
     Isolate* isolate, DirectHandle<JSTemporalDuration> duration) {
-  return isolate->factory()->ToBoolean(duration->duration()->raw()->sign() ==
+  return isolate->factory()->ToBoolean(duration->wrapped_rust()->sign() ==
                                        temporal_rs::Sign::Zero);
 }
 
@@ -4147,14 +4110,14 @@ MaybeDirectHandle<Oddball> JSTemporalDuration::Blank(
 MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::Negated(
     Isolate* isolate, DirectHandle<JSTemporalDuration> duration) {
   return ConstructRustWrappingType<JSTemporalDuration>(
-      isolate, duration->duration()->raw()->negated());
+      isolate, duration->wrapped_rust()->negated());
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.duration.prototype.abs
 MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::Abs(
     Isolate* isolate, DirectHandle<JSTemporalDuration> duration) {
   return ConstructRustWrappingType<JSTemporalDuration>(
-      isolate, duration->duration()->raw()->abs());
+      isolate, duration->wrapped_rust()->abs());
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.duration.prototype.add
@@ -4168,8 +4131,7 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::Add(
       isolate, other_duration,
       temporal::ToTemporalDuration(isolate, other, method_name));
 
-  auto result =
-      duration->duration()->raw()->add(*other_duration->duration()->raw());
+  auto result = duration->wrapped_rust()->add(*other_duration->wrapped_rust());
   return ConstructRustWrappingType<JSTemporalDuration>(isolate,
                                                        std::move(result));
 }
@@ -4186,7 +4148,7 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::Subtract(
       temporal::ToTemporalDuration(isolate, other, method_name));
 
   auto result =
-      duration->duration()->raw()->subtract(*other_duration->duration()->raw());
+      duration->wrapped_rust()->subtract(*other_duration->wrapped_rust());
   return ConstructRustWrappingType<JSTemporalDuration>(isolate,
                                                        std::move(result));
 }
@@ -4338,7 +4300,7 @@ MaybeDirectHandle<Smi> JSTemporalPlainDate::Compare(
       temporal::ToTemporalDate(isolate, two_obj, {}, method_name));
 
   return direct_handle(Smi::FromInt(temporal_rs::PlainDate::compare(
-                           *one->date()->raw(), *two->date()->raw())),
+                           *one->wrapped_rust(), *two->wrapped_rust())),
                        isolate);
 }
 
@@ -4353,7 +4315,7 @@ MaybeDirectHandle<Oddball> JSTemporalPlainDate::Equals(
       isolate, other,
       temporal::ToTemporalDate(isolate, other_obj, {}, method_name));
 
-  auto equals = temporal_date->date()->raw()->equals(*other->date()->raw());
+  auto equals = temporal_date->wrapped_rust()->equals(*other->wrapped_rust());
 
   return isolate->factory()->ToBoolean(equals);
 }
@@ -4380,16 +4342,17 @@ MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDate::ToPlainDateTime(
   static const char method_name[] = "Temporal.PlainDate.toPlainDateTime";
 
   // 3. Let time be ? ToTimeRecordOrMidnight(temporalTime).
-  const temporal_rs::PlainTime* maybe_time;
+  std::shared_ptr<const temporal_rs::PlainTime> maybe_time = nullptr;
   DirectHandle<JSTemporalPlainTime> time_output;
-  ASSIGN_RETURN_ON_EXCEPTION(
+  MOVE_RETURN_ON_EXCEPTION(
       isolate, maybe_time,
       temporal::ToTimeRecordOrMidnight(isolate, temporal_time_obj, time_output,
                                        method_name));
 
   // Rest of the steps handled in Rust.
   return ConstructRustWrappingType<JSTemporalPlainDateTime>(
-      isolate, temporal_date->date()->raw()->to_plain_date_time(maybe_time));
+      isolate,
+      temporal_date->wrapped_rust()->to_plain_date_time(maybe_time.get()));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.with
@@ -4415,7 +4378,7 @@ MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::WithCalendar(
 
   // Rest of the steps handled in Rust
   return ConstructRustWrappingType<JSTemporalPlainDate>(
-      isolate, temporal_date->date()->raw()->with_calendar(calendar_kind));
+      isolate, temporal_date->wrapped_rust()->with_calendar(calendar_kind));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.tozoneddatetime
@@ -4469,7 +4432,7 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalPlainDate::ToZonedDateTime(
   }
 
   DirectHandle<JSTemporalPlainTime> temporal_time;
-  temporal_rs::PlainTime* temporal_time_rust = nullptr;
+  std::shared_ptr<const temporal_rs::PlainTime> temporal_time_rust;
 
   // 5. If temporalTime is undefined, then
   if (temporal_time_obj.is_null() || IsUndefined(*temporal_time_obj)) {
@@ -4482,13 +4445,13 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalPlainDate::ToZonedDateTime(
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, temporal_time,
         temporal::ToTemporalTime(isolate, temporal_time_obj, {}, method_name));
-    temporal_time_rust = temporal_time->time()->raw();
+    temporal_time_rust = temporal_time->wrapped_rust();
     // (Rest of the steps handled in Rust)
   }
 
   return ConstructRustWrappingType<JSTemporalZonedDateTime>(
-      isolate, temporal_date->date()->raw()->to_zoned_date_time_with_provider(
-                   time_zone, temporal_time_rust, TimeZoneProvider()));
+      isolate, temporal_date->wrapped_rust()->to_zoned_date_time_with_provider(
+                   time_zone, temporal_time_rust.get(), TimeZoneProvider()));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.add
@@ -4611,8 +4574,8 @@ MaybeDirectHandle<String> JSTemporalPlainDate::ToLocaleString(
 
 Maybe<int64_t> JSTemporalPlainDate::GetEpochMillisecondsFor(
     Isolate* isolate, std::string_view time_zone) {
-  return temporal::GetEpochMillisecondsForDate(isolate, *this->date()->raw(),
-                                               time_zone);
+  return temporal::GetEpochMillisecondsForDate(
+      isolate, *this->wrapped_rust().get(), time_zone);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal-createtemporaldatetime
@@ -4761,7 +4724,7 @@ MaybeDirectHandle<Smi> JSTemporalPlainDateTime::Compare(
       temporal::ToTemporalDateTime(isolate, two_obj, {}, method_name));
 
   return direct_handle(Smi::FromInt(temporal_rs::PlainDateTime::compare(
-                           *one->date_time()->raw(), *two->date_time()->raw())),
+                           *one->wrapped_rust(), *two->wrapped_rust())),
                        isolate);
 }
 
@@ -4776,8 +4739,7 @@ MaybeDirectHandle<Oddball> JSTemporalPlainDateTime::Equals(
       isolate, other,
       temporal::ToTemporalDateTime(isolate, other_obj, {}, method_name));
 
-  auto equals =
-      date_time->date_time()->raw()->equals(*other->date_time()->raw());
+  auto equals = date_time->wrapped_rust()->equals(*other->wrapped_rust());
 
   return isolate->factory()->ToBoolean(equals);
 }
@@ -4810,7 +4772,7 @@ JSTemporalPlainDateTime::WithCalendar(
 
   // Rest of the steps handled in Rust
   return ConstructRustWrappingType<JSTemporalPlainDateTime>(
-      isolate, temporal_date->date_time()->raw()->with_calendar(calendar_kind));
+      isolate, temporal_date->wrapped_rust()->with_calendar(calendar_kind));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.withplaintime
@@ -4822,16 +4784,16 @@ JSTemporalPlainDateTime::WithPlainTime(
       "Temporal.PlainDateTime.prototype.withPlainTime";
 
   // 3. Let time be ? ToTimeRecordOrMidnight(plainTimeLike).
-  const temporal_rs::PlainTime* maybe_time;
+  std::shared_ptr<const temporal_rs::PlainTime> maybe_time = nullptr;
   DirectHandle<JSTemporalPlainTime> time_output;
-  ASSIGN_RETURN_ON_EXCEPTION(
+  MOVE_RETURN_ON_EXCEPTION(
       isolate, maybe_time,
       temporal::ToTimeRecordOrMidnight(isolate, plain_time_like, time_output,
                                        method_name));
 
   // Rest of the steps handled in Rust.
   return ConstructRustWrappingType<JSTemporalPlainDateTime>(
-      isolate, date_time->date_time()->raw()->with_time(maybe_time));
+      isolate, date_time->wrapped_rust()->with_time(maybe_time.get()));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.tozoneddatetime
@@ -4860,7 +4822,7 @@ JSTemporalPlainDateTime::ToZonedDateTime(
   // Rest of the steps handled in Rust.
 
   return ConstructRustWrappingType<JSTemporalZonedDateTime>(
-      isolate, date_time->date_time()->raw()->to_zoned_date_time_with_provider(
+      isolate, date_time->wrapped_rust()->to_zoned_date_time_with_provider(
                    time_zone, disambiguation, TimeZoneProvider()));
 }
 
@@ -5034,7 +4996,7 @@ MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Round(
                                               .rounding_mode = rounding_mode,
                                               .increment = rounding_increment};
 
-  auto rounded = date_time->date_time()->raw()->round(options);
+  auto rounded = date_time->wrapped_rust()->round(options);
   return ConstructRustWrappingType<JSTemporalPlainDateTime>(isolate,
                                                             std::move(rounded));
 }
@@ -5103,7 +5065,7 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainDateTime::ToPlainTime(
 V8_WARN_UNUSED_RESULT Maybe<int64_t>
 JSTemporalPlainDateTime::GetEpochMillisecondsFor(Isolate* isolate,
                                                  std::string_view time_zone) {
-  return temporal::GetEpochMillisecondsForDateTime(isolate, *date_time()->raw(),
+  return temporal::GetEpochMillisecondsForDateTime(isolate, *wrapped_rust(),
                                                    time_zone);
 }
 
@@ -5196,8 +5158,7 @@ MaybeDirectHandle<Oddball> JSTemporalPlainMonthDay::Equals(
       isolate, other,
       temporal::ToTemporalMonthDay(isolate, other_obj, {}, method_name));
 
-  auto equals =
-      month_day->month_day()->raw()->equals(*other->month_day()->raw());
+  auto equals = month_day->wrapped_rust()->equals(*other->wrapped_rust());
 
   return isolate->factory()->ToBoolean(equals);
 }
@@ -5236,7 +5197,7 @@ MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainMonthDay::ToPlainDate(
   }
   DirectHandle<JSReceiver> item = Cast<JSReceiver>(item_obj);
   // 4. Let calendar be monthDay.[[Calendar]].
-  auto calendar = month_day->month_day()->raw()->calendar().kind();
+  auto calendar = month_day->wrapped_rust()->calendar().kind();
   // 5. Let fields be ISODateToFields(calendar, monthDay.[[ISODate]],
   // month-day).
 
@@ -5259,7 +5220,7 @@ MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainMonthDay::ToPlainDate(
       fields.Regulate<temporal_rs::PartialDate>(
           isolate, temporal_rs::ArithmeticOverflow::Constrain));
   return ConstructRustWrappingType<JSTemporalPlainDate>(
-      isolate, month_day->month_day()->raw()->to_plain_date(partial_date));
+      isolate, month_day->wrapped_rust()->to_plain_date(partial_date));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plainmonthday.prototype.tostring
@@ -5318,9 +5279,9 @@ Maybe<int64_t> JSTemporalPlainMonthDay::GetEpochMillisecondsFor(
   MOVE_RETURN_ON_EXCEPTION(isolate, tz,
                            temporal::ToRustTimeZone(isolate, time_zone));
 
-  return ExtractRustResult(isolate,
-                           this->month_day()->raw()->epoch_ms_for_with_provider(
-                               tz, TimeZoneProvider()));
+  return ExtractRustResult(
+      isolate,
+      this->wrapped_rust()->epoch_ms_for_with_provider(tz, TimeZoneProvider()));
 }
 
 MaybeDirectHandle<JSTemporalPlainYearMonth>
@@ -5415,10 +5376,9 @@ MaybeDirectHandle<Smi> JSTemporalPlainYearMonth::Compare(
       isolate, two,
       temporal::ToTemporalYearMonth(isolate, two_obj, {}, method_name));
 
-  return direct_handle(
-      Smi::FromInt(temporal_rs::PlainYearMonth::compare(
-          *one->year_month()->raw(), *two->year_month()->raw())),
-      isolate);
+  return direct_handle(Smi::FromInt(temporal_rs::PlainYearMonth::compare(
+                           *one->wrapped_rust(), *two->wrapped_rust())),
+                       isolate);
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.equals
@@ -5432,8 +5392,7 @@ MaybeDirectHandle<Oddball> JSTemporalPlainYearMonth::Equals(
       isolate, other,
       temporal::ToTemporalYearMonth(isolate, other_obj, {}, method_name));
 
-  auto equals =
-      year_month->year_month()->raw()->equals(*other->year_month()->raw());
+  auto equals = year_month->wrapped_rust()->equals(*other->wrapped_rust());
 
   return isolate->factory()->ToBoolean(equals);
 }
@@ -5528,7 +5487,7 @@ MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainYearMonth::ToPlainDate(
   }
   DirectHandle<JSReceiver> item = Cast<JSReceiver>(item_obj);
   // 4. Let calendar be yearMonth.[[Calendar]].
-  auto calendar = year_month->year_month()->raw()->calendar().kind();
+  auto calendar = year_month->wrapped_rust()->calendar().kind();
   // 5. Let fields be ISODateToFields(calendar, yearMonth.[[ISODate]],
   // year-month).
 
@@ -5550,7 +5509,7 @@ MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainYearMonth::ToPlainDate(
       fields.Regulate<temporal_rs::PartialDate>(
           isolate, temporal_rs::ArithmeticOverflow::Constrain));
   return ConstructRustWrappingType<JSTemporalPlainDate>(
-      isolate, year_month->year_month()->raw()->to_plain_date(partial_date));
+      isolate, year_month->wrapped_rust()->to_plain_date(partial_date));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.tostring
@@ -5603,8 +5562,8 @@ Maybe<int64_t> JSTemporalPlainYearMonth::GetEpochMillisecondsFor(
                            temporal::ToRustTimeZone(isolate, time_zone));
 
   return ExtractRustResult(
-      isolate, this->year_month()->raw()->epoch_ms_for_with_provider(
-                   tz, TimeZoneProvider()));
+      isolate,
+      this->wrapped_rust()->epoch_ms_for_with_provider(tz, TimeZoneProvider()));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.tojson
@@ -5717,7 +5676,7 @@ MaybeDirectHandle<Smi> JSTemporalPlainTime::Compare(
       temporal::ToTemporalTime(isolate, two_obj, {}, method_name));
 
   return direct_handle(Smi::FromInt(temporal_rs::PlainTime::compare(
-                           *one->time()->raw(), *two->time()->raw())),
+                           *one->wrapped_rust(), *two->wrapped_rust())),
                        isolate);
 }
 
@@ -5734,7 +5693,7 @@ MaybeDirectHandle<Oddball> JSTemporalPlainTime::Equals(
       temporal::ToTemporalTime(isolate, other_obj, {}, method_name));
 
   // Rest of the steps handled in Rust
-  auto equals = temporal_time->time()->raw()->equals(*other->time()->raw());
+  auto equals = temporal_time->wrapped_rust()->equals(*other->wrapped_rust());
 
   return isolate->factory()->ToBoolean(equals);
 }
@@ -5815,7 +5774,7 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::Round(
                                               .smallest_unit = smallest_unit,
                                               .rounding_mode = rounding_mode,
                                               .increment = rounding_increment};
-  auto rounded = temporal_time->time()->raw()->round(options);
+  auto rounded = temporal_time->wrapped_rust()->round(options);
   return ConstructRustWrappingType<JSTemporalPlainTime>(isolate,
                                                         std::move(rounded));
 }
@@ -5867,7 +5826,7 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::With(
                              partial_time.Regulate(isolate, overflow));
   // 20. Return ! CreateTemporalTime(result).
   return ConstructRustWrappingType<JSTemporalPlainTime>(
-      isolate, temporal_time->time()->raw()->with(result, overflow));
+      isolate, temporal_time->wrapped_rust()->with(result, overflow));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.now.plaintimeiso
@@ -5907,7 +5866,7 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::Add(
                                  isolate, temporal_duration_like, method_name));
 
   auto added =
-      temporal_time->time()->raw()->add(*other_duration->duration()->raw());
+      temporal_time->wrapped_rust()->add(*other_duration->wrapped_rust());
 
   return ConstructRustWrappingType<JSTemporalPlainTime>(isolate,
                                                         std::move(added));
@@ -5924,8 +5883,8 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::Subtract(
                              temporal::ToTemporalDuration(
                                  isolate, temporal_duration_like, method_name));
 
-  auto subtracted = temporal_time->time()->raw()->subtract(
-      *other_duration->duration()->raw());
+  auto subtracted =
+      temporal_time->wrapped_rust()->subtract(*other_duration->wrapped_rust());
 
   return ConstructRustWrappingType<JSTemporalPlainTime>(isolate,
                                                         std::move(subtracted));
@@ -6047,7 +6006,7 @@ Maybe<int64_t> JSTemporalPlainTime::GetEpochMillisecondsFor(
   // isoDateTime, compatible).
 
   return temporal::GetEpochMillisecondsForDate(isolate, *pd, time_zone,
-                                               time()->raw());
+                                               wrapped_rust().get());
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime
@@ -6134,9 +6093,8 @@ MaybeDirectHandle<Number> JSTemporalZonedDateTime::HoursInDay(
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, hours,
       ExtractRustResult(
-          isolate,
-          zoned_date_time->zoned_date_time()->raw()->hours_in_day_with_provider(
-              TimeZoneProvider())));
+          isolate, zoned_date_time->wrapped_rust()->hours_in_day_with_provider(
+                       TimeZoneProvider())));
   return isolate->factory()->NewNumber(hours);
 }
 
@@ -6166,8 +6124,7 @@ MaybeDirectHandle<Smi> JSTemporalZonedDateTime::Compare(
       temporal::ToTemporalZonedDateTime(isolate, two_obj, {}, method_name));
 
   return direct_handle(
-      Smi::FromInt(one->zoned_date_time()->raw()->compare_instant(
-          *two->zoned_date_time()->raw())),
+      Smi::FromInt(one->wrapped_rust()->compare_instant(*two->wrapped_rust())),
       isolate);
 }
 
@@ -6184,8 +6141,8 @@ MaybeDirectHandle<Oddball> JSTemporalZonedDateTime::Equals(
       temporal::ToTemporalZonedDateTime(isolate, other_obj, {}, method_name));
 
   // Rest of the steps handled in Rust.
-  auto result = zoned_date_time->zoned_date_time()->raw()->equals_with_provider(
-      *other->zoned_date_time()->raw(), TimeZoneProvider());
+  auto result = zoned_date_time->wrapped_rust()->equals_with_provider(
+      *other->wrapped_rust(), TimeZoneProvider());
   bool equals;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, equals,
                              ExtractRustResult(isolate, std::move(result)));
@@ -6221,8 +6178,7 @@ JSTemporalZonedDateTime::WithCalendar(
 
   // Rest of the steps handled in Rust
   return ConstructRustWrappingType<JSTemporalZonedDateTime>(
-      isolate,
-      temporal_date->zoned_date_time()->raw()->with_calendar(calendar_kind));
+      isolate, temporal_date->wrapped_rust()->with_calendar(calendar_kind));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.withplaintime
@@ -6249,7 +6205,7 @@ JSTemporalZonedDateTime::WithPlainTime(
   // (handled later in Rust, idempotent)
 
   DirectHandle<JSTemporalPlainTime> plain_time_obj;
-  temporal_rs::PlainTime* plain_time = nullptr;
+  std::shared_ptr<const temporal_rs::PlainTime> plain_time;
 
   // 6. If plainTimeLike is undefined, then
   if (IsUndefined(*plain_time_like)) {
@@ -6266,7 +6222,7 @@ JSTemporalZonedDateTime::WithPlainTime(
         isolate, plain_time_obj,
         temporal::ToTemporalTime(isolate, plain_time_like, {}, method_name));
 
-    plain_time = plain_time_obj->time()->raw();
+    plain_time = plain_time_obj->wrapped_rust();
     // b. Let resultISODateTime be
     // CombineISODateAndTimeRecord(isoDateTime.[[ISODate]], plainTime.[[Time]]).
     // c. Let epochNs be ? GetEpochNanosecondsFor(timeZone, resultISODateTime,
@@ -6279,9 +6235,8 @@ JSTemporalZonedDateTime::WithPlainTime(
   // Rest of the steps handled in Rust.
 
   return ConstructRustWrappingType<JSTemporalZonedDateTime>(
-      isolate,
-      zoned_date_time->zoned_date_time()->raw()->with_plain_time_and_provider(
-          plain_time, TimeZoneProvider()));
+      isolate, zoned_date_time->wrapped_rust()->with_plain_time_and_provider(
+                   plain_time.get(), TimeZoneProvider()));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.withtimezone
@@ -6298,9 +6253,8 @@ JSTemporalZonedDateTime::WithTimeZone(
   // 4. Return ! CreateTemporalZonedDateTime(zonedDateTime.[[EpochNanoseconds]],
   // timeZone, zonedDateTime.[[Calendar]]).
   return ConstructRustWrappingType<JSTemporalZonedDateTime>(
-      isolate,
-      zoned_date_time->zoned_date_time()->raw()->with_timezone_with_provider(
-          time_zone, TimeZoneProvider()));
+      isolate, zoned_date_time->wrapped_rust()->with_timezone_with_provider(
+                   time_zone, TimeZoneProvider()));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.tostring
@@ -6499,7 +6453,7 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Round(
                                               .rounding_mode = rounding_mode,
                                               .increment = rounding_increment};
 
-  auto rounded = zoned_date_time->zoned_date_time()->raw()->round_with_provider(
+  auto rounded = zoned_date_time->wrapped_rust()->round_with_provider(
       options, TimeZoneProvider());
   return ConstructRustWrappingType<JSTemporalZonedDateTime>(isolate,
                                                             std::move(rounded));
@@ -6561,8 +6515,7 @@ MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Now(Isolate* isolate) {
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.offsetnanoseconds
 MaybeDirectHandle<Object> JSTemporalZonedDateTime::OffsetNanoseconds(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
-  int64_t offset_ns =
-      zoned_date_time->zoned_date_time()->raw()->offset_nanoseconds();
+  int64_t offset_ns = zoned_date_time->wrapped_rust()->offset_nanoseconds();
   return isolate->factory()->NewNumberFromInt64(offset_ns);
 }
 
@@ -6570,7 +6523,7 @@ MaybeDirectHandle<Object> JSTemporalZonedDateTime::OffsetNanoseconds(
 MaybeDirectHandle<BigInt> JSTemporalZonedDateTime::EpochNanoseconds(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
   return temporal::I128ToBigInt(
-      isolate, zoned_date_time->zoned_date_time()->raw()->epoch_nanoseconds());
+      isolate, zoned_date_time->wrapped_rust()->epoch_nanoseconds());
 }
 
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.timezoneid
@@ -6579,11 +6532,10 @@ MaybeDirectHandle<String> JSTemporalZonedDateTime::TimeZoneId(
   std::string id;
   MOVE_RETURN_ON_EXCEPTION(
       isolate, id,
-      ExtractRustResult(isolate,
-                        zoned_date_time->zoned_date_time()
-                            ->raw()
-                            ->timezone()
-                            .identifier_with_provider(TimeZoneProvider())));
+      ExtractRustResult(
+          isolate,
+          zoned_date_time->wrapped_rust()->timezone().identifier_with_provider(
+              TimeZoneProvider())));
 
   IncrementalStringBuilder builder(isolate);
   builder.AppendString(id);
@@ -6598,8 +6550,7 @@ MaybeDirectHandle<String> JSTemporalZonedDateTime::Offset(
 
   MOVE_RETURN_ON_EXCEPTION(
       isolate, offset,
-      ExtractRustResult(isolate,
-                        zoned_date_time->zoned_date_time()->raw()->offset()));
+      ExtractRustResult(isolate, zoned_date_time->wrapped_rust()->offset()));
 
   IncrementalStringBuilder builder(isolate);
   builder.AppendString(offset);
@@ -6610,9 +6561,8 @@ MaybeDirectHandle<String> JSTemporalZonedDateTime::Offset(
 MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::StartOfDay(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time) {
   return ConstructRustWrappingType<JSTemporalZonedDateTime>(
-      isolate,
-      zoned_date_time->zoned_date_time()->raw()->start_of_day_with_provider(
-          TimeZoneProvider()));
+      isolate, zoned_date_time->wrapped_rust()->start_of_day_with_provider(
+                   TimeZoneProvider()));
 }
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.gettimezonetransition
 MaybeDirectHandle<UnionOf<JSTemporalZonedDateTime, Null>>
@@ -6669,8 +6619,7 @@ JSTemporalZonedDateTime::GetTimeZoneTransition(
   std::unique_ptr<temporal_rs::ZonedDateTime> zdt;
   MOVE_RETURN_ON_EXCEPTION(
       isolate, zdt,
-      ExtractRustResult(isolate, zoned_date_time->zoned_date_time()
-                                     ->raw()
+      ExtractRustResult(isolate, zoned_date_time->wrapped_rust()
                                      ->get_time_zone_transition_with_provider(
                                          dir, TimeZoneProvider())));
 
@@ -6835,7 +6784,7 @@ MaybeDirectHandle<Smi> JSTemporalInstant::Compare(
       isolate, two, temporal::ToTemporalInstant(isolate, two_obj, method_name));
 
   return direct_handle(
-      Smi::FromInt(one->instant()->raw()->compare(*two->instant()->raw())),
+      Smi::FromInt(one->wrapped_rust()->compare(*two->wrapped_rust())),
       isolate);
 }
 
@@ -6850,8 +6799,8 @@ MaybeDirectHandle<Oddball> JSTemporalInstant::Equals(
       isolate, other,
       temporal::ToTemporalInstant(isolate, other_obj, method_name));
 
-  auto this_ns = handle->instant()->raw()->epoch_nanoseconds();
-  auto other_ns = other->instant()->raw()->epoch_nanoseconds();
+  auto this_ns = handle->wrapped_rust()->epoch_nanoseconds();
+  auto other_ns = other->wrapped_rust()->epoch_nanoseconds();
 
   // equals() isn't exposed over FFI, but it's easy enough to do here
   // in the future we can use https://github.com/boa-dev/temporal/pull/311
@@ -6924,7 +6873,7 @@ MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Round(
                                               .rounding_mode = rounding_mode,
                                               .increment = rounding_increment};
 
-  auto rounded = handle->instant()->raw()->round(options);
+  auto rounded = handle->wrapped_rust()->round(options);
   return ConstructRustWrappingType<JSTemporalInstant>(isolate,
                                                       std::move(rounded));
 }
@@ -6932,7 +6881,7 @@ MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Round(
 // https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.epochmilliseconds
 MaybeDirectHandle<Number> JSTemporalInstant::EpochMilliseconds(
     Isolate* isolate, DirectHandle<JSTemporalInstant> handle) {
-  int64_t ms = handle->instant()->raw()->epoch_milliseconds();
+  int64_t ms = handle->wrapped_rust()->epoch_milliseconds();
 
   return isolate->factory()->NewNumberFromInt64(ms);
 }
@@ -6940,9 +6889,8 @@ MaybeDirectHandle<Number> JSTemporalInstant::EpochMilliseconds(
 // https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.epochnanoseconds
 MaybeDirectHandle<BigInt> JSTemporalInstant::EpochNanoseconds(
     Isolate* isolate, DirectHandle<JSTemporalInstant> handle) {
-
   return temporal::I128ToBigInt(isolate,
-                                handle->instant()->raw()->epoch_nanoseconds());
+                                handle->wrapped_rust()->epoch_nanoseconds());
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.tozoneddatetime
@@ -6957,7 +6905,7 @@ JSTemporalInstant::ToZonedDateTimeISO(Isolate* isolate,
       temporal::ToTemporalTimeZoneIdentifier(isolate, time_zone_obj));
 
   return ConstructRustWrappingType<JSTemporalZonedDateTime>(
-      isolate, instant->instant()->raw()->to_zoned_date_time_iso_with_provider(
+      isolate, instant->wrapped_rust()->to_zoned_date_time_iso_with_provider(
                    time_zone, TimeZoneProvider()));
 }
 
@@ -7077,8 +7025,7 @@ MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Add(
                              temporal::ToTemporalDuration(
                                  isolate, temporal_duration_like, method_name));
 
-  auto added =
-      handle->instant()->raw()->add(*other_duration->duration()->raw());
+  auto added = handle->wrapped_rust()->add(*other_duration->wrapped_rust());
 
   return ConstructRustWrappingType<JSTemporalInstant>(isolate,
                                                       std::move(added));
@@ -7096,7 +7043,7 @@ MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Subtract(
                                  isolate, temporal_duration_like, method_name));
 
   auto subtracted =
-      handle->instant()->raw()->subtract(*other_duration->duration()->raw());
+      handle->wrapped_rust()->subtract(*other_duration->wrapped_rust());
 
   return ConstructRustWrappingType<JSTemporalInstant>(isolate,
                                                       std::move(subtracted));

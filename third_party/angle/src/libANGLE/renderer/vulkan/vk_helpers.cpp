@@ -996,7 +996,7 @@ void CommandBufferHelperCommon::releaseCommandPoolImpl()
 }
 
 template <class DerivedT>
-void CommandBufferHelperCommon::assertCanBeRecycledImpl()
+ANGLE_INLINE void CommandBufferHelperCommon::assertCanBeRecycledImpl()
 {
     DerivedT *derived = static_cast<DerivedT *>(this);
     ASSERT(mCommandPool == nullptr);
@@ -1343,7 +1343,7 @@ void OutsideRenderPassCommandBufferHelper::releaseCommandPool()
     releaseCommandPoolImpl<OutsideRenderPassCommandBufferHelper>();
 }
 
-void OutsideRenderPassCommandBufferHelper::assertCanBeRecycled()
+ANGLE_INLINE void OutsideRenderPassCommandBufferHelper::assertCanBeRecycled()
 {
     assertCanBeRecycledImpl<OutsideRenderPassCommandBufferHelper>();
 }
@@ -2583,7 +2583,7 @@ void RenderPassCommandBufferHelper::releaseCommandPool()
     releaseCommandPoolImpl<RenderPassCommandBufferHelper>();
 }
 
-void RenderPassCommandBufferHelper::assertCanBeRecycled()
+ANGLE_INLINE void RenderPassCommandBufferHelper::assertCanBeRecycled()
 {
     ASSERT(!mRenderPassStarted);
     ASSERT(getSubpassCommandBufferCount() == 1);
@@ -5699,19 +5699,19 @@ angle::Result ImageHelper::copyToBufferOneOff(ErrorContext *context,
     return renderer->finishQueueSerial(context, submitQueueSerial);
 }
 
-angle::Result ImageHelper::initMSAASwapchain(ErrorContext *context,
-                                             gl::TextureType textureType,
-                                             const VkExtent3D &extents,
-                                             bool rotatedAspectRatio,
-                                             angle::FormatID intendedFormatID,
-                                             angle::FormatID actualFormatID,
-                                             GLint samples,
-                                             VkImageUsageFlags usage,
-                                             gl::LevelIndex firstLevel,
-                                             uint32_t mipLevels,
-                                             uint32_t layerCount,
-                                             bool isRobustResourceInitEnabled,
-                                             bool hasProtectedContent)
+angle::Result ImageHelper::initAncillarySwapchain(ErrorContext *context,
+                                                  gl::TextureType textureType,
+                                                  const VkExtent3D &extents,
+                                                  bool rotatedAspectRatio,
+                                                  angle::FormatID intendedFormatID,
+                                                  angle::FormatID actualFormatID,
+                                                  GLint samples,
+                                                  VkImageUsageFlags usage,
+                                                  gl::LevelIndex firstLevel,
+                                                  uint32_t mipLevels,
+                                                  uint32_t layerCount,
+                                                  bool isRobustResourceInitEnabled,
+                                                  bool hasProtectedContent)
 {
     ANGLE_TRY(initExternal(context, textureType, extents, intendedFormatID, actualFormatID, samples,
                            usage, kVkImageCreateFlagsNone, ImageAccess::Undefined, nullptr,
@@ -6114,7 +6114,7 @@ void ImageHelper::finalizeImageLayoutInShareContexts(Renderer *renderer,
 
 void ImageHelper::releaseStagedUpdates(Renderer *renderer)
 {
-    ASSERT(validateSubresourceUpdateRefCountsConsistent());
+    assertSubresourceUpdateRefCountsConsistent();
 
     // Remove updates that never made it to the texture.
     for (SubresourceUpdates &levelUpdates : mSubresourceUpdates)
@@ -6126,7 +6126,7 @@ void ImageHelper::releaseStagedUpdates(Renderer *renderer)
         }
     }
 
-    ASSERT(validateSubresourceUpdateRefCountsConsistent());
+    assertSubresourceUpdateRefCountsConsistent();
 
     mSubresourceUpdates.clear();
     mTotalStagedBufferUpdateSize = 0;
@@ -8208,6 +8208,27 @@ angle::Result ImageHelper::generateMipmapsWithBlit(ContextVk *contextVk,
     return angle::Result::Continue;
 }
 
+void ImageHelper::copy(Renderer *renderer,
+                       ImageHelper *dst,
+                       const VkImageCopy &region,
+                       OutsideRenderPassCommandBuffer *commandBuffer)
+{
+    ASSERT(mCurrentAccess == ImageAccess::TransferSrc ||
+           mCurrentAccess == ImageAccess::SharedPresent);
+    ASSERT(dst->getCurrentImageAccess() == ImageAccess::TransferDst ||
+           dst->getCurrentImageAccess() == ImageAccess::SharedPresent);
+    // Source image must be up-to-date.
+    ASSERT(verifyNoStagedUpdates());
+    // Dest image might have clears staged due to robustness or format emulation, which can be
+    // dropped.  Note that this function is only used with swapchain images, so there is no need to
+    // be specific about which subresource updates to drop.
+    ASSERT(dst->getLevelCount() == 1 && dst->getLayerCount() == 1);
+    ASSERT(dst->verifyNoStagedUpdates() || dst->areStagedUpdatesClearOnly());
+    dst->mSubresourceUpdates.clear();
+    commandBuffer->copyImage(getImage(), getCurrentLayout(renderer), dst->getImage(),
+                             dst->getCurrentLayout(renderer), 1, &region);
+}
+
 void ImageHelper::resolve(Renderer *renderer,
                           ImageHelper *dst,
                           const VkImageResolve &region,
@@ -8286,7 +8307,7 @@ void ImageHelper::removeStagedUpdates(ErrorContext *context,
                                       gl::LevelIndex levelGLStart,
                                       gl::LevelIndex levelGLEnd)
 {
-    ASSERT(validateSubresourceUpdateRefCountsConsistent());
+    assertSubresourceUpdateRefCountsConsistent();
 
     // Remove all updates to levels [start, end].
     for (gl::LevelIndex level = levelGLStart; level <= levelGLEnd; ++level)
@@ -8310,7 +8331,7 @@ void ImageHelper::removeStagedUpdates(ErrorContext *context,
         levelUpdates->clear();
     }
 
-    ASSERT(validateSubresourceUpdateRefCountsConsistent());
+    assertSubresourceUpdateRefCountsConsistent();
 }
 
 angle::Result ImageHelper::stageSubresourceUpdateImpl(ContextVk *contextVk,
@@ -8836,8 +8857,7 @@ angle::Result ImageHelper::reformatStagedBufferUpdates(ContextVk *contextVk,
                 // Let update structure owns the staging buffer
                 if (update.refCounted.buffer)
                 {
-                    update.refCounted.buffer->releaseRef();
-                    if (!update.refCounted.buffer->isReferenced())
+                    if (update.refCounted.buffer->getAndReleaseRef() == 1)
                     {
                         update.refCounted.buffer->get().release(contextVk);
                         SafeDelete(update.refCounted.buffer);
@@ -9647,6 +9667,18 @@ void ImageHelper::stageClearIfEmulatedFormat(bool isRobustResourceInitEnabled, b
     }
 }
 
+bool ImageHelper::verifyNoStagedUpdates() const
+{
+    for (const SubresourceUpdates &updates : mSubresourceUpdates)
+    {
+        if (!updates.empty())
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
 bool ImageHelper::verifyEmulatedClearsAreBeforeOtherUpdates(const SubresourceUpdates &updates)
 {
     bool isIteratingEmulatedClears = true;
@@ -9999,8 +10031,11 @@ angle::Result ImageHelper::flushStagedUpdatesImpl(ContextVk *contextVk,
                    (update.updateSource == UpdateSource::Buffer &&
                     update.data.buffer.bufferHelper != nullptr) ||
                    (update.updateSource == UpdateSource::Image &&
-                    update.refCounted.image != nullptr && update.refCounted.image->isReferenced() &&
-                    update.refCounted.image->get().valid()));
+                    update.refCounted.image != nullptr && update.refCounted.image->get().valid()));
+            if (update.updateSource == UpdateSource::Image)
+            {
+                update.refCounted.image->assertIsReferenced();
+            }
 
             uint32_t updateBaseLayer, updateLayerCount;
             update.getDestSubresource(mLayerCount, &updateBaseLayer, &updateLayerCount);
@@ -10294,7 +10329,7 @@ angle::Result ImageHelper::flushStagedUpdates(ContextVk *contextVk,
         }
     }
 
-    ASSERT(validateSubresourceUpdateRefCountsConsistent());
+    assertSubresourceUpdateRefCountsConsistent();
 
     // Process the clear emulated channels from the updates first. They are expected to be at the
     // beginning of the level updates.
@@ -10323,7 +10358,7 @@ angle::Result ImageHelper::flushStagedUpdates(ContextVk *contextVk,
     }
     mSubresourceUpdates.resize(compactSize);
 
-    ASSERT(validateSubresourceUpdateRefCountsConsistent());
+    assertSubresourceUpdateRefCountsConsistent();
 
     // If no updates left, release the staging buffers to save memory.
     if (mSubresourceUpdates.empty())
@@ -10504,12 +10539,12 @@ bool ImageHelper::hasBufferSourcedStagedUpdatesInAllLevels() const
     return true;
 }
 
-bool ImageHelper::validateSubresourceUpdateBufferRefConsistent(
+void ImageHelper::assertSubresourceUpdateBufferRefConsistentImpl(
     RefCounted<BufferHelper> *buffer) const
 {
     if (buffer == nullptr)
     {
-        return true;
+        return;
     }
 
     uint32_t refs = 0;
@@ -10525,14 +10560,15 @@ bool ImageHelper::validateSubresourceUpdateBufferRefConsistent(
         }
     }
 
-    return buffer->isRefCountAsExpected(refs);
+    buffer->assertIsRefCountAsExpected(refs);
 }
 
-bool ImageHelper::validateSubresourceUpdateImageRefConsistent(RefCounted<ImageHelper> *image) const
+void ImageHelper::assertSubresourceUpdateImageRefConsistentImpl(
+    RefCounted<ImageHelper> *image) const
 {
     if (image == nullptr)
     {
-        return true;
+        return;
     }
 
     uint32_t refs = 0;
@@ -10548,10 +10584,10 @@ bool ImageHelper::validateSubresourceUpdateImageRefConsistent(RefCounted<ImageHe
         }
     }
 
-    return image->isRefCountAsExpected(refs);
+    image->assertIsRefCountAsExpected(refs);
 }
 
-bool ImageHelper::validateSubresourceUpdateRefCountsConsistent() const
+void ImageHelper::assertSubresourceUpdateRefCountsConsistentImpl() const
 {
     for (const SubresourceUpdates &levelUpdates : mSubresourceUpdates)
     {
@@ -10559,22 +10595,14 @@ bool ImageHelper::validateSubresourceUpdateRefCountsConsistent() const
         {
             if (update.updateSource == UpdateSource::Image)
             {
-                if (!validateSubresourceUpdateImageRefConsistent(update.refCounted.image))
-                {
-                    return false;
-                }
+                assertSubresourceUpdateImageRefConsistentImpl(update.refCounted.image);
             }
             else if (update.updateSource == UpdateSource::Buffer)
             {
-                if (!validateSubresourceUpdateBufferRefConsistent(update.refCounted.buffer))
-                {
-                    return false;
-                }
+                assertSubresourceUpdateBufferRefConsistentImpl(update.refCounted.buffer);
             }
         }
     }
-
-    return true;
 }
 
 void ImageHelper::pruneSupersededUpdatesForLevel(ContextVk *contextVk,
@@ -10708,13 +10736,13 @@ void ImageHelper::pruneSupersededUpdatesForLevelImpl(ContextVk *contextVk,
     // Update total staging buffer size
     mTotalStagedBufferUpdateSize -= supersededUpdateSize;
 
-    ASSERT(validateSubresourceUpdateRefCountsConsistent());
+    assertSubresourceUpdateRefCountsConsistent();
 }
 
 void ImageHelper::removeSupersededUpdates(ContextVk *contextVk,
                                           const gl::TexLevelMask skipLevelsAllFaces)
 {
-    ASSERT(validateSubresourceUpdateRefCountsConsistent());
+    assertSubresourceUpdateRefCountsConsistent();
 
     for (LevelIndex levelVk(0); levelVk < LevelIndex(mLevelCount); ++levelVk)
     {
@@ -11739,9 +11767,7 @@ void ImageHelper::SubresourceUpdate::release(Renderer *renderer)
 {
     if (updateSource == UpdateSource::Image)
     {
-        refCounted.image->releaseRef();
-
-        if (!refCounted.image->isReferenced())
+        if (refCounted.image->getAndReleaseRef() == 1)
         {
             // Staging images won't be used in render pass attachments.
             refCounted.image->get().releaseImage(renderer);
@@ -11753,9 +11779,7 @@ void ImageHelper::SubresourceUpdate::release(Renderer *renderer)
     }
     else if (updateSource == UpdateSource::Buffer && refCounted.buffer != nullptr)
     {
-        refCounted.buffer->releaseRef();
-
-        if (!refCounted.buffer->isReferenced())
+        if (refCounted.buffer->getAndReleaseRef() == 1)
         {
             refCounted.buffer->get().release(renderer);
             SafeDelete(refCounted.buffer);
@@ -12084,8 +12108,20 @@ void ImageViewHelper::release(Renderer *renderer, const ResourceUse &use)
     ReleaseSubresourceImageViews(&mSubresourceStencilOnlyImageViews, &garbage);
 
     // Release the storage views
-    ReleaseImageViews(&mLevelStorageImageViews, &garbage);
-    ReleaseLayerLevelImageViews(&mLayerLevelStorageImageViews, &garbage);
+    for (auto &iter : mLevelStorageImageViews)
+    {
+        std::unique_ptr<ImageViewVector> &imageViewVector = iter.second;
+        ReleaseImageViews(imageViewVector.get(), &garbage);
+        imageViewVector.reset();
+    }
+    mLevelStorageImageViews.clear();
+    for (auto &iter : mLayerLevelStorageImageViews)
+    {
+        std::unique_ptr<LayerLevelImageViewVector> &layerLevelImageViewVector = iter.second;
+        ReleaseLayerLevelImageViews(layerLevelImageViewVector.get(), &garbage);
+        layerLevelImageViewVector.reset();
+    }
+    mLayerLevelStorageImageViews.clear();
 
     // Release fragment shading rate view
     if (mFragmentShadingRateImageView.valid())
@@ -12144,8 +12180,20 @@ void ImageViewHelper::destroy(VkDevice device)
     DestroySubresourceImageViews(&mSubresourceStencilOnlyImageViews, device);
 
     // Release the storage views
-    DestroyImageViews(&mLevelStorageImageViews, device);
-    DestroyLayerLevelImageViews(&mLayerLevelStorageImageViews, device);
+    for (auto &iter : mLevelStorageImageViews)
+    {
+        std::unique_ptr<ImageViewVector> &imageViewVector = iter.second;
+        DestroyImageViews(imageViewVector.get(), device);
+        imageViewVector.reset();
+    }
+    mLevelStorageImageViews.clear();
+    for (auto &iter : mLayerLevelStorageImageViews)
+    {
+        std::unique_ptr<LayerLevelImageViewVector> &layerLevelImageViewVector = iter.second;
+        DestroyLayerLevelImageViews(layerLevelImageViewVector.get(), device);
+        layerLevelImageViewVector.reset();
+    }
+    mLayerLevelStorageImageViews.clear();
 
     // Destroy fragment shading rate view
     mFragmentShadingRateImageView.destroy(device);
@@ -12379,8 +12427,17 @@ angle::Result ImageViewHelper::getLevelStorageImageView(ContextVk *contextVk,
 {
     ASSERT(mImageViewSerial.valid());
 
+    if (!mLevelStorageImageViews.contains(formatID))
+    {
+        mLevelStorageImageViews[formatID] = std::make_unique<ImageViewVector>();
+    }
+    ASSERT(mLevelStorageImageViews.contains(formatID));
+
+    ImageViewVector *levelStorageImageViews = mLevelStorageImageViews[formatID].get();
+    ASSERT(levelStorageImageViews);
+
     ImageView *imageView =
-        GetLevelImageView(&mLevelStorageImageViews, levelVk, image.getLevelCount());
+        GetLevelImageView(levelStorageImageViews, levelVk, image.getLevelCount());
 
     *imageViewOut = imageView;
     if (imageView->valid())
@@ -12406,8 +12463,18 @@ angle::Result ImageViewHelper::getLevelLayerStorageImageView(ContextVk *contextV
     ASSERT(mImageViewSerial.valid());
     ASSERT(!image.getActualFormat().isBlock);
 
+    if (!mLayerLevelStorageImageViews.contains(formatID))
+    {
+        mLayerLevelStorageImageViews[formatID] = std::make_unique<LayerLevelImageViewVector>();
+    }
+    ASSERT(mLayerLevelStorageImageViews.contains(formatID));
+
+    LayerLevelImageViewVector *layerLevelStorageImageViews =
+        mLayerLevelStorageImageViews[formatID].get();
+    ASSERT(layerLevelStorageImageViews);
+
     ImageView *imageView =
-        GetLevelLayerImageView(&mLayerLevelStorageImageViews, levelVk, layer, image.getLevelCount(),
+        GetLevelLayerImageView(layerLevelStorageImageViews, levelVk, layer, image.getLevelCount(),
                                GetImageLayerCountForView(image));
     *imageViewOut = imageView;
 

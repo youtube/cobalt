@@ -159,6 +159,11 @@ struct IsolatedWebAppInstallerViewController::InstallabilityCheckedVisitor {
                               not_allowlisted.metadata.app_name()));
   }
 
+  void operator()(const InstallabilityChecker::BundleBlocklisted& blocklisted) {
+    model_->SetDialog(
+        IsolatedWebAppInstallerModel::BundleBlocklistedInstallationDialog{});
+  }
+
  private:
   raw_ref<IsolatedWebAppInstallerModel> model_;
   raw_ref<IsolatedWebAppInstallerViewController> controller_;
@@ -559,7 +564,7 @@ void IsolatedWebAppInstallerViewController::OnStepChanged() {
 
 void IsolatedWebAppInstallerViewController::OnChildDialogChanged() {
   if (model_->has_dialog()) {
-    child_widget_ = view_->ShowDialog(model_->dialog());
+    child_widget_ = view_->ShowDialog(model_->dialog(), dialog_delegate_);
   }
 }
 

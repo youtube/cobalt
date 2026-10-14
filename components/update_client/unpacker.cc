@@ -20,6 +20,7 @@
 #include "base/strings/strcat.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "components/crx_file/crx_verifier.h"
 #include "components/update_client/unzipper.h"
@@ -89,7 +90,10 @@ Unpacker::Unpacker(const std::string& app_id,
       unzipper_(std::move(unzipper)),
       callback_(std::move(callback)) {}
 
-Unpacker::~Unpacker() = default;
+Unpacker::~Unpacker() {
+  TRACE_EVENT("update_client", "Unpacker::~Unpacker",
+              perfetto::TerminatingFlow::FromPointer(this));
+}
 
 void Unpacker::Unpack(const std::string& app_id,
                       const std::string& prod_id,
@@ -107,6 +111,8 @@ void Unpacker::Unpack(const std::string& app_id,
 
 void Unpacker::Verify(const std::vector<uint8_t>& pk_hash,
                       crx_file::VerifierFormat crx_format) {
+  TRACE_EVENT("update_client", "Unpacker::Verify",
+              perfetto::Flow::FromPointer(this));
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 #if defined(IN_MEMORY_UPDATES)
   VLOG(1) << "Verifying component";
@@ -146,6 +152,8 @@ void Unpacker::Verify(const std::vector<uint8_t>& pk_hash,
 }
 
 void Unpacker::BeginUnzipping() {
+  TRACE_EVENT("update_client", "Unpacker::Unpack",
+              perfetto::Flow::FromPointer(this));
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   unzip_begin_time_ = base::TimeTicks::Now();
@@ -178,6 +186,8 @@ void Unpacker::BeginUnzipping() {
 }
 
 void Unpacker::EndUnzipping(bool result) {
+  TRACE_EVENT("update_client", "Unpacker::EndUnzipping",
+              perfetto::Flow::FromPointer(this));
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (result) {
     metrics::RecordCRXUnzipTime(base::TimeTicks::Now() - unzip_begin_time_,
@@ -201,6 +211,8 @@ void Unpacker::EndUnzipping(bool result) {
 }
 
 void Unpacker::UncompressVerifiedContents() {
+  TRACE_EVENT("update_client", "Unpacker::UncompressVerifiedContents",
+              perfetto::Flow::FromPointer(this));
   std::string verified_contents;
   if (!compression::GzipUncompress(compressed_verified_contents_,
                                    &verified_contents)) {
@@ -214,6 +226,8 @@ void Unpacker::UncompressVerifiedContents() {
 
 void Unpacker::StoreVerifiedContentsInExtensionDir(
     const std::string& verified_contents) {
+  TRACE_EVENT("update_client", "Unpacker::StoreVerifiedContentsInExtensionDir",
+              perfetto::Flow::FromPointer(this));
   base::FilePath metadata_path = unpack_path_.Append(kMetadataFolder);
   if (!base::CreateDirectory(metadata_path)) {
     VLOG(1) << "Could not create metadata directory " << metadata_path;
@@ -235,6 +249,8 @@ void Unpacker::StoreVerifiedContentsInExtensionDir(
 }
 
 void Unpacker::EndUnpacking(UnpackerError error, int extended_error) {
+  TRACE_EVENT("update_client", "Unpacker::EndUnpacking",
+              perfetto::Flow::FromPointer(this));
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 #if !BUILDFLAG(IS_STARBOARD)
   if (error != UnpackerError::kNone && !unpack_path_.empty()) {

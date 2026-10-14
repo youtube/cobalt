@@ -184,7 +184,6 @@
 <translation id="1289129165308566697">دیگر آلات پر اپنی سرگزشت دیکھیں</translation>
 <translation id="1292571435393770077">ٹرے 16</translation>
 <translation id="1292701964462482250">‏"آپ کے کمپیوٹر میں موجود سافٹ ویئر Chrome کو محفوظ طور پر ویب سے منسلک ہونے سے روک رہا ہے" (صرف Windows کمپیوٹرز کیلئے)</translation>
-<translation id="1293154089865862473">‏ان اختیارات کی پیشکش کرنے کیلئے، چیک آؤٹ صفحے سے صفحے کے مواد کا اشتراک Google کے ساتھ کیا جاتا ہے۔ آٹو فل میں بعد میں ادائیگی کے اختیارات کو چھپانے کیلئے، <ph name="IDS_AUTOFILL_CARD_BNPL_SELECT_PROVIDER_FOOTNOTE_HIDE_OPTION_PAYMENT_SETTINGS_LINK_TEXT" /> پر جائیں۔</translation>
 <translation id="1293556467332435079">فائلیں</translation>
 <translation id="1293797321964802402">‏‎9 x 11انچ لفافہ</translation>
 <translation id="129553762522093515">حال ہی میں بند کردہ</translation>
@@ -656,6 +655,7 @@
 <translation id="2071156619270205202">یہ کارڈ ورچوئل کارڈ نمبر کیلئے اہل نہیں ہے۔</translation>
 <translation id="2071852865256799872">آپ کے براؤزر کا نظم آپ کی تنظیم کرتی ہے اور آپ کی پروفائل کا نظم <ph name="PROFILE_DOMAIN" /> کرتا ہے</translation>
 <translation id="2072011841331007013">Google Jamboard</translation>
+<translation id="2073286362006276165">معلومات صرف آلہ میں محفوظ کی گئی</translation>
 <translation id="2074733626795553847"><ph name="TOPIC" /> کو غیر مسدود کریں</translation>
 <translation id="2074771604462073334">آپ نے ملاحظہ کیا</translation>
 <translation id="2078956195623975415">موسیقی اور رقص والی گمیز</translation>
@@ -704,6 +704,7 @@
 <translation id="2137891579555018930">اجازت کا انتظار ہے...</translation>
 <translation id="213826338245044447">موبائل بُک مارکس</translation>
 <translation id="2141000681034340397">اپنے ان پٹ میں ترمیم کریں</translation>
+<translation id="2141475438898772664">‫4 انسٹالمنٹ میں یا ماہانہ ادائیگی کریں</translation>
 <translation id="2144171668675205303">کوئی فعال موضوع نہیں ہے</translation>
 <translation id="2145193671493396738">معیشت کی خبریں</translation>
 <translation id="214556005048008348">ادائیگی منسوخ کریں</translation>
@@ -1117,13 +1118,13 @@
 <translation id="277133753123645258">ترسیل کا طریقہ</translation>
 <translation id="277499241957683684">آلہ کا غائب ریکارڈ</translation>
 <translation id="2775884851269838147">پہلا پرنٹ صفحہ</translation>
+<translation id="277828055419948999">‏‫Chromium مشکل فیلڈز کو آٹو فل کر سکتا ہے جو معیاری آٹو فل سے محروم ہوسکتی ہیں</translation>
 <translation id="2781185443919227679">سواحل اور جزائر</translation>
 <translation id="2781692009645368755">Google Pay</translation>
 <translation id="2781799097551205934">چیک آؤٹ کیلئے تیار ہو رہے ہیں</translation>
 <translation id="2782088940970074970">کار رینٹلز</translation>
 <translation id="278436560439594386">گھریلو آلات</translation>
 <translation id="2784474685437057136">B5 Extra</translation>
-<translation id="2784540996156451674">‏ان اختیارات کی پیشکش کرنے کیلئے، چیک آؤٹ صفحے سے صفحے کے مواد کا اشتراک Google کے ساتھ کیا جاتا ہے۔</translation>
 <translation id="2784949926578158345">کنکشن ری سیٹ ہو گیا تھا۔</translation>
 <translation id="2786008859124691917">بائیسکلز اور لوازمات</translation>
 <translation id="2792012897584536778">اس آلہ کے منتظمین نے سیکیورٹی سرٹیفکیٹس سیٹ کیے ہیں جو انہیں آپ کی ملاحظہ کردہ ویب سائٹس کا مواد دیکھنے کی اجازت دے سکتے ہیں۔</translation>
@@ -2475,6 +2476,7 @@
 <translation id="4950898438188848926">‏ٹیب پر سوئچ کرنے کا بٹن، کھلے ہوئے ٹیب پر سوئچ کرنے کے لیے Enter دبائیں، <ph name="TAB_SWITCH_FOCUSED_FRIENDLY_MATCH_TEXT" /></translation>
 <translation id="495170559598752135">کارروائیاں</translation>
 <translation id="4953689047182316270">ایکسیسبیلٹی ایونٹس کا جواب دیں</translation>
+<translation id="4954505713046251871">‏تجاویز کی پیشکش کرنے اور اس خصوصیت کو بہتر بنانے کیلئے، صفحے کے URL اور مواد کا Google کے ساتھ اشتراک کیا جاتا ہے</translation>
 <translation id="4954891067389874142">‏اپنا کارڈ محفوظ ہو جانے پر زیادہ تیزی سے ادائیگی کریں۔ کارڈ کی تفصیلات Google والٹ میں مرموز کردہ ہیں۔</translation>
 <translation id="4957080528849277028">‏اپنے Chrome کی سرگزشت دیکھیں بٹن، Chrome کی ترتیبات میں اپنی براؤزنگ کی سرگزشت دیکھنے اور اس کا نظم کرنے کے لیے فعال کریں</translation>
 <translation id="4957781475307065660">{DOMAIN_COUNT,plural, =1{‫+ 1 سائٹ}other{‫+ # سائٹس}}</translation>
@@ -2792,6 +2794,7 @@
 <translation id="5466018172325111652">آپ کو اپنا کوڈ موصول نہیں ہوا؟ <ph name="BEGIN_LINK" />نیا کوڈ حاصل کریں<ph name="END_LINK" /></translation>
 <translation id="5466818462212249084">ادائیگیوں کی ایپس</translation>
 <translation id="5470861586879999274">ترمییم &amp;دوبارہ کریں</translation>
+<translation id="5471158297908124590">ادائیگیوں کے طریقوں میں ترمیم کرنے کے لیے توثیق کریں کہ یہ آپ ہی ہیں</translation>
 <translation id="5472588168895083535">ہینڈ ٹریکنگ مسدود کر دی گئی</translation>
 <translation id="5477756102936130143">تعاون یافتہ ادائیگیوں کی ایپس پر ری ڈائریکشن کو فعال کریں</translation>
 <translation id="5479505548832623900">ہو سکتا ہے کہ ایکسٹینشن نے اسے نظر انداز کر دیا ہو۔</translation>
@@ -2848,6 +2851,7 @@
 <translation id="5543564889050342791">چڑیا گھر، ماہی خانے اور ذخائر</translation>
 <translation id="5543722831081909240">180 ڈگریز</translation>
 <translation id="5544836308113951378">کروزز اور چارٹرز</translation>
+<translation id="5545314360139398232">گزرتے وقت کے ساتھ ادائیگی کرنے کیلئے، <ph name="ISSUER_NAME" /> کو لنک کریں</translation>
 <translation id="5547939254150808298">پرنٹنگ اور اشاعت</translation>
 <translation id="554815783948612276">فورم اور چیٹ فراہم کنندگان</translation>
 <translation id="5548606607480005320">سیفٹی چیک</translation>
@@ -2869,6 +2873,7 @@
 <translation id="5570825185877910964">اکاؤنٹ محفوظ کریں</translation>
 <translation id="5571083550517324815">اس پتے سے پِک اپ نہیں کر سکتے۔ کوئی مختلف پتہ منتخب کریں۔</translation>
 <translation id="5572434905385510939">‏‎22 x 28 انچ</translation>
+<translation id="5573090972398558474">آپ کی تنظیم نے اس صفحہ کو پوشیدگی وضع میں مسدود کر دیا ہے۔</translation>
 <translation id="5573641252776268565">پاسپورٹ کی معلومات میں ترمیم کریں</translation>
 <translation id="5578606540385219379">سروس فراہم کنندگان</translation>
 <translation id="5580958916614886209">اپنا اختتامی مہینہ چیک کریں اور دوبارہ کوشش کریں</translation>
@@ -3175,6 +3180,7 @@
 <translation id="6093795393556121384">آپ کے کارڈ کی توثیق ہو گئی ہے</translation>
 <translation id="6094253940069566294">گاڑی میں ترمیم کریں</translation>
 <translation id="6094290315941448991">منتظم کی پالیسی کے تحت، رازدارانہ مواد کے مرئی ہونے پر اسکرین ریکارڈ کرنے کی سہولت غیر فعال ہو جاتی ہے</translation>
+<translation id="6097297436119286254">اپنی ادائیگی کی معلومات پُر کرنے کے لیے توثیق کریں کہ یہ آپ ہی ہیں</translation>
 <translation id="6099269767116481177">‏‎22 x 29.5 انچ</translation>
 <translation id="6101583188322746099">گروسری ڈیلیوری کی سروسز</translation>
 <translation id="6104072995492677441">JIS B6</translation>
@@ -3694,6 +3700,7 @@
 <translation id="6926216138694948720">باڈی آرٹ</translation>
 <translation id="692638818576287323">تجارتی گاڑیاں</translation>
 <translation id="6927878187051807444">کیمرا فائلز اور اسکرین شاٹس</translation>
+<translation id="6929949393612835405">بند کریں اور "<ph name="OPENER_TITLE" />" پر واپس جائیں</translation>
 <translation id="6930607614725241390">سائیڈ پینل میں تلاش کریں</translation>
 <translation id="6934236486840930310">‏<ph name="BEGIN_BOLD" />آپ کا ڈیفالٹ سرچ انجن آپ کو ویب پر تلاش کرنے دیتا ہے اور Chrome کی خصوصیات کو طاقت دیتا ہے<ph name="END_BOLD" /> جیسے ایڈریس بار اور ویب صفحات پر موجود تصاویر سے تلاش کرنا۔ اگر آپ کا سرچ انجن کسی خصوصیت کو سپورٹ نہیں کرتا ہے تو ممکن ہے کہ یہ خصوصیت دستیاب نہ ہو۔</translation>
 <translation id="6934672428414710184">‏یہ نام آپ کے Google اکاؤنٹ سے ہے</translation>
@@ -3975,6 +3982,7 @@
 <translation id="7377314930809374926">مہمان نوازی کی انڈسٹری</translation>
 <translation id="7378594059915113390">میڈیا کنٹرولز</translation>
 <translation id="7378810950367401542">/</translation>
+<translation id="7379321689415048316">‏‫Chrome مشکل فیلڈز کو آٹو فل کر سکتا ہے جو معیاری آٹو فل سے محروم ہوسکتی ہیں</translation>
 <translation id="7380398842872229465">‏‎10 x 15 انچ</translation>
 <translation id="7381551826960739226">خودکار ادائیگی کے طریقوں کو پر کرنا غیر فعال کر دیا گیا ہے کیونکہ یہ فارم محفوظ کنکشن استعمال نہیں کرتا ہے۔</translation>
 <translation id="7388380253839603603">گیس کی قیمتیں اور گاڑی میں ایندھن ڈالنا</translation>
@@ -4296,6 +4304,7 @@
 <translation id="7844689747373518809">{COUNT,plural, =0{کوئی نہیں}=1{1 ایپ (<ph name="EXAMPLE_APP_1" />)}=2{2 ایپس (<ph name="EXAMPLE_APP_1" />, <ph name="EXAMPLE_APP_2" />)}other{# ایپس (<ph name="EXAMPLE_APP_1" />، <ph name="EXAMPLE_APP_2" />، <ph name="AND_MORE" />)}}</translation>
 <translation id="7846161022626028328">ایک خرابی پیش آ گئی۔ دوبارہ کوشش کریں۔</translation>
 <translation id="784623644169604270">کوئی حالیہ سرگرمی نہیں ہے</translation>
+<translation id="7848926355794727168">آٹو براؤز</translation>
 <translation id="7853222852810008596">اس کرنسی میں بعد میں ادائیگی کریں دستیاب نہیں ہے</translation>
 <translation id="785476343534277563">کالج کے کھیل</translation>
 <translation id="7855695075675558090"><ph name="TOTAL_LABEL" /> <ph name="CURRENCY_CODE" /> <ph name="FORMATTED_TOTAL_AMOUNT" /></translation>
@@ -4525,6 +4534,7 @@
 <translation id="8241707690549784388">آپ جو صفحہ تلاش کر رہے ہیں اس نے آپ کی درج کردہ معلومات کا استعمال کیا۔ اس صفحہ پر واپس جانا کسی ایسی کارروائی کا سبب بن سکتا ہے جسے آپ نے دہرائے جانے کیلئے کیا۔ کیا آپ جاری رکھنا چاہتے ہیں؟</translation>
 <translation id="8241712895048303527">اس سائٹ پر مسدود کریں</translation>
 <translation id="8242426110754782860">آگے بڑھیں</translation>
+<translation id="824620968958405573">آٹو براؤز ٹاسک</translation>
 <translation id="8246482227229072868">رِنگز</translation>
 <translation id="8248406213705193919">کارڈ کو محفوظ طریقے سے محفوظ کریں؟</translation>
 <translation id="8249296373107784235">منسوخ کریں</translation>
@@ -4897,6 +4907,7 @@
 <translation id="8858065207712248076">‏اگر آپ نے اپنا پاس ورڈ دیگر سائٹس پر دوبارہ استعمال کیا ہے تو Chrome آپ کو اپنا <ph name="BEGIN_BOLD" /><ph name="ORG_NAME" /><ph name="END_BOLD" /> پاس ورڈ ری سیٹ کرنے کی تجویز کرتا ہے۔</translation>
 <translation id="885906927438988819">‏اگر ہجے درست ہیں تو <ph name="BEGIN_LINK" />Windows نیٹ ورک کی تشخیصات چلانے کی کوشش کریں<ph name="END_LINK" />۔</translation>
 <translation id="8861126751581835107">فوٹوگرافک اور ڈیجیٹل آرٹس</translation>
+<translation id="8861482055962701239">‏اس معلومات کو آپ کے Google والٹ میں محفوظ نہیں کیا جا سکا۔ اس کی بجائے اسے اس آلہ پر Chrome میں محفوظ کر دیا گیا ہے۔ اگلی بار جب آپ اسے استعمال کریں گے تو Chrome اسے والٹ میں محفوظ کرنے کی پیشکش کرے گا۔</translation>
 <translation id="8863218129525348270">اگلی بار زیادہ تیزی سے ادائیگی کرنے کے لیے، اپنا کارڈ اپنے آلے میں محفوظ کریں</translation>
 <translation id="8864939224504814334">سوٹس اور کاروباری لباس</translation>
 <translation id="8866132857352163524">ساؤنڈ ٹریکس</translation>
@@ -4922,6 +4933,7 @@
 <translation id="8897428486789851669">تیراکی</translation>
 <translation id="8899807382908246773">دخل انداز اشتہارات</translation>
 <translation id="8903921497873541725">زوم ان کریں</translation>
+<translation id="8903998444169664879">اپنی ادائیگیوں کی ترتیبات کو تبدیل کرنے کے لیے توثیق کریں کہ یہ آپ ہی ہیں</translation>
 <translation id="890493561996401738">‏تجویز کا بٹن ہٹائیں، ہٹانے کے لیے Enter دبائیں، <ph name="REMOVE_BUTTON_FOCUSED_FRIENDLY_MATCH_TEXT" /></translation>
 <translation id="8910898109640902752">‏x 10 ‏8 انچ</translation>
 <translation id="8914504000324227558">‏Chrome کو دوبارہ شروع کریں</translation>

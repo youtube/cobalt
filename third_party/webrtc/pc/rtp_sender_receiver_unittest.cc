@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "absl/algorithm/container.h"
+#include "absl/functional/any_invocable.h"
 #include "api/audio_options.h"
 #include "api/crypto/crypto_options.h"
 #include "api/crypto/frame_decryptor_interface.h"
@@ -315,7 +316,9 @@ class RtpSenderReceiverTest
     worker_thread_->BlockingCall([this] {
       audio_rtp_receiver_->SetMediaChannel(voice_media_receive_channel());
     });
-    audio_rtp_receiver_->SetupMediaChannel(kAudioSsrc);
+    auto setup_task = audio_rtp_receiver_->GetSetupForMediaChannel(kAudioSsrc);
+    worker_thread_->BlockingCall(
+        [task = std::move(setup_task)]() mutable { std::move(task)(); });
     audio_track_ = audio_rtp_receiver_->audio_track();
     VerifyVoiceChannelOutput();
   }
@@ -327,7 +330,9 @@ class RtpSenderReceiverTest
     worker_thread_->BlockingCall([this] {
       video_rtp_receiver_->SetMediaChannel(video_media_receive_channel());
     });
-    video_rtp_receiver_->SetupMediaChannel(kVideoSsrc);
+    auto setup_task = video_rtp_receiver_->GetSetupForMediaChannel(kVideoSsrc);
+    worker_thread_->BlockingCall(
+        [task = std::move(setup_task)]() mutable { std::move(task)(); });
     video_track_ = video_rtp_receiver_->video_track();
     VerifyVideoChannelOutput();
   }
@@ -348,7 +353,10 @@ class RtpSenderReceiverTest
     worker_thread_->BlockingCall([this] {
       video_rtp_receiver_->SetMediaChannel(video_media_receive_channel());
     });
-    video_rtp_receiver_->SetupMediaChannel(primary_ssrc);
+    auto setup_task =
+        video_rtp_receiver_->GetSetupForMediaChannel(primary_ssrc);
+    worker_thread_->BlockingCall(
+        [task = std::move(setup_task)]() mutable { std::move(task)(); });
     video_track_ = video_rtp_receiver_->video_track();
   }
 

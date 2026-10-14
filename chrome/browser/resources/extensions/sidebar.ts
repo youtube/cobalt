@@ -6,7 +6,7 @@ import 'chrome://resources/cr_elements/cr_menu_selector/cr_menu_selector.js';
 import 'chrome://resources/cr_elements/cr_ripple/cr_ripple.js';
 import './icons.html.js';
 
-import type {CrMenuSelector} from 'chrome://resources/cr_elements/cr_menu_selector/cr_menu_selector.js';
+import type {CrMenuSelectorElement} from 'chrome://resources/cr_elements/cr_menu_selector/cr_menu_selector.js';
 import {I18nMixinLit} from 'chrome://resources/cr_elements/i18n_mixin_lit.js';
 import {assert} from 'chrome://resources/js/assert.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
@@ -19,7 +19,7 @@ import {getHtml} from './sidebar.html.js';
 
 export interface ExtensionsSidebarElement {
   $: {
-    sectionMenu: CrMenuSelector,
+    sectionMenu: CrMenuSelectorElement,
     sectionsExtensions: HTMLElement,
     sectionsShortcuts: HTMLElement,
     sectionsSitePermissions: HTMLElement,
@@ -66,13 +66,6 @@ export class ExtensionsSidebarElement extends ExtensionsSidebarElementBase {
    */
   private navigationListener_: number|null = null;
 
-  override firstUpdated(changedProperties: PropertyValues<this>) {
-    super.firstUpdated(changedProperties);
-
-    this.setAttribute('role', 'navigation');
-    this.computeSelectedPath_(navigation.getCurrentPage().page);
-  }
-
   override connectedCallback() {
     super.connectedCallback();
     this.navigationListener_ = navigation.addListener(newPage => {
@@ -85,6 +78,13 @@ export class ExtensionsSidebarElement extends ExtensionsSidebarElementBase {
     assert(this.navigationListener_);
     assert(navigation.removeListener(this.navigationListener_));
     this.navigationListener_ = null;
+  }
+
+  override firstUpdated(changedProperties: PropertyValues<this>) {
+    super.firstUpdated(changedProperties);
+
+    this.setAttribute('role', 'navigation');
+    this.computeSelectedPath_(navigation.getCurrentPage().page);
   }
 
   private computeSelectedPath_(page: Page) {

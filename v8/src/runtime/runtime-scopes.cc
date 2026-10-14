@@ -156,8 +156,8 @@ RUNTIME_FUNCTION(Runtime_DeclareModuleExports) {
   DirectHandle<FixedArray> exports(
       Cast<SourceTextModule>(context->extension())->regular_exports(), isolate);
 
-  int length = declarations->length();
-  FOR_WITH_HANDLE_SCOPE(isolate, int i = 0, i, i < length, i++) {
+  uint32_t length = declarations->ulength().value();
+  FOR_WITH_HANDLE_SCOPE(isolate, uint32_t i = 0, i, i < length, i++) {
     Tagged<Object> decl = declarations->get(i);
     int index;
     Tagged<Object> value;
@@ -199,8 +199,8 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobals) {
       isolate);
 
   // Traverse the name/value pairs and set the properties.
-  int length = declarations->length();
-  FOR_WITH_HANDLE_SCOPE(isolate, int i = 0, i, i < length, i++) {
+  uint32_t length = declarations->ulength().value();
+  FOR_WITH_HANDLE_SCOPE(isolate, uint32_t i = 0, i, i < length, i++) {
     Handle<Object> decl(declarations->get(i), isolate);
     Handle<String> name;
     Handle<Object> value;
@@ -536,9 +536,9 @@ DirectHandleVector<Object> GetCallerArguments(Isolate* isolate) {
 
     return param_data;
   } else {
-    int args_count = frame->GetActualArgumentCount();
+    uint32_t args_count = frame->GetActualArgumentCount();
     DirectHandleVector<Object> param_data(isolate, args_count);
-    for (int i = 0; i < args_count; i++) {
+    for (uint32_t i = 0; i < args_count; i++) {
       DirectHandle<Object> val =
           DirectHandle<Object>(frame->GetParameter(i), isolate);
       param_data[i] = val;

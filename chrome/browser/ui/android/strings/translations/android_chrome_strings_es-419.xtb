@@ -299,6 +299,7 @@ Solo alguien con tu frase de contraseña puede leer los datos encriptados. Googl
 <translation id="2287421207599770907">{NUMBER_OF_TABS,plural, =1{Ver <ph name="TABS_COUNT_ONE" /> pestaña}other{Ver <ph name="TABS_COUNT_MANY" /> pestañas}}</translation>
 <translation id="2297822946037605517">Compartir esta página</translation>
 <translation id="230115972905494466">No se encontraron dispositivos compatibles</translation>
+<translation id="2316129865977710310">No, gracias</translation>
 <translation id="2318045970523081853">Presiona para realizar la llamada</translation>
 <translation id="2323763861024343754">Almacenamiento del sitio</translation>
 <translation id="2328474416100889417">Todos los usuarios perderán de inmediato el acceso al grupo de pestañas “<ph name="GROUP_NAME" />”, y se desactivarán todos los vínculos de invitación</translation>
@@ -432,6 +433,7 @@ Solo alguien con tu frase de contraseña puede leer los datos encriptados. Googl
 <translation id="2870560284913253234">Sitio</translation>
 <translation id="2871733351037274014">Precargar páginas</translation>
 <translation id="2876136027428473467"><ph name="CHILD_NAME" /> quiere que apruebes este sitio web:</translation>
+<translation id="2876556152483133018">Búsqueda en sitios</translation>
 <translation id="2876628302275096482">Más información sobre <ph name="BEGIN_LINK" />cómo Chrome mantiene la privacidad de tus datos<ph name="END_LINK" /></translation>
 <translation id="2878607776582720720"><ph name="TAB_TITLE" />, pestaña de incógnito de uso compartido con selección múltiple</translation>
 <translation id="2885355868600171871">Ir a la barra de direcciones</translation>
@@ -474,6 +476,7 @@ Solo alguien con tu frase de contraseña puede leer los datos encriptados. Googl
 <translation id="2992473221983447149">Descripciones de imágenes</translation>
 <translation id="2996291259634659425">Crear frase de contraseña</translation>
 <translation id="2996809686854298943">URL obligatoria</translation>
+<translation id="3008916997590006706">Presiona Guardar para acceder fácilmente a esta contraseña la próxima vez que accedas</translation>
 <translation id="3024215143424744261">Se cerraron las preferencias del Modo de lectura</translation>
 <translation id="3026955690410463085">Incluir vínculo</translation>
 <translation id="3027644380269727216">Según tu actividad en un sitio. Este parámetro de configuración está activado.</translation>
@@ -621,6 +624,7 @@ Solo alguien con tu frase de contraseña puede leer los datos encriptados. Googl
 <translation id="3709577906275923507"><ph name="FILE_NAME" /> puede contener información sensible y no se debe compartir</translation>
 <translation id="3710501561113687889">Para continuar, <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> compartirá tu <ph name="FIELDS_STRING" /> con este sitio.</translation>
 <translation id="3710560693796335511">Colaboración</translation>
+<translation id="3714430408451673233">Hoja inferior de pestañas a media altura.</translation>
 <translation id="3718765429352682176">Es posible que veas el historial de otras apps que abren vínculos en Chrome.</translation>
 <translation id="3721119614952978349">Tú y Google</translation>
 <translation id="3727000368239390918">Accede para obtener tus pestañas y más en todos tus dispositivos</translation>
@@ -765,6 +769,7 @@ Solo alguien con tu frase de contraseña puede leer los datos encriptados. Googl
 <translation id="4326079409704643112">Para usar y guardar datos de Chrome en tu Cuenta de Google, verifica tu identidad</translation>
 <translation id="433213510553688132">Siguiendo…</translation>
 <translation id="4335835283689002019">La Navegación segura está desactivada</translation>
+<translation id="4343250402091037179">Si quieres realizar una búsqueda en un sitio específico o en una parte de Chrome, escribe el atajo correspondiente en la barra de direcciones seguido de la combinación de teclas que hayas elegido.</translation>
 <translation id="4351244548802238354">Cerrar cuadro de diálogo</translation>
 <translation id="4352287748243729941">¿Quieres usar la contraseña de <ph name="PROVIDER" />?</translation>
 <translation id="4355272626458588338">Agrega un favorito para poder regresar a una página que consideres importante</translation>
@@ -955,7 +960,9 @@ Es posible que tu cuenta de Google tenga otros formularios de historial de naveg
 <translation id="5056587122125565772">Crear imagen</translation>
 <translation id="506254248375231072">No hay pestañas</translation>
 <translation id="5075939510584558547">Guardar sin encriptación</translation>
+<translation id="5078638979202084724">Agregar a favoritos todas las pestañas</translation>
 <translation id="5085038751173179818">Accede a este sitio y a Chrome para obtener tus favoritos y mucho más en todos tus dispositivos</translation>
+<translation id="5088347662971855383">Fijar Gemini</translation>
 <translation id="5091199029769593641">Pronto, cuando abras una nueva pestaña, verás historias de <ph name="SITE_NAME" />. Los sitios que sigues se guardan en tu Cuenta de Google. Puedes administrarlos en la configuración de Descubre.</translation>
 <translation id="509429900233858213">Se ha producido un error.</translation>
 <translation id="5096775069898886423">Para los sitios que no admiten conexiones seguras, recibe una advertencia antes de visitar el sitio</translation>
@@ -1000,6 +1007,7 @@ Es posible que tu cuenta de Google tenga otros formularios de historial de naveg
 <translation id="5267572070504076962">Activa la Navegación segura para obtener protección contra sitios peligrosos</translation>
 <translation id="5271967389191913893">El dispositivo no puede abrir el contenido que se descargará.</translation>
 <translation id="5273031377282080577">El administrador gestiona este parámetro de configuración.</translation>
+<translation id="5290322819358431297">Autocompleta tus contraseñas</translation>
 <translation id="5292796745632149097">Enviar a</translation>
 <translation id="5301876394151419436">Accediste como <ph name="EMAIL" />. Puedes detener la sincronización en cualquier momento desde la configuración. Es posible que Google personalice la Búsqueda y otros servicios en función de tu historial.</translation>
 <translation id="5304593522240415983">Este campo no puede quedar en blanco.</translation>
@@ -1038,6 +1046,7 @@ Es posible que tu cuenta de Google tenga otros formularios de historial de naveg
 <translation id="544776284582297024">Para abrir pestañas y visitar diferentes páginas al mismo tiempo, presiona el botón de pestañas abiertas</translation>
 <translation id="5456381639095306749">Descargar página</translation>
 <translation id="5458366071038729214">Aquí encontrarás los sitios que sigues.</translation>
+<translation id="5465437530117042974">Se cerró la hoja inferior de pestañas.</translation>
 <translation id="5469852975082458401">Puedes navegar páginas con un cursor de texto. Presiona F7 para desactivar esta función.</translation>
 <translation id="5471273988133666918">No se puede mover la pestaña <ph name="TAB_TITLE" /></translation>
 <translation id="548278423535722844">Abrir en una app de mapas</translation>
@@ -1091,6 +1100,7 @@ Es posible que tu cuenta de Google tenga otros formularios de historial de naveg
 <translation id="572328651809341494">Pestañas recientes</translation>
 <translation id="5728072125198221967">Servicios de Google vinculados</translation>
 <translation id="5734658507307260911"><ph name="TAB_TITLE" />, pestaña de incógnito con sonido fijada</translation>
+<translation id="5736345781200955827">Crea, guarda y administra tus contraseñas para acceder fácilmente a sitios y apps con Chrome</translation>
 <translation id="5744751019568455640">Estas son las voces que puedes seleccionar para la lectura de páginas web. Si te gusta esta voz y quieres que siga usándola, presiona el nombre de la voz.</translation>
 <translation id="574845902699630049">Compartir como <ph name="OWNER_FULL_NAME" /></translation>
 <translation id="5749068826913805084">Chrome necesita acceder al almacenamiento para descargar archivos.</translation>
@@ -1171,6 +1181,7 @@ Es posible que tu cuenta de Google tenga otros formularios de historial de naveg
 <translation id="604996488070107836"><ph name="FILE_NAME" /> no se pudo descargar debido a un error desconocido.</translation>
 <translation id="605721222689873409">AA</translation>
 <translation id="6059830886158432458">Controla tus noticias y actividad aquí</translation>
+<translation id="606985262342505139">Hoja inferior de pestañas en pantalla completa</translation>
 <translation id="6071995715087444295">Para revisar si hay contraseñas hackeadas, accede a tu Cuenta de Google</translation>
 <translation id="6078323886959318429">Acceso directo</translation>
 <translation id="6085886413119427067">Determina cómo conectarse a sitios web mediante una conexión segura</translation>
@@ -1187,6 +1198,7 @@ Es posible que tu cuenta de Google tenga otros formularios de historial de naveg
 <translation id="6125864963080902918"><ph name="BEGIN_LINK" />Más detalles<ph name="END_LINK" /></translation>
 <translation id="6127860394906721547">Abrir el grupo de pestañas <ph name="TITLE_OF_GROUP" />, en color <ph name="COLOR_NAME" />, con los sitios <ph name="URL_LIST" />.</translation>
 <translation id="6130303040046284160">Minimizar pestaña</translation>
+<translation id="6132075343662013154">Chrome te ofrecerá guardar la contraseña</translation>
 <translation id="6134168885321518274">Abrir la barra de búsqueda</translation>
 <translation id="6135608400322377268">{TAB_COUNT,plural, =1{<ph name="TAB_COUNT_ONE" /> pestaña}other{<ph name="TAB_COUNT_MANY" /> pestañas}}</translation>
 <translation id="6137022273846704445">Idioma de <ph name="APP_NAME" /></translation>
@@ -1334,11 +1346,13 @@ Por ejemplo, algunos sitios web pueden responder a la solicitud mediante anuncio
 <translation id="6648977384226967773">{CONTACT,plural, =1{<ph name="CONTACT_PREVIEW" /> y <ph name="NUMBER_OF_ADDITIONAL_CONTACTS" /> más}other{<ph name="CONTACT_PREVIEW" /> y <ph name="NUMBER_OF_ADDITIONAL_CONTACTS" /> más}}</translation>
 <translation id="6649642165559792194">Vista previa de imagen <ph name="BEGIN_NEW" />Nueva<ph name="END_NEW" /></translation>
 <translation id="666731172850799929">Abrir en <ph name="APP_NAME" /></translation>
+<translation id="6669390930482049506">Notificarme</translation>
 <translation id="6671495933530132209">Copiar imagen</translation>
 <translation id="6672697278890207089">Ingresa tu frase de contraseña</translation>
 <translation id="6672917148207387131">Agregar <ph name="DOMAIN" /></translation>
 <translation id="6674571176963658787">Para iniciar la sincronización, ingresa tu frase de contraseña.</translation>
 <translation id="6676927815633975364">Accede a este sitio y a Chrome</translation>
+<translation id="6684262542644248484">Accede a un sitio web.</translation>
 <translation id="6684809838922667136">Mejora Chrome</translation>
 <translation id="6689436252814043643">El Modo de lectura no está disponible</translation>
 <translation id="6700279777779583398">Se guardaron las selecciones</translation>
@@ -1499,6 +1513,7 @@ Para cambiar este parámetro de configuración, <ph name="BEGIN_LINK" />borra lo
 <translation id="7237724030342645845">El Administrador de contraseñas de Google dejó de funcionar</translation>
 <translation id="7239496616545081903">Ocultar el Modo de lectura</translation>
 <translation id="72415438529550637">La sugerencia de contraseña está cerrada.</translation>
+<translation id="724510009481365878">No se puede imprimir esta página</translation>
 <translation id="7248671827512403053">Aplicación</translation>
 <translation id="7253951228444156601">Verificando contraseñas…</translation>
 <translation id="7260367682327802201">Es posible que tu dispositivo Android incluya una configuración similar. Si la medición de anuncios está activada en Chrome y en tu dispositivo Android, es posible que una empresa pueda medir la efectividad de un anuncio en los sitios web que visitas y en las apps que usas.</translation>

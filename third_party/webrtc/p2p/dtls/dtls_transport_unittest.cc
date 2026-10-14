@@ -277,7 +277,10 @@ class DtlsTestClient {
       // against, and make sure that it doesn't look like DTLS.
       memset(packet.get(), sent & 0xff, size);
       packet[0] = (srtp) ? kRtpLeadByte : 0x00;
-      SetBE32(packet.get() + kPacketNumOffset, static_cast<uint32_t>(sent));
+      SetBE32(
+          ArrayView<uint8_t>(
+              reinterpret_cast<uint8_t*>(packet.get() + kPacketNumOffset), 4),
+          static_cast<uint32_t>(sent));
 
       // Only set the bypass flag if we've activated DTLS.
       int flags = (certificate_ && srtp) ? PF_SRTP_BYPASS : 0;
@@ -316,7 +319,8 @@ class DtlsTestClient {
     if (size != packet_size_ || (data[0] != 0 && (data[0]) != 0x80)) {
       return false;
     }
-    uint32_t packet_num = GetBE32(data + kPacketNumOffset);
+    uint32_t packet_num =
+        GetBE32(ArrayView<const uint8_t>(data + kPacketNumOffset, 4));
     for (size_t i = kPacketHeaderLen; i < size; ++i) {
       if (data[i] != (packet_num & 0xff)) {
         return false;
@@ -333,7 +337,8 @@ class DtlsTestClient {
     if (size <= packet_size_) {
       return false;
     }
-    uint32_t packet_num = GetBE32(data + kPacketNumOffset);
+    uint32_t packet_num =
+        GetBE32(ArrayView<const uint8_t>(data + kPacketNumOffset, 4));
     int num_matches = 0;
     for (size_t i = kPacketNumOffset; i < size; ++i) {
       if (data[i] == (packet_num & 0xff)) {
@@ -742,7 +747,9 @@ TEST_F(DtlsTransportInternalImplTest, TestSendPacketWithOptions) {
   std::unique_ptr<char[]> packet(new char[size]);
   memset(packet.get(), 0, size);
   packet[0] = 0x00;
-  SetBE32(packet.get() + kPacketNumOffset, 0);
+  SetBE32(ArrayView<uint8_t>(
+              reinterpret_cast<uint8_t*>(packet.get() + kPacketNumOffset), 4),
+          0);
 
   AsyncSocketPacketOptions packet_options;
   packet_options.packet_id = kFakePacketId;
@@ -772,7 +779,9 @@ TEST_F(DtlsTransportInternalImplTest, TestSendSrtpBypassPacketWithOptions) {
   std::unique_ptr<char[]> packet(new char[size]);
   memset(packet.get(), 0, size);
   packet[0] = kRtpLeadByte;  // Make it look like an SRTP packet.
-  SetBE32(packet.get() + kPacketNumOffset, 0);
+  SetBE32(ArrayView<uint8_t>(
+              reinterpret_cast<uint8_t*>(packet.get() + kPacketNumOffset), 4),
+          0);
 
   AsyncSocketPacketOptions packet_options;
   packet_options.packet_id = kFakePacketId;

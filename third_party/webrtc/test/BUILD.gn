@@ -1425,6 +1425,7 @@ if (!build_with_chromium && is_android) {
       "android/org/webrtc/native_test/RTCNativeUnitTest.java",
       "android/org/webrtc/native_test/RTCNativeUnitTestActivity.java",
       "android/org/webrtc/native_test/StrictModeContext.java",
+      "android/org/webrtc/native_test/TestStatusReporter.java",
     ]
     srcjar_deps = [ ":native_test_jni" ]
     deps = [
@@ -1432,7 +1433,6 @@ if (!build_with_chromium && is_android) {
       "../rtc_base:base_java",
       "//build/android:build_java",
       "//build/android/gtest_apk:native_test_instrumentation_test_runner_java",
-      "//testing/android/reporter:reporter_java",
       "//third_party/jni_zero:jni_zero_java",
     ]
   }

@@ -496,7 +496,7 @@ void VideoStreamEncoderResourceManager::OnEncodeCompleted(
 }
 
 void VideoStreamEncoderResourceManager::OnFrameDropped(
-    EncodedImageCallback::DropReason reason) {
+    VideoStreamEncoderObserver::DropReason reason) {
   RTC_DCHECK_RUN_ON(encoder_queue_);
   quality_scaler_resource_->OnFrameDropped(reason);
 }

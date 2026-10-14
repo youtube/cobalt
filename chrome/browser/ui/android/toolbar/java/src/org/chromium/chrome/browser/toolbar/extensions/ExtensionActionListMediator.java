@@ -9,7 +9,6 @@ import android.graphics.Bitmap;
 import android.view.View;
 
 import androidx.annotation.VisibleForTesting;
-import androidx.recyclerview.widget.RecyclerView;
 
 import org.chromium.base.lifetime.Destroyable;
 import org.chromium.base.lifetime.LifetimeAssert;
@@ -46,7 +45,7 @@ class ExtensionActionListMediator implements Destroyable {
     private final ChromeAndroidTask mTask;
     private final Profile mProfile;
     private final NullableObservableSupplier<Tab> mCurrentTabSupplier;
-    private final ExtensionActionListRecyclerView mContainer;
+    private final ExtensionActionListCoordinator.ActionAnchorViewProvider mActionAnchorViewProvider;
 
     private final ExtensionsToolbarBridge mExtensionsToolbarBridge;
     private final ToolbarDelegate mToolbarDelegate = new ToolbarDelegate();
@@ -64,7 +63,7 @@ class ExtensionActionListMediator implements Destroyable {
             ChromeAndroidTask task,
             Profile profile,
             NullableObservableSupplier<Tab> currentTabSupplier,
-            ExtensionActionListRecyclerView container,
+            ExtensionActionListCoordinator.ActionAnchorViewProvider actionAnchorViewProvider,
             ExtensionsToolbarBridge extensionsToolbarBridge) {
         mContext = context;
         mWindowAndroid = windowAndroid;
@@ -72,7 +71,7 @@ class ExtensionActionListMediator implements Destroyable {
         mTask = task;
         mProfile = profile;
         mCurrentTabSupplier = currentTabSupplier;
-        mContainer = container;
+        mActionAnchorViewProvider = actionAnchorViewProvider;
         mExtensionsToolbarBridge = extensionsToolbarBridge;
 
         mExtensionsToolbarBridge.setDelegate(mToolbarDelegate);
@@ -200,6 +199,11 @@ class ExtensionActionListMediator implements Destroyable {
             return;
         }
 
+        updateActionPropertiesForIndex(index, actionId, webContents);
+    }
+
+    private void updateActionPropertiesForIndex(
+            int index, String actionId, @Nullable WebContents webContents) {
         ExtensionAction action = mExtensionsToolbarBridge.getAction(actionId);
         if (action == null) {
             return;
@@ -212,8 +216,11 @@ class ExtensionActionListMediator implements Destroyable {
     }
 
     private void updateActionPropertiesForAll() {
-        for (ListItem item : mModels) {
-            updateActionProperties(item.model.get(ExtensionActionButtonProperties.ID));
+        Tab currentTab = mCurrentTabSupplier.get();
+        WebContents webContents = currentTab != null ? currentTab.getWebContents() : null;
+
+        for (int i = 0; i < mModels.size(); i++) {
+            updateActionPropertiesForIndex(i, getActionIdForIndex(i), webContents);
         }
     }
 
@@ -245,7 +252,7 @@ class ExtensionActionListMediator implements Destroyable {
 
         ExtensionActionPopupContents contents = ExtensionActionPopupContents.create(nativeHostPtr);
 
-        View buttonView = getButtonViewForId(actionId);
+        View buttonView = mActionAnchorViewProvider.getButtonViewForId(actionId);
         if (buttonView == null) {
             contents.destroy();
             return;
@@ -259,25 +266,6 @@ class ExtensionActionListMediator implements Destroyable {
         mCurrentPopupActionId = actionId;
     }
 
-    @VisibleForTesting
-    @Nullable View getButtonViewForId(String actionId) {
-        for (int i = 0; i < mModels.size(); i++) {
-            PropertyModel model = mModels.get(i).model;
-            if (actionId.equals(model.get(ExtensionActionButtonProperties.ID))) {
-                RecyclerView.ViewHolder holder = mContainer.findViewHolderForAdapterPosition(i);
-
-                if (holder == null) {
-                    // TODO(crbug.com/478113313): If the action is unpinned, pop it out to show
-                    // action popup.
-                    return null;
-                }
-
-                return holder.itemView;
-            }
-        }
-        return null;
-    }
-
     private void onContextClick(String actionId) {
         Tab currentTab = mCurrentTabSupplier.get();
         if (currentTab == null) {
@@ -289,14 +277,15 @@ class ExtensionActionListMediator implements Destroyable {
             return;
         }
 
-        ExtensionActionContextMenuBridge bridge =
-                new ExtensionActionContextMenuBridge(
-                        mTask, mProfile, actionId, webContents, ContextMenuSource.TOOLBAR_ACTION);
-
-        ListMenuButton buttonView = (ListMenuButton) getButtonViewForId(actionId);
+        ListMenuButton buttonView =
+                (ListMenuButton) mActionAnchorViewProvider.getButtonViewForId(actionId);
         if (buttonView == null) {
             return;
         }
+
+        ExtensionActionContextMenuBridge bridge =
+                new ExtensionActionContextMenuBridge(
+                        mTask, mProfile, actionId, webContents, ContextMenuSource.TOOLBAR_ACTION);
 
         ExtensionActionContextMenuUtils.showContextMenu(
                 mContext, buttonView, bridge, MenuBuilderHelper.getRectProvider(buttonView), null);

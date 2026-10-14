@@ -519,8 +519,8 @@ class SSLStreamAdapterTestBase : public ::testing::Test {
   }
 
   void SetPeerIdentitiesByDigest(bool correct, bool expect_success) {
-    Buffer server_digest(0, EVP_MAX_MD_SIZE);
-    Buffer client_digest(0, EVP_MAX_MD_SIZE);
+    Buffer server_digest(Buffer::CreateWithCapacity(EVP_MAX_MD_SIZE));
+    Buffer client_digest(Buffer::CreateWithCapacity(EVP_MAX_MD_SIZE));
     SSLPeerCertificateDigestError err;
     SSLPeerCertificateDigestError expected_err =
         expect_success ? SSLPeerCertificateDigestError::NONE
@@ -687,8 +687,8 @@ class SSLStreamAdapterTestBase : public ::testing::Test {
 
     // Collect both of the certificate digests; needs to be done before calling
     // SetPeerCertificateDigest as that may reset the identity.
-    Buffer server_digest(0, EVP_MAX_MD_SIZE);
-    Buffer client_digest(0, EVP_MAX_MD_SIZE);
+    Buffer server_digest(Buffer::CreateWithCapacity(EVP_MAX_MD_SIZE));
+    Buffer client_digest(Buffer::CreateWithCapacity(EVP_MAX_MD_SIZE));
 
     ASSERT_THAT(server_identity(), NotNull());
     ASSERT_TRUE(server_identity()->certificate().ComputeDigest(

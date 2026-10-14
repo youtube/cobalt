@@ -1749,8 +1749,10 @@ void WasmInterpreterRuntime::UpdateIndirectCallTable(
   wasm_runtime->PurgeIndirectCallCache(table_index);
 }
 
-bool WasmInterpreterRuntime::CheckIndirectCallSignature(
-    uint32_t table_index, uint32_t entry_index, uint32_t sig_index) const {
+WasmInterpreterRuntime::IndirectCallCheck
+WasmInterpreterRuntime::CheckIndirectCallSignature(uint32_t table_index,
+                                                   uint32_t entry_index,
+                                                   uint32_t sig_index) const {
   const WasmTable& table = module_->tables[table_index];
   bool needs_type_check =
       !EquivalentTypes(table.type.AsNonNull(),
@@ -1771,24 +1773,32 @@ bool WasmInterpreterRuntime::CheckIndirectCallSignature(
     wasm::CanonicalTypeIndex canonical_sig_id =
         module_->canonical_sig_id(ModuleTypeIndex({sig_index}));
     if (!needs_type_check) {
+      DCHECK(needs_null_check);
       // Only check for -1 (nulled table entry).
-      if (!real_sig_id.valid()) return false;
+      if (!real_sig_id.valid()) return IndirectCallCheck::kNull;
     } else if (!module_->types[sig_index].is_final) {
-      if (real_sig_id == canonical_sig_id) return true;
-      if (needs_null_check && !real_sig_id.valid()) return false;
+      if (real_sig_id == canonical_sig_id) return IndirectCallCheck::kValid;
+      if (needs_null_check && !real_sig_id.valid()) {
+        return IndirectCallCheck::kNull;
+      }
 
       Tagged<Map> rtt = Tagged<Map>::cast(isolate_->heap()
                                               ->wasm_canonical_rtts()
                                               ->get(real_sig_id.index)
                                               .GetHeapObjectAssumeWeak());
       DirectHandle<Map> formal_rtt = RttCanon(sig_index);
-      return SubtypeCheck(rtt, *formal_rtt, sig_index);
+      return SubtypeCheck(rtt, *formal_rtt, sig_index)
+                 ? IndirectCallCheck::kValid
+                 : IndirectCallCheck::kInvalid;
     } else {
-      if (real_sig_id != canonical_sig_id) return false;
+      if (needs_type_check && !real_sig_id.valid()) {
+        return IndirectCallCheck::kNull;
+      }
+      if (real_sig_id != canonical_sig_id) return IndirectCallCheck::kInvalid;
     }
   }
 
-  return true;
+  return IndirectCallCheck::kValid;
 }
 
 void WasmInterpreterRuntime::ExecuteIndirectCall(
@@ -1840,7 +1850,12 @@ void WasmInterpreterRuntime::ExecuteIndirectCall(
     }
   }
 
-  if (!CheckIndirectCallSignature(table_index, entry_index, sig_index)) {
+  IndirectCallCheck check_signature_result =
+      CheckIndirectCallSignature(table_index, entry_index, sig_index);
+  if (check_signature_result == IndirectCallCheck::kNull) {
+    SetTrap(MessageTemplate::kWasmTrapNullFunc, current_code);
+    return;
+  } else if (check_signature_result == IndirectCallCheck::kInvalid) {
     SetTrap(MessageTemplate::kWasmTrapFuncSigMismatch, current_code);
     return;
   }
@@ -2395,10 +2410,13 @@ ExternalCallResult WasmInterpreterRuntime::CallExternalWasmFunction(
 }
 
 DirectHandle<Map> WasmInterpreterRuntime::RttCanon(uint32_t type_index) const {
+  bool type_is_shared = module_->types[type_index].is_shared;
+  DirectHandle<WasmTrustedInstanceData> data =
+      type_is_shared
+          ? direct_handle(wasm_trusted_instance_data()->shared_part(), isolate_)
+          : wasm_trusted_instance_data();
   DirectHandle<Map> rtt{
-      TrustedCast<Map>(
-          wasm_trusted_instance_data()->managed_object_maps()->get(type_index)),
-      isolate_};
+      TrustedCast<Map>(data->managed_object_maps()->get(type_index)), isolate_};
   return rtt;
 }
 
@@ -2414,10 +2432,11 @@ WasmInterpreterRuntime::StructNewUninitialized(uint32_t index) const {
       struct_type};
 }
 
-std::pair<DirectHandle<WasmArray>, const ArrayType*>
+WasmInterpreterRuntime::ArrayNewResult
 WasmInterpreterRuntime::ArrayNewUninitialized(uint32_t length,
                                               uint32_t array_index) const {
   const ArrayType* array_type = GetArrayType(array_index);
+  const bool is_shared = module_->type(ModuleTypeIndex{array_index}).is_shared;
   if (V8_UNLIKELY(static_cast<int>(length) < 0 ||
                   static_cast<int>(length) >
                       WasmArray::MaxLength(array_type))) {
@@ -2427,7 +2446,8 @@ WasmInterpreterRuntime::ArrayNewUninitialized(uint32_t length,
   DirectHandle<Map> rtt = RttCanon(array_index);
   return {
       {isolate_->factory()->NewWasmArrayUninitialized(length, rtt), isolate_},
-      array_type};
+      array_type,
+      is_shared};
 }
 
 WasmRef WasmInterpreterRuntime::WasmArrayNewSegment(uint32_t array_index,

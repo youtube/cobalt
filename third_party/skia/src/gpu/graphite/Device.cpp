@@ -461,6 +461,7 @@ sk_sp<Device> Device::Make(Recorder* recorder,
             }
             break;
 
+        case PathRendererStrategy::kCPUSparseStripsMSAA8:
         case PathRendererStrategy::kRasterAtlas:
         case PathRendererStrategy::kComputeAnalyticAA:
         case PathRendererStrategy::kComputeMSAA16:
@@ -742,7 +743,7 @@ bool Device::onWritePixels(const SkPixmap& src, int x, int y) {
 
     // TODO: canvas2DFastPath?
 
-    if (!fRecorder->priv().caps()->supportsWritePixels(target->textureInfo())) {
+    if (!fRecorder->priv().caps()->isCopyableDst(target->textureInfo())) {
         auto image = SkImages::RasterFromPixmap(src, nullptr, nullptr);
         image = SkImages::TextureFromImage(fRecorder, image.get());
         if (!image) {
@@ -2015,6 +2016,10 @@ std::pair<const Renderer*, PathAtlas*> Device::chooseRenderer(const Transform& l
 
         case PathRendererStrategy::kTessellation:
             // Never uses an atlas for rendering, leave it null
+            break;
+
+        case PathRendererStrategy::kCPUSparseStripsMSAA8:
+            // Atlas in the future
             break;
     }
 

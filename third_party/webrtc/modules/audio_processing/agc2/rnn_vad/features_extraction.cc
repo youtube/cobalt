@@ -11,6 +11,7 @@
 #include "modules/audio_processing/agc2/rnn_vad/features_extraction.h"
 
 #include <array>
+#include <cstddef>
 
 #include "api/array_view.h"
 #include "modules/audio_processing/agc2/biquad_filter.h"
@@ -76,7 +77,7 @@ bool FeaturesExtractor::CheckSilenceComputeFeatures(
   feature_vector[kFeatureVectorSize - 2] = 0.01f * (pitch_period_48kHz_ - 300);
   // Extract lagged frames (according to the estimated pitch period).
   RTC_DCHECK_LE(pitch_period_48kHz_ / 2, kMaxPitch24kHz);
-  auto lagged_frame = pitch_buf_24kHz_view_.subview(
+  auto lagged_frame = pitch_buf_24kHz_view_.subspan(
       kMaxPitch24kHz - pitch_period_48kHz_ / 2, kFrameSize20ms24kHz);
   // Analyze reference and lagged frames checking if silence has been detected
   // and write the feature vector.

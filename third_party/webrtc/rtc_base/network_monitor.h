@@ -46,7 +46,8 @@ enum class NetworkSlice {
   UNIFIED_COMMUNICATIONS = 1,
 };
 
-const char* NetworkPreferenceToString(NetworkPreference preference);
+absl::string_view NetworkPreferenceToString(NetworkPreference preference);
+absl::string_view NetworkSliceToString(NetworkSlice network_slice);
 
 // This interface is set onto a socket server,
 // where only the ip address is known at the time of binding.

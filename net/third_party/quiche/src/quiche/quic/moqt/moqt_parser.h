@@ -44,7 +44,7 @@ class QUICHE_EXPORT MoqtControlParserVisitor {
   virtual void OnSubscribeOkMessage(const MoqtSubscribeOk& message) = 0;
   virtual void OnUnsubscribeMessage(const MoqtUnsubscribe& message) = 0;
   virtual void OnPublishDoneMessage(const MoqtPublishDone& message) = 0;
-  virtual void OnSubscribeUpdateMessage(const MoqtSubscribeUpdate& message) = 0;
+  virtual void OnRequestUpdateMessage(const MoqtRequestUpdate& message) = 0;
   virtual void OnPublishNamespaceMessage(
       const MoqtPublishNamespace& message) = 0;
   virtual void OnPublishNamespaceDoneMessage(
@@ -57,8 +57,6 @@ class QUICHE_EXPORT MoqtControlParserVisitor {
   virtual void OnGoAwayMessage(const MoqtGoAway& message) = 0;
   virtual void OnSubscribeNamespaceMessage(
       const MoqtSubscribeNamespace& message) = 0;
-  virtual void OnUnsubscribeNamespaceMessage(
-      const MoqtUnsubscribeNamespace& message) = 0;
   virtual void OnMaxRequestIdMessage(const MoqtMaxRequestId& message) = 0;
   virtual void OnFetchMessage(const MoqtFetch& message) = 0;
   virtual void OnFetchCancelMessage(const MoqtFetchCancel& message) = 0;
@@ -138,7 +136,7 @@ class QUICHE_EXPORT MoqtControlParser {
   size_t ProcessSubscribeOk(quic::QuicDataReader& reader);
   size_t ProcessUnsubscribe(quic::QuicDataReader& reader);
   size_t ProcessPublishDone(quic::QuicDataReader& reader);
-  size_t ProcessSubscribeUpdate(quic::QuicDataReader& reader);
+  size_t ProcessRequestUpdate(quic::QuicDataReader& reader);
   size_t ProcessPublishNamespace(quic::QuicDataReader& reader);
   size_t ProcessPublishNamespaceDone(quic::QuicDataReader& reader);
   size_t ProcessNamespace(quic::QuicDataReader& reader);

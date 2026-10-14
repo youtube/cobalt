@@ -51,6 +51,7 @@
 #include "chrome/browser/ui/webui/translate_internals/translate_internals_ui.h"
 #include "chrome/browser/ui/webui/usb_internals/usb_internals_ui.h"
 #include "chrome/browser/ui/webui/version/version_ui.h"
+#include "chrome/browser/ui/webui/webnn_internals/webnn_internals_ui.h"
 #include "components/enterprise/buildflags/buildflags.h"
 #include "components/safe_browsing/buildflags.h"
 #include "components/security_interstitials/content/connection_help_ui.h"
@@ -107,7 +108,6 @@
 #include "chrome/browser/ui/webui/on_device_internals/on_device_internals_ui.h"  // nogncheck
 #endif  // !BUILDFLAG(IS_COBALT)
 #include "chrome/browser/ui/webui/password_manager/password_manager_ui.h"
-#include "chrome/browser/ui/webui/privacy_sandbox/privacy_sandbox_dialog_ui.h"
 #include "chrome/browser/ui/webui/profile_internals/profile_internals_ui.h"
 #include "chrome/browser/ui/webui/search_engine_choice/search_engine_choice_ui.h"
 #include "chrome/browser/ui/webui/settings/settings_ui.h"
@@ -291,6 +291,7 @@ void RegisterChromeWebUIConfigs() {
   map.AddWebUIConfig(std::make_unique<user_actions_ui::UserActionsUIConfig>());
   map.AddWebUIConfig(std::make_unique<VersionUIConfig>());
   map.AddWebUIConfig(std::make_unique<WebRtcLogsUIConfig>());
+  map.AddWebUIConfig(std::make_unique<WebNNInternalsUIConfig>());
   map.AddWebUIConfig(
       std::make_unique<
           privacy_sandbox_internals::PrivacySandboxInternalsUIConfig>());
@@ -350,7 +351,6 @@ void RegisterChromeWebUIConfigs() {
       std::make_unique<on_device_internals::OnDeviceInternalsUIConfig>());
 #endif  // !BUILDFLAG(IS_COBALT)
   map.AddWebUIConfig(std::make_unique<PasswordManagerUIConfig>());
-  map.AddWebUIConfig(std::make_unique<PrivacySandboxDialogUIConfig>());
   map.AddWebUIConfig(std::make_unique<ProfileInternalsUIConfig>());
   map.AddWebUIConfig(std::make_unique<ReadingListUIConfig>());
   map.AddWebUIConfig(std::make_unique<SearchEngineChoiceUIConfig>());

@@ -6,6 +6,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/auto_reset.h"
 #include "base/files/file_util.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
@@ -22,6 +23,8 @@
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/service_worker_test_helpers.h"
 #include "extensions/browser/disable_reason.h"
+#include "extensions/browser/extension_pref_names.h"
+#include "extensions/browser/extension_prefs.h"
 #include "extensions/browser/extension_registrar.h"
 #include "extensions/browser/process_manager.h"
 #include "extensions/browser/service_worker/sequenced_context_id.h"
@@ -102,6 +105,21 @@ class ServiceWorkerHostInterceptorForWorkerStop
 
  private:
   const WorkerId worker_id_;
+};
+
+// Alternative implementation of ServiceWorkerHost that simulates that a start
+// notification was never sent from the renderer worker thread.
+class ServiceWorkerHostNoStartNotification : public ServiceWorkerHost {
+ public:
+  using ServiceWorkerHost::ServiceWorkerHost;
+
+  // mojom::ServiceWorkerHost:
+  void DidStartServiceWorkerContext(
+      const ExtensionId& extension_id,
+      const base::UnguessableToken& activation_token,
+      const GURL& service_worker_scope,
+      int64_t service_worker_version_id,
+      int worker_thread_id) override {}
 };
 
 class ServiceWorkerTrackingBrowserTest : public ExtensionBrowserTest {
@@ -933,6 +951,72 @@ IN_PROC_BROWSER_TEST_P(
 // Toggle `extensions_features::OptimizeServiceWorkerStartRequests`.
 INSTANTIATE_FEATURE_OVERRIDE_TEST_SUITE(
     ServiceWorkerSubScopeWorkerTrackingBrowserTestWithOptimizeServiceWorkerStart);
+
+class ServiceWorkerNotFullyRunBrowserTest : public ExtensionBrowserTest {
+ protected:
+  TestServiceWorkerTaskQueueObserver task_queue_observer_;
+};
+
+// Tests that the service worker is started if it has not fully run once.
+IN_PROC_BROWSER_TEST_F(ServiceWorkerNotFullyRunBrowserTest,
+                       PRE_WorkerStartsIfItHasntFullyRunYet) {
+  // We want to receive `DidRegisterServiceWorker` but not
+  // `RendererDidStartServiceWorkerContext`. This simulates a scenario in which
+  // the JavaScript context has been fully executed, but extension listeners may
+  // not have been fully registered.
+  auto sw_host_factory_callback = base::BindRepeating(
+      [](content::RenderProcessHost* render_process_host,
+         mojo::PendingAssociatedReceiver<mojom::ServiceWorkerHost> receiver)
+          -> std::unique_ptr<ServiceWorkerHost> {
+        return std::make_unique<ServiceWorkerHostNoStartNotification>(
+            render_process_host, std::move(receiver));
+      });
+  base::AutoReset<ServiceWorkerHost::FactoryCallback*> sw_host_factory =
+      ServiceWorkerHost::SetFactoryForTesting(&sw_host_factory_callback);
+
+  const Extension* extension = LoadExtension(
+      test_data_dir_.AppendASCII(
+          "service_worker/registration/mv3_service_worker"),
+      {.wait_for_renderers = false, .wait_for_registration_stored = true});
+  ASSERT_TRUE(extension);
+
+  // Forcibly stop the service worker.
+  service_worker_test_utils::TestServiceWorkerContextObserver
+      sw_context_observer(profile());
+  content::ServiceWorkerContext* sw_context = GetServiceWorkerContext();
+  sw_context->StopAllServiceWorkers(base::DoNothing());
+  sw_context_observer.WaitForWorkerStopped();
+
+  // Verify the pref is not set (the worker has not fully run).
+  ExtensionPrefs* prefs = ExtensionPrefs::Get(profile());
+  bool has_started = false;
+  EXPECT_FALSE(prefs->ReadPrefAsBoolean(
+      extension->id(), kPrefHasStartedServiceWorker, &has_started));
+  EXPECT_FALSE(has_started);
+}
+
+IN_PROC_BROWSER_TEST_F(ServiceWorkerNotFullyRunBrowserTest,
+                       WorkerStartsIfItHasntFullyRunYet) {
+  // Find the extension.
+  const Extension* extension = nullptr;
+  for (const auto& candidate : extension_registry()->enabled_extensions()) {
+    if (candidate->name() == "MV3 extension with service worker") {
+      extension = candidate.get();
+      break;
+    }
+  }
+  ASSERT_TRUE(extension);
+
+  // The worker should start because it hadn't fully run.
+  task_queue_observer_.WaitForWorkerStarted(extension->id());
+
+  // Verify the pref is set to true (the worker has run successfully).
+  ExtensionPrefs* prefs = ExtensionPrefs::Get(profile());
+  bool has_started = false;
+  EXPECT_TRUE(prefs->ReadPrefAsBoolean(
+      extension->id(), kPrefHasStartedServiceWorker, &has_started));
+  EXPECT_TRUE(has_started);
+}
 
 }  // namespace
 

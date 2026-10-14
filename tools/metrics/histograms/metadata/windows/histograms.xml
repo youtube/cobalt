@@ -26,6 +26,8 @@ chromium-metrics-reviews@google.com.
 
 <variants name="PinAppToTaskbarChannel">
   <variant name="" summary=""/>
+  <variant name=".DefaultBrowserBubbleDialog"
+      summary=", from the default browser bubble dialog"/>
   <variant name=".DefaultBrowserInfoBar"
       summary=", from the default browser infobar"/>
   <variant name=".FirstRunExperience"
@@ -380,7 +382,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Windows.PlatformExperienceHelper.InstallerLaunchStatus.System"
-    enum="SystemInstallerLaunchStatus" expires_after="2026-06-07">
+    enum="SystemInstallerLaunchStatus" expires_after="2026-08-09">
   <owner>alsan@chromium.org</owner>
   <owner>chrome-desktop-ui-waterloo@google.com</owner>
   <summary>
@@ -424,7 +426,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Windows.ShouldPinToTaskbarResult{PinAppToTaskbarChannel}"
-    enum="TaskbarPinResult" expires_after="2026-06-07">
+    enum="TaskbarPinResult" expires_after="2026-08-09">
   <owner>davidbienvenu@chromium.org</owner>
   <owner>jessemckenna@google.com</owner>
   <summary>
@@ -435,7 +437,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Windows.TaskbarPinFromFRESucceeded" enum="Boolean"
-    expires_after="2026-06-07">
+    expires_after="2026-08-09">
   <owner>davidbienvenu@chromium.org</owner>
   <owner>jessemckenna@google.com</owner>
   <summary>
@@ -458,7 +460,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Windows.TaskbarPinResult{PinAppToTaskbarChannel}"
-    enum="TaskbarPinResult" expires_after="2026-06-07">
+    enum="TaskbarPinResult" expires_after="2026-08-09">
   <owner>davidbienvenu@chromium.org</owner>
   <owner>jessemckenna@google.com</owner>
   <summary>

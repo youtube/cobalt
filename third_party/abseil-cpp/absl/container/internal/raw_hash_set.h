@@ -221,6 +221,10 @@
 #include "absl/numeric/bits.h"
 #include "absl/utility/utility.h"
 
+#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
+#include <ranges>  // NOLINT(build/c++20)
+#endif
+
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace container_internal {
@@ -437,24 +441,16 @@ class PerTableSeed {
   // It is big enough to ensure non-determinism of iteration order.
   // We store the seed inside a uint64_t together with size and other metadata.
   // Using 16 bits allows us to save one `and` instruction in H1 (we use
-  // sign-extended move instead of mov+and).
+  // zero-extended move instead of mov+and). When absl::Hash is inlined, it can
+  // also have lower latency knowing that the high bits of the seed are zero.
   static constexpr size_t kBitCount = 16;
-  static constexpr size_t kSignBit = uint64_t{1} << (kBitCount - 1);
 
   // Returns the seed for the table.
-  size_t seed() const {
-    // We use a sign-extended load to ensure high bits are non-zero.
-    int16_t seed_signed = absl::bit_cast<int16_t>(seed_);
-    auto seed_sign_extended =
-        static_cast<std::make_signed_t<size_t>>(seed_signed);
-    return absl::bit_cast<size_t>(seed_sign_extended);
-  }
+  size_t seed() const { return seed_; }
 
  private:
   friend class HashtableSize;
-  explicit PerTableSeed(uint16_t seed) : seed_(seed) {
-    ABSL_SWISSTABLE_ASSERT((seed & kSignBit) != 0 || seed == 0);
-  }
+  explicit PerTableSeed(uint16_t seed) : seed_(seed) {}
 
   // The most significant bit of the seed is always 1 when there is a non-zero
   // seed. This way, when sign-extended the seed has non-zero high bits.
@@ -492,10 +488,10 @@ class HashtableSize {
 
   // We need to use a constant seed when the table is sampled so that sampled
   // hashes use the same seed and can e.g. identify stuck bits accurately.
-  void set_sampled_seed() { set_seed(PerTableSeed::kSignBit); }
+  void set_sampled_seed() { set_seed((std::numeric_limits<uint16_t>::max)()); }
 
   bool is_sampled_seed() const {
-    return (data_ & kSeedMask) == PerTableSeed::kSignBit;
+    return (data_ & kSeedMask) == (std::numeric_limits<uint16_t>::max)();
   }
 
   // Returns true if the table has infoz.
@@ -512,9 +508,7 @@ class HashtableSize {
   static uint16_t NextSeed();
 
  private:
-  void set_seed(uint16_t seed) {
-    data_ = (data_ & ~kSeedMask) | (seed | PerTableSeed::kSignBit);
-  }
+  void set_seed(uint16_t seed) { data_ = (data_ & ~kSeedMask) | seed; }
   static constexpr size_t kSizeShift = 64 - kSizeBitCount;
   static constexpr uint64_t kSizeOneNoMetadata = uint64_t{1} << kSizeShift;
   static constexpr uint64_t kMetadataMask = kSizeOneNoMetadata - 1;
@@ -2148,6 +2142,28 @@ class raw_hash_set {
   raw_hash_set(InputIter first, InputIter last, size_t bucket_count,
                const allocator_type& alloc)
       : raw_hash_set(first, last, bucket_count, hasher(), key_equal(), alloc) {}
+
+#if defined(__cpp_lib_containers_ranges) && \
+    __cpp_lib_containers_ranges >= 202202L
+  template <typename R>
+  raw_hash_set(std::from_range_t, R&& rg, size_type bucket_count = 0,
+               const hasher& hash = hasher(), const key_equal& eq = key_equal(),
+               const allocator_type& alloc = allocator_type())
+      : raw_hash_set(std::begin(rg), std::end(rg), bucket_count, hash, eq,
+                     alloc) {}
+
+  template <typename R>
+  raw_hash_set(std::from_range_t, R&& rg, size_type bucket_count,
+               const allocator_type& alloc)
+      : raw_hash_set(std::from_range, std::forward<R>(rg), bucket_count,
+                     hasher(), key_equal(), alloc) {}
+
+  template <typename R>
+  raw_hash_set(std::from_range_t, R&& rg, size_type bucket_count,
+               const hasher& hash, const allocator_type& alloc)
+      : raw_hash_set(std::from_range, std::forward<R>(rg), bucket_count, hash,
+                     key_equal(), alloc) {}
+#endif
 
   template <class InputIter>
   raw_hash_set(InputIter first, InputIter last, const allocator_type& alloc)

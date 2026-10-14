@@ -30,7 +30,7 @@ class AudioChecksum : public AudioSink {
  public:
   AudioChecksum()
       : checksum_(MessageDigestFactory::Create(DIGEST_MD5)),
-        checksum_result_(0, checksum_->Size()),
+        checksum_result_(Buffer::CreateWithCapacity(checksum_->Size())),
         finished_(false) {}
 
   AudioChecksum(const AudioChecksum&) = delete;

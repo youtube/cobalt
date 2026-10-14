@@ -7,7 +7,7 @@
          "alt": "Sample SVG image",
          "type": "Figure"
       }, {
-         "type": "NonStruct",
+         "type": "Caption",
          "~children": [ {
             "type": "NonStruct"
          } ]

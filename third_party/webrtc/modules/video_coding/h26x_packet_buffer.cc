@@ -361,9 +361,9 @@ void H26xPacketBuffer::InsertSpsPpsNalus(const std::vector<uint8_t>& sps,
     return;
   }
   std::optional<SpsParser::SpsState> parsed_sps = SpsParser::ParseSps(
-      ArrayView<const uint8_t>(sps).subview(kNaluHeaderOffset));
+      ArrayView<const uint8_t>(sps).subspan(kNaluHeaderOffset));
   std::optional<PpsParser::PpsState> parsed_pps = PpsParser::ParsePps(
-      ArrayView<const uint8_t>(pps).subview(kNaluHeaderOffset));
+      ArrayView<const uint8_t>(pps).subspan(kNaluHeaderOffset));
 
   if (!parsed_sps) {
     RTC_LOG(LS_WARNING) << "Failed to parse SPS.";

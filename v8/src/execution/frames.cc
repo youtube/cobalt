@@ -653,10 +653,7 @@ StackFrameIteratorForProfiler::StackFrameIteratorForProfiler(
 
 bool StackFrameIteratorForProfiler::IsValidTop(ThreadLocalTop* top) const {
   Address c_entry_fp = Isolate::c_entry_fp(top);
-  if (!IsValidExitFrame(c_entry_fp)) return false;
-  // There should be at least one JS_ENTRY stack handler.
-  Address handler = Isolate::handler(top);
-  return handler != kNullAddress;
+  return IsValidExitFrame(c_entry_fp);
 }
 
 void StackFrameIteratorForProfiler::AdvanceOneFrame() {
@@ -1262,22 +1259,21 @@ Tagged<Object> BuiltinExitFrame::receiver() const {
 }
 
 Tagged<Object> BuiltinExitFrame::GetParameter(int i) const {
-  DCHECK(i >= 0 && i < ComputeParametersCount());
+  DCHECK(i >= 0 && static_cast<uint32_t>(i) < ComputeParametersCount());
   int offset =
       BuiltinExitFrameConstants::kFirstArgumentOffset + i * kSystemPointerSize;
   return Tagged<Object>(Memory<Address>(fp() + offset));
 }
 
-int BuiltinExitFrame::ComputeParametersCount() const {
+uint32_t BuiltinExitFrame::ComputeParametersCount() const {
   Tagged<Object> argc_slot = argc_slot_object();
   DCHECK(IsSmi(argc_slot));
   // Argc also counts the receiver and extra arguments for BuiltinExitFrame
   // (target, new target and argc itself), therefore the real argument count
   // has to be adjusted.
-  int argc = Smi::ToInt(argc_slot) -
-             BuiltinExitFrameConstants::kNumExtraArgsWithReceiver;
-  DCHECK_GE(argc, 0);
-  return argc;
+  uint32_t argc = Smi::ToUInt(argc_slot);
+  DCHECK_GE(argc, BuiltinExitFrameConstants::kNumExtraArgsWithReceiver);
+  return argc - BuiltinExitFrameConstants::kNumExtraArgsWithReceiver;
 }
 
 DirectHandle<FixedArray> BuiltinExitFrame::GetParameters(
@@ -1285,9 +1281,9 @@ DirectHandle<FixedArray> BuiltinExitFrame::GetParameters(
   if (never_allocate || V8_LIKELY(!v8_flags.detailed_error_stack_trace)) {
     return isolate()->factory()->empty_fixed_array();
   }
-  int param_count = ComputeParametersCount();
+  uint32_t param_count = ComputeParametersCount();
   auto parameters = isolate()->factory()->NewFixedArray(param_count);
-  for (int i = 0; i < param_count; i++) {
+  for (uint32_t i = 0; i < param_count; i++) {
     parameters->set(i, GetParameter(i));
   }
   return parameters;
@@ -1377,9 +1373,9 @@ DirectHandle<FixedArray> ApiCallbackExitFrame::GetParameters(
   if (never_allocate || V8_LIKELY(!v8_flags.detailed_error_stack_trace)) {
     return isolate()->factory()->empty_fixed_array();
   }
-  int param_count = ComputeParametersCount();
+  uint32_t param_count = ComputeParametersCount();
   auto parameters = isolate()->factory()->NewFixedArray(param_count);
-  for (int i = 0; i < param_count; i++) {
+  for (uint32_t i = 0; i < param_count; i++) {
     parameters->set(i, GetParameter(i));
   }
   return parameters;
@@ -1495,8 +1491,8 @@ void BuiltinExitFrame::Print(StringStream* accumulator, PrintMode mode,
   accumulator->Add("(this=%o", receiver);
 
   // Print the parameters.
-  int parameters_count = ComputeParametersCount();
-  for (int i = 0; i < parameters_count; i++) {
+  uint32_t parameters_count = ComputeParametersCount();
+  for (uint32_t i = 0; i < parameters_count; i++) {
     accumulator->Add(",%o", GetParameter(i));
   }
 
@@ -1519,8 +1515,8 @@ void ApiCallbackExitFrame::PrintApiFrame(StringStream* accumulator,
   accumulator->Add("(this=%o", receiver);
 
   // Print the parameters.
-  int parameters_count = ComputeParametersCount();
-  for (int i = 0; i < parameters_count; i++) {
+  uint32_t parameters_count = ComputeParametersCount();
+  for (uint32_t i = 0; i < parameters_count; i++) {
     accumulator->Add(",%o", GetParameter(i));
   }
 
@@ -1712,29 +1708,36 @@ void VisitSpillSlots(Isolate* isolate, RootVisitor* v,
   }
 }
 
-SafepointEntry GetSafepointEntryFromCodeCache(
+SafepointEntry& GetSafepointEntryFromCodeCache(
     Isolate* isolate, Address inner_pointer,
-    InnerPointerToCodeCache::InnerPointerToCodeCacheEntry* entry) {
-  if (!entry->safepoint_entry.is_initialized()) {
-    entry->safepoint_entry =
-        SafepointTable::FindEntry(isolate, entry->code.value(), inner_pointer);
+    InnerPointerToCodeCache::Entry* entry) {
+  if (!entry->safepoint_is_initialized()) {
+    SafepointTable table(isolate, inner_pointer, entry->code.value());
+    entry->ToSafepoint();
+    entry->safepoint_entry.CopyFrom(table.FindEntry(inner_pointer));
     DCHECK(entry->safepoint_entry.is_initialized());
   } else {
-    DCHECK_EQ(
-        entry->safepoint_entry,
-        SafepointTable::FindEntry(isolate, entry->code.value(), inner_pointer));
+#if DEBUG
+    DCHECK_EQ(entry->safepoint_kind,
+              InnerPointerToCodeCache::Entry::kSafepoint);
+    SafepointTable table(isolate, inner_pointer, entry->code.value());
+    DCHECK_EQ(entry->safepoint_entry, table.FindEntry(inner_pointer));
+#endif  // DEBUG
   }
   return entry->safepoint_entry;
 }
 
-MaglevSafepointEntry GetMaglevSafepointEntryFromCodeCache(
+MaglevSafepointEntry& GetMaglevSafepointEntryFromCodeCache(
     Isolate* isolate, Address inner_pointer,
-    InnerPointerToCodeCache::InnerPointerToCodeCacheEntry* entry) {
-  if (!entry->maglev_safepoint_entry.is_initialized()) {
+    InnerPointerToCodeCache::Entry* entry) {
+  if (!entry->safepoint_is_initialized()) {
+    entry->ToMaglevSafepoint();
     entry->maglev_safepoint_entry = MaglevSafepointTable::FindEntry(
         isolate, entry->code.value(), inner_pointer);
     DCHECK(entry->maglev_safepoint_entry.is_initialized());
   } else {
+    DCHECK_EQ(entry->safepoint_kind,
+              InnerPointerToCodeCache::Entry::kMaglevSafepoint);
     DCHECK_EQ(entry->maglev_safepoint_entry,
               MaglevSafepointTable::FindEntry(isolate, entry->code.value(),
                                               inner_pointer));
@@ -1822,7 +1825,7 @@ void WasmFrame::Iterate(RootVisitor* v) const {
   auto pair = wasm::GetWasmCodeManager()->LookupCodeAndSafepoint(
       isolate(), maybe_unauthenticated_pc());
   wasm::WasmCode* wasm_code = pair.first;
-  SafepointEntry safepoint_entry = pair.second;
+  SafepointEntry& safepoint_entry = pair.second;
 #else   // !V8_ENABLE_DRUMBRAKE
   std::unique_ptr<DrumBrakeWasmCode> interpreter_wasm_code;
   SafepointEntry safepoint_entry;
@@ -1835,7 +1838,7 @@ void WasmFrame::Iterate(RootVisitor* v) const {
     auto pair =
         wasm::GetWasmCodeManager()->LookupCodeAndSafepoint(isolate(), pc());
     wasm::WasmCode* wasm_code = pair.first;
-    safepoint_entry = pair.second;
+    safepoint_entry.CopyFrom(pair.second);
     DCHECK(wasm_code);
     interpreter_wasm_code = DrumBrakeWasmCode::Compiled(wasm_code);
   }
@@ -2083,7 +2086,7 @@ void TypedFrame::Iterate(RootVisitor* v) const {
 
   // Find the code and compute the safepoint information.
   Address inner_pointer = pc();
-  InnerPointerToCodeCache::InnerPointerToCodeCacheEntry* entry =
+  InnerPointerToCodeCache::Entry* entry =
       isolate()->inner_pointer_to_code_cache()->GetCacheEntry(inner_pointer);
   CHECK(entry->code.has_value());
   Tagged<GcSafeCode> code = entry->code.value();
@@ -2097,7 +2100,7 @@ void TypedFrame::Iterate(RootVisitor* v) const {
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   DCHECK(code->is_turbofanned());
-  SafepointEntry safepoint_entry =
+  SafepointEntry& safepoint_entry =
       GetSafepointEntryFromCodeCache(isolate(), inner_pointer, entry);
 
 #ifdef DEBUG
@@ -2224,7 +2227,7 @@ void MaglevFrame::Iterate(RootVisitor* v) const {
 
   // Find the code and compute the safepoint information.
   Address inner_pointer = pc();
-  InnerPointerToCodeCache::InnerPointerToCodeCacheEntry* entry =
+  InnerPointerToCodeCache::Entry* entry =
       isolate()->inner_pointer_to_code_cache()->GetCacheEntry(inner_pointer);
   CHECK(entry->code.has_value());
   Tagged<GcSafeCode> code = entry->code.value();
@@ -2384,12 +2387,12 @@ void CommonFrame::IterateTurbofanJSOptimizedFrame(RootVisitor* v) const {
 
   // Find the code and compute the safepoint information.
   const Address inner_pointer = maybe_unauthenticated_pc();
-  InnerPointerToCodeCache::InnerPointerToCodeCacheEntry* entry =
+  InnerPointerToCodeCache::Entry* entry =
       isolate()->inner_pointer_to_code_cache()->GetCacheEntry(inner_pointer);
   CHECK(entry->code.has_value());
   Tagged<GcSafeCode> code = entry->code.value();
   DCHECK(code->is_turbofanned());
-  SafepointEntry safepoint_entry =
+  SafepointEntry& safepoint_entry =
       GetSafepointEntryFromCodeCache(isolate(), inner_pointer, entry);
 
 #ifdef DEBUG
@@ -2506,11 +2509,12 @@ Tagged<HeapObject> CommonFrameWithJSLinkage::unchecked_code() const {
   return function()->code(isolate());
 }
 
-int TurbofanJSFrame::ComputeParametersCount() const {
+uint32_t TurbofanJSFrame::ComputeParametersCount() const {
   if (GcSafeLookupCode()->kind() == CodeKind::BUILTIN) {
-    return static_cast<int>(
-               Memory<intptr_t>(fp() + StandardFrameConstants::kArgCOffset)) -
-           kJSArgcReceiverSlots;
+    uint32_t argc = static_cast<uint32_t>(
+        Memory<intptr_t>(fp() + StandardFrameConstants::kArgCOffset));
+    DCHECK_GE(argc, kJSArgcReceiverSlots);
+    return argc - kJSArgcReceiverSlots;
   } else {
     return JavaScriptFrame::ComputeParametersCount();
   }
@@ -2676,8 +2680,8 @@ void JavaScriptFrame::PrintTop(Isolate* isolate, FILE* file, bool print_args,
         // supplied parameters, not all parameters required)
         PrintF(file, "(this=");
         ShortPrint(frame->receiver(), file);
-        const int length = frame->ComputeParametersCount();
-        for (int i = 0; i < length; i++) {
+        const uint32_t length = frame->ComputeParametersCount();
+        for (uint32_t i = 0; i < length; i++) {
           PrintF(file, ", ");
           ShortPrint(frame->GetParameter(i), file);
         }
@@ -2717,11 +2721,11 @@ Tagged<Object> CommonFrameWithJSLinkage::GetParameter(int index) const {
   return Tagged<Object>(Memory<Address>(GetParameterSlot(index)));
 }
 
-int CommonFrameWithJSLinkage::ComputeParametersCount() const {
+uint32_t CommonFrameWithJSLinkage::ComputeParametersCount() const {
   DCHECK(!iterator_->IsStackFrameIteratorForProfiler() &&
          isolate()->heap()->gc_state() == Heap::NOT_IN_GC);
   // Use the (trusted) parameter count from the Bytecode or Code object.
-  int parameter_count;
+  uint32_t parameter_count;
   if (is_interpreted()) {
     const InterpretedFrame* iframe = InterpretedFrame::cast(this);
     parameter_count =
@@ -2737,10 +2741,11 @@ int CommonFrameWithJSLinkage::ComputeParametersCount() const {
   return parameter_count;
 }
 
-int JavaScriptFrame::GetActualArgumentCount() const {
-  return static_cast<int>(
-             Memory<intptr_t>(fp() + StandardFrameConstants::kArgCOffset)) -
-         kJSArgcReceiverSlots;
+uint32_t JavaScriptFrame::GetActualArgumentCount() const {
+  uint32_t argc = static_cast<uint32_t>(
+      Memory<intptr_t>(fp() + StandardFrameConstants::kArgCOffset));
+  DCHECK_GE(argc, kJSArgcReceiverSlots);
+  return argc - kJSArgcReceiverSlots;
 }
 
 DirectHandle<FixedArray> CommonFrameWithJSLinkage::GetParameters(
@@ -2748,10 +2753,10 @@ DirectHandle<FixedArray> CommonFrameWithJSLinkage::GetParameters(
   if (never_allocate || V8_LIKELY(!v8_flags.detailed_error_stack_trace)) {
     return isolate()->factory()->empty_fixed_array();
   }
-  int param_count = ComputeParametersCount();
+  uint32_t param_count = ComputeParametersCount();
   DirectHandle<FixedArray> parameters =
       isolate()->factory()->NewFixedArray(param_count);
-  for (int i = 0; i < param_count; i++) {
+  for (uint32_t i = 0; i < param_count; i++) {
     parameters->set(i, GetParameter(i));
   }
 
@@ -2763,14 +2768,16 @@ Tagged<JSFunction> JavaScriptBuiltinContinuationFrame::function() const {
   return Cast<JSFunction>(Tagged<Object>(base::Memory<Address>(fp() + offset)));
 }
 
-int JavaScriptBuiltinContinuationFrame::ComputeParametersCount() const {
+uint32_t JavaScriptBuiltinContinuationFrame::ComputeParametersCount() const {
   // Assert that the first allocatable register is also the argument count
   // register.
   DCHECK_EQ(RegisterConfiguration::Default()->GetAllocatableGeneralCode(0),
             kJavaScriptCallArgCountRegister.code());
   Tagged<Object> argc_object(
       Memory<Address>(fp() + BuiltinContinuationFrameConstants::kArgCOffset));
-  return Smi::ToInt(argc_object) - kJSArgcReceiverSlots;
+  uint32_t argc = Smi::ToUInt(argc_object);
+  DCHECK_GE(argc, kJSArgcReceiverSlots);
+  return argc - kJSArgcReceiverSlots;
 }
 
 intptr_t JavaScriptBuiltinContinuationFrame::GetSPToFPDelta() const {
@@ -2787,10 +2794,10 @@ Tagged<Object> JavaScriptBuiltinContinuationFrame::context() const {
 
 void JavaScriptBuiltinContinuationWithCatchFrame::SetException(
     Tagged<Object> exception) {
-  int argc = ComputeParametersCount();
+  uint32_t argc = ComputeParametersCount();
   Address exception_argument_slot =
       fp() + BuiltinContinuationFrameConstants::kFixedFrameSizeAboveFp +
-      (argc - 1) * kSystemPointerSize;
+      (static_cast<int64_t>(argc) - 1) * kSystemPointerSize;
 
   // Only allow setting exception if previous value was the hole.
   CHECK_EQ(ReadOnlyRoots(isolate()).the_hole_value(),
@@ -3308,7 +3315,7 @@ int TurbofanJSFrame::FindReturnPCForTrampoline(Tagged<Code> code,
   DCHECK_EQ(code->kind(), CodeKind::TURBOFAN_JS);
   DCHECK(code->marked_for_deoptimization());
   SafepointTable safepoints(isolate(), pc(), code);
-  return safepoints.find_return_pc(trampoline_pc);
+  return safepoints.FindReturnPC(trampoline_pc);
 }
 
 Tagged<DeoptimizationData> OptimizedJSFrame::GetDeoptimizationData(
@@ -3321,14 +3328,15 @@ Tagged<DeoptimizationData> OptimizedJSFrame::GetDeoptimizationData(
   DCHECK(CodeKindCanDeoptimize(code->kind()));
 
   if (code->is_maglevved()) {
-    MaglevSafepointEntry safepoint_entry =
-        code->GetMaglevSafepointEntry(isolate(), pc);
+    MaglevSafepointTable table(isolate(), pc, code);
+    MaglevSafepointEntry safepoint_entry = table.FindEntry(pc);
     if (safepoint_entry.has_deoptimization_index()) {
       *deopt_index = safepoint_entry.deoptimization_index();
       return code->deoptimization_data();
     }
   } else {
-    SafepointEntry safepoint_entry = code->GetSafepointEntry(isolate(), pc);
+    SafepointTable table(isolate(), pc, code);
+    SafepointEntry& safepoint_entry = table.FindEntry_NoStackSlots(pc);
     if (safepoint_entry.has_deoptimization_index()) {
       *deopt_index = safepoint_entry.deoptimization_index();
       return code->deoptimization_data();
@@ -3477,10 +3485,12 @@ Tagged<JSFunction> BuiltinFrame::function() const {
   return Cast<JSFunction>(Tagged<Object>(base::Memory<Address>(fp() + offset)));
 }
 
-int BuiltinFrame::ComputeParametersCount() const {
+uint32_t BuiltinFrame::ComputeParametersCount() const {
   const int offset = BuiltinFrameConstants::kLengthOffset;
-  return Smi::ToInt(Tagged<Object>(base::Memory<Address>(fp() + offset))) -
-         kJSArgcReceiverSlots;
+  uint32_t argc =
+      Smi::ToUInt(Tagged<Object>(base::Memory<Address>(fp() + offset)));
+  DCHECK_GE(argc, kJSArgcReceiverSlots);
+  return argc - kJSArgcReceiverSlots;
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -3666,7 +3676,7 @@ void WasmDebugBreakFrame::Iterate(RootVisitor* v) const {
   DCHECK(caller_pc());
   auto pair = wasm::GetWasmCodeManager()->LookupCodeAndSafepoint(isolate(),
                                                                  caller_pc());
-  SafepointEntry safepoint_entry = pair.second;
+  SafepointEntry& safepoint_entry = pair.second;
   uint32_t tagged_register_indexes = safepoint_entry.tagged_register_indexes();
 
   while (tagged_register_indexes != 0) {
@@ -4128,8 +4138,8 @@ void JavaScriptFrame::Print(StringStream* accumulator, PrintMode mode,
   accumulator->Add("(this=%o", receiver);
 
   // Print the parameters.
-  int parameters_count = ComputeParametersCount();
-  for (int i = 0; i < parameters_count; i++) {
+  uint32_t parameters_count = ComputeParametersCount();
+  for (uint32_t i = 0; i < parameters_count; i++) {
     accumulator->Add(",");
     accumulator->Add("%o", GetParameter(i));
   }
@@ -4252,13 +4262,13 @@ uint32_t PcAddressForHashing(Isolate* isolate, Address address) {
 
 }  // namespace
 
-InnerPointerToCodeCache::InnerPointerToCodeCacheEntry*
-InnerPointerToCodeCache::GetCacheEntry(Address inner_pointer) {
+InnerPointerToCodeCache::Entry* InnerPointerToCodeCache::GetCacheEntry(
+    Address inner_pointer) {
   DCHECK(base::bits::IsPowerOfTwo(kInnerPointerToCodeCacheSize));
   uint32_t hash =
       ComputeUnseededHash(PcAddressForHashing(isolate_, inner_pointer));
   uint32_t index = hash & (kInnerPointerToCodeCacheSize - 1);
-  InnerPointerToCodeCacheEntry* entry = cache(index);
+  Entry* entry = cache(index);
   if (entry->inner_pointer == inner_pointer) {
     // Why this DCHECK holds is nontrivial:
     //
@@ -4279,11 +4289,7 @@ InnerPointerToCodeCache::GetCacheEntry(Address inner_pointer) {
     // the code has been computed.
     entry->code =
         isolate_->heap()->GcSafeFindCodeForInnerPointer(inner_pointer);
-    if (entry->code.value()->is_maglevved()) {
-      entry->maglev_safepoint_entry.Reset();
-    } else {
-      entry->safepoint_entry.Reset();
-    }
+    entry->ResetSafepoint();
     entry->inner_pointer = inner_pointer;
   }
   return entry;

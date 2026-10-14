@@ -71,8 +71,7 @@ class SubscribeVisitor {
 using FetchResponseCallback =
     quiche::SingleUseCallback<void(std::unique_ptr<MoqtFetchTask> fetch_task)>;
 
-// TODO(martinduke): MoqtOutgoingPublishNamespaceCallback and
-// MoqtOutgoingSubscribeNamespaceCallback are deprecated. Remove.
+// TODO(martinduke): MoqtOutgoingPublishNamespaceCallback is deprecated. Remove.
 
 // If |error| is nullopt, this is triggered by a PUBLISH_NAMESPACE_OK.
 // Otherwise, it is triggered by REQUEST_ERROR or PUBLISH_NAMESPACE_CANCEL. For
@@ -83,9 +82,6 @@ using FetchResponseCallback =
 using MoqtOutgoingPublishNamespaceCallback =
     quiche::MultiUseCallback<void(const TrackNamespace& track_namespace,
                                   std::optional<MoqtRequestErrorInfo> error)>;
-
-using MoqtOutgoingSubscribeNamespaceCallback = quiche::SingleUseCallback<void(
-    TrackNamespace track_namespace, std::optional<MoqtRequestErrorInfo> info)>;
 
 class MoqtSessionInterface {
  public:
@@ -102,13 +98,11 @@ class MoqtSessionInterface {
   // Return true if SUBSCRIBE was actually sent.
   virtual bool Subscribe(const FullTrackName& name, SubscribeVisitor* visitor,
                          const MessageParameters& parameters) = 0;
-  // If an argument is nullopt, there is no change to the current value.
+  // If a parameter is nullopt, there is no change to the current value.
+  // Returns false if the subscription is not found.
   virtual bool SubscribeUpdate(const FullTrackName& name,
-                               std::optional<Location> start,
-                               std::optional<uint64_t> end_group,
-                               std::optional<MoqtPriority> subscriber_priority,
-                               std::optional<bool> forward,
-                               VersionSpecificParameters parameters) = 0;
+                               const MessageParameters& parameters,
+                               MoqtResponseCallback response_callback) = 0;
 
   // Sends an UNSUBSCRIBE message and removes all of the state related to the
   // subscription.  Returns false if the subscription is not found.
@@ -154,13 +148,21 @@ class MoqtSessionInterface {
   // cancel.
   virtual bool PublishNamespaceDone(TrackNamespace track_namespace) = 0;
 
+  // Sends a SUBSCRIBE_NAMESPACE message for |prefix| and returns a
+  // MoqtNamespaceTask that can be used to process the response.
+  // Returns nullptr if the message cannot be sent.
+  // To unsubscribe, simply destroy the returned MoqtNamespaceTask.
+  virtual std::unique_ptr<MoqtNamespaceTask> SubscribeNamespace(
+      TrackNamespace& prefix, SubscribeNamespaceOption option,
+      const MessageParameters& parameters,
+      MoqtResponseCallback response_callback) = 0;
+
   // TODO(martinduke): Add an API for absolute joining fetch.
 
   // TODO: Add SubscribeNamespace, UnsubscribeNamespace method.
   // TODO: Add PublishNamespaceCancel method.
   // TODO: Add TrackStatusRequest method.
-  // TODO: Add SubscribeUpdate, PublishDone method.
-
+  // TODO: Add RequestUpdate, PublishDone method.
   virtual quiche::QuicheWeakPtr<MoqtSessionInterface> GetWeakPtr() = 0;
 };
 

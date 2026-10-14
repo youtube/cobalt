@@ -71,6 +71,7 @@
 #include "src/trace_processor/importers/perf/spe_record_parser.h"
 #include "src/trace_processor/importers/perf_text/perf_text_trace_tokenizer.h"
 #include "src/trace_processor/importers/pprof/pprof_trace_reader.h"
+#include "src/trace_processor/importers/primes/primes_trace_tokenizer.h"
 #include "src/trace_processor/importers/proto/additional_modules.h"
 #include "src/trace_processor/importers/proto/deobfuscation_tracker.h"
 #include "src/trace_processor/importers/proto/heap_graph_tracker.h"
@@ -100,6 +101,7 @@
 #include "src/trace_processor/perfetto_sql/intrinsics/functions/math.h"
 #include "src/trace_processor/perfetto_sql/intrinsics/functions/metadata.h"
 #include "src/trace_processor/perfetto_sql/intrinsics/functions/package_lookup.h"
+#include "src/trace_processor/perfetto_sql/intrinsics/functions/perf_counter.h"
 #include "src/trace_processor/perfetto_sql/intrinsics/functions/pprof_functions.h"
 #include "src/trace_processor/perfetto_sql/intrinsics/functions/replace_numbers_function.h"
 #include "src/trace_processor/perfetto_sql/intrinsics/functions/sqlite3_str_split.h"
@@ -557,6 +559,8 @@ TraceProcessorImpl::TraceProcessorImpl(const Config& cfg)
           kSimpleperfProtoTraceType);
   context()->reader_registry->RegisterTraceReader<TarTraceReader>(
       kTarTraceType);
+  context()->reader_registry->RegisterTraceReader<primes::PrimesTraceTokenizer>(
+      kPrimesTraceType);
 
   // Force initialization of heap graph tracker.
   //
@@ -1131,6 +1135,7 @@ std::vector<PerfettoSqlEngine::StaticTable> TraceProcessorImpl::GetStaticTables(
   AddStaticTable(tables, storage->mutable_heap_graph_class_table());
   AddStaticTable(tables, storage->mutable_heap_profile_allocation_table());
   AddStaticTable(tables, storage->mutable_perf_sample_table());
+  AddStaticTable(tables, storage->mutable_perf_counter_set_table());
   AddStaticTable(tables, storage->mutable_stack_profile_mapping_table());
   AddStaticTable(tables, storage->mutable_vulkan_memory_allocations_table());
   AddStaticTable(tables, storage->mutable_chrome_raw_table());
@@ -1243,6 +1248,9 @@ std::unique_ptr<PerfettoSqlEngine> TraceProcessorImpl::InitPerfettoSqlEngine(
                              std::make_unique<ToFtrace::UserData>(context));
   RegisterFunction<PackageLookup>(
       engine.get(), std::make_unique<PackageLookup::Context>(storage));
+  RegisterFunction<PerfCounterForSampleFunction>(
+      engine.get(),
+      std::make_unique<PerfCounterForSampleFunction::Context>(storage));
 
   if constexpr (regex::IsRegexSupported()) {
     RegisterFunction<Regexp>(engine.get());

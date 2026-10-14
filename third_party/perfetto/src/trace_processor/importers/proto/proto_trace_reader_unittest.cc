@@ -63,7 +63,12 @@ class ProtoTraceReaderTest : public ::testing::Test {
         std::make_unique<GlobalArgsTracker>(host_context_.storage.get());
     host_context_.import_logs_tracker =
         std::make_unique<ImportLogsTracker>(&host_context_, TraceId(1));
+    host_context_.trace_time_state =
+        std::make_unique<TraceTimeState>(TraceTimeState{
+            ClockTracker::ClockId(protos::pbzero::BUILTIN_CLOCK_BOOTTIME),
+            false});
     host_context_.clock_tracker = std::make_unique<ClockTracker>(
+        &host_context_,
         std::make_unique<ClockSynchronizerListenerImpl>(&host_context_));
     host_context_.sorter = std::make_unique<TraceSorter>(
         &host_context_, TraceSorter::SortingMode::kDefault);
@@ -187,13 +192,13 @@ TEST_F(ProtoTraceReaderTest, CalculateClockOffset) {
   // Estimated offsets: (10000 + 20000)/2 - 120000 = -105000,
   //                    20000 - (120000 + 140000) / 2 = -110000.
   // Average = -107500.
-  ASSERT_EQ(-107500, clock_offsets[BOOTTIME]);
+  ASSERT_EQ(-107500, clock_offsets[ClockTracker::ClockId(BOOTTIME)]);
   // Client 25000      35000
   // Host     135000     150000
   // Estimated offsets: (25000 + 35000)/2 - 135000 = -105000,
   //                    35000 - (135000 + 150000) / 2 = -107500.
   // Average = -106250.
-  ASSERT_EQ(-106250, clock_offsets[REALTIME]);
+  ASSERT_EQ(-106250, clock_offsets[ClockTracker::ClockId(REALTIME)]);
 }
 
 TEST_F(ProtoTraceReaderTest, CalculateClockOffset_AboveThreshold) {
@@ -238,7 +243,7 @@ TEST_F(ProtoTraceReaderTest, CalculateClockOffset_MultiRounds) {
       CalculateClockOffsetsForTesting(sync_clock_snapshots);
   ASSERT_EQ(1u, clock_offsets.size());
   // Average(-105000, -110000, -122500, -120000) = -114375.
-  ASSERT_EQ(-114375, clock_offsets[BOOTTIME]);
+  ASSERT_EQ(-114375, clock_offsets[ClockTracker::ClockId(BOOTTIME)]);
 }
 
 }  // namespace

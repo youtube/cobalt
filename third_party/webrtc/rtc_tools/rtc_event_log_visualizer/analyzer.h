@@ -11,13 +11,11 @@
 #ifndef RTC_TOOLS_RTC_EVENT_LOG_VISUALIZER_ANALYZER_H_
 #define RTC_TOOLS_RTC_EVENT_LOG_VISUALIZER_ANALYZER_H_
 
-#include <cstdint>
 #include <cstdio>
 #include <functional>
 #include <string>
 #include <vector>
 
-#include "api/environment/environment.h"
 #include "api/function_view.h"
 #include "logging/rtc_event_log/rtc_event_log_parser.h"
 #include "modules/rtp_rtcp/source/rtcp_packet/report_block.h"
@@ -62,9 +60,7 @@ class EventLogAnalyzer {
   // duration of its lifetime. The ParsedRtcEventLogNew must not be destroyed or
   // modified while the EventLogAnalyzer is being used.
   EventLogAnalyzer(const ParsedRtcEventLog& log, bool normalize_time);
-  EventLogAnalyzer(const Environment& env,
-                   const ParsedRtcEventLog& log,
-                   const AnalyzerConfig& config);
+  EventLogAnalyzer(const ParsedRtcEventLog& log, const AnalyzerConfig& config);
 
   void CreateGraphsByName(const std::vector<std::string>& names,
                           PlotCollection* collection) const;
@@ -149,18 +145,7 @@ class EventLogAnalyzer {
   void PrintNotifications(FILE* file) const;
 
  private:
-  template <typename IterableType>
-  void CreateAccumulatedPacketsTimeSeries(Plot* plot,
-                                          const IterableType& packets,
-                                          const std::string& label) const;
-  void CreateEcnFeedbackGraph(Plot* plot, PacketDirection direction) const;
-
-  const Environment env_;
   const ParsedRtcEventLog& parsed_log_;
-
-  // A list of SSRCs we are interested in analysing.
-  // If left empty, all SSRCs will be considered relevant.
-  std::vector<uint32_t> desired_ssrc_;
 
   AnalyzerConfig config_;
 

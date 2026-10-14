@@ -98,13 +98,6 @@ DawnCaps::DawnCaps(const DawnBackendContext& backendContext, const ContextOption
 
 DawnCaps::~DawnCaps() = default;
 
-bool DawnCaps::isTexturableIgnoreSampleCount(const TextureInfo& info) const {
-    auto overrideDawnInfo = TextureInfoPriv::Get<DawnTextureInfo>(info);
-    overrideDawnInfo.fSampleCount = SampleCount::k1;
-    TextureInfo overrideInfo = TextureInfos::MakeDawn(overrideDawnInfo);
-    return this->isTexturable(overrideInfo);
-}
-
 bool DawnCaps::onIsTexturable(const TextureInfo& info) const {
     if (!info.isValid()) {
         return false;
@@ -369,12 +362,12 @@ SkSpan<const Caps::ColorTypeInfo> DawnCaps::getColorTypeInfos(
     return {formatInfo.fColorTypeInfos.get(), formatInfo.fColorTypeInfoCount};
 }
 
-bool DawnCaps::supportsWritePixels(const TextureInfo& textureInfo) const {
+bool DawnCaps::isCopyableDst(const TextureInfo& textureInfo) const {
     const auto& dawnInfo = TextureInfoPriv::Get<DawnTextureInfo>(textureInfo);
     return dawnInfo.fUsage & wgpu::TextureUsage::CopyDst;
 }
 
-bool DawnCaps::supportsReadPixels(const TextureInfo& textureInfo) const {
+bool DawnCaps::isCopyableSrc(const TextureInfo& textureInfo) const {
     const auto& dawnInfo = TextureInfoPriv::Get<DawnTextureInfo>(textureInfo);
     return dawnInfo.fUsage & wgpu::TextureUsage::CopySrc;
 }
@@ -426,11 +419,15 @@ void DawnCaps::initCaps(const DawnBackendContext& backendContext, const ContextO
     }
 #endif
 
+    fSupportsHalfPrecision = backendContext.fDevice.HasFeature(wgpu::FeatureName::ShaderF16);
     fResourceBindingReqs.fBackendApi = BackendApi::kDawn;
-    fResourceBindingReqs.fUniformBufferLayout = Layout::kStd140;
     // The WGSL generator assumes tightly packed std430 layout for SSBOs which is also the default
-    // for all types outside the uniform address space in WGSL.
-    fResourceBindingReqs.fStorageBufferLayout = Layout::kStd430;
+    // for all types outside the uniform address space in WGSL (which is emulated to 140 by SkSL's
+    // WGSL generation). If ShaderF16 is supported, we switch the layout to upload half data.
+    fResourceBindingReqs.fUniformBufferLayout = fSupportsHalfPrecision ? Layout::kStd140_F16
+                                                                       : Layout::kStd140;
+    fResourceBindingReqs.fStorageBufferLayout = fSupportsHalfPrecision ? Layout::kStd430_F16
+                                                                       : Layout::kStd430;
     fResourceBindingReqs.fSeparateTextureAndSamplerBinding = true;
 
 #if !defined(__EMSCRIPTEN__)

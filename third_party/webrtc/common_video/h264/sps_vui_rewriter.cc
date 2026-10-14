@@ -228,15 +228,15 @@ Buffer SpsVuiRewriter::ParseOutgoingBitstreamAndRewrite(
   std::vector<H264::NaluIndex> nalus = H264::FindNaluIndices(buffer);
 
   // Allocate some extra space for potentially adding a missing VUI.
-  Buffer output_buffer(/*size=*/0, /*capacity=*/buffer.size() +
-                                       nalus.size() * kMaxVuiSpsIncrease);
+  Buffer output_buffer = Buffer::CreateWithCapacity(
+      buffer.size() + nalus.size() * kMaxVuiSpsIncrease);
 
   for (const H264::NaluIndex& nalu_index : nalus) {
     // Copy NAL unit start code.
-    ArrayView<const uint8_t> start_code = buffer.subview(
+    ArrayView<const uint8_t> start_code = buffer.subspan(
         nalu_index.start_offset,
         nalu_index.payload_start_offset - nalu_index.start_offset);
-    ArrayView<const uint8_t> nalu = buffer.subview(
+    ArrayView<const uint8_t> nalu = buffer.subspan(
         nalu_index.payload_start_offset, nalu_index.payload_size);
     if (nalu.empty()) {
       continue;
@@ -261,7 +261,7 @@ Buffer SpsVuiRewriter::ParseOutgoingBitstreamAndRewrite(
       output_nalu.AppendData(nalu[0]);
 
       ParseResult result =
-          ParseAndRewriteSps(nalu.subview(H264::kNaluTypeSize), &sps,
+          ParseAndRewriteSps(nalu.subspan(H264::kNaluTypeSize), &sps,
                              color_space, &output_nalu, Direction::kOutgoing);
       if (result == ParseResult::kVuiRewritten) {
         output_buffer.AppendData(start_code);

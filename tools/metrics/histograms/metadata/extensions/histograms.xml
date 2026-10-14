@@ -356,7 +356,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 </histogram>
 
 <histogram name="Extensions.AppLaunch" enum="AppLaunch"
-    expires_after="2026-06-07">
+    expires_after="2026-08-09">
   <owner>benwells@chromium.org</owner>
   <owner>dominickn@chromium.org</owner>
   <owner>tapted@chromium.org</owner>
@@ -1152,7 +1152,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 
 <histogram
     name="Extensions.DeclarativeNetRequest.EvaluateRequestTime.AllExtensions3"
-    units="microseconds" expires_after="2026-06-07">
+    units="microseconds" expires_after="2026-08-09">
   <owner>kelvinjiang@chromium.org</owner>
   <owner>src/extensions/OWNERS</owner>
   <summary>
@@ -2851,7 +2851,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 </histogram>
 
 <histogram name="Extensions.Functions.SucceededTotalExecutionTime" units="ms"
-    expires_after="2026-06-07">
+    expires_after="2026-08-09">
   <owner>rdevlin.cronin@chromium.org</owner>
   <owner>extensions-core@chromium.org</owner>
   <summary>
@@ -3661,7 +3661,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 
 <histogram
     name="Extensions.MessagePipeline.OpenChannelDispatchOnConnectStatus{DispatchTarget}{ChannelType}"
-    enum="OpenChannelMessagePipelineResult" expires_after="2026-02-09">
+    enum="OpenChannelMessagePipelineResult" expires_after="2026-07-12">
   <owner>andreaorru@chromium.org</owner>
   <owner>jlulejian@chromium.org</owner>
   <owner>extensions-core@chromium.org</owner>
@@ -3675,6 +3675,12 @@ This is emitted for two scenarios when a worker may be unregistered:
     and worker in the extension when a channel is opened to an extension.
 
     It is permuted by channel type (message type). {ChannelType}.
+
+    Note: a new enum value was added in February 2026, which could affect query
+    results across that date.
+
+    Note: This histogram was expired during February 2026 so some data might be
+    missing.
   </summary>
   <token key="DispatchTarget">
     <variant name=".ForFrame" summary="frame"/>
@@ -3699,6 +3705,9 @@ This is emitted for two scenarios when a worker may be unregistered:
     {WorkerStatus}.
 
     It is permuted by channel type (message type). {ChannelType}
+
+    Note: a new enum value was added in February 2026, which could affect query
+    results across that date.
   </summary>
   <token key="WorkerStatus">
     <variant name=""
@@ -3717,7 +3726,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 
 <histogram
     name="Extensions.MessagePipeline.OpenChannelWorkerDispatchStatus{ChannelType}"
-    enum="OpenChannelMessagePipelineResult" expires_after="2026-02-09">
+    enum="OpenChannelMessagePipelineResult" expires_after="2026-07-12">
   <owner>andreaorru@chromium.org</owner>
   <owner>jlulejian@chromium.org</owner>
   <owner>extensions-core@chromium.org</owner>
@@ -3730,13 +3739,19 @@ This is emitted for two scenarios when a worker may be unregistered:
     messaging communication (one-time or long-lived connections).
 
     It is permuted by channel type (message type). {ChannelType}.
+
+    Note: a new enum value was added in February 2026, which could affect query
+    results across that date.
+
+    Note: This histogram was expired From July to February 2026 so some data
+    might be missing.
   </summary>
   <token key="ChannelType" variants="ChannelType"/>
 </histogram>
 
 <histogram
     name="Extensions.MessagePipeline.OpenChannelWorkerWakeUpStatus{ChannelType}"
-    enum="OpenChannelMessagePipelineResult" expires_after="2026-02-09">
+    enum="OpenChannelMessagePipelineResult" expires_after="2026-07-12">
   <owner>andreaorru@chromium.org</owner>
   <owner>jlulejian@chromium.org</owner>
   <owner>extensions-core@chromium.org</owner>
@@ -3748,6 +3763,12 @@ This is emitted for two scenarios when a worker may be unregistered:
     messaging communication (one-time or long-lived connections).
 
     It is permuted by channel type (message type). {ChannelType}.
+
+    Note: a new enum value was added in February 2026, which could affect query
+    results across that date.
+
+    Note: This histogram was expired From July to February 2026 so some data
+    might be missing.
   </summary>
   <token key="ChannelType" variants="ChannelType"/>
 </histogram>
@@ -3867,7 +3888,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 </histogram>
 
 <histogram name="Extensions.NewTabPageOverrides2" units="units"
-    expires_after="2026-06-07">
+    expires_after="2026-08-09">
   <owner>rdevlin.cronin@chromium.org</owner>
   <owner>kelvinjiang@chromium.org</owner>
   <summary>
@@ -4564,6 +4585,7 @@ This is emitted for two scenarios when a worker may be unregistered:
     enum="SettingsOverriddenDialogResult" expires_after="2026-11-15">
   <owner>rdevlin.cronin@chromium.org</owner>
   <owner>extensions-core@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
   <summary>
     The action taken on the settings overridden dialog that was shown to alert
     the user of an extension overriding the New Tab Page, when the dialog shown
@@ -4578,6 +4600,7 @@ This is emitted for two scenarios when a worker may be unregistered:
     enum="SettingsOverriddenDialogResult" expires_after="2026-07-26">
   <owner>rdevlin.cronin@chromium.org</owner>
   <owner>extensions-core@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
   <summary>
     The action taken on the settings overridden dialog that was shown to alert
     the user of an extension overriding the default search provider, when the
@@ -4592,6 +4615,7 @@ This is emitted for two scenarios when a worker may be unregistered:
     enum="SettingsOverriddenDialogResult" expires_after="2026-07-26">
   <owner>rdevlin.cronin@chromium.org</owner>
   <owner>extensions-core@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
   <summary>
     The action taken on the settings overridden dialog that was shown to alert
     the user of an extension overriding the default search provider, when the
@@ -4606,6 +4630,7 @@ This is emitted for two scenarios when a worker may be unregistered:
     enum="SettingsOverriddenDialogResult" expires_after="2026-11-15">
   <owner>rdevlin.cronin@chromium.org</owner>
   <owner>extensions-core@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
   <summary>
     The action taken on the settings overridden dialog that was shown to alert
     the user of an extension overriding the New Tab Page, when the dialog shown
@@ -4619,6 +4644,7 @@ This is emitted for two scenarios when a worker may be unregistered:
     enum="SettingsOverriddenDialogResult" expires_after="2026-07-26">
   <owner>rdevlin.cronin@chromium.org</owner>
   <owner>extensions-core@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
   <summary>
     The action taken on the settings overridden dialog that was shown to alert
     the user of an extension overriding the default search provider, when the
@@ -4724,7 +4750,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 </histogram>
 
 <histogram name="Extensions.UploadExtensionToAccount.{Page}" enum="Boolean"
-    expires_after="2026-06-07">
+    expires_after="2026-08-09">
   <owner>kelvinjiang@chromium.org</owner>
   <owner>extensions-core@chromium.org</owner>
   <summary>
@@ -5239,7 +5265,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 </histogram>
 
 <histogram name="GuestView.GuestViewCreated" enum="GuestViewType"
-    expires_after="2026-06-07">
+    expires_after="2026-08-09">
   <owner>mcnee@chromium.org</owner>
   <owner>wjmaclean@chromium.org</owner>
   <owner>src/components/guest_view/OWNERS</owner>

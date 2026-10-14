@@ -412,6 +412,10 @@ DEFINE_EXPERIMENTAL_FEATURE(
     for_of_optimization,
     "Experimental flag for improving ForOf loops on ArrayIterator")
 
+DEFINE_EXPERIMENTAL_FEATURE(
+    enable_queue_microtask,
+    "ship a native queueMicrotask implementation on the global object")
+
 #ifdef V8_INTL_SUPPORT
 DEFINE_BOOL(icu_timezone_data, true, "get information about timezones from ICU")
 DEFINE_STRING(icu_datetime_compat_lang, "*",
@@ -775,6 +779,9 @@ DEFINE_BOOL(maglev_print_provenance, true,
 
 DEFINE_BOOL(print_maglev_code, false, "print maglev code")
 DEFINE_WEAK_IMPLICATION(print_maglev_code, maglev_print_bytecode)
+
+DEFINE_BOOL(trace_with_compilation_id, true,
+            "prefix maglev/turbolev trace line with a compilation id")
 
 DEFINE_BOOL(trace_maglev_graph_building, false, "trace maglev graph building")
 DEFINE_BOOL(trace_maglev_loop_speeling, false, "trace maglev loop SPeeling")
@@ -2489,7 +2496,7 @@ DEFINE_BOOL(detect_ineffective_gcs_near_heap_limit, true,
             "trigger out-of-memory failure to avoid GC storm near heap limit")
 DEFINE_BOOL(ineffective_gc_includes_global, false,
             "includes global size in out-of-memory failure near heap limit")
-DEFINE_BOOL(ineffective_gcs_forces_last_resort, false,
+DEFINE_BOOL(ineffective_gcs_forces_last_resort, true,
             "force a last resort GC when we're near heap limit")
 DEFINE_FLOAT(
     ineffective_gc_size_threshold, 0.95,

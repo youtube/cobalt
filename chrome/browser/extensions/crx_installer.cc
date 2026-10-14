@@ -26,13 +26,11 @@
 #include "chrome/browser/extensions/blocklist_factory.h"
 #include "chrome/browser/extensions/extension_install_prompt.h"
 #include "chrome/browser/extensions/extension_management.h"
-#include "chrome/browser/extensions/extension_util.h"
 #include "chrome/browser/extensions/forced_extensions/install_stage_tracker_factory.h"
 #include "chrome/browser/extensions/install_tracker_factory.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/extensions/extension_constants.h"
-#include "chrome/grit/generated_resources.h"
 #include "components/crx_file/crx_verifier.h"
 #include "components/keyed_service/content/browser_context_keyed_service_shutdown_notifier_factory.h"
 #include "components/keyed_service/core/keyed_service_shutdown_notifier.h"
@@ -68,6 +66,7 @@
 #include "extensions/browser/preload_check_group.h"
 #include "extensions/browser/requirements_checker.h"
 #include "extensions/browser/scoped_extension_keep_alive.h"
+#include "extensions/browser/ui_util.h"
 #include "extensions/buildflags/buildflags.h"
 #include "extensions/common/extension_features.h"
 #include "extensions/common/extension_id.h"
@@ -765,10 +764,9 @@ void CrxInstaller::OnInstallChecksComplete(const PreloadCheck::Errors& errors) {
       ReportFailureFromUIThread(CrxInstallError(
           CrxInstallErrorType::DECLINED,
           CrxInstallErrorDetail::EXTENSION_IS_BLOCKLISTED,
-          l10n_util::GetStringFUTF16(
-              IDS_EXTENSION_IS_BLOCKLISTED,
-              extensions::util::GetFixupExtensionNameForUIDisplay(
-                  extension()->name()))));
+          l10n_util::GetStringFUTF16(IDS_EXTENSION_IS_BLOCKLISTED,
+                                     ui_util::GetFixupExtensionNameForUIDisplay(
+                                         extension()->name()))));
       UMA_HISTOGRAM_ENUMERATION("ExtensionBlacklist.BlockCRX",
                                 extension()->location());
       return;

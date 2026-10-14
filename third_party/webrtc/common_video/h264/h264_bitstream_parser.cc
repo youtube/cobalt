@@ -318,13 +318,13 @@ void H264BitstreamParser::ParseSlice(ArrayView<const uint8_t> slice) {
   H264::NaluType nalu_type = H264::ParseNaluType(slice[0]);
   switch (nalu_type) {
     case H264::NaluType::kSps: {
-      sps_ = SpsParser::ParseSps(slice.subview(H264::kNaluTypeSize));
+      sps_ = SpsParser::ParseSps(slice.subspan(H264::kNaluTypeSize));
       if (!sps_)
         RTC_DLOG(LS_WARNING) << "Unable to parse SPS from H264 bitstream.";
       break;
     }
     case H264::NaluType::kPps: {
-      pps_ = PpsParser::ParsePps(slice.subview(H264::kNaluTypeSize));
+      pps_ = PpsParser::ParsePps(slice.subspan(H264::kNaluTypeSize));
       if (!pps_)
         RTC_DLOG(LS_WARNING) << "Unable to parse PPS from H264 bitstream.";
       break;
@@ -347,7 +347,7 @@ void H264BitstreamParser::ParseBitstream(ArrayView<const uint8_t> bitstream) {
   std::vector<H264::NaluIndex> nalu_indices = H264::FindNaluIndices(bitstream);
   for (const H264::NaluIndex& index : nalu_indices)
     ParseSlice(
-        bitstream.subview(index.payload_start_offset, index.payload_size));
+        bitstream.subspan(index.payload_start_offset, index.payload_size));
 }
 
 std::optional<int> H264BitstreamParser::GetLastSliceQp() const {

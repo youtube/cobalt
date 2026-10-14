@@ -23,6 +23,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <array>
 #include <memory>
 #include <optional>
 
@@ -215,9 +216,9 @@ class FakeAudioCaptureModule : public webrtc::AudioDeviceModule {
   std::unique_ptr<webrtc::Thread> process_thread_;
 
   // Buffer for storing samples received from the webrtc::AudioTransport.
-  char rec_buffer_[kNumberSamples * kNumberBytesPerSample];
+  std::array<Sample, kNumberSamples> rec_buffer_;
   // Buffer for samples to send to the webrtc::AudioTransport.
-  char send_buffer_[kNumberSamples * kNumberBytesPerSample];
+  std::array<Sample, kNumberSamples> send_buffer_;
 
   // Counter of frames received that have samples of high enough amplitude to
   // indicate that the frames are not faked somewhere in the audio pipeline

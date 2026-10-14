@@ -61,7 +61,6 @@ source_set("internal") {
       "//chrome/browser/autocomplete:aim_eligibility_service",
       "//chrome/browser/contextual_tasks:ui",
       "//chrome/browser/devtools",
-      "//chrome/browser/extensions",
       "//chrome/browser/lens/region_search",
       "//chrome/browser/media/router:media_router_feature",
       "//chrome/browser/prefs",
@@ -84,6 +83,7 @@ source_set("internal") {
       "//chrome/browser/ui/tabs",
       "//chrome/browser/ui/tabs:glic",
       "//chrome/browser/ui/tabs:tab_list_bridge",
+      "//chrome/browser/ui/tabs:tab_strip",
       "//chrome/browser/ui/tabs/organization",
       "//chrome/browser/ui/tabs/projects:impl",
       "//chrome/browser/ui/tabs/saved_tab_groups",
@@ -120,6 +120,10 @@ source_set("internal") {
         "//chrome/browser/ui/pdf/infobar",
         "//chrome/browser/ui/startup/default_browser_prompt/pin_infobar",
       ]
+
+      if (enable_extensions_core) {
+        deps += [ "//chrome/browser/ui/search_engines" ]
+      }
     }
 
     if (is_win || is_mac || is_linux) {
@@ -140,6 +144,10 @@ source_set("internal") {
     if (use_aura) {
       deps += [ "//chrome/browser/ui:overscroll_pref_manager" ]
     }
+  }
+
+  if (enable_extensions_core) {
+    deps += [ "//chrome/browser/extensions" ]
   }
 }
 
@@ -323,11 +331,11 @@ if (is_android) {
       "//chrome/browser",
       "//chrome/browser/flags:flags_android",
       "//chrome/browser/profiles",
+      "//chrome/browser/tab_list",
       "//chrome/browser/ui:browser_navigator_params_headers",
       "//chrome/browser/ui/browser_window",
       "//chrome/browser/ui/browser_window:create_browser_window",
       "//chrome/browser/ui/browser_window/test:android_browser_test_support",
-      "//chrome/browser/ui/tabs:tab_list_interface",
       "//chrome/test:test_support_ui_android",
       "//components/feed:feature_list",
       "//net:test_support",

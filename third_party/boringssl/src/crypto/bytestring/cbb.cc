@@ -22,6 +22,7 @@
 #include <openssl/mem.h>
 
 #include "../internal.h"
+#include "internal.h"
 
 
 using namespace bssl;
@@ -272,7 +273,7 @@ err:
   return 0;
 }
 
-const uint8_t *CBB_data(const CBB *cbb) {
+uint8_t *CBB_data(const CBB *cbb) {
   assert(cbb->child == nullptr);
   if (cbb->is_child) {
     return cbb->u.child.base->buf + cbb->u.child.offset +
@@ -746,4 +747,15 @@ err:
   OPENSSL_free(buf);
   OPENSSL_free(children);
   return ret;
+}
+
+bool bssl::CBBFinishArray(CBB *cbb, Array<uint8_t> *out) {
+  uint8_t *ptr;
+  size_t len;
+  if (!CBB_finish(cbb, &ptr, &len)) {
+    OPENSSL_PUT_ERROR(SSL, ERR_R_INTERNAL_ERROR);
+    return false;
+  }
+  out->Reset(ptr, len);
+  return true;
 }

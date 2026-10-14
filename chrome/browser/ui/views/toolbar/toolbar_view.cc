@@ -14,6 +14,7 @@
 #include "base/functional/bind.h"
 #include "base/i18n/number_formatting.h"
 #include "base/i18n/rtl.h"
+#include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/metrics/user_metrics.h"
 #include "base/metrics/user_metrics_action.h"
@@ -22,6 +23,9 @@
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/command_updater.h"
+#include "chrome/browser/glic/public/glic_enabling.h"
+#include "chrome/browser/glic/public/glic_keyed_service.h"
+#include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/media/router/media_router_feature.h"
 #include "chrome/browser/performance_manager/public/user_tuning/user_tuning_utils.h"
 #include "chrome/browser/profiles/profile.h"
@@ -43,8 +47,11 @@
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/omnibox/omnibox_view.h"
 #include "chrome/browser/ui/tab_search_feature.h"
+#include "chrome/browser/ui/tabs/features.h"
+#include "chrome/browser/ui/tabs/glic_nudge_controller.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/tabs/tab_strip_prefs.h"
+#include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
 #include "chrome/browser/ui/toolbar/chrome_labs/chrome_labs_prefs.h"
 #include "chrome/browser/ui/toolbar/chrome_labs/chrome_labs_utils.h"
 #include "chrome/browser/ui/toolbar/pinned_toolbar/tab_search_toolbar_button_controller.h"
@@ -58,6 +65,7 @@
 #include "chrome/browser/ui/views/extensions/extensions_toolbar_desktop.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/custom_corners_background.h"
+#include "chrome/browser/ui/views/frame/top_container_view.h"
 #include "chrome/browser/ui/views/global_media_controls/media_toolbar_button_contextual_menu.h"
 #include "chrome/browser/ui/views/global_media_controls/media_toolbar_button_view.h"
 #include "chrome/browser/ui/views/location_bar/intent_chip_button.h"
@@ -70,6 +78,7 @@
 #include "chrome/browser/ui/views/performance_controls/battery_saver_button.h"
 #include "chrome/browser/ui/views/performance_controls/performance_intervention_button.h"
 #include "chrome/browser/ui/views/side_panel/side_panel.h"
+#include "chrome/browser/ui/views/tabs/glic/glic_and_actor_buttons_container.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
 #include "chrome/browser/ui/views/tabs/tab_strip_controller.h"
 #include "chrome/browser/ui/views/toolbar/app_menu.h"
@@ -82,12 +91,14 @@
 #include "chrome/browser/ui/views/toolbar/split_tabs_button.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_button.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_controller.h"
+#include "chrome/browser/ui/views/toolbar/toolbar_divider.h"
+#include "chrome/browser/ui/views/toolbar/toolbar_glic_button.h"
+#include "chrome/browser/ui/views/toolbar/toolbar_icon_container_view.h"
 #include "chrome/browser/ui/views/toolbar/webui_toolbar_web_view.h"
 #include "chrome/browser/ui/views/zoom/zoom_view_controller.h"
 #include "chrome/browser/ui/waap/initial_webui_window_metrics_manager.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/web_applications/link_capturing_features.h"
-#include "chrome/common/chrome_features.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/branded_strings.h"
@@ -126,9 +137,11 @@
 #include "ui/views/controls/separator.h"
 #include "ui/views/layout/fill_layout.h"
 #include "ui/views/layout/flex_layout.h"
+#include "ui/views/layout/flex_layout_view.h"
 #include "ui/views/layout/proposed_layout.h"
 #include "ui/views/view.h"
 #include "ui/views/view_class_properties.h"
+#include "ui/views/view_utils.h"
 #include "ui/views/widget/tooltip_manager.h"
 #include "ui/views/widget/widget.h"
 
@@ -147,6 +160,97 @@ DEFINE_UI_CLASS_PROPERTY_KEY(bool, kActionItemUnderlineIndicatorKey, false)
 
 namespace {
 
+// Intermediate data for determining whether a point should be considered in the
+// caption are when the toolbar is the top element in the browser.
+struct CaptionHitTestData {
+  raw_ptr<const views::View> at = nullptr;
+  bool is_direct_hit = false;
+  raw_ptr<const views::View> before = nullptr;
+  int before_dist = 0;
+  raw_ptr<const views::View> after = nullptr;
+  int after_dist = 0;
+};
+
+// Calculates the `CaptionHitTestData` (`data`) starting at `view` for `point`,
+// which should be in `view`'s local coordinates. Bails out immediately if a
+// View is hit; may traverse into icon containers.
+void CalculateIsPositionInWindowCaption(CaptionHitTestData& data,
+                                        const views::View* view,
+                                        const gfx::Point& point) {
+  for (auto& child : view->children()) {
+    if (!child->GetVisible()) {
+      continue;
+    }
+    const gfx::Rect bounds = child->bounds();
+
+    if (views::IsViewClass<ToolbarIconContainerView>(child) ||
+        views::IsViewClass<page_actions::PageActionContainerView>(child)) {
+      // Traverse into known icon containers.
+      const auto in_child =
+          views::View::ConvertPointToTarget(view, child, point);
+      CalculateIsPositionInWindowCaption(data, child, in_child);
+    } else if (bounds.x() <= point.x() && bounds.right() >= point.x()) {
+      // This point is in/above/below the child.
+      data.at = child;
+      data.is_direct_hit = bounds.Contains(point);
+    } else {
+      // See if the view is the closest before or after the target point in the
+      // layout.
+      if (bounds.right() < point.x()) {
+        const int dist = point.x() - bounds.right();
+        if (!data.before || data.before_dist > dist) {
+          data.before = child;
+          data.before_dist = dist;
+        }
+      } else if (bounds.x() > point.x()) {
+        const int dist = bounds.x() - point.x();
+        if (!data.after || data.after_dist > dist) {
+          data.after = child;
+          data.after_dist = dist;
+        }
+      }
+    }
+
+    // If a view was hit at any level, stop processing.
+    if (data.at) {
+      break;
+    }
+  }
+}
+
+// Returns whether `point` should be treated as part of the caption area in
+// `view`, which should be the topmost view in the browser.
+bool IsPositionInWindowCaption(const views::View* view,
+                               const gfx::Point& point) {
+  CaptionHitTestData data;
+  CalculateIsPositionInWindowCaption(data, view, point);
+
+  const bool is_above_centerline =
+      point.y() <= view->GetLocalBounds().CenterPoint().y();
+  const auto is_separator = [](const views::View* view) {
+    return views::IsViewClass<views::Separator>(view) ||
+           views::IsViewClass<ToolbarDivider>(view);
+  };
+
+  // If the point is in a view, then it's not in the caption unless the view is
+  // a separator. If the point is at a view but not in it, then it is caption if
+  // the point is centerline; otherwise it's not.
+  if (data.at) {
+    return is_separator(data.at) ||
+           (!data.is_direct_hit && is_above_centerline);
+  }
+
+  // If the point is not in a view but it is next to a separator or the edge of
+  // the toolbar, it is caption.
+  if (!data.before || is_separator(data.before) || !data.after ||
+      is_separator(data.after)) {
+    return true;
+  }
+
+  // All remaining points (between non-separator views) are caption if they are
+  // above centerline.
+  return is_above_centerline;
+}
 // Gets the display mode for a given browser.
 ToolbarView::DisplayMode GetDisplayMode(Browser* browser) {
   // Checked in this order because even tabbed PWAs use the CUSTOM_TAB
@@ -238,8 +342,8 @@ void ToolbarView::Init() {
 
   if (display_mode_ != DisplayMode::kNormal) {
     location_bar_view_ = AddChildView(std::move(location_bar));
-    location_bar_view_->Init();
     location_bar_ = location_bar_view_;
+    location_bar_view_->Init();
   }
 
   if (display_mode_ == DisplayMode::kNormal) {
@@ -287,14 +391,14 @@ void ToolbarView::Init() {
   PrefService* const prefs = browser_->profile()->GetPrefs();
 
   std::unique_ptr<ExtensionsToolbarDesktop> extensions_container;
-  std::unique_ptr<views::View> toolbar_divider;
+  std::unique_ptr<ToolbarDivider> toolbar_divider;
 
   // Do not create the extensions or browser actions container if it is a guest
   // profile (only regular and incognito profiles host extensions).
   if (!browser_->profile()->IsGuestSession()) {
     extensions_container = std::make_unique<ExtensionsToolbarDesktop>(browser_);
 
-    toolbar_divider = std::make_unique<views::View>();
+    toolbar_divider = std::make_unique<ToolbarDivider>();
   }
 
   std::unique_ptr<MediaToolbarButtonView> media_button;
@@ -355,18 +459,13 @@ void ToolbarView::Init() {
 
   if (toolbar_divider) {
     toolbar_divider_ = AddChildView(std::move(toolbar_divider));
-    toolbar_divider_->SetPreferredSize(
-        gfx::Size(GetLayoutConstant(LayoutConstant::kToolbarDividerWidth),
-                  GetLayoutConstant(LayoutConstant::kToolbarDividerHeight)));
-    toolbar_divider_->SetBackground(views::CreateRoundedRectBackground(
-        kColorToolbarExtensionSeparatorEnabled,
-        GetLayoutConstant(LayoutConstant::kToolbarDividerCornerRadius)));
   }
 
   pinned_toolbar_actions_container_ = AddChildView(
       std::make_unique<PinnedToolbarActionsContainer>(browser_view_, this));
 
-  if (features::HasTabSearchToolbarButton()) {
+  if (!base::FeatureList::IsEnabled(tabs::kHorizontalTabStripComboButton) &&
+      features::HasTabSearchToolbarButton()) {
     tab_search_button_ =
         pinned_toolbar_actions_container()->CreatePermanentButtonFor(
             kActionTabSearch);
@@ -406,6 +505,23 @@ void ToolbarView::Init() {
   if (media_button) {
     media_button_ = AddChildView(std::move(media_button));
   }
+
+#if BUILDFLAG(ENABLE_GLIC)
+  if (glic::GlicEnabling::IsProfileEligible(browser_view_->GetProfile())) {
+    auto* vertical_tab_strip_state_controller =
+        tabs::VerticalTabStripStateController::From(browser_view_->browser());
+    glic_button_ = AddChildView(CreateGlicButton());
+    if (vertical_tab_strip_state_controller) {
+      vertical_tab_subscription_ =
+          vertical_tab_strip_state_controller->RegisterOnModeChanged(
+              base::BindRepeating(&ToolbarView::OnVerticalTabStripModeChanged,
+                                  base::Unretained(this)));
+      should_display_vertical_tabs_ =
+          vertical_tab_strip_state_controller->ShouldDisplayVerticalTabs();
+    }
+    UpdateGlicButtonVisibility();
+  }
+#endif  // BUILDFLAG(ENABLE_GLIC)
 
   avatar_ = AddChildView(std::make_unique<AvatarToolbarButton>(browser_view_));
   bool show_avatar_toolbar_button = true;
@@ -488,6 +604,157 @@ void ToolbarView::Init() {
 
   initialized_ = true;
 }
+
+void ToolbarView::OnVerticalTabStripModeChanged(
+    tabs::VerticalTabStripStateController* controller) {
+  should_display_vertical_tabs_ = controller->ShouldDisplayVerticalTabs();
+  UpdateGlicButtonVisibility();
+}
+
+#if BUILDFLAG(ENABLE_GLIC)
+std::unique_ptr<glic::ToolbarGlicButton> ToolbarView::CreateGlicButton() {
+  glic::GlicKeyedService* service =
+      glic::GlicKeyedService::Get(browser_view_->GetProfile());
+  std::u16string tooltip_text = l10n_util::GetStringUTF16(
+      service->IsWindowOrFreShowing() ? IDS_GLIC_TAB_STRIP_BUTTON_TOOLTIP_CLOSE
+                                      : IDS_GLIC_TAB_STRIP_BUTTON_TOOLTIP);
+  std::unique_ptr<glic::ToolbarGlicButton> glic_button =
+      std::make_unique<glic::ToolbarGlicButton>(
+          browser_view_->browser(),
+          base::BindRepeating(&ToolbarView::OnGlicButtonHovered,
+                              base::Unretained(this)),
+          base::BindRepeating(&ToolbarView::OnGlicButtonMouseDown,
+                              base::Unretained(this)),
+          base::BindRepeating(&ToolbarView::OnGlicButtonAnimationEnded,
+                              base::Unretained(this)),
+          tooltip_text,
+          base::BindRepeating(&ToolbarView::OnGlicButtonClicked,
+                              base::Unretained(this)));
+
+  glic_button->SetProperty(views::kCrossAxisAlignmentKey,
+                           views::LayoutAlignment::kCenter);
+
+  return glic_button;
+}
+
+void ToolbarView::OnGlicButtonClicked() {
+  // Indicate that the glic button was pressed so that we can either close the
+  // IPH promo (if present) or note that it has already been used to prevent
+  // unnecessarily displaying the promo.
+  BrowserUserEducationInterface::From(browser_)->NotifyFeaturePromoFeatureUsed(
+      feature_engagement::kIPHGlicPromoFeature,
+      FeaturePromoFeatureUsedAction::kClosePromoIfPresent);
+
+  std::optional<std::string> prompt_suggestion;
+  tabs::GlicNudgeController* glic_nudge_controller =
+      browser_->browser_window_features()->glic_nudge_controller();
+  if (glic_nudge_controller) {
+    prompt_suggestion = glic_nudge_controller->GetPromptSuggestion();
+    glic_nudge_controller->ClearPromptSuggestion();
+  }
+
+  glic::GlicKeyedServiceFactory::GetGlicKeyedService(
+      browser_view_->GetProfile())
+      ->ToggleUI(browser_view_->browser(),
+                 /*prevent_close=*/false,
+                 glic_button_->GetIsShowingNudge()
+                     ? glic::mojom::InvocationSource::kNudge
+                     : glic::mojom::InvocationSource::kTopChromeButton,
+                 prompt_suggestion);
+
+  if (glic_button_->GetIsShowingNudge()) {
+    glic_nudge_controller->OnNudgeActivity(
+        tabs::GlicNudgeActivity::kNudgeClicked);
+  }
+
+  ExecuteHideToolbarNudge(glic_button_);
+  // Reset state manually since there wont be a mouse up event as the
+  // animation moves the button out of the way.
+  glic_button_->SetState(views::Button::ButtonState::STATE_NORMAL);
+}
+
+void ToolbarView::OnGlicButtonDismissed() {
+  browser_->browser_window_features()->glic_nudge_controller()->OnNudgeActivity(
+      tabs::GlicNudgeActivity::kNudgeDismissed);
+
+  // Force hide the button when pressed, bypassing locked expansion mode.
+  ExecuteHideToolbarNudge(glic_button_);
+}
+
+void ToolbarView::OnGlicButtonHovered() {
+  Profile* const profile = browser_view_->GetProfile();
+
+  glic::GlicKeyedService* glic_service =
+      glic::GlicKeyedServiceFactory::GetGlicKeyedService(profile);
+  if (auto* instance =
+          glic_service->GetInstanceForActiveTab(browser_view_->browser())) {
+    instance->host().instance_delegate().PrepareForOpen();
+  }
+}
+
+void ToolbarView::OnGlicButtonMouseDown() {
+  Profile* const profile = browser_view_->GetProfile();
+  if (!glic::GlicEnabling::IsEnabledAndConsentForProfile(profile)) {
+    // Do not do this optimization if user has not consented to GLIC.
+    return;
+  }
+  auto* glic_service = glic::GlicKeyedService::Get(profile);
+
+  // TODO(crbug.com/445934142): Create the instance here so that suggestions can
+  // be fetched, but don't show it yet.
+  if (auto* instance =
+          glic_service->GetInstanceForActiveTab(browser_view_->browser())) {
+    // This prefetches the results and allows the underlying implementation to
+    // cache the results for future calls. Which is why the callback does
+    // nothing.
+    instance->host().instance_delegate().FetchZeroStateSuggestions(
+        /*is_first_run=*/false, /*supported_tools=*/std::nullopt,
+        base::DoNothing());
+  }
+}
+
+void ToolbarView::OnGlicButtonAnimationEnded() {
+  // TODO(crbug.com/484389669): ToolbarGlicButton animations
+  return;
+}
+
+void ToolbarView::ExecuteHideToolbarNudge(glic::ToolbarGlicButton* button) {
+  if (!button->GetVisible()) {
+    return;
+  }
+
+  // Since the glic button is still visible in it's hidden state we need to have
+  // a special case to query if it's in its Hide state.
+  if (button == glic_button_ && button->GetWidthFactor() == 0.0 &&
+      base::FeatureList::IsEnabled(features::kGlicEntrypointVariations)) {
+    return;
+  }
+
+  button->SetIsShowingNudge(false);
+}
+
+void ToolbarView::UpdateGlicButtonVisibility() {
+  if (!glic_button_) {
+    return;
+  }
+
+  glic_button_->SetVisible(should_show_glic_button_ &&
+                           should_display_vertical_tabs_);
+}
+
+void ToolbarView::SetGlicShowState(bool show) {
+  should_show_glic_button_ = show;
+  UpdateGlicButtonVisibility();
+}
+
+void ToolbarView::SetGlicPanelIsOpen(bool open) {
+  if (!glic_button_) {
+    return;
+  }
+
+  glic_button_->SetGlicPanelIsOpen(open);
+}
+#endif  // ENABLE_GLIC
 
 void ToolbarView::AnimationEnded(const gfx::Animation* animation) {
   if (animation->GetCurrentValue() == 0) {
@@ -629,22 +896,7 @@ void ToolbarView::ShowBookmarkBubble(const GURL& url, bool already_bookmarked) {
 
 bool ToolbarView::IsPositionInWindowCaption(
     const gfx::Point& test_point) const {
-  // Only points above the centerline are considered candidates for the caption
-  // area.
-  if (test_point.y() > GetLocalBounds().CenterPoint().y()) {
-    return false;
-  }
-
-  // Check each visible child to see if the point is in the child.
-  for (auto& child : children()) {
-    if (child->GetVisible() && !views::IsViewClass<views::Separator>(child) &&
-        child->bounds().Contains(test_point)) {
-      return false;
-    }
-  }
-
-  // If it's not in a child, the point is in the caption area.
-  return true;
+  return ::IsPositionInWindowCaption(this, test_point);
 }
 
 views::Button* ToolbarView::GetChromeLabsButton() const {
@@ -1093,6 +1345,14 @@ views::View* ToolbarView::GetAnchorView(
 views::BubbleAnchor ToolbarView::GetBubbleAnchor(
     std::optional<actions::ActionId> action_id) {
   if (views::View* view = GetAnchorView(action_id)) {
+    // In app windows the location bar view may exist but not be drawn. Avoid
+    // anchoring bubbles to a non-drawn view (e.g. on Ozone/Wayland) and always
+    // return a valid view anchor by falling back to the contents view.
+    if (!view->IsDrawn() && browser_view_) {
+      auto* top_container = browser_view_->top_container();
+      CHECK(top_container);
+      return top_container;
+    }
     return view;
   }
   return nullptr;

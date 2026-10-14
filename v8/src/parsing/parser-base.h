@@ -310,7 +310,7 @@ class ParserBase {
 
   void SkipInfos(int delta) { info_id_ += delta; }
 
-  void ResetInfoId(int id = 0) {
+  void ResetInfoId(int id) {
     DCHECK_LE(0, id);
     info_id_ = id;
   }
@@ -2853,7 +2853,10 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassInfo* class_info,
     case ParsePropertyKind::kShorthand:
     case ParsePropertyKind::kSpread:
       impl()->ReportUnexpectedTokenAt(
-          Scanner::Location(name_token_position, name_expression->position()),
+          Scanner::Location(name_token_position,
+                            name_expression->position() == -1
+                                ? name_token_position
+                                : name_expression->position()),
           name_token);
       return impl()->NullLiteralProperty();
   }
@@ -4576,7 +4579,7 @@ void ParserBase<Impl>::ParseVariableDeclarations(
       DCHECK(!impl()->IsIdentifier(pattern));
     } else {
       // `using` declarations should have an identifier.
-      impl()->ReportMessageAt(Scanner::Location(decl_pos, end_position()),
+      impl()->ReportMessageAt(scanner_->peek_location(),
                               MessageTemplate::kDeclarationMissingInitializer,
                               "using");
       return;
@@ -5127,9 +5130,10 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
         int dummy_function_length = -1;
         DCHECK(IsArrowFunction(kind));
         bool did_preparse_successfully = impl()->SkipFunction(
-            nullptr, kind, FunctionSyntaxKind::kAnonymousExpression,
-            formal_parameters.scope, &dummy_num_parameters,
-            &dummy_function_length, &produced_preparse_data);
+            function_literal_id, nullptr, kind,
+            FunctionSyntaxKind::kAnonymousExpression, formal_parameters.scope,
+            &dummy_num_parameters, &dummy_function_length,
+            &produced_preparse_data);
 
         DCHECK_NULL(produced_preparse_data);
 

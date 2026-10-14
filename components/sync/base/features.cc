@@ -31,6 +31,8 @@ BASE_FEATURE(kSyncContextualTask, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kSyncGeminiThread, base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kSyncThemesIos, base::FEATURE_DISABLED_BY_DEFAULT);
+
 #if !BUILDFLAG(IS_CHROMEOS)
 BASE_FEATURE(kUnoPhase2FollowUp,
 #if BUILDFLAG(IS_ANDROID)
@@ -47,8 +49,6 @@ BASE_FEATURE(kSyncAutofillWalletCredentialData,
 #else
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
-
-BASE_FEATURE(kSyncBookmarksLimit, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // If enabled, shows a user-actionable error when the bookmarks count limit is
 // exceeded.
@@ -186,7 +186,7 @@ BASE_FEATURE(kSyncPreferencesUseSelectedTypes,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kSyncDetermineAccountManagedStatus,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE_PARAM(base::TimeDelta,
                    kSyncDetermineAccountManagedStatusTimeout,
                    &kSyncDetermineAccountManagedStatus,

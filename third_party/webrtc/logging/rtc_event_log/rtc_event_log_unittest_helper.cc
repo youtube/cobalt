@@ -87,7 +87,6 @@
 #include "rtc_base/buffer.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/random.h"
-#include "rtc_base/time_utils.h"
 #include "system_wrappers/include/ntp_time.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
@@ -238,13 +237,14 @@ std::unique_ptr<RtcEventFrameDecoded> EventGenerator::NewFrameDecodedEvent(
   constexpr VideoCodecType kCodecList[kNumCodecTypes] = {
       kVideoCodecGeneric, kVideoCodecVP8,  kVideoCodecVP9,
       kVideoCodecAV1,     kVideoCodecH264, kVideoCodecH265};
-  const int64_t render_time_ms =
-      TimeMillis() + prng_.Rand(kMinRenderDelayMs, kMaxRenderDelayMs);
+  const Timestamp render_time =
+      clock_.CurrentTime() +
+      TimeDelta::Millis(prng_.Rand(kMinRenderDelayMs, kMaxRenderDelayMs));
   const int width = prng_.Rand(kMinWidth, kMaxWidth);
   const int height = prng_.Rand(kMinHeight, kMaxHeight);
   const VideoCodecType codec = kCodecList[prng_.Rand(0, kNumCodecTypes - 1)];
   const uint8_t qp = prng_.Rand<uint8_t>();
-  return Create<RtcEventFrameDecoded>(render_time_ms, ssrc, width, height,
+  return Create<RtcEventFrameDecoded>(render_time.ms(), ssrc, width, height,
                                       codec, qp);
 }
 

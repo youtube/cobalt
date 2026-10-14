@@ -75,8 +75,11 @@
 use crate::{scoped, with_output_vec, with_output_vec_fallible, FfiSlice};
 use alloc::vec::Vec;
 
+use internal::HpkeKey;
+
 /// Supported KEM algorithms with values detailed in RFC 9180.
 #[derive(Clone, Copy)]
+#[repr(u16)]
 pub enum Kem {
     /// KEM using DHKEM P-256 and HKDF-SHA256.
     P256HkdfSha256 = 16, // 0x0010
@@ -142,6 +145,20 @@ impl Kem {
     /// Get a private key's corresponding public key, or `None` if the private
     /// key is invalid.
     pub fn public_from_private(&self, priv_key: &[u8]) -> Option<Vec<u8>> {
+        let HpkeKey { key } = self.parse_from_private_key(priv_key)?;
+
+        let pub_key = Self::get_value_from_key(
+            &key,
+            bssl_sys::EVP_HPKE_KEY_public_key,
+            bssl_sys::EVP_HPKE_MAX_PUBLIC_KEY_LENGTH as usize,
+        );
+        Some(pub_key)
+    }
+
+    /// Parse a private key in accordance to the given KEM scheme.
+    ///
+    /// The call returns `None` if `priv_key` is invalid.
+    pub fn parse_from_private_key(&self, priv_key: &[u8]) -> Option<HpkeKey> {
         let mut key = scoped::EvpHpkeKey::new();
         // Safety: `key`, `self`, and `priv_key` must be valid and this function
         // doesn't take ownership of any of them.
@@ -153,16 +170,7 @@ impl Kem {
                 priv_key.len(),
             )
         };
-        if ret != 1 {
-            return None;
-        }
-
-        let pub_key = Self::get_value_from_key(
-            &key,
-            bssl_sys::EVP_HPKE_KEY_public_key,
-            bssl_sys::EVP_HPKE_MAX_PUBLIC_KEY_LENGTH as usize,
-        );
-        Some(pub_key)
+        (ret == 1).then_some(HpkeKey { key })
     }
 
     fn get_value_from_key(
@@ -192,19 +200,44 @@ impl Kem {
     }
 }
 
-/// Supported KDF algorithms with values detailed in RFC 9180.
+#[doc(hidden)]
+pub mod internal {
+    use crate::scoped;
+
+    /// HPKE key suitable for interfacing with TLS stack.
+    pub struct HpkeKey {
+        pub(crate) key: scoped::EvpHpkeKey,
+    }
+
+    impl HpkeKey {
+        /// Safety: the handle to the underlying key **shall not** be used for mutating access.
+        pub unsafe fn as_ffi_ptr(&self) -> *const bssl_sys::EVP_HPKE_KEY {
+            self.key.as_ffi_ptr()
+        }
+    }
+}
+
+/// Supported KDF algorithms with values detailed in §7.2 of [RFC 9180].
+///
+/// [RFC 9180]: https://datatracker.ietf.org/doc/html/rfc9180#section-7.2
 #[derive(Clone, Copy)]
+#[repr(u16)]
 pub enum Kdf {
-    #[allow(missing_docs)]
+    /// HKDF-SHA256 as defined in [RFC 5869]
+    /// [RFC 5869]: https://datatracker.ietf.org/doc/html/rfc5869
     HkdfSha256 = 1,
 }
 
-/// Supported AEAD algorithms with values detailed in RFC 9180.
+/// Supported AEAD algorithms with values detailed in §7.3 of [RFC 9180].
+///
+/// [RFC 9180]: https://datatracker.ietf.org/doc/html/rfc9180#section-7.3
 #[derive(Clone, Copy)]
-#[allow(missing_docs)]
 pub enum Aead {
+    /// AES-GCM-128 defined by [NIST](https://doi.org/10.6028/nist.sp.800-38d)
     Aes128Gcm = 1,
+    /// AES-GCM-256 defined by [NIST](https://doi.org/10.6028/nist.sp.800-38d)
     Aes256Gcm = 2,
+    /// ChaCha20-Poly1305 defined by [RFC 8439](https://datatracker.ietf.org/doc/html/rfc8439)
     Chacha20Poly1305 = 3,
 }
 
@@ -246,14 +279,14 @@ pub struct Params {
 impl Params {
     /// New `Params` from KEM, KDF, and AEAD enums.
     pub fn new(kem: Kem, _kdf: Kdf, aead: Aead) -> Self {
-        // Safety: EVP_hpke_hkdf_sha256 just returns pointer to static data.
-        unsafe {
-            Self {
-                kem: kem.as_ffi_ptr(),
-                // Only one KDF is supported thus far.
-                kdf: bssl_sys::EVP_hpke_hkdf_sha256(),
-                aead: aead.as_ffi_ptr(),
-            }
+        Self {
+            kem: kem.as_ffi_ptr(),
+            // Only one KDF is supported thus far.
+            kdf: unsafe {
+                // Safety: EVP_hpke_hkdf_sha256 just returns pointer to static data.
+                bssl_sys::EVP_hpke_hkdf_sha256()
+            },
+            aead: aead.as_ffi_ptr(),
         }
     }
 

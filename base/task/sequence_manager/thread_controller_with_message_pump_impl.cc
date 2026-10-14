@@ -466,6 +466,9 @@ std::optional<WakeUp> ThreadControllerWithMessagePumpImpl::DoWorkImpl(
           time_source_, selected_task->task, &task_annotator_,
           lazy_now_task_selected.Now());
 
+      base::internal::CurrentTaskImportanceOverride thread_type_override(
+          selected_task->thread_type);
+
       // Note: all arguments after task are just passed to a TRACE_EVENT for
       // logging so lambda captures are safe as lambda is executed inline.
       SequencedTaskSource* source = main_thread_only().task_source;

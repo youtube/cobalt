@@ -930,15 +930,11 @@ impl Builder {
                 || (self.options.initialize_gl_position
                     && matches!(built_in, Some(BuiltIn::Position))));
 
-        let variable_id = self.ir.meta.declare_variable(
-            name,
-            type_id,
-            precision,
-            decorations,
-            built_in,
-            None,
-            scope,
-        );
+        let variable_id = self
+            .ir
+            .meta
+            .declare_variable(name, type_id, precision, decorations, built_in, None, scope)
+            .0;
 
         // Add the variable to the list of local variables in this scope, if not global.  Function
         // parameters are part of the `Function` and so don't need to be explicitly marked as
@@ -2873,6 +2869,7 @@ pub mod ffi {
         SecondaryFragColorEXT,
         SecondaryFragDataEXT,
         ViewIDOVR,
+        EmulatedViewIDOVR,
         ClipDistance,
         CullDistance,
         LastFragColor,
@@ -3050,7 +3047,6 @@ pub mod ffi {
         offset: i32,
         depth: ASTLayoutDepth,
         image_internal_format: ASTLayoutImageInternalFormat,
-        num_views: i32,
         yuv: bool,
         index: i32,
         noncoherent: bool,
@@ -3137,6 +3133,7 @@ pub mod ffi {
 
         // Helpers to set global metadata.
         fn set_early_fragment_tests(self: &mut BuilderWrapper, value: bool);
+        fn set_num_views(self: &mut BuilderWrapper, value: u32);
         fn set_advanced_blend_equations(self: &mut BuilderWrapper, value: u32);
         fn set_tcs_vertices(self: &mut BuilderWrapper, value: u32);
         fn set_tes_primitive(self: &mut BuilderWrapper, value: ASTLayoutTessEvaluationType);
@@ -3907,6 +3904,9 @@ impl BuilderWrapper {
             ffi::ASTQualifier::SecondaryFragColorEXT => Some(BuiltIn::SecondaryFragColorEXT),
             ffi::ASTQualifier::SecondaryFragDataEXT => Some(BuiltIn::SecondaryFragDataEXT),
             ffi::ASTQualifier::ViewIDOVR => Some(BuiltIn::ViewIDOVR),
+            ffi::ASTQualifier::EmulatedViewIDOVR => {
+                panic!("Internal error: gl_ViewID_OVR emulation happens during transformations")
+            }
             ffi::ASTQualifier::ClipDistance => Some(BuiltIn::ClipDistance),
             ffi::ASTQualifier::CullDistance => Some(BuiltIn::CullDistance),
             ffi::ASTQualifier::LastFragColor => Some(BuiltIn::LastFragColor),
@@ -4118,11 +4118,6 @@ impl BuilderWrapper {
                 .decorations
                 .push(Decoration::Offset(ast_type.layout_qualifier.offset as u32));
         }
-        if ast_type.layout_qualifier.num_views >= 0 {
-            decorations
-                .decorations
-                .push(Decoration::NumViews(ast_type.layout_qualifier.num_views as u32));
-        }
         if ast_type.layout_qualifier.yuv {
             decorations.decorations.push(Decoration::Yuv);
         }
@@ -4282,6 +4277,10 @@ impl BuilderWrapper {
 
     fn set_early_fragment_tests(&mut self, value: bool) {
         self.builder.ir().meta.set_early_fragment_tests(value);
+    }
+
+    fn set_num_views(&mut self, value: u32) {
+        self.builder.ir().meta.set_num_views(value);
     }
 
     fn set_advanced_blend_equations(&mut self, value: u32) {

@@ -14,6 +14,7 @@
 #include "base/location.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
+#include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #if BUILDFLAG(IS_WIN)
 #include "components/update_client/background_downloader_win.h"
@@ -37,7 +38,10 @@ CrxDownloader::CrxDownloader(scoped_refptr<CrxDownloader> successor)
     : main_task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
       successor_(std::move(successor)) {}
 
-CrxDownloader::~CrxDownloader() = default;
+CrxDownloader::~CrxDownloader() {
+  TRACE_EVENT("update_client", "CrxDownloader::~CrxDownloader",
+              perfetto::TerminatingFlow::FromPointer(this));
+}
 
 void CrxDownloader::set_progress_callback(
     const ProgressCallback& progress_callback) {
@@ -87,6 +91,8 @@ base::OnceClosure CrxDownloader::StartDownload(
     std::string* dst,
 #endif                                  
     DownloadCallback download_callback) {
+  TRACE_EVENT("update_client", "CrxDownloader::StartDownload",
+              perfetto::Flow::FromPointer(this));
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 #if defined(IN_MEMORY_UPDATES)
   CHECK(dst);
@@ -134,6 +140,8 @@ void CrxDownloader::OnDownloadComplete(
     bool is_handled,
     const Result& result,
     const DownloadMetrics& download_metrics) {
+  TRACE_EVENT("update_client", "CrxDownloader::OnDownloadComplete",
+              perfetto::Flow::FromPointer(this));
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 #if BUILDFLAG(IS_STARBOARD)
   LOG(INFO) << "CrxDownloader::OnDownloadComplete";
@@ -228,6 +236,8 @@ void CrxDownloader::HandleDownloadError(
     bool is_handled,
     const Result& result,
     const DownloadMetrics& download_metrics) {
+  TRACE_EVENT("update_client", "CrxDownloader::HandleDownloadError",
+              perfetto::Flow::FromPointer(this));
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   CHECK_NE(0, result.error);
 #if !defined(IN_MEMORY_UPDATES)

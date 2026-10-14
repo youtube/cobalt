@@ -15,6 +15,8 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "api/array_view.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/system/arch.h"  // IWYU pragma: keep
 
 #if defined(WEBRTC_POSIX)
@@ -92,75 +94,177 @@ namespace webrtc {
 
 // Reading and writing of little and big-endian numbers from memory
 
+inline void Set8(ArrayView<uint8_t> data, size_t offset, uint8_t v) {
+  data[offset] = v;
+}
+
+[[deprecated("Use version with ArrayView")]]
 inline void Set8(void* memory, size_t offset, uint8_t v) {
   static_cast<uint8_t*>(memory)[offset] = v;
 }
 
+inline uint8_t Get8(ArrayView<const uint8_t> data, size_t offset) {
+  return data[offset];
+}
+
+[[deprecated("Use version with ArrayView")]]
 inline uint8_t Get8(const void* memory, size_t offset) {
   return static_cast<const uint8_t*>(memory)[offset];
 }
 
-inline void SetBE16(void* memory, uint16_t v) {
+inline void SetBE16(ArrayView<uint8_t> data, uint16_t v) {
+  RTC_DCHECK_GE(data.size(), sizeof(v));
+  uint16_t val = htobe16(v);
+  memcpy(data.data(), &val, sizeof(val));
+}
+
+[[deprecated("Use version with ArrayView")]] inline void SetBE16(void* memory,
+                                                                 uint16_t v) {
   uint16_t val = htobe16(v);
   memcpy(memory, &val, sizeof(val));
 }
 
+inline void SetBE32(ArrayView<uint8_t> data, uint32_t v) {
+  RTC_DCHECK_GE(data.size(), sizeof(v));
+  uint32_t val = htobe32(v);
+  memcpy(data.data(), &val, sizeof(val));
+}
+
+// TODO: issues.webrtc.org/484070270 - deprecate once Chromium usage is gone.
+// [[deprecated("Use version with ArrayView")]]
 inline void SetBE32(void* memory, uint32_t v) {
   uint32_t val = htobe32(v);
   memcpy(memory, &val, sizeof(val));
 }
 
-inline void SetBE64(void* memory, uint64_t v) {
+inline void SetBE64(ArrayView<uint8_t> data, uint64_t v) {
+  RTC_DCHECK_GE(data.size(), sizeof(v));
+  uint64_t val = htobe64(v);
+  memcpy(data.data(), &val, sizeof(val));
+}
+
+[[deprecated("Use version with ArrayView")]] inline void SetBE64(void* memory,
+                                                                 uint64_t v) {
   uint64_t val = htobe64(v);
   memcpy(memory, &val, sizeof(val));
 }
 
-inline uint16_t GetBE16(const void* memory) {
+inline uint16_t GetBE16(ArrayView<const uint8_t> data) {
+  uint16_t val;
+  RTC_DCHECK_GE(data.size(), sizeof(val));
+  memcpy(&val, data.data(), sizeof(val));
+  return be16toh(val);
+}
+
+[[deprecated("Use version with ArrayView")]] inline uint16_t GetBE16(
+    const void* memory) {
   uint16_t val;
   memcpy(&val, memory, sizeof(val));
   return be16toh(val);
 }
 
+inline uint32_t GetBE32(ArrayView<const uint8_t> data) {
+  uint32_t val;
+  RTC_DCHECK_GE(data.size(), sizeof(val));
+  memcpy(&val, data.data(), sizeof(val));
+  return be32toh(val);
+}
+
+// TODO: issues.webrtc.org/484070270 - deprecate once Chromium usage is gone.
+// [[deprecated("Use version with ArrayView")]]
 inline uint32_t GetBE32(const void* memory) {
   uint32_t val;
   memcpy(&val, memory, sizeof(val));
   return be32toh(val);
 }
 
-inline uint64_t GetBE64(const void* memory) {
+inline uint64_t GetBE64(ArrayView<const uint8_t> data) {
+  uint64_t val;
+  RTC_DCHECK_GE(data.size(), sizeof(val));
+  memcpy(&val, data.data(), sizeof(val));
+  return be64toh(val);
+}
+
+[[deprecated("Use version with ArrayView")]] inline uint64_t GetBE64(
+    const void* memory) {
   uint64_t val;
   memcpy(&val, memory, sizeof(val));
   return be64toh(val);
 }
 
-inline void SetLE16(void* memory, uint16_t v) {
+inline void SetLE16(ArrayView<uint8_t> data, uint16_t v) {
+  RTC_DCHECK_GE(data.size(), sizeof(v));
+  uint16_t val = htole16(v);
+  memcpy(data.data(), &val, sizeof(val));
+}
+
+[[deprecated("Use version with ArrayView")]] inline void SetLE16(void* memory,
+                                                                 uint16_t v) {
   uint16_t val = htole16(v);
   memcpy(memory, &val, sizeof(val));
 }
 
-inline void SetLE32(void* memory, uint32_t v) {
+inline void SetLE32(ArrayView<uint8_t> data, uint32_t v) {
+  RTC_DCHECK_GE(data.size(), sizeof(v));
+  uint32_t val = htole32(v);
+  memcpy(data.data(), &val, sizeof(val));
+}
+
+[[deprecated("Use version with ArrayView")]] inline void SetLE32(void* memory,
+                                                                 uint32_t v) {
   uint32_t val = htole32(v);
   memcpy(memory, &val, sizeof(val));
 }
 
-inline void SetLE64(void* memory, uint64_t v) {
+inline void SetLE64(ArrayView<uint8_t> data, uint64_t v) {
+  RTC_DCHECK_GE(data.size(), sizeof(v));
+  uint64_t val = htole64(v);
+  memcpy(data.data(), &val, sizeof(val));
+}
+
+[[deprecated("Use version with ArrayView")]] inline void SetLE64(void* memory,
+                                                                 uint64_t v) {
   uint64_t val = htole64(v);
   memcpy(memory, &val, sizeof(val));
 }
 
-inline uint16_t GetLE16(const void* memory) {
+inline uint16_t GetLE16(ArrayView<const uint8_t> data) {
+  uint16_t val;
+  RTC_DCHECK_GE(data.size(), sizeof(val));
+  memcpy(&val, data.data(), sizeof(val));
+  return le16toh(val);
+}
+
+[[deprecated("Use version with ArrayView")]] inline uint16_t GetLE16(
+    const void* memory) {
   uint16_t val;
   memcpy(&val, memory, sizeof(val));
   return le16toh(val);
 }
 
-inline uint32_t GetLE32(const void* memory) {
+inline uint32_t GetLE32(ArrayView<const uint8_t> data) {
+  uint32_t val;
+  RTC_DCHECK_GE(data.size(), sizeof(val));
+  memcpy(&val, data.data(), sizeof(val));
+  return le32toh(val);
+}
+
+[[deprecated("Use version with ArrayView")]] inline uint32_t GetLE32(
+    const void* memory) {
   uint32_t val;
   memcpy(&val, memory, sizeof(val));
   return le32toh(val);
 }
 
-inline uint64_t GetLE64(const void* memory) {
+inline uint64_t GetLE64(ArrayView<const uint8_t> data) {
+  uint64_t val;
+  RTC_DCHECK_GE(data.size(), sizeof(val));
+  memcpy(&val, data.data(), sizeof(val));
+  return le64toh(val);
+}
+
+[[deprecated("Use version with ArrayView")]] inline uint64_t GetLE64(
+    const void* memory) {
   uint64_t val;
   memcpy(&val, memory, sizeof(val));
   return le64toh(val);

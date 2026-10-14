@@ -21,6 +21,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/functional/any_invocable.h"
 #include "api/dtls_transport_interface.h"
 #include "api/media_stream_interface.h"
 #include "api/rtp_receiver_interface.h"
@@ -48,11 +49,19 @@ class RtpReceiverInternal : public RtpReceiverInterface {
 
   // Configures the RtpReceiver with the underlying media channel, with the
   // given SSRC as the stream identifier.
-  virtual void SetupMediaChannel(uint32_t ssrc) = 0;
+  // This function returns a callable object that must be invoked on the worker
+  // thread by the caller to complete the operation. This is done to allow the
+  // caller to batch up tasks for the worker thread.
+  [[nodiscard]] virtual absl::AnyInvocable<void() &&> GetSetupForMediaChannel(
+      uint32_t ssrc) = 0;
 
   // Configures the RtpReceiver with the underlying media channel to receive an
   // unsignaled receive stream.
-  virtual void SetupUnsignaledMediaChannel() = 0;
+  // This function returns a callable object that must be invoked on the worker
+  // thread by the caller to complete the operation. This is done to allow the
+  // caller to batch up tasks for the worker thread.
+  [[nodiscard]] virtual absl::AnyInvocable<void() &&>
+  GetSetupForUnsignaledMediaChannel() = 0;
 
   virtual void set_transport(
       scoped_refptr<DtlsTransportInterface> dtls_transport) = 0;

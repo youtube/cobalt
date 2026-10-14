@@ -19,6 +19,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/nullability.h"
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"
@@ -318,7 +319,10 @@ class RtpTransceiver : public RtpTransceiverInterface {
 
   // Executes the "stop the RTCRtpTransceiver" procedure from
   // the webrtc-pc specification, described under the stop() method.
-  void StopTransceiverProcedure();
+  // The task must be executed on the worker thread.
+  // This is used by SdpOfferAnswerHandler to batch worker thread operations.
+  [[nodiscard]] absl_nullable absl::AnyInvocable<void() &&>
+  GetStopTransceiverProcedure();
 
   // RtpTransceiverInterface implementation.
   MediaType media_type() const override;
@@ -401,7 +405,10 @@ class RtpTransceiver : public RtpTransceiverInterface {
   void OnPacketReceived(scoped_refptr<PendingTaskSafetyFlag> safety)
       RTC_RUN_ON(context()->network_thread());
   void OnFirstPacketSent();
-  void StopSendingAndReceiving();
+  // Stops the receivers synchronously and returns a task that stops the
+  // senders. The returned task must be executed on the worker thread.
+  [[nodiscard]] absl_nonnull absl::AnyInvocable<void() &&>
+  GetStopSendingAndReceiving();
   // Tell the senders and receivers about possibly-new media channels
   // in a newly created `channel_`.
   void PushNewMediaChannel();

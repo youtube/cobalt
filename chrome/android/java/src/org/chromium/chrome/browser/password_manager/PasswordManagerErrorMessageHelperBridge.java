@@ -10,6 +10,7 @@ import androidx.annotation.VisibleForTesting;
 
 import org.jni_zero.CalledByNative;
 
+import org.chromium.base.CallbackUtils;
 import org.chromium.base.IntentUtils;
 import org.chromium.base.TimeUtils;
 import org.chromium.base.metrics.RecordHistogram;
@@ -103,7 +104,7 @@ public class PasswordManagerErrorMessageHelperBridge {
         assert activity != null : "Activity should not be null";
         AccountManagerFacadeProvider.getInstance()
                 .updateCredentials(
-                        CoreAccountInfo.getAndroidAccountFrom(primaryAccountInfo),
+                        primaryAccountInfo,
                         activity,
                         (success) -> {
                             RecordHistogram.recordBooleanHistogram(
@@ -136,6 +137,8 @@ public class PasswordManagerErrorMessageHelperBridge {
                                     SyncTrustedVaultProxyActivity.createKeyRetrievalProxyIntent(
                                             intent, trustedVaultUserActionTriggerForUMA);
                             IntentUtils.safeStartActivity(activity, proxyIntent);
-                        });
+                        },
+                        // Ignore failure.
+                        CallbackUtils.emptyCallback());
     }
 }

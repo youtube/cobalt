@@ -15,16 +15,11 @@
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
+#include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/common/quiche_callbacks.h"
 
 namespace moqt {
-
-// The callback we'll use for all request types going forward. Can only be used
-// once; if the argument is nullopt, an OK response was received. Otherwise, an
-// ERROR response was received.
-using MoqtResponseCallback =
-    quiche::SingleUseCallback<void(std::optional<MoqtRequestErrorInfo>)>;
 
 // Called when the SETUP message from the peer is received.
 using MoqtSessionEstablishedCallback = quiche::SingleUseCallback<void()>;
@@ -49,20 +44,15 @@ using MoqtIncomingPublishNamespaceCallback = quiche::MultiUseCallback<void(
     const std::optional<VersionSpecificParameters>& parameters,
     MoqtResponseCallback callback)>;
 
-// Called whenever SUBSCRIBE_NAMESPACE or UNSUBSCRIBE_NAMESPACE is received from
-// the peer. SUBSCRIBE_NAMESPACE sets a value for |parameters|,
-// UNSUBSCRIBE_NAMESPACE does not. For UNSUBSCRIBE_NAMESPACE, |callback| is
-// null.
-// TODO(martinduke): Remove this callback once the new one is in use.
+// Called whenever SUBSCRIBE_NAMESPACE is received from the peer. Unsubscribe
+// is signalled by destroying MoqtNamespaceTask.
+// Calling MoqtNamespaceTask::SetObjectsAvailableCallback() will get all the
+// tracks and namespaces, as appropriate, that are already present.
 using MoqtIncomingSubscribeNamespaceCallback =
-    quiche::MultiUseCallback<void(const TrackNamespace& track_namespace,
-                                  std::optional<MessageParameters> parameters,
-                                  MoqtResponseCallback callback)>;
-using MoqtIncomingSubscribeNamespaceCallbackNew =
     quiche::MultiUseCallback<std::unique_ptr<MoqtNamespaceTask>(
-        const TrackNamespace& prefix, const MessageParameters& parameters,
-        MoqtResponseCallback response_callback,
-        ObjectsAvailableCallback objects_available_callback)>;
+        const TrackNamespace& prefix, SubscribeNamespaceOption option,
+        const MessageParameters& parameters,
+        MoqtResponseCallback response_callback)>;
 
 inline void DefaultIncomingPublishNamespaceCallback(
     const TrackNamespace&, const std::optional<VersionSpecificParameters>&,
@@ -75,16 +65,10 @@ inline void DefaultIncomingPublishNamespaceCallback(
       "This endpoint does not support incoming SUBSCRIBE_NAMESPACE messages"});
 };
 
-// TODO(martinduke): Remove this callback once the new one is in use.
-inline void DefaultIncomingSubscribeNamespaceCallback(
-    const TrackNamespace& track_namespace, std::optional<MessageParameters>,
-    MoqtResponseCallback callback) {
-  std::move(callback)(std::nullopt);
-}
 inline std::unique_ptr<MoqtNamespaceTask>
-DefaultIncomingSubscribeNamespaceCallbackNew(
-    const TrackNamespace&, const MessageParameters&,
-    MoqtResponseCallback response_callback, ObjectsAvailableCallback) {
+DefaultIncomingSubscribeNamespaceCallback(
+    const TrackNamespace&, SubscribeNamespaceOption, const MessageParameters&,
+    MoqtResponseCallback response_callback) {
   std::move(response_callback)(
       MoqtRequestErrorInfo{RequestErrorCode::kNotSupported, std::nullopt,
                            "This endpoint cannot publish."});

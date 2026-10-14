@@ -110,9 +110,6 @@ class MRUQueue {
   PackedSize<N> start_ = 0;
 };
 
-// CBBFinishArray behaves like |CBB_finish| but stores the result in an Array.
-OPENSSL_EXPORT bool CBBFinishArray(CBB *cbb, Array<uint8_t> *out);
-
 // GetAllNames helps to implement |*_get_all_*_names| style functions. It
 // writes at most |max_out| string pointers to |out| and returns the number that
 // it would have liked to have written. The strings written consist of
@@ -133,48 +130,6 @@ inline size_t GetAllNames(const char **out, size_t max_out,
   }
   return fixed_names.size() + objects.size();
 }
-
-// RefCounted is a common base for ref-counted types. This is an instance of the
-// C++ curiously-recurring template pattern, so a type Foo must subclass
-// RefCounted<Foo>. It additionally must friend RefCounted<Foo> to allow calling
-// the destructor.
-template <typename Derived>
-class RefCounted {
- public:
-  RefCounted(const RefCounted &) = delete;
-  RefCounted &operator=(const RefCounted &) = delete;
-
-  // These methods are intentionally named differently from `bssl::UpRef` to
-  // avoid a collision. Only the implementations of `FOO_up_ref` and `FOO_free`
-  // should call these.
-  void UpRefInternal() { CRYPTO_refcount_inc(&references_); }
-  void DecRefInternal() {
-    if (CRYPTO_refcount_dec_and_test_zero(&references_)) {
-      Derived *d = static_cast<Derived *>(this);
-      d->~Derived();
-      OPENSSL_free(d);
-    }
-  }
-
- protected:
-  // Ensure that only `Derived`, which must inherit from `RefCounted<Derived>`,
-  // can call the constructor. This catches bugs where someone inherited from
-  // the wrong base.
-  class CheckSubClass {
-   private:
-    friend Derived;
-    CheckSubClass() = default;
-  };
-  RefCounted(CheckSubClass) {
-    static_assert(std::is_base_of_v<RefCounted, Derived>,
-                  "Derived must subclass RefCounted<Derived>");
-  }
-
-  ~RefCounted() = default;
-
- private:
-  CRYPTO_refcount_t references_ = 1;
-};
 
 
 // Protocol versions.
@@ -1259,11 +1214,10 @@ bool tls13_derive_session_psk(SSL_SESSION *session, Span<const uint8_t> nonce,
 
 // tls13_write_psk_binder calculates the PSK binder value over |transcript| and
 // |msg|, and replaces the last bytes of |msg| with the resulting value. It
-// returns true on success, and false on failure. If |out_binder_len| is
-// non-NULL, it sets |*out_binder_len| to the length of the value computed.
+// returns true on success, and false on failure. |msg| should contain the body
+// of a ClientHello, but not the message header.
 bool tls13_write_psk_binder(const SSL_HANDSHAKE *hs,
-                            const SSLTranscript &transcript, Span<uint8_t> msg,
-                            size_t *out_binder_len);
+                            const SSLTranscript &transcript, Span<uint8_t> msg);
 
 // tls13_verify_psk_binder verifies that the handshake transcript, truncated up
 // to the binders has a valid signature using the value of |session|'s
@@ -3497,8 +3451,8 @@ enum ssl_hs_wait_t ssl_get_prev_session(SSL_HANDSHAKE *hs,
 // SSL_SESSION_dup returns a newly-allocated |SSL_SESSION| with a copy of the
 // fields in |session| or nullptr on error. The new session is non-resumable and
 // must be explicitly marked resumable once it has been filled in.
-OPENSSL_EXPORT UniquePtr<SSL_SESSION> SSL_SESSION_dup(SSL_SESSION *session,
-                                                      int dup_flags);
+OPENSSL_EXPORT UniquePtr<SSL_SESSION> SSL_SESSION_dup(
+    const SSL_SESSION *session, int dup_flags);
 
 // ssl_session_rebase_time updates |session|'s start time to the current time,
 // adjusting the timeout so the expiration time is unchanged.
@@ -3627,22 +3581,15 @@ bool tls1_check_group_id(const SSL_HANDSHAKE *ssl, uint16_t group_id);
 bool tls1_get_shared_group(SSL_HANDSHAKE *hs, uint16_t *out_group_id);
 
 // ssl_add_clienthello_tlsext writes ClientHello extensions to |out| for |type|.
-// It returns true on success and false on failure. The |header_len| argument is
-// the length of the ClientHello written so far and is used to compute the
-// padding length. (It does not include the record header or handshake headers.)
+// It returns true on success and false on failure. |out| must currently contain
+// a ClientHello message, not including the message and record header. (Its
+// contents will be used to compute padding and PSK binders.)
 //
 // If |type| is |ssl_client_hello_inner|, this function also writes the
 // compressed extensions to |out_encoded|. Otherwise, |out_encoded| should be
 // nullptr.
-//
-// On success, the function sets |*out_needs_psk_binder| to whether the last
-// ClientHello extension was the pre_shared_key extension and needs a PSK binder
-// filled in. The caller should then update |out| and, if applicable,
-// |out_encoded| with the binder after completing the whole message.
 bool ssl_add_clienthello_tlsext(SSL_HANDSHAKE *hs, CBB *out, CBB *out_encoded,
-                                bool *out_needs_psk_binder,
-                                ssl_client_hello_type_t type,
-                                size_t header_len);
+                                ssl_client_hello_type_t type);
 
 bool ssl_add_serverhello_tlsext(SSL_HANDSHAKE *hs, CBB *out);
 bool ssl_parse_clienthello_tlsext(SSL_HANDSHAKE *hs,

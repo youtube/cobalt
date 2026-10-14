@@ -96,6 +96,7 @@ import org.chromium.chrome.browser.fullscreen.FullscreenBackPressHandler;
 import org.chromium.chrome.browser.fullscreen.FullscreenManager;
 import org.chromium.chrome.browser.fullscreen.FullscreenOptions;
 import org.chromium.chrome.browser.glic.GlicKeyedService;
+import org.chromium.chrome.browser.glic.GlicKeyedServiceFactory;
 import org.chromium.chrome.browser.host_zoom.HostZoomListenerFactory;
 import org.chromium.chrome.browser.image_descriptions.ImageDescriptionsController;
 import org.chromium.chrome.browser.incognito.reauth.IncognitoReauthController;
@@ -195,7 +196,6 @@ import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.ui.native_page.NativePage;
 import org.chromium.chrome.browser.ui.system.StatusBarColorController;
 import org.chromium.chrome.browser.ui.system.StatusBarColorController.StatusBarColorProvider;
-import org.chromium.chrome.browser.wallet.BoardingPassController;
 import org.chromium.components.browser_ui.accessibility.PageZoomBarCoordinator;
 import org.chromium.components.browser_ui.accessibility.PageZoomBarCoordinatorDelegate;
 import org.chromium.components.browser_ui.accessibility.PageZoomManager;
@@ -233,6 +233,7 @@ import org.chromium.content_public.browser.BrowserContextHandle;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.browser.WebContentsAccessibility;
+import org.chromium.ui.base.ActivityResultTracker;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.base.IntentRequestTracker;
@@ -287,6 +288,7 @@ public class RootUiCoordinator
     protected @Nullable AppMenuCoordinator mAppMenuCoordinator;
     private final MenuOrKeyboardActionController mMenuOrKeyboardActionController;
     protected final ActivityWindowAndroid mWindowAndroid;
+    protected final ActivityResultTracker mActivityResultTracker;
     private final OneshotSupplier<ChromeAndroidTask> mChromeAndroidTaskSupplier;
 
     protected final ActivityTabProvider mActivityTabProvider;
@@ -403,7 +405,6 @@ public class RootUiCoordinator
     private RestoreTabsFeatureHelper mRestoreTabsFeatureHelper;
     private @Nullable EdgeToEdgeController mEdgeToEdgeController;
     private ComposedBrowserControlsVisibilityDelegate mAppBrowserControlsVisibilityDelegate;
-    private @Nullable BoardingPassController mBoardingPassController;
     protected final @NonNull EdgeToEdgeManager mEdgeToEdgeManager;
     private AutomotiveBackButtonToolbarCoordinator mAutomotiveBackButtonToolbarCoordinator;
     protected AdaptiveToolbarUiCoordinator mAdaptiveToolbarUiCoordinator;
@@ -484,6 +485,7 @@ public class RootUiCoordinator
             @NonNull OneshotSupplier<LayoutStateProvider> layoutStateProviderOneshotSupplier,
             @NonNull BrowserControlsManager browserControlsManager,
             @NonNull ActivityWindowAndroid windowAndroid,
+            @NonNull ActivityResultTracker activityResultTracker,
             @NonNull OneshotSupplier<ChromeAndroidTask> chromeAndroidTaskSupplier,
             @NonNull ActivityLifecycleDispatcher activityLifecycleDispatcher,
             @NonNull MonotonicObservableSupplier<LayoutManagerImpl> layoutManagerSupplier,
@@ -521,6 +523,7 @@ public class RootUiCoordinator
         mCallbackController = new CallbackController();
         mActivity = activity;
         mWindowAndroid = windowAndroid;
+        mActivityResultTracker = activityResultTracker;
         mChromeAndroidTaskSupplier = chromeAndroidTaskSupplier;
         mEphemeralTabCoordinatorSupplier = ephemeralTabCoordinatorSupplier;
         mOnOmniboxFocusChangedListener = onOmniboxFocusChangedListener;
@@ -598,7 +601,7 @@ public class RootUiCoordinator
                     onLayoutManagerAvailable(layoutManager);
                     mLayoutManagerSupplier.set(layoutManager);
                 };
-        mLayoutManagerImplSupplier.addObserver(layoutManagerSupplierCallback);
+        mLayoutManagerImplSupplier.addSyncObserverAndPostIfNonNull(layoutManagerSupplierCallback);
 
         mTabObscuringHandlerSupplier.set(new TabObscuringHandler());
         mDeviceLockActivityLauncherSupplier.set(DeviceLockActivityLauncherImpl.get());
@@ -961,11 +964,6 @@ public class RootUiCoordinator
 
         mTopInsetProvider.destroy();
 
-        if (mBoardingPassController != null) {
-            mBoardingPassController.destroy();
-            mBoardingPassController = null;
-        }
-
         if (mReaderModeBottomSheetManager != null) {
             mReaderModeBottomSheetManager.destroy();
             mReaderModeBottomSheetManager = null;
@@ -1129,6 +1127,8 @@ public class RootUiCoordinator
         initScrollCapture();
         mAdaptiveToolbarUiCoordinator.onFinishNativeInitialization();
 
+        EdgeToEdgeUtils.recordEligibilityForEveryStart(mActivity);
+
         if (mWindowAndroid.getInsetObserver() != null
                 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
                 && ChromeFeatureList.sEdgeToEdgeMonitorConfigurations.isEnabled()) {
@@ -1140,7 +1140,6 @@ public class RootUiCoordinator
         } else {
             initializeEdgeToEdgeController();
         }
-        initBoardingPassDetector();
 
         if (EphemeralTabCoordinator.isSupported()) {
             Supplier<TabCreator> tabCreator =
@@ -1625,19 +1624,20 @@ public class RootUiCoordinator
                 }
             }
         } else if (id == R.id.glic_menu_id) {
+            Profile profile = mTabModelSelectorSupplier.get().getCurrentModel().getProfile();
+            assert profile != null;
+
+            GlicKeyedService service = GlicKeyedServiceFactory.getForProfile(profile);
+            if (service == null) {
+                return false;
+            }
+
             var task = mChromeAndroidTaskSupplier.get();
             if (task == null) {
                 Log.w(TAG, "Failed to trigger GLIC: ChromeAndroidTask is null.");
                 return false;
             }
-            Profile profile = mTabModelSelectorSupplier.get().getCurrentModel().getProfile();
-            assert profile != null;
             long browserWindowPtr = task.getOrCreateNativeBrowserWindowPtr(profile);
-            GlicKeyedService service = new GlicKeyedService();
-            if (service == null) {
-                return false;
-            }
-
             // TODO(crbug.com/479863299): Create and pass in enum for invocationSource.
             service.toggleUI(
                     browserWindowPtr,
@@ -1778,6 +1778,8 @@ public class RootUiCoordinator
                     /* onShareRunnable= */ () ->
                             mToolbarManager.setUrlBarFocus(false, OmniboxFocusReason.UNFOCUS),
                     mWindowAndroid,
+                    mActivityResultTracker,
+                    mDeviceLockActivityLauncherSupplier.get(),
                     trackerSupplier,
                     this::getScrimManager,
                     mReaderModeIphControllerSupplier);
@@ -1927,7 +1929,7 @@ public class RootUiCoordinator
                 new ScrimManager(mActivity, coordinator, ScrimClient.ROOT_UI_COORDINATOR);
         scrimManager
                 .getStatusBarColorSupplier()
-                .addObserver(RootUiCoordinator.this::onScrimColorChanged);
+                .addSyncObserverAndPostIfNonNull(this::onScrimColorChanged);
         return scrimManager;
     }
 
@@ -2236,7 +2238,7 @@ public class RootUiCoordinator
     /** Setup drawing using Android Edge-to-Edge. */
     @CallSuper
     protected void initializeEdgeToEdgeController() {
-        boolean eligible = EdgeToEdgeUtils.recordEligibility(mActivity);
+        boolean eligible = EdgeToEdgeUtils.recordEligibilityOnCreate(mActivity);
 
         UmaSessionStats.registerSyntheticFieldTrial(
                 "EdgeToEdgeChinEligibility", eligible ? "Eligible" : "Not Eligible");
@@ -2555,13 +2557,6 @@ public class RootUiCoordinator
                 gtsTabListModelSizeSupplier,
                 scrollGTSToRestoredTabsCallback,
                 mModalDialogManagerSupplier);
-    }
-
-    private void initBoardingPassDetector() {
-        if (ChromeFeatureList.isEnabled(ChromeFeatureList.BOARDING_PASS_DETECTOR)) {
-            mBoardingPassController =
-                    new BoardingPassController(mActivityTabProvider.asObservable());
-        }
     }
 
     private void bringTabToFront(TabWindowInfo tabWindowInfo, GURL url) {

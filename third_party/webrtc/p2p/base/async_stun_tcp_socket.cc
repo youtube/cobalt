@@ -126,13 +126,13 @@ size_t AsyncStunTCPSocket::ProcessInput(ArrayView<const uint8_t> data) {
 }
 
 size_t AsyncStunTCPSocket::GetExpectedLength(const void* data,
-                                             size_t /* len */,
+                                             size_t len,
                                              int* pad_bytes) {
   *pad_bytes = 0;
-  PacketLength pkt_len =
-      GetBE16(static_cast<const char*>(data) + kPacketLenOffset);
+  ArrayView<const uint8_t> view(static_cast<const uint8_t*>(data), len);
+  PacketLength pkt_len = GetBE16(view.subspan(kPacketLenOffset, 2));
   size_t expected_pkt_len;
-  uint16_t msg_type = GetBE16(data);
+  uint16_t msg_type = GetBE16(view);
   if (IsStunMessage(msg_type)) {
     // STUN message.
     expected_pkt_len = kStunHeaderSize + pkt_len;

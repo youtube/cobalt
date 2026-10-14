@@ -78,7 +78,6 @@
 #include "chrome/browser/ui/views/tabs/z_orderable_tab_container_element.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/ui/web_applications/web_app_tabbed_utils.h"
-#include "chrome/common/chrome_features.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/theme_resources.h"
 #include "components/crash/core/common/crash_key.h"
@@ -1092,9 +1091,11 @@ END_METADATA
 ///////////////////////////////////////////////////////////////////////////////
 // TabStrip, public:
 
-TabStrip::TabStrip(std::unique_ptr<TabStripController> controller)
+TabStrip::TabStrip(
+    std::unique_ptr<TabStripController> controller,
+    std::unique_ptr<TabHoverCardController> hover_card_controller)
     : controller_(std::move(controller)),
-      hover_card_controller_(std::make_unique<TabHoverCardController>(this)),
+      hover_card_controller_(std::move(hover_card_controller)),
       drag_context_(*AddChildView(std::make_unique<TabDragContextImpl>(this))),
       style_(TabStyle::Get()) {
   // TODO(pbos): This is probably incorrect, the background of individual tabs
@@ -1844,10 +1845,16 @@ void TabStrip::ToggleTabGroupCollapsedState(
 }
 
 void TabStrip::NotifyTabstripBubbleOpened() {
+  if (!tab_container_) {
+    return;
+  }
   tab_container_->NotifyTabstripBubbleOpened();
 }
 
 void TabStrip::NotifyTabstripBubbleClosed() {
+  if (!tab_container_) {
+    return;
+  }
   tab_container_->NotifyTabstripBubbleClosed();
 }
 
@@ -2447,6 +2454,10 @@ void TabStrip::OnGestureEvent(ui::GestureEvent* event) {
 }
 
 void TabStrip::OnTouchUiChanged() {
+  if (!tab_container_) {
+    return;
+  }
+
   tab_container_->CompleteAnimationAndLayout();
   PreferredSizeChanged();
 }

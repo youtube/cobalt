@@ -30,7 +30,7 @@ std::unique_ptr<RmsLevel> RunTest(ArrayView<const int16_t> input) {
   std::unique_ptr<RmsLevel> level(new RmsLevel);
   for (size_t n = 0; n + kBlockSizeSamples <= input.size();
        n += kBlockSizeSamples) {
-    level->Analyze(input.subview(n, kBlockSizeSamples));
+    level->Analyze(input.subspan(n, kBlockSizeSamples));
   }
   return level;
 }
@@ -39,7 +39,7 @@ std::unique_ptr<RmsLevel> RunTest(ArrayView<const float> input) {
   std::unique_ptr<RmsLevel> level(new RmsLevel);
   for (size_t n = 0; n + kBlockSizeSamples <= input.size();
        n += kBlockSizeSamples) {
-    level->Analyze(input.subview(n, kBlockSizeSamples));
+    level->Analyze(input.subspan(n, kBlockSizeSamples));
   }
   return level;
 }

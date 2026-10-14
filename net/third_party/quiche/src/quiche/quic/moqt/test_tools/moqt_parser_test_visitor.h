@@ -61,7 +61,7 @@ class MoqtParserTestVisitor : public MoqtControlParserVisitor,
   void OnSubscribeOkMessage(const MoqtSubscribeOk& message) override {
     OnControlMessage(message);
   }
-  void OnSubscribeUpdateMessage(const MoqtSubscribeUpdate& message) override {
+  void OnRequestUpdateMessage(const MoqtRequestUpdate& message) override {
     OnControlMessage(message);
   }
   void OnUnsubscribeMessage(const MoqtUnsubscribe& message) override {
@@ -95,10 +95,6 @@ class MoqtParserTestVisitor : public MoqtControlParserVisitor,
   }
   void OnSubscribeNamespaceMessage(
       const MoqtSubscribeNamespace& message) override {
-    OnControlMessage(message);
-  }
-  void OnUnsubscribeNamespaceMessage(
-      const MoqtUnsubscribeNamespace& message) override {
     OnControlMessage(message);
   }
   void OnMaxRequestIdMessage(const MoqtMaxRequestId& message) override {

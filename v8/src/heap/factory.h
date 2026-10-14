@@ -493,8 +493,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<StackTraceInfo> NewStackTraceInfo(DirectHandle<FixedArray> frames);
 
   // Allocate various microtasks.
-  DirectHandle<CallableTask> NewCallableTask(DirectHandle<JSReceiver> callable,
-                                             DirectHandle<Context> context);
+  DirectHandle<CallableTask> NewCallableTask(
+      DirectHandle<JSReceiver> callable, DirectHandle<NativeContext> context);
   DirectHandle<CallbackTask> NewCallbackTask(DirectHandle<Foreign> callback,
                                              DirectHandle<Foreign> data);
   DirectHandle<PromiseResolveThenableJobTask> NewPromiseResolveThenableJobTask(
@@ -713,6 +713,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   }
 
   // Create a JSArray with the given elements.
+  // TODO(375937549): Change length to uint32_t.
   Handle<JSArray> NewJSArrayWithElements(
       DirectHandle<FixedArrayBase> elements, ElementsKind elements_kind,
       int length, AllocationType allocation = AllocationType::kYoung);

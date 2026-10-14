@@ -139,7 +139,7 @@ int AsyncTCPSocketBase::FlushOutBuffer() {
       res = -1;
       break;
     }
-    view = view.subview(res);
+    view = view.subspan(res);
   }
   if (res > 0) {
     // The output buffer may have been written out over multiple partial Send(),
@@ -280,12 +280,13 @@ size_t AsyncTCPSocket::ProcessInput(ArrayView<const uint8_t> data) {
     if (bytes_left < kPacketLenSize)
       return processed_bytes;
 
-    PacketLength pkt_len = GetBE16(data.data() + processed_bytes);
+    PacketLength pkt_len =
+        GetBE16(data.subspan(processed_bytes, kPacketLenSize));
     if (bytes_left < kPacketLenSize + pkt_len)
       return processed_bytes;
 
     ReceivedIpPacket received_packet(
-        data.subview(processed_bytes + kPacketLenSize, pkt_len), remote_addr,
+        data.subspan(processed_bytes + kPacketLenSize, pkt_len), remote_addr,
         env_.clock().CurrentTime());
     NotifyPacketReceived(received_packet);
     processed_bytes += kPacketLenSize + pkt_len;

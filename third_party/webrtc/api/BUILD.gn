@@ -682,6 +682,7 @@ rtc_library("frame_transformer_interface") {
   deps = [
     ":array_view",
     ":make_ref_counted",
+    ":payload_type",
     ":ref_count",
     ":scoped_refptr",
     "../rtc_base:checks",
@@ -808,6 +809,15 @@ rtc_source_set("track_id_stream_info_map") {
 rtc_source_set("rtp_transceiver_direction") {
   visibility = [ "*" ]
   sources = [ "rtp_transceiver_direction.h" ]
+}
+
+rtc_source_set("payload_type") {
+  visibility = [ "*" ]
+  sources = [ "payload_type.h" ]
+  deps = [
+    "../rtc_base:strong_alias",
+    "//third_party/abseil-cpp/absl/strings:str_format",
+  ]
 }
 
 rtc_library("priority") {
@@ -1684,6 +1694,7 @@ if (rtc_include_tests) {
     deps = [
       ":array_view",
       ":frame_transformer_interface",
+      ":payload_type",
       "../test:test_support",
       "units:time_delta",
       "units:timestamp",
@@ -1758,6 +1769,7 @@ if (rtc_include_tests) {
     deps = [
       ":array_view",
       ":frame_transformer_interface",
+      ":payload_type",
       "../api/units:timestamp",
       "../test:test_support",
       "units:time_delta",
@@ -1772,6 +1784,7 @@ if (rtc_include_tests) {
     deps = [
       ":array_view",
       ":frame_transformer_interface",
+      ":payload_type",
       "../test:test_support",
       "units:time_delta",
       "units:timestamp",

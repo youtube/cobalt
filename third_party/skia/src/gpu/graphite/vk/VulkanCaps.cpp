@@ -573,7 +573,7 @@ void VulkanCaps::applyDriverCorrectnessWorkarounds(const PhysicalDevicePropertie
     // discardable msaa attachments. This causes the resolve to resolve uninitialized data from the
     // msaa image into the resolve image. This was reproed on a Pixel4 using the DstReadShuffle GM
     // where the top half of the GM would drop out. In Ganesh we had also seen this on Arm devices,
-    // but the issue hasn't appeared yet in Graphite. It may just have occured on older Arm drivers
+    // but the issue hasn't appeared yet in Graphite. It may just have occurred on older Arm drivers
     // that we don't even test any more. This also occurs on swiftshader: b/303705884 in Ganesh, but
     // we aren't currently testing that in Graphite yet so leaving that off the workaround for now
     // until we run into it.
@@ -2034,7 +2034,7 @@ bool VulkanCaps::isTransferDst(const VulkanTextureInfo& vkInfo) const {
     return info.isTransferDst(vkInfo.fImageTiling);
 }
 
-bool VulkanCaps::supportsWritePixels(const TextureInfo& texInfo) const {
+bool VulkanCaps::isCopyableDst(const TextureInfo& texInfo) const {
     const auto& vkInfo = TextureInfoPriv::Get<VulkanTextureInfo>(texInfo);
 
     // Can't write if it needs a YCbCr sampler
@@ -2053,7 +2053,7 @@ bool VulkanCaps::supportsWritePixels(const TextureInfo& texInfo) const {
     return true;
 }
 
-bool VulkanCaps::supportsReadPixels(const TextureInfo& texInfo) const {
+bool VulkanCaps::isCopyableSrc(const TextureInfo& texInfo) const {
     if (texInfo.isProtected() == Protected::kYes) {
         return false;
     }

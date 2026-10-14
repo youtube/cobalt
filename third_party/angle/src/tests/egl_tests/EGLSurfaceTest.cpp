@@ -3488,7 +3488,7 @@ TEST_P(EGLSurfaceTest, SurfaceFixedRateCompression)
     EGLint rates[3];
     // Success, actual values of rates are depended on each platform
     EXPECT_EGL_TRUE(
-        eglQuerySupportedCompressionRatesEXT(mDisplay, mConfig, NULL, rates, 3, &numRates));
+        eglQuerySupportedCompressionRatesEXT(mDisplay, mConfig, nullptr, rates, 3, &numRates));
     ASSERT_EGL_SUCCESS();
 
     if (numRates > 0 && rates[0] != EGL_SURFACE_COMPRESSION_FIXED_RATE_NONE_EXT)
@@ -4541,6 +4541,215 @@ TEST_P(EGLWindowSurfaceColorspaceTestES3, ToggleSrgbWriteControl)
 
     EXPECT_PIXEL_COLOR_NEAR(0, 0, linearColor, 1.0);
     EXPECT_GL_NO_ERROR();
+}
+
+// Regression test for a vulkan backend bug where toggling colorspace within a renderpass
+// wouldn't refresh the framebuffer
+TEST_P(EGLWindowSurfaceColorspaceTestES3, ToggleSrgbWriteControlWithinRenderPass)
+{
+    setWindowVisible(mOSWindow, true);
+
+    initializeDisplay();
+
+    ANGLE_SKIP_TEST_IF(!IsEGLDisplayExtensionEnabled(mDisplay, "EGL_KHR_gl_colorspace"));
+
+    // Choose an EGLConfig
+    constexpr EGLint kConfigAttributes[] = {EGL_RED_SIZE,     8,
+                                            EGL_GREEN_SIZE,   8,
+                                            EGL_BLUE_SIZE,    8,
+                                            EGL_ALPHA_SIZE,   8,
+                                            EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
+                                            EGL_NONE};
+    EGLint configCount                   = 0;
+    EGLConfig config                     = nullptr;
+    ANGLE_SKIP_TEST_IF(!eglChooseConfig(mDisplay, kConfigAttributes, &config, 1, &configCount));
+    ANGLE_SKIP_TEST_IF(configCount == 0);
+    ASSERT_NE(config, nullptr);
+
+    // Create a window surface with sRGB colorspace
+    std::vector<EGLint> sutfaceAttribs;
+    sutfaceAttribs.push_back(EGL_GL_COLORSPACE);
+    sutfaceAttribs.push_back(EGL_GL_COLORSPACE_SRGB);
+    sutfaceAttribs.push_back(EGL_NONE);
+    initializeSurfaceWithAttribs(config, sutfaceAttribs);
+    EXPECT_EGL_SUCCESS();
+    ASSERT_NE(mWindowSurface, EGL_NO_SURFACE);
+
+    // Create a context
+    initializeMainContext();
+    ASSERT_EGL_SUCCESS();
+    ASSERT_NE(mContext, EGL_NO_CONTEXT);
+
+    eglMakeCurrent(mDisplay, mWindowSurface, mWindowSurface, mContext);
+    EXPECT_EGL_SUCCESS();
+
+    ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_sRGB_write_control"));
+
+    constexpr angle::GLColor uniformColor(13, 54, 133, 255);
+    constexpr angle::GLColor srgbColor(64, 127, 191, 255);
+
+    ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Simple(), essl1_shaders::fs::UniformColor());
+    glUseProgram(program);
+    GLint colorLocation = glGetUniformLocation(program, essl1_shaders::ColorUniform());
+    ASSERT_NE(-1, colorLocation);
+    Vector4 uniformColorNormalized = uniformColor.toNormalizedVector();
+    glUniform4f(colorLocation, uniformColorNormalized.x(), uniformColorNormalized.y(),
+                uniformColorNormalized.z(), uniformColorNormalized.w());
+    EXPECT_GL_NO_ERROR();
+
+    // Bind default framebuffer
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    EXPECT_GL_NO_ERROR();
+
+    // Disable encoding to sRGB colorspace.
+    glDisable(GL_FRAMEBUFFER_SRGB_EXT);
+
+    // Draw
+    drawQuad(program, essl1_shaders::PositionAttrib(), 0.5f);
+    EXPECT_GL_NO_ERROR();
+
+    // Don't break the renderpass, toggle colorspace and draw again
+
+    // Enable encoding to sRGB colorspace.
+    glEnable(GL_FRAMEBUFFER_SRGB_EXT);
+
+    // Draw
+    drawQuad(program, essl1_shaders::PositionAttrib(), 0.5f);
+    EXPECT_GL_NO_ERROR();
+    EXPECT_PIXEL_COLOR_NEAR(0, 0, srgbColor, 1.0);
+}
+
+// Test that a PRESERVED surface can be cleared to black (emulated-format clear color).
+TEST_P(EGLSurfaceTest, PreserveThenClearToBlack)
+{
+    // Necessary for some platforms (NVIDIA on Linux) if there is no per-frame window size query.
+    setWindowVisible(mOSWindow, true);
+
+    initializeDisplay();
+
+    // Initialize an RGBA8 window surface with 4x MSAA
+    constexpr EGLint kSurfaceAttributes[] = {
+        EGL_RED_SIZE, 8, EGL_GREEN_SIZE, 8, EGL_BLUE_SIZE, 8,
+        // Make sure ALPHA is not set, increasing the chance
+        // that an RGB format is chosen that is emulated with
+        // RGBA.
+        EGL_SURFACE_TYPE, EGL_WINDOW_BIT | EGL_SWAP_BEHAVIOR_PRESERVED_BIT, EGL_NONE};
+
+    EGLint configCount      = 0;
+    EGLConfig surfaceConfig = nullptr;
+    ANGLE_SKIP_TEST_IF(
+        !eglChooseConfig(mDisplay, kSurfaceAttributes, &surfaceConfig, 1, &configCount));
+    ANGLE_SKIP_TEST_IF(configCount == 0);
+    ASSERT_NE(surfaceConfig, nullptr);
+
+    initializeSurface(surfaceConfig);
+    initializeMainContext();
+    ASSERT_NE(mWindowSurface, EGL_NO_SURFACE);
+
+    eglMakeCurrent(mDisplay, mWindowSurface, mWindowSurface, mContext);
+    ASSERT_EGL_SUCCESS();
+
+    // Draw something non-black to the surface.
+    ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Simple(), essl1_shaders::fs::Blue());
+    drawQuad(program, essl1_shaders::PositionAttrib(), 0.5f);
+    EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::blue);
+
+    // Enable preserve behavior.
+    EXPECT_TRUE(
+        eglSurfaceAttrib(mDisplay, mWindowSurface, EGL_SWAP_BEHAVIOR, EGL_BUFFER_PRESERVED));
+    eglSwapBuffers(mDisplay, mWindowSurface);
+
+    // Clear to black, ensure it's not dropped.
+    glClearColor(0, 0, 0, 1);
+    glClear(GL_COLOR_BUFFER_BIT);
+    EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::black);
+}
+
+// Test that a PRESERVED surface can be blended to.
+TEST_P(EGLSurfaceTest, PreserveThenBlend)
+{
+    // Necessary for some platforms (NVIDIA on Linux) if there is no per-frame window size query.
+    setWindowVisible(mOSWindow, true);
+
+    initializeDisplay();
+
+    // Initialize an RGBA8 window surface with 4x MSAA
+    constexpr EGLint kSurfaceAttributes[] = {
+        EGL_RED_SIZE,  8, EGL_GREEN_SIZE,   8,
+        EGL_BLUE_SIZE, 8, EGL_SURFACE_TYPE, EGL_WINDOW_BIT | EGL_SWAP_BEHAVIOR_PRESERVED_BIT,
+        EGL_NONE};
+
+    EGLint configCount      = 0;
+    EGLConfig surfaceConfig = nullptr;
+    ANGLE_SKIP_TEST_IF(
+        !eglChooseConfig(mDisplay, kSurfaceAttributes, &surfaceConfig, 1, &configCount));
+    ANGLE_SKIP_TEST_IF(configCount == 0);
+    ASSERT_NE(surfaceConfig, nullptr);
+
+    initializeSurface(surfaceConfig);
+    initializeMainContext();
+    ASSERT_NE(mWindowSurface, EGL_NO_SURFACE);
+
+    eglMakeCurrent(mDisplay, mWindowSurface, mWindowSurface, mContext);
+    ASSERT_EGL_SUCCESS();
+
+    // Draw something to the surface.
+    ANGLE_GL_PROGRAM(drawBlue, essl1_shaders::vs::Simple(), essl1_shaders::fs::Blue());
+    drawQuad(drawBlue, essl1_shaders::PositionAttrib(), 0.5f);
+    EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::blue);
+
+    // Enable preserve behavior.
+    EXPECT_TRUE(
+        eglSurfaceAttrib(mDisplay, mWindowSurface, EGL_SWAP_BEHAVIOR, EGL_BUFFER_PRESERVED));
+    eglSwapBuffers(mDisplay, mWindowSurface);
+
+    // Blend something else to the surface.
+    ANGLE_GL_PROGRAM(drawRed, essl1_shaders::vs::Simple(), essl1_shaders::fs::Red());
+    glBlendFunc(GL_ONE, GL_ONE);
+    glEnable(GL_BLEND);
+    drawQuad(drawRed, essl1_shaders::PositionAttrib(), 0.5f);
+    EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::magenta);
+}
+
+// Verify switching to preserved swap behavior works if the only update to the surface is clear.
+TEST_P(EGLSurfaceTest, ClearThenPreserve)
+{
+    // Necessary for some platforms (NVIDIA on Linux) if there is no per-frame window size query.
+    setWindowVisible(mOSWindow, true);
+
+    initializeDisplay();
+
+    // Initialize an RGBA8 window surface with 4x MSAA
+    constexpr EGLint kSurfaceAttributes[] = {
+        EGL_RED_SIZE,  8, EGL_GREEN_SIZE,   8,
+        EGL_BLUE_SIZE, 8, EGL_SURFACE_TYPE, EGL_WINDOW_BIT | EGL_SWAP_BEHAVIOR_PRESERVED_BIT,
+        EGL_NONE};
+
+    EGLint configCount      = 0;
+    EGLConfig surfaceConfig = nullptr;
+    ANGLE_SKIP_TEST_IF(
+        !eglChooseConfig(mDisplay, kSurfaceAttributes, &surfaceConfig, 1, &configCount));
+    ANGLE_SKIP_TEST_IF(configCount == 0);
+    ASSERT_NE(surfaceConfig, nullptr);
+
+    initializeSurface(surfaceConfig);
+    initializeMainContext();
+    ASSERT_NE(mWindowSurface, EGL_NO_SURFACE);
+
+    eglMakeCurrent(mDisplay, mWindowSurface, mWindowSurface, mContext);
+    ASSERT_EGL_SUCCESS();
+
+    // Clear the surface, but don't flush it.
+    glClearColor(0, 0, 1, 1);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    // Enable preserve behavior.
+    EXPECT_TRUE(
+        eglSurfaceAttrib(mDisplay, mWindowSurface, EGL_SWAP_BEHAVIOR, EGL_BUFFER_PRESERVED));
+    eglSwapBuffers(mDisplay, mWindowSurface);
+
+    // Verify that the clear color is visible after swap.
+    EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::blue);
 }
 
 }  // anonymous namespace

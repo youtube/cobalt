@@ -5974,6 +5974,8 @@ class Handlers : public HandlersBase {
         wasm_runtime->StructNewUninitialized(index);
     DirectHandle<HeapObject> struct_obj = struct_new_result.first;
     const StructType* struct_type = struct_new_result.second;
+    WriteBarrierMode mode =
+        struct_type->is_shared() ? UPDATE_WRITE_BARRIER : SKIP_WRITE_BARRIER;
 
     {
       // The new struct is uninitialized, which means GC might fail until
@@ -6022,7 +6024,7 @@ class Handlers : public HandlersBase {
                 *struct_obj, field_addr,
                 field_offset + kHeapObjectTag,  // field_offset is offset into
                                                 // tagged object.
-                *ref, SKIP_WRITE_BARRIER);
+                *ref, mode);
             break;
           }
           default:
@@ -6044,6 +6046,8 @@ class Handlers : public HandlersBase {
         wasm_runtime->StructNewUninitialized(index);
     DirectHandle<HeapObject> struct_obj = struct_new_result.first;
     const StructType* struct_type = struct_new_result.second;
+    WriteBarrierMode mode =
+        struct_type->is_shared() ? UPDATE_WRITE_BARRIER : SKIP_WRITE_BARRIER;
 
     {
       // The new struct is uninitialized, which means GC might fail until
@@ -6085,7 +6089,7 @@ class Handlers : public HandlersBase {
                 *struct_obj, field_addr,
                 field_offset + kHeapObjectTag,  // field_offset is offset into
                                                 // tagged object.
-                wasm_runtime->GetNullValue(value_type), SKIP_WRITE_BARRIER);
+                wasm_runtime->GetNullValue(value_type), mode);
             break;
           default:
             UNREACHABLE();
@@ -6193,9 +6197,9 @@ class Handlers : public HandlersBase {
     const uint32_t elem_count = pop<int32_t>(sp, code, wasm_runtime);
     const T value = pop<T>(sp, code, wasm_runtime);
 
-    std::pair<DirectHandle<WasmArray>, const ArrayType*> array_new_result =
+    WasmInterpreterRuntime::ArrayNewResult array_new_result =
         wasm_runtime->ArrayNewUninitialized(elem_count, array_index);
-    DirectHandle<WasmArray> array = array_new_result.first;
+    DirectHandle<WasmArray> array = array_new_result.array;
     if (V8_UNLIKELY(array.is_null())) {
       TRAP(MessageTemplate::kWasmTrapArrayTooLarge)
     }
@@ -6205,7 +6209,7 @@ class Handlers : public HandlersBase {
       // initialization.
       DisallowHeapAllocation no_gc;
 
-      const ArrayType* array_type = array_new_result.second;
+      const ArrayType* array_type = array_new_result.type;
       const ValueKind kind = array_type->element_type().kind();
       const uint32_t element_size = value_kind_size(kind);
       DCHECK_EQ(element_size, sizeof(U));
@@ -6236,19 +6240,21 @@ class Handlers : public HandlersBase {
     const uint32_t elem_count = pop<int32_t>(sp, code, wasm_runtime);
     const WasmRef value = pop<WasmRef>(sp, code, wasm_runtime);
 
-    std::pair<DirectHandle<WasmArray>, const ArrayType*> array_new_result =
+    WasmInterpreterRuntime::ArrayNewResult array_new_result =
         wasm_runtime->ArrayNewUninitialized(elem_count, array_index);
-    DirectHandle<WasmArray> array = array_new_result.first;
+    DirectHandle<WasmArray> array = array_new_result.array;
     if (V8_UNLIKELY(array.is_null())) {
       TRAP(MessageTemplate::kWasmTrapArrayTooLarge)
     }
 
 #if DEBUG
-    const ArrayType* array_type = array_new_result.second;
+    const ArrayType* array_type = array_new_result.type;
     DCHECK_EQ(value_kind_size(array_type->element_type().kind()),
               sizeof(Tagged_t));
 #endif
 
+    WriteBarrierMode mode =
+        array_new_result.is_shared ? UPDATE_WRITE_BARRIER : SKIP_WRITE_BARRIER;
     {
       // The new array is uninitialized, which means GC might fail until
       // initialization.
@@ -6258,7 +6264,7 @@ class Handlers : public HandlersBase {
       uint32_t element_offset = array->element_offset(0);
       for (uint32_t i = 0; i < elem_count; i++) {
         StoreRefIntoMemory(TrustedCast<HeapObject>(*array), element_addr,
-                           element_offset, *value, SKIP_WRITE_BARRIER);
+                           element_offset, *value, mode);
         element_addr += sizeof(Tagged_t);
         element_offset += sizeof(Tagged_t);
       }
@@ -6275,9 +6281,9 @@ class Handlers : public HandlersBase {
     const uint32_t array_index = Read<int32_t>(code);
     const uint32_t elem_count = Read<int32_t>(code);
 
-    std::pair<DirectHandle<WasmArray>, const ArrayType*> array_new_result =
+    WasmInterpreterRuntime::ArrayNewResult array_new_result =
         wasm_runtime->ArrayNewUninitialized(elem_count, array_index);
-    DirectHandle<WasmArray> array = array_new_result.first;
+    DirectHandle<WasmArray> array = array_new_result.array;
     if (V8_UNLIKELY(array.is_null())) {
       TRAP(MessageTemplate::kWasmTrapArrayTooLarge)
     }
@@ -6288,7 +6294,7 @@ class Handlers : public HandlersBase {
       DisallowHeapAllocation no_gc;
 
       if (elem_count > 0) {
-        const ArrayType* array_type = array_new_result.second;
+        const ArrayType* array_type = array_new_result.type;
         const ValueKind kind = array_type->element_type().kind();
         const uint32_t element_size = value_kind_size(kind);
 
@@ -6326,9 +6332,12 @@ class Handlers : public HandlersBase {
               break;
             case kRef:
             case kRefNull: {
+              WriteBarrierMode mode = array_new_result.is_shared
+                                          ? UPDATE_WRITE_BARRIER
+                                          : SKIP_WRITE_BARRIER;
               WasmRef ref = pop<WasmRef>(sp, code, wasm_runtime);
               StoreRefIntoMemory(TrustedCast<HeapObject>(*array), element_addr,
-                                 element_offset, *ref, SKIP_WRITE_BARRIER);
+                                 element_offset, *ref, mode);
               break;
             }
             default:
@@ -6352,9 +6361,9 @@ class Handlers : public HandlersBase {
     const uint32_t array_index = Read<int32_t>(code);
     const uint32_t elem_count = pop<int32_t>(sp, code, wasm_runtime);
 
-    std::pair<DirectHandle<WasmArray>, const ArrayType*> array_new_result =
+    WasmInterpreterRuntime::ArrayNewResult array_new_result =
         wasm_runtime->ArrayNewUninitialized(elem_count, array_index);
-    DirectHandle<WasmArray> array = array_new_result.first;
+    DirectHandle<WasmArray> array = array_new_result.array;
     if (V8_UNLIKELY(array.is_null())) {
       TRAP(MessageTemplate::kWasmTrapArrayTooLarge)
     }
@@ -6364,7 +6373,7 @@ class Handlers : public HandlersBase {
       // initialization.
       DisallowHeapAllocation no_gc;
 
-      const ArrayType* array_type = array_new_result.second;
+      const ArrayType* array_type = array_new_result.type;
       const ValueType element_type = array_type->element_type();
       const ValueKind kind = element_type.kind();
       const uint32_t element_size = value_kind_size(kind);
@@ -6395,11 +6404,15 @@ class Handlers : public HandlersBase {
             base::WriteUnalignedValue<Simd128>(element_addr, Simd128{});
             break;
           case kRef:
-          case kRefNull:
-            StoreRefIntoMemory(
-                TrustedCast<HeapObject>(*array), element_addr, element_offset,
-                wasm_runtime->GetNullValue(element_type), SKIP_WRITE_BARRIER);
+          case kRefNull: {
+            WriteBarrierMode mode = array_new_result.is_shared
+                                        ? UPDATE_WRITE_BARRIER
+                                        : SKIP_WRITE_BARRIER;
+            StoreRefIntoMemory(TrustedCast<HeapObject>(*array), element_addr,
+                               element_offset,
+                               wasm_runtime->GetNullValue(element_type), mode);
             break;
+          }
           default:
             UNREACHABLE();
         }
@@ -8252,47 +8265,49 @@ WasmInstruction WasmBytecodeGenerator::DecodeInstruction(pc_t pc,
       break;
     }
 
-#define LOAD_CASE(name, ctype, mtype, rep, type)                               \
+#define LOAD_CASE(name, ctype, mtype, rep, type, opcode)                       \
   case kExpr##name: {                                                          \
+    bool is_rmw = WasmOpcodes::IsAtomicRmwOpcode(opcode);                      \
     MemoryAccessImmediate imm(&decoder, wasm_code_->at(pc + 1), sizeof(ctype), \
-                              false, Decoder::kNoValidation);                  \
+                              false, is_rmw, Decoder::kNoValidation);          \
     len = 1 + imm.length;                                                      \
     optional.offset = imm.offset;                                              \
     break;                                                                     \
   }
-      LOAD_CASE(I32LoadMem8S, int32_t, int8_t, kWord8, I32);
-      LOAD_CASE(I32LoadMem8U, int32_t, uint8_t, kWord8, I32);
-      LOAD_CASE(I32LoadMem16S, int32_t, int16_t, kWord16, I32);
-      LOAD_CASE(I32LoadMem16U, int32_t, uint16_t, kWord16, I32);
-      LOAD_CASE(I64LoadMem8S, int64_t, int8_t, kWord8, I64);
-      LOAD_CASE(I64LoadMem8U, int64_t, uint8_t, kWord16, I64);
-      LOAD_CASE(I64LoadMem16S, int64_t, int16_t, kWord16, I64);
-      LOAD_CASE(I64LoadMem16U, int64_t, uint16_t, kWord16, I64);
-      LOAD_CASE(I64LoadMem32S, int64_t, int32_t, kWord32, I64);
-      LOAD_CASE(I64LoadMem32U, int64_t, uint32_t, kWord32, I64);
-      LOAD_CASE(I32LoadMem, int32_t, int32_t, kWord32, I32);
-      LOAD_CASE(I64LoadMem, int64_t, int64_t, kWord64, I64);
-      LOAD_CASE(F32LoadMem, Float32, uint32_t, kFloat32, F32);
-      LOAD_CASE(F64LoadMem, Float64, uint64_t, kFloat64, F64);
+      LOAD_CASE(I32LoadMem8S, int32_t, int8_t, kWord8, I32, opcode);
+      LOAD_CASE(I32LoadMem8U, int32_t, uint8_t, kWord8, I32, opcode);
+      LOAD_CASE(I32LoadMem16S, int32_t, int16_t, kWord16, I32, opcode);
+      LOAD_CASE(I32LoadMem16U, int32_t, uint16_t, kWord16, I32, opcode);
+      LOAD_CASE(I64LoadMem8S, int64_t, int8_t, kWord8, I64, opcode);
+      LOAD_CASE(I64LoadMem8U, int64_t, uint8_t, kWord16, I64, opcode);
+      LOAD_CASE(I64LoadMem16S, int64_t, int16_t, kWord16, I64, opcode);
+      LOAD_CASE(I64LoadMem16U, int64_t, uint16_t, kWord16, I64, opcode);
+      LOAD_CASE(I64LoadMem32S, int64_t, int32_t, kWord32, I64, opcode);
+      LOAD_CASE(I64LoadMem32U, int64_t, uint32_t, kWord32, I64, opcode);
+      LOAD_CASE(I32LoadMem, int32_t, int32_t, kWord32, I32, opcode);
+      LOAD_CASE(I64LoadMem, int64_t, int64_t, kWord64, I64, opcode);
+      LOAD_CASE(F32LoadMem, Float32, uint32_t, kFloat32, F32, opcode);
+      LOAD_CASE(F64LoadMem, Float64, uint64_t, kFloat64, F64, opcode);
 #undef LOAD_CASE
 
-#define STORE_CASE(name, ctype, mtype, rep, type)                              \
+#define STORE_CASE(name, ctype, mtype, rep, type, opcode)                      \
   case kExpr##name: {                                                          \
+    bool is_rmw = WasmOpcodes::IsAtomicRmwOpcode(opcode);                      \
     MemoryAccessImmediate imm(&decoder, wasm_code_->at(pc + 1), sizeof(ctype), \
-                              false, Decoder::kNoValidation);                  \
+                              false, is_rmw, Decoder::kNoValidation);          \
     len = 1 + imm.length;                                                      \
     optional.offset = imm.offset;                                              \
     break;                                                                     \
   }
-      STORE_CASE(I32StoreMem8, int32_t, int8_t, kWord8, I32);
-      STORE_CASE(I32StoreMem16, int32_t, int16_t, kWord16, I32);
-      STORE_CASE(I64StoreMem8, int64_t, int8_t, kWord8, I64);
-      STORE_CASE(I64StoreMem16, int64_t, int16_t, kWord16, I64);
-      STORE_CASE(I64StoreMem32, int64_t, int32_t, kWord32, I64);
-      STORE_CASE(I32StoreMem, int32_t, int32_t, kWord32, I32);
-      STORE_CASE(I64StoreMem, int64_t, int64_t, kWord64, I64);
-      STORE_CASE(F32StoreMem, Float32, uint32_t, kFloat32, F32);
-      STORE_CASE(F64StoreMem, Float64, uint64_t, kFloat64, F64);
+      STORE_CASE(I32StoreMem8, int32_t, int8_t, kWord8, I32, opcode);
+      STORE_CASE(I32StoreMem16, int32_t, int16_t, kWord16, I32, opcode);
+      STORE_CASE(I64StoreMem8, int64_t, int8_t, kWord8, I64, opcode);
+      STORE_CASE(I64StoreMem16, int64_t, int16_t, kWord16, I64, opcode);
+      STORE_CASE(I64StoreMem32, int64_t, int32_t, kWord32, I64, opcode);
+      STORE_CASE(I32StoreMem, int32_t, int32_t, kWord32, I32, opcode);
+      STORE_CASE(I64StoreMem, int64_t, int64_t, kWord64, I64, opcode);
+      STORE_CASE(F32StoreMem, Float32, uint32_t, kFloat32, F32, opcode);
+      STORE_CASE(F64StoreMem, Float64, uint64_t, kFloat64, F64, opcode);
 #undef STORE_CASE
 
     case kExprMemorySize: {
@@ -8672,18 +8687,20 @@ void WasmBytecodeGenerator::DecodeAtomicOp(WasmOpcode opcode,
     case kExprAtomicNotify:
     case kExprI32AtomicWait: {
       MachineType memtype = MachineType::Uint32();
+      bool is_rmw = WasmOpcodes::IsAtomicRmwOpcode(opcode);
       MemoryAccessImmediate imm(decoder, code->at(pc + *len),
                                 ElementSizeLog2Of(memtype.representation()),
-                                false, Decoder::kNoValidation);
+                                false, is_rmw, Decoder::kNoValidation);
       optional->offset = imm.offset;
       *len += imm.length;
       break;
     }
     case kExprI64AtomicWait: {
       MachineType memtype = MachineType::Uint64();
+      bool is_rmw = WasmOpcodes::IsAtomicRmwOpcode(opcode);
       MemoryAccessImmediate imm(decoder, code->at(pc + *len),
                                 ElementSizeLog2Of(memtype.representation()),
-                                false, Decoder::kNoValidation);
+                                false, is_rmw, Decoder::kNoValidation);
       optional->offset = imm.offset;
       *len += imm.length;
       break;
@@ -8695,9 +8712,10 @@ void WasmBytecodeGenerator::DecodeAtomicOp(WasmOpcode opcode,
 #define ATOMIC_BINOP(name, Type, ctype, type, op_ctype, op_type, operation) \
   case kExpr##name: {                                                       \
     MachineType memtype = MachineType::Type();                              \
+    bool is_rmw = WasmOpcodes::IsAtomicRmwOpcode(opcode);                   \
     MemoryAccessImmediate imm(decoder, code->at(pc + *len),                 \
                               ElementSizeLog2Of(memtype.representation()),  \
-                              false, Decoder::kNoValidation);               \
+                              false, is_rmw, Decoder::kNoValidation);       \
     optional->offset = imm.offset;                                          \
     *len += imm.length;                                                     \
     break;                                                                  \
@@ -8708,9 +8726,10 @@ void WasmBytecodeGenerator::DecodeAtomicOp(WasmOpcode opcode,
 #define ATOMIC_OP(name, Type, ctype, type, op_ctype, op_type)              \
   case kExpr##name: {                                                      \
     MachineType memtype = MachineType::Type();                             \
+    bool is_rmw = WasmOpcodes::IsAtomicRmwOpcode(opcode);                  \
     MemoryAccessImmediate imm(decoder, code->at(pc + *len),                \
                               ElementSizeLog2Of(memtype.representation()), \
-                              false, Decoder::kNoValidation);              \
+                              false, is_rmw, Decoder::kNoValidation);      \
     optional->offset = imm.offset;                                         \
     *len += imm.length;                                                    \
     break;                                                                 \

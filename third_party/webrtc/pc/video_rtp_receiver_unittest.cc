@@ -14,6 +14,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "api/make_ref_counted.h"
@@ -205,10 +206,13 @@ TEST_F(VideoRtpReceiverTest, EnablesEncodedOutputOnChannelRestart) {
   MockVideoSink sink;
   Source()->AddEncodedSink(&sink);
   EXPECT_CALL(channel_, SetRecordableEncodedFrameCallback(4711, _));
-  receiver_->SetupMediaChannel(4711);
+  auto setup_media_channel = receiver_->GetSetupForMediaChannel(4711);
+  worker_thread_->BlockingCall(
+      [task = std::move(setup_media_channel)]() mutable { std::move(task)(); });
   EXPECT_CALL(channel_, ClearRecordableEncodedFrameCallback(4711));
   EXPECT_CALL(channel_, SetRecordableEncodedFrameCallback(0, _));
-  receiver_->SetupUnsignaledMediaChannel();
+  auto setup_task = receiver_->GetSetupForUnsignaledMediaChannel();
+  worker_thread_->BlockingCall([&]() mutable { std::move(setup_task)(); });
 }
 
 }  // namespace

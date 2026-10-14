@@ -218,8 +218,10 @@ class MockProcessTracker : public ProcessTracker {
   MOCK_METHOD(UniquePid, GetOrCreateProcess, (int64_t pid), (override));
 
   MOCK_METHOD(void,
-              SetProcessNameIfUnset,
-              (UniquePid upid, StringId process_name_id),
+              UpdateProcessName,
+              (UniquePid upid,
+               StringId process_name_id,
+               ProcessNamePriority priority),
               (override));
 };
 
@@ -278,8 +280,10 @@ class ProtoTraceParserTest : public ::testing::Test {
     context_.slice_tracker = std::make_unique<SliceTracker>(&context_);
     context_.slice_translation_table =
         std::make_unique<SliceTranslationTable>(storage_);
+    context_.trace_time_state = std::make_unique<TraceTimeState>(TraceTimeState{
+        ClockTracker::ClockId(protos::pbzero::BUILTIN_CLOCK_BOOTTIME), false});
     context_.clock_tracker = std::make_unique<ClockTracker>(
-        std::make_unique<ClockSynchronizerListenerImpl>(&context_));
+        &context_, std::make_unique<ClockSynchronizerListenerImpl>(&context_));
     context_.flow_tracker = std::make_unique<FlowTracker>(&context_);
     context_.sorter = std::make_unique<TraceSorter>(
         &context_, TraceSorter::SortingMode::kFullSort);
@@ -872,14 +876,16 @@ TEST_F(ProtoTraceParserTest, ProcessNameFromProcessDescriptor) {
       .WillRepeatedly(testing::Return(1u));
   EXPECT_CALL(*process_, GetOrCreateProcess(16)).WillOnce(testing::Return(2u));
 
-  EXPECT_CALL(*process_, SetProcessNameIfUnset(
-                             1u, storage_->InternString("OldProcessName")));
-  // Packet with same thread, but different name should update the name.
-  EXPECT_CALL(*process_, SetProcessNameIfUnset(
-                             1u, storage_->InternString("NewProcessName")));
   EXPECT_CALL(*process_,
-              SetProcessNameIfUnset(
-                  2u, storage_->InternString("DifferentProcessName")));
+              UpdateProcessName(1u, storage_->InternString("OldProcessName"),
+                                ProcessNamePriority::kTrackDescriptor));
+  // Packet with same thread, but different name should update the name.
+  EXPECT_CALL(*process_,
+              UpdateProcessName(1u, storage_->InternString("NewProcessName"),
+                                ProcessNamePriority::kTrackDescriptor));
+  EXPECT_CALL(*process_, UpdateProcessName(
+                             2u, storage_->InternString("DifferentProcessName"),
+                             ProcessNamePriority::kTrackDescriptor));
 
   Tokenize();
   context_.sorter->ExtractEventsForced();
@@ -2416,8 +2422,10 @@ TEST_F(ProtoTraceParserTest, TrackEventParseLegacyEventIntoRawTable) {
 }
 
 TEST_F(ProtoTraceParserTest, TrackEventLegacyTimestampsWithClockSnapshot) {
-  clock_->AddSnapshot({{protos::pbzero::BUILTIN_CLOCK_BOOTTIME, 0},
-                       {protos::pbzero::BUILTIN_CLOCK_MONOTONIC, 1000000}});
+  clock_->AddSnapshot(
+      {{ClockTracker::ClockId(protos::pbzero::BUILTIN_CLOCK_BOOTTIME), 0},
+       {ClockTracker::ClockId(protos::pbzero::BUILTIN_CLOCK_MONOTONIC),
+        1000000}});
 
   {
     auto* packet = trace_->add_packet();

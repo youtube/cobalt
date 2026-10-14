@@ -166,8 +166,15 @@ class WasmInterpreterRuntime {
   DirectHandle<Map> RttCanon(uint32_t type_index) const;
   std::pair<DirectHandle<WasmStruct>, const StructType*> StructNewUninitialized(
       uint32_t index) const;
-  std::pair<DirectHandle<WasmArray>, const ArrayType*> ArrayNewUninitialized(
-      uint32_t length, uint32_t array_index) const;
+
+  struct ArrayNewResult {
+    DirectHandle<WasmArray> array;
+    const ArrayType* type;
+    bool is_shared;
+  };
+  ArrayNewResult ArrayNewUninitialized(uint32_t length,
+                                       uint32_t array_index) const;
+
   WasmRef WasmArrayNewSegment(uint32_t array_index, uint32_t segment_index,
                               uint32_t offset, uint32_t length);
   bool WasmArrayInitSegment(uint32_t segment_index, WasmRef wasm_array,
@@ -268,8 +275,11 @@ class WasmInterpreterRuntime {
   void InitGlobalAddressCache();
   inline void InitMemoryAddresses();
   void InitIndirectFunctionTables();
-  bool CheckIndirectCallSignature(uint32_t table_index, uint32_t entry_index,
-                                  uint32_t sig_index) const;
+
+  enum class IndirectCallCheck { kValid, kInvalid, kNull };
+  IndirectCallCheck CheckIndirectCallSignature(uint32_t table_index,
+                                               uint32_t entry_index,
+                                               uint32_t sig_index) const;
 
   void StoreRefArgsIntoStackSlots(uint8_t* sp, uint32_t ref_stack_fp_offset,
                                   const FunctionSig* sig);

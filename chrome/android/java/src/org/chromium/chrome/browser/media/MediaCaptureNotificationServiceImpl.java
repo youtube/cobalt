@@ -19,7 +19,6 @@ import android.util.Pair;
 import androidx.core.app.ActivityCompat;
 
 import org.chromium.base.ContextUtils;
-import org.chromium.base.DeviceInfo;
 import org.chromium.base.IntentUtils;
 import org.chromium.base.Log;
 import org.chromium.base.shared_preferences.SharedPreferencesManager;
@@ -46,6 +45,8 @@ import org.chromium.components.browser_ui.notifications.NotificationWrapperBuild
 import org.chromium.components.browser_ui.notifications.PendingIntentProvider;
 import org.chromium.components.webrtc.MediaCaptureNotificationUtil;
 import org.chromium.components.webrtc.MediaCaptureNotificationUtil.MediaType;
+import org.chromium.content_public.browser.ContentFeatureList;
+import org.chromium.content_public.browser.ContentFeatureMap;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.browser.media.capture.ScreenCapture;
 import org.chromium.ui.base.WindowAndroid;
@@ -149,9 +150,14 @@ public class MediaCaptureNotificationServiceImpl extends SplitCompatService.Impl
                 mSharedPreferences.readStringSet(
                         ChromePreferenceKeys.MEDIA_WEBRTC_NOTIFICATION_IDS, null);
         if (notificationIds == null) return;
-        Iterator<String> iterator = notificationIds.iterator();
-        while (iterator.hasNext()) {
-            mNotificationManager.cancel(NOTIFICATION_NAMESPACE, Integer.parseInt(iterator.next()));
+        // Manual notification cleanup is only required when background media capturing is disabled.
+        // When enabled, the foreground service manages the notification lifecycle.
+        if (!isBackgroundMediaCapturingEnabled()) {
+            Iterator<String> iterator = notificationIds.iterator();
+            while (iterator.hasNext()) {
+                mNotificationManager.cancel(
+                        NOTIFICATION_NAMESPACE, Integer.parseInt(iterator.next()));
+            }
         }
         mSharedPreferences.removeKey(ChromePreferenceKeys.MEDIA_WEBRTC_NOTIFICATION_IDS);
     }
@@ -219,7 +225,7 @@ public class MediaCaptureNotificationServiceImpl extends SplitCompatService.Impl
                 }
             }
             mNotificationsType.remove(notificationId);
-            if (DeviceInfo.isDesktop()) {
+            if (isBackgroundMediaCapturingEnabled()) {
                 int lastIndex = mNotifications.size() - 1;
                 boolean isRemovingLatestNotification =
                         lastIndex >= 0 && mNotifications.get(lastIndex).first == notificationId;
@@ -240,8 +246,12 @@ public class MediaCaptureNotificationServiceImpl extends SplitCompatService.Impl
                         startOrUpdateForegroundService(latest.first, latest.second);
                     }
                 }
+            } else {
+                // When background media capturing is enabled, the notification lifecycle is managed
+                // by the foreground service. If disabled, we have to cancel the notification
+                // manually.
+                mNotificationManager.cancel(NOTIFICATION_NAMESPACE, notificationId);
             }
-            mNotificationManager.cancel(NOTIFICATION_NAMESPACE, notificationId);
             updateSharedPreferencesEntry(notificationId, true);
         }
     }
@@ -315,7 +325,7 @@ public class MediaCaptureNotificationServiceImpl extends SplitCompatService.Impl
                         contentIntent,
                         stopIntent);
         mNotificationsType.put(notificationId, mediaTypes);
-        if (DeviceInfo.isDesktop()) {
+        if (isBackgroundMediaCapturingEnabled()) {
             // For large screen device, we use the latest notification to start or update
             // the foreground service.
             startOrUpdateForegroundService(notificationId, notification);
@@ -560,5 +570,10 @@ public class MediaCaptureNotificationServiceImpl extends SplitCompatService.Impl
 
     private static int getTabIdFromNotificationId(int notificationId) {
         return notificationId - 1;
+    }
+
+    private static boolean isBackgroundMediaCapturingEnabled() {
+        return ContentFeatureMap.isEnabled(
+                ContentFeatureList.ANDROID_ENABLE_BACKGROUND_MEDIA_CAPTURING);
     }
 }

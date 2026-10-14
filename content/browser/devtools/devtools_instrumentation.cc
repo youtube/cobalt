@@ -320,19 +320,6 @@ FederatedAuthRequestResultToProtocol(
     case FederatedAuthRequestResult::kConfigInvalidContentType: {
       return FederatedAuthRequestIssueReasonEnum::ConfigInvalidContentType;
     }
-    case FederatedAuthRequestResult::kClientMetadataHttpNotFound: {
-      return FederatedAuthRequestIssueReasonEnum::ClientMetadataHttpNotFound;
-    }
-    case FederatedAuthRequestResult::kClientMetadataNoResponse: {
-      return FederatedAuthRequestIssueReasonEnum::ClientMetadataNoResponse;
-    }
-    case FederatedAuthRequestResult::kClientMetadataInvalidResponse: {
-      return FederatedAuthRequestIssueReasonEnum::ClientMetadataInvalidResponse;
-    }
-    case FederatedAuthRequestResult::kClientMetadataInvalidContentType: {
-      return FederatedAuthRequestIssueReasonEnum::
-          ClientMetadataInvalidContentType;
-    }
     case FederatedAuthRequestResult::kAccountsHttpNotFound: {
       return FederatedAuthRequestIssueReasonEnum::AccountsHttpNotFound;
     }
@@ -378,9 +365,6 @@ FederatedAuthRequestResultToProtocol(
     case FederatedAuthRequestResult::kSilentMediationFailure: {
       return FederatedAuthRequestIssueReasonEnum::SilentMediationFailure;
     }
-    case FederatedAuthRequestResult::kThirdPartyCookiesBlocked: {
-      return FederatedAuthRequestIssueReasonEnum::ThirdPartyCookiesBlocked;
-    }
     case FederatedAuthRequestResult::kNotSignedInWithIdp: {
       return FederatedAuthRequestIssueReasonEnum::NotSignedInWithIdp;
     }
@@ -390,9 +374,6 @@ FederatedAuthRequestResultToProtocol(
     }
     case FederatedAuthRequestResult::kReplacedByActiveMode: {
       return FederatedAuthRequestIssueReasonEnum::ReplacedByActiveMode;
-    }
-    case FederatedAuthRequestResult::kInvalidFieldsSpecified: {
-      return FederatedAuthRequestIssueReasonEnum::InvalidFieldsSpecified;
     }
     case FederatedAuthRequestResult::kRelyingPartyOriginIsOpaque: {
       return FederatedAuthRequestIssueReasonEnum::RelyingPartyOriginIsOpaque;

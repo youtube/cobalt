@@ -9,13 +9,12 @@
 #import "components/url_formatter/elide_url.h"
 #import "ios/chrome/browser/content_suggestions/shop_card/ui/shop_card_commands.h"
 #import "ios/chrome/browser/content_suggestions/shop_card/ui/shop_card_data.h"
-#import "ios/chrome/browser/content_suggestions/shop_card/ui/shop_card_favicon_consumer.h"
 #import "ios/chrome/browser/content_suggestions/shop_card/ui/shop_card_item.h"
 #import "ios/chrome/browser/price_notifications/ui_bundled/cells/price_notifications_price_chip_view.h"
+#import "ios/chrome/browser/shared/ui/elements/gradient/gradient_view.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
-#import "ios/chrome/common/ui/elements/gradient_view.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
 #import "ios/chrome/common/ui/util/ui_util.h"
 #import "url/gurl.h"
@@ -45,9 +44,6 @@ const CGFloat kGradientOverlayBottomAlpha = 0.14;
 
 }  // namespace
 
-@interface ShopCardModuleView () <ShopCardFaviconConsumer>
-@end
-
 @implementation ShopCardModuleView {
   ShopCardItem* _item;
   // Holds content of ShopCard. includes productAndFavicon on the left,
@@ -72,11 +68,6 @@ const CGFloat kGradientOverlayBottomAlpha = 0.14;
   PriceNotificationsPriceChipView* _priceNotificationsChip;
 }
 
-- (instancetype)initWithFrame {
-  self = [super initWithFrame:CGRectZero];
-  return self;
-}
-
 - (void)configureView:(ShopCardItem*)config {
   if (!config) {
     return;
@@ -93,11 +84,7 @@ const CGFloat kGradientOverlayBottomAlpha = 0.14;
   }
 }
 
-#pragma mark - ShopCardFaviconConsumer
-- (void)faviconCompleted:(UIImage*)faviconImage {
-  _item.shopCardData.faviconImage = faviconImage;
-  [self configureViewForTrackedProducts:_item];
-}
+#pragma mark - Private
 
 - (void)configureViewForTrackedProducts:(ShopCardItem*)configItem {
   [self populateTitleLabel];
@@ -215,9 +202,7 @@ const CGFloat kGradientOverlayBottomAlpha = 0.14;
   _priceNotificationsChip.isAccessibilityElement = YES;
   _titleLabel.accessibilityTraits |= UIAccessibilityTraitHeader;
   // For larger font size, hide price chip.
-  NSArray<UITrait>* traits = TraitCollectionSetForTraits(
-      @[ UITraitPreferredContentSizeCategory.class ]);
-  [self registerForTraitChanges:traits
+  [self registerForTraitChanges:@[ UITraitPreferredContentSizeCategory.class ]
                      withAction:@selector(hideDomainOnTraitChange)];
 }
 

@@ -10,6 +10,7 @@
 
 #include "pc/ice_server_parsing.h"
 
+#include <array>
 #include <cctype>
 #include <cstddef>
 #include <optional>
@@ -52,7 +53,8 @@ const char kRegNameCharacters[] =
     "!$&'()*+,;=";  // sub-delims
 
 // NOTE: Must be in the same order as the ServiceType enum.
-const char* kValidIceServiceTypes[] = {"stun", "stuns", "turn", "turns"};
+constexpr std::array<absl::string_view, 4> kValidIceServiceTypes{
+    "stun", "stuns", "turn", "turns"};
 
 // NOTE: A loop below assumes that the first value of this enum is 0 and all
 // other values are incremental.

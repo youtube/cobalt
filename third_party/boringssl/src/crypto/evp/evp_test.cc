@@ -44,6 +44,7 @@
 #include "../test/test_util.h"
 #include "../test/wycheproof_util.h"
 
+BSSL_NAMESPACE_BEGIN
 namespace {
 // evp_test dispatches between multiple test types. PublicKey and PrivateKey
 // tests take a key name parameter and key information. If the test is
@@ -530,6 +531,14 @@ bool SetupContext(FileTest *t, const KeyMap *key_map, EVP_PKEY_CTX *ctx) {
   if (t->HasAttribute("DiffieHellmanPad") && !EVP_PKEY_CTX_set_dh_pad(ctx, 1)) {
     return false;
   }
+  if (t->HasAttribute("Context")) {
+    std::vector<uint8_t> context;
+    if (!t->GetBytes(&context, "Context") ||
+        !EVP_PKEY_CTX_set1_signature_context_string(ctx, context.data(),
+                                                    context.size())) {
+      return false;
+    }
+  }
   return true;
 }
 
@@ -545,7 +554,8 @@ bool MaybeReplaceWithCopy(bssl::UniquePtr<EVP_PKEY_CTX> *ctx, bool copy_ctx) {
   return true;
 }
 
-bool MaybeReplaceWithCopy(bssl::UniquePtr<EVP_MD_CTX> *ctx, bool copy_ctx) {
+bool MaybeReplaceWithCopy(bssl::UniquePtr<EVP_MD_CTX> *ctx, EVP_PKEY_CTX **pctx,
+                          bool copy_ctx) {
   if (!copy_ctx) {
     return true;
   }
@@ -554,6 +564,7 @@ bool MaybeReplaceWithCopy(bssl::UniquePtr<EVP_MD_CTX> *ctx, bool copy_ctx) {
     return false;
   }
   *ctx = std::move(copy);
+  *pctx = EVP_MD_CTX_pkey_ctx(ctx->get());
   return true;
 }
 
@@ -673,9 +684,9 @@ bool TestEVPOperation(FileTest *t, const KeyMap *key_map, bool copy_ctx) {
     EVP_PKEY_CTX *pctx;
     if (ctx == nullptr ||  //
         !md_op_init(ctx.get(), &pctx, digest, nullptr, key) ||
-        !MaybeReplaceWithCopy(&ctx, copy_ctx) ||
+        !MaybeReplaceWithCopy(&ctx, &pctx, copy_ctx) ||
         !SetupContext(t, key_map, pctx) ||
-        !MaybeReplaceWithCopy(&ctx, copy_ctx)) {
+        !MaybeReplaceWithCopy(&ctx, &pctx, copy_ctx)) {
       return false;
     }
 
@@ -702,10 +713,9 @@ bool TestEVPOperation(FileTest *t, const KeyMap *key_map, bool copy_ctx) {
       if (verify_ctx == nullptr ||
           !EVP_DigestVerifyInit(verify_ctx.get(), &verify_pctx, digest, nullptr,
                                 key) ||
-
-          !MaybeReplaceWithCopy(&verify_ctx, copy_ctx) ||
+          !MaybeReplaceWithCopy(&verify_ctx, &verify_pctx, copy_ctx) ||
           !SetupContext(t, key_map, verify_pctx) ||
-          !MaybeReplaceWithCopy(&verify_ctx, copy_ctx)) {
+          !MaybeReplaceWithCopy(&verify_ctx, &verify_pctx, copy_ctx)) {
         return false;
       }
       EXPECT_TRUE(EVP_DigestVerify(verify_ctx.get(), actual.data(),
@@ -902,12 +912,6 @@ void RunWycheproofVerifyTest(const char *path, const EVP_PKEY_ALG *alg) {
       return;
     }
 
-    // We do not currently support signature contexts.
-    // TODO(crbug.com/449751916): Support this.
-    if (!sig_ctx.empty()) {
-      return;
-    }
-
     if (EVP_PKEY_id(key.get()) == EVP_PKEY_DSA) {
       // DSA is deprecated and is not usable via EVP.
       DSA *dsa = EVP_PKEY_get0_DSA(key.get());
@@ -929,6 +933,12 @@ void RunWycheproofVerifyTest(const char *path, const EVP_PKEY_ALG *alg) {
         ASSERT_TRUE(EVP_PKEY_CTX_set_rsa_padding(pctx, RSA_PKCS1_PSS_PADDING));
         ASSERT_TRUE(EVP_PKEY_CTX_set_rsa_mgf1_md(pctx, mgf1_md));
         ASSERT_TRUE(EVP_PKEY_CTX_set_rsa_pss_saltlen(pctx, pss_salt_len));
+      }
+      if (!sig_ctx.empty() &&
+          !EVP_PKEY_CTX_set1_signature_context_string(pctx, sig_ctx.data(),
+                                                      sig_ctx.size())) {
+        EXPECT_FALSE(expect_valid);
+        return;
       }
       int ret = EVP_DigestVerify(ctx.get(), sig.data(), sig.size(), msg.data(),
                                  msg.size());
@@ -987,7 +997,6 @@ TEST(EVPTest, WycheproofEd25519) {
 // TODO(crbug.com/449751916): We also test these in the low-level ML-DSA code.
 // The EVP-level tests are not yet redundant:
 //
-// * We can't yet run the tests with a context argument.
 // * We can't yet run the signing tests with external entropy.
 //
 // When/if we add |EVP_PKEY|-based APIs for those, we may be able to remove the
@@ -1273,3 +1282,4 @@ TEST(EVPTest, WycheproofRSAPKCS1Decrypt) {
       "third_party/wycheproof_testvectors/rsa_pkcs1_4096_test.txt");
 }
 }  // namespace
+BSSL_NAMESPACE_END

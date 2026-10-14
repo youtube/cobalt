@@ -173,24 +173,25 @@ void TurnServer::OnInternalPacket(AsyncPacketSocket* socket,
                                   const ReceivedIpPacket& packet) {
   RTC_DCHECK_RUN_ON(thread_);
   // Fail if the packet is too small to even contain a channel header.
-  if (packet.payload().size() < TURN_CHANNEL_HEADER_SIZE) {
+  ArrayView<const uint8_t> payload = packet.payload();
+  if (payload.size() < TURN_CHANNEL_HEADER_SIZE) {
     return;
   }
   auto iter = server_sockets_.find(socket);
   RTC_DCHECK(iter != server_sockets_.end());
   TurnServerConnection conn(packet.source_address(), iter->second, socket);
-  uint16_t msg_type = GetBE16(packet.payload().data());
+  uint16_t msg_type = GetBE16(payload);
   if (!IsTurnChannelData(msg_type)) {
     // This is a STUN message.
-    HandleStunMessage(&conn, packet.payload(), packet.ecn());
+    HandleStunMessage(&conn, payload, packet.ecn());
   } else {
     // This is a channel message; let the allocation handle it.
     TurnServerAllocation* allocation = FindAllocation(&conn);
     if (allocation) {
-      allocation->HandleChannelData(packet.payload(), packet.ecn());
+      allocation->HandleChannelData(payload, packet.ecn());
     }
     if (stun_message_observer_ != nullptr) {
-      stun_message_observer_->ReceivedChannelData(packet.payload());
+      stun_message_observer_->ReceivedChannelData(payload);
     }
   }
 }
@@ -786,7 +787,7 @@ void TurnServerAllocation::HandleChannelBindRequest(const TurnMessage* msg) {
 void TurnServerAllocation::HandleChannelData(ArrayView<const uint8_t> payload,
                                              EcnMarking ecn) {
   // Extract the channel number from the data.
-  uint16_t channel_id = GetBE16(payload.data());
+  uint16_t channel_id = GetBE16(payload);
   auto channel = FindChannel(channel_id);
   if (channel != channels_.end()) {
     // Send the data to the peer address.

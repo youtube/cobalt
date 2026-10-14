@@ -16,11 +16,13 @@
 #include "third_party/blink/public/web/web_script_source.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_core.h"
 #include "third_party/blink/renderer/core/dom/abort_controller.h"
+#include "third_party/blink/renderer/core/dom/events/native_event_listener.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/web_local_frame_impl.h"
 #include "third_party/blink/renderer/core/script_tools/model_context_supplement.h"
 #include "third_party/blink/renderer/core/testing/sim/sim_request.h"
 #include "third_party/blink/renderer/core/testing/sim/sim_test.h"
+#include "third_party/blink/renderer/platform/heap/thread_state.h"
 #include "third_party/blink/renderer/platform/testing/runtime_enabled_features_test_helpers.h"
 
 namespace blink {
@@ -72,6 +74,7 @@ class ModelContextTest : public SimTest {
 
  private:
   ScopedWebMCPForTest scoped_webmcp_{true};
+  ScopedWebMCPTestingForTest scoped_webmcp_testing_{true};
 };
 
 TEST_F(ModelContextTest, ExecuteTool) {
@@ -258,7 +261,8 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_InvalidSelectValue) {
             EXPECT_FALSE(res.has_value());
             EXPECT_EQ(res.error(),
                       WebDocument::ScriptToolError::kInvalidInputArguments);
-            EXPECT_EQ(res.error().message, "Parameter didn't validate: choice");
+            EXPECT_EQ(res.error().message,
+                      "Invalid value \"c\" for parameter choice");
             run_loop.Quit();
           }));
   run_loop.Run();
@@ -962,6 +966,135 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_FlexibleTypes) {
 
   EXPECT_FALSE(EvalJsBoolean("window.check_val"));
   EXPECT_EQ(EvalJsString("window.select_val"), "3");
+}
+
+class ReentrantListener : public NativeEventListener {
+ public:
+  explicit ReentrantListener(ModelContext* model_context)
+      : model_context_(model_context) {}
+  void Invoke(ExecutionContext*, Event*) override {
+    // Trigger HashMap modification by adding a new execution.
+    model_context_->ExecuteTool("echo", "{}", nullptr, base::DoNothing());
+  }
+  void Trace(Visitor* visitor) const override {
+    visitor->Trace(model_context_);
+    NativeEventListener::Trace(visitor);
+  }
+
+ private:
+  Member<ModelContext> model_context_;
+};
+
+TEST_F(ModelContextTest, CancelToolReentrancy) {
+  SimRequest main_resource("https://example.com/", "text/html");
+  LoadURL("https://example.com/");
+  v8::HandleScope handle_scope(Window().GetIsolate());
+  ScriptState::Scope script_scope(
+      ToScriptStateForMainWorld(Window().GetFrame()));
+
+  main_resource.Complete(R"(
+    <body>
+    <script>
+    async function hang(obj) {
+      return new Promise(() => {});
+    }
+
+    navigator.modelContext.registerTool({
+      execute: hang,
+      name: "hang",
+      description: "never resolves",
+    });
+
+    // We also need another tool that can be executed.
+    navigator.modelContext.registerTool({
+      execute: async () => "done",
+      name: "echo",
+      description: "echo",
+    });
+  </script>
+)");
+
+  auto* model_context =
+      ModelContextSupplement::modelContext(*Window().navigator());
+  ASSERT_TRUE(model_context);
+
+  Window().addEventListener(
+      event_type_names::kToolcancel,
+      MakeGarbageCollected<ReentrantListener>(model_context), false);
+
+  base::RunLoop run_loop;
+
+  std::optional<uint32_t> execution_id = model_context->ExecuteTool(
+      "hang", "{}", /* signal= */ nullptr,
+      base::BindLambdaForTesting(
+          [&](base::expected<WebString, WebDocument::ScriptToolError> res) {
+            EXPECT_FALSE(res.has_value());
+            EXPECT_EQ(res.error(),
+                      WebDocument::ScriptToolError::kToolCancelled);
+            run_loop.Quit();
+          }));
+
+  ASSERT_TRUE(execution_id.has_value());
+
+  // This should trigger the toolcancel event, which re-enters and modifies
+  // pending_executions_.
+  model_context->CancelTool(*execution_id);
+
+  run_loop.Run();
+}
+
+class MockDeclarativeTool : public GarbageCollected<MockDeclarativeTool>,
+                            public DeclarativeWebMCPTool {
+ public:
+  void ExecuteTool(String input_arguments,
+                   base::OnceCallback<void(
+                       base::expected<String, WebDocument::ScriptToolError>)>
+                       done_callback) override {}
+
+  String ComputeInputSchema() override { return "{}"; }
+  void Trace(Visitor* visitor) const override {}
+};
+
+TEST_F(ModelContextTest, ForEachScriptToolGC) {
+  SimRequest main_resource("https://example.com/", "text/html");
+  LoadURL("https://example.com/");
+  main_resource.Complete("<body></body>");
+
+  auto* model_context =
+      ModelContextSupplement::modelContext(*Window().navigator());
+  ASSERT_TRUE(model_context);
+
+  {
+    auto* mock_tool = MakeGarbageCollected<MockDeclarativeTool>();
+    model_context->RegisterDeclarativeTool("test_tool", "description",
+                                           mock_tool);
+  }
+
+  // Trigger GC, which should not reclaim mock_tool.
+  ThreadState::Current()->CollectAllGarbageForTesting();
+
+  // This should not crash and should find the tool.
+  bool found = false;
+  model_context->ForEachScriptTool([&](const mojom::blink::ScriptTool& tool) {
+    if (tool.name == "test_tool") {
+      found = true;
+    }
+  });
+  EXPECT_TRUE(found);
+
+  // Now unregister it.
+  model_context->unregisterTool("test_tool", ASSERT_NO_EXCEPTION);
+
+  // Trigger GC again. Now it should be reclaimed.
+  ThreadState::Current()->CollectAllGarbageForTesting();
+
+  found = false;
+  model_context->ForEachScriptTool([&](const mojom::blink::ScriptTool& tool) {
+    if (tool.name == "test_tool") {
+      found = true;
+    }
+  });
+  EXPECT_FALSE(found);
 }
 
 }  // namespace blink

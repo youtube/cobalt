@@ -200,7 +200,7 @@ public class TabGroupUiMediator implements BackPressHandler {
         mThemeColorProvider.addTintObserver(mTintObserver);
         mOnSnapshotTokenChange = onSnapshotTokenChange;
         mChildTokenSupplier = childTokenSupplier;
-        mChildTokenSupplier.addObserver(mOnTokenComponentChange);
+        mChildTokenSupplier.addSyncObserverAndPostIfNonNull(mOnTokenComponentChange);
         mWidthPxSupplier.addSyncObserverAndPostIfNonNull(mOnTokenComponentChange);
 
         onThemeColorChanged(mThemeColorProvider.getThemeColor(), false);
@@ -223,10 +223,10 @@ public class TabGroupUiMediator implements BackPressHandler {
                             tabGroupSyncService, dataSharingService, collaborationService);
             mTransitiveSharedGroupObserver
                     .getGroupSharedStateSupplier()
-                    .addObserver(mOnGroupSharedStateChanged);
+                    .addSyncObserverAndPostIfNonNull(mOnGroupSharedStateChanged);
             mTransitiveSharedGroupObserver
                     .getGroupMembersSupplier()
-                    .addObserver(mOnGroupMembersChanged);
+                    .addSyncObserverAndPostIfNonNull(mOnGroupMembersChanged);
         } else {
             mTransitiveSharedGroupObserver = null;
         }
@@ -345,7 +345,9 @@ public class TabGroupUiMediator implements BackPressHandler {
         mOmniboxFocusStateSupplier.addSyncObserverAndPostIfNonNull(mOmniboxFocusObserver);
 
         tabModelSelector.addTabGroupModelFilterObserver(mTabModelObserver);
-        mTabModelSelector.getCurrentTabModelSupplier().addObserver(mCurrentTabModelObserver);
+        mTabModelSelector
+                .getCurrentTabModelSupplier()
+                .addSyncObserverAndPostIfNonNull(mCurrentTabModelObserver);
 
         if (layoutStateProvider != null) {
             setLayoutStateProvider(layoutStateProvider);

@@ -528,10 +528,11 @@ class ChannelTest : public ::testing::Test {
                                int pl_type) {
     webrtc::Buffer data(rtp_packet_.data(), rtp_packet_.size());
     // Set SSRC in the rtp packet copy.
-    webrtc::SetBE32(data.data() + 8, ssrc);
-    webrtc::SetBE16(data.data() + 2, sequence_number);
+    webrtc::SetBE32(webrtc::ArrayView<uint8_t>(data).subspan(8, 4), ssrc);
+    webrtc::SetBE16(webrtc::ArrayView<uint8_t>(data).subspan(2, 2),
+                    sequence_number);
     if (pl_type >= 0) {
-      webrtc::Set8(data.data(), 1, static_cast<uint8_t>(pl_type));
+      webrtc::Set8(data, 1, static_cast<uint8_t>(pl_type));
     }
     return data;
   }

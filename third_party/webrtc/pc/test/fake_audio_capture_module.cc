@@ -403,24 +403,16 @@ bool FakeAudioCaptureModule::Initialize() {
 }
 
 void FakeAudioCaptureModule::SetSendBuffer(int value) {
-  Sample* buffer_ptr = reinterpret_cast<Sample*>(send_buffer_);
-  const size_t buffer_size_in_samples =
-      sizeof(send_buffer_) / kNumberBytesPerSample;
-  for (size_t i = 0; i < buffer_size_in_samples; ++i) {
-    buffer_ptr[i] = value;
-  }
+  send_buffer_.fill(value);
 }
 
 void FakeAudioCaptureModule::ResetRecBuffer() {
-  memset(rec_buffer_, 0, sizeof(rec_buffer_));
+  rec_buffer_.fill(0);
 }
 
 bool FakeAudioCaptureModule::CheckRecBuffer(int value) {
-  const Sample* buffer_ptr = reinterpret_cast<const Sample*>(rec_buffer_);
-  const size_t buffer_size_in_samples =
-      sizeof(rec_buffer_) / kNumberBytesPerSample;
-  for (size_t i = 0; i < buffer_size_in_samples; ++i) {
-    if (buffer_ptr[i] >= value)
+  for (Sample sample : rec_buffer_) {
+    if (sample >= value)
       return true;
   }
   return false;
@@ -498,7 +490,7 @@ void FakeAudioCaptureModule::ReceiveFrameP() {
   int64_t ntp_time_ms = 0;
   if (audio_callback_->NeedMorePlayData(kNumberSamples, kNumberBytesPerSample,
                                         kNumberOfChannels, kSamplesPerSecond,
-                                        rec_buffer_, nSamplesOut,
+                                        rec_buffer_.data(), nSamplesOut,
                                         &elapsed_time_ms, &ntp_time_ms) != 0) {
     RTC_DCHECK_NOTREACHED();
   }
@@ -523,7 +515,7 @@ void FakeAudioCaptureModule::SendFrameP() {
   bool key_pressed = false;
   uint32_t current_mic_level = current_mic_level_;
   if (audio_callback_->RecordedDataIsAvailable(
-          send_buffer_, kNumberSamples, kNumberBytesPerSample,
+          send_buffer_.data(), kNumberSamples, kNumberBytesPerSample,
           kNumberOfChannels, kSamplesPerSecond, kTotalDelayMs, kClockDriftMs,
           current_mic_level, key_pressed, current_mic_level) != 0) {
     RTC_DCHECK_NOTREACHED();

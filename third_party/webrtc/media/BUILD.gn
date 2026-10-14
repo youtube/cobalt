@@ -460,6 +460,7 @@ rtc_library("turn_utils") {
     "base/turn_utils.h",
   ]
   deps = [
+    "../api:array_view",
     "../api/transport:stun_types",
     "../rtc_base:byte_order",
     "../rtc_base/system:rtc_export",

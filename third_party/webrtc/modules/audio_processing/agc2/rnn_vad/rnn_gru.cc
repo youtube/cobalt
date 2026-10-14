@@ -79,9 +79,9 @@ void ComputeUpdateResetGate(int input_size,
   for (int o = 0; o < output_size; ++o) {
     float x = bias[o];
     x += vector_math.DotProduct(input,
-                                weights.subview(o * input_size, input_size));
+                                weights.subspan(o * input_size, input_size));
     x += vector_math.DotProduct(
-        state, recurrent_weights.subview(o * output_size, output_size));
+        state, recurrent_weights.subspan(o * output_size, output_size));
     gate[o] = ::rnnoise::SigmoidApproximated(x);
   }
 }
@@ -121,10 +121,10 @@ void ComputeStateGate(int input_size,
   for (int o = 0; o < output_size; ++o) {
     float x = bias[o];
     x += vector_math.DotProduct(input,
-                                weights.subview(o * input_size, input_size));
+                                weights.subspan(o * input_size, input_size));
     x += vector_math.DotProduct(
         {reset_x_state.data(), static_cast<size_t>(output_size)},
-        recurrent_weights.subview(o * output_size, output_size));
+        recurrent_weights.subspan(o * output_size, output_size));
     state[o] = update[o] * state[o] + (1.f - update[o]) * std::max(0.f, x);
   }
 }
@@ -185,21 +185,21 @@ void GatedRecurrentLayer::ComputeOutput(ArrayView<const float> input) {
   std::array<float, kGruLayerMaxUnits> update;
   ComputeUpdateResetGate(
       input_size_, output_size_, vector_math_, input, state,
-      bias.subview(0, output_size_), weights.subview(0, stride_weights),
-      recurrent_weights.subview(0, stride_recurrent_weights), update);
+      bias.subspan(0, output_size_), weights.subspan(0, stride_weights),
+      recurrent_weights.subspan(0, stride_recurrent_weights), update);
   // Reset gate.
   std::array<float, kGruLayerMaxUnits> reset;
   ComputeUpdateResetGate(input_size_, output_size_, vector_math_, input, state,
-                         bias.subview(output_size_, output_size_),
-                         weights.subview(stride_weights, stride_weights),
-                         recurrent_weights.subview(stride_recurrent_weights,
+                         bias.subspan(output_size_, output_size_),
+                         weights.subspan(stride_weights, stride_weights),
+                         recurrent_weights.subspan(stride_recurrent_weights,
                                                    stride_recurrent_weights),
                          reset);
   // State gate.
   ComputeStateGate(input_size_, output_size_, vector_math_, input, update,
-                   reset, bias.subview(2 * output_size_, output_size_),
-                   weights.subview(2 * stride_weights, stride_weights),
-                   recurrent_weights.subview(2 * stride_recurrent_weights,
+                   reset, bias.subspan(2 * output_size_, output_size_),
+                   weights.subspan(2 * stride_weights, stride_weights),
+                   recurrent_weights.subspan(2 * stride_recurrent_weights,
                                              stride_recurrent_weights),
                    state);
 }

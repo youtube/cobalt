@@ -65,6 +65,20 @@ enum class UpdateDepthFeedbackLoopReason
     Clear,
 };
 
+// Whether the image being presented needs to transition to the VK_IMAGE_LAYOUT_PRESENT_SRC or not.
+enum class PresentImageLayout
+{
+    Keep,
+    PresentSrc,
+};
+
+// Whether the contents of the ancillary buffer should be invalidated on swap
+enum class SurfaceAncillaryColorBehavior
+{
+    Retain,
+    InvalidateOnPresent,
+};
+
 static constexpr GLbitfield kBufferMemoryBarrierBits =
     GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT | GL_ELEMENT_ARRAY_BARRIER_BIT | GL_UNIFORM_BARRIER_BIT |
     GL_COMMAND_BARRIER_BIT | GL_PIXEL_BUFFER_BARRIER_BIT | GL_BUFFER_UPDATE_BARRIER_BIT |
@@ -447,8 +461,9 @@ class ContextVk : public ContextImpl, public vk::Context, public MultisampleText
 
     angle::Result optimizeRenderPassForPresent(vk::ImageViewHelper *colorImageView,
                                                vk::ImageHelper *colorImage,
-                                               vk::ImageHelper *colorImageMS,
-                                               bool isSharedPresentMode,
+                                               vk::ImageHelper *ancillaryColorImage,
+                                               PresentImageLayout layout,
+                                               SurfaceAncillaryColorBehavior ancillaryBehavior,
                                                bool *imageResolved);
 
     vk::DynamicQueryPool *getQueryPool(gl::QueryType queryType);
@@ -1209,12 +1224,8 @@ class ContextVk : public ContextImpl, public vk::Context, public MultisampleText
         DirtyBits dirtyBitMask);
     angle::Result handleDirtyGraphicsIndexBuffer(DirtyBits::Iterator *dirtyBitsIterator,
                                                  DirtyBits dirtyBitMask);
-    angle::Result handleDirtyGraphicsDriverUniformsImpl(const vk::PipelineLayout &pipelineLayout);
     angle::Result handleDirtyGraphicsDriverUniforms(DirtyBits::Iterator *dirtyBitsIterator,
                                                     DirtyBits dirtyBitMask);
-    angle::Result handleDirtyGraphicsDriverUniformsWithXFBEmulation(
-        DirtyBits::Iterator *dirtyBitsIterator,
-        DirtyBits dirtyBitMask);
     angle::Result handleDirtyGraphicsShaderResources(DirtyBits::Iterator *dirtyBitsIterator,
                                                      DirtyBits dirtyBitMask);
     angle::Result handleDirtyGraphicsUniformBuffers(DirtyBits::Iterator *dirtyBitsIterator,
@@ -1315,8 +1326,6 @@ class ContextVk : public ContextImpl, public vk::Context, public MultisampleText
     angle::Result handleDirtyDescriptorSetsImpl(CommandBufferHelperT *commandBufferHelper,
                                                 PipelineType pipelineType);
     void handleDirtyGraphicsDynamicScissorImpl(bool isPrimitivesGeneratedQueryActive);
-
-    void writeAtomicCounterBufferDriverUniformOffsets(uint32_t *offsetsOut, size_t offsetsSize);
 
     void updateUniformBufferBlocksOffset();
 
@@ -1519,14 +1528,6 @@ class ContextVk : public ContextImpl, public vk::Context, public MultisampleText
     gl::DrawElementsType mCurrentDrawElementsType;
     angle::PackedEnumMap<gl::DrawElementsType, VkIndexType> mIndexTypeMap;
 
-    // Cache the current draw call's firstVertex to be passed to
-    // TransformFeedbackVk::getBufferOffsets.  Unfortunately, gl_BaseVertex support in Vulkan is
-    // not yet ubiquitous, which would have otherwise removed the need for this value to be passed
-    // as a uniform.
-    GLint mXfbBaseVertex;
-    // Cache the current draw call's vertex count as well to support instanced draw calls
-    GLuint mXfbVertexCountPerInstance;
-
     // Cached clear value/mask for color and depth/stencil.
     VkClearValue mClearColorValue;
     VkClearValue mClearDepthStencilValue;
@@ -1692,7 +1693,6 @@ class ContextVk : public ContextImpl, public vk::Context, public MultisampleText
     uint32_t mCommandsPendingSubmissionCount;
 
     GraphicsDriverUniforms mGraphicsDriverUniforms;
-    XFBEmulationGraphicsDriverUniforms mXFBEmulationDriverUniforms;
 };
 
 ANGLE_INLINE angle::Result ContextVk::endRenderPassIfTransformFeedbackBuffer(

@@ -5,13 +5,16 @@
 #include "chrome/browser/ui/passwords/credential_manager_dialog_controller_impl.h"
 
 #include "base/strings/utf_string_conversions.h"
+#include "base/task/single_thread_task_runner.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/ui/passwords/password_dialog_prompts.h"
 #include "chrome/browser/ui/passwords/passwords_model_delegate.h"
 #include "chrome/browser/ui/passwords/ui_utils.h"
+#include "chrome/browser/webauthn/credential_sorter.h"
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
+#include "components/password_manager/core/browser/features/password_features.h"
 #include "components/password_manager/core/browser/password_bubble_experiment.h"
 #include "components/password_manager/core/browser/password_feature_manager.h"
 #include "components/password_manager/core/browser/password_form.h"
@@ -25,6 +28,7 @@
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "url/origin.h"
 
 namespace {
 
@@ -44,6 +48,18 @@ std::u16string GetAuthenticationMessage(PasswordsModelDelegate* delegate) {
 }
 #endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
 
+struct PasswordFormTraits {
+  static std::u16string GetAccountName(
+      const std::unique_ptr<password_manager::PasswordForm>& form) {
+    return form->username_value;
+  }
+
+  static base::Time GetLastUsedTime(
+      const std::unique_ptr<password_manager::PasswordForm>& form) {
+    return form->date_last_used;
+  }
+};
+
 }  // namespace
 
 CredentialManagerDialogControllerImpl::CredentialManagerDialogControllerImpl(
@@ -60,13 +76,19 @@ CredentialManagerDialogControllerImpl::
 }
 
 void CredentialManagerDialogControllerImpl::ShowAccountChooser(
-    AccountChooserPrompt* dialog,
+    std::unique_ptr<AccountChooserPrompt> dialog,
     std::vector<std::unique_ptr<password_manager::PasswordForm>> locals) {
   DCHECK(!account_chooser_dialog_);
   DCHECK(!autosignin_dialog_);
   DCHECK(dialog);
-  local_credentials_.swap(locals);
-  account_chooser_dialog_ = dialog;
+  local_credentials_ = std::move(locals);
+  if (base::FeatureList::IsEnabled(
+          password_manager::features::kCredentialManagementUnifiedUi)) {
+    local_credentials_ = webauthn::sorting::SortCredentials<
+        std::unique_ptr<password_manager::PasswordForm>, PasswordFormTraits>(
+        std::move(local_credentials_));
+  }
+  account_chooser_dialog_ = std::move(dialog);
   account_chooser_dialog_->ShowAccountChooser();
 }
 
@@ -86,6 +108,10 @@ bool CredentialManagerDialogControllerImpl::IsShowingAccountChooser() const {
 const CredentialManagerDialogController::FormsVector&
 CredentialManagerDialogControllerImpl::GetLocalForms() const {
   return local_credentials_;
+}
+
+url::Origin CredentialManagerDialogControllerImpl::GetOrigin() const {
+  return delegate_->GetOrigin();
 }
 
 std::u16string CredentialManagerDialogControllerImpl::GetAccountChooserTitle()
@@ -181,7 +207,8 @@ void CredentialManagerDialogControllerImpl::OnAutoSigninTurnOff() {
 
 void CredentialManagerDialogControllerImpl::OnCloseDialog() {
   if (account_chooser_dialog_) {
-    account_chooser_dialog_ = nullptr;
+    base::SingleThreadTaskRunner::GetCurrentDefault()->DeleteSoon(
+        FROM_HERE, std::move(account_chooser_dialog_));
   }
   if (autosignin_dialog_) {
     password_manager::metrics_util::LogAutoSigninPromoUserAction(
@@ -194,7 +221,7 @@ void CredentialManagerDialogControllerImpl::OnCloseDialog() {
 void CredentialManagerDialogControllerImpl::ResetDialog() {
   if (account_chooser_dialog_) {
     account_chooser_dialog_->ControllerGone();
-    account_chooser_dialog_ = nullptr;
+    account_chooser_dialog_.reset();
   }
   if (autosignin_dialog_) {
     autosignin_dialog_->ControllerGone();

@@ -34,6 +34,11 @@ void RecordVersionErrorESEXT(const Context *context, angle::EntryPoint entryPoin
     ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kEntryPointRequiresESEXT);
 }
 
+void RecordEntryPointBaseUnsupportedError(const Context *context, angle::EntryPoint entryPoint)
+{
+    ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kEntryPointBaseUnsupported);
+}
+
 namespace
 {
 template <typename ObjectT>
@@ -819,8 +824,7 @@ bool ValidateGetnUniformfvKHR(const Context *context,
         return false;
     }
 
-    return ValidateSizedGetUniform(context, entryPoint, programPacked, locationPacked, bufSize,
-                                   nullptr);
+    return ValidateSizedGetUniform(context, entryPoint, programPacked, locationPacked, bufSize);
 }
 
 bool ValidateGetnUniformivKHR(const Context *context,
@@ -836,8 +840,7 @@ bool ValidateGetnUniformivKHR(const Context *context,
         return false;
     }
 
-    return ValidateSizedGetUniform(context, entryPoint, programPacked, locationPacked, bufSize,
-                                   nullptr);
+    return ValidateSizedGetUniform(context, entryPoint, programPacked, locationPacked, bufSize);
 }
 
 bool ValidateGetnUniformuivKHR(const Context *context,
@@ -855,8 +858,7 @@ bool ValidateGetnUniformuivKHR(const Context *context,
         return false;
     }
 
-    return ValidateSizedGetUniform(context, entryPoint, programPacked, locationPacked, bufSize,
-                                   nullptr);
+    return ValidateSizedGetUniform(context, entryPoint, programPacked, locationPacked, bufSize);
 }
 
 bool ValidateReadnPixelsKHR(const Context *context,
@@ -2501,12 +2503,6 @@ bool ValidateGetFramebufferPixelLocalStorageParameterfvRobustANGLE(const Context
                                                                    const GLsizei *length,
                                                                    const GLfloat *params)
 {
-    if (!context->getExtensions().shaderPixelLocalStorageANGLE)
-    {
-        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kExtensionNotEnabled);
-        return false;
-    }
-
     return ValidateGetFramebufferPixelLocalStorageParameterRobustCommon(context, entryPoint, plane,
                                                                         pname, bufSize, params);
 }
@@ -2519,12 +2515,6 @@ bool ValidateGetFramebufferPixelLocalStorageParameterivRobustANGLE(const Context
                                                                    const GLsizei *length,
                                                                    const GLint *params)
 {
-    if (!context->getExtensions().shaderPixelLocalStorageANGLE)
-    {
-        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kExtensionNotEnabled);
-        return false;
-    }
-
     return ValidateGetFramebufferPixelLocalStorageParameterRobustCommon(context, entryPoint, plane,
                                                                         pname, bufSize, params);
 }

@@ -66,6 +66,10 @@ message GlicCueingConfiguration {
   // This label will only be populated on eligible pages.
   string dynamic_cue_label = 4;
 
+  // This label will only be populated on eligible pages for clients that
+  // support the secondary label.
+  string dynamic_cue_secondary_label = 8;
+
   // The text to prefill in glic if a dynamic cue is clicked.
   string default_text = 5;
 
@@ -77,6 +81,21 @@ message GlicCueingConfiguration {
   //
   // If this list is empty, this cueing configuration is always eligible.
   repeated ContextualCueingConditions conditions = 2;
+
+  // If true, this configuration is eligible for auto-opening the side panel.
+  // The client will auto-open if enabled and conditions are met, otherwise
+  // falls back to standard nudge behavior with cue_label/default_text.
+  bool auto_open_eligible = 6;
+
+  // Parameters controlling auto-send behavior for the prompt.
+  AutoSendParams auto_send_params = 7;
+}
+
+// Parameters for auto-sending the prompt when the side panel opens.
+message AutoSendParams {
+  // If true, this configuration is eligible for auto-submitting the
+  // default_text prompt when the side panel opens.
+  bool auto_send_eligible = 1;
 }
 
 message GlicZeroStateSuggestionsMetadata {

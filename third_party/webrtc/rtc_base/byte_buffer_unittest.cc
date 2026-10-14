@@ -56,9 +56,12 @@ TEST(ByteBufferTest, TestByteOrder) {
     EXPECT_EQ(n64, HostToNetwork64(n64));
 
     // GetBE converts big endian to little endian here.
-    EXPECT_EQ(n16 >> 8, GetBE16(&n16));
-    EXPECT_EQ(n32 >> 24, GetBE32(&n32));
-    EXPECT_EQ(n64 >> 56, GetBE64(&n64));
+    EXPECT_EQ(n16 >> 8, GetBE16(ArrayView<const uint8_t>(
+                            reinterpret_cast<const uint8_t*>(&n16), 2)));
+    EXPECT_EQ(n32 >> 24, GetBE32(ArrayView<const uint8_t>(
+                             reinterpret_cast<const uint8_t*>(&n32), 4)));
+    EXPECT_EQ(n64 >> 56, GetBE64(ArrayView<const uint8_t>(
+                             reinterpret_cast<const uint8_t*>(&n64), 8)));
   } else {
     // The host is little endian.
     EXPECT_NE(n16, HostToNetwork16(n16));
@@ -66,14 +69,23 @@ TEST(ByteBufferTest, TestByteOrder) {
     EXPECT_NE(n64, HostToNetwork64(n64));
 
     // GetBE converts little endian to big endian here.
-    EXPECT_EQ(GetBE16(&n16), HostToNetwork16(n16));
-    EXPECT_EQ(GetBE32(&n32), HostToNetwork32(n32));
-    EXPECT_EQ(GetBE64(&n64), HostToNetwork64(n64));
+    EXPECT_EQ(GetBE16(ArrayView<const uint8_t>(
+                  reinterpret_cast<const uint8_t*>(&n16), 2)),
+              HostToNetwork16(n16));
+    EXPECT_EQ(GetBE32(ArrayView<const uint8_t>(
+                  reinterpret_cast<const uint8_t*>(&n32), 4)),
+              HostToNetwork32(n32));
+    EXPECT_EQ(GetBE64(ArrayView<const uint8_t>(
+                  reinterpret_cast<const uint8_t*>(&n64), 8)),
+              HostToNetwork64(n64));
 
     // GetBE converts little endian to big endian here.
-    EXPECT_EQ(n16 << 8, GetBE16(&n16));
-    EXPECT_EQ(n32 << 24, GetBE32(&n32));
-    EXPECT_EQ(n64 << 56, GetBE64(&n64));
+    EXPECT_EQ(n16 << 8, GetBE16(ArrayView<const uint8_t>(
+                            reinterpret_cast<const uint8_t*>(&n16), 2)));
+    EXPECT_EQ(n32 << 24, GetBE32(ArrayView<const uint8_t>(
+                             reinterpret_cast<const uint8_t*>(&n32), 4)));
+    EXPECT_EQ(n64 << 56, GetBE64(ArrayView<const uint8_t>(
+                             reinterpret_cast<const uint8_t*>(&n64), 8)));
   }
 }
 

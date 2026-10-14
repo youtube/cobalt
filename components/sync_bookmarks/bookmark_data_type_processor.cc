@@ -41,6 +41,7 @@
 #include "components/sync_bookmarks/bookmark_model_view.h"
 #include "components/sync_bookmarks/bookmark_remote_updates_handler.h"
 #include "components/sync_bookmarks/bookmark_specifics_conversions.h"
+#include "components/sync_bookmarks/constants.h"
 #include "components/sync_bookmarks/parent_guid_preprocessing.h"
 #include "components/sync_bookmarks/synced_bookmark_tracker.h"
 #include "components/sync_bookmarks/synced_bookmark_tracker_entity.h"
@@ -404,8 +405,7 @@ void BookmarkDataTypeProcessor::ClearMetadataIfStopped() {
 void BookmarkDataTypeProcessor::ReportBridgeErrorForTest() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  DisconnectSync();
-  activation_request_.error_handler.Run(syncer::ModelError(
+  DisconnectAndReportError(syncer::ModelError(
       FROM_HERE, syncer::ModelError::Type::
                      kBookmarksInitialMergePermanentEntitiesMissing));
 }
@@ -655,8 +655,7 @@ void BookmarkDataTypeProcessor::ConnectIfReady() {
     // `initial_merge_remote_updates_exceeded_limit_timestamp_` is only set
     // in error case and thus tracker should be empty.
     DCHECK(!bookmark_tracker_);
-    start_callback_.Reset();
-    activation_request_.error_handler.Run(syncer::ModelError(
+    DisconnectAndReportError(syncer::ModelError(
         FROM_HERE, syncer::ModelError::Type::
                        kBookmarksRemoteCountExceededLimitLastInitialMerge));
     return;
@@ -701,12 +700,7 @@ bool BookmarkDataTypeProcessor::DoesCountExceedLocalBookmarksSyncLimit(
   if (sync_local_bookmarks_limit_for_tests_.has_value()) {
     return count > sync_local_bookmarks_limit_for_tests_.value() + offset;
   }
-  // Count is less than the default limit so should not bother checking against
-  // `kSyncBookmarksLimitValue` which is bound to be >= the default limit.
-  if (count <= syncer::kDefaultSyncBookmarksLimit + offset) {
-    return false;
-  }
-  return count > syncer::kSyncBookmarksLimitValue.Get() + offset;
+  return count > kSyncBookmarksLimit + offset;
 }
 
 bool BookmarkDataTypeProcessor::
@@ -729,14 +723,28 @@ bool BookmarkDataTypeProcessor::
     // exists, local changes will continue
     // to be tracked in order order to allow users to delete bookmarks and
     // recover upon restart.
-    DisconnectSync();
-    start_callback_.Reset();
-
-    activation_request_.error_handler.Run(
-        syncer::ModelError(FROM_HERE, error_type));
+    DisconnectAndReportError(syncer::ModelError(FROM_HERE, error_type));
     return true;
   }
   return false;
+}
+
+void BookmarkDataTypeProcessor::DisconnectAndReportError(
+    const syncer::ModelError& error) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  DisconnectSync();
+  start_callback_.Reset();
+
+  // Clear the activation request to ensure the processor is considered
+  // stopped/disconnected, which is a prerequisite for
+  // ClearMetadataIfStopped() to work (e.g. when the controller is in FAILED
+  // state and a dashboard reset or sign-out occurs).
+  auto error_handler = activation_request_.error_handler;
+  activation_request_ = syncer::DataTypeActivationRequest{};
+  if (error_handler) {
+    error_handler.Run(error);
+  }
 }
 
 void BookmarkDataTypeProcessor::NudgeForCommitIfNeeded() {
@@ -787,9 +795,8 @@ void BookmarkDataTypeProcessor::OnInitialUpdateReceived(
   if (ExceedsRemoteUpdatesLimit(updates.size())) {
     base::UmaHistogramCounts1M("Sync.BookmarksCountAtLimitExceeded.Remote",
                                updates.size());
-    DisconnectSync();
     initial_merge_remote_updates_exceeded_limit_timestamp_ = base::Time::Now();
-    activation_request_.error_handler.Run(syncer::ModelError(
+    DisconnectAndReportError(syncer::ModelError(
         FROM_HERE, syncer::ModelError::Type::
                        kBookmarksRemoteCountExceededLimitInitialMerge));
     schedule_save_closure_.Run();
@@ -816,11 +823,10 @@ void BookmarkDataTypeProcessor::OnInitialUpdateReceived(
           bookmark_model_->other_node()) ||
       !bookmark_tracker_->GetEntityForBookmarkNode(
           bookmark_model_->mobile_node())) {
-    DisconnectSync();
-    StopTrackingMetadataAndResetTracker();
-    activation_request_.error_handler.Run(syncer::ModelError(
+    DisconnectAndReportError(syncer::ModelError(
         FROM_HERE, syncer::ModelError::Type::
                        kBookmarksInitialMergePermanentEntitiesMissing));
+    StopTrackingMetadataAndResetTracker();
     return;
   }
 
@@ -960,12 +966,7 @@ bool BookmarkDataTypeProcessor::ExceedsRemoteUpdatesLimit(size_t count) const {
   if (sync_local_bookmarks_limit_for_tests_.has_value()) {
     return count > 2 * sync_local_bookmarks_limit_for_tests_.value();
   }
-  // This is to avoid checking against `kSyncBookmarksLimitValue` when the
-  // count is already below the default limit.
-  if (count < 2 * syncer::kDefaultSyncBookmarksLimit) {
-    return false;
-  }
-  return count > 2 * syncer::kSyncBookmarksLimitValue.Get();
+  return count > 2 * kSyncBookmarksLimit;
 }
 
 void BookmarkDataTypeProcessor::StartTrackingMetadata() {

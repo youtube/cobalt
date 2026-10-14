@@ -17,6 +17,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
 #include "api/crypto/frame_decryptor_interface.h"
 #include "api/dtls_transport_interface.h"
@@ -87,8 +88,8 @@ class VideoRtpReceiver : public RtpReceiverInternal {
 
   // RtpReceiverInternal implementation.
   void Stop() override;
-  void SetupMediaChannel(uint32_t ssrc) override;
-  void SetupUnsignaledMediaChannel() override;
+  absl::AnyInvocable<void() &&> GetSetupForMediaChannel(uint32_t ssrc) override;
+  absl::AnyInvocable<void() &&> GetSetupForUnsignaledMediaChannel() override;
   std::optional<uint32_t> ssrc() const override;
   void NotifyFirstPacketReceived() override;
   void NotifyFirstPacketReceivedAfterReceptiveChange() override;
@@ -109,17 +110,18 @@ class VideoRtpReceiver : public RtpReceiverInternal {
 
   std::vector<RtpSource> GetSources() const override;
 
-  // Combines SetMediaChannel, SetupMediaChannel and
-  // SetupUnsignaledMediaChannel.
-  void SetupMediaChannel(std::optional<uint32_t> ssrc,
-                         MediaReceiveChannelInterface* media_channel);
+  // Combines SetMediaChannel, GetSetupForMediaChannel and
+  // GetSetupForUnsignaledMediaChannel.
+  absl::AnyInvocable<void() &&> GetSetupForMediaChannel(
+      std::optional<uint32_t> ssrc,
+      VideoMediaReceiveChannelInterface* media_channel);
 
  private:
-  void RestartMediaChannel(std::optional<uint32_t> ssrc)
-      RTC_RUN_ON(&signaling_thread_checker_);
-  void RestartMediaChannel_w(std::optional<uint32_t> ssrc,
-                             MediaSourceInterface::SourceState state)
-      RTC_RUN_ON(worker_thread_);
+  absl::AnyInvocable<void() &&> GetRestartFunctionForMediaChannel(
+      std::optional<uint32_t> ssrc) RTC_RUN_ON(&signaling_thread_checker_);
+  void GetRestartFunctionForMediaChannel_w(
+      std::optional<uint32_t> ssrc,
+      MediaSourceInterface::SourceState state) RTC_RUN_ON(worker_thread_);
   void SetSink(VideoSinkInterface<VideoFrame>* sink) RTC_RUN_ON(worker_thread_);
   void SetMediaChannel_w(MediaReceiveChannelInterface* media_channel)
       RTC_RUN_ON(worker_thread_);

@@ -56,10 +56,12 @@
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_list.h"
+#include "chrome/browser/ui/browser_window/public/browser_collection_observer.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/browser_window/public/desktop_browser_window_capabilities.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
 #include "chrome/browser/ui/intent_picker_tab_helper.h"
 #include "chrome/browser/ui/page_action/page_action_icon_type.h"
@@ -541,19 +543,21 @@ SiteConfig GetSiteConfigurationFromAppName(const std::string& app_name) {
 }
 #endif
 
-class BrowserAddedWaiter final : public BrowserListObserver {
+class BrowserAddedWaiter final : public BrowserCollectionObserver {
  public:
-  BrowserAddedWaiter() { BrowserList::AddObserver(this); }
-  ~BrowserAddedWaiter() override { BrowserList::RemoveObserver(this); }
+  BrowserAddedWaiter() {
+    browser_collection_observation_.Observe(
+        GlobalBrowserCollection::GetInstance());
+  }
 
   void Wait(const base::Location& location = base::Location::Current()) {
     run_loop_.Run(location);
   }
 
-  // BrowserListObserver
-  void OnBrowserAdded(Browser* browser) override {
-    browser_added_ = browser;
-    BrowserList::RemoveObserver(this);
+  // BrowserCollectionObserver
+  void OnBrowserCreated(BrowserWindowInterface* browser) override {
+    browser_added_ = browser->GetBrowserForMigrationOnly();
+    browser_collection_observation_.Reset();
     // Post a task to ensure the Remove event has been dispatched to all
     // observers.
     base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
@@ -564,6 +568,8 @@ class BrowserAddedWaiter final : public BrowserListObserver {
  private:
   base::RunLoop run_loop_;
   raw_ptr<Browser> browser_added_ = nullptr;
+  base::ScopedObservation<GlobalBrowserCollection, BrowserCollectionObserver>
+      browser_collection_observation_{this};
 };
 
 BrowserWindowInterface* GetAppBrowserForAppId(const Profile* profile,
@@ -604,7 +610,7 @@ content::WebContents* GetAnyWebContentsForAppId(const webapps::AppId& app_id) {
   return result;
 }
 
-class UninstallCompleteWaiter final : public BrowserListObserver,
+class UninstallCompleteWaiter final : public BrowserCollectionObserver,
                                       public WebAppInstallManagerObserver {
  public:
   explicit UninstallCompleteWaiter(
@@ -614,17 +620,13 @@ class UninstallCompleteWaiter final : public BrowserListObserver,
       : profile_(profile),
         app_id_(app_id),
         app_unregistration_waiter_(profile, app_id, readiness) {
-    BrowserList::AddObserver(this);
+    browser_collection_observation_.Observe(
+        GlobalBrowserCollection::GetInstance());
     WebAppProvider* provider = WebAppProvider::GetForTest(profile);
-    observation_.Observe(&provider->install_manager());
+    install_manager_observation_.Observe(&provider->install_manager());
     uninstall_complete_ =
         provider->registrar_unsafe().GetAppById(app_id) == nullptr;
     MaybeFinishWaiting();
-  }
-
-  ~UninstallCompleteWaiter() override {
-    BrowserList::RemoveObserver(this);
-    observation_.Reset();
   }
 
   void Wait() {
@@ -632,8 +634,8 @@ class UninstallCompleteWaiter final : public BrowserListObserver,
     run_loop_.Run();
   }
 
-  // BrowserListObserver
-  void OnBrowserRemoved(Browser* browser) override {
+  // BrowserCollectionObserver
+  void OnBrowserClosed(BrowserWindowInterface* browser) override {
     if (WebAppBrowserController::IsForWebApp(browser, app_id_)) {
       LOG(INFO) << base::StringPrintf("App browser closed: %p", browser);
       MaybeFinishWaiting();
@@ -669,8 +671,8 @@ class UninstallCompleteWaiter final : public BrowserListObserver,
       return;
     }
 
-    BrowserList::RemoveObserver(this);
-    observation_.Reset();
+    browser_collection_observation_.Reset();
+    install_manager_observation_.Reset();
     // Post a task to ensure the Remove event has been dispatched to all
     // observers.
     base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
@@ -684,8 +686,10 @@ class UninstallCompleteWaiter final : public BrowserListObserver,
   base::RunLoop run_loop_;
   apps::AppReadinessWaiter app_unregistration_waiter_;
 
+  base::ScopedObservation<GlobalBrowserCollection, BrowserCollectionObserver>
+      browser_collection_observation_{this};
   base::ScopedObservation<WebAppInstallManager, WebAppInstallManagerObserver>
-      observation_{this};
+      install_manager_observation_{this};
 };
 
 std::optional<ProfileState> GetStateForProfile(StateSnapshot* state_snapshot,
@@ -854,7 +858,7 @@ AppState::AppState(webapps::AppId app_id,
                    blink::mojom::DisplayMode effective_display_mode,
                    std::optional<mojom::UserDisplayMode> user_display_mode,
                    std::string manifest_launcher_icon_filename,
-                   bool installed_locally,
+                   proto::InstallState install_state,
                    bool shortcut_created)
     : id(std::move(app_id)),
       name(std::move(app_name)),
@@ -864,7 +868,7 @@ AppState::AppState(webapps::AppId app_id,
       user_display_mode(user_display_mode),
       manifest_launcher_icon_filename(
           std::move(manifest_launcher_icon_filename)),
-      is_installed_locally(installed_locally),
+      install_state(install_state),
       is_shortcut_created(shortcut_created) {}
 AppState::~AppState() = default;
 AppState::AppState(const AppState&) = default;
@@ -875,7 +879,7 @@ bool AppState::operator==(const AppState& other) const {
          user_display_mode == other.user_display_mode &&
          manifest_launcher_icon_filename ==
              other.manifest_launcher_icon_filename &&
-         is_installed_locally == other.is_installed_locally &&
+         install_state == other.install_state &&
          is_shortcut_created == other.is_shortcut_created;
 }
 
@@ -942,7 +946,7 @@ std::ostream& operator<<(std::ostream& os, const StateSnapshot& snapshot) {
                    static_cast<int>(app.effective_display_mode));
       app_dict.Set("manifest_launcher_icon_filename",
                    app.manifest_launcher_icon_filename);
-      app_dict.Set("is_installed_locally", app.is_installed_locally);
+      app_dict.Set("install_state", app.install_state);
       app_dict.Set("is_shortcut_created", app.is_shortcut_created);
 
       app_dicts.Set(app_pair.first, std::move(app_dict));
@@ -2909,7 +2913,8 @@ void WebAppIntegrationTestDriver::CheckAppInListNotLocallyInstalled(Site site) {
   std::optional<AppState> app_state =
       GetAppBySiteMode(after_state_change_action_state_.get(), profile(), site);
   ASSERT_TRUE(app_state.has_value());
-  EXPECT_FALSE(app_state->is_installed_locally);
+  EXPECT_NE(app_state->install_state, proto::INSTALLED_WITH_OS_INTEGRATION);
+  EXPECT_NE(app_state->install_state, proto::INSTALLED_WITHOUT_OS_INTEGRATION);
 #if !BUILDFLAG(IS_CHROMEOS)
   content::TestWebUI test_web_ui;
   content::WebContents* web_contents =
@@ -3081,7 +3086,9 @@ void WebAppIntegrationTestDriver::CheckAppNotInList(Site site) {
   }
   std::optional<AppState> app_state =
       GetAppBySiteMode(after_state_change_action_state_.get(), profile(), site);
-  EXPECT_FALSE(app_state.has_value());
+  if (app_state.has_value()) {
+    EXPECT_EQ(app_state->install_state, proto::SUGGESTED_FROM_MIGRATION);
+  }
 #if !BUILDFLAG(IS_CHROMEOS)
   content::TestWebUI test_web_ui;
   content::WebContents* web_contents =
@@ -4278,15 +4285,14 @@ WebAppIntegrationTestDriver::ConstructStateSnapshot() {
             registrar.GetAppEffectiveDisplayMode(app_id),
             registrar.GetAppUserDisplayMode(app_id),
             manifest_launcher_icon_filename,
-            registrar.IsInstallState(
-                app_id, {web_app::proto::INSTALLED_WITHOUT_OS_INTEGRATION,
-                         web_app::proto::INSTALLED_WITH_OS_INTEGRATION}),
+            registrar.GetInstallState(app_id).value(),
             IsShortcutAndIconCreated(profile, registrar.GetAppShortName(app_id),
                                      app_id));
 #if !BUILDFLAG(IS_CHROMEOS)
-        if (registrar.IsInstallState(
-                app_id, {web_app::proto::INSTALLED_WITHOUT_OS_INTEGRATION,
-                         web_app::proto::INSTALLED_WITH_OS_INTEGRATION})) {
+        if (state.install_state ==
+                web_app::proto::INSTALLED_WITHOUT_OS_INTEGRATION ||
+            state.install_state ==
+                web_app::proto::INSTALLED_WITH_OS_INTEGRATION) {
           CheckAppSettingsAppState(profile->GetOriginalProfile(), state);
         }
 #endif

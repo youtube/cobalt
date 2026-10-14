@@ -186,6 +186,7 @@ test("components_unittests") {
 
   deps = [
     "//base",
+    "//components/accessibility_annotator/core:unit_tests",
     "//components/activity_reporter:unit_tests",
     "//components/affiliations/core/browser:unit_tests",
     "//components/aggregation_service:unit_tests",
@@ -645,6 +646,7 @@ test("components_unittests") {
         "//components/crash/content/browser:unit_tests",
         "//components/crash/core/app:unit_tests",
         "//components/enterprise/content:unit_tests",
+        "//components/page_content_annotations/content:unit_tests",
       ]
     }
 
@@ -739,7 +741,6 @@ test("components_unittests") {
     }
   } else {  #!is_android
     deps += [
-      "//components/accessibility_annotator/content/content_annotator:unit_tests",
       "//components/keep_alive_registry:unit_tests",
       "//components/manta:unit_tests",
       "//components/trusted_vault:unit_tests",
@@ -765,7 +766,10 @@ test("components_unittests") {
   }
 
   if (!is_android && !is_ios && !is_fuchsia && !is_castos) {
-    deps += [ "//components/passage_embeddings/content:unit_tests" ]
+    deps += [
+      "//components/accessibility_annotator/content/content_annotator:unit_tests",
+      "//components/passage_embeddings/content:unit_tests",
+    ]
   }
 
   if (enable_guest_contents) {

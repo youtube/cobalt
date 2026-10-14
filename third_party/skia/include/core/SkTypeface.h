@@ -182,7 +182,7 @@ public:
 
     /** Copy into tags[] (allocated by the caller) the list of table tags in
      *  the font, and return the number. This will be the same as CountTables()
-     *  or 0 if an error occured. If tags is empty, this only returns the count
+     *  or 0 if an error occurred. If tags is empty, this only returns the count
      *  (the same as calling countTables()).
      */
     int readTableTags(SkSpan<SkFontTableTag> tags) const;
@@ -196,7 +196,7 @@ public:
      *  (which for most truetype tables is big endian). If the table tag is
      *  not found, or there is an error copying the data, then 0 is returned.
      *  If this happens, it is possible that some or all of the memory pointed
-     *  to by data may have been written to, even though an error has occured.
+     *  to by data may have been written to, even though an error has occurred.
      *
      *  @param tag  The table tag whose contents are to be copied
      *  @param offset The offset in bytes into the table's contents where the
@@ -352,33 +352,6 @@ public:
     static void Register(
             FactoryId id,
             sk_sp<SkTypeface> (*make)(std::unique_ptr<SkStreamAsset>, const SkFontArguments&));
-
-#ifdef SK_SUPPORT_UNSPANNED_APIS
-public:
-    int getVariationDesignPosition(SkFontArguments::VariationPosition::Coordinate coordinates[],
-                                   int count) const {
-        return this->getVariationDesignPosition({coordinates, count});
-    }
-    int getVariationDesignParameters(SkFontParameters::Variation::Axis parameters[],
-                                     int count) const {
-        return this->getVariationDesignParameters({parameters, count});
-    }
-    void unicharsToGlyphs(const SkUnichar unis[], int count, SkGlyphID glyphs[]) const {
-        this->unicharsToGlyphs({unis, count}, {glyphs, count});
-    }
-    int textToGlyphs(const void* text, size_t byteLength, SkTextEncoding encoding,
-                     SkGlyphID glyphs[], int maxGlyphCount) const {
-        return (int)this->textToGlyphs(text, byteLength, encoding, {glyphs, maxGlyphCount});
-    }
-    int getTableTags(SkFontTableTag tags[]) const {
-        const size_t count = tags ? MAX_REASONABLE_TABLE_COUNT : 0;
-        return this->readTableTags({tags, count});
-    }
-    bool getKerningPairAdjustments(const SkGlyphID glyphs[], int count,
-                                   int32_t adjustments[]) const {
-        return this->getKerningPairAdjustments({glyphs, count}, {adjustments, count});
-    }
-#endif
 
 protected:
     // needed until onGetTableTags() is updated to take a span

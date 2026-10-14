@@ -67,7 +67,7 @@ class ActorTask {
   // Created only via ActorKeyedService::CreateTask or the CreateForTesting
   // method in this class.
   ActorTask(base::PassKey<ActorKeyedService, ActorTask>,
-            Profile* profile,
+            ActorKeyedService& service,
             TaskId id,
             std::unique_ptr<ui::UiEventDispatcher> ui_event_dispatcher,
             webui::mojom::TaskOptionsPtr options,
@@ -80,7 +80,7 @@ class ActorTask {
   ActorTask& operator=(const ActorTask&) = delete;
 
   static std::unique_ptr<ActorTask> CreateForTesting(
-      Profile* profile,
+      ActorKeyedService& service,
       TaskId id,
       std::unique_ptr<ui::UiEventDispatcher> ui_event_dispatcher,
       webui::mojom::TaskOptionsPtr options,
@@ -149,14 +149,14 @@ class ActorTask {
   static State GetTaskStateFromStoppedReason(StoppedReason stopped_reason);
 
   // Sets State to `stop_reason` and cancels any pending actions.
-  // TODO(bokan): It's important that Stop only be called from ActorKeyedService
-  // since that has to clean up actor tasks. Add a PassKey.
   void Stop(StoppedReason stop_reason);
 
   // Pause() is called to indicate that either the actor or user is pausing
-  // actor actions, determined by the `from_actor` flag. This will cancel any
-  // in-progress action.
-  void Pause(bool from_actor);
+  // actor actions, determined by the `from_actor` flag. If the
+  // `cancel_existing_action` flag is true, any in-progress action will be
+  // cancelled. If there is an existing action and it's not canceled, its
+  // completion will resume the task.
+  void Pause(bool from_actor, bool cancel_existing_action = true);
 
   // Resume() puts the task back into an actor-controlled state. The caller is
   // responsible for updating the actor with the latest state of the browser.
@@ -217,7 +217,9 @@ class ActorTask {
 
   base::WeakPtr<ActorTask> GetWeakPtr();
 
-  Profile* profile() const { return profile_; }
+  Profile* GetProfile() const;
+
+  ActorKeyedService& actor_keyed_service() const { return service_.get(); }
 
  private:
   class ActorControlledTabState : public content::WebContentsObserver {
@@ -283,7 +285,8 @@ class ActorTask {
                        std::vector<mojom::ActionResultPtr> add_tab_results);
 
   State state_ = State::kCreated;
-  raw_ptr<Profile> profile_;
+
+  const raw_ref<ActorKeyedService> service_;
 
   TaskId id_;
 

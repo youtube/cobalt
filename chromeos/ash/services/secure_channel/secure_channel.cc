@@ -65,13 +65,11 @@ SecureChannel::PendingMessage::~PendingMessage() {}
 
 SecureChannel::SecureChannel(std::unique_ptr<Connection> connection)
     : status_(Status::DISCONNECTED), connection_(std::move(connection)) {
-  connection_->AddObserver(this);
+  connection_observation_.Observe(connection_.get());
   connection_->AddNearbyConnectionObserver(this);
 }
 
-SecureChannel::~SecureChannel() {
-  connection_->RemoveObserver(this);
-}
+SecureChannel::~SecureChannel() = default;
 
 void SecureChannel::Initialize() {
   DCHECK(status_ == Status::DISCONNECTED);
@@ -240,7 +238,7 @@ void SecureChannel::OnSendCompleted(const Connection& connection,
   Disconnect();
 }
 
-void SecureChannel::OnNearbyConnectionStateChagned(
+void SecureChannel::OnNearbyConnectionStateChanged(
     mojom::NearbyConnectionStep step,
     mojom::NearbyConnectionStepResult result) {
   for (auto& observer : observer_list_) {

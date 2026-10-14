@@ -11,6 +11,7 @@
 #include <variant>
 #include <vector>
 
+#include "base/check_deref.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
@@ -56,6 +57,7 @@
 #include "ui/views/view.h"
 #include "ui/views/view_class_properties.h"
 #include "ui/views/view_observer.h"
+#include "ui/views/window/dialog_delegate.h"
 
 namespace web_app {
 namespace {
@@ -64,13 +66,6 @@ constexpr int kIconSize = 32;
 constexpr int kNestedDialogIconSize = 24;
 constexpr int kInfoPaneCornerRadius = 10;
 constexpr int kProgressViewHorizontalPadding = 45;
-
-views::View* GetRootView(views::View* view) {
-  while (view->parent()) {
-    view = view->parent();
-  }
-  return view;
-}
 
 gfx::Insets BottomPadding(views::DistanceMetric distance) {
   return gfx::Insets::TLBR(
@@ -437,10 +432,12 @@ class DimOverlayView : public views::View {
   METADATA_HEADER(DimOverlayView, views::View)
 
  public:
-  DimOverlayView() {
+  explicit DimOverlayView(int corner_radius) {
     SetBackground(views::CreateSolidBackground(SkColorSetARGB(125, 0, 0, 0)));
     SetPaintToLayer();
     layer()->SetFillsBoundsOpaquely(false);
+
+    layer()->SetRoundedCornerRadius(gfx::RoundedCornersF(corner_radius));
   }
 
   std::string GetObjectName() const override { return "DimOverlayView"; }
@@ -449,23 +446,37 @@ class DimOverlayView : public views::View {
 BEGIN_METADATA(DimOverlayView)
 END_METADATA
 
-void IsolatedWebAppInstallerViewImpl::Dim(bool dim) {
-  views::View* root = GetRootView(this);
+void IsolatedWebAppInstallerViewImpl::ApplyDim(
+    const views::DialogDelegate* dialog_delegate) {
+  CHECK(dialog_delegate);
 
-  // Undim: remove all |DimOverlayView|
-  if (!dim) {
-    for (views::View* child : root->children()) {
-      if (child->GetObjectName().compare("DimOverlayView") == 0) {
-        // |RemoveChildViewT()| returns the ownership of the child, which gets
-        // dropped, effectively deleting the child from memory.
-        root->RemoveChildViewT(child);
-      }
-    }
-    return;
-  }
+  views::View* parent_view = parent();
+  CHECK(parent_view);
+
+  auto dim_overlay = std::make_unique<DimOverlayView>(
+      CHECK_DEREF(dialog_delegate).GetCornerRadius());
+  dim_overlay->SetProperty(views::kViewIgnoredByLayoutKey, true);
+
+  const auto bounds = parent_view->GetVisibleBounds();
+  // Setting the new bounds relative to the parent widget will almost perfectly
+  // overlay the dimming widget. However, this will result in a 1 pixel frame,
+  // which is what we correct for with -1 / +2.
+  dim_overlay->SetBoundsRect(gfx::Rect(
+      bounds.x() - 1, bounds.y() - 1, bounds.width() + 2, bounds.height() + 2));
 
   // Dim: add a |DimOverlayView| as the last child.
-  root->AddChildView(std::make_unique<DimOverlayView>());
+  parent_view->AddChildView((std::move(dim_overlay)));
+}
+
+void IsolatedWebAppInstallerViewImpl::RemoveDim() {
+  views::View* parent_view = parent();
+  for (views::View* child : parent_view->children()) {
+    if (child->GetObjectName().compare("DimOverlayView") == 0) {
+      // |RemoveChildViewT()| returns the ownership of the child, which gets
+      // dropped, effectively deleting the child from memory.
+      parent_view->RemoveChildViewT(child);
+    }
+  }
 }
 
 // static
@@ -584,8 +595,9 @@ void IsolatedWebAppInstallerViewImpl::ShowInstallSuccessScreen(
 }
 
 views::Widget* IsolatedWebAppInstallerViewImpl::ShowDialog(
-    const IsolatedWebAppInstallerModel::Dialog& dialog) {
-  Dim(true);
+    const IsolatedWebAppInstallerModel::Dialog& dialog,
+    const views::DialogDelegate* dialog_delegate) {
+  ApplyDim(dialog_delegate);
   return std::visit(
       absl::Overload{
           [this](const IsolatedWebAppInstallerModel::BundleInvalidDialog&) {
@@ -647,6 +659,16 @@ views::Widget* IsolatedWebAppInstallerViewImpl::ShowDialog(
                 IDS_IWA_INSTALLER_INSTALL_FAILED_TITLE,
                 ui::DialogModelLabel(
                     IDS_IWA_INSTALLER_INSTALL_FAILED_BUNDLE_NOT_ON_USER_INSTALL_ALLOWLIST_SUBTITLE),
+                CreateImageModelFromVector(vector_icons::kErrorOutlineIcon,
+                                           ui::kColorAlertMediumSeverityIcon),
+                std::nullopt);
+          },
+          [this](const IsolatedWebAppInstallerModel::
+                     BundleBlocklistedInstallationDialog&) {
+            return ShowChildDialog(
+                IDS_IWA_INSTALLER_INSTALL_FAILED_TITLE,
+                ui::DialogModelLabel(
+                    IDS_IWA_INSTALLER_INSTALL_FAILED_BUNDLE_BLOCKLISTED),
                 CreateImageModelFromVector(vector_icons::kErrorOutlineIcon,
                                            ui::kColorAlertMediumSeverityIcon),
                 std::nullopt);
@@ -742,7 +764,7 @@ void IsolatedWebAppInstallerViewImpl::ShowChildView(views::View* view) {
 
 void IsolatedWebAppInstallerViewImpl::OnChildDialogDestroying() {
   dialog_visible_ = false;
-  Dim(false);
+  RemoveDim();
   delegate_->OnChildDialogDestroying();
 }
 

@@ -243,7 +243,7 @@ class QUICHE_EXPORT MoqtDatagramType {
 };
 
 enum class QUICHE_EXPORT MoqtMessageType : uint64_t {
-  kSubscribeUpdate = 0x02,
+  kRequestUpdate = 0x02,
   kSubscribe = 0x03,
   kSubscribeOk = 0x04,
   kRequestError = 0x05,
@@ -258,7 +258,6 @@ enum class QUICHE_EXPORT MoqtMessageType : uint64_t {
   kNamespaceDone = 0x0e,
   kGoAway = 0x10,
   kSubscribeNamespace = 0x11,
-  kUnsubscribeNamespace = 0x14,
   kMaxRequestId = 0x15,
   kFetch = 0x16,
   kFetchCancel = 0x17,
@@ -393,13 +392,10 @@ struct QUICHE_EXPORT MoqtPublishDone {
   std::string error_reason;
 };
 
-struct QUICHE_EXPORT MoqtSubscribeUpdate {
+struct QUICHE_EXPORT MoqtRequestUpdate {
   uint64_t request_id;
-  Location start;
-  std::optional<uint64_t> end_group;
-  MoqtPriority subscriber_priority;
-  bool forward;
-  VersionSpecificParameters parameters;
+  uint64_t existing_request_id;
+  MessageParameters parameters;
 };
 
 struct QUICHE_EXPORT MoqtPublishNamespace {
@@ -444,11 +440,6 @@ struct QUICHE_EXPORT MoqtSubscribeNamespace {
   TrackNamespace track_namespace_prefix;
   SubscribeNamespaceOption subscribe_options;
   MessageParameters parameters;
-};
-
-// TODO(martinduke): Delete this
-struct QUICHE_EXPORT MoqtUnsubscribeNamespace {
-  TrackNamespace track_namespace;
 };
 
 struct QUICHE_EXPORT MoqtNamespace {

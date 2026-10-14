@@ -101,14 +101,6 @@ class UrlBarMediator implements UrlBar.UrlBarTextContextMenuDelegate {
     }
 
     /**
-     * Sets a listener called when user input begins. See the {@link
-     * UrlBarCoordinator#setTypingStartedListener(Runnable)}.
-     */
-    public void setTypingStartedListener(Runnable listener) {
-        mModel.set(UrlBarProperties.TYPING_STARTED_LISTENER, listener);
-    }
-
-    /**
      * Updates the text content of the UrlBar.
      *
      * @param data The new data to be displayed.
@@ -298,11 +290,6 @@ class UrlBarMediator implements UrlBar.UrlBarTextContextMenuDelegate {
         if (allowFocus) {
             mModel.set(UrlBarProperties.SHOW_CURSOR, mHasFocus);
         }
-    }
-
-    /** Sets whether the view should select all on focus. */
-    public void setSelectAllOnFocus(boolean selectAllOnFocus) {
-        mModel.set(UrlBarProperties.SELECT_ALL_ON_FOCUS, selectAllOnFocus);
     }
 
     /** Set the listener to be notified for URL direction changes. */

@@ -11,16 +11,11 @@
 
 namespace blink {
 
-class MemoryManagedPaintCanvas;
-
 // This is an interface abstracting a class that can draw to a snapshot.
 class PLATFORM_EXPORT CanvasSnapshotProvider {
  public:
   virtual ~CanvasSnapshotProvider() = default;
 
-  virtual scoped_refptr<StaticBitmapImage> DoExternalDrawAndSnapshot(
-      base::FunctionRef<void(MemoryManagedPaintCanvas&)> draw_callback,
-      ImageOrientation orientation) = 0;
   virtual bool IsAccelerated() const = 0;
   virtual gfx::Size Size() const = 0;
   virtual viz::SharedImageFormat GetSharedImageFormat() const = 0;

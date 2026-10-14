@@ -30,7 +30,10 @@
 #include "api/neteq/neteq.h"
 #include "api/scoped_refptr.h"
 #include "api/units/timestamp.h"
+#include "logging/rtc_event_log/events/logged_rtp_rtcp.h"
 #include "logging/rtc_event_log/events/rtc_event_audio_network_adaptation.h"
+#include "logging/rtc_event_log/events/rtc_event_audio_playout.h"
+#include "logging/rtc_event_log/events/rtc_event_neteq_set_minimum_delay.h"
 #include "logging/rtc_event_log/rtc_event_log_parser.h"
 #include "modules/audio_coding/neteq/tools/audio_sink.h"
 #include "modules/audio_coding/neteq/tools/fake_decode_from_file.h"
@@ -277,8 +280,8 @@ std::unique_ptr<test::NetEqStatsGetter> CreateNetEqTestAndRun(
 
   NetEq::Config config;
   test::NetEqTest test(config, decoder_factory, codecs, /*text_log=*/nullptr,
-                       /*factory=*/nullptr, std::move(input), std::move(output),
-                       callbacks, field_trials);
+                       /*neteq_factory=*/nullptr, std::move(input),
+                       std::move(output), callbacks, field_trials);
   test.Run();
   return neteq_stats_getter;
 }
@@ -424,6 +427,89 @@ void CreateNetEqLifetimeStatsGraph(
         return stats_getter->lifetime_stats();
       },
       stats_extractor, plot_name, plot);
+}
+
+// For each SSRC, plot the time between the consecutive playouts.
+void CreatePlayoutGraph(const ParsedRtcEventLog& parsed_log,
+                        const AnalyzerConfig& config,
+                        Plot* plot) {
+  for (const auto& playout_stream : parsed_log.audio_playout_events()) {
+    uint32_t ssrc = playout_stream.first;
+    if (!MatchingSsrc(ssrc, config.desired_ssrc_))
+      continue;
+    std::optional<int64_t> last_playout_ms;
+    TimeSeries time_series(SsrcToString(ssrc), LineStyle::kBar);
+    for (const auto& playout_event : playout_stream.second) {
+      float x = config.GetCallTimeSec(playout_event.log_time());
+      int64_t playout_time_ms = playout_event.log_time_ms();
+      // If there were no previous playouts, place the point on the x-axis.
+      float y = playout_time_ms - last_playout_ms.value_or(playout_time_ms);
+      time_series.points.push_back(TimeSeriesPoint(x, y));
+      last_playout_ms.emplace(playout_time_ms);
+    }
+    plot->AppendTimeSeries(std::move(time_series));
+  }
+
+  plot->SetXAxis(config.CallBeginTimeSec(), config.CallEndTimeSec(), "Time (s)",
+                 kLeftMargin, kRightMargin);
+  plot->SetSuggestedYAxis(0, 1, "Time since last playout (ms)", kBottomMargin,
+                          kTopMargin);
+  plot->SetTitle("Audio playout");
+}
+
+void CreateNetEqSetMinimumDelay(const ParsedRtcEventLog& parsed_log,
+                                const AnalyzerConfig& config,
+                                Plot* plot) {
+  for (const auto& playout_stream :
+       parsed_log.neteq_set_minimum_delay_events()) {
+    uint32_t ssrc = playout_stream.first;
+    if (!MatchingSsrc(ssrc, config.desired_ssrc_))
+      continue;
+
+    TimeSeries time_series(SsrcToString(ssrc), LineStyle::kStep,
+                           PointStyle::kHighlight);
+    for (const auto& event : playout_stream.second) {
+      float x = config.GetCallTimeSec(event.log_time());
+      float y = event.minimum_delay_ms;
+      time_series.points.push_back(TimeSeriesPoint(x, y));
+    }
+    plot->AppendTimeSeries(std::move(time_series));
+  }
+
+  plot->SetXAxis(config.CallBeginTimeSec(), config.CallEndTimeSec(), "Time (s)",
+                 kLeftMargin, kRightMargin);
+  plot->SetSuggestedYAxis(0, 1000, "Minimum Delay (ms)", kBottomMargin,
+                          kTopMargin);
+  plot->SetTitle("Set Minimum Delay");
+}
+
+// For audio SSRCs, plot the audio level.
+void CreateAudioLevelGraph(const ParsedRtcEventLog& parsed_log,
+                           const AnalyzerConfig& config,
+                           PacketDirection direction,
+                           Plot* plot) {
+  for (const auto& stream : parsed_log.rtp_packets_by_ssrc(direction)) {
+    if (!IsAudioSsrc(parsed_log, direction, stream.ssrc))
+      continue;
+    TimeSeries time_series(GetStreamName(parsed_log, direction, stream.ssrc),
+                           LineStyle::kLine);
+    for (auto& packet : stream.packet_view) {
+      if (packet.header.extension.audio_level()) {
+        float x = config.GetCallTimeSec(packet.log_time());
+        // The audio level is stored in -dBov (so e.g. -10 dBov is stored as 10)
+        // Here we convert it to dBov.
+        float y =
+            static_cast<float>(-packet.header.extension.audio_level()->level());
+        time_series.points.emplace_back(TimeSeriesPoint(x, y));
+      }
+    }
+    plot->AppendTimeSeries(std::move(time_series));
+  }
+
+  plot->SetXAxis(config.CallBeginTimeSec(), config.CallEndTimeSec(), "Time (s)",
+                 kLeftMargin, kRightMargin);
+  plot->SetYAxis(-127, 0, "Audio level (dBov)", kBottomMargin, kTopMargin);
+  plot->SetTitle(GetDirectionAsString(direction) + " audio level");
 }
 
 }  // namespace webrtc

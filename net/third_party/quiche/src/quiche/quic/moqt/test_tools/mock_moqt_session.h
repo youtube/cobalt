@@ -6,10 +6,14 @@
 #define QUICHE_QUIC_MOQT_TOOLS_MOCK_MOQT_SESSION_H_
 
 #include <cstdint>
+#include <memory>
 #include <optional>
 
 #include "absl/strings/string_view.h"
+#include "quiche/quic/moqt/moqt_error.h"
+#include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
+#include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
@@ -30,11 +34,8 @@ class MockMoqtSession : public MoqtSessionInterface {
                const MessageParameters& parameters),
               (override));
   MOCK_METHOD(bool, SubscribeUpdate,
-              (const FullTrackName& name, std::optional<Location> start,
-               std::optional<uint64_t> end_group,
-               std::optional<MoqtPriority> subscriber_priority,
-               std::optional<bool> forward,
-               VersionSpecificParameters parameters),
+              (const FullTrackName&, const MessageParameters&,
+               MoqtResponseCallback),
               (override));
   MOCK_METHOD(void, Unsubscribe, (const FullTrackName& name), (override));
   MOCK_METHOD(bool, Fetch,
@@ -62,6 +63,10 @@ class MockMoqtSession : public MoqtSessionInterface {
                VersionSpecificParameters parameters),
               (override));
   MOCK_METHOD(bool, PublishNamespaceDone, (TrackNamespace track_namespace),
+              (override));
+  MOCK_METHOD(std::unique_ptr<MoqtNamespaceTask>, SubscribeNamespace,
+              (TrackNamespace&, SubscribeNamespaceOption,
+               const MessageParameters&, MoqtResponseCallback),
               (override));
 
   quiche::QuicheWeakPtr<MoqtSessionInterface> GetWeakPtr() override {

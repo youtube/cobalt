@@ -36,6 +36,7 @@
 #include <openssl/crypto.h>
 #include <openssl/curve25519.h>
 #include <openssl/err.h>
+#include <openssl/evp.h>
 #include <openssl/hmac.h>
 #include <openssl/hpke.h>
 #include <openssl/pem.h>
@@ -44,6 +45,7 @@
 #include <openssl/ssl.h>
 #include <openssl/x509.h>
 
+#include "../crypto/bytestring/internal.h"
 #include "../crypto/internal.h"
 #include "../crypto/test/file_util.h"
 #include "../crypto/test/test_util.h"
@@ -430,8 +432,8 @@ static const CipherTest kCipherTests[] = {
         },
         false,
     },
-    // Although aliases like "RSA" do not match 3DES when adding ciphers, they do
-    // match it when removing ciphers.
+    // Although aliases like "RSA" do not match 3DES when adding ciphers, they
+    // do match it when removing ciphers.
     {
         "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256:RSA:RSA+3DES:!RSA",
         {
@@ -640,7 +642,7 @@ TEST(SSLTest, CipherRules) {
 }
 
 TEST(SSLTest, CipherRulesDeprecated) {
-  for (const auto& test : kDeprecatedCBCSHA256Rules) {
+  for (const auto &test : kDeprecatedCBCSHA256Rules) {
     SCOPED_TRACE(test.rule);
     bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
     ASSERT_TRUE(ctx);
@@ -850,10 +852,9 @@ TEST(SSLTest, ClientKeySharesResetAfterChangingGroups) {
   // An initial groups list and key shares that are compatible.
   const uint16_t kGroups1[] = {SSL_GROUP_X25519_MLKEM768, SSL_GROUP_X25519};
   const uint16_t kKeyShares[] = {SSL_GROUP_X25519_MLKEM768, SSL_GROUP_X25519};
+  ASSERT_TRUE(SSL_set1_group_ids(ssl.get(), kGroups1, std::size(kGroups1)));
   ASSERT_TRUE(
-      SSL_set1_group_ids(ssl.get(), kGroups1, std::size(kGroups1)));
-  ASSERT_TRUE(SSL_set1_client_key_shares(ssl.get(), kKeyShares,
-                                         std::size(kKeyShares)));
+      SSL_set1_client_key_shares(ssl.get(), kKeyShares, std::size(kKeyShares)));
   ASSERT_TRUE(ssl->config->client_key_share_selections.has_value());
   EXPECT_EQ(ssl->config->client_key_share_selections->size(), 2u);
 
@@ -861,16 +862,14 @@ TEST(SSLTest, ClientKeySharesResetAfterChangingGroups) {
   // shares.
   const uint16_t kGroups2[] = {SSL_GROUP_MLKEM1024, SSL_GROUP_X25519_MLKEM768,
                                SSL_GROUP_X25519};
-  ASSERT_TRUE(
-      SSL_set1_group_ids(ssl.get(), kGroups2, std::size(kGroups2)));
+  ASSERT_TRUE(SSL_set1_group_ids(ssl.get(), kGroups2, std::size(kGroups2)));
   ASSERT_TRUE(ssl->config->client_key_share_selections.has_value());
   EXPECT_EQ(ssl->config->client_key_share_selections->size(), 2u);
 
   // A new groups list that is no longer compatible with the previously set key
   // shares.
   const uint16_t kGroups3[] = {SSL_GROUP_MLKEM1024, SSL_GROUP_X25519};
-  ASSERT_TRUE(
-      SSL_set1_group_ids(ssl.get(), kGroups3, std::size(kGroups3)));
+  ASSERT_TRUE(SSL_set1_group_ids(ssl.get(), kGroups3, std::size(kGroups3)));
   EXPECT_FALSE(ssl->config->client_key_share_selections.has_value());
 }
 
@@ -1321,7 +1320,7 @@ TEST(SSLTest, DefaultVersion) {
   ExpectDefaultVersion(TLS1_VERSION, TLS1_VERSION, &TLSv1_method);
   ExpectDefaultVersion(TLS1_1_VERSION, TLS1_1_VERSION, &TLSv1_1_method);
   ExpectDefaultVersion(TLS1_2_VERSION, TLS1_2_VERSION, &TLSv1_2_method);
-  ExpectDefaultVersion(DTLS1_2_VERSION, DTLS1_2_VERSION, &DTLS_method);
+  ExpectDefaultVersion(DTLS1_2_VERSION, DTLS1_3_VERSION, &DTLS_method);
   ExpectDefaultVersion(DTLS1_VERSION, DTLS1_VERSION, &DTLSv1_method);
   ExpectDefaultVersion(DTLS1_2_VERSION, DTLS1_2_VERSION, &DTLSv1_2_method);
 }
@@ -4662,7 +4661,7 @@ TEST(SSLTest, SetVersion) {
 
   // Zero is the default version.
   EXPECT_TRUE(SSL_CTX_set_max_proto_version(ctx.get(), 0));
-  EXPECT_EQ(DTLS1_2_VERSION, SSL_CTX_get_max_proto_version(ctx.get()));
+  EXPECT_EQ(DTLS1_3_VERSION, SSL_CTX_get_max_proto_version(ctx.get()));
   EXPECT_TRUE(SSL_CTX_set_min_proto_version(ctx.get(), 0));
   EXPECT_EQ(DTLS1_2_VERSION, SSL_CTX_get_min_proto_version(ctx.get()));
 }
@@ -5549,7 +5548,8 @@ TEST(SSLTest, CredentialChains) {
   bssl::UniquePtr<SSL_CREDENTIAL> cred2(SSL_CREDENTIAL_new_x509());
   ASSERT_TRUE(cred2);
 
-  SSL_CTX_set_custom_verify(client_ctx.get(), SSL_VERIFY_PEER, AcceptAnyCertificate);
+  SSL_CTX_set_custom_verify(client_ctx.get(), SSL_VERIFY_PEER,
+                            AcceptAnyCertificate);
 
   // Configure one chain (including the leaf), then replace it with another.
   ASSERT_TRUE(SSL_CREDENTIAL_set1_cert_chain(cred.get(), wrong_chain.data(),
@@ -5591,7 +5591,8 @@ TEST(SSLTest, CredentialChains) {
   bssl::UniquePtr<SSL> client, server;
 
   // With no CA requested by client, we should fail with only cred1 and cred2
-  ASSERT_FALSE(ConnectClientAndServer(&client, &server, client_ctx.get(), server_ctx.get()));
+  ASSERT_FALSE(ConnectClientAndServer(&client, &server, client_ctx.get(),
+                                      server_ctx.get()));
 
   // Have the client request a bogus name that will not match
   bssl::UniquePtr<CRYPTO_BUFFER> bogus_subject = GetBogusIssuerBuffer();
@@ -5659,6 +5660,40 @@ TEST(SSLTest, CredentialChains) {
                            {leaf.get(), ca.get()}));
 }
 
+TEST(SSLTest, CredentialSetPrivateKey) {
+  bssl::UniquePtr<SSL_CREDENTIAL> cred(SSL_CREDENTIAL_new_x509());
+  ASSERT_TRUE(cred);
+
+  EXPECT_FALSE(SSL_CREDENTIAL_set1_private_key(cred.get(), nullptr));
+
+  bssl::UniquePtr<EVP_PKEY> test_key = GetTestKey();
+  ASSERT_TRUE(test_key);
+  ASSERT_TRUE(EVP_PKEY_has_public(test_key.get()));
+  ASSERT_TRUE(EVP_PKEY_has_private(test_key.get()));
+  EXPECT_TRUE(SSL_CREDENTIAL_set1_private_key(cred.get(), test_key.get()));
+
+  // Make another key containing the public key only.
+  ScopedCBB cbb;
+  uint8_t *der;
+  size_t der_len;
+  ASSERT_TRUE(CBB_init(cbb.get(), 0));
+  ASSERT_TRUE(EVP_marshal_public_key(cbb.get(), test_key.get()));
+  ASSERT_TRUE(CBB_finish(cbb.get(), &der, &der_len));
+  bssl::UniquePtr<uint8_t> free_der(der);
+  CBS cbs;
+  CBS_init(&cbs, der, der_len);
+  bssl::UniquePtr<EVP_PKEY> public_key(EVP_parse_public_key(&cbs));
+
+  ASSERT_TRUE(public_key);
+  ASSERT_TRUE(EVP_PKEY_has_public(public_key.get()));
+  ASSERT_FALSE(EVP_PKEY_has_private(public_key.get()));
+
+  // Attempting to set the public key as a private key should fail.
+  bssl::UniquePtr<SSL_CREDENTIAL> cred2(SSL_CREDENTIAL_new_x509());
+  ASSERT_TRUE(cred2);
+  EXPECT_FALSE(SSL_CREDENTIAL_set1_private_key(cred2.get(), public_key.get()));
+}
+
 TEST(SSLTest, CredentialCertProperties) {
   // A CertificatePropertyList containing a trust_anchors property, and an
   // unknown property 0xbb with 0 bytes of data.
@@ -5670,8 +5705,7 @@ TEST(SSLTest, CredentialCertProperties) {
   bssl::UniquePtr<CRYPTO_BUFFER> pl(
       CRYPTO_BUFFER_new(kTestProperties1, sizeof(kTestProperties1), nullptr));
   ASSERT_TRUE(pl);
-  EXPECT_TRUE(
-      SSL_CREDENTIAL_set1_certificate_properties(cred.get(), pl.get()));
+  EXPECT_TRUE(SSL_CREDENTIAL_set1_certificate_properties(cred.get(), pl.get()));
 
   // A CertificatePropertyList containing a trust_anchors property, and an
   // unknown property 0xbb with 1 byte of data.
@@ -5681,13 +5715,12 @@ TEST(SSLTest, CredentialCertProperties) {
   pl.reset(
       CRYPTO_BUFFER_new(kTestProperties2, sizeof(kTestProperties2), nullptr));
   ASSERT_TRUE(pl);
-  EXPECT_TRUE(
-      SSL_CREDENTIAL_set1_certificate_properties(cred.get(), pl.get()));
+  EXPECT_TRUE(SSL_CREDENTIAL_set1_certificate_properties(cred.get(), pl.get()));
 
   // A CertificatePropertyList containing a trust_anchors property, and an
   // unknown but malformed property 0xbb with missing data.
   static const uint8_t kTestProperties3[] = {0x00, 0x09, 0x00, 0x00, 0x00, 0x03,
-                                      0xba, 0xdb, 0x0b, 0x00, 0xbb};
+                                             0xba, 0xdb, 0x0b, 0x00, 0xbb};
   pl.reset(
       CRYPTO_BUFFER_new(kTestProperties3, sizeof(kTestProperties3), nullptr));
   ASSERT_TRUE(pl);
@@ -5751,8 +5784,7 @@ TEST(SSLTest, CredentialCertProperties) {
   pl.reset(
       CRYPTO_BUFFER_new(kTestProperties8, sizeof(kTestProperties8), nullptr));
   ASSERT_TRUE(pl);
-  EXPECT_TRUE(
-      SSL_CREDENTIAL_set1_certificate_properties(cred.get(), pl.get()));
+  EXPECT_TRUE(SSL_CREDENTIAL_set1_certificate_properties(cred.get(), pl.get()));
 }
 
 TEST(SSLTest, SetChainAndKeyCtx) {
@@ -10189,7 +10221,7 @@ TEST(SSLTest, CertificatesFromFile) {
     bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
     ASSERT_TRUE(ctx.get());
     EXPECT_FALSE(SSL_CTX_use_certificate_file(ctx.get(), file.path().c_str(),
-                                             SSL_FILETYPE_PEM));
+                                              SSL_FILETYPE_PEM));
     EXPECT_TRUE(ErrorEquals(ERR_get_error(), ERR_LIB_PEM, PEM_R_NO_START_LINE));
     ERR_clear_error();
   }
@@ -10209,7 +10241,7 @@ TEST(SSLTest, CertificatesFromFile) {
     bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
     ASSERT_TRUE(ctx.get());
     EXPECT_FALSE(SSL_CTX_use_PrivateKey_file(ctx.get(), file.path().c_str(),
-                                            SSL_FILETYPE_PEM));
+                                             SSL_FILETYPE_PEM));
     EXPECT_TRUE(ErrorEquals(ERR_get_error(), ERR_LIB_PEM, PEM_R_NO_START_LINE));
     ERR_clear_error();
   }
@@ -10219,7 +10251,7 @@ TEST(SSLTest, CertificatesFromFile) {
     bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
     ASSERT_TRUE(ctx.get());
     EXPECT_FALSE(SSL_CTX_use_RSAPrivateKey_file(ctx.get(), file.path().c_str(),
-                                               SSL_FILETYPE_PEM));
+                                                SSL_FILETYPE_PEM));
     EXPECT_TRUE(ErrorEquals(ERR_get_error(), ERR_LIB_PEM, PEM_R_NO_START_LINE));
     ERR_clear_error();
   }
@@ -10732,7 +10764,7 @@ TEST_P(SSLVersionTest, KeyLog) {
                                                    /*epoch=*/3));
       read_secret = Span(data, len);
       ASSERT_TRUE(SSL_get_dtls_write_traffic_secret(client_.get(), &data, &len,
-                                                   /*epoch=*/3));
+                                                    /*epoch=*/3));
       write_secret = Span(data, len);
     } else {
       ASSERT_TRUE(

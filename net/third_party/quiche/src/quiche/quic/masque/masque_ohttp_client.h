@@ -46,6 +46,8 @@ class QUICHE_EXPORT MasqueOhttpClient
       PerRequestConfig& operator=(PerRequestConfig&& other) = default;
 
       void SetPostData(const std::string& post_data) { post_data_ = post_data; }
+      absl::Status AddHeaders(const std::vector<std::string>& headers);
+      absl::Status AddPrivateToken(const std::string& private_token);
       void SetUseChunkedOhttp(bool use_chunked_ohttp) {
         use_chunked_ohttp_ = use_chunked_ohttp;
       }
@@ -62,9 +64,6 @@ class QUICHE_EXPORT MasqueOhttpClient
       void SetExpectedEncapsulatedStatusCode(uint16_t status_code) {
         expected_encapsulated_status_code_ = status_code;
       }
-      void SetPrivateToken(const std::string& private_token) {
-        private_token_ = private_token;
-      }
       void SetExpectedEncapsulatedResponseBody(
           const std::string& expected_encapsulated_response_body) {
         expected_encapsulated_response_body_ =
@@ -73,7 +72,9 @@ class QUICHE_EXPORT MasqueOhttpClient
 
       std::string url() const { return url_; }
       std::string post_data() const { return post_data_; }
-      std::string private_token() const { return private_token_; }
+      const std::vector<std::pair<std::string, std::string>>& headers() const {
+        return headers_;
+      }
       bool use_chunked_ohttp() const { return use_chunked_ohttp_; }
       std::optional<bool> use_indeterminate_length() const {
         return use_indeterminate_length_;
@@ -94,7 +95,7 @@ class QUICHE_EXPORT MasqueOhttpClient
      private:
       std::string url_;
       std::string post_data_;
-      std::string private_token_;
+      std::vector<std::pair<std::string, std::string>> headers_;
       bool use_chunked_ohttp_ = false;
       std::optional<bool> use_indeterminate_length_;
       std::optional<std::string> expected_gateway_error_;
@@ -203,6 +204,8 @@ class QUICHE_EXPORT MasqueOhttpClient
       chunked_client_.emplace(std::move(chunked_client));
     }
 
+    Message ExtractResponse() && { return std::move(response_); }
+
     // From quiche::ObliviousHttpChunkHandler.
     absl::Status OnDecryptedChunk(absl::string_view decrypted_chunk) override;
     absl::Status OnChunksDone() override;
@@ -229,6 +232,8 @@ class QUICHE_EXPORT MasqueOhttpClient
     std::optional<quiche::ChunkedObliviousHttpClient> chunked_client_;
     quiche::BinaryHttpResponse::IndeterminateLengthDecoder decoder_;
     Message response_;
+    std::string buffered_binary_response_;
+    std::optional<bool> is_chunked_response_;
   };
 
   struct PendingRequest {

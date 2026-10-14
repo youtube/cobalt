@@ -2840,7 +2840,7 @@ test("content_unittests") {
     "../browser/media/url_provision_fetcher_unittest.cc",
     "../browser/media/webaudio/audio_context_manager_impl_unittest.cc",
     "../browser/memory/swap_metrics_driver_impl_unittest.cc",
-    "../browser/memory_coordinator/browser_memory_consumer_registry_unittest.cc",
+    "../browser/memory_coordinator/browser_memory_coordinator_unittest.cc",
     "../browser/memory_coordinator/child_memory_consumer_registry_host_unittest.cc",
     "../browser/metrics/histogram_shared_memory_config_unittest.cc",
     "../browser/metrics/histograms_monitor_unittest.cc",
@@ -2994,6 +2994,7 @@ test("content_unittests") {
     "../browser/renderer_host/render_widget_host_view_child_frame_unittest.cc",
     "../browser/renderer_host/transient_allow_popup_unittest.cc",
     "../browser/renderer_host/visible_time_request_trigger_unittest.cc",
+    "../browser/sandboxed_opaque_origin_creator_unittest.cc",
     "../browser/scheduler/browser_io_thread_delegate_unittest.cc",
     "../browser/scheduler/browser_task_executor_unittest.cc",
     "../browser/scheduler/browser_task_queues_unittest.cc",
@@ -3143,7 +3144,6 @@ test("content_unittests") {
     "../child/child_performance_coordinator_unittest.cc",
     "../child/child_process_synthetic_trial_syncer_unittest.cc",
     "../child/memory_coordinator/browser_memory_coordinator_bridge_unittest.cc",
-    "../child/memory_coordinator/child_memory_consumer_registry_unittest.cc",
     "../common/background_fetch/background_fetch_mojom_traits_unittest.cc",
     "../common/color_parser_unittest.cc",
     "../common/common_param_traits_unittest.cc",
@@ -3158,7 +3158,9 @@ test("content_unittests") {
     "../common/input/actions_parser_unittest.cc",
     "../common/input/synthetic_gesture_controller_unittest.cc",
     "../common/input/synthetic_pointer_action_unittest.cc",
+    "../common/memory_coordinator/memory_consumer_registry_unittest.cc",
     "../common/memory_coordinator/memory_coordinator_policy_manager_unittest.cc",
+    "../common/memory_coordinator/memory_pressure_listener_policy_unittest.cc",
     "../common/memory_coordinator/mojom/memory_consumer_traits_unittest.cc",
     "../common/pseudonymization_salt_unittest.cc",
     "../common/service_worker/race_network_request_read_buffer_manager_unittest.cc",
@@ -3367,7 +3369,6 @@ test("content_unittests") {
     "//base/test:fuzztest_support",
     "//base/test:proto_test_support",
     "//base/test:test_support",
-    "//build:android_buildflags",
     "//build:buildflag_header_h",
     "//build:chromecast_buildflags",
     "//cc",
@@ -3735,6 +3736,7 @@ test("content_unittests") {
       "../browser/media/key_system_support_android_unittest.cc",
       "../browser/renderer_host/render_widget_host_view_android_unittest.cc",
       "../browser/sms/sms_provider_gms_unittest.cc",
+      "../browser/web_contents/web_contents_view_android_unittest.cc",
       "../renderer/java/gin_java_bridge_value_converter_unittest.cc",
     ]
 
@@ -3764,6 +3766,7 @@ test("content_unittests") {
   } else {
     # Non-Android.
     sources += [
+      "../browser/devtools/devtools_manager_unittest.cc",
       "../browser/devtools/protocol/webauthn_handler_unittest.cc",
       "../browser/host_zoom_map_impl_unittest.cc",
       "../browser/picture_in_picture/document_picture_in_picture_navigation_throttle_unittest.cc",

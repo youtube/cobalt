@@ -139,6 +139,11 @@ specific_include_rules = {
     "+rtc_base/ssl_certificate.h",
   ],
 
+  "payload_type\.h": [
+    "+absl/strings/str_format.h",
+    "+rtc_base/strong_alias.h",
+  ],
+
   "turn_customizer\.h": [
     "+p2p/base/port_interface.h",
   ],

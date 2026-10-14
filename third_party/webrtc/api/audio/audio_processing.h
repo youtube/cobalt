@@ -147,10 +147,10 @@ class RTC_EXPORT AudioProcessing : public RefCountInterface {
       // 32000 or 48000 and any differing values will be treated as 48000.
       int maximum_internal_processing_rate = 32000;
       // Allow multi-channel processing of render audio.
-      bool multi_channel_render = false;
+      bool multi_channel_render = true;
       // Allow multi-channel processing of capture audio when AEC3 is active
-      // or a custom AEC is injected..
-      bool multi_channel_capture = false;
+      // or a custom AEC is injected.
+      bool multi_channel_capture = true;
       // Indicates how to downmix multi-channel capture audio to mono (when
       // needed).
       DownmixMethod capture_downmix_method = DownmixMethod::kAverageChannels;

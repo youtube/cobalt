@@ -18,6 +18,7 @@
 #include <utility>
 #include <vector>
 
+#include "api/array_view.h"
 #include "api/environment/environment.h"
 #include "api/task_queue/pending_task_safety_flag.h"
 #include "api/task_queue/task_queue_base.h"
@@ -190,7 +191,9 @@ class FakeNetworkInterface : public MediaChannelNetworkInterface {
  private:
   void SetRtpSsrc(uint32_t ssrc, CopyOnWriteBuffer& buffer) {
     RTC_CHECK_GE(buffer.size(), 12);
-    SetBE32(buffer.MutableData() + 8, ssrc);
+    SetBE32(
+        ArrayView<uint8_t>(buffer.MutableData(), buffer.size()).subspan(8, 4),
+        ssrc);
   }
 
   void GetNumRtpBytesAndPackets(uint32_t ssrc, int* bytes, int* packets) {

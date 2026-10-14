@@ -232,7 +232,7 @@ TEST_F(PpsParserTest, ParseSliceHeader) {
     if (nalu_type == H264::NaluType::kIdr) {
       // Skip NAL type header and parse slice header.
       std::optional<PpsParser::SliceHeader> slice_header =
-          PpsParser::ParseSliceHeader(chunk.subview(
+          PpsParser::ParseSliceHeader(chunk.subspan(
               index.payload_start_offset + 1, index.payload_size - 1));
       ASSERT_TRUE(slice_header.has_value());
       EXPECT_EQ(slice_header->first_mb_in_slice, 0u);

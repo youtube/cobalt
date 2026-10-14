@@ -108,9 +108,10 @@ int32_t VideoCaptureModuleV4L2::Init(const char* deviceUniqueIdUTF8) {
 
 VideoCaptureModuleV4L2::~VideoCaptureModuleV4L2() {
   RTC_DCHECK_RUN_ON(&api_checker_);
-  RTC_CHECK_RUNS_SERIALIZED(&capture_checker_);
 
   StopCapture();
+
+  RTC_CHECK_RUNS_SERIALIZED(&capture_checker_);
   if (_deviceFd != -1)
     close(_deviceFd);
 }

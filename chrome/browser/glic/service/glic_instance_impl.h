@@ -145,12 +145,19 @@ class GlicInstanceImpl : public GlicInstance,
   // This method will either show an embedder or create an inactive embedder and
   // bind a tab to conversation.
   void Show(const ShowOptions& options) override;
+
+  // Called when a new tab is created from a source tab that is bound to this
+  // instance. This attempts to daisy chain the new tab to the same instance.
+  void MaybeDaisyChainToTab(tabs::TabInterface* source_tab,
+                            tabs::TabInterface* target_tab);
+
   void Close(EmbedderKey key, const CloseOptions& options = {});
   // Returns true when toggle shows the instance and false when it is closed.
   bool Toggle(ShowOptions&& options,
               bool prevent_close,
               glic::mojom::InvocationSource source,
-              std::optional<std::string> prompt_suggestion);
+              std::optional<std::string> prompt_suggestion,
+              bool auto_send);
 
   void UnbindEmbedder(EmbedderKey key);
   GlicUiEmbedder* GetEmbedderForTab(tabs::TabInterface* tab);
@@ -310,7 +317,8 @@ class GlicInstanceImpl : public GlicInstance,
       std::optional<EmbedderKey> new_key);
   void ClearActiveEmbedderAndNotifyStateChange();
   void MaybeShowHostUi(GlicUiEmbedder* embedder,
-                       std::optional<std::string> prompt_suggestion);
+                       std::optional<std::string> prompt_suggestion,
+                       bool auto_send);
   void OnBoundTabDestroyed(tabs::TabInterface* tab);
   void OnBoundTabActivated(tabs::TabInterface* tab);
   bool ShouldDoAutomaticActivation() const;
@@ -334,7 +342,8 @@ class GlicInstanceImpl : public GlicInstance,
   void OnTabPinningStatusEvent(tabs::TabInterface* tab,
                                GlicPinningStatusEvent event);
   void NotifyPanelWillOpen(mojom::InvocationSource invocation_source,
-                           std::optional<std::string> prompt_suggestion);
+                           std::optional<std::string> prompt_suggestion,
+                           bool auto_send);
 
   void MaybeShowShortcutToastPromo();
 

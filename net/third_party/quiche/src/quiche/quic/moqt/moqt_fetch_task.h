@@ -11,8 +11,10 @@
 #include <utility>
 #include <variant>
 
+#include "absl/base/nullability.h"
 #include "absl/status/status.h"
 #include "quiche/quic/moqt/moqt_error.h"
+#include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_object.h"
@@ -20,6 +22,12 @@
 #include "quiche/web_transport/web_transport.h"
 
 namespace moqt {
+
+// The callback we'll use for all request types going forward. Can only be used
+// once; if the argument is nullopt, an OK response was received. Otherwise, an
+// ERROR response was received.
+using MoqtResponseCallback =
+    quiche::SingleUseCallback<void(std::optional<MoqtRequestErrorInfo>)>;
 
 // TODO(martinduke): There are will be multiple instances of flow-controlled
 // "pull" data retrieval tasks. It might be worthwhile to extract some common
@@ -92,6 +100,10 @@ class MoqtNamespaceTask {
  public:
   virtual ~MoqtNamespaceTask() = default;
 
+  // The provided callback may be immediately invoked.
+  virtual void SetObjectsAvailableCallback(ObjectsAvailableCallback
+                                           absl_nullable callback) = 0;
+
   // Returns the state of the message queue. If available, writes the suffix
   // into |suffix|. If |type| is kAdd, it is from a NAMESPACE message. If |type|
   // is kDelete, it is from a NAMESPACE_DONE message.
@@ -100,6 +112,10 @@ class MoqtNamespaceTask {
 
   // Returns the error if request has completely failed, and nullopt otherwise.
   virtual std::optional<webtransport::StreamErrorCode> GetStatus() = 0;
+
+  // Handle a REQUEST_UPDATE message.
+  virtual void Update(const MessageParameters& parameters,
+                      MoqtResponseCallback response_callback) = 0;
 
   // Returns the prefix for this task.
   virtual const TrackNamespace& prefix() = 0;

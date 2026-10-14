@@ -3980,6 +3980,7 @@ class FakeRTCStatsCollector final : public RTCStatsCollector {
   void ProducePartialResultsOnSignalingThreadImpl(
       Timestamp timestamp,
       const std::vector<RtpTransceiverStatsInfo>& transceiver_stats_infos,
+      const std::vector<TransceiverReferences>& transceiver_references,
       const std::optional<AudioDeviceModule::Stats>& audio_device_stats,
       RTCStatsReport* partial_report) override {
     EXPECT_TRUE(signaling_thread_->IsCurrent());

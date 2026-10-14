@@ -531,7 +531,7 @@ void H265BitstreamParser::ParseSlice(ArrayView<const uint8_t> slice) {
       std::optional<H265VpsParser::VpsState> vps_state;
       if (slice.size() >= H265::kNaluHeaderSize) {
         vps_state =
-            H265VpsParser::ParseVps(slice.subview(H265::kNaluHeaderSize));
+            H265VpsParser::ParseVps(slice.subspan(H265::kNaluHeaderSize));
       }
 
       if (!vps_state) {
@@ -545,7 +545,7 @@ void H265BitstreamParser::ParseSlice(ArrayView<const uint8_t> slice) {
       std::optional<H265SpsParser::SpsState> sps_state;
       if (slice.size() >= H265::kNaluHeaderSize) {
         sps_state =
-            H265SpsParser::ParseSps(slice.subview(H265::kNaluHeaderSize));
+            H265SpsParser::ParseSps(slice.subspan(H265::kNaluHeaderSize));
       }
       if (!sps_state) {
         RTC_LOG(LS_WARNING) << "Unable to parse SPS from H265 bitstream.";
@@ -558,7 +558,7 @@ void H265BitstreamParser::ParseSlice(ArrayView<const uint8_t> slice) {
       std::optional<H265PpsParser::PpsState> pps_state;
       if (slice.size() >= H265::kNaluHeaderSize) {
         std::vector<uint8_t> unpacked_buffer =
-            H265::ParseRbsp(slice.subview(H265::kNaluHeaderSize));
+            H265::ParseRbsp(slice.subspan(H265::kNaluHeaderSize));
         BitstreamReader slice_reader(unpacked_buffer);
         // pic_parameter_set_id: ue(v)
         uint32_t pps_id = slice_reader.ReadExponentialGolomb();
@@ -568,7 +568,7 @@ void H265BitstreamParser::ParseSlice(ArrayView<const uint8_t> slice) {
         IN_RANGE_OR_RETURN_VOID(sps_id, 0, 15);
         const H265SpsParser::SpsState* sps = GetSPS(sps_id);
         pps_state =
-            H265PpsParser::ParsePps(slice.subview(H265::kNaluHeaderSize), sps);
+            H265PpsParser::ParsePps(slice.subspan(H265::kNaluHeaderSize), sps);
       }
       if (!pps_state) {
         RTC_LOG(LS_WARNING) << "Unable to parse PPS from H265 bitstream.";
@@ -639,7 +639,7 @@ void H265BitstreamParser::ParseBitstream(ArrayView<const uint8_t> bitstream) {
   std::vector<H265::NaluIndex> nalu_indices = H265::FindNaluIndices(bitstream);
   for (const H265::NaluIndex& index : nalu_indices)
     ParseSlice(
-        bitstream.subview(index.payload_start_offset, index.payload_size));
+        bitstream.subspan(index.payload_start_offset, index.payload_size));
 }
 
 std::optional<int> H265BitstreamParser::GetLastSliceQp() const {

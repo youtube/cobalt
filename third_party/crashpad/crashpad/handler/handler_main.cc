@@ -98,10 +98,10 @@ namespace crashpad {
 namespace {
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || \
-    BUILDFLAG(IS_ANDROID)
+    BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_MAC)
 #define ATTACHMENTS_SUPPORTED 1
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
-        // BUILDFLAG(IS_ANDROID)
+        // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_MAC)
 
 void Usage(const base::FilePath& me) {
   // clang-format off
@@ -599,10 +599,9 @@ int HandlerMain(int argc,
     // Long options without short equivalents.
     kOptionLastChar = 255,
     kOptionAnnotation,
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || \
-    BUILDFLAG(IS_ANDROID)
+#if defined(ATTACHMENTS_SUPPORTED)
     kOptionAttachment,
-#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
+#endif  // defined(ATTACHMENTS_SUPPORTED)
     kOptionDatabase,
 #if BUILDFLAG(IS_APPLE)
     kOptionHandshakeFD,

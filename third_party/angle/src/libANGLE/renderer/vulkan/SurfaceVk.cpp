@@ -42,6 +42,8 @@ constexpr uint32_t kSurfaceSizedBySwapchain = 0xFFFFFFFFu;
 // supported and fence is used instead of queueSerial.
 constexpr uint32_t kInvalidImageIndex = std::numeric_limits<uint32_t>::max();
 
+constexpr uint32_t kNeverPreserved = 0;
+
 GLint GetSampleCount(const egl::Config *config)
 {
     GLint samples = 1;
@@ -583,6 +585,14 @@ bool AreAllFencesSignaled(VkDevice device, const std::vector<vk::Fence> &fences)
     }
     return true;
 }
+impl::FramebufferIndex GetSwapchainImageFramebufferIndex(vk::FramebufferFetchMode fetchMode,
+                                                         gl::SrgbWriteControlMode writeControlMode)
+{
+    impl::SwapchainImageFramebufferDesc desc;
+    SetBitField(desc.framebufferFetchMode, fetchMode);
+    SetBitField(desc.writeControlMode, writeControlMode);
+    return desc.index;
+}
 }  // namespace
 
 SurfaceVk::SurfaceVk(const egl::SurfaceState &surfaceState)
@@ -1020,8 +1030,7 @@ SwapchainImage::~SwapchainImage() = default;
 SwapchainImage::SwapchainImage(SwapchainImage &&other)
     : image(std::move(other.image)),
       imageViews(std::move(other.imageViews)),
-      framebuffer(std::move(other.framebuffer)),
-      fetchFramebuffer(std::move(other.fetchFramebuffer)),
+      framebuffers(std::move(other.framebuffers)),
       frameNumber(other.frameNumber)
 {}
 }  // namespace impl
@@ -1039,6 +1048,8 @@ WindowSurfaceVk::WindowSurfaceVk(const egl::SurfaceState &surfaceState, EGLNativ
       mLastSwapchain(VK_NULL_HANDLE),
       mSwapchainPresentMode(vk::PresentMode::FifoKHR),
       mDesiredSwapchainPresentMode(vk::PresentMode::FifoKHR),
+      mPreserveOnSwap(false),
+      mDesiredPreserveOnSwap(false),
       mMinImageCount(0),
       mPreTransform(VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR),
       mEmulatedPreTransform(VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR),
@@ -1048,6 +1059,7 @@ WindowSurfaceVk::WindowSurfaceVk(const egl::SurfaceState &surfaceState, EGLNativ
       mDepthStencilImageBinding(this, kAnySurfaceImageSubjectIndex),
       mAncillaryColorImageBinding(this, kAnySurfaceImageSubjectIndex),
       mFrameCount(1),
+      mPreserveStartFrame(kNeverPreserved),
       mPresentID(0),
       mIsBufferAgeQueried(false),
       mRenderer(nullptr)
@@ -1101,7 +1113,7 @@ void WindowSurfaceVk::destroy(const egl::Display *display)
     DestroyPresentHistory(renderer, &mPresentHistory, &mPresentFenceRecycler,
                           &mPresentSemaphoreRecycler);
 
-    destroySwapChainImages(displayVk);
+    destroySwapchainImages(displayVk);
 
     ASSERT(mSwapchain == mLastSwapchain || mSwapchain == VK_NULL_HANDLE);
     if (mLastSwapchain != VK_NULL_HANDLE)
@@ -1602,7 +1614,7 @@ angle::Result WindowSurfaceVk::recreateSwapchain(vk::ErrorContext *context)
     ASSERT(mSwapchain == VK_NULL_HANDLE);
 
     // May happen in case if it is recreate after a previous failure.
-    if (!mSwapchainImages.empty() || mDepthStencilImage.valid() || mAncillaryColorImage.valid())
+    if (!mSwapchainImages.empty() || mDepthStencilImage.valid() || hasAncillaryColor())
     {
         releaseSwapchainImages(context->getRenderer());
     }
@@ -1623,12 +1635,12 @@ angle::Result WindowSurfaceVk::recreateSwapchain(vk::ErrorContext *context)
         }
     }
 
-    // Save the handle since it is going to be updated in the createSwapChain call below.
+    // Save the handle since it is going to be updated in the createSwapchain call below.
     VkSwapchainKHR oldSwapchain = mLastSwapchain;
 
-    angle::Result result = createSwapChain(context);
+    angle::Result result = createSwapchain(context);
 
-    // oldSwapchain was retired in the createSwapChain call above and can be collected.
+    // oldSwapchain was retired in the createSwapchain call above and can be collected.
     if (oldSwapchain != VK_NULL_HANDLE && oldSwapchain != mLastSwapchain)
     {
         ANGLE_TRY(collectOldSwapchain(context, oldSwapchain));
@@ -1655,7 +1667,7 @@ void WindowSurfaceVk::createSwapchainImages(uint32_t imageCount)
     }
 }
 
-angle::Result WindowSurfaceVk::createSwapChain(vk::ErrorContext *context)
+angle::Result WindowSurfaceVk::createSwapchain(vk::ErrorContext *context)
 {
     ANGLE_TRACE_EVENT0("gpu.angle", "WindowSurfaceVk::createSwapchain");
 
@@ -1801,9 +1813,9 @@ angle::Result WindowSurfaceVk::createSwapChain(vk::ErrorContext *context)
 
     // TODO: Once EGL_SWAP_BEHAVIOR_PRESERVED_BIT is supported, the contents of the old swapchain
     // need to carry over to the new one.  http://anglebug.com/42261637
-    VkSwapchainKHR newSwapChain = VK_NULL_HANDLE;
-    ANGLE_VK_TRY(context, vkCreateSwapchainKHR(device, &swapchainInfo, nullptr, &newSwapChain));
-    mLastSwapchain = newSwapChain;
+    VkSwapchainKHR newSwapchain = VK_NULL_HANDLE;
+    ANGLE_VK_TRY(context, vkCreateSwapchainKHR(device, &swapchainInfo, nullptr, &newSwapchain));
+    mLastSwapchain = newSwapchain;
 
     // If frame timestamp was enabled for the surface, [re]enable it when [re]creating the swapchain
     if (renderer->getFeatures().supportsTimestampSurfaceAttribute.enabled &&
@@ -1813,52 +1825,30 @@ angle::Result WindowSurfaceVk::createSwapChain(vk::ErrorContext *context)
         // appropriate ANativeWindow API that enables frame timestamps.
         uint32_t count = 0;
         ANGLE_VK_TRY(context,
-                     vkGetPastPresentationTimingGOOGLE(device, newSwapChain, &count, nullptr));
+                     vkGetPastPresentationTimingGOOGLE(device, newSwapchain, &count, nullptr));
     }
 
     // Initialize the swapchain image views.
     uint32_t imageCount = 0;
-    ANGLE_VK_TRY(context, vkGetSwapchainImagesKHR(device, newSwapChain, &imageCount, nullptr));
+    ANGLE_VK_TRY(context, vkGetSwapchainImagesKHR(device, newSwapchain, &imageCount, nullptr));
 
     std::vector<VkImage> swapchainImages(imageCount);
-    ANGLE_VK_TRY(context, vkGetSwapchainImagesKHR(device, newSwapChain, &imageCount,
+    ANGLE_VK_TRY(context, vkGetSwapchainImagesKHR(device, newSwapchain, &imageCount,
                                                   swapchainImages.data()));
 
     // If multisampling is enabled, create a multisampled image which gets resolved just prior to
     // present.
-    GLint samples = GetSampleCount(mState.config);
+    const GLint samples = GetSampleCount(mState.config);
     ANGLE_VK_CHECK(context, samples > 0, VK_ERROR_INITIALIZATION_FAILED);
 
     VkExtent3D vkExtents;
     gl_vk::GetExtent(swapchainExtents, &vkExtents);
 
-    bool robustInit = mState.isRobustResourceInitEnabled();
+    const bool robustInit = mState.isRobustResourceInitEnabled();
 
-    if (samples > 1)
+    if (samples > 1 || (mPreserveOnSwap && !isSharedPresentMode()))
     {
-        VkImageUsageFlags usage = kSurfaceVkColorImageUsageFlags;
-        if (ColorNeedsInputAttachmentUsage(renderer->getFeatures()))
-        {
-            usage |= VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
-        }
-
-        // Create a multisampled image that will be rendered to, and then resolved to a swapchain
-        // image.  The actual VkImage is created with rotated coordinates to make it easier to do
-        // the resolve.  The ImageHelper::mExtents will have non-rotated extents in order to fit
-        // with the rest of ANGLE, (e.g. which calculates the Vulkan scissor with non-rotated
-        // values and then rotates the final rectangle).
-        ANGLE_TRY(mAncillaryColorImage.initMSAASwapchain(
-            context, gl::TextureType::_2D, vkExtents, Is90DegreeRotation(getPreTransform()),
-            intendedFormatID, actualFormatID, samples, usage, gl::LevelIndex(0), 1, 1, robustInit,
-            mState.hasProtectedContent()));
-        ANGLE_TRY(mAncillaryColorImage.initMemoryAndNonZeroFillIfNeeded(
-            context, mState.hasProtectedContent(), VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-            vk::MemoryAllocationType::SwapchainMSAAImage));
-
-        // Initialize the color render target with the multisampled targets.  If not multisampled,
-        // the render target will be updated to refer to a swapchain image on every acquire.
-        mColorRenderTarget.init(&mAncillaryColorImage, &mAncillaryColorImageViews, nullptr, nullptr,
-                                {}, gl::LevelIndex(0), 0, 1, RenderTargetTransience::Default);
+        ANGLE_TRY(createAncillaryColorImage(context));
     }
 
     createSwapchainImages(imageCount);
@@ -1913,7 +1903,7 @@ angle::Result WindowSurfaceVk::createSwapChain(vk::ErrorContext *context)
     }
 
     // Assign swapchain after all initialization is finished.
-    mSwapchain = newSwapChain;
+    mSwapchain = newSwapchain;
 
     // Swapchain is now valid, but size is still unresolved until acquire next image.
     setSizeState(SurfaceSizeState::Unresolved);
@@ -1923,7 +1913,59 @@ angle::Result WindowSurfaceVk::createSwapChain(vk::ErrorContext *context)
     return angle::Result::Continue;
 }
 
-bool WindowSurfaceVk::isMultiSampled() const
+angle::Result WindowSurfaceVk::createAncillaryColorImage(vk::ErrorContext *context)
+{
+    vk::Renderer *renderer = context->getRenderer();
+
+    gl::Extents swapchainExtents(std::max(mWidth, 1), std::max(mHeight, 1), 1);
+    if (Is90DegreeRotation(getPreTransform()))
+    {
+        std::swap(swapchainExtents.width, swapchainExtents.height);
+    }
+    VkExtent3D vkExtents;
+    gl_vk::GetExtent(swapchainExtents, &vkExtents);
+
+    const angle::FormatID actualFormatID   = getActualFormatID(renderer);
+    const angle::FormatID intendedFormatID = getIntendedFormatID(renderer);
+    const bool robustInit                  = mState.isRobustResourceInitEnabled();
+    const GLint samples                    = GetSampleCount(mState.config);
+
+    VkImageUsageFlags usage = kSurfaceVkColorImageUsageFlags;
+    if (ColorNeedsInputAttachmentUsage(renderer->getFeatures()))
+    {
+        usage |= VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
+    }
+
+    ASSERT(!mAncillaryColorImage.valid());
+
+    // Create a multisampled image that will be rendered to, and then resolved to a swapchain
+    // image.  The actual VkImage is created with rotated coordinates to make it easier to do
+    // the resolve.  The ImageHelper::mExtents will have non-rotated extents in order to fit
+    // with the rest of ANGLE, (e.g. which calculates the Vulkan scissor with non-rotated
+    // values and then rotates the final rectangle).
+    //
+    // If single-sampled but the EGL_SWAP_BEHAVIOR is PRESERVED, an ancillary color image is
+    // used as well.
+    ANGLE_TRY(mAncillaryColorImage.initAncillarySwapchain(
+        context, gl::TextureType::_2D, vkExtents, Is90DegreeRotation(getPreTransform()),
+        intendedFormatID, actualFormatID, samples, usage, gl::LevelIndex(0), 1, 1, robustInit,
+        mState.hasProtectedContent()));
+    ANGLE_TRY(mAncillaryColorImage.initMemoryAndNonZeroFillIfNeeded(
+        context, mState.hasProtectedContent(), VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        vk::MemoryAllocationType::SwapchainMSAAImage));
+
+    mColorRenderTarget.init(&mAncillaryColorImage, &mAncillaryColorImageViews, nullptr, nullptr, {},
+                            gl::LevelIndex(0), 0, 1, RenderTargetTransience::Default);
+
+    return angle::Result::Continue;
+}
+
+bool WindowSurfaceVk::isMultisampledSurface() const
+{
+    return mAncillaryColorImage.valid() && mAncillaryColorImage.getSamples() > 1;
+}
+
+bool WindowSurfaceVk::hasAncillaryColor() const
 {
     return mAncillaryColorImage.valid();
 }
@@ -2159,7 +2201,7 @@ void WindowSurfaceVk::releaseSwapchainImages(vk::Renderer *renderer)
         mDepthStencilImage.releaseStagedUpdates(renderer);
     }
 
-    if (mAncillaryColorImage.valid())
+    if (hasAncillaryColor())
     {
         ASSERT(!mAncillaryColorImage.hasAnyRenderPassUsageFlags());
         renderer->collectGarbage(mAncillaryColorImage.getResourceUse(), &mAncillaryFramebuffer);
@@ -2175,12 +2217,13 @@ void WindowSurfaceVk::releaseSwapchainImages(vk::Renderer *renderer)
         ASSERT(swapchainImage.image);
         ASSERT(!swapchainImage.image->hasAnyRenderPassUsageFlags());
 
-        renderer->collectGarbage(swapchainImage.image->getResourceUse(),
-                                 &swapchainImage.framebuffer);
-        renderer->collectGarbage(swapchainImage.image->getResourceUse(),
-                                 &swapchainImage.fetchFramebuffer);
+        const vk::ResourceUse &use = swapchainImage.image->getResourceUse();
+        for (auto &entry : swapchainImage.framebuffers)
+        {
+            renderer->collectGarbage(use, &entry.second);
+        }
 
-        swapchainImage.imageViews.release(renderer, swapchainImage.image->getResourceUse());
+        swapchainImage.imageViews.release(renderer, use);
         // swapchain image must not have ANI semaphore assigned here, since acquired image must be
         // presented before swapchain recreation.
         swapchainImage.image->resetImageWeakReference();
@@ -2212,7 +2255,7 @@ angle::Result WindowSurfaceVk::finish(vk::ErrorContext *context)
     return renderer->finishResourceUse(context, mUse);
 }
 
-void WindowSurfaceVk::destroySwapChainImages(DisplayVk *displayVk)
+void WindowSurfaceVk::destroySwapchainImages(DisplayVk *displayVk)
 {
     vk::Renderer *renderer = displayVk->getRenderer();
     VkDevice device        = displayVk->getDevice();
@@ -2232,10 +2275,13 @@ void WindowSurfaceVk::destroySwapChainImages(DisplayVk *displayVk)
         swapchainImage.image->resetImageWeakReference();
         swapchainImage.image->destroy(renderer);
         swapchainImage.imageViews.destroy(device);
-        swapchainImage.framebuffer.destroy(device);
-        if (swapchainImage.fetchFramebuffer.valid())
+        for (auto &entry : swapchainImage.framebuffers)
         {
-            swapchainImage.fetchFramebuffer.destroy(device);
+            vk::Framebuffer &framebuffer = entry.second;
+            if (framebuffer.valid())
+            {
+                framebuffer.destroy(device);
+            }
         }
     }
 
@@ -2380,7 +2426,8 @@ angle::Result WindowSurfaceVk::checkSwapchainOutOfDate(vk::ErrorContext *context
     const vk::PresentMode desiredSwapchainPresentMode = getDesiredSwapchainPresentMode();
 
     // Invalidate the swapchain on failure to avoid repeated swapchain use and to be able to recover
-    // from the error.
+    // from the error.  If the present mode is (incompatibly) changed, the swapchain needs to be
+    // recreated as well.
     if (presentOutOfDate || isFailure ||
         !IsCompatiblePresentMode(desiredSwapchainPresentMode, mCompatiblePresentModes.data(),
                                  mCompatiblePresentModes.size()))
@@ -2400,15 +2447,39 @@ angle::Result WindowSurfaceVk::checkSwapchainOutOfDate(vk::ErrorContext *context
 
 vk::Framebuffer &WindowSurfaceVk::chooseFramebuffer()
 {
-    if (isMultiSampled())
+    if (hasAncillaryColor())
     {
         return mAncillaryFramebuffer;
     }
 
-    // Choose which framebuffer to use based on fetch, so it will have a matching renderpass
-    return mFramebufferFetchMode == vk::FramebufferFetchMode::Color
-               ? mSwapchainImages[mCurrentSwapchainImageIndex].fetchFramebuffer
-               : mSwapchainImages[mCurrentSwapchainImageIndex].framebuffer;
+    // Choose which framebuffer to use based on fetch and write control,
+    // so it will have a matching renderpass
+    FramebufferIndex index =
+        GetSwapchainImageFramebufferIndex(mFramebufferFetchMode, mWriteControlMode);
+    SwapchainImageFramebuffers &framebuffers =
+        mSwapchainImages[mCurrentSwapchainImageIndex].framebuffers;
+
+    if (!framebuffers.contains(index))
+    {
+        framebuffers[index] = vk::Framebuffer();
+    }
+    ASSERT(framebuffers.contains(index));
+
+    return framebuffers[index];
+}
+
+bool WindowSurfaceVk::shouldRetainColor() const
+{
+    // According to EGL, on swap:
+    //
+    // - When EGL_BUFFER_DESTROYED is specified, the contents of the color image can be invalidated.
+    //    * This is disabled when buffer age has been queried, as expected for the
+    //      EGL_KHR_partial_update extension.
+    // - Depth/Stencil is always invalidated before last submission.
+    //
+    // In all cases, when in shared present mode, swap is implicit and the swap behavior doesn't
+    // apply so no invalidation is done.
+    return mPreserveOnSwap || mIsBufferAgeQueried || isSharedPresentMode();
 }
 
 angle::Result WindowSurfaceVk::prePresentSubmit(ContextVk *contextVk,
@@ -2416,25 +2487,40 @@ angle::Result WindowSurfaceVk::prePresentSubmit(ContextVk *contextVk,
 {
     vk::Renderer *renderer = contextVk->getRenderer();
 
+    // If switching to preserve mode, take that into account before deciding if content needs to be
+    // preserved in the rest of the function.
+    {
+        const bool desiredPreserveOnSwap = mDesiredPreserveOnSwap.load(std::memory_order_relaxed);
+        if (!mPreserveOnSwap && desiredPreserveOnSwap)
+        {
+            // Remember in which frame the behavior is set to preserve.
+            mPreserveStartFrame = mFrameCount;
+        }
+        else if (!desiredPreserveOnSwap)
+        {
+            mPreserveStartFrame = kNeverPreserved;
+        }
+        mPreserveOnSwap = desiredPreserveOnSwap;
+    }
+
     SwapchainImage &image = mSwapchainImages[mCurrentSwapchainImageIndex];
 
     bool imageResolved = false;
     // Make sure deferred clears are applied, if any.
-    if (mAncillaryColorImage.valid())
+    if (hasAncillaryColor())
     {
         ASSERT(mAncillaryColorImage.areStagedUpdatesClearOnly());
         // http://anglebug.com/382006939
         // If app calls:
         //     glClear(GL_COLOR_BUFFER_BIT);
         //     eglSwapBuffers();
-        // As an optimization, deferred clear could skip msaa buffer and applied to back buffer
-        // directly instead of clearing msaa buffer and then resolve.
-        // The exception is that when we back buffer data has to be preserved under
-        // certain situations, we must also ensure msaa buffer contains the right content.
-        // Under that situation, this optimization will not apply.
+        // As an optimization, deferred clear could skip ancillary buffer and applied to back buffer
+        // directly instead of clearing ancillary buffer and then resolve/copy.
+        // The exception is that when we back buffer data has to be preserved under certain
+        // situations, we must also ensure ancillary buffer contains the right content.  Under that
+        // situation, this optimization will not apply.
 
-        if (!isSharedPresentMode() &&
-            (mState.swapBehavior == EGL_BUFFER_DESTROYED && !mIsBufferAgeQueried))
+        if (!shouldRetainColor())
         {
             vk::ClearValuesArray deferredClearValues;
             ANGLE_TRY(mAncillaryColorImage.flushSingleSubresourceStagedUpdates(
@@ -2453,8 +2539,8 @@ angle::Result WindowSurfaceVk::prePresentSubmit(ContextVk *contextVk,
         }
         else
         {
-            // Apply clear value to multisampled mAncillaryColorImage and then resolve to single
-            // sampled image later if EGL surface is single buffered or when EGL_SWAP_BEHAVIOR is
+            // Apply clear value to mAncillaryColorImage and then resolve/copy to swapchain image
+            // later if EGL surface is single buffered or when EGL_SWAP_BEHAVIOR is
             // EGL_BUFFER_PRESERVED
             ANGLE_TRY(mAncillaryColorImage.flushStagedUpdates(contextVk, gl::LevelIndex(0),
                                                               gl::LevelIndex(1), 0, 1, {}));
@@ -2488,14 +2574,25 @@ angle::Result WindowSurfaceVk::prePresentSubmit(ContextVk *contextVk,
         // If image is resolved above, render pass is necessary closed.
         ASSERT(!imageResolved);
 
+        // If an ancillary color image is used for a multisampled surface, the render pass can use a
+        // resolve attachment to write to the swapchain image and can immediately also change its
+        // layout to PRESENT_SRC.  However, if the surface is single sampled, a separate copy pass
+        // needs to be done so the image layout cannot be transitioned yet.
+        const PresentImageLayout layout =
+            isSharedPresentMode() || (hasAncillaryColor() && !isMultisampledSurface())
+                ? PresentImageLayout::Keep
+                : PresentImageLayout::PresentSrc;
+        const SurfaceAncillaryColorBehavior ancillaryBehavior =
+            shouldRetainColor() ? SurfaceAncillaryColorBehavior::Retain
+                                : SurfaceAncillaryColorBehavior::InvalidateOnPresent;
         ANGLE_TRY(contextVk->optimizeRenderPassForPresent(&image.imageViews, image.image.get(),
-                                                          &mAncillaryColorImage,
-                                                          isSharedPresentMode(), &imageResolved));
+                                                          &mAncillaryColorImage, layout,
+                                                          ancillaryBehavior, &imageResolved));
     }
 
-    if (mAncillaryColorImage.valid() && !imageResolved)
+    if (hasAncillaryColor() && !imageResolved)
     {
-        // Transition the multisampled image to TRANSFER_SRC for resolve.
+        // Transition the ancillary image to TRANSFER_SRC for copy/resolve.
         vk::CommandResources resources;
         resources.onImageTransferRead(VK_IMAGE_ASPECT_COLOR_BIT, &mAncillaryColorImage);
         resources.onImageTransferWrite(gl::LevelIndex(0), 1, 0, 1, VK_IMAGE_ASPECT_COLOR_BIT,
@@ -2505,20 +2602,58 @@ angle::Result WindowSurfaceVk::prePresentSubmit(ContextVk *contextVk,
         ANGLE_TRY(
             contextVk->getOutsideRenderPassCommandBufferHelper(resources, &commandBufferHelper));
 
-        VkImageResolve resolveRegion                = {};
-        resolveRegion.srcSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
-        resolveRegion.srcSubresource.mipLevel       = 0;
-        resolveRegion.srcSubresource.baseArrayLayer = 0;
-        resolveRegion.srcSubresource.layerCount     = 1;
-        resolveRegion.srcOffset                     = {};
-        resolveRegion.dstSubresource                = resolveRegion.srcSubresource;
-        resolveRegion.dstOffset                     = {};
-        resolveRegion.extent                        = image.image->getRotatedExtents();
+        if (isMultisampledSurface())
+        {
+            VkImageResolve resolveRegion            = {};
+            resolveRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            resolveRegion.srcSubresource.layerCount = 1;
+            resolveRegion.dstSubresource            = resolveRegion.srcSubresource;
+            resolveRegion.extent                    = image.image->getRotatedExtents();
 
-        mAncillaryColorImage.resolve(renderer, image.image.get(), resolveRegion,
-                                     &commandBufferHelper->getCommandBuffer());
+            mAncillaryColorImage.resolve(renderer, image.image.get(), resolveRegion,
+                                         &commandBufferHelper->getCommandBuffer());
 
-        contextVk->getPerfCounters().swapchainResolveOutsideSubpass++;
+            contextVk->getPerfCounters().swapchainResolveOutsideSubpass++;
+        }
+        else
+        {
+            VkImageCopy copyRegion               = {};
+            copyRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            copyRegion.srcSubresource.layerCount = 1;
+            copyRegion.dstSubresource            = copyRegion.srcSubresource;
+            copyRegion.extent                    = image.image->getRotatedExtents();
+
+            mAncillaryColorImage.copy(renderer, image.image.get(), copyRegion,
+                                      &commandBufferHelper->getCommandBuffer());
+        }
+    }
+    else if (mPreserveOnSwap && !hasAncillaryColor())
+    {
+        // If the swap behavior is set to PRESERVE just now (and ancillary buffers don't yet exist),
+        // create one and copy the contents of the buffer to it.  Starting from the next frame,
+        // rendering will be done to the ancillary color image instead.
+        ANGLE_TRY(createAncillaryColorImage(contextVk));
+        ANGLE_TRY(mAncillaryColorImage.flushStagedUpdates(contextVk, gl::LevelIndex(0),
+                                                          gl::LevelIndex(1), 0, 1, {}));
+
+        // Transition the ancillary image to TRANSFER_DST for copy.
+        vk::CommandResources resources;
+        resources.onImageTransferRead(VK_IMAGE_ASPECT_COLOR_BIT, image.image.get());
+        resources.onImageTransferWrite(gl::LevelIndex(0), 1, 0, 1, VK_IMAGE_ASPECT_COLOR_BIT,
+                                       &mAncillaryColorImage);
+
+        vk::OutsideRenderPassCommandBufferHelper *commandBufferHelper;
+        ANGLE_TRY(
+            contextVk->getOutsideRenderPassCommandBufferHelper(resources, &commandBufferHelper));
+
+        VkImageCopy copyRegion               = {};
+        copyRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        copyRegion.srcSubresource.layerCount = 1;
+        copyRegion.dstSubresource            = copyRegion.srcSubresource;
+        copyRegion.extent                    = image.image->getRotatedExtents();
+
+        image.image->copy(renderer, &mAncillaryColorImage, copyRegion,
+                          &commandBufferHelper->getCommandBuffer());
     }
 
     // The overlay is drawn after this.  This ensures that drawing the overlay does not interfere
@@ -2554,6 +2689,17 @@ angle::Result WindowSurfaceVk::prePresentSubmit(ContextVk *contextVk,
 
     ASSERT(image.image->getCurrentImageAccess() ==
            (isSharedPresentMode() ? vk::ImageAccess::SharedPresent : vk::ImageAccess::Present));
+
+    // If no longer asked to preserve, remove the ancillary color image.  The rest of the code
+    // assumes that if an ancillary color image is allocated that it must be used.
+    if (!mPreserveOnSwap && hasAncillaryColor() && !isMultisampledSurface())
+    {
+        ASSERT(!mAncillaryColorImage.hasAnyRenderPassUsageFlags());
+        renderer->collectGarbage(mAncillaryColorImage.getResourceUse(), &mAncillaryFramebuffer);
+        mAncillaryColorImageViews.release(renderer, mAncillaryColorImage.getResourceUse());
+        mAncillaryColorImage.releaseImage(renderer);
+        mAncillaryColorImage.releaseStagedUpdates(renderer);
+    }
 
     // This is to track |presentSemaphore| submission.
     mUse.setQueueSerial(contextVk->getLastSubmittedQueueSerial());
@@ -3057,7 +3203,7 @@ VkResult WindowSurfaceVk::acquireNextSwapchainImage(vk::ErrorContext *context)
     const VkSemaphore acquireImageSemaphore =
         mAcquireOperation.unlockedAcquireResult.acquireSemaphore;
 
-    // Let Image keep the ani semaphore so that it can add to the semaphore wait list if it is
+    // Let Image keep the ANI semaphore so that it can add to the semaphore wait list if it is
     // being used. Image's barrier code will move the semaphore into CommandBufferHelper object
     // and then added to waitSemaphores when commands gets flushed and submitted. Since all
     // image use after ANI must go through barrier code, this approach is very robust. And since
@@ -3110,30 +3256,20 @@ VkResult WindowSurfaceVk::acquireNextSwapchainImage(vk::ErrorContext *context)
     // Update RenderTarget pointers to this swapchain image if not multisampling.  Note: a possible
     // optimization is to defer the |vkAcquireNextImageKHR| call itself to |present()| if
     // multisampling, as the swapchain image is essentially unused until then.
-    if (!mAncillaryColorImage.valid())
+    if (!hasAncillaryColor())
     {
         mColorRenderTarget.updateSwapchainImage(image.image.get(), &image.imageViews, nullptr,
                                                 nullptr);
     }
 
-    // Auto-invalidate the contents of the surface.  According to EGL, on swap:
-    //
-    // - When EGL_BUFFER_DESTROYED is specified, the contents of the color image can be
-    //   invalidated.
-    //    * This is disabled when buffer age has been queried to work around a dEQP test bug.
-    // - Depth/Stencil is always invalidated before last submission.
-    //
-    // In all cases, when in shared present mode, swap is implicit and the swap behavior
-    // doesn't apply so no invalidation is done.
-    if (!isSharedPresentMode())
+    // Auto-invalidate the contents of the surface.  Depth/Stencil is always invalidated before last
+    // submission.
+    if (!shouldRetainColor())
     {
-        if (mState.swapBehavior == EGL_BUFFER_DESTROYED && !mIsBufferAgeQueried)
+        image.image->invalidateEntireLevelContent(context, gl::LevelIndex(0));
+        if (hasAncillaryColor())
         {
-            image.image->invalidateEntireLevelContent(context, gl::LevelIndex(0));
-            if (mAncillaryColorImage.valid())
-            {
-                mAncillaryColorImage.invalidateEntireLevelContent(context, gl::LevelIndex(0));
-            }
+            mAncillaryColorImage.invalidateEntireLevelContent(context, gl::LevelIndex(0));
         }
     }
     // Depth buffer (excluding emulated channel) should have been invalidated before the last
@@ -3219,6 +3355,15 @@ void WindowSurfaceVk::setSwapInterval(const egl::Display *display, EGLint interv
     if (!isSharedPresentModeDesired())
     {
         setDesiredSwapInterval(interval);
+    }
+}
+
+void WindowSurfaceVk::setSwapBehavior(EGLenum behavior)
+{
+    // Don't change behavior if using SHARED present, it's always preserved.
+    if (!isSharedPresentModeDesired())
+    {
+        mDesiredPreserveOnSwap.store(behavior == EGL_BUFFER_PRESERVED, std::memory_order_relaxed);
     }
 }
 
@@ -3349,12 +3494,14 @@ EGLint WindowSurfaceVk::isPostSubBufferSupported() const
 
 EGLint WindowSurfaceVk::getSwapBehavior() const
 {
-    // TODO(jmadill)
+    // Default behavior is to not preserve the contents of the surface across swaps, which is more
+    // efficient than trying to preserve it.
     return EGL_BUFFER_DESTROYED;
 }
 
 angle::Result WindowSurfaceVk::getCurrentFramebuffer(ContextVk *contextVk,
                                                      vk::FramebufferFetchMode fetchMode,
+                                                     gl::SrgbWriteControlMode writeControlMode,
                                                      const vk::RenderPass &compatibleRenderPass,
                                                      vk::Framebuffer *framebufferOut)
 {
@@ -3367,6 +3514,8 @@ angle::Result WindowSurfaceVk::getCurrentFramebuffer(ContextVk *contextVk,
 
     // Track the new fetch mode
     mFramebufferFetchMode = fetchMode;
+    // Track the new write control mode
+    mWriteControlMode = writeControlMode;
 
     SwapchainImage &swapchainImage = mSwapchainImages[mCurrentSwapchainImageIndex];
 
@@ -3389,7 +3538,7 @@ angle::Result WindowSurfaceVk::getCurrentFramebuffer(ContextVk *contextVk,
         imageViews[1] = imageView->getHandle();
     }
 
-    if (isMultiSampled())
+    if (hasAncillaryColor())
     {
         const vk::ImageView *imageView = nullptr;
         ANGLE_TRY(mColorRenderTarget.getImageView(contextVk, &imageView));
@@ -3442,9 +3591,8 @@ angle::Result WindowSurfaceVk::initializeContents(const gl::Context *context,
         case GL_BACK:
         {
             vk::ImageHelper *image =
-                mAncillaryColorImage.valid()
-                    ? &mAncillaryColorImage
-                    : mSwapchainImages[mCurrentSwapchainImageIndex].image.get();
+                hasAncillaryColor() ? &mAncillaryColorImage
+                                    : mSwapchainImages[mCurrentSwapchainImageIndex].image.get();
             image->stageRobustResourceClear(imageIndex);
             ANGLE_TRY(image->flushAllStagedUpdates(contextVk));
             break;
@@ -3545,10 +3693,10 @@ egl::Error WindowSurfaceVk::getBufferAge(const gl::Context *context, EGLint *age
 
     ANGLE_TRACE_EVENT0("gpu.angle", "getBufferAge");
 
-    // ANI may be skipped in case of multi sampled surface.
-    if (isMultiSampled())
+    // ANI may be skipped in case of surfaces with an ancillary color image.
+    if (hasAncillaryColor())
     {
-        *age = 0;
+        *age = mPreserveOnSwap && mFrameCount > mPreserveStartFrame ? 1 : 0;
         return egl::NoError();
     }
 
@@ -3579,7 +3727,7 @@ egl::Error WindowSurfaceVk::getBufferAge(const gl::Context *context, EGLint *age
 
     if (age != nullptr)
     {
-        if (mState.swapBehavior == EGL_BUFFER_PRESERVED)
+        if (mPreserveOnSwap)
         {
             // EGL_EXT_buffer_age
             //
@@ -3588,15 +3736,16 @@ egl::Error WindowSurfaceVk::getBufferAge(const gl::Context *context, EGLint *age
             //     RESOLVED: The age will always be 1 in this case.
 
             // Note: if the query is made before the 1st swap then age needs to be 0
-            *age = (mFrameCount == 1) ? 0 : 1;
-
+            *age = mFrameCount > mPreserveStartFrame ? 1 : 0;
             return egl::NoError();
         }
 
         uint64_t frameNumber = mSwapchainImages[mCurrentSwapchainImageIndex].frameNumber;
         if (frameNumber == 0)
         {
-            *age = 0;  // Has not been used for rendering yet, no age.
+            // Has not been used for rendering yet (frameNumber == 0) or was last used before we
+            // started to preserve contents (frameNumber <= mPreserveStartFrame).
+            *age = 0;
         }
         else
         {
@@ -3758,20 +3907,16 @@ void WindowSurfaceVk::onSubjectStateChange(angle::SubjectIndex index, angle::Sub
         const vk::ResourceUse &use = mDepthStencilImage.getResourceUse();
 
         // Free all cached VkFramebuffers
-        if (isMultiSampled())
+        if (hasAncillaryColor())
         {
             mRenderer->collectGarbage(use, &mAncillaryFramebuffer);
         }
 
         for (auto &image : mSwapchainImages)
         {
-            if (mFramebufferFetchMode == vk::FramebufferFetchMode::Color)
+            for (auto &entry : image.framebuffers)
             {
-                mRenderer->collectGarbage(use, &image.fetchFramebuffer);
-            }
-            else
-            {
-                mRenderer->collectGarbage(use, &image.framebuffer);
+                mRenderer->collectGarbage(use, &entry.second);
             }
         }
 

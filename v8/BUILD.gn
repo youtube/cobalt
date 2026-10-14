@@ -786,6 +786,10 @@ assert(!v8_enable_sandbox || v8_enable_external_code_space,
 assert(!v8_enable_memory_corruption_api || v8_enable_sandbox,
        "The Memory Corruption API requires the sandbox")
 
+assert(
+    !v8_enable_memory_corruption_api || !is_lsan,
+    "The Memory Corruption API cannot be enabled together with LSan as both attach to the d8 process via ptrace")
+
 assert(!v8_enable_sandbox_hardware_support || v8_enable_sandbox,
        "The sandbox must be enabled to enable sandbox hardware support")
 
@@ -1014,6 +1018,8 @@ external_v8_defines = [
   "V8_TARGET_OS_CHROMEOS",
   "V8_TARGET_ARCH_ARM64",
   "V8_TARGET_ARCH_PPC64",
+  "V8_TARGET_ARCH_MIPS64",
+  "V8_TARGET_ARCH_LOONG64",
 ]
 
 enabled_external_v8_defines = [
@@ -1106,6 +1112,10 @@ if (v8_current_cpu == "arm64") {
   enabled_external_v8_defines += [ "V8_TARGET_ARCH_ARM64" ]
 } else if (v8_current_cpu == "ppc64") {
   enabled_external_v8_defines += [ "V8_TARGET_ARCH_PPC64" ]
+} else if (v8_current_cpu == "mips64el") {
+  enabled_external_v8_defines += [ "V8_TARGET_ARCH_MIPS64" ]
+} else if (v8_current_cpu == "loong64") {
+  enabled_external_v8_defines += [ "V8_TARGET_ARCH_LOONG64" ]
 }
 
 disabled_external_v8_defines = external_v8_defines - enabled_external_v8_defines
@@ -3029,6 +3039,7 @@ action("v8_dump_build_config") {
     "dict_property_const_tracking=$v8_dict_property_const_tracking",
     "direct_handle=$v8_enable_direct_handle",
     "disassembler=$v8_enable_disassembler",
+    "dumpling=$v8_dumpling",
     "full_debug=$is_full_debug",
     "gdbjit=$v8_enable_gdbjit",
     "has_jitless=$v8_jitless",
@@ -4704,6 +4715,7 @@ v8_header_set("v8_internal_headers") {
       "src/maglev/maglev-regalloc-data.h",
       "src/maglev/maglev-regalloc.h",
       "src/maglev/maglev-register-frame-array.h",
+      "src/maglev/maglev-tracer.h",
       "src/maglev/maglev-truncation.h",
       "src/maglev/maglev.h",
     ]
@@ -7390,22 +7402,18 @@ v8_source_set("fuzzer_support") {
 
 v8_source_set("v8_bigint") {
   sources = [
+    "src/bigint/bigint-inl.h",
     "src/bigint/bigint-internal.cc",
     "src/bigint/bigint-internal.h",
     "src/bigint/bigint.h",
-    "src/bigint/bitwise.cc",
-    "src/bigint/digit-arithmetic.h",
     "src/bigint/div-burnikel.cc",
-    "src/bigint/div-helpers.cc",
-    "src/bigint/div-helpers.h",
+    "src/bigint/div-helpers-inl.h",
     "src/bigint/div-schoolbook.cc",
     "src/bigint/fromstring.cc",
     "src/bigint/mul-karatsuba.cc",
-    "src/bigint/mul-schoolbook.cc",
     "src/bigint/tostring.cc",
     "src/bigint/util.h",
-    "src/bigint/vector-arithmetic.cc",
-    "src/bigint/vector-arithmetic.h",
+    "src/bigint/vector-arithmetic-inl.h",
   ]
 
   if (v8_advanced_bigint_algorithms) {

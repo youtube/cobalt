@@ -43,6 +43,8 @@
 #include "api/test/rtc_error_matchers.h"
 #include "api/test/time_controller.h"
 #include "api/units/data_rate.h"
+#include "api/units/data_size.h"
+#include "api/units/frequency.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "api/video/builtin_video_bitrate_allocator_factory.h"
@@ -94,6 +96,7 @@
 #include "rtc_base/checks.h"
 #include "rtc_base/event.h"
 #include "rtc_base/experiments/encoder_info_settings.h"
+#include "rtc_base/experiments/quality_scaling_experiment.h"
 #include "rtc_base/experiments/rate_control_settings.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/ref_counted_object.h"
@@ -1148,6 +1151,9 @@ class VideoStreamEncoderTest : public ::testing::Test {
       if (is_qp_trusted_.has_value()) {
         info.is_qp_trusted = is_qp_trusted_;
       }
+      if (has_trusted_rate_controller_.has_value()) {
+        info.has_trusted_rate_controller = *has_trusted_rate_controller_;
+      }
       return info;
     }
 
@@ -1248,6 +1254,11 @@ class VideoStreamEncoderTest : public ::testing::Test {
       encoded_image_data_ = encoded_image_data;
     }
 
+    void ForceDropFrames(bool drop) {
+      MutexLock lock(&local_mutex_);
+      drop_frames_ = drop;
+    }
+
     void ExpectNullFrame() {
       MutexLock lock(&local_mutex_);
       expect_null_frame_ = true;
@@ -1297,6 +1308,11 @@ class VideoStreamEncoderTest : public ::testing::Test {
       is_qp_trusted_ = trusted;
     }
 
+    void SetIsRateControlTrusted(bool trusted) {
+      MutexLock lock(&local_mutex_);
+      has_trusted_rate_controller_ = trusted;
+    }
+
     VideoCodecComplexity LastEncoderComplexity() {
       MutexLock lock(&local_mutex_);
       return last_encoder_complexity_;
@@ -1308,6 +1324,13 @@ class VideoStreamEncoderTest : public ::testing::Test {
       {
         MutexLock lock(&local_mutex_);
         num_encodes_++;
+        if (drop_frames_) {
+          if (encoded_image_callback_) {
+            encoded_image_callback_->OnDroppedFrame(
+                EncodedImageCallback::DropReason::kDroppedByEncoder);
+          }
+          return WEBRTC_VIDEO_CODEC_OK;
+        }
         if (expect_null_frame_) {
           EXPECT_EQ(input_image.rtp_timestamp(), 0u);
           EXPECT_EQ(input_image.width(), 1);
@@ -1433,6 +1456,7 @@ class VideoStreamEncoderTest : public ::testing::Test {
         local_mutex_) = {.offset_x = 0, .offset_y = 0, .width = 0, .height = 0};
     std::vector<VideoFrameType> last_frame_types_;
     bool expect_null_frame_ = false;
+    bool drop_frames_ RTC_GUARDED_BY(local_mutex_) = false;
     EncodedImageCallback* encoded_image_callback_ RTC_GUARDED_BY(local_mutex_) =
         nullptr;
     NiceMock<MockFecControllerOverride> fec_controller_override_;
@@ -1445,6 +1469,8 @@ class VideoStreamEncoderTest : public ::testing::Test {
     absl::InlinedVector<VideoFrameBuffer::Type, kMaxPreferredPixelFormats>
         preferred_pixel_formats_ RTC_GUARDED_BY(local_mutex_);
     std::optional<bool> is_qp_trusted_ RTC_GUARDED_BY(local_mutex_);
+    std::optional<bool> has_trusted_rate_controller_
+        RTC_GUARDED_BY(local_mutex_);
     VideoCodecComplexity last_encoder_complexity_ RTC_GUARDED_BY(local_mutex_){
         VideoCodecComplexity::kComplexityNormal};
   };
@@ -1968,6 +1994,102 @@ TEST_F(VideoStreamEncoderTest, DropsPendingFramesOnSlowEncode) {
   WaitForEncodedFrame(2);
   video_stream_encoder_->Stop();
   EXPECT_EQ(1, dropped_count);
+}
+
+TEST_F(VideoStreamEncoderTest, DropsFramesOnBitrateOvershoot) {
+  ConfigureEncoder(video_encoder_config_.Copy());
+  video_stream_encoder_->OnBitrateUpdatedAndWaitForManagedResources(
+      kTargetBitrate, kTargetBitrate, 0, 0, 0);
+
+  // Set encoder rate control as not trusted - so that the external frame
+  // dropper is activated.
+  fake_encoder_.SetIsRateControlTrusted(false);
+
+  DataSize ideal_size_per_frame =
+      kTargetBitrate / Frequency::Hertz(kDefaultFramerate);
+  // Create an image buffer that is consistently four times larger than
+  // expected.
+  scoped_refptr<EncodedImageBuffer> encoded_image_buffer =
+      EncodedImageBuffer::Create(ideal_size_per_frame.bytes() * 4);
+  std::fill(encoded_image_buffer->data(),
+            encoded_image_buffer->data() + encoded_image_buffer->size(), 0);
+
+  bool has_media_opt_frame_drop = false;
+  stats_proxy_->SetDroppedFrameCallback(
+      [&has_media_opt_frame_drop](
+          VideoStreamEncoderObserver::DropReason reason) {
+        if (reason ==
+            VideoStreamEncoderObserver::DropReason::kMediaOptimization) {
+          has_media_opt_frame_drop = true;
+        }
+      });
+
+  for (int i = 0; i < 30; ++i) {
+    int64_t timestamp = CurrentTimeMs();
+    fake_encoder_.SetEncodedImageData(encoded_image_buffer);
+    video_source_.IncomingCapturedFrame(
+        CreateFrame(timestamp, codec_width_, codec_height_));
+    AdvanceTime(TimeDelta::Millis(kFrameIntervalMs));
+    if (has_media_opt_frame_drop) {
+      break;
+    }
+  }
+
+  EXPECT_TRUE(has_media_opt_frame_drop);
+
+  video_stream_encoder_->Stop();
+}
+
+TEST_F(VideoStreamEncoderTest, QualityScalerTriggersOnFrameDropping) {
+  // Set the quality scaler checker frequency high to prevent flakiness.
+  FieldTrials trials = SetFieldTrial("WebRTC-Video-QualityScalerSettings",
+                                     "sampling_period_ms:250");
+
+  // If the quality scaler isn't configured to treat encoder frame drops
+  // as a signal for scaling, then this test doesn't make sense to run.
+  std::optional<QualityScalingExperiment::Config> config =
+      QualityScalingExperiment::GetConfig(trials);
+  if (!config.has_value() || !config->use_all_drop_reasons) {
+    video_stream_encoder_->Stop();
+    GTEST_SKIP() << "QualityScalerExperiment does not take encoder drop "
+                    "reasons into account, skipping "
+                    "QualityScalerTriggersOnFrameDropping.";
+  }
+
+  // Set resolution high so there is a lower resolution to adapt to.
+  codec_width_ = 1280;
+  codec_height_ = 720;
+  ConfigureEncoder(
+      video_encoder_config_.Copy(),
+      VideoStreamEncoder::BitrateAllocationCallbackType::kVideoLayersAllocation,
+      /* num_cores= */ 1, &trials);
+  video_stream_encoder_->OnBitrateUpdatedAndWaitForManagedResources(
+      kTargetBitrate, kTargetBitrate, 0, 0, 0);
+
+  // Set a low QP so that the qualitu scaler won't trigger because of QP.
+  fake_encoder_.SetQp(kQpLow);
+  fake_encoder_.SetQualityScaling(true);
+  video_source_.set_adaptation_enabled(true);
+
+  // Drop all frames so that the quality scaler will trigger (at the time of
+  // writing frame drop percentage > 65% is used in the quality scaler
+  // implementation).
+  fake_encoder_.ForceDropFrames(true);
+
+  for (int i = 0; i < 100; ++i) {
+    int64_t timestamp = CurrentTimeMs();
+    video_source_.IncomingCapturedFrame(
+        CreateFrame(timestamp, codec_width_, codec_height_));
+    AdvanceTime(TimeDelta::Millis(kFrameIntervalMs));
+    // After enough dropped frames the quality scaler should trigger.
+    if (stats_proxy_->GetStats().bw_limited_resolution) {
+      break;
+    }
+  }
+
+  EXPECT_TRUE(stats_proxy_->GetStats().bw_limited_resolution);
+
+  video_stream_encoder_->Stop();
 }
 
 TEST_F(VideoStreamEncoderTest, NativeFrameWithoutI420SupportGetsDelivered) {

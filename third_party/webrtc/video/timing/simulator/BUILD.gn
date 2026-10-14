@@ -107,6 +107,7 @@ if (rtc_enable_protobuf) {
         "../../../api:rtp_packet_info",
         "../../../api:sequence_checker",
         "../../../api/environment",
+        "../../../api/numerics",
         "../../../api/transport/rtp:dependency_descriptor",
         "../../../api/units:data_size",
         "../../../api/units:time_delta",

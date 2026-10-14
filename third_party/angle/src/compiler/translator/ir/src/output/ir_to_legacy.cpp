@@ -13,6 +13,7 @@
 #include "compiler/translator/ImmutableStringBuilder.h"
 #include "compiler/translator/IntermNode.h"
 #include "compiler/translator/Types.h"
+#include "compiler/translator/tree_util/BuiltIn.h"
 #include "compiler/translator/tree_util/IntermNode_util.h"
 #include "compiler/translator/util.h"
 
@@ -66,7 +67,6 @@ TType *Type(const TType *baseType, const ASTType &astType)
     layoutQualifier.depth        = static_cast<TLayoutDepth>(astLayoutQualifier.depth);
     layoutQualifier.imageInternalFormat =
         static_cast<TLayoutImageInternalFormat>(astLayoutQualifier.image_internal_format);
-    layoutQualifier.numViews             = astLayoutQualifier.num_views;
     layoutQualifier.yuv                  = astLayoutQualifier.yuv;
     layoutQualifier.index                = astLayoutQualifier.index;
     layoutQualifier.inputAttachmentIndex = astLayoutQualifier.input_attachment_index;
@@ -371,6 +371,16 @@ TIntermTyped *make_variable(TCompiler *compiler,
         compiler->getSymbolTable().markStaticUse(*variable);
     }
     return new TIntermSymbol(variable);
+}
+
+TIntermTyped *make_internal_variable_gl_layer_vs()
+{
+    return new TIntermSymbol(BuiltInVariable::gl_LayerVS());
+}
+
+TIntermTyped *make_internal_variable_gl_instance_es100()
+{
+    return new TIntermSymbol(BuiltInVariable::gl_InstanceID());
 }
 
 TIntermTyped *make_nameless_block_field_variable(TCompiler *compiler,

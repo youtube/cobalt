@@ -55,8 +55,6 @@ SessionID GetInitialSessionId() {
 }
 }  // namespace
 
-DEFINE_USER_DATA(TabModel);
-
 TabModel::TabModel(Profile* profile,
                    ActivityType activity_type,
                    TabModelType tab_model_type)
@@ -166,15 +164,7 @@ void TabModel::SetSessionId(SessionID session_id) {
 #endif
 
 // static
-// From //chrome/browser/ui/tabs/tab_list_interface.h
-TabListInterface* TabListInterface::From(
-    BrowserWindowInterface* browser_window_interface) {
-  return ui::ScopedUnownedUserData<TabModel>::Get(
-      browser_window_interface->GetUnownedUserDataHost());
-}
-
-// static
-// From //chrome/browser/ui/tabs/tab_list_interface.h
+// From //chrome/browser/tab_list/tab_list_interface.h
 bool TabListInterface::CanEditTabList(Profile& profile) {
   for (TabModel* model : TabModelList::models()) {
     if (model->GetProfile() != &profile ||

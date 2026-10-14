@@ -60,7 +60,7 @@ void ComputePerSampleSubframeFactors(
   if (is_attack) {
     InterpolateFirstSubframe(
         scaling_factors[0], scaling_factors[1],
-        per_sample_scaling_factors.subview(0, subframe_size));
+        per_sample_scaling_factors.subspan(0, subframe_size));
   }
 
   for (size_t i = is_attack ? 1 : 0; i < num_subframes; ++i) {

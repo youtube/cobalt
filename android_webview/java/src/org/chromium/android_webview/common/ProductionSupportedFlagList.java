@@ -185,6 +185,7 @@ public final class ProductionSupportedFlagList {
                         + " is an active scroll or a touch interaction). This effectively removes"
                         + " back-pressure in this case. This can result in wasted work and "
                         + " contention, but should regularize the timing of client rendering."),
+        Flag.baseFeature(NetFeatures.TRY_QUIC_BY_DEFAULT, "Allow sending QUIC connection options."),
         Flag.baseFeature(
                 NetFeatures.USE_NEW_ALPS_CODEPOINT_QUIC,
                 "Enables using the new ALPS codepoint to negotiate application settings for QUIC."),
@@ -286,12 +287,20 @@ public final class ProductionSupportedFlagList {
                         + " a field is detected as a COUNTRY when it should be a STATE or vice"
                         + " versa."),
         Flag.baseFeature(
+                AutofillFeatures.AUTOFILL_DELAY_APC_FOR_PREDICTIONS,
+                "APC will be delayed by up to 1 second to give Autofill time to generate"
+                        + " predictions."),
+        Flag.baseFeature(
                 AutofillFeatures.AUTOFILL_DISALLOW_MORE_HYPHEN_LIKE_LABELS,
                 "Disallows labels that only contain em dashes, minuses, fullwidth hyphens and other"
                         + " special characters."),
         Flag.baseFeature(
                 AutofillFeatures.AUTOFILL_MOVE_SMALL_FORM_LOGIC_TO_CLIENT,
                 "Moves the small form handling from Autofill server to client."),
+        Flag.baseFeature(
+                AutofillFeatures.AUTOFILL_NEW_AUGMENTED_PHONE_COUNTRY_CODE_REGEX,
+                "When enabled, a new regex for matching phone country code select options is"
+                        + " used."),
         Flag.baseFeature(
                 AutofillFeatures.AUTOFILL_NEW_REGEX_FOR_PHONE_COUNTRY_CODE,
                 "If enabled, more patterns are added to the PHONE_COUNTRY_CODE regex."),
@@ -307,6 +316,9 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature(
                 AutofillFeatures.AUTOFILL_PAGE_LANGUAGE_DETECTION,
                 "Enables Autofill to retrieve the page language for form parsing."),
+        Flag.baseFeature(
+                AutofillFeatures.AUTOFILL_PREFER_PHONE_COUNTRY_CODE_TYPE_OVER_COUNTRY_HTML_TYPE,
+                "Prioritizes PHONE_HOME_COUNTRY_CODE heuristic type over kCountryName html type"),
         Flag.baseFeature(
                 AutofillFeatures.AUTOFILL_REPLACE_CACHED_WEB_ELEMENTS_BY_RENDERER_IDS,
                 "When enabled, AutofillAgent will store its cached form and fields as renderer ids "
@@ -348,6 +360,9 @@ public final class ProductionSupportedFlagList {
                 AutofillFeatures.AUTOFILL_IMPROVE_PHONE_FIELD_PARSER,
                 "Enables some improvements to autofill::PhoneFieldParser."),
         Flag.baseFeature(
+                AutofillFeatures.AUTOFILL_IMPROVE_PHONE_NUMBER_RATIONALIZATION,
+                "Fix PHONE_HOME_WHOLE_NUMBER appearing right after PHONE_HOME_COUNTRY_CODE."),
+        Flag.baseFeature(
                 AutofillFeatures.AUTOFILL_ENABLE_CACHE_FOR_REGEX_MATCHING,
                 "When enabled, autofill uses an extra cache for matching regular expressions "
                         + "while executing local heuristics."),
@@ -361,11 +376,13 @@ public final class ProductionSupportedFlagList {
                         + " match different types. Applied only for parsing of address forms in"
                         + " Turkish."),
         Flag.baseFeature(
+                AutofillFeatures.AUTOFILL_ENABLE_STREET_ADDRESS_MERGE_MODES,
+                "If enabled, the missing merge modes will be re-enabled on nodes. To do that,"
+                        + "MergeMode::kMergeChildrenAndReformatIfNeeded will be also added to all"
+                        + "the nodes where required."),
+        Flag.baseFeature(
                 AutofillFeatures.AUTOFILL_SUPPORT_PHONETIC_NAME_FOR_JP,
                 "When enabled, Autofill will support phonetic name for Japan."),
-        Flag.baseFeature(
-                AutofillFeatures.AUTOFILL_UKM_EXPERIMENTAL_FIELDS,
-                "Enables UKM collection for experimental fields"),
         Flag.baseFeature(
                 FeatureConstants.KEYBOARD_ACCESSORY_PAYMENT_VIRTUAL_CARD_FEATURE,
                 "When enabled, merchant bound virtual cards will be offered in the keyboard "
@@ -664,11 +681,13 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature("V8Flag_trim_descriptor_arrays_in_gc"),
         Flag.baseFeature("V8Flag_trim_descriptor_arrays_in_gc_with_stack"),
         Flag.baseFeature("V8Flag_memory_reducer"),
+        Flag.baseFeature("V8Flag_verify_bytecode_light"),
         Flag.baseFeature("V8FlushBaselineCode"),
         Flag.baseFeature("V8FlushCodeBasedOnTabVisibility"),
         Flag.baseFeature("V8FlushCodeBasedOnTime"),
         Flag.baseFeature("V8HighEndAndroid"),
         Flag.baseFeature("V8MemoryReducer"),
+        Flag.baseFeature("V8MemoryReducerDelay"),
         Flag.baseFeature("V8MemoryPoolReleaseOnMallocFailures"),
         Flag.baseFeature("V8PreconfigureOldGen"),
         Flag.baseFeature("V8ScavengerHigherCapacity"),
@@ -982,7 +1001,6 @@ public final class ProductionSupportedFlagList {
                 NetworkServiceFeatures.INCREASE_COOKIE_ACCESS_CACHE_SIZE,
                 "When enabled, keep more cookies in the cache to be able to skip redundant access"
                         + " notifications."),
-        Flag.baseFeature("PrefetchScheduler"),
         Flag.baseFeature(
                 BlinkFeatures.RENDER_BLOCKING_FULL_FRAME_RATE,
                 "Enable the <link blocking=\"full-frame-rate\"/> API to lower the frame rate during"
@@ -1078,10 +1096,6 @@ public final class ProductionSupportedFlagList {
                 "KeepChildProcessAfterIPCReset",
                 "When enabled, child process will not terminate itself when IPC is reset."),
         Flag.baseFeature(
-                "StrictHighRankProcessLRU",
-                "Enable stricter management of the Android process LRU state to ensure that"
-                        + " high-rank processes are always more recent than low-rank processes."),
-        Flag.baseFeature(
                 BaseFeatures.USE_SHARED_REBIND_SERVICE_CONNECTION,
                 "Use a shared service connection to apply service group importance changes."),
         Flag.baseFeature(
@@ -1131,8 +1145,11 @@ public final class ProductionSupportedFlagList {
                 AwFeatures.WEBVIEW_CACHE_BOUNDARY_INTERFACE_METHODS,
                 "Use a cache for reflective method instances in the AndroidX boundary interface"),
         Flag.baseFeature(
-                AwFeatures.WEBVIEW_OPT_IN_TO_GMS_BIND_SERVICE_OPTIMIZATION,
+                AwSwitches.WEBVIEW_OPT_IN_TO_GMS_BIND_SERVICE_OPTIMIZATION,
                 "Opt-in WebView to GMSCore's bindService optimizations"),
+        Flag.baseFeature(
+                AwSwitches.WEBVIEW_DEFER_STARTUP_GMS_CALLS,
+                "Defers GMS calls to after Chromium startup."),
         Flag.baseFeature(
                 AwFeatures.WEBVIEW_MOVE_WORK_TO_PROVIDER_INIT,
                 " Moves some of the work that is being run during `startChromium` to be done"
@@ -1285,6 +1302,10 @@ public final class ProductionSupportedFlagList {
                 AwFeatures.WEBVIEW_USE_NONEMBEDDED_LOW_ENTROPY_SOURCE,
                 "When enabled, WebView uses the low entropy source provided by the "
                         + "nonembedded WebView service."),
+        Flag.baseFeature(
+                PaymentFeatureList.PAYMENT_REQUEST_USE_RENDERER_URL_LOADER,
+                "When enabled, the PaymentRequest will use the URL loader from the renderer instead"
+                        + " of the browser process."),
 
         // Add new commandline switches and features above. The final entry should have a
         // trailing comma for cleaner diffs.

@@ -28,6 +28,9 @@ function createInputState(overrides?: Partial<InputState>): InputState {
         modelSectionConfig: {header: ''},
         allowedInputTypes: [],
         disabledInputTypes: [],
+        inputTypeConfigs: [],
+        maxInstances: {},
+        maxTotalInputs: 0,
       },
       overrides);
 }
@@ -42,6 +45,7 @@ suite('ContextualActionMenu', () => {
       composeboxFileMaxCount: 10,
       composeboxShowContextMenuTabPreviews: true,
       composeboxShowPdfUpload: true,
+      ShowContextMenuHeaders: true,
     });
 
     actionMenu = document.createElement('cr-composebox-contextual-action-menu');
@@ -113,10 +117,23 @@ suite('ContextualActionMenu', () => {
     actionMenu.showAt(actionMenu);
     await microtasksFinished();
 
-    assertTrue(!!$$(actionMenu, '#deepSearch'));
-    assertTrue(!!$$(actionMenu, '#createImages'));
-    assertTrue(!!$$(actionMenu, '#geminiModelRegular'));
-    assertTrue(!!$$(actionMenu, '#geminiModelThinking'));
+    assertTrue(!!$$(actionMenu, `[data-mode="${ToolMode.kDeepSearch}"]`));
+    assertTrue(!!$$(actionMenu, `[data-mode="${ToolMode.kImageGen}"]`));
+    assertTrue(!!$$(actionMenu, `[data-model="${ModelMode.kGeminiRegular}"]`));
+    assertTrue(!!$$(actionMenu, `[data-model="${ModelMode.kGeminiPro}"]`));
+
+    assertEquals(
+        'menuitem',
+        $$(actionMenu, `[data-mode="${ToolMode.kDeepSearch}"]`)!
+            .getAttribute('role'));
+    assertEquals(
+        'menuitemradio',
+        $$(actionMenu, `[data-model="${ModelMode.kGeminiRegular}"]`)!
+            .getAttribute('role'));
+    assertEquals(
+        'menuitemradio',
+        $$(actionMenu, `[data-model="${ModelMode.kGeminiPro}"]`)!
+            .getAttribute('role'));
   });
 
   test('Hides tools and models not allowed', async () => {
@@ -159,10 +176,10 @@ suite('ContextualActionMenu', () => {
     actionMenu.showAt(actionMenu);
     await microtasksFinished();
 
-    assertTrue(!!$$(actionMenu, '#deepSearch'));
-    assertFalse(!!$$(actionMenu, '#createImages'));
-    assertTrue(!!$$(actionMenu, '#geminiModelRegular'));
-    assertFalse(!!$$(actionMenu, '#geminiModelThinking'));
+    assertTrue(!!$$(actionMenu, `[data-mode="${ToolMode.kDeepSearch}"]`));
+    assertFalse(!!$$(actionMenu, `[data-mode="${ToolMode.kImageGen}"]`));
+    assertTrue(!!$$(actionMenu, `[data-model="${ModelMode.kGeminiRegular}"]`));
+    assertFalse(!!$$(actionMenu, `[data-model="${ModelMode.kGeminiPro}"]`));
   });
 
   test('Disables disabled tools and models', async () => {
@@ -207,12 +224,18 @@ suite('ContextualActionMenu', () => {
     actionMenu.showAt(actionMenu);
     await microtasksFinished();
 
-    const deepSearch = $$(actionMenu, '#deepSearch') as HTMLButtonElement;
-    const createImages = $$(actionMenu, '#createImages') as HTMLButtonElement;
+    const deepSearch =
+        $$(actionMenu, `[data-mode="${ToolMode.kDeepSearch}"]`) as
+        HTMLButtonElement;
+    const createImages =
+        $$(actionMenu, `[data-mode="${ToolMode.kImageGen}"]`) as
+        HTMLButtonElement;
     const regularModel =
-        $$(actionMenu, '#geminiModelRegular') as HTMLButtonElement;
+        $$(actionMenu, `[data-model="${ModelMode.kGeminiRegular}"]`) as
+        HTMLButtonElement;
     const thinkingModel =
-        $$(actionMenu, '#geminiModelThinking') as HTMLButtonElement;
+        $$(actionMenu, `[data-model="${ModelMode.kGeminiPro}"]`) as
+        HTMLButtonElement;
 
     assertFalse(deepSearch.disabled);
     assertTrue(createImages.disabled);
@@ -242,11 +265,16 @@ suite('ContextualActionMenu', () => {
     actionMenu.showAt(actionMenu);
     await microtasksFinished();
 
-    const regularModel = $$(actionMenu, '#geminiModelRegular')!;
-    const thinkingModel = $$(actionMenu, '#geminiModelThinking')!;
+    const regularModel =
+        $$(actionMenu, `[data-model="${ModelMode.kGeminiRegular}"]`)!;
+    const thinkingModel =
+        $$(actionMenu, `[data-model="${ModelMode.kGeminiPro}"]`)!;
 
     assertFalse(!!regularModel.querySelector('#model-check'));
     assertTrue(!!thinkingModel.querySelector('#model-check'));
+
+    assertEquals('false', regularModel.getAttribute('aria-checked'));
+    assertEquals('true', thinkingModel.getAttribute('aria-checked'));
   });
 
   test('Shows image and file upload when allowed', async () => {
@@ -258,6 +286,11 @@ suite('ContextualActionMenu', () => {
 
     assertTrue(!!$$(actionMenu, '#imageUpload'));
     assertTrue(!!$$(actionMenu, '#fileUpload'));
+
+    assertEquals(
+        'menuitem', $$(actionMenu, '#imageUpload')!.getAttribute('role'));
+    assertEquals(
+        'menuitem', $$(actionMenu, '#fileUpload')!.getAttribute('role'));
   });
 
   test('Hides image and file upload when not allowed', async () => {
@@ -297,12 +330,13 @@ suite('ContextualActionMenu', () => {
         hintText: '',
         aimUrlParams: [],
       }],
+      modelSectionConfig: {header: 'Models'},
     });
     actionMenu.showAt(actionMenu);
     await microtasksFinished();
 
-    assertFalse(!!$$(actionMenu, '#deepSearch'));
-    assertTrue(!!$$(actionMenu, '#geminiModelRegular'));
+    assertFalse(!!$$(actionMenu, `[data-mode="${ToolMode.kDeepSearch}"]`));
+    assertTrue(!!$$(actionMenu, `[data-model="${ModelMode.kGeminiRegular}"]`));
     assertTrue(!!$$(actionMenu, '#modelHeader'));
   });
 
@@ -323,8 +357,9 @@ suite('ContextualActionMenu', () => {
     actionMenu.showAt(actionMenu);
     await microtasksFinished();
 
-    assertTrue(!!$$(actionMenu, '#deepSearch'));
-    assertFalse(!!$$(actionMenu, '#geminiModelRegular'));
+    assertTrue(!!$$(actionMenu, `[data-mode="${ToolMode.kDeepSearch}"]`));
+    assertFalse(
+        !!$$(actionMenu, `[data-model="${ModelMode.kGeminiRegular}"]`));
     assertFalse(!!$$(actionMenu, '#modelHeader'));
   });
 
@@ -339,14 +374,16 @@ suite('ContextualActionMenu', () => {
     await microtasksFinished();
 
     // Verify no tools are shown.
-    assertFalse(!!$$(actionMenu, '#deepSearch'));
-    assertFalse(!!$$(actionMenu, '#createImages'));
-    assertFalse(!!$$(actionMenu, '#canvas'));
+    assertFalse(!!$$(actionMenu, `[data-mode="${ToolMode.kDeepSearch}"]`));
+    assertFalse(!!$$(actionMenu, `[data-mode="${ToolMode.kImageGen}"]`));
+    assertFalse(!!$$(actionMenu, `[data-mode="${ToolMode.kCanvas}"]`));
 
     // Verify no models are shown.
-    assertFalse(!!$$(actionMenu, '#geminiModelRegular'));
-    assertFalse(!!$$(actionMenu, '#geminiModelAuto'));
-    assertFalse(!!$$(actionMenu, '#geminiModelThinking'));
+    assertFalse(
+        !!$$(actionMenu, `[data-model="${ModelMode.kGeminiRegular}"]`));
+    assertFalse(
+        !!$$(actionMenu, `[data-model="${ModelMode.kGeminiProAutoroute}"]`));
+    assertFalse(!!$$(actionMenu, `[data-model="${ModelMode.kGeminiPro}"]`));
     assertFalse(!!$$(actionMenu, '#modelHeader'));
 
     const menu = actionMenu.$.menu;
@@ -370,8 +407,8 @@ suite('ContextualActionMenu', () => {
     actionMenu.showAt(actionMenu);
     await microtasksFinished();
 
-    assertTrue(!!$$(actionMenu, '#canvas'));
-    assertFalse(!!$$(actionMenu, '#deepSearch'));
+    assertTrue(!!$$(actionMenu, `[data-mode="${ToolMode.kCanvas}"]`));
+    assertFalse(!!$$(actionMenu, `[data-mode="${ToolMode.kDeepSearch}"]`));
   });
 
   test('Handles single model allowed', async () => {
@@ -387,8 +424,10 @@ suite('ContextualActionMenu', () => {
     actionMenu.showAt(actionMenu);
     await microtasksFinished();
 
-    assertTrue(!!$$(actionMenu, '#geminiModelAuto'));
-    assertFalse(!!$$(actionMenu, '#geminiModelRegular'));
+    assertTrue(
+        !!$$(actionMenu, `[data-model="${ModelMode.kGeminiProAutoroute}"]`));
+    assertFalse(
+        !!$$(actionMenu, `[data-model="${ModelMode.kGeminiRegular}"]`));
   });
 
   test('Browser tab suggestions respect allowedInputTypes', async () => {
@@ -438,5 +477,55 @@ suite('ContextualActionMenu', () => {
     const items = actionMenu.$.menu.querySelectorAll('.dropdown-item');
     // 1 tab item.
     assertEquals(1, items.length);
+
+    const tabButton = items[0] as HTMLButtonElement;
+    assertEquals('menuitemcheckbox', tabButton.getAttribute('role'));
+    assertEquals('false', tabButton.getAttribute('aria-checked'));
+
+    // Check with selection.
+    actionMenu.disabledTabIds = new Map([[tabInfo.tabId, '1']]);
+    await microtasksFinished();
+    assertEquals('true', tabButton.getAttribute('aria-checked'));
+  });
+
+  test('Uses configured menu labels', async () => {
+    const deepSearchLabel = 'Custom Deep Search Label';
+    const geminiLabel = 'Custom Gemini Label';
+    const imageUploadLabel = 'Custom Image Upload Label';
+
+    actionMenu.inputState = createInputState({
+      allowedTools: [ToolMode.kDeepSearch],
+      toolConfigs: [{
+        tool: ToolMode.kDeepSearch,
+        menuLabel: deepSearchLabel,
+        disableActiveModelSelection: false,
+        chipLabel: '',
+        hintText: '',
+        aimUrlParams: [],
+      }],
+      allowedModels: [ModelMode.kGeminiRegular],
+      modelConfigs: [{
+        model: ModelMode.kGeminiRegular,
+        menuLabel: geminiLabel,
+        hintText: '',
+        aimUrlParams: [],
+      }],
+      allowedInputTypes: [InputType.kLensImage],
+      inputTypeConfigs: [{
+        inputType: InputType.kLensImage,
+        menuLabel: imageUploadLabel,
+      }],
+    });
+    actionMenu.showAt(actionMenu);
+    await microtasksFinished();
+
+    const deepSearch = $$(actionMenu, `[data-mode="${ToolMode.kDeepSearch}"]`);
+    const geminiRegular =
+        $$(actionMenu, `[data-model="${ModelMode.kGeminiRegular}"]`);
+    const imageUpload = $$(actionMenu, '#imageUpload');
+
+    assertTrue(deepSearch!.textContent.includes(deepSearchLabel));
+    assertTrue(geminiRegular!.textContent.includes(geminiLabel));
+    assertTrue(imageUpload!.textContent.includes(imageUploadLabel));
   });
 });

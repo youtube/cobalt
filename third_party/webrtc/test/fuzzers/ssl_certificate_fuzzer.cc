@@ -38,7 +38,7 @@ void FuzzOneInput(const uint8_t* data, size_t size) {
   std::string algorithm;
   cert->GetSignatureDigestAlgorithm(&algorithm);
 
-  Buffer buffer(0, MessageDigest::kMaxSize);
+  Buffer buffer(Buffer::CreateWithCapacity(MessageDigest::kMaxSize));
   cert->ComputeDigest(algorithm, buffer);
 
   Buffer der_buffer;

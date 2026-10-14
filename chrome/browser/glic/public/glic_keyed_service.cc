@@ -53,9 +53,9 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_attributes_storage.h"
 #include "chrome/browser/profiles/profile_manager.h"
+#include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
-#include "chrome/browser/ui/tabs/tab_list_interface.h"
 #include "chrome/common/actor/action_result.h"
 #include "chrome/common/actor/journal_details_builder.h"
 #include "chrome/common/chrome_features.h"
@@ -85,6 +85,11 @@
 #include "chrome/browser/glic/media/glic_media_integration.h"
 #include "chrome/browser/glic/widget/glic_widget.h"
 #include "chrome/browser/glic/widget/glic_window_controller_impl.h"
+
+#endif
+
+#if BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/glic/android/glic_keyed_service_android.h"
 #endif
 
 namespace glic {
@@ -163,6 +168,8 @@ void WriteGuestUrlPresetToPrefs(const char* switch_name,
 void SetupGuestUrlPresetPrefs() {
   WriteGuestUrlPresetToPrefs(::switches::kGlicGuestUrlPresetAutopush,
                              prefs::kGlicGuestUrlPresetAutopush);
+  WriteGuestUrlPresetToPrefs(::switches::kGlicGuestUrlPresetStaging,
+                             prefs::kGlicGuestUrlPresetStaging);
   WriteGuestUrlPresetToPrefs(::switches::kGlicGuestUrlPresetPreprod,
                              prefs::kGlicGuestUrlPresetPreprod);
   WriteGuestUrlPresetToPrefs(::switches::kGlicGuestUrlPresetProd,
@@ -179,12 +186,10 @@ GlicKeyedService::GlicKeyedService(
     contextual_cueing::ContextualCueingService* contextual_cueing_service,
     actor::ActorKeyedService* actor_keyed_service)
     : profile_(profile),
-#if !BUILDFLAG(IS_ANDROID)  // NEEDS_ANDROID_IMPL: Actor
       actor_policy_checker_(
           actor_keyed_service
               ? std::make_unique<GlicActorPolicyChecker>(*profile_)
               : nullptr),
-#endif
       enabling_(std::make_unique<GlicEnabling>(
           profile,
           &profile_manager->GetProfileAttributesStorage())),
@@ -309,7 +314,8 @@ void GlicKeyedService::Shutdown() {
 void GlicKeyedService::ToggleUI(BrowserWindowInterface* bwi,
                                 bool prevent_close,
                                 mojom::InvocationSource source,
-                                std::optional<std::string> prompt_suggestion) {
+                                std::optional<std::string> prompt_suggestion,
+                                bool auto_send) {
   // Glic may be disabled for certain user profiles (the user is browsing in
   // incognito or guest mode, policy, etc). In those cases, the entry points to
   // this method should already have been removed.
@@ -340,13 +346,14 @@ void GlicKeyedService::ToggleUI(BrowserWindowInterface* bwi,
   }
 
   window_controller().Toggle(bwi ? bwi : GetActiveGlicEligibleBrowser(profile_),
-                             prevent_close, source, prompt_suggestion);
+                             prevent_close, source, prompt_suggestion,
+                             auto_send);
 }
 
 void GlicKeyedService::ToggleUI(BrowserWindowInterface* bwi,
                                 bool prevent_close,
                                 mojom::InvocationSource source) {
-  ToggleUI(bwi, prevent_close, source, std::nullopt);
+  ToggleUI(bwi, prevent_close, source, std::nullopt, /*auto_send=*/false);
 }
 
 void GlicKeyedService::OpenFreDialogInNewTab(BrowserWindowInterface* bwi,
@@ -710,9 +717,9 @@ base::CallbackListSubscription GlicKeyedService::AddUserInputSubmittedCallback(
 
 #if !BUILDFLAG(IS_ANDROID)  // Single instance only
 void GlicKeyedService::CaptureRegion(
-    content::WebContents* web_contents,
+    tabs::TabInterface* tab,
     mojo::PendingRemote<mojom::CaptureRegionObserver> observer) {
-  region_capture_controller_->CaptureRegion(web_contents, std::move(observer));
+  region_capture_controller_->CaptureRegion(tab, std::move(observer));
 }
 #endif
 

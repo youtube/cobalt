@@ -192,17 +192,11 @@ int main(int argc, char* argv[]) {
     }
   }
 
-  webrtc::AnalyzerConfig config;
+  webrtc::AnalyzerConfig config(env, parsed_log,
+                                absl::GetFlag(FLAGS_normalize_time));
   config.window_duration_ =
       webrtc::TimeDelta::Millis(absl::GetFlag(FLAGS_averaging_window));
   config.step_ = webrtc::TimeDelta::Millis(absl::GetFlag(FLAGS_averaging_step));
-  if (!parsed_log.start_log_events().empty()) {
-    config.rtc_to_utc_offset_ = parsed_log.start_log_events()[0].utc_time() -
-                                parsed_log.start_log_events()[0].log_time();
-  }
-  config.normalize_time_ = absl::GetFlag(FLAGS_normalize_time);
-  config.begin_time_ = parsed_log.first_timestamp();
-  config.end_time_ = parsed_log.last_timestamp();
   if (config.end_time_ < config.begin_time_) {
     RTC_LOG(LS_WARNING) << "Log end time " << config.end_time_
                         << " not after begin time " << config.begin_time_
@@ -225,7 +219,7 @@ int main(int argc, char* argv[]) {
     has_generated_wav_file = true;
   }
 
-  webrtc::EventLogAnalyzer analyzer(env, parsed_log, config);
+  webrtc::EventLogAnalyzer analyzer(parsed_log, config);
   analyzer.InitializeMapOfNamedGraphs(absl::GetFlag(FLAGS_show_detector_state),
                                       absl::GetFlag(FLAGS_show_alr_state),
                                       absl::GetFlag(FLAGS_show_link_capacity));

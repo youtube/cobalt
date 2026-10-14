@@ -1768,9 +1768,27 @@ class VIEWS_EXPORT View : public ui::LayerDelegate,
   // this function calls ScrollRectToVisible(GetLocalBounds()).
   void ScrollViewToVisible();
 
+  // Observer -----------------------------------------------------------------
+
   void AddObserver(ViewObserver* observer);
   void RemoveObserver(ViewObserver* observer);
   bool HasObserver(const ViewObserver* observer) const;
+
+  // Enables notifications on visible bounds changed for the provided view. Note
+  // that this has performance impacts, so use it sparingly.
+  class VIEWS_EXPORT ScopedNotifyObserversOnVisibleBoundsChanged {
+   public:
+    explicit ScopedNotifyObserversOnVisibleBoundsChanged(View& view);
+    ScopedNotifyObserversOnVisibleBoundsChanged(
+        const ScopedNotifyObserversOnVisibleBoundsChanged&) = delete;
+    ScopedNotifyObserversOnVisibleBoundsChanged& operator=(
+        const ScopedNotifyObserversOnVisibleBoundsChanged&) = delete;
+    ~ScopedNotifyObserversOnVisibleBoundsChanged();
+
+   private:
+    const raw_ref<View> view_;
+    std::optional<base::AutoReset<bool>> reset_;
+  };
 
   // Called when the accessible name of the View changed.
   virtual void OnAccessibleNameChanged(const std::u16string& new_name) {}
@@ -2411,9 +2429,14 @@ class VIEWS_EXPORT View : public ui::LayerDelegate,
 
   // Observers -----------------------------------------------------------------
 
+  // A ViewObserver handles an event that invokes other events, therefore is
+  // inherently reentrant.
   base::ObserverList<ViewObserver,
                      /*check_empty=*/false,
-                     /*allow_reentrancy=*/true>::Unchecked observers_;
+                     base::ObserverListReentrancyPolicy::kAllowReentrancy>::
+      Unchecked observers_;
+
+  bool notify_observers_on_visible_bounds_change_ = false;
 
   // Creation and lifetime -----------------------------------------------------
 

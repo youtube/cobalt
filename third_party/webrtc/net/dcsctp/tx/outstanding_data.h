@@ -327,6 +327,7 @@ class OutstandingData {
       UnwrappedTSN cumulative_tsn_ack,
       webrtc::ArrayView<const SackChunk::GapAckBlock> gap_ack_blocks,
       bool is_in_fast_recovery,
+      bool cumulative_tsn_acked_advanced,
       OutstandingData::AckInfo& ack_info);
 
   // Process the acknowledgement of the chunk referenced by `iter` and updates

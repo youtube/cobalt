@@ -450,6 +450,7 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
                                                                                \
   /* Microtask helpers */                                                      \
   TFS(EnqueueMicrotask, NeedsContext::kYes, kMicrotask)                        \
+  TFJ(GlobalQueueMicrotask, kJSArgcReceiverSlots + 1, kReceiver, kCallback)    \
   ASM(RunMicrotasksTrampoline, RunMicrotasksEntry)                             \
   TFC(RunMicrotasks, RunMicrotasks)                                            \
                                                                                \
@@ -1436,6 +1437,7 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   IF_WASM(ASM, WasmResume, JSTrampoline)                                       \
   IF_WASM(ASM, WasmFXResume, WasmFXResume)                                     \
   IF_WASM(ASM, WasmFXResumeThrow, WasmFXResumeThrow)                           \
+  IF_WASM(ASM, WasmFXResumeThrowRef, WasmFXResumeThrowRef)                     \
   IF_WASM(ASM, WasmFXSuspend, WasmFXSuspend)                                   \
   IF_WASM(ASM, WasmFXReturn, WasmFXReturn)                                     \
   IF_WASM(ASM, WasmReject, JSTrampoline)                                       \

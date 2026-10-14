@@ -44,9 +44,9 @@ void TestGatedRecurrentLayer(GatedRecurrentLayer& gru,
   for (int i = 0; i < input_sequence_length; ++i) {
     SCOPED_TRACE(i);
     gru.ComputeOutput(
-        input_sequence.subview(i * gru.input_size(), gru.input_size()));
+        input_sequence.subspan(i * gru.input_size(), gru.input_size()));
     const auto expected_output =
-        expected_output_sequence.subview(i * gru.size(), gru.size());
+        expected_output_sequence.subspan(i * gru.size(), gru.size());
     ExpectNearAbsolute(expected_output, gru, 3e-6f);
   }
 }
@@ -150,7 +150,7 @@ TEST_P(RnnGruParametrization, DISABLED_BenchmarkGatedRecurrentLayer) {
     perf_timer.StartTimer();
     for (int i = 0; i < input_sequence_length; ++i) {
       gru.ComputeOutput(
-          input_sequence.subview(i * gru.input_size(), gru.input_size()));
+          input_sequence.subspan(i * gru.input_size(), gru.input_size()));
     }
     perf_timer.StopTimer();
   }

@@ -855,13 +855,13 @@ void SocketTest::TcpInternal(const IPAddress& loopback,
   EXPECT_EQ(sender->GetRemoteAddress(), receiver->GetLocalAddress());
 
   // Create test data.
-  Buffer send_buffer(0, data_size);
-  Buffer recv_buffer(0, data_size);
+  Buffer send_buffer(Buffer::CreateWithCapacity(data_size));
+  Buffer recv_buffer(Buffer::CreateWithCapacity(data_size));
   for (size_t i = 0; i < data_size; ++i) {
     char ch = static_cast<char>(i % 256);
     send_buffer.AppendData(&ch, sizeof(ch));
   }
-  Buffer recved_data(0, data_size);
+  Buffer recved_data(Buffer::CreateWithCapacity(data_size));
 
   // Send and receive a bunch of data.
   size_t sent_size = 0;

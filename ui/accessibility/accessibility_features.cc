@@ -313,13 +313,6 @@ bool IsAccessibilityManifestV3EnabledForGoogleTts() {
       ::features::kAccessibilityManifestV3GoogleTts);
 }
 
-BASE_FEATURE(kAccessibilityManifestV3SwitchAccess,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-bool IsAccessibilityManifestV3EnabledForSwitchAccess() {
-  return base::FeatureList::IsEnabled(
-      ::features::kAccessibilityManifestV3SwitchAccess);
-}
-
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_ANDROID)
@@ -405,26 +398,18 @@ GetReadAnythingMenuShuffleExperimentGroup() {
   return kReadAnythingMenuShuffleExperimentParam.Get();
 }
 
-BASE_FEATURE(kReadAnythingReadAloud, base::FEATURE_ENABLED_BY_DEFAULT);
-
-bool IsReadAnythingReadAloudEnabled() {
-  return base::FeatureList::IsEnabled(::features::kReadAnythingReadAloud);
-}
-
 BASE_FEATURE(kReadAnythingReadAloudPhraseHighlighting,
              base::FEATURE_DISABLED_BY_DEFAULT);
 bool IsReadAnythingReadAloudPhraseHighlightingEnabled() {
-  return base::FeatureList::IsEnabled(::features::kReadAnythingReadAloud) &&
-         base::FeatureList::IsEnabled(
-             ::features::kReadAnythingReadAloudPhraseHighlighting);
+  return base::FeatureList::IsEnabled(
+      ::features::kReadAnythingReadAloudPhraseHighlighting);
 }
 
 BASE_FEATURE(kReadAnythingReadAloudTSTextSegmentation,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 bool IsReadAnythingReadAloudTSTextSegmentationEnabled() {
-  return base::FeatureList::IsEnabled(::features::kReadAnythingReadAloud) &&
-         base::FeatureList::IsEnabled(
-             ::features::kReadAnythingReadAloudTSTextSegmentation);
+  return base::FeatureList::IsEnabled(
+      ::features::kReadAnythingReadAloudTSTextSegmentation);
 }
 
 BASE_FEATURE(kReadAnythingOmniboxChip, base::FEATURE_DISABLED_BY_DEFAULT);
