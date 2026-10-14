@@ -14,6 +14,7 @@
 
 #include "cobalt/browser/cobalt_content_browser_client.h"
 
+#include <algorithm>
 #include <string>
 
 #include "base/base_switches.h"
@@ -202,6 +203,16 @@ static void JNI_CobaltContentBrowserClient_DispatchFocus(JNIEnv*) {
     return;
   }
   client->DispatchFocus();
+}
+
+static jboolean JNI_CobaltContentBrowserClient_IsFreezeOnBackgroundEnabled(
+    JNIEnv*) {
+  return base::FeatureList::IsEnabled(features::kCobaltFreezeOnBackground);
+}
+
+static jint JNI_CobaltContentBrowserClient_GetFreezeOnBackgroundDelayMs(
+    JNIEnv*) {
+  return std::max(0, features::kCobaltFreezeOnBackgroundDelayMs.Get());
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -461,10 +472,10 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
 
 #if BUILDFLAG(IS_ANDROID)
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          "max-http-cache-size")) {
+          switches::kMaxHttpCacheSize)) {
     std::string size_str =
         base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
-            "max-http-cache-size");
+            switches::kMaxHttpCacheSize);
     int parsed_size = 0;
     if (base::StringToInt(size_str, &parsed_size)) {
       network_context_params->http_cache_max_size = parsed_size;
