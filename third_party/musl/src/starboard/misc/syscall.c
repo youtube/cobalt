@@ -77,6 +77,15 @@ long syscall(long number, ...) {
       return libc_wrapper_SYS_fcntl(fd, op, arg);
     }
 #endif
+#ifdef __NR_getrandom
+    case __NR_getrandom: {
+      void* buf = va_arg(ap, void*);
+      size_t buflen = va_arg(ap, size_t);
+      unsigned int flags = va_arg(ap, unsigned int);
+      va_end(ap);
+      return libc_wrapper_SYS_getrandom(buf, buflen, flags);
+    }
+#endif
 #ifdef __NR_gettid
     case __NR_gettid:
       va_end(ap);
