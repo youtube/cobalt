@@ -388,18 +388,21 @@ class BaseResolver(abc.ABC):
             "build.", self.name, state.stuck_count, rel_file or error_summary)
         return False
 
-      use_expert = (
+      # Stuck (same error repeating, or a file failing again and again): the
+      # expert model writes the patch instead of the workhorse. Separately,
+      # the expert always gives pre-flight guidance below, every iteration.
+      call_expert_resolve_stuck = (
           state.stuck_count >= 2 or
           self.file_error_counts.get(diag.file_path, 0) >= 3)
       expert_guidance = ""
       if self.reasoning_engine is not None:
         expert_guidance = self._expert_preflight(
-            diagnostics, output + "\n" + (siso_out or ""), use_expert,
-            state.stuck_count)
+            diagnostics, output + "\n" + (siso_out or ""),
+            call_expert_resolve_stuck, state.stuck_count)
 
       patch, model_used, rel_target = self.resolve_diagnostic(
           diagnostic=diag,
-          use_expert=use_expert,
+          use_expert=call_expert_resolve_stuck,
           expert_guidance=expert_guidance,
       )
       if extract_tool_commands(patch):
@@ -578,17 +581,18 @@ class BaseResolver(abc.ABC):
         f"{start + i}: {l}" for i, l in enumerate(lines[start - 1:end]))
 
   def _expert_preflight(self, diagnostics: List[Diagnostic],
-                        command_output: str, use_expert: bool,
+                        command_output: str, stuck: bool,
                         stuck_count: int) -> str:
     """Tier-2 review: asks the expert model for a plan before patching.
 
-    The expert may run up to two rounds of investigation tools first.
-    Returns the guidance text ("" on failure).
+    Runs on every iteration: on a first attempt it is a pre-flight plan for
+    the workhorse; when `stuck` it asks the expert to diagnose why earlier
+    fixes did not work. The expert may run up to two rounds of
+    investigation tools first. Returns the guidance text ("" on failure).
     """
     diag = diagnostics[0]
     action_label = (f"Consulting Expert Agent (repetition: {stuck_count})"
-                    if use_expert else
-                    "Performing Pre-Flight architectural review")
+                    if stuck else "Performing Pre-Flight architectural review")
     log.info("  [%s] [TIER-2 ARCHITECT] %s for %s...", self.name, action_label,
              diag.file_path or self.name)
     working_diff = self.get_working_diff(max_chars=200000)

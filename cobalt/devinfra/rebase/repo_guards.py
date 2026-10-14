@@ -41,10 +41,10 @@ def is_within_repo(path: str, repo_path: str) -> bool:
   """
   if not path:
     return False
-  repo_abs = os.path.realpath(repo_path)
-  path_abs = os.path.realpath(path)
+  repo_real = os.path.realpath(repo_path)
+  path_real = os.path.realpath(path)
   try:
-    return os.path.commonpath([repo_abs, path_abs]) == repo_abs
+    return os.path.commonpath([repo_real, path_real]) == repo_real
   except ValueError:  # e.g. different drives on Windows
     return False
 
