@@ -14,6 +14,9 @@ inputs:
   use_gcloud:
     description: "Whether to run gcloud config set account."
     default: 'false'
+  platform:
+    description: "The platform for which to publish the golden snapshot."
+    default: ''
 
 runs:
   using: "composite"
@@ -125,10 +128,12 @@ runs:
       if: inputs.run_sync == 'true'
       shell: bash
       working-directory: cobalt
+      env:
+        PLATFORM: ${{ inputs.platform || matrix.platform }}
       run: |
         set -euo pipefail
         deps_match=false
-        LOWER_DIR="${OVERLAY_LOWER_DIR:-/runner-cache/golden-workspace}"
+        LOWER_DIR="/runner-cache/golden-workspace/${PLATFORM}"
 
         if cmp -s "${LOWER_DIR}/src/DEPS" src/DEPS && cmp -s "${LOWER_DIR}/.gclient" .gclient; then
           echo "Golden workspace DEPS and .gclient match. Skipping gclient sync."
@@ -171,6 +176,42 @@ runs:
           --force \
           --delete_unversioned_trees \
           --revision "${REF}"
+
+    - name: Publish Golden Workspace Snapshot
+      # Publish only when a sync actually happened (DEPS or .gclient changed, or
+      # no usable snapshot existed), and only from one config per platform: the
+      # snapshot is taken before the build, so its content is config-independent.
+      id: publish-snapshot
+      if: inputs.run_sync == 'true' && steps.check-deps.outputs.deps_match != 'true' && matrix.config == 'devel' && github.event_name == 'push' && (github.repository == 'youtube/cobalt' || github.repository == 'youtube/cobalt_sandbox')
+      shell: bash
+      working-directory: cobalt
+      env:
+        PLATFORM: ${{ inputs.platform || matrix.platform }}
+      run: |
+        BUCKET="$(gcloud config get-value project)-test-artifacts/golden-workspace"
+        ARCHIVE="/runner-cache/golden-${PLATFORM}.${$}.tar.zst"
+        TARGET_URI="gs://${BUCKET}/${PLATFORM}"
+        trap 'rm -f "${ARCHIVE}"' EXIT
+
+        DIGEST=$(tar --sort=name --mtime='1970-01-01 00:00:00Z' --owner=0 --group=0 --numeric-owner \
+          -cf - src depot_tools .gclient | zstd -T0 -3 -q | tee "${ARCHIVE}" | sha256sum | awk '{print $1}')
+
+        SNAPSHOT_GCS="${TARGET_URI}/${DIGEST}.tar.zst"
+        if ! gcloud storage ls "${SNAPSHOT_GCS}" >/dev/null 2>&1; then
+          gcloud storage cp --no-clobber "${ARCHIVE}" "${SNAPSHOT_GCS}"
+        fi
+
+        mkdir -p "${RUNNER_TEMP}/golden" && echo "${DIGEST}" > "${RUNNER_TEMP}/golden/${PLATFORM}"
+        echo "published=true" >> "${GITHUB_OUTPUT}"
+
+    - name: Upload Golden Workspace Metadata
+      if: steps.publish-snapshot.outputs.published == 'true'
+      uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+      with:
+        name: golden-digest-${{ inputs.platform || matrix.platform }}
+        path: ${{ runner.temp }}/golden/${{ inputs.platform || matrix.platform }}
+        retention-days: 1
+        overwrite: true
 
     - name: Run gclient runhooks
       if: inputs.run_sync == 'true'
