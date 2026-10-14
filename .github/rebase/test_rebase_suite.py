@@ -2555,6 +2555,19 @@ class ExecScriptGuardTest(unittest.TestCase):
              '+x = exec_script("b.py", [], "value")\n deps = []\n')
     self.assertIn("exec_script()", self._rejections(patch)[0])
 
+  def test_rejects_change_inside_multiline_call(self):
+    with open(os.path.join(self.repo, "BUILD.gn"), "w", encoding="utf-8") as f:
+      f.write('x = exec_script("a.py",\n'
+              '                [ "--safe" ],\n'
+              '                "value")  # uses ")" in a comment\n'
+              "deps = []\n")
+    patch = ('FILE: BUILD.gn\n<<<<<<< SEARCH\n                [ "--safe" ],\n'
+             '=======\n                [ "--evil" ],\n>>>>>>> REPLACE\n')
+    self.assertIn("exec_script()", self._rejections(patch)[0])
+    patch = ("FILE: BUILD.gn\n<<<<<<< SEARCH\ndeps = []\n=======\n"
+             'deps = [ ":b" ]\n>>>>>>> REPLACE\n')
+    self.assertEqual(self._rejections(patch), [])
+
 
 class ResolverInitTest(unittest.TestCase):
   """Resolver constructors reject unknown keyword arguments."""
@@ -2675,6 +2688,19 @@ class SearchReplaceMatchLevelsTest(unittest.TestCase):
         self._run("a\n  b\n    last", "b\nlast", "B\nLAST"),
         (True, "a\nB\nLAST"))
 
+  def test_fuzzy_match_spans_blank_lines(self):
+    self.assertEqual(
+        self._run("  a();\n\n  b();\nc();\n", "a();\n\nb();\n", "x();\n"),
+        (True, "x();\nc();\n"))
+
+  def test_numbered_code_in_unnumbered_block_is_kept(self):
+    content = "  99: \"OK\",\n  100: \"Continue\",\n};\n"
+    self.assertEqual(
+        self._run(content, "  100: \"Continue\",\n};",
+                  "  100: \"Continue\",\n  101: \"Switching\",\n};"),
+        (True, "  99: \"OK\",\n  100: \"Continue\",\n"
+         "  101: \"Switching\",\n};\n"))
+
 
 class ParsePatchTest(unittest.TestCase):
   """parse_patch result is shared by apply and the change record."""
@@ -2702,12 +2728,36 @@ class ParsePatchTest(unittest.TestCase):
     self.assertEqual(list(changes), [os.path.join("base", "a.cc")])
     self.assertEqual(changes[os.path.join("base", "a.cc")].count("SEARCH"), 2)
 
-  def test_delete_blocks_take_precedence(self):
+  def test_delete_and_search_blocks_both_apply_in_order(self):
     patch = ("FILE: base/a.cc\n<<<<<<< DELETE\nint b = 2;\n>>>>>>> DELETE\n"
-             "FILE: base/a.cc\n<<<<<<< SEARCH\nint a = 1;\n=======\n"
+             "<<<<<<< SEARCH\nint a = 1;\n=======\n"
              "int a = 3;\n>>>>>>> REPLACE")
     parsed = parse_patch(patch, self.repo)
-    self.assertEqual([b.kind for b in parsed.blocks], ["DELETE"])
+    # The SEARCH block has no FILE header and reuses the previous one.
+    self.assertEqual([(b.kind, b.target_file) for b in parsed.blocks],
+                     [("DELETE", self.a), ("SEARCH", self.a)])
+    self.assertEqual(apply_parsed_patch(parsed, self.repo), [self.a])
+    with open(self.a, encoding="utf-8") as f:
+      self.assertEqual(f.read(), "int a = 3;\n\n")
+
+  def test_unified_diff_keeps_paths_starting_with_a_or_b(self):
+    os.makedirs(os.path.join(self.repo, "build"))
+    path = os.path.join(self.repo, "build", "b.gn")
+    with open(path, "w", encoding="utf-8") as f:
+      f.write("x = 1\n")
+    for header in ("--- build/b.gn\n+++ build/b.gn\n",
+                   "--- a/build/b.gn\n+++ b/build/b.gn\n"):
+      with open(path, "w", encoding="utf-8") as f:
+        f.write("x = 1\n")
+      diff = header + "@@ -1 +1 @@\n-x = 1\n+x = 2\n"
+      self.assertEqual(_apply(diff, self.repo), [path], header)
+      with open(path, encoding="utf-8") as f:
+        self.assertEqual(f.read(), "x = 2\n")
+
+  def test_unified_diff_skips_dev_null_header(self):
+    diff = ("--- /dev/null\n+++ b/base/a.cc\n@@ -1 +1 @@\n"
+            "-int a = 1;\n+int a = 7;\n")
+    self.assertEqual(_apply(diff, self.repo), [self.a])
 
   def test_default_file_used_when_header_missing(self):
     patch = "<<<<<<< SEARCH\nint a = 1;\n=======\nint a = 5;\n>>>>>>> REPLACE"

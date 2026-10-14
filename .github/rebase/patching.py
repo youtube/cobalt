@@ -34,6 +34,8 @@ def _find_search_span(content: str, search: str,
     3. window of whole lines equal after stripping each line;
     4. window of whole lines equal after collapsing whitespace and dropping
        line-number prefixes (for re-indented or numbered model output).
+  Levels 3 and 4 ignore blank lines at the start and end of `search` but
+  keep blank lines inside it, which must match blank lines in the file.
   Fuzzy levels never match a fragment in the middle of a line, so they
   cannot rewrite text the model did not quote.
   """
@@ -53,7 +55,11 @@ def _find_search_span(content: str, search: str,
     offsets.append(offsets[-1] + len(line))
   replacement = "".join(l + "\n" for l in replace.splitlines())
   for key in (str.strip, _collapse_whitespace):
-    wanted = [key(l) for l in search.splitlines() if key(l)]
+    wanted = [key(l) for l in search.splitlines()]
+    while wanted and not wanted[0]:
+      wanted.pop(0)
+    while wanted and not wanted[-1]:
+      wanted.pop()
     if not wanted:
       continue
     keys = [key(l) for l in lines]
@@ -68,106 +74,99 @@ def _find_search_span(content: str, search: str,
   return None
 
 
+def _has_line_numbers(text: str) -> bool:
+  """True if every non-empty line starts with a "<digits>:" prefix."""
+  lines = [l for l in text.splitlines() if l.strip()]
+  return bool(lines) and all(_LINE_NUMBER_RE.match(l) for l in lines)
+
+
+def _block_result(content: str, search: str, replace: str) -> Optional[str]:
+  """Content after replacing `search` with `replace`; None if not found.
+
+  Rogue conflict marker lines are dropped from `replace`: models sometimes
+  echo git 3-way merge syntax into flat files, which would break GN and
+  compiler parsing. Line-number prefixes are stripped only when the whole
+  SEARCH block is numbered (copied from numbered file context), so code
+  such as `100: "Continue",` is never rewritten.
+  """
+  replace_lines = [
+      l for l in replace.splitlines()
+      if not l.startswith(_CONFLICT_MARKER_PREFIXES)
+  ]
+  if _has_line_numbers(search):
+    search = "\n".join(_LINE_NUMBER_RE.sub("", l) for l in search.splitlines())
+    replace_lines = [_LINE_NUMBER_RE.sub("", l) for l in replace_lines]
+  span = _find_search_span(content, search, "\n".join(replace_lines))
+  if span is None:
+    return None
+  start, end, replacement = span
+  return content[:start] + replacement + content[end:]
+
+
+def _read_text(path: str) -> str:
+  with open(path, encoding="utf-8", errors="replace") as f:
+    return f.read()
+
+
+def _write_text(path: str, content: str) -> None:
+  with open(path, "w", encoding="utf-8", newline="") as f:
+    f.write(content)
+
+
 def apply_search_replace(file_path: str, search_block: str,
                          replace_block: str) -> bool:
-  """Applies a SEARCH/REPLACE block edit to a file.
-
-  Note on Sanitization:
-    LLMs occasionally hallucinate git 3-way merge conflict syntax (`=======`,
-    `<<<<<<<`, `>>>>>>>`) inside replacement blocks when operating on flat
-    configuration files. We strip any accidental marker lines to prevent
-    polluting the codebase with orphan markers that break GN/compiler parsing.
-  """
+  """Applies one SEARCH/REPLACE edit to a file; False if it does not match."""
   if not os.path.isfile(file_path):
     return False
-
-  # Drop rogue conflict markers and pasted line numbers if prepended.
-  clean_replace = "\n".join(
-      _LINE_NUMBER_RE.sub("", l)
-      for l in replace_block.splitlines()
-      if not l.startswith(_CONFLICT_MARKER_PREFIXES))
-  search = "\n".join(
-      _LINE_NUMBER_RE.sub("", l) for l in search_block.splitlines())
-
-  with open(file_path, "r", encoding="utf-8", errors="replace") as f:
-    content = f.read().replace("\r\n", "\n")
-
-  span = _find_search_span(content, search, clean_replace)
-  if span is None:
-    return False
-  start, end, replacement = span
-  with open(file_path, "w", encoding="utf-8") as f:
-    f.write(content[:start] + replacement + content[end:])
-  return True
+  if new := _block_result(_read_text(file_path), search_block, replace_block):
+    _write_text(file_path, new)
+    return True
+  return False
 
 
 def _unified_diff_target(diff_text: str) -> str:
-  """Repo-relative file named by the first ---/+++ header ("" if none)."""
-  file_match = re.search(
-      r"^(?:---|\+\+\+)\s+[ab]?/?([a-zA-Z0-9_/\.\-\+]+)",
-      diff_text,
-      re.MULTILINE,
-  )
-  return file_match.group(1).strip() if file_match else ""
+  """Repo-relative file named by the first ---/+++ header ("" if none).
+
+  Skips /dev/null (the old side of a new file) and strips only a whole
+  "a/" or "b/" prefix, so paths such as base/logging.cc stay intact.
+  """
+  for m in re.finditer(r"^(?:---|\+\+\+)\s+(\S+)", diff_text, re.MULTILINE):
+    if m.group(1) != "/dev/null":
+      return re.sub(r"^[ab]/", "", m.group(1))
+  return ""
 
 
-def _apply_unified_diff(diff_text: str, repo_path: str) -> List[str]:
-  """Applies a unified diff patch to source files, returning modified paths."""
-  rel_file = _unified_diff_target(diff_text)
-  if not rel_file:
-    return []
-  file_path = resolve_repo_file_path(rel_file, repo_path)
+_HUNK_RE = re.compile(r"^@@\s+-(\d+)(?:,(\d+))?\s+\+(\d+)(?:,(\d+))?\s+@@")
 
-  if not os.path.isfile(file_path):
-    return []
 
-  with open(file_path, "r", encoding="utf-8") as f:
-    orig_lines = f.readlines()
-
-  hunk_pattern = re.compile(
-      r"^@@\s+-(\d+)(?:,(\d+))?\s+\+(\d+)(?:,(\d+))?\s+@@")
+def _unified_diff_result(diff_text: str, content: str) -> Optional[str]:
+  """Content after applying the diff's hunks; None if any hunk misfits."""
   lines = diff_text.splitlines()
-  new_lines = list(orig_lines)
+  new_lines = content.splitlines(keepends=True)
   offset = 0
-
-  try:
-    i = 0
-    while i < len(lines):
+  hunks = 0
+  i = 0
+  while i < len(lines):
+    hm = _HUNK_RE.match(lines[i])
+    i += 1
+    if not hm:
+      continue
+    src: List[str] = []
+    dst: List[str] = []
+    while i < len(lines) and not lines[i].startswith("@@"):
       line = lines[i]
-      hm = hunk_pattern.match(line)
-      if hm:
-        orig_start = int(hm.group(1)) - 1
-        i += 1
-        hunk_src = []
-        hunk_dst = []
-        while i < len(lines) and not lines[i].startswith("@@"):
-          h_line = lines[i]
-          if h_line.startswith("-"):
-            hunk_src.append(h_line[1:] + "\n")
-          elif h_line.startswith("+"):
-            hunk_dst.append(h_line[1:] + "\n")
-          elif h_line.startswith(" "):
-            hunk_src.append(h_line[1:] + "\n")
-            hunk_dst.append(h_line[1:] + "\n")
-          i += 1
-
-        pos = orig_start + offset
-        if 0 <= pos <= len(new_lines):
-          current_slice = new_lines[pos:pos + len(hunk_src)]
-          if current_slice != hunk_src:
-            return []
-          new_lines[pos:pos + len(hunk_src)] = hunk_dst
-          offset += len(hunk_dst) - len(hunk_src)
-        else:
-          return []
-      else:
-        i += 1
-
-    with open(file_path, "w", encoding="utf-8") as f:
-      f.writelines(new_lines)
-    return [file_path]
-  except (OSError, ValueError, IndexError):
-    return []
+      if line.startswith(("-", " ")):
+        src.append(line[1:] + "\n")
+      if line.startswith(("+", " ")):
+        dst.append(line[1:] + "\n")
+      i += 1
+    pos = int(hm.group(1)) - 1 + offset
+    if not 0 <= pos <= len(new_lines) or new_lines[pos:pos + len(src)] != src:
+      return None
+    new_lines[pos:pos + len(src)] = dst
+    offset += len(dst) - len(src)
+    hunks += 1
+  return "".join(new_lines) if hunks else None
 
 
 # Matches optional file directive headers produced by LLMs
@@ -227,54 +226,108 @@ class ParsedPatch:
 def parse_patch(patch_text: str,
                 repo_path: str,
                 default_file: Optional[str] = None) -> ParsedPatch:
-  """Parses DELETE or SEARCH/REPLACE blocks (DELETE wins if both appear)."""
+  """Parses DELETE and SEARCH/REPLACE blocks in the order they appear.
+
+  A block without a FILE header edits the previous block's file, or
+  default_file for the first block.
+  """
   text = patch_text.strip()
   text = re.sub(r"^```[a-zA-Z0-9_-]*\n", "", text)
   text = re.sub(r"\n```$", "", text)
 
-  def block(kind: str,
-            rel_file: str,
-            search: str,
-            replace: str = "") -> Optional[PatchBlock]:
-    rel = rel_file.strip() or default_file or ""
+  matches = sorted([(m.start(), "DELETE", m.group(1), m.group(2), "")
+                    for m in _DELETE_BLOCK_RE.finditer(text)] +
+                   [(m.start(), "SEARCH", m.group(1), m.group(2), m.group(3))
+                    for m in _SEARCH_REPLACE_BLOCK_RE.finditer(text)])
+  blocks: List[PatchBlock] = []
+  rel = default_file or ""
+  for _, kind, header, search, replace in matches:
+    rel = (header or "").strip() or rel
     if not rel:
-      return None
+      continue
     # Strip a trailing ``` that leaked into the REPLACE section.
     replace = re.sub(r"\n```\s*$", "", replace)
-    return PatchBlock(kind, rel, resolve_repo_file_path(rel, repo_path), search,
-                      replace)
-
-  blocks: List[PatchBlock] = []
-  if "<<<<<<< DELETE" in text and ">>>>>>> DELETE" in text:
-    blocks = [
-        b for rel, search in _DELETE_BLOCK_RE.findall(text)
-        if (b := block("DELETE", rel, search))
-    ]
-  if not blocks and "<<<<<<< SEARCH" in text and "=======" in text:
-    blocks = [
-        b for rel, search, replace in _SEARCH_REPLACE_BLOCK_RE.findall(text)
-        if (b := block("SEARCH", rel, search, replace))
-    ]
+    blocks.append(
+        PatchBlock(kind, rel, resolve_repo_file_path(rel, repo_path), search,
+                   replace))
   return ParsedPatch(text, blocks)
 
 
 _EXEC_SCRIPT_RE = re.compile(r"\bexec_script\s*\(")
 
 
-def _exec_script_lines(lines: List[str]) -> List[str]:
-  return sorted(l.strip() for l in lines if _EXEC_SCRIPT_RE.search(l))
+def _blank_gn_comments(content: str) -> str:
+  """GN source with # comments replaced by spaces (offsets unchanged)."""
+  out = list(content)
+  in_string = False
+  i = 0
+  while i < len(content):
+    c = content[i]
+    if in_string:
+      if c == "\\":
+        i += 1
+      elif c == '"':
+        in_string = False
+    elif c == '"':
+      in_string = True
+    elif c == "#":
+      while i < len(content) and content[i] != "\n":
+        out[i] = " "
+        i += 1
+      continue
+    i += 1
+  return "".join(out)
 
 
-def _exec_script_rejection(rel_file: str, removed: List[str],
-                           added: List[str]) -> str:
+def exec_script_spans(content: str) -> List[Tuple[int, int]]:
+  """(start, end) offsets of every exec_script(...) call in GN source.
+
+  A call runs from "exec_script(" to its matching ")", so a call written
+  over several lines is one span. Comments and parentheses inside string
+  literals are ignored; an unclosed call extends to the end of the file.
+  """
+  code = _blank_gn_comments(content)
+  spans = []
+  for m in _EXEC_SCRIPT_RE.finditer(code):
+    depth = 0
+    in_string = False
+    i = m.end() - 1
+    while i < len(code):
+      c = code[i]
+      if in_string:
+        if c == "\\":
+          i += 1
+        elif c == '"':
+          in_string = False
+      elif c == '"':
+        in_string = True
+      elif c == "(":
+        depth += 1
+      elif c == ")":
+        depth -= 1
+        if depth == 0:
+          break
+      i += 1
+    spans.append((m.start(), min(i + 1, len(code))))
+  return spans
+
+
+def exec_script_calls(content: str) -> List[str]:
+  """Whitespace-normalized text of every exec_script() call, sorted."""
+  code = _blank_gn_comments(content)
+  return sorted(
+      " ".join(code[a:b].split()) for a, b in exec_script_spans(content))
+
+
+def _exec_script_rejection(rel_file: str, old: str, new: str) -> str:
   """Rejects GN edits that add, change or remove exec_script() calls.
 
   gn gen runs exec_script() commands, so a model-written call would run
-  arbitrary code on the runner. Unchanged context lines are allowed.
+  arbitrary code on the runner. Edits elsewhere in the file are allowed.
   """
   if not rel_file.endswith((".gn", ".gni")):
     return ""
-  if _exec_script_lines(removed) == _exec_script_lines(added):
+  if exec_script_calls(old) == exec_script_calls(new):
     return ""
   return (f"patch for {rel_file} adds, changes or removes an exec_script() "
           "call, which gn gen would run; fix the build without touching "
@@ -283,10 +336,6 @@ def _exec_script_rejection(rel_file: str, removed: List[str],
 
 def _block_rejection(b: PatchBlock, repo_path: str) -> str:
   """Why this block must not be applied ("" if it may be)."""
-  reason = _exec_script_rejection(b.rel_file, b.search.splitlines(),
-                                  b.replace.splitlines())
-  if reason:
-    return reason
   if b.kind == "SEARCH":
     if not b.replace.strip() and len(b.search.splitlines()) > 80:
       return (f"bulk empty REPLACE block ({len(b.search.splitlines())} "
@@ -297,62 +346,73 @@ def _block_rejection(b: PatchBlock, repo_path: str) -> str:
   return patch_target_rejection(b.target_file, b.rel_file, repo_path)
 
 
-def patch_rejections(parsed: ParsedPatch, repo_path: str) -> List[str]:
-  """Distinct guard rejection reasons for a parsed patch (empty if allowed).
+def _planned_contents(parsed: ParsedPatch,
+                      repo_path: str) -> Optional[Dict[str, Tuple[str, str]]]:
+  """{absolute path: (old, new content)} that the patch would produce.
 
-  Covers both formats: each block, or the target file of a unified diff.
+  Computed in memory, without writing, so guards can inspect the result and
+  apply can write every file or none. None if any edit does not apply.
   """
   if not parsed.blocks:
     rel_file = _unified_diff_target(parsed.text)
-    if not rel_file:
-      return []
-    lines = parsed.text.splitlines()
-    reason = _exec_script_rejection(
-        rel_file,
-        [l[1:] for l in lines if l.startswith("-") and not l.startswith("---")],
-        [l[1:] for l in lines if l.startswith("+") and not l.startswith("+++")],
-    ) or patch_target_rejection(
-        resolve_repo_file_path(rel_file, repo_path), rel_file, repo_path)
-    return [reason] if reason else []
-  reasons = (_block_rejection(b, repo_path) for b in parsed.blocks)
-  return list(dict.fromkeys(r for r in reasons if r))
+    path = resolve_repo_file_path(rel_file, repo_path) if rel_file else ""
+    if not os.path.isfile(path):
+      return None
+    old = _read_text(path)
+    new = _unified_diff_result(parsed.text, old)
+    return None if new is None else {path: (old, new)}
+  plan: Dict[str, Tuple[str, str]] = {}
+  for b in parsed.blocks:
+    if not os.path.isfile(b.target_file):
+      return None
+    if b.target_file in plan:
+      old, current = plan[b.target_file]
+    else:
+      old = current = _read_text(b.target_file)
+    new = _block_result(current, b.search, b.replace)
+    if new is None:
+      return None
+    plan[b.target_file] = (old, new)
+  return plan
 
 
-def _apply_blocks_atomically(blocks: List[PatchBlock]) -> List[str]:
-  """Applies blocks all-or-nothing.
+def patch_rejections(parsed: ParsedPatch, repo_path: str) -> List[str]:
+  """Distinct guard rejection reasons for a parsed patch (empty if allowed).
 
-  Blocks are applied in order (so several blocks may edit the same file).
-  If any block fails to match, every touched file is restored to its exact
-  original bytes and [] is returned, so a half-applied patch never leaves
-  the working tree in a state the resolution loop does not know about.
+  Checks each block (or the target of a unified diff), then the
+  exec_script() calls of every GN file the patch would change.
   """
-  originals: Dict[str, bytes] = {}
-  modified_files: List[str] = []
-  for b in blocks:
-    if b.target_file not in originals and os.path.isfile(b.target_file):
-      with open(b.target_file, "rb") as f:
-        originals[b.target_file] = f.read()
-    if not apply_search_replace(b.target_file, b.search, b.replace):
-      for path, data in originals.items():
-        with open(path, "wb") as f:
-          f.write(data)
-      return []
-    if b.target_file not in modified_files:
-      modified_files.append(b.target_file)
-  return modified_files
+  if parsed.blocks:
+    reasons = [_block_rejection(b, repo_path) for b in parsed.blocks]
+  else:
+    rel_file = _unified_diff_target(parsed.text)
+    reasons = [
+        patch_target_rejection(
+            resolve_repo_file_path(rel_file, repo_path), rel_file, repo_path)
+    ] if rel_file else []
+  if not any(reasons):
+    plan = _planned_contents(parsed, repo_path) or {}
+    reasons = [
+        _exec_script_rejection(os.path.relpath(path, repo_path), old, new)
+        for path, (old, new) in plan.items()
+    ]
+  return list(dict.fromkeys(r for r in reasons if r))
 
 
 def apply_parsed_patch(parsed: ParsedPatch, repo_path: str) -> List[str]:
   """Applies a parsed patch; returns the modified absolute paths.
 
-  DELETE and SEARCH/REPLACE blocks are applied atomically: every block is
-  validated first and either all of them apply or no file is changed.
+  Every edit is computed in memory first, so either all files are written
+  or none is (for example when one SEARCH block does not match).
   """
   if patch_rejections(parsed, repo_path):
     return []
-  if not parsed.blocks:
-    return _apply_unified_diff(parsed.text, repo_path)
-  return _apply_blocks_atomically(parsed.blocks)
+  plan = _planned_contents(parsed, repo_path)
+  if not plan:
+    return []
+  for path, (_, new) in plan.items():
+    _write_text(path, new)
+  return list(plan)
 
 
 def patch_file_changes(parsed: ParsedPatch,
