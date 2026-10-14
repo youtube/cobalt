@@ -73,6 +73,17 @@ jobs:
           # Fetch enough history for source branch.
           git fetch --depth="${FETCH_DEPTH}" --no-recurse-submodules origin "${SOURCE_BRANCH}:${SOURCE_BRANCH}"
 
+          # Label mode keeps one conflict branch per conflicting PR. Mirror
+          # them as local branches so the script can reconcile them.
+          git fetch --depth="${FETCH_DEPTH}" --no-recurse-submodules origin \
+            "+refs/heads/autoroll-conflict-${SOURCE_BRANCH}-to-${TARGET_BRANCH}-*:refs/heads/autoroll-conflict-${SOURCE_BRANCH}-to-${TARGET_BRANCH}-*"
+
+      - name: Read Autoroll Config
+        id: config
+        run: |
+          MAX_CONFLICT_PRS=$(git show main:.github/config/infra/autoroll.json | jq -r '.max_conflict_prs | tonumber? // 3')
+          echo "max_conflict_prs=${MAX_CONFLICT_PRS}" >> "${GITHUB_OUTPUT}"
+
       - name: Get Existing PR Info
         id: pr_info
         env:
@@ -104,11 +115,13 @@ jobs:
           AUTOROLL_FILE: ${{ matrix.branch.autoroll }}
           ROLL_MODE: ${{ matrix.branch.mode || 'full' }}
           FIRST_SHA: ${{ steps.pr_info.outputs.first_sha }}
+          MAX_CONFLICT_PRS: ${{ steps.config.outputs.max_conflict_prs }}
           GITHUB_TOKEN: ${{ secrets.CHERRY_PICK_TOKEN }}
           GH_TOKEN: ${{ secrets.CHERRY_PICK_TOKEN }}
         run: |
           set -x
 
+          MANIFEST="${RUNNER_TEMP}/autoroll_manifest.json"
           ARGS=(
             --source-branch "${SOURCE_BRANCH}"
             --target-branch "${TARGET_BRANCH}"
@@ -116,6 +129,8 @@ jobs:
             --max-commits "${MAX_COMMITS}"
             --existing-pr-sha "${FIRST_SHA}"
             --mode "${ROLL_MODE}"
+            --max-conflict-prs "${MAX_CONFLICT_PRS}"
+            --manifest "${MANIFEST}"
           )
 
           if [[ "${ROLL_MODE}" == "label" ]]; then
@@ -124,6 +139,9 @@ jobs:
 
           # Run the Python script to perform cherry-picks and get all PR links.
           PR_LINKS=$(python3 "${RUNNER_TEMP}/autoroll.py" "${ARGS[@]}")
+
+          echo "manifest=${MANIFEST}" >> "${GITHUB_OUTPUT}"
+          cat "${MANIFEST}"
 
           if [[ -n "${PR_LINKS}" ]]; then
             echo "cherry_picked=true" >> "${GITHUB_OUTPUT}"
@@ -143,6 +161,7 @@ jobs:
           TARGET_BRANCH: ${{ matrix.branch.target }}
           GITHUB_TOKEN: ${{ secrets.CHERRY_PICK_TOKEN }}
           PR_LINKS: ${{ steps.autoroll.outputs.pr_links }}
+          MANIFEST: ${{ steps.autoroll.outputs.manifest }}
           AUTOROLL_FILE: ${{ matrix.branch.autoroll }}
         run: |
           set -x
@@ -205,6 +224,21 @@ jobs:
               echo "  --source-branch ${SOURCE_BRANCH} \\"
               echo "  --target-branch ${TARGET_BRANCH}"
               echo '```'
+
+              # Label mode: conflicting cherry-picks live on their own
+              # autoroll-conflict-* branches/PRs; list them for visibility.
+              CONFLICTING=$(jq -r '.conflicts[]? | "- #\(.pr)"' "${MANIFEST}")
+              PENDING=$(jq -r '.pending[]? | "- #\(.pr): \(.reason)"' "${MANIFEST}")
+              if [[ -n "${CONFLICTING}" ]]; then
+                echo ""
+                echo "Conflicting pull requests (rolled in separate autoroll-conflict PRs):"
+                echo "${CONFLICTING}"
+              fi
+              if [[ -n "${PENDING}" ]]; then
+                echo ""
+                echo "Pending conflicting pull requests:"
+                echo "${PENDING}"
+              fi
             } > "${PR_BODY_FILE}"
           fi
 
@@ -227,3 +261,101 @@ jobs:
           if [[ -n "${PR_COMMENT_FILE}" ]]; then
             gh pr comment "autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}" --body-file "${PR_COMMENT_FILE}"
           fi
+
+      - name: Delete Emptied Autoroll Branch
+        # Label mode: every rolled PR lost its label (or landed otherwise) and
+        # the rebuilt branch is empty. Deleting the branch closes its PR.
+        if: steps.autoroll.outputs.pr_links == '' && steps.autoroll.outputs.manifest != ''
+        env:
+          MANIFEST: ${{ steps.autoroll.outputs.manifest }}
+        run: |
+          set -x
+
+          BRANCH=$(jq -r 'select(.clean.rebuilt == true and (.clean.items | length) == 0) | .clean.branch // empty' "${MANIFEST}")
+          if [[ -n "${BRANCH}" ]]; then
+            git push origin --delete "${BRANCH}" || echo "::warning::Could not delete ${BRANCH}"
+          fi
+
+      - name: Reconcile Conflict Branches
+        if: matrix.branch.mode == 'label' && steps.autoroll.outputs.manifest != ''
+        env:
+          SOURCE_BRANCH: ${{ matrix.branch.source }}
+          TARGET_BRANCH: ${{ matrix.branch.target }}
+          GITHUB_TOKEN: ${{ secrets.CHERRY_PICK_TOKEN }}
+          GH_TOKEN: ${{ secrets.CHERRY_PICK_TOKEN }}
+          MANIFEST: ${{ steps.autoroll.outputs.manifest }}
+        run: |
+          set -x
+
+          BUG=$(jq -r --arg branch "${TARGET_BRANCH}" '.[$branch] // empty' <<< "${TARGET_BUGS}")
+
+          PR_BODY_FILE=$(mktemp)
+          PR_COMMENT_FILE=$(mktemp)
+
+          while IFS= read -r CONFLICT; do
+            [[ -z "${CONFLICT}" ]] && continue
+            BRANCH=$(jq -r '.branch' <<< "${CONFLICT}")
+            CHANGED=$(jq -r '.changed' <<< "${CONFLICT}")
+            OLD_SHA=$(jq -r '.old_sha' <<< "${CONFLICT}")
+            PR_TITLE=$(jq -r '.title' <<< "${CONFLICT}")
+
+            if [[ "${CHANGED}" == "true" ]]; then
+              # An empty expected value requires the remote branch to not exist.
+              git push --force-with-lease="${BRANCH}:${OLD_SHA}" origin "${BRANCH}:refs/heads/${BRANCH}"
+            fi
+
+            # The PR title/body mirror the CONFLICTED commit so a squash merge
+            # reproduces its message, including the "Refer to original PR" and
+            # "(cherry picked from commit ...)" lines the autoroller uses to
+            # detect already-rolled commits in the target branch history.
+            jq -r '.body' <<< "${CONFLICT}" > "${PR_BODY_FILE}"
+            if [[ -n "${BUG}" ]]; then
+              {
+                echo ""
+                echo "Bug: ${BUG}"
+              } >> "${PR_BODY_FILE}"
+            fi
+
+            PR_NUMBER=$(gh pr list --head "${BRANCH}" --state open --json number --jq '.[0].number // ""')
+            if [[ -z "${PR_NUMBER}" ]]; then
+              gh pr create --base "${TARGET_BRANCH}" --head "${BRANCH}" --title "${PR_TITLE}" --body-file "${PR_BODY_FILE}" --reviewer linxinan-yt,oxve,briantting
+
+              # Keep resolution instructions out of the PR body (and thus out
+              # of the squash commit message) by posting them as a comment.
+              {
+                echo "⚠️ This cherry-pick conflicts with \`${TARGET_BRANCH}\` and must be resolved manually. The autoroller rebuilds this branch from \`${TARGET_BRANCH}\` every run until a resolution commit is pushed. Use the following commands to checkout the branch locally and resolve the conflicts in a separate commit:"
+                echo ""
+                echo '```bash'
+                echo "gh pr checkout <pull_request_number> -R ${GITHUB_REPOSITORY}"
+                echo ""
+                echo "# Resolve conflicts then"
+                echo "git add <resolved_files>"
+                echo ""
+                echo "# Copy CONFLICTED commit's message and metadata"
+                echo "# Replace CONFLICTED in title with RESOLVED"
+                echo "git commit -c <conflicted_sha>"
+                echo ""
+                echo "git push origin ${BRANCH}"
+                echo '```'
+                echo ""
+                echo "When squash merging, keep the PR title and description as the commit message so the roll is recorded in the target branch history."
+                echo ""
+                echo "To drop this cherry-pick instead, remove the \`cp-${TARGET_BRANCH}\` label from the original PR; this PR is then closed automatically."
+              } > "${PR_COMMENT_FILE}"
+              gh pr comment "${BRANCH}" --body-file "${PR_COMMENT_FILE}"
+            elif [[ "${CHANGED}" == "true" ]]; then
+              gh api -X PATCH "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" -f title="${PR_TITLE}" -f body="$(cat "${PR_BODY_FILE}")" --jq .html_url
+            fi
+          done < <(jq -c '.conflicts[]?' "${MANIFEST}")
+
+          # Branches whose PR is no longer a conflicting candidate (label
+          # removed, landed, or applies cleanly now). Deleting closes the PR.
+          while IFS= read -r BRANCH; do
+            [[ -z "${BRANCH}" ]] && continue
+            git push origin --delete "${BRANCH}" || echo "::warning::Could not delete ${BRANCH}"
+          done < <(jq -r '.delete[]?.branch' "${MANIFEST}")
+
+          while IFS= read -r BRANCH; do
+            [[ -z "${BRANCH}" ]] && continue
+            echo "::notice::${BRANCH} has resolution commits and was left untouched."
+          done < <(jq -r '.hands_off[]?.branch' "${MANIFEST}")

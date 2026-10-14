@@ -30,6 +30,57 @@ def get_out(cmd):
   return res.stdout
 
 
+def rev_parse(ref):
+  return get_out(['git', 'rev-parse', ref]).strip()
+
+
+def current_branch():
+  return get_out(['git', 'rev-parse', '--abbrev-ref', 'HEAD']).strip()
+
+
+def count_commits(base, ref):
+  """Returns the number of commits in base..ref."""
+  return int(get_out(['git', 'rev-list', '--count', f'{base}..{ref}']))
+
+
+def trees_equal(ref_a, ref_b):
+  """Returns True if the trees of the two refs are identical."""
+  res = subprocess.run(['git', 'diff', '--quiet', ref_a, ref_b], check=False)
+  return res.returncode == 0
+
+
+def list_branches(prefix):
+  """Returns a dict of local branch name -> SHA for branches with prefix."""
+  output = get_out([
+      'git', 'for-each-ref', '--format=%(refname:short) %(objectname)',
+      f'refs/heads/{prefix}*'
+  ])
+  branches = {}
+  for line in output.splitlines():
+    name, sha = line.split()
+    branches[name] = sha
+  return branches
+
+
+def get_commit_subject(ref):
+  return get_out(['git', 'log', '-1', '--format=%s', ref]).strip()
+
+
+def get_commit_body(ref):
+  return get_out(['git', 'log', '-1', '--format=%b', ref]).strip()
+
+
+def is_bot_conflict_branch(target, sha):
+  """Returns True if the branch consists solely of one bot CONFLICTED commit.
+
+  Any other shape (resolution commits, unexpected subjects) means a human has
+  touched the branch and the autoroller must leave it alone.
+  """
+  if count_commits(target, sha) != 1:
+    return False
+  return get_commit_subject(sha).startswith('CONFLICTED ')
+
+
 def get_start_sha(branch, autoroll_file):
   """Returns an autoroll start SHA or None if CONFLICTED."""
   start = get_out(['git', 'show', f'{branch}:{autoroll_file}']).strip()
@@ -86,6 +137,7 @@ def load_pr_labels_from_file(json_path):
   """
   with open(json_path, 'r', encoding='utf-8') as f:
     prs_data = json.load(f)
+  _PR_LABELS_CACHE.clear()
   for pr in prs_data:
     pr_num = pr.get('number')
     if pr_num is not None:
