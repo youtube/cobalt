@@ -24,7 +24,6 @@
 #include "cc/base/features.h"
 #include "cc/base/switches.h"
 #include "cobalt/browser/switches.h"
-#include "components/services/storage/dom_storage/storage_area_impl.h"
 #include "content/common/features.h"  // nogncheck
 #include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
@@ -105,11 +104,7 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
                features::kSmallerInterestArea.name,
                features::kReclaimPrepaintTilesWhenIdle.name,
                features::kReclaimOldPrepaintTiles.name,
-               blink::features::kWebAudioRemoveAudioDestinationResampler.name,
-               // Commit localStorage/sessionStorage writes at the end of the JS
-               // task that made them so recent writes survive process
-               // termination.
-               storage::kDomStorageSmartFlushing.name,
+               features::kWebAudioRemoveAudioDestinationResampler.name,
            },
            ",")},
       {::switches::kDisableFeatures,
