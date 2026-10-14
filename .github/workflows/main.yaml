@@ -542,6 +542,7 @@ jobs:
         id: setup-depot-tools
         uses: ./.github/actions/depot_tools
         with:
+          platform: ${{ matrix.platform || inputs.platform }}
           use_gcloud: true
           use_cache: false
 
