@@ -34,11 +34,15 @@ def get_clean_build_env(
 
 
 def is_within_repo(path: str, repo_path: str) -> bool:
-  """Returns True if path (after normalization) is inside repo_path."""
+  """Returns True if path, after resolving symlinks, is inside repo_path.
+
+  realpath (not abspath) so a symlink inside the repository that points
+  elsewhere on the host cannot be read or patched through.
+  """
   if not path:
     return False
-  repo_abs = os.path.abspath(repo_path)
-  path_abs = os.path.abspath(path)
+  repo_abs = os.path.realpath(repo_path)
+  path_abs = os.path.realpath(path)
   try:
     return os.path.commonpath([repo_abs, path_abs]) == repo_abs
   except ValueError:  # e.g. different drives on Windows
@@ -238,6 +242,21 @@ def has_cobalt_git_history(rel_path: str, repo_path: str) -> bool:
 
 _FORKED_THIRD_PARTY_PREFIXES = ("third_party/jni_zero/",)
 
+# Repository metadata is never a valid patch target, anywhere in the repo.
+_METADATA_BASENAMES = (
+    "DIR_METADATA",
+    "LICENSE",
+    "OWNERS",
+    "PRESUBMIT.py",
+    "README.chromium",
+)
+
+# Code the pipeline itself runs; a patch to it would run model-written code.
+_PIPELINE_SCRIPTS = (
+    "build/config/siso/configure_siso.py",
+    "cobalt/build/gn.py",
+)
+
 # Repository metadata is never a valid patch target, even inside a forked
 # dependency.
 _NEVER_PATCHABLE_BASENAMES = (
@@ -303,23 +322,32 @@ def is_generated_build_artifact(file_path: str, repo_path: str) -> bool:
 
 def patch_target_rejection(target_file: str, rel_file: str,
                            repo_path: str) -> str:
-  """Returns reasons that target_file cannot be patched"""
+  """Reasons that target_file must not be patched ("" if it may be).
+
+  Checks use the path relative to repo_path, not the path as the model
+  wrote it, so spellings such as //cobalt/build/configs/x cannot slip by.
+  """
   if not target_file:
     return f"{rel_file} is outside the repository"
-  if (rel_file.endswith((".apk", ".ninja", ".so", ".a", ".o")) or
-      rel_file in ("cobalt_apk", "all")):
-    return (f"{rel_file} is a build target or binary; patch the source "
+  rel = os.path.relpath(target_file, repo_path).replace(os.sep, "/")
+  if (rel.endswith((".apk", ".ninja", ".so", ".a", ".o")) or
+      rel in ("cobalt_apk", "all")):
+    return (f"{rel} is a build target or binary; patch the source "
             "(.cc/.h) or BUILD.gn that produces it")
   if is_generated_build_artifact(target_file, repo_path):
-    return (f"{rel_file} is a generated build artifact; patch the source "
+    return (f"{rel} is a generated build artifact; patch the source "
             "or generator that produces it")
-  if rel_file.startswith("cobalt/build/configs/") or rel_file.endswith(
-      "args.gn"):
-    return (f"{rel_file} is a global build config file; change the "
+  if rel.startswith(".github/") or rel in _PIPELINE_SCRIPTS:
+    return (f"{rel} is run by the rebase pipeline or CI; it may not be "
+            "patched")
+  if os.path.basename(rel) in _METADATA_BASENAMES:
+    return f"{rel} is repository metadata, not code; do not patch it"
+  if rel.startswith("cobalt/build/configs/") or rel.endswith("args.gn"):
+    return (f"{rel} is a global build config file; change the "
             "component BUILD.gn or source code instead")
   if (not target_file.endswith((".gn", ".gni", ".star")) and
       is_unmodified_third_party(target_file, repo_path)):
-    return (f"{rel_file} is an upstream third-party file that Cobalt does "
+    return (f"{rel} is an upstream third-party file that Cobalt does "
             "not modify; do not edit it, adapt the Cobalt code or BUILD.gn "
             "that uses it instead")
   return ""

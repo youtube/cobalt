@@ -240,12 +240,16 @@ Resolvers communicate dynamically without hardcoded coupling via callbacks confi
 ### Safety Guardrails
 `repo_guards.py` enforces these before any AI tool call or patch runs:
 - **Repository confinement**: `resolve_repo_file_path` returns `""` for any
-  path that resolves outside the repo (absolute paths, `../` traversal), so
-  `TOOL_READ_FILE`, `TOOL_LIST_DIR` and SEARCH/REPLACE / DELETE / diff targets
-  cannot touch files elsewhere on the host.
+  path that resolves outside the repo (absolute paths, `../` traversal, or
+  symlinks pointing elsewhere), so `TOOL_READ_FILE`, `TOOL_LIST_DIR` and
+  SEARCH/REPLACE / DELETE / diff targets cannot touch files elsewhere on the
+  host.
 - **Patch target validation** (`patch_target_rejection`): rejects build
-  outputs and binaries, generated files under `out/` / `gen/`, global build
-  configs (`cobalt/build/configs/`, `args.gn`), and unmodified third-party
+  outputs and binaries, generated files under `out/` / `gen/`, `.github/`
+  and scripts the pipeline runs (`cobalt/build/gn.py`,
+  `build/config/siso/configure_siso.py`), repository metadata (`OWNERS`,
+  `PRESUBMIT.py`, `LICENSE`, ...), global build configs
+  (`cobalt/build/configs/`, `args.gn`), and unmodified third-party
   sources. The rejection reason is stored in the change record, so the
   model sees why its patch was not applied on the next attempt.
 - **`exec_script()` stop** (`patching.exec_script_changes`): `gn gen` runs

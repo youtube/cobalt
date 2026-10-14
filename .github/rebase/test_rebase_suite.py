@@ -2459,6 +2459,32 @@ class RepoPathSafetyTest(unittest.TestCase):
     self.assertIn("outside the repository",
                   patch_target_rejection("", self.outside, self.repo))
 
+  def test_symlink_to_outside_is_outside_repo(self):
+    link = os.path.join(self.repo, "base", "link.txt")
+    os.symlink(self.outside, link)
+    self.assertFalse(is_within_repo(link, self.repo))
+    self.assertEqual(resolve_repo_file_path("base/link.txt", self.repo), "")
+
+  def test_pipeline_ci_and_metadata_files_rejected(self):
+    for rel, reason in (
+        (".github/workflows/x.yaml", "run by the rebase pipeline or CI"),
+        ("cobalt/build/gn.py", "run by the rebase pipeline or CI"),
+        ("build/config/siso/configure_siso.py", "run by the rebase pipeline"),
+        ("base/OWNERS", "repository metadata"),
+        ("base/PRESUBMIT.py", "repository metadata"),
+    ):
+      target = os.path.join(self.repo, rel)
+      self.assertIn(reason, patch_target_rejection(target, rel, self.repo), rel)
+    self.assertEqual(
+        patch_target_rejection(self.inside, "base/foo.h", self.repo), "")
+
+  def test_rejection_uses_resolved_path_not_model_spelling(self):
+    target = os.path.join(self.repo, "cobalt", "build", "configs", "x.gni")
+    self.assertIn(
+        "global build config",
+        patch_target_rejection(target, "//cobalt/build/configs/x.gni",
+                               self.repo))
+
 
 class AutoninjaHelpersSafetyTest(unittest.TestCase):
   """Defensive behavior of autoninja path helpers."""
