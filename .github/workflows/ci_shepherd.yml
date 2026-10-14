@@ -36,7 +36,7 @@ env:
 jobs:
   init-comment:
     runs-on: ubuntu-latest
-    if: (github.event.workflow_run.pull_requests[0].number || inputs.pr_number) != ''
+    if: (github.event.workflow_run.head_sha || github.event.workflow_run.pull_requests[0].number || inputs.pr_number) != ''
     permissions:
       pull-requests: write
     concurrency:
@@ -59,20 +59,29 @@ jobs:
           set -euo pipefail
 
           head_sha="${HEAD_SHA:-}"
-          if [[ -z "${head_sha}" && -n "${PR_NUMBER:-}" ]]; then
-            head_sha=$(gh pr view "${PR_NUMBER}" --repo "${REPO}" --json headRefOid -q .headRefOid)
+          pr_number="${PR_NUMBER:-}"
+          if [[ -z "${pr_number}" && -n "${head_sha}" ]]; then
+            pr_number=$(gh api "repos/${REPO}/commits/${head_sha}/pulls" --jq '.[0].number // ""' 2>/dev/null || true)
+          fi
+          if [[ -z "${head_sha}" && -n "${pr_number}" ]]; then
+            head_sha=$(gh pr view "${pr_number}" --repo "${REPO}" --json headRefOid -q .headRefOid)
           fi
 
-          echo "pr_number=${PR_NUMBER}" >> "${GITHUB_OUTPUT}"
+          echo "pr_number=${pr_number}" >> "${GITHUB_OUTPUT}"
           echo "head_sha=${head_sha}" >> "${GITHUB_OUTPUT}"
 
+          if [[ -z "${pr_number}" ]]; then
+            echo "No PR associated with commit ${head_sha}. Skipping anchor comment."
+            exit 0
+          fi
+
           header="<!-- sticky-pull-request-comment: shepherd-report -->"
-          comment_id=$(gh api --paginate "repos/${REPO}/issues/${PR_NUMBER}/comments" 2>/dev/null \
+          comment_id=$(gh api --paginate "repos/${REPO}/issues/${pr_number}/comments" 2>/dev/null \
             | jq -r --arg h "${header}" '.[]? | select((.body // "") | contains($h)) | .id' | head -n1 || true)
 
           if [[ -z "${comment_id}" ]]; then
             body="${header}"$'\n\n'"| Context | State | Description |"$'\n'"|---|---|---|"$'\n'"| CI / All Pass | ⏳ PENDING | Checks are running |"
-            comment_id=$(gh api -X POST "repos/${REPO}/issues/${PR_NUMBER}/comments" -f body="${body}" --jq '.id')
+            comment_id=$(gh api -X POST "repos/${REPO}/issues/${pr_number}/comments" -f body="${body}" --jq '.id')
           fi
 
           echo "comment_id=${comment_id}" >> "${GITHUB_OUTPUT}"
@@ -102,6 +111,9 @@ jobs:
 
           pr_number="${PR_NUMBER_EVENT:-}"
           head_sha="${HEAD_SHA_EVENT:-}"
+          if [[ -z "${pr_number}" && -n "${head_sha}" ]]; then
+            pr_number=$(gh api "repos/${REPO}/commits/${head_sha}/pulls" --jq '.[0].number // ""' 2>/dev/null || true)
+          fi
           if [[ -z "${head_sha}" && -n "${pr_number}" ]]; then
             head_sha=$(gh pr view "${pr_number}" --repo "${REPO}" --json headRefOid -q .headRefOid)
           fi
@@ -300,3 +312,50 @@ jobs:
           header="<!-- sticky-pull-request-comment: shepherd-report -->"
           comment_body="${header}"$'\n'"$(cat shepherd_report.md)"
           gh api -X PATCH "repos/${REPO}/issues/comments/${COMMENT_ID}" -f body="${comment_body}" --silent
+
+  publish-golden-workspace:
+    name: Publish Golden Workspace Refs
+    runs-on: ubuntu-latest
+    if: |
+      (github.event.action || inputs.action) == 'completed' &&
+      (github.event.workflow_run.event == 'push' || github.event_name == 'workflow_dispatch') &&
+      (github.event.workflow_run.head_branch == 'main' || github.ref == 'refs/heads/main' || github.repository == 'youtube/cobalt' || github.repository == 'youtube/cobalt_sandbox')
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Update Golden Workspace Refs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          WORKFLOW_ID: ${{ github.event.workflow_run.id }}
+          GIT_USER: "github-actions[bot]"
+          GIT_EMAIL: "41898282+github-actions[bot]@users.noreply.github.com"
+          EMPTY_TREE: "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          mkdir -p digests repo
+          if [[ -n "${WORKFLOW_ID:-}" ]]; then
+            gh run download "${WORKFLOW_ID}" --repo "${REPO}" -p "golden-digest-*" -D digests 2>/dev/null || exit 0
+          fi
+
+          cd repo && git init -q
+          for f in ../digests/*/*; do
+            [ -f "$f" ] || continue
+            platform=$(basename "$f")
+            digest=$(tr -d '[:space:]' < "$f")
+            [[ "$digest" =~ ^[0-9a-f]{64}$ ]] || continue
+
+            parent=()
+            if git fetch -q "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" "refs/golden-workspace/${platform}" 2>/dev/null; then
+              [ "$(git log -1 --format=%s FETCH_HEAD 2>/dev/null)" = "${digest}" ] && continue
+              parent=(-p FETCH_HEAD)
+            fi
+
+            commit=$(git -c user.name="${GIT_USER}" -c user.email="${GIT_EMAIL}" \
+              commit-tree "${parent[@]}" -m "${digest}" "${EMPTY_TREE}")
+
+            git push "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" "${commit}:refs/golden-workspace/${platform}" || true
+          done

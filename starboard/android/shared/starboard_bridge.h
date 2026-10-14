@@ -19,6 +19,7 @@
 
 #include "base/memory/singleton.h"
 #include "starboard/common/size.h"
+#include "starboard/player.h"
 #include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
@@ -86,6 +87,13 @@ class StarboardBridge {
 
   void ResetVideoSurface(JNIEnv* env);
   void SetVideoSurfaceBounds(JNIEnv* env, int x, int y, int width, int height);
+
+  // Tracks the SbPlayers that are currently playing, i.e. whose playback rate
+  // is greater than 0. The screen is kept on while any player is playing.
+  // Adding a player that is already tracked, or removing a player that isn't
+  // tracked, has no effect. Both functions can be called from any thread.
+  void AddActivePlayer(JNIEnv* env, SbPlayer player);
+  void RemoveActivePlayer(JNIEnv* env, SbPlayer player);
 
   jni_zero::ScopedJavaLocalRef<jobject> GetAudioOutputManager(JNIEnv* env);
 
