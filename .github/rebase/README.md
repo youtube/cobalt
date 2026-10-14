@@ -72,8 +72,7 @@ The pipeline decomposes rebase automation into five self-healing phases built up
         ├── cobalt_rebase_patterns.md  # Recurring Cobalt-specific rebase patterns
         ├── compiler_healing.md        # Compiler & linker break repair heuristics
         ├── gn_healing.md              # GN build rules & visibility repair
-        ├── conflict_resolution.md     # DEPS AST & merge conflict rules
-        └── roll_history.md            # Using past roll PRs as ground truth
+        └── conflict_resolution.md     # DEPS AST & merge conflict rules
 ```
 
 ---
@@ -271,7 +270,6 @@ Rebase heuristics and error patterns are maintained in declarative Markdown file
 * **`reasoning_engine/skills/gn_healing.md`**: GN visibility rules, target bridge synthesis (`group("freetype")`), and duplicate argument import rules.
 * **`reasoning_engine/skills/conflict_resolution.md`**: Upstream roll priority, DEPS syntax rules, and multi-turn tool commands.
 * **`reasoning_engine/skills/cobalt_rebase_patterns.md`**: Recurring Cobalt-specific patterns (e.g. Privacy Sandbox pruning) to preserve across rolls.
-* **`reasoning_engine/skills/roll_history.md`**: How to use merged roll PRs (bot baseline commits vs. human fix commits) as ground truth.
 
 Skills are loaded once when the engine starts, so edits take effect on the
 next run (or after redeploying the hosted engine with `reasoning_engine/deploy.py`).

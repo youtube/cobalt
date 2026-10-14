@@ -235,7 +235,7 @@ Cobalt optimizes and strips runtime data bundles (such as `third_party/icu/cobal
 
 5. **Never Patch `build/` Scripts to Work Around the Build Host Environment**:
    - If a Python build script under `build/` (for example `build/android/gyp/**`) fails because of the machine running the build (the installed protobuf/python package version, missing host tools, PATH, locale), do NOT edit the script, and do NOT set environment variables inside it. The script is upstream code and works in Chromium's pinned environment, so the root cause is the CI container or the vpython spec, not the rebase.
-   - Do not commit any such workaround. Report it in `result.md` and raise a flag (`ESCALATE_TO_HUMAN` / `[HUMAN_REVIEW_REQUIRED]`) naming the host dependency that needs fixing.
+   - Do not commit any such workaround. Say so in your response and raise a flag (`ESCALATE_TO_HUMAN` / `[HUMAN_REVIEW_REQUIRED]`) naming the host dependency that needs fixing.
    - Only edit a `build/` script when the failure comes from the rebase itself (an upstream API or path change that Cobalt code depends on), and say so in the commit.
    - **Real Example (`build/android/gyp/util/protoresources.py`, M145.7632 AI #13054 and M146.7644 AI #13072)**:
      ```python

@@ -181,8 +181,6 @@ class CobaltReasoningEngine:
             load_skill("gn_healing", self.skills_dir),
         "compiler_healing":
             load_skill("compiler_healing", self.skills_dir),
-        "roll_history":
-            load_skill("roll_history", self.skills_dir),
     }
     self.client: Optional[genai.Client] = None
 
@@ -460,7 +458,6 @@ class CobaltReasoningEngine:
         "conflict_resolution" if mode == "conflict" else (
             "gn_healing" if mode == "gn" else "compiler_healing"))
     patterns_skill = self._get_skill("cobalt_rebase_patterns")
-    roll_history_skill = self._get_skill("roll_history")
 
     sys_inst = (
         "You are the Senior Principal Chromium and Cobalt Systems Architect.\n"
@@ -511,9 +508,7 @@ class CobaltReasoningEngine:
         f"{TOOL_CALL_FORMAT_RULES}\n"
         f"--- Rebase Guidelines ---\n{rebase_skill}\n\n"
         f"--- Domain Skill ---\n{domain_skill}\n\n"
-        f"--- Cobalt Rebase Patterns & Stubs Hygiene ---\n{patterns_skill}\n\n"
-        f"--- Historical Ground-Truth Roll References (M139-M141) ---\n"
-        f"{roll_history_skill}\n")
+        f"--- Cobalt Rebase Patterns & Stubs Hygiene ---\n{patterns_skill}\n")
 
     diff_section = (f"--- Git Diff of Modifications in Current Session ---\n"
                     f"{working_diff[:200000]}\n\n" if working_diff else "")

@@ -332,5 +332,4 @@ If a conflict requires inspecting external type definitions, headers, or git his
 - `TOOL_READ_FILE: <path_to_file> [optional line range e.g. 1-100]` -> Reads a header or source file.
 - `TOOL_GREP: <symbol_or_keyword>` -> Searches the repository for references to that symbol.
 - `TOOL_GIT_SHOW: <commit_sha_or_file>` -> Shows git commit diff or file log.
-- `TOOL_EXPAND_CONTEXT: <lines>` -> Expands surrounding context lines.
 - `ESCALATE_TO_HUMAN: <reason>` -> Flag complex or ambiguous conflicts for human review.

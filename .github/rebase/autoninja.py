@@ -64,38 +64,6 @@ TEXT_FILE_EXTENSIONS = SOURCE_CODE_EXTENSIONS + BUILD_FILE_EXTENSIONS + (
 MAX_CONTEXT_FILE_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB
 
 
-def find_referencing_build_file(
-    missing_file: str,
-    repo_path: str,
-) -> Tuple[Optional[str], int]:
-  """Searches repository BUILD.gn files for references to a missing file."""
-  clean_name = os.path.basename(missing_file.strip("\"'"))
-  try:
-    res = subprocess.run(
-        ["git", "grep", "-n", "-I", "-e", clean_name, "--", "*.gn", "*.gni"],
-        cwd=repo_path,
-        capture_output=True,
-        text=True,
-        errors="replace",
-        check=False,
-    )
-    lines = [
-        l.strip()
-        for l in res.stdout.splitlines()
-        if l.strip() and not l.startswith("out/")
-    ]
-    if lines:
-      first_match = lines[0]
-      parts = first_match.split(":", 2)
-      if len(parts) >= 2:
-        rel_path = parts[0]
-        line_num = int(parts[1]) if parts[1].isdigit() else 1
-        return os.path.join(repo_path, rel_path), line_num
-  except (OSError, subprocess.SubprocessError):
-    pass
-  return None, 1
-
-
 def find_build_file_for_object(
     obj_str: str,
     repo_path: str,

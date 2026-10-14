@@ -1,11 +1,11 @@
 ---
 name: cobalt-rebase-conflict-resolver
-description: "Resolve merge conflicts during Chromium rebase in Cobalt (DEPS, source files, and build configs) while preserving Cobalt runtime behavior, and log changes and token metrics in result.md."
+description: "Resolve merge conflicts during Chromium rebase in Cobalt (DEPS, source files, and build configs) while preserving Cobalt runtime behavior."
 ---
 
 # Cobalt Chromium Rebase & Conflict Resolution Skill
 
-When rebasing Cobalt onto a new Chromium milestone (e.g., M138 -> M139) or resolving autoroll conflicts, use this skill to understand the root cause of conflicts, preserve Cobalt's existing behavior, and record metrics in `result.md`.
+When rebasing Cobalt onto a new Chromium milestone (e.g., M138 -> M139) or resolving autoroll conflicts, use this skill to understand the root cause of conflicts, and preserve Cobalt's existing behavior.
 
 ---
 
@@ -34,7 +34,6 @@ flowchart TD
     B --> C[2. Inspect Upstream Chromium Commit Log]
     C --> D[3. Search Chromium Issue Tracker]
     D --> E[Synthesize Resolution: Preserve Cobalt Behavior]
-    E --> F[Record Details & Token Usage in result.md]
 ```
 
 ### Step 1: Check Local Git History
@@ -49,6 +48,7 @@ Understand how Cobalt previously modified the conflicted file:
   ```
 * **Check prior rebase/roll commits**:
   Identify how previous rolls added special Cobalt shims, build flags, or submodule mappings.
+* **Learn from merged roll PRs**: in a merged bot roll PR, the trailing human commits after the bot's baseline commits show how similar conflicts and build breaks were fixed. Inspect them with `TOOL_READ_PR: <pr_number>` and `TOOL_PR_DIFF: <pr_number>`.
 
 ---
 
@@ -134,18 +134,6 @@ When upstream changes deprecate APIs or remove interfaces:
 
 ---
 
-## 4. Reporting in `result.md`
-
-Whenever the AI resolves conflicts or performs a rebase iteration, it **MUST generate or update `result.md`** in the rebase workspace root with:
-1. Target roll commit & upstream SHA.
-2. Conflicts resolved and behavioral shims applied.
-3. Code diff summary.
-4. Token consumption metrics (prompt tokens, completion tokens, total tokens, model calls).
-5. Build and sync verification status.
-
-
----
-
 ## Expert Review Insights
 
 ### Follow Upstream Type Migrations in Cobalt-Only Code
@@ -156,18 +144,6 @@ When upstream migrates a type or helper across the codebase (for example `absl::
 - Do not keep the old type alive with a local alias, shim, or re-added header.
 
 **Example (M140, `h5vcc_system`)**: replace `absl::optional` with `std::optional` and change `#include "third_party/abseil-cpp/absl/types/optional.h"` to `#include <optional>`.
-
-
----
-
-## Expert Review Insights
-
-### Reviewer Fallback Procedure When Diff Tools Fail
-
-If the interactive diff/upstream-diff tools return empty or malformed results for all probed files (including historically high-conflict files like `DEPS`), the final `result.md` / post-mortem report MUST:
-- Explicitly state that file-level comparative analysis is **UNVERIFIED** due to tooling failure, rather than reporting a false "no differences found" or "parity" conclusion.
-- Still surface the Post-Conflict-Resolution Checklist (below) as a manual verification checklist for the reviewer/human to re-run once tooling is restored.
-- Recommend escalation to fix the dispatcher's argument-parsing (tool-call isolation from prose) before resuming automated comparative reviews.
 
 
 ---
@@ -226,42 +202,3 @@ If none of these are true, do **not** edit the file. Unrelated `third_party/*` d
 ### CONFLICTED File Manifest as Ground-Truth Checklist Source
 
 Every Cobalt bot roll PR commit message embeds an authoritative, explicit list of CONFLICTED files inside a fenced code block (e.g., `CONFLICTED files:\n...`). Treat this manifest as the mandatory ground-truth checklist for the rebase session.
-
----
-
-## Expert Review Insights
-
-### Pre-Submission Empty-Diff Hard Gate
-
-Before an AI rebase attempt is finalized, packaged, or surfaced as a completed PR, the pipeline MUST enforce the following hard gate:
-
-1. **Non-Empty Diff Check**: Compute `git diff --stat` against the merge-base. If the diff is empty (0 files changed) while the roll commit's CONFLICTED file manifest lists 1+ files, HALT and mark the attempt as **FAILED — no resolution attempted**, not as a completed (if minimal) rebase.
-2. **DEPS Canary Check**: For any named/versioned milestone roll (`Update to <milestone>.<build>`), require that `DEPS` appears in the produced diff. A missing `DEPS` diff on a named roll PR is near-certain evidence of an incomplete or aborted rebase — treat as a blocking defect requiring retry, not a silent pass.
-3. **AUTOROLL_CHROMIUM Canary Check**: Require `.github/AUTOROLL_CHROMIUM` to reflect the new target milestone/revision. Its absence is a fast, cheap signal that the roll was never actually advanced.
-4. **Cherry-Pick Revert Detection**: If the roll commit message contains `Cherry pick` and `Revert Cobalt`, explicitly flag this as a special-case conflict pattern (see "Semantic Conflict Resolution vs. Cherry-Pick Artifacts", item 2) requiring semantic (not wholesale ours/theirs) reconciliation of Cobalt-specific DEPS overrides (`siso_version`, `icu`, `perfetto`, `webrtc`, and similar `# Cobalt: imported` blocks).
-
-**Escalation**: If any of the above gates fail, the orchestrator must NOT close/merge the AI PR as a completed attempt. Instead, log a pipeline-failure diagnostic (last known state, last successful tool call, retry count) and either auto-retry within the budget (Section 1 iteration guidelines) or escalate to human review with an explicit "ZERO-DIFF FAILURE" tag.
-
-
----
-
-## Expert Review Insights
-
-### Tool Dispatcher Argument Hygiene (Reviewer-Side Enforcement)
-
-Extending the existing Diff-Tooling Sanity Check Protocol: reviewers and orchestrators MUST treat any `TOOL_DIFF_FILE:` / `TOOL_UPSTREAM_DIFF:` invocation whose argument exceeds a plausible file path length (e.g., >120 characters, contains sentence punctuation, or contains markdown backticks/parentheses typical of prose) as **malformed at dispatch time**, and should refuse to issue the call rather than let the dispatcher silently echo a garbled header back.
-
-**Practical guard**: Before emitting a `TOOL_DIFF_FILE: <arg>` line, validate `<arg>` against a simple heuristic: it should look like a relative file path (contains `/` or a known root-level filename, no whitespace-separated prose words beyond directory/file tokens, no trailing period-terminated sentences). If the heuristic fails, split the call: emit the bare tool call first, and defer all commentary to the next turn.
-
-
----
-
-## Expert Review Insights
-
-### Section 4 Addendum: Reporting UNVERIFIED Reviews in result.md
-
-If the Pre-Submission Empty-Diff Hard Gate or Zero-Inventory Hard Stop conditions are triggered during a comparative post-mortem review (as opposed to during the AI rebase attempt itself), `result.md` (or the final review report) MUST:
-1. Tag the review status explicitly as `UNVERIFIED — TOOLING DEFECT`, distinct from `PASS`, `FAIL`, or `ZERO-DIFF FAILURE` (which apply to the rebase attempt itself, not the review process).
-2. Include the exact list of canary files probed and their zero-diff results as supporting evidence for the escalation.
-3. Avoid emitting any per-file "Divergence" or "Missed by AI" analysis sections with fabricated or assumed content — these sections must be explicitly marked UNVERIFIED rather than left silently blank or populated with speculative content.
-4. Include a fallback manual-verification checklist (the Post-Conflict-Resolution Checklist above, plus any skill rules that match the conflicted files) so human reviewers retain actionable next steps despite the tooling failure.

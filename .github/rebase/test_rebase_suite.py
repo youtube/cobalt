@@ -12,7 +12,6 @@ from autoninja import (
     AutoninjaResolver,
     CompilerDiagnostic,
     find_build_file_for_object,
-    find_referencing_build_file,
     parse_compiler_errors,
 )
 from base_resolver import (
@@ -2489,13 +2488,6 @@ class RepoPathSafetyTest(unittest.TestCase):
 
 class AutoninjaHelpersSafetyTest(unittest.TestCase):
   """Defensive behavior of autoninja path helpers."""
-
-  def test_git_grep_pattern_passed_with_e_flag(self):
-    with mock.patch("autoninja.subprocess.run") as run:
-      run.return_value = mock.Mock(stdout="", returncode=1)
-      find_referencing_build_file("-foo.cc", "/repo")
-    cmd = run.call_args[0][0]
-    self.assertEqual(cmd[cmd.index("-e") + 1], "-foo.cc")
 
   def test_build_file_walk_terminates(self):
     with tempfile.TemporaryDirectory() as repo:

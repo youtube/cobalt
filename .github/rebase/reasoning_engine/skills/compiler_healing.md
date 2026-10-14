@@ -217,63 +217,11 @@ When something that used to work has broken after a roll, **run both on the rele
      * Remove the redundant inner `namespace blink {` opening line, OR insert a closing `}  // namespace blink` prior to declaring new stubs/classes.
      * Check brace depth across the entire stub file to ensure every `{` has a matching `}`.
 
-9. LINKER ERRORS FROM PRUNED MODULES & V8 BINDINGS (WebXR / WebGPU / WebNN / AI / Hardware):
-   - When `ld.lld: error: undefined symbol: blink::XR*`, `blink::GPU*`, `blink::V8GPU*`, or symbols in `obj/third_party/blink/renderer/bindings/modules/v8/libv8.a` fail to link in `libchrobalt.so`:
-   - DIAGNOSTIC TARGET: The build runner maps `obj/.../libv8.a` to its enclosing build file: `third_party/blink/renderer/bindings/modules/v8/BUILD.gn`.
-   - ROOT CAUSE: Cobalt prunes heavy subsystems (WebXR, WebGPU, WebNN, AI, Bluetooth, HID, USB) to minimize binary footprint. Their C++ module implementations are excluded from the build. Their generated V8 bindings MUST be excluded from `third_party/blink/renderer/bindings/modules/v8/BUILD.gn` using exclude patterns defined in `third_party/blink/renderer/bindings/bindings.gni`.
-   - If cherry-picks or conflict resolution accidentally removed entries from `cobalt_webgpu_exclude_patterns` in `bindings.gni`, all V8 binding files are pulled into `libv8.a`, producing dozens of undefined symbol linker errors.
-   - HEALING PROCEDURE:
-     * When `third_party/blink/renderer/bindings/modules/v8/BUILD.gn` is reported as the failing file: DO NOT edit `modules/v8/BUILD.gn`!
-     * DO NOT implement dozens of dummy stubs in `cobalt_modules_stubs.cc`.
-     * Inspect `third_party/blink/renderer/bindings/bindings.gni` using `TOOL_READ_FILE: third_party/blink/renderer/bindings/bindings.gni 280-320`.
-     * Verify that `cobalt_webgpu_exclude_patterns` contains `"*v8_xr.*"` and `"*v8_xr_*"`.
-     * If they are missing, restore them immediately by targeting `FILE: third_party/blink/renderer/bindings/bindings.gni`:
-       ```gn
-       FILE: third_party/blink/renderer/bindings/bindings.gni
-       <<<<<<< SEARCH
-         cobalt_webgpu_exclude_patterns = [
-           "*v8_canvas_2d_gpu_*",
-           "*v8_gpu.*",
-           "*v8_gpu_*",
-           "*v8_ml.*",
-           "*v8_ml_*",
-           "*v8_union_*gpu*",
-         ]
-       =======
-         cobalt_webgpu_exclude_patterns = [
-           "*v8_canvas_2d_gpu_*",
-           "*v8_gpu.*",
-           "*v8_gpu_*",
-           "*v8_ml.*",
-           "*v8_ml_*",
-           "*v8_xr.*",
-           "*v8_xr_*",
-           "*v8_union_*gpu*",
-         ]
-       >>>>>>> REPLACE
-       ```
-     * When to use `cobalt_modules_stubs.cc`: Use `cobalt_modules_stubs.cc` ONLY when a non-pruned subsystem (or core Blink) requires a specific single symbol from a stripped module (e.g. a minimal constructor/destructor or `STUB_V8_WRAPPER`).
-
-10. HOST TOOLCHAIN VS TARGET RUNTIME RESOURCE MISMATCHES (HOST ACTION FAILURES):
-    - When a build action fails during code generation or host tool execution (e.g. `character_data_generator`, `v8_context_snapshot_generator`, or other host binaries failing with `Check failed: U_SUCCESS(error)` or missing resource/table assertions):
-    - ROOT CAUSE: Cobalt builds strip runtime datasets (e.g. `third_party/icu/cobalt/icudtl.dat`, timezone data) for embedded TV platforms. If a Cobalt GN argument or override applies globally without checking `current_toolchain != host_toolchain`, Ninja copies stripped data to `clang_x64/`. Host compile tools require complete upstream tables and metadata.
-    - ANTI-PATTERN: NEVER patch the upstream C++ source file of the host generator (e.g. `character_property_data_generator.cc`). It is an unmodified third-party source file and edits will be rejected by the safety guard.
-    - HEALING PROCEDURE:
-      1. Scope the Cobalt data/configuration override in the referencing `BUILD.gn` to target toolchains only using `if (is_cobalt && current_toolchain != host_toolchain)`.
-      2. Allow host toolchains (`current_toolchain == host_toolchain`) to fall through to standard upstream defaults (e.g. `data_dir = "common"` in `third_party/icu/BUILD.gn`), ensuring host binaries receive complete unstripped resources with zero third-party code modifications.
-      3. Concrete Reference (`third_party/icu/BUILD.gn`):
-         ```gn
-         FILE: third_party/icu/BUILD.gn
-         <<<<<<< SEARCH
-         if (is_cobalt) {
-           data_dir = "cobalt"
-         } else if (is_android) {
-         =======
-         if (is_cobalt && current_toolchain != host_toolchain) {
-           data_dir = "cobalt"
-         } else if (is_android) {
-         >>>>>>> REPLACE
-         ```
+9. LINKER ERRORS FROM PRUNED MODULES & V8 BINDINGS and
+10. HOST TOOLCHAIN VS TARGET RUNTIME RESOURCE MISMATCHES: see
+    "Pruned Blink Modules & V8 Bindings Exclusions" and "Host Toolchain
+    vs Target Runtime Resource Mismatches" in cobalt_rebase_patterns.md,
+    which is loaded together with this skill.
 
 ---
 
@@ -343,12 +291,3 @@ When a missing-symbol/build error is resolved by adding a new `#include`, the in
 2. Within that block, insert in strict ASCII alphabetical order by full path string (e.g., `base/task/thread_pool.h` sorts before `base/threading/...` before `base/timer/elapsed_timer.h` — note `k` < `r` < `i` positioning must be checked character-by-character, not just by top-level directory).
 3. After insertion, re-read the 3 lines immediately above and below to confirm ordering is preserved end-to-end, not just locally correct relative to the anchor point used for insertion.
 4. If uncertain, prefer running `git cl format` / clang-format include-sorting locally over manual placement.
-
-### DEPS / Large Multi-Hunk File Diff-Tooling Sanity Check
-
-Files like `DEPS` frequently exceed single-invocation diff-tool output limits, causing silent truncation before later hunks (e.g., `cpuinfo`, `perfetto`, `webrtc`, `internal`, `jszip` sections). This creates false confidence in resolution parity.
-
-**Procedure:**
-1. After resolving a large file, compare the tool's reported diff line count against `git diff --stat <file>` output.
-2. If the tool's returned diff is shorter than `--stat` indicates, do not assume the remainder is correct — re-run diffing in chunks (line-range limited) or use `git diff <file> | wc -l` cross-checks until every original conflict-marker region has been visually confirmed resolved.
-3. Never mark a large file "verified equivalent to Human ground truth" based on a partial/truncated diff view.
