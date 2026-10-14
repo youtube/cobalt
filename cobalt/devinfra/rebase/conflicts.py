@@ -205,7 +205,8 @@ def extract_git_context(repo_path: str,) -> Tuple[str, Dict[str, str]]:
 def is_ignored_conflict_path(rel_path: str) -> bool:
   """Excludes test suites, rebase tooling, and build output dirs."""
   norm = rel_path.replace("\\", "/")
-  return (norm.startswith("out/") or norm.startswith(".github/rebase/") or
+  return (norm.startswith("out/") or
+          norm.startswith("cobalt/devinfra/rebase/") or
           norm.startswith("results/"))
 
 

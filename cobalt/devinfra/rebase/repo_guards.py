@@ -251,6 +251,9 @@ _METADATA_BASENAMES = (
     "README.chromium",
 )
 
+# The rebase agent itself; the model must never patch it.
+_AGENT_DIR = "cobalt/devinfra/rebase/"
+
 # Code the pipeline itself runs; a patch to it would run model-written code.
 _PIPELINE_SCRIPTS = (
     "build/config/siso/configure_siso.py",
@@ -337,7 +340,7 @@ def patch_target_rejection(target_file: str, rel_file: str,
   if is_generated_build_artifact(target_file, repo_path):
     return (f"{rel} is a generated build artifact; patch the source "
             "or generator that produces it")
-  if rel.startswith(".github/") or rel in _PIPELINE_SCRIPTS:
+  if (rel.startswith((".github/", _AGENT_DIR)) or rel in _PIPELINE_SCRIPTS):
     return (f"{rel} is run by the rebase pipeline or CI; it may not be "
             "patched")
   if os.path.basename(rel) in _METADATA_BASENAMES:

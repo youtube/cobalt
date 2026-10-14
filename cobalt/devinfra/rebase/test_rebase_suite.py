@@ -2469,6 +2469,7 @@ class RepoPathSafetyTest(unittest.TestCase):
     for rel, reason in (
         (".github/workflows/x.yaml", "run by the rebase pipeline or CI"),
         ("cobalt/build/gn.py", "run by the rebase pipeline or CI"),
+        ("cobalt/devinfra/rebase/patching.py", "run by the rebase pipeline"),
         ("build/config/siso/configure_siso.py", "run by the rebase pipeline"),
         ("base/OWNERS", "repository metadata"),
         ("base/PRESUBMIT.py", "repository metadata"),

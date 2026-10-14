@@ -151,8 +151,9 @@ def write_rebase_report(
 
 def build_arg_parser() -> argparse.ArgumentParser:
   """Constructs the CLI argument parser for the rebase pipeline."""
+  # This file lives in src/cobalt/devinfra/rebase/.
   default_src_dir = os.path.abspath(
-      os.path.join(os.path.dirname(__file__), "..", ".."))
+      os.path.join(os.path.dirname(__file__), "..", "..", ".."))
   default_cobalt_root = os.path.abspath(os.path.join(default_src_dir, ".."))
 
   parser = argparse.ArgumentParser(

@@ -85,12 +85,12 @@ jobs:
           token: ${{ env.GITHUB_TOKEN }}
 
       # Run the agent from this workflow's own (trusted) checkout. The next
-      # steps switch src/ to the target PR or commit, whose .github/rebase may
+      # steps switch src/ to the target PR or commit, whose copy may
       # differ or not exist; that code must not run with these credentials.
       - name: Copy Trusted Rebase Agent
         run: |
           rm -rf "${RUNNER_TEMP}/rebase"
-          cp -r src/.github/rebase "${RUNNER_TEMP}/rebase"
+          cp -r src/cobalt/devinfra/rebase "${RUNNER_TEMP}/rebase"
 
       - name: GoB Authentication
         uses: ./src/.github/actions/gob_auth

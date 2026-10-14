@@ -3,7 +3,8 @@
 # Python 3.11), so the pins install where the workflow runs:
 #
 #   pip-compile --allow-unsafe --generate-hashes --strip-extras \
-#     --output-file=.github/rebase/requirements.txt .github/rebase/requirements.in
+#     --output-file=cobalt/devinfra/rebase/requirements.txt \\
+#     cobalt/devinfra/rebase/requirements.in
 #
 
 google-genai>=1.0.0

@@ -45,7 +45,7 @@ The pipeline decomposes rebase automation into five self-healing phases built up
 ## 2. Directory Structure
 
 ```
-.github/rebase/
+cobalt/devinfra/rebase/
 │
 ├── base_resolver.py       # [CORE] BaseResolver: shared self-healing loop & change records
 ├── diagnostics.py         # [CORE] Diagnostic dataclasses parsed from failed commands
@@ -90,7 +90,7 @@ The pipeline decomposes rebase automation into five self-healing phases built up
    Ensure `depot_tools` is in your `PATH`.
 3. **Python dependencies**:
    ```bash
-   python3 -m pip install --require-hashes -r .github/rebase/requirements.txt
+   python3 -m pip install --require-hashes -r cobalt/devinfra/rebase/requirements.txt
    ```
 
 ---
@@ -99,7 +99,7 @@ The pipeline decomposes rebase automation into five self-healing phases built up
 
 To execute all phases sequentially for Android (`cobalt_apk`) connected to your hosted Reasoning Engine:
 ```bash
-python3 .github/rebase/run_rebase_pipeline.py \
+python3 cobalt/devinfra/rebase/run_rebase_pipeline.py \
   --platform android-arm \
   --build-type devel \
   --target cobalt_apk \
@@ -108,7 +108,7 @@ python3 .github/rebase/run_rebase_pipeline.py \
 
 For Linux Desktop:
 ```bash
-python3 .github/rebase/run_rebase_pipeline.py \
+python3 cobalt/devinfra/rebase/run_rebase_pipeline.py \
   --platform linux-x64x11 \
   --build-type devel \
   --target cobalt \
@@ -123,22 +123,22 @@ You can skip or run specific phases using orchestrator flags:
 
 * **Skip merge conflict phase (start directly at toolchain sync)**:
   ```bash
-  python3 .github/rebase/run_rebase_pipeline.py --skip-conflicts ...
+  python3 cobalt/devinfra/rebase/run_rebase_pipeline.py --skip-conflicts ...
   ```
 
 * **Skip toolchain sync**:
   ```bash
-  python3 .github/rebase/run_rebase_pipeline.py --skip-sync ...
+  python3 cobalt/devinfra/rebase/run_rebase_pipeline.py --skip-sync ...
   ```
 
 * **Skip GN generation**:
   ```bash
-  python3 .github/rebase/run_rebase_pipeline.py --skip-gn ...
+  python3 cobalt/devinfra/rebase/run_rebase_pipeline.py --skip-gn ...
   ```
 
 * **Skip compiler build (e.g. only run conflict resolution & sync)**:
   ```bash
-  python3 .github/rebase/run_rebase_pipeline.py --skip-build ...
+  python3 cobalt/devinfra/rebase/run_rebase_pipeline.py --skip-build ...
   ```
 
 Or pick a preset with `--mode`:
@@ -161,7 +161,7 @@ Or pick a preset with `--mode`:
   instead of calling the hosted Reasoning Engine, so no
   `--reasoning-engine-id` is needed:
   ```bash
-  python3 .github/rebase/run_rebase_pipeline.py --local \
+  python3 cobalt/devinfra/rebase/run_rebase_pipeline.py --local \
     --platform android-arm --build-type devel --target cobalt_apk
   ```
 
@@ -169,10 +169,10 @@ Or pick a preset with `--mode`:
 
 ### Running in CI (GitHub Actions)
 
-`.github/workflows/ai_rebase_resolver.yaml` (manual `workflow_dispatch`) runs
-the pipeline from the in-tree copy of this directory, i.e.
-`src/.github/rebase` of the PR / commit being resolved; no separate agent
-checkout is needed. Inputs: `pr_number` and/or `commit_sha`, `mode`, `model`,
+`.github/workflows/ai_rebase_resolver.yaml` (manual `workflow_dispatch`) copies
+this directory from the workflow's own checkout to `${RUNNER_TEMP}/rebase`
+before switching `src/` to the PR / commit being resolved, and runs it from
+there, so the target branch's copy never runs with the job's credentials. Inputs: `pr_number` and/or `commit_sha`, `mode`, `model`,
 `expert_model`, `ai_branch_prefix` and `dry_run` (default `true`, skips
 pushing the AI branch and opening a PR).
 
@@ -298,10 +298,10 @@ uploads both files to
 
 * **Run Unit Tests**:
   ```bash
-  python3 -m unittest discover -s .github/rebase -p "test_*.py"
+  python3 -m unittest discover -s cobalt/devinfra/rebase -p "test_*.py"
   ```
 
 * **Run Code Quality Check** (same hooks as CI: yapf, pylint, ...):
   ```bash
-  pre-commit run --files .github/rebase/*.py .github/rebase/reasoning_engine/*.py
+  pre-commit run --files cobalt/devinfra/rebase/*.py cobalt/devinfra/rebase/reasoning_engine/*.py
   ```
