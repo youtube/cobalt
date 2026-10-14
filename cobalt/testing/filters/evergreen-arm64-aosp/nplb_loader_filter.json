@@ -8,6 +8,7 @@
     "*VerticalVideoTest*",
     "PosixAuxvGetauxvalRequiredTests/PosixAuxvGetauxvalRequiredTest.RequiredValuesAreValid/1",
     "SbDrmSessionTest.InvalidSessionUpdateRequestParams",
+    "SbMediaCanPlayMimeAndKeySystem.MinimumSupport",
     "SbTimeZoneGetNameTest.IsIANAFormat"
   ]
 }
