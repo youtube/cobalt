@@ -443,6 +443,7 @@ robolectric_binary("cobalt_coat_junit_tests") {
     "//components/embedder_support/android:view_java",
     "//components/thin_webview:java",
     "//content/public/android:content_java",
+    "//net/android:net_java",
     "//services/media_session/public/cpp/android:media_session_java",
     "//third_party/androidx:androidx_test_runner_java",
     "//third_party/google-truth:google_truth_java",
