@@ -68,8 +68,9 @@ runs:
           --arg runner "${RUNNER_NAME:-runner}" \
           --arg run_id "${GITHUB_RUN_ID}" \
           --arg url "https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+          --arg platform "${PLATFORM}" \
           --argjson cache_hit "${cache_hit}" \
-          '{workflow: $workflow, job: $job, runner: $runner, run_id: $run_id, url: $url, cache_hit: $cache_hit}')
+          '{workflow: $workflow, job: $job, runner: $runner, run_id: $run_id, url: $url, platform: $platform, cache_hit: $cache_hit}')
         gcloud logging write github-actions-runners "${LOG_PAYLOAD}" --payload-type=json || true
 
     - name: Hydrate Snapshot from GCS
