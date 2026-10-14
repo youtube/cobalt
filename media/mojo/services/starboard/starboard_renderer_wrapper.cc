@@ -317,6 +317,11 @@ void StarboardRendererWrapper::SetVolume(float volume) {
 void StarboardRendererWrapper::SetCdm(CdmContext* cdm_context,
                                       CdmAttachedCB cdm_attached_cb) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  if (cdm_context) {
+    // StarboardRenderer never detaches a CDM (switching CDMs fails and keeps
+    // the existing one), so this is never reset.
+    has_cdm_ = true;
+  }
   GetRenderer()->SetCdm(cdm_context, std::move(cdm_attached_cb));
 }
 
@@ -713,7 +718,25 @@ void StarboardRendererWrapper::CreateVideoFrame_OnImageReady(
     return;
   }
   frame->set_color_space(shared_image_cs);
+  if (has_cdm_) {
+    // Mark frames from encrypted playback as protected content, matching
+    // upstream decoders such as CdmAdapter and MediaCodecVideoDecoder. These
+    // are GPU-readable textures, so they are not hardware protected and
+    // `hw_protected` stays false.
+    frame->metadata().protected_video = true;
+  }
   current_frame_ = std::move(frame);
+}
+
+scoped_refptr<VideoFrame> StarboardRendererWrapper::CreateVideoFrameForTesting(
+    VideoPixelFormat format,
+    const gfx::Size& coded_size,
+    const gfx::Rect& visible_rect,
+    const gfx::Size& natural_size,
+    scoped_refptr<gpu::ClientSharedImage> shared_image) {
+  CreateVideoFrame_OnImageReady(format, coded_size, visible_rect, natural_size,
+                                std::move(shared_image));
+  return current_frame_;
 }
 
 // static
