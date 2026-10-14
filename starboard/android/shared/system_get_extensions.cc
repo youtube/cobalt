@@ -82,6 +82,9 @@ const void* SbSystemGetExtension(const char* name) {
   if (strcmp(name, kCobaltExtensionCrashHandlerName) == 0) {
     return starboard::GetCrashHandlerApi();
   }
+  if (strcmp(name, kStarboardExtensionNativeStabilityName) == 0) {
+    return starboard::GetNativeStabilityApi();
+  }
   if (strcmp(name, kCobaltExtensionPlatformInfoName) == 0) {
     return starboard::GetPlatformInfoApi();
   }
@@ -105,10 +108,5 @@ const void* SbSystemGetExtension(const char* name) {
     return starboard::GetLoaderAppMetricsApi();
   }
 #endif  // BUILDFLAG(IS_STARBOARD)
-#if BUILDFLAG(USE_EVERGREEN)
-  if (strcmp(name, kStarboardExtensionNativeStabilityName) == 0) {
-    return starboard::GetNativeStabilityApi();
-  }
-#endif  // BUILDFLAG(USE_EVERGREEN)
   return NULL;
 }
