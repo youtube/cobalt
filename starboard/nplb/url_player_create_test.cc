@@ -15,7 +15,7 @@
 #include <vector>
 
 #include "build/build_config.h"
-#include "starboard/decode_target.h"
+#include "starboard/common/log.h"
 #include "starboard/player.h"
 
 #if BUILDFLAG(IS_IOS_TVOS)
@@ -52,9 +52,7 @@ void DummyPlayerErrorFunc(SbPlayer player,
 TEST(SbPlayerUrlTest, SunnyDay) {
   SbWindowOptions window_options;
   SbWindowSetDefaultOptions(&window_options);
-
   SbWindow window = SbWindowCreate(&window_options);
-  EXPECT_TRUE(SbWindowIsValid(window));
 
   SbPlayerOutputMode output_modes[] = {kSbPlayerOutputModeDecodeToTexture,
                                        kSbPlayerOutputModePunchOut};
@@ -71,10 +69,6 @@ TEST(SbPlayerUrlTest, SunnyDay) {
 
     EXPECT_TRUE(SbPlayerIsValid(player));
 
-    if (output_mode == kSbPlayerOutputModeDecodeToTexture) {
-      SbDecodeTarget current_frame = SbPlayerGetCurrentFrame(player);
-    }
-
     SbPlayerDestroy(player);
   }
 
@@ -84,12 +78,7 @@ TEST(SbPlayerUrlTest, SunnyDay) {
 TEST(SbPlayerUrlTest, NullCallbacks) {
   SbWindowOptions window_options;
   SbWindowSetDefaultOptions(&window_options);
-
   SbWindow window = SbWindowCreate(&window_options);
-  EXPECT_TRUE(SbWindowIsValid(window));
-
-  SbMediaVideoCodec kVideoCodec = kSbMediaVideoCodecH264;
-  SbDrmSystem kDrmSystem = kSbDrmSystemInvalid;
 
   SbPlayerOutputMode output_modes[] = {kSbPlayerOutputModeDecodeToTexture,
                                        kSbPlayerOutputModePunchOut};
@@ -129,9 +118,7 @@ TEST(SbPlayerUrlTest, NullCallbacks) {
 TEST(SbPlayerUrlTest, MultiPlayer) {
   SbWindowOptions window_options;
   SbWindowSetDefaultOptions(&window_options);
-
   SbWindow window = SbWindowCreate(&window_options);
-  EXPECT_TRUE(SbWindowIsValid(window));
 
   SbPlayerOutputMode output_modes[] = {kSbPlayerOutputModeDecodeToTexture,
                                        kSbPlayerOutputModePunchOut};

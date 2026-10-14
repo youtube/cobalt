@@ -24,8 +24,8 @@
 #include "build/buildflag.h"
 #include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/audio_renderer_passthrough.h"
+#include "starboard/android/shared/audio_renderer_sink_android.h"
 #include "starboard/android/shared/audio_track.h"
-#include "starboard/android/shared/audio_track_audio_sink_type.h"
 #include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_codec_audio_decoder.h"
@@ -99,6 +99,13 @@ bool ShouldEnableResetAudioDecoder(
 #endif
 }
 
+NdkAudioMode GetNdkAudioMode(
+    const ExperimentalFeatures& experimental_features) {
+  return static_cast<NdkAudioMode>(
+      experimental_features.Get(kMediaNdkAudioMode)
+          .value_or(static_cast<int>(NdkAudioMode::kDisabled)));
+}
+
 // On some platforms tunnel mode is only supported in the secure pipeline.  Set
 // the following variable to true to force creating a secure pipeline in tunnel
 // mode, even for clear content.
@@ -144,176 +151,45 @@ bool IsTunnelModeVideoDecoderSupported(const std::string& mime,
       /*must_support_tunnel_mode=*/true);
 }
 
-// This class allows us to force int16 sample type when tunnel mode is enabled.
-class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
- public:
-  explicit AudioRendererSinkAndroid(
-      std::optional<int> tunnel_mode_audio_session_id,
-      bool allow_audio_writing_on_pause,
-      bool enable_video_renderer_vsp_adjustment,
-      bool allow_flush_during_seek,
-      bool pause_using_audio_track_state)
-      : AudioRendererSinkImpl(
-            [=](int64_t start_media_time,
-                int channels,
-                int sampling_frequency_hz,
-                SbMediaAudioSampleType audio_sample_type,
-                SbAudioSinkFrameBuffers frame_buffers,
-                int frame_buffers_size_in_frames,
-                SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
-                SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
-                SbAudioSinkPrivate::ErrorFunc error_func,
-                void* context) {
-              auto type = static_cast<AudioTrackAudioSinkType*>(
-                  SbAudioSinkImpl::GetPreferredType());
-
-              return type->Create(
-                  channels, sampling_frequency_hz, audio_sample_type,
-                  frame_buffers, frame_buffers_size_in_frames,
-                  {update_source_status_func, consume_frames_func, error_func},
-                  start_media_time, tunnel_mode_audio_session_id,
-                  /*is_web_audio=*/false, allow_audio_writing_on_pause,
-                  pause_using_audio_track_state, context);
-            }),
-        is_tunnel_mode_enabled_(tunnel_mode_audio_session_id.has_value()),
-        enable_video_renderer_vsp_adjustment_(
-            enable_video_renderer_vsp_adjustment),
-        allow_flush_during_seek_(allow_flush_during_seek) {}
-
-  bool AllowOverflowAudioSamples() const override {
-    return is_tunnel_mode_enabled_;
+// Returns a callback that adjusts the output format of AdaptiveAudioDecoder
+// to the format returned by |sink| for |audio_stream_info|, or nullptr if no
+// adjustment is needed.
+// The audio renderer configures itself and the sink with the number of
+// channels and the sampling rate returned by the sink, so adjust the decoder
+// output to match them.  As AdaptiveAudioDecoder resamples the audio when it
+// adjusts the output format, setting the sampling rate here as well avoids
+// resampling the audio again in the renderer.
+// TODO(b/568452069): Ideally |resampler_| and |channel_mixer_| should be moved
+// out of AdaptiveAudioDecoder and into the audio renderer, so the renderer can
+// convert the audio to the format required by the sink in one place.
+// Adjusting the decoder output here is a shortcut for now.
+AdaptiveAudioDecoder::OutputFormatAdjustmentCallback
+CreateOutputFormatAdjustmentCallback(const AudioStreamInfo& audio_stream_info,
+                                     const AudioRendererSink& sink) {
+  const int source_channels = audio_stream_info.number_of_channels;
+  const int source_samples_per_second =
+      static_cast<int>(audio_stream_info.samples_per_second);
+  const int output_channels = sink.GetOutputNumberOfChannels(source_channels);
+  const int output_samples_per_second =
+      sink.GetNearestSupportedSampleFrequency(source_samples_per_second);
+  if (output_channels == source_channels &&
+      output_samples_per_second == source_samples_per_second) {
+    return nullptr;
   }
 
-  bool AllowDirectPlaybackRateSetting() const override {
-    return is_tunnel_mode_enabled_ && !enable_video_renderer_vsp_adjustment_;
-  }
-
-  bool HasStarted() const override {
-    return !is_flushed_ && AudioRendererSinkImpl::HasStarted();
-  }
-
-  void GetAudioRendererParams(const AudioStreamInfo& audio_stream_info,
-                              int* max_cached_frames,
-                              int* min_frames_per_append) const override {
-    SB_CHECK(max_cached_frames);
-    SB_CHECK(min_frames_per_append);
-    *min_frames_per_append =
-        AudioRendererSink::kDefaultAudioSinkMinFramesPerAppend;
-
-    // AudioRenderer prefers to use kSbMediaAudioSampleTypeFloat32 and only uses
-    // kSbMediaAudioSampleTypeInt16Deprecated when float32 is not supported.
-    const auto sample_type =
-        SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeFloat32)
-            ? kSbMediaAudioSampleTypeFloat32
-            : kSbMediaAudioSampleTypeInt16Deprecated;
-
-    int min_frames_required = SbAudioSinkGetMinBufferSizeInFrames(
-        audio_stream_info.number_of_channels, sample_type,
-        audio_stream_info.samples_per_second);
-
-    if (is_tunnel_mode_enabled_) {
-      // AudioTrack.setPlaybackParams() might need extra buffer to support
-      // playback speed greater than 1.0x.
-      const double kMaxPlaybackSpeed = 2.0;
-      JNIEnv* env = AttachCurrentThread();
-      min_frames_required = std::max<int>(
-          min_frames_required,
-          AudioOutputManager::GetInstance()->GetMinBufferSizeInFrames(
-              env, sample_type, audio_stream_info.number_of_channels,
-              audio_stream_info.samples_per_second) *
-              kMaxPlaybackSpeed);
-    }
-
-    // On Android 5.0, the size of audio renderer sink buffer need to be two
-    // times larger than AudioTrack minBufferSize. Otherwise, AudioTrack may
-    // stop working after pause.
-    *max_cached_frames = min_frames_required * 2 +
-                         AudioRendererSink::kDefaultAudioSinkMinFramesPerAppend;
-    *max_cached_frames = AlignUp(*max_cached_frames,
-                                 AudioRendererSink::kAudioSinkFramesAlignment);
-  }
-
-  void Start(int64_t media_start_time,
-             int channels,
-             int sampling_frequency_hz,
-             SbMediaAudioSampleType audio_sample_type,
-             SbAudioSinkFrameBuffers frame_buffers,
-             int frames_per_channel,
-             RenderCallback* render_callback) override {
-    is_flushed_ = false;
-    // Re-use the existing audio sink if the new audio parameters match the
-    // existing ones. Otherwise, fall back to the default behavior of destroying
-    // and re-creating the sink.
-    if (allow_flush_during_seek_ && audio_sink_ &&
-        audio_sink_->IsType(SbAudioSinkImpl::GetPreferredType()) &&
-        channels == channels_ &&
-        sampling_frequency_hz == sampling_frequency_hz_ &&
-        audio_sample_type == audio_sample_type_) {
-      SB_LOG(INFO) << "Audio track is already started with the same config, "
-                   << "skipping Start().";
-      auto* track_sink = static_cast<AudioTrackAudioSink*>(audio_sink_);
-      track_sink->SetStartTime(media_start_time);
-      // Explicitly set the playback rate and volume because HasStarted()
-      // returns false while in the flushed state, causing the renderer to
-      // skip updating the sink with these parameters during seek.
-      track_sink->SetPlaybackRate(playback_rate_);
-      track_sink->SetVolume(volume_);
-      render_callback_ = render_callback;
-      return;
-    }
-
-    channels_ = channels;
-    sampling_frequency_hz_ = sampling_frequency_hz;
-    audio_sample_type_ = audio_sample_type;
-
-    AudioRendererSinkImpl::Start(
-        media_start_time, channels, sampling_frequency_hz, audio_sample_type,
-        frame_buffers, frames_per_channel, render_callback);
-  }
-
- private:
-  bool IsAudioSampleTypeSupported(
-      SbMediaAudioSampleType audio_sample_type) const override {
-    if (is_tunnel_mode_enabled_) {
-      // Currently the implementation only supports tunnel mode with int16 audio
-      // samples.
-      return audio_sample_type == kSbMediaAudioSampleTypeInt16Deprecated;
-    }
-
-    return SbAudioSinkIsAudioSampleTypeSupported(audio_sample_type);
-  }
-
-  void Reset() override {
-    if (allow_flush_during_seek_ && audio_sink_ &&
-        audio_sink_->IsType(SbAudioSinkImpl::GetPreferredType())) {
-      auto* track_sink = static_cast<AudioTrackAudioSink*>(audio_sink_);
-      if (track_sink->Flush()) {
-        SB_LOG(INFO) << "Flushing AudioTrack.";
-        is_flushed_ = true;
-        return;
-      }
-    }
-    SB_LOG(INFO) << "Resetting AudioTrack.";
-    is_flushed_ = false;
-    AudioRendererSink::Reset();
-  }
-
-  void Stop() override {
-    is_flushed_ = false;
-    AudioRendererSinkImpl::Stop();
-  }
-
-  const bool is_tunnel_mode_enabled_;
-  const bool enable_video_renderer_vsp_adjustment_;
-  const bool allow_flush_during_seek_;
-
-  mutable bool is_flushed_ = false;
-
-  int channels_ = -1;
-  int sampling_frequency_hz_ = -1;
-  SbMediaAudioSampleType audio_sample_type_ =
-      kSbMediaAudioSampleTypeInt16Deprecated;
-};
+  SB_LOG(INFO) << "Audio decoder output is adjusted from " << source_channels
+               << " channel(s) at " << source_samples_per_second << "Hz to "
+               << output_channels << " channel(s) at "
+               << output_samples_per_second << "Hz.";
+  return [output_channels, output_samples_per_second](SbMediaAudioSampleType*,
+                                                      int* samples_per_second,
+                                                      int* number_of_channels) {
+    SB_DCHECK(samples_per_second);
+    SB_DCHECK(number_of_channels);
+    *samples_per_second = output_samples_per_second;
+    *number_of_channels = output_channels;
+  };
+}
 
 class PlayerComponentsPassthrough : public PlayerComponents {
  public:
@@ -358,10 +234,10 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       MediaCapabilitiesCache::GetInstance()->SetAv1OptEnabled(true);
       SB_LOG(INFO) << "`enable_av1_startup_optimization` is set to true.";
     }
-    if (experimental_features.GetBool(kMediaNdkAudioTrack)) {
-      AudioTrack::SetNdkAudioTrackEnabled(true);
-      SB_LOG(INFO) << "`ndk_audio_track` is set to true.";
-    }
+    const NdkAudioMode ndk_audio_mode = GetNdkAudioMode(experimental_features);
+    AudioTrack::SetNdkAudioTrackEnabled(ndk_audio_mode ==
+                                        NdkAudioMode::kAudioTrack);
+    SB_LOG(INFO) << "`ndk_audio_mode` is set to " << ToString(ndk_audio_mode);
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecAc3 &&
         creation_parameters.audio_codec() != kSbMediaAudioCodecEac3) {
       SB_LOG(INFO) << "Creating non-passthrough components.";
@@ -590,17 +466,30 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         return nullptr;
       };
 
+      const bool enable_ndk_audio_pull_sink =
+          GetNdkAudioMode(experimental_features) == NdkAudioMode::kPullSink;
+
+      AudioRendererSinkAndroid::Options sink_options;
+      sink_options.tunnel_mode_audio_session_id = tunnel_mode_audio_session_id;
+      sink_options.allow_audio_writing_on_pause = allow_audio_writing_on_pause;
+      sink_options.enable_video_renderer_vsp_adjustment =
+          enable_video_renderer_vsp_adjustment;
+      sink_options.allow_flush_during_seek =
+          allow_flush_audio_track_during_seek;
+      sink_options.pause_using_audio_track_state =
+          pause_using_audio_track_state;
+      sink_options.enable_ndk_audio_pull_sink = enable_ndk_audio_pull_sink;
+
+      auto renderer_sink = std::make_unique<AudioRendererSinkAndroid>(
+          creation_parameters.audio_stream_info(), sink_options);
+
       components.audio.decoder = std::make_unique<AdaptiveAudioDecoder>(
           job_queue, creation_parameters.audio_stream_info(),
           creation_parameters.drm_system(), decoder_creator,
-          enable_reset_audio_decoder);
-
-      components.audio.renderer_sink =
-          std::make_unique<AudioRendererSinkAndroid>(
-              tunnel_mode_audio_session_id, allow_audio_writing_on_pause,
-              enable_video_renderer_vsp_adjustment,
-              allow_flush_audio_track_during_seek,
-              pause_using_audio_track_state);
+          enable_reset_audio_decoder,
+          CreateOutputFormatAdjustmentCallback(
+              creation_parameters.audio_stream_info(), *renderer_sink));
+      components.audio.renderer_sink = std::move(renderer_sink);
     }
 
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
@@ -689,7 +578,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
          creation_parameters.drm_system(), creation_parameters.output_mode(),
          creation_parameters.decode_target_graphics_context_provider(),
          creation_parameters.surface_view(),
-         creation_parameters.max_video_capabilities()},
+         creation_parameters.max_video_capabilities(),
+         creation_parameters.max_video_resolution()},
         {tunnel_mode_audio_session_id, force_secure_pipeline_under_tunnel_mode},
         {max_video_input_size, enable_flush_during_seek, use_dual_threads,
          experimental_features},

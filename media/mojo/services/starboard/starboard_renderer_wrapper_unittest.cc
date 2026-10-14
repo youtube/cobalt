@@ -27,9 +27,11 @@
 #include "base/test/mock_callback.h"
 #include "base/test/task_environment.h"
 #include "cobalt/media/service/video_geometry_setter_service.h"
+#include "gpu/command_buffer/client/client_shared_image.h"
 #include "media/base/media_util.h"
 #include "media/base/mock_filters.h"
 #include "media/base/test_helpers.h"
+#include "media/base/video_frame.h"
 #include "media/gpu/starboard/starboard_gpu_factory_impl.h"
 #include "media/mojo/common/starboard/mojo_renderer_bypass_bridge.h"
 #include "media/mojo/mojom/renderer_extensions.mojom.h"
@@ -57,6 +59,7 @@ class MockStarboardRenderer : public StarboardRenderer {
       TimeDelta audio_write_duration_local,
       TimeDelta audio_write_duration_remote,
       const std::string& max_video_capabilities,
+      const std::string& max_video_resolution,
       const StarboardRendererConfig::ExperimentalFeatures&
           experimental_features,
       const gfx::Size& viewport_size
@@ -71,6 +74,7 @@ class MockStarboardRenderer : public StarboardRenderer {
                           audio_write_duration_local,
                           audio_write_duration_remote,
                           max_video_capabilities,
+                          max_video_resolution,
                           experimental_features,
                           viewport_size
 #if BUILDFLAG(IS_ANDROID)
@@ -143,8 +147,9 @@ class MockStarboardGpuFactory : public StarboardGpuFactory {
   void RunSbDecodeTargetFunctionOnGpu(
       SbDecodeTargetGlesContextRunnerTarget target_function,
       void* target_function_context,
-      base::WaitableEvent* done_event) override {
-    done_event->Signal();
+      scoped_refptr<GlesClosureRun> run) override {
+    run->outcome = GlesClosureRun::Outcome::kRan;
+    run->done.Signal();
   }
 
   void RunCallbackOnGpu(base::OnceCallback<void()> callback,
@@ -185,6 +190,7 @@ class StarboardRendererWrapperTest : public testing::Test {
             base::Seconds(1),
             base::Seconds(1),
             std::string(),
+            std::string(),
             StarboardRendererConfig::ExperimentalFeatures{},
             gfx::Size()
 #if BUILDFLAG(IS_ANDROID)
@@ -208,8 +214,9 @@ class StarboardRendererWrapperTest : public testing::Test {
         task_environment_.GetMainThreadTaskRunner(),
         std::move(media_log_remote), &video_geometry_setter_service_,
         base::UnguessableToken::Create(), base::Seconds(1), base::Seconds(1),
-        std::string(), StarboardRendererConfig::ExperimentalFeatures{},
-        gfx::Size(), std::move(renderer_extension_receiver),
+        std::string(), std::string(),
+        StarboardRendererConfig::ExperimentalFeatures{}, gfx::Size(),
+        std::move(renderer_extension_receiver),
         std::move(client_extension_remote), base::NullCallback());
     renderer_wrapper_ =
         std::make_unique<StarboardRendererWrapper>(std::move(traits)
@@ -395,6 +402,37 @@ TEST_F(StarboardRendererWrapperTest, GetCurrentVideoFrame) {
   EXPECT_CALL(callback, Run(testing::IsNull()));
   renderer_wrapper_->GetCurrentVideoFrame(callback.Get());
   task_environment_.RunUntilIdle();
+}
+
+TEST_F(StarboardRendererWrapperTest, DecodeToTextureFrameIsClearWithoutCdm) {
+  const gfx::Size kSize(320, 240);
+  scoped_refptr<VideoFrame> frame =
+      renderer_wrapper_->CreateVideoFrameForTesting(
+          PIXEL_FORMAT_ABGR, kSize, gfx::Rect(kSize), kSize,
+          gpu::ClientSharedImage::CreateForTesting());
+  ASSERT_TRUE(frame);
+  EXPECT_FALSE(frame->metadata().protected_video);
+  EXPECT_FALSE(frame->metadata().hw_protected);
+}
+
+TEST_F(StarboardRendererWrapperTest, DecodeToTextureFrameIsProtectedWithCdm) {
+  MockCdmContext cdm_context;
+  base::MockCallback<Renderer::CdmAttachedCB> cdm_attached_cb;
+  EXPECT_CALL(*mock_renderer_, OnSetCdm(&cdm_context, _))
+      .WillOnce(RunOnceCallback<1>(true));
+  EXPECT_CALL(cdm_attached_cb, Run(true));
+  renderer_wrapper_->SetCdm(&cdm_context, cdm_attached_cb.Get());
+
+  const gfx::Size kSize(320, 240);
+  scoped_refptr<VideoFrame> frame =
+      renderer_wrapper_->CreateVideoFrameForTesting(
+          PIXEL_FORMAT_ABGR, kSize, gfx::Rect(kSize), kSize,
+          gpu::ClientSharedImage::CreateForTesting());
+  ASSERT_TRUE(frame);
+  // Decode-to-texture frames are GPU-readable, so they are software protected
+  // only.
+  EXPECT_TRUE(frame->metadata().protected_video);
+  EXPECT_FALSE(frame->metadata().hw_protected);
 }
 
 TEST_F(StarboardRendererWrapperTest, ProxyDemuxerStreamDelegation) {

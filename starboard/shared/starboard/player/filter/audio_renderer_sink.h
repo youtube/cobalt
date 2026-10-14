@@ -61,6 +61,9 @@ class AudioRendererSink {
       SbMediaAudioSampleType audio_sample_type) const = 0;
   virtual int GetNearestSupportedSampleFrequency(
       int sampling_frequency_hz) const = 0;
+  virtual int GetOutputNumberOfChannels(int number_of_channels) const {
+    return number_of_channels;
+  }
 
   virtual bool HasStarted() const = 0;
   virtual void Start(int64_t media_start_time,

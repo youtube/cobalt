@@ -66,16 +66,7 @@ public class JavaSwitches {
 
   public static final String ENABLE_LOW_END_DEVICE_MODE_SWITCH = "--enable-low-end-device-mode";
 
-  /** flag to enable deferred V8 bytecode serialization in background/idle */
-  public static final String DEFER_V8_CODE_CACHE_WRITE = "DeferV8CodeCacheWrite";
-
-  /** flag to re-enable freeze and resume events */
-  public static final String ENABLE_FREEZE = "EnableFreeze";
-
   public static final String USE_MINOR_MS_FOR_MINOR_GC = "UseMinorMSForMinorGC";
-
-  /** flag to enable smart flushing for DOM storage (0ms delay and onStop flush). */
-  public static final String ENABLE_DOM_STORAGE_SMART_FLUSHING = "EnableDomStorageSmartFlushing";
 
   /** flag to tune compositor offscreen interest area size in pixels. */
   public static final String INTEREST_AREA_SIZE_IN_PIXELS = "InterestAreaSizeInPixels";
@@ -92,9 +83,6 @@ public class JavaSwitches {
 
   /** flag to limit GPU image cache bytes, resuing LimitImageDecodeCacheSizeMb */
   public static final String LIMIT_IMAGE_DECODE_CACHE_SIZE_MB = "LimitImageDecodeCacheSizeMb";
-
-  /** flag to globally configure max HTTP cache size ceiling in bytes. */
-  public static final String MAX_HTTP_CACHE_SIZE = "MaxHttpCacheSize";
 
   /** flag to limit GPU image cache working set budget bytes */
   public static final String DECODED_IMAGE_WORKING_SET_BUDGET_BYTES =
@@ -134,11 +122,6 @@ public class JavaSwitches {
   /** flag to aggressively flush v8 bytecode after a configurable old time. */
   public static final String V8_SET_BYTECODE_OLD_TIME = "V8SetBytecodeOldTime";
 
-  /** Flag to force SurfaceView for UI rendering (legacy fallback). */
-  // We keep this fallback for emergency brake.
-  // TODO: b/542337082 - Remove this after 09/17 (2-weeks after full-launch).
-  public static final String SURFACE_VIEW_UI_RENDERING = "SurfaceViewUiRendering";
-
   public static final String V8_INITIAL_OLD_SPACE_SIZE = "V8InitialOldSpaceSize";
   public static final String V8_MAX_OLD_SPACE_SIZE = "V8MaxOldSpaceSize";
 
@@ -162,9 +145,6 @@ public class JavaSwitches {
    */
   public static final String DISABLE_LESS_AGGRESSIVE_PARKABLE_STRING =
       "DisableLessAggressiveParkableString";
-
-  /** Flag to disable BackForwardCache for WebContents. */
-  public static final String DISABLE_BACK_FORWARD_CACHE = "DisableBackForwardCache";
 
   /** Flag to disable v8 baseline compiler sparkplug. */
   public static final String V8_DISABLE_SPARKPLUG = "V8DisableSparkplug";
@@ -331,10 +311,6 @@ public class JavaSwitches {
     List<String> extraCommandLineArgs = new ArrayList<>();
     StringJoiner jsFlags = new StringJoiner(";");
 
-    if (javaSwitches.containsKey(JavaSwitches.ENABLE_DOM_STORAGE_SMART_FLUSHING)) {
-      extraCommandLineArgs.add("--enable-features=DomStorageSmartFlushing");
-    }
-
     if (!javaSwitches.containsKey(JavaSwitches.ENABLE_QUIC)) {
       extraCommandLineArgs.add(DEFAULT_DISABLE_QUIC);
     }
@@ -456,16 +432,6 @@ public class JavaSwitches {
       extraCommandLineArgs.add("--enable-features=SmallerInterestArea:" + featureParams.toString());
     }
 
-    if (javaSwitches.containsKey(JavaSwitches.DEFER_V8_CODE_CACHE_WRITE)) {
-      extraCommandLineArgs.add("--defer-v8-code-cache-write");
-    }
-
-    String maxHttpCacheSize =
-        getSanitizedNumericValue(javaSwitches, JavaSwitches.MAX_HTTP_CACHE_SIZE);
-    if (maxHttpCacheSize != null) {
-      extraCommandLineArgs.add("--max-http-cache-size=" + maxHttpCacheSize);
-    }
-
     if (jsFlags.length() > 0) {
       extraCommandLineArgs.add("--js-flags=" + jsFlags.toString());
     }
@@ -488,10 +454,6 @@ public class JavaSwitches {
       extraCommandLineArgs.add("--enable-features=CobaltMmapFontCache");
     }
 
-    if (javaSwitches.containsKey(JavaSwitches.SURFACE_VIEW_UI_RENDERING)) {
-      extraCommandLineArgs.add("--use-surface-view-for-ui");
-    }
-
     if (javaSwitches.containsKey(JavaSwitches.AREA_BASED_VIDEO_BUFFER_BUDGET)) {
       extraCommandLineArgs.add("--enable-features=AreaBasedVideoBufferBudget");
     }
@@ -508,10 +470,6 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_LESS_AGGRESSIVE_PARKABLE_STRING)) {
       extraCommandLineArgs.add("--disable-features=LessAggressiveParkableString");
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.DISABLE_BACK_FORWARD_CACHE)) {
-      extraCommandLineArgs.add("--disable-back-forward-cache");
     }
 
     List<String> enabledMemoryPressureFeatures = new ArrayList<>();

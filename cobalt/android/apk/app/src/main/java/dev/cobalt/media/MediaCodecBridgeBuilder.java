@@ -58,8 +58,7 @@ class MediaCodecBridgeBuilder {
             mediaCodec,
             decoderName,
             TunnelModeAudioSessionId.NONE,
-            /* enableFrameRendererListener= */ false,
-            /* enableIgnoreCallbacksDuringFlushing= */ false);
+            /* enableFrameRendererListener= */ false);
 
     byte[][] csds = {};
     boolean frameHasAdtsHeader = false;

@@ -70,6 +70,8 @@ class ExoPlayerPlayerWorkerHandler : public PlayerWorker::Handler,
   Result<void> SetBounds(const Bounds& bounds) override { return Success(); }
 
   void SetMaxVideoInputSize(int max_video_input_size) override {}
+  void SetMaxVideoResolution(const std::string& max_video_resolution) override {
+  }
   void SetVideoSurfaceView(void* surface_view) override {}
   void SetExperimentalFeatures(
       const ExperimentalFeatures& experimental_features) override {}

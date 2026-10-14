@@ -21,6 +21,7 @@
 
 #include "starboard/android/shared/exoplayer/exoplayer_player_worker_handler.h"
 #include "starboard/android/shared/video_max_video_input_size.h"
+#include "starboard/android/shared/video_max_video_resolution.h"
 #include "starboard/android/shared/video_surface_view.h"
 #include "starboard/android/shared/video_window.h"
 #include "starboard/common/log.h"
@@ -231,6 +232,8 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
 
   handler->SetMaxVideoInputSize(
       starboard::GetMaxVideoInputSizeForCurrentThread());
+  handler->SetMaxVideoResolution(
+      starboard::GetMaxVideoResolutionForCurrentThread());
   handler->SetExperimentalFeatures(
       starboard::GetExperimentalFeaturesForCurrentThread());
   handler->SetVideoSurfaceView(starboard::GetSurfaceViewForCurrentThread());

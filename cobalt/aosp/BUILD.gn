@@ -40,15 +40,12 @@ android_library("cobalt_apk_java") {
   srcjar_deps = [ ":jni_headers" ]
 }
 
-android_library("nplb_instrumentation_java") {
+android_library("test_instrumentation_java") {
   testonly = true
 
-  mergeable_android_manifests =
-      [ "apk/nplb/AndroidManifest_instrumentation.xml" ]
-
   sources = [
-    "apk/nplb/java/dev/cobalt/app/NplbActivity.java",
-    "apk/nplb/java/dev/cobalt/app/NplbInstrumentationTestRunner.java",
+    "apk/test/java/dev/cobalt/testing/CobaltInstrumentationTestRunner.java",
+    "apk/test/java/dev/cobalt/testing/CobaltTestActivity.java",
   ]
   deps = [
     ":cobalt_apk_java",

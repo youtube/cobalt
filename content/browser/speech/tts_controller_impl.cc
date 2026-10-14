@@ -27,6 +27,9 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_client.h"
 #include "services/data_decoder/public/cpp/safe_xml_parser.h"
+#if BUILDFLAG(IS_COBALT)
+#include "services/data_decoder/public/cpp/service_provider.h"
+#endif  // BUILDFLAG(IS_COBALT)
 #include "services/data_decoder/public/mojom/xml_parser.mojom.h"
 #include "third_party/blink/public/mojom/speech/speech_synthesis.mojom.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -744,6 +747,18 @@ void TtsControllerImpl::StripSSML(
     std::move(on_ssml_parsed).Run(utterance);
     return;
   }
+
+#if BUILDFLAG(IS_COBALT)
+  // Cobalt-specific: the parse below is performed by the Data Decoder service.
+  // Embedders are not required to install a ServiceProvider for it (Cobalt
+  // does not), and on USE_BLINK builds DataDecoder::GetService() is a
+  // LOG(FATAL) when none has been set. Speak the utterance unparsed instead of
+  // terminating the browser process. See b/563468674.
+  if (!data_decoder::ServiceProvider::Get()) {
+    std::move(on_ssml_parsed).Run(utterance);
+    return;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 
   // Parse using safe, out-of-process Xml Parser.
   data_decoder::DataDecoder::ParseXmlIsolated(

@@ -14,19 +14,32 @@
 
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkWoff2FontCache_cobalt.h"
 
-#include <string.h>
-#include <strings.h>
+#include <sys/stat.h>
 
 #include <string>
 #include <string_view>
+#include <utility>
+#include <vector>
 
+#include "base/containers/flat_set.h"
+#include "base/files/file.h"
+#include "base/files/file_enumerator.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
+#include "base/files/important_file_writer.h"
+#include "base/functional/bind.h"
 #include "base/logging.h"
+#include "base/memory/scoped_refptr.h"
+#include "base/no_destructor.h"
 #include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/synchronization/lock.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/task/thread_pool.h"
+#include "base/task/thread_pool/thread_pool_instance.h"
 #include "base/timer/elapsed_timer.h"
 #include "woff2/decode.h"
+#include "woff2/output.h"
 
 namespace sk_woff2_cache_cobalt {
 
@@ -46,98 +59,225 @@ bool IsMmapFontCacheEnabled() {
 
 namespace {
 
-// Decompresses the WOFF2 file at |woff2_path| and atomically writes the raw
-// SFNT bytes to |cache_file| (tmp file in |cache_dir| + rename).
-bool DecompressWoff2ToFile(const base::FilePath& woff2_path,
-                           const base::FilePath& cache_dir,
-                           const base::FilePath& cache_file) {
-  std::string woff2_data;
-  if (!base::ReadFileToString(woff2_path, &woff2_data)) {
-    LOG(ERROR) << "CobaltMmapFontCache: failed to read " << woff2_path.value();
-    return false;
-  }
+bool IsWoff2File(const base::FilePath& path) {
+  return path.MatchesFinalExtension(FILE_PATH_LITERAL(".woff2"));
+}
 
-  const uint8_t* woff2_bytes =
-      reinterpret_cast<const uint8_t*>(woff2_data.data());
-  const size_t final_size =
-      woff2::ComputeWOFF2FinalSize(woff2_bytes, woff2_data.size());
-  if (final_size == 0 || final_size > woff2::kDefaultMaxSize) {
-    LOG(ERROR) << "CobaltMmapFontCache: bad WOFF2 final size " << final_size
-               << " for " << woff2_path.value();
+// Equivalent of base::GetFileInfo() without its base::ScopedBlockingCall,
+// which DCHECKs on threads where blocking is disallowed (e.g. the browser UI
+// thread when it creates the default typeface). Like the rest of the font
+// loading path (sk_exists(), SkStream::MakeFromFile()), the cache lookup
+// accesses local files directly; it only needs file metadata, so it calls
+// stat(). File::Info::FromStat() keeps the result identical to
+// base::GetFileInfo(), and therefore the cache key stable.
+bool StatFile(const base::FilePath& path, base::File::Info* info) {
+  base::stat_wrapper_t file_stat;
+  if (stat(path.value().c_str(), &file_stat) != 0) {
     return false;
   }
-
-  std::string sfnt_data;
-  sfnt_data.reserve(final_size);
-  woff2::WOFF2StringOut sfnt_out(&sfnt_data);
-  if (!woff2::ConvertWOFF2ToTTF(woff2_bytes, woff2_data.size(), &sfnt_out)) {
-    LOG(ERROR) << "CobaltMmapFontCache: WOFF2 decompression failed for "
-               << woff2_path.value();
-    return false;
-  }
-
-  base::FilePath temp_file;
-  if (!base::CreateTemporaryFileInDir(cache_dir, &temp_file)) {
-    return false;
-  }
-  // |sfnt_data| may have grown beyond the actual output; write Size() bytes.
-  if (!base::WriteFile(temp_file,
-                       std::string_view(sfnt_data.data(), sfnt_out.Size())) ||
-      !base::ReplaceFile(temp_file, cache_file, nullptr)) {
-    LOG(ERROR) << "CobaltMmapFontCache: failed to write " << cache_file.value();
-    base::DeleteFile(temp_file);
-    return false;
-  }
+  info->FromStat(file_stat);
   return true;
+}
+
+// Gets the font cache directory, <DIR_CACHE>/font_cache. This does not
+// block: DIR_CACHE is resolved (and cached by PathService) early during
+// browser startup, e.g. by GlobalFeatures before the FeatureList that gates
+// this feature is created, so the PathService lookup is an in-memory read.
+bool GetCacheDir(base::FilePath* cache_dir) {
+  base::FilePath cache_root;
+  if (!base::PathService::Get(base::DIR_CACHE, &cache_root)) {
+    LOG(WARNING) << "CobaltMmapFontCache: no cache directory available.";
+    return false;
+  }
+  *cache_dir = cache_root.Append(FILE_PATH_LITERAL("font_cache"));
+  return true;
+}
+
+// Returns the path of the cache file of the WOFF2 font at |woff2_path|, or an
+// empty path for non-WOFF2 files or if the font or the cache directory is
+// unavailable. The file name is keyed on the font's basename, size and mtime,
+// so a changed font gets a new cache file. The decompressed bytes may be a
+// TTF or TTC; the extension is only cosmetic. Does not block; see StatFile()
+// and GetCacheDir().
+base::FilePath GetCacheFile(const base::FilePath& woff2_path) {
+  base::File::Info info;
+  base::FilePath cache_dir;
+  if (!IsWoff2File(woff2_path) || !StatFile(woff2_path, &info) ||
+      !GetCacheDir(&cache_dir)) {
+    return base::FilePath();
+  }
+  return cache_dir.Append(
+      woff2_path.BaseName().RemoveExtension().value() + "." +
+      base::NumberToString(info.size) + "." +
+      base::NumberToString(static_cast<int64_t>(info.last_modified.ToTimeT())) +
+      ".ttf");
+}
+
+// Returns true if |cache_file| exists and is a non-empty file. Does not
+// block; see StatFile().
+bool IsCacheFilePresent(const base::FilePath& cache_file) {
+  base::File::Info info;
+  return StatFile(cache_file, &info) && !info.is_directory && info.size > 0;
+}
+
+// Decompresses the WOFF2 font |woff2| into a buffer of the SFNT size declared
+// in its header (a font that exceeds it fails to decompress). Returns the SFNT
+// bytes, or null on failure.
+sk_sp<SkData> DecompressWoff2Data(const SkData& woff2) {
+  const size_t sfnt_size =
+      woff2::ComputeWOFF2FinalSize(woff2.bytes(), woff2.size());
+  if (sfnt_size == 0 || sfnt_size > woff2::kDefaultMaxSize) {
+    return nullptr;
+  }
+  sk_sp<SkData> sfnt = SkData::MakeUninitialized(sfnt_size);
+  woff2::WOFF2MemoryOut out(static_cast<uint8_t*>(sfnt->writable_data()),
+                            sfnt_size);
+  if (!woff2::ConvertWOFF2ToTTF(woff2.bytes(), woff2.size(), &out)) {
+    return nullptr;
+  }
+  return out.Size() == sfnt_size
+             ? sfnt
+             : SkData::MakeSubset(sfnt.get(), 0, out.Size());
+}
+
+// Writes |sfnt| to the cache file of the WOFF2 font at |woff2_path|.
+// base::ImportantFileWriter writes it to a temporary file in the same
+// directory, flushes that to disk and renames it to the cache file, so the
+// cache file is never seen partially written.
+void WriteCacheFile(const base::FilePath& woff2_path, sk_sp<SkData> sfnt) {
+  const base::FilePath cache_file = GetCacheFile(woff2_path);
+  if (cache_file.empty()) {
+    return;
+  }
+  base::ElapsedTimer timer;
+  if (!base::CreateDirectory(cache_file.DirName()) ||
+      !base::ImportantFileWriter::WriteFileAtomically(
+          cache_file, std::string_view(static_cast<const char*>(sfnt->data()),
+                                       sfnt->size()))) {
+    LOG(ERROR) << "CobaltMmapFontCache: failed to write " << cache_file.value();
+    return;
+  }
+  LOG(INFO) << "CobaltMmapFontCache: wrote " << cache_file.value() << " in "
+            << timer.Elapsed();
+}
+
+// Deletes every file in the cache directory other than the cache files of the
+// current version of the WOFF2 fonts in |font_file_paths|. This covers the
+// cache files of fonts that were updated or removed (e.g. by a firmware
+// update) and the temporary files of interrupted cache file writes.
+void DeleteStaleCacheFiles(const std::vector<std::string>& font_file_paths) {
+  base::FilePath cache_dir;
+  if (!GetCacheDir(&cache_dir)) {
+    return;
+  }
+
+  base::flat_set<base::FilePath> current_cache_files;
+  for (const std::string& font_file_path : font_file_paths) {
+    base::FilePath cache_file = GetCacheFile(base::FilePath(font_file_path));
+    if (!cache_file.empty()) {
+      current_cache_files.insert(std::move(cache_file));
+    }
+  }
+
+  // This also lists hidden files, such as the temporary files.
+  base::FileEnumerator enumerator(cache_dir, /*recursive=*/false,
+                                  base::FileEnumerator::FILES);
+  for (base::FilePath path = enumerator.Next(); !path.empty();
+       path = enumerator.Next()) {
+    if (!current_cache_files.contains(path)) {
+      LOG(INFO) << "CobaltMmapFontCache: deleting stale " << path.value();
+      base::DeleteFile(path);
+    }
+  }
+}
+
+// Returns the sequence that runs the background work of the cache (the cache
+// file writes and the cleanup), or null if there is no ThreadPool. A sequence
+// runs one task at a time, in posting order, which guarantees that the
+// cleanup never deletes the temporary file of a cache file that is being
+// written.
+scoped_refptr<base::SequencedTaskRunner> GetTaskRunner() {
+  base::ThreadPoolInstance* const thread_pool = base::ThreadPoolInstance::Get();
+  if (!thread_pool) {
+    return nullptr;
+  }
+
+  static base::NoDestructor<base::Lock> lock;
+  static base::NoDestructor<scoped_refptr<base::SequencedTaskRunner>>
+      task_runner;
+  // The ThreadPool that |task_runner| posts to. It is only compared, never
+  // dereferenced: tests replace the ThreadPool, and the task runners of an
+  // earlier one no longer run tasks.
+  static base::ThreadPoolInstance* task_runner_thread_pool = nullptr;
+
+  base::AutoLock auto_lock(*lock);
+  if (thread_pool != task_runner_thread_pool) {
+    // BEST_EFFORT: the cache only benefits later app launches, so maintaining
+    // it must not compete with user-visible work. CONTINUE_ON_SHUTDOWN: cache
+    // files are written atomically (tmp + rename) and a temporary file left
+    // behind is deleted by the next cleanup, so abandoning the work at
+    // shutdown is safe and avoids delaying shutdown by a cache file write.
+    *task_runner = base::ThreadPool::CreateSequencedTaskRunner(
+        {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
+         base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN});
+    task_runner_thread_pool = thread_pool;
+  }
+  return *task_runner;
 }
 
 }  // namespace
 
-SkString GetOrCreateCachedSfntPath(const SkString& font_file_path) {
-  const char* extension = strrchr(font_file_path.c_str(), '.');
-  if (!extension || strcasecmp(extension, ".woff2") != 0) {
+SkString GetCachedSfntPath(const SkString& font_file_path) {
+  const base::FilePath cache_file =
+      GetCacheFile(base::FilePath(font_file_path.c_str()));
+  if (cache_file.empty() || !IsCacheFilePresent(cache_file)) {
     return SkString();
   }
+  return SkString(cache_file.value().c_str());
+}
 
-  base::FilePath woff2_path(font_file_path.c_str());
-  base::File::Info info;
-  if (!base::GetFileInfo(woff2_path, &info)) {
-    return SkString();
+sk_sp<SkData> DecompressWoff2(const SkString& font_file_path) {
+  if (!IsWoff2File(base::FilePath(font_file_path.c_str()))) {
+    return nullptr;
   }
-
-  base::FilePath cache_dir;
-  if (!base::PathService::Get(base::DIR_CACHE, &cache_dir)) {
-    LOG(WARNING) << "CobaltMmapFontCache: no cache directory available.";
-    return SkString();
-  }
-  cache_dir = cache_dir.Append(FILE_PATH_LITERAL("font_cache"));
-
-  // Key the cache file on basename, source size and source mtime so a changed
-  // source font produces a new cache entry. The decompressed bytes may be a
-  // TTF or TTC; the extension is only cosmetic.
-  const std::string cache_name =
-      woff2_path.BaseName().RemoveExtension().value() + "." +
-      base::NumberToString(info.size) + "." +
-      base::NumberToString(static_cast<int64_t>(info.last_modified.ToTimeT())) +
-      ".ttf";
-  const base::FilePath cache_file = cache_dir.Append(cache_name);
-
-  if (base::GetFileSize(cache_file).value_or(0) > 0) {
-    return SkString(cache_file.value().c_str());
-  }
-
-  if (!base::CreateDirectory(cache_dir)) {
-    LOG(ERROR) << "CobaltMmapFontCache: failed to create " << cache_dir.value();
-    return SkString();
+  // Maps the font like SkStream::MakeFromFile() maps cache files: Skia's file
+  // API, unlike base's, does not assert that blocking is allowed.
+  sk_sp<SkData> woff2 = SkData::MakeFromFileName(font_file_path.c_str());
+  if (!woff2) {
+    return nullptr;
   }
 
   base::ElapsedTimer timer;
-  if (!DecompressWoff2ToFile(woff2_path, cache_dir, cache_file)) {
-    return SkString();
+  sk_sp<SkData> sfnt = DecompressWoff2Data(*woff2);
+  if (!sfnt) {
+    LOG(ERROR) << "CobaltMmapFontCache: failed to decompress "
+               << font_file_path.c_str();
+    return nullptr;
   }
-  LOG(INFO) << "CobaltMmapFontCache: decompressed " << woff2_path.value()
-            << " -> " << cache_file.value() << " in " << timer.Elapsed();
-  return SkString(cache_file.value().c_str());
+  LOG(INFO) << "CobaltMmapFontCache: decompressed " << font_file_path.c_str()
+            << " in " << timer.Elapsed();
+  return sfnt;
+}
+
+void ScheduleCacheFileWrite(const SkString& font_file_path,
+                            sk_sp<SkData> sfnt) {
+  // Without a ThreadPool (e.g. unit tests without a TaskEnvironment), the
+  // cache simply stays cold.
+  base::FilePath woff2_path(font_file_path.c_str());
+  scoped_refptr<base::SequencedTaskRunner> task_runner = GetTaskRunner();
+  if (task_runner && sfnt && IsWoff2File(woff2_path)) {
+    task_runner->PostTask(FROM_HERE,
+                          base::BindOnce(&WriteCacheFile, std::move(woff2_path),
+                                         std::move(sfnt)));
+  }
+}
+
+void ScheduleCacheCleanup(std::vector<std::string> font_file_paths) {
+  if (scoped_refptr<base::SequencedTaskRunner> task_runner = GetTaskRunner()) {
+    task_runner->PostTask(
+        FROM_HERE,
+        base::BindOnce(&DeleteStaleCacheFiles, std::move(font_file_paths)));
+  }
 }
 
 }  // namespace sk_woff2_cache_cobalt

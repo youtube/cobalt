@@ -19,12 +19,11 @@
 #include <unistd.h>
 
 #include <chrono>
+#include <cstring>
 #include <iterator>
 
 #include "starboard/android/shared/media_common.h"
-#include "starboard/android/shared/memfd_media_buffer_pool.h"
 #include "starboard/audio_sink.h"
-#include "starboard/common/experimental/media_buffer_pool.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/common/thread.h"
@@ -136,7 +135,6 @@ MediaCodecDecoder::CreateForVideo(
     int64_t flush_delay_usec,
     bool use_dual_threads,
     bool skip_video_frames_over_60_fps,
-    bool ignore_mediacodec_callbacks_during_flushing,
     bool enable_ndk_video,
     bool enable_trivial_optimizations) {
   std::string error_message;
@@ -146,8 +144,7 @@ MediaCodecDecoder::CreateForVideo(
       drm_system, color_metadata, require_software_codec, frame_rendered_cb,
       first_tunnel_frame_ready_cb, tunnel_mode_audio_session_id,
       enable_frame_renderer_listener, max_video_input_size, flush_delay_usec,
-      use_dual_threads, skip_video_frames_over_60_fps,
-      ignore_mediacodec_callbacks_during_flushing, enable_ndk_video,
+      use_dual_threads, skip_video_frames_over_60_fps, enable_ndk_video,
       enable_trivial_optimizations, &error_message);
   if (!decoder->media_codec_bridge_) {
     return Failure(error_message);
@@ -219,7 +216,6 @@ MediaCodecDecoder::MediaCodecDecoder(
     int64_t flush_delay_usec,
     bool use_dual_threads,
     bool skip_video_frames_over_60_fps,
-    bool ignore_mediacodec_callbacks_during_flushing,
     bool enable_ndk_video,
     bool enable_trivial_optimizations,
     std::string* error_message)
@@ -253,7 +249,6 @@ MediaCodecDecoder::MediaCodecDecoder(
       video_codec, frame_size_hint, fps, max_frame_size,
       /*handler=*/this, j_output_surface, j_media_crypto, color_metadata,
       {max_video_input_size, skip_video_frames_over_60_fps,
-       ignore_mediacodec_callbacks_during_flushing,
        enable_frame_renderer_listener, require_secured_decoder,
        require_software_codec, tunnel_mode_audio_session_id, enable_ndk_video});
 
@@ -837,18 +832,7 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
     SB_DCHECK_GE(size, 0);
     SB_DCHECK_LE(static_cast<size_t>(size), capacity);
 
-    using ::starboard::experimental::IsPointerAnnotated;
-    using ::starboard::experimental::UnannotatePointer;
-
-    if (IsPointerAnnotated(data)) {
-      auto* pool = MemFdMediaBufferPool::Get();
-      SB_DCHECK(pool);
-
-      // Unannotate the pointer here to convert it into the position the
-      // extension understands.
-      intptr_t position = UnannotatePointer(reinterpret_cast<intptr_t>(data));
-      pool->Read(position, address, size);
-    } else {
+    if (size > 0) {
       memcpy(address, data, size);
     }
   }

@@ -53,6 +53,46 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Features.GpuMemoryAblation.AllocatedMB" units="MB"
+    expires_after="never">
+  <owner>sherryzy@google.com</owner>
+  <summary>
+    Records the amount of GPU memory requested in megabytes when the GPU memory
+    ablation Finch feature is enabled. Recorded in the GPU process.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Features.GpuMemoryAblation.Enabled" enum="Boolean"
+    expires_after="never">
+  <owner>sherryzy@google.com</owner>
+  <summary>
+    Records whether the GPU memory ablation Finch feature is enabled. Used to
+    verify experiment arm rollout for Finch validation. Recorded in the GPU
+    process.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Features.GpuMemoryAblation.GlErrorDrainExhausted"
+    enum="Boolean" expires_after="never">
+  <owner>sherryzy@google.com</owner>
+  <summary>
+    Records whether GL errors were still pending after the bounded glGetError()
+    drain loop used by the GPU memory ablation study. True indicates unexpected
+    driver behavior that may skew experiment results. Recorded each time the
+    errors are drained.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Features.GpuMemoryAblation.Result"
+    enum="GpuMemoryAblationResult" expires_after="never">
+  <owner>sherryzy@google.com</owner>
+  <summary>
+    Records the outcome of the GPU memory ablation allocation attempt, including
+    the failure reason if the allocation did not succeed. Recorded in the GPU
+    process.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.Features.NativeMemoryAblation.AllocatedMB" units="MB"
     expires_after="never">
   <owner>yijiazhang@google.com</owner>
@@ -309,6 +349,17 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Media.Android.DecoderFramework"
+    enum="AndroidDecoderFramework" expires_after="never">
+  <owner>kjyoun@google.com</owner>
+  <owner>cobalt-media-team@google.com</owner>
+  <summary>
+    Tracks whether the active Android hardware video decoder is running on
+    Codec2 (c2.*), OpenMAX (OMX.*), or an unknown framework. Recorded when a
+    video decoder is created in MediaCodecBridge.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.Media.IsBufferPoolAllocateOnDemand" enum="Boolean"
     expires_after="never">
   <owner>sideboard@google.com</owner>
@@ -380,8 +431,17 @@ Always run the pretty print utility on this file after editing:
   <summary>
     Reason given by Android ActivityManager for the exit of the previous Cobalt
     browser process, recorded on startup for Android R+ (API 30+) devices.
-    Extracted from the previous session's persistent memory allocator file PID.
-    Records Android API failed when ActivityManager does not return a reason.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Stability.Android.SystemExitReason.Foreground"
+    enum="AndroidProcessExitReason" expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    Reason given by Android ActivityManager for the exit of the previous Cobalt
+    browser process when the process importance was foreground (&lt;=
+    IMPORTANCE_FOREGROUND), recorded on startup for Android R+ (API 30+)
+    devices.
   </summary>
 </histogram>
 
@@ -480,6 +540,18 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Storage.Cookie.CommitDuration" units="ms"
+    expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the total wall-clock time spent executing a batch commit (including
+    the SQLite transaction commit and disk sync) in
+    SQLitePersistentCookieStore::Backend::DoCommit() when at least one pending
+    cookie operation is present.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.Storage.Cookie.CommitDurationPerOperation" units="ms"
     expires_after="never">
   <owner>charleykim@google.com</owner>
@@ -513,6 +585,22 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Storage.DirCache.StartupTotalSizeKB" units="KB"
+    expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the total on-disk size in kilobytes of Cobalt's evictable cache
+    directory (base::DIR_CACHE), 30 seconds after browser startup, on a
+    BEST_EFFORT background thread. Recorded once per browser process launch; it
+    is not recorded again when Cobalt resumes from the background or is revealed
+    after a preload, so each sample represents one process launch. Because the
+    cache persists across launches, this mostly reflects the size left by
+    earlier sessions plus startup writes; launches that start with an empty
+    cache show up as low values.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.Storage.Exit.CookieFlushDuration" units="ms"
     expires_after="never">
   <owner>charleykim@google.com</owner>
@@ -536,6 +624,17 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Storage.LocalStorage.CommitDuration" units="ms"
+    expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the total wall-clock time spent committing a LevelDB WriteBatch
+    (including synchronous disk flush when options.sync is enabled) in
+    DomStorageDatabase::Commit().
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.Storage.OnPause.FlushDuration" units="ms"
     expires_after="never">
   <owner>charleykim@google.com</owner>
@@ -544,6 +643,62 @@ Always run the pretty print utility on this file after editing:
     onPause event on Android. This helps to understand if the operation
     completes within the short window granted by the OS before the app is
     killed.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.ProcessIo.StartupReadKB" units="KB"
+    expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the cumulative block-layer kilobytes read from storage
+    (/proc/self/io read_bytes) by the browser process during the first 30
+    seconds after browser startup. Recorded once per browser process launch; it
+    is not recorded again when Cobalt resumes from the background. On platforms
+    that preload Cobalt, this window may fall entirely within the preload,
+    before the app is visible. Sampled before computing directory sizes so that
+    metadata stat() calls do not inflate the reading.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.ProcessIo.StartupWriteKB" units="KB"
+    expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the cumulative block-layer kilobytes written to storage
+    (/proc/self/io write_bytes) by the browser process during the first 30
+    seconds after browser startup. Recorded once per browser process launch; it
+    is not recorded again when Cobalt resumes from the background. On platforms
+    that preload Cobalt, this window may fall entirely within the preload,
+    before the app is visible.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.ProcessIo.WriteRateKBPerMin" units="KB"
+    expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the steady-state block-layer write rate in kilobytes per minute,
+    sampled every 5 minutes on a BEST_EFFORT background sequence from
+    /proc/self/io write_bytes deltas after the 30-second post-startup baseline.
+    Sampling continues for the life of the browser process, including while
+    Cobalt is in the background; if the OS freezes the process, the next sample
+    covers the longer interval.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.UserData.StartupTotalSizeKB" units="KB"
+    expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the total on-disk size in kilobytes of Cobalt's persistent user data
+    directory (content::SHELL_DIR_USER_DATA), 30 seconds after browser startup,
+    on a BEST_EFFORT background thread. Recorded once per browser process
+    launch; it is not recorded again when Cobalt resumes from the background or
+    is revealed after a preload, so each sample represents one process launch.
   </summary>
 </histogram>
 
@@ -877,11 +1032,10 @@ Always run the pretty print utility on this file after editing:
     Percentage of free virtual address (VA) space that lies outside the single
     largest free gap: 100 * (1 - LargestFreeGap / TotalUnmappedVa). 0% means all
     free address space is one contiguous block, 50% means the largest block
-    holds half of it.
-    This measures how concentrated the free space is, not how much
-    of it there is, so a low value on its own does not imply headroom; read it
-    alongside LargestFreeGapMb and TotalUnmappedVaMb. Only emitted
-    on 32-bit Android, where the ~3GB user address space is exhaustible.
+    holds half of it. This measures how concentrated the free space is, not how
+    much of it there is, so a low value on its own does not imply headroom; read
+    it alongside LargestFreeGapMb and TotalUnmappedVaMb. Only emitted on 32-bit
+    Android, where the ~3GB user address space is exhaustible.
   </summary>
 </histogram>
 
@@ -917,6 +1071,42 @@ Always run the pretty print utility on this file after editing:
     Guards against reaching the kernel vm.max_map_count limit and tracks virtual
     address space fragmentation. Only emitted on 32-bit Android, where the ~3GB
     user address space is exhaustible.
+  </summary>
+</histogram>
+
+<histogram name="Memory.GPU.DecodedImages" units="MB" expires_after="never">
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-eng@google.com</owner>
+  <summary>
+    Current decoded image cache memory usage tracked from
+    gpu::ServiceTransferCache.
+  </summary>
+</histogram>
+
+<histogram name="Memory.GPU.DecodedImages.Peak" units="MB"
+    expires_after="never">
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-eng@google.com</owner>
+  <summary>
+    Peak decoded image cache memory usage tracked from
+    gpu::ServiceTransferCache, updated once per minute.
+  </summary>
+</histogram>
+
+<histogram name="Memory.GPU.TileMemory" units="MB" expires_after="never">
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-eng@google.com</owner>
+  <summary>
+    Current tile texture memory usage tracked from cc::ResourcePool.
+  </summary>
+</histogram>
+
+<histogram name="Memory.GPU.TileMemory.Peak" units="MB" expires_after="never">
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-eng@google.com</owner>
+  <summary>
+    Peak tile texture memory usage tracked from cc::ResourcePool, updated once
+    per minute.
   </summary>
 </histogram>
 

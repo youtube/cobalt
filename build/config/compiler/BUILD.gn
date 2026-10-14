@@ -35,6 +35,7 @@ if (current_cpu == "mipsel" || current_cpu == "mips64el" ||
 }
 if (is_mac) {
   import("//build/config/apple/symbols.gni")
+  import("//build/config/mac/mac_sdk.gni")
 }
 if (is_ios) {
   import("//build/config/ios/ios_sdk.gni")
@@ -511,6 +512,18 @@ config("compiler") {
     # linker_driver.py script runs dsymutil itself, which is set to be the
     # linker for Rust targets as well.
     rustflags += [ "-Csplit-debuginfo=unpacked" ]
+
+    if (xcode_version_int >= 2700) {
+      # Xcode 27+'s no longer define INFINITY and NAN unconditionally, and this
+      # requires at least LLVM 22.1.0 to work correctly.
+      defines += [
+        "INFINITY=__builtin_inff()",
+        "NAN=__builtin_nanf(\"\")",
+      ]
+      # Xcode 27+'s <os/trace_base.h> has the stack_protector_ignore attribute
+      # on a local variable, which depends on LLVM 23.1.0.
+      cflags += [ "-Wno-unknown-attributes" ]
+    }
   }
 
   # Linux/Android/Fuchsia common flags setup.

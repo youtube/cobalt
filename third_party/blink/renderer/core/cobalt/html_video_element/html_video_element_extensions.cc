@@ -28,4 +28,11 @@ void HTMLVideoElementExtensions::setMaxVideoCapabilities(
                                         exception_state);
 }
 
+void HTMLVideoElementExtensions::setMaxVideoResolution(
+    HTMLVideoElement& video_element,
+    const String& max_video_resolution,
+    ExceptionState& exception_state) {
+  video_element.SetMaxVideoResolution(max_video_resolution, exception_state);
+}
+
 }  // namespace blink

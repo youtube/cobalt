@@ -66,6 +66,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
         decode_target_graphics_context_provider = nullptr;
     void* surface_view = nullptr;
     std::string max_video_capabilities;
+    std::string max_video_resolution;
   };
 
   struct TunnelModeConfig {
@@ -166,6 +167,8 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   void ReportError(SbPlayerError error, const std::string& error_message);
 
   void ResetInternal(bool skip_flush);
+  bool NeedsCodecTransition(
+      const scoped_refptr<InputBuffer>& input_buffer) const;
 
   // These variables will be initialized inside ctor or Initialize() and will
   // not be changed during the life time of this class.
@@ -210,14 +213,9 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   // mode.
   const bool skip_video_frames_over_60_fps_;
 
-  // Enable the workaround to ignore stale/dirty MediaCodec callback messages
-  // queued on the main thread during a flush.
-  const bool ignore_mediacodec_callbacks_during_flushing_;
   const bool ignore_stale_rendered_frames_after_seek_;
   const bool enable_trivial_optimizations_;
   const bool enable_ndk_video_;
-  const bool fix_need_more_input_backpressure_;
-  const int max_pending_inputs_size_;
 
   // On some platforms tunnel mode is only supported in the secure pipeline.  So
   // we create a dummy drm system to force the video playing in secure pipeline
@@ -260,6 +258,8 @@ class MediaCodecVideoDecoder : public VideoDecoder,
 
   std::atomic<int32_t> number_of_frames_being_decoded_{0};
   scoped_refptr<Sink> sink_;
+
+  bool is_flushed_ = false;
 
   int input_buffer_written_ = 0;
   bool first_texture_received_ = false;

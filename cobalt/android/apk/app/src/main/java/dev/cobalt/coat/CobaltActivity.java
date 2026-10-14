@@ -29,7 +29,6 @@ import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup.LayoutParams;
 import android.view.ViewParent;
-import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.Toast;
 import android.window.OnBackInvokedCallback;
@@ -60,7 +59,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.chromium.base.BaseSwitches;
 import org.chromium.base.CommandLine;
+import org.chromium.base.FeatureList;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.LibraryProcessType;
 import org.chromium.base.memory.MemoryPressureMonitor;
@@ -103,10 +104,12 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   private Intent mLastSentIntent;
   private String mStartupUrl;
   private IntentRequestTracker mIntentRequestTracker;
-  // Tracks the status of the FLAG_KEEP_SCREEN_ON window flag.
-  private Boolean mIsKeepScreenOnEnabled = false;
   private Runnable mFreezeRunnable;
   private final Handler mHandler = new Handler(Looper.getMainLooper());
+
+  // Delay between visibility:hidden and the freeze event on NVIDIA Shield, which always freezes
+  // with a delay regardless of the CobaltFreezeOnBackground feature.
+  private static final long SHIELD_FREEZE_DELAY_MS = 1500L;
 
   private boolean mIsCobaltUsingAndroidOverlay;
 
@@ -229,7 +232,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     if (getStarboardBridge() == null) {
       // Cold start - Instantiate the singleton StarboardBridge.
       RecordHistogram.recordBooleanHistogram("Cobalt.Android.ColdStart", true);
-      if (CommandLine.getInstance().hasSwitch("use-custom-android-fonts-xml")) {
+      if (CommandLine.getInstance().hasSwitch(BaseSwitches.USE_CUSTOM_ANDROID_FONTS_XML)) {
         FontUtil.copyFontsXml(getApplicationContext());
       }
       StarboardBridge starboardBridge = createStarboardBridge(getArgs(), mStartDeepLink);
@@ -483,6 +486,12 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
       }
     }
     Log.i(TAG, "Arming StartupGuard with " + timeout + " second timeout.");
+    StartupGuard.getInstance()
+        .setPreCrashHook(
+            () ->
+                CobaltProcessStateSummary.setStartupGuardTriggeredKill(
+                    StartupGuard.getInstance().getStartupStatus(),
+                    StartupGuard.getInstance().getHighestMilestone()));
     StartupGuard.getInstance().scheduleCrash(timeout);
   }
 
@@ -549,7 +558,11 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
           javascriptAndroidObject,
           javascriptAndroidObject.getJavaScriptInterfaceName(),
           CobaltJavaScriptInterface.class,
-          /* originAllowlist= */ new ArrayList<String>());
+          // An empty allowlist matches no origin at all, which silently disables every
+          // injected Java object. "*" restores the pre-M138 behaviour of allowing all
+          // origins.
+          // TODO(b/543808733): consider a stricter allowlist than "*".
+          /* originAllowlist= */ List.of("*"));
     }
   }
 
@@ -589,17 +602,15 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
     super.onStart();
 
-    if (isNvidiaShield() && mFreezeRunnable != null) {
-      mHandler.removeCallbacks(mFreezeRunnable);
-      mFreezeRunnable = null;
-    }
+    // Cancel any freeze that was queued in onStop() but has not fired yet (e.g. the app was
+    // brought back to the foreground within the delay).
+    cancelPendingFreeze();
 
     if (useStarboardLifeCycle()) {
       AppEventBridge.handleRevealEvent(System.nanoTime() / 1000L);
     } else {
       WebContents webContents = getActiveWebContents();
-      if (webContents != null
-          && (isNvidiaShield() || getJavaSwitches().containsKey(JavaSwitches.ENABLE_FREEZE))) {
+      if (webContents != null && shouldFreezeOnBackground()) {
         // document.onresume event
         webContents.onResume();
       }
@@ -632,46 +643,34 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     if (isNvidiaShield()) {
       unregisterDisplayListener();
     }
+    DisplayUtil.removeDisplayListener(this);
+    AudioOutputManager.removeAudioDeviceListener(this);
     super.onStop();
 
     if (useStarboardLifeCycle()) {
-      if (getJavaSwitches().containsKey(JavaSwitches.ENABLE_FREEZE)) {
-        // If ENABLE_FREEZE is specified, fire freeze event immediately
-        AppEventBridge.handleFreezeEvent(stopTimestamp);
-      } else {
-        AppEventBridge.handleConcealEvent(stopTimestamp);
-      }
+      // Going to the background is Conceal in the Starboard lifecycle (see
+      // cobalt/doc/lifecycle.md). Freeze there is a blocking transition that releases SbPlayer and
+      // flushes storage ahead of a process suspend, so it is deliberately not driven by
+      // CobaltFreezeOnBackground, which only controls the lightweight page freeze below.
+      AppEventBridge.handleConcealEvent(stopTimestamp);
     } else {
       // visibility:hidden event
       updateShellActivityVisible(false);
       WebContents webContents = getActiveWebContents();
-      if (webContents != null) {
-        if (isNvidiaShield()) {
-          if (mFreezeRunnable != null) {
-            mHandler.removeCallbacks(mFreezeRunnable);
-          }
-          mFreezeRunnable =
-              new Runnable() {
-                @Override
-                public void run() {
-                  WebContents currentWebContents = getActiveWebContents();
-                  if (currentWebContents != null) {
-                    currentWebContents.onFreeze();
-                  }
-                  mFreezeRunnable = null;
-                }
-              };
-          mHandler.postDelayed(mFreezeRunnable, 1500);
-        } else if (getJavaSwitches().containsKey(JavaSwitches.ENABLE_FREEZE)) {
-          // If ENABLE_FREEZE is specified, fire freeze event immediately
+      if (webContents != null && shouldFreezeOnBackground()) {
+        long delayMs = getFreezeOnBackgroundDelayMs();
+        if (delayMs > 0) {
+          scheduleFreeze(delayMs);
+        } else {
+          // Fire freeze event immediately.
           webContents.onFreeze();
         }
       }
     }
 
-    if (getJavaSwitches().containsKey(JavaSwitches.ENABLE_DOM_STORAGE_SMART_FLUSHING)) {
-      CobaltContentBrowserClient.flushCookiesAndLocalStorage();
-    }
+    // Persist pending cookie and DOM storage writes so they are not lost if the
+    // process is killed while the app is in the background.
+    CobaltContentBrowserClient.flushCookiesAndLocalStorage();
 
     if (VideoSurfaceView.getCurrentSurface() != null) {
       mForceCreateNewVideoSurfaceView = true;
@@ -706,11 +705,8 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     unregisterNetworkRecoveryObserver();
     if (isNvidiaShield()) {
       unregisterDisplayListener();
-      if (mFreezeRunnable != null) {
-        mHandler.removeCallbacks(mFreezeRunnable);
-        mFreezeRunnable = null;
-      }
     }
+    cancelPendingFreeze();
     if (mShellManager != null) {
       mShellManager.destroy();
     }
@@ -874,6 +870,69 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
             && CommandLine.getInstance().hasSwitch(JavaSwitches.USE_STARBOARD_LIFECYCLE_SWITCH));
   }
 
+  /**
+   * Returns whether the CobaltFreezeOnBackground Finch feature is enabled. Finch state lives in
+   * native, so this is false until the native library and base::FeatureList are initialized.
+   */
+  @VisibleForTesting
+  protected boolean isFreezeOnBackgroundFeatureEnabled() {
+    return FeatureList.isNativeInitialized()
+        && CobaltContentBrowserClient.isFreezeOnBackgroundEnabled();
+  }
+
+  /**
+   * Returns whether the web app should receive a freeze event when the Activity is stopped. NVIDIA
+   * Shield always freezes (see {@link #SHIELD_FREEZE_DELAY_MS}); every other device follows the
+   * CobaltFreezeOnBackground Finch feature.
+   */
+  @VisibleForTesting
+  protected boolean shouldFreezeOnBackground() {
+    return isNvidiaShield() || isFreezeOnBackgroundFeatureEnabled();
+  }
+
+  /**
+   * Returns the delay in milliseconds between the hidden/conceal event and the freeze event. NVIDIA
+   * Shield always uses {@link #SHIELD_FREEZE_DELAY_MS} and ignores the Finch param; other devices
+   * use CobaltFreezeOnBackground_delay_ms, or 0 when the feature is disabled.
+   */
+  @VisibleForTesting
+  protected long getFreezeOnBackgroundDelayMs() {
+    if (isNvidiaShield()) {
+      return SHIELD_FREEZE_DELAY_MS;
+    }
+    if (!isFreezeOnBackgroundFeatureEnabled()) {
+      return 0L;
+    }
+    return Math.max(0, CobaltContentBrowserClient.getFreezeOnBackgroundDelayMs());
+  }
+
+  /** Queues the document freeze to run after {@code delayMs}, replacing any pending freeze. */
+  private void scheduleFreeze(long delayMs) {
+    cancelPendingFreeze();
+    mFreezeRunnable =
+        () -> {
+          mFreezeRunnable = null;
+          freezeActiveWebContents();
+        };
+    mHandler.postDelayed(mFreezeRunnable, delayMs);
+  }
+
+  /** Cancels a freeze queued by {@link #scheduleFreeze} that has not fired yet, if any. */
+  private void cancelPendingFreeze() {
+    if (mFreezeRunnable != null) {
+      mHandler.removeCallbacks(mFreezeRunnable);
+      mFreezeRunnable = null;
+    }
+  }
+
+  /** Dispatches the document freeze event to the active WebContents, if there still is one. */
+  private void freezeActiveWebContents() {
+    WebContents webContents = getActiveWebContents();
+    if (webContents != null) {
+      webContents.onFreeze();
+    }
+  }
+
   @Override
   public void onRequestPermissionsResult(
       int requestCode, String[] permissions, int[] grantResults) {
@@ -963,32 +1022,14 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
         });
   }
 
-  public void toggleKeepScreenOn(boolean keepOn) {
-    if (mIsKeepScreenOnEnabled != keepOn) {
-      runOnUiThread(
-          new Runnable() {
-            @Override
-            public void run() {
-              if (keepOn) {
-                getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-                Log.i(TAG, "Screen keep-on enabled for video playback");
-              } else {
-                getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-                Log.i(TAG, "Screen keep-on disabled");
-              }
-            }
-          });
-      mIsKeepScreenOnEnabled = keepOn;
-    }
-  }
-
   private void updateShellActivityVisible(boolean isVisible) {
     if (mShellManager != null) {
       mShellManager.onActivityVisible(isVisible);
     }
   }
 
-  private static boolean isNvidiaShield() {
+  @VisibleForTesting
+  protected boolean isNvidiaShield() {
     return "NVIDIA".equalsIgnoreCase(Build.MANUFACTURER)
         || "NVIDIA".equalsIgnoreCase(Build.BRAND)
         || (Build.MODEL != null && Build.MODEL.toLowerCase(Locale.US).contains("shield"));

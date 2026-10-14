@@ -15,6 +15,7 @@
 #include "media/starboard/starboard_media_external_memory_allocator.h"
 
 #include <cstring>
+#include <memory>
 #include <utility>
 
 #include "base/check.h"
@@ -97,11 +98,10 @@ StarboardMediaExternalMemoryAllocator::
 std::unique_ptr<DecoderBuffer::ExternalMemory>
 StarboardMediaExternalMemoryAllocator::CopyFrom(
     base::span<const uint8_t> span) {
-  // In Starboard builds, stream parsers (e.g., mp4_stream_parser.cc) should
-  // always invoke the 2-parameter overload CopyFrom(span, type) so that media
-  // pool strategies receive the exact DemuxerStream::Type. This 1-parameter
-  // implementation exists to satisfy the pure virtual vtable contract and acts
-  // as a fallback for generic or legacy tests.
+  // Called by StreamParserBuffer::CopyFrom() (used by most stream parsers)
+  // and directly by MP4StreamParser. The stream type is not needed, since
+  // BidirectionalFitDecoderBufferAllocatorStrategy, the only
+  // DecoderBufferAllocator strategy, ignores it.
   return CopyFrom(span, DemuxerStream::UNKNOWN);
 }
 
@@ -126,15 +126,55 @@ StarboardMediaExternalMemoryAllocator::CopyFrom(base::span<const uint8_t> span,
     return nullptr;
   }
 
-  pool->Write(handle, span.data(), span.size());
-
-  // Cast handle to pointer for read access in span.
-  // Note: If annotated pointers are enabled, IsPointerAnnotated check will
-  // occur when Span().data() is accessed, consistent with
-  // DecoderBuffer::data().
-  const uint8_t* data_ptr = reinterpret_cast<const uint8_t*>(handle);
+  auto* data_ptr = reinterpret_cast<uint8_t*>(handle);
+  memcpy(data_ptr, span.data(), span.size());
   return std::make_unique<StarboardPoolExternalMemory>(
       pool, handle, span.size(), data_ptr, type);
+}
+
+std::unique_ptr<DecoderBuffer::ExternalMemory>
+StarboardMediaExternalMemoryAllocator::CopyFrom(
+    base::span<const base::span<const uint8_t>> parts,
+    DemuxerStream::Type type) {
+  if (parts.size() == 1) {
+    return CopyFrom(parts[0], type);
+  }
+
+  auto* pool = DecoderBufferAllocator::Get();
+  if (!pool) {
+    LOG(ERROR) << "DecoderBufferAllocator instance is not initialized.";
+    return nullptr;
+  }
+
+  size_t total_size = 0;
+  for (const auto& part : parts) {
+    total_size += part.size();
+  }
+  if (total_size == 0) {
+    return std::make_unique<StarboardPoolExternalMemory>(
+        pool, DecoderBuffer::Allocator::kInvalidHandle, 0, nullptr, type);
+  }
+
+  auto handle = pool->Allocate(type, total_size);
+  if (handle == DecoderBuffer::Allocator::kInvalidHandle) {
+    LOG(ERROR) << "Failed to allocate " << total_size
+               << " bytes from Starboard media buffer pool.";
+    return nullptr;
+  }
+
+  auto* data_ptr = reinterpret_cast<uint8_t*>(handle);
+  size_t offset = 0;
+  for (const auto& part : parts) {
+    if (part.empty()) {
+      continue;
+    }
+    memcpy(data_ptr + offset, part.data(), part.size());
+    offset += part.size();
+  }
+  DCHECK_EQ(offset, total_size);
+
+  return std::make_unique<StarboardPoolExternalMemory>(pool, handle, total_size,
+                                                       data_ptr, type);
 }
 
 }  // namespace media

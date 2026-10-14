@@ -32,7 +32,7 @@
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "base/containers/contains.h"
 #include "base/strings/string_split.h"
-#include "starboard/media.h"  // nogncheck
+#include "media/base/starboard/sbmedia_interface.h"
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace {
@@ -1063,8 +1063,15 @@ base::TimeDelta ChunkDemuxer::GetWriteHead(const std::string& id) const {
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+bool ChunkDemuxer::AppendToParseBuffer(
+    const std::string& id,
+    base::span<const uint8_t> data,
+    base::ScopedClosureRunner release_runner) {
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
 bool ChunkDemuxer::AppendToParseBuffer(const std::string& id,
                                        base::span<const uint8_t> data) {
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   DVLOG(1) << "AppendToParseBuffer(" << id << ", " << data.size() << ")";
 
   DCHECK(!id.empty());
@@ -1084,9 +1091,15 @@ bool ChunkDemuxer::AppendToParseBuffer(const std::string& id,
 
     switch (state_) {
       case INITIALIZING:
-      case INITIALIZED:
+      case INITIALIZED: {
         DCHECK(IsValidId_Locked(id));
-        if (!source_state_map_[id]->AppendToParseBuffer(data)) {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+        const bool appended = source_state_map_[id]->AppendToParseBuffer(
+            data, std::move(release_runner));
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
+        const bool appended = source_state_map_[id]->AppendToParseBuffer(data);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+        if (!appended) {
           // Just indicate that the append failed. Let the caller give app an
           // error so that it may adapt. This is different from
           // RunSegmentParserLoop(), where fatal MediaSource failure should
@@ -1094,6 +1107,7 @@ bool ChunkDemuxer::AppendToParseBuffer(const std::string& id,
           return false;
         }
         break;
+      }
 
       case PARSE_ERROR:
       case WAITING_FOR_INIT:
@@ -1339,10 +1353,10 @@ bool ChunkDemuxer::CanChangeType(const std::string& id,
     current_mime_type = itr->second->mime_type();
   }
 
-  if (!SbMediaCanChangeType(current_mime_type.c_str(), 
-                            target_mime_type.c_str())) {
-    LOG(INFO) << "Codec transition unsupported: current_mime_type='" 
-              << current_mime_type << "' -> target_mime_type='" 
+  if (!GetSbMediaInterface()->CanChangeType(current_mime_type.c_str(),
+                                            target_mime_type.c_str())) {
+    LOG(INFO) << "Codec transition unsupported: current_mime_type='"
+              << current_mime_type << "' -> target_mime_type='"
               << target_mime_type << "'";
     return false;
   }

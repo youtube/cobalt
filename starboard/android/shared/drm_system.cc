@@ -81,6 +81,7 @@ DrmSystem::DrmSystem(PassKey<DrmSystem>,
   SB_CHECK(callbacks_.update_request);
   SB_CHECK(callbacks_.session_updated);
   SB_CHECK(callbacks_.key_statuses_changed);
+  SB_CHECK(callbacks_.session_closed);
 
   ON_INSTANCE_CREATED(AndroidDrmSystem);
 
@@ -140,6 +141,11 @@ void DrmSystem::CloseSession(std::string_view session_id) {
     return;
   }
   media_drm_bridge_->CloseSession(media_drm_session_id);
+
+  // Notify the client that the session has been closed. MediaDrm does not
+  // deliver a close event of its own, so do it here.
+  callbacks_.session_closed(this, context_, session_id.data(),
+                            static_cast<int>(session_id.size()));
 }
 
 DrmSystem::DecryptStatus DrmSystem::Decrypt(InputBuffer* buffer) {
@@ -300,9 +306,22 @@ void DrmSystem::GenerateSessionUpdateRequest(
       OnProvisioningRequest(media_drm_bridge_->GenerateProvisionRequest());
       return;
     case DRM_OPERATION_STATUS_OPERATION_FAILED:
-    default:
+    default: {
       SB_LOG(ERROR) << "Generate failed: " << result;
+      const int ticket = request->TakeTicket();
+      // The provisioning request already answered this ticket.
+      if (ticket == kSpontaneousDrmTicketId) {
+        return;
+      }
+      // A NULL session id signals the failure, so Cobalt rejects the promise
+      // waiting on this ticket instead of leaving it pending.
+      callbacks_.update_request(
+          this, context_, ticket, kSbDrmStatusUnknownError,
+          kSbDrmSessionRequestTypeLicenseRequest, result.error_message.c_str(),
+          /*session_id=*/nullptr, /*session_id_size=*/0,
+          /*content=*/nullptr, /*content_size=*/0, kNoUrl);
       return;
+    }
   }
 }
 

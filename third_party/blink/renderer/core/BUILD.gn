@@ -333,6 +333,7 @@ component("core") {
       "inspector/inspector_issue_conversion.cc",
       "inspector/inspector_issue_reporter.cc",
       "inspector/inspector_issue_storage.cc",
+      "inspector/inspector_session_state.cc",
       "inspector/inspector_task_runner.cc",
       "inspector/inspector_trace_events.cc",
       "inspector/invalidation_set_to_selector_map.cc",

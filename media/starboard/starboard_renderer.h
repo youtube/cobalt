@@ -59,6 +59,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
                     TimeDelta audio_write_duration_local,
                     TimeDelta audio_write_duration_remote,
                     const std::string& max_video_capabilities,
+                    const std::string& max_video_resolution,
                     const StarboardRendererConfig::ExperimentalFeatures&
                         experimental_features,
                     const gfx::Size& viewport_size
@@ -160,6 +161,17 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
 
   SbPlayerInterface* GetSbPlayerInterface();
 
+  // Drains pending renderer disconnects on the StarboardRenderer sequence,
+  // fallback-suspends any remaining active StarboardRenderer instances so
+  // SbPlayerDestroy completes before the native window is destroyed, and
+  // prevents new SbPlayerBridge creations while concealed. Safe to call from
+  // any thread; |done_cb| is posted back to the caller's sequence.
+  static void FlushAndSuspendActiveRenderers(base::OnceClosure done_cb);
+
+  // Clears the concealed state so newly created or resumed renderers can
+  // create SbPlayerBridge instances again. Safe to call from any thread.
+  static void ResumeActiveRenderers();
+
  private:
   enum State {
     STATE_UNINITIALIZED,
@@ -225,6 +237,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   void OnBufferingStateChange(BufferingState state);
 
   void NotifyError(PipelineStatus status);
+  void OnConcealFallbackSuspend();
 
   State state_;
   const scoped_refptr<base::SequencedTaskRunner> task_runner_;
@@ -234,6 +247,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   const TimeDelta audio_write_duration_local_;
   const TimeDelta audio_write_duration_remote_;
   const std::string max_video_capabilities_;
+  const std::string max_video_resolution_;
   const StarboardRendererConfig::ExperimentalFeatures experimental_features_;
   // TODO: b/375674101 - Connect this to h5vcc setting.
   const int max_samples_per_write_;

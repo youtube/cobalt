@@ -35,6 +35,13 @@ typedef struct StarboardExtensionPlayerSettingsApi {
   // SbPlayer on the current calling thread. Set to 0 to disable.
   void (*SetMaxVideoInputSizeForCurrentThread)(int max_video_input_size);
 
+  // Sets the maximum video resolution for any subsequently created
+  // SbPlayer on the current calling thread. Functions like
+  // SetMaxVideoCapabilities, but exclusively limits the native video resolution
+  // boundaries. Set to NULL to clear.
+  void (*SetMaxVideoResolutionForCurrentThread)(
+      const char* max_video_resolution);
+
   // Sets the SurfaceView (jobject) for any subsequently created
   // SbPlayer on the current calling thread. Set to NULL to clear.
   void (*SetVideoSurfaceViewForCurrentThread)(void* surface_view);

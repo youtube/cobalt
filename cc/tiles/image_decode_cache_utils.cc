@@ -122,7 +122,14 @@ size_t ImageDecodeCacheUtils::GetPersistentCacheBudgetBytes() {
           switches::kCCImageCacheLimitMbs);
       int parsed_value;
       if (base::StringToInt(value, &parsed_value) && parsed_value >= 0) {
-        budget = static_cast<size_t>(parsed_value) * 1024 * 1024;
+        return static_cast<size_t>(parsed_value) * 1024 * 1024;
+      }
+    }
+    if (base::FeatureList::IsEnabled(
+            base::features::kCobaltCCImageCacheLimitItems)) {
+      int mbs = base::features::kCobaltCCImageCacheLimitItemsMbs.Get();
+      if (mbs >= 0) {
+        return static_cast<size_t>(mbs) * 1024 * 1024;
       }
     }
     return budget;

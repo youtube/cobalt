@@ -27,6 +27,9 @@ void SetWindowSurface(ANativeWindow* window);
 // Returns the currently held window or nullptr if there is no surface.
 ANativeWindow* AcquireWindowSurface();
 
+// Tells if Android currently has a surface for the app's window.
+bool HasWindowSurface();
+
 }  // namespace shared
 }  // namespace android
 }  // namespace starboard

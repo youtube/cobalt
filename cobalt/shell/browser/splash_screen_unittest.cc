@@ -12,14 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+#include <string>
+
+#include "base/test/scoped_feature_list.h"
+#include "build/build_config.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_test_support.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "content/browser/aggregation_service/aggregatable_report.h"
+#include "content/public/browser/navigation_controller.h"
+#include "content/public/browser/navigation_entry.h"
 #include "content/test/test_web_contents.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "url/gurl.h"
 
 using testing::_;
 
@@ -74,16 +82,34 @@ class SplashScreenTest : public ShellTestBase {
     return shell->splash_screen_web_contents_.get();
   }
 
+  // Returns the URL the splash screen WebContents is navigating to.
+  GURL GetPendingSplashScreenURL(Shell* shell) {
+    NavigationEntry* entry =
+        GetSplashScreenWebContents(shell)->GetController().GetPendingEntry();
+    return entry ? entry->GetURL() : GURL();
+  }
+
   Shell* CreateShell(std::unique_ptr<WebContents> web_contents,
-                     std::unique_ptr<WebContents> splash_contents) {
+                     std::unique_ptr<WebContents> splash_contents,
+                     const std::string& topic = "") {
     EXPECT_CALL(*platform_, SetContents(_));
     Shell* shell =
         new Shell(std::move(web_contents), std::move(splash_contents),
-                  /*should_set_delegate=*/false, /*topic=*/"",
+                  /*should_set_delegate=*/false, topic,
                   /*skip_for_testing=*/true);
     platform_->CreatePlatformWindow(shell, gfx::Size(1920, 1080));
     Shell::FinishShellInitialization(shell);
     return shell;
+  }
+
+  Shell* CreateShellWithSplashScreen(const std::string& topic = "") {
+    WebContents::CreateParams create_params(browser_context());
+    create_params.desired_renderer_state =
+        WebContents::CreateParams::kNoRendererProcess;
+    return CreateShell(
+        std::unique_ptr<WebContents>(TestWebContents::Create(create_params)),
+        std::unique_ptr<WebContents>(TestWebContents::Create(create_params)),
+        topic);
   }
 
   void ExpectStateUninitialized(Shell* shell) {
@@ -512,6 +538,124 @@ TEST_F(SplashScreenTest,
 
   // Subsequent calls should be safe no-ops.
   CallDidFirstVisuallyNonEmptyPaint(shell);
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
+TEST_F(SplashScreenTest, SplashTimeoutFromFeatureParam) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeatureWithParameters(
+      cobalt::features::kSplashScreenConfig, {{"timeout", "3s"}});
+  Shell* shell = CreateShellWithSplashScreen();
+
+  CallLoadSplashScreenWebContents(shell);
+  CallOnSplashScreenLoadComplete(shell);
+  CallLoadProgressChanged(shell, 1.0);
+  EXPECT_TRUE(IsMainFrameLoaded(shell));
+
+  // The default 1500ms timeout is overridden by the feature param.
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(0);
+  task_environment()->FastForwardBy(base::Milliseconds(2900));
+  EXPECT_FALSE(HasSwitchedToMainFrame(shell));
+
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
+  task_environment()->FastForwardBy(base::Milliseconds(200));
+  EXPECT_TRUE(HasSwitchedToMainFrame(shell));
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
+TEST_F(SplashScreenTest, SplashUrlDefaultsToBuiltInSplashScreen) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      cobalt::features::kForceVideoSplashScreen);
+  Shell* shell = CreateShellWithSplashScreen();
+
+  CallLoadSplashScreenWebContents(shell);
+  // No "timeout" query param, as SplashScreenConfig is disabled.
+  EXPECT_EQ(
+      GetPendingSplashScreenURL(shell),
+      GURL(std::string(switches::kSplashScreenURL) + "?force_image=true"));
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+TEST_F(SplashScreenTest, SplashUrlFromFeatureParam) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeaturesAndParameters(
+      {{cobalt::features::kSplashScreenConfig,
+        {{"url", "https://www.example.com/splash.html"}}}},
+      {cobalt::features::kForceVideoSplashScreen});
+  Shell* shell = CreateShellWithSplashScreen(/*topic=*/"music");
+
+  CallLoadSplashScreenWebContents(shell);
+  // The "force_image", "cache" and "timeout" query params are still appended.
+  EXPECT_EQ(GetPendingSplashScreenURL(shell),
+            GURL("https://www.example.com/splash.html"
+                 "?force_image=true&cache=music&timeout=1500"));
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
+TEST_F(SplashScreenTest, InvalidSplashUrlFallsBackToBuiltInSplashScreen) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeaturesAndParameters(
+      {{cobalt::features::kSplashScreenConfig, {{"url", "not a url"}}}},
+      {cobalt::features::kForceVideoSplashScreen});
+  Shell* shell = CreateShellWithSplashScreen();
+
+  CallLoadSplashScreenWebContents(shell);
+  EXPECT_EQ(GetPendingSplashScreenURL(shell),
+            GURL(std::string(switches::kSplashScreenURL) +
+                 "?force_image=true&timeout=1500"));
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+#else   // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+TEST_F(SplashScreenTest, SplashUrlIgnoredInGoldBuilds) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeaturesAndParameters(
+      {{cobalt::features::kSplashScreenConfig,
+        {{"url", "https://www.example.com/splash.html"}}}},
+      {cobalt::features::kForceVideoSplashScreen});
+  Shell* shell = CreateShellWithSplashScreen();
+
+  CallLoadSplashScreenWebContents(shell);
+  // The "url" param doesn't exist in gold builds, so the built-in splash screen
+  // is always used.
+  EXPECT_EQ(GetPendingSplashScreenURL(shell),
+            GURL(std::string(switches::kSplashScreenURL) +
+                 "?force_image=true&timeout=1500"));
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+
+TEST_F(SplashScreenTest, SplashTimeoutPassedToSplashScreen) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeaturesAndParameters(
+      {{cobalt::features::kSplashScreenConfig, {{"timeout", "3s"}}}},
+      {cobalt::features::kForceVideoSplashScreen});
+  Shell* shell = CreateShellWithSplashScreen();
+
+  CallLoadSplashScreenWebContents(shell);
+  // The splash screen gets the timeout in ms, so it stays up until then.
+  EXPECT_EQ(GetPendingSplashScreenURL(shell),
+            GURL(std::string(switches::kSplashScreenURL) +
+                 "?force_image=true&timeout=3000"));
 
   EXPECT_CALL(*platform_, DestroyShell(shell));
   EXPECT_CALL(*platform_, CleanUp(shell));

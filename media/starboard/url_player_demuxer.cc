@@ -178,4 +178,17 @@ void UrlPlayerDemuxer::ForwardBufferedTimeRangesToDemuxerHost(
   }
 }
 
+void UrlPlayerDemuxer::ForwardEncryptedMediaInitData(
+    EmeInitDataType init_data_type,
+    const std::vector<uint8_t>& init_data) {
+  if (encrypted_media_init_data_cb_) {
+    encrypted_media_init_data_cb_.Run(init_data_type, init_data);
+  }
+}
+
+void UrlPlayerDemuxer::SetEncryptedMediaInitDataCB(
+    EncryptedMediaInitDataCB cb) {
+  encrypted_media_init_data_cb_ = std::move(cb);
+}
+
 }  // namespace media

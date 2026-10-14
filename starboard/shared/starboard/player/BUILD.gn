@@ -14,10 +14,6 @@
 
 import("//starboard/shared/starboard/player/testdata/sha1_files.gni")
 
-if (is_android) {
-  import("//build/config/android/rules.gni")
-}
-
 static_library("video_dmp") {
   check_includes = false
   sources = [
@@ -36,10 +32,7 @@ static_library("video_dmp") {
 }
 
 action("player_download_test_data") {
-  visibility = [
-    ":player_test_data",
-    ":player_test_data_assets",
-  ]
+  visibility = [ ":player_test_data" ]
 
   script = "//starboard/tools/download_from_gcs.py"
 
@@ -96,26 +89,5 @@ if (is_apple) {
   group("player_test_data") {
     testonly = true
     data_deps = [ ":player_download_test_data" ]
-    if (is_android) {
-      deps = [ ":player_test_data_assets" ]
-    }
-  }
-}
-
-if (is_android) {
-  # Android internal_rules.gni forces the use of "_assets" suffix.
-  android_assets("player_test_data_assets") {
-    testonly = true
-    disable_compression = true
-
-    renaming_sources = get_target_outputs(":player_download_test_data")
-    renaming_destinations = []
-    foreach(_dmp, renaming_sources) {
-      renaming_destinations +=
-          [ "app/cobalt/content/test/starboard/shared/starboard/player/" +
-            "testdata/" + get_path_info(_dmp, "file") ]
-    }
-
-    deps = [ ":player_download_test_data" ]
   }
 }

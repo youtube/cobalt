@@ -105,7 +105,7 @@ if (is_cobalt_hermetic_build) {
       deps += [ ":starboard($starboard_toolchain)" ]
     }
 
-    if (!sb_is_evergreen && current_toolchain == cobalt_toolchain) {
+    if (!sb_is_evergreen && current_toolchain == default_toolchain) {
       # For modular builds, we need to wrap any POSIX APIs that may not be ABI
       # equivalent across the Cobalt toolchain and the platform toolchain. For
       # non-Evergreen builds, this is done via the below wrapper implementations
@@ -258,7 +258,7 @@ if (current_toolchain == starboard_toolchain) {
       deps += [ "//starboard/shared/starboard/player/filter/testing:player_filter_tests_sources" ]
     }
     if (use_evergreen && use_crashpad) {
-      deps += [ "//starboard/crashpad_wrapper:crashpad_wrapper_test" ]
+      deps += [ "//starboard/crashpad_wrapper:native_stability_reader_test" ]
     }
     if (is_starboard) {
       deps += [

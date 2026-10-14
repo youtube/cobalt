@@ -34,14 +34,19 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.Surface;
 import androidx.annotation.GuardedBy;
+import androidx.annotation.IntDef;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.VisibleForTesting;
 import dev.cobalt.media.MediaCodecFrameRateEstimator.FrameRateEstimator;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.SynchronizedHolder;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.nio.ByteBuffer;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.chromium.base.metrics.RecordHistogram;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
@@ -54,6 +59,37 @@ class MediaCodecBridge {
   private static final String KEY_CROP_RIGHT = "crop-right";
   private static final String KEY_CROP_BOTTOM = "crop-bottom";
   private static final String KEY_CROP_TOP = "crop-top";
+
+  @VisibleForTesting
+  static final String METRIC_DECODER_FRAMEWORK = "Cobalt.Media.Android.DecoderFramework";
+
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused. Keep in sync with
+  // AndroidDecoderFramework in tools/metrics/histograms/metadata/cobalt/enums.xml.
+  @IntDef({DecoderFramework.UNKNOWN, DecoderFramework.OMX, DecoderFramework.CODEC2})
+  @Retention(RetentionPolicy.SOURCE)
+  @VisibleForTesting
+  @interface DecoderFramework {
+    int UNKNOWN = 0;
+    int OMX = 1;
+    int CODEC2 = 2;
+    int NUM_ENTRIES = 3;
+  }
+
+  @VisibleForTesting
+  static @DecoderFramework int getDecoderFramework(String decoderName) {
+    if (decoderName == null) {
+      return DecoderFramework.UNKNOWN;
+    }
+    String lowerName = decoderName.toLowerCase(Locale.US);
+    if (lowerName.startsWith("c2.")) {
+      return DecoderFramework.CODEC2;
+    }
+    if (lowerName.startsWith("omx.")) {
+      return DecoderFramework.OMX;
+    }
+    return DecoderFramework.UNKNOWN;
+  }
 
   private final Object mNativeBridgeLock = new Object();
 
@@ -69,7 +105,6 @@ class MediaCodecBridge {
   // execution environment and avoiding potential race conditions with the native layer.
   private final Handler mMainHandler = new Handler(Looper.getMainLooper());
   private volatile boolean mIsFlushing = false;
-  private final boolean mEnableIgnoreCallbacksDuringFlushing;
 
   private final MediaCodec.Callback mCallback;
   private double mPlaybackRate = 1.0;
@@ -258,8 +293,7 @@ class MediaCodecBridge {
       MediaCodec mediaCodec,
       String codecName,
       int tunnelModeAudioSessionId,
-      boolean enableFrameRendererListener,
-      boolean enableIgnoreCallbacksDuringFlushing) {
+      boolean enableFrameRendererListener) {
     if (mediaCodec == null) {
       throw new IllegalArgumentException();
     }
@@ -268,7 +302,6 @@ class MediaCodecBridge {
     mCodecName = codecName != null ? codecName : "unknown";
     mIsTunnelingPlayback = tunnelModeAudioSessionId != TunnelModeAudioSessionId.NONE;
     mEnableFrameRendererListener = enableFrameRendererListener;
-    mEnableIgnoreCallbacksDuringFlushing = enableIgnoreCallbacksDuringFlushing;
     mCallback =
         new MediaCodec.Callback() {
           @Override
@@ -337,11 +370,7 @@ class MediaCodecBridge {
           }
         };
 
-    if (mEnableIgnoreCallbacksDuringFlushing) {
-      mMediaCodec.get().setCallback(mCallback, mMainHandler);
-    } else {
-      mMediaCodec.get().setCallback(mCallback);
-    }
+    mMediaCodec.get().setCallback(mCallback, mMainHandler);
 
     if (mEnableFrameRendererListener) {
       mFrameRendererListener =
@@ -358,11 +387,7 @@ class MediaCodecBridge {
               }
             }
           };
-      if (mEnableIgnoreCallbacksDuringFlushing) {
-        mMediaCodec.get().setOnFrameRenderedListener(mFrameRendererListener, mMainHandler);
-      } else {
-        mMediaCodec.get().setOnFrameRenderedListener(mFrameRendererListener, null);
-      }
+      mMediaCodec.get().setOnFrameRenderedListener(mFrameRendererListener, mMainHandler);
     } else {
       mFrameRendererListener = null;
     }
@@ -401,7 +426,6 @@ class MediaCodecBridge {
       int maxVideoInputSize,
       boolean enableFrameRendererListener,
       boolean skipVideoFramesOver60Fps,
-      boolean ignoreCodecCallbacksDuringFlushing,
       CreateMediaCodecBridgeResult outCreateMediaCodecBridgeResult) {
     MediaCodec mediaCodec = null;
     outCreateMediaCodecBridgeResult.mMediaCodecBridge = null;
@@ -456,8 +480,7 @@ class MediaCodecBridge {
             mediaCodec,
             decoderName,
             tunnelModeAudioSessionId,
-            enableFrameRendererListener,
-            ignoreCodecCallbacksDuringFlushing);
+            enableFrameRendererListener);
     bridge.mSkipVideoFramesOver60Fps = skipVideoFramesOver60Fps;
     MediaCodecOutputTracker.get().register(bridge);
     MediaFormat mediaFormat =
@@ -596,6 +619,9 @@ class MediaCodecBridge {
       return;
     }
 
+    RecordHistogram.recordEnumeratedHistogram(
+        METRIC_DECODER_FRAMEWORK, getDecoderFramework(decoderName), DecoderFramework.NUM_ENTRIES);
+
     outCreateMediaCodecBridgeResult.mMediaCodecBridge = bridge;
   }
 
@@ -683,10 +709,8 @@ class MediaCodecBridge {
     // mIsFlushing to true here to discard them. Then we post a runnable to the main
     // looper queue which will reset mIsFlushing to false once all prior pending
     // callbacks have been sequentialized and discarded.
-    if (mEnableIgnoreCallbacksDuringFlushing) {
-      synchronized (mNativeBridgeLock) {
-        mIsFlushing = true;
-      }
+    synchronized (mNativeBridgeLock) {
+      mIsFlushing = true;
     }
     try {
       mMediaCodec.get().flush();
@@ -701,14 +725,12 @@ class MediaCodecBridge {
       if (mFrameRateEstimator != null) {
         mFrameRateEstimator.reset();
       }
-      if (mEnableIgnoreCallbacksDuringFlushing) {
-        mMainHandler.post(
-            () -> {
-              synchronized (mNativeBridgeLock) {
-                mIsFlushing = false;
-              }
-            });
-      }
+      mMainHandler.post(
+          () -> {
+            synchronized (mNativeBridgeLock) {
+              mIsFlushing = false;
+            }
+          });
     }
     return MediaCodecStatus.OK;
   }
@@ -1074,13 +1096,9 @@ class MediaCodecBridge {
               }
             }
           };
-      if (mEnableIgnoreCallbacksDuringFlushing) {
-        mMediaCodec
-            .get()
-            .setOnFirstTunnelFrameReadyListener(mMainHandler, mFirstTunnelFrameReadyListener);
-      } else {
-        mMediaCodec.get().setOnFirstTunnelFrameReadyListener(null, mFirstTunnelFrameReadyListener);
-      }
+      mMediaCodec
+          .get()
+          .setOnFirstTunnelFrameReadyListener(mMainHandler, mFirstTunnelFrameReadyListener);
     } else {
       Log.w(
           TAG,

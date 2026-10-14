@@ -27,8 +27,10 @@ static_library("starboard_platform") {
     "run_starboard_main.cc",
     "window_create.cc",
     "window_destroy.cc",
+    "window_get_diagonal_size_in_inches.cc",
     "window_get_platform_handle.cc",
     "window_get_size.cc",
+    "window_internal.cc",
     "window_internal.h",
     "window_surface.cc",
     "window_surface.h",
@@ -67,7 +69,6 @@ source_set("aosp_loader_glue") {
   deps = [
     ":starboard_platform",
     "//base",
-    "//cobalt/android:app_event_bridge",
     "//cobalt/aosp:jni_headers",
     "//starboard/android/shared:starboard_platform",
     "//starboard/common",

@@ -228,6 +228,7 @@ SbPlayerBridge::SbPlayerBridge(
     bool allow_resume_after_suspend,
     SbPlayerOutputMode default_output_mode,
     const std::string& max_video_capabilities,
+    const std::string& max_video_resolution,
     int max_video_input_size,
     const ExperimentalFeatures& experimental_features
 #if BUILDFLAG(IS_ANDROID)
@@ -252,6 +253,7 @@ SbPlayerBridge::SbPlayerBridge(
       audio_config_(audio_config),
       video_config_(video_config),
       max_video_capabilities_(max_video_capabilities),
+      max_video_resolution_(max_video_resolution),
       experimental_features_(experimental_features),
       enable_batched_buffer_deallocation_(
           experimental_features_.GetBool(kMediaEnableTrivialOptimizations))
@@ -384,6 +386,15 @@ void SbPlayerBridge::WriteBuffers(
     return;
   }
 #endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_SUSPEND_RESUME)
+
+  // Ignore buffer writes if the player has been suspended or invalidated
+  // during a conceal transition so Starboard APIs are not called on an
+  // invalid SbPlayer.
+  if (state_ == kSuspended || !SbPlayerIsValid(player_)) {
+    LOG(WARNING) << "Ignore WriteBuffers when SbPlayerBridge is suspended or "
+                    "SbPlayer is invalid.";
+    return;
+  }
 
   WriteBuffersInternal(type, buffers, &audio_stream_info_, &video_stream_info_);
 }
@@ -585,7 +596,10 @@ void SbPlayerBridge::Suspend() {
     return;
   }
 
-  DCHECK(SbPlayerIsValid(player_));
+  if (!SbPlayerIsValid(player_)) {
+    state_ = kSuspended;
+    return;
+  }
 
   sbplayer_interface_->SetPlaybackRate(player_, 0.0);
 
@@ -762,6 +776,11 @@ void SbPlayerBridge::CreatePlayer() {
     }
 #endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE)
 #if BUILDFLAG(IS_ANDROID)
+    if (player_settings_extension->SetMaxVideoResolutionForCurrentThread) {
+      player_settings_extension->SetMaxVideoResolutionForCurrentThread(
+          max_video_resolution_.empty() ? nullptr
+                                        : max_video_resolution_.c_str());
+    }
     if (player_settings_extension->SetVideoSurfaceViewForCurrentThread) {
       player_settings_extension->SetVideoSurfaceViewForCurrentThread(
           surface_view_);
@@ -1000,6 +1019,9 @@ void SbPlayerBridge::WriteBuffersInternal(
 }
 
 SbDecodeTarget SbPlayerBridge::GetCurrentSbDecodeTarget() {
+  if (state_ == kSuspended || !SbPlayerIsValid(player_)) {
+    return kSbDecodeTargetInvalid;
+  }
   return sbplayer_interface_->GetCurrentFrame(player_);
 }
 
