@@ -27,6 +27,7 @@
 #include "media/base/demuxer_stream.h"
 #include "media/base/media_export.h"
 #include "media/base/starboard/url_player_media_resource.h"
+#include "ui/gfx/geometry/size.h"
 #include "url/gurl.h"
 
 namespace media {
@@ -90,6 +91,8 @@ class MEDIA_EXPORT UrlPlayerDemuxer : public Demuxer,
 
   // UrlPlayerMediaResource implementation.
   GURL GetMediaUrl() const override;
+  void OnPlatformMetadata(base::TimeDelta duration,
+                          const gfx::Size& natural_size) override;
   void OnPlatformDurationChange(base::TimeDelta duration) override;
   void OnPlatformBufferedRangesChange(base::TimeDelta start,
                                       base::TimeDelta length) override;
