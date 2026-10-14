@@ -564,6 +564,8 @@ public class CobaltActivityTest {
     activity.checkAndRetryOnNetworkOnline();
 
     verify(platformError, times(1)).retry();
+  }
+
   private CobaltActivity createActivityForFreezeTests(
       final boolean isShield, final boolean finchFeatureEnabled) {
     return new CobaltActivity() {
