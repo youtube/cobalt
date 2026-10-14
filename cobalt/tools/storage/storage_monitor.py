@@ -22,7 +22,7 @@ import re
 import subprocess
 import sys
 import time
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
 DEFAULT_PACKAGE = "dev.cobalt.coat"
 DEFAULT_ACTIVITY = "dev.cobalt.app.MainActivity"
@@ -31,6 +31,7 @@ DEFAULT_VIDEO_URL = "https://www.youtube.com/tv#/watch?v=1La4QzGeaaQ"
 
 SUPPORTED_PLATFORMS = ("android",)
 SUPPORTED_CUJS = (
+    "manual",
     "cold_start",
     "home_scroll",
     "video_playback",
@@ -45,9 +46,42 @@ PERSISTENT_LOCATIONS = (
     "FILES_DIR",
     "SHARED_PREFS",
     "DATABASES",
+    "NO_BACKUP",
     "APP_TEXTURES",
     "DE_DATA",
 )
+
+
+@dataclass
+class ProcIoSample:
+  """Point-in-time block I/O counters from /proc/<pid>/io.
+
+  Lifetime/Ownership: Created per polling tick and owned by StorageTracker.
+  Threading Model: Thread-affine; accessed only on the StorageTracker thread.
+  """
+  pid: int
+  read_bytes: int = 0
+  write_bytes: int = 0
+
+
+@dataclass
+class IoCounter:
+  """Accumulates one block I/O counter across samples and its peak rate.
+
+  Lifetime/Ownership: Owned by StorageTracker for the monitoring session.
+  Threading Model: Thread-affine; accessed only on the StorageTracker thread.
+  """
+  total_bytes: int = 0
+  peak_kbps: float = 0.0
+  peak_at_sec: float = 0.0
+
+  def add(self, delta_bytes: int, dt_sec: float, at_sec: float) -> None:
+    self.total_bytes += delta_bytes
+    if dt_sec > 0:
+      kbps = delta_bytes / 1024.0 / dt_sec
+      if kbps > self.peak_kbps:
+        self.peak_kbps = kbps
+        self.peak_at_sec = at_sec
 
 
 @dataclass
@@ -65,6 +99,7 @@ class FileRecord:
   first_seen_sec: float
   last_seen_sec: float
   existed_at_end: bool = False
+  start_bytes: int = 0
   peak_bytes: int = 0
   final_bytes: int = 0
   mtime_changes: int = 0
@@ -187,6 +222,7 @@ _LOCATION_ROOTS: Tuple[Tuple[str, str], ...] = (
     ("files/", "FILES_DIR"),
     ("shared_prefs/", "SHARED_PREFS"),
     ("databases/", "DATABASES"),
+    ("no_backup/", "NO_BACKUP"),
     ("app_textures/", "APP_TEXTURES"),
     ("cache/", "DIR_CACHE"),
     ("code_cache/", "CODE_CACHE"),
@@ -251,6 +287,31 @@ def collect_android_snapshot(
   return parse_stat_output(out, package=package)
 
 
+def parse_proc_io_output(output: str) -> Optional[ProcIoSample]:
+  """Parses 'pid: <pid>' followed by /proc/<pid>/io into a ProcIoSample."""
+  values: Dict[str, int] = {}
+  for line in output.splitlines():
+    key, sep, val = line.partition(":")
+    if sep and val.strip().isdigit():
+      values[key.strip()] = int(val.strip())
+  if not {"pid", "read_bytes", "write_bytes"} <= values.keys():
+    return None
+  return ProcIoSample(
+      pid=values["pid"],
+      read_bytes=values["read_bytes"],
+      write_bytes=values["write_bytes"])
+
+
+def collect_android_proc_io(
+    package: str = DEFAULT_PACKAGE) -> Optional[ProcIoSample]:
+  """Reads /proc/<pid>/io of the package's main process, if it is running."""
+  cmd = (f"sh -c 'pid=$(pidof {package}); pid=${{pid%% *}}; "
+         "[ -n \"$pid\" ] && echo \"pid: $pid\" && "
+         "cat \"/proc/$pid/io\" 2>/dev/null'")
+  _, out = run_adb_shell(cmd, package=package)
+  return parse_proc_io_output(out)
+
+
 class StorageTracker:
   """Aggregates periodic storage snapshots into Section A and Section B.
 
@@ -270,6 +331,40 @@ class StorageTracker:
     self.peak_persistent_at_sec: float = 0.0
     self.final_persistent_bytes: int = 0
     self._last_snapshot: Dict[str, Tuple[int, int]] = {}
+    self.pids_seen: Set[int] = set()
+    self.block_read = IoCounter()
+    self.block_write = IoCounter()
+    self._last_io: Optional[ProcIoSample] = None
+    self._last_io_poll_sec: Optional[float] = None
+
+  def record_proc_io(self, elapsed_sec: float,
+                     sample: Optional[ProcIoSample]) -> None:
+    """Adds the block I/O done since the previous /proc/<pid>/io poll.
+
+    |sample| is None when the process is not running.
+    """
+    prev_poll_sec = self._last_io_poll_sec
+    self._last_io_poll_sec = elapsed_sec
+    if sample is None:
+      return
+    prev = self._last_io
+    self._last_io = sample
+    self.pids_seen.add(sample.pid)
+    if prev_poll_sec is None:
+      # First poll: a process that is already running has counters that
+      # include I/O from before monitoring started, so they are the baseline.
+      return
+    # A new PID, or counters that went backwards (a recycled PID), means the
+    # process (re)started after the previous poll with counters at zero.
+    restarted = (
+        prev is None or sample.pid != prev.pid or
+        sample.read_bytes < prev.read_bytes or
+        sample.write_bytes < prev.write_bytes)
+    base_read = 0 if restarted else prev.read_bytes
+    base_write = 0 if restarted else prev.write_bytes
+    dt_sec = elapsed_sec - prev_poll_sec
+    self.block_read.add(sample.read_bytes - base_read, dt_sec, elapsed_sec)
+    self.block_write.add(sample.write_bytes - base_write, dt_sec, elapsed_sec)
 
   def record_snapshot(self, elapsed_sec: float,
                       snapshot: Dict[str, Tuple[int, int]]) -> None:
@@ -302,6 +397,7 @@ class StorageTracker:
             storage_type=storage_type,
             first_seen_sec=elapsed_sec,
             last_seen_sec=elapsed_sec,
+            start_bytes=size_bytes if self.sample_count == 1 else 0,
             peak_bytes=size_bytes,
             final_bytes=size_bytes,
             mtime_changes=1 if self.sample_count > 1 else 0,
@@ -396,7 +492,7 @@ class StorageTracker:
       # or actively written files (exclude untouched static baseline files).
       is_transient = not f.existed_at_end
       is_truncated = f.peak_bytes > f.final_bytes
-      is_active = f.mtime_changes >= 2
+      is_active = f.mtime_changes >= 2 or f.final_bytes != f.start_bytes
       if not (is_transient or is_truncated or is_active):
         continue
 
@@ -415,8 +511,10 @@ class StorageTracker:
           "existed_at_end": f.existed_at_end,
           "first_seen_sec": round(f.first_seen_sec, 1),
           "last_seen_sec": round(f.last_seen_sec, 1),
+          "start_kb": round(f.start_bytes / 1024.0, 2),
           "peak_kb": round(f.peak_bytes / 1024.0, 2),
           "final_kb": round(f.final_bytes / 1024.0, 2),
+          "delta_kb": round((f.final_bytes - f.start_bytes) / 1024.0, 2),
           "mtime_changes": f.mtime_changes,
       })
 
@@ -436,6 +534,15 @@ class StorageTracker:
             "peak_persistent_kb": round(peak_pers_kb, 2),
             "peak_persistent_at_sec": round(self.peak_persistent_at_sec, 1),
             "final_persistent_kb": round(final_pers_kb, 2),
+        },
+        "process_io_summary": {
+            "pids_tracked": len(self.pids_seen),
+            "read_kb": round(self.block_read.total_bytes / 1024.0, 2),
+            "write_kb": round(self.block_write.total_bytes / 1024.0, 2),
+            "peak_read_kbps": round(self.block_read.peak_kbps, 2),
+            "peak_read_at_sec": round(self.block_read.peak_at_sec, 1),
+            "peak_write_kbps": round(self.block_write.peak_kbps, 2),
+            "peak_write_at_sec": round(self.block_write.peak_at_sec, 1),
         },
         "storage_type_summary": section_a,
         "files_inventory": section_b,
@@ -467,6 +574,27 @@ def format_markdown_report(report: Dict[str, Any]) -> str:
        f"Start: `{start_pers_kb:.2f} KB` | "
        f"Peak: `{peak_pers_kb:.2f} KB` (`t={peak_pers_at}s`) | "
        f"Final: `{final_pers_kb:.2f} KB`"),
+  ]
+
+  proc_io = report.get("process_io_summary")
+  if proc_io and proc_io.get("pids_tracked", 0) > 0:
+    read_kb = proc_io["read_kb"]
+    peak_read_kbps = proc_io["peak_read_kbps"]
+    peak_read_at = proc_io["peak_read_at_sec"]
+    write_kb = proc_io["write_kb"]
+    peak_write_kbps = proc_io["peak_write_kbps"]
+    peak_write_at = proc_io["peak_write_at_sec"]
+    pids_tracked = proc_io["pids_tracked"]
+    lines.append("- **Block I/O (`/proc/<pid>/io`)**: "
+                 f"Read: `{read_kb:.2f} KB` "
+                 f"(peak `{peak_read_kbps:.2f} KB/s` at "
+                 f"`t={peak_read_at}s`) | "
+                 f"Write: `{write_kb:.2f} KB` "
+                 f"(peak `{peak_write_kbps:.2f} KB/s` at "
+                 f"`t={peak_write_at}s`) | "
+                 f"Processes: `{pids_tracked}`")
+
+  lines.extend([
       "",
       "---",
       "",
@@ -475,7 +603,7 @@ def format_markdown_report(report: Dict[str, Any]) -> str:
       ("| Storage Type | Location | Start KB | Peak KB (Time) | Final KB | "
        "Write Ticks |"),
       "| :--- | :--- | ---: | ---: | ---: | ---: |",
-  ]
+  ])
 
   for row in report["storage_type_summary"]:
     stype = row["storage_type"]
@@ -498,8 +626,8 @@ def format_markdown_report(report: Dict[str, Any]) -> str:
       "## Section B: Transient & High-Churn File Hotspots (Filtered)",
       "",
       ("| Relative File Path | Storage Type | Status | Lifespan | "
-       "Peak KB | Final KB | Writes (`mtime_changes`) |"),
-      "| :--- | :--- | :---: | :---: | ---: | ---: | ---: |",
+       "Start KB | Peak KB | Final KB | Delta KB | Writes (`mtime_changes`) |"),
+      "| :--- | :--- | :---: | :---: | ---: | ---: | ---: | ---: | ---: |",
   ])
 
   for f in report["files_inventory"]:
@@ -511,13 +639,15 @@ def format_markdown_report(report: Dict[str, Any]) -> str:
     first_seen = f["first_seen_sec"]
     last_seen = f["last_seen_sec"]
     lifespan_str = f"`t={first_seen}s–{last_seen}s`"
+    start_kb = f.get("start_kb", 0.0)
     peak_kb = f["peak_kb"]
     final_kb = f["final_kb"]
+    delta_kb = f.get("delta_kb", final_kb - start_kb)
     writes = f["mtime_changes"]
     lines.append(f"| `{rel_path}` | `{stype}` | {status_str} | "
                  f"{lifespan_str} | "
-                 f"{peak_kb:.2f} | {final_kb:.2f} | "
-                 f"{writes} |")
+                 f"{start_kb:.2f} | {peak_kb:.2f} | {final_kb:.2f} | "
+                 f"{delta_kb:+.2f} | {writes} |")
 
   lines.append("")
   return "\n".join(lines)
@@ -529,6 +659,8 @@ def _poll_for_duration(tracker: StorageTracker,
                        run_start_time: float,
                        snapshot_fn: Callable[[], Dict[str, Tuple[int, int]]],
                        *,
+                       proc_io_fn: Optional[Callable[
+                           [], Optional[ProcIoSample]]] = None,
                        action_cb: Optional[Callable[[float], None]] = None,
                        phase_label: str = "") -> None:
   """Polls storage snapshots every interval_sec for duration_sec."""
@@ -543,6 +675,8 @@ def _poll_for_duration(tracker: StorageTracker,
 
     snap = snapshot_fn()
     tracker.record_snapshot(total_elapsed, snap)
+    if proc_io_fn:
+      tracker.record_proc_io(total_elapsed, proc_io_fn())
 
     pers_kb = tracker.final_persistent_bytes / 1024.0
     peak_kb = tracker.peak_persistent_bytes / 1024.0
@@ -564,8 +698,11 @@ def _launch_cobalt_android(url: str,
   if stop_first:
     run_adb_shell(f"am force-stop {package}", package=None)
     time.sleep(1.0)
-  cmd = (f"am start -n {package}/{DEFAULT_ACTIVITY} "
-         f"--esa commandLineArgs '--url={url}'")
+  if package == DEFAULT_PACKAGE:
+    cmd = (f"am start -n {package}/{DEFAULT_ACTIVITY} "
+           f"--esa commandLineArgs '--url={url}'")
+  else:
+    cmd = f"am start -a android.intent.action.VIEW -d '{url}' -p {package}"
   run_adb_shell(cmd, package=None)
 
 
@@ -637,16 +774,26 @@ def run_cuj_android(
     interval_sec: float,
     tracker: StorageTracker,
     package: str = DEFAULT_PACKAGE,
-    snapshot_fn: Optional[Callable[[], Dict[str, Tuple[int, int]]]] = None
-) -> float:
+    snapshot_fn: Optional[Callable[[], Dict[str, Tuple[int, int]]]] = None,
+    *,
+    proc_io_fn: Optional[Callable[[], Optional[ProcIoSample]]] = None) -> float:
   """Executes the specified CUJ on Android TV while polling storage."""
   if snapshot_fn is None:
     verify_android_device_connected()
   snap_callable = snapshot_fn or (lambda: collect_android_snapshot(package))
+  io_callable = proc_io_fn
+  if io_callable is None and snapshot_fn is None:
+
+    def _default_proc_io() -> Optional[ProcIoSample]:
+      return collect_android_proc_io(package)
+
+    io_callable = _default_proc_io
   run_start = time.time()
 
   # Take initial baseline snapshot at t=0s before launching CUJ actions
   tracker.record_snapshot(0.0, snap_callable())
+  if io_callable:
+    tracker.record_proc_io(0.0, io_callable())
 
   cujs_to_run = ([
       "cold_start", "home_scroll", "video_playback", "pause_flush",
@@ -655,7 +802,20 @@ def run_cuj_android(
 
   for active_cuj in cujs_to_run:
     print(f"\n=== Running CUJ: {active_cuj} ===")
-    if active_cuj == "cold_start":
+    if active_cuj == "manual":
+      print("Passive monitoring active (no app restart or synthetic keys). "
+            "Interact with the app and press Ctrl+C to stop and generate "
+            "report...")
+      _poll_for_duration(
+          tracker,
+          duration_sec=float("inf"),
+          interval_sec=interval_sec,
+          run_start_time=run_start,
+          snapshot_fn=snap_callable,
+          proc_io_fn=io_callable,
+          phase_label="manual")
+
+    elif active_cuj == "cold_start":
       _launch_cobalt_android(DEFAULT_HOME_URL, package=package, stop_first=True)
       _poll_for_duration(
           tracker,
@@ -663,6 +823,7 @@ def run_cuj_android(
           interval_sec=interval_sec,
           run_start_time=run_start,
           snapshot_fn=snap_callable,
+          proc_io_fn=io_callable,
           phase_label="cold_start")
 
     elif active_cuj == "home_scroll":
@@ -673,6 +834,7 @@ def run_cuj_android(
           interval_sec=interval_sec,
           run_start_time=run_start,
           snapshot_fn=snap_callable,
+          proc_io_fn=io_callable,
           action_cb=_make_scroll_action(),
           phase_label="home_scroll")
 
@@ -685,6 +847,7 @@ def run_cuj_android(
           interval_sec=interval_sec,
           run_start_time=run_start,
           snapshot_fn=snap_callable,
+          proc_io_fn=io_callable,
           action_cb=_make_playback_action(),
           phase_label="video_playback")
 
@@ -696,6 +859,7 @@ def run_cuj_android(
           interval_sec=interval_sec,
           run_start_time=run_start,
           snapshot_fn=snap_callable,
+          proc_io_fn=io_callable,
           phase_label="pre_pause")
       _poll_for_duration(
           tracker,
@@ -703,6 +867,7 @@ def run_cuj_android(
           interval_sec=interval_sec,
           run_start_time=run_start,
           snapshot_fn=snap_callable,
+          proc_io_fn=io_callable,
           action_cb=_make_pause_action(),
           phase_label="pause_flush")
 
@@ -716,6 +881,7 @@ def run_cuj_android(
             interval_sec=interval_sec,
             run_start_time=run_start,
             snapshot_fn=snap_callable,
+            proc_io_fn=io_callable,
             phase_label=f"warm_relaunch_{cycle}")
 
   return time.time() - run_start
@@ -731,10 +897,18 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
       default="android",
       help="Target platform (currently supports 'android').")
   parser.add_argument(
+      "--package",
+      type=str,
+      default=DEFAULT_PACKAGE,
+      help=("Android package name to monitor "
+            f"(default: '{DEFAULT_PACKAGE}', or "
+            "'com.google.android.youtube.tv' for Kimono)."))
+  parser.add_argument(
       "--cuj",
-      required=True,
+      default="manual",
       choices=SUPPORTED_CUJS,
-      help="Critical User Journey to run and monitor.")
+      help=("Critical User Journey to run and monitor "
+            "(default: 'manual' passive monitoring until Ctrl+C)."))
   parser.add_argument(
       "--interval",
       type=float,
@@ -754,11 +928,14 @@ def main(argv: Optional[List[str]] = None) -> int:
   timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
   output_path = args.output or f"storage_report_{args.cuj}_{timestamp}.md"
 
-  tracker = StorageTracker(package=DEFAULT_PACKAGE)
+  tracker = StorageTracker(package=args.package)
   start_time = time.time()
   try:
     duration_sec = run_cuj_android(
-        cuj=args.cuj, interval_sec=args.interval, tracker=tracker)
+        cuj=args.cuj,
+        interval_sec=args.interval,
+        tracker=tracker,
+        package=args.package)
   except KeyboardInterrupt:
     duration_sec = time.time() - start_time
     print("\nInterrupted by user; generating report from collected samples...")
