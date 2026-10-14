@@ -287,9 +287,11 @@ are visible to the model through `TOOL_GET_HISTORY`. Nothing is carried over
 between runs; domain knowledge lives in the skills (section 5).
 
 At the end of every run, successful or not, the pipeline writes the records to
-`out/rebase_results/change_history.json`. In CI, `ai_rebase_resolver.yaml`
-uploads that file to
-`gs://cobalt-actions-prod-agent/rebase_changes/<run_id>-<run_attempt>/change_history.json`
+`out/rebase_results/change_history.json` and the summary report to
+`out/rebase_results/M<milestone>_rebase_summary.md`, outside the source tree so
+they are never committed with the resolution. In CI, `ai_rebase_resolver.yaml`
+uploads both files to
+`gs://cobalt-actions-prod-agent/rebase_changes/<run_id>-<run_attempt>/`
 (`CHANGE_HISTORY_GCS_DIR` in the job `env`).
 
 ---

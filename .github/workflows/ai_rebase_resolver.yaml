@@ -226,17 +226,20 @@ jobs:
             echo "resolved=false" >> "${GITHUB_OUTPUT}"
           fi
 
-      - name: Upload Change History to GCS
+      - name: Upload Change History and Report to GCS
         if: always()
         working-directory: src
         run: |
-          HISTORY_FILE="out/rebase_results/change_history.json"
-          if [[ ! -f "${HISTORY_FILE}" ]]; then
-            echo "::warning::${HISTORY_FILE} not found; nothing to upload."
+          FILES=()
+          for f in out/rebase_results/change_history.json out/rebase_results/*_rebase_summary.md; do
+            if [[ -f "${f}" ]]; then FILES+=("${f}"); fi
+          done
+          if [[ ${#FILES[@]} -eq 0 ]]; then
+            echo "::warning::No change history or report in out/rebase_results; nothing to upload."
             exit 0
           fi
-          gcloud storage cp "${HISTORY_FILE}" \
-            "${CHANGE_HISTORY_GCS_DIR}/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}/change_history.json"
+          gcloud storage cp "${FILES[@]}" \
+            "${CHANGE_HISTORY_GCS_DIR}/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}/"
 
       - name: Package Resolution Artifact
         id: package_resolution

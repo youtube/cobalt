@@ -2691,6 +2691,59 @@ class ExecScriptGuardTest(unittest.TestCase):
         "## Needs Human Decision\n- the fix changes exec_script() "
         "in BUILD.gn\n", report)
 
+  def test_report_phase_table_uses_real_status(self):
+    path = write_rebase_report(
+        self.repo,
+        "android-arm",
+        "devel",
+        target="cobalt",
+        model="flash",
+        expert_model="expert",
+        status="FAILED (Phase 3: GN Generation)",
+        elapsed_seconds=1.0,
+        phase_status={
+            "Phase 1": "Skipped",
+            "Phase 2": "[OK] Completed",
+            "Phase 3": "[FAILED]",
+        },
+        repo_path=self.repo)
+    with open(path, encoding="utf-8") as f:
+      rows = [l for l in f.read().splitlines() if l.startswith("| **Phase")]
+    self.assertEqual([r.rsplit("|", 2)[1].strip() for r in rows],
+                     ["Skipped", "[OK] Completed", "[FAILED]", "Not run"])
+
+  def test_applied_patch_is_recorded_before_dependent_phase_runs(self):
+
+    class _Resolver(BaseResolver):
+      """Build fails; the re-run triggered by the patch then fails."""
+
+      @property
+      def name(self):
+        return "compile"
+
+      def run_command(self, iteration):
+        del iteration
+        return False, "", ""
+
+      def extract_diagnostics(self, build_output, siso_output):
+        del build_output, siso_output
+        return [Diagnostic(error_message="error")]
+
+      def resolve_diagnostic(self, diagnostic, **kwargs):
+        del diagnostic, kwargs
+        return ("FILE: BUILD.gn\n<<<<<<< SEARCH\ndeps = []\n=======\n"
+                'deps = [ ":b" ]\n>>>>>>> REPLACE\n'), "flash", "BUILD.gn"
+
+    def fail(modified_files):
+      del modified_files
+      raise RuntimeError("gn gen failed after a build fix")
+
+    resolver = _Resolver(self.repo, max_iterations=2, on_patch_applied_fn=fail)
+    with self.assertRaises(RuntimeError):
+      resolver.run_resolution_loop()
+    self.assertEqual(len(resolver.session_changes), 1)
+    self.assertTrue(resolver.session_changes[0].applied_cleanly)
+
 
 class ResolverInitTest(unittest.TestCase):
   """Resolver constructors reject unknown keyword arguments."""

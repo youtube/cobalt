@@ -687,7 +687,6 @@ class BaseResolver(abc.ABC):
     mod_summary = ", ".join(
         os.path.relpath(f, self.repo_path) for f in modified_files)
     log.info("[%s] [OK] Patch applied cleanly to: %s", self.name, mod_summary)
-    self.on_patch_applied(modified_files)
     state.pending_record = AgentChangeRecord(
         phase=self.name,
         iteration=iteration,
@@ -699,3 +698,5 @@ class BaseResolver(abc.ABC):
         applied_cleanly=True,
     )
     self.session_changes.append(state.pending_record)
+    # Last: this may re-run gclient sync or gn gen, which can raise.
+    self.on_patch_applied(modified_files)
