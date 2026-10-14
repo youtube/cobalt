@@ -12,11 +12,10 @@ import logging
 import os
 import re
 import subprocess
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 import warnings
 
-from base_resolver import AgentChangeRecord, BaseResolver
-from diagnostics import Diagnostic
+from base_resolver import AgentChangeRecord
 from patching import (NEEDS_HUMAN_PREFIX, exec_script_calls, exec_script_spans)
 from repo_guards import is_unmodified_third_party
 from tools import (
@@ -142,16 +141,9 @@ def sort_conflict_priority(file_path: str) -> Tuple[int, str]:
   return 7, norm
 
 
-def extract_git_context(repo_path: str,) -> Tuple[str, Dict[str, str]]:
+def extract_git_context(repo_path: str) -> str:
   """Extracts branch, rebase commits, and merge base information."""
   ctx_lines = []
-  meta: Dict[str, str] = {
-      "branch": "Unknown",
-      "upstream": "Unknown",
-      "head_sha": "Unknown",
-      "onto_sha": "Unknown",
-      "merge_base": "Unknown",
-  }
 
   def _run_git(args: List[str]) -> str:
     try:
@@ -169,37 +161,24 @@ def extract_git_context(repo_path: str,) -> Tuple[str, Dict[str, str]]:
 
   branch = _run_git(["branch", "--show-current"])
   if branch:
-    meta["branch"] = branch
     ctx_lines.append(f"Current Branch: {branch}")
 
   head_sha = _run_git(["rev-parse", "--short", "HEAD"])
   if head_sha:
-    meta["head_sha"] = head_sha
     ctx_lines.append(f"HEAD Commit: {head_sha}")
 
   git_dir = _run_git(["rev-parse", "--git-dir"])
   if git_dir:
-    abs_git = (
-        os.path.join(repo_path, git_dir)
-        if not os.path.isabs(git_dir) else git_dir)
-    onto_file = os.path.join(abs_git, "rebase-merge", "onto")
-    head_name_file = os.path.join(abs_git, "rebase-merge", "head-name")
+    onto_file = os.path.join(repo_path, git_dir, "rebase-merge", "onto")
     if os.path.isfile(onto_file):
       with open(onto_file, "r", encoding="utf-8") as f:
-        onto_sha = f.read().strip()[:10]
-        meta["onto_sha"] = onto_sha
-        ctx_lines.append(f"Rebase Onto Commit: {onto_sha}")
-    if os.path.isfile(head_name_file):
-      with open(head_name_file, "r", encoding="utf-8") as f:
-        meta["upstream"] = f.read().strip()
+        ctx_lines.append(f"Rebase Onto Commit: {f.read().strip()[:10]}")
 
   merge_base = _run_git(["merge-base", "HEAD", "HEAD@{u}"])
   if merge_base:
-    base_sha = merge_base[:10]
-    meta["merge_base"] = base_sha
-    ctx_lines.append(f"Merge Base: {base_sha}")
+    ctx_lines.append(f"Merge Base: {merge_base[:10]}")
 
-  return "\n".join(ctx_lines), meta
+  return "\n".join(ctx_lines)
 
 
 def is_ignored_conflict_path(rel_path: str) -> bool:
@@ -609,129 +588,28 @@ def resolve_file_conflicts(
   return True
 
 
-class ConflictResolver(BaseResolver):
-  """Self-healing resolver for git merge conflicts (DEPS & source files)."""
+class ConflictResolver:
+  """Phase 1 resolver for git merge conflicts (DEPS & source files)."""
 
   def __init__(
       self,
       repo_path: str,
       *,
       engine: Optional[Any] = None,
-      max_iterations: int = 5,
-      files: Optional[List[str]] = None,
-      skip_sync: bool = False,
       session_changes: Optional[List[AgentChangeRecord]] = None,
-      on_patch_applied_fn: Optional[Callable[[List[str]], None]] = None,
   ):
-    super().__init__(
-        repo_path=repo_path,
-        engine=engine,
-        max_iterations=max_iterations,
-        session_changes=session_changes,
-        on_patch_applied_fn=on_patch_applied_fn,
-    )
-    self.explicit_files = files
-    self.skip_sync = skip_sync
-    self.git_context, self.git_meta = extract_git_context(self.repo_path)
+    self.repo_path = repo_path
+    self.reasoning_engine = engine
+    self.session_changes = session_changes
+    self.git_context = extract_git_context(repo_path)
     self.escalations: List[EscalationItem] = []
-    self.resolved_list: List[str] = []
-
-  @property
-  def name(self) -> str:
-    return "Phase 1 (Conflict Resolution)"
-
-  def run_command(self, iteration: int) -> Tuple[bool, str, str]:
-    del iteration  # Unused in conflict resolution
-    # Check git status for conflict markers
-    if self.explicit_files:
-      target_files = [
-          os.path.abspath(f) if os.path.isabs(f) else os.path.join(
-              self.repo_path, f) for f in self.explicit_files
-      ]
-    else:
-      rel_files = find_all_conflicted_files(self.repo_path)
-      target_files = [os.path.join(self.repo_path, f) for f in rel_files]
-
-    remaining: List[str] = []
-    for tf in target_files:
-      if not os.path.isfile(tf):
-        continue
-      try:
-        with open(tf, "r", encoding="utf-8", errors="replace") as f:
-          if extract_conflict_blocks(f.read()):
-            remaining.append(os.path.relpath(tf, self.repo_path))
-      except OSError:
-        pass
-
-    if not remaining:
-      return True, "No conflict markers remaining in repository.", ""
-
-    msg = f"Found {len(remaining)} conflicted file(s): " + ", ".join(remaining)
-    return False, msg, ""
-
-  def extract_diagnostics(self, build_output: str,
-                          siso_output: str) -> List[Diagnostic]:
-    del build_output, siso_output
-    if self.explicit_files:
-      target_files = [
-          os.path.abspath(f) if os.path.isabs(f) else os.path.join(
-              self.repo_path, f) for f in self.explicit_files
-      ]
-    else:
-      rel_files = find_all_conflicted_files(self.repo_path)
-      target_files = [os.path.join(self.repo_path, f) for f in rel_files]
-
-    remaining: List[str] = []
-    for tf in target_files:
-      if not os.path.isfile(tf):
-        continue
-      try:
-        with open(tf, "r", encoding="utf-8", errors="replace") as f:
-          if extract_conflict_blocks(f.read()):
-            remaining.append(tf)
-      except OSError:
-        pass
-    return [
-        Diagnostic(error_message="Unresolved conflict markers", file_path=tf)
-        for tf in remaining
-    ]
-
-  # pylint: disable=unused-argument
-  def resolve_diagnostic(
-      self,
-      diagnostic: Diagnostic,
-      use_expert: bool = False,
-      expert_guidance: str = "",
-      investigation_log: str = "",
-      **kwargs,
-  ) -> Tuple[str, str, str]:
-    del use_expert, expert_guidance, investigation_log
-    tf = diagnostic.file_path
-    rel = os.path.relpath(tf, self.repo_path)
-    ok = resolve_file_conflicts(
-        file_path=tf,
-        repo_path=self.repo_path,
-        git_context=self.git_context,
-        escalations=self.escalations,
-        engine=self.reasoning_engine,
-        session_changes=self.session_changes,
-    )
-    if ok:
-      self.resolved_list.append(tf)
-      return f"# Conflict resolved cleanly in {rel}", self.model, rel
-    return "", self.model, rel
 
   def run_resolution_loop(self) -> bool:
     """Resolves all conflicted files in the repository."""
-    if self.explicit_files:
-      target_files = [
-          os.path.abspath(f) if os.path.isabs(f) else os.path.join(
-              self.repo_path, f) for f in self.explicit_files
-      ]
-    else:
-      rel_files = find_all_conflicted_files(self.repo_path)
-      target_files = [os.path.join(self.repo_path, f) for f in rel_files]
-
+    target_files = [
+        os.path.join(self.repo_path, f)
+        for f in find_all_conflicted_files(self.repo_path)
+    ]
     if not target_files:
       log.info("[resolve_conflicts] No conflicted files found in "
                "repository.")
@@ -746,11 +624,10 @@ class ConflictResolver(BaseResolver):
       log.info("  %2d. %s [%s]", idx, rel, lang)
     log.info("=" * 70)
 
-    deps_resolved = False
+    resolved = 0
     for tf in target_files:
       if not os.path.isfile(tf):
         continue
-
       if resolve_file_conflicts(
           file_path=tf,
           repo_path=self.repo_path,
@@ -759,23 +636,16 @@ class ConflictResolver(BaseResolver):
           engine=self.reasoning_engine,
           session_changes=self.session_changes,
       ):
-        self.resolved_list.append(tf)
-        if os.path.basename(tf) == "DEPS":
-          deps_resolved = True
+        resolved += 1
       else:
         log.warning("[WARNING] Issues detected in: %s", tf)
 
-    # If DEPS was resolved and callback hook provided, trigger callback
-    if deps_resolved and self.on_patch_applied_fn:
-      self.on_patch_applied_fn(["DEPS"])
-
     log.info("\n%s", "=" * 70)
-    log.info("[resolve_conflicts] ALL %s CONFLICTED FILES PROCESSED!",
-             len(self.resolved_list))
+    log.info("[resolve_conflicts] ALL %s CONFLICTED FILES PROCESSED!", resolved)
     if self.escalations:
       log.warning(
           "  - [WARNING] Escalations Flagged: %s block(s) require "
           "human review", len(self.escalations))
     log.info("=" * 70)
 
-    return len(self.resolved_list) == len(target_files)
+    return resolved == len(target_files)

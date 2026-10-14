@@ -324,7 +324,6 @@ def run_pipeline(args: argparse.Namespace) -> int:
       repo_path=args.repo_path,
       engine=reasoning_engine,
       session_changes=shared_session_changes,
-      skip_sync=True,  # Phase 2 handles gclient sync
   )
 
   # Phase 2: Shared Sync Resolver
