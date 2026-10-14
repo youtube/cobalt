@@ -44,6 +44,9 @@ bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
   if (audio_codec != kSbMediaAudioCodecNone &&
       audio_codec != kSbMediaAudioCodecAac &&
       audio_codec != kSbMediaAudioCodecOpus &&
+#if SB_API_VERSION >= 15
+      audio_codec != kSbMediaAudioCodecIamf &&
+#endif  // SB_API_VERSION >= 15
       audio_codec != kSbMediaAudioCodecAc3 &&
       audio_codec != kSbMediaAudioCodecEac3) {
     return false;
