@@ -161,6 +161,10 @@ public class PlatformError
     }
   }
 
+  public boolean isRetryPending() {
+    return isShowing() || mResponse != POSITIVE;
+  }
+
   @Override
   public void onClick(DialogInterface dialogInterface, int whichButton) {
     if (mErrorType == CONNECTION_ERROR) {
