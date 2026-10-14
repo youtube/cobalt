@@ -81,7 +81,7 @@ class OnDeviceTestsGatewayClientTest(unittest.TestCase):
     self.assertIn('app=dev.cobalt.coat', req['params'])
     self.assertIn('gcs_log_filename=yts_dom_test_log.txt', req['params'])
 
-  def test_yts_wpt_test_uses_cobalt_path_and_preserves_wpt_plugins(self):
+  def test_yts_wpt_test_uses_cobalt_path(self):
     args = self._make_args(
         test_type='yts_wpt_test',
         targets='["testing/container/wpt:yts_wpt_test_ci_android_arm_devices"]',
@@ -94,17 +94,8 @@ class OnDeviceTestsGatewayClientTest(unittest.TestCase):
         'cobalt_path=/bigstore/cobalt-artifacts/main/1/android-arm/Cobalt.apk',
         req['files'])
     self.assertFalse(any(f.startswith('build_apk=') for f in req['files']))
-    plugin_files = [
-        f for f in req['files'] if f.startswith('client_plugin_jar=')
-    ]
-    self.assertEqual(len(plugin_files), 1)
-    self.assertIn(
-        on_device_tests_gateway_client._WPT_ARCHIVE_DOWNLOADER_PLUGIN_JAR,
-        plugin_files[0])
-    self.assertIn(on_device_tests_gateway_client._WPT_RESULT_PARSER_PLUGIN_JAR,
-                  plugin_files[0])
-    self.assertIn(on_device_tests_gateway_client._GCS_UPLOADER_PLUGIN_JAR,
-                  plugin_files[0])
+    self.assertFalse(
+        any(f.startswith('client_plugin_jar=') for f in req['files']))
     self.assertIn('gcs_result_filename=results/results.json', req['params'])
     self.assertIn(
         'gcs_log_filename=yts_wpt_test_ci_android_arm_devices_cobalt.log',

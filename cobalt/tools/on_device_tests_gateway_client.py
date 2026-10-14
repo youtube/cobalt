@@ -69,13 +69,6 @@ _GCS_ARCHIVE_DEVICE_FAMILIES = ('rdk',)
 _GCS_UPLOADER_PLUGIN_JAR = (
     '//java/com/google/devtools/mobileharness/platform/maneki:'
     'gcs_cobalt_test_result_uploader_plugin_deploy.jar')
-_WPT_ARCHIVE_DOWNLOADER_PLUGIN_JAR = (
-    '//java/com/google/devtools/mobileharness/platform/maneki:'
-    'gcs_cobalt_archive_downloader_plugin_deploy.jar')
-_WPT_RESULT_PARSER_PLUGIN_JAR = (
-    '//java/com/google/devtools/mobileharness/platform/maneki:'
-    'yts_json_result_parser_plugin_deploy.jar')
-_MH_VALUE_SEPARATOR = '#VALUE_SEPARATOR#'
 _WPT_DEFAULT_HOST_NAME_REGEX = 'regex:maneki-mhserver(?!-(01|05)).*'
 
 
@@ -293,14 +286,6 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
           files.append(f'client_plugin_jar={_GCS_UPLOADER_PLUGIN_JAR}')
           files.append(f'build_apk={bigstore_path}')
           params.append('app=dev.cobalt.coat')
-        elif test_type == 'yts_wpt_test':
-          wpt_plugins = _MH_VALUE_SEPARATOR.join([
-              _WPT_ARCHIVE_DOWNLOADER_PLUGIN_JAR,
-              _WPT_RESULT_PARSER_PLUGIN_JAR,
-              _GCS_UPLOADER_PLUGIN_JAR,
-          ])
-          files.append(f'client_plugin_jar={wpt_plugins}')
-          files.append(f'cobalt_path={bigstore_path}')
         else:
           files.append(f'cobalt_path={bigstore_path}')
 
