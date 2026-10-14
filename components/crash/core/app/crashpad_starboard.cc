@@ -12,27 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Crash reporting in the hermetic libcobalt.so is a no-op: the loader installs
+// Crashpad by calling //starboard/crashpad_wrapper directly, and libcobalt.so
+// reaches it only through the CrashHandler Starboard extension, never through
+// this API.
+
 #include "components/crash/core/app/crashpad.h"
+
+#include "base/notimplemented.h"
 
 namespace crash_reporter {
 
-void SetFirstChanceExceptionHandler(bool (*handler)(int, siginfo_t*, void*)) {}
+bool InitializeCrashpad(bool initial_client, const std::string& process_type) {
+  NOTIMPLEMENTED();
+  return false;
+}
+
+void SetUploadConsent(bool consent) {
+  NOTIMPLEMENTED();
+}
+
+void SetFirstChanceExceptionHandler(bool (*handler)(int, siginfo_t*, void*)) {
+  NOTIMPLEMENTED();
+}
 
 bool GetHandlerSocket(int*, pid_t*) {
+  NOTIMPLEMENTED();
   return false;
 }
 
-namespace internal {
-
-bool PlatformCrashpadInitialization(bool,
-                                    bool,
-                                    bool,
-                                    const std::string&,
-                                    const base::FilePath&,
-                                    const std::vector<std::string>&,
-                                    base::FilePath*) {
-  return false;
-}
-
-}  // namespace internal
 }  // namespace crash_reporter

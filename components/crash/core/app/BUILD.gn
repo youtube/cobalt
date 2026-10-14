@@ -94,6 +94,7 @@ static_library("app") {
       sources -= [ "crashpad_linux.cc" ]
       data_deps -= [ ":chrome_crashpad_handler" ]
     }
+    sources -= [ "crashpad.cc" ]
     sources += [ "crashpad_starboard.cc" ]
   }
 
