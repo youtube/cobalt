@@ -48,12 +48,16 @@ Critical User Journeys (CUJs) Covered:
 - CUJ 8: Auto-Resolvable Conflicts
   Resolves expected conflicts such as submodule pointer updates and deleted
   files via `resolve_conflicts` without user intervention.
-- CUJ 9: Halt on Unresolved Conflicted PR Branch
-  If .github/AUTOROLL on HEAD contains 'CONFLICTED:<sha>', the autoroller aborts
-  immediately (exit code 1) until resolved.
-- CUJ 10: Halt on Resolved Conflicted PR Branch
-  If an existing open PR branch contains a commit starting with 'CONFLICTED',
-  the autoroller halts (exit code 1) until the PR is squashed and merged.
+- CUJ 9: Legacy Conflicted Clean Branch Is Rebuilt (Label Mode)
+  A clean branch holding a roller CONFLICTED commit (from before conflicts
+  moved to their own branches) is rebuilt from the target; the conflict gets
+  its own branch. A stray 'CONFLICTED:' cursor on the target is tolerated.
+- CUJ 10: Human Commits on the Clean Branch Are Left Alone (Label Mode)
+  Any commit not written by the roller freezes the branch: nothing is rolled,
+  rebuilt, or deleted (exit code 0, empty output).
+- CUJ 10b: Full Mode Halts on Conflicted Branches
+  In full mode an unresolved CONFLICTED cursor, or a resolved CONFLICTED
+  commit awaiting squash-merge, halts the roll with exit code 1.
 - CUJ 11: Respects Max Commits Limit
   Halts cherry-picking once the configured `--max-commits` limit is reached.
 - CUJ 12: Missing `--prs-json` Validation in Label Mode
@@ -74,8 +78,8 @@ Critical User Journeys (CUJs) Covered:
   conflicting pick depends on makes both apply cleanly; the conflict branch is
   deleted.
 - CUJ 17: Unchanged Conflict Is a No-op
-  Rebuilding a conflict branch with an identical tree keeps the existing SHA so
-  the workflow does not push or comment.
+  Rebuilding a conflict branch with an identical patch keeps the existing SHA
+  so the workflow does not push or comment.
 - CUJ 18: Target Change Rebuilds the Conflict Branch
   When the target branch changes the conflicted result, the conflict branch is
   rebuilt and flagged as changed.
@@ -92,6 +96,12 @@ Critical User Journeys (CUJs) Covered:
 - CUJ 22: Full Mode Never Stacks CONFLICTED on a Non-Empty Branch
   Whether a conflict may be committed depends on the branch state, not on the
   candidate iteration order.
+- CUJ 23: Unrelated Target Move Keeps the Conflict Branch
+  The conflict commit's patch id, not the whole tree, decides whether a
+  conflict branch is rebuilt, so unrelated target changes cause no churn.
+- CUJ 24: Cap Counts Hands-off Branches
+  Conflict branches a human is resolving occupy a slot; further conflicts are
+  reported as pending until a slot frees up.
 
 Integration Test Guidelines:
 - All integration tests MUST verify the branch state after the SUT finishes:
@@ -170,13 +180,13 @@ class TestAutorollIntegration(unittest.TestCase):
     self.temp_dir_obj.cleanup()
     lib._PR_LABELS_CACHE.clear()  # pylint: disable=protected-access
 
-  def git(self, *args):
+  def git(self, *args, check=True):
     """Runs a git command in the test repository."""
     cmd = ['git'] + list(args)
     return subprocess.run(
         cmd,
         cwd=self.repo_dir,
-        check=True,
+        check=check,
         capture_output=True,
         text=True,
         env=self.git_env)
@@ -242,8 +252,7 @@ class TestAutorollIntegration(unittest.TestCase):
                          *,
                          target='27.lts',
                          max_commits=10,
-                         max_conflict_prs=3,
-                         existing_pr_sha=''):
+                         max_conflict_prs=3):
     """Runs autoroll in label mode and returns (exit_code, stdout, manifest).
     """
     prs_json = self.create_prs_json(pr_label_map)
@@ -257,8 +266,6 @@ class TestAutorollIntegration(unittest.TestCase):
         '.github/AUTOROLL',
         '--max-commits',
         str(max_commits),
-        '--existing-pr-sha',
-        existing_pr_sha,
         '--mode',
         'label',
         '--prs-json',
@@ -372,8 +379,6 @@ class TestAutorollIntegration(unittest.TestCase):
         '.github/AUTOROLL',
         '--max-commits',
         '10',
-        '--existing-pr-sha',
-        '',
         '--mode',
         'full',
     ])
@@ -419,8 +424,6 @@ class TestAutorollIntegration(unittest.TestCase):
         '.github/AUTOROLL',
         '--max-commits',
         '10',
-        '--existing-pr-sha',
-        '',
         '--mode',
         'label',
         '--prs-json',
@@ -485,8 +488,6 @@ class TestAutorollIntegration(unittest.TestCase):
         '.github/AUTOROLL',
         '--max-commits',
         '10',
-        '--existing-pr-sha',
-        '',
         '--mode',
         'label',
         '--prs-json',
@@ -538,8 +539,6 @@ class TestAutorollIntegration(unittest.TestCase):
         '.github/AUTOROLL',
         '--max-commits',
         '10',
-        '--existing-pr-sha',
-        '',
         '--mode',
         'label',
         '--prs-json',
@@ -590,8 +589,6 @@ class TestAutorollIntegration(unittest.TestCase):
         '.github/AUTOROLL',
         '--max-commits',
         '10',
-        '--existing-pr-sha',
-        '',
         '--mode',
         'full',
     ])
@@ -655,12 +652,9 @@ class TestAutorollIntegration(unittest.TestCase):
     self.assertEqual(len(manifest['conflicts']), 1)
     conflict = manifest['conflicts'][0]
     self.assertEqual(conflict['pr'], 101)
-    self.assertEqual(conflict['sha'], conflict_sha)
     self.assertEqual(conflict['branch'], branch)
     self.assertEqual(conflict['old_sha'], '')
-    self.assertEqual(conflict['new_sha'], self.branch_sha(branch))
     self.assertTrue(conflict['changed'])
-    self.assertEqual(conflict['files'], ['conflict.txt'])
     self.assertTrue(
         conflict['title'].startswith('CONFLICTED Cherry pick PR #101:'))
     self.assertIn('Refer to original PR: #101', conflict['body'])
@@ -704,8 +698,6 @@ class TestAutorollIntegration(unittest.TestCase):
         '.github/AUTOROLL',
         '--max-commits',
         '10',
-        '--existing-pr-sha',
-        '',
         '--mode',
         'label',
         '--prs-json',
@@ -768,8 +760,6 @@ class TestAutorollIntegration(unittest.TestCase):
         '.github/AUTOROLL',
         '--max-commits',
         '10',
-        '--existing-pr-sha',
-        '',
         '--mode',
         'label',
         '--prs-json',
@@ -790,96 +780,105 @@ class TestAutorollIntegration(unittest.TestCase):
     autoroll_content = self.git('show', 'HEAD:.github/AUTOROLL').stdout.strip()
     self.assertEqual(autoroll_content, base_sha)
 
-  def test_cuj9_halts_on_unresolved_conflicted_pr_branch(self):
-    """CUJ 9: Exits with code 1 if HEAD has an unresolved CONFLICTED commit."""
-    self.init_target_branch('27.lts')
-    self.git('checkout', '27.lts')
-    self.git('checkout', '-b', 'autoroll-main-to-27.lts')
+  def test_cuj9_legacy_conflicted_clean_branch_is_rebuilt(self):
+    """CUJ 9: Label mode rebuilds a clean branch holding a bot CONFLICTED
+    commit (and a stray CONFLICTED: cursor on the target does not crash).
+    """
+    self.setup_conflict_scenario()
+    self.git('checkout', 'main')
+    self.commit_file('other.txt', 'other\n', 'Other commit (#102)')
 
+    # Legacy state: the clean branch holds the bot's CONFLICTED commit for #101
+    # and the target carries a stray CONFLICTED: cursor from a squash merge.
+    self.git('checkout', '27.lts')
     with open('.github/AUTOROLL', 'w', encoding='utf-8') as f:
-      f.write('CONFLICTED:some_sha_1234\n')
+      f.write(f'CONFLICTED:{self.base_sha}\n')
     self.git('add', '.github/AUTOROLL')
-    self.git('commit', '-m', 'Conflicted commit')
+    self.git('commit', '-m', 'Squash merge that forgot the cursor')
+    self.git('checkout', 'autoroll-main-to-27.lts')
+    self.git('reset', '--hard', '27.lts')
+    main_sha = self.git('rev-parse', 'main~1').stdout.strip()
+    self.git('cherry-pick', '--no-commit', main_sha, check=False)
+    self.git('add', 'conflict.txt')
+    self.git(
+        'commit', '-m', 'CONFLICTED Cherry pick PR #101: Main edit\n\n'
+        'Refer to original PR: #101\n\n'
+        f'(cherry picked from commit {main_sha})')
+    legacy_sha = self.get_head_sha()
 
-    prs_json = self.create_prs_json({101: ['cp-27.lts']})
+    exit_code, stdout, manifest = self.run_label_autoroll({
+        101: ['cp-27.lts'],
+        102: ['cp-27.lts'],
+    })
 
-    head_before = self.get_head_sha()
-
-    exit_code, _, stderr = self.run_autoroll([
-        '--source-branch',
-        'main',
-        '--target-branch',
-        '27.lts',
-        '--autoroll-file',
-        '.github/AUTOROLL',
-        '--max-commits',
-        '10',
-        '--existing-pr-sha',
-        '',
-        '--mode',
-        'label',
-        '--prs-json',
-        prs_json,
-    ])
-
-    self.assertEqual(exit_code, 1)
-    self.assertIn('Autoroll branch has an unresolved CONFLICTED commit.',
-                  stderr)
-
-    # Verify branch state after SUT finishes (aborted with zero state changes)
-    self.assertEqual(self.get_head_sha(), head_before)
+    self.assertEqual(exit_code, 0)
+    self.assertEqual(stdout.strip(), '- #102')
     self.assert_working_tree_clean()
+    self.assertTrue(manifest['clean']['rebuilt'])
+    self.assertEqual(manifest['clean']['old_sha'], legacy_sha)
+    commit_titles = self.get_branch_commit_titles('27.lts')
+    self.assertEqual(len(commit_titles), 1)
+    self.assertTrue(commit_titles[0].startswith('Cherry pick PR #102:'))
+    # The conflict moved to its own branch.
+    self.assertEqual([c['pr'] for c in manifest['conflicts']], [101])
 
-  def test_cuj10_halts_on_resolved_conflicted_pr_branch(self):
-    """CUJ 10: Halts if existing PR was resolved until squashed & merged."""
+  def test_cuj10_human_commits_on_clean_branch_are_left_alone(self):
+    """CUJ 10: A clean branch with non-roller commits is never touched."""
     self.init_target_branch('27.lts')
+    sha1 = self.commit_file('a.txt', 'content a\n', 'Feature 101 (#101)')
+    self.commit_file('b.txt', 'content b\n', 'Feature 102 (#102)')
+
     self.git('checkout', '27.lts')
     self.git('checkout', '-b', 'autoroll-main-to-27.lts')
-
-    # Commit 1: CONFLICTED
-    with open('file.txt', 'w', encoding='utf-8') as f:
-      f.write('conflicted\n')
-    self.git('add', 'file.txt')
-    self.git('commit', '-m', 'CONFLICTED Cherry pick PR #101: Feature 101')
-    conflicted_pr_sha = self.get_head_sha()
-
-    # Commit 2: RESOLVED
-    with open('.github/AUTOROLL', 'w', encoding='utf-8') as f:
-      f.write(f'{conflicted_pr_sha}\n')
-    with open('file.txt', 'w', encoding='utf-8') as f:
-      f.write('resolved\n')
-    self.git('add', '.')
-    self.git('commit', '-m', 'RESOLVED Cherry pick PR #101: Feature 101')
-
-    prs_json = self.create_prs_json({101: ['cp-27.lts']})
-
+    self.commit_cherry_pick(
+        'a.txt', 'content a\n', pr_num=101, title='Feature 101', sha=sha1)
+    self.commit_file('fix.txt', 'fix\n', 'Fix build on the roll branch')
     head_before = self.get_head_sha()
 
-    exit_code, _, stderr = self.run_autoroll([
-        '--source-branch',
-        'main',
-        '--target-branch',
-        '27.lts',
-        '--autoroll-file',
-        '.github/AUTOROLL',
-        '--max-commits',
-        '10',
-        '--existing-pr-sha',
-        conflicted_pr_sha,
-        '--mode',
-        'label',
-        '--prs-json',
-        prs_json,
-    ])
+    # Even with label changes that would otherwise rebuild the branch.
+    exit_code, stdout, manifest = self.run_label_autoroll({102: ['cp-27.lts']})
 
-    self.assertEqual(exit_code, 1)
-    self.assertIn(
-        'Autoroll branch has a resolved CONFLICTED commit. '
-        'Squash and merge before autoroll will continue.', stderr)
-
-    # Verify branch state after SUT finishes (halted with zero state changes)
+    self.assertEqual(exit_code, 0)
+    self.assertEqual(stdout.strip(), '')
     self.assertEqual(self.get_head_sha(), head_before)
     self.assert_working_tree_clean()
+    self.assertTrue(manifest['clean']['hands_off'])
+    self.assertFalse(manifest['clean']['rebuilt'])
+    self.assertNotIn('conflicts', manifest)
+    self.assertEqual(manifest['delete'], [])
+
+  def test_cuj10b_full_mode_halts_on_conflicted_branch(self):
+    """CUJ 10b: Full mode still halts (exit 1) on CONFLICTED/RESOLVED branches.
+    """
+    self.setup_conflict_scenario(target='staging')
+    args = [
+        '--source-branch', 'main', '--target-branch', 'staging',
+        '--autoroll-file', '.github/AUTOROLL', '--max-commits', '10', '--mode',
+        'full'
+    ]
+    exit_code, stdout, _ = self.run_autoroll(args)
+    self.assertEqual(exit_code, 0)
+    self.assertTrue(stdout.startswith('- #101'))
+    conflicted_sha = self.get_head_sha()
+
+    # Unresolved: the cursor still says CONFLICTED.
+    exit_code, _, stderr = self.run_autoroll(args)
+    self.assertEqual(exit_code, 1)
+    self.assertIn('unresolved CONFLICTED commit', stderr)
+    self.assertEqual(self.get_head_sha(), conflicted_sha)
+
+    # Resolved but not merged: cursor fixed, CONFLICTED commit still present.
+    main_sha = self.git('rev-parse', 'main').stdout.strip()
+    with open('.github/AUTOROLL', 'w', encoding='utf-8') as f:
+      f.write(f'{main_sha}\n')
+    self.git('add', '.github/AUTOROLL')
+    self.commit_file('conflict.txt', 'line 1\nresolved\n',
+                     'RESOLVED Cherry pick PR #101: Main edit')
+    resolved_sha = self.get_head_sha()
+    exit_code, _, stderr = self.run_autoroll(args)
+    self.assertEqual(exit_code, 1)
+    self.assertIn('Squash and merge', stderr)
+    self.assertEqual(self.get_head_sha(), resolved_sha)
 
   def test_cuj11_respects_max_commits(self):
     """CUJ 11: Autoroller stops rolling once max commits limit is reached."""
@@ -903,8 +902,6 @@ class TestAutorollIntegration(unittest.TestCase):
         '.github/AUTOROLL',
         '--max-commits',
         '2',
-        '--existing-pr-sha',
-        '',
         '--mode',
         'full',
     ])
@@ -944,8 +941,6 @@ class TestAutorollIntegration(unittest.TestCase):
         '.github/AUTOROLL',
         '--max-commits',
         '10',
-        '--existing-pr-sha',
-        '',
         '--mode',
         'label',
     ])
@@ -990,8 +985,6 @@ class TestAutorollIntegration(unittest.TestCase):
         '.github/AUTOROLL',
         '--max-commits',
         '10',
-        '--existing-pr-sha',
-        '',
         '--mode',
         'label',
         '--prs-json',
@@ -1013,7 +1006,7 @@ class TestAutorollIntegration(unittest.TestCase):
   def test_cuj14_older_conflict_never_stacks_on_rolled_commits(self):
     """CUJ 14: Older conflicting PR labeled late never lands on clean branch.
     """
-    conflict_sha = self.setup_conflict_scenario()
+    self.setup_conflict_scenario()
     self.git('checkout', 'main')
     sha2 = self.commit_file('b.txt', 'content b\n', 'Newer PR (#102)')
 
@@ -1038,7 +1031,7 @@ class TestAutorollIntegration(unittest.TestCase):
     self.assertFalse(manifest['clean']['rebuilt'])
 
     self.assert_conflict_branch('autoroll-conflict-main-to-27.lts-101', 101)
-    self.assertEqual([c['sha'] for c in manifest['conflicts']], [conflict_sha])
+    self.assertEqual([c['pr'] for c in manifest['conflicts']], [101])
 
   def test_cuj15_label_removed_deletes_conflict_branch(self):
     """CUJ 15: Removing the label from a conflicting PR deletes its branch."""
@@ -1067,7 +1060,6 @@ class TestAutorollIntegration(unittest.TestCase):
     self.assert_working_tree_clean()
     self.assertEqual(manifest['conflicts'], [])
     self.assertEqual(manifest['delete'], [{
-        'pr': 101,
         'branch': branch,
         'old_sha': old_sha,
     }])
@@ -1138,7 +1130,6 @@ class TestAutorollIntegration(unittest.TestCase):
     conflict = manifest['conflicts'][0]
     self.assertFalse(conflict['changed'])
     self.assertEqual(conflict['old_sha'], old_sha)
-    self.assertEqual(conflict['new_sha'], old_sha)
     self.assertEqual(manifest['delete'], [])
 
   def test_cuj18_target_moved_rebuilds_conflict_branch(self):
@@ -1162,8 +1153,7 @@ class TestAutorollIntegration(unittest.TestCase):
     conflict = manifest['conflicts'][0]
     self.assertTrue(conflict['changed'])
     self.assertEqual(conflict['old_sha'], old_sha)
-    self.assertNotEqual(conflict['new_sha'], old_sha)
-    self.assertEqual(self.branch_sha(branch), conflict['new_sha'])
+    self.assertNotEqual(self.branch_sha(branch), old_sha)
     self.assert_conflict_branch(branch, 101)
     self.assertIn('27.lts edit v2',
                   self.git('show', f'{branch}:conflict.txt').stdout)
@@ -1188,14 +1178,14 @@ class TestAutorollIntegration(unittest.TestCase):
     self.assert_working_tree_clean()
     self.assertEqual(self.branch_sha(branch), resolved_sha)
     self.assertEqual(manifest['conflicts'], [])
-    self.assertEqual(manifest['hands_off'], [{'pr': 101, 'branch': branch}])
+    self.assertEqual(manifest['hands_off'], [{'branch': branch}])
     self.assertEqual(manifest['delete'], [])
 
     # Label removed: still hands off, not deleted.
     exit_code, _, manifest = self.run_label_autoroll({})
     self.assertEqual(exit_code, 0)
     self.assertEqual(self.branch_sha(branch), resolved_sha)
-    self.assertEqual(manifest['hands_off'], [{'pr': 101, 'branch': branch}])
+    self.assertEqual(manifest['hands_off'], [{'branch': branch}])
     self.assertEqual(manifest['delete'], [])
 
   def test_cuj20_conflict_branch_cap(self):
@@ -1263,6 +1253,10 @@ class TestAutorollIntegration(unittest.TestCase):
     self.assertEqual(manifest['clean']['items'], [])
     self.assertEqual(self.get_head_sha(),
                      self.git('rev-parse', '27.lts').stdout.strip())
+    self.assertEqual(manifest['delete'], [{
+        'branch': 'autoroll-main-to-27.lts',
+        'old_sha': manifest['clean']['old_sha'],
+    }])
 
   def test_cuj22_full_mode_older_conflict_does_not_stack(self):
     """CUJ 22: Full mode never commits CONFLICTED onto a non-empty branch."""
@@ -1284,8 +1278,6 @@ class TestAutorollIntegration(unittest.TestCase):
         '.github/AUTOROLL',
         '--max-commits',
         '10',
-        '--existing-pr-sha',
-        '',
         '--mode',
         'full',
     ])
@@ -1296,6 +1288,71 @@ class TestAutorollIntegration(unittest.TestCase):
     self.assertEqual(self.get_head_sha(), rolled_sha)
     autoroll_content = self.git('show', 'HEAD:.github/AUTOROLL').stdout.strip()
     self.assertEqual(autoroll_content, self.base_sha)
+
+  def test_cuj23_unrelated_target_move_keeps_conflict_branch(self):
+    """CUJ 23: A target change that leaves the conflict intact is a no-op."""
+    self.setup_conflict_scenario()
+    exit_code, _, _ = self.run_label_autoroll({101: ['cp-27.lts']})
+    self.assertEqual(exit_code, 0)
+    branch = 'autoroll-conflict-main-to-27.lts-101'
+    old_sha = self.branch_sha(branch)
+
+    self.git('checkout', '27.lts')
+    self.commit_file('unrelated.txt', 'unrelated\n', 'Unrelated 27.lts change')
+    self.git('checkout', 'autoroll-main-to-27.lts')
+    self.git('reset', '--hard', '27.lts')
+
+    exit_code, _, manifest = self.run_label_autoroll({101: ['cp-27.lts']})
+
+    self.assertEqual(exit_code, 0)
+    self.assert_working_tree_clean()
+    self.assertEqual(self.branch_sha(branch), old_sha)
+    self.assertFalse(manifest['conflicts'][0]['changed'])
+
+  def test_cuj24_cap_counts_hands_off_branches(self):
+    """CUJ 24: Hands-off conflict branches occupy a slot; new ones wait."""
+    self.setup_conflict_scenario()
+    self.git('checkout', 'main')
+    self.commit_file('conflict.txt', 'line 1\nmain edit 2\n',
+                     'Main edit 2 (#102)')
+    self.git('checkout', 'autoroll-main-to-27.lts')
+
+    exit_code, _, manifest = self.run_label_autoroll({102: ['cp-27.lts']},
+                                                     max_conflict_prs=1)
+    self.assertEqual(exit_code, 0)
+    self.assertEqual([c['pr'] for c in manifest['conflicts']], [102])
+    branch_102 = 'autoroll-conflict-main-to-27.lts-102'
+
+    # A human starts resolving #102.
+    self.git('checkout', branch_102)
+    self.commit_file('conflict.txt', 'line 1\nresolved\n',
+                     'RESOLVED Cherry pick PR #102: Main edit 2')
+    self.git('checkout', 'autoroll-main-to-27.lts')
+
+    # #101 is labeled too, but the only slot is taken by the hands-off branch.
+    exit_code, _, manifest = self.run_label_autoroll(
+        {
+            101: ['cp-27.lts'],
+            102: ['cp-27.lts']
+        }, max_conflict_prs=1)
+    self.assertEqual(exit_code, 0)
+    self.assert_working_tree_clean()
+    self.assertEqual(manifest['conflicts'], [])
+    self.assertEqual(manifest['hands_off'], [{'branch': branch_102}])
+    self.assertEqual([p['pr'] for p in manifest['pending']], [101])
+    self.assertIn('max 1', manifest['pending'][0]['reason'])
+    self.assertIsNone(self.branch_sha('autoroll-conflict-main-to-27.lts-101'))
+
+    # With a second slot #101 gets its branch.
+    exit_code, _, manifest = self.run_label_autoroll(
+        {
+            101: ['cp-27.lts'],
+            102: ['cp-27.lts']
+        }, max_conflict_prs=2)
+    self.assertEqual(exit_code, 0)
+    self.assertEqual([c['pr'] for c in manifest['conflicts']], [101])
+    self.assertEqual(manifest['pending'], [])
+    self.assert_conflict_branch('autoroll-conflict-main-to-27.lts-101', 101)
 
 
 if __name__ == '__main__':

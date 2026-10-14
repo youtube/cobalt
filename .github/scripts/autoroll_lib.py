@@ -38,15 +38,48 @@ def current_branch():
   return get_out(['git', 'rev-parse', '--abbrev-ref', 'HEAD']).strip()
 
 
-def count_commits(base, ref):
-  """Returns the number of commits in base..ref."""
-  return int(get_out(['git', 'rev-list', '--count', f'{base}..{ref}']))
+def show_commit(ref, fmt):
+  """Returns the given --format field of a single commit."""
+  return get_out(['git', 'log', '-1', f'--format={fmt}', ref]).strip()
 
 
-def trees_equal(ref_a, ref_b):
-  """Returns True if the trees of the two refs are identical."""
-  res = subprocess.run(['git', 'diff', '--quiet', ref_a, ref_b], check=False)
-  return res.returncode == 0
+def get_subjects(rev_range):
+  """Returns the commit subjects in rev_range, oldest first."""
+  return get_out(['git', 'log', '--reverse', '--format=%s',
+                  rev_range]).splitlines()
+
+
+# Subjects the autoroller itself writes. Anything else on an autoroll branch
+# means a human has taken over (e.g. pushed a RESOLVED commit).
+_BOT_SUBJECT = re.compile(r'^(CONFLICTED )?Cherry pick (PR #\d+|commit \w+): ')
+
+
+def is_bot_branch(target, ref):
+  """Returns True if every commit in target..ref was written by the roller."""
+  return all(_BOT_SUBJECT.match(s) for s in get_subjects(f'{target}..{ref}'))
+
+
+def is_bot_conflict_branch(target, ref):
+  """Returns True if target..ref is exactly one roller CONFLICTED commit."""
+  subjects = get_subjects(f'{target}..{ref}')
+  return len(subjects) == 1 and subjects[0].startswith(
+      'CONFLICTED Cherry pick ')
+
+
+def patch_id(sha):
+  """Returns the stable patch id of a commit's own change.
+
+  Unlike comparing trees, this is unaffected by unrelated changes to the
+  commit's base, so a rebuilt CONFLICTED commit on a moved target only looks
+  different when the conflict itself changed.
+  """
+  diff = get_out(['git', 'diff', f'{sha}~', sha])
+  res = subprocess.run(['git', 'patch-id', '--stable'],
+                       input=diff,
+                       capture_output=True,
+                       text=True,
+                       check=True)
+  return res.stdout.split()[0] if res.stdout else ''
 
 
 def list_branches(prefix):
@@ -62,32 +95,14 @@ def list_branches(prefix):
   return branches
 
 
-def get_commit_subject(ref):
-  return get_out(['git', 'log', '-1', '--format=%s', ref]).strip()
-
-
-def get_commit_body(ref):
-  return get_out(['git', 'log', '-1', '--format=%b', ref]).strip()
-
-
-def is_bot_conflict_branch(target, sha):
-  """Returns True if the branch consists solely of one bot CONFLICTED commit.
-
-  Any other shape (resolution commits, unexpected subjects) means a human has
-  touched the branch and the autoroller must leave it alone.
-  """
-  if count_commits(target, sha) != 1:
-    return False
-  return get_commit_subject(sha).startswith('CONFLICTED ')
+def read_cursor(branch, autoroll_file):
+  """Returns the raw content of the autoroll cursor file on branch."""
+  return get_out(['git', 'show', f'{branch}:{autoroll_file}']).strip()
 
 
 def get_start_sha(branch, autoroll_file):
-  """Returns an autoroll start SHA or None if CONFLICTED."""
-  start = get_out(['git', 'show', f'{branch}:{autoroll_file}']).strip()
-
-  if start.startswith('CONFLICTED:'):
-    return None
-  return start
+  """Returns the autoroll cursor SHA, ignoring a stray CONFLICTED: marker."""
+  return read_cursor(branch, autoroll_file).removeprefix('CONFLICTED:')
 
 
 def get_commits(branch, start):
