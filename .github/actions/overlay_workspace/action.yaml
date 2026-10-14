@@ -54,7 +54,7 @@ runs:
       run: |
         cache_hit=false
         LOWER_DIR="/runner-cache/golden-workspace/${PLATFORM}"
-        if [ -d "${LOWER_DIR}" ]; then
+        if [ -d "${LOWER_DIR}" ] && cmp -s DEPS "${LOWER_DIR}/src/DEPS"; then
           cache_hit=true
         fi
         echo "cache_hit=${cache_hit}" >> "${GITHUB_OUTPUT}"
@@ -113,7 +113,7 @@ runs:
         fi
 
         BUCKET="$(gcloud config get-value project)-test-artifacts/golden-workspace"
-        STAGING_DIR="/runner-cache/staging.${$}"
+        STAGING_DIR="/runner-cache/staging.$$"
         trap 'rm -rf "${STAGING_DIR}"' EXIT
 
         echo "Downloading, extracting, and verifying golden workspace for ${PLATFORM} (${EXPECTED:0:12})..."
@@ -148,6 +148,7 @@ runs:
       shell: bash
       env:
         PLATFORM: ${{ inputs.platform }}
+        SSD_CACHE_HIT: ${{ steps.detect-cache.outputs.cache_hit }}
       run: |
         lower_dir=""
         LOWER_DIR="/runner-cache/golden-workspace/${PLATFORM}"
@@ -163,7 +164,7 @@ runs:
 
         if [ -n "${lower_dir}" ]; then
           echo "lower_dir=${lower_dir}" >> "${GITHUB_OUTPUT}"
-          echo "cache_hit=true" >> "${GITHUB_OUTPUT}"
+          echo "cache_hit=${SSD_CACHE_HIT}" >> "${GITHUB_OUTPUT}"
         else
           echo "lower_dir=" >> "${GITHUB_OUTPUT}"
           echo "cache_hit=false" >> "${GITHUB_OUTPUT}"
