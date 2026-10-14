@@ -36,33 +36,26 @@ int AlignUp(int value, int alignment) {
 }
 
 // Records the latency of an SbAudioSinkCreate() call. The first call in the
-// process is recorded under "Cobalt.Media.LatencyTiming.SbAudioSinkCreate";
-// calls after the first one (e.g. re-creations on Flush()) are recorded under
-// the ".Subsequent" variant so they can be separated from the startup call.
+// process is recorded under kFirstCallHistogram; every later call (e.g. from
+// another AudioContext or Flush()) is recorded under kSubsequentCallHistogram.
 void RecordSbAudioSinkCreateLatency(base::TimeDelta elapsed) {
-  static std::atomic<bool> is_first_call{true};
+  static constexpr char kFirstCallHistogram[] =
+      "Cobalt.Media.LatencyTiming.SbAudioSinkCreate";
+  static constexpr char kSubsequentCallHistogram[] =
+      "Cobalt.Media.LatencyTiming.SbAudioSinkCreate.Subsequent";
+  static std::atomic<bool> first_call_pending{true};
 
-  constexpr base::TimeDelta kMin = base::Microseconds(100);
-  constexpr base::TimeDelta kMax = base::Seconds(1);
-  constexpr int kBuckets = 50;
-
-  if (is_first_call.exchange(false)) {
-    base::UmaHistogramCustomMicrosecondsTimes(
-        "Cobalt.Media.LatencyTiming.SbAudioSinkCreate", elapsed, kMin, kMax,
-        kBuckets);
-    LOG(INFO) << "First SbAudioSinkCreate() took " << elapsed.InMicroseconds()
-              << "us";
-    return;
-  }
+  const bool is_first_call = first_call_pending.exchange(false);
   base::UmaHistogramCustomMicrosecondsTimes(
-      "Cobalt.Media.LatencyTiming.SbAudioSinkCreate.Subsequent", elapsed, kMin,
-      kMax, kBuckets);
-  LOG(INFO) << "Subsequent SbAudioSinkCreate() took "
-            << elapsed.InMicroseconds() << "us";
+      is_first_call ? kFirstCallHistogram : kSubsequentCallHistogram, elapsed,
+      /*min=*/base::Microseconds(100), /*max=*/base::Seconds(1),
+      /*buckets=*/50);
+  LOG(INFO) << (is_first_call ? "First" : "Subsequent")
+            << " SbAudioSinkCreate() took " << elapsed.InMicroseconds() << "us";
 }
 
 // Wraps SbAudioSinkCreate() and records its latency to UMA.
-SbAudioSink CreateSbAudioSinkWithUMAMetrics(
+SbAudioSink CreateSbAudioSinkWithUmaLatency(
     int channels,
     int sampling_frequency_hz,
     SbMediaAudioSampleType audio_sample_type,
@@ -133,7 +126,7 @@ void CobaltAudioRendererSink::Start() {
   }
 
   output_frame_buffers_[0] = output_frame_buffer_.get();
-  audio_sink_ = AudioSinkUniquePtr(CreateSbAudioSinkWithUMAMetrics(
+  audio_sink_ = AudioSinkUniquePtr(CreateSbAudioSinkWithUmaLatency(
       params_.channels(), nearest_supported_sample_rate_, output_sample_type_,
       kSbMediaAudioFrameStorageTypeInterleaved, &output_frame_buffers_[0],
       frames_per_channel_, &CobaltAudioRendererSink::UpdateSourceStatusFunc,
@@ -164,7 +157,7 @@ void CobaltAudioRendererSink::Flush() {
   audio_sink_.reset();
   frames_rendered_ = 0;
   frames_consumed_ = 0;
-  audio_sink_ = AudioSinkUniquePtr(CreateSbAudioSinkWithUMAMetrics(
+  audio_sink_ = AudioSinkUniquePtr(CreateSbAudioSinkWithUmaLatency(
       params_.channels(),
       SbAudioSinkGetNearestSupportedSampleFrequency(params_.sample_rate()),
       output_sample_type_, kSbMediaAudioFrameStorageTypeInterleaved,

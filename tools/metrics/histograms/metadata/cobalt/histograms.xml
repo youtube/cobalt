@@ -339,13 +339,14 @@ Always run the pretty print utility on this file after editing:
   <owner>cobalt-media-team@google.com</owner>
   <summary>
     Wall-clock time taken by the SbAudioSinkCreate() Starboard call made by
-    CobaltAudioRendererSink (WebAudio / Chromium AudioRendererSink path).
-    Recorded for {Occurrence}.
+    CobaltAudioRendererSink (WebAudio / Chromium AudioRendererSink path). Every
+    call is recorded in exactly one variant. Recorded for {Occurrence}.
   </summary>
   <token key="Occurrence">
-    <variant name="" summary="every call, including the first at startup"/>
+    <variant name="" summary="only the first call in the process"/>
     <variant name=".Subsequent"
-        summary="every call after the first, e.g. re-creations on Flush()"/>
+        summary="every call after the first, e.g. from another AudioContext
+                 or Flush()"/>
   </token>
 </histogram>
 
