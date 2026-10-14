@@ -280,6 +280,7 @@
     "target": "testing/container/wpt:yts_wpt_test_ci_android_arm_devices",
     "runs_on": "device",
     "test_type": "yts_wpt_test",
+    "required": false,
     "build": false
   },
   {

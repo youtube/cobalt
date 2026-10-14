@@ -86,12 +86,7 @@ runs:
             --custom-var="rbe_instance=\"${RBE_INSTANCE}\"" \
             "${REPOSITORY}"
         else
-          echo ".gclient already exists."
-          # Ensure .gclient and src remote point to REPOSITORY rather than internal rpc://
-          sed -i 's|rpc://[^ '\''"]*|'"${REPOSITORY}"'|g' .gclient || true
-          if [ -d src/.git ]; then
-            git -C src remote set-url origin "${REPOSITORY}" 2>/dev/null || true
-          fi
+          echo ".gclient already exists. Skipping gclient config."
         fi
       shell: bash
 
@@ -162,7 +157,6 @@ runs:
       working-directory: cobalt
       env:
         REF: ${{ github.sha }}
-        REPOSITORY: ${{ github.server_url }}/${{ github.repository }}
       run: |
         # Synchronize sub-repositories with minimal disk footprint and network transfer:
         # --shallow / --no-history: fetch only latest commits without full commit history

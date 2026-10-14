@@ -1003,7 +1003,7 @@ jobs:
     permissions: {}
     runs-on: ubuntu-latest
     name: ${{ matrix.test_info.target }}
-    continue-on-error: ${{ matrix.test_info.test_type == 'yts_wpt_test' }}
+    continue-on-error: ${{ matrix.test_info.required == false }}
     env:
       TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
     strategy:
@@ -1072,6 +1072,7 @@ jobs:
         with:
           log_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*logcat.txt
           symbolize: 'false'
+          required: ${{ matrix.test_info.required != false }}
       - name: ${{ matrix.test_info.target }} Test Logs
         if: always() && steps.filter.outputs.skipped != 'true'
         uses: ./.github/actions/print_logs
@@ -1082,6 +1083,7 @@ jobs:
             results/**/${{ steps.extract-target-name.outputs.test_target }}*symbolized_crash.txt
           results_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*.xml
           symbolize: 'false'
+          required: ${{ matrix.test_info.required != false }}
       - name: Generate Retry Filter
         if: always() && steps.filter.outputs.skipped != 'true'
         uses: ./.github/actions/generate_retry_filter
