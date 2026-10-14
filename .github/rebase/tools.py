@@ -11,7 +11,7 @@ import re
 import subprocess
 from typing import TYPE_CHECKING, Callable, Dict, List, Optional
 
-from repo_guards import get_clean_build_env, resolve_repo_file_path
+from repo_guards import resolve_repo_file_path
 
 if TYPE_CHECKING:
   from base_resolver import AgentChangeRecord
@@ -129,20 +129,23 @@ def extract_line_anchored_tool_commands(
   return commands
 
 
-def _run_in_repo(
-    cmd: List[str],
-    repo_path: str,
-    env: Optional[Dict[str, str]] = None,
-) -> subprocess.CompletedProcess:
-  """Runs a read-only command in the repo, capturing text output."""
+# A hung git/gh command must not hang the CI runner forever.
+_TOOL_TIMEOUT_SECONDS = 300
+
+
+def _run_in_repo(cmd: List[str], repo_path: str) -> subprocess.CompletedProcess:
+  """Runs a read-only command in the repo, capturing text output.
+
+  Raises subprocess.TimeoutExpired after _TOOL_TIMEOUT_SECONDS.
+  """
   return subprocess.run(
       cmd,
       cwd=repo_path,
       capture_output=True,
       text=True,
       errors="replace",
-      env=env,
       check=False,
+      timeout=_TOOL_TIMEOUT_SECONDS,
   )
 
 
@@ -188,7 +191,7 @@ def find_roll_commit(repo_path: str, conflicted: bool) -> Optional[str]:
     log_res = _run_in_repo(
         ["git", "log", "-n20", f"--grep={pattern}", "--format=%H %s"],
         repo_path)
-  except OSError:
+  except (OSError, subprocess.SubprocessError):
     return None
 
   for line in log_res.stdout.splitlines():
@@ -292,14 +295,17 @@ def _tool_grep(args: str, ctx: ToolContext) -> Optional[str]:
     query = q_match.group(2).strip()
     path_filter = (q_match.group(3) or "").strip().strip("`'\"")
   else:
-    parts = args.split(None, 1)
-    if len(parts) == 2:
-      query = parts[0].strip("`'\"")
-      path_filter = parts[1].strip("`'\"")
-    elif len(parts) == 1:
-      query = parts[0].strip("`'\"")
-    else:
+    # Unquoted: the last token is a path filter only if it looks like a
+    # path or glob, so "struct AudioDecoderConfig" stays one query.
+    parts = args.split()
+    if not parts:
       return "[ERROR] No query provided to TOOL_GREP."
+    last = parts[-1].strip("`'\"")
+    if len(parts) > 1 and ("/" in last or "*" in last or
+                           re.fullmatch(r"[\w.+-]+\.\w+", last)):
+      path_filter = last
+      parts = parts[:-1]
+    query = " ".join(parts).strip("`'\"")
 
   query = re.sub(r"\s*\(\s*\)\s*$", "", query).strip()
   if not query:
@@ -339,10 +345,11 @@ def _tool_find_file(args: str, ctx: ToolContext) -> Optional[str]:
   if not pattern.startswith("*") and not pattern.endswith("*"):
     pattern = f"*{pattern}*"
   try:
-    res = _run_in_repo(
-        ["find", ".", "-iname", pattern, "-not", "-path", "*/.*"],
-        ctx.repo_path)
-    lines = [l.lstrip("./") for l in res.stdout.splitlines()[:25]]
+    # Tracked files only: skips out/ and .git, and third-party code Cobalt
+    # builds (v8, skia, ...) is checked into this repository.
+    res = _run_in_repo(["git", "ls-files", "--", f":(glob,icase)**/{pattern}"],
+                       ctx.repo_path)
+    lines = res.stdout.splitlines()[:25]
     return "\n".join(lines) if lines else f"No matches found for: {pattern}"
   except Exception as e:  # pylint: disable=broad-exception-caught
     return f"[ERROR] Find failed: {e}"
@@ -449,7 +456,7 @@ def _tool_git_log(args: str, ctx: ToolContext) -> Optional[str]:
   arg_list = args.split()
   count = 5
   if arg_list and arg_list[0].isdigit():
-    count = int(arg_list[0])
+    count = min(int(arg_list[0]), 50)
     arg_list = arg_list[1:]
   target_path = " ".join(arg_list)
   cmd = ["git", "log", f"-n{count}", "--oneline"]
@@ -485,20 +492,6 @@ def _tool_cobalt_diff(args: str, ctx: ToolContext) -> Optional[str]:
   return _roll_diff(args, ctx, True, "Cobalt",
                     ("Could not find Cobalt cherry-pick commit "
                      "('CONFLICTED Cherry pick ...: Update to <milestone>')"))
-
-
-def _tool_gclient_sync(args: str, ctx: ToolContext) -> Optional[str]:
-  """TOOL_GCLIENT_SYNC - resyncs dependencies. Takes no arguments."""
-  del args  # This directive carries no arguments.
-  try:
-    res = _run_in_repo(["gclient", "sync", "-D"], ctx.repo_path,
-                       get_clean_build_env())
-    out = f"{res.stdout}\n{res.stderr}".strip()
-    if out:
-      return out[:4000]
-    return f"gclient sync completed with exit code {res.returncode}"
-  except Exception as e:  # pylint: disable=broad-exception-caught
-    return f"[ERROR] gclient sync failed: {e}"
 
 
 def _tool_get_history(args: str, ctx: ToolContext) -> Optional[str]:
@@ -569,7 +562,6 @@ def _tool_get_history(args: str, ctx: ToolContext) -> Optional[str]:
 
 # Maps a directive prefix to its handler. Prefixes are matched longest-first,
 # so adding a shorter prefix later cannot shadow an existing longer one.
-# TOOL_GCLIENT_SYNC is intentionally colon-less: it takes no arguments.
 _TOOL_HANDLERS: Dict[str, Callable[[str, ToolContext], Optional[str]]] = {
     "TOOL_READ_FILE:": _tool_read_file,
     "TOOL_GREP:": _tool_grep,
@@ -582,7 +574,6 @@ _TOOL_HANDLERS: Dict[str, Callable[[str, ToolContext], Optional[str]]] = {
     "TOOL_GIT_LOG:": _tool_git_log,
     "TOOL_UPSTREAM_DIFF:": _tool_upstream_diff,
     "TOOL_COBALT_DIFF:": _tool_cobalt_diff,
-    "TOOL_GCLIENT_SYNC": _tool_gclient_sync,
     "TOOL_GET_HISTORY:": _tool_get_history,
     "TOOL_CHANGE_HISTORY:": _tool_get_history,
     "TOOL_HISTORY:": _tool_get_history,

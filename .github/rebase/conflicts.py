@@ -250,7 +250,7 @@ def find_all_conflicted_files(repo_path: str) -> List[str]:
     except (OSError, subprocess.SubprocessError):
       pass
 
-  conflicted.sort(key=lambda p: sort_conflict_priority(os.path.basename(p)))
+  conflicted.sort(key=sort_conflict_priority)
   return conflicted
 
 
@@ -421,6 +421,10 @@ def resolve_file_conflicts(
   log.info("\n[resolve_conflicts] Resolving %s conflict(s) in %s "
            "(%s)...", len(blocks), rel_path, lang)
 
+  # Records of resolved blocks are kept until the file is written, so a
+  # later block or the DEPS check failing leaves no applied_cleanly records
+  # for changes that never reached the file.
+  resolved_records: List[AgentChangeRecord] = []
   for block in blocks:
     log.info("  - Block #%s (lines %s-%s, %s lines)...",
              block.index, block.start_line, block.end_line,
@@ -561,20 +565,18 @@ def resolve_file_conflicts(
         escalations.append(EscalationItem(rel_path, block.index, reason))
       return False
     content = content.replace(block.raw_block, resolved_code, 1)
-    if session_changes is not None:
-      session_changes.append(
-          AgentChangeRecord(
-              phase="resolve_conflicts",
-              iteration=block.index,
-              target_file=rel_path,
-              file_changes={
-                  rel_path:
-                      (f"Conflict Block #{block.index}:\n{block.raw_block}\n\n"
-                       f"Resolved Code:\n{resolved_code}")
-              },
-              error=None,
-              applied_cleanly=True,
-          ))
+    resolved_records.append(
+        AgentChangeRecord(
+            phase="resolve_conflicts",
+            iteration=block.index,
+            target_file=rel_path,
+            file_changes={
+                rel_path: (f"Conflict Block #{block.index}:\n{block.raw_block}"
+                           f"\n\nResolved Code:\n{resolved_code}")
+            },
+            error=None,
+            applied_cleanly=True,
+        ))
     log.info("    [OK] Resolved Block #%s", block.index)
 
   if os.path.basename(file_path) == "DEPS":
@@ -600,6 +602,8 @@ def resolve_file_conflicts(
 
   with open(file_path, "w", encoding="utf-8") as f:
     f.write(content)
+  if session_changes is not None:
+    session_changes.extend(resolved_records)
   log.info("[resolve_conflicts] Successfully processed %s.", rel_path)
   return True
 

@@ -49,6 +49,7 @@ from conflicts import (
     detect_language,
     extract_conflict_blocks,
     resolve_file_conflicts,
+    sort_conflict_priority,
 )
 from engine_client import ReasoningEngineClient
 from gclient_sync import GClientSyncDiagnostic
@@ -2743,6 +2744,71 @@ class ExecScriptGuardTest(unittest.TestCase):
       resolver.run_resolution_loop()
     self.assertEqual(len(resolver.session_changes), 1)
     self.assertTrue(resolver.session_changes[0].applied_cleanly)
+
+
+class ToolFixesTest(unittest.TestCase):
+  """Read-only tool parsing, limits and timeouts."""
+
+  def _cmd(self, directive):
+    with mock.patch("tools.subprocess.run") as run:
+      run.return_value = mock.Mock(stdout="x", stderr="", returncode=0)
+      execute_local_tool(directive, "/repo")
+    return run.call_args[0][0], run.call_args[1]
+
+  def test_grep_keeps_unquoted_multi_word_query(self):
+    cmd, _ = self._cmd("TOOL_GREP: struct AudioDecoderConfig")
+    self.assertEqual(cmd[cmd.index("-e") + 1], "struct AudioDecoderConfig")
+    self.assertIn("*.cc", cmd)
+
+  def test_grep_last_token_path_is_filter(self):
+    cmd, _ = self._cmd(
+        "TOOL_GREP: struct AudioDecoderConfig media/mojom/types.mojom")
+    self.assertEqual(cmd[cmd.index("-e") + 1], "struct AudioDecoderConfig")
+    self.assertEqual(cmd[-2:], ["--", "media/mojom/types.mojom"])
+
+  def test_git_log_count_is_capped_and_commands_time_out(self):
+    cmd, kwargs = self._cmd("TOOL_GIT_LOG: 500 base")
+    self.assertIn("-n50", cmd)
+    self.assertIn("timeout", kwargs)
+
+  def test_find_file_lists_tracked_files_by_name(self):
+    cmd, _ = self._cmd("TOOL_FIND_FILE: supplementable")
+    self.assertEqual(
+        cmd, ["git", "ls-files", "--", ":(glob,icase)**/*supplementable*"])
+
+  def test_gclient_sync_tool_removed(self):
+    with mock.patch("tools.subprocess.run") as run:
+      out = execute_local_tool("TOOL_GCLIENT_SYNC", "/repo")
+    run.assert_not_called()
+    self.assertIn("[ERROR]", out)
+
+  def test_conflict_priority_uses_full_path(self):
+    files = ["base/a.cc", "tools/clang/scripts/update.py", "DEPS", "BUILD.gn"]
+    self.assertEqual(
+        sorted(files, key=sort_conflict_priority),
+        ["DEPS", "tools/clang/scripts/update.py", "BUILD.gn", "base/a.cc"])
+
+  def test_failed_file_leaves_no_applied_conflict_records(self):
+    with tempfile.TemporaryDirectory() as repo:
+      path = os.path.join(repo, "a.cc")
+      with open(path, "w", encoding="utf-8") as f:
+        f.write("<<<<<<< HEAD\na\n=======\nb\n>>>>>>> upstream\nmid\n"
+                "<<<<<<< HEAD\nc\n=======\nd\n>>>>>>> upstream\n")
+      replies = iter(["b"])
+      engine = mock.MagicMock()
+      engine.generate_expert_guidance.return_value = {"guidance": ""}
+      engine.resolve_conflict.side_effect = lambda **kw: {
+          "replacement": next(replies, "<<<<<<< still conflicted")
+      }
+      changes = []
+      ok = resolve_file_conflicts(
+          file_path=path,
+          repo_path=repo,
+          git_context="",
+          engine=engine,
+          session_changes=changes)
+      self.assertFalse(ok)
+      self.assertEqual([c.applied_cleanly for c in changes], [False])
 
 
 class ResolverInitTest(unittest.TestCase):
