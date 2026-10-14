@@ -28,6 +28,7 @@
     "LibunwindstackUnwinderAndroidTest.*",
     "ModuleCacheTest.CheckAgainstProcMaps",
     "OutOfMemoryDeathTest.Malloc",
+    "PlatformThreadRaiseLeaseIntegrationTest.*",
     "PreFreezeSelfCompactionTest.NotCanceled",
     "PreFreezeSelfCompactionTest.Simple",
     "RunUntilTestWithThreadPool.TimesOutWhenMainThreadSleepsForever",
