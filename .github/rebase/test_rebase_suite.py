@@ -27,6 +27,7 @@ from patching import (
     apply_search_replace,
     parse_patch,
     patch_file_changes,
+    patch_rejections,
 )
 from repo_guards import (
     _COBALT_GIT_HISTORY_CACHE,
@@ -2518,6 +2519,41 @@ class AtomicPatchTest(unittest.TestCase):
       content = f.read()
     self.assertIn("int a = 10;", content)
     self.assertIn("int a2 = 20;", content)
+
+
+class ExecScriptGuardTest(unittest.TestCase):
+  """GN patches may not add, change or remove exec_script() calls."""
+
+  def setUp(self):
+    self._tmp = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
+    self.repo = self._tmp.name
+    with open(os.path.join(self.repo, "BUILD.gn"), "w", encoding="utf-8") as f:
+      f.write('x = exec_script("a.py", [], "value")\ndeps = []\n')
+
+  def tearDown(self):
+    self._tmp.cleanup()
+
+  def _rejections(self, patch):
+    return patch_rejections(parse_patch(patch, self.repo), self.repo)
+
+  def test_rejects_added_exec_script(self):
+    patch = ("FILE: BUILD.gn\n<<<<<<< SEARCH\ndeps = []\n=======\n"
+             'deps = []\ny = exec_script("evil.py", [], "value")\n'
+             ">>>>>>> REPLACE\n")
+    self.assertIn("exec_script()", self._rejections(patch)[0])
+
+  def test_allows_unchanged_exec_script_context(self):
+    patch = ("FILE: BUILD.gn\n<<<<<<< SEARCH\n"
+             'x = exec_script("a.py", [], "value")\ndeps = []\n=======\n'
+             'x = exec_script("a.py", [], "value")\ndeps = [ ":b" ]\n'
+             ">>>>>>> REPLACE\n")
+    self.assertEqual(self._rejections(patch), [])
+
+  def test_rejects_changed_exec_script_in_unified_diff(self):
+    patch = ("--- a/BUILD.gn\n+++ b/BUILD.gn\n@@ -1,2 +1,2 @@\n"
+             '-x = exec_script("a.py", [], "value")\n'
+             '+x = exec_script("b.py", [], "value")\n deps = []\n')
+    self.assertIn("exec_script()", self._rejections(patch)[0])
 
 
 class ResolverInitTest(unittest.TestCase):

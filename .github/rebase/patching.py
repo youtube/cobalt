@@ -258,8 +258,35 @@ def parse_patch(patch_text: str,
   return ParsedPatch(text, blocks)
 
 
+_EXEC_SCRIPT_RE = re.compile(r"\bexec_script\s*\(")
+
+
+def _exec_script_lines(lines: List[str]) -> List[str]:
+  return sorted(l.strip() for l in lines if _EXEC_SCRIPT_RE.search(l))
+
+
+def _exec_script_rejection(rel_file: str, removed: List[str],
+                           added: List[str]) -> str:
+  """Rejects GN edits that add, change or remove exec_script() calls.
+
+  gn gen runs exec_script() commands, so a model-written call would run
+  arbitrary code on the runner. Unchanged context lines are allowed.
+  """
+  if not rel_file.endswith((".gn", ".gni")):
+    return ""
+  if _exec_script_lines(removed) == _exec_script_lines(added):
+    return ""
+  return (f"patch for {rel_file} adds, changes or removes an exec_script() "
+          "call, which gn gen would run; fix the build without touching "
+          "exec_script()")
+
+
 def _block_rejection(b: PatchBlock, repo_path: str) -> str:
   """Why this block must not be applied ("" if it may be)."""
+  reason = _exec_script_rejection(b.rel_file, b.search.splitlines(),
+                                  b.replace.splitlines())
+  if reason:
+    return reason
   if b.kind == "SEARCH":
     if not b.replace.strip() and len(b.search.splitlines()) > 80:
       return (f"bulk empty REPLACE block ({len(b.search.splitlines())} "
@@ -279,7 +306,12 @@ def patch_rejections(parsed: ParsedPatch, repo_path: str) -> List[str]:
     rel_file = _unified_diff_target(parsed.text)
     if not rel_file:
       return []
-    reason = patch_target_rejection(
+    lines = parsed.text.splitlines()
+    reason = _exec_script_rejection(
+        rel_file,
+        [l[1:] for l in lines if l.startswith("-") and not l.startswith("---")],
+        [l[1:] for l in lines if l.startswith("+") and not l.startswith("+++")],
+    ) or patch_target_rejection(
         resolve_repo_file_path(rel_file, repo_path), rel_file, repo_path)
     return [reason] if reason else []
   reasons = (_block_rejection(b, repo_path) for b in parsed.blocks)
