@@ -155,6 +155,7 @@ runs:
         GCS_RESULTS_PATH: ${{ inputs.gcs_results_path }}
         FILTER_DIR: ${{ steps.prepare-test-filters.outputs.filter_dir }}
         RESULT_FILES: ${{ inputs.result_files }}
+        TEST_TYPE: ${{ inputs.test_type }}
       run: |
         set -uxe
         shopt -s globstar nullglob
@@ -183,8 +184,16 @@ runs:
 
           # Look for JSON results and convert to XML.
           json_reports=("${test_output}/${PLATFORM}"/**/"${test_target}"*report.json)
+          if [[ "${#json_reports[@]}" -eq 0 && "${TEST_TYPE:-}" == "yts_wpt_test" ]]; then
+            wpt_reports=("${test_output}/${PLATFORM}"/**/results.json)
+            if [ -f "${wpt_reports[0]:-}" ]; then
+              wpt_target_report="$(dirname "${wpt_reports[0]}")/${test_target}_report.json"
+              mv "${wpt_reports[0]}" "${wpt_target_report}"
+              json_reports=("${wpt_target_report}")
+            fi
+          fi
           if [ -f "${json_reports[0]:-}" ]; then
-            converted_xml="${test_output}/${PLATFORM}/1/${test_target}_testoutput.xml"
+            converted_xml="${test_output}/${PLATFORM}/${test_target}_testoutput.xml"
             mkdir -p "$(dirname "${converted_xml}")"
             python3 "${GITHUB_WORKSPACE}/.github/scripts/convert_json_to_junit_xml.py" \
               "${json_reports[0]}" \
@@ -197,7 +206,7 @@ runs:
           # If no XML result was found, try to generate one from the logs.
           if [[ "${#xml_files[@]}" -eq 0 ]]; then
             log_paths=("${test_output}/${PLATFORM}"/**/"${test_target}"_log.txt "${test_output}/${PLATFORM}"/**/"${test_target}"*cobalt.log)
-            target_out_xml="${test_output}/${PLATFORM}/1/${test_target}_testoutput.xml"
+            target_out_xml="${test_output}/${PLATFORM}/${test_target}_testoutput.xml"
             mkdir -p "$(dirname "${target_out_xml}")"
             if [ -f "${log_paths[0]:-}" ]; then
               python3 "${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py" "${log_paths[0]}" "${target_out_xml}"

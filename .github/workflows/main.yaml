@@ -1170,6 +1170,7 @@ jobs:
       - web-tests
       - e2e-test
       - yts-test
+      - yts-playback-test
       - yts-finch-test
       - browser-test-on-host
     if: always() && needs.initialize.result == 'success'

@@ -69,6 +69,14 @@ _GCS_ARCHIVE_DEVICE_FAMILIES = ('rdk',)
 _GCS_UPLOADER_PLUGIN_JAR = (
     '//java/com/google/devtools/mobileharness/platform/maneki:'
     'gcs_cobalt_test_result_uploader_plugin_deploy.jar')
+_WPT_ARCHIVE_DOWNLOADER_PLUGIN_JAR = (
+    '//java/com/google/devtools/mobileharness/platform/maneki:'
+    'gcs_cobalt_archive_downloader_plugin_deploy.jar')
+_WPT_RESULT_PARSER_PLUGIN_JAR = (
+    '//java/com/google/devtools/mobileharness/platform/maneki:'
+    'yts_json_result_parser_plugin_deploy.jar')
+_MH_VALUE_SEPARATOR = '#VALUE_SEPARATOR#'
+_WPT_DEFAULT_HOST_NAME_REGEX = 'regex:maneki-mhserver(?!-(01|05)).*'
 
 
 class OnDeviceTestsGatewayClient:
@@ -217,6 +225,7 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
 
   for target_data in targets:
     test_type = args.test_type
+    target_test_args = list(test_args)
 
     if test_type in ('unit_test', 'browser_test'):
       if not device_type or not device_pool:
@@ -271,24 +280,37 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
       files = []
       yt_binary_name = os.path.splitext(os.path.basename(args.artifact_name))[0]
       params = [f'yt_binary_name={yt_binary_name}']
+      if test_type == 'yts_wpt_test' and not any(
+          arg.startswith('dimension_host_name=') for arg in target_test_args):
+        target_test_args.append(
+            f'dimension_host_name={_WPT_DEFAULT_HOST_NAME_REGEX}')
+
       if args.device_family in _GCS_ARCHIVE_DEVICE_FAMILIES:
         params.append(f'gcs_cobalt_archive=gs://{args.cobalt_path}.zip')
       else:
         bigstore_path = f'/bigstore/{args.cobalt_path}/{args.artifact_name}'
-        if test_type in ('yts_test', 'yts_playback_test', 'yts_finch_test',
-                         'yts_wpt_test'):
+        if test_type in ('yts_test', 'yts_playback_test', 'yts_finch_test'):
           files.append(f'client_plugin_jar={_GCS_UPLOADER_PLUGIN_JAR}')
           files.append(f'build_apk={bigstore_path}')
           params.append('app=dev.cobalt.coat')
+        elif test_type == 'yts_wpt_test':
+          wpt_plugins = _MH_VALUE_SEPARATOR.join([
+              _WPT_ARCHIVE_DOWNLOADER_PLUGIN_JAR,
+              _WPT_RESULT_PARSER_PLUGIN_JAR,
+              _GCS_UPLOADER_PLUGIN_JAR,
+          ])
+          files.append(f'client_plugin_jar={wpt_plugins}')
+          files.append(f'cobalt_path={bigstore_path}')
         else:
           files.append(f'cobalt_path={bigstore_path}')
-      if test_type == 'yts_wpt_test':
-        test_type = 'e2e_test'
 
       if args.gcs_result_path:
         params.append(f'gcs_result_path={args.gcs_result_path}')
-        params.append(f'gcs_result_filename={target_name}_testoutput.xml')
-        if test_type == 'e2e_test':
+        if test_type == 'yts_wpt_test':
+          params.append('gcs_result_filename=results/results.json')
+        else:
+          params.append(f'gcs_result_filename={target_name}_testoutput.xml')
+        if test_type in ('e2e_test', 'yts_wpt_test'):
           params.append(f'gcs_log_filename={target_name}_cobalt.log')
         else:
           params.append(f'gcs_log_filename={target_name}_log.txt')
@@ -306,7 +328,7 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
         'device_type': device_type,
         'device_pool': device_pool,
         'test_cmd_args': test_cmd_args,
-        'test_args': test_args,
+        'test_args': target_test_args,
         'files': files,
         'params': params,
         'test_target': test_target,

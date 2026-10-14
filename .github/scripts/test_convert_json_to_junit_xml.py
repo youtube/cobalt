@@ -247,6 +247,39 @@ class TestConvertJsonToJunitXml(unittest.TestCase):
     self.assertEqual(case_el.attrib["name"],
                      "Load the browse page to exercise test infrastructure.")
 
+  def test_convert_wpt_results_json(self):
+    wpt_data = {
+        "tests": [{
+            "test_id": "295d6e8f-8cf5-4906-ac08-29c05556e35c",
+            "test_suite": "WPT",
+            "test_category": "wpt_test",
+            "test_title": "fetch api basic block mime as script",
+            "output": ["WEBSOCKET received message"],
+            "start_time": 1791819152951,
+            "end_time": 1791819155295,
+            "result": "PASSED",
+            "errors": []
+        }]
+    }
+    json_path = self.dir_path / "results.json"
+    xml_path = (
+        self.dir_path / "yts_wpt_test_ci_android_arm_devices_testoutput.xml")
+    json_path.write_text(json.dumps(wpt_data), encoding="utf-8")
+
+    convert(str(json_path), str(xml_path))
+    self.assertTrue(xml_path.is_file())
+
+    tree = ET.parse(xml_path)
+    root = tree.getroot()
+    self.assertEqual(root.attrib["tests"], "1")
+    self.assertEqual(root.attrib["failures"], "0")
+    case_el = root.find(".//testcase")
+    self.assertIsNotNone(case_el)
+    self.assertEqual(case_el.attrib["classname"], "WPT")
+    self.assertEqual(case_el.attrib["name"],
+                     "fetch api basic block mime as script")
+    self.assertEqual(find_failing_tests([str(xml_path)]), {})
+
 
 if __name__ == "__main__":
   unittest.main()
