@@ -207,6 +207,9 @@ jobs:
         run: |
           set -x
           python3 --version
+          # The image's pip (23.0.1) rejects extras of transitive dependencies
+          # (e.g. google-api-core[grpc]) in --require-hashes mode.
+          python3 -m pip install --user --no-cache-dir --break-system-packages "pip==26.2.1"
           python3 -m pip install --user --no-cache-dir --break-system-packages --require-hashes -r "${RUNNER_TEMP}/rebase/requirements.txt"
 
       - name: Run AI Rebase Agent
