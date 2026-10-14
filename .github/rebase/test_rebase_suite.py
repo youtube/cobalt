@@ -2,7 +2,6 @@
 """Comprehensive test suite for Cobalt Chromium rebase automation tools."""
 
 import ast
-import json
 import os
 import subprocess
 import tempfile
@@ -424,7 +423,6 @@ void Foo() {{}}
 
       class MockEngine:
         flash_model = "gemini-2.5-flash"
-        pro_model = "gemini-2.5-pro"
 
         def heal_compiler_error(self, **kwargs):
           called_contexts.append(kwargs.get("file_context", ""))
@@ -432,12 +430,12 @@ void Foo() {{}}
 
       resolver.reasoning_engine = MockEngine()
       resolver.file_error_counts[tmp_path] = 1
-      resolver.resolve_diagnostic(diag, [], use_pro=False)
+      resolver.resolve_diagnostic(diag)
       self.assertTrue(len(called_contexts[0].splitlines()) < 80)
 
       # 3rd error: should send full 100-line file
       resolver.file_error_counts[tmp_path] = 3
-      resolver.resolve_diagnostic(diag, [], use_pro=False)
+      resolver.resolve_diagnostic(diag)
       self.assertEqual(len(called_contexts[1].splitlines()), 100)
     finally:
       if os.path.exists(tmp_path):
@@ -451,7 +449,6 @@ void Foo() {{}}
 
     class MockEngine:
       flash_model = "gemini-2.5-flash"
-      pro_model = "gemini-2.5-pro"
 
       def heal_compiler_error(self, **kwargs):
         called_traces.append(kwargs.get("error_trace", ""))
@@ -461,7 +458,7 @@ void Foo() {{}}
     raw_error = (
         "FAILED: obj/cobalt/apk/cobalt_apk.jar\njavac: package not found")
     patch, model_used, rel_target = resolver.resolve_diagnostic(
-        Diagnostic(error_message=raw_error), [], use_pro=False)
+        Diagnostic(error_message=raw_error))
     self.assertEqual(patch, "PATCH")
     self.assertEqual(model_used, "gemini-2.5-flash")
     self.assertEqual(rel_target, "cobalt_apk")
@@ -511,8 +508,7 @@ void Foo() {{}}
           target_files={tmp_path: 2},
           is_structural_break=True,
       )
-      patch, model_used, rel_target = resolver.resolve_diagnostic(
-          diag, [], use_pro=False)
+      patch, model_used, rel_target = resolver.resolve_diagnostic(diag)
       self.assertEqual(model_used, "auto-stray-marker-cleaner")
       self.assertEqual(rel_target, rel)
       modified = _apply(patch, repo_path=repo_dir)
@@ -545,8 +541,7 @@ void Foo() {{}}
           raw_snippet="=======",
           notes=[],
       )
-      patch, model_used, rel_target = resolver.resolve_diagnostic(
-          diag, [], use_pro=False)
+      patch, model_used, rel_target = resolver.resolve_diagnostic(diag)
       self.assertEqual(model_used, "auto-stray-marker-cleaner")
       self.assertEqual(rel_target, rel)
       modified = _apply(patch, repo_path=repo_dir)
@@ -1089,7 +1084,6 @@ target("foo") {{}}
 
       class MockEngine:
         flash_model = "gemini-2.5-flash"
-        pro_model = "gemini-2.5-pro"
 
         def heal_compiler_error(self, **kwargs):
           called_contexts.append(kwargs.get("file_context", ""))
@@ -1109,7 +1103,7 @@ target("foo") {{}}
           raw_snippet="ld.lld: error",
           notes=[],
       )
-      resolver.resolve_diagnostic(diag, [], use_pro=False)
+      resolver.resolve_diagnostic(diag)
       self.assertEqual(len(called_contexts), 1)
       self.assertIn("component(\"freetype\")", called_contexts[0])
       self.assertIn("150: component(\"freetype\")", called_contexts[0])
@@ -1243,7 +1237,7 @@ target("foo") {{}}
     res3 = engine.query(
         action="heal_gn_error",
         error_trace="gn error: undefined identifier",
-        expert_model="zai-org/glm-5.2-maas",
+        expert_model="gemini-3.8-flash",
         use_expert=True,
         extra_server_option="test",
     )
@@ -1259,14 +1253,6 @@ target("foo") {{}}
         client_timestamp=12345678,
     )
     self.assertEqual(res4["status"], "SUCCESS")
-
-    # 5. chat with extra kwargs
-    res5 = engine.query(
-        action="chat",
-        message="hello",
-        unexpected_field="xyz",
-    )
-    self.assertEqual(res5["status"], "SUCCESS")
 
   def test_anthropic_thinking_block_parsing(self):
     """Guards against AttributeError when Anthropic returns ThinkingBlock."""
@@ -1311,62 +1297,6 @@ target("foo") {{}}
           raw_conflict="conflict",
           use_expert=use_expert)
       self.assertEqual(res["replacement"], "  if (is_android) {\n  }")
-
-  def test_glm_maas_content_and_reasoning_extraction(self):
-    """Guards OpenAI/GLM parsing when response has content or reasoning."""
-    # pylint: disable=protected-access
-    engine = CobaltReasoningEngine(project_id="test-proj", **_TEST_MODELS)
-    engine.glm_api_key = "test_key"
-
-    fake_json_resp1 = json.dumps({
-        "choices": [{
-            "message": {
-                "role": "assistant",
-                "content": "GLM Final Solution",
-                "reasoning_content": "GLM Internal Reasoning"
-            }
-        }]
-    }).encode("utf-8")
-
-    with mock.patch(
-        "google.auth.default", return_value=(mock.MagicMock(), "proj")):
-      with mock.patch("urllib.request.urlopen") as mock_url:
-        mock_cm1 = mock.MagicMock()
-        mock_cm1.read.return_value = fake_json_resp1
-        mock_cm1.__enter__.return_value = mock_cm1
-        mock_url.return_value = mock_cm1
-
-        res1 = engine._generate_openai_compatible_content(
-            model="zai-org/glm-5.2-maas",
-            contents="Prompt",
-            system_instruction="Sys",
-        )
-        self.assertEqual(res1, "GLM Final Solution")
-
-    fake_json_resp2 = json.dumps({
-        "choices": [{
-            "message": {
-                "role": "assistant",
-                "content": "",
-                "reasoning_content": "GLM Reasoning Content"
-            }
-        }]
-    }).encode("utf-8")
-
-    with mock.patch(
-        "google.auth.default", return_value=(mock.MagicMock(), "proj")):
-      with mock.patch("urllib.request.urlopen") as mock_url:
-        mock_cm2 = mock.MagicMock()
-        mock_cm2.read.return_value = fake_json_resp2
-        mock_cm2.__enter__.return_value = mock_cm2
-        mock_url.return_value = mock_cm2
-
-        res2 = engine._generate_openai_compatible_content(
-            model="zai-org/glm-5.2-maas",
-            contents="Prompt",
-            system_instruction="Sys",
-        )
-        self.assertEqual(res2, "GLM Reasoning Content")
 
   def test_has_cobalt_git_history(self):
     """Verifies that has_cobalt_git_history accurately identifies Cobalt PRs."""
@@ -1679,7 +1609,6 @@ target("foo") {{}}
 
       class MockEngine:
         flash_model = "gemini-2.5-flash"
-        pro_model = "gemini-2.5-pro"
 
         def heal_compiler_error(self, **kwargs):
           called_error_trace.append(kwargs.get("error_trace", ""))
@@ -1795,7 +1724,6 @@ target("foo") {{}}
 
       class MockEngine:
         flash_model = "gemini-2.5-flash"
-        pro_model = "gemini-2.5-pro"
 
         def heal_compiler_error(self, **kwargs):
           captured_context.append(kwargs.get("file_context", ""))

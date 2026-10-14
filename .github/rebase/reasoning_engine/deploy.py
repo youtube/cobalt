@@ -71,7 +71,6 @@ def deploy_reasoning_engine(
     display_name: str = "CobaltReasoningEngine",
     flash_model: str,
     expert_model: str,
-    pro_model: Optional[str] = None,
     expert_location: Optional[str] = None,
 ) -> str:
   """Deploys a new CobaltReasoningEngine instance to Vertex AI."""
@@ -92,7 +91,6 @@ def deploy_reasoning_engine(
       project_id=project_id,
       location=location,
       flash_model=flash_model,
-      pro_model=pro_model,
       expert_model=expert_model,
       expert_location=expert_location,
   )
@@ -127,7 +125,6 @@ def update_reasoning_engine(
     display_name: str = "CobaltReasoningEngine",
     flash_model: str,
     expert_model: str,
-    pro_model: Optional[str] = None,
     expert_location: Optional[str] = None,
 ):
   """Updates an existing Reasoning Engine instance on Vertex AI."""
@@ -148,7 +145,6 @@ def update_reasoning_engine(
       project_id=project_id,
       location=location,
       flash_model=flash_model,
-      pro_model=pro_model,
       expert_model=expert_model,
       expert_location=expert_location,
   )
@@ -248,15 +244,10 @@ def main():
             "workhorse model in CI."),
   )
   parser.add_argument(
-      "--pro-model",
-      default=None,
-      help="Model for chat use_pro escalations (default: --expert-model).",
-  )
-  parser.add_argument(
       "--expert-model",
       default=None,
       help=("Expert model for escalations (required for deploy and update; "
-            "Gemini, GLM and Claude models are supported)."),
+            "Gemini and Claude models are supported)."),
   )
   parser.add_argument(
       "--expert-location",
@@ -289,7 +280,6 @@ def main():
         staging_bucket=args.staging_bucket,
         display_name=args.display_name,
         flash_model=args.flash_model,
-        pro_model=args.pro_model,
         expert_model=args.expert_model,
         expert_location=args.expert_location,
     )
@@ -304,7 +294,6 @@ def main():
         staging_bucket=args.staging_bucket,
         display_name=args.display_name,
         flash_model=args.flash_model,
-        pro_model=args.pro_model,
         expert_model=args.expert_model,
         expert_location=args.expert_location,
     )

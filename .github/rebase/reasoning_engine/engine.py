@@ -20,18 +20,12 @@ Local resolvers communicate with this hosted service via ReasoningEngineClient.
 """
 
 import contextvars
-import json
 import os
-import re
 import sys
 import time
 from typing import Any, Dict, List, Optional
-import urllib.error
-import urllib.request
 import warnings
 
-import google.auth
-import google.auth.transport.requests
 from google import genai
 from google.genai import types
 
@@ -160,9 +154,7 @@ class CobaltReasoningEngine:
       location: str = "global",
       flash_model: str,
       expert_model: str,
-      expert_provider: Optional[str] = None,
       expert_location: Optional[str] = None,
-      pro_model: Optional[str] = None,
       skills_dir: Optional[str] = None,
       **kwargs,
   ):
@@ -174,18 +166,8 @@ class CobaltReasoningEngine:
       raise ValueError("flash_model and expert_model are required.")
     self.flash_model = flash_model
     self.expert_model = expert_model
-    self.pro_model = pro_model or self.expert_model
-    self.expert_provider = (
-        expert_provider or os.environ.get("EXPERT_PROVIDER") or
-        ("anthropic" if "claude" in self.expert_model.lower() else
-         ("glm" if "glm" in self.expert_model.lower() else "gemini")))
     self.expert_location = (
         expert_location or os.environ.get("EXPERT_LOCATION") or "global")
-    self.glm_api_key = (
-        os.environ.get("GLM_API_KEY") or os.environ.get("OPENAI_API_KEY"))
-    self.glm_base_url = (
-        os.environ.get("GLM_BASE_URL") or os.environ.get("OPENAI_BASE_URL") or
-        "https://open.bigmodel.cn/api/paas/v4")
     self.skills_dir = skills_dir or SKILLS_DIR
     self.anthropic_client: Any = None
     self.skill_cache: Dict[str, str] = {
@@ -249,119 +231,17 @@ class CobaltReasoningEngine:
       return "claude-opus-5"
     return model_name
 
-  def _generate_openai_compatible_content(
-      self,
-      model: str,
-      contents: Any,
-      system_instruction: str,
-      temperature: float = 0.1,
-  ) -> Optional[str]:
-    """Generates content via Vertex AI Model Garden GLM-5.2 MaaS."""
-    headers = {"Content-Type": "application/json"}
-    eff_model = model
-
-    # 1. If using Vertex AI Model Garden GLM MaaS (zai-org/glm-5.2-maas)
-    if "zai-org" in model.lower() or "glm" in model.lower():
-      try:
-        credentials, _ = google.auth.default(
-            scopes=["https://www.googleapis.com/auth/cloud-platform"])
-        auth_req = google.auth.transport.requests.Request()
-        credentials.refresh(auth_req)
-        token = credentials.token
-        headers["Authorization"] = f"Bearer {token}"
-      except Exception as e:  # pylint: disable=broad-exception-caught
-        print(
-            "  [REASONING_ENGINE] Notice: Could not acquire Cloud token "
-            f"for GLM MaaS: {e}",
-            file=sys.stderr,
-        )
-        if self.glm_api_key:
-          headers["Authorization"] = f"Bearer {self.glm_api_key}"
-
-      reg = (
-          self.expert_location
-          if self.expert_location not in ("us-east5", "") else "global")
-      endpoint = (
-          os.environ.get("GLM_ENDPOINT") or
-          ("https://aiplatform.googleapis.com/v1/projects/"
-           f"{self.project_id}/locations/{reg}/"
-           "endpoints/openapi/chat/completions"))
-      eff_model = "zai-org/glm-5.2-maas"
-    else:
-      if not self.glm_api_key:
-        print(
-            "  [REASONING_ENGINE] Notice: GLM_API_KEY/OPENAI_API_KEY not set.",
-            file=sys.stderr,
-        )
-        return None
-      headers["Authorization"] = f"Bearer {self.glm_api_key}"
-      endpoint = f'{self.glm_base_url.rstrip("/")}/chat/completions'
-
-    prompt_text = str(contents) if not isinstance(contents, str) else contents
-    payload = {
-        "model": eff_model,
-        "messages": [
-            {
-                "role": "system",
-                "content": system_instruction
-            },
-            {
-                "role": "user",
-                "content": prompt_text
-            },
-        ],
-        "temperature": temperature,
-        "max_tokens": 8192,
-    }
-    data = json.dumps(payload).encode("utf-8")
-    req = urllib.request.Request(
-        endpoint,
-        data=data,
-        headers=headers,
-        method="POST",
-    )
-    try:
-      print(
-          f"  [REASONING_ENGINE] [EXPERT_TIER] Dispatching to GLM/OpenAI "
-          f"{eff_model} via {endpoint}...",
-          file=sys.stderr,
-      )
-      with urllib.request.urlopen(req, timeout=120) as resp:
-        res_data = json.loads(resp.read().decode("utf-8"))
-        usage = res_data.get("usage") or {}
-        _record_usage(eff_model, usage.get("prompt_tokens"),
-                      usage.get("completion_tokens"))
-        if "choices" in res_data and res_data["choices"]:
-          msg = res_data["choices"][0].get("message", {})
-          text = msg.get("content") or msg.get("reasoning_content") or ""
-          if text:
-            cleaned = re.sub(
-                r"<think>.*?</think>", "", text, flags=re.DOTALL).strip("\n")
-            if not cleaned and ("<think>" in text or "</think>" in text):
-              cleaned = re.sub(r"</?think>", "", text).strip("\n")
-            return cleaned or text
-    except Exception as e:  # pylint: disable=broad-exception-caught
-      print(
-          f"  [REASONING_ENGINE] Warning: GLM/OpenAI query failed: {e}. "
-          "Falling back to Gemini Expert...",
-          file=sys.stderr,
-      )
-    return None
-
   def _generate_expert_content(
       self,
       contents: Any,
       system_instruction: str,
       expert_model: Optional[str] = None,
-      temperature: float = 0.1,
   ) -> Optional[str]:
-    """Generates content via Tier-2 Expert LLM (Sonnet 5, GLM 5.2)."""
+    """Generates content via the Tier-2 expert model (Gemini or Claude)."""
     expert_name = expert_model or self.expert_model
-    provider = ("anthropic" if "claude" in expert_name.lower() else
-                ("glm" if "glm" in expert_name.lower() else "gemini"))
 
-    # 1. Anthropic Claude (e.g. Claude Sonnet 5 on Vertex AI)
-    if provider == "anthropic" or "claude" in expert_name.lower():
+    # 1. Anthropic Claude on Vertex AI (e.g. Claude Sonnet 5)
+    if "claude" in expert_name.lower():
       aclient = self._get_anthropic_client()
       if aclient is not None:
         prompt_text = str(contents) if not isinstance(contents,
@@ -409,18 +289,7 @@ class CobaltReasoningEngine:
                   file=sys.stderr,
               )
 
-    # 2. GLM / OpenAI Compatible Service (e.g. GLM-5.2)
-    if self.expert_provider == "glm" or "glm" in expert_name.lower():
-      glm_resp = self._generate_openai_compatible_content(
-          model=expert_name,
-          contents=contents,
-          system_instruction=system_instruction,
-          temperature=temperature,
-      )
-      if glm_resp:
-        return glm_resp
-
-    # 3. Gemini thinking expert; a non-Gemini expert falls back to the
+    # 2. Gemini thinking expert; a non-Gemini expert falls back to the
     # (Gemini) workhorse model.
     target_gemini_model = (
         expert_name if "gemini" in expert_name.lower() else self.flash_model)
@@ -531,24 +400,6 @@ class CobaltReasoningEngine:
         temperature=temperature,
     )
 
-  def generate_content(
-      self,
-      contents: Any,
-      system_instruction: str = "",
-      *,
-      model: Optional[str] = None,
-      temperature: float = 0.1,
-  ) -> Optional[types.GenerateContentResponse]:
-    """Generates content via Vertex AI with automatic rate-limit retries."""
-    chosen_model = model or self.flash_model
-    config = self._create_generation_config(
-        chosen_model, system_instruction, temperature=temperature)
-    return self._generate_content_with_retry(
-        model=chosen_model,
-        contents=contents,
-        config=config,
-    )
-
   def query(self, action: str = "resolve_conflict", **kwargs) -> Dict[str, Any]:
     """Primary query dispatcher for Vertex AI Reasoning Engine.
 
@@ -566,8 +417,6 @@ class CobaltReasoningEngine:
   def _dispatch(self, action: str, **kwargs) -> Dict[str, Any]:
     if action in ("generate_expert_guidance", "expert_guidance"):
       return self.generate_expert_guidance(**kwargs)
-    if action in ("generate_comparative_review", "comparative_review"):
-      return {"review": self.generate_comparative_review(**kwargs)}
     if action == "resolve_conflict":
       return self.resolve_conflict(**kwargs)
     if action in ("heal_gn", "heal_gn_error"):
@@ -575,8 +424,6 @@ class CobaltReasoningEngine:
     if action in ("heal_compiler", "heal_compiler_break",
                   "heal_compiler_error"):
       return self.heal_compiler_error(**kwargs)
-    if action == "chat":
-      return self.chat(**kwargs)
     raise ValueError(f"Unknown Reasoning Engine action: {action}")
 
   def generate_expert_guidance(
@@ -597,7 +444,7 @@ class CobaltReasoningEngine:
       expert_model: Optional[str] = None,
       **kwargs,
   ) -> Dict[str, Any]:
-    """Tier-2 Senior Architect (Gemini 3.8 Flash / Claude / GLM).
+    """Tier-2 Senior Architect (Gemini 3.8 Flash / Claude).
 
     Analyzes full failure trajectory, session git diffs, raw logs, and
     diagnostics to produce strategic root-cause guidance and actionable
@@ -978,67 +825,5 @@ class CobaltReasoningEngine:
     return {
         "status": "SUCCESS" if resp and resp.text else "ERROR",
         "patch": resp.text.strip() if resp and resp.text else "",
-        "model_used": chosen_model,
-    }
-
-  def chat(
-      self,
-      message: str,
-      history: Optional[List[Dict[str, str]]] = None,
-      *,
-      mode: str = "rebase",
-      use_pro: bool = False,
-      failure_memory: str = "",
-      expert_model: Optional[str] = None,
-      **kwargs,
-  ) -> Dict[str, Any]:
-    """Interactive conversational interface to Reasoning Engine."""
-    chosen_model = (
-        expert_model or (self.pro_model if use_pro else self.flash_model))
-    skill_map = {
-        "rebase": "cobalt_rebase",
-        "gn": "gn_healing",
-        "compiler": "compiler_healing",
-        "conflict": "conflict_resolution",
-    }
-    skill_key = skill_map.get(mode, "cobalt_rebase")
-    skill_doc = self._get_skill(skill_key)
-    rebase_doc = self._get_skill("cobalt_rebase")
-
-    failure_section = (
-        f"\n--- Latest Pipeline Failure State ---\n{failure_memory}\n"
-        if failure_memory and "No recent" not in failure_memory else "")
-
-    sys_inst = (
-        f"You are the Cobalt Chromium Rebase Reasoning Engine ({mode} mode).\n"
-        "You assist engineers in analyzing rebase conflicts, GN build breaks, "
-        "toolchain issues, and compiler failures.\n\n"
-        f"--- Base Instructions ---\n{rebase_doc}\n\n"
-        f"--- Active Domain Skill ({mode}) ---\n{skill_doc}\n"
-        f"{failure_section}")
-
-    contents: List[Any] = []
-    if history:
-      for turn in history:
-        contents.append(
-            types.Content(
-                role=turn.get("role", "user"),
-                parts=[types.Part.from_text(text=turn.get("content", ""))],
-            ))
-    contents.append(
-        types.Content(
-            role="user",
-            parts=[types.Part.from_text(text=message)],
-        ))
-
-    resp = self._generate_content_with_retry(
-        model=chosen_model,
-        contents=contents,
-        config=self._create_generation_config(
-            chosen_model, sys_inst, temperature=0.2),
-    )
-    return {
-        "status": "SUCCESS" if resp and resp.text else "ERROR",
-        "response": resp.text.strip() if resp and resp.text else "",
         "model_used": chosen_model,
     }

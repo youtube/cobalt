@@ -13,12 +13,11 @@
 # limitations under the License.
 """Local client agent for communicating with hosted Reasoning Engine."""
 
-import dataclasses
 import logging
 import os
 import sys
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 import vertexai
 from vertexai.preview import reasoning_engines
@@ -26,13 +25,6 @@ from vertexai.preview import reasoning_engines
 from token_usage import TokenUsage
 
 log = logging.getLogger(__name__)
-
-
-@dataclasses.dataclass
-class ModelResponseWrapper:
-  """Lightweight wrapper mimicking generate_content response."""
-  text: str
-  usage_metadata: Optional[Any] = None
 
 
 # pylint: disable=too-many-arguments,too-many-positional-arguments,unused-argument
@@ -47,7 +39,6 @@ class ReasoningEngineClient:
       location: str = "global",
       flash_model: str,
       expert_model: str,
-      expert_provider: Optional[str] = None,
       expert_location: Optional[str] = None,
       skills_dir: Optional[str] = None,
       local: bool = False,
@@ -66,10 +57,6 @@ class ReasoningEngineClient:
     if not flash_model or not expert_model:
       raise ValueError("flash_model and expert_model are required.")
     self.expert_model = expert_model
-    self.expert_provider = (
-        expert_provider or os.environ.get("EXPERT_PROVIDER") or
-        ("anthropic" if "claude" in self.expert_model.lower() else
-         ("glm" if "glm" in self.expert_model.lower() else "gemini")))
     self.expert_location = expert_location or os.environ.get("EXPERT_LOCATION")
     self.skills_dir = skills_dir
     # Token counts of every model call made through this client.
@@ -108,7 +95,6 @@ class ReasoningEngineClient:
           location=self.location,
           flash_model=self.flash_model,
           expert_model=self.expert_model,
-          expert_provider=self.expert_provider,
           expert_location=self.expert_location,
           skills_dir=self.skills_dir,
       )
@@ -197,48 +183,6 @@ class ReasoningEngineClient:
 
     raise RuntimeError(
         f"Hosted Reasoning Engine query failed: {last_error}") from last_error
-
-  def generate_content(
-      self,
-      contents: Any,
-      system_instruction: str = "",
-      *,
-      model: Optional[str] = None,
-      temperature: float = 0.1,
-  ) -> ModelResponseWrapper:
-    """Generates content via hosted Reasoning Engine chat interface."""
-    del temperature, system_instruction
-    res = self.query(
-        action="chat",
-        message=str(contents),
-        history=[],
-        use_pro=(model == self.pro_model),
-    )
-    text = ""
-    if isinstance(res, dict):
-      text = res.get("response", "")
-    elif isinstance(res, str):
-      text = res
-    return ModelResponseWrapper(text=text)
-
-  def chat(
-      self,
-      message: str,
-      history: Optional[List[Dict[str, str]]] = None,
-      *,
-      mode: str = "rebase",
-      use_pro: bool = False,
-      failure_memory: str = "",
-  ) -> Dict[str, Any]:
-    """Interactive conversational chat via hosted Reasoning Engine."""
-    return self.query(
-        action="chat",
-        message=message,
-        history=history or [],
-        mode=mode,
-        use_pro=use_pro,
-        failure_memory=failure_memory,
-    )
 
   def generate_expert_guidance(
       self,
@@ -360,36 +304,3 @@ class ReasoningEngineClient:
         expert_guidance=expert_guidance,
         use_expert=use_expert,
     )
-
-  # pylint: disable=too-many-arguments,unused-argument
-  def generate_comparative_review(
-      self,
-      human_pr_num: Any = "",
-      ai_pr_num: Any = "",
-      human_title: str = "",
-      ai_title: str = "",
-      human_diff: str = "",
-      ai_diff: str = "",
-      shared_files: Optional[List[str]] = None,
-      human_only_files: Optional[List[str]] = None,
-      ai_only_files: Optional[List[str]] = None,
-      repo_root: Optional[str] = None,
-      expert_model: Optional[str] = None,
-  ) -> str:
-    """Requests comparative review between Human PR and AI PR."""
-    res = self.query(
-        action="generate_comparative_review",
-        human_pr_num=human_pr_num,
-        ai_pr_num=ai_pr_num,
-        human_title=human_title,
-        ai_title=ai_title,
-        human_diff=human_diff,
-        ai_diff=ai_diff,
-        shared_files=shared_files or [],
-        human_only_files=human_only_files or [],
-        ai_only_files=ai_only_files or [],
-        expert_model=expert_model,
-    )
-    if isinstance(res, dict):
-      return str(res.get("review", ""))
-    return str(res)
