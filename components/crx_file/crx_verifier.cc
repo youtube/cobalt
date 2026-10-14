@@ -311,7 +311,10 @@ VerifierResult VerifyCrx3FromString(
     return VerifierResult::ERROR_HEADER_INVALID;
   }
   // Reject headers that claim to be larger than the rest of the CRX before
-  // allocating memory for them.
+  // allocating memory for them. Note that this early check is specific to the
+  // in-memory path and is intentionally not present in upstream's file-based
+  // VerifyCrx3(), where the remaining length isn't trivially known before
+  // reading (a short read is detected after the fact there instead).
   const size_t remaining_size = base::checked_cast<size_t>(crx_str.end() - *it);
   if (header_size > remaining_size) {
     return VerifierResult::ERROR_HEADER_INVALID;
