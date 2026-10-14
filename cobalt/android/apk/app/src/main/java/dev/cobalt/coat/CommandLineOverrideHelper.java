@@ -21,17 +21,15 @@ import java.util.StringJoiner;
 import org.chromium.base.CommandLine;
 import org.chromium.base.DeviceInfo;
 
-// ==========
-// IMPORTANT:
-//
-// These command line switches defaults do not affect non-AndroidTV platforms.
-// If you are making changes to these values, please check that other
-// platforms (such as Linux/Evergreen) are getting corresponding updates.
-
-/** Helper class to provide commandLine Overrides. */
+/**
+ * Helper class to parse runtime command-line argument overrides before the native library is
+ * loaded. Default Cobalt switches and feature overrides are applied in C++ via {@code
+ * cobalt/app/cobalt_switch_defaults_android.cc}.
+ */
 public final class CommandLineOverrideHelper {
   private CommandLineOverrideHelper() {} // Prevent instantiation.
 
+<<<<<<< HEAD
   // This can be returned as a list, since it does not need to be a single
   // string object. The others can be combined into a single String because
   // they need to be enclosed in the feature's enable/disable header.
@@ -135,9 +133,11 @@ public final class CommandLineOverrideHelper {
     return paramOverrides;
   }
 
+=======
+>>>>>>> cfa8dd4e265 (cobalt: Use constants, instead of free-form strings, when setting default features/flags (#13227))
   public static void getFlagOverrides(@NonNull List<String> commandLineArgs) {
-    List<String> cliOverrides = getDefaultCommandLineOverridesList();
-    StringJoiner jsFlagOverrides = getDefaultJsFlagOverridesList();
+    List<String> cliOverrides = new ArrayList<>();
+    StringJoiner jsFlagOverrides = new StringJoiner(",");
     StringJoiner enableFeatureOverrides = new StringJoiner(",");
     StringJoiner disableFeatureOverrides = new StringJoiner(",");
     StringJoiner blinkEnableFeatureOverrides = new StringJoiner(",");
@@ -176,14 +176,18 @@ public final class CommandLineOverrideHelper {
       }
     }
 
-    enableFeatureOverrides.merge(getDefaultEnableFeatureOverridesList());
-    disableFeatureOverrides.merge(getDefaultDisableFeatureOverridesList());
-    blinkEnableFeatureOverrides.merge(getDefaultBlinkEnableFeatureOverridesList());
-
-    cliOverrides.add("--js-flags=" + jsFlagOverrides.toString());
-    cliOverrides.add("--enable-features=" + enableFeatureOverrides.toString());
-    cliOverrides.add("--disable-features=" + disableFeatureOverrides.toString());
-    cliOverrides.add("--enable-blink-features=" + blinkEnableFeatureOverrides.toString());
+    if (jsFlagOverrides.length() > 0) {
+      cliOverrides.add("--js-flags=" + jsFlagOverrides.toString());
+    }
+    if (enableFeatureOverrides.length() > 0) {
+      cliOverrides.add("--enable-features=" + enableFeatureOverrides.toString());
+    }
+    if (disableFeatureOverrides.length() > 0) {
+      cliOverrides.add("--disable-features=" + disableFeatureOverrides.toString());
+    }
+    if (blinkEnableFeatureOverrides.length() > 0) {
+      cliOverrides.add("--enable-blink-features=" + blinkEnableFeatureOverrides.toString());
+    }
     if (traceStartupOverrides.length() > 0) {
       cliOverrides.add("--trace-startup=" + traceStartupOverrides.toString());
     }
