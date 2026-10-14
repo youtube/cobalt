@@ -48,6 +48,7 @@
 #include "third_party/blink/public/platform/web_string.h"
 #include "third_party/blink/public/web/web_security_policy.h"
 #include "third_party/blink/public/web/web_view.h"
+#include "third_party/blink/public/web/web_view_observer.h"
 #include "ui/gfx/geometry/size_conversions.h"
 
 #if BUILDFLAG(IS_IOS_TVOS)
@@ -148,6 +149,34 @@ class CobaltWidevineL3KeySystemInfo : public cdm::WidevineKeySystemInfo {
   bool IsSupportedKeySystem(const std::string& key_system) const override {
     return key_system == kWidevineL3KeySystem;
   }
+};
+
+// Holds a deferred media load until the page is visible again, then runs it.
+// Deletes itself once the load has run, or when the WebView is destroyed.
+class MediaLoadDeferrer : public blink::WebViewObserver {
+ public:
+  MediaLoadDeferrer(blink::WebView* web_view, base::OnceClosure load_cb)
+      : blink::WebViewObserver(web_view), load_cb_(std::move(load_cb)) {}
+
+  MediaLoadDeferrer(const MediaLoadDeferrer&) = delete;
+  MediaLoadDeferrer& operator=(const MediaLoadDeferrer&) = delete;
+
+  // blink::WebViewObserver implementation.
+  void OnDestruct() override { delete this; }
+
+  void OnPageVisibilityChanged(
+      blink::mojom::PageVisibilityState visibility_state) override {
+    if (visibility_state != blink::mojom::PageVisibilityState::kVisible) {
+      return;
+    }
+    std::move(load_cb_).Run();
+    delete this;
+  }
+
+ private:
+  ~MediaLoadDeferrer() override = default;
+
+  base::OnceClosure load_cb_;
 };
 
 }  // namespace
@@ -377,8 +406,11 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
   CHECK(content::RenderThread::IsMainThread());
 
   // TODO(b/383327725) - Cobalt: Inject these values from the web app.
-  renderer_factory_traits->audio_write_duration_local =
-      base::Microseconds(kSbPlayerWriteDurationLocal);
+  // Note: The local audio write duration intentionally differs from
+  // |kSbPlayerWriteDurationLocal| (0.5s) to align with Cobalt C25 and earlier,
+  // which use 1s. It can be overridden by the "CobaltAudioWriteDuration"
+  // feature for experiments (e.g., 0.5s). See b/433993748.
+  renderer_factory_traits->audio_write_duration_local = base::Seconds(1);
   renderer_factory_traits->audio_write_duration_remote =
       base::Microseconds(kSbPlayerWriteDurationRemote);
   renderer_factory_traits->viewport_size = viewport_size_;
@@ -432,6 +464,26 @@ CobaltContentRendererClient::OverrideDemuxerForUrl(
   }
 #endif  // BUILDFLAG(IS_IOS_TVOS)
   return nullptr;
+}
+
+bool CobaltContentRendererClient::DeferMediaLoad(
+    content::RenderFrame* render_frame,
+    bool has_played_media_before,
+    base::OnceClosure closure) {
+  CHECK(content::RenderThread::IsMainThread());
+  // The page is hidden while the app is concealed or preloading, when there is
+  // no window to create an SbPlayer on, so hold every media load until the
+  // page is visible again (b/568868974). Unlike Chrome, this includes pages
+  // that have played media before. Players that already exist are suspended
+  // by ShellPlatformDelegate::OnConceal().
+  blink::WebView* web_view = render_frame->GetWebView();
+  if (web_view && web_view->GetVisibilityState() !=
+                      blink::mojom::PageVisibilityState::kVisible) {
+    new MediaLoadDeferrer(web_view, std::move(closure));
+    return true;
+  }
+  std::move(closure).Run();
+  return false;
 }
 
 }  // namespace cobalt

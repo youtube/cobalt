@@ -211,8 +211,13 @@ void GpuChildThread::OnGpuServiceConnection(viz::GpuServiceImpl* gpu_service) {
     BindServiceInterface(std::move(receiver));
   pending_service_receivers_.clear();
 
-  if (GetContentClient()->gpu())  // Null in tests.
+  if (GetContentClient()->gpu()) {  // Null in tests.
     GetContentClient()->gpu()->GpuServiceInitialized();
+#if BUILDFLAG(IS_COBALT)
+    GetContentClient()->gpu()->GpuServiceInitialized(
+        gpu_service->gpu_channel_manager());
+#endif  // BUILDFLAG(IS_COBALT)
+  }
 
   // Start allowing browser-exposed interfaces to be bound.
   //

@@ -16,6 +16,12 @@ namespace {
 std::atomic<bool> s_is_eligible_for_throttle_main_frame_to_60hz = false;
 }  // namespace
 
+#if BUILDFLAG(IS_COBALT)
+BASE_FEATURE(kCobaltMainFrameBeforeActivation,
+             "CobaltMainFrameBeforeActivation",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_COBALT)
+
 // When enabled, this forces composited textures for SurfaceLayerImpls to be
 // aligned to the pixel grid. Lack of alignment can lead to blur, noticeably so
 // in text. https://crbug.com/359279545
@@ -282,9 +288,12 @@ BASE_FEATURE_PARAM(base::TimeDelta,
                    base::Milliseconds(700));
 
 #if BUILDFLAG(IS_COBALT)
-BASE_FEATURE(kCobaltMainFrameBeforeActivation,
-             "CobaltMainFrameBeforeActivation",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-#endif  // BUILDFLAG(IS_COBALT)
+BASE_FEATURE(kCobaltTileMemoryMetrics,
+             "CobaltTileMemoryMetrics",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+const base::FeatureParam<base::TimeDelta> kCobaltTileMemoryMetricsInterval{
+    &kCobaltTileMemoryMetrics, "interval", base::Minutes(1)};
+#endif
 
 }  // namespace features

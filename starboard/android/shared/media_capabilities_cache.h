@@ -23,6 +23,7 @@
 #include <mutex>
 #include <set>
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include "starboard/common/size.h"
@@ -165,6 +166,9 @@ class MediaCapabilitiesProvider {
   virtual bool GetIsCbcsSchemeSupported() = 0;
   virtual std::set<SbMediaTransferId> GetSupportedHdrTypes() = 0;
   virtual bool GetIsPassthroughSupported(SbMediaAudioCodec codec) = 0;
+  virtual bool GetIsTunneledAudioSupported(int encoding,
+                                           int sampling_frequency_hz,
+                                           int channels) = 0;
   virtual bool GetAudioConfiguration(
       int index,
       SbMediaAudioConfiguration* configuration) = 0;
@@ -190,6 +194,13 @@ class MediaCapabilitiesCache {
   bool IsHDRTransferCharacteristicsSupported(SbMediaTransferId transfer_id);
 
   bool IsPassthroughSupported(SbMediaAudioCodec codec);
+
+  // Returns whether PCM audio with |encoding| (Android AudioFormat encoding),
+  // |sampling_frequency_hz| and |channels| can be played directly in tunnel
+  // mode.
+  bool IsTunneledAudioSupported(int encoding,
+                                int sampling_frequency_hz,
+                                int channels);
 
   // Some android devices support av1 up to 8k30 and 4k60. In that case, we
   // cannot ask it to always use max supported width and height, which would
@@ -259,6 +270,8 @@ class MediaCapabilitiesCache {
   // Cached data.
   std::set<SbMediaTransferId> supported_transfer_ids_;
   std::map<SbMediaAudioCodec, bool> passthrough_supportabilities_;
+  // Key: (encoding, sampling_frequency_hz, channels).
+  std::map<std::tuple<int, int, int>, bool> tunneled_audio_supportabilities_;
 
   typedef std::vector<std::unique_ptr<AudioCodecCapability>>
       AudioCodecCapabilities;

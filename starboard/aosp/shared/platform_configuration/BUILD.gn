@@ -19,6 +19,8 @@ config("platform_configuration") {
   ]
 
   if (current_toolchain == starboard_toolchain) {
+    # POSIX emulation headers - these need to come *before* system include_dirs.
+    include_dirs = [ "//starboard/android/shared/posix_emu/include" ]
     ldflags = [
       "-Wl,--wrap=access",
       "-Wl,--wrap=alarm",
@@ -31,10 +33,19 @@ config("platform_configuration") {
       "-Wl,--wrap=open",
       "-Wl,--wrap=opendir",
       "-Wl,--wrap=openat",
+      "-Wl,--wrap=pathconf",
       "-Wl,--wrap=readdir",
       "-Wl,--wrap=readdir_r",
       "-Wl,--wrap=stat",
+      "-Wl,--wrap=sysconf",
     ]
+  }
+
+  if (current_toolchain == native_toolchain) {
+    # Executables built for the device, like the Crashpad handler, are exec'd
+    # directly, so the dynamic linker doesn't find the libc++_shared.so
+    # packaged in the APK. Link libc++ into them statically.
+    ldflags = [ "-static-libstdc++" ]
   }
 }
 

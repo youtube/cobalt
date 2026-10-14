@@ -79,6 +79,9 @@ class CobaltContentRendererClient : public content::ContentRendererClient {
       content::RenderFrame* render_frame,
       const GURL& url,
       scoped_refptr<base::SequencedTaskRunner> task_runner) override;
+  bool DeferMediaLoad(content::RenderFrame* render_frame,
+                      bool has_played_media_before,
+                      base::OnceClosure closure) override;
 
   uint64_t GetSbWindowHandle() const { return sb_window_handle_; }
 

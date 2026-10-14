@@ -65,8 +65,6 @@ group("gn_all") {
   if (is_cobalt_hermetic_build) {
     deps += [
       ":cobalt_loader",
-      "//starboard/elf_loader:elf_loader_sandbox($starboard_toolchain)",
-      "//starboard/loader_app:loader_app($starboard_toolchain)",
       "//starboard/tools/zstd_compress:zstd_compress_unittest($host_toolchain)",
     ]
   }
@@ -270,6 +268,8 @@ source_set("common") {
     sources += [ "app/cobalt_switch_defaults_starboard.cc" ]
   } else if (is_ios && target_platform == "tvos") {
     sources += [ "app/cobalt_switch_defaults_tvos.cc" ]
+  } else if (is_android) {
+    sources += [ "app/cobalt_switch_defaults_android.cc" ]
   }
 
   if (use_evergreen) {
@@ -306,6 +306,13 @@ source_set("common") {
     "//ui/gl",
   ]
 
+  if (is_android) {
+    deps += [
+      "//components/services/storage",
+      "//content/public/common",
+    ]
+  }
+
   if (use_ozone) {
     deps += [ "//ui/ozone:ozone_switches" ]
   }
@@ -316,6 +323,10 @@ source_set("common") {
 
   if (use_evergreen) {
     deps += [ "//cobalt/updater" ]
+  }
+
+  if (is_androidtv) {
+    deps += [ "//starboard/crashpad_wrapper:native_stability_reader" ]
   }
 }
 
@@ -351,7 +362,6 @@ test("cobalt_unittests") {
     "//cobalt/browser/global_features_unittest.cc",
     "//cobalt/browser/h5vcc_memory/low_memory_manager_unittest.cc",
     "//cobalt/browser/h5vcc_metrics/histogram_fetcher_test.cc",
-    "//cobalt/browser/h5vcc_native_stability/native_stability_manager_unittest.cc",
     "//cobalt/browser/h5vcc_runtime/deep_link_manager_unittest.cc",
     "//cobalt/browser/memory_ablation_unittest.cc",
     "//cobalt/browser/metrics/cobalt_detailed_metrics_delegate_unittest.cc",
@@ -361,6 +371,7 @@ test("cobalt_unittests") {
     "//cobalt/browser/metrics/cobalt_metrics_service_client_test.cc",
     "//cobalt/browser/metrics/cobalt_metrics_services_manager_client_test.cc",
     "//cobalt/browser/metrics/cobalt_stability_metrics_helper_unittest.cc",
+    "//cobalt/browser/metrics/cobalt_storage_metrics_helper_unittest.cc",
     "//cobalt/browser/user_agent/user_agent_platform_info_test.cc",
     "//cobalt/browser/v8_cpu_profiler_unittest.cc",
     "//cobalt/shell/browser/h5vcc_scheme_url_loader_factory_unittest.cc",
@@ -389,6 +400,10 @@ test("cobalt_unittests") {
       "//cobalt/browser/lifecycle/cobalt_lifecycle_manager_unittest.cc",
       "//cobalt/shell/common/device_authentication_test.cc",
     ]
+  }
+
+  if (is_android) {
+    sources += [ "//cobalt/app/cobalt_switch_defaults_android_test.cc" ]
   }
 
   if (use_evergreen) {
@@ -427,8 +442,7 @@ test("cobalt_unittests") {
     "//cobalt/browser/h5vcc_memory",
     "//cobalt/browser/h5vcc_memory:low_memory_manager",
     "//cobalt/browser/h5vcc_metrics/public/mojom",
-    "//cobalt/browser/h5vcc_native_stability",
-    "//cobalt/browser/h5vcc_native_stability/public/mojom",
+    "//cobalt/browser/h5vcc_native_stability:unit_tests",
     "//cobalt/browser/h5vcc_runtime",
     "//cobalt/browser/h5vcc_runtime:deep_link_manager",
     "//cobalt/browser/user_agent",
@@ -471,6 +485,10 @@ test("cobalt_unittests") {
     "//ui/events/devices",
   ]
 
+  if (is_starboard || is_androidtv) {
+    deps += [ "//cobalt/browser/h5vcc_native_stability" ]
+  }
+
   if (is_starboard) {
     deps += [ "//ui/ozone/platform/starboard" ]
   }
@@ -481,6 +499,10 @@ test("cobalt_unittests") {
       "//content/public/android:content_java",
       "//ui/android:ui_java",
     ]
+  }
+
+  if (is_androidtv) {
+    deps += [ "//starboard/crashpad_wrapper:native_stability_reader_test" ]
   }
 
   if (use_aura) {

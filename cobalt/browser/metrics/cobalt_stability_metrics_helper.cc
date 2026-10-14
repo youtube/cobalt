@@ -16,7 +16,6 @@
 
 #include <algorithm>
 #include <memory>
-#include <set>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -164,45 +163,6 @@ void ClearOtherStabilityMetricsPmaFiles(
     }
     base::DeleteFile(file);
   }
-}
-
-std::vector<base::ProcessId> ExtractPriorSessionPids(
-    const base::FilePath& metrics_dir,
-    const std::string& expected_allocator_name,
-    base::ProcessId current_pid) {
-  std::vector<base::ProcessId> pids;
-  std::set<base::ProcessId> seen_pids;
-
-  base::FileEnumerator file_iter(metrics_dir, /*recursive=*/false,
-                                 base::FileEnumerator::FILES);
-  for (base::FilePath file = file_iter.Next(); !file.empty();
-       file = file_iter.Next()) {
-    if (file.Extension() != FILE_PATH_LITERAL(".pma")) {
-      continue;
-    }
-
-    std::string name;
-    base::Time stamp;
-    base::ProcessId previous_pid;
-    if (!base::GlobalHistogramAllocator::ParseFilePath(file, &name, &stamp,
-                                                       &previous_pid)) {
-      continue;
-    }
-
-    if (name != expected_allocator_name) {
-      continue;
-    }
-
-    if (previous_pid <= 0 || previous_pid == current_pid) {
-      continue;
-    }
-
-    if (seen_pids.insert(previous_pid).second) {
-      pids.push_back(previous_pid);
-    }
-  }
-
-  return pids;
 }
 
 }  // namespace cobalt

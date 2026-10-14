@@ -14,13 +14,18 @@
 
 #include "media/starboard/starboard_renderer.h"
 
+#include "base/barrier_closure.h"
+#include "base/containers/flat_map.h"
 #include "base/feature_list.h"
 #include "base/json/string_escape.h"
 #include "base/logging.h"
 #include "base/no_destructor.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
+#include "base/synchronization/lock.h"
+#include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/thread_annotations.h"
 #include "base/trace_event/trace_event.h"
 #include "media/base/audio_codecs.h"
 #include "media/base/decoder_buffer.h"
@@ -46,6 +51,34 @@ namespace {
 
 using ::starboard::GetMediaAudioConnectorName;
 using ::starboard::GetPlayerStateName;
+
+struct ActiveRendererEntry {
+  scoped_refptr<base::SequencedTaskRunner> task_runner;
+  base::WeakPtr<StarboardRenderer> weak_this;
+};
+
+// Tracks active StarboardRenderer instances and conceal state so
+// FlushAndSuspendActiveRenderers() can be safely invoked from the browser UI
+// thread during kSbEventTypeConceal.
+// TODO(b/570356133): Move StarboardRendererConcealRegistry ownership into
+// GpuMojoMediaClientStarboard via MediaService to avoid a static singleton.
+struct StarboardRendererConcealRegistry {
+  base::Lock lock;
+  base::flat_map<StarboardRenderer*, ActiveRendererEntry> active_renderers
+      GUARDED_BY(lock);
+  bool is_concealed GUARDED_BY(lock) = false;
+};
+
+StarboardRendererConcealRegistry& GetConcealRegistry() {
+  static base::NoDestructor<StarboardRendererConcealRegistry> registry;
+  return *registry;
+}
+
+bool IsApplicationConcealed() {
+  auto& registry = GetConcealRegistry();
+  base::AutoLock auto_lock(registry.lock);
+  return registry.is_concealed;
+}
 
 // In the OnNeedData(), it attempts to write one more audio access
 // unit than the audio write duration. Specifically, the check
@@ -164,6 +197,12 @@ StarboardRenderer::StarboardRenderer(
   DCHECK(task_runner_);
   DCHECK(media_log_);
   CHECK_GT(max_samples_per_write_, 0);
+  {
+    auto& registry = GetConcealRegistry();
+    base::AutoLock auto_lock(registry.lock);
+    registry.active_renderers.emplace(
+        this, ActiveRendererEntry{task_runner_, weak_factory_.GetWeakPtr()});
+  }
   LOG(INFO) << "StarboardRenderer constructed: audio_write_duration_local="
             << audio_write_duration_local_
             << ", audio_write_duration_remote=" << audio_write_duration_remote_
@@ -176,10 +215,16 @@ StarboardRenderer::StarboardRenderer(
 
 StarboardRenderer::~StarboardRenderer() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  weak_factory_.InvalidateWeakPtrs();
 
   LOG(INFO) << "Destructing StarboardRenderer.";
 
   player_bridge_.reset();
+  {
+    auto& registry = GetConcealRegistry();
+    base::AutoLock auto_lock(registry.lock);
+    registry.active_renderers.erase(this);
+  }
 
   LOG(INFO) << "SbPlayerBridge destructed.";
 }
@@ -216,6 +261,14 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
 
   client_ = client;
   init_cb_ = std::move(init_cb);
+
+  // If the application is concealed, abort initialization immediately so
+  // SbPlayerCreate is not invoked on a destroyed native window.
+  if (IsApplicationConcealed()) {
+    state_ = STATE_ERROR;
+    std::move(init_cb_).Run(PIPELINE_ERROR_ABORT);
+    return;
+  }
 
 #if BUILDFLAG(IS_IOS_TVOS)
   if (IsUrlPlayer()) {
@@ -726,6 +779,15 @@ void StarboardRenderer::UpdateAudioWriteDuration() {
 
 void StarboardRenderer::CreatePlayerBridge() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  // If concealed while waiting for an asynchronous window handle or overlay,
+  // abort before constructing SbPlayerBridge on a destroyed native window.
+  if (IsApplicationConcealed() || state_ == STATE_ERROR) {
+    state_ = STATE_ERROR;
+    if (init_cb_) {
+      std::move(init_cb_).Run(PIPELINE_ERROR_ABORT);
+    }
+    return;
+  }
   DCHECK(init_cb_);
   DCHECK_EQ(state_, STATE_INITIALIZING);
 #if BUILDFLAG(IS_IOS_TVOS)
@@ -940,7 +1002,14 @@ void StarboardRenderer::OnDemuxerStreamRead(
     return;
   }
 
-  DCHECK(player_bridge_);
+  if (state_ == STATE_ERROR || !player_bridge_) {
+    if (stream == audio_stream_) {
+      audio_read_in_progress_ = false;
+    } else if (stream == video_stream_) {
+      video_read_in_progress_ = false;
+    }
+    return;
+  }
 
   if (status == DemuxerStream::kOk) {
     if (stream == audio_stream_) {
@@ -1211,9 +1280,74 @@ void StarboardRenderer::NotifyError(PipelineStatus status) {
   // pointer dereference in `MojoRenderer::OnError()`.
   if (init_cb_) {
     std::move(init_cb_).Run(status);
-  } else {
+  } else if (client_) {
     client_->OnError(status);
   }
+}
+
+// static
+void StarboardRenderer::FlushAndSuspendActiveRenderers(
+    base::OnceClosure done_cb) {
+  std::vector<ActiveRendererEntry> entries;
+  {
+    auto& registry = GetConcealRegistry();
+    base::AutoLock auto_lock(registry.lock);
+    registry.is_concealed = true;
+    entries.reserve(registry.active_renderers.size());
+    for (const auto& [renderer, entry] : registry.active_renderers) {
+      entries.push_back(entry);
+    }
+  }
+
+  base::OnceClosure reply_cb =
+      base::SequencedTaskRunner::HasCurrentDefault()
+          ? base::BindPostTaskToCurrentDefault(std::move(done_cb))
+          : std::move(done_cb);
+
+  if (entries.empty()) {
+    std::move(reply_cb).Run();
+    return;
+  }
+
+  // Post to the tail of each active StarboardRenderer's sequence so any queued
+  // MojoRendererService disconnect tasks execute first, then fallback-suspend
+  // any remaining StarboardRenderer instances before replying to the conceal
+  // barrier.
+  base::RepeatingClosure barrier_cb =
+      base::BarrierClosure(entries.size(), std::move(reply_cb));
+  for (auto& entry : entries) {
+    if (!entry.task_runner->PostTask(
+            FROM_HERE, base::BindOnce(
+                           [](base::WeakPtr<StarboardRenderer> renderer,
+                              base::OnceClosure done) {
+                             if (renderer) {
+                               renderer->OnConcealFallbackSuspend();
+                             }
+                             std::move(done).Run();
+                           },
+                           std::move(entry.weak_this), barrier_cb))) {
+      barrier_cb.Run();
+    }
+  }
+}
+
+// static
+void StarboardRenderer::ResumeActiveRenderers() {
+  auto& registry = GetConcealRegistry();
+  base::AutoLock auto_lock(registry.lock);
+  registry.is_concealed = false;
+}
+
+void StarboardRenderer::OnConcealFallbackSuspend() {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  if (player_bridge_) {
+    player_bridge_->Suspend();
+  }
+  if (state_ == STATE_UNINITIALIZED || state_ == STATE_ERROR) {
+    return;
+  }
+  state_ = STATE_ERROR;
+  NotifyError(PIPELINE_ERROR_ABORT);
 }
 
 void StarboardRenderer::DelayedNeedData(int max_number_of_buffers_to_write) {

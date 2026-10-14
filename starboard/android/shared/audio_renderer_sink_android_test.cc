@@ -140,6 +140,15 @@ class DummyRenderCallback : public AudioRendererSink::RenderCallback {
                const std::string& error_message) override {}
 };
 
+AudioStreamInfo CreateAudioStreamInfo() {
+  AudioStreamInfo audio_stream_info;
+  audio_stream_info.codec = kSbMediaAudioCodecAac;
+  audio_stream_info.number_of_channels = kChannels;
+  audio_stream_info.samples_per_second = kSamplingFrequencyHz;
+  audio_stream_info.bits_per_sample = 16;
+  return audio_stream_info;
+}
+
 class AudioRendererSinkAndroidTest : public ::testing::Test {
  protected:
   void SetUp() override {
@@ -151,11 +160,11 @@ class AudioRendererSinkAndroidTest : public ::testing::Test {
   void TearDown() override { fake_sink_type_.reset(); }
 
   std::unique_ptr<AudioRendererSink> CreateSink(bool allow_flush_during_seek) {
+    AudioRendererSinkAndroid::Options options;
+    options.allow_flush_during_seek = allow_flush_during_seek;
+
     return std::make_unique<AudioRendererSinkAndroid>(
-        /*tunnel_mode_audio_session_id=*/std::nullopt,
-        /*allow_audio_writing_on_pause=*/false,
-        /*enable_video_renderer_vsp_adjustment=*/false, allow_flush_during_seek,
-        /*pause_using_audio_track_state=*/false,
+        CreateAudioStreamInfo(), options,
         [this](int64_t start_media_time, int channels,
                int sampling_frequency_hz,
                SbMediaAudioSampleType audio_sample_type,

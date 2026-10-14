@@ -99,6 +99,13 @@ bool ShouldEnableResetAudioDecoder(
 #endif
 }
 
+NdkAudioMode GetNdkAudioMode(
+    const ExperimentalFeatures& experimental_features) {
+  return static_cast<NdkAudioMode>(
+      experimental_features.Get(kMediaNdkAudioMode)
+          .value_or(static_cast<int>(NdkAudioMode::kDisabled)));
+}
+
 // On some platforms tunnel mode is only supported in the secure pipeline.  Set
 // the following variable to true to force creating a secure pipeline in tunnel
 // mode, even for clear content.
@@ -144,6 +151,46 @@ bool IsTunnelModeVideoDecoderSupported(const std::string& mime,
       /*must_support_tunnel_mode=*/true);
 }
 
+// Returns a callback that adjusts the output format of AdaptiveAudioDecoder
+// to the format returned by |sink| for |audio_stream_info|, or nullptr if no
+// adjustment is needed.
+// The audio renderer configures itself and the sink with the number of
+// channels and the sampling rate returned by the sink, so adjust the decoder
+// output to match them.  As AdaptiveAudioDecoder resamples the audio when it
+// adjusts the output format, setting the sampling rate here as well avoids
+// resampling the audio again in the renderer.
+// TODO(b/568452069): Ideally |resampler_| and |channel_mixer_| should be moved
+// out of AdaptiveAudioDecoder and into the audio renderer, so the renderer can
+// convert the audio to the format required by the sink in one place.
+// Adjusting the decoder output here is a shortcut for now.
+AdaptiveAudioDecoder::OutputFormatAdjustmentCallback
+CreateOutputFormatAdjustmentCallback(const AudioStreamInfo& audio_stream_info,
+                                     const AudioRendererSink& sink) {
+  const int source_channels = audio_stream_info.number_of_channels;
+  const int source_samples_per_second =
+      static_cast<int>(audio_stream_info.samples_per_second);
+  const int output_channels = sink.GetOutputNumberOfChannels(source_channels);
+  const int output_samples_per_second =
+      sink.GetNearestSupportedSampleFrequency(source_samples_per_second);
+  if (output_channels == source_channels &&
+      output_samples_per_second == source_samples_per_second) {
+    return nullptr;
+  }
+
+  SB_LOG(INFO) << "Audio decoder output is adjusted from " << source_channels
+               << " channel(s) at " << source_samples_per_second << "Hz to "
+               << output_channels << " channel(s) at "
+               << output_samples_per_second << "Hz.";
+  return [output_channels, output_samples_per_second](SbMediaAudioSampleType*,
+                                                      int* samples_per_second,
+                                                      int* number_of_channels) {
+    SB_DCHECK(samples_per_second);
+    SB_DCHECK(number_of_channels);
+    *samples_per_second = output_samples_per_second;
+    *number_of_channels = output_channels;
+  };
+}
+
 class PlayerComponentsPassthrough : public PlayerComponents {
  public:
   PlayerComponentsPassthrough(
@@ -187,10 +234,10 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       MediaCapabilitiesCache::GetInstance()->SetAv1OptEnabled(true);
       SB_LOG(INFO) << "`enable_av1_startup_optimization` is set to true.";
     }
-    if (experimental_features.GetBool(kMediaNdkAudioTrack)) {
-      AudioTrack::SetNdkAudioTrackEnabled(true);
-      SB_LOG(INFO) << "`ndk_audio_track` is set to true.";
-    }
+    const NdkAudioMode ndk_audio_mode = GetNdkAudioMode(experimental_features);
+    AudioTrack::SetNdkAudioTrackEnabled(ndk_audio_mode ==
+                                        NdkAudioMode::kAudioTrack);
+    SB_LOG(INFO) << "`ndk_audio_mode` is set to " << ToString(ndk_audio_mode);
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecAc3 &&
         creation_parameters.audio_codec() != kSbMediaAudioCodecEac3) {
       SB_LOG(INFO) << "Creating non-passthrough components.";
@@ -419,17 +466,30 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         return nullptr;
       };
 
+      const bool enable_ndk_audio_pull_sink =
+          GetNdkAudioMode(experimental_features) == NdkAudioMode::kPullSink;
+
+      AudioRendererSinkAndroid::Options sink_options;
+      sink_options.tunnel_mode_audio_session_id = tunnel_mode_audio_session_id;
+      sink_options.allow_audio_writing_on_pause = allow_audio_writing_on_pause;
+      sink_options.enable_video_renderer_vsp_adjustment =
+          enable_video_renderer_vsp_adjustment;
+      sink_options.allow_flush_during_seek =
+          allow_flush_audio_track_during_seek;
+      sink_options.pause_using_audio_track_state =
+          pause_using_audio_track_state;
+      sink_options.enable_ndk_audio_pull_sink = enable_ndk_audio_pull_sink;
+
+      auto renderer_sink = std::make_unique<AudioRendererSinkAndroid>(
+          creation_parameters.audio_stream_info(), sink_options);
+
       components.audio.decoder = std::make_unique<AdaptiveAudioDecoder>(
           job_queue, creation_parameters.audio_stream_info(),
           creation_parameters.drm_system(), decoder_creator,
-          enable_reset_audio_decoder);
-
-      components.audio.renderer_sink =
-          std::make_unique<AudioRendererSinkAndroid>(
-              tunnel_mode_audio_session_id, allow_audio_writing_on_pause,
-              enable_video_renderer_vsp_adjustment,
-              allow_flush_audio_track_during_seek,
-              pause_using_audio_track_state);
+          enable_reset_audio_decoder,
+          CreateOutputFormatAdjustmentCallback(
+              creation_parameters.audio_stream_info(), *renderer_sink));
+      components.audio.renderer_sink = std::move(renderer_sink);
     }
 
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {

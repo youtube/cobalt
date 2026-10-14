@@ -122,6 +122,24 @@ BASE_FEATURE(kForceVideoSplashScreen,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 
+BASE_FEATURE(kSplashScreenConfig,
+             "SplashScreenConfig",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kSplashScreenTimeoutParam,
+                   &kSplashScreenConfig,
+                   "timeout",
+                   base::Milliseconds(1500));
+
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+BASE_FEATURE_PARAM(std::string,
+                   kSplashScreenUrlParam,
+                   &kSplashScreenConfig,
+                   "url",
+                   "");
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kEnablePictureInPicture,
              "PictureInPicture",
@@ -145,6 +163,40 @@ const base::FeatureParam<int> kMemoryAblationSizeMBParam{
 
 const base::FeatureParam<base::TimeDelta> kMemoryAblationDelayParam{
     &kCobaltNativeMemoryAblation, "ablation_delay", base::Seconds(0)};
+
+BASE_FEATURE(kCobaltGpuMemoryAblation,
+             "CobaltGpuMemoryAblation",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<int> kGpuMemoryAblationSizeMBParam{
+    &kCobaltGpuMemoryAblation, "CobaltGpuMemoryAblation_ablation_size_mb", 0};
+
+const base::FeatureParam<base::TimeDelta> kGpuMemoryAblationDelayParam{
+    &kCobaltGpuMemoryAblation, "CobaltGpuMemoryAblation_ablation_delay",
+    base::Seconds(0)};
+
+BASE_FEATURE(kCobaltSystemMemoryPressureEvaluator,
+             "CobaltSystemMemoryPressureEvaluator",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<double> kCobaltMemoryPressureModerateFractionParam{
+    &kCobaltSystemMemoryPressureEvaluator, "moderate_fraction", 0.85};
+
+const base::FeatureParam<double> kCobaltMemoryPressureCriticalFractionParam{
+    &kCobaltSystemMemoryPressureEvaluator, "critical_fraction", 0.95};
+
+const base::FeatureParam<int> kCobaltMemoryPressureBudgetMBParam{
+    &kCobaltSystemMemoryPressureEvaluator, "budget_mb", 0};
+
+const base::FeatureParam<int> kCobaltMemoryPressurePollIntervalSecondsParam{
+    &kCobaltSystemMemoryPressureEvaluator, "poll_interval_seconds", 10};
+
+const base::FeatureParam<int> kCobaltMemoryPressureCooldownSecondsParam{
+    &kCobaltSystemMemoryPressureEvaluator, "cooldown_seconds", 60};
+
+BASE_FEATURE(kCobaltSkipTrustedHeaderClient,
+             "CobaltSkipTrustedHeaderClient",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace features
 }  // namespace cobalt
