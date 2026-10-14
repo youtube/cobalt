@@ -329,6 +329,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           WORKFLOW_ID: ${{ github.event.workflow_run.id }}
+          GIT_USER: "github-actions[bot]"
+          GIT_EMAIL: "41898282+github-actions[bot]@users.noreply.github.com"
+          EMPTY_TREE: "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
         shell: bash
         run: |
           set -euo pipefail
@@ -351,16 +354,8 @@ jobs:
               parent=(-p FETCH_HEAD)
             fi
 
-            empty_tree=$(git hash-object -t tree /dev/null -w)
-            commit=$(git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
-              commit-tree "${parent[@]}" -m "${digest}" "${empty_tree}")
+            commit=$(git -c user.name="${GIT_USER}" -c user.email="${GIT_EMAIL}" \
+              commit-tree "${parent[@]}" -m "${digest}" "${EMPTY_TREE}")
 
-            for attempt in {1..3}; do
-              if git push "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" "${commit}:refs/golden-workspace/${platform}"; then
-                echo "Successfully updated refs/golden-workspace/${platform} -> ${commit} (${digest})"
-                break
-              fi
-              echo "Push failed, retrying (${attempt}/3)..."
-              sleep 2
-            done
+            git push "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" "${commit}:refs/golden-workspace/${platform}" || true
           done
