@@ -69,7 +69,6 @@ _GCS_ARCHIVE_DEVICE_FAMILIES = ('rdk',)
 _GCS_UPLOADER_PLUGIN_JAR = (
     '//java/com/google/devtools/mobileharness/platform/maneki:'
     'gcs_cobalt_test_result_uploader_plugin_deploy.jar')
-_WPT_DEFAULT_HOST_NAME_REGEX = 'regex:maneki-mhserver(?!-(01|05)).*'
 
 
 class OnDeviceTestsGatewayClient:
@@ -273,10 +272,6 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
       files = []
       yt_binary_name = os.path.splitext(os.path.basename(args.artifact_name))[0]
       params = [f'yt_binary_name={yt_binary_name}']
-      if test_type == 'yts_wpt_test' and not any(
-          arg.startswith('dimension_host_name=') for arg in target_test_args):
-        target_test_args.append(
-            f'dimension_host_name={_WPT_DEFAULT_HOST_NAME_REGEX}')
 
       if args.device_family in _GCS_ARCHIVE_DEVICE_FAMILIES:
         params.append(f'gcs_cobalt_archive=gs://{args.cobalt_path}.zip')

@@ -100,10 +100,6 @@ class OnDeviceTestsGatewayClientTest(unittest.TestCase):
     self.assertIn(
         'gcs_log_filename=yts_wpt_test_ci_android_arm_devices_cobalt.log',
         req['params'])
-    self.assertIn(
-        ('dimension_host_name='
-         f'{on_device_tests_gateway_client._WPT_DEFAULT_HOST_NAME_REGEX}'),
-        req['test_args'])
 
 
 if __name__ == '__main__':
