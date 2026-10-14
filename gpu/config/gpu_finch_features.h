@@ -30,7 +30,13 @@ GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
                                        kCobaltDecodedImagesMetricsInterval);
 
 #if BUILDFLAG(IS_ANDROID)
+<<<<<<< HEAD
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kCobaltRemoveUiPlaneDuringFullscreenVideo);
+=======
+GPU_EXPORT BASE_DECLARE_FEATURE(kCobaltRemoveUiPlaneDuringFullscreenVideo);
+GPU_EXPORT BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
+                                      kCobaltRemoveUiPlaneDestroyBuffersDelay);
+>>>>>>> c541da8fd5f (android: Add 5s debounce timer before freeing single-plane UI buffers (#13288))
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #endif  // BUILDFLAG(IS_COBALT)
