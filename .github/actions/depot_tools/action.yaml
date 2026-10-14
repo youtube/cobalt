@@ -129,11 +129,11 @@ runs:
       shell: bash
       working-directory: cobalt
       env:
-        PLATFORM: ${{ matrix.platform }}
+        PLATFORM: ${{ inputs.platform || matrix.platform }}
       run: |
         set -euo pipefail
         deps_match=false
-        LOWER_DIR="${OVERLAY_LOWER_DIR:-/runner-cache/golden-workspace/${PLATFORM}}"
+        LOWER_DIR="/runner-cache/golden-workspace/${PLATFORM}"
 
         if cmp -s "${LOWER_DIR}/src/DEPS" src/DEPS && cmp -s "${LOWER_DIR}/.gclient" .gclient; then
           echo "Golden workspace DEPS and .gclient match. Skipping gclient sync."
@@ -162,8 +162,6 @@ runs:
       working-directory: cobalt
       env:
         REF: ${{ github.sha }}
-        PLATFORM: ${{ matrix.platform }}
-        GITHUB_TOKEN: ${{ github.token }}
       run: |
         # Synchronize sub-repositories with minimal disk footprint and network transfer:
         # --shallow / --no-history: fetch only latest commits without full commit history

@@ -36,10 +36,8 @@ runs:
         fusermount3 -u -z "${MERGED_DIR}" 2>/dev/null || fusermount -u -z "${MERGED_DIR}" 2>/dev/null || umount -l "${MERGED_DIR}" 2>/dev/null || true
         rm -rf /runner-cache/workspaces/*
 
-    # TODO: Clean up legacy .runner_cache_ready marker logic once all runner nodes
-    # have migrated to the new snapshot-based caching system.
-    - name: Validate Legacy Cache Marker
-      id: validate-marker
+    - name: Purge Legacy Unpartitioned Golden Workspace
+      id: purge-legacy
       shell: bash
       run: |
         # Purge legacy unpartitioned golden workspace
@@ -139,7 +137,6 @@ runs:
         cp -rn "${STAGING_DIR}/vpython/." /runner-cache/vpython/ || true
 
         echo "${EXPECTED}" > "${STAGING_DIR}/.digest"
-        touch "${STAGING_DIR}/.runner_cache_ready"
 
         mkdir -p "/runner-cache/golden-workspace"
         rm -rf "${LOWER_DIR}"
