@@ -104,11 +104,7 @@ runs:
 
         cobalt_path="${COBALT_PATH}"
         if [[ -z "${cobalt_path}" ]]; then
-          if [[ "${TEST_DEVICE_FAMILY}" == "rdk" ]]; then
-            cobalt_path="${PROJECT_NAME}-test-artifacts/${GITHUB_WORKFLOW}/${GITHUB_RUN_NUMBER}/${PLATFORM}/${PLATFORM}_qa"
-          else
-            cobalt_path="${PROJECT_NAME}-test-artifacts/${GITHUB_WORKFLOW}/${GITHUB_RUN_NUMBER}/${PLATFORM}"
-          fi
+          cobalt_path="${PROJECT_NAME}-test-artifacts/${GITHUB_WORKFLOW}/${GITHUB_RUN_NUMBER}/${PLATFORM}/${PLATFORM}_qa"
         fi
 
         python3 -u cobalt/tools/on_device_tests_gateway_client.py \
