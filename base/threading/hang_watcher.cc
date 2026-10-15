@@ -521,7 +521,6 @@ WatchHangsInScope::~WatchHangsInScope() {
   state->DecrementNestingLevel();
 }
 
-<<<<<<< HEAD
 namespace {
 
 // Returns the effective log level to use, given `emit_crashes` and
@@ -553,8 +552,6 @@ LoggingLevel GetLoggingLevel(bool emit_crashes,
   }
 }
 
-}  // namespace
-=======
 #if BUILDFLAG(IS_COBALT)
 LoggingLevel GetConfiguredLoggingLevel(HangWatcher::Delegate* delegate,
                                        HangWatcher::ThreadType thread_type) {
@@ -562,7 +559,11 @@ LoggingLevel GetConfiguredLoggingLevel(HangWatcher::Delegate* delegate,
              ? LoggingLevel::kUmaAndCrash
              : LoggingLevel::kNone;
 }
+#endif  // BUILDFLAG(IS_COBALT)
 
+}  // namespace
+
+#if BUILDFLAG(IS_COBALT)
 void HangWatcher::UpdateConfiguration() {
   auto* delegate = g_hang_watcher_delegate.load(std::memory_order_relaxed);
   if (!delegate) {
@@ -608,8 +609,7 @@ void HangWatcher::UpdateConfiguration() {
       static_cast<int>(delegate->GetLongHangTimeout().InSeconds()),
       std::memory_order_relaxed);
 }
-#endif
->>>>>>> parent of b1c356e9a3e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+#endif  // BUILDFLAG(IS_COBALT)
 
 // static
 void HangWatcher::InitializeOnMainThread(ProcessType process_type,
