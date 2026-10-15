@@ -871,7 +871,6 @@ void OnSecurePaymentConfirmationAvailabilityResponse(
   resolver->Resolve(V8SecurePaymentConfirmationAvailability(
       ToV8SecurePaymentConfirmationAvailabilityEnum(result)));
 }
-<<<<<<< HEAD
 
 void OnGetSecurePaymentConfirmationCapabilitiesComplete(
     std::unique_ptr<ScopedPromiseResolver> scoped_resolver,
@@ -894,10 +893,7 @@ void OnGetSecurePaymentConfirmationCapabilitiesComplete(
 
   resolver->Resolve(std::move(results));
 }
-
-=======
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
->>>>>>> parent of b1c356e9a3e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }  // namespace
 
 // static
@@ -945,6 +941,13 @@ PaymentRequest::securePaymentConfirmationAvailability(
 ScriptPromise<IDLRecord<IDLString, IDLBoolean>>
 PaymentRequest::getSecurePaymentConfirmationCapabilities(
     ScriptState* script_state) {
+#if !BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
+  return ScriptPromise<IDLRecord<IDLString, IDLBoolean>>::
+      RejectWithDOMException(script_state,
+                             MakeGarbageCollected<DOMException>(
+                                 DOMExceptionCode::kNotSupportedError,
+                                 "The feature is not enabled."));
+#else
   auto* resolver = MakeGarbageCollected<
       ScriptPromiseResolver<IDLRecord<IDLString, IDLBoolean>>>(script_state);
   ScriptPromise promise = resolver->Promise();
@@ -978,6 +981,7 @@ PaymentRequest::getSecurePaymentConfirmationCapabilities(
                    std::make_unique<ScopedPromiseResolver>(resolver)));
 
   return promise;
+#endif  // !BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
 PaymentRequest* PaymentRequest::Create(
