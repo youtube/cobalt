@@ -653,11 +653,7 @@ public:
 
     int glyphSrcPadding() const override { return 0; }
 
-Looking at the conflict hunk and surrounding context:
-In `HEAD`, upstream Skia refactored/removed `testingOnly_packedGlyphIDToGlyph` (which referenced `fGlyphs`, replaced by `fGlyphVector`). The incoming commit is a revert cherry-pick artifact (`parent of 635d5d99b6e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)`) attempting to re-introduce obsolete/deleted code `testingOnly_packedGlyphIDToGlyph` referencing `fGlyphs`.
-In `HEAD`, `testingOnly_packedGlyphIDToGlyph` is completely removed (empty hunk).
 
-Therefore, accepting `HEAD` (empty string / removing the function) is the correct resolution.
     std::tuple<bool, SkRect> deviceRectAndNeedsTransform(
             const SkMatrix &positionMatrix) const override {
         auto [integerTranslate, deviceRect] =

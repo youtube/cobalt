@@ -35,8 +35,6 @@
 
 using namespace bssl;
 
-#if defined(USE_NR_getrandom)
-
 #if defined(OPENSSL_MSAN)
 extern "C" {
 void __msan_unpoison(void *, size_t);

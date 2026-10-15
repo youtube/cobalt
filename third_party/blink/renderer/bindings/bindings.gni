@@ -352,6 +352,7 @@ if (is_cobalt) {
       "*public_key_credential*",
       "*registration_response*",
       "*remote_desktop_client_override*",
+      "*resolve_redirect*",
       "*secure_payment_confirmation_request*",
       "*shared_storage*",
       "*storage_access*",

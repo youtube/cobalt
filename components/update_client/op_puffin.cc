@@ -12,6 +12,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/types/expected.h"
 #include "base/values.h"
 #include "components/update_client/crx_cache.h"
@@ -41,24 +42,42 @@ base::OnceClosure PuffOperation(
         callback) {
 #if defined(IN_MEMORY_UPDATES)
   LOG(ERROR) << "Puffin delta patching Operation not supported with Cobalt IN_MEMORY_UPDATES";
-  PatchDone(std::move(callback), event_adder,
-            base::unexpected<CategorizedError>(
-                {.category = ErrorCategory::kUnpack,
-                 .code = static_cast<int>(UnpackerError::kDeltaOperationFailure)}));
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE,
+      base::BindOnce(
+          std::move(callback),
+          base::unexpected<CategorizedError>(
+              {.category = ErrorCategory::kUnpack,
+               .code = static_cast<int>(UnpackerError::kDeltaOperationFailure)})));
   return base::DoNothing();
 #else
 #if BUILDFLAG(IS_STARBOARD)
   const base::FilePath& patch_file = patch_operation_result.response;
-#endif
-  state_tracker.Run(ComponentState::kPatching);
-  crx_cache->GetByHash(
-      old_hash,
-      base::BindOnce(&CacheLookupDone, event_adder, patcher, patch_file,
-#if BUILDFLAG(IS_STARBOARD)
-                     patch_file.DirName(), output_hash, patch_operation_result, std::move(callback)));
+  auto adapted_callback = base::BindOnce(
+      [](const OperationResult& patch_operation_result,
+         base::OnceCallback<void(base::expected<OperationResult, CategorizedError>)>
+             callback,
+         base::expected<base::FilePath, CategorizedError> result) {
+        if (!result.has_value()) {
+          std::move(callback).Run(base::unexpected(result.error()));
+          return;
+        }
+        OperationResult new_result = patch_operation_result;
+        new_result.response = result.value();
+        std::move(callback).Run(new_result);
+      },
+      patch_operation_result, std::move(callback));
 #else
-                     patch_file.DirName(), output_hash, std::move(callback)));
+  auto adapted_callback = std::move(callback);
 #endif
+
+  base::MakeRefCounted<DeltaPatchOperation>(
+      crx_cache, event_adder, state_tracker, old_hash,
+      base::File::FLAG_CREATE_ALWAYS | base::File::FLAG_WRITE |
+          base::File::FLAG_WIN_EXCLUSIVE_WRITE,
+      output_hash, puffin::P_OK, patch_file, protocol_request::kEventPuff,
+      std::move(adapted_callback))
+      ->Operation(base::BindOnce(&Patcher::PatchPuffPatch, patcher));
   return base::DoNothing();
 #endif  // defined(IN_MEMORY_UPDATES)
 }

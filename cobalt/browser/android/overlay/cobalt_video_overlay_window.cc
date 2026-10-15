@@ -184,6 +184,8 @@ void CobaltVideoOverlayWindow::SetSourceTitle(
 void CobaltVideoOverlayWindow::SetFaviconImages(
     const std::vector<media_session::MediaImage>& images) {}
 
+void CobaltVideoOverlayWindow::SetPlaybackControlsVisibility(bool is_visible) {}
+
 void CobaltVideoOverlayWindow::SetSurfaceId(const viz::SurfaceId& surface_id) {
   LOG(INFO) << "CobaltVideoOverlayWindow::SetSurfaceId called: "
             << surface_id.ToString();
