@@ -34,6 +34,7 @@
 #include "base/trace_event/memory_dump_manager.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
+#include "cobalt/browser/cobalt_content_browser_client.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/h5vcc_native_stability/native_stability_manager.h"
@@ -51,10 +52,12 @@
 #include "components/metrics/persistent_histograms.h"
 #include "components/metrics/persistent_system_profile.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
+#include "components/services/storage/public/cpp/constants.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/resource_coordinator_service.h"
 #include "content/public/common/result_codes.h"
 #include "net/disk_cache/cache_util.h"
+#include "sql/database.h"
 
 #if BUILDFLAG(IS_STARBOARD)
 #include "base/memory/memory_pressure_monitor.h"
@@ -95,8 +98,6 @@
 #include "base/android/memory_pressure_listener_android.h"
 #include "cobalt/browser/android/mojo/cobalt_interface_registrar_android.h"
 #include "starboard/android/shared/starboard_bridge.h"
-#else
-#include "cobalt/browser/cobalt_content_browser_client.h"
 #endif
 
 #if BUILDFLAG(IS_LINUX)
@@ -295,14 +296,53 @@ bool GetStabilityMetricsBaseDirectory(base::FilePath* base_dir) {
 
 constexpr base::TimeDelta kStorageCleanupDelay = base::Seconds(30);
 
-void CleanupOrphanedUserDataCacheDirectories() {
+// Legacy directory names created by earlier M138 Cobalt builds before those
+// subsystems were disabled or switched to in-memory backing under
+// kCobaltStorageCleanup:
+// - "Shared Dictionary": content::StoragePartitionImpl::InitNetworkContext()
+//   (content/browser/storage_partition_impl.cc) when
+//   AllowCompressionDictionaryTransport() returned true.
+// - "VideoDecodeStats": content::BrowserContext::CreateVideoDecodePerfHistory()
+//   (content/browser/browser_context.cc) before kUseInMemoryDBDefault was set
+//   to true.
+// - "shared_proto_db": leveldb_proto::ProtoDatabaseProvider
+//   (components/leveldb_proto/public/proto_database_provider.cc), instantiated
+//   solely by VideoDecodeStatsDBImpl on Cobalt.
+constexpr base::FilePath::CharType kLegacySharedDictionaryDir[] =
+    FILE_PATH_LITERAL("Shared Dictionary");
+constexpr base::FilePath::CharType kLegacyVideoDecodeStatsDir[] =
+    FILE_PATH_LITERAL("VideoDecodeStats");
+constexpr base::FilePath::CharType kLegacySharedProtoDbDir[] =
+    FILE_PATH_LITERAL("shared_proto_db");
+
+void DeleteUnusedSqliteDatabaseFiles(const base::FilePath& user_data_dir,
+                                     const base::FilePath& db_name) {
+  const base::FilePath db_path = user_data_dir.Append(db_name);
+  const base::FilePath candidates[] = {
+      db_path,
+      sql::Database::JournalPath(db_path),
+      sql::Database::WriteAheadLogPath(db_path),
+      sql::Database::SharedMemoryFilePath(db_path),
+  };
+  for (const base::FilePath& target : candidates) {
+    if (!user_data_dir.IsParent(target) || !base::PathExists(target) ||
+        base::DirectoryExists(target)) {
+      continue;
+    }
+    base::DeleteFile(target);
+  }
+}
+
+void RunDelayedStorageCleanup() {
   base::FilePath user_data_dir;
-  base::FilePath cache_dir;
-  if (!base::PathService::Get(content::SHELL_DIR_USER_DATA, &user_data_dir) ||
-      !base::PathService::Get(base::DIR_CACHE, &cache_dir)) {
+  if (!base::PathService::Get(content::SHELL_DIR_USER_DATA, &user_data_dir)) {
     return;
   }
-  DeleteOrphanedUserDataCacheDirectories(user_data_dir, cache_dir);
+  base::FilePath cache_dir;
+  if (base::PathService::Get(base::DIR_CACHE, &cache_dir)) {
+    DeleteOrphanedUserDataCacheDirectories(user_data_dir, cache_dir);
+  }
+  DeleteUnusedChromiumStoragePaths(user_data_dir);
 }
 
 }  // namespace
@@ -330,6 +370,53 @@ void DeleteOrphanedUserDataCacheDirectories(const base::FilePath& user_data_dir,
       LOG(ERROR) << "Failed to cleanup orphaned cache directory: "
                  << orphaned_dir;
     }
+  }
+}
+
+void DeleteUnusedChromiumStoragePaths(const base::FilePath& user_data_dir) {
+  if (user_data_dir.empty() || !base::DirectoryExists(user_data_dir)) {
+    return;
+  }
+
+  // Note: With kCobaltStorageCleanup enabled, all of the subsystems below are
+  // either disabled or configured for in-memory operation, so Cobalt will never
+  // create on-disk files for them again even if upstream Chromium changes their
+  // default filenames in the future. This cleanup exists solely to reclaim
+  // legacy files persisted by earlier M138 Cobalt builds.
+
+  // 1. Standalone file configured by CobaltContentBrowserClient (inherited from
+  // ShellContentBrowserClient) prior to kCobaltStorageCleanup.
+  const base::FilePath sct_reports_path =
+      user_data_dir.Append(kSCTAuditingPendingReportsFileName);
+  if (user_data_dir.IsParent(sct_reports_path) &&
+      base::PathExists(sct_reports_path) &&
+      !base::DirectoryExists(sct_reports_path)) {
+    base::DeleteFile(sct_reports_path);
+  }
+
+  // 2. SQLite databases and their companion -journal / -wal / -shm files:
+  // - kTrustTokenFilename: configured in
+  //   CobaltContentBrowserClient::ConfigureNetworkContextParams().
+  // - ::storage::kSharedStoragePath: created by
+  //   StoragePartitionImpl::Initialize() when
+  //   blink::features::kSharedStorageAPI was enabled.
+  DeleteUnusedSqliteDatabaseFiles(user_data_dir,
+                                  base::FilePath(kTrustTokenFilename));
+  DeleteUnusedSqliteDatabaseFiles(
+      user_data_dir, base::FilePath(::storage::kSharedStoragePath));
+
+  // 3. LevelDB / cache directories for disabled or in-memory subsystems.
+  const base::FilePath unused_directories[] = {
+      user_data_dir.Append(kLegacySharedDictionaryDir),
+      user_data_dir.AppendASCII(::storage::kSessionStorageDirectory),
+      user_data_dir.Append(kLegacyVideoDecodeStatsDir),
+      user_data_dir.Append(kLegacySharedProtoDbDir),
+  };
+  for (const base::FilePath& target : unused_directories) {
+    if (!user_data_dir.IsParent(target) || !base::DirectoryExists(target)) {
+      continue;
+    }
+    base::DeletePathRecursively(target);
   }
 }
 
@@ -462,8 +549,7 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
         {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
          base::ThreadPolicy::PREFER_BACKGROUND,
          base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN},
-        base::BindOnce(&CleanupOrphanedUserDataCacheDirectories),
-        kStorageCleanupDelay);
+        base::BindOnce(&RunDelayedStorageCleanup), kStorageCleanupDelay);
   }
 
 #if BUILDFLAG(IS_ANDROID)
