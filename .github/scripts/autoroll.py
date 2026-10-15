@@ -56,11 +56,6 @@ def parse_args():
       '--prs-json',
       help='Path to JSON file containing pre-fetched PRs and labels.')
   p.add_argument(
-      '--max-conflict-prs',
-      type=int,
-      default=3,
-      help='Label mode: maximum number of concurrent conflict branches.')
-  p.add_argument(
       '--manifest',
       help='Path to write a JSON manifest describing the resulting branches.')
   return p.parse_args()
@@ -229,7 +224,12 @@ def build_conflict_branch(args, conflict, old_sha):
 
 
 def roll_conflicts(args, conflicted, manifest):
-  """Reconciles autoroll-conflict-* branches with the conflicting candidates."""
+  """Reconciles the autoroll-conflict-* branch with the conflicting candidates.
+
+  At most one conflict branch exists at a time per target. An existing conflict
+  branch retains the slot until resolved; otherwise the first conflicting
+  candidate takes it.
+  """
   target = args.target_branch
   clean_branch = lib.current_branch()
   prefix = conflict_branch_prefix(args.source_branch, target)
@@ -238,90 +238,86 @@ def roll_conflicts(args, conflicted, manifest):
   def branch_for(conflict_id):
     return f'{prefix}{conflict_id}'
 
-  # Existing conflict branches keep their slot; new ones fill the remainder.
-  ordered = ([c for c in conflicted if branch_for(c['id']) in existing] +
-             [c for c in conflicted if branch_for(c['id']) not in existing])
-
   conflicts = []
   pending = []
   delete = manifest['delete']
   hands_off = []
-  handled = set()
 
-  try:
-    for conflict in ordered:
-      branch = branch_for(conflict['id'])
-      # Only branches that actually hold a conflict occupy a slot.
-      if len(conflicts) + len(hands_off) >= args.max_conflict_prs:
-        if branch not in existing:
-          pending.append({
-              'id': conflict['id'],
-              'pr': conflict['pr'],
-              'reason': 'waiting for a free conflict PR slot '
-                        f'(max {args.max_conflict_prs})',
-          })
-        continue
-      handled.add(branch)
-
-      old_sha = existing.get(branch)
-      if old_sha and not lib.is_bot_conflict_branch(target, old_sha):
-        lib.log(f'Leaving {branch} alone: it has resolution commits.')
-        hands_off.append({'branch': branch})
-        continue
-
-      conflict_sha = conflict['sha']
-      status, sha = build_conflict_branch(args, conflict, old_sha)
-      if status != lib.CommitStatus.CONFLICTED:
-        lib.log(f'Commit ({conflict_sha}) applies cleanly to {target}; '
-                'it only conflicts with the pending autoroll branch.')
+  active = None
+  if conflicted:
+    # Existing conflict branch retains the slot; otherwise pick the first.
+    active = next((c for c in conflicted if branch_for(c['id']) in existing),
+                  conflicted[0])
+    for c in conflicted:
+      if c != active:
         pending.append({
-            'id': conflict['id'],
-            'pr': conflict['pr'],
-            'reason': f'applies cleanly to {target} but conflicts with the '
-                      f'pending `{clean_branch}` roll; retried after it merges',
+            'id': c['id'],
+            'pr': c['pr'],
+            'reason': 'waiting for existing conflict to be resolved',
         })
-        if old_sha:
-          delete.append({'branch': branch, 'old_sha': old_sha})
-        continue
 
-      changed = sha != old_sha
-      if changed:
-        lib.run(['git', 'branch', '--force', branch, sha])
-      conflicts.append({
-          'id':
-              conflict['id'],
-          'pr':
-              conflict['pr'],
-          'branch':
-              branch,
-          'old_sha':
-              old_sha or '',
-          'changed':
-              changed,
-          'title':
-              lib.show_commit(sha, '%s'),
-          'body':
-              lib.show_commit(sha, '%b') + '\n' +
-              conflict_files_block(conflict['files']),
-      })
-      state = 'updated' if changed else 'unchanged'
-      lib.log(f'Conflict branch {branch}: {state}.')
-  finally:
-    lib.run(['git', 'checkout', '--quiet', clean_branch])
+  active_branch = None
+  if active:
+    branch = branch_for(active['id'])
+    active_branch = branch
+    old_sha = existing.get(branch)
 
-  wanted_branches = {branch_for(c['id']) for c in conflicted}
+    if old_sha and not lib.is_bot_conflict_branch(target, old_sha):
+      lib.log(f'Leaving {branch} alone: it has resolution commits.')
+      hands_off.append({'branch': branch})
+    else:
+      try:
+        conflict_sha = active['sha']
+        status, sha = build_conflict_branch(args, active, old_sha)
+        if status != lib.CommitStatus.CONFLICTED:
+          lib.log(f'Commit ({conflict_sha}) applies cleanly to {target}; '
+                  'it only conflicts with the pending autoroll branch.')
+          pending.append({
+              'id': active['id'],
+              'pr': active['pr'],
+              'reason':
+                  f'applies cleanly to {target} but conflicts with the '
+                  f'pending `{clean_branch}` roll; retried after it merges',
+          })
+          if old_sha:
+            delete.append({'branch': branch, 'old_sha': old_sha})
+        else:
+          changed = sha != old_sha
+          if changed:
+            lib.run(['git', 'branch', '--force', branch, sha])
+          conflicts.append({
+              'id':
+                  active['id'],
+              'pr':
+                  active['pr'],
+              'branch':
+                  branch,
+              'old_sha':
+                  old_sha or '',
+              'changed':
+                  changed,
+              'title':
+                  lib.show_commit(sha, '%s'),
+              'body':
+                  lib.show_commit(sha, '%b') + '\n' +
+                  conflict_files_block(active['files']),
+          })
+          state = 'updated' if changed else 'unchanged'
+          lib.log(f'Conflict branch {branch}: {state}.')
+      finally:
+        lib.run(['git', 'checkout', '--quiet', clean_branch])
+
+  # Clean up any other conflict branches that no longer match the active
+  # conflict.
   for branch, old_sha in sorted(existing.items()):
-    if branch in handled:
+    if branch == active_branch:
       continue
     suffix = branch[len(prefix):]
     if not suffix.isalnum():
       lib.log(f'Ignoring {branch}: not an autoroll conflict branch.')
       continue
-    if branch in wanted_branches:
-      # Still conflicting but over the cap; leave untouched.
-      continue
     if lib.is_bot_conflict_branch(target, old_sha):
-      lib.log(f'Deleting {branch}: no longer a conflicting candidate.')
+      lib.log(f'Deleting {branch}: no longer the active conflicting candidate.')
       delete.append({'branch': branch, 'old_sha': old_sha})
     else:
       lib.log(f'Leaving {branch} alone: no longer a conflicting candidate '

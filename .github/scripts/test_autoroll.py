@@ -86,9 +86,9 @@ Critical User Journeys (CUJs) Covered:
 - CUJ 19: Resolved Conflict Branch Is Left Alone
   A conflict branch with human (RESOLVED) commits is never rebuilt or deleted,
   even after the label is removed.
-- CUJ 20: Conflict Branch Cap
-  At most `--max-conflict-prs` conflict branches exist; existing branches keep
-  their slot and the remainder is reported as pending.
+- CUJ 20: Single Conflict Branch Limit
+  At most one conflict branch exists at a time per target; existing branches
+  keep their slot and additional conflicts are reported as pending.
 - CUJ 21: Label Removal From a Rolled PR Rebuilds the Clean Branch
   When a PR already on the clean branch loses its label, the clean branch is
   rebuilt from the target without it; an empty result is reported so the
@@ -99,9 +99,9 @@ Critical User Journeys (CUJs) Covered:
 - CUJ 23: Unrelated Target Move Keeps the Conflict Branch
   The conflict commit's patch id, not the whole tree, decides whether a
   conflict branch is rebuilt, so unrelated target changes cause no churn.
-- CUJ 24: Cap Counts Hands-off Branches
-  Conflict branches a human is resolving occupy a slot; further conflicts are
-  reported as pending until a slot frees up.
+- CUJ 24: Hands-off Conflict Branch Occupies the Slot
+  A conflict branch a human is resolving occupies the single conflict slot;
+  further conflicts are reported as pending until the slot frees up.
 - CUJ 25: Direct Commit Conflict in Full Mode
   A commit without a PR number that conflicts in full mode is committed on an
   autoroll-conflict-<src>-to-<tgt>-<sha[:10]> branch.
@@ -254,8 +254,7 @@ class TestAutorollIntegration(unittest.TestCase):
                          pr_label_map,
                          *,
                          target='27.lts',
-                         max_commits=10,
-                         max_conflict_prs=3):
+                         max_commits=10):
     """Runs autoroll in label mode and returns (exit_code, stdout, manifest).
     """
     prs_json = self.create_prs_json(pr_label_map)
@@ -273,8 +272,6 @@ class TestAutorollIntegration(unittest.TestCase):
         'label',
         '--prs-json',
         prs_json,
-        '--max-conflict-prs',
-        str(max_conflict_prs),
         '--manifest',
         manifest_path,
     ])
@@ -1260,8 +1257,7 @@ class TestAutorollIntegration(unittest.TestCase):
     self.assertEqual(manifest['delete'], [])
 
   def test_cuj20_conflict_branch_cap(self):
-    """CUJ 20: At most --max-conflict-prs branches; existing keep their slot.
-    """
+    """CUJ 20: At most one conflict branch exists; existing keeps its slot."""
     self.setup_conflict_scenario()
     self.git('checkout', 'main')
     for pr in (102, 103, 104):
@@ -1271,20 +1267,20 @@ class TestAutorollIntegration(unittest.TestCase):
 
     # #103 already has a conflict branch from an earlier run.
     labels = {pr: ['cp-27.lts'] for pr in (101, 102, 103, 104)}
-    exit_code, _, manifest = self.run_label_autoroll({103: ['cp-27.lts']},
-                                                     max_conflict_prs=2)
+    exit_code, _, manifest = self.run_label_autoroll({103: ['cp-27.lts']})
     self.assertEqual(exit_code, 0)
     self.assertEqual([c['pr'] for c in manifest['conflicts']], [103])
 
-    exit_code, stdout, manifest = self.run_label_autoroll(
-        labels, max_conflict_prs=2)
+    exit_code, stdout, manifest = self.run_label_autoroll(labels)
 
     self.assertEqual(exit_code, 0)
     self.assertEqual(stdout.strip(), '')
     self.assert_working_tree_clean()
-    self.assertEqual([c['pr'] for c in manifest['conflicts']], [103, 101])
-    self.assertEqual([p['pr'] for p in manifest['pending']], [102, 104])
-    self.assertIn('max 2', manifest['pending'][0]['reason'])
+    self.assertEqual([c['pr'] for c in manifest['conflicts']], [103])
+    self.assertEqual([p['pr'] for p in manifest['pending']], [101, 102, 104])
+    self.assertIn('waiting for existing conflict',
+                  manifest['pending'][0]['reason'])
+    self.assertIsNone(self.branch_sha('autoroll-conflict-main-to-27.lts-101'))
     self.assertIsNone(self.branch_sha('autoroll-conflict-main-to-27.lts-102'))
     self.assertIsNone(self.branch_sha('autoroll-conflict-main-to-27.lts-104'))
     self.assertEqual(manifest['delete'], [])
@@ -1399,15 +1395,14 @@ class TestAutorollIntegration(unittest.TestCase):
     self.assertFalse(manifest['conflicts'][0]['changed'])
 
   def test_cuj24_cap_counts_hands_off_branches(self):
-    """CUJ 24: Hands-off conflict branches occupy a slot; new ones wait."""
+    """CUJ 24: Hands-off conflict branch occupies the slot; new ones wait."""
     self.setup_conflict_scenario()
     self.git('checkout', 'main')
     self.commit_file('conflict.txt', 'line 1\nmain edit 2\n',
                      'Main edit 2 (#102)')
     self.git('checkout', 'autoroll-main-to-27.lts')
 
-    exit_code, _, manifest = self.run_label_autoroll({102: ['cp-27.lts']},
-                                                     max_conflict_prs=1)
+    exit_code, _, manifest = self.run_label_autoroll({102: ['cp-27.lts']})
     self.assertEqual(exit_code, 0)
     self.assertEqual([c['pr'] for c in manifest['conflicts']], [102])
     branch_102 = 'autoroll-conflict-main-to-27.lts-102'
@@ -1418,26 +1413,31 @@ class TestAutorollIntegration(unittest.TestCase):
                      'RESOLVED Cherry pick PR #102: Main edit 2')
     self.git('checkout', 'autoroll-main-to-27.lts')
 
-    # #101 is labeled too, but the only slot is taken by the hands-off branch.
-    exit_code, _, manifest = self.run_label_autoroll(
-        {
-            101: ['cp-27.lts'],
-            102: ['cp-27.lts']
-        }, max_conflict_prs=1)
+    # #101 is labeled too, but the slot is taken by the hands-off branch.
+    labels = {101: ['cp-27.lts'], 102: ['cp-27.lts']}
+    exit_code, _, manifest = self.run_label_autoroll(labels)
     self.assertEqual(exit_code, 0)
     self.assert_working_tree_clean()
     self.assertEqual(manifest['conflicts'], [])
     self.assertEqual(manifest['hands_off'], [{'branch': branch_102}])
     self.assertEqual([p['pr'] for p in manifest['pending']], [101])
-    self.assertIn('max 1', manifest['pending'][0]['reason'])
+    self.assertIn('waiting for existing conflict',
+                  manifest['pending'][0]['reason'])
     self.assertIsNone(self.branch_sha('autoroll-conflict-main-to-27.lts-101'))
 
-    # With a second slot #101 gets its branch.
-    exit_code, _, manifest = self.run_label_autoroll(
-        {
-            101: ['cp-27.lts'],
-            102: ['cp-27.lts']
-        }, max_conflict_prs=2)
+    # Once #102 lands in target, #101 gets the slot.
+    self.git('checkout', '27.lts')
+    main_sha2 = self.git('rev-parse', 'main').stdout.strip()
+    self.commit_cherry_pick(
+        'conflict.txt',
+        'line 1\nresolved\n',
+        pr_num=102,
+        title='Main edit 2',
+        sha=main_sha2)
+    self.git('checkout', 'autoroll-main-to-27.lts')
+    self.git('reset', '--hard', '27.lts')
+
+    exit_code, _, manifest = self.run_label_autoroll({101: ['cp-27.lts']})
     self.assertEqual(exit_code, 0)
     self.assertEqual([c['pr'] for c in manifest['conflicts']], [101])
     self.assertEqual(manifest['pending'], [])

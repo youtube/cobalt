@@ -116,14 +116,12 @@ jobs:
           set -x
 
           MANIFEST="${RUNNER_TEMP}/autoroll_manifest.json"
-          MAX_CONFLICT_PRS=$(jq -r '.max_conflict_prs' "${AUTOROLLER_DIR}/config/infra/autoroll.json")
           ARGS=(
             --source-branch "${SOURCE_BRANCH}"
             --target-branch "${TARGET_BRANCH}"
             --autoroll-file "${AUTOROLL_FILE}"
             --max-commits "${MAX_COMMITS}"
             --mode "${ROLL_MODE}"
-            --max-conflict-prs "${MAX_CONFLICT_PRS}"
             --manifest "${MANIFEST}"
           )
 
