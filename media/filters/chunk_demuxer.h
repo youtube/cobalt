@@ -29,12 +29,22 @@
 #include "media/filters/source_buffer_stream.h"
 #include "media/filters/stream_parser_factory.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include <utility>
+
+#include "media/base/media_switches.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace media {
 
 class SourceBufferStream;
 
 class AudioDecoderConfig;
 class VideoDecoderConfig;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+class SelectedTrackStream;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
  public:
@@ -144,6 +154,12 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
 
   bool IsEnabled() const;
   void SetEnabled(bool enabled, base::TimeDelta timestamp);
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Returns the callback and the requested buffer count of the pending Read(),
+  // if any, without running the callback.
+  std::pair<ReadCB, uint32_t> TakePendingRead();
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Sets the memory limit, in bytes, on the SourceBufferStream.
   void SetStreamMemoryLimit(size_t memory_limit);
@@ -536,6 +552,31 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
 
   void ChangeState_Locked(State new_state);
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Multi-SourceBuffer switching (see SetEnableMultiSourceBufferSwitching),
+  // defined in starboard/chunk_demuxer_starboard.cc.
+
+  // Returns true if a SourceBuffer can be added in the current state.
+  bool CanAddId_Locked() const;
+
+  // Returns the SelectedTrackStream of |type|, or null if the pipeline reads
+  // the ChunkDemuxerStreams directly.
+  SelectedTrackStream* GetSelectedTrackStream_Locked(
+      DemuxerStream::Type type) const;
+
+  // Completes initialization of a SourceBuffer that received its first
+  // initialization segment after the demuxer initialized.
+  void InitializeLateSource_Locked(const std::string& source_id,
+                                   const StreamParser::InitParameters& params);
+
+  // Returns true if a stream of the SourceBuffer |source_id| is enabled.
+  bool IsSourceActive_Locked(const std::string& source_id) const;
+
+  // Returns true if the SourceBuffer |source_id| counts toward buffered ranges
+  // and seek completion.
+  bool IsSourceUsedForPlayback_Locked(const std::string& source_id) const;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   // Reports an error and puts the demuxer in a state where it won't accept more
   // data.
   void ReportError_Locked(PipelineStatus error);
@@ -655,6 +696,22 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
       track_id_to_demux_stream_map_;
 
   bool supports_change_type_ = true;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Whether multi-SourceBuffer switching was enabled when this demuxer was
+  // created.
+  const bool multi_source_buffer_switching_ =
+      IsMultiSourceBufferSwitchingEnabled();
+
+  // True from StartReturningData() until the next AbortPendingReads_Locked(),
+  // while the streams return data instead of waiting for a seek.
+  bool returning_data_ = false;
+
+  // Declared after the ChunkDemuxerStreams they refer to, so that they are
+  // destroyed first.
+  std::unique_ptr<SelectedTrackStream> selected_audio_stream_;
+  std::unique_ptr<SelectedTrackStream> selected_video_stream_;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 }  // namespace media
