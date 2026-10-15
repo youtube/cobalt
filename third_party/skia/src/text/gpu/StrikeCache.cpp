@@ -168,35 +168,6 @@ uint32_t StrikeCache::HashTraits::Hash(const SkDescriptor& descriptor) {
     return descriptor.getChecksum();
 }
 
-<<<<<<< HEAD
-=======
-TextStrike::TextStrike(StrikeCache* strikeCache, const SkStrikeSpec& strikeSpec)
-        : fStrikeCache(strikeCache)
-        , fStrikeSpec{strikeSpec} {}
-
-Glyph* TextStrike::getGlyph(SkPackedGlyphID packedGlyphID, skgpu::MaskFormat format) {
-    GlyphKey key(packedGlyphID, format);
-    Glyph* glyph = fCache.findOrNull(key);
-    if (glyph == nullptr) {
-        glyph = fAlloc.make<Glyph>(packedGlyphID, format);
-        fCache.set(glyph);
-        fMemoryUsed += sizeof(Glyph);
-        if (!fRemoved) {
-            fStrikeCache->fTotalMemoryUsed += sizeof(Glyph);
-        }
-    }
-    return glyph;
-}
-
-const GlyphKey TextStrike::HashTraits::GetKey(const Glyph* glyph) {
-    return GlyphKey(glyph->fPackedID, glyph->fMaskFormat);
-}
-
-uint32_t TextStrike::HashTraits::Hash(GlyphKey key) {
-    return key.fID.hash();
-}
-
->>>>>>> parent of 9f74401d172 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }  // namespace sktext::gpu
 
 namespace sktext {

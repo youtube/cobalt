@@ -40,8 +40,14 @@ DeltaPatchOperation::DeltaPatchOperation(
     int expected_success_result,
     const base::FilePath& patch_file,
     int event_type,
+#if BUILDFLAG(IS_STARBOARD)
+    const OperationResult& patch_operation_result,
+    base::OnceCallback<void(base::expected<OperationResult, CategorizedError>)>
+        callback)
+#else
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
         callback)
+#endif  // BUILDFLAG(IS_STARBOARD)
     : crx_cache_(crx_cache),
       event_adder_(event_adder),
       state_tracker_(state_tracker),
@@ -51,7 +57,11 @@ DeltaPatchOperation::DeltaPatchOperation(
       expected_success_result_(expected_success_result),
       patch_file_(patch_file),
       event_type_(event_type),
-      callback_(std::move(callback)) {}
+#if BUILDFLAG(IS_STARBOARD)
+      patch_operation_result_(patch_operation_result),
+#endif  // BUILDFLAG(IS_STARBOARD)
+      callback_(std::move(callback)) {
+}
 
 DeltaPatchOperation::~DeltaPatchOperation() = default;
 
@@ -108,7 +118,11 @@ void DeltaPatchOperation::VerifyAndCleanUp(const base::FilePath& new_file,
   RetryFileOperation(&base::DeleteFile, patch_file_);
 
   const auto expected_filepath =
+#if BUILDFLAG(IS_STARBOARD)
+      [&] -> base::expected<OperationResult, CategorizedError> {
+#else
       [&] -> base::expected<base::FilePath, CategorizedError> {
+#endif  // BUILDFLAG(IS_STARBOARD)
     if (result != expected_success_result_) {
       return base::unexpected<CategorizedError>(
           {.category = ErrorCategory::kUnpack,
@@ -122,7 +136,16 @@ void DeltaPatchOperation::VerifyAndCleanUp(const base::FilePath& new_file,
            .code = std::to_underlying(UnpackerError::kPatchOutHashMismatch)});
     }
 
+#if BUILDFLAG(IS_STARBOARD)
+    OperationResult new_result = patch_operation_result_;
+#if !defined(IN_MEMORY_UPDATES)
+    // In-memory updates shouldn't reach this code path.
+    new_result.response = new_file;
+#endif
+    return new_result;
+#else
     return new_file;
+#endif  // BUILDFLAG(IS_STARBOARD)
   }();
 
   if (!expected_filepath.has_value()) {
@@ -134,8 +157,13 @@ void DeltaPatchOperation::VerifyAndCleanUp(const base::FilePath& new_file,
       base::BindOnce(&DeltaPatchOperation::PatchDone, this, expected_filepath));
 }
 
+#if BUILDFLAG(IS_STARBOARD)
+void DeltaPatchOperation::PatchDone(
+    base::expected<OperationResult, CategorizedError> result) {
+#else
 void DeltaPatchOperation::PatchDone(
     base::expected<base::FilePath, CategorizedError> result) {
+#endif  // BUILDFLAG(IS_STARBOARD)
   event_adder_.Run(MakeSimpleOperationEvent(result, event_type_));
   std::move(callback_).Run(result);
 }

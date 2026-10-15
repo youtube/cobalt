@@ -31,6 +31,16 @@ Always run the pretty print utility on this file after editing:
 
 <histograms>
 
+<variants name="DomStorageBackingStoreLifetime">
+  <variant name="InMemory" summary="in-memory database"/>
+  <variant name="OnDisk" summary="on-disk database"/>
+</variants>
+
+<variants name="DomStorageType">
+  <variant name="LocalStorage" summary="local storage"/>
+  <variant name="SessionStorage" summary="session storage"/>
+</variants>
+
 <histogram name="Android.MemoryPressureNotification{AndroidProcessType}"
     enum="Android.MemoryPressureNotification" expires_after="never">
   <owner>sideboard@google.com</owner>
@@ -306,47 +316,6 @@ Always run the pretty print utility on this file after editing:
   <owner>yuying@google.com</owner>
   <owner>cobalt-team@google.com</owner>
   <summary>Status of slot selection by the Loader App.</summary>
-</histogram>
-
-<histogram name="Cobalt.LocalStorage.DatabaseCommitError" enum="LevelDBStatus"
-    expires_after="never">
-  <owner>colinliang@google.com</owner>
-  <summary>
-    Records the leveldb error when a commit fails in Local Storage.
-  </summary>
-</histogram>
-
-<histogram name="Cobalt.LocalStorage.DatabaseOpenError" enum="LevelDBStatus"
-    expires_after="never">
-  <owner>colinliang@google.com</owner>
-  <summary>
-    Records the leveldb error when opening the Local Storage database fails.
-  </summary>
-</histogram>
-
-<histogram name="Cobalt.LocalStorage.DatabaseReadError" enum="LevelDBStatus"
-    expires_after="never">
-  <owner>colinliang@google.com</owner>
-  <summary>
-    Records the leveldb error when a read fails in Local Storage.
-  </summary>
-</histogram>
-
-<histogram name="Cobalt.LocalStorage.DatabaseResetReason"
-    enum="LocalStorageDatabaseResetReason" expires_after="never">
-  <owner>charleykim@google.com</owner>
-  <summary>
-    Records the reason why the Local Storage database was reset.
-  </summary>
-</histogram>
-
-<histogram name="Cobalt.LocalStorage.DatabaseVersionMismatch"
-    enum="LevelDBStatus" expires_after="never">
-  <owner>colinliang@google.com</owner>
-  <summary>
-    Records the leveldb status when a version mismatch is detected in Local
-    Storage.
-  </summary>
 </histogram>
 
 <histogram name="Cobalt.Media.Android.DecoderFramework"
@@ -805,6 +774,52 @@ Always run the pretty print utility on this file after editing:
   <owner>tasunny@google.com</owner>
   <summary>
     Records the net error code for every primary main frame navigation failure.
+  </summary>
+</histogram>
+
+<histogram
+    name="Cobalt.{DomStorageType}.DatabaseCommitError.{DomStorageBackingStoreLifetime}"
+    enum="DomStorageDbStatusType" expires_after="never">
+  <owner>colinliang@google.com</owner>
+  <summary>
+    Records the database error when a commit fails in {DomStorageType}.
+  </summary>
+</histogram>
+
+<histogram
+    name="Cobalt.{DomStorageType}.DatabaseOpenError.{DomStorageBackingStoreLifetime}"
+    enum="DomStorageDbStatusType" expires_after="never">
+  <owner>colinliang@google.com</owner>
+  <summary>
+    Records the database error when opening the {DomStorageType} database fails.
+  </summary>
+</histogram>
+
+<histogram
+    name="Cobalt.{DomStorageType}.DatabaseReadError.{DomStorageBackingStoreLifetime}"
+    enum="DomStorageDbStatusType" expires_after="never">
+  <owner>colinliang@google.com</owner>
+  <summary>
+    Records the leveldb error when a read fails in {DomStorageType}.
+  </summary>
+</histogram>
+
+<histogram
+    name="Cobalt.{DomStorageType}.DatabaseResetReason.{DomStorageBackingStoreLifetime}"
+    enum="LocalStorageDatabaseResetReason" expires_after="never">
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the reason why the {DomStorageType} database was reset.
+  </summary>
+</histogram>
+
+<histogram
+    name="Cobalt.{DomStorageType}.DatabaseVersionMismatch.{DomStorageBackingStoreLifetime}"
+    enum="DomStorageDbStatusType" expires_after="never">
+  <owner>colinliang@google.com</owner>
+  <summary>
+    Records the leveldb status when a version mismatch is detected in
+    {DomStorageType}.
   </summary>
 </histogram>
 

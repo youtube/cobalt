@@ -273,6 +273,7 @@ if (is_cobalt) {
     "*blob_event*",
     "*v8_media_recorder.*",
     "*v8_recording_state*",
+    "*v8_resolve_redirect_request_method*",
   ]
 
   cobalt_hardware_exclude_patterns = [

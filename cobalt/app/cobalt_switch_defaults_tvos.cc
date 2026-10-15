@@ -17,9 +17,9 @@
 #include "cobalt/shell/common/shell_switches.h"
 #include "content/public/common/content_switches.h"
 #include "gpu/config/gpu_switches.h"
+#include "media/audio/audio_features.h"
 #include "media/base/media_switches.h"
 #include "sandbox/policy/switches.h"
-#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/switches.h"
 #include "ui/gl/gl_switches.h"
 
@@ -74,7 +74,7 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
       {::switches::kAutoplayPolicy,
        ::switches::autoplay::kNoUserGestureRequiredPolicy},
       {::switches::kEnableFeatures,
-       blink::features::kWebAudioRemoveAudioDestinationResampler.name},
+       ::features::kWebAudioRemoveAudioDestinationResampler.name},
   });
   return kCobaltSwitchDefaults;
 }
