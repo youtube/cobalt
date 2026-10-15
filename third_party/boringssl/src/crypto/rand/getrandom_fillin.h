@@ -22,11 +22,8 @@
 
 #include <sys/syscall.h>
 
-<<<<<<< HEAD
 // TODO(crbug.com/446280907): Can we assume that __NR_getrandom is defined?
-=======
 #if !defined(STARBOARD)
->>>>>>> parent of 635d5d99b6e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #if defined(OPENSSL_X86_64)
 #define EXPECTED_NR_getrandom 318
 #elif defined(OPENSSL_X86)

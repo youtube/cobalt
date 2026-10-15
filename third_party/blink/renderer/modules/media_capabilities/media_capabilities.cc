@@ -272,12 +272,8 @@ bool IsValidMimeType(const String& content_type,
   if (parameters.ParameterCount() == 0)
     return true;
 
-<<<<<<< HEAD
   return EqualIgnoringAsciiCase(parameters.begin()->name, kCodecsMimeTypeParam);
-=======
-  return EqualIgnoringASCIICase(parameters.begin()->name, kCodecsMimeTypeParam);
-#endif // BUILDFLAG(IS_COBALT)
->>>>>>> parent of 635d5d99b6e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+#endif  // BUILDFLAG(IS_COBALT)
 }
 
 bool IsValidMediaConfiguration(const MediaConfiguration* configuration) {

@@ -181,11 +181,10 @@ class CORE_EXPORT HTMLVideoElement final
   // HTMLMediaElement overrides.
   void OnEncryptedMediaInitData() final;
 
-<<<<<<< HEAD
-  bool poster_deferred_for_lazy_load_for_tests() const {
+bool poster_deferred_for_lazy_load_for_tests() const {
     return poster_deferred_for_lazy_load_;
   }
-=======
+
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   void SetMaxVideoCapabilities(const String& max_video_capabilities, ExceptionState& exception_state);
   void SetMaxVideoResolution(const String& max_video_resolution, ExceptionState& exception_state);
@@ -198,7 +197,6 @@ class CORE_EXPORT HTMLVideoElement final
 
   bool HasMaxVideoCapabilities() const { return !max_video_capabilities_.empty(); }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of 635d5d99b6e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
  protected:
   // EventTarget overrides.

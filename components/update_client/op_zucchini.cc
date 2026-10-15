@@ -23,8 +23,6 @@
 
 namespace update_client {
 
-<<<<<<< HEAD
-=======
 namespace {
 
 // The sequence of calls is:
@@ -172,8 +170,6 @@ void CacheLookupDone(
 #endif  // !defined(IN_MEMORY_UPDATES)
 
 }  // namespace
-
->>>>>>> parent of 635d5d99b6e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 base::OnceClosure ZucchiniOperation(
     scoped_refptr<CrxCache> crx_cache,
     scoped_refptr<Patcher> patcher,
@@ -189,8 +185,7 @@ base::OnceClosure ZucchiniOperation(
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
 #endif
         callback) {
-<<<<<<< HEAD
-  base::MakeRefCounted<DeltaPatchOperation>(
+base::MakeRefCounted<DeltaPatchOperation>(
       crx_cache, event_adder, state_tracker, previous_hash,
       base::File::FLAG_CREATE | base::File::FLAG_READ | base::File::FLAG_WRITE |
           base::File::FLAG_WIN_EXCLUSIVE_WRITE |
@@ -199,30 +194,6 @@ base::OnceClosure ZucchiniOperation(
       output_hash, 0, patch_file, protocol_request::kEventZucchini,
       std::move(callback))
       ->Operation(base::BindOnce(&Patcher::PatchZucchini, patcher));
-=======
-#if defined(IN_MEMORY_UPDATES)
-  LOG(ERROR) << "Zucchini delta patching Operation not supported with Cobalt IN_MEMORY_UPDATES";
-  PatchDone(std::move(callback), event_adder,
-            base::unexpected<CategorizedError>(
-                {.category = ErrorCategory::kUnpack,
-                 .code = static_cast<int>(UnpackerError::kDeltaOperationFailure)}));
-  return base::DoNothing();
-#else
-#if BUILDFLAG(IS_STARBOARD)
-  const base::FilePath& patch_file = patch_operation_result.response;
-#endif
-  state_tracker.Run(ComponentState::kPatching);
-  crx_cache->GetByHash(
-      previous_hash,
-      base::BindOnce(&CacheLookupDone, patcher, patch_file,
-#if BUILDFLAG(IS_STARBOARD)
-                     patch_file.DirName(), output_hash, patch_operation_result,
-#else
-                     patch_file.DirName(), output_hash,
-#endif
-                     base::BindPostTaskToCurrentDefault(base::BindOnce(
-                         &PatchDone, std::move(callback), event_adder))));
->>>>>>> parent of 635d5d99b6e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   return base::DoNothing();
 #endif  // defined(IN_MEMORY_UPDATES)
 }

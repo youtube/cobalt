@@ -141,13 +141,13 @@ class JNI_ZERO_COMPONENT_BUILD_EXPORT JniJavaCallContext {
   jmethodID method_id_;
 };
 
-<<<<<<< HEAD
 // Create an instance of JavaRef<T> without DCHECK'ing that it is a local ref.
 // Should only be used by the JNI Zero code generator.
 template <typename T>
 JavaRef<T> AsJavaRef(const T& obj) {
   return JavaRef<T>(obj);
-=======
+}
+
 // Returns whether |Func| can be called with |Args|. The generated _jni.h files
 // use it to choose between the JNI function overloads with and without the
 // leading JNIEnv* parameter.
@@ -161,7 +161,6 @@ constexpr bool IsInvocable(Func&& func, Args&&... args) {
 #else
   return requires { func(std::forward<Args>(args)...); };
 #endif
->>>>>>> parent of 635d5d99b6e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 }  // namespace jni_zero::internal

@@ -144,14 +144,10 @@ public:
     // the sub runs.
     int unflattenSize() const { return Size(fGlyphs.size()); }
 
-<<<<<<< HEAD
-    bool hasBackendData() const {
+bool hasBackendData() const {
         SkASSERT(SkToBool(fBackendDataReleaser) == SkToBool(fGetGlyphID));
         return SkToBool(fBackendDataReleaser);
     }
-=======
-    void packedGlyphIDToGlyph(StrikeCache* cache, skgpu::MaskFormat format);
->>>>>>> parent of 635d5d99b6e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
     template <GlyphVector_Concepts::BackendData B> const B& accessBackendData() const {
         SkASSERT(this->hasBackendData());
