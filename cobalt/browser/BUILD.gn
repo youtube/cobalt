@@ -267,7 +267,7 @@ if (is_starboard || is_androidtv) {
     deps = [
       ":global_features",
       "//base",
-      "//cobalt/browser/h5vcc_native_stability:h5vcc_native_stability",
+      "//cobalt/browser/h5vcc_native_stability",
       "//cobalt/build/configs:buildflags",
       "//starboard:starboard_headers_only",
     ]
@@ -307,6 +307,14 @@ source_set("metrics") {
     "//third_party/metrics_proto",
     "//url",
   ]
+
+  if (is_android) {
+    sources += [
+      "metrics/cobalt_process_state_summary_manager.cc",
+      "metrics/cobalt_process_state_summary_manager.h",
+    ]
+    deps += [ "//cobalt/android:cobalt_process_state_summary_jni" ]
+  }
 }
 
 source_set("command_line_logger") {
