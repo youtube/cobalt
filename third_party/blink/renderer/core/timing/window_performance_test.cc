@@ -2167,7 +2167,6 @@ TEST_P(InteractionIdTest, ClickIncorrectPointerId) {
   CheckUKMValues({{40, UserInteractionType::kTapOrClick}});
 }
 
-<<<<<<< HEAD
 TEST_P(InteractionIdTest, ContextMenu) {
   PointerId pointer_id = 4;
 
@@ -2272,7 +2271,6 @@ TEST_P(InteractionIdTest, FirstInputInteractionIdCrash) {
   EXPECT_GT(firstInput->interactionId(), 0u);
 }
 
-=======
 #if BUILDFLAG(IS_COBALT)
 TEST_P(WindowPerformanceTest, QueueCobaltFrameTimingWithoutObserver) {
   viz::FrameTimingDetails details;
@@ -2441,7 +2439,6 @@ TEST_P(WindowPerformanceTest, CobaltFrameTimingNullDrawStart) {
 }
 #endif
 
->>>>>>> parent of 812d05034e5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 INSTANTIATE_TEST_SUITE_P(All, InteractionIdTest, ::testing::Bool());
 
 class WindowPerformanceNavigationIdTest : public testing::Test {
