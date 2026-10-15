@@ -559,6 +559,10 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // Returns true if a SourceBuffer can be added in the current state.
   bool CanAddId_Locked() const;
 
+  // Returns false, after logging why, if a pending track switch changes the
+  // codec of a stream and SbMediaCanChangeType() rejects the change.
+  bool CanCompleteTrackSwitches_Locked() const;
+
   // Returns the SelectedTrackStream of |type|, or null if the pipeline reads
   // the ChunkDemuxerStreams directly.
   SelectedTrackStream* GetSelectedTrackStream_Locked(

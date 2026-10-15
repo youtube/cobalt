@@ -58,6 +58,10 @@ class SelectedTrackStream final : public DemuxerStream {
   // Returns the stream that serves the reads.
   ChunkDemuxerStream* stream() const;
 
+  // Returns the stream whose config the renderer has. After SwitchTo(), this
+  // is the previous stream until a read returns kConfigChanged.
+  ChunkDemuxerStream* served_stream() const;
+
   // Makes |stream| serve the reads, starting after the next seek. A read that
   // is pending on the previous stream is held until then, instead of being
   // completed with the end of stream when the previous stream is disabled.
@@ -78,6 +82,8 @@ class SelectedTrackStream final : public DemuxerStream {
   const Type type_;
   mutable base::Lock lock_;
   raw_ptr<ChunkDemuxerStream> stream_ GUARDED_BY(lock_);
+  // See served_stream().
+  raw_ptr<ChunkDemuxerStream> served_stream_ GUARDED_BY(lock_);
   // A read held by this object rather than forwarded to |stream_|.
   ReadCB read_cb_ GUARDED_BY(lock_);
   uint32_t read_count_ GUARDED_BY(lock_) = 0;

@@ -602,6 +602,15 @@ void ChunkDemuxer::Seek(base::TimeDelta time, PipelineStatusCallback cb) {
     return;
   }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Track switches take effect at this seek. Fail it instead of switching to
+  // a stream whose codec the SbPlayer can't change to.
+  if (!CanCompleteTrackSwitches_Locked()) {
+    ReportError_Locked(PIPELINE_ERROR_DECODE);
+    return;
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   SeekAllSources(time);
   StartReturningData();
 

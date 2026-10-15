@@ -27,7 +27,7 @@
 namespace media {
 
 SelectedTrackStream::SelectedTrackStream(Type type, ChunkDemuxerStream* stream)
-    : type_(type), stream_(stream) {
+    : type_(type), stream_(stream), served_stream_(stream) {
   DCHECK(stream_);
   DCHECK_EQ(stream_->type(), type_);
 }
@@ -78,6 +78,11 @@ ChunkDemuxerStream* SelectedTrackStream::stream() const {
   return stream_;
 }
 
+ChunkDemuxerStream* SelectedTrackStream::served_stream() const {
+  base::AutoLock auto_lock(lock_);
+  return served_stream_;
+}
+
 void SelectedTrackStream::SwitchTo(ChunkDemuxerStream* stream) {
   base::AutoLock auto_lock(lock_);
   DCHECK(stream);
@@ -123,6 +128,7 @@ void SelectedTrackStream::ServeRead_Locked() {
   DCHECK(read_cb_);
   if (config_change_pending_) {
     config_change_pending_ = false;
+    served_stream_ = stream_;
     std::move(read_cb_).Run(kConfigChanged, {});
     return;
   }

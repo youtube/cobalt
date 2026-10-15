@@ -50,6 +50,7 @@
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "base/test/bind.h"
+#include "media/base/starboard/sbmedia_interface.h"
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 using ::testing::AnyNumber;
@@ -5245,6 +5246,162 @@ TEST_F(ChunkDemuxerMultiSourceBufferTest, ShutdownEndsHeldRead) {
   EXPECT_TRUE(read_done);
 }
 
+namespace {
+
+constexpr char kVp8MimeType[] = "video/webm; codecs=\"vp8\"";
+constexpr char kVp9MimeType[] = "video/webm; codecs=\"vp9\"";
+
+// Same as the mock in media/base/starboard/mime_util_starboard_unittest.cc.
+class MockSbMediaInterface : public SbMediaInterface {
+ public:
+  MockSbMediaInterface() = default;
+  ~MockSbMediaInterface() override = default;
+
+  MOCK_METHOD(SbMediaSupportType,
+              CanPlayMimeAndKeySystem,
+              (const char* mime, const char* key_system),
+              (const, override));
+  MOCK_METHOD(bool,
+              CanChangeType,
+              (const char* current_mime, const char* new_mime),
+              (const, override));
+  MOCK_METHOD(int, GetAudioOutputCount, (), (const, override));
+  MOCK_METHOD(bool,
+              GetAudioConfiguration,
+              (int output_index, SbMediaAudioConfiguration* out_configuration),
+              (const, override));
+  MOCK_METHOD(int, GetBufferAllocationUnit, (), (const, override));
+  MOCK_METHOD(int, GetAudioBufferBudget, (), (const, override));
+  MOCK_METHOD(int64_t,
+              GetBufferGarbageCollectionDurationThreshold,
+              (),
+              (const, override));
+  MOCK_METHOD(int, GetInitialBufferCapacity, (), (const, override));
+  MOCK_METHOD(bool, IsBufferPoolAllocateOnDemand, (), (const, override));
+  MOCK_METHOD(int,
+              GetVideoBufferBudget,
+              (SbMediaVideoCodec codec,
+               int resolution_width,
+               int resolution_height,
+               int bits_per_pixel),
+              (const, override));
+};
+
+// Tests that a switch to a stream of another codec only takes effect if
+// SbMediaCanChangeType() supports the change.
+class ChunkDemuxerCodecSwitchTest : public ChunkDemuxerMultiSourceBufferTest {
+ protected:
+  ~ChunkDemuxerCodecSwitchTest() override {
+    SetSbMediaInterfaceForTesting(nullptr);
+  }
+
+  // Adds the SourceBuffer |id| with the MIME type of |codec|, VP8 or VP9,
+  // which the demuxer passes to SbMediaCanChangeType(). Then appends an
+  // initialization segment and the video |blocks|, and returns the id of the
+  // track.
+  MediaTrack::Id AddVideoSource(const std::string& id,
+                                VideoCodec codec,
+                                const std::string& blocks) {
+    const bool is_vp9 = codec == VideoCodec::kVP9;
+    EXPECT_EQ(demuxer_->AddId(id, is_vp9 ? kVp9MimeType : kVp8MimeType),
+              ChunkDemuxer::kOk);
+    demuxer_->SetTracksWatcher(id, init_segment_received_cb_);
+    demuxer_->SetParseWarningCallback(
+        id,
+        base::BindRepeating(&ChunkDemuxerCodecSwitchTest::OnParseWarningMock,
+                            base::Unretained(this)));
+
+    base::HeapArray<uint8_t> init_segment;
+    CreateInitSegment(HAS_VIDEO, false, false, &init_segment);
+    if (is_vp9) {
+      // Makes the VP8 track a VP9 track.
+      std::string_view data(reinterpret_cast<const char*>(init_segment.data()),
+                            init_segment.size());
+      const size_t codec_id = data.find("V_VP8");
+      CHECK_NE(codec_id, std::string_view::npos);
+      init_segment[codec_id + 4] = '9';
+    }
+    MediaTrack::Id track_id;
+    EXPECT_FOUND_CODEC_NAME(Video, GetCodecName(codec));
+    EXPECT_CALL(*this, InitSegmentReceivedMock(_))
+        .WillOnce([&track_id](std::unique_ptr<MediaTracks>& tracks) {
+          ASSERT_EQ(tracks->tracks().size(), 1u);
+          track_id = tracks->tracks()[0]->track_id();
+        });
+    EXPECT_TRUE(AppendData(id, init_segment));
+    AppendSingleStreamCluster(id, kVideoTrackNum, blocks);
+    return track_id;
+  }
+
+  // Plays "video1", with VP8 video in [0,99), and selects the track of
+  // "video2", with |codec| video in [0,120), which plays from the next seek.
+  void SelectVideo2(VideoCodec codec) {
+    EXPECT_CALL(*this, DemuxerOpened());
+    demuxer_->Initialize(
+        &host_, CreateInitDoneCallback(kDefaultDuration(), PIPELINE_OK));
+    AddSourceWithOneTrack("audio1", HAS_AUDIO);
+    AddVideoSource("video1", VideoCodec::kVP8, "0K 33K 66D33K");
+    AppendSingleStreamCluster("audio1", kAudioTrackNum, "0K 23K 46D23K");
+    SelectTrack(DemuxerStream::VIDEO,
+                AddVideoSource("video2", codec, "0K 40K 80D40K"));
+
+    // Only now, as appends also query Starboard, for memory limits.
+    SetSbMediaInterfaceForTesting(&sb_media_interface_);
+  }
+
+  ::testing::NiceMock<MockSbMediaInterface> sb_media_interface_;
+};
+
+TEST_F(ChunkDemuxerCodecSwitchTest, SameCodecDoesNotQueryStarboard) {
+  SelectVideo2(VideoCodec::kVP8);
+  EXPECT_CALL(sb_media_interface_, CanChangeType(_, _)).Times(0);
+
+  Seek(base::TimeDelta());
+  ExpectConfigChanged(DemuxerStream::VIDEO);
+  CheckExpectedBuffers(GetStream(DemuxerStream::VIDEO), "0K 40K 80K");
+}
+
+TEST_F(ChunkDemuxerCodecSwitchTest, SupportedCodecChange) {
+  SelectVideo2(VideoCodec::kVP9);
+  EXPECT_CALL(sb_media_interface_,
+              CanChangeType(::testing::StrEq(kVp8MimeType),
+                            ::testing::StrEq(kVp9MimeType)))
+      .WillOnce(Return(true));
+
+  Seek(base::TimeDelta());
+  DemuxerStream* video_stream = GetStream(DemuxerStream::VIDEO);
+  ExpectConfigChanged(DemuxerStream::VIDEO);
+  EXPECT_EQ(video_stream->video_decoder_config().codec(), VideoCodec::kVP9);
+  CheckExpectedBuffers(video_stream, "0K 40K 80K");
+
+  // The renderer has the config of "video2" now, so the next seek doesn't
+  // query Starboard again.
+  Seek(base::TimeDelta());
+}
+
+TEST_F(ChunkDemuxerCodecSwitchTest, UnsupportedCodecChangeFailsSeek) {
+  SelectVideo2(VideoCodec::kVP9);
+  EXPECT_CALL(sb_media_interface_,
+              CanChangeType(::testing::StrEq(kVp8MimeType),
+                            ::testing::StrEq(kVp9MimeType)))
+      .WillOnce(Return(false));
+  EXPECT_MEDIA_LOG(HasSubstr("SourceBuffer switch rejected: vp8 ("));
+
+  // A read that waits for the seek gets the end of stream, instead of a
+  // config change to "video2".
+  demuxer_->StartWaitingForSeek(base::TimeDelta());
+  bool read_done = false;
+  GetStream(DemuxerStream::VIDEO)
+      ->Read(1, base::BindOnce(&OnReadDone_LastBufferEOSExpected, &read_done));
+  demuxer_->Seek(base::TimeDelta(), NewExpectedStatusCB(PIPELINE_ERROR_DECODE));
+  base::RunLoop().RunUntilIdle();
+  EXPECT_TRUE(read_done);
+
+  // So do later reads.
+  ExpectEndOfStream(DemuxerStream::VIDEO);
+}
+
+}  // namespace
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 // TODO(servolk): Add a unit test with multiple audio/video tracks using the
