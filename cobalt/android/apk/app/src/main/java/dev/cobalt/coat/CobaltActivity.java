@@ -93,8 +93,6 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   @SuppressWarnings("unused")
   private CobaltA11yHelper mA11yHelper;
 
-  private boolean mForceCreateNewVideoSurfaceView;
-
   private ShellManager mShellManager;
   private ActivityWindowAndroid mWindowAndroid;
   private Intent mLastSentIntent;
@@ -581,9 +579,6 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     }
     if (mIsCobaltUsingAndroidOverlay) {
       Log.i(TAG, "Use AndroidOverlay for Video SurfaceView.");
-    } else if (mForceCreateNewVideoSurfaceView) {
-      Log.w(TAG, "Force to create a new video surface.");
-      createNewSurfaceView();
     }
 
     DisplayUtil.cacheDefaultDisplay(this);
@@ -667,14 +662,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     // process is killed while the app is in the background.
     CobaltContentBrowserClient.flushCookiesAndLocalStorage();
 
-    if (VideoSurfaceView.getCurrentSurface() != null) {
-      mForceCreateNewVideoSurfaceView = true;
-    }
     MemoryPressureMonitor.INSTANCE.disablePolling();
-
-    // Set the SurfaceView to fullscreen.
-    View rootView = getWindow().getDecorView();
-    setVideoSurfaceBounds(0, 0, rootView.getWidth(), rootView.getHeight());
   }
 
   @Override
