@@ -1523,17 +1523,10 @@ TEST_P(ResourceFetcherTest, DuplicatePreloadAllowsPriorityChange) {
 class ResourceFetcherStrongReferenceThresholdTest : public ResourceFetcherTest {
  public:
   // Upper and lower bound for the size of a resource. The actual size is the
-<<<<<<< HEAD
   // sum of overhead (between 3700 and 5000 bytes, varies by platform) and
-  // encoded length (103 bytes for `kTestResourcefilename`)
-  constexpr size_t kMockResourceSizeLowerBound = 3700 + 103;
-  constexpr size_t kMockResourceSizeUpperBound = 5000 + 103;
-=======
-  // sum of overhead (between 3700 and 4800 bytes, varies by platform) and
   // encoded length (103 bytes for `kTestResourceFilename`)
   static constexpr size_t kMockResourceSizeLowerBound = 3700 + 103;
-  static constexpr size_t kMockResourceSizeUpperBound = 4800 + 103;
->>>>>>> parent of b1c356e9a3e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+  static constexpr size_t kMockResourceSizeUpperBound = 5000 + 103;
 
   // Set up the strong reference feature so that the memory cache can keep
   // strong references to 2 resources, but not 3.
