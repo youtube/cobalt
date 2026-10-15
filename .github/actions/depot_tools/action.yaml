@@ -133,13 +133,18 @@ runs:
       run: |
         set -euo pipefail
         deps_match=false
-        LOWER_DIR="/runner-cache/golden-workspace/${PLATFORM}"
+        src_match=true
+        LOWER_DIR="/runner-cache/golden-workspace/gclient/${PLATFORM}"
 
-        if cmp -s "${LOWER_DIR}/src/DEPS" src/DEPS && cmp -s "${LOWER_DIR}/.gclient" .gclient; then
+        if [ -f src/build/config/gclient_args.gni ] && cmp -s "${LOWER_DIR}/src/DEPS" src/DEPS && cmp -s "${LOWER_DIR}/.gclient" .gclient; then
           echo "Golden workspace DEPS and .gclient match. Skipping gclient sync."
           deps_match=true
         fi
+        if [ "${PLATFORM}" = "linux-x64x11" ] && ! cmp -s "/runner-cache/golden-workspace/src/src/DEPS" src/DEPS; then
+          src_match=false
+        fi
         echo "deps_match=${deps_match}" >> "${GITHUB_OUTPUT}"
+        echo "src_match=${src_match}" >> "${GITHUB_OUTPUT}"
 
     - name: Clean dirty sub-repositories
       shell: bash
@@ -182,27 +187,46 @@ runs:
       # no usable snapshot existed), and only from one config per platform: the
       # snapshot is taken before the build, so its content is config-independent.
       id: publish-snapshot
-      if: inputs.run_sync == 'true' && steps.check-deps.outputs.deps_match != 'true' && matrix.config == 'devel' && github.event_name == 'push' && (github.repository == 'youtube/cobalt' || github.repository == 'youtube/cobalt_sandbox')
+      if: inputs.run_sync == 'true' && (steps.check-deps.outputs.deps_match != 'true' || steps.check-deps.outputs.src_match != 'true') && matrix.config == 'devel' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && (github.repository == 'youtube/cobalt' || github.repository == 'youtube/cobalt_sandbox')
       shell: bash
       working-directory: cobalt
       env:
         PLATFORM: ${{ inputs.platform || matrix.platform }}
+        DEPS_MATCH: ${{ steps.check-deps.outputs.deps_match }}
+        SRC_MATCH: ${{ steps.check-deps.outputs.src_match }}
       run: |
         set -euo pipefail
         BUCKET="$(gcloud config get-value project)-test-artifacts/golden-workspace"
         ARCHIVE="/runner-cache/golden-${PLATFORM}.$$.tar.zst"
-        TARGET_URI="gs://${BUCKET}/${PLATFORM}"
         trap 'rm -f "${ARCHIVE}"' EXIT
+        mkdir -p "${RUNNER_TEMP}/golden"
+        : > "${RUNNER_TEMP}/golden/${PLATFORM}"
 
-        DIGEST=$(tar --sort=name --mtime='1970-01-01 00:00:00Z' --owner=0 --group=0 --numeric-owner \
-          -cf - src depot_tools .gclient | zstd -T0 -3 -q | tee "${ARCHIVE}" | sha256sum | awk '{print $1}')
+        upload_part() {
+          gcloud storage cp -n "${ARCHIVE}" "gs://${BUCKET}/$1/$2.tar.zst"
+          echo "$1 $2" >> "${RUNNER_TEMP}/golden/${PLATFORM}"
+        }
 
-        SNAPSHOT_GCS="${TARGET_URI}/${DIGEST}.tar.zst"
-        if ! gcloud storage ls "${SNAPSHOT_GCS}" >/dev/null 2>&1; then
-          gcloud storage cp --no-clobber "${ARCHIVE}" "${SNAPSHOT_GCS}"
+        if [ "${SRC_MATCH}" != "true" ]; then
+          SRC_DIGEST=$({
+            find src/.git -print0
+            git -C src -c core.quotepath=false ls-files -z | sed -z 's|^|src/|'
+          } | LC_ALL=C sort -z | tar --sort=name --mtime='1970-01-01 00:00:00Z' --owner=0 --group=0 --numeric-owner \
+            --no-recursion --null -T - -cf - | zstd -T0 -3 -q | tee "${ARCHIVE}" | sha256sum | awk '{print $1}')
+          upload_part "src" "${SRC_DIGEST}"
         fi
 
-        mkdir -p "${RUNNER_TEMP}/golden" && echo "${DIGEST}" > "${RUNNER_TEMP}/golden/${PLATFORM}"
+        if [ "${DEPS_MATCH}" != "true" ]; then
+          GCLIENT_DIGEST=$({
+            printf 'depot_tools\0.gclient\0src/DEPS\0'
+            while IFS=$'\t' read -r -d '' meta path; do
+              [[ "${meta}" == 160000* ]] && [ -e "src/${path}/.git" ] && printf 'src/%s\0' "${path}"
+            done < <(git -C src -c core.quotepath=false ls-files -s -z)
+            git -C src -c core.quotepath=false ls-files --others --directory --no-empty-directory -z | sed -z 's|^|src/|'
+          } | tar --sort=name --mtime='1970-01-01 00:00:00Z' --owner=0 --group=0 --numeric-owner \
+            --null -T - -cf - | zstd -T0 -3 -q | tee "${ARCHIVE}" | sha256sum | awk '{print $1}')
+          upload_part "gclient/${PLATFORM}" "${GCLIENT_DIGEST}"
+        fi
         echo "published=true" >> "${GITHUB_OUTPUT}"
 
     - name: Upload Golden Workspace Metadata
