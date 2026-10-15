@@ -414,6 +414,31 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Stability.ProcessStateSummary.FlushDurationUs"
+    units="microseconds" expires_after="2027-10-01">
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-memory-team@google.com</owner>
+  <summary>
+    The wall-clock time in microseconds spent syncing the 16-byte process state
+    summary payload to the OS (via ActivityManager.setProcessStateSummary on
+    Android). Recorded outside the manager lock on every OS flush on clients
+    with high-resolution clocks.
+  </summary>
+</histogram>
+
+<histogram
+    name="Cobalt.Stability.ProcessStateSummary.PriorSessionReadDurationUs"
+    units="microseconds" expires_after="2027-10-01">
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-memory-team@google.com</owner>
+  <summary>
+    The wall-clock time in microseconds spent querying the prior-session process
+    state summary and exit reason from the OS (via
+    ActivityManager.getHistoricalProcessExitReasons on Android R+) during
+    startup. Recorded on clients with high-resolution clocks.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.StabilityMetrics.IsNearCapacity" enum="Boolean"
     expires_after="never">
   <owner>avvall@google.com</owner>
