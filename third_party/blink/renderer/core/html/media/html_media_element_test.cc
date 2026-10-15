@@ -47,6 +47,8 @@
 #if BUILDFLAG(IS_COBALT)
 #include "base/test/scoped_feature_list.h"
 #include "third_party/blink/public/common/features.h"
+#include "third_party/blink/renderer/core/html/html_body_element.h"
+#include "third_party/blink/renderer/core/html_names.h"
 #include "third_party/blink/renderer/core/layout/layout_object.h"
 #endif  // BUILDFLAG(IS_COBALT)
 
@@ -2553,6 +2555,42 @@ TEST_P(HTMLMediaElementTest, StartVideoWithDoubleTrackSelection) {
   }
 }
 
+#if BUILDFLAG(IS_COBALT)
+TEST_P(HTMLMediaElementTest, CobaltCreatesMediaControlsWhenFeatureDisabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(
+      features::kCobaltSkipHiddenMediaControlsWork);
+  ScopedLazyInitializeMediaControlsForTest lazy_init(true);
+  ScopedMediaCastOverlayButtonForTest cast_overlay(true);
+
+  Media()->GetDocument().body()->AppendChild(Media());
+  UpdateLifecyclePhases();
+
+  EXPECT_FALSE(ControlsVisible());
+  EXPECT_NE(Media()->GetMediaControls(), nullptr);
+}
+
+TEST_P(HTMLMediaElementTest, CobaltSkipsHiddenMediaControlsWhenFeatureEnabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      features::kCobaltSkipHiddenMediaControlsWork);
+  ScopedLazyInitializeMediaControlsForTest lazy_init(true);
+  ScopedMediaCastOverlayButtonForTest cast_overlay(true);
+
+  Media()->GetDocument().body()->AppendChild(Media());
+  UpdateLifecyclePhases();
+
+  EXPECT_FALSE(ControlsVisible());
+  EXPECT_EQ(Media()->GetMediaControls(), nullptr);
+
+  // Toggling the controls attribute must not create controls either, since
+  // Cobalt never shows native controls.
+  Media()->SetBooleanAttribute(html_names::kControlsAttr, true);
+  UpdateLifecyclePhases();
+  EXPECT_EQ(Media()->GetMediaControls(), nullptr);
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 TEST(HTMLMediaElementTest, RejectsCobaltProgressiveSupportQueries) {
   const ContentType progressive_type(
@@ -2588,7 +2626,7 @@ TEST_P(HTMLMediaElementTest,
 
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitAndEnableFeature(
-      features::kCobaltSkipMediaProgressLayoutUpdate);
+      features::kCobaltSkipHiddenMediaControlsWork);
 
   Media()->GetDocument().body()->AppendChild(Media());
   Media()->SetSrc(SrcSchemeToURL(TestURLScheme::kHttp));
@@ -2616,7 +2654,7 @@ TEST_P(HTMLMediaElementTest,
 
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitAndDisableFeature(
-      features::kCobaltSkipMediaProgressLayoutUpdate);
+      features::kCobaltSkipHiddenMediaControlsWork);
 
   Media()->GetDocument().body()->AppendChild(Media());
   Media()->SetSrc(SrcSchemeToURL(TestURLScheme::kHttp));
