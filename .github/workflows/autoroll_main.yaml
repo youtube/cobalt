@@ -232,7 +232,12 @@ jobs:
           PR_COMMENT_FILE=$(mktemp)
           trap 'rm -f "${PR_BODY_FILE}" "${PR_COMMENT_FILE}"' EXIT
 
-          while IFS=$'\t' read -r BRANCH OLD_SHA CHANGED PR_TITLE; do
+          while IFS= read -r item; do
+            BRANCH=$(jq -r '.branch' <<< "${item}")
+            OLD_SHA=$(jq -r '.old_sha // empty' <<< "${item}")
+            CHANGED=$(jq -r '.changed' <<< "${item}")
+            PR_TITLE=$(jq -r '.title' <<< "${item}")
+
             if [[ "${CHANGED}" == "true" ]]; then
               # An empty expected value requires the remote branch to not exist.
               git push --force-with-lease="${BRANCH}:${OLD_SHA}" origin "${BRANCH}:refs/heads/${BRANCH}"
@@ -286,16 +291,18 @@ jobs:
               } > "${PR_COMMENT_FILE}"
               gh pr comment "${PR_NUMBER}" --body-file "${PR_COMMENT_FILE}"
             fi
-          done < <(jq -r '.conflicts[]? | [.branch, .old_sha, .changed, .title] | @tsv' "${MANIFEST}")
+          done < <(jq -c '.conflicts[]?' "${MANIFEST}")
 
           # Branches that are no longer needed: conflict branches whose PR is no
           # longer a conflicting candidate (label removed, landed, or applies
           # cleanly now) and a clean branch left empty by a rebuild. Deleting a
           # branch closes its PR. The lease refuses to delete anything a human
           # pushed to in the meantime.
-          while IFS=$'\t' read -r BRANCH OLD_SHA; do
+          while IFS= read -r item; do
+            BRANCH=$(jq -r '.branch' <<< "${item}")
+            OLD_SHA=$(jq -r '.old_sha // empty' <<< "${item}")
             git push --force-with-lease="${BRANCH}:${OLD_SHA}" origin --delete "${BRANCH}"
-          done < <(jq -r '.delete[]? | [.branch, .old_sha] | @tsv' "${MANIFEST}")
+          done < <(jq -c '.delete[]?' "${MANIFEST}")
 
           while IFS= read -r BRANCH; do
             echo "::notice::${BRANCH} has commits not made by the autoroller and was left untouched."
