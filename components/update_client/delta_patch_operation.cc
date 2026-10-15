@@ -43,12 +43,11 @@ DeltaPatchOperation::DeltaPatchOperation(
 #if BUILDFLAG(IS_STARBOARD)
     const OperationResult& patch_operation_result,
     base::OnceCallback<void(base::expected<OperationResult, CategorizedError>)>
-        callback
+        callback)
 #else
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
-        callback
+        callback)
 #endif  // BUILDFLAG(IS_STARBOARD)
-    )
     : crx_cache_(crx_cache),
       event_adder_(event_adder),
       state_tracker_(state_tracker),
@@ -160,12 +159,11 @@ void DeltaPatchOperation::VerifyAndCleanUp(const base::FilePath& new_file,
 
 #if BUILDFLAG(IS_STARBOARD)
 void DeltaPatchOperation::PatchDone(
-    base::expected<OperationResult, CategorizedError> result)
+    base::expected<OperationResult, CategorizedError> result) {
 #else
 void DeltaPatchOperation::PatchDone(
-    base::expected<base::FilePath, CategorizedError> result)
+    base::expected<base::FilePath, CategorizedError> result) {
 #endif  // BUILDFLAG(IS_STARBOARD)
-{
   event_adder_.Run(MakeSimpleOperationEvent(result, event_type_));
   std::move(callback_).Run(result);
 }

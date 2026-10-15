@@ -59,12 +59,11 @@ class DeltaPatchOperation
 #if BUILDFLAG(IS_STARBOARD)
       const OperationResult& patch_operation_result,
       base::OnceCallback<
-          void(base::expected<OperationResult, CategorizedError>)> callback
+          void(base::expected<OperationResult, CategorizedError>)> callback);
 #else
       base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
-          callback
+          callback);
 #endif  // BUILDFLAG(IS_STARBOARD)
-  );
 
   // Runs on the original sequence. Starts the operation.
   void Operation(
