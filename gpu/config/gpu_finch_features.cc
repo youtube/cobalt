@@ -82,6 +82,14 @@ BASE_FEATURE_PARAM(base::TimeDelta,
 BASE_FEATURE(kCobaltRemoveUiPlaneDuringFullscreenVideo,
              "CobaltRemoveUiPlaneDuringFullscreenVideo",
              base::FEATURE_DISABLED_BY_DEFAULT);
+// How long to keep the primary plane (UI) buffers after the UI plane is
+// removed, so that brief pauses (e.g. between Closed Captions lines) do not
+// repeatedly free and re-allocate them. 0 frees them immediately.
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kCobaltRemoveUiPlaneDestroyBuffersDelay,
+                   &kCobaltRemoveUiPlaneDuringFullscreenVideo,
+                   "destroy_buffers_delay",
+                   base::Seconds(5));
 #endif  // BUILDFLAG(IS_ANDROID)
 #endif  // BUILDFLAG(IS_COBALT)
 

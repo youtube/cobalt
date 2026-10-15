@@ -31,6 +31,8 @@ GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
 
 #if BUILDFLAG(IS_ANDROID)
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kCobaltRemoveUiPlaneDuringFullscreenVideo);
+GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
+                                             kCobaltRemoveUiPlaneDestroyBuffersDelay);
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #endif  // BUILDFLAG(IS_COBALT)
