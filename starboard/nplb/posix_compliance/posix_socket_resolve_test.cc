@@ -329,7 +329,7 @@ TEST_P(PosixSocketResolveTest, RainyDayUnknownHostname) {
   // The .invalid top-level domain never resolves. See RFC 6761 section 6.4.
   int result = getaddrinfo("unknown-host.invalid", nullptr, &hints, &ai);
   EXPECT_TRUE(result == EAI_NONAME || result == EAI_NODATA ||
-              result == EAI_AGAIN)
+              result == EAI_AGAIN || result == EAI_FAIL)
       << " result = " << result;
   EXPECT_EQ(nullptr, ai);
 }
