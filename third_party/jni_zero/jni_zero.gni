@@ -4,10 +4,6 @@
 
 import("//build/config/android/config.gni")
 import("//build/config/compiler/compiler.gni")
-import("//starboard/build/config/android_toolchain.gni")
-if (is_cobalt) {
-  import("//cobalt/build/configs/cobalt_for_google.gni")
-}
 if (is_android) {
   import("//build/config/android/rules.gni")
 }
@@ -52,16 +48,6 @@ _cronet_renaming_extra_args = [
   "--package-prefix-filter",
   "org.jni_zero",
 ]
-
-if (is_cobalt && is_cobalt_on_google3) {
-  _cobalt_renaming_extra_args = [
-    "--package-prefix",
-    "cobalt",
-
-    "--package-prefix-filter",
-    "org.chromium",
-  ]
-}
 
 _jni_zero_dir = "//third_party/jni_zero"
 
@@ -293,10 +279,6 @@ template("generate_jni_registration") {
     if (defined(is_cronet_build) && is_cronet_build) {
       args += _cronet_renaming_extra_args
     }
-
-    if (is_cobalt && is_cobalt_on_google3) {
-      args += _cobalt_renaming_extra_args
-    }
   }
 }
 
@@ -311,7 +293,7 @@ template("generate_jni_impl") {
   _target_name_without_java_or_junit =
       string_replace(string_replace(target_name, "_java", "_J"), "_junit", "_U")
   _jni_zero_action_target_name = _target_name_without_java_or_junit + "__action"
-  if (current_toolchain != android_toolchain && target_os == "android") {
+  if (current_toolchain != default_toolchain && target_os == "android") {
     # Rather than regenerating .h files in secondary toolchains, re-use the
     # ones from the primary toolchain by depending on it and adding the
     # root gen directory to the include paths.
@@ -320,10 +302,10 @@ template("generate_jni_impl") {
       forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
       not_needed(invoker, "*")
       public_configs +=
-          [ "//third_party/jni_zero:jni_include_dir($android_toolchain)" ]
+          [ "//third_party/jni_zero:jni_include_dir($default_toolchain)" ]
 
       # Depending on the action name to avoid cross-toolchain native deps.
-      public_deps = [ ":$_jni_zero_action_target_name($android_toolchain)" ]
+      public_deps = [ ":$_jni_zero_action_target_name($default_toolchain)" ]
       metadata = {
         shared_libraries_barrier = []
       }
@@ -412,10 +394,6 @@ template("generate_jni_impl") {
         # Cronet needs to rename jni_zero classes
         if (defined(is_cronet_build) && is_cronet_build) {
           args += _cronet_renaming_extra_args
-        }
-
-        if (is_cobalt && is_cobalt_on_google3) {
-          args += _cobalt_renaming_extra_args
         }
       } else {
         if (is_robolectric) {
@@ -612,7 +590,7 @@ template("native_with_jni") {
   _force_current_toolchain = defined(invoker.force_current_toolchain) &&
                              invoker.force_current_toolchain
   _use_current_toolchain = _force_current_toolchain ||
-                           current_toolchain == android_toolchain
+                           current_toolchain == default_toolchain
   if ((_needs_cpp_codegen && _use_current_toolchain) ||
       _needs_native_dep) {
     _subdir = rebase_path(target_gen_dir, root_gen_dir)
@@ -695,7 +673,7 @@ template("native_with_jni") {
       configs = invoker.configs
       if (_needs_native_dep) {
         configs +=
-            [ "//third_party/jni_zero:jni_include_dir($android_toolchain)" ]
+            [ "//third_party/jni_zero:jni_include_dir($default_toolchain)" ]
         if (is_robolectric &&
             filter_include(configs, [ "//third_party/jdk" ]) == []) {
           # Adding jdk config if not already included - that's what the
@@ -705,7 +683,7 @@ template("native_with_jni") {
         if (defined(invoker.jni_registration_toolchain)) {
           deps += [ ":$_jni_registration_target_name(${invoker.jni_registration_toolchain})" ]
         } else {
-          deps += [ ":$_jni_registration_target_name($android_toolchain)" ]
+          deps += [ ":$_jni_registration_target_name($default_toolchain)" ]
         }
         if (!defined(sources)) {
           sources = []
@@ -723,7 +701,7 @@ template("native_with_jni") {
     }
   } else {
     not_needed(invoker, "*")
-    if (current_toolchain != android_toolchain) {
+    if (current_toolchain != default_toolchain) {
       not_needed([ "target_name" ])
     }
   }

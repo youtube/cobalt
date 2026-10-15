@@ -291,8 +291,7 @@ int WasmTableObject::Grow(Isolate* isolate, DirectHandle<WasmTableObject> table,
 
 #if V8_ENABLE_DRUMBRAKE
     if (v8_flags.wasm_jitless) {
-      Tagged<ProtectedWeakFixedArray> uses =
-          new_dispatch_table->protected_uses();
+      Tagged<ProtectedWeakFixedArray> uses = dispatch_table->protected_uses();
       int used_length = GetUsedLength(uses);
       for (int i = kReservedSlotOffset; i < used_length; i += 2) {
         if (uses->get(i).IsCleared()) continue;
@@ -1289,8 +1288,7 @@ DirectHandle<JSArrayBuffer> WasmMemoryObject::ChangeArrayBufferResizability(
 
 MaybeDirectHandle<WasmMemoryMapDescriptor>
 WasmMemoryMapDescriptor::NewFromAnonymous(Isolate* isolate, size_t length) {
-// This method is used by experimental_wasm_memory_control and is not enabled by default.
-#if V8_TARGET_OS_LINUX && !BUILDFLAG(IS_STARBOARD)
+#if V8_TARGET_OS_LINUX
   CHECK(v8_flags.experimental_wasm_memory_control);
   DirectHandle<JSFunction> descriptor_ctor(
       isolate->native_context()->wasm_memory_map_descriptor_constructor(),
