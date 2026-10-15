@@ -19,12 +19,6 @@ on:
         type: string
         #TODO(b/557260018): Create a dedicated branch prefix for AI agent.
         default: 'experimental/rebase_agent_pr_'
-      agent_ref:
-        description: 'Branch containing the AI rebase agent scripts'
-        required: false
-        type: string
-        #TODO(b/552561778): Move the agent script to main branch once it is stable.
-        default: 'experimental/rebase_agent'
       dry_run:
         description: 'Dry run mode (runs AI resolver but skips pushing commit & creating PR)'
         type: boolean
@@ -81,7 +75,7 @@ jobs:
       SISO_CREDENTIAL_HELPER: "gcloud"
       GCP_LOCATION: "us-central1"
       REASONING_ENGINE_ID: ${{ vars.REASONING_ENGINE_ID || '5025326141087416320' }}
-      GCS_MEMORY_URI: ${{ vars.GCS_MEMORY_URI || 'gs://cobalt-actions-prod-agent/rebase_memory/knowledge_bank.json' }}
+      CHANGE_HISTORY_GCS_DIR: gs://cobalt-actions-prod-agent/rebase_changes
     steps:
       - name: Checkout Repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -90,16 +84,13 @@ jobs:
           fetch-depth: 100
           token: ${{ env.GITHUB_TOKEN }}
 
-      - name: Checkout Rebase Agent Scripts (Sparse)
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          repository: ${{ github.repository }}
-          ref: ${{ inputs.agent_ref || 'experimental/rebase_agent' }}
-          path: rebase_agent
-          sparse-checkout: |
-            .github/rebase
-          sparse-checkout-cone-mode: false
-          token: ${{ env.GITHUB_TOKEN }}
+      # Run the agent from this workflow's own (trusted) checkout. The next
+      # steps switch src/ to the target PR or commit, whose copy may
+      # differ or not exist; that code must not run with these credentials.
+      - name: Copy Trusted Rebase Agent
+        run: |
+          rm -rf "${RUNNER_TEMP}/rebase"
+          cp -r src/cobalt/devinfra/rebase "${RUNNER_TEMP}/rebase"
 
       - name: GoB Authentication
         uses: ./src/.github/actions/gob_auth
@@ -107,8 +98,9 @@ jobs:
           use_gcloud: 'true'
 
       - name: Set GCP Project
+        env:
+          GCP_PROJECT: ${{ vars.GCP_PROJECT }}
         run: |
-          GCP_PROJECT="${{ vars.GCP_PROJECT }}"
           if [[ -z "${GCP_PROJECT}" ]]; then
             GCP_PROJECT=$(gcloud config get-value project)
           fi
@@ -117,12 +109,27 @@ jobs:
       - name: Setup Working Branch
         id: branch_setup
         working-directory: src
+        env:
+          PR_NUM: ${{ inputs.pr_number }}
+          COMMIT_SHA: ${{ inputs.commit_sha }}
+          AI_PREFIX: ${{ inputs.ai_branch_prefix }}
         run: |
           set -x
 
-          PR_NUM="${{ inputs.pr_number }}"
-          COMMIT_SHA="${{ inputs.commit_sha }}"
-          AI_PREFIX="${{ inputs.ai_branch_prefix }}"
+          # Inputs reach the shell only through env and are validated here.
+          if [[ -n "${PR_NUM}" && ! "${PR_NUM}" =~ ^[0-9]+$ ]]; then
+            echo "::error::pr_number must be digits only."
+            exit 1
+          fi
+          if [[ -n "${COMMIT_SHA}" && ! "${COMMIT_SHA}" =~ ^[0-9a-fA-F]{7,40}$ ]]; then
+            echo "::error::commit_sha must be a 7-40 character hex SHA."
+            exit 1
+          fi
+          if [[ ! "${AI_PREFIX}" =~ ^[A-Za-z0-9._/-]*$ ]] ||
+             ! git check-ref-format --branch "${AI_PREFIX}0" > /dev/null; then
+            echo "::error::ai_branch_prefix is not a valid branch name prefix."
+            exit 1
+          fi
 
           # 1. Checkout starting target: PR (with optional commit SHA) or direct commit SHA
           if [[ -n "${PR_NUM}" ]]; then
@@ -178,12 +185,18 @@ jobs:
           export PATH="${RUNNER_TEMP}/depot_tools:${PATH}"
           "${RUNNER_TEMP}/depot_tools/build_telemetry" opt-out || true
 
-          # Initialize .gclient solution config matching .github/actions/depot_tools/action.yaml
+          # Same .gclient as .github/actions/depot_tools/action.yaml, except
+          # --unmanaged: that action pins src with `gclient sync --revision`,
+          # while the agent syncs without it. A managed src would then be
+          # rebased onto origin, and `gclient sync --reset` would discard the
+          # agent's uncommitted fixes; unmanaged, gclient syncs the DEPS
+          # dependencies but never touches src.
           cd "${GITHUB_WORKSPACE}"
           rm -f .gclient
           echo "Configuring .gclient solution for Cobalt..."
           "${RUNNER_TEMP}/depot_tools/gclient" config \
             --name=src \
+            --unmanaged \
             --custom-var="rbe_instance=\"projects/cobalt-actions-prod/instances/default_instance\"" \
             --custom-var="reapi_backend_config_path=\"cobalt.star\"" \
             "${{ github.server_url }}/${{ github.repository }}"
@@ -191,11 +204,13 @@ jobs:
           "${RUNNER_TEMP}/depot_tools/gclient" validate || true
 
       - name: Set Up Python Dependencies
-        working-directory: src
         run: |
           set -x
           python3 --version
-          python3 -m pip install --user --no-cache-dir --break-system-packages --require-hashes -r "${GITHUB_WORKSPACE}/rebase_agent/.github/rebase/requirements.txt"
+          # The image's pip (23.0.1) rejects extras of transitive dependencies
+          # (e.g. google-api-core[grpc]) in --require-hashes mode.
+          python3 -m pip install --user --no-cache-dir --break-system-packages "pip==26.2.1"
+          python3 -m pip install --user --no-cache-dir --break-system-packages --require-hashes -r "${RUNNER_TEMP}/rebase/requirements.txt"
 
       - name: Run AI Rebase Agent
         id: run_ai
@@ -207,7 +222,7 @@ jobs:
           EXPERT_MODEL: ${{ inputs.expert_model || 'gemini-3.8-flash' }}
         run: |
           set +e
-          python3 "${GITHUB_WORKSPACE}/rebase_agent/.github/rebase/run_rebase_pipeline.py" \
+          python3 "${RUNNER_TEMP}/rebase/run_rebase_pipeline.py" \
             --repo-path . \
             --model "${MODEL}" \
             --expert-model "${EXPERT_MODEL}" \
@@ -219,6 +234,21 @@ jobs:
           else
             echo "resolved=false" >> "${GITHUB_OUTPUT}"
           fi
+
+      - name: Upload Change History and Report to GCS
+        if: always()
+        working-directory: src
+        run: |
+          FILES=()
+          for f in out/rebase_results/change_history.json out/rebase_results/*_rebase_summary.md; do
+            if [[ -f "${f}" ]]; then FILES+=("${f}"); fi
+          done
+          if [[ ${#FILES[@]} -eq 0 ]]; then
+            echo "::warning::No change history or report in out/rebase_results; nothing to upload."
+            exit 0
+          fi
+          gcloud storage cp "${FILES[@]}" \
+            "${CHANGE_HISTORY_GCS_DIR}/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}/"
 
       - name: Package Resolution Artifact
         id: package_resolution
