@@ -67,7 +67,7 @@ TEST(CobaltSwitchDefaultsAndroidTest, DefaultSwitchesApplied) {
       "SmallerInterestArea,"
       "ReclaimPrepaintTilesWhenIdle,"
       "ReclaimOldPrepaintTiles,"
-      "WebAudioRemoveAudioDestinationResampler,"
+      "WebAudioRemoveAudioDestinationResampler",
       cmd_line.GetSwitchValueASCII(::switches::kEnableFeatures));
   EXPECT_EQ(
       "PartitionAllocBackupRefPtr,"
@@ -99,7 +99,7 @@ TEST(CobaltSwitchDefaultsAndroidTest, MergeFeaturesAndFlagsWithUserOverrides) {
       "SmallerInterestArea,"
       "ReclaimPrepaintTilesWhenIdle,"
       "ReclaimOldPrepaintTiles,"
-      "WebAudioRemoveAudioDestinationResampler,"
+      "WebAudioRemoveAudioDestinationResampler",
       cmd_line.GetSwitchValueASCII(::switches::kEnableFeatures));
   EXPECT_EQ(
       "TestFeature3,"
