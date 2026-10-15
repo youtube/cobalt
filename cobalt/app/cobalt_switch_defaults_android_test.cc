@@ -68,7 +68,6 @@ TEST(CobaltSwitchDefaultsAndroidTest, DefaultSwitchesApplied) {
       "ReclaimPrepaintTilesWhenIdle,"
       "ReclaimOldPrepaintTiles,"
       "WebAudioRemoveAudioDestinationResampler,"
-      "DomStorageSmartFlushing",
       cmd_line.GetSwitchValueASCII(::switches::kEnableFeatures));
   EXPECT_EQ(
       "PartitionAllocBackupRefPtr,"
@@ -101,7 +100,6 @@ TEST(CobaltSwitchDefaultsAndroidTest, MergeFeaturesAndFlagsWithUserOverrides) {
       "ReclaimPrepaintTilesWhenIdle,"
       "ReclaimOldPrepaintTiles,"
       "WebAudioRemoveAudioDestinationResampler,"
-      "DomStorageSmartFlushing",
       cmd_line.GetSwitchValueASCII(::switches::kEnableFeatures));
   EXPECT_EQ(
       "TestFeature3,"
