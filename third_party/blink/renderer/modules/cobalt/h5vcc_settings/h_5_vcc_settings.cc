@@ -34,6 +34,7 @@
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/base/media_switches.h"
 #include "media/starboard/decoder_buffer_allocator.h"
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
@@ -173,6 +174,13 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
         script_state, exception_context, name, *value, [](int int_value) {
           ::media::SourceBufferState::SetMaxPendingBytesPerParseOverride(
               int_value);
+          return true;
+        });
+  }
+  if (name == "Media.EnableMultiSourceBufferSwitching") {
+    return ProcessSettingAsEnableOnly(
+        script_state, exception_context, name, *value, [] {
+          ::media::SetEnableMultiSourceBufferSwitching(true);
           return true;
         });
   }
