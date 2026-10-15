@@ -73,6 +73,29 @@ TEST(CobaltSwitchDefaultsTest, MergeEnabledFeatures) {
             enabled_features);
 }
 
+TEST(CobaltSwitchDefaultsTest, MergeEnabledBlinkFeatures) {
+  const auto input_argv =
+      std::to_array<const char*>({"PROGRAM", "--enable-blink-features=UseFoo"});
+  const int input_argc = static_cast<int>(input_argv.size());
+  CommandLinePreprocessor cmd_line_pxr(input_argc, input_argv.data());
+
+  EXPECT_EQ(std::string("UseFoo,PreciseMemoryInfo"),
+            GetSwitchValue(cmd_line_pxr, ::switches::kEnableBlinkFeatures));
+}
+
+TEST(CobaltSwitchDefaultsTest, MergeJavaScriptFlags) {
+  const auto input_argv =
+      std::to_array<const char*>({"PROGRAM", "--js-flags=--expose-gc"});
+  const int input_argc = static_cast<int>(input_argv.size());
+  CommandLinePreprocessor cmd_line_pxr(input_argc, input_argv.data());
+
+  // V8 flags are last-wins, so defaults are prepended and the caller's flags
+  // come last.
+  EXPECT_EQ(std::string("--no-decommit-pooled-pages --no-concurrent-marking,"
+                        "--expose-gc"),
+            GetSwitchValue(cmd_line_pxr, blink::switches::kJavaScriptFlags));
+}
+
 TEST(CobaltSwitchDefaultsTest, ConsistentWindowSizes) {
   const auto input_argv = std::to_array<const char*>({
       "PROGRAM",
