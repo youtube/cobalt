@@ -36,8 +36,9 @@ class ChunkDemuxerStream;
 // read after the seek returns kConfigChanged.
 //
 // Owned by ChunkDemuxer and destroyed before the streams it forwards to.
-// Thread-safe: state is guarded by |lock_|, and read callbacks run on the
-// caller's sequence.
+// Thread-safe. Lock order: ChunkDemuxer::lock_, then |lock_|, then
+// ChunkDemuxerStream::lock_. Read callbacks are posted to the sequence that
+// called Read(), so they never run while a lock is held.
 class SelectedTrackStream final : public DemuxerStream {
  public:
   SelectedTrackStream(Type type, ChunkDemuxerStream* stream);
