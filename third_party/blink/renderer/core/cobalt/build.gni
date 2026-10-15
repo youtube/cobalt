@@ -17,6 +17,8 @@ assert(is_cobalt)
 import("//starboard/build/buildflags.gni")
 
 blink_core_sources_cobalt = [
+  "performance/cobalt_frame_timing.cc",
+  "performance/cobalt_frame_timing.h",
   "performance/performance_extensions.cc",
   "performance/performance_extensions.h",
 ]
