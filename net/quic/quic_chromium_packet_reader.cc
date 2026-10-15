@@ -101,7 +101,7 @@ if (read_pending_)
 
 bool QuicChromiumPacketReader::ProcessMultiplePacketReadResult(int result) {
 #if BUILDFLAG(IS_COBALT)
-  quic::QuicChromiumClock::GetInstance()->ZeroApproximateNow();
+  quic::QuicChromiumClock::ScopedApproximateNow approximate_now_scope;
 #endif
   read_pending_ = false;
   if (result <= 0 && net_log_.IsCapturing()) {
@@ -228,7 +228,7 @@ static_assert(static_cast<EcnCodePoint>(quic::ECN_NOT_ECT) == ECN_NOT_ECT &&
               "Mismatch ECN codepoint values");
 bool QuicChromiumPacketReader::ProcessReadResult(int result) {
 #if BUILDFLAG(IS_COBALT)
-  quic::QuicChromiumClock::GetInstance()->ZeroApproximateNow();
+  quic::QuicChromiumClock::ScopedApproximateNow approximate_now_scope;
 #endif
   read_pending_ = false;
   if (result <= 0 && net_log_.IsCapturing()) {
