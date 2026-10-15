@@ -107,6 +107,8 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
       network::mojom::NetworkContextParams* network_context_params,
       cert_verifier::mojom::CertVerifierCreationParams*
           cert_verifier_creation_params) override;
+  bool AllowCompressionDictionaryTransport(
+      content::BrowserContext* context) override;
   void OverrideWebPreferences(content::WebContents* web_contents,
                               content::SiteInstance& main_frame_site,
                               blink::web_pref::WebPreferences* prefs) override;

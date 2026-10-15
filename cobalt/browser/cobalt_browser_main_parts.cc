@@ -19,6 +19,8 @@
 #include "base/base_paths.h"
 #include "base/check.h"
 #include "base/command_line.h"
+#include "base/feature_list.h"
+#include "base/features.h"
 #include "base/files/file_util.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/persistent_histogram_allocator.h"
@@ -290,7 +292,55 @@ bool GetStabilityMetricsBaseDirectory(base::FilePath* base_dir) {
 #endif
 }
 
+void CleanupUnusedChromiumStoragePaths() {
+  base::FilePath user_data_dir;
+  if (!base::PathService::Get(content::SHELL_DIR_USER_DATA, &user_data_dir)) {
+    return;
+  }
+  DeleteUnusedChromiumStoragePaths(user_data_dir);
+}
+
 }  // namespace
+
+void DeleteUnusedChromiumStoragePaths(const base::FilePath& user_data_dir) {
+  if (user_data_dir.empty() || !base::DirectoryExists(user_data_dir)) {
+    return;
+  }
+
+  constexpr const char* kUnusedFiles[] = {
+      "SCT Auditing Pending Reports",
+      "Trust Tokens",
+      "Trust Tokens-journal",
+      "Trust Tokens-shm",
+      "Trust Tokens-wal",
+      "SharedStorage",
+      "SharedStorage-journal",
+      "SharedStorage-shm",
+      "SharedStorage-wal",
+  };
+  for (const char* file_name : kUnusedFiles) {
+    base::FilePath target = user_data_dir.AppendASCII(file_name);
+    if (!user_data_dir.IsParent(target) || !base::PathExists(target) ||
+        base::DirectoryExists(target)) {
+      continue;
+    }
+    base::DeleteFile(target);
+  }
+
+  constexpr const char* kUnusedDirectories[] = {
+      "Shared Dictionary",
+      "Session Storage",
+      "VideoDecodeStats",
+      "shared_proto_db",
+  };
+  for (const char* dir_name : kUnusedDirectories) {
+    base::FilePath target = user_data_dir.AppendASCII(dir_name);
+    if (!user_data_dir.IsParent(target) || !base::DirectoryExists(target)) {
+      continue;
+    }
+    base::DeletePathRecursively(target);
+  }
+}
 
 int CobaltBrowserMainParts::PreEarlyInitialization() {
   if (!base::GlobalHistogramAllocator::Get()) {
@@ -413,6 +463,15 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
          base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
         base::BindOnce(&ClearOtherStabilityMetricsPmaFiles, metrics_dir,
                        kBrowserStabilityMetricsName, base::GetCurrentProcId()));
+  }
+
+  if (base::FeatureList::IsEnabled(base::features::kCobaltStorageCleanup)) {
+    base::ThreadPool::PostTask(
+        FROM_HERE,
+        {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
+         base::ThreadPolicy::PREFER_BACKGROUND,
+         base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN},
+        base::BindOnce(&CleanupUnusedChromiumStoragePaths));
   }
 
 #if BUILDFLAG(IS_ANDROID)
