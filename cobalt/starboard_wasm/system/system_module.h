@@ -15,14 +15,44 @@
 #ifndef COBALT_STARBOARD_WASM_SYSTEM_SYSTEM_MODULE_H_
 #define COBALT_STARBOARD_WASM_SYSTEM_SYSTEM_MODULE_H_
 
+#include <stdint.h>
+
 #include <memory>
 
+#include "base/memory/raw_ref.h"
 #include "cobalt/starboard_wasm/core/module.h"
 
 namespace cobalt {
 namespace starboard_wasm {
 
-// Creates the `sb_sys` imports: now_us, poll_events and log.
+class GuestMemory;
+
+// Implements H5vccWasmSystem: clock, event queue and logging.
+class SystemModule : public Module {
+ public:
+  static constexpr char kName[] = "system";
+
+  explicit SystemModule(const ModuleContext& context);
+  SystemModule(const SystemModule&) = delete;
+  SystemModule& operator=(const SystemModule&) = delete;
+  ~SystemModule() override;
+
+  // Module:
+  const char* name() const override;
+
+  double NowUs() const;
+  // Moves up to |count| queued `sb_event`s to guest memory at |events_ptr|;
+  // returns how many.
+  uint32_t PollEvents(GuestMemory& memory, uint32_t events_ptr, uint32_t count);
+  void Log(GuestMemory& memory,
+           uint32_t level,
+           uint32_t message_ptr,
+           uint32_t message_len);
+
+ private:
+  const raw_ref<EventQueue> events_;
+};
+
 std::unique_ptr<Module> CreateSystemModule(const ModuleContext& context);
 
 }  // namespace starboard_wasm

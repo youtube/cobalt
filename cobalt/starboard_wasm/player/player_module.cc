@@ -14,125 +14,13 @@
 
 #include "cobalt/starboard_wasm/player/player_module.h"
 
-#include "cobalt/starboard_wasm/core/import_table.h"
+#include "base/numerics/safe_conversions.h"
+#include "cobalt/starboard_wasm/core/guest_memory.h"
 #include "cobalt/starboard_wasm/player/player_abi.h"
 #include "cobalt/starboard_wasm/player/player_host.h"
 
 namespace cobalt {
 namespace starboard_wasm {
-
-namespace {
-
-uint32_t SurfaceCreate(PlayerModule& m, Call& /*call*/, uint32_t flags) {
-  return m.host().SurfaceCreate(flags);
-}
-
-void SurfaceDestroy(PlayerModule& m, Call& /*call*/, uint32_t surface) {
-  m.host().SurfaceDestroy(surface);
-}
-
-void SurfaceSetBounds(PlayerModule& m,
-                      Call& /*call*/,
-                      uint32_t surface,
-                      int32_t x,
-                      int32_t y,
-                      int32_t width,
-                      int32_t height,
-                      int32_t z_index) {
-  m.host().SurfaceSetBounds(surface, x, y, width, height, z_index);
-}
-
-uint32_t Create(PlayerModule& m,
-                Call& call,
-                uint32_t audio_ptr,
-                uint32_t audio_len,
-                uint32_t video_ptr,
-                uint32_t video_len,
-                uint32_t surface,
-                uint32_t flags) {
-  const uint8_t* audio = call.Bytes(audio_ptr, audio_len);
-  const uint8_t* video = call.Bytes(video_ptr, video_len);
-  if ((!audio && audio_len) || (!video && video_len)) {
-    return 0;
-  }
-  return m.host().PlayerCreate(audio, audio_len, video, video_len, surface,
-                               flags);
-}
-
-void Destroy(PlayerModule& m, Call& /*call*/, uint32_t player) {
-  m.host().PlayerDestroy(player);
-}
-
-void Seek(PlayerModule& m,
-          Call& /*call*/,
-          uint32_t player,
-          int64_t position_us,
-          uint32_t ticket) {
-  m.host().PlayerSeek(player, position_us, ticket);
-}
-
-uint32_t WriteSamples(PlayerModule& m,
-                      Call& call,
-                      uint32_t player,
-                      uint32_t track,
-                      uint32_t bytes_ptr,
-                      uint32_t bytes_len,
-                      uint32_t infos_ptr,
-                      uint32_t count,
-                      uint32_t config_ptr,
-                      uint32_t config_len) {
-  const uint8_t* config = call.Bytes(config_ptr, config_len);
-  if (!config && config_len) {
-    return 0;
-  }
-  return m.host().PlayerWriteSamples(
-      player, track, call.Bytes(bytes_ptr, bytes_len), bytes_len,
-      call.Array(infos_ptr, count, sizeof(me_sample_info)), count, config,
-      config_len);
-}
-
-void WriteEos(PlayerModule& m,
-              Call& /*call*/,
-              uint32_t player,
-              uint32_t track) {
-  m.host().PlayerWriteEos(player, track);
-}
-
-void SetRate(PlayerModule& m,
-             Call& /*call*/,
-             uint32_t player,
-             int32_t rate_milli) {
-  m.host().PlayerSetRate(player, rate_milli);
-}
-
-void SetVolume(PlayerModule& m,
-               Call& /*call*/,
-               uint32_t player,
-               int32_t volume_milli) {
-  m.host().PlayerSetVolume(player, volume_milli);
-}
-
-uint32_t GetInfo(PlayerModule& m,
-                 Call& call,
-                 uint32_t player,
-                 uint32_t out_ptr,
-                 uint32_t out_len) {
-  return m.host().PlayerGetInfo(player, call.Bytes(out_ptr, out_len), out_len);
-}
-
-uint32_t MediaCaps(PlayerModule& m,
-                   Call& call,
-                   uint32_t mime_ptr,
-                   uint32_t mime_len,
-                   uint32_t out_ptr,
-                   uint32_t out_len) {
-  const uint8_t* mime = call.Bytes(mime_ptr, mime_len);
-  return m.host().MediaCaps(reinterpret_cast<const char*>(mime),
-                            mime ? mime_len : 0, call.Bytes(out_ptr, out_len),
-                            out_len);
-}
-
-}  // namespace
 
 PlayerModule::PlayerModule(const ModuleContext& context)
     : host_(std::make_unique<PlayerHost>(context)) {}
@@ -143,24 +31,100 @@ const char* PlayerModule::name() const {
   return kName;
 }
 
-void PlayerModule::Bind(ImportTable& table) {
-  table.Add<&SurfaceCreate>("sb_surface", "create");
-  table.Add<&SurfaceDestroy>("sb_surface", "destroy");
-  table.Add<&SurfaceSetBounds>("sb_surface", "set_bounds");
+uint32_t PlayerModule::SurfaceCreate(uint32_t flags) {
+  return host_->SurfaceCreate(flags);
+}
 
-  table.Add<&Create>("sb_player", "create");
-  table.Add<&Destroy>("sb_player", "destroy");
-  table.Add<&Seek>("sb_player", "seek");
-  table.Add<&WriteSamples, /*kHot=*/true>("sb_player", "write_samples");
-  table.Add<&WriteEos>("sb_player", "write_eos");
-  table.Add<&SetRate>("sb_player", "set_rate");
-  table.Add<&SetVolume>("sb_player", "set_volume");
-  table.Add<&GetInfo, /*kHot=*/true>("sb_player", "get_info");
-  table.Add<&MediaCaps>("sb_player", "media_caps");
+void PlayerModule::SurfaceDestroy(uint32_t surface) {
+  host_->SurfaceDestroy(surface);
+}
+
+void PlayerModule::SurfaceSetBounds(uint32_t surface,
+                                    int32_t x,
+                                    int32_t y,
+                                    int32_t width,
+                                    int32_t height,
+                                    int32_t z_index) {
+  host_->SurfaceSetBounds(surface, x, y, width, height, z_index);
 }
 
 std::string PlayerModule::SurfaceToken(uint32_t surface) const {
   return host_->SurfaceToken(surface);
+}
+
+uint32_t PlayerModule::Create(GuestMemory& memory,
+                              uint32_t audio_config_ptr,
+                              uint32_t audio_config_len,
+                              uint32_t video_config_ptr,
+                              uint32_t video_config_len,
+                              uint32_t surface,
+                              uint32_t flags) {
+  const uint8_t* audio = memory.Bytes(audio_config_ptr, audio_config_len);
+  const uint8_t* video = memory.Bytes(video_config_ptr, video_config_len);
+  if ((!audio && audio_config_len) || (!video && video_config_len)) {
+    return 0;
+  }
+  return host_->PlayerCreate(audio, audio_config_len, video, video_config_len,
+                             surface, flags);
+}
+
+void PlayerModule::Destroy(uint32_t player) {
+  host_->PlayerDestroy(player);
+}
+
+void PlayerModule::Seek(uint32_t player, double position_us, uint32_t ticket) {
+  // NaN maps to 0; out-of-range values saturate.
+  host_->PlayerSeek(player, base::saturated_cast<int64_t>(position_us), ticket);
+}
+
+uint32_t PlayerModule::WriteSamples(GuestMemory& memory,
+                                    uint32_t player,
+                                    uint32_t track,
+                                    uint32_t bytes_ptr,
+                                    uint32_t bytes_len,
+                                    uint32_t infos_ptr,
+                                    uint32_t count,
+                                    uint32_t config_ptr,
+                                    uint32_t config_len) {
+  const uint8_t* config = memory.Bytes(config_ptr, config_len);
+  if (!config && config_len) {
+    return 0;
+  }
+  return host_->PlayerWriteSamples(
+      player, track, memory.Bytes(bytes_ptr, bytes_len), bytes_len,
+      memory.Array(infos_ptr, count, sizeof(me_sample_info)), count, config,
+      config_len);
+}
+
+void PlayerModule::WriteEos(uint32_t player, uint32_t track) {
+  host_->PlayerWriteEos(player, track);
+}
+
+void PlayerModule::SetRate(uint32_t player, int32_t rate_milli) {
+  host_->PlayerSetRate(player, rate_milli);
+}
+
+void PlayerModule::SetVolume(uint32_t player, int32_t volume_milli) {
+  host_->PlayerSetVolume(player, volume_milli);
+}
+
+uint32_t PlayerModule::GetInfo(GuestMemory& memory,
+                               uint32_t player,
+                               uint32_t info_ptr,
+                               uint32_t info_len) {
+  return host_->PlayerGetInfo(player, memory.Bytes(info_ptr, info_len),
+                              info_len);
+}
+
+uint32_t PlayerModule::MediaCaps(GuestMemory& memory,
+                                 uint32_t mime_ptr,
+                                 uint32_t mime_len,
+                                 uint32_t caps_ptr,
+                                 uint32_t caps_len) {
+  const uint8_t* mime = memory.Bytes(mime_ptr, mime_len);
+  return host_->MediaCaps(reinterpret_cast<const char*>(mime),
+                          mime ? mime_len : 0, memory.Bytes(caps_ptr, caps_len),
+                          caps_len);
 }
 
 std::unique_ptr<Module> CreatePlayerModule(const ModuleContext& context) {

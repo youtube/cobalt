@@ -18,11 +18,16 @@ blink_modules_sources("h5vcc_wasm_imports") {
   sources = [
     "h_5_vcc_wasm_imports.cc",
     "h_5_vcc_wasm_imports.h",
-    "h_5_vcc_wasm_imports_player.cc",
-    "h_5_vcc_wasm_imports_player.h",
+    "h_5_vcc_wasm_player.cc",
+    "h_5_vcc_wasm_player.h",
+    "h_5_vcc_wasm_surface.cc",
+    "h_5_vcc_wasm_surface.h",
+    "h_5_vcc_wasm_system.cc",
+    "h_5_vcc_wasm_system.h",
   ]
   deps = [
     "//cobalt/starboard_wasm",
     "//cobalt/starboard_wasm/player",
+    "//cobalt/starboard_wasm/system",
   ]
 }

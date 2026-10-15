@@ -27,7 +27,6 @@ namespace cobalt {
 namespace starboard_wasm {
 
 class EventQueue;
-class ImportTable;
 
 int64_t MonotonicNowUs();
 
@@ -39,18 +38,17 @@ struct ModuleContext {
   raw_ref<EventQueue> events;
 };
 
-// One area of the Starboard API (system, player, ...) exposed to a Wasm
-// guest. A ProviderCore creates one instance of each module per execution
-// context and destroys them when the context goes away.
+// The implementation of one area of the Starboard API (system, player, ...)
+// exposed to a Wasm guest. Its public methods mirror the area's Web IDL
+// interface, which a Wasm module imports directly. A ProviderCore creates one
+// instance of each module per execution context and destroys them when the
+// context goes away.
 class Module {
  public:
   virtual ~Module() = default;
 
-  // Stable identifier, e.g. "player".
+  // Stable identifier, e.g. "player". Subclasses also define it as kName.
   virtual const char* name() const = 0;
-
-  // Adds this module's import functions to |table|.
-  virtual void Bind(ImportTable& table) = 0;
 };
 
 using ModuleFactory = std::unique_ptr<Module> (*)(const ModuleContext& context);

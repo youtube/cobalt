@@ -22,17 +22,17 @@
 #include "base/functional/callback.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/task/sequenced_task_runner.h"
+#include "cobalt/starboard_wasm/core/guest_memory.h"
 #include "cobalt/starboard_wasm/core/module.h"
 #include "v8/include/v8-forward.h"
+#include "v8/include/v8-persistent-handle.h"
 
 namespace cobalt {
 namespace starboard_wasm {
 
-struct BindingState;
-
 // The Starboard Wasm imports of one execution context: owns its modules and
-// event queue, builds import objects, and resolves guest pointers against the
-// bound WebAssembly.Memory. Lives on the context's JS thread.
+// event queue, and the guest memory that pointer arguments refer to. Lives on
+// the context's JS thread.
 class ProviderCore {
  public:
   // Creates one instance of each module in |modules|. |on_wake| runs on
@@ -46,24 +46,33 @@ class ProviderCore {
 
   ~ProviderCore();
 
-  v8::Local<v8::Object> NewImportObject(v8::Isolate* isolate,
-                                        v8::Local<v8::Context> context);
-
   bool BindMemory(v8::Isolate* isolate,
                   v8::Local<v8::Value> memory,
                   std::string* error);
 
+  // Resolves pointer arguments of one import call.
+  GuestMemory Memory(v8::Isolate* isolate) const {
+    return GuestMemory(isolate, memory_);
+  }
+
   // Returns the module named |name|, or nullptr (also after Shutdown()).
   Module* GetModule(const char* name) const;
 
-  // Destroys the modules and releases the bound memory. Later import calls
-  // return 0.
+  template <typename T>
+  T* GetModule() const {
+    return static_cast<T*>(GetModule(T::kName));
+  }
+
+  // Destroys the modules and releases the bound memory.
   void Shutdown();
 
   static double NowUs();
 
  private:
-  std::shared_ptr<BindingState> state_;
+  // Declared before |modules_|, which may queue events until destroyed.
+  std::unique_ptr<EventQueue> events_;
+  std::vector<std::unique_ptr<Module>> modules_;
+  v8::Global<v8::WasmMemoryObject> memory_;
 };
 
 }  // namespace starboard_wasm

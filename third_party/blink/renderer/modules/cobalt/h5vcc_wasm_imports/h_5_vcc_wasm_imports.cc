@@ -24,6 +24,9 @@
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/workers/dedicated_worker_global_scope.h"
+#include "third_party/blink/renderer/modules/cobalt/h5vcc_wasm_imports/h_5_vcc_wasm_player.h"
+#include "third_party/blink/renderer/modules/cobalt/h5vcc_wasm_imports/h_5_vcc_wasm_surface.h"
+#include "third_party/blink/renderer/modules/cobalt/h5vcc_wasm_imports/h_5_vcc_wasm_system.h"
 #include "third_party/blink/renderer/modules/event_target_modules_names.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
@@ -78,7 +81,10 @@ H5vccWasmImports::H5vccWasmImports(ExecutionContext& context)
           context.GetTaskRunner(TaskType::kInternalMedia),
           WTF::BindRepeating(&H5vccWasmImports::DispatchWake,
                              WrapWeakPersistent(this)),
-          cobalt::starboard_wasm::AllModules())) {}
+          cobalt::starboard_wasm::AllModules())),
+      system_(MakeGarbageCollected<H5vccWasmSystem>(*this)),
+      surface_(MakeGarbageCollected<H5vccWasmSurface>(*this)),
+      player_(MakeGarbageCollected<H5vccWasmPlayer>(*this)) {}
 
 H5vccWasmImports::~H5vccWasmImports() = default;
 
@@ -88,18 +94,6 @@ const AtomicString& H5vccWasmImports::InterfaceName() const {
 
 ExecutionContext* H5vccWasmImports::GetExecutionContext() const {
   return ExecutionContextLifecycleObserver::GetExecutionContext();
-}
-
-ScriptObject H5vccWasmImports::importObject(ScriptState* script_state,
-                                            ExceptionState& exception_state) {
-  if (!core_) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
-                                      "The context is gone.");
-    return ScriptObject();
-  }
-  v8::Isolate* isolate = script_state->GetIsolate();
-  return ScriptObject(
-      isolate, core_->NewImportObject(isolate, script_state->GetContext()));
 }
 
 void H5vccWasmImports::bindMemory(ScriptState* script_state,
@@ -125,10 +119,6 @@ void H5vccWasmImports::setOnwake(EventListener* listener) {
   SetAttributeEventListener(WakeEventType(), listener);
 }
 
-double H5vccWasmImports::nowUs() {
-  return cobalt::starboard_wasm::ProviderCore::NowUs();
-}
-
 void H5vccWasmImports::ContextDestroyed() {
   if (core_) {
     core_->Shutdown();
@@ -140,6 +130,9 @@ void H5vccWasmImports::Trace(Visitor* visitor) const {
   Supplement<ExecutionContext>::Trace(visitor);
   ExecutionContextLifecycleObserver::Trace(visitor);
   EventTarget::Trace(visitor);
+  visitor->Trace(system_);
+  visitor->Trace(surface_);
+  visitor->Trace(player_);
 }
 
 void H5vccWasmImports::DispatchWake() {

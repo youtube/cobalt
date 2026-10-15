@@ -14,54 +14,45 @@
 
 #include "cobalt/starboard_wasm/system/system_module.h"
 
-#include <string>
+#include <string_view>
 
 #include "base/logging.h"
-#include "base/memory/raw_ref.h"
 #include "cobalt/starboard_wasm/core/abi.h"
 #include "cobalt/starboard_wasm/core/event_queue.h"
-#include "cobalt/starboard_wasm/core/import_table.h"
+#include "cobalt/starboard_wasm/core/guest_memory.h"
 
 namespace cobalt {
 namespace starboard_wasm {
 
-namespace {
+SystemModule::SystemModule(const ModuleContext& context)
+    : events_(context.events) {}
 
-class SystemModule : public Module {
- public:
-  explicit SystemModule(const ModuleContext& context)
-      : events_(context.events) {}
+SystemModule::~SystemModule() = default;
 
-  const char* name() const override { return "system"; }
-  void Bind(ImportTable& table) override;
-
-  EventQueue& events() { return *events_; }
-
- private:
-  const raw_ref<EventQueue> events_;
-};
-
-int64_t NowUs(SystemModule& /*module*/, Call& /*call*/) {
-  return MonotonicNowUs();
+const char* SystemModule::name() const {
+  return kName;
 }
 
-uint32_t PollEvents(SystemModule& module,
-                    Call& call,
-                    uint32_t out_ptr,
-                    uint32_t count) {
-  uint8_t* out = call.Array(out_ptr, count, sizeof(sb_event));
-  return out ? module.events().Poll(out, count) : 0;
+double SystemModule::NowUs() const {
+  return static_cast<double>(MonotonicNowUs());
 }
 
-void Log(SystemModule& /*module*/,
-         Call& call,
-         uint32_t level,
-         uint32_t msg_ptr,
-         uint32_t msg_len) {
-  const uint8_t* msg = call.Bytes(msg_ptr, msg_len);
-  const std::string text =
-      msg ? std::string(reinterpret_cast<const char*>(msg), msg_len)
-          : std::string();
+uint32_t SystemModule::PollEvents(GuestMemory& memory,
+                                  uint32_t events_ptr,
+                                  uint32_t count) {
+  uint8_t* out = memory.Array(events_ptr, count, sizeof(sb_event));
+  return out ? events_->Poll(out, count) : 0;
+}
+
+void SystemModule::Log(GuestMemory& memory,
+                       uint32_t level,
+                       uint32_t message_ptr,
+                       uint32_t message_len) {
+  const uint8_t* message = memory.Bytes(message_ptr, message_len);
+  const std::string_view text =
+      message ? std::string_view(reinterpret_cast<const char*>(message),
+                                 message_len)
+              : std::string_view();
   switch (level) {
     case SB_LOG_ERROR:
       LOG(ERROR) << "[wasm] " << text;
@@ -77,14 +68,6 @@ void Log(SystemModule& /*module*/,
       break;
   }
 }
-
-void SystemModule::Bind(ImportTable& table) {
-  table.Add<&NowUs, /*kHot=*/true>("sb_sys", "now_us");
-  table.Add<&PollEvents, /*kHot=*/true>("sb_sys", "poll_events");
-  table.Add<&Log>("sb_sys", "log");
-}
-
-}  // namespace
 
 std::unique_ptr<Module> CreateSystemModule(const ModuleContext& context) {
   return std::make_unique<SystemModule>(context);

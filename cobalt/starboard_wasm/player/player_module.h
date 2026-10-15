@@ -25,9 +25,11 @@
 namespace cobalt {
 namespace starboard_wasm {
 
+class GuestMemory;
 class PlayerHost;
 
-// The `sb_player` and `sb_surface` imports.
+// Implements H5vccWasmSurface and H5vccWasmPlayer. Records passed by pointer
+// are defined in player_abi.h.
 class PlayerModule : public Module {
  public:
   static constexpr char kName[] = "player";
@@ -39,13 +41,51 @@ class PlayerModule : public Module {
 
   // Module:
   const char* name() const override;
-  void Bind(ImportTable& table) override;
 
+  // H5vccWasmSurface.
+  uint32_t SurfaceCreate(uint32_t flags);
+  void SurfaceDestroy(uint32_t surface);
+  void SurfaceSetBounds(uint32_t surface,
+                        int32_t x,
+                        int32_t y,
+                        int32_t width,
+                        int32_t height,
+                        int32_t z_index);
   // Returns the token that binds |surface| to a `<video>` element through a
   // `blob:...#sb-surface=<token>` URL, or "" if |surface| is unknown.
   std::string SurfaceToken(uint32_t surface) const;
 
-  PlayerHost& host() { return *host_; }
+  // H5vccWasmPlayer.
+  uint32_t Create(GuestMemory& memory,
+                  uint32_t audio_config_ptr,
+                  uint32_t audio_config_len,
+                  uint32_t video_config_ptr,
+                  uint32_t video_config_len,
+                  uint32_t surface,
+                  uint32_t flags);
+  void Destroy(uint32_t player);
+  void Seek(uint32_t player, double position_us, uint32_t ticket);
+  uint32_t WriteSamples(GuestMemory& memory,
+                        uint32_t player,
+                        uint32_t track,
+                        uint32_t bytes_ptr,
+                        uint32_t bytes_len,
+                        uint32_t infos_ptr,
+                        uint32_t count,
+                        uint32_t config_ptr,
+                        uint32_t config_len);
+  void WriteEos(uint32_t player, uint32_t track);
+  void SetRate(uint32_t player, int32_t rate_milli);
+  void SetVolume(uint32_t player, int32_t volume_milli);
+  uint32_t GetInfo(GuestMemory& memory,
+                   uint32_t player,
+                   uint32_t info_ptr,
+                   uint32_t info_len);
+  uint32_t MediaCaps(GuestMemory& memory,
+                     uint32_t mime_ptr,
+                     uint32_t mime_len,
+                     uint32_t caps_ptr,
+                     uint32_t caps_len);
 
  private:
   std::unique_ptr<PlayerHost> host_;

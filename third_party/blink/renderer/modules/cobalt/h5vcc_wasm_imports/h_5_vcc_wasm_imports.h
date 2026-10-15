@@ -22,6 +22,7 @@
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
+#include "third_party/blink/renderer/platform/heap/member.h"
 #include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
@@ -35,6 +36,9 @@ namespace blink {
 
 class DedicatedWorkerGlobalScope;
 class ExceptionState;
+class H5vccWasmPlayer;
+class H5vccWasmSurface;
+class H5vccWasmSystem;
 class LocalDOMWindow;
 class ScriptState;
 
@@ -58,14 +62,14 @@ class MODULES_EXPORT H5vccWasmImports final
   const AtomicString& InterfaceName() const override;
   ExecutionContext* GetExecutionContext() const override;
 
-  ScriptObject importObject(ScriptState* script_state,
-                            ExceptionState& exception_state);
+  H5vccWasmSystem* system() const { return system_.Get(); }
+  H5vccWasmSurface* surface() const { return surface_.Get(); }
+  H5vccWasmPlayer* player() const { return player_.Get(); }
   void bindMemory(ScriptState* script_state,
                   const ScriptObject& memory,
                   ExceptionState& exception_state);
   EventListener* onwake();
   void setOnwake(EventListener* listener);
-  double nowUs();
 
   // Null once the context is destroyed.
   cobalt::starboard_wasm::ProviderCore* core() const { return core_.get(); }
@@ -78,6 +82,9 @@ class MODULES_EXPORT H5vccWasmImports final
   void DispatchWake();
 
   std::unique_ptr<cobalt::starboard_wasm::ProviderCore> core_;
+  Member<H5vccWasmSystem> system_;
+  Member<H5vccWasmSurface> surface_;
+  Member<H5vccWasmPlayer> player_;
 };
 
 }  // namespace blink

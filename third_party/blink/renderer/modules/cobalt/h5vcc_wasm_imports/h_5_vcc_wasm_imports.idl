@@ -12,15 +12,36 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// `object` stands in for WebAssembly.Memory, which Blink IDL cannot name;
-// bindMemory() validates the type at runtime.
+
+// Starboard APIs for WebAssembly. Each area of Starboard is an interface
+// whose operations a Wasm module imports directly, with the receiver as the
+// import's first (externref) parameter:
+//
+//   const call = Function.prototype.call;
+//   const imports = {sb_player: {
+//     write_eos: call.bind(H5vccWasmPlayer.prototype.writeEos), ...}};
+//   // Wasm: (import "sb_player" "write_eos" (func (param externref i32 i32)))
+//
+// With V8's --wasm-fast-api, optimized Wasm code calls these
+// [NoAllocDirectCall] operations without going through JavaScript.
+//
+// Pointer arguments are byte offsets into the WebAssembly.Memory passed to
+// bindMemory(); out-of-bounds ranges make the operation fail (return 0).
+// Records are fixed-layout structs with a leading struct_size field, defined
+// in cobalt/starboard_wasm.
 [
     Exposed=(Window,DedicatedWorker),
     SecureContext
 ]
 interface H5vccWasmImports : EventTarget {
-  [CallWith=ScriptState, RaisesException] object importObject();
+  [SameObject] readonly attribute H5vccWasmSystem system;
+  [SameObject] readonly attribute H5vccWasmSurface surface;
+  [SameObject] readonly attribute H5vccWasmPlayer player;
+
+  // `object` stands in for WebAssembly.Memory, which Blink IDL cannot name;
+  // bindMemory() validates the type at runtime.
   [CallWith=ScriptState, RaisesException] undefined bindMemory(object memory);
+
+  // Fired when an event is queued for system.pollEvents() on an empty queue.
   attribute EventHandler onwake;
-  double nowUs();
 };
