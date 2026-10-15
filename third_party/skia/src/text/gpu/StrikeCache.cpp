@@ -196,7 +196,7 @@ uint32_t TextStrike::HashTraits::Hash(GlyphKey key) {
     return key.fID.hash();
 }
 
->>>>>>> parent of 9f74401d172 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 812d05034e5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }  // namespace sktext::gpu
 
 namespace sktext {

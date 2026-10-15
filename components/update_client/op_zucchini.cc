@@ -173,7 +173,7 @@ void CacheLookupDone(
 
 }  // namespace
 
->>>>>>> parent of 9f74401d172 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 812d05034e5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 base::OnceClosure ZucchiniOperation(
     scoped_refptr<CrxCache> crx_cache,
     scoped_refptr<Patcher> patcher,
@@ -222,7 +222,7 @@ base::OnceClosure ZucchiniOperation(
 #endif
                      base::BindPostTaskToCurrentDefault(base::BindOnce(
                          &PatchDone, std::move(callback), event_adder))));
->>>>>>> parent of 9f74401d172 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 812d05034e5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   return base::DoNothing();
 #endif  // defined(IN_MEMORY_UPDATES)
 }

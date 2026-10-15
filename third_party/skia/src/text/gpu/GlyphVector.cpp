@@ -126,7 +126,7 @@ void GlyphVector::packedGlyphIDToGlyph(StrikeCache* cache, skgpu::MaskFormat for
         // Get all the atlas locations for each glyph.
         for (Variant& variant : fGlyphs) {
             variant.glyph = fTextStrike->getGlyph(variant.packedGlyphID, format);
->>>>>>> parent of 9f74401d172 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 812d05034e5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
         }
         buffer.writeUInt(id.value());
     }

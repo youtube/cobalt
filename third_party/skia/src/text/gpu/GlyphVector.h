@@ -151,7 +151,7 @@ public:
     }
 =======
     void packedGlyphIDToGlyph(StrikeCache* cache, skgpu::MaskFormat format);
->>>>>>> parent of 9f74401d172 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 812d05034e5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
     template <GlyphVector_Concepts::BackendData B> const B& accessBackendData() const {
         SkASSERT(this->hasBackendData());

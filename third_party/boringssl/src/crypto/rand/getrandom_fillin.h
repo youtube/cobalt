@@ -26,7 +26,7 @@
 // TODO(crbug.com/446280907): Can we assume that __NR_getrandom is defined?
 =======
 #if !defined(STARBOARD)
->>>>>>> parent of 9f74401d172 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 812d05034e5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #if defined(OPENSSL_X86_64)
 #define EXPECTED_NR_getrandom 318
 #elif defined(OPENSSL_X86)

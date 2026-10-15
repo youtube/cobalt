@@ -277,7 +277,7 @@ bool IsValidMimeType(const String& content_type,
 =======
   return EqualIgnoringASCIICase(parameters.begin()->name, kCodecsMimeTypeParam);
 #endif // BUILDFLAG(IS_COBALT)
->>>>>>> parent of 9f74401d172 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 812d05034e5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 bool IsValidMediaConfiguration(const MediaConfiguration* configuration) {

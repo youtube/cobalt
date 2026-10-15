@@ -182,7 +182,7 @@ GrDrawOpAtlas::ErrorCode GrAtlasManager::addGlyphToAtlas(const SkGlyph& skGlyph,
     MaskFormat expectedMaskFormat = this->resolveMaskFormat(glyphFormat);
 =======
     MaskFormat expectedMaskFormat = this->resolveMaskFormat(glyph->fMaskFormat);
->>>>>>> parent of 9f74401d172 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 812d05034e5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     int bytesPerPixel = MaskFormatBytesPerPixel(expectedMaskFormat);
 
     int padding;
@@ -359,4 +359,4 @@ std::tuple<bool, int> GlyphVector::regenerateAtlasForGanesh(
 }
 
 }  // namespace sktext::gpu
->>>>>>> parent of 9f74401d172 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 812d05034e5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)

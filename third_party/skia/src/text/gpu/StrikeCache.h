@@ -56,14 +56,14 @@ struct GlyphKey {
 // of it's SkDescriptor as a key to access (or regenerate) the SkStrike. TextStrikes are
 // created by and owned by a StrikeCache.
 class TextStrike : public SkNVRefCnt<TextStrike> {
->>>>>>> parent of 9f74401d172 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 812d05034e5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 public:
     ~TextStrikeBase() override = default;
 
 <<<<<<< HEAD
 =======
     Glyph* getGlyph(SkPackedGlyphID, skgpu::MaskFormat);
->>>>>>> parent of 9f74401d172 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 812d05034e5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     const SkStrikeSpec& strikeSpec() const { return fStrikeSpec; }
     const SkDescriptor& getDescriptor() const { return fStrikeSpec.descriptor(); }
 
@@ -93,7 +93,7 @@ protected:
     skia_private::THashTable<Glyph*, GlyphKey, HashTraits> fCache;
 
     // Store for the glyph information.
->>>>>>> parent of 9f74401d172 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 812d05034e5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     SkArenaAlloc fAlloc{512};
 
     // Linked list for LRU cache management

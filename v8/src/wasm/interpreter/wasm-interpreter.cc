@@ -6305,7 +6305,7 @@ class Handlers : public HandlersBase {
 <<<<<<< HEAD
 
 =======
->>>>>>> parent of 9f74401d172 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 812d05034e5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     {
       // The new array is uninitialized, which means GC might fail until
       // initialization.

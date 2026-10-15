@@ -659,7 +659,7 @@ public:
         fGlyphs.packedGlyphIDToGlyph(cache, fVertexFiller.grMaskType());
     }
 
->>>>>>> parent of 9f74401d172 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 812d05034e5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     std::tuple<bool, SkRect> deviceRectAndNeedsTransform(
             const SkMatrix &positionMatrix) const override {
         auto [integerTranslate, deviceRect] =
@@ -757,7 +757,7 @@ public:
         fGlyphs.packedGlyphIDToGlyph(cache, fVertexFiller.grMaskType());
     }
 
->>>>>>> parent of 9f74401d172 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 812d05034e5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     int glyphSrcPadding() const override { return 1; }
 
     void draw(SkCanvas*,
@@ -897,7 +897,7 @@ public:
         fGlyphs.packedGlyphIDToGlyph(cache, fVertexFiller.grMaskType());
     }
 
->>>>>>> parent of 9f74401d172 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 812d05034e5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     int glyphSrcPadding() const override { return SK_DistanceFieldInset; }
 
     void draw(SkCanvas*,

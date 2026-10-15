@@ -161,7 +161,7 @@ constexpr bool IsInvocable(Func&& func, Args&&... args) {
 #else
   return requires { func(std::forward<Args>(args)...); };
 #endif
->>>>>>> parent of 9f74401d172 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 812d05034e5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 }  // namespace jni_zero::internal
