@@ -8,6 +8,8 @@
 #include "base/fuzzing_buildflags.h"
 #include "build/build_config.h"
 #if BUILDFLAG(IS_STARBOARD)
+// TODO: b/570662409 - Cobalt: Remove this unused transitive include once
+// all downstream files directly include required Starboard headers.
 #include "starboard/common/log.h"  // nogncheck
 #endif
 
@@ -59,11 +61,7 @@ extern "C" int __attribute__((weak)) __llvm_profile_write_file(void);
 // be removed in followups, so splitting it up like this now makes it easy to
 // land the followups.
 
-#if BUILDFLAG(IS_STARBOARD)
-#define IMMEDIATE_CRASH() SB_CHECK(false)
-#define TRAP_SEQUENCE1_() SB_CHECK(false)
-#define TRAP_SEQUENCE2_()
-#elif defined(COMPILER_GCC)
+#if defined(COMPILER_GCC)
 
 #if BUILDFLAG(IS_NACL)
 

@@ -321,5 +321,6 @@ public class StartupGuard {
       mDiagnosisInfo.clear();
     }
     mLastMilestoneTimestampMs.set(SystemClock.elapsedRealtime());
+    mPreCrashHook = null;
   }
 }

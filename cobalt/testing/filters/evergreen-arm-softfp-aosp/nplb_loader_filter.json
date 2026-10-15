@@ -6,7 +6,7 @@
     "*SbMediaSetAudioWriteDuration*",
     "*SbPlayer*",
     "*VerticalVideoTest*",
-    "SbDrmSessionTest.*",
+    "SbDrmSessionTest.InvalidSessionUpdateRequestParams",
     "SbMediaCanPlayMimeAndKeySystem.MinimumSupport"
   ]
 }

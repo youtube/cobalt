@@ -187,7 +187,7 @@ void PopulateCobaltFrameBinders(
 
   binder_map->Add<h5vcc_storage::mojom::H5vccStorage>(
       base::BindRepeating(&h5vcc_storage::H5vccStorageImpl::Create));
-#if BUILDFLAG(USE_EVERGREEN)
+#if BUILDFLAG(USE_EVERGREEN) || BUILDFLAG(IS_ANDROIDTV)
   binder_map->Add<h5vcc_native_stability::mojom::H5vccNativeStability>(
       base::BindRepeating(
           &h5vcc_native_stability::H5vccNativeStabilityImpl::Create));
@@ -203,7 +203,7 @@ void PopulateCobaltFrameBinders(
              mojo::PendingReceiver<
                  h5vcc_native_stability::mojom::H5vccNativeStability>) {
             VLOG(1) << "Ignoring H5vccNativeStability request for "
-                    << "non-Evergreen build.";
+                    << "unsupported platform build.";
           }));
 #endif
   binder_map->Add<media::mojom::PlatformWindowProvider>(

@@ -182,6 +182,11 @@ const char kPackageName[] = "package-name";
 const char kPackageVersionName[] = "package-version-name";
 #endif
 
+#if BUILDFLAG(IS_ANDROID) && BUILDFLAG(IS_COBALT)
+// Uses a custom Android fonts XML configuration for Cobalt.
+const char kUseCustomAndroidFontsXml[] = "use-custom-android-fonts-xml";
+#endif
+
 #if BUILDFLAG(IS_CHROMEOS)
 // Override the default scheduling boosting value for urgent tasks.
 // This can be adjusted if a specific chromeos device shows better perf/power
