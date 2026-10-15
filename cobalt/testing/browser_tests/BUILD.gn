@@ -230,6 +230,7 @@ test("cobalt_browsertests") {
     "//cobalt/browser/experiments/experiment_config_browsertest.cc",
     "//cobalt/browser/h5vcc_memory_browsertest.cc",
     "//cobalt/browser/h5vcc_runtime_browsertest.cc",
+    "//cobalt/browser/h5vcc_settings_browsertest.cc",
     "//cobalt/browser/h5vcc_system_browsertest.cc",
     "//cobalt/browser/i18n_browsertest.cc",
 

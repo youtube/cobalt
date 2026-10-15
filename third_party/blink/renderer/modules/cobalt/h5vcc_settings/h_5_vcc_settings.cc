@@ -153,6 +153,25 @@ bool ExposeSourceBufferChangeType(ExecutionContext* execution_context) {
       mojom::blink::OriginTrialFeature::kMediaSourceChangeType);
   return true;
 }
+
+// Exposes the audio and video track APIs, which pages use to switch between
+// SourceBuffers. They are hidden by default behind the CobaltAudioVideoTracks
+// runtime feature.
+bool ExposeAudioVideoTracks(ExecutionContext* execution_context) {
+  if (!execution_context) {
+    return false;
+  }
+  auto* origin_trial_context = execution_context->GetOriginTrialContext();
+  if (!origin_trial_context) {
+    return false;
+  }
+
+  WebRuntimeFeatures::EnableCobaltAudioVideoTracks(true);
+  // Installs the track APIs into the already-created global and prototypes.
+  origin_trial_context->AddFeature(
+      mojom::blink::OriginTrialFeature::kCobaltAudioVideoTracks);
+  return true;
+}
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 }  // namespace
@@ -211,7 +230,12 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
   }
   if (name == "Media.EnableMultiSourceBufferSwitching") {
     return ProcessSettingAsEnableOnly(
-        script_state, exception_context, name, *value, [] {
+        script_state, exception_context, name, *value, [script_state] {
+          // The page switches by selecting tracks, so only enable switching
+          // if it can reach the track APIs.
+          if (!ExposeAudioVideoTracks(ExecutionContext::From(script_state))) {
+            return false;
+          }
           ::media::SetEnableMultiSourceBufferSwitching(true);
           return true;
         });

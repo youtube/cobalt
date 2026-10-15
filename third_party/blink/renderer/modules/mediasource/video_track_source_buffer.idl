@@ -3,9 +3,11 @@
 // found in the LICENSE file.
 
 // https://w3c.github.io/media-source/#video-track-extensions
+// Cobalt: CobaltAudioVideoTracks is on whenever AudioVideoTracks is, and is
+// also enabled by the H5VCC setting `Media.EnableMultiSourceBufferSwitching`.
 [
     ImplementedAs=SourceBufferTrackBaseSupplement,
-    RuntimeEnabled=AudioVideoTracks
+    RuntimeEnabled=CobaltAudioVideoTracks
 ] partial interface VideoTrack {
     readonly attribute SourceBuffer? sourceBuffer;
 };
