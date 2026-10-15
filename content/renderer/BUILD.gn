@@ -194,6 +194,11 @@ target(link_target_type, "renderer") {
       sources -= [ "media/inspector_media_event_handler.cc" ]
       sources += [ "media/cobalt/inspector_media_event_handler_stub.h" ]
     }
+
+    sources += [
+      "media/cobalt/wasm_hole_web_media_player.cc",
+      "media/cobalt/wasm_hole_web_media_player.h",
+    ]
   }
 
   if (is_linux || is_chromeos) {
@@ -339,6 +344,9 @@ target(link_target_type, "renderer") {
   if (is_cobalt) {
     deps += [
       "//cobalt/media/audio:audio_decoder",
+      "//cobalt/media/service",
+      "//cobalt/media/service/mojom",
+      "//cobalt/starboard_wasm/player:surface_registry",
     ]
   }
 

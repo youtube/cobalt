@@ -1,0 +1,15 @@
+include_rules = [
+  "+cobalt/media/service",
+  "+cobalt/starboard_wasm/player/surface_registry.h",
+]
+
+specific_include_rules = {
+  "wasm_hole_web_media_player\\.cc": [
+    # MediaPlayerClient is what HTMLMediaElement passes as the
+    # WebMediaPlayerClient (see WebMediaPlayerBuilder).
+    "+third_party/blink/renderer/platform/media/media_player_client.h",
+    # The geometry service is reached through the in-process GPU client,
+    # which assumes Cobalt's single-process mode.
+    "+content/public/gpu/content_gpu_client.h",
+  ],
+}

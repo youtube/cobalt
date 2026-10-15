@@ -143,6 +143,10 @@
 #include "media/mojo/clients/starboard/starboard_renderer_client_factory.h"
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
+#if BUILDFLAG(IS_COBALT)
+#include "content/renderer/media/cobalt/wasm_hole_web_media_player.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 namespace {
 
 // This limit is much higher than it needs to be right now, because the logic
@@ -402,6 +406,17 @@ std::unique_ptr<blink::WebMediaPlayer> MediaFactory::CreateMediaPlayer(
   // Render thread may not exist in tests, returning nullptr if it does not.
   if (!render_thread)
     return nullptr;
+
+#if BUILDFLAG(IS_COBALT)
+  // A blob:...#sb-surface=<token> URL uses a hole-punching player whose
+  // geometry positions an H5vccWasmImports surface.
+  if (auto hole_player = WasmHoleWebMediaPlayer::MaybeCreate(
+          url, client,
+          render_frame_->GetTaskRunner(blink::TaskType::kInternalMedia),
+          render_thread->compositor_task_runner())) {
+    return hole_player;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 
   // There may be many media elements on a page. Creating OS output streams for
   // each can be very expensive, so we create an audio output sink which can be
