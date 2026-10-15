@@ -373,11 +373,11 @@ int ExoPlayerBridge::ReadSample(JNIEnv* env,
   bool is_key_frame = type == kSbMediaTypeAudio
                           ? true
                           : input_buffer->video_sample_info().is_key_frame;
+  // Never combine sample data with kBufferFlagEndOfStream: MediaCodecRenderer
+  // queues an EOS-flagged buffer to the codec with size 0, discarding its
+  // payload. EOS is delivered as a standalone empty buffer once the queue has
+  // drained (see above).
   int flags = is_key_frame ? kBufferFlagKeyFrame : 0;
-
-  if (eos_pending && pending_samples.size() == 1) {
-    flags |= kBufferFlagEndOfStream;
-  }
 
   // The metadata array schema is: [0] = timestampUs, [1] = sizeBytes, [2] =
   // flags.
@@ -459,6 +459,8 @@ int64_t ExoPlayerBridge::GetBufferedPositionUs(JNIEnv* env,
   bool eos_pending =
       type == kSbMediaTypeAudio ? audio_eos_pending_ : video_eos_pending_;
 
+  // After EOS all remaining samples are already queued, so the track is "fully
+  // buffered" even if |pending_samples| is non-empty.
   if (eos_pending) {
     return kTimeEndOfSource;
   }

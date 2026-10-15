@@ -14,6 +14,8 @@
 
 package dev.cobalt.media;
 
+import static dev.cobalt.media.Log.TAG;
+
 import androidx.annotation.NonNull;
 import androidx.media3.common.C;
 import androidx.media3.common.Format;
@@ -22,6 +24,7 @@ import androidx.media3.common.util.UnstableApi;
 import androidx.media3.decoder.DecoderInputBuffer;
 import androidx.media3.exoplayer.FormatHolder;
 import androidx.media3.exoplayer.source.SampleStream;
+import dev.cobalt.util.Log;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
@@ -97,11 +100,22 @@ public class ExoPlayerSampleStream implements SampleStream {
 
     if (result == RESULT_NEEDS_ALLOCATION) {
       int size = (int) mMetadata[1];
-      // Cobalt's JNI layer strictly requires zero-copy DirectByteBuffers.
-      // We don't call buffer.ensureSpaceForWrite(size) here, as it may allocate
-      // standard Java heap buffers which are rejected by the C++ bridge.
-      buffer.data = ByteBuffer.allocateDirect(size);
+      if (buffer.data == null) {
+        // Native requires a direct buffer for zero-copy reads.
+        buffer.data = ByteBuffer.allocateDirect(size);
+      } else {
+        // Don't replace a renderer-owned buffer (MediaCodec queues it by index); let the
+        // DecoderInputBuffer grow it or throw InsufficientCapacityException instead.
+        buffer.ensureSpaceForWrite(size);
+        if (!buffer.data.isDirect()) {
+          buffer.data = ByteBuffer.allocateDirect(size);
+        }
+      }
       result = mBridge.readSample(mType, buffer.data, mMetadata);
+      if (result == RESULT_NEEDS_ALLOCATION) {
+        Log.e(TAG, "Native bridge still requires allocation after providing a buffer of " + size);
+        return C.RESULT_NOTHING_READ;
+      }
     }
 
     if (result == C.RESULT_BUFFER_READ) {
