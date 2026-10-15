@@ -41,18 +41,8 @@ class VIZ_SERVICE_EXPORT CALayerOverlayProcessor {
       AggregatedRenderPass* render_pass,
       const gfx::RectF& display_rect,
       QuadList* quad_list,
-<<<<<<< HEAD
-      OverlayCandidateList* ca_layer_overlays) const;
-=======
-      const base::flat_map<AggregatedRenderPassId,
-                           raw_ptr<cc::FilterOperations, CtnExperimental>>&
-          render_pass_filters,
-      const base::flat_map<AggregatedRenderPassId,
-                           raw_ptr<cc::FilterOperations, CtnExperimental>>&
-          render_pass_backdrop_filters,
       OverlayCandidateList* ca_layer_overlays,
       const OverlayCandidateFactory& candidate_factory) const;
->>>>>>> parent of b1c356e9a3e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   // Returns true if all quads in the root render pass have been replaced by
   // CALayerOverlays. Virtual for testing.
