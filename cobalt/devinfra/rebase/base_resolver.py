@@ -194,7 +194,6 @@ class BaseResolver(abc.ABC):
       use_expert: bool = False,
       expert_guidance: str = "",
       investigation_log: str = "",
-      **kwargs,
   ) -> Tuple[str, str, str]:
     """Generates a patch. Returns (patch, model_used, target_file).
 

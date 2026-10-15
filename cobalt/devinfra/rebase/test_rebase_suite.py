@@ -1012,7 +1012,6 @@ void Foo() {{}}
             use_expert=False,
             expert_guidance="",
             investigation_log="",
-            **_kwargs,
         ):
           del diagnostic, use_expert
           calls.append({
@@ -1638,7 +1637,7 @@ target("foo") {{}}
       resolver.reasoning_engine = MockEngine()
       with unittest.mock.patch(
           "autoninja.is_unmodified_third_party", return_value=True):
-        resolver.resolve_diagnostic(diag, [])
+        resolver.resolve_diagnostic(diag)
 
       self.assertEqual(len(called_error_trace), 1)
       # Verifies snippet with stack was passed unadulterated to the LLM
@@ -1751,7 +1750,7 @@ target("foo") {{}}
           return {"status": "SUCCESS", "patch": "", "model_used": "flash"}
 
       resolver.reasoning_engine = MockEngine()
-      resolver.resolve_diagnostic(diag, [])
+      resolver.resolve_diagnostic(diag)
 
       self.assertEqual(len(captured_context), 1)
       self.assertIn("cobalt_exclude = [", captured_context[0])

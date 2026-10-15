@@ -190,14 +190,12 @@ class GClientSyncResolver(BaseResolver):
         )
     ]
 
-  # pylint: disable=unused-argument
   def resolve_diagnostic(
       self,
       diagnostic: Diagnostic,
       use_expert: bool = False,
       expert_guidance: str = "",
       investigation_log: str = "",
-      **kwargs,
   ) -> Tuple[str, str, str]:
     if not isinstance(diagnostic, GClientSyncDiagnostic):
       return "", self.model, "DEPS"

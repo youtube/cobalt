@@ -485,14 +485,12 @@ class AutoninjaResolver(BaseResolver):
         diags = [Diagnostic(error_message="\n\n".join(raw_chunks))]
     return diags
 
-  # pylint: disable=unused-argument
   def resolve_diagnostic(
       self,
       diagnostic: Diagnostic,
       use_expert: bool = False,
       expert_guidance: str = "",
       investigation_log: str = "",
-      **kwargs,
   ) -> Tuple[str, str, str]:
     if not isinstance(diagnostic, CompilerDiagnostic):
       # Unstructured build output: let the model work from the raw text.
