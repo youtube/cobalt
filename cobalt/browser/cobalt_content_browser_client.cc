@@ -696,6 +696,7 @@ void CobaltContentBrowserClient::FlushCookiesAndLocalStorage(
 }
 
 #if BUILDFLAG(FIELDTRIAL_TESTING_ENABLED)
+namespace {
 bool ShouldUseFieldTrialTestingConfig(const base::CommandLine& command_line) {
   bool is_enable_switch_set =
       command_line.HasSwitch(
@@ -703,15 +704,12 @@ bool ShouldUseFieldTrialTestingConfig(const base::CommandLine& command_line) {
       command_line.GetSwitchValueASCII(
           variations::switches::kEnableBenchmarking) ==
           variations::switches::kEnableFieldTrialTestingConfig;
-#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
-  return is_enable_switch_set;
-#else
   return is_enable_switch_set ||
          (!command_line.HasSwitch(
               variations::switches::kDisableFieldTrialTestingConfig) &&
           !command_line.HasSwitch(variations::switches::kVariationsServerURL));
-#endif  // BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 }
+}  // namespace
 #endif  // BUILDFLAG(FIELDTRIAL_TESTING_ENABLED)
 
 void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
