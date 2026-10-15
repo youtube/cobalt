@@ -153,6 +153,7 @@ public class BaseStarboardBridge {
   protected BaseStarboardBridge(
       Context appContext, Holder<Activity> activityHolder, Holder<Service> serviceHolder) {
     Log.i(TAG, "BaseStarboardBridge test init.");
+    sInstance = this;
     BaseStarboardBridgeJni.get().initJNI(this);
 
     mAppContext = appContext;

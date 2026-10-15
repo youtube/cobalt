@@ -18,11 +18,14 @@ import android.app.Activity;
 import android.app.Service;
 import android.content.Context;
 import android.os.Bundle;
+import android.view.ViewGroup.LayoutParams;
 import dev.cobalt.coat.BaseStarboardBridge;
+import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Holder;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.JNIUtils;
+import org.chromium.build.gtest_apk.NativeTestIntent;
 import org.chromium.native_test.NativeUnitTestActivity;
 
 /**
@@ -55,6 +58,9 @@ public class CobaltTestActivity extends NativeUnitTestActivity {
     JNIUtils.setDefaultClassLoader(getClassLoader());
     DisplayUtil.cacheDefaultDisplay(this);
 
+    // Keep the UI thread free so the video surface can be created while tests run.
+    getIntent().putExtra(NativeTestIntent.EXTRA_RUN_IN_SUB_THREAD, true);
+
     // super.onCreate loads the native shared library (.so) into memory via System.loadLibrary.
     super.onCreate(savedInstanceState);
 
@@ -62,5 +68,9 @@ public class CobaltTestActivity extends NativeUnitTestActivity {
     Holder<Activity> activityHolder = new Holder<>();
     activityHolder.set(this);
     mTestStarboardBridge = new TestStarboardBridge(getApplicationContext(), activityHolder);
+
+    addContentView(
+        new VideoSurfaceView(this),
+        new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
   }
 }
