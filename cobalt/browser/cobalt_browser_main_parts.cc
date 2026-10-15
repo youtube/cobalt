@@ -86,6 +86,7 @@
 #include "base/android/build_info.h"
 #include "base/android/jni_android.h"
 #include "cobalt/android/jni_headers/ProcessExitReasonHelper_jni.h"
+#include "cobalt/browser/metrics/cobalt_process_state_summary_manager.h"
 #endif
 
 #if BUILDFLAG(IS_ANDROIDTV)
@@ -266,6 +267,14 @@ void RecordPriorSessionExitReasons() {
   }
   JNIEnv* env = base::android::AttachCurrentThread();
   Java_ProcessExitReasonHelper_recordHistoricalProcessExitReason(env);
+  int exit_reason = -1;
+  auto summary =
+      CobaltProcessStateSummaryManager::GetInstance()->GetPriorSessionSummary(
+          &exit_reason);
+  if (summary.has_value() &&
+      (exit_reason >= 0 || summary->startup_guard_triggered_kill)) {
+    EmitPriorSessionExitSummaryHistograms(exit_reason, *summary);
+  }
 }
 #endif
 
@@ -378,6 +387,9 @@ int CobaltBrowserMainParts::PreCreateThreads() {
   starboard::StarboardBridge::GetInstance()->SetStartupMilestone(17);
 #endif
   base::UmaHistogramSparse("Cobalt.Startup.MilestoneReached", 17);
+#if BUILDFLAG(IS_ANDROID)
+  CobaltProcessStateSummaryManager::GetInstance()->SetStartupMilestone(17);
+#endif
   LogStabilityMetricsCapacity("PreCreateThreads");
   SetupMetrics();
 

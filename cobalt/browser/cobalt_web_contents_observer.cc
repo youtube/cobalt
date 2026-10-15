@@ -20,6 +20,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/timer/timer.h"
+#include "build/build_config.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
 #include "cobalt/browser/lifecycle/public/mojom/cobalt_lifecycle.mojom.h"
@@ -30,6 +31,10 @@
 #include "mojo/public/cpp/bindings/remote.h"
 #include "net/base/net_errors.h"
 #include "services/service_manager/public/cpp/interface_provider.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "cobalt/browser/metrics/cobalt_process_state_summary_manager.h"
+#endif
 
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "starboard/android/shared/starboard_bridge.h"
@@ -130,6 +135,9 @@ void CobaltWebContentsObserver::DidStartNavigation(
       navigation_start_ticks_.is_null()) {
     navigation_start_ticks_ = base::TimeTicks::Now();
     base::UmaHistogramSparse("Cobalt.Startup.MilestoneReached", 22);
+#if BUILDFLAG(IS_ANDROID)
+    CobaltProcessStateSummaryManager::GetInstance()->SetStartupMilestone(22);
+#endif
   }
 
   // Start a navigation timer with a timeout callback to raise a
@@ -162,6 +170,11 @@ void CobaltWebContentsObserver::DidFinishNavigation(
       navigation_handle->HasCommitted() && !navigation_handle->IsErrorPage() &&
       navigation_handle->GetNetErrorCode() == net::OK) {
     base::UmaHistogramSparse("Cobalt.Startup.MilestoneReached", 26);
+#if BUILDFLAG(IS_ANDROID)
+    CobaltProcessStateSummaryManager::GetInstance()->SetStartupMilestone(26);
+    CobaltProcessStateSummaryManager::GetInstance()->SetStartupGuardArmed(
+        false);
+#endif
     base::TimeDelta nav_duration =
         base::TimeTicks::Now() - navigation_start_ticks_;
     base::UmaHistogramCustomTimes(
