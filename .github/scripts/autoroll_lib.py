@@ -161,13 +161,12 @@ def resolve_conflicts(unmerged_files):
   """
   # Special handling for .gitmodules to prevent "bad config" fatal errors
   if '.gitmodules' in unmerged_files:
+    files_to_add = ['.gitmodules']
     if os.path.exists('.gitmodules'):
       shutil.move('.gitmodules', '.gitmodules_conflict')
-      run(['git', 'checkout', '--ours', '--', '.gitmodules'])
-      run(['git', 'add', '--sparse', '--', '.gitmodules', '.gitmodules_conflict'])
-    else:
-      run(['git', 'checkout', '--ours', '--', '.gitmodules'])
-      run(['git', 'add', '--sparse', '--', '.gitmodules'])
+      files_to_add.append('.gitmodules_conflict')
+    run(['git', 'checkout', '--ours', '--', '.gitmodules'])
+    run(['git', 'add', '--sparse', '--'] + files_to_add)
     unmerged_files.pop('.gitmodules', None)
 
   deleted_by_us = []
