@@ -207,11 +207,10 @@ TextStrike::TextStrike(StrikeCache* strikeCache, const SkStrikeSpec& strikeSpec)
         : fStrikeCache(strikeCache)
         , fStrikeSpec{strikeSpec} {}
 
-Glyph* TextStrike::getGlyph(SkPackedGlyphID packedGlyphID, skgpu::MaskFormat format) {
-    GlyphKey key(packedGlyphID, format);
-    Glyph* glyph = fCache.findOrNull(key);
+Glyph* TextStrike::getGlyph(SkPackedGlyphID packedGlyphID) {
+    Glyph* glyph = fCache.findOrNull(packedGlyphID);
     if (glyph == nullptr) {
-        glyph = fAlloc.make<Glyph>(packedGlyphID, format);
+        glyph = fAlloc.make<Glyph>(packedGlyphID);
         fCache.set(glyph);
         fMemoryUsed += sizeof(Glyph);
         if (!fRemoved) {
@@ -221,12 +220,12 @@ Glyph* TextStrike::getGlyph(SkPackedGlyphID packedGlyphID, skgpu::MaskFormat for
     return glyph;
 }
 
-const GlyphKey TextStrike::HashTraits::GetKey(const Glyph* glyph) {
-    return GlyphKey(glyph->fPackedID, glyph->fMaskFormat);
+const SkPackedGlyphID& TextStrike::HashTraits::GetKey(const Glyph* glyph) {
+    return glyph->fPackedID;
 }
 
-uint32_t TextStrike::HashTraits::Hash(GlyphKey key) {
-    return key.fID.hash();
+uint32_t TextStrike::HashTraits::Hash(SkPackedGlyphID key) {
+    return key.hash();
 }
 
 }  // namespace sktext::gpu

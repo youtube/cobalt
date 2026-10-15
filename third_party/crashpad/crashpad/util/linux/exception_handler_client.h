@@ -18,7 +18,6 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
-#include "build/build_config.h"
 #include "util/linux/exception_handler_protocol.h"
 
 namespace crashpad {
