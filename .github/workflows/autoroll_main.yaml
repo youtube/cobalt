@@ -86,10 +86,10 @@ jobs:
           # Fetch enough history for source branch.
           git fetch --depth="${FETCH_DEPTH}" --no-recurse-submodules origin "${SOURCE_BRANCH}:${SOURCE_BRANCH}"
 
-          # Label mode keeps one conflict branch per conflicting PR. Mirror
-          # them as local branches so the script can reconcile them.
+          # Mirror conflict branches as local branches so the script can reconcile
+          # them. Ignore non-zero exit code when no conflict branches exist yet.
           git fetch --depth="${FETCH_DEPTH}" --no-recurse-submodules origin \
-            "+refs/heads/autoroll-conflict-${SOURCE_BRANCH}-to-${TARGET_BRANCH}-*:refs/heads/autoroll-conflict-${SOURCE_BRANCH}-to-${TARGET_BRANCH}-*"
+            "+refs/heads/autoroll-conflict-${SOURCE_BRANCH}-to-${TARGET_BRANCH}-*:refs/heads/autoroll-conflict-${SOURCE_BRANCH}-to-${TARGET_BRANCH}-*" || true
 
       - name: Fetch Candidate PRs with Labels
         if: matrix.branch.mode == 'label'
