@@ -4,15 +4,19 @@
 Two roll modes are supported:
 
 - full: every commit in source..target is rolled in order onto the autoroll
-  branch and the AUTOROLL cursor file tracks the last rolled commit. A commit
-  that conflicts is committed with conflict markers as the single CONFLICTED
-  commit of an otherwise empty branch, blocking the roll until resolved.
-- label: only merged PRs carrying the `cp-<target>` label are rolled. The
-  autoroll branch (`autoroll-<source>-to-<target>`) only ever holds clean
-  cherry-picks. Each conflicting PR is instead committed on its own
-  `autoroll-conflict-<source>-to-<target>-<pr>` branch, built from the target
-  branch, so a conflict never blocks other cherry-picks and never gets mixed
-  with clean ones.
+  branch and the AUTOROLL cursor file tracks the last rolled commit. If a commit
+  conflicts, rolling stops to preserve linear history and the conflicting commit
+  is committed on its own `autoroll-conflict-<source>-to-<target>-<id>` branch.
+- label: only merged PRs carrying the `cp-<target>` label are rolled.
+  Conflicting PRs are committed on their own
+  `autoroll-conflict-<source>-to-<target>-<pr>` branches, while clean labeled
+  PRs continue rolling.
+
+In both modes, the clean autoroll branch (`autoroll-<source>-to-<target>`) only
+ever holds clean cherry-picks. Each conflicting commit is committed on its own
+`autoroll-conflict-<source>-to-<target>-<id>` branch, built from the target
+branch, so a conflict never blocks clean cherry-picks and never gets mixed
+with clean ones.
 
 When --manifest is given, a JSON description of the resulting branches is
 written there for the workflow to push and open/update/close PRs.
@@ -86,75 +90,11 @@ def get_candidates(args, target_start):
   return candidates
 
 
-def roll_full(args, candidates):
-  """Rolls candidates in order onto HEAD; stops at the first conflict."""
-  target = args.target_branch
-  # A conflict stops the roll until a human resolves and merges it.
-  if lib.read_cursor('HEAD', args.autoroll_file).startswith('CONFLICTED:'):
-    lib.log('Autoroll branch has an unresolved CONFLICTED commit.')
-    sys.exit(1)
-  subjects = lib.get_subjects(f'{target}..HEAD')
-  if any(s.startswith('CONFLICTED ') for s in subjects):
-    lib.log('Autoroll branch has a resolved CONFLICTED commit. '
-            'Squash and merge before autoroll will continue.')
-    sys.exit(1)
-
-  already_rolled_shas, already_rolled_prs = lib.get_rolled_source_items(
-      f'{target}..HEAD')
-  # A CONFLICTED commit may only ever be the sole commit of the branch. The
-  # branch state (not the iteration order) decides whether that is possible:
-  # an older commit can enter the candidate list after newer ones were rolled.
-  branch_empty = not subjects
-  commits_added = []
-
-  def is_rolled(sha, pr_num):
-    pr_num_int = int(pr_num) if pr_num else None
-    return sha in already_rolled_shas or (pr_num_int and
-                                          pr_num_int in already_rolled_prs)
-
-  for index, (sha, title, pr_num) in enumerate(candidates):
-    identifier = f'- #{pr_num}' if pr_num else f'- {sha}'
-
-    # Skip if already in autoroll (matched by SHA or original PR number)
-    if is_rolled(sha, pr_num):
-      commits_added.append(identifier)
-      continue
-
-    if len(commits_added) >= args.max_commits:
-      lib.log(f'Reached commit limit ({args.max_commits}).')
-      break
-
-    metadata = lib.get_cherry_pick_metadata(sha, title, pr_num)
-    first_commit = branch_empty and not commits_added
-    autoroll_metadata = (args.autoroll_file, sha, True)
-
-    result, unmerged_files = cherry_pick(sha, metadata, first_commit,
-                                         autoroll_metadata)
-
-    if result == lib.CommitStatus.FAILED:
-      lib.log(f'Reached FAILED commit ({sha}).')
-      # Keep reporting what is already on the branch, even if it was rolled
-      # before this (older) commit became a candidate.
-      commits_added.extend(f'- #{p}' if p else f'- {s}'
-                           for s, _, p in candidates[index + 1:]
-                           if is_rolled(s, p))
-      break
-
-    commits_added.append(identifier)
-
-    if result == lib.CommitStatus.CONFLICTED:
-      commits_added.extend(conflict_files_block(unmerged_files).split('\n'))
-      lib.log(f'Reached CONFLICTED commit ({sha}).')
-      break
-
-  return commits_added
-
-
-def roll_label_clean(args, candidates, manifest):
+def roll_clean(args, candidates, manifest):
   """Builds the clean autoroll branch on HEAD.
 
   Returns:
-    (commits_added, conflicted): PR identifiers on the branch and a list of
+    (commits_added, conflicted): commit identifiers on the branch and a list of
     dicts describing candidates that could not be applied cleanly.
   """
   target = args.target_branch
@@ -199,9 +139,11 @@ def roll_label_clean(args, candidates, manifest):
   commits_added = []
   conflicted = []
 
-  for sha, title, pr_num in candidates:
-    identifier = f'- #{pr_num}'
-    if sha in already_rolled_shas or int(pr_num) in already_rolled_prs:
+  for index, (sha, title, pr_num) in enumerate(candidates):
+    identifier = f'- #{pr_num}' if pr_num else f'- {sha}'
+    pr_num_int = int(pr_num) if pr_num else None
+    if sha in already_rolled_shas or (pr_num_int and
+                                      pr_num_int in already_rolled_prs):
       commits_added.append(identifier)
       continue
 
@@ -210,17 +152,32 @@ def roll_label_clean(args, candidates, manifest):
       break
 
     metadata = lib.get_cherry_pick_metadata(sha, title, pr_num)
+    autoroll_metadata = (args.autoroll_file, sha,
+                         True) if (args.mode == 'full' and
+                                   args.autoroll_file) else None
     # Never commit conflicts on the clean branch.
-    result, unmerged_files = cherry_pick(sha, metadata, first_commit=False)
+    result, unmerged_files = cherry_pick(
+        sha, metadata, first_commit=False, autoroll_metadata=autoroll_metadata)
 
     if result == lib.CommitStatus.FAILED:
       lib.log(f'Skipping conflicting commit ({sha}).')
+      conflict_id = str(pr_num) if pr_num else sha[:10]
       conflicted.append({
-          'pr': int(pr_num),
+          'id': conflict_id,
+          'pr': int(pr_num) if pr_num else None,
           'sha': sha,
           'title': title,
           'files': unmerged_files,
       })
+      if args.mode == 'full':
+        # Full mode preserves linear history: halt further candidate rolling.
+        # Keep reporting any already-rolled commits that came after this
+        # candidate on the branch.
+        commits_added.extend(f'- #{p}' if p else f'- {s}'
+                             for s, _, p in candidates[index + 1:]
+                             if s in already_rolled_shas or
+                             (int(p) in already_rolled_prs if p else False))
+        break
       continue
 
     commits_added.append(identifier)
@@ -231,8 +188,8 @@ def roll_label_clean(args, candidates, manifest):
       'items': commits_added,
   })
   if rebuilt and not commits_added:
-    # Every rolled PR lost its label (or landed otherwise). Deleting the
-    # branch closes its PR.
+    # Every rolled commit lost its candidate status (label removed or landed).
+    # Deleting the branch closes its PR.
     manifest['delete'].append({
         'branch': clean_branch,
         'old_sha': clean_old_sha
@@ -251,8 +208,14 @@ def build_conflict_branch(args, conflict, old_sha):
   lib.run(['git', 'checkout', '--quiet', '--detach', args.target_branch])
   metadata = lib.get_cherry_pick_metadata(conflict['sha'], conflict['title'],
                                           conflict['pr'])
+  autoroll_metadata = (args.autoroll_file, conflict['sha'],
+                       True) if (args.mode == 'full' and
+                                 args.autoroll_file) else None
   result, unmerged_files = cherry_pick(
-      conflict['sha'], metadata, first_commit=True)
+      conflict['sha'],
+      metadata,
+      first_commit=True,
+      autoroll_metadata=autoroll_metadata)
   if result != lib.CommitStatus.CONFLICTED:
     return result, None
 
@@ -265,19 +228,19 @@ def build_conflict_branch(args, conflict, old_sha):
   return result, new_sha
 
 
-def roll_label_conflicts(args, conflicted, manifest):
+def roll_conflicts(args, conflicted, manifest):
   """Reconciles autoroll-conflict-* branches with the conflicting candidates."""
   target = args.target_branch
   clean_branch = lib.current_branch()
   prefix = conflict_branch_prefix(args.source_branch, target)
   existing = lib.list_branches(prefix)
 
-  def branch_for(pr):
-    return f'{prefix}{pr}'
+  def branch_for(conflict_id):
+    return f'{prefix}{conflict_id}'
 
   # Existing conflict branches keep their slot; new ones fill the remainder.
-  ordered = ([c for c in conflicted if branch_for(c['pr']) in existing] +
-             [c for c in conflicted if branch_for(c['pr']) not in existing])
+  ordered = ([c for c in conflicted if branch_for(c['id']) in existing] +
+             [c for c in conflicted if branch_for(c['id']) not in existing])
 
   conflicts = []
   pending = []
@@ -287,11 +250,12 @@ def roll_label_conflicts(args, conflicted, manifest):
 
   try:
     for conflict in ordered:
-      branch = branch_for(conflict['pr'])
+      branch = branch_for(conflict['id'])
       # Only branches that actually hold a conflict occupy a slot.
       if len(conflicts) + len(hands_off) >= args.max_conflict_prs:
         if branch not in existing:
           pending.append({
+              'id': conflict['id'],
               'pr': conflict['pr'],
               'reason': 'waiting for a free conflict PR slot '
                         f'(max {args.max_conflict_prs})',
@@ -311,6 +275,7 @@ def roll_label_conflicts(args, conflicted, manifest):
         lib.log(f'Commit ({conflict_sha}) applies cleanly to {target}; '
                 'it only conflicts with the pending autoroll branch.')
         pending.append({
+            'id': conflict['id'],
             'pr': conflict['pr'],
             'reason': f'applies cleanly to {target} but conflicts with the '
                       f'pending `{clean_branch}` roll; retried after it merges',
@@ -323,6 +288,8 @@ def roll_label_conflicts(args, conflicted, manifest):
       if changed:
         lib.run(['git', 'branch', '--force', branch, sha])
       conflicts.append({
+          'id':
+              conflict['id'],
           'pr':
               conflict['pr'],
           'branch':
@@ -342,11 +309,12 @@ def roll_label_conflicts(args, conflicted, manifest):
   finally:
     lib.run(['git', 'checkout', '--quiet', clean_branch])
 
-  wanted_branches = {branch_for(c['pr']) for c in conflicted}
+  wanted_branches = {branch_for(c['id']) for c in conflicted}
   for branch, old_sha in sorted(existing.items()):
     if branch in handled:
       continue
-    if not branch[len(prefix):].isdigit():
+    suffix = branch[len(prefix):]
+    if not suffix.isalnum():
       lib.log(f'Ignoring {branch}: not an autoroll conflict branch.')
       continue
     if branch in wanted_branches:
@@ -378,14 +346,11 @@ def main():
   candidates = get_candidates(args, target_start)
   manifest = {}
 
-  if args.mode == 'full':
-    commits_added = roll_full(args, candidates)
-  else:
-    commits_added, conflicted = roll_label_clean(args, candidates, manifest)
-    # Without a clean roll the conflicting set is unknown; leave the conflict
-    # branches as they are.
-    if conflicted is not None:
-      roll_label_conflicts(args, conflicted, manifest)
+  commits_added, conflicted = roll_clean(args, candidates, manifest)
+  # Without a clean roll the conflicting set is unknown; leave the conflict
+  # branches as they are.
+  if conflicted is not None:
+    roll_conflicts(args, conflicted, manifest)
 
   if args.manifest:
     with open(args.manifest, 'w', encoding='utf-8') as f:

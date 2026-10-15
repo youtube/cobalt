@@ -30,10 +30,9 @@ Critical User Journeys (CUJs) Covered:
   (target..HEAD) are preserved in the PR description, and new candidate commits
   are stacked incrementally.
 - CUJ 5: Conflict on First Commit (Full Mode)
-  When the first cherry-pick produces unresolvable conflicts, the unmerged files
-  are staged, the commit is committed with 'CONFLICTED ' prefix, the autoroll
-  cursor is updated with 'CONFLICTED:<sha>', and the script halts with a
-  conflict markdown block.
+  When the first cherry-pick produces unresolvable conflicts, it is isolated
+  on its own conflict branch (`autoroll-conflict-<src>-to-<tgt>-<id>`), leaving
+  the clean branch empty.
 - CUJ 6: Conflict in Label Mode Uses a Conflict Branch
   The clean autoroll branch never receives a CONFLICTED commit. The conflicting
   PR is skipped on the clean branch and committed as the single CONFLICTED
@@ -43,7 +42,7 @@ Critical User Journeys (CUJs) Covered:
 - CUJ 7: Conflict on Subsequent Commit
   If a conflict occurs on a commit after prior clean commits have already been
   applied on the autoroll branch, a hard reset reverts the conflicted commit,
-  preserving the prior clean commits. In label mode the conflicting PR is
+  preserving the prior clean commits. In both modes the conflicting commit is
   isolated on its own conflict branch.
 - CUJ 8: Auto-Resolvable Conflicts
   Resolves expected conflicts such as submodule pointer updates and deleted
@@ -55,9 +54,10 @@ Critical User Journeys (CUJs) Covered:
 - CUJ 10: Human Commits on the Clean Branch Are Left Alone (Label Mode)
   Any commit not written by the roller freezes the branch: nothing is rolled,
   rebuilt, or deleted (exit code 0, empty output).
-- CUJ 10b: Full Mode Halts on Conflicted Branches
-  In full mode an unresolved CONFLICTED cursor, or a resolved CONFLICTED
-  commit awaiting squash-merge, halts the roll with exit code 1.
+- CUJ 10b: Full Mode Stops at Conflict and Respects Resolutions
+  In full mode, a conflict stops rolling further commits to preserve linear
+  history, isolates the conflict to its own branch, and respects human
+  resolution commits.
 - CUJ 11: Respects Max Commits Limit
   Halts cherry-picking once the configured `--max-commits` limit is reached.
 - CUJ 12: Missing `--prs-json` Validation in Label Mode
@@ -102,6 +102,9 @@ Critical User Journeys (CUJs) Covered:
 - CUJ 24: Cap Counts Hands-off Branches
   Conflict branches a human is resolving occupy a slot; further conflicts are
   reported as pending until a slot frees up.
+- CUJ 25: Direct Commit Conflict in Full Mode
+  A commit without a PR number that conflicts in full mode is committed on an
+  autoroll-conflict-<src>-to-<tgt>-<sha[:10]> branch.
 
 Integration Test Guidelines:
 - All integration tests MUST verify the branch state after the SUT finishes:
@@ -559,7 +562,8 @@ class TestAutorollIntegration(unittest.TestCase):
     self.assertEqual(autoroll_content, self.start_sha)
 
   def test_cuj5_conflict_on_first_commit_full_mode(self):
-    """CUJ 5: Conflict on first commit in full mode stages conflict."""
+    """CUJ 5: Conflict on first commit in full mode isolates conflict to branch.
+    """
     self.commit_file('conflict.txt', 'line 1\nline 2\n',
                      'Add base conflict file')
     base_sha = self.get_head_sha()
@@ -580,37 +584,54 @@ class TestAutorollIntegration(unittest.TestCase):
     self.git('checkout', 'staging')
     self.git('checkout', '-b', 'autoroll-main-to-staging')
 
-    exit_code, stdout, _ = self.run_autoroll([
-        '--source-branch',
-        'main',
-        '--target-branch',
-        'staging',
-        '--autoroll-file',
-        '.github/AUTOROLL',
-        '--max-commits',
-        '10',
-        '--mode',
-        'full',
-    ])
+    with tempfile.NamedTemporaryFile('w+', encoding='utf-8', delete=False) as f:
+      manifest_path = f.name
 
-    self.assertEqual(exit_code, 0)
-    expected_output = ('- #101\n\n'
-                       'CONFLICTED files:\n'
-                       '```\n'
-                       'conflict.txt\n'
-                       '```')
-    self.assertEqual(stdout.strip(), expected_output)
+    try:
+      exit_code, stdout, _ = self.run_autoroll([
+          '--source-branch',
+          'main',
+          '--target-branch',
+          'staging',
+          '--autoroll-file',
+          '.github/AUTOROLL',
+          '--max-commits',
+          '10',
+          '--mode',
+          'full',
+          '--manifest',
+          manifest_path,
+      ])
 
-    # Verify branch state after SUT finishes
-    self.assert_working_tree_clean()
-    commit_titles = self.get_branch_commit_titles('staging')
-    self.assertEqual(len(commit_titles), 1)
-    self.assertTrue(
-        commit_titles[0].startswith('CONFLICTED Cherry pick PR #101:'))
-    conflict_content = self.git('show', 'HEAD:conflict.txt').stdout
-    self.assertIn('<<<<<<< HEAD', conflict_content)
-    autoroll_content = self.git('show', 'HEAD:.github/AUTOROLL').stdout.strip()
-    self.assertEqual(autoroll_content, f'CONFLICTED:{sha1}')
+      self.assertEqual(exit_code, 0)
+      self.assertEqual(stdout.strip(), '')
+
+      # Clean branch remains empty on top of staging.
+      self.assert_working_tree_clean()
+      commit_titles = self.get_branch_commit_titles('staging')
+      self.assertEqual(len(commit_titles), 0)
+
+      # Conflict branch holds the single CONFLICTED cherry-pick.
+      branch = 'autoroll-conflict-main-to-staging-101'
+      conflict_titles = self.get_commit_titles('staging', branch)
+      self.assertEqual(len(conflict_titles), 1)
+      self.assertTrue(
+          conflict_titles[0].startswith('CONFLICTED Cherry pick PR #101:'))
+      conflict_content = self.git('show', f'{branch}:conflict.txt').stdout
+      self.assertIn('<<<<<<< HEAD', conflict_content)
+      autoroll_content = self.git('show',
+                                  f'{branch}:.github/AUTOROLL').stdout.strip()
+      self.assertEqual(autoroll_content, f'CONFLICTED:{sha1}')
+
+      with open(manifest_path, 'r', encoding='utf-8') as f:
+        manifest = json.load(f)
+      self.assertEqual(manifest['clean']['items'], [])
+      self.assertEqual(len(manifest['conflicts']), 1)
+      self.assertEqual(manifest['conflicts'][0]['pr'], 101)
+      self.assertEqual(manifest['conflicts'][0]['branch'], branch)
+    finally:
+      if os.path.exists(manifest_path):
+        os.unlink(manifest_path)
 
   def test_cuj6_conflict_in_label_mode_uses_conflict_branch(self):
     """CUJ 6: Label mode keeps the clean branch clean; conflict gets own branch.
@@ -847,38 +868,88 @@ class TestAutorollIntegration(unittest.TestCase):
     self.assertNotIn('conflicts', manifest)
     self.assertEqual(manifest['delete'], [])
 
-  def test_cuj10b_full_mode_halts_on_conflicted_branch(self):
-    """CUJ 10b: Full mode still halts (exit 1) on CONFLICTED/RESOLVED branches.
-    """
+  def test_cuj10b_full_mode_stops_at_conflict_and_respects_resolutions(self):
+    """CUJ 10b: Full mode stops at conflict and respects human resolutions."""
     self.setup_conflict_scenario(target='staging')
-    args = [
-        '--source-branch', 'main', '--target-branch', 'staging',
-        '--autoroll-file', '.github/AUTOROLL', '--max-commits', '10', '--mode',
-        'full'
-    ]
-    exit_code, stdout, _ = self.run_autoroll(args)
-    self.assertEqual(exit_code, 0)
-    self.assertTrue(stdout.startswith('- #101'))
-    conflicted_sha = self.get_head_sha()
+    self.git('checkout', 'main')
+    self.commit_file('clean.txt', 'clean\n', 'Clean commit (#102)')
+    self.git('checkout', 'autoroll-main-to-staging')
 
-    # Unresolved: the cursor still says CONFLICTED.
-    exit_code, _, stderr = self.run_autoroll(args)
-    self.assertEqual(exit_code, 1)
-    self.assertIn('unresolved CONFLICTED commit', stderr)
-    self.assertEqual(self.get_head_sha(), conflicted_sha)
+    with tempfile.NamedTemporaryFile('w+', encoding='utf-8', delete=False) as f:
+      manifest_path = f.name
 
-    # Resolved but not merged: cursor fixed, CONFLICTED commit still present.
-    main_sha = self.git('rev-parse', 'main').stdout.strip()
-    with open('.github/AUTOROLL', 'w', encoding='utf-8') as f:
-      f.write(f'{main_sha}\n')
-    self.git('add', '.github/AUTOROLL')
-    self.commit_file('conflict.txt', 'line 1\nresolved\n',
-                     'RESOLVED Cherry pick PR #101: Main edit')
-    resolved_sha = self.get_head_sha()
-    exit_code, _, stderr = self.run_autoroll(args)
-    self.assertEqual(exit_code, 1)
-    self.assertIn('Squash and merge', stderr)
-    self.assertEqual(self.get_head_sha(), resolved_sha)
+    try:
+      args = [
+          '--source-branch', 'main', '--target-branch', 'staging',
+          '--autoroll-file', '.github/AUTOROLL', '--max-commits', '10',
+          '--mode', 'full', '--manifest', manifest_path
+      ]
+      # 1. Run 1: Candidate #101 conflicts. Clean branch is stopped,
+      # conflict isolated.
+      exit_code, stdout, _ = self.run_autoroll(args)
+      self.assertEqual(exit_code, 0)
+      self.assertEqual(stdout.strip(), '')
+      conflict_branch = 'autoroll-conflict-main-to-staging-101'
+      conflicted_sha = self.branch_sha(conflict_branch)
+      self.assertIsNotNone(conflicted_sha)
+
+      with open(manifest_path, 'r', encoding='utf-8') as f:
+        m1 = json.load(f)
+      self.assertEqual(m1['clean']['items'], [])
+      self.assertEqual([c['pr'] for c in m1['conflicts']], [101])
+      self.assertTrue(m1['conflicts'][0]['changed'])
+
+      # 2. Run 2: Unresolved conflict branch still exists. No change.
+      exit_code, stdout, _ = self.run_autoroll(args)
+      self.assertEqual(exit_code, 0)
+      self.assertEqual(self.branch_sha(conflict_branch), conflicted_sha)
+      with open(manifest_path, 'r', encoding='utf-8') as f:
+        m2 = json.load(f)
+      self.assertFalse(m2['conflicts'][0]['changed'])
+
+      # 3. Run 3: Human resolves conflict on the conflict branch.
+      self.git('checkout', conflict_branch)
+      self.commit_file('conflict.txt', 'line 1\nresolved\n',
+                       'RESOLVED Cherry pick PR #101: Main edit')
+      resolved_sha = self.get_head_sha()
+      self.git('checkout', 'autoroll-main-to-staging')
+
+      exit_code, stdout, _ = self.run_autoroll(args)
+      self.assertEqual(exit_code, 0)
+      self.assertEqual(self.branch_sha(conflict_branch), resolved_sha)
+      with open(manifest_path, 'r', encoding='utf-8') as f:
+        m3 = json.load(f)
+      self.assertEqual(m3['hands_off'], [{'branch': conflict_branch}])
+      self.assertEqual(m3['conflicts'], [])
+
+      # 4. Human squash-merges resolved #101 into staging.
+      self.git('checkout', 'staging')
+      with open('.github/AUTOROLL', 'w', encoding='utf-8') as f:
+        main_sha1 = self.git('rev-parse', 'main~1').stdout.strip()
+        f.write(f'{main_sha1}\n')
+      self.git('add', '.github/AUTOROLL')
+      self.commit_cherry_pick(
+          'conflict.txt',
+          'line 1\nresolved\n',
+          pr_num=101,
+          title='Main edit',
+          sha=main_sha1)
+      self.git('checkout', 'autoroll-main-to-staging')
+      self.git('reset', '--hard', 'staging')
+
+      # 5. Run 4: Now #101 is landed, roller resumes rolling #102,
+      # and deletes conflict branch.
+      exit_code, stdout, _ = self.run_autoroll(args)
+      self.assertEqual(exit_code, 0)
+      self.assertEqual(stdout.strip(), '- #102')
+      with open(manifest_path, 'r', encoding='utf-8') as f:
+        m4 = json.load(f)
+      self.assertEqual(m4['clean']['items'], ['- #102'])
+      self.assertEqual(m4['hands_off'], [{'branch': conflict_branch}])
+      self.assertEqual(m4['delete'], [])
+    finally:
+      if os.path.exists(manifest_path):
+        os.unlink(manifest_path)
 
   def test_cuj11_respects_max_commits(self):
     """CUJ 11: Autoroller stops rolling once max commits limit is reached."""
@@ -1269,25 +1340,43 @@ class TestAutorollIntegration(unittest.TestCase):
     rolled_sha = self.commit_cherry_pick(
         'b.txt', 'content b\n', pr_num=102, title='Newer commit', sha=sha2)
 
-    exit_code, stdout, _ = self.run_autoroll([
-        '--source-branch',
-        'main',
-        '--target-branch',
-        'staging',
-        '--autoroll-file',
-        '.github/AUTOROLL',
-        '--max-commits',
-        '10',
-        '--mode',
-        'full',
-    ])
+    with tempfile.NamedTemporaryFile('w+', encoding='utf-8', delete=False) as f:
+      manifest_path = f.name
 
-    self.assertEqual(exit_code, 0)
-    self.assertEqual(stdout.strip(), '- #102')
-    self.assert_working_tree_clean()
-    self.assertEqual(self.get_head_sha(), rolled_sha)
-    autoroll_content = self.git('show', 'HEAD:.github/AUTOROLL').stdout.strip()
-    self.assertEqual(autoroll_content, self.base_sha)
+    try:
+      exit_code, stdout, _ = self.run_autoroll([
+          '--source-branch',
+          'main',
+          '--target-branch',
+          'staging',
+          '--autoroll-file',
+          '.github/AUTOROLL',
+          '--max-commits',
+          '10',
+          '--mode',
+          'full',
+          '--manifest',
+          manifest_path,
+      ])
+
+      self.assertEqual(exit_code, 0)
+      self.assertEqual(stdout.strip(), '- #102')
+      self.assert_working_tree_clean()
+      self.assertEqual(self.get_head_sha(), rolled_sha)
+      autoroll_content = self.git('show',
+                                  'HEAD:.github/AUTOROLL').stdout.strip()
+      self.assertEqual(autoroll_content, self.base_sha)
+
+      # Conflict branch holds #101 instead of polluting the clean branch
+      branch = 'autoroll-conflict-main-to-staging-101'
+      self.assertIsNotNone(self.branch_sha(branch))
+      with open(manifest_path, 'r', encoding='utf-8') as f:
+        manifest = json.load(f)
+      self.assertEqual(manifest['clean']['items'], ['- #102'])
+      self.assertEqual([c['pr'] for c in manifest['conflicts']], [101])
+    finally:
+      if os.path.exists(manifest_path):
+        os.unlink(manifest_path)
 
   def test_cuj23_unrelated_target_move_keeps_conflict_branch(self):
     """CUJ 23: A target change that leaves the conflict intact is a no-op."""
@@ -1353,6 +1442,69 @@ class TestAutorollIntegration(unittest.TestCase):
     self.assertEqual([c['pr'] for c in manifest['conflicts']], [101])
     self.assertEqual(manifest['pending'], [])
     self.assert_conflict_branch('autoroll-conflict-main-to-27.lts-101', 101)
+
+  def test_cuj25_full_mode_direct_commit_without_pr_conflict(self):
+    """CUJ 25: Direct commit without PR gets conflict branch named by SHA."""
+    self.commit_file('conflict.txt', 'line 1\nline 2\n',
+                     'Add base conflict file')
+    base_sha = self.get_head_sha()
+
+    # Target branch modifies line 2
+    self.git('checkout', '-b', 'staging', base_sha)
+    with open('.github/AUTOROLL', 'w', encoding='utf-8') as f:
+      f.write(f'{base_sha}\n')
+    self.git('add', '.github/AUTOROLL')
+    self.commit_file('conflict.txt', 'line 1\nstaging edit\n', 'Staging edit')
+
+    # Main modifies line 2 with direct commit (no PR number)
+    self.git('checkout', 'main')
+    sha1 = self.commit_file('conflict.txt', 'line 1\nmain direct edit\n',
+                            'Direct commit without PR')
+
+    self.git('checkout', 'staging')
+    self.git('checkout', '-b', 'autoroll-main-to-staging')
+
+    with tempfile.NamedTemporaryFile('w+', encoding='utf-8', delete=False) as f:
+      manifest_path = f.name
+
+    try:
+      exit_code, stdout, _ = self.run_autoroll([
+          '--source-branch',
+          'main',
+          '--target-branch',
+          'staging',
+          '--autoroll-file',
+          '.github/AUTOROLL',
+          '--max-commits',
+          '10',
+          '--mode',
+          'full',
+          '--manifest',
+          manifest_path,
+      ])
+
+      self.assertEqual(exit_code, 0)
+      self.assertEqual(stdout.strip(), '')
+      self.assert_working_tree_clean()
+
+      # Conflict branch is named using short SHA
+      branch = f'autoroll-conflict-main-to-staging-{sha1[:10]}'
+      self.assertIsNotNone(self.branch_sha(branch))
+      titles = self.get_commit_titles('staging', branch)
+      self.assertEqual(len(titles), 1)
+      self.assertTrue(
+          titles[0].startswith(f'CONFLICTED Cherry pick commit {sha1}:'))
+
+      with open(manifest_path, 'r', encoding='utf-8') as f:
+        manifest = json.load(f)
+      self.assertEqual(len(manifest['conflicts']), 1)
+      conflict = manifest['conflicts'][0]
+      self.assertEqual(conflict['id'], sha1[:10])
+      self.assertIsNone(conflict['pr'])
+      self.assertEqual(conflict['branch'], branch)
+    finally:
+      if os.path.exists(manifest_path):
+        os.unlink(manifest_path)
 
 
 if __name__ == '__main__':

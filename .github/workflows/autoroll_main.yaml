@@ -168,75 +168,36 @@ jobs:
 
           PR_TITLE="Autoroll from ${SOURCE_BRANCH} to ${TARGET_BRANCH}"
           PR_BODY_FILE=$(mktemp)
-          PR_COMMENT_FILE=""
+          trap 'rm -f "${PR_BODY_FILE}"' EXIT
 
-          if [[ -f "${AUTOROLL_FILE}" ]] && grep -q "^CONFLICTED:" "${AUTOROLL_FILE}"; then
-            # A CONFLICTED branch holds exactly one cherry-pick commit. Mirror
-            # its subject and body in the PR so a squash merge reproduces the
-            # commit message, including the "Refer to original PR" and
-            # "(cherry picked from commit ...)" lines the autoroller uses to
-            # detect already-rolled commits in the target branch history.
-            PR_TITLE="$(git log -1 --pretty=%s)"
-            {
-              # Command substitution strips the trailing newline(s) from %b.
-              printf '%s\n' "$(git log -1 --pretty=%b)"
-              echo ""
-              # Drop the leading "- #<pr>" identifier; keep the CONFLICTED files block.
-              echo "${PR_LINKS#*$'\n\n'}"
-            } > "${PR_BODY_FILE}"
+          {
+            echo "Automated cherry-pick roll to ${TARGET_BRANCH}."
+            echo ""
+            echo "Original pull requests:"
+            echo "${PR_LINKS}"
+            echo ""
+            echo "To merge these changes, run the autoroll script:"
+            echo ""
+            echo '```bash'
+            echo "GITHUB_REPOSITORY=${GITHUB_REPOSITORY} python3 cobalt/devinfra/github/autoroll/merge_autoroll.py \\"
+            echo "  --source-branch ${SOURCE_BRANCH} \\"
+            echo "  --target-branch ${TARGET_BRANCH}"
+            echo '```'
 
-            # Keep resolution instructions out of the PR body (and thus out of
-            # the squash commit message) by posting them as a comment instead.
-            PR_COMMENT_FILE=$(mktemp)
-            {
-              echo "⚠️ This PR has conflicts that must be resolved manually (don't forget to update the \`${AUTOROLL_FILE}\` file). Use the following commands to checkout the branch locally and resolve the conflicts in a separate commit:"
+            # Conflicting cherry-picks live on their own autoroll-conflict-* branches/PRs; list them for visibility.
+            CONFLICTING=$(jq -r '.conflicts[]? | if .pr then "- #\(.pr)" else "- \(.id)" end' "${MANIFEST}")
+            PENDING=$(jq -r '.pending[]? | if .pr then "- #\(.pr): \(.reason)" else "- \(.id): \(.reason)" end' "${MANIFEST}")
+            if [[ -n "${CONFLICTING}" ]]; then
               echo ""
-              echo '```bash'
-              echo "gh pr checkout <pull_request_number> -R ${GITHUB_REPOSITORY}"
+              echo "Conflicting pull requests (rolled in separate autoroll-conflict PRs):"
+              echo "${CONFLICTING}"
+            fi
+            if [[ -n "${PENDING}" ]]; then
               echo ""
-              echo "# Resolve conflicts and update ${AUTOROLL_FILE} then"
-              echo "git add <resolved_files>"
-              echo ""
-              echo "# Copy CONFLICTED commit's message and metadata"
-              echo "# Replace CONFLICTED in title with RESOLVED"
-              echo "git commit -c <conflicted_sha>"
-              echo ""
-              echo "git push origin autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}"
-              echo '```'
-              echo ""
-              echo "When squash merging, keep the PR title and description as the commit message so the roll is recorded in the target branch history."
-            } > "${PR_COMMENT_FILE}"
-          else
-            {
-              echo "Automated cherry-pick roll to ${TARGET_BRANCH}."
-              echo ""
-              echo "Original pull requests:"
-              echo "${PR_LINKS}"
-              echo ""
-              echo "To merge these changes, run the autoroll script:"
-              echo ""
-              echo '```bash'
-              echo "GITHUB_REPOSITORY=${GITHUB_REPOSITORY} python3 cobalt/devinfra/github/autoroll/merge_autoroll.py \\"
-              echo "  --source-branch ${SOURCE_BRANCH} \\"
-              echo "  --target-branch ${TARGET_BRANCH}"
-              echo '```'
-
-              # Label mode: conflicting cherry-picks live on their own
-              # autoroll-conflict-* branches/PRs; list them for visibility.
-              CONFLICTING=$(jq -r '.conflicts[]? | "- #\(.pr)"' "${MANIFEST}")
-              PENDING=$(jq -r '.pending[]? | "- #\(.pr): \(.reason)"' "${MANIFEST}")
-              if [[ -n "${CONFLICTING}" ]]; then
-                echo ""
-                echo "Conflicting pull requests (rolled in separate autoroll-conflict PRs):"
-                echo "${CONFLICTING}"
-              fi
-              if [[ -n "${PENDING}" ]]; then
-                echo ""
-                echo "Pending conflicting pull requests:"
-                echo "${PENDING}"
-              fi
-            } > "${PR_BODY_FILE}"
-          fi
+              echo "Pending conflicting pull requests:"
+              echo "${PENDING}"
+            fi
+          } > "${PR_BODY_FILE}"
 
           if [[ -n "${BUG}" ]]; then
             {
@@ -254,15 +215,12 @@ jobs:
             gh pr create --base "${TARGET_BRANCH}" --head "autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}" --title "${PR_TITLE}" --body-file "${PR_BODY_FILE}" --reviewer linxinan-yt,oxve,briantting
           fi
 
-          if [[ -n "${PR_COMMENT_FILE}" ]]; then
-            gh pr comment "autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}" --body-file "${PR_COMMENT_FILE}"
-          fi
-
       - name: Reconcile Conflict Branches
-        if: matrix.branch.mode == 'label' && steps.autoroll.outputs.manifest != ''
+        if: steps.autoroll.outputs.manifest != ''
         env:
           SOURCE_BRANCH: ${{ matrix.branch.source }}
           TARGET_BRANCH: ${{ matrix.branch.target }}
+          ROLL_MODE: ${{ matrix.branch.mode }}
           GITHUB_TOKEN: ${{ secrets.CHERRY_PICK_TOKEN }}
           GH_TOKEN: ${{ secrets.CHERRY_PICK_TOKEN }}
           MANIFEST: ${{ steps.autoroll.outputs.manifest }}
@@ -323,8 +281,10 @@ jobs:
                 echo '```'
                 echo ""
                 echo "When squash merging, keep the PR title and description as the commit message so the roll is recorded in the target branch history."
-                echo ""
-                echo "To drop this cherry-pick instead, remove the \`cp-${TARGET_BRANCH}\` label from the original PR; this PR is then closed automatically."
+                if [[ "${ROLL_MODE}" == "label" ]]; then
+                  echo ""
+                  echo "To drop this cherry-pick instead, remove the \`cp-${TARGET_BRANCH}\` label from the original PR; this PR is then closed automatically."
+                fi
               } > "${PR_COMMENT_FILE}"
               gh pr comment "${PR_NUMBER}" --body-file "${PR_COMMENT_FILE}"
             fi
@@ -342,3 +302,11 @@ jobs:
           while IFS= read -r BRANCH; do
             echo "::notice::${BRANCH} has commits not made by the autoroller and was left untouched."
           done < <(jq -r '.hands_off[]?.branch' "${MANIFEST}")
+
+      - name: Check Full Mode Status
+        if: matrix.branch.mode == 'full' && steps.autoroll.outputs.manifest != ''
+        run: |
+          if jq -e '(.conflicts | length > 0) or (.hands_off | length > 0)' "${{ steps.autoroll.outputs.manifest }}" > /dev/null; then
+            echo "::error::Full mode autoroll is blocked by a conflict. Please resolve the open conflict PR."
+            exit 1
+          fi
