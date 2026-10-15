@@ -77,7 +77,8 @@ void CommandLinePreprocessor::ApplyDefaults(base::CommandLine* cmd_line) {
   // Merge feature and V8 flag lists with their defaults so that
   // caller/experiment overrides (e.g. JavaSwitches) always take precedence over
   // Cobalt defaults:
-  // - --enable-features / --disable-features: [Existing],[Defaults]
+  // - --enable-features / --disable-features / --enable-blink-features:
+  //   [Existing],[Defaults]
   //   base::FeatureList::RegisterOverride is first-wins (ignores duplicate
   //   keys), so defaults are appended after existing flags
   //   (prepend_defaults = false).
@@ -86,12 +87,6 @@ void CommandLinePreprocessor::ApplyDefaults(base::CommandLine* cmd_line) {
   MergeFeatures(cmd_line, ::switches::kEnableFeatures,
                 cobalt_param_switch_defaults);
 
-#if BUILDFLAG(IS_ANDROID)
-  // TODO(b/571217515): Enable on all platforms once 3P platforms confirm that
-  // merging (instead of replacing) these switches with defaults is desired.
-  // Guarded to keep the behavior unchanged on non-Android platforms, where a
-  // caller-provided value replaces the default.
-  // - --enable-blink-features: [Existing],[Defaults]
   MergeFeatures(cmd_line, ::switches::kEnableBlinkFeatures,
                 cobalt_param_switch_defaults);
 
@@ -101,7 +96,6 @@ void CommandLinePreprocessor::ApplyDefaults(base::CommandLine* cmd_line) {
   //   (prepend_defaults = true).
   MergeFeatures(cmd_line, blink::switches::kJavaScriptFlags,
                 cobalt_param_switch_defaults, /*prepend_defaults=*/true);
-#endif  // BUILDFLAG(IS_ANDROID)
 
   // Override kContentShellHostWindowSize if the user sets kWindowSize.
   if (cmd_line->HasSwitch(switches::kWindowSize)) {
