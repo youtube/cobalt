@@ -18,6 +18,11 @@
 
 namespace starboard {
 
+// ATV no longer supports GetTextToSpeechSettings in Chrobalt,
+// Please reference starboard/android/shared/text_to_speech_helper.h for
+// supported text-to-speech APIs instead.
+// AOSP uses this function through the accessibility extension because its
+// Starboard can't call into Cobalt.
 bool GetTextToSpeechSettings(SbAccessibilityTextToSpeechSettings* out_setting) {
   if (!out_setting) {
     return false;
