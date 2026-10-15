@@ -1,7 +1,0 @@
-void func(int var) {
-    int var;
-}
-
-/*%%*
-symbol 'var' was already defined
-*%%*/
