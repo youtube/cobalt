@@ -38,9 +38,11 @@ GlyphEntry* TextStrike::getGlyph(SkPackedGlyphID packedGlyphID, MaskFormat forma
     }
     return glyph;
 }
+
 const GlyphEntryKey& TextStrike::HashTraits::GetKey(const GlyphEntry* glyph) {
     return glyph->fGlyphEntryKey;
 }
+
 uint32_t TextStrike::HashTraits::Hash(GlyphEntryKey key) { return key.hash(); }
 
 }  // namespace skgpu::ganesh
