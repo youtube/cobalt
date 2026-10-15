@@ -7,11 +7,7 @@
 
 #include <stddef.h>
 
-<<<<<<< HEAD
-=======
-#include "base/memory/memory_pressure_level.h"
 #include "build/build_config.h"
->>>>>>> parent of b1c356e9a3e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "cc/cc_export.h"
 
 namespace cc {
