@@ -659,12 +659,9 @@ void MediaDevicesManager::EnumerateAndRankDevices(
     bool request_audio_input_capabilities,
     EnumerateDevicesCallback callback) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
-<<<<<<< HEAD
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-=======
 // Starboard doesn't support video input.
 #if !BUILDFLAG(IS_STARBOARD)
->>>>>>> parent of 2f41215db12 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   DCHECK(request_video_input_capabilities &&
              requested_types[static_cast<size_t>(
                  MediaDeviceType::kMediaVideoInput)] ||
