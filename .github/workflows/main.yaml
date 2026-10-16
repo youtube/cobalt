@@ -290,6 +290,8 @@ jobs:
     permissions: {}
     runs-on: [self-hosted, chrobalt-linux-runner]
     name: ${{ matrix.name }}_${{ matrix.config }}
+    outputs:
+      built: ${{ steps.build.outputs.built }}
     strategy:
       fail-fast: false
       matrix:
@@ -336,11 +338,12 @@ jobs:
           upload_web_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.web_tests == 'true' }}
       - name: Run API Leak Detector
         uses: ./src/.github/actions/api_leak_detector
-        if: inputs.run_api_leak_detector
+        if: inputs.run_api_leak_detector && steps.build.outputs.built == 'true'
 
   on-device-test:
     needs: [initialize, build]
     if: |
+      needs.build.outputs.built == 'true' &&
       needs.initialize.outputs.test_on_device == 'true' &&
         (
           (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
@@ -384,6 +387,7 @@ jobs:
     # Run E2E tests when on_device label is applied to PR.
     # Also, run E2E tests on push and schedule if not explicitly disabled via repo vars.
     if: |
+      needs.build.outputs.built == 'true' &&
       needs.initialize.outputs.test_e2e == 'true' &&
         (
           (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
@@ -411,7 +415,7 @@ jobs:
 
   on-host-test:
     needs: [initialize, docker-unittest-image, build]
-    if: needs.initialize.outputs.test_on_host == 'true'
+    if: needs.build.outputs.built == 'true' && needs.initialize.outputs.test_on_host == 'true'
     permissions: {}
     runs-on: [self-hosted, chrobalt-linux-runner]
     name: ${{ matrix.name }}_on_host_tests_${{ matrix.shard }}
@@ -447,7 +451,7 @@ jobs:
 
   web-tests:
     needs: [initialize, docker-webtest-image, build]
-    if: needs.initialize.outputs.web_tests == 'true'
+    if: needs.build.outputs.built == 'true' && needs.initialize.outputs.web_tests == 'true'
     permissions: {}
     runs-on: [self-hosted, chrobalt-linux-runner]
     name: ${{ matrix.name }}_web_tests
@@ -573,16 +577,18 @@ jobs:
         config: [devel]
     steps:
       - name: Restore CI Essentials
+        if: needs.build.outputs.built == 'true'
         uses: actions/download-artifact@v4
         with:
           name: ci-essentials-${{ inputs.platform }}
       - name: Download Test Results
+        if: needs.build.outputs.built == 'true'
         uses: actions/download-artifact@v4
         with:
           pattern: ${{ env.TEST_RESULTS_KEY }}*
           path: results/
       - name: Failed Tests
-        if: needs.test-results.result == 'failure'
+        if: needs.build.outputs.built == 'true' && needs.test-results.result == 'failure'
         run: |
           # Print test result summary.
           shopt -s globstar nullglob

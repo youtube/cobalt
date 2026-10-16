@@ -22,6 +22,10 @@ inputs:
   test_artifacts_key:
     description: "Artifact key used to store on-host test artifacts."
     required: true
+outputs:
+  built:
+    description: "Set to true when the platform build was not skipped."
+    value: ${{ steps.check-inputs.outputs.built }}
 runs:
   using: "composite"
   steps:
@@ -48,11 +52,26 @@ runs:
           # of the code as if the pull request had been merged into the base branch.
           # Setting fetch-depth to 2 effectively gets a merge commit (i.e. HEAD) and the
           # HEAD commit from the base branch (i.e. HEAD~1).
-          git diff --name-only HEAD~1 HEAD > ${CHANGED_FILES_LIST}
+          git -c core.quotepath=off diff --name-only --no-renames HEAD~1 HEAD > ${CHANGED_FILES_LIST}
           cat ${CHANGED_FILES_LIST}
         shell: bash
+      - name: Check platform inputs
+        id: check-inputs
+        shell: bash
+        run: |
+          set -ex
+          cd src
+          skip="false"
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            skip=$(python3 cobalt/build/filter_platform.py \
+              --out-dir "out/${{ matrix.platform }}_${{ matrix.config }}" \
+              --changed-files changed_files.txt \
+              --targets '${{ inputs.targets }}' \
+              --test-root-target "${{ inputs.test_root_target }}")
+          fi
+          if [[ "${skip}" == "false" ]]; then echo "built=true" >> $GITHUB_OUTPUT; fi
       - name: Calculate test targets
-        if: matrix.config == 'devel' && (inputs.test_root_target != 'null' || inputs.upload_web_test_artifacts == 'true')
+        if: steps.check-inputs.outputs.built == 'true' && matrix.config == 'devel' && (inputs.test_root_target != 'null' || inputs.upload_web_test_artifacts == 'true')
         id: calculate-test-targets
         env:
           CHANGED_FILES_LIST: changed_files.txt
@@ -94,6 +113,7 @@ runs:
           echo "test_targets_count=${test_targets_count}" >> $GITHUB_OUTPUT
         shell: bash
       - name: Archive test target JSON
+        if: steps.check-inputs.outputs.built == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.platform }}_test_targets_json
@@ -110,6 +130,7 @@ runs:
           time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${test_targets}
         shell: bash
       - name: Ninja build
+        if: steps.check-inputs.outputs.built == 'true'
         env:
           TARGETS_JSON: ${{ inputs.targets }}
         run: |
@@ -119,7 +140,7 @@ runs:
           time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${TARGETS}
         shell: bash
       - name: Archive Android APKs
-        if: startsWith(matrix.platform, 'android') && matrix.config == 'qa'
+        if: steps.check-inputs.outputs.built == 'true' && startsWith(matrix.platform, 'android') && matrix.config == 'qa'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.platform }} APKs
@@ -136,7 +157,7 @@ runs:
           upload_on_device_test_artifacts: ${{ inputs.upload_on_device_test_artifacts }}
           test_targets_json_file: ${{ inputs.test_targets_json_file }}
       - name: Run Package Script Test
-        if: ${{ (matrix.config == 'qa' || matrix.config == 'gold') && !contains(matrix.platform, 'chromium') && !contains(matrix.platform, 'evergreen') && !contains(matrix.platform, 'modular') }}
+        if: ${{ steps.check-inputs.outputs.built == 'true' && (matrix.config == 'qa' || matrix.config == 'gold') && !contains(matrix.platform, 'chromium') && !contains(matrix.platform, 'evergreen') && !contains(matrix.platform, 'modular') }}
         run: |
           # Use the real variable from your environment
           MATRIX_PLATFORM="${{ matrix.platform }}"
