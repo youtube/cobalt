@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "../../third_party/inspector_protocol/crdtp/json.h"
+#include "include/cppgc/macros.h"
 #include "include/v8-context.h"
 #include "include/v8-function.h"
 #include "include/v8-inspector.h"
@@ -897,7 +898,8 @@ Response V8DebuggerAgentImpl::getPossibleBreakpoints(
   {
     v8::HandleScope handleScope(m_isolate);
     int contextId = it->second->executionContextId();
-    InspectedContext* inspected = m_inspector->getContext(contextId);
+    std::shared_ptr<InspectedContext> inspected =
+        m_inspector->getContext(contextId);
     if (!inspected) {
       return Response::ServerError("Cannot retrive script context");
     }
@@ -942,7 +944,8 @@ Response V8DebuggerAgentImpl::continueToLocation(
   }
   V8DebuggerScript* script = it->second.get();
   int contextId = script->executionContextId();
-  InspectedContext* inspected = m_inspector->getContext(contextId);
+  std::shared_ptr<InspectedContext> inspected =
+      m_inspector->getContext(contextId);
   if (!inspected)
     return Response::ServerError("Cannot continue to specified location");
   v8::HandleScope handleScope(m_isolate);
@@ -1001,7 +1004,8 @@ bool V8DebuggerAgentImpl::isFunctionBlackboxed(const String16& scriptId,
   }
   if (!m_blackboxedExecutionContexts.empty()) {
     int contextId = it->second->executionContextId();
-    InspectedContext* inspected = m_inspector->getContext(contextId);
+    std::shared_ptr<InspectedContext> inspected =
+        m_inspector->getContext(contextId);
     if (inspected && m_blackboxedExecutionContexts.count(
                          inspected->uniqueId().toString()) > 0) {
       return true;
@@ -1073,7 +1077,8 @@ V8DebuggerAgentImpl::setBreakpointImpl(const String16& breakpointId,
   v8::debug::BreakpointId debuggerBreakpointId;
   v8::debug::Location location(lineNumber, columnNumber);
   int contextId = script->executionContextId();
-  InspectedContext* inspected = m_inspector->getContext(contextId);
+  std::shared_ptr<InspectedContext> inspected =
+      m_inspector->getContext(contextId);
   if (!inspected) return nullptr;
 
   {
@@ -1163,7 +1168,8 @@ Response V8DebuggerAgentImpl::setScriptSource(
     return Response::ServerError("No script with given id found");
   }
   int contextId = it->second->executionContextId();
-  InspectedContext* inspected = m_inspector->getContext(contextId);
+  std::shared_ptr<InspectedContext> inspected =
+      m_inspector->getContext(contextId);
   if (!inspected) {
     return Response::InternalError();
   }
@@ -1936,6 +1942,8 @@ static void getDebugSymbols(
 namespace {
 
 class DeferredMakeWeakScope {
+  CPPGC_STACK_ALLOCATED();
+
  public:
   explicit DeferredMakeWeakScope(V8DebuggerScript& script) : script_(script) {}
 
@@ -1959,7 +1967,7 @@ void V8DebuggerAgentImpl::didParseSource(
 
   int contextId = script->executionContextId();
   int contextGroupId = m_inspector->contextGroupId(contextId);
-  InspectedContext* inspected =
+  std::shared_ptr<InspectedContext> inspected =
       m_inspector->getContext(contextGroupId, contextId);
   std::unique_ptr<protocol::DictionaryValue> executionContextAuxData;
   if (inspected) {

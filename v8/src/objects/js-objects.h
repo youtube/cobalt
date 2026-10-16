@@ -838,8 +838,11 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
 
   // Access to in object properties.
   inline int GetInObjectPropertyOffset(int index);
-  inline Tagged<Object> InObjectPropertyAt(int index);
-  inline Tagged<Object> InObjectPropertyAtPut(
+  inline Tagged<Object> InObjectPropertyAtOffset(int offset);
+  inline Tagged<Object> InObjectPropertyPutAtIndex(
+      int index, Tagged<Object> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline Tagged<Object> InObjectPropertyPutAtOffset(
       int index, Tagged<Object> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
@@ -1120,12 +1123,6 @@ class JSAccessorPropertyDescriptor : public JSObject {
                                 JS_ACCESSOR_PROPERTY_DESCRIPTOR_FIELDS)
 #undef JS_ACCESSOR_PROPERTY_DESCRIPTOR_FIELDS
 
-  // Indices of in-object properties.
-  static const int kGetIndex = 0;
-  static const int kSetIndex = 1;
-  static const int kEnumerableIndex = 2;
-  static const int kConfigurableIndex = 3;
-
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSAccessorPropertyDescriptor);
 };
@@ -1148,12 +1145,6 @@ class JSDataPropertyDescriptor : public JSObject {
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
                                 JS_DATA_PROPERTY_DESCRIPTOR_FIELDS)
 #undef JS_DATA_PROPERTY_DESCRIPTOR_FIELDS
-
-  // Indices of in-object properties.
-  static const int kValueIndex = 0;
-  static const int kWritableIndex = 1;
-  static const int kEnumerableIndex = 2;
-  static const int kConfigurableIndex = 3;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSDataPropertyDescriptor);
@@ -1178,10 +1169,6 @@ class JSIteratorResult : public JSObject {
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
                                 JS_ITERATOR_RESULT_FIELDS)
 #undef JS_ITERATOR_RESULT_FIELDS
-
-  // Indices of in-object properties.
-  static const int kValueIndex = 0;
-  static const int kDoneIndex = 1;
 
   OBJECT_CONSTRUCTORS(JSIteratorResult, JSObject);
 };
@@ -1396,10 +1383,10 @@ class JSMessageObject
 };
 
 // The [Async-from-Sync Iterator] object
-// (proposal-async-iteration/#sec-async-from-sync-iterator-objects)
+// (https://tc39.es/proposal-async-iteration/#sec-async-from-sync-iterator-objects)
 // An object which wraps an ordinary Iterator and converts it to behave
 // according to the Async Iterator protocol.
-// (See https://tc39.github.io/proposal-async-iteration/#sec-iteration)
+// (See https://tc39.es/proposal-async-iteration/#sec-iteration)
 class JSAsyncFromSyncIterator
     : public TorqueGeneratedJSAsyncFromSyncIterator<JSAsyncFromSyncIterator,
                                                     JSObject> {
@@ -1410,7 +1397,7 @@ class JSAsyncFromSyncIterator
   // properties from the %AsyncFromSyncIteratorPrototype% intrinsic object.
   // Async-from-Sync Iterator instances are initially created with the internal
   // slots listed in Table 4.
-  // (proposal-async-iteration/#table-async-from-sync-iterator-internal-slots)
+  // (https://tc39.es/proposal-async-iteration/#table-async-from-sync-iterator-internal-slots)
 
   TQ_OBJECT_CONSTRUCTORS(JSAsyncFromSyncIterator)
 };

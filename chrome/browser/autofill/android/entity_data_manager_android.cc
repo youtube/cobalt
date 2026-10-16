@@ -4,9 +4,13 @@
 
 #include "chrome/browser/autofill/android/entity_data_manager_android.h"
 
+#include <algorithm>
+
+#include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "base/check_deref.h"
+#include "base/containers/to_vector.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/types/zip.h"
 #include "chrome/browser/autofill/account_setting_service_factory.h"
@@ -109,15 +113,18 @@ bool EntityDataManagerAndroid::SetAutofillAiOptInStatus(
 }
 
 jni_zero::ScopedJavaLocalRef<jobject>
-EntityDataManagerAndroid::GetEntityInstance(const std::string& guid) {
-  JNIEnv* env = jni_zero::AttachCurrentThread();
+EntityDataManagerAndroid::GetEntityInstance(JNIEnv* env,
+                                            const std::string& guid) {
   base::optional_ref<const EntityInstance> entity =
       entity_data_manager_->GetEntityInstance(EntityInstance::EntityId(guid));
   if (!entity) {
     return nullptr;
   }
 
-  return EntityInstanceAndroid::Create(env, EntityInstanceAndroid(*entity));
+  return EntityInstanceAndroid::Create(
+      env, EntityInstanceAndroid(
+               *entity, entity->type().enabled(
+                            entity_data_manager_->GetVariationCountryCode())));
 }
 
 void EntityDataManagerAndroid::RemoveEntityInstance(JNIEnv* env,
@@ -175,9 +182,23 @@ std::vector<EntityTypeAndroid> EntityDataManagerAndroid::GetWritableEntityTypes(
   std::vector<EntityTypeAndroid> entity_types;
   for (EntityType entity_type : autofill::GetWritableEntityTypes(
            entity_data_manager_->GetVariationCountryCode())) {
-    entity_types.emplace_back(EntityTypeAndroid(entity_type));
+    entity_types.emplace_back(
+        entity_type,
+        entity_type.enabled(entity_data_manager_->GetVariationCountryCode()));
   }
   return entity_types;
+}
+
+std::vector<EntityTypeAndroid>
+EntityDataManagerAndroid::GetSortedEntityTypesForListDisplay(
+    JNIEnv* env) const {
+  std::vector<EntityType> all_types =
+      base::ToVector(DenseSet<EntityType>::all());
+  std::ranges::sort(all_types, EntityType::ListOrder);
+  return base::ToVector(all_types, [this](const EntityType& type) {
+    return EntityTypeAndroid(
+        type, type.enabled(entity_data_manager_->GetVariationCountryCode()));
+  });
 }
 
 void EntityDataManagerAndroid::OnEntityInstancesChanged() {

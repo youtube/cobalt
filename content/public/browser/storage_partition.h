@@ -235,15 +235,10 @@ class CONTENT_EXPORT StoragePartition {
     REMOVE_KEEPALIVE_LOADS_ATTEMPTING_RETRY = 1 << 21,
 
     REMOVE_DATA_MASK_ALL = 0xFFFFFFFF,
-
-    // Corresponds to storage::kStorageTypeTemporary, which is equivalent to
-    // all quota managed storage after all other types have been deprecated.
-    QUOTA_MANAGED_STORAGE_MASK_TEMPORARY = 1 << 0,
-    QUOTA_MANAGED_STORAGE_MASK_ALL = 0xFFFFFFFF,
   };
 
   // Starts an asynchronous task that does a best-effort clear the data
-  // corresponding to the given |remove_mask| and |quota_storage_remove_mask|
+  // corresponding to the given |remove_mask|
   // inside this StoragePartition for the given |storage_origin|.
   // |callback| is called when data deletion is done or at least the deletion is
   // scheduled.
@@ -257,7 +252,6 @@ class CONTENT_EXPORT StoragePartition {
   // http://crbug.com/159193. Remove |request_context_getter| when that bug
   // is fixed.
   virtual void ClearDataForOrigin(uint32_t remove_mask,
-                                  uint32_t quota_storage_remove_mask,
                                   const GURL& storage_origin,
                                   base::OnceClosure callback) = 0;
 
@@ -299,7 +293,6 @@ class CONTENT_EXPORT StoragePartition {
   // opaque. |callback| is called when data deletion is done or at least the
   // deletion is scheduled.
   virtual void ClearData(uint32_t remove_mask,
-                         uint32_t quota_storage_remove_mask,
                          const blink::StorageKey& storage_key,
                          const base::Time begin,
                          const base::Time end,
@@ -328,7 +321,6 @@ class CONTENT_EXPORT StoragePartition {
   // selectively. You don't want to break the web.
   virtual void ClearData(
       uint32_t remove_mask,
-      uint32_t quota_storage_remove_mask,
       BrowsingDataFilterBuilder* filter_builder,
       StorageKeyPolicyMatcherFunction storage_key_policy_matcher,
       network::mojom::CookieDeletionFilterPtr cookie_deletion_filter,

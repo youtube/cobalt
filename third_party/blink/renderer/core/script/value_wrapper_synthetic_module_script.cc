@@ -52,14 +52,14 @@ ValueWrapperSyntheticModuleScript::CreateCSSWrapperSyntheticModuleScript(
   style_sheet->SetIsForCSSModuleScript();
   if (try_catch.HasCaught()) {
     return ValueWrapperSyntheticModuleScript::CreateWithError(
-        v8::Local<v8::Value>(), settings_object, params.SourceURL(), KURL(),
+        v8::Local<v8::Value>(), settings_object, params.SourceURL(), NullUrl(),
         ScriptFetchOptions(), try_catch.Exception());
   }
   style_sheet->replaceSync(params.GetSourceText().ToString(),
                            PassThroughException(isolate));
   if (try_catch.HasCaught()) {
     return ValueWrapperSyntheticModuleScript::CreateWithError(
-        v8::Local<v8::Value>(), settings_object, params.SourceURL(), KURL(),
+        v8::Local<v8::Value>(), settings_object, params.SourceURL(), NullUrl(),
         ScriptFetchOptions(), try_catch.Exception());
   }
 
@@ -67,7 +67,7 @@ ValueWrapperSyntheticModuleScript::CreateCSSWrapperSyntheticModuleScript(
       ToV8Traits<CSSStyleSheet>::ToV8(script_state, style_sheet);
 
   return ValueWrapperSyntheticModuleScript::CreateWithDefaultExport(
-      v8_value_stylesheet, settings_object, params.SourceURL(), KURL(),
+      v8_value_stylesheet, settings_object, params.SourceURL(), NullUrl(),
       ScriptFetchOptions());
 }
 
@@ -115,11 +115,11 @@ ValueWrapperSyntheticModuleScript::CreateJSONWrapperSyntheticModuleScript(
       FromJSONString(script_state, params.GetSourceText().ToString(), origin);
   if (try_catch.HasCaught()) {
     return ValueWrapperSyntheticModuleScript::CreateWithError(
-        parsed_json, settings_object, params.SourceURL(), KURL(),
+        parsed_json, settings_object, params.SourceURL(), NullUrl(),
         ScriptFetchOptions(), try_catch.Exception());
   } else {
     return ValueWrapperSyntheticModuleScript::CreateWithDefaultExport(
-        parsed_json, settings_object, params.SourceURL(), KURL(),
+        parsed_json, settings_object, params.SourceURL(), NullUrl(),
         ScriptFetchOptions());
   }
 }
@@ -206,9 +206,7 @@ v8::MaybeLocal<v8::Value> ValueWrapperSyntheticModuleScript::EvaluationSteps(
       value_wrapper_synthetic_module_script =
           static_cast<const ValueWrapperSyntheticModuleScript*>(
               module_record_resolver->GetModuleScriptFromModuleRecord(module));
-  v8::MicrotasksScope microtasks_scope(
-      isolate, context->GetMicrotaskQueue(),
-      v8::MicrotasksScope::kDoNotRunMicrotasks);
+  V8DoNotRunMicrotasksScope microtasks_scope(script_state);
   v8::TryCatch try_catch(isolate);
   v8::Maybe<bool> result = module->SetSyntheticModuleExport(
       isolate, V8String(isolate, "default"),

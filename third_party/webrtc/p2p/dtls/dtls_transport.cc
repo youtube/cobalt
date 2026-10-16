@@ -268,7 +268,7 @@ DtlsTransportInternalImpl::DtlsTransportInternalImpl(
                 this,
                 ReceivedIpPacket(piggybacked_dtls_packet, SocketAddress()));
           },
-          [this]() { CompleteDtlsInStun(); }) {
+          [this](bool success) { CompleteDtlsInStun(success); }) {
   RTC_DCHECK(ice_transport_);
   ConnectToIceTransport();
   dtls_in_stun_ = env_.field_trials().IsEnabled("WebRTC-IceHandshakeDtls");
@@ -288,10 +288,14 @@ DtlsTransportInternalImpl::DtlsTransportInternalImpl(
           ssl_stream_factory) {}
 
 DtlsTransportInternalImpl::~DtlsTransportInternalImpl() {
-  CompleteDtlsInStun();
+  if (dtls_in_stun_) {
+    CompleteDtlsInStun(/*success=*/false);
+  }
 }
 
-void DtlsTransportInternalImpl::CompleteDtlsInStun() {
+void DtlsTransportInternalImpl::CompleteDtlsInStun(bool success) {
+  RTC_LOG(LS_INFO) << "DTLS-STUN piggyback complete with success=" << success;
+
   dtls_in_stun_complete_ = true;
   if (downward_) {
     downward_->SetDtlsStunPiggybackController(nullptr);
@@ -526,7 +530,7 @@ bool DtlsTransportInternalImpl::SetupDtls() {
           &dtls_stun_piggyback_controller_,
           [this](webrtc::PacketTransportInternal* transport,
                  const ReceivedIpPacket& packet) {
-            dtls_stun_piggyback_controller_.DecryptedPacketReceived(packet);
+            dtls_stun_piggyback_controller_.ApplicationPacketReceived(packet);
           });
     }
     if (ssl_stream_factory_) {
@@ -1022,7 +1026,7 @@ void DtlsTransportInternalImpl::OnDtlsEvent(int sig, int err) {
         set_writable(false);
         set_dtls_state(DtlsTransportState::kClosed);
         NotifyOnClose();
-        CompleteDtlsInStun();
+        CompleteDtlsInStun(/*success=*/false);
       } else if (ret == SR_ERROR) {
         // Remote peer shut down the association with an error.
         RTC_LOG(LS_INFO)
@@ -1032,7 +1036,7 @@ void DtlsTransportInternalImpl::OnDtlsEvent(int sig, int err) {
         set_writable(false);
         set_dtls_state(DtlsTransportState::kFailed);
         NotifyOnClose();
-        CompleteDtlsInStun();
+        CompleteDtlsInStun(/*success=*/false);
       }
     } while (ret == SR_SUCCESS);
   }
@@ -1231,8 +1235,19 @@ void DtlsTransportInternalImpl::ConfigureHandshakeTimeout() {
 void DtlsTransportInternalImpl::UpdateHandshakeTimeout() {
   RTC_DCHECK(dtls_);
   const auto rtt_ms = ice_transport()->GetRttEstimate();
-  const int delay_ms = ComputeRetransmissionTimeout(
+  int delay_ms = ComputeRetransmissionTimeout(
       rtt_ms.value_or(kDefaultHandshakeEstimateRttMs));
+  if (dtls_stun_piggyback_controller_.state() ==
+          DtlsStunPiggybackController::State::OFF &&
+      dtls_role_ == SSL_CLIENT) {
+    // We sent one STUN BINDING request with an embedded DTLS packet and
+    // discovered that peer does not support DtlsInStun. The DTLS packet will be
+    // sent by PeriodicRetransmitDtlsPacketUntilDtlsConnected and that will
+    // incur one more RTT. Increase slightly timeout to avoid unneeded DTLS
+    // retranmission.
+    delay_ms = (delay_ms * 133) / 100;
+  }
+
   RTC_LOG(LS_INFO) << ToString() << ": Update DTLS handshake timeout to "
                    << delay_ms << "ms based on ICE RTT "
                    << (rtt_ms ? std::to_string(*rtt_ms) : "<unset>");
@@ -1290,6 +1305,13 @@ void DtlsTransportInternalImpl::
                                   packet.size(), packet_options,
                                   /* flags= */ 0);
     }
+  }
+
+  if (dtls_stun_piggyback_controller_.state() ==
+      DtlsStunPiggybackController::State::OFF) {
+    // Peer does not support DTLS in STUN. We have now retransmitted the packet
+    // once, and let DTLS handle further retransmits.
+    return;
   }
 
   const auto rtt_ms = ice_transport()->GetRttEstimate().value_or(

@@ -43,7 +43,7 @@ KURL SanitizeBaseUrl(const KURL& raw_base_url,
   // 2. If muted errors is true, then set baseURL to about:blank.
   // [spec text]
   if (sanitize_script_errors == SanitizeScriptErrors::kSanitize) {
-    return BlankURL();
+    return BlankUrl();
   }
 
   return raw_base_url;
@@ -131,8 +131,8 @@ ClassicScript* ClassicScript::CreateUnspecifiedScript(
     ScriptSourceLocationType source_location_type,
     SanitizeScriptErrors sanitize_script_errors) {
   return MakeGarbageCollected<ClassicScript>(
-      ParkableString(source_text.Impl()), KURL(), KURL(), ScriptFetchOptions(),
-      source_location_type, sanitize_script_errors);
+      ParkableString(source_text.Impl()), NullUrl(), NullUrl(),
+      ScriptFetchOptions(), source_location_type, sanitize_script_errors);
 }
 
 ClassicScript* ClassicScript::CreateUnspecifiedScript(
@@ -141,7 +141,7 @@ ClassicScript* ClassicScript::CreateUnspecifiedScript(
     ScriptStreamer* streamer) {
   return MakeGarbageCollected<ClassicScript>(
       ParkableString(String(source.code).Impl()),
-      StripFragmentIdentifier(source.url), KURL() /* base_url */,
+      StripFragmentIdentifier(source.url), NullUrl() /* base_url */,
       ScriptFetchOptions(), ScriptSourceLocationType::kUnknown,
       sanitize_script_errors, nullptr, TextPosition::MinimumPosition(),
       streamer, ScriptStreamer::NotStreamingReason::kInlineScript);

@@ -834,12 +834,12 @@ const ActiveStyleSheetVector StyleEngine::ActiveStyleSheetsForInspector() {
 
   ActiveStyleSheetVector active_style_sheets;
 
-  active_style_sheets.AppendVector(
+  active_style_sheets.append_range(
       GetDocumentStyleSheetCollection().ActiveStyleSheets());
   for (TreeScope* tree_scope : active_tree_scopes_) {
     if (StyleSheetCollection* collection =
             style_sheet_collection_map_.at(tree_scope)) {
-      active_style_sheets.AppendVector(collection->ActiveStyleSheets());
+      active_style_sheets.append_range(collection->ActiveStyleSheets());
     }
   }
 
@@ -1218,7 +1218,7 @@ CSSStyleSheet* StyleEngine::ParseSheet(
     TextPosition start_position,
     RenderBlockingBehavior render_blocking_behavior) {
   CSSStyleSheet* style_sheet = nullptr;
-  style_sheet = CSSStyleSheet::CreateInline(element, NullURL(), start_position,
+  style_sheet = CSSStyleSheet::CreateInline(element, NullUrl(), start_position,
                                             GetDocument().Encoding());
   style_sheet->Contents()->SetRenderBlocking(render_blocking_behavior);
   style_sheet->Contents()->ParseString(text);
@@ -4337,7 +4337,7 @@ bool StyleEngine::MarkStyleDirtyAllowed() const {
   return !InRebuildLayoutTree();
 }
 
-bool StyleEngine::SupportsDarkColorScheme() {
+bool StyleEngine::SupportsDarkColorScheme() const {
   return (page_color_schemes_ &
           static_cast<ColorSchemeFlags>(ColorSchemeFlag::kDark)) &&
          (!(page_color_schemes_ &
@@ -4604,7 +4604,7 @@ mojom::blink::ColorScheme StyleEngine::AdjustAboutBlankColorScheme(
   // See https://issues.chromium.org/issues/40190899
 
   const bool likely_user_initiated_aboutblank =
-      GetDocument().IsInMainFrame() && GetDocument().Url().IsAboutBlankURL() &&
+      GetDocument().IsInMainFrame() && GetDocument().Url().IsAboutBlankUrl() &&
       !GetDocument().GetPage()->OpenedByDOM();
   if (preferred_color_scheme_ == mojom::blink::PreferredColorScheme::kDark &&
       likely_user_initiated_aboutblank) {

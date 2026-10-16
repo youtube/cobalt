@@ -9,6 +9,9 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import androidx.test.filters.SmallTest;
@@ -17,6 +20,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
@@ -46,6 +50,7 @@ import org.chromium.components.regional_capabilities.RegionalProgram;
 import org.chromium.components.search_engines.SearchEngineChoiceService;
 import org.chromium.components.signin.identitymanager.ConsentLevel;
 import org.chromium.components.signin.identitymanager.IdentityManager;
+import org.chromium.components.signin.identitymanager.PrimaryAccountChangeEvent;
 import org.chromium.components.sync.SyncService;
 import org.chromium.components.sync.UserSelectableType;
 import org.chromium.ui.shadows.ShadowAppCompatResources;
@@ -590,5 +595,57 @@ public class SetupListManagerUnitTest {
         assertTrue(rankedModules.contains(ModuleType.ADDRESS_BAR_PLACEMENT_PROMO));
         assertTrue(rankedModules.contains(ModuleType.SAVE_PASSWORDS_PROMO));
         assertTrue(rankedModules.contains(ModuleType.PASSWORD_CHECKUP_PROMO));
+    }
+
+    @Test
+    @SmallTest
+    public void testOnPrimaryAccountChanged_CompletesSignIn() {
+        // 1. Setup: User is signed out.
+        when(mIdentityManager.hasPrimaryAccount(ConsentLevel.SIGNIN)).thenReturn(false);
+
+        SetupListManager.setInstanceForTesting(new SetupListManager());
+        SetupListManager manager = SetupListManager.getInstance();
+
+        // Capture the observer registered by the manager.
+        ArgumentCaptor<IdentityManager.Observer> observerCaptor =
+                ArgumentCaptor.forClass(IdentityManager.Observer.class);
+        manager.maybePrimeCompletionStatus(mProfile);
+        verify(mIdentityManager).addObserver(observerCaptor.capture());
+        IdentityManager.Observer observer = observerCaptor.getValue();
+
+        assertFalse(manager.isModuleCompleted(ModuleType.SIGN_IN_PROMO));
+
+        // 2. Act: Trigger a sign-in event via the captured observer.
+        PrimaryAccountChangeEvent event =
+                new PrimaryAccountChangeEvent(
+                        PrimaryAccountChangeEvent.Type.SET, ConsentLevel.SIGNIN);
+        observer.onPrimaryAccountChanged(event);
+
+        // 3. Assert: Sign-In should be completed and awaiting animation.
+        assertTrue(manager.isModuleCompleted(ModuleType.SIGN_IN_PROMO));
+        assertTrue(manager.isModuleAwaitingCompletionAnimation(ModuleType.SIGN_IN_PROMO));
+    }
+
+    @Test
+    @SmallTest
+    public void testObserver_NotifiedOnPrimaryAccountChanged() {
+        SetupListManager.setInstanceForTesting(new SetupListManager());
+        SetupListManager manager = SetupListManager.getInstance();
+        SetupListManager.Observer observer = mock(SetupListManager.Observer.class);
+        manager.addObserver(observer);
+
+        // Sign-in event
+        PrimaryAccountChangeEvent signInEvent =
+                new PrimaryAccountChangeEvent(
+                        PrimaryAccountChangeEvent.Type.SET, ConsentLevel.SIGNIN);
+        manager.onPrimaryAccountChanged(signInEvent);
+        verify(observer).onSetupListStateChanged();
+
+        // Sign-out event
+        PrimaryAccountChangeEvent signOutEvent =
+                new PrimaryAccountChangeEvent(
+                        PrimaryAccountChangeEvent.Type.CLEARED, ConsentLevel.SIGNIN);
+        manager.onPrimaryAccountChanged(signOutEvent);
+        verify(observer, times(2)).onSetupListStateChanged();
     }
 }

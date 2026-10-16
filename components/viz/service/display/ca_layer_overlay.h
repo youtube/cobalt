@@ -41,6 +41,9 @@ class VIZ_SERVICE_EXPORT CALayerOverlayProcessor {
       AggregatedRenderPass* render_pass,
       const gfx::RectF& display_rect,
       QuadList* quad_list,
+<<<<<<< HEAD
+      OverlayCandidateList* ca_layer_overlays) const;
+=======
       const base::flat_map<AggregatedRenderPassId,
                            raw_ptr<cc::FilterOperations, CtnExperimental>>&
           render_pass_filters,
@@ -49,6 +52,7 @@ class VIZ_SERVICE_EXPORT CALayerOverlayProcessor {
           render_pass_backdrop_filters,
       OverlayCandidateList* ca_layer_overlays,
       const OverlayCandidateFactory& candidate_factory) const;
+>>>>>>> parent of 466c23ef4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   // Returns true if all quads in the root render pass have been replaced by
   // CALayerOverlays. Virtual for testing.
@@ -56,12 +60,6 @@ class VIZ_SERVICE_EXPORT CALayerOverlayProcessor {
       AggregatedRenderPass* render_passes,
       const DisplayResourceProvider* resource_provider,
       const gfx::RectF& display_rect,
-      const base::flat_map<AggregatedRenderPassId,
-                           raw_ptr<cc::FilterOperations, CtnExperimental>>&
-          render_pass_filters,
-      const base::flat_map<AggregatedRenderPassId,
-                           raw_ptr<cc::FilterOperations, CtnExperimental>>&
-          render_pass_backdrop_filters,
       OverlayCandidateList* ca_layer_overlays);
 
   gfx::CALayerResult ca_layer_result() { return ca_layer_result_; }
@@ -74,12 +72,6 @@ class VIZ_SERVICE_EXPORT CALayerOverlayProcessor {
       AggregatedRenderPass* render_pass,
       const gfx::RectF& display_rect,
       const DrawQuad* quad,
-      const base::flat_map<AggregatedRenderPassId,
-                           raw_ptr<cc::FilterOperations, CtnExperimental>>&
-          render_pass_filters,
-      const base::flat_map<AggregatedRenderPassId,
-                           raw_ptr<cc::FilterOperations, CtnExperimental>>&
-          render_pass_backdrop_filters,
       gfx::ProtectedVideoType protected_video_type,
       OverlayCandidateList* ca_layer_overlays,
       const OverlayCandidateFactory& candidate_factory) const;

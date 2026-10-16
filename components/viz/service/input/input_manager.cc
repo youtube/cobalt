@@ -529,17 +529,25 @@ void InputManager::StateOnTouchTransfer(
     return;
   }
 
+  TRACE_EVENT_INSTANT(
+      "input,input.scrolling", "TopControlsOffset",
+      [&](perfetto::EventContext ctx) {
+        auto* event = ctx.event<perfetto::protos::pbzero::ChromeTrackEvent>();
+        auto* transfer_handler = event->set_input_transfer_handler();
+        auto* offset = transfer_handler->set_top_controls_offset();
+
+        const CompositorFrameMetadata* metadata =
+            GetLastActivatedFrameMetadata(state->root_widget_frame_sink_id);
+        if (metadata && metadata->top_controls_visible_height.has_value()) {
+          offset->set_viz_y_offset_px(
+              metadata->top_controls_visible_height.value());
+        }
+        offset->set_browser_y_offset_px(state->web_contents_offset.y());
+      });
+
   RenderInputRouterSupportBase* support_base = iter->second.rir_support.get();
   CHECK(support_base);
-  // TODO(crbug.com/404741207): Convert this to CHECK once the underlying
-  // reason for crash is fixed.
-  if (support_base->IsRenderInputRouterSupportChildFrame()) {
-    EmitStateProcessingResultHistogram(
-        InputOnVizStateProcessingResult::kFrameSinkIdCorrespondsToChildView);
-    android_state_transfer_handler_.StateOnTouchTransfer(
-        std::move(state), /* rir_support= */ nullptr);
-    return;
-  }
+  CHECK(!support_base->IsRenderInputRouterSupportChildFrame());
 
   auto* support_android = static_cast<RenderInputRouterSupportAndroid*>(
       iter->second.rir_support.get());

@@ -270,6 +270,8 @@
 
   # BUG(https://crbug.com/420932895): Very slow in many configurations.
   'random-bit-correlations': [PASS, ['mode == debug or simulator_run', SKIP]],
+
+  'arbitrary-length-varargs': [PASS, ['mode == debug or lower_limits_mode', SKIP]],
 }],  # ALWAYS
 
 ################################################################################
@@ -1648,6 +1650,9 @@
   # counters are shared across isolates.
   'wasm/wasm-code-coverage': [SKIP],
 
+  # JSON.parse is not supported with --shared-string-table and multiple isolates
+  'shared-memory/regress-crbug-1395117': [SKIP],
+
 }],  # 'isolates'
 
 ##############################################################################
@@ -2625,6 +2630,7 @@
   # Needs temporal:
   'regress/regress-463593768': [SKIP],
   'regress/regress-464961493': [SKIP],
+  'regress/regress-temporal-zoneinfo': [SKIP],
 
   # TODO(victorgomes):
   'es6/unicode-regexp-ignore-case-noi18n': [SKIP],
@@ -2976,6 +2982,9 @@
 ##############################################################################
 ['variant == code_serializer', {
   'compiler/fast-api-calls-nested': [SKIP],
+  # JSON.parse with --shared-string-table is not supported on background
+  # threads right now.
+  'shared-memory/regress-crbug-1395117': [SKIP],
 }],  # variant == code_serializer
 
 ##############################################################################

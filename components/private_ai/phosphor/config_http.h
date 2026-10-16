@@ -22,7 +22,7 @@ class SimpleURLLoader;
 
 namespace private_ai::phosphor {
 
-// HTTP Fetching for Legion. This implements the
+// HTTP Fetching for PrivateAI. This implements the
 // `BlindSignMessageInterface` for use by the Blind-Sign-Auth (BSA) library.
 class ConfigHttp : public quiche::BlindSignMessageInterface {
  public:
@@ -44,6 +44,7 @@ class ConfigHttp : public quiche::BlindSignMessageInterface {
   network::SharedURLLoaderFactory* GetOrCreateURLLoaderFactory();
 
   void OnDoRequestCompleted(
+      base::TimeTicks start_time,
       std::unique_ptr<network::SimpleURLLoader> url_loader,
       quiche::BlindSignMessageCallback callback,
       std::optional<std::string> response);

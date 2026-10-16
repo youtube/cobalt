@@ -12,6 +12,7 @@
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/memory/memory_pressure_listener_registry.h"
+#include "base/memory_coordinator/utils.h"
 #include "base/notreached.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
@@ -28,11 +29,11 @@ namespace {
 int GetMemoryLimitForMemoryPressureLevel(MemoryPressureLevel level) {
   switch (level) {
     case MEMORY_PRESSURE_LEVEL_NONE:
-      return 100;
+      return kNoMemoryPressureThreshold;
     case MEMORY_PRESSURE_LEVEL_MODERATE:
-      return 50;
+      return kModerateMemoryPressureThreshold;
     case MEMORY_PRESSURE_LEVEL_CRITICAL:
-      return 0;
+      return kCriticalMemoryPressureThreshold;
   }
   NOTREACHED();
 }
@@ -40,6 +41,10 @@ int GetMemoryLimitForMemoryPressureLevel(MemoryPressureLevel level) {
 }  // namespace
 
 // MemoryPressureListener ------------------------------------------------------
+
+MemoryPressureListener::MemoryPressureListener() {
+  DETACH_FROM_SEQUENCE(sequence_checker_);
+}
 
 // static
 void MemoryPressureListener::NotifyMemoryPressure(
@@ -68,6 +73,7 @@ void MemoryPressureListener::SimulatePressureNotificationAsync(
 }
 
 int MemoryPressureListener::GetMemoryLimit() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return GetMemoryLimitForMemoryPressureLevel(memory_pressure_level_);
 }
 
@@ -77,12 +83,14 @@ double MemoryPressureListener::GetMemoryLimitRatio() const {
 
 void MemoryPressureListener::SetInitialMemoryPressureLevel(
     MemoryPressureLevel memory_pressure_level) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   memory_pressure_level_ = memory_pressure_level;
 }
 
 void MemoryPressureListener::UpdateMemoryPressureLevel(
     MemoryPressureLevel memory_pressure_level,
     bool ignore_repeated_notifications) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (memory_pressure_level_ == memory_pressure_level &&
       ignore_repeated_notifications) {
     return;

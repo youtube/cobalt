@@ -55,6 +55,7 @@
 #import "ios/chrome/browser/composebox/ui/composebox_input_item.h"
 #import "ios/chrome/browser/composebox/ui/composebox_input_item_collection.h"
 #import "ios/chrome/browser/composebox/ui/composebox_metrics_recorder.h"
+#import "ios/chrome/browser/composebox/ui/composebox_server_strings.h"
 #import "ios/chrome/browser/favicon/model/favicon_loader.h"
 #import "ios/chrome/browser/intelligence/persist_tab_context/model/persist_tab_context_browser_agent.h"
 #import "ios/chrome/browser/intelligence/proto_wrappers/page_context_wrapper.h"
@@ -80,14 +81,94 @@
 #import "net/base/apple/url_conversions.h"
 #import "net/base/url_util.h"
 #import "third_party/omnibox_proto/chrome_aim_entry_point.pb.h"
+#import "third_party/omnibox_proto/model_config.pb.h"
 #import "third_party/omnibox_proto/model_mode.pb.h"
 #import "third_party/omnibox_proto/searchbox_config.pb.h"
+#import "third_party/omnibox_proto/tool_config.pb.h"
 #import "third_party/omnibox_proto/tool_mode.pb.h"
 #import "ui/base/page_transition_types.h"
 #import "ui/gfx/favicon_size.h"
 #import "url/gurl.h"
 
 namespace {
+
+// Returns the model option required by the given model mode.
+ComposeboxModelOption ModelOptionForModelMode(omnibox::ModelMode model_mode) {
+  using enum ComposeboxModelOption;
+  switch (model_mode) {
+    case omnibox::ModelMode::MODEL_MODE_GEMINI_PRO_AUTOROUTE:
+      return ComposeboxModelOption::kAuto;
+    case omnibox::ModelMode::MODEL_MODE_GEMINI_PRO:
+      return ComposeboxModelOption::kThinking;
+    case omnibox::ModelMode::MODEL_MODE_GEMINI_REGULAR:
+    default:
+      return ComposeboxModelOption::kRegular;
+  }
+}
+
+// Returns the input plate control for the given tool mode.
+ComposeboxInputPlateControls InputPlateControlForToolMode(
+    omnibox::ToolMode tool_mode) {
+  switch (tool_mode) {
+    case omnibox::ToolMode::TOOL_MODE_CANVAS:
+      return ComposeboxInputPlateControls::kCanvas;
+    case omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH:
+      return ComposeboxInputPlateControls::kDeepSearch;
+    case omnibox::ToolMode::TOOL_MODE_IMAGE_GEN:
+    case omnibox::ToolMode::TOOL_MODE_IMAGE_GEN_UPLOAD:
+      return ComposeboxInputPlateControls::kCreateImage;
+    case omnibox::ToolMode::TOOL_MODE_UNSPECIFIED:
+    default:
+      return ComposeboxInputPlateControls::kNone;
+  }
+}
+
+// Returns the server strings object from a given input state.
+ComposeboxServerStrings* ServerStringsFromInputState(
+    const contextual_search::InputState& input_state) {
+  std::unordered_map<ComposeboxInputPlateControls,
+                     ComposeboxServerStringBundle*>
+      tool_mapping;
+  for (const omnibox::ToolConfig& tool_config : input_state.tool_configs) {
+    NSString* menuLabel = base::SysUTF8ToNSString(tool_config.menu_label());
+    NSString* chipLabel = base::SysUTF8ToNSString(tool_config.chip_label());
+    NSString* hintText = base::SysUTF8ToNSString(tool_config.hint_text());
+    tool_mapping[InputPlateControlForToolMode(tool_config.tool())] =
+        [[ComposeboxServerStringBundle alloc] initWithMenuLabel:menuLabel
+                                                      chipLabel:chipLabel
+                                                       hintText:hintText];
+  }
+
+  std::unordered_map<ComposeboxModelOption, ComposeboxServerStringBundle*>
+      model_mapping;
+  for (const omnibox::ModelConfig& model_config : input_state.model_configs) {
+    NSString* menuLabel = base::SysUTF8ToNSString(model_config.menu_label());
+    NSString* hintText = base::SysUTF8ToNSString(model_config.hint_text());
+    model_mapping[ModelOptionForModelMode(model_config.model())] =
+        [[ComposeboxServerStringBundle alloc] initWithMenuLabel:menuLabel
+                                                      chipLabel:nil
+                                                       hintText:hintText];
+  }
+
+  NSString* modelSectionHeader = @"";
+  NSString* toolsSectionHeader = @"";
+
+  if (input_state.model_section_config) {
+    modelSectionHeader =
+        base::SysUTF8ToNSString(input_state.model_section_config->header());
+  }
+
+  if (input_state.tools_section_config) {
+    toolsSectionHeader =
+        base::SysUTF8ToNSString(input_state.tools_section_config->header());
+  }
+
+  return
+      [[ComposeboxServerStrings alloc] initWithToolMapping:tool_mapping
+                                              modelMapping:model_mapping
+                                        modelSectionHeader:modelSectionHeader
+                                        toolsSectionHeader:toolsSectionHeader];
+}
 
 // Reads data from a file URL. Runs on a background thread.
 NSData* ReadDataFromURL(GURL url) {
@@ -537,32 +618,41 @@ CreateInputDataFromAnnotatedPageContent(
 
   [self updateModel];
 
-  BOOL advancedModel = _modelOption == kAuto || _modelOption == kThinking;
-  switch (modelOption) {
-    case kNone:
-      _inputStateModel->setActiveModel(
-          omnibox::ModelMode::MODEL_MODE_GEMINI_REGULAR);
-      break;
-    case kAuto:
-      _inputStateModel->setActiveModel(
-          omnibox::ModelMode::MODEL_MODE_GEMINI_PRO_AUTOROUTE);
-      break;
-    case kThinking:
-      _inputStateModel->setActiveModel(
-          omnibox::ModelMode::MODEL_MODE_GEMINI_PRO);
-      break;
+  if (_inputStateModel) {
+    switch (modelOption) {
+      case kNone:
+        _inputStateModel->setActiveModel(_inputState.GetDefaultModel());
+        break;
+      case kRegular:
+        _inputStateModel->setActiveModel(
+            omnibox::ModelMode::MODEL_MODE_GEMINI_REGULAR);
+        break;
+      case kAuto:
+        _inputStateModel->setActiveModel(
+            omnibox::ModelMode::MODEL_MODE_GEMINI_PRO_AUTOROUTE);
+        break;
+      case kThinking:
+        _inputStateModel->setActiveModel(
+            omnibox::ModelMode::MODEL_MODE_GEMINI_PRO);
+        break;
+      default:
+        break;
+    }
   }
 
-  if (modelOption == kNone) {
+  // When the model option is reset (set to none), reset the mode to regular
+  // search before exiting.
+  BOOL switchToRegular = _modelOption == kNone && !_modeHolder.isRegularSearch;
+  if (switchToRegular) {
+    _modeHolder.mode = ComposeboxMode::kRegularSearch;
     return;
   }
-
   // Only when the user explicitly picked the advanced model in regular mode
   // do the switch to AIM.
-  if (explicitUserAction && advancedModel) {
-    if (_modeHolder.isRegularSearch) {
-      _modeHolder.mode = ComposeboxMode::kAIM;
-    }
+  BOOL switchToAIM = explicitUserAction && _modeHolder.isRegularSearch;
+  if (switchToAIM) {
+    _modeHolder.mode = ComposeboxMode::kAIM;
+    return;
   }
 }
 
@@ -592,21 +682,6 @@ CreateInputDataFromAnnotatedPageContent(
   }
 
   [self commitUIUpdates];
-}
-
-// Returns the model option required by the given input state.
-- (ComposeboxModelOption)requiredModelOptionForInputState:
-    (const contextual_search::InputState&)inputState {
-  using enum ComposeboxModelOption;
-  switch (inputState.active_model) {
-    case omnibox::ModelMode::MODEL_MODE_GEMINI_PRO_AUTOROUTE:
-      return ComposeboxModelOption::kAuto;
-    case omnibox::ModelMode::MODEL_MODE_GEMINI_PRO:
-      return ComposeboxModelOption::kThinking;
-    case omnibox::ModelMode::MODEL_MODE_GEMINI_REGULAR:
-    default:
-      return ComposeboxModelOption::kNone;
-  }
 }
 
 - (void)changeModeForInputState:
@@ -1603,6 +1678,10 @@ CreateInputDataFromAnnotatedPageContent(
 // If restricted, the tool will persist in the UI with a 'disabled' status,
 // pending a change in state.
 - (BOOL)imageToolDisabled {
+  // Allow deselecting the mode.
+  if (_modeHolder.mode == ComposeboxMode::kImageGeneration) {
+    return NO;
+  }
   BOOL generateImageDisabled =
       [self toolDisabledInInputState:omnibox::ToolMode::TOOL_MODE_IMAGE_GEN] ||
       [self toolDisabledInInputState:omnibox::ToolMode::
@@ -1615,6 +1694,10 @@ CreateInputDataFromAnnotatedPageContent(
 // If restricted, the tool will persist in the UI with a 'disabled' status,
 // pending a change in state.
 - (BOOL)canvasToolDisabled {
+  // Allow deselecting the mode.
+  if (_modeHolder.mode == ComposeboxMode::kCanvas) {
+    return NO;
+  }
   return [self toolDisabledInInputState:omnibox::ToolMode::TOOL_MODE_CANVAS];
 }
 
@@ -1622,6 +1705,10 @@ CreateInputDataFromAnnotatedPageContent(
 // If restricted, the tool will persist in the UI with a 'disabled' status,
 // pending a change in state.
 - (BOOL)deepSearchToolDisabled {
+  // Allow deselecting the mode.
+  if (_modeHolder.mode == ComposeboxMode::kDeepSearch) {
+    return NO;
+  }
   return
       [self toolDisabledInInputState:omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH];
 }
@@ -1682,18 +1769,12 @@ CreateInputDataFromAnnotatedPageContent(
 
 // The list of model options available based on the input model.
 - (std::unordered_set<ComposeboxModelOption>)allowedModels {
-  std::unordered_set<ComposeboxModelOption> allowed = {
-      ComposeboxModelOption::kNone};
+  std::unordered_set<ComposeboxModelOption> allowed = {};
   if (!ShowComposeboxAdditionalAdvancedTools()) {
     return allowed;
   }
   for (auto modelType : _inputState.allowed_models) {
-    if (modelType == omnibox::ModelMode::MODEL_MODE_GEMINI_PRO) {
-      allowed.insert(ComposeboxModelOption::kThinking);
-    } else if (modelType ==
-               omnibox::ModelMode::MODEL_MODE_GEMINI_PRO_AUTOROUTE) {
-      allowed.insert(ComposeboxModelOption::kAuto);
-    }
+    allowed.insert(ModelOptionForModelMode(modelType));
   }
 
   return allowed;
@@ -1701,18 +1782,12 @@ CreateInputDataFromAnnotatedPageContent(
 
 // The list of model options disabled based on the input model.
 - (std::unordered_set<ComposeboxModelOption>)disabledModels {
-  std::unordered_set<ComposeboxModelOption> disabled = {
-      ComposeboxModelOption::kNone};
+  std::unordered_set<ComposeboxModelOption> disabled = {};
   if (!ShowComposeboxAdditionalAdvancedTools()) {
     return disabled;
   }
   for (auto modelType : _inputState.disabled_models) {
-    if (modelType == omnibox::ModelMode::MODEL_MODE_GEMINI_PRO) {
-      disabled.insert(ComposeboxModelOption::kThinking);
-    } else if (modelType ==
-               omnibox::ModelMode::MODEL_MODE_GEMINI_PRO_AUTOROUTE) {
-      disabled.insert(ComposeboxModelOption::kAuto);
-    }
+    disabled.insert(ModelOptionForModelMode(modelType));
   }
 
   return disabled;
@@ -1927,23 +2002,52 @@ CreateInputDataFromAnnotatedPageContent(
 
 #pragma mark - Private helpers
 
+// Whether the user can ask about the current Tab.
+- (BOOL)canAskAboutCurrentTab {
+  return IsAimCobrowseEnabled() && [self canAttachActiveTab];
+}
+
+// Whether the current tab is attachable.
+- (BOOL)canAttachActiveTab {
+  web::WebState* webState = _webStateList->GetActiveWebState();
+  if (!webState) {
+    return NO;
+  }
+
+  std::set<web::WebStateID> alreadyProcessedIDs =
+      [self attachedWebStateIDsInCurrentContext];
+  BOOL isNTP = IsUrlNtp(webState->GetVisibleURL());
+  BOOL alreadyProcessed =
+      alreadyProcessedIDs.contains(webState->GetUniqueIdentifier());
+
+  BOOL canAttachTab =
+      !isNTP && !alreadyProcessed && [self isContentSharingEnabled];
+
+  return canAttachTab;
+}
+
 // Reacts to a change in the model choice.
 - (void)updateModelOnModeChange {
   using enum ComposeboxModelOption;
+
   if (_modeHolder.isRegularSearch) {
     [self setModelOption:kNone];
     return;
   }
 
-  if (_modelOption == kNone) {
+  BOOL applyDefaultSelection = _modelOption == kNone;
+  if (applyDefaultSelection) {
     auto allowedModels = [self allowedModels];
     auto disabledModel = [self disabledModels];
     BOOL autoAllowed = allowedModels.contains(kAuto);
     BOOL autoDisabled = disabledModel.contains(kAuto);
-    if (autoAllowed && !autoDisabled) {
-      [self setModelOption:ComposeboxModelOption::kAuto];
-    }
-    return;
+    BOOL defaultToAuto = autoAllowed && !autoDisabled;
+
+    ComposeboxModelOption defaultOption = defaultToAuto
+                                              ? ComposeboxModelOption::kAuto
+                                              : ComposeboxModelOption::kRegular;
+
+    [self setModelOption:defaultOption];
   }
 }
 
@@ -2004,6 +2108,15 @@ CreateInputDataFromAnnotatedPageContent(
       break;
   }
 
+  ComposeboxInputPlateControls askAboutThisPage;
+
+  if (!compactMode && [self canAskAboutCurrentTab] && allowsMultimodalActions &&
+      !modeSwitchButton) {
+    askAboutThisPage = kAskAboutThisPage;
+  } else {
+    askAboutThisPage = kNone;
+  }
+
   ComposeboxInputPlateControls trailingAction = kNone;
   if (canSend) {
     trailingAction = kSend;
@@ -2013,27 +2126,17 @@ CreateInputDataFromAnnotatedPageContent(
   }
 
   ComposeboxInputPlateControls visibleControls =
-      (leadingImage | leadingAction | modeSwitchButton | trailingAction);
+      (leadingImage | leadingAction | modeSwitchButton | askAboutThisPage |
+       trailingAction);
 
   [self.consumer updateVisibleControls:visibleControls];
 }
 
 - (BOOL)updateOptionToAttachCurrentTab {
-  web::WebState* webState = _webStateList->GetActiveWebState();
-  if (!webState) {
-    [_consumer hideAttachCurrentTabAction:YES];
-    return NO;
-  }
+  BOOL canAttachTab = [self canAttachActiveTab];
 
-  std::set<web::WebStateID> alreadyProcessedIDs =
-      [self attachedWebStateIDsInCurrentContext];
-  BOOL isNTP = IsUrlNtp(webState->GetVisibleURL());
-  BOOL alreadyProcessed =
-      alreadyProcessedIDs.contains(webState->GetUniqueIdentifier());
-
-  BOOL canAttachTab =
-      !isNTP && !alreadyProcessed && [self isContentSharingEnabled];
   [_consumer hideAttachCurrentTabAction:!canAttachTab];
+
   return canAttachTab;
 }
 
@@ -2222,10 +2325,19 @@ CreateInputDataFromAnnotatedPageContent(
 // Called when the input state is updated.
 - (void)didUpdateInputState:(contextual_search::InputState)inputState {
   _inputState = inputState;
-  ComposeboxModelOption requiredModel =
-      [self requiredModelOptionForInputState:inputState];
-  [self setModelOption:requiredModel];
+
+  if (EnableComposeboxServerSideState()) {
+    ComposeboxServerStrings* serverStrings =
+        ServerStringsFromInputState(inputState);
+    [self.consumer setServerStrings:serverStrings];
+  }
+
   [self changeModeForInputState:inputState];
+  if (!_modeHolder.isRegularSearch) {
+    ComposeboxModelOption requiredModel =
+        ModelOptionForModelMode(inputState.active_model);
+    [self setModelOption:requiredModel];
+  }
 
   [self commitUIUpdates];
 }

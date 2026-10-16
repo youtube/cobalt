@@ -44,6 +44,11 @@ def angle_linux_parent_builder(**kwargs):
     kwargs.setdefault("os", os.LINUX_DEFAULT)
     ci.builder(**kwargs)
 
+def angle_mac_parent_builder(**kwargs):
+    kwargs.setdefault("cpu", "arm64")
+    kwargs.setdefault("os", os.MAC_DEFAULT)
+    ci.builder(**kwargs)
+
 angle_linux_parent_builder(
     name = "angle-linux-x64-builder-rel",
     description_html = "Compiles release ANGLE test binaries for Linux/x64",
@@ -72,6 +77,37 @@ angle_linux_parent_builder(
     ),
     console_view_entry = consoles.console_view_entry(
         category = "compile|linux|x64",
+        short_name = "rel",
+    ),
+)
+
+angle_mac_parent_builder(
+    name = "angle-mac-arm64-builder-rel",
+    description_html = "Compiles release ANGLE test binaries for Mac/arm64",
+    schedule = "triggered",
+    builder_spec = builder_config.builder_spec(
+        gclient_config = builder_config.gclient_config(
+            config = "angle_v2",
+        ),
+        chromium_config = builder_config.chromium_config(
+            config = "angle_v2_clang",
+            build_config = builder_config.build_config.RELEASE,
+            target_arch = builder_config.target_arch.ARM,
+            target_bits = 64,
+            target_platform = builder_config.target_platform.MAC,
+        ),
+    ),
+    gn_args = gn_args.config(
+        configs = [
+            "arm64",
+            "capture",
+            "component",
+            "mac_clang",
+            "release_with_dchecks",
+        ],
+    ),
+    console_view_entry = consoles.console_view_entry(
+        category = "compile|mac|arm64",
         short_name = "rel",
     ),
 )
@@ -105,6 +141,32 @@ ci.thin_tester(
 )
 
 ci.thin_tester(
+    name = "angle-linux-x64-intel-uhd630-exp-rel",
+    description_html = "Tests release ANGLE on Linux/x64 on experimental Intel UHD 630 configs",
+    parent = "angle-linux-x64-builder-rel",
+    builder_spec = builder_config.builder_spec(
+        execution_mode = builder_config.execution_mode.TEST,
+        gclient_config = builder_config.gclient_config(
+            config = "angle_v2",
+        ),
+        chromium_config = builder_config.chromium_config(
+            config = "angle_v2_clang",
+            build_config = builder_config.build_config.RELEASE,
+            target_arch = builder_config.target_arch.INTEL,
+            target_bits = 64,
+            target_platform = builder_config.target_platform.LINUX,
+        ),
+        run_tests_serially = True,
+    ),
+    # Uncomment this entry when this experimental tester is actually in use.
+    # console_view_entry = consoles.console_view_entry(
+    #     category = "test|linux|x64|rel|exp",
+    #     short_name = "630",
+    # ),
+    list_view = "exp",
+)
+
+ci.thin_tester(
     name = "angle-linux-x64-intel-uhd630-rel",
     description_html = "Tests release ANGLE on Linux/x64 on Intel UHD 630 GPUs",
     parent = "angle-linux-x64-builder-rel",
@@ -126,6 +188,32 @@ ci.thin_tester(
         category = "test|linux|x64|rel",
         short_name = "630",
     ),
+)
+
+ci.thin_tester(
+    name = "angle-linux-x64-nvidia-gtx1660-exp-rel",
+    description_html = "Tests release ANGLE on Linux/x64 on experimental NVIDIA GTX 1660 configs",
+    parent = "angle-linux-x64-builder-rel",
+    builder_spec = builder_config.builder_spec(
+        execution_mode = builder_config.execution_mode.TEST,
+        gclient_config = builder_config.gclient_config(
+            config = "angle_v2",
+        ),
+        chromium_config = builder_config.chromium_config(
+            config = "angle_v2_clang",
+            build_config = builder_config.build_config.RELEASE,
+            target_arch = builder_config.target_arch.INTEL,
+            target_bits = 64,
+            target_platform = builder_config.target_platform.LINUX,
+        ),
+        run_tests_serially = True,
+    ),
+    # Uncomment this entry when this experimental tester is actually in use.
+    # console_view_entry = consoles.console_view_entry(
+    #     category = "test|linux|x64|rel|exp",
+    #     short_name = "1660",
+    # ),
+    list_view = "exp",
 )
 
 ci.thin_tester(
@@ -173,6 +261,30 @@ ci.thin_tester(
     console_view_entry = consoles.console_view_entry(
         category = "test|linux|x64|rel",
         short_name = "sws",
+    ),
+)
+
+ci.thin_tester(
+    name = "angle-mac-arm64-apple-m2-rel",
+    description_html = "Tests release ANGLE on Mac/arm64 on Apple M2 SoCs",
+    parent = "angle-mac-arm64-builder-rel",
+    builder_spec = builder_config.builder_spec(
+        execution_mode = builder_config.execution_mode.TEST,
+        gclient_config = builder_config.gclient_config(
+            config = "angle_v2",
+        ),
+        chromium_config = builder_config.chromium_config(
+            config = "angle_v2_clang",
+            build_config = builder_config.build_config.RELEASE,
+            target_arch = builder_config.target_arch.ARM,
+            target_bits = 64,
+            target_platform = builder_config.target_platform.MAC,
+        ),
+        run_tests_serially = True,
+    ),
+    console_view_entry = consoles.console_view_entry(
+        category = "test|mac|arm64|rel",
+        short_name = "m2",
     ),
 )
 

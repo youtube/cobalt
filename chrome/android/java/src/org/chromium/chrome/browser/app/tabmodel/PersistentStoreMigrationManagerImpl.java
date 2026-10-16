@@ -81,8 +81,19 @@ public class PersistentStoreMigrationManagerImpl implements PersistentStoreMigra
     }
 
     @Override
+    public void onAuthoritativeStoreInitialized(@StoreType int type) {
+        getPrefs().writeInt(mCurrentAuthoritativeStoreKey, type);
+    }
+
+    @Override
     public boolean isShadowStoreCaughtUp() {
         return getShadowWrittenStore() != StoreType.INVALID;
+    }
+
+    @Override
+    public boolean shouldRazeStoreForWindow(boolean isAuthoritative) {
+        return !getPrefs()
+                .contains(isAuthoritative ? mCurrentAuthoritativeStoreKey : mShadowWrittenStoreKey);
     }
 
     @Override

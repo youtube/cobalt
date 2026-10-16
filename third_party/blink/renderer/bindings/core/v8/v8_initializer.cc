@@ -408,9 +408,9 @@ void V8Initializer::ExceptionPropagationCallback(
   String class_name = ToCoreString(isolate, v8_message.GetInterfaceName());
   String property_name = ToCoreString(isolate, v8_message.GetPropertyName());
   if ((context_type == v8::ExceptionContext::kAttributeGet &&
-       property_name.StartsWith("get ")) ||
+       property_name.starts_with("get ")) ||
       (context_type == v8::ExceptionContext::kAttributeSet &&
-       property_name.StartsWith("set "))) {
+       property_name.starts_with("set "))) {
     property_name = property_name.Substring(4);
   }
   if (property_name == "[Symbol.toPrimitive]") {
@@ -788,7 +788,7 @@ v8::MaybeLocal<v8::Promise> HostImportModuleWithPhaseDynamically(
         ToCoreString(script_state->GetIsolate(),
                      v8::Local<v8::String>::Cast(v8_referrer_resource_url));
     if (!referrer_resource_url_str.empty())
-      referrer_resource_url = KURL(NullURL(), referrer_resource_url_str);
+      referrer_resource_url = KURL(NullUrl(), referrer_resource_url_str);
   }
 
   ModuleRequest module_request(

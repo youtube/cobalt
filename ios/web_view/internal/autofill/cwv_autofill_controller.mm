@@ -22,6 +22,7 @@
 #import "components/autofill/core/browser/foundations/autofill_manager.h"
 #import "components/autofill/core/browser/foundations/browser_autofill_manager.h"
 #import "components/autofill/core/browser/payments/card_unmask_challenge_option.h"
+#import "components/autofill/core/browser/payments/credit_card_access_manager.h"
 #import "components/autofill/core/browser/payments/legal_message_line.h"
 #import "components/autofill/core/browser/payments/payments_autofill_client.h"
 #import "components/autofill/core/browser/payments/virtual_card_enrollment_manager.h"
@@ -76,6 +77,9 @@ using autofill::FieldRendererId;
 using autofill::FormData;
 using autofill::FormRendererId;
 using UserDecision = autofill::AutofillClient::AddressPromptUserDecision;
+
+NSErrorDomain const CWVAutofillErrorDomain =
+    @"org.chromium.chromewebview.AutofillErrorDomain";
 
 @interface CWVAutofillController () <AutofillManagerObserver,
                                      CRWWebFramesManagerObserver>
@@ -443,6 +447,52 @@ CWVAutofillProgressDialogType ToCWVAutofillProgressDialogType(
                         completionHandler();
                       }
                     }];
+}
+
+- (void)fetchFullCardDetailsForCard:(CWVCreditCard*)card
+                  completionHandler:(CWVFetchFullCardDetailsCompletionHandler)
+                                        completionHandler {
+  web::WebFrame* frame = autofill::AutofillJavaScriptFeature::GetInstance()
+                             ->GetWebFramesManager(_webState)
+                             ->GetFrameWithId(_lastFormActivityWebFrameID);
+
+  if (!frame) {
+    if (completionHandler) {
+      NSError* error = [NSError errorWithDomain:CWVAutofillErrorDomain
+                                           code:CWVAutofillErrorNoWebFrame
+                                       userInfo:nil];
+      completionHandler(/*fullCard=*/nil, error);
+    }
+    return;
+  }
+
+  autofill::AutofillDriverIOS* driver =
+      autofill::AutofillDriverIOS::FromWebStateAndWebFrame(_webState, frame);
+  if (!driver) {
+    if (completionHandler) {
+      NSError* error = [NSError errorWithDomain:CWVAutofillErrorDomain
+                                           code:CWVAutofillErrorNoAutofillDriver
+                                       userInfo:nil];
+      completionHandler(/*fullCard=*/nil, error);
+    }
+    return;
+  }
+
+  autofill::BrowserAutofillManager& manager = driver->GetAutofillManager();
+  autofill::CreditCardAccessManager* accessManager =
+      manager.GetCreditCardAccessManager();
+
+  accessManager->FetchCreditCard(
+      card.internalCard, base::BindOnce(
+                             ^(CWVFetchFullCardDetailsCompletionHandler handler,
+                               const autofill::CreditCard& fetchedCard) {
+                               CWVCreditCard* fullCard = [[CWVCreditCard alloc]
+                                   initWithCreditCard:fetchedCard];
+                               if (handler) {
+                                 handler(fullCard, /*error=*/nil);
+                               }
+                             },
+                             completionHandler));
 }
 
 - (void)focusPreviousField {
@@ -923,6 +973,15 @@ CWVAutofillProgressDialogType ToCWVAutofillProgressDialogType(
   if (_supportXframeSubmission) {
     return;
   }
+  if ([_delegate respondsToSelector:@selector
+                 (autofillController:
+                     didSubmitFormWithName:frameID:perfectFilling:)]) {
+    [_delegate autofillController:self
+            didSubmitFormWithName:base::SysUTF16ToNSString(formData.name())
+                          frameID:base::SysUTF8ToNSString(frame->GetFrameId())
+                   perfectFilling:perfectFilling];
+  }
+
   if ([_delegate
           respondsToSelector:@selector
           (autofillController:
@@ -962,7 +1021,10 @@ CWVAutofillProgressDialogType ToCWVAutofillProgressDialogType(
                     formData:(const autofill::FormData&)form {
   // Skip immediately if the delegate doesn't handle submission to save
   // computation.
-  if (![_delegate
+  if (![_delegate respondsToSelector:@selector
+                  (autofillController:
+                      didSubmitFormWithName:frameID:perfectFilling:)] &&
+      ![_delegate
           respondsToSelector:@selector
           (autofillController:
               didSubmitFormWithName:frameID:userInitiated:perfectFilling:)]) {
@@ -978,17 +1040,31 @@ CWVAutofillProgressDialogType ToCWVAutofillProgressDialogType(
 
   BOOL perfectFilling = autofill::IsFormDataPerfectlyFilled(form);
 
-  // Use YES as a dummy value for `userInitiated` since that bit isn't supported
-  // by the _delegate implementations and we can't get that information on
-  // -onAfterFormSubmitted. Also, a value of YES should cover most of the
-  // submission cases that probably consist of user initiated submissions, and
-  // note that computing that bit is based on a best guess so it isn't that
-  // reliable.
-  [_delegate autofillController:self
-          didSubmitFormWithName:base::SysUTF16ToNSString(form.name())
-                        frameID:nsFrameID
-                  userInitiated:YES
-                 perfectFilling:perfectFilling];
+  if ([_delegate respondsToSelector:@selector
+                 (autofillController:
+                     didSubmitFormWithName:frameID:perfectFilling:)]) {
+    [_delegate autofillController:self
+            didSubmitFormWithName:base::SysUTF16ToNSString(form.name())
+                          frameID:nsFrameID
+                   perfectFilling:perfectFilling];
+  }
+
+  // Use YES as a dummy value for `userInitiated` since that bit
+  // isn't supported by the _delegate implementations and we can't get that
+  // information on -onAfterFormSubmitted. Also, a value of YES should cover
+  // most of the submission cases that probably consist of user initiated
+  // submissions, and note that computing that bit is based on a best guess so
+  // it isn't that reliable.
+  if ([_delegate
+          respondsToSelector:@selector
+          (autofillController:
+              didSubmitFormWithName:frameID:userInitiated:perfectFilling:)]) {
+    [_delegate autofillController:self
+            didSubmitFormWithName:base::SysUTF16ToNSString(form.name())
+                          frameID:nsFrameID
+                    userInitiated:YES
+                   perfectFilling:perfectFilling];
+  }
 }
 
 - (void)

@@ -2797,6 +2797,9 @@ WebRtcVideoReceiveChannel::WebRtcVideoReceiveChannel(
     : MediaChannelUtil(call->network_thread(), config.enable_dscp),
       env_(env),
       worker_thread_(call->worker_thread()),
+      network_thread_safety_(PendingTaskSafetyFlag::CreateAttachedToTaskQueue(
+          /*alive=*/true,
+          call->network_thread())),
       receiving_(false),
       call_(call),
       default_sink_(nullptr),
@@ -2944,7 +2947,13 @@ bool WebRtcVideoReceiveChannel::SetReceiverParameters(
   }
   if (changed_params.rtp_header_extensions) {
     recv_rtp_extensions_ = *changed_params.rtp_header_extensions;
-    recv_rtp_extension_map_ = RtpHeaderExtensionMap(recv_rtp_extensions_);
+    call_->network_thread()->PostTask(SafeTask(
+        network_thread_safety_,
+        [this, recv_rtp_extension_map =
+                   RtpHeaderExtensionMap(recv_rtp_extensions_)]() mutable {
+          RTC_DCHECK_RUN_ON(&network_thread_checker_);
+          recv_rtp_extension_map_ = std::move(recv_rtp_extension_map);
+        }));
   }
   if (changed_params.codec_settings) {
     RTC_DLOG(LS_INFO) << "Changing recv codecs from "
@@ -3210,25 +3219,32 @@ void WebRtcVideoReceiveChannel::FillReceiveCodecStats(
   }
 }
 
-void WebRtcVideoReceiveChannel::OnPacketReceived(
-    const RtpPacketReceived& packet) {
+void WebRtcVideoReceiveChannel::OnPacketReceived(RtpPacketReceived packet) {
   // Note: the network_thread_checker may refer to the worker thread if the two
   // threads are combined, but this is either always true or always false
   // depending on configuration set at object initialization.
   RTC_DCHECK_RUN_ON(&network_thread_checker_);
 
-  // TODO(crbug.com/1373439): Stop posting to the worker thread when the
-  // combined network/worker project launches.
-  if (TaskQueueBase::Current() != worker_thread_) {
-    worker_thread_->PostTask(
-        SafeTask(task_safety_.flag(), [this, packet = packet]() mutable {
-          RTC_DCHECK_RUN_ON(&thread_checker_);
-          ProcessReceivedPacket(std::move(packet));
-        }));
-  } else {
-    RTC_DCHECK_RUN_ON(&thread_checker_);
-    ProcessReceivedPacket(packet);
+  // TODO(bugs.webrtc.org/7135): The mapping of extension ID (on-packet
+  // representation) to C++ class object (internal representation) is currently
+  // associated with the per-channel object (e.g. WebRtcVideoReceiveChannel).
+  // However, this mapping is more logically associated with per-media-stream
+  // objects (like ModuleRtpRtcpImpl2), which handle specific streams flowing
+  // in one direction (usually a single SSRC).
+  // This mapping should be moved out of the media engines altogether, storing
+  // it instead at the stream level initialized by the Transport. RTP packets
+  // consumed by media channels would thus have header extensions distinguished
+  // by C++ class rather than negotiated header extension ID.
+  packet.IdentifyExtensions(recv_rtp_extension_map_);
+  packet.set_payload_type_frequency(kVideoPayloadTypeFrequency);
+  if (!packet.arrival_time().IsFinite()) {
+    packet.set_arrival_time(env_.clock().CurrentTime());
   }
+
+  call_->Receiver()->DeliverRtpPacket(
+      MediaType::VIDEO, std::move(packet),
+      absl::bind_front(
+          &WebRtcVideoReceiveChannel::MaybeCreateDefaultReceiveStream, this));
 }
 
 bool WebRtcVideoReceiveChannel::MaybeCreateDefaultReceiveStream(
@@ -3338,6 +3354,8 @@ void WebRtcVideoReceiveChannel::ReCreateDefaultReceiveStream(
 void WebRtcVideoReceiveChannel::SetInterface(
     MediaChannelNetworkInterface* iface) {
   RTC_DCHECK_RUN_ON(&network_thread_checker_);
+  iface ? network_thread_safety_->SetAlive()
+        : network_thread_safety_->SetNotAlive();
   MediaChannelUtil::SetInterface(iface);
   // Set the RTP recv/send buffer to a bigger size.
   MediaChannelUtil::SetOption(MediaChannelNetworkInterface::ST_RTP,
@@ -3973,32 +3991,6 @@ WebRtcVideoReceiveChannel::FindReceiveStream(uint32_t ssrc) {
     return it->second;
   }
   return nullptr;
-}
-
-// RTC_RUN_ON(worker_thread_)
-void WebRtcVideoReceiveChannel::ProcessReceivedPacket(
-    RtpPacketReceived packet) {
-  // TODO(bugs.webrtc.org/11993): This code is very similar to what
-  // WebRtcVoiceMediaChannel::OnPacketReceived does. For maintainability and
-  // consistency it would be good to move the interaction with call_->Receiver()
-  // to a common implementation and provide a callback on the worker thread
-  // for the exception case (DELIVERY_UNKNOWN_SSRC) and how retry is attempted.
-  // TODO(bugs.webrtc.org/7135): extensions in `packet` is currently set
-  // in RtpTransport and does not neccessarily include extensions specific
-  // to this channel/MID. Also see comment in
-  // BaseChannel::MaybeUpdateDemuxerAndRtpExtensions_w.
-  // It would likely be good if extensions where merged per BUNDLE and
-  // applied directly in RtpTransport::DemuxPacket;
-  packet.IdentifyExtensions(recv_rtp_extension_map_);
-  packet.set_payload_type_frequency(kVideoPayloadTypeFrequency);
-  if (!packet.arrival_time().IsFinite()) {
-    packet.set_arrival_time(env_.clock().CurrentTime());
-  }
-
-  call_->Receiver()->DeliverRtpPacket(
-      MediaType::VIDEO, std::move(packet),
-      absl::bind_front(
-          &WebRtcVideoReceiveChannel::MaybeCreateDefaultReceiveStream, this));
 }
 
 void WebRtcVideoReceiveChannel::SetRecordableEncodedFrameCallback(

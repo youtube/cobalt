@@ -61,6 +61,7 @@
 #include "rtc_base/ssl_identity.h"
 #include "rtc_base/string_encode.h"
 #include "rtc_base/strings/string_builder.h"
+#include "rtc_base/system/plan_b_only.h"
 #include "rtc_base/unique_id_generator.h"
 #include "test/create_test_field_trials.h"
 #include "test/gmock.h"
@@ -546,6 +547,7 @@ void AttachSenderToMediaDescriptionOptions(
     int num_sim_layer,
     MediaSessionOptions* session_options) {
   auto it = FindFirstMediaDescriptionByMid(mid, session_options);
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   switch (type) {
     case webrtc::MediaType::AUDIO:
       it->AddAudioSender(track_id, stream_ids);
@@ -557,6 +559,7 @@ void AttachSenderToMediaDescriptionOptions(
     default:
       RTC_DCHECK_NOTREACHED();
   }
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
 }
 
 void AttachSenderToMediaDescriptionOptions(

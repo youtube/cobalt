@@ -525,7 +525,7 @@ TEST_F(AdTrackerSimTest, ImageLoadedWhileExecutingAdScriptAsyncEnabled) {
   // Put the gif bytes in a Vector to avoid difficulty with
   // non null-terminated char*.
   Vector<char> gif;
-  gif.AppendSpan(base::span(kSmallGifData));
+  gif.append_range(kSmallGifData);
 
   vanilla_image.Complete(gif);
 
@@ -569,7 +569,7 @@ TEST_F(AdTrackerSimTest, PromiseResolveDetected) {
   // Put the gif bytes in a Vector to avoid difficulty with
   // non null-terminated char*.
   Vector<char> gif;
-  gif.AppendSpan(base::span(kSmallGifData));
+  gif.append_range(kSmallGifData);
 
   image.Complete(gif);
 
@@ -600,7 +600,7 @@ TEST_F(AdTrackerSimTest, PromiseRejectDetected) {
   // Put the gif bytes in a Vector to avoid difficulty with
   // non null-terminated char*.
   Vector<char> gif;
-  gif.AppendSpan(base::span(kSmallGifData));
+  gif.append_range(kSmallGifData);
 
   image.Complete(gif);
 
@@ -633,7 +633,7 @@ TEST_F(AdTrackerSimTest, PromiseChain) {
   // Put the gif bytes in a Vector to avoid difficulty with
   // non null-terminated char*.
   Vector<char> gif;
-  gif.AppendSpan(base::span(kSmallGifData));
+  gif.append_range(kSmallGifData);
 
   image.Complete(gif);
 
@@ -681,7 +681,7 @@ TEST_F(AdTrackerSimTest, BrokenPromiseScript) {
   // Put the gif bytes in a Vector to avoid difficulty with
   // non null-terminated char*.
   Vector<char> gif;
-  gif.AppendSpan(base::span(kSmallGifData));
+  gif.append_range(kSmallGifData);
 
   image.Complete(gif);
 
@@ -715,7 +715,7 @@ TEST_F(AdTrackerSimTest, VanillaPromiseNotDetected) {
   // Put the gif bytes in a Vector to avoid difficulty with
   // non null-terminated char*.
   Vector<char> gif;
-  gif.AppendSpan(base::span(kSmallGifData));
+  gif.append_range(kSmallGifData);
 
   image.Complete(gif);
 
@@ -2134,9 +2134,9 @@ TEST_F(AdTrackerSimTest, SelectivePermissionsInterventionOn) {
   )SCRIPT");
   EXPECT_TRUE(
       base::test::RunUntil([&]() { return ConsoleMessages().size() == 3; }));
-  EXPECT_TRUE(ConsoleMessages()[0].StartsWith(
+  EXPECT_TRUE(ConsoleMessages()[0].starts_with(
       "Blocked call to geolocation because ad-script"));
-  EXPECT_TRUE(ConsoleMessages()[1].StartsWith(
+  EXPECT_TRUE(ConsoleMessages()[1].starts_with(
       "Permissions policy violation: Geolocation"));
   EXPECT_EQ("Failed", ConsoleMessages()[2]);
 }

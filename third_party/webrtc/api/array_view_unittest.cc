@@ -71,10 +71,10 @@ TEST(ArrayViewDeathTest, TestConstructFromPtrAndArray) {
   EXPECT_EQ(arr, wf.data());
   ArrayView<char> q(arr, 0);
   EXPECT_EQ(0u, q.size());
-  EXPECT_EQ(nullptr, q.data());
+  EXPECT_TRUE(q.empty());
   ArrayView<char, 0> qf(arr, 0);
   static_assert(qf.size() == 0, "");
-  EXPECT_EQ(nullptr, qf.data());
+  EXPECT_TRUE(qf.empty());
 #if RTC_DCHECK_IS_ON && GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID)
   // DCHECK error (nullptr with nonzero size).
   EXPECT_DEATH(ArrayView<int>(static_cast<int*>(nullptr), 5), "");
@@ -429,7 +429,8 @@ TEST(ArrayViewDeathTest, TestIndexing) {
   EXPECT_EQ('Y', y[2]);
   EXPECT_EQ('X', z[3]);
 #if RTC_DCHECK_IS_ON && GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID)
-  EXPECT_DEATH(z[8], "");  // DCHECK error (index out of bounds).
+  // DCHECK error (index out of bounds).
+  EXPECT_DEATH(std::ignore = z[8], "");
 #endif
 }
 
@@ -530,28 +531,8 @@ TEST(ArrayViewTest, TestEmpty) {
   const int a[] = {1, 2, 3};
   EXPECT_FALSE(ArrayView<const int>(a).empty());
 
-  static_assert(ArrayView<int, 0>::empty(), "");
-  static_assert(!ArrayView<int, 3>::empty(), "");
+  static_assert(ArrayView<int, 0>().empty());
 }
-
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-TEST(ArrayViewTest, TestSubViewVariable) {
-  int a[] = {1, 2, 3};
-  ArrayView<int> av(a);
-
-  EXPECT_THAT(av.subview(0), ElementsAre(1, 2, 3));
-  EXPECT_THAT(av.subview(1), ElementsAre(2, 3));
-  EXPECT_THAT(av.subview(2), ElementsAre(3));
-  EXPECT_THAT(av.subview(3), IsEmpty());
-  EXPECT_THAT(av.subview(4), IsEmpty());
-
-  EXPECT_THAT(av.subview(1, 0), IsEmpty());
-  EXPECT_THAT(av.subview(1, 1), ElementsAre(2));
-  EXPECT_THAT(av.subview(1, 2), ElementsAre(2, 3));
-  EXPECT_THAT(av.subview(1, 3), ElementsAre(2, 3));
-}
-#pragma clang diagnostic pop
 
 TEST(ArrayViewTest, TestSubSpanVariable) {
   int a[] = {1, 2, 3};
@@ -570,28 +551,9 @@ TEST(ArrayViewTest, TestSubSpanVariable) {
 TEST(ArrayViewTest, TestSubSpanWithInvalidInput) {
   int a[] = {1, 2, 3};
   ArrayView<int> av(a);
-  EXPECT_DEATH_IF_SUPPORTED(av.subspan(4), "");
-  EXPECT_DEATH_IF_SUPPORTED(av.subspan(1, 3), "");
+  EXPECT_DEATH_IF_SUPPORTED(std::ignore = av.subspan(4), "");
+  EXPECT_DEATH_IF_SUPPORTED(std::ignore = av.subspan(1, 3), "");
 }
-
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-TEST(ArrayViewTest, TestSubViewFixed) {
-  int a[] = {1, 2, 3};
-  ArrayView<int, 3> av(a);
-
-  EXPECT_THAT(av.subview(0), ElementsAre(1, 2, 3));
-  EXPECT_THAT(av.subview(1), ElementsAre(2, 3));
-  EXPECT_THAT(av.subview(2), ElementsAre(3));
-  EXPECT_THAT(av.subview(3), IsEmpty());
-  EXPECT_THAT(av.subview(4), IsEmpty());
-
-  EXPECT_THAT(av.subview(1, 0), IsEmpty());
-  EXPECT_THAT(av.subview(1, 1), ElementsAre(2));
-  EXPECT_THAT(av.subview(1, 2), ElementsAre(2, 3));
-  EXPECT_THAT(av.subview(1, 3), ElementsAre(2, 3));
-}
-#pragma clang diagnostic pop
 
 TEST(ArrayViewTest, SubspanFixed) {
   std::array<int, 3> a = {1, 2, 3};
@@ -649,6 +611,8 @@ TEST(ArrayViewTest, LastFixed) {
   EXPECT_EQ((av.last<2>()).extent, 2u);
 }
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 TEST(ArrayViewTest, TestReinterpretCastFixedSize) {
   uint8_t bytes[] = {1, 2, 3};
   ArrayView<uint8_t, 3> uint8_av(bytes);
@@ -668,4 +632,6 @@ TEST(ArrayViewTest, TestReinterpretCastVariableSize) {
   EXPECT_EQ(uint8_av[1], 2);
   EXPECT_EQ(uint8_av[2], 3);
 }
+#pragma clang diagnostic pop
+
 }  // namespace webrtc

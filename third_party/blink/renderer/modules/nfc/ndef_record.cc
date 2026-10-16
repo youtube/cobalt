@@ -37,7 +37,7 @@ namespace {
 Vector<uint8_t> GetUTF8DataFromString(const String& string) {
   StringUtf8Adaptor utf8_string(string);
   Vector<uint8_t> data;
-  data.AppendSpan(base::span(utf8_string));
+  data.append_range(utf8_string);
   return data;
 }
 
@@ -81,7 +81,7 @@ bool GetBytesOfBufferSource(const V8BufferSource* buffer_source,
         "The provided buffer source exceeds the maximum supported length");
     return false;
   }
-  target->AppendSpan(array_piece.ByteSpan());
+  target->append_range(array_piece.ByteSpan());
   return true;
 }
 
@@ -249,7 +249,7 @@ NDEFRecord* CreateUrlRecord(const ScriptState* script_state,
       isolate, GetPayloadDataOrUndefined(isolate, record), exception_state);
   if (exception_state.HadException())
     return nullptr;
-  if (!KURL(NullURL(), url).IsValid()) {
+  if (!KURL(NullUrl(), url).IsValid()) {
     exception_state.ThrowDOMException(DOMExceptionCode::kSyntaxError,
                                       "Cannot parse data for url record.");
     return nullptr;

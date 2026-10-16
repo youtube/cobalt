@@ -1358,6 +1358,15 @@ void Call::DeliverRtpPacket(
     MediaType media_type,
     RtpPacketReceived packet,
     OnUndemuxablePacketHandler undemuxable_packet_handler) {
+  if (!worker_thread_->IsCurrent()) {
+    worker_thread_->PostTask(SafeTask(
+        task_safety_.flag(),
+        [this, media_type, packet = std::move(packet),
+         handler = std::move(undemuxable_packet_handler)]() mutable {
+          DeliverRtpPacket(media_type, std::move(packet), std::move(handler));
+        }));
+    return;
+  }
   RTC_DCHECK_RUN_ON(worker_thread_);
   RTC_DCHECK(packet.arrival_time().IsFinite());
 

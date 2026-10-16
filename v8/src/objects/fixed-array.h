@@ -462,7 +462,8 @@ class PrimitiveArrayBase : public detail::ArrayHeaderBase<Super, true> {
   static Handle<Derived> Allocate(
       IsolateT* isolate, uint32_t length,
       std::optional<DisallowGarbageCollection>* no_gc_out,
-      AllocationType allocation = AllocationType::kYoung);
+      AllocationType allocation = AllocationType::kYoung,
+      AllocationAlignment alignment = kTaggedAligned);
 
   inline bool IsInBounds(int index) const;
 
@@ -545,6 +546,38 @@ V8_OBJECT class WeakFixedArray
 
   DECL_PRINTER(WeakFixedArray)
   DECL_VERIFIER(WeakFixedArray)
+
+  class BodyDescriptor;
+} V8_OBJECT_END;
+
+class WeakHomomorphicFixedArrayShape final : public AllStatic {
+ public:
+  using ElementT = MaybeObject;
+  using CompressionScheme = V8HeapCompressionScheme;
+  static constexpr RootIndex kMapRootIndex =
+      RootIndex::kWeakHomomorphicFixedArrayMap;
+  static constexpr bool kLengthEqualsCapacity = true;
+};
+
+// WeakHomomorphicFixedArray describes fixed-sized arrays with element type
+// Tagged<MaybeObject>, used for homomorphic feedback.
+// It acts as a fixed-size lossy hashmap-based cache, where collisions
+// overwrite existing entries.
+V8_OBJECT class WeakHomomorphicFixedArray
+    : public TaggedArrayBase<WeakHomomorphicFixedArray,
+                             WeakHomomorphicFixedArrayShape> {
+  using Super = TaggedArrayBase<WeakHomomorphicFixedArray,
+                                WeakHomomorphicFixedArrayShape>;
+
+ public:
+  template <class IsolateT>
+  static inline Handle<WeakHomomorphicFixedArray> New(
+      IsolateT* isolate, int capacity,
+      AllocationType allocation = AllocationType::kYoung,
+      MaybeDirectHandle<Object> initial_value = {});
+
+  DECL_PRINTER(WeakHomomorphicFixedArray)
+  DECL_VERIFIER(WeakHomomorphicFixedArray)
 
   class BodyDescriptor;
 } V8_OBJECT_END;
@@ -808,7 +841,8 @@ V8_OBJECT class ByteArray
   template <class IsolateT>
   static inline Handle<ByteArray> New(
       IsolateT* isolate, int capacity,
-      AllocationType allocation = AllocationType::kYoung);
+      AllocationType allocation = AllocationType::kYoung,
+      AllocationAlignment alignment = kTaggedAligned);
 
   inline uint32_t get_int(int offset) const;
   inline void set_int(int offset, uint32_t value);

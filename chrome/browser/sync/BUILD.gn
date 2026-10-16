@@ -87,13 +87,17 @@ source_set("sync") {
     "//chrome/app:generated_resources",
     "//chrome/app:generated_resources_grit",
     "//chrome/browser:browser_process",
+    "//chrome/browser/accessibility_annotator",
     "//chrome/browser/bookmarks",
+    "//chrome/browser/collaboration",
     "//chrome/browser/consent_auditor",
+    "//chrome/browser/data_sharing",
 
     # TODO(crbug.com/483063966) Investigate why putting contextual_tasks
     # dependency behind !is_android leads to failures on android-binary-size.
     "//chrome/browser/contextual_tasks",
     "//chrome/browser/gcm",
+    "//chrome/browser/glic",
     "//chrome/browser/history",
     "//chrome/browser/password_manager/factories",
     "//chrome/browser/plus_addresses",
@@ -106,10 +110,10 @@ source_set("sync") {
 
     # TODO(crbug.com/374910357): Investigate for a better dependency injection.
     "//chrome/browser/autofill",
+    "//chrome/browser/desktop_to_mobile_promos:utils",
     "//chrome/browser/favicon",
     "//chrome/browser/prefs:util",
     "//chrome/browser/profiles",
-    "//chrome/browser/promos:utils",
     "//chrome/browser/reading_list",
     "//chrome/browser/search_engines",
     "//chrome/browser/tab_group_sync:utils",
@@ -263,10 +267,6 @@ source_set("sync") {
   }
 
   allow_circular_includes_from += [ "//chrome/browser/consent_auditor" ]
-
-  if (enable_glic) {
-    deps += [ "//chrome/browser/glic" ]
-  }
 }
 
 # Code that depends on this target must be linked into //chrome/browser:browser

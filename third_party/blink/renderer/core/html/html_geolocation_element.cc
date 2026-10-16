@@ -110,7 +110,7 @@ void HTMLGeolocationElement::ParseAttribute(
       ClearWatch();
     }
   } else if (params.name == html_names::kAccuracymodeAttr) {
-    SetPreciseLocation(EqualIgnoringASCIICase(
+    SetPreciseLocation(EqualIgnoringAsciiCase(
         params.new_value,
         V8AccuracyMode(V8AccuracyMode::Enum::kPrecise).AsStringView()));
   }
@@ -283,7 +283,7 @@ void HTMLGeolocationElement::ClearWatch() {
 void HTMLGeolocationElement::MaybeTriggerAutolocate(ForceAutolocate force) {
   CHECK(FastHasAttribute(html_names::kAutolocateAttr));
   if (force == ForceAutolocate::kYes ||
-      (!did_autolocate_trigger_request && IsRenderered() &&
+      (!did_autolocate_trigger_request && IsRendered() &&
        PermissionsGranted())) {
     did_autolocate_trigger_request = true;
     RequestGeolocation();

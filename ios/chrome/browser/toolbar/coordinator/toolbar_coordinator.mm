@@ -55,6 +55,7 @@
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/toolbar_coordinatee.h"
 #import "ios/chrome/browser/toolbar/ui/buttons/toolbar_button_factory.h"
 #import "ios/chrome/browser/toolbar/ui/toolbar_constants.h"
+#import "ios/chrome/browser/toolbar/ui/toolbar_utils.h"
 #import "ios/chrome/browser/toolbar/ui/toolbar_view_controller.h"
 #import "ios/chrome/browser/web/model/web_navigation_browser_agent.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
@@ -160,13 +161,7 @@
       startDispatchingToTarget:self
                    forProtocol:@protocol(FakeboxFocuser)];
 
-  if (IsChromeNextIaEnabled()) {
-    [browser->GetCommandDispatcher()
-        startDispatchingToTarget:self
-                     forProtocol:@protocol(PageActionMenuEntryPointCommands)];
-  }
-
-  if (IsBestOfAppGuidedTourEnabled()) {
+  if (IsBestOfAppGuidedTourEnabled() && !IsChromeNextIaEnabled()) {
     [self.browser->GetCommandDispatcher()
         startDispatchingToTarget:self
                      forProtocol:@protocol(GuidedTourCommands)];
@@ -219,7 +214,11 @@
     [self.browser->GetCommandDispatcher()
         startDispatchingToTarget:self
                      forProtocol:@protocol(LocationBarBadgeCommands)];
-
+    if (IsPageActionMenuEnabled()) {
+      [browser->GetCommandDispatcher()
+          startDispatchingToTarget:self
+                       forProtocol:@protocol(PageActionMenuEntryPointCommands)];
+    }
     self.started = YES;
     return;
   }
@@ -472,7 +471,10 @@
       // zero. This is a temporary fix for the pdf bug.
       return 1;
     }
-    return kToolbarHeightFullscreen;
+    if (ShouldHaveFullHeightTopToolbar(self.traitEnvironment)) {
+      return kToolbarHeightFullscreen;
+    }
+    return kTopToolbarIPhonePortraitHeightFullscreen;
   }
   if (_omniboxPosition == ToolbarType::kSecondary) {
     // TODO(crbug.com/40279063): Find out why primary toolbar height cannot be
@@ -491,7 +493,10 @@
       // zero. This is a temporary fix for the pdf bug.
       return 1;
     }
-    return kToolbarHeight;
+    if (ShouldHaveFullHeightTopToolbar(self.traitEnvironment)) {
+      return kToolbarHeight;
+    }
+    return kTopToolbarIPhonePortraitHeight;
   }
   CGFloat height =
       self.primaryToolbarViewController.view.intrinsicContentSize.height;
@@ -758,20 +763,14 @@
 #pragma mark - GuidedTourCommands
 
 - (void)highlightViewInStep:(GuidedTourStep)step {
-  if (IsChromeNextIaEnabled()) {
-    // TODO(crbug.com/483995303): implement this.
-    NOTREACHED() << "Not implemented yet";
-  }
+  CHECK(!IsChromeNextIaEnabled());
   for (id<GuidedTourCommands> coordinator in self.coordinators) {
     [coordinator highlightViewInStep:step];
   }
 }
 
 - (void)stepCompleted:(GuidedTourStep)step {
-  if (IsChromeNextIaEnabled()) {
-    // TODO(crbug.com/483995303): implement this.
-    NOTREACHED() << "Not implemented yet";
-  }
+  CHECK(!IsChromeNextIaEnabled());
   for (id<GuidedTourCommands> coordinator in self.coordinators) {
     [coordinator stepCompleted:step];
   }
@@ -881,8 +880,11 @@
 
 - (void)toggleEntryPointHighlight:(BOOL)highlight {
   CHECK(IsChromeNextIaEnabled());
-  // TODO(crbug.com/483994483): implement this.
-  NOTREACHED();
+  CHECK(IsPageActionMenuEnabled());
+  [_topLocationBarCoordinator
+      togglePageActionMenuEntryPointHighlight:highlight];
+  [_bottomLocationBarCoordinator
+      togglePageActionMenuEntryPointHighlight:highlight];
 }
 
 #pragma mark - ToolbarCommands

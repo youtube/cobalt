@@ -241,6 +241,7 @@
 <translation id="3509308970982693815">ਕਿਰਪਾ ਕਰਕੇ ਸਾਰੀਆਂ Chromium windows ਬੰਦ ਕਰੋ ਅਤੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।</translation>
 <translation id="3522404737534491619">ਆਪਣੀ ਵਿੰਡੋ ਨੂੰ ਸਾਂਝਾ ਕਰਨ ਲਈ, ਸਿਸਟਮ ਸੈਟਿੰਗਾਂ ਵਿੱਚ Chromium ਵਾਸਤੇ ਸਕ੍ਰੀਨ ਰਿਕਾਰਡ ਕਰਨ ਦੀ ਆਗਿਆ ਦਿਓ</translation>
 <translation id="3530103706039034513"><ph name="EXISTING_USER" /> ਨੇ ਪਹਿਲਾਂ ਤੋਂ ਹੀ ਸਾਈਨ-ਇਨ ਕੀਤਾ ਹੋਇਆ ਹੈ।  ਆਪਣੀ ਬ੍ਰਾਊਜ਼ਿੰਗ ਨੂੰ ਵੱਖਰਾ ਰੱਖਣ ਲਈ, Chromium ਦੇ ਅੰਦਰ ਆਪਣੇ ਖੁਦ ਦੇ ਪ੍ਰੋਫਾਈਲ ਵਿੱਚ <ph name="USER_EMAIL_ADDRESS" /> ਵਜੋਂ ਸਾਈਨ-ਇਨ ਕਰੋ।</translation>
+<translation id="3531741627422851418">ਮੋਬਾਈਲ ਡੀਵਾਈਸਾਂ 'ਤੇ Chromium ਬ੍ਰਾਊਜ਼ਰ ਡਾਊਨਲੋਡ ਕਰਨ ਲਈ QR ਕੋਡ</translation>
 <translation id="3561853857681580870">ਆਪਣੀ ਸਕ੍ਰੀਨ ਨੂੰ ਸਾਂਝਾ ਕਰਨ ਲਈ, ਸਿਸਟਮ ਸੈਟਿੰਗਾਂ ਵਿੱਚ Chromium ਵਾਸਤੇ ਸਕ੍ਰੀਨ ਰਿਕਾਰਡ ਕਰਨ ਦੀ ਆਗਿਆ ਦਿਓ।</translation>
 <translation id="3588112919289558122">ਵਿਸਤ੍ਰਿਤ ਸੁਰੱਖਿਆ ਉਨ੍ਹਾਂ ਸਾਈਟਾਂ ਲਈ JavaScript ਸੁਯੋਗਕਰਨ ਨੂੰ ਬੰਦ ਕਰ ਦਿੰਦੀ ਹੈ, ਜਿਨ੍ਹਾਂ ਨੂੰ Chromium ਨਹੀਂ ਪਛਾਣਦਾ</translation>
 <translation id="3597003331831379823">ਐਲੀਵੇਟਿਡ ਵਿਸ਼ੇਸ਼-ਅਧਿਕਾਰਾਂ ਨਾਲ ਸੈੱਟਅੱਪ ਚਲਾਉਣਾ ਅਸਫਲ ਰਿਹਾ। <ph name="METAINSTALLER_ERROR" /></translation>
@@ -590,6 +591,9 @@ Chromium ਤੁਹਾਡੀਆਂ ਸੈਟਿੰਗਾਂ ਮੁੜ-ਹਾਸ�
 <translation id="7384121030444253939">ਇਹ ਐਕਸਟੈਂਸ਼ਨ ਹੁਣ ਸਮਰਥਿਤ ਨਹੀਂ ਹੈ। Chromium ਸਿਫ਼ਾਰਸ਼ ਕਰਦਾ ਹੈ ਕਿ ਇਸਦੀ ਬਜਾਏ ਤੁਸੀਂ ਇਸਨੂੰ ਹਟਾ ਦਿਓ।</translation>
 <translation id="7413153308467572558">ਜਿੱਥੇ ਤੁਸੀਂ ਛੱਡਿਆ ਸੀ ਉੱਥੋਂ ਜਾਰੀ ਰੱਖੋ: ਜਦੋਂ ਵੀ ਤੁਸੀਂ ਮੁੜ-ਸ਼ੁਰੂ ਕਰਦੇ ਹੋ, ਹਰੇਕ ਵਾਰ Chromium ਤੁਹਾਡੀਆਂ ਟੈਬਾਂ ਨੂੰ ਮੁੜ-ਬਹਾਲ ਕਰਦਾ ਹੈ। ਇਸਨੂੰ ਬੰਦ ਕਰਨ ਲਈ, ਇੱਥੇ ਜਾਓ</translation>
 <translation id="7427879960656355200">Chromium ਤੋਂ ਪਾਸਵਰਡ ਆਯਾਤ ਕਰੋ</translation>
+<translation id="744815265653811511">1. ਹੇਠਾਂ ਦਿੱਤੇ <ph name="BUTTON_LABEL" /> 'ਤੇ ਕਲਿੱਕ ਕਰੋ
+2. ਆਪਣੀਆਂ Windows ਸੈਟਿੰਗਾਂ ਵਿੱਚ ਜਾ ਕੇ <ph name="BUTTON_2" /> 'ਤੇ ਕਲਿੱਕ ਕਰੋ
+3. ਤਤਕਾਲ ਪਹੁੰਚ ਲਈ Chromium ਨੂੰ ਆਪਣੀ ਟਾਸਕਬਾਰ 'ਤੇ ਪਿੰਨ ਕਰਨ ਵਾਸਤੇ Windows ਸੂਚਨਾ ਵਿੱਚ <ph name="BUTTON_3" /> 'ਤੇ ਕਲਿੱਕ ਕਰੋ</translation>
 <translation id="7449453770951226939"><ph name="PAGE_TITLE" /> - Chromium Dev</translation>
 <translation id="7450541714075000668">ਲਿਖਤ ਕਾਪੀ ਕੀਤੀ ਗਈ</translation>
 <translation id="7451052299415159299">Chromium ਨੂੰ ਇਸ ਸਾਈਟ ਵਾਸਤੇ ਤੁਹਾਡੇ ਕੈਮਰੇ ਤੱਕ ਪਹੁੰਚ ਕਰਨ ਲਈ ਇਜਾਜ਼ਤ ਦੀ ਲੋੜ ਹੈ</translation>
@@ -605,6 +609,7 @@ Chromium ਤੁਹਾਡੀਆਂ ਸੈਟਿੰਗਾਂ ਮੁੜ-ਹਾਸ�
 <translation id="761356813943268536">Chromium ਤੁਹਾਡਾ ਕੈਮਰਾ ਅਤੇ ਮਾਈਕ੍ਰੋਫੋਨ ਵਰਤ ਰਿਹਾ ਹੈ।</translation>
 <translation id="7617377681829253106">Chromium ਬਿਹਤਰ ਬਣ ਗਿਆ ਹੈ</translation>
 <translation id="7622753900276619808">ਹੁਣ ਤੁਹਾਡੇ ਲਈ Chromium ਵਿੱਚ ਹੋਰ ਵਿਸ਼ੇਸ਼ਤਾਵਾਂ ਉਪਲਬਧ ਹਨ</translation>
+<translation id="7624307931717240213">ਅਸੀਂ ਇਸ ਸੇਵਾ ਨੂੰ ਬਿਹਤਰ ਬਣਾਉਣ ਲਈ ਜਾਣਕਾਰੀ ਦੀ ਵਰਤੋਂ ਕਰਦੇ ਹਾਂ। ਪਰਦੇਦਾਰੀ ਨੀਤੀ ਅਤੇ ਸੇਵਾ ਦੇ ਨਿਯਮ ਦੇਖੋ।</translation>
 <translation id="7649070708921625228">ਸਹਾਇਤਾ</translation>
 <translation id="7656340475565475526">Chromium ਨੂੰ ਤੁਹਾਡੇ ਲਈ ਬ੍ਰਾਊਜ਼ ਕਰਨ ਦਿਓ</translation>
 <translation id="7658239707568436148">ਰੱਦ ਕਰੋ</translation>

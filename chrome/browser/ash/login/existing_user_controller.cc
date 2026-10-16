@@ -872,7 +872,8 @@ void ExistingUserController::FinalizeAuthAndStartSession(
             ->GetBrokerForUser(user_id);
     bool privacy_warnings_enabled = local_state_->GetBoolean(
         prefs::kManagedGuestSessionPrivacyWarningsEnabled);
-    if (ash::login::IsFullManagementDisclosureNeeded(broker) &&
+    if (ash::login::IsFullManagementDisclosureNeeded(local_state_.get(),
+                                                     broker) &&
         privacy_warnings_enabled) {
       ShowAutoLaunchManagedGuestSessionNotification();
     }
@@ -942,7 +943,8 @@ void ExistingUserController::OnProfilePrepared(Profile* profile,
   if (is_enterprise_managed &&
       user_context.GetUserType() == user_manager::UserType::kRegular &&
       user_has_empty_password_.value_or(false) &&
-      !user_has_challenge_response_keys_.value_or(false)) {
+      !user_has_challenge_response_keys_.value_or(false) &&
+      !features::IsManagedLocalPinAndPasswordEnabled()) {
     // ERROR: Enterprise-managed regular user lacks an online password.
     // This scenario is unsupported.
     SYSLOG(ERROR) << "Authentication failed: Enterprise-managed user lacks an "

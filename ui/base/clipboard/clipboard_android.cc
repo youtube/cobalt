@@ -512,6 +512,7 @@ ClipboardAndroid::ClipboardAndroid() {
 
 ClipboardAndroid::~ClipboardAndroid() {
   DCHECK(CalledOnValidThread());
+  GetClipboardMap().SetJavaSideNativePtr(nullptr);
 }
 
 void ClipboardAndroid::OnPreShutdown() {}
@@ -586,37 +587,38 @@ std::vector<std::u16string> ClipboardAndroid::GetStandardFormats(
 // platforms.
 void ClipboardAndroid::ReadAvailableTypes(
     ClipboardBuffer buffer,
-    const DataTransferEndpoint* data_dst,
-    std::vector<std::u16string>* types) const {
+    const std::optional<DataTransferEndpoint>& data_dst,
+    ReadAvailableTypesCallback callback) const {
   DCHECK(CalledOnValidThread());
   DCHECK_EQ(buffer, ClipboardBuffer::kCopyPaste);
-  DCHECK(types);
-
-  types->clear();
-  *types = GetStandardFormats(buffer, data_dst);
+  std::move(callback).Run(
+      GetStandardFormats(buffer, base::OptionalToPtr(data_dst)));
 }
 
 // |data_dst| is not used. It's only passed to be consistent with other
 // platforms.
-void ClipboardAndroid::ReadText(ClipboardBuffer buffer,
-                                const DataTransferEndpoint* data_dst,
-                                std::u16string* result) const {
-  DCHECK(CalledOnValidThread());
-  DCHECK_EQ(buffer, ClipboardBuffer::kCopyPaste);
-  std::string utf8;
-  ReadAsciiText(buffer, data_dst, &utf8);
-  *result = base::UTF8ToUTF16(utf8);
-}
-
-// |data_dst| is not used. It's only passed to be consistent with other
-// platforms.
-void ClipboardAndroid::ReadAsciiText(ClipboardBuffer buffer,
-                                     const DataTransferEndpoint* data_dst,
-                                     std::string* result) const {
+void ClipboardAndroid::ReadText(
+    ClipboardBuffer buffer,
+    const std::optional<DataTransferEndpoint>& data_dst,
+    ReadTextCallback callback) const {
   DCHECK(CalledOnValidThread());
   DCHECK_EQ(buffer, ClipboardBuffer::kCopyPaste);
   RecordRead(ClipboardFormatMetric::kText);
-  *result = GetClipboardMap().Get(ClipboardFormatType::PlainTextType());
+  std::move(callback).Run(base::UTF8ToUTF16(
+      GetClipboardMap().Get(ClipboardFormatType::PlainTextType())));
+}
+
+// |data_dst| is not used. It's only passed to be consistent with other
+// platforms.
+void ClipboardAndroid::ReadAsciiText(
+    ClipboardBuffer buffer,
+    const std::optional<DataTransferEndpoint>& data_dst,
+    ReadAsciiTextCallback callback) const {
+  DCHECK(CalledOnValidThread());
+  DCHECK_EQ(buffer, ClipboardBuffer::kCopyPaste);
+  RecordRead(ClipboardFormatMetric::kText);
+  std::move(callback).Run(
+      GetClipboardMap().Get(ClipboardFormatType::PlainTextType()));
 }
 
 // |src_url| isn't really used. It is only implemented in Windows.
@@ -697,24 +699,27 @@ void ClipboardAndroid::ReadFilenames(
   RecordRead(ClipboardFormatMetric::kFilenames);
   std::move(callback).Run(GetClipboardMap().GetFilenames());
 }
-// 'data_dst' and 'title' are not used. It's only passed to be consistent with
+// 'data_dst' is not used. It's only passed to be consistent with
 // other platforms.
-void ClipboardAndroid::ReadBookmark(const DataTransferEndpoint* data_dst,
-                                    std::u16string* title,
-                                    std::string* url) const {
+void ClipboardAndroid::ReadBookmark(
+    const std::optional<DataTransferEndpoint>& data_dst,
+    ReadBookmarkCallback callback) const {
   DCHECK(CalledOnValidThread());
   RecordRead(ClipboardFormatMetric::kBookmark);
-  *url = GetClipboardMap().Get(ClipboardFormatType::UrlType());
+  std::move(callback).Run(
+      std::u16string(),
+      GURL(GetClipboardMap().Get(ClipboardFormatType::UrlType())));
 }
 
 // |data_dst| is not used. It's only passed to be consistent with other
 // platforms.
-void ClipboardAndroid::ReadData(const ClipboardFormatType& format,
-                                const DataTransferEndpoint* data_dst,
-                                std::string* result) const {
+void ClipboardAndroid::ReadData(
+    const ClipboardFormatType& format,
+    const std::optional<DataTransferEndpoint>& data_dst,
+    ReadDataCallback callback) const {
   DCHECK(CalledOnValidThread());
   RecordRead(ClipboardFormatMetric::kData);
-  *result = GetClipboardMap().Get(format);
+  std::move(callback).Run(GetClipboardMap().Get(format));
 }
 
 base::Time ClipboardAndroid::GetLastModifiedTime() const {

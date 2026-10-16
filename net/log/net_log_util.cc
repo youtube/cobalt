@@ -175,7 +175,7 @@ base::DictValue GetNetConstants(NetConstantsRequestMode request_mode) {
 
   // LINT.IfChange(CertVerifyProc.VerifyFlags)
   {
-    static_assert(CertVerifyProc::VERIFY_FLAGS_LAST == (1 << 4),
+    static_assert(CertVerifyProc::VERIFY_FLAGS_LAST == (1 << 3),
                   "Update with new flags");
     constants_dict.Set(
         "certVerifyFlags",
@@ -184,31 +184,12 @@ base::DictValue GetNetConstants(NetConstantsRequestMode request_mode) {
                  CertVerifyProc::VERIFY_REV_CHECKING_ENABLED)
             .Set("VERIFY_REV_CHECKING_REQUIRED_LOCAL_ANCHORS",
                  CertVerifyProc::VERIFY_REV_CHECKING_REQUIRED_LOCAL_ANCHORS)
-            .Set("VERIFY_ENABLE_SHA1_LOCAL_ANCHORS",
-                 CertVerifyProc::VERIFY_ENABLE_SHA1_LOCAL_ANCHORS)
             .Set("VERIFY_DISABLE_NETWORK_FETCHES",
                  CertVerifyProc::VERIFY_DISABLE_NETWORK_FETCHES)
             .Set("VERIFY_SXG_CT_REQUIREMENTS",
                  CertVerifyProc::VERIFY_SXG_CT_REQUIREMENTS));
   }
   // LINT.ThenChange(/net/cert/cert_verify_proc.h:CertVerifyProc.VerifyFlags)
-
-  {
-    static_assert(
-        bssl::SimplePathBuilderDelegate::DigestPolicy::kMaxValue ==
-            bssl::SimplePathBuilderDelegate::DigestPolicy::kWeakAllowSha1,
-        "Update with new flags");
-
-    constants_dict.Set(
-        "certPathBuilderDigestPolicy",
-        base::DictValue()
-            .Set("kStrong",
-                 static_cast<int>(
-                     bssl::SimplePathBuilderDelegate::DigestPolicy::kStrong))
-            .Set("kWeakAllowSha1",
-                 static_cast<int>(bssl::SimplePathBuilderDelegate::
-                                      DigestPolicy::kWeakAllowSha1)));
-  }
 
   // Add a dictionary with information about the relationship between load flag
   // enums and their symbolic names.

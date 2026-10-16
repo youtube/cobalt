@@ -17,6 +17,7 @@
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service_factory.h"
+#include "chrome/browser/contextual_tasks/mock_contextual_tasks_ui_service.h"
 #include "chrome/browser/global_features.h"
 #include "chrome/test/base/browser_with_test_window_test.h"
 #include "components/application_locale_storage/application_locale_storage.h"
@@ -75,7 +76,10 @@ class MockPage : public mojom::Page {
   MOCK_METHOD(void, RestoreInput, (), (override));
   MOCK_METHOD(void, OnZeroStateChange, (bool is_zero_state), (override));
   MOCK_METHOD(void, OnAiPageStatusChanged, (bool is_ai_page), (override));
-  MOCK_METHOD(void, OnLensOverlayStateChanged, (bool is_showing), (override));
+  MOCK_METHOD(void,
+              OnLensOverlayStateChanged,
+              (bool is_showing, bool maybe_show_overlay_hint_text),
+              (override));
   MOCK_METHOD(void, ShowErrorPage, (), (override));
   MOCK_METHOD(void, HideErrorPage, (), (override));
   MOCK_METHOD(void, ShowOauthErrorDialog, (), (override));
@@ -97,47 +101,6 @@ class MockPage : public mojom::Page {
               (override));
 
   mojo::Receiver<mojom::Page> receiver_{this};
-};
-
-class MockUiService : public ContextualTasksUiService {
- public:
-  MockUiService(Profile* profile, ContextualTasksService* service)
-      : ContextualTasksUiService(profile, service, nullptr, nullptr) {}
-
-  MOCK_METHOD(GURL, GetDefaultAiPageUrl, (), (override));
-  MOCK_METHOD(GURL,
-              GetDefaultAiPageUrlForTask,
-              (const base::Uuid& task_id),
-              (override));
-  MOCK_METHOD(void,
-              SetInitialEntryPointForTask,
-              (const base::Uuid&, omnibox::ChromeAimEntryPoint),
-              (override));
-  MOCK_METHOD(std::optional<GURL>,
-              GetInitialUrlForTask,
-              (const base::Uuid&),
-              (override));
-  MOCK_METHOD(void,
-              GetThreadUrlFromTaskId,
-              (const base::Uuid&, base::OnceCallback<void(GURL)>),
-              (override));
-  MOCK_METHOD(void,
-              MoveTaskUiToNewTab,
-              (const base::Uuid&, BrowserWindowInterface*, const GURL&),
-              (override));
-  MOCK_METHOD(void,
-              OnTabClickedFromSourcesMenu,
-              (int32_t, const GURL&, BrowserWindowInterface*),
-              (override));
-  MOCK_METHOD(void,
-              OnFileClickedFromSourcesMenu,
-              (const GURL&, BrowserWindowInterface*),
-              (override));
-  MOCK_METHOD(void,
-              OnImageClickedFromSourcesMenu,
-              (const GURL&, BrowserWindowInterface*),
-              (override));
-  MOCK_METHOD(bool, IsAiUrl, (const GURL&), (override));
 };
 
 class TestContextualTasksUI : public ContextualTasksUI {
@@ -170,7 +133,7 @@ class ContextualTasksPageHandlerTest : public BrowserWithTestWindowTest {
         profile(), base::BindOnce([](content::BrowserContext* context) {
           Profile* profile = Profile::FromBrowserContext(context);
           return std::unique_ptr<KeyedService>(
-              std::make_unique<NiceMock<MockUiService>>(
+              std::make_unique<NiceMock<MockContextualTasksUiService>>(
                   profile,
                   ContextualTasksServiceFactory::GetForProfile(profile)));
         }));
@@ -186,8 +149,9 @@ class ContextualTasksPageHandlerTest : public BrowserWithTestWindowTest {
 
     mock_contextual_tasks_service_ = static_cast<MockContextualTasksService*>(
         ContextualTasksServiceFactory::GetForProfile(profile()));
-    mock_contextual_tasks_ui_service_ = static_cast<MockUiService*>(
-        ContextualTasksUiServiceFactory::GetForBrowserContext(profile()));
+    mock_contextual_tasks_ui_service_ =
+        static_cast<MockContextualTasksUiService*>(
+            ContextualTasksUiServiceFactory::GetForBrowserContext(profile()));
 
     page_handler_ = std::make_unique<ContextualTasksPageHandler>(
         mojo::PendingReceiver<mojom::PageHandler>(), contextual_tasks_ui_.get(),
@@ -210,10 +174,37 @@ class ContextualTasksPageHandlerTest : public BrowserWithTestWindowTest {
   std::unique_ptr<NiceMock<TestContextualTasksUI>> contextual_tasks_ui_;
   std::unique_ptr<ContextualTasksPageHandler> page_handler_;
   raw_ptr<MockContextualTasksService> mock_contextual_tasks_service_;
-  raw_ptr<MockUiService> mock_contextual_tasks_ui_service_;
+  raw_ptr<MockContextualTasksUiService> mock_contextual_tasks_ui_service_;
   NiceMock<MockPage> page_;
   base::test::ScopedFeatureList feature_list_;
 };
+
+TEST_F(ContextualTasksPageHandlerTest, IsPendingErrorPage) {
+  base::Uuid task_id = base::Uuid::GenerateRandomV4();
+
+  EXPECT_CALL(*mock_contextual_tasks_ui_service_, IsPendingErrorPage(task_id))
+      .WillOnce(Return(true));
+
+  base::RunLoop run_loop;
+  page_handler_->IsPendingErrorPage(
+      task_id, base::BindLambdaForTesting([&](bool is_pending_error_page) {
+        EXPECT_TRUE(is_pending_error_page);
+        run_loop.Quit();
+      }));
+  run_loop.Run();
+}
+
+TEST_F(ContextualTasksPageHandlerTest, IsPendingErrorPage_TaskNotPending) {
+  base::Uuid task_id = base::Uuid::GenerateRandomV4();
+
+  base::RunLoop run_loop;
+  page_handler_->IsPendingErrorPage(
+      task_id, base::BindLambdaForTesting([&](bool is_pending_error_page) {
+        EXPECT_FALSE(is_pending_error_page);
+        run_loop.Quit();
+      }));
+  run_loop.Run();
+}
 
 TEST_F(ContextualTasksPageHandlerTest, GetThreadUrl) {
   GURL expected_url(kAiPageUrl);

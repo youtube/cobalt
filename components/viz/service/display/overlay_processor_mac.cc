@@ -46,9 +46,6 @@ void OverlayProcessorMac::ProcessForOverlays(
     DisplayResourceProvider* resource_provider,
     AggregatedRenderPassList* render_passes,
     const SkM44& output_color_matrix,
-    const OverlayProcessorInterface::FilterOperationsMap& render_pass_filters,
-    const OverlayProcessorInterface::FilterOperationsMap&
-        render_pass_backdrop_filters,
     SurfaceDamageRectList surface_damage_rect_list,
     const PrimaryPlaneParams& primary_plane_params,
     CandidateList* candidates,
@@ -64,7 +61,7 @@ void OverlayProcessorMac::ProcessForOverlays(
   // |render_pass->quad_list| with CALayerOverlays in |candidates|.
   bool success = ca_layer_overlay_processor_->ProcessForCALayerOverlays(
       render_pass, resource_provider, gfx::RectF(render_pass->output_rect),
-      render_pass_filters, render_pass_backdrop_filters, candidates);
+      candidates);
   if (success) {
     // Set |ca_overlay_damage_rect_| to be everything, so that the next
     // composite that we draw to the output surface will do a full re-draw.
@@ -85,8 +82,12 @@ void OverlayProcessorMac::ProcessForOverlays(
         &render_pass_filters, context);
     ca_layer_overlay_processor_->PutForcedOverlayContentIntoUnderlays(
         resource_provider, render_pass, gfx::RectF(render_pass->output_rect),
+<<<<<<< HEAD
+        &render_pass->quad_list, candidates);
+=======
         &render_pass->quad_list, render_pass_filters,
         render_pass_backdrop_filters, candidates, factory);
+>>>>>>> parent of 466c23ef4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
     // Mac doesn't use the plane_z_order field and it needs to have primary
     // plane last in the list of overlays.

@@ -61,6 +61,7 @@
 #include "rtc_base/socket_address.h"
 #include "rtc_base/ssl_certificate.h"
 #include "rtc_base/ssl_stream_adapter.h"
+#include "rtc_base/system/plan_b_only.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/trace_event.h"
 #include "system_wrappers/include/clock.h"
@@ -1302,12 +1303,14 @@ void LegacyStatsCollector::ExtractMediaInfo(
       if (it != transport_names_by_mid.end()) {
         gatherer->transport_name = it->second;
       }
+      RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN()
       for (const auto& sender : transceiver->internal()->senders()) {
         auto track = sender->track();
         std::string track_id = (track ? track->id() : "");
         gatherer->sender_track_id_by_ssrc.insert(
             std::make_pair(sender->ssrc(), track_id));
       }
+      RTC_ALLOW_PLAN_B_DEPRECATION_END()
 
       // Populating `receiver_track_id_by_ssrc` will be done on the worker
       // thread as the `ssrc` property of the receiver needs to be accessed
@@ -1325,10 +1328,12 @@ void LegacyStatsCollector::ExtractMediaInfo(
       if (!transceiver->internal()->HasChannel())
         continue;
       ChannelStatsGatherer* gatherer = gatherers[i++].get();
+      RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN()
       for (const auto& receiver : transceiver->internal()->receivers()) {
         gatherer->receiver_track_id_by_ssrc.insert(std::make_pair(
             receiver->internal()->ssrc().value_or(0), receiver->track()->id()));
       }
+      RTC_ALLOW_PLAN_B_DEPRECATION_END()
     }
 
     for (auto it = gatherers.begin(); it != gatherers.end();

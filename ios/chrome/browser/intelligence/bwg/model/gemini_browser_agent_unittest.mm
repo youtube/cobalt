@@ -155,7 +155,7 @@ class GeminiBrowserAgentTest : public PlatformTest {
 
   // Getter for `is_floaty_temporarily_hidden_`.
   bool IsFloatyTemporarilyHidden() {
-    return gemini_browser_agent_->is_floaty_temporarily_hidden_;
+    return !gemini_browser_agent_->active_hiding_sources_.empty();
   }
 
   // Getter for `last_shown_view_state_`.
@@ -168,10 +168,14 @@ class GeminiBrowserAgentTest : public PlatformTest {
     gemini_browser_agent_->is_floaty_invoked_ = is_invoked;
   }
 
-  // Setter for `is_floaty_temporarily_hidden_`.
-  void SetIsFloatyTemporarilyHidden(bool is_temporarily_hidden) {
-    gemini_browser_agent_->is_floaty_temporarily_hidden_ =
-        is_temporarily_hidden;
+  // Add a source to `active_hiding_sources_`.
+  void AddActiveHidingSource(gemini::FloatyUpdateSource source) {
+    gemini_browser_agent_->active_hiding_sources_.insert(source);
+  }
+
+  // Clear `active_hiding_sources_`.
+  void ClearActiveHidingSources() {
+    gemini_browser_agent_->active_hiding_sources_.clear();
   }
 
   // Setter for `floaty_hidden_timestamp_`.
@@ -208,6 +212,7 @@ TEST_F(GeminiBrowserAgentTest, TestGeminiBrowserAgentStartGeminiFlow) {
 
   // Set a valid URL.
   web_state_->SetCurrentURL(GURL("https://example.com"));
+  web_state_->SetContentsMimeType("text/html");
 
   // Add a fake JS result for page context extraction.
   base::DictValue result;
@@ -244,8 +249,9 @@ TEST_F(GeminiBrowserAgentTest, TestGeminiBrowserAgentStartGeminiFlow) {
   // Ensure the WebState is visible so PageContextWrapper attempts a snapshot.
   web_state_->WasShown();
 
-  gemini_browser_agent_->StartGeminiFlow(base_view_controller, nil,
-                                         gemini::EntryPoint::Promo);
+  gemini_browser_agent_->StartGeminiFlow(
+      base_view_controller, [[GeminiStartupState alloc]
+                                initWithEntryPoint:gemini::EntryPoint::Promo]);
 
   // Wait for the delegate method to be called.
   ASSERT_TRUE(
@@ -268,7 +274,9 @@ TEST_F(GeminiBrowserAgentTest,
   ASSERT_TRUE(bwg_tab_helper_->GetIsBwgSessionActiveInBackground());
 
   gemini_browser_agent_->PresentFloatyWithPendingContext(
-      base_view_controller, std::move(page_context), gemini::EntryPoint::Promo);
+      base_view_controller, std::move(page_context),
+      [[GeminiStartupState alloc]
+          initWithEntryPoint:gemini::EntryPoint::Promo]);
 
   // Assert the BWG tab helper was set as foregrounded.
   ASSERT_FALSE(bwg_tab_helper_->GetIsBwgSessionActiveInBackground());
@@ -324,6 +332,7 @@ TEST_F(GeminiBrowserAgentTest, TestActiveWebStateChanged) {
 TEST_F(GeminiBrowserAgentTest, TestOnGeminiViewStateExpanded) {
   // Set a valid URL.
   web_state_->SetCurrentURL(GURL("https://example.com"));
+  web_state_->SetContentsMimeType("text/html");
 
   // Add a fake JS result for page context extraction.
   base::DictValue result;
@@ -367,6 +376,7 @@ TEST_F(GeminiBrowserAgentTest, TestPageContextGenerationTimeout) {
 
   UIViewController* base_view_controller = [[UIViewController alloc] init];
   web_state_->SetCurrentURL(GURL("https://example.com"));
+  web_state_->SetContentsMimeType("text/html");
   web_state_->SetLoading(true);
 
   // Add a fake JS result for page context extraction.
@@ -383,8 +393,9 @@ TEST_F(GeminiBrowserAgentTest, TestPageContextGenerationTimeout) {
   OCMStub([mock_delegate canTakeSnapshotWithWebStateInfo:[OCMArg any]])
       .andReturn(YES);
 
-  gemini_browser_agent_->StartGeminiFlow(base_view_controller, nil,
-                                         gemini::EntryPoint::Promo);
+  gemini_browser_agent_->StartGeminiFlow(
+      base_view_controller, [[GeminiStartupState alloc]
+                                initWithEntryPoint:gemini::EntryPoint::Promo]);
 
   // At this point, the page is loading and we are waiting for context.
   // The timer should be running. Verify that JS has NOT been called yet.
@@ -471,10 +482,6 @@ TEST_F(GeminiBrowserAgentTest, TestShowFloatyIfInvokedWithWebNavigation) {
   gemini_browser_agent_->SetLastShownViewState(
       ios::provider::GeminiViewState::kExpanded);
 
-  // Set the hidden timestamp to represent a quick timestamp update such as when
-  // an old WebState is hidden followed quickly by a new WebState being shown.
-  SetFloatyHiddenTimestamp(base::TimeTicks::Now());
-
   gemini_browser_agent_->ShowFloatyIfInvoked(
       /*animated=*/true, /*source=*/gemini::FloatyUpdateSource::WebNavigation);
 
@@ -507,12 +514,43 @@ TEST_F(GeminiBrowserAgentTest,
   EXPECT_EQ(ios::provider::GeminiViewState::kExpanded, GetLastShownViewState());
 }
 
+// Tests that the floaty remains hidden if the keyboard dismisses but a view
+// controller is still presenting.
+TEST_F(GeminiBrowserAgentTest,
+       TestFloatyRemainsHiddenWhenKeyboardDismissedIfViewPresent) {
+  SetIsFloatyInvoked(true);
+  gemini_browser_agent_->HideFloatyIfInvoked(
+      /*animated=*/true, /*source=*/gemini::FloatyUpdateSource::ViewTransition);
+  gemini_browser_agent_->HideFloatyIfInvoked(
+      /*animated=*/true, /*source=*/gemini::FloatyUpdateSource::Keyboard);
+  gemini_browser_agent_->SetLastShownViewState(
+      ios::provider::GeminiViewState::kExpanded);
+
+  // Emulate a user typing for some time.
+  SetFloatyHiddenTimestamp(base::TimeTicks::Now() - base::Seconds(5));
+
+  // Emulate keyboard dismissing.
+  gemini_browser_agent_->ShowFloatyIfInvoked(
+      /*animated=*/true, /*source=*/gemini::FloatyUpdateSource::Keyboard);
+
+  // The floaty should still be considered temporarily hidden.
+  EXPECT_TRUE(IsFloatyTemporarilyHidden());
+
+  // Emulate view controller dismissing.
+  gemini_browser_agent_->ShowFloatyIfInvoked(
+      /*animated=*/true, /*source=*/gemini::FloatyUpdateSource::ViewTransition);
+
+  // The floaty should now be shown.
+  EXPECT_FALSE(IsFloatyTemporarilyHidden());
+  EXPECT_EQ(ios::provider::GeminiViewState::kExpanded, GetLastShownViewState());
+}
+
 // Tests that the floaty is not dismissed when `DismissFloaty` is called to
 // clean up properties but a user has not interacted with floaty UI to properly
 // dismiss it.
 TEST_F(GeminiBrowserAgentTest, TestDismissFloatyWhenTemporarilyHidden) {
   SetIsFloatyInvoked(true);
-  SetIsFloatyTemporarilyHidden(true);
+  AddActiveHidingSource(gemini::FloatyUpdateSource::ViewTransition);
 
   gemini_browser_agent_->DismissFloaty();
 
@@ -525,7 +563,7 @@ TEST_F(GeminiBrowserAgentTest, TestDismissFloatyWhenTemporarilyHidden) {
 // floaty i.e. when the floaty is shown.
 TEST_F(GeminiBrowserAgentTest, TestDismissFloatyWhenFloatyIsShown) {
   SetIsFloatyInvoked(true);
-  SetIsFloatyTemporarilyHidden(false);
+  ClearActiveHidingSources();
   gemini_browser_agent_->DismissFloaty();
 
   EXPECT_FALSE(IsFloatyInvoked());

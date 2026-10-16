@@ -66,8 +66,9 @@ ChromeContentRulesRegistry::EvaluationScope::EvaluationScope(
 ChromeContentRulesRegistry::EvaluationScope::~EvaluationScope() {
   registry_->evaluation_disposition_ = previous_disposition_;
   if (registry_->evaluation_disposition_ == EVALUATE_REQUESTS) {
-    for (content::WebContents* tab : registry_->evaluation_pending_)
+    for (content::WebContents* tab : registry_->evaluation_pending_) {
       registry_->EvaluateConditionsForTab(tab);
+    }
     registry_->evaluation_pending_.clear();
   }
 }
@@ -170,8 +171,9 @@ ChromeContentRulesRegistry::CreateRule(
   for (const base::Value& value : api_rule.conditions) {
     conditions.push_back(
         CreateContentCondition(extension, predicate_factories, value, error));
-    if (!error->empty())
+    if (!error->empty()) {
       return nullptr;
+    }
   }
 
   std::vector<std::unique_ptr<const ContentAction>> actions;
@@ -184,8 +186,9 @@ ChromeContentRulesRegistry::CreateRule(
 
     actions.push_back(ContentAction::Create(browser_context(), extension,
                                             value.GetDict(), error));
-    if (!error->empty())
+    if (!error->empty()) {
       return nullptr;
+    }
   }
 
   // Note: |api_rule| may contain tags, but these are ignored.
@@ -229,8 +232,9 @@ ChromeContentRulesRegistry::GetMatchingRules(content::WebContents* tab) const {
 
     for (const std::unique_ptr<const ContentCondition>& condition :
          rule->conditions) {
-      if (EvaluateConditionForTab(condition.get(), tab))
+      if (EvaluateConditionForTab(condition.get(), tab)) {
         matching_rules.insert(rule);
+      }
     }
   }
   return matching_rules;
@@ -326,8 +330,9 @@ std::string ChromeContentRulesRegistry::RemoveRulesImpl(
     // Skip unknown rules.
     auto content_rules_entry =
         content_rules_.find(std::make_pair(extension_id, id));
-    if (content_rules_entry == content_rules_.end())
+    if (content_rules_entry == content_rules_.end()) {
       continue;
+    }
 
     const ContentRule* rule = content_rules_entry->second.get();
 
@@ -337,8 +342,9 @@ std::string ChromeContentRulesRegistry::RemoveRulesImpl(
         ContentAction::ApplyInfo apply_info =
             {rule->extension, browser_context(), tab_rules_pair.first,
              rule->priority};
-        for (const auto& action : rule->actions)
+        for (const auto& action : rule->actions) {
           action->Revert(apply_info);
+        }
         tab_rules_pair.second.erase(rule);
       }
     }
@@ -353,8 +359,9 @@ std::string ChromeContentRulesRegistry::RemoveRulesImpl(
     evaluator->StopTrackingPredicates(predicate_groups_to_stop_tracking);
 
   // Remove the rules.
-  for (auto it : rules_to_erase)
+  for (auto it : rules_to_erase) {
     content_rules_.erase(it);
+  }
 
   return std::string();
 }
@@ -365,8 +372,9 @@ std::string ChromeContentRulesRegistry::RemoveAllRulesImpl(
   std::vector<std::string> rule_identifiers;
   for (const RulesMap::value_type& id_rule_pair : content_rules_) {
     const ExtensionIdRuleIdPair& extension_id_rule_id_pair = id_rule_pair.first;
-    if (extension_id_rule_id_pair.first == extension_id)
+    if (extension_id_rule_id_pair.first == extension_id) {
       rule_identifiers.push_back(extension_id_rule_id_pair.second);
+    }
   }
 
   return RemoveRulesImpl(extension_id, rule_identifiers);
@@ -386,33 +394,38 @@ void ChromeContentRulesRegistry::EvaluateConditionsForTab(
     ContentAction::ApplyInfo apply_info =
         {rule->extension, browser_context(), tab, rule->priority};
     if (!prev_matching_rules.contains(rule)) {
-      for (const std::unique_ptr<const ContentAction>& action : rule->actions)
+      for (const std::unique_ptr<const ContentAction>& action : rule->actions) {
         action->Apply(apply_info);
+      }
     } else {
-      for (const std::unique_ptr<const ContentAction>& action : rule->actions)
+      for (const std::unique_ptr<const ContentAction>& action : rule->actions) {
         action->Reapply(apply_info);
+      }
     }
   }
   for (const ContentRule* rule : prev_matching_rules) {
     if (!matching_rules.contains(rule)) {
       ContentAction::ApplyInfo apply_info =
           {rule->extension, browser_context(), tab, rule->priority};
-      for (const std::unique_ptr<const ContentAction>& action : rule->actions)
+      for (const std::unique_ptr<const ContentAction>& action : rule->actions) {
         action->Revert(apply_info);
+      }
     }
   }
 
-  if (matching_rules.empty())
+  if (matching_rules.empty()) {
     active_rules_[tab].clear();
-  else
+  } else {
     swap(matching_rules, prev_matching_rules);
+  }
 }
 
 bool
 ChromeContentRulesRegistry::ShouldEvaluateExtensionRulesForIncognitoRenderer(
     const Extension* extension) const {
-  if (!util::IsIncognitoEnabled(extension->id(), browser_context()))
+  if (!util::IsIncognitoEnabled(extension->id(), browser_context())) {
     return false;
+  }
 
   // Split-mode incognito extensions register their rules with separate
   // RulesRegistries per Original/OffTheRecord browser contexts, whereas
@@ -427,8 +440,9 @@ ChromeContentRulesRegistry::ShouldEvaluateExtensionRulesForIncognitoRenderer(
     // OffTheRecord registries may have (separate) rules for this extension.
     // Since we're looking at an incognito renderer, so only the OffTheRecord
     // registry should process its rules.
-    if (!browser_context()->IsOffTheRecord())
+    if (!browser_context()->IsOffTheRecord()) {
       return false;
+    }
   }
 
   return true;
@@ -436,8 +450,9 @@ ChromeContentRulesRegistry::ShouldEvaluateExtensionRulesForIncognitoRenderer(
 
 size_t ChromeContentRulesRegistry::GetActiveRulesCountForTesting() {
   size_t count = 0;
-  for (const auto& web_contents_rules_pair : active_rules_)
+  for (const auto& web_contents_rules_pair : active_rules_) {
     count += web_contents_rules_pair.second.size();
+  }
   return count;
 }
 

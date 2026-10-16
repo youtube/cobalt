@@ -237,8 +237,11 @@ fn test_cpp_receiver() {
     let quit = run_loop.get_quit_closure();
 
     // Pass the receiver handle to C++ and bind it there
-    let receiver_handle = UntypedHandle::from(pending_receiver.into_endpoint()).into_raw_value();
-    let _cpp_receiver = crate::cxx::ffi::CreatePlusSevenMathService(receiver_handle);
+    let receiver_wrapper =
+        system::scoped_handle_interop::ScopedMessagePipeHandleWrapper::from_message_endpoint(
+            pending_receiver.into_endpoint(),
+        );
+    let _cpp_receiver = crate::cxx::ffi::CreatePlusSevenMathService(receiver_wrapper);
 
     let mut remote = pending_remote.bind();
 
@@ -275,8 +278,11 @@ fn test_cpp_remote() {
 
     // Pass the remote handle to C++ and have it send messages.
     // This call blocks until all responses are received.
-    let remote_handle = UntypedHandle::from(pending_remote.into_endpoint()).into_raw_value();
-    crate::cxx::ffi::TestRemoteFromCpp(remote_handle);
+    let remote_wrapper =
+        system::scoped_handle_interop::ScopedMessagePipeHandleWrapper::from_message_endpoint(
+            pending_remote.into_endpoint(),
+        );
+    crate::cxx::ffi::TestRemoteFromCpp(remote_wrapper);
 
     // These message must have come from C++ because `TestFromRemote` i
     // the only testing function that adds things to a total of 22!
@@ -376,4 +382,93 @@ fn test_handle_passing() {
     run_loop.run();
 
     expect_eq!(*responses_received.lock().unwrap(), 4);
+}
+
+#[gtest(RustBindingsAPI, DisconnectHandlersTest)]
+fn test_disconnect_handlers() {
+    let _task_env = test_cxx::ffi::CreateTaskEnvironment();
+
+    // Test Receiver disconnect handler
+    let run_loop = RunLoop::new();
+    let quit_loop = run_loop.get_quit_closure();
+
+    let (pending_remote, pending_receiver) = PendingRemote::<dyn MathService>::new_pipe().unwrap();
+    let _receiver = pending_receiver.bind_with_options(
+        SaturatingMathService {},
+        None,
+        Some(Box::new(quit_loop)),
+    );
+    drop(pending_remote);
+
+    run_loop.run();
+
+    // Test Remote disconnect handler
+    let run_loop = RunLoop::new();
+    let quit_loop = run_loop.get_quit_closure();
+
+    // Test Receiver disconnect handler
+    let (pending_remote, pending_receiver) = PendingRemote::<dyn MathService>::new_pipe().unwrap();
+    let _remote = pending_remote.bind_with_options(None, Some(Box::new(quit_loop)));
+    drop(pending_receiver);
+
+    run_loop.run();
+}
+
+#[gtest(RustBindingsAPI, SelfOwnedReceiverTest)]
+fn test_self_owned_receiver() {
+    let _task_env = test_cxx::ffi::CreateTaskEnvironment();
+
+    let (pending_remote, pending_receiver) = PendingRemote::<dyn MathService>::new_pipe().unwrap();
+
+    let run_loop = RunLoop::new();
+    let quit_loop = Box::new(run_loop.get_quit_closure());
+
+    let dropped = Arc::new(Mutex::new(false));
+    let dropped_clone = Arc::clone(&dropped);
+
+    let service = DropNotifyingService { dropped, quit_loop };
+
+    // Create a self-owned receiver.
+    let self_owned = pending_receiver.bind_self_owned(service);
+
+    // Disconnect the pipe. This should trigger the disconnect handler, which
+    // will drop the receiver, which will drop the service.
+    drop(pending_remote);
+
+    run_loop.run();
+
+    expect_true!(*dropped_clone.lock().unwrap());
+    expect_true!(self_owned.upgrade().is_none());
+}
+
+#[gtest(RustBindingsAPI, CppToRustHandoverTest)]
+fn test_cpp_to_rust_handover() {
+    let _task_env = test_cxx::ffi::CreateTaskEnvironment();
+
+    // Create a PlusSevenMathService and bind it, all in C++.
+    let mut _service = cxx::UniquePtr::null();
+    let mut remote_wrapper = cxx::UniquePtr::null();
+    crate::cxx::ffi::CreatePlusSevenMathServiceAndRemote(&mut _service, &mut remote_wrapper);
+
+    // Convert the C++ endpoint to the equivalent Rust version.
+    // Since we use the scoped_handle_interop types, this doesn't require `unsafe`!
+    let remote_endpoint =
+        system::scoped_handle_interop::ScopedMessagePipeHandleWrapper::into_message_endpoint(
+            remote_wrapper,
+        )
+        .unwrap();
+    let pending_remote = PendingRemote::<dyn MathService>::new(remote_endpoint);
+
+    let run_loop = RunLoop::new();
+    let quit = run_loop.get_quit_closure();
+
+    let mut remote = pending_remote.bind();
+
+    // Simple test message
+    remote.Add(5, 10, move |n| {
+        expect_eq!(n, 22); // PlusSevenMathService adds 7 to all its operations.
+        quit();
+    });
+
+    run_loop.run();
 }

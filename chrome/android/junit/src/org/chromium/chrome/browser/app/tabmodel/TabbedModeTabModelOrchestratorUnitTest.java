@@ -26,6 +26,7 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
+import org.chromium.base.Holder;
 import org.chromium.base.supplier.OneshotSupplierImpl;
 import org.chromium.base.task.AsyncTask;
 import org.chromium.base.test.BaseRobolectricTestRunner;
@@ -146,6 +147,7 @@ public class TabbedModeTabModelOrchestratorUnitTest {
         tabStatesToMerge = tabPersistentStore.getTabListToMergeTasksForTesting();
         assertFalse("Should have a tab state file to merge", tabStatesToMerge.isEmpty());
 
+        MultiWindowTestUtils.enableMultiInstance();
         MultiWindowTestUtils.createInstance(/* instanceId= */ 0, "https://url.com", 1, 57);
         assertEquals(1, MultiWindowUtils.getInstanceCountWithFallback(PersistedInstanceType.ANY));
 
@@ -187,7 +189,23 @@ public class TabbedModeTabModelOrchestratorUnitTest {
                 mMultiInstanceManager,
                 mMismatchedIndicesHandler,
                 0);
+
+        Holder<Boolean> storesInitializedCalled = new Holder<>(false);
+        TabModelOrchestratorObserver observer =
+                new TabModelOrchestratorObserver() {
+                    @Override
+                    public void onStoresInitialized() {
+                        storesInitializedCalled.onResult(true);
+                    }
+                };
+
+        orchestrator.addObserver(observer);
+        assertFalse(orchestrator.areStoresInitialized());
+        assertFalse(storesInitializedCalled.get());
+
         orchestrator.onNativeLibraryReady(mTabContentManager);
+
+        assertTrue(storesInitializedCalled.get());
         verify(mDeferredStartupHandler).addDeferredTask(mRunnableCaptor.capture());
 
         mRunnableCaptor.getValue().run();

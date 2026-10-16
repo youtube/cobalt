@@ -329,7 +329,6 @@ impl Generator {
             BuiltIn::TessLevelInner => "gl_TessLevelInner",
             BuiltIn::TessCoord => "gl_TessCoord",
             BuiltIn::BoundingBoxOES => "gl_BoundingBoxOES",
-            BuiltIn::PixelLocalEXT => "gl_PixelLocalEXT",
         })
         .to_string()
     }
@@ -533,10 +532,11 @@ impl Generator {
         glsl_variables: &HashMap<VariableId, GlslVariable>,
         block: &mut String,
         variables: &[VariableId],
+        for_loop_variable: Option<VariableId>,
     ) {
         variables.iter().for_each(|id| {
             let glsl_variable = &glsl_variables[id];
-            if !glsl_variable.skip_declaration {
+            if !glsl_variable.skip_declaration && for_loop_variable != Some(*id) {
                 writeln!(block, "{};", glsl_variable.declaration_text).unwrap();
             }
         });
@@ -856,6 +856,7 @@ impl ast::Target for Generator {
             &self.variables,
             &mut self.global_variables,
             ir_meta.all_global_variables(),
+            None,
         );
 
         println!("{}", self.preamble);
@@ -863,9 +864,14 @@ impl ast::Target for Generator {
         println!("{}", self.global_variables);
     }
 
-    fn begin_block(&mut self, _ir_meta: &IRMeta, variables: &[VariableId]) -> String {
+    fn begin_block(
+        &mut self,
+        _ir_meta: &IRMeta,
+        variables: &[VariableId],
+        for_loop_variable: Option<VariableId>,
+    ) -> String {
         let mut block = String::new();
-        Self::declare_variables(&self.variables, &mut block, variables);
+        Self::declare_variables(&self.variables, &mut block, variables, for_loop_variable);
         block
     }
 
@@ -972,28 +978,29 @@ impl ast::Target for Generator {
         result: Option<RegisterId>,
         function_id: FunctionId,
         params: &[TypedId],
+        has_side_effect_with_unused_result: bool,
     ) {
         let statement = format!(
             "{}({})",
             self.functions[&function_id].name,
             params.iter().map(|&id| self.get_expression(id).clone()).collect::<Vec<_>>().join(", ")
         );
-        match result {
-            Some(result) => {
-                self.expressions.insert(result, statement);
-            }
-            None => {
-                writeln!(block_result, "{statement};").unwrap();
-            }
-        };
+        if let Some(result) = result
+            && !has_side_effect_with_unused_result
+        {
+            self.expressions.insert(result, statement);
+        } else {
+            writeln!(block_result, "{statement};").unwrap();
+        }
     }
 
     fn unary(
         &mut self,
-        _block_result: &mut String,
+        block_result: &mut String,
         result: RegisterId,
         unary_op: UnaryOpCode,
         id: TypedId,
+        has_side_effect_with_unused_result: bool,
     ) {
         let id = self.get_expression(id);
         let expr = match unary_op {
@@ -1073,16 +1080,21 @@ impl ast::Target for Generator {
                 panic!("Internal error: Unexpected non-GLSL opcode for GLSL generator")
             }
         };
-        self.expressions.insert(result, expr);
+        if has_side_effect_with_unused_result {
+            writeln!(block_result, "{expr};").unwrap();
+        } else {
+            self.expressions.insert(result, expr);
+        }
     }
 
     fn binary(
         &mut self,
-        _block_result: &mut String,
+        block_result: &mut String,
         result: RegisterId,
         binary_op: BinaryOpCode,
         lhs: TypedId,
         rhs: TypedId,
+        has_side_effect_with_unused_result: bool,
     ) {
         let lhs = self.get_expression(lhs);
         let rhs = self.get_expression(rhs);
@@ -1142,7 +1154,11 @@ impl ast::Target for Generator {
         };
         let expr =
             if call { format!("{op}({lhs}, {rhs})") } else { format!("({lhs}) {op} ({rhs})") };
-        self.expressions.insert(result, expr);
+        if has_side_effect_with_unused_result {
+            writeln!(block_result, "{expr};").unwrap();
+        } else {
+            self.expressions.insert(result, expr);
+        }
     }
 
     fn built_in(
@@ -1151,6 +1167,7 @@ impl ast::Target for Generator {
         result: Option<RegisterId>,
         built_in_op: BuiltInOpCode,
         args: &[TypedId],
+        has_side_effect_with_unused_result: bool,
     ) {
         let built_in = match built_in_op {
             BuiltInOpCode::Clamp => "clamp",
@@ -1207,7 +1224,9 @@ impl ast::Target for Generator {
             }
         };
         let expr = format!("{built_in}({})", self.get_expressions(&mut args.iter()));
-        if let Some(result) = result {
+        if let Some(result) = result
+            && !has_side_effect_with_unused_result
+        {
             self.expressions.insert(result, expr);
         } else {
             writeln!(block_result, "{expr};").unwrap();
@@ -1453,6 +1472,56 @@ impl ast::Target for Generator {
         // instead of before.
         writeln!(block, "for (;;) {{\n{}}}", Self::indent_block(body_block.unwrap(), 1)).unwrap();
     }
+    fn branch_for_loop(
+        &mut self,
+        block: &mut String,
+        info: &util::TrivialLoopInfo,
+        body_block: Option<String>,
+    ) {
+        // The condition, continue and body blocks should always be present.  Condition and
+        // continue blocks are not usable because they are not generated in a form that is
+        // compatible with a `for` loop.  Instead, the loop info is used to reconstruct the `for`
+        // loop.
+        let continue_expr = if let Some(increment_step) = info.increment_step {
+            let increment_step = self.get_constant_expression(increment_step);
+            format!(
+                "{} {}= {}",
+                self.variables[&info.loop_variable].name,
+                if info.ascending { '+' } else { '-' },
+                increment_step
+            )
+        } else {
+            format!(
+                "{}{}",
+                self.variables[&info.loop_variable].name,
+                if info.ascending { "++" } else { "--" }
+            )
+        };
+        let condition_op = match info.condition_op {
+            BinaryOpCode::Equal => "==",
+            BinaryOpCode::NotEqual => "!=",
+            BinaryOpCode::LessThan => "<",
+            BinaryOpCode::GreaterThan => ">",
+            BinaryOpCode::LessThanEqual => "<=",
+            BinaryOpCode::GreaterThanEqual => ">=",
+            _ => panic!("Internal error: Invalid for loop condition operator"),
+        };
+        let condition_comparator = self.get_constant_expression(info.condition_comparator);
+        let condition = format!(
+            "{} {} {}",
+            self.variables[&info.loop_variable].name, condition_op, condition_comparator
+        );
+
+        writeln!(
+            block,
+            "for ({}; {}; {}) {{\n{}}}",
+            self.variables[&info.loop_variable].declaration_text,
+            condition,
+            continue_expr,
+            Self::indent_block(body_block.unwrap(), 1)
+        )
+        .unwrap();
+    }
     fn branch_loop_if(&mut self, block: &mut String, condition: TypedId) {
         // The condition block of a loop ends in `if (!condition) break;`
         writeln!(block, "if (!({}))\n  break;", self.get_expression(condition)).unwrap();
@@ -1493,5 +1562,19 @@ impl ast::Target for Generator {
             Self::indent_block(block_result, 1),
         )
         .unwrap();
+    }
+}
+
+pub fn generate(ir: &mut IR, options: &compile::Options) {
+    {
+        let transform_options = transform::monomorphize_unsupported_functions::Options {
+            struct_containing_samplers: false,
+            image: options.shader_version >= 310,
+            atomic_counter: false,
+            array_of_array_of_sampler_or_image: false,
+            // Already done by common code.
+            pixel_local_storage: false,
+        };
+        transform::run!(monomorphize_unsupported_functions, ir, &transform_options);
     }
 }

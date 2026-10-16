@@ -93,15 +93,14 @@ void ThrowScriptForbiddenException(v8::Isolate* isolate) {
 }
 
 v8::MaybeLocal<v8::Value> ThrowStackOverflowExceptionIfNeeded(
-    v8::Isolate* isolate,
-    v8::MicrotaskQueue* microtask_queue) {
+    ExecutionContext* execution_context) {
+  v8::Isolate* isolate = execution_context->GetIsolate();
   if (V8PerIsolateData::From(isolate)->IsHandlingRecursionLevelError()) {
     // If we are already handling a recursion level error, we should
     // not invoke v8::Function::Call.
     return v8::Undefined(isolate);
   }
-  v8::MicrotasksScope microtasks_scope(
-      isolate, microtask_queue, v8::MicrotasksScope::kDoNotRunMicrotasks);
+  V8DoNotRunMicrotasksScope microtasks_scope(execution_context);
   V8PerIsolateData::From(isolate)->SetIsHandlingRecursionLevelError(true);
 
   ScriptForbiddenScope::AllowUserAgentScript allow_script;
@@ -485,7 +484,7 @@ v8::MaybeLocal<v8::Value> V8ScriptRunner::RunCompiledScript(
 
   v8::MicrotaskQueue* microtask_queue = ToMicrotaskQueue(context);
   if (GetMicrotasksScopeDepth(isolate, microtask_queue) > kMaxRecursionDepth)
-    return ThrowStackOverflowExceptionIfNeeded(isolate, microtask_queue);
+    return ThrowStackOverflowExceptionIfNeeded(context);
 
   CHECK(!context->ContextLifecycleObserverSet().IsIteratingOverObservers());
 
@@ -497,8 +496,7 @@ v8::MaybeLocal<v8::Value> V8ScriptRunner::RunCompiledScript(
       return v8::MaybeLocal<v8::Value>();
     }
 
-    v8::MicrotasksScope microtasks_scope(isolate, microtask_queue,
-                                         v8::MicrotasksScope::kRunMicrotasks);
+    V8RunMicrotasksScope microtasks_scope(context);
     v8::Local<v8::String> script_url;
     if (!script_name->ToString(isolate->GetCurrentContext())
              .ToLocal(&script_url))
@@ -607,7 +605,7 @@ ScriptEvaluationResult V8ScriptRunner::CompileAndRunScript(
     V8CodeCache::ProduceCacheOptions produce_cache_options;
     v8::ScriptCompiler::NoCacheReason no_cache_reason;
     Page* page = frame != nullptr ? frame->GetPage() : nullptr;
-    const bool is_http = classic_script->SourceUrl().ProtocolIsInHTTPFamily();
+    const bool is_http = classic_script->SourceUrl().ProtocolIsInHttpFamily();
     const bool might_generate_crowdsourced_compile_hints =
         is_http && page != nullptr &&
         page->GetV8CrowdsourcedCompileHintsProducer().MightGenerateData();
@@ -805,7 +803,7 @@ v8::MaybeLocal<v8::Value> V8ScriptRunner::CallAsConstructor(
   v8::MicrotaskQueue* microtask_queue = ToMicrotaskQueue(context);
   int depth = GetMicrotasksScopeDepth(isolate, microtask_queue);
   if (depth >= kMaxRecursionDepth)
-    return ThrowStackOverflowExceptionIfNeeded(isolate, microtask_queue);
+    return ThrowStackOverflowExceptionIfNeeded(context);
 
   CHECK(!context->ContextLifecycleObserverSet().IsIteratingOverObservers());
 
@@ -821,8 +819,7 @@ v8::MaybeLocal<v8::Value> V8ScriptRunner::CallAsConstructor(
   CHECK(constructor->IsFunction());
   v8::Local<v8::Function> function = constructor.As<v8::Function>();
 
-  v8::MicrotasksScope microtasks_scope(isolate, ToMicrotaskQueue(context),
-                                       v8::MicrotasksScope::kRunMicrotasks);
+  V8RunMicrotasksScope microtasks_scope(context);
   probe::CallFunction probe(context, isolate->GetCurrentContext(), function,
                             depth);
 
@@ -859,7 +856,7 @@ v8::MaybeLocal<v8::Value> V8ScriptRunner::CallFunction(
   v8::MicrotaskQueue* microtask_queue = ToMicrotaskQueue(context);
   int depth = GetMicrotasksScopeDepth(isolate, microtask_queue);
   if (depth >= kMaxRecursionDepth)
-    return ThrowStackOverflowExceptionIfNeeded(isolate, microtask_queue);
+    return ThrowStackOverflowExceptionIfNeeded(context);
 
   CHECK(!context->ContextLifecycleObserverSet().IsIteratingOverObservers());
 
@@ -871,8 +868,7 @@ v8::MaybeLocal<v8::Value> V8ScriptRunner::CallFunction(
   DCHECK(!window || !window->GetFrame() ||
          BindingSecurity::ShouldAllowAccessTo(
              ToLocalDOMWindow(function->GetCreationContextChecked()), window));
-  v8::MicrotasksScope microtasks_scope(isolate, microtask_queue,
-                                       v8::MicrotasksScope::kRunMicrotasks);
+  V8RunMicrotasksScope microtasks_scope(context);
   if (!depth) {
     TRACE_EVENT_BEGIN1("devtools.timeline", "FunctionCall", "data",
                        [&](perfetto::TracedValue trace_context) {
@@ -931,9 +927,7 @@ ScriptEvaluationResult V8ScriptRunner::EvaluateModule(
   // <spec step="4">Prepare to run script given settings.</spec>
   //
   // These are placed here to also cover ModuleRecord::ReportException().
-  v8::MicrotasksScope microtasks_scope(isolate,
-                                       ToMicrotaskQueue(execution_context),
-                                       v8::MicrotasksScope::kRunMicrotasks);
+  V8RunMicrotasksScope microtasks_scope(execution_context);
 
   // Without TLA: <spec step="5">Let evaluationStatus be null.</spec>
   ScriptEvaluationResult result = ScriptEvaluationResult::FromModuleNotRun();

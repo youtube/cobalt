@@ -31,6 +31,9 @@ BASE_DECLARE_FEATURE(kFewerUpdateConfirmations);
 #endif
 
 BASE_DECLARE_FEATURE(kDesktopGlowUp);
+BASE_DECLARE_FEATURE(kGlassToolbar);
+
+BASE_DECLARE_FEATURE(kDetachedTabs);
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 
@@ -326,9 +329,7 @@ BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationEnableAll);
 // have their page actions controlled using the new framework.
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationIntentPicker);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationZoom);
-BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationOfferNotification);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationFileSystemAccess);
-BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationPwaInstall);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationPriceInsights);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationDiscounts);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationManagePasswords);
@@ -402,6 +403,7 @@ BASE_DECLARE_FEATURE(kWhatsNewDesktopRefresh);
 
 BASE_DECLARE_FEATURE(kTabGroupsFocusing);
 BASE_DECLARE_FEATURE_PARAM(bool, kTabGroupsFocusingPinnedTabs);
+BASE_DECLARE_FEATURE_PARAM(bool, kTabGroupsFocusingDefaultToFocused);
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 BASE_DECLARE_FEATURE(kUpdaterUI);

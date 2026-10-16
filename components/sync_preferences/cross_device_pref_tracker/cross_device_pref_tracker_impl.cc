@@ -378,8 +378,16 @@ void ApplyPrefChangeToCrossDevice(
   // the corresponding entry in the cross-device dictionary should be cleared to
   // signal that this device no longer has a value set by the user.
   if (tracked_pref->IsDefaultValue()) {
-    ScopedDictPrefUpdate update(profile_pref_service, cross_device_pref_name);
-    update->Remove(cache_guid.value());
+    const base::DictValue& cross_device_dict =
+        profile_pref_service->GetDict(cross_device_pref_name);
+
+    // Only instantiate `ScopedDictPrefUpdate` (which triggers a Sync server
+    // notification) if there is actually an entry to remove.
+    if (cross_device_dict.contains(cache_guid.value())) {
+      ScopedDictPrefUpdate update(profile_pref_service, cross_device_pref_name);
+      update->Remove(cache_guid.value());
+    }
+
     return;
   }
 
@@ -552,7 +560,13 @@ CrossDevicePrefTrackerImpl::CrossDevicePrefTrackerImpl(
 
   // Clean up any expired device entries from the cross-device storage.
   // This relies on `active_device_guids_`.
-  GarbageCollectStaleCacheGuids();
+  if (syncer::DeviceInfoTracker* tracker =
+          device_info_sync_service_->GetDeviceInfoTracker()) {
+    // Only garbage collect when the tracker is fully loaded.
+    if (tracker->IsSyncing()) {
+      GarbageCollectStaleCacheGuids();
+    }
+  }
 }
 
 CrossDevicePrefTrackerImpl::~CrossDevicePrefTrackerImpl() {
@@ -669,9 +683,23 @@ void CrossDevicePrefTrackerImpl::Shutdown() {
 // 3. Signal for garbage collection of stale Cache GUIDs (removed or expired).
 void CrossDevicePrefTrackerImpl::OnDeviceInfoChange() {
   HandleLocalDeviceInfoIfAvailable();
+  UpdateServiceStatus();
+
+  syncer::DeviceInfoTracker* tracker =
+      device_info_sync_service_->GetDeviceInfoTracker();
+
+  if (!tracker) {
+    return;
+  }
+
+  // Nothing to do if Sync is disabled and there's no device data
+  // available to handle.
+  if (!tracker->IsSyncing() && active_device_guids_.empty()) {
+    return;
+  }
+
   HandleRemoteDeviceInfoChanges();
   GarbageCollectStaleCacheGuids();
-  UpdateServiceStatus();
 }
 
 void CrossDevicePrefTrackerImpl::OnStateChanged(syncer::SyncService* sync) {

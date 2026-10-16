@@ -510,11 +510,13 @@ FUNCTION_REFERENCE(verify_skipped_indirect_write_barrier,
 
 namespace {
 
-intptr_t DebugBreakAtEntry(Isolate* isolate, Address raw_sfi) {
+// Returns an smi if it needs to break, Code otherwise.
+Address DebugBreakAtEntry(Isolate* isolate, Address raw_sfi) {
   DisallowGarbageCollection no_gc;
   Tagged<SharedFunctionInfo> sfi =
       Cast<SharedFunctionInfo>(Tagged<Object>(raw_sfi));
-  return isolate->debug()->BreakAtEntry(sfi) ? 1 : 0;
+  return isolate->debug()->BreakAtEntry(sfi) ? Smi::zero().ptr()
+                                             : sfi->GetCode(isolate).ptr();
 }
 
 Address DebugGetCoverageInfo(Isolate* isolate, Address raw_sfi) {
@@ -602,7 +604,8 @@ FUNCTION_REFERENCE(wasm_suspend_stack, wasm::suspend_stack)
 FUNCTION_REFERENCE(wasm_resume_jspi_stack, wasm::resume_jspi_stack)
 FUNCTION_REFERENCE(wasm_resume_wasmfx_stack, wasm::resume_wasmfx_stack)
 FUNCTION_REFERENCE(wasm_suspend_wasmfx_stack, wasm::suspend_wasmfx_stack)
-FUNCTION_REFERENCE(wasm_return_stack, wasm::return_stack)
+FUNCTION_REFERENCE(wasm_return_jspi_stack, wasm::return_jspi_stack)
+FUNCTION_REFERENCE(wasm_return_wasmfx_stack, wasm::return_wasmfx_stack)
 FUNCTION_REFERENCE(wasm_retire_stack, wasm::retire_stack)
 FUNCTION_REFERENCE(wasm_switch_to_the_central_stack,
                    wasm::switch_to_the_central_stack)

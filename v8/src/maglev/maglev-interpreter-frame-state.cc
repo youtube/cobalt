@@ -621,7 +621,8 @@ ValueNode* FromInt32ToTagged(const MaglevGraphBuilder* builder,
     // For known Smis, we can tag without a check.
     tagged = Node::New<UnsafeSmiTagInt32>(builder->zone(), {value});
   } else {
-    tagged = Node::New<Int32ToNumber>(builder->zone(), {value});
+    tagged = Node::New<Int32ToNumber>(builder->zone(), {value},
+                                      NumberConversionMode::kCanonicalizeSmi);
   }
 
   predecessor->nodes().push_back(tagged);
@@ -669,8 +670,7 @@ ValueNode* FromFloat64ToTagged(const MaglevGraphBuilder* builder,
 
   // Create a tagged version, and insert it at the end of the predecessor.
   ValueNode* tagged = Node::New<Float64ToTagged>(
-      builder->zone(), {value},
-      Float64ToTagged::ConversionMode::kCanonicalizeSmi);
+      builder->zone(), {value}, NumberConversionMode::kCanonicalizeSmi);
 
   predecessor->nodes().push_back(tagged);
   builder->compilation_unit()->RegisterNodeInGraphLabeller(tagged);
@@ -685,8 +685,7 @@ ValueNode* FromHoleyFloat64ToTagged(const MaglevGraphBuilder* builder,
 
   // Create a tagged version, and insert it at the end of the predecessor.
   ValueNode* tagged = Node::New<HoleyFloat64ToTagged>(
-      builder->zone(), {value},
-      HoleyFloat64ToTagged::ConversionMode::kCanonicalizeSmi);
+      builder->zone(), {value}, NumberConversionMode::kCanonicalizeSmi);
 
   predecessor->nodes().push_back(tagged);
   builder->compilation_unit()->RegisterNodeInGraphLabeller(tagged);
@@ -1022,6 +1021,9 @@ void MergePointInterpreterFrameState::MergeLoopValue(
     // sminess.
     if (result->uses_require_31_bit_value()) {
       unmerged_phi->SetUseRequires31BitValue();
+    }
+    if (result->uses_require_heap_object()) {
+      unmerged_phi->SetUseRequiresHeapObject();
     }
   } else if (CallKnownJSFunction* call =
                  unmerged->TryCast<CallKnownJSFunction>()) {

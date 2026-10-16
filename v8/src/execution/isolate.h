@@ -1774,7 +1774,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     }
   }
 
-  // ES#sec-async-module-execution-fulfilled step 10
+  // https://tc39.es/ecma262/#sec-async-module-execution-fulfilled step 10
   //
   // According to the spec, modules that depend on async modules (i.e. modules
   // with top-level await) must be evaluated in order in which their
@@ -2267,6 +2267,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   const TrustedPointerTable& shared_trusted_pointer_table() const {
     return *isolate_data_.shared_trusted_pointer_table_;
+  }
+
+  bool has_shared_trusted_pointer_table() const {
+    return isolate_data_.shared_trusted_pointer_table_ != nullptr;
   }
 
   TrustedPointerTable::Space* shared_trusted_pointer_space() {

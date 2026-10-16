@@ -366,6 +366,10 @@ bool IsGeminiLatencyImprovementEnabled() {
 
 BASE_FEATURE(kPageContextExtractorRefactored, base::FEATURE_ENABLED_BY_DEFAULT);
 
+bool IsPageContextExtractorRefactoredEnabled() {
+  return base::FeatureList::IsEnabled(kPageContextExtractorRefactored);
+}
+
 BASE_FEATURE(kGeminiRefactoredFRE, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsGeminiRefactoredFREEnabled() {
@@ -460,6 +464,19 @@ bool IsGeminiCopresenceZeroStateWithChatHistoryEnabled() {
   return base::GetFieldTrialParamByFeatureAsBool(
       kGeminiCopresence, kGeminiCopresenceZeroStateWithChatHistory, false);
 }
+
+const char kGeminiCopresenceWithFullscreenDisabler[] =
+    "GeminiCopresenceWithFullscreenDisabler";
+
+bool IsGeminiCopresenceWithFullscreenDisablerEnabled() {
+  if (!IsGeminiCopresenceEnabled()) {
+    return false;
+  }
+
+  return base::GetFieldTrialParamByFeatureAsBool(
+      kGeminiCopresence, kGeminiCopresenceWithFullscreenDisabler, false);
+}
+
 BASE_FEATURE(kGeminiResponseViewDynamicResizing,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -577,5 +594,15 @@ bool IsGeminiActorEnabled() {
 BASE_FEATURE(kGeminiRichAPCExtraction, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsGeminiRichAPCExtractionEnabled() {
+  if (!IsPageContextExtractorRefactoredEnabled()) {
+    return false;
+  }
+
   return base::FeatureList::IsEnabled(kGeminiRichAPCExtraction);
+}
+
+BASE_FEATURE(kGeminiFloatyAllPages, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsGeminiFloatyAllPagesEnabled() {
+  return base::FeatureList::IsEnabled(kGeminiFloatyAllPages);
 }

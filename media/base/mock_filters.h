@@ -506,6 +506,7 @@ class MockRenderer : public Renderer {
 
   MockRenderer(const MockRenderer&) = delete;
   MockRenderer& operator=(const MockRenderer&) = delete;
+  explicit MockRenderer(RendererType renderer_type);
 
   ~MockRenderer() override;
 
@@ -540,13 +541,14 @@ class MockRenderer : public Renderer {
                void(std::vector<DemuxerStream*>, base::OnceClosure));
   MOCK_METHOD2(OnSelectedAudioTracksChanged,
                void(std::vector<DemuxerStream*>, base::OnceClosure));
-  RendererType GetRendererType() override { return RendererType::kTest; }
+  RendererType GetRendererType() override { return renderer_type_; }
 
   base::WeakPtr<MockRenderer> AsWeakPtr() {
     return weak_ptr_factory_.GetWeakPtr();
   }
 
  private:
+  RendererType renderer_type_ = RendererType::kTest;
   base::WeakPtrFactory<MockRenderer> weak_ptr_factory_{this};
 };
 

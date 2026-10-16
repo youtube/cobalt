@@ -4,6 +4,7 @@
 
 // IWYU pragma: private, include "third_party/jni_zero/jni_zero.h"
 
+// FromJniType / ToJniType conversions that are #included from jni_zero.h
 #ifndef JNI_ZERO_TYPE_CONVERSIONS_H_
 #define JNI_ZERO_TYPE_CONVERSIONS_H_
 
@@ -29,10 +30,13 @@ namespace jni_zero {
   "_jni.h one."
 
 namespace internal {
+<<<<<<< HEAD
+=======
 
 #if !BUILDFLAG(IS_COBALT) || (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
 template <typename T>
 concept IsJavaRef = std::is_base_of_v<JavaRef<jobject>, T>;
+>>>>>>> parent of 466c23ef4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 template <typename T>
 concept HasReserve = requires(T t) { t.reserve(0); };
@@ -81,7 +85,7 @@ concept IsPrimitive = std::is_arithmetic<T>::value;
 template <typename T>
 concept HasSpecificSpecialization = requires(T t) {
   requires IsMap<T> || IsObjectContainer<T> || IsOptional<T> ||
-               IsPrimitive<T> || IsJavaRef<T>;
+               IsPrimitive<T> || jni_zero::IsJavaRef<T>;
 };
 #else   // !BUILDFLAG(IS_COBALT) || (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
 template <typename T>
@@ -118,18 +122,25 @@ struct PrimitiveConvert {
 
 }  // namespace internal
 
+// Base template that is resolved only when other specializations are missing.
 template <typename T>
 inline T FromJniType(JNIEnv* env, const JavaRef<jobject>& obj) {
   static_assert(sizeof(T) == 0, JNI_ZERO_CONVERSION_FAILED_MSG("FromJniType"));
 }
 
+<<<<<<< HEAD
+// Base template that is resolved only when other specializations are missing.
+=======
 #if defined(__cpp_concepts) && __cpp_concepts >= 201907L
+>>>>>>> parent of 466c23ef4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 template <typename T>
   requires(!internal::HasSpecificSpecialization<T>)
 inline ScopedJavaLocalRef<jobject> ToJniType(JNIEnv* env, const T& obj) {
   static_assert(sizeof(T) == 0, JNI_ZERO_CONVERSION_FAILED_MSG("ToJniType"));
 }
 
+// Overload of ToJniType for primitive types. This is usually specialized in
+// default_conversions.h to wrap them in their Java boxed equivalents.
 template <typename T>
   requires internal::IsPrimitive<T>
 inline ScopedJavaLocalRef<jobject> ToJniType(JNIEnv* env, T obj) {
@@ -146,6 +157,8 @@ inline ScopedJavaLocalRef<jobject> ToJniType(JNIEnv* env, T obj) {
 }
 #endif
 
+<<<<<<< HEAD
+=======
 #if BUILDFLAG(IS_COBALT)
 #if defined(__cpp_concepts) && __cpp_concepts >= 201907L
 template <typename T>
@@ -172,6 +185,7 @@ inline ScopedJavaLocalRef<jobject> ToJniType(JNIEnv* env, const T& val) {
 }
 #endif  // BUILDFLAG(IS_COBALT)
 
+>>>>>>> parent of 466c23ef4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 // Allow conversions using pointers by wrapping non-pointer conversions.
 // Cannot live in default_conversions.h because we want code to be able to
 // specialize it.
@@ -193,9 +207,13 @@ inline ScopedJavaLocalRef<jobject> ToJniType(JNIEnv* env, T* value) {
   "If this error is from a non-generated call, ensure that there "       \
   "exists an #include for jni_zero/default_conversions.h."
 
+<<<<<<< HEAD
+// Base template that is resolved only when other specializations are missing.
+=======
 // Convert from an stl container to a Java array. Uses ToJniType() on each
 // element.
 #if defined(__cpp_concepts) && __cpp_concepts >= 201907L
+>>>>>>> parent of 466c23ef4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 template <typename T>
 inline ScopedJavaLocalRef<jobjectArray> ToJniArray(JNIEnv* env,
                                                    const T& obj,
@@ -203,14 +221,13 @@ inline ScopedJavaLocalRef<jobjectArray> ToJniArray(JNIEnv* env,
   static_assert(sizeof(T) == 0, JNI_ZERO_CONVERSION_FAILED_MSG("ToJniArray"));
 }
 
-// Convert from a Java array to an stl container of primitive types.
+// Base template that is resolved only when other specializations are missing.
 template <typename T>
 inline ScopedJavaLocalRef<jarray> ToJniArray(JNIEnv* env, const T& obj) {
   static_assert(sizeof(T) == 0, JNI_ZERO_CONVERSION_FAILED_MSG("ToJniArray"));
 }
 
-// Convert from a Java array to an stl container. Uses FromJniType() on each
-// element for non-primitive types.
+// Base template that is resolved only when other specializations are missing.
 template <typename T>
 inline T FromJniArray(JNIEnv* env, const JavaRef<jobject>& obj) {
   static_assert(sizeof(T) == 0, JNI_ZERO_CONVERSION_FAILED_MSG("FromJniArray"));
@@ -243,21 +260,27 @@ inline T FromJniArray(JNIEnv* env, const JavaRef<jobject>& obj) {
 }
 #endif
 
-// Convert from an stl container to a Java List<> by using ToJniType() on each
-// element.
+// Base template that is resolved only when other specializations are missing.
 template <typename T>
 inline ScopedJavaLocalRef<jobject> ToJniList(JNIEnv* env, const T& obj) {
   static_assert(sizeof(T) == 0, JNI_ZERO_CONVERSION_FAILED_MSG("ToJniList"));
 }
 
-// Convert from a Java Collection<> to an stl container by using FromJniType()
-// on each element.
+// Base template that is resolved only when other specializations are missing.
 template <typename T>
 inline T FromJniCollection(JNIEnv* env, const JavaRef<jobject>& obj) {
   static_assert(sizeof(T) == 0,
                 JNI_ZERO_CONVERSION_FAILED_MSG("FromJniCollection"));
 }
 #undef JNI_ZERO_CONVERSION_FAILED_MSG
+
+// Handles non-JavaRef types that are passed by reference or have cv-qualifiers
+// by decaying them to their base type and calling the base FromJniType.
+template <typename T>
+  requires(!IsJavaRef<T> && !std::is_same_v<T, std::decay_t<T>>)
+inline auto FromJniType(JNIEnv* env, const JavaRef<jobject>& obj) {
+  return FromJniType<std::decay_t<T>>(env, obj);
+}
 
 }  // namespace jni_zero
 

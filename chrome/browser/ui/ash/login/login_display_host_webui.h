@@ -35,6 +35,13 @@
 #include "ui/views/widget/widget_observer.h"
 #include "ui/views/widget/widget_removals_observer.h"
 
+class ApplicationLocaleStorage;
+class PrefService;
+
+namespace policy {
+class BrowserPolicyConnectorAsh;
+}  // namespace policy
+
 namespace ash {
 class FocusRingController;
 class WebUILoginView;
@@ -58,7 +65,12 @@ class LoginDisplayHostWebUI : public LoginDisplayHostCommon,
                               public views::WidgetObserver,
                               public OobeUI::Observer {
  public:
-  LoginDisplayHostWebUI();
+  // `local_state` and `application_locale_storage` must be non-null and must
+  // outlive `this`.
+  LoginDisplayHostWebUI(
+      PrefService* local_state,
+      ApplicationLocaleStorage* application_locale_storage,
+      policy::BrowserPolicyConnectorAsh* browser_policy_connector_ash);
 
   LoginDisplayHostWebUI(const LoginDisplayHostWebUI&) = delete;
   LoginDisplayHostWebUI& operator=(const LoginDisplayHostWebUI&) = delete;

@@ -63,6 +63,7 @@
 #include "ui/accessibility/accessibility_features.h"
 #include "ui/base/clipboard/clipboard.h"
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
+#include "ui/base/clipboard/test/clipboard_test_util.h"
 #include "ui/base/ime/input_method.h"
 #include "ui/base/ime/text_edit_commands.h"
 #include "ui/events/event_utils.h"
@@ -99,6 +100,10 @@ class TestingOmniboxView : public OmniboxViewViews {
                                 const Range& selection_range);
 
   void CheckUpdatePopupNotCalled();
+
+  void SetClipboardTextForTesting(const std::u16string& text) {
+    clipboard_text_ = text;
+  }
 
   Range scheme_range() const { return scheme_range_; }
   Range emphasis_range() const { return emphasis_range_; }
@@ -488,7 +493,7 @@ void OmniboxViewViewsTest::SetUp() {
 
   // We need a widget so OmniboxView can be correctly focused and unfocused.
   widget_ =
-      CreateTestWidget(views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET);
+      CreateTestWidget(views::Widget::InitParams::CLIENT_OWNS_WIDGET);
   widget_->Show();
 
   AutocompleteClassifierFactory::GetInstance()->SetTestingFactoryAndUse(
@@ -931,6 +936,7 @@ TEST_F(OmniboxViewViewsTest, PasteAndGoToUrlOrSearchCommand) {
       u"Pa&ste and go to https://test.com";
 #endif
   ui::ScopedClipboardWriter(clipboard_buffer).WriteText(u"https://test.com/");
+  omnibox_view()->SetClipboardTextForTesting(u"https://test.com/");
   std::u16string returned_text =
       omnibox_view()->GetLabelForCommandId(IDC_PASTE_AND_GO);
   EXPECT_TRUE(omnibox_view()->IsCommandIdEnabled(IDC_PASTE_AND_GO));
@@ -944,6 +950,7 @@ TEST_F(OmniboxViewViewsTest, PasteAndGoToUrlOrSearchCommand) {
       u"Pa&ste and go to test.com";
 #endif
   ui::ScopedClipboardWriter(clipboard_buffer).WriteText(u"test.com");
+  omnibox_view()->SetClipboardTextForTesting(u"test.com");
   returned_text = omnibox_view()->GetLabelForCommandId(IDC_PASTE_AND_GO);
   EXPECT_TRUE(omnibox_view()->IsCommandIdEnabled(IDC_PASTE_AND_GO));
   EXPECT_EQ(expected_text, returned_text);
@@ -957,6 +964,7 @@ TEST_F(OmniboxViewViewsTest, PasteAndGoToUrlOrSearchCommand) {
 #endif
   ui::ScopedClipboardWriter(clipboard_buffer)
       .WriteText(u"this is a test sentence");
+  omnibox_view()->SetClipboardTextForTesting(u"this is a test sentence");
   returned_text = omnibox_view()->GetLabelForCommandId(IDC_PASTE_AND_GO);
   EXPECT_TRUE(omnibox_view()->IsCommandIdEnabled(IDC_PASTE_AND_GO));
   EXPECT_EQ(expected_text, returned_text);
@@ -1263,9 +1271,8 @@ TEST_P(OmniboxViewViewsClipboardTest, ClipboardCopyOrCutURL) {
                                            /* data_dst = */ nullptr));
 #endif
 
-  std::string read_from_clipboard;
-  clipboard->ReadAsciiText(clipboard_buffer, /* data_dst = */ nullptr,
-                           &read_from_clipboard);
+  std::string read_from_clipboard = ui::clipboard_test_util::ReadAsciiText(
+      clipboard, clipboard_buffer, /* data_dst = */ nullptr);
   EXPECT_EQ("https://test.com/", read_from_clipboard);
 }
 
@@ -1294,9 +1301,8 @@ TEST_P(OmniboxViewViewsClipboardTest, ClipboardCopyOrCutUserText) {
                                             clipboard_buffer,
                                             /* data_dst = */ nullptr));
 
-  std::string read_from_clipboard;
-  clipboard->ReadAsciiText(clipboard_buffer, /* data_dst = */ nullptr,
-                           &read_from_clipboard);
+  std::string read_from_clipboard = ui::clipboard_test_util::ReadAsciiText(
+      clipboard, clipboard_buffer, /* data_dst = */ nullptr);
   EXPECT_EQ("user text", read_from_clipboard);
 }
 
@@ -1764,7 +1770,7 @@ TEST_F(OmniboxViewViewsSteadyStateElisionsTest,
   // Create a different Widget that will take focus away from the test widget
   // containing our test Omnibox.
   std::unique_ptr<views::Widget> other_widget =
-      CreateTestWidget(views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET);
+      CreateTestWidget(views::Widget::InitParams::CLIENT_OWNS_WIDGET);
   other_widget->Show();
   ExpectFullUrlDisplayed();
 

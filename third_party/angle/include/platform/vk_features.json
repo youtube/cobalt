@@ -91,6 +91,14 @@
             ]
         },
         {
+            "name": "use_large_size_for_dynamic_buffers",
+            "category": "Workarounds",
+            "description": [
+                "Increase the size of the dynamic buffers used as streaming vertex buffers to allow more suballocation and reduce the allocation handle count."
+            ],
+            "issue": "http://issuetracker.google.com/485671640"
+        },
+        {
             "name": "supports_renderpass2",
             "category": "Features",
             "description": [
@@ -406,6 +414,14 @@
                 "Prefer use CPU to do bufferSubData instead of staged update."
             ],
             "issue": "http://issuetracker.google.com/200067929"
+        },
+        {
+            "name": "prefer_GPU_for_copy_buffer_sub_data",
+            "category": "Features",
+            "description": [
+                "Prefer use GPU to do dirty region buffer update for glCopyBufferSubData."
+            ],
+            "issue": "https://issues.angleproject.org/issues/479982202"
         },
         {
             "name": "persistently_mapped_buffers",

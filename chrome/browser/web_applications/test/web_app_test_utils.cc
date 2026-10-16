@@ -54,6 +54,8 @@
 #include "chrome/browser/web_applications/isolated_web_apps/isolation_data.h"
 #include "chrome/browser/web_applications/model/app_installed_by.h"
 #include "chrome/browser/web_applications/model/display_override.h"
+#include "chrome/browser/web_applications/model/migration_behavior.h"
+#include "chrome/browser/web_applications/model/pending_migration_info.h"
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom.h"
 #include "chrome/browser/web_applications/proto/web_app.pb.h"
 #include "chrome/browser/web_applications/proto/web_app_install_state.pb.h"
@@ -99,11 +101,8 @@
 #include "components/webapps/isolated_web_apps/types/update_channel.h"
 #include "content/public/browser/service_worker_context.h"
 #include "content/public/browser/storage_partition.h"
-#include "services/network/public/cpp/permissions_policy/origin_with_possible_wildcards.h"
-#include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/manifest/manifest.h"
-#include "third_party/blink/public/common/permissions_policy/policy_helper_public.h"
 #include "third_party/blink/public/common/safe_url_pattern.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 #include "third_party/blink/public/mojom/manifest/display_mode.mojom-shared.h"
@@ -258,38 +257,6 @@ apps::ShareTarget CreateRandomShareTarget(uint32_t suffix) {
   }
 
   return share_target;
-}
-
-network::ParsedPermissionsPolicy CreateRandomPermissionsPolicy(
-    RandomHelper& random) {
-  const int num_permissions_policy_declarations =
-      random.next_uint(test_features.size());
-
-  std::vector<std::string> available_features = test_features;
-
-  const auto suffix = random.next_uint();
-  std::default_random_engine rng;
-  std::shuffle(available_features.begin(), available_features.end(), rng);
-
-  network::ParsedPermissionsPolicy permissions_policy(
-      num_permissions_policy_declarations);
-  const auto& feature_name_map = blink::GetPermissionsPolicyNameToFeatureMap();
-  for (int i = 0; i < num_permissions_policy_declarations; ++i) {
-    permissions_policy[i].feature = feature_name_map.begin()->second;
-
-    for (unsigned int j = 0; j < random.next_uint(5); ++j) {
-      std::string suffix_str =
-          base::NumberToString(suffix) + base::NumberToString(j);
-
-      const auto origin =
-          url::Origin::Create(GURL("https://app-" + suffix_str + ".com/"));
-      permissions_policy[i].allowed_origins.emplace_back(
-          *network::OriginWithPossibleWildcards::FromOrigin(origin));
-      permissions_policy[i].matches_all_origins = random.next_bool();
-      permissions_policy[i].matches_opaque_src = random.next_bool();
-    }
-  }
-  return permissions_policy;
 }
 
 std::vector<apps::ProtocolHandlerInfo> CreateRandomProtocolHandlers(
@@ -716,18 +683,16 @@ std::vector<proto::WebAppMigrationSource> CreateRandomMigrationSources(
   return sources;
 }
 
-std::optional<proto::PendingMigrationInfo> CreateRandomPendingMigrationInfos(
+std::optional<PendingMigrationInfo> CreateRandomPendingMigrationInfos(
     RandomHelper& random) {
   if (!random.next_bool()) {
     return std::nullopt;
   }
-  proto::PendingMigrationInfo info;
-  info.set_manifest_id("https://example.com/manifest_id_" +
-                       base::NumberToString(random.next_uint()));
-  info.set_behavior(random.next_bool()
-                        ? proto::WEB_APP_MIGRATION_BEHAVIOR_FORCE
-                        : proto::WEB_APP_MIGRATION_BEHAVIOR_SUGGEST);
-  return info;
+  uint32_t random_id = random.next_uint();
+  webapps::ManifestId manifest_id(GURL("https://example.com/manifest_id_" +
+                                       base::NumberToString(random_id)));
+  MigrationBehavior behavior = random.next_enum<MigrationBehavior>();
+  return PendingMigrationInfo(manifest_id, behavior);
 }
 
 }  // namespace
@@ -1084,11 +1049,6 @@ std::unique_ptr<WebApp> CreateRandomWebApp(
   }
 
   app->SetManifestUpdateTime(random.next_time());
-
-
-  if (random.next_bool()) {
-    app->SetPermissionsPolicy(CreateRandomPermissionsPolicy(random));
-  }
 
   if (IsChromeOsDataMandatory()) {
     // Use a separate random generator for CrOS so the result is deterministic

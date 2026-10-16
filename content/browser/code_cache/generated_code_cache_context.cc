@@ -3,15 +3,24 @@
 // found in the LICENSE file.
 #include "content/browser/code_cache/generated_code_cache_context.h"
 
+#include <stdint.h>
+
 #include <memory>
 #include <optional>
+#include <string>
 
+#include "base/containers/span.h"
 #include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback.h"
+#include "base/location.h"
+#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/numerics/safe_conversions.h"
+#include "base/sequence_checker.h"
 #include "base/system/sys_info.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner_thread_mode.h"
@@ -23,13 +32,19 @@
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/common/content_features.h"
+#include "mojo/public/cpp/base/big_buffer.h"
+#include "net/base/cache_type.h"
 #include "net/disk_cache/cache_util.h"
+#include "net/disk_cache/disk_cache.h"
 #include "net/http/http_cache.h"
 #include "third_party/blink/public/common/features.h"
 
 #if !BUILDFLAG(IS_FUCHSIA)
 #include "components/persistent_cache/client.h"
+#include "components/persistent_cache/entry_metadata.h"
+#include "components/persistent_cache/pending_backend.h"
 #include "components/persistent_cache/persistent_cache_collection.h"
+#include "components/persistent_cache/transaction_error.h"
 #endif
 
 namespace content {
@@ -221,7 +236,7 @@ GeneratedCodeCacheContext::ShareReadOnlyConnection(
 
 void GeneratedCodeCacheContext::InsertIntoPersistentCacheCollection(
     const std::string& context_key,
-    std::string_view url,
+    base::span<const uint8_t> resource_key,
     base::span<const uint8_t> content,
     persistent_cache::EntryMetadata metadata) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -230,26 +245,19 @@ void GeneratedCodeCacheContext::InsertIntoPersistentCacheCollection(
     return;
   }
 
-  // Since `content` is coming in through mojo it's important to make sure that
-  // it's copied so it cannot be modified racily. This happens implicitly
-  // because of the way the SQLite backend (the only backend available
-  // currently) of PersistentCache stores data through the BLOB type.
-  //
-  // TODO(crbug.com/377475540): Make an explicit copy here once PersistentCache
-  // handles taking ownership of the memory passed in.
-  RETURN_IF_ERROR(
-      persistent_cache_collection_->Insert(context_key, url, content, metadata),
-      [](persistent_cache::TransactionError error) {
-        // TODO(crbug.com/374930286): Handle or at least address
-        // permanent errors.
-        return;
-      });
+  RETURN_IF_ERROR(persistent_cache_collection_->Insert(
+                      context_key, resource_key, content, metadata),
+                  [](persistent_cache::TransactionError error) {
+                    // TODO(crbug.com/374930286): Handle or at least address
+                    // permanent errors.
+                    return;
+                  });
 }
 
 std::optional<GeneratedCodeCacheContext::MetadataAndContent>
 GeneratedCodeCacheContext::FindInPersistentCacheCollection(
     const std::string& context_key,
-    std::string_view url) {
+    base::span<const uint8_t> resource_key) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   if (!persistent_cache_collection_) {
@@ -267,7 +275,7 @@ GeneratedCodeCacheContext::FindInPersistentCacheCollection(
 
   ASSIGN_OR_RETURN(std::optional<persistent_cache::EntryMetadata> metadata,
                    persistent_cache_collection_->Find(
-                       context_key, url, std::move(buffer_provider)),
+                       context_key, resource_key, std::move(buffer_provider)),
                    // An adapter that is invoked on error. Its return value
                    // percolates up out of this function.
                    [](persistent_cache::TransactionError error)

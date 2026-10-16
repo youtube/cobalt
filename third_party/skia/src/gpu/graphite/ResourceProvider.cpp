@@ -165,24 +165,18 @@ sk_sp<Texture> ResourceProvider::findOrCreateTexture(
         return sk_sp<Texture>(static_cast<Texture*>(resource));
     }
 
-    auto tex = this->createTexture(dimensions, info);
-    if (!tex) {
-        return nullptr;
+    if (auto tex = this->createTexture(dimensions, info, label)) {
+        fResourceCache->insertResource(tex.get(), key, budgeted, shareable);
+        return tex;
     }
 
-    update_and_sync_resource_label(tex.get(), label);
-    fResourceCache->insertResource(tex.get(), key, budgeted, shareable);
-
-    return tex;
+    return nullptr;
 }
 
 sk_sp<Texture> ResourceProvider::createWrappedTexture(const BackendTexture& backendTexture,
                                                       std::string_view label) {
-    sk_sp<Texture> texture = this->onCreateWrappedTexture(backendTexture);
-    if (texture) {
-        update_and_sync_resource_label(texture.get(), label);
-        SkASSERT(texture->ownership() == Ownership::kWrapped);
-    }
+    sk_sp<Texture> texture = this->onCreateWrappedTexture(backendTexture, label);
+    SkASSERT(!texture || texture->ownership() == Ownership::kWrapped);
     return texture;
 }
 
@@ -278,14 +272,13 @@ sk_sp<Buffer> ResourceProvider::findOrCreateBuffer(
         update_and_sync_resource_label(resource, label);
         return sk_sp<Buffer>(static_cast<Buffer*>(resource));
     }
-    auto buffer = this->createBuffer(size, type, accessPattern);
-    if (!buffer) {
-        return nullptr;
+
+    if (auto buffer = this->createBuffer(size, type, accessPattern, label)) {
+        fResourceCache->insertResource(buffer.get(), key, kBudgeted, shareable);
+        return buffer;
     }
 
-    update_and_sync_resource_label(buffer.get(), label);
-    fResourceCache->insertResource(buffer.get(), key, kBudgeted, shareable);
-    return buffer;
+    return nullptr;
 }
 
 namespace {

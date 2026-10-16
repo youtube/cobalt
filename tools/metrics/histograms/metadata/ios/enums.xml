@@ -124,6 +124,17 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//ios/chrome/browser/fullscreen/ui_bundled/fullscreen_metrics.h:FullscreenModeTransitionReason) -->
 
+<!-- LINT.IfChange(GeminiViewState) -->
+
+<enum name="GeminiViewState">
+  <int value="0" label="Unknown"/>
+  <int value="1" label="Hidden"/>
+  <int value="2" label="Collapsed"/>
+  <int value="3" label="Expanded"/>
+</enum>
+
+<!-- LINT.ThenChange(/ios/public/provider/chrome/browser/bwg/bwg_api.h:GeminiViewState) -->
+
 <enum name="GeolocationAPI">
   <int value="0" label="Clear Watch"/>
   <int value="1" label="Get Current Position"/>
@@ -779,7 +790,7 @@ chromium-metrics-reviews@google.com.
   <int value="8" label="Edit Menu (Explain)"/>
 </enum>
 
-<!-- LINT.ThenChange(/ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h:EntryPoint) -->
+<!-- LINT.ThenChange(/ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h:EntryPoint) -->
 
 <!-- LINT.IfChange(IOSGeminiFeedback) -->
 
@@ -847,7 +858,7 @@ chromium-metrics-reviews@google.com.
   <int value="13" label="Keyboard"/>
 </enum>
 
-<!-- LINT.ThenChange(/ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h:FloatyUpdateSource) -->
+<!-- LINT.ThenChange(/ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h:FloatyUpdateSource) -->
 
 <!-- LINT.IfChange(IOSGeminiFREAction) -->
 
@@ -882,7 +893,7 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="Share"/>
 </enum>
 
-<!-- LINT.ThenChange(ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h:ImageActionButtonType) -->
+<!-- LINT.ThenChange(ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h:ImageActionButtonType) -->
 
 <!-- LINT.IfChange(IOSGeminiIneligibilityReason) -->
 
@@ -905,7 +916,7 @@ chromium-metrics-reviews@google.com.
   <int value="4" label="Create Image Selected"/>
 </enum>
 
-<!-- LINT.ThenChange(ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h:InputPlateAttachmentOption) -->
+<!-- LINT.ThenChange(ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h:InputPlateAttachmentOption) -->
 
 <!-- LINT.IfChange(IOSGeminiOSCameraAuthorizationInitialStatus) -->
 

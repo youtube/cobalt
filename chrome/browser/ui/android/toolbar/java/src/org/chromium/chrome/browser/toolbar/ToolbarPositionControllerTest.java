@@ -8,6 +8,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.clearInvocations;
@@ -48,6 +49,7 @@ import org.robolectric.shadows.ShadowPackageManager;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.ResettersForTesting;
 import org.chromium.base.supplier.ObservableSuppliers;
+import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.RobolectricUtil;
@@ -64,6 +66,7 @@ import org.chromium.chrome.browser.browser_controls.BrowserControlsSizer;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider.ControlsPosition;
 import org.chromium.chrome.browser.browser_controls.BrowserStateBrowserControlsVisibilityDelegate;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.prefs.LocalStatePrefs;
 import org.chromium.chrome.browser.prefs.LocalStatePrefsJni;
@@ -84,6 +87,7 @@ import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.display.DisplayAndroid;
 import org.chromium.ui.insets.InsetObserver;
 import org.chromium.url.GURL;
+import org.chromium.url.JUnitTestGURLs;
 
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -93,6 +97,8 @@ import java.util.concurrent.atomic.AtomicReference;
 public class ToolbarPositionControllerTest {
 
     @Rule public MockitoRule mMockitoJUnit = MockitoJUnit.rule();
+    @Mock Tab mTab;
+
     private static final int TOOLBAR_HEIGHT = 56;
     private static final int CONTROL_CONTAINER_ID = 12356;
     private static final int STATUS_BAR_HEIGHT = 10;
@@ -309,6 +315,8 @@ public class ToolbarPositionControllerTest {
     private final SettableNonNullObservableSupplier<Integer> mKeyboardHeightSupplier =
             ObservableSuppliers.createNonNull(0);
     private SettableNonNullObservableSupplier<Profile> mProfileSupplier;
+    private final SettableMonotonicObservableSupplier<Tab> mActivityTabSupplier =
+            ObservableSuppliers.createMonotonic();
     private HistogramWatcher mStartupExpectation;
 
     public static class FakeKeyboardVisibilityDelegate extends KeyboardVisibilityDelegate {
@@ -386,6 +394,7 @@ public class ToolbarPositionControllerTest {
                         mContext,
                         mToolbarPosition,
                         mProfileSupplier,
+                        mActivityTabSupplier,
                         mKeyboardHeightSupplier,
                         mWindowAndroid);
 
@@ -1009,16 +1018,44 @@ public class ToolbarPositionControllerTest {
 
     @Test
     public void testOnToEdgeChange() {
+        mActivityTabSupplier.set(mock(Tab.class));
         int topInset = 50;
 
         // Test case to apply the top inset.
-        mController.onToEdgeChange(topInset, /* consumeTopInset= */ true);
+        mController.onToEdgeChange(topInset, /* consumeTopInset= */ true, LayoutType.BROWSING);
         // Verifies that the topInset is sent to toolbar as a top padding.
         verify(mToolbarLayout).onToEdgeChange(eq(topInset));
 
         // Test case to remove the top inset.
-        mController.onToEdgeChange(topInset, /* consumeTopInset= */ false);
+        mController.onToEdgeChange(topInset, /* consumeTopInset= */ false, LayoutType.BROWSING);
         verify(mToolbarLayout).onToEdgeChange(eq(0));
+    }
+
+    @Test
+    public void testOnToEdgeChange_NullTab_ReturnEarly() {
+        // mActivityTabSupplier is not set, so the active tab is null.
+        int topInset = 50;
+
+        boolean result =
+                mController.onToEdgeChange(
+                        topInset, /* consumeTopInset= */ true, LayoutType.BROWSING);
+
+        assertFalse(result);
+        verify(mToolbarLayout, never()).onToEdgeChange(anyInt());
+    }
+
+    @Test
+    public void testOnToEdgeChange_NullTab_ToolbarSwipe() {
+        // mActivityTabSupplier is not set, so the active tab is null.
+        int topInset = 50;
+
+        boolean result =
+                mController.onToEdgeChange(
+                        topInset, /* consumeTopInset= */ true, LayoutType.TOOLBAR_SWIPE);
+
+        // Toolbar swipe should NOT return early even with a null tab.
+        assertTrue(result);
+        verify(mToolbarLayout).onToEdgeChange(eq(topInset));
     }
 
     @Test
@@ -1126,9 +1163,12 @@ public class ToolbarPositionControllerTest {
 
         // 3. Test active tab is not NTP, and layout changed.
         // We need onToEdgeChange to return true.
-        // maybeForceToolbarLayoutUpdateAndCapture calls onToEdgeChange(0, false).
+        // maybeForceToolbarLayoutUpdateAndCapture calls onToEdgeChange(0, false,
+        // LayoutType.BROWSING).
         // Set mTopInset to something non-zero first.
-        mController.onToEdgeChange(50, true);
+        when(mTab.getUrl()).thenReturn(JUnitTestGURLs.URL_1);
+        mActivityTabSupplier.set(mTab);
+        mController.onToEdgeChange(50, true, LayoutType.BROWSING);
         mController.maybeForceBottomToolbarLayoutUpdateAndCapture(/* isNtpShowing= */ false);
         verify(mControlContainer).doSynchronousLayoutAndCapture();
 

@@ -31,6 +31,7 @@ import "third_party/blink/public/mojom/loader/mixed_content.mojom";
 import "third_party/blink/public/mojom/loader/referrer.mojom";
 import "third_party/blink/public/mojom/messaging/task_attribution_id.mojom";
 import "third_party/blink/public/mojom/navigation/navigation_api_history_entry_arrays.mojom";
+import "third_party/blink/public/mojom/navigation/navigation_type_for_navigation_api.mojom";
 import "third_party/blink/public/mojom/navigation/navigation_policy.mojom";
 import "third_party/blink/public/mojom/navigation/prefetched_signed_exchange_info.mojom";
 import "third_party/blink/public/mojom/navigation/renderer_content_settings.mojom";
@@ -82,15 +83,6 @@ enum NavigationType {
 
   // Navigation to another document.
   DIFFERENT_DOCUMENT,
-};
-
-// Maps to
-// https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigateevent-navigationtype-dev.
-enum NavigationTypeForNavigationApi {
-  kPush,
-  kTraverse,
-  kReplace,
-  kReload,
 };
 
 // Used by the renderer to indicate a case where a standard navigation that
@@ -730,6 +722,14 @@ struct CommitNavigationParams {
   // The permissions policy to use for the document. This is used for Isolated
   // Web Apps to pass the policy from the manifest to the renderer.
   array<IsolatedAppPermissionPolicyEntry>? isolated_app_policy;
+
+  // A text fragment selector (that uses the syntax defined in
+  // https://wicg.github.io/scroll-to-text-fragment/#syntax) to scroll the
+  // matched text into the viewport without applying the standard highlight
+  // styling. This is used for cross-device scroll restoration.
+  // The string should contain only the selector value (the part after
+  // "text=" in a URL directive), not the "text=" prefix itself.
+  string? internal_scroll_to_text_fragment;
 };
 
 // Parameters used to dispatch the `pageswap` event on the old Document for

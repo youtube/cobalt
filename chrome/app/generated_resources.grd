@@ -290,9 +290,7 @@ are declared in tools/grit/grit_args.gni.
       <part file="bookmarks_strings.grdp" />
 
       <!-- Glic specific strings -->
-      <if expr="enable_glic">
-        <part file="glic_strings.grdp" />
-      </if>
+      <part file="glic_strings.grdp" />
 
       <!-- Global Media Controls specific strings -->
       <part file="gmc_strings.grdp" />
@@ -5359,6 +5357,9 @@ are declared in tools/grit/grit_args.gni.
       <message name="IDS_EXTENSION_ASK_PARENT_PROMPT_ASK_IN_PERSON_BUTTON" desc="Text for the ask-in-person button on the extension ask parent for approval install prompt.">
         Ask in person
       </message>
+      <message name="IDS_EXTENSION_PARENT_APPROVAL_PROMPT_TITLE" desc="Titlebar of the extension or app permissions prompt. Asks the user if they want to grant the permissions to the particular extension or app.">
+        Install "<ph name="EXTENSION_NAME">$1<ex>Gmail Checker</ex></ph>"
+      </message>
       <if expr="use_titlecase">
         <message name="IDS_EXTENSION_EXTERNAL_INSTALL_PROMPT_ACCEPT_BUTTON_EXTENSION" desc="In Title Case: Button on the external install prompt to enable an extension installed by a third party.">
           Enable Extension
@@ -5435,6 +5436,9 @@ are declared in tools/grit/grit_args.gni.
       </message>
       <message name="IDS_EXTENSION_PROMPT_CAN_ACCESS" desc="Second line in the content area of the extension or app permissions view dialog. Note that the exact wording is important. This should mean that the extension _can now_ access the listed privileges, because it has already been installed. This message appeared because the user must approve new permissions of the extension or app.">
         It can:
+      </message>
+      <message name="IDS_EXTENSION_PROMPT_REQUESTS_PERMISSIONS" desc="Second line in the content area of the extension or app installation prompt. Note that the exact wording is important. This should mean that the extension or app _can_ access the listed privileges, but not necessarily that it will or needs to.">
+        This extension requests the following permissions:
       </message>
       <message name="IDS_EXTENSION_PROMPT_GRANT_PERMISSIONS_CHECKBOX" desc="Label next to the checkbox in the extension or app installation prompt, which indicates if a user wants to grant access to all requested sites.">
         Grant access to all requested sites.
@@ -6905,6 +6909,9 @@ Keep your key file in a safe place. You will need it to create new versions of y
       </message>
       <message name="IDS_WEB_APP_MENU_BUTTON_UPDATE" desc="Short label next to three-dot menu in a web app window when an update for the web app is available">
         App update available
+      </message>
+      <message name="IDS_WEB_APP_BLOCKED_MIGRATION_MESSAGE" desc="Message shown in an info bar when a web app update is blocked by enterprise policy.">
+        An update for this app has been blocked by your admin and the app may not work correctly
       </message>
       <message name="IDS_WEB_APP_ENABLE_WINDOW_CONTROLS_OVERLAY_TOOLTIP" formatter_data="android_java">
         Hide title bar
@@ -10591,17 +10598,30 @@ Keep your key file in a safe place. You will need it to create new versions of y
 
       <!--Desktop to iOS promo strings-->
       <if expr="not is_android">
-        <message name="IDS_IOS_DESKTOP_PROMO_BUBBLE_BUTTON_DECLINE" desc="The text inside the iOS promo bubble button allowing the user to decline.">
-          No thanks
-        </message>
-        <message name="IDS_IOS_DESKTOP_PROMO_BUBBLE_REMINDER_CONFIRMATION_TITLE" desc="The title text for the iOS promo bubble button that confirms the user will recieve a reminder sent to their iOS device.">
+        <if expr="use_titlecase">
+          <message name="IDS_IOS_DESKTOP_PROMO_BUBBLE_BUTTON_ACCEPT_REMINDER" desc="The text inside the iOS promo bubble button allowing the user to accept by getting a reminder.">
+            Remind Me on iOS
+          </message>
+          <message name="IDS_IOS_DESKTOP_PROMO_BUBBLE_BUTTON_DECLINE" desc="The text inside the iOS promo bubble button allowing the user to decline.">
+            No Thanks
+          </message>
+          <message name="IDS_IOS_DESKTOP_PROMO_BUBBLE_REMINDER_CONFIRMATION_BUTTON" desc="The button text for the iOS promo bubble button that confirms the user will receive a reminder sent to their phone.">
+            Got It
+          </message>
+        </if>
+        <if expr="not use_titlecase">
+          <message name="IDS_IOS_DESKTOP_PROMO_BUBBLE_BUTTON_ACCEPT_REMINDER" desc="The text inside the iOS promo bubble button allowing the user to accept by getting a reminder.">
+            Remind me on iOS
+          </message>
+          <message name="IDS_IOS_DESKTOP_PROMO_BUBBLE_BUTTON_DECLINE" desc="The text inside the iOS promo bubble button allowing the user to decline.">
+            No thanks
+          </message>
+          <message name="IDS_IOS_DESKTOP_PROMO_BUBBLE_REMINDER_CONFIRMATION_BUTTON" desc="The button text for the iOS promo bubble button that confirms the user will receive a reminder sent to their phone.">
+            Got it
+          </message>
+        </if>
+        <message name="IDS_IOS_DESKTOP_PROMO_BUBBLE_REMINDER_CONFIRMATION_TITLE" desc="The title text for the iOS promo bubble button that confirms the user will receive a reminder sent to their iOS device.">
           Reminder sent to your <ph name="DEVICE_TYPE">$1<ex>iPad</ex></ph>
-        </message>
-        <message name="IDS_IOS_DESKTOP_PROMO_BUBBLE_REMINDER_CONFIRMATION_BUTTON" desc="The button text for the iOS promo bubble button that confirms the user will recieve a reminder sent to their phone.">
-          Got it
-        </message>
-        <message name="IDS_IOS_DESKTOP_PROMO_BUBBLE_BUTTON_ACCEPT_REMINDER" desc="The text inside the iOS promo bubble button allowing the user to accept by getting a reminder.">
-          Remind me on iOS
         </message>
         <message name="IDS_IOS_DESKTOP_PROMO_BUBBLE_LENS_FEATURE_NAME" desc="The product name for the Google Lens feature.">
           Google Lens
@@ -19455,6 +19475,9 @@ Please help our engineers fix this problem. Tell us what happened right before y
       <message name="IDS_GLIC_SHARE_IMAGE_FAILED_TOAST_BODY" desc="Text on a toast notification that is shown when sharing an image with Gemini fails (when using the 'Create image with Gemini' context menu item)">
         Could not share image with Gemini. Try again or try another image.
       </message>
+      <message name="IDS_GLIC_SELECTION_OVERLAY_RENDERER_LABEL" desc="The label for the renderer process housing the Gemini's selection overlay.">
+        Gemini Selection Overlay
+      </message>
       <message name="IDS_COPIED_TO_CLIPBOARD_TOAST_BODY" desc="Text on a toast notification that is shown when an item has been copied to clipboard.">
         Copied to clipboard
       </message>
@@ -19840,11 +19863,11 @@ Please help our engineers fix this problem. Tell us what happened right before y
     </if>
 
     <!-- Chrome-specific PDF strings -->
-    <if expr="enable_glic and enable_pdf">
-      <message name="IDS_PDF_GLIC_SUMMARIZE" translateable="false" desc="Button label for the button to summarize PDFs.">
+    <if expr="enable_pdf">
+      <message name="IDS_PDF_GLIC_SUMMARIZE" desc="Button label for the button to summarize PDFs.">
         Summarize
       </message>
-      <message name="IDS_PDF_GLIC_SUMMARIZE_TOOLTIP" translateable="false" desc="Tooltip for the button to summarize PDFs with Gemini.">
+      <message name="IDS_PDF_GLIC_SUMMARIZE_TOOLTIP" desc="Tooltip for the button to summarize PDFs with Gemini.">
         Summarize with Gemini
       </message>
     </if>
@@ -19942,7 +19965,7 @@ Please help our engineers fix this problem. Tell us what happened right before y
       Autofill your passwords
     </message>
     <message name="IDS_TIPS_NOTIFICATIONS_PASSWORD_AUTOFILL_SUBTITLE" desc="Subtitle for the password autofill tip notification.">
-      Create, save, and manage your passwords so you can easily sign in to sites and apps using Chrome
+      Create, save, and manage your passwords so you can easily sign in
     </message>
     <message name="IDS_TIPS_NOTIFICATIONS_SIGNIN_TITLE" desc="Title for the sign-in tip notification. [CHAR_LIMIT=32]">
       Make Chrome your own
@@ -19955,6 +19978,18 @@ Please help our engineers fix this problem. Tell us what happened right before y
     </message>
     <message name="IDS_TIPS_NOTIFICATIONS_CREATE_TAB_GROUPS_SUBTITLE" desc="Subtitle for the create tab groups tip notification.">
       Create tab groups that automatically save and update across all your devices
+    </message>
+    <message name="IDS_TIPS_NOTIFICATIONS_CUSTOMIZE_MVT_TITLE" desc="Title for the customize MVT tip notification. [CHAR_LIMIT=32]">
+      Customize your shortcuts
+    </message>
+    <message name="IDS_TIPS_NOTIFICATIONS_CUSTOMIZE_MVT_SUBTITLE" desc="Subtitle for the customize MVT tip notification.">
+      Tap and hold to pin your most visited websites for easy access next time
+    </message>
+    <message name="IDS_TIPS_NOTIFICATIONS_RECENT_TABS_TITLE" desc="Title for the recent tabs tip notification. [CHAR_LIMIT=32]">
+      Pick up where you left off
+    </message>
+    <message name="IDS_TIPS_NOTIFICATIONS_RECENT_TABS_SUBTITLE" desc="Subtitle for the recent tabs tip notification.">
+      You can reopen tabs that you've recently closed from wherever you use Chrome
     </message>
 
     <!-- chrome://updater -->

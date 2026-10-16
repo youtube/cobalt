@@ -468,7 +468,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   DirectHandle<AccessorInfo> NewAccessorInfo();
 
   DirectHandle<InterceptorInfo> NewInterceptorInfo(
-      AllocationType allocation = AllocationType::kOld);
+      InterceptorKind kind, AllocationType allocation = AllocationType::kOld);
 
   DirectHandle<ErrorStackData> NewErrorStackData(
       DirectHandle<UnionOf<JSAny, FixedArray>>
@@ -799,7 +799,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   DirectHandle<WasmSuspenderObject> NewWasmSuspenderObject();
   DirectHandle<WasmSuspenderObject> NewWasmSuspenderObjectInitialized();
   DirectHandle<WasmContinuationObject> NewWasmContinuationObject(
-      wasm::StackMemory* stack);
+      DirectHandle<WasmStackObject> stack_obj);
+  DirectHandle<WasmStackObject> NewWasmStackObject(wasm::StackMemory* stack);
   DirectHandle<WasmStruct> NewWasmStruct(const wasm::StructType* type,
                                          wasm::WasmValue* args,
                                          DirectHandle<Map> map);

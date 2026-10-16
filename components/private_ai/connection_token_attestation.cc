@@ -13,6 +13,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/task/sequenced_task_runner.h"
 #include "components/private_ai/common/private_ai_logger.h"
 #include "components/private_ai/phosphor/token_manager.h"
 #include "components/private_ai/proto/private_ai.pb.h"
@@ -50,8 +51,11 @@ ConnectionTokenAttestation::ConnectionTokenAttestation(
   CHECK(logger_);
   CHECK(on_disconnect_);
 
-  // Sending attestation request as soon as possible.
-  FetchToken();
+  // Sending attestation request asynchronously to avoid failures
+  // during construction of this object.
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(&ConnectionTokenAttestation::FetchToken,
+                                weak_factory_.GetWeakPtr()));
 }
 
 ConnectionTokenAttestation::~ConnectionTokenAttestation() = default;
@@ -127,6 +131,7 @@ void ConnectionTokenAttestation::OnAttestationResponse(
 
 void ConnectionTokenAttestation::OnDestroy(ErrorCode error) {
   attestation_state_ = AttestationState::kFailed;
+  on_disconnect_.Reset();
 
   auto pending_requests = std::move(pending_requests_);
   for (auto& pending_request : pending_requests) {
@@ -134,6 +139,10 @@ void ConnectionTokenAttestation::OnDestroy(ErrorCode error) {
   }
 
   inner_connection_->OnDestroy(error);
+
+  token_manager_ = nullptr;
+  logger_ = nullptr;
+  weak_factory_.InvalidateWeakPtrsAndDoom();
 }
 
 void ConnectionTokenAttestation::CallOnDisconnect(ErrorCode error_code) {

@@ -1361,6 +1361,7 @@ void InterceptorInfo::InterceptorInfoPrint(std::ostream& os) {
     os << "\n - deleter: " << AS_PTR(indexed_deleter(isolate));
     os << "\n - enumerator: " << AS_PTR(indexed_enumerator(isolate));
     os << "\n - definer: " << AS_PTR(indexed_definer(isolate));
+    os << "\n - index_of: " << AS_PTR(indexed_index_of(isolate));
   }
 
   os << "\n --- flags: ";
@@ -1736,6 +1737,15 @@ void WeakFixedArray::WeakFixedArrayPrint(std::ostream& os) {
   os << "\n";
 }
 
+void WeakHomomorphicFixedArray::WeakHomomorphicFixedArrayPrint(
+    std::ostream& os) {
+  PrintHeader(os, "WeakHomomorphicFixedArray");
+  uint32_t len = ulength().value();
+  os << "\n - length: " << len;
+  PrintWeakArrayElements(os, this, len);
+  os << "\n";
+}
+
 void TrustedWeakFixedArray::TrustedWeakFixedArrayPrint(std::ostream& os) {
   PrintHeader(os, "TrustedWeakFixedArray");
   uint32_t len = ulength().value();
@@ -1950,7 +1960,8 @@ void FeedbackNexus::Print(std::ostream& os) {
     case FeedbackSlotKind::kLoadKeyed:
     case FeedbackSlotKind::kLoadProperty: {
       os << InlineCacheState2String(ic_state());
-      if (ic_state() == InlineCacheState::MONOMORPHIC) {
+      if (ic_state() == InlineCacheState::MONOMORPHIC ||
+          ic_state() == InlineCacheState::HOMOMORPHIC) {
         os << "\n   " << Brief(GetFeedback()) << ": ";
         if (GetFeedbackExtra().IsCleared()) {
           os << " [cleared]\n";
@@ -3096,6 +3107,12 @@ void WasmSuspendingObject::WasmSuspendingObjectPrint(std::ostream& os) {
 
 void WasmContinuationObject::WasmContinuationObjectPrint(std::ostream& os) {
   PrintHeader(os, "WasmContinuationObject");
+  os << "\n - stack_obj: " << Brief(stack_obj());
+  os << "\n";
+}
+
+void WasmStackObject::WasmStackObjectPrint(std::ostream& os) {
+  PrintHeader(os, "WasmStackObject");
   os << "\n - stack: " << (stack() == nullptr ? -1 : stack()->id());
   os << "\n";
 }

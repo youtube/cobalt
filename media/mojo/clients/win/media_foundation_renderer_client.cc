@@ -317,8 +317,9 @@ void MediaFoundationRendererClient::OnSetOutputRectDone(
   if (!success) {
     DLOG(ERROR) << "Failed to SetOutputRect";
     MEDIA_LOG(WARNING, media_log_) << "Failed to SetOutputRect";
-    // Ignore this error as video can possibly be seen but displayed incorrectly
-    // against the video output area.
+    // Fatal error or hardware context reset should've already been handled in
+    // MediaFoundationRenderer. Ignore other errors as video can possibly be
+    // seen but displayed incorrectly against the video output area.
     return;
   }
 

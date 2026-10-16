@@ -10,12 +10,14 @@
 #include "base/check_deref.h"
 #include "base/command_line.h"
 #include "base/containers/flat_set.h"
+#include "base/notimplemented.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "components/headless/display_util/headless_display_util.h"
 #include "components/headless/screen_info/headless_screen_info.h"
 #include "ui/display/display.h"
 #include "ui/display/headless/headless_screen_manager.h"
+#include "ui/display/headless/headless_screen_util.h"
 #include "ui/display/util/display_util.h"
 #include "ui/gfx/switches.h"
 #include "ui/ozone/platform/headless/headless_window.h"
@@ -123,8 +125,8 @@ void HeadlessScreen::CreateDisplayList() {
     display.set_label(it.label);
     display.set_color_depth(it.color_depth);
 
-    display::HeadlessScreenManager::SetDisplayGeometry(
-        display, it.bounds, it.work_area_insets, it.device_pixel_ratio);
+    headless::SetDisplayGeometry(display, it.bounds, it.work_area_insets,
+                                 it.device_pixel_ratio);
 
     if (it.rotation) {
       CHECK(display::Display::IsValidRotation(it.rotation));
@@ -159,6 +161,10 @@ int64_t HeadlessScreen::AddDisplay(const display::Display& display) {
 void HeadlessScreen::RemoveDisplay(int64_t display_id) {
   display_list_.RemoveDisplay(display_id);
   display::RemoveInternalDisplayId(display_id);
+}
+
+void HeadlessScreen::SetPrimaryDisplay(int64_t display_id) {
+  NOTIMPLEMENTED();
 }
 
 const std::vector<display::Display>& HeadlessScreen::GetAllDisplays() const {

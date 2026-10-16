@@ -20,6 +20,7 @@
 #include "src/numbers/ieee754.h"
 #include "src/roots/roots-inl.h"
 #include "src/utils/memcopy.h"
+#include "src/wasm/leb-helper.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects-inl.h"
 
@@ -1040,7 +1041,7 @@ Address suspend_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
   wasm::StackMemory* from = isolate->isolate_data()->active_stack();
   DCHECK(from->Contains(arg_buffer));
   from->set_arg_buffer(arg_buffer);
-  cont->init_stack(isolate, from);
+  cont->set_stack_obj(from->stack_obj());
   from->set_current_continuation(cont);
   from->set_param_types(sig->returns());
   wasm::StackMemory* to = from->jmpbuf()->parent;
@@ -1069,22 +1070,30 @@ Address suspend_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
     // Get the handler table and search for a matching tag.
     WasmCode* wasm_code =
         wasm::GetWasmCodeManager()->LookupCode(isolate, target_pc);
-    base::Vector<const WasmCode::EffectHandler> effect_handlers =
-        wasm_code->effect_handlers();
+    base::Vector<const uint8_t> effect_handlers = wasm_code->effect_handlers();
     Tagged<Object> trusted_instance_data_obj(base::Memory<Address>(
         target_fp + WasmFrameConstants::kWasmInstanceDataOffset));
     auto trusted_instance_data =
         TrustedCast<WasmTrustedInstanceData>(trusted_instance_data_obj);
-    for (const auto& handler : effect_handlers) {
-      auto tag = trusted_instance_data->tags_table()->get(handler.tag_index());
-      if (wasm_code->instruction_start() + handler.call_offset == target_pc &&
-          !handler.is_switch() && tag == wanted_tag) {
-        found = true;
-        to->jmpbuf()->pc =
-            wasm_code->instruction_start() + handler.handler_offset;
-        to->jmpbuf()->sp = target_sp;
-        to->jmpbuf()->fp = target_fp;
-        break;
+    const uint8_t* effect_handlers_ptr = effect_handlers.data();
+    while (effect_handlers_ptr != effect_handlers.end()) {
+      uint32_t call_offset = LEBHelper::read_u32v(&effect_handlers_ptr);
+      EffectHandlerTagIndex tag_index{
+          LEBHelper::read_u32v(&effect_handlers_ptr)};
+      if (!tag_index.is_switch()) {
+        uint32_t handler_offset = LEBHelper::read_u32v(&effect_handlers_ptr);
+        auto tag = trusted_instance_data->tags_table()->get(tag_index.index());
+        if (wasm_code->instruction_start() + call_offset == target_pc &&
+            tag == wanted_tag) {
+          found = true;
+          to->jmpbuf()->pc = wasm_code->instruction_start() + handler_offset;
+          to->jmpbuf()->sp = target_sp;
+          to->jmpbuf()->fp = target_fp;
+          break;
+        }
+      } else {
+        // TODO(fgm): resume target cont.
+        UNIMPLEMENTED();
       }
     }
     if (found) break;
@@ -1114,6 +1123,23 @@ void return_stack(Isolate* isolate, wasm::StackMemory* to) {
   isolate->SwitchStacks<JumpBuffer::Retired, JumpBuffer::Inactive>(
       from, to, kNullAddress, kNullAddress, kNullAddress);
   isolate->RetireWasmStack(from);
+}
+
+void return_jspi_stack(Isolate* isolate, wasm::StackMemory* to) {
+  Tagged<WasmSuspenderObject> suspender =
+      isolate->isolate_data()->active_suspender();
+  // Clear the external stack pointer to avoid a UAF.
+  suspender->set_stack(isolate, nullptr);
+  // Also unpublish the trusted suspender object just in case.
+  suspender->Unpublish(isolate);
+  return_stack(isolate, to);
+}
+
+void return_wasmfx_stack(Isolate* isolate, wasm::StackMemory* to) {
+  // Clear the external stack pointer from the WasmStackObject to avoid UAFs.
+  wasm::StackMemory* from = isolate->isolate_data()->active_stack();
+  from->stack_obj()->set_stack(isolate, nullptr);
+  return_stack(isolate, to);
 }
 
 void retire_stack(Isolate* isolate, wasm::StackMemory* stack) {

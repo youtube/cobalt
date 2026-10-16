@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "ash/public/cpp/login_accelerators.h"
+#include "base/memory/raw_ref.h"
 #include "base/scoped_observation.h"
 #include "chrome/browser/ash/browser_delegate/browser_controller.h"
 #include "chrome/browser/ash/login/oobe_quick_start/target_device_bootstrap_controller.h"
@@ -24,6 +25,12 @@
 #include "components/user_manager/user_type.h"
 
 class AccountId;
+class ApplicationLocaleStorage;
+class PrefService;
+
+namespace policy {
+class BrowserPolicyConnectorAsh;
+}  // namespace policy
 
 namespace ash {
 
@@ -39,7 +46,13 @@ class LoginDisplayHostCommon : public LoginDisplayHost,
                                public SigninUI,
                                public ash::SessionTerminationManager::Observer {
  public:
-  explicit LoginDisplayHostCommon(bool update_geolocation_usage_allowed);
+  // `local_state`, `application_locale_storage` and
+  // `browser_policy_connector_ash` must be non-null and must outlive `this`.
+  LoginDisplayHostCommon(
+      PrefService* local_state,
+      ApplicationLocaleStorage* application_locale_storage,
+      policy::BrowserPolicyConnectorAsh* browser_policy_connector_ash,
+      bool update_geolocation_usage_allowed);
 
   LoginDisplayHostCommon(const LoginDisplayHostCommon&) = delete;
   LoginDisplayHostCommon& operator=(const LoginDisplayHostCommon&) = delete;
@@ -88,8 +101,11 @@ class LoginDisplayHostCommon : public LoginDisplayHost,
   void ShowSigninError(SigninError error, const std::string& details) final;
   void ShowOobeNotCompletedError() final;
 
+  // TODO: b/481969867 - Remove after managed local pin and password flag is
+  // enabled.
   void SAMLConfirmPassword(::login::StringList scraped_passwords,
                            std::unique_ptr<UserContext> user_context) final;
+  void ShowSamlConfirmPassword(std::unique_ptr<UserContext> user_context) final;
   void ShowPasswordSelectionScreen() final;
   WizardContext* GetWizardContextForTesting() final;
 
@@ -123,6 +139,11 @@ class LoginDisplayHostCommon : public LoginDisplayHost,
 
   // Triggers |on_wizard_controller_created_for_tests_| callback.
   void NotifyWizardCreated();
+
+  const raw_ref<PrefService> local_state_;
+  const raw_ref<ApplicationLocaleStorage> application_locale_storage_;
+  const raw_ref<policy::BrowserPolicyConnectorAsh>
+      browser_policy_connector_ash_;
 
  private:
   void Cleanup();

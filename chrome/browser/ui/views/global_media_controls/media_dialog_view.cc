@@ -27,7 +27,6 @@
 #include "chrome/browser/ui/views/controls/rich_hover_button.h"
 #include "chrome/browser/ui/views/global_media_controls/media_dialog_view_observer.h"
 #include "chrome/browser/ui/views/global_media_controls/media_item_ui_device_selector_view.h"
-#include "chrome/browser/ui/views/global_media_controls/media_item_ui_footer_view.h"
 #include "chrome/browser/ui/views/global_media_controls/media_item_ui_helper.h"
 #include "chrome/browser/ui/views/global_media_controls/media_item_ui_legacy_cast_footer_view.h"
 #include "chrome/grit/generated_resources.h"
@@ -214,7 +213,7 @@ void MediaDialogView::RefreshMediaItem(
       BuildFooter(id, item, profile_, media_color_theme_));
   items_[id]->UpdateDeviceSelectorView(
       BuildDeviceSelector(id, item, service_, service_, profile_, entry_point_,
-                          show_devices, media_color_theme_));
+                          media_color_theme_, show_devices));
 
   UpdateBubbleSize();
 }
@@ -679,7 +678,7 @@ MediaDialogView::BuildMediaItemUIUpdatedView(
   return std::make_unique<global_media_controls::MediaItemUIUpdatedView>(
       id, item, media_color_theme_,
       BuildDeviceSelector(id, item, service_, service_, profile_, entry_point_,
-                          show_devices, media_color_theme_),
+                          media_color_theme_, show_devices),
       BuildFooter(id, item, profile_, media_color_theme_));
 }
 

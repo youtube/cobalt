@@ -56,7 +56,7 @@ class FakeDtlsTransport : public DtlsTransportInternal {
             ice_transport_ref_->internal())),
         transport_name_(ice_transport_->transport_name()),
         component_(ice_transport_->component()),
-        dtls_fingerprint_("", nullptr) {
+        dtls_fingerprint_("", ArrayView<const uint8_t>()) {
     RTC_DCHECK(ice_transport_);
     ice_transport_->RegisterReceivedPacketCallback(
         this, [&](PacketTransportInternal* transport,

@@ -18,6 +18,8 @@ class CORE_EXPORT HTMLUserMediaElement : public HTMLCapabilityElementBase {
 
   explicit HTMLUserMediaElement(Document& document);
 
+  DEFINE_ATTRIBUTE_EVENT_LISTENER(stream, kStream)
+
   // HTML Element
   bool IsHTMLUserMediaElement() const final { return true; }
 
@@ -25,6 +27,10 @@ class CORE_EXPORT HTMLUserMediaElement : public HTMLCapabilityElementBase {
 
   Vector<mojom::blink::PermissionDescriptorPtr> ParseType(
       const AtomicString& type);
+
+  // HTMLCapabilityElementBase:
+  mojom::blink::EmbeddedPermissionRequestDescriptorPtr
+  CreateEmbeddedPermissionRequestDescriptor() override;
 };
 
 // The custom type casting is required for the UserMediaElement OT because the

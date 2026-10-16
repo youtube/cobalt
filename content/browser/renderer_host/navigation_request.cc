@@ -1461,7 +1461,8 @@ std::unique_ptr<NavigationRequest> NavigationRequest::CreateRendererInitiated(
           /*navigation_metrics_token=*/base::UnguessableToken::Create(),
           /*commit_target_frame_token=*/std::nullopt,
           /*is_initial_webui=*/false,
-          /*isolated_app_policy=*/std::nullopt);
+          /*isolated_app_policy=*/std::nullopt,
+          /*internal_scroll_to_text_fragment=*/std::nullopt);
 #if !BUILDFLAG(IS_ANDROID)
   CHECK(!GetContentClient()->browser()->IsInitialWebUIURL(common_params->url));
 #endif
@@ -1618,7 +1619,8 @@ NavigationRequest::CreateForSynchronousRendererCommit(
           /*navigation_metrics_token=*/base::UnguessableToken::Create(),
           /*commit_target_frame_token=*/std::nullopt,
           /*is_initial_webui=*/false,
-          /*isolated_app_policy=*/std::nullopt);
+          /*isolated_app_policy=*/std::nullopt,
+          /*internal_scroll_to_text_fragment=*/std::nullopt);
   blink::mojom::BeginNavigationParamsPtr begin_params =
       blink::mojom::BeginNavigationParams::New();
   std::unique_ptr<NavigationRequest> navigation_request(new NavigationRequest(
@@ -2144,13 +2146,13 @@ NavigationRequest::NavigationRequest(
   if (NeedsUrlLoader() && common_params_->url.SchemeIsHTTPOrHTTPS()) {
     if (GetContentClient()->browser()->ShouldPreconnectNavigation(
             frame_tree_node_->current_frame_host()) &&
-        IsAllowedByConnectionAllowlist()) {
+        IsAllowedByConnectionAllowlist(/*is_redirect=*/false)) {
       auto* storage_partition =
           frame_tree_node_->current_frame_host()->GetStoragePartition();
 
       // Initiator frame's `network_restriction_id` is not passed because the
       // preconnection has already been checked against the connection-allowlist
-      // by the `IsAllowedByConnectionAllowlist()` call above.
+      // by the `IsAllowedByConnectionAllowlist(false)` call above.
       storage_partition->GetNetworkContext()->PreconnectSockets(
           1, common_params_->url, network::mojom::CredentialsMode::kInclude,
           GetIsolationInfo().network_anonymization_key(),
@@ -2906,7 +2908,7 @@ void NavigationRequest::BeginNavigationImpl() {
   }
 
   // Connection Allowlist: check whether navigation to the url is allowed.
-  if (!IsAllowedByConnectionAllowlist()) {
+  if (!IsAllowedByConnectionAllowlist(/*is_redirect=*/false)) {
     // Create a navigation handle so that the correct error code can be set on
     // it by OnRequestFailedInternal().
     StartNavigation();
@@ -3566,6 +3568,19 @@ void NavigationRequest::OnRequestRedirected(
   TRACE_EVENT("navigation", "NavigationRequest::OnRequestRedirected",
               perfetto::Flow::FromPointer(this));
   ScopedCrashKeys crash_keys(*this);
+
+  if (!was_redirected_ &&
+      !IsAllowedByConnectionAllowlist(/*is_redirect=*/true)) {
+    auto completion_status =
+        network::URLLoaderCompletionStatus(net::ERR_UNSAFE_REDIRECT);
+    error_navigation_trigger_ = ErrorNavigationTrigger::kRedirectNotAllowed;
+    OnRequestFailedInternal(completion_status, false /* skip_throttles */,
+                            std::nullopt /* error_page_content */,
+                            false /* collapse_frame */);
+    // DO NOT ADD CODE after this. The previous call to OnRequestFailedInternal
+    // has destroyed the NavigationRequest.
+    return;
+  }
 
   // Sanity check - this can only be set at commit time.
   DCHECK(!auth_challenge_info_);
@@ -7355,13 +7370,15 @@ void NavigationRequest::UpdateSiteInfo(
   SetExpectedProcess(post_redirect_process);
 }
 
-bool NavigationRequest::IsAllowedByConnectionAllowlist() {
+bool NavigationRequest::IsAllowedByConnectionAllowlist(bool is_redirect) {
   if (!base::FeatureList::IsEnabled(network::features::kConnectionAllowlists)) {
     return true;
   }
 
-  // Determine the PolicyContainerPolicies to use based on navigation type.
-  const PolicyContainerPolicies* policies = nullptr;
+  if (is_redirect && connection_allowlists_blocks_redirect_) {
+    // TODO(crbug.com/447954811): Implement reporting.
+    return false;
+  }
 
   // If it is renderer-initiated, initiator_frame_token_ will be set and
   // connection allowlist should be checked unless it is a same-document
@@ -7406,6 +7423,9 @@ bool NavigationRequest::IsAllowedByConnectionAllowlist() {
           navigation_state->policy_container_host();
     }
   }
+
+  // Determine the PolicyContainerPolicies to use based on navigation type.
+  const PolicyContainerPolicies* policies = nullptr;
   if (initiator_policy_container_host) {
     policies = &initiator_policy_container_host->policies();
   }
@@ -7414,8 +7434,18 @@ bool NavigationRequest::IsAllowedByConnectionAllowlist() {
     return true;
   }
 
-  return network::ConnectionAllowlistMatchesUrl(
-      policies->connection_allowlists.enforced.value(), common_params_->url);
+  if (network::ConnectionAllowlistMatchesUrl(
+          policies->connection_allowlists.enforced.value(),
+          common_params_->url)) {
+    // Default-block any server-side redirects.
+    // TODO(crbug.com/447954811): Implement allowing server-side redirects
+    // based on an attribute. Consider not having a bool on the
+    // NavigationRequest as part of that change.
+    connection_allowlists_blocks_redirect_ = true;
+    return true;
+  }
+
+  return false;
 }
 
 bool NavigationRequest::IsAllowedByCSPDirective(
@@ -11440,7 +11470,7 @@ NavigationRequest::GetMutableRuntimeFeatureStateContext() {
 }
 
 const blink::RuntimeFeatureStateContext&
-NavigationRequest::GetRuntimeFeatureStateContext() {
+NavigationRequest::GetRuntimeFeatureStateContext() const {
   return runtime_feature_state_context_;
 }
 

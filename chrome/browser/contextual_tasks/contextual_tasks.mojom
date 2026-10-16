@@ -73,6 +73,10 @@ interface PageHandler {
   // Returns if the given URL is an AI page.
   IsAiPage(url.mojom.Url url) => (bool is_ai_page);
 
+  // Checks if the given task corresponds to an error page. If so, triggers the
+  // error page to be shown. This is only called when the WebUI is first opened.
+  IsPendingErrorPage(mojo_base.mojom.Uuid task_id) => (bool is_pending_error_page);
+
   // Set the title of the active thread.
   SetThreadTitle(string title);
 
@@ -205,7 +209,10 @@ interface Page {
   OnAiPageStatusChanged(bool is_ai_page);
 
   // Called by the browser process (C++) when the Lens overlay is shown/hidden.
-  OnLensOverlayStateChanged(bool is_showing);
+  // This also passes whether the overlay hint text should be shown for the
+  // current overlay invocation. This hint text could still be overridden by
+  // other hint texts and is not guaranteed to be shown.
+  OnLensOverlayStateChanged(bool is_showing, bool maybe_show_overlay_hint_text);
 
   // Called by the browser process (C++) to notify the UI to show the error
   // page.
