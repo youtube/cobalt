@@ -497,7 +497,7 @@ void LocalStorageImpl::OnDatabaseOpened(DbStatus status) {
     // If we failed to open the database, try to delete and recreate the
     // database, or ultimately fallback to an in-memory database.
 #if BUILDFLAG(IS_COBALT)
-    LogLevelDBStatusHistogram("Cobalt.LocalStorage.DatabaseOpenError", status);
+    status.Log("Cobalt.LocalStorage.DatabaseOpenError", in_memory_);
 #endif
     DeleteAndRecreateDatabase();
     return;
@@ -680,8 +680,7 @@ void LocalStorageImpl::OnCommitResult(DbStatus status) {
     // errors), but those commits won't reach OnCommitResult because the area
     // will have been deleted before the commit finishes.
 #if BUILDFLAG(IS_COBALT)
-    LogLevelDBStatusHistogram("Cobalt.LocalStorage.DatabaseCommitError",
-                              status);
+    status.Log("Cobalt.LocalStorage.DatabaseCommitError", in_memory_);
 #endif
     DeleteAndRecreateDatabase();
   }

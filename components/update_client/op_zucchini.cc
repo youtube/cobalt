@@ -38,8 +38,19 @@ base::OnceClosure ZucchiniOperation(
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
 #endif
         callback) {
+#if BUILDFLAG(IS_STARBOARD)
+  const base::FilePath& patch_file = patch_operation_result.response;
+#endif
+  base::MakeRefCounted<DeltaPatchOperation>(
+      crx_cache, event_adder, state_tracker, previous_hash,
+      base::File::FLAG_CREATE | base::File::FLAG_READ | base::File::FLAG_WRITE |
+          base::File::FLAG_WIN_EXCLUSIVE_WRITE |
+          base::File::FLAG_WIN_SHARE_DELETE |
+          base::File::FLAG_CAN_DELETE_ON_CLOSE,
+      output_hash, 0, patch_file, protocol_request::kEventZucchini,
+      std::move(callback))
+      ->Operation(base::BindOnce(&Patcher::PatchZucchini, patcher));
   return base::DoNothing();
-#endif  // defined(IN_MEMORY_UPDATES)
 }
 
 }  // namespace update_client

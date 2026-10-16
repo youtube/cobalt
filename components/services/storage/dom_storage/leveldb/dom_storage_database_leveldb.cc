@@ -159,11 +159,9 @@ DomStorageDatabaseLevelDB::Open(
   if (!status.ok()) {
 #if BUILDFLAG(IS_COBALT)
     if (status.IsCorruption()) {
-      LogLevelDBStatusHistogram("Cobalt.LocalStorage.DatabaseVersionMismatch",
-                                status);
+      status.Log("Cobalt.LocalStorage.DatabaseVersionMismatch", /*in_memory=*/false);
     } else {
-      LogLevelDBStatusHistogram("Cobalt.LocalStorage.DatabaseReadError",
-                                status);
+      status.Log("Cobalt.LocalStorage.DatabaseReadError", /*in_memory=*/false);
     }
 #endif
     return base::unexpected(std::move(status));
