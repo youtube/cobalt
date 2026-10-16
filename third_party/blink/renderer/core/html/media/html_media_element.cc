@@ -129,6 +129,9 @@
 
 // For BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "build/build_config.h"
+#if BUILDFLAG(IS_COBALT)
+#include "third_party/blink/public/common/features.h"
+#endif  // BUILDFLAG(IS_COBALT)
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "base/strings/string_util.h"
 #include "media/base/starboard/sbmedia_interface.h"
@@ -2537,7 +2540,15 @@ void HTMLMediaElement::ProgressEventTimerFired() {
     ScheduleNamedEvent(event_type_names::kProgress);
     previous_progress_time_ = base::ElapsedTimer();
     sent_stalled_event_ = false;
+#if BUILDFLAG(IS_COBALT)
+    if (!base::FeatureList::IsEnabled(
+            features::kCobaltSkipMediaProgressLayoutUpdate) ||
+        ShouldShowControls()) {
+      UpdateLayoutObject();
+    }
+#else
     UpdateLayoutObject();
+#endif  // BUILDFLAG(IS_COBALT)
   } else if (!media_source_attachment_ &&
              previous_progress_time_->Elapsed() >
                  kStalledNotificationInterval &&
