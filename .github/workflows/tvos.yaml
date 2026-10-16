@@ -74,82 +74,40 @@ jobs:
       invocation_id: ${{ steps.poll-status.outputs.invocation_id }}
       skipped: ${{ steps.check-skip.outputs.skipped }}
     steps:
+      # Skips the build unless Auto Label Kokoro requested it.
       - name: Check if tvOS build should be skipped
         id: check-skip
         if: github.event_name == 'pull_request'
         env:
           COMMIT_SHA: ${{ needs.get-sha.outputs.sha }}
-          EVENT_ACTION: ${{ github.event.action }}
+          RUN_NAME_SUFFIX: "@ ${{ needs.get-sha.outputs.sha }} (${{ github.event.action }}))"
           PR_NUMBER: ${{ github.event.pull_request.number }}
           IS_DRAFT: ${{ github.event.pull_request.draft }}
           REPO: ${{ github.repository }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if [[ "${IS_DRAFT}" == "true" ]]; then
-            echo "PR #${PR_NUMBER} is a draft. Skipping tvOS build."
-            echo "skipped=true" >> "${GITHUB_OUTPUT}"
-            exit 0
-          fi
+          skip() { echo "$1"; echo "skipped=true" >> "${GITHUB_OUTPUT}"; exit 0; }
+          [[ "${IS_DRAFT}" == "true" ]] && skip "Draft PR."
 
-          # A Kokoro build counts as requested if the PR has a Kokoro trigger
-          # label, or if Kokoro already reported a status for this commit.
-          # Kokoro removes the label right after it starts the build, but it
-          # posts its pending status before that, so one of them is always
-          # visible. The combined status endpoint returns the latest status per
-          # context, unlike /statuses, which pages through every status posted
-          # on the commit (often hundreds, from CI).
-          kokoro_requested() {
-            local has_label has_status
-            has_label=$(gh pr view "${PR_NUMBER}" --repo "${REPO}" --json labels \
-              --jq 'any(.labels[]; .name == "kokoro:run" or .name == "kokoro:force-run")' || echo "false")
-            [[ "${has_label}" == "true" ]] && return 0
-            has_status=$(gh api "repos/${REPO}/commits/${COMMIT_SHA}/status?per_page=100" \
-              --jq 'any(.statuses[]; .context == "kokoro")' || echo "false")
-            [[ "${has_status}" == "true" ]]
-          }
-
-          # Waits for the Auto Label Kokoro run of this commit and event action,
-          # matched by its run-name. Matching the action too avoids picking up an
-          # older run of the same commit (e.g., the draft run before
-          # ready_for_review).
-          run_key="@ ${COMMIT_SHA} (${EVENT_ACTION}))"
-          run_json=""
           for _ in {1..120}; do
-            run_json=$(gh api "repos/${REPO}/actions/workflows/auto_label_kokoro.yaml/runs?event=pull_request_target&per_page=100" \
-              --jq "[.workflow_runs[] | select((.display_title // \"\") | endswith(\"${run_key}\"))][0] // empty" || true)
-            if [[ -n "${run_json}" && "$(jq -r '.status' <<< "${run_json}")" == "completed" ]]; then
-              break
-            fi
-            run_json=""
+            run=$(gh api "repos/${REPO}/actions/workflows/auto_label_kokoro.yaml/runs?event=pull_request_target&per_page=100" \
+              --jq "[.workflow_runs[] | select(.display_title | endswith(\"${RUN_NAME_SUFFIX}\"))][0] // {}" || echo '{}')
+            [[ "$(jq -r .status <<< "${run}")" == "completed" ]] && break
             sleep 10
           done
 
-          if kokoro_requested; then
-            echo "Kokoro build requested for PR #${PR_NUMBER}. Waiting for it."
-            exit 0
-          fi
+          # Kokoro posts a pending status before removing the label.
+          labeled=$(gh pr view "${PR_NUMBER}" --repo "${REPO}" --json labels \
+            --jq 'any(.labels[]; .name == "kokoro:run" or .name == "kokoro:force-run")' || echo false)
+          started=$(gh api "repos/${REPO}/commits/${COMMIT_SHA}/status?per_page=100" \
+            --jq 'any(.statuses[]; .context == "kokoro")' || echo false)
+          [[ "${labeled}" == "true" || "${started}" == "true" ]] && exit 0
 
-          if [[ -z "${run_json}" ]]; then
-            echo "::error::Timed out waiting for the Auto Label Kokoro run '${run_key}', and no Kokoro build was requested. Failing instead of skipping; apply the kokoro:run label to run the tvOS build."
-            exit 1
-          fi
-
-          conclusion=$(jq -r '.conclusion' <<< "${run_json}")
-          run_url=$(jq -r '.html_url' <<< "${run_json}")
-          if [[ "${conclusion}" == "success" ]]; then
-            echo "Auto Label Kokoro (${run_url}) didn't request a Kokoro build: the PR doesn't affect tvOS, or its author isn't a committer. Skipping tvOS build."
-            echo "skipped=true" >> "${GITHUB_OUTPUT}"
-            exit 0
-          fi
-
-          head_sha=$(gh pr view "${PR_NUMBER}" --repo "${REPO}" --json headRefOid --jq '.headRefOid' || true)
-          if [[ "${conclusion}" == "cancelled" && -n "${head_sha}" && "${head_sha}" != "${COMMIT_SHA}" ]]; then
-            echo "Auto Label Kokoro (${run_url}) was cancelled, and PR #${PR_NUMBER} has moved on to ${head_sha}. Skipping tvOS build for the outdated commit ${COMMIT_SHA}."
-            echo "skipped=true" >> "${GITHUB_OUTPUT}"
-            exit 0
-          fi
-
-          echo "::error::Auto Label Kokoro (${run_url}) ended with '${conclusion}', and no Kokoro build was requested. Failing instead of skipping; apply the kokoro:run label to run the tvOS build."
+          conclusion=$(jq -r '.conclusion // "timed out"' <<< "${run}")
+          [[ "${conclusion}" == "success" ]] && skip "Kokoro build not requested."
+          head_sha=$(gh pr view "${PR_NUMBER}" --repo "${REPO}" --json headRefOid --jq .headRefOid || true)
+          [[ "${conclusion}" == "cancelled" && -n "${head_sha}" && "${head_sha}" != "${COMMIT_SHA}" ]] && skip "Outdated commit."
+          echo "::error::Auto Label Kokoro run: ${conclusion}. Add the kokoro:run label to build."
           exit 1
 
       - name: Poll GitHub Statuses API for Kokoro build
@@ -162,8 +120,7 @@ jobs:
           echo "Polling GitHub Statuses API for Kokoro status on commit ${COMMIT_SHA}..."
           for i in {1..240}; do # Poll for 2 hours (240 * 30s)
             echo "Attempt ${i}/240..."
-            # The combined status has the latest status per context. /statuses
-            # lists every status on the commit, so Kokoro's can be past page 1.
+            # Latest status per context; /statuses would need paging.
             statuses=$(gh api "repos/youtube/cobalt/commits/${COMMIT_SHA}/status?per_page=100" --jq '.statuses')
 
             echo "--- Current Statuses ---"
@@ -351,11 +308,9 @@ jobs:
               test_failures: {}
             }' > shepherd_report.json
 
-          # Only an intentional skip by the gate in wait-for-kokoro-build counts
-          # as passing. run-tests is also skipped when download-artifacts fails,
-          # which must fail.
+          # run-tests is also skipped if download-artifacts fails.
           if [[ "${GATE_SKIPPED}" == "true" ]]; then
-            echo "tvOS build wasn't requested for this PR. Skipping tvOS tests."
+            echo "tvOS build skipped."
             exit 0
           elif [[ "${RUN_TESTS_RESULT}" == "success" ]]; then
             echo "All tvOS tests passed successfully!"

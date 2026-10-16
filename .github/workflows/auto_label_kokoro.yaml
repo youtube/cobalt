@@ -1,16 +1,9 @@
-# Disable dangerous-triggers rule because this workflow uses pull_request_target
-# to edit PR labels (pull-requests: write).
-#
-# The tvOS impact analysis checks out the PR's merge commit and runs `gn gen` on
-# it, which executes scripts from the PR (GN exec_script). This is the same trust
-# model as main.yaml, which builds PR merge commits on the same self-hosted
-# runners, and is limited to PRs authored by committers (see check-author). The
-# analysis job only has read permissions; labeling happens in a separate job
-# that doesn't run PR code.
+# pull_request_target is needed to label PRs. The tvOS impact analysis runs PR
+# code (GN exec_script) only for committer PRs, like main.yaml does.
 # actionlint: disable dangerous-triggers
 name: Auto Label Kokoro
 
-# tvos.yaml finds the run for its commit and event action by this name.
+# tvos.yaml looks up this run by name.
 run-name: Auto Label Kokoro (#${{ github.event.pull_request.number }} @ ${{ github.event.pull_request.head.sha }} (${{ github.event.action }}))
 
 on: # zizmor: ignore[dangerous-triggers]
@@ -42,25 +35,20 @@ jobs:
     outputs:
       is_committer: ${{ steps.check.outputs.is_committer }}
     steps:
-      - name: Check whether the PR author is a collaborator/committer
-        id: check
+      - id: check
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AUTHOR_ASSOC: ${{ github.event.pull_request.author_association }}
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
           REPO: ${{ github.repository }}
         run: |
-          echo "Author '${PR_AUTHOR}' association: ${AUTHOR_ASSOC}"
-
-          PERMISSION=$(gh api "repos/${REPO}/collaborators/${PR_AUTHOR}/permission" --jq '.permission' 2>/dev/null || echo "none")
-          echo "Author '${PR_AUTHOR}' permission: ${PERMISSION}"
-
-          if [[ "${AUTHOR_ASSOC}" == "OWNER" || "${AUTHOR_ASSOC}" == "MEMBER" || "${AUTHOR_ASSOC}" == "COLLABORATOR" || "${PERMISSION}" == "admin" || "${PERMISSION}" == "write" ]]; then
-            echo "is_committer=true" >> "${GITHUB_OUTPUT}"
-          else
-            echo "Author '${PR_AUTHOR}' is not a committer. Skipping tvOS impact analysis and auto-labeling."
-            echo "is_committer=false" >> "${GITHUB_OUTPUT}"
+          permission=$(gh api "repos/${REPO}/collaborators/${PR_AUTHOR}/permission" --jq .permission || echo none)
+          echo "${PR_AUTHOR}: association ${AUTHOR_ASSOC}, permission ${permission}"
+          is_committer=false
+          if [[ "${AUTHOR_ASSOC}" =~ ^(OWNER|MEMBER|COLLABORATOR)$ || "${permission}" =~ ^(admin|write)$ ]]; then
+            is_committer=true
           fi
+          echo "is_committer=${is_committer}" >> "${GITHUB_OUTPUT}"
 
   analyze-tvos-impact:
     needs: check-author
@@ -105,8 +93,6 @@ jobs:
           path: cobalt
           use_gcloud: true
 
-      # Checks out the base branch tip, which is in the cache. The PR's merge
-      # commit is fetched on top of it below.
       - name: Checkout
         uses: ./.github/actions/checkout
         with:
@@ -115,98 +101,72 @@ jobs:
           fetch_depth: 1
           use_cache: true
 
-      # In pull_request_target, github.sha is the base branch tip, and GitHub
-      # updates refs/pull/<num>/merge asynchronously, so wait until it merges
-      # the current PR head. Failing here labels the PR (see label-kokoro-run).
+      # github.sha is the base branch tip in pull_request_target. GitHub updates
+      # refs/pull/<num>/merge asynchronously, so wait until it merges the head.
       - name: Check Out PR Merge Commit
         working-directory: cobalt/src
         env:
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          MERGE_REF: refs/pull/${{ github.event.pull_request.number }}/merge
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           for _ in {1..6}; do
-            if git fetch --no-tags --depth=2 origin "refs/pull/${PR_NUMBER}/merge" &&
-               [[ "$(git rev-parse FETCH_HEAD^2)" == "${PR_HEAD_SHA}" ]]; then
-              git checkout --detach FETCH_HEAD
-              git diff --name-only --no-renames HEAD^1 HEAD | tee "${RUNNER_TEMP}/changed_files.txt"
-              exit 0
-            fi
+            git fetch --no-tags --depth=2 origin "${MERGE_REF}" &&
+              [[ "$(git rev-parse FETCH_HEAD^2)" == "${PR_HEAD_SHA}" ]] && break
             sleep 10
           done
-          echo "::error::refs/pull/${PR_NUMBER}/merge doesn't merge ${PR_HEAD_SHA}. The PR may have merge conflicts."
-          exit 1
+          [[ "$(git rev-parse FETCH_HEAD^2)" == "${PR_HEAD_SHA}" ]] ||
+            { echo "::error::${MERGE_REF} is outdated or missing (merge conflict?)"; exit 1; }
+          git checkout --detach FETCH_HEAD
+          git diff --name-only --no-renames HEAD^1 HEAD | tee "${RUNNER_TEMP}/changed_files.txt"
 
       - name: Check tvOS Build Impact
         id: analyze
         working-directory: cobalt/src
         env:
           TEST_TARGETS: ${{ steps.parse-targets.outputs.test_targets_json }}
-          # Changes that gn analyze can't see but always affect the tvOS build.
+          # Changes that gn analyze can't see.
           ALWAYS_AFFECTS_TVOS: ^(DEPS$|\.gn$|build/|build_overrides/|cobalt/build/|cobalt/devinfra/kokoro/|cobalt/testing/filters/tvos-arm64-simulator/|\.github/workflows/(tvos|auto_label_kokoro)\.yaml$)
           HEADERS: \.(h|hh|hpp|inc|inl|def)$
         run: |
           export PATH="/runner-cache/golden-workspace/depot_tools:${GITHUB_WORKSPACE}/cobalt/depot_tools:${PATH}"
-          changed_files="${RUNNER_TEMP}/changed_files.txt"
-          if grep -qE "${ALWAYS_AFFECTS_TVOS}" "${changed_files}"; then
+          files="${RUNNER_TEMP}/changed_files.txt"
+          if grep -qE "${ALWAYS_AFFECTS_TVOS}" "${files}"; then
             echo "affects_tvos=true" >> "${GITHUB_OUTPUT}"
             exit 0
           fi
 
-          out_dir="${RUNNER_TEMP}/tvos_out"
-          script_executable="--script-executable=${PWD}/cobalt/build/tvos_linux_script_wrapper.py"
-          python3 cobalt/build/gn.py "${out_dir}" -p tvos-arm64-simulator -C devel --no-rbe --no-check "${script_executable}"
+          out="${RUNNER_TEMP}/out"
+          wrapper="--script-executable=${PWD}/cobalt/build/tvos_linux_script_wrapper.py"
+          python3 cobalt/build/gn.py "${out}" -p tvos-arm64-simulator -C devel --no-rbe --no-check "${wrapper}"
 
-          {
-            cat "${changed_files}"
-            echo
-            # gn analyze only knows the headers listed in BUILD.gn files, so
-            # also pass the files that include each changed header by its path.
-            { grep -E "${HEADERS}" "${changed_files}" || true; } | while read -r header; do
-              git grep -lF "\"${header}\"" -- '*.c' '*.cc' '*.cpp' '*.cxx' '*.m' '*.mm' '*.h' '*.hh' '*.hpp' '*.inc' '*.inl' '*.def' || true
-            done
-          } | jq -nR --argjson test_targets "${TEST_TARGETS}" '{
-            files: [inputs | select(length > 0) | "//" + .] | unique,
-            test_targets: [$test_targets[] | "//" + .],
+          # gn analyze only knows headers listed in BUILD.gn, so add includers.
+          for header in $(grep -E "${HEADERS}" "${files}"); do
+            git grep -lF "\"${header}\"" -- '*.c' '*.cc' '*.cpp' '*.cxx' '*.m' '*.mm' '*.h' '*.hh' '*.hpp' '*.inc' '*.inl' '*.def' >> "${files}" || true
+          done
+
+          jq -nR --argjson targets "${TEST_TARGETS}" '{
+            files: [inputs | select(. != "") | "//" + .] | unique,
+            test_targets: [$targets[] | "//" + .],
             additional_compile_targets: ["//cobalt:cobalt"]
-          }' > "${out_dir}/analyze_in.json"
-          cat "${out_dir}/analyze_in.json"
-
-          gn analyze "${out_dir}" "${out_dir}/analyze_in.json" "${out_dir}/analyze_out.json" "${script_executable}"
-          cat "${out_dir}/analyze_out.json"
-          # Anything other than "No dependency" (e.g., an error) affects tvOS.
-          if [[ "$(jq -r '.status' "${out_dir}/analyze_out.json")" == "No dependency" ]]; then
-            echo "affects_tvos=false" >> "${GITHUB_OUTPUT}"
-          else
-            echo "affects_tvos=true" >> "${GITHUB_OUTPUT}"
-          fi
+          }' < "${files}" > "${out}/analyze_in.json"
+          gn analyze "${out}" "${out}/analyze_in.json" "${out}/analyze_out.json" "${wrapper}"
+          cat "${out}/analyze_out.json"
+          status=$(jq -r .status "${out}/analyze_out.json")
+          echo "affects_tvos=$([[ "${status}" == "No dependency" ]] && echo false || echo true)" >> "${GITHUB_OUTPUT}"
 
   label-kokoro-run:
     needs: [check-author, analyze-tvos-impact]
-    runs-on: ubuntu-latest
-    permissions:
-      pull-requests: write
-    # Fails safe: also labels when the analysis job didn't succeed (e.g., the
-    # runner or checkout failed, or it timed out).
+    # Also labels if the analysis failed.
     if: >-
       always() && !cancelled() &&
-      github.event.pull_request.draft == false &&
       needs.check-author.outputs.is_committer == 'true' &&
       (needs.analyze-tvos-impact.result != 'success' ||
        needs.analyze-tvos-impact.outputs.affects_tvos == 'true')
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     steps:
-      - name: Apply kokoro:run label to PR
-        env:
+      - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_URL: ${{ github.event.pull_request.html_url }}
-          PR_LABELS: ${{ toJson(github.event.pull_request.labels) }}
-          ANALYZE_RESULT: ${{ needs.analyze-tvos-impact.result }}
-        run: |
-          if [[ "${ANALYZE_RESULT}" != "success" ]]; then
-            echo "tvOS impact analysis result: ${ANALYZE_RESULT}. Defaulting to running the tvOS build."
-          fi
-          if ! echo "$PR_LABELS" | jq -e '.[] | select(.name == "kokoro:run")' > /dev/null; then
-            echo "Applying kokoro:run label..."
-            gh pr edit "$PR_URL" --add-label "kokoro:run"
-          else
-            echo "kokoro:run label is already present."
-          fi
+        run: gh pr edit "${PR_URL}" --add-label kokoro:run
