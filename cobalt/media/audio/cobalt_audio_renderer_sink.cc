@@ -17,11 +17,8 @@
 #include <atomic>
 
 #include "base/logging.h"
-<<<<<<< HEAD
-#include "base/notimplemented.h"
-=======
 #include "base/metrics/histogram_functions.h"
->>>>>>> bee6843ef1 (media: Add Cobalt.Media.LatencyTiming.SbAudioSinkCreate UMA metric (#13090))
+#include "base/notimplemented.h"
 #include "base/task/bind_post_task.h"
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
