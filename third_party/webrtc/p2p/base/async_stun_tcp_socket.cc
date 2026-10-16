@@ -118,7 +118,7 @@ size_t AsyncStunTCPSocket::ProcessInput(ArrayView<const uint8_t> data) {
     }
 
     ReceivedIpPacket received_packet(
-        data.subview(processed_bytes, expected_pkt_len), remote_addr,
+        data.subspan(processed_bytes, expected_pkt_len), remote_addr,
         env_.clock().CurrentTime());
     NotifyPacketReceived(received_packet);
     processed_bytes += actual_length;

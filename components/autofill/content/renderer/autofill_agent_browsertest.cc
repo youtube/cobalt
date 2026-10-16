@@ -48,6 +48,7 @@
 #include "third_party/blink/public/web/web_autofill_state.h"
 #include "third_party/blink/public/web/web_form_control_element.h"
 #include "third_party/blink/public/web/web_frame_widget.h"
+#include "third_party/blink/public/web/web_navigation_type.h"
 #include "third_party/blink/public/web/web_view.h"
 
 namespace autofill {
@@ -814,7 +815,7 @@ TEST_F(AutofillAgentTest, PreviewThenClear) {
 
   std::u16string prior_value = form.fields()[0].value();
   test_api(form).field(0).set_value(form.fields()[0].value() + u"AUTOFILLED");
-  test_api(form).field(0).set_is_autofilled(true);
+  test_api(form).field(0).set_is_autofilled_according_to_renderer(true);
 
   ASSERT_EQ(field.GetAutofillState(), blink::WebAutofillState::kNotFilled);
   autofill_agent().ApplyFieldsAction(
@@ -1005,7 +1006,7 @@ TEST_P(AutofillAgentSubmissionTest,
       &form_field);
 
   form_field.set_value(u"autofilled");
-  form_field.set_is_autofilled(true);
+  form_field.set_is_autofilled_according_to_renderer(true);
 
   ASSERT_EQ(field.GetAutofillState(), blink::WebAutofillState::kNotFilled);
   FormData form;
@@ -1048,7 +1049,7 @@ TEST_P(AutofillAgentSubmissionTest,
 
   ASSERT_EQ(1u, form.fields().size());
   test_api(form).field(0).set_value(u"autofilled");
-  test_api(form).field(0).set_is_autofilled(true);
+  test_api(form).field(0).set_is_autofilled_according_to_renderer(true);
 
   ASSERT_EQ(field.GetAutofillState(), blink::WebAutofillState::kNotFilled);
   autofill_agent().ApplyFieldsAction(
@@ -1232,7 +1233,8 @@ TEST_P(AutofillAgentSubmissionTest,
   // Remove element that the user did not interact with last.
   ExecuteJavaScriptForTests(R"(document.getElementById('name').remove();)");
   // Simulate page navigation.
-  test_api(form_tracker()).FireProbablyFormSubmitted();
+  test_api(form_tracker())
+      .DidStartNavigation(blink::WebNavigationType::kWebNavigationTypeOther);
 }
 
 // Test that in the scenario that:
@@ -1270,7 +1272,7 @@ TEST_P(AutofillAgentSubmissionTest,
 
   for (FormFieldData& field : test_api(*form).fields()) {
     field.set_value(field.id_attribute() + u" autofilled");
-    field.set_is_autofilled(true);
+    field.set_is_autofilled_according_to_renderer(true);
   }
 
   // Update `AutofillAgent::last_queried_element_`.
@@ -1840,6 +1842,82 @@ TEST_F(AutofillAgentTestWithFeatures, RequestRefillTimesOut) {
   WaitForFormsSeen();
   autofill_agent().RequestRefill(*fill_id, on_refill.Get());
   std::move(run_loop).Run();
+}
+
+class AutofillAgentAtMemoryTest : public AutofillAgentTest {
+ public:
+  AutofillAgentAtMemoryTest() {
+    scoped_feature_list_.InitAndEnableFeature(features::kAutofillAtMemory);
+  }
+
+  void SimulateTyping(const std::string& value) {
+    for (char c : value) {
+      SimulateUserTypingASCIICharacter(c, true);
+      task_environment_.FastForwardBy(base::Milliseconds(200));
+    }
+    task_environment_.RunUntilIdle();
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+TEST_F(AutofillAgentAtMemoryTest, AtMemorySearchTrigger) {
+  EXPECT_CALL(mock_form_tracker(), ElementDisappeared(_))
+      .Times(testing::AnyNumber());
+
+  LoadHTML(R"(<input id="f">)");
+  WaitForFormsSeen();
+  Focus("f");
+
+  testing::MockFunction<void(int)> check_point;
+  {
+    testing::InSequence s;
+    // 1. "a" -> No @memory trigger.
+    EXPECT_CALL(autofill_driver(),
+                AskForValuesToFill(
+                    _, _, _, Eq(AutofillSuggestionTriggerSource::kAtMemory), _))
+        .Times(0);
+    EXPECT_CALL(check_point, Call(1));
+
+    // 2. "a@" -> No @memory trigger.
+    EXPECT_CALL(autofill_driver(),
+                AskForValuesToFill(
+                    _, _, _, Eq(AutofillSuggestionTriggerSource::kAtMemory), _))
+        .Times(0);
+    EXPECT_CALL(check_point, Call(2));
+
+    // 3. "a@@" -> @memory has triggered.
+    EXPECT_CALL(autofill_driver(),
+                AskForValuesToFill(
+                    _, _, _, Eq(AutofillSuggestionTriggerSource::kAtMemory), _))
+        .Times(1);
+    EXPECT_CALL(check_point, Call(3));
+
+    // 4. "a@@b" -> No @memory trigger.
+    EXPECT_CALL(autofill_driver(),
+                AskForValuesToFill(
+                    _, _, _, Eq(AutofillSuggestionTriggerSource::kAtMemory), _))
+        .Times(0);
+    EXPECT_CALL(check_point, Call(4));
+  }
+
+  // Ignore standard Autofill calls for this test.
+  EXPECT_CALL(
+      autofill_driver(),
+      AskForValuesToFill(
+          _, _, _, testing::Ne(AutofillSuggestionTriggerSource::kAtMemory), _))
+      .Times(testing::AnyNumber());
+
+  // Typing sequence: "a", "a@", "a@@", "a@@b"
+  SimulateTyping("a");
+  check_point.Call(1);
+  SimulateTyping("@");
+  check_point.Call(2);
+  SimulateTyping("@");
+  check_point.Call(3);
+  SimulateTyping("b");
+  check_point.Call(4);
 }
 
 }  // namespace

@@ -224,8 +224,7 @@ void ReverbDecayEstimator::EstimateDecay(ArrayView<const float> filter,
 }
 
 void ReverbDecayEstimator::AnalyzeFilter(ArrayView<const float> filter) {
-  auto h = ArrayView<const float>(
-      filter.begin() + block_to_analyze_ * kFftLengthBy2, kFftLengthBy2);
+  auto h = filter.subspan(block_to_analyze_ * kFftLengthBy2, kFftLengthBy2);
 
   // Compute squared filter coeffiecients for the block to analyze_;
   std::array<float, kFftLengthBy2> h2;

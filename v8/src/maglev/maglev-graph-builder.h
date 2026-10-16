@@ -324,7 +324,11 @@ class MaglevGraphBuilder {
     return known_node_aspects().EnsureType<Function>(broker(), node, type,
                                                      ensure_new_type);
   }
-  NodeType GetType(ValueNode* node) { return reducer_.GetType(node); }
+  NodeType GetType(ValueNode* node,
+                   AllowWideningSmiToInt32 allow_widening_smi_to_int32 =
+                       AllowWideningSmiToInt32::kDontAllow) {
+    return reducer_.GetType(node, allow_widening_smi_to_int32);
+  }
   NodeInfo* GetOrCreateInfoFor(ValueNode* node) {
     return known_node_aspects().GetOrCreateInfoFor(broker(), node);
   }
@@ -1127,7 +1131,10 @@ class MaglevGraphBuilder {
   ReduceResult BuildSmiUntag(ValueNode* node);
   ReduceResult BuildGetCharCodeAt(ValueNode* string, ValueNode* index);
 
-  ReduceResult BuildCheckSmi(ValueNode* object, bool elidable = true);
+  ReduceResult BuildCheckSmi(
+      ValueNode* object, bool elidable = true,
+      AllowWideningSmiToInt32 allow_widening_smi_to_int32 =
+          AllowWideningSmiToInt32::kDontAllow);
   ReduceResult BuildCheckNumber(ValueNode* object);
   ReduceResult BuildCheckHeapObject(ValueNode* object);
   ReduceResult BuildCheckJSFunction(ValueNode* object);
@@ -1504,7 +1511,11 @@ class MaglevGraphBuilder {
   void AddDeoptUse(VirtualObject* alloc);
   void AddNonEscapingUses(InlinedAllocation* allocation, int use_count);
 
-  void AddDeoptUseToScopeData(DeoptFrame::FrameData& data);
+  void AddDeoptUseToScopeData(const DeoptFrame::FrameData& data);
+
+  DeoptFrame* RecursivelyWrapDeoptFrameWithContinuations(
+      const DeoptFrame& frame,
+      const MaglevGraphBuilder::LazyDeoptFrameScope* parent_scope);
 
   std::optional<VirtualObject*> TryGetNonEscapingArgumentsObject(
       ValueNode* value);
@@ -1523,7 +1534,7 @@ class MaglevGraphBuilder {
   template <CreateArgumentsType type>
   VirtualObject* BuildVirtualArgumentsObject();
   template <CreateArgumentsType type>
-  ValueNode* BuildAndAllocateArgumentsObject();
+  ReduceResult BuildAndAllocateArgumentsObject();
 
   bool CanAllocateSloppyArgumentElements();
   bool CanAllocateInlinedArgumentElements();
@@ -1968,6 +1979,10 @@ class MaglevGraphBuilder {
 
   AllocationBlock* current_allocation_block_ = nullptr;
 
+  ZoneUnorderedMap<ValueNode*, StoreMap*> unobserved_map_stores_;
+  ZoneUnorderedMap<KnownNodeAspects::LoadedContextSlotsKey, Node*>
+      unobserved_context_slot_stores_;
+
   BasicBlockRef* jump_targets_;
   MergePointInterpreterFrameState** merge_states_;
 
@@ -1988,7 +2003,7 @@ class MaglevGraphBuilder {
   }
 
   int inlining_id_ = SourcePosition::kNotInlined;
-  int next_handler_table_index_ = 0;
+  uint32_t next_handler_table_index_ = 0;
 
   EagerDeoptFrameScope* current_eager_deopt_scope_ = nullptr;
   LazyDeoptFrameScope* current_lazy_deopt_scope_ = nullptr;
@@ -2024,11 +2039,10 @@ class MaglevGraphBuilder {
     node->OverwriteWith(Opcode::kDead);
   }
 
-  ZoneUnorderedMap<KnownNodeAspects::LoadedContextSlotsKey, Node*>
-      unobserved_context_slot_stores_;
-
   // When set, inline only small functions.
   bool only_inline_small_ = false;
+
+  friend class MapInference;
 };
 
 template <bool is_possible_map_change>
@@ -2053,6 +2067,12 @@ void MaglevGraphBuilder::MarkPossibleSideEffect(NodeT* node) {
                 NodeT::kProperties.can_deopt() ||
                 NodeT::kProperties.can_throw()) {
     unobserved_context_slot_stores_.clear();
+  }
+  if constexpr (NodeT::kProperties.can_read() ||
+                NodeT::kProperties.can_deopt() ||
+                NodeT::kProperties.can_throw() ||
+                NodeT::kProperties.can_allocate()) {
+    unobserved_map_stores_.clear();
   }
 
   if constexpr (Node::opcode_of<NodeT> != Opcode::kAllocationBlock &&

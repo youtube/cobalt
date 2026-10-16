@@ -300,6 +300,7 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
   V(harmony_struct, "harmony structs, shared structs, and shared arrays")
 
 #define JAVASCRIPT_INPROGRESS_FEATURES_BASE(V)       \
+  V(js_iterator_join, "Iterator.prototype.join")     \
   V(js_decorators, "decorators")                     \
   V(js_source_phase_imports, "source phase imports") \
   V(js_defer_import_eval, "defer import eval")
@@ -317,9 +318,8 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
 // Features that are complete (but still behind the --harmony flag).
 #define HARMONY_STAGED_BASE(V)
 
-#define JAVASCRIPT_STAGED_FEATURES_BASE(V)             \
-  V(js_immutable_arraybuffer, "Immutable ArrayBuffer") \
-  V(js_sum_precise, "Math.sumPrecise")
+#define JAVASCRIPT_STAGED_FEATURES_BASE(V) \
+  V(js_immutable_arraybuffer, "Immutable ArrayBuffer")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
@@ -351,7 +351,8 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
     "Support diamond-importing re-expored namespaces "                       \
     "(https://github.com/tc39/ecma262/pull/3715)")                           \
   V(js_upsert, "upsert")                                                     \
-  V(js_iterator_sequencing, "iterator sequencing")
+  V(js_iterator_sequencing, "iterator sequencing")                           \
+  V(js_sum_precise, "Math.sumPrecise")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
@@ -694,6 +695,9 @@ DEFINE_EXPERIMENTAL_FEATURE(maglev_range_analysis,
                             "Enable Maglev range value analysis pass")
 DEFINE_BOOL(trace_maglev_range_analysis, false,
             "Trace Maglev range value analysis pass")
+DEFINE_BOOL(trace_maglev_kna, false, "Trace Maglev known node aspects")
+DEFINE_BOOL(maglev_use_unreliable_maps, true,
+            "Use unreliable unstable maps in Maglev")
 DEFINE_WEAK_IMPLICATION(turbolev_future, maglev_range_analysis)
 DEFINE_BOOL(maglev_range_verification, false,
             "Run integer range verifiction pass in Turbolev frontend pipeline")
@@ -1741,6 +1745,7 @@ DEFINE_EXPERIMENTAL_FEATURE(turboshaft_typed_optimizations,
                             "performs optimizations based on type information")
 #if V8_TARGET_ARCH_ARM64
 DEFINE_BOOL(wasm_simd_opt, false, "enable optimizations for Webassembly SIMD")
+DEFINE_IMPLICATION(future, wasm_simd_opt)
 DEFINE_EXPERIMENTAL_FEATURE(experimental_wasm_simd_opt,
                             "enable extra optimizations for Webassembly SIMD")
 #endif  // V8_TARGET_ARCH_ARM64
@@ -2494,8 +2499,13 @@ DEFINE_BOOL(parallel_gc_clearing, true,
             "use parallel threads to clear weak refs in the atomic pause.")
 DEFINE_BOOL(detect_ineffective_gcs_near_heap_limit, true,
             "trigger out-of-memory failure to avoid GC storm near heap limit")
-DEFINE_BOOL(ineffective_gc_includes_global, false,
-            "includes global size in out-of-memory failure near heap limit")
+DEFINE_BOOL(
+    enforce_global_heap_limit, false,
+    "Enforce global size by causing an out-of-memory failure above heap limit")
+// Since the maximum v8_limit is 4Gb, this aligns with
+// ArrayBuffer::kMaxByteLength.
+DEFINE_INT(maximum_global_heap_limit_factor, 8,
+           "Ratio from v8 to global maximum heap size")
 DEFINE_BOOL(ineffective_gcs_forces_last_resort, true,
             "force a last resort GC when we're near heap limit")
 DEFINE_FLOAT(
@@ -2669,9 +2679,6 @@ DEFINE_BOOL(memory_pool, true,
 DEFINE_BOOL(
     memory_pool_share_memory_on_teardown, true,
     "Share memory on Isolate teardown using other Isolate's task runners")
-DEFINE_BOOL(memory_pool_release_before_memory_pressure_gcs, true,
-            "discard the memory pool before invoking the GC on memory pressure "
-            "or last resort GCs")
 DEFINE_BOOL(memory_pool_release_on_malloc_failures, false,
             "discard the memory pool on malloc retries")
 DEFINE_SIZE_T(memory_pool_timeout, 8, "Release pooled pages after X seconds.")
@@ -4061,10 +4068,9 @@ DEFINE_IMPLICATION(proto_assign_seq_lazy_func_opt, proto_assign_seq_opt)
 DEFINE_BOOL(use_libm_trig_functions, true, "use libm trig functions")
 #endif
 
-DEFINE_EXPERIMENTAL_FEATURE(
-    track_array_buffer_views,
-    "Track TypedArrays and DataViews attached to array buffers and "
-    "update them in-place when the buffer detaches")
+DEFINE_BOOL(track_array_buffer_views, true,
+            "Track TypedArrays and DataViews attached to array buffers and "
+            "update them in-place when the buffer detaches")
 
 DEFINE_BOOL(is_standalone_d8_shell, false,
             "Tells V8 it's running as part of the d8. This flag should not be "

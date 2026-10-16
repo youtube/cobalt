@@ -907,6 +907,12 @@ void VideoSendStreamImpl::OnDroppedFrame(
   activity_ = true;
 }
 
+void VideoSendStreamImpl::OnFrameDropped(uint32_t rtp_timestamp,
+                                         int spatial_id,
+                                         bool is_end_of_temporal_unit) {
+  activity_ = true;
+}
+
 std::map<uint32_t, RtpState> VideoSendStreamImpl::GetRtpStates() const {
   return rtp_video_sender_->GetRtpStates();
 }

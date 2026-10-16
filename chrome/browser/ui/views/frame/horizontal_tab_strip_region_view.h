@@ -18,6 +18,10 @@
 
 class BrowserView;
 
+namespace ash {
+class TabScrubber;
+}
+
 namespace views {
 class ActionViewController;
 class Button;
@@ -67,6 +71,12 @@ class HorizontalTabStripRegionView final : public TabStripRegionView {
     return reserved_grab_handle_space_;
   }
 
+#if BUILDFLAG(IS_CHROMEOS)
+  ash::TabScrubber* get_tab_scrubber_for_testing() {
+    return tab_scrubber_.get();
+  }
+#endif
+
   // views::View:
   // The TabSearchButton and NewTabButton may need to be rendered above the
   // TabStrip, but FlexLayout needs the children to be stored in the correct
@@ -77,19 +87,8 @@ class HorizontalTabStripRegionView final : public TabStripRegionView {
   // position the TabSearchButton to layer over the TabStrip.
   void Layout(PassKey) override;
 
-  // These system drag & drop methods forward the events to TabDragController to
-  // support its fallback tab dragging mode in the case where the platform
-  // can't support the usual run loop based mode.
-  // We need to handle this here instead of in TabStrip, because TabStrip's
-  // bounds don't contain the empty space to the right of the last tab.
-  bool CanDrop(const OSExchangeData& data) override;
-  bool GetDropFormats(int* formats,
-                      std::set<ui::ClipboardFormatType>* format_types) override;
-  void OnDragEntered(const ui::DropTargetEvent& event) override;
-  int OnDragUpdated(const ui::DropTargetEvent& event) override;
-  void OnDragExited() override;
-  // We don't override GetDropCallback() because we don't actually want to
-  // transfer any data.
+  void AddedToWidget() override;
+  void RemovedFromWidget() override;
 
   // views::AccessiblePaneView:
   void ChildPreferredSizeChanged(views::View* child) override;
@@ -100,6 +99,7 @@ class HorizontalTabStripRegionView final : public TabStripRegionView {
   TabStrip* tab_strip() { return tab_strip_; }
 
   TabStripFlatEdgeButton* GetTabSearchButton();
+  TabStripComboButton* GetComboButton() { return combo_button_; }
 
 #if BUILDFLAG(ENABLE_GLIC)
   views::LabelButton* GetGlicButton();
@@ -129,6 +129,12 @@ class HorizontalTabStripRegionView final : public TabStripRegionView {
   BrowserRootView::DropTarget* GetDropTarget(
       gfx::Point loc_in_local_coords) override;
   views::View* GetViewForDrop() override;
+  bool CanDrop(const OSExchangeData& data) override;
+  bool GetDropFormats(int* formats,
+                      std::set<ui::ClipboardFormatType>* format_types) override;
+  void OnDragEntered(const ui::DropTargetEvent& event) override;
+  int OnDragUpdated(const ui::DropTargetEvent& event) override;
+  void OnDragExited() override;
   void SetTabStripObserver(TabStripObserver* observer) override;
   views::View* GetTabStripView() override;
 
@@ -169,6 +175,10 @@ class HorizontalTabStripRegionView final : public TabStripRegionView {
 
   std::unique_ptr<TabSearchPositionMetricsLogger>
       tab_search_position_metrics_logger_;
+
+#if BUILDFLAG(IS_CHROMEOS)
+  std::unique_ptr<ash::TabScrubber> tab_scrubber_;
+#endif
 
   std::unique_ptr<views::ActionViewController> action_view_controller_;
 

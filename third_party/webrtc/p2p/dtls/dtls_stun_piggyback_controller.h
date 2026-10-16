@@ -21,6 +21,7 @@
 #include "api/sequence_checker.h"
 #include "api/transport/stun.h"
 #include "p2p/dtls/dtls_utils.h"
+#include "rtc_base/network/received_packet.h"
 #include "rtc_base/system/no_unique_address.h"
 #include "rtc_base/thread_annotations.h"
 
@@ -36,7 +37,9 @@ class DtlsStunPiggybackController {
   // dtls_data_callback will be called with any DTLS packets received
   // piggybacked.
   DtlsStunPiggybackController(
-      absl::AnyInvocable<void(ArrayView<const uint8_t>)> dtls_data_callback);
+      absl::AnyInvocable<void(ArrayView<const uint8_t>)> dtls_data_callback,
+      absl::AnyInvocable<void()> complete_callback);
+
   ~DtlsStunPiggybackController();
 
   enum class State {
@@ -60,8 +63,16 @@ class DtlsStunPiggybackController {
     return state_;
   }
 
-  // Called by DtlsTransport when the handshake is complete.
+  // Called by DtlsTransport when the handshake is complete "locally",
+  // i.e. we can send encrypted packets to peer (but we don't strictly know
+  // that peer can decode them).
   void SetDtlsHandshakeComplete(bool is_dtls_client, bool is_dtls13);
+
+  // Called by DtlsTransport when a packet has been received and decoded.
+  // This means that dtls is writable for the peer and that we have enough
+  // information to decode their packets.
+  void DecryptedPacketReceived(const ReceivedIpPacket& packet);
+
   // Called by DtlsTransport when DTLS failed.
   void SetDtlsFailed();
 
@@ -97,14 +108,18 @@ class DtlsStunPiggybackController {
   State state_ RTC_GUARDED_BY(sequence_checker_) = State::TENTATIVE;
   bool writing_packets_ RTC_GUARDED_BY(sequence_checker_) = false;
   PacketStash pending_packets_ RTC_GUARDED_BY(sequence_checker_);
-  absl::AnyInvocable<void(ArrayView<const uint8_t>)> dtls_data_callback_;
-  absl::AnyInvocable<void()> disable_piggybacking_callback_;
+  absl::AnyInvocable<void(ArrayView<const uint8_t>)> dtls_data_callback_
+      RTC_GUARDED_BY(sequence_checker_);
+  absl::AnyInvocable<void() &&> complete_callback_
+      RTC_GUARDED_BY(sequence_checker_);
 
   std::vector<uint32_t> handshake_messages_received_
       RTC_GUARDED_BY(sequence_checker_);
 
   // Count of embedded data attributes received.
   int data_recv_count_ = 0;
+
+  void CallCompleteCallback();
 
   // In practice this will be the network thread.
   RTC_NO_UNIQUE_ADDRESS SequenceChecker sequence_checker_;

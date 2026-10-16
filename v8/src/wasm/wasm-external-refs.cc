@@ -707,6 +707,8 @@ void f16x8_qfms_wrapper(Address data) {
 namespace {
 inline uint8_t* EffectiveAddress(Tagged<WasmTrustedInstanceData> trusted_data,
                                  uint32_t mem_index, uintptr_t index) {
+  // `index` was bounds-checked in the caller.
+  DCHECK_LE(index, trusted_data->memory_size(mem_index));
   return trusted_data->memory_base(mem_index) + index;
 }
 
@@ -721,6 +723,16 @@ constexpr int32_t kMemOpSuccess = 1;
 constexpr int32_t kOutOfBounds = 0;
 }  // namespace
 
+void data_drop_wrapper(Address trusted_data_addr, uint32_t segment_index) {
+  DisallowGarbageCollection no_gc;
+  Tagged<WasmTrustedInstanceData> trusted_data =
+      TrustedCast<WasmTrustedInstanceData>(Tagged<Object>{trusted_data_addr});
+
+  // The segment index was statically validated so we do not need a bounds check
+  // here.
+  trusted_data->data_segments()->set(segment_index, WireBytesRef{});
+}
+
 int32_t memory_init_wrapper(Address trusted_data_addr, uint32_t mem_index,
                             uintptr_t dst, uint32_t src, uint32_t seg_index,
                             uint32_t size) {
@@ -731,13 +743,15 @@ int32_t memory_init_wrapper(Address trusted_data_addr, uint32_t mem_index,
   uint64_t mem_size = trusted_data->memory_size(mem_index);
   if (!base::IsInBounds<uint64_t>(dst, size, mem_size)) return kOutOfBounds;
 
-  uint32_t seg_size = trusted_data->data_segment_sizes()->get(seg_index);
-  if (!base::IsInBounds<uint32_t>(src, size, seg_size)) return kOutOfBounds;
+  WireBytesRef segment_source = trusted_data->data_segments()->get(seg_index);
+  if (!base::IsInBounds<uint32_t>(src, size, segment_source.length())) {
+    return kOutOfBounds;
+  }
 
-  uint8_t* seg_start = reinterpret_cast<uint8_t*>(
-      trusted_data->data_segment_starts()->get(seg_index));
-  std::memcpy(EffectiveAddress(trusted_data, mem_index, dst), seg_start + src,
-              size);
+  base::Vector<const uint8_t> wire_bytes =
+      trusted_data->native_module()->wire_bytes();
+  const uint8_t* start = wire_bytes.data() + segment_source.offset() + src;
+  std::memcpy(EffectiveAddress(trusted_data, mem_index, dst), start, size);
   return kMemOpSuccess;
 }
 
@@ -1026,7 +1040,7 @@ Address suspend_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
   wasm::StackMemory* from = isolate->isolate_data()->active_stack();
   DCHECK(from->Contains(arg_buffer));
   from->set_arg_buffer(arg_buffer);
-  cont->set_stack(isolate, from);
+  cont->init_stack(isolate, from);
   from->set_current_continuation(cont);
   from->set_param_types(sig->returns());
   wasm::StackMemory* to = from->jmpbuf()->parent;
@@ -1035,28 +1049,41 @@ Address suspend_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
   // Unlike exception handling, we don't need to look at each frame. Only the
   // top frame of each stack can have an effect handler.
   while (true) {
-    StackFrameIterator it(isolate, to);
-    CHECK_EQ(it.frame()->type(), StackFrame::WASM_STACK_EXIT);
-    it.Advance();
-    CHECK(it.frame()->is_wasm());
+    // The first frame must be the WasmFXResume, WasmFXResumeThrow or
+    // WasmFXResumeThrowRef builtin with type WASM_STACK_EXIT.
+    Address target_fp = to->jmpbuf()->fp;
+    StackFrame::Type type = StackFrame::MarkerToType(base::Memory<intptr_t>(
+        target_fp + CommonFrameConstants::kContextOrFrameTypeOffset));
+    CHECK_EQ(type, StackFrame::WASM_STACK_EXIT);
+
+    // The caller frame is the WASM frame that contains the handler table.
+    Address target_pc = StackFrame::ReadPC(reinterpret_cast<Address*>(
+        target_fp + CommonFrameConstants::kCallerPCOffset));
+    Address target_sp = target_fp + CommonFrameConstants::kCallerSPOffset;
+    target_fp = base::Memory<Address>(target_fp +
+                                      CommonFrameConstants::kCallerFPOffset);
+    type = StackFrame::MarkerToType(base::Memory<intptr_t>(
+        target_fp + CommonFrameConstants::kContextOrFrameTypeOffset));
+    CHECK_EQ(type, StackFrame::WASM);
+
+    // Get the handler table and search for a matching tag.
     WasmCode* wasm_code =
-        wasm::GetWasmCodeManager()->LookupCode(isolate, it.frame()->pc());
+        wasm::GetWasmCodeManager()->LookupCode(isolate, target_pc);
     base::Vector<const WasmCode::EffectHandler> effect_handlers =
         wasm_code->effect_handlers();
     Tagged<Object> trusted_instance_data_obj(base::Memory<Address>(
-        it.frame()->fp() + WasmFrameConstants::kWasmInstanceDataOffset));
+        target_fp + WasmFrameConstants::kWasmInstanceDataOffset));
     auto trusted_instance_data =
         TrustedCast<WasmTrustedInstanceData>(trusted_instance_data_obj);
     for (const auto& handler : effect_handlers) {
-      auto tag = trusted_instance_data->tags_table()->get(handler.tag_index);
-      if (wasm_code->instruction_start() + handler.call_offset ==
-              it.frame()->pc() &&
-          tag == wanted_tag) {
+      auto tag = trusted_instance_data->tags_table()->get(handler.tag_index());
+      if (wasm_code->instruction_start() + handler.call_offset == target_pc &&
+          !handler.is_switch() && tag == wanted_tag) {
         found = true;
         to->jmpbuf()->pc =
             wasm_code->instruction_start() + handler.handler_offset;
-        to->jmpbuf()->sp = it.frame()->sp();
-        to->jmpbuf()->fp = it.frame()->fp();
+        to->jmpbuf()->sp = target_sp;
+        to->jmpbuf()->fp = target_fp;
         break;
       }
     }

@@ -132,10 +132,6 @@ class FakeAudioReceiveStream final : public AudioReceiveStreamInterface {
     return base_mininum_playout_delay_ms_;
   }
 
-  void SetLocalSsrc(uint32_t local_ssrc) {
-    config_.rtp.local_ssrc = local_ssrc;
-  }
-
   void SetSyncGroup(absl::string_view sync_group) {
     config_.sync_group = std::string(sync_group);
   }
@@ -287,10 +283,6 @@ class FakeVideoReceiveStream final : public VideoReceiveStreamInterface {
     return base_mininum_playout_delay_ms_;
   }
 
-  void SetLocalSsrc(uint32_t local_ssrc) {
-    config_.rtp.local_ssrc = local_ssrc;
-  }
-
   void UpdateRtxSsrc(uint32_t ssrc) override { config_.rtp.rtx_ssrc = ssrc; }
 
   void SetFrameDecryptor(scoped_refptr<FrameDecryptorInterface>
@@ -363,8 +355,6 @@ class FakeVideoReceiveStream final : public VideoReceiveStreamInterface {
 class FakeFlexfecReceiveStream final : public FlexfecReceiveStream {
  public:
   explicit FakeFlexfecReceiveStream(const FlexfecReceiveStream::Config config);
-
-  void SetLocalSsrc(uint32_t local_ssrc) { config_.local_ssrc = local_ssrc; }
 
   void SetRtcpMode(RtcpMode mode) override { config_.rtcp_mode = mode; }
 
@@ -492,12 +482,6 @@ class FakeCall final : public Call, public PacketReceiver {
   void SignalChannelNetworkState(MediaType media, NetworkState state) override;
   void OnAudioTransportOverheadChanged(
       int transport_overhead_per_packet) override;
-  void OnLocalSsrcUpdated(AudioReceiveStreamInterface& stream,
-                          uint32_t local_ssrc) override;
-  void OnLocalSsrcUpdated(VideoReceiveStreamInterface& stream,
-                          uint32_t local_ssrc) override;
-  void OnLocalSsrcUpdated(FlexfecReceiveStream& stream,
-                          uint32_t local_ssrc) override;
   void OnUpdateSyncGroup(AudioReceiveStreamInterface& stream,
                          absl::string_view sync_group) override;
   void OnSentPacket(const SentPacketInfo& sent_packet) override;

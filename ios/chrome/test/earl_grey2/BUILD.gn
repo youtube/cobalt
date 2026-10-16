@@ -142,13 +142,13 @@ chrome_ios_eg2_test("ios_chrome_settings_eg2tests_module") {
   xcode_test_application_name = "ios_chrome_eg2tests"
 
   deps = [
+    "//ios/chrome/browser/settings/google_services/manage_accounts/test:eg2_tests",
     "//ios/chrome/browser/settings/ui_bundled:eg2_tests",
     "//ios/chrome/browser/settings/ui_bundled/autofill:eg2_tests",
     "//ios/chrome/browser/settings/ui_bundled/clear_browsing_data/quick_delete_browsing_data/test:eg2_tests",
     "//ios/chrome/browser/settings/ui_bundled/clear_browsing_data/test:eg2_tests",
     "//ios/chrome/browser/settings/ui_bundled/content_settings:eg2_tests",
     "//ios/chrome/browser/settings/ui_bundled/google_services:eg2_tests",
-    "//ios/chrome/browser/settings/ui_bundled/google_services/manage_accounts:eg2_tests",
     "//ios/chrome/browser/settings/ui_bundled/language:eg2_tests",
     "//ios/chrome/browser/settings/ui_bundled/notifications:eg2_tests",
     "//ios/chrome/browser/settings/ui_bundled/notifications/tracking_price:eg2_tests",
@@ -190,7 +190,6 @@ chrome_ios_eg2_test("ios_chrome_ui_eg2tests_module") {
 
   deps = [
     "//ios/chrome/app/application_delegate:eg2_tests",
-    "//ios/chrome/browser/ai_prototyping/test:eg2_tests",
     "//ios/chrome/browser/autofill/authentication/test:eg2_tests",
     "//ios/chrome/browser/autofill/form_input_accessory/test:eg2_tests",
     "//ios/chrome/browser/autofill/ui_bundled/bottom_sheet:eg2_tests",
@@ -211,7 +210,6 @@ chrome_ios_eg2_test("ios_chrome_ui_eg2tests_module") {
     "//ios/chrome/browser/download/ui:eg2_tests",
     "//ios/chrome/browser/drive_file_picker/test:eg2_tests",
     "//ios/chrome/browser/enterprise/data_controls/test:eg2_tests",
-    "//ios/chrome/browser/explain_with_gemini/coordinator:eg2_tests",
     "//ios/chrome/browser/file_upload_panel/test:eg2_tests",
     "//ios/chrome/browser/first_run/best_features/test:eg2_tests",
     "//ios/chrome/browser/first_run/default_browser/test:eg2_tests",
@@ -224,6 +222,7 @@ chrome_ios_eg2_test("ios_chrome_ui_eg2tests_module") {
     "//ios/chrome/browser/infobars/ui_bundled:eg2_tests",
     "//ios/chrome/browser/intelligence/actuation/model:eg2_tests",
     "//ios/chrome/browser/intelligence/bwg/ui:eg2_tests",
+    "//ios/chrome/browser/intelligence/explain_with_gemini/coordinator:eg2_tests",
     "//ios/chrome/browser/keyboard/ui_bundled:eg2_tests",
     "//ios/chrome/browser/lens_overlay/ui:eg2_tests",
     "//ios/chrome/browser/link_to_text/ui_bundled:eg2_tests",

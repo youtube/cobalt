@@ -107,7 +107,6 @@ constexpr uint8_t kH264PayloadType = 99;
 constexpr uint8_t kH265PayloadType = 100;
 constexpr uint8_t kAv1PayloadType = 101;
 constexpr uint32_t kRemoteSsrc = 1111;
-constexpr uint32_t kLocalSsrc = 2222;
 
 class FakeVideoRenderer : public VideoSinkInterface<VideoFrame> {
  public:
@@ -228,7 +227,6 @@ class VideoReceiveStream2Test : public ::testing::TestWithParam<bool> {
 
   void SetUp() override {
     config_.rtp.remote_ssrc = kRemoteSsrc;
-    config_.rtp.local_ssrc = kLocalSsrc;
     config_.renderer = &fake_renderer_;
     VideoReceiveStreamInterface::Decoder h264_decoder;
     h264_decoder.payload_type = kH264PayloadType;

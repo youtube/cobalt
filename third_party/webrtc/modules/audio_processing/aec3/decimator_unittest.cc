@@ -114,7 +114,7 @@ TEST(DecimatorDeathTest, WrongInputSize) {
 TEST(DecimatorDeathTest, NullOutput) {
   Decimator decimator(4);
   std::vector<float> x(kBlockSize, 0.f);
-  EXPECT_DEATH(decimator.Decimate(x, nullptr), "");
+  EXPECT_DEATH(decimator.Decimate(x, {}), "");
 }
 
 // Verifies the check for the output size.

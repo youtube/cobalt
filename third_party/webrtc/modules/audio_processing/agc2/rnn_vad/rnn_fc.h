@@ -53,6 +53,11 @@ class FullyConnectedLayer {
   // Returns the size of the output buffer.
   int size() const { return output_size_; }
 
+  // Returns the output buffer.
+  ArrayView<const float> output() const {
+    return MakeArrayView(output_.data(), output_size_);
+  }
+
   // Computes the fully-connected layer output.
   void ComputeOutput(ArrayView<const float> input);
 

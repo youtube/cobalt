@@ -150,6 +150,10 @@ template bool RegExp::VerifySyntax<base::uc16>(
 MaybeDirectHandle<Object> RegExp::ThrowRegExpException(
     Isolate* isolate, RegExpFlags flags, DirectHandle<String> pattern,
     RegExpError error) {
+  if (V8_UNLIKELY(v8_flags.correctness_fuzzer_suppressions &&
+                  RegExpErrorIsStackOverflow(error))) {
+    FATAL("Aborting on stack overflow");
+  }
   base::Vector<const char> error_data =
       base::CStrVector(RegExpErrorString(error));
   DirectHandle<String> error_text =
@@ -675,9 +679,6 @@ bool RegExpImpl::CompileIrregexpFromSource(
   // compilation) here in advance.
   StackLimitCheck check(isolate);
   if (check.JsHasOverflowed(kStackSpaceRequiredForCompilation * KB)) {
-    if (v8_flags.correctness_fuzzer_suppressions) {
-      FATAL("Aborting on stack overflow");
-    }
     RegExp::ThrowRegExpException(isolate, re_data,
                                  RegExpError::kAnalysisStackOverflow);
     return false;
@@ -702,6 +703,11 @@ bool RegExpImpl::CompileIrregexpFromSource(
                                      compile_data.error));
     return false;
   }
+
+  // The capture_count cannot change in any valid scenario. Prevent corrupted
+  // pattern strings from generating invalid regexp code.
+  SBXCHECK_EQ(compile_data.capture_count, re_data->capture_count());
+
   const bool can_be_zero_length = compile_data.tree->min_match() == 0;
   re_data->set_can_be_zero_length(can_be_zero_length);
   compile_data.compilation_target = compilation_target;
@@ -1262,8 +1268,10 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
 
   // Inserted here, instead of in Assembler, because it depends on information
   // in the AST that isn't replicated in the Node structure.
-  bool is_end_anchored = data->tree->IsAnchoredAtEnd();
-  bool is_start_anchored = data->tree->IsAnchoredAtStart();
+  bool is_end_anchored =
+      data->tree->IsCertainlyAnchoredAtEnd(RegExpNode::kRecursionBudget);
+  bool is_start_anchored =
+      data->tree->IsCertainlyAnchoredAtStart(RegExpNode::kRecursionBudget);
   int max_length = data->tree->max_match();
   static const int kMaxBacksearchLimit = 1024;
   if (is_end_anchored && !is_start_anchored && !IsSticky(flags) &&
@@ -1310,10 +1318,6 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
   }
 
   if (result.error != RegExpError::kNone) {
-    if (v8_flags.correctness_fuzzer_suppressions &&
-        result.error == RegExpError::kStackOverflow) {
-      FATAL("Aborting on stack overflow");
-    }
     data->error = result.error;
   }
 

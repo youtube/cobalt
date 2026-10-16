@@ -13,7 +13,6 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
-#include <set>
 #include <type_traits>
 #include <vector>
 
@@ -109,10 +108,6 @@ class MockVoiceMediaReceiveChannelInterface
               GetUnsignaledSsrc,
               (),
               (const, override));
-  MOCK_METHOD(void,
-              ChooseReceiverReportSsrc,
-              (const std::set<uint32_t>& choices),
-              (override));
   MOCK_METHOD(void, OnDemuxerCriteriaUpdatePending, (), (override));
   MOCK_METHOD(void, OnDemuxerCriteriaUpdateComplete, (), (override));
   MOCK_METHOD(void,

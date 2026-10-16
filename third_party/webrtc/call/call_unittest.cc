@@ -510,7 +510,6 @@ class CallRtcEventLogTest : public ::testing::Test {
     video_config.decoders.emplace_back(SdpVideoFormat("VP8"),
                                        /*payload_type=*/96);
     video_config.decoder_factory = &video_decoder_factory_;
-    video_config.rtp.local_ssrc = kVideoSsrc + 1;
     video_config.renderer = &renderer_;
     video_stream_ = call_->CreateVideoReceiveStream(std::move(video_config));
 

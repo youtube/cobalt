@@ -61,7 +61,6 @@ import org.robolectric.ParameterizedRobolectricTestRunner;
 import org.robolectric.ParameterizedRobolectricTestRunner.Parameter;
 import org.robolectric.ParameterizedRobolectricTestRunner.Parameters;
 import org.robolectric.annotation.Config;
-import org.robolectric.shadows.ShadowLooper;
 
 import org.chromium.base.Callback;
 import org.chromium.base.DeviceInfo;
@@ -72,6 +71,7 @@ import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.base.supplier.SyncOneshotSupplierImpl;
 import org.chromium.base.test.BaseRobolectricTestRule;
+import org.chromium.base.test.RobolectricUtil;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.UserActionTester;
 import org.chromium.chrome.R;
@@ -198,7 +198,7 @@ public class HubLayoutUnitTest {
         SolidColorSceneLayerJni.setInstanceForTesting(mSolidColorSceneLayerJni);
 
         mActionTester = new UserActionTester();
-        ShadowLooper.runUiThreadTasks();
+        RobolectricUtil.runAllBackgroundAndUi();
 
         when(mTabSwitcherPane.getPaneId()).thenReturn(PaneId.TAB_SWITCHER);
         when(mTabSwitcherPane.getColorScheme()).thenReturn(HubColorScheme.DEFAULT);
@@ -640,7 +640,7 @@ public class HubLayoutUnitTest {
         assertTrue(mHubLayout.isRunningAnimations());
         assertTrue(mHubLayout.onUpdateAnimation(FAKE_TIME, false));
 
-        ShadowLooper.runUiThreadTasks();
+        RobolectricUtil.runAllBackgroundAndUi();
 
         assertFalse(mHubLayout.isRunningAnimations());
         assertFalse(mHubLayout.onUpdateAnimation(FAKE_TIME, false));
@@ -855,7 +855,7 @@ public class HubLayoutUnitTest {
             assertFalse(mHubLayout.isRunningAnimations());
         }
 
-        ShadowLooper.runUiThreadTasks();
+        RobolectricUtil.runAllBackgroundAndUi();
 
         assertFalse(mHubLayout.isRunningAnimations());
         assertFalse(mHubLayout.onUpdateAnimation(FAKE_TIME, false));
@@ -886,7 +886,7 @@ public class HubLayoutUnitTest {
         assertTrue(mHubLayout.onUpdateAnimation(FAKE_TIME, false));
         forceLayout();
 
-        ShadowLooper.runUiThreadTasks();
+        RobolectricUtil.runAllBackgroundAndUi();
 
         assertFalse(mHubLayout.isRunningAnimations());
         assertFalse(mHubLayout.onUpdateAnimation(FAKE_TIME, false));
@@ -939,7 +939,7 @@ public class HubLayoutUnitTest {
         verify(mTabContentManager)
                 .updateVisibleIds(eq(Collections.singletonList(tabId)), eq(Tab.INVALID_TAB_ID));
 
-        assertEquals(0f, layoutTabs[0].get(LayoutTab.CONTENT_OFFSET), FLOAT_ERROR);
+        assertEquals(0f, layoutTabs[0].get(LayoutTab.CONTENT_OFFSET_Y), FLOAT_ERROR);
 
         float contentOffset = 100f;
         when(mBrowserControlsStateProvider.getContentOffset())
@@ -950,7 +950,7 @@ public class HubLayoutUnitTest {
                 mTabContentManager,
                 mResourceManager,
                 mBrowserControlsStateProvider);
-        assertEquals(contentOffset, layoutTabs[0].get(LayoutTab.CONTENT_OFFSET), FLOAT_ERROR);
+        assertEquals(contentOffset, layoutTabs[0].get(LayoutTab.CONTENT_OFFSET_Y), FLOAT_ERROR);
 
         // Change this so updateSnap() returns true.
         layoutTabs[0].set(LayoutTab.RENDER_X, 5);
@@ -958,7 +958,7 @@ public class HubLayoutUnitTest {
         verify(mUpdateHost).requestUpdate();
 
         mHubContainerView.runOnNextLayoutRunnables();
-        ShadowLooper.runUiThreadTasks();
+        RobolectricUtil.runAllBackgroundAndUi();
 
         assertThat(mHubLayout.getSceneLayer()).isInstanceOf(SolidColorSceneLayer.class);
         layoutTabs = mHubLayout.getLayoutTabsToRender();

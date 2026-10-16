@@ -37,6 +37,7 @@
 #include "base/uuid.h"
 #include "base/values.h"
 #include "base/version_info/channel.h"
+#include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "chrome/browser/about_flags.h"
 #include "chrome/browser/browser_process.h"
@@ -2108,13 +2109,6 @@ base::DictValue DevToolsUIBindings::GetHostConfigDictionary(Profile* profile) {
       base::FeatureList::IsEnabled(features::kDeviceBoundSessionsDevTools));
   response_dict.Set("deviceBoundSessionsDebugging",
                     std::move(device_bound_sessions_debugging));
-
-  base::DictValue prompt_api_dict;
-  prompt_api_dict.Set("enabled", base::FeatureList::IsEnabled(
-                                     ::features::kDevToolsAiPromptApi));
-  prompt_api_dict.Set("allowWithoutGpu",
-                      features::kDevToolsAiPromptApiAllowWithoutGpu.Get());
-  response_dict.Set("devToolsAiPromptApi", std::move(prompt_api_dict));
 
   if (base::FeatureList::IsEnabled(
           ::features::kDevToolsAiAssistanceContextSelectionAgent)) {

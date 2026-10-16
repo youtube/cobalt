@@ -288,6 +288,7 @@ class MockVideoEncoder : public VideoEncoder {
         apply_alignment_to_all_simulcast_layers_;
     info.has_trusted_rate_controller = has_trusted_rate_controller_;
     info.is_hardware_accelerated = is_hardware_accelerated_;
+    info.enable_cpu_overuse_detection = enable_cpu_overuse_detection_;
     info.fps_allocation[0] = fps_allocation_;
     info.supports_simulcast = supports_simulcast_;
     info.is_qp_trusted = is_qp_trusted_;
@@ -355,6 +356,10 @@ class MockVideoEncoder : public VideoEncoder {
     is_hardware_accelerated_ = is_hardware_accelerated;
   }
 
+  void set_enable_cpu_overuse_detection(bool enable) {
+    enable_cpu_overuse_detection_ = enable;
+  }
+
   void set_fps_allocation(const FramerateFractions& fps_allocation) {
     fps_allocation_ = fps_allocation;
   }
@@ -391,6 +396,7 @@ class MockVideoEncoder : public VideoEncoder {
   bool apply_alignment_to_all_simulcast_layers_ = false;
   bool has_trusted_rate_controller_ = false;
   bool is_hardware_accelerated_ = false;
+  bool enable_cpu_overuse_detection_ = true;
   int32_t init_encode_return_value_ = 0;
   std::optional<int32_t> fallback_from_simulcast_;
   VideoEncoder::RateControlParameters last_set_rates_;
@@ -2024,6 +2030,28 @@ TEST_F(TestSimulcastEncoderAdapterFake, ReportsHardwareAccelerated) {
   helper_->factory()->encoders()[2]->set_is_hardware_accelerated(true);
   EXPECT_EQ(0, adapter_->InitEncode(&codec_, kSettings));
   EXPECT_TRUE(adapter_->GetEncoderInfo().is_hardware_accelerated);
+}
+
+TEST_F(TestSimulcastEncoderAdapterFake, ReportsEnableCpuOveruseDetection) {
+  SimulcastTestFixtureImpl::DefaultSettings(
+      &codec_, static_cast<const int*>(kTestTemporalLayerProfile),
+      kVideoCodecVP8);
+  codec_.numberOfSimulcastStreams = 3;
+  adapter_->RegisterEncodeCompleteCallback(this);
+  EXPECT_EQ(0, adapter_->InitEncode(&codec_, kSettings));
+  ASSERT_EQ(3u, helper_->factory()->encoders().size());
+
+  // All encoders opt out, so simulcast adapter should report false.
+  for (MockVideoEncoder* encoder : helper_->factory()->encoders()) {
+    encoder->set_enable_cpu_overuse_detection(false);
+  }
+  EXPECT_EQ(0, adapter_->InitEncode(&codec_, kSettings));
+  EXPECT_FALSE(adapter_->GetEncoderInfo().enable_cpu_overuse_detection);
+
+  // One encoder opts in, so simulcast adapter should report true.
+  helper_->factory()->encoders()[1]->set_enable_cpu_overuse_detection(true);
+  EXPECT_EQ(0, adapter_->InitEncode(&codec_, kSettings));
+  EXPECT_TRUE(adapter_->GetEncoderInfo().enable_cpu_overuse_detection);
 }
 
 TEST_F(TestSimulcastEncoderAdapterFake,

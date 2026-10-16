@@ -293,7 +293,6 @@ inline void Store(LiftoffAssembler* assm, LiftoffRegister src, MemOperand dst,
     case kI32:
     case kRefNull:
     case kRef:
-    case kWaitQueue:
       assm->str(src.gp(), dst);
       break;
     case kI64:
@@ -330,7 +329,6 @@ inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, MemOperand src,
     case kI32:
     case kRefNull:
     case kRef:
-    case kWaitQueue:
       assm->ldr(dst.gp(), src);
       break;
     case kI64:
@@ -935,12 +933,10 @@ void LiftoffAssembler::LoadFullPointer(Register dst, Register src_addr,
   ldr(dst, src_op);
 }
 
-void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
-                                          Register offset_reg,
-                                          int32_t offset_imm, Register src,
-                                          LiftoffRegList pinned,
-                                          uint32_t* protected_store_pc,
-                                          SkipWriteBarrier skip_write_barrier) {
+void LiftoffAssembler::StoreTaggedPointer(
+    Register dst_addr, Register offset_reg, int32_t offset_imm, Register src,
+    LiftoffRegList pinned, uint32_t* protected_store_pc,
+    compiler::WriteBarrierKind write_barrier) {
   static_assert(kTaggedSize == kInt32Size);
   UseScratchRegisterScope temps{this};
   Register actual_offset_reg = offset_reg;
@@ -964,7 +960,7 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
 
   if (v8_flags.disable_write_barriers) return;
 
-  if (skip_write_barrier) {
+  if (write_barrier == compiler::kNoWriteBarrier) {
     if (v8_flags.verify_write_barriers) {
       CallVerifySkippedWriteBarrierStubSaveRegisters(dst_addr, src,
                                                      SaveFPRegsMode::kSave);

@@ -363,12 +363,13 @@ bool RTCPReceiver::ParseCompoundPacket(ArrayView<const uint8_t> packet,
   // block.
   flat_map<uint32_t, RtcpReceivedBlock> received_blocks;
   bool valid = true;
-  for (const uint8_t* next_block = packet.begin();
-       valid && next_block != packet.end();
-       next_block = rtcp_block.NextPacket()) {
+  for (auto next_block = packet.begin(); valid && next_block != packet.end();
+       next_block =
+           packet.begin() + (rtcp_block.NextPacket() - packet.data())) {
     ptrdiff_t remaining_blocks_size = packet.end() - next_block;
     RTC_DCHECK_GT(remaining_blocks_size, 0);
-    if (!rtcp_block.Parse(next_block, remaining_blocks_size)) {
+    if (!rtcp_block.Parse(std::to_address(next_block),
+                          static_cast<size_t>(remaining_blocks_size))) {
       valid = false;
       break;
     }

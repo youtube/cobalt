@@ -245,6 +245,7 @@ InternalIndex Map::LastAdded() const {
   return InternalIndex(number_of_own_descriptors - 1);
 }
 
+// TODO(375937549): Convert to uint32_t.
 int Map::NumberOfOwnDescriptors() const {
   return Bits3::NumberOfOwnDescriptorsBits::decode(
       release_acquire_bit_field3());
@@ -1142,7 +1143,8 @@ int NormalizedMapCache::GetIndex(Isolate* isolate, Tagged<Map> map,
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsNormalizedMapCache) {
   if (!IsWeakFixedArray(obj, cage_base)) return false;
-  if (Cast<WeakFixedArray>(obj)->length() != NormalizedMapCache::kEntries) {
+  if (Cast<WeakFixedArray>(obj)->ulength().value() !=
+      NormalizedMapCache::kEntries) {
     return false;
   }
   return true;

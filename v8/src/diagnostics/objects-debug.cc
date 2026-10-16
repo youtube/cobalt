@@ -38,6 +38,7 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-atomics-synchronization-inl.h"
 #include "src/objects/js-disposable-stack.h"
+#include "src/objects/literal-objects.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
 #include "src/objects/trusted-object.h"
@@ -726,6 +727,9 @@ void Map::MapVerify(Isolate* isolate) {
       CHECK_EQ(immediate_supertype_map(),
                wasm_type_info()->supertypes(subtyping_depth));
     }
+    // For the time being, installing prototypes requires the "js interop" flag,
+    // not just "custom descriptors".
+    CHECK_IMPLIES(!IsNull(prototype()), v8_flags.experimental_wasm_js_interop);
   }
 #endif
 
@@ -881,13 +885,16 @@ void ProtectedFixedArray::ProtectedFixedArrayVerify(Isolate* isolate) {
 
 void RegExpMatchInfo::RegExpMatchInfoVerify(Isolate* isolate) {
   CHECK(IsSmi(length_.load()));
-  CHECK_GE(capacity(), kMinCapacity);
-  CHECK_LE(capacity(), kMaxCapacity);
-  CHECK_GE(number_of_capture_registers(), kMinCapacity);
-  CHECK_LE(number_of_capture_registers(), capacity());
+  const uint32_t cap = capacity().value();
+  const uint32_t capture_registers =
+      static_cast<uint32_t>(number_of_capture_registers());
+  CHECK_GE(cap, kMinCapacity);
+  CHECK_LE(cap, kMaxCapacity);
+  CHECK_GE(capture_registers, kMinCapacity);
+  CHECK_LE(capture_registers, cap);
   CHECK(IsString(last_subject()));
   Object::VerifyPointer(isolate, last_input());
-  for (int i = 0; i < capacity(); ++i) {
+  for (uint32_t i = 0; i < cap; ++i) {
     CHECK(IsSmi(get(i)));
   }
 }
@@ -955,9 +962,9 @@ void ProtectedWeakFixedArray::ProtectedWeakFixedArrayVerify(Isolate* isolate) {
 void ScriptContextTable::ScriptContextTableVerify(Isolate* isolate) {
   CHECK(IsSmi(capacity_.load()));
   CHECK(IsSmi(length_.load()));
-  int len = length(kAcquireLoad);
+  const int len = length(kAcquireLoad);
   CHECK_LE(0, len);
-  CHECK_LE(len, capacity());
+  CHECK_LE(static_cast<uint32_t>(len), capacity().value());
   CHECK(IsNameToIndexHashTable(names_to_context_index()));
   for (int i = 0; i < len; ++i) {
     Tagged<Context> o = get(i);
@@ -968,11 +975,11 @@ void ScriptContextTable::ScriptContextTableVerify(Isolate* isolate) {
 }
 
 void ArrayList::ArrayListVerify(Isolate* isolate) {
-  CHECK_LE(0, length());
-  CHECK_LE(length(), capacity());
-  CHECK_IMPLIES(capacity() == 0,
-                this == ReadOnlyRoots(isolate).empty_array_list());
-  for (int i = 0; i < capacity(); ++i) {
+  const uint32_t len = ulength().value();
+  const uint32_t cap = capacity().value();
+  CHECK_LE(len, cap);
+  CHECK_IMPLIES(cap == 0, this == ReadOnlyRoots(isolate).empty_array_list());
+  for (uint32_t i = 0; i < cap; ++i) {
     Object::VerifyPointer(isolate, get(i));
   }
 }
@@ -1124,9 +1131,10 @@ void TransitionArray::TransitionArrayVerify(Isolate* isolate) {
   // Check all entries have the same owner
   if (HasPrototypeTransitions()) {
     Tagged<WeakFixedArray> proto_trans = GetPrototypeTransitions();
-    int length = TransitionArray::NumberOfPrototypeTransitions(proto_trans);
-    for (int i = 0; i < length; ++i) {
-      int index = TransitionArray::kProtoTransitionHeaderSize + i;
+    const uint32_t length =
+        TransitionArray::NumberOfPrototypeTransitions(proto_trans);
+    for (uint32_t i = 0; i < length; ++i) {
+      const uint32_t index = TransitionArray::kProtoTransitionHeaderSize + i;
       Tagged<MaybeObject> maybe_target = proto_trans->get(index);
       Tagged<HeapObject> target;
       if (maybe_target.GetHeapObjectIfWeak(&target)) {
@@ -1526,6 +1534,9 @@ void SharedFunctionInfo::SharedFunctionInfoVerify(LocalIsolate* isolate) {
     CHECK(!construct_as_builtin());
   } else {
     if (builtin_id() != Builtin::kCompileLazy &&
+#if V8_ENABLE_WEBASSEMBLY
+        builtin_id() != Builtin::kWasmMethodWrapper &&
+#endif  // V8_ENABLE_WEBASSEMBLY
         builtin_id() != Builtin::kEmptyFunction) {
       CHECK(construct_as_builtin());
     } else {
@@ -1906,8 +1917,10 @@ void JSAtomicsCondition::JSAtomicsConditionVerify(Isolate* isolate) {
 void JSDisposableStackBase::JSDisposableStackBaseVerify(Isolate* isolate) {
   CHECK(IsJSDisposableStackBase(*this));
   JSObjectVerify(isolate);
-  CHECK_EQ(length() % 3, 0);
-  CHECK_GE(stack()->capacity(), length());
+  const int len = length();
+  const uint32_t cap = stack()->capacity().value();
+  CHECK_EQ(len % 3, 0);
+  CHECK_GE(cap, static_cast<uint32_t>(len));
 }
 
 void JSSyncDisposableStack::JSSyncDisposableStackVerify(Isolate* isolate) {
@@ -2662,9 +2675,11 @@ void ObjectBoilerplateDescription::ObjectBoilerplateDescriptionVerify(
   CHECK(IsSmi(length_.load()));
   CHECK(IsSmi(backing_store_size_.load()));
   CHECK(IsSmi(flags_.load()));
-  // The keys of the boilerplate should not be thin strings. The values can be.
+  // The keys of the boilerplate should either be internalized strings, or
+  // numbers. Exceptionally, during initialization, they can also be undefined.
   for (int i = 0; i < boilerplate_properties_count(); ++i) {
-    CHECK(!IsThinString(name(i), isolate));
+    CHECK((
+        Is<UnionOf<InternalizedString, Number, Undefined>>(get(NameIndex(i)))));
   }
 }
 

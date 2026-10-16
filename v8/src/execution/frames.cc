@@ -311,8 +311,7 @@ void StackFrameIterator::Reset(ThreadLocalTop* top) {
 
 #if V8_ENABLE_WEBASSEMBLY
 void StackFrameIterator::Reset(ThreadLocalTop* top, wasm::StackMemory* stack) {
-  if (stack->jmpbuf()->sp == stack->base() ||
-      stack->jmpbuf()->state == wasm::JumpBuffer::Retired) {
+  if (!stack->has_frames()) {
     // The stack has not been started yet or has already retired.
     return;
   }
@@ -1658,7 +1657,13 @@ void VisitSpillSlot(Isolate* isolate, RootVisitor* v,
             CHECK(chunk->InNewLargeObjectSpace() ||
                   chunk->Metadata(isolate)->is_quarantined());
           } else {
-            Tagged<HeapObject> forwarded_map = forwarded->map(cage_base);
+            // Take the map from {map_word} (unless it is a forwarding address)
+            // to avoid a double load of the map word for that object. Parallel
+            // scavenging tasks could install a forwarding pointer in-between
+            // both loads.
+            Tagged<HeapObject> forwarded_map = map_word.IsForwardingAddress()
+                                                   ? forwarded->map(cage_base)
+                                                   : map_word.ToMap();
             // The map might be forwarded as well.
             MapWord fwd_map_map_word =
                 forwarded_map->map_word(cage_base, kRelaxedLoad);
@@ -3402,10 +3407,11 @@ int UnoptimizedJSFrame::LookupExceptionHandlerInTable(
   HandlerTable table(GetBytecodeArray());
   int handler_index = table.LookupHandlerIndexForRange(GetBytecodeOffset());
   if (handler_index != HandlerTable::kNoHandlerFound) {
-    if (context_register) *context_register = table.GetRangeData(handler_index);
-    if (prediction) *prediction = table.GetRangePrediction(handler_index);
-    table.MarkHandlerUsed(handler_index);
-    return table.GetRangeHandler(handler_index);
+    uint32_t index = static_cast<uint32_t>(handler_index);
+    if (context_register) *context_register = table.GetRangeData(index);
+    if (prediction) *prediction = table.GetRangePrediction(index);
+    table.MarkHandlerUsed(index);
+    return table.GetRangeHandler(index);
   }
   return handler_index;
 }

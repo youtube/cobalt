@@ -456,7 +456,7 @@ ANGLE_INLINE bool ValidateGetVertexAttribfv(const Context *context,
                                             GLenum pname,
                                             const GLfloat *params)
 {
-    return ValidateGetVertexAttribBase(context, entryPoint, index, pname, nullptr, false);
+    return ValidateGetVertexAttribBase(context, entryPoint, index, pname, nullptr);
 }
 
 ANGLE_INLINE bool ValidateGetVertexAttribiv(const Context *context,
@@ -465,7 +465,7 @@ ANGLE_INLINE bool ValidateGetVertexAttribiv(const Context *context,
                                             GLenum pname,
                                             const GLint *params)
 {
-    return ValidateGetVertexAttribBase(context, entryPoint, index, pname, nullptr, false);
+    return ValidateGetVertexAttribBase(context, entryPoint, index, pname, nullptr);
 }
 
 ANGLE_INLINE bool ValidateGetVertexAttribPointerv(const Context *context,
@@ -474,7 +474,7 @@ ANGLE_INLINE bool ValidateGetVertexAttribPointerv(const Context *context,
                                                   GLenum pname,
                                                   void *const *pointer)
 {
-    return ValidateGetVertexAttribBase(context, entryPoint, index, pname, nullptr, true);
+    return ValidateGetVertexAttribPointerBase(context, entryPoint, index, pname, nullptr);
 }
 
 ANGLE_INLINE bool ValidateReadPixels(const Context *context,

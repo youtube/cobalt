@@ -90,6 +90,10 @@ class FakeEncodedImageCallback : public EncodedImageCallback {
     ++callback_count_;
     return Result(Result::OK, callback_count_);
   }
+
+  void OnFrameDropped(uint32_t /*rtp_timestamp*/,
+                      int /*spatial_id*/,
+                      bool /*is_end_of_temporal_unit*/) override {}
   int callback_count_ = 0;
 };
 

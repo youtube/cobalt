@@ -329,6 +329,7 @@ rtc_library("call") {
     "../logging:rtc_event_video",
     "../logging:rtc_stream_config",
     "../modules/congestion_controller",
+    "../modules/pacing",
     "../modules/rtp_rtcp",
     "../modules/rtp_rtcp:rtp_rtcp_format",
     "../modules/video_coding",

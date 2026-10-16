@@ -352,12 +352,6 @@ struct QUICHE_EXPORT MoqtRequestError {
 };
 
 struct QUICHE_EXPORT MoqtSubscribe {
-  MoqtSubscribe() = default;
-  MoqtSubscribe(uint64_t request_id, FullTrackName full_track_name,
-                MessageParameters parameters)
-      : request_id(request_id),
-        full_track_name(full_track_name),
-        parameters(parameters) {}
   uint64_t request_id;
   FullTrackName full_track_name;
   MessageParameters parameters;
@@ -372,17 +366,6 @@ struct QUICHE_EXPORT MoqtSubscribeOk {
 
 struct QUICHE_EXPORT MoqtUnsubscribe {
   uint64_t request_id;
-};
-
-enum class QUICHE_EXPORT PublishDoneCode : uint64_t {
-  kInternalError = 0x0,
-  kUnauthorized = 0x1,
-  kTrackEnded = 0x2,
-  kSubscriptionEnded = 0x3,
-  kGoingAway = 0x4,
-  kExpired = 0x5,
-  kTooFarBehind = 0x6,
-  kMalformedTrack = 0x7,
 };
 
 struct QUICHE_EXPORT MoqtPublishDone {
@@ -401,7 +384,7 @@ struct QUICHE_EXPORT MoqtRequestUpdate {
 struct QUICHE_EXPORT MoqtPublishNamespace {
   uint64_t request_id;
   TrackNamespace track_namespace;
-  VersionSpecificParameters parameters;
+  MessageParameters parameters;
 };
 
 struct QUICHE_EXPORT MoqtRequestOk {
@@ -410,11 +393,11 @@ struct QUICHE_EXPORT MoqtRequestOk {
 };
 
 struct QUICHE_EXPORT MoqtPublishNamespaceDone {
-  TrackNamespace track_namespace;
+  uint64_t request_id;
 };
 
 struct QUICHE_EXPORT MoqtPublishNamespaceCancel {
-  TrackNamespace track_namespace;
+  uint64_t request_id;
   RequestErrorCode error_code;
   std::string error_reason;
 };
@@ -461,23 +444,12 @@ enum class QUICHE_EXPORT FetchType : uint64_t {
 };
 
 struct StandaloneFetch {
-  StandaloneFetch() = default;
-  StandaloneFetch(FullTrackName full_track_name, Location start_location,
-                  Location end_location)
-      : full_track_name(full_track_name),
-        start_location(start_location),
-        end_location(end_location) {}
   FullTrackName full_track_name;
   Location start_location;
   Location end_location;
-  bool operator==(const StandaloneFetch& other) const {
-    return full_track_name == other.full_track_name &&
-           start_location == other.start_location &&
-           end_location == other.end_location;
-  }
-  bool operator!=(const StandaloneFetch& other) const {
-    return !(*this == other);
-  }
+
+  bool operator==(const StandaloneFetch& other) const = default;
+  bool operator!=(const StandaloneFetch& other) const = default;
 };
 
 struct JoiningFetchRelative {
@@ -510,19 +482,17 @@ struct JoiningFetchAbsolute {
 
 struct QUICHE_EXPORT MoqtFetch {
   uint64_t request_id;
-  MoqtPriority subscriber_priority;
-  std::optional<MoqtDeliveryOrder> group_order;
   std::variant<StandaloneFetch, JoiningFetchRelative, JoiningFetchAbsolute>
       fetch;
-  VersionSpecificParameters parameters;
+  MessageParameters parameters;
 };
 
 struct QUICHE_EXPORT MoqtFetchOk {
   uint64_t request_id;
-  MoqtDeliveryOrder group_order;
   bool end_of_track;
   Location end_location;
-  VersionSpecificParameters parameters;
+  MessageParameters parameters;
+  TrackExtensions extensions;
 };
 
 struct QUICHE_EXPORT MoqtFetchCancel {
@@ -537,21 +507,13 @@ struct QUICHE_EXPORT MoqtPublish {
   uint64_t request_id;
   FullTrackName full_track_name;
   uint64_t track_alias;
-  MoqtDeliveryOrder group_order;
-  std::optional<Location> largest_location;
-  bool forward;
-  VersionSpecificParameters parameters;
+  MessageParameters parameters;
+  TrackExtensions extensions;
 };
 
 struct QUICHE_EXPORT MoqtPublishOk {
   uint64_t request_id;
-  bool forward;
-  MoqtPriority subscriber_priority;
-  MoqtDeliveryOrder group_order;
-  MoqtFilterType filter_type;
-  std::optional<Location> start;
-  std::optional<uint64_t> end_group;
-  VersionSpecificParameters parameters;
+  MessageParameters parameters;
 };
 
 // All of the four values in this message are encoded as varints.
@@ -569,9 +531,6 @@ struct QUICHE_EXPORT MoqtObjectAck {
 MoqtError SetupParametersAllowedByMessage(const SetupParameters& parameters,
                                           MoqtMessageType message_type,
                                           bool webtrans);
-// Returns false if the parameters cannot be in |message type|.
-bool VersionSpecificParametersAllowedByMessage(
-    const VersionSpecificParameters& parameters, MoqtMessageType message_type);
 
 std::string MoqtMessageTypeToString(MoqtMessageType message_type);
 std::string MoqtDataStreamTypeToString(MoqtDataStreamType type);

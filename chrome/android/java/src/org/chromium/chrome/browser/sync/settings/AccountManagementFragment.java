@@ -37,6 +37,7 @@ import org.chromium.chrome.browser.settings.ChromeBaseSettingsFragment;
 import org.chromium.chrome.browser.settings.ChromeManagedPreferenceDelegate;
 import org.chromium.chrome.browser.settings.SettingsNavigationFactory;
 import org.chromium.chrome.browser.settings.search.ChromeBaseSearchIndexProvider;
+import org.chromium.chrome.browser.signin.SigninAndHistorySyncActivityLauncherImpl;
 import org.chromium.chrome.browser.signin.services.DisplayableProfileData;
 import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
 import org.chromium.chrome.browser.signin.services.ProfileDataCache;
@@ -252,6 +253,7 @@ public class AccountManagementFragment extends ChromeBaseSettingsFragment
                                 getActivity().getSupportFragmentManager(),
                                 ((ModalDialogManagerHolder) getActivity()).getModalDialogManager(),
                                 assertNonNull(assumeNonNull(mSnackbarManagerSupplier).get()),
+                                SigninAndHistorySyncActivityLauncherImpl.get(),
                                 SignoutReason.USER_CLICKED_SIGNOUT_SETTINGS,
                                 /* showConfirmDialog= */ false,
                                 CallbackUtils.emptyRunnable());
@@ -317,6 +319,7 @@ public class AccountManagementFragment extends ChromeBaseSettingsFragment
             }
         }
         accountsCategory.addPreference(createAddAccountPreference());
+        notifyPreferencesUpdated();
     }
 
     private Preference createAccountPreference(CoreAccountInfo coreAccountInfo) {
@@ -498,6 +501,11 @@ public class AccountManagementFragment extends ChromeBaseSettingsFragment
             default:
                 return;
         }
+    }
+
+    @Override
+    public void onIdentityErrorCardVisibilityChanged() {
+        notifyPreferencesUpdated();
     }
 
     /**

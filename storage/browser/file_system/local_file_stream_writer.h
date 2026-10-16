@@ -10,12 +10,15 @@
 #include <memory>
 #include <utility>
 
+#include "base/byte_size.h"
 #include "base/component_export.h"
 #include "base/files/file_path.h"
 #include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
 #include "base/task/task_runner.h"
+#include "base/types/expected.h"
 #include "base/types/pass_key.h"
+#include "net/base/net_errors.h"
 #include "storage/browser/file_system/file_stream_writer.h"
 
 namespace net {
@@ -50,7 +53,7 @@ class COMPONENT_EXPORT(STORAGE_BROWSER) LocalFileStreamWriter
   // Opens |file_path_| and if it succeeds, proceeds to InitiateSeek().
   // If failed, the error code is returned by calling |error_callback|.
   int InitiateOpen(base::OnceClosure main_operation);
-  void DidOpen(base::OnceClosure main_operation, int result);
+  void DidOpen(base::OnceClosure main_operation, net::Error result);
 
   // Seeks to |initial_offset_| and proceeds to |main_operation| if it succeeds.
   // If failed, the error code is returned by calling |error_callback|.
@@ -62,11 +65,11 @@ class COMPONENT_EXPORT(STORAGE_BROWSER) LocalFileStreamWriter
 
   // Writes asynchronously to the file.
   int InitiateWrite(net::IOBuffer* buf, int buf_len);
-  void DidWrite(int result);
+  void DidWrite(base::expected<base::ByteSize, net::Error> result);
 
   // Flushes asynchronously to the file.
   int InitiateFlush(net::CompletionOnceCallback callback);
-  void DidFlush(net::CompletionOnceCallback callback, int result);
+  void DidFlush(net::CompletionOnceCallback callback, net::Error result);
 
   // Stops the in-flight operation and calls |cancel_callback_| if it has been
   // set by Cancel() for the current operation.

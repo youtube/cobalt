@@ -139,8 +139,7 @@ inline SectionCode IdentifyUnknownSectionInternal(Decoder* decoder,
       {base::StaticCharVector(kDebugInfoString), kDebugInfoSectionCode},
       {base::StaticCharVector(kExternalDebugInfoString),
        kExternalDebugInfoSectionCode},
-      {base::StaticCharVector(kBuildIdString), kBuildIdSectionCode},
-      {base::StaticCharVector(kDescriptorsString), kDescriptorsSectionCode}};
+      {base::StaticCharVector(kBuildIdString), kBuildIdSectionCode}};
 
   auto name_vec = base::Vector<const char>::cast(
       base::VectorOf(section_name_start, string.length()));
@@ -520,9 +519,6 @@ class ModuleDecoderImpl : public Decoder {
           // custom section anyways.
           consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
         }
-        break;
-      case kDescriptorsSectionCode:
-        DecodeDescriptorsSection();
         break;
       case kDataCountSectionCode:
         DecodeDataCountSection();
@@ -1091,9 +1087,6 @@ class ModuleDecoderImpl : public Decoder {
     }
     if (module_->memories.size() > 1) {
       detected_features_->add_multi_memory();
-      if (v8_flags.wasm_jitless) {
-        error("Multiple memories not supported in Wasm jitless mode");
-      }
     }
     if (module_->num_imported_mutable_globals > 0) {
       detected_features_->add_mutable_globals();
@@ -1229,9 +1222,6 @@ class ModuleDecoderImpl : public Decoder {
     }
     if (module_->memories.size() > 1) {
       detected_features_->add_multi_memory();
-      if (v8_flags.wasm_jitless) {
-        error("Multiple memories not supported in Wasm jitless mode");
-      }
     }
     UpdateComputedMemoryInformation();
   }
@@ -1605,16 +1595,6 @@ class ModuleDecoderImpl : public Decoder {
       }
     }
     // Skip the whole names section in the outer decoder.
-    consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
-  }
-
-  void DecodeDescriptorsSection() {
-    if (enabled_features_.has_custom_descriptors() &&
-        !has_seen_unordered_section(kDescriptorsSectionCode)) {
-      set_seen_unordered_section(kDescriptorsSectionCode);
-      module_->descriptors_section = {buffer_offset_,
-                                      static_cast<uint32_t>(end_ - start_)};
-    }
     consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
   }
 

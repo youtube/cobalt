@@ -186,6 +186,9 @@ class VideoSendStreamImpl : public webrtc::VideoSendStream,
 
   // Implements EncodedImageCallback.
   void OnDroppedFrame(EncodedImageCallback::DropReason reason) override;
+  void OnFrameDropped(uint32_t rtp_timestamp,
+                      int spatial_id,
+                      bool is_end_of_temporal_unit) override;
 
   // Starts monitoring and sends a keyframe.
   void StartupVideoSendStream();

@@ -9450,7 +9450,7 @@ TNode<Object> CodeStubAssembler::TryMatchRootRange(TNode<Int32T> value,
 TNode<String> CodeStubAssembler::TryMatchPreallocatedNumberString(
     TNode<Int32T> value, Label* bailout) {
   GotoIf(Uint32GreaterThanOrEqual(
-             value, Int32Constant(kPreallocatedNumberStringTableSize)),
+             value, Uint32Constant(kPreallocatedNumberStringTableSize)),
          bailout);
 
   TNode<FixedArray> table =
@@ -9596,7 +9596,7 @@ TNode<String> CodeStubAssembler::SmiToString(TNode<Smi> smi_input,
 
     if (bailout) {
       // Bailout when the cache is not full-size and the entry is occupied.
-      const int kInitialCacheSize =
+      const uint32_t kInitialCacheSize =
           SmiStringCache::kInitialSize * SmiStringCache::kEntrySize;
       GotoIfNot(Word32Equal(cache_length, Uint32Constant(kInitialCacheSize)),
                 &store_to_cache);
@@ -17634,27 +17634,64 @@ std::pair<TNode<Object>, TNode<Object>> CodeStubAssembler::CallIteratorNext(
   TVARIABLE(Object, var_done);
   TVARIABLE(Object, var_value);
 
-  Label use_load_ic(this), use_get_property(this), return_properties(this);
-  Branch(IsUndefined(feedback_vector), &use_get_property, &use_load_ic);
+  Label return_properties(this);
 
-  BIND(&use_load_ic);
+  // Load 'done' property.
+  Label use_load_ic_for_done(this), use_get_property_for_done(this),
+      done_loaded(this);
+  Branch(IsUndefined(feedback_vector), &use_get_property_for_done,
+         &use_load_ic_for_done);
+
+  BIND(&use_load_ic_for_done);
   {
     var_done =
         CallBuiltin(Builtin::kLoadIC, context, result_receiver,
                     HeapConstantNoHole(factory()->done_string()),
                     IntPtrToTaggedIndex(Signed(done_slot)), feedback_vector);
-    var_value =
-        CallBuiltin(Builtin::kLoadIC, context, result_receiver,
-                    HeapConstantNoHole(factory()->value_string()),
-                    IntPtrToTaggedIndex(Signed(value_slot)), feedback_vector);
+
+    Goto(&done_loaded);
+  }
+
+  BIND(&use_get_property_for_done);
+  {
+    var_done = GetProperty(context, result_receiver, factory()->done_string());
+    Goto(&done_loaded);
+  }
+
+  BIND(&done_loaded);
+  Label if_done_true(this), if_done_false(this);
+  BranchIfToBooleanIsTrue(var_done.value(), &if_done_true, &if_done_false);
+
+  BIND(&if_done_true);
+  {
+    var_value = UndefinedConstant();
     Goto(&return_properties);
   }
 
-  BIND(&use_get_property);
+  BIND(&if_done_false);
   {
-    var_done = GetProperty(context, result_receiver, factory()->done_string());
-    var_value =
-        GetProperty(context, result_receiver, factory()->value_string());
+    // Load 'value' property.
+    Label use_load_ic_for_value(this), use_get_property_for_value(this),
+        value_loaded(this);
+    Branch(IsUndefined(feedback_vector), &use_get_property_for_value,
+           &use_load_ic_for_value);
+
+    BIND(&use_load_ic_for_value);
+    {
+      var_value =
+          CallBuiltin(Builtin::kLoadIC, context, result_receiver,
+                      HeapConstantNoHole(factory()->value_string()),
+                      IntPtrToTaggedIndex(Signed(value_slot)), feedback_vector);
+      Goto(&value_loaded);
+    }
+
+    BIND(&use_get_property_for_value);
+    {
+      var_value =
+          GetProperty(context, result_receiver, factory()->value_string());
+      Goto(&value_loaded);
+    }
+    BIND(&value_loaded);
     Goto(&return_properties);
   }
 
@@ -20156,10 +20193,12 @@ TNode<ArrayList> CodeStubAssembler::AllocateArrayList(TNode<Smi> capacity) {
 
     intptr_t capacity_constant;
     if (ToParameterConstant(capacity, &capacity_constant)) {
-      CHECK_LE(capacity_constant, ArrayList::kMaxCapacity);
+      CHECK_LE(capacity_constant,
+               static_cast<intptr_t>(ArrayList::kMaxCapacity));
     } else {
       Label if_out_of_memory(this, Label::kDeferred), next(this);
-      Branch(SmiGreaterThan(capacity, SmiConstant(ArrayList::kMaxCapacity)),
+      Branch(SmiGreaterThan(
+                 capacity, SmiConstant(Smi::FromUInt(ArrayList::kMaxCapacity))),
              &if_out_of_memory, &next);
 
       BIND(&if_out_of_memory);

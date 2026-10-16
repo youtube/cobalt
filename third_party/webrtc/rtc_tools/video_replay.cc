@@ -229,8 +229,6 @@ std::string ReadFileToString(const std::string& file_path) {
 namespace webrtc {
 namespace {
 
-const uint32_t kReceiverLocalSsrc = 0x123456;
-
 class NullRenderer : public VideoSinkInterface<VideoFrame> {
  public:
   void OnFrame(const VideoFrame& frame) override {}
@@ -419,7 +417,6 @@ std::unique_ptr<StreamState> ConfigureFromFlags(
   VideoReceiveStreamInterface::Config receive_config(
       &(stream_state->transport));
   receive_config.rtp.remote_ssrc = absl::GetFlag(FLAGS_ssrc);
-  receive_config.rtp.local_ssrc = kReceiverLocalSsrc;
   receive_config.rtp.rtx_ssrc = absl::GetFlag(FLAGS_ssrc_rtx);
   receive_config.rtp.rtx_associated_payload_types[absl::GetFlag(
       FLAGS_media_payload_type_rtx)] = absl::GetFlag(FLAGS_media_payload_type);

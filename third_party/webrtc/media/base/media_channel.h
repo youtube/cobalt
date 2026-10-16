@@ -268,8 +268,6 @@ class MediaReceiveChannelInterface {
   virtual void OnPacketReceived(const RtpPacketReceived& packet) = 0;
   // Gets the current unsignaled receive stream's SSRC, if there is one.
   virtual std::optional<uint32_t> GetUnsignaledSsrc() const = 0;
-  // Sets the local SSRC for listening to incoming RTCP reports.
-  virtual void ChooseReceiverReportSsrc(const std::set<uint32_t>& choices) = 0;
   // This is currently a workaround because of the demuxer state being managed
   // across two separate threads. Once the state is consistently managed on
   // the same thread (network), this workaround can be removed.

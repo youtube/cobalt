@@ -15,6 +15,8 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/default_tick_clock.h"
 #include "base/time/time.h"
+#include "base/trace_event/named_trigger.h"
+#include "chrome/browser/external_protocol/external_protocol_handler.h"
 #include "chrome/browser/lifetime/browser_shutdown.h"
 #include "chrome/browser/page_load_metrics/page_load_metrics_initialize.h"
 #include "chrome/browser/profiles/profile.h"
@@ -27,6 +29,7 @@
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/view_ids.h"
+#include "chrome/browser/ui/views/location_bar/webui_location_bar.h"
 #include "chrome/browser/ui/views/toolbar/webui_split_tabs_control.h"
 #include "chrome/browser/ui/waap/initial_web_ui_manager.h"
 #include "chrome/browser/ui/waap/initial_webui_window_metrics_manager.h"
@@ -116,16 +119,36 @@ class WebUIToolbarInternalWebView : public views::WebView {
 BEGIN_METADATA(WebUIToolbarInternalWebView)
 END_METADATA
 
+browser_controls_api::mojom::LayoutConstantsPtr GetLayoutConstantsStruct() {
+  return browser_controls_api::mojom::LayoutConstants::New(
+      GetLayoutConstant(LayoutConstant::kToolbarButtonHeight),
+      GetLayoutConstant(LayoutConstant::kToolbarButtonIconSize),
+      GetLayoutConstant(LayoutConstant::kToolbarIconDefaultMargin),
+      GetLayoutConstant(LayoutConstant::kLocationBarHeight),
+      GetLayoutConstant(LayoutConstant::kLocationBarMargin));
+}
+
 }  // namespace
 
 WebUIToolbarWebView::WebUIToolbarWebView(
     BrowserWindowInterface* browser,
-    chrome::BrowserCommandController* controller)
+    chrome::BrowserCommandController* controller,
+    std::unique_ptr<WebUILocationBar> location_bar)
     : browser_(browser),
       controller_(controller),
       reload_control_(this),
       split_tabs_control_(this),
-      clock_(base::DefaultTickClock::GetInstance()) {
+      location_bar_(std::move(location_bar)),
+      clock_(base::DefaultTickClock::GetInstance()),
+      touch_ui_subscription_(ui::TouchUiController::Get()->RegisterCallback(
+          base::BindRepeating(&WebUIToolbarWebView::OnTouchUiChanged,
+                              base::Unretained(this)))) {
+  base::trace_event::EmitNamedTrigger("webui-toolbar-constructor");
+  last_queued_state_.split_tabs_control_state =
+      browser_controls_api::mojom::SplitTabsControlState::New();
+  last_queued_state_.reload_control_state =
+      browser_controls_api::mojom::ReloadControlState::New();
+  last_queued_state_.layout_constants = GetLayoutConstantsStruct();
   if (auto* manager = InitialWebUIWindowMetricsManager::From(browser_)) {
     manager->OnReloadButtonCreated();
   }
@@ -141,7 +164,6 @@ WebUIToolbarWebView::WebUIToolbarWebView(
 
   web_contents->SetPageBaseBackgroundColor(SK_ColorTRANSPARENT);
   web_contents->SetIgnoreZoomGestures(true);
-  web_view->SetID(VIEW_ID_RELOAD_BUTTON);
 
   // We must save the pointer to the WebView so we can load the URL after the
   // view is added to a widget.
@@ -196,6 +218,11 @@ gfx::Size WebUIToolbarWebView::CalculatePreferredSize(
     width += (button_count - 1) *
              GetLayoutConstant(LayoutConstant::kToolbarIconDefaultMargin);
   }
+
+  if (location_bar_) {
+    // TODO(http://crbug.com/470042732): Where is the 4px margin from?
+    width += 4 + location_bar_->PreferredSize().width();
+  }
   return gfx::Size(width, size);
 }
 
@@ -237,6 +264,11 @@ void WebUIToolbarWebView::OnPageInitialized() {
   }
 
   InitialWebUIManager::From(browser_)->OnWebUIToolbarLoaded();
+}
+
+browser_controls_api::mojom::NavigationControlsStatePtr
+WebUIToolbarWebView::GetNavigationControlsState() {
+  return last_queued_state_.Clone();
 }
 
 ReloadControl* WebUIToolbarWebView::GetReloadControl() {
@@ -375,6 +407,49 @@ WebUIToolbarUI* WebUIToolbarWebView::GetWebUIToolbarUI() {
   }
   auto* controller = web_ui->GetController();
   return controller ? controller->GetAs<WebUIToolbarUI>() : nullptr;
+}
+
+void WebUIToolbarWebView::PermitLaunchUrl() {
+  ExternalProtocolHandler::PermitLaunchUrl();
+}
+
+void WebUIToolbarWebView::OnReloadControlStateChanged(
+    browser_controls_api::mojom::ReloadControlStatePtr state) {
+  if (*state != *last_queued_state_.reload_control_state) {
+    last_queued_state_.reload_control_state = std::move(state);
+    PostPushNavigationState();
+  }
+}
+
+void WebUIToolbarWebView::OnSplitTabsControlStateChanged(
+    browser_controls_api::mojom::SplitTabsControlStatePtr state) {
+  if (*state != *last_queued_state_.split_tabs_control_state) {
+    last_queued_state_.split_tabs_control_state = std::move(state);
+    PostPushNavigationState();
+  }
+}
+
+void WebUIToolbarWebView::OnTouchUiChanged() {
+  auto state = GetLayoutConstantsStruct();
+  if (*state != *last_queued_state_.layout_constants) {
+    last_queued_state_.layout_constants = std::move(state);
+    PostPushNavigationState();
+  }
+}
+
+void WebUIToolbarWebView::PostPushNavigationState() {
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(&WebUIToolbarWebView::PushNavigationState,
+                                weak_ptr_factory_.GetWeakPtr(),
+                                ++current_state_generation_));
+}
+
+void WebUIToolbarWebView::PushNavigationState(uint64_t state_generation) {
+  if (state_generation == current_state_generation_) {
+    if (WebUIToolbarUI* web_ui = GetWebUIToolbarUI()) {
+      web_ui->OnNavigationControlsStateChanged(last_queued_state_.Clone());
+    }
+  }
 }
 
 BEGIN_METADATA(WebUIToolbarWebView)

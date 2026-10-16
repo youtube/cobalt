@@ -31,6 +31,7 @@
 #include "api/units/timestamp.h"
 #include "logging/rtc_event_log/mock/mock_rtc_event_log.h"
 #include "modules/audio_device/include/mock_audio_device.h"
+#include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "modules/rtp_rtcp/source/ntp_time_util.h"
 #include "modules/rtp_rtcp/source/rtcp_packet/receiver_report.h"
 #include "modules/rtp_rtcp/source/rtcp_packet/report_block.h"
@@ -53,7 +54,7 @@ using ::testing::NotNull;
 using ::testing::Return;
 using ::testing::Test;
 
-constexpr uint32_t kLocalSsrc = 1111;
+constexpr uint32_t kLocalSsrc = kFallbackRtcpSsrcForAudio;
 constexpr uint32_t kRemoteSsrc = 2222;
 // We run RTP data with 8 kHz PCMA (fixed payload type 8).
 constexpr char kPayloadName[] = "PCMA";
@@ -74,7 +75,7 @@ class ChannelReceiveTest : public Test {
     auto channel = CreateChannelReceive(
         CreateEnvironment(time_controller_.GetClock(), &log_),
         /* neteq_factory= */ nullptr, audio_device_module_.get(), &transport_,
-        kLocalSsrc, kRemoteSsrc,
+        kRemoteSsrc,
         /* jitter_buffer_max_packets= */ 0,
         /* jitter_buffer_fast_playout= */ false,
         /* jitter_buffer_min_delay_ms= */ 0,

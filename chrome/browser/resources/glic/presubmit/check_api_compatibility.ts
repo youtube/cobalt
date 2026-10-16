@@ -3,9 +3,13 @@
 // found in the LICENSE file.
 
 // See ../PRESUBMIT.py.
-import type * as old from '@tmp/old_glic_api.js';
-
-import type * as current from '../glic_api/glic_api.js';
+import type * as current from '@tmp/new_glic_api.js';
+// This is the glic_api.ts from before the CL, with some edits.
+// Extensible enums are replaced with their new versions, so that
+// the checks in this file do allow modifying those enums.
+import type * as oldEdited from '@tmp/old_edited_glic_api.js';
+// This is the glic_api.ts from before the CL, with no edits.
+import type * as oldOriginal from '@tmp/old_glic_api.js';
 
 // Warning! The checks in this file are not a complete guarantee of API
 // compatibility.
@@ -21,15 +25,17 @@ type DeepRequired<T> = {
   [K in keyof T]: DeepRequired<T[K]>
 }&Required<T>;
 
-// Get the set of BackwardsCompatibleTypes in both old and current. This
-// allows us to ignore types removed from BackwardsCompatibleTypes.
+// Get the set of TheBackwardsCompatibleTypes in both old and current. This
+// allows us to ignore types removed from TheBackwardsCompatibleTypes.
 type OldTypes = {
-  [K in keyof old.BackwardsCompatibleTypes &
-   keyof current.BackwardsCompatibleTypes]: old.BackwardsCompatibleTypes[K]
+  [K in keyof oldEdited.TheBackwardsCompatibleTypes &
+   keyof current.TheBackwardsCompatibleTypes]: oldEdited
+                                                 .TheBackwardsCompatibleTypes[K]
 };
 type CurrentTypes = {
-  [K in keyof old.BackwardsCompatibleTypes &
-   keyof current.BackwardsCompatibleTypes]: current.BackwardsCompatibleTypes[K]
+  [K in keyof oldEdited.TheBackwardsCompatibleTypes &
+   keyof current.TheBackwardsCompatibleTypes]: current
+                                                 .TheBackwardsCompatibleTypes[K]
 };
 
 /*
@@ -51,14 +57,15 @@ These are the kinds of changes we might see, and how they're categorized.
 // Note: We're just using assignment to verify these types are compatible.
 
 export const oldTypesAreCompatibleWithCurrent: CurrentTypes =
-    null as any as old.BackwardsCompatibleTypes;
+    null as any as oldEdited.TheBackwardsCompatibleTypes;
 export const currentTypesAreCompatibleWithOld: OldTypes =
-    null as any as current.BackwardsCompatibleTypes;
+    null as any as current.TheBackwardsCompatibleTypes;
 
 // Make all fields required, then check that all fields are compatible. This
 // ensures we don't remove optional fields.
 export const canNotRemoveAnything: DeepRequired<OldTypes> =
-    null as any as DeepRequired<current.BackwardsCompatibleTypes>;
+    null as any as DeepRequired<current.TheBackwardsCompatibleTypes>;
+
 
 // Ensure ClosedEnums are not modified, and ExtensibleEnums are only extended.
 // TODO: This only checks enum keys. Not sure how to check values.
@@ -70,13 +77,15 @@ type EnumIsEquivalent<O, N> = Exclude<keyof N, keyof O> extends never ?
     ['Error: enum changed', O];
 
 type ClosedEnumsDoNotChange = AllValues<{
-  [K in keyof current.ClosedEnums & keyof old.ClosedEnums]:
-      EnumIsEquivalent<old.ClosedEnums[K], current.ClosedEnums[K]>;
+  [K in keyof current.ClosedEnums & keyof oldOriginal.ClosedEnums]:
+      EnumIsEquivalent<oldOriginal.ClosedEnums[K], current.ClosedEnums[K]>;
 }>;
 assertNever<ClosedEnumsDoNotChange>();
 
 type CheckExtensibleEnums = AllValues<{
-  [K in keyof current.ExtensibleEnums & keyof old.ExtensibleEnums]:
-      EnumOnlyExtended<old.ExtensibleEnums[K], current.ExtensibleEnums[K]>;
+  [K in keyof current.TheExtensibleEnums &
+   keyof oldOriginal.TheExtensibleEnums]:
+      EnumOnlyExtended<
+          oldOriginal.TheExtensibleEnums[K], current.TheExtensibleEnums[K]>;
 }>;
 assertNever<CheckExtensibleEnums>();

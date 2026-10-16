@@ -469,7 +469,7 @@ class Heap final {
   // Trim the given array from the left. Note that this relocates the object
   // start and hence is only valid if there is only a single reference to it.
   V8_EXPORT_PRIVATE Tagged<FixedArrayBase> LeftTrimFixedArray(
-      Tagged<FixedArrayBase> obj, int elements_to_trim);
+      Tagged<FixedArrayBase> obj, uint32_t elements_to_trim);
 
 #define RIGHT_TRIMMABLE_ARRAY_LIST(V) \
   V(ArrayList)                        \
@@ -992,10 +992,7 @@ class Heap final {
   // Performs a GC through CollectGarbage(). However, if the GC reaches the heap
   // limit instead of crashing immediately, more and stronger GCs are performed
   // until eventually CollectAllAvailableGarbage() is invoked as last resort GC.
-  V8_EXPORT_PRIVATE void CollectGarbageWithRetry(
-      AllocationSpace space, GCFlags gc_flags,
-      GarbageCollectionReason gc_reason,
-      const GCCallbackFlags gc_callback_flags);
+  V8_EXPORT_PRIVATE void CollectGarbageWithRetry(AllocationSpace space);
 
   // Reports and external memory pressure event, either performs a major GC or
   // completes incremental marking in order to free external resources.
@@ -1891,7 +1888,6 @@ class Heap final {
 
   void CollectGarbageOnMemoryPressure();
 
-  void FlushLiftoffCode(GarbageCollectionReason gc_reason);
   void CompleteArrayBufferSweeping();
 
   bool InvokeNearHeapLimitCallback();

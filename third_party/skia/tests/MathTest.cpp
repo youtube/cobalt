@@ -25,44 +25,6 @@
 #include <cstddef>
 #include <cstdint>
 
-static void test_clz(skiatest::Reporter* reporter) {
-    REPORTER_ASSERT(reporter, 32 == SkCLZ(0));
-    REPORTER_ASSERT(reporter, 31 == SkCLZ(1));
-    REPORTER_ASSERT(reporter, 1 == SkCLZ(1 << 30));
-    REPORTER_ASSERT(reporter, 1 == SkCLZ((1 << 30) | (1 << 24) | 1));
-    REPORTER_ASSERT(reporter, 0 == SkCLZ(~0U));
-
-    SkRandom rand;
-    for (int i = 0; i < 1000; ++i) {
-        uint32_t mask = rand.nextU();
-        // need to get some zeros for testing, but in some obscure way so the
-        // compiler won't "see" that, and work-around calling the functions.
-        mask >>= (mask & 31);
-        int intri = SkCLZ(mask);
-        int porta = SkCLZ_portable(mask);
-        REPORTER_ASSERT(reporter, intri == porta, "mask:%u intri:%d porta:%d", mask, intri, porta);
-    }
-}
-
-static void test_ctz(skiatest::Reporter* reporter) {
-    REPORTER_ASSERT(reporter, 32 == SkCTZ(0));
-    REPORTER_ASSERT(reporter, 0 == SkCTZ(1));
-    REPORTER_ASSERT(reporter, 30 == SkCTZ(1 << 30));
-    REPORTER_ASSERT(reporter, 2 == SkCTZ((1 << 30) | (1 << 24) | (1 << 2)));
-    REPORTER_ASSERT(reporter, 0 == SkCTZ(~0U));
-
-    SkRandom rand;
-    for (int i = 0; i < 1000; ++i) {
-        uint32_t mask = rand.nextU();
-        // need to get some zeros for testing, but in some obscure way so the
-        // compiler won't "see" that, and work-around calling the functions.
-        mask >>= (mask & 31);
-        int intri = SkCTZ(mask);
-        int porta = SkCTZ_portable(mask);
-        REPORTER_ASSERT(reporter, intri == porta, "mask:%u intri:%d porta:%d", mask, intri, porta);
-    }
-}
-
 ///////////////////////////////////////////////////////////////////////////////
 
 static float sk_fsel(float pred, float result_ge, float result_lt) {
@@ -436,6 +398,18 @@ DEF_TEST(PopCount, reporter) {
     }
 }
 
+static void test_clz(skiatest::Reporter* reporter) {
+    auto expect = [reporter](uint32_t value, int count) {
+        REPORTER_ASSERT(reporter, SkCLZ(value)          == count);
+    };
+
+    expect(0, 32);
+    for (int i = 0; i < 32; ++i) {
+        uint32_t value = 0xFFFFFFFF;
+        expect(value >> i, i);
+    }
+}
+
 DEF_TEST(Math, reporter) {
     int         i;
     SkRandom    rand;
@@ -504,7 +478,6 @@ DEF_TEST(Math, reporter) {
     unittest_isfinite<double>(reporter);
     unittest_half(reporter);
     test_rsqrt(reporter, sk_float_rsqrt);
-    test_rsqrt(reporter, sk_float_rsqrt_portable);
 
     for (i = 0; i < 10000; i++) {
         SkFixed numer = rand.nextS();
@@ -534,7 +507,6 @@ DEF_TEST(Math, reporter) {
     if ((false)) test_blend31();  // avoid bit rot, suppress warning
 
     test_clz(reporter);
-    test_ctz(reporter);
 }
 
 template <typename T> struct PairRec {
@@ -752,7 +724,7 @@ DEF_TEST(SkNextPow2, reporter) {
         int actual = SkNextPow2(c.fInput);
         REPORTER_ASSERT(reporter, c.fExpected == actual,
             "SkNextPow2(%d) == %d not %d", c.fInput, actual, c.fExpected);
-        REPORTER_ASSERT(reporter, actual == SkNextPow2_portable(c.fInput));
+        REPORTER_ASSERT(reporter, actual == SkNextPow2(c.fInput));
     }
 
     // exhaustive search for all the between numbers
@@ -761,7 +733,7 @@ DEF_TEST(SkNextPow2, reporter) {
         int expected = std::pow(2.f, std::ceil(logf(i)/logf(2)));
         REPORTER_ASSERT(reporter, expected == actual,
             "SkNextPow2(%d) == %d not %d", i, actual, expected);
-        REPORTER_ASSERT(reporter, actual == SkNextPow2_portable(i));
+        REPORTER_ASSERT(reporter, actual == SkNextPow2(i));
     }
 }
 

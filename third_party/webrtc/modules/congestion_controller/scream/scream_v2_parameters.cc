@@ -18,7 +18,7 @@
 namespace webrtc {
 
 ScreamV2Parameters::ScreamV2Parameters(const FieldTrialsView& trials)
-    : min_ref_window("MinRefWindow", DataSize::Bytes(3000)),
+    : min_ref_window("MinRefWindow", DataSize::Bytes(1000)),
       l4s_avg_g_up("L4sAvgGUp", 1.0 / 8.0),
       l4s_avg_g_down("L4sAvgGDown", 1.0 / 128.0),
       smoothed_rtt_avg_g_up("SmoothedRttAvgGUp", 1.0 / 8.0),
@@ -56,7 +56,10 @@ ScreamV2Parameters::ScreamV2Parameters(const FieldTrialsView& trials)
           "AllowPaddingAfterLastCongestionTimeout",
           TimeDelta::Seconds(1)),
       pacing_factor("PacingFactor", 1.1),
-      feedback_hold_time_avg_g("FeedbackHoldTimeAvgG", 1.0 / 8.0) {
+      feedback_hold_time_avg_g("FeedbackHoldTimeAvgG", 1.0 / 8.0),
+      allow_large_pacing_bursts_after_congestion_time(
+          "AllowLargePacingBurstsAfterCongestionTime",
+          TimeDelta::Seconds(15)) {
   ParseFieldTrial({&min_ref_window,
                    &l4s_avg_g_up,
                    &l4s_avg_g_down,
@@ -85,7 +88,8 @@ ScreamV2Parameters::ScreamV2Parameters(const FieldTrialsView& trials)
                    &periodic_padding_duration,
                    &allow_padding_after_last_congestion_time,
                    &pacing_factor,
-                   &feedback_hold_time_avg_g},
+                   &feedback_hold_time_avg_g,
+                   &allow_large_pacing_bursts_after_congestion_time},
                   trials.Lookup("WebRTC-Bwe-ScreamV2"));
 }
 

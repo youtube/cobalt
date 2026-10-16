@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import type {AdditionalContext, AnnotatedPageData, CancelActionsResult, CaptureRegionErrorReason, CaptureRegionResult, ChromeVersion, ConversationInfo, CreateActorTabOptions, CreateSkillRequest, CreateTabOptions, DraggableArea, FocusedTabData, GetPinCandidatesOptions, GlicBrowserHost, GlicBrowserHostJournal, GlicBrowserHostMetrics, GlicHostRegistry, GlicWebClient, InvokeOptions, Journal, NavigationConfirmationRequest, Observable, ObservableValue, OnResponseStoppedDetails, OpenPanelInfo, OpenSettingsOptions, PageMetadata, PanelOpeningData, PanelState, PdfDocumentData, PinCandidate, PinTabsOptions, Platform, ResizeWindowOptions, ResumeActorTaskResult, Screenshot, ScrollToParams, SelectAutofillSuggestionsDialogRequest, SelectCredentialDialogRequest, Skill, SkillPreview, TabContextOptions, TabContextResult, TabData, TaskOptions, UnpinTabsOptions, UpdateSkillRequest, UserConfirmationDialogRequest, UserProfileInfo, ViewChangedNotification, ViewChangeRequest, WebClientMode, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../../glic_api/glic_api.js';
+import type {AdditionalContext, AnnotatedPageData, CancelActionsResult, CaptureRegionErrorReason, CaptureRegionResult, ChromeVersion, ConversationInfo, CreateActorTabOptions, CreateSkillRequest, CreateTabOptions, DraggableArea, FocusedTabData, FormFactor, FormFillingResponse, GetPinCandidatesOptions, GlicBrowserHost, GlicBrowserHostJournal, GlicBrowserHostMetrics, GlicHostRegistry, GlicWebClient, InvokeOptions, Journal, MicrophoneStatus, NavigationConfirmationRequest, Observable, ObservableValue, OnResponseStoppedDetails, OpenPanelInfo, OpenSettingsOptions, PageMetadata, PanelOpeningData, PanelState, PdfDocumentData, PinCandidate, PinTabsOptions, Platform, ResizeWindowOptions, ResumeActorTaskResult, Screenshot, ScrollToParams, SelectAutofillSuggestionsDialogRequest, SelectCredentialDialogRequest, Skill, SkillPreview, TabContextOptions, TabContextResult, TabData, TaskOptions, UnpinTabsOptions, UpdateSkillRequest, UserConfirmationDialogRequest, UserProfileInfo, WebClientMode, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../../glic_api/glic_api.js';
 import {ActorTaskPauseReason, ActorTaskState, ActorTaskStopReason, HostCapability} from '../../glic_api/glic_api.js';
 import {ObservableValue as ObservableValueImpl, Subject} from '../../observable.js';
 
@@ -92,10 +92,6 @@ class WebClientMessageHandler implements WebClientMessageHandlerInterface {
     this.host.getPanelState?.().assignAndSignal(payload.panelState);
   }
 
-  glicWebClientRequestViewChange(payload: {request: ViewChangeRequest}): void {
-    this.host.viewChangeRequestsSubject.next(payload.request);
-  }
-
   glicWebClientZeroStateSuggestionsChanged(payload: {
     suggestions: ZeroStateSuggestionsV2,
     options: ZeroStateSuggestionsOptions,
@@ -111,6 +107,10 @@ class WebClientMessageHandler implements WebClientMessageHandlerInterface {
     enabled: boolean,
   }) {
     this.host.getMicrophonePermissionState().assignAndSignal(payload.enabled);
+  }
+
+  async glicWebClientStopMicrophone(): Promise<void> {
+    await this.webClient.stopMicrophone?.();
   }
 
   glicWebClientNotifyLocationPermissionStateChanged(payload: {
@@ -484,6 +484,18 @@ class WebClientMessageHandler implements WebClientMessageHandlerInterface {
             response: response,
           });
         },
+        onFormPresented: (params) => {
+          this.host.autofillSuggestionDialogOnFormPresented(
+              request.taskId, params);
+        },
+        onFormPreviewChanged: (params) => {
+          this.host.autofillSuggestionDialogOnFormPreviewChanged(
+              request.taskId, params);
+        },
+        onFormConfirmed: (params) => {
+          this.host.autofillSuggestionDialogOnFormConfirmed(
+              request.taskId, params);
+        },
       };
       this.host.selectAutofillSuggestionsDialogRequestSubject.next(
           requestWithCallback);
@@ -515,6 +527,7 @@ class GlicBrowserHostImpl implements GlicBrowserHost {
   private webClientMessageHandler: WebClientMessageHandler;
   private chromeVersion?: ChromeVersion;
   private platform?: Platform;
+  private formFactor?: FormFactor;
   private panelState = ObservableValueImpl.withNoValue<PanelState>();
   canAttachPanelValue = ObservableValueImpl.withNoValue<boolean>();
   private focusedTabStateV2 = ObservableValueImpl.withNoValue<FocusedTabData>();
@@ -554,7 +567,6 @@ class GlicBrowserHostImpl implements GlicBrowserHost {
   private hostCapabilities: Set<HostCapability> = new Set();
   private actorTaskState =
       new Map<number, ObservableValueImpl<ActorTaskState>>();
-  readonly viewChangeRequestsSubject = new Subject<ViewChangeRequest>();
   readonly additionalContextSubject = new Subject<AdditionalContext>();
   pageMetadataObservers: Map<string, ObservableValueImpl<PageMetadata>> =
       new Map();
@@ -639,6 +651,7 @@ class GlicBrowserHostImpl implements GlicBrowserHost {
     this.canAttachPanelValue.assignAndSignal(state.canAttach);
     this.chromeVersion = state.chromeVersion;
     this.platform = state.platform;
+    this.formFactor = state.formFactor;
     this.enableCachedGetUserProfileInfo = state.enableCachedGetUserProfileInfo;
     this.panelActiveValue.assignAndSignal(state.panelIsActive);
     this.isBrowserOpenValue.assignAndSignal(state.browserIsOpen);
@@ -810,6 +823,10 @@ class GlicBrowserHostImpl implements GlicBrowserHost {
     return this.platform!;
   }
 
+  getFormFactor(): FormFactor {
+    return this.formFactor!;
+  }
+
   async createTab(url: string, options: CreateTabOptions): Promise<TabData> {
     const result =
         await this.sender.requestWithResponse('glicBrowserCreateTab', {
@@ -824,6 +841,30 @@ class GlicBrowserHostImpl implements GlicBrowserHost {
 
   openGlicSettingsPage(options?: OpenSettingsOptions): void {
     this.sender.requestNoResponse('glicBrowserOpenGlicSettingsPage', {options});
+  }
+
+  autofillSuggestionDialogOnFormPresented(taskId: number, params: {
+    formFillingRequestIndex: number,
+  }): void {
+    this.sender.requestNoResponse(
+        'glicBrowserAutofillSuggestionDialogOnFormPresented', {taskId, params});
+  }
+
+  autofillSuggestionDialogOnFormPreviewChanged(taskId: number, params: {
+    formFillingRequestIndex: number,
+    response?: FormFillingResponse,
+  }): void {
+    this.sender.requestNoResponse(
+        'glicBrowserAutofillSuggestionDialogOnFormPreviewChanged',
+        {taskId, params});
+  }
+
+  autofillSuggestionDialogOnFormConfirmed(taskId: number, params: {
+    formFillingRequestIndex: number,
+    response: FormFillingResponse,
+  }): void {
+    this.sender.requestNoResponse(
+        'glicBrowserAutofillSuggestionDialogOnFormConfirmed', {taskId, params});
   }
 
   openPasswordManagerSettingsPage?(): void {
@@ -983,6 +1024,11 @@ class GlicBrowserHostImpl implements GlicBrowserHost {
 
   onModeChange?(newMode: WebClientMode): void {
     this.sender.requestNoResponse('glicBrowserOnModeChange', {newMode});
+  }
+
+  onMicrophoneStatusChange?(status: MicrophoneStatus): void {
+    this.sender.requestNoResponse(
+        'glicBrowserOnMicrophoneStatusChange', {status});
   }
 
   async resizeWindow(
@@ -1344,14 +1390,6 @@ class GlicBrowserHostImpl implements GlicBrowserHost {
 
   getHostCapabilities(): Set<HostCapability> {
     return this.hostCapabilities;
-  }
-
-  getViewChangeRequests(): Observable<ViewChangeRequest> {
-    return this.viewChangeRequestsSubject;
-  }
-
-  onViewChanged(notification: ViewChangedNotification) {
-    this.sender.requestNoResponse('glicBrowserOnViewChanged', {notification});
   }
 
   getPageMetadata?

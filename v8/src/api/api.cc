@@ -46,6 +46,7 @@
 #include "src/base/utils/random-number-generator.h"
 #include "src/base/vector.h"
 #include "src/builtins/accessors.h"
+#include "src/builtins/builtins-promise.h"
 #include "src/builtins/builtins-utils.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
@@ -108,6 +109,7 @@
 #include "src/objects/oddball.h"
 #include "src/objects/ordered-hash-table-inl.h"
 #include "src/objects/primitive-heap-object.h"
+#include "src/objects/promise-inl.h"
 #include "src/objects/property-descriptor.h"
 #include "src/objects/property-details.h"
 #include "src/objects/property.h"
@@ -2296,7 +2298,7 @@ Location Module::SourceOffsetToLocation(int offset) const {
   return v8::Location(info.line, info.column);
 }
 
-Local<Value> Module::GetModuleNamespace() {
+Local<Value> Module::GetModuleNamespace(v8::ModuleImportPhase phase) {
   Utils::ApiCheck(
       GetStatus() >= kInstantiated, "v8::Module::GetModuleNamespace",
       "v8::Module::GetModuleNamespace must be used on an instantiated module");
@@ -2305,7 +2307,7 @@ Local<Value> Module::GetModuleNamespace() {
   i::DisallowJavascriptExecutionDebugOnly no_execution(i_isolate);
   i::DisallowExceptionsDebugOnly no_exceptions(i_isolate);
   i::DirectHandle<i::JSModuleNamespace> module_namespace =
-      i::Module::GetModuleNamespace(i_isolate, self);
+      i::Module::GetModuleNamespace(i_isolate, self, phase);
   return ToApiHandle<Value>(module_namespace);
 }
 
@@ -2417,6 +2419,57 @@ MaybeLocal<Value> Module::Evaluate(Local<Context> context) {
                   "Expected instantiated module");
 
   return api_scope.EscapeMaybe(i::Module::Evaluate(i_isolate, self));
+}
+
+MaybeLocal<Value> Module::EvaluateForImportDefer(Local<Context> context) {
+  auto i_isolate = i::Isolate::Current();
+  TRACE_EVENT_CALL_STATS_SCOPED(i_isolate, "v8", "V8.Execute");
+  EnterV8Scope<InternalEscapableScope> api_scope{i_isolate, context,
+                                                 RCCId::kAPI_Module_Evaluate};
+  auto self = Utils::OpenHandle(this);
+  i::Zone zone(i_isolate->allocator(), ZONE_NAME);
+  i::ZoneVector<i::Handle<i::SourceTextModule>> evaluation_list(&zone);
+  i::UnorderedModuleSet seen_modules(&zone);
+  i::UnorderedModuleSet evaluation_set(&zone);
+  if (i::IsSourceTextModule(*self)) {
+    i::SourceTextModule::GatherAsynchronousTransitiveDependencies(
+        i_isolate, self, &evaluation_set, &evaluation_list, &seen_modules);
+  }
+
+  if (evaluation_list.empty()) {
+    Local<Value> module_namespace =
+        this->GetModuleNamespace(ModuleImportPhase::kDefer);
+    Local<Promise::Resolver> module_resolver =
+        Promise::Resolver::New(context).ToLocalChecked();
+    module_resolver->Resolve(context, module_namespace).ToChecked();
+    return api_scope.Escape(module_resolver->GetPromise());
+  }
+
+  i::DirectHandleVector<i::JSPromise> promises(i_isolate);
+  for (size_t i = 0; i < evaluation_list.size(); i++) {
+    i::Handle<i::Module> dep_module = evaluation_list[i];
+    Local<Module> v8_dep_module = Utils::ToLocal(dep_module);
+    MaybeLocal<Value> maybe_eval_result = v8_dep_module->Evaluate(context);
+    if (maybe_eval_result.IsEmpty()) {
+      return api_scope.EscapeMaybe(MaybeLocal<Value>());
+    }
+    Local<Value> eval_result = maybe_eval_result.ToLocalChecked();
+    CHECK(eval_result->IsPromise());
+    i::DirectHandle<i::JSPromise> promise_handle =
+        Utils::OpenDirectHandle(*eval_result.As<Promise>());
+    promises.push_back(promise_handle);
+  }
+
+  // TODO(caiolima): The call to native Promise "then" is yet to be approved
+  // on https://github.com/tc39/proposal-defer-import-eval/pull/77. Revisit it
+  // after a decision is made.
+  i::MaybeHandle<i::JSPromise> maybe_promise_all_result =
+      i::JSPromise::PerformPromiseAll(i_isolate, promises);
+  if (maybe_promise_all_result.is_null()) {
+    return api_scope.EscapeMaybe(MaybeLocal<Value>());
+  }
+  return api_scope.Escape(
+      Utils::ToLocal(maybe_promise_all_result.ToHandleChecked()));
 }
 
 Local<Module> Module::CreateSyntheticModule(
@@ -3278,6 +3331,15 @@ StackTrace::CurrentScriptIdsAndContexts(
   EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
 
   size_t written = i_isolate->CurrentScriptIdsAndContexts(frame_data);
+  return {frame_data.data(), written};
+}
+
+v8::MemorySpan<v8::StackTrace::ScriptData> StackTrace::CurrentScriptData(
+    Isolate* v8_isolate, v8::MemorySpan<ScriptData> frame_data) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
+
+  size_t written = i_isolate->CurrentScriptData(frame_data);
   return {frame_data.data(), written};
 }
 
@@ -5898,35 +5960,9 @@ Local<v8::String> v8::String::InternalizeString(Isolate* v8_isolate) {
   return Utils::ToLocal(isolate->factory()->InternalizeString(str));
 }
 
-void v8::String::VerifyExternalStringResource(
-    v8::String::ExternalStringResource* value) const {
-  i::DisallowGarbageCollection no_gc;
-  i::Tagged<i::String> str = *Utils::OpenDirectHandle(this);
-  const v8::String::ExternalStringResource* expected = nullptr;
-
-  if (i::IsThinString(str)) {
-    str = i::Cast<i::ThinString>(str)->actual();
-  }
-
-  if (i::StringShape(str).IsExternalTwoByte()) {
-    const void* resource = i::Cast<i::ExternalTwoByteString>(str)->resource();
-    expected = reinterpret_cast<const ExternalStringResource*>(resource);
-  } else {
-    uint32_t raw_hash_field = str->raw_hash_field(kAcquireLoad);
-    if (i::String::IsExternalForwardingIndex(raw_hash_field)) {
-      bool is_one_byte;
-      auto resource = GetExternalResourceFromForwardingTable(
-          str, raw_hash_field, &is_one_byte);
-      if (!is_one_byte) {
-        expected = reinterpret_cast<const ExternalStringResource*>(resource);
-      }
-    }
-  }
-  CHECK_EQ(expected, value);
-}
-
 void v8::String::VerifyExternalStringResourceBase(
-    v8::String::ExternalStringResourceBase* value, Encoding encoding) const {
+    const v8::String::ExternalStringResourceBase* value,
+    Encoding encoding) const {
   i::DisallowGarbageCollection no_gc;
   i::Tagged<i::String> str = *Utils::OpenDirectHandle(this);
   const v8::String::ExternalStringResourceBase* expected;
@@ -5959,34 +5995,6 @@ void v8::String::VerifyExternalStringResourceBase(
   }
   CHECK_EQ(expected, value);
   CHECK_EQ(expectedEncoding, encoding);
-}
-
-String::ExternalStringResource* String::GetExternalStringResourceSlow() const {
-  i::DisallowGarbageCollection no_gc;
-  i::Tagged<i::String> str = *Utils::OpenDirectHandle(this);
-
-  if (i::IsThinString(str)) {
-    str = i::Cast<i::ThinString>(str)->actual();
-  }
-
-  if (i::StringShape(str).IsExternalTwoByte()) {
-    Isolate* isolate = i::Internals::GetCurrentIsolateForSandbox();
-    i::Address value =
-        i::Internals::ReadExternalPointerField<i::kExternalStringResourceTag>(
-            isolate, str.ptr(), i::Internals::kStringResourceOffset);
-    return reinterpret_cast<String::ExternalStringResource*>(value);
-  } else {
-    uint32_t raw_hash_field = str->raw_hash_field(kAcquireLoad);
-    if (i::String::IsExternalForwardingIndex(raw_hash_field)) {
-      bool is_one_byte;
-      auto resource = GetExternalResourceFromForwardingTable(
-          str, raw_hash_field, &is_one_byte);
-      if (!is_one_byte) {
-        return reinterpret_cast<ExternalStringResource*>(resource);
-      }
-    }
-  }
-  return nullptr;
 }
 
 void String::ExternalStringResource::UpdateDataCache() {
@@ -6024,10 +6032,7 @@ String::ExternalStringResourceBase* String::GetExternalStringResourceBaseSlow(
       static_cast<Encoding>(type & i::Internals::kStringEncodingMask);
   if (i::StringShape(str).IsExternalOneByte() ||
       i::StringShape(str).IsExternalTwoByte()) {
-    Isolate* isolate = i::Internals::GetCurrentIsolateForSandbox();
-    i::Address value =
-        i::Internals::ReadExternalPointerField<i::kExternalStringResourceTag>(
-            isolate, string, i::Internals::kStringResourceOffset);
+    i::Address value = i::Cast<i::ExternalString>(str)->resource_as_address();
     resource = reinterpret_cast<ExternalStringResourceBase*>(value);
   } else {
     uint32_t raw_hash_field = str->raw_hash_field();
@@ -6042,28 +6047,28 @@ String::ExternalStringResourceBase* String::GetExternalStringResourceBaseSlow(
   return resource;
 }
 
+v8::String::ExternalStringResource* v8::String::GetExternalStringResourceSlow()
+    const {
+  String::Encoding encoding;
+  ExternalStringResourceBase* resource =
+      GetExternalStringResourceBaseSlow(&encoding);
+  if (V8_LIKELY(encoding == Encoding::TWO_BYTE_ENCODING)) {
+    return reinterpret_cast<ExternalStringResource*>(resource);
+  } else {
+    return nullptr;
+  }
+}
+
 const v8::String::ExternalOneByteStringResource*
-v8::String::GetExternalOneByteStringResource() const {
-  i::DisallowGarbageCollection no_gc;
-  i::Tagged<i::String> str = *Utils::OpenDirectHandle(this);
-  if (i::StringShape(str).IsExternalOneByte()) {
-    return i::Cast<i::ExternalOneByteString>(str)->resource();
-  } else if (i::IsThinString(str)) {
-    str = i::Cast<i::ThinString>(str)->actual();
-    if (i::StringShape(str).IsExternalOneByte()) {
-      return i::Cast<i::ExternalOneByteString>(str)->resource();
-    }
+v8::String::GetExternalOneByteStringResourceSlow() const {
+  String::Encoding encoding;
+  ExternalStringResourceBase* resource =
+      GetExternalStringResourceBaseSlow(&encoding);
+  if (V8_LIKELY(encoding == Encoding::ONE_BYTE_ENCODING)) {
+    return reinterpret_cast<ExternalOneByteStringResource*>(resource);
+  } else {
+    return nullptr;
   }
-  uint32_t raw_hash_field = str->raw_hash_field(kAcquireLoad);
-  if (i::String::IsExternalForwardingIndex(raw_hash_field)) {
-    bool is_one_byte;
-    auto resource = GetExternalResourceFromForwardingTable(str, raw_hash_field,
-                                                           &is_one_byte);
-    if (is_one_byte) {
-      return reinterpret_cast<ExternalOneByteStringResource*>(resource);
-    }
-  }
-  return nullptr;
 }
 
 Local<Value> Symbol::Description(Isolate* v8_isolate) const {
@@ -8418,7 +8423,7 @@ i::DirectHandle<i::JSArray> MapAsArray(i::Isolate* i_isolate,
   int max_length =
       (capacity - offset) * ((collect_keys && collect_values) ? 2 : 1);
   i::DirectHandle<i::FixedArray> result = factory->NewFixedArray(max_length);
-  int result_index = 0;
+  uint32_t result_index = 0;
   {
     i::DisallowGarbageCollection no_gc;
     i::Tagged<i::Hole> hash_table_hole =
@@ -8520,7 +8525,7 @@ i::DirectHandle<i::JSArray> SetAsArray(i::Isolate* i_isolate,
   int max_length = (capacity - offset) * (collect_key_values ? 2 : 1);
   if (max_length == 0) return factory->NewJSArray(0);
   i::DirectHandle<i::FixedArray> result = factory->NewFixedArray(max_length);
-  int result_index = 0;
+  uint32_t result_index = 0;
   {
     i::DisallowGarbageCollection no_gc;
     i::Tagged<i::Hole> hash_table_hole =
@@ -9649,30 +9654,7 @@ int64_t Isolate::AdjustAmountOfExternalAllocatedMemoryImpl(
   }
 
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
-  const uint64_t amount =
-      i_isolate->heap()->UpdateExternalMemory(change_in_bytes);
-
-  if (change_in_bytes <= 0) {
-    return amount;
-  }
-
-#if V8_VERIFY_WRITE_BARRIERS
-  // Incrementing the number of allocated bytes may trigger GC.
-  i_isolate->main_thread_local_heap()
-      ->allocator()
-      ->ResetMostRecentYoungAllocation();
-#endif
-
-  if (amount > i_isolate->heap()->external_memory_limit_for_interrupt()) {
-    HandleExternalMemoryInterrupt();
-  }
-  return amount;
-}
-
-void Isolate::HandleExternalMemoryInterrupt() {
-  i::Heap* heap = reinterpret_cast<i::Isolate*>(this)->heap();
-  if (heap->gc_state() != i::Heap::NOT_IN_GC) return;
-  heap->HandleExternalMemoryInterrupt();
+  return i_isolate->heap()->UpdateExternalMemory(change_in_bytes);
 }
 
 bool Isolate::RetryCustomAllocate(std::function<bool()> allocate) {

@@ -23,7 +23,6 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/thread_pool.h"
 #include "base/time/default_clock.h"
-#include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/chrome_content_browser_client.h"
@@ -57,6 +56,7 @@
 
 #include "ash/constants/ash_features.h"
 #include "ash/constants/ash_switches.h"
+#include "ash/constants/url_constants.h"
 #include "ash/public/cpp/new_window_delegate.h"
 #include "base/i18n/time_formatting.h"
 #include "base/strings/strcat.h"
@@ -67,6 +67,7 @@
 #include "chrome/browser/ash/ownership/owner_settings_service_ash_factory.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/ash/tpm/tpm_firmware_update.h"
+#include "chrome/browser/ui/ash/system_web_apps/system_web_app_utils.h"
 #include "chrome/browser/ui/webui/ash/extended_updates/extended_updates_dialog.h"
 #include "chrome/browser/ui/webui/help/help_utils_chromeos.h"
 #include "chrome/browser/ui/webui/help/version_updater_chromeos.h"
@@ -524,12 +525,12 @@ void AboutHandler::HandleOpenHelpPage(const base::ListValue& args) {
 #if BUILDFLAG(IS_CHROMEOS)
 void AboutHandler::HandleOpenDiagnostics(const base::ListValue& args) {
   DCHECK(args.empty());
-  chrome::ShowDiagnosticsApp(profile_);
+  ash::ShowDiagnosticsApp(profile_);
 }
 
 void AboutHandler::HandleOpenFirmwareUpdates(const base::ListValue& args) {
   DCHECK(args.empty());
-  chrome::ShowFirmwareUpdatesApp(profile_);
+  ash::ShowFirmwareUpdatesApp(profile_);
 }
 
 void AboutHandler::HandleCheckInternetConnection(const base::ListValue& args) {
@@ -768,8 +769,9 @@ std::u16string AboutHandler::GetEndOfLifeMessage(base::Time eol_date) const {
   int eol_string_id = eol_passed
                           ? IDS_SETTINGS_ABOUT_PAGE_END_OF_LIFE_MESSAGE_PAST
                           : IDS_SETTINGS_ABOUT_PAGE_END_OF_LIFE_MESSAGE_FUTURE;
-  const char16_t* eol_url =
-      eol_passed ? chrome::kEolNotificationURL : chrome::kAutoUpdatePolicyURL;
+  const char16_t* eol_url = eol_passed
+                                ? ash::external_urls::kEolNotificationURL
+                                : ash::external_urls::kAutoUpdatePolicyURL;
   return l10n_util::GetStringFUTF16(eol_string_id,
                                     base::TimeFormatMonthAndYearForTimeZone(
                                         eol_date, icu::TimeZone::getGMT()),

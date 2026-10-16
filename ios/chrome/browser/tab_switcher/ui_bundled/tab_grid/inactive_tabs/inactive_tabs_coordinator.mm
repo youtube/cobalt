@@ -11,6 +11,7 @@
 #import "base/metrics/user_metrics_action.h"
 #import "base/notreached.h"
 #import "base/strings/sys_string_conversions.h"
+#import "ios/chrome/browser/favicon/model/ios_chrome_favicon_loader_factory.h"
 #import "ios/chrome/browser/settings/ui_bundled/settings_navigation_controller.h"
 #import "ios/chrome/browser/shared/coordinator/alert/action_sheet_coordinator.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
@@ -26,6 +27,7 @@
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/inactive_tabs/inactive_tabs_user_education_coordinator.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/inactive_tabs/inactive_tabs_view_controller.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_context_menu/tab_context_menu_helper.h"
+#import "ios/chrome/browser/tabs/model/inactive_tabs/features.h"
 #import "ios/chrome/browser/tabs/model/tabs_closer.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
 #import "ios/chrome/grit/ios_strings.h"
@@ -189,12 +191,12 @@ const base::TimeDelta kPopUIDelay = base::Seconds(0.3);
       tabContextMenuDelegate:self.tabContextMenuDelegate];
 
   Browser* browser = self.browser;
-  id<SnapshotStorage> snapshotStorage =
-      SnapshotBrowserAgent::FromBrowser(browser)->snapshot_storage();
   self.mediator = [[InactiveTabsMediator alloc]
       initWithWebStateList:browser->GetWebStateList()
         profilePrefService:browser->GetProfile()->GetPrefs()
-           snapshotStorage:snapshotStorage
+             faviconLoader:IOSChromeFaviconLoaderFactory::GetForProfile(
+                               browser->GetProfile())
+      snapshotBrowserAgent:SnapshotBrowserAgent::FromBrowser(browser)
                 tabsCloser:std::make_unique<TabsCloser>(
                                browser, TabsCloser::ClosePolicy::kAllTabs)];
 }
@@ -203,6 +205,8 @@ const base::TimeDelta kPopUIDelay = base::Seconds(0.3);
   if (self.showing) {
     return;
   }
+  CHECK(!IsInactiveTabsExplicitlyDisabledByUser(
+      self.browser->GetProfile()->GetPrefs()));
   self.showing = YES;
   base::RecordAction(base::UserMetricsAction("MobileInactiveTabGridEntered"));
 
@@ -222,6 +226,8 @@ const base::TimeDelta kPopUIDelay = base::Seconds(0.3);
   self.mediator.delegate = self;
 
   self.viewController.gridViewController.menuProvider = _contextMenuProvider;
+  self.viewController.gridViewController.snapshotAndfaviconDataSource =
+      self.mediator;
 
   // Add the Inactive Tabs view controller to the hierarchy.
   UIView* baseView = self.baseViewController.view;

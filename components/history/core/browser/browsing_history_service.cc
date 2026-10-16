@@ -503,6 +503,14 @@ bool BrowsingHistoryService::ShouldQueryRemote(const QueryHistoryState& state) {
     return false;
   }
 
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+  // Actor visits are local-only and user visits should not be queried.
+  if (history::IsBrowsingHistoryActorIntegrationM3Enabled() &&
+      !state.original_options.include_user_visits) {
+    return false;
+  }
+#endif
+
   const size_t desired_count =
       static_cast<size_t>(state.original_options.EffectiveMaxCount());
   if (base::FeatureList::IsEnabled(kHistoryQueryOnlyLocalFirst)) {
@@ -942,6 +950,27 @@ void BrowsingHistoryService::RecordResultsMetrics(
         "History.WebHistoryMergeResult.Combined.PostExpiryThreshold",
         post_expiry_counts[HistoryEntry::COMBINED_ENTRY], 0, 150, 50);
   }
+
+  RecordDuplicateVisitsCount(results);
+}
+
+void BrowsingHistoryService::RecordDuplicateVisitsCount(
+    const std::vector<HistoryEntry>& results) {
+  int duplicate_visits_count = 0;
+  for (const HistoryEntry& entry : results) {
+    for (const auto& [url, timestamps] : entry.all_timestamps) {
+      // Omit the timestamp for the entry itself from the duplicate count.
+      url == entry.url ? duplicate_visits_count += timestamps.size() - 1
+                        : duplicate_visits_count += timestamps.size();
+    }
+  }
+
+  // Note: The histogram max of 150 is chosen to match `RESULTS_PER_PAGE` from
+  // chrome/browser/resources/history/constants.ts and `kMaxQueryCount` from
+  // chrome/browser/android/history/browsing_history_bridge.cc.
+  base::UmaHistogramCustomCounts(
+      "History.BrowsingHistoryResult.DuplicateVisitsCount",
+      duplicate_visits_count, 0, 150, 50);
 }
 
 void BrowsingHistoryService::WebHistoryQueryComplete(

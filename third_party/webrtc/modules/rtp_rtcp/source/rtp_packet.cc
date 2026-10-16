@@ -247,17 +247,17 @@ ArrayView<uint8_t> RtpPacket::AllocateRawExtension(int id, size_t length) {
                       << ": expected "
                       << static_cast<int>(extension_entry->length)
                       << ". received " << length;
-    return nullptr;
+    return {};
   }
   if (payload_size_ > 0) {
     RTC_LOG(LS_ERROR) << "Can't add new extension id " << id
                       << " after payload was set.";
-    return nullptr;
+    return {};
   }
   if (padding_size_ > 0) {
     RTC_LOG(LS_ERROR) << "Can't add new extension id " << id
                       << " after padding was set.";
-    return nullptr;
+    return {};
   }
 
   const size_t num_csrc = data()[0] & 0x0F;
@@ -286,7 +286,7 @@ ArrayView<uint8_t> RtpPacket::AllocateRawExtension(int id, size_t length) {
             << "Extension cannot be registered: Not enough space left in "
                "buffer to change to two-byte header extension and add new "
                "extension.";
-        return nullptr;
+        return {};
       }
       // Promote already written data to two-byte header format.
       PromoteToTwoByteHeaderExtension();
@@ -307,7 +307,7 @@ ArrayView<uint8_t> RtpPacket::AllocateRawExtension(int id, size_t length) {
   if (extensions_offset + new_extensions_size > capacity()) {
     RTC_LOG(LS_ERROR)
         << "Extension cannot be registered: Not enough space left in buffer.";
-    return nullptr;
+    return {};
   }
 
   // All checks passed, write down the extension headers.
@@ -598,11 +598,11 @@ ArrayView<const uint8_t> RtpPacket::FindExtension(ExtensionType type) const {
   uint8_t id = extensions_.GetId(type);
   if (id == ExtensionManager::kInvalidId) {
     // Extension not registered.
-    return nullptr;
+    return {};
   }
   ExtensionInfo const* extension_info = FindExtensionInfo(id);
   if (extension_info == nullptr) {
-    return nullptr;
+    return {};
   }
   return MakeArrayView(data() + extension_info->offset, extension_info->length);
 }
@@ -613,17 +613,17 @@ ArrayView<uint8_t> RtpPacket::AllocateExtension(ExtensionType type,
   if (length == 0 || length > RtpExtension::kMaxValueSize ||
       (!extensions_.ExtmapAllowMixed() &&
        length > RtpExtension::kOneByteHeaderExtensionMaxValueSize)) {
-    return nullptr;
+    return {};
   }
 
   uint8_t id = extensions_.GetId(type);
   if (id == ExtensionManager::kInvalidId) {
     // Extension not registered.
-    return nullptr;
+    return {};
   }
   if (!extensions_.ExtmapAllowMixed() &&
       id > RtpExtension::kOneByteHeaderExtensionMaxId) {
-    return nullptr;
+    return {};
   }
   return AllocateRawExtension(id, length);
 }

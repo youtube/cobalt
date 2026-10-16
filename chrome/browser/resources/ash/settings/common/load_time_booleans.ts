@@ -76,6 +76,11 @@ export function isAccountManagerEnabled(): boolean {
   return loadTimeData.getBoolean('isAccountManagerEnabled');
 }
 
+// Lockscreen page
+export function isManagedLocalPinAndPasswordEnabled(): boolean {
+  return loadTimeData.getBoolean('managedLocalPinAndPasswordEnabled');
+}
+
 // Reset page
 export function isPowerwashAllowed(): boolean {
   return loadTimeData.getBoolean('allowPowerwash');
@@ -110,9 +115,4 @@ export function isScannerSettingsToggleVisible(): boolean {
 // System preferences page
 export function shouldShowStartup(): boolean {
   return loadTimeData.getBoolean('shouldShowStartup');
-}
-
-// Power page
-export function isBatteryChargeLimitAvailable(): boolean {
-  return loadTimeData.getBoolean('isBatteryChargeLimitAvailable');
 }

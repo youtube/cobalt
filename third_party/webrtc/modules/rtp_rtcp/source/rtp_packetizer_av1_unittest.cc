@@ -41,7 +41,7 @@ constexpr uint8_t kNewCodedVideoSequenceBit = 0b00'00'1000;
 // Wrapper around rtp_packet to make it look like container of payload bytes.
 struct RtpPayload {
   using value_type = ArrayView<const uint8_t>::value_type;
-  using const_iterator = ArrayView<const uint8_t>::const_iterator;
+  using const_iterator = ArrayView<const uint8_t>::iterator;
 
   RtpPayload() : rtp_packet(/*extensions=*/nullptr) {}
   RtpPayload& operator=(RtpPayload&&) = default;

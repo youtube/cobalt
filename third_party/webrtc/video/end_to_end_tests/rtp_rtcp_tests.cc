@@ -545,8 +545,6 @@ TEST_F(RtpRtcpEndToEndTest, DISABLED_TestFlexfecRtpStatePreservation) {
     flexfec_receive_config.remote_ssrc = GetVideoSendConfig()->rtp.flexfec.ssrc;
     flexfec_receive_config.protected_media_ssrcs =
         GetVideoSendConfig()->rtp.flexfec.protected_media_ssrcs;
-    flexfec_receive_config.local_ssrc =
-        test::VideoTestConstants::kReceiverLocalVideoSsrc;
     flexfec_receive_configs_.push_back(flexfec_receive_config);
 
     CreateFlexfecStreams();

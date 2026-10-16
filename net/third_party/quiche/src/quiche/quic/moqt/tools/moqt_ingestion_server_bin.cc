@@ -30,7 +30,10 @@
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "quiche/quic/moqt/moqt_error.h"
+#include "quiche/quic/moqt/moqt_fetch_task.h"
+#include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
@@ -85,7 +88,7 @@ bool IsValidTrackNamespaceChar(char c) {
 }
 
 bool IsValidTrackNamespace(TrackNamespace track_namespace) {
-  for (const auto& element : track_namespace.tuple()) {
+  for (const absl::string_view element : track_namespace.tuple()) {
     if (!absl::c_all_of(element, IsValidTrackNamespaceChar)) {
       return false;
     }
@@ -95,14 +98,16 @@ bool IsValidTrackNamespace(TrackNamespace track_namespace) {
 
 TrackNamespace CleanUpTrackNamespace(TrackNamespace track_namespace) {
   TrackNamespace output;
-  for (auto& it : track_namespace.tuple()) {
-    std::string element = it;
+  for (absl::string_view input : track_namespace.tuple()) {
+    std::string element(input);
     for (char& c : element) {
       if (!IsValidTrackNamespaceChar(c)) {
         c = '_';
       }
     }
-    output.AddElement(element);
+    // The replacement above will not change the tuple size, which means that
+    // the result will be always valid.
+    (void)output.AddElement(element);
   }
   return output;
 }
@@ -121,7 +126,7 @@ class MoqtIngestionHandler {
   // TODO(martinduke): Handle when |publish_namespace| is false
   // (PUBLISH_NAMESPACE_DONE).
   void OnPublishNamespaceReceived(TrackNamespace track_namespace,
-                                  std::optional<VersionSpecificParameters>,
+                                  std::optional<MessageParameters>,
                                   MoqtResponseCallback callback) {
     if (!IsValidTrackNamespace(track_namespace) &&
         !quiche::GetQuicheCommandLineFlag(
@@ -162,9 +167,16 @@ class MoqtIngestionHandler {
     std::vector<absl::string_view> tracks_to_subscribe =
         absl::StrSplit(track_list, ',', absl::AllowEmpty());
     for (absl::string_view track : tracks_to_subscribe) {
-      FullTrackName full_track_name(track_namespace, track);
-      session_->RelativeJoiningFetch(full_track_name, &it->second, 0,
-                                     VersionSpecificParameters());
+      absl::StatusOr<FullTrackName> full_track_name =
+          FullTrackName::Create({track_namespace}, std::string(track));
+      if (!full_track_name.ok()) {
+        std::move(callback)(
+            MoqtRequestErrorInfo{RequestErrorCode::kInternalError, std::nullopt,
+                                 "Namespace too long"});
+        return;
+      }
+      session_->RelativeJoiningFetch(*full_track_name, &it->second, 0,
+                                     MessageParameters());
     }
     std::move(callback)(std::nullopt);
   }

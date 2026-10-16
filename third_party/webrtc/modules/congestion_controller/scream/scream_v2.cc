@@ -168,8 +168,6 @@ void ScreamV2::UpdateRefWindow(const TransportPacketsFeedback& msg) {
       // per RTT
       backoff /= std::max(
           1.0, delay_based_congestion_control_.rtt() / params_.virtual_rtt);
-      //  Increase stability for very small ref_wnd
-      backoff *= std::max(0.5, 1.0 - ref_window_mss_ratio());
 
       if (!delay_based_congestion_control_.IsQueueDelayDetected()) {
         // Scale down backoff if close to the last known max reference window
@@ -208,11 +206,6 @@ void ScreamV2::UpdateRefWindow(const TransportPacketsFeedback& msg) {
       ref_window_ = delay_based_congestion_control_.UpdateReferenceWindow(
           ref_window_, ref_window_mss_ratio());
     }
-
-    if (allow_ref_window_i_update_) {
-      ref_window_i_ = ref_window_;
-      allow_ref_window_i_update_ = false;
-    }
   }
 
   // Increase ref_window.
@@ -224,8 +217,7 @@ void ScreamV2::UpdateRefWindow(const TransportPacketsFeedback& msg) {
     // Just because there is a CE event, does not mean we send too much. At
     // rates close to the capacity, it is quite likely that one packet is CE
     // marked in every feedback.
-    DataSize increase =
-        DataUnitsAckedAndNotMarked(msg) * ref_window_mss_ratio();
+    double increase_scale_factor = ref_window_mss_ratio();
 
     // Limit increase for small RTTs
     if (delay_based_congestion_control_.rtt() + feedback_hold_time_ <
@@ -233,29 +225,28 @@ void ScreamV2::UpdateRefWindow(const TransportPacketsFeedback& msg) {
       double rtt_ratio =
           (delay_based_congestion_control_.rtt() + feedback_hold_time_) /
           params_.virtual_rtt.Get();
-      increase = increase * (rtt_ratio * rtt_ratio);
+      increase_scale_factor = increase_scale_factor * (rtt_ratio * rtt_ratio);
     }
 
     // Limit increase when close to the last inflection point.
-    increase = increase *
-               std::max(0.25, ref_window_scale_factor_close_to_ref_window_i());
-
-    // Limit increase when the reference window close to max segment size.
-    increase = increase * std::max(0.5, 1.0 - ref_window_mss_ratio());
+    increase_scale_factor =
+        increase_scale_factor *
+        std::max(0.25, ref_window_scale_factor_close_to_ref_window_i());
 
     // Limit increase if L4S not enabled and queue delay is increased.
     if (l4s_alpha_ < 0.0001) {
-      increase =
-          increase * delay_based_congestion_control_
-                         .ref_window_scale_factor_due_to_increased_delay();
+      increase_scale_factor =
+          increase_scale_factor *
+          delay_based_congestion_control_
+              .ref_window_scale_factor_due_to_increased_delay();
     }
 
     // Put a additional restriction on reference window growth if rtt varies a
     // lot.
     // Better to enforce a slow increase in reference window and get
     // a more stable bitrate.
-    increase =
-        increase *
+    increase_scale_factor =
+        increase_scale_factor *
         std::max(0.1, delay_based_congestion_control_
                           .ref_window_scale_factor_due_to_delay_variation(
                               ref_window_mss_ratio()));
@@ -274,22 +265,14 @@ void ScreamV2::UpdateRefWindow(const TransportPacketsFeedback& msg) {
                   post_congestion_scale *
                   ref_window_scale_factor_close_to_ref_window_i();
     RTC_DCHECK_GE(multiplicative_scale, 1.0);
-    increase = increase * multiplicative_scale;
+    increase_scale_factor = increase_scale_factor * multiplicative_scale;
 
-    // Increase ref_window only if bytes in flight is large enough.
-    // Quite a lot of slack is allowed here to avoid that bitrate locks to low
-    // values. Increase is inhibited if max target bitrate is reached.
-    DataSize max_allowed_ref_window =
-        std::max(params_.max_segment_size.Get() +
-                     std::max(max_data_in_flight_this_rtt_,
-                              max_data_in_flight_prev_rtt_) *
-                         params_.bytes_in_flight_head_room.Get(),
-                 params_.min_ref_window.Get());
-
-    if (ref_window_ < max_allowed_ref_window) {
-      ref_window_ =
-          std::clamp(ref_window_ + increase, params_.min_ref_window.Get(),
-                     max_allowed_ref_window);
+    DataSize increase = DataUnitsAckedAndNotMarked(msg) * increase_scale_factor;
+    last_ref_window_increase_scale_factor_ = increase_scale_factor;
+    DataSize max_ref_window = max_allowed_ref_window();
+    if (ref_window_ < max_ref_window) {
+      ref_window_ = std::clamp(ref_window_ + increase,
+                               params_.min_ref_window.Get(), max_ref_window);
     }
   }
 
@@ -301,6 +284,10 @@ void ScreamV2::UpdateRefWindow(const TransportPacketsFeedback& msg) {
   }
   if (previous_ref_window > ref_window_) {
     last_ref_window_decrease_time_ = msg.feedback_time;
+    if (allow_ref_window_i_update_) {
+      ref_window_i_ = previous_ref_window;
+      allow_ref_window_i_update_ = false;
+    }
   }
 
   RTC_LOG_IF(LS_VERBOSE, previous_ref_window != ref_window_)
@@ -329,6 +316,18 @@ DataSize ScreamV2::max_data_in_flight() const {
                   ref_window_mss_ratio());
 
   return ref_window_ * ref_window_overhead;
+}
+
+DataSize ScreamV2::max_allowed_ref_window() const {
+  // 4.2.2.2.
+  // Increase ref_window only if bytes in flight is large enough.
+  // Quite a lot of slack is allowed here to avoid that bitrate locks to low
+  // values.
+  return std::max(
+      params_.max_segment_size.Get() +
+          std::max(max_data_in_flight_this_rtt_, max_data_in_flight_prev_rtt_) *
+              params_.bytes_in_flight_head_room.Get(),
+      params_.min_ref_window.Get());
 }
 
 void ScreamV2::UpdateFeedbackHoldTime(const TransportPacketsFeedback& msg) {

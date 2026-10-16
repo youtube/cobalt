@@ -68,7 +68,7 @@ static constexpr wgpu::TextureFormat kFormats[] = {
         wgpu::TextureFormat::ETC2RGB8Unorm,
 
 #if !defined(__EMSCRIPTEN__)
-        wgpu::TextureFormat::External,
+        wgpu::TextureFormat::OpaqueYCbCrAndroid,
 #endif
 };
 
@@ -562,10 +562,10 @@ void DawnCaps::initShaderCaps(const wgpu::Device& device) {
     // WGSL supports shader derivatives in the fragment shader
     shaderCaps->fShaderDerivativeSupport = true;
 
-#if !defined(__EMSCRIPTEN__)
     if (device.HasFeature(wgpu::FeatureName::DualSourceBlending)) {
         shaderCaps->fDualSourceBlendingSupport = true;
     }
+#if !defined(__EMSCRIPTEN__)
     if (device.HasFeature(wgpu::FeatureName::FramebufferFetch)) {
         shaderCaps->fFBFetchSupport = true;
     }
@@ -883,7 +883,7 @@ void DawnCaps::initFormatTable(const wgpu::Device& device) {
 #if !defined(__EMSCRIPTEN__)
     // Format: External
     {
-        info = &fFormatTable[GetFormatIndex(wgpu::TextureFormat::External)];
+        info = &fFormatTable[GetFormatIndex(wgpu::TextureFormat::OpaqueYCbCrAndroid)];
         info->fFlags = FormatInfo::kTexturable_Flag;
         info->fColorTypeInfoCount = 2;
         info->fColorTypeInfos = std::make_unique<ColorTypeInfo[]>(info->fColorTypeInfoCount);

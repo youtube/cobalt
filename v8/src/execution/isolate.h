@@ -1000,6 +1000,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // them into `frame_data` and returns the number of frames written.
   size_t CurrentScriptIdsAndContexts(
       v8::MemorySpan<StackTrace::ScriptIdAndContext> frame_data);
+  // Walks the JS stack to find the first `frame_data.size()` frames and writes
+  // them into `frame_data` and returns the number of frames written.
+  size_t CurrentScriptData(v8::MemorySpan<StackTrace::ScriptData> frame_data);
 
   MaybeDirectHandle<Script> CurrentReferrerScript();
   bool GetStackTraceLimit(Isolate* isolate, int* result);
@@ -2853,6 +2856,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   base::Mutex managed_ptr_destructors_mutex_;
   ManagedPtrDestructor* managed_ptr_destructors_head_ = nullptr;
+  // This is only maintained by the shared-space isolate, otherwise it is
+  // always null.
+  ManagedPtrDestructor* shared_managed_ptr_destructors_head_ = nullptr;
 
   size_t total_regexp_code_generated_ = 0;
 

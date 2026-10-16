@@ -11,6 +11,7 @@
 #include "rtc_tools/rtc_event_log_visualizer/analyzer.h"
 
 #include <cstddef>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -18,6 +19,7 @@
 #include "absl/strings/string_view.h"
 #include "api/environment/environment_factory.h"
 #include "api/function_view.h"
+#include "api/neteq/neteq.h"
 #include "api/units/data_rate.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
@@ -43,6 +45,7 @@ EventLogAnalyzer::EventLogAnalyzer(const ParsedRtcEventLog& parsed_log,
     RTC_LOG(LS_WARNING) << "No useful events in the log.";
     config_.begin_time_ = config_.end_time_ = Timestamp::Zero();
   }
+  neteq_simulator_ = std::make_unique<LazyNetEqSimulator>(parsed_log_, config_);
 
   RTC_LOG(LS_INFO) << "Log is "
                    << (parsed_log_.last_timestamp().ms() -
@@ -54,11 +57,21 @@ EventLogAnalyzer::EventLogAnalyzer(const ParsedRtcEventLog& parsed_log,
 EventLogAnalyzer::EventLogAnalyzer(const ParsedRtcEventLog& parsed_log,
                                    const AnalyzerConfig& config)
     : parsed_log_(parsed_log), config_(config) {
+  neteq_simulator_ = std::make_unique<LazyNetEqSimulator>(parsed_log_, config_);
   RTC_LOG(LS_INFO) << "Log is "
                    << (parsed_log_.last_timestamp().ms() -
                        parsed_log_.first_timestamp().ms()) /
                           1000
                    << " seconds long.";
+}
+
+EventLogAnalyzer::~EventLogAnalyzer() = default;
+
+void EventLogAnalyzer::SetNetEqReplacementFile(
+    absl::string_view replacement_file_name,
+    int file_sample_rate_hz) {
+  neteq_simulator_->SetReplacementAudioFile(replacement_file_name,
+                                            file_sample_rate_hz);
 }
 
 void EventLogAnalyzer::CreateGraphsByName(const std::vector<std::string>& names,
@@ -68,8 +81,7 @@ void EventLogAnalyzer::CreateGraphsByName(const std::vector<std::string>& names,
       return plot.label == name;
     });
     if (plot != plots_.end()) {
-      Plot* output = collection->AppendNewPlot(plot->label);
-      plot->plot_func(output);
+      plot->plot_func(collection);
     }
   }
 }
@@ -281,6 +293,76 @@ void EventLogAnalyzer::InitializeMapOfNamedGraphs(bool show_detector_state,
   plots_.RegisterPlot("dtls_writable_state", [this](Plot* plot) {
     this->CreateDtlsWritableStateGraph(plot);
   });
+  plots_.RegisterPlot(
+      "simulated_neteq_expand_rate", [this](PlotCollection* collection) {
+        CreateNetEqNetworkStatsGraph(
+            parsed_log_, config_, neteq_simulator_->GetStats(),
+            [](const NetEqNetworkStatistics& stats) {
+              return stats.expand_rate / 16384.f;
+            },
+            "Expand rate",
+            collection->AppendNewPlot("simulated_neteq_expand_rate"));
+      });
+  plots_.RegisterPlot(
+      "simulated_neteq_speech_expand_rate", [this](PlotCollection* collection) {
+        CreateNetEqNetworkStatsGraph(
+            parsed_log_, config_, neteq_simulator_->GetStats(),
+            [](const NetEqNetworkStatistics& stats) {
+              return stats.speech_expand_rate / 16384.f;
+            },
+            "Speech expand rate",
+            collection->AppendNewPlot("simulated_neteq_speech_expand_rate"));
+      });
+  plots_.RegisterPlot(
+      "simulated_neteq_accelerate_rate", [this](PlotCollection* collection) {
+        CreateNetEqNetworkStatsGraph(
+            parsed_log_, config_, neteq_simulator_->GetStats(),
+            [](const NetEqNetworkStatistics& stats) {
+              return stats.accelerate_rate / 16384.f;
+            },
+            "Accelerate rate",
+            collection->AppendNewPlot("simulated_neteq_accelerate_rate"));
+      });
+  plots_.RegisterPlot(
+      "simulated_neteq_preemptive_rate", [this](PlotCollection* collection) {
+        CreateNetEqNetworkStatsGraph(
+            parsed_log_, config_, neteq_simulator_->GetStats(),
+            [](const NetEqNetworkStatistics& stats) {
+              return stats.preemptive_rate / 16384.f;
+            },
+            "Preemptive rate",
+            collection->AppendNewPlot("simulated_neteq_preemptive_rate"));
+      });
+  plots_.RegisterPlot(
+      "simulated_neteq_concealment_events", [this](PlotCollection* collection) {
+        CreateNetEqLifetimeStatsGraph(
+            parsed_log_, config_, neteq_simulator_->GetStats(),
+            [](const NetEqLifetimeStatistics& stats) {
+              return static_cast<float>(stats.concealment_events);
+            },
+            "Concealment events",
+            collection->AppendNewPlot("simulated_neteq_concealment_events"));
+      });
+  plots_.RegisterPlot(
+      "simulated_neteq_preferred_buffer_size",
+      [this](PlotCollection* collection) {
+        CreateNetEqNetworkStatsGraph(
+            parsed_log_, config_, neteq_simulator_->GetStats(),
+            [](const NetEqNetworkStatistics& stats) {
+              return stats.preferred_buffer_size_ms;
+            },
+            "Preferred buffer size (ms)",
+            collection->AppendNewPlot("simulated_neteq_preferred_buffer_size"));
+      });
+  plots_.RegisterPlot(
+      "simulated_neteq_jitter_buffer_delay",
+      [this](PlotCollection* collection) {
+        for (const auto& st : neteq_simulator_->GetStats()) {
+          CreateAudioJitterBufferGraph(
+              parsed_log_, config_, st.first, st.second.get(),
+              collection->AppendNewPlot("simulated_neteq_jitter_buffer_delay"));
+        }
+      });
 }
 void EventLogAnalyzer::CreatePlayoutGraph(Plot* plot) const {
   webrtc::CreatePlayoutGraph(parsed_log_, config_, plot);

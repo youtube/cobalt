@@ -49,8 +49,8 @@ bool CorruptionDetectionExtension::Parse(ArrayView<const uint8_t> data,
   uint8_t channel_error_thresholds = data[2];
   message->luma_error_threshold_ = channel_error_thresholds >> 4;
   message->chroma_error_threshold_ = channel_error_thresholds & 0xF;
-  message->sample_values_.assign(data.cbegin() + kConfigurationBytes,
-                                 data.cend());
+  message->sample_values_.assign(data.begin() + kConfigurationBytes,
+                                 data.end());
   return true;
 }
 

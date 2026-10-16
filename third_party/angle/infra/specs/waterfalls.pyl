@@ -25,6 +25,8 @@
           'gpu_pixel_10_stable',
         ],
         'test_suites': {
+          'gtest_tests': 'android_gtests',
+          'isolated_scripts': 'isolated_scripts_group_common',
         },
       },
       'android-arm64-exp-pixel6': {  # android-arm64-pixel6 below for android-arm64-test
@@ -173,16 +175,6 @@
         'test_suites': {
         },
       },
-      'linux-intel': {
-        'os_type': 'linux',
-        'mixins': [
-          'linux_intel_uhd_630_stable',
-        ],
-        'test_suites': {
-          'gtest_tests': 'linux_intel_gtests',
-          'isolated_scripts': 'isolated_scripts_group_common',
-        },
-      },
       'linux-intel-perf': {
         'os_type': 'linux',
         'mixins': [
@@ -233,16 +225,6 @@
         'test_suites': {
           'gtest_tests': 'swangle_gtests',
           'isolated_scripts': 'swangle_restricted_trace_gold_isolated_scripts',
-        },
-      },
-      'linux-nvidia': {
-        'os_type': 'linux',
-        'mixins': [
-          'linux_nvidia_gtx_1660_stable',
-        ],
-        'test_suites': {
-          'gtest_tests': 'linux_nvidia_gtests',
-          'isolated_scripts': 'isolated_scripts_group_common',
         },
       },
       'linux-nvidia-perf': {
@@ -472,6 +454,34 @@
       'swarming_containment_auto',
     ],
     'machines': {
+      'angle-linux-x64-amd-rx5500xt-rel': {
+        'os_type': 'linux',
+        'mixins': [
+          'linux_amd_rx_5500_xt',
+        ],
+        'test_suites': {
+        },
+      },
+      'angle-linux-x64-intel-uhd630-rel': {
+        'os_type': 'linux',
+        'mixins': [
+          'linux_intel_uhd_630_stable',
+        ],
+        'test_suites': {
+          'gtest_tests': 'linux_intel_gtests',
+          'isolated_scripts': 'isolated_scripts_group_common',
+        },
+      },
+      'angle-linux-x64-nvidia-gtx1660-rel': {
+        'os_type': 'linux',
+        'mixins': [
+          'linux_nvidia_gtx_1660_stable',
+        ],
+        'test_suites': {
+          'gtest_tests': 'linux_nvidia_gtests',
+          'isolated_scripts': 'isolated_scripts_group_common',
+        },
+      },
       'angle-linux-x64-sws-rel': {
         'os_type': 'linux',
         'mixins': [
@@ -482,6 +492,12 @@
           'gtest_tests': 'swangle_gtests',
           'isolated_scripts': 'swangle_restricted_trace_gold_isolated_scripts',
         },
+      },
+      'angle-linux-x64-trace': {
+        'os_type': 'linux',
+        'additional_compile_targets': [
+          'noop_target',
+        ],
       },
     },
   },

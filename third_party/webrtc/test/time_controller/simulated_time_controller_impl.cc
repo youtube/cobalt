@@ -15,6 +15,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/base/nullability.h"
 #include "absl/strings/string_view.h"
 #include "api/task_queue/task_queue_base.h"
 #include "api/task_queue/task_queue_factory.h"
@@ -62,9 +63,14 @@ SimulatedTimeControllerImpl::CreateTaskQueue(
 
 std::unique_ptr<Thread> SimulatedTimeControllerImpl::CreateThread(
     const std::string& name,
-    std::unique_ptr<SocketServer> socket_server) {
-  auto thread =
-      std::make_unique<SimulatedThread>(this, name, std::move(socket_server));
+    std::unique_ptr<SocketServer> absl_nullable socket_server) {
+  std::unique_ptr<SimulatedThread> thread;
+  if (socket_server == nullptr) {
+    thread = std::make_unique<SimulatedThread>(this, name);
+  } else {
+    thread =
+        std::make_unique<SimulatedThread>(this, name, std::move(socket_server));
+  }
   Register(thread.get());
   return thread;
 }

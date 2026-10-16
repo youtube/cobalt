@@ -452,6 +452,12 @@ struct FeaturesVk : FeatureSetBase
         &members,
     };
 
+    FeatureInfo disableSubmitCommandsOnSyncStatusCheckForTesting = {
+        "disableSubmitCommandsOnSyncStatusCheckForTesting",
+        FeatureCategory::VulkanWorkarounds,
+        &members,
+    };
+
     FeatureInfo forceTextureLodOffset1 = {
         "forceTextureLodOffset1",
         FeatureCategory::VulkanWorkarounds,
@@ -1642,6 +1648,12 @@ struct FeaturesVk : FeatureSetBase
 
     FeatureInfo simulateTileMemoryForTesting = {
         "simulateTileMemoryForTesting",
+        FeatureCategory::VulkanFeatures,
+        &members,
+    };
+
+    FeatureInfo supportsClKhrSubgroups = {
+        "supportsClKhrSubgroups",
         FeatureCategory::VulkanFeatures,
         &members,
     };

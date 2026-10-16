@@ -79,7 +79,6 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(
     kBrokerFileOperationsOnDiskCacheInNetworkService);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kBypassRedirectChecksPerRequest);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kCacheControlNoStoreEnterBackForwardCache);
-CONTENT_EXPORT BASE_DECLARE_FEATURE(kCapturedSurfaceControlKillswitch);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(
     kClearCrossSiteCrossBrowsingContextGroupWindowName);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kCompositeBGColorAnimation);
@@ -357,7 +356,6 @@ CONTENT_EXPORT extern const base::FeatureParam<int>
     kAndroidDesktopZoomScalingFactor;
 CONTENT_EXPORT extern const base::FeatureParam<int>
     kAndroidMonitorZoomScalingFactor;
-CONTENT_EXPORT BASE_DECLARE_FEATURE(kAndroidWebAppLaunchHandler);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(
     kGinJavaBridgeMojoSkipClearObjectsOnMainDocumentReady);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kReduceGpuPriorityOnBackground);

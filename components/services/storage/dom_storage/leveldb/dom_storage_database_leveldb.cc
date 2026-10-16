@@ -34,8 +34,8 @@
 #include "components/services/storage/dom_storage/dom_storage_database.h"
 #include "components/services/storage/dom_storage/leveldb/dom_storage_batch_operation_leveldb.h"
 #include "components/services/storage/dom_storage/leveldb/dom_storage_database_leveldb_utils.h"
+#include "components/services/storage/dom_storage/leveldb_status_helper.h"
 #include "components/services/storage/filesystem_proxy_factory.h"
-#include "storage/common/database/leveldb_status_helper.h"
 #include "third_party/leveldatabase/env_chromium.h"
 #include "third_party/leveldatabase/leveldb_chrome.h"
 #include "third_party/leveldatabase/src/include/leveldb/db.h"
@@ -159,11 +159,10 @@ DomStorageDatabaseLevelDB::Open(
   if (!status.ok()) {
 #if BUILDFLAG(IS_COBALT)
     if (status.IsCorruption()) {
-      LogLevelDBStatusHistogram("Cobalt.LocalStorage.DatabaseVersionMismatch",
-                                status);
+      status.Log("Cobalt.LocalStorage.DatabaseVersionMismatch",
+                 directory.empty());
     } else {
-      LogLevelDBStatusHistogram("Cobalt.LocalStorage.DatabaseReadError",
-                                status);
+      status.Log("Cobalt.LocalStorage.DatabaseReadError", directory.empty());
     }
 #endif
     return base::unexpected(std::move(status));

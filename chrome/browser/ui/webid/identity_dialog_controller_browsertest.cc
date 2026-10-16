@@ -21,7 +21,6 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/webid/account_selection_view.h"
-#include "chrome/common/chrome_features.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "content/public/browser/webid/identity_request_account.h"
 #include "content/public/browser/webid/identity_request_dialog_controller.h"
@@ -256,7 +255,8 @@ IN_PROC_BROWSER_TEST_F(IdentityDialogControllerBrowserTest,
   controller->ShowAccountsDialog(
       content::RelyingPartyData(kTopFrameEtldPlusOne,
                                 /*iframe_for_display=*/u""),
-      {idp_data}, accounts, blink::mojom::RpMode::kActive,
+      {idp_data}, accounts, /*filtered_accounts=*/{},
+      blink::mojom::RpMode::kActive,
       /*on_selected=*/base::DoNothing(),
       /*on_add_account=*/base::DoNothing(),
       /*dismiss_callback=*/base::DoNothing(),

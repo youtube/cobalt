@@ -218,14 +218,14 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // Import InternalizeString overloads from base class.
   using FactoryBase::InternalizeString;
 
-  Handle<String> InternalizeString(base::Vector<const char> str,
-                                   bool convert_encoding = false) {
+  Handle<InternalizedString> InternalizeString(base::Vector<const char> str,
+                                               bool convert_encoding = false) {
     return InternalizeString(base::Vector<const uint8_t>::cast(str),
                              convert_encoding);
   }
 
-  Handle<String> InternalizeString(const char* str,
-                                   bool convert_encoding = false) {
+  Handle<InternalizedString> InternalizeString(const char* str,
+                                               bool convert_encoding = false) {
     return InternalizeString(base::OneByteVector(str), convert_encoding);
   }
 
@@ -339,8 +339,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   DirectHandle<JSStringIterator> NewJSStringIterator(Handle<String> string);
 
-  DirectHandle<String> NewInternalizedStringImpl(DirectHandle<String> string,
-                                                 int len, uint32_t hash_field);
+  DirectHandle<InternalizedString> NewInternalizedStringImpl(
+      DirectHandle<String> string, int len, uint32_t hash_field);
 
   // Compute the internalization strategy for the input string.
   //
@@ -359,7 +359,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // Creates an internalized copy of an external string. |string| must be
   // of type StringClass.
   template <class StringClass>
-  DirectHandle<StringClass> InternalizeExternalString(
+  DirectHandle<InternalizedString> InternalizeExternalString(
       DirectHandle<String> string);
 
   // Compute the sharing strategy for the input string.
@@ -622,7 +622,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       DirectHandle<PropertyArray> array, int grow_by);
 
   Handle<FixedArray> CopyFixedArrayUpTo(
-      DirectHandle<FixedArray> array, int new_len,
+      DirectHandle<FixedArray> array, uint32_t new_len,
       AllocationType allocation = AllocationType::kYoung);
 
   Handle<FixedArray> CopyFixedArray(Handle<FixedArray> array);
@@ -813,13 +813,15 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   DirectHandle<WasmArray> NewWasmArray(wasm::ValueType element_type,
                                        uint32_t length,
                                        wasm::WasmValue initial_value,
-                                       DirectHandle<Map> map);
+                                       DirectHandle<Map> map,
+                                       WriteBarrierMode write_barrier);
   DirectHandle<WasmArray> NewWasmArrayFromElements(
       const wasm::ArrayType* type, base::Vector<wasm::WasmValue> elements,
-      DirectHandle<Map> map);
+      DirectHandle<Map> map, WriteBarrierMode write_barrier);
   DirectHandle<WasmArray> NewWasmArrayFromMemory(
       uint32_t length, DirectHandle<Map> map,
-      wasm::CanonicalValueType element_type, Address source);
+      wasm::CanonicalValueType element_type,
+      base::Vector<const uint8_t> source);
   // Returns a handle to a WasmArray if successful, or a Smi containing a
   // {MessageTemplate} if computing the array's elements leads to an error.
   DirectHandle<Object> NewWasmArrayFromElementSegment(
@@ -1112,6 +1114,16 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Handle<JSPromise> NewJSPromiseWithoutHook();
   Handle<JSPromise> NewJSPromise();
+
+  DirectHandle<Context> CreatePromiseAllResolveElementContext(
+      DirectHandle<PromiseCapability> capability);
+  DirectHandle<Context> CreatePromiseResolvingFunctionsContext(
+      DirectHandle<JSPromise> promise);
+  DirectHandle<JSFunction> CreatePromiseAllResolveElementFunction(
+      DirectHandle<Context> context, int index);
+  DirectHandle<PromiseCapability> CreatePromiseCapabilityObject(
+      DirectHandle<JSPromise> promise, DirectHandle<JSFunction> resolve,
+      DirectHandle<JSFunction> reject);
 
   Tagged<HeapObject> NewForTest(DirectHandle<Map> map,
                                 AllocationType allocation) {

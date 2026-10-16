@@ -4541,6 +4541,13 @@ Als dit beleid is ingesteld op False, gebruikt <ph name="PRODUCT_NAME" /> geen s
 <translation id="4150201353443180367">Weergave</translation>
 <translation id="4154221011709068799">Externe opslagapparaten niet toestaan</translation>
 <translation id="415445772247959702">Web Store (ondersteund vanaf versie 89)</translation>
+<translation id="415631927748520887">Als je dit beleid instelt op Waar, kunnen Chrome-apps blijven werken in een kiosksessie, ongeacht of Chrome-apps standaard zijn aangezet.
+
+Als je dit beleid niet instelt of instelt op Onwaar, wordt het standaardgedrag gebruikt dat is gedefinieerd op het apparaat.
+
+Als een gebruiker probeert een uitgezette Chrome-app te starten, krijgt deze een bericht waarin wordt uitgelegd waarom de app niet is gestart en wordt voorgesteld contact op te nemen met de IT-afdeling.
+
+De waarde van dit beleid wordt gehonoreerd tot de beëindiging van Chrome-apps in kiosksessies, wat waarschijnlijk gebeurt in M151.</translation>
 <translation id="4157003184375321727">Besturingssysteem- en firmwareversie rapporteren</translation>
 <translation id="4157594634940419685">Toegang verlenen aan systeemeigen CUPS-printers</translation>
 <translation id="4158531549614162499">Google Drive-synchronisatie via mobiele verbindingen aanzetten</translation>
@@ -4593,19 +4600,6 @@ Als je het beleid niet instelt, wordt het gedrag bepaald door het beleid <ph nam
           Als je dit beleid instelt, kunnen gebruikers het niet wijzigen of overschrijven.
 
           Als dit beleid niet is ingesteld, staat de markering van het caret-teken in eerste instantie uit op het inlogscherm. De gebruiker kan deze functie op elk gewenst moment aanzetten.</translation>
-<translation id="4182348537826882258">Als je het beleid <ph name="URL_BLOCKLIST_POLICY_NAME" /> instelt, worden webpagina's met verboden URL's niet geladen. Beheerders kunnen de lijst met URL-patronen opgeven die moeten worden geblokkeerd. Als je dit beleid niet instelt, worden er geen URL's geblokkeerd in de browser. Er kunnen maximaal 1000 uitzonderingen worden gedefinieerd in <ph name="URL_ALLOWLIST_POLICY_NAME" />. Bekijk hoe je een URL-patroon opmaakt (https://support.google.com/chrome/a?p=url_blocklist_filter_format).
-
-Opmerking: Dit beleid is niet van toepassing op in-page JavaScript-URL's met dynamisch geladen gegevens. Als je example.com/abc hebt geblokkeerd, kan example.com de pagina nog steeds laden met XMLHTTPRequest. Dit beleid voorkomt ook niet dat webpagina's de URL die in de omnibox wordt getoond, updaten naar een geblokkeerde site via de JavaScript History API.
-
-Vanaf versie 73 van <ph name="PRODUCT_NAME" /> kun je javascript://*-URL's blokkeren. Dit heeft alleen gevolgen voor JavaScript dat in de adresbalk wordt opgegeven of voor bijvoorbeeld bookmarklets.
-
-Vanaf versie 92 van <ph name="PRODUCT_NAME" /> wordt dit beleid ook ondersteund in de stand zonder interface.
-
-Opmerking: Als je interne URL's met chrome://* en chrome-untrusted://* blokkeert, kan dit leiden tot onverwachte fouten of kan de blokkering worden omzeild in speciale gevallen. In plaats van bepaalde interne URL's te blokkeren, kun je beter checken of er specifiekere beleidsregels beschikbaar zijn. Bijvoorbeeld:
-
-- Gebruik <ph name="CA_CERTIFICATE_MANAGEMENT_ALLOWED_POLICY_NAME" /> in plaats van chrome://settings/certificates te blokkeren.
-
-- Gebruik <ph name="SYSTEM_FEATURES_DISABLE_LIST_POLICY_NAME" /> in plaats van chrome-untrusted://crosh te blokkeren.</translation>
 <translation id="4183229833636799228">Standaardinstelling voor <ph name="FLASH_PLUGIN_NAME" /></translation>
 <translation id="4185868802416355029">Beheerde extensies toestaan de Enterprise Hardware Platform API te gebruiken</translation>
 <translation id="4186244263855283575">Hiermee kun je een aangepast schema instellen om apparaten opnieuw op te starten. Als dit beleid is ingesteld op True, wordt het apparaat opnieuw opgestart volgens het schema. Het beleid moet worden verwijderd om meer instanties van gepland opnieuw opstarten te annuleren.
@@ -12178,6 +12172,21 @@ Als je het beleid niet instelt, kan <ph name="PRODUCT_NAME" /> deze logboeken st
 <translation id="9051019223077908578">De lijst met geïnstalleerde apps en extensies configureren op het inlogscherm</translation>
 <translation id="9053841574218808519">Plug-ins die niet verouderd zijn, altijd uitvoeren</translation>
 <translation id="9055866143096316150">Wake lock-verzoeken voor het scherm verlagen naar wake lock-verzoeken voor het systeem</translation>
+<translation id="9056262797461453462">Als je het beleid <ph name="URL_BLOCKLIST_POLICY_NAME" /> instelt, worden webpagina's met verboden URL's niet geladen. Beheerders kunnen de lijst met URL-patronen aangeven die moeten worden geblokkeerd. Als je dit beleid niet instelt, worden er geen URL's geblokkeerd in de browser. Er kunnen maximaal 1000 uitzonderingen worden gedefinieerd in <ph name="URL_ALLOWLIST_POLICY_NAME" />. Bekijk hoe je een URL-patroon opmaakt (https://support.google.com/chrome/a?p=url_blocklist_filter_format).
+
+Opmerking: Dit beleid is niet van toepassing op in-page JavaScript-URL's met dynamisch geladen gegevens. Als je example.com/abc hebt geblokkeerd, kan example.com de pagina nog steeds laden met XMLHTTPRequest. Dit beleid voorkomt ook niet dat webpagina's de URL die in de omnibox wordt getoond, updaten naar een geblokkeerde site via de JavaScript History API.
+
+Vanaf versie 73 van <ph name="PRODUCT_NAME" /> kun je javascript://*-URL's blokkeren. Dit heeft alleen gevolgen voor JavaScript dat in de adresbalk wordt ingevoerd of voor bijvoorbeeld bookmarklets.
+
+Vanaf <ph name="PRODUCT_NAME" /> versie 92 wordt dit beleid ook ondersteund in de modus zonder interface.
+
+Opmerking: Als je interne URL's met chrome://* en chrome-untrusted://* blokkeert, kan dit leiden tot onverwachte fouten of kan de blokkering worden omzeild in speciale gevallen. In plaats van bepaalde interne URL's te blokkeren, kun je beter checken of er specifiekere beleidsregels beschikbaar zijn. Bijvoorbeeld:
+
+- Gebruik <ph name="CA_CERTIFICATE_MANAGEMENT_ALLOWED_POLICY_NAME" /> in plaats van chrome://settings/certificates te blokkeren.
+
+- Gebruik <ph name="SYSTEM_FEATURES_DISABLE_LIST_POLICY_NAME" /> in plaats van chrome-untrusted://crosh te blokkeren.
+
+- Gebruik een van de beleidsregels <ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" />, <ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" /> of <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" /> in plaats van devtools://* te blokkeren.</translation>
 <translation id="9057159618445405645">Het standaardgedrag van de Chrome-browser gebruiken</translation>
 <translation id="9061455386353325110">Hiermee bepaal je of gebruikers <ph name="PRODUCT_NAME" /> generatieve AI kunnen laten gebruiken om formulieren beter te begrijpen en meer velden te laten invullen.
 
@@ -12289,11 +12298,6 @@ Dit beleid heeft alleen effect als het beleid <ph name="FULL_RESTORE_ENABLED_NAM
 <translation id="9135095804754272364">Een melding tonen als een USB-apparaat wordt gevonden</translation>
 <translation id="9136212796239682721">Ballon-UI voor downloaden uitzetten</translation>
 <translation id="9136399279941091445">Intervallen buiten gebruikstijd wanneer het gespecificeerde apparaatbeleid wordt vrijgegeven</translation>
-<translation id="9138686056337842869">Als je dit beleid instelt op Waar, kunnen Chrome-apps blijven werken in een kiosksessie, ongeacht of Chrome-apps standaard zijn aangezet.
-
-Als je dit beleid niet instelt of instelt op Onwaar, wordt het standaardgedrag gebruikt dat is gedefinieerd op het apparaat.
-
-Als een gebruiker probeert een uitgezette Chrome-app te starten, krijgt deze een bericht waarin wordt uitgelegd waarom de app niet is gestart en wordt voorgesteld contact op te nemen met de IT-afdeling.</translation>
 <translation id="9139775903828905867">De sneltoets beheren die wordt gebruikt om F11 te activeren</translation>
 <translation id="9140064482233876338">Beëindigd in M69. Gebruik in plaats hiervan OverrideSecurityRestrictionsOnInsecureOrigin.
 

@@ -286,7 +286,6 @@ struct AdaptivePtimeConfig {
 // Move some of this boiler plate code into the config structs themselves.
 AudioReceiveStreamInterface::Config BuildReceiveStreamConfig(
     uint32_t remote_ssrc,
-    uint32_t local_ssrc,
     bool use_nack,
     bool enable_non_sender_rtt,
     RtcpMode rtcp_mode,
@@ -303,7 +302,6 @@ AudioReceiveStreamInterface::Config BuildReceiveStreamConfig(
     scoped_refptr<FrameTransformerInterface> frame_transformer) {
   AudioReceiveStreamInterface::Config config;
   config.rtp.remote_ssrc = remote_ssrc;
-  config.rtp.local_ssrc = local_ssrc;
   config.rtp.nack.rtp_history_ms = use_nack ? kNackRtpHistoryMs : 0;
   config.rtp.rtcp_mode = rtcp_mode;
   if (!stream_ids.empty()) {
@@ -1664,10 +1662,6 @@ bool WebRtcVoiceSendChannel::RemoveSendStream(uint32_t ssrc) {
 
   it->second->SetSend(false);
 
-  // TODO(solenberg): If we're removing the receiver_reports_ssrc_ stream, find
-  // the first active send stream and use that instead, reassociating receive
-  // streams.
-
   delete it->second;
   send_streams_.erase(it);
   if (send_streams_.empty()) {
@@ -2447,8 +2441,8 @@ bool WebRtcVoiceReceiveChannel::AddRecvStream(const StreamParams& sp) {
 
   // Create a new channel for receiving audio data.
   auto config = BuildReceiveStreamConfig(
-      ssrc, receiver_reports_ssrc_, recv_nack_enabled_, enable_non_sender_rtt_,
-      recv_rtcp_mode_, sp.stream_ids(), recv_rtp_extensions_, transport(),
+      ssrc, recv_nack_enabled_, enable_non_sender_rtt_, recv_rtcp_mode_,
+      sp.stream_ids(), recv_rtp_extensions_, transport(),
       engine()->decoder_factory_, decoder_map_,
       engine()->audio_jitter_buffer_max_packets_,
       engine()->audio_jitter_buffer_fast_accelerate_,
@@ -2501,24 +2495,6 @@ std::optional<uint32_t> WebRtcVoiceReceiveChannel::GetUnsignaledSsrc() const {
   // In the event of multiple unsignaled ssrcs, the last in the vector will be
   // the most recent one (the one forwarded to the MediaStreamTrack).
   return unsignaled_recv_ssrcs_.back();
-}
-
-void WebRtcVoiceReceiveChannel::ChooseReceiverReportSsrc(
-    const std::set<uint32_t>& choices) {
-  RTC_DCHECK_RUN_ON(worker_thread_);
-  // Don't change SSRC if set is empty. Note that this differs from
-  // the behavior of video.
-  if (choices.empty()) {
-    return;
-  }
-  if (choices.find(receiver_reports_ssrc_) != choices.end()) {
-    return;
-  }
-  uint32_t ssrc = *(choices.begin());
-  receiver_reports_ssrc_ = ssrc;
-  for (auto& kv : recv_streams_) {
-    call_->OnLocalSsrcUpdated(kv.second->stream(), ssrc);
-  }
 }
 
 // Not implemented.

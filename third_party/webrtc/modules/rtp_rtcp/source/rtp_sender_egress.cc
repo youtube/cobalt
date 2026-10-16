@@ -441,7 +441,7 @@ bool RtpSenderEgress::SendPacketToNetwork(const RtpPacketToSend& packet,
                                           const PacketOptions& options,
                                           const PacedPacketInfo& pacing_info) {
   RTC_DCHECK_RUN_ON(worker_queue_);
-  if (transport_ == nullptr || !transport_->SendRtp(packet, options)) {
+  if (transport_ == nullptr || !transport_->SendRtp(packet.buffer(), options)) {
     RTC_LOG(LS_WARNING) << "Transport failed to send packet.";
     return false;
   }

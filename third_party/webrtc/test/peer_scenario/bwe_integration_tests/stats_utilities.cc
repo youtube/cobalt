@@ -74,6 +74,16 @@ TimeDelta GetAverageRoundTripTime(
                             *stats[0]->responses_received);
 }
 
+TimeDelta GetCurrentRoundTripTime(
+    const scoped_refptr<const RTCStatsReport>& report) {
+  auto stats = report->GetStatsOfType<RTCIceCandidatePairStats>();
+  if (stats.empty() || !stats[0]->current_round_trip_time.has_value()) {
+    return TimeDelta::PlusInfinity();
+  }
+
+  return TimeDelta::Seconds(*stats[0]->current_round_trip_time);
+}
+
 int64_t GetPacketsSentWithEct1(
     const scoped_refptr<const RTCStatsReport>& report) {
   auto stats = report->GetStatsOfType<RTCOutboundRtpStreamStats>();

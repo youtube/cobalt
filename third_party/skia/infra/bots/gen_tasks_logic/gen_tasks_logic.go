@@ -188,10 +188,8 @@ var (
 		Excludes: []string{rbe.ExcludeGitDir},
 	}
 
-	// TODO(borenet): This hacky and bad.
-	CIPD_PKG_LUCI_AUTH = cipd.MustGetPackage("infra/tools/luci-auth/${platform}")
-
-	CIPD_PKGS_GOLDCTL = cipd.MustGetPackage("skia/tools/goldctl/${platform}")
+	CIPD_PKG_LUCI_AUTH = getCIPDPackage("infra/tools/luci-auth/${platform}", "cipd_bin_packages")
+	CIPD_PKGS_GOLDCTL  = getCIPDPackage("skia/tools/goldctl/${platform}", "cipd_bin_packages")
 
 	// These properties are required by some tasks, eg. for running
 	// bot_update, but they prevent de-duplication, so they should only be
@@ -674,7 +672,7 @@ func marshalJson(data interface{}) string {
 // recipe bundle.
 func (b *TaskBuilder) kitchenTaskNoBundle(recipe string, outputDir string) {
 	b.usesLUCIAuth()
-	b.cipd(cipd.MustGetPackage("infra/tools/luci/kitchen/${platform}"))
+	b.cipd(getCIPDPackage("infra/tools/luci/kitchen/${platform}", "."))
 	b.env("RECIPES_USE_PY3", "true")
 	b.envPrefixes("VPYTHON_DEFAULT_SPEC", "skia/.vpython3")
 	b.usesPython()
@@ -843,6 +841,7 @@ var androidDeviceInfos = map[string][]string{
 	"GalaxyS9":        {"exynos9810", "QP1A.190711.020"},
 	"GalaxyS20":       {"exynos990", "QP1A.190711.020"},
 	"GalaxyS24":       {"pineapple", "UP1A.231005.007"},
+	"GalaxyS25Plus":   {"sun", "BP2A.250605.031.A3"},
 	"JioNext":         {"msm8937", "RKQ1.210602.002"},
 	"Mokey":           {"mokey", "UP1A.231105.001"},
 	"MokeyGo32":       {"mokey_go32", "UQ1A.240105.003.A1"},
@@ -1171,7 +1170,7 @@ func (b *TaskBuilder) defaultSwarmDimensions() {
 				d["cores"] = "12"
 				delete(d, "gpu")
 			} else {
-				d["mac_model"] = "Mac16,10"
+				d["mac_model"] = "Mac16,11"
 				delete(d, "gpu")
 			}
 		}
@@ -1344,9 +1343,6 @@ func (b *jobBuilder) compile() string {
 				b.usesXCode()
 				// b.asset("ccache_mac")
 				// b.usesCCache()
-				if b.MatchExtraConfig("iOS.*") {
-					b.asset("provisioning_profile_ios")
-				}
 				if b.shellsOutToBazel() {
 					// All of our current Mac compile machines are arm64 Mac only.
 					b.usesBazel("mac_arm64")
@@ -2400,4 +2396,17 @@ func (b *jobBuilder) bazelTest() {
 		b.attempts(1)
 		b.serviceAccount(b.cfg.ServiceAccountCompile)
 	})
+}
+
+func getCIPDPackage(name string, path string) *cipd.Package {
+	pkg := cipd.MustGetPackage(name)
+	pkg.Path = path
+	return pkg
+}
+
+func setPkgPaths(path string, pkgs ...*cipd.Package) []*cipd.Package {
+	for _, pkg := range pkgs {
+		pkg.Path = path
+	}
+	return pkgs
 }

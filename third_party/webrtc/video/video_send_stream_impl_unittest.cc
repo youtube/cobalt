@@ -1119,6 +1119,27 @@ TEST_F(VideoSendStreamImplTest, KeepAliveOnDroppedFrame) {
   vss_impl->Stop();
 }
 
+TEST_F(VideoSendStreamImplTest, KeepAliveOnFrameDropped) {
+  auto vss_impl = CreateVideoSendStreamImpl(TestVideoEncoderConfig());
+  EXPECT_CALL(bitrate_allocator_, RemoveObserver(vss_impl.get())).Times(0);
+  vss_impl->Start();
+  const uint32_t kBitrateBps = 100000;
+  EXPECT_CALL(rtp_video_sender_, GetPayloadBitrateBps())
+      .Times(1)
+      .WillOnce(Return(kBitrateBps));
+  static_cast<BitrateAllocatorObserver*>(vss_impl.get())
+      ->OnBitrateUpdated(CreateAllocation(kBitrateBps));
+  encoder_queue_->PostTask([&] {
+    // Keep the stream from deallocating by dropping a frame.
+    static_cast<EncodedImageCallback*>(vss_impl.get())
+        ->OnFrameDropped(/*rtp_timestamp=*/0, /*spatial_id=*/0,
+                         /*is_end_of_temporal_unit=*/true);
+  });
+  time_controller_.AdvanceTime(TimeDelta::Seconds(2));
+  testing::Mock::VerifyAndClearExpectations(&bitrate_allocator_);
+  vss_impl->Stop();
+}
+
 TEST_F(VideoSendStreamImplTest, ConfiguresBitratesForSvc) {
   struct TestConfig {
     bool screenshare = false;

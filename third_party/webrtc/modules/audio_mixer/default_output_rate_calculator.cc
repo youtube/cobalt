@@ -26,7 +26,7 @@ int DefaultOutputRateCalculator::CalculateOutputRateFromRange(
   }
   using NativeRate = AudioProcessing::NativeRate;
   const int maximal_frequency = *std::max_element(
-      preferred_sample_rates.cbegin(), preferred_sample_rates.cend());
+      preferred_sample_rates.begin(), preferred_sample_rates.end());
 
   RTC_DCHECK_LE(NativeRate::kSampleRate8kHz, maximal_frequency);
   RTC_DCHECK_GE(NativeRate::kSampleRate48kHz, maximal_frequency);

@@ -292,6 +292,7 @@ std::unique_ptr<VideoCodecStats> RunEncodeTest(
   if (absl::GetFlag(FLAGS_dump_encoder_output)) {
     encoder_settings.encoder_output_base_path = output_path + "_enc_output";
   }
+  encoder_settings.num_cores = absl::GetFlag(FLAGS_num_cores);
 
   return VideoCodecTester::RunEncodeTest(env, source_settings,
                                          encoder_factory.get(),

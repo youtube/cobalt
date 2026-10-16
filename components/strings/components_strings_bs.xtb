@@ -860,7 +860,7 @@ To će u suprotnom biti blokirano prema vašim postavkama privatnosti. Ovo će o
 <translation id="236000571258713023">Vozila</translation>
 <translation id="2360131275005204317">Aviokompanija</translation>
 <translation id="2361263712565360498">275 x 395 mm</translation>
-<translation id="236340516568226369">Meni s dugmadima za promjenu veličine</translation>
+<translation id="236340516568226369">Meni s dugmadi za promjenu veličine</translation>
 <translation id="2365355378251437925">Unesite <ph name="FIELD" /></translation>
 <translation id="2365382709349300355">1 fajl je blokiran zbog pravila</translation>
 <translation id="2365508935344991784">Vrtni namještaj</translation>
@@ -1060,6 +1060,7 @@ To će u suprotnom biti blokirano prema vašim postavkama privatnosti. Ovo će o
 <translation id="2674524144218093528">Krečenje i fasadni radovi kuće</translation>
 <translation id="26774279487328902">Više grupa kartica (<ph name="GROUP_COUNT" />) nije dostupno</translation>
 <translation id="2677748264148917807">Napusti</translation>
+<translation id="2679659833697380">Informacije se pohranjuju na uređaju</translation>
 <translation id="2683195745483370038">Pronađeni su drugi rezultati</translation>
 <translation id="2686919536310834199">Pošaljite povratne informacije za pomoć za pisanje.</translation>
 <translation id="2687555958734450033">Najpogodniji format</translation>
@@ -2574,6 +2575,7 @@ To će u suprotnom biti blokirano prema vašim postavkama privatnosti. Ovo će o
 <translation id="5114987907971894280">virtuelna realnost</translation>
 <translation id="5115232566827194440">Zaobilaženje ograničene sesije gosta kojom se upravlja</translation>
 <translation id="5115563688576182185">(64-bitno)</translation>
+<translation id="5116015291385561204">Potvrdite identitet da automatski popunite osjetljive informacije</translation>
 <translation id="5120526915373271910">Porodični filmovi</translation>
 <translation id="5122786942953798871">Koverta (pamuk)</translation>
 <translation id="5123063207673082822">Vikend</translation>
@@ -3974,6 +3976,7 @@ Dodatni detalji:
 <translation id="7372973238305370288">rezultat pretraživanja</translation>
 <translation id="7374461526650987610">Obrađivači protokola</translation>
 <translation id="7374733840632556089">Ovaj problem nastaje zbog potvrde koju ste vi ili neko drugi instalirali na uređaj. Poznato je da se ta potvrda koristi za nadzor i presretanje mreža te je Chrome ne smatra pouzdanom. Iako postoje opravdani slučajevi za nadzor, naprimjer na mrežama u školama ili preduzećima, Chrome želi potvrditi da ste toga svjesni čak i ako taj proces ne možete zaustaviti. Nadzor se može vršiti u bilo kojem pregledniku ili bilo kojoj aplikaciji koja pristupa webu.</translation>
+<translation id="73750335798090836">Radi dodatne zaštite uvijek koristite otisak prsta, lice ili drugi način otključavanja ekrana kada koristite osjetljive informacije kao što su putni i identifikacijski dokumenti</translation>
 <translation id="7375532151824574023">{NUM_COOKIES,plural, =0{Nije dozvoljeno ni za jednu web lokaciju}=1{Dozvoljeno je za 1 web lokaciju}one{Dozvoljeno je za # web lokaciju}few{Dozvoljeno je za # web lokacije}other{Dozvoljeno je za # web lokacija}}</translation>
 <translation id="7375818412732305729">Fajl je priložen</translation>
 <translation id="7376031331622621328">Donja tabela trgovine</translation>
@@ -4230,6 +4233,7 @@ Dodatni detalji:
 <translation id="7714404809393719981">Foto papir (polusjajni)</translation>
 <translation id="7714424966701020172">Odabrana je opcija popunjavanja imena i prezimena</translation>
 <translation id="7714464543167945231">Potvrda</translation>
+<translation id="7714943438925794410">Sadržaj stranice za nastavak na plaćanje se dijeli s Googleom da ponudi ove opcije. Da sakrijete opcije kasnijeg plaćanja u automatskom popunjavanju, idite u <ph name="IDS_AUTOFILL_CARD_BNPL_SELECT_PROVIDER_FOOTNOTE_HIDE_OPTION_PAYMENT_SETTINGS_LINK_TEXT" />.</translation>
 <translation id="7716147886133743102">Blokirao administrator</translation>
 <translation id="7716375162095500223">Još uvijek nije otpremljeno ili je zanemareno</translation>
 <translation id="7716424297397655342">Ova web lokacija se ne može učitati iz keš memorije</translation>
@@ -4312,6 +4316,7 @@ Dodatni detalji:
 <translation id="7862306158978555061">prikazati osjetljive informacije</translation>
 <translation id="7865448901209910068">Najbolja brzina</translation>
 <translation id="7865482168955081228">Ekran greške naknadnog plaćanja je zatvoren.</translation>
+<translation id="7870207318911766769">Sadržaj stranice za nastavak na plaćanje se dijeli s Googleom da ponudi ove opcije.</translation>
 <translation id="7870281855125116701">Pronađen je popust</translation>
 <translation id="7871445724586827387">Promijenite lozinku za Google račun</translation>
 <translation id="787226752901403048">Prijavite se u Chrome da dijelite grupe kartica, pridružujete im se i sarađujete na idejama</translation>

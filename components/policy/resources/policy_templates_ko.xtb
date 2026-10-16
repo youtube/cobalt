@@ -4601,6 +4601,13 @@ False로 설정하면 <ph name="PRODUCT_NAME" />에서 기본 알림을 사용�
 <translation id="4150201353443180367">디스플레이</translation>
 <translation id="4154221011709068799">외부 저장소 기기 차단</translation>
 <translation id="415445772247959702">웹 스토어(버전 89부터 지원됨)</translation>
+<translation id="415631927748520887">정책을 True로 설정하면 기본 Chrome 앱 사용 설정과 관계없이 Chrome 앱이 키오스크 세션에서 계속 실행됩니다.
+
+정책을 설정하지 않거나 False로 설정하면 기기에 정의된 기본 동작이 사용됩니다.
+
+사용 중지된 Chrome 앱을 실행하려고 하면 앱이 실행되지 않은 이유를 설명하는 메시지와 IT 부서에 문의하라는 메시지가 표시됩니다.
+
+이 정책의 값은 키오스크 세션에서 Chrome 앱이 지원 중단될 때까지 적용됩니다. 지원 중단은 M151에서 이루어질 것으로 예상됩니다.</translation>
 <translation id="4157003184375321727">OS 및 펌웨어 버전을 보고합니다.</translation>
 <translation id="4157594634940419685">자체 CUPS 프린터 액세스 허용</translation>
 <translation id="4158531549614162499">모바일 데이터 연결을 통한 Google Drive 동기화 사용 설정</translation>
@@ -4653,19 +4660,6 @@ False로 설정하면 <ph name="PRODUCT_NAME" />에서 기본 알림을 사용�
           이 정책이 설정되면 사용자가 변경하거나 재정의할 수 없습니다.
 
           이 정책이 설정되지 않으면 처음에는 로그인 화면에서 캐럿 강조표시가 사용되지 않지만 나중에 사용자가 언제든지 사용 설정할 수 있습니다.</translation>
-<translation id="4182348537826882258"><ph name="URL_BLOCKLIST_POLICY_NAME" /> 정책을 설정하면 금지된 URL이 있는 웹페이지의 로드가 중지됩니다. 관리자는 차단할 URL 패턴 목록을 지정할 수 있습니다. 설정하지 않으면 브라우저에서 URL이 차단되지 않습니다. <ph name="URL_ALLOWLIST_POLICY_NAME" />에서 최대 1,000개의 예외를 정의할 수 있습니다. URL 패턴의 형식을 지정하는 방법을 확인하세요(https://support.google.com/chrome/a?p=url_blocklist_filter_format).
-
-참고: 이 정책은 데이터가 동적으로 로드되는 인페이지 자바스크립트 URL에는 적용되지 않습니다. example.com/abc를 차단해도 example.com에서 XMLHTTPRequest를 사용하여 로드할 수 있습니다. 또한 이 정책은 웹페이지에서 검색주소창에 표시되는 URL을 자바스크립트 기록 API를 사용하여 차단된 URL로 업데이트하는 것을 방지하지 않습니다.
-
-<ph name="PRODUCT_NAME" /> 버전 73부터 javascript://* URL을 차단할 수 있습니다. 하지만 이는 주소 표시줄 또는 북마크릿 등에 입력된 자바스크립트에만 영향을 줍니다.
-
-<ph name="PRODUCT_NAME" /> 버전 92부터 이 정책이 헤드리스 모드에서도 지원됩니다.
-
-참고: 내부 chrome://* 및 chrome-untrusted://* URL을 차단하면 예기치 않은 오류가 발생하거나 경우에 따라 우회될 수 있습니다. 특정 내부 URL을 차단하는 대신 사용 가능한 구체적인 정책이 있는지 확인하세요. 예를 들면 다음과 같습니다.
-
-- chrome://settings/certificates를 차단하는 대신 <ph name="CA_CERTIFICATE_MANAGEMENT_ALLOWED_POLICY_NAME" /> 정책을 사용합니다.
-
-- chrome-untrusted://crosh를 차단하는 대신 <ph name="SYSTEM_FEATURES_DISABLE_LIST_POLICY_NAME" /> 정책을 사용합니다.</translation>
 <translation id="4183229833636799228">기본 <ph name="FLASH_PLUGIN_NAME" /> 설정</translation>
 <translation id="4185868802416355029">관리되는 확장 프로그램에서 Enterprise Hardware Platform API를 사용하도록 허용</translation>
 <translation id="4186244263855283575">기기를 재부팅할 맞춤 일정을 설정하도록 허용합니다. True로 설정되면 기기가 일정에 따라 재부팅됩니다. 예정된 재부팅을 취소하려면 정책을 삭제해야 합니다.
@@ -12447,6 +12441,21 @@ https://chromeenterprise.google/policies/url-patterns 페이지를 참고하세�
 <translation id="9051019223077908578">로그인 화면에서 설치된 앱 및 확장 프로그램 목록 구성</translation>
 <translation id="9053841574218808519">항상 최신 플러그인 실행</translation>
 <translation id="9055866143096316150">화면 wake lock 요청을 시스템 wake lock 요청으로 강등</translation>
+<translation id="9056262797461453462"><ph name="URL_BLOCKLIST_POLICY_NAME" /> 정책을 설정하면 금지된 URL의 웹페이지가 로드되지 않습니다. 관리자는 차단할 URL 패턴 목록을 지정할 수 있습니다. 설정하지 않으면 브라우저에서 URL이 차단되지 않습니다. <ph name="URL_ALLOWLIST_POLICY_NAME" />에서 최대 1,000개의 예외를 정의할 수 있습니다. URL 패턴의 형식을 지정하는 방법을 확인하세요(https://support.google.com/chrome/a?p=url_blocklist_filter_format).
+
+참고: 이 정책은 데이터가 동적으로 로드되는 인페이지 JavaScript URL에는 적용되지 않습니다. example.com/abc를 차단해도 example.com에서 XMLHTTPRequest를 사용하여 로드할 수 있습니다. 또한 이 정책은 웹페이지에서 검색주소창에 표시되는 URL을 JavaScript History API를 사용하여 차단된 URL로 업데이트하는 것을 방지하지 않습니다.
+
+<ph name="PRODUCT_NAME" /> 버전 73부터 javascript://* URL을 차단할 수 있지만 주소 표시줄 또는 북마크릿 등에 입력된 JavaScript에만 영향이 있습니다.
+
+<ph name="PRODUCT_NAME" /> 버전 92부터 이 정책이 헤드리스 모드에서도 지원됩니다.
+
+참고: 내부 chrome://* 및 chrome-untrusted://* URL을 차단하면 예기치 않은 오류가 발생하거나 경우에 따라 우회될 수 있습니다. 특정 내부 URL을 차단하는 대신 사용 가능한 구체적인 정책이 있는지 확인하세요. 예를 들면 다음과 같습니다.
+
+- chrome://settings/certificates를 차단하는 대신 <ph name="CA_CERTIFICATE_MANAGEMENT_ALLOWED_POLICY_NAME" /> 정책을 사용합니다.
+
+- chrome-untrusted://crosh를 차단하는 대신 <ph name="SYSTEM_FEATURES_DISABLE_LIST_POLICY_NAME" /> 정책을 사용합니다.
+
+- devtools://*를 차단하는 대신 <ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" />, <ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" /> 또는 <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" /> 정책 중 하나를 사용합니다.</translation>
 <translation id="9057159618445405645">기본 Chrome 브라우저 동작 사용</translation>
 <translation id="9061455386353325110">사용자가 <ph name="PRODUCT_NAME" />에서 생성형 AI를 사용하여 양식을 더 잘 이해하고 더 많은 입력란을 채울 수 있도록 허용할지 설정합니다.
 
@@ -12558,11 +12567,6 @@ https://chromeenterprise.google/policies/url-patterns 페이지를 참고하세�
 <translation id="9135095804754272364">USB 기기가 감지되면 알림 표시</translation>
 <translation id="9136212796239682721">다운로드 도움말 풍선 UI 사용 중지</translation>
 <translation id="9136399279941091445">특정 기기 정책이 공개되었을 때 Off hours 간격</translation>
-<translation id="9138686056337842869">정책을 True로 설정하면 기본 Chrome 앱 사용 설정과 관계없이 Chrome 앱이 키오스크 세션에서 계속 실행됩니다.
-
-정책을 설정하지 않거나 False로 설정하면 기기에 정의된 기본 동작이 사용됩니다.
-
-사용 중지된 Chrome 앱을 실행하려고 하면 앱이 실행되지 않은 이유를 설명하는 메시지와 IT 부서에 문의하라는 메시지가 표시됩니다.</translation>
 <translation id="9139775903828905867">F11을 트리거하는 데 사용되는 단축키를 제어합니다.</translation>
 <translation id="9140064482233876338">M69에서 지원 중단되었습니다. 대신 OverrideSecurityRestrictionsOnInsecureOrigin을 사용하시기 바랍니다.
 

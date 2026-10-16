@@ -1060,6 +1060,7 @@ Muussa tapauksessa tämä estetään tietosuoja-asetuksilla. Jos sallit tämän,
 <translation id="2674524144218093528">Talon maalaus ja viimeistelytyöt</translation>
 <translation id="26774279487328902"><ph name="GROUP_COUNT" /> välilehtiryhmää ei enää saatavilla</translation>
 <translation id="2677748264148917807">Poistu</translation>
+<translation id="2679659833697380">Tiedot tallennetaan laitteelle</translation>
 <translation id="2683195745483370038">Muita tuloksia löytyi</translation>
 <translation id="2686919536310834199">Lähetä palautetta Auta minua kirjoittamaan ‐ominaisuudesta.</translation>
 <translation id="2687555958734450033">Sopivin koko</translation>
@@ -2575,6 +2576,7 @@ Muussa tapauksessa tämä estetään tietosuoja-asetuksilla. Jos sallit tämän,
 <translation id="5114987907971894280">virtuaalitodellisuus</translation>
 <translation id="5115232566827194440">Rajoitetun hallinnoidun vierailijakäyttökerran ohitus</translation>
 <translation id="5115563688576182185">(64-bittinen)</translation>
+<translation id="5116015291385561204">Vahvista henkilöllisyytesi, jotta arkaluontoiset tiedot voidaan täyttää automaattisesti</translation>
 <translation id="5120526915373271910">Koko perheen elokuvat</translation>
 <translation id="5122786942953798871">Kirjekuori (puuvilla)</translation>
 <translation id="5123063207673082822">Viikonloppu</translation>
@@ -3975,6 +3977,7 @@ Lisätietoja:
 <translation id="7372973238305370288">hakutulos</translation>
 <translation id="7374461526650987610">Protokollien käsittelijät</translation>
 <translation id="7374733840632556089">Tämän virheen syynä on varmenne, jonka sinä tai joku muu asensi laitteellesi. Varmennetta on aiemmin käytetty verkkojen valvontaan ja kaappaamiseen, eikä Chrome luota siihen. Valvomiselle voi olla oikea syy esimerkiksi oppilaitoksen tai yrityksen verkossa, mutta Chrome haluaa sinun tietävän valvonnasta, vaikket voi lopettaa sitä. Valvonta voi tapahtua missä tahansa selaimessa tai sovelluksessa, jolla on pääsy verkkoon.</translation>
+<translation id="73750335798090836">Paranna suojausta käyttämällä aina sormenjälkeä, kasvoja tai muuta näytön lukituksen avaustapaa, kun käytät arkaluontoisia tietoja, kuten matka- ja henkilötodistuksia</translation>
 <translation id="7375532151824574023">{NUM_COOKIES,plural, =0{Ei sallittuja sivustoja}=1{1 sivusto sallittu}other{# sivustoa sallittu}}</translation>
 <translation id="7375818412732305729">Tiedosto on liitetty</translation>
 <translation id="7376031331622621328">Kaupan alapaneeli</translation>
@@ -4231,6 +4234,7 @@ Lisätietoja:
 <translation id="7714404809393719981">Valokuva (puolikiiltävä)</translation>
 <translation id="7714424966701020172">Täytä koko nimi ‐vaihtoehto on valittu</translation>
 <translation id="7714464543167945231">Varmenne</translation>
+<translation id="7714943438925794410">Kassasivun sisältö jaetaan Googlelle näiden vaihtoehtojen tarjoamiseksi. Jos haluat piilottaa maksa myöhemmin ‑vaihtoehdot automaattisessa täytössä, avaa <ph name="IDS_AUTOFILL_CARD_BNPL_SELECT_PROVIDER_FOOTNOTE_HIDE_OPTION_PAYMENT_SETTINGS_LINK_TEXT" />.</translation>
 <translation id="7716147886133743102">Järjestelmänvalvojan estämä</translation>
 <translation id="7716375162095500223">Ei vielä lähetetty, tai ohitettu</translation>
 <translation id="7716424297397655342">Tätä sivustoa ei voi ladata välimuistista</translation>
@@ -4313,6 +4317,7 @@ Lisätietoja:
 <translation id="7862306158978555061">näytä arkaluontoiset tiedot</translation>
 <translation id="7865448901209910068">Paras nopeus</translation>
 <translation id="7865482168955081228">Osta nyt, maksa myöhemmin ‐edistymisnäkymä on suljettu.</translation>
+<translation id="7870207318911766769">Kassasivun sisältö jaetaan Googlelle näiden vaihtoehtojen tarjoamiseksi.</translation>
 <translation id="7870281855125116701">Alennus löydetty</translation>
 <translation id="7871445724586827387">Vaihda Google-tilin salasana</translation>
 <translation id="787226752901403048">Kirjaudu Chromeen, niin voit jakaa välilehtiryhmiä, liittyä niihin ja ideoida yhdessä</translation>

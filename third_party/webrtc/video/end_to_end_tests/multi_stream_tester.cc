@@ -41,7 +41,6 @@
 #include "test/encoder_settings.h"
 #include "test/frame_generator_capturer.h"
 #include "test/network/simulated_network.h"
-#include "test/video_test_constants.h"
 #include "video/config/video_encoder_config.h"
 
 namespace webrtc {
@@ -115,8 +114,6 @@ void MultiStreamTester::RunTest() {
       VideoReceiveStreamInterface::Config receive_config(
           receiver_transport.get());
       receive_config.rtp.remote_ssrc = ssrc;
-      receive_config.rtp.local_ssrc =
-          test::VideoTestConstants::kReceiverLocalVideoSsrc;
       receive_config.decoder_factory = &decoder_factory;
       VideoReceiveStreamInterface::Decoder decoder =
           test::CreateMatchingDecoder(send_config);

@@ -17,9 +17,8 @@
 
 #include "api/create_modular_peer_connection_factory.h"
 #include "api/enable_media_with_defaults.h"
-#include "api/environment/environment_factory.h"
+#include "api/environment/environment.h"
 #include "api/peer_connection_interface.h"
-#include "api/rtc_event_log/rtc_event_log_factory.h"
 #include "api/scoped_refptr.h"
 #include "media/engine/internal_decoder_factory.h"
 #include "media/engine/internal_encoder_factory.h"
@@ -31,6 +30,7 @@
 #include "sdk/android/native_api/audio_device_module/audio_device_android.h"
 #include "sdk/android/native_api/jni/application_context_provider.h"
 #include "sdk/android/native_api/jni/jvm.h"
+#include "test/create_test_environment.h"
 #include "test/gtest.h"
 
 namespace webrtc {
@@ -42,7 +42,8 @@ webrtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> CreateTestPCF(
     JNIEnv* jni,
     webrtc::Thread* network_thread,
     webrtc::Thread* worker_thread,
-    webrtc::Thread* signaling_thread) {
+    webrtc::Thread* signaling_thread,
+    const Environment& env) {
   // talk/ assumes pretty widely that the current Thread is ThreadManager'd, but
   // ThreadManager only WrapCurrentThread()s the thread where it is first
   // created.  Since the semantics around when auto-wrapping happens in
@@ -54,8 +55,7 @@ webrtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> CreateTestPCF(
   pcf_deps.network_thread = network_thread;
   pcf_deps.worker_thread = worker_thread;
   pcf_deps.signaling_thread = signaling_thread;
-  pcf_deps.event_log_factory = std::make_unique<RtcEventLogFactory>();
-  pcf_deps.env = CreateEnvironment();
+  pcf_deps.env = env;
 
   pcf_deps.adm =
       CreateJavaAudioDeviceModule(jni, *pcf_deps.env, GetAppContext(jni).obj());
@@ -96,13 +96,14 @@ TEST(PeerConnectionFactoryTest, NativeToJavaPeerConnectionFactory) {
   signaling_thread->SetName("signaling_thread", NULL);
   RTC_CHECK(signaling_thread->Start()) << "Failed to start thread";
 
+  const Environment env = CreateTestEnvironment();
   webrtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> factory =
       CreateTestPCF(jni, network_thread.get(), worker_thread.get(),
-                    signaling_thread.get());
+                    signaling_thread.get(), env);
 
   jobject java_factory = NativeToJavaPeerConnectionFactory(
       jni, factory, std::move(socket_server), std::move(network_thread),
-      std::move(worker_thread), std::move(signaling_thread));
+      std::move(worker_thread), std::move(signaling_thread), env);
 
   RTC_LOG(LS_INFO) << java_factory;
 

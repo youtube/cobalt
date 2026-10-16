@@ -906,7 +906,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
   static void DecreaseLength(Isolate* isolate,
                              Tagged<BackingStore> backing_store,
                              uint32_t old_length, uint32_t length) {
-    uint32_t capacity = backing_store->ucapacity();
+    const uint32_t capacity = backing_store->capacity().value();
     // It's possible we got here through left-trimming, which would have reduced
     // the capacity.
     if (V8_UNLIKELY(2 * length + JSObject::kMinAddedElementsCapacity <=
@@ -915,11 +915,10 @@ class ElementsAccessorBase : public InternalElementsAccessor {
       // Do not trim from short arrays to prevent frequent trimming on
       // repeated pop operations.
       // Leave some space to allow for subsequent push operations.
-      uint32_t new_capacity =
+      const uint32_t new_capacity =
           length + 1 == old_length ? (capacity + length) / 2 : length;
       DCHECK_LT(new_capacity, capacity);
       isolate->heap()->RightTrimArray(backing_store, new_capacity, capacity);
-      capacity = new_capacity;
     }
   }
 
@@ -1032,14 +1031,14 @@ class ElementsAccessorBase : public InternalElementsAccessor {
     // and remove the check isolate->context().is_null().
     if (IsDoubleElementsKind(kind())) {
       if (!isolate->context().is_null() &&
-          !base::IsInRange(capacity, 0, FixedDoubleArray::kMaxLength)) {
+          !base::IsInRange(capacity, 0u, FixedDoubleArray::kMaxLength)) {
         THROW_NEW_ERROR(isolate,
                         NewRangeError(MessageTemplate::kInvalidArrayLength));
       }
       new_elements = isolate->factory()->NewFixedDoubleArray(capacity);
     } else {
       if (!isolate->context().is_null() &&
-          !base::IsInRange(capacity, 0, FixedArray::kMaxLength)) {
+          !base::IsInRange(capacity, 0u, FixedArray::kMaxLength)) {
         THROW_NEW_ERROR(isolate,
                         NewRangeError(MessageTemplate::kInvalidArrayLength));
       }
@@ -1083,7 +1082,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
         DCHECK(
             (IsSmiElementsKind(from_kind) && IsDoubleElementsKind(to_kind)) ||
             (IsDoubleElementsKind(from_kind) && IsObjectElementsKind(to_kind)));
-        uint32_t capacity = object->elements()->ulength().value();
+        const uint32_t capacity = object->elements()->ulength().value();
         // Since the max length of FixedArray and FixedDoubleArray is the same,
         // we can safely assume that element conversion with the same capacity
         // will succeed.

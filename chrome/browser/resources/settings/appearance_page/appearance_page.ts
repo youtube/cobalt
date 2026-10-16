@@ -28,6 +28,8 @@ import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bu
 import type {DropdownMenuOptionList, SettingsDropdownMenuElement} from '../controls/settings_dropdown_menu.js';
 import type {SettingsToggleButtonElement} from '../controls/settings_toggle_button.js';
 import {loadTimeData} from '../i18n_setup.js';
+import type {MetricsBrowserProxy} from '../metrics_browser_proxy.js';
+import {MetricsBrowserProxyImpl} from '../metrics_browser_proxy.js';
 import {pageVisibility} from '../page_visibility.js';
 import type {AppearancePageVisibility} from '../page_visibility.js';
 import {RelaunchMixin, RestartType} from '../relaunch_mixin.js';
@@ -233,6 +235,27 @@ export class SettingsAppearancePageElement extends
         },
       },
 
+      showTabStripComboButtonEnabled_: {
+        type: Boolean,
+        value() {
+          return loadTimeData.getBoolean('showTabStripComboButtonEnabled');
+        },
+      },
+
+      showProjectsPanelEnabled_: {
+        type: Boolean,
+        value() {
+          return loadTimeData.getBoolean('showProjectsPanelEnabled');
+        },
+      },
+
+      showEverythingMenuEnabled_: {
+        type: Boolean,
+        value() {
+          return loadTimeData.getBoolean('showEverythingMenuEnabled');
+        },
+      },
+
       showTabSearchPositionRestartButton_: {
         type: Boolean,
         value: false,
@@ -298,6 +321,9 @@ export class SettingsAppearancePageElement extends
   // </if>
 
   declare private showVerticalTabsEnabled_: boolean;
+  declare private showTabStripComboButtonEnabled_: boolean;
+  declare private showProjectsPanelEnabled_: boolean;
+  declare private showEverythingMenuEnabled_: boolean;
   declare private showTabSearchPositionRestartButton_: boolean;
   declare private showManagedThemeDialog_: boolean;
   declare private sidePanelOptions_: DropdownMenuOptionList;
@@ -311,6 +337,8 @@ export class SettingsAppearancePageElement extends
       CustomizeColorSchemeModeClientCallbackRouter =
           CustomizeColorSchemeModeBrowserProxy.getInstance().callbackRouter;
   private setColorSchemeModeListenerId_: number|null = null;
+  private metricsBrowserProxy_: MetricsBrowserProxy =
+      MetricsBrowserProxyImpl.getInstance();
 
   override ready() {
     super.ready();
@@ -533,6 +561,15 @@ export class SettingsAppearancePageElement extends
 
   private showHr_(previousIsVisible: boolean, nextIsVisible: boolean): boolean {
     return previousIsVisible && nextIsVisible;
+  }
+
+  private onTabStripPositionChanged_() {
+    const enabled = this.getPref<boolean>('vertical_tabs.enabled').value;
+    this.appearanceBrowserProxy_.recordVerticalTabStripModeChanged(enabled);
+  }
+
+  private showEverythingMenuToggle_(): boolean {
+    return !this.showProjectsPanelEnabled_ && this.showEverythingMenuEnabled_;
   }
 
   private onHoverCardImagesToggleChange_(event: Event) {

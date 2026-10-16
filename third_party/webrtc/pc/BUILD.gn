@@ -710,6 +710,7 @@ rtc_library("srtp_session") {
     "../rtc_base:macromagic",
     "../rtc_base:ssl_adapter",
     "../rtc_base:stringutils",
+    "../rtc_base:text2pcap",
     "../rtc_base:timeutils",
     "../rtc_base/synchronization:mutex",
     "../system_wrappers:metrics",

@@ -236,10 +236,10 @@ class PLATFORM_EXPORT SegmentedString {
   };
 
   LookAheadResult LookAhead(const String& string) {
-    return LookAheadInline(string, kTextCaseSensitive);
+    return LookAheadInline<kTextCaseSensitive>(string);
   }
   LookAheadResult LookAheadIgnoringCase(const String& string) {
-    return LookAheadInline(string, kTextCaseASCIIInsensitive);
+    return LookAheadInline<kTextCaseASCIIInsensitive>(string);
   }
 
   // Used to advance by multiple characters. Specifically this advances by
@@ -327,13 +327,16 @@ class PLATFORM_EXPORT SegmentedString {
   // `length()`.
   void AdvanceAndCollect(base::span<UChar> characters);
 
-  inline LookAheadResult LookAheadInline(const String& string,
-                                         TextCaseSensitivity case_sensitivity) {
+  template <TextCaseSensitivity case_sensitivity>
+  inline LookAheadResult LookAheadInline(const String& string) {
     if (string.length() <= static_cast<unsigned>(current_string_.length())) {
-      StringView current_substring =
+      StringView current_prefix =
           current_string_.CurrentSubString(string.length());
-      if (string.StartsWith(current_substring, case_sensitivity))
+      if (case_sensitivity == TextCaseSensitivity::kTextCaseSensitive
+              ? current_prefix == string
+              : EqualIgnoringAsciiCase(current_prefix, string)) {
         return kDidMatch;
+      }
       return kDidNotMatch;
     }
     return LookAheadSlowCase(string, case_sensitivity);
@@ -345,13 +348,16 @@ class PLATFORM_EXPORT SegmentedString {
     if (count > length())
       return kNotEnoughCharacters;
     base::span<UChar> consumed_characters;
-    String consumed_string =
+    String consumed_prefix =
         String::CreateUninitialized(count, consumed_characters);
     AdvanceAndCollect(consumed_characters);
     LookAheadResult result = kDidNotMatch;
-    if (consumed_string.StartsWith(string, case_sensitivity))
+    if (case_sensitivity == TextCaseSensitivity::kTextCaseSensitive
+            ? consumed_prefix == string
+            : EqualIgnoringAsciiCase(consumed_prefix, string)) {
       result = kDidMatch;
-    Prepend(SegmentedString(consumed_string), PrependType::kUnconsume);
+    }
+    Prepend(SegmentedString(consumed_prefix), PrependType::kUnconsume);
     return result;
   }
 

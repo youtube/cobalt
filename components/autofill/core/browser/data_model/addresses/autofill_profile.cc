@@ -519,7 +519,7 @@ int AutofillProfile::Compare(const AutofillProfile& profile) const {
 
   // When adding field types, ensure that they don't need to be added here and
   // update the last checked value.
-  static_assert(FieldType::MAX_VALID_FIELD_TYPE == 208,
+  static_assert(FieldType::MAX_VALID_FIELD_TYPE == 215,
                 "New field type needs to be reviewed for inclusion in the "
                 "profile comparison logic.");
 
@@ -584,6 +584,7 @@ bool AutofillProfile::IsSubsetOfForFieldSet(
     const AutofillProfileComparator& comparator,
     const AutofillProfile& profile,
     const FieldTypeSet& types) const {
+  SCOPED_UMA_HISTOGRAM_TIMER("Autofill.Timing.IsSubsetOfForFieldSet");
   const std::string& app_locale = comparator.app_locale();
   const AddressComponent& address = GetAddress().GetRoot();
   const AddressComponent& other_address = profile.GetAddress().GetRoot();

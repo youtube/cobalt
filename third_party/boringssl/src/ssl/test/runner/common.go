@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"slices"
 	"sync"
 	"time"
 
@@ -47,6 +48,56 @@ var allDTLSWireVersions = []uint16{
 	VersionDTLS10,
 }
 
+// A version represents a TLS or DTLS version, represented as its 16-bit
+// codepoint sent on the wire. Wire codepoints are not ordered.
+type version struct {
+	wire uint16
+}
+
+func wireToVersionAny(v uint16) (version, bool) {
+	if slices.Contains(allTLSWireVersions, v) || slices.Contains(allDTLSWireVersions, v) {
+		return version{v}, true
+	}
+	return version{}, false
+}
+
+func wireToVersion(v uint16, isDTLS bool) (version, bool) {
+	vers, ok := wireToVersionAny(v)
+	if !ok || isDTLS != vers.isDTLS() {
+		return version{}, false
+	}
+	return vers, true
+}
+
+func (v version) isDTLS() bool {
+	if v.wire == 0 {
+		panic("version not initialized")
+	}
+	return slices.Contains(allDTLSWireVersions, v.wire)
+}
+
+// protocolVersion returns the protocol version corresponding to the version.
+// Protocol versions can be compared numerically, but do not capture TLS vs DTLS
+// or specific draft versions of protocols. If v is the zero version, it returns
+// zero.
+func (v version) protocolVersion() uint16 {
+	switch v.wire {
+	case 0:
+		// The record layer often interacts with an uninitialized version, before
+		// the version is set yet.
+		return 0
+	case VersionTLS13, VersionTLS12, VersionTLS11, VersionTLS10, VersionSSL30:
+		return v.wire
+	case VersionDTLS13:
+		return VersionTLS13
+	case VersionDTLS12:
+		return VersionTLS12
+	case VersionDTLS10:
+		return VersionTLS10
+	}
+	panic("invalid version object")
+}
+
 const (
 	maxPlaintext           = 16384        // maximum plaintext payload length
 	maxCiphertext          = 16384 + 2048 // maximum ciphertext payload length
@@ -62,12 +113,11 @@ const (
 type recordType uint8
 
 const (
-	recordTypeChangeCipherSpec   recordType = 20
-	recordTypeAlert              recordType = 21
-	recordTypeHandshake          recordType = 22
-	recordTypeApplicationData    recordType = 23
-	recordTypePlaintextHandshake recordType = 24
-	recordTypeACK                recordType = 26
+	recordTypeChangeCipherSpec recordType = 20
+	recordTypeAlert            recordType = 21
+	recordTypeHandshake        recordType = 22
+	recordTypeApplicationData  recordType = 23
+	recordTypeACK              recordType = 26
 )
 
 // TLS handshake message types.
@@ -364,8 +414,7 @@ const (
 type ClientSessionState struct {
 	sessionID                   []uint8             // Session ID supplied by the server. nil if the session has a ticket.
 	sessionTicket               []uint8             // Encrypted ticket used for session resumption with server
-	vers                        uint16              // SSL/TLS version negotiated for the session
-	wireVersion                 uint16              // Wire SSL/TLS version negotiated for the session
+	vers                        version             // SSL/TLS version negotiated for the session
 	cipherSuite                 *cipherSuite        // Ciphersuite negotiated for the session
 	secret                      []byte              // Secret associated with the session
 	handshakeHash               []byte              // Handshake hash for Channel ID purposes.
@@ -2215,34 +2264,18 @@ func (c *Config) cipherSuites() []uint16 {
 	return s
 }
 
-func (c *Config) minVersion(isDTLS bool) uint16 {
+func (c *Config) minVersion() uint16 {
 	ret := uint16(minVersion)
 	if c != nil && c.MinVersion != 0 {
 		ret = c.MinVersion
 	}
-	if isDTLS {
-		// The lowest version of DTLS is 1.0. There is no DSSL 3.0.
-		if ret < VersionTLS10 {
-			return VersionTLS10
-		}
-		// There is no such thing as DTLS 1.1.
-		if ret == VersionTLS11 {
-			return VersionTLS12
-		}
-	}
 	return ret
 }
 
-func (c *Config) maxVersion(isDTLS bool) uint16 {
+func (c *Config) maxVersion() uint16 {
 	ret := uint16(maxVersion)
 	if c != nil && c.MaxVersion != 0 {
 		ret = c.MaxVersion
-	}
-	if isDTLS {
-		// There is no such thing as DTLS 1.1.
-		if ret == VersionTLS11 {
-			return VersionTLS10
-		}
 	}
 	return ret
 }
@@ -2281,33 +2314,12 @@ func (c *Config) echCipherSuitePreferences() []HPKECipherSuite {
 	return c.ECHCipherSuites
 }
 
-func wireToVersion(vers uint16, isDTLS bool) (uint16, bool) {
-	if isDTLS {
-		switch vers {
-		case VersionDTLS13:
-			return VersionTLS13, true
-		case VersionDTLS12:
-			return VersionTLS12, true
-		case VersionDTLS10:
-			return VersionTLS10, true
-		}
-	} else {
-		switch vers {
-		case VersionSSL30, VersionTLS10, VersionTLS11, VersionTLS12, VersionTLS13:
-			return vers, true
-		}
-	}
-
-	return 0, false
-}
-
 // isSupportedVersion checks if the specified wire version is acceptable. If so,
-// it returns true and the corresponding protocol version. Otherwise, it returns
-// false.
-func (c *Config) isSupportedVersion(wireVers uint16, isDTLS bool) (uint16, bool) {
+// it returns true and the corresponding version. Otherwise, it returns false.
+func (c *Config) isSupportedVersion(wireVers uint16, isDTLS bool) (version, bool) {
 	vers, ok := wireToVersion(wireVers, isDTLS)
-	if !ok || c.minVersion(isDTLS) > vers || vers > c.maxVersion(isDTLS) {
-		return 0, false
+	if !ok || c.minVersion() > vers.protocolVersion() || vers.protocolVersion() > c.maxVersion() {
+		return version{}, false
 	}
 	return vers, true
 }
@@ -2323,7 +2335,7 @@ func (c *Config) supportedVersions(isDTLS, requireTLS13 bool) []uint16 {
 		if !ok {
 			continue
 		}
-		if requireTLS13 && vers < VersionTLS13 {
+		if requireTLS13 && vers.protocolVersion() < VersionTLS13 {
 			continue
 		}
 		ret = append(ret, wireVers)
@@ -2616,12 +2628,7 @@ var (
 )
 
 func containsGREASE(values []uint16) bool {
-	for _, v := range values {
-		if isGREASEValue(v) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(values, isGREASEValue)
 }
 
 func isAllZero(v []byte) bool {

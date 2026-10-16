@@ -22,7 +22,6 @@
 #include "chrome/browser/web_applications/web_app_logging.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
-#include "chrome/common/chrome_features.h"
 #include "components/webapps/browser/installable/installable_metrics.h"
 
 namespace web_app {
@@ -107,6 +106,16 @@ void WebAppInstallManager::NotifyWebAppInstallManagerDestroyed() {
   DVLOG(1) << "NotifyWebAppInstallManagerDestroyed";
   for (WebAppInstallManagerObserver& observer : observers_) {
     observer.OnWebAppInstallManagerDestroyed();
+  }
+}
+
+void WebAppInstallManager::NotifyWebAppMigrated(
+    const webapps::AppId& source_app_id,
+    const webapps::AppId& target_app_id) {
+  DVLOG(1) << "NotifyWebAppMigrated " << source_app_id << " to "
+           << target_app_id;
+  for (WebAppInstallManagerObserver& observer : observers_) {
+    observer.OnWebAppMigrated(source_app_id, target_app_id);
   }
 }
 

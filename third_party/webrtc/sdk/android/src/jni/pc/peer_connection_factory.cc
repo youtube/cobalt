@@ -147,10 +147,11 @@ ScopedJavaLocalRef<jobject> NativeToScopedJavaPeerConnectionFactory(
     std::unique_ptr<SocketFactory> socket_factory,
     std::unique_ptr<Thread> network_thread,
     std::unique_ptr<Thread> worker_thread,
-    std::unique_ptr<Thread> signaling_thread) {
+    std::unique_ptr<Thread> signaling_thread,
+    const Environment& webrtc_env) {
   OwnedFactoryAndThreads* owned_factory = new OwnedFactoryAndThreads(
       std::move(socket_factory), std::move(network_thread),
-      std::move(worker_thread), std::move(signaling_thread), pcf);
+      std::move(worker_thread), std::move(signaling_thread), webrtc_env, pcf);
 
   jni_zero::ScopedJavaLocalRef<jobject> j_pcf =
       Java_PeerConnectionFactory_Constructor(
@@ -187,10 +188,11 @@ jobject NativeToJavaPeerConnectionFactory(
     std::unique_ptr<SocketFactory> socket_factory,
     std::unique_ptr<Thread> network_thread,
     std::unique_ptr<Thread> worker_thread,
-    std::unique_ptr<Thread> signaling_thread) {
+    std::unique_ptr<Thread> signaling_thread,
+    const Environment& env) {
   return NativeToScopedJavaPeerConnectionFactory(
              jni, pcf, std::move(socket_factory), std::move(network_thread),
-             std::move(worker_thread), std::move(signaling_thread))
+             std::move(worker_thread), std::move(signaling_thread), env)
       .Release();
 }
 
@@ -338,7 +340,7 @@ ScopedJavaLocalRef<jobject> CreatePeerConnectionFactoryForJava(
 
   return NativeToScopedJavaPeerConnectionFactory(
       jni, factory, std::move(socket_server), std::move(network_thread),
-      std::move(worker_thread), std::move(signaling_thread));
+      std::move(worker_thread), std::move(signaling_thread), env);
 }
 
 static jni_zero::ScopedJavaLocalRef<jobject>
@@ -524,9 +526,9 @@ static jlong JNI_PeerConnectionFactory_CreateVideoSource(
     jboolean align_timestamps) {
   OwnedFactoryAndThreads* factory =
       reinterpret_cast<OwnedFactoryAndThreads*>(native_factory);
-  return jlongFromPointer(CreateVideoSource(jni, factory->signaling_thread(),
-                                            factory->worker_thread(),
-                                            is_screencast, align_timestamps));
+  return jlongFromPointer(CreateVideoSource(
+      jni, factory->signaling_thread(), factory->worker_thread(), is_screencast,
+      align_timestamps, factory->env()));
 }
 
 static jlong JNI_PeerConnectionFactory_CreateVideoTrack(

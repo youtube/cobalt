@@ -5739,8 +5739,8 @@ TEST(ScriptIterator) {
 // This is the same as Factory::NewByteArray, except it doesn't retry on
 // allocation failure.
 AllocationResult HeapTester::AllocateByteArrayForTest(
-    Heap* heap, int length, AllocationType allocation_type) {
-  DCHECK(length >= 0 && length <= ByteArray::kMaxLength);
+    Heap* heap, uint32_t length, AllocationType allocation_type) {
+  DCHECK_LE(length, ByteArray::kMaxLength);
   int size = ByteArray::SizeFor(length);
   Tagged<HeapObject> result;
   {
@@ -5789,13 +5789,13 @@ HEAP_TEST(Regress587004) {
   heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only,
                                 CompleteSweepingReason::kTesting);
   Tagged<ByteArray> byte_array;
-  const int M = 256;
+  const uint32_t M = 256;
   // Don't allow old space expansion. The test works without this flag too,
   // but becomes very slow.
   heap->set_force_oom(true);
   while (
       AllocateByteArrayForTest(heap, M, AllocationType::kOld).To(&byte_array)) {
-    for (int j = 0; j < M; j++) {
+    for (uint32_t j = 0; j < M; j++) {
       byte_array->set(j, 0x31);
     }
   }
@@ -5821,7 +5821,7 @@ HEAP_TEST(Regress589413) {
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   // Fill the new space with byte arrays with elements looking like pointers.
-  const int M = 256;
+  const uint32_t M = 256;
   Tagged<ByteArray> byte_array;
   NormalPage* young_page = nullptr;
   while (AllocateByteArrayForTest(heap, M, AllocationType::kYoung)
@@ -5833,7 +5833,7 @@ HEAP_TEST(Regress589413) {
     if (!young_page) young_page = NormalPage::FromHeapObject(byte_array);
     if (NormalPage::FromHeapObject(byte_array) != young_page) break;
 
-    for (int j = 0; j < M; j++) {
+    for (uint32_t j = 0; j < M; j++) {
       byte_array->set(j, 0x31);
     }
     // Add the array in root set.
@@ -5852,7 +5852,7 @@ HEAP_TEST(Regress589413) {
     // Make sure the byte arrays will be promoted on the next GC.
     heap::InvokeMinorGC(heap);
     // This number is close to large free list category threshold.
-    const int N = 0x3EEE;
+    const uint32_t N = 0x3EEE;
 
     std::vector<Tagged<FixedArray>> arrays;
     std::set<NormalPage*> pages;
@@ -5892,7 +5892,7 @@ HEAP_TEST(Regress589413) {
       // slots are recorded for them.
       for (size_t j = 0; j < arrays.size(); j++) {
         array = arrays[j];
-        for (int i = 0; i < N; i++) {
+        for (uint32_t i = 0; i < N; i++) {
           array->set(i, *ec_obj);
         }
       }
@@ -6231,8 +6231,9 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
   for (int i = 1; i <= 3; i++) {
     for (int j = 0; j < 10; j++) {
       previous -= kTaggedSize * i;
-      int old_capacity = array->capacity();
-      int new_capacity = old_capacity - i;
+      const uint32_t old_capacity = array->capacity().value();
+      CHECK_GE(old_capacity, i);
+      const uint32_t new_capacity = old_capacity - i;
       isolate->heap()->RightTrimArray(*array, new_capacity, old_capacity);
       filler = HeapObject::FromAddress(previous);
       CHECK(IsFreeSpaceOrFiller(filler));
@@ -6848,6 +6849,9 @@ UNINITIALIZED_TEST(OutOfMemoryIneffectiveGC) {
 #endif
 
   v8_flags.max_old_space_size = kHeapLimit / MB;
+  // The test timeouts on some platforms with the default 95% heap size
+  // threshold.
+  v8_flags.ineffective_gc_size_threshold = 0.8;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
@@ -6859,27 +6863,35 @@ UNINITIALIZED_TEST(OutOfMemoryIneffectiveGC) {
   {
     v8::Isolate::Scope isolate_scope(isolate);
     PtrComprCageAccessScope ptr_compr_cage_access_scope(i_isolate);
+    std::vector<Handle<FixedArray>> arrays;
     heap::InvokeMajorGC(heap);
 
     HandleScope scope(i_isolate);
-    while (heap->OldGenerationSizeOfObjects() <
-           heap->MaxOldGenerationSize() * 0.97) {
-      factory->NewFixedArray(100, AllocationType::kOld);
+    const size_t heap_threshold = heap->MaxOldGenerationSize() * 0.8;
+    while (heap->OldGenerationSizeOfObjects() < heap_threshold) {
+      arrays.push_back(factory->NewFixedArray(1000, AllocationType::kOld));
+      // This ensures OldGenerationSizeOfObjects() remains above the threshold
+      // even after a last resort GC.
+      if (heap->OldGenerationSizeOfObjects() >= heap_threshold) {
+        heap->CollectAllAvailableGarbage(GarbageCollectionReason::kLastResort);
+      }
     }
     {
       int initial_ms_count = heap->ms_count();
       int ineffective_ms_start = initial_ms_count;
       while (heap->ms_count() < initial_ms_count + 10) {
         HandleScope inner_scope(i_isolate);
-        factory->NewFixedArray(30000, AllocationType::kOld);
+        arrays.push_back(factory->NewFixedArray(30000, AllocationType::kOld));
         if (heap->tracer()->AverageMarkCompactMutatorUtilization() >= 0.3) {
           ineffective_ms_start = heap->ms_count() + 1;
         }
       }
       int consecutive_ineffective_ms = heap->ms_count() - ineffective_ms_start;
-      CHECK_IMPLIES(
-          consecutive_ineffective_ms >= 4,
-          heap->tracer()->AverageMarkCompactMutatorUtilization() >= 0.3);
+      if (heap->tracer()->AverageMarkCompactMutatorUtilization() < 0.3) {
+        // The threshold for consecutive MC is 4, but CollectAllAvailableGarbage
+        // can run 2 cycles which counts as 1 "ineffective MC".
+        CHECK_LE(consecutive_ineffective_ms, 8);
+      }
     }
   }
   isolate->Dispose();

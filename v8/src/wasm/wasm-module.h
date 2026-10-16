@@ -56,7 +56,7 @@ inline std::ostream& operator<<(std::ostream& os, AddressType address_type) {
   return os << AddressTypeToStr(address_type);
 }
 
-// Reference to a string in the wire bytes.
+// Reference to a byte range in the wire bytes.
 class WireBytesRef {
  public:
   constexpr WireBytesRef() = default;
@@ -762,9 +762,10 @@ struct V8_EXPORT_PRIVATE WasmModule {
   // called with the V8 fast API. These signatures are added during
   // instantiation, so the `signature_storage` may be changed even when the
   // `WasmModule` is already `const`.
-  // Accesses *after decoding* are synchronized via the `NativeModule`s
-  // `allocation_mutex_`.
+  // Accesses *after decoding* are synchronized via `signature_storage_mutex`.
   mutable WasmModuleSignatureStorage signature_storage;
+  mutable base::Mutex signature_storage_mutex;
+
   int start_function_index = -1;   // start function, >= 0 if any
 
   // Size of the buffer required for all globals that are not imported and
@@ -793,8 +794,6 @@ struct V8_EXPORT_PRIVATE WasmModule {
   // Position and size of the name section (payload only, i.e. without section
   // ID and length).
   WireBytesRef name_section = {0, 0};
-  // Position and size of the descriptors section.
-  WireBytesRef descriptors_section = {0, 0};
   // Set by the singleton TypeNamesProvider to avoid duplicate work.
   mutable std::atomic<bool> canonical_typenames_decoded = false;
   // Set to true if this module has wasm-gc types in its type section.

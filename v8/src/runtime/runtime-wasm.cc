@@ -806,6 +806,39 @@ RUNTIME_FUNCTION(Runtime_WasmI64AtomicWait) {
                                     timeout_ns->AsInt64());
 }
 
+RUNTIME_FUNCTION(Runtime_WasmManagedObjectWait) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(4, args.length());
+  Tagged<HeapObject> object = Cast<HeapObject>(args[0]);
+  int field_offset = args.smi_value_at(1);
+  int32_t expected_value = static_cast<int32_t>(args.number_value_at(2));
+  Tagged<BigInt> timeout_ns = Cast<BigInt>(args[3]);
+
+  if (!v8_flags.experimental_wasm_skip_null_checks &&
+      object == ReadOnlyRoots(isolate).wasm_null()) {
+    return ThrowWasmError(isolate, MessageTemplate::kWasmTrapNullDereference);
+  }
+
+  if (!HeapLayout::InAnySharedSpace(object) || !isolate->allow_atomics_wait()) {
+    return ThrowWasmError(
+        isolate, MessageTemplate::kAtomicsOperationNotAllowed,
+        {isolate->factory()->NewStringFromAsciiChecked("struct.wait")});
+  }
+
+  return FutexEmulation::WaitWasmManagedObject(
+      isolate, object, field_offset, expected_value, timeout_ns->AsInt64());
+}
+
+RUNTIME_FUNCTION(Runtime_WasmAllocateWaitQueue) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  DirectHandle<WasmStruct> struct_value(Cast<WasmStruct>(args[0]), isolate);
+  int raw_field_offset = args.smi_value_at(1);
+
+  WasmStruct::AllocateWaitQueue(isolate, struct_value, raw_field_offset);
+  return Smi::FromInt(0);
+}
+
 namespace {
 Tagged<Object> ThrowTableOutOfBounds(
     Isolate* isolate,
@@ -1159,16 +1192,17 @@ RUNTIME_FUNCTION(Runtime_WasmArrayNewSegment) {
     // No chance of overflow due to the check above.
     uint32_t length_in_bytes = length * element_size;
 
-    if (!base::IsInBounds<uint32_t>(
-            offset, length_in_bytes,
-            trusted_instance_data->data_segment_sizes()->get(segment_index))) {
+    wasm::WireBytesRef segment_source =
+        trusted_instance_data->data_segments()->get(segment_index);
+    if (!base::IsInBounds<uint32_t>(offset, length_in_bytes,
+                                    segment_source.length())) {
       return ThrowWasmError(isolate,
                             MessageTemplate::kWasmTrapDataSegmentOutOfBounds);
     }
 
-    Address source =
-        trusted_instance_data->data_segment_starts()->get(segment_index) +
-        offset;
+    base::Vector<const uint8_t> source =
+        trusted_instance_data->native_module()->wire_bytes() +
+        segment_source.offset() + offset;
     return *isolate->factory()->NewWasmArrayFromMemory(length, rtt,
                                                        element_type, source);
   } else {
@@ -1228,24 +1262,24 @@ RUNTIME_FUNCTION(Runtime_WasmArrayInitSegment) {
     // length.
     uint32_t length_in_bytes = length * element_type.value_kind_size();
 
-    if (!base::IsInBounds<uint32_t>(
-            segment_offset, length_in_bytes,
-            trusted_instance_data->data_segment_sizes()->get(segment_index))) {
+    wasm::WireBytesRef segment_source =
+        trusted_instance_data->data_segments()->get(segment_index);
+    if (!base::IsInBounds<uint32_t>(segment_offset, length_in_bytes,
+                                    segment_source.length())) {
       return ThrowWasmError(isolate,
                             MessageTemplate::kWasmTrapDataSegmentOutOfBounds);
     }
 
-    Address source =
-        trusted_instance_data->data_segment_starts()->get(segment_index) +
-        segment_offset;
-    Address dest = array->ElementAddress(array_index);
+    base::Vector<const uint8_t> wire_bytes =
+        trusted_instance_data->native_module()->wire_bytes();
+    const uint8_t* source =
+        wire_bytes.begin() + segment_source.offset() + segment_offset;
+    void* dest = reinterpret_cast<void*>(array->ElementAddress(array_index));
 #if V8_TARGET_BIG_ENDIAN
-    MemCopyAndSwitchEndianness(reinterpret_cast<void*>(dest),
-                               reinterpret_cast<void*>(source), length,
+    MemCopyAndSwitchEndianness(dest, source, length,
                                element_type.value_kind_size());
 #else
-    MemCopy(reinterpret_cast<void*>(dest), reinterpret_cast<void*>(source),
-            length_in_bytes);
+    MemCopy(dest, source, length_in_bytes);
 #endif
     return *isolate->factory()->undefined_value();
   } else {
@@ -1353,9 +1387,8 @@ class PrototypesSetup : public wasm::Decoder {
     base::Vector<const uint8_t> name;
   };
 
-  PrototypesSetup(Isolate* isolate, const uint8_t* data_begin,
-                  const uint8_t* data_end)
-      : Decoder(data_begin, data_end), isolate_(isolate) {
+  PrototypesSetup(Isolate* isolate, base::Vector<const uint8_t> data)
+      : Decoder(data), isolate_(isolate) {
     // kLength == 0 may look weird, but it's what you'd get for
     // function wrapper(...args) { return wasm_func(this, ...args); }.
     static constexpr int kLength = 0;
@@ -1731,10 +1764,10 @@ class PrototypesSetup : public wasm::Decoder {
         isolate_->native_context(), wasm::kConstructorFunctionContextLength);
     context->SetNoCell(wasm::kConstructorFunctionContextSlot, *wasm_function);
     Builtin code = Builtin::kWasmConstructorWrapper;
-    int length = wasm_function->length();
+    const uint32_t length = wasm_function->length();
     DirectHandle<SharedFunctionInfo> sfi =
-        isolate_->factory()->NewSharedFunctionInfoForBuiltin(name, code, length,
-                                                             kDontAdapt);
+        isolate_->factory()->NewSharedFunctionInfoForBuiltin(
+            name, code, static_cast<int>(length), kDontAdapt);
     sfi->set_native(true);
     sfi->set_language_mode(LanguageMode::kStrict);
     DirectHandle<JSFunction> constructor =
@@ -1907,11 +1940,10 @@ class PrototypesSetup : public wasm::Decoder {
 
 class PrototypesSetup_Arrays : public PrototypesSetup {
  public:
-  PrototypesSetup_Arrays(Isolate* isolate, const uint8_t* data_begin,
-                         const uint8_t* data_end,
+  PrototypesSetup_Arrays(Isolate* isolate, base::Vector<const uint8_t> data,
                          DirectHandle<WasmArray> prototypes,
                          DirectHandle<WasmArray> functions)
-      : PrototypesSetup(isolate, data_begin, data_end),
+      : PrototypesSetup(isolate, data),
         prototypes_(prototypes),
         functions_(functions) {}
 
@@ -1948,12 +1980,14 @@ class PrototypesSetup_Arrays : public PrototypesSetup {
 
 class PrototypesSetup_Sections : public PrototypesSetup {
  public:
-  PrototypesSetup_Sections(
-      Isolate* isolate, const uint8_t* data_begin, const uint8_t* data_end,
-      DirectHandle<FixedArray> prototypes, uint32_t prototypes_start_index,
-      uint32_t prototypes_length, DirectHandle<FixedArray> functions,
-      uint32_t functions_start_index, uint32_t functions_length)
-      : PrototypesSetup(isolate, data_begin, data_end),
+  PrototypesSetup_Sections(Isolate* isolate, base::Vector<const uint8_t> data,
+                           DirectHandle<FixedArray> prototypes,
+                           uint32_t prototypes_start_index,
+                           uint32_t prototypes_length,
+                           DirectHandle<FixedArray> functions,
+                           uint32_t functions_start_index,
+                           uint32_t functions_length)
+      : PrototypesSetup(isolate, data),
         prototypes_(prototypes),
         functions_(functions),
         prototype_start_index_(prototypes_start_index),
@@ -2051,15 +2085,14 @@ RUNTIME_FUNCTION(Runtime_WasmConfigureAllPrototypes) {
   // Arrays on the heap can move on GC, so we create an immovable copy of
   // the data we'll need to decode.
   uint32_t length = data->length();
-  std::vector<uint8_t> immovable_data(size_t{length});
-  if (length != 0) {
-    memcpy(immovable_data.data(),
-           reinterpret_cast<const uint8_t*>(data->ElementAddress(0)), length);
+  base::OwnedVector<uint8_t> immovable_data;
+  if (length) {
+    immovable_data = base::OwnedCopyOf(
+        reinterpret_cast<const uint8_t*>(data->ElementAddress(0)), length);
   }
 
-  PrototypesSetup_Arrays decoder(isolate, immovable_data.data(),
-                                 immovable_data.data() + length, prototypes,
-                                 functions);
+  PrototypesSetup_Arrays decoder(isolate, immovable_data.as_vector(),
+                                 prototypes, functions);
   return decoder.SetupPrototypes(constructors);
 }
 
@@ -2106,18 +2139,21 @@ RUNTIME_FUNCTION(Runtime_WasmConfigureAllPrototypesOpt) {
                           MessageTemplate::kWasmTrapElementSegmentOutOfBounds);
   }
 
-  if (!base::IsInBounds<uint32_t>(
-          data_start, data_length,
-          instance->data_segment_sizes()->get(data_segment_index))) {
+  wasm::WireBytesRef segment_source =
+      instance->data_segments()->get(data_segment_index);
+  if (!base::IsInBounds<uint32_t>(data_start, data_length,
+                                  segment_source.length())) {
     return ThrowWasmError(isolate,
                           MessageTemplate::kWasmTrapDataSegmentOutOfBounds);
   }
-  Address data_start_address =
-      instance->data_segment_starts()->get(data_segment_index) + data_start;
+
+  base::Vector<const uint8_t> data =
+      instance->native_module()->wire_bytes().SubVector(
+          segment_source.offset() + data_start,
+          segment_source.offset() + data_start + data_length);
+
   PrototypesSetup_Sections decoder(
-      isolate, reinterpret_cast<const uint8_t*>(data_start_address),
-      reinterpret_cast<const uint8_t*>(data_start_address + data_length),
-      prototypes_segment, prototypes_start, prototypes_length,
+      isolate, data, prototypes_segment, prototypes_start, prototypes_length,
       functions_segment, functions_start, functions_length);
   return decoder.SetupPrototypes(constructors);
 }
@@ -2319,17 +2355,20 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewSegmentWtf8) {
   unibrow::Utf8Variant variant =
       static_cast<unibrow::Utf8Variant>(args.positive_smi_value_at(4));
 
-  if (!base::IsInBounds<uint32_t>(
-          offset, length,
-          trusted_instance_data->data_segment_sizes()->get(segment_index))) {
+  wasm::WireBytesRef segment_source =
+      trusted_instance_data->data_segments()->get(segment_index);
+  if (!base::IsInBounds<uint32_t>(offset, length, segment_source.length())) {
     return ThrowWasmError(isolate,
                           MessageTemplate::kWasmTrapDataSegmentOutOfBounds);
   }
 
-  Address source =
-      trusted_instance_data->data_segment_starts()->get(segment_index) + offset;
-  MaybeDirectHandle<String> result = isolate->factory()->NewStringFromUtf8(
-      {reinterpret_cast<const uint8_t*>(source), length}, variant);
+  base::Vector<const uint8_t> source =
+      trusted_instance_data->native_module()->wire_bytes().SubVector(
+          segment_source.offset() + offset,
+          segment_source.offset() + offset + length);
+
+  MaybeDirectHandle<String> result =
+      isolate->factory()->NewStringFromUtf8(source, variant);
   if (variant == unibrow::Utf8Variant::kUtf8NoTrap) {
     DCHECK(!isolate->has_exception());
     // Only instructions from the stringref proposal can set variant
@@ -2557,7 +2596,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringToUtf8Array) {
               .GetHeapObjectAssumeWeak()),
       isolate);
   DirectHandle<WasmArray> array = isolate->factory()->NewWasmArray(
-      wasm::kWasmI8, length, initial_value, map);
+      wasm::kWasmI8, length, initial_value, map, SKIP_WRITE_BARRIER);
   auto get_writable_bytes =
       [&](const DisallowGarbageCollection&) -> base::Vector<char> {
     return {reinterpret_cast<char*>(array->ElementAddress(0)), length};
@@ -2806,16 +2845,6 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateContinuation) {
   DirectHandle<WasmContinuationObject> cont =
       isolate->factory()->NewWasmContinuationObject(stack_ptr);
   stack_ptr->set_current_continuation(*cont);
-  return *cont;
-}
-
-// For suspend: allocates an uninitialized continuation, to be initialized by
-// the suspend builtin with the current stack and register state.
-RUNTIME_FUNCTION(Runtime_WasmAllocateEmptyContinuation) {
-  DCHECK_EQ(0, args.length());
-  HandleScope scope(isolate);
-  DirectHandle<WasmContinuationObject> cont =
-      isolate->factory()->NewWasmContinuationObject(nullptr);
   return *cont;
 }
 

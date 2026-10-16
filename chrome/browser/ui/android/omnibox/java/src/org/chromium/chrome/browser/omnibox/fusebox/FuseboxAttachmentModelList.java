@@ -46,7 +46,10 @@ public class FuseboxAttachmentModelList implements FileUploadObserver, Iterable<
     private final SimpleRecyclerViewAdapter mAdapter =
             new FuseboxAttachmentRecyclerViewAdapter(mModelList);
 
-    static final int MAX_ATTACHMENTS = OmniboxFeatures.sMultiattachmentFusebox.getValue() ? 10 : 1;
+    public static int getMaxAttachments() {
+        return OmniboxFeatures.sMultiattachmentFusebox.getValue() ? 10 : 1;
+    }
+
     private final Set<Integer> mAttachedTabIds = new ArraySet<>();
     private final MonotonicObservableSupplier<TabModelSelector> mTabModelSelectorSupplier;
     private final ObserverList<FuseboxAttachmentChangeListener> mAttachmentChangeListeners =
@@ -248,7 +251,7 @@ public class FuseboxAttachmentModelList implements FileUploadObserver, Iterable<
         }
 
         attachment.model.set(FuseboxAttachmentProperties.COLOR_SCHEME, mBrandedColorScheme);
-        attachment.setOnRemoveCallback(() -> remove(attachment));
+        attachment.setOnRemoveCallback(() -> remove(attachment, /* isFailure= */ false));
         mModelList.add(attachment);
 
         maybeEmitListChangedEvent(/* asResultOfChange= */ true);
@@ -260,12 +263,19 @@ public class FuseboxAttachmentModelList implements FileUploadObserver, Iterable<
      * removing attachments.
      *
      * @param attachment The attachment to remove
+     * @param isFailure Whether the removal is from a failure or a decision by the user.
      */
-    public void remove(FuseboxAttachment attachment) {
+    public void remove(FuseboxAttachment attachment, boolean isFailure) {
         mModelList.remove(attachment);
 
         if (attachment.type == FuseboxAttachmentType.ATTACHMENT_TAB) {
             mAttachedTabIds.remove(attachment.tabId);
+        }
+
+        if (isFailure) {
+            FuseboxMetrics.notifyAttachmentFailed(attachment.startTime, attachment.buttonType);
+        } else if (!attachment.isUploadComplete()) {
+            FuseboxMetrics.notifyAttachmentAbandoned(attachment.startTime, attachment.buttonType);
         }
 
         // Always try to remove from backend using the model list's bridge
@@ -278,13 +288,28 @@ public class FuseboxAttachmentModelList implements FileUploadObserver, Iterable<
     }
 
     /**
+     * Removes all tab attachments that are not explicitly identified.
+     *
+     * @param tabIdsToKeep A set of tab ids corresponding to tabs that are to be kept.
+     */
+    public void removeTabsNotInSet(Set<Integer> tabIdsToKeep) {
+        removeIf(
+                (ListItem item) -> {
+                    if (item.type != FuseboxAttachmentType.ATTACHMENT_TAB) return false;
+                    FuseboxAttachment attachment =
+                            item.model.get(FuseboxAttachmentProperties.ATTACHMENT);
+                    Integer tabId = assumeNonNull(attachment).tabId;
+                    return !tabIdsToKeep.contains(tabId);
+                });
+    }
+
+    /**
      * Removes FuseboxAttachments from the model list and backend that satisfy the given filter
      * predicate.
      *
      * @param filter The predicate to test each {@link ListItem} against for removal.
-     * @return True if one or more attachments were removed; False, otherwise.
      */
-    public boolean removeIf(Predicate<ListItem> filter) {
+    private void removeIf(Predicate<ListItem> filter) {
         List<FuseboxAttachment> attachmentsToRemove = new ArrayList<>();
 
         // Identify attachments that satisfy the filter.
@@ -297,16 +322,13 @@ public class FuseboxAttachmentModelList implements FileUploadObserver, Iterable<
 
         // If nothing was found, return false.
         if (attachmentsToRemove.isEmpty()) {
-            return false;
+            return;
         }
 
         // Execute removal using the existing single-item method.
         for (FuseboxAttachment attachment : attachmentsToRemove) {
-            remove(attachment);
+            remove(attachment, /* isFailure= */ false);
         }
-
-        // Since we executed actual removal logic one or more times, return true.
-        return true;
     }
 
     /**
@@ -320,6 +342,10 @@ public class FuseboxAttachmentModelList implements FileUploadObserver, Iterable<
         for (int index = 0; index < size(); index++) {
             var attachment = get(index);
             attachment.removeFromBackend(assumeNonNull(mComposeboxQueryControllerBridge));
+            if (!attachment.isUploadComplete()) {
+                FuseboxMetrics.notifyAttachmentAbandoned(
+                        attachment.startTime, attachment.buttonType);
+            }
         }
 
         mAttachedTabIds.clear();
@@ -370,12 +396,14 @@ public class FuseboxAttachmentModelList implements FileUploadObserver, Iterable<
                 }
                 notifyAttachmentUploadFailed();
                 pendingAttachment.setUploadIsComplete();
-                remove(pendingAttachment);
+                remove(pendingAttachment, /* isFailure= */ true);
                 break;
             case FileUploadStatus.UPLOAD_SUCCESSFUL:
                 pendingAttachment.setUploadIsComplete();
                 int index = indexOf(pendingAttachment);
                 mModelList.update(index, pendingAttachment);
+                FuseboxMetrics.notifyAttachmentSucceeded(
+                        pendingAttachment.startTime, pendingAttachment.buttonType);
                 break;
         }
 
@@ -406,7 +434,7 @@ public class FuseboxAttachmentModelList implements FileUploadObserver, Iterable<
      * if needed.
      */
     public int getRemainingAttachments() {
-        return MAX_ATTACHMENTS - size();
+        return getMaxAttachments() - size();
     }
 
     private void notifyAttachmentUploadFailed() {

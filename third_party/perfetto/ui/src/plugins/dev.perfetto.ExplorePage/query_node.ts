@@ -63,8 +63,12 @@ export enum NodeType {
   kJoin = 'join',
   kCreateSlices = 'create_slices',
 
+  // Visualization
+  kVisualisation = 'visualisation',
+
   // Deprecated (kept for backward compatibility)
   kMerge = kJoin,
+  kMetrics = 'metrics',
 }
 
 export function singleNodeOperation(type: NodeType): boolean {
@@ -78,6 +82,7 @@ export function singleNodeOperation(type: NodeType): boolean {
     case NodeType.kSort:
     case NodeType.kFilter:
     case NodeType.kCounterToIntervals:
+    case NodeType.kVisualisation:
       return true;
     default:
       return false;

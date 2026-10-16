@@ -111,7 +111,7 @@ void RtxReceiveStream::OnRtpPacket(const RtpPacketReceived& rtx_packet) {
   media_packet.set_arrival_time(rtx_packet.arrival_time());
 
   // Skip the RTX payload header.
-  media_packet.SetPayload(payload.subview(kRtxHeaderSize));
+  media_packet.SetPayload(payload.subspan(kRtxHeaderSize));
 
   media_sink_->OnRtpPacket(media_packet);
 }

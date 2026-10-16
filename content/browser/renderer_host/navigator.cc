@@ -232,13 +232,6 @@ void RecordWebPlatformSecurityMetrics(RenderFrameHostImpl* rfh,
         rfh->active_sandbox_flags() != network::mojom::WebSandboxFlags::kNone);
   }
 
-  // Webview tag guests do not follow regular process model decisions. They
-  // always stay in their original SiteInstance, regardless of COOP. Assumption
-  // made below about COOP:same-origin and unsafe-none never being in the same
-  // BrowsingInstance does not hold. See https://crbug.com/1243711.
-  if (rfh->GetSiteInstance()->IsGuest())
-    return;
-
   // Check if the navigation resulted in having same-origin documents in pages
   // with different COOP status inside the browsing context group.
   RenderFrameHostImpl* top_level_document =
@@ -910,7 +903,7 @@ void Navigator::Navigate(std::unique_ptr<NavigationRequest> request,
     base::UmaHistogramTimes(
         "Navigation.BrowserInitiated.DuplicateNavStartTimeDiff2",
         nav_start_diff);
-    if (request->IsRendererInitiated()) {
+    if (!request->IsRendererInitiated()) {
       const auto& new_input_start = request->common_params().input_start;
       const auto& old_input_start =
           ongoing_navigation_request->common_params().input_start;
@@ -925,12 +918,12 @@ void Navigator::Navigate(std::unique_ptr<NavigationRequest> request,
         presence = blink::InputStartPresence::kBoth;
       }
       base::UmaHistogramEnumeration(
-          "Navigation.BrowserInitiated.DuplicateNavigationInputStartPresence",
+          "Navigation.BrowserInitiated.DuplicateNavigationInputStartPresence2",
           presence);
       if (presence == blink::InputStartPresence::kBoth) {
         const base::TimeDelta input_diff = new_input_start - old_input_start;
         base::UmaHistogramTimes(
-            "Navigation.BrowserInitiated.DuplicateNavInputTimeDiff",
+            "Navigation.BrowserInitiated.DuplicateNavInputTimeDiff2",
             input_diff);
       }
     }

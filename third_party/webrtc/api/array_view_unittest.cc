@@ -13,6 +13,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
@@ -436,7 +437,6 @@ TEST(ArrayViewTest, TestIterationEmpty) {
   // Variable-size.
   ArrayView<std::vector<std::vector<std::vector<std::string>>>> av;
   EXPECT_EQ(av.begin(), av.end());
-  EXPECT_EQ(av.cbegin(), av.cend());
   for (auto& e : av) {
     EXPECT_TRUE(false);
     EXPECT_EQ(42u, e.size());  // Dummy use of e to prevent unused var warning.
@@ -445,7 +445,6 @@ TEST(ArrayViewTest, TestIterationEmpty) {
   // Fixed-size.
   ArrayView<std::vector<std::vector<std::vector<std::string>>>, 0> af;
   EXPECT_EQ(af.begin(), af.end());
-  EXPECT_EQ(af.cbegin(), af.cend());
   for (auto& e : af) {
     EXPECT_TRUE(false);
     EXPECT_EQ(42u, e.size());  // Dummy use of e to prevent unused var warning.
@@ -456,13 +455,11 @@ TEST(ArrayViewTest, TestReverseIterationEmpty) {
   // Variable-size.
   ArrayView<std::vector<std::vector<std::vector<std::string>>>> av;
   EXPECT_EQ(av.rbegin(), av.rend());
-  EXPECT_EQ(av.crbegin(), av.crend());
   EXPECT_TRUE(av.empty());
 
   // Fixed-size.
   ArrayView<std::vector<std::vector<std::vector<std::string>>>, 0> af;
   EXPECT_EQ(af.begin(), af.end());
-  EXPECT_EQ(af.cbegin(), af.cend());
   EXPECT_TRUE(af.empty());
 }
 
@@ -470,9 +467,7 @@ TEST(ArrayViewTest, TestIterationVariable) {
   char arr[] = "Arrr!";
   ArrayView<char> av(arr);
   EXPECT_EQ('A', *av.begin());
-  EXPECT_EQ('A', *av.cbegin());
   EXPECT_EQ('\0', *(av.end() - 1));
-  EXPECT_EQ('\0', *(av.cend() - 1));
   char i = 0;
   for (auto& e : av) {
     EXPECT_EQ(arr + i, &e);
@@ -491,16 +486,9 @@ TEST(ArrayViewTest, TestReverseIterationVariable) {
   char arr[] = "Arrr!";
   ArrayView<char> av(arr);
   EXPECT_EQ('\0', *av.rbegin());
-  EXPECT_EQ('\0', *av.crbegin());
   EXPECT_EQ('A', *(av.rend() - 1));
-  EXPECT_EQ('A', *(av.crend() - 1));
 
-  const char* cit = av.cend() - 1;
-  for (auto crit = av.crbegin(); crit != av.crend(); ++crit, --cit) {
-    EXPECT_EQ(*cit, *crit);
-  }
-
-  char* it = av.end() - 1;
+  auto it = av.end() - 1;
   for (auto rit = av.rbegin(); rit != av.rend(); ++rit, --it) {
     EXPECT_EQ(*it, *rit);
   }
@@ -510,9 +498,7 @@ TEST(ArrayViewTest, TestIterationFixed) {
   char arr[] = "Arrr!";
   ArrayView<char, 6> av(arr);
   EXPECT_EQ('A', *av.begin());
-  EXPECT_EQ('A', *av.cbegin());
   EXPECT_EQ('\0', *(av.end() - 1));
-  EXPECT_EQ('\0', *(av.cend() - 1));
   char i = 0;
   for (auto& e : av) {
     EXPECT_EQ(arr + i, &e);
@@ -531,16 +517,9 @@ TEST(ArrayViewTest, TestReverseIterationFixed) {
   char arr[] = "Arrr!";
   ArrayView<char, 6> av(arr);
   EXPECT_EQ('\0', *av.rbegin());
-  EXPECT_EQ('\0', *av.crbegin());
   EXPECT_EQ('A', *(av.rend() - 1));
-  EXPECT_EQ('A', *(av.crend() - 1));
 
-  const char* cit = av.cend() - 1;
-  for (auto crit = av.crbegin(); crit != av.crend(); ++crit, --cit) {
-    EXPECT_EQ(*cit, *crit);
-  }
-
-  char* it = av.end() - 1;
+  auto it = av.end() - 1;
   for (auto rit = av.rbegin(); rit != av.rend(); ++rit, --it) {
     EXPECT_EQ(*it, *rit);
   }
@@ -555,32 +534,13 @@ TEST(ArrayViewTest, TestEmpty) {
   static_assert(!ArrayView<int, 3>::empty(), "");
 }
 
-TEST(ArrayViewTest, TestCompare) {
-  int a[] = {1, 2, 3};
-  int b[] = {1, 2, 3};
-
-  EXPECT_EQ(ArrayView<int>(a), ArrayView<int>(a));
-  EXPECT_EQ((ArrayView<int, 3>(a)), (ArrayView<int, 3>(a)));
-  EXPECT_EQ(ArrayView<int>(a), (ArrayView<int, 3>(a)));
-  EXPECT_EQ(ArrayView<int>(), ArrayView<int>());
-  EXPECT_EQ(ArrayView<int>(), ArrayView<int>(a, 0));
-  EXPECT_EQ(ArrayView<int>(a, 0), ArrayView<int>(b, 0));
-  EXPECT_EQ((ArrayView<int, 0>(a, 0)), ArrayView<int>());
-
-  EXPECT_NE(ArrayView<int>(a), ArrayView<int>(b));
-  EXPECT_NE((ArrayView<int, 3>(a)), (ArrayView<int, 3>(b)));
-  EXPECT_NE((ArrayView<int, 3>(a)), ArrayView<int>(b));
-  EXPECT_NE(ArrayView<int>(a), ArrayView<int>());
-  EXPECT_NE(ArrayView<int>(a), ArrayView<int>(a, 2));
-  EXPECT_NE((ArrayView<int, 3>(a)), (ArrayView<int, 2>(a, 2)));
-}
-
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 TEST(ArrayViewTest, TestSubViewVariable) {
   int a[] = {1, 2, 3};
   ArrayView<int> av(a);
 
-  EXPECT_EQ(av.subview(0), av);
-
+  EXPECT_THAT(av.subview(0), ElementsAre(1, 2, 3));
   EXPECT_THAT(av.subview(1), ElementsAre(2, 3));
   EXPECT_THAT(av.subview(2), ElementsAre(3));
   EXPECT_THAT(av.subview(3), IsEmpty());
@@ -591,6 +551,7 @@ TEST(ArrayViewTest, TestSubViewVariable) {
   EXPECT_THAT(av.subview(1, 2), ElementsAre(2, 3));
   EXPECT_THAT(av.subview(1, 3), ElementsAre(2, 3));
 }
+#pragma clang diagnostic pop
 
 TEST(ArrayViewTest, TestSubSpanVariable) {
   int a[] = {1, 2, 3};
@@ -613,12 +574,13 @@ TEST(ArrayViewTest, TestSubSpanWithInvalidInput) {
   EXPECT_DEATH_IF_SUPPORTED(av.subspan(1, 3), "");
 }
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 TEST(ArrayViewTest, TestSubViewFixed) {
   int a[] = {1, 2, 3};
   ArrayView<int, 3> av(a);
 
-  EXPECT_EQ(av.subview(0), av);
-
+  EXPECT_THAT(av.subview(0), ElementsAre(1, 2, 3));
   EXPECT_THAT(av.subview(1), ElementsAre(2, 3));
   EXPECT_THAT(av.subview(2), ElementsAre(3));
   EXPECT_THAT(av.subview(3), IsEmpty());
@@ -628,6 +590,63 @@ TEST(ArrayViewTest, TestSubViewFixed) {
   EXPECT_THAT(av.subview(1, 1), ElementsAre(2));
   EXPECT_THAT(av.subview(1, 2), ElementsAre(2, 3));
   EXPECT_THAT(av.subview(1, 3), ElementsAre(2, 3));
+}
+#pragma clang diagnostic pop
+
+TEST(ArrayViewTest, SubspanFixed) {
+  std::array<int, 3> a = {1, 2, 3};
+  ArrayView<int, 3> av(a);
+
+  EXPECT_THAT(av.subspan<0>(), ElementsAre(1, 2, 3));
+  EXPECT_THAT(av.subspan<1>(), ElementsAre(2, 3));
+  EXPECT_THAT(av.subspan<2>(), ElementsAre(3));
+  EXPECT_THAT(av.subspan<3>(), IsEmpty());
+
+  EXPECT_THAT((av.subspan<1, 0>()), IsEmpty());
+  EXPECT_THAT((av.subspan<1, 1>()), ElementsAre(2));
+  EXPECT_THAT((av.subspan<1, 2>()), ElementsAre(2, 3));
+
+  EXPECT_EQ(av.subspan<1>().extent, 2u);
+  EXPECT_EQ((av.subspan<1, 1>().extent), 1u);
+
+  ArrayView<int> dynamic_av(a);
+  EXPECT_THAT(dynamic_av.subspan<0>(), ElementsAre(1, 2, 3));
+  EXPECT_THAT(dynamic_av.subspan<1>(), ElementsAre(2, 3));
+  EXPECT_THAT(dynamic_av.subspan<2>(), ElementsAre(3));
+  EXPECT_THAT(dynamic_av.subspan<3>(), IsEmpty());
+
+  EXPECT_THAT((dynamic_av.subspan<1, 0>()), IsEmpty());
+  EXPECT_THAT((dynamic_av.subspan<1, 1>()), ElementsAre(2));
+  EXPECT_THAT((dynamic_av.subspan<1, 2>()), ElementsAre(2, 3));
+
+  EXPECT_EQ(dynamic_av.subspan<1>().extent, std::dynamic_extent);
+  EXPECT_EQ((dynamic_av.subspan<1, 1>()).extent, 1u);
+}
+
+TEST(ArrayViewTest, FirstFixed) {
+  std::array<int, 3> a = {1, 2, 3};
+  ArrayView<int> av(a);
+
+  EXPECT_THAT(av.first<0>(), IsEmpty());
+  EXPECT_THAT(av.first<1>(), ElementsAre(1));
+  EXPECT_THAT(av.first<2>(), ElementsAre(1, 2));
+  EXPECT_THAT(av.first<3>(), ElementsAre(1, 2, 3));
+
+  EXPECT_EQ((av.first<0>()).extent, 0u);
+  EXPECT_EQ((av.first<2>()).extent, 2u);
+}
+
+TEST(ArrayViewTest, LastFixed) {
+  std::array<int, 3> a = {1, 2, 3};
+  ArrayView<int> av(a);
+
+  EXPECT_THAT(av.last<0>(), IsEmpty());
+  EXPECT_THAT(av.last<1>(), ElementsAre(3));
+  EXPECT_THAT(av.last<2>(), ElementsAre(2, 3));
+  EXPECT_THAT(av.last<3>(), ElementsAre(1, 2, 3));
+
+  EXPECT_EQ((av.last<0>()).extent, 0u);
+  EXPECT_EQ((av.last<2>()).extent, 2u);
 }
 
 TEST(ArrayViewTest, TestReinterpretCastFixedSize) {

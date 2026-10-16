@@ -55,6 +55,7 @@
 #include "src/maglev/maglev-ir-inl.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-known-node-aspects.h"
+#include "src/maglev/maglev-map-inference.h"
 #include "src/maglev/maglev-node-type.h"
 #include "src/maglev/maglev-reducer-inl.h"
 #include "src/maglev/maglev-reducer.h"
@@ -1131,6 +1132,8 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
       loop_effects_stack_(zone()),
       decremented_predecessor_offsets_(zone()),
       loop_headers_to_peel_(bytecode().length(), zone()),
+      unobserved_map_stores_(zone()),
+      unobserved_context_slot_stores_(zone()),
       // Add an extra jump_target slot for the inline exit if needed.
       jump_targets_(zone()->AllocateArray<BasicBlockRef>(
           bytecode().length() + (is_inline() ? 1 : 0))),
@@ -1148,8 +1151,7 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
       entrypoint_(compilation_unit->is_osr()
                       ? bytecode_analysis_.osr_entry_point()
                       : 0),
-      catch_block_stack_(zone()),
-      unobserved_context_slot_stores_(zone()) {
+      catch_block_stack_(zone()) {
   if (V8_UNLIKELY(v8_flags.print_turbolev_inline_functions)) {
     current_inlining_tree_debug_info_ = zone()->New<InliningTreeDebugInfo>(
         zone(), compilation_unit->shared_function_info(), caller_details);
@@ -1339,7 +1341,7 @@ void MaglevGraphBuilder::BuildMergeStates() {
 
   if (bytecode().handler_table_size() > 0) {
     HandlerTable table(*bytecode().object());
-    for (int i = 0; i < table.NumberOfRangeEntries(); i++) {
+    for (uint32_t i = 0; i < table.NumberOfRangeEntries(); i++) {
       const int offset = table.GetRangeHandler(i);
       const bool was_used = table.HandlerWasUsed(i);
       const interpreter::Register context_reg(table.GetRangeData(i));
@@ -1540,19 +1542,19 @@ DeoptFrame* MaglevGraphBuilder::GetCallerDeoptFrame() {
   return caller_details_->deopt_frame;
 }
 
-namespace {
-DeoptFrame* RecursivelyWrapDeoptFrameWithContinuations(
-    Zone* zone, const DeoptFrame& frame,
+DeoptFrame* MaglevGraphBuilder::RecursivelyWrapDeoptFrameWithContinuations(
+    const DeoptFrame& frame,
     const MaglevGraphBuilder::LazyDeoptFrameScope* parent_scope) {
   if (!parent_scope) {
-    return zone->New<DeoptFrame>(frame);
+    return zone()->New<DeoptFrame>(frame);
   }
 
-  return zone->New<DeoptFrame>(parent_scope->data(),
-                               RecursivelyWrapDeoptFrameWithContinuations(
-                                   zone, frame, parent_scope->parent()));
+  AddDeoptUseToScopeData(parent_scope->data());
+
+  return zone()->New<DeoptFrame>(parent_scope->data(),
+                                 RecursivelyWrapDeoptFrameWithContinuations(
+                                     frame, parent_scope->parent()));
 }
-}  // namespace
 
 DeoptFrame* MaglevGraphBuilder::GetLatestCheckpointedFrame() {
   if (in_prologue_) {
@@ -1579,7 +1581,7 @@ DeoptFrame* MaglevGraphBuilder::GetLatestCheckpointedFrame() {
       latest_checkpointed_frame_ = zone()->New<DeoptFrame>(
           deopt_scope->data(),
           RecursivelyWrapDeoptFrameWithContinuations(
-              zone(), *latest_checkpointed_frame_, deopt_scope->parent()));
+              *latest_checkpointed_frame_, deopt_scope->parent()));
     }
   }
   return latest_checkpointed_frame_;
@@ -1601,7 +1603,8 @@ MaglevGraphBuilder::GetDeoptFrameForLazyDeopt(bool can_throw) {
                          result_location, result_size);
 }
 
-void MaglevGraphBuilder::AddDeoptUseToScopeData(DeoptFrame::FrameData& data) {
+void MaglevGraphBuilder::AddDeoptUseToScopeData(
+    const DeoptFrame::FrameData& data) {
   switch (data.tag()) {
     case DeoptFrame::FrameType::kInterpretedFrame:
     case DeoptFrame::FrameType::kInlinedArgumentsFrame:
@@ -3550,7 +3553,8 @@ ReduceResult MaglevGraphBuilder::BuildTestUndetectable(ValueNode* value) {
     return GetBooleanConstant(false);
   }
 
-  if (auto possible_maps = known_node_aspects().TryGetPossibleMaps(value)) {
+  MapInference inference(this, value);
+  if (auto possible_maps = inference.TryGetPossibleMaps()) {
     // We check if all the possible maps have the same undetectable bit value.
     DCHECK_GT(possible_maps->size(), 0);
     bool first_is_undetectable = possible_maps->at(0).is_undetectable();
@@ -3562,6 +3566,7 @@ ReduceResult MaglevGraphBuilder::BuildTestUndetectable(ValueNode* value) {
                              (!first_is_undetectable && !is_undetectable);
                     });
     if (all_the_same_value) {
+      RETURN_IF_ABORT(inference.InsertMapChecks(zone()));
       return GetBooleanConstant(first_is_undetectable);
     }
   }
@@ -4112,12 +4117,14 @@ void MaglevGraphBuilder::SetKnownValue(ValueNode* node, compiler::ObjectRef ref,
   known_info->alternative().set_checked_value(GetConstant(ref));
 }
 
-ReduceResult MaglevGraphBuilder::BuildCheckSmi(ValueNode* object,
-                                               bool elidable) {
+ReduceResult MaglevGraphBuilder::BuildCheckSmi(
+    ValueNode* object, bool elidable,
+    AllowWideningSmiToInt32 allow_widening_smi_to_int32) {
   if (object->StaticTypeIs(broker(), NodeType::kSmi)) return object;
   // Check for the empty type first so that we catch the case where
   // GetType(object) is already empty.
-  if (IsEmptyNodeType(IntersectType(GetType(object), NodeType::kSmi))) {
+  if (IsEmptyNodeType(IntersectType(
+          GetType(object, allow_widening_smi_to_int32), NodeType::kSmi))) {
     return EmitUnconditionalDeopt(DeoptimizeReason::kSmi);
   }
   if (EnsureType(object, NodeType::kSmi) && elidable) return object;
@@ -4223,7 +4230,9 @@ ReduceResult MaglevGraphBuilder::BuildCheckStringOrOddball(ValueNode* object) {
 ReduceResult MaglevGraphBuilder::BuildCheckNumber(ValueNode* object) {
   // Check for the empty type first so that we catch the case where
   // GetType(object) is already empty.
-  if (IsEmptyNodeType(IntersectType(GetType(object), NodeType::kNumber))) {
+  if (IsEmptyNodeType(
+          IntersectType(GetType(object, AllowWideningSmiToInt32::kAllow),
+                        NodeType::kNumber))) {
     return EmitUnconditionalDeopt(DeoptimizeReason::kNotANumber);
   }
   if (EnsureType(object, NodeType::kNumber)) return ReduceResult::Done();
@@ -4341,12 +4350,13 @@ ReduceResult MaglevGraphBuilder::BuildTransitionElementsKindOrCheckMap(
       {heap_object, object_map}, transition_sources, transition_target));
   // After this operation, heap_object's map is transition_target (or we
   // deopted).
-  known_info->SetPossibleMaps(
-      PossibleMaps{transition_target}, !transition_target.is_stable(),
-      StaticTypeForMap(transition_target, broker()), broker());
+  known_info->SetPossibleMaps(PossibleMaps{transition_target},
+                              !transition_target.is_stable(),
+                              StaticTypeForMap(transition_target, broker()),
+                              broker(), known_node_aspects());
   DCHECK(transition_target.IsJSReceiverMap());
   if (!transition_target.is_stable()) {
-    known_node_aspects().MarkAnyMapForAnyNodeIsUnstable();
+    known_node_aspects().MarkSideEffectsRequireInvalidation();
   } else {
     broker()->dependencies()->DependOnStableMap(transition_target);
   }
@@ -4432,11 +4442,12 @@ ReduceResult MaglevGraphBuilder::BuildTransitionElementsKindAndCompareMaps(
       &*if_not_matched, {new_map, GetConstant(transition_target)}));
   // After the branch, object's map is transition_target.
   DCHECK(transition_target.IsJSReceiverMap());
-  known_info->SetPossibleMaps(
-      PossibleMaps{transition_target}, !transition_target.is_stable(),
-      StaticTypeForMap(transition_target, broker()), broker());
+  known_info->SetPossibleMaps(PossibleMaps{transition_target},
+                              !transition_target.is_stable(),
+                              StaticTypeForMap(transition_target, broker()),
+                              broker(), known_node_aspects());
   if (!transition_target.is_stable()) {
-    known_node_aspects().MarkAnyMapForAnyNodeIsUnstable();
+    known_node_aspects().MarkSideEffectsRequireInvalidation();
   } else {
     broker()->dependencies()->DependOnStableMap(transition_target);
   }
@@ -4804,7 +4815,7 @@ ReduceResult MaglevGraphBuilder::BuildLoadFixedArrayElement(ValueNode* elements,
     if (index >= 0 &&
         static_cast<uint32_t>(index) < fixed_array_ref->length()) {
       compiler::OptionalObjectRef maybe_value =
-          fixed_array_ref->TryGet(broker(), index);
+          fixed_array_ref->TryGet(broker(), static_cast<uint32_t>(index));
       if (maybe_value) return GetConstant(*maybe_value);
     } else {
       return BuildAbort(AbortReason::kUnreachable);
@@ -4823,7 +4834,7 @@ ReduceResult MaglevGraphBuilder::BuildLoadFixedArrayElement(ValueNode* elements,
       }
     }
   }
-  if (index < 0 || index >= FixedArray::kMaxLength) {
+  if (index < 0 || static_cast<uint32_t>(index) >= FixedArray::kMaxLength) {
     return BuildAbort(AbortReason::kUnreachable);
   }
   return AddNewNodeNoInputConversion<LoadTaggedField>(
@@ -4856,7 +4867,7 @@ ReduceResult MaglevGraphBuilder::BuildStoreFixedArrayElement(
 
 ReduceResult MaglevGraphBuilder::BuildLoadFixedDoubleArrayElement(
     ValueNode* elements, int index) {
-  if (index < 0 || index >= FixedArray::kMaxLength) {
+  if (index < 0 || static_cast<uint32_t>(index) >= FixedArray::kMaxLength) {
     return BuildAbort(AbortReason::kUnreachable);
   }
 
@@ -5165,7 +5176,8 @@ ReduceResult MaglevGraphBuilder::BuildLoadField(
       DCHECK(access_info.field_map().value().IsJSReceiverMap());
       auto map = access_info.field_map().value();
       known_info->SetPossibleMaps(PossibleMaps{map}, false,
-                                  StaticTypeForMap(map, broker()), broker());
+                                  StaticTypeForMap(map, broker()), broker(),
+                                  known_node_aspects());
       broker()->dependencies()->DependOnStableMap(map);
     } else {
       known_info->IntersectType(NodeType::kAnyHeapObject);
@@ -5274,15 +5286,30 @@ ReduceResult MaglevGraphBuilder::BuildLoadJSFunctionContext(
 ReduceResult MaglevGraphBuilder::BuildStoreMap(ValueNode* object,
                                                compiler::MapRef map,
                                                StoreMap::Kind kind) {
-  RETURN_IF_ABORT(AddNewNode<StoreMap>({object}, map, kind));
+  auto it = unobserved_map_stores_.find(object);
+  if (it != unobserved_map_stores_.end()) {
+    StoreMap* last_store = it->second;
+    // We can elide the last store if the new map is a transition from it.
+    if (map.GetBackPointer(broker()).equals(last_store->map())) {
+      MarkNodeDead(last_store);
+    }
+    unobserved_map_stores_.erase(it);
+  }
+
+  ReduceResult result = AddNewNode<StoreMap>({object}, map, kind);
+  RETURN_IF_ABORT(result);
+  unobserved_map_stores_[object] = result.node()->Cast<StoreMap>();
+
   NodeType object_type = StaticTypeForMap(map, broker());
   NodeInfo* node_info = GetOrCreateInfoFor(object);
   if (map.is_stable()) {
-    node_info->SetPossibleMaps(PossibleMaps{map}, false, object_type, broker());
+    node_info->SetPossibleMaps(PossibleMaps{map}, false, object_type, broker(),
+                               known_node_aspects());
     broker()->dependencies()->DependOnStableMap(map);
   } else {
-    node_info->SetPossibleMaps(PossibleMaps{map}, true, object_type, broker());
-    known_node_aspects().MarkAnyMapForAnyNodeIsUnstable();
+    node_info->SetPossibleMaps(PossibleMaps{map}, true, object_type, broker(),
+                               known_node_aspects());
+    known_node_aspects().MarkSideEffectsRequireInvalidation();
   }
   return ReduceResult::Done();
 }
@@ -5581,8 +5608,11 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
     if (receiver != lookup_start_object) return {};
 
     // Use known possible maps if we have any.
-    if (auto possible_maps =
-            known_node_aspects().TryGetPossibleMaps(lookup_start_object)) {
+    MapInference inference(this, lookup_start_object, MapInference::kOnlyFresh);
+    // Require fresh maps here to avoid overeager speculation.
+    auto possible_maps = inference.TryGetPossibleMaps();
+    if (possible_maps.has_value()) {
+      // Map checks are inserted below independently.
       inferred_maps = *possible_maps;
     } else {
       // If we have no known maps, make the access megamorphic.
@@ -6516,7 +6546,10 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementAccess(
     return {};
   }
 
-  auto possible_maps = known_node_aspects().TryGetPossibleMaps(object);
+  // Map checks for these must be inserted below.
+  MapInference inference(this, object);
+  auto possible_maps = inference.TryGetPossibleMaps();
+
   compiler::ElementAccessFeedback refined_feedback =
       possible_maps ? feedback.Refine(broker(), *possible_maps) : feedback;
 
@@ -8057,7 +8090,8 @@ ReduceResult MaglevGraphBuilder::VisitTypeOf() {
       return EmitUnconditionalDeopt(
           DeoptimizeReason::kInsufficientTypeFeedbackForTypeOf);
     case TypeOfFeedback::kSmi:
-      RETURN_IF_ABORT(BuildCheckSmi(value));
+      RETURN_IF_ABORT(
+          BuildCheckSmi(value, true, AllowWideningSmiToInt32::kAllow));
       SetAccumulator(GetRootConstant(RootIndex::knumber_string));
       return ReduceResult::Done();
     case TypeOfFeedback::kNumber:
@@ -8662,7 +8696,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIsArray(
     return GetBooleanConstant(true);
   }
 
-  if (auto possible_maps = known_node_aspects().TryGetPossibleMaps(node)) {
+  MapInference inference(this, node);
+  if (auto possible_maps = inference.TryGetPossibleMaps()) {
     bool has_array_map = false;
     bool has_proxy_map = false;
     bool has_other_map = false;
@@ -8682,6 +8717,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIsArray(
           node_info->IntersectType(NodeType::kJSArray);
         }
       }
+      RETURN_IF_ABORT(inference.InsertMapChecks(zone()));
       return GetBooleanConstant(has_array_map);
     }
   }
@@ -8704,10 +8740,14 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
     FAIL(" to reduce Array.prototype.forEach - not enough arguments");
   }
 
-  auto possible_maps = known_node_aspects().TryGetPossibleMaps(receiver);
+  MapInference inference(this, receiver);
+  auto possible_maps = inference.TryGetPossibleMaps();
   if (!possible_maps) {
     FAIL(" to reduce Array.prototype.forEach - receiver map is unknown");
   }
+
+  // Map checks are inserted by TryReduceArrayIteratingBuiltin below, no need
+  // to do so here.
 
   ElementsKind elements_kind;
   if (!CanInlineArrayIteratingBuiltin(broker(), *possible_maps,
@@ -8871,7 +8911,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratingBuiltin(
     FAIL(" to reduce " << name << " - not enough arguments");
   }
 
-  auto possible_maps = known_node_aspects().TryGetPossibleMaps(receiver);
+  MapInference inference(this, receiver);
+  auto possible_maps = inference.TryGetPossibleMaps();
   if (!possible_maps) {
     FAIL(" to reduce " << name << " - receiver map is unknown");
   }
@@ -8883,6 +8924,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratingBuiltin(
          << name << " - doesn't support fast array iteration or incompatible"
          << " maps");
   }
+
+  RETURN_IF_ABORT(inference.InsertMapChecks(zone()));
 
   // TODO(leszeks): May only be needed for holey elements kinds.
   if (!broker()->dependencies()->DependOnNoElementsProtector()) {
@@ -8944,14 +8987,20 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratingBuiltin(
   // Reset known state that is cleared by BeginLoop, but is known to be true on
   // the first iteration, and will be re-checked at the end of the loop.
 
+  // Reload node_info which may have changed in BeginLoop.
+  if (node_info != nullptr) {
+    node_info = known_node_aspects().TryGetInfoFor(receiver);
+    DCHECK_NOT_NULL(node_info);
+  }
+
   // Reset the known receiver maps if necessary.
   if (receiver_maps_were_unstable) {
     DCHECK(node_info);
-    node_info->SetPossibleMaps(receiver_maps_before_loop,
-                               receiver_maps_were_unstable,
-                               // Node type is monotonic, no need to reset it.
-                               NodeType::kUnknown, broker());
-    known_node_aspects().MarkAnyMapForAnyNodeIsUnstable();
+    node_info->SetPossibleMaps(
+        receiver_maps_before_loop, receiver_maps_were_unstable,
+        // Node type is monotonic, no need to reset it.
+        NodeType::kUnknown, broker(), known_node_aspects());
+    known_node_aspects().MarkSideEffectsRequireInvalidation();
   } else {
     if (node_info) {
       DCHECK_EQ(node_info->possible_maps().size(),
@@ -9070,14 +9119,15 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratingBuiltin(
     bool recheck_maps_after_call = receiver_maps_were_unstable;
     if (recheck_maps_after_call) {
       // No need to recheck maps if there are known maps...
-      if (auto receiver_info_after_call =
-              known_node_aspects().TryGetInfoFor(receiver)) {
-        // ... and those known maps are equal to, or a subset of, the maps
-        // before the call.
-        if (receiver_info_after_call &&
-            receiver_info_after_call->possible_maps_are_known()) {
-          recheck_maps_after_call = !receiver_maps_before_loop.contains(
-              receiver_info_after_call->possible_maps());
+      MapInference inference_after_call(this, receiver);
+      // ... for which no side effect has occurred after recording them...
+      if (inference_after_call.all_maps_are_fresh()) {
+        if (auto receiver_maps_after_call =
+                inference_after_call.TryGetPossibleMaps()) {
+          // ... and those known maps are equal to, or a subset of, the maps
+          // before the call.
+          recheck_maps_after_call =
+              !receiver_maps_before_loop.contains(*receiver_maps_after_call);
         }
       }
     }
@@ -9152,6 +9202,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
     FAIL("iterator is not a JS array iterator object");
   }
 
+  std::optional<MapInference> map_inference;
   ValueNode* iterated_object =
       iterator->get(JSArrayIterator::kIteratedObjectOffset);
   ElementsKind elements_kind;
@@ -9175,8 +9226,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
     elements_kind = map.elements_kind();
     maps.push_back(map);
   } else {
-    auto possible_maps =
-        known_node_aspects().TryGetPossibleMaps(iterated_object);
+    map_inference.emplace(this, iterated_object);
+    auto possible_maps = map_inference->TryGetPossibleMaps();
     if (!possible_maps) {
       FAIL("iterated object is unknown");
     }
@@ -9197,6 +9248,10 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
   if (IsHoleyElementsKind(elements_kind) &&
       !broker()->dependencies()->DependOnNoElementsProtector()) {
     FAIL("no elements protector");
+  }
+
+  if (map_inference.has_value()) {
+    RETURN_IF_ABORT(map_inference->InsertMapChecks(zone()));
   }
 
   // Load the [[NextIndex]] from the {iterator}.
@@ -9306,7 +9361,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeAt(
   }
 
   ValueNode* receiver = GetValueOrUndefined(args.receiver());
-  auto possible_maps = known_node_aspects().TryGetPossibleMaps(receiver);
+  MapInference inference(this, receiver);
+  auto possible_maps = inference.TryGetPossibleMaps();
   ElementsKind elements_kind = NO_ELEMENTS;
   // TODO(42204525): Support polymorphism. I.e., DOUBLE_ELEMENTS and ELEMENTS
   // together.
@@ -9314,6 +9370,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeAt(
                             broker(), *possible_maps, &elements_kind)) {
     return {};
   }
+  RETURN_IF_ABORT(inference.InsertMapChecks(zone()));
 
   ValueNode* length;
   GET_VALUE_OR_ABORT(length, BuildLoadJSArrayLength(receiver));
@@ -9414,7 +9471,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeSlice(
     return {};
   }
 
-  auto possible_maps = known_node_aspects().TryGetPossibleMaps(receiver);
+  MapInference inference(this, receiver);
+  auto possible_maps = inference.TryGetPossibleMaps();
   if (!possible_maps) {
     return {};
   }
@@ -9437,6 +9495,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeSlice(
       !broker()->dependencies()->DependOnNoElementsProtector()) {
     return {};
   }
+
+  RETURN_IF_ABORT(inference.InsertMapChecks(zone()));
 
   // TODO(maglev): We can do even better here, either adding a CloneArray
   // simplified operator, whose output type indicates that it's an Array,
@@ -9771,7 +9831,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeStartsWith(
       start_arg->IsUndefinedValue() ? GetInt32Constant(0) : start_arg;
 
   RETURN_IF_ABORT(BuildCheckString(receiver));
-  RETURN_IF_ABORT(BuildCheckSmi(start));
+  RETURN_IF_ABORT(BuildCheckSmi(start, true, AllowWideningSmiToInt32::kAllow));
 
   ValueNode* receiver_length;
   GET_VALUE_OR_ABORT(receiver_length, BuildLoadStringLength(receiver));
@@ -10025,8 +10085,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceDataViewPrototypeGetByteLength(
   // TODO(victorgomes): Add data view to known types.
   ValueNode* receiver = GetValueOrUndefined(args.receiver());
 
-  auto possible_receiver_maps =
-      known_node_aspects().TryGetPossibleMaps(receiver);
+  MapInference inference(this, receiver);
+  auto possible_receiver_maps = inference.TryGetPossibleMaps();
   if (!possible_receiver_maps) {
     FAIL(" to reduce DataView.get byteLength - unknown receiver map");
   }
@@ -10039,6 +10099,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceDataViewPrototypeGetByteLength(
       return {};
     }
   }
+
+  RETURN_IF_ABORT(inference.InsertMapChecks(zone()));
 
   return BuildLoadJSDataViewByteLength(receiver);
 }
@@ -10124,8 +10186,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceDatePrototypeGetFieldPrologue(
   ValueNode* receiver = GetValueOrUndefined(args.receiver());
   // If the map set is not found, then we don't know anything about the map of
   // the receiver, so bail.
-  auto possible_receiver_maps =
-      known_node_aspects().TryGetPossibleMaps(receiver);
+  MapInference inference(this, receiver);
+  auto possible_receiver_maps = inference.TryGetPossibleMaps();
   if (!possible_receiver_maps) {
     FAIL(" to reduce Date.prototype.GetXXX - unknown receiver map");
   }
@@ -10151,6 +10213,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceDatePrototypeGetFieldPrologue(
         " to reduce Date.prototype.GetXXX - "
         "NoDateTimeConfigurationChangeProtector invalidated");
   }
+
+  RETURN_IF_ABORT(inference.InsertMapChecks(zone()));
 
   return ReduceResult::Done();
 }
@@ -10379,8 +10443,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMapPrototypeGet(
   }
 
   ValueNode* receiver = GetValueOrUndefined(args.receiver());
-  auto possible_receiver_maps =
-      known_node_aspects().TryGetPossibleMaps(receiver);
+  MapInference inference(this, receiver);
+  auto possible_receiver_maps = inference.TryGetPossibleMaps();
   // If the map set is not found, then we don't know anything about the map of
   // the receiver, so bail.
   if (!possible_receiver_maps) {
@@ -10400,6 +10464,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMapPrototypeGet(
   if (!AllOfInstanceTypesAre(*possible_receiver_maps, JS_MAP_TYPE)) {
     FAIL(" to reduce Map.prototype.Get - wrong receiver maps");
   }
+
+  RETURN_IF_ABORT(inference.InsertMapChecks(zone()));
 
   ValueNode* key = args[0];
   ValueNode* table;
@@ -10433,8 +10499,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceSetPrototypeHas(
     FAIL(" to reduce Set.prototype.has - invalid argument count");
   }
 
-  auto possible_receiver_maps =
-      known_node_aspects().TryGetPossibleMaps(receiver);
+  MapInference inference(this, receiver);
+  auto possible_receiver_maps = inference.TryGetPossibleMaps();
   if (!possible_receiver_maps) {
     FAIL(" to reduce Set.prototype.has - receiver map is unknown");
   }
@@ -10452,6 +10518,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceSetPrototypeHas(
   if (!AllOfInstanceTypesAre(*possible_receiver_maps, JS_SET_TYPE)) {
     FAIL(" to reduce Set.prototype.has - wrong receiver maps");
   }
+
+  RETURN_IF_ABORT(inference.InsertMapChecks(zone()));
 
   ValueNode* key = args[0];
   ValueNode* table;
@@ -10474,7 +10542,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
   }
   ValueNode* receiver = GetValueOrUndefined(args.receiver());
 
-  auto possible_maps = known_node_aspects().TryGetPossibleMaps(receiver);
+  MapInference inference(this, receiver);
+  auto possible_maps = inference.TryGetPossibleMaps();
   // If the map set is not found, then we don't know anything about the map of
   // the receiver, so bail.
   if (!possible_maps) {
@@ -10519,6 +10588,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
                                      false)) {
     FAIL(" to reduce Array.prototype.push - Map doesn't support fast resizing");
   }
+
+  RETURN_IF_ABORT(inference.InsertMapChecks(zone()));
 
   // If we have maps for both PACKED_SMI_ELEMENTS / HOLEY_SMI_ELEMENTS and
   // PACKED_ELEMENTS / HOLEY_ELEMENTS, we can make the smi case fallthrough to
@@ -10652,7 +10723,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePop(
 
   ValueNode* receiver = GetValueOrUndefined(args.receiver());
 
-  auto possible_maps = known_node_aspects().TryGetPossibleMaps(receiver);
+  MapInference inference(this, receiver);
+  auto possible_maps = inference.TryGetPossibleMaps();
   // If the map set is not found, then we don't know anything about the map of
   // the receiver, so bail.
   if (!possible_maps) {
@@ -10712,6 +10784,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePop(
                                      true)) {
     FAIL(" to reduce Array.prototype.pop - Map doesn't support fast resizing");
   }
+
+  RETURN_IF_ABORT(inference.InsertMapChecks(zone()));
 
   MaglevSubGraphBuilder sub_graph(this, 2);
   MaglevSubGraphBuilder::Variable var_value(0);
@@ -10868,6 +10942,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceObjectPrototypeHasOwnProperty(
   // We can replace the {JSCall} with several internalized string
   // comparisons.
 
+  std::optional<MapInference> map_inference;
   compiler::OptionalMapRef maybe_receiver_map;
   compiler::OptionalHeapObjectRef receiver_ref =
       TryGetConstant<HeapObject>(receiver);
@@ -10876,13 +10951,12 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceObjectPrototypeHasOwnProperty(
     compiler::MapRef receiver_map = receiver_object.map(broker());
     maybe_receiver_map = receiver_map;
   } else {
-    NodeInfo* known_info = GetOrCreateInfoFor(receiver);
-    if (known_info->possible_maps_are_known()) {
-      compiler::ZoneRefSet<Map> possible_maps = known_info->possible_maps();
-      if (possible_maps.size() == 1) {
-        compiler::MapRef receiver_map = *(possible_maps.begin());
-        maybe_receiver_map = receiver_map;
-      }
+    map_inference.emplace(this, receiver);
+    std::optional<PossibleMaps> possible_maps =
+        map_inference->TryGetPossibleMaps();
+    if (possible_maps.has_value() && possible_maps->size() == 1) {
+      compiler::MapRef receiver_map = *(possible_maps->begin());
+      maybe_receiver_map = receiver_map;
     }
   }
   if (!maybe_receiver_map.has_value()) return {};
@@ -10895,6 +10969,11 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceObjectPrototypeHasOwnProperty(
       receiver_map.is_dictionary_map()) {
     return {};
   }
+
+  if (map_inference.has_value()) {
+    RETURN_IF_ABORT(map_inference->InsertMapChecks(zone()));
+  }
+
   RETURN_IF_ABORT(BuildCheckMaps(receiver, base::VectorOf({receiver_map})));
   //  Replace builtin call with several internalized string comparisons.
   MaglevSubGraphBuilder sub_graph(this, 1);
@@ -10919,7 +10998,9 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceObjectPrototypeHasOwnProperty(
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceGetProto(ValueNode* object) {
-  auto possible_maps = known_node_aspects().TryGetPossibleMaps(object);
+  // Like TurboFan, we only use fresh maps here.
+  MapInference inference(this, object, MapInference::kOnlyFresh);
+  auto possible_maps = inference.TryGetPossibleMaps();
   if (!possible_maps) {
     return {};
   }
@@ -10942,6 +11023,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceGetProto(ValueNode* object) {
     }
     DCHECK(!map.IsPrimitiveMap() && map.IsJSReceiverMap());
   }
+  RETURN_IF_ABORT(inference.InsertMapChecks(zone()));
   return GetConstant(proto);
 }
 
@@ -11935,7 +12017,8 @@ compiler::HolderLookupResult MaglevGraphBuilder::TryInferApiHolderValue(
     ValueNode* receiver) {
   const compiler::HolderLookupResult not_found;
 
-  auto possible_maps = known_node_aspects().TryGetPossibleMaps(receiver);
+  MapInference inference(this, receiver);
+  auto possible_maps = inference.TryGetPossibleMaps();
   if (!possible_maps) {
     // No info about receiver, can't infer API holder.
     return not_found;
@@ -11986,6 +12069,12 @@ compiler::HolderLookupResult MaglevGraphBuilder::TryInferApiHolderValue(
     CHECK(!receiver_map.is_access_check_needed() ||
           function_template_info.accept_any_receiver());
   }
+
+  // If we infer the holder, we rely on the map.
+  if (inference.InsertMapChecks(zone()).IsDoneWithAbort()) {
+    return not_found;
+  }
+
   return api_holder;
 }
 
@@ -13534,7 +13623,8 @@ ReduceResult MaglevGraphBuilder::VisitTestGreaterThanOrEqual() {
 MaglevGraphBuilder::InferHasInPrototypeChainResult
 MaglevGraphBuilder::InferHasInPrototypeChain(
     ValueNode* receiver, compiler::HeapObjectRef prototype) {
-  auto possible_maps = known_node_aspects().TryGetPossibleMaps(receiver);
+  MapInference inference(this, receiver);
+  auto possible_maps = inference.TryGetPossibleMaps();
   // If the map set is not found, then we don't know anything about the map of
   // the receiver, so bail.
   if (!possible_maps) {
@@ -13551,6 +13641,9 @@ MaglevGraphBuilder::InferHasInPrototypeChain(
     return kIsNotInPrototypeChain;
   }
 
+  // Since we only consider fresh maps, it is not necessary to emit map checks.
+  const bool all_maps_are_fresh = inference.all_maps_are_fresh();
+
   ZoneVector<compiler::MapRef> receiver_map_refs(zone());
 
   // Try to determine either that all of the {receiver_maps} have the given
@@ -13560,6 +13653,9 @@ MaglevGraphBuilder::InferHasInPrototypeChain(
   bool none = true;
   for (compiler::MapRef map : *possible_maps) {
     receiver_map_refs.push_back(map);
+    if (!all_maps_are_fresh && !map.is_stable()) {
+      return kMayBeInPrototypeChain;
+    }
     while (true) {
       if (IsSpecialReceiverInstanceType(map.instance_type())) {
         return kMayBeInPrototypeChain;
@@ -13602,8 +13698,14 @@ MaglevGraphBuilder::InferHasInPrototypeChain(
       }
       last_prototype = prototype.AsJSObject();
     }
+    // TODO(jgruber): Investigate whether it's possible for all_maps_are_fresh
+    // to be false here, considering we bail out on unstable maps above. For
+    // now, match TurboFan behavior in
+    // JSNativeContextSpecialization::InferHasInPrototypeChain.
+    WhereToStart start =
+        all_maps_are_fresh ? kStartAtPrototype : kStartAtReceiver;
     broker()->dependencies()->DependOnStablePrototypeChains(
-        receiver_map_refs, kStartAtPrototype, last_prototype);
+        receiver_map_refs, start, last_prototype);
   }
 
   DCHECK_EQ(all, !none);
@@ -13994,7 +14096,8 @@ ReduceResult MaglevGraphBuilder::BuildToNumberOrToNumeric(
   switch (broker()->GetFeedbackForBinaryOperation(
       compiler::FeedbackSource(feedback(), slot))) {
     case BinaryOperationHint::kSignedSmall:
-      RETURN_IF_ABORT(BuildCheckSmi(value));
+      RETURN_IF_ABORT(
+          BuildCheckSmi(value, true, AllowWideningSmiToInt32::kAllow));
       break;
     case BinaryOperationHint::kSignedSmallInputs:
     case BinaryOperationHint::kAdditiveSafeInteger:
@@ -15052,11 +15155,11 @@ VirtualObject* MaglevGraphBuilder::BuildVirtualArgumentsObject() {
 }
 
 template <CreateArgumentsType type>
-ValueNode* MaglevGraphBuilder::BuildAndAllocateArgumentsObject() {
+ReduceResult MaglevGraphBuilder::BuildAndAllocateArgumentsObject() {
   auto arguments = BuildVirtualArgumentsObject<type>();
   ValueNode* allocation;
-  GET_VALUE(allocation,
-            BuildInlinedAllocation(arguments, AllocationType::kYoung));
+  GET_VALUE_OR_ABORT(allocation,
+                     BuildInlinedAllocation(arguments, AllocationType::kYoung));
   return allocation;
 }
 
@@ -15298,9 +15401,8 @@ ReduceResult MaglevGraphBuilder::VisitCreateMappedArguments() {
   if (!shared.object()->has_duplicate_parameters()) {
     if (((is_inline() && CanAllocateInlinedArgumentElements()) ||
          (!is_inline() && CanAllocateSloppyArgumentElements()))) {
-      SetAccumulator(BuildAndAllocateArgumentsObject<
-                     CreateArgumentsType::kMappedArguments>());
-      return ReduceResult::Done();
+      return SetAccumulator(BuildAndAllocateArgumentsObject<
+                            CreateArgumentsType::kMappedArguments>());
     } else if (!is_inline()) {
       SetAccumulator(
           BuildCallBuiltin<Builtin::kFastNewSloppyArguments>({GetClosure()}));
@@ -15315,9 +15417,8 @@ ReduceResult MaglevGraphBuilder::VisitCreateMappedArguments() {
 
 ReduceResult MaglevGraphBuilder::VisitCreateUnmappedArguments() {
   if (!is_inline() || CanAllocateInlinedArgumentElements()) {
-    SetAccumulator(BuildAndAllocateArgumentsObject<
-                   CreateArgumentsType::kUnmappedArguments>());
-    return ReduceResult::Done();
+    return SetAccumulator(BuildAndAllocateArgumentsObject<
+                          CreateArgumentsType::kUnmappedArguments>());
   }
   // Generic fallback.
   SetAccumulator(
@@ -15327,9 +15428,8 @@ ReduceResult MaglevGraphBuilder::VisitCreateUnmappedArguments() {
 
 ReduceResult MaglevGraphBuilder::VisitCreateRestParameter() {
   if (!is_inline() || CanAllocateInlinedArgumentElements()) {
-    SetAccumulator(
+    return SetAccumulator(
         BuildAndAllocateArgumentsObject<CreateArgumentsType::kRestParameter>());
-    return ReduceResult::Done();
   }
   // Generic fallback.
   SetAccumulator(
@@ -17855,15 +17955,15 @@ std::optional<BasicBlock*> MaglevGraphBuilder::FinishBlock(
     return {};
   }
 
-  // Clear unobserved context slot stores when there is any controlflow.
-  // TODO(olivf): More precision could be achieved by tracking dominating
-  // stores within known_node_aspects. For this we could use a stack of
-  // stores, which we push on split and pop on merge.
-  unobserved_context_slot_stores_.clear();
-
   // TODO(olivf): Support allocation folding across control flow.
   ClearCurrentAllocationBlock();
   current_interpreter_frame_.virtual_objects().Snapshot();
+
+  // Clear unobserved context slot stores when there isn't any controlflow.
+  // TODO(olivf): We could make this more accurate by keeping track of
+  // post-dominating stores, e.g. through a backwards pass instead of forwards.
+  unobserved_context_slot_stores_.clear();
+  unobserved_map_stores_.clear();
 
   BasicBlock* block = current_block();
   reducer_.FlushNodesToBlock();

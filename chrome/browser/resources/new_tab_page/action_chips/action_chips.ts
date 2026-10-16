@@ -11,17 +11,17 @@ import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 import {ToolMode} from 'chrome://resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
 
 import type {ActionChip, ActionChipsHandlerInterface, PageCallbackRouter} from '../action_chips.mojom-webui.js';
-import {ChipType} from '../action_chips.mojom-webui.js';
+import {IconType} from '../action_chips.mojom-webui.js';
 import {WindowProxy} from '../window_proxy.js';
 
 import {getCss} from './action_chips.css.js';
 import {getHtml} from './action_chips.html.js';
 import {ActionChipsApiProxyImpl} from './action_chips_proxy.js';
 
-// Records a click metric for the given action chip type.
-function recordClick(chipType: ChipType) {
+// Records a click metric for the given action chip icon type.
+function recordClick(iconType: IconType) {
   chrome.metricsPrivate.recordEnumerationValue(
-      'NewTabPage.ActionChips.Click', chipType, ChipType.MAX_VALUE + 1);
+      'NewTabPage.ActionChips.Click2', iconType, IconType.MAX_VALUE + 1);
 }
 
 // Records a latency metric.
@@ -66,55 +66,61 @@ export class ActionChipsElement extends CrLitElement {
 
   static override get properties() {
     return {
-      actionChips_: {type: Array, state: true},
-      showSimplifiedUI_: {
-        type: Boolean,
-        reflect: true,
-      },
-      showDismissalUI_: {
+      reducedMotionPreferred: {
         type: Boolean,
         reflect: true,
       },
       showBackground: {type: Boolean, reflect: true},
+      actionChips_: {type: Array, state: true},
+      showDismissalUI_: {
+        type: Boolean,
+        reflect: true,
+      },
+      showSimplifiedUI_: {
+        type: Boolean,
+        reflect: true,
+      },
     };
   }
 
-  private handler: ActionChipsHandlerInterface;
-  private callbackRouter: PageCallbackRouter;
-  protected accessor actionChips_: ActionChip[] = [];
+  accessor reducedMotionPreferred: boolean = false;
   accessor showBackground: boolean = false;
-  protected accessor showSimplifiedUI_: boolean =
-      loadTimeData.getBoolean('ntpNextShowSimplificationUIEnabled');
+
+  protected accessor actionChips_: ActionChip[] = [];
   protected accessor showDismissalUI_: boolean =
       loadTimeData.getBoolean('ntpNextShowDismissalUIEnabled');
-  private onActionChipChangedListenerId_: number|null = null;
-  private initialLoadStartTime_: number|null = null;
+  protected accessor showSimplifiedUI_: boolean =
+      loadTimeData.getBoolean('ntpNextShowSimplificationUIEnabled');
 
+  private callbackRouter: PageCallbackRouter;
   private delayTabUploads_: boolean =
       loadTimeData.getBoolean('addTabUploadDelayOnActionChipClick');
+  private handler: ActionChipsHandlerInterface;
+  private initialLoadStartTime_: number|null = null;
+  private onActionChipChangedListenerId_: number|null = null;
 
   protected getAdditionalIconClasses_(chip: ActionChip): string {
-    switch (chip.type) {
-      case ChipType.kImage:
-        return 'banana';
-      case ChipType.kDeepSearch:
-        return 'deep-search';
-      case ChipType.kDeepDive:
-        return 'deep-dive';
+    switch (chip.suggestTemplateInfo.typeIcon) {
+      case IconType.kBanana:
+        return 'icon-type-banana';
+      case IconType.kGlobeWithSearchLoop:
+        return 'icon-type-globe-with-search-loop';
+      case IconType.kSubArrowRight:
+        return 'icon-type-sub-arrow-right';
       default:
         return '';
     }
   }
 
   protected getId_(chip: ActionChip, index: number): string|null {
-    switch (chip.type) {
-      case ChipType.kImage:
+    switch (chip.suggestTemplateInfo.typeIcon) {
+      case IconType.kBanana:
         return 'nano-banana';
-      case ChipType.kDeepSearch:
+      case IconType.kGlobeWithSearchLoop:
         return 'deep-search';
-      case ChipType.kRecentTab:
+      case IconType.kFavicon:
         return 'tab-context';
-      case ChipType.kDeepDive:
+      case IconType.kSubArrowRight:
         return `deep-dive-${index}`;
       default:
         return null;
@@ -163,12 +169,12 @@ export class ActionChipsElement extends CrLitElement {
   }
 
   protected onCreateImageClick_(chip: ActionChip) {
-    recordClick(ChipType.kImage);
+    recordClick(chip.suggestTemplateInfo.typeIcon);
     this.onActionChipClick_(chip.suggestion, [], ToolMode.kImageGen);
   }
 
   protected onDeepDiveClick_(chip: ActionChip) {
-    recordClick(ChipType.kDeepDive);
+    recordClick(chip.suggestTemplateInfo.typeIcon);
     const tab = chip.tab!;
     const deepDiveTabInfo: TabUpload = {
       tabId: tab.tabId,
@@ -182,12 +188,12 @@ export class ActionChipsElement extends CrLitElement {
   }
 
   protected onDeepSearchClick_(chip: ActionChip) {
-    recordClick(ChipType.kDeepSearch);
+    recordClick(chip.suggestTemplateInfo.typeIcon);
     this.onActionChipClick_(chip.suggestion, [], ToolMode.kDeepSearch);
   }
 
   protected onTabContextClick_(chip: ActionChip) {
-    recordClick(ChipType.kRecentTab);
+    recordClick(chip.suggestTemplateInfo.typeIcon);
     const tab = chip.tab!;
     const recentTabInfo: TabUpload = {
       tabId: tab.tabId,
@@ -203,20 +209,20 @@ export class ActionChipsElement extends CrLitElement {
   protected handleClick_(e: Event): void {
     const index = Number((e.currentTarget as HTMLElement).dataset['index']);
     const chip = this.actionChips_[index]!;
-    switch (chip.type) {
-      case ChipType.kImage:
+    switch (chip.suggestTemplateInfo.typeIcon) {
+      case IconType.kBanana:
         this.handler.activateMetricsFunnel('CreateImageChip');
         this.onCreateImageClick_(chip);
         break;
-      case ChipType.kDeepSearch:
+      case IconType.kGlobeWithSearchLoop:
         this.handler.activateMetricsFunnel('DeepSearchChip');
         this.onDeepSearchClick_(chip);
         break;
-      case ChipType.kRecentTab:
+      case IconType.kFavicon:
         this.handler.activateMetricsFunnel('RecentTabChip');
         this.onTabContextClick_(chip);
         break;
-      case ChipType.kDeepDive:
+      case IconType.kSubArrowRight:
         this.handler.activateMetricsFunnel('DeepDiveChip');
         this.onDeepDiveClick_(chip);
         break;
@@ -262,21 +268,23 @@ export class ActionChipsElement extends CrLitElement {
   }
 
   protected isDeepDiveChip_(chip: ActionChip) {
-    return chip.type === ChipType.kDeepDive;
+    return chip.suggestTemplateInfo.typeIcon === IconType.kSubArrowRight;
   }
 
   protected isRecentTabChip_(chip: ActionChip) {
-    return chip.type === ChipType.kRecentTab;
+    return chip.suggestTemplateInfo.typeIcon === IconType.kFavicon;
   }
 
   protected showDashSimplifiedUI_(chip: ActionChip) {
-    return chip.type !== ChipType.kDeepDive && this.showSimplifiedUI_;
+    return chip.suggestTemplateInfo.typeIcon !== IconType.kSubArrowRight &&
+        this.showSimplifiedUI_;
   }
 
   protected getChipSubtitle_(chip: ActionChip): string {
     const subtitle = (this.showSimplifiedUI_ &&
-                      (chip.type === ChipType.kImage ||
-                       chip.type === ChipType.kDeepSearch) &&
+                      (chip.suggestTemplateInfo.typeIcon === IconType.kBanana ||
+                       chip.suggestTemplateInfo.typeIcon ===
+                           IconType.kGlobeWithSearchLoop) &&
                       chip.suggestion) ?
         chip.suggestion :
         chip.subtitle;

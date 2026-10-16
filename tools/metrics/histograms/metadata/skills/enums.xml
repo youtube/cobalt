@@ -24,20 +24,95 @@ chromium-metrics-reviews@google.com.
 
 <enums>
 
-<!-- LINT.IfChange(SkillsActions) -->
+<!-- LINT.IfChange(SkillsDialogAction) -->
 
-<enum name="SkillsActions">
-  <int value="0" label="Saved New Skill"/>
-  <int value="1" label="Clicked 'Try It Now' (Toast)"/>
-  <int value="2" label="Used 1st Party Skill"/>
-  <int value="3" label="Used User-Created Skill"/>
-  <int value="4" label="Opened Creation Dialog"/>
-  <int value="5" label="Clicked Cancel in Creation Dialog"/>
-  <int value="6" label="Clicked Refine in Creation Dialog"/>
-  <int value="7" label="Opened Manage Skills Page"/>
+<enum name="SkillsDialogAction">
+  <int value="0" label="Opened Dialog"/>
+  <int value="1" label="Saved New Skill"/>
+  <int value="2" label="Clicked Cancel in Dialog"/>
+  <int value="3" label="Clicked Refine in Dialog"/>
 </enum>
 
-<!-- LINT.ThenChange(//components/skills/public/skills_metrics.h:SkillsActions) -->
+<!-- LINT.ThenChange(//components/skills/public/skills_metrics.h:SkillsDialogAction) -->
+
+<!-- LINT.IfChange(SkillsDownloadRequestStatus) -->
+
+<enum name="SkillsDownloadRequestStatus">
+  <int value="0" label="Download Request Sent"/>
+  <int value="1" label="Download Response Received"/>
+  <int value="2" label="Download Already Running"/>
+  <int value="3" label="Download Timed Out"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/skills/public/skills_metrics.h:SkillsDownloadRequestStatus) -->
+
+<!-- LINT.IfChange(SkillsFetchResult) -->
+
+<enum name="SkillsFetchResult">
+  <int value="0" label="Success"/>
+  <int value="1" label="Empty Response Body"/>
+  <int value="2" label="Empty Response Header"/>
+  <int value="3" label="Proto Parse Failure"/>
+  <int value="4" label="Network Error"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/skills/public/skills_metrics.h:SkillsFetchResult) -->
+
+<!-- LINT.IfChange(SkillsInvokeAction) -->
+
+<enum name="SkillsInvokeAction">
+  <int value="0" label="Used 1st Party Skill"/>
+  <int value="1" label="Used User-Created Skill"/>
+  <int value="2" label="Used Derived from 1st Party (Remixed) Skill"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/skills/public/skills_metrics.h:SkillsInvokeAction) -->
+
+<!-- LINT.IfChange(SkillsInvokeResult) -->
+
+<enum name="SkillsInvokeResult">
+  <int value="0" label="Success"/>
+  <int value="1" label="Skill Not Found"/>
+  <int value="2" label="Timeout"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/skills/public/skills_metrics.h:SkillsInvokeResult) -->
+
+<!-- LINT.IfChange(SkillsManagementError) -->
+
+<enum name="SkillsManagementError">
+  <int value="0" label="Tab Controller Does Not Exist"/>
+  <int value="1" label="Skills Service Not Ready"/>
+  <int value="2" label="1P Skill Does Not Exist"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/skills/public/skills_metrics.h:SkillsManagementError) -->
+
+<!-- LINT.IfChange(SkillsRefineResult) -->
+
+<enum name="SkillsRefineResult">
+  <int value="0" label="Success"/>
+  <int value="1" label="Model Execution Failed"/>
+  <int value="2" label="Parse Error"/>
+  <int value="3" label="No Suggestions"/>
+  <int value="4" label="Service Unavailable"/>
+  <int value="5" label="Invalid Request"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/skills/public/skills_metrics.h:SkillsRefineResult) -->
+
+<!-- LINT.IfChange(SkillsSaveResult) -->
+
+<enum name="SkillsSaveResult">
+  <int value="0" label="Success"/>
+  <int value="1" label="UI Context Lost"/>
+  <int value="2" label="Skill Not Found"/>
+  <int value="3" label="Write Failed"/>
+  <int value="4" label="Service Not Found"/>
+  <int value="5" label="Service Not Ready"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/skills/public/skills_metrics.h:SkillsSaveResult) -->
 
 </enums>
 

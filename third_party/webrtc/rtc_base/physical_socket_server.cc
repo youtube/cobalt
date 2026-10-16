@@ -9,6 +9,9 @@
  */
 #include "rtc_base/physical_socket_server.h"
 
+#include <stdio.h>
+
+#include <algorithm>
 #include <array>
 #include <cerrno>
 #include <cstdint>
@@ -16,6 +19,7 @@
 #include <memory>
 #include <utility>
 
+#include "api/array_view.h"
 #include "api/async_dns_resolver.h"
 #include "api/transport/ecn_marking.h"
 #include "api/units/time_delta.h"
@@ -512,11 +516,14 @@ int PhysicalSocket::RecvFrom(ReceiveBuffer& buffer) {
   int64_t timestamp = -1;
   static constexpr int BUF_SIZE = 64 * 1024;
   buffer.payload.EnsureCapacity(BUF_SIZE);
-
-  int received = DoReadFromSocket(
-      buffer.payload.data(), buffer.payload.capacity(), &buffer.source_address,
-      &timestamp, ecn_ ? &buffer.ecn : nullptr);
-  buffer.payload.SetSize(received > 0 ? received : 0);
+  int received;
+  buffer.payload.SetData(BUF_SIZE, [&](ArrayView<uint8_t> payload) {
+    received =
+        DoReadFromSocket(payload.data(), payload.size(), &buffer.source_address,
+                         &timestamp, ecn_ ? &buffer.ecn : nullptr);
+    // return 0 if received is -1, indicating error.
+    return std::max(received, 0);
+  });
   if (received > 0 && timestamp != -1) {
     buffer.arrival_time = Timestamp::Micros(timestamp);
   }

@@ -9,6 +9,10 @@ Some older parts of the code violate the style guide in various ways.
 If making large changes to such code, consider first cleaning it up in a
   separate CL.
 
+WebRTC's policy about AI coding matches [Chromium's policy][ai-policy].
+
+[ai-policy]: https://chromium.googlesource.com/chromium/src.git/+/HEAD/agents/ai_policy.md
+
 ## C++
 
 WebRTC follows the [Chromium C++ style guide][chr-style] and the

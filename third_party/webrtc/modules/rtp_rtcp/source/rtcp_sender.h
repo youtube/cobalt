@@ -53,9 +53,12 @@ class RTCPSender final {
     // True for a audio version of the RTP/RTCP module object false will create
     // a video version.
     bool audio = false;
-    // SSRCs for media and retransmission, respectively.
-    // FlexFec SSRC is fetched from `flexfec_sender`.
+    // SSRC for sending media.
     uint32_t local_media_ssrc = 0;
+    // Function for fetching SSRC for sending RTCP reports when this object
+    // belongs to a ModuleRtpRtcp2 that is not used for sending RTP.
+    absl::AnyInvocable<uint32_t() const> recv_ssrc_callback;
+    // FlexFec SSRC is fetched from `flexfec_sender`.
 
     // Transport object that will be called when packets are ready to be sent
     // out on the network.
@@ -175,6 +178,8 @@ class RTCPSender final {
   class RtcpContext;
   class PacketSender;
 
+  uint32_t ComputeSsrc() const RTC_EXCLUSIVE_LOCKS_REQUIRED(mutex_rtcp_sender_);
+
   std::optional<int32_t> ComputeCompoundRTCPPacket(
       const FeedbackState& feedback_state,
       RTCPPacketType packet_type,
@@ -224,12 +229,19 @@ class RTCPSender final {
       RTC_EXCLUSIVE_LOCKS_REQUIRED(mutex_rtcp_sender_);
 
   const Environment env_;
+  const bool is_rtp_sender_;
   const bool audio_;
   // TODO(bugs.webrtc.org/11581): `mutex_rtcp_sender_` shouldn't be required if
   // we consistently run network related operations on the network thread.
   // This is currently not possible due to callbacks from the process thread in
   // ModuleRtpRtcpImpl2.
-  uint32_t ssrc_ RTC_GUARDED_BY(mutex_rtcp_sender_);
+  // The SSRC used for sending when is_rtp_sender_ is true
+  // and sending_ is true.
+  uint32_t send_ssrc_ RTC_GUARDED_BY(mutex_rtcp_sender_);
+  // The function used for getting the right SSRC to send from
+  // when the RTCPSender is used with a ModuleRtpRtcp that is not
+  // configured for sending RTP (is_rtp_sender_ is false).
+  absl::AnyInvocable<uint32_t() const> recv_ssrc_callback_;
   Random random_ RTC_GUARDED_BY(mutex_rtcp_sender_);
   RtcpMode method_ RTC_GUARDED_BY(mutex_rtcp_sender_);
 

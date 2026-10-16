@@ -20,6 +20,7 @@
 #include <openssl/base.h>
 #include <openssl/crypto.h>
 #include <openssl/ex_data.h>
+#include <openssl/span.h>
 #include <openssl/stack.h>
 
 #include <assert.h>
@@ -1016,10 +1017,15 @@ void BORINGSSL_FIPS_abort() __attribute__((noreturn));
 // Call |BORINGSSL_self_test| to run every self test.
 int boringssl_self_test_startup();
 
-// boringssl_ensure_rsa_self_test checks whether the RSA self-test has been run
-// in this address space. If not, it runs it and crashes the address space if
-// unsuccessful.
-void boringssl_ensure_rsa_self_test();
+// boringssl_ensure_rsa_sign_self_test checks whether the RSA signing self-test
+// has been run in this address space. If not, it runs it and crashes the
+// address space if unsuccessful.
+void boringssl_ensure_rsa_sign_self_test();
+
+// boringssl_ensure_rsa_verify_self_test checks whether the RSA verification
+// self-test has been run in this address space. If not, it runs it and crashes
+// the address space if unsuccessful.
+void boringssl_ensure_rsa_verify_self_test();
 
 // boringssl_ensure_ecc_self_test checks whether the ECDSA and ECDH self-test
 // has been run in this address space. If not, it runs it and crashes the
@@ -1035,17 +1041,18 @@ void boringssl_ensure_ffdh_self_test();
 
 // Outside of FIPS mode, the lazy tests are no-ops.
 
-inline void boringssl_ensure_rsa_self_test() {}
+inline void boringssl_ensure_rsa_sign_self_test() {}
+inline void boringssl_ensure_rsa_verify_self_test() {}
 inline void boringssl_ensure_ecc_self_test() {}
 inline void boringssl_ensure_ffdh_self_test() {}
 
 #endif  // FIPS
 
-// BORINGSSL_check_test memcmp's two values of equal length. It returns 1 on
-// success and, on failure, it prints an error message that includes the
-// hexdumps the two values and returns 0.
-int BORINGSSL_check_test(const void *expected, const void *actual,
-                         size_t expected_len, const char *name);
+// BORINGSSL_check_test checks that |expected| and |actual| are equal. It
+// returns 1 on success and, on failure, it prints an error message that
+// includes the hexdumps the two values and returns 0.
+int BORINGSSL_check_test(Span<const uint8_t> expected,
+                         Span<const uint8_t> actual, const char *name);
 
 // boringssl_self_test_sha256 performs a SHA-256 KAT.
 int boringssl_self_test_sha256();

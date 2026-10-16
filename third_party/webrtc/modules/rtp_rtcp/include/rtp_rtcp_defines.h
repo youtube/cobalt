@@ -128,6 +128,11 @@ enum RtxMode {
 
 const size_t kRtxHeaderSize = 2;
 
+// Special values for SSRC, used when sending receiver reports from
+// receive-only endpoints.
+inline constexpr uint32_t kFallbackRtcpSsrcForVideo = 1;
+inline constexpr uint32_t kFallbackRtcpSsrcForAudio = 0xFA17FA17;
+
 struct RtpState {
   uint16_t sequence_number = 0;
   uint32_t start_timestamp = 0;

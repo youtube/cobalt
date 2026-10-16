@@ -34,19 +34,49 @@ class SlimWebViewGuest : public GuestView<SlimWebViewGuest> {
   bool GuestHandleContextMenu(content::RenderFrameHost& render_frame_host,
                               const content::ContextMenuParams& params) final;
 
+  // content::WebContentsDelegate:
+  bool IsWebContentsCreationOverridden(
+      content::RenderFrameHost* opener,
+      content::SiteInstance* source_site_instance,
+      content::mojom::WindowContainerType window_container_type,
+      const GURL& opener_url,
+      const std::string& frame_name,
+      const GURL& target_url) final;
+  content::WebContents* CreateCustomWebContents(
+      content::RenderFrameHost* opener,
+      content::SiteInstance* source_site_instance,
+      bool is_new_browsing_instance,
+      const GURL& opener_url,
+      const std::string& frame_name,
+      const GURL& target_url,
+      WindowOpenDisposition disposition,
+      const blink::mojom::WindowFeatures& window_features,
+      const content::StoragePartitionConfig& partition_config,
+      content::SessionStorageNamespace* session_storage_namespace) final;
+  void RendererUnresponsive(
+      content::WebContents* source,
+      content::RenderWidgetHost* render_widget_host,
+      base::RepeatingClosure hang_monitor_restarter) final;
+
   // content::WebContentsObserver:
+  void DidStartNavigation(content::NavigationHandle* navigation_handle) final;
   void DidFinishNavigation(content::NavigationHandle* navigation_handle) final;
 
   // guest_view::GuestViewBase:
   const char* GetAPINamespace() const final;
   int GetTaskPrefix() const final;
   void GuestViewDocumentOnLoadCompleted() final;
+  bool IsAutoSizeSupported() const final;
+  void GuestSizeChangedDueToAutoSize(const gfx::Size& old_size,
+                                     const gfx::Size& new_size) final;
+  void GuestViewMainFrameProcessGone(base::TerminationStatus status) final;
   void MaybeRecreateGuestContents(
       content::RenderFrameHost* outer_contents_frame) final;
   void CreateInnerPage(std::unique_ptr<GuestViewBase> owned_this,
                        scoped_refptr<content::SiteInstance> site_instance,
                        const base::DictValue& create_params,
                        GuestPageCreatedCallback callback) final;
+  void GuestViewDidStopLoading() final;
 
   void LoadAbort(bool is_top_level, const GURL& url, net::Error error_code);
 };

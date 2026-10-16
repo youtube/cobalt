@@ -230,13 +230,6 @@ bool IsGeminiLoadingStateRedesignEnabled();
 BASE_DECLARE_FEATURE(kGeminiLatencyImprovement);
 bool IsGeminiLatencyImprovementEnabled();
 
-// Feature flag for showing the Gemini floaty immediately.
-//
-// This feature exists so the overlay can open without having to wait for the
-// page to finish loading.
-BASE_DECLARE_FEATURE(kGeminiImmediateOverlay);
-bool IsGeminiImmediateOverlayEnabled();
-
 // Feature flag to use the new refactored version of the page context extractor.
 // Acts as a killswitch where the feature is enabled by default.
 BASE_DECLARE_FEATURE(kPageContextExtractorRefactored);
@@ -291,6 +284,10 @@ bool IsGeminiCopresenceEnabled();
 extern const char kGeminiCopresenceResponseReadyInterval[];
 double GetGeminiCopresenceResponseReadyInterval();
 
+// Returns true if the zero state with chat history is enabled.
+bool IsGeminiCopresenceZeroStateWithChatHistoryEnabled();
+extern const char kGeminiCopresenceZeroStateWithChatHistory[];
+
 // Feature flag for Gemini Dynamic Resizing.
 BASE_DECLARE_FEATURE(kGeminiResponseViewDynamicResizing);
 
@@ -334,5 +331,17 @@ enum class PageActionMenuIconVariations {
 };
 
 PageActionMenuIconVariations GetPageActionMenuIcon();
+
+// Feature flag for enabling Gemini backend migration.
+BASE_DECLARE_FEATURE(kGeminiBackendMigration);
+bool IsGeminiBackendMigrationEnabled();
+
+// Feature flag for enabling Gemini actor.
+BASE_DECLARE_FEATURE(kGeminiActor);
+bool IsGeminiActorEnabled();
+
+// Feature flag for enabling rich APC (v2) extraction for Gemini.
+BASE_DECLARE_FEATURE(kGeminiRichAPCExtraction);
+bool IsGeminiRichAPCExtractionEnabled();
 
 #endif  // IOS_CHROME_BROWSER_INTELLIGENCE_FEATURES_FEATURES_H_

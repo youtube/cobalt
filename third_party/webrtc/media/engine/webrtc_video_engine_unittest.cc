@@ -2749,11 +2749,6 @@ class WebRtcVideoChannelTest : public WebRtcVideoEngineTest {
     receive_channel_ =
         engine_->CreateReceiveChannel(env_, fake_call_.get(), GetMediaConfig(),
                                       VideoOptions(), CryptoOptions());
-    send_channel_->SetSsrcListChangedCallback(
-        [receive_channel =
-             receive_channel_.get()](const std::set<uint32_t>& choices) {
-          receive_channel->ChooseReceiverReportSsrc(choices);
-        });
     send_channel_->OnReadyToSend(true);
     receive_channel_->SetReceive(true);
     last_ssrc_ = 123;
@@ -4751,8 +4746,6 @@ TEST_F(WebRtcVideoChannelFlexfecRecvTest, SetRecvCodecsWithFec) {
   const FakeVideoReceiveStream* video_stream = video_streams.front();
   const VideoReceiveStreamInterface::Config& video_stream_config =
       video_stream->GetConfig();
-  EXPECT_EQ(video_stream_config.rtp.local_ssrc,
-            flexfec_stream_config.local_ssrc);
   EXPECT_EQ(video_stream_config.rtp.rtcp_mode, flexfec_stream_config.rtcp_mode);
   EXPECT_EQ(video_stream_config.rtcp_send_transport,
             flexfec_stream_config.rtcp_send_transport);
@@ -9583,56 +9576,6 @@ TEST_F(WebRtcVideoChannelTest,
   StreamParams params = StreamParams::CreateLegacy(1);
   params.AddFidSsrc(1, 2);
   EXPECT_TRUE(receive_channel_->AddRecvStream(params));
-}
-
-void WebRtcVideoChannelTest::TestReceiverLocalSsrcConfiguration(
-    bool receiver_first) {
-  EXPECT_TRUE(send_channel_->SetSenderParameters(send_parameters_));
-
-  const uint32_t kSenderSsrc = 0xC0FFEE;
-  const uint32_t kSecondSenderSsrc = 0xBADCAFE;
-  const uint32_t kReceiverSsrc = 0x4711;
-  const uint32_t kExpectedDefaultReceiverSsrc = 1;
-
-  if (receiver_first) {
-    AddRecvStream(StreamParams::CreateLegacy(kReceiverSsrc));
-    std::vector<FakeVideoReceiveStream*> receive_streams =
-        fake_call_->GetVideoReceiveStreams();
-    ASSERT_EQ(1u, receive_streams.size());
-    // Default local SSRC when we have no sender.
-    EXPECT_EQ(kExpectedDefaultReceiverSsrc,
-              receive_streams[0]->GetConfig().rtp.local_ssrc);
-  }
-  AddSendStream(StreamParams::CreateLegacy(kSenderSsrc));
-  if (!receiver_first)
-    AddRecvStream(StreamParams::CreateLegacy(kReceiverSsrc));
-  std::vector<FakeVideoReceiveStream*> receive_streams =
-      fake_call_->GetVideoReceiveStreams();
-  ASSERT_EQ(1u, receive_streams.size());
-  EXPECT_EQ(kSenderSsrc, receive_streams[0]->GetConfig().rtp.local_ssrc);
-
-  // Removing first sender should fall back to another (in this case the second)
-  // local send stream's SSRC.
-  AddSendStream(StreamParams::CreateLegacy(kSecondSenderSsrc));
-  ASSERT_TRUE(send_channel_->RemoveSendStream(kSenderSsrc));
-  receive_streams = fake_call_->GetVideoReceiveStreams();
-  ASSERT_EQ(1u, receive_streams.size());
-  EXPECT_EQ(kSecondSenderSsrc, receive_streams[0]->GetConfig().rtp.local_ssrc);
-
-  // Removing the last sender should fall back to default local SSRC.
-  ASSERT_TRUE(send_channel_->RemoveSendStream(kSecondSenderSsrc));
-  receive_streams = fake_call_->GetVideoReceiveStreams();
-  ASSERT_EQ(1u, receive_streams.size());
-  EXPECT_EQ(kExpectedDefaultReceiverSsrc,
-            receive_streams[0]->GetConfig().rtp.local_ssrc);
-}
-
-TEST_F(WebRtcVideoChannelTest, ConfiguresLocalSsrc) {
-  TestReceiverLocalSsrcConfiguration(false);
-}
-
-TEST_F(WebRtcVideoChannelTest, ConfiguresLocalSsrcOnExistingReceivers) {
-  TestReceiverLocalSsrcConfiguration(true);
 }
 
 TEST_F(WebRtcVideoChannelTest, Simulcast_QualityScalingNotAllowed) {

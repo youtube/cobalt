@@ -1628,20 +1628,20 @@ bool ValidateEndQuery(const Context *context, angle::EntryPoint entryPoint, Quer
 
 bool ValidateGetQueryiv(const Context *context,
                         angle::EntryPoint entryPoint,
-                        QueryType target,
-                        GLenum pname,
+                        QueryType targetPacked,
+                        QueryParameter pnamePacked,
                         const GLint *params)
 {
-    return ValidateGetQueryivBase(context, entryPoint, target, pname, nullptr);
+    return ValidateGetQueryivBase(context, entryPoint, targetPacked, pnamePacked, nullptr);
 }
 
 bool ValidateGetQueryObjectuiv(const Context *context,
                                angle::EntryPoint entryPoint,
-                               QueryID id,
-                               GLenum pname,
+                               QueryID idPacked,
+                               QueryObjectParameter pnamePacked,
                                const GLuint *params)
 {
-    return ValidateGetQueryObjectValueBase(context, entryPoint, id, pname, nullptr);
+    return ValidateGetQueryObjectBase(context, entryPoint, idPacked, pnamePacked, nullptr);
 }
 
 bool ValidateFramebufferTextureLayer(const Context *context,
@@ -3303,6 +3303,13 @@ bool ValidateCopyBufferSubData(const Context *context,
         return false;
     }
 
+    const Limitations &limitations = context->getLimitations();
+    if (size > limitations.bufferSizeLimit)
+    {
+        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kBufferSizeLimitation);
+        return false;
+    }
+
     if (checkedReadSum.ValueOrDie() > readBuffer->getSize() ||
         checkedWriteSum.ValueOrDie() > writeBuffer->getSize())
     {
@@ -4647,7 +4654,7 @@ bool ValidateGetVertexAttribIiv(const Context *context,
                                 GLenum pname,
                                 const GLint *params)
 {
-    return ValidateGetVertexAttribBase(context, entryPoint, index, pname, nullptr, false);
+    return ValidateGetVertexAttribBase(context, entryPoint, index, pname, nullptr);
 }
 
 bool ValidateGetVertexAttribIuiv(const Context *context,
@@ -4656,7 +4663,7 @@ bool ValidateGetVertexAttribIuiv(const Context *context,
                                  GLenum pname,
                                  const GLuint *params)
 {
-    return ValidateGetVertexAttribBase(context, entryPoint, index, pname, nullptr, false);
+    return ValidateGetVertexAttribBase(context, entryPoint, index, pname, nullptr);
 }
 
 bool ValidateGetInternalformativ(const Context *context,
@@ -4795,7 +4802,7 @@ bool ValidateGetMultisamplefvANGLE(const Context *context,
                                    GLuint index,
                                    const GLfloat *val)
 {
-    return ValidateGetMultisamplefvBase(context, entryPoint, pname, index, val);
+    return ValidateGetMultisamplefvBase(context, entryPoint, pname, index, nullptr);
 }
 
 bool ValidateSampleMaskiANGLE(const PrivateState &state,

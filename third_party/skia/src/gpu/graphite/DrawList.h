@@ -15,6 +15,7 @@
 #include "src/base/SkTBlockList.h"
 #include "src/gpu/graphite/ContextUtils.h"
 #include "src/gpu/graphite/DrawCommands.h"
+#include "src/gpu/graphite/DrawListTypes.h"
 #include "src/gpu/graphite/DrawOrder.h"
 #include "src/gpu/graphite/DrawParams.h"
 #include "src/gpu/graphite/PaintParams.h"
@@ -71,16 +72,18 @@ public:
     // 'shape' and 'stroke' parameters. If the renderer uses coverage AA, 'ordering' must have a
     // compressed painters order that reflects that. If the renderer uses stencil, the 'ordering'
     // must have a valid stencil index as well.
-    void recordDraw(const Renderer* renderer,
-                    const Transform& localToDevice,
-                    const Geometry& geometry,
-                    const Clip& clip,
-                    DrawOrder ordering,
-                    UniquePaintParamsID paintID,
-                    SkEnumBitMask<DstUsage> dstUsage,
-                    BarrierType barrierBeforeDraws,
-                    PipelineDataGatherer* gatherer,
-                    const StrokeStyle* stroke) override;
+    std::pair<DrawParams*, Layer*> recordDraw(
+            const Renderer* renderer,
+            const Transform& localToDevice,
+            const Geometry& geometry,
+            const Clip& clip,
+            DrawOrder ordering,
+            UniquePaintParamsID paintID,
+            SkEnumBitMask<DstUsage> dstUsage,
+            BarrierType barrierBeforeDraws,
+            PipelineDataGatherer* gatherer,
+            const StrokeStyle* stroke,
+            const Layer* latestDepthLayer) override;
 
     std::unique_ptr<DrawPass> snapDrawPass(Recorder* recorder,
                                            sk_sp<TextureProxy> target,
@@ -98,17 +101,14 @@ private:
              const Clip& clip, DrawOrder order, BarrierType barrierBeforeDraws,
              const StrokeStyle* stroke)
                 : fRenderer(renderer)
-                , fDrawParams(transform, geometry, clip, order, stroke)
-                , fBarrierBeforeDraws(barrierBeforeDraws) {}
+                , fDrawParams(transform, geometry, clip, order, stroke, barrierBeforeDraws) {}
 
-        const Renderer* renderer()              const { return fRenderer;           }
-        const DrawParams& drawParams()          const { return fDrawParams;         }
-        const BarrierType& barrierBeforeDraws() const { return fBarrierBeforeDraws; }
+        const Renderer* renderer()              const { return fRenderer;   }
+        const DrawParams& drawParams()          const { return fDrawParams; }
 
     private:
         const Renderer* fRenderer;
         DrawParams fDrawParams;
-        BarrierType fBarrierBeforeDraws;
     };
 
     template <uint64_t Bits, uint64_t Offset>
@@ -205,12 +205,20 @@ private:
         // Backpointer to the draw that produced the sort key
         const Draw* fDraw;
 
+// https://issues.skia.org/issues/485303056
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wtautological-value-range-compare"
+#endif
         static_assert(ColorDepthOrderField::kBits >= sizeof(CompressedPaintersOrder));
         static_assert(StencilIndexField::kBits    >= sizeof(DisjointStencilIndex));
-        static_assert(RenderStepField::kBits      >= SkNextLog2_portable(Renderer::kMaxRenderSteps));
-        static_assert(PipelineField::kBits        >= SkNextLog2_portable(DrawListBase::kMaxRenderSteps));
-        static_assert(UniformField::kBits         >= 1+SkNextLog2_portable(DrawListBase::kMaxRenderSteps));
-        static_assert(TextureBindingsField::kBits >= 1+SkNextLog2_portable(DrawListBase::kMaxRenderSteps));
+        static_assert(RenderStepField::kBits      >= SkNextLog2(Renderer::kMaxRenderSteps));
+        static_assert(PipelineField::kBits        >= SkNextLog2(DrawListBase::kMaxRenderSteps));
+        static_assert(UniformField::kBits         >= 1+SkNextLog2(DrawListBase::kMaxRenderSteps));
+        static_assert(TextureBindingsField::kBits >= 1+SkNextLog2(DrawListBase::kMaxRenderSteps));
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
     };
 
     SkTBlockList<Draw, 4> fDraws{SkBlockAllocator::GrowthPolicy::kFibonacci};

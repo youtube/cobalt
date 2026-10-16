@@ -33,8 +33,8 @@ static inline bool IsValidDirAttribute(const AtomicString& value) {
 // Keywords from CSS font-size are skipped.
 static inline bool IsDisallowedMathSizeAttribute(const AtomicString& value) {
   return EqualIgnoringASCIICase(value, "medium") ||
-         value.EndsWith("large", kTextCaseASCIIInsensitive) ||
-         value.EndsWith("small", kTextCaseASCIIInsensitive) ||
+         value.EndsWithIgnoringAsciiCase("large") ||
+         value.EndsWithIgnoringAsciiCase("small") ||
          EqualIgnoringASCIICase(value, "smaller") ||
          EqualIgnoringASCIICase(value, "larger") ||
          EqualIgnoringASCIICase(value, "math");
@@ -152,8 +152,10 @@ const CSSPrimitiveValue* MathMLElement::ParseMathLength(
   // TODO(crbug.com/476061189) We are using attribute name as property name for
   // caching property-dependent random() values. This behaviour is not
   // specified.
-  CSSParserLocalContext local_context = CSSParserLocalContext(
-      CSSPropertyName(AtomicString(attr_name.ToString())));
+  CSSParserLocalContext local_context(
+      CSSPropertyName(AtomicString(attr_name.ToString())),
+      CSSPropertyID::kInvalid,
+      /*custom_function_name=*/g_null_atom);
   const CSSPrimitiveValue* parsed_value = CSSParser::ParseLengthPercentage(
       value,
       StrictCSSParserContext(GetExecutionContext()->GetSecureContextMode()),

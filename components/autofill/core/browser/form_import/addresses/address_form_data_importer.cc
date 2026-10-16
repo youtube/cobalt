@@ -192,14 +192,6 @@ void AddressFormDataImporter::OnAddressDataChanged() {
   multistep_importer_.OnAddressDataChanged(address_data_manager());
 }
 
-void AddressFormDataImporter::AddMultiStepImportCandidate(
-    const AutofillProfile& profile,
-    const ProfileImportMetadata& import_metadata,
-    bool is_imported) {
-  multistep_importer_.AddMultiStepImportCandidate(profile, import_metadata,
-                                                  is_imported);
-}
-
 size_t AddressFormDataImporter::ExtractAddressProfiles(
     const FormStructure& form,
     std::vector<ExtractedAddressProfile>* extracted_address_profiles) {
@@ -240,9 +232,9 @@ size_t AddressFormDataImporter::ExtractAddressProfiles(
           << CTag{};
       // Try to extract an address profile from the form fields of this section.
       // Only allow for a prompt if no other complete profile was found so far.
-      if (ExtractAddressProfileFromSection(fields, form.source_url(),
-                                           extracted_address_profiles,
-                                           &import_log_buffer)) {
+      if (ExtractAddressProfileFromSection(
+              fields, form.source_url(), form.submission_source(),
+              extracted_address_profiles, &import_log_buffer)) {
         num_complete_profiles++;
       }
       // And close the div of the section import log.
@@ -291,7 +283,7 @@ AddressFormDataImporter::ExtractGUIDsOfProfilesWithoutManualEdits(
     const FormStructure& submitted_form) const {
   base::flat_set<std::string> unedited_source_profile_guids;
   for (const std::unique_ptr<AutofillField>& field : submitted_form) {
-    if (field->is_user_edited()) {
+    if (field->all_modifiers().contains(FieldModifier::kUser)) {
       return {};
     }
     if (const std::optional<std::string>& guid =
@@ -357,6 +349,14 @@ AddressFormDataImporter::GetAddressObservedFieldValues(
       continue;
     }
     has_address_related_fields = true;
+
+    // Skip common placeholder values (e.g. "select", "optional").
+    if (base::FeatureList::IsEnabled(
+            features::kAutofillFilterPlaceholderValuesOnImport) &&
+        IsPlaceholder(value)) {
+      autofill_metrics::LogRemovedPlaceholderValue(field_type);
+      continue;
+    }
 
     // There can be multiple email fields (e.g. in the case of 'confirm email'
     // fields) but they must all contain the same value, else the profile is
@@ -499,6 +499,7 @@ AutofillProfile AddressFormDataImporter::ConstructProfileFromObservedValues(
 bool AddressFormDataImporter::ExtractAddressProfileFromSection(
     base::span<const AutofillField* const> section_fields,
     const GURL& source_url,
+    mojom::SubmissionSource submission_source,
     std::vector<ExtractedAddressProfile>* extracted_address_profiles,
     LogBuffer* import_log_buffer) {
   // Tracks if the form section contains multiple distinct email addresses.
@@ -510,6 +511,7 @@ bool AddressFormDataImporter::ExtractAddressProfileFromSection(
   // Metadata about the way we construct candidate_profile.
   ProfileImportMetadata import_metadata;
   import_metadata.origin = url::Origin::Create(source_url);
+  import_metadata.submission_source = submission_source;
 
   // Tracks if any of the fields belongs to FormType::kAddressForm.
   bool has_address_related_fields = false;

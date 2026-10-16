@@ -38,6 +38,7 @@
 #include "api/make_ref_counted.h"
 #include "api/media_stream_interface.h"
 #include "api/media_types.h"
+#include "api/payload_type.h"
 #include "api/priority.h"
 #include "api/rtc_error.h"
 #include "api/rtp_headers.h"
@@ -110,8 +111,6 @@ constexpr int64_t kUnsignaledSsrcCooldownMs = kNumMillisecsPerSec / 2;
 // This constant is really an on/off, lower-level configurable NACK history
 // duration hasn't been implemented.
 const int kNackHistoryMs = 1000;
-
-const int kDefaultRtcpReceiverReportSsrc = 1;
 
 // Minimum time interval for logging stats.
 const int64_t kStatsLogIntervalMs = 10000;
@@ -2809,7 +2808,6 @@ WebRtcVideoReceiveChannel::WebRtcVideoReceiveChannel(
       crypto_options_(crypto_options),
       receive_buffer_size_(ParseReceiveBufferSize(env_.field_trials())) {
   RTC_DCHECK_RUN_ON(&thread_checker_);
-  rtcp_receiver_report_ssrc_ = kDefaultRtcpReceiverReportSsrc;
   // Crash if MapCodecs fails.
   recv_codecs_ = MapCodecs(GetPayloadTypesAndDefaultCodecs(
                                decoder_factory_, /*is_decoder_factory=*/true,
@@ -2963,32 +2961,6 @@ bool WebRtcVideoReceiveChannel::SetReceiverParameters(
   return true;
 }
 
-void WebRtcVideoReceiveChannel::SetReceiverReportSsrc(uint32_t ssrc) {
-  RTC_DCHECK_RUN_ON(&thread_checker_);
-  if (ssrc == rtcp_receiver_report_ssrc_)
-    return;
-
-  rtcp_receiver_report_ssrc_ = ssrc;
-  for (auto& [unused, receive_stream] : receive_streams_)
-    receive_stream->SetLocalSsrc(ssrc);
-}
-
-void WebRtcVideoReceiveChannel::ChooseReceiverReportSsrc(
-    const std::set<uint32_t>& choices) {
-  RTC_DCHECK_RUN_ON(&thread_checker_);
-  // If we can continue using the current receiver report, do so.
-  if (choices.find(rtcp_receiver_report_ssrc_) != choices.end()) {
-    return;
-  }
-  // Go back to the default if list has been emptied.
-  if (choices.empty()) {
-    SetReceiverReportSsrc(kDefaultRtcpReceiverReportSsrc);
-    return;
-  }
-  // Any number is as good as any other.
-  SetReceiverReportSsrc(*choices.begin());
-}
-
 void WebRtcVideoReceiveChannel::SetReceive(bool receive) {
   RTC_DCHECK_RUN_ON(&thread_checker_);
   TRACE_EVENT0("webrtc", "WebRtcVideoReceiveChannel::SetReceive");
@@ -3094,19 +3066,6 @@ void WebRtcVideoReceiveChannel::ConfigureReceiverRtp(
   uint32_t ssrc = sp.first_ssrc();
 
   config->rtp.remote_ssrc = ssrc;
-  config->rtp.local_ssrc = rtcp_receiver_report_ssrc_;
-
-  // TODO(pbos): This protection is against setting the same local ssrc as
-  // remote which is not permitted by the lower-level API. RTCP requires a
-  // corresponding sender SSRC. Figure out what to do when we don't have
-  // (receive-only) or know a good local SSRC.
-  if (config->rtp.remote_ssrc == config->rtp.local_ssrc) {
-    if (config->rtp.local_ssrc != kDefaultRtcpReceiverReportSsrc) {
-      config->rtp.local_ssrc = kDefaultRtcpReceiverReportSsrc;
-    } else {
-      config->rtp.local_ssrc = kDefaultRtcpReceiverReportSsrc + 1;
-    }
-  }
 
   // The mode and rtx time is determined by a call to the configuration
   // function.
@@ -3119,7 +3078,6 @@ void WebRtcVideoReceiveChannel::ConfigureReceiverRtp(
   if (!env_.field_trials().IsDisabled("WebRTC-FlexFEC-03-Advertised") &&
       sp.GetFecFrSsrc(ssrc, &flexfec_config->remote_ssrc)) {
     flexfec_config->protected_media_ssrcs = {ssrc};
-    flexfec_config->local_ssrc = config->rtp.local_ssrc;
     flexfec_config->rtcp_mode = config->rtp.rtcp_mode;
   }
 }
@@ -3995,14 +3953,6 @@ void WebRtcVideoReceiveChannel::WebRtcVideoReceiveStream::
   config_.frame_transformer = frame_transformer;
   if (stream_)
     stream_->SetDepacketizerToDecoderFrameTransformer(frame_transformer);
-}
-
-void WebRtcVideoReceiveChannel::WebRtcVideoReceiveStream::SetLocalSsrc(
-    uint32_t ssrc) {
-  config_.rtp.local_ssrc = ssrc;
-  call_->OnLocalSsrcUpdated(stream(), ssrc);
-  if (flexfec_stream_)
-    call_->OnLocalSsrcUpdated(*flexfec_stream_, ssrc);
 }
 
 void WebRtcVideoReceiveChannel::WebRtcVideoReceiveStream::UpdateRtxSsrc(

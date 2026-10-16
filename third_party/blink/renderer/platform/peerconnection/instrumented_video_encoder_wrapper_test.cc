@@ -47,6 +47,12 @@ class MockEncodedImageCallback : public webrtc::EncodedImageCallback {
               OnDroppedFrame,
               (webrtc::EncodedImageCallback::DropReason),
               (override));
+  MOCK_METHOD(void,
+              OnFrameDropped,
+              (uint32_t rtp_timestamp,
+               int spatial_id,
+               bool is_end_of_temporal_unit),
+              (override));
 };
 
 class FakeVideoEncoder : public webrtc::VideoEncoder {
@@ -75,7 +81,7 @@ class FakeVideoEncoder : public webrtc::VideoEncoder {
       encoded_image._encodedWidth = frame.width();
       encoded_image._encodedHeight = frame.height();
       encoded_image.SetRtpTimestamp(frame.rtp_timestamp());
-      encoded_image._frameType = frame_types->at(0);
+      encoded_image.set_frame_type(frame_types->at(0));
       callback_->OnEncodedImage(encoded_image,
                                 /*codec_specific_info=*/nullptr);
     }
@@ -217,5 +223,15 @@ TEST_F(InstrumentedVideoEncoderWrapperTest, SetRates) {
               OnRatesUpdated(kEncoderId, kExpectedActiveLayers));
   wrapper_->SetRates(webrtc::VideoEncoder::RateControlParameters(
       bitrate_allocation, kNewFrameRate));
+}
+
+TEST_F(InstrumentedVideoEncoderWrapperTest, FrameDropped) {
+  EXPECT_EQ(wrapper_->InitEncode(&kVideoCodec, kEncoderSettings),
+            WEBRTC_VIDEO_CODEC_OK);
+  MockEncodedImageCallback encoded_image_callback;
+  EXPECT_EQ(wrapper_->RegisterEncodeCompleteCallback(&encoded_image_callback),
+            WEBRTC_VIDEO_CODEC_OK);
+  EXPECT_CALL(encoded_image_callback, OnFrameDropped(kTimestamp, 0, true));
+  wrapper_->OnFrameDropped(kTimestamp, 0, true);
 }
 }  // namespace blink

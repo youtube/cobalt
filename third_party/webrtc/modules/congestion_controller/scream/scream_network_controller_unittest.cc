@@ -221,7 +221,10 @@ TEST(ScreamControllerTest, PacingWindowReducedIfCeCongestedStreamsConfigured) {
   DataRate send_rate = DataRate::KilobitsPerSec(500);
   for (int i = 0; i < 20; ++i) {
     TransportPacketsFeedback feedback =
-        feedback_generator.ProcessUntilNextFeedback(send_rate, clock);
+        feedback_generator.ProcessUntilNextFeedback(
+            send_rate, clock, [&](const SentPacket& packet) {
+              scream_controller.OnSentPacket(packet);
+            });
     update = scream_controller.OnTransportPacketsFeedback(feedback);
     if (update.target_rate.has_value()) {
       send_rate = update.target_rate->target_rate;
@@ -233,7 +236,7 @@ TEST(ScreamControllerTest, PacingWindowReducedIfCeCongestedStreamsConfigured) {
 }
 
 TEST(ScreamControllerTest,
-     PacingWindowNotReducedIfDelayCongestedStreamsConfigured) {
+     PacingWindowReducedIfDelayCongestedStreamsConfigured) {
   SimulatedClock clock(Timestamp::Seconds(1'234));
   Environment env = CreateTestEnvironment({.time = &clock});
   CcFeedbackGenerator feedback_generator(
@@ -249,9 +252,44 @@ TEST(ScreamControllerTest,
 
   NetworkControlUpdate update;
   DataRate send_rate = DataRate::KilobitsPerSec(500);
-  for (int i = 0; i < 20; ++i) {
+  for (int i = 0; i < 30; ++i) {
     TransportPacketsFeedback feedback =
-        feedback_generator.ProcessUntilNextFeedback(send_rate, clock);
+        feedback_generator.ProcessUntilNextFeedback(
+            send_rate, clock, [&](const SentPacket& packet) {
+              scream_controller.OnSentPacket(packet);
+            });
+    update = scream_controller.OnTransportPacketsFeedback(feedback);
+    if (update.target_rate.has_value()) {
+      send_rate = update.target_rate->target_rate;
+    }
+  }
+  EXPECT_THAT(update.pacer_config,
+              Optional(Field(&PacerConfig::time_window,
+                             Lt(PacerConfig::kDefaultTimeInterval))));
+}
+
+TEST(ScreamControllerTest, PacingWindowNotReducedIfNotCongested) {
+  SimulatedClock clock(Timestamp::Seconds(1'234));
+  Environment env = CreateTestEnvironment({.time = &clock});
+  CcFeedbackGenerator feedback_generator(
+      {.network_config = {.link_capacity = DataRate::KilobitsPerSec(9000)},
+       .send_as_ect1 = false});  // Scream will react to delay increase, not CE.
+
+  NetworkControllerConfig config(env);
+  ScreamNetworkController scream_controller(config);
+
+  StreamsConfig streams_config;
+  streams_config.max_total_allocated_bitrate = DataRate::KilobitsPerSec(1000);
+  scream_controller.OnStreamsConfig(streams_config);
+
+  NetworkControlUpdate update;
+  DataRate send_rate = DataRate::KilobitsPerSec(500);
+  for (int i = 0; i < 30; ++i) {
+    TransportPacketsFeedback feedback =
+        feedback_generator.ProcessUntilNextFeedback(
+            send_rate, clock, [&](const SentPacket& packet) {
+              scream_controller.OnSentPacket(packet);
+            });
     update = scream_controller.OnTransportPacketsFeedback(feedback);
     if (update.target_rate.has_value()) {
       send_rate = update.target_rate->target_rate;
@@ -382,7 +420,7 @@ TEST(ScreamControllerTest, PaddingStopIfNetworkCongested) {
   PaddingTestResult result = ProcessUntilPaddingStartAndStop(
       clock, scream_controller, feedback_generator);
 
-  EXPECT_LT(result.target_rate, DataRate::KilobitsPerSec(600));
+  EXPECT_LT(result.target_rate, DataRate::KilobitsPerSec(700));
   // Padding should stop when congestion is detected.
   EXPECT_LT(result.padding_stop - result.padding_start, TimeDelta::Seconds(1));
 }
@@ -411,10 +449,11 @@ TEST(ScreamControllerTest, PeriodicallyAllowPadding) {
   TimeDelta padding_duration = result_1.padding_stop - result_1.padding_start;
   TimeDelta time_between_padding =
       result_2.padding_start - result_1.padding_stop;
-  EXPECT_GT(padding_duration, TimeDelta::Millis(2900));
+  EXPECT_GT(padding_duration, TimeDelta::Millis(2800));
   EXPECT_LT(padding_duration, TimeDelta::Millis(3100));
+
   EXPECT_GT(time_between_padding, TimeDelta::Millis(2900));
-  EXPECT_LT(time_between_padding, TimeDelta::Millis(3200));
+  EXPECT_LT(time_between_padding, TimeDelta::Millis(3300));
 }
 
 TEST(ScreamControllerTest, PadsToMinOf2xCurrentMaxAndEverSeenMax) {

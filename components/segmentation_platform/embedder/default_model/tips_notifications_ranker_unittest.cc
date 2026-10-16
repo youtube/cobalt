@@ -185,4 +185,59 @@ TEST_F(TipsNotificationsRankerTest, ExecuteModelWithInputForNewFeatures) {
   ExpectClassifierResults(input6, {kBottomOmnibox});
 }
 
+TEST_F(TipsNotificationsRankerTest, ExecuteModelWithInputForV2Features) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  // Assume the Essential arm as the default one.
+  scoped_feature_list.InitWithFeaturesAndParameters(
+      /*enabled_features=*/
+      {{features::kAndroidTipsNotifications,
+        {{
+            {"essential", "true"},
+        }}},
+       {features::kAndroidTipsNotificationsV2, {}}},
+      /*disabled_features=*/{});
+
+  ExpectInitAndFetchModel();
+  ASSERT_TRUE(fetched_metadata_);
+
+  EXPECT_FALSE(ExecuteWithInput(/*inputs=*/{}));
+
+  // Test PasswordAutofill with all features not being used.
+  std::vector<float> input1(TipsFeature::kFeatureCount, 0);
+  ExpectClassifierResults(input1, {kPasswordAutofill});
+
+  // Test Signin with PasswordAutofill being used.
+  std::vector<float> input2(TipsFeature::kFeatureCount, 0);
+  input2[TipsFeature::kPasswordAutofillAccountPasswordsCountIdx] = 1;
+  input2[TipsFeature::kPasswordAutofillLocalPasswordsCountIdx] = 1;
+  ExpectClassifierResults(input2, {kSignin});
+
+  // Test Create Tab Groups with PasswordAutofill and Signin being used.
+  std::vector<float> input3(TipsFeature::kFeatureCount, 0);
+  input3[TipsFeature::kPasswordAutofillAccountPasswordsCountIdx] = 1;
+  input3[TipsFeature::kPasswordAutofillLocalPasswordsCountIdx] = 1;
+  input3[TipsFeature::kIsUserSignedInIdx] = 1;
+  input3[TipsFeature::kSigninMagicStackShownCountIdx] = 1;
+  ExpectClassifierResults(input3, {kCreateTabGroups});
+
+  // Test QuickDelete from V1 with V2 features being used.
+  std::vector<float> input4(TipsFeature::kFeatureCount, 0);
+  input4[TipsFeature::kPasswordAutofillAccountPasswordsCountIdx] = 1;
+  input4[TipsFeature::kPasswordAutofillLocalPasswordsCountIdx] = 1;
+  input4[TipsFeature::kIsUserSignedInIdx] = 1;
+  input4[TipsFeature::kSigninMagicStackShownCountIdx] = 1;
+  input4[TipsFeature::kTabGroupsCreatedCountIdx] = 1;
+  ExpectClassifierResults(input4, {kQuickDelete});
+
+  // Test AllFeatureTipsShownCount blocks scheduling notifications.
+  std::vector<float> input5(TipsFeature::kFeatureCount, 0);
+  input5[TipsFeature::kAllFeatureTipsShownCountIdx] = 1;
+  ExpectClassifierResults(input5, {});
+
+  // Test TipShown blocks scheduling PasswordAutofill as first eligible.
+  std::vector<float> input6(TipsFeature::kFeatureCount, 0);
+  input6[TipsFeature::kPasswordAutofillTipShownIdx] = 1;
+  ExpectClassifierResults(input6, {kSignin});
+}
+
 }  // namespace segmentation_platform

@@ -183,6 +183,7 @@
 #include "content/public/common/content_switches.h"
 #include "content/public/common/referrer_type_converters.h"
 #include "content/public/common/url_constants.h"
+#include "content/public/common/widget_type.h"
 #include "ipc/constants.mojom.h"
 #include "media/base/media_switches.h"
 #include "net/base/url_util.h"
@@ -2053,6 +2054,17 @@ RenderWidgetHostView* WebContentsImpl::GetTopLevelRenderWidgetHostView() {
     return GetOuterWebContents()->GetTopLevelRenderWidgetHostView();
   }
   return GetRenderManager()->GetRenderWidgetHostView();
+}
+
+std::vector<RenderWidgetHostView*> WebContentsImpl::GetPopupWidgets() {
+  std::vector<RenderWidgetHostView*> result;
+  for (const auto& [_, host] : created_widgets_) {
+    RenderWidgetHostViewBase* view = host->GetView();
+    if (view && view->GetWidgetType() == WidgetType::kPopup) {
+      result.push_back(view);
+    }
+  }
+  return result;
 }
 
 RenderWidgetHost* WebContentsImpl::FindWidgetAtPoint(const gfx::PointF& point) {
@@ -5196,8 +5208,12 @@ bool WebContentsImpl::RequestKeyboardLock(
   }
 
   // KeyboardLock is only supported when called by the top-level browsing
-  // context and is not supported in embedded content scenarios.
-  if (GetOuterWebContents()) {
+  // context and is not supported in embedded content scenarios such as
+  // GuestView guests (<webview> tags, PDF viewer). However, some embedders
+  // (e.g. WebUIBrowserWindow) attach top-level tabs as inner WebContents and
+  // opt in via AllowKeyboardLockForInnerContents().
+  if (GetOuterWebContents() &&
+      (!delegate_ || !delegate_->AllowKeyboardLockForInnerContents(this))) {
     render_widget_host->GotResponseToKeyboardLockRequest(false);
     return false;
   }
@@ -5291,7 +5307,7 @@ FrameTree* WebContentsImpl::CreateNewWindow(
   int render_process_id = opener->GetProcess()->GetDeprecatedID();
   SiteInstanceImpl* source_site_instance = opener->GetSiteInstance();
   const auto& partition_config =
-      source_site_instance->GetStoragePartitionConfig();
+      source_site_instance->GetSecurityPrincipal().GetStoragePartitionConfig();
 
   {
     StoragePartition* partition =
@@ -5314,7 +5330,8 @@ FrameTree* WebContentsImpl::CreateNewWindow(
         static_cast<WebContentsImpl*>(delegate_->CreateCustomWebContents(
             opener, source_site_instance, is_new_browsing_instance,
             opener->GetLastCommittedURL(), params.frame_name, params.target_url,
-            partition_config, session_storage_namespace));
+            params.disposition, *params.features, partition_config,
+            session_storage_namespace));
     if (!web_contents_impl) {
       return nullptr;
     }
@@ -5332,7 +5349,7 @@ FrameTree* WebContentsImpl::CreateNewWindow(
           : IsGuest();
   // While some guest types do not have a guest SiteInstance, the ones that
   // don't all override WebContents creation above.
-  CHECK_EQ(source_site_instance->IsGuest(), is_guest);
+  CHECK_EQ(source_site_instance->GetSecurityPrincipal().IsGuest(), is_guest);
 
   // We usually create the new window in the same BrowsingInstance (group of
   // script-related windows), by passing in the current SiteInstance.  However,
@@ -5400,8 +5417,10 @@ FrameTree* WebContentsImpl::CreateNewWindow(
       // should be in the same StoragePartition.
       SiteInstanceImpl* new_site_instance = new_contents->GetSiteInstance();
       DCHECK(!new_site_instance->IsRelatedSiteInstance(source_site_instance));
-      DCHECK_EQ(new_site_instance->GetStoragePartitionConfig(),
-                source_site_instance->GetStoragePartitionConfig());
+      DCHECK_EQ(
+          new_site_instance->GetSecurityPrincipal().GetStoragePartitionConfig(),
+          source_site_instance->GetSecurityPrincipal()
+              .GetStoragePartitionConfig());
     }
   }
 
@@ -6791,9 +6810,7 @@ void WebContentsImpl::SaveFrameWithHeaders(
             "triggered by user request."
           policy_exception_justification: "Not implemented."
         })");
-  auto params = std::make_unique<download::DownloadUrlParameters>(
-      url, rfh->GetProcess()->GetDeprecatedID(), rfh->GetRoutingID(),
-      traffic_annotation);
+  auto params = rfh->CreateDownloadUrlParameters(url, traffic_annotation);
   params->set_referrer(referrer.url);
   params->set_referrer_policy(
       Referrer::ReferrerPolicyForUrlRequest(referrer.policy));
@@ -6827,6 +6844,7 @@ void WebContentsImpl::SaveFrameWithHeaders(
           .GetLastCommittedEntry()
           ->GetFrameEntry(frame_tree_node);
   if (frame_navigation_entry) {
+    // Replay the original initiator, rather than using the current frame origin
     params->set_initiator(frame_navigation_entry->initiator_origin());
   }
 
@@ -7028,8 +7046,12 @@ bool WebContentsImpl::GotResponseToKeyboardLockRequest(bool allowed) {
     return false;
   }
   // KeyboardLock is only supported when called by the top-level browsing
-  // context and is not supported in embedded content scenarios.
-  if (GetOuterWebContents()) {
+  // context and is not supported in embedded content scenarios such as
+  // GuestView guests (<webview> tags, PDF viewer). However, some embedders
+  // (e.g. WebUIBrowserWindow) attach top-level tabs as inner WebContents and
+  // opt in via AllowKeyboardLockForInnerContents().
+  if (GetOuterWebContents() &&
+      (!delegate_ || !delegate_->AllowKeyboardLockForInnerContents(this))) {
     keyboard_lock_widget_->GotResponseToKeyboardLockRequest(false);
     return false;
   }
@@ -12287,9 +12309,10 @@ bool WebContentsImpl::CancelPrerendering(FrameTreeNode* frame_tree_node,
     return frame_tree_node->GetParentOrOuterDocumentOrEmbedder()
         ->CancelPrerendering(PrerenderCancellationReason(final_status));
   }
+  PrerenderHostId prerender_host_id =
+      frame_tree_node->frame_tree().delegate()->GetPrerenderHostId();
   PrerenderHost* prerender_host =
-      GetPrerenderHostRegistry()->FindNonReservedHostById(
-          frame_tree_node->frame_tree_node_id());
+      GetPrerenderHostRegistry()->FindNonReservedHostById(prerender_host_id);
   if (!prerender_host) {
     return false;
   }

@@ -130,15 +130,6 @@ class Call {
   virtual void OnAudioTransportOverheadChanged(
       int transport_overhead_per_packet) = 0;
 
-  // Called when a receive stream's local ssrc has changed and association with
-  // send streams needs to be updated.
-  virtual void OnLocalSsrcUpdated(AudioReceiveStreamInterface& stream,
-                                  uint32_t local_ssrc) = 0;
-  virtual void OnLocalSsrcUpdated(VideoReceiveStreamInterface& stream,
-                                  uint32_t local_ssrc) = 0;
-  virtual void OnLocalSsrcUpdated(FlexfecReceiveStream& stream,
-                                  uint32_t local_ssrc) = 0;
-
   virtual void OnUpdateSyncGroup(AudioReceiveStreamInterface& stream,
                                  absl::string_view sync_group) = 0;
 

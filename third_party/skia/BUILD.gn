@@ -118,6 +118,10 @@ config("skia_private") {
     defines += [ "SK_DUMP_TASKS" ]
   }
 
+  if (skia_use_partition_alloc) {
+    defines += [ "SK_USE_PARTITION_ALLOC" ]
+  }
+
   # Temporary staging flag:
   defines += [ "SK_ENABLE_AVX512_OPTS" ]
 }
@@ -1018,7 +1022,8 @@ optional("gpu") {
   if (skia_use_direct3d) {
     public_defines += [ "SK_DIRECT3D" ]
     deps += [ "//third_party/d3d12allocator" ]
-    sources += skia_direct3d_sources
+    public += skia_ganesh_d3d_public
+    sources += skia_ganesh_d3d_private
     if (skia_enable_direct3d_debug_layer) {
       public_defines += [ "SK_ENABLE_D3D_DEBUG_LAYER" ]
     }
@@ -2382,8 +2387,10 @@ if (skia_enable_tools) {
           sources += [ "tools/ganesh/mtl/MtlTestContext.mm" ]
         }
         if (skia_use_direct3d) {
-          sources += [ "tools/ganesh/d3d/D3DTestContext.cpp" ]
-          sources += [ "tools/ganesh/d3d/D3DTestUtils.cpp" ]
+          sources += [
+            "tools/ganesh/d3d/D3DTestContext.cpp",
+            "tools/ganesh/d3d/D3DTestUtils.cpp",
+          ]
         }
       }
       if (skia_enable_graphite) {
@@ -2840,6 +2847,9 @@ if (skia_enable_tools) {
         }
         if (skia_enable_ganesh) {
           deps += [ ":common_flags_ganesh" ]
+        }
+        if (skia_use_partition_alloc) {
+          deps += [ "tools/partition_alloc:test_support" ]
         }
       }
     }

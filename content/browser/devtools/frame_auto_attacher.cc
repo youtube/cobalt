@@ -228,8 +228,8 @@ void FrameAutoAttacher::WorkerCreated(ServiceWorkerDevToolsAgentHost* host,
     return;
   }
 
-  *should_pause_on_start = wait_for_debugger_on_start();
-  DispatchAutoAttach(host, *should_pause_on_start);
+  *should_pause_on_start =
+      DispatchAutoAttach(host, wait_for_debugger_on_start());
 }
 
 void FrameAutoAttacher::WorkerDestroyed(ServiceWorkerDevToolsAgentHost* host) {
@@ -245,11 +245,11 @@ void FrameAutoAttacher::AuctionWorkletCreated(DebuggableAuctionWorklet* worklet,
                                                      worklet)) {
     return;
   }
-  should_pause_on_start = wait_for_debugger_on_start();
-  DispatchAutoAttach(AuctionWorkletDevToolsAgentHostManager::GetInstance()
-                         .GetOrCreateFor(worklet)
-                         .get(),
-                     should_pause_on_start);
+  should_pause_on_start =
+      DispatchAutoAttach(AuctionWorkletDevToolsAgentHostManager::GetInstance()
+                             .GetOrCreateFor(worklet)
+                             .get(),
+                         wait_for_debugger_on_start());
 }
 
 void FrameAutoAttacher::SharedStorageWorkletCreated(
@@ -263,8 +263,8 @@ void FrameAutoAttacher::SharedStorageWorkletCreated(
     return;
   }
 
-  should_pause_on_start = wait_for_debugger_on_start();
-  DispatchAutoAttach(host, should_pause_on_start);
+  should_pause_on_start =
+      DispatchAutoAttach(host, wait_for_debugger_on_start());
 }
 
 void FrameAutoAttacher::SharedStorageWorkletDestroyed(

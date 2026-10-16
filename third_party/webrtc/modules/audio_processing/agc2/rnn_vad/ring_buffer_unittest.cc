@@ -84,7 +84,7 @@ TEST(RnnVadTest, RingBufferArrayViews) {
       for (int j = i + 1; j < n; ++j) {
         SCOPED_TRACE(j);
         auto view_j = ring_buf.GetArrayView(j);
-        EXPECT_NE(view_i, view_j);
+        EXPECT_NE(view_i.data(), view_j.data());
       }
     }
     ring_buf.Push(pushed_array);

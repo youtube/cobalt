@@ -1187,8 +1187,15 @@ std::unique_ptr<IceMessage> Connection::BuildPingRequest(
 
   if (delta) {
     RTC_DCHECK(delta->type() == STUN_ATTR_GOOG_DELTA);
-    RTC_LOG(LS_INFO) << "Sending GOOG_DELTA: len: " << delta->length();
-    message->AddAttribute(std::move(delta));
+    size_t msg_length = message->length();
+    if (msg_length + kStunAttributeHeaderSize + delta->length() <
+        kMaxStunBindingLength) {
+      RTC_LOG(LS_INFO) << "Sending GOOG_DELTA: len: " << delta->length();
+      message->AddAttribute(std::move(delta));
+    } else {
+      RTC_LOG(LS_WARNING) << "Not sending GOOG_DELTA, request full: len: "
+                          << delta->length() << " msg_length: " << msg_length;
+    }
   }
 
   MaybeAddDtlsPiggybackingAttributes(message.get());

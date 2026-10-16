@@ -30,7 +30,6 @@ void FuzzOneInput(const uint8_t* data, size_t size) {
   vp9_decoder.payload_type = 124;
   vp9_config.decoders.push_back(std::move(vp9_decoder));
 
-  vp9_config.rtp.local_ssrc = 7731;
   vp9_config.rtp.remote_ssrc = 1337;
   vp9_config.rtp.rtx_ssrc = 100;
   vp9_config.rtp.nack.rtp_history_ms = 1000;

@@ -77,15 +77,14 @@ void LinearEchoPower(const FftData& E,
 void SignalTransition(ArrayView<const float> from,
                       ArrayView<const float> to,
                       ArrayView<float> out) {
-  if (from == to) {
-    RTC_DCHECK_EQ(to.size(), out.size());
+  RTC_DCHECK_EQ(from.size(), to.size());
+  RTC_DCHECK_EQ(from.size(), out.size());
+  if (from.data() == to.data()) {
     std::copy(to.begin(), to.end(), out.begin());
   } else {
     constexpr size_t kTransitionSize = 30;
     constexpr float kOneByTransitionSizePlusOne = 1.f / (kTransitionSize + 1);
 
-    RTC_DCHECK_EQ(from.size(), to.size());
-    RTC_DCHECK_EQ(from.size(), out.size());
     RTC_DCHECK_LE(kTransitionSize, out.size());
 
     for (size_t k = 0; k < kTransitionSize; ++k) {

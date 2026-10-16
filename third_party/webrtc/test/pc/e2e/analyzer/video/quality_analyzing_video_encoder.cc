@@ -339,9 +339,20 @@ EncodedImageCallback::Result QualityAnalyzingVideoEncoder::OnEncodedImage(
 void QualityAnalyzingVideoEncoder::OnDroppedFrame(
     EncodedImageCallback::DropReason reason) {
   MutexLock lock(&mutex_);
-  analyzer_->OnFrameDropped(peer_name_, reason);
+  analyzer_->OnFrameDropped(peer_name_);
   RTC_DCHECK(delegate_callback_);
   delegate_callback_->OnDroppedFrame(reason);
+}
+
+void QualityAnalyzingVideoEncoder::OnFrameDropped(
+    uint32_t rtp_timestamp,
+    int spatial_id,
+    bool is_end_of_temporal_unit) {
+  MutexLock lock(&mutex_);
+  analyzer_->OnFrameDropped(peer_name_);
+  RTC_DCHECK(delegate_callback_);
+  delegate_callback_->OnFrameDropped(rtp_timestamp, spatial_id,
+                                     is_end_of_temporal_unit);
 }
 
 bool QualityAnalyzingVideoEncoder::ShouldDiscard(

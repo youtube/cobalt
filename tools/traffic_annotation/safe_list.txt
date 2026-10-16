@@ -258,7 +258,7 @@ missing_new_fields,content/browser/loader/navigation_early_hints_manager.cc
 missing_new_fields,content/browser/loader/navigation_url_loader_impl.cc
 missing_new_fields,content/browser/media/url_provision_fetcher.cc
 missing_new_fields,content/browser/preloading/prefetch/prefetch_origin_prober.cc
-missing_new_fields,content/browser/preloading/prefetch/prefetch_service.cc
+missing_new_fields,content/browser/preloading/prefetch/prefetch_resource_request_utils.cc
 missing_new_fields,content/browser/renderer_host/pending_beacon_service.cc
 missing_new_fields,content/browser/renderer_host/pepper/pepper_socket_utils.cc
 missing_new_fields,content/browser/renderer_host/render_frame_host_impl.cc
@@ -291,7 +291,6 @@ missing_new_fields,google_apis/gcm/engine/unregistration_request.cc
 missing_new_fields,headless/lib/browser/headless_request_context_manager.cc
 missing_new_fields,media/cast/net/udp_transport_impl.cc
 missing_new_fields,net/cert_net/cert_net_fetcher_url_request.cc
-missing_new_fields,net/dns/dns_transaction.cc
 missing_new_fields,net/http/bidirectional_stream.cc
 missing_new_fields,net/proxy_resolution/proxy_config_service.cc
 missing_new_fields,net/proxy_resolution/proxy_config_with_annotation.cc

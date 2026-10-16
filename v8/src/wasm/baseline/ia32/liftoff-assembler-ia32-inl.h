@@ -57,7 +57,6 @@ inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, Register base,
     case kI32:
     case kRefNull:
     case kRef:
-    case kWaitQueue:
       assm->mov(dst.gp(), src);
       break;
     case kI64:
@@ -78,6 +77,7 @@ inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, Register base,
     case kBottom:
     case kI8:
     case kF16:
+    case kWaitQueue:
       UNREACHABLE();
   }
 }
@@ -92,7 +92,6 @@ inline void Store(LiftoffAssembler* assm, Register base, int32_t offset,
     case kI32:
     case kRefNull:
     case kRef:
-    case kWaitQueue:
       assm->mov(dst, src.gp());
       break;
     case kI64:
@@ -113,6 +112,7 @@ inline void Store(LiftoffAssembler* assm, Register base, int32_t offset,
     case kBottom:
     case kI8:
     case kF16:
+    case kWaitQueue:
       UNREACHABLE();
   }
 }
@@ -123,7 +123,6 @@ inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueKind kind,
     case kI32:
     case kRef:
     case kRefNull:
-    case kWaitQueue:
       assm->AllocateStackSpace(padding);
       assm->push(reg.gp());
       break;
@@ -150,6 +149,7 @@ inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueKind kind,
     case kI8:
     case kI16:
     case kF16:
+    case kWaitQueue:
       UNREACHABLE();
   }
 }
@@ -581,12 +581,10 @@ void LiftoffAssembler::EmitWriteBarrier(Register target_object,
   bind(&exit);
 }
 
-void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
-                                          Register offset_reg,
-                                          int32_t offset_imm, Register src,
-                                          LiftoffRegList pinned,
-                                          uint32_t* protected_store_pc,
-                                          SkipWriteBarrier skip_write_barrier) {
+void LiftoffAssembler::StoreTaggedPointer(
+    Register dst_addr, Register offset_reg, int32_t offset_imm, Register src,
+    LiftoffRegList pinned, uint32_t* protected_store_pc,
+    compiler::WriteBarrierKind write_barrier) {
   DCHECK_GE(offset_imm, 0);
   DCHECK_LE(offset_imm, std::numeric_limits<int32_t>::max());
   static_assert(kTaggedSize == kInt32Size);
@@ -598,7 +596,7 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
 
   if (v8_flags.disable_write_barriers) return;
 
-  if (skip_write_barrier) {
+  if (write_barrier == compiler::kNoWriteBarrier) {
     if (v8_flags.verify_write_barriers) {
       CallVerifySkippedWriteBarrierStubSaveRegisters(dst_addr, src,
                                                      SaveFPRegsMode::kSave);

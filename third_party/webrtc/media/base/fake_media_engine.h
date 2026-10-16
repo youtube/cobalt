@@ -128,8 +128,6 @@ class RtpReceiveChannelHelper : public Base, public MediaChannelUtil {
   std::optional<uint32_t> GetUnsignaledSsrc() const override {
     return std::nullopt;
   }
-  void ChooseReceiverReportSsrc(
-      const std::set<uint32_t>& /* choices */) override {}
 
   virtual bool SetLocalSsrc(const StreamParams& /* sp */) { return true; }
   void OnDemuxerCriteriaUpdatePending() override {}

@@ -954,6 +954,11 @@ size_t InstructionSelector::AddInputsToFrameStateDescriptor(
 }
 
 Instruction* InstructionSelector::EmitWithContinuation(
+    InstructionCode opcode, FlagsContinuation* cont) {
+  return EmitWithContinuation(opcode, 0, nullptr, 0, nullptr, cont);
+}
+
+Instruction* InstructionSelector::EmitWithContinuation(
     InstructionCode opcode, InstructionOperand a, FlagsContinuation* cont) {
   return EmitWithContinuation(opcode, 0, nullptr, 1, &a, cont);
 }
@@ -1374,6 +1379,7 @@ bool InstructionSelector::IsSourcePositionUsed(OpIndex node) {
     }
 #if V8_ENABLE_WEBASSEMBLY
     if (operation.Is<TrapIfOp>()) return true;
+    if (operation.Is<WasmTrapOp>()) return true;
     if (const AtomicRMWOp* rmw = operation.TryCast<AtomicRMWOp>()) {
       return rmw->memory_access_kind ==
              MemoryAccessKind::kProtectedByTrapHandler;
@@ -2258,8 +2264,14 @@ void InstructionSelector::VisitCall(
   if (!effect_handlers.empty()) {
     flags |= CallDescriptor::kHasEffectHandler;
     for (auto& handler : effect_handlers) {
-      buffer.instruction_args.push_back(g.Label(handler.block));
-      buffer.instruction_args.push_back(g.UseImmediate(handler.tag_index));
+      if (!handler.is_switch()) {
+        buffer.instruction_args.push_back(g.Label(handler.block));
+      } else {
+        buffer.instruction_args.push_back(g.UseImmediate(0));
+      }
+
+      buffer.instruction_args.push_back(
+          g.UseImmediate(handler.tag_and_kind.raw_value()));
     }
     buffer.instruction_args.push_back(
         g.UseImmediate(static_cast<int>(effect_handlers.size())));
@@ -2585,8 +2597,16 @@ void InstructionSelector::VisitSelect(OpIndex node) {
   VisitWordCompareZero(node, select.cond(), &cont);
 }
 
-void InstructionSelector::VisitTrapIf(OpIndex node) {
 #if V8_ENABLE_WEBASSEMBLY
+void InstructionSelector::VisitWasmTrap(OpIndex node) {
+  const WasmTrapOp& trap = Cast<WasmTrapOp>(node);
+  OperandGenerator g(this);
+  InstructionOperand input =
+      g.TempImmediate(static_cast<int32_t>(trap.trap_id));
+  Emit(kArchTrap, 0, nullptr, 1, &input);
+}
+
+void InstructionSelector::VisitTrapIf(OpIndex node) {
   const TrapIfOp& trap_if = Cast<TrapIfOp>(node);
   // FrameStates are only used for wasm traps inlined in JS. In that case the
   // trap node will be lowered (replaced) before instruction selection.
@@ -2595,10 +2615,8 @@ void InstructionSelector::VisitTrapIf(OpIndex node) {
   FlagsContinuation cont = FlagsContinuation::ForTrap(
       trap_if.negated ? kEqual : kNotEqual, trap_if.trap_id);
   VisitWordCompareZero(node, trap_if.condition(), &cont);
-#else
-  UNREACHABLE();
-#endif
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void InstructionSelector::EmitIdentity(OpIndex node) {
   EmitIdentity(node, Get(node).input(0));
@@ -2740,6 +2758,10 @@ void InstructionSelector::VisitControl(const Block* block) {
       return VisitUnreachable(node);
     case Opcode::kStaticAssert:
       return VisitStaticAssert(node);
+#if V8_ENABLE_WEBASSEMBLY
+    case Opcode::kWasmTrap:
+      return VisitWasmTrap(node);
+#endif
     default: {
       const std::string op_string = op.ToString();
       PrintF("\033[31mNo ISEL support for: %s\033[m\n", op_string.c_str());
@@ -2768,6 +2790,9 @@ void InstructionSelector::VisitNode(OpIndex node) {
     case Opcode::kDeoptimize:
     case Opcode::kSwitch:
     case Opcode::kCheckException:
+#if V8_ENABLE_WEBASSEMBLY
+    case Opcode::kWasmTrap:
+#endif
       // Those are already handled in VisitControl.
       DCHECK(op.IsBlockTerminator());
       break;

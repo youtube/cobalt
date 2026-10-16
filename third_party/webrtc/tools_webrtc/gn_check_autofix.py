@@ -166,16 +166,19 @@ def rebase(base_path, dependency_path, dependency):
 
 def _update_deps(new_lines, current_deps_lines_content, block_type):
     """Helper to finalize and append a processed deps block to new_lines."""
-    absolute_deps = []
+    deps_to_keep = []
     for dep_line in current_deps_lines_content:
-        absolute_deps.extend(re.findall(r'"(//[^"]*)"', dep_line))
+        # Keep absolute dependencies.
+        deps_to_keep.extend(re.findall(r'"(//[^"]*)"', dep_line))
+        # Keep test targets.
+        deps_to_keep.extend(re.findall(r'"([^"]*_unittests)"', dep_line))
 
     if block_type == 'deps_set':
         new_lines.append('deps = [\n')
     elif block_type == 'deps_add':
         new_lines.append('deps += [\n')
 
-    for dep in absolute_deps:
+    for dep in deps_to_keep:
         new_lines.append('"' + dep + '",\n')
     new_lines.append(']\n')
 

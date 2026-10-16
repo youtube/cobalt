@@ -139,8 +139,6 @@ DataSize DelayBasedCongestionControl::UpdateReferenceWindow(
 
   double backoff = l4s_alpha_v() / 2.0;  // Reduce by 50% if l4s_alpha_v = 1.0;
   backoff /= std::max(1.0, last_smoothed_rtt_ / params_.virtual_rtt);
-  backoff *= std::max(0.5, 1.0 - ref_window_mss_ratio);
-
   return std::max(min_allowed_reference_window, (1 - backoff) * ref_window);
 }
 

@@ -47,7 +47,7 @@ void TestGatedRecurrentLayer(GatedRecurrentLayer& gru,
         input_sequence.subspan(i * gru.input_size(), gru.input_size()));
     const auto expected_output =
         expected_output_sequence.subspan(i * gru.size(), gru.size());
-    ExpectNearAbsolute(expected_output, gru, 3e-6f);
+    ExpectNearAbsolute(expected_output, gru.output(), 3e-6f);
   }
 }
 

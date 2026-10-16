@@ -522,8 +522,8 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   DECL_PRIMITIVE_ACCESSORS(tiering_budget_array, std::atomic<uint32_t>*)
   DECL_PROTECTED_POINTER_ACCESSORS(memory_bases_and_sizes,
                                    TrustedFixedAddressArray)
-  DECL_ACCESSORS(data_segment_starts, Tagged<FixedAddressArray>)
-  DECL_ACCESSORS(data_segment_sizes, Tagged<FixedUInt32Array>)
+  DECL_PROTECTED_POINTER_ACCESSORS(data_segments,
+                                   TrustedPodArray<wasm::WireBytesRef>)
   DECL_ACCESSORS(element_segments, Tagged<FixedArray>)
   DECL_PRIMITIVE_ACCESSORS(break_on_entry, uint8_t)
 
@@ -564,8 +564,7 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   V(kTieringBudgetArrayOffset, kSystemPointerSize)                        \
   /* Less than system pointer size aligned fields are below. */           \
   V(kProtectedMemoryBasesAndSizesOffset, kTaggedSize)                     \
-  V(kDataSegmentStartsOffset, kTaggedSize)                                \
-  V(kDataSegmentSizesOffset, kTaggedSize)                                 \
+  V(kProtectedDataSegmentsOffset, kTaggedSize)                            \
   V(kElementSegmentsOffset, kTaggedSize)                                  \
   V(kInstanceObjectOffset, kTaggedSize)                                   \
   V(kNativeContextOffset, kTaggedSize)                                    \
@@ -622,12 +621,11 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   V(kImportedMutableGlobalsOffset, "imported_mutable_globals")                \
   IF_WASM_DRUMBRAKE(V, kImportedFunctionIndicesOffset,                        \
                     "imported_function_indices")                              \
-  V(kDataSegmentStartsOffset, "data_segment_starts")                          \
-  V(kDataSegmentSizesOffset, "data_segment_sizes")                            \
   V(kElementSegmentsOffset, "element_segments")
 #define WASM_PROTECTED_INSTANCE_DATA_FIELDS(V)                             \
   V(kProtectedSharedPartOffset, "shared_part")                             \
   V(kProtectedMemoryBasesAndSizesOffset, "memory_bases_and_sizes")         \
+  V(kProtectedDataSegmentsOffset, "data_segments")                         \
   V(kProtectedDispatchTable0Offset, "dispatch_table0")                     \
   V(kProtectedDispatchTablesOffset, "dispatch_tables")                     \
   V(kProtectedDispatchTableForImportsOffset, "dispatch_table_for_imports") \
@@ -636,13 +634,12 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
 #define WASM_INSTANCE_FIELD_OFFSET(offset, _) offset,
 #define WASM_INSTANCE_FIELD_NAME(_, name) name,
 
-#if V8_ENABLE_DRUMBRAKE
-  static constexpr size_t kWasmInterpreterAdditionalFields = 2;
-#else
-  static constexpr size_t kWasmInterpreterAdditionalFields = 0;
-#endif  // V8_ENABLE_DRUMBRAKE
+#define PLUS_ONE(...) +1
   static constexpr size_t kTaggedFieldsCount =
-      16 + kWasmInterpreterAdditionalFields;
+      WASM_TAGGED_INSTANCE_DATA_FIELDS(PLUS_ONE);
+  static constexpr size_t kProtectedFieldsCount =
+      WASM_PROTECTED_INSTANCE_DATA_FIELDS(PLUS_ONE);
+#undef PLUS_ONE
 
   static constexpr std::array<uint16_t, kTaggedFieldsCount>
       kTaggedFieldOffsets = {
@@ -650,10 +647,12 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   static constexpr std::array<const char*, kTaggedFieldsCount>
       kTaggedFieldNames = {
           WASM_TAGGED_INSTANCE_DATA_FIELDS(WASM_INSTANCE_FIELD_NAME)};
-  static constexpr std::array<uint16_t, 6> kProtectedFieldOffsets = {
-      WASM_PROTECTED_INSTANCE_DATA_FIELDS(WASM_INSTANCE_FIELD_OFFSET)};
-  static constexpr std::array<const char*, 6> kProtectedFieldNames = {
-      WASM_PROTECTED_INSTANCE_DATA_FIELDS(WASM_INSTANCE_FIELD_NAME)};
+  static constexpr std::array<uint16_t, kProtectedFieldsCount>
+      kProtectedFieldOffsets = {
+          WASM_PROTECTED_INSTANCE_DATA_FIELDS(WASM_INSTANCE_FIELD_OFFSET)};
+  static constexpr std::array<const char*, kProtectedFieldsCount>
+      kProtectedFieldNames = {
+          WASM_PROTECTED_INSTANCE_DATA_FIELDS(WASM_INSTANCE_FIELD_NAME)};
 
 #undef WASM_INSTANCE_FIELD_OFFSET
 #undef WASM_INSTANCE_FIELD_NAME
@@ -1515,13 +1514,15 @@ class WasmStruct : public TorqueGeneratedWasmStruct<WasmStruct, WasmObject> {
       DirectHandle<Object> first_field);
   DECL_ACCESSORS(described_rtt, Tagged<Map>)
 
-  // The RTT on descriptor structs can have a prototype when exposed to JS.
-  static DirectHandle<JSObject> AllocatePrototype(
-      Isolate* isolate, DirectHandle<JSPrototype> parent);
-
   V8_EXPORT_PRIVATE wasm::WasmValue GetFieldValue(uint32_t field_index);
   inline void SetTaggedFieldValue(int raw_offset, Tagged<Object> value,
                                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  // {raw_field_offset} does not include {WasmStruct::kHeaderSize},
+  // {wasm::kWaitQueueManagedOffset}, or {kHeapObjectTag}.
+  static void AllocateWaitQueue(Isolate* isolate,
+                                DirectHandle<WasmStruct> struct_value,
+                                int32_t raw_field_offset);
 
   DECL_PRINTER(WasmStruct)
 

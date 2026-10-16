@@ -650,6 +650,22 @@ rtc_library("stringutils") {
   ]
 }
 
+rtc_library("text2pcap") {
+  visibility = [ "*" ]
+  sources = [
+    "text2pcap.cc",
+    "text2pcap.h",
+  ]
+  deps = [
+    ":logging",
+    ":stringutils",
+    ":timeutils",
+    "../api:array_view",
+    "system:rtc_export",
+    "//third_party/abseil-cpp/absl/strings:string_view",
+  ]
+}
+
 rtc_source_set("type_traits") {
   sources = [ "type_traits.h" ]
 }
@@ -1040,6 +1056,7 @@ rtc_library("threading") {
     ":socket_address",
     ":socket_server",
     ":timeutils",
+    "../api:array_view",
     "../api:async_dns_resolver",
     "../api:function_view",
     "../api:location",
@@ -1107,6 +1124,7 @@ rtc_library("socket") {
     ":ip_address",
     ":net_helpers",
     ":socket_address",
+    "../api:array_view",
     "../api/transport:ecn_marking",
     "../api/units:timestamp",
     "system:rtc_export",
@@ -2183,12 +2201,14 @@ if (rtc_include_tests) {
         "../test:create_test_environment",
         "../test:fileutils",
         "../test:test_support",
+        "../test/time_controller",
         "containers:flat_map",
         "containers:unittests",
         "memory:unittests",
         "network:received_packet",
         "synchronization:mutex",
         "task_utils:repeating_task",
+        "//third_party/abseil-cpp/absl/algorithm:container",
         "//third_party/abseil-cpp/absl/base:core_headers",
         "//third_party/abseil-cpp/absl/memory",
         "//third_party/abseil-cpp/absl/numeric:bits",

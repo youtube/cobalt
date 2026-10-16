@@ -163,7 +163,7 @@ rtcp::CongestionControlFeedback BuildRtcpCongestionControlFeedbackPacket(
     ArrayView<const PacketTemplate> packets) {
   // Assume the feedback was sent when the last packet was received.
   Timestamp feedback_sent_time = Timestamp::MinusInfinity();
-  for (auto it = packets.crbegin(); it != packets.crend(); ++it) {
+  for (auto it = packets.rbegin(); it != packets.rend(); ++it) {
     if (it->receive_timestamp.IsFinite()) {
       feedback_sent_time = it->receive_timestamp;
       break;

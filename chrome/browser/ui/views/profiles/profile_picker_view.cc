@@ -535,6 +535,7 @@ ProfilePickerView::ProfilePickerView(ProfilePicker::Params&& params)
   // Setup the WidgetDelegate.
   SetHasWindowSizeControls(true);
   SetTitle(kWindowTitleId);
+  SetProperty(views::kElementIdentifierKey, kViewId);
 
   ConfigureAccelerators();
 
@@ -903,6 +904,7 @@ void ProfilePickerView::InitializeFeaturePromo(Profile* system_profile) {
 
   feature_promo_ = std::make_unique<ProfilePickerFeaturePromoController>(
       tracker_service, user_education_service, g_profile_picker_view);
+  feature_promo_->Init();
 }
 
 ProfilePickerFlowController* ProfilePickerView::GetProfilePickerFlowController()
@@ -937,3 +939,5 @@ void ProfilePickerView::ShowSigninErrorDialog(
 
 BEGIN_METADATA(ProfilePickerView)
 END_METADATA
+
+DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(ProfilePickerView, kViewId);

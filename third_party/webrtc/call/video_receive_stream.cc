@@ -142,7 +142,6 @@ VideoReceiveStreamInterface::Config::Rtp::~Rtp() = default;
 std::string VideoReceiveStreamInterface::Config::Rtp::ToString() const {
   StringBuilder ss;
   ss << "{remote_ssrc: " << remote_ssrc;
-  ss << ", local_ssrc: " << local_ssrc;
   ss << ", rtcp_mode: "
      << (rtcp_mode == RtcpMode::kCompound ? "RtcpMode::kCompound"
                                           : "RtcpMode::kReducedSize");

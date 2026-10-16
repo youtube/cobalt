@@ -1060,6 +1060,7 @@
 <translation id="2674524144218093528">페인트칠 및 마감</translation>
 <translation id="26774279487328902">탭 그룹 <ph name="GROUP_COUNT" />개를 더 이상 사용할 수 없음</translation>
 <translation id="2677748264148917807">나가기</translation>
+<translation id="2679659833697380">정보가 기기에 저장됩니다.</translation>
 <translation id="2683195745483370038">다른 검색 결과가 표시됨</translation>
 <translation id="2686919536310834199">작성 지원 기능에 관한 의견을 보냅니다.</translation>
 <translation id="2687555958734450033">자동 맞춤</translation>
@@ -2574,6 +2575,7 @@
 <translation id="5114987907971894280">가상 현실</translation>
 <translation id="5115232566827194440">제한된 관리 게스트 세션 재정의</translation>
 <translation id="5115563688576182185">(64비트)</translation>
+<translation id="5116015291385561204">본인 인증을 완료하여 민감한 정보 자동 완성</translation>
 <translation id="5120526915373271910">가족 영화</translation>
 <translation id="5122786942953798871">봉투(면)</translation>
 <translation id="5123063207673082822">주말</translation>
@@ -3974,6 +3976,7 @@
 <translation id="7372973238305370288">검색결과</translation>
 <translation id="7374461526650987610">프로토콜 핸들러</translation>
 <translation id="7374733840632556089">나 또는 다른 사용자가 기기에 설치한 인증서로 인해 이 문제가 발생할 수 있습니다. 이 인증서는 네트워크를 모니터링하고 가로막는 데 사용되는 것으로 알려져 있으며, Chrome에서 신뢰하지 않습니다. 학교나 회사 네트워크에서 발생하는 합법적인 모니터링도 존재합니다. 사용자가 멈출 수는 없더라도 모니터링이 이뤄지고 있다는 사실을 Chrome에서는 알립니다. 모니터링은 웹에 액세스하는 모든 브라우저 또는 애플리케이션에서 이뤄집니다.</translation>
+<translation id="73750335798090836">보안을 강화하려면 여행 및 신원 확인 문서와 같은 민감한 정보를 사용할 때 항상 지문, 얼굴 인식 또는 기타 화면 잠금을 사용하세요</translation>
 <translation id="7375532151824574023">{NUM_COOKIES,plural, =0{허용된 사이트 없음}=1{허용된 사이트 1개}other{허용된 사이트 #개}}</translation>
 <translation id="7375818412732305729">파일 첨부됨</translation>
 <translation id="7376031331622621328">상거래 하단 시트</translation>
@@ -4229,6 +4232,7 @@
 <translation id="7714404809393719981">사진(반광택)</translation>
 <translation id="7714424966701020172">전체 이름 입력 옵션이 선택됨</translation>
 <translation id="7714464543167945231">인증서</translation>
+<translation id="7714943438925794410">이러한 옵션을 제공하기 위해 결제 페이지의 페이지 콘텐츠가 Google과 공유됩니다. 자동 완성에서 후불 결제 옵션을 숨기려면 <ph name="IDS_AUTOFILL_CARD_BNPL_SELECT_PROVIDER_FOOTNOTE_HIDE_OPTION_PAYMENT_SETTINGS_LINK_TEXT" />(으)로 이동하세요.</translation>
 <translation id="7716147886133743102">관리자가 차단함</translation>
 <translation id="7716375162095500223">아직 업로드 또는 무시되지 않음</translation>
 <translation id="7716424297397655342">이 사이트를 캐시에서 로드할 수 없음</translation>
@@ -4311,6 +4315,7 @@
 <translation id="7862306158978555061">민감한 정보 표시</translation>
 <translation id="7865448901209910068">최고 속도</translation>
 <translation id="7865482168955081228">선구매 후지불 오류 화면이 닫혔습니다.</translation>
+<translation id="7870207318911766769">이러한 옵션을 제공하기 위해 결제 페이지의 페이지 콘텐츠가 Google과 공유됩니다.</translation>
 <translation id="7870281855125116701">할인 제품 찾음</translation>
 <translation id="7871445724586827387">Google 계정 비밀번호 변경</translation>
 <translation id="787226752901403048">Chrome에 로그인하여 탭 그룹을 공유하고, 탭 그룹에 참여하며, 아이디어를 함께 작업하세요.</translation>

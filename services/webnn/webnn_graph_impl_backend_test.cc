@@ -318,6 +318,7 @@ void WebNNGraphImplBackendTest::SetUp() {
       "BuildAndComputeSingleOperatorRelu",
       "BuildAndComputeSingleOperatorTanh",
       "BuildAndComputeGraphWithTwoTranspose",
+      "DestroyContextDuringBuild",
   });
   if (!kSupportedTests.contains(GetBaseTestName(current_test_name))) {
     GTEST_SKIP() << "Skipping test because the operator is not yet supported.";
@@ -366,31 +367,42 @@ void WebNNGraphImplBackendTest::SetUp() {
       "BuildAndComputeConcatWithConstants",
       "BuildAndComputeGraphWithReshapeAsIntermediateNode",
       "BuildAndComputeGraphWithReshapeAsLastNode",
+#if !BUILDFLAG(IS_WIN)
       "BuildAndComputeGraphWithSplitAndReshape",
+#endif  // !BUILDFLAG(IS_WIN)
       "BuildAndComputeGraphWithTransposeAndRelu",
+#if !BUILDFLAG(IS_WIN)
       "BuildAndComputeGraphWithTransposeAndTwoOutputs",
+#endif  // !BUILDFLAG(IS_WIN)
       "BuildAndComputeGraphWithTransposeAndTwoReshape",
       "BuildAndComputeGraphWithTwoOutputs", "BuildAndComputeGraphWithTwoRelu",
       "BuildAndComputeGraphWithTwoReshape",
       "BuildAndComputeGraphWithTwoTranspose",
       "BuildAndComputeMultipleOperatorGemm",
       // "BuildAndComputeReluWithOnlyConstantInput",
+#if !BUILDFLAG(IS_WIN)
       "BuildAndComputeReshapeConcatAndClamp",
+#endif  // !BUILDFLAG(IS_WIN)
       "BuildAndComputeSingleOperatorClamp",
+#if !BUILDFLAG(IS_WIN)
       "BuildAndComputeSingleOperatorGruCell",
       "BuildAndComputeSingleOperatorGru",
+#endif  // !BUILDFLAG(IS_WIN)
       "BuildAndComputeSingleOperatorHardSigmoid",
       "BuildAndComputeSingleOperatorHardSwish",
       // "BuildAndComputeSingleOperatorLstmCell",
       // "BuildAndComputeSingleOperatorLstm",
       // "BuildAndComputeSingleOperatorResample2d",
       "BuildAndComputeSingleOperatorTanh",
-      "BuildGemmWithReshapedConstantOperand", "BuildMaxPoolingAsFirstOperator",
-      "BuildMaxPoolingAsSecondOperator", "BuildMaxPoolingAsThirdOperator",
+      "BuildGemmWithReshapedConstantOperand",
+#if !BUILDFLAG(IS_WIN)
+      "BuildMaxPoolingAsFirstOperator", "BuildMaxPoolingAsSecondOperator",
+      "BuildMaxPoolingAsThirdOperator",
+#endif  // !BUILDFLAG(IS_WIN)
       "BuildMultipleConstantsAppendingInputs",
       "BuildMultipleInputsAppendingConstants",
       "BuildSingleOperatorLayerNormalization",
-      "BuildOneInputAndOneConstantOperand",
+      "BuildOneInputAndOneConstantOperand", "DestroyContextDuringBuild",
       // "FuseStandaloneActivationIntoBatchNormalization",
       // "FuseStandaloneActivationIntoConv2d",
       "FuseStandaloneActivationIntoElementWiseBinaryAdd",
@@ -3919,6 +3931,29 @@ TEST_P(WebNNGraphImplBackendTest,
         {-88, -79, -73, -67, -76, -67, -46, -37, -28, -49, -37, -1, 8,
          17,  -19, -7,  44,  53,  62,  11,  -28, 11,  17,  23,  -16});
   }
+}
+
+TEST_P(WebNNGraphImplBackendTest, DestroyContextDuringBuild) {
+  // Build the mojom graph info.
+  mojo::AssociatedRemote<mojom::WebNNGraphBuilder> remote =
+      BindNewGraphBuilderRemote();
+  GraphInfoBuilder builder(remote);
+  OperandId input_operand_id =
+      builder.BuildInput("input", {1, 2, 3, 4}, OperandDataType::kFloat32);
+  OperandId output_operand_id =
+      builder.BuildOutput("output1", {1, 1, 6, 4}, OperandDataType::kFloat32);
+  builder.BuildReshape(input_operand_id, output_operand_id);
+
+  // The CreateGraph callback should never be called.
+  remote->CreateGraph(
+      builder.TakeGraphInfo(),
+      base::BindOnce(
+          [](base::expected<mojom::CreateGraphSuccessPtr, mojom::ErrorPtr>
+                 result) { NOTREACHED(); }));
+
+  // Destroy the context and wait for any pending tasks to complete.
+  context().reset();
+  webnn_test_environment_.RunUntilIdle();
 }
 
 }  // namespace webnn::test

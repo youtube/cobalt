@@ -680,6 +680,8 @@ void CreateScreamSimulationRefWindowGraph(const ParsedRtcEventLog& parsed_log,
   TimeSeries ref_window_series("RefWindow", LineStyle::kStep);
   TimeSeries ref_window_i_series("RefWindowI", LineStyle::kStep);
   TimeSeries max_data_in_flight("Max allowed data in flight", LineStyle::kStep);
+  TimeSeries max_allowed_ref_window_series("Max allowed ref window",
+                                           LineStyle::kStep);
   TimeSeries data_in_flight("Data in flight", LineStyle::kStep);
   IntervalSeries send_window_above_max_series(
       "Data in flight > Max allowed", "#ff8e82", IntervalSeries::kHorizontal);
@@ -700,7 +702,7 @@ void CreateScreamSimulationRefWindowGraph(const ParsedRtcEventLog& parsed_log,
   float send_window_state_switch =
       config.GetCallTimeSec(simulation.updates().front().time);
   SendWindowUsage send_window_usage = SendWindowUsage::kBelowRefWindow;
-
+  float last_time = config.CallBeginTimeSec();
   for (const LogScreamSimulation::State& state : simulation.updates()) {
     ref_window_series.points.emplace_back(config.GetCallTimeSec(state.time),
                                           state.ref_window.bytes());
@@ -708,8 +710,11 @@ void CreateScreamSimulationRefWindowGraph(const ParsedRtcEventLog& parsed_log,
                                             state.ref_window_i.bytes());
     max_data_in_flight.points.emplace_back(config.GetCallTimeSec(state.time),
                                            state.max_data_in_flight.bytes());
-    data_in_flight.points.emplace_back(config.GetCallTimeSec(state.time),
-                                       state.data_in_flight.bytes());
+    max_allowed_ref_window_series.points.emplace_back(
+        config.GetCallTimeSec(state.time),
+        state.max_allowed_ref_window.bytes());
+    // Plot the max data in flight before the feedback.
+    data_in_flight.points.emplace_back(last_time, state.data_in_flight.bytes());
     if (state.send_window_usage != send_window_usage) {
       last_series->intervals.emplace_back(send_window_state_switch,
                                           config.GetCallTimeSec(state.time));
@@ -727,12 +732,14 @@ void CreateScreamSimulationRefWindowGraph(const ParsedRtcEventLog& parsed_log,
           break;
       }
     }
+    last_time = config.GetCallTimeSec(state.time);
   }
   last_series->intervals.emplace_back(send_window_state_switch,
                                       config.CallEndTimeSec());
   plot->AppendTimeSeries(std::move(ref_window_series));
   plot->AppendTimeSeries(std::move(ref_window_i_series));
   plot->AppendTimeSeries(std::move(max_data_in_flight));
+  plot->AppendTimeSeries(std::move(max_allowed_ref_window_series));
   plot->AppendTimeSeries(std::move(data_in_flight));
   plot->AppendIntervalSeries(std::move(send_window_above_max_series));
   plot->AppendIntervalSeries(std::move(send_window_below_ref_window_series));
@@ -754,6 +761,10 @@ void CreateScreamSimulationRatiosGraph(const ParsedRtcEventLog& parsed_log,
       "RefWindowScaleFactorDueToIncreasedDelay", LineStyle::kStep);
   TimeSeries ref_window_scale_factor_due_to_delay_variation(
       "RefWindowScaleFactorDueToDelayVariation", LineStyle::kStep);
+  TimeSeries ref_window_scale_factor_close_to_ref_window_i(
+      "RefWindowScaleFactorCloseToRefWindowI", LineStyle::kStep);
+  TimeSeries ref_window_combined_increase_scale_factor(
+      "RefWindowCombinedIncreaseScaleFactor", LineStyle::kStep);
 
   LogScreamSimulation simulation({.rate_window = config.window_duration_},
                                  config.env_);
@@ -772,6 +783,12 @@ void CreateScreamSimulationRatiosGraph(const ParsedRtcEventLog& parsed_log,
     ref_window_scale_factor_due_to_delay_variation.points.emplace_back(
         config.GetCallTimeSec(state.time),
         state.ref_window_scale_factor_due_to_delay_variation);
+    ref_window_scale_factor_close_to_ref_window_i.points.emplace_back(
+        config.GetCallTimeSec(state.time),
+        state.ref_window_scale_factor_close_to_ref_window_i);
+    ref_window_combined_increase_scale_factor.points.emplace_back(
+        config.GetCallTimeSec(state.time),
+        state.ref_window_combined_increase_scale_factor);
   }
   plot->AppendTimeSeries(std::move(queue_delay_dev_norm_series));
   plot->AppendTimeSeries(std::move(l4s_alpha_series));
@@ -780,6 +797,9 @@ void CreateScreamSimulationRatiosGraph(const ParsedRtcEventLog& parsed_log,
       std::move(ref_window_scale_factor_due_to_increased_delay));
   plot->AppendTimeSeries(
       std::move(ref_window_scale_factor_due_to_delay_variation));
+  plot->AppendTimeSeries(
+      std::move(ref_window_scale_factor_close_to_ref_window_i));
+  plot->AppendTimeSeries(std::move(ref_window_combined_increase_scale_factor));
 
   plot->SetXAxis(config.CallBeginTimeSec(), config.CallEndTimeSec(), "Time (s)",
                  kLeftMargin, kRightMargin);
@@ -873,7 +893,7 @@ void CreateSendSideBweSimulationGraph(const ParsedRtcEventLog& parsed_log,
                                PointStyle::kHighlight);
   TimeSeries robust_time_series("Robust throughput estimate", LineStyle::kLine,
                                 PointStyle::kHighlight);
-  TimeSeries acked_estimate_time_series("Ackednowledged bitrate estimate",
+  TimeSeries acked_estimate_time_series("Acknowledged bitrate estimate",
                                         LineStyle::kLine,
                                         PointStyle::kHighlight);
 
@@ -1171,7 +1191,7 @@ void CreatePacerDelayGraph(const ParsedRtcEventLog& parsed_log,
 
     if (packets.size() < 2) {
       RTC_LOG(LS_WARNING)
-          << "Can't estimate a the RTP clock frequency or the "
+          << "Can't estimate the RTP clock frequency or the "
              "pacer delay with less than 2 packets in the stream";
       continue;
     }

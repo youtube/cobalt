@@ -6,6 +6,8 @@ source_set("core") {
   sources = [
     "accessibility_annotator_data_provider.cc",
     "accessibility_annotator_data_provider.h",
+    "accessibility_annotator_data_provider_impl.cc",
+    "accessibility_annotator_data_provider_impl.h",
   ]
 
   public_deps = [
@@ -27,11 +29,21 @@ source_set("features") {
 source_set("unit_tests") {
   testonly = true
 
-  sources = [ "data_models/entity_unittest.cc" ]
+  sources = [
+    "accessibility_annotator_data_provider_impl_unittest.cc",
+    "data_models/entity_unittest.cc",
+    "storage/accessibility_annotator_database_unittest.cc",
+  ]
 
   deps = [
+    ":core",
     "//base",
+    "//base/test:test_support",
     "//components/accessibility_annotator/core/data_models",
+    "//components/accessibility_annotator/core/storage",
+    "//sql",
+    "//sql:test_support",
+    "//testing/gmock",
     "//testing/gtest",
   ]
 }

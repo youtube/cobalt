@@ -949,6 +949,10 @@ TEST_P(TestVp8ImplWithMaxFrameDropTrial, EnforcesMaxFrameDropInterval) {
       return Result(Result::Error::OK);
     }
 
+    void OnFrameDropped(uint32_t /*rtp_timestamp*/,
+                        int /*spatial_id*/,
+                        bool /*is_end_of_temporal_unit*/) override {}
+
    private:
     std::vector<TimeDelta> callback_deltas_;
     Timestamp last_callback_;

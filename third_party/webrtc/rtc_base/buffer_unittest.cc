@@ -36,7 +36,7 @@ auto kTestData =
                             0xa, 0xb, 0xc, 0xd, 0xe, 0xf});
 
 uint8_t* TestDataAtIndex(int index) {
-  return ArrayView<uint8_t>(kTestData).subview(index).data();
+  return ArrayView<uint8_t>(kTestData).subspan(index).data();
 }
 
 void TestBuf(const Buffer& b1, size_t size, size_t capacity) {
@@ -127,7 +127,7 @@ TEST(BufferTest, TestSetAndAppendWithUnknownArg) {
   buf.AppendData(TestDataContainer());
   EXPECT_EQ(6u, buf.size());
   EXPECT_EQ(0, memcmp(buf.data(), kTestData.data(), 3));
-  EXPECT_EQ(0, memcmp(ArrayView<uint8_t>(buf).subview(3).data(),
+  EXPECT_EQ(0, memcmp(ArrayView<uint8_t>(buf).subspan(3).data(),
                       kTestData.data(), 3));
   EXPECT_THAT(buf, ElementsAre(0, 1, 2, 0, 1, 2));
 }

@@ -79,7 +79,11 @@ base::DictValue ProfileInternalsHandler::CreateProfileEntry(
   profile_entry.Set("gaiaName", entry->GetGAIAName());
   profile_entry.Set("gaiaId", entry->GetGAIAId().ToString());
   profile_entry.Set("userName", entry->GetUserName());
-  profile_entry.Set("hostedDomain", entry->GetHostedDomain());
+  std::string hosted_domain = "UNKNOWN";
+  if (std::optional<std::string> domain = entry->GetHostedDomain()) {
+    hosted_domain = domain->empty() ? "NO_HOSTED_DOMAIN" : *domain;
+  }
+  profile_entry.Set("hostedDomain", hosted_domain);
   profile_entry.Set("isManaged",
                     signin::TriboolToString(entry->GetIsManaged()));
   profile_entry.Set("isSupervised", entry->IsSupervised());
@@ -110,12 +114,6 @@ base::DictValue ProfileInternalsHandler::CreateProfileEntry(
     }
   }
   profile_entry.Set("keepAlives", std::move(keep_alives));
-
-  base::ListValue signedAccounts;
-  for (const GaiaId& gaiaId : entry->GetGaiaIds()) {
-    signedAccounts.Append(gaiaId.ToString());
-  }
-  profile_entry.Set("signedAccounts", std::move(signedAccounts));
   profile_entry.Set("isLoaded", loaded_profile != nullptr);
   profile_entry.Set(
       "hasOffTheRecord",

@@ -157,6 +157,11 @@ bool ImageBitmapRenderingContext::PushFrame() {
     return false;
   }
 
+  scoped_refptr<StaticBitmapImage> image = image_layer_bridge_->GetImage();
+  if (!image) {
+    return false;
+  }
+
   if (resource_provider_for_offscreen_canvas_) {
     if (!resource_provider_for_offscreen_canvas_->IsValid()) {
       // The canvas context is not lost but the provider is invalid. This
@@ -177,22 +182,19 @@ bool ImageBitmapRenderingContext::PushFrame() {
       return false;
     }
 
-    gfx::Size surface_size(Host()->width(), Host()->height());
     const SkAlphaType alpha_type = GetAlphaType();
     const viz::SharedImageFormat format = GetSharedImageFormat();
     const gfx::ColorSpace color_space = GetColorSpace();
     if (SharedGpuContext::IsGpuCompositingEnabled()) {
       resource_provider_for_offscreen_canvas_ =
           CanvasNon2DResourceProviderSharedImage::Create(
-              Host()->Size(), format, alpha_type, color_space,
-              CanvasResourceProvider::ShouldInitialize::kCallClear,
+              image->Size(), format, alpha_type, color_space,
               SharedGpuContext::ContextProviderWrapper(),
               gpu::SHARED_IMAGE_USAGE_DISPLAY_READ, Host());
     } else if (static_cast<OffscreenCanvas*>(Host())->HasPlaceholderCanvas()) {
       resource_provider_for_offscreen_canvas_ =
           CanvasNon2DResourceProviderSharedImage::CreateForSoftwareCompositor(
-              Host()->Size(), format, alpha_type, color_space,
-              CanvasResourceProvider::ShouldInitialize::kCallClear,
+              image->Size(), format, alpha_type, color_space,
               SharedGpuContext::SharedImageInterfaceProvider(), Host());
     }
 
@@ -217,10 +219,6 @@ bool ImageBitmapRenderingContext::PushFrame() {
     return false;
   }
 
-  scoped_refptr<StaticBitmapImage> image = image_layer_bridge_->GetImage();
-  if (!image) {
-    return false;
-  }
   cc::PaintFlags paint_flags;
   paint_flags.setBlendMode(SkBlendMode::kSrc);
   resource_provider_for_offscreen_canvas_->Canvas().drawImage(

@@ -117,7 +117,7 @@ CorruptionDetectionMessage::Builder::WithChromaErrorThreshold(
 CorruptionDetectionMessage::Builder&
 CorruptionDetectionMessage::Builder::WithSampleValues(
     const ArrayView<const double>& sample_values) {
-  message_.sample_values_.assign(sample_values.cbegin(), sample_values.cend());
+  message_.sample_values_.assign(sample_values.begin(), sample_values.end());
   return *this;
 }
 

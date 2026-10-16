@@ -130,7 +130,11 @@ constexpr int kMaxPitchPeriods24kHz =
 
 // Collection of inverted lags.
 class InvertedLagsIndex {
+  using Storage = std::array<int, kMaxPitchPeriods24kHz>;
+
  public:
+  using const_iterator = Storage::const_iterator;
+
   InvertedLagsIndex() : num_entries_(0) {}
   // Adds an inverted lag to the index. Cannot add more than
   // `kMaxPitchPeriods24kHz` values.
@@ -140,6 +144,9 @@ class InvertedLagsIndex {
   }
   const int* data() const { return inverted_lags_.data(); }
   int size() const { return num_entries_; }
+
+  const_iterator begin() const { return inverted_lags_.begin(); }
+  const_iterator end() const { return begin() + size(); }
 
  private:
   std::array<int, kMaxPitchPeriods24kHz> inverted_lags_;

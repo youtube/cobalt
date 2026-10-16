@@ -24,6 +24,7 @@
 #include "src/compiler/turboshaft/deopt-data.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/opmasks.h"
+#include "src/flags/flags.h"
 #include "src/handles/handles-inl.h"
 #include "src/handles/maybe-handles-inl.h"
 #include "src/objects/code-inl.h"
@@ -1200,7 +1201,10 @@ std::ostream& operator<<(std::ostream& os, EffectHandler h) {
 std::ostream& operator<<(std::ostream& os, base::Vector<EffectHandler> hs) {
   os << "effect handlers: ";
   for (auto& h : hs) {
-    os << h.tag_index << ":" << h.block << (&h == &hs.last() ? "" : " ");
+    if (h.is_switch())
+      os << h.tag_index() << "[switch]" << (&h == &hs.last() ? "" : " ");
+    else
+      os << h.tag_index() << ":" << h.block << (&h == &hs.last() ? "" : " ");
   }
   return os;
 }
@@ -2131,7 +2135,7 @@ void StructSetOp::PrintOptions(std::ostream& os) const {
   } else {
     os << "non-atomic";
   }
-  os << ']';
+  os << ", " << write_barrier << ']';
 }
 
 void ArrayGetOp::PrintOptions(std::ostream& os) const {
@@ -2153,7 +2157,7 @@ void ArraySetOp::PrintOptions(std::ostream& os) const {
   } else {
     os << "non-atomic";
   }
-  os << ']';
+  os << ", " << write_barrier << ']';
 }
 
 #endif  // V8_ENABLE_WEBASSEBMLY
@@ -2351,6 +2355,9 @@ bool IsUnlikelySuccessor(const Block* block, const Block* successor,
     case Opcode::kTailCall:
     case Opcode::kUnreachable:
     case Opcode::kReturn:
+#if V8_ENABLE_WEBASSEMBLY
+    case Opcode::kWasmTrap:
+#endif
       UNREACHABLE();
 
 #define NON_TERMINATOR_CASE(op) case Opcode::k##op:

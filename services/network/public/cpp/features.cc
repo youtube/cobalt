@@ -646,6 +646,16 @@ BASE_FEATURE_PARAM(bool,
                    /*name=*/"report_inconsistent_header",
                    /*default_value=*/false);
 
+BASE_FEATURE(kAllowUnsafeRedirectSchemesForManualMode,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kDurableMessages, base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(int,
+                   kDurableMessagesGlobalBufferSize,
+                   &kDurableMessages,
+                   /*name=*/"max_global_buffer_size",
+                   /*default_value=*/0);
+
 #if BUILDFLAG(IS_COBALT)
 BASE_FEATURE(kCobaltDynamicMojoPipeSizing,
              "CobaltDynamicMojoPipeSizing",

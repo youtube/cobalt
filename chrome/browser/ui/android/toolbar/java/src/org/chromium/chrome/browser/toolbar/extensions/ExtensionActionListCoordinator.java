@@ -7,9 +7,9 @@ package org.chromium.chrome.browser.toolbar.extensions;
 import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 
 import androidx.recyclerview.widget.ItemTouchHelper;
-import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.chromium.base.lifetime.Destroyable;
@@ -49,6 +49,8 @@ public class ExtensionActionListCoordinator implements Destroyable {
     private final DragReorderableRecyclerViewAdapter mAdapter;
     @Nullable private final LifetimeAssert mLifetimeAssert = LifetimeAssert.create(this);
 
+    private boolean mIsDragging;
+
     public ExtensionActionListCoordinator(
             Context context,
             ExtensionActionListRecyclerView container,
@@ -56,7 +58,8 @@ public class ExtensionActionListCoordinator implements Destroyable {
             ChromeAndroidTask task,
             Profile profile,
             NullableObservableSupplier<Tab> currentTabSupplier,
-            ExtensionsToolbarBridge extensionsToolbarBridge) {
+            ExtensionsToolbarBridge extensionsToolbarBridge,
+            ViewGroup rootView) {
         mContext = context;
         mContainer = container;
 
@@ -103,20 +106,18 @@ public class ExtensionActionListCoordinator implements Destroyable {
         dragTouchHandler.addDragListener(
                 new DragListener() {
                     @Override
+                    public void onDragStateChange(boolean drag) {
+                        mIsDragging = drag;
+                    }
+
+                    @Override
                     public void onSwap(int targetIndex) {
                         mMediator.onActionsSwapped(targetIndex);
                     }
                 });
 
-        mContainer.setLayoutManager(
-                new LinearLayoutManager(
-                        context, LinearLayoutManager.HORIZONTAL, /* reverseLayout= */ false) {
-                    @Override
-                    public boolean canScrollHorizontally() {
-                        return false;
-                    }
-                });
         mContainer.setAdapter(mAdapter);
+        mContainer.setTransitionRoot(rootView);
 
         mAdapter.enableDrag();
     }
@@ -147,11 +148,27 @@ public class ExtensionActionListCoordinator implements Destroyable {
                     // action popup.
                     return null;
                 }
-
                 return holder.itemView;
             }
         }
         return null;
+    }
+
+    /**
+     * Updates the list of displayed actions to fit within the provided width constraint.
+     *
+     * @param availableWidth The maximum width available for the action list in pixels.
+     * @return The actual width of the action list after fitting the items.
+     */
+    public int fitActionsWithinWidth(int availableWidth) {
+        if (mIsDragging) {
+            // This method gets called when icons are being dragged, but we don't want width update
+            // to happen then.
+            return mContainer.getWidth();
+        }
+
+        mMediator.fitActionsWithinWidth(availableWidth);
+        return mContainer.getWidth();
     }
 
     private void bindDragProperties(

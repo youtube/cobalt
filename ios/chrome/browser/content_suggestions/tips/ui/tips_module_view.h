@@ -7,22 +7,21 @@
 
 #import <UIKit/UIKit.h>
 
-#import "ios/chrome/browser/content_suggestions/tips/ui/tips_magic_stack_consumer.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_color_updating.h"
 
 @protocol MagicStackModuleContentViewDelegate;
 @protocol TipsModuleAudience;
-@class TipsModuleState;
+@class TipsModuleConfig;
 
 // A view displaying the Tips module in the Magic Stack.
-@interface TipsModuleView : UIView <TipsMagicStackConsumer>
-
-// Initializes the `TipsModuleView` with `state`.
-- (instancetype)initWithState:(TipsModuleState*)state;
+@interface TipsModuleView : UIView
 
 // The delegate for handling content view events.
 @property(nonatomic, weak) id<MagicStackModuleContentViewDelegate>
     contentViewDelegate;
+
+// Initializes the `TipsModuleView` with `config`.
+- (instancetype)initWithConfig:(TipsModuleConfig*)config;
 
 @end
 

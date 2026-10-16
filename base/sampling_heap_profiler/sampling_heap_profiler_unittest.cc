@@ -88,6 +88,7 @@ class SamplesCollector : public PoissonAllocationSampler::SamplesObserver {
   void SampleRemoved(void* address) override {
     if (address == sample_address_) {
       sample_removed = true;
+      sample_address_ = nullptr;
     }
   }
 
@@ -96,7 +97,7 @@ class SamplesCollector : public PoissonAllocationSampler::SamplesObserver {
 
  private:
   size_t watch_size_;
-  raw_ptr<void, DanglingUntriaged> sample_address_ = nullptr;
+  raw_ptr<void> sample_address_ = nullptr;
 };
 
 TEST_F(SamplingHeapProfilerTest, SampleObserver) {
@@ -255,13 +256,9 @@ TEST_F(SamplingHeapProfilerTest, DISABLED_SequentialLargeSmallStats) {
 
 // Platform TLS: alloc+free[ns]: 22.184  alloc[ns]: 8.910  free[ns]: 13.274
 // thread_local: alloc+free[ns]: 18.353  alloc[ns]: 5.021  free[ns]: 13.331
-// TODO(crbug.com/40145097) Disabled on Mac
-#if BUILDFLAG(IS_MAC)
-#define MAYBE_MANUAL_SamplerMicroBenchmark DISABLED_MANUAL_SamplerMicroBenchmark
-#else
-#define MAYBE_MANUAL_SamplerMicroBenchmark MANUAL_SamplerMicroBenchmark
-#endif
-TEST_F(SamplingHeapProfilerTest, MAYBE_MANUAL_SamplerMicroBenchmark) {
+// TODO(crbug.com/486038197) DISABLED_ because this is running on some builders
+// despite being marked MANUAL_.
+TEST_F(SamplingHeapProfilerTest, DISABLED_MANUAL_SamplerMicroBenchmark) {
   // With the sampling interval of 100KB it happens to record ~ every 450th
   // allocation in the browser process. We model this pattern here.
   constexpr size_t sampling_interval = 100000;

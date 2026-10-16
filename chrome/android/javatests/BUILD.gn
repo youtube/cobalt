@@ -924,6 +924,7 @@ android_library("chrome_test_java_org.chromium.chrome.browser.ntp") {
     ":chrome_test_java_helper",
     "//chrome/android/feed:chrome_feed_java_resources",
     "//chrome/browser/composeplate/android:java",
+    "//chrome/browser/ntp_customization:java",
     "//chrome/browser/ui/android/logo:utils_java",
   ]
 }
@@ -1193,6 +1194,7 @@ android_library("chrome_test_java_org.chromium.chrome.browser.settings") {
     "src/org/chromium/chrome/browser/settings/MainSettingsFragmentTest.java",
     "src/org/chromium/chrome/browser/settings/MultiColumnSettingsUnitTest.java",
     "src/org/chromium/chrome/browser/settings/SettingsActivityTest.java",
+    "src/org/chromium/chrome/browser/settings/search/SearchIndexProviderRegistryTest.java",
   ]
 
   deps = [ ":chrome_test_java_helper" ]
@@ -1788,6 +1790,16 @@ java_group("common_unit_test_deps_java") {
 }
 
 # Partition tests into one target per-package to keep incremental build times down.
+android_library("chrome_unit_test_java_org.chromium.chrome.browser.actor") {
+  resources_package = "org.chromium.chrome"
+
+  sources = [
+    "src/org/chromium/chrome/browser/actor/ActorForegroundServiceTest.java",
+  ]
+
+  deps = [ ":common_unit_test_deps_java" ]
+}
+
 android_library(
     "chrome_unit_test_java_org.chromium.chrome.browser.compositor") {
   resources_package = "org.chromium.chrome"

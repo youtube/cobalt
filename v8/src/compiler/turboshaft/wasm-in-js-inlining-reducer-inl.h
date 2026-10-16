@@ -717,8 +717,11 @@ class WasmInJsInliningInterface {
     Bailout(decoder);
   }
 
-  void ResumeHandler(FullDecoder* decoder,
-                     base::Vector<const wasm::HandlerCase> handlers,
+  void BeginEffectHandlers(FullDecoder* decoder) { Bailout(decoder); }
+
+  void EndEffectHandlers(FullDecoder* decoder) { Bailout(decoder); }
+
+  void ResumeHandler(FullDecoder* decoder, const wasm::HandlerCase& handler,
                      size_t handler_index, Value* cont_val, Value* tag_params) {
     Bailout(decoder);
   }
@@ -797,6 +800,18 @@ class WasmInJsInliningInterface {
                                    const Value& expected_value,
                                    const Value& new_value,
                                    AtomicMemoryOrder order, Value* result) {
+    Bailout(decoder);
+  }
+
+  void StructWait(FullDecoder* decoder, const Value& struct_obj,
+                  const FieldImmediate& imm, const Value& expected_value,
+                  const Value& timeout_ns, Value* result) {
+    Bailout(decoder);
+  }
+
+  void StructNotify(FullDecoder* decoder, const Value& struct_obj,
+                    const FieldImmediate& imm, const Value& max_waiters,
+                    Value* result) {
     Bailout(decoder);
   }
 

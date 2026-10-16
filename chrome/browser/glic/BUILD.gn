@@ -50,6 +50,7 @@ source_set("glic") {
     "public/glic_enabling.h",
     "public/glic_instance.h",
     "public/glic_instance_metrics_backwards_compatibility.h",
+    "public/glic_invoke_options.h",
     "public/glic_keyed_service.h",
     "public/glic_keyed_service_factory.h",
     "public/glic_side_panel_coordinator.cc",
@@ -98,7 +99,7 @@ source_set("glic") {
     "//chrome/browser/permissions/system",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/ui/browser_window",
-    "//components/autofill/core/browser/integrators/glic:actor_form_filling_types",
+    "//components/autofill/core/browser/integrators/actor:actor_form_filling_types",
     "//components/content_extraction/content/browser",
     "//components/favicon/core",
     "//components/feature_engagement/public",
@@ -148,6 +149,11 @@ source_set("glic") {
   if (is_chromeos) {
     public_deps += [ "//chromeos/ash/components/browser_context_helper" ]
   }
+
+  if (!enable_extensions_core) {
+    public_deps +=
+        [ "//components/guest_view/browser/slim_web_view:page_handler" ]
+  }
 }
 
 if (is_android) {
@@ -183,6 +189,8 @@ source_set("impl") {
     "glic_metrics.cc",
     "glic_metrics_provider.cc",
     "glic_metrics_provider.h",
+    "glic_navigation_throttle.cc",
+    "glic_navigation_throttle.h",
     "glic_net_log.cc",
     "glic_pref_names.cc",
     "glic_profile_manager.cc",
@@ -240,12 +248,15 @@ source_set("impl") {
     "host/webui_contents_container.h",
     "public/context/glic_sharing_manager.cc",
     "public/glic_enabling.cc",
+    "public/glic_invoke_options.cc",
     "public/glic_keyed_service.cc",
     "public/glic_keyed_service_factory.cc",
     "service/glic_instance_coordinator_impl.cc",
     "service/glic_instance_coordinator_impl.h",
     "service/glic_instance_impl.cc",
     "service/glic_instance_impl.h",
+    "service/glic_invoke_handler.cc",
+    "service/glic_invoke_handler.h",
     "service/glic_state_tracker.cc",
     "service/glic_state_tracker.h",
     "service/glic_ui_embedder.h",
@@ -354,7 +365,7 @@ source_set("impl") {
     "//chrome/browser/ui/tabs:tabs_public",
     "//chrome/common",
     "//components/application_locale_storage",
-    "//components/autofill/core/browser/integrators/glic:actor_form_filling_types",
+    "//components/autofill/core/browser/integrators/actor:actor_form_filling_types",
     "//components/favicon/content",
     "//components/feature_engagement/public:feature_constants",
     "//components/feedback",
@@ -418,10 +429,7 @@ source_set("impl") {
     deps += [ "//components/guest_view/browser" ]
 
     if (!enable_extensions_core) {
-      deps += [
-        "//chrome/browser/resources/guest_view_shared:resources",
-        "//components/guest_view/browser/slim_web_view",
-      ]
+      deps += [ "//chrome/browser/resources/guest_view_shared:resources" ]
     }
   }
 
@@ -508,7 +516,6 @@ source_set("unit_tests") {
       "//chrome/browser/glic/media:unit_tests",
       "//chrome/browser/glic/test_support",
       "//chrome/browser/prefs",
-      "//chrome/browser/startup",
       "//chrome/browser/status_icons",
       "//chrome/browser/ui",
       "//chrome/browser/ui:ui_features",
@@ -541,6 +548,7 @@ source_set("browser_tests") {
       "actor/glic_actor_policy_checker_browsertest.cc",
       "glic_browsertest.cc",
       "glic_metrics_browsertest.cc",
+      "glic_navigation_throttle_browsertest.cc",
       "glic_net_log_browsertest.cc",
       "glic_policy_browsertest.cc",
       "glic_profile_manager_browsertest.cc",
@@ -557,6 +565,7 @@ source_set("browser_tests") {
       "widget/application_hotkey_delegate_browsertest.cc",
     ]
   }
+
   deps = [
     ":glic",
     ":impl",
@@ -744,7 +753,7 @@ if (is_android) {
     deps = [
       "//base",
       "//chrome/common:actor_webui_mojom",
-      "//components/autofill/core/browser/integrators/glic:actor_form_filling_types",
+      "//components/autofill/core/browser/integrators/actor:actor_form_filling_types",
       "//components/password_manager/core/browser/actor_login:common",
       "//components/tabs:public",
       "//ui/gfx",

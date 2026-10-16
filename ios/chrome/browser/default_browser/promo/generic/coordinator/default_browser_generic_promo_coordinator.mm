@@ -13,6 +13,7 @@
 #import "ios/chrome/browser/default_browser/model/features.h"
 #import "ios/chrome/browser/default_browser/model/utils.h"
 #import "ios/chrome/browser/default_browser/promo/generic/public/default_browser_generic_promo_commands.h"
+#import "ios/chrome/browser/default_browser/promo/public/features.h"
 #import "ios/chrome/browser/default_browser/promo/ui/default_browser_instructions_view_controller.h"
 #import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
 #import "ios/chrome/browser/promos_manager/coordinator/promos_manager_ui_handler.h"
@@ -21,11 +22,20 @@
 #import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
+#import "ios/chrome/browser/shared/public/commands/picture_in_picture_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/common/ui/confirmation_alert/confirmation_alert_action_handler.h"
 
 using base::RecordAction;
 using base::UserMetricsAction;
+
+namespace {
+// The video name for the settings destination.
+NSString* kDefaultBrowserPromoSettingsDestinationVideo =
+    @"app_specific_settings_instructions_video";
+NSString* kDefaultBrowserPromoDefaultAppsDestinationVideo =
+    @"default_apps_settings_instructions_video";
+}  // namespace
 
 @interface DefaultBrowserGenericPromoCoordinator () <
     ConfirmationAlertActionHandler,
@@ -43,6 +53,9 @@ using base::UserMetricsAction;
   BOOL _firstInteractionRecorded;
   // The timestamp of the first primary button tap.
   base::Time _acceptanceTimestamp;
+  // Whether the promo destination is the default apps for
+  // Picture-in-Picture.
+  BOOL _defaultAppsDestinationForPictureInPicture;
 }
 
 #pragma mark - ChromeCoordinator
@@ -53,6 +66,13 @@ using base::UserMetricsAction;
 
   _tracker = feature_engagement::TrackerFactory::GetForProfile(self.profile);
   _mediator = [[DefaultBrowserGenericPromoMediator alloc] init];
+
+  if (IsDefaultBrowserPictureInPictureEnabled() &&
+      IsDefaultAppsPictureInPictureVariant()) {
+    // Both Picture-in-Picture variants (`EnabledDefaultApps` and
+    // `DisabledDefaultApps`) use the "Default Apps" video.
+    _defaultAppsDestinationForPictureInPicture = YES;
+  }
 
   [self showPromo];
 }
@@ -83,6 +103,16 @@ using base::UserMetricsAction;
 #pragma mark - ConfirmationAlertActionHandler
 
 - (void)confirmationAlertPrimaryAction {
+  if (IsDefaultBrowserPictureInPictureEnabled()) {
+    [_handler hidePromo];
+    id<PictureInPictureCommands> pipHandler = HandlerForProtocol(
+        self.browser->GetCommandDispatcher(), PictureInPictureCommands);
+    OpenIOSDefaultBrowserSettingsPage(
+        _defaultAppsDestinationForPictureInPicture,
+        /*ui_application_to_use=*/nil, /*pip_handler=*/pipHandler);
+    return;
+  }
+
   [_mediator didTapPrimaryActionButton:
                  /*useDefaultAppsDestination=*/_promoWasFromOffCycleTrigger];
   if (!_firstInteractionRecorded) {
@@ -188,7 +218,8 @@ using base::UserMetricsAction;
   _viewController = [[DefaultBrowserInstructionsViewController alloc]
           initWithDismissButton:YES
                hasRemindMeLater:hasRemindMeLater
-      useDefaultAppsDestination:_promoWasFromOffCycleTrigger
+      useDefaultAppsDestination:_promoWasFromOffCycleTrigger ||
+                                _defaultAppsDestinationForPictureInPicture
                        hasSteps:NO
                   actionHandler:self
                       titleText:nil];

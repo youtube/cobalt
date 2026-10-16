@@ -44,7 +44,7 @@ void GenerateFloatFrame(test::FuzzDataHelper* fuzz_data,
     if (fuzz_data->CanReadBytes(read_bytes)) {
       ArrayView<const uint8_t> byte_array =
           fuzz_data->ReadByteArray(read_bytes);
-      memmove(float_frames[i], byte_array.begin(), read_bytes);
+      memmove(float_frames[i], byte_array.data(), read_bytes);
     }
 
     // Sanitize input.

@@ -175,7 +175,8 @@ TEST(PacketStash, PruneSome) {
   absl::flat_hash_set<uint32_t> remove;
   remove.insert(PacketStash::Hash(packet1));
   remove.insert(PacketStash::Hash(packet2));
-  stash.Prune(remove);
+  EXPECT_EQ(stash.Prune(remove), 2u);
+  EXPECT_EQ(stash.Prune(remove), 0u);
 
   EXPECT_EQ(ToVector(stash.GetNext()), packet3);
 }

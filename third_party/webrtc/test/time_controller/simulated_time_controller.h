@@ -33,7 +33,8 @@ namespace webrtc {
 // safe since it modifies global state.
 class GlobalSimulatedTimeController : public TimeController {
  public:
-  explicit GlobalSimulatedTimeController(Timestamp start_time);
+  explicit GlobalSimulatedTimeController(Timestamp start_time,
+                                         SocketServer* socket_server = nullptr);
   ~GlobalSimulatedTimeController() override;
 
   Clock* GetClock() override;

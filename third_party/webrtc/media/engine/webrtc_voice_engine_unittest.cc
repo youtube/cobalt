@@ -21,7 +21,6 @@
 #include <utility>
 #include <vector>
 
-#include "absl/functional/any_invocable.h"
 #include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"
@@ -115,7 +114,6 @@ constexpr uint32_t kSsrc1 = 1;
 constexpr uint32_t kSsrcX = 0x99;
 constexpr uint32_t kSsrcY = 0x17;
 constexpr uint32_t kSsrcZ = 0x42;
-constexpr uint32_t kSsrcW = 0x02;
 constexpr uint32_t kSsrcs4[] = {11, 200, 30, 44};
 
 constexpr int kRtpHistoryMs = 5000;
@@ -297,11 +295,6 @@ class WebRtcVoiceEngineTestFake : public ::testing::TestWithParam<bool> {
                                                AudioOptions(), CryptoOptions());
     receive_channel_ = engine_->CreateReceiveChannel(
         env_, &call_, MediaConfig(), AudioOptions(), CryptoOptions());
-    send_channel_->SetSsrcListChangedCallback(
-        [receive_channel =
-             receive_channel_.get()](const std::set<uint32_t>& choices) {
-          receive_channel->ChooseReceiverReportSsrc(choices);
-        });
     return true;
   }
 
@@ -958,7 +951,6 @@ TEST_P(WebRtcVoiceEngineTestFake, CreateRecvStream) {
   const AudioReceiveStreamInterface::Config& config =
       GetRecvStreamConfig(kSsrcX);
   EXPECT_EQ(kSsrcX, config.rtp.remote_ssrc);
-  EXPECT_EQ(0xFA17FA17, config.rtp.local_ssrc);
   EXPECT_EQ(ReceiveImpl()->transport(), config.rtcp_send_transport);
   EXPECT_EQ("", config.sync_group);
 }
@@ -2753,7 +2745,6 @@ TEST_P(WebRtcVoiceEngineTestFake, SetSendSsrcWithMultipleStreams) {
   EXPECT_TRUE(SetupSendStream());
   EXPECT_TRUE(call_.GetAudioSendStream(kSsrcX));
   EXPECT_TRUE(AddRecvStream(kSsrcY));
-  EXPECT_EQ(kSsrcX, GetRecvStreamConfig(kSsrcY).rtp.local_ssrc);
 }
 
 // Test that the local SSRC is the same on sending and receiving channels if the
@@ -2763,7 +2754,6 @@ TEST_P(WebRtcVoiceEngineTestFake, SetSendSsrcAfterCreatingReceiveChannel) {
   EXPECT_TRUE(AddRecvStream(kSsrcY));
   EXPECT_TRUE(send_channel_->AddSendStream(StreamParams::CreateLegacy(kSsrcX)));
   EXPECT_TRUE(call_.GetAudioSendStream(kSsrcX));
-  EXPECT_EQ(kSsrcX, GetRecvStreamConfig(kSsrcY).rtp.local_ssrc);
 }
 
 // Test that we can properly receive packets.
@@ -3615,31 +3605,6 @@ TEST_P(WebRtcVoiceEngineTestFake, DeliverAudioPacket_Call) {
   Thread::Current()->ProcessMessages(0);
 
   EXPECT_EQ(1, s->received_packets());
-}
-
-// All receive channels should be associated with the first send channel,
-// since they do not send RTCP SR.
-TEST_P(WebRtcVoiceEngineTestFake, AssociateFirstSendChannel_SendCreatedFirst) {
-  EXPECT_TRUE(SetupSendStream());
-  EXPECT_TRUE(AddRecvStream(kSsrcY));
-  EXPECT_EQ(kSsrcX, GetRecvStreamConfig(kSsrcY).rtp.local_ssrc);
-  EXPECT_TRUE(send_channel_->AddSendStream(StreamParams::CreateLegacy(kSsrcZ)));
-  EXPECT_EQ(kSsrcX, GetRecvStreamConfig(kSsrcY).rtp.local_ssrc);
-  EXPECT_TRUE(AddRecvStream(kSsrcW));
-  EXPECT_EQ(kSsrcX, GetRecvStreamConfig(kSsrcW).rtp.local_ssrc);
-}
-
-TEST_P(WebRtcVoiceEngineTestFake, AssociateFirstSendChannel_RecvCreatedFirst) {
-  EXPECT_TRUE(SetupRecvStream());
-  EXPECT_EQ(0xFA17FA17u, GetRecvStreamConfig(kSsrcX).rtp.local_ssrc);
-  EXPECT_TRUE(send_channel_->AddSendStream(StreamParams::CreateLegacy(kSsrcY)));
-  EXPECT_EQ(kSsrcY, GetRecvStreamConfig(kSsrcX).rtp.local_ssrc);
-  EXPECT_TRUE(AddRecvStream(kSsrcZ));
-  EXPECT_EQ(kSsrcY, GetRecvStreamConfig(kSsrcZ).rtp.local_ssrc);
-  EXPECT_TRUE(send_channel_->AddSendStream(StreamParams::CreateLegacy(kSsrcW)));
-
-  EXPECT_EQ(kSsrcY, GetRecvStreamConfig(kSsrcX).rtp.local_ssrc);
-  EXPECT_EQ(kSsrcY, GetRecvStreamConfig(kSsrcZ).rtp.local_ssrc);
 }
 
 TEST_P(WebRtcVoiceEngineTestFake, SetRawAudioSink) {

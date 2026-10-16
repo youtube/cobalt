@@ -14,6 +14,8 @@ source_set("content_annotator") {
     "content_annotator_url_matcher_classifier.h",
     "content_classifier.cc",
     "content_classifier.h",
+    "content_classifier_types.cc",
+    "content_classifier_types.h",
   ]
 
   deps = [
@@ -21,10 +23,12 @@ source_set("content_annotator") {
     "//components/accessibility_annotator/core:features",
     "//components/keyed_service/core",
     "//components/optimization_guide/core",
+    "//components/optimization_guide/proto:optimization_guide_proto",
     "//components/page_content_annotations/content",
     "//components/page_content_annotations/core",
     "//components/translate/core/common",
     "//components/url_matcher",
+    "//content/public/browser",
     "//third_party/re2",
   ]
 }
@@ -49,6 +53,7 @@ source_set("unit_tests") {
     "//components/page_content_annotations/core",
     "//components/page_content_annotations/core:test_support",
     "//components/translate/core/common",
+    "//content/test:test_support",
     "//testing/gtest",
     "//url",
   ]

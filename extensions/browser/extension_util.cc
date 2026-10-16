@@ -14,6 +14,7 @@
 #include "components/crx_file/id_util.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/child_process_security_policy.h"
+#include "content/public/browser/security_principal.h"
 #include "content/public/browser/site_instance.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/storage_partition_config.h"
@@ -368,8 +369,10 @@ const gfx::ImageSkia& GetDefaultExtensionIcon() {
 ExtensionId GetExtensionIdForSiteInstance(
     content::SiteInstance& site_instance) {
   // <webview> guests always store the ExtensionId in the partition domain.
-  if (site_instance.IsGuest()) {
-    return site_instance.GetStoragePartitionConfig().partition_domain();
+  if (site_instance.GetSecurityPrincipal().IsGuest()) {
+    return site_instance.GetSecurityPrincipal()
+        .GetStoragePartitionConfig()
+        .partition_domain();
   }
 
   // This works for both apps and extensions because the site has been
@@ -500,7 +503,7 @@ bool CanRendererActOnBehalfOfExtension(
     //
     // GuestView is explicitly excluded, because we don't want to allow
     // GuestViews to spoof the extension id of their host.
-    if (!site_instance.IsGuest() &&
+    if (!site_instance.GetSecurityPrincipal().IsGuest() &&
         extension_id == util::GetExtensionIdForSiteInstance(site_instance)) {
       return true;
     }

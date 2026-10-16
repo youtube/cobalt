@@ -4,7 +4,7 @@
 
 import 'chrome://new-tab-page/lazy_load.js';
 
-import {ActionChipsHandlerRemote, ChipType, PageCallbackRouter} from 'chrome://new-tab-page/action_chips.mojom-webui.js';
+import {ActionChipsHandlerRemote, IconType, PageCallbackRouter} from 'chrome://new-tab-page/action_chips.mojom-webui.js';
 import type {ActionChip, PageRemote, TabInfo} from 'chrome://new-tab-page/action_chips.mojom-webui.js';
 import {ActionChipsApiProxyImpl, ActionChipsRetrievalState} from 'chrome://new-tab-page/lazy_load.js';
 import type {ActionChipsElement} from 'chrome://new-tab-page/lazy_load.js';
@@ -37,7 +37,7 @@ suite('NewTabPageActionChipsTest', () => {
     const defaultOptions: InitializeChipsOptions = {
       actionChips: [
         {
-          type: ChipType.kRecentTab,
+          suggestTemplateInfo: {typeIcon: IconType.kFavicon},
           title: 'Example Tab',
           subtitle: 'Subtitle for recent tab',
           suggestion: 'Suggestion for recent tab',
@@ -49,14 +49,14 @@ suite('NewTabPageActionChipsTest', () => {
           },
         },
         {
-          type: ChipType.kImage,
+          suggestTemplateInfo: {typeIcon: IconType.kBanana},
           title: 'Nano Banana',
           subtitle: 'Subtitle for image',
           suggestion: 'Suggestion for image',
           tab: null,
         },
         {
-          type: ChipType.kDeepSearch,
+          suggestTemplateInfo: {typeIcon: IconType.kGlobeWithSearchLoop},
           title: 'Deep Search',
           subtitle: 'Subtitle for deep search',
           suggestion: 'Suggestion for deep search',
@@ -119,7 +119,7 @@ suite('NewTabPageActionChipsTest', () => {
     await initializeChips({
       actionChips: [
         {
-          type: ChipType.kRecentTab,
+          suggestTemplateInfo: {typeIcon: IconType.kFavicon},
           title: 'Example Tab',
           subtitle: 'Subtitle for recent tab',
           suggestion: 'Suggestion for recent tab',
@@ -152,7 +152,7 @@ suite('NewTabPageActionChipsTest', () => {
   test('recent tab chip renders favicon', async () => {
     await initializeChips({
       actionChips: [{
-        type: ChipType.kRecentTab,
+        suggestTemplateInfo: {typeIcon: IconType.kFavicon},
         title: 'Example Tab',
         subtitle: 'Subtitle for recent tab',
         suggestion: 'Suggestion for recent tab',
@@ -172,7 +172,7 @@ suite('NewTabPageActionChipsTest', () => {
   test('deep dive chip renders correct format', async () => {
     await initializeChips({
       actionChips: [{
-        type: ChipType.kDeepDive,
+        suggestTemplateInfo: {typeIcon: IconType.kSubArrowRight},
         title: 'Example Tab',
         subtitle: 'Subtitle for deep dive',
         suggestion: 'Suggestion for deep dive',
@@ -187,7 +187,7 @@ suite('NewTabPageActionChipsTest', () => {
 
     // Check correct classes are rendered
     const deepDiveChipIcon = chips.shadowRoot.querySelector<HTMLElement>(
-        '.action-chip-icon-container.deep-dive');
+        '.action-chip-icon-container.icon-type-sub-arrow-right');
     assertTrue(!!deepDiveChipIcon);
 
     // Check chip title is not rendered
@@ -215,9 +215,9 @@ suite('NewTabPageActionChipsTest', () => {
       const event = await whenActionChipClicked;
 
       assertEquals('Suggestion for image', event.detail.searchboxText);
-      assertEquals(1, metrics.count('NewTabPage.ActionChips.Click'));
+      assertEquals(1, metrics.count('NewTabPage.ActionChips.Click2'));
       assertEquals(
-          1, metrics.count('NewTabPage.ActionChips.Click', ChipType.kImage));
+          1, metrics.count('NewTabPage.ActionChips.Click2', IconType.kBanana));
     });
 
     test('deep search chip triggers chip click event', async () => {
@@ -233,10 +233,11 @@ suite('NewTabPageActionChipsTest', () => {
       const event = await whenActionChipClicked;
 
       assertEquals('Suggestion for deep search', event.detail.searchboxText);
-      assertEquals(1, metrics.count('NewTabPage.ActionChips.Click'));
+      assertEquals(1, metrics.count('NewTabPage.ActionChips.Click2'));
       assertEquals(
           1,
-          metrics.count('NewTabPage.ActionChips.Click', ChipType.kDeepSearch));
+          metrics.count(
+              'NewTabPage.ActionChips.Click2', IconType.kGlobeWithSearchLoop));
     });
 
     test('tab context chip triggers chip click event', async () => {
@@ -252,17 +253,16 @@ suite('NewTabPageActionChipsTest', () => {
       const event = await whenActionChipClicked;
 
       assertEquals('Suggestion for recent tab', event.detail.searchboxText);
-      assertEquals(1, metrics.count('NewTabPage.ActionChips.Click'));
+      assertEquals(1, metrics.count('NewTabPage.ActionChips.Click2'));
       assertEquals(
-          1,
-          metrics.count('NewTabPage.ActionChips.Click', ChipType.kRecentTab));
+          1, metrics.count('NewTabPage.ActionChips.Click2', IconType.kFavicon));
     });
 
     test('deep dive chip triggers chip click event', async () => {
       // Setup.
       await initializeChips({
         actionChips: [{
-          type: ChipType.kDeepDive,
+          suggestTemplateInfo: {typeIcon: IconType.kSubArrowRight},
           title: 'Example Tab',
           subtitle: 'Subtitle for deep dive',
           suggestion: 'Suggestion for deep dive',
@@ -288,9 +288,11 @@ suite('NewTabPageActionChipsTest', () => {
       const event = await whenActionChipClicked;
 
       assertEquals('Suggestion for deep dive', event.detail.searchboxText);
-      assertEquals(1, metrics.count('NewTabPage.ActionChips.Click'));
+      assertEquals(1, metrics.count('NewTabPage.ActionChips.Click2'));
       assertEquals(
-          1, metrics.count('NewTabPage.ActionChips.Click', ChipType.kDeepDive));
+          1,
+          metrics.count(
+              'NewTabPage.ActionChips.Click2', IconType.kSubArrowRight));
     });
   });
 
@@ -451,7 +453,7 @@ suite('NewTabPageActionChipsTest', () => {
           });
           await initializeChips({
             actionChips: [{
-              type: ChipType.kDeepSearch,
+              suggestTemplateInfo: {typeIcon: IconType.kGlobeWithSearchLoop},
               title: 'Deep Search',
               subtitle: 'Subtitle for deep search',
               suggestion: '',
@@ -475,7 +477,7 @@ suite('NewTabPageActionChipsTest', () => {
           });
           await initializeChips({
             actionChips: [{
-              type: ChipType.kDeepSearch,
+              suggestTemplateInfo: {typeIcon: IconType.kGlobeWithSearchLoop},
               title: 'Deep Search',
               subtitle: '',
               suggestion: '',
@@ -511,5 +513,39 @@ suite('NewTabPageActionChipsTest', () => {
           chips.shadowRoot.querySelectorAll<HTMLButtonElement>('.action-chip');
       assertEquals(2, allChips.length);
     });
+  });
+
+  suite('ReducedMotion', () => {
+    test(
+        'animations are disabled when reduced motion is preferred',
+        async () => {
+          await initializeChips({
+            actionChips: [
+              {
+                suggestTemplateInfo: {typeIcon: IconType.kBanana},
+                title: 'Nano Banana',
+                subtitle: 'Subtitle for image',
+                suggestion: 'Suggestion for image',
+                tab: null,
+              },
+            ],
+          });
+
+          // Act.
+          chips.reducedMotionPreferred = true;
+          await microtasksFinished();
+
+          // Assert.
+          const container =
+              chips.shadowRoot.querySelector('.action-chips-container')!;
+          const chip = chips.shadowRoot.querySelector('.action-chip')!;
+          assertEquals(
+              'none',
+              window.getComputedStyle(container).getPropertyValue(
+                  'animation-name'));
+          assertEquals(
+              'none',
+              window.getComputedStyle(chip).getPropertyValue('animation-name'));
+        });
   });
 });

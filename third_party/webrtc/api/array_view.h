@@ -15,6 +15,7 @@
 #include <array>
 #include <cstddef>
 #include <iterator>
+#include <ranges>
 #include <span>
 #include <type_traits>
 
@@ -156,11 +157,18 @@ class ArrayView final : public array_view_internal::ArrayViewBase<T, Size> {
   using const_reference = const value_type&;
   using pointer = value_type*;
   using const_pointer = const value_type*;
-  using const_iterator = const T*;
+  using iterator = typename std::span<T>::iterator;
+  using const_iterator = typename std::span<const T>::iterator;
+
+  static constexpr size_t extent =
+      Size == array_view_internal::kArrayViewVarSize
+          ? std::dynamic_extent
+          : static_cast<size_t>(Size);
 
   // Construct an ArrayView from a pointer and a length.
   template <typename U>
-  ArrayView(U* data, size_t size)
+  explicit(Size != array_view_internal::kArrayViewVarSize)  //
+      ArrayView(U* data, size_t size)
       : array_view_internal::ArrayViewBase<T, Size>::ArrayViewBase(data, size) {
     RTC_DCHECK_EQ(size == 0 ? nullptr : data, this->data());
     RTC_DCHECK_EQ(size, this->size());
@@ -170,11 +178,12 @@ class ArrayView final : public array_view_internal::ArrayViewBase<T, Size> {
 
   // Construct an empty ArrayView. Note that fixed-size ArrayViews of size > 0
   // cannot be empty.
-  ArrayView() : ArrayView(nullptr, 0) {}
+  ArrayView() : ArrayView(static_cast<T*>(nullptr), 0) {}
+  ABSL_DEPRECATE_AND_INLINE()
   ArrayView(std::nullptr_t)  // NOLINT
       : ArrayView() {}
-  ArrayView(std::nullptr_t, size_t size)
-      : ArrayView(static_cast<T*>(nullptr), size) {
+  ABSL_DEPRECATE_AND_INLINE()
+  ArrayView(std::nullptr_t, size_t size) : ArrayView() {
     static_assert(Size == 0 || Size == array_view_internal::kArrayViewVarSize,
                   "");
     RTC_DCHECK_EQ(0, size);
@@ -251,6 +260,7 @@ class ArrayView final : public array_view_internal::ArrayViewBase<T, Size> {
                 !std::is_same_v<ArrayView, std::remove_reference_t<U>> &&
                 Size == array_view_internal::kArrayViewVarSize &&
                 HasDataAndSize<U, T>::value>* = nullptr>
+    requires(std::ranges::contiguous_range<U> && std::ranges::sized_range<U>)
   ArrayView(U& u)  // NOLINT
       : ArrayView(u.data(), u.size()) {}
 
@@ -259,6 +269,7 @@ class ArrayView final : public array_view_internal::ArrayViewBase<T, Size> {
                 !std::is_same_v<ArrayView, std::remove_reference_t<U>> &&
                 Size == array_view_internal::kArrayViewVarSize &&
                 HasDataAndSize<U, T>::value>* = nullptr>
+    requires(std::ranges::contiguous_range<U> && std::ranges::sized_range<U>)
   ArrayView(const U& u)  // NOLINT(runtime/explicit)
       : ArrayView(u.data(), u.size()) {}
 
@@ -266,25 +277,58 @@ class ArrayView final : public array_view_internal::ArrayViewBase<T, Size> {
   // const, because the ArrayView doesn't own the array. (To prevent mutation,
   // use a const element type.)
   T& operator[](size_t idx) const {
-    RTC_DCHECK_LT(idx, this->size());
-    RTC_DCHECK(this->data());
+    // RTC_HARDENING_ASSERT is used because this is tunable at compile time
+    // to be on or off in production, depending on the choices of the
+    // embedder.
+    RTC_HARDENING_ASSERT(idx < this->size());
+    RTC_HARDENING_ASSERT(this->data());
     return this->data()[idx];
   }
-  T* begin() const { return this->data(); }
-  T* end() const { return this->data() + this->size(); }
-  const T* cbegin() const { return this->data(); }
-  const T* cend() const { return this->data() + this->size(); }
-  std::reverse_iterator<T*> rbegin() const {
+  iterator begin() const {
+    return std::span<T>(this->data(), this->size()).begin();
+  }
+  iterator end() const {
+    return std::span<T>(this->data(), this->size()).end();
+  }
+  ABSL_DEPRECATE_AND_INLINE() const_iterator cbegin() const { return begin(); }
+  ABSL_DEPRECATE_AND_INLINE() const_iterator cend() const { return end(); }
+  std::reverse_iterator<iterator> rbegin() const {
     return std::make_reverse_iterator(end());
   }
-  std::reverse_iterator<T*> rend() const {
+  std::reverse_iterator<iterator> rend() const {
     return std::make_reverse_iterator(begin());
   }
-  std::reverse_iterator<const T*> crbegin() const {
-    return std::make_reverse_iterator(cend());
+  ABSL_DEPRECATE_AND_INLINE()
+  std::reverse_iterator<const_iterator> crbegin() const { return rbegin(); }
+  ABSL_DEPRECATE_AND_INLINE()
+  std::reverse_iterator<const_iterator> crend() const { return rend(); }
+
+  template <size_t count>
+  constexpr ArrayView<T, count> first() const {
+    RTC_HARDENING_ASSERT(count <= this->size());
+    return ArrayView<T, count>(this->data(), count);
   }
-  std::reverse_iterator<const T*> crend() const {
-    return std::make_reverse_iterator(cbegin());
+
+  template <size_t count>
+  constexpr ArrayView<T, count> last() const {
+    RTC_HARDENING_ASSERT(count <= this->size());
+    return ArrayView<T, count>(this->data() + this->size() - count, count);
+  }
+
+  template <size_t offset, size_t count = std::dynamic_extent>
+  constexpr auto subspan() const {
+    RTC_HARDENING_ASSERT(offset <= this->size());
+    if constexpr (count == std::dynamic_extent) {
+      constexpr ptrdiff_t final_extent =
+          Size != array_view_internal::kArrayViewVarSize
+              ? Size - offset
+              : array_view_internal::kArrayViewVarSize;
+      return ArrayView<T, final_extent>(this->data() + offset,
+                                        this->size() - offset);
+    } else {
+      RTC_HARDENING_ASSERT(count <= this->size() - offset);
+      return ArrayView<T, count>(this->data() + offset, count);
+    }
   }
 
   constexpr ArrayView<T> subspan(size_t offset,
@@ -298,29 +342,24 @@ class ArrayView final : public array_view_internal::ArrayViewBase<T, Size> {
     return ArrayView<T>(this->data() + offset, count);
   }
 
-  // Prefer to use `subspan` instead of `subview` in new code.
-  // TODO: bugs.webrtc.org/439801349 - make deprecated when all usages in
-  // WebRTC and chromium are migrated to subspan.
+  [[deprecated("Use subspan")]]
   ArrayView<T> subview(size_t offset, size_t size) const {
-    return offset < this->size()
-               ? ArrayView<T>(this->data() + offset,
-                              std::min(size, this->size() - offset))
+    return offset <= this->size()
+               ? subspan(offset, std::min(size, this->size() - offset))
                : ArrayView<T>();
   }
+  [[deprecated("Use subspan")]]
   ArrayView<T> subview(size_t offset) const {
-    return subview(offset, this->size());
+    return offset <= this->size() ? subspan(offset) : ArrayView<T>();
   }
 };
 
 // Comparing two ArrayViews compares their (pointer,size) pairs; it does *not*
 // dereference the pointers.
 template <typename T, std::ptrdiff_t Size1, std::ptrdiff_t Size2>
+[[deprecated("issues.webrtc.org/439801349")]]
 bool operator==(const ArrayView<T, Size1>& a, const ArrayView<T, Size2>& b) {
   return a.data() == b.data() && a.size() == b.size();
-}
-template <typename T, std::ptrdiff_t Size1, std::ptrdiff_t Size2>
-bool operator!=(const ArrayView<T, Size1>& a, const ArrayView<T, Size2>& b) {
-  return !(a == b);
 }
 
 // Variable-size ArrayViews are the size of two pointers; fixed-size ArrayViews

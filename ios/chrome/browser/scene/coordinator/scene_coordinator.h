@@ -14,6 +14,7 @@
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_grid_coordinator_delegate.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_grid_paging.h"
 
+enum class ApplicationMode;
 class Browser;
 @protocol BrowserProviderInterface;
 class GURL;
@@ -24,6 +25,7 @@ enum class SafariDataImportEntryPoint;
 @class OpenNewTabCommand;
 @class SceneCoordinator;
 class SceneUrlLoadingService;
+@protocol SceneURLLoadingServiceDelegate;
 @class SettingsNavigationController;
 @class ShowSigninCommand;
 @class SigninCoordinator;
@@ -36,6 +38,27 @@ enum class PasswordCheckReferrer;
 enum class WarningType;
 }  // namespace password_manager
 
+// Protocol to handle Scene UI changes that require access to the BVC.
+@protocol SceneUIHandler
+
+// Sets the current interface to `ApplicationMode::INCOGNITO` or
+// `ApplicationMode::NORMAL`.
+- (void)setCurrentInterfaceForMode:(ApplicationMode)mode;
+
+// Displays current (incognito/normal) BVC and calls `completion`.
+- (void)displayCurrentBVC:(ProceduralBlock)completion;
+
+// Checks the target BVC's current tab's URL. If `urlLoadParams` has an empty
+// URL, no new tab will be opened and `tabOpenedCompletion` will be run. If this
+// URL is chrome://newtab, loads `urlLoadParams` in this tab. Otherwise, open
+// `urlLoadParams` in a new tab in the target BVC. `tabOpenedCompletion` will be
+// called on the new tab (if not nil).
+- (void)openOrReuseTabInMode:(ApplicationMode)targetMode
+           withUrlLoadParams:(const UrlLoadParams&)urlLoadParams
+         tabOpenedCompletion:(ProceduralBlock)tabOpenedCompletion;
+
+@end
+
 // Coordinator for the scene, managing the top-level UI.
 @interface SceneCoordinator
     : RootCoordinator <SettingsCommands, SettingsNavigationControllerDelegate>
@@ -47,7 +70,11 @@ enum class WarningType;
 
 - (instancetype)init NS_UNAVAILABLE;
 
-@property(nonatomic, weak) id<TabGridCoordinatorDelegate> delegate;
+// An object to handle scene ui changes.
+@property(nonatomic, weak) id<SceneUIHandler> UIHandler;
+
+// A delegate for the Tab Grid coordinator.
+@property(nonatomic, weak) id<TabGridCoordinatorDelegate> tabGridDelegate;
 
 // Proxy properties for TabGridCoordinator.
 @property(nonatomic, readonly, strong) UIViewController* activeViewController;
@@ -73,6 +100,10 @@ enum class WarningType;
 
 // Returns YES if the current Tab is available to present a view controller.
 - (BOOL)isTabAvailableToPresentViewController;
+
+// Open a non-incognito tab, if one exists. If one doesn't exist, open a new
+// one. If incognito is forced, an incognito tab will be opened.
+- (void)openNonIncognitoTab:(ProceduralBlock)completion;
 
 // Displays the TabGrid at `page`.
 - (void)showTabGridPage:(TabGridPage)page;
@@ -239,6 +270,25 @@ enum class WarningType;
 
 // Open a new window with `userActivity`
 - (void)openNewWindowWithActivity:(NSUserActivity*)userActivity;
+
+// Shows the TabGrid, in the chosen `mode`.
+- (void)displayTabGridInMode:(TabGridOpeningMode)mode;
+
+// Stops voice search on all browsers (regular and incognito) in the scene.
+- (void)stopAllVoiceSearch;
+
+// Sets whether the UI is displaying incognito content.
+- (void)setIncognitoContentVisible:(BOOL)incognitoContentVisible;
+
+// Prepare to show the TabSwitcher UI.
+- (void)prepareTabSwitcher;
+
+// Closes all open modals. If `dismissSnackbars` is YES, also dismisses
+// all snackbars. Ensures that a non-incognito NTP tab is open. If
+// incognito is forced, then it will ensure an incognito NTP tab is open.
+// The `completion` block is called once all these preparations are complete.
+- (void)prepareToPresentModalWithSnackbarDismissal:(BOOL)dismissSnackbars
+                                        completion:(ProceduralBlock)completion;
 
 @end
 

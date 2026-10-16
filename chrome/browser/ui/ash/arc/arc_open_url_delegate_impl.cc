@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "ash/constants/ash_features.h"
+#include "ash/constants/chrome_url_constants.h"
 #include "ash/public/cpp/new_window_delegate.h"
 #include "ash/webui/settings/public/constants/routes.mojom.h"
 #include "base/check.h"
@@ -37,21 +38,22 @@
 #include "chrome/browser/ui/ash/shelf/app_service/app_service_app_window_arc_tracker.h"
 #include "chrome/browser/ui/ash/shelf/app_service/app_service_app_window_shelf_controller.h"
 #include "chrome/browser/ui/ash/shelf/chrome_shelf_controller.h"
-#include "chrome/browser/ui/settings_window_manager_chromeos.h"
 #include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
 #include "chrome/browser/webshare/prepare_directory_task.h"
-#include "chrome/common/webui_url_constants.h"
 #include "chromeos/ash/components/browser_context_helper/browser_context_helper.h"
 #include "chromeos/ash/experiences/arc/intent_helper/arc_intent_helper_bridge.h"
 #include "chromeos/ash/experiences/arc/intent_helper/custom_tab.h"
 #include "chromeos/ash/experiences/arc/mojom/intent_helper.mojom.h"
+#include "chromeos/ash/experiences/settings_ui/settings_app_manager.h"
 #include "components/services/app_service/public/cpp/app_launch_util.h"
 #include "components/services/app_service/public/cpp/app_update.h"
 #include "components/services/app_service/public/cpp/intent.h"
 #include "components/services/app_service/public/cpp/intent_filter_util.h"
 #include "components/services/app_service/public/cpp/intent_util.h"
 #include "components/services/app_service/public/cpp/types_util.h"
+#include "components/session_manager/core/session.h"
+#include "components/session_manager/core/session_manager.h"
 #include "components/user_manager/user_manager.h"
 #include "components/webapps/common/web_app_id.h"
 #include "content/public/browser/web_contents.h"
@@ -126,17 +128,18 @@ constexpr auto kOSSettingsMap =
 
 constexpr auto kBrowserSettingsMap =
     base::MakeFixedFlatMap<ChromePage, const char*>({
-        {ChromePage::APPEARANCE, chrome::kAppearanceSubPage},
-        {ChromePage::AUTOFILL, chrome::kAutofillSubPage},
-        {ChromePage::CLEARBROWSERDATA, chrome::kClearBrowserDataSubPage},
-        {ChromePage::DOWNLOADS, chrome::kDownloadsSubPage},
-        {ChromePage::LANGUAGES, chrome::kLanguagesSubPage},
-        {ChromePage::ONSTARTUP, chrome::kOnStartupSubPage},
-        {ChromePage::PASSWORDS, chrome::kPasswordManagerSubPage},
-        {ChromePage::PRIVACY, chrome::kPrivacySubPage},
-        {ChromePage::RESET, chrome::kResetSubPage},
-        {ChromePage::SEARCH, chrome::kSearchSubPage},
-        {ChromePage::SYNCSETUP, chrome::kSyncSetupSubPage},
+        {ChromePage::APPEARANCE, ash::chrome_urls::kAppearanceSubPage},
+        {ChromePage::AUTOFILL, ash::chrome_urls::kAutofillSubPage},
+        {ChromePage::CLEARBROWSERDATA,
+         ash::chrome_urls::kClearBrowserDataSubPage},
+        {ChromePage::DOWNLOADS, ash::chrome_urls::kDownloadsSubPage},
+        {ChromePage::LANGUAGES, ash::chrome_urls::kLanguagesSubPage},
+        {ChromePage::ONSTARTUP, ash::chrome_urls::kOnStartupSubPage},
+        {ChromePage::PASSWORDS, ash::chrome_urls::kPasswordManagerSubPage},
+        {ChromePage::PRIVACY, ash::chrome_urls::kPrivacySubPage},
+        {ChromePage::RESET, ash::chrome_urls::kResetSubPage},
+        {ChromePage::SEARCH, ash::chrome_urls::kSearchSubPage},
+        {ChromePage::SYNCSETUP, ash::chrome_urls::kSyncSetupSubPage},
     });
 
 constexpr auto kAboutPagesMap =
@@ -318,16 +321,24 @@ void ArcOpenUrlDelegateImpl::OpenWebAppFromArc(const GURL& url) {
 
 void ArcOpenUrlDelegateImpl::OpenChromePageFromArc(ChromePage page) {
   if (auto it = kOSSettingsMap.find(page); it != kOSSettingsMap.end()) {
-    Profile* profile = ProfileManager::GetActiveUserProfile();
-    std::string sub_page = it->second;
-    chrome::SettingsWindowManager::GetInstance()->ShowOSSettings(profile,
-                                                                 sub_page);
+    // TODO(crbug.com/447287122): Revisist here to see what user to be used.
+    // Actually ARC should be tied to Primary user session, so opening
+    // the primary user's settings app should make more sense in general,
+    // but it may be invisible if user moves the ARC window to the secondary
+    // user's desktop.
+    auto* session = session_manager::SessionManager::Get()->GetActiveSession();
+    CHECK(session);
+    ash::SettingsAppManager::Get()->Open(
+        CHECK_DEREF(
+            user_manager::UserManager::Get()->FindUser(session->account_id())),
+        {.sub_page = it->second});
     return;
   }
 
   if (auto it = kBrowserSettingsMap.find(page);
       it != kBrowserSettingsMap.end()) {
-    OpenUrlFromArc(GURL(chrome::kChromeUISettingsURL).Resolve(it->second));
+    OpenUrlFromArc(
+        GURL(ash::chrome_urls::kChromeUISettingsURL).Resolve(it->second));
     return;
   }
 

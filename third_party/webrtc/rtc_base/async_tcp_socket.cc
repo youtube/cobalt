@@ -156,8 +156,7 @@ int AsyncTCPSocketBase::FlushOutBuffer() {
       res = outbuf_.size() - view.size();
     }
     if (view.size() < outbuf_.size()) {
-      memmove(outbuf_.data(), view.data(), view.size());
-      outbuf_.SetSize(view.size());
+      outbuf_.SetData(view);
     }
   }
   return res;
@@ -212,9 +211,11 @@ void AsyncTCPSocketBase::OnReadEvent(Socket* socket) {
     inbuf_.Clear();
   } else {
     if (bytes_remaining > 0) {
-      memmove(inbuf_.data(), inbuf_.data() + processed, bytes_remaining);
+      // Move remaining bytes to beginning of buffer.
+      inbuf_.SetData(ArrayView<uint8_t>(inbuf_).subspan(processed));
+    } else {
+      inbuf_.Clear();
     }
-    inbuf_.SetSize(bytes_remaining);
   }
 }
 

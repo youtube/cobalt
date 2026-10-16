@@ -15,6 +15,7 @@
 
 #include <memory>
 
+#include "api/environment/environment.h"
 #include "api/peer_connection_interface.h"
 #include "api/scoped_refptr.h"
 #include "rtc_base/socket_factory.h"
@@ -29,7 +30,8 @@ jobject NativeToJavaPeerConnectionFactory(
     std::unique_ptr<SocketFactory> socket_factory,
     std::unique_ptr<Thread> network_thread,
     std::unique_ptr<Thread> worker_thread,
-    std::unique_ptr<Thread> signaling_thread);
+    std::unique_ptr<Thread> signaling_thread,
+    const Environment& env);
 
 }  // namespace webrtc
 

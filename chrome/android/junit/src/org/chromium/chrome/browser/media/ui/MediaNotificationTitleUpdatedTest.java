@@ -24,13 +24,12 @@ import org.robolectric.RuntimeEnvironment;
 import org.robolectric.Shadows;
 import org.robolectric.annotation.Config;
 import org.robolectric.shadows.ShadowKeyguardManager;
-import org.robolectric.shadows.ShadowLooper;
 import org.robolectric.shadows.ShadowNotification;
 
 import org.chromium.base.ContextUtils;
 import org.chromium.base.ScreenOffBroadcastReceiver;
-import org.chromium.base.test.BaseRobolectricTestRule;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.RobolectricUtil;
 import org.chromium.chrome.R;
 import org.chromium.components.browser_ui.media.MediaNotificationController;
 import org.chromium.components.browser_ui.media.MediaSessionHelper;
@@ -75,7 +74,7 @@ public class MediaNotificationTitleUpdatedTest extends MediaNotificationTestBase
         mShadowKeyguardManager = Shadows.shadowOf(keyguardManager);
 
         ScreenOffBroadcastReceiver.getInstance();
-        BaseRobolectricTestRule.runAllBackgroundAndUi();
+        RobolectricUtil.runAllBackgroundAndUi();
     }
 
     @After
@@ -83,7 +82,7 @@ public class MediaNotificationTitleUpdatedTest extends MediaNotificationTestBase
     public void tearDown() {
         super.tearDown();
         ScreenOffBroadcastReceiver.resetForTesting();
-        BaseRobolectricTestRule.runAllBackgroundAndUi();
+        RobolectricUtil.runAllBackgroundAndUi();
     }
 
     @Test
@@ -181,7 +180,7 @@ public class MediaNotificationTitleUpdatedTest extends MediaNotificationTestBase
         mShadowKeyguardManager.setKeyguardLocked(true);
         ContextUtils.getApplicationContext().sendBroadcast(new Intent(Intent.ACTION_SCREEN_OFF));
         Shadows.shadowOf(Looper.getMainLooper()).runToEndOfTasks();
-        ShadowLooper.idleMainLooper();
+        RobolectricUtil.runAllBackgroundAndUi();
     }
 
     @Test

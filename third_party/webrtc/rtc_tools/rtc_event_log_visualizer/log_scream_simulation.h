@@ -47,6 +47,7 @@ class LogScreamSimulation {
 
     DataSize ref_window = DataSize::Zero();
     DataSize ref_window_i = DataSize::Zero();
+    DataSize max_allowed_ref_window = DataSize::Zero();
     DataSize max_data_in_flight = DataSize::Zero();
     // Data in flight after last packet was sent before the state was captured.
     DataSize data_in_flight = DataSize::Zero();
@@ -56,7 +57,9 @@ class LogScreamSimulation {
 
     double queue_delay_dev_norm = 0;
     double ref_window_scale_factor_due_to_increased_delay = 0.0;
-    double ref_window_scale_factor_due_to_delay_variation = 0;
+    double ref_window_scale_factor_due_to_delay_variation = 0.0;
+    double ref_window_scale_factor_close_to_ref_window_i = 0.0;
+    double ref_window_combined_increase_scale_factor = 0.0;
     double l4s_alpha = 0.0;
     double l4s_alpha_v = 0.0;
   };

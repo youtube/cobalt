@@ -30,6 +30,7 @@
 #include "src/tasks/operations-barrier.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/compilation-environment.h"
+#include "src/wasm/effect-handler.h"
 #include "src/wasm/wasm-code-coverage.h"
 #include "src/wasm/wasm-code-pointer-table.h"
 #include "src/wasm/wasm-features.h"
@@ -256,8 +257,11 @@ class V8_EXPORT_PRIVATE WasmCode final {
 
   struct __attribute__((packed)) EffectHandler {
     int call_offset;
-    int tag_index;
+    EffectHandlerTagIndex tag_and_kind;
     int handler_offset;
+
+    bool is_switch() const { return tag_and_kind.is_switch(); }
+    uint32_t tag_index() const { return tag_and_kind.index(); }
   };
   static_assert(sizeof(WasmCode::EffectHandler) == 3 * kIntSize);
 
@@ -624,15 +628,6 @@ class WasmCodeAllocator {
 
 class V8_EXPORT_PRIVATE NativeModule final {
  public:
-  class V8_NODISCARD NativeModuleAllocationLockScope {
-   public:
-    explicit NativeModuleAllocationLockScope(NativeModule* module)
-        : lock_(module->allocation_mutex_) {}
-
-   private:
-    base::RecursiveMutexGuard lock_;
-  };
-
   static constexpr ExternalPointerTag kManagedTag = kWasmNativeModuleTag;
 
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_S390X || V8_TARGET_ARCH_ARM64 || \

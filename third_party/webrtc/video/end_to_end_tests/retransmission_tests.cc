@@ -198,7 +198,6 @@ TEST_F(RetransmissionEndToEndTest, ReceivesNackAndRetransmitsAudio) {
                                 receive_configs) override {
       (*receive_configs)[0].rtp.nack.rtp_history_ms =
           test::VideoTestConstants::kNackRtpHistoryMs;
-      local_ssrc_ = (*receive_configs)[0].rtp.local_ssrc;
       remote_ssrc_ = (*receive_configs)[0].rtp.remote_ssrc;
       receive_transport_ = (*receive_configs)[0].rtcp_send_transport;
     }

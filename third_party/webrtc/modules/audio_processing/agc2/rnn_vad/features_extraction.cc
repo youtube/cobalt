@@ -82,12 +82,12 @@ bool FeaturesExtractor::CheckSilenceComputeFeatures(
   // Analyze reference and lagged frames checking if silence has been detected
   // and write the feature vector.
   return spectral_features_extractor_.CheckSilenceComputeFeatures(
-      reference_frame_view_, {lagged_frame.data(), kFrameSize20ms24kHz},
-      {feature_vector.data() + kNumLowerBands, kNumBands - kNumLowerBands},
-      {feature_vector.data(), kNumLowerBands},
-      {feature_vector.data() + kNumBands, kNumLowerBands},
-      {feature_vector.data() + kNumBands + kNumLowerBands, kNumLowerBands},
-      {feature_vector.data() + kNumBands + 2 * kNumLowerBands, kNumLowerBands},
+      reference_frame_view_, lagged_frame.first<kFrameSize20ms24kHz>(),
+      feature_vector.subspan<kNumLowerBands, kNumBands - kNumLowerBands>(),
+      feature_vector.first<kNumLowerBands>(),
+      feature_vector.subspan<kNumBands, kNumLowerBands>(),
+      feature_vector.subspan<kNumBands + kNumLowerBands, kNumLowerBands>(),
+      feature_vector.subspan<kNumBands + 2 * kNumLowerBands, kNumLowerBands>(),
       &feature_vector[kFeatureVectorSize - 1]);
 }
 

@@ -14,6 +14,7 @@
 #include <cstring>
 #include <optional>
 
+#include "absl/algorithm/container.h"
 #include "api/array_view.h"
 #include "api/audio/audio_view.h"
 #include "api/audio/channel_layout.h"
@@ -102,7 +103,7 @@ void AudioFrame::CopyFrom(const AudioFrame& src) {
     // copying over new values. If we don't, msan might complain in some tests.
     // Consider locking down construction, avoiding the default constructor and
     // prefering construction that initializes all state.
-    ClearSamples(data_);
+    absl::c_fill(data_, 0);
   }
 
   timestamp_ = src.timestamp_;
@@ -126,7 +127,7 @@ void AudioFrame::CopyFrom(const AudioFrame& src) {
 }
 
 const int16_t* AudioFrame::data() const {
-  return muted_ ? zeroed_data().begin() : data_.data();
+  return muted_ ? zeroed_data().data() : data_.data();
 }
 
 InterleavedView<const int16_t> AudioFrame::data_view() const {
@@ -147,7 +148,7 @@ int16_t* AudioFrame::mutable_data() {
   // Consider instead if we should rather zero the buffer when `muted_` is set
   // to `true`.
   if (muted_) {
-    ClearSamples(data_);
+    absl::c_fill(data_, 0);
     muted_ = false;
   }
   return &data_[0];
@@ -170,7 +171,7 @@ InterleavedView<int16_t> AudioFrame::mutable_data(size_t samples_per_channel,
   // Consider instead if we should rather zero the whole buffer when `muted_` is
   // set to `true`.
   if (muted_) {
-    ClearSamples(data_, total_samples);
+    absl::c_fill_n(data_, total_samples, 0);
     muted_ = false;
   }
   samples_per_channel_ = samples_per_channel;

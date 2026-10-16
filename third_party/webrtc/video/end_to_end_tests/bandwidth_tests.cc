@@ -235,7 +235,6 @@ TEST_F(BandwidthEndToEndTest, RembWithSendSideBwe) {
       encoder_config->max_bitrate_bps = 2000000;
 
       ASSERT_EQ(1u, receive_configs->size());
-      remb_sender_local_ssrc_ = (*receive_configs)[0].rtp.local_ssrc;
       remb_sender_remote_ssrc_ = (*receive_configs)[0].rtp.remote_ssrc;
     }
 
@@ -254,9 +253,9 @@ TEST_F(BandwidthEndToEndTest, RembWithSendSideBwe) {
       config.receiver_only = true;
       config.outgoing_transport = to_sender;
       config.retransmission_rate_limiter = &retransmission_rate_limiter_;
-      config.local_media_ssrc = remb_sender_local_ssrc_;
 
-      rtp_rtcp_ = ModuleRtpRtcpImpl2::CreateReceiveModule(env_, config);
+      rtp_rtcp_ = ModuleRtpRtcpImpl2::CreateReceiveModule(
+          env_, config, [&] { return kFallbackRtcpSsrcForVideo; });
       rtp_rtcp_->SetRemoteSSRC(remb_sender_remote_ssrc_);
       rtp_rtcp_->SetRTCPStatus(RtcpMode::kReducedSize);
     }
@@ -309,7 +308,6 @@ TEST_F(BandwidthEndToEndTest, RembWithSendSideBwe) {
     Call* sender_call_;
     const Environment env_;
     uint32_t sender_ssrc_;
-    uint32_t remb_sender_local_ssrc_ = 0;
     uint32_t remb_sender_remote_ssrc_ = 0;
     int remb_bitrate_bps_;
     std::unique_ptr<ModuleRtpRtcpImpl2> rtp_rtcp_;

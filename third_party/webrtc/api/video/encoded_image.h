@@ -52,6 +52,8 @@ class EncodedImageBufferInterface : public RefCountInterface {
 // Basic implementation of EncodedImageBufferInterface.
 class RTC_EXPORT EncodedImageBuffer : public EncodedImageBufferInterface {
  public:
+  using iterator = Buffer::iterator;
+
   static scoped_refptr<EncodedImageBuffer> Create() { return Create(0); }
   static scoped_refptr<EncodedImageBuffer> Create(size_t size);
   static scoped_refptr<EncodedImageBuffer> Create(const uint8_t* data,
@@ -62,6 +64,9 @@ class RTC_EXPORT EncodedImageBuffer : public EncodedImageBufferInterface {
   uint8_t* data();
   size_t size() const override;
   void Realloc(size_t t);
+
+  iterator begin() { return buffer_.begin(); }
+  iterator end() { return buffer_.end(); }
 
  protected:
   explicit EncodedImageBuffer(size_t size);

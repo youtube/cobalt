@@ -100,8 +100,8 @@ class RemoteEstimateSerializerImpl : public RemoteEstimateSerializer {
     if (src.size() % kFieldSize != 0)
       return false;
     RTC_DCHECK_EQ(src.size() % kFieldSize, 0);
-    for (const uint8_t* data_ptr = src.data(); data_ptr < src.end();
-         data_ptr += kFieldSize) {
+    for (const uint8_t* data_ptr = src.data();
+         data_ptr < src.data() + src.size(); data_ptr += kFieldSize) {
       uint8_t field_id = ByteReader<uint8_t>::ReadBigEndian(data_ptr);
       for (const auto& field : fields_) {
         if (field.id() == field_id) {

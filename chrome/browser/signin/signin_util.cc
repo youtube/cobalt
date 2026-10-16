@@ -314,8 +314,7 @@ PrimaryAccountError SetPrimaryAccountWithInvalidToken(
 
   auto set_primary_account_result =
       identity_manager->GetPrimaryAccountMutator()->SetPrimaryAccount(
-          account_id, signin::ConsentLevel::kSignin,
-          signin_metrics::AccessPoint::kUnknown);
+          account_id, signin::ConsentLevel::kSignin, access_point);
   DVLOG(1) << "Operation of setting account id <" << account_id.ToString()
            << "> received the following result: "
            << static_cast<int>(set_primary_account_result);
@@ -481,13 +480,13 @@ void EnableHistorySync(syncer::SyncService* sync_service) {
 bool IsValidAccessPointForHistoryOptinScreen(
     signin_metrics::AccessPoint access_point) {
   switch (access_point) {
-    case (signin_metrics::AccessPoint::kExtensionInstallBubble):
-    case (signin_metrics::AccessPoint::kBookmarkBubble):
-    case (signin_metrics::AccessPoint::kRecentTabs):
-    case (signin_metrics::AccessPoint::kCollaborationJoinTabGroup):
-    case (signin_metrics::AccessPoint::kCollaborationShareTabGroup):
-    case (signin_metrics::AccessPoint::kPasswordBubble):
-    case (signin_metrics::AccessPoint::kAddressBubble):
+    case signin_metrics::AccessPoint::kExtensionInstallBubble:
+    case signin_metrics::AccessPoint::kBookmarkBubble:
+    case signin_metrics::AccessPoint::kRecentTabs:
+    case signin_metrics::AccessPoint::kCollaborationJoinTabGroup:
+    case signin_metrics::AccessPoint::kCollaborationShareTabGroup:
+    case signin_metrics::AccessPoint::kPasswordBubble:
+    case signin_metrics::AccessPoint::kAddressBubble:
       return false;
     case signin_metrics::AccessPoint::kStartPage:
     case signin_metrics::AccessPoint::kMenu:
@@ -559,6 +558,8 @@ bool IsValidAccessPointForHistoryOptinScreen(
     case signin_metrics::AccessPoint::kCredentialExchangeImport:
     case signin_metrics::AccessPoint::kSetSyncConsentFromSyncInternals:
     case signin_metrics::AccessPoint::kIosChromeWebView:
+    case signin_metrics::AccessPoint::kAshChromeSessionManager:
+    case signin_metrics::AccessPoint::kAshUserSessionManager:
       return true;
   }
 }

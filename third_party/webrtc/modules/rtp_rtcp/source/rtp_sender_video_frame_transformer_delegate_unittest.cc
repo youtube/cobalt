@@ -10,6 +10,7 @@
 
 #include "modules/rtp_rtcp/source/rtp_sender_video_frame_transformer_delegate.h"
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -276,6 +277,7 @@ TEST_F(RtpSenderVideoFrameTransformerDelegateTest,
   const uint8_t payload_type = 1;
   const uint32_t timestamp = 2;
   const std::vector<uint32_t> frame_csrcs = {123, 456, 789};
+  const std::array<uint8_t, 3> buffer = {3, 2, 1};
 
   auto mock_receiver_frame =
       std::make_unique<NiceMock<MockTransformableVideoFrame>>();
@@ -286,8 +288,6 @@ TEST_F(RtpSenderVideoFrameTransformerDelegateTest,
   metadata.SetRTPVideoHeaderCodecSpecifics(RTPVideoHeaderVP8());
   metadata.SetCsrcs(frame_csrcs);
   ON_CALL(*mock_receiver_frame, Metadata).WillByDefault(Return(metadata));
-  ArrayView<const uint8_t> buffer =
-      (ArrayView<const uint8_t>)*EncodedImageBuffer::Create(1);
   ON_CALL(*mock_receiver_frame, GetData).WillByDefault(Return(buffer));
   ON_CALL(*mock_receiver_frame, GetPayloadType)
       .WillByDefault(Return(payload_type));
@@ -300,12 +300,12 @@ TEST_F(RtpSenderVideoFrameTransformerDelegateTest,
   ASSERT_TRUE(callback);
 
   Event event;
-  EXPECT_CALL(
-      test_sender_,
-      SendVideo(payload_type, kVideoCodecVP8, timestamp,
-                /*capture_time=*/Timestamp::MinusInfinity(), buffer, _, _,
-                /*expected_retransmission_time=*/TimeDelta::Millis(10),
-                frame_csrcs))
+  EXPECT_CALL(test_sender_,
+              SendVideo(payload_type, kVideoCodecVP8, timestamp,
+                        /*capture_time=*/Timestamp::MinusInfinity(),
+                        ElementsAreArray(buffer), _, _,
+                        /*expected_retransmission_time=*/TimeDelta::Millis(10),
+                        frame_csrcs))
       .WillOnce(WithoutArgs([&] {
         event.Set();
         return true;

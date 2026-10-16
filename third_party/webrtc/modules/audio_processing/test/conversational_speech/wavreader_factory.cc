@@ -32,11 +32,11 @@ class WavReaderAdaptor final : public WavReaderInterface {
   ~WavReaderAdaptor() override = default;
 
   size_t ReadFloatSamples(ArrayView<float> samples) override {
-    return wav_reader_.ReadSamples(samples.size(), samples.begin());
+    return wav_reader_.ReadSamples(samples.size(), samples.data());
   }
 
   size_t ReadInt16Samples(ArrayView<int16_t> samples) override {
-    return wav_reader_.ReadSamples(samples.size(), samples.begin());
+    return wav_reader_.ReadSamples(samples.size(), samples.data());
   }
 
   int SampleRate() const override { return wav_reader_.sample_rate(); }

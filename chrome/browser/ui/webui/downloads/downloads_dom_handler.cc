@@ -23,6 +23,7 @@
 #include "base/task/current_thread.h"
 #include "base/threading/thread.h"
 #include "base/values.h"
+#include "build/branding_buildflags.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/download/download_danger_prompt.h"
 #include "chrome/browser/download/download_history.h"
@@ -436,11 +437,10 @@ void DownloadsDOMHandler::RetryDownload(const std::string& id) {
   // initial download request rather than treating it as initiated from the
   // chrome://downloads/ page. Thus we get the NIK from |file|, not from
   // |render_frame_host|.
-  auto dl_params = std::make_unique<download::DownloadUrlParameters>(
-      url, render_frame_host->GetProcess()->GetDeprecatedID(),
-      render_frame_host->GetRoutingID(), traffic_annotation);
+  auto dl_params =
+      render_frame_host->CreateDownloadUrlParameters(url, traffic_annotation);
   dl_params->set_content_initiated(true);
-  dl_params->set_initiator(url::Origin::Create(GURL("chrome://downloads")));
+  dl_params->set_initiator(file->GetRequestInitiator());
   dl_params->set_download_source(download::DownloadSource::RETRY);
 
   web_contents->GetBrowserContext()->GetDownloadManager()->DownloadUrl(

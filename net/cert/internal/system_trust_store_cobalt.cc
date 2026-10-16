@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/cert/internal/system_trust_store.h"
-
 #include <memory>
 
 #include "build/build_config.h"
+#include "net/cert/internal/system_trust_store.h"
 #include "net/cert/internal/trust_store_chrome.h"
 #include "net/net_buildflags.h"
 
@@ -24,10 +23,13 @@ namespace {
 // the default Android implementation.
 class SystemTrustStoreChromeOnly : public SystemTrustStore {
  public:
-  explicit SystemTrustStoreChromeOnly(std::unique_ptr<TrustStoreChrome> trust_store_chrome)
+  explicit SystemTrustStoreChromeOnly(
+      std::unique_ptr<TrustStoreChrome> trust_store_chrome)
       : trust_store_chrome_(std::move(trust_store_chrome)) {}
 
-  bssl::TrustStore* GetTrustStore() override { return trust_store_chrome_.get(); }
+  bssl::TrustStore* GetTrustStore() override {
+    return trust_store_chrome_.get();
+  }
   bool IsKnownRoot(const bssl::ParsedCertificate* trust_anchor) const override {
     return trust_store_chrome_->Contains(trust_anchor);
   }
@@ -50,8 +52,8 @@ class SystemTrustStoreChromeOnly : public SystemTrustStore {
   }
 
   base::span<const ChromeRootCertConstraints> GetChromeRootConstraints(
-      const bssl::ParsedCertificate* cert) const override {
-    return trust_store_chrome_->GetConstraintsForCert(cert);
+      const bssl::CertPathBuilderResultPath* path) const override {
+    return trust_store_chrome_->GetConstraintsForCert(path);
   }
 
   const TrustStoreChrome::MtcAnchorExtraData* GetMTCAnchorData(
@@ -66,13 +68,13 @@ class SystemTrustStoreChromeOnly : public SystemTrustStore {
  private:
   std::unique_ptr<TrustStoreChrome> trust_store_chrome_;
 };
-} // namespace
+}  // namespace
 
 std::unique_ptr<SystemTrustStore> CreateSslSystemTrustStoreChromeRoot(
     std::unique_ptr<TrustStoreChrome> chrome_root) {
   return std::make_unique<SystemTrustStoreChromeOnly>(std::move(chrome_root));
 }
 
-} // namespace net
+}  // namespace net
 
-#endif // BUILDFLAG(IS_COBALT)
+#endif  // BUILDFLAG(IS_COBALT)

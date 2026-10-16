@@ -696,6 +696,7 @@ FUNCTION_REFERENCE(wasm_f16x8_demote_f64x2_zero,
                    wasm::f16x8_demote_f64x2_zero_wrapper)
 FUNCTION_REFERENCE(wasm_f16x8_qfma, wasm::f16x8_qfma_wrapper)
 FUNCTION_REFERENCE(wasm_f16x8_qfms, wasm::f16x8_qfms_wrapper)
+FUNCTION_REFERENCE(wasm_data_drop, wasm::data_drop_wrapper)
 FUNCTION_REFERENCE(wasm_memory_init, wasm::memory_init_wrapper)
 FUNCTION_REFERENCE(wasm_memory_copy, wasm::memory_copy_wrapper)
 FUNCTION_REFERENCE(wasm_memory_fill, wasm::memory_fill_wrapper)
@@ -707,7 +708,10 @@ FUNCTION_REFERENCE_WITH_TYPE(wasm_string_to_f64, wasm::flat_string_to_f64,
 
 int32_t (&futex_emulation_wake)(void*, uint32_t) = FutexEmulation::Wake;
 FUNCTION_REFERENCE(wasm_atomic_notify, futex_emulation_wake)
-
+int32_t (&futex_emulation_managed_object_wait)(Address, int32_t,
+                                               uint32_t) = FutexEmulation::Wake;
+FUNCTION_REFERENCE(wasm_managed_object_notify,
+                   futex_emulation_managed_object_wait)
 #define V(Name) RAW_FUNCTION_REFERENCE(wasm_##Name, wasm::Name)
 WASM_JS_EXTERNAL_REFERENCE_LIST(V)
 #undef V

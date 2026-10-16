@@ -301,6 +301,12 @@ class RenderingSimulator {
       return SumNonNegativeIntField(&Frame::frames_dropped);
     }
 
+    // Samples of per-frame delay variation metrics. Not `const` because they
+    // sort `frames`. Defined in `.cc` for circular include order reasons.
+    SamplesStatsCounter InterRenderTimeMs();
+    SamplesStatsCounter InterDecodedTimeMs();
+    SamplesStatsCounter InterRenderedTimeMs();
+
     // Samples of webrtc-stats values in ms.
     SamplesStatsCounter JitterBufferMinimumDelayMs() const {
       return BuildSamplesMs(&Frame::jitter_buffer_minimum_delay);
@@ -407,18 +413,28 @@ inline void SortByRenderedOrder(ArrayView<RenderingSimulator::Frame> frames) {
 // Difference in render time (target) between two frames.
 inline TimeDelta InterRenderTime(const RenderingSimulator::Frame& cur,
                                  const RenderingSimulator::Frame& prev) {
+  if (!cur.render_timestamp.IsFinite() && !prev.render_timestamp.IsFinite()) {
+    return TimeDelta::PlusInfinity();
+  }
   return cur.render_timestamp - prev.render_timestamp;
 }
 
 // Difference in decoded time (actual) between two frames.
 inline TimeDelta InterDecodedTime(const RenderingSimulator::Frame& cur,
                                   const RenderingSimulator::Frame& prev) {
+  if (!cur.decoded_timestamp.IsFinite() && !prev.decoded_timestamp.IsFinite()) {
+    return TimeDelta::PlusInfinity();
+  }
   return cur.decoded_timestamp - prev.decoded_timestamp;
 }
 
 // Difference in rendered time (actual) between two frames.
 inline TimeDelta InterRenderedTime(const RenderingSimulator::Frame& cur,
                                    const RenderingSimulator::Frame& prev) {
+  if (!cur.rendered_timestamp.IsFinite() &&
+      !prev.rendered_timestamp.IsFinite()) {
+    return TimeDelta::PlusInfinity();
+  }
   return cur.rendered_timestamp - prev.rendered_timestamp;
 }
 

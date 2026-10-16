@@ -16,9 +16,7 @@ import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.text.SpannableStringBuilder;
 
-import org.junit.After;
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RuntimeEnvironment;
@@ -29,33 +27,13 @@ import org.chromium.base.test.util.Feature;
 import org.chromium.chrome.browser.notifications.channels.ChromeChannelDefinitions;
 import org.chromium.components.browser_ui.notifications.NotificationMetadata;
 import org.chromium.components.browser_ui.notifications.PendingIntentProvider;
-import org.chromium.components.embedder_support.util.ShadowUrlUtilities;
 
 /** Robolectric unit tests for StandardNotificationBuilder. */
 @RunWith(BaseRobolectricTestRunner.class)
-@Config(
-        manifest = Config.NONE,
-        shadows = {ShadowUrlUtilities.class})
+@Config(manifest = Config.NONE)
 public class StandardNotificationBuilderTest {
     private static final String NOTIFICATION_TAG = "TestNotificationTag";
     private static final int NOTIFICATION_ID = 99;
-
-    @Before
-    public void setUp() {
-        ShadowUrlUtilities.setTestImpl(
-                new ShadowUrlUtilities.TestImpl() {
-                    @Override
-                    public String getDomainAndRegistry(
-                            String uri, boolean includePrivateRegistries) {
-                        return uri;
-                    }
-                });
-    }
-
-    @After
-    public void tearDown() {
-        ShadowUrlUtilities.reset();
-    }
 
     private NotificationBuilderBase createAllOptionsBuilder(
             PendingIntentProvider[] outContentAndDeleteIntents) {
@@ -177,8 +155,6 @@ public class StandardNotificationBuilderTest {
                 notification.extras.getString(Notification.EXTRA_TEMPLATE));
     }
 
-    // TODO(crbug.com/481748850): Fix failure on SDK 30+ due to icon bitmap comparison differences.
-    @Config(sdk = 29)
     @Test
     @Feature({"Browser", "Notifications"})
     public void testSetSmallIcon() {
@@ -201,6 +177,15 @@ public class StandardNotificationBuilderTest {
         // Check the white overlay was applied.
         Bitmap expected = bitmap.copy(bitmap.getConfig(), true);
         NotificationBuilderBase.applyWhiteOverlayToBitmap(expected);
+        // On Android 11+ (SDK 30+), the framework implicitly resizes the source bitmap when
+        // converting it into an Icon object to match standard status bar icon dimensions.
+        // We scale the expected bitmap to match the resulting dimensions before comparison.
+        if (expected.getWidth() != result.getWidth()
+                || expected.getHeight() != result.getHeight()) {
+            expected =
+                    Bitmap.createScaledBitmap(
+                            expected, result.getWidth(), result.getHeight(), true);
+        }
         Assert.assertTrue(expected.sameAs(result));
 
         // Check using the same bitmap on another builder gives the same result.

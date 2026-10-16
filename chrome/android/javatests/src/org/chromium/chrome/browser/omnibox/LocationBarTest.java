@@ -70,6 +70,7 @@ import org.chromium.chrome.test.util.OmniboxTestUtils;
 import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.components.omnibox.AutocompleteInput;
 import org.chromium.components.omnibox.OmniboxFeatures;
+import org.chromium.components.omnibox.OmniboxFocusReason;
 import org.chromium.components.search_engines.TemplateUrl;
 import org.chromium.components.search_engines.TemplateUrlService;
 import org.chromium.content_public.common.ContentSwitches;
@@ -267,7 +268,10 @@ public class LocationBarTest {
         final String query = "testing query";
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    AutocompleteInput input = new AutocompleteInput().setUserText(query);
+                    AutocompleteInput input =
+                            new AutocompleteInput()
+                                    .setUserText(query)
+                                    .setFocusReason(OmniboxFocusReason.SEARCH_QUERY);
                     mLocationBarMediator.beginInput(input);
                 });
         // Query cannot be applied right away because the UrlBar needs to acquire focus first.
@@ -286,7 +290,10 @@ public class LocationBarTest {
         final String query = "testing query";
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    AutocompleteInput input = new AutocompleteInput().setUserText(query);
+                    AutocompleteInput input =
+                            new AutocompleteInput()
+                                    .setUserText(query)
+                                    .setFocusReason(OmniboxFocusReason.SEARCH_QUERY);
                     mLocationBarMediator.beginInput(input);
                 });
         triggerAndWaitForDeferredNativeInitialization();

@@ -704,6 +704,7 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="2137891579555018930">Agardando polo permiso…</translation>
 <translation id="213826338245044447">Marcadores para móbiles</translation>
 <translation id="2141000681034340397">Editar entrada</translation>
+<translation id="2141475438898772664">Paga en 4 prazos ou mensualmente</translation>
 <translation id="2144171668675205303">Non hai ningún tema activo</translation>
 <translation id="2145193671493396738">Noticias económicas</translation>
 <translation id="214556005048008348">Cancelar pago</translation>
@@ -1059,6 +1060,7 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="2674524144218093528">Pintura da casa e acabados</translation>
 <translation id="26774279487328902"><ph name="GROUP_COUNT" /> grupos de pestanas xa no están dispoñibles</translation>
 <translation id="2677748264148917807">Saír</translation>
+<translation id="2679659833697380">A túa información gárdase no teu dispositivo</translation>
 <translation id="2683195745483370038">Outros resultados atopados</translation>
 <translation id="2686919536310834199">Envía comentarios sobre Axúdame a escribir.</translation>
 <translation id="2687555958734450033">Tamaño predeterminado</translation>
@@ -2573,6 +2575,7 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="5114987907971894280">realidade virtual</translation>
 <translation id="5115232566827194440">Omisión da sesión de convidado xestionada e restrinxida</translation>
 <translation id="5115563688576182185">(64 bits)</translation>
+<translation id="5116015291385561204">Verifica a túa identidade para autocompletar a información confidencial</translation>
 <translation id="5120526915373271910">Películas para toda a familia</translation>
 <translation id="5122786942953798871">Sobre (algodón)</translation>
 <translation id="5123063207673082822">Fin de semana</translation>
@@ -2849,6 +2852,7 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="5543564889050342791">Zoos, acuarios e reservas naturais</translation>
 <translation id="5543722831081909240">180 graos</translation>
 <translation id="5544836308113951378">Cruceiros e voos chárter</translation>
+<translation id="5545314360139398232">Vincula <ph name="ISSUER_NAME" /> para pagar máis tarde</translation>
 <translation id="5547939254150808298">Impresión e publicación</translation>
 <translation id="554815783948612276">Provedores de foros e chats</translation>
 <translation id="5548606607480005320">Revisión de seguranza</translation>
@@ -3696,6 +3700,7 @@ En caso contrario, a configuración de privacidade impedirao. Se o permites, o c
 <translation id="6926216138694948720">Arte corporal</translation>
 <translation id="692638818576287323">Vehículos comerciais</translation>
 <translation id="6927878187051807444">ficheiros da cámara e capturas de pantalla</translation>
+<translation id="6929949393612835405">Pechar e volver a <ph name="OPENER_TITLE" /></translation>
 <translation id="6930607614725241390">Fai buscas no panel lateral</translation>
 <translation id="6934236486840930310"><ph name="BEGIN_BOLD" />O teu buscador predeterminado permíteche procurar información na Web e potencia as funcións de Chrome<ph name="END_BOLD" />, como a busca desde a barra de enderezos e desde imaxes de páxinas web. Pode que algunha función non estea dispoñible se o buscador non a admite.</translation>
 <translation id="6934672428414710184">Este nome procede da túa Conta de Google</translation>
@@ -3970,6 +3975,7 @@ Detalles adicionais:
 <translation id="7372973238305370288">resultado da busca</translation>
 <translation id="7374461526650987610">Controladores de protocolo</translation>
 <translation id="7374733840632556089">Este problema prodúcese por causa dun certificado instalado por ti ou por outra persoa no teu dispositivo. Sábese que este certificado se utiliza para supervisar e interceptar redes, e Chrome non confía nel. Aínda que existen algunhas situacións lexítimas para a supervisión, como no caso de redes de empresas ou de centros educativos, Chrome quere asegurarse de que sexas consciente do que acontece, inda que non poidas facer nada ao respecto. A supervisión pode levarse a cabo en calquera navegador ou aplicación que acceda á Web.</translation>
+<translation id="73750335798090836">Se queres contar con protección adicional, usa sempre a impresión dixital, o recoñecemento facial ou outro bloqueo de pantalla cando uses información confidencial, como documentos de identidade ou de viaxe</translation>
 <translation id="7375532151824574023">{NUM_COOKIES,plural, =0{Non hai sitios permitidos}=1{1 sitio permitido}other{# sitios permitidos}}</translation>
 <translation id="7375818412732305729">Anéxase un ficheiro</translation>
 <translation id="7376031331622621328">Panel inferior do comercio</translation>
@@ -4226,6 +4232,7 @@ Detalles adicionais:
 <translation id="7714404809393719981">Foto (semibrillo)</translation>
 <translation id="7714424966701020172">Seleccionouse a opción de cubrir o nome completo</translation>
 <translation id="7714464543167945231">Certificado</translation>
+<translation id="7714943438925794410">O contido da páxina de tramitación da compra compártese con Google para poder ofrecer estas opcións. Para ocultalas na función de autocompletar, vai a <ph name="IDS_AUTOFILL_CARD_BNPL_SELECT_PROVIDER_FOOTNOTE_HIDE_OPTION_PAYMENT_SETTINGS_LINK_TEXT" />.</translation>
 <translation id="7716147886133743102">Bloqueado polo administrador</translation>
 <translation id="7716375162095500223">Ignorouse ou aínda non se cargou</translation>
 <translation id="7716424297397655342">Este sitio non se pode cargar desde a memoria caché</translation>
@@ -4308,6 +4315,7 @@ Detalles adicionais:
 <translation id="7862306158978555061">mostrar información confidencial</translation>
 <translation id="7865448901209910068">A mellor velocidade</translation>
 <translation id="7865482168955081228">A pantalla de erro de pago aprazado está pechada.</translation>
+<translation id="7870207318911766769">O contido da páxina de tramitación da compra compártese con Google para poder ofrecer estas opcións.</translation>
 <translation id="7870281855125116701">Desconto atopado</translation>
 <translation id="7871445724586827387">Cambiar o contrasinal da Conta de Google</translation>
 <translation id="787226752901403048">Inicia sesión en Chrome para compartir grupos de pestanas e unirte a eles, así como para desenvolver ideas con outras persoas</translation>

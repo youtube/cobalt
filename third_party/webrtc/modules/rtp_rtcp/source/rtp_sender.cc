@@ -662,7 +662,7 @@ static void CopyHeaderAndExtensionsToRtxPacket(const RtpPacketToSend& packet,
       continue;
     }
 
-    std::memcpy(destination.begin(), source.begin(), destination.size());
+    std::memcpy(destination.data(), source.data(), destination.size());
   }
 }
 

@@ -644,13 +644,17 @@ class DtlsTransportInternalImplTestBase {
         IsRtcOk());
   }
 
+  int client1_recv_packets = 0;
+  int client2_recv_packets = 0;
   void AddPacketLogging() {
     client1_.fake_ice_transport()->set_packet_recv_filter(
         [&](auto packet, auto timestamp_us) {
+          client1_recv_packets++;
           return LogRecv(client1_.name(), packet);
         });
     client2_.fake_ice_transport()->set_packet_recv_filter(
         [&](auto packet, auto timestamp_us) {
+          client2_recv_packets++;
           return LogRecv(client2_.name(), packet);
         });
     client1_.set_writable_callback([&]() {});
@@ -696,6 +700,23 @@ class DtlsTransportInternalImplTestBase {
                        << ", data[0]: " << static_cast<uint8_t>(data[0]);
     }
     return drop;
+  }
+
+  bool LogBlock(absl::string_view name,
+                bool block,
+                const char* data,
+                size_t len) {
+    auto timestamp_ms = (fake_clock_.TimeNanos() - start_time_ns_) / 1000000;
+    if (block) {
+      RTC_LOG(LS_INFO) << "time=" << timestamp_ms << " : " << name
+                       << ": blocking packet len=" << len
+                       << ", data[0]: " << static_cast<uint8_t>(data[0]);
+    } else {
+      RTC_LOG(LS_INFO) << "time=" << timestamp_ms << " : " << name
+                       << ": SendPacket, len=" << len
+                       << ", data[0]: " << static_cast<uint8_t>(data[0]);
+    }
+    return block;
   }
 
   template <typename Fn>
@@ -2198,5 +2219,234 @@ TEST_P(DtlsInStunTest, OptimalDtls13Handshake) {
 
   ClearPacketFilters();
 }
+
+EndpointConfig Vanilla12(bool client1) {
+  return {
+      .max_protocol_version = SSL_PROTOCOL_DTLS_12,
+      .dtls_in_stun = false,
+      .ice_role = client1 ? ICEROLE_CONTROLLING : ICEROLE_CONTROLLED,
+      .ssl_role = client1 ? SSL_CLIENT : SSL_SERVER,
+      .pqc = false,
+  };
+}
+
+EndpointConfig Vanilla13(bool client1) {
+  return {
+      .max_protocol_version = SSL_PROTOCOL_DTLS_13,
+      .dtls_in_stun = false,
+      .ice_role = client1 ? ICEROLE_CONTROLLING : ICEROLE_CONTROLLED,
+      .ssl_role = client1 ? SSL_CLIENT : SSL_SERVER,
+      .pqc = false,
+  };
+}
+
+struct DtlsTransportLastHandshakePacketTest
+    : public DtlsTransportInternalImplVersionTest {
+  int client1_packet_num = 0;
+  int client2_packet_num = 0;
+
+  int client1_packet_to_block = -1;
+  int client1_packet_size = 0;
+  std::unique_ptr<char[]> client1_packet = nullptr;
+
+  int client2_packet_to_block = -1;
+  int client2_packet_size = 0;
+  std::unique_ptr<char[]> client2_packet = nullptr;
+
+  void InstallBlock() {
+    AddPacketLogging();
+    client1_.fake_ice_transport()->set_packet_send_filter(
+        [&](auto data, auto len, auto options, auto flags) {
+          // Always allow STUN.
+          bool stun = data[0] == 0 || data[0] == 1;
+
+          if (stun) {
+            return false;
+          }
+          if (client1_packet_num++ != client1_packet_to_block) {
+            return LogBlock(client1_.name(), /* block=*/false, data, len);
+          }
+          client1_packet_size = len;
+          client1_packet = std::unique_ptr<char[]>(new char[len]);
+          memcpy(client1_packet.get(), data, len);
+          return LogBlock(client1_.name(), /* block=*/true, data, len);
+        });
+
+    client2_.fake_ice_transport()->set_packet_send_filter(
+        [&](auto data, auto len, auto options, auto flags) {
+          // Always allow STUN.
+          bool stun = data[0] == 0 || data[0] == 1;
+
+          if (stun) {
+            return false;
+          }
+          if (client2_packet_num++ != client2_packet_to_block) {
+            return LogBlock(client2_.name(), /* block=*/false, data, len);
+            return false;
+          }
+          client2_packet_size = len;
+          client2_packet = std::unique_ptr<char[]>(new char[len]);
+          memcpy(client2_packet.get(), data, len);
+          return LogBlock(client2_.name(), /* block=*/true, data, len);
+        });
+  }
+
+  void resend_blocked() {
+    int flags = 0;
+    AsyncSocketPacketOptions packet_options;
+    if (client1_packet != nullptr) {
+      int size = client1_packet_size;
+      RTC_LOG(LS_INFO) << "client1 => client2: RESEND "
+                       << client1_packet.get()[0] << " len= " << size;
+      int rv = client1_.fake_ice_transport()->SendPacket(
+          client1_packet.get(), size, packet_options, flags);
+      ASSERT_EQ(size, rv);
+      client1_packet = nullptr;
+    }
+    if (client2_packet != nullptr) {
+      int size = client2_packet_size;
+      RTC_LOG(LS_INFO) << "client2 => client1: RESEND "
+                       << client2_packet.get()[0] << " len= " << size;
+      int rv = client2_.fake_ice_transport()->SendPacket(
+          client2_packet.get(), size, packet_options, flags);
+      ASSERT_EQ(size, rv);
+      client2_packet = nullptr;
+    }
+  }
+};
+
+TEST_P(DtlsTransportLastHandshakePacketTest,
+       VerifyThatDtls12ClientCanNotDecodeBeforeBecomingWritable) {
+  if (!SSLStreamAdapter::IsBoringSsl()) {
+    GTEST_SKIP() << "Needs boringssl.";
+  }
+
+  if (std::get<0>(GetParam()).max_protocol_version != SSL_PROTOCOL_DTLS_12) {
+    GTEST_SKIP() << "This is a DTLS 1.2 test.";
+  }
+
+  Prepare(false);
+  EXPECT_TRUE(client1_.ConnectIceTransport(&client2_));
+
+  // Block the last handshake message server to client.
+  client2_packet_to_block = 1;
+  InstallBlock();
+
+  client1_.SendIcePing();
+  client2_.SendIcePing();
+  ASSERT_TRUE(WaitUntil([&] {
+    return client1_.fake_ice_transport()->GetCountOfReceivedStunMessages(
+               STUN_BINDING_REQUEST) == 1 &&
+           client2_.fake_ice_transport()->GetCountOfReceivedStunMessages(
+               STUN_BINDING_REQUEST) == 1;
+  }));
+  client1_.SendIcePingConf();
+  client2_.SendIcePingConf();
+  ASSERT_TRUE(WaitUntil([&] {
+    return client1_.fake_ice_transport()->GetCountOfReceivedStunMessages(
+               STUN_BINDING_RESPONSE) == 1 &&
+           client2_.fake_ice_transport()->GetCountOfReceivedStunMessages(
+               STUN_BINDING_RESPONSE) == 1;
+  }));
+
+  ASSERT_TRUE(WaitUntil([&] { return client2_packet != nullptr; }));
+
+  // Now everything except the last message from server to client is exchanged.
+  ASSERT_FALSE(client1_.dtls_transport()->writable());
+  ASSERT_TRUE(client2_.dtls_transport()->writable());
+
+  // Verify that messages sent from client2 can NOT be decoded at client1.
+  int size = 100;
+  int count = 1;
+  client1_recv_packets = 0;
+  client1_.ExpectPackets(size);
+  client2_.SendPackets(size, count, /* srtp= */ false);
+  ASSERT_TRUE(WaitUntil([&] { return client1_recv_packets == 1; }));
+
+  // Last received packet was not decodable!
+  ASSERT_EQ(client1_.NumPacketsReceived(), 0u);
+
+  // Resend the blocked packet.
+  client1_recv_packets = 0;
+  resend_blocked();
+  ASSERT_TRUE(WaitUntil([&] { return client1_recv_packets == 1; }));
+  ASSERT_TRUE(client1_.dtls_transport()->writable());
+  ClearPacketFilters();
+}
+
+INSTANTIATE_TEST_SUITE_P(DtlsTransportLastHandshakePacket12Test,
+                         DtlsTransportLastHandshakePacketTest,
+                         ::testing::Values(std::make_tuple(Vanilla12(true),
+                                                           Vanilla12(false))));
+
+TEST_P(DtlsTransportLastHandshakePacketTest,
+       VerifyThatDtls13ServerCanNotDecodeBeforeBecomingWritable) {
+  if (!SSLStreamAdapter::IsBoringSsl()) {
+    GTEST_SKIP() << "Needs boringssl.";
+  }
+
+  if (std::get<0>(GetParam()).max_protocol_version != SSL_PROTOCOL_DTLS_13) {
+    GTEST_SKIP() << "This is a DTLS 1.3 test.";
+  }
+
+  Prepare(false);
+  EXPECT_TRUE(client1_.ConnectIceTransport(&client2_));
+
+  // Block the ACK from client to server.
+  client1_packet_to_block = 1;
+  InstallBlock();
+
+  client1_.SendIcePing();
+  client2_.SendIcePing();
+  ASSERT_TRUE(WaitUntil([&] {
+    return client1_.fake_ice_transport()->GetCountOfReceivedStunMessages(
+               STUN_BINDING_REQUEST) == 1 &&
+           client2_.fake_ice_transport()->GetCountOfReceivedStunMessages(
+               STUN_BINDING_REQUEST) == 1;
+  }));
+  client1_.SendIcePingConf();
+  client2_.SendIcePingConf();
+  ASSERT_TRUE(WaitUntil([&] {
+    return client1_.fake_ice_transport()->GetCountOfReceivedStunMessages(
+               STUN_BINDING_RESPONSE) == 1 &&
+           client2_.fake_ice_transport()->GetCountOfReceivedStunMessages(
+               STUN_BINDING_RESPONSE) == 1;
+  }));
+
+  ASSERT_TRUE(WaitUntil([&] { return client1_packet != nullptr; }));
+
+  // Now everything except the last message from client to server is exchanged.
+  ASSERT_TRUE(client1_.dtls_transport()->writable());
+  ASSERT_FALSE(client2_.dtls_transport()->writable());
+
+  // Verify that messages sent from client1 can NOT be decoded at server.
+  int size = 100;
+  int count = 1;
+  client2_recv_packets = 0;
+  client2_.ExpectPackets(size);
+  client1_.SendPackets(size, count, /* srtp= */ false);
+  ASSERT_TRUE(WaitUntil([&] { return client2_recv_packets == 1; }));
+
+  // Last received packet was NOT decodable!
+  ASSERT_EQ(client2_.NumPacketsReceived(), 0u);
+
+  // Resend the blocked packet.
+  client2_recv_packets = 0;
+  resend_blocked();
+  ASSERT_TRUE(WaitUntil([&] { return client2_recv_packets == 1; }));
+  ASSERT_TRUE(client2_.dtls_transport()->writable());
+
+  client2_recv_packets = 0;
+  client1_.SendPackets(size, count, /* srtp= */ false);
+  ASSERT_TRUE(WaitUntil([&] { return client2_recv_packets == 1; }));
+  ASSERT_EQ(client2_.NumPacketsReceived(), 1u);
+  ClearPacketFilters();
+}
+
+INSTANTIATE_TEST_SUITE_P(DtlsTransportLastHandshakePacket13Test,
+                         DtlsTransportLastHandshakePacketTest,
+                         ::testing::Values(std::make_tuple(Vanilla13(true),
+                                                           Vanilla13(false))));
+
 }  // namespace
 }  // namespace webrtc

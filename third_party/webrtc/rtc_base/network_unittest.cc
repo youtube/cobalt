@@ -1748,7 +1748,7 @@ TEST_F(NetworkTest, HardcodedVpn) {
       NetworkManagerBase::IsVpnMacAddress(ArrayView<const uint8_t>(cisco, 5)));
   EXPECT_FALSE(NetworkManagerBase::IsVpnMacAddress(five_bytes));
   EXPECT_FALSE(NetworkManagerBase::IsVpnMacAddress(unknown));
-  EXPECT_FALSE(NetworkManagerBase::IsVpnMacAddress(nullptr));
+  EXPECT_FALSE(NetworkManagerBase::IsVpnMacAddress({}));
 }
 
 TEST(CompareNetworks, IrreflexivityTest) {

@@ -424,6 +424,19 @@ const LayoutResult* ColumnLayoutAlgorithm::Layout() {
     auto* gap_geometry =
         MakeGarbageCollected<GapGeometry>(GapGeometry::kMultiColumn);
 
+    // In the case where we didn't create as many columns as specified in
+    // `column-count`, we need to add a cross gap for each remaining column
+    // that would have been created, until we reach the specified column count.
+    for (wtf_size_t i = max_columns_in_row_; i < Style().ColumnCount(); ++i) {
+      LayoutUnit inline_offset;
+      if (!cross_gaps_.empty()) {
+        inline_offset = cross_gaps_.back().GetGapOffset().inline_offset +
+                        column_gap_size_ / 2 + ColumnInlineSize() +
+                        column_gap_size_;
+      }
+      AddCrossGap(inline_offset);
+    }
+
     // For the content inline and block ends, we must take the max of where the
     // fragment starts and ends and where the last cross gap and main gap are.
     // This is so that when content overflows the container, we still paint the
@@ -434,16 +447,8 @@ const LayoutResult* ColumnLayoutAlgorithm::Layout() {
       content_inline_end = std::max(
           content_inline_end, cross_gaps_.back().GetGapOffset().inline_offset);
 
-      // If we have ranges of spanners, all cross gaps are affected by those
-      // spanners, so we need to add the spanner ranges to all cross gaps.
-      // TODO(javiercon): This logic will be removed once we implement empty
-      // cells for multicol gap decorations.
-      if (state_ranges_for_cross_gaps_.has_value()) {
-        for (auto& cross_gap : cross_gaps_) {
-          for (const auto& spanner_range : *state_ranges_for_cross_gaps_) {
-            cross_gap.AddGapSegmentStateRange(spanner_range);
-          }
-        }
+      if (columns_per_row_.has_value()) {
+        UpdateCrossGapSegmentStates();
       }
 
       gap_geometry->SetCrossGaps(std::move(cross_gaps_));
@@ -466,7 +471,6 @@ const LayoutResult* ColumnLayoutAlgorithm::Layout() {
       gap_geometry->SetBlockGapSize(row_gap_size_);
     }
 
-    CHECK(first_column_offset_.has_value());
     gap_geometry->SetContentInlineOffsets(first_column_offset_->inline_offset,
                                           content_inline_end);
     gap_geometry->SetContentBlockOffsets(first_column_offset_->block_offset,
@@ -871,7 +875,7 @@ const LayoutResult* ColumnLayoutAlgorithm::LayoutLine(
     column_size.block_size = column_size.block_size.ClampNegativeToZero();
   }
 
-  bool may_resume_in_next_outer_fragmentainer = false;
+  bool column_known_to_fit_in_outer = false;
   LayoutUnit available_outer_space = kIndefiniteSize;
   if (is_constrained_by_outer_fragmentation_context_) {
     available_outer_space =
@@ -879,16 +883,12 @@ const LayoutResult* ColumnLayoutAlgorithm::LayoutLine(
                  FragmentainerSpaceLeftForChildren() - line_offset);
     DCHECK_GE(available_outer_space, LayoutUnit());
 
-    // Determine if we should resume layout in the next outer fragmentation
-    // context if we run out of space in the current one. This is always the
-    // thing to do except when block-size is non-auto and short enough to fit in
-    // the current outer fragmentainer. In such cases we'll allow inner columns
-    // to overflow its outer fragmentainer (since the inner multicol is too
-    // short to reach the outer fragmentation line).
-    if (column_size.block_size == kIndefiniteSize ||
-        column_size.block_size > available_outer_space)
-      may_resume_in_next_outer_fragmentainer = true;
+    column_known_to_fit_in_outer =
+        column_size.block_size != kIndefiniteSize &&
+        column_size.block_size <= available_outer_space;
   }
+  bool overflow_in_inline_direction =
+      ColumnsOverflowInInlineDirection(column_known_to_fit_in_outer);
 
   bool shrink_to_fit_column_block_size = false;
 
@@ -951,8 +951,9 @@ const LayoutResult* ColumnLayoutAlgorithm::LayoutLine(
   // be better to push some of the content to the next outer fragmentainer and
   // retry there.
   bool may_have_more_space_in_next_outer_fragmentainer = false;
-  if (may_resume_in_next_outer_fragmentainer &&
-      !IsBreakInside(GetBreakToken())) {
+  if (!IsBreakInside(GetBreakToken()) &&
+      is_constrained_by_outer_fragmentation_context_ &&
+      !overflow_in_inline_direction) {
     if (intrinsic_block_size_) {
       may_have_more_space_in_next_outer_fragmentainer = true;
     } else if (!GetConstraintSpace().IsAtFragmentainerStart()) {
@@ -1080,10 +1081,9 @@ const LayoutResult* ColumnLayoutAlgorithm::LayoutLine(
       // overflow in the inline direction, if necessary). We're not going to
       // progress into a next outer fragmentainer if the (remaining part of the)
       // multicol container fits block-wise in the current outer fragmentainer.
-      if (column_break_token && actual_column_count >= used_column_count_) {
-        if (ShouldWrapColumns() || may_resume_in_next_outer_fragmentainer) {
-          break;
-        }
+      if (column_break_token && actual_column_count >= used_column_count_ &&
+          !overflow_in_inline_direction) {
+        break;
       }
 
       if (may_have_more_space_in_next_outer_fragmentainer) {
@@ -1379,6 +1379,11 @@ const LayoutResult* ColumnLayoutAlgorithm::LayoutLine(
 
   max_columns_in_row_ = std::max(max_columns_in_row_, new_columns.size());
 
+  if (RuntimeEnabledFeatures::CSSGapDecorationEnabled() &&
+      Style().HasGapRule()) {
+    AddNumberOfColumnsForCurrentRow(new_columns.size());
+  }
+
   // If there were superfluous ::column pseudo-elements from the previous pass,
   // remove the superfluous ones. This happens when the number of columns
   // decreases.
@@ -1505,6 +1510,11 @@ BreakStatus ColumnLayoutAlgorithm::LayoutSpanner(
       // gaps, and no preceding adjacent spanner). Insert a break for column
       // rules. They are not to overlap with the margin box of spanners.
       AddMainGap(intrinsic_block_size_, SpannerMainGapType::kStart);
+
+      // For the purposes of segments for CSSGapDecorations, we treat the
+      // number of "columns" in a spanner as kNotFound, since they can be
+      // assumed to span the number of columns specified by the author.
+      AddNumberOfColumnsForCurrentRow(kNotFound);
     }
   }
 
@@ -1523,21 +1533,6 @@ void ColumnLayoutAlgorithm::AddMainGap(LayoutUnit block_offset,
   }
 
   main_gaps_.emplace_back(block_offset, gap_type);
-
-  // Once we see an end spanner main gap, we can add the segment rage for where
-  // this spanner is located, which is shared across all `CrossGap`s.
-  // TODO(javiercon): This logic will be removed once we implement empty cells
-  // for multicol gap decorations.
-  if (gap_type == SpannerMainGapType::kEnd) {
-    CHECK_GT(main_gaps_.size(), 1u);
-    if (!state_ranges_for_cross_gaps_.has_value()) {
-      state_ranges_for_cross_gaps_ = Vector<GapSegmentStateRange>();
-    }
-
-    state_ranges_for_cross_gaps_->emplace_back(
-        main_gaps_.size() - 1, main_gaps_.size(),
-        GapSegmentState(GapSegmentState::kBlocked));
-  }
 }
 
 void ColumnLayoutAlgorithm::AddCrossGap(LayoutUnit column_inline_start_offset) {
@@ -1547,6 +1542,70 @@ void ColumnLayoutAlgorithm::AddCrossGap(LayoutUnit column_inline_start_offset) {
 
   cross_gaps_.emplace_back(
       LogicalOffset(gap_center, first_column_offset_.value().block_offset));
+}
+
+void ColumnLayoutAlgorithm::AddNumberOfColumnsForCurrentRow(
+    wtf_size_t cols_in_row) {
+  if (!columns_per_row_.has_value()) {
+    columns_per_row_ = Vector<wtf_size_t>();
+  }
+  columns_per_row_->push_back(cols_in_row);
+}
+
+void ColumnLayoutAlgorithm::UpdateCrossGapSegmentStates() {
+  // Computes per-row segment states for each cross gap based on how many
+  // columns are present in each row of the multicol container.
+  //
+  // Cross gaps are treated as global vertical separators between column slots.
+  // For a given row with N columns:
+  //   - If `cross_gap_index` >= N, the gap has no adjacent columns (empty on
+  //   both sides)
+  //   - If `cross_gap_index` == N - 1, the gap is after the last column (empty
+  //   after)
+  //   - Otherwise, the gap is between two columns and has no empty side
+  //
+  // Rows with kNotFound are treated as blocked and produce blocked gap
+  // segments, these are decoration segments that would exist behind spanners.
+  for (wtf_size_t cross_gap_index = 0; cross_gap_index < cross_gaps_.size();
+       ++cross_gap_index) {
+    CrossGap& cross_gap = cross_gaps_[cross_gap_index];
+    for (wtf_size_t cols_in_row_index = 0;
+         cols_in_row_index < columns_per_row_->size(); ++cols_in_row_index) {
+      wtf_size_t cols_in_row = (*columns_per_row_)[cols_in_row_index];
+      wtf_size_t segment_start = cols_in_row_index;
+      wtf_size_t segment_end = cols_in_row_index + 1;
+
+      // There are columns around this cross gap, so we don't mark it
+      // empty on either side.
+      if (cols_in_row != kNotFound && cross_gap_index + 1 < cols_in_row) {
+        continue;
+      }
+
+      // If the cross gap index is greater than or equal to the number of
+      // columns in the row, then the cross gap is outside of the specified
+      // column count, and should be treated as blocked in the case where it's
+      // not in between column content.
+      bool is_cross_gap_outside_specified_column_count =
+          cross_gap_index + 1 >= Style().ColumnCount() &&
+          !Style().HasAutoColumnCount();
+
+      GapSegmentState state;
+      if (cols_in_row == kNotFound &&
+          !is_cross_gap_outside_specified_column_count) {
+        state = GapSegmentState(GapSegmentState::kBlocked);
+      } else if (cross_gap_index + 1 == cols_in_row) {
+        // The cross gap is after the last column in this row, so it's
+        // empty on the right side.
+        state = GapSegmentState(GapSegmentState::kEmptyAfter);
+      } else {
+        // Empty on both sides.
+        state = GapSegmentState();
+      }
+
+      cross_gap.AddGapSegmentStateRange(
+          GapSegmentStateRange(segment_start, segment_end, state));
+    }
+  }
 }
 
 void ColumnLayoutAlgorithm::AttemptToPositionListMarker(
@@ -1728,6 +1787,12 @@ LayoutUnit ColumnLayoutAlgorithm::ResolveColumnAutoBlockSizeInternal(
   const BlockBreakToken* break_token = child_break_token;
   tallest_unbreakable_block_size_ = LayoutUnit();
   int forced_break_count = 0;
+
+  // If columns overflow in the inline direction (if there's no wrapping or
+  // nested fragmentation), overflowing columns will also affect the column
+  // block-size.
+  bool consider_all_columns = ColumnsOverflowInInlineDirection(
+      /*column_known_to_fit_in_outer_fragmentainer=*/false);
   do {
     TextAutosizer::ForceInlineSizeForColumn(Node(), column_size.inline_size);
     LayoutAlgorithmParams params(Node(), fragment_geometry, space, break_token);
@@ -1743,9 +1808,9 @@ LayoutUnit ColumnLayoutAlgorithm::ResolveColumnAutoBlockSizeInternal(
         To<PhysicalBoxFragment>(result->GetPhysicalFragment());
 
     // Add a content run, as long as we have soft break opportunities. Ignore
-    // content that's doomed to end up in overflowing columns (because of too
-    // many forced breaks).
-    if (forced_break_count < used_column_count_) {
+    // content that will end up in columns in a subsequent line (wrapping /
+    // nested fragmentation).
+    if (forced_break_count < used_column_count_ || consider_all_columns) {
       LayoutUnit column_block_size = BlockSizeForFragmentation(
           *result, GetConstraintSpace().GetWritingDirection());
 
@@ -1915,6 +1980,27 @@ LayoutUnit ColumnLayoutAlgorithm::ConstrainColumnBlockSize(
   }
 
   return size;
+}
+
+bool ColumnLayoutAlgorithm::ColumnsOverflowInInlineDirection(
+    bool column_known_to_fit_in_outer_fragmentainer) const {
+  if (ShouldWrapColumns()) {
+    // Columns are set up to wrap. They will never overflow in the inline
+    // direction.
+    return false;
+  }
+
+  if (is_constrained_by_outer_fragmentation_context_) {
+    // Determine if layout may resume in the next outer fragmentainer if we run
+    // out of columns in the current one. This is always the thing to do except
+    // when column block-size is non-auto and short enough to fit in the current
+    // outer fragmentainer. In such cases we'll allow inner columns to overflow
+    // its outer fragmentainer in the inline direction (since the inner multicol
+    // is too short to reach the outer fragmentation line).
+    return column_known_to_fit_in_outer_fragmentainer;
+  }
+
+  return true;
 }
 
 ConstraintSpace ColumnLayoutAlgorithm::CreateConstraintSpaceForBalancing(

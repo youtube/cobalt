@@ -91,6 +91,7 @@ class RtpPacket {
     return payload_offset_ + payload_size_ + padding_size_;
   }
   const uint8_t* data() const { return buffer_.cdata(); }
+  ArrayView<const uint8_t> buffer() const { return buffer_; }
   size_t FreeCapacity() const { return capacity() - size(); }
   size_t MaxPayloadSize() const { return capacity() - headers_size(); }
 

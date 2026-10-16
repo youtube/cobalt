@@ -27,6 +27,7 @@
 #include "base/trace_event/named_trigger.h"
 #include "base/trace_event/trace_event.h"
 #include "base/values.h"
+#include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "chrome/browser/active_use_util.h"
 #include "chrome/browser/after_startup_task_utils.h"
@@ -64,7 +65,6 @@
 #include "chrome/browser/segmentation_platform/chrome_browser_main_extra_parts_segmentation_platform.h"
 #include "chrome/browser/sessions/chrome_serialized_navigation_driver.h"
 #include "chrome/browser/shell_integration.h"
-#include "chrome/browser/startup/startup_launch_manager.h"
 #include "chrome/browser/startup_data.h"
 #include "chrome/browser/translate/chrome_translate_client.h"
 #include "chrome/browser/translate/translate_service.h"
@@ -241,6 +241,7 @@
 #if BUILDFLAG(IS_WIN)
 #include "chrome/browser/first_run/upgrade_util_win.h"
 #include "chrome/browser/notifications/win/notification_launch_id.h"
+#include "chrome/browser/startup/startup_launch_manager.h"
 #include "chrome/browser/ui/network_profile_bubble.h"
 #include "chrome/browser/webnn/win_app_runtime_installer.h"
 #include "chrome/browser/win/chrome_select_file_dialog_factory.h"

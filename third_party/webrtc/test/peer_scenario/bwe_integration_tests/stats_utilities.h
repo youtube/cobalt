@@ -40,6 +40,9 @@ DataRate GetAvailableSendBitrate(
 TimeDelta GetAverageRoundTripTime(
     const scoped_refptr<const RTCStatsReport>& report);
 
+TimeDelta GetCurrentRoundTripTime(
+    const scoped_refptr<const RTCStatsReport>& report);
+
 int64_t GetPacketsSentWithEct1(
     const scoped_refptr<const RTCStatsReport>& report);
 

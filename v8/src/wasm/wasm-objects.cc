@@ -20,6 +20,7 @@
 #include "src/builtins/builtins-inl.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/debug/debug.h"
+#include "src/execution/futex-emulation.h"
 #include "src/logging/counters.h"
 #include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
@@ -419,7 +420,7 @@ void WasmTableObject::Set(Isolate* isolate, DirectHandle<WasmTableObject> table,
     case wasm::GenericKind::kExternString:
       break;
   }
-  UNREACHABLE();
+  UNREACHABLE();  // Safely catches corrupted values read from the sandbox.
 }
 
 DirectHandle<Object> WasmTableObject::Get(Isolate* isolate,
@@ -449,6 +450,7 @@ DirectHandle<Object> WasmTableObject::Get(Isolate* isolate,
     DCHECK(module->has_signature(element_type));
     // Fall through.
   } else {
+    bool is_func = false;
     switch (unsafe_type.generic_kind()) {
       case wasm::GenericKind::kStringViewWtf8:
       case wasm::GenericKind::kStringViewWtf16:
@@ -470,13 +472,17 @@ DirectHandle<Object> WasmTableObject::Get(Isolate* isolate,
         return entry;
       case wasm::GenericKind::kFunc:
         // Placeholder; handled below.
+        is_func = true;
         break;
       case wasm::GenericKind::kBottom:
       case wasm::GenericKind::kTop:
       case wasm::GenericKind::kVoid:
       case wasm::GenericKind::kExternString:
-        UNREACHABLE();
+        break;
     }
+    // The code below is sandbox-safe, but we can be more explicit about
+    // rejecting corruption (invalid {unsafe_type}) here.
+    if (!is_func) UNREACHABLE();
   }
 
   // {entry} is not a valid entry in the table. It has to be a placeholder
@@ -868,7 +874,8 @@ void SetInstanceMemory(Tagged<WasmTrustedInstanceData> trusted_instance_data,
     Isolate* isolate = Isolate::Current();
     HandleScope scope(isolate);
     wasm::WasmInterpreterRuntime::UpdateMemoryAddress(
-        direct_handle(trusted_instance_data->instance_object(), isolate));
+        direct_handle(trusted_instance_data->instance_object(), isolate),
+        memory_index);
   }
 #endif  // V8_ENABLE_DRUMBRAKE
 }
@@ -1089,10 +1096,12 @@ DirectHandle<JSArrayBuffer> WasmMemoryObject::RefreshBuffer(
     new_buffer =
         isolate->factory()->NewJSSharedArrayBuffer(std::move(backing_store));
     if (override_resizable.has_value()) {
-      new_buffer->set_is_resizable_by_js(*override_resizable ==
-                                         ResizableFlag::kResizable);
-      // GSABs read the byte length from the backing store.
-      new_buffer->set_byte_length(0);
+      bool resizable = *override_resizable == ResizableFlag::kResizable;
+      new_buffer->set_is_resizable_by_js(resizable);
+      if (resizable) {
+        // GSABs read the byte length from the backing store.
+        new_buffer->set_byte_length(0);
+      }
     }
   } else {
     new_buffer = isolate->factory()->NewJSArrayBuffer(std::move(backing_store));
@@ -1619,16 +1628,16 @@ int ImportedFunctionEntry::function_index_in_called_module() {
 #endif  // V8_ENABLE_DRUMBRAKE
 
 // static
-constexpr std::array<uint16_t, WasmTrustedInstanceData::kTaggedFieldsCount>
+constexpr decltype(WasmTrustedInstanceData::kTaggedFieldOffsets)
     WasmTrustedInstanceData::kTaggedFieldOffsets;
 // static
-constexpr std::array<const char*, WasmTrustedInstanceData::kTaggedFieldsCount>
+constexpr decltype(WasmTrustedInstanceData::kTaggedFieldNames)
     WasmTrustedInstanceData::kTaggedFieldNames;
 // static
-constexpr std::array<uint16_t, 6>
+constexpr decltype(WasmTrustedInstanceData::kProtectedFieldOffsets)
     WasmTrustedInstanceData::kProtectedFieldOffsets;
 // static
-constexpr std::array<const char*, 6>
+constexpr decltype(WasmTrustedInstanceData::kProtectedFieldNames)
     WasmTrustedInstanceData::kProtectedFieldNames;
 
 void WasmTrustedInstanceData::SetRawMemory(int memory_index, uint8_t* mem_start,
@@ -1689,6 +1698,8 @@ DirectHandle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
 
   AllocationType allocation =
       shared ? AllocationType::kSharedOld : AllocationType::kYoung;
+  AllocationType trusted_allocation =
+      shared ? AllocationType::kSharedTrusted : AllocationType::kTrusted;
 
   int num_imported_functions = module->num_imported_functions;
   DirectHandle<WasmDispatchTableForImports> dispatch_table_for_imports =
@@ -1709,11 +1720,9 @@ DirectHandle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
   DirectHandle<FixedAddressArray> imported_mutable_globals =
       FixedAddressArray::New(isolate, num_imported_mutable_globals, allocation);
 
-  int num_data_segments = module->num_declared_data_segments;
-  DirectHandle<FixedAddressArray> data_segment_starts =
-      FixedAddressArray::New(isolate, num_data_segments, allocation);
-  DirectHandle<FixedUInt32Array> data_segment_sizes =
-      FixedUInt32Array::New(isolate, num_data_segments, allocation);
+  DirectHandle<TrustedPodArray<wasm::WireBytesRef>> data_segments =
+      TrustedPodArray<wasm::WireBytesRef>::New(
+          isolate, module->num_declared_data_segments, trusted_allocation);
 
 #if V8_ENABLE_DRUMBRAKE
   DirectHandle<FixedInt32Array> imported_function_indices =
@@ -1725,9 +1734,8 @@ DirectHandle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
   DirectHandle<FixedArray> memory_objects =
       isolate->factory()->NewFixedArray(num_memories, allocation);
   DirectHandle<TrustedFixedAddressArray> memory_bases_and_sizes =
-      TrustedFixedAddressArray::New(
-          isolate, 2 * num_memories,
-          shared ? AllocationType::kSharedTrusted : AllocationType::kTrusted);
+      TrustedFixedAddressArray::New(isolate, 2 * num_memories,
+                                    trusted_allocation);
 
   // TODO(clemensb): Should we have singleton empty dispatch table in the
   // trusted space?
@@ -1764,8 +1772,7 @@ DirectHandle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
     trusted_data->set_dispatch_table0(*empty_dispatch_table);
     trusted_data->set_dispatch_tables(*empty_protected_fixed_array);
     trusted_data->set_shared_part(*trusted_data);  // TODO(14616): Good enough?
-    trusted_data->set_data_segment_starts(*data_segment_starts);
-    trusted_data->set_data_segment_sizes(*data_segment_sizes);
+    trusted_data->set_data_segments(*data_segments);
     trusted_data->set_element_segments(empty_fixed_array);
     trusted_data->set_managed_native_module(*trusted_managed_native_module);
     trusted_data->set_globals_start(empty_backing_store_buffer);
@@ -1834,7 +1841,6 @@ DirectHandle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
 void WasmTrustedInstanceData::InitDataSegmentArrays(
     const wasm::NativeModule* native_module) {
   const WasmModule* module = native_module->module();
-  base::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
   uint32_t num_data_segments = module->num_declared_data_segments;
   // The number of declared data segments will be zero if there is no DataCount
   // section. These arrays will not be allocated nor initialized in that case,
@@ -1845,17 +1851,12 @@ void WasmTrustedInstanceData::InitDataSegmentArrays(
          num_data_segments == module->data_segments.size());
   for (uint32_t i = 0; i < num_data_segments; ++i) {
     const wasm::WasmDataSegment& segment = module->data_segments[i];
-    // Initialize the pointer and size of passive segments.
-    auto source_bytes = wire_bytes.SubVector(segment.source.offset(),
-                                             segment.source.end_offset());
-    data_segment_starts()->set(i,
-                               reinterpret_cast<Address>(source_bytes.begin()));
     // Set the active segments to being already dropped, since memory.init on
     // a dropped passive segment and an active segment have the same
     // behavior.
-    data_segment_sizes()->set(
-        static_cast<int>(i),
-        segment.active ? 0 : static_cast<uint32_t>(source_bytes.size()));
+    uint32_t length = segment.active ? 0 : segment.source.length();
+    data_segments()->set(i,
+                         wasm::WireBytesRef{segment.source.offset(), length});
   }
 }
 
@@ -2217,21 +2218,6 @@ const wasm::CanonicalStructType* WasmStruct::GcSafeType(Tagged<Map> map) {
   return wasm::GetTypeCanonicalizer()->LookupStruct(type_info->type_index());
 }
 
-DirectHandle<JSObject> WasmStruct::AllocatePrototype(
-    Isolate* isolate, DirectHandle<JSPrototype> parent) {
-  // Follow the example of {CreateClassPrototype} and create a map with no
-  // in-object properties.
-  // TODO(ishell): If we support caching the zero-in-object-properties map,
-  // update this code.
-  DirectHandle<Map> map = Map::Create(isolate, 0);
-  map->set_is_prototype_map(true);
-  Map::SetPrototype(isolate, map, parent);
-  DirectHandle<JSObject> prototype =
-      isolate->factory()->NewJSObjectFromMap(map);
-  isolate->UpdateProtectorsOnSetPrototype(prototype, parent);
-  return prototype;
-}
-
 // Allocates a Wasm Struct that is a descriptor for another type, leaving
 // its fields uninitialized.
 // Descriptor structs have a 1:1 relationship with the internal "RTT" (aka
@@ -2286,7 +2272,8 @@ DirectHandle<WasmStruct> WasmStruct::AllocateDescriptorUninitialized(
                                           num_supertypes, context);
   rtt->set_immediate_supertype_map(*rtt_parent);
 
-  if (!IsSmi(*first_field) && IsJSReceiver(Cast<HeapObject>(*first_field))) {
+  if (v8_flags.experimental_wasm_js_interop && !IsSmi(*first_field) &&
+      IsJSReceiver(Cast<HeapObject>(*first_field))) {
     DirectHandle<JSPrototype> prototype =
         direct_handle(Cast<JSReceiver>(*first_field), isolate);
     Map::SetPrototype(isolate, rtt, prototype);
@@ -2301,6 +2288,20 @@ DirectHandle<WasmStruct> WasmStruct::AllocateDescriptorUninitialized(
   descriptor->set_described_rtt(*rtt);
   rtt->set_custom_descriptor(*descriptor);
   return descriptor;
+}
+
+void WasmStruct::AllocateWaitQueue(Isolate* isolate,
+                                   DirectHandle<WasmStruct> struct_value,
+                                   int32_t raw_field_offset) {
+  std::shared_ptr<FutexManagedObjectWaitList> ptr(
+      new FutexManagedObjectWaitList());
+  DirectHandle<Managed<FutexManagedObjectWaitList>> managed =
+      Managed<FutexManagedObjectWaitList>::From(
+          isolate, sizeof(FutexManagedObjectWaitList), ptr,
+          AllocationType::kSharedOld);
+  struct_value->SetTaggedFieldValue(
+      raw_field_offset + wasm::kWaitQueueManagedOffset, *managed,
+      UPDATE_WRITE_BARRIER);
 }
 
 wasm::WasmValue WasmStruct::GetFieldValue(uint32_t index) {
@@ -2651,7 +2652,7 @@ Tagged<ProtectedWeakFixedArray> WasmDispatchTable::MaybeGrowUsesList(
   Tagged<ProtectedWeakFixedArray> uses = dispatch_table->protected_uses();
   uint32_t capacity = uses->ulength().value();
   if (capacity == 0) {
-    constexpr int kInitialLength = 3;  // 1 slot + 1 pair.
+    constexpr uint32_t kInitialLength = 3;  // 1 slot + 1 pair.
     DirectHandle<ProtectedWeakFixedArray> new_uses =
         isolate->factory()->NewProtectedWeakFixedArray(kInitialLength);
     SetUsedLength(*new_uses, kReservedSlotOffset);
@@ -2816,14 +2817,9 @@ DirectHandle<WasmDispatchTable> WasmDispatchTable::Grow(
     }
   }
 
-  // Clear old table to avoid dangling uses via in-sandbox corruption.
-  old_table->set_protected_uses(
-      *isolate->factory()->empty_protected_weak_fixed_array());
-  for (uint32_t i = 0; i < old_length; ++i) {
-    // Note: We pass `kNewEntry` here since the offheap data was already moved
-    // to the new table and we do not want to update anything there.
-    DispatchTableClear(*old_table, i, WasmDispatchTable::kNewEntry);
-  }
+  // Make the old table inaccessible to avoid dangling uses via in-sandbox
+  // corruption.
+  old_table->Unpublish(isolate);
 
   return new_table;
 }
@@ -3726,8 +3722,12 @@ MaybeDirectHandle<Object> JSToWasmObject(Isolate* isolate,
     case GenericKind::kTop:
     case GenericKind::kBottom:
     case GenericKind::kExternString:
-      UNREACHABLE();
+      break;
   }
+  // Safely catch any corrupted values read from the sandbox. As of this
+  // writing, callers ensure as well that no invalid types get here, but
+  // it doesn't hurt to be explicit for future robustness.
+  UNREACHABLE();
 }
 
 // Utility which canonicalizes {expected} in addition.

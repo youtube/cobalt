@@ -24,13 +24,15 @@ source_set("model") {
     "user_uploaded_image_manager_factory.h",
     "user_uploaded_image_manager_factory.mm",
   ]
-  deps = [
+  public_deps = [
     ":theme_syncable_service_ios",
+    "//components/sync/protocol",
+  ]
+  deps = [
     "//base",
     "//components/keyed_service/core",
     "//components/pref_registry",
     "//components/sync/model",
-    "//components/sync/protocol",
     "//components/themes",
     "//components/themes:prefs",
     "//ios/chrome/browser/home_customization/utils",
@@ -50,9 +52,16 @@ source_set("theme_syncable_service_ios") {
   sources = [
     "theme_syncable_service_ios.h",
     "theme_syncable_service_ios.mm",
+    "theme_syncable_service_ios_constants.h",
   ]
-  public_deps = [ "//components/sync/model" ]
-  deps = [ "//base" ]
+  public_deps = [
+    "//components/sync/model",
+    "//components/sync/protocol",
+  ]
+  deps = [
+    "//base",
+    "//ios/chrome/browser/home_customization/utils",
+  ]
 }
 
 source_set("seed_colors") {

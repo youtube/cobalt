@@ -1481,7 +1481,9 @@ class ReducerBase : public Next {
       Asm().AddPredecessor(saved_current_block, catch_block, true);
     }
     for (auto& effect_handler : effect_handlers) {
-      Asm().AddPredecessor(saved_current_block, effect_handler.block, true);
+      if (!effect_handler.is_switch()) {
+        Asm().AddPredecessor(saved_current_block, effect_handler.block, true);
+      }
     }
     return new_opindex;
   }
@@ -4160,6 +4162,15 @@ class AssemblerOpInterface : public Next {
                  TrapId trap_id) {
     ReduceIfReachableTrapIf(resolve(condition), frame_state, true, trap_id);
   }
+
+  void WasmTrap(TrapId trap_id) {
+    WasmTrap(OptionalV<turboshaft::FrameState>{}, trap_id);
+  }
+
+  void WasmTrap(OptionalV<turboshaft::FrameState> frame_state, TrapId trap_id) {
+    ReduceIfReachableWasmTrap(frame_state, trap_id);
+  }
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   void MajorGCForCompilerTesting() {
@@ -4238,9 +4249,10 @@ class AssemblerOpInterface : public Next {
                                                   successful);
   }
 
-  void CheckMaglevType(V<Object> input, maglev::NodeType type) {
+  void CheckMaglevType(V<Object> input, maglev::NodeType type,
+                       bool allow_widening_smi_to_int32) {
     CHECK(v8_flags.maglev_assert_types);
-    ReduceIfReachableCheckMaglevType(input, type);
+    ReduceIfReachableCheckMaglevType(input, type, allow_widening_smi_to_int32);
   }
 
   // This is currently only usable during graph building on the main thread.
@@ -5064,9 +5076,10 @@ class AssemblerOpInterface : public Next {
   void StructSet(V<WasmStructNullable> object, V<Any> value,
                  const wasm::StructType* type, wasm::ModuleTypeIndex type_index,
                  int field_index, CheckForNull null_check,
-                 std::optional<AtomicMemoryOrder> memory_order) {
+                 std::optional<AtomicMemoryOrder> memory_order,
+                 WriteBarrierKind write_barrier) {
     ReduceIfReachableStructSet(object, value, type, type_index, field_index,
-                               null_check, memory_order);
+                               null_check, memory_order, write_barrier);
   }
 
   V<Any> StructAtomicRMW(V<WasmStructNullable> object, V<Any> value,
@@ -5099,8 +5112,10 @@ class AssemblerOpInterface : public Next {
 
   void ArraySet(V<WasmArrayNullable> array, V<Word32> index, V<Any> value,
                 wasm::ValueType element_type,
-                std::optional<AtomicMemoryOrder> memory_order) {
-    ReduceIfReachableArraySet(array, index, value, element_type, memory_order);
+                std::optional<AtomicMemoryOrder> memory_order,
+                WriteBarrierKind write_barrier) {
+    ReduceIfReachableArraySet(array, index, value, element_type, memory_order,
+                              write_barrier);
   }
 
   V<Word32> ArrayLength(V<WasmArrayNullable> array, CheckForNull null_check) {

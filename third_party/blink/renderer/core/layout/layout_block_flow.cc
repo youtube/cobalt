@@ -260,26 +260,6 @@ static bool IsMergeableAnonymousBlock(const LayoutBlockFlow* block) {
 
 void LayoutBlockFlow::RemoveChild(LayoutObject* old_child) {
   NOT_DESTROYED();
-  // No need to waste time in merging or removing empty anonymous blocks.
-  // We can just bail out if our document is getting destroyed.
-  if (DocumentBeingDestroyed()) {
-    LayoutBox::RemoveChild(old_child);
-    return;
-  }
-
-  // If this child is a block, and if our previous and next siblings are both
-  // anonymous blocks with inline content, then we can go ahead and fold the
-  // inline content back together.
-  if (!RuntimeEnabledFeatures::LayoutMergeAnonymousFixEnabled() &&
-      !old_child->IsInline()) {
-    auto* prev_block_flow =
-        DynamicTo<LayoutBlockFlow>(old_child->PreviousSibling());
-    auto* next_block_flow =
-        DynamicTo<LayoutBlockFlow>(old_child->NextSibling());
-    if (prev_block_flow && next_block_flow) {
-      prev_block_flow->MergeSiblingContiguousAnonymousBlock(next_block_flow);
-    }
-  }
 
   // If the old_child is block-level we need to check if any adjacent siblings
   // are floating or out-of-flow positioned, and if so reparent them into the
@@ -474,8 +454,9 @@ void LayoutBlockFlow::ReparentSubsequentFloatingOrOutOfFlowSiblings() {
   auto* parent_block_flow = DynamicTo<LayoutBlockFlow>(Parent());
   if (!parent_block_flow)
     return;
-  if (BeingDestroyed() || DocumentBeingDestroyed())
+  if (BeingDestroyed()) {
     return;
+  }
   LayoutObject* child = NextSibling();
   while (child && child->IsFloatingOrOutOfFlowPositioned()) {
     LayoutObject* sibling = child->NextSibling();
@@ -495,8 +476,9 @@ void LayoutBlockFlow::ReparentPrecedingFloatingOrOutOfFlowSiblings() {
   auto* parent_block_flow = DynamicTo<LayoutBlockFlow>(Parent());
   if (!parent_block_flow)
     return;
-  if (BeingDestroyed() || DocumentBeingDestroyed())
+  if (BeingDestroyed()) {
     return;
+  }
   LayoutObject* child = PreviousSibling();
   while (child && child->IsFloatingOrOutOfFlowPositioned()) {
     LayoutObject* sibling = child->PreviousSibling();

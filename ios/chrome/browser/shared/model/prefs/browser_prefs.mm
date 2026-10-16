@@ -571,6 +571,8 @@ void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
   registry->RegisterIntegerPref(prefs::kIOSAppPreviewLastAttributionWindowType,
                                 0);
 
+  registry->RegisterTimePref(prefs::kLastRecordedActiveDay, base::Time());
+
   // Deprecated 02/2025.
   registry->RegisterIntegerPref(
       prefs::kIosMagicStackSegmentationParcelTrackingImpressionsSinceFreshness,
@@ -968,6 +970,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
                              base::Time());
 
   registry->RegisterIntegerPref(prefs::kGeminiEnabledByPolicy, 0);
+  registry->RegisterIntegerPref(prefs::kGenAiEnabledByPolicy, 0);
   registry->RegisterBooleanPref(prefs::kAIHubEligibilityTriggered, false);
 
   registry->RegisterListPref(policy::policy_prefs::kIncognitoModeUrlBlocklist);

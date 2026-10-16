@@ -678,6 +678,7 @@ rtc_library("dtls_stun_piggyback_controller") {
     "../rtc_base:logging",
     "../rtc_base:macromagic",
     "../rtc_base:stringutils",
+    "../rtc_base/network:received_packet",
     "../rtc_base/system:no_unique_address",
     "//third_party/abseil-cpp/absl/container:flat_hash_set",
     "//third_party/abseil-cpp/absl/functional:any_invocable",

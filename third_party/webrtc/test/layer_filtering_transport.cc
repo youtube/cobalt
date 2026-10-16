@@ -190,7 +190,7 @@ bool LayerFilteringTransport::SendRtp(ArrayView<const uint8_t> packet,
     }
   }
 
-  return test::DirectTransport::SendRtp(rtp_packet, options);
+  return test::DirectTransport::SendRtp(rtp_packet.buffer(), options);
 }
 
 }  // namespace test

@@ -18,6 +18,7 @@
 #include "absl/base/casts.h"
 #include "absl/cleanup/cleanup.h"
 #include "absl/container/fixed_array.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
@@ -27,32 +28,16 @@
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_data_reader.h"
-#include "quiche/common/quiche_stream.h"
+#include "quiche/web_transport/web_transport.h"
 
 namespace moqt {
 
 namespace {
-
-bool ParseDeliveryOrder(uint8_t raw_value,
-                        std::optional<MoqtDeliveryOrder>& output) {
-  switch (raw_value) {
-    case 0x00:
-      output = std::nullopt;
-      return true;
-    case 0x01:
-      output = MoqtDeliveryOrder::kAscending;
-      return true;
-    case 0x02:
-      output = MoqtDeliveryOrder::kDescending;
-      return true;
-    default:
-      return false;
-  }
-}
 
 uint64_t SignedVarintUnserializedForm(uint64_t value) {
   if (value & 0x01) {
@@ -63,11 +48,12 @@ uint64_t SignedVarintUnserializedForm(uint64_t value) {
 
 // |fin_read| is set to true if there is a FIN anywhere before the end of the
 // varint.
-std::optional<uint64_t> ReadVarInt62FromStream(quiche::ReadStream& stream,
+std::optional<uint64_t> ReadVarInt62FromStream(webtransport::Stream& stream,
                                                bool& fin_read) {
   fin_read = false;
 
-  quiche::ReadStream::PeekResult peek_result = stream.PeekNextReadableRegion();
+  webtransport::Stream::PeekResult peek_result =
+      stream.PeekNextReadableRegion();
   if (peek_result.peeked_data.empty()) {
     if (peek_result.fin_next) {
       fin_read = stream.SkipBytes(0);
@@ -88,7 +74,7 @@ std::optional<uint64_t> ReadVarInt62FromStream(quiche::ReadStream& stream,
   char buffer[8];
   absl::Span<char> bytes_to_read =
       absl::MakeSpan(buffer).subspan(0, varint_size);
-  quiche::ReadStream::ReadResult read_result = stream.Read(bytes_to_read);
+  webtransport::Stream::ReadResult read_result = stream.Read(bytes_to_read);
   QUICHE_DCHECK_EQ(read_result.bytes_read, varint_size);
   fin_read = read_result.fin;
 
@@ -356,6 +342,9 @@ MoqtError MessageParameters::FromKeyValuePairList(
             expires = quic::QuicTimeDelta::TryFromMilliseconds(
                           std::get<uint64_t>(value))
                           .value_or(quic::QuicTimeDelta::Infinite());
+            if (expires->IsZero()) {
+              expires = quic::QuicTimeDelta::Infinite();
+            }
             break;
           case MessageParameter::kLargestObject:
             if (largest_object.has_value()) {
@@ -428,49 +417,6 @@ MoqtError MessageParameters::FromKeyValuePairList(
   return error;
 }
 
-MoqtError VersionSpecificParameters::FromKeyValuePairList(
-    const KeyValuePairList& list) {
-  MoqtError error = MoqtError::kNoError;
-  if (list.count(static_cast<uint64_t>(
-          VersionSpecificParameter::kDeliveryTimeout)) > 1 ||
-      list.count(static_cast<uint64_t>(
-          VersionSpecificParameter::kMaxCacheDuration)) > 1) {
-    return MoqtError::kProtocolViolation;
-  }
-  list.ForEach([&](uint64_t key,
-                   std::variant<uint64_t, absl::string_view> value) {
-    VersionSpecificParameter parameter =
-        static_cast<VersionSpecificParameter>(key);
-    switch (parameter) {
-      case VersionSpecificParameter::kDeliveryTimeout:
-        delivery_timeout =
-            quic::QuicTimeDelta::TryFromMilliseconds(std::get<uint64_t>(value))
-                .value_or(quic::QuicTimeDelta::Infinite());
-        break;
-      case VersionSpecificParameter::kMaxCacheDuration:
-        max_cache_duration =
-            quic::QuicTimeDelta::TryFromMilliseconds(std::get<uint64_t>(value))
-                .value_or(quic::QuicTimeDelta::Infinite());
-        break;
-      case VersionSpecificParameter::kOackWindowSize:
-        oack_window_size =
-            quic::QuicTimeDelta::FromMicroseconds(std::get<uint64_t>(value));
-        break;
-      case VersionSpecificParameter::kAuthorizationToken:
-        error = ParseAuthTokenParameter(std::get<absl::string_view>(value),
-                                        authorization_tokens);
-        if (error != MoqtError::kNoError) {
-          return false;
-        }
-        break;
-      default:
-        break;
-    }
-    return true;
-  });
-  return error;
-}
-
 bool MoqtMessageTypeParser::ReadUntilMessageTypeKnown() {
   if (message_type_.has_value()) {
     return true;
@@ -514,7 +460,7 @@ void MoqtControlParser::ReadAndDispatchMessages() {
         return;
       }
       std::array<char, 2> size_bytes;
-      quiche::ReadStream::ReadResult result =
+      webtransport::Stream::ReadResult result =
           stream_.Read(absl::MakeSpan(size_bytes));
       if (result.bytes_read != 2) {
         ParseError(MoqtError::kInternalError,
@@ -544,7 +490,7 @@ void MoqtControlParser::ReadAndDispatchMessages() {
       return;
     }
     absl::FixedArray<char> message(*message_size_);
-    quiche::ReadStream::ReadResult result =
+    webtransport::Stream::ReadResult result =
         stream_.Read(absl::MakeSpan(message));
     if (result.bytes_read != *message_size_) {
       ParseError("Stream returned incorrect ReadableBytes");
@@ -789,13 +735,7 @@ size_t MoqtControlParser::ProcessPublishNamespace(
       !ReadTrackNamespace(reader, publish_namespace.track_namespace)) {
     return 0;
   }
-  KeyValuePairList parameters;
-  if (!ParseKeyValuePairList(reader, parameters)) {
-    return 0;
-  }
-  if (!FillAndValidateVersionSpecificParameters(
-          parameters, publish_namespace.parameters,
-          MoqtMessageType::kPublishNamespace)) {
+  if (!FillAndValidateMessageParameters(reader, publish_namespace.parameters)) {
     return 0;
   }
   visitor_.OnPublishNamespaceMessage(publish_namespace);
@@ -834,22 +774,20 @@ size_t MoqtControlParser::ProcessRequestOk(quic::QuicDataReader& reader) {
 
 size_t MoqtControlParser::ProcessPublishNamespaceDone(
     quic::QuicDataReader& reader) {
-  MoqtPublishNamespaceDone unpublish_namespace;
-  if (!ReadTrackNamespace(reader, unpublish_namespace.track_namespace)) {
+  MoqtPublishNamespaceDone pn_done;
+  if (!reader.ReadVarInt62(&pn_done.request_id)) {
     return 0;
   }
-  visitor_.OnPublishNamespaceDoneMessage(unpublish_namespace);
+  visitor_.OnPublishNamespaceDoneMessage(pn_done);
   return reader.PreviouslyReadPayload().length();
 }
 
 size_t MoqtControlParser::ProcessPublishNamespaceCancel(
     quic::QuicDataReader& reader) {
   MoqtPublishNamespaceCancel publish_namespace_cancel;
-  if (!ReadTrackNamespace(reader, publish_namespace_cancel.track_namespace)) {
-    return 0;
-  }
   uint64_t error_code;
-  if (!reader.ReadVarInt62(&error_code) ||
+  if (!reader.ReadVarInt62(&publish_namespace_cancel.request_id) ||
+      !reader.ReadVarInt62(&error_code) ||
       !reader.ReadStringVarInt62(publish_namespace_cancel.error_reason)) {
     return 0;
   }
@@ -906,15 +844,8 @@ size_t MoqtControlParser::ProcessMaxRequestId(quic::QuicDataReader& reader) {
 
 size_t MoqtControlParser::ProcessFetch(quic::QuicDataReader& reader) {
   MoqtFetch fetch;
-  uint8_t group_order;
   uint64_t type;
-  if (!reader.ReadVarInt62(&fetch.request_id) ||
-      !reader.ReadUInt8(&fetch.subscriber_priority) ||
-      !reader.ReadUInt8(&group_order) || !reader.ReadVarInt62(&type)) {
-    return 0;
-  }
-  if (!ParseDeliveryOrder(group_order, fetch.group_order)) {
-    ParseError("Invalid group order value in FETCH message");
+  if (!reader.ReadVarInt62(&fetch.request_id) || !reader.ReadVarInt62(&type)) {
     return 0;
   }
   switch (static_cast<FetchType>(type)) {
@@ -964,12 +895,7 @@ size_t MoqtControlParser::ProcessFetch(quic::QuicDataReader& reader) {
       ParseError("Invalid FETCH type");
       return 0;
   }
-  KeyValuePairList parameters;
-  if (!ParseKeyValuePairList(reader, parameters)) {
-    return 0;
-  }
-  if (!FillAndValidateVersionSpecificParameters(parameters, fetch.parameters,
-                                                MoqtMessageType::kFetch)) {
+  if (!FillAndValidateMessageParameters(reader, fetch.parameters)) {
     return 0;
   }
   visitor_.OnFetchMessage(fetch);
@@ -978,17 +904,11 @@ size_t MoqtControlParser::ProcessFetch(quic::QuicDataReader& reader) {
 
 size_t MoqtControlParser::ProcessFetchOk(quic::QuicDataReader& reader) {
   MoqtFetchOk fetch_ok;
-  uint8_t group_order, end_of_track;
-  KeyValuePairList parameters;
+  uint8_t end_of_track;
   if (!reader.ReadVarInt62(&fetch_ok.request_id) ||
-      !reader.ReadUInt8(&group_order) || !reader.ReadUInt8(&end_of_track) ||
+      !reader.ReadUInt8(&end_of_track) ||
       !reader.ReadVarInt62(&fetch_ok.end_location.group) ||
-      !reader.ReadVarInt62(&fetch_ok.end_location.object) ||
-      !ParseKeyValuePairList(reader, parameters)) {
-    return 0;
-  }
-  if (group_order != 0x01 && group_order != 0x02) {
-    ParseError("Invalid group order value in FETCH_OK");
+      !reader.ReadVarInt62(&fetch_ok.end_location.object)) {
     return 0;
   }
   if (end_of_track > 0x01) {
@@ -1000,10 +920,15 @@ size_t MoqtControlParser::ProcessFetchOk(quic::QuicDataReader& reader) {
   } else {
     --fetch_ok.end_location.object;
   }
-  fetch_ok.group_order = static_cast<MoqtDeliveryOrder>(group_order);
   fetch_ok.end_of_track = end_of_track == 1;
-  if (!FillAndValidateVersionSpecificParameters(parameters, fetch_ok.parameters,
-                                                MoqtMessageType::kFetchOk)) {
+  if (!FillAndValidateMessageParameters(reader, fetch_ok.parameters)) {
+    return 0;
+  }
+  if (!ParseKeyValuePairListWithNoPrefix(reader, fetch_ok.extensions)) {
+    return 0;
+  }
+  if (!fetch_ok.extensions.Validate()) {
+    ParseError("Invalid FETCH_OK track extensions");
     return 0;
   }
   visitor_.OnFetchOkMessage(fetch_ok);
@@ -1030,45 +955,20 @@ size_t MoqtControlParser::ProcessRequestsBlocked(quic::QuicDataReader& reader) {
 
 size_t MoqtControlParser::ProcessPublish(quic::QuicDataReader& reader) {
   MoqtPublish publish;
-  uint8_t group_order, content_exists;
   QUICHE_DCHECK(reader.PreviouslyReadPayload().empty());
   if (!reader.ReadVarInt62(&publish.request_id) ||
       !ReadFullTrackName(reader, publish.full_track_name) ||
-      !reader.ReadVarInt62(&publish.track_alias) ||
-      !reader.ReadUInt8(&group_order) || !reader.ReadUInt8(&content_exists)) {
+      !reader.ReadVarInt62(&publish.track_alias)) {
     return 0;
   }
-  publish.group_order = static_cast<MoqtDeliveryOrder>(group_order);
-  if (group_order != 0x01 && group_order != 0x02) {
-    ParseError("Invalid group order value in PUBLISH");
+  if (!FillAndValidateMessageParameters(reader, publish.parameters)) {
     return 0;
   }
-  if (content_exists > 1) {
-    ParseError("PUBLISH ContentExists has invalid value");
+  if (!ParseKeyValuePairListWithNoPrefix(reader, publish.extensions)) {
     return 0;
   }
-  if (content_exists == 1) {
-    uint64_t group, object;
-    if (!reader.ReadVarInt62(&group) || !reader.ReadVarInt62(&object)) {
-      return 0;
-    }
-    publish.largest_location = Location(group, object);
-  }
-  uint8_t forward;
-  if (!reader.ReadUInt8(&forward)) {
-    return 0;
-  }
-  if (forward > 0x01) {
-    ParseError("Invalid forward value in PUBLISH");
-    return 0;
-  }
-  publish.forward = forward == 1;
-  KeyValuePairList parameters;
-  if (!ParseKeyValuePairList(reader, parameters)) {
-    return 0;
-  }
-  if (!FillAndValidateVersionSpecificParameters(parameters, publish.parameters,
-                                                MoqtMessageType::kPublish)) {
+  if (!publish.extensions.Validate()) {
+    ParseError("Invalid PUBLISH track extensions");
     return 0;
   }
   visitor_.OnPublishMessage(publish);
@@ -1077,58 +977,10 @@ size_t MoqtControlParser::ProcessPublish(quic::QuicDataReader& reader) {
 
 size_t MoqtControlParser::ProcessPublishOk(quic::QuicDataReader& reader) {
   MoqtPublishOk publish_ok;
-  uint8_t forward, group_order;
-  uint64_t filter_type;
-  KeyValuePairList parameters;
-  if (!reader.ReadVarInt62(&publish_ok.request_id) ||
-      !reader.ReadUInt8(&forward) ||
-      !reader.ReadUInt8(&publish_ok.subscriber_priority) ||
-      !reader.ReadUInt8(&group_order) || !reader.ReadVarInt62(&filter_type)) {
+  if (!reader.ReadVarInt62(&publish_ok.request_id)) {
     return 0;
   }
-  if (forward > 0x01) {
-    ParseError("Invalid forward value in PUBLISH_OK");
-    return 0;
-  }
-  publish_ok.forward = forward == 1;
-  if (group_order != 0x01 && group_order != 0x02) {
-    ParseError("Invalid group order value in PUBLISH_OK");
-    return 0;
-  }
-  publish_ok.group_order = static_cast<MoqtDeliveryOrder>(group_order);
-  publish_ok.filter_type = static_cast<MoqtFilterType>(filter_type);
-  uint64_t group, object, end_group;
-  switch (publish_ok.filter_type) {
-    case MoqtFilterType::kNextGroupStart:
-    case MoqtFilterType::kLargestObject:
-      break;
-    case MoqtFilterType::kAbsoluteStart:
-    case MoqtFilterType::kAbsoluteRange:
-      if (!reader.ReadVarInt62(&group) || !reader.ReadVarInt62(&object)) {
-        return 0;
-      }
-      publish_ok.start = Location(group, object);
-      if (publish_ok.filter_type == MoqtFilterType::kAbsoluteStart) {
-        break;
-      }
-      if (!reader.ReadVarInt62(&end_group)) {
-        return 0;
-      }
-      publish_ok.end_group = end_group;
-      if (*publish_ok.end_group < publish_ok.start->group) {
-        ParseError("End group is less than start group");
-        return 0;
-      }
-      break;
-    default:
-      ParseError("Invalid filter type");
-      return 0;
-  }
-  if (!ParseKeyValuePairList(reader, parameters)) {
-    return 0;
-  }
-  if (!FillAndValidateVersionSpecificParameters(
-          parameters, publish_ok.parameters, MoqtMessageType::kPublishOk)) {
+  if (!FillAndValidateMessageParameters(reader, publish_ok.parameters)) {
     return 0;
   }
   visitor_.OnPublishOkMessage(publish_ok);
@@ -1166,7 +1018,7 @@ void MoqtControlParser::ParseError(MoqtError error_code,
 
 bool MoqtControlParser::ReadTrackNamespace(quic::QuicDataReader& reader,
                                            TrackNamespace& track_namespace) {
-  QUICHE_DCHECK(!track_namespace.IsValid());
+  QUICHE_DCHECK(track_namespace.empty());
   uint64_t num_elements;
   if (!reader.ReadVarInt62(&num_elements)) {
     return false;
@@ -1176,36 +1028,38 @@ bool MoqtControlParser::ReadTrackNamespace(quic::QuicDataReader& reader,
                "Invalid number of namespace elements");
     return false;
   }
+  absl::FixedArray<absl::string_view> elements(num_elements);
   for (uint64_t i = 0; i < num_elements; ++i) {
-    absl::string_view element;
-    if (!reader.ReadStringPieceVarInt62(&element)) {
+    if (!reader.ReadStringPieceVarInt62(&elements[i])) {
       return false;
     }
-    if (!track_namespace.CanAddElement(element)) {
-      ParseError(MoqtError::kProtocolViolation, "Full track name is too large");
-      return false;
-    }
-    track_namespace.AddElement(element);
   }
-  QUICHE_DCHECK(track_namespace.IsValid());
+  if (!track_namespace.Append(elements)) {
+    ParseError(MoqtError::kProtocolViolation, "Track namespace is too large");
+    return false;
+  }
   return true;
 }
 
 bool MoqtControlParser::ReadFullTrackName(quic::QuicDataReader& reader,
                                           FullTrackName& full_track_name) {
   QUICHE_DCHECK(!full_track_name.IsValid());
-  if (!ReadTrackNamespace(reader, full_track_name.track_namespace())) {
+  TrackNamespace track_namespace;
+  if (!ReadTrackNamespace(reader, track_namespace)) {
     return false;
   }
   absl::string_view name;
   if (!reader.ReadStringPieceVarInt62(&name)) {
     return false;
   }
-  if (!full_track_name.CanAddName(name)) {
-    ParseError(MoqtError::kProtocolViolation, "Full track name is too large");
+  absl::StatusOr<FullTrackName> full_track_name_or =
+      FullTrackName::Create(std::move(track_namespace), std::string(name));
+  if (!full_track_name_or.ok()) {
+    ParseError(MoqtError::kProtocolViolation,
+               full_track_name_or.status().message());
     return false;
   }
-  full_track_name.set_name(name);
+  full_track_name = *std::move(full_track_name_or);
   return true;
 }
 
@@ -1244,26 +1098,6 @@ bool MoqtControlParser::FillAndValidateMessageParameters(
     return false;
   }
   // All parameter types are allowed in all messages.
-  return true;
-}
-
-bool MoqtControlParser::FillAndValidateVersionSpecificParameters(
-    const KeyValuePairList& in, VersionSpecificParameters& out,
-    MoqtMessageType message_type) {
-  MoqtError error = out.FromKeyValuePairList(in);
-  if (error != MoqtError::kNoError) {
-    absl::string_view error_message =
-        (error == MoqtError::kProtocolViolation)
-            ? "Duplicate Version Specific Parameter"
-            : "Version Specific Parameter parsing error";
-    ParseError(error, error_message);
-    return false;
-  }
-  if (!VersionSpecificParametersAllowedByMessage(out, message_type)) {
-    ParseError(MoqtError::kProtocolViolation,
-               "Version Specific Parameter not allowed for this message type");
-    return false;
-  }
   return true;
 }
 
@@ -1372,7 +1206,7 @@ std::optional<uint64_t> MoqtDataParser::ReadVarInt62NoFin() {
 
 std::optional<uint8_t> MoqtDataParser::ReadUint8NoFin() {
   char buffer[1];
-  quiche::ReadStream::ReadResult read_result =
+  webtransport::Stream::ReadResult read_result =
       stream_.Read(absl::MakeSpan(buffer));
   if (read_result.bytes_read == 0) {
     return std::nullopt;
@@ -1588,7 +1422,7 @@ void MoqtDataParser::ParseNextItemFromStream() {
     case kExtensionBody:
     case kData: {
       while (payload_length_remaining_ > 0) {
-        quiche::ReadStream::PeekResult peek_result =
+        webtransport::Stream::PeekResult peek_result =
             stream_.PeekNextReadableRegion();
         if (!peek_result.has_data()) {
           return;
@@ -1686,6 +1520,7 @@ bool MoqtDataParser::CheckForFinWithoutData() {
       // Data arrived; the last object was not EndOfGroup.
       visitor_.OnObjectMessage(metadata_, "", /*end_of_message=*/true);
       AdvanceParserState();
+      ++num_objects_read_;
     }
     return false;
   }

@@ -391,6 +391,19 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Enterprise.CacheEncryptionPolicyEnabled" enum="BooleanEnabled"
+    expires_after="2027-02-17">
+  <owner>haihan@google.com</owner>
+  <owner>valadkevich@google.com</owner>
+  <owner>cbe-cep-eng@google.com</owner>
+  <summary>
+    Records whether the CacheEncryptionEnabled enterprise policy is enabled, or
+    if the EnableCacheEncryptionForTesting flag is set. Logged during network
+    context initialization when evaluating whether the HTTP cache should be
+    encrypted. Useful for slicing Finch experiment data.
+  </summary>
+</histogram>
+
 <histogram name="Enterprise.CBCMPolicyInvalidations"
     enum="EnterprisePolicyInvalidations" expires_after="2026-12-01">
   <owner>zmin@chromium.org</owner>
@@ -682,6 +695,28 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Enterprise.DataControls.DragAndDrop.EvaluationLatency"
+    units="ms" expires_after="2027-02-09">
+  <owner>rslan@google.com</owner>
+  <owner>cep-se@google.com</owner>
+  <summary>
+    Records the time taken to evaluate the Data Controls policy verdict for a
+    drag and drop operation. This is synchronous on the UI thread. Recorded when
+    the policy evaluation finishes, immediately before the verdict is returned.
+  </summary>
+</histogram>
+
+<histogram name="Enterprise.DataControls.DragAndDrop.Verdict"
+    enum="DataControlsDragAndDropVerdict" expires_after="2027-02-09">
+  <owner>rslan@google.com</owner>
+  <owner>cep-se@google.com</owner>
+  <summary>
+    Records the verdict of the Data Controls policy check for a drag and drop
+    operation. This is recorded when the kDataControlsDragEnforcement feature is
+    enabled and the policy evaluation completes.
+  </summary>
+</histogram>
+
 <histogram name="Enterprise.DataProtection.URLVerdictSource"
     enum="DataProtectionURLVerdictSource" expires_after="2026-07-19">
   <owner>alshawwa@chromium.org</owner>
@@ -710,7 +745,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.DeviceLocalAccountPolicyInvalidations2"
-    enum="EnterprisePolicyInvalidations" expires_after="2026-06-21">
+    enum="EnterprisePolicyInvalidations" expires_after="2026-08-23">
   <owner>asumaneev@google.com</owner>
   <owner>chromeos-commercial-remote-management@google.com</owner>
   <summary>
@@ -775,7 +810,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.DevicePolicyRefresh3"
-    enum="EnterprisePolicyRefresh" expires_after="2026-06-21">
+    enum="EnterprisePolicyRefresh" expires_after="2026-08-23">
   <owner>asumaneev@google.com</owner>
   <owner>chromeos-commercial-remote-management@google.com</owner>
   <summary>
@@ -1410,7 +1445,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.Dlp.ActiveFileEventsCount" units="entries"
-    expires_after="2026-05-31">
+    expires_after="2026-08-23">
   <owner>accorsi@google.com</owner>
   <owner>chromeos-dlp@google.com</owner>
   <summary>
@@ -1451,7 +1486,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.Dlp.ConfidentialContentsCount" units="entries"
-    expires_after="2026-06-14">
+    expires_after="2026-08-16">
   <owner>aidazolic@chromium.org</owner>
   <owner>chromeos-dlp@google.com</owner>
   <summary>
@@ -1775,7 +1810,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.Dlp.ReportedWarnLevelRestriction"
-    enum="EnterpriseDlpPolicyRestriction" expires_after="2026-03-22">
+    enum="EnterpriseDlpPolicyRestriction" expires_after="2027-03-22">
   <owner>poromov@chromium.org</owner>
   <owner>chromeos-dlp@google.com</owner>
   <summary>
@@ -2489,7 +2524,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.ExtensibleEnterpriseSSO.Supported.Result"
-    enum="Boolean" expires_after="2026-06-21">
+    enum="Boolean" expires_after="2026-08-23">
   <owner>ydago@chromium.org</owner>
   <owner>cec-growth@google.com</owner>
   <summary>
@@ -2499,7 +2534,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.ExtensibleEnterpriseSSO.{Status}.Duration"
-    units="ms" expires_after="2026-06-21">
+    units="ms" expires_after="2026-08-23">
   <owner>ydago@chromium.org</owner>
   <owner>cec-growth@google.com</owner>
   <summary>
@@ -3031,7 +3066,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.PolicyInvalidations"
-    enum="EnterprisePolicyInvalidations" expires_after="2026-06-21">
+    enum="EnterprisePolicyInvalidations" expires_after="2026-08-23">
   <owner>asumaneev@google.com</owner>
   <owner>chromeos-commercial-remote-management@google.com</owner>
   <summary>
@@ -4140,7 +4175,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.{Page}PromotionBannerDisplayed" enum="Boolean"
-    expires_after="2026-06-21">
+    expires_after="2026-08-23">
   <owner>austinzzr@chromium.org</owner>
   <owner>esalma@google.com</owner>
   <summary>
@@ -4376,7 +4411,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="EnterpriseCheck.SystemCallCount" units="count"
-    expires_after="2026-06-14">
+    expires_after="2026-08-16">
   <owner>nafisabedin@google.com</owner>
   <improvement direction="LOWER_IS_BETTER"/>
   <summary>

@@ -15,7 +15,6 @@
 #include <iterator>
 #include <memory>
 #include <optional>
-#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -477,13 +476,6 @@ RTCError RtpTransceiver::CreateChannel(
       media_receive_channel = std::move(channels.second);
       SetMediaChannels(media_send_channel.get(), media_receive_channel.get());
     }
-    // Note that this is safe because both sending and
-    // receiving channels will be deleted at the same time.
-    media_send_channel->SetSsrcListChangedCallback(
-        [receive_channel =
-             media_receive_channel.get()](const std::set<uint32_t>& choices) {
-          receive_channel->ChooseReceiverReportSsrc(choices);
-        });
 
     if (media_type() == MediaType::AUDIO) {
       new_channel =

@@ -51,11 +51,12 @@ BIO *BIO_new(const BIO_METHOD *method) {
 }
 
 Bio::~Bio() {
+  BIO *next = BIO_pop(this);
   if (method != nullptr && method->destroy != nullptr) {
     method->destroy(this);
   }
   CRYPTO_free_ex_data(&g_ex_data_class, &ex_data);
-  BIO_free(BIO_pop(this));
+  BIO_free(next);
 }
 
 int BIO_free(BIO *bio) {
@@ -63,8 +64,7 @@ int BIO_free(BIO *bio) {
     return 1;
   }
   auto *impl = FromOpaque(bio);
-  impl->DecRefInternal();
-  return 1;
+  return impl->DecRefInternal();
 }
 
 int BIO_up_ref(BIO *bio) {

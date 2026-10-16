@@ -139,14 +139,17 @@ class RefCounted {
 
   // These methods are intentionally named differently from `bssl::UpRef` to
   // avoid a collision. Only the implementations of `FOO_up_ref` and `FOO_free`
-  // should call these.
+  // should call these. |DecRefInternal| returns true if the object was freed
+  // and false if there are still references.
   void UpRefInternal() { CRYPTO_refcount_inc(&references_); }
-  void DecRefInternal() {
+  bool DecRefInternal() {
     if (CRYPTO_refcount_dec_and_test_zero(&references_)) {
       Derived *d = static_cast<Derived *>(this);
       d->~Derived();
       OPENSSL_free(d);
+      return true;
     }
+    return false;
   }
 
  protected:
@@ -410,6 +413,14 @@ class Vector {
     return true;
   }
 
+  // EraseIf removes all elements that satisfy the predicate |pred|.
+  template <typename Pred>
+  void EraseIf(Pred pred) {
+    auto it = std::remove_if(begin(), end(), pred);
+    std::destroy(it, end());
+    size_ = it - begin();
+  }
+
  private:
   // If there is no room for one more element, creates a new backing array with
   // double the size of the old one and copies elements over.
@@ -622,25 +633,11 @@ class InplaceVector {
     return *ret;
   }
 
+  // EraseIf removes all elements that satisfy the predicate |pred|.
   template <typename Pred>
   void EraseIf(Pred pred) {
-    // See if anything needs to be erased at all. This avoids a self-move.
-    auto iter = std::find_if(begin(), end(), pred);
-    if (iter == end()) {
-      return;
-    }
-
-    // Elements before the first to be erased may be left as-is.
-    size_t new_size = iter - begin();
-    // Swap all subsequent elements in if they are to be kept.
-    for (size_t i = new_size + 1; i < size(); i++) {
-      if (!pred((*this)[i])) {
-        (*this)[new_size] = std::move((*this)[i]);
-        new_size++;
-      }
-    }
-
-    Shrink(new_size);
+    auto it = std::remove_if(begin(), end(), pred);
+    Shrink(it - begin());
   }
 
  private:

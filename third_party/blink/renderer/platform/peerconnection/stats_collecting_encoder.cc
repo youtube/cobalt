@@ -211,8 +211,7 @@ webrtc::EncodedImageCallback::Result StatsCollectingEncoder::OnEncodedImage(
           encoded_image._encodedWidth * encoded_image._encodedHeight;
       bool is_hardware_accelerated =
           encoder_->GetEncoderInfo().is_hardware_accelerated;
-      bool is_keyframe =
-          encoded_image._frameType == webrtc::VideoFrameType::kVideoFrameKey;
+      bool is_keyframe = encoded_image.IsKey();
       AddProcessingTime(pixel_size, is_hardware_accelerated, encode_time_ms,
                         is_keyframe, now);
     }
@@ -223,6 +222,14 @@ webrtc::EncodedImageCallback::Result StatsCollectingEncoder::OnEncodedImage(
 void StatsCollectingEncoder::OnDroppedFrame(DropReason reason) {
   DCHECK(encoded_callback_);
   encoded_callback_->OnDroppedFrame(reason);
+}
+
+void StatsCollectingEncoder::OnFrameDropped(uint32_t rtp_timestamp,
+                                            int spatial_id,
+                                            bool is_end_of_temporal_unit) {
+  DCHECK(encoded_callback_);
+  encoded_callback_->OnFrameDropped(rtp_timestamp, spatial_id,
+                                    is_end_of_temporal_unit);
 }
 
 }  // namespace blink

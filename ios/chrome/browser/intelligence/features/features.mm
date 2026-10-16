@@ -7,6 +7,7 @@
 #import <optional>
 
 #import "base/check.h"
+#import "base/metrics/field_trial_params.h"
 #import "base/strings/string_split.h"
 #import "base/strings/string_util.h"
 #import "base/time/time.h"
@@ -128,16 +129,26 @@ bool IsDirectBWGEntryPoint() {
 
 const char kBWGSessionValidityDurationParam[] = "BWGSessionValidityDuration";
 
+BASE_FEATURE_PARAM(int,
+                   kBWGSessionValidityDurationFeatureParam,
+                   &kPageActionMenu,
+                   kBWGSessionValidityDurationParam,
+                   30);
+
 const base::TimeDelta BWGSessionValidityDuration() {
-  return base::Minutes(base::GetFieldTrialParamByFeatureAsInt(
-      kPageActionMenu, kBWGSessionValidityDurationParam, 30));
+  return base::Minutes(kBWGSessionValidityDurationFeatureParam.Get());
 }
 
 const char kBWGPromoConsentParams[] = "BWGPromoConsentVariations";
 
+BASE_FEATURE_PARAM(int,
+                   kBWGPromoConsentFeatureParam,
+                   &kBWGPromoConsent,
+                   kBWGPromoConsentParams,
+                   0);
+
 BWGPromoConsentVariations BWGPromoConsentVariationsParam() {
-  int param = base::GetFieldTrialParamByFeatureAsInt(kBWGPromoConsent,
-                                                     kBWGPromoConsentParams, 0);
+  int param = kBWGPromoConsentFeatureParam.Get();
   if (!IsPageActionMenuEnabled()) {
     return BWGPromoConsentVariations::kDisabled;
   }
@@ -173,9 +184,14 @@ BASE_FEATURE(kBWGPromoConsent, base::FEATURE_DISABLED_BY_DEFAULT);
 
 const char kExplainGeminiEditMenuParams[] = "PositionForExplainGeminiEditMenu";
 
+BASE_FEATURE_PARAM(int,
+                   kExplainGeminiEditMenuFeatureParam,
+                   &kExplainGeminiEditMenu,
+                   kExplainGeminiEditMenuParams,
+                   0);
+
 PositionForExplainGeminiEditMenu ExplainGeminiEditMenuPosition() {
-  int param = base::GetFieldTrialParamByFeatureAsInt(
-      kExplainGeminiEditMenu, kExplainGeminiEditMenuParams, 0);
+  int param = kExplainGeminiEditMenuFeatureParam.Get();
   if (param == 1) {
     return PositionForExplainGeminiEditMenu::kAfterEdit;
   }
@@ -217,6 +233,24 @@ const char kPersistTabContextStorageParam[] = "storage_implementation";
 const char kPersistTabContextExtractionTimingParam[] = "extraction_timing";
 const char kPersistTabContextDataParam[] = "data_extracted";
 
+BASE_FEATURE_PARAM(int,
+                   kPersistTabContextStorageFeatureParam,
+                   &kPersistTabContext,
+                   kPersistTabContextStorageParam,
+                   static_cast<int>(PersistTabStorageType::kFileSystem));
+
+BASE_FEATURE_PARAM(int,
+                   kPersistTabContextExtractionTimingFeatureParam,
+                   &kPersistTabContext,
+                   kPersistTabContextExtractionTimingParam,
+                   static_cast<int>(PersistTabExtractionTiming::kOnWasHidden));
+
+BASE_FEATURE_PARAM(int,
+                   kPersistTabContextDataFeatureParam,
+                   &kPersistTabContext,
+                   kPersistTabContextDataParam,
+                   static_cast<int>(PersistTabDataExtracted::kApcAndInnerText));
+
 bool IsPersistTabContextEnabled() {
   if (IsSmartTabGroupingEnabled()) {
     return true;
@@ -225,9 +259,7 @@ bool IsPersistTabContextEnabled() {
 }
 
 PersistTabStorageType GetPersistTabContextStorageType() {
-  int param = base::GetFieldTrialParamByFeatureAsInt(
-      kPersistTabContext, kPersistTabContextStorageParam,
-      static_cast<int>(PersistTabStorageType::kFileSystem));
+  int param = kPersistTabContextStorageFeatureParam.Get();
   if (param == static_cast<int>(PersistTabStorageType::kSQLite) &&
       base::FeatureList::IsEnabled(
           page_content_annotations::features::kPageContentCache)) {
@@ -237,9 +269,7 @@ PersistTabStorageType GetPersistTabContextStorageType() {
 }
 
 PersistTabExtractionTiming GetPersistTabContextExtractionTiming() {
-  int param = base::GetFieldTrialParamByFeatureAsInt(
-      kPersistTabContext, kPersistTabContextExtractionTimingParam,
-      static_cast<int>(PersistTabExtractionTiming::kOnWasHidden));
+  int param = kPersistTabContextExtractionTimingFeatureParam.Get();
   if (param ==
       static_cast<int>(PersistTabExtractionTiming::kOnWasHiddenAndPageLoad)) {
     return PersistTabExtractionTiming::kOnWasHiddenAndPageLoad;
@@ -248,9 +278,7 @@ PersistTabExtractionTiming GetPersistTabContextExtractionTiming() {
 }
 
 PersistTabDataExtracted GetPersistTabContextDataExtracted() {
-  int param = base::GetFieldTrialParamByFeatureAsInt(
-      kPersistTabContext, kPersistTabContextDataParam,
-      static_cast<int>(PersistTabDataExtracted::kApcAndInnerText));
+  int param = kPersistTabContextDataFeatureParam.Get();
   if (param == static_cast<int>(PersistTabDataExtracted::kInnerTextOnly)) {
     return PersistTabDataExtracted::kInnerTextOnly;
   }
@@ -266,9 +294,14 @@ bool IsCleanupPersistedTabContextsEnabled() {
 // The default Time-To-Live in days for persisted contexts.
 constexpr int kPersistTabContextDefaultTTL = 21;
 
+BASE_FEATURE_PARAM(int,
+                   kPersistTabContextTTLParam,
+                   &kPersistTabContext,
+                   "ttl_days",
+                   kPersistTabContextDefaultTTL);
+
 base::TimeDelta GetPersistedContextEffectiveTTL(PrefService* prefs) {
-  int persist_ttl_days = base::GetFieldTrialParamByFeatureAsInt(
-      kPersistTabContext, "ttl_days", kPersistTabContextDefaultTTL);
+  int persist_ttl_days = kPersistTabContextTTLParam.Get();
   if (persist_ttl_days < 0) {
     // Fallback to a safe default if the Finch value is invalid.
     persist_ttl_days = kPersistTabContextDefaultTTL;
@@ -313,13 +346,13 @@ bool IsZeroStateSuggestionsAskGeminiEnabled() {
       kZeroStateSuggestions, kZeroStateSuggestionsPlacementAskGemini, false);
 }
 
-BASE_FEATURE(kGeminiFullChatHistory, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kGeminiFullChatHistory, base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool IsGeminiFullChatHistoryEnabled() {
   return base::FeatureList::IsEnabled(kGeminiFullChatHistory);
 }
 
-BASE_FEATURE(kGeminiLoadingStateRedesign, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kGeminiLoadingStateRedesign, base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool IsGeminiLoadingStateRedesignEnabled() {
   return base::FeatureList::IsEnabled(kGeminiLoadingStateRedesign);
@@ -329,12 +362,6 @@ BASE_FEATURE(kGeminiLatencyImprovement, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsGeminiLatencyImprovementEnabled() {
   return base::FeatureList::IsEnabled(kGeminiLatencyImprovement);
-}
-
-BASE_FEATURE(kGeminiImmediateOverlay, base::FEATURE_ENABLED_BY_DEFAULT);
-
-bool IsGeminiImmediateOverlayEnabled() {
-  return base::FeatureList::IsEnabled(kGeminiImmediateOverlay);
 }
 
 BASE_FEATURE(kPageContextExtractorRefactored, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -421,6 +448,18 @@ double GetGeminiCopresenceResponseReadyInterval() {
       kGeminiCopresence, kGeminiCopresenceResponseReadyInterval,
       kGeminiCopresenceResponseReadyIntervalDefault);
 }
+
+const char kGeminiCopresenceZeroStateWithChatHistory[] =
+    "GeminiCopresenceZeroStateWithChatHistory";
+
+bool IsGeminiCopresenceZeroStateWithChatHistoryEnabled() {
+  if (!IsGeminiCopresenceEnabled()) {
+    return false;
+  }
+
+  return base::GetFieldTrialParamByFeatureAsBool(
+      kGeminiCopresence, kGeminiCopresenceZeroStateWithChatHistory, false);
+}
 BASE_FEATURE(kGeminiResponseViewDynamicResizing,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -473,6 +512,12 @@ BASE_FEATURE(kModelBasedPageClassification, base::FEATURE_DISABLED_BY_DEFAULT);
 
 const char kModelBasedPageClassificationExecutionRateParam[] = "execution_rate";
 
+BASE_FEATURE_PARAM(int,
+                   kModelBasedPageClassificationExecutionRateFeatureParam,
+                   &kModelBasedPageClassification,
+                   kModelBasedPageClassificationExecutionRateParam,
+                   0);
+
 bool IsModelBasedPageClassificationEnabled() {
   // Check strict eligibility similar to other AI features.
   // Launched in en-US. Checks for the country (US) and locale (en-US).
@@ -498,9 +543,7 @@ bool IsModelBasedPageClassificationEnabled() {
 int GetModelBasedPageClassificationExecutionRate() {
   // Finch parameter for execution rate, we will want to keep it low so it runs
   // on a random small percentage of page loads.
-  return base::GetFieldTrialParamByFeatureAsInt(
-      kModelBasedPageClassification,
-      kModelBasedPageClassificationExecutionRateParam, 0);
+  return kModelBasedPageClassificationExecutionRateFeatureParam.Get();
 }
 
 BASE_FEATURE(kPageActionMenuIcon, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -517,4 +560,22 @@ PageActionMenuIconVariations GetPageActionMenuIcon() {
     return PageActionMenuIconVariations::kSparkles2;
   }
   return PageActionMenuIconVariations::kDefault;
+}
+
+BASE_FEATURE(kGeminiBackendMigration, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsGeminiBackendMigrationEnabled() {
+  return base::FeatureList::IsEnabled(kGeminiBackendMigration);
+}
+
+BASE_FEATURE(kGeminiActor, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsGeminiActorEnabled() {
+  return base::FeatureList::IsEnabled(kGeminiActor);
+}
+
+BASE_FEATURE(kGeminiRichAPCExtraction, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsGeminiRichAPCExtractionEnabled() {
+  return base::FeatureList::IsEnabled(kGeminiRichAPCExtraction);
 }

@@ -117,7 +117,7 @@ TEST(ByteBufferTest, TestBufferLength) {
 
 TEST(ByteBufferTest, TestReadWriteBuffer) {
   ByteBufferWriter buffer;
-  ByteBufferReader read_buf(ArrayView<const uint8_t>(nullptr, 0));
+  ByteBufferReader read_buf(ArrayView<const uint8_t>{});
   uint8_t ru8;
   EXPECT_FALSE(read_buf.ReadUInt8(&ru8));
 

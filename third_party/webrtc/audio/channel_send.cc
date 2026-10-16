@@ -441,7 +441,7 @@ int32_t ChannelSend::SendRtpAudio(AudioFrameType frameType,
       size_t bytes_written = 0;
       int encrypt_status =
           frame_encryptor_->Encrypt(MediaType::AUDIO, rtp_rtcp_->SSRC(),
-                                    /*additional_data=*/nullptr, payload,
+                                    /*additional_data=*/{}, payload,
                                     encrypted_audio_payload, &bytes_written);
       if (encrypt_status != 0) {
         RTC_DLOG(LS_ERROR)

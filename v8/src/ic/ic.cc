@@ -2984,6 +2984,7 @@ RUNTIME_FUNCTION(Runtime_LoadIC_Miss_FromBaseline) {
 RUNTIME_FUNCTION(Runtime_PatchLoadICUninitializedBaseline) {
 #ifdef V8_ENABLE_SPARKPLUG_PLUS
   DCHECK(v8_flags.sparkplug_plus);
+  CHECK(isolate->is_short_builtin_calls_enabled());
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
   // Runtime functions don't follow the IC's calling convention.
@@ -3032,6 +3033,8 @@ RUNTIME_FUNCTION(Runtime_PatchLoadICUninitializedBaseline) {
 
 RUNTIME_FUNCTION(Runtime_GetStringLengthAndUpdateFeedback) {
 #ifdef V8_ENABLE_SPARKPLUG_PLUS
+  HandleScope scope(isolate);
+
   Handle<String> receiver = args.at<String>(0);
   int slot = args.tagged_index_value_at(1);
   Handle<FeedbackVector> vector = args.at<FeedbackVector>(2);

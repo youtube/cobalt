@@ -302,6 +302,8 @@ class DtlsTransportInternalImpl : public DtlsTransportInternal {
   void set_writable(bool writable);
   // Sets the DTLS state, signaling if necessary.
   void set_dtls_state(DtlsTransportState state);
+
+  void CompleteDtlsInStun();
   void SetPiggybackDtlsDataCallback(
       absl::AnyInvocable<void(PacketTransportInternal* transport,
                               const ReceivedIpPacket& packet)> callback);
@@ -355,6 +357,9 @@ class DtlsTransportInternalImpl : public DtlsTransportInternal {
   // (so that we return PIGGYBACK_ACK to client if we get STUN_BINDING_REQUEST
   // directly). Maybe disabled in SetupDtls has been called.
   bool dtls_in_stun_ = false;
+  // Has DtlsInStun Complete been run?
+  // This variable is used to prevent reinitializing after dtls-restart.
+  bool dtls_in_stun_complete_ = false;
 
   // A controller for piggybacking DTLS in STUN.
   DtlsStunPiggybackController dtls_stun_piggyback_controller_;

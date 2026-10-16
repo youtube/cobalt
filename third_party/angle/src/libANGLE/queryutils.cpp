@@ -1697,20 +1697,6 @@ void QueryVertexAttribiv(const VertexAttribute &attrib,
                           params);
 }
 
-void QueryVertexAttribPointerv(const VertexAttribute &attrib, GLenum pname, void **pointer)
-{
-    switch (pname)
-    {
-        case GL_VERTEX_ATTRIB_ARRAY_POINTER:
-            *pointer = const_cast<void *>(attrib.pointer);
-            break;
-
-        default:
-            UNREACHABLE();
-            break;
-    }
-}
-
 void QueryVertexAttribIiv(const VertexAttribute &attrib,
                           const VertexBinding &binding,
                           const Buffer *buffer,
@@ -1840,6 +1826,7 @@ void QueryFramebufferPixelLocalStorageParameterBase(Context *context,
         case GL_PIXEL_LOCAL_TEXTURE_NAME_ANGLE:
         case GL_PIXEL_LOCAL_TEXTURE_LEVEL_ANGLE:
         case GL_PIXEL_LOCAL_TEXTURE_LAYER_ANGLE:
+        case GL_PIXEL_LOCAL_USAGE_ANGLE:
             if (length != nullptr)
             {
                 *length = 1;

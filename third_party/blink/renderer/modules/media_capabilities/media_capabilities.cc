@@ -261,7 +261,7 @@ bool IsValidMimeType(const String& content_type,
     return true;
 
   for (const auto& param : parameters) {
-    if (EqualIgnoringASCIICase(param.name, kCodecsMimeTypeParam))
+    if (EqualIgnoringAsciiCase(param.name, kCodecsMimeTypeParam))
       return true;
   }
   return false;
@@ -272,7 +272,7 @@ bool IsValidMimeType(const String& content_type,
   if (parameters.ParameterCount() == 0)
     return true;
 
-  return EqualIgnoringASCIICase(parameters.begin()->name, kCodecsMimeTypeParam);
+  return EqualIgnoringAsciiCase(parameters.begin()->name, kCodecsMimeTypeParam);
 #endif // BUILDFLAG(IS_COBALT)
 }
 
@@ -749,8 +749,8 @@ bool ParseContentType(const String& content_type,
 
 #if BUILDFLAG(ENABLE_PLATFORM_ENCRYPTED_DOLBY_VISION)
 bool IsDolbyVisionVideoCodec(const String& video_codec_str) {
-  return video_codec_str.StartsWith("dvh1.", kTextCaseSensitive) ||
-         video_codec_str.StartsWith("dvhe.", kTextCaseSensitive);
+  return video_codec_str.StartsWith("dvh1.") ||
+         video_codec_str.StartsWith("dvhe.");
 }
 #endif  // BUILDFLAG(ENABLE_PLATFORM_ENCRYPTED_DOLBY_VISION)
 

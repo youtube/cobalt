@@ -1060,6 +1060,7 @@ Se não permitir, isto será bloqueado pelas suas definições de privacidade. I
 <translation id="2674524144218093528">Pintura e acabamento de casas</translation>
 <translation id="26774279487328902"><ph name="GROUP_COUNT" /> grupos de separadores já não estão disponíveis</translation>
 <translation id="2677748264148917807">Sair</translation>
+<translation id="2679659833697380">As informações são guardadas no seu dispositivo</translation>
 <translation id="2683195745483370038">Outros resultados encontrados</translation>
 <translation id="2686919536310834199">Envie feedback sobre a funcionalidade Ajuda-me a escrever.</translation>
 <translation id="2687555958734450033">Tamanho otimizado</translation>
@@ -2574,6 +2575,7 @@ Se não permitir, isto será bloqueado pelas suas definições de privacidade. I
 <translation id="5114987907971894280">realidade virtual</translation>
 <translation id="5115232566827194440">Substituição de Sessão de convidado gerida restrita</translation>
 <translation id="5115563688576182185">(64 bits)</translation>
+<translation id="5116015291385561204">Valide a sua identidade para preencher automaticamente informações confidenciais</translation>
 <translation id="5120526915373271910">Filmes de família</translation>
 <translation id="5122786942953798871">Envelope (algodão)</translation>
 <translation id="5123063207673082822">Fim de semana</translation>
@@ -3974,6 +3976,7 @@ Detalhes adicionais:
 <translation id="7372973238305370288">resultado da pesquisa</translation>
 <translation id="7374461526650987610">Processadores de protocolos</translation>
 <translation id="7374733840632556089">Este problema ocorre devido a um certificado que o utilizador ou outra pessoa instalou no dispositivo. Sabe-se que o certificado é usado para monitorizar e intercetar redes e não é considerado fidedigno pelo Chrome. Embora existam alguns casos legítimos para a monitorização, como numa rede escolar ou da empresa, o Chrome quer certificar-se de que o utilizador tem conhecimento da situação, mesmo que não seja possível interrompê-la. A monitorização pode ocorrer em qualquer navegador ou aplicação que aceda à Web.</translation>
+<translation id="73750335798090836">Para proteção adicional, use sempre a sua impressão digital, rosto ou outro bloqueio de ecrã quando usar informações confidenciais, como documentos de viagem e de identidade</translation>
 <translation id="7375532151824574023">{NUM_COOKIES,plural, =0{Nenhum site permitido}=1{1 site permitido}other{# sites permitidos}}</translation>
 <translation id="7375818412732305729">É anexado um ficheiro</translation>
 <translation id="7376031331622621328">Secção inferior do comércio</translation>
@@ -4229,6 +4232,7 @@ Detalhes adicionais:
 <translation id="7714404809393719981">Foto (semibrilho)</translation>
 <translation id="7714424966701020172">A opção de preenchimento do nome completo foi selecionada</translation>
 <translation id="7714464543167945231">Certificado</translation>
+<translation id="7714943438925794410">O conteúdo da página de pagamento é partilhado com a Google para oferecer estas opções. Para ocultar as opções para pagar depois no preenchimento automático, aceda às <ph name="IDS_AUTOFILL_CARD_BNPL_SELECT_PROVIDER_FOOTNOTE_HIDE_OPTION_PAYMENT_SETTINGS_LINK_TEXT" />.</translation>
 <translation id="7716147886133743102">Bloqueada pelo gestor</translation>
 <translation id="7716375162095500223">Ainda não carregado ou ignorado</translation>
 <translation id="7716424297397655342">Não é possível carregar este site a partir da cache</translation>
@@ -4311,6 +4315,7 @@ Detalhes adicionais:
 <translation id="7862306158978555061">mostrar informações confidenciais</translation>
 <translation id="7865448901209910068">A melhor velocidade</translation>
 <translation id="7865482168955081228">O ecrã de erro do método Comprar agora e pagar depois está fechado.</translation>
+<translation id="7870207318911766769">O conteúdo da página de pagamento é partilhado com a Google para oferecer estas opções.</translation>
 <translation id="7870281855125116701">Desconto encontrado</translation>
 <translation id="7871445724586827387">Altere a palavra-passe da sua Conta Google</translation>
 <translation id="787226752901403048">Inicie sessão no Chrome para partilhar e aderir a grupos de separadores, e desenvolver ideias em conjunto</translation>

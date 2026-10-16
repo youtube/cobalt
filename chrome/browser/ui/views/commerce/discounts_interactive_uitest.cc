@@ -81,7 +81,7 @@ class DiscountsInteractiveTest
 
     enabled_features.push_back(
         {features::kPageActionsMigration,
-         {{"discounts",
+         {{features::kPageActionsMigrationDiscounts.name,
            GetParam().page_action_migration_enabled ? "true" : "false"}}});
 
     if (GetParam().enabled_feature.has_value()) {
@@ -90,8 +90,7 @@ class DiscountsInteractiveTest
 
     feature_list_.InitWithFeaturesAndParameters(
         enabled_features,
-        /*disabled_features=*/{commerce::kPriceInsights,
-                               commerce::kProductSpecifications});
+        /*disabled_features=*/{commerce::kPriceInsights});
   }
 
   void SetUp() override {

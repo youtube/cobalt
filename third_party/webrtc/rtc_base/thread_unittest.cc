@@ -10,6 +10,7 @@
 
 #include "rtc_base/thread.h"
 
+#include <array>
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
@@ -26,6 +27,7 @@
 #include "api/units/time_delta.h"
 #include "rtc_base/async_packet_socket.h"
 #include "rtc_base/async_udp_socket.h"
+#include "rtc_base/byte_order.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/event.h"
 #include "rtc_base/fake_clock.h"
@@ -81,8 +83,9 @@ class MessageClient : public TestGenerator {
   ~MessageClient() { delete socket_; }
 
   void OnValue(int value) {
-    int result = Next(value);
-    EXPECT_GE(socket_->Send(&result, sizeof(result)), 0);
+    std::array<uint8_t, sizeof(uint32_t)> octets;
+    SetLE32(octets, Next(value));
+    EXPECT_GE(socket_->Send(octets.data(), octets.size()), 0);
   }
 
  private:
@@ -113,8 +116,7 @@ class SocketClient : public TestGenerator {
 
   void OnPacket(AsyncPacketSocket* socket, const ReceivedIpPacket& packet) {
     EXPECT_EQ(packet.payload().size(), sizeof(uint32_t));
-    uint32_t prev =
-        reinterpret_cast<const uint32_t*>(packet.payload().data())[0];
+    uint32_t prev = GetLE32(packet.payload());
     uint32_t result = Next(prev);
 
     post_thread_->PostDelayedTask([post_handler_ = post_handler_,

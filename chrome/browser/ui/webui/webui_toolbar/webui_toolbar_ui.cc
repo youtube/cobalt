@@ -7,6 +7,7 @@
 #include <memory>
 #include <utility>
 
+#include "base/strings/strcat.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_command_controller.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
@@ -16,6 +17,7 @@
 #include "chrome/browser/ui/interaction/browser_elements.h"
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/ui_features.h"
+#include "chrome/browser/ui/views/chrome_typography.h"
 #include "chrome/browser/ui/views/frame/browser_widget.h"
 #include "chrome/browser/ui/webui/metrics_handler.h"
 #include "chrome/browser/ui/webui/metrics_reporter/metrics_reporter_service.h"
@@ -35,6 +37,7 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_data_source.h"
+#include "ui/views/style/typography_provider.h"
 #include "ui/views/widget/widget.h"
 #include "ui/webui/tracked_element/tracked_element_handler.h"
 #include "ui/webui/webui_util.h"
@@ -63,12 +66,28 @@ WebUIToolbarUI::WebUIToolbarUI(content::WebUI* web_ui)
   source->AddInteger(
       "toolbarIconDefaultMargin",
       GetLayoutConstant(LayoutConstant::kToolbarIconDefaultMargin));
+  source->AddInteger("toolbarButtonHeight",
+                     GetLayoutConstant(LayoutConstant::kToolbarButtonHeight));
+  source->AddInteger("toolbarButtonIconSize",
+                     GetLayoutConstant(LayoutConstant::kToolbarButtonIconSize));
+  source->AddInteger("locationBarHeight",
+                     GetLayoutConstant(LayoutConstant::kLocationBarHeight));
+  source->AddInteger("locationBarMargin",
+                     GetLayoutConstant(LayoutConstant::kLocationBarMargin));
+
+  const auto& typography_provider = views::TypographyProvider::Get();
+  AddFontVariables("omniboxPrimary",
+                   typography_provider.GetFont(CONTEXT_OMNIBOX_PRIMARY,
+                                               views::style::STYLE_PRIMARY),
+                   source);
 
   webui::SetupWebUIDataSource(source, kWebuiToolbarResources,
                               IDR_WEBUI_TOOLBAR_WEBUI_TOOLBAR_HTML);
 
   source->AddBoolean("enableReloadButton",
                      features::IsWebUIReloadButtonEnabled());
+  source->AddBoolean("enableLocationBar",
+                     features::IsWebUILocationBarEnabled());
 
   BrowserWindowInterface* browser =
       webui::GetBrowserWindowInterface(web_ui->GetWebContents());
@@ -120,32 +139,20 @@ void WebUIToolbarUI::BindInterface(
   }
 }
 
-void WebUIToolbarUI::OnDevToolsStatusChanged(
-    browser_controls_api::mojom::DevToolsState state) {
+void WebUIToolbarUI::OnNavigationControlsStateChanged(
+    browser_controls_api::mojom::NavigationControlsStatePtr state) {
   if (browser_controls_service_) {
-    browser_controls_service_->OnDevToolsStatusChanged(state);
-  }
-}
-
-void WebUIToolbarUI::OnNavigationStatusChanged(
-    browser_controls_api::mojom::NavigationState state) {
-  if (browser_controls_service_) {
-    browser_controls_service_->OnNavigationStatusChanged(state);
-  }
-}
-
-void WebUIToolbarUI::OnContextMenuStateChanged(
-    browser_controls_api::mojom::ContextMenuType menu_type,
-    browser_controls_api::mojom::ContextMenuState state) {
-  if (browser_controls_service_) {
-    browser_controls_service_->OnContextMenuStateChanged(menu_type, state);
+    browser_controls_service_->OnNavigationControlsStateChanged(
+        std::move(state));
   }
 }
 
 void WebUIToolbarUI::SetDelegate(
     BrowserControlsService::BrowserControlsServiceDelegate* delegate) {
-  DCHECK(!browser_controls_service_);
   delegate_ = delegate;
+  if (browser_controls_service_) {
+    browser_controls_service_->SetDelegate(delegate);
+  }
 }
 
 BrowserControlsService* WebUIToolbarUI::browser_controls_service_for_testing() {
@@ -177,25 +184,21 @@ void WebUIToolbarUI::WebUIRenderFrameCreated(
   }
 }
 
+// static
+void WebUIToolbarUI::AddFontVariables(std::string_view prefix,
+                                      const gfx::FontList& font,
+                                      content::WebUIDataSource* source) {
+  DCHECK_EQ(1u, font.GetFonts().size());
+  source->AddString(base::StrCat({prefix, "Family"}),
+                    font.GetPrimaryFont().GetFontName());
+  source->AddInteger(base::StrCat({prefix, "Size"}), font.GetFontSize());
+  source->AddInteger(base::StrCat({prefix, "Weight"}),
+                     static_cast<int>(font.GetFontWeight()));
+}
+
 void WebUIToolbarUI::SetCommandUpdaterForTesting(
     CommandUpdater* command_updater) {
   command_updater_for_testing_ = command_updater;
-}
-
-void WebUIToolbarUI::OnTabSplitStatusChanged(
-    bool is_split,
-    browser_controls_api::mojom::SplitTabActiveLocation location) {
-  if (browser_controls_service_) {
-    browser_controls_service_->OnTabSplitStatusChanged(is_split, location);
-  }
-}
-
-void WebUIToolbarUI::OnButtonPinStateChanged(
-    browser_controls_api::mojom::ToolbarButtonType type,
-    bool is_pinned) {
-  if (browser_controls_service_) {
-    browser_controls_service_->OnButtonPinStateChanged(type, is_pinned);
-  }
 }
 
 void WebUIToolbarUI::PopulateLocalResourceLoaderConfig(

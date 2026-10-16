@@ -5,8 +5,6 @@
 #ifndef IOS_CHROME_TEST_SWIFT_INTEROP_POINTER_POINTER_RETURNER_H_
 #define IOS_CHROME_TEST_SWIFT_INTEROP_POINTER_POINTER_RETURNER_H_
 
-#include "base/memory/raw_ptr.h"
-
 class PointerReturner {
  public:
   PointerReturner();
@@ -24,7 +22,10 @@ class PointerReturner {
 
  private:
   int integer_;
-  raw_ptr<PointerReturner> child_;
+  // `raw_ptr_exclusion` is a Chromium specific attribute to exclude a specific
+  // field from the requirement to use `raw_ptr<T>`. This attribute has no
+  // effect on the Swift compiler. It only suppresses C++ build errors.
+  __attribute__((annotate("raw_ptr_exclusion"))) PointerReturner* child_;
 };
 
 #endif  // IOS_CHROME_TEST_SWIFT_INTEROP_POINTER_POINTER_RETURNER_H_

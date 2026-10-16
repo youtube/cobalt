@@ -850,7 +850,7 @@ DirectHandle<JSFunction> Genesis::GetThrowTypeErrorIntrinsic() {
       .Assert();
 
   // length needs to be non configurable.
-  DirectHandle<Object> value(Smi::FromInt(function->length()), isolate());
+  DirectHandle<Object> value(Smi::FromUInt(function->length()), isolate());
   JSObject::SetOwnPropertyIgnoreAttributes(
       function, factory()->length_string(), value,
       static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY))
@@ -5603,6 +5603,15 @@ void Genesis::InitializeGlobal_js_upsert() {
                           kAdapt);
     native_context()->set_initial_weakmap_prototype_map(prototype->map());
   }
+}
+
+void Genesis::InitializeGlobal_js_iterator_join() {
+  if (!v8_flags.js_iterator_join) return;
+
+  DirectHandle<JSObject> iterator_prototype(
+      native_context()->initial_iterator_prototype(), isolate());
+  SimpleInstallFunction(isolate(), iterator_prototype, "join",
+                        Builtin::kIteratorPrototypeJoin, 1, kAdapt);
 }
 
 void Genesis::InitializeGlobal_harmony_shadow_realm() {

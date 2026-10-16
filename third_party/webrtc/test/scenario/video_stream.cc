@@ -319,11 +319,9 @@ VideoReceiveStreamInterface::Config CreateVideoReceiveStreamConfig(
     VideoDecoderFactory* decoder_factory,
     VideoReceiveStreamInterface::Decoder decoder,
     VideoSinkInterface<VideoFrame>* renderer,
-    uint32_t local_ssrc,
     uint32_t ssrc,
     uint32_t rtx_ssrc) {
   VideoReceiveStreamInterface::Config recv(feedback_transport);
-  recv.rtp.local_ssrc = local_ssrc;
 
   RTC_DCHECK(!config.stream.use_rtx ||
              config.stream.nack_history_time > TimeDelta::Zero());
@@ -571,15 +569,13 @@ ReceiveVideoStream::ReceiveVideoStream(CallClient* receiver,
     }
     auto recv_config = CreateVideoReceiveStreamConfig(
         config, feedback_transport, decoder_factory_.get(), decoder, renderer,
-        receiver_->GetNextVideoLocalSsrc(), send_stream->ssrcs_[i],
-        send_stream->rtx_ssrcs_[i]);
+        send_stream->ssrcs_[i], send_stream->rtx_ssrcs_[i]);
     if (config.stream.use_flexfec) {
       RTC_DCHECK(num_streams == 1);
       FlexfecReceiveStream::Config flexfec(feedback_transport);
       flexfec.payload_type = VideoTestConstants::kFlexfecPayloadType;
       flexfec.remote_ssrc = VideoTestConstants::kFlexfecSendSsrc;
       flexfec.protected_media_ssrcs = send_stream->rtx_ssrcs_;
-      flexfec.local_ssrc = recv_config.rtp.local_ssrc;
       receiver_->ssrc_media_types_[flexfec.remote_ssrc] = MediaType::VIDEO;
 
       receiver_->SendTask([this, &flexfec] {

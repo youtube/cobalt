@@ -103,7 +103,7 @@ bool EchoAudibility::IsRenderTooLow(const BlockBuffer& block_buffer) {
       for (int ch = 0; ch < num_render_channels; ++ch) {
         ArrayView<const float, kBlockSize> block =
             block_buffer.buffer[idx].View(/*band=*/0, /*channel=*/ch);
-        auto r = std::minmax_element(block.cbegin(), block.cend());
+        auto r = std::minmax_element(block.begin(), block.end());
         float max_abs_channel =
             std::max(std::fabs(*r.first), std::fabs(*r.second));
         max_abs_over_channels =

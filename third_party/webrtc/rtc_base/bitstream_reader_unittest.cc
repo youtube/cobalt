@@ -197,14 +197,14 @@ TEST(BitstreamReaderTest, ReadBits) {
 }
 
 TEST(BitstreamReaderTest, ReadZeroBits) {
-  BitstreamReader reader(ArrayView<const uint8_t>(nullptr, 0));
+  BitstreamReader reader(ArrayView<const uint8_t>{});
 
   EXPECT_EQ(reader.ReadBits(0), 0u);
   EXPECT_TRUE(reader.Ok());
 }
 
 TEST(BitstreamReaderTest, ReadBitFromEmptyArray) {
-  BitstreamReader reader(ArrayView<const uint8_t>(nullptr, 0));
+  BitstreamReader reader(ArrayView<const uint8_t>{});
 
   // Trying to read from the empty array shouldn't dereference the pointer,
   // i.e. shouldn't crash.
@@ -213,7 +213,7 @@ TEST(BitstreamReaderTest, ReadBitFromEmptyArray) {
 }
 
 TEST(BitstreamReaderTest, ReadBitsFromEmptyArray) {
-  BitstreamReader reader(ArrayView<const uint8_t>(nullptr, 0));
+  BitstreamReader reader(ArrayView<const uint8_t>{});
 
   // Trying to read from the empty array shouldn't dereference the pointer,
   // i.e. shouldn't crash.

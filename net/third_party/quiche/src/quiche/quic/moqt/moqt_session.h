@@ -42,6 +42,7 @@
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_buffer_allocator.h"
+#include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_circular_deque.h"
 #include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/quiche_weak_ptr.h"
@@ -99,12 +100,6 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
 
   quic::Perspective perspective() const { return parameters_.perspective; }
 
-  // Allows the subscriber to declare it will not subscribe to |track_namespace|
-  // anymore.
-  void CancelPublishNamespace(TrackNamespace track_namespace,
-                              RequestErrorCode code,
-                              absl::string_view reason_phrase);
-
   // MoqtSessionInterface implementation.
   MoqtSessionCallbacks& callbacks() override { return callbacks_; }
   void Error(MoqtError code, absl::string_view error) override;
@@ -117,23 +112,29 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   void Unsubscribe(const FullTrackName& name) override;
   bool Fetch(const FullTrackName& name, FetchResponseCallback callback,
              Location start, uint64_t end_group,
-             std::optional<uint64_t> end_object, MoqtPriority priority,
-             std::optional<MoqtDeliveryOrder> delivery_order,
-             VersionSpecificParameters parameters) override;
+             std::optional<uint64_t> end_object,
+             MessageParameters parameters) override;
   bool RelativeJoiningFetch(const FullTrackName& name,
                             SubscribeVisitor* visitor,
                             uint64_t num_previous_groups,
-                            VersionSpecificParameters parameters) override;
+                            MessageParameters parameters) override;
   bool RelativeJoiningFetch(const FullTrackName& name,
                             SubscribeVisitor* visitor,
                             FetchResponseCallback callback,
-                            uint64_t num_previous_groups, MoqtPriority priority,
-                            std::optional<MoqtDeliveryOrder> delivery_order,
-                            VersionSpecificParameters parameters) override;
-  void PublishNamespace(TrackNamespace track_namespace,
-                        MoqtOutgoingPublishNamespaceCallback callback,
-                        VersionSpecificParameters parameters) override;
-  bool PublishNamespaceDone(TrackNamespace track_namespace) override;
+                            uint64_t num_previous_groups,
+                            MessageParameters parameters) override;
+  bool PublishNamespace(const TrackNamespace& track_namespace,
+                        const MessageParameters& parameters,
+                        MoqtResponseCallback response_callback,
+                        quiche::SingleUseCallback<void(MoqtRequestErrorInfo)>
+                            cancel_callback) override;
+  bool PublishNamespaceUpdate(const TrackNamespace& track_namespace,
+                              MessageParameters& parameters,
+                              MoqtResponseCallback response_callback) override;
+  bool PublishNamespaceDone(const TrackNamespace& track_namespace) override;
+  bool PublishNamespaceCancel(const TrackNamespace& track_namespace,
+                              RequestErrorCode error_code,
+                              absl::string_view error_reason) override;
   // TODO(martinduke): Support PUBLISH. For now, PUBLISH-only requests will be
   // rejected with nullptr, and kBoth requests will change to kNamespace.
   // After receiving MoqtNamespaceTask, call
@@ -676,9 +677,9 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     void OnGroupAbandoned(uint64_t /*group_id*/) override {}
     void OnTrackPublisherGone() override {
       publisher_ = nullptr;
-      OnSubscribeRejected(
-          MoqtRequestErrorInfo(RequestErrorCode::kTrackDoesNotExist,
-                               std::nullopt, "Track publisher gone"));
+      OnSubscribeRejected(MoqtRequestErrorInfo(RequestErrorCode::kDoesNotExist,
+                                               std::nullopt,
+                                               "Track publisher gone"));
     }
 
    private:
@@ -851,20 +852,25 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   absl::flat_hash_map<FullTrackName, MoqtPublishingMonitorInterface*>
       monitoring_interfaces_for_published_tracks_;
 
-  // Outgoing PUBLISH_NAMESPACE for which no OK or ERROR has been received.
+  // PUBLISH_NAMESPACE state.
+  struct PublishNamespaceState {
+    TrackNamespace track_namespace;
+    MoqtResponseCallback response_callback;
+    quiche::SingleUseCallback<void(MoqtRequestErrorInfo)> cancel_callback;
+  };
+  absl::flat_hash_map<uint64_t, PublishNamespaceState> publish_namespace_by_id_;
+  absl::flat_hash_map<TrackNamespace, uint64_t> publish_namespace_by_namespace_;
+  absl::flat_hash_map<uint64_t, MoqtResponseCallback>
+      publish_namespace_updates_;
+  absl::flat_hash_map<TrackNamespace, uint64_t>
+      incoming_publish_namespaces_by_namespace_;
   absl::flat_hash_map<uint64_t, TrackNamespace>
-      pending_outgoing_publish_namespaces_;
-  // All outgoing PUBLISH_NAMESPACE.
-  absl::flat_hash_map<TrackNamespace, MoqtOutgoingPublishNamespaceCallback>
-      outgoing_publish_namespaces_;
-  absl::flat_hash_set<TrackNamespace> incoming_publish_namespaces_;
+      incoming_publish_namespaces_by_id_;
 
   // It's an error if the namespaces overlap, so keep track of them.
   SessionNamespaceTree incoming_subscribe_namespace_;
   SessionNamespaceTree outgoing_subscribe_namespace_;
 
-  // The minimum request ID the peer can use that is monotonically increasing.
-  uint64_t next_incoming_request_id_ = 0;
   // The maximum request ID sent to the peer. Peer-generated IDs must be less
   // than this value.
   uint64_t local_max_request_id_ = 0;

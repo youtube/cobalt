@@ -26,10 +26,10 @@
 #include "api/video/video_sink_interface.h"
 #include "media/base/fake_media_engine.h"
 #include "media/base/media_channel.h"
-#include "rtc_base/task_queue_for_test.h"
 #include "rtc_base/thread.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
+#include "test/run_loop.h"
 
 using ::testing::_;
 using ::testing::AnyNumber;
@@ -97,15 +97,15 @@ class VideoRtpReceiverTest : public testing::Test {
   }
 
   void SetMediaChannel(MediaReceiveChannelInterface* media_channel) {
-    SendTask(worker_thread_.get(),
-             [&]() { receiver_->SetMediaChannel(media_channel); });
+    worker_thread_->BlockingCall(
+        [&]() { receiver_->SetMediaChannel(media_channel); });
   }
 
   VideoTrackSourceInterface* Source() {
     return receiver_->streams()[0]->FindVideoTrack("receiver")->GetSource();
   }
 
-  AutoThread main_thread_;
+  test::RunLoop loop_;
   std::unique_ptr<Thread> worker_thread_;
   NiceMock<MockVideoMediaReceiveChannel> channel_;
   scoped_refptr<VideoRtpReceiver> receiver_;
@@ -198,7 +198,7 @@ TEST_F(VideoRtpReceiverTest, BroadcastsEncodedFramesWhenEnabled) {
   EXPECT_CALL(sink, OnFrame).Times(2);
   MockRecordableEncodedFrame frame;
   broadcast(frame);
-  SendTask(worker_thread_.get(), [&] { broadcast(frame); });
+  worker_thread_->BlockingCall([&] { broadcast(frame); });
 }
 
 TEST_F(VideoRtpReceiverTest, EnablesEncodedOutputOnChannelRestart) {
@@ -207,12 +207,11 @@ TEST_F(VideoRtpReceiverTest, EnablesEncodedOutputOnChannelRestart) {
   Source()->AddEncodedSink(&sink);
   EXPECT_CALL(channel_, SetRecordableEncodedFrameCallback(4711, _));
   auto setup_media_channel = receiver_->GetSetupForMediaChannel(4711);
-  worker_thread_->BlockingCall(
-      [task = std::move(setup_media_channel)]() mutable { std::move(task)(); });
+  worker_thread_->BlockingCall([&]() { std::move(setup_media_channel)(); });
   EXPECT_CALL(channel_, ClearRecordableEncodedFrameCallback(4711));
   EXPECT_CALL(channel_, SetRecordableEncodedFrameCallback(0, _));
   auto setup_task = receiver_->GetSetupForUnsignaledMediaChannel();
-  worker_thread_->BlockingCall([&]() mutable { std::move(setup_task)(); });
+  worker_thread_->BlockingCall([&]() { std::move(setup_task)(); });
 }
 
 }  // namespace

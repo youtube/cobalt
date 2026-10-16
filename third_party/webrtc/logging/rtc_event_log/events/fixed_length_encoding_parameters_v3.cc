@@ -34,7 +34,7 @@ FixedLengthEncodingParametersV3::CalculateParameters(
     bool values_optional) {
   // As a special case, if all of the elements are identical to the base
   // we just encode the base value with a special delta header.
-  if (std::all_of(values.cbegin(), values.cend(),
+  if (std::all_of(values.begin(), values.end(),
                   [base](uint64_t val) { return val == base; })) {
     // Delta header with signed=true and delta_bitwidth=64
     return FixedLengthEncodingParametersV3(/*delta_bit_width=*/64,

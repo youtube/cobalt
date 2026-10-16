@@ -235,9 +235,9 @@ TEST(ScalabilityStructureL3T3KeyTest, ReenablingSpatialLayerTriggersKeyFrame) {
   EXPECT_EQ(frames[14].temporal_id, 0);
   EXPECT_EQ(frames[15].temporal_id, 0);
   auto all_frames = MakeArrayView(frames.data(), frames.size());
-  EXPECT_TRUE(wrapper.FrameReferencesAreValid(all_frames.subview(0, 13)));
+  EXPECT_TRUE(wrapper.FrameReferencesAreValid(all_frames.subspan(0, 13)));
   // Frames starting from the frame#13 should not reference any earlier frames.
-  EXPECT_TRUE(wrapper.FrameReferencesAreValid(all_frames.subview(13)));
+  EXPECT_TRUE(wrapper.FrameReferencesAreValid(all_frames.subspan(13)));
 }
 
 }  // namespace

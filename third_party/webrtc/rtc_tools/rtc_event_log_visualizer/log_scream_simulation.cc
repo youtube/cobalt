@@ -168,6 +168,7 @@ void LogScreamSimulation::LogState(const TransportPacketsFeedback& msg) {
           send_rate_tracker_.Rate(msg.feedback_time).value_or(DataRate::Zero()),
       .ref_window = scream_->ref_window(),
       .ref_window_i = scream_->ref_window_i(),
+      .max_allowed_ref_window = scream_->max_allowed_ref_window(),
       .max_data_in_flight = scream_->max_data_in_flight(),
       .data_in_flight = data_in_flight_,
       .send_window_usage = send_window_usage_,
@@ -182,6 +183,10 @@ void LogScreamSimulation::LogState(const TransportPacketsFeedback& msg) {
           scream_->delay_based_congestion_control()
               .ref_window_scale_factor_due_to_delay_variation(
                   scream_->ref_window_mss_ratio()),
+      .ref_window_scale_factor_close_to_ref_window_i =
+          scream_->ref_window_scale_factor_close_to_ref_window_i(),
+      .ref_window_combined_increase_scale_factor =
+          scream_->last_ref_window_increase_scale_factor(),
       .l4s_alpha = scream_->l4s_alpha(),
       .l4s_alpha_v = scream_->delay_based_congestion_control().l4s_alpha_v(),
   });

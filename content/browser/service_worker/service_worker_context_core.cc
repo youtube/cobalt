@@ -11,6 +11,7 @@
 #include <utility>
 
 #include "base/barrier_closure.h"
+#include "base/byte_size.h"
 #include "base/containers/flat_map.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
@@ -1110,7 +1111,7 @@ void ServiceWorkerContextCore::NotifyRegistrationStored(
     const int64_t registration_id,
     const GURL& scope,
     const blink::StorageKey& key,
-    uint64_t stored_resources_total_size_bytes) {
+    base::ByteSize stored_resources_total_size) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
   ServiceWorkerRegistrationInformation service_worker_info;
@@ -1119,8 +1120,7 @@ void ServiceWorkerContextCore::NotifyRegistrationStored(
           GetLiveRegistration(registration_id);
       registration) {
     registration->SetStored();
-    registration->set_resources_total_size_bytes(
-        stored_resources_total_size_bytes);
+    registration->set_resources_total_size(stored_resources_total_size);
 
     ServiceWorkerRegistry::ResourceList resources;
     if (ServiceWorkerVersion* version = registration->GetNewestVersion();

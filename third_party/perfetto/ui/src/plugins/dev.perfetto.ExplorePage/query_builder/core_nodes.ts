@@ -72,6 +72,15 @@ import {
   CounterToIntervalsNode,
   CounterToIntervalsNodeState,
 } from './nodes/counter_to_intervals_node';
+import {
+  MetricsNode,
+  MetricsNodeState,
+  MetricsSerializedState,
+} from './nodes/metrics_node';
+import {
+  VisualisationNode,
+  VisualisationNodeState,
+} from './nodes/visualisation_node';
 import {Icons} from '../../../base/semantic_icons';
 import {NodeType} from '../query_node';
 
@@ -556,4 +565,64 @@ export function registerCoreNodes() {
         sqlModules,
       }),
   });
+
+  nodeRegistry.register('metrics', {
+    name: 'Metrics',
+    description:
+      'Define a trace-based metric with value column and dimensions.',
+    icon: 'analytics',
+    type: 'modification',
+    nodeType: NodeType.kMetrics,
+    allowedChildren: [],
+    factory: (state) => new MetricsNode(state as MetricsNodeState),
+    deserialize: (state, trace, sqlModules) =>
+      new MetricsNode({
+        ...MetricsNode.deserializeState(state as MetricsSerializedState),
+        trace,
+        sqlModules,
+      }),
+    postDeserializeLate: (node) => (node as MetricsNode).onPrevNodesUpdated(),
+  });
+
+  nodeRegistry.register('visualisation', {
+    name: 'Visualisation',
+    description:
+      'Visualize data with bar charts or histograms. Click to filter.',
+    icon: 'bar_chart',
+    type: 'modification',
+    nodeType: NodeType.kVisualisation,
+    factory: (state) => new VisualisationNode(state as VisualisationNodeState),
+    deserialize: (state, _trace, sqlModules) =>
+      new VisualisationNode({
+        ...VisualisationNode.deserializeState(state as VisualisationNodeState),
+        sqlModules,
+      }),
+  });
+
+  // Set the default allowed children for all nodes.
+  // This is the full set of modification + multisource nodes, matching the
+  // current behavior. Individual node registrations can override this by
+  // setting allowedChildren on their descriptor.
+  nodeRegistry.setDefaultAllowedChildren([
+    // Modification nodes
+    'add_columns',
+    'modify_columns',
+    'aggregation',
+    'filter_node',
+    'counter_to_intervals',
+    'sort_node',
+    'limit_and_offset_node',
+    'metrics',
+    'visualisation',
+    // Multisource nodes
+    'filter_during',
+    'filter_in',
+    'interval_intersect',
+    'join',
+    'create_slices',
+    'union_node',
+  ]);
+
+  // Validate that all allowedChildren references point to registered nodes.
+  nodeRegistry.validateAllowedChildren();
 }

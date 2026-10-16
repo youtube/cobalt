@@ -36,11 +36,6 @@ VerticalTabStripTopContainer::VerticalTabStripTopContainer(
               kVerticalTabStripTopContainerElementId);
   SetLayoutManager(std::make_unique<views::DelegatingLayoutManager>(this));
 
-  collapsed_state_changed_subscription_ =
-      state_controller->RegisterOnCollapseChanged(base::BindRepeating(
-          &VerticalTabStripTopContainer::OnCollapsedStateChanged,
-          base::Unretained(this)));
-
   collapse_button_ = AddChildButtonFor(kActionToggleCollapseVertical);
   collapse_button_->SetProperty(views::kElementIdentifierKey,
                                 kVerticalTabStripCollapseButtonElementId);
@@ -60,6 +55,13 @@ VerticalTabStripTopContainer::VerticalTabStripTopContainer(
 
 VerticalTabStripTopContainer::~VerticalTabStripTopContainer() = default;
 
+void VerticalTabStripTopContainer::Layout(PassKey) {
+  LayoutSuperclass<views::View>(this);
+  combo_button_->SetOrientation(GetPreferredWidth() >= width()
+                                    ? views::LayoutOrientation::kVertical
+                                    : views::LayoutOrientation::kHorizontal);
+}
+
 views::ProposedLayout VerticalTabStripTopContainer::CalculateProposedLayout(
     const views::SizeBounds& size_bounds) const {
   views::ProposedLayout layout;
@@ -73,8 +75,9 @@ views::ProposedLayout VerticalTabStripTopContainer::CalculateProposedLayout(
   CHECK(combo_button_);
   container_views.push_back(combo_button_);
 
-  CHECK(collapse_button_);
-  container_views.push_back(collapse_button_);
+  if (collapse_button_ && collapse_button_->GetVisible()) {
+    container_views.push_back(collapse_button_);
+  }
 
   if (unfocus_button_ && unfocus_button_->GetVisible()) {
     container_views.push_back(unfocus_button_);
@@ -83,14 +86,11 @@ views::ProposedLayout VerticalTabStripTopContainer::CalculateProposedLayout(
   const int padding =
       GetLayoutConstant(LayoutConstant::kVerticalTabStripTopButtonPadding);
 
-  int total_width = 0;
   int min_height = 0;
   for (views::View* container_view : container_views) {
     const auto preferred = container_view->GetPreferredSize();
-    total_width += preferred.width();
     min_height = std::max(min_height, preferred.height());
   }
-  total_width += (container_views.size() - 1) * padding;
 
   // If we're trying to get the minimum size, it will ask for layout for size
   // bounds {0, 0}, but overflow is based on available size.
@@ -99,7 +99,7 @@ views::ProposedLayout VerticalTabStripTopContainer::CalculateProposedLayout(
           ? host_size.width()
           : parent()->GetAvailableSize(this).width().value_or(0);
 
-  if (total_width >= available_width) {
+  if (GetPreferredWidth() >= available_width) {
     int current_y = 0;
 
     if (unfocus_button_ && unfocus_button_->GetVisible()) {
@@ -115,7 +115,7 @@ views::ProposedLayout VerticalTabStripTopContainer::CalculateProposedLayout(
           GetLayoutConstant(LayoutConstant::kVerticalTabStripCollapsedPadding);
     }
 
-    if (collapse_button_) {
+    if (collapse_button_ && collapse_button_->GetVisible()) {
       const gfx::Size pref_size = collapse_button_->GetPreferredSize();
       gfx::Rect bounds(std::max(0, (host_size.width() - pref_size.width()) / 2),
                        current_y, pref_size.width(), pref_size.height());
@@ -159,7 +159,7 @@ views::ProposedLayout VerticalTabStripTopContainer::CalculateProposedLayout(
     // caption buttons, shift them below.
     const bool wrapped_due_to_overflow =
         size_bounds.width().is_bounded() && caption_button_width_ > 0 &&
-        total_width + caption_button_width_ > available_width;
+        GetPreferredWidth() + caption_button_width_ > available_width;
 
     int y_baseline = host_size.height() / 2;
     // If there is not enough space for all of the buttons to be on the same
@@ -184,7 +184,7 @@ views::ProposedLayout VerticalTabStripTopContainer::CalculateProposedLayout(
                                         unfocus_button_->GetVisible(), bounds);
     }
 
-    if (collapse_button_) {
+    if (collapse_button_ && collapse_button_->GetVisible()) {
       const gfx::Size pref_size = collapse_button_->GetPreferredSize();
       const int x = layout.child_layouts.empty()
                         ? (wrapped_due_to_overflow ? 0 : caption_button_width_)
@@ -276,13 +276,39 @@ void VerticalTabStripTopContainer::SetCaptionButtonWidthForLayout(
   InvalidateLayout();
 }
 
-void VerticalTabStripTopContainer::OnCollapsedStateChanged(
-    tabs::VerticalTabStripStateController* controller) {
-  if (combo_button_) {
-    combo_button_->SetOrientation(controller->IsCollapsed()
-                                      ? views::LayoutOrientation::kVertical
-                                      : views::LayoutOrientation::kHorizontal);
+int VerticalTabStripTopContainer::GetPreferredWidth() const {
+  int total_width = 0;
+  int padding =
+      GetLayoutConstant(LayoutConstant::kVerticalTabStripTopButtonPadding);
+
+  // Combo Button
+  bool start_button_present = combo_button_->start_button() &&
+                              combo_button_->start_button()->GetVisible();
+  bool end_button_present =
+      combo_button_->end_button() && combo_button_->end_button()->GetVisible();
+  if (start_button_present) {
+    total_width += combo_button_->start_button()->GetPreferredSize().width();
   }
+  if (end_button_present) {
+    total_width += combo_button_->end_button()->GetPreferredSize().width();
+  }
+  if (start_button_present && end_button_present) {
+    // Represents the padding between the two buttons.
+    total_width += GetLayoutConstant(
+        LayoutConstant::kVerticalTabStripFlatEdgeButtonPadding);
+  }
+
+  // Collapse Button
+  if (collapse_button_ && collapse_button_->GetVisible()) {
+    total_width += collapse_button_->GetPreferredSize().width() + padding;
+  }
+
+  // Unfocus Button
+  if (unfocus_button_ && unfocus_button_->GetVisible()) {
+    total_width += unfocus_button_->GetPreferredSize().width() + padding;
+  }
+
+  return total_width;
 }
 
 BEGIN_METADATA(VerticalTabStripTopContainer)

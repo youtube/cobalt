@@ -904,6 +904,7 @@ if (rtc_include_tests) {
       "../api/video:video_rtp_headers",
       "../api/video:video_stream_encoder",
       "../api/video/corruption_detection:frame_instrumentation_data",
+      "../api/video/corruption_detection:frame_instrumentation_generator_header",
       "../api/video/test:video_frame_matchers",
       "../api/video_codecs:scalability_mode",
       "../api/video_codecs:video_codecs_api",

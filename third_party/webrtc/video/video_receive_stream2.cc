@@ -359,16 +359,6 @@ void VideoReceiveStream2::SetSync(Syncable* audio_syncable) {
   rtp_stream_sync_.ConfigureSync(audio_syncable);
 }
 
-void VideoReceiveStream2::SetLocalSsrc(uint32_t local_ssrc) {
-  RTC_DCHECK_RUN_ON(&packet_sequence_checker_);
-  if (config_.rtp.local_ssrc == local_ssrc)
-    return;
-
-  // TODO(tommi): Make sure we don't rely on local_ssrc via the config struct.
-  const_cast<uint32_t&>(config_.rtp.local_ssrc) = local_ssrc;
-  rtp_video_stream_receiver_.OnLocalSsrcChange(local_ssrc);
-}
-
 void VideoReceiveStream2::Start() {
   RTC_DCHECK_RUN_ON(&worker_sequence_checker_);
 

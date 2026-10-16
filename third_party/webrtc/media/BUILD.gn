@@ -618,6 +618,7 @@ rtc_library("rtc_audio_video") {
     "../api:frame_transformer_interface",
     "../api:make_ref_counted",
     "../api:media_stream_interface",
+    "../api:payload_type",
     "../api:priority",
     "../api:rtc_error",
     "../api:rtp_headers",

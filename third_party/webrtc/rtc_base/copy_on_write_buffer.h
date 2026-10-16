@@ -30,6 +30,8 @@ namespace webrtc {
 
 class RTC_EXPORT CopyOnWriteBuffer {
  public:
+  using const_iterator = ArrayView<const uint8_t>::iterator;
+
   // An empty buffer.
   CopyOnWriteBuffer();
   // Share the data with an existing buffer.
@@ -145,8 +147,8 @@ class RTC_EXPORT CopyOnWriteBuffer {
     return buffer_ ? buffer_->capacity() - offset_ : 0;
   }
 
-  const uint8_t* begin() const { return AsConstSpan().begin(); }
-  const uint8_t* end() const { return AsConstSpan().end(); }
+  const_iterator begin() const { return AsConstSpan().begin(); }
+  const_iterator end() const { return AsConstSpan().end(); }
 
   bool operator==(const CopyOnWriteBuffer& buf) const;
 

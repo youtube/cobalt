@@ -4,7 +4,8 @@
 
 #include "src/regexp/regexp-ast.h"
 
-#include "src/zone/zone-list-inl.h"
+#include "src/execution/isolate-inl.h"
+#include "src/regexp/regexp-ast.h"
 
 namespace v8 {
 namespace internal {
@@ -28,58 +29,70 @@ FOR_EACH_REG_EXP_TREE_TYPE(MAKE_TYPE_CASE)
 FOR_EACH_REG_EXP_TREE_TYPE(MAKE_TYPE_CASE)
 #undef MAKE_TYPE_CASE
 
+bool StackLimiter::IsOverflowed() {
+  if (V8_LIKELY(budget_ > 0)) return false;
+  // This can be a little slow so we don't do it until the soft budget has been
+  // exhausted.
+  return StackLimitCheck{Isolate::Current()}.HasOverflowed();
+}
+
+Interval RegExpGroup::CaptureRegisters(StackLimiter limiter) {
+  if (limiter.IsOverflowed()) return Interval::Invalid();
+  return body_->CaptureRegisters(limiter - 1);
+}
+
 namespace {
 
-Interval ListCaptureRegisters(ZoneList<RegExpTree*>* children) {
+Interval ListCaptureRegisters(StackLimiter limiter,
+                              ZoneList<RegExpTree*>* children) {
+  if (limiter.IsOverflowed()) return Interval::Invalid();
   Interval result = Interval::Empty();
-  for (int i = 0; i < children->length(); i++)
-    result = result.Union(children->at(i)->CaptureRegisters());
+  for (int i = 0; i < children->length(); i++) {
+    result = result.Union(children->at(i)->CaptureRegisters(limiter - 1));
+  }
   return result;
 }
 
 }  // namespace
 
-Interval RegExpAlternative::CaptureRegisters() {
-  return ListCaptureRegisters(nodes());
+Interval RegExpAlternative::CaptureRegisters(StackLimiter limiter) {
+  return ListCaptureRegisters(limiter - 1, nodes());
 }
 
-
-Interval RegExpDisjunction::CaptureRegisters() {
-  return ListCaptureRegisters(alternatives());
+Interval RegExpDisjunction::CaptureRegisters(StackLimiter limiter) {
+  return ListCaptureRegisters(limiter - 1, alternatives());
 }
 
-
-Interval RegExpLookaround::CaptureRegisters() {
-  return body()->CaptureRegisters();
+Interval RegExpLookaround::CaptureRegisters(StackLimiter limiter) {
+  if (limiter.IsOverflowed()) return Interval::Invalid();
+  return body()->CaptureRegisters(limiter - 1);
 }
 
-
-Interval RegExpCapture::CaptureRegisters() {
+Interval RegExpCapture::CaptureRegisters(StackLimiter limiter) {
+  if (limiter.IsOverflowed()) return Interval::Invalid();
   Interval self(StartRegister(index()), EndRegister(index()));
-  return self.Union(body()->CaptureRegisters());
+  return self.Union(body()->CaptureRegisters(limiter - 1));
 }
 
-
-Interval RegExpQuantifier::CaptureRegisters() {
-  return body()->CaptureRegisters();
+Interval RegExpQuantifier::CaptureRegisters(StackLimiter limiter) {
+  if (limiter.IsOverflowed()) return Interval::Invalid();
+  return body()->CaptureRegisters(limiter - 1);
 }
 
-
-bool RegExpAssertion::IsAnchoredAtStart() {
+bool RegExpAssertion::IsCertainlyAnchoredAtStart(int budget) {
   return assertion_type() == RegExpAssertion::Type::START_OF_INPUT;
 }
 
-
-bool RegExpAssertion::IsAnchoredAtEnd() {
+bool RegExpAssertion::IsCertainlyAnchoredAtEnd(int budget) {
   return assertion_type() == RegExpAssertion::Type::END_OF_INPUT;
 }
 
-
-bool RegExpAlternative::IsAnchoredAtStart() {
+bool RegExpAlternative::IsCertainlyAnchoredAtStart(int budget) {
+  if (budget < 0) return false;
   ZoneList<RegExpTree*>* nodes = this->nodes();
   for (int i = 0; i < nodes->length(); i++) {
     RegExpTree* node = nodes->at(i);
-    if (node->IsAnchoredAtStart()) {
+    if (node->IsCertainlyAnchoredAtStart(budget - 1)) {
       return true;
     }
     if (node->max_match() > 0) {
@@ -89,12 +102,12 @@ bool RegExpAlternative::IsAnchoredAtStart() {
   return false;
 }
 
-
-bool RegExpAlternative::IsAnchoredAtEnd() {
+bool RegExpAlternative::IsCertainlyAnchoredAtEnd(int budget) {
+  if (budget < 0) return false;
   ZoneList<RegExpTree*>* nodes = this->nodes();
   for (int i = nodes->length() - 1; i >= 0; i--) {
     RegExpTree* node = nodes->at(i);
-    if (node->IsAnchoredAtEnd()) {
+    if (node->IsCertainlyAnchoredAtEnd(budget - 1)) {
       return true;
     }
     if (node->max_match() > 0) {
@@ -104,34 +117,42 @@ bool RegExpAlternative::IsAnchoredAtEnd() {
   return false;
 }
 
-
-bool RegExpDisjunction::IsAnchoredAtStart() {
+bool RegExpDisjunction::IsCertainlyAnchoredAtStart(int budget) {
+  if (budget < 0) return false;
   ZoneList<RegExpTree*>* alternatives = this->alternatives();
   for (int i = 0; i < alternatives->length(); i++) {
-    if (!alternatives->at(i)->IsAnchoredAtStart()) return false;
+    if (!alternatives->at(i)->IsCertainlyAnchoredAtStart(budget - 1))
+      return false;
   }
   return true;
 }
 
-
-bool RegExpDisjunction::IsAnchoredAtEnd() {
+bool RegExpDisjunction::IsCertainlyAnchoredAtEnd(int budget) {
+  if (budget < 0) return false;
   ZoneList<RegExpTree*>* alternatives = this->alternatives();
   for (int i = 0; i < alternatives->length(); i++) {
-    if (!alternatives->at(i)->IsAnchoredAtEnd()) return false;
+    if (!alternatives->at(i)->IsCertainlyAnchoredAtEnd(budget - 1)) {
+      return false;
+    }
   }
   return true;
 }
 
-
-bool RegExpLookaround::IsAnchoredAtStart() {
-  return is_positive() && type() == LOOKAHEAD && body()->IsAnchoredAtStart();
+bool RegExpLookaround::IsCertainlyAnchoredAtStart(int budget) {
+  if (budget < 0) return false;
+  return is_positive() && type() == LOOKAHEAD &&
+         body()->IsCertainlyAnchoredAtStart(budget - 1);
 }
 
+bool RegExpCapture::IsCertainlyAnchoredAtStart(int budget) {
+  if (budget < 0) return false;
+  return body()->IsCertainlyAnchoredAtStart(budget - 1);
+}
 
-bool RegExpCapture::IsAnchoredAtStart() { return body()->IsAnchoredAtStart(); }
-
-
-bool RegExpCapture::IsAnchoredAtEnd() { return body()->IsAnchoredAtEnd(); }
+bool RegExpCapture::IsCertainlyAnchoredAtEnd(int budget) {
+  if (budget < 0) return false;
+  return body()->IsCertainlyAnchoredAtEnd(budget - 1);
+}
 
 RegExpDisjunction::RegExpDisjunction(ZoneList<RegExpTree*>* alternatives)
     : alternatives_(alternatives) {

@@ -698,8 +698,8 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(
 
 Maybe<bool> ValueSerializer::WriteJSObject(DirectHandle<JSObject> object) {
   DCHECK(!IsCustomElementsReceiverMap(object->map()));
-  const bool can_serialize_fast =
-      object->HasFastProperties(isolate_) && object->elements()->length() == 0;
+  const bool can_serialize_fast = object->HasFastProperties(isolate_) &&
+                                  object->elements()->ulength().value() == 0;
   if (!can_serialize_fast) return WriteJSObjectSlow(object);
 
   DirectHandle<Map> map(object->map(), isolate_);
@@ -776,7 +776,7 @@ Maybe<bool> ValueSerializer::WriteJSArray(DirectHandle<JSArray> array) {
       array->HasFastElements(cage_base) && !array->HasHoleyElements(cage_base);
 
   if (should_serialize_densely) {
-    DCHECK_LE(length, static_cast<uint32_t>(FixedArray::kMaxLength));
+    DCHECK_LE(length, FixedArray::kMaxLength);
     WriteTag(SerializationTag::kBeginDenseJSArray);
     WriteVarint<uint32_t>(length);
     uint32_t i = 0;
@@ -1298,8 +1298,8 @@ Maybe<bool> ValueSerializer::WriteHostObject(DirectHandle<JSObject> object) {
 Maybe<uint32_t> ValueSerializer::WriteJSObjectPropertiesSlow(
     DirectHandle<JSObject> object, DirectHandle<FixedArray> keys) {
   uint32_t properties_written = 0;
-  int length = keys->length();
-  for (int i = 0; i < length; i++) {
+  const uint32_t length = keys->ulength().value();
+  for (uint32_t i = 0; i < length; i++) {
     DirectHandle<Object> key(keys->get(i), isolate_);
 
     PropertyKey lookup_key(isolate_, key);
@@ -1916,8 +1916,7 @@ MaybeDirectHandle<JSArray> ValueDeserializer::ReadDenseJSArray() {
   // V8. As an additional sanity check, since each entry will take at least one
   // byte to encode, if there are fewer bytes than that we can also fail fast.
   uint32_t length;
-  if (!ReadVarint<uint32_t>().To(&length) ||
-      length > static_cast<uint32_t>(FixedArray::kMaxLength) ||
+  if (!ReadVarint<uint32_t>().To(&length) || length > FixedArray::kMaxLength ||
       length > static_cast<size_t>(end_ - position_)) {
     return MaybeDirectHandle<JSArray>();
   }
@@ -1931,7 +1930,7 @@ MaybeDirectHandle<JSArray> ValueDeserializer::ReadDenseJSArray() {
 
   DirectHandle<FixedArray> elements(Cast<FixedArray>(array->elements()),
                                     isolate_);
-  auto elements_length = static_cast<uint32_t>(elements->length());
+  const uint32_t elements_length = elements->ulength().value();
   for (uint32_t i = 0; i < length; i++) {
     SerializationTag tag;
     if (PeekTag().To(&tag) && tag == SerializationTag::kTheHole) {
@@ -2770,12 +2769,12 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
 }
 
 bool ValueDeserializer::HasObjectWithID(uint32_t id) {
-  return id < static_cast<unsigned>(id_map_->length()) &&
+  return id < id_map_->ulength().value() &&
          !IsTheHole(id_map_->get(id), isolate_);
 }
 
 MaybeDirectHandle<JSReceiver> ValueDeserializer::GetObjectWithID(uint32_t id) {
-  if (id >= static_cast<unsigned>(id_map_->length())) {
+  if (id >= id_map_->ulength().value()) {
     return MaybeDirectHandle<JSReceiver>();
   }
   Tagged<Object> value = id_map_->get(id);

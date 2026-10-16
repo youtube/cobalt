@@ -126,8 +126,10 @@ class RTCPSender::RtcpContext {
 
 RTCPSender::RTCPSender(const Environment& env, Configuration config)
     : env_(env),
+      is_rtp_sender_(config.recv_ssrc_callback == nullptr),
       audio_(config.audio),
-      ssrc_(config.local_media_ssrc),
+      send_ssrc_(config.local_media_ssrc),
+      recv_ssrc_callback_(std::move(config.recv_ssrc_callback)),
       random_(env_.clock().TimeInMicroseconds()),
       method_(RtcpMode::kOff),
       transport_(config.outgoing_transport),
@@ -152,6 +154,9 @@ RTCPSender::RTCPSender(const Environment& env, Configuration config)
   RTC_CHECK(schedule_next_rtcp_send_evaluation_);
   RTC_CHECK_GT(report_interval_, TimeDelta::Zero());
   RTC_DCHECK(transport_ != nullptr);
+  // We don't want to see local_media_ssrc if we're not an RTP sender.
+  // It's likely a configuration error.
+  RTC_DCHECK(is_rtp_sender_ || send_ssrc_ == 0);
 
   builders_[kRtcpSr] = &RTCPSender::BuildSR;
   builders_[kRtcpRr] = &RTCPSender::BuildRR;
@@ -194,6 +199,8 @@ bool RTCPSender::Sending() const {
 void RTCPSender::SetSendingStatus(const FeedbackState& /* feedback_state */,
                                   bool sending) {
   MutexLock lock(&mutex_rtcp_sender_);
+  RTC_DCHECK(is_rtp_sender_ || !sending)
+      << "Only senders can have sending turned on";
   sending_ = sending;
 }
 
@@ -304,12 +311,12 @@ void RTCPSender::SetRtpClockRate(int8_t payload_type, int rtp_clock_rate_hz) {
 
 uint32_t RTCPSender::SSRC() const {
   MutexLock lock(&mutex_rtcp_sender_);
-  return ssrc_;
+  return ComputeSsrc();
 }
 
 void RTCPSender::SetSsrc(uint32_t ssrc) {
   MutexLock lock(&mutex_rtcp_sender_);
-  ssrc_ = ssrc;
+  send_ssrc_ = ssrc;
 }
 
 void RTCPSender::SetRemoteSSRC(uint32_t ssrc) {
@@ -364,7 +371,7 @@ void RTCPSender::BuildSR(const RtcpContext& ctx, PacketSender& sender) {
           rtp_rate;
 
   rtcp::SenderReport report;
-  report.SetSenderSsrc(ssrc_);
+  report.SetSenderSsrc(ComputeSsrc());
   report.SetNtp(env_.clock().ConvertTimestampToNtpTime(ctx.now_));
   report.SetRtpTimestamp(rtp_timestamp);
   report.SetPacketCount(ctx.feedback_state_.packets_sent);
@@ -378,13 +385,13 @@ void RTCPSender::BuildSDES(const RtcpContext& /* ctx */, PacketSender& sender) {
   RTC_CHECK_LT(length_cname, RTCP_CNAME_SIZE);
 
   rtcp::Sdes sdes;
-  sdes.AddCName(ssrc_, cname_);
+  sdes.AddCName(ComputeSsrc(), cname_);
   sender.AppendPacket(sdes);
 }
 
 void RTCPSender::BuildRR(const RtcpContext& ctx, PacketSender& sender) {
   rtcp::ReceiverReport report;
-  report.SetSenderSsrc(ssrc_);
+  report.SetSenderSsrc(ComputeSsrc());
   report.SetReportBlocks(CreateReportBlocks(ctx.feedback_state_));
   if (method_ == RtcpMode::kCompound || !report.report_blocks().empty()) {
     sender.AppendPacket(report);
@@ -393,7 +400,7 @@ void RTCPSender::BuildRR(const RtcpContext& ctx, PacketSender& sender) {
 
 void RTCPSender::BuildPLI(const RtcpContext& /* ctx */, PacketSender& sender) {
   rtcp::Pli pli;
-  pli.SetSenderSsrc(ssrc_);
+  pli.SetSenderSsrc(ComputeSsrc());
   pli.SetMediaSsrc(remote_ssrc_);
 
   ++packet_type_counter_.pli_packets;
@@ -404,7 +411,7 @@ void RTCPSender::BuildFIR(const RtcpContext& /* ctx */, PacketSender& sender) {
   ++sequence_number_fir_;
 
   rtcp::Fir fir;
-  fir.SetSenderSsrc(ssrc_);
+  fir.SetSenderSsrc(ComputeSsrc());
   fir.AddRequestTo(remote_ssrc_, sequence_number_fir_);
 
   ++packet_type_counter_.fir_packets;
@@ -413,7 +420,7 @@ void RTCPSender::BuildFIR(const RtcpContext& /* ctx */, PacketSender& sender) {
 
 void RTCPSender::BuildREMB(const RtcpContext& /* ctx */, PacketSender& sender) {
   rtcp::Remb remb;
-  remb.SetSenderSsrc(ssrc_);
+  remb.SetSenderSsrc(ComputeSsrc());
   remb.SetBitrateBps(remb_bitrate_);
   remb.SetSsrcs(remb_ssrcs_);
   sender.AppendPacket(remb);
@@ -452,12 +459,12 @@ void RTCPSender::BuildTMMBR(const RtcpContext& ctx, PacketSender& sender) {
     if (!tmmbr_owner) {
       // Use received bounding set as candidate set.
       // Add current tuple.
-      candidates.emplace_back(ssrc_, tmmbr_send_bps_, packet_oh_send_);
+      candidates.emplace_back(ComputeSsrc(), tmmbr_send_bps_, packet_oh_send_);
 
       // Find bounding set.
       std::vector<rtcp::TmmbItem> bounding =
           TMMBRHelp::FindBoundingSet(std::move(candidates));
-      tmmbr_owner = TMMBRHelp::IsOwner(bounding, ssrc_);
+      tmmbr_owner = TMMBRHelp::IsOwner(bounding, ComputeSsrc());
       if (!tmmbr_owner) {
         // Did not enter bounding set, no meaning to send this request.
         return;
@@ -469,7 +476,7 @@ void RTCPSender::BuildTMMBR(const RtcpContext& ctx, PacketSender& sender) {
     return;
 
   rtcp::Tmmbr tmmbr;
-  tmmbr.SetSenderSsrc(ssrc_);
+  tmmbr.SetSenderSsrc(ComputeSsrc());
   rtcp::TmmbItem request;
   request.set_ssrc(remote_ssrc_);
   request.set_bitrate_bps(tmmbr_send_bps_);
@@ -481,7 +488,7 @@ void RTCPSender::BuildTMMBR(const RtcpContext& ctx, PacketSender& sender) {
 void RTCPSender::BuildTMMBN(const RtcpContext& /* ctx */,
                             PacketSender& sender) {
   rtcp::Tmmbn tmmbn;
-  tmmbn.SetSenderSsrc(ssrc_);
+  tmmbn.SetSenderSsrc(ComputeSsrc());
   for (const rtcp::TmmbItem& tmmbr : tmmbn_to_send_) {
     if (tmmbr.bitrate_bps() > 0) {
       tmmbn.AddTmmbr(tmmbr);
@@ -492,20 +499,20 @@ void RTCPSender::BuildTMMBN(const RtcpContext& /* ctx */,
 
 void RTCPSender::BuildAPP(const RtcpContext& /* ctx */, PacketSender& sender) {
   rtcp::App app;
-  app.SetSenderSsrc(ssrc_);
+  app.SetSenderSsrc(ComputeSsrc());
   sender.AppendPacket(app);
 }
 
 void RTCPSender::BuildLossNotification(const RtcpContext& /* ctx */,
                                        PacketSender& sender) {
-  loss_notification_.SetSenderSsrc(ssrc_);
+  loss_notification_.SetSenderSsrc(ComputeSsrc());
   loss_notification_.SetMediaSsrc(remote_ssrc_);
   sender.AppendPacket(loss_notification_);
 }
 
 void RTCPSender::BuildNACK(const RtcpContext& ctx, PacketSender& sender) {
   rtcp::Nack nack;
-  nack.SetSenderSsrc(ssrc_);
+  nack.SetSenderSsrc(ComputeSsrc());
   nack.SetMediaSsrc(remote_ssrc_);
   nack.SetPacketIds(ctx.nacks_.data(), ctx.nacks_.size());
 
@@ -522,7 +529,7 @@ void RTCPSender::BuildNACK(const RtcpContext& ctx, PacketSender& sender) {
 
 void RTCPSender::BuildBYE(const RtcpContext& /* ctx */, PacketSender& sender) {
   rtcp::Bye bye;
-  bye.SetSenderSsrc(ssrc_);
+  bye.SetSenderSsrc(ComputeSsrc());
   bye.SetCsrcs(csrcs_);
   sender.AppendPacket(bye);
 }
@@ -530,7 +537,7 @@ void RTCPSender::BuildBYE(const RtcpContext& /* ctx */, PacketSender& sender) {
 void RTCPSender::BuildExtendedReports(const RtcpContext& ctx,
                                       PacketSender& sender) {
   rtcp::ExtendedReports xr;
-  xr.SetSenderSsrc(ssrc_);
+  xr.SetSenderSsrc(ComputeSsrc());
 
   if (!sending_ && xr_send_receiver_reference_time_enabled_) {
     rtcp::Rrtr rrtr;
@@ -584,6 +591,15 @@ int32_t RTCPSender::SendRTCP(const FeedbackState& feedback_state,
   sender->Send();
 
   return error_code;
+}
+
+uint32_t RTCPSender::ComputeSsrc() const {
+  if (is_rtp_sender_) {
+    return send_ssrc_;
+  } else {
+    RTC_DCHECK(recv_ssrc_callback_);
+    return recv_ssrc_callback_();
+  }
 }
 
 std::optional<int32_t> RTCPSender::ComputeCompoundRTCPPacket(
@@ -810,7 +826,7 @@ void RTCPSender::SetVideoBitrateAllocation(
       CheckAndUpdateLayerStructure(bitrate);
   if (new_bitrate) {
     video_bitrate_allocation_ = *new_bitrate;
-    RTC_LOG(LS_INFO) << "Emitting TargetBitrate XR for SSRC " << ssrc_
+    RTC_LOG(LS_INFO) << "Emitting TargetBitrate XR for SSRC " << ComputeSsrc()
                      << " with new layers enabled/disabled: "
                      << video_bitrate_allocation_.ToString();
     SetNextRtcpSendEvaluationDuration(TimeDelta::Zero());
@@ -857,7 +873,7 @@ void RTCPSender::SendCombinedRtcpPacket(
     }
 
     max_packet_size = max_packet_size_;
-    ssrc = ssrc_;
+    ssrc = ComputeSsrc();
   }
   RTC_DCHECK_LE(max_packet_size, IP_PACKET_SIZE);
   auto callback = [&](ArrayView<const uint8_t> packet) {

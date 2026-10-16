@@ -1077,8 +1077,9 @@ void VideoSendStreamTest::TestNackRetransmission(
         RTCPSender::Configuration config;
         config.outgoing_transport = transport_adapter_.get();
         config.rtcp_report_interval = TimeDelta::Millis(kRtcpIntervalMs);
-        config.local_media_ssrc =
-            test::VideoTestConstants::kReceiverLocalVideoSsrc;
+        config.recv_ssrc_callback = [] {
+          return test::VideoTestConstants::kReceiverLocalVideoSsrc;
+        };
         config.schedule_next_rtcp_send_evaluation = [](TimeDelta) {};
         RTCPSender rtcp_sender(env_, std::move(config));
 
@@ -1281,7 +1282,9 @@ void VideoSendStreamTest::TestPacketFragmentationSize(TestVideoFormat format,
         config.receive_statistics = &lossy_receive_stats;
         config.outgoing_transport = transport_adapter_.get();
         config.rtcp_report_interval = TimeDelta::Millis(kRtcpIntervalMs);
-        config.local_media_ssrc = test::VideoTestConstants::kVideoSendSsrcs[0];
+        config.recv_ssrc_callback = [] {
+          return test::VideoTestConstants::kVideoSendSsrcs[0];
+        };
         config.schedule_next_rtcp_send_evaluation = [](TimeDelta) {};
         RTCPSender rtcp_sender(env_, std::move(config));
 

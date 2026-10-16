@@ -52,7 +52,7 @@ class RingBuffer {
     int offset = tail_ - 1 - delay;
     if (offset < 0)
       offset += N;
-    return {buffer_.data() + S * offset, S};
+    return ArrayView<const T, S>(buffer_.data() + S * offset, S);
   }
 
  private:

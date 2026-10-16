@@ -41,28 +41,35 @@ class MockMoqtSession : public MoqtSessionInterface {
   MOCK_METHOD(bool, Fetch,
               (const FullTrackName& name, FetchResponseCallback callback,
                Location start, uint64_t end_group,
-               std::optional<uint64_t> end_object, MoqtPriority priority,
-               std::optional<MoqtDeliveryOrder> delivery_order,
-               VersionSpecificParameters parameters),
+               std::optional<uint64_t> end_object,
+               MessageParameters parameters),
               (override));
   MOCK_METHOD(bool, RelativeJoiningFetch,
               (const FullTrackName& name, SubscribeVisitor* visitor,
-               uint64_t num_previous_groups,
-               VersionSpecificParameters parameters),
+               uint64_t num_previous_groups, MessageParameters parameters),
               (override));
   MOCK_METHOD(bool, RelativeJoiningFetch,
               (const FullTrackName& name, SubscribeVisitor* visitor,
                FetchResponseCallback callback, uint64_t num_previous_groups,
-               MoqtPriority priority,
-               std::optional<MoqtDeliveryOrder> delivery_order,
-               VersionSpecificParameters parameters),
+               MessageParameters parameters),
               (override));
-  MOCK_METHOD(void, PublishNamespace,
-              (TrackNamespace track_namespace,
-               MoqtOutgoingPublishNamespaceCallback callback,
-               VersionSpecificParameters parameters),
+  MOCK_METHOD(
+      bool, PublishNamespace,
+      (const TrackNamespace& track_namespace,
+       const MessageParameters& parameters,
+       MoqtResponseCallback response_callback,
+       quiche::SingleUseCallback<void(MoqtRequestErrorInfo)> cancel_callback),
+      (override));
+  MOCK_METHOD(bool, PublishNamespaceUpdate,
+              (const TrackNamespace& track_namespace,
+               MessageParameters& parameters,
+               MoqtResponseCallback response_callback),
               (override));
-  MOCK_METHOD(bool, PublishNamespaceDone, (TrackNamespace track_namespace),
+  MOCK_METHOD(bool, PublishNamespaceDone,
+              (const TrackNamespace& track_namespace), (override));
+  MOCK_METHOD(bool, PublishNamespaceCancel,
+              (const TrackNamespace& track_namespace,
+               RequestErrorCode error_code, absl::string_view error_reason),
               (override));
   MOCK_METHOD(std::unique_ptr<MoqtNamespaceTask>, SubscribeNamespace,
               (TrackNamespace&, SubscribeNamespaceOption,

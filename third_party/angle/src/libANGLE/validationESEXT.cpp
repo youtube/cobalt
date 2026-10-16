@@ -840,6 +840,12 @@ bool ValidateGetnUniformivKHR(const Context *context,
         return false;
     }
 
+    // TODO(anglebug.com/484215148): Remove this check once CTS is fixed.
+    if (ANGLE_UNLIKELY(bufSize < 0))
+    {
+        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kNegativeBufSize);
+        return false;
+    }
     return ValidateSizedGetUniform(context, entryPoint, programPacked, locationPacked, bufSize);
 }
 
@@ -858,6 +864,12 @@ bool ValidateGetnUniformuivKHR(const Context *context,
         return false;
     }
 
+    // TODO(anglebug.com/484215148): Remove this check once CTS is fixed.
+    if (ANGLE_UNLIKELY(bufSize < 0))
+    {
+        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kNegativeBufSize);
+        return false;
+    }
     return ValidateSizedGetUniform(context, entryPoint, programPacked, locationPacked, bufSize);
 }
 
@@ -1712,6 +1724,8 @@ bool ValidateImportSemaphoreZirconHandleANGLE(const Context *context,
 
 namespace
 {
+constexpr static GLbitfield kValidPLSUsages = GL_PIXEL_LOCAL_USAGE_ALWAYS_NONCOHERENT_BIT_ANGLE;
+
 enum class PLSExpectedStatus
 {
     Inactive,
@@ -1821,6 +1835,7 @@ bool ValidateGetFramebufferPixelLocalStorageParameterCommon(const Context *conte
         case GL_PIXEL_LOCAL_TEXTURE_NAME_ANGLE:
         case GL_PIXEL_LOCAL_TEXTURE_LEVEL_ANGLE:
         case GL_PIXEL_LOCAL_TEXTURE_LAYER_ANGLE:
+        case GL_PIXEL_LOCAL_USAGE_ANGLE:
         case GL_PIXEL_LOCAL_CLEAR_VALUE_FLOAT_ANGLE:
         case GL_PIXEL_LOCAL_CLEAR_VALUE_INT_ANGLE:
         case GL_PIXEL_LOCAL_CLEAR_VALUE_UNSIGNED_INT_ANGLE:
@@ -2009,7 +2024,8 @@ bool ValidatePLSStoreOperation(const Context *context, angle::EntryPoint entryPo
 bool ValidateFramebufferMemorylessPixelLocalStorageANGLE(const Context *context,
                                                          angle::EntryPoint entryPoint,
                                                          GLint plane,
-                                                         GLenum internalformat)
+                                                         GLenum internalformat,
+                                                         GLbitfield usage)
 {
     if (!ValidatePLSCommon(context, entryPoint, plane, PLSExpectedStatus::Any))
     {
@@ -2033,6 +2049,12 @@ bool ValidateFramebufferMemorylessPixelLocalStorageANGLE(const Context *context,
         }
     }
 
+    if ((usage & kValidPLSUsages) != usage)
+    {
+        ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kPLSInvalidUsage);
+        return false;
+    }
+
     return true;
 }
 
@@ -2041,7 +2063,8 @@ bool ValidateFramebufferTexturePixelLocalStorageANGLE(const Context *context,
                                                       GLint plane,
                                                       TextureID backingtexture,
                                                       GLint level,
-                                                      GLint layer)
+                                                      GLint layer,
+                                                      GLbitfield usage)
 {
     if (!ValidatePLSCommon(context, entryPoint, plane, PLSExpectedStatus::Any))
     {
@@ -2120,6 +2143,12 @@ bool ValidateFramebufferTexturePixelLocalStorageANGLE(const Context *context,
             ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kFormatNotRenderable);
             return false;
         }
+    }
+
+    if ((usage & kValidPLSUsages) != usage)
+    {
+        ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kPLSInvalidUsage);
+        return false;
     }
 
     return true;
@@ -2669,6 +2698,13 @@ bool ValidateBufferStorageEXT(const Context *context,
         return false;
     }
 
+    const Limitations &limitations = context->getLimitations();
+    if (size > limitations.bufferSizeLimit)
+    {
+        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kBufferSizeLimitation);
+        return false;
+    }
+
     constexpr GLbitfield kAllUsageFlags =
         (GL_DYNAMIC_STORAGE_BIT_EXT | GL_MAP_READ_BIT | GL_MAP_WRITE_BIT |
          GL_MAP_PERSISTENT_BIT_EXT | GL_MAP_COHERENT_BIT_EXT | GL_CLIENT_STORAGE_BIT_EXT);
@@ -2785,6 +2821,13 @@ bool ValidateBufferStorageExternalEXT(const Context *context,
     if (clientBuffer == nullptr && size > 0)
     {
         ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kClientBufferInvalid);
+        return false;
+    }
+
+    const Limitations &limitations = context->getLimitations();
+    if (size > limitations.bufferSizeLimit)
+    {
+        ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kBufferSizeLimitation);
         return false;
     }
 

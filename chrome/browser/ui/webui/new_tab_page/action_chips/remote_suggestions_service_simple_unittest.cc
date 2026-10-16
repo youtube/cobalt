@@ -117,10 +117,8 @@ GURL GetSuggestURL(const GetSuggestURLOptions& options,
     search_terms_args.page_classification = metrics::OmniboxEventProto::OTHER;
     additional_query_params.push_back("ctxus=1");
     if (options.title.has_value()) {
-      url::RawCanonOutputT<char> encoded_title;
-      url::EncodeURIComponent(*options.title, &encoded_title);
-      additional_query_params.push_back(
-          base::StrCat({"pageTitle=", encoded_title.view()}));
+      additional_query_params.push_back(base::StrCat(
+          {"pageTitle=", url::UriComponentEncoder(*options.title).view()}));
     }
   } else {
     search_terms_args.page_classification =
@@ -137,10 +135,8 @@ GURL GetSuggestURL(const GetSuggestURLOptions& options,
         base::StrCat({"ats=", base::JoinString(allowed_tools_strings, ",")}));
 
     if (options.title.has_value()) {
-      url::RawCanonOutputT<char> encoded_title;
-      url::EncodeURIComponent(*options.title, &encoded_title);
-      additional_query_params.push_back(
-          base::StrCat({"pageTitle=", encoded_title.view()}));
+      additional_query_params.push_back(base::StrCat(
+          {"pageTitle=", url::UriComponentEncoder(*options.title).view()}));
     }
     if (options.page_vertical.has_value()) {
       additional_query_params.push_back(base::StrCat(
@@ -175,9 +171,9 @@ std::string GetPendingRequestUrls(network::TestURLLoaderFactory& factory) {
 
 std::string GeneratePendingRequestsDebugMsg(
     network::TestURLLoaderFactory& factory,
-    const std::string& expected_url_spec) {
-  return "Pending requests: " + GetPendingRequestUrls(factory) +
-         "\nExpected: " + expected_url_spec;
+    std::string_view expected_url_spec) {
+  return base::StrCat({"Pending requests: ", GetPendingRequestUrls(factory),
+                       "\nExpected: ", expected_url_spec});
 }
 
 // A fixture to initialize and operate on the execution environment.

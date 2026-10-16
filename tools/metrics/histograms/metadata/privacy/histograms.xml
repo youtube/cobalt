@@ -1072,7 +1072,7 @@ Regular profiles start at bucket 1, we don't consider non-regular profiles. -->
 
 <histogram
     name="PrivacySandbox.Attestations.EstimateMemoryUsage.AttestationsMap"
-    units="KB" expires_after="2026-03-22">
+    units="KB" expires_after="2026-09-22">
   <owner>shivanisha@chromium.org</owner>
   <owner>xiaochenzh@chromium.org</owner>
   <summary>
@@ -1167,7 +1167,7 @@ Regular profiles start at bucket 1, we don't consider non-regular profiles. -->
 </histogram>
 
 <histogram name="PrivacySandbox.Attestations.IsSiteAttested.FirstCheckTime"
-    units="ms" expires_after="2026-03-22">
+    units="ms" expires_after="2026-09-22">
   <owner>shivanisha@chromium.org</owner>
   <owner>xiaochenzh@chromium.org</owner>
   <summary>
@@ -1753,15 +1753,6 @@ Regular profiles start at bucket 1, we don't consider non-regular profiles. -->
     the interest group was not displayed because no site or host could be
     determined. Recorded on a per interest group data key basis when the user
     opens the Protected Audience settings page.
-  </summary>
-</histogram>
-
-<histogram name="PrivacySandbox.SentimentSurvey.Status"
-    enum="PrivacySandboxSentimentSurveyStatus" expires_after="2026-07-12">
-  <owner>alvingo@google.com</owner>
-  <owner>koilos@google.com</owner>
-  <summary>
-    Records the status when attempting to surface the sentiment survey.
   </summary>
 </histogram>
 

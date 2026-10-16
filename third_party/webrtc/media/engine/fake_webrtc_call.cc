@@ -740,24 +740,6 @@ void FakeCall::SignalChannelNetworkState(MediaType media, NetworkState state) {
 void FakeCall::OnAudioTransportOverheadChanged(
     int /* transport_overhead_per_packet */) {}
 
-void FakeCall::OnLocalSsrcUpdated(AudioReceiveStreamInterface& stream,
-                                  uint32_t local_ssrc) {
-  auto& fake_stream = static_cast<FakeAudioReceiveStream&>(stream);
-  fake_stream.SetLocalSsrc(local_ssrc);
-}
-
-void FakeCall::OnLocalSsrcUpdated(VideoReceiveStreamInterface& stream,
-                                  uint32_t local_ssrc) {
-  auto& fake_stream = static_cast<FakeVideoReceiveStream&>(stream);
-  fake_stream.SetLocalSsrc(local_ssrc);
-}
-
-void FakeCall::OnLocalSsrcUpdated(FlexfecReceiveStream& stream,
-                                  uint32_t local_ssrc) {
-  auto& fake_stream = static_cast<FakeFlexfecReceiveStream&>(stream);
-  fake_stream.SetLocalSsrc(local_ssrc);
-}
-
 void FakeCall::OnUpdateSyncGroup(AudioReceiveStreamInterface& stream,
                                  absl::string_view sync_group) {
   auto& fake_stream = static_cast<FakeAudioReceiveStream&>(stream);

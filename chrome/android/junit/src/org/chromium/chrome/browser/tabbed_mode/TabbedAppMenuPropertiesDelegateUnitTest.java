@@ -60,8 +60,8 @@ import org.chromium.base.ThreadUtils;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.OneshotSupplierImpl;
 import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
-import org.chromium.base.test.BaseRobolectricTestRule;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.RobolectricUtil;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.R;
@@ -141,6 +141,7 @@ import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.components.user_prefs.UserPrefsJni;
 import org.chromium.components.webapps.AppBannerManager;
 import org.chromium.components.webapps.AppBannerManagerJni;
+import org.chromium.content_public.browser.ContentFeatureList;
 import org.chromium.content_public.browser.NavigationController;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.google_apis.gaia.GoogleServiceAuthError;
@@ -169,6 +170,8 @@ import java.util.List;
     ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION,
     ChromeFeatureList.FEED_AUDIO_OVERVIEWS,
     ChromeFeatureList.GLIC,
+    ChromeFeatureList.TASK_MANAGER_CLANK,
+    ContentFeatureList.ANDROID_DEV_TOOLS_FRONTEND,
     DomDistillerFeatures.READER_MODE_IMPROVEMENTS,
     DomDistillerFeatures.READER_MODE_DISTILL_IN_APP
 })
@@ -364,7 +367,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                         mReadAloudControllerSupplier,
                         mPageZoomManagerMock,
                         /* openInAppMenuItemProvider= */ null);
-        BaseRobolectricTestRule.runAllBackgroundAndUi();
+        RobolectricUtil.runAllBackgroundAndUi();
         mTabbedAppMenuPropertiesDelegate = Mockito.spy(delegate);
 
         MultiWindowTestUtils.resetInstanceInfo();
@@ -582,12 +585,9 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                                 R.id.new_incognito_tab_menu_id,
                                 R.id.add_to_group_menu_id,
                                 R.id.divider_line_id,
-                                R.id.open_history_menu_id,
-                                R.id.quick_delete_menu_id,
-                                R.id.quick_delete_divider_line_id,
+                                R.id.history_parent_menu_id,
                                 R.id.downloads_menu_id,
                                 R.id.all_bookmarks_menu_id,
-                                R.id.recent_tabs_menu_id,
                                 R.id.divider_line_id,
                                 R.id.preferences_id,
                                 R.id.help_id));
@@ -595,7 +595,18 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         if (ExtensionsBuildflags.ENABLE_DESKTOP_ANDROID_EXTENSIONS) {
             expectedItems.add(R.id.extensions_parent_menu_id);
         }
+
+        List<Integer> historyExpectedItems =
+                new ArrayList<>(
+                        Arrays.asList(
+                                R.id.open_history_menu_id,
+                                R.id.recent_tabs_menu_id,
+                                R.id.quick_delete_menu_id));
+
         assertMenuItemsAreEqual(modelList, expectedItems.toArray(new Integer[0]));
+        assertMenuItemsAreEqual(
+                createModelList(getSubmenuItems(modelList, R.id.history_parent_menu_id)),
+                historyExpectedItems.toArray(new Integer[0]));
     }
 
     @Test
@@ -622,12 +633,9 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                                 R.id.new_incognito_tab_menu_id,
                                 R.id.add_to_group_menu_id,
                                 R.id.divider_line_id,
-                                R.id.open_history_menu_id,
-                                R.id.quick_delete_menu_id,
-                                R.id.quick_delete_divider_line_id,
+                                R.id.history_parent_menu_id,
                                 R.id.downloads_menu_id,
                                 R.id.all_bookmarks_menu_id,
-                                R.id.recent_tabs_menu_id,
                                 R.id.divider_line_id,
                                 R.id.share_menu_id,
                                 R.id.find_in_page_id,
@@ -639,7 +647,18 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         if (ExtensionsBuildflags.ENABLE_DESKTOP_ANDROID_EXTENSIONS) {
             expectedItems.add(R.id.extensions_parent_menu_id);
         }
+
+        List<Integer> historyExpectedItems =
+                new ArrayList<>(
+                        Arrays.asList(
+                                R.id.open_history_menu_id,
+                                R.id.recent_tabs_menu_id,
+                                R.id.quick_delete_menu_id));
+
         assertMenuItemsAreEqual(modelList, expectedItems.toArray(new Integer[0]));
+        assertMenuItemsAreEqual(
+                createModelList(getSubmenuItems(modelList, R.id.history_parent_menu_id)),
+                historyExpectedItems.toArray(new Integer[0]));
     }
 
     private void testPageMenuItems_RegularPage() {
@@ -657,6 +676,12 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         List<Integer> expectedItems = new ArrayList<>();
         List<Integer> expectedTitles = new ArrayList<>();
 
+        List<Integer> saveAndPrintExpectedItems = new ArrayList<>();
+        List<Integer> saveAndPrintExpectedTitles = new ArrayList<>();
+
+        List<Integer> historyExpectedItems = new ArrayList<>();
+        List<Integer> historyExpectedTitles = new ArrayList<>();
+
         expectedItems.add(R.id.icon_row_menu_id);
         expectedTitles.add(0);
         expectedItems.add(R.id.new_tab_menu_id);
@@ -669,18 +694,18 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         expectedTitles.add(R.string.menu_add_tab_to_new_group);
         expectedItems.add(R.id.divider_line_id);
         expectedTitles.add(0);
-        expectedItems.add(R.id.open_history_menu_id);
+        expectedItems.add(R.id.history_parent_menu_id);
         expectedTitles.add(R.string.menu_history);
-        expectedItems.add(R.id.quick_delete_menu_id);
-        expectedTitles.add(R.string.menu_quick_delete);
-        expectedItems.add(R.id.quick_delete_divider_line_id);
-        expectedTitles.add(0);
+        historyExpectedItems.add(R.id.open_history_menu_id);
+        historyExpectedTitles.add(R.string.menu_history);
+        historyExpectedItems.add(R.id.recent_tabs_menu_id);
+        historyExpectedTitles.add(R.string.menu_recent_tabs);
+        historyExpectedItems.add(R.id.quick_delete_menu_id);
+        historyExpectedTitles.add(R.string.menu_quick_delete);
         expectedItems.add(R.id.downloads_menu_id);
         expectedTitles.add(R.string.menu_downloads);
         expectedItems.add(R.id.all_bookmarks_menu_id);
         expectedTitles.add(R.string.menu_bookmarks);
-        expectedItems.add(R.id.recent_tabs_menu_id);
-        expectedTitles.add(R.string.menu_recent_tabs);
         if (ExtensionsBuildflags.ENABLE_DESKTOP_ANDROID_EXTENSIONS) {
             expectedItems.add(R.id.extensions_parent_menu_id);
             expectedTitles.add(R.string.menu_extensions);
@@ -689,12 +714,14 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         expectedTitles.add(0);
         expectedItems.add(R.id.share_menu_id);
         expectedTitles.add(R.string.menu_share_page);
+        expectedItems.add(R.id.save_and_print_parent_menu_id);
+        expectedTitles.add(R.string.menu_save_and_print);
+        saveAndPrintExpectedItems.add(R.id.universal_install);
+        saveAndPrintExpectedTitles.add(R.string.menu_add_to_homescreen);
         expectedItems.add(R.id.find_in_page_id);
         expectedTitles.add(R.string.menu_find_in_page);
         expectedItems.add(R.id.translate_id);
         expectedTitles.add(R.string.menu_translate);
-        expectedItems.add(R.id.universal_install);
-        expectedTitles.add(R.string.menu_add_to_homescreen);
         if (!DeviceInfo.isDesktop()) {
             expectedItems.add(R.id.request_desktop_site_id);
             expectedTitles.add(R.string.menu_request_desktop_site);
@@ -717,6 +744,18 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         };
         assertMenuItemsAreEqual(modelList, expectedItems.toArray(new Integer[0]));
         assertMenuTitlesAreEqual(modelList, expectedTitles.toArray(new Integer[0]));
+        assertMenuItemsAreEqual(
+                createModelList(getSubmenuItems(modelList, R.id.save_and_print_parent_menu_id)),
+                saveAndPrintExpectedItems.toArray(new Integer[0]));
+        assertMenuTitlesAreEqual(
+                createModelList(getSubmenuItems(modelList, R.id.save_and_print_parent_menu_id)),
+                saveAndPrintExpectedTitles.toArray(new Integer[0]));
+        assertMenuItemsAreEqual(
+                createModelList(getSubmenuItems(modelList, R.id.history_parent_menu_id)),
+                historyExpectedItems.toArray(new Integer[0]));
+        assertMenuTitlesAreEqual(
+                createModelList(getSubmenuItems(modelList, R.id.history_parent_menu_id)),
+                historyExpectedTitles.toArray(new Integer[0]));
         assertActionBarItemsAreEqual(modelList, expectedActionBarItems);
     }
 
@@ -760,7 +799,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         expectedItems.add(R.id.divider_line_id);
         expectedTitles.add(0);
         if (!IncognitoUtils.shouldOpenIncognitoAsWindow()) {
-            expectedItems.add(R.id.open_history_menu_id);
+            expectedItems.add(R.id.history_parent_menu_id);
             expectedTitles.add(R.string.menu_history);
         }
         expectedItems.add(R.id.downloads_menu_id);
@@ -833,6 +872,12 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         List<Integer> expectedItems = new ArrayList<>();
         List<Integer> expectedTitles = new ArrayList<>();
 
+        List<Integer> saveAndPrintExpectedItems = new ArrayList<>();
+        List<Integer> saveAndPrintExpectedTitles = new ArrayList<>();
+
+        List<Integer> historyExpectedItems = new ArrayList<>();
+        List<Integer> historyExpectedTitles = new ArrayList<>();
+
         expectedItems.add(R.id.icon_row_menu_id);
         expectedTitles.add(0);
         expectedItems.add(R.id.new_tab_menu_id);
@@ -843,18 +888,18 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         expectedTitles.add(R.string.menu_add_tab_to_new_group);
         expectedItems.add(R.id.divider_line_id);
         expectedTitles.add(0);
-        expectedItems.add(R.id.open_history_menu_id);
+        expectedItems.add(R.id.history_parent_menu_id);
         expectedTitles.add(R.string.menu_history);
-        expectedItems.add(R.id.quick_delete_menu_id);
-        expectedTitles.add(R.string.menu_quick_delete);
-        expectedItems.add(R.id.quick_delete_divider_line_id);
-        expectedTitles.add(0);
+        historyExpectedItems.add(R.id.open_history_menu_id);
+        historyExpectedTitles.add(R.string.menu_history);
+        historyExpectedItems.add(R.id.recent_tabs_menu_id);
+        historyExpectedTitles.add(R.string.menu_recent_tabs);
+        historyExpectedItems.add(R.id.quick_delete_menu_id);
+        historyExpectedTitles.add(R.string.menu_quick_delete);
         expectedItems.add(R.id.downloads_menu_id);
         expectedTitles.add(R.string.menu_downloads);
         expectedItems.add(R.id.all_bookmarks_menu_id);
         expectedTitles.add(R.string.menu_bookmarks);
-        expectedItems.add(R.id.recent_tabs_menu_id);
-        expectedTitles.add(R.string.menu_recent_tabs);
         if (ExtensionsBuildflags.ENABLE_DESKTOP_ANDROID_EXTENSIONS) {
             expectedItems.add(R.id.extensions_parent_menu_id);
             expectedTitles.add(R.string.menu_extensions);
@@ -863,12 +908,14 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         expectedTitles.add(0);
         expectedItems.add(R.id.share_menu_id);
         expectedTitles.add(R.string.menu_share_page);
+        expectedItems.add(R.id.save_and_print_parent_menu_id);
+        expectedTitles.add(R.string.menu_save_and_print);
+        saveAndPrintExpectedItems.add(R.id.universal_install);
+        saveAndPrintExpectedTitles.add(R.string.menu_add_to_homescreen);
         expectedItems.add(R.id.find_in_page_id);
         expectedTitles.add(R.string.menu_find_in_page);
         expectedItems.add(R.id.translate_id);
         expectedTitles.add(R.string.menu_translate);
-        expectedItems.add(R.id.universal_install);
-        expectedTitles.add(R.string.menu_add_to_homescreen);
         if (!DeviceInfo.isDesktop()) {
             expectedItems.add(R.id.request_desktop_site_id);
             expectedTitles.add(R.string.menu_request_desktop_site);
@@ -891,6 +938,18 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         };
         assertMenuItemsAreEqual(modelList, expectedItems.toArray(new Integer[0]));
         assertMenuTitlesAreEqual(modelList, expectedTitles.toArray(new Integer[0]));
+        assertMenuItemsAreEqual(
+                createModelList(getSubmenuItems(modelList, R.id.save_and_print_parent_menu_id)),
+                saveAndPrintExpectedItems.toArray(new Integer[0]));
+        assertMenuTitlesAreEqual(
+                createModelList(getSubmenuItems(modelList, R.id.save_and_print_parent_menu_id)),
+                saveAndPrintExpectedTitles.toArray(new Integer[0]));
+        assertMenuItemsAreEqual(
+                createModelList(getSubmenuItems(modelList, R.id.history_parent_menu_id)),
+                historyExpectedItems.toArray(new Integer[0]));
+        assertMenuTitlesAreEqual(
+                createModelList(getSubmenuItems(modelList, R.id.history_parent_menu_id)),
+                historyExpectedTitles.toArray(new Integer[0]));
         assertActionBarItemsAreEqual(modelList, expectedActionBarItems);
     }
 
@@ -917,26 +976,39 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                                 R.id.new_incognito_tab_menu_id,
                                 R.id.add_to_group_menu_id,
                                 R.id.divider_line_id,
-                                R.id.open_history_menu_id,
-                                R.id.quick_delete_menu_id,
-                                R.id.quick_delete_divider_line_id,
+                                R.id.history_parent_menu_id,
                                 R.id.downloads_menu_id,
                                 R.id.all_bookmarks_menu_id,
-                                R.id.recent_tabs_menu_id,
                                 R.id.divider_line_id,
                                 R.id.share_menu_id,
+                                R.id.save_and_print_parent_menu_id,
                                 R.id.find_in_page_id,
                                 R.id.translate_id,
-                                R.id.universal_install,
                                 // Request desktop site is hidden.
                                 R.id.auto_dark_web_contents_id,
                                 R.id.divider_line_id,
                                 R.id.preferences_id,
                                 R.id.help_id));
+
+        List<Integer> saveAndPrintExpectedItems =
+                new ArrayList<>(Arrays.asList(R.id.universal_install));
         if (ExtensionsBuildflags.ENABLE_DESKTOP_ANDROID_EXTENSIONS) {
             expectedItems.add(R.id.extensions_parent_menu_id);
         }
+        List<Integer> historyExpectedItems =
+                new ArrayList<>(
+                        Arrays.asList(
+                                R.id.open_history_menu_id,
+                                R.id.recent_tabs_menu_id,
+                                R.id.quick_delete_menu_id));
+
         assertMenuItemsAreEqual(modelList, expectedItems.toArray(new Integer[0]));
+        assertMenuItemsAreEqual(
+                createModelList(getSubmenuItems(modelList, R.id.save_and_print_parent_menu_id)),
+                saveAndPrintExpectedItems.toArray(new Integer[0]));
+        assertMenuItemsAreEqual(
+                createModelList(getSubmenuItems(modelList, R.id.history_parent_menu_id)),
+                historyExpectedItems.toArray(new Integer[0]));
     }
 
     @Test
@@ -976,15 +1048,13 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                                 R.id.new_tab_menu_id,
                                 R.id.new_incognito_tab_menu_id,
                                 R.id.add_to_group_menu_id,
-                                R.id.open_history_menu_id,
-                                R.id.quick_delete_menu_id,
+                                R.id.history_parent_menu_id,
                                 R.id.downloads_menu_id,
                                 R.id.all_bookmarks_menu_id,
-                                R.id.recent_tabs_menu_id,
                                 R.id.translate_id,
                                 R.id.share_menu_id,
+                                R.id.save_and_print_parent_menu_id,
                                 R.id.find_in_page_id,
-                                R.id.universal_install,
                                 R.id.reader_mode_prefs_id,
                                 R.id.auto_dark_web_contents_id,
                                 R.id.preferences_id,
@@ -992,7 +1062,23 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         if (ExtensionsBuildflags.ENABLE_DESKTOP_ANDROID_EXTENSIONS) {
             expectedItems.add(R.id.extensions_parent_menu_id);
         }
+        List<Integer> historyExpectedItems =
+                new ArrayList<>(
+                        Arrays.asList(
+                                R.id.open_history_menu_id,
+                                R.id.recent_tabs_menu_id,
+                                R.id.quick_delete_menu_id));
+
+        List<Integer> saveAndPrintExpectedItems =
+                new ArrayList<>(Arrays.asList(R.id.universal_install));
+
         assertMenuItemsHaveIcons(modelList, expectedItems.toArray(new Integer[0]));
+        assertMenuItemsAreEqual(
+                createModelList(getSubmenuItems(modelList, R.id.save_and_print_parent_menu_id)),
+                saveAndPrintExpectedItems.toArray(new Integer[0]));
+        assertMenuItemsAreEqual(
+                createModelList(getSubmenuItems(modelList, R.id.history_parent_menu_id)),
+                historyExpectedItems.toArray(new Integer[0]));
     }
 
     @Test
@@ -1238,17 +1324,14 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                                 R.id.new_incognito_tab_menu_id,
                                 R.id.add_to_group_menu_id,
                                 R.id.divider_line_id,
-                                R.id.open_history_menu_id,
-                                R.id.quick_delete_menu_id,
-                                R.id.quick_delete_divider_line_id,
+                                R.id.history_parent_menu_id,
                                 R.id.downloads_menu_id,
                                 R.id.all_bookmarks_menu_id,
-                                R.id.recent_tabs_menu_id,
                                 R.id.divider_line_id,
                                 R.id.share_menu_id,
+                                R.id.save_and_print_parent_menu_id,
                                 R.id.get_image_descriptions_id,
                                 R.id.find_in_page_id,
-                                R.id.universal_install,
                                 R.id.auto_dark_web_contents_id,
                                 R.id.divider_line_id,
                                 R.id.preferences_id,
@@ -1260,7 +1343,23 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
             expectedItems.add(R.id.extensions_parent_menu_id);
         }
 
+        List<Integer> saveAndPrintExpectedItems =
+                new ArrayList<>(Arrays.asList(R.id.universal_install));
+
+        List<Integer> historyExpectedItems =
+                new ArrayList<>(
+                        Arrays.asList(
+                                R.id.open_history_menu_id,
+                                R.id.recent_tabs_menu_id,
+                                R.id.quick_delete_menu_id));
+
         assertMenuItemsAreEqual(modelList, expectedItems.toArray(new Integer[0]));
+        assertMenuItemsAreEqual(
+                createModelList(getSubmenuItems(modelList, R.id.save_and_print_parent_menu_id)),
+                saveAndPrintExpectedItems.toArray(new Integer[0]));
+        assertMenuItemsAreEqual(
+                createModelList(getSubmenuItems(modelList, R.id.history_parent_menu_id)),
+                historyExpectedItems.toArray(new Integer[0]));
 
         // Ensure the text of the menu item is correct
         assertEquals(
@@ -1315,16 +1414,13 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                                 R.id.new_incognito_tab_menu_id,
                                 R.id.add_to_group_menu_id,
                                 R.id.divider_line_id,
-                                R.id.open_history_menu_id,
-                                R.id.quick_delete_menu_id,
-                                R.id.quick_delete_divider_line_id,
+                                R.id.history_parent_menu_id,
                                 R.id.downloads_menu_id,
                                 R.id.all_bookmarks_menu_id,
-                                R.id.recent_tabs_menu_id,
                                 R.id.divider_line_id,
                                 R.id.share_menu_id,
+                                R.id.save_and_print_parent_menu_id,
                                 R.id.find_in_page_id,
-                                R.id.universal_install,
                                 R.id.auto_dark_web_contents_id,
                                 R.id.divider_line_id,
                                 R.id.preferences_id,
@@ -1339,7 +1435,23 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
             expectedItems.add(R.id.extensions_parent_menu_id);
         }
 
+        List<Integer> saveAndPrintExpectedItems =
+                new ArrayList<>(Arrays.asList(R.id.universal_install));
+
+        List<Integer> historyExpectedItems =
+                new ArrayList<>(
+                        Arrays.asList(
+                                R.id.open_history_menu_id,
+                                R.id.recent_tabs_menu_id,
+                                R.id.quick_delete_menu_id));
+
         assertMenuItemsAreEqual(modelList, expectedItems.toArray(new Integer[0]));
+        assertMenuItemsAreEqual(
+                createModelList(getSubmenuItems(modelList, R.id.save_and_print_parent_menu_id)),
+                saveAndPrintExpectedItems.toArray(new Integer[0]));
+        assertMenuItemsAreEqual(
+                createModelList(getSubmenuItems(modelList, R.id.history_parent_menu_id)),
+                historyExpectedItems.toArray(new Integer[0]));
     }
 
     @Test
@@ -1367,16 +1479,13 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                                 R.id.new_incognito_tab_menu_id,
                                 R.id.add_to_group_menu_id,
                                 R.id.divider_line_id,
-                                R.id.open_history_menu_id,
-                                R.id.quick_delete_menu_id,
-                                R.id.quick_delete_divider_line_id,
+                                R.id.history_parent_menu_id,
                                 R.id.downloads_menu_id,
                                 R.id.all_bookmarks_menu_id,
-                                R.id.recent_tabs_menu_id,
                                 R.id.divider_line_id,
                                 R.id.share_menu_id,
+                                R.id.save_and_print_parent_menu_id,
                                 R.id.find_in_page_id,
-                                R.id.universal_install,
                                 R.id.auto_dark_web_contents_id,
                                 R.id.divider_line_id,
                                 R.id.preferences_id,
@@ -1391,7 +1500,23 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
             expectedItems.add(R.id.extensions_parent_menu_id);
         }
 
+        List<Integer> saveAndPrintExpectedItems =
+                new ArrayList<>(Arrays.asList(R.id.universal_install));
+
+        List<Integer> historyExpectedItems =
+                new ArrayList<>(
+                        Arrays.asList(
+                                R.id.open_history_menu_id,
+                                R.id.recent_tabs_menu_id,
+                                R.id.quick_delete_menu_id));
+
         assertMenuItemsAreEqual(modelList, expectedItems.toArray(new Integer[0]));
+        assertMenuItemsAreEqual(
+                createModelList(getSubmenuItems(modelList, R.id.save_and_print_parent_menu_id)),
+                saveAndPrintExpectedItems.toArray(new Integer[0]));
+        assertMenuItemsAreEqual(
+                createModelList(getSubmenuItems(modelList, R.id.history_parent_menu_id)),
+                historyExpectedItems.toArray(new Integer[0]));
     }
 
     @Test
@@ -1512,8 +1637,13 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         setUpMocksForPageMenu();
         when(mTab.getUrl()).thenReturn(JUnitTestGURLs.SEARCH_URL);
         MVCListAdapter.ModelList modelList = createMenuForMultiWindow();
-        assertTrue(isMenuVisible(modelList, R.id.universal_install));
-        assertFalse(isMenuVisible(modelList, R.id.open_webapk_id));
+        assertTrue(
+                isMenuVisibleInSubmenu(
+                        modelList, R.id.save_and_print_parent_menu_id, R.id.universal_install));
+
+        assertFalse(
+                isMenuVisibleInSubmenu(
+                        modelList, R.id.save_and_print_parent_menu_id, R.id.open_webapk_id));
     }
 
     @Test
@@ -1603,7 +1733,10 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
 
         MVCListAdapter.ModelList modelList = mTabbedAppMenuPropertiesDelegate.getMenuItems();
 
-        assertTrue(isMenuVisible(modelList, R.id.reader_mode_menu_id));
+        assertTrue(
+                isMenuVisible(
+                        createModelList(getSubmenuItems(modelList, R.id.more_tools_menu_id)),
+                        R.id.reader_mode_menu_id));
     }
 
     @Test
@@ -1619,7 +1752,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         Context context = ContextUtils.getApplicationContext();
         assertTrue(
                 isMenuVisibleWithCorrectTitle(
-                        modelList,
+                        createModelList(getSubmenuItems(modelList, R.id.more_tools_menu_id)),
                         R.id.reader_mode_menu_id,
                         context.getString(R.string.show_reading_mode_text)));
     }
@@ -1637,7 +1770,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         Context context = ContextUtils.getApplicationContext();
         assertTrue(
                 isMenuVisibleWithCorrectTitle(
-                        modelList,
+                        createModelList(getSubmenuItems(modelList, R.id.more_tools_menu_id)),
                         R.id.reader_mode_menu_id,
                         context.getString(R.string.hide_reading_mode_text)));
     }
@@ -2714,6 +2847,40 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
 
     private boolean isMenuVisible(MVCListAdapter.ModelList modelList, int itemId) {
         return findItemById(modelList, itemId) != null;
+    }
+
+    private MVCListAdapter.ModelList createModelList(List<MVCListAdapter.ListItem> items) {
+        MVCListAdapter.ModelList modelList = new MVCListAdapter.ModelList();
+        if (items != null) {
+            for (MVCListAdapter.ListItem item : items) {
+                modelList.add(item);
+            }
+        }
+        return modelList;
+    }
+
+    private List<MVCListAdapter.ListItem> getSubmenuItems(
+            MVCListAdapter.ModelList modelList, int parentId) {
+        for (MVCListAdapter.ListItem item : modelList) {
+            if (item.model.get(AppMenuItemProperties.MENU_ITEM_ID) == parentId) {
+                return item.model.get(AppMenuItemWithSubmenuProperties.SUBMENU_ITEMS);
+            }
+        }
+        return null;
+    }
+
+    private boolean isMenuVisibleInSubmenu(
+            MVCListAdapter.ModelList modelList, int parentId, int itemId) {
+        List<MVCListAdapter.ListItem> submenu = getSubmenuItems(modelList, parentId);
+
+        if (submenu == null) return false;
+
+        for (MVCListAdapter.ListItem subItem : submenu) {
+            if (subItem.model.get(AppMenuItemProperties.MENU_ITEM_ID) == itemId) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean isMenuVisibleWithCorrectTitle(

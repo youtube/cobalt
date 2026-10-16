@@ -566,35 +566,44 @@ int SimulcastEncoderAdapter::Encode(
     // not reporting the completion of frames via either OnEncodedFrame or
     // OnFrameDropped.
     constexpr size_t kMaxPendingFrames = 15;
-    MutexLock lock(&pending_frames_mutex_);
-    if (pending_frames_.size() >= kMaxPendingFrames) {
-      // Drop the oldest frame.
-      PendingFrame& dropped_frame = pending_frames_.front();
-      RTC_LOG(LS_WARNING) << "Pending frames queue full. Dropping frame with "
-                             "rtp_timestamp="
-                          << dropped_frame.rtp_timestamp;
-      for (size_t stream_idx = 0; stream_idx < kMaxSimulcastStreams;
-           ++stream_idx) {
-        if (dropped_frame.expected_layer_index.test(stream_idx)) {
-          dropped_frame.expected_layer_index.reset(stream_idx);
-          bool is_last = dropped_frame.expected_layer_index.none();
-          encoded_complete_callback_->OnFrameDropped(
-              dropped_frame.rtp_timestamp, stream_idx, is_last);
+    std::vector<std::tuple<uint32_t, int, bool>> frame_drops;
+    {
+      MutexLock lock(&pending_frames_mutex_);
+      if (pending_frames_.size() >= kMaxPendingFrames) {
+        // Drop the oldest frame.
+        PendingFrame& dropped_frame = pending_frames_.front();
+        RTC_LOG(LS_WARNING) << "Pending frames queue full. Dropping frame with "
+                               "rtp_timestamp="
+                            << dropped_frame.rtp_timestamp;
+        for (size_t stream_idx = 0; stream_idx < kMaxSimulcastStreams;
+             ++stream_idx) {
+          if (dropped_frame.expected_layer_index.test(stream_idx)) {
+            dropped_frame.expected_layer_index.reset(stream_idx);
+            bool is_last = dropped_frame.expected_layer_index.none();
+            frame_drops.emplace_back(dropped_frame.rtp_timestamp, stream_idx,
+                                     is_last);
+          }
+        }
+        pending_frames_.pop_front();
+      }
+
+      std::bitset<kMaxSimulcastStreams> expected_layer_index;
+      for (const auto& layer : stream_contexts_) {
+        if (!layer.is_paused()) {
+          expected_layer_index.set(layer.stream_idx());
         }
       }
-      pending_frames_.pop_front();
+      pending_frames_.push_back({
+          .rtp_timestamp = input_image.rtp_timestamp(),
+          .expected_layer_index = expected_layer_index,
+      });
     }
 
-    std::bitset<kMaxSimulcastStreams> expected_layer_index;
-    for (const auto& layer : stream_contexts_) {
-      if (!layer.is_paused()) {
-        expected_layer_index.set(layer.stream_idx());
-      }
+    // Make frame drop callbacks outside of the lock.
+    for (const auto& [rtp_timestamp, stream_idx, is_last] : frame_drops) {
+      encoded_complete_callback_->OnFrameDropped(rtp_timestamp, stream_idx,
+                                                 is_last);
     }
-    pending_frames_.push_back({
-        .rtp_timestamp = input_image.rtp_timestamp(),
-        .expected_layer_index = expected_layer_index,
-    });
   }
 
   for (auto& layer : stream_contexts_) {
@@ -1133,6 +1142,10 @@ VideoEncoder::EncoderInfo SimulcastEncoderAdapter::GetEncoderInfo() const {
     return encoder_info;
   }
 
+  // Default is to not enable CPU overuse detection. Aggregate across
+  // sub-encoders so we enable it if any encoder opts in.
+  encoder_info.enable_cpu_overuse_detection = false;
+
   encoder_info.scaling_settings = VideoEncoder::ScalingSettings::kOff;
   std::vector<std::string> encoder_names;
 
@@ -1182,6 +1195,9 @@ VideoEncoder::EncoderInfo SimulcastEncoderAdapter::GetEncoderInfo() const {
           encoder_info.is_qp_trusted.value_or(true) &&
           encoder_impl_info.is_qp_trusted.value_or(true);
     }
+    // If any encoder wants CPU overuse detection, enable it for all of them
+    encoder_info.enable_cpu_overuse_detection |=
+        encoder_impl_info.enable_cpu_overuse_detection;
     encoder_info.fps_allocation[i] = encoder_impl_info.fps_allocation[0];
     encoder_info.requested_resolution_alignment =
         std::lcm(encoder_info.requested_resolution_alignment,

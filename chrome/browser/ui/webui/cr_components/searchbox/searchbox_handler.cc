@@ -368,6 +368,8 @@ void SearchboxHandler::SetupWebUIDataSource(content::WebUIDataSource* source,
        IDS_NTP_COMPOSE_FILE_UPLOAD_VALIDATION_FAILED},
       {"composeboxFileUploadFailed", IDS_NTP_COMPOSE_FILE_UPLOAD_FAILED},
       {"composeboxFileUploadExpired", IDS_NTP_COMPOSE_FILE_UPLOAD_EXPIRED},
+      {"composeboxFileUploadNotAllowed",
+       IDS_NTP_COMPOSE_FILE_UPLOAD_NOT_ALLOWED},
       {"menu", IDS_MENU},
       {"uploadFile", IDS_NTP_COMPOSE_ADD_FILE},
       {"deepSearch", IDS_NTP_COMPOSE_DEEP_SEARCH},
@@ -428,22 +430,16 @@ void SearchboxHandler::SetupWebUIDataSource(content::WebUIDataSource* source,
                      ntp_features::kNtpRealboxCr23SteadyStateShadow.Get());
 
   auto composebox_config = ntp_composebox::FeatureConfig::Get().config;
-  source->AddString("composeboxDragAndDropHint",
-                    l10n_util::GetPluralStringFUTF16(
-                        IDS_NTP_COMPOSE_DRAG_AND_DROP_HINT,
-                        composebox_config.composebox().max_num_files()));
-  source->AddString("maxFilesReachedError",
-                    l10n_util::GetPluralStringFUTF16(
-                        IDS_NTP_COMPOSE_MAX_FILES_REACHED_ERROR,
-                        composebox_config.composebox().max_num_files()));
   int max_images = 0;
   int max_pdfs = 0;
+  int max_files = 0;
   AimEligibilityService* service =
       AimEligibilityServiceFactory::GetForProfile(profile);
   const omnibox::SearchboxConfig* config =
       service ? service->GetSearchboxConfig() : nullptr;
 
   if (config && config->has_rule_set()) {
+    max_files = config->rule_set().max_total_inputs();
     for (const auto& rule : config->rule_set().input_type_rules()) {
       if (rule.input_type() == omnibox::INPUT_TYPE_LENS_IMAGE) {
         max_images = rule.max_instance();
@@ -452,18 +448,29 @@ void SearchboxHandler::SetupWebUIDataSource(content::WebUIDataSource* source,
       }
     }
   }
-  // TODO(crbug.com/483852166): Update the error messages to be more specific to
-  // the input type.
+
+  source->AddString(
+      "composeboxDragAndDropHint",
+      l10n_util::GetPluralStringFUTF16(
+          IDS_NTP_COMPOSE_DRAG_AND_DROP_HINT,
+          max_files > 0 ? max_files
+                        : composebox_config.composebox().max_num_files()));
+  source->AddString(
+      "maxFilesReachedError",
+      l10n_util::GetPluralStringFUTF16(
+          IDS_NTP_COMPOSE_MAX_FILES_REACHED_ERROR,
+          max_files > 0 ? max_files
+                        : composebox_config.composebox().max_num_files()));
   source->AddString(
       "maxImagesReachedError",
       l10n_util::GetPluralStringFUTF16(
-          IDS_NTP_COMPOSE_MAX_FILES_REACHED_ERROR,
+          IDS_NTP_COMPOSE_MAX_IMAGES_REACHED_ERROR,
           max_images > 0 ? max_images
                          : composebox_config.composebox().max_num_files()));
   source->AddString(
       "maxPdfsReachedError",
       l10n_util::GetPluralStringFUTF16(
-          IDS_NTP_COMPOSE_MAX_FILES_REACHED_ERROR,
+          IDS_NTP_COMPOSE_MAX_PDFS_REACHED_ERROR,
           max_pdfs > 0 ? max_pdfs
                        : composebox_config.composebox().max_num_files()));
   source->AddBoolean(
@@ -930,9 +937,10 @@ void SearchboxHandler::QueryAutocomplete(const std::u16string& input,
   // Set the lens overlay suggest inputs, if available.
   if (std::optional<lens::proto::LensOverlaySuggestInputs> suggest_inputs =
           controller_->client()->GetLensOverlaySuggestInputs()) {
-    // Don't set lens params if in "Create Image" or "Canvas" mode. This
-    // prevents the contextual client from being used in this tool mode.
-    if (!GetInputState().image_gen_upload_active ||
+    // Don't set lens params if in "Create Image" with an image present or in
+    // "Canvas" mode. This prevents the contextual client from being used in
+    // this tool mode.
+    if (!GetInputState().image_gen_upload_active &&
         GetInputState().active_tool != omnibox::ToolMode::TOOL_MODE_CANVAS) {
       autocomplete_input.set_lens_overlay_suggest_inputs(*suggest_inputs);
     }
@@ -977,6 +985,60 @@ void SearchboxHandler::OpenAutocompleteMatch(uint8_t line,
       shift_key);
   edit_model()->OpenSelection(OmniboxPopupSelection(line), timestamp,
                               disposition);
+}
+
+OmniboxPopupSelection ConvertSelection(
+    searchbox::mojom::OmniboxPopupSelectionPtr selection) {
+  OmniboxPopupSelection::LineState state =
+      OmniboxPopupSelection::LineState::LINE_STATE_MAX_VALUE;
+  switch (selection->state) {
+    case searchbox::mojom::SelectionLineState::kNormal: {
+      state = OmniboxPopupSelection::LineState::NORMAL;
+      break;
+    }
+    case searchbox::mojom::SelectionLineState::kKeywordMode: {
+      state = OmniboxPopupSelection::LineState::KEYWORD_MODE;
+      break;
+    }
+    case searchbox::mojom::SelectionLineState::kFocusedButtonAction: {
+      state = OmniboxPopupSelection::LineState::FOCUSED_BUTTON_ACTION;
+      break;
+    }
+    case searchbox::mojom::SelectionLineState::kFocusedButtonRemoveSuggestion: {
+      state =
+          OmniboxPopupSelection::LineState::FOCUSED_BUTTON_REMOVE_SUGGESTION;
+      break;
+    }
+    case searchbox::mojom::SelectionLineState::kFocusedButtonAim: {
+      state = OmniboxPopupSelection::LineState::FOCUSED_BUTTON_AIM;
+      break;
+    }
+    case searchbox::mojom::SelectionLineState::
+        kFocusedButtonContextEntrypoint: {
+      // Handled directly by webui omnibox popup.
+      NOTREACHED();
+    }
+  }
+  CHECK_NE(state, OmniboxPopupSelection::LineState::LINE_STATE_MAX_VALUE);
+  // Special case line for mojom equivalent of kNoMatch; it is represented
+  // as uint8_t so direct conversion would become a positive out of bounds
+  // index.
+  return OmniboxPopupSelection(selection->line == 255
+                                   ? OmniboxPopupSelection::kNoMatch
+                                   : selection->line,
+                               state, selection->action_index);
+}
+
+void SearchboxHandler::SetPopupSelection(
+    searchbox::mojom::OmniboxPopupSelectionPtr selection) {
+  edit_model()->SetPopupSelection(ConvertSelection(std::move(selection)), false,
+                                  false, false);
+}
+
+void SearchboxHandler::OpenPopupSelection(
+    searchbox::mojom::OmniboxPopupSelectionPtr selection,
+    WindowOpenDisposition disposition) {
+  edit_model()->OpenSelection(ConvertSelection(std::move(selection)));
 }
 
 void SearchboxHandler::OnNavigationLikely(

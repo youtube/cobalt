@@ -7,8 +7,9 @@
 <translation id="1070329623210597193">Ficheiros que este site pode ver ou editar</translation>
 <translation id="1073417869336441572">Ajude-nos a melhorar o Chrome ao dizer-nos o motivo pelo qual permitiu cookies de terceiros. <ph name="BEGIN_LINK" />Envie feedback<ph name="END_LINK" /></translation>
 <translation id="1074758928858737435">Pode pedir para ver a versão para computador dos sites</translation>
-<translation id="1085696779717592361">Use o Chrome por predefinição</translation>
+<translation id="1126523729897810826">Conclua as ações sugeridas abaixo para tirar o máximo partido do Chrome</translation>
 <translation id="113098737392899175">Navegar pelas páginas com um cursor de texto quando tiver um teclado ligado</translation>
+<translation id="1148624853678088576">Está tudo pronto!</translation>
 <translation id="1149644372535087155">Guarde palavras-passe no Chrome</translation>
 <translation id="1178015372320901893">Secção inferior de Os meus atalhos</translation>
 <translation id="1178581264944972037">Pausa</translation>
@@ -53,6 +54,7 @@
 <translation id="1569054338208717605">Acelerar os sites com o motor V8 do Chrome, mas tornar o Chrome ligeiramente menos resistente a ataques</translation>
 <translation id="1593426485665524382">Novas ações disponíveis junto à parte superior do ecrã</translation>
 <translation id="1594521731409209842">Junte ou afaste os dedos no ecrã para redimensionar a foto</translation>
+<translation id="1599268789440304082">Secção de configuração aberta</translation>
 <translation id="1601560923496285236">Aplicar</translation>
 <translation id="1615755956145364867">Os sites podem solicitar a reprodução de conteúdo protegido</translation>
 <translation id="1620510694547887537">Câmara</translation>
@@ -191,12 +193,12 @@ A Proteção avançada controla estas definições do Chrome:
 <translation id="2802908157808345702">Não permitir que os sites enviem pop-ups nem usem redirecionamentos</translation>
 <translation id="2814830417943086299">Agora, o Chrome mostra os seus separadores recentes na lista de apps e nos resultados da pesquisa do seu dispositivo. Pode desativar esta opção em qualquer altura nas definições do Chrome.</translation>
 <translation id="2822354292072154809">Tem a certeza de que quer repor todas as autorizações do site para <ph name="CHOSEN_OBJECT_NAME" />?</translation>
+<translation id="2848335882304088250">Agora, vai tirar o máximo partido do Chrome no seu dispositivo.</translation>
 <translation id="2850913818900871965">Peça a vista de dispositivo móvel</translation>
 <translation id="2870560284913253234">Site</translation>
 <translation id="2874939134665556319">Faixa anterior</translation>
 <translation id="2891975107962658722">Impeça um site de guardar dados no seu dispositivo</translation>
 <translation id="2903493209154104877">Moradas</translation>
-<translation id="2910701580606108292">Perguntar antes de permitir que os sites reproduzam conteúdos protegidos</translation>
 <translation id="2918484639460781603">Ir para definições</translation>
 <translation id="2932883381142163287">Denunciar abuso</translation>
 <translation id="2939338015096024043">Quando esta opção está ativada, os sites podem pedir para monitorizar a posição da câmara e saber mais sobre o ambiente à sua volta. Quando esta opção está desativada, os sites não podem monitorizar a posição da câmara nem saber mais sobre o ambiente à sua volta.</translation>
@@ -298,7 +300,6 @@ A Proteção avançada controla estas definições do Chrome:
 <translation id="3924858949939391676">Mostrar links assim que o Modo de leitura estiver ativado</translation>
 <translation id="3933121352599513978">Reduzir pedidos indesejados (recomendado)</translation>
 <translation id="3934905113567851655">Junte/afaste os dedos para redimensionar</translation>
-<translation id="3955193568934677022">Permitir que os sites reproduzam conteúdo protegido (recomendado)</translation>
 <translation id="3955321697524543127">Não permitir que os sites estabeleçam ligação a dispositivos USB</translation>
 <translation id="3965467402665811906">Os sites podem pedir para usar as informações guardadas sobre si</translation>
 <translation id="3967822245660637423">Transferência concluída</translation>
@@ -352,7 +353,9 @@ A Proteção avançada controla estas definições do Chrome:
 <translation id="4505788138578415521">URL expandido</translation>
 <translation id="4522570452068850558">Detalhes</translation>
 <translation id="4523472416386354622">Iniciar sessão para começar</translation>
+<translation id="4529207923544043455">A secção inferior apresenta as tarefas concluídas e não concluídas da lista de configuração</translation>
 <translation id="4534723447064627427">Para permitir que a app <ph name="APP_NAME" /> aceda ao microfone, ative também o microfone nas <ph name="BEGIN_LINK" />Definições do Android<ph name="END_LINK" />.</translation>
+<translation id="4545694195887112015">Secção de configuração fechada</translation>
 <translation id="4566417217121906555">Desativar microfone</translation>
 <translation id="4570913071927164677">Detalhes</translation>
 <translation id="4578289292431526768">Vamos lá</translation>
@@ -509,7 +512,6 @@ A Proteção avançada controla estas definições do Chrome:
 <translation id="6171020522141473435">Quando esta opção está ativada, os sites podem pedir para usar dispositivos Bluetooth. Quando esta opção está desativada, os sites não podem usar dispositivos Bluetooth.</translation>
 <translation id="6177128806592000436">A sua ligação a este site não é segura</translation>
 <translation id="6181444274883918285">Adicionar exceção de site</translation>
-<translation id="6192792657125177640">Excepções</translation>
 <translation id="6194967801833346599">{DAYS,plural, =1{O Chrome vai bloquear os cookies novamente amanhã}other{# dias até os cookies serem bloqueados novamente}}</translation>
 <translation id="6196640612572343990">Bloquear cookies de terceiros</translation>
 <translation id="6205314730813004066">Privacidade dos anúncios</translation>
@@ -632,7 +634,6 @@ A Proteção avançada controla estas definições do Chrome:
 <translation id="7561196759112975576">Sempre</translation>
 <translation id="7573594921350120855">Normalmente, os sites utilizam a sua câmara de vídeo para funcionalidades de comunicação como chat de vídeo.</translation>
 <translation id="7574529565935733861">{NUM_MONTHS,plural, =1{Há <ph name="NUM_MONTHS_ONE" /> mês}other{Há <ph name="NUM_MONTHS_MANY" /> meses}}</translation>
-<translation id="757524316907819857">Impedir que os sites reproduzam conteúdos protegidos</translation>
 <translation id="7586676035079382730">Acesso às notificações não permitido</translation>
 <translation id="7594634374516752650">Ligado a um dispositivo Bluetooth</translation>
 <translation id="7617547684249261169">Pode eliminar parte ou todo o seu histórico, cookies, dados de sites e muito mais</translation>

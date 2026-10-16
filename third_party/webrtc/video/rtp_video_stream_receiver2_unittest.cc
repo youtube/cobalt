@@ -263,7 +263,6 @@ class RtpVideoStreamReceiver2Test : public ::testing::Test,
   VideoReceiveStreamInterface::Config CreateConfig() {
     VideoReceiveStreamInterface::Config config(nullptr);
     config.rtp.remote_ssrc = 1111;
-    config.rtp.local_ssrc = 2222;
     config.rtp.red_payload_type = kRedPayloadType;
     config.rtp.packet_sink_ = this;
     return config;

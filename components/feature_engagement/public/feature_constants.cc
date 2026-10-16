@@ -232,6 +232,8 @@ BASE_FEATURE(kIPHSideBySidePinnableFeature,
 BASE_FEATURE(kIPHSideBySideTabSwitchFeature,
              "IPH_SideBySideTabSwitchFeature",
              base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kIPHVerticalTabstripTutorialFeature,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHSidePanelGenericPinnableFeature,
              "IPH_SidePanelGenericPinnableFeature",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -446,6 +448,9 @@ BASE_FEATURE(kIPHFuseboxAttachmentFeature,
 BASE_FEATURE(kIPHGenericAlwaysTriggerHelpUiFeature,
              "IPH_GenericAlwaysTriggerHelpUiFeature",
              base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kIPHGlicPromoAndroidFeature,
+             "IPH_GlicPromoAndroid",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHIdentityDiscFeature,
              "IPH_IdentityDisc",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -880,6 +885,10 @@ BASE_FEATURE(kIPHiOSPinMostVisitedSiteFeature,
              "IPH_iOSPinMostVisitedSiteFeature",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kIPHiOSActiveDaysTrackingFeature,
+             "IPH_iOSActiveDaysTrackingFeature",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 #endif  // BUILDFLAG(IS_IOS)
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_LINUX) || \
@@ -918,7 +927,12 @@ BASE_FEATURE(kIPHAutofillAiOptInFeature,
              base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHAutofillAiValuablesFeature,
              "IPH_AutofillAiValuables",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+             base::FEATURE_DISABLED_BY_DEFAULT
+#else
+             base::FEATURE_ENABLED_BY_DEFAULT
+#endif
+);
 BASE_FEATURE(kIPHAutofillVirtualCardCVCSuggestionFeature,
              "IPH_AutofillVirtualCardCVCSuggestion",
              base::FEATURE_ENABLED_BY_DEFAULT);

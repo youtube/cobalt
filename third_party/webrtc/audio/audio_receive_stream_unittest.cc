@@ -148,7 +148,6 @@ struct ConfigHelper {
           EXPECT_THAT(codecs, ::testing::IsEmpty());
         });
 
-    stream_config_.rtp.local_ssrc = kLocalSsrc;
     stream_config_.rtp.remote_ssrc = kRemoteSsrc;
     stream_config_.rtp.nack.rtp_history_ms = 300;
     stream_config_.rtcp_send_transport = &rtcp_send_transport_;
@@ -219,10 +218,9 @@ std::vector<uint8_t> CreateRtcpSenderReport() {
 TEST(AudioReceiveStreamTest, ConfigToString) {
   AudioReceiveStreamInterface::Config config;
   config.rtp.remote_ssrc = kRemoteSsrc;
-  config.rtp.local_ssrc = kLocalSsrc;
   config.rtp.rtcp_mode = RtcpMode::kOff;
   EXPECT_EQ(
-      "{rtp: {remote_ssrc: 1234, local_ssrc: 5678, nack: "
+      "{rtp: {remote_ssrc: 1234, nack: "
       "{rtp_history_ms: 0}, rtcp: off}, "
       "rtcp_send_transport: null}",
       config.ToString());

@@ -662,6 +662,23 @@ def CheckGnGen(input_api, output_api):
     return []
 
 
+def CheckDeps(input_api, output_api):
+    """Runs checkdeps """
+    repo_root = input_api.change.RepositoryRoot()
+    checkdeps_path = input_api.os_path.join(repo_root, 'buildtools',
+                                            'checkdeps')
+    with _AddToPath(checkdeps_path):
+        import checkdeps
+
+    deps_checker = checkdeps.DepsChecker(input_api.PresubmitLocalPath())
+    deps_checker.CheckDirectory(input_api.PresubmitLocalPath())
+    results = []
+    if deps_checker.results_formatter.GetResults():
+        results.append(
+            output_api.PresubmitError('\n'.join(
+                deps_checker.results_formatter.GetResults())))
+    return results
+
 def CheckUnwantedDependencies(input_api, output_api, source_file_filter):
     """Runs checkdeps on #include statements added in this
   change. Breaking - rules is an error, breaking ! rules is a
@@ -1000,6 +1017,7 @@ def CommonChecks(input_api, output_api):
     results.extend(
         input_api.canned_checks.CheckPatchFormatted(input_api, output_api))
     results.extend(CheckNativeApiHeaderChanges(input_api, output_api))
+    results.extend(CheckDeps(input_api, output_api))
     results.extend(
         CheckNoIOStreamInHeaders(input_api,
                                  output_api,

@@ -119,6 +119,12 @@ struct ScreamV2Parameters {
   // time feedback is delayed by the receiver. I.e the time from a packet is
   // received until feedback is sent. If zero, this delay is ignored.
   FieldTrialParameter<double> feedback_hold_time_avg_g;
+
+  // If the time since last reaction to congestion is larger than this, the
+  // pacing window is increased. I.e. packets are allowed to be sent in larger
+  // bursts.
+  FieldTrialParameter<TimeDelta>
+      allow_large_pacing_bursts_after_congestion_time;
 };
 
 }  // namespace webrtc

@@ -487,10 +487,7 @@ WellKnownImport CheckForWellKnownImport(
     // if there are concurrent calls to `set_cast_api_signature`, then all calls
     // would store the same signature to the native module.
     if (!native_module->has_fast_api_signature(func_index)) {
-      // We have to use the lock of the NativeModule here because the
-      // `signature_storage` may get accessed by another module instantiation
-      // concurrently.
-      NativeModule::NativeModuleAllocationLockScope lock(native_module);
+      base::MutexGuard lock{&native_module->module()->signature_storage_mutex};
       native_module->set_fast_api_signature(
           func_index,
           GetFunctionSigForFastApiImport(
@@ -1292,7 +1289,7 @@ Maybe<bool> InstanceBuilder::Build_Phase1(
   //--------------------------------------------------------------------------
   // Set up table storage space, and initialize it for non-imported tables.
   //--------------------------------------------------------------------------
-  int table_count = static_cast<int>(module_->tables.size());
+  const uint32_t table_count = static_cast<uint32_t>(module_->tables.size());
   if (table_count == 0) {
     trusted_data_->set_tables(*isolate_->factory()->empty_fixed_array());
     if (shared) {
@@ -1316,7 +1313,7 @@ Maybe<bool> InstanceBuilder::Build_Phase1(
       shared_trusted_data_->set_tables(*shared_tables);
       shared_trusted_data_->set_dispatch_tables(*shared_dispatch_tables);
     }
-    for (int i = module_->num_imported_tables; i < table_count; i++) {
+    for (uint32_t i = module_->num_imported_tables; i < table_count; i++) {
       const WasmTable& table = module_->tables[i];
       CanonicalValueType canonical_type = module_->canonical_type(table.type);
       // Initialize tables with null for now. We will initialize non-defaultable

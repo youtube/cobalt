@@ -3,12 +3,14 @@
 # found in the LICENSE file.
 
 import os
+import pathlib
 import re
 import sys
 import shutil
 
 import utils.command_util as command
 import utils.constants as const
+from utils.command_error import CommandError
 
 
 def _CodeSearchFiles(query_args: list[str]) -> list[str]:
@@ -42,18 +44,22 @@ def _FindRemoteCandidates(target: str) -> tuple[list[str], list[str]]:
 def IsTestFile(file_path: str) -> const.TestValidity:
   if not const.TEST_FILE_NAME_REGEX.match(file_path):
     return const.TestValidity.NOT_A_TEST
-  if file_path.endswith('.cc') or file_path.endswith('.mm'):
-    # Try a bit harder to remove non-test files for c++. Without this,
-    # 'autotest.py base/' finds non-test files.
-    try:
-      with open(file_path, 'r', encoding='utf-8') as f:
-        if const.GTEST_INCLUDE_REGEX.search(f.read()) is not None:
-          return const.TestValidity.VALID_TEST
-    except IOError:
-      pass
-    # It may still be a test file, even if it doesn't include a gtest file.
-    return const.TestValidity.MAYBE_A_TEST
-  return const.TestValidity.VALID_TEST
+
+  # Verify the file contains actual test definitions.
+  try:
+    if file_path.endswith(('.cc', '.mm')):
+      content = pathlib.Path(file_path).read_text(encoding='utf-8')
+      if const.GTEST_TEST_DEFINITION_MACRO_REGEX.search(content) is not None:
+        return const.TestValidity.VALID_TEST
+    elif file_path.endswith('.java'):
+      content = pathlib.Path(file_path).read_text(encoding='utf-8')
+      if const.JUNIT_TEST_ANNOTATION_REGEX.search(content) is not None:
+        return const.TestValidity.VALID_TEST
+  except IOError:
+    pass
+
+  # It may still be a test file, even if it doesn't include a test definition.
+  return const.TestValidity.MAYBE_A_TEST
 
 
 def _RecursiveMatchFilename(folder: str,
@@ -142,22 +148,31 @@ def SearchForTestsByName(terms: list[str], quiet: bool,
   # find files containing the tests.
   if not remote_search:
     # Use ripgrep.
-    files = [
-        f for f in command.RunCommand([
-            'rg',
-            '-l',
-            '--multiline',
-            '--multiline-dotall',
-            '-t',
-            'cpp',
-            '-t',
-            'java',
-            '-t',
-            'objcpp',
-            pattern,
-            str(const.SRC_DIR),
-        ]).splitlines()
-    ]
+    try:
+      files = [
+          f for f in command.RunCommand([
+              'rg',
+              '-l',
+              '--multiline',
+              '--multiline-dotall',
+              '-g',
+              const.GTEST_FILE_NAME_GLOB,
+              '-g',
+              const.PREF_MAPPING_FILE_NAME_GLOB,
+              '--glob-case-insensitive',
+              pattern,
+              str(const.SRC_DIR),
+          ]).splitlines()
+      ]
+    except CommandError as e:
+      if e.return_code == 1:
+        # Exit status 1: no matches found.
+        files = []
+      else:
+        # Exit status 2: error (regex syntax error, unable to read file).
+        raise
+    if const.DEBUG:
+      print(f'rg found: {files}')
   else:
     # Use code search.
     files = _CodeSearchFiles(['pcre:true', pattern])

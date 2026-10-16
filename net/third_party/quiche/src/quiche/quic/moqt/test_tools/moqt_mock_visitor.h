@@ -41,7 +41,7 @@ struct MockSessionCallbacks {
   testing::MockFunction<void(absl::string_view)> session_terminated_callback;
   testing::MockFunction<void()> session_deleted_callback;
   testing::MockFunction<void(const TrackNamespace&,
-                             std::optional<VersionSpecificParameters>,
+                             const std::optional<MessageParameters>&,
                              MoqtResponseCallback)>
       incoming_publish_namespace_callback;
   testing::MockFunction<std::unique_ptr<MoqtNamespaceTask>(
@@ -86,12 +86,11 @@ class MockTrackPublisher : public MoqtTrackPublisher {
   MOCK_METHOD(std::optional<quic::QuicTimeDelta>, expiration, (),
               (const, override));
   MOCK_METHOD(std::unique_ptr<MoqtFetchTask>, StandaloneFetch,
-              (Location, Location, std::optional<MoqtDeliveryOrder>),
-              (override));
+              (Location, Location, MoqtDeliveryOrder), (override));
   MOCK_METHOD(std::unique_ptr<MoqtFetchTask>, RelativeFetch,
-              (uint64_t, std::optional<MoqtDeliveryOrder>), (override));
+              (uint64_t, MoqtDeliveryOrder), (override));
   MOCK_METHOD(std::unique_ptr<MoqtFetchTask>, AbsoluteFetch,
-              (uint64_t, std::optional<MoqtDeliveryOrder>), (override));
+              (uint64_t, MoqtDeliveryOrder), (override));
 
  private:
   FullTrackName track_name_;
@@ -129,20 +128,17 @@ class TestTrackPublisher : public MoqtTrackPublisher {
   }
   // TODO(martinduke): Support Fetch
   std::unique_ptr<MoqtFetchTask> StandaloneFetch(
-      Location start, Location end,
-      std::optional<MoqtDeliveryOrder> delivery_order) override {
+      Location start, Location end, MoqtDeliveryOrder delivery_order) override {
     return std::make_unique<MoqtFailedFetch>(
         absl::UnimplementedError("Fetch not implemented"));
   }
   std::unique_ptr<MoqtFetchTask> RelativeFetch(
-      uint64_t offset,
-      std::optional<MoqtDeliveryOrder> delivery_order) override {
+      uint64_t offset, MoqtDeliveryOrder delivery_order) override {
     return std::make_unique<MoqtFailedFetch>(
         absl::UnimplementedError("Fetch not implemented"));
   }
   std::unique_ptr<MoqtFetchTask> AbsoluteFetch(
-      uint64_t offset,
-      std::optional<MoqtDeliveryOrder> delivery_order) override {
+      uint64_t offset, MoqtDeliveryOrder delivery_order) override {
     return std::make_unique<MoqtFailedFetch>(
         absl::UnimplementedError("Fetch not implemented"));
   }

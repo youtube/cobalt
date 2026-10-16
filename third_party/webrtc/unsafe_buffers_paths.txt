@@ -646,7 +646,6 @@
 -rtc_base/time_utils_unittest.cc
 -rtc_base/timestamp_aligner_unittest.cc
 -rtc_base/virtual_socket_server.cc
--rtc_base/virtual_socket_unittest.cc
 -rtc_base/win32.cc
 -rtc_base/zero_memory_unittest.cc
 -rtc_tools/data_channel_benchmark/data_channel_benchmark.cc

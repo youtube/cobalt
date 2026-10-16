@@ -1060,6 +1060,7 @@ Ezt egyéb esetben letiltják az Ön adatvédelmi beállításai. Az engedélyez
 <translation id="2674524144218093528">Házfestés és dekoráció</translation>
 <translation id="26774279487328902"><ph name="GROUP_COUNT" /> lapcsoport már nem áll rendelkezésre</translation>
 <translation id="2677748264148917807">Lap elhagyása</translation>
+<translation id="2679659833697380">Adatait az eszközre menti a rendszer</translation>
 <translation id="2683195745483370038">További találatok vannak</translation>
 <translation id="2686919536310834199">Visszajelzés küldése a Segítség az íráshoz funkcióval kapcsolatban.</translation>
 <translation id="2687555958734450033">Legjobb illeszkedés</translation>
@@ -2571,6 +2572,7 @@ Ezt egyéb esetben letiltják az Ön adatvédelmi beállításai. Az engedélyez
 <translation id="5114987907971894280">virtuális valóság</translation>
 <translation id="5115232566827194440">Korlátozott felügyelt vendégmunkamenet felülírása</translation>
 <translation id="5115563688576182185">(64 bites)</translation>
+<translation id="5116015291385561204">Személyazonosság igazolása bizalmas információk automatikus kitöltéséhez</translation>
 <translation id="5120526915373271910">Családi filmek</translation>
 <translation id="5122786942953798871">Boríték (karton)</translation>
 <translation id="5123063207673082822">Hétvége</translation>
@@ -3971,6 +3973,7 @@ További részletek:
 <translation id="7372973238305370288">keresési találat</translation>
 <translation id="7374461526650987610">Protokollkezelők</translation>
 <translation id="7374733840632556089">A probléma oka az Ön vagy valaki más által az eszközre telepített egyik tanúsítvány. Erről a tanúsítványról tudni lehet, hogy hálózati forgalom megfigyelésére és elfogására használják, és a Chrome szerint nem megbízható. Bár a megfigyelésnek létezik néhány jogszerű formája (például iskolai vagy vállalati hálózatokon), a Chrome biztosra szeretne menni abban, hogy Ön ezzel tisztában van – még akkor is, ha Ön nem tud tenni ellene. A megfigyelés az internethez hozzáférő bármely böngészőben vagy alkalmazásban megtörténhet.</translation>
+<translation id="73750335798090836">A nagyobb biztonság érdekében mindig használja ujjlenyomatát, arcát vagy más képernyőzárat, amikor bizalmas információkat (például utazási és személyazonosító okmányokat) használ</translation>
 <translation id="7375532151824574023">{NUM_COOKIES,plural, =0{Nincs engedélyezett webhely}=1{1 engedélyezett webhely}other{# engedélyezett webhely}}</translation>
 <translation id="7375818412732305729">Fájlcsatolás történt</translation>
 <translation id="7376031331622621328">Kereskedelmi alsó lap</translation>
@@ -4227,6 +4230,7 @@ További részletek:
 <translation id="7714404809393719981">Fotó (félig fényes)</translation>
 <translation id="7714424966701020172">A „Teljes név kitöltése” lehetőség volt kiválasztva</translation>
 <translation id="7714464543167945231">Tanúsítvány</translation>
+<translation id="7714943438925794410">A fizetési oldal tartalmát megosztjuk a Google-lal, hogy felkínálhassuk ezeket a lehetőségeket. Ha el szeretné rejteni a későbbi fizetési lehetőségeket az automatikus kitöltésnél, lépjen ide: <ph name="IDS_AUTOFILL_CARD_BNPL_SELECT_PROVIDER_FOOTNOTE_HIDE_OPTION_PAYMENT_SETTINGS_LINK_TEXT" />.</translation>
 <translation id="7716147886133743102">Rendszergazda tiltja</translation>
 <translation id="7716375162095500223">Még nincs feltöltve, vagy ki lett hagyva</translation>
 <translation id="7716424297397655342">A webhely nem tölthető be a gyorsítótárból</translation>
@@ -4309,6 +4313,7 @@ További részletek:
 <translation id="7862306158978555061">bizalmas információkat megjeleníteni</translation>
 <translation id="7865448901209910068">Legjobb sebesség</translation>
 <translation id="7865482168955081228">A Késleltetett fizetés hibajelző képernyője be van zárva.</translation>
+<translation id="7870207318911766769">A fizetési oldal tartalmát megosztjuk a Google-lal, hogy felkínálhassuk ezeket a lehetőségeket.</translation>
 <translation id="7870281855125116701">Kedvezményt találtunk</translation>
 <translation id="7871445724586827387">Google-fiók jelszavának módosítása</translation>
 <translation id="787226752901403048">Jelentkezzen be a Chrome-ba, hogy megoszthasson lapcsoportokat, csatlakozhasson hozzájuk, és együtt dolgozhasson másokkal ötleteken</translation>

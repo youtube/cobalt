@@ -70,7 +70,7 @@ void BytecodeVerifier::VerifyLight(IsolateForSandbox isolate,
   Check(seen_jumps.IsSubsetOf(valid_offsets), "Invalid control-flow");
 
   HandlerTable table(*bytecode);
-  for (int i = 0; i < table.NumberOfRangeEntries(); ++i) {
+  for (uint32_t i = 0; i < table.NumberOfRangeEntries(); ++i) {
     unsigned start = table.GetRangeStart(i);
     unsigned end = table.GetRangeEnd(i);
     unsigned handler = table.GetRangeHandler(i);
@@ -261,6 +261,8 @@ bool BytecodeVerifier::IsAllowedRuntimeFunction(Runtime::FunctionId id) {
   switch (id) {
 #if V8_ENABLE_WEBASSEMBLY
     case Runtime::kWasmTriggerTierUp:
+    case Runtime::kWasmTraceEnter:
+    case Runtime::kWasmTraceExit:
       return false;
 #endif  // V8_ENABLE_WEBASSEMBLY
     default:

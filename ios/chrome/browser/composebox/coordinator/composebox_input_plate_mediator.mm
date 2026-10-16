@@ -79,6 +79,7 @@
 #import "mojo/public/cpp/base/big_buffer.h"
 #import "net/base/apple/url_conversions.h"
 #import "net/base/url_util.h"
+#import "third_party/omnibox_proto/chrome_aim_entry_point.pb.h"
 #import "third_party/omnibox_proto/model_mode.pb.h"
 #import "third_party/omnibox_proto/searchbox_config.pb.h"
 #import "third_party/omnibox_proto/tool_mode.pb.h"
@@ -184,8 +185,6 @@ CreateInputDataFromAnnotatedPageContent(
   std::unique_ptr<SearchEngineObserverBridge> _searchEngineObserver;
   // Service to check for AI mode eligibility.
   raw_ptr<AimEligibilityService> _aimEligibilityService;
-  // Subscription for AIM eligibility changes.
-  base::CallbackListSubscription _aimEligibilitySubscription;
   // The preference service.
   raw_ptr<PrefService> _prefService;
 
@@ -262,20 +261,7 @@ CreateInputDataFromAnnotatedPageContent(
     _searchEngineObserver =
         std::make_unique<SearchEngineObserverBridge>(self, _templateURLService);
     _aimEligibilityService = aimEligibilityService;
-    if (_aimEligibilityService) {
-      __weak __typeof(self) weakSelf = self;
-      _aimEligibilitySubscription =
-          _aimEligibilityService->RegisterEligibilityChangedCallback(
-              base::BindRepeating(^{
-                [weakSelf didUpdateAimEligiblity];
-              }));
-
-      [self createInputStateModel];
-      [self startInputStateObservation];
-    }
-
-    _items = [[ComposeboxInputItemCollection alloc]
-        initWithAttachmentLimit:[self totalAttachmentLimit]];
+    _items = [[ComposeboxInputItemCollection alloc] init];
     _items.delegate = self;
   }
   return self;
@@ -291,7 +277,6 @@ CreateInputDataFromAnnotatedPageContent(
   _persistTabContextAgent = nullptr;
   _searchEngineObserver.reset();
   _templateURLService = nullptr;
-  _aimEligibilitySubscription = {};
   [self invalidateInputStateSubscription];
   _aimEligibilityService = nullptr;
   _inputStateModel = nullptr;
@@ -324,11 +309,6 @@ CreateInputDataFromAnnotatedPageContent(
     [self extractFaviconForCurrentTab];
   }
 
-  if (base::FeatureList::IsEnabled(kComposeboxAutoattachTab) &&
-      canAttachCurrentTab) {
-    [self attachCurrentTabContent];
-  }
-
   [self commitUIUpdates];
 }
 
@@ -349,7 +329,7 @@ CreateInputDataFromAnnotatedPageContent(
 - (NSUInteger)remainingAttachmentCapacity {
   DCHECK_CALLED_ON_VALID_SEQUENCE(_sequenceChecker);
 
-  NSUInteger availableSlots = _items.availableSlots;
+  NSUInteger availableSlots = [self totalAttachmentLimit] - _items.count;
   switch (_modeHolder.mode) {
     case ComposeboxMode::kRegularSearch:
     case ComposeboxMode::kCanvas:
@@ -408,10 +388,6 @@ CreateInputDataFromAnnotatedPageContent(
     [self reloadSuggestions];
   }
 
-  if (base::FeatureList::IsEnabled(kComposeboxAutoattachTab) && _items.empty) {
-    _modeHolder.mode = ComposeboxMode::kRegularSearch;
-  }
-
   [self notifyContextChanged];
 }
 
@@ -432,6 +408,8 @@ CreateInputDataFromAnnotatedPageContent(
           ComposeboxQueryController::CreateSearchUrlRequestInfo>();
   search_url_request_info->query_text = base::SysNSStringToUTF8(text);
   search_url_request_info->query_start_time = base::Time::Now();
+  search_url_request_info->aim_entry_point =
+      omnibox::IOS_CHROME_FUSEBOX_ENTRY_POINT;
   search_url_request_info->additional_params = additionalParams;
 
   __weak __typeof(self) weakSelf = self;
@@ -588,6 +566,34 @@ CreateInputDataFromAnnotatedPageContent(
   }
 }
 
+- (void)setSearchboxConfig:(const omnibox::SearchboxConfig*)searchboxConfig {
+  // Only preselect when there was already a input state model created.
+  // Otherwise it's safe to assume it is the first time a searchbox config is
+  // loaded.
+  BOOL needPreselection = _inputStateModel != nil;
+
+  contextual_search::InputState previousInputState = _inputState;
+
+  contextual_search::ContextualSearchSessionHandle* sessionHandle =
+      _contextualSearchSession.get();
+  _inputStateModel = std::make_unique<contextual_search::InputStateModel>(
+      *sessionHandle, *searchboxConfig, _isIncognito);
+
+  if (needPreselection) {
+    // Try maintaining the same options if there was no change in their
+    // availability.
+    __weak __typeof(self) weakSelf = self;
+    [self preselectPreferencesIfAvailable:previousInputState
+                               completion:^{
+                                 [weakSelf startInputStateObservation];
+                               }];
+  } else {
+    [self startInputStateObservation];
+  }
+
+  [self commitUIUpdates];
+}
+
 // Returns the model option required by the given input state.
 - (ComposeboxModelOption)requiredModelOptionForInputState:
     (const contextual_search::InputState&)inputState {
@@ -641,13 +647,13 @@ CreateInputDataFromAnnotatedPageContent(
       }
       [_items clearItems];
       _imageUploadCount = 0;
-      _inputStateModel->setActiveTool(omnibox::TOOL_MODE_UNSPECIFIED);
+      [self setActiveTool:omnibox::TOOL_MODE_UNSPECIFIED];
       break;
     case ComposeboxMode::kAIM:
       if (![self isEligibleToAIM]) {
         _modeHolder.mode = ComposeboxMode::kRegularSearch;
       }
-      _inputStateModel->setActiveTool(omnibox::TOOL_MODE_UNSPECIFIED);
+      [self setActiveTool:omnibox::TOOL_MODE_UNSPECIFIED];
       break;
     case ComposeboxMode::kImageGeneration:
       if (![self imageToolAllowed]) {
@@ -660,13 +666,13 @@ CreateInputDataFromAnnotatedPageContent(
       if (![self canvasToolAllowed]) {
         _modeHolder.mode = ComposeboxMode::kRegularSearch;
       }
-      _inputStateModel->setActiveTool(omnibox::TOOL_MODE_CANVAS);
+      [self setActiveTool:omnibox::TOOL_MODE_CANVAS];
       break;
     case ComposeboxMode::kDeepSearch:
       if (![self deepSearchToolAllowed]) {
         _modeHolder.mode = ComposeboxMode::kRegularSearch;
       }
-      _inputStateModel->setActiveTool(omnibox::TOOL_MODE_DEEP_SEARCH);
+      [self setActiveTool:omnibox::TOOL_MODE_DEEP_SEARCH];
       break;
   }
 
@@ -938,7 +944,7 @@ CreateInputDataFromAnnotatedPageContent(
 
 - (void)attachCurrentTabContent {
   DCHECK_CALLED_ON_VALID_SEQUENCE(_sequenceChecker);
-  if (!_items.canAddMoreAttachments) {
+  if (![self canAddMoreAttachments]) {
     [self.delegate showAttachmentLimitError];
     return;
   }
@@ -1006,8 +1012,7 @@ CreateInputDataFromAnnotatedPageContent(
     return;
   }
 
-  BOOL imageGenUploadMode =
-      (_items.count) > 0 && [self uploadAllowedInImageGeneration];
+  BOOL imageGenUploadMode = _items.count > 0;
 
   omnibox::ToolMode toolMode =
       imageGenUploadMode ? omnibox::ToolMode::TOOL_MODE_IMAGE_GEN_UPLOAD
@@ -1532,26 +1537,16 @@ CreateInputDataFromAnnotatedPageContent(
   if (experimental_flags::ShouldForceDisableComposeboxCreateImages()) {
     return NO;
   }
-  if (!_aimEligibilityService) {
-    return NO;
-  }
-  BOOL generateImageAllowed =
-      [self toolAllowedInInputState:omnibox::ToolMode::TOOL_MODE_IMAGE_GEN];
-  return generateImageAllowed &&
-         _aimEligibilityService->IsCreateImagesEligible();
-}
 
-// Whether upload is permitted when in image generation.
-- (BOOL)uploadAllowedInImageGeneration {
-  if (![self imageToolAllowed]) {
-    return NO;
-  }
   if (EnableComposeboxServerSideState()) {
-    return [self
-        toolAllowedInInputState:omnibox::ToolMode::TOOL_MODE_IMAGE_GEN_UPLOAD];
+    return
+        [self toolAllowedInInputState:omnibox::ToolMode::TOOL_MODE_IMAGE_GEN];
+  } else {
+    if (!_aimEligibilityService) {
+      return NO;
+    }
+    return _aimEligibilityService->IsCreateImagesEligible();
   }
-
-  return YES;
 }
 
 // Whether the client is allowed to access canvas mode.
@@ -1562,12 +1557,15 @@ CreateInputDataFromAnnotatedPageContent(
   if (experimental_flags::ShouldForceDisableComposeboxCanvas()) {
     return NO;
   }
-  if (!_aimEligibilityService) {
-    return NO;
-  }
 
-  return [self toolAllowedInInputState:omnibox::TOOL_MODE_CANVAS] &&
-         _aimEligibilityService->IsCanvasEligible();
+  if (EnableComposeboxServerSideState()) {
+    return [self toolAllowedInInputState:omnibox::TOOL_MODE_CANVAS];
+  } else {
+    if (!_aimEligibilityService) {
+      return NO;
+    }
+    return _aimEligibilityService->IsCanvasEligible();
+  }
 }
 
 // Whether the client is allowed to access deep search mode.
@@ -1578,11 +1576,15 @@ CreateInputDataFromAnnotatedPageContent(
   if (experimental_flags::ShouldForceDisableComposeboxDeepSearch()) {
     return NO;
   }
-  if (!_aimEligibilityService) {
-    return NO;
+
+  if (EnableComposeboxServerSideState()) {
+    return [self toolAllowedInInputState:omnibox::TOOL_MODE_DEEP_SEARCH];
+  } else {
+    if (!_aimEligibilityService) {
+      return NO;
+    }
+    return _aimEligibilityService->IsDeepSearchEligible();
   }
-  return [self toolAllowedInInputState:omnibox::TOOL_MODE_DEEP_SEARCH] &&
-         _aimEligibilityService->IsDeepSearchEligible();
 }
 
 // Checks if the user is eligible to upload PDFs, taking into account
@@ -1746,16 +1748,15 @@ CreateInputDataFromAnnotatedPageContent(
 
 // Whether the current state allows tab attachments.
 - (BOOL)fileAttachmentAllowed {
-  BOOL canUploadFiles = [self isEligibleToUploadPdf];
-  if (![self attachmentsAvailable] || !canUploadFiles) {
+  if (![self attachmentsAvailable]) {
     return NO;
   }
 
   if (EnableComposeboxServerSideState()) {
     return [self inputStateAllowsType:omnibox::INPUT_TYPE_LENS_FILE];
+  } else {
+    return [self isEligibleToUploadPdf];
   }
-
-  return YES;
 }
 
 // Whether the current state allows image attachments.
@@ -1767,12 +1768,6 @@ CreateInputDataFromAnnotatedPageContent(
   if (EnableComposeboxServerSideState() &&
       ![self inputStateAllowsType:omnibox::INPUT_TYPE_LENS_IMAGE]) {
     return NO;
-  }
-
-  BOOL isImageCreationMode =
-      _modeHolder.mode == ComposeboxMode::kImageGeneration;
-  if (isImageCreationMode) {
-    return [self uploadAllowedInImageGeneration];
   }
 
   return YES;
@@ -1977,7 +1972,9 @@ CreateInputDataFromAnnotatedPageContent(
       LensEntrypoint::Composebox, [self isDSEGoogle]);
   BOOL allowsMultimodalActions = dseGoogle && eligibleToAIM;
   BOOL canSend = hasContent && !compactMode && allowsMultimodalActions;
-  BOOL showShortcuts = !hasContent && !canSend;
+  BOOL showShortcuts =
+      !hasContent && !canSend &&
+      !base::FeatureList::IsEnabled(kHideFuseboxVoiceLensActions);
   BOOL showLeadingImage = !compactMode || !allowsMultimodalActions;
   BOOL shouldPersistAIMButton =
       IsComposeboxAIMNudgeEnabled() && !compactMode && allowsMultimodalActions;
@@ -2150,22 +2147,10 @@ CreateInputDataFromAnnotatedPageContent(
   _isUpdatingCompactMode = NO;
 }
 
-#pragma mark - AIM eligibility observing.
-
-// Called when the AIM eligibility service is updated.
-- (void)didUpdateAimEligiblity {
-  contextual_search::InputState previousInputState = _inputState;
-  [self createInputStateModel];
-
-  // Try maintaining the same options if there was no change in their
-  // availability.
-  __weak __typeof(self) weakSelf = self;
-  [self preselectPreferencesIfAvailable:previousInputState
-                             completion:^{
-                               [weakSelf startInputStateObservation];
-                             }];
-
-  [self commitUIUpdates];
+- (void)setActiveTool:(omnibox::ToolMode)activeTool {
+  if (_inputStateModel) {
+    _inputStateModel->setActiveTool(activeTool);
+  }
 }
 
 #pragma mark - Input State Subscription
@@ -2178,7 +2163,7 @@ CreateInputDataFromAnnotatedPageContent(
   contextual_search::ContextualSearchSessionHandle* sessionHandle =
       _contextualSearchSession.get();
   _inputStateModel = std::make_unique<contextual_search::InputStateModel>(
-      *sessionHandle, *config);
+      *sessionHandle, *config, _isIncognito);
 }
 
 - (void)preselectPreferencesIfAvailable:
@@ -2215,7 +2200,7 @@ CreateInputDataFromAnnotatedPageContent(
   bool canSelectTool =
       [self canSelectToolBasedOnInputState:preselectionState.active_tool];
   if (canSelectTool) {
-    _inputStateModel->setActiveTool(preselectionState.active_tool);
+    [self setActiveTool:preselectionState.active_tool];
   }
 }
 
@@ -2269,7 +2254,10 @@ CreateInputDataFromAnnotatedPageContent(
   }
   _isMultiline = sender.numberOfLines > 1;
   [self commitUIUpdates];
+  [self.consumer updatePreferredContentSizeForNewTextFieldHeight];
 }
+
+#pragma mark - ComposeboxInputItemCollectionDelegate
 
 - (void)composeboxInputItemCollectionDidUpdateItems:
     (ComposeboxInputItemCollection*)composeboxInputItemCollection {

@@ -62,33 +62,13 @@ class SrtpSession {
 
   // Encrypts/signs an individual RTP/RTCP packet, in-place.
   // If an HMAC is used, this will increase the packet size.
-  [[deprecated("Pass CopyOnWriteBuffer")]] bool ProtectRtp(void* data,
-                                                           int in_len,
-                                                           int max_len,
-                                                           int* out_len);
-  bool ProtectRtp(CopyOnWriteBuffer& buffer);
-  // Overloaded version, outputs packet index.
-  [[deprecated("Pass CopyOnWriteBuffer")]] bool ProtectRtp(void* data,
-                                                           int in_len,
-                                                           int max_len,
-                                                           int* out_len,
-                                                           int64_t* index);
   bool ProtectRtp(CopyOnWriteBuffer& buffer, int64_t* index);
+  bool ProtectRtp(CopyOnWriteBuffer& buffer);
 
-  [[deprecated("Pass CopyOnWriteBuffer")]] bool ProtectRtcp(void* data,
-                                                            int in_len,
-                                                            int max_len,
-                                                            int* out_len);
   bool ProtectRtcp(CopyOnWriteBuffer& buffer);
   // Decrypts/verifies an invidiual RTP/RTCP packet.
   // If an HMAC is used, this will decrease the packet size.
-  [[deprecated("Pass CopyOnWriteBuffer")]] bool UnprotectRtp(void* data,
-                                                             int in_len,
-                                                             int* out_len);
   bool UnprotectRtp(CopyOnWriteBuffer& buffer);
-  [[deprecated("Pass CopyOnWriteBuffer")]] bool UnprotectRtcp(void* data,
-                                                              int in_len,
-                                                              int* out_len);
   bool UnprotectRtcp(CopyOnWriteBuffer& buffer);
 
   // Helper method to get authentication params.
@@ -136,9 +116,6 @@ class SrtpSession {
   // Writes unencrypted packets in text2pcap format to the log file
   // for debugging.
   void DumpPacket(const CopyOnWriteBuffer& buffer, bool outbound);
-  [[deprecated("Pass CopyOnWriteBuffer")]] void DumpPacket(const void* buf,
-                                                           int len,
-                                                           bool outbound);
 
   void HandleEvent(const srtp_event_data_t* ev);
   static void HandleEventThunk(srtp_event_data_t* ev);

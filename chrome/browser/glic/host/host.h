@@ -10,6 +10,7 @@
 
 #include "base/callback_list.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/observer_list_types.h"
 #include "chrome/browser/glic/host/context/glic_sharing_manager_provider.h"
@@ -18,11 +19,12 @@
 #include "chrome/browser/glic/host/host_metrics.h"
 #include "chrome/browser/glic/public/glic_instance.h"
 #include "chrome/common/actor/task_id.h"
-#include "components/autofill/core/browser/integrators/glic/actor_form_filling_types.h"
+#include "components/autofill/core/browser/integrators/actor/actor_form_filling_types.h"
 #include "components/tabs/public/tab_interface.h"
 
 namespace actor {
 class ActorTaskDelegate;
+class AutofillSelectionDialogEventHandler;
 }  // namespace actor
 
 class Profile;
@@ -78,6 +80,9 @@ class Host : public GlicSharingManagerProvider {
     virtual void SwitchConversation(
         glic::mojom::ConversationInfoPtr info,
         mojom::WebClientHandler::SwitchConversationCallback callback) = 0;
+
+    // Called when the microphone status changes in the web client.
+    virtual void OnMicrophoneStatusChanged(mojom::MicrophoneStatus status) = 0;
   };
 
   // Functions that are on either GlicInstance or GlidKeyedService.
@@ -166,8 +171,6 @@ class Host : public GlicSharingManagerProvider {
     // If the glic WebUI is destroyed, the webUI state is returned to
     // kUninitialized.
     virtual void WebUiStateChanged(mojom::WebUiState state) {}
-    // Called when the current view changes in the glic WebUI.
-    virtual void OnViewChanged(mojom::CurrentView view) {}
     virtual void ContextAccessIndicatorChanged(bool enabled) {}
   };
 
@@ -179,6 +182,8 @@ class Host : public GlicSharingManagerProvider {
   Host(const Host&) = delete;
   ~Host() override;
   Host& operator=(const Host&) = delete;
+
+  Profile* profile() const { return profile_; }
 
   void SetDelegate(EmbedderDelegate* delegate);
 
@@ -206,6 +211,9 @@ class Host : public GlicSharingManagerProvider {
                      PanelWillOpenOptions options);
 
   void PanelWasClosed();
+
+  // Requests the primary web client to stop microphone recording.
+  void StopMicrophone(base::OnceClosure done);
 
   void SwitchConversation(
       glic::mojom::ConversationInfoPtr info,
@@ -276,6 +284,18 @@ class Host : public GlicSharingManagerProvider {
   bool IsReady() const;
   bool IsContextAccessIndicatorEnabled() const;
 
+  std::optional<mojom::InvocationSource> invocation_source() const {
+    return invocation_source_;
+  }
+
+  void SetInvocationSource(mojom::InvocationSource invocation_source) {
+    invocation_source_ = invocation_source;
+  }
+
+  mojom::MicrophoneStatus microphone_status() const {
+    return microphone_status_;
+  }
+
   void AddObserver(Observer* observer);
   void RemoveObserver(Observer* observer);
 
@@ -299,9 +319,6 @@ class Host : public GlicSharingManagerProvider {
 
   // Returns the RenderProcessHost for the WebClient, or nullptr if none.
   content::RenderProcessHost* GetWebClientRenderProcessHost() const;
-
-  // Returns the current view (conversation or actuation) in the floaty.
-  mojom::CurrentView GetPrimaryCurrentView();
 
   // Returns the page handler that owns the WebUI web contents.
   GlicPageHandler* FindPageHandlerForWebUiContents(
@@ -328,12 +345,12 @@ class Host : public GlicSharingManagerProvider {
   void WebUiStateChanged(GlicPageHandler* page_handler,
                          mojom::WebUiState new_state);
 
-  // Called when the current view changes in the glic webUI to update the state.
-  void OnViewChanged(GlicWebClientAccess* client, mojom::CurrentView new_view);
-
   // Called when the web client changes its mode.
   void OnInteractionModeChange(GlicPageHandler* page_handler,
                                mojom::WebClientMode new_mode);
+
+  // Called when the microphone status changes in the web client.
+  void OnMicrophoneStatusChanged(mojom::MicrophoneStatus status);
 
   // Sets the size of the glic window to the specified dimensions. Callback
   // runs when the animation finishes or is destroyed, or soon if the window
@@ -391,6 +408,7 @@ class Host : public GlicSharingManagerProvider {
   void RequestToShowAutofillSuggestionsDialog(
       actor::TaskId task_id,
       std::vector<autofill::ActorFormFillingRequest> requests,
+      base::WeakPtr<actor::AutofillSelectionDialogEventHandler> event_handler,
       actor::ActorTaskDelegate::AutofillSuggestionSelectedCallback callback);
 
   void FloatingPanelCanAttachChanged(bool can_attach);
@@ -475,10 +493,10 @@ class Host : public GlicSharingManagerProvider {
   // Responsible for skill update logic.
   std::unique_ptr<GlicSkillsManager> skills_manager_;
 
-  // The current view in the primary page handler.
-  mojom::CurrentView primary_current_view_ = mojom::CurrentView::kConversation;
-
   base::WeakPtr<content::WebContents> web_client_contents_;
+
+  mojom::MicrophoneStatus microphone_status_ =
+      mojom::MicrophoneStatus::kUnknown;
 
   HostMetrics metrics_;
 
@@ -506,6 +524,7 @@ class EmptyEmbedderDelegate : public Host::EmbedderDelegate {
   void SwitchConversation(
       glic::mojom::ConversationInfoPtr info,
       mojom::WebClientHandler::SwitchConversationCallback callback) override;
+  void OnMicrophoneStatusChanged(mojom::MicrophoneStatus status) override {}
 
  private:
   mojom::PanelState panel_state_ =
