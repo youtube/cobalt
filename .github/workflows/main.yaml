@@ -568,12 +568,13 @@ jobs:
           sccache_gcs_key: ${{ secrets.sccache_gcs_key }}
 
       - name: Release Package
-        if:  (matrix.config == 'qa' || matrix.config == 'gold') && (needs.initialize.outputs.test_package == 'true' || needs.initialize.outputs.test_e2e == 'true' || needs.initialize.outputs.test_yts == 'true' || needs.initialize.outputs.test_chromedriver == 'true')
+        if: steps.build.outputs.skip != 'true' && (matrix.config == 'qa' || matrix.config == 'gold') && (needs.initialize.outputs.test_package == 'true' || needs.initialize.outputs.test_e2e == 'true' || needs.initialize.outputs.test_yts == 'true' || needs.initialize.outputs.test_chromedriver == 'true')
         uses: ./.github/actions/package
         with:
           package_dir: out/test-package
 
       - name: Upload Test Artifacts
+        if: steps.build.outputs.skip != 'true'
         uses: ./.github/actions/upload_test_artifacts
         with:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
@@ -591,7 +592,7 @@ jobs:
 
       - name: Run Symbolize Tests
         uses: ./.github/actions/symbolize_test
-        if: matrix.platform == 'linux-x64x11' && matrix.config == 'devel'
+        if: steps.build.outputs.skip != 'true' && matrix.platform == 'linux-x64x11' && matrix.config == 'devel'
 
 
   on-device-test:
