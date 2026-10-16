@@ -105,8 +105,8 @@ jobs:
           path: cobalt
           use_gcloud: true
 
-      # Checks out the base branch tip, which is in the cache. The analysis
-      # script then fetches and checks out the PR's merge commit on top of it.
+      # Checks out the base branch tip, which is in the cache. The PR's merge
+      # commit is fetched on top of it below.
       - name: Checkout
         uses: ./.github/actions/checkout
         with:
@@ -115,21 +115,70 @@ jobs:
           fetch_depth: 1
           use_cache: true
 
-      - name: Check tvOS Build Impact
-        id: analyze
+      # In pull_request_target, github.sha is the base branch tip, and GitHub
+      # updates refs/pull/<num>/merge asynchronously, so wait until it merges
+      # the current PR head. Failing here labels the PR (see label-kokoro-run).
+      - name: Check Out PR Merge Commit
+        working-directory: cobalt/src
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          for _ in {1..6}; do
+            if git fetch --no-tags --depth=2 origin "refs/pull/${PR_NUMBER}/merge" &&
+               [[ "$(git rev-parse FETCH_HEAD^2)" == "${PR_HEAD_SHA}" ]]; then
+              git checkout --detach FETCH_HEAD
+              git diff --name-only --no-renames HEAD^1 HEAD | tee "${RUNNER_TEMP}/changed_files.txt"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::refs/pull/${PR_NUMBER}/merge doesn't merge ${PR_HEAD_SHA}. The PR may have merge conflicts."
+          exit 1
+
+      - name: Check tvOS Build Impact
+        id: analyze
+        working-directory: cobalt/src
+        env:
           TEST_TARGETS: ${{ steps.parse-targets.outputs.test_targets_json }}
+          # Changes that gn analyze can't see but always affect the tvOS build.
+          ALWAYS_AFFECTS_TVOS: ^(DEPS$|\.gn$|build/|build_overrides/|cobalt/build/|cobalt/devinfra/kokoro/|cobalt/testing/filters/tvos-arm64-simulator/|\.github/workflows/(tvos|auto_label_kokoro)\.yaml$)
+          HEADERS: \.(h|hh|hpp|inc|inl|def)$
         run: |
           export PATH="/runner-cache/golden-workspace/depot_tools:${GITHUB_WORKSPACE}/cobalt/depot_tools:${PATH}"
-          python3 "${GITHUB_WORKSPACE}/.github/scripts/check_tvos_impact.py" \
-            --src-dir "${GITHUB_WORKSPACE}/cobalt/src" \
-            --pr-number "${PR_NUMBER}" \
-            --pr-head-sha "${PR_HEAD_SHA}" \
-            --test-targets-json "${TEST_TARGETS}" \
-            --compile-targets "//cobalt:cobalt" \
-            --github-output "${GITHUB_OUTPUT}"
+          changed_files="${RUNNER_TEMP}/changed_files.txt"
+          if grep -qE "${ALWAYS_AFFECTS_TVOS}" "${changed_files}"; then
+            echo "affects_tvos=true" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          out_dir="${RUNNER_TEMP}/tvos_out"
+          script_executable="--script-executable=${PWD}/cobalt/build/tvos_linux_script_wrapper.py"
+          python3 cobalt/build/gn.py "${out_dir}" -p tvos-arm64-simulator -C devel --no-rbe --no-check "${script_executable}"
+
+          {
+            cat "${changed_files}"
+            echo
+            # gn analyze only knows the headers listed in BUILD.gn files, so
+            # also pass the files that include each changed header by its path.
+            { grep -E "${HEADERS}" "${changed_files}" || true; } | while read -r header; do
+              git grep -lF "\"${header}\"" -- '*.c' '*.cc' '*.cpp' '*.cxx' '*.m' '*.mm' '*.h' '*.hh' '*.hpp' '*.inc' '*.inl' '*.def' || true
+            done
+          } | jq -nR --argjson test_targets "${TEST_TARGETS}" '{
+            files: [inputs | select(length > 0) | "//" + .] | unique,
+            test_targets: [$test_targets[] | "//" + .],
+            additional_compile_targets: ["//cobalt:cobalt"]
+          }' > "${out_dir}/analyze_in.json"
+          cat "${out_dir}/analyze_in.json"
+
+          gn analyze "${out_dir}" "${out_dir}/analyze_in.json" "${out_dir}/analyze_out.json" "${script_executable}"
+          cat "${out_dir}/analyze_out.json"
+          # Anything other than "No dependency" (e.g., an error) affects tvOS.
+          if [[ "$(jq -r '.status' "${out_dir}/analyze_out.json")" == "No dependency" ]]; then
+            echo "affects_tvos=false" >> "${GITHUB_OUTPUT}"
+          else
+            echo "affects_tvos=true" >> "${GITHUB_OUTPUT}"
+          fi
 
   label-kokoro-run:
     needs: [check-author, analyze-tvos-impact]
