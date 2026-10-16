@@ -23,21 +23,11 @@ runs:
     - name: Clone Repo
       env:
         REPO_URL: ${{ inputs.repository }}
-        REF: ${{ inputs.ref }}
         DEST_PATH: ${{ inputs.path }}
         FETCH_DEPTH: ${{ inputs.fetch_depth }}
-        GITHUB_BASE_REF: ${{ github.base_ref }}
       shell: bash
       run: |
         set -ex
-
-        retry() {
-          for delay in 0 5 15 30; do
-            sleep "${delay}"
-            "$@" && return
-          done
-          return 1
-        }
 
         depth_arg=()
         if [ "${FETCH_DEPTH}" -ne 0 ]; then
@@ -69,27 +59,47 @@ runs:
 
         git config --global --add safe.directory "$(cd "${DEST_PATH}" && pwd)"
 
-        if [ -n "${GITHUB_BASE_REF}" ] && [[ "${DEST_PATH}" != *"depot_tools"* && "${REPO_URL}" != *"depot_tools"* ]]; then
+    - name: Checkout Ref
+      env:
+        REF: ${{ inputs.ref }}
+        DEST_PATH: ${{ inputs.path }}
+        FETCH_DEPTH: ${{ inputs.fetch_depth }}
+        GITHUB_BASE_REF: ${{ github.base_ref }}
+      shell: bash
+      run: |
+        set -ex
+
+        retry() {
+          for delay in 0 5 15 30; do
+            sleep "${delay}"
+            "$@" && return
+          done
+          return 1
+        }
+
+        depth_arg=()
+        if [ "${FETCH_DEPTH}" -ne 0 ]; then
+          depth_arg+=(--depth "${FETCH_DEPTH}")
+        fi
+
+        if [ -n "${GITHUB_BASE_REF}" ]; then
           retry git -C "${DEST_PATH}" fetch "${depth_arg[@]}" origin "${GITHUB_BASE_REF}" "${REF}"
           git -C "${DEST_PATH}" checkout "origin/${GITHUB_BASE_REF}"
-          resolved_ref=$(git -C "${DEST_PATH}" rev-parse "${REF}^{commit}" 2>/dev/null || git -C "${DEST_PATH}" rev-parse "origin/${REF}^{commit}" 2>/dev/null || echo "${REF}")
-          commit_date=$(git -C "${DEST_PATH}" log -1 --format=%cI "${resolved_ref}")
-          author_name=$(git -C "${DEST_PATH}" log -1 --format=%an "${resolved_ref}")
-          author_email=$(git -C "${DEST_PATH}" log -1 --format=%ae "${resolved_ref}")
-          author_name="${author_name:-github-actions[bot]}"
-          author_email="${author_email:-github-actions[bot]@users.noreply.github.com}"
+          # Deepen shallow history until a common merge-base between target branch and PR head is found.
+          for _ in {1..5}; do
+            git -C "${DEST_PATH}" merge-base HEAD "${REF}" > /dev/null && break
+            git -C "${DEST_PATH}" fetch --deepen=100 origin -- "${GITHUB_BASE_REF}" "${REF}"
+          done
+          commit_date=$(git -C "${DEST_PATH}" log -1 --format=%cI "${REF}")
+          author_name=$(git -C "${DEST_PATH}" log -1 --format=%an "${REF}")
+          author_email=$(git -C "${DEST_PATH}" log -1 --format=%ae "${REF}")
           export GIT_COMMITTER_NAME="${author_name}"
           export GIT_COMMITTER_EMAIL="${author_email}"
           export GIT_COMMITTER_DATE="${commit_date}"
           export GIT_AUTHOR_NAME="${author_name}"
           export GIT_AUTHOR_EMAIL="${author_email}"
           export GIT_AUTHOR_DATE="${commit_date}"
-          # Deepen shallow history until a common merge-base between target branch and PR head is found.
-          for _ in {1..5}; do
-            git -C "${DEST_PATH}" merge-base HEAD "${resolved_ref}" > /dev/null && break
-            git -C "${DEST_PATH}" fetch --deepen=100 origin -- "${GITHUB_BASE_REF}" "${REF}"
-          done
-          git -C "${DEST_PATH}" merge --squash "${resolved_ref}"
+          git -C "${DEST_PATH}" merge --squash "${REF}"
           git -C "${DEST_PATH}" commit --quiet --allow-empty \
             --message "Squash merge ${REF} onto ${GITHUB_BASE_REF}"
         else
