@@ -91,7 +91,8 @@ concept IsJavaRef =
     std::is_base_of_v<jni_zero::JavaRef<jobject>, std::remove_cvref_t<T>>;
 #else
 template <typename T>
-inline constexpr bool IsJavaRef = std::is_base_of_v<JavaRef<jobject>, T>;
+inline constexpr bool IsJavaRef =
+    std::is_base_of_v<jni_zero::JavaRef<jobject>, std::decay_t<T>>;
 #endif  // !BUILDFLAG(IS_COBALT) || (defined(__cpp_concepts) && __cpp_concepts
         // >= 201907L)
 
