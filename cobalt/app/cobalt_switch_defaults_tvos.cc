@@ -19,6 +19,7 @@
 #include "gpu/config/gpu_switches.h"
 #include "media/base/media_switches.h"
 #include "sandbox/policy/switches.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/switches.h"
 #include "ui/gl/gl_switches.h"
 
@@ -56,7 +57,7 @@ const base::CommandLine::SwitchMap&
 CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
   static const base::CommandLine::SwitchMap kCobaltSwitchDefaults({
       // Use passthrough command decoder.
-      {::switches::kUseCmdDecoder, "passthrough"},
+      {::switches::kUseCmdDecoder, gl::kCmdDecoderPassthroughName},
       // Set the default size for the content shell/starboard window.
       {::switches::kContentShellHostWindowSize, "1920x1080"},
       // Enable remote Devtools access.
@@ -70,8 +71,10 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
       {::switches::kEnableBlinkFeatures, "PreciseMemoryInfo"},
       // Enable autoplay video/audio, as Cobalt may launch directly into media
       // playback before user interaction.
-      {::switches::kAutoplayPolicy, "no-user-gesture-required"},
-      {::switches::kEnableFeatures, "WebAudioRemoveAudioDestinationResampler"},
+      {::switches::kAutoplayPolicy,
+       ::switches::autoplay::kNoUserGestureRequiredPolicy},
+      {::switches::kEnableFeatures,
+       blink::features::kWebAudioRemoveAudioDestinationResampler.name},
   });
   return kCobaltSwitchDefaults;
 }
