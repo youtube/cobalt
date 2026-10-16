@@ -14,9 +14,17 @@
 
 #include "cobalt/media/audio/cobalt_audio_renderer_sink.h"
 
+#include <atomic>
+
 #include "base/logging.h"
+<<<<<<< HEAD
 #include "base/notimplemented.h"
+=======
+#include "base/metrics/histogram_functions.h"
+>>>>>>> bee6843ef1 (media: Add Cobalt.Media.LatencyTiming.SbAudioSinkCreate UMA metric (#13090))
 #include "base/task/bind_post_task.h"
+#include "base/time/time.h"
+#include "base/timer/elapsed_timer.h"
 #include "cobalt/media/audio/audio_helpers.h"
 #include "media/base/audio_glitch_info.h"
 #include "media/base/audio_sample_types.h"
@@ -30,6 +38,45 @@ const int kDefaultFramesPerRenderBufferPaddingMax = 8;
 int AlignUp(int value, int alignment) {
   int decremented_value = value - 1;
   return decremented_value + alignment - (decremented_value % alignment);
+}
+
+// Records the latency of an SbAudioSinkCreate() call. The first call in the
+// process is recorded under kFirstCallHistogram; every later call (e.g. from
+// another AudioContext or Flush()) is recorded under kSubsequentCallHistogram.
+void RecordSbAudioSinkCreateLatency(base::TimeDelta elapsed) {
+  static constexpr char kFirstCallHistogram[] =
+      "Cobalt.Media.LatencyTiming.SbAudioSinkCreate";
+  static constexpr char kSubsequentCallHistogram[] =
+      "Cobalt.Media.LatencyTiming.SbAudioSinkCreate.Subsequent";
+  static std::atomic<bool> first_call_pending{true};
+
+  const bool is_first_call = first_call_pending.exchange(false);
+  base::UmaHistogramCustomMicrosecondsTimes(
+      is_first_call ? kFirstCallHistogram : kSubsequentCallHistogram, elapsed,
+      /*min=*/base::Microseconds(100), /*max=*/base::Seconds(1),
+      /*buckets=*/50);
+  LOG(INFO) << (is_first_call ? "First" : "Subsequent")
+            << " SbAudioSinkCreate() took " << elapsed.InMicroseconds() << "us";
+}
+
+// Wraps SbAudioSinkCreate() and records its latency to UMA.
+SbAudioSink CreateSbAudioSinkWithUmaLatency(
+    int channels,
+    int sampling_frequency_hz,
+    SbMediaAudioSampleType audio_sample_type,
+    SbMediaAudioFrameStorageType audio_frame_storage_type,
+    SbAudioSinkFrameBuffers frame_buffers,
+    int frames_per_channel,
+    SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
+    SbAudioSinkConsumeFramesFunc consume_frames_func,
+    void* context) {
+  base::ElapsedTimer timer;
+  SbAudioSink audio_sink = SbAudioSinkCreate(
+      channels, sampling_frequency_hz, audio_sample_type,
+      audio_frame_storage_type, frame_buffers, frames_per_channel,
+      update_source_status_func, consume_frames_func, context);
+  RecordSbAudioSinkCreateLatency(timer.Elapsed());
+  return audio_sink;
 }
 }  // namespace
 
@@ -84,7 +131,7 @@ void CobaltAudioRendererSink::Start() {
   }
 
   output_frame_buffers_[0] = output_frame_buffer_.get();
-  audio_sink_ = AudioSinkUniquePtr(SbAudioSinkCreate(
+  audio_sink_ = AudioSinkUniquePtr(CreateSbAudioSinkWithUmaLatency(
       params_.channels(), nearest_supported_sample_rate_, output_sample_type_,
       kSbMediaAudioFrameStorageTypeInterleaved, &output_frame_buffers_[0],
       frames_per_channel_, &CobaltAudioRendererSink::UpdateSourceStatusFunc,
@@ -115,7 +162,7 @@ void CobaltAudioRendererSink::Flush() {
   audio_sink_.reset();
   frames_rendered_ = 0;
   frames_consumed_ = 0;
-  audio_sink_ = AudioSinkUniquePtr(SbAudioSinkCreate(
+  audio_sink_ = AudioSinkUniquePtr(CreateSbAudioSinkWithUmaLatency(
       params_.channels(),
       SbAudioSinkGetNearestSupportedSampleFrequency(params_.sample_rate()),
       output_sample_type_, kSbMediaAudioFrameStorageTypeInterleaved,
