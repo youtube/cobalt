@@ -513,6 +513,8 @@ TEST_P(SlotManagementTest, CompareEvergreenVersionWithMalformedVersion) {
   ASSERT_EQ(-1, CompareEvergreenVersion(make_version("1.2"), valid));
   ASSERT_EQ(0, CompareEvergreenVersion(make_version("1.2.3"), valid));
   ASSERT_EQ(0, CompareEvergreenVersion(std::vector<char>(), valid));
+  ASSERT_EQ(0, CompareEvergreenVersion(valid, std::vector<char>()));
+  ASSERT_EQ(0, CompareEvergreenVersion(valid, make_version("")));
   // INT_MAX is the largest valid segment.
   ASSERT_EQ(1, CompareEvergreenVersion(make_version("2147483647"), valid));
 

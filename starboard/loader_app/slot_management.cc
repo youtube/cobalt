@@ -118,6 +118,12 @@ bool ParseEvergreenVersion(const std::vector<char>& version,
 
 int CompareEvergreenVersion(const std::vector<char>& v1,
                             const std::vector<char>& v2) {
+  // An empty version is expected, e.g. when a slot's manifest could not be
+  // read, so return early without logging a malformed-version warning.
+  if (v1.empty() || v1[0] == '\0' || v2.empty() || v2[0] == '\0') {
+    return 0;
+  }
+
   // Split the version strings into segments of numbers.
   std::vector<int> n1, n2;
   if (!ParseEvergreenVersion(v1, &n1)) {
