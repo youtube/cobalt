@@ -29,6 +29,26 @@ def _resolve_labels(all_labels: set[str], raw_targets: list[str]) -> list[str]:
   return sorted(resolved)
 
 
+def should_skip_from_deps(deps_file: str, files: list[str]) -> bool:
+  if not files or any(f.startswith(_INFRA_PREFIXES) for f in files):
+    return False
+  raw_deps = json.loads(Path(deps_file).read_text(encoding='utf-8'))
+  if isinstance(raw_deps, dict):
+    deps = {f for flist in raw_deps.values() for f in flist}
+  elif isinstance(raw_deps, list):
+    deps = set(raw_deps)
+  else:
+    raise ValueError(
+        f'Unexpected deps format in {deps_file}: expected list or dict')
+
+  normalized_deps = {d[2:] if d.startswith('//') else d for d in deps}
+  for f in files:
+    norm_f = f[2:] if f.startswith('//') else f
+    if norm_f in normalized_deps:
+      return False
+  return True
+
+
 def should_skip(out_dir: str, files: list[str], targets: list[str]) -> bool:
   if not files or any(f.startswith(_INFRA_PREFIXES) for f in files):
     return False
@@ -52,13 +72,28 @@ def should_skip(out_dir: str, files: list[str], targets: list[str]) -> bool:
 
 def main():
   parser = argparse.ArgumentParser(description=__doc__)
-  parser.add_argument('--out-dir', required=True)
+  parser.add_argument(
+      '--out-dir',
+      required=False,
+      help='Path to GN output directory for live gn analyze.')
+  parser.add_argument(
+      '--deps-file',
+      required=False,
+      help='Path to precomputed target dependencies JSON (e.g. for tvos on Linux).'
+  )
   parser.add_argument('--changed-files', required=True)
   parser.add_argument('--targets', default='[]')
   args = parser.parse_args()
+  if not args.out_dir and not args.deps_file:
+    parser.error('Either --out-dir or --deps-file must be specified.')
+
   files = Path(args.changed_files).read_text(encoding='utf-8').split()
-  targets = json.loads(args.targets)
-  print('true' if should_skip(args.out_dir, files, targets) else 'false')
+  if args.deps_file:
+    skip = should_skip_from_deps(args.deps_file, files)
+  else:
+    targets = json.loads(args.targets)
+    skip = should_skip(args.out_dir, files, targets)
+  print('true' if skip else 'false')
 
 
 if __name__ == '__main__':
