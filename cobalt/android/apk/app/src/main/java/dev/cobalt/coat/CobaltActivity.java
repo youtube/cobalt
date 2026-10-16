@@ -42,6 +42,7 @@ import dev.cobalt.coat.javabridge.CobaltJavaScriptAndroidObject;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptInterface;
 import dev.cobalt.coat.javabridge.HTMLMediaElementExtension;
 import dev.cobalt.media.AudioOutputManager;
+import dev.cobalt.media.MediaCodecCache;
 import dev.cobalt.media.MediaCodecCapabilitiesLogger;
 import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.shell.Shell;
@@ -579,6 +580,9 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   @Override
   protected void onStart() {
     StartupGuard.getInstance().setStartupMilestone(StartupGuard.ACTIVITY_ON_RESUME);
+    // Also allowed again in VideoSurfaceView.surfaceCreated(); this covers AndroidOverlay mode,
+    // which has no VideoSurfaceView.
+    MediaCodecCache.allowCaching();
     if (isDevelopmentBuild()) {
       getStarboardBridge().getAudioOutputManager().dumpAllOutputDevices();
       MediaCodecCapabilitiesLogger.dumpAllDecoders();
@@ -639,6 +643,9 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   @Override
   protected void onStop() {
     long stopTimestamp = System.nanoTime() / 1000L;
+    // Releases the idle cached codec, if any. A codec still used by a player is released, instead
+    // of cached, when the player lets go of it.
+    MediaCodecCache.stopCaching();
     if (isNvidiaShield()) {
       unregisterDisplayListener();
     }
@@ -994,6 +1001,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     if (mIsCobaltUsingAndroidOverlay) {
       return;
     }
+    MediaCodecCache.discard();
     ViewParent parent = mVideoSurfaceView.getParent();
     if (parent instanceof FrameLayout frameLayout) {
       int index = frameLayout.indexOfChild(mVideoSurfaceView);

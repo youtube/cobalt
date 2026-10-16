@@ -136,7 +136,8 @@ MediaCodecDecoder::CreateForVideo(
     bool use_dual_threads,
     bool skip_video_frames_over_60_fps,
     bool enable_ndk_video,
-    bool enable_trivial_optimizations) {
+    bool enable_trivial_optimizations,
+    bool enable_reuse_video_codec) {
   std::string error_message;
   auto decoder = std::make_unique<MediaCodecDecoder>(
       PassKey<MediaCodecDecoder>(), media_codec_factory, job_queue, host,
@@ -145,7 +146,7 @@ MediaCodecDecoder::CreateForVideo(
       first_tunnel_frame_ready_cb, tunnel_mode_audio_session_id,
       enable_frame_renderer_listener, max_video_input_size, flush_delay_usec,
       use_dual_threads, skip_video_frames_over_60_fps, enable_ndk_video,
-      enable_trivial_optimizations, &error_message);
+      enable_trivial_optimizations, enable_reuse_video_codec, &error_message);
   if (!decoder->media_codec_bridge_) {
     return Failure(error_message);
   }
@@ -218,6 +219,7 @@ MediaCodecDecoder::MediaCodecDecoder(
     bool skip_video_frames_over_60_fps,
     bool enable_ndk_video,
     bool enable_trivial_optimizations,
+    bool enable_reuse_video_codec,
     std::string* error_message)
     : JobOwner(job_queue),
       media_type_(kSbMediaTypeVideo),
@@ -250,7 +252,8 @@ MediaCodecDecoder::MediaCodecDecoder(
       /*handler=*/this, j_output_surface, j_media_crypto, color_metadata,
       {max_video_input_size, skip_video_frames_over_60_fps,
        enable_frame_renderer_listener, require_secured_decoder,
-       require_software_codec, tunnel_mode_audio_session_id, enable_ndk_video});
+       require_software_codec, tunnel_mode_audio_session_id, enable_ndk_video,
+       enable_reuse_video_codec});
 
   if (media_codec_bridge) {
     media_codec_bridge_ = std::move(media_codec_bridge.value());
