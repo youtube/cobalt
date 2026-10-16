@@ -11,6 +11,7 @@
 #include "include/core/SkSpan.h"
 #include "src/core/SkGlyph.h"
 #include "src/core/SkStrike.h"  // IWYU pragma: keep
+#include "src/gpu/MaskFormat.h"
 #include "src/text/gpu/StrikeCache.h"
 
 #include <cstddef>

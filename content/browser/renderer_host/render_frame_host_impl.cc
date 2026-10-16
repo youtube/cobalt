@@ -10007,7 +10007,6 @@ void RenderFrameHostImpl::CreateNewWindow(
     return;
   }
 
-<<<<<<< HEAD
   // Sandboxed frames should only be allowed to create a popup when they have
   // the "allow-popups" attribute. This should have already been checked by the
   // renderer process (see blink::CreateNewWindow()), and this browser-side
@@ -10018,9 +10017,7 @@ void RenderFrameHostImpl::CreateNewWindow(
     return;
   }
 
-=======
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
->>>>>>> parent of 466c23ef4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   // Fenced frames that have revoked network access can't open popups.
   if (base::FeatureList::IsEnabled(
           blink::features::kFencedFramesLocalUnpartitionedDataAccess)) {
