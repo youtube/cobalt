@@ -489,7 +489,7 @@ jobs:
     runs-on: ${{ fromJSON(needs.initialize.outputs.build_runners) }}
     name: ${{ matrix.name }}_${{ matrix.config }}
     outputs:
-      built: ${{ steps.build.outputs.built }}
+      skip: ${{ steps.build.outputs.skip }}
     strategy:
       fail-fast: false
       matrix:
@@ -596,7 +596,7 @@ jobs:
 
       - name: Run API Leak Detector
         uses: ./.github/actions/api_leak_detector
-        if: inputs.run_api_leak_detector && steps.build.outputs.built == 'true'
+        if: inputs.run_api_leak_detector && steps.build.outputs.skip != 'true'
 
       - name: Run Symbolize Tests
         uses: ./.github/actions/symbolize_test
@@ -605,7 +605,7 @@ jobs:
 
   on-device-test:
     needs: [initialize, build]
-    if: needs.build.outputs.built == 'true' && needs.initialize.outputs.run_on_device_test == 'true'
+    if: needs.build.outputs.skip != 'true' && needs.initialize.outputs.run_on_device_test == 'true'
     runs-on: [self-hosted, odt-runner]
     name: ${{ matrix.name }}_on_device_tests
     permissions: {}
@@ -648,7 +648,7 @@ jobs:
     # Run E2E tests for presumit.
     # Also, run E2E tests on push and schedule if not explicitly disabled via repo vars.
     if: |
-      needs.build.outputs.built == 'true' &&
+      needs.build.outputs.skip != 'true' &&
       needs.initialize.outputs.test_e2e == 'true' &&
         (
           (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
@@ -840,7 +840,7 @@ jobs:
 
   on-host-test:
     needs: [initialize, docker-unittest-image, build]
-    if: needs.build.outputs.built == 'true' && needs.initialize.outputs.test_on_host == 'true'
+    if: needs.build.outputs.skip != 'true' && needs.initialize.outputs.test_on_host == 'true'
     permissions: {}
     runs-on: [self-hosted, chrobalt-linux-runner]
     name: ${{ matrix.name }}_on_host_tests_${{ matrix.shard }}
@@ -900,7 +900,7 @@ jobs:
 
   web-tests:
     needs: [initialize, docker-webtest-image, build]
-    if: needs.build.outputs.built == 'true' && needs.initialize.outputs.web_tests == 'true'
+    if: needs.build.outputs.skip != 'true' && needs.initialize.outputs.web_tests == 'true'
     permissions: {}
     runs-on: [self-hosted, chrobalt-linux-runner]
     name: ${{ matrix.name }}_web_tests
