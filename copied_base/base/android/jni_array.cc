@@ -33,7 +33,7 @@ ScopedJavaLocalRef<jbyteArray> ToJavaByteArray(
 }
 
 ScopedJavaLocalRef<jbyteArray> ToJavaByteArray(JNIEnv* env,
-                                               const std::string& str) {
+                                               std::string_view str) {
   return ToJavaByteArray(env, reinterpret_cast<const uint8_t*>(str.data()),
                          str.size());
 }
