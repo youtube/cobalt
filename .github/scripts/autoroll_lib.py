@@ -3,6 +3,7 @@
 from collections import defaultdict
 import enum
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -162,7 +163,7 @@ def resolve_conflicts(unmerged_files):
   if '.gitmodules' in unmerged_files:
     shutil.move('.gitmodules', '.gitmodules_conflict')
     run(['git', 'checkout', '--ours', '--', '.gitmodules'])
-    run(['git', 'add', '--', '.gitmodules', '.gitmodules_conflict'])
+    run(['git', 'add', '--sparse', '--', '.gitmodules', '.gitmodules_conflict'])
     unmerged_files.pop('.gitmodules', None)
 
   deleted_by_us = []
@@ -247,6 +248,9 @@ def apply_and_commit(action,
         run(['git', 'reset', '--hard', 'HEAD'])
         return CommitStatus.FAILED, unmerged_files
 
+      dirs = {os.path.dirname(p) for p in unmerged_files if os.path.dirname(p)}
+      if dirs:
+        run(['git', 'sparse-checkout', 'add'] + list(dirs))
       run(['git', 'add', '--'] + unmerged_files)
       msg = f'CONFLICTED {msg}'
       result = CommitStatus.CONFLICTED
