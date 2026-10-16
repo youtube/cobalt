@@ -73,14 +73,13 @@ using cobalt::starboard_wasm::PlaneRect;
 using cobalt::starboard_wasm::SurfaceRegistry;
 
 constexpr char kSurfaceFragmentPrefix[] = "sb-surface=";
-// Until a player on the surface reports its video size. Only the aspect ratio
-// matters (it places the hole within the element), and most video is 16:9.
+// Until a player reports its video size. Only the aspect ratio matters (it
+// places the hole within the element), and most video is 16:9.
 constexpr gfx::Size kDefaultNaturalSize(1920, 1080);
 // Retains a surface's last rectangle across quick `<video>` replacements so a
 // newly attached element starts at the previous element's position.
 constexpr base::TimeDelta kStickyBoundsGrace = base::Seconds(1);
 
-// Returns the surface token of a `blob:...#sb-surface=<token>` URL, or "".
 std::string SurfaceTokenFromUrl(const GURL& url) {
   if (!url.SchemeIsBlob() || !url.has_ref()) {
     return std::string();
@@ -154,8 +153,7 @@ class PlaneFollower {
       subscriber_.set_disconnect_handler(base::BindOnce(
           &PlaneFollower::OnSubscriberDisconnected, base::Unretained(this)));
     }
-    // Cancels a pending clear from a previous element on this surface.
-    ++clear_generation_[surface];
+    CancelPendingClear(surface);
     Plane& plane = planes_[plane_id];
     plane.surface = surface;
     plane.subscription = std::make_unique<PlaneSubscription>(this, plane_id);
@@ -209,6 +207,10 @@ class PlaneFollower {
   };
 
   PlaneFollower() = default;
+
+  void CancelPendingClear(const std::string& surface) {
+    ++clear_generation_[surface];
+  }
 
   void ScheduleClear(const std::string& surface) {
     const uint64_t generation = ++clear_generation_[surface];

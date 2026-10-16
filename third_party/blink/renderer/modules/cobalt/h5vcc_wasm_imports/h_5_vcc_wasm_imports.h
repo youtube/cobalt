@@ -42,6 +42,8 @@ class H5vccWasmSystem;
 class LocalDOMWindow;
 class ScriptState;
 
+// Implements h_5_vcc_wasm_imports.idl. One per ExecutionContext; owns the
+// context's ProviderCore until the context is destroyed.
 class MODULES_EXPORT H5vccWasmImports final
     : public EventTarget,
       public Supplement<ExecutionContext>,

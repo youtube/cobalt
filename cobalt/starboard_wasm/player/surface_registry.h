@@ -15,10 +15,9 @@
 // Process-wide registry of Wasm video surfaces, keyed by unguessable tokens.
 // Thread-safe.
 //
-// A host registers a token per `sb_surface`. A `<video>` whose `src` is a
-// `blob:` URL ending in `#sb-surface=<token>` binds its compositor geometry to
-// that surface. Depends only on //base so both `content/renderer` and the
-// Blink module can link against it.
+// A host registers a token per surface. A `<video>` whose `src` is a `blob:`
+// URL ending in `#sb-surface=<token>` binds its compositor geometry to that
+// surface. Depends only on //base so content/renderer can use it.
 
 #ifndef COBALT_STARBOARD_WASM_PLAYER_SURFACE_REGISTRY_H_
 #define COBALT_STARBOARD_WASM_PLAYER_SURFACE_REGISTRY_H_
@@ -62,7 +61,7 @@ class SurfaceRegistry {
   // Host side.
   void Register(const std::string& token);
   void Unregister(const std::string& token);
-  // Returns true and fills |out| if an element is bound to |token|.
+  // Returns true and fills `out` if an element is bound to `token`.
   bool Bounds(const std::string& token, PlaneRect* out) const;
   void SetVideoSize(const std::string& token, int32_t width, int32_t height);
 
@@ -91,6 +90,8 @@ class SurfaceRegistry {
   void Notify(const std::string& token);
 
   mutable base::Lock mu_;
+  // Held while notifying, so that once RemoveObserver() returns the observer
+  // is never called again. Acquired before `mu_`.
   base::Lock notify_mu_;
   std::map<std::string, Entry> entries_;
   std::vector<SurfaceRegistryObserver*> observers_;

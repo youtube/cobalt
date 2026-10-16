@@ -14,7 +14,8 @@
 
 
 // SbPlayer: decodes and renders samples demuxed by the Wasm module. Events
-// arrive through H5vccWasmSystem.pollEvents(). See h_5_vcc_wasm_imports.idl.
+// arrive through H5vccWasmSystem.pollEvents(); records and enums are in
+// cobalt/starboard_wasm/player/player_abi.h. See h_5_vcc_wasm_imports.idl.
 [
     Exposed=(Window,DedicatedWorker),
     RuntimeEnabled=H5vccWasmImports,
@@ -38,9 +39,10 @@ interface H5vccWasmPlayer {
                  unrestricted double positionUs,
                  unsigned long ticket);
 
-  // Writes `count` samples of `track`: their payload bytes, one sample info
-  // record each, and an optional config record for a configuration change.
-  // Returns how many samples were accepted.
+  // Writes up to `count` samples of `track`: their payload bytes, one
+  // me_sample_info record each, and an optional config record for a
+  // configuration change. Returns how many leading samples were accepted;
+  // fewer than `count` is normal (per-write limit, write-ahead throttling).
   [CallWith=Isolate, NoAllocDirectCall]
   unsigned long writeSamples(unsigned long player,
                              unsigned long track,
@@ -53,7 +55,7 @@ interface H5vccWasmPlayer {
   [NoAllocDirectCall]
   undefined writeEos(unsigned long player, unsigned long track);
 
-  // Rates and volumes are in thousandths.
+  // Rates and volumes are in thousandths (1000 = 1.0).
   [NoAllocDirectCall]
   undefined setRate(unsigned long player, long rateMilli);
   [NoAllocDirectCall]

@@ -21,12 +21,13 @@
     SecureContext
 ]
 interface H5vccWasmSurface {
-  // Returns a surface handle, or 0 on failure.
+  // `flags` is an sb_surface_flags value; only SB_SURFACE_PUNCH_OUT is
+  // supported. Returns a surface handle, or 0 on failure.
   [NoAllocDirectCall] unsigned long create(unsigned long flags);
   [NoAllocDirectCall] undefined destroy(unsigned long surface);
 
-  // Positions the surface in screen pixels, for surfaces not bound to an
-  // element.
+  // Positions the surface in screen pixels. While a <video> element is bound
+  // to the surface, the element's geometry wins, but `zIndex` still applies.
   [NoAllocDirectCall]
   undefined setBounds(unsigned long surface,
                       long x,

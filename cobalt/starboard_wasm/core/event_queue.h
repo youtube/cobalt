@@ -32,8 +32,8 @@ namespace starboard_wasm {
 
 // Queue of sb_event records for one execution context. Push() may be called
 // from any thread (typically Starboard callbacks); when it makes the queue
-// non-empty, |on_wake| runs once on the owning sequence. The guest drains the
-// queue with Poll(), via `sb_sys.poll_events`.
+// non-empty, `on_wake` runs once on the owning sequence. The guest drains the
+// queue with Poll(), via H5vccWasmSystem.pollEvents().
 //
 // Events are never dropped. Repeatable events (such as a request for more
 // data) use PushCoalesced(), so the queue stays small even if the guest stops
@@ -48,12 +48,12 @@ class EventQueue {
 
   void Push(uint32_t type, uint32_t handle, int64_t a, int64_t b);
 
-  // Like Push(), but first removes any queued event with the same |type|,
-  // |handle| and |a|.
+  // Like Push(), but first removes any queued event with the same `type`,
+  // `handle` and `a`.
   void PushCoalesced(uint32_t type, uint32_t handle, int64_t a, int64_t b);
 
-  // Copies up to |count| events into |out| (an array of sb_event) and returns
-  // how many were copied.
+  // Moves up to `count` events into `out` (an array of sb_event) and returns
+  // how many.
   uint32_t Poll(uint8_t* out, uint32_t count);
 
  private:

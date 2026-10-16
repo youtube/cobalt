@@ -27,7 +27,8 @@ namespace starboard_wasm {
 
 class GuestMemory;
 
-// Implements H5vccWasmSystem: clock, event queue and logging.
+// Implements H5vccWasmSystem's event queue and logging. (Its clock needs no
+// per-context state; see ProviderCore::NowUs().)
 class SystemModule : public Module {
  public:
   static constexpr char kName[] = "system";
@@ -40,8 +41,7 @@ class SystemModule : public Module {
   // Module:
   const char* name() const override;
 
-  double NowUs() const;
-  // Moves up to |count| queued `sb_event`s to guest memory at |events_ptr|;
+  // Moves up to `count` queued `sb_event`s to guest memory at `events_ptr`;
   // returns how many.
   uint32_t PollEvents(GuestMemory& memory, uint32_t events_ptr, uint32_t count);
   void Log(GuestMemory& memory,

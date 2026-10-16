@@ -22,7 +22,6 @@
 namespace cobalt {
 namespace starboard_wasm {
 
-// Every Starboard area exposed to Wasm guests, in import-object order.
 std::vector<ModuleFactory> AllModules();
 
 }  // namespace starboard_wasm

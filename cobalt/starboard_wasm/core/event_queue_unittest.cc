@@ -91,8 +91,6 @@ TEST_F(EventQueueTest, CoalescesByTypeHandleAndA) {
   queue_.Push(2, 7, 3, 1);
   queue_.PushCoalesced(1, 7, 1, 1);
   queue_.PushCoalesced(1, 8, 0, 1);
-  // Replaces the first event and moves to the back, after the event it
-  // followed.
   queue_.PushCoalesced(1, 7, 0, 2);
   const std::vector<sb_event> events = PollAll();
   ASSERT_EQ(events.size(), 4u);

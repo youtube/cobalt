@@ -12,14 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Implements the `sb_surface` and `sb_player` imports for one execution
-// context on top of Starboard's SbPlayer.
-//
-// Each PlayerHost owns a display-critical player thread that makes every
-// SbPlayer call, so the JS thread never blocks on Starboard. Starboard
-// callbacks update internal state and queue `sb_event` records on the
-// context's EventQueue.
-
 #ifndef COBALT_STARBOARD_WASM_PLAYER_PLAYER_HOST_H_
 #define COBALT_STARBOARD_WASM_PLAYER_PLAYER_HOST_H_
 
@@ -51,6 +43,13 @@
 namespace cobalt {
 namespace starboard_wasm {
 
+// Implements H5vccWasmSurface and H5vccWasmPlayer for one execution context on
+// top of SbPlayer. Lives on the context's thread (`ModuleContext::owner`),
+// except OnSurfaceBoundsChanged(), which may be called on any thread.
+//
+// A display-critical player thread makes every SbPlayer call, so the JS thread
+// never blocks on SbPlayer. Starboard callbacks update internal state and queue
+// `sb_event` records on the context's EventQueue.
 class PlayerHost : public SurfaceRegistryObserver {
  public:
   static constexpr int64_t kInfoRefreshIntervalUs = 16'000;
@@ -71,7 +70,7 @@ class PlayerHost : public SurfaceRegistryObserver {
                         int32_t width,
                         int32_t height,
                         int32_t z_index);
-  // Returns the token that binds |surface| to a `<video>`, or "" if unknown.
+  // Returns the token that binds `surface` to a `<video>`, or "" if unknown.
   std::string SurfaceToken(uint32_t surface) const;
 
   uint32_t PlayerCreate(const uint8_t* audio,
@@ -128,7 +127,6 @@ class PlayerHost : public SurfaceRegistryObserver {
     int32_t z_index = 0;
   };
 
-  // The MIME-dependent fields of me_media_caps.
   struct ProbedCaps {
     uint32_t can_play = 0;
     uint32_t max_width = 0;
@@ -156,9 +154,7 @@ class PlayerHost : public SurfaceRegistryObserver {
     std::vector<DeferredEvent> deferred_events;
     std::unique_ptr<CallbackContext> callback_context;
     uint32_t state = ME_PLAYER_NONE;
-    // Starboard seek ticket, owned by the host; `guest_ticket` is the ticket
-    // the guest passed to the latest seek and is what events report.
-    int ticket = SB_PLAYER_INITIAL_TICKET;
+    int sb_ticket = SB_PLAYER_INITIAL_TICKET;
     uint32_t guest_ticket = 0;
     bool destroying = false;
     bool destroyed_event_sent = false;
@@ -184,6 +180,8 @@ class PlayerHost : public SurfaceRegistryObserver {
     SbPlayerInfo info{};
     bool info_valid = false;
     int64_t info_us = 0;
+    // Only appended to: SbMedia*StreamInfo points into each stored config, and
+    // writes still queued on the player thread may reference older ones.
     std::deque<StoredAudioConfig> audio_configs;
     std::deque<StoredVideoConfig> video_configs;
     std::unordered_set<const void*> allocated_buffers;
@@ -200,7 +198,6 @@ class PlayerHost : public SurfaceRegistryObserver {
   void DestroyAllOnPlayerThread();
   void CreateOnPlayerThread(uint32_t id);
   void UpdateAudioWriteDurationOnPlayerThread(uint32_t id);
-  // Any thread; |mu_| held.
   void ReportCreateFailedLocked(PlayerEntry& entry);
   void QueuePlayerEventLocked(PlayerEntry& entry,
                               uint32_t type,
@@ -251,16 +248,14 @@ class PlayerHost : public SurfaceRegistryObserver {
   std::unordered_map<uint32_t, PlayerEntry> players_;
   uint32_t next_surface_id_ = 1;
   std::unordered_map<uint32_t, Surface> surfaces_;
-  // Where unpositioned surfaces go, from the latest PlayerSettings; empty if
-  // unknown.
+  // From the latest PlayerSettings; empty if unknown.
   PlaneRect viewport_;
-  // Media.MaxSamplesPerWrite from the latest PlayerSettings.
-  int max_samples_per_write_ = kDefaultMaxSamplesPerWrite;
+  int settings_max_samples_per_write_ = kDefaultMaxSamplesPerWrite;
 
   std::atomic<bool> refresh_requested_{false};
   std::atomic<bool> refresh_timer_armed_{false};
 
-  // MediaCaps() results by MIME; used on |owner_| only.
+  // Used on `owner_` only.
   std::unordered_map<std::string, ProbedCaps> caps_cache_;
 
   bool refresh_timer_running_ = false;

@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Records and enums of the `sb_player` and `sb_surface` imports. Layouts are
-// fixed (see the static_asserts); records start with `struct_size`.
+// Records and enums passed to H5vccWasmPlayer and H5vccWasmSurface. Layouts
+// are fixed (see the static_asserts); records start with `struct_size`.
 
 #ifndef COBALT_STARBOARD_WASM_PLAYER_PLAYER_ABI_H_
 #define COBALT_STARBOARD_WASM_PLAYER_PLAYER_ABI_H_

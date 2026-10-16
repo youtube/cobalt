@@ -42,7 +42,6 @@ class PlayerModule : public Module {
   // Module:
   const char* name() const override;
 
-  // H5vccWasmSurface.
   uint32_t SurfaceCreate(uint32_t flags);
   void SurfaceDestroy(uint32_t surface);
   void SurfaceSetBounds(uint32_t surface,
@@ -51,11 +50,10 @@ class PlayerModule : public Module {
                         int32_t width,
                         int32_t height,
                         int32_t z_index);
-  // Returns the token that binds |surface| to a `<video>` element through a
-  // `blob:...#sb-surface=<token>` URL, or "" if |surface| is unknown.
+  // Returns the token that binds `surface` to a `<video>` element through a
+  // `blob:...#sb-surface=<token>` URL, or "" if `surface` is unknown.
   std::string SurfaceToken(uint32_t surface) const;
 
-  // H5vccWasmPlayer.
   uint32_t Create(GuestMemory& memory,
                   uint32_t audio_config_ptr,
                   uint32_t audio_config_len,

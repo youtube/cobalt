@@ -25,8 +25,9 @@ namespace cobalt {
 namespace starboard_wasm {
 
 // An asynchronous notification from the host, drained with
-// `sb_sys.poll_events`. `type` values are defined by the module that queues
-// the event; `handle` identifies that module's object (for example a player).
+// H5vccWasmSystem.pollEvents(). `type` values are defined by the module that
+// queues the event; `handle` identifies that module's object (for example a
+// player).
 struct sb_event {
   uint32_t struct_size;
   uint32_t type;

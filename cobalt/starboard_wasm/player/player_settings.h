@@ -14,9 +14,9 @@
 
 // Settings that the embedder's media pipeline applies to its own players
 // (H5vcc `Media.*` settings, viewport). PlayerHost applies the same ones, so
-// players created through the `sb_player` imports behave like `<video>`
-// players. Depends only on //base so the embedder can provide them without
-// depending on the player host.
+// players created through H5vccWasmPlayer behave like `<video>` players.
+// Depends only on //base so the embedder can provide them without depending
+// on the player host.
 
 #ifndef COBALT_STARBOARD_WASM_PLAYER_PLAYER_SETTINGS_H_
 #define COBALT_STARBOARD_WASM_PLAYER_PLAYER_SETTINGS_H_

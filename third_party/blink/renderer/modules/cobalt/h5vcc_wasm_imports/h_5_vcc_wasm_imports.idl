@@ -26,13 +26,13 @@
 // [NoAllocDirectCall] operations without going through JavaScript.
 //
 // Pointer arguments are byte offsets into the WebAssembly.Memory passed to
-// bindMemory(); out-of-bounds ranges make the operation fail (return 0).
-// Records are fixed-layout structs with a leading struct_size field, defined
-// in cobalt/starboard_wasm.
+// bindMemory(); without bound memory, or for an out-of-bounds range, the
+// operation fails (returns 0). Records are fixed-layout structs defined in
+// cobalt/starboard_wasm/core/abi.h and player/player_abi.h.
 //
-// Disabled by default: enable the H5vccWasmImports feature (see
-// runtime_enabled_features.json5). Only the main frame and same-origin
-// dedicated workers get an instance.
+// Disabled by default (see H5vccWasmImports in runtime_enabled_features.json5).
+// When enabled, only the outermost main frame and dedicated workers
+// same-origin with it get an instance; the attribute is null elsewhere.
 [
     Exposed=(Window,DedicatedWorker),
     RuntimeEnabled=H5vccWasmImports,

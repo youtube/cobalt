@@ -35,8 +35,8 @@ namespace starboard_wasm {
 // the context's JS thread.
 class ProviderCore {
  public:
-  // Creates one instance of each module in |modules|. |on_wake| runs on
-  // |owner| when an event arrives on an empty queue.
+  // Creates one instance of each module in `modules`. `on_wake` runs on
+  // `owner` when an event arrives on an empty queue.
   ProviderCore(scoped_refptr<base::SequencedTaskRunner> owner,
                base::RepeatingClosure on_wake,
                const std::vector<ModuleFactory>& modules);
@@ -50,12 +50,11 @@ class ProviderCore {
                   v8::Local<v8::Value> memory,
                   std::string* error);
 
-  // Resolves pointer arguments of one import call.
   GuestMemory Memory(v8::Isolate* isolate) const {
     return GuestMemory(isolate, memory_);
   }
 
-  // Returns the module named |name|, or nullptr (also after Shutdown()).
+  // Returns the module named `name`, or nullptr (also after Shutdown()).
   Module* GetModule(const char* name) const;
 
   template <typename T>
@@ -69,7 +68,7 @@ class ProviderCore {
   static double NowUs();
 
  private:
-  // Declared before |modules_|, which may queue events until destroyed.
+  // Declared before `modules_`, which may queue events until destroyed.
   std::unique_ptr<EventQueue> events_;
   std::vector<std::unique_ptr<Module>> modules_;
   v8::Global<v8::WasmMemoryObject> memory_;

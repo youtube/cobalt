@@ -30,7 +30,7 @@ namespace content {
 
 class WasmHoleWebMediaPlayer {
  public:
-  // Returns a hole-punching WebMediaPlayer when |url| is a `blob:` URL with
+  // Returns a hole-punching WebMediaPlayer when `url` is a `blob:` URL with
   // fragment `sb-surface=<token>`, or nullptr otherwise. The element's geometry
   // positions the Wasm surface registered under that token.
   static std::unique_ptr<blink::WebMediaPlayer> MaybeCreate(

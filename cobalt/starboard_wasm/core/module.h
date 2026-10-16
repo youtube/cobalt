@@ -30,11 +30,10 @@ class EventQueue;
 
 int64_t MonotonicNowUs();
 
-// What a module gets from the execution context it serves.
 struct ModuleContext {
   // The JS thread that calls the module's imports.
   scoped_refptr<base::SequencedTaskRunner> owner;
-  // Events for the guest; outlives the module.
+  // Outlives the module.
   raw_ref<EventQueue> events;
 };
 

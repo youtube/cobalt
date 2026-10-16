@@ -410,8 +410,6 @@ std::unique_ptr<blink::WebMediaPlayer> MediaFactory::CreateMediaPlayer(
     return nullptr;
 
 #if BUILDFLAG(IS_COBALT)
-  // A blob:...#sb-surface=<token> URL uses a hole-punching player whose
-  // geometry positions an H5vccWasmImports surface.
   if (base::FeatureList::IsEnabled(blink::features::kH5vccWasmImports)) {
     if (auto hole_player = WasmHoleWebMediaPlayer::MaybeCreate(
             url, client,

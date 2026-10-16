@@ -152,8 +152,6 @@ constexpr Resolution kProbeResolutions[] = {
 };
 constexpr int kProbeFrameRates[] = {120, 60, 50, 30, 25, 24};
 
-// Returns |mime| without the width, height and framerate parameters that
-// ProbeCaps() appends.
 std::string StripSizeParameters(const std::string& mime) {
   std::string out;
   for (std::string_view part : base::SplitStringPiece(
@@ -278,8 +276,7 @@ int64_t AdjustWriteDurationForRate(int64_t duration_us, int32_t rate_milli) {
   return duration_us * static_cast<int64_t>(rate_milli) / 1000;
 }
 
-// Mirrors StarboardRenderer::OnNeedData's throttle: returns true while written
-// samples are further ahead of playback than the write duration allows.
+// Mirrors StarboardRenderer::OnNeedData()'s write throttle.
 bool TooFarAhead(int64_t last_pts_us,
                  int64_t seek_time_us,
                  int64_t media_time_us,
@@ -468,7 +465,7 @@ void PlayerHost::PlayerSeek(uint32_t player,
     PlayerEntry& entry = it->second;
     // Starboard requires every seek to use a new ticket; the guest's ticket
     // is only echoed back in events.
-    sb_ticket = ++entry.ticket;
+    sb_ticket = ++entry.sb_ticket;
     entry.guest_ticket = ticket;
     entry.seek_time_us = position_us;
     entry.last_media_time_us = position_us;
@@ -776,8 +773,7 @@ uint32_t PlayerHost::MediaCaps(const char* mime,
   int max_per_write = 0;
   {
     base::AutoLock lock(mu_);
-    // Until a player exists, its limit is the latest setting.
-    max_per_write = max_samples_per_write_;
+    max_per_write = settings_max_samples_per_write_;
     for (const auto& kv : players_) {
       const PlayerEntry& entry = kv.second;
       if (entry.destroying || !SbPlayerIsValid(entry.sb_player)) {
@@ -829,8 +825,6 @@ PlayerHost::ProbedCaps PlayerHost::ProbeCaps(const std::string& mime,
   if (!is_video || support != kSbMediaSupportTypeProbably) {
     return caps;
   }
-  // Probes like a web app does with MediaSource.isTypeSupported(): the
-  // largest resolution first, then the highest frame rate at that size.
   const std::string base_mime = StripSizeParameters(mime);
   for (const auto& resolution : kProbeResolutions) {
     const std::string sized =
@@ -986,7 +980,7 @@ void PlayerHost::CreateOnPlayerThread(uint32_t id) {
     base::AutoLock lock(mu_);
     viewport_ = PlaneRect{0, 0, std::max(0, settings.viewport_width),
                           std::max(0, settings.viewport_height)};
-    max_samples_per_write_ = settings_max_per_write;
+    settings_max_samples_per_write_ = settings_max_per_write;
   }
 
   SbDecodeTargetGraphicsContextProvider* context_provider = nullptr;
@@ -1044,7 +1038,7 @@ void PlayerHost::CreateOnPlayerThread(uint32_t id) {
     }
   }
   ApplyBoundsOnPlayerThread();
-  // State callbacks that arrived before publication couldn't refresh it.
+  // Refreshes that ran before `sb_player` was stored did nothing.
   RequestRefresh();
 }
 
@@ -1242,8 +1236,7 @@ void PlayerHost::ApplyBoundsOnPlayerThread() {
       if (surface == surfaces_.end()) {
         continue;
       }
-      // Element geometry wins over guest bounds; unpositioned surfaces fill
-      // the viewport, as StarboardRenderer's players do initially.
+      // Unpositioned surfaces fill the viewport, like StarboardRenderer.
       PlaneRect rect;
       const int32_t z_index = surface->second.z_index;
       if (!SurfaceRegistry::Get().Bounds(surface->second.token, &rect)) {
@@ -1418,8 +1411,8 @@ void PlayerHost::DecoderStatusCB(SbPlayer player,
     return;
   }
   PlayerEntry& entry = it->second;
-  if (ticket != entry.ticket) {
-    return;  // Stale: issued before the latest seek.
+  if (ticket != entry.sb_ticket) {
+    return;
   }
   // Throttle only while presenting: during preroll the player needs data to
   // reach PRESENTING, and the refresh timer that flushes deferred requests
@@ -1479,8 +1472,9 @@ void PlayerHost::PlayerStatusCB(SbPlayer player,
     if (me_state == ME_PLAYER_DESTROYED) {
       it->second.destroyed_event_sent = true;
     }
-    // Events from before the latest seek carry a ticket the guest never used.
-    const uint32_t guest_ticket = ticket == it->second.ticket
+    // Only the latest seek's guest ticket is kept; events from an earlier seek
+    // report UINT32_MAX, which matches no seek.
+    const uint32_t guest_ticket = ticket == it->second.sb_ticket
                                       ? it->second.guest_ticket
                                       : std::numeric_limits<uint32_t>::max();
     host->QueuePlayerEventLocked(it->second, ME_EV_PLAYER_STATE, me_state,

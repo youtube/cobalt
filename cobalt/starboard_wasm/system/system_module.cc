@@ -33,10 +33,6 @@ const char* SystemModule::name() const {
   return kName;
 }
 
-double SystemModule::NowUs() const {
-  return static_cast<double>(MonotonicNowUs());
-}
-
 uint32_t SystemModule::PollEvents(GuestMemory& memory,
                                   uint32_t events_ptr,
                                   uint32_t count) {

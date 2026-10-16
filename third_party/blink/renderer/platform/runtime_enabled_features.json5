@@ -2494,10 +2494,8 @@
       status: "test",
     },
     {
-      // Cobalt: window.h5vccWasmImports and its interfaces, which give a page
-      // direct control of Starboard (e.g. SbPlayer). Disabled by default;
-      // enable per experiment through the base::Feature of the same name, or
-      // with --enable-features=H5vccWasmImports.
+      // Cobalt: h5vccWasmImports on Window and DedicatedWorkerGlobalScope,
+      // which gives a page direct control of Starboard (e.g. SbPlayer).
       name: "H5vccWasmImports",
     },
     {

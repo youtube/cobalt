@@ -73,7 +73,6 @@ void PlayerModule::Destroy(uint32_t player) {
 }
 
 void PlayerModule::Seek(uint32_t player, double position_us, uint32_t ticket) {
-  // NaN maps to 0; out-of-range values saturate.
   host_->PlayerSeek(player, base::saturated_cast<int64_t>(position_us), ticket);
 }
 
@@ -122,6 +121,9 @@ uint32_t PlayerModule::MediaCaps(GuestMemory& memory,
                                  uint32_t caps_ptr,
                                  uint32_t caps_len) {
   const uint8_t* mime = memory.Bytes(mime_ptr, mime_len);
+  if (!mime && mime_len) {
+    return 0;
+  }
   return host_->MediaCaps(reinterpret_cast<const char*>(mime),
                           mime ? mime_len : 0, memory.Bytes(caps_ptr, caps_len),
                           caps_len);

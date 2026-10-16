@@ -33,7 +33,7 @@ class GuestMemory {
   STACK_ALLOCATED();
 
  public:
-  // |memory| may be empty, in which case every lookup fails.
+  // `memory` may be empty, in which case every lookup fails.
   GuestMemory(v8::Isolate* isolate,
               const v8::Global<v8::WasmMemoryObject>& memory);
   GuestMemory(const GuestMemory&) = delete;
@@ -43,7 +43,6 @@ class GuestMemory {
   // empty or outside guest memory.
   uint8_t* Bytes(uint32_t ptr, uint32_t len);
 
-  // Like Bytes() for |count| elements of |elem_size| bytes each.
   uint8_t* Array(uint32_t ptr, uint32_t count, size_t elem_size);
 
  private:
