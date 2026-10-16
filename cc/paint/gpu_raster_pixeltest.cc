@@ -9,14 +9,11 @@
 #include <vector>
 
 #include "base/command_line.h"
-<<<<<<< HEAD
 #include "base/compiler_specific.h"
-=======
 #include "base/feature_list.h"
 #if BUILDFLAG(IS_COBALT)
 #include "base/features.h"
 #endif
->>>>>>> parent of c79075d5779 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
