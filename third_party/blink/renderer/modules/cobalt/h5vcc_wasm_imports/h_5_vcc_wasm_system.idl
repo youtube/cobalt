@@ -16,6 +16,7 @@
 // Clock, event queue and logging. See h_5_vcc_wasm_imports.idl.
 [
     Exposed=(Window,DedicatedWorker),
+    RuntimeEnabled=H5vccWasmImports,
     SecureContext
 ]
 interface H5vccWasmSystem {

@@ -76,14 +76,56 @@ TEST_F(EventQueueTest, SkipsWakeIfDrainedFirst) {
   EXPECT_EQ(wakes_, 0);
 }
 
-TEST_F(EventQueueTest, DropsOldestWhenFull) {
+TEST_F(EventQueueTest, NeverDropsEvents) {
   for (int i = 0; i < 1500; ++i) {
     queue_.Push(1, 0, i, 0);
   }
   const std::vector<sb_event> events = PollAll();
-  ASSERT_EQ(events.size(), 1024u);
-  EXPECT_EQ(events.front().a, 1500 - 1024);
+  ASSERT_EQ(events.size(), 1500u);
+  EXPECT_EQ(events.front().a, 0);
   EXPECT_EQ(events.back().a, 1499);
+}
+
+TEST_F(EventQueueTest, CoalescesByTypeHandleAndA) {
+  queue_.PushCoalesced(1, 7, 0, 1);
+  queue_.Push(2, 7, 3, 1);
+  queue_.PushCoalesced(1, 7, 1, 1);
+  queue_.PushCoalesced(1, 8, 0, 1);
+  // Replaces the first event and moves to the back, after the event it
+  // followed.
+  queue_.PushCoalesced(1, 7, 0, 2);
+  const std::vector<sb_event> events = PollAll();
+  ASSERT_EQ(events.size(), 4u);
+  EXPECT_EQ(events[0].type, 2u);
+  EXPECT_EQ(events[1].handle, 7u);
+  EXPECT_EQ(events[1].a, 1);
+  EXPECT_EQ(events[2].handle, 8u);
+  EXPECT_EQ(events[3].handle, 7u);
+  EXPECT_EQ(events[3].a, 0);
+  EXPECT_EQ(events[3].b, 2);
+}
+
+TEST_F(EventQueueTest, CoalescingKeepsOtherEvents) {
+  for (int i = 0; i < 1500; ++i) {
+    queue_.PushCoalesced(1, 7, 0, i);
+    queue_.Push(2, 7, i, 0);
+  }
+  const std::vector<sb_event> events = PollAll();
+  ASSERT_EQ(events.size(), 1501u);
+  EXPECT_EQ(events.front().type, 2u);
+  EXPECT_EQ(events.front().a, 0);
+  EXPECT_EQ(events[events.size() - 2].type, 1u);
+  EXPECT_EQ(events[events.size() - 2].b, 1499);
+  EXPECT_EQ(events.back().type, 2u);
+  EXPECT_EQ(events.back().a, 1499);
+}
+
+TEST_F(EventQueueTest, CoalescedPushWakes) {
+  queue_.PushCoalesced(1, 0, 0, 0);
+  queue_.PushCoalesced(1, 0, 0, 0);
+  base::RunLoop().RunUntilIdle();
+  EXPECT_EQ(wakes_, 1);
+  EXPECT_EQ(PollAll().size(), 1u);
 }
 
 }  // namespace

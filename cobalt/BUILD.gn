@@ -377,6 +377,7 @@ test("cobalt_unittests") {
     "//cobalt/shell/browser/h5vcc_scheme_url_loader_factory_unittest.cc",
     "//cobalt/shell/browser/picture_in_picture/picture_in_picture_window_manager_unittest.cc",
     "//cobalt/starboard_wasm/core/event_queue_unittest.cc",
+    "//cobalt/starboard_wasm/player/player_settings_unittest.cc",
     "//cobalt/starboard_wasm/player/surface_registry_unittest.cc",
   ]
 
@@ -452,6 +453,7 @@ test("cobalt_unittests") {
     "//cobalt/memory:unit_tests",
     "//cobalt/shell/browser/migrate_storage_record:unittest",
     "//cobalt/starboard_wasm/core",
+    "//cobalt/starboard_wasm/player:player_settings",
     "//cobalt/starboard_wasm/player:surface_registry",
     "//components/metrics",
     "//components/metrics:test_support",

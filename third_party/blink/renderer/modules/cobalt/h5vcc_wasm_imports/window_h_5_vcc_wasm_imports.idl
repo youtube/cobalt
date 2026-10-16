@@ -14,6 +14,7 @@
 
 [
   ImplementedAs=H5vccWasmImports,
+  RuntimeEnabled=H5vccWasmImports,
   SecureContext
 ] partial interface Window {
   readonly attribute H5vccWasmImports? h5vccWasmImports;

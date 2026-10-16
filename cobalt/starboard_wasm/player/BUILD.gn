@@ -22,6 +22,15 @@ static_library("surface_registry") {
   deps = [ "//base" ]
 }
 
+# Lets the embedder supply media settings without depending on the player.
+static_library("player_settings") {
+  sources = [
+    "player_settings.cc",
+    "player_settings.h",
+  ]
+  deps = [ "//base" ]
+}
+
 static_library("player") {
   sources = [
     "player_abi.h",
@@ -32,6 +41,7 @@ static_library("player") {
   ]
   public_deps = [ ":surface_registry" ]
   deps = [
+    ":player_settings",
     "//base",
     "//cobalt/starboard_wasm/core",
     "//starboard:starboard_group",

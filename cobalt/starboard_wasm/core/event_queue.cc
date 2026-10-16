@@ -20,16 +20,21 @@
 
 #include "base/functional/bind.h"
 #include "base/location.h"
-#include "base/logging.h"
 
 namespace cobalt {
 namespace starboard_wasm {
 
 namespace {
 
-// Bounds memory if a guest stops calling poll_events(); the oldest events are
-// dropped first.
-constexpr size_t kMaxQueuedEvents = 1024;
+sb_event MakeEvent(uint32_t type, uint32_t handle, int64_t a, int64_t b) {
+  sb_event ev{};
+  ev.struct_size = sizeof(sb_event);
+  ev.type = type;
+  ev.handle = handle;
+  ev.a = a;
+  ev.b = b;
+  return ev;
+}
 
 }  // namespace
 
@@ -40,20 +45,23 @@ EventQueue::EventQueue(scoped_refptr<base::SequencedTaskRunner> owner,
 EventQueue::~EventQueue() = default;
 
 void EventQueue::Push(uint32_t type, uint32_t handle, int64_t a, int64_t b) {
-  sb_event ev{};
-  ev.struct_size = sizeof(sb_event);
-  ev.type = type;
-  ev.handle = handle;
-  ev.a = a;
-  ev.b = b;
   base::AutoLock lock(lock_);
+  PushLocked(MakeEvent(type, handle, a, b));
+}
+
+void EventQueue::PushCoalesced(uint32_t type,
+                               uint32_t handle,
+                               int64_t a,
+                               int64_t b) {
+  base::AutoLock lock(lock_);
+  std::erase_if(events_, [&](const sb_event& ev) {
+    return ev.type == type && ev.handle == handle && ev.a == a;
+  });
+  PushLocked(MakeEvent(type, handle, a, b));
+}
+
+void EventQueue::PushLocked(const sb_event& ev) {
   const bool was_empty = events_.empty();
-  if (events_.size() >= kMaxQueuedEvents) {
-    LOG_IF(WARNING, !overflowed_)
-        << "sb_sys.poll_events is not keeping up; dropping events";
-    overflowed_ = true;
-    events_.pop_front();
-  }
   events_.push_back(ev);
   if (was_empty && !wake_posted_) {
     wake_posted_ = true;

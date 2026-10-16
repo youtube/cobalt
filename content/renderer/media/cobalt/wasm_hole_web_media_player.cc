@@ -73,7 +73,9 @@ using cobalt::starboard_wasm::PlaneRect;
 using cobalt::starboard_wasm::SurfaceRegistry;
 
 constexpr char kSurfaceFragmentPrefix[] = "sb-surface=";
-constexpr gfx::Size kNaturalSize(1920, 1080);
+// Until a player on the surface reports its video size. Only the aspect ratio
+// matters (it places the hole within the element), and most video is 16:9.
+constexpr gfx::Size kDefaultNaturalSize(1920, 1080);
 // Retains a surface's last rectangle across quick `<video>` replacements so a
 // newly attached element starts at the previous element's position.
 constexpr base::TimeDelta kStickyBoundsGrace = base::Seconds(1);
@@ -300,12 +302,12 @@ class WasmHoleWebMediaPlayerImpl final : public blink::WebMediaPlayer {
         provider_(
             new WasmHoleFrameProvider(
                 media::VideoFrame::CreateVideoHoleFrame(plane_id_,
-                                                        kNaturalSize,
+                                                        kDefaultNaturalSize,
                                                         base::TimeDelta())),
             base::OnTaskRunnerDeleter(compositor_task_runner
                                           ? compositor_task_runner
                                           : main_task_runner_)) {
-    natural_size_ = kNaturalSize;
+    natural_size_ = kDefaultNaturalSize;
     int32_t w = 0;
     int32_t h = 0;
     if (SurfaceRegistry::Get().VideoSize(surface_, &w, &h)) {

@@ -29,8 +29,13 @@
 // bindMemory(); out-of-bounds ranges make the operation fail (return 0).
 // Records are fixed-layout structs with a leading struct_size field, defined
 // in cobalt/starboard_wasm.
+//
+// Disabled by default: enable the H5vccWasmImports feature (see
+// runtime_enabled_features.json5). Only the main frame and same-origin
+// dedicated workers get an instance.
 [
     Exposed=(Window,DedicatedWorker),
+    RuntimeEnabled=H5vccWasmImports,
     SecureContext
 ]
 interface H5vccWasmImports : EventTarget {

@@ -54,6 +54,9 @@ namespace starboard_wasm {
 class PlayerHost : public SurfaceRegistryObserver {
  public:
   static constexpr int64_t kInfoRefreshIntervalUs = 16'000;
+  static constexpr size_t kMaxCachedCaps = 64;
+  // StarboardRenderer's default for Media.MaxSamplesPerWrite.
+  static constexpr int kDefaultMaxSamplesPerWrite = 12;
 
   explicit PlayerHost(const ModuleContext& context);
   PlayerHost(const PlayerHost&) = delete;
@@ -125,11 +128,32 @@ class PlayerHost : public SurfaceRegistryObserver {
     int32_t z_index = 0;
   };
 
+  // The MIME-dependent fields of me_media_caps.
+  struct ProbedCaps {
+    uint32_t can_play = 0;
+    uint32_t max_width = 0;
+    uint32_t max_height = 0;
+    uint32_t max_frame_rate_milli = 0;
+  };
+
+  struct DeferredEvent {
+    uint32_t type;
+    int64_t a;
+    int64_t b;
+    bool coalesce;
+  };
+
   struct PlayerEntry {
     uint32_t id = 0;
     uint32_t surface = 0;
     SbPlayer sb_player = kSbPlayerInvalid;
     bool create_failed = false;
+    // Starboard calls back from its own threads as soon as SbPlayerCreate()
+    // starts the player; until `sb_player` and the limits below are stored,
+    // the player's events wait in `deferred_events` so the guest can't act
+    // on a half-set-up player.
+    bool published = false;
+    std::vector<DeferredEvent> deferred_events;
     std::unique_ptr<CallbackContext> callback_context;
     uint32_t state = ME_PLAYER_NONE;
     // Starboard seek ticket, owned by the host; `guest_ticket` is the ticket
@@ -147,13 +171,16 @@ class PlayerHost : public SurfaceRegistryObserver {
     int64_t last_audio_pts_us = -1;
     int64_t last_video_pts_us = -1;
     int32_t rate_milli = 1000;
-    int32_t last_sent_rate_milli = 0;
+    // A new SbPlayer plays at rate 1.0 and volume 1.0.
+    int32_t last_sent_rate_milli = 1000;
     int32_t last_sent_volume_milli = 1000;
     bool audio_eos_written = false;
     bool video_eos_written = false;
     bool audio_needs_data_deferred = false;
     bool video_needs_data_deferred = false;
-    int sb_max_samples_per_write[ME_TRACK_COUNT] = {12, 12};
+    int max_samples_per_write[ME_TRACK_COUNT] = {kDefaultMaxSamplesPerWrite,
+                                                 kDefaultMaxSamplesPerWrite};
+    int64_t audio_write_duration_us = kSbPlayerWriteDurationLocal;
     SbPlayerInfo info{};
     bool info_valid = false;
     int64_t info_us = 0;
@@ -167,10 +194,19 @@ class PlayerHost : public SurfaceRegistryObserver {
   static void PopulateVideoConfigInPlace(const me_video_config& cfg,
                                          StoredVideoConfig* out);
   static int64_t MediaTimeAge(const PlayerEntry& entry);
+  // Takes up to a few dozen SbMediaCanPlayMimeAndKeySystem() calls.
+  static ProbedCaps ProbeCaps(const std::string& mime, bool is_video);
 
-  void InitOnPlayerThread();
   void DestroyAllOnPlayerThread();
   void CreateOnPlayerThread(uint32_t id);
+  void UpdateAudioWriteDurationOnPlayerThread(uint32_t id);
+  // Any thread; |mu_| held.
+  void ReportCreateFailedLocked(PlayerEntry& entry);
+  void QueuePlayerEventLocked(PlayerEntry& entry,
+                              uint32_t type,
+                              int64_t a,
+                              int64_t b,
+                              bool coalesce);
   void DestroyOnPlayerThread(uint32_t id);
   void SeekOnPlayerThread(uint32_t id, int64_t position_us, int ticket);
   void WriteOnPlayerThread(uint32_t id,
@@ -215,9 +251,17 @@ class PlayerHost : public SurfaceRegistryObserver {
   std::unordered_map<uint32_t, PlayerEntry> players_;
   uint32_t next_surface_id_ = 1;
   std::unordered_map<uint32_t, Surface> surfaces_;
+  // Where unpositioned surfaces go, from the latest PlayerSettings; empty if
+  // unknown.
+  PlaneRect viewport_;
+  // Media.MaxSamplesPerWrite from the latest PlayerSettings.
+  int max_samples_per_write_ = kDefaultMaxSamplesPerWrite;
 
   std::atomic<bool> refresh_requested_{false};
   std::atomic<bool> refresh_timer_armed_{false};
+
+  // MediaCaps() results by MIME; used on |owner_| only.
+  std::unordered_map<std::string, ProbedCaps> caps_cache_;
 
   bool refresh_timer_running_ = false;
 

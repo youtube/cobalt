@@ -20,16 +20,22 @@
 #include <algorithm>
 #include <chrono>
 #include <limits>
+#include <map>
+#include <string_view>
 #include <utility>
+#include <vector>
 
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/logging.h"
+#include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
+#include "base/strings/stringprintf.h"
 #include "base/synchronization/lock.h"
 #include "base/threading/platform_thread.h"
 #include "base/unguessable_token.h"
 #include "build/build_config.h"
+#include "cobalt/starboard_wasm/player/player_settings.h"
 #include "starboard/decode_target.h"
 #include "starboard/drm.h"
 #include "starboard/extension/experimental/experimental_features.h"
@@ -45,9 +51,7 @@ namespace starboard_wasm {
 
 namespace {
 
-constexpr int kDefaultMaxSamplesPerWrite = 12;
 constexpr int64_t kMediaTimeCheckIntervalUs = 100'000;
-constexpr int64_t kAudioWriteDurationUs = 1'000'000;
 constexpr int64_t kVideoWriteDurationUs = 1'500'000;
 
 #if BUILDFLAG(IS_ANDROID)
@@ -138,6 +142,41 @@ size_t BoundedStrLen(const char* s, size_t max_len) {
   return n;
 }
 
+struct Resolution {
+  int width;
+  int height;
+};
+constexpr Resolution kProbeResolutions[] = {
+    {7680, 4320}, {3840, 2160}, {2560, 1440}, {1920, 1080},
+    {1280, 720},  {854, 480},   {640, 360},   {426, 240},
+};
+constexpr int kProbeFrameRates[] = {120, 60, 50, 30, 25, 24};
+
+// Returns |mime| without the width, height and framerate parameters that
+// ProbeCaps() appends.
+std::string StripSizeParameters(const std::string& mime) {
+  std::string out;
+  for (std::string_view part : base::SplitStringPiece(
+           mime, ";", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY)) {
+    const std::string lower = base::ToLowerASCII(part);
+    if (!out.empty() && (base::StartsWith(lower, "width=") ||
+                         base::StartsWith(lower, "height=") ||
+                         base::StartsWith(lower, "framerate="))) {
+      continue;
+    }
+    if (!out.empty()) {
+      out += "; ";
+    }
+    out.append(part);
+  }
+  return out;
+}
+
+bool CanPlay(const std::string& mime) {
+  return SbMediaCanPlayMimeAndKeySystem(mime.c_str(), "") !=
+         kSbMediaSupportTypeNotSupported;
+}
+
 SbMediaColorMetadata MakeColorMetadata(const me_video_config& cfg) {
   SbMediaColorMetadata m{};
   m.bits_per_channel = cfg.bit_depth > 0 ? cfg.bit_depth : 8;
@@ -186,6 +225,52 @@ SbMediaColorMetadata MakeColorMetadata(const me_video_config& cfg) {
   return m;
 }
 
+// Like SbPlayerBridge::CreatePlayer(), so the platform sees the same features
+// for players created here.
+void ApplyExperimentalFeatures(const std::map<std::string, int64_t>& features) {
+  const auto* ext = static_cast<
+      const StarboardExtensionExperimentalFeaturesConfigurationApi*>(
+      SbSystemGetExtension(
+          kStarboardExtensionExperimentalFeaturesConfigurationName));
+  if (!ext ||
+      strcmp(ext->name,
+             kStarboardExtensionExperimentalFeaturesConfigurationName) != 0 ||
+      ext->version < 1 || !ext->SetExperimentalFeaturesForCurrentThread) {
+    return;
+  }
+  std::vector<StarboardExperimentalFeatureEntry> entries;
+  entries.reserve(features.size());
+  for (const auto& [key, value] : features) {
+    entries.push_back({key.c_str(), value});
+  }
+  const StarboardExtensionExperimentalFeatures extension_features{
+      entries.data(), entries.size()};
+  ext->SetExperimentalFeaturesForCurrentThread(&extension_features);
+}
+
+// Like StarboardRenderer::UpdateAudioWriteDuration(): writes further ahead
+// when audio leaves the device.
+int64_t AudioWriteDurationUs(SbPlayer player) {
+  // Bounds the loop like SbPlayerBridge::GetAudioConfigurations().
+  constexpr int kMaxAudioConfigurations = 32;
+  for (int i = 0; i < kMaxAudioConfigurations; ++i) {
+    SbMediaAudioConfiguration configuration;
+    if (!SbPlayerGetAudioConfiguration(player, i, &configuration)) {
+      break;
+    }
+    switch (configuration.connector) {
+      case kSbMediaAudioConnectorBluetooth:
+      case kSbMediaAudioConnectorRemoteWired:
+      case kSbMediaAudioConnectorRemoteWireless:
+      case kSbMediaAudioConnectorRemoteOther:
+        return kSbPlayerWriteDurationRemote;
+      default:
+        break;
+    }
+  }
+  return kSbPlayerWriteDurationLocal;
+}
+
 int64_t AdjustWriteDurationForRate(int64_t duration_us, int32_t rate_milli) {
   if (rate_milli <= 1000) {
     return duration_us;
@@ -219,9 +304,6 @@ PlayerHost::PlayerHost(const ModuleContext& context)
   options.thread_type = base::ThreadType::kDisplayCritical;
   CHECK(player_thread_.StartWithOptions(std::move(options)));
   player_runner_ = player_thread_.task_runner();
-  player_runner_->PostTask(
-      FROM_HERE,
-      base::BindOnce(&PlayerHost::InitOnPlayerThread, base::Unretained(this)));
   SurfaceRegistry::Get().AddObserver(this);
 }
 
@@ -460,8 +542,7 @@ uint32_t PlayerHost::PlayerWriteSamples(uint32_t player,
     return 0;
   }
 
-  const int max_per_write = std::min(entry.sb_max_samples_per_write[track],
-                                     kDefaultMaxSamplesPerWrite);
+  const int max_per_write = entry.max_samples_per_write[track];
   const uint32_t limit =
       std::min<uint32_t>(count, static_cast<uint32_t>(max_per_write));
 
@@ -471,8 +552,8 @@ uint32_t PlayerHost::PlayerWriteSamples(uint32_t player,
   const int64_t ref_time_us =
       std::max(entry.seek_time_us, entry.last_media_time_us);
   const int64_t max_audio_pts_us =
-      ref_time_us +
-      AdjustWriteDurationForRate(kAudioWriteDurationUs, entry.rate_milli);
+      ref_time_us + AdjustWriteDurationForRate(entry.audio_write_duration_us,
+                                               entry.rate_milli);
   const int64_t max_video_pts_us =
       ref_time_us +
       AdjustWriteDurationForRate(kVideoWriteDurationUs, entry.rate_milli);
@@ -550,8 +631,9 @@ void PlayerHost::PlayerWriteEos(uint32_t player, uint32_t track) {
       entry.video_needs_data_deferred = false;
       if (entry.audio_needs_data_deferred) {
         entry.audio_needs_data_deferred = false;
-        events_->Push(ME_EV_NEEDS_DATA, player, ME_TRACK_AUDIO,
-                      entry.guest_ticket);
+        QueuePlayerEventLocked(entry, ME_EV_NEEDS_DATA, ME_TRACK_AUDIO,
+                               entry.guest_ticket,
+                               /*coalesce=*/true);
       }
     } else if (track == ME_TRACK_AUDIO && !entry.audio_configs.empty()) {
       entry.audio_eos_written = true;
@@ -676,24 +758,33 @@ uint32_t PlayerHost::MediaCaps(const char* mime,
   const bool decode_to_texture =
       lower_mime.find("decode-to-texture=true") != std::string::npos;
 
-  SbMediaSupportType support = kSbMediaSupportTypeNotSupported;
+  ProbedCaps probed;
   if (!mime_str.empty() && mime_str.size() < ME_MIME_MAX &&
       !decode_to_texture) {
-    support = SbMediaCanPlayMimeAndKeySystem(mime_str.c_str(), "");
+    auto cached = caps_cache_.find(mime_str);
+    if (cached == caps_cache_.end()) {
+      if (caps_cache_.size() >= kMaxCachedCaps) {
+        caps_cache_.clear();
+      }
+      cached =
+          caps_cache_.emplace(mime_str, ProbeCaps(mime_str, is_video)).first;
+    }
+    probed = cached->second;
   }
 
   std::string current_mime;
-  int max_per_write = kDefaultMaxSamplesPerWrite;
+  int max_per_write = 0;
   {
     base::AutoLock lock(mu_);
+    // Until a player exists, its limit is the latest setting.
+    max_per_write = max_samples_per_write_;
     for (const auto& kv : players_) {
       const PlayerEntry& entry = kv.second;
       if (entry.destroying || !SbPlayerIsValid(entry.sb_player)) {
         continue;
       }
       const int track = is_video ? ME_TRACK_VIDEO : ME_TRACK_AUDIO;
-      max_per_write = std::min(kDefaultMaxSamplesPerWrite,
-                               entry.sb_max_samples_per_write[track]);
+      max_per_write = entry.max_samples_per_write[track];
       if (is_video && !entry.video_configs.empty()) {
         current_mime = entry.video_configs.back().mime;
       } else if (!is_video && !entry.audio_configs.empty()) {
@@ -704,24 +795,62 @@ uint32_t PlayerHost::MediaCaps(const char* mime,
 
   me_media_caps caps{};
   caps.struct_size = sizeof(caps);
-  caps.can_play = support == kSbMediaSupportTypeProbably ? 2
-                  : support == kSbMediaSupportTypeMaybe  ? 1
-                                                         : 0;
+  caps.can_play = probed.can_play;
   caps.can_change_type =
       current_mime.empty()
           ? 1u
           : (SbMediaCanChangeType(current_mime.c_str(), mime_str.c_str()) ? 1u
                                                                           : 0u);
+  // Starboard can't report how many players can run at once, and platforms
+  // commonly have a single punch-out video surface.
   caps.max_players = 1;
   caps.punch_out = 1;
-  caps.max_width = 1920;
-  caps.max_height = 1080;
-  caps.max_frame_rate_milli = 60000;
+  caps.max_width = probed.max_width;
+  caps.max_height = probed.max_height;
+  caps.max_frame_rate_milli = probed.max_frame_rate_milli;
   caps.max_samples_per_write = static_cast<uint32_t>(max_per_write);
 
   const uint32_t to_copy = std::min<uint32_t>(out_len, sizeof(caps));
   memcpy(out, &caps, to_copy);
   return to_copy;
+}
+
+// static
+PlayerHost::ProbedCaps PlayerHost::ProbeCaps(const std::string& mime,
+                                             bool is_video) {
+  ProbedCaps caps;
+  const SbMediaSupportType support =
+      SbMediaCanPlayMimeAndKeySystem(mime.c_str(), "");
+  caps.can_play = support == kSbMediaSupportTypeProbably ? 2
+                  : support == kSbMediaSupportTypeMaybe  ? 1
+                                                         : 0;
+  // Starboard answers "maybe" for a MIME without codecs whatever the size,
+  // so only a definite answer is worth probing.
+  if (!is_video || support != kSbMediaSupportTypeProbably) {
+    return caps;
+  }
+  // Probes like a web app does with MediaSource.isTypeSupported(): the
+  // largest resolution first, then the highest frame rate at that size.
+  const std::string base_mime = StripSizeParameters(mime);
+  for (const auto& resolution : kProbeResolutions) {
+    const std::string sized =
+        base::StringPrintf("%s; width=%d; height=%d", base_mime.c_str(),
+                           resolution.width, resolution.height);
+    if (!CanPlay(sized)) {
+      continue;
+    }
+    caps.max_width = resolution.width;
+    caps.max_height = resolution.height;
+    for (int frame_rate : kProbeFrameRates) {
+      if (CanPlay(base::StringPrintf("%s; framerate=%d", sized.c_str(),
+                                     frame_rate))) {
+        caps.max_frame_rate_milli = static_cast<uint32_t>(frame_rate) * 1000;
+        break;
+      }
+    }
+    break;
+  }
+  return caps;
 }
 
 void PlayerHost::OnSurfaceBoundsChanged(const std::string& /*token*/) {
@@ -795,20 +924,6 @@ int64_t PlayerHost::MediaTimeAge(const PlayerEntry& entry) {
   return MonotonicNowUs() - entry.last_media_time_retrieved_us;
 }
 
-void PlayerHost::InitOnPlayerThread() {
-  const auto* ext = static_cast<
-      const StarboardExtensionExperimentalFeaturesConfigurationApi*>(
-      SbSystemGetExtension(
-          kStarboardExtensionExperimentalFeaturesConfigurationName));
-  if (ext &&
-      strcmp(ext->name,
-             kStarboardExtensionExperimentalFeaturesConfigurationName) == 0 &&
-      ext->version >= 1 && ext->SetExperimentalFeaturesForCurrentThread) {
-    const StarboardExtensionExperimentalFeatures features{nullptr, 0};
-    ext->SetExperimentalFeaturesForCurrentThread(&features);
-  }
-}
-
 void PlayerHost::DestroyAllOnPlayerThread() {
   std::vector<SbPlayer> to_destroy;
   {
@@ -860,6 +975,20 @@ void PlayerHost::CreateOnPlayerThread(uint32_t id) {
     }
   }
 
+  // Fetched for every player, like the embedder's pipeline does, since the
+  // settings can change at runtime.
+  const PlayerSettings settings = GetPlayerSettings();
+  ApplyExperimentalFeatures(settings.experimental_features);
+  const int settings_max_per_write = settings.max_samples_per_write > 0
+                                         ? settings.max_samples_per_write
+                                         : kDefaultMaxSamplesPerWrite;
+  {
+    base::AutoLock lock(mu_);
+    viewport_ = PlaneRect{0, 0, std::max(0, settings.viewport_width),
+                          std::max(0, settings.viewport_height)};
+    max_samples_per_write_ = settings_max_per_write;
+  }
+
   SbDecodeTargetGraphicsContextProvider* context_provider = nullptr;
 #if BUILDFLAG(IS_ANDROID)
   context_provider = DummyDecodeTargetProvider();
@@ -879,20 +1008,13 @@ void PlayerHost::CreateOnPlayerThread(uint32_t id) {
       &PlayerHost::PlayerErrorCB, callback_context, context_provider);
 
   if (!SbPlayerIsValid(sb_player)) {
+    LOG(ERROR) << "SbPlayerCreate() failed for player " << id;
     base::AutoLock lock(mu_);
     auto it = players_.find(id);
-    if (it != players_.end()) {
-      it->second.create_failed = true;
-      events_->Push(ME_EV_PLAYER_ERROR, id, kSbPlayerErrorDecode, 0);
+    if (it != players_.end() && !it->second.destroying) {
+      it->second.published = true;
+      ReportCreateFailedLocked(it->second);
     }
-#if BUILDFLAG(IS_ANDROID)
-    if (!starboard::VideoSurfaceHolder::IsVideoSurfaceAvailable()) {
-      surface_waiter_.store(true, std::memory_order_release);
-      owner_->PostTask(
-          FROM_HERE,
-          base::BindOnce(&PlayerHost::ScheduleSurfaceProbe, weak_this_));
-    }
-#endif  // BUILDFLAG(IS_ANDROID)
     return;
   }
 
@@ -900,18 +1022,81 @@ void PlayerHost::CreateOnPlayerThread(uint32_t id) {
       SbPlayerGetMaximumNumberOfSamplesPerWrite(sb_player, kSbMediaTypeAudio);
   const int video_max =
       SbPlayerGetMaximumNumberOfSamplesPerWrite(sb_player, kSbMediaTypeVideo);
+  const int64_t audio_write_duration_us = AudioWriteDurationUs(sb_player);
   {
     base::AutoLock lock(mu_);
     auto it = players_.find(id);
     if (it != players_.end()) {
-      it->second.sb_player = sb_player;
-      it->second.sb_max_samples_per_write[ME_TRACK_AUDIO] =
-          std::max(1, audio_max);
-      it->second.sb_max_samples_per_write[ME_TRACK_VIDEO] =
-          std::max(1, video_max);
+      PlayerEntry& entry = it->second;
+      entry.sb_player = sb_player;
+      entry.max_samples_per_write[ME_TRACK_AUDIO] =
+          std::clamp(audio_max, 1, settings_max_per_write);
+      entry.max_samples_per_write[ME_TRACK_VIDEO] =
+          std::clamp(video_max, 1, settings_max_per_write);
+      entry.audio_write_duration_us = audio_write_duration_us;
+      entry.published = true;
+      if (!entry.destroying) {
+        for (const DeferredEvent& ev : entry.deferred_events) {
+          QueuePlayerEventLocked(entry, ev.type, ev.a, ev.b, ev.coalesce);
+        }
+      }
+      entry.deferred_events.clear();
     }
   }
   ApplyBoundsOnPlayerThread();
+  // State callbacks that arrived before publication couldn't refresh it.
+  RequestRefresh();
+}
+
+void PlayerHost::QueuePlayerEventLocked(PlayerEntry& entry,
+                                        uint32_t type,
+                                        int64_t a,
+                                        int64_t b,
+                                        bool coalesce) {
+  if (!entry.published) {
+    entry.deferred_events.push_back({type, a, b, coalesce});
+    return;
+  }
+  if (coalesce) {
+    events_->PushCoalesced(type, entry.id, a, b);
+  } else {
+    events_->Push(type, entry.id, a, b);
+  }
+}
+
+void PlayerHost::UpdateAudioWriteDurationOnPlayerThread(uint32_t id) {
+  SbPlayer sb_player = kSbPlayerInvalid;
+  {
+    base::AutoLock lock(mu_);
+    auto it = players_.find(id);
+    if (it == players_.end() || it->second.destroying) {
+      return;
+    }
+    sb_player = it->second.sb_player;
+  }
+  if (!SbPlayerIsValid(sb_player)) {
+    return;
+  }
+  const int64_t audio_write_duration_us = AudioWriteDurationUs(sb_player);
+  base::AutoLock lock(mu_);
+  auto it = players_.find(id);
+  if (it != players_.end()) {
+    it->second.audio_write_duration_us = audio_write_duration_us;
+  }
+}
+
+void PlayerHost::ReportCreateFailedLocked(PlayerEntry& entry) {
+  entry.create_failed = true;
+  QueuePlayerEventLocked(entry, ME_EV_PLAYER_ERROR,
+                         ME_PLAYER_ERROR_CREATE_FAILED, 0, /*coalesce=*/false);
+#if BUILDFLAG(IS_ANDROID)
+  if (!starboard::VideoSurfaceHolder::IsVideoSurfaceAvailable()) {
+    surface_waiter_.store(true, std::memory_order_release);
+    owner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(&PlayerHost::ScheduleSurfaceProbe, weak_this_));
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
 }
 
 void PlayerHost::DestroyOnPlayerThread(uint32_t id) {
@@ -933,7 +1118,7 @@ void PlayerHost::DestroyOnPlayerThread(uint32_t id) {
 #if BUILDFLAG(IS_ANDROID)
   if (starboard::VideoSurfaceHolder::IsVideoSurfaceAvailable() &&
       surface_waiter_.exchange(false, std::memory_order_acq_rel)) {
-    events_->Push(ME_EV_SURFACE_READY, 0, 0, 0);
+    events_->PushCoalesced(ME_EV_SURFACE_READY, 0, 0, 0);
   }
 #endif  // BUILDFLAG(IS_ANDROID)
   auto it = players_.find(id);
@@ -1058,12 +1243,18 @@ void PlayerHost::ApplyBoundsOnPlayerThread() {
         continue;
       }
       // Element geometry wins over guest bounds; unpositioned surfaces fill
-      // the screen.
-      PlaneRect rect{0, 0, 1920, 1080};
+      // the viewport, as StarboardRenderer's players do initially.
+      PlaneRect rect;
       const int32_t z_index = surface->second.z_index;
-      if (!SurfaceRegistry::Get().Bounds(surface->second.token, &rect) &&
-          surface->second.has_guest_bounds) {
-        rect = surface->second.guest_bounds;
+      if (!SurfaceRegistry::Get().Bounds(surface->second.token, &rect)) {
+        if (surface->second.has_guest_bounds) {
+          rect = surface->second.guest_bounds;
+        } else if (viewport_.width > 0 && viewport_.height > 0) {
+          rect = viewport_;
+        } else {
+          // Unknown viewport; a new SbPlayer fills the screen already.
+          continue;
+        }
       }
       if (entry.has_applied_bounds && entry.applied_z_index == z_index &&
           entry.applied_bounds == rect) {
@@ -1143,10 +1334,12 @@ void PlayerHost::RefreshOnPlayerThread() {
         (entry.video_eos_written ||
          !TooFarAhead(entry.last_audio_pts_us, entry.seek_time_us,
                       entry.last_media_time_us, /*age=*/0,
-                      AdjustWriteDurationForRate(kAudioWriteDurationUs,
+                      AdjustWriteDurationForRate(entry.audio_write_duration_us,
                                                  entry.rate_milli)))) {
       entry.audio_needs_data_deferred = false;
-      events_->Push(ME_EV_NEEDS_DATA, id, ME_TRACK_AUDIO, entry.guest_ticket);
+      QueuePlayerEventLocked(entry, ME_EV_NEEDS_DATA, ME_TRACK_AUDIO,
+                             entry.guest_ticket,
+                             /*coalesce=*/true);
     }
     if (entry.video_needs_data_deferred &&
         !TooFarAhead(entry.last_video_pts_us, entry.seek_time_us,
@@ -1154,7 +1347,9 @@ void PlayerHost::RefreshOnPlayerThread() {
                      AdjustWriteDurationForRate(kVideoWriteDurationUs,
                                                 entry.rate_milli))) {
       entry.video_needs_data_deferred = false;
-      events_->Push(ME_EV_NEEDS_DATA, id, ME_TRACK_VIDEO, entry.guest_ticket);
+      QueuePlayerEventLocked(entry, ME_EV_NEEDS_DATA, ME_TRACK_VIDEO,
+                             entry.guest_ticket,
+                             /*coalesce=*/true);
     }
   }
   if (any_presenting) {
@@ -1183,7 +1378,7 @@ void PlayerHost::ProbeSurface() {
   if (!surface_waiter_.exchange(false, std::memory_order_acq_rel)) {
     return;
   }
-  events_->Push(ME_EV_SURFACE_READY, 0, 0, 0);
+  events_->PushCoalesced(ME_EV_SURFACE_READY, 0, 0, 0);
 }
 
 // static
@@ -1237,7 +1432,7 @@ void PlayerHost::DecoderStatusCB(SbPlayer player,
         presenting && !video_done &&
         TooFarAhead(entry.last_audio_pts_us, entry.seek_time_us,
                     entry.last_media_time_us, MediaTimeAge(entry),
-                    AdjustWriteDurationForRate(kAudioWriteDurationUs,
+                    AdjustWriteDurationForRate(entry.audio_write_duration_us,
                                                entry.rate_milli));
     if (entry.audio_needs_data_deferred) {
       return;
@@ -1253,7 +1448,8 @@ void PlayerHost::DecoderStatusCB(SbPlayer player,
       return;
     }
   }
-  host->events_->Push(ME_EV_NEEDS_DATA, ctx->id, track, entry.guest_ticket);
+  host->QueuePlayerEventLocked(entry, ME_EV_NEEDS_DATA, track,
+                               entry.guest_ticket, /*coalesce=*/true);
 }
 
 // static
@@ -1287,10 +1483,18 @@ void PlayerHost::PlayerStatusCB(SbPlayer player,
     const uint32_t guest_ticket = ticket == it->second.ticket
                                       ? it->second.guest_ticket
                                       : std::numeric_limits<uint32_t>::max();
-    host->events_->Push(ME_EV_PLAYER_STATE, ctx->id, me_state, guest_ticket);
+    host->QueuePlayerEventLocked(it->second, ME_EV_PLAYER_STATE, me_state,
+                                 guest_ticket, /*coalesce=*/false);
   }
   if (me_state != ME_PLAYER_DESTROYED) {
     host->RequestRefresh();
+  }
+  if (me_state == ME_PLAYER_PRESENTING) {
+    // Audio configurations may be known only once presenting.
+    host->player_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(&PlayerHost::UpdateAudioWriteDurationOnPlayerThread,
+                       base::Unretained(host), ctx->id));
   }
 }
 
@@ -1298,19 +1502,36 @@ void PlayerHost::PlayerStatusCB(SbPlayer player,
 void PlayerHost::PlayerErrorCB(SbPlayer player,
                                void* context,
                                SbPlayerError error,
-                               const char* /*message*/) {
-  if (context == nullptr || !SbPlayerIsValid(player)) {
+                               const char* message) {
+  if (context == nullptr) {
     return;
   }
   const CallbackContext* ctx = static_cast<const CallbackContext*>(context);
+  LOG(ERROR) << "SbPlayer error " << error << " for player " << ctx->id << ": "
+             << (message ? message : "");
+  // A failing SbPlayerCreate() also reports here, with an invalid player;
+  // CreateOnPlayerThread() handles that case.
+  if (!SbPlayerIsValid(player)) {
+    return;
+  }
   PlayerHost* host = ctx->host;
   base::AutoLock lock(host->mu_);
   auto it = host->players_.find(ctx->id);
   if (it == host->players_.end() || it->second.destroying) {
     return;
   }
-  host->events_->Push(ME_EV_PLAYER_ERROR, ctx->id, static_cast<int64_t>(error),
-                      0);
+  if (it->second.state == ME_PLAYER_NONE) {
+    // SbPlayerCreate() returns before the platform sets the player up (on
+    // Android, before it takes the video surface); failing that is a create
+    // failure, not a decode error.
+    host->ReportCreateFailedLocked(it->second);
+    return;
+  }
+  const int64_t code = error == kSbPlayerErrorCapabilityChanged
+                           ? ME_PLAYER_ERROR_CAPABILITY_CHANGED
+                           : ME_PLAYER_ERROR_DECODE;
+  host->QueuePlayerEventLocked(it->second, ME_EV_PLAYER_ERROR, code, 0,
+                               /*coalesce=*/false);
 }
 
 }  // namespace starboard_wasm

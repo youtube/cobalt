@@ -62,12 +62,25 @@ enum me_player_state {
 };
 
 enum me_host_event {
-  ME_EV_NEEDS_DATA = 1,     // a = me_track, b = seek ticket
-  ME_EV_PLAYER_STATE = 2,   // a = me_player_state, b = seek ticket
-  ME_EV_DECODER_ERROR = 3,  // a = me_track, b = host error code
-  ME_EV_PLAYER_ERROR = 4,   // a = host error code, b = 0
+  ME_EV_NEEDS_DATA = 1,    // a = me_track, b = seek ticket
+  ME_EV_PLAYER_STATE = 2,  // a = me_player_state, b = seek ticket
+  ME_EV_PLAYER_ERROR = 4,  // a = me_player_error, b = 0
+  // Sent with handle 0 after a create() that failed for lack of a free video
+  // surface, once one is free: create() returned 0, or the player reported
+  // ME_PLAYER_ERROR_CREATE_FAILED. The guest may then create again.
   ME_EV_SURFACE_READY = 5,
-  ME_EV_SURFACE_LOST = 6,
+};
+
+enum me_player_error {
+  // The player can't continue; it must be destroyed.
+  ME_PLAYER_ERROR_DECODE = 0,
+  // The platform's playback capabilities changed; a new player, possibly with
+  // other codecs, may succeed.
+  ME_PLAYER_ERROR_CAPABILITY_CHANGED = 1,
+  // The platform failed to create the player after create() returned its
+  // handle. The guest still destroys the handle. Retrying is worthwhile after
+  // ME_EV_SURFACE_READY; otherwise the stream is likely unsupported.
+  ME_PLAYER_ERROR_CREATE_FAILED = 2,
 };
 
 enum me_sample_flags {
@@ -151,6 +164,9 @@ struct me_media_caps {
   uint32_t can_change_type;
   uint32_t max_players;
   uint32_t punch_out;
+  // For a video MIME that Starboard probably plays, the largest of the common
+  // resolutions from 8K down to 240p that it plays at, and the highest frame
+  // rate at that resolution; 0 if unknown.
   uint32_t max_width;
   uint32_t max_height;
   uint32_t max_frame_rate_milli;

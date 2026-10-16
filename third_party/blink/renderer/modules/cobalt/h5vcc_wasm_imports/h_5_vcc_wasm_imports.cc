@@ -23,6 +23,7 @@
 #include "third_party/blink/renderer/core/dom/events/event.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
+#include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/workers/dedicated_worker_global_scope.h"
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_wasm_imports/h_5_vcc_wasm_player.h"
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_wasm_imports/h_5_vcc_wasm_surface.h"
@@ -32,6 +33,7 @@
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
+#include "third_party/blink/renderer/platform/weborigin/security_origin.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 
 namespace blink {
@@ -51,12 +53,27 @@ const char H5vccWasmImports::kSupplementName[] = "H5vccWasmImports";
 
 // static
 H5vccWasmImports* H5vccWasmImports::h5vccWasmImports(LocalDOMWindow& window) {
+  // Only the top-level document controls the platform; embedded content
+  // (ads, third-party widgets) must not.
+  LocalFrame* frame = window.GetFrame();
+  if (!frame || !frame->IsOutermostMainFrame()) {
+    return nullptr;
+  }
   return FromContext(window.GetExecutionContext());
 }
 
 // static
 H5vccWasmImports* H5vccWasmImports::h5vccWasmImports(
     DedicatedWorkerGlobalScope& worker) {
+  // A worker can't tell which frame created it, so require the top-level
+  // frame's origin: that admits workers of the main frame and excludes those
+  // of cross-origin iframes. Same-origin iframes can already script the main
+  // frame, so admitting their workers grants nothing new.
+  const SecurityOrigin* top_origin = worker.top_level_frame_security_origin();
+  if (!top_origin ||
+      !top_origin->IsSameOriginWith(worker.GetSecurityOrigin())) {
+    return nullptr;
+  }
   return FromContext(worker.GetExecutionContext());
 }
 

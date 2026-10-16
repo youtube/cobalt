@@ -28,6 +28,7 @@ source_set("renderer") {
     "//cobalt/media/audio:webaudio",
     "//cobalt/media/service/mojom",
     "//cobalt/shell:cobalt_shell_lib",
+    "//cobalt/starboard_wasm/player:player_settings",
     "//components/cdm/renderer",
     "//components/js_injection/renderer:renderer",
     "//components/network_hints/renderer",

@@ -19,6 +19,7 @@
 #include <memory>
 
 #include "base/functional/callback.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/task/sequenced_task_runner.h"
 #include "cobalt/browser/mojom/h5vcc_settings.mojom.h"
@@ -86,6 +87,8 @@ class CobaltContentRendererClient : public content::ContentRendererClient {
   uint64_t GetSbWindowHandle() const { return sb_window_handle_; }
 
  private:
+  class WasmPlayerSettingsSource;
+
   void EnsureH5vccSettingsRemoteInitialized();
   void OnGetSbWindow(uint64_t handle);
 
@@ -103,6 +106,8 @@ class CobaltContentRendererClient : public content::ContentRendererClient {
       h5vcc_settings_remote_;
 
   gfx::Size viewport_size_;
+
+  scoped_refptr<WasmPlayerSettingsSource> wasm_player_settings_;
 
   std::atomic<uint64_t> sb_window_handle_ = 0;
   bool window_handle_requested_ = false;
