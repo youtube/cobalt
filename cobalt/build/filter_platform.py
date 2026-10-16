@@ -79,7 +79,8 @@ def main():
   parser.add_argument(
       '--deps-file',
       required=False,
-      help='Path to precomputed target dependencies JSON (e.g. for tvos on Linux).'
+      help=('Path to precomputed target dependencies JSON (e.g. for tvos on'
+            ' Linux).'),
   )
   parser.add_argument('--changed-files', required=True)
   parser.add_argument('--targets', default='[]')
