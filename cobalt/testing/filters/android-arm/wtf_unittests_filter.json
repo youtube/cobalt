@@ -1,6 +1,6 @@
 {
   "failing_tests": [
     "CaseMapTest.ToTitleWithPreviousCharacter",
-    "StringBuilderTest.AppendSharingImpl",
+    "StringBuilderTest.AppendSharingImpl"
   ]
 }
