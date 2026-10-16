@@ -26,7 +26,7 @@ import sys
 
 
 def main() -> int:
-  if len(sys.argv) >= 2:
+  if sys.platform.startswith('linux') and len(sys.argv) >= 2:
     script_path = sys.argv[1].replace('\\', '/')
     if script_path.endswith('/build/config/apple/sdk_info.py'):
       print('machine_os_build="linux"')

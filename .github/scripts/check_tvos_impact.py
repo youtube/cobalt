@@ -275,6 +275,12 @@ def check_tvos_impact(
       build_dir = out_dir
       build_dir.mkdir(parents=True, exist_ok=True)
 
+    wrapper_script = (
+        src_dir / 'cobalt/build/tvos_linux_script_wrapper.py').resolve()
+    script_exec_args = (
+        [f'--script-executable={wrapper_script}']
+        if sys.platform.startswith('linux') else [])
+
     gn_py = src_dir / 'cobalt/build/gn.py'
     gn_gen_cmd = [
         sys.executable,
@@ -286,6 +292,7 @@ def check_tvos_impact(
         CONFIG,
         '--no-rbe',
         '--no-check',
+        *script_exec_args,
     ]
     print('Running:', ' '.join(gn_gen_cmd))
     subprocess.run(gn_gen_cmd, cwd=src_dir, check=True)
@@ -301,13 +308,10 @@ def check_tvos_impact(
         str(build_dir),
         str(in_path),
         str(out_path),
+        *script_exec_args,
     ]
-    if sys.platform.startswith('linux'):
-      gn_analyze_cmd.append('--script-executable=tvos_linux_script_wrapper.py')
     print('Running:', ' '.join(gn_analyze_cmd))
-    env = os.environ.copy()
-    env['PATH'] = f"{build_dir.resolve()}{os.pathsep}{env.get('PATH', '')}"
-    subprocess.run(gn_analyze_cmd, cwd=src_dir, env=env, check=True)
+    subprocess.run(gn_analyze_cmd, cwd=src_dir, check=True)
 
     result = json.loads(out_path.read_text(encoding='utf-8'))
     print('gn analyze result:', json.dumps(result, indent=2))
